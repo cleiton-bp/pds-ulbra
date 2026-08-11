@@ -1,0 +1,84 @@
+meta:
+  title: Exemplo — conta e usuário
+  description: Modelagem de partida, com as duas entidades básicas. Serve para conhecer o editor; copie para um arquivo novo antes de modelar de verdade.
+entities:
+  - name: Account
+    label: Conta
+    description: A unidade de isolamento. Tudo no sistema pertence a uma.
+    position: { x: 80, y: 140 }
+    fields:
+      - name: id
+        type: int
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: o que aparece em URL e API
+      - name: name
+        type: text
+        required: true
+      - name: created_at
+        type: datetime
+        note: UTC
+      - name: updated_at
+        type: datetime
+        note: UTC
+  - name: User
+    label: Usuário
+    description: Pessoa que entra no painel. Hoje uma por conta, mas a entidade já nasce separada.
+    position: { x: 520, y: 80 }
+    fields:
+      - name: id
+        type: int
+        pk: true
+      - name: public_id
+        type: guid
+        unique: true
+      - name: account_id
+        type: int
+        fk: true
+        required: true
+        note: a conta a que este usuário pertence
+      - name: google_subject
+        type: text
+        required: true
+        unique: true
+        note: o sub do Google — identificador estável
+      - name: email
+        type: text
+        note: pode mudar no Google; não serve como identidade
+      - name: name
+        type: text
+      - name: last_login_at
+        type: datetime
+        note: UTC
+relations:
+  - from: Account
+    fromField: id
+    to: User
+    toField: account_id
+    kind: one-to-many
+    note: uma conta tem vários usuários; a linha gruda nos dois campos, não na borda
+notes:
+  - text: |-
+      Por que separar Account de User já agora
+
+      Hoje é uma pessoa por conta. No dia em que alguém quiser convidar um colega,
+      sem essa separação vira migração de todas as tabelas.
+
+      Criar a entidade agora custa uma tabela; criar depois custa reescrever o isolamento.
+    anchor: Account
+    position: { x: 80, y: 420 }
+    width: 320
+  - text: |-
+      Cuidado que derruba login
+
+      Identificar a pessoa pelo e-mail parece natural e está errado: o e-mail da conta
+      Google pode mudar, o sub não.
+
+      Esta seta aponta para o campo, não para a caixa.
+    anchor: User
+    anchorField: google_subject
+    position: { x: 900, y: 300 }
+    width: 320
