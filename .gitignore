@@ -1,2 +1,5 @@
-# Conteúdo interno de documentação 
+# Conteúdo interno de documentação
 local/
+
+# Lixo que o Finder cria em qualquer pasta aberta
+.DS_Store

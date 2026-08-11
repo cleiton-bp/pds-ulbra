@@ -1,2 +1,8 @@
 node_modules/
 dist/
+
+# Cache de pré-bundle do Vite — recriado ao rodar `npm run dev` ou `npm test`
+.vite/
+
+# Sobrescritas locais de configuração (.env.local e afins)
+*.local
