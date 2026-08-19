@@ -1,0 +1,91 @@
+<h2>Endpoints</h2>
+<p class="lead">Nove rotas. Todas resolvem a conta pela sessão.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/auth/google</code></td><td>Entra com o Google. Primeiro acesso cria conta e usuário.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/auth/logout</code></td><td>Encerra a sessão.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/me</code></td><td>Usuário e conta atuais.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Lista os projetos da conta.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto e o par de chaves.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto.</td></tr>
+  <tr><td><span class="verb patch">PATCH</span></td><td><code>/projects/{publicId}</code></td><td>Renomeia, arquiva.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td>Chaves. A secreta só como prefixo.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td>Regenera a secreta e devolve <strong>uma vez</strong>.</td></tr>
+</table>
+</div>
+
+<p>Corpo de requisição e resposta de cada uma ficam no <a href="/swagger">Swagger</a>,
+gerado a partir do código.</p>
+
+<div class="note warn">
+  <strong>Não existe rota de exclusão de projeto</strong>
+  <p>Arquivar cobre o caso real — parar de aceitar coisa nova sem perder o histórico. Apagar
+  projeto envolve o que fazer com os relatos que apontam para ele, e essa decisão é da etapa
+  em que o relato existir.</p>
+</div>
+
+<h2>O envelope</h2>
+
+<p>Toda resposta tem a mesma forma, com sucesso ou sem. O painel lê o resultado num lugar só,
+em vez de descobrir o formato do erro a cada rota.</p>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Projeto criado.",
+  "Data": { ... },
+  "Total": 3
+}</code></pre>
+
+<table>
+  <tr><th>Campo</th><th>Quando aparece</th></tr>
+  <tr><td><code>Success</code></td><td>Sempre.</td></tr>
+  <tr><td><code>Message</code></td><td>Texto para quem está usando. Nulo quando não há o que dizer.</td></tr>
+  <tr><td><code>Data</code></td><td>O retorno da rota. Nulo quando falha.</td></tr>
+  <tr><td><code>Total</code></td><td>Só em listagem.</td></tr>
+</table>
+
+<h2>Formato do JSON</h2>
+
+<table>
+  <tr><th>Item</th><th>Formato</th><th>Exemplo</th></tr>
+  <tr><td>Propriedade</td><td>PascalCase</td><td><code>"PublicId"</code></td></tr>
+  <tr><td>Enum</td><td>Texto em PascalCase</td><td><code>"Active"</code>, <code>"Public"</code></td></tr>
+  <tr><td>Data e hora</td><td>ISO-8601 UTC com Z</td><td><code>"2026-08-17T22:13:43.1828520Z"</code></td></tr>
+  <tr><td>Identificador</td><td>GUID</td><td><code>"2be49b28-9c87-4594-84ab-4d1860692168"</code></td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que PascalCase, se o banco é snake_case</strong>
+  <p>É o oposto de propósito. A fronteira fica visível a olho nu: quem lê
+  <code>account_id</code> sabe que está olhando banco, quem lê <code>AccountId</code> sabe
+  que está olhando contrato.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que o "Z" na data importa</strong>
+  <p>As datas são gravadas em UTC, mas voltam do PostgreSQL sem informação de fuso. Sem o
+  "Z", o navegador leria cada uma como horário local e a linha do tempo apareceria
+  deslocada — três horas, no nosso caso.</p>
+</div>
+
+<h2>Erros</h2>
+
+<table>
+  <tr><th>Status</th><th>Quando</th></tr>
+  <tr><td><code>400</code></td><td>Requisição inválida, por exemplo nome de projeto vazio.</td></tr>
+  <tr><td><code>401</code></td><td>Sem sessão, sessão expirada ou token do Google inválido.</td></tr>
+  <tr><td><code>403</code></td><td>Regra de negócio negou o acesso. O mapeamento existe, mas nenhuma rota da etapa 1 chega a produzi-lo.</td></tr>
+  <tr><td><code>404</code></td><td>Não existe — ou existe em outra conta. Ver <a href="#/isolamento">isolamento</a>.</td></tr>
+  <tr><td><code>409</code></td><td>Conflito, por exemplo nome de projeto já usado na conta.</td></tr>
+  <tr><td><code>429</code></td><td>Limite de requisições no login.</td></tr>
+  <tr><td><code>500</code></td><td>Erro não previsto.</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>O 500 não conta o motivo</strong>
+  <p>A resposta é sempre "Erro ao processar a requisição". Mensagem interna vazada em
+  resposta conta ao curioso como o sistema é por dentro; o detalhe vai para o log do
+  servidor.</p>
+</div>

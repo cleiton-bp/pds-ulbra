@@ -1,0 +1,95 @@
+<h2>Arquitetura</h2>
+<p class="lead">Seis projetos, dependência sempre apontando para dentro.</p>
+
+<div class="diagram">          <b>Pds.WebApi</b>              rotas, middleware, pipeline HTTP
+               │
+          <b>Pds.Shared</b>              injeção de dependência, contrato JSON, envelope
+          ┌────┴─────┐
+   <b>Pds.Service</b>   <b>Pds.Data</b>       regras de negócio  ·  contexto, repositórios, migrações
+          └────┬─────┘
+          <b>Pds.Domain</b>              entidades, enums, contratos, DTOs
+               │
+          <b>Pds.ApiBase</b>             genérico, não conhece o domínio</div>
+
+<p>A linha liga quem usa a quem é usado, de cima para baixo. Repare que
+<code>Pds.Service</code> e <code>Pds.Data</code> ficam lado a lado, e não um sobre o
+outro.</p>
+
+<div class="note why">
+  <strong>A regra de negócio não conhece o banco</strong>
+  <p><code>Pds.Service</code> não referencia <code>Pds.Data</code>. Ele conhece apenas
+  <code>IUnitOfWork</code> e as interfaces de repositório, que ficam em
+  <code>Pds.Domain</code>. Quem implementa é <code>Pds.Data</code>, e quem junta os dois é
+  <code>Pds.Shared</code>, no registro de dependências.</p>
+  <p>O ganho é concreto: trocar de banco, ou testar um serviço com um repositório de
+  mentira, não encosta numa linha de regra de negócio.</p>
+</div>
+
+<p><code>Pds.ApiBase</code> não sabe que existe conta, projeto ou chave — é o que
+permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
+<code>Pds.Domain</code> não sabe que o banco é PostgreSQL.</p>
+
+<div class="note why">
+  <strong>Por que monólito modular, e não microsserviços</strong>
+  <p>Separar em serviços resolve problema de escala e de times independentes. Não é o nosso
+  caso, e o custo apareceria de imediato: rede entre partes, transação distribuída e
+  ambiente mais difícil de subir. As fronteiras entre camadas já estão aqui — se um dia uma
+  precisar sair, ela sai por onde já está separada.</p>
+</div>
+
+<h2>O que cada camada carrega</h2>
+
+<table>
+  <tr><th>Camada</th><th>Contém</th><th>Não pode conter</th></tr>
+  <tr>
+    <td><code>ApiBase</code></td>
+    <td>Entidade base, repositório genérico, Unit of Work</td>
+    <td>Nada do domínio</td>
+  </tr>
+  <tr>
+    <td><code>Domain</code></td>
+    <td>Entidades, enums, interfaces, DTOs, view models</td>
+    <td>Acesso a banco, HTTP</td>
+  </tr>
+  <tr>
+    <td><code>Data</code></td>
+    <td>Contexto, mapeamentos, repositórios, migrações</td>
+    <td>Regra de negócio</td>
+  </tr>
+  <tr>
+    <td><code>Service</code></td>
+    <td>Regra de negócio, geração de chave, token</td>
+    <td>Tipos de HTTP</td>
+  </tr>
+  <tr>
+    <td><code>Shared</code></td>
+    <td>Registro de dependências, contrato JSON</td>
+    <td>Regra de negócio</td>
+  </tr>
+  <tr>
+    <td><code>WebApi</code></td>
+    <td>Controladores, middleware, configuração</td>
+    <td>Regra de negócio, consulta direta</td>
+  </tr>
+</table>
+
+<h2>Onde fica no código</h2>
+
+<p>Mapa para quando a pergunta for "preciso mexer em X, vou onde".</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Quero mexer em</th><th>Arquivo</th></tr>
+  <tr><td>Colunas que toda tabela repete</td><td><code>Pds.ApiBase/Entities/BaseEntity.cs</code></td></tr>
+  <tr><td>Consulta genérica (buscar, listar, apagar)</td><td><code>Pds.ApiBase/Repositories/BaseRepository.cs</code></td></tr>
+  <tr><td>Exclusão lógica, auditoria, GUID público</td><td><code>Pds.Data/Context/PdsBaseContext.cs</code></td></tr>
+  <tr><td>Isolamento entre contas</td><td><code>Pds.Data/Context/DataContext.cs</code></td></tr>
+  <tr><td>Nome de tabela, coluna, índice</td><td><code>Pds.Data/Types/*Map.cs</code></td></tr>
+  <tr><td>Login e criação de conta</td><td><code>Pds.Service/Services/AuthService.cs</code></td></tr>
+  <tr><td>Geração e conferência de chave</td><td><code>Pds.Service/Security/ProjectKeyGenerator.cs</code></td></tr>
+  <tr><td>Quem é a conta da requisição</td><td><code>Pds.WebApi/Authorization/AccountMiddleware.cs</code></td></tr>
+  <tr><td>Tradução de erro para status HTTP</td><td><code>Pds.WebApi/Controllers/BaseController.cs</code></td></tr>
+  <tr><td>Registro de serviço novo</td><td><code>Pds.Shared/DependencyInjection/DiResolver.cs</code></td></tr>
+  <tr><td>Formato do JSON</td><td><code>Pds.Shared/Json/PdsJsonOptions.cs</code></td></tr>
+</table>
+</div>

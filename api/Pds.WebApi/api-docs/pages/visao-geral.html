@@ -1,0 +1,58 @@
+<h2>Visão geral</h2>
+<p class="lead">O que a API faz hoje, e o que ela ainda não faz.</p>
+
+<p>Quem relata um problema num software fica sem notícia. O relato chega por WhatsApp,
+e-mail ou telefone, alguém do time transcreve para a ferramenta interna, e ali ele deixa
+de existir para quem o originou: sem protocolo, sem link, sem aviso de resolução.</p>
+
+<p>O absurdo é que <strong>a informação existe</strong>. O registro se moveu três vezes hoje,
+tem responsável e posição na fila. Ela só está trancada numa ferramenta interna à qual o
+relator não tem acesso, e nem deveria ter, porque ali estão outros clientes e discussão
+interna.</p>
+
+<p>O PDS é a camada pública que fica na frente dessa ferramenta. Não substitui a gestão de
+trabalho do time: traduz o que acontece lá dentro para uma jornada curta que o relator
+entende, do mesmo jeito que se acompanha uma entrega.</p>
+
+<h2>O que esta etapa cobre</h2>
+
+<p>A API está na <strong>etapa 1 — Fundação</strong>. Nada disso é visível para quem relata
+ainda; é o que precisa existir antes de qualquer relato entrar.</p>
+
+<table>
+  <tr><th>Entra</th><th>Não entra ainda</th></tr>
+  <tr>
+    <td>
+      Conta, usuário, projeto e chaves<br />
+      Login com Google<br />
+      Isolamento entre contas<br />
+      Chave pública e secreta por projeto
+    </td>
+    <td>
+      Widget e recebimento de relato<br />
+      Etapas públicas e motor de tradução<br />
+      Notificação<br />
+      Conectores (Jira, Trello, GitHub)
+    </td>
+  </tr>
+</table>
+
+<div class="note why">
+  <strong>Por que começar por aqui</strong>
+  <p>Isolamento entre contas e identificador público não são coisas que se acrescentam
+  depois. Os dois atravessam toda tabela e toda consulta: adiar significa reescrever o
+  acesso a dados quando já houver dado de cliente dentro.</p>
+</div>
+
+<h2>Como ler esta documentação</h2>
+
+<p>As páginas seguem a ordem do menu e vão do geral ao concreto: primeiro a
+<a href="#/arquitetura">arquitetura</a> e a <a href="#/modelagem">modelagem</a>, depois as
+três decisões que sustentam o resto — <a href="#/autenticacao">autenticação</a>,
+<a href="#/isolamento">isolamento</a> e <a href="#/seguranca">segurança das chaves</a> — e
+por fim o operacional: <a href="#/endpoints">rotas</a>, <a href="#/fluxo">fluxo</a> e
+<a href="#/como-rodar">como rodar</a>.</p>
+
+<p>A lista de rotas com corpo de requisição e resposta fica no
+<a href="/swagger">Swagger</a>, gerado a partir do próprio código. Esta documentação
+explica o <em>porquê</em>; o Swagger mostra o <em>quê</em>.</p>

@@ -1,0 +1,94 @@
+<h2>Autenticação</h2>
+<p class="lead">Login com Google, sessão por token. Não existe senha no sistema.</p>
+
+<p>Quem entra no painel se identifica pelo Google. A API não guarda senha, não tem
+recuperação de senha e não confirma e-mail — três telas e três superfícies de ataque que
+simplesmente não existem.</p>
+
+<h2>O caminho do login</h2>
+
+<div class="diagram">painel                          API                        Google
+  │                             │                            │
+  │  Sign-In no navegador ──────┼───────────────────────────▶│
+  │◀──────────────────────────── id_token ───────────────────│
+  │                             │                            │
+  │── POST /auth/google ───────▶│                            │
+  │      { IdToken }            │── confere assinatura ─────▶│
+  │                             │◀── chaves públicas ────────│
+  │                             │                            │
+  │                             │  sub conhecido? entra      │
+  │                             │  sub novo?  cria conta     │
+  │◀── { AccessToken, User } ───│                            │</div>
+
+<p>O Sign-In acontece no navegador, e a API recebe apenas o token de identidade que o Google
+emitiu. Não há <em>client secret</em> aqui: a API só confere, nunca pede.</p>
+
+<div class="note warn">
+  <strong>O que a conferência precisa validar</strong>
+  <p>Assinatura, emissor, validade e <strong>destinatário</strong>. O destinatário é o ponto
+  que mais se esquece: sem exigir que o token tenha sido emitido para o nosso
+  <code>GOOGLE_CLIENT_ID</code>, qualquer token válido do Google, emitido para qualquer
+  outro site, seria aceito — e entrar viraria questão de ter um token, não de ser a pessoa.</p>
+</div>
+
+<h2>Não existe cadastro</h2>
+
+<p>O primeiro acesso cria conta e usuário no mesmo movimento. Uma tela a menos para quem usa
+e um estado a menos para o sistema: não existe "conta criada mas sem ninguém dentro".</p>
+
+<p>A busca é sempre pelo <code>google_subject</code>, nunca pelo e-mail. O motivo está na
+<a href="#/modelagem">modelagem</a>.</p>
+
+<h2>A sessão</h2>
+
+<p>A resposta do login traz um JWT assinado em HS256, com validade de 8 horas por padrão
+(<code>JWT_EXPIRATION_HOURS</code>). O painel manda esse token no cabeçalho:</p>
+
+<pre><code>Authorization: Bearer &lt;token&gt;</code></pre>
+
+<table>
+  <tr><th>Claim</th><th>Conteúdo</th></tr>
+  <tr><td><code>uid</code></td><td><code>public_id</code> do usuário</td></tr>
+  <tr><td><code>acc</code></td><td><code>public_id</code> da conta</td></tr>
+  <tr><td><code>iss</code> / <code>aud</code> / <code>exp</code></td><td>Emissor, destinatário e expiração</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que só identificadores públicos no token</strong>
+  <p>Um JWT é assinado, não cifrado: qualquer um que o tenha consegue ler o conteúdo. Colocar
+  o <code>id</code> interno ali seria expor justamente o número sequencial que a modelagem
+  faz questão de manter dentro de casa.</p>
+  <p>O preço é uma consulta por requisição para traduzir o GUID na chave interna. É uma busca
+  em índice único, e vale a troca.</p>
+</div>
+
+<div class="note warn">
+  <strong>O <code>acc</code> não é confiado pelo servidor</strong>
+  <p>A conta usada nas consultas vem sempre da linha do usuário no banco, resolvida pelo
+  middleware — nunca do claim. O <code>acc</code> existe para o painel saber em qual conta
+  está sem uma chamada extra. Quem for mexer aqui não deve passar a confiar nele.</p>
+</div>
+
+<h2>Sem tolerância de relógio</h2>
+
+<p>A validação usa <code>ClockSkew = TimeSpan.Zero</code>. O padrão do .NET aceita cinco
+minutos a mais, o que na prática estende toda sessão em cinco minutos sem ninguém ter
+decidido isso.</p>
+
+<h2>Sair</h2>
+
+<p><code>POST /auth/logout</code> responde 200 e nada mais. O token é autocontido: quem o tem
+continua podendo usá-lo até expirar, e não há como invalidá-lo sem manter uma lista de
+revogados.</p>
+
+<div class="note todo">
+  <strong>Limitação conhecida</strong>
+  <p>Quem descarta o token é o painel. A rota existe para haver um lugar único de "sair" e
+  para ser onde a lista de revogados entra, no dia em que derrubar sessão de verdade for
+  requisito.</p>
+</div>
+
+<h2>Proteção da rota de login</h2>
+
+<p>Limite de 20 requisições por minuto por IP. O controle de verdade é o Google validar o
+token; isso apenas evita que alguém fique martelando a rota.</p>
