@@ -1,0 +1,24 @@
+# Empacotamento da API.
+#
+#   docker compose up -d --build
+#
+# Não há serviço de banco aqui: o PostgreSQL é hospedado, e a conexão vem do
+# Environment/.env.local. Subir um banco local ao lado seria um convite a rodar
+# migração no lugar errado sem perceber.
+name: pds
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pds-api:dev
+    container_name: pds-api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+      - ./Pds.WebApi/Environment/.env.local:/app/Environment/.env.local:ro
+    ports:
+      - "${API_PORT:-5080}:8080"
+    restart: unless-stopped
