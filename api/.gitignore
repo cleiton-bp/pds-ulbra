@@ -1,0 +1,25 @@
+## Artefatos de build
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+## .NET
+*.user
+*.suo
+*.sln.docstates
+
+## IDE
+.idea/
+.vs/
+.vscode/
+
+## Segredos e ambiente (NAO versionar)
+.env
+.env.local
+.env.*.local
+**/Environment/.env.local
+
+## Resultado de teste
+[Tt]est[Rr]esult*/
+*.coverage
+coverage/
