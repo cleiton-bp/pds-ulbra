@@ -1,0 +1,328 @@
+meta:
+  title: Etapa 1 — Fundação
+  description: Conta, usuário, projeto e chaves, que é o que precisa existir antes de qualquer relato entrar, e por isso relato, estados internos e etapas públicas são modelados depois, à parte.
+entities:
+  - name: base_columns
+    label: Colunas padrão
+    description: Não é tabela, é o conjunto de colunas que toda tabela do sistema repete, desenhado aqui uma vez para não precisar explicar em cada uma delas.
+    position: { x: 55, y: -186 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: created_at
+        type: datetime
+        note: quando o registro foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o registro vale, preenchido no lugar de apagar
+  - name: accounts
+    label: Contas
+    description: Existe para ser a fronteira de isolamento, é a única garantia de que o dado de um cliente não aparece para outro, e por isso toda tabela do sistema pendura nela.
+    position: { x: 88, y: 195 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: name
+        type: text
+        required: true
+        note: nome da conta, exibido no painel
+      - name: created_at
+        type: datetime
+        note: quando a conta foi criada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a conta vale, preenchido no lugar de apagar
+      - name: purge_at
+        type: datetime
+        note: data em que a exclusão vira definitiva, gravada no pedido para sobreviver a mudança de política
+      - name: anonymized_at
+        type: datetime
+        note: quando a identificação foi removida, e a partir daí nenhuma linha da conta guarda dado pessoal
+  - name: users
+    label: Usuários
+    description: Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra, e fica separada de accounts porque quem é dono da conta não é necessariamente quem opera, então no dia em que a conta tiver dois operadores nada muda de estrutura.
+    position: { x: 579, y: -20 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: account_id
+        type: long
+        fk: true
+        required: true
+        note: conta a que este usuário pertence
+      - name: google_subject
+        type: text
+        required: true
+        unique: true
+        note: o sub do Google, identificador estável, é por ele que o login reconhece a pessoa
+      - name: email
+        type: text
+        note: pode mudar no Google, guardado para contato, não serve como identidade
+      - name: name
+        type: text
+        note: nome vindo do Google
+      - name: avatar_url
+        type: text
+        note: foto vinda do Google, opcional
+      - name: created_at
+        type: datetime
+        note: quando o usuário foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o usuário vale, preenchido no lugar de apagar
+      - name: last_login_at
+        type: datetime
+        note: último acesso, em UTC
+  - name: projects
+    label: Projetos
+    description: Existe para ser a unidade que o cliente configura e a que identifica de onde veio cada relato, porque sem ela um cliente com dois sistemas teria configuração e relatos misturados num monte só, e usar o mesmo projeto em mais de um sistema continua permitido.
+    position: { x: 546, y: 346 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador usado na URL do painel
+      - name: account_id
+        type: long
+        fk: true
+        required: true
+        note: conta dona do projeto
+      - name: name
+        type: text
+        required: true
+        note: nome do projeto, único dentro da conta entre os que não foram apagados
+      - name: status
+        type: enum
+        required: true
+        note: active | archived, arquivado continua visível, só para de aceitar coisa nova
+      - name: created_at
+        type: datetime
+        note: quando o projeto foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o projeto vale, preenchido no lugar de apagar
+  - name: project_keys
+    label: Chaves do projeto
+    description: Existe para ligar o sistema do cliente ao nosso, e é tabela separada em vez de duas colunas em projects porque chave precisa ser rotacionada e revogada, e guardar quando cada uma valeu é o que permite investigar um incidente depois.
+    position: { x: 918, y: 443 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da chave
+      - name: type
+        type: enum
+        required: true
+        note: public | secret, define se o valor é guardado em claro ou como hash
+      - name: value
+        type: text
+        note: só para a pública, pode ser lida à vontade, por isso fica em claro
+      - name: hash
+        type: text
+        note: só para a secreta, o valor original nunca é guardado
+      - name: prefix
+        type: text
+        note: primeiros caracteres, para identificar a chave na lista sem revelá-la
+      - name: created_at
+        type: datetime
+        note: quando a chave foi gerada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a linha vale, preenchido no lugar de apagar
+      - name: revoked_at
+        type: datetime
+        note: nulo enquanto válida, preenchido ao regenerar, em UTC
+      - name: last_used_at
+        type: datetime
+        note: último uso, em UTC, ajuda a saber se dá para revogar sem quebrar nada
+relations:
+  - from: accounts
+    fromField: id
+    to: users
+    toField: account_id
+    kind: one-to-many
+    note: "Todo usuário pertence a uma conta, e é por esta ligação que o isolamento funciona: a sessão diz quem é o usuário, o usuário diz qual é a conta, e a conta filtra todo o resto, então hoje é um por conta mas a cardinalidade já nasce 1:N."
+  - from: accounts
+    fromField: id
+    to: projects
+    toField: account_id
+    kind: one-to-many
+    note: "Uma conta tem vários projetos, normalmente um por sistema, e projeto nunca é órfão: remover a conta leva os projetos junto, porque fora dela não há a quem pertencer."
+  - from: projects
+    fromField: id
+    to: project_keys
+    toField: project_id
+    kind: one-to-many
+    note: Um projeto tem uma chave pública e uma secreta válidas por vez, mais o histórico das revogadas, e é 1:N justamente por causa do histórico, porque se fossem duas colunas em projects regenerar apagaria o rastro da chave anterior.
+notes:
+  - text: |-
+      Toda tabela repete as colunas padrão
+
+      base_columns não vira tabela no banco, é a lista do que se repete em todas, id, created_at, updated_at e deleted_at, e quem criar tabela nova daqui para frente começa por elas.
+    anchor: base_columns
+    position: { x: -318, y: -149 }
+    width: 320
+  - text: |-
+      Apagar é preencher deleted_at
+
+      Toda consulta precisa filtrar deleted_at nulo do mesmo jeito que filtra account_id, e esquecer uma vez faz dado apagado reaparecer na tela.
+
+      Índice único precisa ignorar o que foi apagado, senão o nome de um projeto excluído continua ocupando o lugar e o cliente não consegue reaproveitar.
+
+      Vale lembrar que soft delete não é exclusão, e pedido de LGPD exige apagar de verdade ou anonimizar.
+    anchor: base_columns
+    anchorField: deleted_at
+    position: { x: 344, y: -319 }
+    width: 340
+  - text: |-
+      Por que separar accounts de users já agora
+
+      Hoje é uma pessoa por conta no dia em que alguém quiser convidar um colega, sem essa separação vira migração de todas as tabelas.
+    anchor: accounts
+    position: { x: -312, y: 212 }
+    width: 320
+  - text: |-
+      Identificar a pessoa pelo e-mail parece natural e está errado: o e-mail da conta Google pode mudar, o sub não.
+
+      Quem usa e-mail como chave acaba criando conta duplicada ou, pior, entregando a conta de alguém a quem herdou o endereço.
+    anchor: users
+    anchorField: google_subject
+    position: { x: 880, y: -40 }
+    width: 320
+  - text: |-
+      As duas chaves não são guardadas do mesmo jeito
+
+      A pública vai aparecer no site do cliente -> guardar em claro é correto.
+
+      A secreta é exibida uma única vez e o banco fica só com o hash, e o painel conseguir mostrar de novo, ela deixou de ser secreta.
+    anchor: project_keys
+    anchorField: hash
+    position: { x: 1335, y: 786 }
+    width: 340
+  - text: |-
+      Regenerar não sobrescreve
+
+      Revogar preenche revoked_at e cria uma linha nova, o histórico de quando cada chave valeu é o que permite investigar um incidente depois.
+
+      revoked_at e deleted_at são coisas diferentes, a revogada continua existindo de propósito, a apagada some da lista.
+    anchor: project_keys
+    anchorField: revoked_at
+    position: { x: 1284, y: 1156 }
+    width: 340
+  - text: |-
+      Isolamento
+
+      Toda consulta filtra por account_id, na camada de acesso -> não em cada chamada.
+
+      Se depender de lembrar, um dia alguém esquece, e aqui esquecer é entregar dado de outro cliente.
+    anchor: accounts
+    position: { x: -27, y: 521 }
+    width: 320
+  - text: |-
+      Excluir é anonimizar, não apagar a linha
+
+      Passado o prazo, accounts e users perdem a identificação e ficam de âncora para o histórico, e o resto some de verdade.
+
+      Em users saem name, email, avatar_url e google_subject, e limpar o google_subject é o que impede a conta de ser reencontrada num login futuro.
+
+      Anonimizar só users não resolve, porque accounts.name e projects.name identificam igual, e o que vier pendurado depois, domínios autorizados e os próprios relatos, identifica ainda mais.
+
+      Por isso projeto, chaves, domínios e relatos são apagados de verdade, ficando apenas contagem e tempo, que não identificam ninguém e são o que a pesquisa precisa.
+    anchor: accounts
+    anchorField: anonymized_at
+    position: { x: 381, y: 609 }
+    width: 340
+  - text: |-
+      Excluir a conta tem prazo de arrependimento
+
+      Planejado para depois, no perfil, apagando tudo de verdade 24h após o pedido, para o caso de exclusão acidental.
+
+      O prazo mora em purge_at em vez de sair de deleted_at mais 24h, porque no dia em que a política mudar quem já pediu mantém o prazo que foi prometido.
+
+      Entrar no painel dentro do prazo deve cancelar a exclusão sozinho, é o desfazer que a pessoa vai procurar primeiro, e sem isso ela precisa falar com alguém.
+    anchor: accounts
+    anchorField: deleted_at
+    position: { x: -406, y: 356 }
+    width: 340
+  - text: |-
+      A secreta não usa hash de senha
+
+      bcrypt e afins são lentos de propósito, feitos para senha digitada por gente, e a chave secreta é conferida a cada requisição da API.
+
+      Como ela já nasce longa e aleatória, um hash rápido resolve, e usar bcrypt aqui deixaria toda chamada mais lenta sem ganhar segurança.
+    anchor: project_keys
+    anchorField: hash
+    position: { x: 1308, y: 961 }
+    width: 340
+  - text: |-
+      O índice que mais vai doer
+
+      Toda requisição vinda do sistema do cliente começa procurando o projeto pela chave pública, então value precisa de índice desde o começo.
+
+      É a consulta mais quente do sistema inteiro, e ela cresce junto com o número de relatos, não com o número de clientes.
+    anchor: project_keys
+    anchorField: value
+    position: { x: 1359, y: 595 }
+    width: 340
+  - text: |-
+      email não é único de propósito
+
+      Duas contas Google diferentes podem acabar com o mesmo endereço ao longo do tempo, e quem manda é o google_subject.
+
+      Alguém vai olhar isso depois e achar que faltou um índice único, então fica registrado que a ausência é escolha, não esquecimento.
+    anchor: users
+    anchorField: email
+    position: { x: 881, y: 134 }
+    width: 340
+  - text: |-
+      value e hash nunca vêm juntos
+
+      A linha da chave pública preenche value e deixa hash nulo, a da secreta faz o contrário, e vale uma trava no banco garantindo isso.
+
+      Sem a trava, um erro de código grava a secreta em claro no value e ninguém percebe, porque a tela continua funcionando igual.
+    anchor: project_keys
+    anchorField: type
+    position: { x: 1358, y: 398 }
+    width: 340
