@@ -62,6 +62,7 @@ export default function App() {
     'app',
     showFiles ? '' : 'app--no-files',
     showPanel ? '' : 'app--no-panel',
+    canEdit ? '' : 'app--no-doc',
   ].filter(Boolean).join(' ')
 
   return (

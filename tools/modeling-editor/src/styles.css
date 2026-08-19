@@ -60,31 +60,53 @@ kbd {
 
 /* ---- estrutura da tela -------------------------------------------------- */
 
+/* As laterais encolhem junto com a janela em vez de comerem o canvas: em tela larga
+   ficam no tamanho cheio, em tela estreita cedem espaço até um piso legível. */
 .app {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 340px;
+  grid-template-columns:
+    clamp(150px, 15vw, 220px)
+    minmax(0, 1fr)
+    clamp(230px, 25vw, 340px);
+  /* Cada área tem lugar fixo. Sem isso, esconder uma lateral com `display: none`
+     tira ela do fluxo do grid e joga o canvas para a coluna da lateral — que pode
+     ter largura zero, e aí a tela inteira colapsa num canto. */
+  grid-template-areas: 'files board panel';
   height: 100%;
+  overflow: hidden;
 }
 
-/* Laterais fechadas: a coluna some e o canvas ocupa o espaço. `display: none` em vez
+.sidebar { grid-area: files; }
+.board { grid-area: board; }
+.panel { grid-area: panel; }
+
+/* Laterais fechadas: a coluna zera e o canvas ocupa o espaço. `display: none` em vez
    de largura zero preserva o estado dos campos de dentro ao reabrir. */
-.app--no-files { grid-template-columns: 0 minmax(0, 1fr) 340px; }
-.app--no-panel { grid-template-columns: 220px minmax(0, 1fr) 0; }
+.app--no-files { grid-template-columns: 0 minmax(0, 1fr) clamp(230px, 25vw, 340px); }
+.app--no-panel { grid-template-columns: clamp(150px, 15vw, 220px) minmax(0, 1fr) 0; }
 .app--no-files.app--no-panel { grid-template-columns: 0 minmax(0, 1fr) 0; }
 
 .app--no-files .sidebar,
 .app--no-panel .panel { display: none; }
 
-.board { display: flex; flex-direction: column; min-width: 0; }
+/* Enquanto nenhum arquivo está aberto o painel não é renderizado; sem isso a coluna
+   dele continuaria reservando espaço à toa. */
+.app--no-doc { grid-template-columns: clamp(150px, 15vw, 220px) minmax(0, 1fr) 0; }
+.app--no-doc.app--no-files { grid-template-columns: 0 minmax(0, 1fr) 0; }
 
-.canvas { flex: 1; min-height: 0; position: relative; }
+.board { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+.canvas { flex: 1; min-height: 0; min-width: 0; position: relative; }
 
 .empty-state {
   height: 100%;
   display: grid;
   place-items: center;
+  padding: 24px;
   color: var(--text-dim);
 }
+
+.empty-state p { margin: 0; max-width: 32ch; text-align: center; }
 
 /* ---- lista de arquivos -------------------------------------------------- */
 
