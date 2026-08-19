@@ -1,0 +1,97 @@
+<h2>Fluxo rápido</h2>
+<p class="lead">Do zero ao projeto com chaves, em três chamadas.</p>
+
+<h2>1. Entrar</h2>
+
+<p>O painel faz o Sign-In com o Google e manda o token recebido:</p>
+
+<pre><code>POST /auth/google
+{ "IdToken": "&lt;id_token do Google&gt;" }</code></pre>
+
+<p>Resposta:</p>
+
+<pre><code>{
+  "Success": true,
+  "Data": {
+    "AccessToken": "eyJhbGciOi...",
+    "ExpiresAt": "2026-08-18T06:13:43Z",
+    "User": {
+      "PublicId": "aaaaaaaa-...",
+      "Name": "Ana",
+      "Account": { "PublicId": "11111111-...", "Name": "Conta de Ana" }
+    }
+  }
+}</code></pre>
+
+<p>Se for o primeiro acesso, a conta e o usuário nasceram nesta chamada. Não há tela de
+cadastro.</p>
+
+<h2>2. Criar o projeto</h2>
+
+<pre><code>POST /projects
+Authorization: Bearer &lt;AccessToken&gt;
+
+{ "Name": "Loja Online" }</code></pre>
+
+<p>A resposta traz o projeto e as duas chaves — e é a <strong>única vez</strong> que o valor
+da chave secreta existe fora do servidor:</p>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Projeto criado. Guarde a chave secreta: ela nao sera exibida de novo.",
+  "Data": {
+    "Project":   { "PublicId": "2be49b28-...", "Name": "Loja Online", "Status": "Active" },
+    "PublicKey": { "Type": "Public", "Value": "pk_1R0KtQwzLCVyS4RKh-8CqcHy" },
+    "SecretKey": { "Value": "sk_17QxAnh7pQ1raP8J1RtxgWOn0OL6Zx_S2voTo-8TJW4",
+                   "Prefix": "sk_17QxAnh7" }
+  }
+}</code></pre>
+
+<div class="note why">
+  <strong>Por que as chaves nascem junto com o projeto</strong>
+  <p>Sem elas o projeto não serve para nada. Obrigar a um segundo passo só cria a chance de
+  esquecer e descobrir depois, na hora de integrar.</p>
+</div>
+
+<p>Projeto, chave pública e chave secreta entram numa gravação só: ou tudo entra, ou nada
+entra. Não existe projeto sem chave.</p>
+
+<h2>3. Conferir as chaves</h2>
+
+<pre><code>GET /projects/2be49b28-.../keys</code></pre>
+
+<pre><code>{
+  "Data": [
+    { "Type": "Public", "Value": "pk_1R0Kt...", "Prefix": "pk_1R0KtQwz", "IsActive": true },
+    { "Type": "Secret", "Value": null,          "Prefix": "sk_17QxAnh7", "IsActive": true }
+  ],
+  "Total": 2
+}</code></pre>
+
+<p>A secreta vem com <code>Value: null</code>. Não é a tela que esconde — o banco não tem o
+valor dela para devolver.</p>
+
+<h2>Regenerar a chave secreta</h2>
+
+<pre><code>POST /projects/2be49b28-.../keys/secret</code></pre>
+
+<p>A anterior é revogada e uma nova nasce, com o valor devolvido uma vez. Listando de novo,
+aparecem as três linhas:</p>
+
+<div class="diagram">Secret  sk_pAzFhfsQ   ativa    (a nova)
+Public  pk_1R0KtQwz   ativa
+Secret  sk_17QxAnh7   revogada (fica como histórico)</div>
+
+<div class="note warn">
+  <strong>Regenerar quebra as integrações que usam a chave antiga</strong>
+  <p>É imediato e não tem desfazer. A anterior não é apagada porque o histórico de quando
+  cada chave valeu é o que permite investigar um incidente depois.</p>
+</div>
+
+<h2>Arquivar</h2>
+
+<pre><code>PATCH /projects/2be49b28-...
+{ "Status": "Archived" }</code></pre>
+
+<p>O que não vier no corpo fica como está. Arquivar não apaga nada: o projeto continua
+visível e consultável, só para de aceitar coisa nova.</p>

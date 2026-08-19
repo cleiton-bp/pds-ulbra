@@ -1,0 +1,85 @@
+<h2>Isolamento por conta</h2>
+<p class="lead">A parte do sistema onde um erro custa mais caro.</p>
+
+<p>Cada conta enxerga apenas os próprios dados. Não é uma regra que cada consulta aplica: é
+uma propriedade do acesso a dados.</p>
+
+<div class="note why">
+  <strong>Por que não filtrar em cada consulta</strong>
+  <p>Filtrar por conta em cada método funciona enquanto todo mundo lembra. Um dia alguém
+  escreve uma consulta nova e esquece — e aqui esquecer é entregar dado de outro cliente. O
+  filtro precisa estar onde não dá para esquecer.</p>
+</div>
+
+<h2>Onde o filtro mora</h2>
+
+<p>Em <code>DataContext</code>, como filtro global de consulta:</p>
+
+<pre><code>modelBuilder.Entity&lt;Project&gt;()
+    .HasQueryFilter(project =&gt;
+        project.DeletedAt == null &amp;&amp;
+        project.AccountId == CurrentAccountId);</code></pre>
+
+<p>O EF lê <code>CurrentAccountId</code> a cada consulta, então o filtro acompanha a
+requisição. Toda leitura de projeto já nasce restrita, venha de onde vier.</p>
+
+<h3>As chaves chegam pela navegação</h3>
+
+<pre><code>modelBuilder.Entity&lt;ProjectKey&gt;()
+    .HasQueryFilter(key =&gt;
+        key.DeletedAt == null &amp;&amp;
+        key.Project.DeletedAt == null &amp;&amp;
+        key.Project.AccountId == CurrentAccountId);</code></pre>
+
+<p>A tabela <code>project_keys</code> não repete <code>account_id</code>, porque a chave não
+existe fora de um projeto. O preço é o filtro passar pela navegação; o ganho é não ter a
+mesma informação em duas tabelas podendo divergir.</p>
+
+<h2>De onde vem a conta</h2>
+
+<p>Do token, e só. O <code>AccountMiddleware</code> roda depois da autenticação, lê o
+<code>uid</code>, busca a linha do usuário e preenche o contexto da requisição.</p>
+
+<div class="diagram">token validado
+    │
+    └─▶ uid (GUID do usuário)
+          │
+          └─▶ consulta no banco ─▶ id interno do usuário
+                                   id interno da conta
+                                        │
+                                        └─▶ filtro global do contexto</div>
+
+<div class="note warn">
+  <strong>Nenhuma rota aceita conta por parâmetro</strong>
+  <p>Não há <code>?accountId=</code>, nem campo de conta no corpo de nenhuma requisição. Se o
+  cliente pudesse informar a conta, o isolamento viraria sugestão.</p>
+</div>
+
+<h3>Sem sessão, nada volta</h3>
+
+<p>Sem usuário identificado, <code>CurrentAccountId</code> é zero, que não corresponde a
+nenhuma conta. O padrão é não ver nada, e não ver tudo.</p>
+
+<h2>Por que 404, e não 403</h2>
+
+<p>Pedir um projeto de outra conta responde <strong>404 Não encontrado</strong>.</p>
+
+<p>Do ponto de vista do código não há escolha: o filtro global simplesmente não devolve a
+linha, então para a aplicação o projeto não existe mesmo. E é também a resposta certa do
+ponto de vista de quem pergunta — dizer "existe, mas não é seu" já é contar que existe.</p>
+
+<h2>Identidade fica de fora do filtro</h2>
+
+<p><code>accounts</code> e <code>users</code> não têm filtro de conta. São as tabelas
+consultadas no login, quando ainda não se sabe de qual conta a pessoa é — filtrá-las
+quebraria a única consulta que precisa acontecer antes da sessão existir.</p>
+
+<p>Nenhuma rota lista usuário ou conta de forma aberta: o acesso a elas passa sempre pelo
+identificador que veio do token.</p>
+
+<div class="note todo">
+  <strong>O que falta</strong>
+  <p>O critério de pronto da etapa 1 pede um teste automatizado provando que uma conta não
+  alcança o projeto de outra por nenhum caminho. O comportamento foi verificado à mão, mas
+  ainda não está registrado como teste.</p>
+</div>

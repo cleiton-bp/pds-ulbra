@@ -1,0 +1,155 @@
+<h2>Modelagem</h2>
+<p class="lead">Quatro tabelas, e as decisões que cada uma carrega.</p>
+
+<div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
+    │
+    └───1:N──  <b>projects</b>  ──1:N──  <b>project_keys</b></div>
+
+<p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto —
+não na conta — porque chave não existe fora de um projeto.</p>
+
+<h2>Colunas que toda tabela repete</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Tipo</th><th>Para quê</th></tr>
+  <tr><td><code>id</code></td><td>bigint</td><td>Chave interna. Nunca sai da aplicação.</td></tr>
+  <tr><td><code>public_id</code></td><td>uuid</td><td>Identificador público. É o que aparece em URL e API.</td></tr>
+  <tr><td><code>created_at</code></td><td>timestamp</td><td>Criação, em UTC.</td></tr>
+  <tr><td><code>updated_at</code></td><td>timestamp</td><td>Última alteração, em UTC.</td></tr>
+  <tr><td><code>deleted_at</code></td><td>timestamp</td><td>Nulo enquanto o registro vale.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que dois identificadores</strong>
+  <p>O <code>id</code> é <code>bigint</code> porque é ele que aparece em chave estrangeira e
+  índice, e trocar o tipo depois significa alterar toda tabela que referencia, com o sistema
+  no ar.</p>
+  <p>Mas um inteiro sequencial exposto entrega duas coisas de graça: quantos registros
+  existem e quais são os vizinhos. Quem recebe <code>/projects/41</code> sabe que existe um
+  40. Por isso o que sai é o <code>public_id</code>, um GUID aleatório.</p>
+  <p>O GUID é sorteado pelo contexto na hora de gravar, não por quem cria a entidade. Assim
+  é garantia, e não combinado: nenhuma linha entra sem identificador público, mesmo que o
+  código que a criou tenha esquecido.</p>
+</div>
+
+<h2>accounts</h2>
+
+<p>A fronteira de isolamento. Tudo pertence a uma.</p>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>name</code></td><td>Nome exibido no painel.</td></tr>
+  <tr><td><code>purge_at</code></td><td>Quando a exclusão vira definitiva.</td></tr>
+  <tr><td><code>anonymized_at</code></td><td>Quando a identificação foi removida.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que separar de <code>users</code> já agora</strong>
+  <p>Hoje é uma pessoa por conta. No dia em que alguém quiser convidar um colega, sem essa
+  separação vira migração de todas as tabelas. Criar a entidade agora custa uma tabela;
+  criar depois custa reescrever o isolamento.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que <code>purge_at</code> é coluna, e não <code>deleted_at</code> mais 24h</strong>
+  <p>Se o prazo fosse calculado, mudar a política mudaria o prazo de quem já tinha pedido a
+  exclusão. Gravado no momento do pedido, quem pediu mantém o prazo que foi prometido.</p>
+</div>
+
+<h2>users</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>account_id</code></td><td>Conta a que pertence.</td></tr>
+  <tr><td><code>google_subject</code></td><td>O <code>sub</code> do Google. Único.</td></tr>
+  <tr><td><code>email</code></td><td>Para contato. <strong>Sem índice único.</strong></td></tr>
+  <tr><td><code>name</code>, <code>avatar_url</code></td><td>Vindos do Google.</td></tr>
+  <tr><td><code>last_login_at</code></td><td>Último acesso, em UTC.</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>O e-mail não é único de propósito</strong>
+  <p>Identificar a pessoa pelo e-mail parece natural e está errado: o e-mail da conta Google
+  pode mudar, o <code>sub</code> não. Quem usa e-mail como chave acaba criando conta
+  duplicada ou, pior, entregando a conta de alguém a quem herdou o endereço.</p>
+  <p>Alguém vai olhar essa tabela depois e achar que faltou um índice. Fica registrado que a
+  ausência é escolha.</p>
+</div>
+
+<h2>projects</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>account_id</code></td><td>Conta dona. É por aqui que o isolamento filtra.</td></tr>
+  <tr><td><code>name</code></td><td>Único dentro da conta, entre os não apagados.</td></tr>
+  <tr><td><code>status</code></td><td><code>active</code> ou <code>archived</code>.</td></tr>
+</table>
+
+<p>Arquivar não apaga nada: o projeto continua visível e consultável, só para de aceitar
+coisa nova.</p>
+
+<div class="note why">
+  <strong>Por que o índice único ignora o que foi apagado</strong>
+  <p>O índice é <code>UNIQUE (account_id, name) WHERE deleted_at IS NULL</code>. Sem o
+  filtro, o nome de um projeto excluído continuaria ocupando o lugar, e o cliente não
+  conseguiria reaproveitá-lo — sem nenhuma explicação na tela.</p>
+</div>
+
+<h2>project_keys</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono.</td></tr>
+  <tr><td><code>type</code></td><td><code>public</code> ou <code>secret</code>.</td></tr>
+  <tr><td><code>value</code></td><td>Só para a pública. Em claro.</td></tr>
+  <tr><td><code>hash</code></td><td>Só para a secreta. O valor nunca é guardado.</td></tr>
+  <tr><td><code>prefix</code></td><td>Primeiros caracteres, para identificar na lista.</td></tr>
+  <tr><td><code>revoked_at</code></td><td>Nulo enquanto vale.</td></tr>
+  <tr><td><code>last_used_at</code></td><td>Ajuda a saber se dá para revogar sem quebrar nada.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que é tabela separada, e não duas colunas em <code>projects</code></strong>
+  <p>Chave precisa ser rotacionada e revogada. Com duas colunas, regenerar sobrescreveria e
+  apagaria o rastro da anterior. Em tabela separada, revogar preenche <code>revoked_at</code>
+  e cria uma linha nova — e o histórico de quando cada chave valeu é o que permite
+  investigar um incidente depois.</p>
+  <p><code>revoked_at</code> e <code>deleted_at</code> são coisas diferentes: a revogada
+  continua existindo de propósito, a apagada some da lista.</p>
+</div>
+
+<h3>A trava no banco</h3>
+
+<pre><code>CHECK (
+  (type = 'public' AND value IS NOT NULL AND hash IS NULL)
+  OR
+  (type = 'secret' AND value IS NULL AND hash IS NOT NULL)
+)</code></pre>
+
+<p>Sem ela, um erro de código gravaria a chave secreta em claro na coluna <code>value</code>
+e ninguém perceberia, porque a tela continuaria funcionando igual.</p>
+
+<h2>Convenções</h2>
+
+<ul>
+  <li>Tudo em <code>snake_case</code>, minúsculo, inglês — tabela, coluna, índice e constraint.</li>
+  <li>Tabela no plural, coluna no singular.</li>
+  <li>Booleano com <code>is_</code> / <code>has_</code> / <code>allows_</code>.</li>
+  <li>Data e hora com sufixo <code>_at</code>, sempre em UTC.</li>
+  <li>Valor de enum como texto em <code>snake_case</code>, não como número.</li>
+  <li><strong>Toda tabela e toda coluna levam comentário</strong>, no próprio banco.</li>
+</ul>
+
+<div class="note why">
+  <strong>Por que enum como texto</strong>
+  <p>Guardar o inteiro seria mais curto e deixa a tabela ilegível fora da aplicação. Um
+  <code>status = 1</code> não diz nada a quem abre o banco para investigar;
+  <code>archived</code> se explica sozinho.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que os nomes de índice não são escritos à mão</strong>
+  <p>O EF batiza índice e constraint sozinho, em PascalCase. Os nomes são derivados em
+  <code>PdsBaseContext.ApplySnakeCaseNaming</code>: escrever um a um funciona até alguém
+  esquecer, e aí o banco fica com dois padrões.</p>
+</div>

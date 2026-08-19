@@ -1,0 +1,60 @@
+/* Ajustes de cor no Swagger para ele conversar com a documentação do projeto.
+   Injetado pelo Startup.cs, depois do CSS do próprio Swagger — por isso as regras
+   valem sem precisar de !important. */
+
+:root {
+  /* Mesmo laranja da documentação (--accent em docs.css). */
+  --pds-accent: #9a3412;
+  --pds-accent-soft: #fdf0e9;
+  --pds-accent-line: #f0d5c6;
+}
+
+/* O roxo padrão do Swagger nos trechos de código das descrições. É o que mais
+   aparece na tela, porque toda descrição de rota usa `código` no meio do texto. */
+.swagger-ui .markdown code,
+.swagger-ui .renderedMarkdown code {
+  color: var(--pds-accent);
+  background: var(--pds-accent-soft);
+  border: 1px solid var(--pds-accent-line);
+  font-weight: 500;
+  padding: 2px 6px;
+}
+
+/* Links dentro das descrições — inclusive o que leva de volta à documentação. */
+.swagger-ui .info a,
+.swagger-ui .markdown a,
+.swagger-ui .renderedMarkdown a {
+  color: var(--pds-accent);
+}
+
+.swagger-ui .info a:hover,
+.swagger-ui .markdown a:hover,
+.swagger-ui .renderedMarkdown a:hover {
+  color: var(--pds-accent);
+  text-decoration: underline;
+}
+
+/* Tipo das propriedades, dentro de um schema expandido. O padrão é um azul-violeta
+   (#55a) que só aparece depois de abrir um modelo — roxo escondido continua sendo
+   roxo. Aqui vira o cinza quente da documentação: continua distinguindo o tipo do
+   nome do campo, sem puxar a atenção. */
+.swagger-ui .prop-type,
+.swagger-ui .json-schema-2020-12__attribute--primary {
+  color: #6b6660;
+}
+
+/* Verbo HEAD. Não existe rota nossa com ele hoje, mas é o outro lugar onde o roxo
+   está no tema padrão: deixar de fora criaria uma exceção justamente no dia em que
+   alguém criasse uma. */
+.swagger-ui .opblock.opblock-head {
+  background: var(--pds-accent-soft);
+  border-color: var(--pds-accent);
+}
+
+.swagger-ui .opblock.opblock-head .opblock-summary {
+  border-color: var(--pds-accent);
+}
+
+.swagger-ui .opblock.opblock-head .opblock-summary-method {
+  background: var(--pds-accent);
+}

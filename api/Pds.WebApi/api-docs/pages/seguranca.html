@@ -1,0 +1,118 @@
+<h2>Segurança</h2>
+<p class="lead">As decisões que existem para o dia em que algo der errado.</p>
+
+<h2>A chave secreta não é recuperável</h2>
+
+<p>O banco guarda o hash e o prefixo. O valor completo existe uma única vez, na resposta que
+o criou.</p>
+
+<table>
+  <tr><th></th><th>Chave pública</th><th>Chave secreta</th></tr>
+  <tr><td>Marca</td><td><code>pk_</code></td><td><code>sk_</code></td></tr>
+  <tr><td>Onde vive</td><td>No site do cliente</td><td>No servidor do cliente</td></tr>
+  <tr><td>No banco</td><td><code>value</code>, em claro</td><td><code>hash</code>, SHA-256</td></tr>
+  <tr><td>Some depois de exibida</td><td>Não</td><td>Sim</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que a pública fica em claro</strong>
+  <p>Ela identifica o projeto no navegador, não autentica ninguém. Precisa ser lida por
+  qualquer um que abra a página do cliente — guardá-la como hash não protegeria nada e
+  quebraria o uso.</p>
+</div>
+
+<div class="note warn">
+  <strong>Se o painel conseguir mostrar a secreta de novo, ela deixou de ser secreta</strong>
+  <p>É por isso que não existe rota para revelá-la. Um vazamento do banco entregaria as
+  integrações de todos os clientes de uma vez; guardando só o hash, entrega uma lista de
+  hashes.</p>
+</div>
+
+<h3>Por que SHA-256, e não bcrypt</h3>
+
+<p>bcrypt e parecidos são lentos de propósito, feitos para senha digitada por gente e
+vulnerável a tentativa e erro. A chave secreta já nasce longa e sorteada, então não há o que
+adivinhar, e ela será conferida a cada requisição da integração: bcrypt ali deixaria toda
+chamada mais lenta sem ganhar segurança.</p>
+
+<h3>Comparação em tempo constante</h3>
+
+<p>A conferência não usa <code>==</code>. Uma comparação comum para no primeiro caractere
+diferente, e a diferença de tempo entre parar no primeiro e parar no décimo permite
+descobrir o valor caractere a caractere.</p>
+
+<div class="note todo">
+  <strong>A conferência ainda não tem quem a chame</strong>
+  <p><code>ProjectKeyGenerator.Matches</code> está escrito e pronto, mas nenhuma rota da
+  etapa 1 valida chave — quem vai usá-la é a ingestão de relatos, na etapa 2. Por ora a
+  chave só é gerada e guardada.</p>
+</div>
+
+<h2>Regenerar não sobrescreve</h2>
+
+<p>Revogar preenche <code>revoked_at</code> e cria uma linha nova. A anterior fica como
+histórico, com a data em que deixou de valer — é o que permite responder "esta chave estava
+ativa quando o acesso aconteceu?" depois de um incidente.</p>
+
+<h2>O id interno não sai</h2>
+
+<p>Todo identificador exposto é um GUID aleatório. Um inteiro sequencial na URL entrega
+quantos registros existem e quais são os vizinhos, e convida a trocar o número para ver o do
+lado.</p>
+
+<p>A garantia está em três camadas: o GUID é sorteado pelo contexto ao gravar, os view models
+só expõem <code>PublicId</code>, e as rotas só aceitam GUID.</p>
+
+<h2>Apagar não é apagar</h2>
+
+<p>A exclusão preenche <code>deleted_at</code> e o filtro global esconde a linha. Serve para
+desfazer engano e para manter integridade referencial.</p>
+
+<div class="note todo">
+  <strong>Nenhuma rota da etapa 1 exclui</strong>
+  <p>A máquina existe — <code>BaseRepository.SoftDeleteAsync</code> preenche a data e
+  propaga aos filhos marcados com <code>[SoftDeleteDependent]</code> — mas ainda não há
+  chamador. Projeto se arquiva, não se apaga, e apagar de vez depende de decidir o que
+  fazer com os relatos que apontam para ele.</p>
+</div>
+
+<div class="note warn">
+  <strong>Exclusão lógica não atende à LGPD</strong>
+  <p>Um pedido de exclusão de dados exige apagar de verdade ou anonimizar. As colunas
+  <code>purge_at</code> e <code>anonymized_at</code> em <code>accounts</code> existem para
+  isso, mas <strong>a rotina ainda não foi implementada</strong>.</p>
+</div>
+
+<h3>O que a anonimização precisará fazer</h3>
+
+<p>Não basta limpar <code>users</code>. O nome da conta e o nome do projeto identificam
+igual, e o que vier pendurado depois — domínios autorizados, os próprios relatos —
+identifica ainda mais.</p>
+
+<ul>
+  <li><code>users</code>: saem nome, e-mail, avatar e <code>google_subject</code>. Limpar o
+  <code>google_subject</code> é o que impede a conta de ser reencontrada num login futuro.</li>
+  <li><code>accounts</code>: sai o nome; a linha fica como âncora do histórico.</li>
+  <li>Projeto, chaves e relatos: apagados de verdade.</li>
+  <li>Sobram contagem e tempo, que não identificam ninguém e são o que a pesquisa precisa.</li>
+</ul>
+
+<h2>Superfície de rede</h2>
+
+<table>
+  <tr><th>Proteção</th><th>Como está</th></tr>
+  <tr><td>CORS</td><td>Só as origens configuradas. Lista vazia libera nenhuma.</td></tr>
+  <tr><td>Limite de requisições</td><td>20/min por IP no login.</td></tr>
+  <tr><td>HTTPS</td><td>Redirecionamento obrigatório fora de desenvolvimento.</td></tr>
+  <tr><td>Conexão com o banco</td><td>SSL obrigatório.</td></tr>
+  <tr><td>Mensagem de erro</td><td>Erro não previsto responde texto genérico; detalhe só no log.</td></tr>
+</table>
+
+<div class="note todo">
+  <strong>Pendências conhecidas</strong>
+  <ul>
+    <li>Rotina de exclusão e anonimização de conta.</li>
+    <li>Teste automatizado do isolamento entre contas.</li>
+    <li>Invalidar sessão antes de o token expirar.</li>
+  </ul>
+</div>
