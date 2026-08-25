@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 400">
+  <!--
+    Marca do PDS: o balão de relato com a linha do tempo dentro — dois pontos
+    cumpridos e um aberto. `prefers-color-scheme` inverte o traço: fixo, ele
+    sumiria em uma das duas abas.
+
+    OS DOIS VALORES ABAIXO SÃO CÓPIA DE `--slate-12` (`src/styles/tokens.css`).
+    É o único arquivo que escreve cor fora de lá, e a exceção é forçada: o favicon
+    é documento próprio, sem acesso ao CSS da aplicação. O `designSystem.test.ts`
+    compara os dois com o `--fg` de cada tema e reprova se eles se separarem.
+
+    Mexeu no `--slate-12`? Mexa aqui. O teste avisa se esquecer.
+  -->
+  <style>
+    .mark {
+      fill: none;
+      stroke: #1c2024;
+      stroke-width: 18;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .solid { fill: #1c2024; stroke: none; }
+    .rail { stroke-width: 10; }
+    .ring { stroke-width: 11; }
+
+    @media (prefers-color-scheme: dark) {
+      .mark { stroke: #edeef0; }
+      .solid { fill: #edeef0; }
+    }
+  </style>
+
+  <!-- Balão com o entalhe à direita e a ponta embaixo, à esquerda -->
+  <path
+    class="mark"
+    d="M42 12 H434 A30 30 0 0 1 464 42 V130 A30 30 0 0 0 464 190 V325 A30 30 0 0 1 434 355 H85 L12 390 V42 A30 30 0 0 1 42 12 Z"
+  />
+
+  <!-- As duas linhas de texto do relato -->
+  <path class="mark" d="M80 102 H305" />
+  <path class="mark" d="M80 162 H200" />
+
+  <!-- A linha do tempo: dois pontos cumpridos e o próximo ainda aberto -->
+  <path class="mark rail" d="M95 263 H363" />
+  <circle class="solid" cx="95" cy="263" r="22" />
+  <circle class="solid" cx="243" cy="263" r="22" />
+  <circle class="mark ring" cx="380" cy="263" r="17" />
+</svg>
