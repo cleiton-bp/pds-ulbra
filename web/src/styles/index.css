@@ -1,0 +1,178 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/*
+ * `@theme inline` publica a camada 2 como utilitario (`bg-surface`, `text-fg-muted`)
+ * mantendo a referencia a variavel — por isso trocar o tema so reatribui a
+ * variavel, sem recompilar nem duplicar classe.
+ */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-strong: var(--surface-strong);
+
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-disabled: var(--fg-disabled);
+  --color-fg-placeholder: var(--fg-placeholder);
+
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-hover: var(--accent-hover);
+  --color-nav-active: var(--nav-active);
+
+  --color-active: var(--active);
+  --color-active-fg: var(--active-fg);
+
+  --color-warn-surface: var(--warn-surface);
+  --color-warn-surface-hover: var(--warn-surface-hover);
+  --color-warn-border: var(--warn-border);
+  --color-warn-fg: var(--warn-fg);
+
+  --color-error-border: var(--error-border);
+  --color-error-fg: var(--error-fg);
+
+  --color-muted-dot: var(--muted-dot);
+  --color-overlay: var(--overlay);
+
+  /* Inter vem do Google Fonts (index.html). A reserva evita a tela trocar de
+     metrica se a fonte demorar ou falhar. */
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/*
+ * TIPOGRAFIA — a mesma ideia da cor, no segundo eixo
+ * ============================================================================
+ * Os valores sao os do design, sem ajuste: arredondar aqui faria codigo e
+ * prancheta divergirem calados.
+ *
+ * `--text-*: initial` apaga a escala do Tailwind. Com as duas convivendo, metade
+ * da interface diria o tamanho pelo significado e a outra metade pela aparencia;
+ * apagando, quem escrever `text-sm` por habito nao gera classe e o teste pega.
+ */
+@theme {
+  --text-*: initial;
+
+  /** Rotulo de grupo, numero do passo, iniciais do avatar. */
+  --text-caption: 12px;
+
+  /** Apoio, dica, metadado. E a mais usada da interface inteira. */
+  --text-detail: 13px;
+
+  /** Corpo de texto e altura de controle. */
+  --text-body: 14px;
+  --text-body--line-height: 1.25rem;
+
+  /** Titulo de secao dentro de uma tela, e a marca em tamanho normal. */
+  --text-lead: 15px;
+
+  /** Titulo de dialogo. */
+  --text-dialog: 16px;
+
+  /** A marca em tamanho grande — so na tela de entrada. */
+  --text-brand: 17px;
+
+  /** Titulo de tela de aviso: 404 e projeto nao encontrado. */
+  --text-notice: 18px;
+  --text-notice--line-height: 1.75rem;
+
+  /** Titulo de tela do console. */
+  --text-screen: 24px;
+
+  /** A saudacao do hub, que cresce em tela larga. */
+  --text-hero: 26px;
+  --text-hero-wide: 32px;
+}
+
+/*
+ * AS CAMADAS — quem fica na frente de quem
+ * ============================================================================
+ * O toast fica **acima** do dialogo de proposito: `RegenerateSecretDialog` dispara
+ * `toast.error` com o dialogo ainda aberto, e empate em `z-index` e resolvido pela
+ * ordem dos portais no DOM — o aviso nascia atras da caixa que o provocou.
+ *
+ * Vai por `@utility` e nao por `@theme`: `z-index` **nao e namespace de tema** no
+ * Tailwind 4. Um `@theme { --z-toast: 60 }` compila, nao gera classe nenhuma, e o
+ * empilhamento quebra em silencio.
+ */
+:root {
+  --layer-drawer-veil: 10;
+  --layer-drawer: 20;
+  --layer-veil: 40;
+  --layer-dialog: 50;
+  --layer-toast: 60;
+  --layer-tip: 70;
+}
+
+/** Veu que escurece o conteudo atras da gaveta, em tela estreita. */
+@utility z-drawer-veil {
+  z-index: var(--layer-drawer-veil);
+}
+/** A gaveta do menu lateral. */
+@utility z-drawer {
+  z-index: var(--layer-drawer);
+}
+/** Veu de dialogo e de confirmacao. */
+@utility z-veil {
+  z-index: var(--layer-veil);
+}
+/** Dialogo, confirmacao e menu suspenso. */
+@utility z-dialog {
+  z-index: var(--layer-dialog);
+}
+/** Avisos. Acima do dialogo porque comentam o que aconteceu nele. */
+@utility z-toast {
+  z-index: var(--layer-toast);
+}
+/** Dica de texto: explica o que estiver embaixo, entao fica no topo. */
+@utility z-tip {
+  z-index: var(--layer-tip);
+}
+
+/* Para os poucos casos em que reatribuir a variavel nao basta — sombra, no Toaster. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--surface);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* O mesmo anel em todo controle. `--focus` nao e publicado como utilitario: a
+     regra e uma so e vale para todos, e publicar "por via das duvidas" e o que
+     deixa token sem consumidor por meses. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Pulsacao dos esqueletos de carregamento. */
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+@utility animate-pulse-soft {
+  animation: pulse-soft 1.4s ease-in-out infinite;
+}

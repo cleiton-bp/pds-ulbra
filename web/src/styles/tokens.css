@@ -1,0 +1,161 @@
+/*
+ * SISTEMA DE COR — PDS
+ * ============================================================================
+ * Portado do design em `Painel de relato de bugs`. Os valores brutos sao os do
+ * design, sem ajuste: escala Slate do Radix, mais grass, amber e red.
+ *
+ * DUAS CAMADAS
+ *   Camada 1, primitivos (--slate-6, --amber-11): NUNCA use na interface.
+ *   Camada 2, significados (--accent, --warn-fg): e o que o componente enxerga.
+ * O tema escuro reatribui so a camada 2, e nenhum componente muda.
+ *
+ * O MAPA DE SIGNIFICADOS
+ *   accent  acao e identidade ......... botao primario, item ativo
+ *   active  ativo, feito, funcionando .. ponto verde, passo concluido
+ *   warn    irreversivel, guarde agora . chave secreta
+ *   error   entrada invalida ........... borda e texto de campo com erro
+ *   muted   inerte, arquivado, futuro .. ponto cinza, item bloqueado
+ *
+ * TRES ESCOLHAS QUE VALE ENTENDER ANTES DE MEXER
+ *
+ * **O acento e monocromatico** — slate-12 no claro, invertido no escuro. Sem cor
+ * de marca disputando atencao, o verde e o unico ponto colorido em repouso.
+ *
+ * **Vermelho nao e botao.** Arquivar da para desfazer (cinza) e chave nova se
+ * resolve gerando outra (ambar). Vermelho fica so para campo invalido.
+ *
+ * **Cor nunca sozinha.** O ponto verde vem sempre com o nome do projeto; o cinza,
+ * com a palavra "arquivado" ao lado.
+ *
+ * DESABILITADO E PLACEHOLDER SAO OPOSTOS, e usavam o mesmo token: desabilitado
+ * some de proposito, placeholder e texto de um campo **ativo**, que precisa ser
+ * lido. O exemplo "Loja Ativa" ficava a 1,82:1 do fundo. Em `--fg-placeholder`
+ * sao 3,60:1 — ainda abaixo dos 4,5:1 da WCAG, e a escolha e consciente:
+ * placeholder no tom do texto de apoio passa a ser lido como valor preenchido.
+ * Quem carrega a informacao obrigatoria e o rotulo e a dica do `TextField`.
+ */
+
+/* ---------------------------------------------------------------------------
+ * CAMADA 1 — PRIMITIVOS. Nao use nenhum destes fora deste arquivo.
+ * ------------------------------------------------------------------------- */
+:root {
+  --slate-1: #fcfcfd;
+  --slate-2: #f9f9fb;
+  --slate-3: #f0f0f3;
+  --slate-4: #e8e8ec;
+  --slate-5: #e0e1e6;
+  --slate-6: #d9d9e0;
+  --slate-8: #b9bbc6;
+  --slate-10: #80838d;
+  --slate-11: #60646c;
+  --slate-12: #1c2024;
+  /* Degrau que o Radix nao tem: os solidos dele sao o 9 e o 10, e este produto usa
+     o 12 como acento de proposito — o hover dele precisa existir. */
+  --slate-12-hover: #2c3238;
+
+  --grass-9: #46a758;
+
+  --amber-3: #fff7c2;
+  /* Degrau 4 do Radix: "fundo de componente em hover". */
+  --amber-4: #ffee9c;
+  --amber-7: #e9c162;
+  --amber-11: #ab6400;
+
+  --red-7: #f3aeaf;
+  --red-11: #ce2c31;
+
+  --white: #ffffff;
+}
+
+/* ---------------------------------------------------------------------------
+ * CAMADA 2 — SIGNIFICADOS, tema claro.
+ * ------------------------------------------------------------------------- */
+:root {
+  /* 60% — superficie */
+  --surface: var(--slate-1);
+  --surface-raised: var(--slate-2);
+  --surface-sunken: var(--slate-3);
+  --surface-strong: var(--slate-4);
+
+  /* 30% — estrutura */
+  --border: var(--slate-6);
+  --fg: var(--slate-12);
+  --fg-muted: var(--slate-11);
+  --fg-disabled: var(--slate-8);
+  /* Campo VAZIO E ATIVO — nao e desabilitado. Ver a nota do cabecalho. */
+  --fg-placeholder: var(--slate-10);
+
+  /* 10% — acao e identidade */
+  --accent: var(--slate-12);
+  --accent-fg: var(--white);
+  /* Nao aponte para `--slate-11`: e cor de **texto** no Radix, e o botao saltava
+     27 pontos de luminosidade, caindo entre o repouso e o desabilitado. */
+  --accent-hover: var(--slate-12-hover);
+  --nav-active: var(--slate-4);
+  --focus: var(--slate-8);
+
+  /* estado: ativo, feito, funcionando */
+  --active: var(--grass-9);
+  --active-fg: var(--white);
+
+  /* estado: irreversivel, guarde agora */
+  --warn-surface: var(--amber-3);
+  /* Degrau proprio, e nao `brightness()`: um filtro escurece nos dois temas, e no
+     escuro o hover tem de clarear. */
+  --warn-surface-hover: var(--amber-4);
+  --warn-border: var(--amber-7);
+  --warn-fg: var(--amber-11);
+
+  /* estado: entrada invalida */
+  --error-border: var(--red-7);
+  --error-fg: var(--red-11);
+
+  /* estado: inerte, arquivado, bloqueado */
+  --muted-dot: var(--slate-8);
+
+  /* Tres lugares desenham o veu, e dois ja divergiram em 5% de opacidade. */
+  --overlay: rgb(0 0 0 / 45%);
+}
+
+/* ---------------------------------------------------------------------------
+ * CAMADA 2 — SIGNIFICADOS, tema escuro. O seletor e `[data-theme="dark"]`
+ * porque e o que o design usa.
+ * ------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  --slate-1: #111113;
+  --slate-2: #18191b;
+  --slate-3: #212225;
+  --slate-4: #272a2d;
+  --slate-5: #2e3135;
+  --slate-6: #363a3f;
+  --slate-8: #5a6169;
+  --slate-10: #777b84;
+  --slate-11: #b0b4ba;
+  --slate-12: #edeef0;
+  --slate-12-hover: #dadce0;
+
+  --amber-3: #302008;
+  /* Degrau **5** e nao 4: no escuro o Radix comprime o 3→4 a pouco mais de um
+     ponto de luminosidade, invisivel como hover. */
+  --amber-5: #4d3111;
+  --amber-7: #714f19;
+  --amber-11: #ffca16;
+
+  --red-7: #8c333a;
+  --red-11: #ff9592;
+
+  /* O acento inverte junto com a escala: quase branco sobre fundo quase preto. */
+  --accent: var(--slate-12);
+  --accent-fg: var(--slate-1);
+  --accent-hover: var(--slate-12-hover);
+  --warn-surface-hover: var(--amber-5);
+  --nav-active: var(--slate-5);
+  --focus: var(--slate-8);
+
+  /* O unico que nao muda: "funcionando" precisa ser reconhecivel nos dois temas. */
+  --active: var(--grass-9);
+  --active-fg: var(--white);
+
+  /* Mais fechado: 45% sobre fundo quase preto nao separa o dialogo do que ha atras. */
+  --overlay: rgb(0 0 0 / 65%);
+}
