@@ -7,10 +7,15 @@ import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { TextField } from '@/shared/components/TextField'
 
-const HINT = 'Você pode renomear depois: o identificador do projeto não muda.'
+const HINT = 'Escolha um nome que você reconheça na lista, e dá para renomear depois.'
 
 /**
  * Pede so o nome: o resto da configuracao depende de decisoes das etapas 3 e 4.
+ *
+ * A descricao **nao** repete o que e um projeto — o cartao que a pessoa acabou de
+ * clicar ja disse isso. Ela avisa o que vem depois do botao, que e a unica coisa
+ * que so este dialogo pode contar: a proxima tela mostra a chave secreta, e
+ * mostra uma vez so.
  *
  * O nome repetido e conferido **duas vezes** de proposito: aqui contra a lista que
  * a tela ja tem, para a resposta ser imediata; e no servidor, que e quem decide —
@@ -49,7 +54,7 @@ export function CreateProjectDialog({
     }
 
     if (projects.some((project) => project.Name.toLowerCase() === trimmed.toLowerCase())) {
-      setError('Você já tem um projeto com esse nome. Escolha outro para não confundir os dois.')
+      setError('Você já tem um projeto com esse nome, escolha outro para não confundir os dois.')
       return
     }
 
@@ -81,7 +86,7 @@ export function CreateProjectDialog({
         onOpenChange(next)
       }}
       title="Novo projeto"
-      description="Um projeto corresponde a um site ou sistema seu."
+      description="Ao criar, você vai direto para as chaves do projeto, e a secreta aparece uma única vez."
       footer={
         <>
           <Button variant="quiet" onClick={() => onOpenChange(false)} disabled={saving}>
@@ -100,7 +105,7 @@ export function CreateProjectDialog({
           setName(value)
           if (error) setError(null)
         }}
-        placeholder="Loja Ativa"
+        placeholder="Ex.: Loja Ativa"
         hint={HINT}
         error={error}
         maxLength={MAX_PROJECT_NAME_LENGTH}
