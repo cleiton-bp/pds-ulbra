@@ -3,9 +3,9 @@ import type { ProjectCreatedViewModel, ProjectViewModel, UpdateProjectRequest } 
 import { describeError, projectService } from '@/data'
 
 /**
- * Guarda o que veio do servidor e nada mais: regra de negocio mora na API (e no
- * mock que a imita). Duplicar "nome nao pode repetir" aqui criaria duas versoes
- * da mesma regra para divergirem com o tempo.
+ * Guarda o que veio do servidor e nada mais: regra de negocio mora na API.
+ * Duplicar "nome nao pode repetir" aqui criaria duas versoes da mesma regra para
+ * divergirem com o tempo.
  */
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -36,6 +36,11 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
   error: null,
 
   async load() {
+    // Uma busca de cada vez. Dois cliques em "Tentar de novo" — ou as duas
+    // montagens que o modo estrito provoca — disparariam duas requisicoes
+    // concorrentes, e quem escreveria o estado seria a que voltasse por ultimo.
+    if (get().status === 'loading') return
+
     set({ status: 'loading', error: null })
 
     try {
