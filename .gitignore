@@ -1,5 +1,6 @@
 # Conteúdo interno de documentação
 local/
+web/docs/
 
 # Lixo que o Finder cria em qualquer pasta aberta
 .DS_Store
