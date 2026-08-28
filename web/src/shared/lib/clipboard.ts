@@ -1,7 +1,7 @@
 /**
  * O reserva roda **quando o moderno falha**, e nao so quando ele nao existe:
  * `navigator.clipboard` recusa com aba sem foco, permissao negada ou HTTP na rede
- * local — que e o caso de quem abre a demonstracao pelo IP da maquina.
+ * local — que e o caso de quem abre o painel pelo IP da maquina.
  */
 export async function copyText(text: string): Promise<boolean> {
   if (navigator.clipboard && window.isSecureContext) {

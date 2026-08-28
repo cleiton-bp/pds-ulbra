@@ -1,20 +1,10 @@
 import type { MeViewModel, SignInViewModel } from '@/contracts'
 import { apiGet, apiPost } from '@/data/api/httpClient'
 import type { AuthService } from '@/data/authService'
-import { PanelError } from '@/data/errors'
 import { clearToken, setToken } from '@/data/sessionToken'
 
-/**
- * Escrito antes de haver API rodando de proposito: contrato so prova que fecha
- * quando alguem escreve o outro lado dele.
- */
 export const apiAuthService: AuthService = {
-  async signIn(googleIdToken: string | null): Promise<SignInViewModel> {
-    // A API recusaria com 401, mas aqui a causa e configuracao e nao credencial.
-    if (!googleIdToken) {
-      throw new PanelError('Entrada pelo Google não configurada neste painel.', 401)
-    }
-
+  async signIn(googleIdToken: string): Promise<SignInViewModel> {
     const session = await apiPost<SignInViewModel>(
       '/auth/google',
       { IdToken: googleIdToken },

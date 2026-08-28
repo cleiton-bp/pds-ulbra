@@ -18,9 +18,10 @@ import { describe, expect, it } from 'vitest'
  * A regra no README nao impede ninguem de quebra-la, e o dia em que isso acontece
  * e um dia corrido. Aqui ela falha no `npm test`, com arquivo e linha.
  *
- * A mais importante e a primeira: **nenhuma tela alcanca o mock nem o cliente
- * HTTP**. Um unico `import '@/data/mock/...'` numa tela transforma "trocar mock
- * por API e uma linha" em mentira, e ninguem percebe ate a hora de ligar.
+ * A mais importante e a primeira: **nenhuma tela alcanca o cliente HTTP**. Um
+ * unico `import '@/data/api/...'` numa tela espalha o conhecimento de rota,
+ * cabecalho e envelope pela interface, e trocar a implementacao deixa de ser
+ * mexer num arquivo.
  */
 
 const SOURCE_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -36,8 +37,8 @@ interface Rule {
 const RULES: Rule[] = [
   {
     folder: 'features',
-    forbidden: ['@/data/mock', '@/data/api'],
-    why: 'tela nao escolhe de onde vem o dado — quem escolhe e data/index.ts',
+    forbidden: ['@/data/api'],
+    why: 'tela fala com a interface do servico, nunca com o cliente HTTP',
   },
   {
     folder: 'features',
@@ -46,12 +47,12 @@ const RULES: Rule[] = [
   },
   {
     folder: 'app',
-    forbidden: ['@/data/mock', '@/data/api'],
-    why: 'a casca tambem fala so com a interface PanelService',
+    forbidden: ['@/data/api'],
+    why: 'a casca tambem fala so com a interface do servico',
   },
   {
     folder: 'shared',
-    forbidden: ['@/data/mock', '@/data/api', '@/features', '@/app'],
+    forbidden: ['@/data/api', '@/features', '@/app'],
     why: 'o que e compartilhado nao pode depender de quem o usa, senao deixa de ser reaproveitavel',
   },
   {
@@ -156,14 +157,13 @@ describe('regra de dependencia entre as pastas', () => {
   })
 
   /**
-   * A promessa da camada de dados nao e "existe um mock", e sim que **mock e API
-   * sao intercambiaveis** — o que so se prova com os dois escritos. O caminho curto
-   * ("so o mock agora, a API depois") e o que este teste torna impossivel de fazer
-   * calado quando Relatos, Membros e Uso chegarem.
+   * Interface sem implementacao e promessa; implementacao que ninguem exporta no
+   * `index.ts` e codigo que a tela nao alcanca. Quando Relatos, Membros e Uso
+   * chegarem, cada um entra como servico proprio e passa por aqui.
    */
-  it('todo servico tem mock, tem API, e e escolhido no ponto de injecao', () => {
+  it('todo servico tem implementacao de API e sai pelo ponto de acesso', () => {
     const problemas: string[] = []
-    const injecao = readFileSync(join(SOURCE_ROOT, 'data', 'index.ts'), 'utf8')
+    const acesso = readFileSync(join(SOURCE_ROOT, 'data', 'index.ts'), 'utf8')
 
     for (const file of listFiles(join(SOURCE_ROOT, 'data'))) {
       const nome = relative(SOURCE_ROOT, file)
@@ -173,43 +173,30 @@ describe('regra de dependencia entre as pastas', () => {
       const recurso = match[1] ?? ''
       const maiuscula = recurso.charAt(0).toUpperCase() + recurso.slice(1)
 
-      for (const lado of ['mock', 'api']) {
-        const caminho = join(SOURCE_ROOT, 'data', lado, `${lado}${maiuscula}Service.ts`)
-        if (!existsSync(caminho)) {
-          problemas.push(
-            `${nome} nao tem o lado \`${lado}\` em data/${lado}/${lado}${maiuscula}Service.ts`,
-          )
-        }
+      if (!existsSync(join(SOURCE_ROOT, 'data', 'api', `api${maiuscula}Service.ts`))) {
+        problemas.push(`${nome} nao tem implementacao em data/api/api${maiuscula}Service.ts`)
       }
 
-      // O ternario tem de estar aqui, e nao espalhado.
-      if (
-        !injecao.includes(`api${maiuscula}Service`) ||
-        !injecao.includes(`mock${maiuscula}Service`)
-      ) {
-        problemas.push(`data/index.ts nao escolhe entre os dois lados de ${recurso}Service`)
+      if (!acesso.includes(`api${maiuscula}Service`)) {
+        problemas.push(`data/index.ts nao exporta ${recurso}Service`)
       }
     }
 
     expect(problemas).toEqual([])
   })
 
-  it('somente data/index.ts decide entre mock e API', () => {
+  it('somente data/index.ts importa de data/api', () => {
     const injectionPoint = join(SOURCE_ROOT, 'data', 'index.ts')
     const offenders: string[] = []
 
     for (const file of listFiles(join(SOURCE_ROOT, 'data'))) {
       if (file === injectionPoint) continue
 
-      // Dentro de cada lado os arquivos se importam a vontade; o que nao pode e um
-      // lado enxergar o outro.
-      const insideMock = file.includes('/data/mock/')
+      // Dentro de `data/api` os arquivos se importam a vontade; o que nao pode e
+      // o resto da camada alcancar o cliente HTTP por fora do ponto de acesso.
       const insideApi = file.includes('/data/api/')
 
       for (const specifier of importsOf(readFileSync(file, 'utf8'))) {
-        if (specifier.startsWith('@/data/mock') && !insideMock) {
-          offenders.push(`${relative(SOURCE_ROOT, file)} importa ${specifier}`)
-        }
         if (specifier.startsWith('@/data/api') && !insideApi) {
           offenders.push(`${relative(SOURCE_ROOT, file)} importa ${specifier}`)
         }

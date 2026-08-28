@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider, useParams } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { authService, projectService, resetDemoData } from '@/data'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ProjectViewModel, UpdateProjectRequest } from '@/contracts'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { useProjectsStore } from '@/features/projects/projectsStore'
 
@@ -20,7 +20,65 @@ import { useProjectsStore } from '@/features/projects/projectsStore'
  * com o efeito apagado, porque um mount novo ja inicializa o campo pelo
  * `useState`. O efeito existe para o caso em que a tela nao desmonta — e o que o
  * `router.navigate` reproduz.
+ *
+ * O `@/data` e trocado por um dublê deste arquivo: a tela precisa de listar e
+ * renomear respondendo, e nao de rede. Ele repete a unica regra de servidor que
+ * importa aqui, o 409 de nome repetido, com o texto que a API usa.
  */
+const estado = vi.hoisted(() => ({ projetos: [] as ProjectViewModel[] }))
+
+vi.mock('@/data', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/data')>()
+
+  return {
+    ...real,
+    projectService: {
+      listProjects: async () => estado.projetos,
+      getProject: async (publicId: string) => {
+        const found = estado.projetos.find((item) => item.PublicId === publicId)
+        if (!found) throw new real.PanelError('Projeto nao encontrado.', 404)
+        return found
+      },
+      createProject: async () => {
+        throw new Error('createProject nao e usado nesta tela')
+      },
+      updateProject: async (publicId: string, patch: UpdateProjectRequest) => {
+        const name = patch.Name?.trim()
+
+        if (
+          name &&
+          estado.projetos.some(
+            (item) => item.PublicId !== publicId && item.Name.toLowerCase() === name.toLowerCase(),
+          )
+        ) {
+          throw new real.PanelError('Ja existe um projeto com este nome na conta.', 409)
+        }
+
+        estado.projetos = estado.projetos.map((item) =>
+          item.PublicId === publicId
+            ? {
+                ...item,
+                ...(name ? { Name: name } : {}),
+                ...(patch.Status ? { Status: patch.Status } : {}),
+              }
+            : item,
+        )
+
+        return estado.projetos.find((item) => item.PublicId === publicId) as ProjectViewModel
+      },
+    },
+  }
+})
+
+function projeto(publicId: string, name: string): ProjectViewModel {
+  return {
+    PublicId: publicId,
+    Name: name,
+    Status: 'Active',
+    CreatedAt: '2026-08-01T12:00:00.000Z',
+    UpdatedAt: '2026-08-01T12:00:00.000Z',
+  }
+}
 
 /** A mesma derivacao do `ProjectShell`: contexto vindo da store, nao uma copia. */
 function ProjetoDaStore() {
@@ -51,24 +109,30 @@ const campo = () => screen.getByRole('textbox')
 const botaoSalvar = () => screen.getAllByRole('button')[0] as HTMLButtonElement
 
 describe('ProjectSettingsScreen', () => {
+  // Sem `globals: true` no Vitest, a limpeza automatica da Testing Library nao
+  // roda: a tela do teste anterior fica montada, assinada na store, e volta a
+  // aparecer na busca do proximo.
+  afterEach(cleanup)
+
   beforeEach(async () => {
     localStorage.clear()
-    resetDemoData()
+    estado.projetos = [projeto('p-1', 'Loja Antiga'), projeto('p-2', 'Loja Nova')]
     useProjectsStore.setState({ projects: [], status: 'idle', error: null })
-    await authService.signIn(null)
+    await useProjectsStore.getState().load()
   })
 
   it('renomeia e confirma com "Salvo"', async () => {
-    const criado = await projectService.createProject('Loja Antiga')
-    await useProjectsStore.getState().load()
-
-    montar(criado.Project.PublicId)
+    montar('p-1')
     await screen.findByDisplayValue('Loja Antiga')
 
-    fireEvent.change(campo(), { target: { value: 'Loja Nova' } })
+    fireEvent.change(campo(), { target: { value: 'Loja Renomeada' } })
     fireEvent.click(botaoSalvar())
 
-    await waitFor(() => expect(useProjectsStore.getState().projects[0]?.Name).toBe('Loja Nova'))
+    await waitFor(() =>
+      expect(
+        useProjectsStore.getState().projects.find((item) => item.PublicId === 'p-1')?.Name,
+      ).toBe('Loja Renomeada'),
+    )
 
     // A acao so esta pronta quando ela **avisa** que deu certo: o nome certo na
     // store nao e o suficiente, porque quem renomeia nao ve a store.
@@ -76,35 +140,26 @@ describe('ProjectSettingsScreen', () => {
   })
 
   it('troca o campo quando o projeto muda **sem desmontar a tela**', async () => {
-    const primeiro = await projectService.createProject('Loja Antiga')
-    const segundo = await projectService.createProject('Loja Nova')
-    await useProjectsStore.getState().load()
-
-    const router = montar(primeiro.Project.PublicId)
+    const router = montar('p-1')
     await screen.findByDisplayValue('Loja Antiga')
 
-    // Mesma rota, outro parametro — e o que o seletor do topo faz. A tela
-    // continua montada, entao quem tem de atualizar o campo e o efeito.
+    // Mesma rota, outro parametro — e o que o seletor do topo faz.
     await act(async () => {
-      await router.navigate(`/p/${segundo.Project.PublicId}`)
+      await router.navigate('/p/p-2')
     })
 
     expect(await screen.findByDisplayValue('Loja Nova')).toBeTruthy()
   })
 
   it('mostra o erro do servidor no campo, e nao num aviso que some', async () => {
-    await projectService.createProject('Ja Existe')
-    const alvo = await projectService.createProject('Loja Antiga')
-    await useProjectsStore.getState().load()
-
-    montar(alvo.Project.PublicId)
+    montar('p-1')
     await screen.findByDisplayValue('Loja Antiga')
 
-    fireEvent.change(campo(), { target: { value: 'Ja Existe' } })
+    fireEvent.change(campo(), { target: { value: 'Loja Nova' } })
     fireEvent.click(botaoSalvar())
 
-    // Nome duplicado e 409 no mock e na API. O texto fica no campo porque ha o que
-    // corrigir, e a correcao e ali — a regra esta escrita em `toastStore.ts`.
+    // Nome duplicado e 409 na API. O texto fica no campo porque ha o que corrigir,
+    // e a correcao e ali — a regra esta escrita em `toastStore.ts`.
     expect(await screen.findByText(/ja existe um projeto com este nome/i)).toBeTruthy()
     expect(campo().getAttribute('aria-invalid')).toBe('true')
   })

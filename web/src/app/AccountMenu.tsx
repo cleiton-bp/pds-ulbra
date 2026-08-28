@@ -1,5 +1,5 @@
+import { useNavigate } from 'react-router-dom'
 import { selectThemeLabel, useThemeStore } from '@/app/themeStore'
-import { describeMode, environment, resetDemoData } from '@/data'
 import { useSessionStore } from '@/features/auth/sessionStore'
 import {
   DropdownGroup,
@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownSeparator,
 } from '@/shared/components/DropdownMenu'
-import { toast } from '@/shared/components/toastStore'
 
 /**
  * O nome da conta aparece no cabecalho porque a conta e a fronteira de isolamento:
@@ -17,8 +16,22 @@ import { toast } from '@/shared/components/toastStore'
 export function AccountMenu() {
   const user = useSessionStore((state) => state.user)
   const signOut = useSessionStore((state) => state.signOut)
+  const navigate = useNavigate()
   const themeLabel = useThemeStore(selectThemeLabel)
   const toggleTheme = useThemeStore((state) => state.toggle)
+
+  /**
+   * Sair volta para a raiz, e entrar sem sessao **nao** volta. Sao eventos
+   * diferentes: quem chega por um link fundo sem sessao deve cair nele depois de
+   * entrar, mas quem sai de proposito nao pode deixar a proxima pessoa daquela
+   * maquina aterrissando num projeto de outra conta.
+   *
+   * `replace` para o botao voltar nao devolver a tela de dentro.
+   */
+  async function sair() {
+    await signOut()
+    navigate('/', { replace: true })
+  }
 
   const initials = buildInitials(user?.Name)
 
@@ -53,26 +66,8 @@ export function AccountMenu() {
 
       <DropdownGroup>
         <DropdownItem onSelect={toggleTheme}>{themeLabel}</DropdownItem>
-        <DropdownItem onSelect={() => void signOut()}>Sair</DropdownItem>
+        <DropdownItem onSelect={() => void sair()}>Sair</DropdownItem>
       </DropdownGroup>
-
-      {/* Só fora do modo API: apagar dado de cliente por botão de tela, nunca. */}
-      {environment.mode !== 'api' && (
-        <>
-          <DropdownSeparator />
-          <DropdownGroup>
-            <DropdownItem
-              quiet
-              onSelect={() => {
-                resetDemoData()
-                toast.done(`${describeMode(environment.mode)} reiniciados. Recarregue a página.`)
-              }}
-            >
-              Reiniciar dados de demonstração
-            </DropdownItem>
-          </DropdownGroup>
-        </>
-      )}
     </DropdownMenu>
   )
 }

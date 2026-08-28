@@ -15,7 +15,7 @@ interface SessionState {
   user: MeViewModel | null
   error: string | null
   restore: () => Promise<void>
-  signIn: (googleIdToken: string | null) => Promise<void>
+  signIn: (googleIdToken: string) => Promise<void>
   signOut: () => Promise<void>
   /** Chamado quando a camada de dados avisa que a sessao expirou (401). */
   expire: () => void

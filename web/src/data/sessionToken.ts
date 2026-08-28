@@ -1,7 +1,6 @@
 /**
- * Token da sessao no navegador. Serve aos dois modos: JWT no modo API, token de
- * faz de conta no mock. `localStorage` e nao cookie porque a API valida
- * `Authorization: Bearer` e nao mantem sessao propria.
+ * O JWT emitido por `POST /auth/google`. `localStorage` e nao cookie porque a API
+ * valida `Authorization: Bearer` e nao mantem sessao propria.
  *
  * Sem `localStorage` (armazenamento bloqueado, Node dos testes) cai para memoria:
  * a sessao deixa de sobreviver a um recarregamento, que e melhor que recusar a entrada.
