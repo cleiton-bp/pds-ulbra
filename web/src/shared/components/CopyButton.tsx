@@ -11,7 +11,6 @@ interface CopyButtonProps {
   label?: string
   variant?: 'secondary' | 'warn'
   size?: 'md' | 'sm'
-  onCopied?: () => void
 }
 
 export function CopyButton({
@@ -19,7 +18,6 @@ export function CopyButton({
   label = 'Copiar',
   variant = 'secondary',
   size = 'md',
-  onCopied,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
 
@@ -34,9 +32,7 @@ export function CopyButton({
       variant={variant}
       size={size}
       onClick={async () => {
-        const done = await copyText(value)
-        setCopied(done)
-        if (done) onCopied?.()
+        setCopied(await copyText(value))
       }}
     >
       <span aria-live="polite">{copied ? 'Copiado' : label}</span>
