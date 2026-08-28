@@ -1,6 +1,6 @@
 import type { ProjectCreatedViewModel, ProjectViewModel, UpdateProjectRequest } from '@/contracts'
 
-/** Espelha o `ProjectService` da API. Quem escolhe mock ou API e o `data/index.ts`. */
+/** Espelha o `ProjectService` da API. */
 export interface ProjectService {
   /** Do mais recente para o mais antigo, incluindo arquivados. */
   listProjects(): Promise<ProjectViewModel[]>

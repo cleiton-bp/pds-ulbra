@@ -1,6 +1,6 @@
 import type { ProjectKeyViewModel, RevealedSecretKeyViewModel } from '@/contracts'
 
-/** Espelha o `ProjectKeyService` da API. Quem escolhe mock ou API e o `data/index.ts`. */
+/** Espelha o `ProjectKeyService` da API. */
 export interface ProjectKeyService {
   /** Inclusive as revogadas: o historico e o que permite investigar depois. */
   listProjectKeys(publicId: string): Promise<ProjectKeyViewModel[]>

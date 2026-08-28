@@ -11,6 +11,17 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
 
 const relativeFormatter = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' })
 
+/**
+ * "02/07/2026, 14:32". Existe separado de `formatDate` porque o registro de
+ * chaves revogadas precisa distinguir duas rotacoes do mesmo dia, e o dia
+ * sozinho nao faz isso. Formato numerico e nao "02 de jul.": sao duas datas por
+ * linha, e a linha nao tem largura para o mes por extenso.
+ */
+const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+})
+
 function parse(isoDate: string | null | undefined): Date | null {
   if (!isoDate) return null
   const parsed = new Date(isoDate)
@@ -20,6 +31,11 @@ function parse(isoDate: string | null | undefined): Date | null {
 export function formatDate(isoDate: string | null | undefined): string {
   const parsed = parse(isoDate)
   return parsed ? dateFormatter.format(parsed) : '—'
+}
+
+export function formatDateTime(isoDate: string | null | undefined): string {
+  const parsed = parse(isoDate)
+  return parsed ? dateTimeFormatter.format(parsed) : '—'
 }
 
 const UNITS: Array<{ limitSeconds: number; divisor: number; unit: Intl.RelativeTimeFormatUnit }> = [

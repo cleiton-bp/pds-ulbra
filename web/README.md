@@ -2,9 +2,9 @@
 
 Frontend da plataforma. React 19, TypeScript, Vite, Tailwind 4.
 
-> **Roda inteiro com dados de demonstração**, sem API e sem credencial nenhuma —
-> dá para abrir, clicar e avaliar sem pedir `.env` a ninguém. A implementação que
-> fala com a API em C# **já está escrita** e ligada por variável de ambiente.
+> **Todo dado vem da API.** Consultar, cadastrar e alterar passam por
+> `api/`, que lê e grava no PostgreSQL. Não há mais camada de demonstração: para
+> abrir o painel é preciso a API no ar e um client id do Google.
 
 Implementação do design **`Painel de relato de bugs`** (Claude Design). As
 divergências entre a prancheta e o código estão no fim deste arquivo.
@@ -17,43 +17,32 @@ Precisa de **Node 22 ou mais novo**.
 
 ```bash
 cd web
+cp .env.example .env.local   # e preencha as duas variáveis
 npm install
 npm run dev
 ```
 
-Abre em **`http://localhost:5173`**. A tela de entrada tem um botão, e ele funciona.
-
----
-
-## Os três modos
-
-O modo ativo aparece escrito no rodapé da tela de entrada — painel com dado de
-demonstração que não se anuncia acaba confundido com sistema pronto.
-
-| Modo | Configuração | O que acontece no login |
-|---|---|---|
-| **Demonstração** | nada configurado (padrão) | Sessão local. Sem rede, sem Google, sem API. |
-| **Google real** | só `VITE_GOOGLE_CLIENT_ID` | Sign-In de verdade; seu nome e sua foto aparecem. A sessão continua local. |
-| **API real** | `VITE_USE_API=true` + as duas variáveis | O token vai para `POST /auth/google`, que confere a assinatura. |
-
-```bash
-cp .env.example .env.local
-```
+Abre em **`http://localhost:5173`**, e precisa da API rodando em
+`http://localhost:5080` (veja [`../api`](../api)).
 
 | Variável | Para quê |
 |---|---|
-| `VITE_USE_API` | `true` liga a API real |
 | `VITE_API_URL` | Endereço da API. Padrão `http://localhost:5080` |
 | `VITE_GOOGLE_CLIENT_ID` | ID do cliente OAuth, do Google Cloud |
 
-> ⚠️ **O modo "Google real" não confere o token.** Lê o nome e a foto de dentro do
-> `id_token` para preencher a tela, e mais nada. Quem confere assinatura é
-> servidor. Serve para desenvolver e demonstrar; nunca para valer.
+Nenhuma das duas é segredo: o Vite injeta toda `VITE_*` no bundle, então quem
+abre o devtools as lê. O segredo mora na API — chave de assinatura do JWT e
+string de conexão nunca chegam ao navegador.
 
-Duas coisas que travam quem liga pela primeira vez: `http://localhost:5173`
-precisa estar nas **Origens JavaScript autorizadas** do cliente OAuth, e
-`CORS_ALLOWED_ORIGINS` no `.env.local` **da API** precisa incluir a mesma origem
-(lista vazia lá significa nenhuma origem liberada, e não todas).
+Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
+
+- `http://localhost:5173` precisa estar nas **Origens JavaScript autorizadas** do
+  cliente OAuth, no Google Cloud. Sem isso o Google recusa antes de desenhar o
+  botão, e o erro sai no console do navegador.
+- `CORS_ALLOWED_ORIGINS` no `.env.local` **da API** precisa incluir a mesma
+  origem. Lista vazia lá significa nenhuma origem liberada, e não todas.
+- O `GOOGLE_CLIENT_ID` da API precisa ser **o mesmo** do painel: ele é conferido
+  como `aud` do token, e um token emitido para outra aplicação é recusado.
 
 ---
 
@@ -62,7 +51,7 @@ precisa estar nas **Origens JavaScript autorizadas** do cliente OAuth, e
 | Comando | O que faz |
 |---|---|
 | `npm run dev` | Sobe em `http://localhost:5173` |
-| `npm test` | Camada de dados, lógica pura, arquitetura, sistema visual, um hook e uma tela |
+| `npm test` | Lógica pura, arquitetura, sistema visual, um hook e uma tela |
 | `npm run typecheck` | `tsc --noEmit`, com `strict` ligado |
 | `npm run lint` | Biome: linter e formatador |
 | `npm run format` | Aplica as correções do Biome |
@@ -91,9 +80,8 @@ src/
 ├── app/          a casca: rotas, cascas visuais, tema, sessão
 ├── contracts/    os view models da API, em PascalCase
 ├── data/         de onde vêm os dados
-│   ├── index.ts    ← o ÚNICO lugar que escolhe entre mock e API
-│   ├── mock/       memória, 200 ms de latência, mesmas regras da API
-│   └── api/        fetch, envelope, token
+│   ├── index.ts    ← o ÚNICO ponto de acesso; as telas importam daqui
+│   └── api/        fetch, envelope, token, 401
 ├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
@@ -104,8 +92,8 @@ src/
 ```
 
 As setas são de mão única, e três regras sustentam isso: nenhuma tela alcança
-`data/mock` ou `data/api`, nenhuma tela importa de `app/`, e nenhuma feature
-importa de outra. Não fica só escrito aqui —
+`data/api`, nenhuma tela importa de `app/`, e nenhuma feature importa de outra.
+Não fica só escrito aqui —
 [`src/test/architecture.test.ts`](src/test/architecture.test.ts) percorre os
 arquivos e reprova o `npm test` com o nome do import que quebrou a regra, e traz
 o motivo de cada uma.

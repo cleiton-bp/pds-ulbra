@@ -40,6 +40,7 @@ public class AuthService : IAuthService
         // de dono; o sub, nao. Procurar por e-mail e o que faz alguem herdar um
         // endereco antigo e entrar na conta de outra pessoa.
         var user = await _unitOfWork.Users.GetByGoogleSubjectAsync(identity.Subject, cancellationToken);
+        var primeiroAcesso = user is null;
 
         user ??= await CreateAccountAndUserAsync(identity, cancellationToken);
 
@@ -50,7 +51,12 @@ public class AuthService : IAuthService
         user.AvatarUrl = identity.PictureUrl;
         user.LastLoginAt = DateTime.UtcNow;
 
-        _unitOfWork.Users.Update(user);
+        // So quem ja existia entra em `Update`. No primeiro acesso a entidade
+        // acabou de ser adicionada e esta com chave temporaria — o EF recusa
+        // muda-la para `Modified`, e o SaveChanges ja grava as alteracoes dela.
+        if (!primeiroAcesso)
+            _unitOfWork.Users.Update(user);
+
         await _unitOfWork.CommitAsync(cancellationToken);
 
         var (accessToken, expiresAt) = _tokenService.Issue(user);

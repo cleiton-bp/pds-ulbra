@@ -7,19 +7,32 @@
 
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
-  key: string
+  /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
+  key: 'start' | 'keys' | 'settings'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
 }
 
+/**
+ * "Comece por aqui" envelhece: no mes que vem ninguem esta comecando, e o nome
+ * nao diz o que a tela faz. **Instalação** diz, e continua verdadeiro quando a
+ * pessoa volta para conferir o script.
+ *
+ * Com isso, "Chaves e integração" virou so **Chaves** — dois itens dizendo
+ * "integração" mandavam a pessoa abrir os dois para descobrir qual era qual.
+ */
 export const CONSOLE_SECTIONS: ConsoleSection[] = [
-  { key: 'start', label: 'Comece por aqui', path: 'start' },
-  { key: 'keys', label: 'Chaves e integração', path: 'keys' },
+  { key: 'start', label: 'Instalação', path: 'start' },
+  { key: 'keys', label: 'Chaves', path: 'keys' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 
-/** O texto e a promessa: diz em que etapa aquilo chega. */
+/**
+ * A dica comeca pelo **que a secao vai fazer** e so entao diz em que etapa chega.
+ * Comecando pela etapa, ela respondia "quando" para quem ainda nao sabia "o que"
+ * — e "etapa 3" e numero de cronograma nosso, nao de quem usa o painel.
+ */
 export interface LockedSection {
   key: string
   label: string
@@ -27,22 +40,30 @@ export interface LockedSection {
 }
 
 export const LOCKED_SECTIONS: LockedSection[] = [
-  { key: 'reports', label: 'Relatos', hint: 'Chega na etapa 3, quando o quadro de relatos abre.' },
+  {
+    key: 'reports',
+    label: 'Relatos',
+    hint: 'O quadro dos relatos que chegam do seu site, na etapa 3.',
+  },
   {
     key: 'stages',
     label: 'Etapas públicas',
-    hint: 'Chega na etapa 4: o que o usuário final vê do andamento.',
+    hint: 'O que o seu usuário vê do andamento do relato dele, na etapa 4.',
   },
   {
     key: 'tool',
     label: 'Ferramenta',
-    hint: 'Chega na etapa 4: aparência e campos do formulário no seu site.',
+    hint: 'Aparência e campos do formulário que aparece no seu site, na etapa 4.',
   },
   {
     key: 'addons',
     label: 'Addons',
-    hint: 'Chega na etapa 5: integrações com Slack, GitHub e e-mail.',
+    hint: 'Integrações com Slack, GitHub e e-mail, na etapa 5.',
   },
-  { key: 'members', label: 'Membros', hint: 'Chega na etapa 5, junto com convites para a conta.' },
-  { key: 'usage', label: 'Uso', hint: 'Chega na etapa 5, quando existe volume para medir.' },
+  {
+    key: 'members',
+    label: 'Membros',
+    hint: 'Convites para outras pessoas usarem esta conta, na etapa 5.',
+  },
+  { key: 'usage', label: 'Uso', hint: 'Volume de relatos e limites da conta, na etapa 5.' },
 ]

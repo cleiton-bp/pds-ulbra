@@ -1,6 +1,6 @@
 /**
- * Erro unico da camada de dados: mock e API levantam este mesmo tipo, com o mesmo
- * `status`, e por isso a tela nao precisa de dois caminhos de erro.
+ * Erro unico da camada de dados. A tela decide pelo `status`, e nunca pelo texto
+ * da mensagem.
  */
 export class PanelError extends Error {
   /** Codigo HTTP. 0 quando a falha foi de rede, antes da resposta. */

@@ -3,7 +3,7 @@ import { useBlocker } from 'react-router-dom'
 import type { RevealedSecretKeyViewModel } from '@/contracts'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
-import { CopyButton } from '@/shared/components/CopyButton'
+import { MaskedValue } from '@/shared/components/MaskedValue'
 import { copyText } from '@/shared/lib/clipboard'
 
 /**
@@ -15,6 +15,11 @@ import { copyText } from '@/shared/lib/clipboard'
  * Na confirmacao o acento fica em **voltar e copiar**, nao em sair: a acao
  * recomendada e a que ganha destaque. E o texto lembra que da para gerar outra —
  * o aviso precisa ser serio sem virar ameaca.
+ *
+ * **Ele mora dentro do cartao da chave secreta**, no lugar onde o prefixo fica o
+ * resto do tempo. Antes abria no topo da tela: quem clicava em "Gerar nova
+ * chave" estava com a integracao avancada aberta e rolada, e a resposta ao
+ * clique aparecia longe de onde o clique aconteceu.
  */
 interface RevealedSecretPanelProps {
   secret: RevealedSecretKeyViewModel
@@ -43,21 +48,19 @@ export function RevealedSecretPanel({ secret, onAcknowledge }: RevealedSecretPan
   }, [])
 
   return (
-    <section className="mb-6 rounded-xl border border-warn-border bg-warn-surface px-5 py-4.5">
-      <h2 className="mb-1 font-semibold text-lead text-warn-fg">Copie a chave secreta agora</h2>
-      <p className="mb-3.5 text-detail text-warn-fg leading-relaxed">
-        Este é o único momento em que o valor completo aparece na tela. Depois de fechar não há como
-        mostrá-lo de novo — e, se precisar, você pode gerar outra chave quando quiser.
+    <div className="mb-3.5 rounded-lg border border-warn-border bg-warn-surface p-3.5">
+      <p className="mb-3 text-detail text-warn-fg leading-relaxed">
+        Copie a chave agora. Este é o único momento em que o valor completo aparece, e depois de
+        fechar não há como mostrá-lo de novo. Se ficar sem ela, gere outra quando quiser.
       </p>
 
-      <div className="mb-3.5 flex items-center gap-2">
-        <code className="flex h-9 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-warn-border bg-surface px-3 font-mono text-detail text-fg">
-          {secret.Value}
-        </code>
-        <CopyButton value={secret.Value} variant="warn" />
-      </div>
+      <MaskedValue value={secret.Value} variant="warn" />
 
-      <Button variant="quiet" className="border-warn-border text-warn-fg" onClick={onAcknowledge}>
+      <Button
+        variant="quiet"
+        className="mt-3 border-warn-border text-warn-fg"
+        onClick={onAcknowledge}
+      >
         Guardei a chave
       </Button>
 
@@ -84,6 +87,6 @@ export function RevealedSecretPanel({ secret, onAcknowledge }: RevealedSecretPan
           blocker.proceed?.()
         }}
       />
-    </section>
+    </div>
   )
 }

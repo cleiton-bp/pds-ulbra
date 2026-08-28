@@ -5,8 +5,7 @@
  * decide se a pessoa pode entrar: conferir a assinatura e trabalho de servidor
  * (`GoogleIdentityValidator`, na nossa API). Token nao conferido e so um texto.
  *
- * Por isso o mesmo codigo serve aos dois modos: no `mock-google` a sessao e
- * montada localmente a partir do token; no `api` ele vai para `POST /auth/google`.
+ * O token obtido aqui vai para `POST /auth/google`, e e la que ele vale ou nao.
  *
  * O client id precisa ter a origem do painel em "Origens JavaScript autorizadas"
  * do Google Cloud (`http://localhost:5173` em desenvolvimento). Sem isso o Google
@@ -90,31 +89,63 @@ function loadGoogleIdentity(): Promise<GoogleAccountsId> {
   return loader
 }
 
-/** Desenha o botao oficial do Google dentro do elemento e avisa quando o token chega. */
+/**
+ * `initialize` e global e vale para a pagina inteira, entao roda **uma vez por
+ * client id**. Chamar de novo a cada montagem — o que o modo estrito do React
+ * provoca ao montar duas vezes — faz o GSI avisar no console que so a ultima
+ * instancia vale.
+ *
+ * Quem muda a cada chamada e o destinatario do token, guardado a parte: a
+ * `callback` que ficou registrada no Google e a da primeira vez, e sem isto ela
+ * seguiria avisando um componente que ja foi desmontado.
+ */
+let initializedFor: string | null = null
+let notifyCredential: ((idToken: string) => void) | null = null
+
+/**
+ * Desenha o botao oficial do Google dentro do elemento e avisa quando o token
+ * chega. Pode ser chamada para mais de um elemento — a tela de entrada desenha um
+ * no cabecalho e outro na chamada principal, e os dois avisam o mesmo destinatario.
+ */
 export async function renderGoogleButton(
   container: HTMLElement,
   clientId: string,
   onCredential: (idToken: string) => void,
+  options: { size?: 'medium' | 'large'; fit?: boolean } = {},
 ): Promise<void> {
   const api = await loadGoogleIdentity()
+  notifyCredential = onCredential
 
-  api.initialize({
-    client_id: clientId,
-    callback: (response) => {
-      if (response.credential) onCredential(response.credential)
-    },
-    // Entrar sozinho ao abrir confunde quem tem mais de uma conta Google.
-    auto_select: false,
-    cancel_on_tap_outside: true,
-  })
+  if (initializedFor !== clientId) {
+    api.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        if (response.credential) notifyCredential?.(response.credential)
+      },
+      // Entrar sozinho ao abrir confunde quem tem mais de uma conta Google.
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    })
+
+    initializedFor = clientId
+  }
+
+  // Esvaziar antes de desenhar deixa a funcao idempotente: montar duas vezes
+  // termina com um botao, e nao com dois empilhados.
+  container.replaceChildren()
 
   api.renderButton(container, {
     type: 'standard',
     theme: 'outline',
-    size: 'large',
+    size: options.size ?? 'large',
     text: 'continue_with',
     shape: 'rectangular',
     locale: 'pt-BR',
+    // O Google so aceita largura em numero, e o maximo dele e 400. Com `fit`, medir
+    // o container faz o botao ocupar a coluna em vez de encolher no canto dela, e em
+    // tela estreita ele nao passa da margem. Sem `fit` ele sai do tamanho do texto,
+    // que e o que serve num cabecalho.
+    ...(options.fit ? { width: Math.min(400, Math.round(container.clientWidth) || 320) } : {}),
   })
 }
 

@@ -1,39 +1,19 @@
 /**
- * Tres modos, e a diferenca importa para quem avalia o que esta na tela:
+ * Variaveis do painel. As duas sao obrigatorias: sem API nao ha dado nenhum, e
+ * sem client id o Google recusa antes de desenhar o botao.
  *
- *   mock         nada preenchido. Sessao local, dados em memoria, funciona offline.
- *   mock-google  so o client id. O Sign-In acontece de verdade, mas **ninguem
- *                confere o token** — a sessao ainda e montada pelo mock.
- *   api          `VITE_USE_API=true`. O token vai para `POST /auth/google`.
- *
- * O modo aparece escrito na tela de login: demonstracao que nao se anuncia acaba
- * confundida com sistema pronto.
+ * Elas nao sao segredo — o Vite injeta toda `VITE_*` no bundle, entao qualquer
+ * pessoa as le no navegador. Quem guarda segredo e a API: chave de assinatura e
+ * string de conexao nunca chegam aqui.
  */
-
-export type OperationMode = 'mock' | 'mock-google' | 'api'
 
 function readText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-const useApi = readText(import.meta.env.VITE_USE_API) === 'true'
-const googleClientId = readText(import.meta.env.VITE_GOOGLE_CLIENT_ID)
-
 export const environment = {
-  useApi,
+  /** Sem barra no fim: o caminho de cada rota ja comeca com uma. */
   apiUrl: (readText(import.meta.env.VITE_API_URL) || 'http://localhost:5080').replace(/\/+$/, ''),
-  /** Nulo significa "sem Google configurado", e a tela de login se ajusta. */
-  googleClientId: googleClientId || null,
-  mode: (useApi ? 'api' : googleClientId ? 'mock-google' : 'mock') as OperationMode,
+  /** Nulo significa "sem Google configurado", e a tela de entrada avisa. */
+  googleClientId: readText(import.meta.env.VITE_GOOGLE_CLIENT_ID) || null,
 } as const
-
-export function describeMode(mode: OperationMode): string {
-  switch (mode) {
-    case 'api':
-      return 'Conectado à API'
-    case 'mock-google':
-      return 'Google real, dados de demonstração'
-    case 'mock':
-      return 'Dados de demonstração'
-  }
-}

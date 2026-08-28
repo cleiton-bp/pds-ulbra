@@ -22,6 +22,7 @@ const FONT_SIZE_NAMES = [
   'screen',
   'hero',
   'hero-wide',
+  'display',
 ]
 
 const COLOR_NAMES = [
