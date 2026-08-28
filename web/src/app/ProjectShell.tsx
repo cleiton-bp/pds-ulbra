@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
 import { CONSOLE_SECTIONS, LOCKED_SECTIONS } from '@/app/navigation'
+import { SectionIcon } from '@/app/SectionIcon'
 import { ThemeButton } from '@/app/ThemeButton'
 import { isPanelError } from '@/data'
 import { useProjectsStore } from '@/features/projects/projectsStore'
@@ -222,21 +223,39 @@ export function ProjectShell() {
                   onClick={() => setDrawerOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      'flex h-[34px] items-center rounded-lg px-2.5 text-body transition-colors',
+                      'flex h-[34px] items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
                       isActive
                         ? 'bg-nav-active font-medium text-fg'
                         : 'text-fg hover:bg-surface-sunken',
                     )
                   }
                 >
-                  {section.label}
+                  {({ isActive }) => (
+                    <>
+                      {/* Apagado quando nao e a secao aberta: com todos no mesmo
+                          tom, os seis glifos disputam a atencao com o que esta
+                          aberto. */}
+                      <SectionIcon
+                        section={section.key}
+                        className={cn('size-3.5', isActive ? 'text-fg' : 'text-fg-muted')}
+                      />
+                      {section.label}
+                    </>
+                  )}
                 </NavLink>
               ))}
             </div>
           </div>
 
           <div>
-            <div className="px-2.5 pb-2 text-caption text-fg-muted">Operação</div>
+            {/* O cadeado diz "bloqueado" seis vezes e nao diz "ainda". A
+                etiqueta diz uma vez, e o resto do grupo fica so apagado. */}
+            <div className="flex items-center gap-2 px-2.5 pb-2">
+              <span className="text-caption text-fg-muted">Operação</span>
+              <span className="rounded-full border border-border px-1.5 py-px text-caption text-fg-muted">
+                em breve
+              </span>
+            </div>
             <div className="flex flex-col gap-0.5">
               {LOCKED_SECTIONS.map((section) => (
                 <Tooltip key={section.key} content={section.hint}>
@@ -245,9 +264,9 @@ export function ProjectShell() {
                   <button
                     type="button"
                     aria-disabled="true"
-                    className="flex h-[34px] cursor-default items-center gap-2 rounded-lg px-2.5 text-fg-muted text-body"
+                    className="flex h-[34px] w-full cursor-default items-center gap-2.5 rounded-lg px-2.5 text-fg-muted text-body"
                   >
-                    <LockIcon className="size-3 opacity-85" />
+                    <LockIcon className="size-3.5 opacity-85" />
                     <span className="flex-1 text-left">{section.label}</span>
                   </button>
                 </Tooltip>
