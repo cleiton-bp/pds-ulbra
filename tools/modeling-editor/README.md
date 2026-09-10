@@ -21,6 +21,7 @@ npm run dev        # http://localhost:5180
 | Mover | arraste a caixa pelo cabeçalho |
 | Reordenar campo | arraste pelo `⠿` no painel da direita |
 | Esconder laterais | `Alt+1` arquivos · `Alt+2` painel |
+| O que aparece | menu **o que aparece** na barra: mostrar as notas, só as desta modelagem, realçar as da tabela escolhida, realçar as tabelas novas · `Alt+3` mostra e esconde as notas |
 | Gravar | sozinho, 800ms após parar · `⌘S` força |
 
 O lado em que a linha encosta se reajusta sozinho quando você move as caixas.

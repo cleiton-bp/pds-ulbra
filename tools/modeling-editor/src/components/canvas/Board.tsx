@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   ConnectionMode,
@@ -6,6 +6,7 @@ import {
   MarkerType,
   MiniMap,
   ReactFlow,
+  useReactFlow,
   type Connection,
   type Edge,
   type NodeChange,
@@ -25,15 +26,46 @@ import {
 
 const NODE_TYPES = { entity: EntityNode, note: NoteNode }
 
+/**
+ * Reenquadra a vista sempre que muda o conjunto de notas na tela.
+ *
+ * Sem isto, esconder notas deixa a modelagem pequena no meio de um canvas vazio,
+ * que e o contrario da visao limpa que o menu promete. Precisa ser filho de
+ * <ReactFlow> para alcancar o `useReactFlow`, e por isso e componente proprio.
+ */
+function RefitOnChange({ signal }: { signal: string }) {
+  const { fitView } = useReactFlow()
+  const first = useRef(true)
+
+  useEffect(() => {
+    // Na montagem quem enquadra e o `fitView` do proprio <ReactFlow>.
+    if (first.current) { first.current = false; return }
+    void fitView({ duration: 320, padding: 0.12 })
+  }, [signal, fitView])
+
+  return null
+}
+
 type BoardProps = {
   doc: ModelDoc
+  /** Com `false`, as notas e as setas delas somem do canvas — ver `App`. */
+  showNotes: boolean
+  /** Esconde o que veio da modelagem anterior, deixando só o que esta acrescenta. */
+  hideInherited: boolean
+  /** Apaga as notas das outras tabelas quando uma tabela é escolhida. */
+  focusNotes: boolean
+  /** Apaga as tabelas que vieram de antes, deixando as novas em evidência. */
+  focusNew: boolean
   selection: Selection
   onSelect: (selection: Selection) => void
   actions: ModelActions
   onViewportChange: (viewport: Viewport) => void
 }
 
-export default function Board({ doc, selection, onSelect, actions, onViewportChange }: BoardProps) {
+export default function Board({
+  doc, showNotes, hideInherited, focusNotes, focusNew, selection, onSelect, actions,
+  onViewportChange,
+}: BoardProps) {
   // Qual linha esta aberta para edicao dentro da caixa. Mora aqui, e nao no documento,
   // porque e estado de tela — nao deve ir para o arquivo nem sujar o autosave.
   const [editing, setEditing] = useState<Editing>(null)
@@ -52,25 +84,45 @@ export default function Board({ doc, selection, onSelect, actions, onViewportCha
     [doc.entities],
   )
 
+  /** O que sobra das notas depois dos filtros da barra. */
+  const visibleNotes = useMemo<Note[]>(() => {
+    if (!showNotes) return []
+    return hideInherited ? doc.notes.filter((note) => !note.inherited) : doc.notes
+  }, [doc.notes, showNotes, hideInherited])
+
+  /**
+   * A tabela que está mandando no realce. Vazio quando o realce está desligado ou
+   * quando o que está escolhido não é uma tabela — e aí ninguém apaga ninguém.
+   */
+  const focused = useMemo<string>(() => {
+    if (!focusNotes || selection?.type !== 'entity') return ''
+    return doc.entities.find((entity) => entity.uid === selection.uid)?.name ?? ''
+  }, [focusNotes, selection, doc.entities])
+
+  const isDim = useCallback(
+    (note: Note): boolean => Boolean(focused) && note.anchor !== focused,
+    [focused],
+  )
+
   const nodes = useMemo<AppNode[]>(() => {
     const entities: AppNode[] = doc.entities.map((entity) => ({
       id: nodeId.entity(entity.uid),
       type: 'entity',
       position: entity.position,
-      data: { entity },
+      data: { entity, dim: focusNew && entity.inherited },
       selected: selection?.type === 'entity' && selection.uid === entity.uid,
     }))
 
-    const notes: AppNode[] = doc.notes.map((note) => ({
+    const notes: AppNode[] = visibleNotes.map((note) => ({
       id: nodeId.note(note.uid),
       type: 'note',
       position: note.position,
-      data: { note },
+      data: { note, dim: isDim(note) },
       selected: selection?.type === 'note' && selection.uid === note.uid,
     }))
 
     return [...entities, ...notes]
-  }, [doc.entities, doc.notes, selection])
+  }, [doc.entities, focusNew, visibleNotes, isDim, selection])
 
   const edges = useMemo<Edge[]>(() => {
     /** O ponto exato onde a linha gruda: a altura do campo, ou a borda da caixa. */
@@ -90,8 +142,12 @@ export default function Board({ doc, selection, onSelect, actions, onViewportCha
       const sides = pickSides(boxCenter(from), boxCenter(to), onField)
       const isSelected = selection?.type === 'relation' && selection.uid === relation.uid
 
+      // Ligação entre duas tabelas apagadas apaga junto; se uma ponta é nova, fica.
+      const dimRelation = focusNew && from.inherited && to.inherited
+
       return [{
         id: edgeId.relation(relation.uid),
+        className: dimRelation ? 'is-dim' : undefined,
         source: nodeId.entity(from.uid),
         target: nodeId.entity(to.uid),
         sourceHandle: attach(from, relation.fromField, sides.source),
@@ -105,7 +161,8 @@ export default function Board({ doc, selection, onSelect, actions, onViewportCha
     })
 
     // A seta da nota: tracejada e mais fina, para nao competir com as relacoes.
-    const anchors: Edge[] = doc.notes.flatMap((note) => {
+    // A seta acompanha a nota: some com ela e apaga com ela.
+    const anchors: Edge[] = visibleNotes.flatMap((note) => {
       if (!note.anchor) return []
       const target = byName.get(note.anchor)
       if (!target) return []
@@ -121,7 +178,7 @@ export default function Board({ doc, selection, onSelect, actions, onViewportCha
         sourceHandle: handleId.box(sides.source),
         targetHandle: attach(target, note.anchorField, sides.target),
         type: 'smoothstep',
-        className: 'edge-anchor',
+        className: `edge-anchor${isDim(note) ? ' is-dim' : ''}`,
         selected: isSelected,
         markerEnd: { type: MarkerType.Arrow, width: 16, height: 16 },
         style: { strokeDasharray: '5 4', strokeWidth: isSelected ? 2 : 1.2 },
@@ -129,7 +186,7 @@ export default function Board({ doc, selection, onSelect, actions, onViewportCha
     })
 
     return [...relations, ...anchors]
-  }, [doc.relations, doc.notes, byName, selection])
+  }, [doc.relations, visibleNotes, byName, focusNew, isDim, selection])
 
   // O React Flow avisa a cada quadro do arrasto; gravamos a posicao no documento na
   // hora e o autosave cuida do resto depois que a mao solta.
@@ -218,6 +275,7 @@ export default function Board({ doc, selection, onSelect, actions, onViewportCha
         minZoom={0.2}
         maxZoom={2}
       >
+        <RefitOnChange signal={`${showNotes}|${hideInherited}`} />
         <Background gap={18} size={1} />
         <Controls showInteractive={false} />
         {/* O tamanho vem do CSS (`.react-flow__minimap`), que é onde ele é ajustável. */}

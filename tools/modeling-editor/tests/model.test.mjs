@@ -332,3 +332,68 @@ describe('seta da nota', () => {
     assert.match(doc.warnings[0], /Fantasma/)
   })
 })
+
+describe('nota herdada', () => {
+  it('lê a marca do arquivo', () => {
+    const { doc } = parseDoc('notes:\n  - text: veio de antes\n    inherited: true\n')
+    assert.equal(doc.notes[0].inherited, true)
+  })
+
+  it('nota sem a marca é desta modelagem', () => {
+    const { doc } = parseDoc('notes:\n  - text: nova\n')
+    assert.equal(doc.notes[0].inherited, false)
+  })
+
+  it('grava a marca e sobrevive à ida e volta', () => {
+    const { doc } = parseDoc('notes:\n  - text: veio de antes\n    inherited: true\n')
+    const written = serializeDoc(doc)
+    assert.match(written, /inherited: true/)
+    assert.equal(parseDoc(written).doc.notes[0].inherited, true)
+  })
+
+  it('não escreve a marca quando a nota é desta modelagem', () => {
+    // Campo vazio fora do arquivo: o diff do git mostra só o que existe de verdade.
+    const written = serializeDoc(parseDoc('notes:\n  - text: nova\n').doc)
+    assert.ok(!written.includes('inherited'))
+  })
+
+  it('nota criada no editor nasce como desta modelagem', () => {
+    const doc = ops.addNote(emptyDoc('t'), 'n1', { x: 0, y: 0 })
+    assert.equal(doc.notes[0].inherited, false)
+  })
+})
+
+describe('tabela herdada', () => {
+  it('lê a marca do arquivo', () => {
+    const { doc } = parseDoc('entities:\n  - name: A\n    inherited: true\n')
+    assert.equal(doc.entities[0].inherited, true)
+  })
+
+  it('tabela sem a marca é desta modelagem', () => {
+    const { doc } = parseDoc('entities:\n  - name: A\n')
+    assert.equal(doc.entities[0].inherited, false)
+  })
+
+  it('grava a marca e sobrevive à ida e volta', () => {
+    const { doc } = parseDoc('entities:\n  - name: A\n    inherited: true\n')
+    const written = serializeDoc(doc)
+    assert.match(written, /inherited: true/)
+    assert.equal(parseDoc(written).doc.entities[0].inherited, true)
+  })
+
+  it('não escreve a marca quando a tabela é desta modelagem', () => {
+    const written = serializeDoc(parseDoc('entities:\n  - name: A\n').doc)
+    assert.ok(!written.includes('inherited'))
+  })
+
+  it('tabela criada no editor nasce como desta modelagem', () => {
+    const doc = ops.addEntity(emptyDoc('t'), 'e1', { x: 0, y: 0 })
+    assert.equal(doc.entities[0].inherited, false)
+  })
+
+  it('renomear a tabela não perde a marca', () => {
+    const { doc } = parseDoc('entities:\n  - name: A\n    inherited: true\n')
+    const renamed = ops.renameEntity(doc, doc.entities[0].uid, 'B')
+    assert.equal(renamed.entities[0].inherited, true)
+  })
+})

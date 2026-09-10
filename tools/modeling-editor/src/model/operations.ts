@@ -33,6 +33,7 @@ export function addEntity(doc: ModelDoc, uid: string, position: Entity['position
     description: '',
     position,
     fields: [{ uid: newUid('f'), name: 'id', type: 'int', pk: true, note: '' }],
+    inherited: false,
   }
   return { ...doc, entities: [...doc.entities, entity] }
 }
@@ -154,6 +155,7 @@ export const moveField = (doc: ModelDoc, entityUid: string, from: number, to: nu
 export function addNote(doc: ModelDoc, uid: string, position: Note['position']): ModelDoc {
   const note: Note = {
     uid, text: '', position, width: NOTE_DEFAULT_WIDTH, anchor: '', anchorField: '',
+    inherited: false,
   }
   return { ...doc, notes: [...doc.notes, note] }
 }

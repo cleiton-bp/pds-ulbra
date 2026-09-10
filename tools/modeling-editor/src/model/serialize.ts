@@ -27,6 +27,7 @@ function cleanEntity(entity: Entity): PlainEntity {
   const out: PlainEntity = { name: entity.name }
   if (entity.label) out.label = entity.label
   if (entity.description) out.description = entity.description
+  if (entity.inherited) out.inherited = true
   out.position = { x: Math.round(entity.position.x), y: Math.round(entity.position.y) }
   out.fields = entity.fields.map(cleanField)
   return out
@@ -48,6 +49,7 @@ function cleanNote(note: Note): Record<string, unknown> {
   if (note.anchor && note.anchorField) out.anchorField = note.anchorField
   out.position = { x: Math.round(note.position.x), y: Math.round(note.position.y) }
   if (note.width && note.width !== NOTE_DEFAULT_WIDTH) out.width = Math.round(note.width)
+  if (note.inherited) out.inherited = true
   return out
 }
 

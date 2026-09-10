@@ -42,6 +42,20 @@ export default function NoteInspector({ note, entities, actions }: NoteInspector
         linha específica da tabela.
       </p>
 
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={note.inherited}
+          onChange={(event) => actions.updateNote(note.uid, { inherited: event.target.checked })}
+        />
+        <span>Veio da modelagem anterior</span>
+      </label>
+
+      <p className="panel__hint">
+        Marcada, ela some quando o menu <strong>notas</strong> esconde as que vieram de
+        antes — serve para deixar na tela só o que esta modelagem acrescenta.
+      </p>
+
       <label className="field-group">
         <span>Largura ({note.width}px)</span>
         <input

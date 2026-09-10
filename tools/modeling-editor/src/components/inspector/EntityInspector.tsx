@@ -48,6 +48,15 @@ export default function EntityInspector({ entity, actions }: EntityInspectorProp
         />
       </label>
 
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={entity.inherited}
+          onChange={(event) => actions.updateEntity(entity.uid, { inherited: event.target.checked })}
+        />
+        <span>Veio da modelagem anterior</span>
+      </label>
+
       <label className="field-group">
         <span>Nome no domínio</span>
         <input

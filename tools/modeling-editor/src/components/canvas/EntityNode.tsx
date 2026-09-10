@@ -18,7 +18,7 @@ import { FLOW_POSITION, SIDES, handleId, type EntityFlowNode } from './nodeTypes
  * sem isso o clique viraria arrasto e nunca chegaria no input.
  */
 function EntityNode({ id, data, selected }: NodeProps<EntityFlowNode>) {
-  const { entity } = data
+  const { entity, dim } = data
   const { actions, editing, editField, stopEditing } = useCanvasEditing()
 
   const editingUid = editing?.kind === 'field' && editing.entityUid === entity.uid
@@ -47,7 +47,7 @@ function EntityNode({ id, data, selected }: NodeProps<EntityFlowNode>) {
   }
 
   return (
-    <div className={`entity-node${selected ? ' is-selected' : ''}`}>
+    <div className={`entity-node${selected ? ' is-selected' : ''}${dim ? ' is-dim' : ''}`}>
       {/* Borda da caixa: os quatro lados, para ligar a tabela inteira. */}
       {SIDES.map((side) => (
         <Handle

@@ -11,7 +11,7 @@ import { FLOW_POSITION, SIDES, handleId, type NoteFlowNode } from './nodeTypes'
  * explica; a ligacao vira o campo `anchor` da nota no arquivo.
  */
 function NoteNode({ data, selected }: NodeProps<NoteFlowNode>) {
-  const { note } = data
+  const { note, dim } = data
   const { actions, editing, editNote, stopEditing } = useCanvasEditing()
   const isEditing = editing?.kind === 'note' && editing.uid === note.uid
 
@@ -24,7 +24,10 @@ function NoteNode({ data, selected }: NodeProps<NoteFlowNode>) {
   }
 
   return (
-    <div className={`note-node${selected ? ' is-selected' : ''}`} style={{ width: note.width }}>
+    <div
+      className={`note-node${selected ? ' is-selected' : ''}${dim ? ' is-dim' : ''}`}
+      style={{ width: note.width }}
+    >
       {/* Os quatro lados: a seta sai por onde ficar mais curto para a tabela. */}
       {SIDES.map((side) => (
         <Handle
