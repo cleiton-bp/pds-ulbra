@@ -232,6 +232,111 @@ kbd {
 
 .btn--ghost { background: none; }
 
+/* ---- menu suspenso da barra --------------------------------------------- */
+
+.menu { position: relative; display: flex; }
+
+.menu__pop {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 20;
+  min-width: 306px;
+  padding: 5px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+
+/* Cabeçalho do menu: diz do que ele trata e quantas notas estão na tela agora. */
+.menu__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 8px 8px;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.menu__head em { font-style: normal; text-transform: none; letter-spacing: 0; font-size: 11px; }
+
+/* Segunda seção do menu: ganha uma linha em cima para separar da primeira. */
+.menu__head--sec { margin-top: 5px; padding-top: 9px; border-top: 1px solid var(--line); }
+
+.menu__rule { margin: 5px 8px; border: 0; border-top: 1px solid var(--line); }
+
+.menu__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Cada opção é rótulo em cima e explicação embaixo — checkbox alinhado no rótulo. */
+.menu__item > span { display: flex; flex-direction: column; gap: 2px; }
+
+.menu__item small { font-size: 10.5px; line-height: 1.45; color: var(--text-dim); }
+
+.menu__item input { margin-top: 2px; }
+
+.menu__item:hover { background: var(--bg-raised); }
+
+/* Opção que só faz sentido com as notas na tela. */
+.menu__item.is-off { color: var(--text-dim); cursor: default; }
+
+.menu__item.is-off small { color: var(--line-strong); }
+
+.menu__item.is-off:hover { background: none; }
+
+/* O `input` global é 100% de largura; aqui é uma caixinha. */
+.menu__item input,
+.check input {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+/* Caixa de marcar no painel da direita. */
+.check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Botão da barra com a função desligada. */
+.btn.is-off { color: var(--text-dim); }
+
+/* Nota fora do realce: continua legível de perto, mas para de competir. */
+.note-node.is-dim { opacity: 0.2; }
+
+/* Vale para a seta da nota e para a ligação entre duas tabelas apagadas. */
+.react-flow__edge.is-dim { opacity: 0.16; }
+
+/* Tabela que veio de antes, com o realce das novas ligado. Continua legível de
+   perto — o pedido era apagar, não esconder. */
+.entity-node.is-dim { opacity: 0.28; }
+
+/* Divisória entre criar e mudar a vista, na barra de ferramentas. Usa a linha
+   forte porque a fraca, em 1px sobre o painel, some. */
+.toolbar__sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--line-strong);
+}
+
 .btn--danger { color: var(--danger); border-color: rgba(255, 107, 107, 0.4); }
 
 .status { font-size: 11px; color: var(--text-dim); min-width: 74px; text-align: right; }

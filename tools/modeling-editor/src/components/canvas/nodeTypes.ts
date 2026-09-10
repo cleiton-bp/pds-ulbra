@@ -3,8 +3,10 @@ import type { Entity, Note, Side } from '../../types'
 
 /** Ponte entre o modelo e o React Flow: o que cada no carrega e como o id e formado. */
 
-export type EntityNodeData = { entity: Entity }
-export type NoteNodeData = { note: Note }
+/** `dim` apaga a tabela quando o realce das novas esta ligado e ela veio de antes. */
+export type EntityNodeData = { entity: Entity; dim: boolean }
+/** `dim` apaga a nota quando o realce por tabela esta ligado e ela nao e da escolhida. */
+export type NoteNodeData = { note: Note; dim: boolean }
 
 export type EntityFlowNode = Node<EntityNodeData, 'entity'>
 export type NoteFlowNode = Node<NoteNodeData, 'note'>

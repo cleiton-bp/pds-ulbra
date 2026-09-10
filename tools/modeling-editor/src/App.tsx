@@ -15,10 +15,15 @@ import type { Position, Selection } from './types'
 /** Junta as três áreas da tela. A lógica de verdade mora nos hooks e em `model/`. */
 export default function App() {
   const workspace = useWorkspace()
+  const { doc, current, parseError } = workspace
   const [selection, setSelection] = useState<Selection>(null)
 
   const [showFiles, toggleFiles] = useStickyToggle('editor:files', true)
   const [showPanel, togglePanel] = useStickyToggle('editor:panel', true)
+  const [showNotes, toggleNotes] = useStickyToggle('editor:notes', true)
+  const [hideInherited, toggleInherited] = useStickyToggle('editor:notes-herdadas', false)
+  const [focusNotes, toggleFocus] = useStickyToggle('editor:notes-realce', false)
+  const [focusNew, toggleFocusNew] = useStickyToggle('editor:tabelas-realce', false)
 
   const canvasRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<Viewport>({ x: 0, y: 0, zoom: 1 })
@@ -36,23 +41,40 @@ export default function App() {
 
   const actions = useModelActions({ update: workspace.update, setSelection, nextPosition })
 
+  // Nota que saiu da tela não pode continuar aberta no painel — nem a escondida pelo
+  // liga/desliga, nem a que o filtro de herdadas tirou.
+  useEffect(() => {
+    setSelection((current) => {
+      if (current?.type !== 'note') return current
+      if (!showNotes) return null
+      const note = doc?.notes.find((n) => n.uid === current.uid)
+      return note && hideInherited && note.inherited ? null : current
+    })
+  }, [showNotes, hideInherited, doc])
+
+  // Criar nota com as notas escondidas pareceria que o botão não funcionou.
+  const addNote = useCallback((): void => {
+    if (!showNotes) toggleNotes()
+    actions.addNote()
+  }, [showNotes, toggleNotes, actions])
+
   const openFile = useCallback((name: string): void => {
     setSelection(null)
     void workspace.open(name)
   }, [workspace])
 
-  // Alt+1 / Alt+2 abrem e fecham as laterais sem tirar a mão do teclado.
+  // Alt+1 / Alt+2 abrem e fecham as laterais, Alt+3 esconde as notas — sem tirar a mão do teclado.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (!event.altKey) return
       if (event.key === '1') { event.preventDefault(); toggleFiles() }
       if (event.key === '2') { event.preventDefault(); togglePanel() }
+      if (event.key === '3') { event.preventDefault(); toggleNotes() }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [toggleFiles, togglePanel])
+  }, [toggleFiles, togglePanel, toggleNotes])
 
-  const { doc, current, parseError } = workspace
   const canEdit = Boolean(doc) && !parseError
   const title = current
     ? doc?.meta.title || current.replace(/\.yaml$/, '')
@@ -89,10 +111,22 @@ export default function App() {
           canEdit={canEdit}
           showFiles={showFiles}
           showPanel={showPanel}
+          showNotes={showNotes}
+          hideInherited={hideInherited}
+          focusNotes={focusNotes}
+          noteCount={doc?.notes.length ?? 0}
+          inheritedCount={doc?.notes.filter((note) => note.inherited).length ?? 0}
+          entityCount={doc?.entities.length ?? 0}
+          newEntityCount={doc?.entities.filter((entity) => !entity.inherited).length ?? 0}
+          focusNew={focusNew}
           onToggleFiles={toggleFiles}
           onTogglePanel={togglePanel}
+          onToggleNotes={toggleNotes}
+          onToggleInherited={toggleInherited}
+          onToggleFocus={toggleFocus}
+          onToggleFocusNew={toggleFocusNew}
           onAddEntity={actions.addEntity}
-          onAddNote={actions.addNote}
+          onAddNote={addNote}
         />
 
         <Banners
@@ -108,6 +142,10 @@ export default function App() {
           {doc && canEdit ? (
             <Board
               doc={doc}
+              showNotes={showNotes}
+              hideInherited={hideInherited}
+              focusNotes={focusNotes}
+              focusNew={focusNew}
               selection={selection}
               onSelect={setSelection}
               actions={actions}
