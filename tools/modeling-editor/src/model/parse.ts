@@ -61,6 +61,7 @@ function parseEntity(raw: unknown, index: number): Entity {
     description: asString(record.description),
     position: parsePosition(record.position, index),
     fields: asArray(record.fields).map(parseField),
+    inherited: asBool(record.inherited),
   }
 }
 
@@ -86,6 +87,7 @@ function parseNote(raw: unknown, index: number): Note {
     width: asNumber(record.width, NOTE_DEFAULT_WIDTH),
     anchor: asString(record.anchor),
     anchorField: asString(record.anchorField),
+    inherited: asBool(record.inherited),
   }
 }
 

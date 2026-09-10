@@ -31,6 +31,14 @@ export type Entity = {
   description: string
   position: Position
   fields: Field[]
+  /**
+   * Tabela que ja existia na modelagem anterior, copiada para dar contexto.
+   *
+   * Mesma ideia da marca da nota: o arquivo nao deduz isso sozinho, e e ela que
+   * permite ao canvas apagar o que veio de antes e realcar o que esta modelagem
+   * acrescenta.
+   */
+  inherited: boolean
 }
 
 /**
@@ -64,6 +72,14 @@ export type Note = {
   anchor: string
   /** Campo especifico dessa entidade. Vazio = aponta para a caixa inteira. */
   anchorField: string
+  /**
+   * Nota que veio junto da modelagem anterior, copiada para dar contexto.
+   *
+   * O arquivo nao tem como deduzir isso sozinho, entao e marcado a mao no painel.
+   * Serve para o canvas conseguir esconder o que ja foi explicado antes e deixar
+   * so o que esta modelagem acrescenta.
+   */
+  inherited: boolean
 }
 
 export type DocMeta = {
