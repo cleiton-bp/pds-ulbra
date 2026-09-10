@@ -7,6 +7,8 @@ Editadas pelo canvas do [editor](../) (`npm run dev`) ou direto no editor de tex
 | Arquivo | Cobre |
 |---|---|
 | `example.yaml` | ponto de partida: `Account` e `User`, uma relação presa aos campos e duas notas com seta |
+| `stage-1.yaml` | etapa 1 — conta, usuário, projeto e chaves |
+| `stage-2.yaml` | etapa 2 — o mesmo da etapa 1, sem alteração, mais domínios autorizados, relato, contexto e evento |
 
 O `example.yaml` existe para conhecer o editor.
 
