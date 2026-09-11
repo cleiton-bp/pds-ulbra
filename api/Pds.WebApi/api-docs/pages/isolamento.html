@@ -41,6 +41,68 @@ isso tem um filtro próprio idêntico. Vale reparar no detalhe que engana: o fil
 quem esquecer de repetir <code>DeletedAt == null</code> ali perde o apagado sem nenhum erro
 de compilação.</p>
 
+<h3>O relato compara coluna, e não navegação</h3>
+
+<pre><code>modelBuilder.Entity&lt;Report&gt;()
+    .HasQueryFilter(report =&gt;
+        report.DeletedAt == null &amp;&amp;
+        report.AccountId == CurrentAccountId);</code></pre>
+
+<p><code>reports</code> é a exceção deliberada ao desenho acima: ela repete <code>account_id</code>
+em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o painel lista o
+tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
+<code>report_contexts</code> volta ao padrão e chega pelo relato.</p>
+
+<h2>As duas consultas que atravessam o filtro</h2>
+
+<p>São exatamente duas em todo o sistema, e as duas são propositais.</p>
+
+<p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
+momento a conta ainda não é conhecida, e é justamente a chave pública que vai revelá-la. Com o
+filtro ligado, a consulta nunca acharia nada — sem sessão, <code>CurrentAccountId</code> é zero.</p>
+
+<pre><code>Context.ProjectKeys
+    .IgnoreQueryFilters()
+    .Include(key =&gt; key.Project)
+    .FirstOrDefaultAsync(key =&gt;
+        key.Value == value &amp;&amp;
+        key.Type == ProjectKeyTypeEnum.Public &amp;&amp;
+        key.RevokedAt == null &amp;&amp;
+        key.DeletedAt == null &amp;&amp;
+        key.Project.DeletedAt == null);</code></pre>
+
+<div class="note warn">
+  <strong><code>IgnoreQueryFilters</code> desliga os dois filtros, não só o da conta</strong>
+  <p>Junto com o isolamento cai também a exclusão lógica. Por isso as duas condições que o
+  filtro garantia estão reescritas à mão logo ali — <code>DeletedAt == null</code> na chave e
+  no projeto. Retirar qualquer uma faz chave revogada ou projeto apagado voltarem a aceitar
+  relato, e nada acusa: compila, responde 200 e grava.</p>
+  <p>É por isso que ela mora em <code>ProjectKeyRepository</code>, escrita uma vez, e não
+  espalhada pelos serviços. Uma exceção que se pode apontar com o dedo é uma exceção; uma que
+  se repete vira o novo padrão.</p>
+</div>
+
+<p>A segunda é a conferência de protocolo repetido, na criação do relato:</p>
+
+<pre><code>Context.Reports
+    .IgnoreQueryFilters()
+    .AnyAsync(report =&gt; report.TrackingCode == trackingCode);</code></pre>
+
+<p>Aqui a pergunta vale para o sistema inteiro, e não para a conta: quem digita um protocolo
+não sabe de qual projeto o relato é, então dois relatos de contas diferentes com o mesmo
+código levariam a pessoa ao lugar errado. Ela também inclui o que foi apagado — a linha some
+da lista, mas o papel com o protocolo continua na mão de alguém.</p>
+
+<div class="note why">
+  <strong>Atravessar o filtro para ler não é atravessar para gravar</strong>
+  <p>O filtro global vale para <strong>leitura</strong>. Gravar um relato sem sessão funciona
+  normalmente: o <code>account_id</code> da linha nova vem do projeto que a chave resolveu, e
+  não da sessão que não existe.</p>
+  <p>O efeito é que o relato entra sem sessão e, a partir daí, só a conta dona o enxerga. Foi
+  medido: com a conta dona, a consulta devolve o relato; sem sessão ou com outra conta,
+  devolve zero.</p>
+</div>
+
 <h2>De onde vem a conta</h2>
 
 <p>Do token, e só. O <code>AccountMiddleware</code> roda depois da autenticação, lê o
