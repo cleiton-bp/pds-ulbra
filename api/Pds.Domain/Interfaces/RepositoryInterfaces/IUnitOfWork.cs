@@ -12,4 +12,5 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IUserRepository Users { get; }
     IProjectRepository Projects { get; }
     IProjectKeyRepository ProjectKeys { get; }
+    IProjectOriginRepository ProjectOrigins { get; }
 }
