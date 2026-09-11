@@ -7,13 +7,19 @@ import { cn } from '@/shared/lib/cn'
  * No tema escuro a sombra e preta sobre fundo quase preto e nao separa nada,
  * entao a elevacao vira superficie mais clara. A **borda** fica de fora disso de
  * proposito: ela diz se o aviso e erro ou confirmacao.
+ *
+ * **Em cima, e nao embaixo.** O aviso confirma o que acabou de acontecer, e some
+ * sozinho em quatro segundos: no rodape ele nasce longe de onde a pessoa estava
+ * olhando e ha boa chance de sumir sem ser lido. O `4.5rem` e o cabecalho de 56px
+ * das tres cascas mais um respiro — colado no topo, o aviso cairia por cima do
+ * menu da conta, que e justamente o canto onde ele aparece.
  */
 export function Toaster() {
   const toasts = useToastStore((state) => state.toasts)
   const dismiss = useToastStore((state) => state.dismiss)
 
   return (
-    <div className="pointer-events-none fixed right-5 bottom-5 z-toast flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2">
+    <div className="pointer-events-none fixed top-[4.5rem] right-5 z-toast flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2">
       {toasts.map((item) => {
         const danger = item.tone === 'danger'
 
