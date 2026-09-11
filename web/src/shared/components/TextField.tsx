@@ -8,6 +8,14 @@ import { cn } from '@/shared/lib/cn'
  */
 interface TextFieldProps {
   label?: string
+  /**
+   * Nome do campo para quem nao ve o rotulo — leitor de tela e teste. Existe
+   * porque nem todo campo tem `label` visivel: o do nome do projeto e o de
+   * endereco moram debaixo de um `h2` que ja diz o que eles sao, e repetir a
+   * palavra na tela seria ruido. Sem isto, o campo se anuncia como "caixa de
+   * texto", sem mais nada.
+   */
+  ariaLabel?: string
   value: string
   onChange: (value: string) => void
   placeholder?: string
@@ -23,6 +31,7 @@ interface TextFieldProps {
 
 export function TextField({
   label,
+  ariaLabel,
   value,
   onChange,
   placeholder,
@@ -55,6 +64,7 @@ export function TextField({
         }}
         placeholder={placeholder}
         maxLength={maxLength}
+        aria-label={label ? undefined : ariaLabel}
         // biome-ignore lint/a11y/noAutofocus: campo unico de um dialogo que a pessoa acabou de abrir de proposito
         autoFocus={autoFocus}
         disabled={disabled}

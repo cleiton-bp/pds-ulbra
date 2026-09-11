@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MAX_PROJECT_NAME_LENGTH } from '@/contracts'
 import { describeError } from '@/data'
+import { AllowedOriginsSection } from '@/features/projects/AllowedOriginsSection'
 import { useProjectsStore } from '@/features/projects/projectsStore'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
@@ -9,7 +10,8 @@ import { toast } from '@/shared/components/toastStore'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 
 /**
- * Nome e arquivamento, so. Dominios, limites e plano dependem das etapas 3 e 4.
+ * Nome, de onde a ferramenta pode rodar, e arquivamento. Limites e plano ainda
+ * dependem de decisao.
  *
  * Dois textos que vale manter: o identificador vem com a explicacao de que
  * renomear **nao** o altera (senao a duvida vira chamado de suporte), e arquivar
@@ -93,6 +95,7 @@ export function ProjectSettingsScreen() {
         <div className="mb-5 flex items-start gap-2">
           <TextField
             className="min-w-0 flex-1"
+            ariaLabel="Nome do projeto"
             value={name}
             onChange={(value) => {
               setName(value)
@@ -117,6 +120,12 @@ export function ProjectSettingsScreen() {
           </p>
         </div>
       </section>
+
+      <div className="mb-8 h-px bg-border" />
+
+      <div className="mb-8">
+        <AllowedOriginsSection projectPublicId={project.PublicId} />
+      </div>
 
       <div className="mb-8 h-px bg-border" />
 

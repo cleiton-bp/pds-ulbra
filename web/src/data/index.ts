@@ -1,8 +1,10 @@
 import { apiAuthService } from '@/data/api/apiAuthService'
 import { apiProjectKeyService } from '@/data/api/apiProjectKeyService'
+import { apiProjectOriginService } from '@/data/api/apiProjectOriginService'
 import { apiProjectService } from '@/data/api/apiProjectService'
 import type { AuthService } from '@/data/authService'
 import type { ProjectKeyService } from '@/data/projectKeyService'
+import type { ProjectOriginService } from '@/data/projectOriginService'
 import type { ProjectService } from '@/data/projectService'
 
 /**
@@ -13,10 +15,12 @@ import type { ProjectService } from '@/data/projectService'
 export const authService: AuthService = apiAuthService
 export const projectService: ProjectService = apiProjectService
 export const projectKeyService: ProjectKeyService = apiProjectKeyService
+export const projectOriginService: ProjectOriginService = apiProjectOriginService
 
 export type { AuthService } from '@/data/authService'
 export { environment } from '@/data/environment'
 export { describeError, isPanelError, PanelError } from '@/data/errors'
 export type { ProjectKeyService } from '@/data/projectKeyService'
+export type { ProjectOriginService } from '@/data/projectOriginService'
 export type { ProjectService } from '@/data/projectService'
 export { clearToken, getToken, UNAUTHORIZED_EVENT } from '@/data/sessionToken'

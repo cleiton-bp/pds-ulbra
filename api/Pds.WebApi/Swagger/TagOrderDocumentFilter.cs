@@ -38,6 +38,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
                 Name = SwaggerTags.ProjectKeys,
                 Description = "O que liga o sistema do cliente ao nosso. A secreta é exibida uma única vez.",
             },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ProjectOrigins,
+                Description = "De onde a ferramenta pode abrir. A chave pública fica à vista no site do cliente; é esta lista que impede a cópia dela de funcionar em outro lugar.",
+            },
         ];
     }
 }

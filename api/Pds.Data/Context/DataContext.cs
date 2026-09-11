@@ -41,6 +41,7 @@ public class DataContext : PdsBaseContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<ProjectKey> ProjectKeys { get; set; } = null!;
+    public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +60,13 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(key => key.DeletedAt == null
                                    && key.Project.DeletedAt == null
                                    && key.Project.AccountId == CurrentAccountId);
+
+        // Endereco autorizado: chega na conta pelo projeto, como a chave, e pelo
+        // mesmo motivo — ele nao existe fora de um projeto.
+        modelBuilder.Entity<ProjectOrigin>()
+            .HasQueryFilter(origin => origin.DeletedAt == null
+                                      && origin.Project.DeletedAt == null
+                                      && origin.Project.AccountId == CurrentAccountId);
 
         // Todas as datas do sistema sao UTC. Fixar o tipo evita que o Postgres tente
         // converter fuso por conta propria ao gravar ou ler.

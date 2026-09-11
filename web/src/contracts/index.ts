@@ -13,3 +13,8 @@ export type {
   ProjectKeyViewModel,
   RevealedSecretKeyViewModel,
 } from '@/contracts/projectKey'
+export type {
+  CreateProjectOriginRequest,
+  ProjectOriginViewModel,
+} from '@/contracts/projectOrigin'
+export { MAX_ORIGIN_DOMAIN_LENGTH } from '@/contracts/projectOrigin'

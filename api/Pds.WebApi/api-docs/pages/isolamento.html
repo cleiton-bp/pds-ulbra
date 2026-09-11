@@ -35,6 +35,12 @@ requisição. Toda leitura de projeto já nasce restrita, venha de onde vier.</p
 existe fora de um projeto. O preço é o filtro passar pela navegação; o ganho é não ter a
 mesma informação em duas tabelas podendo divergir.</p>
 
+<p><code>project_origins</code> segue exatamente o mesmo desenho, pelo mesmo motivo, e por
+isso tem um filtro próprio idêntico. Vale reparar no detalhe que engana: o filtro escrito no
+<code>DataContext</code> <strong>substitui</strong> o de exclusão lógica herdado, não soma —
+quem esquecer de repetir <code>DeletedAt == null</code> ali perde o apagado sem nenhum erro
+de compilação.</p>
+
 <h2>De onde vem a conta</h2>
 
 <p>Do token, e só. O <code>AccountMiddleware</code> roda depois da autenticação, lê o

@@ -28,4 +28,7 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
 
     private IProjectKeyRepository? _projectKeys;
     public IProjectKeyRepository ProjectKeys => _projectKeys ??= new ProjectKeyRepository(_context);
+
+    private IProjectOriginRepository? _projectOrigins;
+    public IProjectOriginRepository ProjectOrigins => _projectOrigins ??= new ProjectOriginRepository(_context);
 }

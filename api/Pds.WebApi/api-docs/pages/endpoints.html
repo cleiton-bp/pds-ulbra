@@ -1,5 +1,5 @@
 <h2>Endpoints</h2>
-<p class="lead">Nove rotas. Todas resolvem a conta pela sessão.</p>
+<p class="lead">Doze rotas. Todas resolvem a conta pela sessão.</p>
 
 <div class="table-scroll">
 <table>
@@ -13,6 +13,9 @@
   <tr><td><span class="verb patch">PATCH</span></td><td><code>/projects/{publicId}</code></td><td>Renomeia, arquiva.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td>Chaves. A secreta só como prefixo.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td>Regenera a secreta e devolve <strong>uma vez</strong>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td>Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td>Retira a autorização. Exclusão lógica.</td></tr>
 </table>
 </div>
 

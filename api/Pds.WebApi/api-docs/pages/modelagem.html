@@ -1,12 +1,15 @@
 <h2>Modelagem</h2>
-<p class="lead">Quatro tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Cinco tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
-    └───1:N──  <b>projects</b>  ──1:N──  <b>project_keys</b></div>
+    └───1:N──  <b>projects</b>  ──1:N──  <b>project_keys</b>
+                     │
+                     └───1:N──  <b>project_origins</b></div>
 
 <p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto —
-não na conta — porque chave não existe fora de um projeto.</p>
+não na conta — porque chave não existe fora de um projeto. O endereço autorizado pendura no
+mesmo lugar, pelo mesmo motivo.</p>
 
 <h2>Colunas que toda tabela repete</h2>
 
@@ -128,6 +131,44 @@ coisa nova.</p>
 
 <p>Sem ela, um erro de código gravaria a chave secreta em claro na coluna <code>value</code>
 e ninguém perceberia, porque a tela continuaria funcionando igual.</p>
+
+<h2>project_origins</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto que autoriza o endereço.</td></tr>
+  <tr><td><code>domain</code></td><td>Em minúsculo, sem esquema e sem barra final. A porta faz parte quando informada.</td></tr>
+  <tr><td><code>allows_subdomains</code></td><td>Vale também para <code>app.site.com</code> e <code>loja.site.com</code>.</td></tr>
+</table>
+
+<p>Único por <code>(project_id, domain)</code> entre os que não foram apagados — o mesmo
+filtro <code>deleted_at IS NULL</code> que <code>projects</code> usa no nome, e pelo mesmo
+motivo: sem ele, remover e autorizar de novo o mesmo endereço esbarraria numa linha que
+ninguém mais enxerga.</p>
+
+<div class="note why">
+  <strong>Por que a lista existe</strong>
+  <p>A chave pública viaja no HTML do site do cliente e qualquer visitante consegue lê-la.
+  Sozinha, ela diz apenas qual projeto procurar — não de onde o relato saiu. Sem esta lista,
+  a chave copiada de um site funciona em qualquer outro.</p>
+</div>
+
+<div class="note warn">
+  <strong>Origem é dica, não prova</strong>
+  <p>A ferramenta abre num quadro servido pelo nosso domínio, então a origem que o navegador
+  carimba na requisição é a <em>nossa</em>, e a que a página hospedeira informa é
+  auto-declarada. Quem barra de verdade é o <code>frame-ancestors</code> montado a partir
+  desta lista, que impede o quadro de sequer abrir fora dela.</p>
+  <p>Esse cabeçalho ainda não existe: hoje a tabela só guarda a lista. O bloqueio entra junto
+  com o carregador.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que o curinga não é uma coluna</strong>
+  <p>O painel escreve <code>*.site.com</code> na lista, mas o banco guarda o domínio e um
+  sim/não. Guardar o asterisco faria a mesma autorização existir de dois jeitos, e um deles
+  poderia ficar em desacordo com o outro.</p>
+</div>
 
 <h2>Convenções</h2>
 

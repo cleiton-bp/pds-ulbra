@@ -14,4 +14,5 @@ public static class SwaggerTags
     public const string Session = "Sessão";
     public const string Projects = "Projetos";
     public const string ProjectKeys = "Chaves do projeto";
+    public const string ProjectOrigins = "Domínios autorizados";
 }
