@@ -24,4 +24,8 @@ public class Project : PdsBaseEntity
     /// <summary>Chaves do projeto: a que vale agora de cada tipo, mais o historico das revogadas.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectKey> Keys { get; set; } = [];
+
+    /// <summary>Enderecos autorizados a abrir a ferramenta deste projeto.</summary>
+    [SoftDeleteDependent(RemoveType.Cascade)]
+    public List<ProjectOrigin> Origins { get; set; } = [];
 }
