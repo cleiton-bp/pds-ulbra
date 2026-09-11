@@ -32,6 +32,15 @@ vi.mock('@/data', async (importOriginal) => {
 
   return {
     ...real,
+    projectOriginService: {
+      listProjectOrigins: async () => [],
+      addProjectOrigin: async () => {
+        throw new Error('addProjectOrigin nao e usado nestes testes')
+      },
+      removeProjectOrigin: async () => {
+        throw new Error('removeProjectOrigin nao e usado nestes testes')
+      },
+    },
     projectService: {
       listProjects: async () => estado.projetos,
       getProject: async (publicId: string) => {
@@ -105,8 +114,8 @@ function montar(publicId: string) {
   return router
 }
 
-const campo = () => screen.getByRole('textbox')
-const botaoSalvar = () => screen.getAllByRole('button')[0] as HTMLButtonElement
+const campo = () => screen.getByRole('textbox', { name: 'Nome do projeto' })
+const botaoSalvar = () => screen.getByRole('button', { name: /^Salv/ }) as HTMLButtonElement
 
 describe('ProjectSettingsScreen', () => {
   // Sem `globals: true` no Vitest, a limpeza automatica da Testing Library nao
