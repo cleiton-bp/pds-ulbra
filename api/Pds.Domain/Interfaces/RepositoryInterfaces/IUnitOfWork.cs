@@ -13,4 +13,6 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IProjectRepository Projects { get; }
     IProjectKeyRepository ProjectKeys { get; }
     IProjectOriginRepository ProjectOrigins { get; }
+    IReportRepository Reports { get; }
+    IEventRepository Events { get; }
 }
