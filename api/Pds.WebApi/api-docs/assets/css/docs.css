@@ -176,6 +176,7 @@ td code { white-space: nowrap; }
 .verb.get { color: var(--ok); }
 .verb.post { color: var(--accent); }
 .verb.patch { color: var(--warn); }
+.verb.delete { color: var(--danger); }
 
 /* Diagrama em texto: monoespacado e sem quebra. */
 .diagram {
