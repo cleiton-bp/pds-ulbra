@@ -8,7 +8,7 @@ import { environment } from '@/data/environment'
 import { PanelError } from '@/data/errors'
 import { clearToken, getToken, notifyUnauthorized } from '@/data/sessionToken'
 
-type Method = 'GET' | 'POST' | 'PATCH'
+type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
 interface RequestOptions {
   /** `false` no login: la um 401 e credencial recusada, nao sessao expirada. */
@@ -60,3 +60,7 @@ export const apiGet = <T>(path: string) => request<T>('GET', path)
 export const apiPost = <T>(path: string, body?: unknown, options?: RequestOptions) =>
   request<T>('POST', path, body, options)
 export const apiPatch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body)
+
+// A resposta de remocao vem com `Data: null`, e o envelope so carrega a mensagem.
+// Dai o `void`: nao ha o que desembrulhar.
+export const apiDelete = (path: string) => request<void>('DELETE', path)
