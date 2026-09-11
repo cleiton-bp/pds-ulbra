@@ -20,6 +20,21 @@ public class ProjectKeyRepository : BaseRepository<ProjectKey, DataContext>, IPr
             .OrderByDescending(key => key.CreatedAt)
             .ToListAsync(cancellationToken);
 
+    public Task<ProjectKey?> FindActivePublicAsync(string value, CancellationToken cancellationToken = default)
+        // IgnoreQueryFilters desliga o isolamento por conta **e** o de exclusao
+        // logica, entao as duas condicoes que o filtro garantia estao reescritas a
+        // mao logo abaixo. Retirar qualquer uma delas faz chave revogada ou projeto
+        // apagado voltarem a aceitar relato, sem nada acusar.
+        => Context.ProjectKeys
+            .IgnoreQueryFilters()
+            .Include(key => key.Project)
+            .FirstOrDefaultAsync(key => key.Value == value
+                                        && key.Type == ProjectKeyTypeEnum.Public
+                                        && key.RevokedAt == null
+                                        && key.DeletedAt == null
+                                        && key.Project.DeletedAt == null,
+                cancellationToken);
+
     public Task<ProjectKey?> GetActiveAsync(long projectId, ProjectKeyTypeEnum type, CancellationToken cancellationToken = default)
         => Context.ProjectKeys
             .Where(key => key.ProjectId == projectId && key.Type == type && key.RevokedAt == null)

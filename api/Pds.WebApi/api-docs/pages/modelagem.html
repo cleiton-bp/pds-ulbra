@@ -1,15 +1,24 @@
 <h2>Modelagem</h2>
-<p class="lead">Cinco tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Oito tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
-    └───1:N──  <b>projects</b>  ──1:N──  <b>project_keys</b>
-                     │
-                     └───1:N──  <b>project_origins</b></div>
+    ├───1:N──  <b>projects</b>  ──1:N──  <b>project_keys</b>
+    │               │
+    │               └───1:N──  <b>project_origins</b>
+    │
+    └───1:N──  <b>reports</b>  ──1:N──  <b>report_contexts</b>
+                   │
+                   └───1:N──  <b>events</b></div>
 
 <p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto —
 não na conta — porque chave não existe fora de um projeto. O endereço autorizado pendura no
 mesmo lugar, pelo mesmo motivo.</p>
+
+<p>O desenho acima é simplificado em dois pontos, e os dois são deliberados:
+<code>reports</code> aponta <em>também</em> para <code>projects</code>, e não só para a
+conta; e <code>events</code> aponta para as três — conta, projeto e relato —, todas
+anuláveis. O porquê de cada um está na seção da tabela.</p>
 
 <h2>Colunas que toda tabela repete</h2>
 
@@ -168,6 +177,98 @@ ninguém mais enxerga.</p>
   <p>O painel escreve <code>*.site.com</code> na lista, mas o banco guarda o domínio e um
   sim/não. Guardar o asterisco faria a mesma autorização existir de dois jeitos, e um deles
   poderia ficar em desacordo com o outro.</p>
+</div>
+
+<h2>reports</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>account_id</code></td><td>Conta dona. Repetido de propósito — ver a nota abaixo.</td></tr>
+  <tr><td><code>project_id</code></td><td>Projeto, resolvido pela chave pública da requisição.</td></tr>
+  <tr><td><code>tracking_code</code></td><td>O protocolo que a pessoa lê. Único no sistema inteiro.</td></tr>
+  <tr><td><code>access_token_hash</code></td><td>Hash do token do link. O valor original só existe na URL entregue.</td></tr>
+  <tr><td><code>type</code></td><td><code>bug</code>, <code>improvement</code> ou <code>question</code>. Lista fixa por enquanto.</td></tr>
+  <tr><td><code>text</code></td><td>O relato como a pessoa escreveu. Até 5000 caracteres.</td></tr>
+  <tr><td><code>route</code></td><td>Só o caminho da página. Sem query e sem fragmento.</td></tr>
+  <tr><td><code>origin</code></td><td>Domínio informado pela página que embutiu a ferramenta.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que esta tabela repete <code>account_id</code></strong>
+  <p><code>project_keys</code> e <code>project_origins</code> chegam à conta pela navegação, e
+  aqui o desenho é o contrário de propósito. Esta é a tabela que mais cresce e a que o painel
+  lista o tempo todo: com a coluna repetida, o filtro de isolamento vira comparação de coluna
+  em vez de junção em toda consulta.</p>
+  <p>O preço é a mesma informação em dois lugares podendo divergir. É aceitável porque o
+  <code>account_id</code> do relato nunca muda depois de gravado — ele nasce do projeto e
+  morre com ele.</p>
+</div>
+
+<div class="note why">
+  <strong>Protocolo e token são coisas diferentes</strong>
+  <p>O <code>tracking_code</code> <strong>identifica</strong>: é curto, sem <code>0</code>,
+  <code>O</code>, <code>1</code> e <code>I</code>, feito para ser lido em voz alta e digitado.
+  Justamente por isso ele é adivinhável, e não abre nada sozinho.</p>
+  <p>O token <strong>abre</strong>: 32 bytes sorteados, entregues uma única vez na URL de
+  acompanhamento. O banco fica só com o hash — se o painel conseguisse mostrá-lo de novo, um
+  vazamento do banco abriria o relato de todo mundo.</p>
+</div>
+
+<div class="note warn">
+  <strong>A query string não entra</strong>
+  <p><code>?token=</code>, <code>?cpf=</code> e <code>?email=</code> são comuns em rota. O que
+  vier depois do <code>?</code> ou do <code>#</code> é descartado antes de gravar — guardar
+  isso seria começar o produto vazando dado de quem relatou.</p>
+</div>
+
+<h2>report_contexts</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>report_id</code></td><td>Relato a que o dado pertence.</td></tr>
+  <tr><td><code>key</code></td><td>Nome em inglês e snake_case, como <code>user_agent</code>. Único dentro do relato.</td></tr>
+  <tr><td><code>value</code></td><td>O valor como chegou, sempre texto.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que não são colunas em <code>reports</code></strong>
+  <p>O que se vai querer capturar amanhã ainda não está decidido hoje. Como coluna, cada
+  captura nova seria uma migração na tabela que mais cresce; como linha, é só mandar um par a
+  mais no mesmo corpo da requisição.</p>
+  <p>O preço é que tudo vira texto e a interpretação fica com quem lê. É o preço certo
+  enquanto a lista de capturas não estabilizar.</p>
+</div>
+
+<h2>events</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>account_id</code></td><td>Anulável. Continua apontando para a conta depois de anonimizada.</td></tr>
+  <tr><td><code>project_id</code></td><td>Anulável. O projeto some de verdade e o evento fica.</td></tr>
+  <tr><td><code>report_id</code></td><td>Anulável. Nem todo evento nasce de um relato.</td></tr>
+  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code>. A lista cresce.</td></tr>
+  <tr><td><code>source</code></td><td><code>widget</code> | <code>panel</code> | <code>api</code> | <code>public_page</code>.</td></tr>
+  <tr><td><code>payload</code></td><td><code>jsonb</code>. O resto do evento, para tipo novo entrar sem migração.</td></tr>
+  <tr><td><code>occurred_at</code></td><td>Quando aconteceu. <strong>É esta a data que a análise usa.</strong></td></tr>
+  <tr><td><code>created_at</code></td><td>Quando a linha foi gravada. Difere da anterior quando houve retentativa.</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>A única tabela sem <code>updated_at</code> e sem <code>deleted_at</code></strong>
+  <p>Ela só cresce. Nada é alterado, então não há o que datar; nada é apagado, então não há o
+  que marcar. É a única do sistema que não herda das quatro colunas padrão, e a única cuja
+  configuração não passa por <code>BaseEntityConfiguration</code>.</p>
+  <p>Um evento apagado é um dado de pesquisa perdido, e a análise passaria a mentir sem
+  ninguém perceber. Por isso as três chaves estrangeiras usam <code>SET NULL</code> e não
+  cascata: o evento sobrevive ao que o originou.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que <code>occurred_at</code> e <code>created_at</code> são separados</strong>
+  <p>Parecem a mesma data, e são — até o dia em que uma gravação falhar e for repetida. Aí
+  <code>created_at</code> marca a recuperação do sistema e <code>occurred_at</code> continua
+  marcando o fato. Usar a errada desloca o evento no tempo justamente no caso em que a análise
+  precisa enxergar o que aconteceu.</p>
 </div>
 
 <h2>Convenções</h2>

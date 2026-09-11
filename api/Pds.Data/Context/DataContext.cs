@@ -42,6 +42,9 @@ public class DataContext : PdsBaseContext
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<ProjectKey> ProjectKeys { get; set; } = null!;
     public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
+    public DbSet<Report> Reports { get; set; } = null!;
+    public DbSet<ReportContext> ReportContexts { get; set; } = null!;
+    public DbSet<Event> Events { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +71,25 @@ public class DataContext : PdsBaseContext
                                       && origin.Project.DeletedAt == null
                                       && origin.Project.AccountId == CurrentAccountId);
 
+        // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
+        // cresce e a que o painel lista o tempo todo, entao ela repete account_id de
+        // proposito para o isolamento nao custar uma juncao em toda consulta.
+        modelBuilder.Entity<Report>()
+            .HasQueryFilter(report => report.DeletedAt == null
+                                      && report.AccountId == CurrentAccountId);
+
+        // Contexto: chega na conta pelo relato, como a chave chega pelo projeto.
+        modelBuilder.Entity<ReportContext>()
+            .HasQueryFilter(context => context.DeletedAt == null
+                                       && context.Report.DeletedAt == null
+                                       && context.Report.AccountId == CurrentAccountId);
+
+        // Evento: so o isolamento por conta, porque nao existe evento apagado. Sem
+        // sessao a conta atual e zero, que nao corresponde a nenhuma — o padrao
+        // continua sendo nao ver nada, e nao ver tudo.
+        modelBuilder.Entity<Event>()
+            .HasQueryFilter(entity => entity.AccountId == CurrentAccountId);
+
         // Todas as datas do sistema sao UTC. Fixar o tipo evita que o Postgres tente
         // converter fuso por conta propria ao gravar ou ler.
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -78,5 +100,47 @@ public class DataContext : PdsBaseContext
                 property.SetColumnType("timestamp without time zone");
             }
         }
+    }
+
+    /// <summary>
+    /// <see cref="Event"/> nao herda de <see cref="PdsBaseEntity"/>, entao fica de
+    /// fora do preenchimento automatico do contexto base. Em vez de confiar em quem
+    /// cria o evento lembrar de sortear o identificador e datar a linha, o carimbo
+    /// acontece aqui — pelo mesmo motivo que ele acontece la: se depender de
+    /// lembrar, um dia alguem esquece.
+    ///
+    /// <para><c>OccurredAt</c> so cai para <c>CreatedAt</c> quando ninguem o
+    /// informou. Ele e o momento do fato, que quem registra o evento conhece melhor
+    /// do que o contexto, e sobrescreve-lo apagaria a diferenca entre o fato e a
+    /// gravacao — justamente o que a analise precisa enxergar quando houve
+    /// retentativa.</para>
+    /// </summary>
+    private void StampEvents()
+    {
+        var now = DateTime.UtcNow;
+
+        foreach (var entry in ChangeTracker.Entries<Event>().Where(entry => entry.State == EntityState.Added))
+        {
+            if (entry.Entity.PublicId == Guid.Empty)
+                entry.Entity.PublicId = Guid.NewGuid();
+
+            if (entry.Entity.CreatedAt == default)
+                entry.Entity.CreatedAt = now;
+
+            if (entry.Entity.OccurredAt == default)
+                entry.Entity.OccurredAt = entry.Entity.CreatedAt;
+        }
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        StampEvents();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampEvents();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 }

@@ -43,6 +43,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
                 Name = SwaggerTags.ProjectOrigins,
                 Description = "De onde a ferramenta pode abrir. A chave pública fica à vista no site do cliente; é esta lista que impede a cópia dela de funcionar em outro lugar.",
             },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.PublicReports,
+                Description = "A entrada do relato, vinda do site do cliente. A única área que funciona sem sessão: a credencial é a chave pública, e ela só diz para onde o relato vai.",
+            },
         ];
     }
 }

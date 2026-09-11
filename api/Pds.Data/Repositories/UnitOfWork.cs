@@ -31,4 +31,10 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
 
     private IProjectOriginRepository? _projectOrigins;
     public IProjectOriginRepository ProjectOrigins => _projectOrigins ??= new ProjectOriginRepository(_context);
+
+    private IReportRepository? _reports;
+    public IReportRepository Reports => _reports ??= new ReportRepository(_context);
+
+    private IEventRepository? _events;
+    public IEventRepository Events => _events ??= new EventRepository(_context);
 }
