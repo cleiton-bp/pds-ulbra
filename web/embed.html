@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Nao indexar: este documento so faz sentido dentro do site de um cliente, e
+      uma pagina de formulario solta no buscador nao ajuda ninguem.
+    -->
+    <meta name="robots" content="noindex" />
+    <title>Relato</title>
+  </head>
+  <!--
+    Sem margem e sem rolagem propria: quem decide o tamanho do quadro e o
+    carregador, do lado de fora, e barra de rolagem dupla e o defeito classico de
+    formulario embutido.
+  -->
+  <body class="h-full overflow-hidden">
+    <div id="pds-embed-root" class="h-full"></div>
+    <script type="module" src="/src/embed/main.tsx"></script>
+  </body>
+</html>

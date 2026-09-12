@@ -61,6 +61,11 @@ const RULES: Rule[] = [
     why: 'contrato e a base de tudo e nao depende de nada',
   },
   {
+    folder: 'embed',
+    forbidden: ['@/data/api', '@/app', '@/features'],
+    why: 'o quadro roda dentro do site de um cliente: casca, telas e cliente HTTP nao entram la',
+  },
+  {
     folder: 'data',
     forbidden: ['@/features', '@/app'],
     why: 'a camada de dados nao conhece tela',
@@ -78,8 +83,8 @@ const RULES: Rule[] = [
  * `data/index.ts` liga os servicos do painel e arrasta `sessionToken` junto;
  * `data/publicIndex.ts` liga so o que funciona sem sessao.
  *
- * Quem consome o segundo chega no commit seguinte; ele nasce aqui porque e o
- * ponto de acesso que torna o servico alcancavel.
+ * Foi medido, e nao suposto: com o quadro importando `@/data`, o pacote de
+ * `embed.html` continha a chave `pds.web.session`.
  */
 const ACCESS_POINTS = ['data/index.ts', 'data/publicIndex.ts']
 
@@ -196,6 +201,24 @@ describe('regra de dependencia entre as pastas', () => {
     }
 
     expect(problemas).toEqual([])
+  })
+
+  /**
+   * `@/data` compila e funciona dentro do quadro — por isso precisa de teste. O
+   * que ele traz junto nao aparece em revisao nenhuma: aparece no pacote.
+   */
+  it('o quadro embutido nao importa o ponto de acesso do painel', () => {
+    const offenders: string[] = []
+
+    for (const file of listFiles(join(SOURCE_ROOT, 'embed'))) {
+      for (const specifier of importsOf(readFileSync(file, 'utf8'))) {
+        if (specifier === '@/data' || specifier === '@/data/index') {
+          offenders.push(`${relative(SOURCE_ROOT, file)} importa ${specifier}`)
+        }
+      }
+    }
+
+    expect(offenders).toEqual([])
   })
 
   it('somente os pontos de acesso importam de data/api', () => {

@@ -24,3 +24,9 @@ export type {
   ReportType,
 } from '@/contracts/report'
 export { MAX_REPORT_TEXT_LENGTH } from '@/contracts/report'
+export type {
+  WidgetPosition,
+  WidgetSettingsViewModel,
+  WidgetTheme,
+} from '@/contracts/widgetSettings'
+export { WIDGET_TEXT_LIMITS } from '@/contracts/widgetSettings'
