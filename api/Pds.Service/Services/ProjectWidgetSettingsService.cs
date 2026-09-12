@@ -2,9 +2,11 @@ using System.Text.RegularExpressions;
 using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
+using Pds.Domain.Exceptions;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
+using Pds.Service.Origins;
 
 namespace Pds.Service.Services;
 
@@ -54,7 +56,7 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         return Map(settings);
     }
 
-    public async Task<WidgetSettingsViewModel> GetByPublicKeyAsync(string? key, CancellationToken cancellationToken = default)
+    public async Task<WidgetSettingsViewModel> GetByPublicKeyAsync(string? key, string? origin, CancellationToken cancellationToken = default)
     {
         var value = (key ?? string.Empty).Trim();
 
@@ -68,6 +70,18 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
             throw new UnauthorizedAccessException("Chave publica invalida.");
 
         var project = found.Project;
+
+        // Endereco declarado fora da lista do projeto: a ferramenta nao abre ali.
+        // Recusar aqui, e nao so no envio, e o que faz o quadro nunca aparecer no
+        // site errado — em vez de aparecer, receber o texto e recusar no fim.
+        if (OriginAllowList.Declares(origin))
+        {
+            var origins = await _unitOfWork.ProjectOrigins.ListByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+            if (!OriginAllowList.Allows(origins, origin))
+                throw new ForbiddenException("Este endereco nao esta autorizado a abrir a ferramenta deste projeto.");
+        }
+
         var settings = await _unitOfWork.ProjectWidgetSettings
             .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
 

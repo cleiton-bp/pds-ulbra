@@ -6,6 +6,7 @@ using Pds.Domain.Exceptions;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
+using Pds.Service.Origins;
 using Pds.Service.Reports;
 
 namespace Pds.Service.Services;
@@ -47,6 +48,21 @@ public class ReportService : IReportService
         // de a recusa ser 403 e nao 404: o projeto existe, e a chave esta certa.
         if (project.Status == ProjectStatusEnum.Archived)
             throw new ForbiddenException("Este projeto esta arquivado e nao aceita relatos novos.");
+
+        // A lista de enderecos autorizados, conferida aqui tambem e nao so na
+        // leitura da configuracao: la ela evita que o formulario abra onde nao
+        // devia, e aqui ela e o que de fato impede o relato de entrar. Sem esta,
+        // bastaria falar direto com a rota para a lista nao valer nada.
+        //
+        // So vai ao banco quando a pagina declarou de onde veio: sem endereco nao
+        // ha o que comparar com a lista.
+        if (OriginAllowList.Declares(dto.Origin))
+        {
+            var origins = await _unitOfWork.ProjectOrigins.ListByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+            if (!OriginAllowList.Allows(origins, dto.Origin))
+                throw new ForbiddenException("Este endereco nao esta autorizado a abrir relato neste projeto.");
+        }
 
         if (dto.Type is null)
             throw new ArgumentException("Informe o tipo do relato.");

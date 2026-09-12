@@ -84,13 +84,13 @@ fica no HTML dele:</p>
       ↓
 a página manda a chave, a rota e a origem por postMessage
       ↓
-GET /public/widget-settings  →  como este cliente quer o quadro
+GET /public/widget-settings  →  este endereço pode abrir? como o cliente quer o quadro?
       ↓
 o quadro pede para aparecer, e só então o gatilho surge no canto
       ↓
 quem preenche o formulário está dentro do iframe, na nossa origem
       ↓
-POST /public/reports  →  protocolo + token de acompanhamento</div>
+POST /public/reports  →  confere o endereço de novo, protocolo + token</div>
 
 <p>O formulário nunca toca a página do cliente, e a página do cliente nunca toca o
 formulário: são origens diferentes, e a única coisa que atravessa é o que as duas pontas
@@ -117,18 +117,22 @@ conferiram.</p>
 </div>
 
 <div class="note warn">
-  <strong>A origem é registrada, não conferida</strong>
-  <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta.
-  Serve de indício para investigar depois, e nunca de prova. Quem vai barrar de verdade é o
-  <code>frame-ancestors</code> montado da lista de <code>project_origins</code> — e ele ainda
-  não existe.</p>
+  <strong>A origem é conferida, e continua não sendo prova</strong>
+  <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta, e é
+  comparado com a lista de <code>project_origins</code> nas duas rotas públicas. Projeto com a
+  lista vazia aceita qualquer endereço, e quem não declara endereço passa.</p>
+  <p>Como quem declara é o carregador, que é código nosso, a chave copiada para outro site é
+  pega — e é para isso que a lista serve. Quem chamar a API sem passar pela ferramenta declara o
+  que quiser: <strong>grade de proteção, não muro.</strong> O muro é o
+  <code>frame-ancestors</code> montado da mesma lista, que impede o quadro de abrir fora dela e
+  precisa de um servidor servindo o documento do quadro — chega com o domínio próprio.</p>
 </div>
 
 <div class="note todo">
   <strong>O que falta para a etapa fechar</strong>
-  <p>A rota que lista os relatos para o painel, a consulta pública por protocolo, e o limite
-  de envio em <code>public/reports</code> — hoje a única rota da API com limitador é a de
-  login.</p>
+  <p>A consulta pública por protocolo — o link de acompanhamento que a confirmação entrega — e o
+  limite de envio em <code>public/reports</code>: hoje a única rota da API com limitador é a de
+  login, e é a rota pública que qualquer visitante de qualquer site alcança.</p>
 </div>
 
 <h2>Regenerar a chave secreta</h2>

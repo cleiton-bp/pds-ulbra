@@ -106,6 +106,29 @@ public static partial class OriginDomain
         return new NormalizedOrigin(port.Length == 0 ? host : $"{host}:{port}", wildcard);
     }
 
+    /// <summary>
+    /// A forma comparavel do endereco que <b>a pagina declarou</b>, que e outro
+    /// problema do que o endereco que alguem digitou na tela.
+    ///
+    /// <para><b>Por que este nao recusa nada.</b> O valor chega de fora, numa rota
+    /// que qualquer visitante de qualquer site alcanca, e a unica coisa que se
+    /// pergunta sobre ele e "combina com a lista, ou nao combina". Devolver vazio,
+    /// ou uma bobagem que nao combina com nada, tem exatamente o efeito de recusar
+    /// — sem transformar lixo digitado por um estranho em excecao.</para>
+    /// </summary>
+    public static string ForComparison(string? raw)
+    {
+        var value = (raw ?? string.Empty).Trim().ToLowerInvariant();
+
+        // Os mesmos dois cortes do <see cref="Normalize"/>, e na mesma ordem: e
+        // preciso que as duas pontas cheguem na mesma forma, senao o que a tela
+        // grava nunca combina com o que a pagina declara.
+        value = SchemePrefix().Replace(value, string.Empty);
+        value = value.Split('/', '?', '#')[0];
+
+        return value.TrimEnd('.');
+    }
+
     [GeneratedRegex(@"^[a-z][a-z0-9+.-]*://|^//")]
     private static partial Regex SchemePrefix();
 

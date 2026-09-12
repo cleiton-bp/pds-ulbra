@@ -23,7 +23,7 @@ como se desenhar.</p>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto. <strong>Registra a visualização.</strong></td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública. Recebe também o endereço da página.</td></tr>
 </table>
 </div>
 
@@ -48,6 +48,31 @@ gerado a partir do código.</p>
   arquivado, qualquer que seja o valor salvo. Ele já recusa relato novo com 403: deixar o
   formulário abrir levaria a pessoa a escrever até o fim para ser recusada no envio, e o texto
   dela se perderia por uma decisão que não é dela.</p>
+</div>
+
+<div class="note why">
+  <strong>Onde a lista de endereços é conferida</strong>
+  <p>Nas duas rotas públicas, e por motivos diferentes. Em
+  <code>GET /public/widget-settings</code> a recusa é <strong>403</strong> e faz o quadro nunca
+  aparecer naquela página — é o que evita alguém escrever o relato inteiro para ser recusado no
+  envio. Em <code>POST /public/reports</code> ela é o que de fato impede a gravação: sem a
+  segunda, bastaria falar direto com a rota para a lista não valer nada.</p>
+  <p><strong>Lista vazia autoriza qualquer endereço</strong>, e <strong>quem não declara endereço
+  passa.</strong> A primeira regra existe porque a leitura contrária apagaria a ferramenta de toda
+  instalação no ar no dia em que a conferência entrou — sem erro em tela nenhuma, porque o quadro
+  que não pode abrir simplesmente não aparece. A segunda, porque recusar o silêncio não ganha nada
+  (quem quer burlar declara um endereço válido, não omite) e custa o relato de teste do painel,
+  que abre o quadro sem página hospedeira.</p>
+</div>
+
+<div class="note warn">
+  <strong>Isto é grade de proteção, e não muro</strong>
+  <p>O endereço é declarado pela própria página. Como quem o declara é o carregador, que é código
+  nosso, a chave pública copiada para outro site <em>é</em> pega — e é esse o caso comum. Quem
+  chamar a API sem passar pela ferramenta declara o que quiser, ou não declara nada.</p>
+  <p>O muro é o <code>frame-ancestors</code> montado desta lista, que impede o quadro de sequer
+  abrir fora dela. Ele precisa de um servidor servindo o documento do quadro para montar o
+  cabeçalho por projeto, e o quadro hoje é arquivo estático: chega com o domínio próprio.</p>
 </div>
 
 <div class="note why">
@@ -130,7 +155,7 @@ em vez de descobrir o formato do erro a cada rota.</p>
   <tr><th>Status</th><th>Quando</th></tr>
   <tr><td><code>400</code></td><td>Requisição inválida, por exemplo nome de projeto vazio.</td></tr>
   <tr><td><code>401</code></td><td>Sem sessão, sessão expirada ou token do Google inválido.</td></tr>
-  <tr><td><code>403</code></td><td>Regra de negócio negou o acesso. O mapeamento existe, mas nenhuma rota da etapa 1 chega a produzi-lo.</td></tr>
+  <tr><td><code>403</code></td><td>Regra de negócio negou o acesso. As duas rotas públicas o produzem: projeto arquivado, e endereço declarado fora da lista do projeto.</td></tr>
   <tr><td><code>404</code></td><td>Não existe — ou existe em outra conta. Ver <a href="#/isolamento">isolamento</a>.</td></tr>
   <tr><td><code>409</code></td><td>Conflito, por exemplo nome de projeto já usado na conta.</td></tr>
   <tr><td><code>429</code></td><td>Limite de requisições no login.</td></tr>

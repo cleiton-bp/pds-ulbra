@@ -20,6 +20,18 @@ public class ProjectOriginRepository : BaseRepository<ProjectOrigin, DataContext
             .OrderBy(origin => origin.Domain)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ProjectOrigin>> ListByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default)
+        // Desliga o filtro global e reescreve as condicoes a mao, como a busca da
+        // chave publica e a leitura da configuracao do quadro: o que o filtro dava
+        // de graca era a conta da sessao, e aqui nao ha sessao nenhuma.
+        => await Context.ProjectOrigins
+            .IgnoreQueryFilters()
+            .Where(origin => origin.ProjectId == projectId
+                             && origin.DeletedAt == null
+                             && origin.Project.DeletedAt == null)
+            .OrderBy(origin => origin.Domain)
+            .ToListAsync(cancellationToken);
+
     public Task<bool> DomainExistsAsync(long projectId, string domain, CancellationToken cancellationToken = default)
         // O dominio ja chega normalizado, entao a comparacao e exata — e a mesma
         // que o indice unico faz no banco.

@@ -43,9 +43,11 @@ if (container) {
 }
 
 async function draw(root: Root, config: EmbedConfig, host: HostConnection | null): Promise<void> {
-  const settings = await resolveWidgetSettings(config.key)
+  const settings = await resolveWidgetSettings(config.key, config.origin)
 
-  // Chave que nao vale: nao ha projeto, e nao ha o que abrir.
+  // Recusado: ou a chave nao vale, ou esta pagina nao esta na lista de enderecos
+  // autorizados do projeto. Nao ha o que abrir, e o quadro nunca e revelado —
+  // entao o site fica como se o script nao estivesse la.
   if (!settings) return
 
   if (!settings.IsEnabled) {

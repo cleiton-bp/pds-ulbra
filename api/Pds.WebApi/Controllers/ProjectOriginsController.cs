@@ -15,11 +15,17 @@ namespace Pds.WebApi.Controllers;
 /// consegue lê-la. Sozinha, ela diz apenas qual projeto procurar — não de onde o
 /// relato saiu. É esta lista que responde a segunda pergunta.
 ///
-/// **O que de fato barra não é a comparação do endereço que chega.** A ferramenta
-/// abre num quadro servido pelo nosso domínio, então a origem que o navegador
-/// carimba é a nossa, e a que a página hospedeira informa é auto-declarada — serve
-/// de indício, nunca de prova. Quem barra é o `frame-ancestors` montado a partir
-/// desta lista, que impede o quadro de sequer abrir fora dela.
+/// **A lista é conferida nas duas rotas públicas**: a que entrega a configuração
+/// do quadro, para ele não abrir onde não devia, e a que recebe o relato, que é
+/// onde a recusa de fato impede a gravação.
+///
+/// **E ela é grade de proteção, não muro.** A ferramenta abre num quadro servido
+/// pelo nosso domínio, então a origem que o navegador carimba é a nossa, e a que a
+/// página hospedeira informa é auto-declarada. Como quem informa é o carregador,
+/// que é código nosso, a chave copiada para outro site é pega; quem falar direto
+/// com a API declara o que quiser. O muro é o `frame-ancestors` montado a partir
+/// desta lista, que precisa de um servidor servindo o documento do quadro para
+/// montar o cabeçalho por projeto — e chega com o domínio próprio.
 /// </summary>
 [Authorize]
 [RequireAccount]
@@ -40,7 +46,10 @@ public class ProjectOriginsController : BaseController
     /// Em ordem alfabética: a lista é consultada para conferir se um endereço está
     /// nela, e procurar é mais fácil do que lembrar quando cada um entrou.
     ///
-    /// Lista vazia não é erro — é um projeto que ainda não autorizou ninguém.
+    /// **Lista vazia não é "ninguém autorizado", e sim "ainda não restringi"**: o
+    /// projeto aceita relato de qualquer endereço até a primeira linha entrar. A
+    /// leitura contrária apagaria a ferramenta em toda instalação no ar no dia em
+    /// que a conferência entrasse, e sem erro na tela de ninguém.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>

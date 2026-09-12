@@ -17,7 +17,14 @@ export interface EmbedConfig {
    * cortar aqui significa que `?cpf=` nao chega a sair da maquina de quem relata.
    */
   route: string | null
-  /** Dominio declarado pela pagina hospedeira. Indicio, nunca prova. */
+  /**
+   * Dominio declarado pela pagina hospedeira, conferido contra a lista de
+   * enderecos autorizados do projeto. Continua sendo indicio e nao prova — quem
+   * o declara e o carregador, que e codigo nosso, entao ele pega a chave colada
+   * no site errado, e nao pega quem falar direto com a API.
+   *
+   * Nulo quando o quadro abre sem pagina hospedeira, e ai nao ha o que conferir.
+   */
   origin: string | null
   /**
    * O tamanho da janela da pagina, como `1280x800`. Nulo quando o quadro abre

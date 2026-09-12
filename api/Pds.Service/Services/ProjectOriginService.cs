@@ -11,10 +11,13 @@ namespace Pds.Service.Services;
 public class ProjectOriginService : IProjectOriginService
 {
     /// <summary>
-    /// Teto por projeto. A lista inteira vira um cabecalho <c>frame-ancestors</c>
-    /// em toda abertura da ferramenta, e cabecalho tem tamanho util limitado — sem
-    /// teto, uma lista grande demais passa a ser recusada pelo servidor e a
-    /// ferramenta para de abrir em todo lugar de uma vez.
+    /// Teto por projeto. A lista inteira e lida a cada abertura da ferramenta e a
+    /// cada relato que declara de onde veio, para comparar o endereco com ela.
+    ///
+    /// <para>E o teto tambem antecipa o dia em que ela virar um cabecalho
+    /// <c>frame-ancestors</c>: cabecalho tem tamanho util limitado, e uma lista
+    /// grande demais passaria a ser recusada pelo servidor — a ferramenta pararia
+    /// de abrir em todo lugar de uma vez, e nao so no endereco excedente.</para>
     /// </summary>
     private const int MaxOriginsPerProject = 50;
 

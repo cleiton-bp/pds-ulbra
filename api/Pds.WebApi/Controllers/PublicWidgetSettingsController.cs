@@ -47,19 +47,32 @@ public class PublicWidgetSettingsController : BaseController
     /// **Projeto arquivado volta com `IsEnabled: false`**, qualquer que seja o valor
     /// salvo. Ele recusa relato novo com 403, e deixar o formulário abrir levaria a
     /// pessoa a escrever até o fim para ser recusada no envio.
+    ///
+    /// **Endereço fora da lista do projeto recebe 403, e não uma configuração
+    /// desligada.** A ferramenta está ligada, só não naquela página — e o quadro
+    /// trata as duas recusas do mesmo jeito, não desenhando nada. Projeto com a
+    /// lista vazia aceita qualquer endereço, e quem não declara endereço passa.
     /// </remarks>
     /// <param name="key">Chave pública do projeto, a mesma do `data-key` do script.</param>
+    /// <param name="origin">
+    /// O endereço da página que abriu o quadro, como `loja.exemplo.com`. Declarado
+    /// pela própria página: o quadro roda no nosso domínio, então o endereço que o
+    /// navegador carimba nesta chamada é o nosso. Ausente significa "não declarou",
+    /// e não "veio de lugar nenhum".
+    /// </param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">A configuração, salva ou padrão.</response>
     /// <response code="401">Chave pública ausente, desconhecida ou revogada.</response>
+    /// <response code="403">O endereço declarado não está na lista do projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<WidgetSettingsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Get([FromQuery] string? key, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Get([FromQuery] string? key, [FromQuery] string? origin, CancellationToken cancellationToken)
     {
         try
         {
-            var settings = await _widgetSettingsService.GetByPublicKeyAsync(key, cancellationToken);
+            var settings = await _widgetSettingsService.GetByPublicKeyAsync(key, origin, cancellationToken);
             return Success(settings);
         }
         catch (Exception exception)

@@ -29,6 +29,12 @@ public interface IProjectWidgetSettingsService
     /// <para>Projeto arquivado volta com <c>IsEnabled</c> falso, qualquer que seja
     /// o valor gravado: ele recusa relato novo com 403, e abrir um formulario que
     /// nao tem como enviar e pior do que nao abrir nenhum.</para>
+    ///
+    /// <para><b>O endereco e recusa, e nao campo da resposta.</b> Pagina fora da
+    /// lista de enderecos autorizados do projeto recebe 403 — e nao a configuracao
+    /// com <c>IsEnabled</c> falso, que seria mentira: a ferramenta esta ligada, so
+    /// nao ali. Quem nao declara endereco passa, porque a lista existe para pegar
+    /// a chave usada no site errado, e o carregador sempre declara.</para>
     /// </summary>
-    Task<WidgetSettingsViewModel> GetByPublicKeyAsync(string? key, CancellationToken cancellationToken = default);
+    Task<WidgetSettingsViewModel> GetByPublicKeyAsync(string? key, string? origin, CancellationToken cancellationToken = default);
 }

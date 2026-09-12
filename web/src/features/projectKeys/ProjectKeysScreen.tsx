@@ -275,10 +275,19 @@ function AdvancedSection({
             </p>
 
             {/* Mesmo cadeado do menu lateral e do terceiro passo da instalacao: no
-                painel inteiro ele quer dizer "existe, ainda nao da para usar". */}
+                painel inteiro ele quer dizer "existe, ainda nao da para usar".
+
+                A frase dizia que as rotas chegavam "junto com o recebimento de
+                relatos", e o recebimento entrou na pds-012 sem elas: nenhuma rota
+                aceita a chave secreta ainda. Agora ela diz o que falta e nao promete
+                quando — a etapa e decisao que nao saiu.
+
+                E "endereços" saiu do texto: com a lista de enderecos autorizados
+                sendo conferida, a mesma palavra passou a significar dominio em
+                outra tela do painel. */}
             <p className="mb-4 flex items-center gap-2 text-caption text-fg-muted">
               <LockIcon className="size-3" />
-              Os endereços que aceitam esta chave chegam junto com o recebimento de relatos.
+              Nenhuma rota da API aceita esta chave ainda.
             </p>
 
             <Button onClick={onRegenerate}>Gerar nova chave</Button>

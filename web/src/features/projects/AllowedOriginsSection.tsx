@@ -11,20 +11,22 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 /**
  * De onde a ferramenta pode abrir.
  *
- * **A tela nao promete bloqueio, porque ainda nao existe bloqueio.** Quem barra e
- * o `frame-ancestors` montado desta lista, e ninguem o emite: nenhuma linha do
- * sistema le esta tabela hoje. O desenho (prancheta 13) escreve "o bloqueio passa
- * a valer no momento em que voce declara o primeiro", e essa frase e verdadeira
- * no produto pronto, nao agora. Escreve-la hoje faria a tela dizer que travou um
- * site que continua aberto.
+ * **Agora a lista e conferida**, e a frase do desenho (prancheta 13) — "o bloqueio
+ * passa a valer no momento em que voce declara o primeiro" — finalmente pode ser
+ * escrita na tela. Ela esperou tres etapas: a pds-011 criou a lista, a pds-013 fez
+ * a ferramenta abrir de verdade, e ate a pds-015 nenhuma linha do sistema lia esta
+ * tabela. Dai a etiqueta "ainda nao vale" ter saido daqui, e nao a frase.
  *
- * O pds-013 mudou **metade** da premissa e por pouco nao deixou a tela mentindo:
- * a ferramenta agora abre de verdade em qualquer site que cole o script. O que
- * nao mudou e a conferencia, que continua nao existindo — dai o texto ter saido
- * de "ainda nao esta no ar" para "a lista ainda nao e conferida".
+ * **A lista nasce aberta**, e isso continua valendo — lista vazia abre em qualquer
+ * endereco. Nao e brecha esquecida: a leitura contraria teria apagado a ferramenta
+ * de toda instalacao no ar no dia em que a conferencia entrou, sem erro em tela
+ * nenhuma, porque o quadro que nao pode abrir simplesmente nao aparece.
  *
- * **A lista nasce aberta**, e isso continua valendo: lista vazia significa abrir em
- * qualquer endereco e so registrar de onde veio.
+ * **E o texto nao promete muro.** Quem declara o endereco e o carregador, que e
+ * codigo nosso — entao a lista pega a chave colada no site errado, que e o caso
+ * comum, e nao pega quem falar direto com a API. Dizer "so estes enderecos
+ * conseguem" seria mentira; o que a tela diz e o que de fato acontece, e a frase
+ * inteira chega com o `frame-ancestors`, que precisa de dominio proprio.
  *
  * **O curinga nao e uma linha propria.** O banco guarda o dominio e um sim/nao;
  * quem escreve `*.` e a tela, na hora de mostrar. Guardar as duas formas faria a
@@ -54,6 +56,13 @@ export function AllowedOriginsSection({ projectPublicId }: { projectPublicId: st
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<ProjectOriginViewModel | null>(null)
+
+  /**
+   * A lista esta restringindo, ou so registrando? Enquanto ela carrega a resposta
+   * e "nao sei", e `origins` nulo cai no mesmo lado de vazia — o texto de quem
+   * ainda nao restringiu e o que nao promete nada.
+   */
+  const restricted = (origins?.length ?? 0) > 0
 
   async function add() {
     const value = domain.trim()
@@ -94,17 +103,35 @@ export function AllowedOriginsSection({ projectPublicId }: { projectPublicId: st
 
   return (
     <section>
-      <div className="mb-1 flex items-center gap-2">
-        <h2 className="font-semibold text-lead">Onde a ferramenta pode rodar</h2>
-        <span className="rounded-full border border-border px-2 py-0.5 text-caption text-fg-muted">
-          ainda não vale
-        </span>
-      </div>
-      <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-        Registre aqui os endereços do seu site. A lista ainda não é conferida: hoje a ferramenta
-        abre em qualquer endereço que tenha a sua chave, e só registra de onde veio. Quando a
-        conferência entrar, é esta lista que vai decidir onde ela pode abrir.
-      </p>
+      <h2 className="mb-1 font-semibold text-lead">Onde a ferramenta pode rodar</h2>
+
+      {/* O paragrafo muda com a lista porque a lista muda a regra: vazia, ela nao
+          restringe nada, e dizer "so estes enderecos" na frente de uma lista vazia
+          descreveria o contrario do que acontece. */}
+      {restricted ? (
+        <>
+          <p className="mb-2 text-detail text-fg-muted leading-relaxed">
+            A ferramenta só abre nos endereços desta lista, e um relato aberto fora dela é recusado.
+            Remover todos volta a aceitar qualquer endereço.
+          </p>
+          {/* Aparece so quando alguem passa a depender da lista. Antes disso seria
+              ressalva sobre uma conferencia que nem esta ligada. */}
+          <p className="mb-4 text-caption text-fg-muted leading-normal">
+            A conferência pega a chave pública colada no site errado, que é o caso comum. Quem chama
+            a nossa API sem passar pela ferramenta declara o endereço que quiser — essa barreira
+            chega junto com o nosso domínio próprio.
+          </p>
+        </>
+      ) : (
+        <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+          Hoje a ferramenta abre em qualquer endereço que tenha a sua chave pública, e o painel só
+          registra de onde cada relato veio.{' '}
+          <strong className="font-medium text-fg">
+            O primeiro endereço declarado aqui liga a conferência
+          </strong>
+          : a partir dele, a ferramenta só abre nos endereços desta lista.
+        </p>
+      )}
 
       {failed && (
         <div className="rounded-xl border border-border bg-surface-raised p-5">
@@ -196,8 +223,8 @@ export function AllowedOriginsSection({ projectPublicId }: { projectPublicId: st
         title="Remover domínio"
         description={
           origins?.length === 1
-            ? 'Era o último endereço da lista. Como a conferência ainda não existe, isso não muda nada hoje: a ferramenta já abre em qualquer endereço.'
-            : 'O endereço sai da lista. Ele voltará a fazer diferença quando a conferência entrar — e você pode declará-lo de novo antes disso.'
+            ? 'Era o último endereço da lista. Sem nenhum, a conferência desliga e o projeto volta a aceitar a ferramenta em qualquer endereço.'
+            : 'A ferramenta para de abrir neste endereço, e um relato aberto lá passa a ser recusado. Vale na próxima carga da página.'
         }
         confirmLabel="Remover domínio"
         onConfirm={() => (removing ? remove(removing) : undefined)}

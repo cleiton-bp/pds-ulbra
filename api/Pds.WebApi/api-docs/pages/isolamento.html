@@ -53,9 +53,12 @@ em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o 
 tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
 <code>report_contexts</code> volta ao padrão e chega pelo relato.</p>
 
-<h2>As duas consultas que atravessam o filtro</h2>
+<h2>As quatro consultas que atravessam o filtro</h2>
 
-<p>São exatamente duas em todo o sistema, e as duas são propositais.</p>
+<p>São exatamente quatro em todo o sistema, todas propositais, e <strong>três delas têm a
+mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
+<code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
+próprio dono. Todas as quatro moram em repositório, uma por método, e nenhuma em serviço.</p>
 
 <p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
 momento a conta ainda não é conhecida, e é justamente a chave pública que vai revelá-la. Com o
@@ -78,8 +81,9 @@ filtro ligado, a consulta nunca acharia nada — sem sessão, <code>CurrentAccou
   no projeto. Retirar qualquer uma faz chave revogada ou projeto apagado voltarem a aceitar
   relato, e nada acusa: compila, responde 200 e grava.</p>
   <p>É por isso que ela mora em <code>ProjectKeyRepository</code>, escrita uma vez, e não
-  espalhada pelos serviços. Uma exceção que se pode apontar com o dedo é uma exceção; uma que
-  se repete vira o novo padrão.</p>
+  espalhada pelos serviços. Exceção que se aponta com o dedo é exceção; exceção espalhada vira
+  o novo padrão — e é o mesmo motivo de as três seguintes serem um método cada, com
+  <code>WithoutSession</code> no nome quando é disso que se trata.</p>
 </div>
 
 <p>A segunda é a conferência de protocolo repetido, na criação do relato:</p>
@@ -92,6 +96,23 @@ filtro ligado, a consulta nunca acharia nada — sem sessão, <code>CurrentAccou
 não sabe de qual projeto o relato é, então dois relatos de contas diferentes com o mesmo
 código levariam a pessoa ao lugar errado. Ela também inclui o que foi apagado — a linha some
 da lista, mas o papel com o protocolo continua na mão de alguém.</p>
+
+<p><strong>A terceira</strong> lê a configuração da ferramenta, e <strong>a quarta</strong> lê
+a lista de endereços autorizados. As duas atendem o quadro aberto no site de um cliente, que
+apresenta só a chave pública:</p>
+
+<pre><code>Context.ProjectWidgetSettings          Context.ProjectOrigins
+    .IgnoreQueryFilters()                  .IgnoreQueryFilters()
+    .FirstOrDefaultAsync(s =&gt;              .Where(o =&gt;
+        s.ProjectId == projectId &amp;&amp;             o.ProjectId == projectId &amp;&amp;
+        s.DeletedAt == null &amp;&amp;                  o.DeletedAt == null &amp;&amp;
+        s.Project.DeletedAt == null);           o.Project.DeletedAt == null)</code></pre>
+
+<p>As duas repetem à mão as condições que o filtro dava — e a da lista de endereços tem uma
+consequência que as outras não têm: <strong>se ela voltasse vazia, autorizaria tudo.</strong>
+Lista vazia significa "este projeto não restringe endereço", então esquecer o
+<code>IgnoreQueryFilters</code> aqui não fecharia a porta, e sim abriria — a conferência passaria
+a autorizar justamente quem ela existe para barrar, sem erro em lugar nenhum.</p>
 
 <div class="note why">
   <strong>Atravessar o filtro para ler não é atravessar para gravar</strong>
