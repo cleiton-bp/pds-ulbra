@@ -50,10 +50,14 @@ existe e ninguém alcança é dívida que cresce calada.</p>
 </table>
 
 <div class="note warn">
-  <strong>Registrado e conferido não são a mesma coisa</strong>
-  <p>A lista de endereços autorizados existe e é editável, mas <b>ninguém a lê ainda</b>: o
-  relato entra de qualquer origem que tenha a chave pública, e a origem é guardada como
-  indício. Quem vai barrar é o <code>frame-ancestors</code>, que é tarefa separada.</p>
+  <strong>Conferido no servidor não é o mesmo que barrado no navegador</strong>
+  <p>A lista de endereços autorizados <b>é conferida</b> nas duas rotas públicas: endereço
+  declarado fora dela não abre a ferramenta e não grava relato. Projeto com a lista vazia aceita
+  qualquer endereço — é o estado de quem ainda não restringiu.</p>
+  <p>Quem declara o endereço é o carregador, que é código nosso, então a chave copiada para
+  outro site é pega. Quem chamar a API sem passar pela ferramenta declara o que quiser: o muro é
+  o <code>frame-ancestors</code>, que precisa de um servidor servindo o documento do quadro e
+  continua sendo tarefa separada.</p>
 </div>
 
 <div class="note why">

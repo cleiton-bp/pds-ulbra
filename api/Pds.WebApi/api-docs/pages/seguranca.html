@@ -42,11 +42,18 @@ diferente, e a diferença de tempo entre parar no primeiro e parar no décimo pe
 descobrir o valor caractere a caractere.</p>
 
 <div class="note todo">
-  <strong>A conferência ainda não tem quem a chame</strong>
-  <p><code>ProjectKeyGenerator.Matches</code> está escrito e pronto, mas nenhuma rota da
-  etapa 1 valida chave — quem vai usá-la é a ingestão de relatos, na etapa 2. Por ora a
-  chave só é gerada e guardada.</p>
+  <strong>A comparação em tempo constante ainda não tem quem a chame</strong>
+  <p><code>ProjectKeyGenerator.Matches</code> está escrito e pronto, e continua sem caller: ele
+  compara o <em>hash</em> da chave secreta, e nenhuma rota autentica pela secreta ainda. Quem
+  chega hoje às duas rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
+  em claro — a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
+  <p>É a única peça de segurança da etapa 1 que segue esperando: ela entra com a primeira rota
+  que aceitar a chave secreta.</p>
 </div>
+
+<p>Nas duas rotas públicas, chave ausente, desconhecida, revogada ou secreta recebem
+<strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta chave existe mas foi
+revogada" contaria a quem tenta que ele acertou metade.</p>
 
 <h2>Regenerar não sobrescreve</h2>
 

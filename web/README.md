@@ -199,7 +199,9 @@ servidor. A variável tem nome de painel e hoje decide se o formulário do clien
 consegue enviar; separar isso é o pds-018.
 
 **A página de teste não pode ser `file://`.** A origem vira `null`, e `null` não
-é autorizável — nem hoje, nem quando o `frame-ancestors` entrar.
+entra numa lista de CORS — nem no `frame-ancestors` quando ele entrar. Quem não
+barra aqui é a lista de endereços autorizados: `file://` não declara endereço
+nenhum, e quem não declara passa. O que falha é a chamada, antes disso.
 
 ---
 
@@ -236,17 +238,22 @@ secreta. Mais a lista de endereços autorizados (pds-011).
 A **etapa 2 — O relato entra** fechou o ciclo (pds-014): colar o script numa
 página qualquer, escrever, o relato chegar na API com protocolo, rota e origem, e
 o time lê na tela **Relatos** — com o contexto de cada um e a visualização
-registrada como evento.
+registrada como evento. A aparência e os textos da ferramenta saem de
+**Ferramenta** (pds-015), e a **lista de endereços autorizados passou a ser
+conferida** (pds-016): lista vazia abre em qualquer lugar, e o primeiro endereço
+declarado liga a conferência.
 
 Falta o caminho de volta, e a falta é visível na tela:
 
 | o que falta | onde dói |
 |---|---|
 | a página pública de acompanhamento | quem relata recebe o protocolo e não tem o que fazer com ele |
-| a conferência dos endereços | a lista de `pds-011` continua sem ninguém que a leia |
+| o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança, e a única com limitador é a de login |
 
-Fora do corte, de propósito: limites de envio, plano, etapas públicas, anexo e a
-ferramenta própria do time.
+Fora do corte, de propósito: plano, etapas públicas, anexo e a ferramenta própria
+do time. E o `frame-ancestors` — a conferência de hoje mora no servidor e pega o
+caso comum; barrar o quadro no navegador precisa de um servidor servindo
+`embed.html`, que é hospedagem que ainda não existe.
 
 ---
 

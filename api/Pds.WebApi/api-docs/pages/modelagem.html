@@ -164,15 +164,27 @@ ninguém mais enxerga.</p>
   a chave copiada de um site funciona em qualquer outro.</p>
 </div>
 
+<div class="note why">
+  <strong>Lista vazia autoriza qualquer lugar</strong>
+  <p>Ela não quer dizer "ninguém autorizado", e sim "ainda não restringi": as duas rotas públicas
+  conferem o endereço declarado contra esta tabela, e a tabela vazia não recusa nada. A leitura
+  contrária teria apagado a ferramenta de toda instalação no ar no dia em que a conferência
+  entrou, e sem erro em tela nenhuma — o quadro que não pode abrir não aparece.</p>
+  <p>A regra não mora numa coluna, e sim na ausência de linha — não há "ligado/desligado" para
+  configurar, e não há como uma linha de configuração discordar da lista.</p>
+</div>
+
 <div class="note warn">
-  <strong>Origem é dica, não prova</strong>
+  <strong>Origem é dica conferida, e não prova</strong>
   <p>A ferramenta abre num quadro servido pelo nosso domínio, então a origem que o navegador
   carimba na requisição é a <em>nossa</em>, e a que a página hospedeira informa é
-  auto-declarada. Quem barra de verdade é o <code>frame-ancestors</code> montado a partir
-  desta lista, que impede o quadro de sequer abrir fora dela.</p>
-  <p>Esse cabeçalho ainda não existe. O carregador já entrou e a conferência não veio junto:
-  hoje a tabela só guarda a lista, e o quadro abre em qualquer site que cole o script. Enquanto
-  isso continuar assim, a tela que edita a lista diz exatamente isso.</p>
+  auto-declarada. As duas rotas públicas comparam essa declaração com esta tabela, e quem a
+  declara é o carregador — código nosso. Por isso a lista pega a chave copiada para outro site,
+  que é o caso comum, e não pega quem chamar a API sem passar pela ferramenta.</p>
+  <p><strong>Grade de proteção, e não muro.</strong> O muro é o <code>frame-ancestors</code>
+  montado desta mesma lista, que impede o quadro de sequer abrir fora dela — e ele precisa de um
+  servidor servindo o documento do quadro para montar o cabeçalho por projeto. O quadro hoje é
+  arquivo estático: o cabeçalho chega com o domínio próprio.</p>
 </div>
 
 <div class="note why">
@@ -180,6 +192,10 @@ ninguém mais enxerga.</p>
   <p>O painel escreve <code>*.site.com</code> na lista, mas o banco guarda o domínio e um
   sim/não. Guardar o asterisco faria a mesma autorização existir de dois jeitos, e um deles
   poderia ficar em desacordo com o outro.</p>
+  <p>A comparação por sufixo usa o endereço inteiro, porta incluída: <code>*.site.com</code> não
+  passa a valer em <code>app.site.com:3000</code>, que é uma origem que ninguém autorizou. E o
+  ponto na frente do sufixo não é enfeite — sem ele, <code>site.com</code> com subdomínios
+  ligados autorizaria também <code>meu-site.com</code>, que é de outra pessoa.</p>
 </div>
 
 <h2>project_widget_settings</h2>
