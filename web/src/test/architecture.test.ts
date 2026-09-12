@@ -72,6 +72,17 @@ const RULES: Rule[] = [
   },
 ]
 
+/**
+ * Os pontos de acesso a camada de dados. Sao **dois**, e a separacao e o que
+ * mantem o codigo de sessao fora do que roda dentro do site de um cliente:
+ * `data/index.ts` liga os servicos do painel e arrasta `sessionToken` junto;
+ * `data/publicIndex.ts` liga so o que funciona sem sessao.
+ *
+ * Quem consome o segundo chega no commit seguinte; ele nasce aqui porque e o
+ * ponto de acesso que torna o servico alcancavel.
+ */
+const ACCESS_POINTS = ['data/index.ts', 'data/publicIndex.ts']
+
 function listFiles(directory: string): string[] {
   const entries = readdirSync(directory)
   const files: string[] = []
@@ -163,7 +174,9 @@ describe('regra de dependencia entre as pastas', () => {
    */
   it('todo servico tem implementacao de API e sai pelo ponto de acesso', () => {
     const problemas: string[] = []
-    const acesso = readFileSync(join(SOURCE_ROOT, 'data', 'index.ts'), 'utf8')
+    const acesso = ACCESS_POINTS.map((nome) => readFileSync(join(SOURCE_ROOT, nome), 'utf8')).join(
+      '\n',
+    )
 
     for (const file of listFiles(join(SOURCE_ROOT, 'data'))) {
       const nome = relative(SOURCE_ROOT, file)
@@ -185,12 +198,12 @@ describe('regra de dependencia entre as pastas', () => {
     expect(problemas).toEqual([])
   })
 
-  it('somente data/index.ts importa de data/api', () => {
-    const injectionPoint = join(SOURCE_ROOT, 'data', 'index.ts')
+  it('somente os pontos de acesso importam de data/api', () => {
+    const injectionPoints = ACCESS_POINTS.map((nome) => join(SOURCE_ROOT, nome))
     const offenders: string[] = []
 
     for (const file of listFiles(join(SOURCE_ROOT, 'data'))) {
-      if (file === injectionPoint) continue
+      if (injectionPoints.includes(file)) continue
 
       // Dentro de `data/api` os arquivos se importam a vontade; o que nao pode e
       // o resto da camada alcancar o cliente HTTP por fora do ponto de acesso.
