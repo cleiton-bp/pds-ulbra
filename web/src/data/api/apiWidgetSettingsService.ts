@@ -17,18 +17,29 @@ import type { WidgetSettingsService } from '@/data/widgetSettingsService'
  * pedir — coisa que um `POST` fecharia.
  */
 export const apiWidgetSettingsService: WidgetSettingsService = {
-  loadWidgetSettings: async (key) => {
-    const response = await fetch(
-      `${environment.apiUrl}/public/widget-settings?key=${encodeURIComponent(key)}`,
-      { credentials: 'omit' },
-    ).catch(() => {
+  loadWidgetSettings: async (key, origin) => {
+    const query = new URLSearchParams({ key })
+
+    // O endereco vai **so quando existe**: `origin=` vazio diria "declarei nada",
+    // que e o mesmo que nao declarar, e sujaria a chave do cache com uma variacao
+    // que nao muda a resposta.
+    if (origin) query.set('origin', origin)
+
+    const response = await fetch(`${environment.apiUrl}/public/widget-settings?${query}`, {
+      credentials: 'omit',
+    }).catch(() => {
       // Status 0: nem chegou a haver resposta, igual ao `httpClient`.
       throw new PanelError('Falha de rede ao ler a configuracao.', 0)
     })
 
-    // Chave que nao vale: o projeto nao existe para quem perguntou, e quem chama
-    // trata isso desenhando nada — diferente de uma falha, que cai nos padroes.
-    if (response.status === 401) return null
+    // As duas recusas que dizem "nao e para abrir aqui": chave que nao vale (401)
+    // e endereco fora da lista do projeto (403). Quem chama trata as duas
+    // desenhando nada — diferente de uma falha, que cai nos padroes.
+    //
+    // O quadro nao precisa saber qual das duas foi, e e melhor que nao saiba: a
+    // resposta dele e a mesma, e distinguir na tela contaria a quem tenta qual
+    // metade ele acertou.
+    if (response.status === 401 || response.status === 403) return null
 
     const envelope = await response
       .json()
