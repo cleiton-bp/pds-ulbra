@@ -87,3 +87,32 @@ export interface ReportDetailViewModel extends ReportSummaryViewModel {
   /** Em ordem de chave, decidida pela API. */
   Contexts: ReportContextViewModel[]
 }
+
+/**
+ * A consulta do acompanhamento, feita pela pagina publica.
+ *
+ * Os dois campos vao juntos, e a recusa da API e a mesma para qualquer um dos
+ * dois errado: quem sonda a rota nao descobre se um protocolo existe.
+ */
+export interface OpenReportTrackingRequest {
+  TrackingCode: string
+  /** O que veio no link, e o unico dos dois que abre alguma coisa. */
+  Token: string
+}
+
+/**
+ * O relato como quem o escreveu o ve.
+ *
+ * **Nao estende `ReportSummaryViewModel`**, e a diferenca e o ponto: este e o
+ * unico contrato que chega a alguem fora do time do cliente, e por heranca o
+ * campo que a etapa 3 acrescentar ao painel — comentario, responsavel — passaria
+ * a sair aqui sem ninguem decidir isso.
+ *
+ * Nao ha campo de situacao porque nao ha situacao: estado interno e a etapa 3.
+ */
+export interface PublicReportViewModel {
+  TrackingCode: string
+  Type: ReportType
+  Text: string
+  CreatedAt: string
+}

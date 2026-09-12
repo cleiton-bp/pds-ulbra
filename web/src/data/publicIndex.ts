@@ -4,7 +4,9 @@ import type { ReportService } from '@/data/reportService'
 import type { WidgetSettingsService } from '@/data/widgetSettingsService'
 
 /**
- * O ponto de acesso do que roda **sem sessao** — hoje, so a ferramenta embutida.
+ * O ponto de acesso do que roda **sem sessao**: a ferramenta embutida no site do
+ * cliente e a pagina de acompanhamento que quem relatou abre pelo link. Dois
+ * documentos, duas pessoas diferentes, e nenhuma das duas tem conta aqui.
  *
  * Existe separado de `data/index.ts` por uma razao medida, e nao por gosto: o
  * ponto de acesso do painel liga `authService`, `projectService` e os outros, e

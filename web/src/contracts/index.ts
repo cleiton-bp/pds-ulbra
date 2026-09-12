@@ -21,6 +21,8 @@ export { MAX_ORIGIN_DOMAIN_LENGTH } from '@/contracts/projectOrigin'
 export type {
   CreatedReportViewModel,
   CreateReportRequest,
+  OpenReportTrackingRequest,
+  PublicReportViewModel,
   ReportContextViewModel,
   ReportDetailViewModel,
   ReportSummaryViewModel,

@@ -38,4 +38,15 @@ export const environment = {
    * abre.
    */
   embedUrl: `${new URL(loaderUrl).origin}/embed.html`,
+
+  /**
+   * A pagina publica de acompanhamento, derivada da mesma origem — ela e o
+   * terceiro documento deste projeto, e o unico cujo endereco vai num link que
+   * uma pessoa guarda.
+   *
+   * `tracking.html` e nao `/r/CODIGO`: o caminho bonito exige regra de reescrita
+   * no servidor, e o que serve estes arquivos e hospedagem estatica. Quando
+   * houver dominio proprio, a reescrita entra e este valor muda em um lugar so.
+   */
+  trackingUrl: `${new URL(loaderUrl).origin}/tracking.html`,
 } as const
