@@ -15,12 +15,18 @@ interface RequestOptions {
   handleUnauthorized?: boolean
 }
 
-async function request<T>(
+/**
+ * A requisicao com o envelope ainda fechado. Quase toda chamada quer so o `Data`
+ * e usa `request`; a listagem paginada precisa tambem do `Total`, que diz quantos
+ * itens existem **fora** da pagina — e sem ele o botao "carregar mais" so
+ * descobre que acabou pedindo uma pagina vazia.
+ */
+async function exchange<T>(
   method: Method,
   path: string,
   body?: unknown,
   options: RequestOptions = {},
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   const token = getToken()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
@@ -53,10 +59,36 @@ async function request<T>(
     throw new PanelError(envelope?.Message ?? `Erro ${response.status}.`, response.status)
   }
 
-  return (envelope?.Data ?? null) as T
+  // Resposta sem corpo JSON e sucesso sem dado — a remocao responde assim. O
+  // envelope montado aqui deixa o resto do arquivo sem um `null` para tratar.
+  return envelope ?? { Success: true, Message: null, Data: null }
+}
+
+async function request<T>(
+  method: Method,
+  path: string,
+  body?: unknown,
+  options: RequestOptions = {},
+): Promise<T> {
+  const envelope = await exchange<T>(method, path, body, options)
+  return (envelope.Data ?? null) as T
 }
 
 export const apiGet = <T>(path: string) => request<T>('GET', path)
+
+/**
+ * Listagem paginada. `total` e quantos itens o recurso tem, e nao quantos vieram.
+ *
+ * Quando a resposta nao traz `Total`, o total passa a ser o que chegou: assim a
+ * tela conclui "acabou" em vez de oferecer um "carregar mais" que nao carrega.
+ */
+export async function apiGetPage<T>(path: string): Promise<{ items: T[]; total: number }> {
+  const envelope = await exchange<T[]>('GET', path)
+  const items = envelope.Data ?? []
+
+  return { items, total: envelope.Total ?? items.length }
+}
+
 export const apiPost = <T>(path: string, body?: unknown, options?: RequestOptions) =>
   request<T>('POST', path, body, options)
 export const apiPatch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body)

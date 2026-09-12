@@ -19,6 +19,11 @@ export interface EmbedConfig {
   route: string | null
   /** Dominio declarado pela pagina hospedeira. Indicio, nunca prova. */
   origin: string | null
+  /**
+   * O tamanho da janela da pagina, como `1280x800`. Nulo quando o quadro abre
+   * sozinho, sem carregador — ai nao ha pagina hospedeira para medir.
+   */
+  viewport: string | null
 }
 
 /** Fica so o caminho: o que vem depois do `?` ou do `#` nao sobe. */
@@ -38,7 +43,28 @@ export function configFromLocation(search: string): EmbedConfig {
     key: params.get('k')?.trim() ?? '',
     route: sanitizeRoute(params.get('route')),
     origin: params.get('origin')?.trim() || null,
+    // Sem pagina hospedeira nao ha janela dela para medir, e a do proprio quadro
+    // seria o tamanho do formulario — um numero que nao explica defeito nenhum.
+    viewport: null,
   }
+}
+
+/**
+ * O tamanho da janela da pagina vira texto aqui, e so se fizer sentido.
+ *
+ * O valor atravessou `postMessage`, entao ele e **declarado**: uma pagina pode
+ * mandar `-1`, `NaN` ou um objeto sem numero nenhum. Nao ha por que recusar o
+ * relato por causa disso — descarta-se o dado e o resto segue.
+ */
+function formatViewport(viewport: InitMessage['viewport']): string | null {
+  if (!viewport || typeof viewport !== 'object') return null
+
+  const { width, height } = viewport
+
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return null
+  if (width <= 0 || height <= 0) return null
+
+  return `${Math.round(width)}x${Math.round(height)}`
 }
 
 /**
@@ -51,6 +77,7 @@ export function configFromInit(message: InitMessage): EmbedConfig {
     key: message.key.trim(),
     route: sanitizeRoute(message.route),
     origin: message.origin?.trim() || null,
+    viewport: formatViewport(message.viewport),
   }
 }
 

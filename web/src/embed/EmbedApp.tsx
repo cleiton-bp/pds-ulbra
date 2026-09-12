@@ -9,6 +9,7 @@ import { describeError, reportService } from '@/data/publicIndex'
 import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import type { EmbedConfig } from '@/embed/config'
 import type { HostConnection } from '@/embed/hostBridge'
+import { buildReportContext } from '@/embed/reportContext'
 import { REPORT_TYPES } from '@/embed/reportTypes'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
@@ -83,7 +84,7 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         Text: trimmed,
         Route: config.route,
         Origin: config.origin,
-        Context: null,
+        Context: buildReportContext(config),
       })
 
       if (generation.current !== minha) return

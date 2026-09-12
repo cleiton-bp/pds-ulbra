@@ -31,6 +31,15 @@ export interface InitMessage {
   route: string | null
   /** A origem da pagina, declarada por ela. Indicio, nunca prova. */
   origin: string | null
+  /**
+   * O tamanho da janela **da pagina**, que o quadro nao tem como medir sozinho:
+   * dentro do `iframe`, `innerWidth` e a largura do proprio quadro.
+   *
+   * Serve para reproduzir o problema — "so quebra em tela estreita" e a metade da
+   * informacao que mais falta num relato. Como todo o resto que chega por aqui, e
+   * declarado pela pagina e conferido de novo do lado de ca.
+   */
+  viewport: { width: number; height: number } | null
 }
 
 /** Do quadro para a pagina: recebi o `init` e ja posso ser mostrado. */

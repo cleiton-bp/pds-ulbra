@@ -1,14 +1,17 @@
 /**
- * Dois grupos, como no design: **Configuração** é o que existe na etapa 1, e
- * **Operação** é o que o time vai usar todo dia e ainda não existe — aparece
- * bloqueado, com a etapa em que chega escrita na dica. Esconder faria o painel
- * parecer só uma tela de chaves.
+ * Dois grupos, como no design: **Configuração** é o que se ajusta uma vez, e
+ * **Operação** é o que o time usa todo dia.
+ *
+ * O segundo grupo nasceu inteiro bloqueado, com a etapa em que cada seção chega
+ * escrita na dica — esconder faria o painel parecer só uma tela de chaves. Com
+ * **Relatos** no ar, ele passou a ter as duas coisas ao mesmo tempo, e é por isso
+ * que existem três listas aqui e não duas.
  */
 
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
   /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
-  key: 'start' | 'keys' | 'settings'
+  key: 'start' | 'keys' | 'settings' | 'reports'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
@@ -29,6 +32,16 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
 ]
 
 /**
+ * O grupo de baixo, na parte que ja funciona.
+ *
+ * **Relatos** e a primeira: ate aqui o painel so mostrava o que a propria pessoa
+ * tinha configurado, e esta e a secao que mostra o que chegou de fora.
+ */
+export const OPERATION_SECTIONS: ConsoleSection[] = [
+  { key: 'reports', label: 'Relatos', path: 'reports' },
+]
+
+/**
  * A dica comeca pelo **que a secao vai fazer** e so entao diz em que etapa chega.
  * Comecando pela etapa, ela respondia "quando" para quem ainda nao sabia "o que"
  * — e "etapa 3" e numero de cronograma nosso, nao de quem usa o painel.
@@ -41,9 +54,9 @@ export interface LockedSection {
 
 export const LOCKED_SECTIONS: LockedSection[] = [
   {
-    key: 'reports',
-    label: 'Relatos',
-    hint: 'O quadro dos relatos que chegam do seu site, na etapa 3.',
+    key: 'board',
+    label: 'Quadro',
+    hint: 'Os relatos como cartões, que o time move entre os estados que você criar, na etapa 3.',
   },
   {
     key: 'stages',

@@ -1,5 +1,6 @@
 <h2>Endpoints</h2>
-<p class="lead">Treze rotas. Doze resolvem a conta pela sessão — a décima terceira não tem sessão nenhuma.</p>
+<p class="lead">Quinze rotas. Treze exigem token de sessão; duas não — a de entrar, que é onde a
+sessão nasce, e a que recebe o relato, que atende um visitante anônimo.</p>
 
 <div class="table-scroll">
 <table>
@@ -16,6 +17,8 @@
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td>Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td>Retira a autorização. Exclusão lógica.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto. <strong>Registra a visualização.</strong></td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
 </table>
 </div>
@@ -24,8 +27,20 @@
 gerado a partir do código.</p>
 
 <div class="note why">
+  <strong>Uma consulta que grava, de propósito</strong>
+  <p><code>GET /projects/{publicId}/reports/{reportPublicId}</code> registra um evento de
+  visualização a cada chamada. O intervalo entre ele e a criação do relato é o tempo que o
+  time levou para ir olhar — metade da pergunta que este trabalho investiga, e um dado que
+  não é reconstituível depois.</p>
+  <p>A consequência vale para quem for consumir a API: <b>ela não deve ser chamada para
+  adiantar dado que ninguém pediu</b>. Uma tela que abrisse os relatos sozinha inventaria
+  leituras que não aconteceram. A <b>lista</b> não registra nada, e é ela que serve para
+  varrer.</p>
+</div>
+
+<div class="note why">
   <strong>Por que uma rota fica fora do padrão</strong>
-  <p>Doze rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
+  <p>Treze rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
   <code>/public/reports</code> não pode: quem chega ali é um visitante anônimo do site de um
   cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai.</p>

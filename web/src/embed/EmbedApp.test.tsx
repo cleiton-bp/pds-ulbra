@@ -25,7 +25,12 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
   return { ...real, reportService: { createReport: dublê.criar } }
 })
 
-const config = { key: 'pk_DEMO', route: '/checkout', origin: 'loja.exemplo.com' }
+const config = {
+  key: 'pk_DEMO',
+  route: '/checkout',
+  origin: 'loja.exemplo.com',
+  viewport: '1280x800',
+}
 const pagina = { init: null, expand: vi.fn(), collapse: vi.fn(), stop: vi.fn() }
 
 function comSettings(mudanca: Partial<WidgetSettingsViewModel>): WidgetSettingsViewModel {

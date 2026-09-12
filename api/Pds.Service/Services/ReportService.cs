@@ -23,6 +23,15 @@ public class ReportService : IReportService
     /// <summary>Teto de pares de contexto por relato, para o corpo da requisicao nao virar deposito.</summary>
     private const int MaxContextEntries = 30;
 
+    /// <summary>Quantos relatos a lista do painel traz quando ninguem pede outra coisa.</summary>
+    private const int DefaultPageSize = 20;
+
+    /// <summary>
+    /// Teto por pagina. O texto do relato vai inteiro na lista, entao uma pagina de
+    /// mil linhas seriam megabytes numa resposta que a tela nao desenha.
+    /// </summary>
+    private const int MaxPageSize = 100;
+
     private readonly IUnitOfWork _unitOfWork;
 
     public ReportService(IUnitOfWork unitOfWork)
@@ -91,6 +100,29 @@ public class ReportService : IReportService
         return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt);
     }
 
+    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var size = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
+        var current = Math.Max(page, 1);
+
+        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, cancellationToken);
+
+        // Em long porque o produto estoura o int muito antes de estourar a tabela:
+        // pagina 200 milhoes vezes 20 nao existe como pergunta, mas chega como
+        // numero, e em int ele volta negativo e a consulta quebra em vez de
+        // responder "acabou".
+        var skip = (long)(current - 1) * size;
+
+        if (skip >= total)
+            return new ReportPageViewModel([], total);
+
+        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, (int)skip, size, cancellationToken);
+
+        return new ReportPageViewModel(reports.Select(Map).ToList(), total);
+    }
+
     /// <summary>
     /// Resolve o projeto pela chave publica apresentada.
     ///
@@ -125,6 +157,66 @@ public class ReportService : IReportService
         throw new InvalidOperationException(
             $"Nao foi possivel gerar um protocolo unico em {TrackingCodeAttempts} tentativas.");
     }
+
+    public async Task<ReportDetailViewModel> GetAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Relato nao encontrado.");
+
+        // Consulta que grava. E de proposito: e aqui que se sabe que alguem do time
+        // foi olhar, e esse instante comparado com o da criacao e metade da pergunta
+        // de pesquisa. Registrar por um botao "marcar como lido" mediria o clique,
+        // nao a leitura.
+        //
+        // Sem payload: origem, momento, projeto e relato ja sao colunas, e repetir
+        // no campo livre criaria duas versoes do mesmo dado para divergirem depois.
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportViewed,
+            Source = EventSourceEnum.Panel,
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return new ReportDetailViewModel(
+            report.PublicId,
+            report.TrackingCode,
+            report.Type,
+            report.Text,
+            report.Route,
+            report.Origin,
+            report.CreatedAt,
+            // Em ordem de chave, e nao na que o navegador mandou: a mesma informacao
+            // trocando de lugar entre dois relatos faz procurar de novo a cada um.
+            report.Contexts
+                .OrderBy(context => context.Key, StringComparer.Ordinal)
+                .Select(context => new ReportContextViewModel(context.Key, context.Value))
+                .ToList());
+    }
+
+    /// <summary>
+    /// O projeto da sessao atual. O filtro global ja limita a consulta a conta que
+    /// esta usando o painel, entao projeto de outra conta simplesmente nao volta —
+    /// e a resposta e a mesma de um identificador inventado, de proposito: dizer
+    /// "existe, mas nao e seu" confirmaria a existencia dele a um estranho.
+    /// </summary>
+    private async Task<Project> RequireOwnProjectAsync(Guid publicId, CancellationToken cancellationToken)
+        => await _unitOfWork.Projects.GetByPublicIdAsync(publicId, cancellationToken)
+           ?? throw new KeyNotFoundException("Projeto nao encontrado.");
+
+    private static ReportSummaryViewModel Map(Report report) => new(
+        report.PublicId,
+        report.TrackingCode,
+        report.Type,
+        report.Text,
+        report.Route,
+        report.Origin,
+        report.CreatedAt);
 
     /// <summary>
     /// Guarda so o caminho. O que vem depois do <c>?</c> ou do <c>#</c> e descartado

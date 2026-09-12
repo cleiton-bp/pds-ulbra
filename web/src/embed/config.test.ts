@@ -46,7 +46,25 @@ describe('de onde o quadro tira a configuracao', () => {
       key: 'pk_DEMO',
       route: '/checkout',
       origin: 'loja.com',
+      // Aberto direto nao ha pagina hospedeira, e a janela do proprio quadro
+      // seria o tamanho do formulario.
+      viewport: null,
     })
+  })
+
+  it('janela declarada com numero impossivel e descartada, e o resto do init vale', () => {
+    const config = configFromInit({
+      source: MESSAGE_SOURCE,
+      type: 'init',
+      key: 'pk_DEMO',
+      route: '/checkout',
+      origin: 'loja.exemplo.com',
+      // Veio de `postMessage`: qualquer pagina pode mandar o que quiser.
+      viewport: { width: Number.NaN, height: -900 },
+    })
+
+    expect(config.viewport).toBeNull()
+    expect(config.key).toBe('pk_DEMO')
   })
 
   it('sem chave na barra, a chave fica vazia em vez de undefined', () => {
@@ -62,8 +80,15 @@ describe('de onde o quadro tira a configuracao', () => {
         // A pagina ja manda cortado; quem confere dado de fora e quem recebe.
         route: '/checkout?token=SEGREDO',
         origin: 'loja.exemplo.com',
+        viewport: { width: 1279.6, height: 800 },
       }),
-    ).toEqual({ key: 'pk_DEMO', route: '/checkout', origin: 'loja.exemplo.com' })
+    ).toEqual({
+      key: 'pk_DEMO',
+      route: '/checkout',
+      origin: 'loja.exemplo.com',
+      // Arredondado: a largura vem fracionada em tela com zoom.
+      viewport: '1280x800',
+    })
   })
 })
 

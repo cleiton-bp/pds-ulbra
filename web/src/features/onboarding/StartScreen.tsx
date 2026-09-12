@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { projectKeyService } from '@/data'
 import { TestReportDialog } from '@/features/onboarding/TestReportDialog'
 import { Button } from '@/shared/components/Button'
@@ -93,14 +94,24 @@ export function StartScreen() {
 
           <Step number={3} title="Fazer um relato de teste">
             <p className="mb-3.5 text-detail text-fg-muted leading-relaxed">
-              Abre a mesma ferramenta que o seu site abre, com esta chave. O relato entra de verdade
-              — a lista para vê-lo chegar é a próxima etapa.
+              Abre a mesma ferramenta que o seu site abre, com esta chave. O relato entra de
+              verdade, e é por isso que ele aparece em Relatos como qualquer outro.
             </p>
             {publicKey ? (
               <TestReportDialog publicKey={publicKey} />
             ) : (
               <Button disabled>Abrir relato de teste</Button>
             )}
+
+            {/* A pergunta que vem depois de enviar e "e agora, onde ele esta?", e a
+                resposta e outra tela. Ate a pds-014 nao havia para onde apontar, e
+                a frase acima terminava prometendo a lista para depois. */}
+            <Link
+              to="../reports"
+              className="mt-4 inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
+            >
+              Ver os relatos que chegaram
+            </Link>
           </Step>
         </div>
       )}
