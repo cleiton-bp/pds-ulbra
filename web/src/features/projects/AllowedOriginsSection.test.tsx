@@ -127,10 +127,15 @@ describe('AllowedOriginsSection', () => {
 
     const texto = container.textContent ?? ''
 
-    // A frase do desenho ("o bloqueio passa a valer...") so vale quando existir
-    // carregador. Hoje nenhuma linha do sistema le esta tabela.
+    // A frase do desenho ("o bloqueio passa a valer...") so vale quando alguem
+    // ler esta tabela, e ninguem le: o `frame-ancestors` ainda nao existe.
     expect(texto).not.toMatch(/bloqueio|bloquea|bloqueia/i)
     expect(texto).toMatch(/ainda não vale/)
-    expect(texto).toMatch(/ainda não está no ar/)
+    expect(texto).toMatch(/ainda não é conferida/)
+
+    // O pds-013 pos a ferramenta no ar. Dizer o contrario passou a ser mentira, e
+    // a frase antiga estava presa aqui por uma asserticao — que e o jeito de um
+    // teste de honestidade envelhecer para o lado errado.
+    expect(texto).not.toMatch(/ainda não está no ar|não está no ar/)
   })
 })

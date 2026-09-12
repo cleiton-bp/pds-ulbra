@@ -8,6 +8,7 @@ import {
 import { describeError, reportService } from '@/data/publicIndex'
 import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import type { EmbedConfig } from '@/embed/config'
+import type { HostConnection } from '@/embed/hostBridge'
 import { REPORT_TYPES } from '@/embed/reportTypes'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
@@ -23,10 +24,18 @@ import { cn } from '@/shared/lib/cn'
 interface EmbedAppProps {
   settings: WidgetSettingsViewModel
   config: EmbedConfig
+  /**
+   * A ligacao com a pagina hospedeira. Nula quando `embed.html` foi aberto
+   * direto — ai nao ha quadro para redimensionar, e o formulario ja nasce aberto.
+   */
+  host?: HostConnection | null
 }
 
-export function EmbedApp({ settings, config }: EmbedAppProps) {
+export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   const [type, setType] = useState<ReportType>(settings.DefaultReportType)
+  // Dentro de uma pagina, comeca recolhido: quem visita o site do cliente nao
+  // pediu um formulario no meio da tela.
+  const [open, setOpen] = useState(!host)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +79,35 @@ export function EmbedApp({ settings, config }: EmbedAppProps) {
     }
   }
 
+  function expand() {
+    setOpen(true)
+    host?.expand()
+  }
+
+  function collapse() {
+    setOpen(false)
+    host?.collapse()
+  }
+
+  // Recolhido o documento inteiro e o gatilho: o `iframe` tem o tamanho dele, e
+  // e por isso que o resto da pagina do cliente continua clicavel em volta.
+  if (!open) {
+    return (
+      <div style={style} className="flex h-full items-center justify-center p-1">
+        <button
+          type="button"
+          onClick={expand}
+          className={cn(
+            'h-10 w-full rounded-full bg-[var(--widget-accent)] px-4',
+            'font-medium text-[var(--widget-ink)] text-body',
+          )}
+        >
+          {settings.LauncherLabel}
+        </button>
+      </div>
+    )
+  }
+
   if (created) {
     return (
       <section style={style} className="flex h-full flex-col gap-4 bg-surface p-5">
@@ -84,6 +122,11 @@ export function EmbedApp({ settings, config }: EmbedAppProps) {
 
         <div className="mt-auto flex items-center gap-2">
           <CopyButton value={created.TrackingCode} label="Copiar protocolo" size="sm" />
+          {host && (
+            <Button variant="ghost" size="sm" onClick={collapse}>
+              Fechar
+            </Button>
+          )}
         </div>
       </section>
     )
@@ -91,7 +134,14 @@ export function EmbedApp({ settings, config }: EmbedAppProps) {
 
   return (
     <form style={style} onSubmit={submit} className="flex h-full flex-col gap-4 bg-surface p-5">
-      <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
+        {host && (
+          <Button variant="ghost" size="sm" onClick={collapse} aria-label="Fechar">
+            Fechar
+          </Button>
+        )}
+      </div>
 
       {settings.ShowsTypeField && (
         <fieldset className="flex flex-wrap gap-2">

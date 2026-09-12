@@ -12,12 +12,16 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
  * De onde a ferramenta pode abrir.
  *
  * **A tela nao promete bloqueio, porque ainda nao existe bloqueio.** Quem barra e
- * o `frame-ancestors` montado desta lista, e ele depende do carregador, que ainda
- * nao foi escrito — nenhuma linha do sistema le esta tabela hoje. O desenho
- * (prancheta 13) escreve "o bloqueio passa a valer no momento em que voce declara
- * o primeiro", e essa frase e verdadeira no produto pronto, nao agora. Escreve-la
- * hoje faria a tela dizer que travou um site que continua aberto — o oposto do
- * cuidado que a Instalacao ja tem com o passo bloqueado.
+ * o `frame-ancestors` montado desta lista, e ninguem o emite: nenhuma linha do
+ * sistema le esta tabela hoje. O desenho (prancheta 13) escreve "o bloqueio passa
+ * a valer no momento em que voce declara o primeiro", e essa frase e verdadeira
+ * no produto pronto, nao agora. Escreve-la hoje faria a tela dizer que travou um
+ * site que continua aberto.
+ *
+ * O pds-013 mudou **metade** da premissa e por pouco nao deixou a tela mentindo:
+ * a ferramenta agora abre de verdade em qualquer site que cole o script. O que
+ * nao mudou e a conferencia, que continua nao existindo — dai o texto ter saido
+ * de "ainda nao esta no ar" para "a lista ainda nao e conferida".
  *
  * **A lista nasce aberta**, e isso continua valendo: lista vazia significa abrir em
  * qualquer endereco e so registrar de onde veio.
@@ -97,10 +101,9 @@ export function AllowedOriginsSection({ projectPublicId }: { projectPublicId: st
         </span>
       </div>
       <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-        Registre aqui os endereços do seu site. A ferramenta ainda não está no ar, então por
-        enquanto a lista só fica guardada. Quando ela entrar, é esta lista que decide onde pode
-        abrir — e, se estiver vazia, a ferramenta abre em qualquer endereço e só registra de onde
-        veio.
+        Registre aqui os endereços do seu site. A lista ainda não é conferida: hoje a ferramenta
+        abre em qualquer endereço que tenha a sua chave, e só registra de onde veio. Quando a
+        conferência entrar, é esta lista que vai decidir onde ela pode abrir.
       </p>
 
       {failed && (
@@ -193,8 +196,8 @@ export function AllowedOriginsSection({ projectPublicId }: { projectPublicId: st
         title="Remover domínio"
         description={
           origins?.length === 1
-            ? 'Era o último endereço da lista. Com ela vazia, a ferramenta vai abrir em qualquer endereço quando entrar no ar.'
-            : 'O endereço sai da lista e deixa de valer quando a ferramenta entrar no ar. Você pode declará-lo de novo depois.'
+            ? 'Era o último endereço da lista. Como a conferência ainda não existe, isso não muda nada hoje: a ferramenta já abre em qualquer endereço.'
+            : 'O endereço sai da lista. Ele voltará a fazer diferença quando a conferência entrar — e você pode declará-lo de novo antes disso.'
         }
         confirmLabel="Remover domínio"
         onConfirm={() => (removing ? remove(removing) : undefined)}

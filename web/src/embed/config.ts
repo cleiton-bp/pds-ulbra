@@ -1,3 +1,5 @@
+import type { InitMessage } from '@/embed/protocol'
+
 /**
  * De onde o quadro sabe para qual projeto enviar, e de que pagina.
  *
@@ -28,8 +30,7 @@ export function sanitizeRoute(value: string | null): string | null {
 
 /**
  * Fora de um quadro embutido — abrindo `embed.html` direto — vale o que estiver
- * na barra de endereco. E como esta fatia se demonstra sozinha, antes de existir
- * carregador.
+ * na barra de endereco. E como o quadro se demonstra sozinho, sem carregador.
  */
 export function configFromLocation(search: string): EmbedConfig {
   const params = new URLSearchParams(search)
@@ -38,4 +39,32 @@ export function configFromLocation(search: string): EmbedConfig {
     route: sanitizeRoute(params.get('route')),
     origin: params.get('origin')?.trim() || null,
   }
+}
+
+/**
+ * Dentro de um quadro, a configuracao vem do `init` da pagina hospedeira. A rota
+ * passa pelo mesmo corte de novo: a pagina ja mandou cortada, mas quem confere
+ * dado que veio de fora e quem recebe.
+ */
+export function configFromInit(message: InitMessage): EmbedConfig {
+  return {
+    key: message.key.trim(),
+    route: sanitizeRoute(message.route),
+    origin: message.origin?.trim() || null,
+  }
+}
+
+/**
+ * O quadro espera o `init` da pagina, ou ja desenha com o que esta na barra?
+ *
+ * **A chave na barra vence.** Quem embute o quadro com a chave na URL ja disse
+ * tudo que ele precisa saber — e o painel faz exatamente isso no relato de
+ * teste, sem carregador nenhum no meio. Sem esta regra o quadro espera para
+ * sempre um `init` que ninguem manda, e o que aparece e um retangulo vazio.
+ *
+ * Nao ha ambiguidade entre os dois caminhos: o carregador **nao** poe a chave no
+ * `src`, justamente para ela nao viajar em URL.
+ */
+export function shouldWaitForHost(search: string, embedded: boolean): boolean {
+  return embedded && configFromLocation(search).key === ''
 }

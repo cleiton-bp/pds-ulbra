@@ -58,7 +58,7 @@ variáveis reais do ambiente.</p>
   <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token.</td></tr>
   <tr><td><code>JWT_EXPIRATION_HOURS</code></td><td>Validade da sessão. Padrão 8.</td></tr>
   <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>ID do cliente OAuth. Ver abaixo.</td></tr>
-  <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula.</td></tr>
+  <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula. <b>E também do quadro de relato</b> — veja o aviso abaixo.</td></tr>
 </table>
 </div>
 
@@ -76,6 +76,15 @@ variáveis reais do ambiente.</p>
   rodar a API e abrir esta documentação enquanto o cadastro no Google Cloud não sai. O preço
   é que, sem ele, <code>POST /auth/google</code> responde <strong>500</strong> com a
   mensagem genérica — o motivo real fica no log do servidor.</p>
+</div>
+
+<div class="note warn">
+  <strong>O nome da variável mente sobre o alcance dela</strong>
+  <p><code>CORS_ALLOWED_ORIGINS</code> tem nome de painel, mas a política é aplicada ao
+  pipeline inteiro — inclusive a <code>public/reports</code>. Quem chama aquela rota é a
+  ferramenta de relato, servida da mesma origem do painel; servir o painel em outra porta faz
+  o envio do formulário falhar com "Falha de rede", sem erro nenhum do lado do servidor. Dar
+  política própria à rota pública é tarefa separada.</p>
 </div>
 
 <div class="note warn">

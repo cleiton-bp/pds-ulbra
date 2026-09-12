@@ -55,7 +55,8 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 | `npm run typecheck` | `tsc --noEmit`, com `strict` ligado |
 | `npm run lint` | Biome: linter e formatador |
 | `npm run format` | Aplica as correções do Biome |
-| `npm run build` | Checa os tipos e gera `dist/` |
+| `npm run build` | Checa os tipos, gera o carregador e depois `dist/` |
+| `npm run build:loader` | Só o carregador, em `public/v1/pds.js` |
 
 ---
 
@@ -80,12 +81,21 @@ src/
 ├── app/          a casca: rotas, cascas visuais, tema, sessão
 ├── contracts/    os view models da API, em PascalCase
 ├── data/         de onde vêm os dados
-│   ├── index.ts    ← o ÚNICO ponto de acesso; as telas importam daqui
-│   └── api/        fetch, envelope, token, 401
+│   ├── index.ts        ← ponto de acesso do PAINEL (arrasta a sessão junto)
+│   ├── publicIndex.ts  ← ponto de acesso do QUADRO (sem sessão nenhuma)
+│   └── api/            fetch, envelope, token, 401
+├── embed/        a ferramenta de relato: o que roda no site do cliente
+├── loader/       o <script> que o cliente cola; roda no documento DELE
 ├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
 ```
+
+**Por que dois pontos de acesso.** `data/index.ts` liga os serviços do painel, e
+junto deles vem `sessionToken`, que lê `localStorage`. Com o quadro importando
+aquele arquivo, o pacote que `embed.html` carrega passava a conter a chave
+`pds.web.session` — código de sessão do administrador dentro de um documento que
+qualquer site do mundo embute. Foi medido no `dist`, não suposto.
 
 ```
    app  →  features  →  data · shared  →  contracts
@@ -97,6 +107,76 @@ Não fica só escrito aqui —
 [`src/test/architecture.test.ts`](src/test/architecture.test.ts) percorre os
 arquivos e reprova o `npm test` com o nome do import que quebrou a regra, e traz
 o motivo de cada uma.
+
+---
+
+## A ferramenta de relato
+
+Três peças, em três origens diferentes — e essa separação é o desenho, não um
+acidente:
+
+```
+   site do cliente          nosso domínio              nossa API
+   ──────────────────       ────────────────────       ─────────────────
+   <script src=...>    →    /v1/pds.js                 POST /public/reports
+        │                        │                            ↑
+        │  cria o iframe         │                            │
+        └───────────────→   /embed.html  ───────────────────────┘
+                  postMessage         o relato, com a chave pública
+```
+
+**O carregador (`src/loader/`) não desenha nada na página.** Ele cria o `iframe`,
+cuida de posição e tamanho, e mais nada. O gatilho, o formulário e as cores moram
+dentro do quadro — é o que mantém o site do cliente livre do nosso CSS, e o nosso
+livre do dele. Ele sai em IIFE, tem 1,6 kB e não carrega React.
+
+**A conversa entre os dois passa por três conferências**, iguais nas duas pontas:
+a origem esperada, a janela exata (`event.source`), e o carimbo `source: 'pds'`.
+A segunda é a que costuma faltar — sem ela, outro quadro da **mesma** origem se
+passa pelo nosso. Nenhuma resposta sai para `'*'`.
+[`src/embed/hostBridge.test.ts`](src/embed/hostBridge.test.ts) exercita cada uma
+pelo caminho em que ela falha: remover qualquer guarda reprova três testes.
+
+**A configuração vive em `contracts/widgetSettings.ts`** — dez campos que decidem
+textos, cores, tema, posição e quais tipos aparecem. Hoje os valores vêm dos
+padrões em `embed/settings.ts`; a tabela, as rotas e a tela que os edita são o
+pds-014, e só muda de onde o objeto vem.
+
+A cor do gatilho é do cliente, então **a tinta por cima dela é derivada da
+luminância**, nunca escolhida: quem escolher amarelo não deveria descobrir que o
+rótulo sumiu pela reclamação de outra pessoa.
+
+### Demonstrar em localhost
+
+Precisa de três coisas no ar, em portas fixas:
+
+```bash
+# 1. a API
+cd api/Pds.WebApi && dotnet run          # :5000
+
+# 2. o painel, que também serve /v1/pds.js e /embed.html
+cd web && npm run build && npx vite preview --port 5173
+
+# 3. uma página de teste, em OUTRA origem
+mkdir -p /tmp/loja && cd /tmp/loja && python3 -m http.server 3000
+```
+
+O `index.html` da loja precisa só da linha:
+
+```html
+<script src="http://localhost:5173/v1/pds.js" data-key="pk_..." defer></script>
+```
+
+Dois tropeços que custam tempo:
+
+**A porta do painel importa.** `CORS_ALLOWED_ORIGINS` na API lista
+`http://localhost:5173`, e é o **quadro** que chama a API — então servir o painel
+em outra porta faz o envio falhar com "Falha de rede", sem nenhum erro do lado do
+servidor. A variável tem nome de painel e hoje decide se o formulário do cliente
+consegue enviar; separar isso é o pds-018.
+
+**A página de teste não pode ser `file://`.** A origem vira `null`, e `null` não
+é autorizável — nem hoje, nem quando o `frame-ancestors` entrar.
 
 ---
 
@@ -126,11 +206,25 @@ trava o número, e reprova token publicado sem consumidor.
 
 ## O que está aqui, e o que não está
 
-Esta é a **etapa 1 — Fundação**: entrar, criar projeto, listar, buscar, renomear,
-arquivar, ver as chaves, copiar o script de integração e regenerar a secreta.
+A **etapa 1 — Fundação** está inteira: entrar, criar projeto, listar, buscar,
+renomear, arquivar, ver as chaves, copiar o script de integração e regenerar a
+secreta. Mais a lista de endereços autorizados (pds-011).
 
-Fora do corte, de propósito: domínios permitidos, limites de envio, plano, widget,
-relato, etapas públicas e a ferramenta própria.
+A **etapa 2 — O relato entra** está no meio. Funciona: colar o script numa página
+qualquer, abrir o quadro, escrever e o relato chegar na API com protocolo, rota e
+origem.
+
+Falta o outro lado dela, e a falta é visível na tela:
+
+| o que falta | onde dói |
+|---|---|
+| a lista de relatos no painel | o relato entra e não há onde vê-lo |
+| a página pública de acompanhamento | quem relata recebe o protocolo e não tem o que fazer com ele |
+| a tela que configura a ferramenta | os dez campos existem, mas só um desenvolvedor os edita |
+| a conferência dos endereços | a lista de `pds-011` continua sem ninguém que a leia |
+
+Fora do corte, de propósito: limites de envio, plano, etapas públicas, anexo e a
+ferramenta própria do time.
 
 ---
 

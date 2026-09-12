@@ -3,16 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Painel do PDS — administracao de conta, projetos e chaves. Etapa 1, rodando com dados mocados.",
+  "description": "Painel do PDS \u2014 administracao de conta, projetos e chaves. Etapa 1, rodando com dados mocados.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build --config vite.loader.config.ts && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:loader": "vite build --config vite.loader.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.23",
