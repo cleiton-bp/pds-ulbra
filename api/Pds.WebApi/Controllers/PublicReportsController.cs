@@ -43,17 +43,19 @@ public class PublicReportsController : BaseController
     /// O que vier depois do `?` ou do `#` na rota é descartado antes de gravar: é
     /// ali que costumam viajar token, documento e e-mail.
     ///
-    /// **A origem é registrada, não conferida.** A ferramenta abre num quadro do
-    /// nosso domínio, então o endereço que chega aqui é informado pela própria
-    /// página hospedeira. Quem barra é o `frame-ancestors`, montado a partir dos
-    /// domínios autorizados do projeto.
+    /// **A origem é conferida contra a lista do projeto, e continua não sendo
+    /// prova.** A ferramenta abre num quadro do nosso domínio, então o endereço que
+    /// chega aqui é informado pela própria página hospedeira — e quem informa é o
+    /// carregador, que é código nosso. Por isso a lista pega a chave copiada para
+    /// outro site, e não pega quem falar direto com esta rota. Projeto com a lista
+    /// vazia aceita qualquer endereço, e quem não declara endereço passa.
     /// </remarks>
     /// <param name="dto">O relato, com a chave pública do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relato aberto. Guarde o token: ele não será exibido de novo.</response>
     /// <response code="400">Texto em branco, longo demais, ou tipo não informado.</response>
     /// <response code="401">Chave pública ausente, desconhecida ou revogada.</response>
-    /// <response code="403">O projeto está arquivado e não aceita relatos novos.</response>
+    /// <response code="403">O projeto está arquivado, ou o endereço declarado não está na lista dele.</response>
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<CreatedReportViewModel>), StatusCodes.Status200OK)]

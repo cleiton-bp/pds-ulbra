@@ -40,7 +40,8 @@ public class ProjectOriginMap : BaseEntityConfiguration<ProjectOrigin>
             .IsUnique()
             .HasFilter("deleted_at IS NULL");
 
-        // A montagem do frame-ancestors comeca pelo projeto e le a lista inteira.
+        // A conferencia do endereco comeca pelo projeto e le a lista inteira — e e
+        // o mesmo caminho que a montagem do frame-ancestors vai usar.
         builder.HasIndex(origin => origin.ProjectId);
     }
 }

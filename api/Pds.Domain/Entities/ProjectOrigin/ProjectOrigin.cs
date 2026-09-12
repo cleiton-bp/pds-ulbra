@@ -8,12 +8,18 @@ namespace Pds.Domain.Entities;
 /// onde o relato saiu — diz apenas qual projeto ele procura. Sem esta lista, a
 /// chave copiada de um site funciona em qualquer outro.</para>
 ///
-/// <para><b>O que de fato barra.</b> Nao e a comparacao do endereco que chega na
-/// requisicao: a ferramenta abre num quadro servido pelo nosso proprio dominio,
-/// entao a origem que o navegador carimba e a nossa, e a origem informada pela
-/// pagina hospedeira e auto-declarada — serve de indicio, nunca de prova. Quem
-/// barra e o <c>frame-ancestors</c> montado a partir desta lista, que impede o
-/// quadro de sequer abrir fora dela.</para>
+/// <para><b>Lista vazia autoriza qualquer lugar.</b> Ela nao quer dizer "ninguem
+/// autorizado", e sim "ainda nao restringi" — do contrario, a conferencia teria
+/// apagado a ferramenta de toda instalacao no ar no dia em que entrou.</para>
+///
+/// <para><b>O que ela pega, e o que ela nao pega.</b> A ferramenta abre num quadro
+/// servido pelo nosso proprio dominio, entao a origem que o navegador carimba e a
+/// nossa, e a origem informada pela pagina hospedeira e auto-declarada. Como quem
+/// a declara e o carregador, que e codigo nosso, a chave copiada para outro site
+/// <b>e</b> pega; quem falar direto com a API declara o que quiser. Isto e grade
+/// de protecao, e nao muro: o muro e o <c>frame-ancestors</c> montado a partir
+/// desta lista, que precisa de um servidor servindo o documento do quadro e chega
+/// com o dominio proprio.</para>
 /// </summary>
 public class ProjectOrigin : PdsBaseEntity
 {
