@@ -16,8 +16,10 @@ entende, do mesmo jeito que se acompanha uma entrega.</p>
 
 <h2>O que esta etapa cobre</h2>
 
-<p>A API está na <strong>etapa 1 — Fundação</strong>. Nada disso é visível para quem relata
-ainda; é o que precisa existir antes de qualquer relato entrar.</p>
+<p>A <strong>etapa 1 — Fundação</strong> está inteira, e a <strong>etapa 2 — O relato
+entra</strong> está no meio: já dá para colar o script numa página qualquer e ver o relato
+chegar. O que falta dela é o caminho de volta — a lista no painel e a consulta pública por
+protocolo.</p>
 
 <table>
   <tr><th>Entra</th><th>Não entra ainda</th></tr>
@@ -26,16 +28,26 @@ ainda; é o que precisa existir antes de qualquer relato entrar.</p>
       Conta, usuário, projeto e chaves<br />
       Login com Google<br />
       Isolamento entre contas<br />
-      Chave pública e secreta por projeto
+      Chave pública e secreta por projeto<br />
+      Endereços autorizados por projeto<br />
+      <b>Recebimento de relato</b>, pela rota pública
     </td>
     <td>
-      Widget e recebimento de relato<br />
+      Leitura dos relatos, no painel e por protocolo<br />
+      Conferência dos endereços autorizados<br />
       Etapas públicas e motor de tradução<br />
       Notificação<br />
       Conectores (Jira, Trello, GitHub)
     </td>
   </tr>
 </table>
+
+<div class="note warn">
+  <strong>Registrado e conferido não são a mesma coisa</strong>
+  <p>A lista de endereços autorizados existe e é editável, mas <b>ninguém a lê ainda</b>: o
+  relato entra de qualquer origem que tenha a chave pública, e a origem é guardada como
+  indício. Quem vai barrar é o <code>frame-ancestors</code>, que é tarefa separada.</p>
+</div>
 
 <div class="note why">
   <strong>Por que começar por aqui</strong>

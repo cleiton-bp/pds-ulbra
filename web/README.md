@@ -152,7 +152,7 @@ Precisa de três coisas no ar, em portas fixas:
 
 ```bash
 # 1. a API
-cd api/Pds.WebApi && dotnet run          # :5000
+cd api/Pds.WebApi && dotnet run          # :5080
 
 # 2. o painel, que também serve /v1/pds.js e /embed.html
 cd web && npm run build && npx vite preview --port 5173
@@ -160,6 +160,9 @@ cd web && npm run build && npx vite preview --port 5173
 # 3. uma página de teste, em OUTRA origem
 mkdir -p /tmp/loja && cd /tmp/loja && python3 -m http.server 3000
 ```
+
+A `5080` é a porta do `launchSettings.json` e o padrão de `VITE_API_URL`. A que a API
+precisa autorizar é **só a 5173**, pelo motivo que está logo abaixo.
 
 O `index.html` da loja precisa só da linha:
 
