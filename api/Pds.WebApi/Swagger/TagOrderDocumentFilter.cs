@@ -45,6 +45,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.Reports,
+                Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos da conta que está logada.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.PublicReports,
                 Description = "A entrada do relato, vinda do site do cliente. A única área que funciona sem sessão: a credencial é a chave pública, e ela só diz para onde o relato vai.",
             },

@@ -19,4 +19,27 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         => Context.Reports
             .IgnoreQueryFilters()
             .AnyAsync(report => report.TrackingCode == trackingCode, cancellationToken);
+
+    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, int skip, int take, CancellationToken cancellationToken = default)
+        // O filtro global ja isola por conta e esconde o que foi apagado; aqui so
+        // resta escolher o projeto. O Id no fim desempata os relatos do mesmo
+        // instante, que sem isso trocariam de lugar entre uma pagina e a seguinte.
+        => await Context.Reports
+            .Where(report => report.ProjectId == projectId)
+            .OrderByDescending(report => report.CreatedAt)
+            .ThenByDescending(report => report.Id)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+    public Task<int> CountByProjectAsync(long projectId, CancellationToken cancellationToken = default)
+        => Context.Reports
+            .Where(report => report.ProjectId == projectId)
+            .CountAsync(cancellationToken);
+
+    public Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+        => Context.Reports
+            .Include(report => report.Contexts)
+            .FirstOrDefaultAsync(report => report.ProjectId == projectId && report.PublicId == publicId,
+                cancellationToken);
 }
