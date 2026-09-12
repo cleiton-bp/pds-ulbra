@@ -1,5 +1,5 @@
 <h2>Fluxo rápido</h2>
-<p class="lead">Do zero ao projeto com chaves, em três chamadas.</p>
+<p class="lead">Do zero ao primeiro relato chegando.</p>
 
 <h2>1. Entrar</h2>
 
@@ -70,6 +70,49 @@ entra. Não existe projeto sem chave.</p>
 
 <p>A secreta vem com <code>Value: null</code>. Não é a tela que esconde — o banco não tem o
 valor dela para devolver.</p>
+
+<h2>4. O primeiro relato chegando</h2>
+
+<p>Com a chave pública em mãos, o site do cliente cola uma linha. É a única coisa nossa que
+fica no HTML dele:</p>
+
+<pre><code>&lt;script src="https://.../v1/pds.js" data-key="pk_1R0KtQwz" defer&gt;&lt;/script&gt;</code></pre>
+
+<p>O que acontece daí em diante não passa por sessão nenhuma:</p>
+
+<div class="diagram">o script cria um iframe apontando para o NOSSO domínio
+      ↓
+a página manda a chave, a rota e a origem por postMessage
+      ↓
+quem preenche o formulário está dentro do iframe, na nossa origem
+      ↓
+POST /public/reports  →  protocolo + token de acompanhamento</div>
+
+<p>O formulário nunca toca a página do cliente, e a página do cliente nunca toca o
+formulário: são origens diferentes, e a única coisa que atravessa é o que as duas pontas
+conferiram.</p>
+
+<div class="note why">
+  <strong>Por que o relato carrega a chave no corpo, e não um cabeçalho</strong>
+  <p>Não há credencial nesta requisição — a chave pública não autentica ninguém, ela só diz
+  para qual projeto o relato vai. Tratá-la como cabeçalho de autorização convidaria o próximo
+  leitor a achar que ela protege alguma coisa.</p>
+</div>
+
+<div class="note warn">
+  <strong>A origem é registrada, não conferida</strong>
+  <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta.
+  Serve de indício para investigar depois, e nunca de prova. Quem vai barrar de verdade é o
+  <code>frame-ancestors</code> montado da lista de <code>project_origins</code> — e ele ainda
+  não existe.</p>
+</div>
+
+<div class="note todo">
+  <strong>O que falta para a etapa fechar</strong>
+  <p>A rota que lista os relatos para o painel, a consulta pública por protocolo, e o limite
+  de envio em <code>public/reports</code> — hoje a única rota da API com limitador é a de
+  login.</p>
+</div>
 
 <h2>Regenerar a chave secreta</h2>
 
