@@ -74,19 +74,23 @@ function mount(): void {
 
   document.body.appendChild(frame)
 
-  const init: InitMessage = {
-    source: MESSAGE_SOURCE,
-    type: 'init',
-    key,
-    route: currentRoute(),
-    origin: window.location.host,
-  }
-
   let acked = false
   /** O ultimo tamanho pedido, para reaplicar quando a janela mudar. */
   let last: ResizeMessage | null = null
 
+  // Montada a cada envio, e nao uma vez so: entre o carregamento da pagina e o
+  // `ack` a pessoa pode ter mudado a janela de tamanho ou o site pode ter trocado
+  // de rota sem recarregar, e o quadro guarda o que chegou no primeiro `init`.
   function send(): void {
+    const init: InitMessage = {
+      source: MESSAGE_SOURCE,
+      type: 'init',
+      key,
+      route: currentRoute(),
+      origin: window.location.host,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+    }
+
     frame.contentWindow?.postMessage(init, origin)
   }
 
