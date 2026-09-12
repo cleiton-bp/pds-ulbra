@@ -62,7 +62,20 @@ function mount(): void {
   const style = frame.style
   style.position = 'fixed'
   style.bottom = '20px'
+  // O canto horizontal so e decidido quando a configuracao do cliente chega, no
+  // primeiro `resize`. Ate la o quadro esta invisivel, entao o lado nao importa.
   style.right = '20px'
+
+  // **Nasce invisivel, e so o primeiro `resize` o revela.** O quadro nao manda
+  // nenhum antes de saber como o cliente o configurou, e isso resolve quatro
+  // coisas de uma vez: ele aparece ja no canto certo; a ferramenta desligada
+  // nunca manda e nunca aparece; o rotulo nao pisca, porque nada e desenhado com
+  // os padroes para ser trocado na cara de quem estava lendo; e o quadro que nao
+  // carregou some, em vez de deixar uma pilula vazia parada no site do cliente.
+  //
+  // `visibility` e nao `opacity`: o invisivel por opacidade continua recebendo
+  // clique, e o quadro fica em cima do conteudo da pagina.
+  style.visibility = 'hidden'
   style.width = `${FRAME_SIZE.collapsed.width}px`
   style.height = `${FRAME_SIZE.collapsed.height}px`
   style.border = '0'
@@ -110,6 +123,14 @@ function mount(): void {
     // O gatilho e redondo; o formulario aberto, nao.
     style.borderRadius = expanded ? '14px' : '999px'
     style.boxShadow = expanded ? '0 10px 40px rgb(0 0 0 / 18%)' : 'none'
+
+    // O canto vem em toda mensagem, e as duas bordas sao escritas sempre: trocar
+    // de lado sem apagar a anterior deixaria o quadro preso nas duas.
+    const left = message.position === 'BottomLeft'
+    style.left = left ? '20px' : ''
+    style.right = left ? '' : '20px'
+
+    style.visibility = 'visible'
   }
 
   window.addEventListener('message', (event) => {

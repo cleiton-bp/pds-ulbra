@@ -19,6 +19,8 @@
  * qualquer pagina que tenha enquadrado o quadro.
  */
 
+import type { WidgetPosition } from '@/contracts'
+
 /** Carimbo em toda mensagem nossa, nos dois sentidos. */
 export const MESSAGE_SOURCE = 'pds'
 
@@ -49,16 +51,30 @@ export interface AckMessage {
 }
 
 /**
- * Do quadro para a pagina: de que tamanho eu preciso agora.
+ * Do quadro para a pagina: de que tamanho eu preciso agora, e em que canto.
  *
  * O quadro nao consegue mudar o proprio `iframe` — ele esta do lado de fora, no
  * documento da pagina. Entao ele pede, e o carregador aplica.
+ *
+ * <b>O primeiro `resize` e tambem o sinal de que o quadro esta pronto.</b> O
+ * `iframe` nasce invisivel e so aparece quando ele chega, e o quadro so o manda
+ * depois de ter a configuracao do cliente em maos. Uma regra, quatro coisas
+ * resolvidas: o canto certo desde o inicio; a ferramenta desligada, que
+ * simplesmente nunca manda e nunca aparece; o rotulo que nao pisca, porque nada e
+ * desenhado com os padroes para ser trocado depois; e o quadro que nao carregou,
+ * que some em vez de deixar uma pilula vazia no canto do site.
  */
 export interface ResizeMessage {
   source: typeof MESSAGE_SOURCE
   type: 'resize'
   width: number
   height: number
+  /**
+   * De que canto inferior o quadro sai. Viaja em **toda** mensagem de tamanho, e
+   * nao uma vez so: assim nenhum dos dois lados precisa guardar estado do outro,
+   * e uma mensagem perdida nao deixa o quadro num canto e a pagina em outro.
+   */
+  position: WidgetPosition
 }
 
 export type HostMessage = InitMessage
