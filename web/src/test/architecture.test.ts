@@ -66,6 +66,11 @@ const RULES: Rule[] = [
     why: 'o quadro roda dentro do site de um cliente: casca, telas e cliente HTTP nao entram la',
   },
   {
+    folder: 'loader',
+    forbidden: ['@/data', '@/app', '@/features', '@/shared', '@/contracts'],
+    why: 'o carregador roda na pagina do cliente, fora do nosso documento: nada do painel pode alcancar ele',
+  },
+  {
     folder: 'data',
     forbidden: ['@/features', '@/app'],
     why: 'a camada de dados nao conhece tela',
@@ -201,6 +206,26 @@ describe('regra de dependencia entre as pastas', () => {
     }
 
     expect(problemas).toEqual([])
+  })
+
+  /**
+   * O carregador e a unica coisa nossa que roda no documento do cliente. Cada
+   * import que ele ganha vira peso e superficie na pagina de outra pessoa — por
+   * isso a lista do que ele pode conhecer e **uma linha**, e nao um prefixo.
+   */
+  it('o carregador so importa o protocolo', () => {
+    const PERMITIDO = ['@/embed/protocol']
+    const offenders: string[] = []
+
+    for (const file of listFiles(join(SOURCE_ROOT, 'loader'))) {
+      for (const specifier of importsOf(readFileSync(file, 'utf8'))) {
+        if (!specifier.startsWith('@/')) continue
+        if (PERMITIDO.includes(specifier)) continue
+        offenders.push(`${relative(SOURCE_ROOT, file)} importa ${specifier}`)
+      }
+    }
+
+    expect(offenders).toEqual([])
   })
 
   /**

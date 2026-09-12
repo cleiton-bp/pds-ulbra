@@ -26,6 +26,17 @@ const SOURCE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 /** Os unicos que podem escrever cor crua: a camada 1 e quem a republica. */
 const COLOR_AUTHORITY = ['styles/tokens.css', 'styles/index.css']
 
+/**
+ * O carregador e a segunda excecao do projeto, pelo mesmo motivo do favicon: ele
+ * **nao roda no nosso documento**. Ele manipula o DOM da pagina do cliente, onde
+ * `var(--surface)` nao existe e nunca vai existir — nosso CSS esta dentro do
+ * `iframe`, do outro lado da fronteira de origem.
+ *
+ * Como no favicon, a excecao e **conferida e nao isenta**: a auditoria logo
+ * abaixo diz exatamente que cor ele pode escrever, e reprova qualquer outra.
+ */
+const FORA_DO_DOCUMENTO = ['loader/main.ts']
+
 /** As 22 famílias da paleta padrao do Tailwind, que este produto nao usa. */
 const TAILWIND_PALETTE =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose'
@@ -107,6 +118,7 @@ describe('valores de cor fora do sistema de tokens', () => {
       for (const file of listFiles(SOURCE_ROOT)) {
         const relativePath = relative(SOURCE_ROOT, file)
         if (COLOR_AUTHORITY.includes(relativePath)) continue
+        if (FORA_DO_DOCUMENTO.includes(relativePath)) continue
 
         const lines = readFileSync(file, 'utf8').split('\n')
 
@@ -262,6 +274,32 @@ describe('a marca na aba do navegador', () => {
       expect(cores[0]).toBe(marcaDaTela)
     })
   }
+})
+
+/**
+ * A auditoria da excecao do carregador. Ele desenha **um** elemento na pagina de
+ * outra pessoa — o `iframe` — e a unica cor que isso justifica e a sombra que o
+ * descola do fundo. Cor de marca, cor de fundo e cor de texto pertencem ao que
+ * esta dentro do quadro, onde os tokens valem.
+ */
+describe('as cores que o carregador escreve na pagina do cliente', () => {
+  const loader = readFileSync(join(SOURCE_ROOT, 'loader/main.ts'), 'utf8')
+
+  it('so escreve a sombra, e em preto neutro', () => {
+    const cores = [...loader.matchAll(/\b(?:rgba?|hsla?)\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g)].map(
+      (match) => match[0],
+    )
+
+    expect(cores).toEqual(['rgb(0 0 0 / 18%)'])
+  })
+
+  it('nao pinta fundo nem texto: isso e assunto de dentro do quadro', () => {
+    const proibidos = ['backgroundColor', 'color =', 'borderColor', 'background =']
+      .filter((propriedade) => loader.includes(propriedade))
+      .map((propriedade) => `o carregador escreve ${propriedade}`)
+
+    expect(proibidos).toEqual([])
+  })
 })
 
 /**

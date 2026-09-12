@@ -6,3 +6,4 @@ dist/
 
 # Sobrescritas locais de configuração (.env.local e afins)
 *.local
+public/v1/
