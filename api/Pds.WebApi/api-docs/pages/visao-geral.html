@@ -17,9 +17,13 @@ entende, do mesmo jeito que se acompanha uma entrega.</p>
 <h2>O que esta etapa cobre</h2>
 
 <p>A <strong>etapa 1 — Fundação</strong> está inteira, e a <strong>etapa 2 — O relato
-entra</strong> fechou o ciclo: dá para colar o script numa página qualquer, ver o relato
-chegar e lê-lo na lista do painel. O que falta dela é a consulta pública por protocolo, que
-é o caminho de volta para quem relatou.</p>
+entra</strong> fechou o ciclo nas duas direções: dá para colar o script numa página qualquer,
+ver o relato chegar, lê-lo na lista do painel — e quem relatou volta pelo link e vê o próprio
+relato. O que falta dela é o limite de envio na rota pública.</p>
+
+<p>A página de acompanhamento <strong>ainda não tem andamento para mostrar</strong>, e ela diz
+isso em vez de prometer: estado interno é a etapa 3, e publicá-lo para quem relatou é a 4. O que
+ela mostra hoje é o registro — protocolo, data, tipo e o texto que a pessoa escreveu.</p>
 
 <p>A <strong>configuração da ferramenta</strong> entrou fora de ordem, e de propósito. Ela
 pertence a uma etapa bem mais adiante, mas o formulário tinha dez campos que já mudavam tudo
@@ -35,13 +39,15 @@ existe e ninguém alcança é dívida que cresce calada.</p>
       Isolamento entre contas<br />
       Chave pública e secreta por projeto<br />
       Endereços autorizados por projeto<br />
+      Conferência dos endereços autorizados, nas rotas públicas<br />
       <b>Recebimento de relato</b>, pela rota pública<br />
       <b>Leitura dos relatos no painel</b>, com o contexto de cada um<br />
-      <b>Configuração da ferramenta</b>: aparência, textos e desligar, por projeto
+      <b>Configuração da ferramenta</b>: aparência, textos e desligar, por projeto<br />
+      <b>Consulta pública do relato</b>, pelo link que a confirmação entrega
     </td>
     <td>
-      Consulta pública do relato, por protocolo<br />
-      Conferência dos endereços autorizados<br />
+      Andamento do relato na página pública<br />
+      Limite de envio na rota pública<br />
       Etapas públicas e motor de tradução<br />
       Notificação<br />
       Conectores (Jira, Trello, GitHub)
@@ -51,7 +57,7 @@ existe e ninguém alcança é dívida que cresce calada.</p>
 
 <div class="note warn">
   <strong>Conferido no servidor não é o mesmo que barrado no navegador</strong>
-  <p>A lista de endereços autorizados <b>é conferida</b> nas duas rotas públicas: endereço
+  <p>A lista de endereços autorizados <b>é conferida</b> nas duas rotas que a ferramenta usa: endereço
   declarado fora dela não abre a ferramenta e não grava relato. Projeto com a lista vazia aceita
   qualquer endereço — é o estado de quem ainda não restringiu.</p>
   <p>Quem declara o endereço é o carregador, que é código nosso, então a chave copiada para

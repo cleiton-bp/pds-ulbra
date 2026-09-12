@@ -166,7 +166,7 @@ ninguém mais enxerga.</p>
 
 <div class="note why">
   <strong>Lista vazia autoriza qualquer lugar</strong>
-  <p>Ela não quer dizer "ninguém autorizado", e sim "ainda não restringi": as duas rotas públicas
+  <p>Ela não quer dizer "ninguém autorizado", e sim "ainda não restringi": as duas rotas que a ferramenta usa
   conferem o endereço declarado contra esta tabela, e a tabela vazia não recusa nada. A leitura
   contrária teria apagado a ferramenta de toda instalação no ar no dia em que a conferência
   entrou, e sem erro em tela nenhuma — o quadro que não pode abrir não aparece.</p>
@@ -258,7 +258,7 @@ ninguém mais enxerga.</p>
   <tr><td><code>account_id</code></td><td>Conta dona. Repetido de propósito — ver a nota abaixo.</td></tr>
   <tr><td><code>project_id</code></td><td>Projeto, resolvido pela chave pública da requisição.</td></tr>
   <tr><td><code>tracking_code</code></td><td>O protocolo que a pessoa lê. Único no sistema inteiro.</td></tr>
-  <tr><td><code>access_token_hash</code></td><td>Hash do token do link. O valor original só existe na URL entregue.</td></tr>
+  <tr><td><code>access_token_hash</code></td><td>Hash do token do link. O valor original só existe na URL entregue, e é conferido em tempo constante na consulta pública.</td></tr>
   <tr><td><code>type</code></td><td><code>bug</code>, <code>improvement</code> ou <code>question</code>. Lista fixa por enquanto.</td></tr>
   <tr><td><code>text</code></td><td>O relato como a pessoa escreveu. Até 5000 caracteres.</td></tr>
   <tr><td><code>route</code></td><td>Só o caminho da página. Sem query e sem fragmento.</td></tr>
@@ -284,6 +284,10 @@ ninguém mais enxerga.</p>
   <p>O token <strong>abre</strong>: 32 bytes sorteados, entregues uma única vez na URL de
   acompanhamento. O banco fica só com o hash — se o painel conseguisse mostrá-lo de novo, um
   vazamento do banco abriria o relato de todo mundo.</p>
+  <p>Na URL ele viaja <strong>depois do <code>#</code></strong>, e o protocolo antes. É a mesma
+  distinção, aplicada ao endereço: o fragmento nunca é enviado a servidor nenhum, então o token
+  não entra em log de acesso nem no <code>Referer</code>; o protocolo pode ficar à vista porque
+  não abre nada.</p>
 </div>
 
 <div class="note warn">

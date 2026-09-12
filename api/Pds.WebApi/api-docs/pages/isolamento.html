@@ -53,12 +53,12 @@ em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o 
 tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
 <code>report_contexts</code> volta ao padrão e chega pelo relato.</p>
 
-<h2>As quatro consultas que atravessam o filtro</h2>
+<h2>As cinco consultas que atravessam o filtro</h2>
 
-<p>São exatamente quatro em todo o sistema, todas propositais, e <strong>três delas têm a
+<p>São exatamente cinco em todo o sistema, todas propositais, e <strong>quatro delas têm a
 mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
 <code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
-próprio dono. Todas as quatro moram em repositório, uma por método, e nenhuma em serviço.</p>
+próprio dono. Todas as cinco moram em repositório, uma por método, e nenhuma em serviço.</p>
 
 <p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
 momento a conta ainda não é conhecida, e é justamente a chave pública que vai revelá-la. Com o
@@ -113,6 +113,22 @@ consequência que as outras não têm: <strong>se ela voltasse vazia, autorizari
 Lista vazia significa "este projeto não restringe endereço", então esquecer o
 <code>IgnoreQueryFilters</code> aqui não fecharia a porta, e sim abriria — a conferência passaria
 a autorizar justamente quem ela existe para barrar, sem erro em lugar nenhum.</p>
+
+<p><strong>A quinta</strong> busca o relato pelo protocolo, para a página pública de
+acompanhamento:</p>
+
+<pre><code>Context.Reports
+    .IgnoreQueryFilters()
+    .FirstOrDefaultAsync(report =&gt; report.TrackingCode == trackingCode);</code></pre>
+
+<p>É a <strong>segunda</strong> das cinco que não reescreve <code>DeletedAt == null</code> — a
+outra é a conferência de protocolo repetido, duas seções acima —, e a única das duas que devolve
+<strong>conteúdo</strong>. Aquela responde um sim/não; esta entrega um relato a quem apresenta um
+token.</p>
+
+<p>É deliberado: o link continua na mão de quem escreveu o relato depois de a linha sair da lista
+do painel, e responder "este relato nunca existiu" a quem o escreveu seria mentira. O que protege
+a resposta não é o filtro — é o token, conferido em tempo constante no serviço.</p>
 
 <div class="note why">
   <strong>Atravessar o filtro para ler não é atravessar para gravar</strong>

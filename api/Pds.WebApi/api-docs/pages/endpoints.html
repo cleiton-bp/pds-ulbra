@@ -1,7 +1,7 @@
 <h2>Endpoints</h2>
-<p class="lead">Dezoito rotas. Quinze exigem token de sessão; três não — a de entrar, que é onde
-a sessão nasce, e as duas que a ferramenta usa: a que recebe o relato e a que ela lê para saber
-como se desenhar.</p>
+<p class="lead">Dezenove rotas. Quinze exigem token de sessão; quatro não — a de entrar, que é
+onde a sessão nasce, as duas que a ferramenta usa (a que recebe o relato e a que ela lê para
+saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
 
 <div class="table-scroll">
 <table>
@@ -23,6 +23,7 @@ como se desenhar.</p>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto. <strong>Registra a visualização.</strong></td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública. Recebe também o endereço da página.</td></tr>
 </table>
 </div>
@@ -51,8 +52,34 @@ gerado a partir do código.</p>
 </div>
 
 <div class="note why">
+  <strong>Uma leitura que é <code>POST</code>, e por quê</strong>
+  <p><code>POST /public/reports/tracking</code> não cria nada — e não é um <code>GET</code> por
+  duas razões. O token é um <strong>segredo</strong>, e segredo em query string entra no log de
+  acesso do servidor, no histórico do navegador e no <code>Referer</code> que sai da página; no
+  corpo, não entra em nenhum dos três. É o mesmo cuidado que põe o token no
+  <strong>fragmento</strong> do link (<code>#t=</code>), que é a parte que o navegador nunca
+  envia a servidor nenhum.</p>
+  <p>E ela não é leitura pura: grava o evento de visualização com origem
+  <code>public_page</code>. O intervalo entre o relato e a primeira olhada do time mede a reação;
+  a volta de quem relatou mede se a camada pública serve para alguma coisa. Nenhum dos dois é
+  reconstituível depois.</p>
+</div>
+
+<div class="note why">
+  <strong>O protocolo identifica, o token abre</strong>
+  <p>A rota exige os dois, e <strong>protocolo inexistente e token errado recebem a mesma recusa
+  404</strong>, com a mesma mensagem. O protocolo é curto e falado de propósito — logo
+  adivinhável —, então responder diferente contaria a quem sonda que ele acertou metade. E 404 em
+  vez de 403 pela razão de sempre aqui: confirmar que o relato existe já é informação.</p>
+  <p>A comparação do token é em tempo constante
+  (<code>ProjectKeyGenerator.Matches</code>): um <code>==</code> comum para no primeiro caractere
+  diferente, e com o protocolo em mãos a diferença de tempo permitiria descobrir o token
+  caractere a caractere.</p>
+</div>
+
+<div class="note why">
   <strong>Onde a lista de endereços é conferida</strong>
-  <p>Nas duas rotas públicas, e por motivos diferentes. Em
+  <p>Nas duas rotas que a ferramenta usa, e por motivos diferentes. Em
   <code>GET /public/widget-settings</code> a recusa é <strong>403</strong> e faz o quadro nunca
   aparecer naquela página — é o que evita alguém escrever o relato inteiro para ser recusado no
   envio. Em <code>POST /public/reports</code> ela é o que de fato impede a gravação: sem a
