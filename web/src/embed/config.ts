@@ -1,3 +1,5 @@
+import type { InitMessage } from '@/embed/protocol'
+
 /**
  * De onde o quadro sabe para qual projeto enviar, e de que pagina.
  *
@@ -28,8 +30,7 @@ export function sanitizeRoute(value: string | null): string | null {
 
 /**
  * Fora de um quadro embutido — abrindo `embed.html` direto — vale o que estiver
- * na barra de endereco. E como esta fatia se demonstra sozinha, antes de existir
- * carregador.
+ * na barra de endereco. E como o quadro se demonstra sozinho, sem carregador.
  */
 export function configFromLocation(search: string): EmbedConfig {
   const params = new URLSearchParams(search)
@@ -37,5 +38,18 @@ export function configFromLocation(search: string): EmbedConfig {
     key: params.get('k')?.trim() ?? '',
     route: sanitizeRoute(params.get('route')),
     origin: params.get('origin')?.trim() || null,
+  }
+}
+
+/**
+ * Dentro de um quadro, a configuracao vem do `init` da pagina hospedeira. A rota
+ * passa pelo mesmo corte de novo: a pagina ja mandou cortada, mas quem confere
+ * dado que veio de fora e quem recebe.
+ */
+export function configFromInit(message: InitMessage): EmbedConfig {
+  return {
+    key: message.key.trim(),
+    route: sanitizeRoute(message.route),
+    origin: message.origin?.trim() || null,
   }
 }
