@@ -120,25 +120,23 @@ export function StartScreen() {
 }
 
 /**
- * O que o script desenha no site do cliente, e o que ainda nao da para mexer.
+ * O que o script desenha no site do cliente.
  *
  * Colar um bloco de codigo sem ver o que ele produz e um ato de fe. A previa
- * mostra o resultado, e as etiquetas tracejadas dizem quais partes dele passam a
- * ser escolha sua na secao **Ferramenta** — que e a que aparece bloqueada na
- * lateral, entao as duas telas contam a mesma historia.
+ * mostra o resultado, e as etiquetas dizem quais partes dele sao escolha de quem
+ * configura.
+ *
+ * **A lista e a dos campos que existem de verdade.** Ela ja teve "Fonte", que
+ * nunca foi campo nenhum, e um cadeado de "em breve" — as duas coisas eram
+ * verdade enquanto a secao Ferramenta nao existia, e viraram promessa falsa no dia
+ * em que ela entrou.
  */
-const CUSTOMIZAVEL = ['Cor', 'Posição', 'Texto do botão', 'Fonte']
+const CUSTOMIZAVEL = ['Cor', 'Canto', 'Tema', 'Textos']
 
 function WidgetPreview() {
   return (
     <div className="mt-4 rounded-lg border border-border bg-surface p-3">
-      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-caption text-fg-muted">Como vai aparecer no seu site</p>
-        <span className="flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-caption text-fg-muted">
-          <LockIcon className="size-3" />
-          em breve
-        </span>
-      </div>
+      <p className="mb-2.5 text-caption text-fg-muted">Como vai aparecer no seu site</p>
 
       <div className="relative h-28 overflow-hidden rounded-md border border-border bg-surface-sunken p-3.5">
         <div className="flex flex-col gap-2" aria-hidden="true">
@@ -148,7 +146,7 @@ function WidgetPreview() {
         </div>
 
         <span className="absolute right-3.5 bottom-3.5 rounded-lg bg-accent px-2.5 py-1.5 font-medium text-accent-fg text-caption">
-          Relatar problema
+          Relatar
         </span>
       </div>
 
@@ -163,9 +161,12 @@ function WidgetPreview() {
         ))}
       </ul>
 
-      <p className="mt-2.5 text-caption text-fg-muted leading-relaxed">
-        Isso passa a ser escolha sua na seção Ferramenta.
-      </p>
+      <Link
+        to="../tool"
+        className="mt-2.5 inline-flex text-caption text-fg-muted underline-offset-4 hover:underline"
+      >
+        Mudar em Ferramenta
+      </Link>
     </div>
   )
 }

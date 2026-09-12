@@ -68,6 +68,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/keys ......... console — chaves e integração
 /projects/:publicId/settings ..... console — nome, identificador, arquivar
 /projects/:publicId/reports ...... console — os relatos que chegaram do site
+/projects/:publicId/tool ......... console — como a ferramenta aparece no site
 ```
 
 Dois níveis, como um console de nuvem. **Não existe rota `/login`**: quem abre
@@ -87,7 +88,7 @@ src/
 │   └── api/            fetch, envelope, token, 401
 ├── embed/        a ferramenta de relato: o que roda no site do cliente
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
-├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding, reports
+├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding, reports, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
 ```
@@ -139,9 +140,19 @@ passa pelo nosso. Nenhuma resposta sai para `'*'`.
 pelo caminho em que ela falha: remover qualquer guarda reprova três testes.
 
 **A configuração vive em `contracts/widgetSettings.ts`** — dez campos que decidem
-textos, cores, tema, posição e quais tipos aparecem. Hoje os valores vêm dos
-padrões em `embed/settings.ts`; a tabela, as rotas e a tela que os edita ainda
-não existem, e quando existirem só muda de onde o objeto vem.
+textos, cores, tema, posição e quais tipos aparecem. A tela **Ferramenta** os
+edita, a API os guarda, e o quadro os lê pela chave pública antes de desenhar
+qualquer coisa. Projeto que nunca salvou nada recebe os padrões de
+`embed/settings.ts`, na mesma forma — e quem lê não distingue os dois casos.
+
+**O quadro nasce invisível, e é o primeiro pedido de tamanho que o revela.** Ele
+só o manda depois de ter a configuração em mãos, e uma regra resolve quatro
+coisas: o gatilho aparece já no canto certo; a ferramenta desligada nunca pede e
+nunca aparece; o rótulo do cliente não pisca, porque nada é desenhado com os
+padrões para ser trocado na frente de quem já estava lendo; e um quadro que não
+carregou some, em vez de deixar uma pílula vazia parada no site. O preço é uma ida
+à rede antes do gatilho — e se ela falhar, valem os padrões: "não consegui saber"
+não pode virar "não apareço".
 
 **O quadro manda três dados que ninguém digitou** — navegador, idioma e o tamanho
 da janela da página ([`src/embed/reportContext.ts`](src/embed/reportContext.ts)).
@@ -232,7 +243,6 @@ Falta o caminho de volta, e a falta é visível na tela:
 | o que falta | onde dói |
 |---|---|
 | a página pública de acompanhamento | quem relata recebe o protocolo e não tem o que fazer com ele |
-| a tela que configura a ferramenta | os dez campos existem, mas só um desenvolvedor os edita |
 | a conferência dos endereços | a lista de `pds-011` continua sem ninguém que a leia |
 
 Fora do corte, de propósito: limites de envio, plano, etapas públicas, anexo e a

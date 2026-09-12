@@ -175,4 +175,64 @@ describe('a ponte com a pagina hospedeira', () => {
 
     expect(visto).not.toHaveBeenCalled()
   })
+
+  /**
+   * O canto nao e detalhe de aparencia: o `iframe` nasce invisivel do lado da
+   * pagina, e **e o primeiro pedido de tamanho que o revela**. Quem nao manda,
+   * nao aparece — e e assim que a ferramenta desligada some sem precisar de
+   * mensagem propria.
+   */
+  it('o show revela o quadro recolhido, no canto escolhido', () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+
+    chega(init, 'https://loja.exemplo.com')
+    enviados.length = 0
+
+    ligacao.show('BottomLeft')
+
+    expect(enviados).toEqual([
+      {
+        mensagem: {
+          source: MESSAGE_SOURCE,
+          type: 'resize',
+          ...FRAME_SIZE.collapsed,
+          position: 'BottomLeft',
+        },
+        alvo: 'https://loja.exemplo.com',
+      },
+    ])
+    ligacao.stop()
+  })
+
+  it('abrir e fechar continuam no canto que o show escolheu', () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+
+    chega(init, 'https://loja.exemplo.com')
+    ligacao.show('BottomLeft')
+    enviados.length = 0
+
+    ligacao.expand()
+    ligacao.collapse()
+
+    // O canto viaja em toda mensagem: sem isso, o quadro abriria de um lado e
+    // fecharia do outro, porque a pagina nao guarda estado nenhum.
+    expect(enviados.map((enviado) => (enviado.mensagem as { position: string }).position)).toEqual([
+      'BottomLeft',
+      'BottomLeft',
+    ])
+    ligacao.stop()
+  })
+
+  it('sem show, nada e pedido — e o quadro continua invisivel na pagina', () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+
+    chega(init, 'https://loja.exemplo.com')
+
+    // So o ack. Nenhum pedido de tamanho, entao a pagina nao revela nada.
+    expect(enviados.map((enviado) => (enviado.mensagem as { type: string }).type)).toEqual(['ack'])
+    ligacao.stop()
+  })
 })

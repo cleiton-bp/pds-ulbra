@@ -1,5 +1,7 @@
 import { apiReportService } from '@/data/api/apiReportService'
+import { apiWidgetSettingsService } from '@/data/api/apiWidgetSettingsService'
 import type { ReportService } from '@/data/reportService'
+import type { WidgetSettingsService } from '@/data/widgetSettingsService'
 
 /**
  * O ponto de acesso do que roda **sem sessao** — hoje, so a ferramenta embutida.
@@ -15,6 +17,8 @@ import type { ReportService } from '@/data/reportService'
  * nunca com o cliente HTTP. O que muda e por qual porta.
  */
 export const reportService: ReportService = apiReportService
+export const widgetSettingsService: WidgetSettingsService = apiWidgetSettingsService
 
 export { describeError, isPanelError, PanelError } from '@/data/errors'
 export type { ReportService } from '@/data/reportService'
+export type { WidgetSettingsService } from '@/data/widgetSettingsService'

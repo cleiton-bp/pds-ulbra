@@ -1,6 +1,7 @@
 <h2>Endpoints</h2>
-<p class="lead">Quinze rotas. Treze exigem token de sessão; duas não — a de entrar, que é onde a
-sessão nasce, e a que recebe o relato, que atende um visitante anônimo.</p>
+<p class="lead">Dezoito rotas. Quinze exigem token de sessão; três não — a de entrar, que é onde
+a sessão nasce, e as duas que a ferramenta usa: a que recebe o relato e a que ela lê para saber
+como se desenhar.</p>
 
 <div class="table-scroll">
 <table>
@@ -17,14 +18,37 @@ sessão nasce, e a que recebe o relato, que atende um visitante anônimo.</p>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td>Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td>Retira a autorização. Exclusão lógica.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. Os dez campos vão sempre juntos.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto. <strong>Registra a visualização.</strong></td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública.</td></tr>
 </table>
 </div>
 
 <p>Corpo de requisição e resposta de cada uma ficam no <a href="/swagger">Swagger</a>,
 gerado a partir do código.</p>
+
+<div class="note why">
+  <strong>A mesma chave, ora no corpo, ora na URL</strong>
+  <p><code>POST /public/reports</code> leva a chave pública no corpo;
+  <code>GET /public/widget-settings</code> leva na URL. Não é descuido, e a diferença não é de
+  segurança: a chave é pública nos dois casos, e está à vista no HTML do site do cliente.</p>
+  <p>O que o carregador evita é outra coisa — pôr a chave no <code>src</code> do quadro, que
+  ficaria no documento <em>do cliente</em>, no histórico de quem visita e no <code>Referer</code>
+  que sai de lá. Esta chamada sai do nosso próprio documento para a nossa própria API, e essa URL
+  não aparece na página de ninguém. Em troca, a resposta pode ganhar cache no dia em que o volume
+  pedir — coisa que um <code>POST</code> fecharia.</p>
+</div>
+
+<div class="note why">
+  <strong>Projeto arquivado esconde a ferramenta</strong>
+  <p><code>GET /public/widget-settings</code> devolve <code>IsEnabled: false</code> para projeto
+  arquivado, qualquer que seja o valor salvo. Ele já recusa relato novo com 403: deixar o
+  formulário abrir levaria a pessoa a escrever até o fim para ser recusada no envio, e o texto
+  dela se perderia por uma decisão que não é dela.</p>
+</div>
 
 <div class="note why">
   <strong>Uma consulta que grava, de propósito</strong>
@@ -40,8 +64,8 @@ gerado a partir do código.</p>
 
 <div class="note why">
   <strong>Por que uma rota fica fora do padrão</strong>
-  <p>Treze rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
-  <code>/public/reports</code> não pode: quem chega ali é um visitante anônimo do site de um
+  <p>Quinze rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
+  As duas de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site de um
   cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai.</p>
   <p>Chave ausente, desconhecida, revogada ou secreta recebem a mesma recusa, com a mesma

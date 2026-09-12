@@ -32,6 +32,11 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IProjectOriginRepository? _projectOrigins;
     public IProjectOriginRepository ProjectOrigins => _projectOrigins ??= new ProjectOriginRepository(_context);
 
+    private IProjectWidgetSettingsRepository? _projectWidgetSettings;
+
+    public IProjectWidgetSettingsRepository ProjectWidgetSettings
+        => _projectWidgetSettings ??= new ProjectWidgetSettingsRepository(_context);
+
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
 

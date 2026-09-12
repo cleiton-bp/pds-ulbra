@@ -11,7 +11,7 @@
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
   /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
-  key: 'start' | 'keys' | 'settings' | 'reports'
+  key: 'start' | 'keys' | 'settings' | 'reports' | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
@@ -28,6 +28,7 @@ export interface ConsoleSection {
 export const CONSOLE_SECTIONS: ConsoleSection[] = [
   { key: 'start', label: 'Instalação', path: 'start' },
   { key: 'keys', label: 'Chaves', path: 'keys' },
+  { key: 'tool', label: 'Ferramenta', path: 'tool' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 
@@ -62,11 +63,6 @@ export const LOCKED_SECTIONS: LockedSection[] = [
     key: 'stages',
     label: 'Etapas públicas',
     hint: 'O que o seu usuário vê do andamento do relato dele, na etapa 4.',
-  },
-  {
-    key: 'tool',
-    label: 'Ferramenta',
-    hint: 'Aparência e campos do formulário que aparece no seu site, na etapa 4.',
   },
   {
     key: 'addons',

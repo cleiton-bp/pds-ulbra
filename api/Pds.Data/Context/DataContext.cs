@@ -42,6 +42,7 @@ public class DataContext : PdsBaseContext
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<ProjectKey> ProjectKeys { get; set; } = null!;
     public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
+    public DbSet<ProjectWidgetSettings> ProjectWidgetSettings { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
@@ -70,6 +71,15 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(origin => origin.DeletedAt == null
                                       && origin.Project.DeletedAt == null
                                       && origin.Project.AccountId == CurrentAccountId);
+
+        // Configuracao da ferramenta: mesmo caminho do endereco autorizado. Quem le
+        // isto **sem sessao** e o proprio quadro, e la a conta atual e zero — por
+        // isso a leitura publica desliga este filtro e reescreve as condicoes a mao,
+        // como ja faz a busca da chave publica.
+        modelBuilder.Entity<ProjectWidgetSettings>()
+            .HasQueryFilter(settings => settings.DeletedAt == null
+                                        && settings.Project.DeletedAt == null
+                                        && settings.Project.AccountId == CurrentAccountId);
 
         // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
         // cresce e a que o painel lista o tempo todo, entao ela repete account_id de

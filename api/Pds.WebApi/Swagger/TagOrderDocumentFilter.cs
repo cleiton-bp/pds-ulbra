@@ -45,13 +45,23 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.WidgetSettings,
+                Description = "Como a ferramenta aparece no site do cliente: se aparece, a cor, o canto, o tema e os textos.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.Reports,
                 Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos da conta que está logada.",
             },
             new OpenApiTag
             {
                 Name = SwaggerTags.PublicReports,
-                Description = "A entrada do relato, vinda do site do cliente. A única área que funciona sem sessão: a credencial é a chave pública, e ela só diz para onde o relato vai.",
+                Description = "A entrada do relato, vinda do site do cliente. A credencial é a chave pública, e ela só diz para onde o relato vai.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.PublicWidgetSettings,
+                Description = "O que o próprio quadro lê para saber como se desenhar, apresentando a mesma chave pública.",
             },
         ];
     }

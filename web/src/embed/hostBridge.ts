@@ -1,3 +1,4 @@
+import type { WidgetPosition } from '@/contracts'
 import {
   FRAME_SIZE,
   type FrameMessage,
@@ -30,6 +31,14 @@ import {
 export interface HostConnection {
   /** O que veio no `init`. Nulo enquanto ele nao chegou. */
   readonly init: InitMessage | null
+  /**
+   * Guarda o canto e pede a pagina que o quadro **apareca**, recolhido.
+   *
+   * Enquanto isto nao for chamado o `iframe` continua invisivel do lado de la —
+   * e e por isso que a ferramenta desligada nao precisa de mensagem propria: ela
+   * simplesmente nunca chama.
+   */
+  show(position: WidgetPosition): void
   /** Pede a pagina que o quadro passe a ocupar o tamanho aberto. */
   expand(): void
   /** Pede a pagina que o quadro volte a ser so o gatilho. */
@@ -50,6 +59,10 @@ export function isEmbedded(): boolean {
 export function connectToHost(onInit: (message: InitMessage) => void): HostConnection {
   let hostOrigin: string | null = null
   let init: InitMessage | null = null
+
+  // O canto so e conhecido depois que a configuracao chega. Ate la o valor nao e
+  // usado, porque nada e mandado antes de `show`.
+  let position: WidgetPosition = 'BottomRight'
 
   function reply(message: FrameMessage): void {
     // Sem origem guardada nao ha para quem responder — e `'*'` nao e opcao.
@@ -86,8 +99,14 @@ export function connectToHost(onInit: (message: InitMessage) => void): HostConne
     get init() {
       return init
     },
-    expand: () => reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.expanded }),
-    collapse: () => reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.collapsed }),
+    show: (chosen) => {
+      position = chosen
+      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.collapsed, position })
+    },
+    expand: () =>
+      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.expanded, position }),
+    collapse: () =>
+      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.collapsed, position }),
     stop: () => window.removeEventListener('message', handle),
   }
 }
