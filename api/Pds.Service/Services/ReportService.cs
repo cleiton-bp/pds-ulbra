@@ -7,6 +7,7 @@ using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Service.Origins;
+using Pds.Service.Security;
 using Pds.Service.Reports;
 
 namespace Pds.Service.Services;
@@ -32,6 +33,13 @@ public class ReportService : IReportService
     /// mil linhas seriam megabytes numa resposta que a tela nao desenha.
     /// </summary>
     private const int MaxPageSize = 100;
+
+    /// <summary>
+    /// A recusa da consulta publica, escrita uma vez. Ela fala do <b>link</b> e nao
+    /// do protocolo: quem chegou aqui clicou num link, e mandar a pessoa conferir o
+    /// protocolo que ela nao digitou nao ajuda em nada.
+    /// </summary>
+    private const string TrackingRefusal = "Este link nao abre nenhum relato. Confira se ele veio inteiro.";
 
     private readonly IUnitOfWork _unitOfWork;
 
@@ -114,6 +122,50 @@ public class ReportService : IReportService
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt);
+    }
+
+    public async Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default)
+    {
+        var code = (dto.TrackingCode ?? string.Empty).Trim().ToUpperInvariant();
+        var token = (dto.Token ?? string.Empty).Trim();
+
+        // Uma recusa so para tudo que da errado aqui: protocolo em branco, token em
+        // branco, protocolo que nao existe e token que nao e daquele relato. Quatro
+        // mensagens diferentes contariam a quem sonda de qual delas ele esta perto.
+        if (code.Length == 0 || token.Length == 0)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var report = await _unitOfWork.Reports.FindByTrackingCodeWithoutSessionAsync(code, cancellationToken);
+
+        if (report is null)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        // Tempo constante, e e o primeiro caller que esta funcao ganha: um `==`
+        // comum para no primeiro caractere diferente, e a diferenca de tempo entre
+        // parar no primeiro e parar no decimo permite descobrir o token caractere a
+        // caractere — com o protocolo em maos, que e adivinhavel.
+        if (!ProjectKeyGenerator.Matches(token, report.AccessTokenHash))
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportViewed,
+            Source = EventSourceEnum.PublicPage,
+            // Sem carga: origem, momento, projeto e relato ja sao colunas, e a
+            // origem `PublicPage` ja diz que quem abriu foi quem relatou.
+            Payload = null,
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return new PublicReportViewModel(
+            report.TrackingCode,
+            report.Type,
+            report.Text,
+            report.CreatedAt);
     }
 
     public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, CancellationToken cancellationToken = default)

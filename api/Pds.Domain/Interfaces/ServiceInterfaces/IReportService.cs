@@ -16,6 +16,21 @@ public interface IReportService
     Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// O acompanhamento de um relato, aberto por quem o escreveu — <b>sem sessao</b>.
+    ///
+    /// <para>Identifica pelo protocolo e confere pelo token, em tempo constante.
+    /// <b>Protocolo inexistente e token errado recebem a mesma recusa</b>, com a
+    /// mesma mensagem: responder diferente contaria a quem sonda que o protocolo
+    /// existe, e o protocolo e curto e falado de proposito.</para>
+    ///
+    /// <para>Grava o evento de visualizacao com origem <c>PublicPage</c>. E o outro
+    /// lado da pergunta da pesquisa: o intervalo entre o relato e a primeira olhada
+    /// do time mede a reacao, e a volta do relator mede se a camada publica serve
+    /// para alguma coisa. Nenhum dos dois e reconstituivel depois.</para>
+    /// </summary>
+    Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Os relatos de um projeto, do mais novo para o mais antigo, para o painel.
     ///
     /// <para>Ao contrario da criacao, esta rota exige sessao: o relato entra sem

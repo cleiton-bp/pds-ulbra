@@ -45,3 +45,30 @@ public class CreateReportDto
     /// </summary>
     public Dictionary<string, string?>? Context { get; set; }
 }
+
+/// <summary>
+/// A consulta do acompanhamento, feita por quem relatou.
+///
+/// <para><b>Os dois campos juntos, e a recusa e a mesma para qualquer um dos dois
+/// errado.</b> Assim quem sonda a rota nao descobre se um protocolo existe — a
+/// mesma regra da chave publica, que responde igual para ausente, desconhecida e
+/// revogada.</para>
+///
+/// <para><b>Por que isto e um POST, se e leitura.</b> Duas razoes. O token e um
+/// segredo, e segredo em query string entra no log do servidor, no historico do
+/// navegador e no <c>Referer</c> que sai da pagina — no corpo, nao entra em
+/// nenhum dos tres. E a consulta nao e leitura pura: ela grava o evento de
+/// visualizacao, que e o dado da pesquisa sobre o relator voltar.</para>
+/// </summary>
+public class OpenReportTrackingDto
+{
+    /// <summary>O protocolo, que a pessoa anotou e que tambem vai no link.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
+
+    /// <summary>
+    /// O token entregue uma unica vez na criacao do relato. E ele que prova que o
+    /// relato e desta pessoa; o protocolo sozinho nao abre nada.
+    /// </summary>
+    public string? Token { get; set; }
+}

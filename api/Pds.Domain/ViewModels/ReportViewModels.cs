@@ -85,3 +85,34 @@ public record ReportDetailViewModel(
     DateTime CreatedAt,
     IReadOnlyList<ReportContextViewModel> Contexts);
 
+
+/// <summary>
+/// O relato como quem o escreveu o ve, na pagina publica de acompanhamento.
+///
+/// <para><b>Tipo proprio, e nao heranca do detalhe do painel.</b> Esta e a unica
+/// resposta do sistema que vai para alguem que nao e do time do cliente, e a
+/// separacao e estrutural de proposito: com heranca, o campo que a etapa 3
+/// acrescentar ao detalhe interno — comentario, responsavel, nota de triagem —
+/// apareceria aqui sem ninguem decidir isso. Vazamento por heranca nao da erro
+/// em teste nenhum.</para>
+///
+/// <para><b>O que fica de fora, e por que.</b> A rota e a origem descrevem a
+/// pagina onde o relato nasceu e nao dizem nada a quem estava nela; o contexto e
+/// dado tecnico coletado para o time; e o <b>nome do projeto</b> e como o cliente
+/// chama o produto dele por dentro, que nao e nosso para mostrar ao usuario
+/// final. Sobra o que a propria pessoa escreveu, mais o que ela ja recebeu na
+/// tela de confirmacao.</para>
+///
+/// <para><b>Nao ha campo de situacao</b> porque nao ha situacao: estado interno e
+/// a etapa 3, e devolver um <c>"Recebido"</c> fixo seria inventar um conceito que
+/// o dominio nao tem para ter de mante-lo depois.</para>
+/// </summary>
+/// <param name="TrackingCode">O protocolo, o mesmo que a pessoa anotou.</param>
+/// <param name="Type">Defeito, melhoria ou duvida, como ela escolheu.</param>
+/// <param name="Text">O que ela escreveu, inteiro.</param>
+/// <param name="CreatedAt">Quando o relato entrou.</param>
+public record PublicReportViewModel(
+    string TrackingCode,
+    ReportTypeEnum Type,
+    string Text,
+    DateTime CreatedAt);

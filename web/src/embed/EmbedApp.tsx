@@ -10,10 +10,12 @@ import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import type { EmbedConfig } from '@/embed/config'
 import type { HostConnection } from '@/embed/hostBridge'
 import { buildReportContext } from '@/embed/reportContext'
-import { REPORT_TYPES } from '@/embed/reportTypes'
+
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { cn } from '@/shared/lib/cn'
+import { REPORT_TYPES } from '@/shared/lib/reportTypes'
+import { buildTrackingLink } from '@/shared/lib/tracking'
 
 /**
  * O quadro do relato: o que a pessoa que visita o site do cliente enxerga.
@@ -150,6 +152,8 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   }
 
   if (created) {
+    const trackingLink = buildTrackingLink(created.TrackingCode, created.AccessToken)
+
     return (
       <section style={style} className="flex h-full flex-col gap-4 bg-surface p-5">
         <div>
@@ -159,6 +163,47 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         <div className="rounded-lg border border-border bg-surface-raised p-4">
           <p className="mb-1.5 text-detail text-fg-muted">Protocolo</p>
           <p className="font-mono text-fg text-lead tracking-wide">{created.TrackingCode}</p>
+        </div>
+
+        {/* O link e a unica forma de voltar a este relato, e ele sai daqui uma vez
+            so: o token vive no fragmento dele, e o banco guarda apenas o hash.
+            Fechado o quadro sem copiar, ninguem o recupera.
+
+            `rel="noreferrer"` vale pelo `noopener` que ele implica: sem isso a aba
+            nova ganha um `window.opener` apontando para este quadro, que roda
+            dentro do site de outra pessoa. **Nao e o `Referer` que ele protege** —
+            o desta navegacao seria o endereco do proprio `embed.html`, que nao
+            carrega protocolo nem token.
+
+            Abrir em outra aba e obrigatorio: aqui dentro sao 360 por 520 pixels. */}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={trackingLink}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-detail text-fg underline underline-offset-4"
+            >
+              Acompanhar este relato
+            </a>
+            <CopyButton value={trackingLink} label="Copiar link" size="sm" />
+          </div>
+          {/* **Duas coisas, e as duas so existem se estiverem escritas aqui.**
+              A primeira: o link aparece uma vez so. Os dois botoes logo abaixo o
+              destroem — `Relatar outra coisa` e `Fechar` chamam `reset()`, que
+              limpa `created` —, e o banco guarda apenas o hash, entao nao ha rota
+              que o mostre de novo. O painel ja diz isto da chave secreta, com a
+              mesma palavra; faltava dizer para quem relata.
+
+              A segunda: quem tem o link le o relato. E consequencia do desenho, e
+              nao descuido — um link que exigisse senha nao seria um link, e quem
+              relata um defeito num site nao tem conta em lugar nenhum. Dizer e o
+              que transforma a consequencia em escolha de quem recebeu. */}
+          <p className="mt-2 text-caption text-fg-muted leading-normal">
+            <strong className="font-medium text-fg">Copie o link agora:</strong> ele aparece uma vez
+            só, e ao fechar não há como mostrá-lo de novo. Guarde para você — quem o tiver consegue
+            ler este relato.
+          </p>
         </div>
 
         <div className="mt-auto flex flex-wrap items-center gap-2">

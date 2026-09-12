@@ -72,7 +72,12 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // A mesma lista dentro de um projeto.
         builder.HasIndex(report => new { report.ProjectId, report.CreatedAt });
 
-        // Abrir o acompanhamento pelo link procura por aqui.
+        // **Este indice nao tem consulta.** Ele foi criado esperando que o
+        // acompanhamento buscasse pelo hash do token; a pds-017 escreveu a busca
+        // pelo protocolo e deixou a comparacao do segredo em memoria, de proposito
+        // — dentro do banco ela nao seria em tempo constante. Fica porque derruba-lo
+        // pede migracao no banco compartilhado, e o custo dele e uma arvore
+        // mantida por insercao.
         builder.HasIndex(report => report.AccessTokenHash);
     }
 }

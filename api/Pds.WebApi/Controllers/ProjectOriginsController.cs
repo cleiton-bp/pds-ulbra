@@ -15,7 +15,7 @@ namespace Pds.WebApi.Controllers;
 /// consegue lê-la. Sozinha, ela diz apenas qual projeto procurar — não de onde o
 /// relato saiu. É esta lista que responde a segunda pergunta.
 ///
-/// **A lista é conferida nas duas rotas públicas**: a que entrega a configuração
+/// **A lista é conferida nas duas rotas que a ferramenta usa**: a que entrega a configuração
 /// do quadro, para ele não abrir onde não devia, e a que recebe o relato, que é
 /// onde a recusa de fato impede a gravação.
 ///

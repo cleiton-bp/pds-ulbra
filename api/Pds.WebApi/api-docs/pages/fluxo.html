@@ -119,7 +119,8 @@ conferiram.</p>
 <div class="note warn">
   <strong>A origem é conferida, e continua não sendo prova</strong>
   <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta, e é
-  comparado com a lista de <code>project_origins</code> nas duas rotas públicas. Projeto com a
+  comparado com a lista de <code>project_origins</code> nas duas rotas que a ferramenta usa.
+  Projeto com a
   lista vazia aceita qualquer endereço, e quem não declara endereço passa.</p>
   <p>Como quem declara é o carregador, que é código nosso, a chave copiada para outro site é
   pega — e é para isso que a lista serve. Quem chamar a API sem passar pela ferramenta declara o
@@ -128,11 +129,46 @@ conferiram.</p>
   precisa de um servidor servindo o documento do quadro — chega com o domínio próprio.</p>
 </div>
 
+<h2>5. Quem relatou volta para olhar</h2>
+
+<p>A confirmação entrega duas coisas, e elas servem para coisas diferentes: o <strong>protocolo</strong>,
+para a pessoa dizer de qual relato está falando, e o <strong>link</strong>, que é o único jeito de
+reabrir o relato. O token vive no fragmento dele:</p>
+
+<pre><code>https://.../tracking.html?c=7K2M-9QXP-4TRV#t=&lt;token&gt;</code></pre>
+
+<div class="diagram">a pessoa abre o link — a pagina le o fragmento, que nunca foi ao servidor
+      ↓
+POST /public/reports/tracking  { TrackingCode, Token }
+      ↓
+acha pelo protocolo  →  confere o token em tempo constante
+      ↓
+grava o evento "visualizado", com origem public_page
+      ↓
+devolve so o que a propria pessoa escreveu, com Cache-Control: no-store</div>
+
+<p>O que volta é um contrato <strong>próprio</strong>, e não o detalhe que o painel lê: rota,
+origem, contexto técnico e o nome que o cliente dá ao projeto por dentro ficam de fora. Se ele
+herdasse do outro, o campo que a etapa 3 acrescentar ao painel — comentário interno, responsável —
+passaria a sair aqui sem ninguém decidir isso, e vazamento por herança não dá erro em teste
+nenhum.</p>
+
+<div class="note warn">
+  <strong>Quem tem o link lê o relato</strong>
+  <p>Isso é consequência do desenho, e não descuido: um link que exigisse senha não seria um link,
+  e quem relata um defeito num site não tem conta em lugar nenhum. A confirmação diz isso na hora
+  de entregar o link — "guarde para você" —, que é o que transforma a consequência em escolha de
+  quem recebeu.</p>
+  <p>O protocolo sozinho <strong>não</strong> abre nada, e é por isso que ele pode ser lido em voz
+  alta para o suporte.</p>
+</div>
+
 <div class="note todo">
   <strong>O que falta para a etapa fechar</strong>
-  <p>A consulta pública por protocolo — o link de acompanhamento que a confirmação entrega — e o
-  limite de envio em <code>public/reports</code>: hoje a única rota da API com limitador é a de
-  login, e é a rota pública que qualquer visitante de qualquer site alcança.</p>
+  <p>O limite de envio em <code>public/reports</code>: hoje a única rota da API com limitador é a
+  de login, e são as rotas públicas que qualquer visitante de qualquer site alcança.</p>
+  <p>E a página de acompanhamento ainda não tem andamento para mostrar — ela diz isso, em vez de
+  prometer. Estado interno é a etapa 3, e publicá-lo é a 4.</p>
 </div>
 
 <h2>Regenerar a chave secreta</h2>

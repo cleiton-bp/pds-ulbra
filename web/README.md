@@ -87,6 +87,7 @@ src/
 │   ├── publicIndex.ts  ← ponto de acesso do QUADRO (sem sessão nenhuma)
 │   └── api/            fetch, envelope, token, 401
 ├── embed/        a ferramenta de relato: o que roda no site do cliente
+├── tracking/     a página pública: onde quem relatou vê o próprio relato
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
 ├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding, reports, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
@@ -98,6 +99,11 @@ junto deles vem `sessionToken`, que lê `localStorage`. Com o quadro importando
 aquele arquivo, o pacote que `embed.html` carrega passava a conter a chave
 `pds.web.session` — código de sessão do administrador dentro de um documento que
 qualquer site do mundo embute. Foi medido no `dist`, não suposto.
+
+Isso valia para **dois** documentos e hoje vale para **três**: `index.html` é o
+painel, e `embed.html` e `tracking.html` são abertos por gente que não tem conta
+aqui. Os dois últimos passam por `data/publicIndex.ts`, e a medição no `dist`
+cobra os dois.
 
 ```
    app  →  features  →  data · shared  →  contracts
@@ -125,6 +131,11 @@ acidente:
         │  cria o iframe         │                            │
         └───────────────→   /embed.html  ───────────────────────┘
                   postMessage         o relato, com a chave pública
+                                 │
+                                 │  a confirmação entrega um link
+                                 ↓
+                            /tracking.html            POST /public/reports/tracking
+                                                      o protocolo e o token do link
 ```
 
 **O carregador (`src/loader/`) não desenha nada na página.** Ele cria o `iframe`,
@@ -196,7 +207,11 @@ Dois tropeços que custam tempo:
 `http://localhost:5173`, e é o **quadro** que chama a API — então servir o painel
 em outra porta faz o envio falhar com "Falha de rede", sem nenhum erro do lado do
 servidor. A variável tem nome de painel e hoje decide se o formulário do cliente
-consegue enviar; separar isso é o pds-018.
+consegue enviar, e **separar as duas coisas é tarefa própria, ainda em aberto**.
+
+Esta frase já nomeou um número de etapa, e ele envelheceu sozinho: a ordem mudou e
+o número passou a apontar para outra coisa. Referência a trabalho futuro fica pelo
+assunto, não pela numeração.
 
 **A página de teste não pode ser `file://`.** A origem vira `null`, e `null` não
 entra numa lista de CORS — nem no `frame-ancestors` quando ele entrar. Quem não
@@ -243,11 +258,13 @@ registrada como evento. A aparência e os textos da ferramenta saem de
 conferida** (pds-016): lista vazia abre em qualquer lugar, e o primeiro endereço
 declarado liga a conferência.
 
-Falta o caminho de volta, e a falta é visível na tela:
+**O caminho de volta existe** (pds-017): a confirmação entrega um link, e
+`tracking.html` mostra a quem relatou o próprio relato. O token viaja no fragmento
+do link — a parte que o navegador nunca envia a servidor nenhum.
 
 | o que falta | onde dói |
 |---|---|
-| a página pública de acompanhamento | quem relata recebe o protocolo e não tem o que fazer com ele |
+| andamento na página de acompanhamento | ela existe e não tem o que mostrar: estado interno é a etapa 3, publicá-lo é a 4 |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança, e a única com limitador é a de login |
 
 Fora do corte, de propósito: plano, etapas públicas, anexo e a ferramenta própria

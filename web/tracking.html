@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Nao indexar, e aqui isto e mais forte do que no quadro: esta pagina mostra o
+      relato de uma pessoa. O que a protege e o token no fragmento, mas o buscador
+      nao tem por que sequer conhecer o endereco.
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+    <!--
+      Sem `Referer` ao sair daqui. O fragmento nao viaja nele, mas o protocolo na
+      query viaja — e nao ha motivo para contar a um terceiro qual relato alguem
+      estava lendo.
+    -->
+    <meta name="referrer" content="no-referrer" />
+    <title>Acompanhar relato</title>
+
+    <!--
+      O tema, resolvido antes do primeiro pixel. Sem isto a pagina fica **sempre
+      clara**: a folha de estilo tem `:root[data-theme="dark"]` e nenhuma regra de
+      `prefers-color-scheme`, entao quem nao escreve o atributo nao tem tema
+      escuro — e nao ha como o pacote corrigir depois, porque `src/tracking/` nao
+      alcanca o `themeStore` do painel, por regra de arquitetura.
+
+      A chave e a precedencia sao as mesmas do `index.html` e do `themeStore.ts`, e
+      precisam continuar iguais. Quem abre esta pagina costuma ter o painel na
+      mesma origem, entao a escolha feita la vale aqui tambem.
+
+      Sincrono e sem `defer` de proposito: o atributo tem de existir antes de a
+      primeira regra de cor ser aplicada, senao a pessoa leva um flash branco.
+    -->
+    <script>
+      try {
+        var stored = localStorage.getItem('pds.web.theme.v1')
+        var theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+        document.documentElement.setAttribute('data-theme', theme)
+      } catch (e) {
+        // Armazenamento bloqueado: cai no claro, que e o padrao da folha.
+      }
+    </script>
+  </head>
+  <body class="min-h-full">
+    <div id="pds-tracking-root"></div>
+    <script type="module" src="/src/tracking/main.tsx"></script>
+  </body>
+</html>

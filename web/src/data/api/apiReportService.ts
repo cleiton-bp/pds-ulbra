@@ -1,4 +1,4 @@
-import type { ApiResponse, CreatedReportViewModel } from '@/contracts'
+import type { ApiResponse, CreatedReportViewModel, PublicReportViewModel } from '@/contracts'
 import { environment } from '@/data/environment'
 import { PanelError } from '@/data/errors'
 import type { ReportService } from '@/data/reportService'
@@ -15,30 +15,49 @@ import type { ReportService } from '@/data/reportService'
  * O `credentials: 'omit'` diz a mesma coisa ao navegador: esta requisicao nao
  * carrega credencial nenhuma, nem cookie que um dia apareca.
  */
+/**
+ * As duas rotas publicas de relato tem a mesma forma — `POST`, corpo em JSON, sem
+ * credencial — e o que muda e a mensagem da falha de rede: "nao deu para enviar" e
+ * "nao deu para abrir" pedem coisas diferentes de quem le.
+ *
+ * O **status chega inteiro** em `PanelError`, e nao virado em texto: a pagina de
+ * acompanhamento precisa distinguir o 404, que e resposta definitiva, de uma falha
+ * passageira que vale tentar de novo.
+ */
+async function post<T>(path: string, body: unknown, networkMessage: string): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${environment.apiUrl}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'omit',
+      body: JSON.stringify(body),
+    })
+  } catch {
+    // Status 0: nem chegou a haver resposta, igual ao `httpClient`.
+    throw new PanelError(networkMessage, 0)
+  }
+
+  const envelope = await response
+    .json()
+    .then((data) => data as ApiResponse<T>)
+    .catch(() => null)
+
+  if (!response.ok || envelope?.Success === false || !envelope?.Data) {
+    throw new PanelError(envelope?.Message ?? `Erro ${response.status}.`, response.status)
+  }
+
+  return envelope.Data
+}
+
 export const apiReportService: ReportService = {
-  createReport: async (request) => {
-    let response: Response
-    try {
-      response = await fetch(`${environment.apiUrl}/public/reports`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'omit',
-        body: JSON.stringify(request),
-      })
-    } catch {
-      // Status 0: nem chegou a haver resposta, igual ao `httpClient`.
-      throw new PanelError('Falha de rede ao enviar o relato.', 0)
-    }
+  createReport: (request) =>
+    post<CreatedReportViewModel>('/public/reports', request, 'Falha de rede ao enviar o relato.'),
 
-    const envelope = await response
-      .json()
-      .then((data) => data as ApiResponse<CreatedReportViewModel>)
-      .catch(() => null)
-
-    if (!response.ok || envelope?.Success === false || !envelope?.Data) {
-      throw new PanelError(envelope?.Message ?? `Erro ${response.status}.`, response.status)
-    }
-
-    return envelope.Data
-  },
+  openReportTracking: (request) =>
+    post<PublicReportViewModel>(
+      '/public/reports/tracking',
+      request,
+      'Falha de rede ao abrir o relato.',
+    ),
 }

@@ -41,17 +41,22 @@ chamada mais lenta sem ganhar segurança.</p>
 diferente, e a diferença de tempo entre parar no primeiro e parar no décimo permite
 descobrir o valor caractere a caractere.</p>
 
+<p>Quem chama a comparação é a consulta pública de acompanhamento, desde a
+<code>pds-017</code>: o token do link é sorteado e guardado com <em>a mesma função de hash</em>
+da chave secreta, e conferi-lo é a única coisa que separa o relato de quem o escreveu de
+qualquer pessoa com o protocolo na mão.</p>
+
 <div class="note todo">
-  <strong>A comparação em tempo constante ainda não tem quem a chame</strong>
-  <p><code>ProjectKeyGenerator.Matches</code> está escrito e pronto, e continua sem caller: ele
-  compara o <em>hash</em> da chave secreta, e nenhuma rota autentica pela secreta ainda. Quem
-  chega hoje às duas rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
+  <strong>A chave secreta continua sem rota que a aceite</strong>
+  <p>Ela é gerada, guardada como hash e regenerável, e <strong>nenhuma rota autentica por ela</strong>.
+  Quem chega hoje às rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
   em claro — a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
-  <p>É a única peça de segurança da etapa 1 que segue esperando: ela entra com a primeira rota
-  que aceitar a chave secreta.</p>
+  <p>A peça que faltava era o <em>caller</em> da comparação, e ele chegou pelo token do relato.
+  O que falta agora é o outro lado: a primeira rota de integração servidor a servidor.</p>
 </div>
 
-<p>Nas duas rotas públicas, chave ausente, desconhecida, revogada ou secreta recebem
+<p>Nas duas rotas que apresentam a chave pública, chave ausente, desconhecida, revogada ou
+secreta recebem
 <strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta chave existe mas foi
 revogada" contaria a quem tenta que ele acertou metade.</p>
 
