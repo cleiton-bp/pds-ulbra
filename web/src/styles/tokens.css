@@ -65,6 +65,14 @@
   --red-11: #ce2c31;
 
   --white: #ffffff;
+
+  /* PAR FIXO — a tinta que vai sobre uma cor que **nao vem do tema**.
+     A cor do gatilho da ferramenta e escolhida pelo cliente e vale igual nos dois
+     temas. Se a tinta invertesse junto com o tema, o mesmo botao ficaria legivel
+     de manha e ilegivel a noite. Por isso estes dois nunca sao reatribuidos no
+     bloco escuro — e a unica dupla do arquivo em que isso e proposital. */
+  --ink-on-light: #1c2024;
+  --ink-on-dark: #ffffff;
 }
 
 /* ---------------------------------------------------------------------------
@@ -112,6 +120,11 @@
 
   /* estado: inerte, arquivado, bloqueado */
   --muted-dot: var(--slate-8);
+
+  /* A ferramenta embutida, quando o cliente escolheu uma cor propria. Qual das
+     duas vale sai da luminancia da cor, em `embed/appearance.ts`. */
+  --widget-ink-on-light: var(--ink-on-light);
+  --widget-ink-on-dark: var(--ink-on-dark);
 
   /* Tres lugares desenham o veu, e dois ja divergiram em 5% de opacidade. */
   --overlay: rgb(0 0 0 / 45%);

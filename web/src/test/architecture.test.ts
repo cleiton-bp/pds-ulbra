@@ -61,6 +61,11 @@ const RULES: Rule[] = [
     why: 'contrato e a base de tudo e nao depende de nada',
   },
   {
+    folder: 'embed',
+    forbidden: ['@/data/api', '@/app', '@/features'],
+    why: 'o quadro roda dentro do site de um cliente: casca, telas e cliente HTTP nao entram la',
+  },
+  {
     folder: 'data',
     forbidden: ['@/features', '@/app'],
     why: 'a camada de dados nao conhece tela',
@@ -71,6 +76,17 @@ const RULES: Rule[] = [
     why: 'de shared, a camada de dados usa so `lib/` — componente e hook sao interface',
   },
 ]
+
+/**
+ * Os pontos de acesso a camada de dados. Sao **dois**, e a separacao e o que
+ * mantem o codigo de sessao fora do que roda dentro do site de um cliente:
+ * `data/index.ts` liga os servicos do painel e arrasta `sessionToken` junto;
+ * `data/publicIndex.ts` liga so o que funciona sem sessao.
+ *
+ * Foi medido, e nao suposto: com o quadro importando `@/data`, o pacote de
+ * `embed.html` continha a chave `pds.web.session`.
+ */
+const ACCESS_POINTS = ['data/index.ts', 'data/publicIndex.ts']
 
 function listFiles(directory: string): string[] {
   const entries = readdirSync(directory)
@@ -163,7 +179,9 @@ describe('regra de dependencia entre as pastas', () => {
    */
   it('todo servico tem implementacao de API e sai pelo ponto de acesso', () => {
     const problemas: string[] = []
-    const acesso = readFileSync(join(SOURCE_ROOT, 'data', 'index.ts'), 'utf8')
+    const acesso = ACCESS_POINTS.map((nome) => readFileSync(join(SOURCE_ROOT, nome), 'utf8')).join(
+      '\n',
+    )
 
     for (const file of listFiles(join(SOURCE_ROOT, 'data'))) {
       const nome = relative(SOURCE_ROOT, file)
@@ -185,12 +203,30 @@ describe('regra de dependencia entre as pastas', () => {
     expect(problemas).toEqual([])
   })
 
-  it('somente data/index.ts importa de data/api', () => {
-    const injectionPoint = join(SOURCE_ROOT, 'data', 'index.ts')
+  /**
+   * `@/data` compila e funciona dentro do quadro — por isso precisa de teste. O
+   * que ele traz junto nao aparece em revisao nenhuma: aparece no pacote.
+   */
+  it('o quadro embutido nao importa o ponto de acesso do painel', () => {
+    const offenders: string[] = []
+
+    for (const file of listFiles(join(SOURCE_ROOT, 'embed'))) {
+      for (const specifier of importsOf(readFileSync(file, 'utf8'))) {
+        if (specifier === '@/data' || specifier === '@/data/index') {
+          offenders.push(`${relative(SOURCE_ROOT, file)} importa ${specifier}`)
+        }
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+
+  it('somente os pontos de acesso importam de data/api', () => {
+    const injectionPoints = ACCESS_POINTS.map((nome) => join(SOURCE_ROOT, nome))
     const offenders: string[] = []
 
     for (const file of listFiles(join(SOURCE_ROOT, 'data'))) {
-      if (file === injectionPoint) continue
+      if (injectionPoints.includes(file)) continue
 
       // Dentro de `data/api` os arquivos se importam a vontade; o que nao pode e
       // o resto da camada alcancar o cliente HTTP por fora do ponto de acesso.

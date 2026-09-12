@@ -15,6 +15,17 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      // Dois documentos, um projeto so: o painel e o quadro do relato. Eles
+      // dividem React e o CSS dos tokens — o que o quadro NAO carrega e o
+      // roteador, a sessao e as telas, porque nada em `src/embed/` os importa.
+      input: {
+        index: fileURLToPath(new URL('./index.html', import.meta.url)),
+        embed: fileURLToPath(new URL('./embed.html', import.meta.url)),
+      },
+    },
+  },
   test: {
     // Node por padrao: quase tudo aqui e logica pura e varredura de arquivo. Os
     // testes que montam componente ligam `jsdom` para si, na primeira linha.
