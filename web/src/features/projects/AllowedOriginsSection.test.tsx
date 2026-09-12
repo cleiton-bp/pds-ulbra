@@ -14,11 +14,15 @@ import { AllowedOriginsSection } from '@/features/projects/AllowedOriginsSection
  * digitado — reaproveitar o texto do campo deixaria `HTTPS://Loja.com/` na tela
  * ate alguem recarregar.
  *
- * O terceiro e de honestidade, e e o mais facil de quebrar sem querer: enquanto
- * nao existir carregador, nenhuma linha do sistema le esta tabela, e a tela nao
- * pode dizer que bloqueia coisa nenhuma. O desenho tem a frase de bloqueio pronta
- * para o dia em que ela for verdade; ate la, quem copiar essa frase para ca
- * reprova aqui.
+ * Os dois ultimos sao de honestidade, e sao os mais faceis de quebrar sem querer.
+ * Eles trocaram de lado na pds-016: ate a pds-015 a tela **nao podia** dizer que
+ * restringia, porque nenhuma linha do sistema lia esta tabela; agora ela e
+ * conferida nas duas rotas publicas, e o que passou a ser mentira e o contrario.
+ *
+ * O que continua sendo mentira, e por isso tem asserticao negativa: **muro.** Quem
+ * declara o endereco e o carregador, que e codigo nosso — a lista pega a chave
+ * colada no site errado, e nao pega quem fala direto com a API. Palavra de
+ * impossibilidade nesta tela reprova aqui.
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<() => Promise<ProjectOriginViewModel[]>>(),
@@ -119,7 +123,7 @@ describe('AllowedOriginsSection', () => {
     expect(screen.queryByRole('textbox', { name: 'Endereço do seu site' })).toBeNull()
   })
 
-  it('não afirma que bloqueia nada enquanto a ferramenta não estiver no ar', async () => {
+  it('com a lista vazia, diz que abre em qualquer endereço — e não que restringe', async () => {
     dublê.listar.mockResolvedValue([])
 
     const { container } = render(<AllowedOriginsSection projectPublicId="p-1" />)
@@ -127,15 +131,37 @@ describe('AllowedOriginsSection', () => {
 
     const texto = container.textContent ?? ''
 
-    // A frase do desenho ("o bloqueio passa a valer...") so vale quando alguem
-    // ler esta tabela, e ninguem le: o `frame-ancestors` ainda nao existe.
-    expect(texto).not.toMatch(/bloqueio|bloquea|bloqueia/i)
-    expect(texto).toMatch(/ainda não vale/)
-    expect(texto).toMatch(/ainda não é conferida/)
+    // Lista vazia nao restringe nada, e e o estado de todo projeto que existe
+    // hoje: a tela precisa dizer o que **esta** acontecendo, e nao o que a lista
+    // faria se tivesse alguma linha.
+    expect(texto).toMatch(/abre em qualquer endereço/)
+    // E precisa dizer o que muda no primeiro endereco, porque a consequencia
+    // ultrapassa a linha que a pessoa esta adicionando: os outros sites param.
+    expect(texto).toMatch(/primeiro endereço/)
 
-    // O pds-013 pos a ferramenta no ar. Dizer o contrario passou a ser mentira, e
-    // a frase antiga estava presa aqui por uma asserticao — que e o jeito de um
-    // teste de honestidade envelhecer para o lado errado.
-    expect(texto).not.toMatch(/ainda não está no ar|não está no ar/)
+    // As duas frases da espera, que eram verdade e deixaram de ser.
+    expect(texto).not.toMatch(/ainda não vale|ainda não é conferida|não está no ar/)
+
+    // A ressalva sobre o que a conferencia nao pega nao aparece aqui: nao ha
+    // conferencia ligada para ressalvar.
+    expect(texto).not.toMatch(/caso comum/)
+  })
+
+  it('com a lista cheia, diz que restringe sem prometer impossibilidade', async () => {
+    dublê.listar.mockResolvedValue([origem('o-1', 'loja.exemplo.com')])
+
+    const { container } = render(<AllowedOriginsSection projectPublicId="p-1" />)
+    expect(await screen.findByText('loja.exemplo.com')).toBeTruthy()
+
+    const texto = container.textContent ?? ''
+
+    expect(texto).toMatch(/só abre nos endereços desta lista/)
+    // A ressalva anda junto com a promessa. Sem ela, a tela venderia como muro
+    // uma conferencia que qualquer um contorna falando direto com a API.
+    expect(texto).toMatch(/caso comum/)
+
+    // Palavras que prometeriam o que o `frame-ancestors` vai dar, e que esta
+    // conferencia nao da.
+    expect(texto).not.toMatch(/impede|impossível|garante|ninguém mais/i)
   })
 })

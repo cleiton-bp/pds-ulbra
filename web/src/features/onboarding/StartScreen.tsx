@@ -89,6 +89,20 @@ export function StartScreen() {
               </div>
             </div>
 
+            {/* A pergunta que chega depois de colar o script e "por que nao
+                aparece no meu site?", e uma das respostas possiveis e a lista de
+                enderecos autorizados — que fica em outra tela e some do radar de
+                quem esta aqui. "Por padrao" e o que faz a frase continuar
+                verdadeira nos dois estados da lista. */}
+            <p className="mt-3.5 text-detail text-fg-muted leading-relaxed">
+              Por padrão ela abre em qualquer endereço que tenha esta chave. Quais endereços podem
+              abri-la fica em{' '}
+              <Link to="../settings" className="text-fg underline underline-offset-4">
+                Configurações
+              </Link>
+              .
+            </p>
+
             <WidgetPreview />
           </Step>
 
