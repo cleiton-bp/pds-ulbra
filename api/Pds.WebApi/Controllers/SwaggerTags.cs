@@ -15,6 +15,8 @@ public static class SwaggerTags
     public const string Projects = "Projetos";
     public const string ProjectKeys = "Chaves do projeto";
     public const string ProjectOrigins = "Domínios autorizados";
+    public const string WidgetSettings = "Ferramenta";
     public const string Reports = "Relatos";
     public const string PublicReports = "Relatos (público)";
+    public const string PublicWidgetSettings = "Ferramenta (público)";
 }
