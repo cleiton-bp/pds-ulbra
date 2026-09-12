@@ -14,9 +14,17 @@ import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
  * um formulario no meio da tela. Aberto direto, comeca no formulario, que e como
  * ele se demonstra sem carregador.
  *
- * E o token de acompanhamento **nao aparece**: ele volta na resposta, nao ha
- * pagina de acompanhamento ainda, e mostrar um segredo que nao serve para nada e
- * a maneira mais facil de ensinar alguem a ignorar segredo.
+ * E o token de acompanhamento **nao aparece como texto, e existe dentro do
+ * link**. As duas metades importam, e a pds-017 trocou a razao da primeira: antes
+ * nao havia pagina de acompanhamento e mostrar o segredo nao servia para nada;
+ * agora ele serve, e continua nao podendo ser lido na tela — ninguem decora 43
+ * caracteres, e imprimir segredo ensina quem le a tratar segredo como enfeite.
+ *
+ * A metade nova e a **forma do endereco**: o token depois do `#`, o protocolo
+ * antes. Trocar a ordem dos dois argumentos de `buildTrackingLink` continuaria
+ * abrindo a pagina — o link funciona igual — e poria o segredo na parte do
+ * endereco que viaja para o servidor. Por isso a asserticao e sobre o `href`, e
+ * nao sobre a tela.
  */
 const dublê = vi.hoisted(() => ({ criar: vi.fn() }))
 
@@ -114,7 +122,7 @@ describe('o formulario', () => {
     expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({ Type: 'Question', Route: '/checkout' })
   })
 
-  it('mostra o protocolo e NAO mostra o token de acompanhamento', async () => {
+  it('mostra o protocolo, e o token so dentro do link — nunca como texto', async () => {
     dublê.criar.mockResolvedValue({
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'token-secreto-que-nao-pode-vazar',
@@ -127,6 +135,16 @@ describe('o formulario', () => {
 
     await waitFor(() => expect(screen.getByText('ABCD-EFGH-IJKL')).toBeDefined())
     expect(document.body.textContent).not.toContain('token-secreto-que-nao-pode-vazar')
+
+    // `textContent` nao ve atributo, entao a asserticao acima ficaria verde com o
+    // token no `href` de qualquer forma. Esta e a que olha o endereco.
+    const link = screen.getByRole('link', { name: 'Acompanhar este relato' })
+    const endereco = link.getAttribute('href') ?? ''
+    const [antesDoFragmento, fragmento] = endereco.split('#')
+
+    expect(antesDoFragmento).toContain('c=ABCD-EFGH-IJKL')
+    expect(antesDoFragmento).not.toContain('token-secreto-que-nao-pode-vazar')
+    expect(fragmento).toBe('t=token-secreto-que-nao-pode-vazar')
   })
 
   /**
