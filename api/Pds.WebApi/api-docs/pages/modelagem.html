@@ -1,11 +1,13 @@
 <h2>Modelagem</h2>
-<p class="lead">Oito tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Nove tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
     ├───1:N──  <b>projects</b>  ──1:N──  <b>project_keys</b>
     │               │
-    │               └───1:N──  <b>project_origins</b>
+    │               ├───1:N──  <b>project_origins</b>
+    │               │
+    │               └───1:1──  <b>project_widget_settings</b>
     │
     └───1:N──  <b>reports</b>  ──1:N──  <b>report_contexts</b>
                    │
@@ -168,8 +170,9 @@ ninguém mais enxerga.</p>
   carimba na requisição é a <em>nossa</em>, e a que a página hospedeira informa é
   auto-declarada. Quem barra de verdade é o <code>frame-ancestors</code> montado a partir
   desta lista, que impede o quadro de sequer abrir fora dela.</p>
-  <p>Esse cabeçalho ainda não existe: hoje a tabela só guarda a lista. O bloqueio entra junto
-  com o carregador.</p>
+  <p>Esse cabeçalho ainda não existe. O carregador já entrou e a conferência não veio junto:
+  hoje a tabela só guarda a lista, e o quadro abre em qualquer site que cole o script. Enquanto
+  isso continuar assim, a tela que edita a lista diz exatamente isso.</p>
 </div>
 
 <div class="note why">
@@ -177,6 +180,59 @@ ninguém mais enxerga.</p>
   <p>O painel escreve <code>*.site.com</code> na lista, mas o banco guarda o domínio e um
   sim/não. Guardar o asterisco faria a mesma autorização existir de dois jeitos, e um deles
   poderia ficar em desacordo com o outro.</p>
+</div>
+
+<h2>project_widget_settings</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Único entre os não apagados. É o que faz o 1:1.</td></tr>
+  <tr><td><code>is_enabled</code></td><td>Tira a ferramenta do site sem ninguém editar o HTML do cliente.</td></tr>
+  <tr><td><code>accent_color</code></td><td><code>#rrggbb</code> minúsculo. <b>Nulo é um valor</b>: quer dizer o acento do produto.</td></tr>
+  <tr><td><code>position</code></td><td><code>bottom_right</code> | <code>bottom_left</code>.</td></tr>
+  <tr><td><code>theme</code></td><td><code>auto</code> | <code>light</code> | <code>dark</code>. <code>auto</code> segue quem visita o site, não quem o configurou.</td></tr>
+  <tr><td><code>launcher_label</code></td><td>O texto do botão parado na página. 40.</td></tr>
+  <tr><td><code>title</code></td><td>O título dentro do quadro. 60.</td></tr>
+  <tr><td><code>placeholder</code></td><td>O texto da caixa vazia — é ele que faz a pergunta certa. 160.</td></tr>
+  <tr><td><code>success_message</code></td><td>A frase acima do protocolo. 200.</td></tr>
+  <tr><td><code>shows_type_field</code></td><td>Mostra ou esconde o seletor de tipo.</td></tr>
+  <tr><td><code>default_report_type</code></td><td>Vem pré-marcado, e é o tipo gravado quando o seletor não aparece.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A linha só nasce quando alguém salva</strong>
+  <p>Projeto sem linha aqui <em>não</em> é projeto sem configuração — é projeto usando os
+  padrões, que vivem no código. As duas rotas respondem a mesma coisa nos dois casos, e quem lê
+  não consegue distinguir.</p>
+  <p>Isso custou uma decisão: os projetos que já existiam quando a tabela nasceu não precisaram
+  de nenhum <code>UPDATE</code> no banco compartilhado, e projeto novo continua nascendo sem
+  linha. O caminho "sem linha" vira o caminho comum, exercitado o tempo todo, em vez de um canto
+  que apodrece esperando o dia em que alguém o pisa.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que coluna, se <code>report_contexts</code> é chave e valor</strong>
+  <p>São perguntas diferentes. O que se captura junto de um relato ainda vai crescer, e cada
+  captura nova como coluna seria uma migração na tabela que mais cresce. Aqui a lista é fechada
+  e acordada: dez campos, cada um com um tipo e um limite. Como coluna, cada um se explica no
+  próprio banco e o tipo errado não entra.</p>
+</div>
+
+<div class="note warn">
+  <strong>A gravação substitui a linha inteira</strong>
+  <p>A rota é <code>PUT</code>, e não <code>PATCH</code> como a de projeto. O motivo é o
+  <code>accent_color</code>: nulo ali <em>significa</em> "use o acento do produto". Num corpo
+  parcial, campo ausente e campo nulo seriam a mesma coisa, e voltar a cor ao padrão viraria
+  impossível de pedir.</p>
+  <p>O preço é que duas pessoas da mesma conta editando ao mesmo tempo sobrescrevem uma à
+  outra, e ninguém fica sabendo. Não há coluna de versão para detectar isso.</p>
+</div>
+
+<div class="note why">
+  <strong>Nenhuma coluna tem valor padrão no banco</strong>
+  <p>Os padrões moram uma vez, no código, e a tabela só recebe linha por uma gravação que
+  escreve os dez campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
+  decisão, e nada manteria as duas iguais.</p>
 </div>
 
 <h2>reports</h2>

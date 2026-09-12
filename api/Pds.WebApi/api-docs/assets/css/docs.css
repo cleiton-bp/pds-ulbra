@@ -175,7 +175,9 @@ td code { white-space: nowrap; }
 .verb { font-weight: 700; font-size: 12px; letter-spacing: 0.03em; }
 .verb.get { color: var(--ok); }
 .verb.post { color: var(--accent); }
-.verb.patch { color: var(--warn); }
+/* PUT divide a cor com PATCH: os dois alteram algo que ja existe, e a diferenca
+   entre trocar um campo e trocar a linha inteira nao e o que a cor precisa contar. */
+.verb.patch, .verb.put { color: var(--warn); }
 .verb.delete { color: var(--danger); }
 
 /* Diagrama em texto: monoespacado e sem quebra. */

@@ -80,9 +80,13 @@ fica no HTML dele:</p>
 
 <p>O que acontece daí em diante não passa por sessão nenhuma:</p>
 
-<div class="diagram">o script cria um iframe apontando para o NOSSO domínio
+<div class="diagram">o script cria um iframe apontando para o NOSSO domínio — <b>invisível</b>
       ↓
 a página manda a chave, a rota e a origem por postMessage
+      ↓
+GET /public/widget-settings  →  como este cliente quer o quadro
+      ↓
+o quadro pede para aparecer, e só então o gatilho surge no canto
       ↓
 quem preenche o formulário está dentro do iframe, na nossa origem
       ↓
@@ -91,6 +95,19 @@ POST /public/reports  →  protocolo + token de acompanhamento</div>
 <p>O formulário nunca toca a página do cliente, e a página do cliente nunca toca o
 formulário: são origens diferentes, e a única coisa que atravessa é o que as duas pontas
 conferiram.</p>
+
+<div class="note why">
+  <strong>Por que o quadro nasce invisível</strong>
+  <p>O pedido para aparecer é a <em>mesma</em> mensagem que informa tamanho e canto, e o quadro
+  só a manda depois de ler a configuração. Uma regra resolve quatro coisas: ele aparece já no
+  canto certo em vez de pular de lado; a ferramenta desligada simplesmente nunca pede e nunca
+  aparece; o rótulo do cliente não pisca, porque nada é desenhado com os padrões para ser
+  trocado na frente de quem já estava lendo; e um quadro que não carregou some, em vez de deixar
+  uma pílula vazia parada no site.</p>
+  <p>O preço é uma ida à rede antes do gatilho aparecer. Se essa leitura falhar, valem os
+  padrões e a ferramenta abre assim mesmo — "não consegui saber" não pode virar "não apareço",
+  porque é justamente quando algo quebrou que alguém precisa avisar.</p>
+</div>
 
 <div class="note why">
   <strong>Por que o relato carrega a chave no corpo, e não um cabeçalho</strong>
