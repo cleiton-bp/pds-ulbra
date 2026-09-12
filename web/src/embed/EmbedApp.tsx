@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type CreatedReportViewModel,
   MAX_REPORT_TEXT_LENGTH,
@@ -41,6 +41,17 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<CreatedReportViewModel | null>(null)
 
+  /**
+   * Conta quantas vezes o quadro foi reiniciado.
+   *
+   * Existe por uma corrida que o teste antigo nao pegava: fechar o quadro **com
+   * o envio em voo** limpava o estado, e a resposta chegava depois e regravava o
+   * protocolo por cima — reabrir mostrava o relato abandonado. O pedido ja saiu
+   * e o relato existe no servidor de qualquer jeito; o que nao pode e ele voltar
+   * a tela de quem desistiu.
+   */
+  const generation = useRef(0)
+
   // O tema fixado pelo cliente vale sempre; `Auto` acompanha o sistema de quem
   // visita, inclusive se ele mudar com o quadro ja aberto.
   useEffect(() => {
@@ -61,22 +72,48 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
     setSending(true)
     setError(null)
 
+    // A geracao deste envio. Se ela mudar enquanto a resposta nao volta, o
+    // quadro foi reiniciado no meio e o resultado nao vale mais.
+    const minha = generation.current
+
     try {
-      setCreated(
-        await reportService.createReport({
-          Key: config.key,
-          Type: type,
-          Text: trimmed,
-          Route: config.route,
-          Origin: config.origin,
-          Context: null,
-        }),
-      )
+      const criado = await reportService.createReport({
+        Key: config.key,
+        Type: type,
+        Text: trimmed,
+        Route: config.route,
+        Origin: config.origin,
+        Context: null,
+      })
+
+      if (generation.current !== minha) return
+      setCreated(criado)
     } catch (failure) {
+      if (generation.current !== minha) return
       setError(describeError(failure))
     } finally {
-      setSending(false)
+      if (generation.current === minha) setSending(false)
     }
+  }
+
+  /**
+   * Volta o quadro ao estado de quem ainda nao relatou.
+   *
+   * Sem isto, `created` fica gravado enquanto o documento viver — e o documento
+   * de um quadro vive o tempo da pagina, que numa aplicacao de pagina unica sao
+   * horas. Quem relatava, fechava e abria de novo reencontrava o protocolo
+   * **antigo**, sem caminho nenhum de volta para escrever.
+   */
+  function reset() {
+    // Invalida o envio que estiver em voo: a resposta dele chega depois desta
+    // linha e nao pode regravar o que acabou de ser limpo.
+    generation.current += 1
+
+    setCreated(null)
+    setText('')
+    setError(null)
+    setSending(false)
+    setType(settings.DefaultReportType)
   }
 
   function expand() {
@@ -87,6 +124,9 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   function collapse() {
     setOpen(false)
     host?.collapse()
+    // Limpa ao recolher, e nao ao abrir: assim quem reabre por engano nao perde
+    // nada, e quem volta depois encontra o formulario limpo.
+    reset()
   }
 
   // Recolhido o documento inteiro e o gatilho: o `iframe` tem o tamanho dele, e
@@ -120,8 +160,12 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
           <p className="font-mono text-fg text-lead tracking-wide">{created.TrackingCode}</p>
         </div>
 
-        <div className="mt-auto flex items-center gap-2">
+        <div className="mt-auto flex flex-wrap items-center gap-2">
           <CopyButton value={created.TrackingCode} label="Copiar protocolo" size="sm" />
+          {/* O caminho de volta ao formulario, sem passar por fechar e reabrir. */}
+          <Button variant="ghost" size="sm" onClick={reset}>
+            Relatar outra coisa
+          </Button>
           {host && (
             <Button variant="ghost" size="sm" onClick={collapse}>
               Fechar
@@ -133,7 +177,13 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   }
 
   return (
-    <form style={style} onSubmit={submit} className="flex h-full flex-col gap-4 bg-surface p-5">
+    <form
+      style={style}
+      onSubmit={submit}
+      // `overflow-y-auto` e a ultima linha de defesa: com o quadro baixo demais
+      // para o conteudo minimo, rola em vez de aparar.
+      className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5"
+    >
       <div className="flex items-start justify-between gap-3">
         <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
         {host && (
@@ -174,7 +224,11 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         aria-label={settings.Title}
         aria-invalid={error ? true : undefined}
         className={cn(
-          'min-h-28 flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
+          // `min-h-0` e o que permite ENCOLHER: sem ele o textarea trava em
+          // `min-h-28` e empurra o botao para fora de um documento que nao
+          // rola. Em janela de 320px o carregador entrega 280px de quadro, e o
+          // "Enviar" ficava inalcancavel com o relato ja escrito.
+          'min-h-0 flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
           'text-body text-fg leading-normal placeholder:text-fg-placeholder',
           error ? 'border-error-border' : 'border-border',
         )}
@@ -186,17 +240,30 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         </p>
       )}
 
-      <Button
+      {/*
+        **Nao usa o `Button` do painel, e isso e a decisao deste trecho.**
+        Toda variante dele carrega o proprio `enabled:hover:bg-surface-sunken`, e
+        o `cn` nao descarta esse conflito: o prefixo `enabled:hover:` e outro
+        eixo, entao a classe sobrevive ao lado da cor do cliente e **vence no
+        hover** — a cor da marca sumia e o rotulo ficava ilegivel no instante em
+        que o ponteiro encostava.
+
+        O retorno visual do hover vem por opacidade, que funciona sobre qualquer
+        cor que o cliente escolher, sem precisar derivar um tom mais escuro.
+      */}
+      <button
         type="submit"
         disabled={!trimmed || sending}
-        block
         className={cn(
-          'border-transparent bg-[var(--widget-accent)] text-[var(--widget-ink)] font-medium',
-          'disabled:bg-surface-sunken disabled:text-fg-disabled',
+          'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg',
+          'border border-transparent font-medium text-body transition-opacity',
+          'bg-[var(--widget-accent)] text-[var(--widget-ink)]',
+          'enabled:hover:opacity-90',
+          'disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-fg-disabled',
         )}
       >
         {sending ? 'Enviando…' : 'Enviar'}
-      </Button>
+      </button>
     </form>
   )
 }

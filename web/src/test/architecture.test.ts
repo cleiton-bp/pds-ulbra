@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
@@ -112,8 +112,21 @@ function listFiles(directory: string): string[] {
 }
 
 /** Todo import do arquivo, inclusive o de efeito colateral, sem `from`. */
+/**
+ * Todo import do arquivo: estatico, de efeito colateral (sem `from`) e
+ * **dinamico**.
+ *
+ * A versao anterior exigia aspas simples e um espaco depois de `import`, e
+ * deixava passar tres formas que compilam igual: `from "@/data"`, e sobretudo
+ * `await import('@/data')` — que nao so passava no teste como gerava um pedaco
+ * separado, buscado em tempo de execucao pelo pacote do quadro. Aspas simples e
+ * convencao do formatador, nao garantia: `npm test` nao roda o Biome.
+ */
 function importsOf(content: string): string[] {
-  return [...content.matchAll(/(?:from|^\s*import)\s+'([^']+)'/gm)].map((match) => match[1] ?? '')
+  const estaticos = content.matchAll(/(?:from|^\s*import)\s+['"]([^'"]+)['"]/gm)
+  const dinamicos = content.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]/g)
+
+  return [...estaticos, ...dinamicos].map((match) => match[1] ?? '')
 }
 
 describe('regra de dependencia entre as pastas', () => {
@@ -232,18 +245,92 @@ describe('regra de dependencia entre as pastas', () => {
    * `@/data` compila e funciona dentro do quadro — por isso precisa de teste. O
    * que ele traz junto nao aparece em revisao nenhuma: aparece no pacote.
    */
-  it('o quadro embutido nao importa o ponto de acesso do painel', () => {
-    const offenders: string[] = []
+  /**
+   * O FECHO TRANSITIVO, e nao o primeiro salto.
+   *
+   * A versao anterior deste teste varria so os arquivos de `src/embed/` e
+   * passava com o defeito no lugar: `EmbedApp` importa de `shared/`, e a regra
+   * de `shared/` proibe `@/data/api` mas **nao** `@/data`. Bastava um
+   * `import { describeError } from '@/data'` dentro de `CopyButton` para o
+   * pacote do quadro voltar a carregar `sessionToken` — e os 17 testes passavam.
+   * Foi conferido assim, acrescentando o import de proposito.
+   *
+   * O que importa nao e de quem o quadro importa: e o que o navegador acaba
+   * baixando. Entao o teste anda o grafo inteiro a partir da entrada.
+   */
+  function transitiveImports(entry: string): Map<string, string> {
+    /** modulo -> quem o puxou primeiro, para a mensagem de falha ter o caminho. */
+    const seen = new Map<string, string>([[entry, 'a entrada']])
+    const queue = [entry]
 
-    for (const file of listFiles(join(SOURCE_ROOT, 'embed'))) {
-      for (const specifier of importsOf(readFileSync(file, 'utf8'))) {
-        if (specifier === '@/data' || specifier === '@/data/index') {
-          offenders.push(`${relative(SOURCE_ROOT, file)} importa ${specifier}`)
-        }
+    /**
+     * Resolve o especificador para um arquivo. Trata o apelido `@/` **e o
+     * caminho relativo**: ignorar `../../data` deixava o furo aberto com uma
+     * unica linha de import que o TypeScript, o Biome e o teste aceitavam — e o
+     * pacote do quadro voltava a carregar a chave de sessao.
+     */
+    const resolve = (specifier: string, fromFile: string): string | null => {
+      const base = specifier.startsWith('@/')
+        ? join(SOURCE_ROOT, specifier.slice(2))
+        : specifier.startsWith('.')
+          ? join(dirname(fromFile), specifier)
+          : null
+
+      if (base === null) return null
+
+      for (const candidate of [
+        base,
+        `${base}.ts`,
+        `${base}.tsx`,
+        join(base, 'index.ts'),
+        join(base, 'index.tsx'),
+      ]) {
+        if (existsSync(candidate) && statSync(candidate).isFile()) return candidate
+      }
+
+      return null
+    }
+
+    while (queue.length > 0) {
+      const current = queue.shift() as string
+      if (!/\.tsx?$/.test(current)) continue
+
+      for (const specifier of importsOf(readFileSync(current, 'utf8'))) {
+        const target = resolve(specifier, current)
+        if (!target || seen.has(target)) continue
+        seen.set(target, relative(SOURCE_ROOT, current))
+        queue.push(target)
       }
     }
 
+    return seen
+  }
+
+  it('nada do pacote do quadro alcanca a sessao do painel', () => {
+    const alcancados = transitiveImports(join(SOURCE_ROOT, 'embed', 'main.tsx'))
+
+    /** O que nunca pode entrar no documento que qualquer site embute. */
+    const PROIBIDOS = ['data/index.ts', 'data/sessionToken.ts', 'data/api/httpClient.ts']
+
+    const offenders = PROIBIDOS.filter((proibido) =>
+      alcancados.has(join(SOURCE_ROOT, proibido)),
+    ).map(
+      (proibido) =>
+        `${proibido} entra no pacote, puxado por ${alcancados.get(join(SOURCE_ROOT, proibido))}`,
+    )
+
     expect(offenders).toEqual([])
+  })
+
+  /** Sem isto, um erro de resolucao deixaria o teste acima verde e vazio. */
+  it('o grafo do quadro foi mesmo percorrido, e nao parou na entrada', () => {
+    const alcancados = transitiveImports(join(SOURCE_ROOT, 'embed', 'main.tsx'))
+
+    expect(alcancados.size).toBeGreaterThan(8)
+    expect(alcancados.has(join(SOURCE_ROOT, 'embed', 'EmbedApp.tsx'))).toBe(true)
+    // Prova que ele atravessa pasta: `shared/` so e alcancado via `EmbedApp`.
+    expect(alcancados.has(join(SOURCE_ROOT, 'shared', 'components', 'CopyButton.tsx'))).toBe(true)
+    expect(alcancados.has(join(SOURCE_ROOT, 'data', 'publicIndex.ts'))).toBe(true)
   })
 
   it('somente os pontos de acesso importam de data/api', () => {

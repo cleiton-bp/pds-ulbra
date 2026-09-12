@@ -43,15 +43,39 @@ export function isUsableAccent(color: string | null): color is string {
 }
 
 /**
- * O limiar e 0,45 e nao 0,5: a conta da luminancia ja pesa o verde, e no meio da
- * escala a tinta clara aguenta um pouco mais de fundo claro do que o contrario.
+ * A luminancia das duas tintas de `tokens.css`, para a conta poder ser feita
+ * aqui. Sao numeros, e nao cores: `designSystem.test.ts` proibe cor crua fora de
+ * `tokens.css`, e com razao — quem mudar `--ink-on-light` ou `--ink-on-dark`
+ * precisa reconhecer estes dois, e `appearance.test.ts` reprova se eles sairem
+ * de sincronia com o contraste que prometem.
  */
-const LIGHT_ENOUGH_FOR_DARK_INK = 0.45
+const INK_ON_LIGHT_LUMINANCE = 0.014_07
+const INK_ON_DARK_LUMINANCE = 1
+
+/** A razao de contraste da WCAG entre duas luminancias. */
+function contrast(a: number, b: number): number {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
 
 /**
- * As duas variaveis que o quadro consome. Quando o cliente nao escolheu cor, as
- * duas apontam para o acento do produto e o tema resolve sozinho.
+ * **Nao ha limiar.** Havia — um `0.45` escolhido no olho — e ele estava acima do
+ * ponto em que as duas tintas empatam (L ~= 0,209), entao toda a faixa media
+ * recebia tinta clara: um laranja de marca comum ficava em 2,3:1 quando a tinta
+ * escura daria 7,2:1. Numero escolhido no olho para uma conta que tem resposta
+ * exata e so um jeito elegante de errar.
+ *
+ * Agora as duas sao medidas e ganha a de maior contraste. O ponto de virada sai
+ * sozinho da conta, e acompanha qualquer mudanca nas tintas.
  */
+function inkFor(accentLuminance: number): string {
+  const comTintaEscura = contrast(accentLuminance, INK_ON_LIGHT_LUMINANCE)
+  const comTintaClara = contrast(accentLuminance, INK_ON_DARK_LUMINANCE)
+
+  return comTintaEscura >= comTintaClara
+    ? 'var(--widget-ink-on-light)'
+    : 'var(--widget-ink-on-dark)'
+}
+
 export function accentStyle(settings: WidgetSettingsViewModel): CSSProperties {
   if (!isUsableAccent(settings.AccentColor)) {
     return {
@@ -61,12 +85,11 @@ export function accentStyle(settings: WidgetSettingsViewModel): CSSProperties {
   }
 
   const accent = settings.AccentColor.trim()
-  const ink =
-    relativeLuminance(accent) > LIGHT_ENOUGH_FOR_DARK_INK
-      ? 'var(--widget-ink-on-light)'
-      : 'var(--widget-ink-on-dark)'
 
-  return { '--widget-accent': accent, '--widget-ink': ink } as CSSProperties
+  return {
+    '--widget-accent': accent,
+    '--widget-ink': inkFor(relativeLuminance(accent)),
+  } as CSSProperties
 }
 
 /**
