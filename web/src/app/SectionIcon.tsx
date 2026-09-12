@@ -44,6 +44,15 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'reports' && (
+        // Balao de fala: o que aparece nesta secao e alguem falando, e nao um
+        // registro que o sistema produziu.
+        <>
+          <rect x="1.4" y="2" width="9.2" height="6.6" rx="1.6" />
+          <path d="M4.1 8.6 3.5 10.6 6.1 8.6" />
+        </>
+      )}
+
       {section === 'settings' && (
         // Controles deslizantes, e nao engrenagem: a 12px a engrenagem vira borrao.
         <>

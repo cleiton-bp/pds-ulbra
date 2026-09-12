@@ -52,3 +52,38 @@ export interface CreatedReportViewModel {
 
 /** Limite da coluna `text`, declarado em `Report.MaxTextLength`. */
 export const MAX_REPORT_TEXT_LENGTH = 5000
+
+/**
+ * Um relato na lista do painel.
+ *
+ * O `Text` vem inteiro, e nao cortado: quem corta para caber na linha e a tela.
+ * Se a API cortasse, ler o resto exigiria uma rota que ainda nao existe.
+ */
+export interface ReportSummaryViewModel {
+  PublicId: string
+  /** O protocolo, o mesmo que a pessoa que relatou anotou. */
+  TrackingCode: string
+  Type: ReportType
+  Text: string
+  /** So o caminho da pagina: a API descarta query e fragmento antes de gravar. */
+  Route: string | null
+  /** Dominio informado pela pagina hospedeira. Indicio, nunca prova de origem. */
+  Origin: string | null
+  CreatedAt: string
+}
+
+/** Um par do contexto que veio junto com o relato, sem ninguem digitar. */
+export interface ReportContextViewModel {
+  /** Nome do dado, em ingles e snake_case: `user_agent`, `viewport_width`. */
+  Key: string
+  Value: string | null
+}
+
+/**
+ * Um relato aberto. O contexto so vem aqui porque e a resposta a uma pergunta que
+ * so nasce depois de ler o relato — "em que navegador isso aconteceu?".
+ */
+export interface ReportDetailViewModel extends ReportSummaryViewModel {
+  /** Em ordem de chave, decidida pela API. */
+  Contexts: ReportContextViewModel[]
+}

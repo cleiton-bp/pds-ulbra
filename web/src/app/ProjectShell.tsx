@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
-import { CONSOLE_SECTIONS, LOCKED_SECTIONS } from '@/app/navigation'
+import type { ConsoleSection } from '@/app/navigation'
+import { CONSOLE_SECTIONS, LOCKED_SECTIONS, OPERATION_SECTIONS } from '@/app/navigation'
 import { SectionIcon } from '@/app/SectionIcon'
 import { ThemeButton } from '@/app/ThemeButton'
 import { isPanelError } from '@/data'
@@ -217,46 +218,32 @@ export function ProjectShell() {
             <div className="px-2.5 pb-2 text-caption text-fg-muted">Configuração</div>
             <div className="flex flex-col gap-0.5">
               {CONSOLE_SECTIONS.map((section) => (
-                <NavLink
+                <SectionLink
                   key={section.key}
-                  to={`/projects/${publicId}/${section.path}`}
-                  onClick={() => setDrawerOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex h-[34px] items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
-                      isActive
-                        ? 'bg-nav-active font-medium text-fg'
-                        : 'text-fg hover:bg-surface-sunken',
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {/* Apagado quando nao e a secao aberta: com todos no mesmo
-                          tom, os seis glifos disputam a atencao com o que esta
-                          aberto. */}
-                      <SectionIcon
-                        section={section.key}
-                        className={cn('size-3.5', isActive ? 'text-fg' : 'text-fg-muted')}
-                      />
-                      {section.label}
-                    </>
-                  )}
-                </NavLink>
+                  section={section}
+                  publicId={publicId}
+                  onNavigate={() => setDrawerOpen(false)}
+                />
               ))}
             </div>
           </div>
 
           <div>
-            {/* O cadeado diz "bloqueado" seis vezes e nao diz "ainda". A
-                etiqueta diz uma vez, e o resto do grupo fica so apagado. */}
-            <div className="flex items-center gap-2 px-2.5 pb-2">
-              <span className="text-caption text-fg-muted">Operação</span>
-              <span className="rounded-full border border-border px-1.5 py-px text-caption text-fg-muted">
-                em breve
-              </span>
-            </div>
+            {/* A etiqueta "em breve" ficava aqui enquanto o grupo inteiro
+                estava bloqueado. Com **Relatos** no ar ela passou a desmentir a
+                primeira linha da lista, e quem diz "ainda nao" agora e a dica de
+                cada cadeado, que tambem diz quando. */}
+            <div className="px-2.5 pb-2 text-caption text-fg-muted">Operação</div>
             <div className="flex flex-col gap-0.5">
+              {OPERATION_SECTIONS.map((section) => (
+                <SectionLink
+                  key={section.key}
+                  section={section}
+                  publicId={publicId}
+                  onNavigate={() => setDrawerOpen(false)}
+                />
+              ))}
+
               {LOCKED_SECTIONS.map((section) => (
                 <Tooltip key={section.key} content={section.hint}>
                   {/* `button` e nao `div`: sem foco pelo teclado, a dica que explica
@@ -282,6 +269,45 @@ export function ProjectShell() {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Um item da lateral que leva a algum lugar. Os dois grupos usam o mesmo: a
+ * diferenca entre "Configuração" e "Operação" e de assunto, e nao de aparencia.
+ */
+function SectionLink({
+  section,
+  publicId,
+  onNavigate,
+}: {
+  section: ConsoleSection
+  publicId: string
+  onNavigate: () => void
+}) {
+  return (
+    <NavLink
+      to={`/projects/${publicId}/${section.path}`}
+      onClick={onNavigate}
+      className={({ isActive }) =>
+        cn(
+          'flex h-[34px] items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
+          isActive ? 'bg-nav-active font-medium text-fg' : 'text-fg hover:bg-surface-sunken',
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {/* Apagado quando nao e a secao aberta: com todos no mesmo tom, os
+              glifos disputam a atencao com o que esta aberto. */}
+          <SectionIcon
+            section={section.key}
+            className={cn('size-3.5', isActive ? 'text-fg' : 'text-fg-muted')}
+          />
+          {section.label}
+        </>
+      )}
+    </NavLink>
   )
 }
 

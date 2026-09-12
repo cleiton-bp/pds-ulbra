@@ -6,6 +6,7 @@ import { StartScreen } from '@/features/onboarding/StartScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { ProjectsHubScreen } from '@/features/projects/ProjectsHubScreen'
+import { ReportsScreen } from '@/features/reports/ReportsScreen'
 
 /**
  * Dois niveis: fora do projeto nao ha o que navegar, dentro dele vai haver muito.
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
           { path: 'start', element: <StartScreen /> },
           { path: 'keys', element: <ProjectKeysScreen /> },
           { path: 'settings', element: <ProjectSettingsScreen /> },
+          { path: 'reports', element: <ReportsScreen /> },
         ],
       },
     ],
