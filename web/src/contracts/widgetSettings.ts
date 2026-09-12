@@ -1,10 +1,11 @@
 /**
  * A configuracao da ferramenta de relato, por projeto.
  *
- * **Ainda nao existe do lado da API.** A tabela `project_widget_settings`, as
- * rotas e a tela que as edita sao o pds-014; aqui esta a forma acordada, e e ela
- * que o formulario ja le hoje — de `embed/settings.ts`, que carrega os padroes.
- * Quando a rota nascer, muda de onde o objeto vem, e nao o que ele e.
+ * **Esta forma atravessa o sistema inteiro**, e e o motivo de ela viver aqui: a
+ * tabela `project_widget_settings` a guarda, duas rotas do painel a leem e a
+ * gravam, uma rota publica a entrega ao quadro, e o formulario a consome. Projeto
+ * que nunca salvou nada recebe os padroes de `embed/settings.ts` na mesma forma —
+ * quem le nao distingue os dois casos, e nao deve.
  *
  * Escrito em `contracts/` de proposito: e a unica pasta em que
  * `architecture.test.ts` obriga PascalCase, e um campo que vira `camelCase` no

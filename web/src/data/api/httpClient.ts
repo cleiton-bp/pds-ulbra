@@ -8,7 +8,7 @@ import { environment } from '@/data/environment'
 import { PanelError } from '@/data/errors'
 import { clearToken, getToken, notifyUnauthorized } from '@/data/sessionToken'
 
-type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 interface RequestOptions {
   /** `false` no login: la um 401 e credencial recusada, nao sessao expirada. */
@@ -91,6 +91,14 @@ export async function apiGetPage<T>(path: string): Promise<{ items: T[]; total: 
 
 export const apiPost = <T>(path: string, body?: unknown, options?: RequestOptions) =>
   request<T>('POST', path, body, options)
+/**
+ * Substituicao inteira. Existe ao lado do `apiPatch` porque as duas coisas sao
+ * diferentes: `PATCH` manda o que mudou, `PUT` manda tudo. A configuracao da
+ * ferramenta precisa do segundo — nela, campo nulo e um valor, e num corpo
+ * parcial ele nao se distinguiria de campo ausente.
+ */
+export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', path, body)
+
 export const apiPatch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body)
 
 // A resposta de remocao vem com `Data: null`, e o envelope so carrega a mensagem.

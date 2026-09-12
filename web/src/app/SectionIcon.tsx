@@ -53,6 +53,15 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'tool' && (
+        // O canto de uma pagina com a pilula parada nele: e literalmente o que
+        // esta secao decide.
+        <>
+          <path d="M1.7 8.4V2.6a.9.9 0 0 1 .9-.9h6.8a.9.9 0 0 1 .9.9v2.2" />
+          <rect x="5.4" y="6.9" width="5" height="3.2" rx="1.6" />
+        </>
+      )}
+
       {section === 'settings' && (
         // Controles deslizantes, e nao engrenagem: a 12px a engrenagem vira borrao.
         <>

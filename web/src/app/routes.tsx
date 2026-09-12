@@ -7,6 +7,7 @@ import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { ProjectsHubScreen } from '@/features/projects/ProjectsHubScreen'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
+import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsScreen'
 
 /**
  * Dois niveis: fora do projeto nao ha o que navegar, dentro dele vai haver muito.
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
           { path: 'keys', element: <ProjectKeysScreen /> },
           { path: 'settings', element: <ProjectSettingsScreen /> },
           { path: 'reports', element: <ReportsScreen /> },
+          { path: 'tool', element: <WidgetSettingsScreen /> },
         ],
       },
     ],
