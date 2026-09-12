@@ -8,17 +8,20 @@ using Pds.Shared.Models;
 namespace Pds.WebApi.Controllers;
 
 /// <summary>
-/// A entrada do relato, vinda da ferramenta embutida no site do cliente.
+/// O relato entrando, e o relato sendo acompanhado por quem o escreveu. As duas
+/// pontas públicas do mesmo relato, e **nenhuma delas tem sessão**.
 ///
-/// **É a única área da API que funciona sem sessão.** Quem chega aqui é um
-/// visitante anônimo do site de um cliente, e a única coisa que a requisição
-/// carrega é a chave pública — que não autentica ninguém, apenas diz para qual
-/// projeto o relato vai.
+/// **As duas credenciais aqui são de naturezas opostas**, e confundi-las é o erro
+/// a evitar. Na entrada, a chave pública não autentica ninguém: ela apenas diz
+/// para qual projeto o relato vai, e está à vista no HTML do site do cliente. No
+/// acompanhamento, o token do link **é** uma credencial — ele prova que aquele
+/// relato é de quem o apresenta, é conferido em tempo constante e existe uma vez
+/// só.
 ///
 /// Por isso o `[AllowAnonymous]` está escrito, e não apenas subentendido pela
 /// ausência do `[Authorize]`: no dia em que alguém definir uma política padrão de
-/// autorização para a API inteira, esta rota precisa continuar aberta de propósito,
-/// e não por esquecimento.
+/// autorização para a API inteira, estas rotas precisam continuar abertas de
+/// propósito, e não por esquecimento.
 /// </summary>
 [AllowAnonymous]
 [Route("public/reports")]
@@ -68,6 +71,50 @@ public class PublicReportsController : BaseController
         {
             var created = await _reportService.CreateAsync(dto, cancellationToken);
             return Success(created, "Relato recebido.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Abre o acompanhamento de um relato.</summary>
+    /// <remarks>
+    /// A página pública de acompanhamento chama esta rota com o protocolo e o token
+    /// que saíram da criação do relato. **O protocolo identifica e o token abre**: o
+    /// protocolo é curto e falado de propósito, logo adivinhável, e sozinho ele não
+    /// abre nada.
+    ///
+    /// **Por que um `POST` para uma leitura.** O token é um segredo, e segredo em
+    /// query string entra no log do servidor, no histórico do navegador e no
+    /// `Referer` que sai da página — no corpo, não entra em nenhum dos três. E a
+    /// chamada não é leitura pura: ela grava o evento de visualização, que é o dado
+    /// da pesquisa sobre o relator voltar para olhar.
+    ///
+    /// **Protocolo inexistente e token errado recebem a mesma recusa 404**, com a
+    /// mesma mensagem. Responder diferente contaria a quem sonda que acertou metade
+    /// — e 404 em vez de 403 pela mesma razão de sempre aqui: confirmar que o
+    /// relato existe já é informação.
+    ///
+    /// A resposta sai com `Cache-Control: no-store`. É o relato de alguém, e ele não
+    /// fica guardado em proxy nem no disco de quem abriu.
+    /// </remarks>
+    /// <param name="dto">O protocolo e o token, os dois juntos.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, como quem o escreveu o vê.</response>
+    /// <response code="404">O link não abre nenhum relato.</response>
+    [HttpPost("tracking")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicReportViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Tracking([FromBody] OpenReportTrackingDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.OpenTrackingAsync(dto, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+
+            return Success(report);
         }
         catch (Exception exception)
         {

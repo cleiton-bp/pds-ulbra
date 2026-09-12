@@ -17,6 +17,25 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<bool> TrackingCodeExistsAsync(string trackingCode, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// O relato de um protocolo, para a consulta publica de acompanhamento.
+    ///
+    /// <para>Atravessa o filtro global pela mesma razao das outras leituras
+    /// publicas: quem chega e quem relatou, sem sessao nenhuma, e ali a conta atual
+    /// e zero — com o filtro ligado o proprio dono do relato receberia "nao
+    /// encontrado".</para>
+    ///
+    /// <para><b>Busca pelo protocolo, e a conferencia do token vem depois</b>, no
+    /// servico. E o desenho de sempre: identifica-se pelo publico e confere-se pelo
+    /// segredo. Buscar pelo hash do token resolveria numa consulta so, mas deixaria
+    /// a comparacao de segredo dentro do banco, onde ela nao e em tempo constante.</para>
+    ///
+    /// <para>Inclui o relato apagado logicamente de proposito: a linha sai da lista
+    /// do painel, mas o link continua na mao de quem relatou, e responder "este
+    /// relato nunca existiu" a quem o escreveu seria mentira.</para>
+    /// </summary>
+    Task<Report?> FindByTrackingCodeWithoutSessionAsync(string trackingCode, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Uma pagina dos relatos de um projeto, do mais novo para o mais antigo.
     ///
     /// <para>A ordem tem dois criterios de proposito. Paginacao por posicao supoe
