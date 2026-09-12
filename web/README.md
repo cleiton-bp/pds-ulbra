@@ -67,6 +67,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/start ........ console — "Comece por aqui", 3 passos
 /projects/:publicId/keys ......... console — chaves e integração
 /projects/:publicId/settings ..... console — nome, identificador, arquivar
+/projects/:publicId/reports ...... console — os relatos que chegaram do site
 ```
 
 Dois níveis, como um console de nuvem. **Não existe rota `/login`**: quem abre
@@ -86,7 +87,7 @@ src/
 │   └── api/            fetch, envelope, token, 401
 ├── embed/        a ferramenta de relato: o que roda no site do cliente
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
-├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding
+├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding, reports
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
 ```
@@ -139,8 +140,16 @@ pelo caminho em que ela falha: remover qualquer guarda reprova três testes.
 
 **A configuração vive em `contracts/widgetSettings.ts`** — dez campos que decidem
 textos, cores, tema, posição e quais tipos aparecem. Hoje os valores vêm dos
-padrões em `embed/settings.ts`; a tabela, as rotas e a tela que os edita são o
-pds-014, e só muda de onde o objeto vem.
+padrões em `embed/settings.ts`; a tabela, as rotas e a tela que os edita ainda
+não existem, e quando existirem só muda de onde o objeto vem.
+
+**O quadro manda três dados que ninguém digitou** — navegador, idioma e o tamanho
+da janela da página ([`src/embed/reportContext.ts`](src/embed/reportContext.ts)).
+Os dois primeiros ele lê de si mesmo; o terceiro **não dá para medir de dentro**,
+porque ali `innerWidth` é a largura do próprio quadro — ele chega no `init`, e é
+conferido de novo do lado de cá como tudo que atravessa o `postMessage`. Nada
+disso identifica alguém: é o que responde "só quebra no Safari" e "só quebra em
+tela estreita" sem precisar perguntar de volta.
 
 A cor do gatilho é do cliente, então **a tinta por cima dela é derivada da
 luminância**, nunca escolhida: quem escolher amarelo não deveria descobrir que o
@@ -213,15 +222,15 @@ A **etapa 1 — Fundação** está inteira: entrar, criar projeto, listar, busca
 renomear, arquivar, ver as chaves, copiar o script de integração e regenerar a
 secreta. Mais a lista de endereços autorizados (pds-011).
 
-A **etapa 2 — O relato entra** está no meio. Funciona: colar o script numa página
-qualquer, abrir o quadro, escrever e o relato chegar na API com protocolo, rota e
-origem.
+A **etapa 2 — O relato entra** fechou o ciclo (pds-014): colar o script numa
+página qualquer, escrever, o relato chegar na API com protocolo, rota e origem, e
+o time lê na tela **Relatos** — com o contexto de cada um e a visualização
+registrada como evento.
 
-Falta o outro lado dela, e a falta é visível na tela:
+Falta o caminho de volta, e a falta é visível na tela:
 
 | o que falta | onde dói |
 |---|---|
-| a lista de relatos no painel | o relato entra e não há onde vê-lo |
 | a página pública de acompanhamento | quem relata recebe o protocolo e não tem o que fazer com ele |
 | a tela que configura a ferramenta | os dez campos existem, mas só um desenvolvedor os edita |
 | a conferência dos endereços | a lista de `pds-011` continua sem ninguém que a leia |
@@ -249,7 +258,9 @@ inglês, e esse atributo aparece no HTML de todo cliente.
 
 **O progresso de "Comece por aqui" fica no navegador.** Não é dado de domínio: é
 a lembrança de que este navegador já copiou a chave. O sinal de verdade — o
-primeiro relato ter chegado — só existe a partir da etapa 2.
+primeiro relato ter chegado — passou a existir com a tela **Relatos**, e o passo
+continua sem lê-lo: ler significa uma chamada a mais em toda visita à instalação,
+e a troca é decisão de produto, não conserto de texto.
 
 **A marca é "PDS", e não "Rastro".** O nome é provisório até sair o domínio, e
 vive em um arquivo só (`shared/components/Brand.tsx`).
