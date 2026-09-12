@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { projectKeyService } from '@/data'
+import { TestReportDialog } from '@/features/onboarding/TestReportDialog'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { LockIcon } from '@/shared/components/LockIcon'
@@ -14,8 +15,9 @@ import { buildSnippet } from '@/shared/lib/loader'
  * sem relato nenhum, metrica seriam seis caixas zeradas — e metrica vazia parece
  * sistema quebrado, nao sistema novo.
  *
- * O terceiro passo aparece bloqueado com o motivo escrito, em vez de escondido:
- * quem integrou quer saber como testar.
+ * O terceiro passo abre a **propria ferramenta**, e nao uma simulacao dela: um
+ * teste que passa com o carregador quebrado nao testa a instalacao, que e
+ * exatamente o que ele existe para conferir.
  *
  * **Sem marcar passo como feito.** Houve barra de progresso, contagem e caixa de
  * marcar; o visto verde competia com o cadeado por atencao e a lista virava
@@ -89,12 +91,16 @@ export function StartScreen() {
             <WidgetPreview />
           </Step>
 
-          <Step locked title="Fazer um relato de teste">
+          <Step number={3} title="Fazer um relato de teste">
             <p className="mb-3.5 text-detail text-fg-muted leading-relaxed">
-              O recebimento de relatos chega na próxima etapa, e é este botão que vai disparar um
-              relato de mentira para você conferir a instalação de ponta a ponta.
+              Abre a mesma ferramenta que o seu site abre, com esta chave. O relato entra de verdade
+              — a lista para vê-lo chegar é a próxima etapa.
             </p>
-            <Button disabled>Abrir relato de teste</Button>
+            {publicKey ? (
+              <TestReportDialog publicKey={publicKey} />
+            ) : (
+              <Button disabled>Abrir relato de teste</Button>
+            )}
           </Step>
         </div>
       )}

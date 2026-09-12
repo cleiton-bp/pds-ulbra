@@ -53,3 +53,18 @@ export function configFromInit(message: InitMessage): EmbedConfig {
     origin: message.origin?.trim() || null,
   }
 }
+
+/**
+ * O quadro espera o `init` da pagina, ou ja desenha com o que esta na barra?
+ *
+ * **A chave na barra vence.** Quem embute o quadro com a chave na URL ja disse
+ * tudo que ele precisa saber — e o painel faz exatamente isso no relato de
+ * teste, sem carregador nenhum no meio. Sem esta regra o quadro espera para
+ * sempre um `init` que ninguem manda, e o que aparece e um retangulo vazio.
+ *
+ * Nao ha ambiguidade entre os dois caminhos: o carregador **nao** poe a chave no
+ * `src`, justamente para ela nao viajar em URL.
+ */
+export function shouldWaitForHost(search: string, embedded: boolean): boolean {
+  return embedded && configFromLocation(search).key === ''
+}

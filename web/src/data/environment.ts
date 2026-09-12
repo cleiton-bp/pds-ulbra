@@ -28,4 +28,14 @@ export const environment = {
    * cliente — e aquela linha e a coisa mais cara de mudar depois.
    */
   loaderUrl,
+
+  /**
+   * O documento do quadro, derivado da origem do carregador — os dois saem
+   * sempre do mesmo lugar, e derivar em vez de declarar impede que eles apontem
+   * para hosts diferentes no dia em que um mudar.
+   *
+   * O painel usa isto no relato de teste: e a mesma pagina que o site do cliente
+   * abre.
+   */
+  embedUrl: `${new URL(loaderUrl).origin}/embed.html`,
 } as const

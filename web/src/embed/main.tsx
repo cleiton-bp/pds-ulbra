@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { configFromInit, configFromLocation } from '@/embed/config'
+import { configFromInit, configFromLocation, shouldWaitForHost } from '@/embed/config'
 import { EmbedApp } from '@/embed/EmbedApp'
 import { connectToHost, isEmbedded } from '@/embed/hostBridge'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
@@ -21,8 +21,9 @@ const container = document.getElementById('pds-embed-root')
 
 if (container) {
   const root = createRoot(container)
-
-  if (isEmbedded()) {
+  // A regra e `shouldWaitForHost`, e ela mora em `config.ts` para poder ser
+  // testada: este arquivo roda no `import` e nao da para exercitar.
+  if (shouldWaitForHost(window.location.search, isEmbedded())) {
     const host = connectToHost((message) => {
       root.render(
         <EmbedApp
@@ -33,8 +34,8 @@ if (container) {
       )
     })
   } else {
-    // `embed.html` aberto na mao: nao ha pagina para conversar, e a barra de
-    // endereco diz tudo que o quadro precisa saber.
+    // Chave na barra, ou nem pagina hospedeira: os dois casos desenham o
+    // formulario direto, sem gatilho e sem redimensionar nada.
     root.render(
       <EmbedApp
         settings={DEFAULT_WIDGET_SETTINGS}
