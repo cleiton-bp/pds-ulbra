@@ -66,6 +66,11 @@ const RULES: Rule[] = [
     why: 'o quadro roda dentro do site de um cliente: casca, telas e cliente HTTP nao entram la',
   },
   {
+    folder: 'tracking',
+    forbidden: ['@/data/api', '@/app', '@/features'],
+    why: 'a pagina publica de acompanhamento e aberta por um estranho: casca, telas e cliente HTTP nao entram la',
+  },
+  {
     folder: 'loader',
     forbidden: ['@/data', '@/app', '@/features', '@/shared', '@/contracts'],
     why: 'o carregador roda na pagina do cliente, fora do nosso documento: nada do painel pode alcancar ele',
@@ -306,32 +311,57 @@ describe('regra de dependencia entre as pastas', () => {
     return seen
   }
 
-  it('nada do pacote do quadro alcanca a sessao do painel', () => {
-    const alcancados = transitiveImports(join(SOURCE_ROOT, 'embed', 'main.tsx'))
+  /**
+   * **Os dois documentos publicos, e nao so o quadro.** Enquanto havia um, a
+   * entrada estava escrita aqui direto; a pds-017 acrescentou `tracking.html`, e
+   * por uma revisao ele passou a ter apenas a regra de primeiro salto — a mesma
+   * que o comentario logo acima demonstra ser insuficiente. A lista existe para a
+   * pergunta "quantos documentos abre um estranho?" ter uma resposta so.
+   *
+   * `index.html` fica de fora de proposito: e o painel, e la a sessao **deve**
+   * entrar.
+   */
+  const DOCUMENTOS_PUBLICOS = [
+    {
+      documento: 'embed.html',
+      entrada: join(SOURCE_ROOT, 'embed', 'main.tsx'),
+      marco: join(SOURCE_ROOT, 'embed', 'EmbedApp.tsx'),
+    },
+    {
+      documento: 'tracking.html',
+      entrada: join(SOURCE_ROOT, 'tracking', 'main.tsx'),
+      marco: join(SOURCE_ROOT, 'tracking', 'TrackingPage.tsx'),
+    },
+  ]
 
-    /** O que nunca pode entrar no documento que qualquer site embute. */
-    const PROIBIDOS = ['data/index.ts', 'data/sessionToken.ts', 'data/api/httpClient.ts']
+  /** O que nunca pode entrar num documento aberto por quem nao tem conta aqui. */
+  const PROIBIDOS = ['data/index.ts', 'data/sessionToken.ts', 'data/api/httpClient.ts']
 
-    const offenders = PROIBIDOS.filter((proibido) =>
-      alcancados.has(join(SOURCE_ROOT, proibido)),
-    ).map(
-      (proibido) =>
-        `${proibido} entra no pacote, puxado por ${alcancados.get(join(SOURCE_ROOT, proibido))}`,
-    )
+  for (const { documento, entrada, marco } of DOCUMENTOS_PUBLICOS) {
+    it(`nada do pacote de ${documento} alcanca a sessao do painel`, () => {
+      const alcancados = transitiveImports(entrada)
 
-    expect(offenders).toEqual([])
-  })
+      const offenders = PROIBIDOS.filter((proibido) =>
+        alcancados.has(join(SOURCE_ROOT, proibido)),
+      ).map(
+        (proibido) =>
+          `${proibido} entra no pacote de ${documento}, puxado por ${alcancados.get(join(SOURCE_ROOT, proibido))}`,
+      )
 
-  /** Sem isto, um erro de resolucao deixaria o teste acima verde e vazio. */
-  it('o grafo do quadro foi mesmo percorrido, e nao parou na entrada', () => {
-    const alcancados = transitiveImports(join(SOURCE_ROOT, 'embed', 'main.tsx'))
+      expect(offenders).toEqual([])
+    })
 
-    expect(alcancados.size).toBeGreaterThan(8)
-    expect(alcancados.has(join(SOURCE_ROOT, 'embed', 'EmbedApp.tsx'))).toBe(true)
-    // Prova que ele atravessa pasta: `shared/` so e alcancado via `EmbedApp`.
-    expect(alcancados.has(join(SOURCE_ROOT, 'shared', 'components', 'CopyButton.tsx'))).toBe(true)
-    expect(alcancados.has(join(SOURCE_ROOT, 'data', 'publicIndex.ts'))).toBe(true)
-  })
+    /** Sem isto, um erro de resolucao deixaria o teste acima verde e vazio. */
+    it(`o grafo de ${documento} foi mesmo percorrido, e nao parou na entrada`, () => {
+      const alcancados = transitiveImports(entrada)
+
+      expect(alcancados.size).toBeGreaterThan(8)
+      expect(alcancados.has(marco)).toBe(true)
+      // Prova que ele atravessa pasta: `shared/` so e alcancado pela tela.
+      expect(alcancados.has(join(SOURCE_ROOT, 'shared', 'components', 'CopyButton.tsx'))).toBe(true)
+      expect(alcancados.has(join(SOURCE_ROOT, 'data', 'publicIndex.ts'))).toBe(true)
+    })
+  }
 
   it('somente os pontos de acesso importam de data/api', () => {
     const injectionPoints = ACCESS_POINTS.map((nome) => join(SOURCE_ROOT, nome))

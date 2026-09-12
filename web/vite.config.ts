@@ -17,12 +17,17 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // Dois documentos, um projeto so: o painel e o quadro do relato. Eles
-      // dividem React e o CSS dos tokens — o que o quadro NAO carrega e o
-      // roteador, a sessao e as telas, porque nada em `src/embed/` os importa.
+      // Tres documentos, um projeto so: o painel, o quadro do relato e a pagina
+      // publica de acompanhamento. Eles dividem React e o CSS dos tokens — o que
+      // os dois publicos NAO carregam e o roteador, a sessao e as telas, porque
+      // nada em `src/embed/` nem em `src/tracking/` os importa.
+      //
+      // Nao e economia de bytes: e o que mantem `pds.web.session` fora de
+      // documento que um estranho abre. O teste de arquitetura cobra os dois.
       input: {
         index: fileURLToPath(new URL('./index.html', import.meta.url)),
         embed: fileURLToPath(new URL('./embed.html', import.meta.url)),
+        tracking: fileURLToPath(new URL('./tracking.html', import.meta.url)),
       },
     },
   },
