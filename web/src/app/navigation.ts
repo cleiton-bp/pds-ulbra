@@ -11,7 +11,7 @@
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
   /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
-  key: 'start' | 'keys' | 'settings' | 'reports' | 'tool'
+  key: 'start' | 'keys' | 'states' | 'settings' | 'reports' | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
@@ -29,6 +29,7 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   { key: 'start', label: 'Instalação', path: 'start' },
   { key: 'keys', label: 'Chaves', path: 'keys' },
   { key: 'tool', label: 'Ferramenta', path: 'tool' },
+  { key: 'states', label: 'Estados', path: 'states' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 

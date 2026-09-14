@@ -3,12 +3,14 @@ import { apiProjectKeyService } from '@/data/api/apiProjectKeyService'
 import { apiProjectOriginService } from '@/data/api/apiProjectOriginService'
 import { apiProjectReportService } from '@/data/api/apiProjectReportService'
 import { apiProjectService } from '@/data/api/apiProjectService'
+import { apiProjectStateService } from '@/data/api/apiProjectStateService'
 import { apiProjectWidgetSettingsService } from '@/data/api/apiProjectWidgetSettingsService'
 import type { AuthService } from '@/data/authService'
 import type { ProjectKeyService } from '@/data/projectKeyService'
 import type { ProjectOriginService } from '@/data/projectOriginService'
 import type { ProjectReportService } from '@/data/projectReportService'
 import type { ProjectService } from '@/data/projectService'
+import type { ProjectStateService } from '@/data/projectStateService'
 import type { ProjectWidgetSettingsService } from '@/data/projectWidgetSettingsService'
 
 /**
@@ -21,6 +23,7 @@ export const projectService: ProjectService = apiProjectService
 export const projectKeyService: ProjectKeyService = apiProjectKeyService
 export const projectOriginService: ProjectOriginService = apiProjectOriginService
 export const projectReportService: ProjectReportService = apiProjectReportService
+export const projectStateService: ProjectStateService = apiProjectStateService
 export const projectWidgetSettingsService: ProjectWidgetSettingsService =
   apiProjectWidgetSettingsService
 
@@ -31,5 +34,6 @@ export type { ProjectKeyService } from '@/data/projectKeyService'
 export type { ProjectOriginService } from '@/data/projectOriginService'
 export type { ProjectReportService, ReportPage } from '@/data/projectReportService'
 export type { ProjectService } from '@/data/projectService'
+export type { ProjectStateService } from '@/data/projectStateService'
 export type { ProjectWidgetSettingsService } from '@/data/projectWidgetSettingsService'
 export { clearToken, getToken, UNAUTHORIZED_EVENT } from '@/data/sessionToken'

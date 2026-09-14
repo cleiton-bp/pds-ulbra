@@ -62,6 +62,15 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'states' && (
+        // Tres colunas lado a lado: e literalmente a fila que esta secao desenha.
+        <>
+          <rect x="1.4" y="2.2" width="2.6" height="7.6" rx="0.9" />
+          <rect x="4.7" y="2.2" width="2.6" height="7.6" rx="0.9" />
+          <rect x="8" y="2.2" width="2.6" height="7.6" rx="0.9" />
+        </>
+      )}
+
       {section === 'settings' && (
         // Controles deslizantes, e nao engrenagem: a 12px a engrenagem vira borrao.
         <>
