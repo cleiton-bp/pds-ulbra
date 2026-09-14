@@ -20,9 +20,11 @@ export type {
 export { MAX_ORIGIN_DOMAIN_LENGTH } from '@/contracts/projectOrigin'
 export type {
   CreateProjectStateRequest,
+  ProjectInitialStateViewModel,
   ProjectStateViewModel,
   RenameProjectStateRequest,
   ReorderProjectStatesRequest,
+  SetInitialStateRequest,
 } from '@/contracts/projectState'
 export { MAX_STATE_NAME_LENGTH } from '@/contracts/projectState'
 export type {

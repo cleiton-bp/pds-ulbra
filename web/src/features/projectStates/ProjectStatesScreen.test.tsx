@@ -3,7 +3,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProjectStateViewModel, ProjectViewModel } from '@/contracts'
+import type {
+  ProjectInitialStateViewModel,
+  ProjectStateViewModel,
+  ProjectViewModel,
+} from '@/contracts'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
 
 /**
@@ -36,6 +40,8 @@ const dublê = vi.hoisted(() => ({
   reordenar: vi.fn(),
   aposentar: vi.fn(),
   reativar: vi.fn(),
+  listarEntradas: vi.fn<() => Promise<ProjectInitialStateViewModel[]>>(),
+  salvarEntrada: vi.fn(),
 }))
 
 vi.mock('@/data', async (importOriginal) => {
@@ -50,9 +56,18 @@ vi.mock('@/data', async (importOriginal) => {
       reorderProjectStates: dublê.reordenar,
       deactivateProjectState: dublê.aposentar,
       activateProjectState: dublê.reativar,
+      listInitialStates: dublê.listarEntradas,
+      setInitialState: dublê.salvarEntrada,
     },
   }
 })
+
+function entrada(
+  reportType: ProjectInitialStateViewModel['ReportType'],
+  statePublicId: string | null = null,
+): ProjectInitialStateViewModel {
+  return { ReportType: reportType, StatePublicId: statePublicId }
+}
 
 function estado(
   publicId: string,
@@ -101,6 +116,10 @@ describe('ProjectStatesScreen', () => {
 
   beforeEach(() => {
     for (const mock of Object.values(dublê)) mock.mockReset()
+    // Os testes da fila nao falam da secao de entrada, mas a tela busca as duas
+    // coisas: sem esta resposta o componente cai no caminho de falha, e os testes
+    // passariam olhando uma tela meio quebrada.
+    dublê.listarEntradas.mockResolvedValue([])
   })
 
   it('manda a fila inteira ao reordenar, com o aposentado dentro', async () => {
@@ -172,5 +191,82 @@ describe('ProjectStatesScreen', () => {
     // antes de procurar, entao ele acharia o nome nao normalizado do mesmo jeito
     // — e o teste passaria com a tela mostrando o texto digitado.
     await waitFor(() => expect(nomesNaTela()).toEqual(['Em análise']))
+  })
+
+  it('a opção padrão apaga a escolha em vez de gravar uma vazia', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'Análise', 0), estado('s-2', 'Pronto', 1)])
+    dublê.listarEntradas.mockResolvedValue([
+      entrada('Bug', 's-2'),
+      entrada('Improvement'),
+      entrada('Question'),
+    ])
+    dublê.salvarEntrada.mockResolvedValue(entrada('Bug'))
+
+    montar()
+
+    const seletor = await screen.findByRole('combobox', {
+      name: 'Onde entra um relato do tipo Defeito',
+    })
+    expect((seletor as HTMLSelectElement).value).toBe('s-2')
+
+    fireEvent.change(seletor, { target: { value: '' } })
+
+    // Nulo, e nao string vazia: e o que apaga a linha no banco e devolve o tipo
+    // ao padrão. Mandar '' gravaria uma escolha que aponta para lugar nenhum.
+    await waitFor(() =>
+      expect(dublê.salvarEntrada).toHaveBeenCalledWith('p-1', {
+        ReportType: 'Bug',
+        StatePublicId: null,
+      }),
+    )
+  })
+
+  it('não oferece estado aposentado como entrada, a não ser o já escolhido', async () => {
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'Análise', 0),
+      estado('s-2', 'Parado', 1, false),
+      estado('s-3', 'Pronto', 2),
+    ])
+    dublê.listarEntradas.mockResolvedValue([
+      entrada('Bug'),
+      entrada('Improvement'),
+      entrada('Question'),
+    ])
+
+    montar()
+
+    const seletor = await screen.findByRole('combobox', {
+      name: 'Onde entra um relato do tipo Defeito',
+    })
+    const opcoes = Array.from(seletor.querySelectorAll('option')).map((o) => o.textContent)
+
+    // "Parado" está aposentado: mandar relato novo para ele desfaria pela porta
+    // dos fundos o que aposentar decidiu.
+    expect(opcoes).toEqual(['Padrão — Análise', 'Análise', 'Pronto'])
+  })
+
+  it('o padrão mostra a primeira coluna ativa, e não a primeira da lista', async () => {
+    // "Análise" está aposentada: quem não escolheu cai em "Corrigindo", e é esse
+    // nome que precisa aparecer. Dizer "primeira coluna da fila" seria uma frase
+    // que vira mentira no dia em que alguém aposenta a primeira.
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'Análise', 0, false),
+      estado('s-2', 'Corrigindo', 1),
+      estado('s-3', 'Pronto', 2),
+    ])
+    dublê.listarEntradas.mockResolvedValue([
+      entrada('Bug'),
+      entrada('Improvement'),
+      entrada('Question'),
+    ])
+
+    montar()
+
+    const seletor = await screen.findByRole('combobox', {
+      name: 'Onde entra um relato do tipo Defeito',
+    })
+    const primeira = seletor.querySelector('option')
+
+    expect(primeira?.textContent).toBe('Padrão — Corrigindo')
   })
 })
