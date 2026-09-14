@@ -85,6 +85,8 @@ public class ReportService : IReportService
 
         var (token, tokenHash) = AccessToken.Generate();
 
+        var landingStateId = await ResolveLandingStateAsync(project.Id, dto.Type.Value, cancellationToken);
+
         var report = new Report
         {
             AccountId = project.AccountId,
@@ -95,6 +97,7 @@ public class ReportService : IReportService
             Text = text,
             Route = SanitizeRoute(dto.Route),
             Origin = Trim(dto.Origin, 260),
+            ProjectStateId = landingStateId,
             Contexts = BuildContexts(dto.Context),
         };
 
@@ -198,6 +201,37 @@ public class ReportService : IReportService
     /// recusa, com a mesma mensagem: responder "esta chave existe mas foi revogada"
     /// contaria a quem tenta que ele acertou metade.</para>
     /// </summary>
+    /// <summary>
+    /// Em que ponto da fila o relato entra.
+    ///
+    /// <para>Primeiro a escolha do cliente para aquele tipo; sem escolha, o
+    /// primeiro estado ativo da fila. <b>Sem estado nenhum devolve nulo</b>, e o
+    /// relato entra sem lugar — recusa-lo seria perder o que veio de fora por uma
+    /// configuracao que o cliente nao fez, e quem escreveu nao tem nada a ver com
+    /// isso.</para>
+    ///
+    /// <para>As duas consultas desligam o filtro global: aqui nao ha sessao, e a
+    /// conta atual e zero. Sem isso a escolha do cliente voltaria vazia e todo
+    /// relato cairia no padrao, sem erro em lugar nenhum.</para>
+    ///
+    /// <para>O estado escolhido nao precisa ser conferido de novo: aposentar um
+    /// estado que e entrada de algum tipo e recusado, entao ele nao tem como estar
+    /// aposentado aqui.</para>
+    /// </summary>
+    private async Task<long?> ResolveLandingStateAsync(long projectId, ReportTypeEnum reportType, CancellationToken cancellationToken)
+    {
+        var chosen = await _unitOfWork.ProjectInitialStates
+            .FindByTypeWithoutSessionAsync(projectId, reportType, cancellationToken);
+
+        if (chosen is not null)
+            return chosen.ProjectStateId;
+
+        var first = await _unitOfWork.ProjectStates
+            .FirstActiveWithoutSessionAsync(projectId, cancellationToken);
+
+        return first?.Id;
+    }
+
     private async Task<Project> RequireProjectAsync(string? key, CancellationToken cancellationToken)
     {
         var value = (key ?? string.Empty).Trim();
