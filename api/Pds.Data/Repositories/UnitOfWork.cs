@@ -37,6 +37,9 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     public IProjectWidgetSettingsRepository ProjectWidgetSettings
         => _projectWidgetSettings ??= new ProjectWidgetSettingsRepository(_context);
 
+    private IProjectStateRepository? _projectStates;
+    public IProjectStateRepository ProjectStates => _projectStates ??= new ProjectStateRepository(_context);
+
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
 
