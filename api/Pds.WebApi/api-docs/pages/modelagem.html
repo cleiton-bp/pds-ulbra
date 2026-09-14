@@ -1,5 +1,5 @@
 <h2>Modelagem</h2>
-<p class="lead">Dez tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Onze tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
@@ -8,6 +8,8 @@
     │               ├───1:N──  <b>project_origins</b>
     │               │
     │               ├───1:N──  <b>project_states</b>
+    │               │
+    │               ├───1:N──  <b>project_initial_states</b>
     │               │
     │               └───1:1──  <b>project_widget_settings</b>
     │
@@ -308,10 +310,46 @@ ninguém mais enxerga.</p>
   tem é escolha de quem trabalha.</p>
 </div>
 
+<h2>project_initial_states</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto a que esta escolha pertence.</td></tr>
+  <tr><td><code>report_type</code></td><td><code>bug</code> | <code>improvement</code> | <code>question</code>. Único por projeto entre os não apagados.</td></tr>
+  <tr><td><code>project_state_id</code></td><td>Onde um relato daquele tipo cai. Do mesmo projeto, e ativo.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A linha só nasce quando o cliente escolhe</strong>
+  <p>Projeto sem linha nenhuma aqui não é projeto sem configuração: é projeto usando o padrão,
+  que é cair no primeiro estado ativo da fila. Mesmo desenho de
+  <code>project_widget_settings</code>, e pelo mesmo motivo — assim o caminho "o cliente não
+  configurou" é o caminho comum, exercitado por todo projeto novo, em vez de um canto que
+  apodrece esperando o dia em que alguém o pisa.</p>
+  <p>Escolher "primeira coluna da fila" na tela <strong>apaga</strong> a linha em vez de gravar
+  uma escolha vazia. Sem isso, quem configurou uma vez nunca mais voltaria ao padrão.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que tabela, e não três colunas em <code>projects</code></strong>
+  <p>O time que quer tudo no mesmo lugar aponta os três tipos para o mesmo estado; o que separa
+  defeito de melhoria aponta cada um para o seu. Como coluna, um tipo novo pediria migração na
+  tabela central; como linha, é um registro a mais.</p>
+</div>
+
+<div class="note warn">
+  <strong>Aposentar a porta de entrada é recusado</strong>
+  <p>Enquanto um tipo aponta para o estado, aposentá-lo devolve <strong>409</strong>: o próximo
+  relato daquele tipo cairia num estado aposentado, que é justamente o que aposentar existe para
+  impedir. A chave estrangeira é <code>Restrict</code> — a regra mora no serviço, e o banco é a
+  rede embaixo dela.</p>
+</div>
+
 <h2>reports</h2>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_state_id</code></td><td>Onde o relato está na fila. <b>Anulável</b>, e vai continuar: projeto sem estado nenhum não tem onde pô-lo, e recusar o relato por isso seria perder o que veio de fora por uma configuração que o cliente não fez.</td></tr>
   <tr><td><code>account_id</code></td><td>Conta dona. Repetido de propósito — ver a nota abaixo.</td></tr>
   <tr><td><code>project_id</code></td><td>Projeto, resolvido pela chave pública da requisição.</td></tr>
   <tr><td><code>tracking_code</code></td><td>O protocolo que a pessoa lê. Único no sistema inteiro.</td></tr>

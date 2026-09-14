@@ -266,15 +266,18 @@ do link — a parte que o navegador nunca envia a servidor nenhum.
 A **etapa 3 — O time trabalha o relato** começou pela peça que sustenta o resto
 (pds-018): a tela **Estados**, onde o cliente cria a própria fila de trabalho com
 os nomes que a equipe usa, e reordena, renomeia e aposenta cada um. Estado não se
-apaga — não há botão de remover em lugar nenhum —, porque relato antigo vai
-apontar para ele e o histórico precisa continuar legível. **O relato ainda não
-entra nessa fila**: nenhum aponta para um estado hoje, e não existe quadro nem
-mudança de estado.
+apaga — não há botão de remover em lugar nenhum —, porque relato antigo aponta
+para ele e o histórico precisa continuar legível.
+
+**E o relato entra nessa fila** (pds-019): projeto novo nasce com uma área de
+análise, e a mesma tela escolhe, por tipo, onde cada relato cai. A opção "primeira
+coluna da fila" **apaga** a escolha em vez de gravar uma vazia — é o que mantém
+"não configurei" como um estado possível do projeto.
 
 | o que falta | onde dói |
 |---|---|
-| o relato dentro da fila de trabalho | os estados existem e nada cai neles; sem isso, a tela **Estados** é configuração que ninguém exerce |
-| andamento na página de acompanhamento | ela existe e não tem o que mostrar: falta o relato ter estado, e falta traduzi-lo para quem está de fora |
+| o time mover o relato de estado | ele entra na fila e fica onde entrou; sem o quadro, a fila é uma foto e não um fluxo |
+| andamento na página de acompanhamento | ela existe e não tem o que mostrar: o relato já tem estado, falta traduzi-lo para quem está de fora |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança, e a única com limitador é a de login |
 
 Fora do corte, de propósito: plano, etapas públicas, anexo, e o quadro de cards

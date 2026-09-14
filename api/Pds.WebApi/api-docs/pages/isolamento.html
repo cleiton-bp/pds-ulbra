@@ -35,8 +35,9 @@ requisição. Toda leitura de projeto já nasce restrita, venha de onde vier.</p
 existe fora de um projeto. O preço é o filtro passar pela navegação; o ganho é não ter a
 mesma informação em duas tabelas podendo divergir.</p>
 
-<p><code>project_origins</code>, <code>project_states</code> e
-<code>project_widget_settings</code> seguem exatamente o mesmo desenho, pelo mesmo motivo, e
+<p><code>project_origins</code>, <code>project_states</code>,
+<code>project_initial_states</code> e <code>project_widget_settings</code> seguem exatamente o
+mesmo desenho, pelo mesmo motivo, e
 por isso cada uma tem um filtro próprio idêntico. Vale reparar no detalhe que engana: o filtro escrito no
 <code>DataContext</code> <strong>substitui</strong> o de exclusão lógica herdado, não soma —
 quem esquecer de repetir <code>DeletedAt == null</code> ali perde o apagado sem nenhum erro
@@ -54,12 +55,17 @@ em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o 
 tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
 <code>report_contexts</code> volta ao padrão e chega pelo relato.</p>
 
-<h2>As cinco consultas que atravessam o filtro</h2>
+<h2>As sete consultas que atravessam o filtro</h2>
 
-<p>São exatamente cinco em todo o sistema, todas propositais, e <strong>quatro delas têm a
+<p>São exatamente sete em todo o sistema, todas propositais, e <strong>seis delas têm a
 mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
 <code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
-próprio dono. Todas as cinco moram em repositório, uma por método, e nenhuma em serviço.</p>
+próprio dono. Todas as sete moram em repositório, uma por método, e nenhuma em serviço.</p>
+
+<p>As duas mais novas decidem <strong>onde o relato entra na fila</strong>: a escolha do
+cliente para aquele tipo, e o primeiro estado ativo como padrão. Se elas respeitassem o filtro,
+a consulta voltaria vazia e todo relato cairia no padrão — a configuração do cliente
+simplesmente não valeria, e sem erro em lugar nenhum.</p>
 
 <p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
 momento a conta ainda não é conhecida, e é justamente a chave pública que vai revelá-la. Com o
