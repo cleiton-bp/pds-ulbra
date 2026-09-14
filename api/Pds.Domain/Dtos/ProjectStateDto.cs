@@ -1,3 +1,5 @@
+using Pds.Domain.Enums;
+
 namespace Pds.Domain.Dtos;
 
 /// <summary>
@@ -39,4 +41,21 @@ public class ReorderProjectStatesDto
     /// que ficou de fora, e a ordem dele viraria sorteio.</para>
     /// </summary>
     public IReadOnlyList<Guid>? Order { get; set; }
+}
+
+/// <summary>
+/// Onde um tipo de relato passa a cair.
+/// </summary>
+public class SetInitialStateDto
+{
+    /// <summary>Bug, Improvement ou Question.</summary>
+    public ReportTypeEnum? ReportType { get; set; }
+
+    /// <summary>
+    /// O estado de destino, ou <b>nulo para voltar ao padrao</b> — e o padrao e o
+    /// primeiro estado ativo da fila. Nulo apaga a escolha em vez de gravar uma:
+    /// assim "sem escolha" continua sendo um estado possivel, e nao algo que so
+    /// existe em projeto novo.
+    /// </summary>
+    public Guid? StatePublicId { get; set; }
 }

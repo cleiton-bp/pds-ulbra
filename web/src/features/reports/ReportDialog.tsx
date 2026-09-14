@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReportContextViewModel, ReportSummaryViewModel } from '@/contracts'
 import { projectReportService } from '@/data'
-import { reportTypeLabel } from '@/features/reports/reportTypeLabel'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { Modal } from '@/shared/components/Modal'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { formatDateTime } from '@/shared/lib/datetime'
+import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /**
  * Um relato aberto.
@@ -61,7 +61,7 @@ export function ReportDialog({
     <Modal
       open={report !== null}
       onOpenChange={onOpenChange}
-      title={report ? reportTypeLabel(report.Type) : 'Relato'}
+      title={report ? teamTypeLabel(report.Type) : 'Relato'}
       width="w-[min(38rem,calc(100vw-2rem))]"
       footer={
         <Button variant="quiet" onClick={() => onOpenChange(false)}>

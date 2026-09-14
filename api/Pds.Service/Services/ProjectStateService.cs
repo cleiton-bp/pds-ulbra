@@ -1,5 +1,6 @@
 using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
+using Pds.Domain.Enums;
 using Pds.Domain.Exceptions;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
@@ -131,6 +132,16 @@ public class ProjectStateService : IProjectStateService
         // Recusar transformaria dois cliques seguidos numa mensagem vermelha.
         if (state.IsActive)
         {
+            // Mas aposentar a porta de entrada de um tipo, sim: o relato seguinte
+            // daquele tipo cairia num estado aposentado, que e exatamente o que
+            // aposentar existe para impedir. A saida e escolher outro destino
+            // antes, e a mensagem diz isso em vez de so recusar.
+            if (await _unitOfWork.ProjectInitialStates.AnyUsingStateAsync(state.Id, cancellationToken))
+            {
+                throw new ConflictException(
+                    "Este estado e a entrada de algum tipo de relato. Escolha outro destino antes de aposenta-lo.");
+            }
+
             state.DeactivatedAt = DateTime.UtcNow;
             _unitOfWork.ProjectStates.Update(state);
             await _unitOfWork.CommitAsync(cancellationToken);
@@ -153,6 +164,82 @@ public class ProjectStateService : IProjectStateService
         }
 
         return Map(state);
+    }
+
+    public async Task<IReadOnlyList<ProjectInitialStateViewModel>> ListInitialAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireProjectAsync(projectPublicId, cancellationToken);
+        var escolhas = await _unitOfWork.ProjectInitialStates.ListByProjectAsync(project.Id, cancellationToken);
+        var estados = await _unitOfWork.ProjectStates.ListByProjectAsync(project.Id, cancellationToken);
+
+        // Os tres tipos saem sempre, escolhidos ou nao. Devolver so os escolhidos
+        // faria a tela ter de adivinhar quais faltam, e um tipo novo apareceria la
+        // sozinho no dia em que entrasse no enum.
+        return Enum.GetValues<ReportTypeEnum>()
+            .Select(tipo =>
+            {
+                var escolha = escolhas.FirstOrDefault(item => item.ReportType == tipo);
+                var estado = escolha is null
+                    ? null
+                    : estados.FirstOrDefault(item => item.Id == escolha.ProjectStateId);
+
+                return new ProjectInitialStateViewModel(tipo, estado?.PublicId);
+            })
+            .ToList();
+    }
+
+    public async Task<ProjectInitialStateViewModel> SetInitialAsync(Guid projectPublicId, SetInitialStateDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireProjectAsync(projectPublicId, cancellationToken);
+
+        if (dto.ReportType is null)
+            throw new ArgumentException("Informe o tipo de relato.");
+
+        var tipo = dto.ReportType.Value;
+        var atual = await _unitOfWork.ProjectInitialStates.FindByTypeAsync(project.Id, tipo, cancellationToken);
+
+        // Nulo apaga a escolha em vez de gravar uma vazia: assim "sem escolha"
+        // continua sendo um estado possivel do projeto, e nao algo que so existe
+        // enquanto ninguem abriu a tela.
+        if (dto.StatePublicId is null)
+        {
+            if (atual is not null)
+            {
+                await _unitOfWork.ProjectInitialStates.SoftDeleteAsync(atual, cancellationToken);
+                await _unitOfWork.CommitAsync(cancellationToken);
+            }
+
+            return new ProjectInitialStateViewModel(tipo, null);
+        }
+
+        var state = await _unitOfWork.ProjectStates.GetByPublicIdAsync(dto.StatePublicId.Value, cancellationToken);
+
+        if (state is null || state.ProjectId != project.Id)
+            throw new KeyNotFoundException("Estado nao encontrado neste projeto.");
+
+        // Mandar relato novo para um estado aposentado seria desfazer pela porta dos
+        // fundos o que aposentar decidiu.
+        if (!state.IsActive)
+            throw new ConflictException("Este estado esta aposentado e nao recebe relato novo.");
+
+        if (atual is null)
+        {
+            await _unitOfWork.ProjectInitialStates.AddAsync(new ProjectInitialState
+            {
+                ProjectId = project.Id,
+                ReportType = tipo,
+                ProjectStateId = state.Id,
+            }, cancellationToken);
+        }
+        else
+        {
+            atual.ProjectStateId = state.Id;
+            _unitOfWork.ProjectInitialStates.Update(atual);
+        }
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return new ProjectInitialStateViewModel(tipo, state.PublicId);
     }
 
     private async Task<(Project Project, ProjectState State)> RequireStateAsync(Guid projectPublicId, Guid statePublicId, CancellationToken cancellationToken)

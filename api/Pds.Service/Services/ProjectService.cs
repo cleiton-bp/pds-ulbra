@@ -11,6 +11,19 @@ namespace Pds.Service.Services;
 
 public class ProjectService : IProjectService
 {
+    /// <summary>
+    /// O primeiro estado da fila de trabalho, criado junto com o projeto.
+    ///
+    /// <para>E uma area de triagem: onde o relato para para alguem olhar antes de
+    /// encaminhar. Existe porque cliente que encara tela em branco desiste — e
+    /// porque sem nenhum estado o relato entraria sem lugar na fila.</para>
+    ///
+    /// <para>Este texto <b>tem acento de proposito</b>, diferente das mensagens do
+    /// sistema: nao e texto nosso, e o nome de uma coluna que o cliente ve na tela
+    /// e renomeia quando quiser.</para>
+    /// </summary>
+    private const string FactoryStateName = "Análise";
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountContext _accountContext;
 
@@ -65,7 +78,20 @@ public class ProjectService : IProjectService
         await _unitOfWork.ProjectKeys.AddAsync(publicKey, cancellationToken);
         await _unitOfWork.ProjectKeys.AddAsync(secretKey, cancellationToken);
 
-        // Um unico commit: ou o projeto e as duas chaves entram, ou nao entra nada.
+        // A fila de trabalho tambem nasce aqui, com uma coluna so. Nao gravamos
+        // junto uma escolha de onde cada tipo cai: sem escolha, o relato vai para o
+        // primeiro estado ativo, que e este. Assim o caminho "o cliente nao
+        // configurou" e o caminho comum, exercitado por todo projeto novo, em vez
+        // de um canto que so aparece anos depois.
+        await _unitOfWork.ProjectStates.AddAsync(new ProjectState
+        {
+            Project = project,
+            Name = FactoryStateName,
+            Position = 0,
+        }, cancellationToken);
+
+        // Um unico commit: ou o projeto, as duas chaves e a fila entram, ou nao
+        // entra nada.
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return new ProjectCreatedViewModel(

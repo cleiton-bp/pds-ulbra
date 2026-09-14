@@ -44,6 +44,7 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
     public DbSet<ProjectWidgetSettings> ProjectWidgetSettings { get; set; } = null!;
     public DbSet<ProjectState> ProjectStates { get; set; } = null!;
+    public DbSet<ProjectInitialState> ProjectInitialStates { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
@@ -88,6 +89,15 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(state => state.DeletedAt == null
                                      && state.Project.DeletedAt == null
                                      && state.Project.AccountId == CurrentAccountId);
+
+        // Onde cada tipo entra: mesmo caminho do estado, e pelo mesmo motivo. Quem
+        // le isto **sem sessao** e a entrada do relato, e la a conta atual e zero —
+        // por isso aquela leitura desliga este filtro e reescreve as condicoes a
+        // mao, como ja fazem a busca da chave publica e a do endereco autorizado.
+        modelBuilder.Entity<ProjectInitialState>()
+            .HasQueryFilter(initial => initial.DeletedAt == null
+                                       && initial.Project.DeletedAt == null
+                                       && initial.Project.AccountId == CurrentAccountId);
 
         // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
         // cresce e a que o painel lista o tempo todo, entao ela repete account_id de

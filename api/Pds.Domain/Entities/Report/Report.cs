@@ -38,6 +38,21 @@ public class Report : PdsBaseEntity
     public Project Project { get; set; } = null!;
 
     /// <summary>
+    /// Onde o relato esta na fila de trabalho do projeto.
+    ///
+    /// <para><b>E anulavel, e vai continuar sendo.</b> Projeto que ainda nao criou
+    /// estado nenhum nao tem onde por o relato, e recusar o relato por causa disso
+    /// seria perder o que veio de fora por uma configuracao que o cliente nao fez —
+    /// a pessoa que escreveu nao tem nada a ver com isso.</para>
+    ///
+    /// <para><b>E cache, e nao a verdade.</b> A verdade e a sequencia de eventos;
+    /// esta coluna existe para a lista do painel nao precisar reconstruir o estado
+    /// de cada relato a cada abertura da tela.</para>
+    /// </summary>
+    public long? ProjectStateId { get; set; }
+    public ProjectState? ProjectState { get; set; }
+
+    /// <summary>
     /// O protocolo que a pessoa le, repete ao telefone e digita para acompanhar.
     /// Alfabeto sem <c>0</c>, <c>O</c>, <c>1</c> e <c>I</c>, que se confundem lidos
     /// em voz alta. Unico em todo o sistema, porque quem digita nao sabe de qual

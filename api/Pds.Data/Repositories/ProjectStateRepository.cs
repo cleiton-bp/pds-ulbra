@@ -33,6 +33,20 @@ public class ProjectStateRepository : BaseRepository<ProjectState, DataContext>,
                                && (exceptId == null || state.Id != exceptId),
                 cancellationToken);
 
+    public Task<ProjectState?> FirstActiveWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default)
+        // Mesmo desempate da listagem: a posicao nao e unica, e sem ele o destino
+        // padrao do relato mudaria entre uma entrada e outra sem ninguem ter mexido
+        // na fila.
+        => Context.ProjectStates
+            .IgnoreQueryFilters()
+            .Where(state => state.ProjectId == projectId
+                            && state.DeletedAt == null
+                            && state.DeactivatedAt == null
+                            && state.Project.DeletedAt == null)
+            .OrderBy(state => state.Position)
+            .ThenBy(state => state.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<int?> LastPositionAsync(long projectId, CancellationToken cancellationToken = default)
         // MaxAsync direto quebraria na fila vazia, que e justamente o estado de
         // todo projeto ate alguem criar o primeiro.

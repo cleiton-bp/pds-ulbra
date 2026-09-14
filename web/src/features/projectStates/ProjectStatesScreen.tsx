@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { MAX_STATE_NAME_LENGTH, type ProjectStateViewModel } from '@/contracts'
+import {
+  MAX_STATE_NAME_LENGTH,
+  type ProjectInitialStateViewModel,
+  type ProjectStateViewModel,
+} from '@/contracts'
 import { describeError, projectStateService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
@@ -8,6 +12,7 @@ import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /**
  * A fila de trabalho do projeto.
@@ -25,6 +30,11 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
  * **Reordenar e otimista.** A seta move a linha na hora e so depois grava: uma
  * seta que espera a resposta para mexer parece quebrada, e aqui o erro tem
  * desfazer — a lista volta para a ordem anterior e o aviso explica.
+ *
+ * **A entrada de cada tipo tem um "padrao" de verdade na lista.** Escolher essa
+ * opcao **apaga** a linha no banco em vez de gravar uma escolha vazia. E o que
+ * mantem "o cliente nao configurou" como um estado possivel do projeto, e nao
+ * algo que so existe enquanto ninguem abriu esta tela.
  */
 export function ProjectStatesScreen() {
   const project = useCurrentProject()
@@ -54,6 +64,23 @@ export function ProjectStatesScreen() {
 
   const [moving, setMoving] = useState(false)
   const [retiring, setRetiring] = useState<ProjectStateViewModel | null>(null)
+
+  const { data: carregadas, reload: recarregarEntradas } = useAsyncResource(
+    useCallback(() => projectStateService.listInitialStates(project.PublicId), [project.PublicId]),
+  )
+  const [entradas, setEntradas] = useState<ProjectInitialStateViewModel[] | null>(null)
+  useEffect(() => setEntradas(carregadas), [carregadas])
+  const [salvandoEntrada, setSalvandoEntrada] = useState<string | null>(null)
+
+  /**
+   * O destino de quem nao escolheu: a primeira coluna **ativa**, que e a mesma
+   * conta que a API faz ao receber o relato.
+   *
+   * O rotulo mostra o nome dela em vez de descrever a regra. "Primeira coluna da
+   * fila" vira mentira no dia em que alguem aposenta a primeira — o relato passa a
+   * cair na seguinte, e a tela continuaria dizendo a mesma frase.
+   */
+  const padrao = states?.find((state) => state.IsActive) ?? null
 
   async function create() {
     const value = name.trim()
@@ -135,6 +162,27 @@ export function ProjectStatesScreen() {
     }
   }
 
+  async function escolherEntrada(
+    reportType: ProjectInitialStateViewModel['ReportType'],
+    statePublicId: string | null,
+  ) {
+    setSalvandoEntrada(reportType)
+
+    try {
+      const salva = await projectStateService.setInitialState(project.PublicId, {
+        ReportType: reportType,
+        StatePublicId: statePublicId,
+      })
+      setEntradas((lista) =>
+        (lista ?? []).map((item) => (item.ReportType === salva.ReportType ? salva : item)),
+      )
+    } catch (failure) {
+      toast.error(describeError(failure))
+    } finally {
+      setSalvandoEntrada(null)
+    }
+  }
+
   async function setActive(state: ProjectStateViewModel, active: boolean) {
     try {
       const saved = active
@@ -146,7 +194,11 @@ export function ProjectStatesScreen() {
       )
       toast.done(active ? 'Estado de volta à fila.' : 'Estado aposentado.')
     } catch (failure) {
+      // A recusa mais provavel aqui e a de aposentar a entrada de um tipo, e a
+      // mensagem da API ja diz o que fazer. Recarregar a lista de entradas junto
+      // porque ela e o caminho da correcao, e pode ter mudado noutra aba.
       toast.error(describeError(failure))
+      recarregarEntradas()
     }
   }
 
@@ -329,6 +381,63 @@ export function ProjectStatesScreen() {
           </div>
         )}
       </section>
+
+      {states !== null && entradas !== null && (
+        <section className="mt-10">
+          <h2 className="mb-1 font-semibold text-lead">Onde cada relato entra</h2>
+          <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+            Um defeito e uma dúvida não precisam começar no mesmo lugar. Escolha por tipo, ou deixe
+            no padrão para tudo cair na primeira coluna da fila.{' '}
+            <strong className="font-medium text-fg">
+              Trocar aqui não mexe nos relatos que já entraram
+            </strong>
+            : vale para o próximo que chegar.
+          </p>
+
+          {states.length === 0 ? (
+            <p className="rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted leading-relaxed">
+              Crie o primeiro estado acima e esta escolha aparece aqui.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {entradas.map((entrada) => (
+                <li
+                  key={entrada.ReportType}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3.5 py-2"
+                >
+                  <span className="flex-1 text-body text-fg">
+                    {teamTypeLabel(entrada.ReportType)}
+                  </span>
+
+                  <select
+                    aria-label={`Onde entra um relato do tipo ${teamTypeLabel(entrada.ReportType)}`}
+                    className="h-9 min-w-0 max-w-56 flex-1 rounded-lg border border-border bg-surface px-2.5 text-body text-fg disabled:text-fg-disabled"
+                    value={entrada.StatePublicId ?? ''}
+                    disabled={salvandoEntrada === entrada.ReportType}
+                    onChange={(event) =>
+                      escolherEntrada(entrada.ReportType, event.target.value || null)
+                    }
+                  >
+                    {/* O padrao e uma opcao de verdade, e nao a ausencia de escolha:
+                        escolhe-la apaga a linha no banco. Sem ela, quem configurou
+                        uma vez nao teria como voltar atras. */}
+                    <option value="">
+                      {padrao ? `Padrão — ${padrao.Name}` : 'Padrão — nenhuma coluna ativa'}
+                    </option>
+                    {states
+                      .filter((state) => state.IsActive || state.PublicId === entrada.StatePublicId)
+                      .map((state) => (
+                        <option key={state.PublicId} value={state.PublicId}>
+                          {state.Name}
+                        </option>
+                      ))}
+                  </select>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <ConfirmDialog
         open={retiring !== null}

@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import type { ReportSummaryViewModel } from '@/contracts'
 import { describeError } from '@/data'
 import { ReportDialog } from '@/features/reports/ReportDialog'
-import { reportTypeLabel } from '@/features/reports/reportTypeLabel'
 import { useReportInbox } from '@/features/reports/useReportInbox'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
+import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /**
  * O que chegou do site do cliente.
@@ -108,7 +108,7 @@ function ReportCard({ report, onOpen }: { report: ReportSummaryViewModel; onOpen
     >
       <header className="mb-2 flex items-baseline justify-between gap-3">
         <span className="flex-none rounded-full border border-border px-2 py-px text-caption text-fg-muted">
-          {reportTypeLabel(report.Type)}
+          {teamTypeLabel(report.Type)}
         </span>
 
         {/* O relativo responde "isto e recente?", que e a pergunta de quem passa

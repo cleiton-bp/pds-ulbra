@@ -11,8 +11,8 @@ import type { ReportType } from '@/contracts'
  * ser a segunda tela que quem relata le: enquanto havia uma so, o rotulo morava
  * dentro dela.
  *
- * <b>E continua separado de `features/reports/reportTypeLabel.ts`</b>, que e o
- * nome do tipo como o **time** o ve. Os dois dizem "Defeito" hoje e vao divergir
+ * <b>E continua separado de `teamReportTypes.ts`</b>, que e o nome do tipo como
+ * o **time** o ve. Os dois dizem "Defeito" hoje e vao divergir
  * na etapa 8 de proposito: o do cliente vira configuravel, o do painel precisa
  * continuar igual em todos os projetos justamente para o time nao ter de aprender
  * o vocabulario de cada um.
