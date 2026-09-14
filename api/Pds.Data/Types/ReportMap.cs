@@ -26,6 +26,10 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .IsRequired()
             .HasComment("Projeto de onde o relato veio, resolvido pela chave publica da requisicao.");
 
+        builder.Property(report => report.ProjectStateId)
+            .HasColumnName("project_state_id")
+            .HasComment("Onde o relato esta na fila do projeto. Nulo quando o projeto ainda nao tem estado nenhum. E cache: a verdade e a sequencia de eventos.");
+
         builder.Property(report => report.TrackingCode)
             .HasColumnName("tracking_code")
             .HasMaxLength(20)
@@ -79,5 +83,17 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // pede migracao no banco compartilhado, e o custo dele e uma arvore
         // mantida por insercao.
         builder.HasIndex(report => report.AccessTokenHash);
+
+        // A lista do painel filtra por estado, e a regra de aposentar precisa saber
+        // se ainda ha relato parado naquele estado.
+        builder.HasIndex(report => report.ProjectStateId);
+
+        // Restrict, e nao Cascade: apagar um estado nao pode levar os relatos que
+        // passaram por ele. A regra de negocio nem chega a deixar apagar — aqui e a
+        // rede embaixo dela.
+        builder.HasOne(report => report.ProjectState)
+            .WithMany()
+            .HasForeignKey(report => report.ProjectStateId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

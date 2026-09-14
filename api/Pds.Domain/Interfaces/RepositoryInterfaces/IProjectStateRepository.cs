@@ -25,4 +25,15 @@ public interface IProjectStateRepository : IBaseRepository<ProjectState>
 
     /// <summary>A maior posicao ja usada no projeto, ou nulo quando a fila esta vazia.</summary>
     Task<int?> LastPositionAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O primeiro estado ativo da fila, para quem chega <b>sem sessao</b>. E o
+    /// destino padrao do relato quando o cliente nunca escolheu onde aquele tipo
+    /// cai.
+    ///
+    /// <para>Devolve nulo quando o projeto nao tem estado ativo nenhum — caso que
+    /// existe de verdade, e em que o relato entra sem lugar na fila em vez de ser
+    /// recusado.</para>
+    /// </summary>
+    Task<ProjectState?> FirstActiveWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default);
 }
