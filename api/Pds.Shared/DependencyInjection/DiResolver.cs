@@ -91,6 +91,7 @@ public static class DiResolver
         services.AddScoped<IProjectKeyService, ProjectKeyService>();
         services.AddScoped<IProjectOriginService, ProjectOriginService>();
         services.AddScoped<IProjectWidgetSettingsService, ProjectWidgetSettingsService>();
+        services.AddScoped<IProjectStateService, ProjectStateService>();
         services.AddScoped<IReportService, ReportService>();
     }
 }
