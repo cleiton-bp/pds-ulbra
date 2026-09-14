@@ -70,6 +70,74 @@ public class ProjectStatesController : BaseController
         }
     }
 
+    /// <summary>Mostra onde cada tipo de relato cai ao entrar.</summary>
+    /// <remarks>
+    /// Devolve **os três tipos sempre**, escolhidos ou não — a tela precisa mostrar
+    /// a pergunta inteira, e não só as respostas dadas.
+    ///
+    /// `StatePublicId` nulo quer dizer que o cliente nunca escolheu para aquele
+    /// tipo, e aí vale o padrão: **o primeiro estado ativo da fila**. Não é
+    /// configuração faltando, é configuração não feita — e o projeto funciona
+    /// igual.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O destino de cada tipo.</response>
+    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    [HttpGet("initial")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectInitialStateViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListInitial(Guid publicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var initial = await _projectStateService.ListInitialAsync(publicId, cancellationToken);
+            return Success(initial, total: initial.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Escolhe onde um tipo de relato passa a cair.</summary>
+    /// <remarks>
+    /// **Trocar o destino não mexe nos relatos que já entraram** — eles ficam onde
+    /// estão. A escolha vale para o próximo que chegar.
+    ///
+    /// `StatePublicId` nulo **apaga** a escolha e devolve o tipo ao padrão, em vez
+    /// de gravar uma escolha vazia. Assim "sem escolha" continua sendo um estado
+    /// possível do projeto, e não algo que só existe até alguém abrir a tela.
+    ///
+    /// Um estado aposentado é recusado: mandar relato novo para ele seria desfazer
+    /// pela porta dos fundos o que aposentar decidiu.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="dto">O tipo e o estado de destino.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Destino salvo.</response>
+    /// <response code="400">Tipo de relato ausente ou desconhecido.</response>
+    /// <response code="404">Projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="409">O estado escolhido está aposentado.</response>
+    [HttpPut("initial")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ProjectInitialStateViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetInitial(Guid publicId, [FromBody] SetInitialStateDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var initial = await _projectStateService.SetInitialAsync(publicId, dto, cancellationToken);
+            return Success(initial, "Destino salvo.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Cria um estado no fim da fila.</summary>
     /// <remarks>
     /// O nome chega do jeito que foi escrito: só as bordas são aparadas e os espaços
@@ -186,15 +254,21 @@ public class ProjectStatesController : BaseController
     ///
     /// Aposentar o que já está aposentado devolve 200 sem gravar nada — dois cliques
     /// seguidos não são um erro.
+    ///
+    /// **Mas aposentar a porta de entrada de um tipo é recusado**: o próximo relato
+    /// daquele tipo cairia num estado aposentado, que é justamente o que aposentar
+    /// existe para impedir. Escolha outro destino antes.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="statePublicId">Identificador público do estado.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Estado aposentado.</response>
     /// <response code="404">Projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="409">O estado é a entrada de algum tipo de relato.</response>
     [HttpPost("{statePublicId:guid}/deactivate")]
     [ProducesResponseType(typeof(ApiResponse<ProjectStateViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Deactivate(Guid publicId, Guid statePublicId, CancellationToken cancellationToken)
     {
         try
