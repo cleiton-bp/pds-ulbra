@@ -35,4 +35,19 @@ public interface IProjectStateService
 
     /// <summary>Traz um estado aposentado de volta para a fila.</summary>
     Task<ProjectStateViewModel> ActivateAsync(Guid projectPublicId, Guid statePublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Onde cada tipo de relato cai ao entrar. Traz os tres sempre, mesmo os que o
+    /// cliente nunca escolheu — a tela precisa mostrar a pergunta inteira, e nao so
+    /// as respostas dadas.
+    /// </summary>
+    Task<IReadOnlyList<ProjectInitialStateViewModel>> ListInitialAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Escolhe o destino de um tipo, ou apaga a escolha quando o estado vem nulo.
+    ///
+    /// <para>Trocar o destino <b>nao mexe nos relatos que ja entraram</b>: eles
+    /// ficam onde estao. Esta escolha vale para o proximo que chegar.</para>
+    /// </summary>
+    Task<ProjectInitialStateViewModel> SetInitialAsync(Guid projectPublicId, SetInitialStateDto dto, CancellationToken cancellationToken = default);
 }

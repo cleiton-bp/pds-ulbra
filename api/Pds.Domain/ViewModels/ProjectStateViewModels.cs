@@ -1,3 +1,5 @@
+using Pds.Domain.Enums;
+
 namespace Pds.Domain.ViewModels;
 
 /// <summary>
@@ -14,3 +16,12 @@ public record ProjectStateViewModel(
     int Position,
     bool IsActive,
     DateTime CreatedAt);
+
+/// <summary>
+/// Onde cada tipo de relato cai ao entrar.
+/// </summary>
+/// <param name="ReportType">Bug, Improvement ou Question.</param>
+/// <param name="StatePublicId">O estado escolhido, ou <b>nulo</b> quando o cliente nunca escolheu — e ai vale o primeiro estado ativo da fila.</param>
+public record ProjectInitialStateViewModel(
+    ReportTypeEnum ReportType,
+    Guid? StatePublicId);
