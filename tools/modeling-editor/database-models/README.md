@@ -9,8 +9,11 @@ Editadas pelo canvas do [editor](../) (`npm run dev`) ou direto no editor de tex
 | `example.yaml` | ponto de partida: `Account` e `User`, uma relação presa aos campos e duas notas com seta |
 | `stage-1.yaml` | etapa 1 — conta, usuário, projeto e chaves |
 | `stage-2.yaml` | etapa 2 — o mesmo da etapa 1, sem alteração, mais domínios autorizados, relato, contexto e evento |
+| `stage-3.yaml` | etapa 3 — os estados do projeto, onde cada tipo de relato entra, os dois comentários em tabelas separadas, e as duas colunas que `reports` e `events` ganham |
 
 O `example.yaml` existe para conhecer o editor.
+
+O `stage-3.yaml` corrige uma defasagem: `project_widget_settings` já existe no banco e não estava em modelagem nenhuma, então ele aparece ali como herdado.
 
 Nomes seguem o [glossário](../../../local/decisoes-de-projeto.md): entidade e campo em inglês, `label` e `note` em português.
 

@@ -43,6 +43,7 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectKey> ProjectKeys { get; set; } = null!;
     public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
     public DbSet<ProjectWidgetSettings> ProjectWidgetSettings { get; set; } = null!;
+    public DbSet<ProjectState> ProjectStates { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
@@ -80,6 +81,13 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(settings => settings.DeletedAt == null
                                         && settings.Project.DeletedAt == null
                                         && settings.Project.AccountId == CurrentAccountId);
+
+        // Estado da fila de trabalho: mesmo caminho do endereco autorizado, e pelo
+        // mesmo motivo — ele nao existe fora de um projeto.
+        modelBuilder.Entity<ProjectState>()
+            .HasQueryFilter(state => state.DeletedAt == null
+                                     && state.Project.DeletedAt == null
+                                     && state.Project.AccountId == CurrentAccountId);
 
         // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
         // cresce e a que o painel lista o tempo todo, entao ela repete account_id de

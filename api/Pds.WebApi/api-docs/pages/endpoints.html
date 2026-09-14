@@ -1,5 +1,5 @@
 <h2>Endpoints</h2>
-<p class="lead">Dezenove rotas. Quinze exigem token de sessão; quatro não — a de entrar, que é
+<p class="lead">Vinte e cinco rotas. Vinte e uma exigem token de sessão; quatro não — a de entrar, que é
 onde a sessão nasce, as duas que a ferramenta usa (a que recebe o relato e a que ela lê para
 saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
 
@@ -18,6 +18,12 @@ saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td>Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td>Retira a autorização. Exclusão lógica.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states</code></td><td>A fila de trabalho do projeto, na ordem do cliente, com os aposentados dentro.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states</code></td><td>Cria um estado no fim da fila. Nome único no projeto, sem diferenciar maiúscula.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/order</code></td><td>Reordena a fila <strong>inteira</strong>, numa chamada só.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/{statePublicId}</code></td><td>Renomeia. O histórico não muda: o evento guarda o nome que valia na época.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td>Aposenta. <strong>Não existe remoção</strong> — relato antigo aponta para ele.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/activate</code></td><td>Traz de volta para a fila.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. Os dez campos vão sempre juntos.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada.</td></tr>
@@ -116,7 +122,7 @@ gerado a partir do código.</p>
 
 <div class="note why">
   <strong>Por que uma rota fica fora do padrão</strong>
-  <p>Quinze rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
+  <p>Vinte e uma rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
   As duas de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site de um
   cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai.</p>

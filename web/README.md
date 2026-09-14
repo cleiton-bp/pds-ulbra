@@ -89,7 +89,8 @@ src/
 ├── embed/        a ferramenta de relato: o que roda no site do cliente
 ├── tracking/     a página pública: onde quem relatou vê o próprio relato
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
-├── features/     um assunto por pasta: auth, projects, projectKeys, onboarding, reports, widgetSettings
+├── features/     um assunto por pasta: auth, projects, projectKeys, projectStates,
+│                 onboarding, reports, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
 ```
@@ -262,13 +263,22 @@ declarado liga a conferência.
 `tracking.html` mostra a quem relatou o próprio relato. O token viaja no fragmento
 do link — a parte que o navegador nunca envia a servidor nenhum.
 
+A **etapa 3 — O time trabalha o relato** começou pela peça que sustenta o resto
+(pds-018): a tela **Estados**, onde o cliente cria a própria fila de trabalho com
+os nomes que a equipe usa, e reordena, renomeia e aposenta cada um. Estado não se
+apaga — não há botão de remover em lugar nenhum —, porque relato antigo vai
+apontar para ele e o histórico precisa continuar legível. **O relato ainda não
+entra nessa fila**: nenhum aponta para um estado hoje, e não existe quadro nem
+mudança de estado.
+
 | o que falta | onde dói |
 |---|---|
-| andamento na página de acompanhamento | ela existe e não tem o que mostrar: estado interno é a etapa 3, publicá-lo é a 4 |
+| o relato dentro da fila de trabalho | os estados existem e nada cai neles; sem isso, a tela **Estados** é configuração que ninguém exerce |
+| andamento na página de acompanhamento | ela existe e não tem o que mostrar: falta o relato ter estado, e falta traduzi-lo para quem está de fora |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança, e a única com limitador é a de login |
 
-Fora do corte, de propósito: plano, etapas públicas, anexo e a ferramenta própria
-do time. E o `frame-ancestors` — a conferência de hoje mora no servidor e pega o
+Fora do corte, de propósito: plano, etapas públicas, anexo, e o quadro de cards
+com board arrastável, sprint e relatório. E o `frame-ancestors` — a conferência de hoje mora no servidor e pega o
 caso comum; barrar o quadro no navegador precisa de um servidor servindo
 `embed.html`, que é hospedagem que ainda não existe.
 

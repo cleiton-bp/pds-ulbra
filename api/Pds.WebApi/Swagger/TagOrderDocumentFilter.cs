@@ -50,6 +50,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.ProjectStates,
+                Description = "A fila de trabalho por onde o relato passa do lado de dentro, com os nomes que o próprio cliente deu. Estado não se apaga: aposenta.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.Reports,
                 Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos da conta que está logada.",
             },
