@@ -274,9 +274,34 @@ análise, e a mesma tela escolhe, por tipo, onde cada relato cai. A opção "pri
 coluna da fila" **apaga** a escolha em vez de gravar uma vazia — é o que mantém
 "não configurei" como um estado possível do projeto.
 
+E a lista de relatos **filtra por coluna** (pds-020), com a contagem de cada uma
+na barra de cima. A contagem vem de uma chamada própria: contar as linhas da
+página daria um número errado assim que o projeto passasse de vinte relatos.
+Coluna vazia continua na barra — some só a aposentada que não segura mais nada.
+
+Cada relato tem **endereço próprio** (pds-021): `/projects/:id/reports/:reportId`.
+Ele é rota **filha** da lista, e não uma tela no lugar dela — assim a lista fica
+montada atrás, com o recorte e a rolagem onde estavam, e o botão voltar do
+navegador fecha o relato em vez da tela inteira.
+
+E o time **move o relato de coluna** (pds-022), pela tela do relato aberto. Cada
+mudança grava um evento imutável, e **o evento entra antes do cache**: a coluna
+guardada no relato é conveniência para a lista; a verdade é a sequência de
+eventos. Movido para fora do recorte ativo, o relato sai da lista na hora — deixá-lo
+ali mostraria, debaixo do nome de uma coluna, um relato que não está mais nela.
+
+O time **comenta** (pds-023), em duas caixas distintas: o que fica entre a equipe
+e o que é escrito para quem relatou. A separação é **estrutural** — duas rotas,
+duas tabelas, dois tipos de evento —, e o destaque visual fica na caixa que sai
+para fora, porque é lá que o erro custa caro. Ela também diz que **ainda não há
+onde ler**, em vez de prometer.
+
+E cada relato tem uma **linha do tempo** (pds-024), montada a partir dos eventos,
+com os nomes de coluna que valiam na época de cada mudança.
+
 | o que falta | onde dói |
 |---|---|
-| o time mover o relato de estado | ele entra na fila e fica onde entrou; sem o quadro, a fila é uma foto e não um fluxo |
+| quem relatou ler o que foi escrito para ele | o comentário público existe e não tem leitor; é a etapa seguinte |
 | andamento na página de acompanhamento | ela existe e não tem o que mostrar: o relato já tem estado, falta traduzi-lo para quem está de fora |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança, e a única com limitador é a de login |
 

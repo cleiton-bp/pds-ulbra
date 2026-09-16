@@ -27,8 +27,29 @@ estado. <strong>E o relato entra nessa fila</strong>: projeto novo já nasce com
 análise, e o cliente escolhe por tipo onde cada relato cai — ou deixa no padrão, que é a
 primeira coluna.</p>
 
-<p>O que <strong>ainda não existe</strong> é o time mover o relato de um estado para outro: não
-há quadro de cards nem mudança de estado, e por isso o relato fica onde entrou.</p>
+<p>A lista de relatos <strong>filtra por coluna</strong>, com a contagem de cada uma à vista —
+é ela que responde "o que ainda não tratei", a pergunta que a tela não tinha como fazer antes.
+A contagem vem de uma chamada própria: contar as linhas da página daria um número errado assim
+que o projeto passasse de vinte relatos.</p>
+
+<p>Cada relato tem <strong>endereço próprio</strong>, então dá para mandar o link de um para um
+colega, abrir em outra aba e recarregar sem perdê-lo. Ele abre <em>sobre</em> a lista, que
+continua montada atrás com o recorte e a rolagem onde estavam.</p>
+
+<p>E o time <strong>move o relato de coluna</strong>, pela tela do relato aberto. Cada mudança
+grava um evento imutável com de onde, para onde, quem e quando — e o evento entra <em>antes</em>
+do cache, na mesma transação. A fila deixou de ser uma foto.</p>
+
+<p>O time também <strong>comenta</strong>: o que fica entre a equipe e o que é escrito para
+quem relatou, em duas caixas distintas — e a separação é estrutural, com duas tabelas, e não um
+campo que alguém esquece de marcar. O comentário para quem relatou <strong>ainda não tem
+leitor</strong>, e a tela diz isso em vez de prometer.</p>
+
+<p>E cada relato tem uma <strong>linha do tempo</strong>, montada a partir dos eventos, com os
+nomes de coluna que valiam na época de cada mudança.</p>
+
+<p>O que <strong>ainda não existe</strong> é o quadro arrastável — e a camada que a pessoa de
+fora lê, que é a etapa seguinte.</p>
 
 <p>A página de acompanhamento, portanto, <strong>ainda não tem andamento para mostrar</strong>,
 e ela diz isso em vez de prometer. O que ela mostra hoje é o registro — protocolo, data, tipo e
@@ -54,10 +75,16 @@ existe e ninguém alcança é dívida que cresce calada.</p>
       <b>Configuração da ferramenta</b>: aparência, textos e desligar, por projeto<br />
       <b>Consulta pública do relato</b>, pelo link que a confirmação entrega<br />
       <b>Estados internos</b> definidos pelo cliente, com ordem e aposentadoria<br />
-      <b>O relato entra na fila</b>, no estado que o cliente escolheu para aquele tipo
+      <b>O relato entra na fila</b>, no estado que o cliente escolheu para aquele tipo<br />
+      <b>Filtro por coluna</b> na lista de relatos, com a contagem de cada uma<br />
+      <b>Endereço próprio</b> para cada relato aberto<br />
+      <b>Mover o relato de coluna</b>, com evento imutável de cada mudança<br />
+      <b>Comentário interno e para quem relatou</b>, em tabelas separadas<br />
+      <b>Histórico do relato</b>, montado a partir dos eventos
     </td>
     <td>
-      Quadro de cards e mudança de estado<br />
+      Quadro de cards arrastável<br />
+      Leitura dos comentários por quem relatou<br />
       Andamento do relato na página pública<br />
       Limite de envio na rota pública<br />
       Etapas públicas e motor de tradução<br />
