@@ -3,6 +3,7 @@ using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
 using Pds.Domain.Exceptions;
+using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
@@ -39,13 +40,30 @@ public class ReportService : IReportService
     /// do protocolo: quem chegou aqui clicou num link, e mandar a pessoa conferir o
     /// protocolo que ela nao digitou nao ajuda em nada.
     /// </summary>
+    /// <summary>
+    /// A palavra que a rota aceita no lugar de um identificador, para pedir os
+    /// relatos que ainda nao tem lugar na fila. E uma constante porque aparece na
+    /// conferencia e na mensagem de erro, e as duas precisam dizer a mesma coisa.
+    /// </summary>
+    private const string WithoutStateFilter = "none";
+
     private const string TrackingRefusal = "Este link nao abre nenhum relato. Confira se ele veio inteiro.";
 
     private readonly IUnitOfWork _unitOfWork;
 
-    public ReportService(IUnitOfWork unitOfWork)
+    /// <summary>
+    /// Quem esta logado, para o evento saber quem moveu.
+    ///
+    /// <para>Fica anulavel de proposito: este mesmo servico atende as rotas
+    /// publicas, onde nao ha sessao nenhuma. Exigir usuario aqui quebraria a
+    /// entrada do relato, que e justamente a que vem de um desconhecido.</para>
+    /// </summary>
+    private readonly IAccountContext _accountContext;
+
+    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext)
     {
         _unitOfWork = unitOfWork;
+        _accountContext = accountContext;
     }
 
     public async Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, CancellationToken cancellationToken = default)
@@ -171,14 +189,15 @@ public class ReportService : IReportService
             report.CreatedAt);
     }
 
-    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+        var filter = await ResolveStateFilterAsync(project.Id, state, cancellationToken);
 
         var size = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
         var current = Math.Max(page, 1);
 
-        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, cancellationToken);
+        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, filter, cancellationToken);
 
         // Em long porque o produto estoura o int muito antes de estourar a tabela:
         // pagina 200 milhoes vezes 20 nao existe como pergunta, mas chega como
@@ -189,7 +208,7 @@ public class ReportService : IReportService
         if (skip >= total)
             return new ReportPageViewModel([], total);
 
-        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, (int)skip, size, cancellationToken);
+        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, (int)skip, size, cancellationToken);
 
         return new ReportPageViewModel(reports.Select(Map).ToList(), total);
     }
@@ -201,6 +220,127 @@ public class ReportService : IReportService
     /// recusa, com a mesma mensagem: responder "esta chave existe mas foi revogada"
     /// contaria a quem tenta que ele acertou metade.</para>
     /// </summary>
+    /// <summary>
+    /// Move o relato de coluna, gravando quem moveu e para onde.
+    ///
+    /// <para><b>A ordem das duas gravacoes e a regra mais importante deste
+    /// metodo.</b> O evento entra primeiro e a coluna do relato depois, no mesmo
+    /// <c>CommitAsync</c>: ou os dois entram, ou nenhum. Escrever a coluna antes
+    /// e o evento depois pareceria igual em todo teste feliz, e perderia o dado da
+    /// pesquisa exatamente nos casos em que ele mais importa — os de falha.</para>
+    /// </summary>
+    public async Task<ReportSummaryViewModel> MoveAsync(Guid projectPublicId, Guid reportPublicId, MoveReportDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Relato nao encontrado.");
+
+        if (dto.StatePublicId is null)
+            throw new ArgumentException("Informe a coluna de destino.");
+
+        var destino = await _unitOfWork.ProjectStates.GetByPublicIdAsync(dto.StatePublicId.Value, cancellationToken);
+
+        if (destino is null || destino.ProjectId != project.Id)
+            throw new KeyNotFoundException("Estado nao encontrado neste projeto.");
+
+        if (!destino.IsActive)
+            throw new ConflictException("Este estado esta aposentado e nao recebe relato novo.");
+
+        // Mover para onde ja esta nao e erro, e so nao ter o que fazer. Gravar
+        // assim mesmo encheria o historico de linhas que nao dizem nada, e a
+        // contagem da pesquisa passaria a medir cliques em vez de movimentos.
+        if (report.ProjectStateId == destino.Id)
+            return Map(report);
+
+        var origem = report.ProjectState;
+
+        // O EVENTO PRIMEIRO. Ver o comentario do metodo: esta ordem e a regra.
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            UserId = _accountContext.UserId,
+            Type = EventTypeEnum.ReportStateChanged,
+            Source = EventSourceEnum.Panel,
+            // Os nomes vao junto dos identificadores de proposito: renomear uma
+            // coluna nao pode reescrever o passado dizendo que o relato esteve num
+            // estado que ainda nao existia. O identificador serve para reconstruir
+            // o caminho; o nome, para le-lo.
+            Payload = JsonSerializer.Serialize(new
+            {
+                from_id = origem?.PublicId,
+                from_name = origem?.Name,
+                to_id = destino.PublicId,
+                to_name = destino.Name,
+            }),
+        }, cancellationToken);
+
+        // E o cache depois.
+        report.ProjectStateId = destino.Id;
+        report.ProjectState = destino;
+        _unitOfWork.Reports.Update(report);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return Map(report);
+    }
+
+    public async Task<IReadOnlyList<ReportHistoryEntryViewModel>> HistoryAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Relato nao encontrado.");
+
+        var events = await _unitOfWork.Events.ListByReportAsync(report.Id, cancellationToken);
+
+        return events.Select(entity =>
+        {
+            var (de, para) = StateNames(entity);
+
+            return new ReportHistoryEntryViewModel(
+                entity.PublicId,
+                entity.Type,
+                entity.User?.Name,
+                de,
+                para,
+                entity.OccurredAt);
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Os nomes das colunas guardados no evento de mudanca de estado.
+    ///
+    /// <para><b>Le o payload com tolerancia de proposito.</b> A tabela so cresce e
+    /// guarda eventos de versoes antigas do sistema: um payload com outro formato,
+    /// ou sem formato nenhum, e uma possibilidade real — e nesse caso a linha
+    /// aparece sem os nomes, em vez de derrubar o historico inteiro.</para>
+    /// </summary>
+    private static (string? From, string? To) StateNames(Event entity)
+    {
+        if (entity.Type != EventTypeEnum.ReportStateChanged || string.IsNullOrWhiteSpace(entity.Payload))
+            return (null, null);
+
+        try
+        {
+            using var documento = JsonDocument.Parse(entity.Payload);
+            var raiz = documento.RootElement;
+
+            return (Texto(raiz, "from_name"), Texto(raiz, "to_name"));
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
+
+        static string? Texto(JsonElement raiz, string nome)
+            => raiz.TryGetProperty(nome, out var valor) && valor.ValueKind == JsonValueKind.String
+                ? valor.GetString()
+                : null;
+    }
+
     /// <summary>
     /// Em que ponto da fila o relato entra.
     ///
@@ -292,6 +432,8 @@ public class ReportService : IReportService
             report.Text,
             report.Route,
             report.Origin,
+            report.ProjectState?.PublicId,
+            report.ProjectState?.Name,
             report.CreatedAt,
             // Em ordem de chave, e nao na que o navegador mandou: a mesma informacao
             // trocando de lugar entre dois relatos faz procurar de novo a cada um.
@@ -311,6 +453,48 @@ public class ReportService : IReportService
         => await _unitOfWork.Projects.GetByPublicIdAsync(publicId, cancellationToken)
            ?? throw new KeyNotFoundException("Projeto nao encontrado.");
 
+    public async Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+        var counts = await _unitOfWork.Reports.CountByStateAsync(project.Id, cancellationToken);
+
+        return counts
+            .Select(count => new ReportStateCountViewModel(
+                count.StatePublicId,
+                count.StateName,
+                count.IsActive,
+                count.Total))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Traduz o recorte que veio da rota.
+    ///
+    /// <para>Ausente e a fila inteira; <c>none</c> sao os que ainda nao tem lugar
+    /// nela; um identificador e aquela coluna. <b>Identificador que nao existe no
+    /// projeto e recusado</b> em vez de virar lista vazia: lista vazia responderia
+    /// "nao ha relatos ali" a uma pergunta sobre uma coluna que nao existe, e
+    /// ninguem descobriria o erro de digitacao.</para>
+    /// </summary>
+    private async Task<ReportStateFilter> ResolveStateFilterAsync(long projectId, string? state, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(state))
+            return ReportStateFilter.All;
+
+        if (string.Equals(state, WithoutStateFilter, StringComparison.OrdinalIgnoreCase))
+            return ReportStateFilter.WithoutState;
+
+        if (!Guid.TryParse(state, out var publicId))
+            throw new ArgumentException($"Filtro de estado invalido. Informe um identificador de estado ou '{WithoutStateFilter}'.");
+
+        var projectState = await _unitOfWork.ProjectStates.GetByPublicIdAsync(publicId, cancellationToken);
+
+        if (projectState is null || projectState.ProjectId != projectId)
+            throw new KeyNotFoundException("Estado nao encontrado neste projeto.");
+
+        return ReportStateFilter.In(projectState.Id);
+    }
+
     private static ReportSummaryViewModel Map(Report report) => new(
         report.PublicId,
         report.TrackingCode,
@@ -318,6 +502,8 @@ public class ReportService : IReportService
         report.Text,
         report.Route,
         report.Origin,
+        report.ProjectState?.PublicId,
+        report.ProjectState?.Name,
         report.CreatedAt);
 
     /// <summary>

@@ -48,6 +48,16 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
 
+    private IReportInternalCommentRepository? _reportInternalComments;
+
+    public IReportInternalCommentRepository ReportInternalComments
+        => _reportInternalComments ??= new ReportInternalCommentRepository(_context);
+
+    private IReportPublicCommentRepository? _reportPublicComments;
+
+    public IReportPublicCommentRepository ReportPublicComments
+        => _reportPublicComments ??= new ReportPublicCommentRepository(_context);
+
     private IEventRepository? _events;
     public IEventRepository Events => _events ??= new EventRepository(_context);
 }

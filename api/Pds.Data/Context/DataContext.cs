@@ -47,6 +47,8 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectInitialState> ProjectInitialStates { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
+    public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
+    public DbSet<ReportPublicComment> ReportPublicComments { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -111,6 +113,20 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(context => context.DeletedAt == null
                                        && context.Report.DeletedAt == null
                                        && context.Report.AccountId == CurrentAccountId);
+
+        // Comentarios: chegam na conta pelo relato, como o contexto. Sao duas
+        // entidades e dois filtros iguais, e nao uma com campo de visibilidade —
+        // e essa separacao que faz o interno nao ter como aparecer numa resposta
+        // publica por esquecimento.
+        modelBuilder.Entity<ReportInternalComment>()
+            .HasQueryFilter(comment => comment.DeletedAt == null
+                                       && comment.Report.DeletedAt == null
+                                       && comment.Report.AccountId == CurrentAccountId);
+
+        modelBuilder.Entity<ReportPublicComment>()
+            .HasQueryFilter(comment => comment.DeletedAt == null
+                                       && comment.Report.DeletedAt == null
+                                       && comment.Report.AccountId == CurrentAccountId);
 
         // Evento: so o isolamento por conta, porque nao existe evento apagado. Sem
         // sessao a conta atual e zero, que nao corresponde a nenhuma — o padrao

@@ -36,6 +36,8 @@ public record CreatedReportViewModel(
 /// <param name="Text">O relato como foi escrito.</param>
 /// <param name="Route">O caminho da pagina de onde saiu, sem query e sem fragmento.</param>
 /// <param name="Origin">O dominio informado pela pagina hospedeira. Indicio, nunca prova.</param>
+/// <param name="StatePublicId">Onde o relato esta na fila; <b>nulo</b> quando o projeto nao tinha coluna ativa na hora em que ele chegou.</param>
+/// <param name="StateName">O nome da coluna como ele esta <b>agora</b> — renomear a coluna muda o que a lista mostra, e e isso mesmo: a lista diz onde o relato esta, nao onde ele esteve.</param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
 public record ReportSummaryViewModel(
     Guid PublicId,
@@ -44,6 +46,8 @@ public record ReportSummaryViewModel(
     string Text,
     string? Route,
     string? Origin,
+    Guid? StatePublicId,
+    string? StateName,
     DateTime CreatedAt);
 
 /// <summary>
@@ -54,6 +58,19 @@ public record ReportSummaryViewModel(
 /// so descobre pedindo uma pagina vazia.</para>
 /// </summary>
 public record ReportPageViewModel(IReadOnlyList<ReportSummaryViewModel> Items, int Total);
+
+/// <summary>
+/// Quantos relatos ha em cada coluna da fila.
+/// </summary>
+/// <param name="StatePublicId">Identificador do estado; <b>nulo</b> na linha dos que ainda nao tem lugar na fila.</param>
+/// <param name="StateName">Nome do estado; nulo na mesma linha.</param>
+/// <param name="IsActive">Falso quando o estado foi aposentado. Sempre verdadeiro na linha sem estado.</param>
+/// <param name="Total">Quantos relatos estao ali.</param>
+public record ReportStateCountViewModel(
+    Guid? StatePublicId,
+    string? StateName,
+    bool IsActive,
+    int Total);
 
 /// <summary>Um par do contexto que veio junto com o relato, sem ninguem digitar.</summary>
 /// <param name="Key">Nome do dado, em ingles e snake_case: <c>user_agent</c>, <c>viewport_width</c>.</param>
@@ -73,6 +90,8 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <param name="Text">O relato como foi escrito.</param>
 /// <param name="Route">O caminho da pagina de onde saiu, sem query e sem fragmento.</param>
 /// <param name="Origin">O dominio informado pela pagina hospedeira. Indicio, nunca prova.</param>
+/// <param name="StatePublicId">Onde o relato esta na fila; <b>nulo</b> quando o projeto nao tinha coluna ativa quando ele chegou.</param>
+/// <param name="StateName">O nome da coluna como ele esta agora. E de la que o relato vai ser movido.</param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
 /// <param name="Contexts">O que veio junto, em ordem de chave.</param>
 public record ReportDetailViewModel(
@@ -82,6 +101,8 @@ public record ReportDetailViewModel(
     string Text,
     string? Route,
     string? Origin,
+    Guid? StatePublicId,
+    string? StateName,
     DateTime CreatedAt,
     IReadOnlyList<ReportContextViewModel> Contexts);
 
