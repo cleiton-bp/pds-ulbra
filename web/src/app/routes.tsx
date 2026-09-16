@@ -7,6 +7,7 @@ import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { ProjectsHubScreen } from '@/features/projects/ProjectsHubScreen'
+import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsScreen'
 
@@ -14,7 +15,8 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  * Dois niveis: fora do projeto nao ha o que navegar, dentro dele vai haver muito.
  *
  *   /projects .......................... hub, casca so com barra de cima
- *   /projects/:publicId/{start,keys,tool,states,settings,reports} ... console, com menu lateral
+ *   /projects/:publicId/{start,keys,tool,states,settings} ..... console, com menu lateral
+ *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
  * `createBrowserRouter` e nao o modo simples porque dele vem o `useBlocker`, que
  * avisa antes de sair da tela com a chave secreta na frente.
@@ -58,7 +60,14 @@ export const router = createBrowserRouter([
           { path: 'keys', element: <ProjectKeysScreen /> },
           { path: 'states', element: <ProjectStatesScreen /> },
           { path: 'settings', element: <ProjectSettingsScreen /> },
-          { path: 'reports', element: <ReportsScreen /> },
+          {
+            // O relato aberto e filho da lista: a lista continua montada atras,
+            // com o recorte e a rolagem onde estavam, e o dialogo ganha endereco
+            // proprio — da para mandar o link de um relato para um colega.
+            path: 'reports',
+            element: <ReportsScreen />,
+            children: [{ path: ':reportPublicId', element: <ReportDetailRoute /> }],
+          },
           { path: 'tool', element: <WidgetSettingsScreen /> },
         ],
       },

@@ -3,9 +3,16 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider, useParams } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProjectViewModel, ReportSummaryViewModel, ReportType } from '@/contracts'
+import type {
+  ProjectViewModel,
+  ReportStateCountViewModel,
+  ReportSummaryViewModel,
+  ReportType,
+} from '@/contracts'
 import type { ReportPage } from '@/data'
+import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
+import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -29,6 +36,12 @@ import { ReportsScreen } from '@/features/reports/ReportsScreen'
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<(publicId: string, page: number) => Promise<ReportPage>>(),
+  contar: vi.fn(),
+  mover: vi.fn(),
+  listarComentarios: vi.fn(),
+  comentarInterno: vi.fn(),
+  comentarPublico: vi.fn(),
+  historico: vi.fn(),
   abrir: vi.fn(),
 }))
 
@@ -37,7 +50,16 @@ vi.mock('@/data', async (importOriginal) => {
 
   return {
     ...real,
-    projectReportService: { listReports: dublê.listar, openReport: dublê.abrir },
+    projectReportService: {
+      listReports: dublê.listar,
+      openReport: dublê.abrir,
+      listReportCounts: dublê.contar,
+      moveReport: dublê.mover,
+      listComments: dublê.listarComentarios,
+      addInternalComment: dublê.comentarInterno,
+      addPublicComment: dublê.comentarPublico,
+      listReportHistory: dublê.historico,
+    },
   }
 })
 
@@ -63,6 +85,8 @@ function relato(
     Text: text,
     Route: '/checkout',
     Origin: 'loja.exemplo.com',
+    StatePublicId: 's-1',
+    StateName: 'Análise',
     CreatedAt: '2026-09-01T12:00:00.000Z',
     ...extra,
   }
@@ -82,21 +106,43 @@ function ProjetoDaRota() {
   return <Outlet context={{ project: projeto(publicId) }} />
 }
 
-function montar(publicId = 'p-1') {
+function contagem(
+  statePublicId: string | null,
+  stateName: string | null,
+  total: number,
+  isActive = true,
+): ReportStateCountViewModel {
+  return { StatePublicId: statePublicId, StateName: stateName, IsActive: isActive, Total: total }
+}
+
+function montar(publicId = 'p-1', endereco?: string) {
   const router = createMemoryRouter(
     [
       {
         path: '/p/:publicId',
         element: <ProjetoDaRota />,
-        children: [{ index: true, element: <ReportsScreen /> }],
+        children: [
+          {
+            // O mesmo aninhamento do app: a lista e a casca, e o relato aberto e
+            // filho dela. Sem isto o clique navega para um endereco que nao
+            // renderiza nada, e o dialogo nunca abre.
+            path: '',
+            element: <ReportsScreen />,
+            children: [{ path: ':reportPublicId', element: <ReportDetailRoute /> }],
+          },
+        ],
       },
     ],
-    { initialEntries: [`/p/${publicId}`] },
+    { initialEntries: [endereco ?? `/p/${publicId}`] },
   )
 
   render(<RouterProvider router={router} />)
   return router
 }
+
+// A caixa de escolha do produto desenha a propria lista, e o jsdom nao tem o
+// que ela usa para abrir. Sem isto o teste falharia pelo ambiente, nao pelo codigo.
+instalarRemendosDoRadix()
 
 describe('ReportsScreen', () => {
   afterEach(cleanup)
@@ -104,6 +150,22 @@ describe('ReportsScreen', () => {
   beforeEach(() => {
     dublê.listar.mockReset()
     dublê.abrir.mockReset()
+    dublê.contar.mockReset()
+    dublê.mover.mockReset()
+    for (const mock of [
+      dublê.listarComentarios,
+      dublê.comentarInterno,
+      dublê.comentarPublico,
+      dublê.historico,
+    ])
+      mock.mockReset()
+    // O diálogo busca comentários e histórico; sem resposta eles caem no caminho
+    // de falha e os testes olhariam uma tela meio quebrada.
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    // A tela busca lista e contagem. Sem esta resposta a barra de filtro nao
+    // desenha, e os testes da lista passariam olhando uma tela incompleta.
+    dublê.contar.mockResolvedValue([])
   })
 
   it('mostra o que chegou, com protocolo e pagina de origem', async () => {
@@ -207,6 +269,22 @@ describe('abrir um relato', () => {
   beforeEach(() => {
     dublê.listar.mockReset()
     dublê.abrir.mockReset()
+    // Sem zerar aqui tambem, a contagem de chamadas soma a dos testes do bloco de
+    // cima e qualquer asserticao sobre "quantas vezes" vira ruido.
+    dublê.contar.mockReset()
+    dublê.mover.mockReset()
+    for (const mock of [
+      dublê.listarComentarios,
+      dublê.comentarInterno,
+      dublê.comentarPublico,
+      dublê.historico,
+    ])
+      mock.mockReset()
+    // O diálogo busca comentários e histórico; sem resposta eles caem no caminho
+    // de falha e os testes olhariam uma tela meio quebrada.
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.contar.mockResolvedValue([])
     dublê.listar.mockResolvedValue({
       reports: [relato('r-1', 'o botao some'), relato('r-2', 'a conta esta errada')],
       total: 2,
@@ -277,5 +355,215 @@ describe('abrir um relato', () => {
 
     expect(screen.queryByText('Chrome do primeiro')).toBeNull()
     expect(screen.getByText('Firefox do segundo')).toBeTruthy()
+  })
+
+  it('a ficha "Todos" soma as colunas, e não chama a API de novo', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'um')], total: 1 })
+    dublê.contar.mockResolvedValue([
+      contagem('s-1', 'Análise', 12),
+      contagem('s-2', 'Pronto', 40),
+      contagem(null, null, 3),
+    ])
+
+    montar()
+
+    // 12 + 40 + 3, com um unico relato na tela: contar as linhas que vieram daria 1.
+    expect(await screen.findByRole('button', { name: 'Todos, 55 relatos' })).toBeTruthy()
+    // E "Todos" e a ausencia de recorte, e nao um recorte chamado "todos".
+    expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, null)
+  })
+
+  it('escolher uma coluna refaz a busca com o recorte', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'um')], total: 1 })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 12), contagem('s-2', 'Pronto', 40)])
+
+    montar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Análise, 12 relatos' }))
+
+    // Página 1 de novo: trocar de coluna é começar uma lista nova, e não
+    // acrescentar à que estava na tela.
+    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 's-1'))
+  })
+
+  it('a coluna sem relato aparece, mas a aposentada vazia não', async () => {
+    dublê.listar.mockResolvedValue({ reports: [], total: 0 })
+    dublê.contar.mockResolvedValue([
+      contagem('s-1', 'Análise', 0),
+      contagem('s-2', 'Parado', 0, false),
+      contagem('s-3', 'Encerrado', 4, false),
+    ])
+
+    montar()
+
+    // Coluna ativa vazia fica: some do filtro no dia em que o último relato dela
+    // é movido, e quem olha acharia que ela deixou de existir.
+    expect(await screen.findByRole('button', { name: 'Análise, 0 relatos' })).toBeTruthy()
+    // Aposentada e vazia não serve para nada.
+    expect(screen.queryByRole('button', { name: 'Parado (aposentada), 0 relatos' })).toBeNull()
+    // Aposentada com relato fica: é o único caminho até esses relatos.
+    expect(screen.getByRole('button', { name: 'Encerrado (aposentada), 4 relatos' })).toBeTruthy()
+  })
+
+  it('os sem coluna viram o recorte "none"', async () => {
+    dublê.listar.mockResolvedValue({ reports: [], total: 0 })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 2), contagem(null, null, 3)])
+
+    montar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sem coluna, 3 relatos' }))
+
+    // A linha sem coluna não tem identificador: a rota espera uma palavra.
+    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 'none'))
+  })
+
+  it('coluna vazia não é o mesmo que projeto sem relato', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 0), contagem('s-2', 'Pronto', 9)])
+    dublê.listar.mockResolvedValue({ reports: [], total: 0 })
+
+    montar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Análise, 0 relatos' }))
+
+    // O convite para instalar a ferramenta seria mentira duas vezes: sobre o que
+    // existe, e sobre o que a pessoa precisa fazer.
+    await waitFor(() => expect(screen.queryByText('Nenhum relato ainda')).toBeNull())
+    expect(screen.queryByRole('link', { name: /instalar/i })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ver todos' })).toBeTruthy()
+  })
+
+  it('o link aberto direto abre o relato que a lista não tem', async () => {
+    // A lista traz outro relato: o de interesse esta na pagina cinco, ou fora do
+    // recorte. E o caso que so passou a existir quando o relato ganhou endereco.
+    dublê.listar.mockResolvedValue({ reports: [relato('r-9', 'outro qualquer')], total: 1 })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Contexts: [{ Key: 'language', Value: 'pt-BR' }],
+    })
+
+    montar('p-1', '/p/p-1/r-1')
+
+    // Sem resumo na lista, o texto vem da resposta da abertura.
+    expect(await screen.findByText('o botao some')).toBeTruthy()
+    expect(dublê.abrir).toHaveBeenCalledWith('p-1', 'r-1')
+  })
+
+  it('fechar volta para a lista, e a lista não foi buscada de novo', async () => {
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+
+    const router = montar('p-1', '/p/p-1/r-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Fechar' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/p/p-1'))
+    // A lista fica montada atras: fechar nao e recarregar. Uma busca por montagem.
+    expect(dublê.listar).toHaveBeenCalledTimes(1)
+  })
+
+  it('mover grava a coluna nova, e a lista passa a mostrá-la', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
+
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    await waitFor(() =>
+      expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-2' }),
+    )
+    // A contagem muda em duas colunas de uma vez; sem recontar, as fichas
+    // passariam a discordar da lista na frente de quem está olhando.
+    await waitFor(() => expect(dublê.contar).toHaveBeenCalledTimes(2))
+  })
+
+  it('movido para fora do recorte, o relato sai da lista', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
+
+    montar()
+
+    // Filtra em Análise, abre o relato de lá e manda ele para Pronto.
+    fireEvent.click(await screen.findByRole('button', { name: 'Análise, 1 relato' }))
+    fireEvent.click(await screen.findByRole('link', { name: /o botao some/ }))
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    await waitFor(() => expect(dublê.mover).toHaveBeenCalled())
+
+    // Fecha antes de conferir: com o diálogo aberto, a Radix marca o resto da
+    // página como `aria-hidden` e a busca por `role` não enxerga a lista — a
+    // primeira versão deste teste passava por isso, e não pelo comportamento.
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+
+    // Deixar o cartão ali mostraria, debaixo do nome de uma coluna, um relato
+    // que não está mais nela.
+    await waitFor(() => expect(screen.queryByRole('link', { name: /o botao some/ })).toBeNull())
+  })
+
+  it('cada caixa escreve na sua, e nunca na outra', async () => {
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.comentarInterno.mockResolvedValue({
+      PublicId: 'c-1',
+      AuthorName: 'Cleiton',
+      Body: 'suspeito do cache',
+      CreatedAt: '2026-09-14T12:00:00.000Z',
+    })
+
+    montar('p-1', '/p/p-1/r-1')
+
+    const interno = await screen.findByRole('textbox', { name: 'Entre o time' })
+    fireEvent.change(interno, { target: { value: 'suspeito do cache' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Comentar entre o time' }))
+
+    await waitFor(() =>
+      expect(dublê.comentarInterno).toHaveBeenCalledWith('p-1', 'r-1', {
+        Body: 'suspeito do cache',
+      }),
+    )
+    // O erro caro: o texto interno acabar na tabela que vai ser lida de fora.
+    expect(dublê.comentarPublico).not.toHaveBeenCalled()
+  })
+
+  it('a caixa que sai para fora é a destacada, e diz que ainda não tem leitor', async () => {
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+
+    montar('p-1', '/p/p-1/r-1')
+
+    // São dois campos com nomes próprios, e não um com seletor de visibilidade.
+    expect(await screen.findByRole('textbox', { name: 'Entre o time' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Para quem relatou' })).toBeTruthy()
+    // Prometer leitura que não existe seria pior do que não ter o campo.
+    expect(screen.getByText(/ainda não tem onde ler/)).toBeTruthy()
+  })
+
+  it('o histórico usa o nome que a coluna tinha na época', async () => {
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.historico.mockResolvedValue([
+      {
+        PublicId: 'e-1',
+        Type: 'ReportStateChanged',
+        AuthorName: 'Cleiton',
+        // A coluna hoje se chama outra coisa, ou foi aposentada. O evento guardou
+        // este nome, e é ele que precisa aparecer — senão renomear reescreve o
+        // passado, dizendo que o relato esteve num estado que não existia.
+        FromStateName: 'Testando',
+        ToStateName: 'Pronto',
+        OccurredAt: '2026-09-14T12:00:00.000Z',
+      },
+    ])
+
+    montar('p-1', '/p/p-1/r-1')
+
+    expect(await screen.findByText('Movido de Testando para Pronto')).toBeTruthy()
   })
 })

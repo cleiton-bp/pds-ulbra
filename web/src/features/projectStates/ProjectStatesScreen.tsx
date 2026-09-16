@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   MAX_STATE_NAME_LENGTH,
   type ProjectInitialStateViewModel,
@@ -7,6 +7,7 @@ import {
 import { describeError, projectStateService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
+import { Select } from '@/shared/components/Select'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
@@ -132,34 +133,90 @@ export function ProjectStatesScreen() {
     }
   }
 
+  /**
+   * Grava a ordem nova, e devolve a anterior se o servidor recusar.
+   *
+   * E o mesmo caminho para a seta e para o arrastar: os dois so decidem **qual** e
+   * a ordem nova, e a gravacao, o otimismo e o desfazer moram aqui, uma vez so.
+   */
+  async function gravarOrdem(nova: ProjectStateViewModel[], anterior: ProjectStateViewModel[]) {
+    if (mesmaOrdem(nova, anterior)) return
+
+    setStates(nova)
+    setMoving(true)
+
+    try {
+      const saved = await projectStateService.reorderProjectStates(project.PublicId, {
+        Order: nova.map((state) => state.PublicId),
+      })
+      setStates(saved)
+    } catch (failure) {
+      // Volta para a ordem de antes. Deixar a lista no lugar novo mostraria uma
+      // ordem que o banco nao tem.
+      setStates(anterior)
+      toast.error(describeError(failure))
+    } finally {
+      setMoving(false)
+    }
+  }
+
   async function move(index: number, delta: number) {
     if (!states || moving) return
 
     const target = index + delta
     if (target < 0 || target >= states.length) return
 
-    const next = [...states]
-    const [item] = next.splice(index, 1)
-    if (!item) return
-    next.splice(target, 0, item)
+    await gravarOrdem(reordenar(states, index, target), states)
+  }
 
-    const previous = states
-    setStates(next)
-    setMoving(true)
+  /**
+   * O arrastar.
+   *
+   * **A lista se reorganiza enquanto o dedo esta em cima**, e nao so ao soltar: e
+   * o que faz a acao parecer direta em vez de um formulario disfarcado. A gravacao
+   * acontece uma vez, ao soltar, com a ordem que ficou na tela.
+   *
+   * `ordemAntes` guarda como estava quando o arrasto comecou — e ela que volta se
+   * o servidor recusar, e nao a ordem de uma linha atras.
+   */
+  const ordemAntes = useRef<ProjectStateViewModel[] | null>(null)
+  const [arrastando, setArrastando] = useState<string | null>(null)
 
-    try {
-      const saved = await projectStateService.reorderProjectStates(project.PublicId, {
-        Order: next.map((state) => state.PublicId),
-      })
-      setStates(saved)
-    } catch (failure) {
-      // A ordem volta a ser a de antes da seta. Deixar a lista no lugar novo
-      // mostraria uma ordem que o banco nao tem.
-      setStates(previous)
-      toast.error(describeError(failure))
-    } finally {
-      setMoving(false)
-    }
+  function comecarArrasto(publicId: string) {
+    if (!states) return
+    setArrastando(publicId)
+    ordemAntes.current = states
+  }
+
+  /**
+   * Clique na alca sem arrastar.
+   *
+   * Durante um arrasto o navegador nao dispara `mouseup` — dispara `dragend` —,
+   * entao chegar aqui significa que a pessoa so clicou. Sem isto a linha ficaria
+   * presa no estado de arrasto, arrastavel e apagada, ate alguem clicar de novo.
+   */
+  function cancelarArrasto() {
+    setArrastando(null)
+    ordemAntes.current = null
+  }
+
+  function arrastarSobre(indexAlvo: number) {
+    if (!states || arrastando === null) return
+
+    const atual = states.findIndex((state) => state.PublicId === arrastando)
+    if (atual === -1 || atual === indexAlvo) return
+
+    setStates(reordenar(states, atual, indexAlvo))
+  }
+
+  async function soltar() {
+    const anterior = ordemAntes.current
+    setArrastando(null)
+    ordemAntes.current = null
+
+    if (!states || anterior === null) return
+
+    await gravarOrdem(states, anterior)
   }
 
   async function escolherEntrada(
@@ -250,14 +307,65 @@ export function ProjectStatesScreen() {
           </p>
         )}
 
+        {states !== null && states.length > 1 && (
+          <p className="mb-2 text-caption text-fg-muted">
+            Arraste pela alça à esquerda para mudar a ordem. Pelo teclado, use as setas que aparecem
+            ao focar a linha.
+          </p>
+        )}
+
         {states !== null && states.length > 0 && (
           <ul className="mb-4 flex flex-col gap-2">
             {states.map((state, index) => (
               <li
                 key={state.PublicId}
-                className="flex items-center gap-2 rounded-lg border border-border bg-surface-raised py-2 pr-2 pl-2.5"
+                // `draggable` so liga quando a pessoa pega pela alca. Com a linha
+                // inteira arrastavel, selecionar o nome com o mouse viraria um
+                // arrasto e renomear ficaria desconfortavel.
+                draggable={arrastando === state.PublicId}
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = 'move'
+                  // O Firefox ignora o arrasto sem dado nenhum no evento.
+                  event.dataTransfer.setData('text/plain', state.PublicId)
+                }}
+                onDragEnter={() => arrastarSobre(index)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  void soltar()
+                }}
+                onDragEnd={() => void soltar()}
+                className={`group flex items-center gap-2 rounded-lg border bg-surface-raised py-2 pr-2 pl-1.5 ${
+                  arrastando === state.PublicId ? 'border-accent opacity-60' : 'border-border'
+                }`}
               >
-                <div className="flex flex-none flex-col">
+                {/* A alca fica sempre visivel: e ela que conta que a linha se
+                    move. As setas aparecem no mouse por cima ou no foco do
+                    teclado — elas continuam alcancaveis por Tab, porque
+                    `opacity-0` nao tira do foco nem do leitor de tela, e sao o
+                    unico jeito de reordenar sem mouse. */}
+                <button
+                  type="button"
+                  aria-hidden
+                  tabIndex={-1}
+                  onMouseDown={() => comecarArrasto(state.PublicId)}
+                  onTouchStart={() => comecarArrasto(state.PublicId)}
+                  onMouseUp={cancelarArrasto}
+                  onTouchEnd={cancelarArrasto}
+                  disabled={editing !== null || moving}
+                  className="flex size-6 flex-none cursor-grab items-center justify-center rounded text-fg-muted active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
+                >
+                  <svg viewBox="0 0 12 12" className="size-3" fill="currentColor" aria-hidden>
+                    <circle cx="4.5" cy="2.5" r="1" />
+                    <circle cx="7.5" cy="2.5" r="1" />
+                    <circle cx="4.5" cy="6" r="1" />
+                    <circle cx="7.5" cy="6" r="1" />
+                    <circle cx="4.5" cy="9.5" r="1" />
+                    <circle cx="7.5" cy="9.5" r="1" />
+                  </svg>
+                </button>
+
+                <div className="flex flex-none flex-col opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                   <MoveButton
                     direction="up"
                     label={`Mover ${state.Name} para cima`}
@@ -386,8 +494,9 @@ export function ProjectStatesScreen() {
         <section className="mt-10">
           <h2 className="mb-1 font-semibold text-lead">Onde cada relato entra</h2>
           <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-            Um defeito e uma dúvida não precisam começar no mesmo lugar. Escolha por tipo, ou deixe
-            no padrão para tudo cair na primeira coluna da fila.{' '}
+            Um defeito e uma dúvida não precisam começar no mesmo lugar. Escolha uma coluna fixa por
+            tipo, ou deixe seguindo a fila — aí o relato cai sempre na primeira coluna ativa, mesmo
+            que você reordene depois.{' '}
             <strong className="font-medium text-fg">
               Trocar aqui não mexe nos relatos que já entraram
             </strong>
@@ -409,29 +518,37 @@ export function ProjectStatesScreen() {
                     {teamTypeLabel(entrada.ReportType)}
                   </span>
 
-                  <select
-                    aria-label={`Onde entra um relato do tipo ${teamTypeLabel(entrada.ReportType)}`}
-                    className="h-9 min-w-0 max-w-56 flex-1 rounded-lg border border-border bg-surface px-2.5 text-body text-fg disabled:text-fg-disabled"
+                  <Select
+                    className="min-w-0 max-w-56 flex-1"
+                    size="sm"
+                    ariaLabel={`Onde entra um relato do tipo ${teamTypeLabel(entrada.ReportType)}`}
                     value={entrada.StatePublicId ?? ''}
                     disabled={salvandoEntrada === entrada.ReportType}
-                    onChange={(event) =>
-                      escolherEntrada(entrada.ReportType, event.target.value || null)
-                    }
-                  >
-                    {/* O padrao e uma opcao de verdade, e nao a ausencia de escolha:
-                        escolhe-la apaga a linha no banco. Sem ela, quem configurou
-                        uma vez nao teria como voltar atras. */}
-                    <option value="">
-                      {padrao ? `Padrão — ${padrao.Name}` : 'Padrão — nenhuma coluna ativa'}
-                    </option>
-                    {states
-                      .filter((state) => state.IsActive || state.PublicId === entrada.StatePublicId)
-                      .map((state) => (
-                        <option key={state.PublicId} value={state.PublicId}>
-                          {state.Name}
-                        </option>
-                      ))}
-                  </select>
+                    onChange={(valor) => escolherEntrada(entrada.ReportType, valor || null)}
+                    options={[
+                      // O padrao e uma opcao de verdade, e nao a ausencia de
+                      // escolha: escolhe-la apaga a linha no banco. Sem ela, quem
+                      // configurou uma vez nao teria como voltar atras.
+                      {
+                        value: '',
+                        // Diz o que a opcao **faz**, e nao so onde ela cai hoje.
+                        // "Padrão — Backlog" ao lado de "Backlog" parecia a mesma
+                        // coisa escrita duas vezes; a diferenca e que uma acompanha
+                        // a fila e a outra fixa aquela coluna.
+                        label: padrao
+                          ? `Seguir a fila (hoje: ${padrao.Name})`
+                          : 'Seguir a fila (nenhuma coluna ativa)',
+                      },
+                      // Coluna aposentada nao e destino: mandar relato novo para
+                      // ela desfaria pela porta dos fundos o que aposentar decidiu.
+                      // A ja escolhida fica, para a tela nao mostrar em branco.
+                      ...states
+                        .filter(
+                          (state) => state.IsActive || state.PublicId === entrada.StatePublicId,
+                        )
+                        .map((state) => ({ value: state.PublicId, label: state.Name })),
+                    ]}
+                  />
                 </li>
               ))}
             </ul>
@@ -451,6 +568,24 @@ export function ProjectStatesScreen() {
       />
     </div>
   )
+}
+
+/** Tira o item de uma posicao e o devolve em outra, sem alterar a lista original. */
+function reordenar(
+  lista: ProjectStateViewModel[],
+  de: number,
+  para: number,
+): ProjectStateViewModel[] {
+  const nova = [...lista]
+  const [item] = nova.splice(de, 1)
+  if (!item) return lista
+  nova.splice(para, 0, item)
+  return nova
+}
+
+/** Duas listas com os mesmos estados na mesma ordem. Evita gravar o que nao mudou. */
+function mesmaOrdem(a: ProjectStateViewModel[], b: ProjectStateViewModel[]): boolean {
+  return a.length === b.length && a.every((state, index) => state.PublicId === b[index]?.PublicId)
 }
 
 /**
