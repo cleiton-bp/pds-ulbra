@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ReportSummaryViewModel } from '@/contracts'
+import { type ReportSummaryViewModel, WITHOUT_STATE_FILTER } from '@/contracts'
 import { projectReportService } from '@/data'
 
 interface InboxState {
@@ -14,7 +14,7 @@ interface InboxState {
 const EMPTY: InboxState = { reports: null, total: 0, failed: false, loadingMore: false }
 
 /**
- * A lista de relatos que cresce por partes.
+ * A lista de relatos que cresce por partes, dentro de um recorte.
  *
  * Nao usa `useAsyncResource` porque ali cada busca **substitui** o que havia, e
  * aqui a segunda pagina precisa somar a primeira. O resto do comportamento e o
@@ -22,19 +22,23 @@ const EMPTY: InboxState = { reports: null, total: 0, failed: false, loadingMore:
  * cancelar a anterior, e sem ele a resposta do projeto que a pessoa acabou de
  * deixar chega depois e pinta relato de um projeto no endereco de outro.
  */
-export function useReportInbox(publicId: string) {
+export function useReportInbox(publicId: string, stateFilter?: string | null) {
   const [state, setState] = useState<InboxState>(EMPTY)
 
   const generation = useRef(0)
   const nextPage = useRef(1)
 
+  // O recorte entra na dependencia junto com o projeto: trocar de coluna e comecar
+  // uma lista nova, e nao acrescentar a que esta na tela. O contador de geracao
+  // cuida do resto — a resposta da coluna que a pessoa acabou de deixar chega
+  // depois, e sem ele pintaria relato de uma coluna debaixo do nome de outra.
   const load = useCallback(async () => {
     const minha = ++generation.current
     nextPage.current = 1
     setState(EMPTY)
 
     try {
-      const page = await projectReportService.listReports(publicId, 1)
+      const page = await projectReportService.listReports(publicId, 1, stateFilter)
       if (minha !== generation.current) return
 
       nextPage.current = 2
@@ -44,7 +48,7 @@ export function useReportInbox(publicId: string) {
       if (minha !== generation.current) return
       setState({ ...EMPTY, failed: true })
     }
-  }, [publicId])
+  }, [publicId, stateFilter])
 
   useEffect(() => {
     void load()
@@ -55,7 +59,7 @@ export function useReportInbox(publicId: string) {
     setState((current) => ({ ...current, loadingMore: true }))
 
     try {
-      const page = await projectReportService.listReports(publicId, nextPage.current)
+      const page = await projectReportService.listReports(publicId, nextPage.current, stateFilter)
       if (minha !== generation.current) return
 
       nextPage.current += 1
@@ -77,7 +81,46 @@ export function useReportInbox(publicId: string) {
       // que a API escreveu, e trocar por um texto generico aqui apagaria ela.
       throw error
     }
-  }, [publicId])
+  }, [publicId, stateFilter])
+
+  /**
+   * Troca um relato que acabou de mudar, sem refazer a busca.
+   *
+   * **E ele quem tira da lista o relato que saiu do recorte.** Movido para outra
+   * coluna com um filtro ligado, ele deixa de pertencer aquela lista — deixa-lo
+   * ali faria a tela mostrar, debaixo do nome de uma coluna, um relato que nao
+   * esta mais nela.
+   *
+   * Recarregar tudo resolveria igual e custaria a paginacao: quem estava na
+   * pagina tres voltaria para a primeira a cada relato movido.
+   */
+  const apply = useCallback(
+    (report: ReportSummaryViewModel) => {
+      setState((current) => {
+        if (current.reports === null) return current
+
+        const cabe =
+          !stateFilter ||
+          (stateFilter === WITHOUT_STATE_FILTER
+            ? report.StatePublicId === null
+            : report.StatePublicId === stateFilter)
+
+        return cabe
+          ? {
+              ...current,
+              reports: current.reports.map((item) =>
+                item.PublicId === report.PublicId ? report : item,
+              ),
+            }
+          : {
+              ...current,
+              reports: current.reports.filter((item) => item.PublicId !== report.PublicId),
+              total: Math.max(0, current.total - 1),
+            }
+      })
+    },
+    [stateFilter],
+  )
 
   return {
     reports: state.reports,
@@ -89,6 +132,7 @@ export function useReportInbox(publicId: string) {
     hasMore: state.reports !== null && state.reports.length < state.total,
     reload: () => void load(),
     loadMore,
+    apply,
   }
 }
 

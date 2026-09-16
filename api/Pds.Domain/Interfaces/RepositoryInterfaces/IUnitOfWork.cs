@@ -17,5 +17,7 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IProjectStateRepository ProjectStates { get; }
     IProjectInitialStateRepository ProjectInitialStates { get; }
     IReportRepository Reports { get; }
+    IReportInternalCommentRepository ReportInternalComments { get; }
+    IReportPublicCommentRepository ReportPublicComments { get; }
     IEventRepository Events { get; }
 }

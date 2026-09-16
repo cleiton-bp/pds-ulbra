@@ -60,6 +60,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.ReportComments,
+                Description = "O que fica entre o time e o que é escrito para quem relatou. São duas rotas e duas tabelas: não existe campo que decida qual é qual.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.PublicReports,
                 Description = "A entrada do relato, vinda do site do cliente. A credencial é a chave pública, e ela só diz para onde o relato vai.",
             },

@@ -9,6 +9,7 @@ import type {
   ProjectViewModel,
 } from '@/contracts'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
+import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -111,6 +112,10 @@ function montar() {
 const nomesNaTela = () =>
   screen.getAllByRole('listitem').map((item) => item.textContent?.split('Renomear')[0]?.trim())
 
+// A caixa de escolha do produto desenha a propria lista, e o jsdom nao tem o
+// que ela usa para abrir. Sem isto o teste falharia pelo ambiente, nao pelo codigo.
+instalarRemendosDoRadix()
+
 describe('ProjectStatesScreen', () => {
   afterEach(cleanup)
 
@@ -204,12 +209,18 @@ describe('ProjectStatesScreen', () => {
 
     montar()
 
-    const seletor = await screen.findByRole('combobox', {
+    // O gatilho mostra o que está escolhido; a lista é nossa, não do sistema.
+    const gatilho = await screen.findByRole('combobox', {
       name: 'Onde entra um relato do tipo Defeito',
     })
-    expect((seletor as HTMLSelectElement).value).toBe('s-2')
+    expect(gatilho.textContent).toContain('Pronto')
 
-    fireEvent.change(seletor, { target: { value: '' } })
+    await escolherNoSelect(
+      screen,
+      fireEvent,
+      'Onde entra um relato do tipo Defeito',
+      /^Seguir a fila/,
+    )
 
     // Nulo, e nao string vazia: e o que apaga a linha no banco e devolve o tipo
     // ao padrão. Mandar '' gravaria uma escolha que aponta para lugar nenhum.
@@ -235,14 +246,16 @@ describe('ProjectStatesScreen', () => {
 
     montar()
 
-    const seletor = await screen.findByRole('combobox', {
+    const gatilho = await screen.findByRole('combobox', {
       name: 'Onde entra um relato do tipo Defeito',
     })
-    const opcoes = Array.from(seletor.querySelectorAll('option')).map((o) => o.textContent)
+    fireEvent.pointerDown(gatilho, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+
+    const opcoes = screen.getAllByRole('option').map((o) => o.textContent)
 
     // "Parado" está aposentado: mandar relato novo para ele desfaria pela porta
     // dos fundos o que aposentar decidiu.
-    expect(opcoes).toEqual(['Padrão — Análise', 'Análise', 'Pronto'])
+    expect(opcoes).toEqual(['Seguir a fila (hoje: Análise)', 'Análise', 'Pronto'])
   })
 
   it('o padrão mostra a primeira coluna ativa, e não a primeira da lista', async () => {
@@ -262,11 +275,69 @@ describe('ProjectStatesScreen', () => {
 
     montar()
 
-    const seletor = await screen.findByRole('combobox', {
+    const gatilho = await screen.findByRole('combobox', {
       name: 'Onde entra um relato do tipo Defeito',
     })
-    const primeira = seletor.querySelector('option')
+    fireEvent.pointerDown(gatilho, { button: 0, ctrlKey: false, pointerType: 'mouse' })
 
-    expect(primeira?.textContent).toBe('Padrão — Corrigindo')
+    expect(screen.getAllByRole('option')[0]?.textContent).toBe('Seguir a fila (hoje: Corrigindo)')
+  })
+
+  it('arrastar reordena na tela e grava a fila inteira uma vez só', async () => {
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'Análise', 0),
+      estado('s-2', 'Parado', 1, false),
+      estado('s-3', 'Pronto', 2),
+    ])
+    dublê.reordenar.mockImplementation(async (_: string, pedido: { Order: string[] }) => {
+      const mapa = new Map([
+        ['s-1', estado('s-1', 'Análise', 0)],
+        ['s-2', estado('s-2', 'Parado', 1, false)],
+        ['s-3', estado('s-3', 'Pronto', 2)],
+      ])
+      return pedido.Order.map((publicId, posicao) => ({
+        ...(mapa.get(publicId) as ProjectStateViewModel),
+        Position: posicao,
+      }))
+    })
+
+    montar()
+    await screen.findByText('Análise')
+
+    const linhas = screen.getAllByRole('listitem')
+    const primeira = linhas[0] as HTMLElement
+    const terceira = linhas[2] as HTMLElement
+
+    // A alça é o que liga o arrasto: sem ela a linha não é arrastável, para
+    // selecionar o nome com o mouse não virar um arrasto.
+    fireEvent.mouseDown(primeira.querySelector('button') as HTMLElement)
+    fireEvent.dragStart(primeira)
+    fireEvent.dragEnter(terceira)
+
+    // A lista se reorganiza com o dedo em cima, e não só ao soltar.
+    await waitFor(() => expect(nomesNaTela()).toEqual(['ParadoAposentado', 'Pronto', 'Análise']))
+    expect(dublê.reordenar).not.toHaveBeenCalled()
+
+    fireEvent.drop(terceira)
+
+    // Uma gravação só, com a fila inteira e o aposentado dentro.
+    await waitFor(() => expect(dublê.reordenar).toHaveBeenCalledTimes(1))
+    expect(dublê.reordenar.mock.calls[0]?.[1]).toEqual({ Order: ['s-2', 's-3', 's-1'] })
+  })
+
+  it('soltar sem ter mudado de lugar não grava nada', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'Análise', 0), estado('s-2', 'Pronto', 1)])
+
+    montar()
+    await screen.findByText('Análise')
+
+    const primeira = screen.getAllByRole('listitem')[0] as HTMLElement
+    fireEvent.mouseDown(primeira.querySelector('button') as HTMLElement)
+    fireEvent.dragStart(primeira)
+    fireEvent.drop(primeira)
+
+    // Pegar e largar no mesmo lugar é desistir, e desistir não é uma gravação.
+    await waitFor(() => expect(nomesNaTela()).toEqual(['Análise', 'Pronto']))
+    expect(dublê.reordenar).not.toHaveBeenCalled()
   })
 })

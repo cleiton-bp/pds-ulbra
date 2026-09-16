@@ -1,12 +1,16 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import type { ReportSummaryViewModel } from '@/contracts'
-import { describeError } from '@/data'
-import { ReportDialog } from '@/features/reports/ReportDialog'
+import { useCallback, useState } from 'react'
+import { Link, Outlet } from 'react-router-dom'
+import {
+  type ReportStateCountViewModel,
+  type ReportSummaryViewModel,
+  WITHOUT_STATE_FILTER,
+} from '@/contracts'
+import { describeError, projectReportService } from '@/data'
 import { useReportInbox } from '@/features/reports/useReportInbox'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
+import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
 import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
@@ -19,17 +23,39 @@ import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
  * escreveu, e por isso o texto dele e o elemento maior da linha — protocolo, tipo
  * e data existem para localizar, nao para serem lidos.
  *
- * Nao ha filtro nem busca, e nao e esquecimento: eles se justificam quando a
- * lista passa de uma tela, e o quadro por estado da etapa 3 e que vai responder
- * "o que ainda nao tratei". Inventar filtro agora seria construir a versao
- * provisoria de uma tela que ja tem sucessora.
+ * **O filtro por coluna chegou**, e e o que responde "o que ainda nao tratei" —
+ * a pergunta que antes nao tinha como ser feita aqui. Busca por texto continua
+ * fora: ela se justifica quando a lista passa de uma tela, e a coluna resolve o
+ * caso comum antes disso.
+ *
+ * **A contagem vem de uma chamada propria**, e nao de contar as linhas que
+ * chegaram: a lista traz uma pagina, e contar o que veio daria um numero errado
+ * assim que o projeto passasse de vinte relatos.
+ *
+ * **Coluna vazia continua na tela.** Some so a aposentada que nao segura mais
+ * nada — a aposentada com relato antigo fica, senao esses relatos ficariam sem
+ * caminho ate eles.
  */
 export function ReportsScreen() {
   const project = useCurrentProject()
-  const { reports, total, loading, failed, loadingMore, hasMore, reload, loadMore } =
-    useReportInbox(project.PublicId)
 
-  const [opened, setOpened] = useState<ReportSummaryViewModel | null>(null)
+  const [filtro, setFiltro] = useState<string | null>(null)
+
+  // Trocar de projeto zera o recorte, e isto vem **antes** da busca: o
+  // identificador de uma coluna do projeto anterior nao existe no novo, e a API
+  // recusaria a lista inteira com 404.
+  const [projetoDoFiltro, setProjetoDoFiltro] = useState(project.PublicId)
+  if (projetoDoFiltro !== project.PublicId) {
+    setProjetoDoFiltro(project.PublicId)
+    setFiltro(null)
+  }
+
+  const { reports, total, loading, failed, loadingMore, hasMore, reload, loadMore, apply } =
+    useReportInbox(project.PublicId, filtro)
+
+  const { data: contagens, reload: recarregarContagens } = useAsyncResource(
+    useCallback(() => projectReportService.listReportCounts(project.PublicId), [project.PublicId]),
+  )
 
   return (
     <div className="max-w-170">
@@ -45,20 +71,36 @@ export function ReportsScreen() {
             Não deu para carregar os relatos agora. Nada se perdeu: a falha foi ao consultar, e o
             que chegou continua guardado.
           </p>
-          <Button onClick={reload}>Tentar de novo</Button>
+          <Button
+            onClick={() => {
+              reload()
+              recarregarContagens()
+            }}
+          >
+            Tentar de novo
+          </Button>
         </div>
+      )}
+
+      {contagens && contagens.length > 0 && (
+        <FiltroPorColuna contagens={contagens} escolhido={filtro} aoEscolher={setFiltro} />
       )}
 
       {loading && <LoadingList />}
 
-      {reports?.length === 0 && <EmptyState />}
+      {reports?.length === 0 &&
+        (filtro === null ? (
+          <EmptyState />
+        ) : (
+          <ColunaVazia nome={nomeDaColuna(contagens, filtro)} aoVerTodos={() => setFiltro(null)} />
+        ))}
 
       {reports && reports.length > 0 && (
         <>
           <ul className="flex flex-col gap-3">
             {reports.map((report) => (
               <li key={report.PublicId}>
-                <ReportCard report={report} onOpen={() => setOpened(report)} />
+                <ReportCard report={report} />
               </li>
             ))}
           </ul>
@@ -84,11 +126,24 @@ export function ReportsScreen() {
         </>
       )}
 
-      <ReportDialog
-        projectPublicId={project.PublicId}
-        report={opened}
-        onOpenChange={(open) => {
-          if (!open) setOpened(null)
+      {/* O relato aberto e uma rota filha, e nao um estado desta tela: assim ele
+          tem endereco proprio, o botao voltar do navegador fecha o dialogo em vez
+          da tela inteira, e a lista continua montada atras com o recorte e a
+          rolagem onde estavam. */}
+      <Outlet
+        context={{
+          projectPublicId: project.PublicId,
+          reports,
+          // As colunas saem da contagem que esta tela ja carregou: mesma ordem, e
+          // sem uma segunda requisicao para perguntar o que ja esta na mao.
+          colunas: contagens,
+          aoMover: (movido: ReportSummaryViewModel) => {
+            apply(movido)
+            // A contagem muda em duas colunas de uma vez, e ela nao se recalcula
+            // sozinha — sem isto as fichas passariam a discordar da lista na
+            // frente de quem esta olhando.
+            recarregarContagens()
+          },
         }}
       />
     </div>
@@ -99,17 +154,152 @@ export function ReportsScreen() {
  * A linha inteira e o botao, e nao um "ver mais" no canto: o alvo do clique e o
  * relato, e dividir a linha em area clicavel e area morta obriga a mirar.
  */
-function ReportCard({ report, onOpen }: { report: ReportSummaryViewModel; onOpen: () => void }) {
+/**
+ * As fichas de recorte, com a contagem de cada coluna.
+ *
+ * **"Todos" soma as colunas**, e nao chama a API de novo. A soma e exata porque a
+ * contagem ja traz todas as colunas e a linha dos sem coluna — nao ha relato fora
+ * dessas linhas.
+ *
+ * **A coluna aposentada so aparece se ainda segurar relato.** Escondê-la sempre
+ * esconderia esses relatos do unico caminho que leva ate eles; mostra-la sempre
+ * encheria a barra de colunas que ninguem usa mais.
+ */
+/**
+ * O nome da coluna escolhida, para a tela poder dize-lo.
+ *
+ * Cai no generico se a contagem ainda nao chegou: melhor uma frase sem o nome do
+ * que a tela em branco esperando um dado que so serve para enfeitar a frase.
+ */
+function nomeDaColuna(
+  contagens: ReportStateCountViewModel[] | null,
+  filtro: string,
+): string | null {
+  const achada = (contagens ?? []).find(
+    (item) => (item.StatePublicId ?? WITHOUT_STATE_FILTER) === filtro,
+  )
+  return achada?.StateName ?? null
+}
+
+/**
+ * O vazio de um recorte **nao e** o vazio do projeto.
+ *
+ * O `EmptyState` diz "nenhum relato ainda" e convida a instalar a ferramenta no
+ * site. Na frente de uma coluna vazia de um projeto que ja recebeu relatos, isso e
+ * mentira duas vezes: sobre o que existe, e sobre o que a pessoa precisa fazer.
+ */
+function ColunaVazia({ nome, aoVerTodos }: { nome: string | null; aoVerTodos: () => void }) {
+  return (
+    <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
+      <p className="mb-3.5 text-detail text-fg-muted leading-relaxed">
+        {nome ? (
+          <>
+            Nenhum relato em <strong className="font-medium text-fg">{nome}</strong> agora.
+          </>
+        ) : (
+          'Nenhum relato neste recorte agora.'
+        )}{' '}
+        Os outros continuam onde estão.
+      </p>
+      <Button onClick={aoVerTodos}>Ver todos</Button>
+    </div>
+  )
+}
+
+function FiltroPorColuna({
+  contagens,
+  escolhido,
+  aoEscolher,
+}: {
+  contagens: ReportStateCountViewModel[]
+  escolhido: string | null
+  aoEscolher: (valor: string | null) => void
+}) {
+  const visiveis = contagens.filter((item) => item.IsActive || item.Total > 0)
+  const total = contagens.reduce((soma, item) => soma + item.Total, 0)
+
+  return (
+    <div className="mb-6 flex flex-wrap gap-2">
+      <Ficha
+        rotulo="Todos"
+        total={total}
+        ativa={escolhido === null}
+        aoClicar={() => aoEscolher(null)}
+      />
+
+      {visiveis.map((item) => {
+        // A linha sem coluna nao tem identificador: o valor que a rota espera para
+        // ela e uma palavra, e nao um GUID.
+        const valor = item.StatePublicId ?? WITHOUT_STATE_FILTER
+        const rotulo = item.StateName ?? 'Sem coluna'
+
+        return (
+          <Ficha
+            key={valor}
+            rotulo={item.IsActive ? rotulo : `${rotulo} (aposentada)`}
+            total={item.Total}
+            ativa={escolhido === valor}
+            aoClicar={() => aoEscolher(valor)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function Ficha({
+  rotulo,
+  total,
+  ativa,
+  aoClicar,
+}: {
+  rotulo: string
+  total: number
+  ativa: boolean
+  aoClicar: () => void
+}) {
   return (
     <button
       type="button"
-      onClick={onOpen}
+      aria-pressed={ativa}
+      // O espaco entre o rotulo e o numero e visual, feito pelo `gap` — no texto
+      // nao ha nada entre os dois, e o leitor de tela anunciaria "Todos55". O nome
+      // proprio tambem diz o que o numero conta, que a tela deixa implicito.
+      aria-label={`${rotulo}, ${total} ${total === 1 ? 'relato' : 'relatos'}`}
+      onClick={aoClicar}
+      className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors ${
+        ativa
+          ? 'border-accent bg-accent text-accent-fg'
+          : 'border-border bg-surface text-fg hover:bg-surface-sunken'
+      }`}
+    >
+      {rotulo}
+      <span className={ativa ? 'opacity-80' : 'text-fg-muted'}>{total}</span>
+    </button>
+  )
+}
+
+function ReportCard({ report }: { report: ReportSummaryViewModel }) {
+  return (
+    // Link, e nao botao: e o que faz o relato ter endereco proprio, abrir em outra
+    // aba com o meio do mouse e sobreviver a um recarregamento da pagina.
+    <Link
+      to={report.PublicId}
       className="block w-full rounded-xl border border-border bg-surface-raised p-4 text-left transition-colors hover:bg-surface-sunken"
     >
       <header className="mb-2 flex items-baseline justify-between gap-3">
-        <span className="flex-none rounded-full border border-border px-2 py-px text-caption text-fg-muted">
-          {teamTypeLabel(report.Type)}
-        </span>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+          <span className="flex-none rounded-full border border-border px-2 py-px text-caption text-fg-muted">
+            {teamTypeLabel(report.Type)}
+          </span>
+
+          {/* Onde ele esta na fila. Sem ficha quando nao ha coluna: desenhar
+              "Sem coluna" em todo cartao de um projeto que ainda nao criou
+              nenhuma encheria a lista de um aviso que nao pede acao. */}
+          {report.StateName && (
+            <span className="min-w-0 truncate text-caption text-fg-muted">{report.StateName}</span>
+          )}
+        </div>
 
         {/* O relativo responde "isto e recente?", que e a pergunta de quem passa
             os olhos; a data exata fica no `title`, para quem precisa dela. */}
@@ -135,7 +325,7 @@ function ReportCard({ report, onOpen }: { report: ReportSummaryViewModel; onOpen
           </>
         )}
       </div>
-    </button>
+    </Link>
   )
 }
 

@@ -72,3 +72,16 @@ public class OpenReportTrackingDto
     /// </summary>
     public string? Token { get; set; }
 }
+
+/// <summary>
+/// Para onde o relato vai na fila. O relato e o projeto vem da rota.
+/// </summary>
+public class MoveReportDto
+{
+    /// <summary>
+    /// A coluna de destino. Precisa ser do mesmo projeto e estar <b>ativa</b> —
+    /// mandar relato para uma coluna aposentada seria desfazer pela porta dos
+    /// fundos o que aposentar decidiu.
+    /// </summary>
+    public Guid? StatePublicId { get; set; }
+}

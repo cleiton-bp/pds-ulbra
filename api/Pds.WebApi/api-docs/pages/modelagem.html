@@ -1,5 +1,5 @@
 <h2>Modelagem</h2>
-<p class="lead">Onze tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Treze tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
@@ -410,10 +410,34 @@ ninguém mais enxerga.</p>
   enquanto a lista de capturas não estabilizar.</p>
 </div>
 
+<h2>report_internal_comments · report_public_comments</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>report_id</code></td><td>Relato comentado.</td></tr>
+  <tr><td><code>user_id</code></td><td>Quem escreveu. <b>Obrigatório nas duas</b>: comentário sem autor não serve para decidir nada depois.</td></tr>
+  <tr><td><code>body</code></td><td>O texto. 5000 nas duas — limites separados de propósito, porque o público sai para fora e pode ganhar regra própria.</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>Duas tabelas, e não uma com campo de visibilidade</strong>
+  <p>É a decisão mais importante desta etapa. Com um sinalizador, vazar o comentário interno é
+  esquecer um filtro numa consulta — e o esquecimento não dá erro em lugar nenhum: a resposta sai
+  com uma linha a mais. Com tabelas separadas, vazar exige escrever uma consulta que não existe e
+  que ninguém teria motivo para escrever.</p>
+  <p>A separação vai até o fim: duas entidades, dois repositórios <b>sem interface comum</b>,
+  dois métodos de serviço, duas rotas e dois tipos de evento. Uma base compartilhada convidaria a
+  escrever uma consulta genérica "comentários do relato" — e é exatamente ela o vazamento.</p>
+  <p><b>O texto não entra no evento.</b> A tabela de eventos só cresce e nunca é apagada; copiar
+  o texto interno para lá criaria uma segunda cópia do dado mais perigoso num lugar que não se
+  consegue limpar.</p>
+</div>
+
 <h2>events</h2>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>user_id</code></td><td>Quem do time fez. <b>Nulo</b> quando a ação veio de fora — o relato nasce de um desconhecido, que não tem usuário aqui — e nos eventos gravados antes desta coluna existir.</td></tr>
   <tr><td><code>account_id</code></td><td>Anulável. Continua apontando para a conta depois de anonimizada.</td></tr>
   <tr><td><code>project_id</code></td><td>Anulável. O projeto some de verdade e o evento fica.</td></tr>
   <tr><td><code>report_id</code></td><td>Anulável. Nem todo evento nasce de um relato.</td></tr>

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pds.ApiBase.Repositories;
 using Pds.Data.Context;
 using Pds.Domain.Entities;
+using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 
 namespace Pds.Data.Repositories;
@@ -24,35 +25,86 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // Sem `DeletedAt == null`, e de proposito: o link de quem relatou continua
         // valendo depois de o relato sair da lista do painel.
         //
-        // **E a segunda das cinco consultas que atravessam o filtro a dispensar essa
+        // **E a segunda das sete consultas que atravessam o filtro a dispensar essa
         // condicao** — a outra e a conferencia de protocolo repetido, oito linhas
         // acima. A diferenca entre as duas e o que importa: aquela devolve um
-        // sim/nao, e esta devolve **conteudo** a quem apresenta um token. As tres
+        // sim/nao, e esta devolve **conteudo** a quem apresenta um token. As cinco
         // restantes reescrevem a condicao a mao.
         => Context.Reports
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
 
-    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, int skip, int take, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, int skip, int take, CancellationToken cancellationToken = default)
         // O filtro global ja isola por conta e esconde o que foi apagado; aqui so
-        // resta escolher o projeto. O Id no fim desempata os relatos do mesmo
-        // instante, que sem isso trocariam de lugar entre uma pagina e a seguinte.
+        // resta escolher o projeto e o recorte. O Id no fim desempata os relatos do
+        // mesmo instante, que sem isso trocariam de lugar entre uma pagina e a
+        // seguinte.
+        //
+        // O estado vem por Include porque a lista mostra o nome da coluna: sem ele,
+        // a tela teria de buscar os estados a parte e cruzar a mao, e um relato
+        // parado numa coluna aposentada ficaria sem nome nenhum.
         => await Context.Reports
+            .Include(report => report.ProjectState)
             .Where(report => report.ProjectId == projectId)
+            .Where(Recorte(filter))
             .OrderByDescending(report => report.CreatedAt)
             .ThenByDescending(report => report.Id)
             .Skip(skip)
             .Take(take)
             .ToListAsync(cancellationToken);
 
-    public Task<int> CountByProjectAsync(long projectId, CancellationToken cancellationToken = default)
+    public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, CancellationToken cancellationToken = default)
         => Context.Reports
             .Where(report => report.ProjectId == projectId)
+            .Where(Recorte(filter))
             .CountAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        // Comeca pelos estados, e nao por um agrupamento dos relatos: agrupar so
+        // devolveria as colunas que tem relato, e a coluna vazia sumiria do filtro
+        // no dia em que o ultimo relato dela fosse movido.
+        var porEstado = await Context.ProjectStates
+            .Where(state => state.ProjectId == projectId)
+            .OrderBy(state => state.Position)
+            .ThenBy(state => state.Id)
+            .Select(state => new ReportStateCount(
+                state.Id,
+                state.PublicId,
+                state.Name,
+                state.DeactivatedAt == null,
+                Context.Reports.Count(report => report.ProjectStateId == state.Id)))
+            .ToListAsync(cancellationToken);
+
+        // A linha dos que nao tem lugar na fila. Sem ela, a soma das colunas nao
+        // bateria com o total e ninguem saberia por que.
+        var semEstado = await Context.Reports
+            .CountAsync(report => report.ProjectId == projectId && report.ProjectStateId == null,
+                cancellationToken);
+
+        return semEstado == 0
+            ? porEstado
+            : [.. porEstado, new ReportStateCount(null, null, null, true, semEstado)];
+    }
+
+    /// <summary>
+    /// Traduz o recorte para a condicao. Os dois nulos do filtro decidem coisas
+    /// opostas aqui, e e o unico lugar do sistema onde isso acontece.
+    /// </summary>
+    private static System.Linq.Expressions.Expression<Func<Report, bool>> Recorte(ReportStateFilter filter)
+        => filter switch
+        {
+            { Restricted: false } => _ => true,
+            { StateId: null } => report => report.ProjectStateId == null,
+            { StateId: var stateId } => report => report.ProjectStateId == stateId,
+        };
+
     public Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+        // O estado vem junto porque a tela de detalhe diz em que coluna o relato
+        // esta — e e de la que ele vai ser movido.
         => Context.Reports
             .Include(report => report.Contexts)
+            .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.ProjectId == projectId && report.PublicId == publicId,
                 cancellationToken);
 }

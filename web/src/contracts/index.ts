@@ -28,16 +28,28 @@ export type {
 } from '@/contracts/projectState'
 export { MAX_STATE_NAME_LENGTH } from '@/contracts/projectState'
 export type {
+  CreateCommentRequest,
   CreatedReportViewModel,
   CreateReportRequest,
+  InternalCommentViewModel,
+  MoveReportRequest,
   OpenReportTrackingRequest,
+  PublicCommentViewModel,
   PublicReportViewModel,
+  ReportCommentsViewModel,
   ReportContextViewModel,
   ReportDetailViewModel,
+  ReportEventType,
+  ReportHistoryEntryViewModel,
+  ReportStateCountViewModel,
   ReportSummaryViewModel,
   ReportType,
 } from '@/contracts/report'
-export { MAX_REPORT_TEXT_LENGTH } from '@/contracts/report'
+export {
+  MAX_COMMENT_LENGTH,
+  MAX_REPORT_TEXT_LENGTH,
+  WITHOUT_STATE_FILTER,
+} from '@/contracts/report'
 export type {
   WidgetPosition,
   WidgetSettingsViewModel,

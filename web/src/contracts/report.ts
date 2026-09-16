@@ -69,6 +69,10 @@ export interface ReportSummaryViewModel {
   Route: string | null
   /** Dominio informado pela pagina hospedeira. Indicio, nunca prova de origem. */
   Origin: string | null
+  /** Onde o relato esta na fila; **nulo** quando o projeto nao tinha coluna ativa quando ele chegou. */
+  StatePublicId: string | null
+  /** O nome da coluna **agora**: renomear a coluna muda o que a lista mostra. */
+  StateName: string | null
   CreatedAt: string
 }
 
@@ -115,4 +119,88 @@ export interface PublicReportViewModel {
   Type: ReportType
   Text: string
   CreatedAt: string
+}
+
+/**
+ * Quantos relatos ha em cada coluna da fila.
+ *
+ * Vem uma linha por coluna do projeto, **inclusive as vazias** — a coluna com zero
+ * precisa aparecer no filtro, senao ela some da tela no dia em que o ultimo relato
+ * dela e movido.
+ *
+ * A linha com `StatePublicId` nulo sao os que ainda nao tem lugar na fila, e ela
+ * so vem quando existe algum.
+ */
+export interface ReportStateCountViewModel {
+  StatePublicId: string | null
+  StateName: string | null
+  /** Falso quando a coluna foi aposentada. Sempre verdadeiro na linha sem coluna. */
+  IsActive: boolean
+  Total: number
+}
+
+/** O valor que a rota aceita no lugar de um identificador, para pedir os sem coluna. */
+export const WITHOUT_STATE_FILTER = 'none'
+
+/** Para onde o relato vai na fila. */
+export interface MoveReportRequest {
+  StatePublicId: string
+}
+
+/**
+ * Um comentario que fica entre o time.
+ *
+ * E um tipo separado do publico, e nao o mesmo com um campo dizendo qual e qual:
+ * uma lista so devolveria o interno para qualquer lugar que esquecesse de
+ * filtrar, e esquecer nao da erro nenhum.
+ */
+export interface InternalCommentViewModel {
+  PublicId: string
+  AuthorName: string
+  Body: string
+  CreatedAt: string
+}
+
+/** Um comentario escrito para quem relatou. Ainda nao tem leitor. */
+export interface PublicCommentViewModel {
+  PublicId: string
+  AuthorName: string
+  Body: string
+  CreatedAt: string
+}
+
+/** Os comentarios de um relato, em **duas listas separadas**. */
+export interface ReportCommentsViewModel {
+  Internal: InternalCommentViewModel[]
+  Public: PublicCommentViewModel[]
+}
+
+export interface CreateCommentRequest {
+  Body: string
+}
+
+/** Limite dos dois textos. Separados na API de proposito, iguais hoje. */
+export const MAX_COMMENT_LENGTH = 5000
+
+/** O que aconteceu, nos nomes do `EventTypeEnum` em C#. */
+export type ReportEventType =
+  | 'ReportCreated'
+  | 'ReportViewed'
+  | 'ReportStateChanged'
+  | 'ReportInternalCommented'
+  | 'ReportPublicCommented'
+
+/**
+ * Uma linha do historico.
+ *
+ * Os nomes das colunas sao **os que valiam na epoca**, guardados no evento —
+ * buscar o nome atual faria uma coluna renomeada reescrever o passado.
+ */
+export interface ReportHistoryEntryViewModel {
+  PublicId: string
+  Type: ReportEventType
+  AuthorName: string | null
+  FromStateName: string | null
+  ToStateName: string | null
+  OccurredAt: string
 }

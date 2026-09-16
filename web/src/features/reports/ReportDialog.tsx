@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReportContextViewModel, ReportSummaryViewModel } from '@/contracts'
-import { projectReportService } from '@/data'
+import type {
+  ReportDetailViewModel,
+  ReportStateCountViewModel,
+  ReportSummaryViewModel,
+} from '@/contracts'
+import { describeError, projectReportService } from '@/data'
+import { ReportComments } from '@/features/reports/ReportComments'
+import { ReportHistory } from '@/features/reports/ReportHistory'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { Modal } from '@/shared/components/Modal'
+import { Select } from '@/shared/components/Select'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { toast } from '@/shared/components/toastStore'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
@@ -20,68 +28,172 @@ import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
  * resposta. Sem isso, o clique abriria um retangulo vazio para reapresentar meio
  * segundo depois o que ja estava na tela — e uma falha de rede esconderia o
  * relato inteiro por causa do dado acessorio.
+ *
+ * **Quem manda agora e o endereco**, e nao um clique. Isso traz um caso que antes
+ * nao existia: o link aberto direto, em que a lista ainda nao tem este relato —
+ * porque esta na pagina cinco, ou porque o recorte escolhido nao o inclui. Ai o
+ * `resumo` chega nulo e a tela inteira espera a resposta, em vez de so o contexto.
  */
 export function ReportDialog({
   projectPublicId,
-  report,
-  onOpenChange,
+  reportPublicId,
+  resumo,
+  colunas,
+  aoMover,
+  aoFechar,
 }: {
   projectPublicId: string
-  /** `null` fecha. O relato vem da lista, entao ja traz texto, tipo e data. */
-  report: ReportSummaryViewModel | null
-  onOpenChange: (open: boolean) => void
+  reportPublicId: string
+  /** O que a lista ja sabe, para desenhar na hora. Nulo quando o link foi aberto direto. */
+  resumo: ReportSummaryViewModel | null
+  /** As colunas da fila, para onde este relato pode ir. */
+  colunas: ReportStateCountViewModel[] | null
+  aoMover: (report: ReportSummaryViewModel) => void
+  aoFechar: () => void
 }) {
-  const [contexts, setContexts] = useState<ReportContextViewModel[] | null>(null)
+  const [detalhe, setDetalhe] = useState<ReportDetailViewModel | null>(null)
   const [failed, setFailed] = useState(false)
 
   // Abrir outro relato antes de a resposta do primeiro chegar mostraria o
   // contexto de um debaixo do texto do outro.
   const generation = useRef(0)
 
-  const publicId = report?.PublicId ?? null
-
   useEffect(() => {
-    if (publicId === null) return
-
     const minha = ++generation.current
-    setContexts(null)
+    setDetalhe(null)
     setFailed(false)
 
     projectReportService
-      .openReport(projectPublicId, publicId)
-      .then((opened) => {
-        if (minha === generation.current) setContexts(opened.Contexts)
+      .openReport(projectPublicId, reportPublicId)
+      .then((aberto) => {
+        if (minha === generation.current) setDetalhe(aberto)
       })
       .catch(() => {
         if (minha === generation.current) setFailed(true)
       })
-  }, [projectPublicId, publicId])
+  }, [projectPublicId, reportPublicId])
+
+  // O resumo da lista ganha do que chegou da API so porque chega antes; os dois
+  // dizem a mesma coisa. Quando nao ha resumo, a tela espera.
+  const report = resumo ?? detalhe
+  const contexts = detalhe?.Contexts ?? null
+
+  // Guarda o relato movido para a tela nao voltar a mostrar a coluna antiga: o
+  // resumo veio da lista, e ela so e avisada depois.
+  const [movido, setMovido] = useState<ReportSummaryViewModel | null>(null)
+  const [movendo, setMovendo] = useState(false)
+
+  // Sobe a cada acao que vira evento. A linha do tempo le isto e busca de novo —
+  // sem ele, mover ou comentar deixaria o historico mostrando o estado anterior
+  // na frente de quem acabou de agir.
+  const [versao, setVersao] = useState(0)
+
+  const atual = movido ?? report
+
+  async function mover(statePublicId: string) {
+    if (movendo) return
+
+    setMovendo(true)
+
+    try {
+      const salvo = await projectReportService.moveReport(projectPublicId, reportPublicId, {
+        StatePublicId: statePublicId,
+      })
+      setMovido(salvo)
+      aoMover(salvo)
+      setVersao((n) => n + 1)
+    } catch (failure) {
+      // A coluna volta sozinha para a antiga, porque o seletor le `atual` e ele
+      // nao mudou. O aviso e o unico jeito de contar o que houve.
+      toast.error(describeError(failure))
+    } finally {
+      setMovendo(false)
+    }
+  }
 
   return (
     <Modal
-      open={report !== null}
-      onOpenChange={onOpenChange}
+      open
+      onOpenChange={(aberto) => {
+        if (!aberto) aoFechar()
+      }}
       title={report ? teamTypeLabel(report.Type) : 'Relato'}
       width="w-[min(38rem,calc(100vw-2rem))]"
       footer={
-        <Button variant="quiet" onClick={() => onOpenChange(false)}>
+        <Button variant="quiet" onClick={aoFechar}>
           Fechar
         </Button>
       }
     >
+      {/* Link aberto direto e que falhou: sem resumo nao ha o que mostrar, e
+          insistir num esqueleto eterno seria pior do que dizer o que houve. */}
+      {report === null && failed && (
+        <p className="text-body text-fg-muted leading-relaxed">
+          Não deu para abrir este relato. Ou ele não existe mais, ou a falha foi ao consultar — nada
+          se perdeu de um jeito nem do outro.
+        </p>
+      )}
+
+      {report === null && !failed && (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-5/6" />
+        </div>
+      )}
+
       {report && (
-        <div className="flex flex-col gap-5">
+        <div className="flex max-h-[60vh] flex-col gap-5 overflow-y-auto">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <code className="font-mono text-detail text-fg">{report.TrackingCode}</code>
             <CopyButton value={report.TrackingCode} label="Copiar protocolo" size="sm" />
             <span className="text-detail text-fg-muted tabular-nums">
               {formatDateTime(report.CreatedAt)}
             </span>
+
+            {/* Onde ele esta na fila, e o controle que o move. */}
+            {colunas && colunas.length > 0 ? (
+              <label className="flex items-center gap-1.5 text-caption text-fg-muted">
+                Coluna
+                <Select
+                  className="max-w-40"
+                  size="sm"
+                  ariaLabel="Mover para a coluna"
+                  value={atual?.StatePublicId ?? ''}
+                  disabled={movendo}
+                  onChange={(valor) => mover(valor)}
+                  options={[
+                    // "Sem coluna" nao e destino: nao ha como tirar um relato da
+                    // fila de volta, e oferecer isso prometeria uma acao que a API
+                    // nao tem. Ela so aparece enquanto ele ainda nao tem coluna.
+                    ...(atual?.StatePublicId == null ? [{ value: '', label: 'Sem coluna' }] : []),
+                    ...colunas
+                      .filter((coluna) => coluna.StatePublicId !== null)
+                      .filter(
+                        (coluna) =>
+                          coluna.IsActive || coluna.StatePublicId === atual?.StatePublicId,
+                      )
+                      .map((coluna) => ({
+                        value: coluna.StatePublicId as string,
+                        label: coluna.StateName ?? '',
+                      })),
+                  ]}
+                />
+              </label>
+            ) : (
+              atual?.StateName && (
+                <span className="rounded-full border border-border px-2 py-px text-caption text-fg-muted">
+                  {atual.StateName}
+                </span>
+              )
+            )}
           </div>
 
-          {/* O texto rola dentro do dialogo, e nao o dialogo inteiro: o protocolo
-              e o botao de fechar precisam continuar visiveis num relato longo. */}
-          <p className="max-h-[45vh] overflow-y-auto whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
+          {/* Antes so o texto rolava. Agora o dialogo tem comentario e historico
+              embaixo, e prender a rolagem no texto deixaria o resto inalcancavel —
+              entao quem rola e o corpo inteiro, e o protocolo e o botao de fechar
+              continuam fixos porque moram fora dele. */}
+          <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
             {report.Text}
           </p>
 
@@ -117,6 +229,18 @@ export function ReportDialog({
               </p>
             )}
           </section>
+
+          <ReportComments
+            projectPublicId={projectPublicId}
+            reportPublicId={reportPublicId}
+            aoComentar={() => setVersao((n) => n + 1)}
+          />
+
+          <ReportHistory
+            projectPublicId={projectPublicId}
+            reportPublicId={reportPublicId}
+            versao={versao}
+          />
         </div>
       )}
     </Modal>

@@ -41,7 +41,42 @@ public interface IReportService
     /// em vez de recusados — pedir a pagina zero e engano de quem chama, e nao
     /// motivo para a tela ficar sem lista.</para>
     /// </summary>
-    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quantos relatos ha em cada coluna da fila. Sai uma linha por coluna do
+    /// projeto, <b>inclusive as vazias</b>, mais a linha dos que ainda nao tem
+    /// lugar na fila quando ela nao esta vazia.
+    /// </summary>
+    Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Move o relato para outra coluna da fila.
+    ///
+    /// <para><b>O evento vem antes do cache, na mesma gravacao.</b> A coluna
+    /// gravada no relato e conveniencia para a lista nao precisar reconstruir o
+    /// caminho de cada um; a verdade e a sequencia de eventos. Se o evento falhar
+    /// e a coluna passar, o dado da pesquisa some e ninguem percebe.</para>
+    ///
+    /// <para>Mover para a coluna em que ele ja esta <b>nao gera evento</b> e nao
+    /// grava nada: o historico encheria de linhas que nao dizem nada, e a
+    /// contagem passaria a medir cliques em vez de movimentos.</para>
+    ///
+    /// <para>Nao ha regra de transicao: qualquer coluna, em qualquer ordem. Quem
+    /// move e o time, e ele e quem conhece o caso — o relato que volta de
+    /// "Testando" para "Corrigindo" e o caso mais comum de todos.</para>
+    /// </summary>
+    Task<ReportSummaryViewModel> MoveAsync(Guid projectPublicId, Guid reportPublicId, MoveReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tudo que aconteceu com o relato, em ordem, <b>montado a partir dos
+    /// eventos</b>.
+    ///
+    /// <para>Nao registra visualizacao: esta consulta le o que ja aconteceu, e
+    /// gravar um evento por abertura do historico encheria o proprio historico de
+    /// linhas sobre alguem ter olhado o historico.</para>
+    /// </summary>
+    Task<IReadOnlyList<ReportHistoryEntryViewModel>> HistoryAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Abre um relato do projeto, com o contexto que veio junto.

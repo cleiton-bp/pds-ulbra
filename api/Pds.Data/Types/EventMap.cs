@@ -47,6 +47,10 @@ public class EventMap : IEntityTypeConfiguration<Event>
             .HasColumnName("report_id")
             .HasComment("Relato a que o evento se refere. Nulo quando o evento nao nasce de um relato.");
 
+        builder.Property(entity => entity.UserId)
+            .HasColumnName("user_id")
+            .HasComment("Quem do time fez. Nulo quando a acao veio de fora, e nos eventos anteriores a esta coluna.");
+
         builder.Property(entity => entity.Type)
             .HasColumnName("type")
             .HasConversion(new SnakeCaseEnumConverter<EventTypeEnum>())
@@ -102,6 +106,14 @@ public class EventMap : IEntityTypeConfiguration<Event>
         builder.HasOne(entity => entity.Report)
             .WithMany()
             .HasForeignKey(entity => entity.ReportId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // SetNull como as outras tres: a conta excluida esvazia o usuario, e o
+        // evento continua contando que a mudanca aconteceu. Perder o autor e o
+        // preco da exclusao; perder o evento seria perder o dado da pesquisa.
+        builder.HasOne(entity => entity.User)
+            .WithMany()
+            .HasForeignKey(entity => entity.UserId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

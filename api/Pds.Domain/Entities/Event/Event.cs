@@ -13,7 +13,7 @@ namespace Pds.Domain.Entities;
 /// evento apagado seria um dado de pesquisa perdido, e a analise passaria a
 /// mentir sem ninguem perceber.</para>
 ///
-/// <para>As tres chaves estrangeiras sao anulaveis pelo mesmo motivo: o evento
+/// <para>As quatro chaves estrangeiras sao anulaveis pelo mesmo motivo: o evento
 /// sobrevive ao que o originou.</para>
 /// </summary>
 public class Event
@@ -42,6 +42,16 @@ public class Event
     /// <summary>Relato a que o evento se refere. Nulo quando o evento nao nasce de um relato.</summary>
     public long? ReportId { get; set; }
     public Report? Report { get; set; }
+
+    /// <summary>
+    /// Quem fez. Nulo quando ninguem do time fez — o relato que entra pelo site de
+    /// um cliente nasce de um desconhecido, que nao tem usuario aqui.
+    ///
+    /// <para>Tambem e nulo nos eventos gravados <b>antes</b> desta coluna existir:
+    /// inventar um autor para eles seria pior do que admitir que nao se sabe.</para>
+    /// </summary>
+    public long? UserId { get; set; }
+    public User? User { get; set; }
 
     /// <summary>O que aconteceu.</summary>
     public EventTypeEnum Type { get; set; }

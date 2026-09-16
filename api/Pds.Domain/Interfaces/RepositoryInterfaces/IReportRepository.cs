@@ -1,5 +1,6 @@
 using Pds.ApiBase.Interfaces;
 using Pds.Domain.Entities;
+using Pds.Domain.Filters;
 
 namespace Pds.Domain.Interfaces.RepositoryInterfaces;
 
@@ -43,10 +44,25 @@ public interface IReportRepository : IBaseRepository<Report>
     /// no mesmo instante podem trocar de lugar entre uma pagina e a seguinte, e a
     /// pessoa veria um repetido enquanto o outro nunca apareceria.</para>
     /// </summary>
-    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, int skip, int take, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, int skip, int take, CancellationToken cancellationToken = default);
 
     /// <summary>Quantos relatos o projeto tem. E o que diz se ainda ha o que carregar.</summary>
-    Task<int> CountByProjectAsync(long projectId, CancellationToken cancellationToken = default);
+    Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quantos relatos ha em cada coluna da fila, mais a linha dos que ainda nao
+    /// tem lugar nela.
+    ///
+    /// <para>Sai uma linha por estado do projeto, <b>inclusive as de zero</b>: a
+    /// tela precisa mostrar a coluna vazia, senao ela some do filtro no dia em que
+    /// o ultimo relato dela e movido, e quem olha acha que a coluna deixou de
+    /// existir.</para>
+    ///
+    /// <para>E pergunta separada da lista de proposito. A lista traz uma pagina; a
+    /// contagem varre tudo. Na mesma consulta, ou a contagem mente ou a lista
+    /// deixa de paginar.</para>
+    /// </summary>
+    Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Um relato do projeto, com o contexto junto.

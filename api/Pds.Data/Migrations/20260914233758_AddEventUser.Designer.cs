@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pds.Data.Context;
@@ -11,9 +12,11 @@ using Pds.Data.Context;
 namespace Pds.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260914233758_AddEventUser")]
+    partial class AddEventUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -873,144 +876,6 @@ namespace Pds.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Pds.Domain.Entities.ReportInternalComment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)")
-                        .HasColumnName("body")
-                        .HasComment("O texto como o time escreveu. Nao sai desta tabela, nem para o payload do evento.");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("Criacao do registro, em UTC.");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at")
-                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
-
-                    b.Property<long>("ReportId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("report_id")
-                        .HasComment("Relato comentado.");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("Ultima alteracao, em UTC.");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id")
-                        .HasComment("Quem escreveu. Obrigatorio: comentario interno sem autor nao serve para decidir nada depois.");
-
-                    b.HasKey("Id")
-                        .HasName("pk_report_internal_comments");
-
-                    b.HasIndex("DeletedAt")
-                        .HasDatabaseName("ix_report_internal_comments_deleted_at");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_report_internal_comments_public_id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_report_internal_comments_user_id");
-
-                    b.HasIndex("ReportId", "CreatedAt")
-                        .HasDatabaseName("ix_report_internal_comments_report_id_created_at");
-
-                    b.ToTable("report_internal_comments", null, t =>
-                        {
-                            t.HasComment("O que o time escreve entre si. E tabela separada do comentario publico, e nao um campo de visibilidade, porque com sinalizador basta esquecer um filtro para vazar e com tabelas separadas vazar exige uma consulta que nao existe.");
-                        });
-                });
-
-            modelBuilder.Entity("Pds.Domain.Entities.ReportPublicComment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)")
-                        .HasColumnName("body")
-                        .HasComment("O texto que vai ser lido por quem relatou.");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("Criacao do registro, em UTC.");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at")
-                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
-
-                    b.Property<long>("ReportId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("report_id")
-                        .HasComment("Relato comentado.");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("Ultima alteracao, em UTC.");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id")
-                        .HasComment("Quem escreveu, do lado de dentro. A camada publica nao mostra o nome, mas quem respondeu e pergunta interna.");
-
-                    b.HasKey("Id")
-                        .HasName("pk_report_public_comments");
-
-                    b.HasIndex("DeletedAt")
-                        .HasDatabaseName("ix_report_public_comments_deleted_at");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_report_public_comments_public_id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_report_public_comments_user_id");
-
-                    b.HasIndex("ReportId", "CreatedAt")
-                        .HasDatabaseName("ix_report_public_comments_report_id_created_at");
-
-                    b.ToTable("report_public_comments", null, t =>
-                        {
-                            t.HasComment("O que o time escolhe dizer a quem relatou. Ainda nao tem leitor: a camada que o relator le vem depois, e ate la ele e publico no nome. Tabela separada do interno pelo mesmo motivo que a outra.");
-                        });
-                });
-
             modelBuilder.Entity("Pds.Domain.Entities.User", b =>
                 {
                     b.Property<long>("Id")
@@ -1255,48 +1120,6 @@ namespace Pds.Data.Migrations
                         .HasConstraintName("fk_report_contexts_reports_report_id");
 
                     b.Navigation("Report");
-                });
-
-            modelBuilder.Entity("Pds.Domain.Entities.ReportInternalComment", b =>
-                {
-                    b.HasOne("Pds.Domain.Entities.Report", "Report")
-                        .WithMany()
-                        .HasForeignKey("ReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_internal_comments_reports_report_id");
-
-                    b.HasOne("Pds.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_internal_comments_users_user_id");
-
-                    b.Navigation("Report");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Pds.Domain.Entities.ReportPublicComment", b =>
-                {
-                    b.HasOne("Pds.Domain.Entities.Report", "Report")
-                        .WithMany()
-                        .HasForeignKey("ReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_public_comments_reports_report_id");
-
-                    b.HasOne("Pds.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_public_comments_users_user_id");
-
-                    b.Navigation("Report");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.User", b =>

@@ -1,5 +1,5 @@
 <h2>Endpoints</h2>
-<p class="lead">Vinte e sete rotas. Vinte e três exigem token de sessão; quatro não — a de entrar, que é
+<p class="lead">Trinta e três rotas. Vinte e nove exigem token de sessão; quatro não — a de entrar, que é
 onde a sessão nasce, as duas que a ferramenta usa (a que recebe o relato e a que ela lê para
 saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
 
@@ -28,8 +28,14 @@ saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Escolhe o destino de um tipo. Nulo <strong>apaga</strong> a escolha e devolve ao padrão.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. Os dez campos vão sempre juntos.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto. <strong>Registra a visualização.</strong></td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada. Aceita <code>state</code> para recortar por coluna da fila, ou <code>none</code> para os sem coluna.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/counts</code></td><td>Quantos relatos há em cada coluna, incluindo as vazias. Pergunta separada da lista de propósito.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto e a coluna em que ele está. <strong>Registra a visualização.</strong></td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/state</code></td><td>Move o relato de coluna. <strong>Grava o evento antes do cache</strong>, na mesma transação.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/history</code></td><td>Tudo que aconteceu com o relato, montado a partir dos eventos. <strong>Não grava.</strong></td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/comments</code></td><td>Os comentários, em <strong>duas listas separadas</strong>.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../comments/internal</code></td><td>Escreve o que fica entre o time. Este texto não sai da tabela dele.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../comments/public</code></td><td>Escreve para quem relatou. <strong>Rota diferente, não um campo de visibilidade.</strong></td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública. Recebe também o endereço da página.</td></tr>
@@ -110,6 +116,41 @@ gerado a partir do código.</p>
   cabeçalho por projeto, e o quadro hoje é arquivo estático: chega com o domínio próprio.</p>
 </div>
 
+<div class="note warn">
+  <strong>Duas rotas de comentário, e nenhum campo que diga qual é qual</strong>
+  <p>O comentário interno é onde o time fala livremente — suspeita, culpa, prazo que não vai ser
+  cumprido. Se ele vazar para a camada pública, a pessoa que relatou lê o que o time diz dela: é
+  o pior incidente possível para este produto.</p>
+  <p>Por isso a separação é <b>estrutural</b>: duas rotas, dois corpos, duas tabelas e dois tipos
+  de evento. Em nenhum ponto existe um valor que decide o destino do texto — quem escreve escolhe
+  a <b>rota</b>, e não um campo dentro dela.</p>
+  <p>Com um sinalizador, vazar seria esquecer um filtro numa consulta, e o esquecimento não daria
+  erro em lugar nenhum: a resposta sairia com uma linha a mais. Com tabelas separadas, vazar
+  exige escrever uma consulta que não existe e que ninguém teria motivo para escrever.</p>
+  <p><b>O texto não entra no evento.</b> O evento registra que houve comentário, não o que foi
+  dito — ele só cresce e nunca é apagado, e copiar o texto para lá criaria uma segunda cópia do
+  dado mais perigoso numa tabela que não se consegue limpar.</p>
+  <p><b>E o comentário público ainda não tem leitor.</b> A camada que o relator lê vem depois, e
+  até lá ele é público apenas no nome. A tela do painel diz isso.</p>
+</div>
+
+<div class="note warn">
+  <strong>O evento vem antes do cache, e a ordem é a regra</strong>
+  <p>Mover um relato grava duas coisas: o evento da mudança e a coluna guardada no relato. A
+  coluna é <b>cache</b> — existe para a lista não precisar reconstruir o caminho de cada relato
+  a cada abertura da tela. A verdade é a sequência de eventos.</p>
+  <p>Por isso o evento entra primeiro, e as duas gravações ficam no mesmo
+  <code>CommitAsync</code>: ou as duas entram, ou nenhuma. Escrever a coluna antes pareceria
+  igual em todo teste feliz e perderia o dado da pesquisa exatamente nos casos em que ele mais
+  importa — os de falha.</p>
+  <p>O evento guarda <b>o nome das duas colunas</b> além dos identificadores. Renomear uma
+  coluna depois não pode reescrever o passado dizendo que o relato esteve num estado que ainda
+  não existia.</p>
+  <p>Mover para a coluna em que ele já está devolve 200 <b>sem gravar nada</b>: o histórico
+  encheria de linhas que não dizem nada, e a contagem passaria a medir cliques em vez de
+  movimentos.</p>
+</div>
+
 <div class="note why">
   <strong>Uma consulta que grava, de propósito</strong>
   <p><code>GET /projects/{publicId}/reports/{reportPublicId}</code> registra um evento de
@@ -120,11 +161,16 @@ gerado a partir do código.</p>
   adiantar dado que ninguém pediu</b>. Uma tela que abrisse os relatos sozinha inventaria
   leituras que não aconteceram. A <b>lista</b> não registra nada, e é ela que serve para
   varrer.</p>
+  <p><b>E agora o relato tem endereço próprio no painel</b>, o que multiplica as chamadas
+  legítimas: recarregar a página abre de novo, e um link colado num grupo gera uma abertura por
+  pessoa que clicar. Isso não é ruído a corrigir — é o que de fato aconteceu. Mas a análise
+  precisa saber: <b>o tempo de resposta do time é a primeira visualização</b>, e não a média
+  delas.</p>
 </div>
 
 <div class="note why">
   <strong>Por que uma rota fica fora do padrão</strong>
-  <p>Vinte e três rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
+  <p>Vinte e nove rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
   As duas de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site de um
   cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai.</p>
