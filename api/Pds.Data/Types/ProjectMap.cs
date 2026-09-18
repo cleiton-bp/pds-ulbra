@@ -31,6 +31,12 @@ public class ProjectMap : BaseEntityConfiguration<Project>
             .IsRequired()
             .HasComment("active | archived. Arquivado continua visivel, so para de aceitar coisa nova.");
 
+        builder.Property(project => project.MappingVersion)
+            .HasColumnName("mapping_version")
+            .IsRequired()
+            .HasDefaultValue(0)
+            .HasComment("Versao do mapeamento que vale agora. Zero enquanto nada foi ligado. Nao e o maior valor de project_status_mappings: desfazer tudo grava uma versao sem linha nenhuma.");
+
         // Nome unico por conta, ignorando o que foi apagado: sem o filtro, o nome de
         // um projeto excluido continuaria ocupando o lugar e o cliente nao
         // conseguiria reaproveita-lo.

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pds.Data.Context;
@@ -11,9 +12,11 @@ using Pds.Data.Context;
 namespace Pds.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260916013803_AddProjectPublicStages")]
+    partial class AddProjectPublicStages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -198,13 +201,6 @@ namespace Pds.Data.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at")
                         .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<int>("MappingVersion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("mapping_version")
-                        .HasComment("Versao do mapeamento que vale agora. Zero enquanto nada foi ligado. Nao e o maior valor de project_status_mappings: desfazer tudo grava uma versao sem linha nenhuma.");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -674,86 +670,6 @@ namespace Pds.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Pds.Domain.Entities.ProjectStatusMapping", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("Criacao do registro, em UTC.");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at")
-                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<long>("ProjectId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_id")
-                        .HasComment("Projeto dono. Repetido aqui porque toda consulta comeca por projeto e versao.");
-
-                    b.Property<long>("ProjectPublicStageId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_public_stage_id")
-                        .HasComment("A etapa de fora, onde quem relatou passa a ver o relato.");
-
-                    b.Property<long>("ProjectStateId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_state_id")
-                        .HasComment("O estado de dentro, de onde o relato sai.");
-
-                    b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("Ultima alteracao, em UTC.");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("integer")
-                        .HasColumnName("version")
-                        .HasComment("A versao a que esta linha pertence. A que vale agora e projects.mapping_version.");
-
-                    b.HasKey("Id")
-                        .HasName("pk_project_status_mappings");
-
-                    b.HasIndex("DeletedAt")
-                        .HasDatabaseName("ix_project_status_mappings_deleted_at");
-
-                    b.HasIndex("ProjectPublicStageId")
-                        .HasDatabaseName("ix_project_status_mappings_project_public_stage_id");
-
-                    b.HasIndex("ProjectStateId")
-                        .HasDatabaseName("ix_project_status_mappings_project_state_id");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_project_status_mappings_public_id");
-
-                    b.HasIndex("ProjectId", "Version")
-                        .HasDatabaseName("ix_project_status_mappings_project_id_version");
-
-                    b.HasIndex("ProjectId", "Version", "ProjectStateId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_project_status_mappings_project_id_version_project_state_id")
-                        .HasFilter("deleted_at IS NULL");
-
-                    b.ToTable("project_status_mappings", null, t =>
-                        {
-                            t.HasComment("Liga N estados de dentro a 1 etapa de fora. Versionada: alterar grava o conjunto inteiro de novo, um numero acima, porque reescrever o mapa apagaria o sentido de tudo que ja aconteceu.");
-                        });
-                });
-
             modelBuilder.Entity("Pds.Domain.Entities.ProjectWidgetSettings", b =>
                 {
                     b.Property<long>("Id")
@@ -922,11 +838,6 @@ namespace Pds.Data.Migrations
                         .HasColumnName("project_id")
                         .HasComment("Projeto de onde o relato veio, resolvido pela chave publica da requisicao.");
 
-                    b.Property<long?>("ProjectPublicStageId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_public_stage_id")
-                        .HasComment("Em que etapa da jornada publica o relato aparece. Nulo enquanto ele nao apareceu em nenhuma. E cache, como project_state_id: a verdade e a sequencia de eventos.");
-
                     b.Property<long?>("ProjectStateId")
                         .HasColumnType("bigint")
                         .HasColumnName("project_state_id")
@@ -977,9 +888,6 @@ namespace Pds.Data.Migrations
 
                     b.HasIndex("DeletedAt")
                         .HasDatabaseName("ix_reports_deleted_at");
-
-                    b.HasIndex("ProjectPublicStageId")
-                        .HasDatabaseName("ix_reports_project_public_stage_id");
 
                     b.HasIndex("ProjectStateId")
                         .HasDatabaseName("ix_reports_project_state_id");
@@ -1416,36 +1324,6 @@ namespace Pds.Data.Migrations
                     b.Navigation("Project");
                 });
 
-            modelBuilder.Entity("Pds.Domain.Entities.ProjectStatusMapping", b =>
-                {
-                    b.HasOne("Pds.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_project_status_mappings_projects_project_id");
-
-                    b.HasOne("Pds.Domain.Entities.ProjectPublicStage", "ProjectPublicStage")
-                        .WithMany()
-                        .HasForeignKey("ProjectPublicStageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_project_status_mappings_project_public_stage_id");
-
-                    b.HasOne("Pds.Domain.Entities.ProjectState", "ProjectState")
-                        .WithMany()
-                        .HasForeignKey("ProjectStateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_project_status_mappings_project_states_project_state_id");
-
-                    b.Navigation("Project");
-
-                    b.Navigation("ProjectPublicStage");
-
-                    b.Navigation("ProjectState");
-                });
-
             modelBuilder.Entity("Pds.Domain.Entities.ProjectWidgetSettings", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
@@ -1474,12 +1352,6 @@ namespace Pds.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reports_projects_project_id");
 
-                    b.HasOne("Pds.Domain.Entities.ProjectPublicStage", "ProjectPublicStage")
-                        .WithMany()
-                        .HasForeignKey("ProjectPublicStageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_reports_project_public_stages_project_public_stage_id");
-
                     b.HasOne("Pds.Domain.Entities.ProjectState", "ProjectState")
                         .WithMany()
                         .HasForeignKey("ProjectStateId")
@@ -1489,8 +1361,6 @@ namespace Pds.Data.Migrations
                     b.Navigation("Account");
 
                     b.Navigation("Project");
-
-                    b.Navigation("ProjectPublicStage");
 
                     b.Navigation("ProjectState");
                 });

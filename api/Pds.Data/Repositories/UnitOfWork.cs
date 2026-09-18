@@ -45,6 +45,16 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     public IProjectInitialStateRepository ProjectInitialStates
         => _projectInitialStates ??= new ProjectInitialStateRepository(_context);
 
+    private IProjectPublicStageRepository? _projectPublicStages;
+
+    public IProjectPublicStageRepository ProjectPublicStages
+        => _projectPublicStages ??= new ProjectPublicStageRepository(_context);
+
+    private IProjectStatusMappingRepository? _projectStatusMappings;
+
+    public IProjectStatusMappingRepository ProjectStatusMappings
+        => _projectStatusMappings ??= new ProjectStatusMappingRepository(_context);
+
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
 

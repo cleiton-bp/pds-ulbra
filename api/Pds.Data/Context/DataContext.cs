@@ -45,6 +45,8 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectWidgetSettings> ProjectWidgetSettings { get; set; } = null!;
     public DbSet<ProjectState> ProjectStates { get; set; } = null!;
     public DbSet<ProjectInitialState> ProjectInitialStates { get; set; } = null!;
+    public DbSet<ProjectPublicStage> ProjectPublicStages { get; set; } = null!;
+    public DbSet<ProjectStatusMapping> ProjectStatusMappings { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
@@ -100,6 +102,24 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(initial => initial.DeletedAt == null
                                        && initial.Project.DeletedAt == null
                                        && initial.Project.AccountId == CurrentAccountId);
+
+        // Etapa publica: mesmo caminho do estado interno, e pelo mesmo motivo — ela
+        // nao existe fora de um projeto. Quem vai ler isto **sem sessao** e a pagina
+        // de acompanhamento, e la a conta atual e zero; aquela leitura vai desligar
+        // este filtro e reescrever as condicoes a mao, como ja fazem a chave publica
+        // e o endereco autorizado.
+        modelBuilder.Entity<ProjectPublicStage>()
+            .HasQueryFilter(stage => stage.DeletedAt == null
+                                     && stage.Project.DeletedAt == null
+                                     && stage.Project.AccountId == CurrentAccountId);
+
+        // Mapeamento: mesmo caminho da etapa publica. Quem vai ler isto **sem
+        // sessao** e a pagina de acompanhamento, e la a conta atual e zero — aquela
+        // leitura desliga este filtro e reescreve as condicoes a mao.
+        modelBuilder.Entity<ProjectStatusMapping>()
+            .HasQueryFilter(mapping => mapping.DeletedAt == null
+                                       && mapping.Project.DeletedAt == null
+                                       && mapping.Project.AccountId == CurrentAccountId);
 
         // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
         // cresce e a que o painel lista o tempo todo, entao ela repete account_id de

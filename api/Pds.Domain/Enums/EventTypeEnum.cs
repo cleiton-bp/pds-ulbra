@@ -42,4 +42,29 @@ public enum EventTypeEnum
     /// evitar, de volta pela porta dos fundos.</para>
     /// </summary>
     ReportPublicCommented,
+
+    /// <summary>
+    /// A etapa publica do relato mudou: e o que a pessoa de fora ve acontecer.
+    ///
+    /// <para><b>E um evento proprio, e nao um campo no evento interno.</b> Um
+    /// movimento de dentro nem sempre move a jornada, e a jornada as vezes anda
+    /// sozinha — sao duas linhas do tempo com ritmos diferentes, e junta-las num
+    /// registro so faria a pesquisa ter de adivinhar qual delas cada linha
+    /// conta.</para>
+    ///
+    /// <para>O payload guarda de onde, para onde, os rotulos que valiam na epoca e
+    /// a <b>versao do mapa</b> que decidiu — sem ela, recontar o passado usaria o
+    /// mapa de hoje e devolveria outra historia.</para>
+    /// </summary>
+    ReportPublicStageChanged,
+
+    /// <summary>
+    /// O relato foi para um estado que nao esta no mapa, e a jornada ficou parada.
+    ///
+    /// <para>Gravado <b>porque</b> nada aconteceu do lado de fora: e o registro de
+    /// uma configuracao faltando, e e por ele que se sabe quanto tempo um relato
+    /// passou invisivel para quem o escreveu. Sem o evento, esse silencio nao
+    /// deixaria rastro nenhum.</para>
+    /// </summary>
+    ReportPublicStageUnmapped,
 }

@@ -30,6 +30,10 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasColumnName("project_state_id")
             .HasComment("Onde o relato esta na fila do projeto. Nulo quando o projeto ainda nao tem estado nenhum. E cache: a verdade e a sequencia de eventos.");
 
+        builder.Property(report => report.ProjectPublicStageId)
+            .HasColumnName("project_public_stage_id")
+            .HasComment("Em que etapa da jornada publica o relato aparece. Nulo enquanto ele nao apareceu em nenhuma. E cache, como project_state_id: a verdade e a sequencia de eventos.");
+
         builder.Property(report => report.TrackingCode)
             .HasColumnName("tracking_code")
             .HasMaxLength(20)
@@ -94,6 +98,18 @@ public class ReportMap : BaseEntityConfiguration<Report>
         builder.HasOne(report => report.ProjectState)
             .WithMany()
             .HasForeignKey(report => report.ProjectStateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Restrict pelo mesmo motivo do estado interno: apagar uma etapa nao pode
+        // levar junto os relatos que passaram por ela. A remocao ja e recusada no
+        // servico enquanto algum estado aponta para a etapa; aqui e a rede embaixo.
+        //
+        // O indice desta coluna vem do EF, que indexa toda chave estrangeira. Nao ha
+        // consulta que filtre relato por etapa publica hoje — quando houver, ela ja
+        // encontra o indice pronto.
+        builder.HasOne(report => report.ProjectPublicStage)
+            .WithMany()
+            .HasForeignKey(report => report.ProjectPublicStageId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -25,11 +25,12 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // Sem `DeletedAt == null`, e de proposito: o link de quem relatou continua
         // valendo depois de o relato sair da lista do painel.
         //
-        // **E a segunda das sete consultas que atravessam o filtro a dispensar essa
+        // **E a segunda das dez consultas que atravessam o filtro a dispensar essa
         // condicao** — a outra e a conferencia de protocolo repetido, oito linhas
         // acima. A diferenca entre as duas e o que importa: aquela devolve um
-        // sim/nao, e esta devolve **conteudo** a quem apresenta um token. As cinco
-        // restantes reescrevem a condicao a mao.
+        // sim/nao, e esta devolve **conteudo** a quem apresenta um token. Das oito
+        // restantes, sete reescrevem a condicao a mao e uma nao precisa — evento nao
+        // se apaga, entao nao ha exclusao logica para repor.
         => Context.Reports
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
@@ -45,6 +46,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // parado numa coluna aposentada ficaria sem nome nenhum.
         => await Context.Reports
             .Include(report => report.ProjectState)
+            .Include(report => report.ProjectPublicStage)
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
             .OrderByDescending(report => report.CreatedAt)
@@ -105,6 +107,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         => Context.Reports
             .Include(report => report.Contexts)
             .Include(report => report.ProjectState)
+            .Include(report => report.ProjectPublicStage)
             .FirstOrDefaultAsync(report => report.ProjectId == projectId && report.PublicId == publicId,
                 cancellationToken);
 }

@@ -21,6 +21,17 @@ public class Project : PdsBaseEntity
     /// <summary>Situacao: ativo ou arquivado.</summary>
     public ProjectStatusEnum Status { get; set; } = ProjectStatusEnum.Active;
 
+    /// <summary>
+    /// A versao do mapeamento que vale agora. Zero enquanto o cliente nunca ligou
+    /// estado nenhum a etapa nenhuma.
+    ///
+    /// <para><b>Mora aqui, e nao no maior valor de <c>project_status_mappings</c></b>,
+    /// por um caso que parece canto e nao e: desfazer todos os mapeamentos grava uma
+    /// versao sem nenhuma linha, e calculada pelo maior valor essa versao seria
+    /// invisivel — a anterior voltaria a valer sozinha, sem ninguem ter pedido.</para>
+    /// </summary>
+    public int MappingVersion { get; set; }
+
     /// <summary>Chaves do projeto: a que vale agora de cada tipo, mais o historico das revogadas.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectKey> Keys { get; set; } = [];

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pds.Data.Context;
@@ -11,9 +12,11 @@ using Pds.Data.Context;
 namespace Pds.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260916020023_AddProjectStatusMappings")]
+    partial class AddProjectStatusMappings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -922,11 +925,6 @@ namespace Pds.Data.Migrations
                         .HasColumnName("project_id")
                         .HasComment("Projeto de onde o relato veio, resolvido pela chave publica da requisicao.");
 
-                    b.Property<long?>("ProjectPublicStageId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_public_stage_id")
-                        .HasComment("Em que etapa da jornada publica o relato aparece. Nulo enquanto ele nao apareceu em nenhuma. E cache, como project_state_id: a verdade e a sequencia de eventos.");
-
                     b.Property<long?>("ProjectStateId")
                         .HasColumnType("bigint")
                         .HasColumnName("project_state_id")
@@ -977,9 +975,6 @@ namespace Pds.Data.Migrations
 
                     b.HasIndex("DeletedAt")
                         .HasDatabaseName("ix_reports_deleted_at");
-
-                    b.HasIndex("ProjectPublicStageId")
-                        .HasDatabaseName("ix_reports_project_public_stage_id");
 
                     b.HasIndex("ProjectStateId")
                         .HasDatabaseName("ix_reports_project_state_id");
@@ -1474,12 +1469,6 @@ namespace Pds.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reports_projects_project_id");
 
-                    b.HasOne("Pds.Domain.Entities.ProjectPublicStage", "ProjectPublicStage")
-                        .WithMany()
-                        .HasForeignKey("ProjectPublicStageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_reports_project_public_stages_project_public_stage_id");
-
                     b.HasOne("Pds.Domain.Entities.ProjectState", "ProjectState")
                         .WithMany()
                         .HasForeignKey("ProjectStateId")
@@ -1489,8 +1478,6 @@ namespace Pds.Data.Migrations
                     b.Navigation("Account");
 
                     b.Navigation("Project");
-
-                    b.Navigation("ProjectPublicStage");
 
                     b.Navigation("ProjectState");
                 });

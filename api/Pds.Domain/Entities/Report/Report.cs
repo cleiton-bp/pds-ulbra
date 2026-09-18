@@ -53,6 +53,18 @@ public class Report : PdsBaseEntity
     public ProjectState? ProjectState { get; set; }
 
     /// <summary>
+    /// A etapa publica em que o relato esta, <b>como cache</b>. Nula enquanto ele
+    /// nao apareceu em nenhuma — porque o estado dele nao esta mapeado, ou porque o
+    /// projeto ainda nao tem jornada.
+    ///
+    /// <para>A verdade e a sequencia de eventos, como no estado interno. Esta coluna
+    /// existe para a pagina de acompanhamento nao ter de reconstruir o caminho
+    /// inteiro a cada abertura — e ela e escrita <b>depois</b> do evento, sempre.</para>
+    /// </summary>
+    public long? ProjectPublicStageId { get; set; }
+    public ProjectPublicStage? ProjectPublicStage { get; set; }
+
+    /// <summary>
     /// O protocolo que a pessoa le, repete ao telefone e digita para acompanhar.
     /// Alfabeto sem <c>0</c>, <c>O</c>, <c>1</c> e <c>I</c>, que se confundem lidos
     /// em voz alta. Unico em todo o sistema, porque quem digita nao sabe de qual

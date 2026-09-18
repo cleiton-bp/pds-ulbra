@@ -60,7 +60,7 @@ public abstract class PdsBaseContext : DbContext
             {
                 var principal = foreignKey.PrincipalEntityType.GetTableName();
                 var columns = string.Join('_', foreignKey.Properties.Select(property => property.GetColumnName()));
-                foreignKey.SetConstraintName($"fk_{table}_{principal}_{columns}");
+                foreignKey.SetConstraintName(ForeignKeyName(table, principal, columns));
             }
 
             foreach (var index in entityType.GetIndexes())
@@ -69,6 +69,31 @@ public abstract class PdsBaseContext : DbContext
                 index.SetDatabaseName($"{(index.IsUnique ? "ux" : "ix")}_{table}_{columns}");
             }
         }
+    }
+
+    /// <summary>
+    /// O nome da chave estrangeira, cortado quando nao cabe no banco.
+    ///
+    /// <para><b>O Postgres corta identificador em 63 bytes, e nao reclama.</b> Ele
+    /// emite um aviso que ninguem le e grava o nome pela metade — a chave funciona,
+    /// mas o nome no banco deixa de bater com o que esta escrito na migracao, e e
+    /// por ele que se procura quando uma gravacao e recusada.</para>
+    ///
+    /// <para>Quando o nome completo nao cabe, o pedaco que sai e o da <b>tabela
+    /// apontada</b>, porque e o unico redundante: a coluna ja carrega o nome dela.
+    /// O resultado continua unico dentro da tabela — duas chaves estrangeiras da
+    /// mesma tabela nao podem ter o mesmo conjunto de colunas.</para>
+    ///
+    /// <para>Indice nao passa por aqui: o nome dele nao tem parte redundante para
+    /// cortar, entao o dia em que um estourar o limite pede outra resposta, e nao
+    /// esta. Nenhum chega perto hoje.</para>
+    /// </summary>
+    private static string ForeignKeyName(string table, string? principal, string columns)
+    {
+        const int limiteDoPostgres = 63;
+
+        var completo = $"fk_{table}_{principal}_{columns}";
+        return completo.Length <= limiteDoPostgres ? completo : $"fk_{table}_{columns}";
     }
 
     /// <summary>Reescreve a expressao generica de filtro para o tipo concreto da entidade.</summary>
