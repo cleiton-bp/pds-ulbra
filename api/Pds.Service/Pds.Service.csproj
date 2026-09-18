@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Pds.ApiBase\Pds.ApiBase.csproj" />
     <ProjectReference Include="..\Pds.Domain\Pds.Domain.csproj" />
+    <ProjectReference Include="..\Pds.Translation\Pds.Translation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

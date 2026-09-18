@@ -93,6 +93,21 @@ const projeto: ProjectViewModel = {
   UpdatedAt: '2026-08-01T12:00:00.000Z',
 }
 
+/**
+ * Comeca o arrasto **com um `dataTransfer`**, que o jsdom nao cria.
+ *
+ * Sem ele, `onDragStart` estourava em `event.dataTransfer.effectAllowed` e o
+ * vitest fechava a corrida com "2 errors" ao lado de "251 passed". As assercoes
+ * nao dependiam disso — quem reordena e `onDragEnter` —, entao os testes passavam
+ * e o erro parecia enfeite. Mas as duas linhas que falam com o navegador nunca
+ * chegavam a rodar, e uma suite que termina com erro ensina a ignorar erro.
+ */
+function comecarArrasto(linha: HTMLElement) {
+  fireEvent.dragStart(linha, {
+    dataTransfer: { effectAllowed: 'none', setData: vi.fn() },
+  })
+}
+
 function montar() {
   const router = createMemoryRouter(
     [
@@ -311,7 +326,7 @@ describe('ProjectStatesScreen', () => {
     // A alça é o que liga o arrasto: sem ela a linha não é arrastável, para
     // selecionar o nome com o mouse não virar um arrasto.
     fireEvent.mouseDown(primeira.querySelector('button') as HTMLElement)
-    fireEvent.dragStart(primeira)
+    comecarArrasto(primeira)
     fireEvent.dragEnter(terceira)
 
     // A lista se reorganiza com o dedo em cima, e não só ao soltar.
@@ -333,7 +348,7 @@ describe('ProjectStatesScreen', () => {
 
     const primeira = screen.getAllByRole('listitem')[0] as HTMLElement
     fireEvent.mouseDown(primeira.querySelector('button') as HTMLElement)
-    fireEvent.dragStart(primeira)
+    comecarArrasto(primeira)
     fireEvent.drop(primeira)
 
     // Pegar e largar no mesmo lugar é desistir, e desistir não é uma gravação.

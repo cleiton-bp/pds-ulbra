@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.Shared", "Pds.Shared\Pd
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.WebApi", "Pds.WebApi\Pds.WebApi.csproj", "{8F1B82B5-8FDB-4829-99C9-E00AD0F339BA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.Translation", "Pds.Translation\Pds.Translation.csproj", "{E314157C-C1E6-4002-8E16-75DDC49704E6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{8F1B82B5-8FDB-4829-99C9-E00AD0F339BA}.Release|x64.Build.0 = Release|Any CPU
 		{8F1B82B5-8FDB-4829-99C9-E00AD0F339BA}.Release|x86.ActiveCfg = Release|Any CPU
 		{8F1B82B5-8FDB-4829-99C9-E00AD0F339BA}.Release|x86.Build.0 = Release|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Debug|x64.Build.0 = Debug|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Debug|x86.Build.0 = Debug|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|x64.ActiveCfg = Release|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|x64.Build.0 = Release|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|x86.ActiveCfg = Release|Any CPU
+		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

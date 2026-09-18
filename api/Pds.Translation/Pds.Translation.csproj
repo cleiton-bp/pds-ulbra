@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- NENHUMA referencia, e isso e a funcionalidade.
+
+       Este projeto e o nucleo do trabalho: dado um estado interno, um mapa e a
+       etapa em que o relato esta, decidir o que a jornada publica faz. Enquanto
+       ele nao referencia nada, "o motor nao conhece banco nem HTTP" para de ser
+       uma promessa escrita num comentario e vira uma coisa que o compilador
+       recusa. Acrescentar uma referencia aqui e sempre o comeco de outra coisa. -->
+
+</Project>
