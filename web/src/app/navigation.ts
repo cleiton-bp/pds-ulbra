@@ -11,7 +11,7 @@
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
   /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
-  key: 'start' | 'keys' | 'states' | 'settings' | 'reports' | 'tool'
+  key: 'start' | 'keys' | 'states' | 'stages' | 'settings' | 'reports' | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
@@ -30,6 +30,10 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   { key: 'keys', label: 'Chaves', path: 'keys' },
   { key: 'tool', label: 'Ferramenta', path: 'tool' },
   { key: 'states', label: 'Estados', path: 'states' },
+  // O caminho e `public-stages`, e nao `stages`: na barra de endereco
+  // `states` e `stages` diferem por uma letra, e as duas telas sao justamente
+  // as duas que se confundem.
+  { key: 'stages', label: 'Etapas públicas', path: 'public-stages' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 
@@ -59,11 +63,6 @@ export const LOCKED_SECTIONS: LockedSection[] = [
     key: 'board',
     label: 'Quadro',
     hint: 'Os relatos como cartões, que o time move entre os estados que você criar, na etapa 3.',
-  },
-  {
-    key: 'stages',
-    label: 'Etapas públicas',
-    hint: 'O que o seu usuário vê do andamento do relato dele, na etapa 4.',
   },
   {
     key: 'addons',

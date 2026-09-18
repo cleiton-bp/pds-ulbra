@@ -71,6 +71,18 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'stages' && (
+        // Uma linha com tres marcos: e a linha do tempo que quem relatou ve, e
+        // nao as colunas de `states` — as duas telas se confundem, e os glifos
+        // sao a primeira coisa que as separa de relance.
+        <>
+          <path d="M1.6 6h8.8" />
+          <circle cx="2.4" cy="6" r="1.1" />
+          <circle cx="6" cy="6" r="1.1" />
+          <circle cx="9.6" cy="6" r="1.1" />
+        </>
+      )}
+
       {section === 'settings' && (
         // Controles deslizantes, e nao engrenagem: a 12px a engrenagem vira borrao.
         <>

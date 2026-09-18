@@ -7,6 +7,7 @@ import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { ProjectsHubScreen } from '@/features/projects/ProjectsHubScreen'
+import { PublicStagesScreen } from '@/features/publicStages/PublicStagesScreen'
 import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsScreen'
@@ -15,7 +16,7 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  * Dois niveis: fora do projeto nao ha o que navegar, dentro dele vai haver muito.
  *
  *   /projects .......................... hub, casca so com barra de cima
- *   /projects/:publicId/{start,keys,tool,states,settings} ..... console, com menu lateral
+ *   /projects/:publicId/{start,keys,tool,states,public-stages,settings} .. console, com menu lateral
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
  * `createBrowserRouter` e nao o modo simples porque dele vem o `useBlocker`, que
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
           { path: 'start', element: <StartScreen /> },
           { path: 'keys', element: <ProjectKeysScreen /> },
           { path: 'states', element: <ProjectStatesScreen /> },
+          { path: 'public-stages', element: <PublicStagesScreen /> },
           { path: 'settings', element: <ProjectSettingsScreen /> },
           {
             // O relato aberto e filho da lista: a lista continua montada atras,
