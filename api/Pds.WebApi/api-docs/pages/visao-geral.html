@@ -21,7 +21,7 @@ entra</strong> fechou o ciclo nas duas direções: dá para colar o script numa 
 ver o relato chegar, lê-lo na lista do painel — e quem relatou volta pelo link e vê o próprio
 relato. O que falta dela é o limite de envio na rota pública.</p>
 
-<p>A <strong>etapa 3 — O time trabalha o relato</strong> está em andamento. O cliente cria a
+<p>A <strong>etapa 3 — O time trabalha o relato</strong> está fechada. O cliente cria a
 própria fila de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada
 estado. <strong>E o relato entra nessa fila</strong>: projeto novo já nasce com uma área de
 análise, e o cliente escolhe por tipo onde cada relato cai — ou deixa no padrão, que é a
@@ -48,12 +48,78 @@ leitor</strong>, e a tela diz isso em vez de prometer.</p>
 <p>E cada relato tem uma <strong>linha do tempo</strong>, montada a partir dos eventos, com os
 nomes de coluna que valiam na época de cada mudança.</p>
 
-<p>O que <strong>ainda não existe</strong> é o quadro arrastável — e a camada que a pessoa de
-fora lê, que é a etapa seguinte.</p>
+<p>A <strong>etapa 4 — O relator acompanha</strong> começou pela jornada pública. O cliente
+desenha os passos que quem relatou vê: rótulo, a frase que explica cada um e, se quiser, o que
+vem depois. <strong>Não é a fila de trabalho com outro nome</strong> — vários estados de dentro
+cabem numa etapa daqui, e é essa perda de detalhe que é o produto.</p>
 
-<p>A página de acompanhamento, portanto, <strong>ainda não tem andamento para mostrar</strong>,
-e ela diz isso em vez de prometer. O que ela mostra hoje é o registro — protocolo, data, tipo e
-o texto que a pessoa escreveu.</p>
+<p>Ela tem teto e piso, entre três e sete, e o motivo de cada um está escrito na tela: abaixo de
+três não se conta uma história, acima de sete volta a ser o organograma interno com palavras mais
+bonitas. Projeto novo já nasce com o conjunto padrão, e quem foi criado antes preenche com um
+clique — tela em branco não se preenche sozinha.</p>
+
+<p>A etapa em que o relato termina carrega o <strong>desfecho</strong>, de uma lista curta e
+nossa: foi feito, não será feito, sem retorno, já existia. Sem os três últimos só existiria
+"concluído", e o relato que não vai ser feito ficaria pendurado esperando um fim que nunca
+chega.</p>
+
+<p>E as duas listas <strong>já estão ligadas</strong>: o cliente aponta cada estado da fila para
+um passo da jornada, sem digitar nada — os dois lados já existem, escolher é tudo que há para
+fazer. Vários estados no mesmo passo é o caminho normal, e não um jeito de economizar.</p>
+
+<p>O mapa se grava <strong>inteiro</strong>, e cada gravação cria uma versão. Alterar hoje não
+reescreve o passado: são as versões antigas que explicam por onde um relato de três meses atrás
+passou. Sem isso, reorganizar a jornada mudaria em silêncio o que já aconteceu, e não haveria como
+perceber depois — o dado necessário para perceber seria justamente o apagado.</p>
+
+<p>Estado sem mapeamento não é erro, e a tela conta quantos são: é neles que o relato pararia de
+andar do lado de fora.</p>
+
+<p>E o <strong>motor que traduz</strong> está no ar. Ele mora num projeto que não referencia
+nada — nem o domínio, nem o acesso a dados —, e isso não é arrumação: é o que torna "o motor não
+conhece banco nem HTTP" uma coisa que o compilador recusa, em vez de uma promessa escrita num
+comentário.</p>
+
+<p>Ele decide entre quatro coisas: <strong>avançar</strong>, <strong>ficar na mesma etapa</strong>
+— o caso mais comum, e o produto funcionando —, <strong>segurar uma regressão</strong> e
+<strong>marcar como não mapeado</strong>. A regressão pública é segurada por decisão de produto:
+ver o relato desandar destrói a confiança de quem acompanha, e a volta continua gravada como
+evento interno. Só etapa marcada como "pode voltar" retrocede.</p>
+
+<p>Ele roda em dois momentos, e o segundo é o que se esquece: quando o time <strong>move</strong>
+o relato, e quando ele <strong>entra</strong>. Traduzir só no movimento deixaria invisível o
+relato que chega e nunca é movido — justamente no momento em que quem escreveu mais quer
+olhar.</p>
+
+<p>Cada tradução que muda alguma coisa vira evento, com os rótulos da época e a
+<strong>versão do mapa</strong> que decidiu. E o painel mostra o outro lado junto do controle que
+move o relato: quem decide precisa ver, na hora, o que o movimento causa lá fora.</p>
+
+<p>E a <strong>página de acompanhamento mostra o andamento</strong>. Ela desenha a jornada
+inteira, com o passo em que o relato está, as datas por onde ele passou e o que vem depois — e
+a jornada avança sozinha conforme a equipe move o card do lado de dentro, sem ninguém avisar
+nada manualmente. Projeto que não configurou jornada devolve a lista vazia, e aí a página volta
+a dizer que não há andamento, em vez de prometer.</p>
+
+<p>Quem anda é a jornada, e não a página: ela busca uma vez, ao abrir. Uma aba deixada aberta
+não muda sozinha, e <strong>o texto da tela diz isso</strong> — ele prometia o contrário, e essa
+é a diferença entre a pessoa voltar quando quiser e ficar esperando uma tela que nunca se mexe.
+Buscar de novo por conta própria seria pior: cada leitura grava um evento de visualização, e a
+página passaria a registrar leituras que ninguém fez. Avisar quando algo anda é a notificação, e
+ela é de outra etapa.</p>
+
+<p>O que sai nessa resposta é montado <strong>campo a campo</strong>, e nenhuma entidade é
+serializada nela. É a única resposta do sistema que vai para alguém de fora do time do cliente:
+com serialização, a coluna acrescentada amanhã a uma tabela interna apareceria ali sem ninguém
+decidir — e vazamento por serialização não dá erro em teste nenhum.</p>
+
+<p>O que <strong>ainda não existe</strong> é o quadro arrastável. E a etapa 4 fecha com três
+ressalvas registradas: o motor <strong>não tem teste</strong> do lado C#, o teste de vazamento
+não foi escrito — os dois esperam o projeto de testes da API, que é decisão de calendário —, e
+a página pública <strong>não é renderizada no servidor</strong>: ela é uma aplicação React que
+baixa 80 kB comprimidos para desenhar uma tela sem interação. Dessa terceira, o sintoma foi
+tratado — um esqueleto escrito no próprio HTML aparece antes de qualquer script, e a tela branca
+acabou —, mas o peso continua lá.</p>
 
 <p>A <strong>configuração da ferramenta</strong> entrou fora de ordem, e de propósito. Ela
 pertence a uma etapa bem mais adiante, mas o formulário tinha dez campos que já mudavam tudo

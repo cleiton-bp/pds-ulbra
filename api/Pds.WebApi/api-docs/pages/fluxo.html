@@ -149,7 +149,7 @@ devolve so o que a propria pessoa escreveu, com Cache-Control: no-store</div>
 
 <p>O que volta é um contrato <strong>próprio</strong>, e não o detalhe que o painel lê: rota,
 origem, contexto técnico e o nome que o cliente dá ao projeto por dentro ficam de fora. Se ele
-herdasse do outro, o campo que a etapa 3 acrescentar ao painel — comentário interno, responsável —
+herdasse do outro, cada campo novo do painel — comentário interno, responsável, estado bruto —
 passaria a sair aqui sem ninguém decidir isso, e vazamento por herança não dá erro em teste
 nenhum.</p>
 
@@ -163,12 +163,35 @@ nenhum.</p>
   alta para o suporte.</p>
 </div>
 
+<p><strong>A resposta traz a jornada</strong>, na ordem, com o passo em que o relato está e as
+datas em que ele chegou a cada um. As datas vêm dos <strong>eventos</strong>: um relato pode pular
+etapas, e marcar como percorrido tudo que está antes contaria uma história que não aconteceu.</p>
+
+<div class="note warn">
+  <strong>O recorte do evento mora na consulta, e não num filtro depois</strong>
+  <p>A leitura que monta o andamento traz <strong>só</strong> eventos de mudança de etapa pública.
+  Uma leitura genérica "eventos do relato", filtrada na saída, funcionaria hoje e seria o
+  vazamento de amanhã — bastaria acrescentar um tipo de evento e esquecer de atualizar o filtro
+  para comentário interno sair para quem não é do time, sem erro em lugar nenhum.</p>
+  <p>É a mesma regra da lista de permissão que monta a resposta: tipo novo nasce invisível.</p>
+</div>
+
 <div class="note todo">
-  <strong>O que falta para a etapa fechar</strong>
+  <strong>O que falta aqui</strong>
   <p>O limite de envio em <code>public/reports</code>: hoje a única rota da API com limitador é a
   de login, e são as rotas públicas que qualquer visitante de qualquer site alcança.</p>
-  <p>E a página de acompanhamento ainda não tem andamento para mostrar — ela diz isso, em vez de
-  prometer. Estado interno é a etapa 3, e publicá-lo é a 4.</p>
+  <p>E a página que consome esta rota é uma aplicação React: o navegador baixa
+  <strong>80 kB comprimidos</strong> — 67 deles são o próprio React — antes de desenhar uma linha
+  do tempo que não tem interação nenhuma. Para a tela que uma pessoa qualquer abre do telefone,
+  renderizar no servidor custaria uma fração disso.</p>
+  <p><strong>O sintoma foi tratado, a causa não.</strong> O <code>tracking.html</code> desenha um
+  esqueleto escrito no próprio HTML, que aparece antes de qualquer script ou folha de estilo — a
+  tela branca acabou, e custou 0,9 kB. Mas os 80 kB continuam sendo baixados, e o critério de
+  renderizar no servidor continua aberto.</p>
+  <p>Esse esqueleto <strong>não é customizável por projeto, e não dá para ser</strong>: o arquivo
+  é estático e igual para todos, e qual é o projeto só se descobre quando o pacote roda e pergunta
+  à API — momento em que a espera já terminou. A versão com a cor e o texto do cliente mora no
+  quadro, onde o carregador conhece a chave pública antes de abrir.</p>
 </div>
 
 <h2>Regenerar a chave secreta</h2>

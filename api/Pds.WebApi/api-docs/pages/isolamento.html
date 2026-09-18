@@ -55,17 +55,28 @@ em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o 
 tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
 <code>report_contexts</code> volta ao padrão e chega pelo relato.</p>
 
-<h2>As sete consultas que atravessam o filtro</h2>
+<h2>As dez consultas que atravessam o filtro</h2>
 
-<p>São exatamente sete em todo o sistema, todas propositais, e <strong>seis delas têm a
+<p>São exatamente dez em todo o sistema, todas propositais, e <strong>nove delas têm a
 mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
 <code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
-próprio dono. Todas as sete moram em repositório, uma por método, e nenhuma em serviço.</p>
+próprio dono. Todas as dez moram em repositório, uma por método, e nenhuma em serviço.</p>
 
-<p>As duas mais novas decidem <strong>onde o relato entra na fila</strong>: a escolha do
-cliente para aquele tipo, e o primeiro estado ativo como padrão. Se elas respeitassem o filtro,
-a consulta voltaria vazia e todo relato cairia no padrão — a configuração do cliente
-simplesmente não valeria, e sem erro em lugar nenhum.</p>
+<p>A mais nova é a que monta o <strong>andamento</strong> da página pública, e ela tem uma
+particularidade que vale ler: o tipo de evento está na <strong>consulta</strong>, e não num
+filtro aplicado depois. Uma leitura genérica "eventos do relato", filtrada na saída,
+funcionaria hoje e seria o vazamento de amanhã — bastaria alguém acrescentar um tipo de evento
+e esquecer de atualizar o filtro para comentário interno sair para quem não é do time, sem erro
+em lugar nenhum. Com o recorte na consulta, tipo novo nasce invisível para fora.</p>
+
+<p>Quatro delas atendem o momento em que o relato <strong>entra</strong>. Duas decidem onde ele
+cai na fila: a escolha do cliente para aquele tipo, e o primeiro estado ativo como padrão. As
+outras duas decidem em que passo da jornada ele aparece para quem o escreveu — o mapa da versão
+que vale, e a jornada do projeto.</p>
+
+<p>Se qualquer uma respeitasse o filtro, a consulta voltaria vazia e o efeito seria mudo: o
+relato cairia no estado padrão e não apareceria em jornada nenhuma, como se o cliente não
+tivesse configurado nada. Sem erro em lugar nenhum.</p>
 
 <p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
 momento a conta ainda não é conhecida, e é justamente a chave pública que vai revelá-la. Com o

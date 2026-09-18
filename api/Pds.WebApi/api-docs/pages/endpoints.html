@@ -1,5 +1,5 @@
 <h2>Endpoints</h2>
-<p class="lead">Trinta e três rotas. Vinte e nove exigem token de sessão; quatro não — a de entrar, que é
+<p class="lead">Quarenta e uma rotas. Trinta e sete exigem token de sessão; quatro não — a de entrar, que é
 onde a sessão nasce, as duas que a ferramenta usa (a que recebe o relato e a que ela lê para
 saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
 
@@ -26,6 +26,14 @@ saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/activate</code></td><td>Traz de volta para a fila.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Onde cada tipo de relato cai ao entrar. Traz os três sempre, escolhidos ou não.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Escolhe o destino de um tipo. Nulo <strong>apaga</strong> a escolha e devolve ao padrão.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/public-stages</code></td><td>A jornada que quem relatou acompanha, na ordem. Pode vir vazia — projeto criado antes dela existir.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages</code></td><td>Cria uma etapa no fim da jornada. Recusada no teto de sete.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages/factory</code></td><td>Preenche uma jornada <strong>vazia</strong> com o conjunto padrão. Recusada se já houver etapa.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/order</code></td><td>Reordena a jornada <strong>inteira</strong>, numa chamada só.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td>Reescreve a etapa inteira. O rótulo novo vale de agora em diante.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td>Tira da jornada. Recusada no piso de três.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/status-mappings</code></td><td>O mapa que vale. Traz <strong>todo estado ativo</strong>, mapeado ou não.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/status-mappings</code></td><td>Grava o mapa <strong>inteiro</strong>, criando uma versão. Estado ausente da lista fica sem mapeamento.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. Os dez campos vão sempre juntos.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada. Aceita <code>state</code> para recortar por coluna da fila, ou <code>none</code> para os sem coluna.</td></tr>
@@ -44,6 +52,45 @@ saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
 
 <p>Corpo de requisição e resposta de cada uma ficam no <a href="/swagger">Swagger</a>,
 gerado a partir do código.</p>
+
+<div class="note why">
+  <strong>Por que o mapa se grava inteiro, e não uma ligação de cada vez</strong>
+  <p>Cada gravação de <code>/status-mappings</code> cria uma <strong>versão</strong>, e uma versão
+  é um retrato do conjunto completo. Uma rota por ligação criaria uma versão por clique, e a linha
+  do tempo de um relato passaria a ser contada por um mapa que existiu por trinta segundos.</p>
+  <p>Alterar o mapeamento <strong>não toca nas versões anteriores</strong>. São elas que explicam
+  por onde um relato de três meses atrás passou: sem isso, reorganizar a jornada hoje mudaria em
+  silêncio o que já aconteceu — e não haveria como perceber depois, porque o dado necessário para
+  perceber seria justamente o apagado. Pedido igual ao que já vale não cria versão.</p>
+</div>
+
+<div class="note why">
+  <strong>Duas listas de etapas, e elas não são a mesma coisa</strong>
+  <p><code>/states</code> é a fila em que o time trabalha; <code>/public-stages</code> é a
+  jornada que quem relatou acompanha. Vários estados de dentro cabem numa etapa daqui, e
+  <strong>é essa perda de detalhe que é o produto</strong>: quem abriu o relato não precisa saber
+  que existe revisão de código, precisa saber que o problema está sendo resolvido.</p>
+  <p>Duas diferenças de comportamento saem daí. A fila de trabalho <strong>não tem teto</strong>
+  e a jornada tem — entre três e sete, conferidos na gravação: quantas faixas o time usa é escolha
+  de quem trabalha, mas uma história com quinze capítulos é o mesmo organograma interno com
+  palavras mais bonitas. E o estado interno só se <strong>aposenta</strong>, enquanto a etapa
+  pública se <strong>remove</strong>: o aposentado precisa continuar visível porque a tela do time
+  mostra a fila inteira; a etapa removida não tem esse papel, e o que passou por ela é contado
+  pelos eventos, que guardam o rótulo que valia na época.</p>
+</div>
+
+<div class="note why">
+  <strong>Etapa terminal não quer dizer encerrado</strong>
+  <p><code>IsTerminal</code> marca onde o trabalho <em>do time</em> acaba, e exige
+  <code>Outcome</code> — <code>Done</code>, <code>WontDo</code>, <code>NoAnswer</code> ou
+  <code>Duplicate</code>. Sem os três últimos só existe "foi feito", e o relato que não vai ser
+  feito fica pendurado na jornada esperando um fim que nunca chega, que é pior do que uma
+  recusa.</p>
+  <p>Essa lista é <strong>nossa e fixa</strong>, ao contrário do rótulo e da frase. Cada equipe
+  inventando o próprio vocabulário de encerramento traria de volta o jargão que esta camada
+  existe para esconder. E terminal é uma marca, e não "a última da lista": depois dela ainda vem
+  a confirmação de quem relatou, que é ação da pessoa e não estado do time.</p>
+</div>
 
 <div class="note why">
   <strong>A mesma chave, ora no corpo, ora na URL</strong>
@@ -170,7 +217,7 @@ gerado a partir do código.</p>
 
 <div class="note why">
   <strong>Por que uma rota fica fora do padrão</strong>
-  <p>Vinte e nove rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
+  <p>Trinta e sete rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
   As duas de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site de um
   cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai.</p>

@@ -66,6 +66,8 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects ........................ hub — saudação, criar projeto, busca, lista
 /projects/:publicId/start ........ console — "Comece por aqui", 3 passos
 /projects/:publicId/keys ......... console — chaves e integração
+/projects/:publicId/states ....... console — a fila de trabalho do time
+/projects/:publicId/public-stages  console — a jornada que quem relatou acompanha
 /projects/:publicId/settings ..... console — nome, identificador, arquivar
 /projects/:publicId/reports ...... console — os relatos que chegaram do site
 /projects/:publicId/tool ......... console — como a ferramenta aparece no site
@@ -90,7 +92,7 @@ src/
 ├── tracking/     a página pública: onde quem relatou vê o próprio relato
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
 ├── features/     um assunto por pasta: auth, projects, projectKeys, projectStates,
-│                 onboarding, reports, widgetSettings
+│                 publicStages, onboarding, reports, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
 ```
@@ -299,13 +301,58 @@ onde ler**, em vez de prometer.
 E cada relato tem uma **linha do tempo** (pds-024), montada a partir dos eventos,
 com os nomes de coluna que valiam na época de cada mudança.
 
+E o cliente desenha a **jornada pública** (pds-025): os passos que quem relatou vê,
+cada um com rótulo, a frase que explica e, se quiser, o que vem depois. **Não é a
+tela de Estados com outro título** — lá estão as faixas em que o time trabalha,
+aqui está a história que a pessoa de fora lê, e ela é mais curta de propósito.
+Entre três e sete, com o motivo de cada limite escrito na tela; projeto novo nasce
+com o conjunto padrão e quem foi criado antes preenche com um clique. A etapa em
+que o relato termina carrega o **desfecho**, de uma lista curta e nossa — foi
+feito, não será feito, sem retorno, já existia.
+
+E o cliente **liga as duas listas** (pds-026): cada estado da fila aponta para um
+passo da jornada, escolhendo numa lista — os dois lados já existem, e não há o que
+digitar. Vários estados no mesmo passo é o caminho normal. O mapa se grava
+**inteiro**, e cada gravação cria uma versão: alterar hoje não reescreve o
+passado, porque são as versões antigas que explicam por onde um relato de três
+meses atrás passou. É a única tela do painel com botão de salvar, e é por isso.
+
+E o relato **anda sozinho do lado de fora** (pds-027). O motor que decide isso vive
+num projeto da API que não referencia nada — é o que torna "ele não conhece banco
+nem HTTP" uma garantia do compilador. No painel, a caixa do relato passa a dizer
+**onde quem relatou o vê**, junto do controle que o move: quem decide precisa ver,
+na hora, o que o movimento causa lá fora.
+
+Essa informação vem da resposta do próprio movimento, e não de uma busca nova —
+abrir o detalhe **grava um evento de leitura**, e refazer essa busca a cada clique
+mediria o time em vez da leitura.
+
+E quem relatou **vê o andamento** (pds-028). `tracking.html` desenha a jornada
+inteira: por onde o relato passou, onde ele está e o que vem depois. Ela anda
+sozinha conforme a equipe move o card do lado de dentro — ninguém avisa nada.
+
+**O que já passou vem das datas, e não da posição.** Um relato pode pular etapas,
+e pintar como percorrido tudo que está antes contaria uma história que não
+aconteceu. Passo sem data é passo por onde ele não passou, mesmo estando antes do
+atual.
+
+E a tela **não abre em branco**: o esqueleto é escrito dentro do `tracking.html`,
+com as cores resolvidas pelo mesmo script que já decidia o tema antes do primeiro
+pixel. A versão desenhada pela biblioteca nunca serviu para essa espera — ela só
+aparece depois de o pacote inteiro chegar, que é quando a espera acabou.
+
+Ele **não é customizável por projeto, e não dá para ser**: o arquivo é estático e
+igual para todos, e qual é o projeto só se sabe quando o pacote roda e pergunta à
+API. A versão com a cor do cliente fica no quadro, onde o carregador conhece a
+chave pública antes de abrir.
+
 | o que falta | onde dói |
 |---|---|
-| quem relatou ler o que foi escrito para ele | o comentário público existe e não tem leitor; é a etapa seguinte |
-| andamento na página de acompanhamento | ela existe e não tem o que mostrar: o relato já tem estado, falta traduzi-lo para quem está de fora |
+| a página não é renderizada no servidor | ela baixa **80 kB comprimidos**, 67 deles o próprio React, para desenhar uma tela sem interação nenhuma. A tela branca acabou — `tracking.html` desenha um esqueleto por 0,9 kB, antes de qualquer script —, mas o peso continua |
+| quem relatou ler o que foi escrito para ele | o comentário público existe e não tem leitor |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança, e a única com limitador é a de login |
 
-Fora do corte, de propósito: plano, etapas públicas, anexo, e o quadro de cards
+Fora do corte, de propósito: plano, anexo, e o quadro de cards
 com board arrastável, sprint e relatório. E o `frame-ancestors` — a conferência de hoje mora no servidor e pega o
 caso comum; barrar o quadro no navegador precisa de um servidor servindo
 `embed.html`, que é hospedagem que ainda não existe.

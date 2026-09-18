@@ -1,5 +1,5 @@
 <h2>Arquitetura</h2>
-<p class="lead">Seis projetos, dependência sempre apontando para dentro.</p>
+<p class="lead">Sete projetos, dependência sempre apontando para dentro.</p>
 
 <div class="diagram">          <b>Pds.WebApi</b>              rotas, middleware, pipeline HTTP
                │
@@ -9,7 +9,9 @@
           └────┬─────┘
           <b>Pds.Domain</b>              entidades, enums, contratos, DTOs
                │
-          <b>Pds.ApiBase</b>             genérico, não conhece o domínio</div>
+          <b>Pds.ApiBase</b>             genérico, não conhece o domínio
+
+     <b>Pds.Translation</b>            o motor — não referencia nada, e é isso que ele é</div>
 
 <p>A linha liga quem usa a quem é usado, de cima para baixo. Repare que
 <code>Pds.Service</code> e <code>Pds.Data</code> ficam lado a lado, e não um sobre o
@@ -28,6 +30,22 @@ outro.</p>
 <p><code>Pds.ApiBase</code> não sabe que existe conta, projeto ou chave — é o que
 permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
 <code>Pds.Domain</code> não sabe que o banco é PostgreSQL.</p>
+
+<div class="note warn">
+  <strong><code>Pds.Translation</code> está fora da pilha, de propósito</strong>
+  <p>Ele não referencia <strong>nada</strong> — nem <code>Pds.Domain</code>, nem
+  <code>Pds.ApiBase</code>, nem um pacote. Dentro dele mora uma função pura: dado um estado
+  interno, o mapa que valia e a etapa em que o relato está, decidir o que a jornada pública
+  faz.</p>
+  <p><strong>O <code>.csproj</code> vazio é a funcionalidade.</strong> Enquanto ele não tem
+  referência, "o motor não conhece banco nem HTTP" deixa de ser uma promessa escrita num
+  comentário e passa a ser algo que o compilador recusa — e é o que permite exercitar todo
+  caminho possível em milissegundos, sem nada de pé. Acrescentar uma referência ali é sempre
+  o começo de outra coisa.</p>
+  <p>Quem usa é <code>Pds.Service</code>, que traduz entidade em valor, chama, e grava o que
+  a decisão disser. Nenhuma regra mora no serviço: no dia em que uma condição de negócio
+  aparecer naquele corpo, ela está no lugar errado.</p>
+</div>
 
 <div class="note why">
   <strong>Por que monólito modular, e não microsserviços</strong>
@@ -50,6 +68,11 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
     <td><code>Domain</code></td>
     <td>Entidades, enums, interfaces, DTOs, view models</td>
     <td>Acesso a banco, HTTP</td>
+  </tr>
+  <tr>
+    <td><code>Translation</code></td>
+    <td>O motor: uma função pura e os valores que ela recebe</td>
+    <td><strong>Qualquer referência</strong>, inclusive a <code>Domain</code></td>
   </tr>
   <tr>
     <td><code>Data</code></td>
@@ -91,5 +114,7 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
   <tr><td>Tradução de erro para status HTTP</td><td><code>Pds.WebApi/Controllers/BaseController.cs</code></td></tr>
   <tr><td>Registro de serviço novo</td><td><code>Pds.Shared/DependencyInjection/DiResolver.cs</code></td></tr>
   <tr><td>Formato do JSON</td><td><code>Pds.Shared/Json/PdsJsonOptions.cs</code></td></tr>
+  <tr><td><strong>A decisão da jornada pública</strong></td><td><code>Pds.Translation/StateTranslator.cs</code></td></tr>
+  <tr><td>Gravar o que a decisão disser</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ApplyPublicStageAsync</code></td></tr>
 </table>
 </div>
