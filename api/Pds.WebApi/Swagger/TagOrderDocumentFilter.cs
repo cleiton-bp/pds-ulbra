@@ -55,6 +55,16 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.ProjectPublicStages,
+                Description = "A jornada que quem relatou acompanha. Vários estados de dentro cabem numa etapa daqui, e é essa perda de detalhe que é o produto. Entre três e sete.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ProjectStatusMappings,
+                Description = "O que liga um estado de dentro a uma etapa de fora. Grava-se inteiro, e cada gravação cria uma versão — alterar hoje não reescreve o que já aconteceu.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.Reports,
                 Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos da conta que está logada.",
             },

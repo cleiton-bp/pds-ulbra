@@ -96,6 +96,18 @@ public class PublicReportsController : BaseController
     /// — e 404 em vez de 403 pela mesma razão de sempre aqui: confirmar que o
     /// relato existe já é informação.
     ///
+    /// **A resposta traz a jornada**, na ordem, com o passo em que o relato está e as
+    /// datas em que ele chegou a cada um. As datas vêm dos **eventos**, e não da
+    /// posição: um relato pode pular etapas, e marcar como percorrido tudo que está
+    /// antes contaria uma história que não aconteceu. Projeto sem jornada devolve a
+    /// lista vazia, e a página diz isso em vez de prometer.
+    ///
+    /// **Tudo aqui é montado campo a campo.** Nenhuma entidade é serializada nesta
+    /// resposta, e não há herança do que o painel lê. É a única resposta do sistema
+    /// que sai para alguém de fora do time do cliente: com serialização, a coluna
+    /// acrescentada amanhã a uma tabela interna apareceria aqui sem ninguém decidir,
+    /// e vazamento por serialização não dá erro em teste nenhum.
+    ///
     /// A resposta sai com `Cache-Control: no-store`. É o relato de alguém, e ele não
     /// fica guardado em proxy nem no disco de quem abriu.
     /// </remarks>

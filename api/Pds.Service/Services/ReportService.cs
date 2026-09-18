@@ -10,6 +10,7 @@ using Pds.Domain.ViewModels;
 using Pds.Service.Origins;
 using Pds.Service.Security;
 using Pds.Service.Reports;
+using Pds.Translation;
 
 namespace Pds.Service.Services;
 
@@ -140,6 +141,24 @@ public class ReportService : IReportService
             }),
         }, cancellationToken);
 
+        // E ja nasce numa etapa da jornada, se houver uma para ele.
+        //
+        // **Traduzir so no movimento nao bastaria**: o relato que chega e nunca e
+        // movido ficaria invisivel para quem o escreveu — a pagina de acompanhamento
+        // abriria sem nada, justamente no momento em que a pessoa mais quer olhar.
+        //
+        // As leituras sao as **sem sessao**: o relato entra pela chave publica, e ali
+        // a conta atual e zero.
+        if (landingStateId is long landing)
+        {
+            var mapa = await _unitOfWork.ProjectStatusMappings
+                .ListByVersionWithoutSessionAsync(project.Id, project.MappingVersion, cancellationToken);
+            var etapas = await _unitOfWork.ProjectPublicStages
+                .ListByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+            await ApplyPublicStageAsync(project, report, landing, EventSourceEnum.Widget, null, mapa, etapas, cancellationToken);
+        }
+
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt);
@@ -186,7 +205,8 @@ public class ReportService : IReportService
             report.TrackingCode,
             report.Type,
             report.Text,
-            report.CreatedAt);
+            report.CreatedAt,
+            await BuildJourneyAsync(report, cancellationToken));
     }
 
     public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, CancellationToken cancellationToken = default)
@@ -282,6 +302,19 @@ public class ReportService : IReportService
         report.ProjectState = destino;
         _unitOfWork.Reports.Update(report);
 
+        // So entao a traducao: ela e **consequencia** do movimento, e nao parte da
+        // decisao de mover. Se ela viesse antes, um projeto sem jornada poderia
+        // acabar impedindo o time de trabalhar — e a camada publica existe para
+        // servir quem esta de fora, nao para mandar em quem esta dentro.
+        var mapaAtual = await _unitOfWork.ProjectStatusMappings
+            .ListByVersionAsync(project.Id, project.MappingVersion, cancellationToken);
+        var etapasAtuais = await _unitOfWork.ProjectPublicStages
+            .ListByProjectAsync(project.Id, cancellationToken);
+
+        await ApplyPublicStageAsync(
+            project, report, destino.Id, EventSourceEnum.Panel, _accountContext.UserId,
+            mapaAtual, etapasAtuais, cancellationToken);
+
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return Map(report);
@@ -340,6 +373,215 @@ public class ReportService : IReportService
                 ? valor.GetString()
                 : null;
     }
+
+    /// <summary>
+    /// Monta a jornada que quem relatou ve.
+    ///
+    /// <para><b>Campo a campo, e nunca serializando a entidade.</b> E o ponto mais
+    /// delicado do sistema: esta e a unica resposta que sai para alguem de fora do
+    /// time do cliente. Com serializacao, a coluna acrescentada amanha a
+    /// <c>project_public_stages</c> apareceria aqui sem ninguem decidir — e
+    /// vazamento por serializacao nao da erro em teste nenhum.</para>
+    ///
+    /// <para><b>Por onde passou vem dos eventos, e nao da posicao.</b> Um relato
+    /// pode pular etapas — basta o estado interno apontar direto para o quarto
+    /// passo —, e marcar como percorrido tudo que esta antes seria contar uma
+    /// historia que nao aconteceu. A consulta traz <b>so</b> os eventos de mudanca
+    /// de etapa publica, e o recorte mora nela: tipo de evento novo nasce invisivel
+    /// para fora.</para>
+    ///
+    /// <para>As duas leituras desligam o filtro global, porque aqui nao ha sessao.
+    /// Quem chegou ate aqui ja provou que pode ver este relato, pelo token do
+    /// link.</para>
+    /// </summary>
+    private async Task<IReadOnlyList<PublicStageViewModel>> BuildJourneyAsync(Report report, CancellationToken cancellationToken)
+    {
+        var etapas = await _unitOfWork.ProjectPublicStages
+            .ListByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
+
+        // Projeto sem jornada devolve lista vazia, e a pagina diz isso em vez de
+        // prometer. Sair daqui antes evita a consulta de eventos, que nao teria em
+        // que passo se apoiar.
+        if (etapas.Count == 0)
+            return [];
+
+        var eventos = await _unitOfWork.Events
+            .ListPublicStageChangesWithoutSessionAsync(report.Id, cancellationToken);
+
+        // A primeira vez em que cada etapa foi alcancada. Relato que voltou para uma
+        // etapa — pelas que permitem retorno — guarda a chegada original: e ela que
+        // conta desde quando o assunto esta naquele ponto.
+        var chegadaPorEtapa = new Dictionary<Guid, DateTime>();
+
+        foreach (var evento in eventos)
+        {
+            var destino = PublicStageTarget(evento);
+
+            if (destino is Guid etapaId && !chegadaPorEtapa.ContainsKey(etapaId))
+                chegadaPorEtapa[etapaId] = evento.OccurredAt;
+        }
+
+        return etapas
+            .Select(etapa => new PublicStageViewModel(
+                etapa.Label,
+                etapa.Description,
+                etapa.NextStep,
+                chegadaPorEtapa.TryGetValue(etapa.PublicId, out var chegada) ? chegada : null,
+                etapa.Id == report.ProjectPublicStageId))
+            .ToList();
+    }
+
+    /// <summary>
+    /// O identificador da etapa de destino dentro do payload de um evento.
+    ///
+    /// <para>Tolerante de proposito, como a leitura do historico interno: payload e
+    /// campo livre, e evento antigo pode ter sido gravado com outro formato. Uma
+    /// excecao aqui derrubaria a pagina inteira de quem so queria ver o andamento —
+    /// melhor um passo sem data do que uma tela que nao abre.</para>
+    /// </summary>
+    private static Guid? PublicStageTarget(Event evento)
+    {
+        if (string.IsNullOrWhiteSpace(evento.Payload))
+            return null;
+
+        try
+        {
+            using var documento = JsonDocument.Parse(evento.Payload);
+
+            return documento.RootElement.TryGetProperty("to_id", out var valor)
+                   && valor.TryGetGuid(out var id)
+                ? id
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Pergunta ao motor o que a jornada publica faz, e grava o que ele decidiu.
+    ///
+    /// <para><b>Aqui nao ha regra nenhuma.</b> A decisao inteira mora em
+    /// <see cref="StateTranslator"/>, que nao conhece banco nem HTTP e por isso pode
+    /// ser exercitada em todo caminho possivel sem nada de pe. Este metodo so traduz
+    /// entidade em valor, chama, e escreve o resultado — no dia em que uma condicao
+    /// de negocio aparecer neste corpo, ela esta no lugar errado.</para>
+    ///
+    /// <para><b>Evento primeiro, cache depois</b>, a mesma regra do estado interno e
+    /// pelo mesmo motivo: e o evento que alimenta a linha do tempo publica e as
+    /// metricas, e se ele falhar com o cache ja gravado o dado se perde para
+    /// sempre.</para>
+    ///
+    /// <para><b>So dois dos quatro desfechos viram evento.</b> "Caiu na mesma etapa"
+    /// e "seria retroceder" sao o produto funcionando, e a ausencia de evento
+    /// publico ja diz que nada mudou do lado de fora. "Nao mapeado" e outra coisa: e
+    /// configuracao faltando, que deixa quem escreveu o relato sem ver movimento — e
+    /// quanto tempo isso durou e justamente o que se vai querer medir. Sem o evento,
+    /// esse silencio nao deixaria rastro nenhum.</para>
+    /// </summary>
+    /// <param name="mapa">O mapa da versao que vale. Quem chama escolhe a leitura com ou sem sessao.</param>
+    /// <param name="etapas">A jornada do projeto, pela mesma razao.</param>
+    private async Task ApplyPublicStageAsync(
+        Project project,
+        Report report,
+        long internalStateId,
+        EventSourceEnum source,
+        long? userId,
+        IReadOnlyList<ProjectStatusMapping> mapa,
+        IReadOnlyList<ProjectPublicStage> etapas,
+        CancellationToken cancellationToken)
+    {
+        var etapaPorId = etapas.ToDictionary(etapa => etapa.Id);
+
+        // Ligacao para etapa que nao existe mais e descartada em vez de quebrar: a
+        // remocao de etapa e recusada enquanto algum estado aponta para ela, entao
+        // chegar aqui significa que o mapa mudou depois — e o certo e tratar aquele
+        // estado como nao mapeado, que e o que ele virou.
+        var mapaDoMotor = mapa
+            .Where(ligacao => etapaPorId.ContainsKey(ligacao.ProjectPublicStageId))
+            .ToDictionary(
+                ligacao => ligacao.ProjectStateId,
+                ligacao => Referencia(etapaPorId[ligacao.ProjectPublicStageId]));
+
+        // A etapa de agora vira nula quando ela foi removida da jornada. O motor
+        // entao trata o relato como quem ainda nao apareceu, e ele volta a entrar —
+        // melhor do que ficar preso apontando para um passo que sumiu.
+        var atual = report.ProjectPublicStageId is long atualId && etapaPorId.TryGetValue(atualId, out var etapaAtual)
+            ? Referencia(etapaAtual)
+            : (PublicStageRef?)null;
+
+        var decisao = StateTranslator.Translate(internalStateId, mapaDoMotor, atual);
+
+        if (decisao.Outcome is TranslationOutcomeEnum.SameStage or TranslationOutcomeEnum.RegressionHeld)
+            return;
+
+        if (decisao.Outcome == TranslationOutcomeEnum.Unmapped)
+        {
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                Report = report,
+                UserId = userId,
+                Type = EventTypeEnum.ReportPublicStageUnmapped,
+                Source = source,
+                // O nome do estado interno **nao** vai junto. Este evento e o unico
+                // que nasce de uma falta, e a tentacao de explicar qual estado ficou
+                // de fora poria o vocabulario de dentro numa tabela que alimenta a
+                // linha do tempo publica. Quem precisa do nome tem o evento interno,
+                // gravado no mesmo instante.
+                Payload = JsonSerializer.Serialize(new { mapping_version = project.MappingVersion }),
+            }, cancellationToken);
+
+            return;
+        }
+
+        var destino = decisao.Stage!.Value;
+        var etapaDestino = etapaPorId[destino.Id];
+        var etapaOrigem = atual is PublicStageRef origem ? etapaPorId[origem.Id] : null;
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            Report = report,
+            UserId = userId,
+            Type = EventTypeEnum.ReportPublicStageChanged,
+            Source = source,
+            // Os rotulos vao junto dos identificadores, como no evento interno:
+            // renomear uma etapa nao pode reescrever o passado. E a versao do mapa
+            // vai junto dos dois — sem ela, recontar este movimento amanha usaria o
+            // mapa de amanha e devolveria outra historia.
+            Payload = JsonSerializer.Serialize(new
+            {
+                from_id = etapaOrigem?.PublicId,
+                from_label = etapaOrigem?.Label,
+                to_id = etapaDestino.PublicId,
+                to_label = etapaDestino.Label,
+                mapping_version = project.MappingVersion,
+            }),
+        }, cancellationToken);
+
+        report.ProjectPublicStageId = etapaDestino.Id;
+        report.ProjectPublicStage = etapaDestino;
+
+        // **Sem `Update` aqui, e isso nao e economia.** Este metodo roda nos dois
+        // momentos, e num deles o relato ainda nao existe no banco: quando ele
+        // **entra**, a chave dele e provisoria ate o `CommitAsync`, e pedir
+        // `Update` sobre uma entidade nesse estado e o proprio EF que recusa —
+        // "The property 'Report.Id' has a temporary value". O relato ja esta
+        // sendo rastreado nos dois caminhos, entao mexer no campo basta, e
+        // `UpdatedAt` continua sendo carimbado na hora de gravar.
+    }
+
+    /// <summary>
+    /// A etapa reduzida ao que o motor precisa. Rotulo, frase e desfecho ficam de
+    /// fora de proposito: nada disso muda uma decisao, e leva-los junto arrastaria a
+    /// entidade — e com ela o banco — para dentro do nucleo.
+    /// </summary>
+    private static PublicStageRef Referencia(ProjectPublicStage etapa)
+        => new(etapa.Id, etapa.Position, etapa.AllowsReturn);
 
     /// <summary>
     /// Em que ponto da fila o relato entra.
@@ -434,6 +676,7 @@ public class ReportService : IReportService
             report.Origin,
             report.ProjectState?.PublicId,
             report.ProjectState?.Name,
+            report.ProjectPublicStage?.Label,
             report.CreatedAt,
             // Em ordem de chave, e nao na que o navegador mandou: a mesma informacao
             // trocando de lugar entre dois relatos faz procurar de novo a cada um.
@@ -504,6 +747,7 @@ public class ReportService : IReportService
         report.Origin,
         report.ProjectState?.PublicId,
         report.ProjectState?.Name,
+        report.ProjectPublicStage?.Label,
         report.CreatedAt);
 
     /// <summary>

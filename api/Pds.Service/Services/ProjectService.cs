@@ -5,6 +5,7 @@ using Pds.Domain.Exceptions;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
+using Pds.Service.PublicStages;
 using Pds.Service.Security;
 
 namespace Pds.Service.Services;
@@ -90,8 +91,15 @@ public class ProjectService : IProjectService
             Position = 0,
         }, cancellationToken);
 
-        // Um unico commit: ou o projeto, as duas chaves e a fila entram, ou nao
-        // entra nada.
+        // E a jornada publica nasce junto, com o conjunto padrao. Pelo mesmo motivo
+        // da fila: tela em branco nao se preenche, e cinco passos com frase
+        // explicativa em cada um e muito para inventar do zero. Tudo editavel,
+        // removivel e reordenavel depois — o padrao e ponto de partida, nao regra.
+        foreach (var stage in FactoryPublicStages.For(project))
+            await _unitOfWork.ProjectPublicStages.AddAsync(stage, cancellationToken);
+
+        // Um unico commit: ou o projeto, as duas chaves, a fila e a jornada entram,
+        // ou nao entra nada.
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return new ProjectCreatedViewModel(
