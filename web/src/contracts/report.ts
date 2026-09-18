@@ -73,6 +73,18 @@ export interface ReportSummaryViewModel {
   StatePublicId: string | null
   /** O nome da coluna **agora**: renomear a coluna muda o que a lista mostra. */
   StateName: string | null
+  /**
+   * O passo da jornada em que quem relatou ve este relato, ou nulo quando ele nao
+   * aparece em nenhum.
+   *
+   * **Viaja na lista sem ser desenhado nela**, de proposito: a lista responde "o
+   * que ainda nao tratei", e uma segunda etiqueta em toda linha disputaria essa
+   * leitura. Quem le e a tela do relato aberto — inclusive na resposta do proprio
+   * movimento, que e como ela sabe o que aquele movimento causou la fora sem buscar
+   * o detalhe de novo. Buscar de novo **grava um evento de leitura**, e isso
+   * mediria cliques do time em vez de leituras.
+   */
+  PublicStageLabel: string | null
   CreatedAt: string
 }
 
@@ -114,11 +126,38 @@ export interface OpenReportTrackingRequest {
  *
  * Nao ha campo de situacao porque nao ha situacao: estado interno e a etapa 3.
  */
+/**
+ * Um passo da jornada, como quem relatou o le.
+ *
+ * **Tudo aqui foi escrito para quem esta de fora.** Nao ha identificador, nao ha
+ * posicao e nao ha nenhuma das marcas de configuracao — terminal, permite retorno,
+ * aguarda o relator —, porque nenhuma delas significa alguma coisa para quem so
+ * quer saber do proprio problema.
+ */
+export interface PublicStageViewModel {
+  Label: string
+  Description: string
+  NextStep: string | null
+  /**
+   * Quando o relato chegou a este passo, ou **nulo** se nunca chegou.
+   *
+   * Vem dos **eventos**, e nao da posicao: um relato pode pular etapas, e marcar
+   * como percorrido tudo que esta antes contaria uma historia que nao aconteceu.
+   */
+  ReachedAt: string | null
+  IsCurrent: boolean
+}
+
 export interface PublicReportViewModel {
   TrackingCode: string
   Type: ReportType
   Text: string
   CreatedAt: string
+  /**
+   * A jornada do projeto, na ordem. **Vazia** quando o projeto nao tem jornada
+   * nenhuma — e a pagina diz isso em vez de prometer.
+   */
+  Journey: PublicStageViewModel[]
 }
 
 /**
@@ -182,13 +221,35 @@ export interface CreateCommentRequest {
 /** Limite dos dois textos. Separados na API de proposito, iguais hoje. */
 export const MAX_COMMENT_LENGTH = 5000
 
-/** O que aconteceu, nos nomes do `EventTypeEnum` em C#. */
-export type ReportEventType =
-  | 'ReportCreated'
-  | 'ReportViewed'
-  | 'ReportStateChanged'
-  | 'ReportInternalCommented'
-  | 'ReportPublicCommented'
+/**
+ * O que aconteceu, nos nomes do `EventTypeEnum` em C#.
+ *
+ * **Os dois ultimos sao os da jornada publica**, e eles chegam ao painel pela
+ * mesma rota de historico. Ficaram de fora desta lista quando nasceram, e o
+ * efeito nao foi erro nenhum: `descrever` cai no proprio valor quando nao
+ * conhece o tipo, entao a linha do tempo mostrava `ReportPublicStageChanged` em
+ * tela, em ingles e no meio das frases em portugues. A lista completa e o que faz
+ * `Record<ReportEventType, string>` cobrar a frase de cada um.
+ */
+export const REPORT_EVENT_TYPES = [
+  'ReportCreated',
+  'ReportViewed',
+  'ReportStateChanged',
+  'ReportInternalCommented',
+  'ReportPublicCommented',
+  'ReportPublicStageChanged',
+  'ReportPublicStageUnmapped',
+] as const
+
+/**
+ * A lista e um **array**, e o tipo sai dele — e nao o contrario.
+ *
+ * Uma uniao de literais some na compilacao, e o que some nao da para conferir
+ * contra o C# em teste nenhum: foi exatamente assim que dois tipos ficaram de
+ * fora sem ninguem perceber. Do array, o tipo continua saindo de graca e a lista
+ * continua existindo em tempo de execucao para `eventTypes.test.ts` comparar.
+ */
+export type ReportEventType = (typeof REPORT_EVENT_TYPES)[number]
 
 /**
  * Uma linha do historico.

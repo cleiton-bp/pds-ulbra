@@ -41,12 +41,62 @@
               ? 'dark'
               : 'light'
         document.documentElement.setAttribute('data-theme', theme)
+        aplicarCoresDoEsqueleto(theme)
       } catch (e) {
         // Armazenamento bloqueado: cai no claro, que e o padrao da folha.
+        aplicarCoresDoEsqueleto('light')
+      }
+
+      /**
+       * O esqueleto abaixo nao pode esperar a folha de estilo, entao as cores dele
+       * vem daqui, como variaveis no proprio elemento raiz. Sao dois cinzas por
+       * tema, e nada alem disso: ele existe para a tela nao ficar branca, e nao
+       * para se parecer com o conteudo que vem depois.
+       */
+      function aplicarCoresDoEsqueleto(tema) {
+        var raiz = document.documentElement.style
+        var escuro = tema === 'dark'
+        raiz.setProperty('--pds-load-fundo', escuro ? '#18181b' : '#ffffff')
+        raiz.setProperty('--pds-load-barra', escuro ? '#27272a' : '#f4f4f5')
+        raiz.setProperty('background-color', escuro ? '#18181b' : '#ffffff')
       }
     </script>
   </head>
   <body class="min-h-full">
+    <!--
+      A tela de carregamento mora aqui, no HTML, e nao no pacote.
+
+      A pagina tem uma versao desenhada pela biblioteca — `Carregando`, em
+      `TrackingPage.tsx` —, e ela nunca serviu para esta espera: so aparece depois
+      de o pacote inteiro chegar, que e exatamente quando a espera acabou. Quem
+      abre este link do celular, com internet ruim, ficava olhando tela branca.
+
+      Escrito aqui, o esqueleto aparece junto com o documento, antes de qualquer
+      requisicao de script ou de folha de estilo. Dai as cores virem em `style`
+      direto, resolvidas pelo script do tema la de cima: `class` dependeria da
+      folha, que tambem esta a caminho.
+
+      **Nao e customizavel por projeto, e nao da para ser.** Este arquivo e
+      estatico e igual para todos; qual e o projeto so se descobre quando o
+      pacote roda e pergunta a API — e ai a espera ja terminou. A versao com a
+      cor e o texto do cliente mora no quadro, onde o carregador conhece a chave
+      publica antes de abrir.
+    -->
+    <div
+      id="pds-tracking-loading"
+      aria-label="Carregando o seu relato"
+      role="status"
+      style="
+        background: var(--pds-load-fundo, #fff);
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem;
+      "
+    >
+      <div style="background: var(--pds-load-barra, #f4f4f5); height: 1.5rem; width: 10rem; border-radius: 0.375rem"></div>
+      <div style="background: var(--pds-load-barra, #f4f4f5); height: 0.75rem; width: 16rem; border-radius: 0.375rem; margin-top: 0.75rem"></div>
+      <div style="background: var(--pds-load-barra, #f4f4f5); height: 11rem; border-radius: 0.75rem; margin-top: 2rem"></div>
+    </div>
     <div id="pds-tracking-root"></div>
     <script type="module" src="/src/tracking/main.tsx"></script>
   </body>

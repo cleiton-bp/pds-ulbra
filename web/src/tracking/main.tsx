@@ -16,4 +16,12 @@ const container = document.getElementById('pds-tracking-root')
 
 if (container) {
   createRoot(container).render(<TrackingPage />)
+
+  // Tira o esqueleto que o `tracking.html` desenhou antes de este pacote existir.
+  //
+  // **Ele vive fora do `container`, e nao dentro**, de proposito: dentro, quem
+  // apagaria seria a propria biblioteca ao montar, e isso amarraria a tela de
+  // carregamento a um detalhe de como ela limpa a raiz. Fora, quem tira e esta
+  // linha, que se le.
+  document.getElementById('pds-tracking-loading')?.remove()
 }

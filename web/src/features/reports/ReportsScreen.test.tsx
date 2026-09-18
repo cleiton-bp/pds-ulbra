@@ -87,6 +87,7 @@ function relato(
     Origin: 'loja.exemplo.com',
     StatePublicId: 's-1',
     StateName: 'Análise',
+    PublicStageLabel: null,
     CreatedAt: '2026-09-01T12:00:00.000Z',
     ...extra,
   }
@@ -479,6 +480,61 @@ describe('abrir um relato', () => {
     // A contagem muda em duas colunas de uma vez; sem recontar, as fichas
     // passariam a discordar da lista na frente de quem está olhando.
     await waitFor(() => expect(dublê.contar).toHaveBeenCalledTimes(2))
+  })
+
+  it('mostra o lado de fora, e o atualiza sem buscar o detalhe de novo', async () => {
+    // O resumo da lista ganha do detalhe na caixa — os dois dizem a mesma coisa, e
+    // o primeiro chega antes. Por isso a etapa precisa vir **no resumo**: e o que
+    // torna o campo necessario na lista, mesmo sem ser desenhado nela.
+    dublê.listar.mockResolvedValue({
+      reports: [relato('r-1', 'o botao some', { PublicStageLabel: 'Em análise' })],
+      total: 1,
+    })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some', { PublicStageLabel: 'Em análise' }),
+      Contexts: [],
+    })
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', {
+        StatePublicId: 's-2',
+        StateName: 'Pronto',
+        PublicStageLabel: 'Concluído',
+      }),
+    )
+
+    montar('p-1', '/p/p-1/r-1')
+
+    expect(await screen.findByText('Em análise')).toBeTruthy()
+
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    // A etapa nova sai da resposta do proprio movimento.
+    expect(await screen.findByText('Concluído')).toBeTruthy()
+
+    // **E o detalhe nao e buscado de novo.** Abrir o detalhe grava um evento de
+    // leitura: refazer essa busca a cada movimento mediria cliques do time em vez
+    // de leituras, e a pergunta de pesquisa depende desse instante.
+    expect(dublê.abrir).toHaveBeenCalledTimes(1)
+  })
+
+  it('diz que o relato ainda não aparece quando ele não está em etapa nenhuma', async () => {
+    dublê.listar.mockResolvedValue({
+      reports: [relato('r-1', 'o botao some', { PublicStageLabel: null })],
+      total: 1,
+    })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some', { PublicStageLabel: null }),
+      Contexts: [],
+    })
+
+    montar('p-1', '/p/p-1/r-1')
+
+    // Uma frase so para os tres motivos possiveis: coluna fora do mapa, projeto
+    // sem jornada, ou relato anterior a ela. Distinguir exigiria um campo que
+    // ficaria desatualizado no primeiro movimento.
+    expect(await screen.findByText('Ainda não aparece para quem relatou')).toBeTruthy()
   })
 
   it('movido para fora do recorte, o relato sai da lista', async () => {

@@ -151,9 +151,14 @@ export function ReportDialog({
               {formatDateTime(report.CreatedAt)}
             </span>
 
-            {/* Onde ele esta na fila, e o controle que o move. */}
+            {/* Onde ele esta na fila, e o controle que o move.
+
+                O texto "Coluna" vem num `span`, e nao num `label`: quem da nome
+                ao controle e o `ariaLabel` do proprio `Select`, que vira
+                `aria-label` no `select`. Um `label` por fora, sem `htmlFor`, nao
+                nomeia nada — so parecia nomear. */}
             {colunas && colunas.length > 0 ? (
-              <label className="flex items-center gap-1.5 text-caption text-fg-muted">
+              <span className="flex items-center gap-1.5 text-caption text-fg-muted">
                 Coluna
                 <Select
                   className="max-w-40"
@@ -179,7 +184,7 @@ export function ReportDialog({
                       })),
                   ]}
                 />
-              </label>
+              </span>
             ) : (
               atual?.StateName && (
                 <span className="rounded-full border border-border px-2 py-px text-caption text-fg-muted">
@@ -187,6 +192,15 @@ export function ReportDialog({
                 </span>
               )
             )}
+
+            {/* O outro lado. Fica junto do controle que move de propósito: é aqui
+                que alguém decide, e a consequência lá fora precisa estar à vista no
+                momento da decisão — não numa tela que se abre depois.
+
+                Vem de `atual`, que é a resposta do próprio movimento. Buscar o
+                detalhe de novo **grava um evento de leitura**, e isso mediria
+                cliques do time em vez de leituras. */}
+            {atual && <LadoDeFora etapa={atual.PublicStageLabel} />}
           </div>
 
           {/* Antes so o texto rolava. Agora o dialogo tem comentario e historico
@@ -277,5 +291,26 @@ function Entry({ label, value }: { label: string; value: string | null }) {
       <dt className="w-28 flex-none text-fg-muted">{label}</dt>
       <dd className="min-w-0 break-words text-fg">{value}</dd>
     </div>
+  )
+}
+
+/**
+ * Onde quem relatou vê este relato.
+ *
+ * **Nulo não diz por quê** — pode ser coluna fora do mapa, projeto sem jornada, ou
+ * relato que entrou antes de a jornada existir. A frase cobre os três, porque
+ * distinguir exigiria um campo que ficaria desatualizado no primeiro movimento, e
+ * aviso errado é pior que aviso nenhum. Quem precisa da diferença a encontra em
+ * Etapas públicas, que lista os estados sem destino.
+ */
+function LadoDeFora({ etapa }: { etapa: string | null }) {
+  if (etapa === null) {
+    return <span className="text-caption text-fg-muted">Ainda não aparece para quem relatou</span>
+  }
+
+  return (
+    <span className="text-caption text-fg-muted">
+      Quem relatou vê: <span className="text-fg">{etapa}</span>
+    </span>
   )
 }

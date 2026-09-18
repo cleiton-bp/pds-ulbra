@@ -32,9 +32,13 @@ export function ReportHistory({
   versao: number
 }) {
   const { data, loading, failed } = useAsyncResource(
+    // A supressao fica **aqui**, colada no `useCallback`: e nesta linha que a
+    // regra reclama, e um comentario la embaixo, junto do array, nao suprimia
+    // nada — sobrava como supressao sem uso e o erro continuava de pe.
+    //
+    // biome-ignore lint/correctness/useExhaustiveDependencies: `versao` e o gatilho da nova busca, e nao algo que a funcao le
     useCallback(
       () => projectReportService.listReportHistory(projectPublicId, reportPublicId),
-      // biome-ignore lint/correctness/useExhaustiveDependencies: `versao` e o gatilho da nova busca
       [projectPublicId, reportPublicId, versao],
     ),
   )
@@ -88,6 +92,13 @@ const DESCRICOES: Record<ReportEventType, string> = {
   ReportStateChanged: 'Movido',
   ReportInternalCommented: 'Comentário entre o time',
   ReportPublicCommented: 'Comentário para quem relatou',
+
+  // As duas frases falam do **outro lado**, e usam o mesmo vocabulário do resto
+  // do painel ("quem relatou"), e não o do banco. O rótulo da etapa não entra
+  // aqui porque o histórico não o carrega: ele vive na carga do evento, e trazê-lo
+  // exigiria alargar a resposta para todas as linhas por causa de duas.
+  ReportPublicStageChanged: 'Andou para quem relatou',
+  ReportPublicStageUnmapped: 'Não andou: coluna fora da jornada',
 }
 
 /**

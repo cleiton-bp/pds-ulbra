@@ -19,6 +19,18 @@ export type {
 } from '@/contracts/projectOrigin'
 export { MAX_ORIGIN_DOMAIN_LENGTH } from '@/contracts/projectOrigin'
 export type {
+  ProjectPublicStageViewModel,
+  PublicOutcome,
+  ReorderProjectPublicStagesRequest,
+  SaveProjectPublicStageRequest,
+} from '@/contracts/projectPublicStage'
+export {
+  MAX_PUBLIC_STAGE_LABEL_LENGTH,
+  MAX_PUBLIC_STAGE_SENTENCE_LENGTH,
+  MAX_PUBLIC_STAGES,
+  MIN_PUBLIC_STAGES,
+} from '@/contracts/projectPublicStage'
+export type {
   CreateProjectStateRequest,
   ProjectInitialStateViewModel,
   ProjectStateViewModel,
@@ -28,6 +40,11 @@ export type {
 } from '@/contracts/projectState'
 export { MAX_STATE_NAME_LENGTH } from '@/contracts/projectState'
 export type {
+  ProjectStatusMappingViewModel,
+  SaveStatusMappingRequest,
+  StatusMappingEntryViewModel,
+} from '@/contracts/projectStatusMapping'
+export type {
   CreateCommentRequest,
   CreatedReportViewModel,
   CreateReportRequest,
@@ -36,6 +53,7 @@ export type {
   OpenReportTrackingRequest,
   PublicCommentViewModel,
   PublicReportViewModel,
+  PublicStageViewModel,
   ReportCommentsViewModel,
   ReportContextViewModel,
   ReportDetailViewModel,
@@ -48,6 +66,7 @@ export type {
 export {
   MAX_COMMENT_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
+  REPORT_EVENT_TYPES,
   WITHOUT_STATE_FILTER,
 } from '@/contracts/report'
 export type {
