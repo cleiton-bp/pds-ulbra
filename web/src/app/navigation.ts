@@ -11,7 +11,7 @@
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
   /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
-  key: 'start' | 'keys' | 'states' | 'stages' | 'settings' | 'reports' | 'tool'
+  key: 'start' | 'keys' | 'states' | 'stages' | 'cycle' | 'settings' | 'reports' | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
@@ -34,6 +34,11 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   // `states` e `stages` diferem por uma letra, e as duas telas sao justamente
   // as duas que se confundem.
   { key: 'stages', label: 'Etapas públicas', path: 'public-stages' },
+  // Vem **depois** das etapas públicas, e é onde ela termina: como o relato
+  // encerra, quanto o lado de fora espera para ver, e o que a pessoa responde no
+  // fim. Fica fora de "Configurações" porque lá mora o projeto — nome, domínios,
+  // arquivar —, e aqui mora o comportamento do ciclo.
+  { key: 'cycle', label: 'Ciclo', path: 'cycle' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 

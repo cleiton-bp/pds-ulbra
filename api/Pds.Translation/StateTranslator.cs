@@ -68,4 +68,52 @@ public static class StateTranslator
 
         return new TranslationDecision(TranslationOutcomeEnum.Advance, destino);
     }
+
+    /// <summary>
+    /// Traduz uma <b>reabertura</b>, que e outra pergunta.
+    ///
+    /// <para><b>Reabrir nao e regredir, e por isso nao passa pela regra da
+    /// regressao.</b> Aquela regra existe para o vaivem interno do time nao sacudir
+    /// a linha do tempo de quem espera — o relato que volta de "Testando" para
+    /// "Corrigindo" nao e noticia para ninguem de fora. Aqui e o oposto: quem pediu
+    /// o retorno foi a propria pessoa, dizendo que nao esta certo. Segurar a jornada
+    /// nesse momento deixaria a pagina dela mostrando "Concluido" depois de ela
+    /// mesma ter dito que nao concluiu.</para>
+    ///
+    /// <para><b>E funcao propria, e nao um parametro na outra.</b> Um sinalizador
+    /// convidaria a passar "forca" num movimento comum, e a regra de regressao —
+    /// que e decisao de produto — viraria opcional por descuido. Aqui ela
+    /// simplesmente nao existe: nao ha o que desligar.</para>
+    ///
+    /// <para><b>A etapa atual ainda importa, mas por um motivo so.</b> Ela nao
+    /// segura mais nada — segura apenas o evento vazio: se a coluna de destino cai
+    /// na etapa em que o relato ja esta, nada mudou do lado de fora, e gravar uma
+    /// mudanca seria encher a linha do tempo de uma linha que nao aconteceu.</para>
+    /// </summary>
+    /// <param name="internalStateId">A coluna para onde a reabertura joga o relato.</param>
+    /// <param name="mapping">O mapa da versao que vale, como na traducao comum.</param>
+    /// <param name="current">A etapa em que o relato esta agora, ou nula.</param>
+    /// <returns>
+    /// Nunca <see cref="TranslationOutcomeEnum.RegressionHeld"/> — nao ha o que
+    /// segurar aqui. <see cref="TranslationOutcomeEnum.Unmapped"/> quando a coluna
+    /// nao esta no mapa, <see cref="TranslationOutcomeEnum.SameStage"/> quando o
+    /// destino e onde o relato ja esta, e
+    /// <see cref="TranslationOutcomeEnum.Advance"/> no resto — <b>inclusive para
+    /// tras</b>, que e o caso que da nome a funcao.
+    /// </returns>
+    public static TranslationDecision TranslateReopen(
+        long internalStateId,
+        IReadOnlyDictionary<long, PublicStageRef> mapping,
+        PublicStageRef? current)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+
+        if (!mapping.TryGetValue(internalStateId, out var destino))
+            return new TranslationDecision(TranslationOutcomeEnum.Unmapped, null);
+
+        if (current is PublicStageRef atual && atual.Id == destino.Id)
+            return new TranslationDecision(TranslationOutcomeEnum.SameStage, destino);
+
+        return new TranslationDecision(TranslationOutcomeEnum.Advance, destino);
+    }
 }

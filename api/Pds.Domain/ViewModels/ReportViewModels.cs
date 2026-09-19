@@ -53,6 +53,29 @@ public record CreatedReportViewModel(
 /// evento de leitura, e refazer essa busca a cada movimento mediria cliques do time
 /// em vez de leituras.</para>
 /// </param>
+/// <param name="AcceptsQuestions">
+/// Quem relatou aceita responder duvidas da equipe sobre este relato.
+///
+/// <para><b>Sao tres estados, e nao dois.</b> Verdadeiro e o sim; falso e o nao; e
+/// <b>nulo</b> e o relato que entrou antes de a pergunta existir, a quem ninguem
+/// perguntou nada. Mostrar o nulo como "nao aceita" poria na boca da pessoa uma
+/// resposta que ela nunca deu.</para>
+///
+/// <para>Na pratica, o efeito de falso e de nulo e o mesmo: sem um sim, nao se abre
+/// pedido de informacao. O que muda e o que a tela diz a quem for ler.</para>
+/// </param>
+/// <param name="PublicStageDueAt">
+/// Quando o ultimo movimento passa a valer para quem relatou, ou <b>nulo</b> quando
+/// nao ha espera pendente.
+///
+/// <para><b>Preenchido, a janela de desfazer esta aberta</b>: o time moveu e o lado
+/// de fora ainda nao sabe. Mostrar isto e o que torna a janela util — sem a data na
+/// tela, quem moveu por engano nao tem como saber que ainda da tempo, e o desfazer
+/// vira sorte.</para>
+///
+/// <para>Desfazer e mover de volta: nao ha acao propria para isso, e nem precisa —
+/// o agendamento e reescrito a cada movimento.</para>
+/// </param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
 public record ReportSummaryViewModel(
     Guid PublicId,
@@ -64,6 +87,8 @@ public record ReportSummaryViewModel(
     Guid? StatePublicId,
     string? StateName,
     string? PublicStageLabel,
+    bool? AcceptsQuestions,
+    DateTime? PublicStageDueAt,
     DateTime CreatedAt);
 
 /// <summary>
@@ -81,12 +106,78 @@ public record ReportPageViewModel(IReadOnlyList<ReportSummaryViewModel> Items, i
 /// <param name="StatePublicId">Identificador do estado; <b>nulo</b> na linha dos que ainda nao tem lugar na fila.</param>
 /// <param name="StateName">Nome do estado; nulo na mesma linha.</param>
 /// <param name="IsActive">Falso quando o estado foi aposentado. Sempre verdadeiro na linha sem estado.</param>
+/// <param name="ClosesReport">
+/// Mover um relato para esta coluna <b>encerra</b> o relato, e por isso vai pedir
+/// desfecho e motivo.
+///
+/// <para><b>Viaja na contagem porque e aqui que o painel pega a lista de
+/// colunas</b>, e a tela precisa saber disto <b>antes</b> de mover — perguntar
+/// depois seria mandar o movimento, levar uma recusa e so entao abrir o dialogo,
+/// com o seletor ja mostrando a coluna errada. Derivar na tela pela ordem da lista
+/// tambem nao serve: ela teria de repetir a regra de qual coluna encerra, e as duas
+/// copias divergiriam no dia em que a regra virar configuracao do projeto.</para>
+///
+/// <para>Verdadeiro em <b>uma</b> linha, no maximo: a ultima coluna ativa. Falso
+/// em todas quando o projeto nao tem coluna ativa nenhuma.</para>
+/// </param>
 /// <param name="Total">Quantos relatos estao ali.</param>
 public record ReportStateCountViewModel(
     Guid? StatePublicId,
     string? StateName,
     bool IsActive,
+    bool ClosesReport,
     int Total);
+
+/// <summary>
+/// O fim do relato, como <b>o time</b> o le.
+///
+/// <para><b>E o irmao interno de <see cref="PublicClosureViewModel"/>, e nao o
+/// mesmo tipo.</b> A diferenca e uma linha — o nome de quem encerrou — e e
+/// justamente ela que nao pode vazar. Com um tipo so, bastaria uma tela esquecer
+/// de omitir o campo; com dois, a camada publica nao tem o que omitir.</para>
+/// </summary>
+/// <param name="Outcome">Qual dos quatro finais foi este.</param>
+/// <param name="Reason">Por que acabou. E o mesmo texto que quem relatou le.</param>
+/// <param name="ClosedAt">Quando acabou, em UTC.</param>
+/// <param name="ClosedByName">
+/// Quem do time encerrou, ou <b>nulo quando foi o sistema</b> — no fim do prazo do
+/// pedido de informacao. Nulo tambem quando a conta do autor foi esvaziada, e ai o
+/// certo e nao mostrar nome nenhum em vez de inventar um.
+/// </param>
+/// <param name="ConfirmedAt">
+/// Quando quem relatou confirmou que resolveu, ou nulo enquanto nao houve resposta.
+///
+/// <para>E a metade da metafora que faltava do lado de dentro: ate aqui o painel
+/// so sabia o que o time tinha decidido. Este campo e o time descobrindo se a
+/// pessoa concordou.</para>
+/// </param>
+/// <param name="Satisfaction">A nota de 1 a 5, ou nula.</param>
+/// <param name="SatisfactionDeclined">
+/// Ele clicou em "prefiro nao responder". <b>Separado da nota nula</b>, porque
+/// recusar opinar nao e ausencia de opiniao — e juntar os dois daria uma metrica
+/// que parece precisa e nao e.
+/// </param>
+public record ReportClosureViewModel(
+    PublicOutcomeEnum Outcome,
+    string Reason,
+    DateTime ClosedAt,
+    string? ClosedByName,
+    DateTime? ConfirmedAt,
+    int? Satisfaction,
+    bool SatisfactionDeclined);
+
+/// <summary>
+/// O pedido de informacao aberto, como <b>o time</b> o le.
+/// </summary>
+/// <param name="AskedByName">Quem perguntou. Nulo so quando a conta do autor foi esvaziada.</param>
+/// <param name="AskedAt">Quando perguntou.</param>
+/// <param name="WarnAt">A partir de quando a pagina publica avisa que vai encerrar.</param>
+/// <param name="CloseAt">Quando encerra como "sem retorno", se ninguem responder.</param>
+public record ReportInfoRequestViewModel(
+    string? AskedByName,
+    DateTime AskedAt,
+    DateTime WarnAt,
+    DateTime CloseAt);
 
 /// <summary>Um par do contexto que veio junto com o relato, sem ninguem digitar.</summary>
 /// <param name="Key">Nome do dado, em ingles e snake_case: <c>user_agent</c>, <c>viewport_width</c>.</param>
@@ -123,7 +214,51 @@ public record ReportContextViewModel(string Key, string? Value);
 /// porque esta resposta nao e buscada de novo — e aviso errado e pior que aviso
 /// nenhum. Onde a diferenca importa e na tela de Etapas publicas, que a mostra.</para>
 /// </param>
+/// <param name="AcceptsQuestions">
+/// Quem relatou aceita responder duvidas da equipe sobre este relato.
+///
+/// <para><b>Sao tres estados, e nao dois.</b> Verdadeiro e o sim; falso e o nao; e
+/// <b>nulo</b> e o relato que entrou antes de a pergunta existir, a quem ninguem
+/// perguntou nada. Mostrar o nulo como "nao aceita" poria na boca da pessoa uma
+/// resposta que ela nunca deu.</para>
+///
+/// <para>Na pratica, o efeito de falso e de nulo e o mesmo: sem um sim, nao se abre
+/// pedido de informacao. O que muda e o que a tela diz a quem for ler.</para>
+/// </param>
+/// <param name="PublicStageDueAt">
+/// Quando o ultimo movimento passa a valer para quem relatou, ou <b>nulo</b> quando
+/// nao ha espera pendente.
+///
+/// <para><b>Preenchido, a janela de desfazer esta aberta</b>: o time moveu e o lado
+/// de fora ainda nao sabe. Mostrar isto e o que torna a janela util — sem a data na
+/// tela, quem moveu por engano nao tem como saber que ainda da tempo, e o desfazer
+/// vira sorte.</para>
+///
+/// <para>Desfazer e mover de volta: nao ha acao propria para isso, e nem precisa —
+/// o agendamento e reescrito a cada movimento.</para>
+/// </param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+/// <param name="Closure">
+/// O fim do relato, ou <b>nulo</b> enquanto ele nao acabou.
+///
+/// <para><b>Vem no detalhe e nao no resumo</b>, e a diferenca e de custo: a lista
+/// carrega dezenas de relatos por pagina, e uma consulta de fechamento por linha
+/// pagaria caro para desenhar algo que a lista nem mostra. Quem precisa disto e a
+/// tela do relato aberto — para mostrar o que foi decidido, e para nao oferecer
+/// encerrar o que ja acabou.</para>
+///
+/// <para>Nulo tambem no relato reaberto: a linha antiga continua guardada, mas nao
+/// e mais o fim de nada.</para>
+/// </param>
+/// <param name="InfoRequest">O pedido de informacao aberto, ou nulo quando nao ha.</param>
+/// <param name="CanAskInfo">
+/// Da para devolver este relato pedindo informacao, <b>agora</b>.
+///
+/// <para><b>E a conclusao, e nao a configuracao.</b> Falso pode ser o projeto com o
+/// recurso desligado, o relato ja encerrado, o pedido ja aberto, ou — o caso que
+/// importa — quem escreveu <b>nao ter aceitado responder duvidas</b>. A tela diz
+/// qual dos casos e, lendo o que ja tem em maos.</para>
+/// </param>
 /// <param name="Contexts">O que veio junto, em ordem de chave.</param>
 public record ReportDetailViewModel(
     Guid PublicId,
@@ -135,7 +270,12 @@ public record ReportDetailViewModel(
     Guid? StatePublicId,
     string? StateName,
     string? PublicStageLabel,
+    bool? AcceptsQuestions,
+    DateTime? PublicStageDueAt,
     DateTime CreatedAt,
+    ReportClosureViewModel? Closure,
+    ReportInfoRequestViewModel? InfoRequest,
+    bool CanAskInfo,
     IReadOnlyList<ReportContextViewModel> Contexts);
 
 
@@ -148,9 +288,11 @@ public record ReportDetailViewModel(
 /// terminal, permite retorno, aguarda o relator —, porque nenhuma delas significa
 /// alguma coisa para quem so quer saber do proprio problema.</para>
 ///
-/// <para><b>O desfecho tambem nao sai</b>, nesta versao. Ele so tem sentido junto
-/// de um relato encerrado, e encerrar e a etapa seguinte do trabalho; manda-lo
-/// agora seria publicar um campo sem o texto que o explica.</para>
+/// <para><b>O desfecho nao sai daqui</b>, e continua nao saindo. Ele so tem sentido
+/// junto de um relato encerrado, e quando isso acontece quem o conta e
+/// <see cref="PublicClosureViewModel"/>, com o texto que o explica ao lado —
+/// publicar o desfecho num passo da jornada seria dizer "nao sera feito" numa
+/// etiqueta, sem motivo nenhum embaixo.</para>
 /// </summary>
 /// <param name="Label">O nome do passo.</param>
 /// <param name="Description">A frase que explica o passo.</param>
@@ -169,6 +311,134 @@ public record PublicStageViewModel(
     string? NextStep,
     DateTime? ReachedAt,
     bool IsCurrent);
+
+/// <summary>
+/// O fim do relato, como quem o escreveu o le.
+///
+/// <para><b>Tres campos, e nenhum deles diz quem encerrou.</b> O nome de quem
+/// mexeu e pergunta interna — quem esta de fora quer saber o que aconteceu com o
+/// problema dele, e expor a pessoa do outro lado convidaria a cobranca individual
+/// que a camada publica existe para nao criar.</para>
+///
+/// <para><b>Nem a confirmacao, nem a nota, nem a reabertura saem por aqui.</b> Sao
+/// colunas do mesmo fechamento, e vao aparecer quando houver tela que as escreva;
+/// enquanto nao ha, manda-las seria publicar campo que ninguem le e que, no dia em
+/// que alguem ler, ja teria sido desenhado sem ninguem decidir.</para>
+/// </summary>
+/// <param name="Outcome">Qual dos quatro finais foi este.</param>
+/// <param name="Reason">
+/// Por que acabou, como o time escreveu. <b>Nunca vazio</b>: encerrar sem motivo e
+/// recusado antes de a linha existir.
+/// </param>
+/// <param name="ClosedAt">Quando acabou, em UTC.</param>
+/// <param name="ConfirmedAt">
+/// Quando quem relatou confirmou que resolveu, ou nulo enquanto ele nao respondeu.
+/// </param>
+/// <param name="Satisfaction">
+/// A nota de 1 a 5 que ele deu, ou nula. <b>Nula nao quer dizer insatisfacao</b>:
+/// pode ser que ele nao tenha respondido, e pode ser que tenha recusado — e a
+/// recusa esta na propriedade ao lado, fora da escala de proposito.
+/// </param>
+/// <param name="SatisfactionDeclined">Ele clicou em "prefiro nao responder".</param>
+/// <param name="Actions">
+/// O que esta pessoa pode fazer <b>agora</b>.
+///
+/// <para><b>E o que a pagina pode, e nao a configuracao do projeto.</b> A diferenca
+/// nao e de estilo: mandar as regras cruas entregaria a quem esta de fora como o
+/// cliente organiza o trabalho dele. Aqui sai so a conclusao — "da para reabrir",
+/// "a nota e pedida" —, ja cruzada com o estado deste relato.</para>
+/// </param>
+public record PublicClosureViewModel(
+    PublicOutcomeEnum Outcome,
+    string Reason,
+    DateTime ClosedAt,
+    DateTime? ConfirmedAt,
+    int? Satisfaction,
+    bool SatisfactionDeclined,
+    PublicClosureActionsViewModel Actions);
+
+/// <summary>
+/// O que quem relatou pode fazer neste relato encerrado.
+///
+/// <para><b>Nao e a configuracao do projeto</b>, e e por isso que tem nome proprio:
+/// cada campo aqui ja e o cruzamento da regra do projeto com o estado deste
+/// relato. "Permite reabrir" ligado num relato ja confirmado sai daqui como
+/// <c>CanReopen</c> falso, e a pagina nao precisa saber por que.</para>
+///
+/// <para><b>A pagina nao e a trava.</b> Tudo aqui e conferido de novo quando a acao
+/// chega — esconder o botao evita o clique inutil, e nao o pedido malicioso.</para>
+/// </summary>
+/// <param name="CanConfirm">Ainda da para dizer que resolveu.</param>
+/// <param name="CanReopen">
+/// Ainda da para dizer que nao resolveu. Falso quando o projeto nao permite, e
+/// falso depois de confirmar — quem confirmou encerrou a conversa, e o problema que
+/// volta depois disso e outro relato.
+/// </param>
+/// <param name="AsksSatisfaction">A nota e pedida ao confirmar neste projeto.</param>
+/// <param name="SatisfactionStyle">Como a escala aparece. Muda o desenho, e nao o dado.</param>
+/// <param name="SatisfactionRequired">
+/// Confirmar exige responder. <b>Mesmo assim "prefiro nao responder" existe</b>, e
+/// fica fora da escala: obrigar sem saida vira clique sem pensar, e a media passa a
+/// medir o clique.
+/// </param>
+/// <param name="ReopenRequiresComment">Reabrir exige dizer por que.</param>
+public record PublicClosureActionsViewModel(
+    bool CanConfirm,
+    bool CanReopen,
+    bool AsksSatisfaction,
+    SatisfactionStyleEnum SatisfactionStyle,
+    bool SatisfactionRequired,
+    bool ReopenRequiresComment);
+
+/// <summary>
+/// Uma fala da conversa, como quem relatou a le.
+///
+/// <para><b>Uma lista so, com os dois lados.</b> Separar a resposta dela em outra
+/// lista obrigaria a tela a costurar duas em ordem — e a ordem e o que faz um
+/// dialogo ser lido como dialogo.</para>
+///
+/// <para><b>Nao ha nome de ninguem.</b> Quem escreveu do lado de dentro e pergunta
+/// interna; para quem esta de fora, o que importa e se a fala e dela ou da equipe.
+/// Expor a pessoa do outro lado convidaria a cobranca individual que a camada
+/// publica existe para nao criar.</para>
+/// </summary>
+/// <param name="PublicId">Identificador da fala, para a tela listar sem inventar chave.</param>
+/// <param name="FromReporter">A fala e de quem relatou. Falso e a equipe.</param>
+/// <param name="Body">O texto.</param>
+/// <param name="CreatedAt">Quando foi escrito, em UTC.</param>
+public record PublicMessageViewModel(
+    Guid PublicId,
+    bool FromReporter,
+    string Body,
+    DateTime CreatedAt);
+
+/// <summary>
+/// O pedido de informacao aberto, como quem relatou o le.
+///
+/// <para><b>A tela precisa deixar claro de quem e a vez</b>, e e para isso que isto
+/// existe. Um relato parado esperando a pessoa e indistinguivel, sem isto, de um
+/// relato parado esperando a equipe — e a pessoa que acha que a bola esta com o
+/// outro lado nao responde.</para>
+/// </summary>
+/// <param name="AskedAt">Quando a equipe perguntou.</param>
+/// <param name="CloseAt">
+/// Quando o relato encerra como "sem retorno", se ninguem responder.
+///
+/// <para><b>Encerrado assim continua reabrivel</b>, e a tela diz isso: quem nao
+/// respondeu em duas semanas pode voltar no mes seguinte, e o produto existe
+/// justamente para quem foi esquecido.</para>
+/// </param>
+/// <param name="IsWarning">
+/// O primeiro prazo ja passou, e falta pouco para encerrar.
+///
+/// <para><b>E estado de tela, e nao um envio.</b> Enquanto nao houver canal de
+/// comunicacao, avisar e a pagina dizendo isto — e por isso nao ha nada agendado
+/// para este momento.</para>
+/// </param>
+public record PublicInfoRequestViewModel(
+    DateTime AskedAt,
+    DateTime CloseAt,
+    bool IsWarning);
 
 /// <summary>
 /// O relato como quem o escreveu o ve, na pagina publica de acompanhamento.
@@ -207,9 +477,38 @@ public record PublicStageViewModel(
 /// quando o projeto nao tem jornada nenhuma — e a pagina diz isso em vez de
 /// prometer.
 /// </param>
+/// <param name="Closure">
+/// O fim do relato, ou <b>nulo</b> enquanto ele nao acabou.
+///
+/// <para><b>E campo proprio, e nao um passo da jornada.</b> A jornada conta por
+/// onde o relato andou; o fechamento conta o que foi decidido, e traz o texto que
+/// explica. Um relato pode estar na etapa terminal sem ter sido encerrado — e e
+/// justamente essa diferenca que a etapa existe para mostrar.</para>
+///
+/// <para>Nulo tambem no relato que foi encerrado e <b>reaberto</b>: a linha antiga
+/// continua guardada, mas ela nao e mais o fim de nada.</para>
+/// </param>
+/// <param name="Conversation">
+/// O que a equipe escreveu para ela, e o que ela respondeu, em ordem. Vazia quando
+/// ninguem escreveu nada.
+/// </param>
+/// <param name="InfoRequest">
+/// O pedido de informacao aberto, ou <b>nulo</b> quando a bola nao esta com ela.
+/// </param>
+/// <param name="CanReply">
+/// Ela pode escrever agora.
+///
+/// <para><b>So enquanto ha pedido aberto</b>, e isso e decisao: canal livre viraria
+/// uma caixa de entrada sem dono e sem moderacao, e moderacao ficou de fora desta
+/// etapa de proposito. A vez volta para a equipe assim que ela responde.</para>
+/// </param>
 public record PublicReportViewModel(
     string TrackingCode,
     ReportTypeEnum Type,
     string Text,
     DateTime CreatedAt,
-    IReadOnlyList<PublicStageViewModel> Journey);
+    IReadOnlyList<PublicStageViewModel> Journey,
+    PublicClosureViewModel? Closure,
+    IReadOnlyList<PublicMessageViewModel> Conversation,
+    PublicInfoRequestViewModel? InfoRequest,
+    bool CanReply);

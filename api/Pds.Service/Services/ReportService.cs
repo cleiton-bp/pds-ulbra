@@ -61,10 +61,20 @@ public class ReportService : IReportService
     /// </summary>
     private readonly IAccountContext _accountContext;
 
-    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext)
+    /// <summary>
+    /// Quem marca a hora de olhar de novo, quando o projeto configurou espera.
+    ///
+    /// <para><b>E uma interface, e o servico nao sabe o que ha do outro lado.</b>
+    /// Fila, banco, temporizador: no dia em que o transporte mudar, o que decide o
+    /// movimento do relato nao muda junto.</para>
+    /// </summary>
+    private readonly IDelayedScheduler _scheduler;
+
+    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext, IDelayedScheduler scheduler)
     {
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
+        _scheduler = scheduler;
     }
 
     public async Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, CancellationToken cancellationToken = default)
@@ -106,6 +116,17 @@ public class ReportService : IReportService
 
         var landingStateId = await ResolveLandingStateAsync(project.Id, dto.Type.Value, cancellationToken);
 
+        // **Campo ausente vale o padrao do projeto, e nao o mais restritivo.** A
+        // ferramenta sempre manda o que a pessoa marcou; quem omite e uma versao
+        // antiga dela, ou alguem falando direto com a rota — e silenciar o relato
+        // por isso seria punir quem escreveu por um descompasso que nao e dele.
+        var regras = await _unitOfWork.ProjectCycleSettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        var aceitaDuvidas = dto.AcceptsQuestions
+                            ?? regras?.AcceptsQuestionsDefault
+                            ?? CycleSettingsDefaults.AcceptsQuestionsDefault;
+
         var report = new Report
         {
             AccountId = project.AccountId,
@@ -117,6 +138,7 @@ public class ReportService : IReportService
             Route = SanitizeRoute(dto.Route),
             Origin = Trim(dto.Origin, 260),
             ProjectStateId = landingStateId,
+            AcceptsQuestions = aceitaDuvidas,
             Contexts = BuildContexts(dto.Context),
         };
 
@@ -164,15 +186,25 @@ public class ReportService : IReportService
         return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt);
     }
 
-    public async Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// O relato por tras de um link de acompanhamento, ou a recusa.
+    ///
+    /// <para><b>Uma recusa so para tudo que da errado aqui</b>: protocolo em
+    /// branco, token em branco, protocolo que nao existe e token que nao e daquele
+    /// relato. Quatro mensagens diferentes contariam a quem sonda de qual delas ele
+    /// esta perto.</para>
+    ///
+    /// <para><b>E a porta das tres rotas publicas</b> — abrir, confirmar e reabrir.
+    /// Ter uma so porta e o que garante que as duas que escrevem sejam tao exigentes
+    /// quanto a que le: a que le nasceu primeiro, e repetir o confronto a mao nas
+    /// outras duas seria esperar que ninguem esquecesse nada.</para>
+    /// </summary>
+    private async Task<Report> RequireTrackedReportAsync(string? trackingCode, string? token, CancellationToken cancellationToken)
     {
-        var code = (dto.TrackingCode ?? string.Empty).Trim().ToUpperInvariant();
-        var token = (dto.Token ?? string.Empty).Trim();
+        var code = (trackingCode ?? string.Empty).Trim().ToUpperInvariant();
+        var value = (token ?? string.Empty).Trim();
 
-        // Uma recusa so para tudo que da errado aqui: protocolo em branco, token em
-        // branco, protocolo que nao existe e token que nao e daquele relato. Quatro
-        // mensagens diferentes contariam a quem sonda de qual delas ele esta perto.
-        if (code.Length == 0 || token.Length == 0)
+        if (code.Length == 0 || value.Length == 0)
             throw new KeyNotFoundException(TrackingRefusal);
 
         var report = await _unitOfWork.Reports.FindByTrackingCodeWithoutSessionAsync(code, cancellationToken);
@@ -180,12 +212,19 @@ public class ReportService : IReportService
         if (report is null)
             throw new KeyNotFoundException(TrackingRefusal);
 
-        // Tempo constante, e e o primeiro caller que esta funcao ganha: um `==`
-        // comum para no primeiro caractere diferente, e a diferenca de tempo entre
-        // parar no primeiro e parar no decimo permite descobrir o token caractere a
-        // caractere — com o protocolo em maos, que e adivinhavel.
-        if (!ProjectKeyGenerator.Matches(token, report.AccessTokenHash))
+        // Tempo constante: um `==` comum para no primeiro caractere diferente, e a
+        // diferenca de tempo entre parar no primeiro e parar no decimo permite
+        // descobrir o token caractere a caractere — com o protocolo em maos, que e
+        // adivinhavel.
+        if (!ProjectKeyGenerator.Matches(value, report.AccessTokenHash))
             throw new KeyNotFoundException(TrackingRefusal);
+
+        return report;
+    }
+
+    public async Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default)
+    {
+        var report = await RequireTrackedReportAsync(dto.TrackingCode, dto.Token, cancellationToken);
 
         await _unitOfWork.Events.AddAsync(new Event
         {
@@ -201,13 +240,544 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        return await BuildPublicAsync(report, cancellationToken);
+    }
+
+    public async Task<PublicReportViewModel> ConfirmAsync(ConfirmReportDto dto, CancellationToken cancellationToken = default)
+    {
+        var report = await RequireTrackedReportAsync(dto.TrackingCode, dto.Token, cancellationToken);
+        var regras = await _unitOfWork.ProjectCycleSettings
+            .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
+
+        var fechamento = await _unitOfWork.ReportClosures
+            .FindPublicWithoutSessionAsync(report.Id, DateTime.UtcNow, cancellationToken)
+            ?? throw new ConflictException("Este relato ainda nao foi encerrado.");
+
+        // Confirmar duas vezes nao e engano de digitacao: e o segundo clique, ou a
+        // aba que ficou aberta. Recusar preserva o instante da primeira resposta,
+        // que e o dado que a pesquisa compara com o do encerramento.
+        if (fechamento.ConfirmedAt is not null)
+            throw new ConflictException("Voce ja respondeu sobre este relato.");
+
+        var pedeNota = regras?.SatisfactionEnabled ?? CycleSettingsDefaults.SatisfactionEnabled;
+        var notaObrigatoria = regras?.SatisfactionRequired ?? CycleSettingsDefaults.SatisfactionRequired;
+
+        // Projeto que nao pede nota **descarta** o que vier, em vez de recusar. Quem
+        // manda isto e a nossa propria pagina, e recusar a confirmacao por causa de
+        // um campo que a pessoa nao escolheu mandar faria ela perder a acao por um
+        // erro que nao e dela. O contrario do movimento, onde quem afirma e o time.
+        var nota = pedeNota ? dto.Satisfaction : null;
+        var recusou = pedeNota && dto.SatisfactionDeclined;
+
+        if (nota is not null && recusou)
+            throw new ArgumentException("Escolha a nota ou marque que prefere nao responder — nao os dois.");
+
+        if (nota is int valor && (valor < ReportClosure.MinSatisfaction || valor > ReportClosure.MaxSatisfaction))
+            throw new ArgumentException($"A nota vai de {ReportClosure.MinSatisfaction} a {ReportClosure.MaxSatisfaction}.");
+
+        // **Obrigatoria continua tendo saida.** "Prefiro nao responder" satisfaz a
+        // exigencia, e fica fora da escala: sem a saida, a obrigacao vira clique sem
+        // pensar e a media passa a medir o clique.
+        if (pedeNota && notaObrigatoria && nota is null && !recusou)
+            throw new ArgumentException("Responda a nota, ou marque que prefere nao responder.");
+
+        fechamento.ConfirmedAt = DateTime.UtcNow;
+        fechamento.Satisfaction = nota;
+        fechamento.SatisfactionDeclined = recusou;
+        _unitOfWork.ReportClosures.Update(fechamento);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            // Sem usuario: quem confirmou nao e do time, e nao tem usuario aqui. E a
+            // origem que conta quem foi.
+            Type = EventTypeEnum.ReportConfirmed,
+            Source = EventSourceEnum.PublicPage,
+            // A nota vai porque e numero, e numero e o que a contagem quer ler numa
+            // tabela que so cresce. A recusa vai junto e **separada**, porque nao e
+            // nota zero.
+            Payload = JsonSerializer.Serialize(new
+            {
+                satisfaction = nota,
+                satisfaction_declined = recusou,
+            }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return await BuildPublicAsync(report, cancellationToken);
+    }
+
+    public async Task<PublicReportViewModel> ReopenAsync(ReopenReportDto dto, CancellationToken cancellationToken = default)
+    {
+        var report = await RequireTrackedReportAsync(dto.TrackingCode, dto.Token, cancellationToken);
+        var project = report.Project;
+
+        var regras = await _unitOfWork.ProjectCycleSettings
+            .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
+
+        if (!(regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen))
+            throw new ForbiddenException("Este projeto nao aceita reabrir um relato encerrado.");
+
+        var fechamento = await _unitOfWork.ReportClosures
+            .FindPublicWithoutSessionAsync(report.Id, DateTime.UtcNow, cancellationToken)
+            ?? throw new ConflictException("Este relato ainda nao foi encerrado.");
+
+        // **Quem confirmou fechou a conversa.** O problema que volta depois disso e
+        // outro relato, com outro historico — e reabrir aqui misturaria dois casos
+        // numa linha do tempo so.
+        if (fechamento.ConfirmedAt is not null)
+            throw new ConflictException("Voce ja confirmou que este relato foi resolvido.");
+
+        var pedeComentario = regras?.ReopenRequiresComment ?? CycleSettingsDefaults.ReopenRequiresComment;
+        var comentario = (dto.Comment ?? string.Empty).Trim();
+
+        if (pedeComentario && comentario.Length == 0)
+            throw new ArgumentException("Conte o que ainda esta acontecendo.");
+
+        if (comentario.Length > ReportClosure.MaxReopenCommentLength)
+            throw new ArgumentException($"O comentario pode ter ate {ReportClosure.MaxReopenCommentLength} caracteres.");
+
+        var destino = await ResolveReopenStateAsync(report.ProjectId, regras?.ReopenState, cancellationToken);
+
+        fechamento.ReopenedAt = DateTime.UtcNow;
+        fechamento.ReopenComment = comentario.Length > 0 ? comentario : null;
+        _unitOfWork.ReportClosures.Update(fechamento);
+
+        var origem = report.ProjectState;
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportReopened,
+            Source = EventSourceEnum.PublicPage,
+            // O comentario **nao** vai junto, pela mesma razao que o texto do
+            // comentario nao vai: e texto de uma pessoa, e esta tabela nao se
+            // consegue limpar. Ele mora no fechamento reaberto.
+            Payload = JsonSerializer.Serialize(new
+            {
+                comment_length = comentario.Length,
+                outcome = fechamento.Outcome.ToString(),
+            }),
+        }, cancellationToken);
+
+        // **Sao dois eventos para uma acao, e os dois sao verdade.** A pessoa
+        // reabriu, e o relato mudou de coluna. Juntar os dois obrigaria o historico
+        // a tratar a reabertura como um caso especial do movimento — e o movimento
+        // continua sendo movimento, tenha sido quem tiver mexido. A origem
+        // `PublicPage` e o que diz que nao foi o time.
+        if (destino is not null && report.ProjectStateId != destino.Id)
+        {
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = report.AccountId,
+                ProjectId = report.ProjectId,
+                ReportId = report.Id,
+                Type = EventTypeEnum.ReportStateChanged,
+                Source = EventSourceEnum.PublicPage,
+                Payload = JsonSerializer.Serialize(new
+                {
+                    from_id = origem?.PublicId,
+                    from_name = origem?.Name,
+                    to_id = destino.PublicId,
+                    to_name = destino.Name,
+                }),
+            }, cancellationToken);
+
+            report.ProjectStateId = destino.Id;
+            report.ProjectState = destino;
+            _unitOfWork.Reports.Update(report);
+        }
+
+        // E a jornada publica volta junto. Projeto sem coluna ativa nenhuma nao tem
+        // para onde voltar, e ai o relato reabre sem sair do lugar — o fechamento
+        // deixou de valer, que e o que a pessoa pediu.
+        if (destino is not null)
+        {
+            var mapa = await _unitOfWork.ProjectStatusMappings
+                .ListByVersionWithoutSessionAsync(report.ProjectId, project.MappingVersion, cancellationToken);
+            var etapas = await _unitOfWork.ProjectPublicStages
+                .ListByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
+
+            await ApplyPublicStageAsync(
+                project, report, destino.Id, EventSourceEnum.PublicPage, null,
+                mapa, etapas, cancellationToken, reopening: true);
+        }
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return await BuildPublicAsync(report, cancellationToken);
+    }
+
+    /// <summary>
+    /// Para qual coluna o relato reaberto volta.
+    ///
+    /// <para>A escolhida pelo projeto, se ainda estiver ativa; senao, a primeira
+    /// ativa. <b>A queda para o padrao existe porque aposentar e possivel depois de
+    /// configurar</b> — e mandar o relato reaberto para uma coluna que ninguem olha
+    /// seria perde-lo de novo, que e exatamente o que a reabertura existe para
+    /// evitar.</para>
+    ///
+    /// <para>Nulo quando o projeto nao tem coluna ativa nenhuma. O relato reabre
+    /// mesmo assim: o fechamento deixou de valer, que e o que a pessoa pediu.</para>
+    /// </summary>
+    private async Task<ProjectState?> ResolveReopenStateAsync(long projectId, ProjectState? configured, CancellationToken cancellationToken)
+    {
+        if (configured is not null && configured.IsActive)
+            return configured;
+
+        return await _unitOfWork.ProjectStates.FirstActiveWithoutSessionAsync(projectId, cancellationToken);
+    }
+
+    /// <summary>
+    /// O relato como quem o escreveu o ve, montado campo a campo.
+    ///
+    /// <para><b>As regras do projeto entram aqui, e nao saem daqui.</b> Elas
+    /// decidem o que a pessoa pode fazer, e o que sai e so a conclusao — mandar a
+    /// configuracao crua entregaria a quem esta de fora como o cliente organiza o
+    /// trabalho dele.</para>
+    /// </summary>
+    private async Task<PublicReportViewModel> BuildPublicAsync(Report report, CancellationToken cancellationToken)
+    {
+        // **O fechamento que ja vale la fora**, e nao o que existe por dentro. Com
+        // espera configurada os dois diferem durante a janela de desfazer — e e
+        // exatamente ai que a diferenca importa.
+        var fechamento = await _unitOfWork.ReportClosures
+            .FindPublicWithoutSessionAsync(report.Id, DateTime.UtcNow, cancellationToken);
+
+        PublicClosureViewModel? publico = null;
+
+        if (fechamento is not null)
+        {
+            var regras = await _unitOfWork.ProjectCycleSettings
+                .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
+
+            var respondeu = fechamento.ConfirmedAt is not null;
+
+            publico = new PublicClosureViewModel(
+                fechamento.Outcome,
+                fechamento.Reason,
+                fechamento.ClosedAt,
+                fechamento.ConfirmedAt,
+                fechamento.Satisfaction,
+                fechamento.SatisfactionDeclined,
+                new PublicClosureActionsViewModel(
+                    !respondeu,
+                    // Quem confirmou fechou a conversa: o problema que volta depois
+                    // disso e outro relato.
+                    (regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen) && !respondeu,
+                    regras?.SatisfactionEnabled ?? CycleSettingsDefaults.SatisfactionEnabled,
+                    regras?.SatisfactionStyle ?? CycleSettingsDefaults.SatisfactionStyle,
+                    regras?.SatisfactionRequired ?? CycleSettingsDefaults.SatisfactionRequired,
+                    regras?.ReopenRequiresComment ?? CycleSettingsDefaults.ReopenRequiresComment));
+        }
+
+        // A conversa, em ordem, com os dois lados. Campo a campo, como a jornada:
+        // nem o nome de quem escreveu do lado de dentro sai daqui.
+        var falas = await _unitOfWork.ReportPublicComments
+            .ListByReportWithoutSessionAsync(report.Id, cancellationToken);
+
+        var pedido = await _unitOfWork.ReportInfoRequests
+            .FindOpenWithoutSessionAsync(report.Id, cancellationToken);
+
         return new PublicReportViewModel(
             report.TrackingCode,
             report.Type,
             report.Text,
             report.CreatedAt,
-            await BuildJourneyAsync(report, cancellationToken));
+            await BuildJourneyAsync(report, cancellationToken),
+            publico,
+            falas
+                .Select(fala => new PublicMessageViewModel(
+                    fala.PublicId, fala.UserId is null, fala.Body, fala.CreatedAt))
+                .ToList(),
+            pedido is null
+                ? null
+                : new PublicInfoRequestViewModel(
+                    pedido.AskedAt, pedido.CloseAt, DateTime.UtcNow >= pedido.WarnAt),
+            // Escrever so enquanto ha pergunta aberta. Ver o comentario do campo.
+            pedido is not null);
     }
+
+    /// <summary>
+    /// Devolve o relato a quem o escreveu, pedindo informacao — em vez de encerrar.
+    ///
+    /// <para><b>E a diferenca entre dois casos que chegavam iguais.</b> "Nao
+    /// reproduzi" e "nao vamos fazer" sao decisoes opostas, e chegando iguais do
+    /// outro lado a pessoa entende que acabou e para de responder. O relato morre
+    /// por ruido — que e o problema que este produto existe para resolver.</para>
+    ///
+    /// <para><b>A pergunta e um comentario publico</b>, e nao um campo desta
+    /// tabela: a conversa acontece pelo proprio relato, e guardar o texto em dois
+    /// lugares criaria duas copias para divergirem.</para>
+    /// </summary>
+    public async Task<ReportDetailViewModel> AskInfoAsync(Guid projectPublicId, Guid reportPublicId, AskInfoDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Relato nao encontrado.");
+
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        if (!(regras?.InfoRequestEnabled ?? CycleSettingsDefaults.InfoRequestEnabled))
+            throw new ForbiddenException("Este projeto nao devolve relato pedindo informacao.");
+
+        // **A escolha de quem escreveu manda aqui.** Sem um sim, nao se abre pedido:
+        // prometer resposta a quem nao vai responder deixa o relato pendurado
+        // esperando, e encerrar por "sem retorno" quem nunca aceitou responder seria
+        // cobrar uma promessa que ninguem fez.
+        if (report.AcceptsQuestions != true)
+            throw new ForbiddenException(report.AcceptsQuestions is false
+                ? "Quem escreveu este relato nao aceitou responder duvidas."
+                : "Este relato entrou antes de existir a pergunta sobre responder duvidas.");
+
+        var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
+
+        if (fechamento is not null)
+            throw new ConflictException("Este relato ja esta encerrado.");
+
+        var aberto = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
+
+        if (aberto is not null)
+            throw new ConflictException("Ja ha um pedido de informacao aberto neste relato.");
+
+        var texto = (dto.Body ?? string.Empty).Trim();
+
+        if (texto.Length == 0)
+            throw new ArgumentException("Escreva o que falta. Dizer que falta algo, sem dizer o que, devolve o problema para quem ja nao sabia o que dizer.");
+
+        if (texto.Length > ReportPublicComment.MaxBodyLength)
+            throw new ArgumentException($"O texto pode ter ate {ReportPublicComment.MaxBodyLength} caracteres.");
+
+        var agora = DateTime.UtcNow;
+        var aviso = regras?.InfoRequestWarnDays ?? CycleSettingsDefaults.InfoRequestWarnDays;
+        var encerra = regras?.InfoRequestCloseDays ?? CycleSettingsDefaults.InfoRequestCloseDays;
+
+        // **Aqui o autor e obrigatorio**, ao contrario do encerramento: o sistema
+        // encerra sozinho quando um prazo vence, mas nunca pergunta sozinho. Sem
+        // usuario identificado a recusa e limpa, e nao um erro de referencia nula
+        // depois de o comentario ja estar na fila para gravar.
+        var autor = _accountContext.UserId is long userId
+            ? await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            : null;
+
+        if (autor is null)
+            throw new ForbiddenException("So alguem identificado pode pedir informacao a quem relatou.");
+
+        await _unitOfWork.ReportPublicComments.AddAsync(new ReportPublicComment
+        {
+            ReportId = report.Id,
+            UserId = autor.Id,
+            Body = texto,
+        }, cancellationToken);
+
+        var pedido = new ReportInfoRequest
+        {
+            ReportId = report.Id,
+            AskedByUserId = autor.Id,
+            AskedByUser = autor,
+            AskedAt = agora,
+            // **Os dois prazos sao gravados, e nao lidos depois.** Mudar a
+            // configuracao do projeto nao pode mover o prazo de um pedido que ja
+            // esta correndo: quem foi avisado de uma data precisa continuar tendo
+            // aquela data.
+            WarnAt = agora.AddDays(aviso),
+            CloseAt = agora.AddDays(aviso + encerra),
+        };
+
+        await _unitOfWork.ReportInfoRequests.AddAsync(pedido, cancellationToken);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            UserId = autor.Id,
+            Type = EventTypeEnum.ReportInfoRequested,
+            Source = EventSourceEnum.Panel,
+            // O texto do pedido nao vai junto: ele e comentario, e esta tabela nao
+            // se consegue limpar. Vao os prazos, que e o que a contagem quer.
+            Payload = JsonSerializer.Serialize(new
+            {
+                warn_days = aviso,
+                close_days = encerra,
+            }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        // Depois da gravacao, e engolindo a falha: o prazo esta na linha do pedido,
+        // e a subida da aplicacao reencontra o que venceu sem ter sido fechado.
+        try
+        {
+            await _scheduler.ScheduleAsync(
+                DelayedCheckKind.InfoRequest, report.PublicId,
+                pedido.CloseAt - agora, cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Ver o paragrafo acima.
+        }
+
+        return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false);
+    }
+
+    public async Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default)
+    {
+        var report = await RequireTrackedReportAsync(dto.TrackingCode, dto.Token, cancellationToken);
+
+        // **So enquanto ha pergunta aberta.** Sem isto, a rota viraria uma caixa de
+        // entrada sem dono e sem moderacao — e moderacao ficou de fora desta etapa
+        // de proposito.
+        var pedido = await _unitOfWork.ReportInfoRequests
+            .FindOpenWithoutSessionAsync(report.Id, cancellationToken)
+            ?? throw new ConflictException("Nao ha nenhuma pergunta aberta neste relato.");
+
+        var texto = (dto.Body ?? string.Empty).Trim();
+
+        if (texto.Length == 0)
+            throw new ArgumentException("Escreva a sua resposta.");
+
+        if (texto.Length > ReportPublicComment.MaxBodyLength)
+            throw new ArgumentException($"A resposta pode ter ate {ReportPublicComment.MaxBodyLength} caracteres.");
+
+        await _unitOfWork.ReportPublicComments.AddAsync(new ReportPublicComment
+        {
+            ReportId = report.Id,
+            // Nulo: quem escreveu nao tem usuario aqui, e inventar um seria criar
+            // identidade para alguem que nunca se cadastrou.
+            UserId = null,
+            Body = texto,
+        }, cancellationToken);
+
+        pedido.AnsweredAt = DateTime.UtcNow;
+        _unitOfWork.ReportInfoRequests.Update(pedido);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportReplied,
+            Source = EventSourceEnum.PublicPage,
+            Payload = JsonSerializer.Serialize(new { body_length = texto.Length }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        // **A mensagem agendada nao e cancelada**, e nao precisa: ao chegar, ela nao
+        // vai encontrar pedido aberto e se descarta. A mesma propriedade da espera.
+        return await BuildPublicAsync(report, cancellationToken);
+    }
+
+    public async Task ExpireInfoRequestAsync(Guid reportPublicId, CancellationToken cancellationToken = default)
+    {
+        var report = await _unitOfWork.Reports
+            .FindByPublicIdWithoutSessionAsync(reportPublicId, cancellationToken);
+
+        if (report is null)
+            return;
+
+        // **Sem pedido aberto: respondido, ou ja vencido.** E o caminho da mensagem
+        // duplicada e o da resposta que chegou antes do prazo, e os dois saem em
+        // silencio de proposito.
+        var pedido = await _unitOfWork.ReportInfoRequests
+            .FindOpenWithoutSessionAsync(report.Id, cancellationToken);
+
+        if (pedido is null)
+            return;
+
+        if (pedido.CloseAt > DateTime.UtcNow)
+        {
+            // **Chegou cedo: remarca para o que falta.** Ao contrario da espera, o
+            // prazo do pedido nunca e reescrito — entao uma data no futuro aqui nao
+            // quer dizer "foi desfeito", quer dizer "ainda nao". Sair em silencio
+            // deixaria o pedido sem ninguem para fecha-lo ate a proxima subida.
+            //
+            // Isto acontece porque o cabecalho de atraso do RabbitMQ carrega
+            // milissegundos num inteiro de 32 bits: cerca de 24 dias. A espera cabe
+            // folgado no teto de uma semana; o pedido, cujos dois prazos vao a 365
+            // dias cada, nao cabe — e ai o agendamento chega no teto e remarca, tantas
+            // vezes quantas forem precisas.
+            try
+            {
+                await _scheduler.ScheduleAsync(
+                    DelayedCheckKind.InfoRequest, report.PublicId,
+                    pedido.CloseAt - DateTime.UtcNow, cancellationToken);
+            }
+            catch (Exception)
+            {
+                // Engolida como as outras: o prazo esta gravado, e a subida reencontra
+                // o que venceu sem ter sido fechado.
+            }
+
+            return;
+        }
+
+        var agora = DateTime.UtcNow;
+        pedido.ExpiredAt = agora;
+        _unitOfWork.ReportInfoRequests.Update(pedido);
+
+        // Encerrado por outro caminho enquanto o prazo corria: o pedido para de
+        // esperar, e nao se encerra o que ja esta encerrado.
+        var fechamento = await _unitOfWork.ReportClosures
+            .FindCurrentWithoutSessionAsync(report.Id, cancellationToken);
+
+        if (fechamento is not null)
+        {
+            await _unitOfWork.CommitAsync(cancellationToken);
+            return;
+        }
+
+        var dias = (int)Math.Round((pedido.CloseAt - pedido.AskedAt).TotalDays);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportClosed,
+            // Nao foi o painel: foi um prazo vencendo, sem clique de ninguem.
+            Source = EventSourceEnum.System,
+            Payload = JsonSerializer.Serialize(new
+            {
+                outcome = PublicOutcomeEnum.NoAnswer.ToString(),
+                from_info_request = true,
+            }),
+        }, cancellationToken);
+
+        await _unitOfWork.ReportClosures.AddAsync(new ReportClosure
+        {
+            ReportId = report.Id,
+            Outcome = PublicOutcomeEnum.NoAnswer,
+            // **O unico motivo que o sistema escreve.** Ele diz o que aconteceu e o
+            // que ainda da para fazer: encerrado assim continua reabrivel, e quem
+            // nao respondeu em duas semanas pode voltar no mes seguinte.
+            Reason = $"A equipe pediu uma informacao e ficou {dias} dias sem resposta, entao este relato foi encerrado automaticamente. Se ainda estiver acontecendo, voce pode reabrir por esta pagina.",
+            // Nulo quer dizer que foi o sistema. E aqui foi.
+            ClosedByUserId = null,
+            ClosedAt = agora,
+            // Sem espera: este fechamento nao veio de um movimento, e nao ha engano
+            // a desfazer — o prazo venceu, e a pessoa precisa saber disso agora.
+            PublicAt = agora,
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+    }
+
+    public Task<IReadOnlyList<Guid>> ListOverdueInfoRequestsAsync(CancellationToken cancellationToken = default)
+        => _unitOfWork.ReportInfoRequests.ListOverdueWithoutSessionAsync(DateTime.UtcNow, cancellationToken);
+
+    private static ReportInfoRequestViewModel? InfoRequestOf(ReportInfoRequest? request)
+        => request is null
+            ? null
+            : new ReportInfoRequestViewModel(
+                request.AskedByUser?.Name, request.AskedAt, request.WarnAt, request.CloseAt);
 
     public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, CancellationToken cancellationToken = default)
     {
@@ -273,6 +843,45 @@ public class ReportService : IReportService
         if (report.ProjectStateId == destino.Id)
             return Map(report);
 
+        // **A conferencia do encerramento vem antes de qualquer gravacao.** Ela nao
+        // depende da traducao — quem encerra e a coluna de dentro, e nao a etapa
+        // publica —, entao nao ha motivo para o relato andar meio caminho e so
+        // entao esbarrar num campo em branco.
+        // **Nem todo projeto encerra movendo.** Quem escolheu o botao nao tem coluna
+        // que encerre: ali o movimento e so movimento, e pedir motivo nele seria
+        // cobrar por uma decisao que ninguem tomou.
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+        var gatilho = regras?.ClosureTrigger ?? CycleSettingsDefaults.ClosureTrigger;
+
+        var ultimaAtiva = gatilho == ClosureTriggerEnum.LastColumn
+            ? await _unitOfWork.ProjectStates.LastActiveAsync(project.Id, cancellationToken)
+            : null;
+
+        var encerra = ultimaAtiva is not null && ultimaAtiva.Id == destino.Id;
+        var motivo = (dto.Reason ?? string.Empty).Trim();
+
+        if (encerra)
+        {
+            if (dto.Outcome is null)
+                throw new ArgumentException("Informe o desfecho do relato.");
+
+            // **Impossivel, e nao desencorajado.** Sem o motivo o produto reproduz
+            // exatamente o que existe para resolver: a pessoa fica sabendo que
+            // acabou, e nao o que aconteceu.
+            if (motivo.Length == 0)
+                throw new ArgumentException("Escreva por que o relato esta sendo encerrado. E o que quem relatou vai ler.");
+
+            if (motivo.Length > ReportClosure.MaxReasonLength)
+                throw new ArgumentException($"O motivo pode ter ate {ReportClosure.MaxReasonLength} caracteres.");
+        }
+        else if (dto.Outcome is not null || motivo.Length > 0)
+        {
+            // Recusado, e nao ignorado em silencio: um desfecho aceito num movimento
+            // que nao encerra nada seria gravado sem ter onde morar, e quem mandou
+            // continuaria achando que encerrou.
+            throw new ArgumentException("Este movimento nao encerra o relato, entao ele nao leva desfecho nem motivo.");
+        }
+
         var origem = report.ProjectState;
 
         // O EVENTO PRIMEIRO. Ver o comentario do metodo: esta ordem e a regra.
@@ -302,23 +911,328 @@ public class ReportService : IReportService
         report.ProjectState = destino;
         _unitOfWork.Reports.Update(report);
 
-        // So entao a traducao: ela e **consequencia** do movimento, e nao parte da
-        // decisao de mover. Se ela viesse antes, um projeto sem jornada poderia
-        // acabar impedindo o time de trabalhar — e a camada publica existe para
-        // servir quem esta de fora, nao para mandar em quem esta dentro.
-        var mapaAtual = await _unitOfWork.ProjectStatusMappings
-            .ListByVersionAsync(project.Id, project.MappingVersion, cancellationToken);
-        var etapasAtuais = await _unitOfWork.ProjectPublicStages
-            .ListByProjectAsync(project.Id, cancellationToken);
+        // **A espera decide se a jornada anda agora ou depois.** Zero e o
+        // comportamento de sempre: a traducao acontece junto do movimento. Acima de
+        // zero, o lado de fora nao muda nada aqui — so fica marcada a hora de olhar
+        // de novo, e a janela ate la e o que permite desfazer um movimento errado
+        // antes de a pessoa ver.
+        var espera = regras?.PublicDelayMinutes ?? CycleSettingsDefaults.PublicDelayMinutes;
 
-        await ApplyPublicStageAsync(
-            project, report, destino.Id, EventSourceEnum.Panel, _accountContext.UserId,
-            mapaAtual, etapasAtuais, cancellationToken);
+        if (espera <= 0)
+        {
+            // So entao a traducao: ela e **consequencia** do movimento, e nao parte
+            // da decisao de mover. Se ela viesse antes, um projeto sem jornada
+            // poderia acabar impedindo o time de trabalhar — e a camada publica
+            // existe para servir quem esta de fora, nao para mandar em quem esta
+            // dentro.
+            var mapaAtual = await _unitOfWork.ProjectStatusMappings
+                .ListByVersionAsync(project.Id, project.MappingVersion, cancellationToken);
+            var etapasAtuais = await _unitOfWork.ProjectPublicStages
+                .ListByProjectAsync(project.Id, cancellationToken);
+
+            await ApplyPublicStageAsync(
+                project, report, destino.Id, EventSourceEnum.Panel, _accountContext.UserId,
+                mapaAtual, etapasAtuais, cancellationToken);
+
+            // Um movimento anterior podia estar esperando. Ele deixa de valer: o
+            // relato acabou de andar, e o que a fila fosse aplicar ja aconteceu.
+            report.PublicStageDueAt = null;
+        }
+        else
+        {
+            // **Reescrever a data e o que faz o desfazer funcionar.** A mensagem
+            // antiga continua a caminho e nao se cancela; ao chegar, ela encontra um
+            // vencimento no futuro e se descarta sozinha.
+            report.PublicStageDueAt = DateTime.UtcNow.AddMinutes(espera);
+        }
+
+        // E o encerramento por ultimo, na mesma gravacao. **Ele nao e consequencia
+        // da traducao**: um projeto sem jornada continua encerrando relato, e o
+        // motivo continua chegando a quem relatou pela pagina de acompanhamento. A
+        // ordem aqui e so de leitura — tudo isto entra ou nao entra junto.
+        if (encerra)
+        {
+            // **A espera vale para o fechamento, e nao so para a jornada.** Segurar
+            // o passo e deixar o motivo escapar seria a pior das duas metades: o
+            // texto do encerramento e justamente o que a pessoa le primeiro.
+            await RegisterClosureAsync(
+                project, report, dto.Outcome!.Value, motivo,
+                report.PublicStageDueAt ?? DateTime.UtcNow, cancellationToken);
+        }
+        else if (gatilho == ClosureTriggerEnum.LastColumn)
+        {
+            // **Sair da coluna que encerra desfaz o encerramento**, e so neste
+            // gatilho. Sem isto, desfazer um movimento errado devolvia o relato para
+            // a fila e o deixava encerrado — a pessoa continuava lendo "acabou"
+            // sobre um relato que o time voltou a trabalhar.
+            //
+            // No gatilho por botao nao se faz nada: la o fechamento nasceu de uma
+            // decisao propria, e mover o relato e so mover.
+            await CancelClosureAsync(project, report, cancellationToken);
+        }
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        // **Depois da gravacao, sempre.** O vencimento esta numa coluna do relato;
+        // publicar antes do commit deixaria quem consome chegar antes de a linha
+        // existir e descartar um agendamento de verdade.
+        //
+        // E a falha aqui **nao derruba o movimento**: o relato ja andou e o
+        // vencimento ja esta gravado. Sem a mensagem, ele espera a proxima subida da
+        // aplicacao, que reencontra o que venceu. Perder o agendamento atrasa; nao
+        // corrompe — e derrubar a requisicao faria o time perder um movimento que ja
+        // aconteceu por causa de um broker fora do ar.
+        if (report.PublicStageDueAt is DateTime vencimento)
+        {
+            try
+            {
+                await _scheduler.ScheduleAsync(
+                    DelayedCheckKind.PublicStage, report.PublicId,
+                    vencimento - DateTime.UtcNow, cancellationToken);
+            }
+            catch (Exception)
+            {
+                // Engolida de proposito. Ver o paragrafo acima.
+            }
+        }
+
         return Map(report);
     }
+
+    /// <summary>
+    /// Encerra o relato por um botao, e nao por um movimento.
+    ///
+    /// <para><b>A rota existe nos dois gatilhos, e isso e decisao.</b> A
+    /// configuracao diz por qual gesto o painel <b>oferece</b> encerrar; ela nao
+    /// tira do time o direito de encerrar. Sem isto, o relato que ja estava parado
+    /// na ultima coluna antes de a regra existir nao teria como ser encerrado
+    /// nunca — mover para onde ele ja esta nao e movimento.</para>
+    ///
+    /// <para><b>Nao move o relato.</b> O botao existe justamente para o time cuja
+    /// ultima coluna nao quer dizer "acabou" — "Aguardando deploy", "Arquivado".
+    /// Arrastar o relato para outro lugar por causa do encerramento desarrumaria a
+    /// fila de quem escolheu esta opcao para nao ter de arrumar a fila.</para>
+    /// </summary>
+    public async Task<ReportDetailViewModel> CloseAsync(Guid projectPublicId, Guid reportPublicId, CloseReportDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Relato nao encontrado.");
+
+        // Encerrar duas vezes nao e engano de digitacao: e a segunda aba, ou o
+        // segundo clique. Recusar mantem uma linha por fechamento, que e o que faz
+        // a sequencia "fechou, reabriu, fechou de novo" contar a historia certa.
+        var aberto = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
+
+        if (aberto is not null)
+            throw new ConflictException("Este relato ja esta encerrado.");
+
+        if (dto.Outcome is null)
+            throw new ArgumentException("Informe o desfecho do relato.");
+
+        var motivo = (dto.Reason ?? string.Empty).Trim();
+
+        if (motivo.Length == 0)
+            throw new ArgumentException("Escreva por que o relato esta sendo encerrado. E o que quem relatou vai ler.");
+
+        if (motivo.Length > ReportClosure.MaxReasonLength)
+            throw new ArgumentException($"O motivo pode ter ate {ReportClosure.MaxReasonLength} caracteres.");
+
+        // **O botao nao espera.** A janela existe para desfazer um movimento feito
+        // por engano — arrastar para a coluna errada. Aqui houve um dialogo, um
+        // desfecho escolhido e um motivo escrito: nao ha engano a desfazer.
+        var fechamento = await RegisterClosureAsync(
+            project, report, dto.Outcome.Value, motivo, DateTime.UtcNow, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        // **Sem gravar leitura.** Esta resposta e a mesma forma do detalhe porque a
+        // tela ja esta com o relato aberto e so precisa dele atualizado; passar
+        // por `GetAsync` registraria uma segunda visualizacao que ninguem fez.
+        // Encerrado: nao ha mais o que perguntar, e um pedido aberto deixou de
+        // fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
+        return Detail(report, ClosureOf(fechamento), null, canAskInfo: false);
+    }
+
+    /// <summary>
+    /// Grava o fechamento e o evento que o acompanha, sem confirmar nada.
+    ///
+    /// <para><b>Nao chama <c>CommitAsync</c> de proposito.</b> Os dois chamadores
+    /// gravam mais coisas junto — o movimento grava o evento interno e a jornada —,
+    /// e confirmar aqui partiria em duas transacoes o que precisa entrar ou nao
+    /// entrar junto.</para>
+    /// </summary>
+    private async Task<ReportClosure> RegisterClosureAsync(
+        Project project,
+        Report report,
+        PublicOutcomeEnum outcome,
+        string reason,
+        DateTime publicAt,
+        CancellationToken cancellationToken)
+    {
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            UserId = _accountContext.UserId,
+            Type = EventTypeEnum.ReportClosed,
+            Source = EventSourceEnum.Panel,
+            // **O motivo nao vai no payload**, pela mesma razao que o texto do
+            // comentario nao vai: esta tabela so cresce e nunca e apagada, e copiar
+            // para ca um texto escrito por uma pessoa criaria uma segunda copia dele
+            // onde nao se consegue limpar. Vai o desfecho, que e o que a contagem
+            // precisa, e o tamanho, que diz se houve motivo de verdade ou um ponto
+            // final para passar da tela.
+            Payload = JsonSerializer.Serialize(new
+            {
+                outcome = outcome.ToString(),
+                reason_length = reason.Length,
+            }),
+        }, cancellationToken);
+
+        // O autor vem do banco porque a sessao guarda o identificador e nao o nome,
+        // e a resposta desta acao precisa do nome: a tela ja esta aberta e nao pode
+        // buscar o detalhe de novo — buscar **grava** um evento de leitura.
+        var autor = _accountContext.UserId is long userId
+            ? await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            : null;
+
+        var fechamento = new ReportClosure
+        {
+            ReportId = report.Id,
+            Outcome = outcome,
+            Reason = reason,
+            // Nulo aqui quer dizer que foi o sistema. Vindo do painel ha sempre
+            // alguem logado, entao nulo neste caminho seria sessao sem usuario — e
+            // ai o certo e gravar o que se sabe, que e nada.
+            ClosedByUserId = autor?.Id,
+            ClosedByUser = autor,
+            ClosedAt = DateTime.UtcNow,
+            // **A espera vale para o fechamento tambem.** Gravar aqui, e nao
+            // calcular na leitura, e o que faz mexer na configuracao depois nao
+            // reescrever o passado deste fechamento.
+            PublicAt = publicAt,
+        };
+
+        await _unitOfWork.ReportClosures.AddAsync(fechamento, cancellationToken);
+
+        return fechamento;
+    }
+
+    /// <summary>
+    /// Desfaz um encerramento que veio de um movimento, quando o relato sai da
+    /// coluna que encerra.
+    ///
+    /// <para><b>Apaga logicamente, e grava um evento.</b> A linha fica para quem
+    /// for investigar, mas para de ser o fim do relato — e o evento existe porque
+    /// sem ele o historico diria "encerrado" e nunca diria que deixou de ser, sobre
+    /// um relato que voltou a andar.</para>
+    ///
+    /// <para><b>Fechamento ja confirmado nao se desfaz.</b> Ali quem relatou
+    /// respondeu, e a resposta dela e o dado que o produto existe para colher —
+    /// apaga-la porque o time mexeu na fila depois seria perder o que ela disse. O
+    /// relato volta a andar e a linha antiga continua contando o que aconteceu.</para>
+    /// </summary>
+    private async Task CancelClosureAsync(Project project, Report report, CancellationToken cancellationToken)
+    {
+        var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
+
+        if (fechamento is null || fechamento.ConfirmedAt is not null)
+            return;
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            UserId = _accountContext.UserId,
+            Type = EventTypeEnum.ReportClosureCancelled,
+            Source = EventSourceEnum.Panel,
+            Payload = JsonSerializer.Serialize(new
+            {
+                outcome = fechamento.Outcome.ToString(),
+                // Se a pessoa chegou a ver, ou se o desfazer coube na janela. E a
+                // diferenca entre corrigir um engano e mudar de ideia em publico.
+                was_public = fechamento.PublicAt <= DateTime.UtcNow,
+            }),
+        }, cancellationToken);
+
+        await _unitOfWork.ReportClosures.SoftDeleteAsync(fechamento, cancellationToken);
+    }
+
+    /// <summary>
+    /// O fechamento como o painel o le, ou nulo quando nao ha.
+    ///
+    /// </summary>
+    private static ReportClosureViewModel? ClosureOf(ReportClosure? closure)
+        => closure is null
+            ? null
+            : new ReportClosureViewModel(
+                closure.Outcome,
+                closure.Reason,
+                closure.ClosedAt,
+                closure.ClosedByUser?.Name,
+                closure.ConfirmedAt,
+                closure.Satisfaction,
+                closure.SatisfactionDeclined);
+
+    public async Task ApplyScheduledPublicStageAsync(Guid reportPublicId, CancellationToken cancellationToken = default)
+    {
+        var report = await _unitOfWork.Reports
+            .FindByPublicIdWithoutSessionAsync(reportPublicId, cancellationToken);
+
+        // Relato que sumiu: nada a fazer, e nao e erro. A mensagem sobreviveu a ele.
+        if (report is null)
+            return;
+
+        // **Sem agendamento: ja foi aplicado, ou o movimento foi desfeito.** E o
+        // caminho da mensagem duplicada, e ele sai em silencio de proposito.
+        if (report.PublicStageDueAt is not DateTime vencimento)
+            return;
+
+        // **Vencimento no futuro: esta chamada e de um agendamento que foi
+        // reescrito.** O time moveu de novo dentro da janela, e a data mudou. E
+        // exatamente aqui que o desfazer acontece — sem cancelar mensagem nenhuma.
+        if (vencimento > DateTime.UtcNow)
+            return;
+
+        // Sem coluna nao ha o que traduzir. Limpa o agendamento: deixa-lo vencido
+        // faria a recuperacao da subida tentar isto para sempre.
+        if (report.ProjectStateId is not long estadoAtual)
+        {
+            report.PublicStageDueAt = null;
+            _unitOfWork.Reports.Update(report);
+            await _unitOfWork.CommitAsync(cancellationToken);
+            return;
+        }
+
+        var project = report.Project;
+
+        // **O mapa de agora, e o estado de agora.** Guardar qualquer um dos dois no
+        // agendamento congelaria no passado uma resposta que so vale neste instante.
+        var mapa = await _unitOfWork.ProjectStatusMappings
+            .ListByVersionWithoutSessionAsync(project.Id, project.MappingVersion, cancellationToken);
+        var etapas = await _unitOfWork.ProjectPublicStages
+            .ListByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        // Sem usuario **e com origem `System`**: ver o comentario da interface. O
+        // passo aconteceu porque um prazo venceu, e nao porque alguem clicou agora —
+        // chamar isto de painel faria a contagem atribuir ao time uma acao que o
+        // time nao tomou.
+        await ApplyPublicStageAsync(
+            project, report, estadoAtual, EventSourceEnum.System, null,
+            mapa, etapas, cancellationToken);
+
+        report.PublicStageDueAt = null;
+        _unitOfWork.Reports.Update(report);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+    }
+
+    public Task<IReadOnlyList<Guid>> ListOverdueScheduledAsync(CancellationToken cancellationToken = default)
+        => _unitOfWork.Reports.ListOverduePublicStageWithoutSessionAsync(DateTime.UtcNow, cancellationToken);
 
     public async Task<IReadOnlyList<ReportHistoryEntryViewModel>> HistoryAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default)
     {
@@ -490,7 +1404,8 @@ public class ReportService : IReportService
         long? userId,
         IReadOnlyList<ProjectStatusMapping> mapa,
         IReadOnlyList<ProjectPublicStage> etapas,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool reopening = false)
     {
         var etapaPorId = etapas.ToDictionary(etapa => etapa.Id);
 
@@ -511,7 +1426,14 @@ public class ReportService : IReportService
             ? Referencia(etapaAtual)
             : (PublicStageRef?)null;
 
-        var decisao = StateTranslator.Translate(internalStateId, mapaDoMotor, atual);
+        // **A bandeira escolhe qual funcao pura chamar, e nao afrouxa nenhuma
+        // regra.** Reabrir e outra pergunta: la a regressao nao existe como
+        // conceito, porque quem pediu o retorno foi a propria pessoa que espera.
+        // Um parametro dentro do motor convidaria a passar "forca" num movimento
+        // comum, e a regra de regressao viraria opcional por descuido.
+        var decisao = reopening
+            ? StateTranslator.TranslateReopen(internalStateId, mapaDoMotor, atual)
+            : StateTranslator.Translate(internalStateId, mapaDoMotor, atual);
 
         if (decisao.Outcome is TranslationOutcomeEnum.SameStage or TranslationOutcomeEnum.RegressionHeld)
             return;
@@ -665,26 +1587,57 @@ public class ReportService : IReportService
             Source = EventSourceEnum.Panel,
         }, cancellationToken);
 
+        var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
+        var pedido = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return new ReportDetailViewModel(
-            report.PublicId,
-            report.TrackingCode,
-            report.Type,
-            report.Text,
-            report.Route,
-            report.Origin,
-            report.ProjectState?.PublicId,
-            report.ProjectState?.Name,
-            report.ProjectPublicStage?.Label,
-            report.CreatedAt,
-            // Em ordem de chave, e nao na que o navegador mandou: a mesma informacao
-            // trocando de lugar entre dois relatos faz procurar de novo a cada um.
-            report.Contexts
-                .OrderBy(context => context.Key, StringComparer.Ordinal)
-                .Select(context => new ReportContextViewModel(context.Key, context.Value))
-                .ToList());
+        // **A conclusao, e nao a configuracao.** Quatro coisas precisam ser
+        // verdade ao mesmo tempo, e a tela nao tem por que saber quais — ela le uma
+        // resposta so e decide se oferece o botao.
+        var podePedir = (regras?.InfoRequestEnabled ?? CycleSettingsDefaults.InfoRequestEnabled)
+                        && report.AcceptsQuestions == true
+                        && fechamento is null
+                        && pedido is null;
+
+        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir);
     }
+
+    /// <summary>
+    /// O relato aberto, campo a campo.
+    ///
+    /// <para>Existe porque <b>duas</b> acoes devolvem esta forma: abrir o relato e
+    /// encerra-lo. A segunda nao pode chamar a primeira — abrir <b>grava</b> um
+    /// evento de leitura, e encerrar registraria uma visualizacao que ninguem
+    /// fez.</para>
+    /// </summary>
+    private static ReportDetailViewModel Detail(
+        Report report,
+        ReportClosureViewModel? closure,
+        ReportInfoRequestViewModel? infoRequest,
+        bool canAskInfo) => new(
+        report.PublicId,
+        report.TrackingCode,
+        report.Type,
+        report.Text,
+        report.Route,
+        report.Origin,
+        report.ProjectState?.PublicId,
+        report.ProjectState?.Name,
+        report.ProjectPublicStage?.Label,
+        report.AcceptsQuestions,
+        report.PublicStageDueAt,
+        report.CreatedAt,
+        closure,
+        infoRequest,
+        canAskInfo,
+        // Em ordem de chave, e nao na que o navegador mandou: a mesma informacao
+        // trocando de lugar entre dois relatos faz procurar de novo a cada um.
+        report.Contexts
+            .OrderBy(context => context.Key, StringComparer.Ordinal)
+            .Select(context => new ReportContextViewModel(context.Key, context.Value))
+            .ToList());
 
     /// <summary>
     /// O projeto da sessao atual. O filtro global ja limita a consulta a conta que
@@ -701,11 +1654,27 @@ public class ReportService : IReportService
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
         var counts = await _unitOfWork.Reports.CountByStateAsync(project.Id, cancellationToken);
 
+        // Qual coluna encerra vem da **mesma pergunta** que o movimento faz, e nao
+        // de contar a lista de tras para a frente: a lista traz as aposentadas
+        // junto, e a ultima delas nao encerra nada. Duas respostas para a mesma
+        // pergunta e o jeito de a tela pedir motivo numa coluna e a API cobrar em
+        // outra.
+        // Projeto que encerra por botao nao tem coluna que encerre, e a resposta
+        // diz isso: `ClosesReport` falso em todas as linhas. Sem este recorte, a
+        // tela pediria motivo num movimento que a API nao vai cobrar.
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+        var gatilho = regras?.ClosureTrigger ?? CycleSettingsDefaults.ClosureTrigger;
+
+        var ultimaAtiva = gatilho == ClosureTriggerEnum.LastColumn
+            ? await _unitOfWork.ProjectStates.LastActiveAsync(project.Id, cancellationToken)
+            : null;
+
         return counts
             .Select(count => new ReportStateCountViewModel(
                 count.StatePublicId,
                 count.StateName,
                 count.IsActive,
+                count.StateId is not null && count.StateId == ultimaAtiva?.Id,
                 count.Total))
             .ToList();
     }
@@ -748,6 +1717,8 @@ public class ReportService : IReportService
         report.ProjectState?.PublicId,
         report.ProjectState?.Name,
         report.ProjectPublicStage?.Label,
+        report.AcceptsQuestions,
+        report.PublicStageDueAt,
         report.CreatedAt);
 
     /// <summary>

@@ -1,5 +1,8 @@
 /** Espelho de `Pds.Domain/Dtos/ReportDto.cs` e `ViewModels/ReportViewModels.cs`. */
 
+import type { SatisfactionStyle } from '@/contracts/cycleSettings'
+import type { PublicOutcome } from '@/contracts/projectPublicStage'
+
 /**
  * O que a pessoa esta relatando.
  *
@@ -31,6 +34,15 @@ export interface CreateReportRequest {
    * guarda como veio e **nunca** trata como prova de origem.
    */
   Origin: string | null
+  /**
+   * Quem escreve aceita responder duvidas da equipe sobre este relato.
+   *
+   * **E escolha dela, e nao do projeto.** Quem relatou um defeito as pressas pode
+   * nao querer virar parte da investigacao, e prometer resposta a quem nao vai
+   * responder deixa o relato pendurado esperando. O projeto so escolhe como a
+   * caixa vem marcada.
+   */
+  AcceptsQuestions: boolean
   /** O que veio junto sem ninguem digitar: navegador, tamanho da tela. */
   Context: Record<string, string> | null
 }
@@ -85,6 +97,30 @@ export interface ReportSummaryViewModel {
    * mediria cliques do time em vez de leituras.
    */
   PublicStageLabel: string | null
+  /**
+   * Quem relatou aceita responder duvidas da equipe.
+   *
+   * **Sao tres estados, e nao dois.** `true` e o sim, `false` e o nao, e **`null`**
+   * e o relato que entrou antes de a pergunta existir — a quem ninguem perguntou
+   * nada. Mostrar o nulo como "nao aceita" poria na boca da pessoa uma resposta que
+   * ela nunca deu.
+   *
+   * O efeito de `false` e de `null` e o mesmo: sem um sim, nao se abre pedido de
+   * informacao. O que muda e o que a tela diz.
+   */
+  AcceptsQuestions: boolean | null
+  /**
+   * Quando o ultimo movimento passa a valer para quem relatou, ou **nulo** quando
+   * nao ha espera pendente.
+   *
+   * **Preenchido, a janela de desfazer esta aberta**: o time moveu e o lado de fora
+   * ainda nao sabe. Mostrar isto e o que torna a janela util — sem a data na tela,
+   * quem moveu por engano nao tem como saber que ainda da tempo.
+   *
+   * Desfazer e mover de volta. Nao ha acao propria, e nem precisa: o agendamento e
+   * reescrito a cada movimento.
+   */
+  PublicStageDueAt: string | null
   CreatedAt: string
 }
 
@@ -96,12 +132,86 @@ export interface ReportContextViewModel {
 }
 
 /**
+ * O fim do relato, como **o time** o le.
+ *
+ * E o irmao interno de `PublicClosureViewModel`, e nao o mesmo tipo: a diferenca
+ * e uma linha — o nome de quem encerrou — e e justamente ela que nao pode vazar.
+ */
+export interface ReportClosureViewModel {
+  Outcome: PublicOutcome
+  Reason: string
+  ClosedAt: string
+  /** Nulo quando foi o **sistema** que encerrou, ou quando a conta do autor foi esvaziada. */
+  ClosedByName: string | null
+  /**
+   * Quando quem relatou confirmou que resolveu.
+   *
+   * E a metade da metafora que faltava do lado de dentro: ate aqui o painel so
+   * sabia o que o time tinha decidido.
+   */
+  ConfirmedAt: string | null
+  Satisfaction: number | null
+  /** Separado da nota nula: recusar opinar nao e ausencia de opiniao. */
+  SatisfactionDeclined: boolean
+}
+
+/**
  * Um relato aberto. O contexto so vem aqui porque e a resposta a uma pergunta que
  * so nasce depois de ler o relato — "em que navegador isso aconteceu?".
  */
+/**
+ * O pedido de informacao aberto, como **o time** o le.
+ */
+export interface ReportInfoRequestViewModel {
+  /** Quem perguntou. Nulo so quando a conta do autor foi esvaziada. */
+  AskedByName: string | null
+  AskedAt: string
+  /** A partir de quando a pagina publica avisa que vai encerrar. */
+  WarnAt: string
+  /** Quando encerra como "sem retorno", se ninguem responder. */
+  CloseAt: string
+}
+
+/** O que falta, escrito para quem relatou. Vira um comentario publico. */
+export interface AskInfoRequest {
+  Body: string
+}
+
 export interface ReportDetailViewModel extends ReportSummaryViewModel {
+  /**
+   * O fim do relato, ou **nulo** enquanto ele nao acabou.
+   *
+   * **Vem no detalhe e nao no resumo**, e a diferenca e de custo: a lista carrega
+   * dezenas de relatos por pagina e nem mostra isto. Quem precisa e a tela do
+   * relato aberto — para mostrar o que foi decidido, e para nao oferecer encerrar
+   * o que ja acabou.
+   */
+  Closure: ReportClosureViewModel | null
+  /** O pedido de informacao aberto, ou nulo quando nao ha. */
+  InfoRequest: ReportInfoRequestViewModel | null
+  /**
+   * Da para devolver este relato pedindo informacao, **agora**.
+   *
+   * **E a conclusao, e nao a configuracao.** Falso pode ser o recurso desligado, o
+   * relato ja encerrado, o pedido ja aberto, ou — o caso que importa — quem
+   * escreveu nao ter aceitado responder duvidas. A tela diz qual e, lendo o que ja
+   * tem em maos.
+   */
+  CanAskInfo: boolean
   /** Em ordem de chave, decidida pela API. */
   Contexts: ReportContextViewModel[]
+}
+
+/**
+ * O encerramento pedido por um botao, e nao por um movimento.
+ *
+ * Existe mesmo nos projetos que encerram pela ultima coluna: a configuracao diz
+ * por qual gesto o painel **oferece** encerrar, e nao tira do time o direito de
+ * encerrar um relato que ja esta parado la desde antes de a regra existir.
+ */
+export interface CloseReportRequest {
+  Outcome: PublicOutcome
+  Reason: string
 }
 
 /**
@@ -148,6 +258,121 @@ export interface PublicStageViewModel {
   IsCurrent: boolean
 }
 
+/**
+ * O fim do relato, como quem o escreveu o le.
+ *
+ * **Tres campos, e nenhum diz quem encerrou.** O nome de quem mexeu e pergunta
+ * interna; quem esta de fora quer saber o que aconteceu com o problema dele.
+ */
+export interface PublicClosureViewModel {
+  Outcome: PublicOutcome
+  /** Por que acabou, como o time escreveu. **Nunca vazio**: a API recusa antes. */
+  Reason: string
+  ClosedAt: string
+  /** Quando quem relatou confirmou que resolveu, ou nulo enquanto nao respondeu. */
+  ConfirmedAt: string | null
+  /**
+   * A nota de 1 a 5, ou nula.
+   *
+   * **Nula nao quer dizer insatisfacao**: pode ser que nao tenha respondido, e
+   * pode ser que tenha recusado — e a recusa esta no campo ao lado, fora da escala
+   * de proposito.
+   */
+  Satisfaction: number | null
+  SatisfactionDeclined: boolean
+  Actions: PublicClosureActionsViewModel
+}
+
+/**
+ * O que quem relatou pode fazer neste relato encerrado.
+ *
+ * **Nao e a configuracao do projeto.** Cada campo ja e o cruzamento da regra com o
+ * estado deste relato — "permite reabrir" ligado num relato ja confirmado chega
+ * aqui como `CanReopen` falso, e a pagina nao precisa saber por que. Mandar as
+ * regras cruas entregaria a quem esta de fora como o cliente organiza o trabalho.
+ *
+ * **A pagina nao e a trava**: tudo isto e conferido de novo quando a acao chega.
+ * Esconder o botao evita o clique inutil, e nao o pedido malicioso.
+ */
+export interface PublicClosureActionsViewModel {
+  CanConfirm: boolean
+  /** Falso quando o projeto nao permite, e falso depois de confirmar. */
+  CanReopen: boolean
+  AsksSatisfaction: boolean
+  SatisfactionStyle: SatisfactionStyle
+  /** Mesmo exigindo, "prefiro nao responder" continua existindo — fora da escala. */
+  SatisfactionRequired: boolean
+  ReopenRequiresComment: boolean
+}
+
+/**
+ * A resposta de quem relatou: resolveu.
+ *
+ * Carrega as mesmas duas credenciais da consulta, e pelo mesmo motivo: nao ha
+ * sessao aqui, e o token do link e a unica prova de que o relato e de quem o
+ * apresenta.
+ */
+export interface ConfirmReportRequest {
+  TrackingCode: string
+  Token: string
+  /** A nota de 1 a 5, ou nula quando nao houve resposta. */
+  Satisfaction: number | null
+  /** **Nao e a nota zero, e nao e a sexta estrela.** Fica fora da escala. */
+  SatisfactionDeclined: boolean
+}
+
+/**
+ * A resposta de quem relatou: nao resolveu.
+ *
+ * **Nao leva nota**, e isso e decisao: quem reabre esta dizendo que o trabalho nao
+ * acabou, e avaliar servico inacabado mede outra coisa.
+ */
+export interface ReopenReportRequest {
+  TrackingCode: string
+  Token: string
+  /** Por que esta voltando. Obrigatorio quando o projeto pede. */
+  Comment: string | null
+}
+
+/** Limite do comentario de reabertura, em `ReportClosure.MaxReopenCommentLength`. */
+export const MAX_REOPEN_COMMENT_LENGTH = 1000
+
+/** A escala da nota, declarada em `ReportClosure.MinSatisfaction`/`MaxSatisfaction`. */
+export const SATISFACTION_SCALE = [1, 2, 3, 4, 5] as const
+
+/**
+ * Uma fala da conversa, como quem relatou a le.
+ *
+ * **Uma lista so, com os dois lados.** Separar a resposta dela em outra lista
+ * obrigaria a tela a costurar duas em ordem — e a ordem e o que faz um dialogo ser
+ * lido como dialogo.
+ *
+ * **Nao ha nome de ninguem.** Para quem esta de fora, o que importa e se a fala e
+ * dela ou da equipe.
+ */
+export interface PublicMessageViewModel {
+  PublicId: string
+  /** A fala e de quem relatou. Falso e a equipe. */
+  FromReporter: boolean
+  Body: string
+  CreatedAt: string
+}
+
+/**
+ * O pedido de informacao aberto, como quem relatou o le.
+ *
+ * **A tela precisa deixar claro de quem e a vez.** Um relato parado esperando a
+ * pessoa e indistinguivel, sem isto, de um relato parado esperando a equipe — e
+ * quem acha que a bola esta com o outro lado nao responde.
+ */
+export interface PublicInfoRequestViewModel {
+  AskedAt: string
+  /** Quando encerra como "sem retorno". **Encerrado assim continua reabrivel.** */
+  CloseAt: string
+  /** O primeiro prazo passou, e falta pouco. E estado de tela, e nao um envio. */
+  IsWarning: boolean
+}
+
 export interface PublicReportViewModel {
   TrackingCode: string
   Type: ReportType
@@ -158,6 +383,35 @@ export interface PublicReportViewModel {
    * nenhuma — e a pagina diz isso em vez de prometer.
    */
   Journey: PublicStageViewModel[]
+  /**
+   * O fim do relato, ou **nulo** enquanto ele nao acabou.
+   *
+   * **E campo proprio, e nao um passo da jornada.** A jornada conta por onde o
+   * relato andou; o fechamento conta o que foi decidido, e traz o texto que
+   * explica. Um relato pode estar na etapa terminal sem ter sido encerrado.
+   *
+   * Nulo tambem no relato reaberto: a linha antiga continua guardada, mas nao e
+   * mais o fim de nada.
+   */
+  Closure: PublicClosureViewModel | null
+  /** O que a equipe escreveu e o que ela respondeu, em ordem. Vazia quando ninguem escreveu. */
+  Conversation: PublicMessageViewModel[]
+  /** O pedido aberto, ou **nulo** quando a bola nao esta com ela. */
+  InfoRequest: PublicInfoRequestViewModel | null
+  /**
+   * Ela pode escrever agora.
+   *
+   * **So enquanto ha pedido aberto**, e isso e decisao: canal livre viraria uma
+   * caixa de entrada sem dono e sem moderacao.
+   */
+  CanReply: boolean
+}
+
+/** A resposta de quem relatou. Leva as mesmas credenciais da consulta. */
+export interface ReplyToReportRequest {
+  TrackingCode: string
+  Token: string
+  Body: string
 }
 
 /**
@@ -175,16 +429,45 @@ export interface ReportStateCountViewModel {
   StateName: string | null
   /** Falso quando a coluna foi aposentada. Sempre verdadeiro na linha sem coluna. */
   IsActive: boolean
+  /**
+   * Mover um relato para esta coluna **encerra** o relato, e por isso a tela pede
+   * desfecho e motivo antes de mandar.
+   *
+   * **Vem da API, e nao e derivado aqui.** Derivar pela ordem da lista obrigaria a
+   * tela a repetir a regra de qual coluna encerra — e as duas copias divergiriam no
+   * dia em que a regra virar configuracao do projeto. Pior: a lista traz as
+   * aposentadas junto, e a ultima delas nao encerra nada.
+   *
+   * Verdadeiro em **uma** linha, no maximo.
+   */
+  ClosesReport: boolean
   Total: number
 }
 
 /** O valor que a rota aceita no lugar de um identificador, para pedir os sem coluna. */
 export const WITHOUT_STATE_FILTER = 'none'
 
-/** Para onde o relato vai na fila. */
+/**
+ * Para onde o relato vai na fila — e, quando a coluna encerra, o que ele virou.
+ *
+ * **Os dois campos andam juntos com `ClosesReport`.** A API os exige na coluna que
+ * encerra e os **recusa** fora dela: mandar um desfecho num movimento que nao
+ * encerra gravaria um fim que o relato nao teve, e quem mandou continuaria achando
+ * que encerrou.
+ */
 export interface MoveReportRequest {
   StatePublicId: string
+  /** Qual dos quatro finais foi este. Ausente fora da coluna que encerra. */
+  Outcome?: PublicOutcome
+  /**
+   * Por que acabou. E este texto que quem relatou le na pagina de acompanhamento —
+   * nao ha encerramento sem ele.
+   */
+  Reason?: string
 }
+
+/** Limite da coluna `reason`, declarado em `ReportClosure.MaxReasonLength`. */
+export const MAX_CLOSURE_REASON_LENGTH = 2000
 
 /**
  * Um comentario que fica entre o time.
@@ -203,7 +486,14 @@ export interface InternalCommentViewModel {
 /** Um comentario escrito para quem relatou. Ainda nao tem leitor. */
 export interface PublicCommentViewModel {
   PublicId: string
-  AuthorName: string
+  /**
+   * A fala e de **quem relatou**, respondendo a equipe.
+   *
+   * **Campo proprio, e nao "nome vazio".** Nome nulo tambem acontece quando a conta
+   * do autor interno foi esvaziada, e os dois casos sao opostos.
+   */
+  FromReporter: boolean
+  AuthorName: string | null
   Body: string
   CreatedAt: string
 }
@@ -239,6 +529,12 @@ export const REPORT_EVENT_TYPES = [
   'ReportPublicCommented',
   'ReportPublicStageChanged',
   'ReportPublicStageUnmapped',
+  'ReportClosed',
+  'ReportConfirmed',
+  'ReportReopened',
+  'ReportInfoRequested',
+  'ReportReplied',
+  'ReportClosureCancelled',
 ] as const
 
 /**

@@ -102,6 +102,12 @@ public class ReportsController : BaseController
     /// A linha com `StatePublicId` nulo são os relatos que ainda não têm lugar na
     /// fila, e ela **só aparece quando existe algum**. Sem ela, a soma das colunas
     /// não bateria com o total e ninguém saberia por quê.
+    ///
+    /// **`ClosesReport` diz qual coluna encerra o relato**, e vem daqui porque é
+    /// daqui que o painel tira a lista de colunas. A tela precisa saber disso
+    /// *antes* de mover, para pedir o desfecho e o motivo no mesmo gesto — perguntar
+    /// depois seria mandar o movimento, levar a recusa, e só então abrir o diálogo.
+    /// Vem verdadeiro em uma linha no máximo: a última coluna ativa.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
@@ -162,6 +168,104 @@ public class ReportsController : BaseController
         }
     }
 
+    /// <summary>Devolve o relato pedindo informação, em vez de encerrar.</summary>
+    /// <remarks>
+    /// **"Volta para o relator" são dois casos, e não um.** Precisar de contexto e
+    /// recusar de fato são decisões opostas, e chegando iguais do outro lado a
+    /// pessoa entende que acabou e para de responder — o relato morre por ruído,
+    /// que é o problema que este produto existe para resolver. Por isso "não
+    /// reproduzi" **não encerra**: abre um pedido, que diz *o que* falta.
+    ///
+    /// O texto vira um **comentário público**: a conversa acontece pelo próprio
+    /// relato, e a pessoa responde por lá, pelo link que ela já tem.
+    ///
+    /// **Recusado com 403 quando quem escreveu não aceitou responder dúvidas** — e
+    /// também quando o relato entrou antes de a pergunta existir. Prometer resposta
+    /// a quem não vai responder deixa o relato pendurado, e encerrar por "sem
+    /// retorno" quem nunca aceitou responder seria cobrar uma promessa que ninguém
+    /// fez. Quem precisa saber disso antes de tentar lê `CanAskInfo` no relato
+    /// aberto.
+    ///
+    /// Os **dois prazos são gravados no pedido**, e não lidos da configuração na
+    /// hora de mostrar: mudar o prazo do projeto não pode mover o prazo de um
+    /// pedido que já está correndo.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="dto">O que falta, escrito para quem relatou.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, agora esperando resposta.</response>
+    /// <response code="400">Texto em branco ou longo demais.</response>
+    /// <response code="403">O projeto não usa pedido de informação, ou quem escreveu não aceitou responder.</response>
+    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="409">O relato já está encerrado, ou já há um pedido aberto.</response>
+    [HttpPost("{reportPublicId:guid}/info-request")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AskInfo(Guid publicId, Guid reportPublicId, [FromBody] AskInfoDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.AskInfoAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(report, "Pedido enviado a quem relatou.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Encerra o relato, com desfecho e motivo.</summary>
+    /// <remarks>
+    /// **É o encerramento por botão**, e existe nos dois gatilhos. A configuração
+    /// do projeto diz por qual *gesto* o painel oferece encerrar; ela não tira do
+    /// time o direito de encerrar. Sem esta rota, o relato parado na última coluna
+    /// desde antes da regra existir nunca poderia ser encerrado — mover para onde
+    /// ele já está não é movimento.
+    ///
+    /// **Não move o relato de coluna.** O botão atende o time cuja última coluna
+    /// não quer dizer "acabou" — "Aguardando deploy", "Arquivado". Arrastar o
+    /// relato por causa do encerramento desarrumaria a fila de quem escolheu esta
+    /// opção justamente para não ter de arrumá-la.
+    ///
+    /// **Relato já encerrado é recusado com 409.** Não é engano de digitação: é a
+    /// segunda aba, ou o segundo clique. Uma linha por fechamento é o que faz a
+    /// sequência "fechou, reabriu, fechou de novo" contar a história certa.
+    ///
+    /// **Esta rota não registra visualização**, diferente da que abre o relato: a
+    /// tela já está aberta, e a resposta é ela mesma atualizada.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="dto">O desfecho e o motivo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, agora encerrado.</response>
+    /// <response code="400">Desfecho ausente, motivo em branco ou longo demais.</response>
+    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="409">O relato já está encerrado.</response>
+    [HttpPost("{reportPublicId:guid}/closure")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Close(Guid publicId, Guid reportPublicId, [FromBody] CloseReportDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.CloseAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(report, "Relato encerrado.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Move o relato para outra coluna da fila.</summary>
     /// <remarks>
     /// **O evento vem antes do cache, na mesma gravação.** A coluna guardada no
@@ -180,13 +284,27 @@ public class ReportsController : BaseController
     /// O evento guarda **o nome das duas colunas**, além dos identificadores:
     /// renomear uma coluna depois não pode reescrever o passado dizendo que o
     /// relato esteve num estado que ainda não existia.
+    ///
+    /// **Cair na última coluna ativa encerra o relato**, e aí `Outcome` e `Reason`
+    /// passam a ser obrigatórios. O motivo não é desencorajado: é impossível
+    /// encerrar sem ele. É esse texto que quem relatou lê na página de
+    /// acompanhamento, e sem ele o produto reproduz exatamente o que existe para
+    /// resolver — a pessoa fica sabendo que acabou, e não o que aconteceu.
+    ///
+    /// **Aposentada não conta.** Quem encerra é a última coluna *ativa*, então
+    /// aposentar a última muda qual delas encerra. Quem precisa saber disso antes
+    /// de mover lê `ClosesReport` na contagem por coluna.
+    ///
+    /// **Fora dela, os dois campos são recusados** em vez de ignorados: aceitá-los
+    /// num movimento que não encerra gravaria um fim que o relato não teve, e quem
+    /// mandou continuaria achando que encerrou.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>
-    /// <param name="dto">A coluna de destino.</param>
+    /// <param name="dto">A coluna de destino, mais o desfecho e o motivo quando ela encerra.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, na coluna nova.</response>
-    /// <response code="400">Coluna de destino ausente.</response>
+    /// <response code="400">Coluna de destino ausente; encerramento sem desfecho ou sem motivo; desfecho ou motivo num movimento que não encerra.</response>
     /// <response code="404">Relato, projeto ou estado não existe, ou pertence a outra conta.</response>
     /// <response code="409">A coluna de destino está aposentada.</response>
     [HttpPut("{reportPublicId:guid}/state")]

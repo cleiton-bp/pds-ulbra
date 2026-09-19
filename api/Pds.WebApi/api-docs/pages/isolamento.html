@@ -55,12 +55,33 @@ em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o 
 tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
 <code>report_contexts</code> volta ao padrão e chega pelo relato.</p>
 
-<h2>As dez consultas que atravessam o filtro</h2>
+<h2>As dezessete consultas que atravessam o filtro</h2>
 
-<p>São exatamente dez em todo o sistema, todas propositais, e <strong>nove delas têm a
+<p>São exatamente dezessete em todo o sistema, todas propositais, e <strong>treze delas têm a
 mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
 <code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
-próprio dono. Todas as dez moram em repositório, uma por método, e nenhuma em serviço.</p>
+próprio dono. Todas as dezessete moram em repositório, uma por método, e nenhuma em serviço.</p>
+
+<p>Eram dez até a etapa 5, que acrescentou sete. Quatro são mais do mesmo: a página pública
+passou a mostrar o desfecho, a conversa e o pedido de informação, e a configuração do ciclo passou
+a ser lida sem sessão. <strong>As outras três são de origem nova</strong>, e vale ler o porquê.</p>
+
+<div class="note warn">
+  <strong>Três não vêm de requisição nenhuma</strong>
+  <p><code>Reports.FindByPublicIdWithoutSessionAsync</code>,
+  <code>Reports.ListOverduePublicStageWithoutSessionAsync</code> e
+  <code>ReportInfoRequests.ListOverdueWithoutSessionAsync</code> são chamadas pelo consumidor da
+  fila. Ali não há sessão a perder, porque <strong>nunca houve requisição</strong>: o que acordou
+  o código foi um prazo vencendo.</p>
+  <p>A diferença importa na hora de julgar o risco. As catorze anteriores são atravessadas por
+  quem apresenta uma credencial — a chave pública, ou o protocolo e o token —, e o que protege a
+  resposta é a credencial, não o filtro. Estas três não devolvem nada a ninguém: o resultado vai
+  para dentro da própria aplicação, que grava e não responde. <strong>Não há resposta HTTP em que
+  vazar.</strong></p>
+  <p>As duas de varredura devolvem <code>public_id</code> e mais nada — nem texto de relato, nem
+  nome de projeto. Devolver a entidade inteira funcionaria igual e poria a fila carregando dado
+  de cliente que ela não tem motivo para ver.</p>
+</div>
 
 <p>A mais nova é a que monta o <strong>andamento</strong> da página pública, e ela tem uma
 particularidade que vale ler: o tipo de evento está na <strong>consulta</strong>, e não num

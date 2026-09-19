@@ -1,4 +1,6 @@
 import type {
+  AskInfoRequest,
+  CloseReportRequest,
   CreateCommentRequest,
   InternalCommentViewModel,
   MoveReportRequest,
@@ -64,6 +66,38 @@ export interface ProjectReportService {
     reportPublicId: string,
     request: MoveReportRequest,
   ): Promise<ReportSummaryViewModel>
+
+  /**
+   * Encerra o relato, com desfecho e motivo.
+   *
+   * **E o encerramento por botao**, e nao o que acontece ao mover: aquele viaja
+   * dentro do proprio `moveReport`. Este existe nos dois gatilhos — a
+   * configuracao diz por qual gesto o painel oferece encerrar, e nao tira do time
+   * o direito de encerrar o relato que ja esta parado na ultima coluna.
+   *
+   * Devolve o relato **aberto**, e nao o resumo: quem chamou esta com o dialogo
+   * na tela e precisa do fechamento para desenhar. E nao registra visualizacao.
+   */
+  closeReport(
+    publicId: string,
+    reportPublicId: string,
+    request: CloseReportRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /**
+   * Devolve o relato pedindo informacao, em vez de encerrar.
+   *
+   * **"Nao reproduzi" e "nao vamos fazer" sao decisoes opostas**, e chegando iguais
+   * do outro lado a pessoa entende que acabou e para de responder. Este metodo e o
+   * primeiro; o outro e `closeReport`.
+   *
+   * Devolve o relato **aberto**: quem chamou esta com o dialogo na tela.
+   */
+  askInfo(
+    publicId: string,
+    reportPublicId: string,
+    request: AskInfoRequest,
+  ): Promise<ReportDetailViewModel>
 
   /** Os comentarios do relato, em duas listas separadas. */
   listComments(publicId: string, reportPublicId: string): Promise<ReportCommentsViewModel>

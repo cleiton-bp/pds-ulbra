@@ -20,4 +20,15 @@ public enum EventSourceEnum
 
     /// <summary>A pagina publica de acompanhamento, aberta por quem relatou.</summary>
     PublicPage,
+
+    /// <summary>
+    /// A propria aplicacao, quando um prazo venceu e nao houve clique nenhum.
+    ///
+    /// <para><b>E origem de verdade, e nao um remendo.</b> O relato encerrado por
+    /// falta de resposta e a etapa publica que anda quando a espera vence nao
+    /// partiram de ninguem — e chama-los de <see cref="Panel"/> faria a contagem
+    /// atribuir ao time acoes que o time nao tomou, que e exatamente o que esta
+    /// separacao existe para evitar.</para>
+    /// </summary>
+    System,
 }

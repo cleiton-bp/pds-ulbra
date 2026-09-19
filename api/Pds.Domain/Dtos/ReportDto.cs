@@ -40,6 +40,18 @@ public class CreateReportDto
     public string? Origin { get; set; }
 
     /// <summary>
+    /// Quem escreveu aceita responder duvidas da equipe sobre este relato.
+    ///
+    /// <para><b>Ausente nao e "nao".</b> Quando o campo nao vem, vale o padrao que
+    /// o projeto configurou — e nao o mais restritivo. A ferramenta sempre manda o
+    /// que a pessoa marcou; quem omite e uma versao antiga dela, ou alguem falando
+    /// direto com a rota, e nesses casos o certo e seguir a configuracao do
+    /// projeto em vez de silenciar o relato.</para>
+    /// </summary>
+    /// <example>true</example>
+    public bool? AcceptsQuestions { get; set; }
+
+    /// <summary>
     /// O que veio junto, sem ninguem digitar: navegador, tamanho da tela, e o que
     /// o produto passar a capturar. Pares livres, gravados como texto.
     /// </summary>
@@ -74,6 +86,106 @@ public class OpenReportTrackingDto
 }
 
 /// <summary>
+/// A resposta de quem relatou: resolveu.
+///
+/// <para><b>Carrega as mesmas duas credenciais da consulta</b>, e pelo mesmo
+/// motivo: nao ha sessao aqui, e o token do link e a unica prova de que este
+/// relato e de quem o apresenta. Recusa igual para qualquer um dos dois errado.</para>
+/// </summary>
+public class ConfirmReportDto
+{
+    /// <summary>O protocolo, o mesmo do link.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
+
+    /// <summary>O token entregue uma unica vez. E ele que prova de quem e o relato.</summary>
+    public string? Token { get; set; }
+
+    /// <summary>
+    /// A nota de 1 a 5 sobre como foi o tratamento, ou nula.
+    ///
+    /// <para>Nula com <see cref="SatisfactionDeclined"/> falso quer dizer "nao quis
+    /// nem dizer que nao quis" — a pessoa confirmou e foi embora. E um terceiro
+    /// estado, e nao uma variacao dos outros dois.</para>
+    /// </summary>
+    /// <example>5</example>
+    public int? Satisfaction { get; set; }
+
+    /// <summary>
+    /// A pessoa clicou em "prefiro nao responder".
+    ///
+    /// <para><b>Nao e a nota zero, e nao e a sexta estrela.</b> Dentro da escala,
+    /// a recusa viraria a pior avaliacao para quem le depressa, e a media contaria
+    /// como insatisfacao o que foi so recusa em opinar.</para>
+    /// </summary>
+    public bool SatisfactionDeclined { get; set; }
+}
+
+/// <summary>
+/// A resposta de quem relatou: nao resolveu.
+///
+/// <para><b>Nao leva nota</b>, e isso e decisao e nao esquecimento: quem reabre
+/// esta dizendo que o trabalho nao acabou, e avaliar servico inacabado mede outra
+/// coisa. A nota volta a ser pedida quando o relato for encerrado de novo.</para>
+/// </summary>
+public class ReopenReportDto
+{
+    /// <summary>O protocolo, o mesmo do link.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
+
+    /// <summary>O token entregue uma unica vez.</summary>
+    public string? Token { get; set; }
+
+    /// <summary>
+    /// Por que o relato esta voltando. Obrigatorio quando o projeto pede.
+    ///
+    /// <para>Existe para quem for pegar o trabalho de novo saber o que faltou, e
+    /// nao para a pessoa ter de justificar o pedido.</para>
+    /// </summary>
+    /// <example>O botão voltou a travar depois da atualização de ontem.</example>
+    public string? Comment { get; set; }
+}
+
+/// <summary>
+/// O time devolve o relato pedindo informacao.
+///
+/// <para><b>O texto diz o que falta, e nao que falta.</b> "Preciso de mais
+/// detalhes" devolve o problema para quem ja nao sabia o que dizer; "em qual
+/// navegador, e o que aparecia na tela" e uma pergunta que da para responder.</para>
+/// </summary>
+public class AskInfoDto
+{
+    /// <summary>
+    /// O que falta, escrito para quem relatou. Vira um comentario publico — a
+    /// conversa acontece pelo proprio relato.
+    /// </summary>
+    /// <example>Em qual navegador isso aconteceu, e o que aparecia na tela?</example>
+    public string? Body { get; set; }
+}
+
+/// <summary>
+/// A resposta de quem relatou ao pedido de informacao.
+///
+/// <para><b>So enquanto ha pedido aberto.</b> Nao e canal livre: sem a pergunta do
+/// outro lado, isto viraria uma caixa de entrada sem dono e sem moderacao — e
+/// moderacao foi deixada de fora desta etapa de proposito.</para>
+/// </summary>
+public class ReplyToReportDto
+{
+    /// <summary>O protocolo, o mesmo do link.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
+
+    /// <summary>O token entregue uma unica vez.</summary>
+    public string? Token { get; set; }
+
+    /// <summary>A resposta.</summary>
+    /// <example>Foi no Chrome do celular, e a tela ficava branca depois de tocar em pagar.</example>
+    public string? Body { get; set; }
+}
+
+/// <summary>
 /// Para onde o relato vai na fila. O relato e o projeto vem da rota.
 /// </summary>
 public class MoveReportDto
@@ -84,4 +196,47 @@ public class MoveReportDto
     /// fundos o que aposentar decidiu.
     /// </summary>
     public Guid? StatePublicId { get; set; }
+
+    /// <summary>
+    /// Qual final foi este, quando o movimento <b>encerra</b> o relato.
+    ///
+    /// <para>Obrigatorio ao cair na ultima coluna ativa, e recusado fora dela: um
+    /// desfecho gravado num movimento que nao encerra nada seria um fim que o
+    /// relato nao teve.</para>
+    /// </summary>
+    /// <example>Done</example>
+    public PublicOutcomeEnum? Outcome { get; set; }
+
+    /// <summary>
+    /// Por que acabou. <b>Obrigatorio quando o movimento encerra</b>, e e o texto
+    /// que quem relatou le na pagina de acompanhamento.
+    ///
+    /// <para>Nao e desencorajado, e impossivel: sem ele o produto reproduz o que
+    /// existe para resolver — a pessoa fica sabendo que acabou, e nao o que
+    /// aconteceu.</para>
+    /// </summary>
+    /// <example>Corrigimos o botão de finalizar compra na versão desta semana.</example>
+    public string? Reason { get; set; }
+}
+
+/// <summary>
+/// O encerramento pedido por um botao, e nao por um movimento.
+///
+/// <para><b>Existe mesmo nos projetos que encerram pela ultima coluna.</b> A
+/// configuracao diz por qual gesto o painel <b>oferece</b> encerrar; ela nao tira
+/// do time o direito de encerrar um relato que ja esta parado na ultima coluna
+/// desde antes de a regra existir.</para>
+/// </summary>
+public class CloseReportDto
+{
+    /// <summary>Qual dos quatro finais foi este. Obrigatorio.</summary>
+    /// <example>Done</example>
+    public PublicOutcomeEnum? Outcome { get; set; }
+
+    /// <summary>
+    /// Por que acabou. Obrigatorio, e e o texto que quem relatou le na pagina de
+    /// acompanhamento.
+    /// </summary>
+    /// <example>Corrigimos o botão de finalizar compra na versão desta semana.</example>
+    public string? Reason { get; set; }
 }

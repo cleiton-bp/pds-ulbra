@@ -37,6 +37,18 @@ export const apiProjectReportService: ProjectReportService = {
       `/projects/${publicId}/reports/${reportPublicId}/state`,
       request,
     ),
+  closeReport: (publicId, reportPublicId, request) =>
+    apiPost<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/closure`,
+      request,
+    ),
+
+  askInfo: (publicId, reportPublicId, request) =>
+    apiPost<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/info-request`,
+      request,
+    ),
+
   listComments: (publicId, reportPublicId) =>
     apiGet<ReportCommentsViewModel>(`/projects/${publicId}/reports/${reportPublicId}/comments`),
 

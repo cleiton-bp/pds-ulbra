@@ -11,6 +11,9 @@ Editadas pelo canvas do [editor](../) (`npm run dev`) ou direto no editor de tex
 | `stage-2.yaml` | etapa 2 — o mesmo da etapa 1, sem alteração, mais domínios autorizados, relato, contexto e evento |
 | `stage-3.yaml` | etapa 3 — os estados do projeto, onde cada tipo de relato entra, os dois comentários em tabelas separadas, e as duas colunas que `reports` e `events` ganham |
 | `stage-4.yaml` | etapa 4 — as etapas públicas que o relator vê, o mapeamento versionado que liga os estados a elas, e as duas colunas que `projects` e `reports` ganham |
+| `stage-5.yaml` | etapa 5 — o encerramento com motivo, a resposta de quem relatou, e as regras do ciclo que cada projeto configura |
+
+**Um arquivo por etapa, e os anteriores não se mexem.** Cada `.yaml` é a modelagem **como ela ficou ao fim daquela etapa**, e não a modelagem de hoje: tabela ou coluna que muda depois entra no arquivo da etapa que mudou, marcada ali, e o arquivo antigo continua contando o que era verdade na época. Reescrever o passado apagaria justamente a informação que a sequência de arquivos existe para guardar.
 
 O `example.yaml` existe para conhecer o editor.
 

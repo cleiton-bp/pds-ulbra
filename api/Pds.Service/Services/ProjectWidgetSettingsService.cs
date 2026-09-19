@@ -23,8 +23,9 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
         var settings = await _unitOfWork.ProjectWidgetSettings.GetByProjectAsync(project.Id, cancellationToken);
+        var ciclo = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
-        return Map(settings);
+        return Map(settings, ciclo);
     }
 
     public async Task<WidgetSettingsViewModel> ReplaceAsync(Guid projectPublicId, WidgetSettingsDto dto, CancellationToken cancellationToken = default)
@@ -53,7 +54,12 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return Map(settings);
+        // As regras do ciclo sao lidas e **nao** sao escritas aqui: o padrao da
+        // caixa e configuracao do ciclo, e esta rota nao manda nele. Ele volta na
+        // resposta so porque quem desenha a ferramenta precisa dele.
+        var ciclo = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        return Map(settings, ciclo);
     }
 
     public async Task<WidgetSettingsViewModel> GetByPublicKeyAsync(string? key, string? origin, CancellationToken cancellationToken = default)
@@ -85,7 +91,13 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         var settings = await _unitOfWork.ProjectWidgetSettings
             .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
 
-        var view = Map(settings);
+        // Sem sessao aqui tambem: a conta atual e zero, e o filtro global devolveria
+        // vazio sem erro nenhum — a caixa apareceria marcada num projeto que a
+        // configurou desmarcada, e nada acusaria.
+        var ciclo = await _unitOfWork.ProjectCycleSettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        var view = Map(settings, ciclo);
 
         // Projeto arquivado nao aceita relato novo: a criacao responde 403. Deixar a
         // ferramenta abrir levaria a pessoa a escrever ate o fim para ser recusada no
@@ -104,7 +116,12 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
     /// precisa saber qual dos dois casos aconteceu — e nao deve: um dia a linha
     /// passa a existir para todo mundo e nada muda para quem consome.
     /// </summary>
-    private static WidgetSettingsViewModel Map(ProjectWidgetSettings? settings) => new(
+    /// <param name="cycle">
+    /// As regras do ciclo, so para o padrao da caixa "aceito responder duvidas".
+    /// <b>Vem de outra tabela de proposito</b>: o valor mora onde a resposta
+    /// significa alguma coisa, e quem precisa dele para desenhar e o quadro.
+    /// </param>
+    private static WidgetSettingsViewModel Map(ProjectWidgetSettings? settings, ProjectCycleSettings? cycle) => new(
         settings?.IsEnabled ?? WidgetSettingsDefaults.IsEnabled,
         settings is null ? WidgetSettingsDefaults.AccentColor : settings.AccentColor,
         settings?.Position ?? WidgetSettingsDefaults.Position,
@@ -114,7 +131,8 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         settings?.Placeholder ?? WidgetSettingsDefaults.Placeholder,
         settings?.SuccessMessage ?? WidgetSettingsDefaults.SuccessMessage,
         settings?.ShowsTypeField ?? WidgetSettingsDefaults.ShowsTypeField,
-        settings?.DefaultReportType ?? WidgetSettingsDefaults.DefaultReportType);
+        settings?.DefaultReportType ?? WidgetSettingsDefaults.DefaultReportType,
+        cycle?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault);
 
     private static T Required<T>(T? value, string message) where T : struct
         => value ?? throw new ArgumentException(message);

@@ -72,4 +72,24 @@ public interface IReportRepository : IBaseRepository<Report>
     /// — e a tela diria que ele veio de onde nao veio.</para>
     /// </summary>
     Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Um relato pelo identificador publico, <b>sem sessao</b>, com o projeto e a
+    /// coluna atual carregados.
+    ///
+    /// <para>Quem chama e o consumidor da fila, que nao tem requisicao nem conta —
+    /// e precisa do projeto para a versao do mapa e da coluna para saber o que
+    /// traduzir.</para>
+    /// </summary>
+    Task<Report?> FindByPublicIdWithoutSessionAsync(Guid publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos cuja espera ja venceu e ninguem aplicou.
+    ///
+    /// <para><b>E a rede embaixo da fila, e nao um substituto dela.</b> Roda na
+    /// subida da aplicacao: o que espera dentro do broker mora no armazenamento
+    /// local do no, sem replicacao, e sem isto perder o no deixaria aqueles relatos
+    /// invisiveis para sempre para quem os escreveu.</para>
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default);
 }

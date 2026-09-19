@@ -1,6 +1,13 @@
 export type { ApiResponse } from '@/contracts/apiResponse'
 export type { AccountViewModel, MeViewModel, SignInViewModel } from '@/contracts/auth'
 export type {
+  ClosureTrigger,
+  CycleSettingsViewModel,
+  SatisfactionStyle,
+  SaveCycleSettingsRequest,
+} from '@/contracts/cycleSettings'
+export { MAX_INFO_REQUEST_DAYS, MAX_PUBLIC_DELAY_MINUTES } from '@/contracts/cycleSettings'
+export type {
   CreateProjectRequest,
   ProjectCreatedViewModel,
   ProjectStatus,
@@ -45,28 +52,42 @@ export type {
   StatusMappingEntryViewModel,
 } from '@/contracts/projectStatusMapping'
 export type {
+  AskInfoRequest,
+  CloseReportRequest,
+  ConfirmReportRequest,
   CreateCommentRequest,
   CreatedReportViewModel,
   CreateReportRequest,
   InternalCommentViewModel,
   MoveReportRequest,
   OpenReportTrackingRequest,
+  PublicClosureActionsViewModel,
+  PublicClosureViewModel,
   PublicCommentViewModel,
+  PublicInfoRequestViewModel,
+  PublicMessageViewModel,
   PublicReportViewModel,
   PublicStageViewModel,
+  ReopenReportRequest,
+  ReplyToReportRequest,
+  ReportClosureViewModel,
   ReportCommentsViewModel,
   ReportContextViewModel,
   ReportDetailViewModel,
   ReportEventType,
   ReportHistoryEntryViewModel,
+  ReportInfoRequestViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
   ReportType,
 } from '@/contracts/report'
 export {
+  MAX_CLOSURE_REASON_LENGTH,
   MAX_COMMENT_LENGTH,
+  MAX_REOPEN_COMMENT_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
   REPORT_EVENT_TYPES,
+  SATISFACTION_SCALE,
   WITHOUT_STATE_FILTER,
 } from '@/contracts/report'
 export type {

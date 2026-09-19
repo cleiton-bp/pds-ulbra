@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.WebApi", "Pds.WebApi\Pd
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.Translation", "Pds.Translation\Pds.Translation.csproj", "{E314157C-C1E6-4002-8E16-75DDC49704E6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.Workers", "Pds.Workers\Pds.Workers.csproj", "{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,18 @@ Global
 		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|x64.Build.0 = Release|Any CPU
 		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|x86.ActiveCfg = Release|Any CPU
 		{E314157C-C1E6-4002-8E16-75DDC49704E6}.Release|x86.Build.0 = Release|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Debug|x64.Build.0 = Debug|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Debug|x86.Build.0 = Debug|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|x64.ActiveCfg = Release|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|x64.Build.0 = Release|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|x86.ActiveCfg = Release|Any CPU
+		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

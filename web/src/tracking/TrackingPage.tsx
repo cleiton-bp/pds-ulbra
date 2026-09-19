@@ -7,6 +7,8 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { reporterTypeLabel } from '@/shared/lib/reportTypes'
 import { readTrackingLink } from '@/shared/lib/tracking'
+import { ClosurePanel } from '@/tracking/ClosurePanel'
+import { ConversationPanel } from '@/tracking/ConversationPanel'
 
 /**
  * A pagina que quem relatou abre pelo link.
@@ -32,7 +34,10 @@ import { readTrackingLink } from '@/shared/lib/tracking'
 
 type Estado =
   | { tipo: 'carregando' }
-  | { tipo: 'aberto'; relato: PublicReportViewModel }
+  // O protocolo e o token viajam junto do relato de proposito: confirmar e reabrir
+  // precisam deles, e reler o endereco de dentro do bloco criaria uma segunda fonte
+  // para a mesma verdade — que passariam a discordar no dia em que a pagina navegar.
+  | { tipo: 'aberto'; relato: PublicReportViewModel; code: string; token: string }
   | { tipo: 'recusado' }
   | { tipo: 'falhou' }
 
@@ -53,7 +58,7 @@ export function TrackingPage() {
 
     try {
       const relato = await reportService.openReportTracking({ TrackingCode: code, Token: token })
-      setEstado({ tipo: 'aberto', relato })
+      setEstado({ tipo: 'aberto', relato, code, token })
     } catch (falha) {
       setEstado({ tipo: isPanelError(falha) && falha.status === 404 ? 'recusado' : 'falhou' })
     }
@@ -66,14 +71,31 @@ export function TrackingPage() {
   return (
     <main className="mx-auto w-full max-w-160 px-5 py-10 lg:py-14">
       {estado.tipo === 'carregando' && <Carregando />}
-      {estado.tipo === 'aberto' && <Relato relato={estado.relato} />}
+      {estado.tipo === 'aberto' && (
+        <Relato
+          relato={estado.relato}
+          code={estado.code}
+          token={estado.token}
+          aoResponder={(novo) => setEstado({ ...estado, relato: novo })}
+        />
+      )}
       {estado.tipo === 'recusado' && <Recusado />}
       {estado.tipo === 'falhou' && <Falhou onRetry={() => void abrir()} />}
     </main>
   )
 }
 
-function Relato({ relato }: { relato: PublicReportViewModel }) {
+function Relato({
+  relato,
+  code,
+  token,
+  aoResponder,
+}: {
+  relato: PublicReportViewModel
+  code: string
+  token: string
+  aoResponder: (relato: PublicReportViewModel) => void
+}) {
   return (
     <>
       <h1 className="mb-1.5 font-semibold text-screen text-fg tracking-tight">Seu relato</h1>
@@ -105,7 +127,20 @@ function Relato({ relato }: { relato: PublicReportViewModel }) {
         </p>
       </section>
 
+      {/* Antes do andamento de propósito: quando há pergunta aberta, ela é a
+          coisa mais acionável da página, e a jornada é contexto. */}
+      <ConversationPanel relato={relato} protocolo={code} token={token} aoResponder={aoResponder} />
+
       <Andamento jornada={relato.Journey} />
+
+      {relato.Closure && (
+        <ClosurePanel
+          fechamento={relato.Closure}
+          protocolo={code}
+          token={token}
+          aoResponder={aoResponder}
+        />
+      )}
 
       <p className="mt-5 px-1 text-caption text-fg-muted leading-relaxed">
         Guarde o link desta página: ele é a única forma de voltar aqui. O protocolo sozinho não abre

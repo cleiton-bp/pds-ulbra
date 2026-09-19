@@ -5,9 +5,47 @@
 # Não há serviço de banco aqui: o PostgreSQL é hospedado, e a conexão vem do
 # Environment/.env.local. Subir um banco local ao lado seria um convite a rodar
 # migração no lugar errado sem perceber.
+#
+# O RabbitMQ é o contrário: ele **não** guarda nada que precise sobreviver ao
+# ambiente de desenvolvimento. O que está agendado vive numa coluna do relato, no
+# banco; a fila só carrega a hora de olhar de novo.
+#
+# Para subir só a fila, sem a API:
+#
+#   docker compose up -d rabbitmq
 name: pds
 
 services:
+  # A fila que sustenta a espera antes de quem relatou ver.
+  #
+  # **Imagem propria, e nao a oficial**: o plugin de mensagem atrasada nao vem no
+  # RabbitMQ base. Ver `rabbitmq/Dockerfile`.
+  #
+  # O volume e o que faz o agendamento sobreviver a um `down`. Sem ele, derrubar o
+  # ambiente apagaria as esperas em curso — e os relatos so voltariam a aparecer na
+  # proxima subida da API, pela recuperacao.
+  rabbitmq:
+    build:
+      context: ./rabbitmq
+    image: pds-rabbitmq:dev
+    container_name: pds-rabbitmq
+    hostname: pds-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:-pds}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASS:-pds}"
+    ports:
+      # 5672 e o protocolo; 15672 e a tela de administracao, para olhar a fila.
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_UI_PORT:-15672}:15672"
+    volumes:
+      - pds-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -21,4 +59,11 @@ services:
       - ./Pds.WebApi/Environment/.env.local:/app/Environment/.env.local:ro
     ports:
       - "${API_PORT:-5080}:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  pds-rabbitmq-data:
+    name: pds-rabbitmq-data

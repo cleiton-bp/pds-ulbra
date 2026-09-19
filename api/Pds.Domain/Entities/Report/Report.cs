@@ -102,6 +102,43 @@ public class Report : PdsBaseEntity
     /// </summary>
     public string? Origin { get; set; }
 
+    /// <summary>
+    /// Quem relatou aceita responder duvidas da equipe sobre este relato.
+    ///
+    /// <para><b>E escolha dela, e nao configuracao do projeto.</b> Quem relatou um
+    /// defeito as pressas pode nao querer virar parte da investigacao, e prometer
+    /// resposta a quem nao vai responder deixa o relato pendurado esperando. O
+    /// projeto so escolhe como a caixa vem marcada; a resposta e de quem
+    /// escreve.</para>
+    ///
+    /// <para><b>Anulavel, e nulo e um terceiro estado</b>: o relato que entrou antes
+    /// de a pergunta existir, a quem ninguem perguntou nada. Grava-lo como "nao
+    /// aceita" poria na boca da pessoa uma resposta que ela nunca deu — e o painel
+    /// diria isso a quem for ler. Na pratica o efeito e o mesmo do "nao": sem um
+    /// sim, nao se abre pedido de informacao.</para>
+    /// </summary>
+    public bool? AcceptsQuestions { get; set; }
+
+    /// <summary>
+    /// Quando a ultima mudanca de etapa publica passa a valer para quem relatou.
+    ///
+    /// <para><b>E o agendamento, e nao um aviso.</b> Preenchida, quer dizer que o
+    /// time moveu o relato e o lado de fora ainda nao sabe — a janela em que um
+    /// movimento errado pode ser desfeito sem ninguem ver. Nula e o estado normal:
+    /// ou nao ha espera configurada, ou ela ja venceu e foi aplicada.</para>
+    ///
+    /// <para><b>E ela que sobrevive, e nao a mensagem.</b> A fila avisa o momento de
+    /// olhar; esta coluna e o que diz o que estava agendado. Mensagem perdida deixa
+    /// a linha aqui, e a subida da aplicacao a reencontra — o contrario nao seria
+    /// verdade, porque o que espera dentro do broker mora no armazenamento local do
+    /// no, sem replicacao.</para>
+    ///
+    /// <para><b>Reescrever adia.</b> Mover de novo dentro da janela troca esta data,
+    /// e a mensagem antiga, ao chegar, encontra um vencimento no futuro e se
+    /// descarta sozinha. E assim que o desfazer funciona sem cancelar nada.</para>
+    /// </summary>
+    public DateTime? PublicStageDueAt { get; set; }
+
     /// <summary>O que veio junto com o relato, em pares de chave e valor.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ReportContext> Contexts { get; set; } = [];

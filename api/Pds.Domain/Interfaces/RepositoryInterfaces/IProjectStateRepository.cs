@@ -36,4 +36,18 @@ public interface IProjectStateRepository : IBaseRepository<ProjectState>
     /// recusado.</para>
     /// </summary>
     Task<ProjectState?> FirstActiveWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O ultimo estado ativo da fila. E ele que <b>encerra o relato</b> quando o
+    /// projeto encerra ao cair na ultima coluna.
+    ///
+    /// <para><b>Aposentado nao conta, e e por isso que esta pergunta existe em vez
+    /// de "o de maior posicao".</b> Aposentar a ultima coluna moveria o fim da fila
+    /// para a anterior, e ler a posicao crua faria o encerramento continuar preso a
+    /// uma coluna que ninguem usa mais.</para>
+    ///
+    /// <para>Nulo quando o projeto nao tem estado ativo nenhum — e ai nao ha coluna
+    /// que encerre, o que e o estado de todo projeto recem-criado.</para>
+    /// </summary>
+    Task<ProjectState?> LastActiveAsync(long projectId, CancellationToken cancellationToken = default);
 }

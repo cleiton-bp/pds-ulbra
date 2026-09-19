@@ -21,12 +21,24 @@ public record InternalCommentViewModel(
 /// descuido — e a rota publica que vier depois so tem como alcancar este.</para>
 /// </summary>
 /// <param name="PublicId">Identificador do comentario.</param>
-/// <param name="AuthorName">Quem escreveu, do lado de dentro. A camada publica nao mostra este nome.</param>
+/// <param name="FromReporter">
+/// A fala e de <b>quem relatou</b>, respondendo a equipe.
+///
+/// <para><b>Campo proprio, e nao "nome vazio".</b> Nome nulo tambem acontece quando
+/// a conta do autor interno foi esvaziada, e os dois casos sao opostos — um e a
+/// pessoa de fora falando, o outro e alguem de dentro cujo nome se perdeu. Tratar
+/// os dois pelo mesmo sinal poria palavra de um na boca do outro.</para>
+/// </param>
+/// <param name="AuthorName">
+/// Quem escreveu, do lado de dentro. Nulo quando a fala e de quem relatou — que nao
+/// tem usuario aqui — ou quando a conta do autor foi esvaziada.
+/// </param>
 /// <param name="Body">O texto.</param>
 /// <param name="CreatedAt">Quando foi escrito, em UTC.</param>
 public record PublicCommentViewModel(
     Guid PublicId,
-    string AuthorName,
+    bool FromReporter,
+    string? AuthorName,
     string Body,
     DateTime CreatedAt);
 

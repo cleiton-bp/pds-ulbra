@@ -19,6 +19,7 @@ public static class SwaggerTags
     public const string ProjectStates = "Estados do projeto";
     public const string ProjectPublicStages = "Etapas públicas";
     public const string ProjectStatusMappings = "Mapeamento de estados";
+    public const string CycleSettings = "Regras do ciclo";
     public const string Reports = "Relatos";
     public const string ReportComments = "Comentários do relato";
     public const string PublicReports = "Relatos (público)";

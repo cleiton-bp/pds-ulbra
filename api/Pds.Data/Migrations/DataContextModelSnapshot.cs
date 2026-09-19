@@ -251,6 +251,138 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectCycleSettings", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AcceptsQuestionsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accepts_questions_default")
+                        .HasComment("Como a opcao de aceitar duvidas vem marcada no formulario. A escolha final e de quem relata, nao do projeto.");
+
+                    b.Property<bool>("AllowsReopen")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allows_reopen")
+                        .HasComment("Se quem relatou pode reabrir.");
+
+                    b.Property<string>("ClosureTrigger")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("closure_trigger")
+                        .HasComment("last_column | button — se o relato encerra ao cair na ultima coluna ativa ou por um botao proprio.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<int>("InfoRequestCloseDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("info_request_close_days")
+                        .HasComment("Dias depois do aviso ate encerrar como sem retorno. Encerrado assim continua reabrivel.");
+
+                    b.Property<bool>("InfoRequestEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("info_request_enabled")
+                        .HasComment("Se o time pode devolver o relato pedindo informacao em vez de encerrar.");
+
+                    b.Property<int>("InfoRequestWarnDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("info_request_warn_days")
+                        .HasComment("Dias sem resposta ate avisar quem relatou de que o relato vai encerrar.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono da configuracao. Unico entre os nao apagados, e e o que faz o 1:1.");
+
+                    b.Property<int>("PublicDelayMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("public_delay_minutes")
+                        .HasComment("Quanto o lado publico espera antes de mudar. Zero e o comportamento anterior a esta etapa; acima de zero e a janela para desfazer um movimento errado.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<bool>("ReopenRequiresComment")
+                        .HasColumnType("boolean")
+                        .HasColumnName("reopen_requires_comment")
+                        .HasComment("Se reabrir exige dizer por que. O motivo e para quem vai pegar o relato de volta.");
+
+                    b.Property<long?>("ReopenStateId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reopen_state_id")
+                        .HasComment("Para qual coluna interna o relato volta ao ser reaberto. Nula usa a primeira ativa.");
+
+                    b.Property<bool>("SatisfactionEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("satisfaction_enabled")
+                        .HasComment("Se a nota e pedida ao confirmar.");
+
+                    b.Property<bool>("SatisfactionRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("satisfaction_required")
+                        .HasComment("Se confirmar exige responder. Mesmo exigindo, 'prefiro nao responder' continua existindo, fora da escala.");
+
+                    b.Property<string>("SatisfactionStyle")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("satisfaction_style")
+                        .HasComment("stars | number — como a escala de 1 a 5 aparece. Muda o desenho, e nao o dado: os dois guardam o mesmo inteiro.");
+
+                    b.Property<bool>("TrackingCodeCanAct")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tracking_code_can_act")
+                        .HasComment("Se o protocolo sozinho confirma e reabre, ou se as duas acoes exigem o link. Ler e inofensivo; reabrir mexe na fila do time.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_cycle_settings");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_cycle_settings_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_cycle_settings_project_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_cycle_settings_public_id");
+
+                    b.HasIndex("ReopenStateId")
+                        .HasDatabaseName("ix_project_cycle_settings_reopen_state_id");
+
+                    b.ToTable("project_cycle_settings", null, t =>
+                        {
+                            t.HasComment("Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se da para reabrir e como, e o que a pessoa responde no fim. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada.");
+
+                            t.HasCheckConstraint("ck_project_cycle_settings_info_request_days", "info_request_warn_days >= 1 AND info_request_warn_days <= 365 AND info_request_close_days >= 1 AND info_request_close_days <= 365");
+
+                            t.HasCheckConstraint("ck_project_cycle_settings_public_delay", "public_delay_minutes >= 0 AND public_delay_minutes <= 10080");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectInitialState", b =>
                 {
                     b.Property<long>("Id")
@@ -889,6 +1021,11 @@ namespace Pds.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<bool?>("AcceptsQuestions")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accepts_questions")
+                        .HasComment("Quem relatou aceita responder duvidas da equipe. Escolha dela, nao do projeto. Nulo e o relato que entrou antes de a pergunta existir: ninguem perguntou, e ninguem respondeu.");
+
                     b.Property<string>("AccessTokenHash")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -936,6 +1073,11 @@ namespace Pds.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime?>("PublicStageDueAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("public_stage_due_at")
+                        .HasComment("Quando a ultima mudanca de etapa publica passa a valer para quem relatou. Preenchida e a janela para desfazer; nula e o estado normal. E ela que sobrevive, e nao a mensagem na fila.");
 
                     b.Property<string>("Route")
                         .HasMaxLength(500)
@@ -988,6 +1130,10 @@ namespace Pds.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_reports_public_id");
 
+                    b.HasIndex("PublicStageDueAt")
+                        .HasDatabaseName("ix_reports_public_stage_due_at")
+                        .HasFilter("public_stage_due_at IS NOT NULL");
+
                     b.HasIndex("TrackingCode")
                         .IsUnique()
                         .HasDatabaseName("ux_reports_tracking_code");
@@ -1001,6 +1147,122 @@ namespace Pds.Data.Migrations
                     b.ToTable("reports", null, t =>
                         {
                             t.HasComment("O que a pessoa de fora escreveu. Primeira tabela do sistema que nasce sem conta e sem sessao, e por isso carrega o proprio account_id, o protocolo que a pessoa le e o hash do token que abre o acompanhamento.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ReportClosure", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("ClosedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("closed_at")
+                        .HasComment("Quando encerrou, em UTC. Separado de created_at porque encerramento agendado e gravado quando a fila o consome.");
+
+                    b.Property<long?>("ClosedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("closed_by_user_id")
+                        .HasComment("Quem do time encerrou. Nulo quer dizer que foi o sistema, no fim do prazo do pedido de informacao.");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("confirmed_at")
+                        .HasComment("Quando quem relatou confirmou que resolveu. Nulo enquanto nao respondeu.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("outcome")
+                        .HasComment("done | wont_do | no_answer | duplicate. Guardado aqui e nao lido da etapa publica: a jornada e configuracao e pode ser reescrita, o desfecho deste relato nao.");
+
+                    b.Property<DateTime>("PublicAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("public_at")
+                        .HasComment("Quando este fechamento passa a valer para quem relatou. Igual a closed_at quando nao ha espera configurada; adiante dele durante a janela de desfazer. O painel nao le esta coluna: por dentro o relato esta encerrado desde closed_at.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason")
+                        .HasComment("Por que acabou, escrito por quem encerrou. Obrigatorio: sem ele a pessoa fica sabendo que acabou e nao o que aconteceu.");
+
+                    b.Property<string>("ReopenComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reopen_comment")
+                        .HasComment("Por que reabriu, quando o projeto pede o comentario. E para quem for pegar o trabalho de novo, e nao para justificar o pedido.");
+
+                    b.Property<DateTime?>("ReopenedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("reopened_at")
+                        .HasComment("Quando quem relatou reabriu. Preenchido, esta linha deixou de ser o fim do relato.");
+
+                    b.Property<long>("ReportId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("report_id")
+                        .HasComment("Relato encerrado.");
+
+                    b.Property<int?>("Satisfaction")
+                        .HasColumnType("integer")
+                        .HasColumnName("satisfaction")
+                        .HasComment("Nota de 1 a 5 dada na confirmacao. Nula quando nao houve resposta, e nula tambem quando houve recusa — que e outra coisa, e mora na coluna ao lado.");
+
+                    b.Property<bool>("SatisfactionDeclined")
+                        .HasColumnType("boolean")
+                        .HasColumnName("satisfaction_declined")
+                        .HasComment("A pessoa clicou em 'prefiro nao responder'. Fora da escala de proposito: dentro dela viraria a nota mais baixa e a media contaria recusa como insatisfacao.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_closures");
+
+                    b.HasIndex("ClosedByUserId")
+                        .HasDatabaseName("ix_report_closures_closed_by_user_id");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_report_closures_deleted_at");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_report_closures_public_id");
+
+                    b.HasIndex("ReportId", "ClosedAt")
+                        .HasDatabaseName("ix_report_closures_report_id_closed_at");
+
+                    b.ToTable("report_closures", null, t =>
+                        {
+                            t.HasComment("O fim de um relato, com o motivo, e a resposta de quem o escreveu. Tabela propria e nao comentario: acontece uma vez por fechamento, carrega um desfecho e espera resposta. Uma linha por fechamento — relato reaberto e fechado de novo ganha linha nova, e as duas ficam.");
+
+                            t.HasCheckConstraint("ck_report_closures_satisfaction_range", "satisfaction IS NULL OR (satisfaction >= 1 AND satisfaction <= 5)");
+
+                            t.HasCheckConstraint("ck_report_closures_satisfaction_xor_declined", "NOT (satisfaction IS NOT NULL AND satisfaction_declined)");
                         });
                 });
 
@@ -1070,6 +1332,101 @@ namespace Pds.Data.Migrations
                     b.ToTable("report_contexts", null, t =>
                         {
                             t.HasComment("O que veio junto com o relato sem ninguem digitar. Tabela separada em vez de colunas em reports porque o que se vai querer saber amanha ainda nao esta decidido hoje.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ReportInfoRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AnsweredAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("answered_at")
+                        .HasComment("Quando quem relatou respondeu. Preenchido, o prazo nao vale mais.");
+
+                    b.Property<DateTime>("AskedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("asked_at")
+                        .HasComment("Quando o pedido foi aberto, em UTC.");
+
+                    b.Property<long>("AskedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("asked_by_user_id")
+                        .HasComment("Quem do time pediu. Obrigatorio, ao contrario do encerramento: o sistema encerra sozinho no fim do prazo, mas nunca pergunta nada.");
+
+                    b.Property<DateTime>("CloseAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("close_at")
+                        .HasComment("Quando o relato encerra como sem retorno, se ninguem responder. E este o momento agendado na fila.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<DateTime?>("ExpiredAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("expired_at")
+                        .HasComment("Quando o prazo venceu e o relato foi encerrado sem resposta.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<long>("ReportId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("report_id")
+                        .HasComment("Relato devolvido.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.Property<DateTime>("WarnAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("warn_at")
+                        .HasComment("A partir de quando a pagina avisa que o relato vai encerrar. Gravado aqui e nao lido da configuracao: mudar o prazo do projeto nao pode mover o prazo de um pedido em curso.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_info_requests");
+
+                    b.HasIndex("AskedByUserId")
+                        .HasDatabaseName("ix_report_info_requests_asked_by_user_id");
+
+                    b.HasIndex("CloseAt")
+                        .HasDatabaseName("ix_report_info_requests_close_at")
+                        .HasFilter("answered_at IS NULL AND expired_at IS NULL AND deleted_at IS NULL");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_report_info_requests_deleted_at");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_report_info_requests_public_id");
+
+                    b.HasIndex("ReportId", "AskedAt")
+                        .HasDatabaseName("ix_report_info_requests_report_id_asked_at");
+
+                    b.ToTable("report_info_requests", null, t =>
+                        {
+                            t.HasComment("Quando o time devolve o relato pedindo contexto, em vez de encerrar. 'Nao reproduzi' e 'nao vamos fazer' chegando iguais ao relator fazem ele entender que acabou e parar de responder. A pergunta em si mora num comentario publico; esta linha guarda o relogio.");
+
+                            t.HasCheckConstraint("ck_report_info_requests_answered_xor_expired", "NOT (answered_at IS NOT NULL AND expired_at IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_report_info_requests_deadlines", "warn_at <= close_at AND asked_at <= warn_at");
                         });
                 });
 
@@ -1184,10 +1541,10 @@ namespace Pds.Data.Migrations
                         .HasColumnName("updated_at")
                         .HasComment("Ultima alteracao, em UTC.");
 
-                    b.Property<long>("UserId")
+                    b.Property<long?>("UserId")
                         .HasColumnType("bigint")
                         .HasColumnName("user_id")
-                        .HasComment("Quem escreveu, do lado de dentro. A camada publica nao mostra o nome, mas quem respondeu e pergunta interna.");
+                        .HasComment("Quem escreveu, do lado de dentro. Nulo quer dizer que foi quem relatou: e o que faz desta tabela a conversa dos dois lados.");
 
                     b.HasKey("Id")
                         .HasName("pk_report_public_comments");
@@ -1347,6 +1704,26 @@ namespace Pds.Data.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectCycleSettings", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_cycle_settings_projects_project_id");
+
+                    b.HasOne("Pds.Domain.Entities.ProjectState", "ReopenState")
+                        .WithMany()
+                        .HasForeignKey("ReopenStateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_cycle_settings_project_states_reopen_state_id");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("ReopenState");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectInitialState", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
@@ -1495,6 +1872,26 @@ namespace Pds.Data.Migrations
                     b.Navigation("ProjectState");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ReportClosure", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.User", "ClosedByUser")
+                        .WithMany()
+                        .HasForeignKey("ClosedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_report_closures_users_closed_by_user_id");
+
+                    b.HasOne("Pds.Domain.Entities.Report", "Report")
+                        .WithMany()
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_closures_reports_report_id");
+
+                    b.Navigation("ClosedByUser");
+
+                    b.Navigation("Report");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ReportContext", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Report", "Report")
@@ -1503,6 +1900,27 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_report_contexts_reports_report_id");
+
+                    b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ReportInfoRequest", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.User", "AskedByUser")
+                        .WithMany()
+                        .HasForeignKey("AskedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_info_requests_users_asked_by_user_id");
+
+                    b.HasOne("Pds.Domain.Entities.Report", "Report")
+                        .WithMany()
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_info_requests_reports_report_id");
+
+                    b.Navigation("AskedByUser");
 
                     b.Navigation("Report");
                 });
@@ -1541,7 +1959,6 @@ namespace Pds.Data.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_report_public_comments_users_user_id");
 
                     b.Navigation("Report");

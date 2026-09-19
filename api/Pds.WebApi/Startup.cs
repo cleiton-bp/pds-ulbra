@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using Pds.Domain.Constants;
 using Pds.Shared.DependencyInjection;
+using Pds.Workers;
 using Pds.Shared.Json;
 using Pds.WebApi.Authorization;
 using Pds.WebApi.Controllers;
@@ -91,6 +92,13 @@ public class Startup
         });
 
         services.RegisterDependencies();
+
+        // A fila, **se** houver fila. Sem RABBITMQ_URL a aplicacao sobe inteira e
+        // so a espera antes de quem relatou ver fica indisponivel — a configuracao
+        // do ciclo recusa liga-la, dizendo por que. Fica fora do `RegisterDependencies`
+        // de proposito: quem hospeda o consumidor e este processo, e nao a camada
+        // de registro compartilhada.
+        services.AddPdsWorkers();
 
         // Limite por IP no login. O controle de verdade e o Google validar o token;
         // isto so evita que alguem fique martelando a rota.

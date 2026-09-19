@@ -67,4 +67,93 @@ public enum EventTypeEnum
     /// deixaria rastro nenhum.</para>
     /// </summary>
     ReportPublicStageUnmapped,
+
+    /// <summary>
+    /// O time encerrou o relato, dizendo por que.
+    ///
+    /// <para><b>O motivo nao vem junto</b>, pela mesma razao que o texto do
+    /// comentario nao vem: evento so cresce e nunca e apagado, e copiar para ca um
+    /// texto que quem relatou vai ler criaria uma segunda copia dele numa tabela
+    /// que nao se consegue limpar. O evento guarda o <b>desfecho</b>, que e o que a
+    /// contagem precisa; o resto mora no fechamento.</para>
+    ///
+    /// <para><b>E separado de <see cref="ReportPublicStageChanged"/> de proposito.</b>
+    /// Cair na ultima coluna move a jornada e encerra o relato no mesmo instante, e
+    /// sao duas coisas diferentes: a primeira acontece sem a segunda quando o
+    /// projeto encerra por botao, e a segunda acontece sem a primeira quando o
+    /// estado nao esta mapeado. Um evento so faria a pesquisa ter de adivinhar qual
+    /// dos dois cada linha conta.</para>
+    /// </summary>
+    ReportClosed,
+
+    /// <summary>
+    /// Quem relatou disse que resolveu.
+    ///
+    /// <para><b>E o evento que da sentido a etapa inteira.</b> "Concluido" e o time
+    /// dizendo que acabou; este e a pessoa do outro lado dizendo que chegou. Sem o
+    /// segundo, o produto vira o que o proprio README denuncia — um sistema que
+    /// avisa que fechou o chamado.</para>
+    ///
+    /// <para>A nota vai no payload porque e um numero, e numero em tabela que so
+    /// cresce e exatamente o que a contagem quer ler. <b>A recusa vai junto e
+    /// separada</b>: "prefiro nao responder" nao e nota zero, e juntar os dois daria
+    /// uma media que parece precisa e nao e.</para>
+    /// </summary>
+    ReportConfirmed,
+
+    /// <summary>
+    /// Quem relatou disse que nao resolveu, e o relato voltou para a fila.
+    ///
+    /// <para><b>Nao e regressao, e e por isso que existe separado de
+    /// <see cref="ReportPublicStageChanged"/>.</b> A jornada anda para tras aqui
+    /// porque a pessoa pediu, e nao porque o time se atrapalhou internamente — sao
+    /// dois fatos diferentes, e junta-los faria a pesquisa contar como vaivem do
+    /// time o que foi resposta de quem esperava.</para>
+    ///
+    /// <para>O comentario <b>nao</b> vem junto, pela mesma razao que o texto do
+    /// comentario nao vem: e texto escrito por uma pessoa, e esta tabela nao se
+    /// consegue limpar. Ele mora no fechamento reaberto.</para>
+    /// </summary>
+    ReportReopened,
+
+    /// <summary>
+    /// O time devolveu o relato pedindo informacao, em vez de encerrar.
+    ///
+    /// <para><b>E o evento que separa dois fatos que chegavam iguais.</b> "Nao
+    /// reproduzi" e "nao vamos fazer" sao decisoes opostas, e sem tipo proprio a
+    /// contagem nao teria como distinguir o relato que parou esperando resposta do
+    /// que foi recusado — que e metade da pergunta sobre relato morrer por
+    /// ruido.</para>
+    ///
+    /// <para>O texto do pedido <b>nao</b> vem junto: ele e um comentario publico, e
+    /// esta tabela nao se consegue limpar. Vai o prazo, que e o que a contagem
+    /// quer.</para>
+    /// </summary>
+    ReportInfoRequested,
+
+    /// <summary>
+    /// Quem relatou respondeu ao pedido de informacao.
+    ///
+    /// <para><b>E separado de <see cref="ReportPublicCommented"/> de proposito</b>,
+    /// ainda que os dois gravem na mesma tabela de comentarios. A origem ja diria
+    /// quem escreveu, mas o historico do painel le o <b>tipo</b> — e "comentario
+    /// para quem relatou" sobre uma resposta de quem relatou e uma linha que diz o
+    /// contrario do que aconteceu.</para>
+    /// </summary>
+    ReportReplied,
+
+    /// <summary>
+    /// Um encerramento deixou de valer porque o relato saiu da coluna que encerra.
+    ///
+    /// <para><b>Nao e reabertura.</b> Reabrir e a pessoa de fora dizendo que o
+    /// problema continua; isto e o time corrigindo o proprio engano, antes ou
+    /// depois de ela ver. Chamar os dois pelo mesmo nome faria a contagem de
+    /// "quantas vezes o relator discordou" incluir movimentos que o relator nunca
+    /// soube que aconteceram.</para>
+    ///
+    /// <para>O payload diz se o fechamento <b>chegou a ser publico</b>: dentro da
+    /// janela de espera ninguem viu, e ai o engano se corrigiu sem custo nenhum
+    /// para quem esta de fora. E essa diferenca que mede se a janela serve.</para>
+    /// </summary>
+    ReportClosureCancelled,
 }

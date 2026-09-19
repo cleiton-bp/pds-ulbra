@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AccountShell } from '@/app/AccountShell'
 import { ProjectShell } from '@/app/ProjectShell'
 import { RequireSession } from '@/app/RequireSession'
+import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
 import { StartScreen } from '@/features/onboarding/StartScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
           { path: 'keys', element: <ProjectKeysScreen /> },
           { path: 'states', element: <ProjectStatesScreen /> },
           { path: 'public-stages', element: <PublicStagesScreen /> },
+          { path: 'cycle', element: <CycleSettingsScreen /> },
           { path: 'settings', element: <ProjectSettingsScreen /> },
           {
             // O relato aberto e filho da lista: a lista continua montada atras,

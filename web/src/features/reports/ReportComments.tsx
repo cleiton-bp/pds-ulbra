@@ -4,6 +4,7 @@ import { describeError, projectReportService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import { cn } from '@/shared/lib/cn'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
 
 /**
@@ -107,9 +108,14 @@ export function ReportComments({
 
 interface Comentario {
   PublicId: string
-  AuthorName: string
+  AuthorName: string | null
   Body: string
   CreatedAt: string
+  /**
+   * So o comentario publico tem este campo, e so ele pode ser verdadeiro: quem
+   * relatou nao escreve no interno, e nunca vai escrever.
+   */
+  FromReporter?: boolean
 }
 
 /**
@@ -170,7 +176,15 @@ function Caixa({
           {comentarios.map((comentario) => (
             <li key={comentario.PublicId}>
               <div className="mb-0.5 flex items-baseline gap-2 text-caption text-fg-muted">
-                <span className="font-medium">{comentario.AuthorName || 'Alguém do time'}</span>
+                {/* **Três casos, e não dois.** Quem relatou é a pessoa de fora
+                    respondendo; nome vazio é alguém do time cuja conta foi
+                    esvaziada. Mostrar os dois igual poria palavra de um na boca
+                    do outro — e aqui a diferença decide quem responde a quem. */}
+                <span className={cn('font-medium', comentario.FromReporter && 'text-fg')}>
+                  {comentario.FromReporter
+                    ? 'Quem relatou'
+                    : comentario.AuthorName || 'Alguém do time'}
+                </span>
                 <time dateTime={comentario.CreatedAt} title={formatDateTime(comentario.CreatedAt)}>
                   {formatRelative(comentario.CreatedAt)}
                 </time>

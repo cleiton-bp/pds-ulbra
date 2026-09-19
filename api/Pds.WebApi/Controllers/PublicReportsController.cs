@@ -46,6 +46,15 @@ public class PublicReportsController : BaseController
     /// O que vier depois do `?` ou do `#` na rota é descartado antes de gravar: é
     /// ali que costumam viajar token, documento e e-mail.
     ///
+    /// **`AcceptsQuestions` é escolha de quem escreve, e não do projeto.** Quem
+    /// relatou um defeito às pressas pode não querer virar parte da investigação, e
+    /// prometer resposta a quem não vai responder deixa o relato pendurado
+    /// esperando. O projeto só escolhe como a caixa vem marcada no formulário.
+    ///
+    /// **Campo ausente não é "não".** Sem ele vale o padrão que o projeto
+    /// configurou — silenciar o relato porque uma versão antiga da ferramenta não
+    /// mandou o campo seria punir quem escreveu por um descompasso que não é dele.
+    ///
     /// **A origem é conferida contra a lista do projeto, e continua não sendo
     /// prova.** A ferramenta abre num quadro do nosso domínio, então o endereço que
     /// chega aqui é informado pela própria página hospedeira — e quem informa é o
@@ -127,6 +136,143 @@ public class PublicReportsController : BaseController
             Response.Headers.CacheControl = "no-store";
 
             return Success(report);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Quem relatou diz que resolveu.</summary>
+    /// <remarks>
+    /// **É a metade que faltava da metáfora.** "Concluído" é o time dizendo que
+    /// acabou; isto é a pessoa do outro lado dizendo que chegou. Sem os dois, o
+    /// produto vira um sistema que avisa que fechou o chamado.
+    ///
+    /// **A nota tem três estados, e não dois**: respondeu de 1 a 5, recusou
+    /// (`SatisfactionDeclined`), ou não respondeu nada. A separação é o que faz a
+    /// contagem não mentir — recusar opinar não é insatisfação, e somar os dois
+    /// daria uma média que parece precisa e não é.
+    ///
+    /// **"Prefiro não responder" existe mesmo quando a nota é obrigatória**, e fica
+    /// fora da escala: não é o zero nem a sexta estrela. Sem a saída, a obrigação
+    /// vira clique sem pensar e a média passa a medir o clique.
+    ///
+    /// Projeto que não pede nota **descarta** o que vier, em vez de recusar: quem
+    /// manda é a nossa própria página, e perder a confirmação por causa de um campo
+    /// que a pessoa não escolheu mandar seria punir ela por um erro nosso.
+    ///
+    /// As duas credenciais são as mesmas da consulta, com a mesma recusa única.
+    /// </remarks>
+    /// <param name="dto">Protocolo, token e a resposta sobre a nota.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, agora confirmado.</response>
+    /// <response code="400">Nota fora de 1 a 5, nota e recusa juntas, ou nota obrigatória sem resposta.</response>
+    /// <response code="404">Link incompleto, protocolo desconhecido, ou token que não é deste relato.</response>
+    /// <response code="409">O relato não está encerrado, ou você já respondeu sobre ele.</response>
+    [HttpPost("confirm")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicReportViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Confirm([FromBody] ConfirmReportDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.ConfirmAsync(dto, cancellationToken);
+            return Success(report, "Obrigado pela resposta.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Quem relatou diz que não resolveu, e o relato volta para a fila.</summary>
+    /// <remarks>
+    /// **Reabrir não é regredir**, e por isso a jornada pública anda para trás aqui
+    /// sem passar pela marca "permite retorno". Aquela regra existe para o vaivém
+    /// interno do time não sacudir a linha do tempo de quem espera; aqui quem pediu
+    /// o retorno foi a própria pessoa. Segurar a jornada deixaria a página dela
+    /// mostrando "Concluído" depois de ela mesma dizer que não concluiu.
+    ///
+    /// O relato volta para a coluna que o projeto configurou — ou para a primeira
+    /// ativa, quando aquela foi aposentada depois. Mandá-lo para uma coluna que
+    /// ninguém olha seria perdê-lo de novo, que é o que a reabertura existe para
+    /// evitar.
+    ///
+    /// **Não leva nota.** Quem reabre está dizendo que o trabalho não acabou, e
+    /// avaliar serviço inacabado mede outra coisa. A nota volta a ser pedida quando
+    /// o relato for encerrado de novo.
+    ///
+    /// **Depois de confirmar não dá mais para reabrir**: quem confirmou fechou a
+    /// conversa, e o problema que volta depois disso é outro relato.
+    ///
+    /// Grava **dois** eventos, e os dois são verdade: a pessoa reabriu, e o relato
+    /// mudou de coluna. A origem `PublicPage` é o que diz que não foi o time.
+    /// </remarks>
+    /// <param name="dto">Protocolo, token e o motivo de estar voltando.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, de volta à fila.</response>
+    /// <response code="400">Comentário exigido e em branco, ou longo demais.</response>
+    /// <response code="403">Este projeto não aceita reabrir.</response>
+    /// <response code="404">Link incompleto, protocolo desconhecido, ou token que não é deste relato.</response>
+    /// <response code="409">O relato não está encerrado, ou você já confirmou que foi resolvido.</response>
+    [HttpPost("reopen")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicReportViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reopen([FromBody] ReopenReportDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.ReopenAsync(dto, cancellationToken);
+            return Success(report, "O relato voltou para a equipe.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Quem relatou responde a pergunta da equipe.</summary>
+    /// <remarks>
+    /// **Só enquanto há pedido aberto.** Sem a pergunta do outro lado, esta rota
+    /// viraria uma caixa de entrada sem dono e sem moderação — e moderação ficou de
+    /// fora desta etapa de propósito. Relato sem pedido aberto recebe 409.
+    ///
+    /// A resposta entra na **mesma tabela** do que a equipe escreve, com o autor
+    /// nulo: é o que faz a conversa ser uma lista só, em ordem, e é o que "a
+    /// conversa acontece pelo próprio relato" significa na prática.
+    ///
+    /// **A vez volta para a equipe**, e o prazo para de correr. A mensagem que ia
+    /// encerrar o relato não é cancelada — ao chegar, ela não encontra pedido
+    /// aberto e se descarta, pela mesma propriedade da espera.
+    ///
+    /// As duas credenciais são as mesmas da consulta, com a mesma recusa única.
+    /// </remarks>
+    /// <param name="dto">Protocolo, token e a resposta.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, com a resposta na conversa.</response>
+    /// <response code="400">Resposta em branco ou longa demais.</response>
+    /// <response code="404">Link incompleto, protocolo desconhecido, ou token que não é deste relato.</response>
+    /// <response code="409">Não há nenhuma pergunta aberta neste relato.</response>
+    [HttpPost("reply")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicReportViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reply([FromBody] ReplyToReportDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.ReplyAsync(dto, cancellationToken);
+            return Success(report, "Resposta enviada.");
         }
         catch (Exception exception)
         {

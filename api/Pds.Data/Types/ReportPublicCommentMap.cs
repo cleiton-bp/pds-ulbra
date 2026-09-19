@@ -22,8 +22,7 @@ public class ReportPublicCommentMap : BaseEntityConfiguration<ReportPublicCommen
 
         builder.Property(comment => comment.UserId)
             .HasColumnName("user_id")
-            .IsRequired()
-            .HasComment("Quem escreveu, do lado de dentro. A camada publica nao mostra o nome, mas quem respondeu e pergunta interna.");
+            .HasComment("Quem escreveu, do lado de dentro. Nulo quer dizer que foi quem relatou: e o que faz desta tabela a conversa dos dois lados.");
 
         builder.Property(comment => comment.Body)
             .HasColumnName("body")

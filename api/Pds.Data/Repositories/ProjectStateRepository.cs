@@ -47,6 +47,16 @@ public class ProjectStateRepository : BaseRepository<ProjectState, DataContext>,
             .ThenBy(state => state.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<ProjectState?> LastActiveAsync(long projectId, CancellationToken cancellationToken = default)
+        // O espelho da busca do primeiro ativo, com o desempate invertido junto: se
+        // o `ThenBy` continuasse crescente, duas colunas na mesma posicao dariam
+        // respostas diferentes para "a primeira" e "a ultima" no mesmo empate.
+        => Context.ProjectStates
+            .Where(state => state.ProjectId == projectId && state.DeactivatedAt == null)
+            .OrderByDescending(state => state.Position)
+            .ThenByDescending(state => state.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<int?> LastPositionAsync(long projectId, CancellationToken cancellationToken = default)
         // MaxAsync direto quebraria na fila vazia, que e justamente o estado de
         // todo projeto ate alguem criar o primeiro.
