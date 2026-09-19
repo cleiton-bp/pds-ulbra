@@ -24,6 +24,19 @@ namespace Pds.Domain.ViewModels;
 /// <param name="SuccessMessage">A frase acima do protocolo, na confirmacao.</param>
 /// <param name="ShowsTypeField">Mostra ou esconde o seletor de tipo.</param>
 /// <param name="DefaultReportType">O tipo pre-marcado, e o gravado quando o seletor nao aparece.</param>
+/// <param name="AcceptsQuestionsDefault">
+/// Como a caixa "aceito responder duvidas" vem marcada no formulario.
+///
+/// <para><b>Vem de outra tabela, e isso e deliberado.</b> O valor mora nas regras
+/// do ciclo, porque e la que a resposta significa alguma coisa — e quem precisa
+/// dele para <b>desenhar</b> e a ferramenta. Esta resposta e "tudo que o quadro
+/// precisa para aparecer", e nao "o conteudo da tabela de configuracao do
+/// quadro".</para>
+///
+/// <para><b>O padrao nao e a resposta.</b> Ele so decide o estado inicial da
+/// caixa; a escolha final e de quem escreve o relato, e o projeto nao manda
+/// nela.</para>
+/// </param>
 public record WidgetSettingsViewModel(
     bool IsEnabled,
     string? AccentColor,
@@ -34,4 +47,5 @@ public record WidgetSettingsViewModel(
     string Placeholder,
     string SuccessMessage,
     bool ShowsTypeField,
-    ReportTypeEnum DefaultReportType);
+    ReportTypeEnum DefaultReportType,
+    bool AcceptsQuestionsDefault);

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- So o dominio, e isso e deliberado.
+
+       Este projeto fala com a fila e nao sabe mais nada: ele nao referencia
+       Pds.Service nem Pds.Data, entao nao tem como abrir transacao, montar
+       consulta ou decidir regra. O que ele faz e chamar uma interface do dominio
+       e passar adiante. E o que permite que ele vire um executavel proprio um dia
+       sem arrastar meia aplicacao junto. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Pds.Domain\Pds.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

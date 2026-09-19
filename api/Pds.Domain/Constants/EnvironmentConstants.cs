@@ -35,6 +35,22 @@ public static class EnvironmentConstants
     /// </summary>
     public static string GetGoogleClientId() => Required("GOOGLE_CLIENT_ID");
 
+    /// <summary>
+    /// Endereco do RabbitMQ, como <c>amqp://usuario:senha@host:5672/</c>.
+    ///
+    /// <para><b>Opcional de proposito, e devolve nulo quando falta.</b> Sem ela a
+    /// aplicacao sobe inteira e so a espera antes de quem relatou ver fica
+    /// indisponivel — e a configuracao do ciclo recusa liga-la, dizendo por que.
+    /// Exigir o broker na subida faria um projeto que nunca quis a janela deixar de
+    /// funcionar por causa dela.</para>
+    /// </summary>
+    public static string? GetRabbitMqUrl()
+    {
+        var value = Environment.GetEnvironmentVariable("RABBITMQ_URL");
+
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
     /// <summary>Origens autorizadas no CORS do painel, separadas por virgula.</summary>
     public static string[] GetCorsAllowedOrigins()
         => (Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS") ?? string.Empty)

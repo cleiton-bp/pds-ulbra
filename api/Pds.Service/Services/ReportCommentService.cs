@@ -44,9 +44,13 @@ public class ReportCommentService : IReportCommentService
                 comment.User?.Name ?? string.Empty,
                 comment.Body,
                 comment.CreatedAt)).ToList(),
+            // **`UserId` nulo e quem relatou**, e nao um autor sem nome. Os dois
+            // casos existem — a conta esvaziada tambem deixa o nome nulo —, e
+            // trata-los pelo mesmo sinal poria palavra de um na boca do outro.
             publicos.Select(comment => new PublicCommentViewModel(
                 comment.PublicId,
-                comment.User?.Name ?? string.Empty,
+                comment.UserId is null,
+                comment.User?.Name,
                 comment.Body,
                 comment.CreatedAt)).ToList());
     }
@@ -92,7 +96,10 @@ public class ReportCommentService : IReportCommentService
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
 
-        return new PublicCommentViewModel(comment.PublicId, user?.Name ?? string.Empty, comment.Body, comment.CreatedAt);
+        // Falso: esta rota e a do painel, e quem escreve por ela e sempre do time.
+        // A resposta de quem relatou entra por outra porta, sem sessao.
+        return new PublicCommentViewModel(
+            comment.PublicId, false, user?.Name, comment.Body, comment.CreatedAt);
     }
 
     /// <summary>

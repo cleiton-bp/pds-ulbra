@@ -31,6 +31,42 @@ public interface IReportService
     Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Quem relatou diz que resolveu — <b>sem sessao</b>, pelo link.
+    ///
+    /// <para><b>E a metade que faltava da metafora.</b> "Concluido" e o time
+    /// dizendo que acabou; isto e a pessoa do outro lado dizendo que chegou. Sem os
+    /// dois, o produto vira o que o README denuncia.</para>
+    ///
+    /// <para>A nota vem junto quando o projeto a pede. <b>Tres estados, e nao
+    /// dois</b>: respondeu, recusou, ou nem respondeu — e a separacao e o que faz a
+    /// contagem nao mentir. Recusar continua possivel mesmo quando a nota e
+    /// obrigatoria, e fica fora da escala.</para>
+    ///
+    /// <para>Confirmar duas vezes e recusado: preserva o instante da primeira
+    /// resposta, que e o dado que a pesquisa compara com o do encerramento.</para>
+    /// </summary>
+    Task<PublicReportViewModel> ConfirmAsync(ConfirmReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quem relatou diz que <b>nao</b> resolveu, e o relato volta para a fila.
+    ///
+    /// <para><b>Reabrir nao e regredir.</b> A jornada publica anda para tras aqui
+    /// sem passar pela marca "permite retorno": aquela regra existe para o vaivem
+    /// interno do time nao sacudir a linha do tempo de quem espera, e aqui quem
+    /// pediu o retorno foi a propria pessoa. Segurar a jornada deixaria a pagina
+    /// dela mostrando "Concluido" depois de ela mesma dizer que nao concluiu.</para>
+    ///
+    /// <para>Volta para a coluna que o projeto configurou, ou para a primeira ativa
+    /// quando aquela foi aposentada depois. <b>Nao leva nota</b>: quem reabre esta
+    /// dizendo que o trabalho nao acabou, e avaliar servico inacabado mede outra
+    /// coisa.</para>
+    ///
+    /// <para>Depois de confirmar nao da mais para reabrir — quem confirmou fechou a
+    /// conversa, e o problema que volta depois disso e outro relato.</para>
+    /// </summary>
+    Task<PublicReportViewModel> ReopenAsync(ReopenReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Os relatos de um projeto, do mais novo para o mais antigo, para o painel.
     ///
     /// <para>Ao contrario da criacao, esta rota exige sessao: o relato entra sem
@@ -87,4 +123,98 @@ public interface IReportService
     /// adiantar dado que ninguem pediu: cada chamada vira uma linha.</para>
     /// </summary>
     Task<ReportDetailViewModel> GetAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Encerra o relato por um botao, com desfecho e motivo.
+    ///
+    /// <para><b>Existe nos dois gatilhos de encerramento.</b> A configuracao do
+    /// projeto diz por qual gesto o painel <b>oferece</b> encerrar; ela nao tira do
+    /// time o direito de encerrar. Sem isto, o relato parado na ultima coluna desde
+    /// antes de a regra existir nunca poderia ser encerrado — mover para onde ele
+    /// ja esta nao e movimento.</para>
+    ///
+    /// <para><b>Nao move o relato de coluna.</b> O botao atende o time cuja ultima
+    /// coluna nao quer dizer "acabou", e arrastar o relato por causa do
+    /// encerramento desarrumaria a fila de quem escolheu esta opcao justamente para
+    /// nao ter de arruma-la.</para>
+    ///
+    /// <para>Relato que ja esta encerrado e <b>recusado</b>: uma linha por
+    /// fechamento e o que faz a sequencia "fechou, reabriu, fechou de novo" contar
+    /// a historia certa. E nao registra visualizacao — a tela ja esta aberta.</para>
+    /// </summary>
+    Task<ReportDetailViewModel> CloseAsync(Guid projectPublicId, Guid reportPublicId, CloseReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reavalia a jornada publica de um relato cuja espera venceu.
+    ///
+    /// <para><b>Aqui esta o coracao do desenho, e ele cabe numa frase: a decisao
+    /// acontece agora, e nao quando o agendamento foi feito.</b> O metodo rele o
+    /// estado <b>atual</b> do relato e traduz a partir dele. Por isso:</para>
+    ///
+    /// <list type="bullet">
+    /// <item>desfazer funciona <b>sem cancelar nada</b> — o vencimento foi reescrito,
+    /// e a chamada antiga encontra uma data no futuro e sai sem fazer nada;</item>
+    /// <item>chamar duas vezes nao faz dano — a segunda encontra o vencimento ja
+    /// limpo;</item>
+    /// <item>chamar tarde nao faz dano — o que vale e o estado de agora.</item>
+    /// </list>
+    ///
+    /// <para><b>Nao ha autor.</b> O evento publico nasce sem usuario, e isso e
+    /// verdade e nao omissao: o passo aconteceu porque um prazo venceu, e o estado
+    /// que o causou pode ter vindo de varios movimentos de pessoas diferentes. Quem
+    /// moveu continua gravado nos eventos internos, cada um com o seu autor.</para>
+    ///
+    /// <para>Relato inexistente, sem agendamento ou sem coluna sai em silencio: os
+    /// tres sao estados normais para quem chega depois do fato.</para>
+    /// </summary>
+    Task ApplyScheduledPublicStageAsync(Guid reportPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos cuja espera venceu e ninguem aplicou, para a recuperacao da
+    /// subida. Ver <see cref="ApplyScheduledPublicStageAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ListOverdueScheduledAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Devolve o relato pedindo informacao, em vez de encerrar.
+    ///
+    /// <para><b>Recusado quando quem escreveu nao aceitou responder duvidas</b> — e
+    /// tambem quando ele entrou antes de a pergunta existir. Prometer resposta a
+    /// quem nao vai responder deixa o relato pendurado esperando, e encerrar por
+    /// "sem retorno" quem nunca aceitou responder seria cobrar uma promessa que
+    /// ninguem fez.</para>
+    ///
+    /// <para>A pergunta vira um <b>comentario publico</b>: a conversa acontece pelo
+    /// proprio relato. Esta chamada grava os dois prazos e agenda o encerramento.</para>
+    /// </summary>
+    Task<ReportDetailViewModel> AskInfoAsync(Guid projectPublicId, Guid reportPublicId, AskInfoDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quem relatou responde a pergunta da equipe — <b>sem sessao</b>, pelo link.
+    ///
+    /// <para><b>So enquanto ha pedido aberto.</b> Sem a pergunta do outro lado, isto
+    /// viraria uma caixa de entrada sem dono e sem moderacao — e moderacao ficou de
+    /// fora desta etapa de proposito. A vez volta para a equipe assim que ela
+    /// responde, e o prazo para de correr.</para>
+    /// </summary>
+    Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Encerra o relato como "sem retorno", quando o prazo do pedido venceu.
+    ///
+    /// <para>A mesma regra da espera: <b>a decisao acontece agora</b>. Pedido ja
+    /// respondido, ja vencido, ou relato encerrado por outro caminho saem em
+    /// silencio — sao os tres estados normais para quem chega depois do fato.</para>
+    ///
+    /// <para><b>Encerrado assim continua reabrivel</b>, e o motivo gravado diz isso
+    /// a quem le: quem nao respondeu em duas semanas pode voltar no mes seguinte, e
+    /// o produto existe justamente para quem foi esquecido.</para>
+    /// </summary>
+    Task ExpireInfoRequestAsync(Guid reportPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os pedidos cujo prazo venceu e ninguem fechou, para a recuperacao da subida.
+    /// Ver <see cref="ExpireInfoRequestAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ListOverdueInfoRequestsAsync(CancellationToken cancellationToken = default);
 }

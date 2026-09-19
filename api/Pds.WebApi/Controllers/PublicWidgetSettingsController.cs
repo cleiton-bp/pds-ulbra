@@ -48,6 +48,12 @@ public class PublicWidgetSettingsController : BaseController
     /// salvo. Ele recusa relato novo com 403, e deixar o formulário abrir levaria a
     /// pessoa a escrever até o fim para ser recusada no envio.
     ///
+    /// **`AcceptsQuestionsDefault` vem de outra tabela**, e isso é deliberado: o
+    /// valor mora nas regras do ciclo, porque é lá que a resposta significa alguma
+    /// coisa — e quem precisa dele para *desenhar* é a ferramenta. Esta resposta é
+    /// "tudo que o quadro precisa para aparecer", e não "o conteúdo da tabela de
+    /// configuração do quadro".
+    ///
     /// **Endereço fora da lista do projeto recebe 403, e não uma configuração
     /// desligada.** A ferramenta está ligada, só não naquela página — e o quadro
     /// trata as duas recusas do mesmo jeito, não desenhando nada. Projeto com a
