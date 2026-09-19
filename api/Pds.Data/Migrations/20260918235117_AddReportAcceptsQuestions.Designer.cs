@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pds.Data.Context;
@@ -11,9 +12,11 @@ using Pds.Data.Context;
 namespace Pds.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260918235117_AddReportAcceptsQuestions")]
+    partial class AddReportAcceptsQuestions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1074,11 +1077,6 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
 
-                    b.Property<DateTime?>("PublicStageDueAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("public_stage_due_at")
-                        .HasComment("Quando a ultima mudanca de etapa publica passa a valer para quem relatou. Preenchida e a janela para desfazer; nula e o estado normal. E ela que sobrevive, e nao a mensagem na fila.");
-
                     b.Property<string>("Route")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -1129,10 +1127,6 @@ namespace Pds.Data.Migrations
                     b.HasIndex("PublicId")
                         .IsUnique()
                         .HasDatabaseName("ux_reports_public_id");
-
-                    b.HasIndex("PublicStageDueAt")
-                        .HasDatabaseName("ix_reports_public_stage_due_at")
-                        .HasFilter("public_stage_due_at IS NOT NULL");
 
                     b.HasIndex("TrackingCode")
                         .IsUnique()
@@ -1191,11 +1185,6 @@ namespace Pds.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("outcome")
                         .HasComment("done | wont_do | no_answer | duplicate. Guardado aqui e nao lido da etapa publica: a jornada e configuracao e pode ser reescrita, o desfecho deste relato nao.");
-
-                    b.Property<DateTime>("PublicAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("public_at")
-                        .HasComment("Quando este fechamento passa a valer para quem relatou. Igual a closed_at quando nao ha espera configurada; adiante dele durante a janela de desfazer. O painel nao le esta coluna: por dentro o relato esta encerrado desde closed_at.");
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uuid")
@@ -1335,101 +1324,6 @@ namespace Pds.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Pds.Domain.Entities.ReportInfoRequest", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("AnsweredAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("answered_at")
-                        .HasComment("Quando quem relatou respondeu. Preenchido, o prazo nao vale mais.");
-
-                    b.Property<DateTime>("AskedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("asked_at")
-                        .HasComment("Quando o pedido foi aberto, em UTC.");
-
-                    b.Property<long>("AskedByUserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("asked_by_user_id")
-                        .HasComment("Quem do time pediu. Obrigatorio, ao contrario do encerramento: o sistema encerra sozinho no fim do prazo, mas nunca pergunta nada.");
-
-                    b.Property<DateTime>("CloseAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("close_at")
-                        .HasComment("Quando o relato encerra como sem retorno, se ninguem responder. E este o momento agendado na fila.");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("Criacao do registro, em UTC.");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at")
-                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<DateTime?>("ExpiredAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("expired_at")
-                        .HasComment("Quando o prazo venceu e o relato foi encerrado sem resposta.");
-
-                    b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
-
-                    b.Property<long>("ReportId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("report_id")
-                        .HasComment("Relato devolvido.");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("Ultima alteracao, em UTC.");
-
-                    b.Property<DateTime>("WarnAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("warn_at")
-                        .HasComment("A partir de quando a pagina avisa que o relato vai encerrar. Gravado aqui e nao lido da configuracao: mudar o prazo do projeto nao pode mover o prazo de um pedido em curso.");
-
-                    b.HasKey("Id")
-                        .HasName("pk_report_info_requests");
-
-                    b.HasIndex("AskedByUserId")
-                        .HasDatabaseName("ix_report_info_requests_asked_by_user_id");
-
-                    b.HasIndex("CloseAt")
-                        .HasDatabaseName("ix_report_info_requests_close_at")
-                        .HasFilter("answered_at IS NULL AND expired_at IS NULL AND deleted_at IS NULL");
-
-                    b.HasIndex("DeletedAt")
-                        .HasDatabaseName("ix_report_info_requests_deleted_at");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_report_info_requests_public_id");
-
-                    b.HasIndex("ReportId", "AskedAt")
-                        .HasDatabaseName("ix_report_info_requests_report_id_asked_at");
-
-                    b.ToTable("report_info_requests", null, t =>
-                        {
-                            t.HasComment("Quando o time devolve o relato pedindo contexto, em vez de encerrar. 'Nao reproduzi' e 'nao vamos fazer' chegando iguais ao relator fazem ele entender que acabou e parar de responder. A pergunta em si mora num comentario publico; esta linha guarda o relogio.");
-
-                            t.HasCheckConstraint("ck_report_info_requests_answered_xor_expired", "NOT (answered_at IS NOT NULL AND expired_at IS NOT NULL)");
-
-                            t.HasCheckConstraint("ck_report_info_requests_deadlines", "warn_at <= close_at AND asked_at <= warn_at");
-                        });
-                });
-
             modelBuilder.Entity("Pds.Domain.Entities.ReportInternalComment", b =>
                 {
                     b.Property<long>("Id")
@@ -1541,10 +1435,10 @@ namespace Pds.Data.Migrations
                         .HasColumnName("updated_at")
                         .HasComment("Ultima alteracao, em UTC.");
 
-                    b.Property<long?>("UserId")
+                    b.Property<long>("UserId")
                         .HasColumnType("bigint")
                         .HasColumnName("user_id")
-                        .HasComment("Quem escreveu, do lado de dentro. Nulo quer dizer que foi quem relatou: e o que faz desta tabela a conversa dos dois lados.");
+                        .HasComment("Quem escreveu, do lado de dentro. A camada publica nao mostra o nome, mas quem respondeu e pergunta interna.");
 
                     b.HasKey("Id")
                         .HasName("pk_report_public_comments");
@@ -1904,27 +1798,6 @@ namespace Pds.Data.Migrations
                     b.Navigation("Report");
                 });
 
-            modelBuilder.Entity("Pds.Domain.Entities.ReportInfoRequest", b =>
-                {
-                    b.HasOne("Pds.Domain.Entities.User", "AskedByUser")
-                        .WithMany()
-                        .HasForeignKey("AskedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_info_requests_users_asked_by_user_id");
-
-                    b.HasOne("Pds.Domain.Entities.Report", "Report")
-                        .WithMany()
-                        .HasForeignKey("ReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_info_requests_reports_report_id");
-
-                    b.Navigation("AskedByUser");
-
-                    b.Navigation("Report");
-                });
-
             modelBuilder.Entity("Pds.Domain.Entities.ReportInternalComment", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Report", "Report")
@@ -1959,6 +1832,7 @@ namespace Pds.Data.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
                         .HasConstraintName("fk_report_public_comments_users_user_id");
 
                     b.Navigation("Report");

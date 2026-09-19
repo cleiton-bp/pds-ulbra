@@ -47,10 +47,13 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectInitialState> ProjectInitialStates { get; set; } = null!;
     public DbSet<ProjectPublicStage> ProjectPublicStages { get; set; } = null!;
     public DbSet<ProjectStatusMapping> ProjectStatusMappings { get; set; } = null!;
+    public DbSet<ProjectCycleSettings> ProjectCycleSettings { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
     public DbSet<ReportPublicComment> ReportPublicComments { get; set; } = null!;
+    public DbSet<ReportClosure> ReportClosures { get; set; } = null!;
+    public DbSet<ReportInfoRequest> ReportInfoRequests { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -121,6 +124,14 @@ public class DataContext : PdsBaseContext
                                        && mapping.Project.DeletedAt == null
                                        && mapping.Project.AccountId == CurrentAccountId);
 
+        // Regras do ciclo: mesmo caminho da configuracao da ferramenta, e pelo
+        // mesmo motivo — nao existe fora de um projeto. Quem le isto **sem sessao**
+        // e a pagina de acompanhamento, que precisa saber se reabrir existe aqui.
+        modelBuilder.Entity<ProjectCycleSettings>()
+            .HasQueryFilter(settings => settings.DeletedAt == null
+                                        && settings.Project.DeletedAt == null
+                                        && settings.Project.AccountId == CurrentAccountId);
+
         // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
         // cresce e a que o painel lista o tempo todo, entao ela repete account_id de
         // proposito para o isolamento nao custar uma juncao em toda consulta.
@@ -147,6 +158,20 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(comment => comment.DeletedAt == null
                                        && comment.Report.DeletedAt == null
                                        && comment.Report.AccountId == CurrentAccountId);
+
+        // Encerramento: chega na conta pelo relato, como o comentario. Quem le isto
+        // **sem sessao** e a pagina de acompanhamento, e la a conta atual e zero —
+        // aquela leitura desliga este filtro e reescreve as condicoes a mao.
+        modelBuilder.Entity<ReportClosure>()
+            .HasQueryFilter(closure => closure.DeletedAt == null
+                                       && closure.Report.DeletedAt == null
+                                       && closure.Report.AccountId == CurrentAccountId);
+
+        // Pedido de informacao: mesmo caminho do encerramento, e pelo mesmo motivo.
+        modelBuilder.Entity<ReportInfoRequest>()
+            .HasQueryFilter(request => request.DeletedAt == null
+                                       && request.Report.DeletedAt == null
+                                       && request.Report.AccountId == CurrentAccountId);
 
         // Evento: so o isolamento por conta, porque nao existe evento apagado. Sem
         // sessao a conta atual e zero, que nao corresponde a nenhuma — o padrao

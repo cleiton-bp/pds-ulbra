@@ -43,4 +43,19 @@ public class ReportPublicCommentRepository
             .OrderBy(comment => comment.CreatedAt)
             .ThenBy(comment => comment.Id)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ReportPublicComment>> ListByReportWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default)
+        // Sem `Include` do usuario: quem le isto e a pagina de acompanhamento, e la
+        // o nome de quem escreveu do lado de dentro nao aparece. O campo que nao
+        // vem do banco nao tem como escapar numa resposta.
+        //
+        // As condicoes do filtro global reescritas a mao, menos a da conta.
+        => await Context.ReportPublicComments
+            .IgnoreQueryFilters()
+            .Where(comment => comment.ReportId == reportId
+                              && comment.DeletedAt == null
+                              && comment.Report.DeletedAt == null)
+            .OrderBy(comment => comment.CreatedAt)
+            .ThenBy(comment => comment.Id)
+            .ToListAsync(cancellationToken);
 }

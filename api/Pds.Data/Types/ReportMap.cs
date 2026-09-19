@@ -69,6 +69,20 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasMaxLength(260)
             .HasComment("Dominio informado pela pagina que embutiu a ferramenta. Indicio, nunca prova.");
 
+        builder.Property(report => report.AcceptsQuestions)
+            .HasColumnName("accepts_questions")
+            .HasComment("Quem relatou aceita responder duvidas da equipe. Escolha dela, nao do projeto. Nulo e o relato que entrou antes de a pergunta existir: ninguem perguntou, e ninguem respondeu.");
+
+        builder.Property(report => report.PublicStageDueAt)
+            .HasColumnName("public_stage_due_at")
+            .HasComment("Quando a ultima mudanca de etapa publica passa a valer para quem relatou. Preenchida e a janela para desfazer; nula e o estado normal. E ela que sobrevive, e nao a mensagem na fila.");
+
+        // Parcial: a varredura de recuperacao pergunta **so** pelos agendados, e a
+        // coluna e nula na esmagadora maioria das linhas. Um indice cheio custaria
+        // manutencao em toda a tabela que mais cresce para servir a um punhado.
+        builder.HasIndex(report => report.PublicStageDueAt)
+            .HasFilter("public_stage_due_at IS NOT NULL");
+
         // Unico em todo o sistema, e sem o filtro de deleted_at que as outras
         // unicidades usam: o protocolo esta escrito num papel na mao de alguem, e
         // reaproveita-lo faria duas pessoas diferentes digitarem o mesmo codigo.

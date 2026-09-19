@@ -31,8 +31,21 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // sim/nao, e esta devolve **conteudo** a quem apresenta um token. Das oito
         // restantes, sete reescrevem a condicao a mao e uma nao precisa — evento nao
         // se apaga, entao nao ha exclusao logica para repor.
+        //
+        // O projeto vem junto porque **tres** rotas publicas precisam dele: abrir
+        // usa a jornada, e confirmar e reabrir precisam da conta e da versao do
+        // mapa para gravar evento. Uma juncao a mais por abertura custa menos do que
+        // uma segunda ida ao banco em cada uma delas.
+        //
+        // E a coluna atual vem junto **porque a reabertura grava de onde o relato
+        // saiu**. Sem ela o evento nasce com a origem em branco, e o historico do
+        // painel passa a dizer "colocado em Analise" sobre um relato que estava em
+        // outra coluna havia semanas — uma linha que descreve um caminho que ninguem
+        // percorreu. Nao da erro em lugar nenhum: so mente.
         => Context.Reports
             .IgnoreQueryFilters()
+            .Include(report => report.Project)
+            .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
 
     public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, int skip, int take, CancellationToken cancellationToken = default)
@@ -110,4 +123,25 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectPublicStage)
             .FirstOrDefaultAsync(report => report.ProjectId == projectId && report.PublicId == publicId,
                 cancellationToken);
+
+    public Task<Report?> FindByPublicIdWithoutSessionAsync(Guid publicId, CancellationToken cancellationToken = default)
+        // Sem `DeletedAt == null`, como a busca por protocolo: o agendamento de um
+        // relato que saiu da lista do painel continua valendo, e descartar aqui
+        // deixaria quem o escreveu sem a noticia que ja estava a caminho.
+        => Context.Reports
+            .IgnoreQueryFilters()
+            .Include(report => report.Project)
+            .Include(report => report.ProjectState)
+            .FirstOrDefaultAsync(report => report.PublicId == publicId, cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default)
+        // So os identificadores publicos: quem chama vai reabrir cada um no proprio
+        // escopo, e carregar as entidades aqui manteria vivo um contexto inteiro
+        // durante a reavaliacao de todos eles.
+        => await Context.Reports
+            .IgnoreQueryFilters()
+            .Where(report => report.PublicStageDueAt != null && report.PublicStageDueAt <= now)
+            .OrderBy(report => report.PublicStageDueAt)
+            .Select(report => report.PublicId)
+            .ToListAsync(cancellationToken);
 }

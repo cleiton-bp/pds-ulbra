@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pds.Data.Context;
@@ -11,9 +12,11 @@ using Pds.Data.Context;
 namespace Pds.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260919004957_AddReportInfoRequests")]
+    partial class AddReportInfoRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1191,11 +1194,6 @@ namespace Pds.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("outcome")
                         .HasComment("done | wont_do | no_answer | duplicate. Guardado aqui e nao lido da etapa publica: a jornada e configuracao e pode ser reescrita, o desfecho deste relato nao.");
-
-                    b.Property<DateTime>("PublicAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("public_at")
-                        .HasComment("Quando este fechamento passa a valer para quem relatou. Igual a closed_at quando nao ha espera configurada; adiante dele durante a janela de desfazer. O painel nao le esta coluna: por dentro o relato esta encerrado desde closed_at.");
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uuid")

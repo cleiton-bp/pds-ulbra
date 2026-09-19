@@ -55,6 +55,11 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     public IProjectStatusMappingRepository ProjectStatusMappings
         => _projectStatusMappings ??= new ProjectStatusMappingRepository(_context);
 
+    private IProjectCycleSettingsRepository? _projectCycleSettings;
+
+    public IProjectCycleSettingsRepository ProjectCycleSettings
+        => _projectCycleSettings ??= new ProjectCycleSettingsRepository(_context);
+
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
 
@@ -67,6 +72,14 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
 
     public IReportPublicCommentRepository ReportPublicComments
         => _reportPublicComments ??= new ReportPublicCommentRepository(_context);
+
+    private IReportClosureRepository? _reportClosures;
+    public IReportClosureRepository ReportClosures => _reportClosures ??= new ReportClosureRepository(_context);
+
+    private IReportInfoRequestRepository? _reportInfoRequests;
+
+    public IReportInfoRequestRepository ReportInfoRequests
+        => _reportInfoRequests ??= new ReportInfoRequestRepository(_context);
 
     private IEventRepository? _events;
     public IEventRepository Events => _events ??= new EventRepository(_context);
