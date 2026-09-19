@@ -44,6 +44,15 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'cycle' && (
+        // Seta fechando uma volta: o relato sai, roda, e volta a quem o escreveu.
+        // A ponta aberta e o ponto — a volta so fecha quando a pessoa responde.
+        <>
+          <path d="M10 6a4 4 0 1 1-1.4-3.05" />
+          <path d="M10.4 1.5v2.1H8.3" />
+        </>
+      )}
+
       {section === 'reports' && (
         // Balao de fala: o que aparece nesta secao e alguem falando, e nao um
         // registro que o sistema produziu.
