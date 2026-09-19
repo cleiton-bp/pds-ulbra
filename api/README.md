@@ -18,7 +18,11 @@ Backend da plataforma. C# no .NET 10, PostgreSQL, Entity Framework Core.
   dotnet tool install --global dotnet-ef
   ```
 
-Não precisa de Docker nem de banco local: o PostgreSQL é hospedado.
+Não precisa de banco local: o PostgreSQL é hospedado.
+
+Docker é opcional, e serve para **uma** coisa: a fila que sustenta a espera antes
+de quem relatou ver. Sem ela a API sobe inteira e só aquela regra fica
+indisponível — a tela de Ciclo recusa ligá-la, dizendo por quê.
 
 ---
 
@@ -60,6 +64,7 @@ Em produção, vêm das variáveis reais do ambiente.
 | `JWT_ISSUER` / `JWT_AUDIENCE` | não | Emissor e destinatário. Padrão `pds` e `pds.panel` |
 | `JWT_EXPIRATION_HOURS` | não | Validade da sessão. Padrão 8 |
 | `CORS_ALLOWED_ORIGINS` | não | Origens do painel, separadas por vírgula |
+| `RABBITMQ_URL` | não | A fila da espera. Ausente, a espera fica indisponível |
 
 A chave de assinatura sai de:
 
@@ -73,6 +78,40 @@ quem faz o Sign-In é o painel, no navegador, e a API apenas confere o token rec
 
 **Variável declarada e vazia conta como ausente.** É o erro de configuração mais
 comum, porque o arquivo tem a linha e parece configurado.
+
+---
+
+## A fila
+
+Só é necessária para a **espera antes de quem relatou ver** — a janela entre o time
+mover o card e a pessoa lá fora enxergar o movimento. Sem ela, todo o resto
+funciona, e configurar uma espera maior que zero é recusado com o motivo.
+
+```bash
+cd api
+docker compose up -d rabbitmq
+```
+
+Sobe em `amqp://pds:pds@localhost:5672/`, com a tela de administração em
+`http://localhost:15672`. Depois, no `.env.local`:
+
+```
+RABBITMQ_URL=amqp://pds:pds@localhost:5672/
+```
+
+**A imagem é nossa, e não a oficial.** O RabbitMQ base não traz o
+`rabbitmq_delayed_message_exchange`, que é o plugin que segura a mensagem até a
+hora. Ver `rabbitmq/Dockerfile`. Servidor sem o plugin recusa a declaração da
+troca, e a recusa acontece na subida — que é onde se quer descobrir isso.
+
+> **Em produção isto ainda não existe.** O Render não fornece broker, então a
+> espera fica indisponível lá até alguém escolher onde a fila roda — e confirmar
+> que o plano escolhido permite o plugin.
+
+**O que está agendado não vive na fila.** Vive na coluna `public_stage_due_at` do
+relato: a mensagem só carrega a hora de olhar de novo. Por isso derrubar o
+ambiente de desenvolvimento não perde nada, e por isso a API reavalia na subida o
+que venceu sem ter sido aplicado.
 
 ---
 

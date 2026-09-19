@@ -1,7 +1,8 @@
 <h2>Endpoints</h2>
-<p class="lead">Quarenta e uma rotas. Trinta e sete exigem token de sessão; quatro não — a de entrar, que é
+<p class="lead">Quarenta e oito rotas. Quarenta e uma exigem token de sessão; sete não — a de entrar, que é
 onde a sessão nasce, as duas que a ferramenta usa (a que recebe o relato e a que ela lê para
-saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
+saber como se desenhar) e as quatro que quem relatou usa pelo link: abrir o acompanhamento,
+confirmar, reabrir e responder.</p>
 
 <div class="table-scroll">
 <table>
@@ -44,8 +45,15 @@ saber como se desenhar) e a que abre o acompanhamento para quem relatou.</p>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/comments</code></td><td>Os comentários, em <strong>duas listas separadas</strong>.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../comments/internal</code></td><td>Escreve o que fica entre o time. Este texto não sai da tabela dele.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../comments/public</code></td><td>Escreve para quem relatou. <strong>Rota diferente, não um campo de visibilidade.</strong></td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/closure</code></td><td>Encerra o relato com um desfecho e um <strong>motivo obrigatório</strong>. O motivo é visível para quem relatou.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/info-request</code></td><td>Devolve o relato pedindo informação, em vez de encerrar. Recusada se quem relatou não aceitou responder dúvidas.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Como o ciclo fecha neste projeto. Sem linha salva, devolve os padrões.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. As treze regras vão sempre juntas.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td><strong>Sem sessão.</strong> Quem relatou diz que resolveu, e dá a nota — ou recusa dá-la.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td><strong>Sem sessão.</strong> Diz que não resolveu. O relato volta para a coluna que o projeto configurou.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reply</code></td><td><strong>Sem sessão.</strong> Responde ao pedido de informação. Só enquanto houver pedido aberto.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública. Recebe também o endereço da página.</td></tr>
 </table>
 </div>
@@ -124,6 +132,36 @@ gerado a partir do código.</p>
   <code>public_page</code>. O intervalo entre o relato e a primeira olhada do time mede a reação;
   a volta de quem relatou mede se a camada pública serve para alguma coisa. Nenhum dos dois é
   reconstituível depois.</p>
+</div>
+
+<div class="note why">
+  <strong>As quatro rotas públicas passam pela mesma porta</strong>
+  <p>Acompanhar, confirmar, reabrir e responder levam as mesmas credenciais no corpo — protocolo
+  e token — e todas entram por um único método no serviço. Conferência espalhada por quatro
+  rotas é conferência que uma quinta vai esquecer.</p>
+  <p>Todas respondem com a <strong>mesma</strong> visão pública, montada campo a campo. Nenhuma
+  devolve nome de quem é do time, nem o vocabulário interno das colunas.</p>
+</div>
+
+<div class="note warn">
+  <strong>Escrever de fora só é possível quando o produto convidou</strong>
+  <p><code>POST /public/reports/reply</code> é recusada quando não há pedido de informação aberto,
+  e <code>reopen</code> quando o projeto desligou a reabertura. A vez volta para a equipe assim
+  que a pessoa responde.</p>
+  <p>Canal sempre aberto viraria caixa de entrada sem dono e sem moderação — e moderação ficou de
+  fora desta etapa de propósito. Quem relatou escreve <strong>quando lhe perguntaram</strong>.</p>
+</div>
+
+<div class="note warn">
+  <strong>Ligar a espera sem fila é recusado, e a recusa diz por quê</strong>
+  <p><code>PUT /projects/{publicId}/cycle-settings</code> devolve 409 ao tentar gravar
+  <code>public_delay_minutes</code> acima de zero num ambiente sem <code>RABBITMQ_URL</code>.
+  Aceitar em silêncio gravaria uma janela que nunca vence — o relato ficaria parado do lado de
+  fora para sempre, e a tela continuaria dizendo que está tudo certo.</p>
+  <p><strong>O pedido de informação não é recusado do mesmo jeito</strong>, e a assimetria é
+  conhecida: o prazo dele mora em <code>report_info_requests.close_at</code>, e sem broker não há
+  consumidor nem varredura de subida para lê-lo. Ele continua respondível e o time continua
+  podendo encerrar à mão — mas a data que a página de acompanhamento mostra não chega sozinha.</p>
 </div>
 
 <div class="note why">

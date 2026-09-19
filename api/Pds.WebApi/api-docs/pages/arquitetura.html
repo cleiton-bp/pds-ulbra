@@ -1,5 +1,5 @@
 <h2>Arquitetura</h2>
-<p class="lead">Sete projetos, dependência sempre apontando para dentro.</p>
+<p class="lead">Oito projetos, dependência sempre apontando para dentro.</p>
 
 <div class="diagram">          <b>Pds.WebApi</b>              rotas, middleware, pipeline HTTP
                │
@@ -11,7 +11,9 @@
                │
           <b>Pds.ApiBase</b>             genérico, não conhece o domínio
 
-     <b>Pds.Translation</b>            o motor — não referencia nada, e é isso que ele é</div>
+     <b>Pds.Translation</b>            o motor — não referencia nada, e é isso que ele é
+
+       <b>Pds.Workers</b>             a fila — só o domínio, e nada mais</div>
 
 <p>A linha liga quem usa a quem é usado, de cima para baixo. Repare que
 <code>Pds.Service</code> e <code>Pds.Data</code> ficam lado a lado, e não um sobre o
@@ -45,6 +47,41 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
   <p>Quem usa é <code>Pds.Service</code>, que traduz entidade em valor, chama, e grava o que
   a decisão disser. Nenhuma regra mora no serviço: no dia em que uma condição de negócio
   aparecer naquele corpo, ela está no lugar errado.</p>
+</div>
+
+<div class="note warn">
+  <strong><code>Pds.Workers</code> referencia só <code>Pds.Domain</code></strong>
+  <p>Ele fala com a fila e não sabe mais nada: sem <code>Pds.Service</code> e sem
+  <code>Pds.Data</code>, não tem como abrir transação, montar consulta ou decidir regra. O que
+  faz é chamar uma interface do domínio e passar adiante — e é isso que permite que um dia ele
+  vire um executável próprio sem arrastar meia aplicação junto.</p>
+  <p>Hoje quem hospeda o consumidor é o processo da API, e o registro fica <strong>fora</strong>
+  do <code>DiResolver</code>, num <code>AddPdsWorkers()</code> chamado pelo
+  <code>Startup</code>. A camada de registro compartilhada não deve saber que existe um
+  consumidor rodando.</p>
+</div>
+
+<div class="note why">
+  <strong>A mensagem carrega o relato, e nunca a decisão</strong>
+  <p>Ela leva dois campos: qual verificação e qual relato. Nada mais — nem a etapa de destino,
+  nem o desfecho. Quem consome <strong>relê o estado atual</strong> e decide na hora.</p>
+  <p>Parece detalhe e é o desenho inteiro. Dele saem as três propriedades que a etapa precisava:
+  <strong>desfazer funciona sem cancelar nada</strong> (o vencimento foi reescrito, e a mensagem
+  antiga encontra data no futuro e sai em silêncio); <strong>mensagem repetida não faz dano</strong>
+  (a segunda encontra o vencimento já limpo); e <strong>mensagem perdida não perde o relato</strong>,
+  porque o agendamento durável mora no banco — <code>reports.public_stage_due_at</code> e
+  <code>report_info_requests.close_at</code> — e a subida varre o que venceu sem aplicação.</p>
+  <p>O <em>plugin</em> de atraso do RabbitMQ não replica o que está esperando. Essas duas colunas
+  são a resposta a isso, e não redundância.</p>
+</div>
+
+<div class="note why">
+  <strong>Sem fila, a aplicação sobe inteira</strong>
+  <p><code>RABBITMQ_URL</code> é opcional. Faltando, entra um agendador que se declara
+  indisponível, e o efeito é cirúrgico: tudo funciona, e só a espera e o prazo do pedido ficam
+  de fora — a tela de Ciclo recusa ligá-los e diz por quê.</p>
+  <p>Exigir o broker na subida faria um projeto que nunca quis a janela deixar de funcionar por
+  causa dela.</p>
 </div>
 
 <div class="note why">
@@ -90,6 +127,11 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
     <td>Regra de negócio</td>
   </tr>
   <tr>
+    <td><code>Workers</code></td>
+    <td>Conexão com a fila, agendamento, consumidor</td>
+    <td>Transação, consulta, <strong>regra</strong></td>
+  </tr>
+  <tr>
     <td><code>WebApi</code></td>
     <td>Controladores, middleware, configuração</td>
     <td>Regra de negócio, consulta direta</td>
@@ -116,5 +158,10 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
   <tr><td>Formato do JSON</td><td><code>Pds.Shared/Json/PdsJsonOptions.cs</code></td></tr>
   <tr><td><strong>A decisão da jornada pública</strong></td><td><code>Pds.Translation/StateTranslator.cs</code></td></tr>
   <tr><td>Gravar o que a decisão disser</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ApplyPublicStageAsync</code></td></tr>
+  <tr><td>Regra da reabertura (não freia por retorno)</td><td><code>Pds.Translation/StateTranslator.cs</code>, <code>TranslateReopen</code></td></tr>
+  <tr><td>Padrões de fábrica do ciclo</td><td><code>Pds.Domain/Entities/ProjectCycleSettings/CycleSettingsDefaults.cs</code></td></tr>
+  <tr><td>Nome da exchange, da fila e do cabeçalho de atraso</td><td><code>Pds.Workers/DelayedCheckQueue.cs</code></td></tr>
+  <tr><td>Consumo e recuperação na subida</td><td><code>Pds.Workers/DelayedCheckWorker.cs</code></td></tr>
+  <tr><td><strong>Aplicar a etapa cuja espera venceu</strong></td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ApplyScheduledPublicStageAsync</code></td></tr>
 </table>
 </div>

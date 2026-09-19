@@ -1,5 +1,5 @@
 <h2>Modelagem</h2>
-<p class="lead">Quinze tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Dezoito tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
@@ -15,9 +15,15 @@
     │               │
     │               ├───1:N──  <b>project_status_mappings</b>
     │               │
-    │               └───1:1──  <b>project_widget_settings</b>
+    │               ├───1:1──  <b>project_widget_settings</b>
+    │               │
+    │               └───1:1──  <b>project_cycle_settings</b>
     │
     └───1:N──  <b>reports</b>  ──1:N──  <b>report_contexts</b>
+                   │
+                   ├───1:N──  <b>report_closures</b>
+                   │
+                   ├───1:N──  <b>report_info_requests</b>
                    │
                    └───1:N──  <b>events</b></div>
 
@@ -474,6 +480,55 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <strong>409</strong> — e o banco é a rede embaixo dela.</p>
 </div>
 
+<h2>project_cycle_settings</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
+  <tr><td><code>closure_trigger</code></td><td>O que encerra o relato: <code>last_column</code> — cair na última coluna — ou <code>button</code>, só pelo botão.</td></tr>
+  <tr><td><code>public_delay_minutes</code></td><td>Quanto o lado público espera antes de mudar. Zero é o comportamento anterior a esta etapa; acima de zero é a janela para desfazer um movimento errado.</td></tr>
+  <tr><td><code>allows_reopen</code></td><td>Se quem relatou pode reabrir.</td></tr>
+  <tr><td><code>reopen_state_id</code></td><td>Para qual coluna interna o relato volta ao reabrir. <b>Nula usa a primeira ativa</b>, para o projeto funcionar sem ninguém configurar nada.</td></tr>
+  <tr><td><code>reopen_requires_comment</code></td><td>Se reabrir exige dizer por quê. O motivo é para quem vai pegar o relato de volta.</td></tr>
+  <tr><td><code>tracking_code_can_act</code></td><td>Se o protocolo sozinho confirma e reabre, ou se as duas ações exigem o link. Ler é inofensivo; reabrir mexe na fila do time.</td></tr>
+  <tr><td><code>satisfaction_enabled</code></td><td>Se a nota é pedida ao confirmar.</td></tr>
+  <tr><td><code>satisfaction_style</code></td><td><code>stars</code> ou <code>number</code>.</td></tr>
+  <tr><td><code>satisfaction_required</code></td><td>Se confirmar exige responder. Mesmo exigindo, "prefiro não responder" continua existindo, <b>fora da escala</b>.</td></tr>
+  <tr><td><code>info_request_enabled</code></td><td>Se o time pode devolver o relato pedindo informação em vez de encerrar.</td></tr>
+  <tr><td><code>info_request_warn_days</code></td><td>Dias sem resposta até avisar quem relatou de que o relato vai encerrar.</td></tr>
+  <tr><td><code>info_request_close_days</code></td><td>Dias depois do aviso até encerrar como sem retorno.</td></tr>
+  <tr><td><code>accepts_questions_default</code></td><td>Como a opção de aceitar dúvidas vem marcada no formulário. <b>A escolha final é de quem relata</b>, não do projeto.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A linha só nasce quando alguém salva</strong>
+  <p>Os treze padrões vivem no código, em <code>CycleSettingsDefaults</code>. Projeto sem linha
+  aqui é projeto que nunca precisou mudar nada — e lê exatamente o mesmo comportamento de quem
+  salvou os padrões. É o mesmo molde de <code>project_widget_settings</code>.</p>
+  <p>O ganho é que acrescentar uma regra nova não exige tocar em nenhuma linha existente: ela
+  nasce com valor de fábrica para todo mundo, inclusive para quem já salvou.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que isto é tabela, e não constante</strong>
+  <p>Quase tudo que quem relatou encontra no fim do ciclo é decidido aqui: se dá para reabrir,
+  para onde volta, se a nota aparece e em que escala, quanto tempo o time tem antes de o relato
+  encerrar sozinho. Fixar qualquer uma no código é o produto ditando regra para o cliente.</p>
+  <p><code>reopen_state_id</code> é a única que aponta para outra tabela do projeto, e usa
+  <code>Restrict</code>: a coluna escolhida como destino da reabertura não some enquanto for o
+  destino. Apagá-la em silêncio mandaria os relatos reabertos para outro lugar sem ninguém
+  decidir isso.</p>
+</div>
+
+<div class="note warn">
+  <strong>As travas dos prazos estão no banco, e não só na tela</strong>
+  <p><code>public_delay_minutes</code>, <code>info_request_warn_days</code> e
+  <code>info_request_close_days</code> são números digitados por uma pessoa, e um zero a mais não
+  dá erro em lugar nenhum: deixaria quem relatou sem notícia por meses, ou o relato esperando
+  resposta por anos. O teto é conferido no serviço, e as duas <em>check constraints</em> são a
+  rede embaixo.</p>
+</div>
+
 <h2>reports</h2>
 
 <table>
@@ -488,6 +543,8 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <tr><td><code>text</code></td><td>O relato como a pessoa escreveu. Até 5000 caracteres.</td></tr>
   <tr><td><code>route</code></td><td>Só o caminho da página. Sem query e sem fragmento.</td></tr>
   <tr><td><code>origin</code></td><td>Domínio informado pela página que embutiu a ferramenta.</td></tr>
+  <tr><td><code>accepts_questions</code></td><td>Quem relatou aceita responder dúvidas da equipe. <b>Três estados</b>: sim, não, e <b>nulo</b> — o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada. Sem <code>true</code>, não se abre pedido de informação.</td></tr>
+  <tr><td><code>public_stage_due_at</code></td><td>Quando o último movimento passa a valer lá fora, ou nulo quando não há espera pendente. <b>É o agendamento durável</b> — a fila só carrega um lembrete, e é esta coluna que decide.</td></tr>
 </table>
 
 <div class="note why">
@@ -545,7 +602,7 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>report_id</code></td><td>Relato comentado.</td></tr>
-  <tr><td><code>user_id</code></td><td>Quem escreveu. <b>Obrigatório nas duas</b>: comentário sem autor não serve para decidir nada depois.</td></tr>
+  <tr><td><code>user_id</code></td><td>Quem escreveu, do lado de dentro. <b>Obrigatório no interno</b>: comentário sem autor não serve para decidir nada depois. <b>Anulável no público</b> desde a etapa 5, e ali nulo quer dizer que quem escreveu foi <b>quem relatou</b>.</td></tr>
   <tr><td><code>body</code></td><td>O texto. 5000 nas duas — limites separados de propósito, porque o público sai para fora e pode ganhar regra própria.</td></tr>
 </table>
 
@@ -563,6 +620,109 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   consegue limpar.</p>
 </div>
 
+<h2>report_closures</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>report_id</code></td><td>Relato encerrado.</td></tr>
+  <tr><td><code>outcome</code></td><td><code>done</code> | <code>wont_do</code> | <code>no_answer</code> | <code>duplicate</code>.</td></tr>
+  <tr><td><code>reason</code></td><td>Por que acabou, escrito por quem encerrou. <b>Obrigatório</b>: sem ele a pessoa fica sabendo que acabou e não o que aconteceu.</td></tr>
+  <tr><td><code>closed_by_user_id</code></td><td>Quem do time encerrou. <b>Nulo quer dizer que foi o sistema</b>, no fim do prazo do pedido de informação.</td></tr>
+  <tr><td><code>closed_at</code></td><td>Quando encerrou, em UTC. Separado de <code>created_at</code> porque encerramento agendado é gravado quando a fila o consome.</td></tr>
+  <tr><td><code>public_at</code></td><td>Quando este fechamento passa a valer <b>para quem relatou</b>. Igual a <code>closed_at</code> quando não há espera; adiante dele durante a janela de desfazer. O painel não lê esta coluna.</td></tr>
+  <tr><td><code>confirmed_at</code></td><td>Quando quem relatou confirmou que resolveu. Nulo enquanto não respondeu.</td></tr>
+  <tr><td><code>satisfaction</code></td><td>Nota de 1 a 5 dada na confirmação. Nula quando não houve resposta — e nula também quando houve recusa, que é outra coisa.</td></tr>
+  <tr><td><code>satisfaction_declined</code></td><td>A pessoa clicou em "prefiro não responder".</td></tr>
+  <tr><td><code>reopened_at</code></td><td>Quando quem relatou reabriu. Preenchido, esta linha deixou de ser o fim do relato.</td></tr>
+  <tr><td><code>reopen_comment</code></td><td>Por que reabriu, quando o projeto pede. É para quem for pegar o trabalho de novo, e não para justificar o pedido.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>"Concluído" e "Confirmado" são momentos diferentes</strong>
+  <p>É o coração da metáfora do produto: o time diz que acabou, e quem relatou diz que resolveu.
+  Uma coluna só — "encerrado" — juntaria os dois e devolveria exatamente o que o README denuncia,
+  que é a pessoa ficar sabendo que o caso foi fechado sem ter dito se o problema sumiu.</p>
+  <p>Por isso <code>closed_at</code> e <code>confirmed_at</code> convivem, e por isso a linha
+  <b>espera resposta</b> depois de gravada. Ela é o único registro do sistema que nasce sabendo
+  que ainda falta alguém falar.</p>
+</div>
+
+<div class="note warn">
+  <strong>Recusar opinar não é ausência de opinião</strong>
+  <p><code>satisfaction</code> e <code>satisfaction_declined</code> são colunas separadas, com
+  uma <em>check constraint</em> proibindo as duas preenchidas. Pôr a recusa dentro da escala — um
+  zero, um sexto valor — faria dela a pior avaliação possível, e a média contaria como
+  insatisfação quem só não quis responder.</p>
+  <p>A outra trava limita a nota a 1–5. As duas existem porque os dois erros são fáceis de
+  gravar e impossíveis de enxergar depois.</p>
+</div>
+
+<div class="note warn">
+  <strong>A espera vale para o fechamento, e não só para a jornada</strong>
+  <p>É o que <code>public_at</code> existe para resolver. Sem ela, um projeto com espera
+  configurada segurava o passo da jornada e deixava o <b>motivo</b> escapar na hora — e o motivo é
+  justamente o que a pessoa lê primeiro. A janela de desfazer cobria a metade menos importante.</p>
+  <p>E sair da coluna que encerra <b>desfaz o encerramento</b>: a linha é apagada logicamente e
+  nasce um <code>report_closure_cancelled</code>. Sem isso, desfazer um movimento errado devolvia o
+  relato para a fila e o deixava encerrado — a pessoa continuava lendo "acabou" sobre um relato que
+  o time voltou a trabalhar.</p>
+  <p><b>Fechamento já confirmado não se desfaz.</b> Ali quem relatou respondeu, e a resposta dela é
+  o dado que o produto existe para colher.</p>
+</div>
+
+<div class="note why">
+  <strong>Uma linha por fechamento, e as antigas ficam</strong>
+  <p>Relato reaberto e fechado de novo ganha linha nova. A anterior continua com o motivo, a
+  nota e a data — é o histórico de quantas vezes o time achou que tinha acabado e quem relatou
+  discordou, que é justamente o que se vai querer medir.</p>
+  <p><code>closed_by_user_id</code> usa <code>Restrict</code>: quem encerrou não some enquanto
+  houver fechamento dele. A conta excluída esvazia o usuário e o nome sai junto, mas a linha
+  fica, porque apagá-la apagaria a decisão que ela explica.</p>
+</div>
+
+<h2>report_info_requests</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>report_id</code></td><td>Relato devolvido com uma pergunta.</td></tr>
+  <tr><td><code>asked_by_user_id</code></td><td>Quem do time perguntou. <b>Obrigatório</b>, ao contrário de <code>closed_by_user_id</code>: o sistema encerra sozinho, mas nunca pergunta sozinho.</td></tr>
+  <tr><td><code>asked_at</code></td><td>Quando a equipe perguntou.</td></tr>
+  <tr><td><code>warn_at</code></td><td>Quando a página passa a avisar que o relato vai encerrar.</td></tr>
+  <tr><td><code>close_at</code></td><td>Quando encerra como "sem retorno". <b>É este o momento agendado na fila.</b></td></tr>
+  <tr><td><code>answered_at</code></td><td>Quando quem relatou respondeu. Fecha o pedido pelo caminho bom.</td></tr>
+  <tr><td><code>expired_at</code></td><td>Quando o prazo venceu sem resposta. Fecha o pedido pelo outro caminho.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A pergunta não mora aqui</strong>
+  <p>O texto que a equipe escreveu é um comentário público como qualquer outro — a conversa
+  acontece pelo próprio relato, numa lista só. Esta tabela guarda <b>o relógio</b>: quem
+  perguntou, quando, e os dois prazos.</p>
+  <p>Separar as duas coisas é o que permite a conversa continuar depois de o pedido fechar, sem
+  que a resposta fique presa a um registro que já acabou.</p>
+</div>
+
+<div class="note why">
+  <strong>Os dois prazos são gravados, e não lidos da configuração</strong>
+  <p><code>warn_at</code> e <code>close_at</code> nascem do <code>project_cycle_settings</code> no
+  instante do pedido e ficam. Mudar a configuração depois não move o relógio de um pedido já
+  aberto — quem relatou leu uma data na tela, e a data tem de continuar valendo.</p>
+  <p>Duas <em>check constraints</em> guardam o desenho: <code>asked_at ≤ warn_at ≤ close_at</code>,
+  porque avisar depois de encerrar não avisa nada; e <code>answered_at</code> e
+  <code>expired_at</code> nunca preenchidos juntos, porque respondido e vencido são caminhos
+  opostos.</p>
+</div>
+
+<div class="note warn">
+  <strong>O primeiro prazo é estado de tela, e não um envio</strong>
+  <p>Só <code>close_at</code> é agendado na fila. O aviso do <code>warn_at</code> é a página
+  mudando de tom quando a data passa — enquanto não houver canal de comunicação, avisar é isso,
+  e não há nada a disparar naquele instante.</p>
+  <p>E o aviso diz que encerrado assim <b>continua reabrível</b>. Sem essa frase ele viraria
+  ameaça: quem não respondeu em duas semanas pode voltar no mês seguinte, e o produto existe
+  justamente para quem foi esquecido.</p>
+</div>
+
 <h2>events</h2>
 
 <table>
@@ -571,8 +731,8 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <tr><td><code>account_id</code></td><td>Anulável. Continua apontando para a conta depois de anonimizada.</td></tr>
   <tr><td><code>project_id</code></td><td>Anulável. O projeto some de verdade e o evento fica.</td></tr>
   <tr><td><code>report_id</code></td><td>Anulável. Nem todo evento nasce de um relato.</td></tr>
-  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code> | <code>report_state_changed</code> | <code>report_internal_commented</code> | <code>report_public_commented</code> | <code>report_public_stage_changed</code> | <code>report_public_stage_unmapped</code>. A lista cresce.</td></tr>
-  <tr><td><code>source</code></td><td><code>widget</code> | <code>panel</code> | <code>api</code> | <code>public_page</code>.</td></tr>
+  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code> | <code>report_state_changed</code> | <code>report_internal_commented</code> | <code>report_public_commented</code> | <code>report_public_stage_changed</code> | <code>report_public_stage_unmapped</code> | <code>report_closed</code> | <code>report_confirmed</code> | <code>report_reopened</code> | <code>report_info_requested</code> | <code>report_replied</code> | <code>report_closure_cancelled</code>. A lista cresce.</td></tr>
+  <tr><td><code>source</code></td><td><code>widget</code> | <code>panel</code> | <code>api</code> | <code>public_page</code> | <code>system</code>.</td></tr>
   <tr><td><code>payload</code></td><td><code>jsonb</code>. O resto do evento, para tipo novo entrar sem migração.</td></tr>
   <tr><td><code>occurred_at</code></td><td>Quando aconteceu. <strong>É esta a data que a análise usa.</strong></td></tr>
   <tr><td><code>created_at</code></td><td>Quando a linha foi gravada. Difere da anterior quando houve retentativa.</td></tr>
@@ -589,6 +749,18 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <p>O payload da segunda leva os rótulos que valiam na época <em>e</em> a
   <code>mapping_version</code> que decidiu. Sem a versão, recontar um movimento antigo usaria o
   mapa de hoje e devolveria outra história.</p>
+</div>
+
+<div class="note why">
+  <strong><code>system</code> é origem de verdade, e não um remendo</strong>
+  <p>Duas ações do produto não partem de clique nenhum: o relato encerrado por falta de resposta,
+  e a etapa pública que anda quando a espera vence. Chamá-las de <code>panel</code> faria a
+  contagem atribuir ao time ações que o time não tomou — e separar origem de tipo existe
+  justamente para poder perguntar "quantas vezes o relator voltou" sem confundir com "quantas
+  vezes o time abriu".</p>
+  <p>Nos dois casos o <code>user_id</code> fica nulo, e isso é verdade e não omissão: o estado que
+  causou o passo pode ter vindo de vários movimentos de pessoas diferentes. Quem moveu continua
+  gravado nos eventos internos, cada um com o seu autor.</p>
 </div>
 
 <div class="note warn">
