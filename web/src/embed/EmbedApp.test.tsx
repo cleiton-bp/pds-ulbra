@@ -332,3 +332,77 @@ describe('o formulario', () => {
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('algo quebrou')
   })
 })
+
+/**
+ * A ESCOLHA DE QUEM RELATA.
+ *
+ * **E dela, e nao do projeto** — o projeto so decide como a caixa comeca. Prometer
+ * resposta a quem nao vai responder deixa o relato pendurado esperando, e e esse o
+ * problema que este campo existe para nao criar.
+ *
+ * O que apodrece em silencio aqui e o valor **nao sair junto do relato**: a caixa
+ * desenha, a pessoa desmarca, e o envio manda o padrao assim mesmo. A tela fica
+ * perfeita e a escolha se perde.
+ */
+describe('aceitar responder dúvidas', () => {
+  function abrir(settings = DEFAULT_WIDGET_SETTINGS) {
+    dublê.criar.mockResolvedValue({
+      TrackingCode: 'ABCD-EFGH-JKLM',
+      AccessToken: 'tok',
+      CreatedAt: '2026-09-18T12:00:00.000Z',
+    } satisfies CreatedReportViewModel)
+
+    render(<EmbedApp settings={settings} config={config} host={null} />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'O botão não responde.' } })
+  }
+
+  const caixa = () => screen.getByRole('checkbox', { name: /Pode me perguntar algo/ })
+
+  it('a caixa começa marcada, porque é o padrão de fábrica', () => {
+    abrir()
+    expect((caixa() as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('o projeto pode fazê-la começar desmarcada', () => {
+    abrir(comSettings({ AcceptsQuestionsDefault: false }))
+    expect((caixa() as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('desmarcar viaja junto do relato', async () => {
+    abrir()
+    fireEvent.click(caixa())
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    // **O ponto do teste.** Desenhar a caixa e não mandar o valor deixa a tela
+    // perfeita e a escolha perdida — e ninguém descobre, porque o relato entra.
+    await waitFor(() =>
+      expect(dublê.criar).toHaveBeenCalledWith(
+        expect.objectContaining({ AcceptsQuestions: false }),
+      ),
+    )
+  })
+
+  it('e o padrão do projeto vale quando ninguém mexe na caixa', async () => {
+    abrir(comSettings({ AcceptsQuestionsDefault: false }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() =>
+      expect(dublê.criar).toHaveBeenCalledWith(
+        expect.objectContaining({ AcceptsQuestions: false }),
+      ),
+    )
+  })
+
+  it('relatar de novo devolve a caixa ao padrão do projeto', async () => {
+    abrir(comSettings({ AcceptsQuestionsDefault: true }))
+    fireEvent.click(caixa())
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await screen.findByText('ABCD-EFGH-JKLM')
+    fireEvent.click(screen.getByRole('button', { name: 'Relatar outra coisa' }))
+
+    // Sem isto, a escolha do relato anterior contaminaria o próximo — e a pessoa
+    // não teria como saber que respondeu por engano a mesma coisa duas vezes.
+    expect((caixa() as HTMLInputElement).checked).toBe(true)
+  })
+})

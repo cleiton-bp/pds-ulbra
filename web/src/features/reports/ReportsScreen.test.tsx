@@ -43,6 +43,8 @@ const dublê = vi.hoisted(() => ({
   comentarPublico: vi.fn(),
   historico: vi.fn(),
   abrir: vi.fn(),
+  encerrar: vi.fn(),
+  pedir: vi.fn(),
 }))
 
 vi.mock('@/data', async (importOriginal) => {
@@ -59,6 +61,8 @@ vi.mock('@/data', async (importOriginal) => {
       addInternalComment: dublê.comentarInterno,
       addPublicComment: dublê.comentarPublico,
       listReportHistory: dublê.historico,
+      closeReport: dublê.encerrar,
+      askInfo: dublê.pedir,
     },
   }
 })
@@ -88,6 +92,11 @@ function relato(
     StatePublicId: 's-1',
     StateName: 'Análise',
     PublicStageLabel: null,
+    // Aceita, que e o padrao de fabrica. O relato que nao aceita e o caso proprio,
+    // e tem teste proprio.
+    AcceptsQuestions: true,
+    // Sem espera pendente: e o padrao de fabrica, zero minutos.
+    PublicStageDueAt: null,
     CreatedAt: '2026-09-01T12:00:00.000Z',
     ...extra,
   }
@@ -112,8 +121,18 @@ function contagem(
   stateName: string | null,
   total: number,
   isActive = true,
+  // Falso por padrao: a coluna que encerra e a excecao, e quem diz qual e a API.
+  // Deixar o padrao verdadeiro na ultima da lista faria cada teste de movimento
+  // esbarrar num dialogo que ele nao pediu.
+  closesReport = false,
 ): ReportStateCountViewModel {
-  return { StatePublicId: statePublicId, StateName: stateName, IsActive: isActive, Total: total }
+  return {
+    StatePublicId: statePublicId,
+    StateName: stateName,
+    IsActive: isActive,
+    ClosesReport: closesReport,
+    Total: total,
+  }
 }
 
 function montar(publicId = 'p-1', endereco?: string) {
@@ -293,7 +312,13 @@ describe('abrir um relato', () => {
   })
 
   it('so registra a visualizacao no clique, e uma vez por abertura', async () => {
-    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
 
     montar()
 
@@ -450,7 +475,13 @@ describe('abrir um relato', () => {
   })
 
   it('fechar volta para a lista, e a lista não foi buscada de novo', async () => {
-    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
 
     const router = montar('p-1', '/p/p-1/r-1')
 
@@ -464,7 +495,13 @@ describe('abrir um relato', () => {
   it('mover grava a coluna nova, e a lista passa a mostrá-la', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
-    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
     dublê.mover.mockResolvedValue(
       relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
     )
@@ -493,6 +530,9 @@ describe('abrir um relato', () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
     dublê.abrir.mockResolvedValue({
       ...relato('r-1', 'o botao some', { PublicStageLabel: 'Em análise' }),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
       Contexts: [],
     })
     dublê.mover.mockResolvedValue(
@@ -526,6 +566,9 @@ describe('abrir um relato', () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
     dublê.abrir.mockResolvedValue({
       ...relato('r-1', 'o botao some', { PublicStageLabel: null }),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
       Contexts: [],
     })
 
@@ -540,7 +583,13 @@ describe('abrir um relato', () => {
   it('movido para fora do recorte, o relato sai da lista', async () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
-    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
     dublê.mover.mockResolvedValue(
       relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
     )
@@ -567,7 +616,13 @@ describe('abrir um relato', () => {
   })
 
   it('cada caixa escreve na sua, e nunca na outra', async () => {
-    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
     dublê.comentarInterno.mockResolvedValue({
       PublicId: 'c-1',
       AuthorName: 'Cleiton',
@@ -591,7 +646,13 @@ describe('abrir um relato', () => {
   })
 
   it('a caixa que sai para fora é a destacada, e diz que ainda não tem leitor', async () => {
-    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
 
     montar('p-1', '/p/p-1/r-1')
 
@@ -603,7 +664,13 @@ describe('abrir um relato', () => {
   })
 
   it('o histórico usa o nome que a coluna tinha na época', async () => {
-    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), Contexts: [] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
     dublê.historico.mockResolvedValue([
       {
         PublicId: 'e-1',
@@ -621,5 +688,577 @@ describe('abrir um relato', () => {
     montar('p-1', '/p/p-1/r-1')
 
     expect(await screen.findByText('Movido de Testando para Pronto')).toBeTruthy()
+  })
+})
+
+/**
+ * O ENCERRAMENTO, E O QUE ELE TRAVA.
+ *
+ * **O motivo e a regra, e nao um campo a mais.** Sem ele o produto reproduz
+ * exatamente o que existe para resolver: a pessoa fica sabendo que acabou, e nao o
+ * que aconteceu. Por isso o teste mais importante deste bloco e o que prova que
+ * **nada foi movido** enquanto o motivo nao existe — e nao o do caminho feliz.
+ *
+ * **Qual coluna encerra vem da API.** Deduzir na tela pela ordem da lista parece
+ * obvio e erra em dois casos reais: a lista traz as aposentadas junto, e a regra
+ * vai virar configuracao do projeto. Os testes escolhem `ClosesReport` a mao
+ * justamente para que o dia em que alguem trocar isso por "a ultima da lista"
+ * quebre aqui.
+ */
+describe('encerrar um relato', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    // Zerado aqui tambem: sem isto a contagem de chamadas soma a dos blocos de
+    // cima, e "nao moveu nada" — a asserticao que este bloco existe para fazer —
+    // passaria a falhar por causa de um movimento de outro teste.
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.contar.mockResolvedValue([])
+  })
+
+  /**
+   * Quatro colunas, e a ordem delas e o teste.
+   *
+   * A que encerra e a **segunda**, nao a ultima; a ultima ativa e "Revisao", que
+   * nao encerra; e a ultima da lista e uma aposentada. Qualquer tentativa de
+   * deduzir na tela qual coluna encerra — pela posicao, pela ultima ativa, pela
+   * ultima da lista — escolhe a errada aqui.
+   */
+  function cenario() {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.contar.mockResolvedValue([
+      contagem('s-1', 'Análise', 1),
+      contagem('s-2', 'Pronto', 0, true, true),
+      contagem('s-3', 'Revisão', 0),
+      contagem('s-4', 'Arquivo morto', 2, false),
+    ])
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+  }
+
+  it('a coluna que encerra pergunta antes, e não move nada', async () => {
+    cenario()
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    expect(await screen.findByText(/Mover para Pronto encerra este relato/)).toBeTruthy()
+    // **O ponto do teste.** Perguntar depois de mover deixaria o relato encerrado
+    // sem motivo enquanto o diálogo estivesse aberto — e encerrado sem motivo é
+    // justamente o que não pode existir.
+    expect(dublê.mover).not.toHaveBeenCalled()
+  })
+
+  it('sem motivo escrito, o botão de encerrar não age', async () => {
+    cenario()
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    const encerrar = await screen.findByRole('button', { name: 'Encerrar' })
+    expect(encerrar.hasAttribute('disabled')).toBe(true)
+
+    fireEvent.click(encerrar)
+    expect(dublê.mover).not.toHaveBeenCalled()
+  })
+
+  it('só espaço em branco continua sendo sem motivo', async () => {
+    cenario()
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    const campo = await screen.findByRole('textbox', { name: 'Por que acabou' })
+    fireEvent.change(campo, { target: { value: '   \n  ' } })
+
+    expect(screen.getByRole('button', { name: 'Encerrar' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('com motivo, o movimento leva o desfecho junto', async () => {
+    cenario()
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
+
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    const campo = await screen.findByRole('textbox', { name: 'Por que acabou' })
+    fireEvent.change(campo, { target: { value: 'Corrigimos na versão desta semana.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
+
+    await waitFor(() =>
+      expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', {
+        StatePublicId: 's-2',
+        // O padrão é o final comum, e é o que a tela já mostra escolhido.
+        Outcome: 'Done',
+        // Aparado: o espaço no fim não é motivo, e a comparação do servidor com o
+        // tamanho máximo contaria ele.
+        Reason: 'Corrigimos na versão desta semana.',
+      }),
+    )
+
+    // O diálogo sai da tela sozinho quando a gravação passa.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Encerrar' })).toBeNull())
+  })
+
+  it('o desfecho escolhido é o que viaja', async () => {
+    cenario()
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
+
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    await escolherNoSelect(screen, fireEvent, 'Como terminou', 'Não será feito')
+
+    const campo = await screen.findByRole('textbox', { name: 'Por que acabou' })
+    fireEvent.change(campo, { target: { value: 'Sai do escopo deste produto.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
+
+    await waitFor(() =>
+      expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', {
+        StatePublicId: 's-2',
+        Outcome: 'WontDo',
+        Reason: 'Sai do escopo deste produto.',
+      }),
+    )
+  })
+
+  it('desistir do motivo desiste do movimento inteiro', async () => {
+    cenario()
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+
+    // Não há "mover sem encerrar" para esta coluna: encerrar sem motivo não
+    // existe, então mover sem motivo também não.
+    expect(dublê.mover).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByText(/encerra este relato/)).toBeNull())
+  })
+
+  it('a última coluna ativa não encerra se a API não disser que encerra', async () => {
+    cenario()
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-3', StateName: 'Revisão' }),
+    )
+
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Revisão')
+
+    // É a última **ativa**, e mesmo assim move direto: quem decide é
+    // `ClosesReport`, e aqui ele é falso.
+    await waitFor(() =>
+      expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-3' }),
+    )
+    expect(screen.queryByText(/encerra este relato/)).toBeNull()
+  })
+})
+
+/**
+ * O ENCERRAMENTO POR BOTAO.
+ *
+ * **O gatilho e configuracao do projeto, e a tela obedece a API.** Nenhum destes
+ * testes calcula qual coluna encerra: eles dizem o que `ClosesReport` traz, que e
+ * exatamente o contrato. O dia em que alguem trocar isso por "a ultima da lista"
+ * quebra aqui.
+ *
+ * **O caso que se esquece e o do relato ja parado na coluna que encerra.** Mover
+ * para onde ele ja esta nao e movimento, entao sem o botao esse relato nunca
+ * poderia ser encerrado — e e o estado de todo relato que chegou la antes de a
+ * regra existir.
+ */
+describe('encerrar por botão', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+  })
+
+  it('projeto que encerra por botão não pergunta nada ao mover', async () => {
+    // Nenhuma coluna encerra: é o que a API responde quando o gatilho é o botão.
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
+
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    await waitFor(() =>
+      expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-2' }),
+    )
+    expect(screen.queryByText(/encerra este relato/)).toBeNull()
+  })
+
+  it('e oferece o botão, que encerra sem mover', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.encerrar.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: {
+        Outcome: 'Done',
+        Reason: 'Corrigido.',
+        ClosedAt: '2026-09-20T10:00:00.000Z',
+        ClosedByName: 'Cleiton',
+        ConfirmedAt: null,
+        Satisfaction: null,
+        SatisfactionDeclined: false,
+      },
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+
+    montar('p-1', '/p/p-1/r-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir relato' }))
+
+    // Sem coluna de destino: a frase fala do relato ficar onde está.
+    expect(await screen.findByText(/continua na coluna em que está/)).toBeTruthy()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Por que acabou' }), {
+      target: { value: 'Corrigido.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
+
+    await waitFor(() =>
+      expect(dublê.encerrar).toHaveBeenCalledWith('p-1', 'r-1', {
+        Outcome: 'Done',
+        Reason: 'Corrigido.',
+      }),
+    )
+    // **O relato não sai do lugar.** É para isso que o botão existe.
+    expect(dublê.mover).not.toHaveBeenCalled()
+
+    // E o que a API devolveu vira o bloco na tela, com quem encerrou.
+    expect(await screen.findByText('Encerrado')).toBeTruthy()
+    expect(screen.getByText('por Cleiton')).toBeTruthy()
+  })
+
+  it('o relato já parado na coluna que encerra também ganha o botão', async () => {
+    // Encerra pela coluna, e o relato está nela — mover para onde ele já está não
+    // é movimento, então sem o botão ele não teria como ser encerrado nunca.
+    dublê.contar.mockResolvedValue([
+      contagem('s-1', 'Análise', 1, true, true),
+      contagem('s-2', 'Pronto', 0),
+    ])
+
+    montar('p-1', '/p/p-1/r-1')
+
+    expect(await screen.findByRole('button', { name: 'Concluir relato' })).toBeTruthy()
+  })
+
+  it('o relato que está em outra coluna não ganha o botão', async () => {
+    dublê.contar.mockResolvedValue([
+      contagem('s-1', 'Análise', 1),
+      contagem('s-2', 'Pronto', 0, true, true),
+    ])
+
+    montar('p-1', '/p/p-1/r-1')
+
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    // Para esse, quem encerra é o movimento — e oferecer as duas portas faria a
+    // configuração não querer dizer nada.
+    expect(screen.queryByRole('button', { name: 'Concluir relato' })).toBeNull()
+  })
+
+  it('relato já encerrado mostra o fim e não oferece encerrar de novo', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: {
+        Outcome: 'WontDo',
+        Reason: 'O comportamento é o esperado.',
+        ClosedAt: '2026-09-20T10:00:00.000Z',
+        ClosedByName: 'Cleiton',
+        ConfirmedAt: null,
+        Satisfaction: null,
+        SatisfactionDeclined: false,
+      },
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+
+    montar('p-1', '/p/p-1/r-1')
+
+    expect(await screen.findByText('O comportamento é o esperado.')).toBeTruthy()
+    expect(screen.getByText('Não será feito')).toBeTruthy()
+    // Uma linha por fechamento: encerrar duas vezes contaria a história errada.
+    expect(screen.queryByRole('button', { name: 'Concluir relato' })).toBeNull()
+  })
+})
+
+/**
+ * O QUE O TIME PRECISA SABER ANTES DE PERGUNTAR.
+ *
+ * **Tres estados, e a tela diz os tres.** Aceitou, nao aceitou, e — o que se
+ * esquece — nao foi perguntado: o relato que entrou antes de a pergunta existir.
+ * Mostrar esse ultimo como "nao aceita responder" poria na boca da pessoa uma
+ * resposta que ela nunca deu, e e o tipo de erro que ninguem vai conferir.
+ *
+ * **E precisa aparecer antes de alguem tentar.** Descobrir depois, ao esbarrar
+ * numa recusa, faria a pessoa do time escrever a pergunta para so entao saber que
+ * ela nao vai sair.
+ */
+describe('a escolha de quem relatou sobre responder dúvidas', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.contar.mockResolvedValue([])
+  })
+
+  function comEscolha(escolha: boolean | null) {
+    const alvo = relato('r-1', 'o botao some', { AcceptsQuestions: escolha })
+    dublê.listar.mockResolvedValue({ reports: [alvo], total: 1 })
+    dublê.abrir.mockResolvedValue({
+      ...alvo,
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+    montar('p-1', '/p/p-1/r-1')
+  }
+
+  it('quem aceitou não vira etiqueta nenhuma', async () => {
+    comEscolha(true)
+    // O relato aparece duas vezes: no cartao da lista e no dialogo aberto por
+    // cima dele. Esperar o botao do dialogo e o que garante que ele ja desenhou.
+    await screen.findByRole('button', { name: 'Fechar' })
+
+    // Poder perguntar é o caso comum. Uma etiqueta em todo relato para dizer que
+    // está tudo normal vira ruído que se aprende a não ler — e aí a etiqueta que
+    // importa passa despercebida junto.
+    expect(screen.queryByText(/dúvidas/i)).toBeNull()
+    expect(screen.queryByText(/Não foi perguntado/)).toBeNull()
+  })
+
+  it('quem não aceitou aparece avisado', async () => {
+    comEscolha(false)
+    expect(await screen.findByText('Não aceita responder dúvidas')).toBeTruthy()
+  })
+
+  it('e o relato antigo diz que ninguém perguntou, e não que ele recusou', async () => {
+    comEscolha(null)
+
+    // **O ponto do teste.** Os dois bloqueiam o pedido de informação do mesmo
+    // jeito, e por isso a tentação é mostrá-los iguais. Mas um é uma recusa e o
+    // outro é uma pergunta que nunca foi feita.
+    expect(await screen.findByText('Não foi perguntado se responde')).toBeTruthy()
+    expect(screen.queryByText('Não aceita responder dúvidas')).toBeNull()
+  })
+})
+
+/**
+ * A JANELA DE DESFAZER, ENQUANTO ELA ESTA ABERTA.
+ *
+ * **Sem a data na tela, a espera so funciona por sorte.** Ela existe para quem
+ * moveu o card por engano ter tempo de corrigir antes de a pessoa la fora ver — e
+ * quem moveu por engano so sabe que ainda da tempo se a tela disser.
+ *
+ * O caso comum e nao ter espera nenhuma: o padrao de fabrica e zero minutos, e ai
+ * nao ha nada a avisar. Um aviso permanente viraria ruido que se aprende a nao ler.
+ */
+describe('a espera antes de quem relatou ver', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.contar.mockResolvedValue([])
+  })
+
+  function comVencimento(vence: string | null) {
+    const alvo = relato('r-1', 'o botao some', { PublicStageDueAt: vence })
+    dublê.listar.mockResolvedValue({ reports: [alvo], total: 1 })
+    dublê.abrir.mockResolvedValue({
+      ...alvo,
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+    montar('p-1', '/p/p-1/r-1')
+  }
+
+  it('sem espera pendente, a tela não avisa nada', async () => {
+    comVencimento(null)
+    await screen.findByRole('button', { name: 'Fechar' })
+
+    expect(screen.queryByText(/Quem relatou vê às/)).toBeNull()
+  })
+
+  it('com espera pendente, diz até quando dá para desfazer', async () => {
+    comVencimento('2026-09-19T00:30:00.000Z')
+
+    // **O ponto do teste.** A janela silenciosa é uma janela inútil: quem arrastou
+    // o card por engano não tem como saber que ainda dá tempo de corrigir.
+    expect(await screen.findByText(/Quem relatou vê às/)).toBeTruthy()
+  })
+
+  it('e o aviso acompanha a resposta do próprio movimento', async () => {
+    // As colunas precisam estar respondidas **antes** de montar: a tela busca a
+    // contagem na montagem, e o seletor só existe quando ela chega.
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', {
+        StatePublicId: 's-2',
+        StateName: 'Pronto',
+        PublicStageDueAt: '2026-09-19T00:30:00.000Z',
+      }),
+    )
+
+    comVencimento(null)
+    await screen.findByRole('button', { name: 'Fechar' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+
+    // Sai da resposta do movimento, e não de uma busca nova: buscar o detalhe de
+    // novo **grava um evento de leitura**.
+    expect(await screen.findByText(/Quem relatou vê às/)).toBeTruthy()
+    expect(dublê.abrir).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * DEVOLVER NAO E ENCERRAR.
+ *
+ * **E a distincao que da nome ao passo.** "Nao reproduzi" e "nao vamos fazer" sao
+ * decisoes opostas, e chegando iguais do outro lado a pessoa entende que acabou e
+ * para de responder — o relato morre por ruido. A tela precisa oferecer as duas
+ * saidas **lado a lado**: esconder uma atras da outra e o que faz a primeira chegar
+ * como a segunda.
+ *
+ * E quem decide se da para devolver e a API, em `CanAskInfo` — que ja e a conclusao
+ * de quatro coisas, e nao a configuracao de nenhuma.
+ */
+describe('devolver o relato pedindo informação', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.contar.mockResolvedValue([])
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+  })
+
+  function aberto(extra: Record<string, unknown>) {
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+      ...extra,
+    })
+    montar('p-1', '/p/p-1/r-1')
+  }
+
+  it('as duas saídas aparecem juntas quando dá para devolver', async () => {
+    aberto({ CanAskInfo: true })
+
+    expect(await screen.findByRole('button', { name: 'Pedir informação' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Concluir relato' })).toBeTruthy()
+  })
+
+  it('e a de devolver some quando a API diz que não dá', async () => {
+    // Quem escreveu não aceitou responder dúvidas, o relato já está encerrado, já
+    // há um pedido aberto, ou o projeto desligou o recurso. A tela não precisa
+    // saber qual — ela lê a conclusão.
+    aberto({ CanAskInfo: false })
+
+    await screen.findByRole('button', { name: 'Concluir relato' })
+    expect(screen.queryByRole('button', { name: 'Pedir informação' })).toBeNull()
+  })
+
+  it('pedir manda o texto, e não encerra nada', async () => {
+    aberto({ CanAskInfo: true })
+    dublê.pedir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      CanAskInfo: false,
+      InfoRequest: {
+        AskedByName: 'Cleiton',
+        AskedAt: '2026-09-19T00:00:00.000Z',
+        WarnAt: '2026-09-26T00:00:00.000Z',
+        CloseAt: '2026-10-03T00:00:00.000Z',
+      },
+      Contexts: [],
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pedir informação' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'O que falta' }), {
+      target: { value: 'Em qual navegador isso aconteceu?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Pedir' }))
+
+    await waitFor(() =>
+      expect(dublê.pedir).toHaveBeenCalledWith('p-1', 'r-1', {
+        Body: 'Em qual navegador isso aconteceu?',
+      }),
+    )
+    // **O ponto do teste.** Devolver e encerrar são rotas diferentes porque são
+    // decisões diferentes.
+    expect(dublê.encerrar).not.toHaveBeenCalled()
+
+    // E a tela passa a mostrar que a bola está com quem relatou.
+    expect(await screen.findByText('Esperando quem relatou')).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Pedir informação' })).toBeNull(),
+    )
+  })
+
+  it('o relato já devolvido mostra os dois prazos, e que dá para reabrir', async () => {
+    aberto({
+      InfoRequest: {
+        AskedByName: 'Cleiton',
+        AskedAt: '2026-09-19T00:00:00.000Z',
+        WarnAt: '2026-09-26T00:00:00.000Z',
+        CloseAt: '2026-10-03T00:00:00.000Z',
+      },
+    })
+
+    // Sem isto, alguém do time abre o relato dias depois, vê que está parado, e
+    // pergunta de novo — e quem está do outro lado recebe duas perguntas iguais.
+    expect(await screen.findByText('Esperando quem relatou')).toBeTruthy()
+    expect(screen.getByText(/pedido por Cleiton/)).toBeTruthy()
+    expect(screen.getByText(/ainda assim poderá ser reaberto/)).toBeTruthy()
   })
 })

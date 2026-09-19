@@ -1,8 +1,11 @@
 import type {
+  ConfirmReportRequest,
   CreatedReportViewModel,
   CreateReportRequest,
   OpenReportTrackingRequest,
   PublicReportViewModel,
+  ReopenReportRequest,
+  ReplyToReportRequest,
 } from '@/contracts'
 
 /** Espelha o `ReportService` da API, do lado publico dela. */
@@ -25,4 +28,28 @@ export interface ReportService {
    * rota nao descobre que acertou metade.
    */
   openReportTracking(request: OpenReportTrackingRequest): Promise<PublicReportViewModel>
+
+  /**
+   * Quem relatou diz que resolveu, com a nota quando o projeto a pede.
+   *
+   * **Devolve o relato inteiro**, e nao um "ok": a pagina redesenha a partir da
+   * resposta, entao o que ela mostra depois de agir e o que ficou gravado — e nao
+   * o que ela mandou.
+   */
+  confirmReport(request: ConfirmReportRequest): Promise<PublicReportViewModel>
+
+  /**
+   * Quem relatou diz que nao resolveu, e o relato volta para a fila.
+   *
+   * Nao leva nota: quem reabre esta dizendo que o trabalho nao acabou.
+   */
+  reopenReport(request: ReopenReportRequest): Promise<PublicReportViewModel>
+
+  /**
+   * Responde a pergunta da equipe.
+   *
+   * **So enquanto ha pedido aberto** — `CanReply` diz quando. Sem a pergunta do
+   * outro lado, isto viraria uma caixa de entrada sem dono e sem moderacao.
+   */
+  replyToReport(request: ReplyToReportRequest): Promise<PublicReportViewModel>
 }

@@ -26,6 +26,28 @@ const CSHARP = fileURLToPath(
 )
 
 /**
+ * **O segundo arquivo, e por que sao dois.**
+ *
+ * `AcceptsQuestionsDefault` decide o estado inicial de uma caixa do formulario,
+ * mas a resposta dela pertence ao ciclo do relato — entao o valor mora nas regras
+ * do ciclo, e nao nas da ferramenta. A resposta da API junta os dois porque ela e
+ * "tudo que o quadro precisa para aparecer".
+ *
+ * Ler so o primeiro arquivo faria este teste **reprovar o campo novo como se ele
+ * estivesse sobrando** — e a saida facil seria tirar o campo da lista, que e
+ * justamente perder a guarda.
+ */
+const CSHARP_CICLO = fileURLToPath(
+  new URL(
+    '../../../api/Pds.Domain/Entities/ProjectCycleSettings/CycleSettingsDefaults.cs',
+    import.meta.url,
+  ),
+)
+
+/** Os campos do ciclo que a ferramenta le. Um hoje; a lista diz qual. */
+const DO_CICLO = ['AcceptsQuestionsDefault'] as const
+
+/**
  * Le `public const <tipo> <Nome> = <valor>;`, inclusive quando o valor cai para a
  * linha de baixo — e o caso dos dois textos longos.
  */
@@ -55,10 +77,24 @@ function readValue(raw: string): unknown {
 }
 
 describe('os padroes da ferramenta, dos dois lados', () => {
-  const csharp = parseDefaults(readFileSync(CSHARP, 'utf8'))
+  const daFerramenta = parseDefaults(readFileSync(CSHARP, 'utf8'))
+  const doCiclo = parseDefaults(readFileSync(CSHARP_CICLO, 'utf8'))
 
-  it('o arquivo C# ainda tem os dez campos — se parou de ter, o resto deste teste nao vale', () => {
+  // Do arquivo do ciclo entra **so** o que a ferramenta le. As outras doze regras
+  // de la nao aparecem no quadro, e arrasta-las para ca faria este teste cobrar do
+  // TypeScript campos que ele nao tem por que conhecer.
+  const csharp: Record<string, unknown> = { ...daFerramenta }
+  for (const campo of DO_CICLO) csharp[campo] = doCiclo[campo]
+
+  it('os dois arquivos C# ainda cobrem os campos do quadro — se pararam, o resto deste teste nao vale', () => {
     expect(Object.keys(csharp).sort()).toEqual(Object.keys(DEFAULT_WIDGET_SETTINGS).sort())
+  })
+
+  it('o campo do ciclo foi mesmo encontrado, e nao virou `undefined` em silencio', () => {
+    // Sem isto, renomear a constante em C# faria o teste abaixo comparar
+    // `undefined` com `undefined` e passar — que e o jeito mais silencioso de
+    // perder uma guarda.
+    for (const campo of DO_CICLO) expect(doCiclo).toHaveProperty(campo)
   })
 
   for (const [campo, valor] of Object.entries(DEFAULT_WIDGET_SETTINGS)) {

@@ -1,4 +1,5 @@
 import { apiAuthService } from '@/data/api/apiAuthService'
+import { apiProjectCycleSettingsService } from '@/data/api/apiProjectCycleSettingsService'
 import { apiProjectKeyService } from '@/data/api/apiProjectKeyService'
 import { apiProjectOriginService } from '@/data/api/apiProjectOriginService'
 import { apiProjectPublicStageService } from '@/data/api/apiProjectPublicStageService'
@@ -8,6 +9,7 @@ import { apiProjectStateService } from '@/data/api/apiProjectStateService'
 import { apiProjectStatusMappingService } from '@/data/api/apiProjectStatusMappingService'
 import { apiProjectWidgetSettingsService } from '@/data/api/apiProjectWidgetSettingsService'
 import type { AuthService } from '@/data/authService'
+import type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
 import type { ProjectKeyService } from '@/data/projectKeyService'
 import type { ProjectOriginService } from '@/data/projectOriginService'
 import type { ProjectPublicStageService } from '@/data/projectPublicStageService'
@@ -26,6 +28,8 @@ export const authService: AuthService = apiAuthService
 export const projectService: ProjectService = apiProjectService
 export const projectKeyService: ProjectKeyService = apiProjectKeyService
 export const projectOriginService: ProjectOriginService = apiProjectOriginService
+export const projectCycleSettingsService: ProjectCycleSettingsService =
+  apiProjectCycleSettingsService
 export const projectReportService: ProjectReportService = apiProjectReportService
 export const projectPublicStageService: ProjectPublicStageService = apiProjectPublicStageService
 export const projectStatusMappingService: ProjectStatusMappingService =
@@ -37,6 +41,7 @@ export const projectWidgetSettingsService: ProjectWidgetSettingsService =
 export type { AuthService } from '@/data/authService'
 export { environment } from '@/data/environment'
 export { describeError, isPanelError, PanelError } from '@/data/errors'
+export type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
 export type { ProjectKeyService } from '@/data/projectKeyService'
 export type { ProjectOriginService } from '@/data/projectOriginService'
 export type { ProjectPublicStageService } from '@/data/projectPublicStageService'

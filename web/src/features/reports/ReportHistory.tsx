@@ -99,6 +99,31 @@ const DESCRICOES: Record<ReportEventType, string> = {
   // exigiria alargar a resposta para todas as linhas por causa de duas.
   ReportPublicStageChanged: 'Andou para quem relatou',
   ReportPublicStageUnmapped: 'Não andou: coluna fora da jornada',
+
+  // **Sem o desfecho e sem o motivo.** O evento carrega o desfecho na carga, e o
+  // histórico não a traz — alargar a resposta de todas as linhas por causa de uma
+  // seria caro pelo mesmo motivo que o rótulo da etapa ficou de fora. O motivo não
+  // está nem lá: ele mora no encerramento, que é de onde a página pública o lê.
+  ReportClosed: 'Relato encerrado',
+
+  // As duas frases dizem **quem** agiu, e não o quê. É a diferença que dá sentido
+  // à etapa: todas as outras linhas do histórico são o time mexendo no relato, e
+  // estas duas são a pessoa do outro lado respondendo. A nota não entra aqui — ela
+  // aparece no bloco do encerramento, junto do motivo que a explica.
+  ReportConfirmed: 'Quem relatou confirmou que resolveu',
+  ReportReopened: 'Quem relatou reabriu',
+
+  // **As duas dizem de quem é a vez**, que é o assunto do passo que as criou.
+  // "Devolvido" e não "comentado": a diferença entre pedir contexto e recusar é
+  // exatamente o que o histórico precisava parar de embaralhar.
+  ReportInfoRequested: 'Devolvido pedindo informação',
+  ReportReplied: 'Quem relatou respondeu',
+
+  // **"Deixou de estar encerrado", e não "reaberto".** Reabrir é quem relatou
+  // dizendo que o problema continua; isto é o time saindo da coluna que encerra e
+  // desfazendo o próprio encerramento. Usar a mesma palavra faria a linha do tempo
+  // atribuir à pessoa de fora um movimento que ela nunca soube que aconteceu.
+  ReportClosureCancelled: 'Deixou de estar encerrado',
 }
 
 /**

@@ -61,6 +61,19 @@ export interface WidgetSettingsViewModel {
    * quando ele esta escondido.
    */
   DefaultReportType: ReportType
+
+  /**
+   * Como a caixa "aceito responder duvidas" vem marcada no formulario.
+   *
+   * **Vem de outra tabela na API**, e isso e deliberado: o valor mora nas regras
+   * do ciclo, porque e la que a resposta significa alguma coisa — e quem precisa
+   * dele para **desenhar** e a ferramenta. Esta resposta e "tudo que o quadro
+   * precisa para aparecer".
+   *
+   * **O padrao nao e a resposta.** Ele so decide o estado inicial da caixa; a
+   * escolha final e de quem escreve o relato.
+   */
+  AcceptsQuestionsDefault: boolean
 }
 
 /** Limites das colunas de texto, iguais aos que a API vai declarar. */

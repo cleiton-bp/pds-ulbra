@@ -40,6 +40,10 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   // pediu um formulario no meio da tela.
   const [open, setOpen] = useState(!host)
   const [text, setText] = useState('')
+  // **A escolha e dela, e o projeto so decide como a caixa comeca.** Quem relatou
+  // um defeito as pressas pode nao querer virar parte da investigacao — e prometer
+  // resposta a quem nao vai responder deixa o relato pendurado esperando.
+  const [acceptsQuestions, setAcceptsQuestions] = useState(settings.AcceptsQuestionsDefault)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<CreatedReportViewModel | null>(null)
@@ -86,6 +90,7 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         Text: trimmed,
         Route: config.route,
         Origin: config.origin,
+        AcceptsQuestions: acceptsQuestions,
         Context: buildReportContext(config),
       })
 
@@ -117,6 +122,7 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
     setError(null)
     setSending(false)
     setType(settings.DefaultReportType)
+    setAcceptsQuestions(settings.AcceptsQuestionsDefault)
   }
 
   function expand() {
@@ -279,6 +285,26 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
           error ? 'border-error-border' : 'border-border',
         )}
       />
+
+      {/*
+        **A caixa fica depois do texto, e nao antes.** Antes, ela seria uma
+        condicao a aceitar para poder relatar; depois, e o que a pessoa decide
+        **sobre o que acabou de escrever**. A ordem muda o que a pergunta parece
+        estar pedindo.
+
+        E a frase fala do que vai acontecer com ela, e nao do que o time precisa:
+        quem le esta pensando no proprio problema, nao no fluxo de trabalho de
+        quem vai atender.
+      */}
+      <label className="flex cursor-pointer items-start gap-2 text-detail text-fg-muted">
+        <input
+          type="checkbox"
+          checked={acceptsQuestions}
+          onChange={(event) => setAcceptsQuestions(event.target.checked)}
+          className="mt-0.5 flex-none accent-[var(--widget-accent)]"
+        />
+        <span>Pode me perguntar algo sobre isto, se precisarem</span>
+      </label>
 
       {error && (
         <p role="alert" className="text-detail text-error-fg leading-normal">

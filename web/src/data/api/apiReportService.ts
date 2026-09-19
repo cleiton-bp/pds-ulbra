@@ -60,4 +60,28 @@ export const apiReportService: ReportService = {
       request,
       'Falha de rede ao abrir o relato.',
     ),
+
+  // As mensagens de rede falam da **acao**, e nao da rota: quem nao conseguiu
+  // confirmar precisa saber que a resposta dele nao chegou, e nao que "houve um
+  // erro" — a diferenca e entre tentar de novo e ir embora achando que respondeu.
+  confirmReport: (request) =>
+    post<PublicReportViewModel>(
+      '/public/reports/confirm',
+      request,
+      'Falha de rede ao enviar a sua resposta.',
+    ),
+
+  reopenReport: (request) =>
+    post<PublicReportViewModel>(
+      '/public/reports/reopen',
+      request,
+      'Falha de rede ao reabrir o relato.',
+    ),
+
+  replyToReport: (request) =>
+    post<PublicReportViewModel>(
+      '/public/reports/reply',
+      request,
+      'Falha de rede ao enviar a sua resposta.',
+    ),
 }
