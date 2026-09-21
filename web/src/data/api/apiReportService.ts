@@ -1,4 +1,9 @@
-import type { ApiResponse, CreatedReportViewModel, PublicReportViewModel } from '@/contracts'
+import type {
+  ApiResponse,
+  CreatedReportViewModel,
+  PublicReportViewModel,
+  ReporterCodeReportsViewModel,
+} from '@/contracts'
 import { environment } from '@/data/environment'
 import { PanelError } from '@/data/errors'
 import type { ReportService } from '@/data/reportService'
@@ -83,5 +88,12 @@ export const apiReportService: ReportService = {
       '/public/reports/reply',
       request,
       'Falha de rede ao enviar a sua resposta.',
+    ),
+
+  listByReporterCode: (request) =>
+    post<ReporterCodeReportsViewModel>(
+      '/public/reports/by-code',
+      request,
+      'Falha de rede ao buscar os seus relatos.',
     ),
 }

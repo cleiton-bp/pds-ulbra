@@ -14,10 +14,21 @@ namespace Pds.Domain.ViewModels;
 /// o hash, e nenhuma rota consegue revela-lo de novo.
 /// </param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+/// <param name="ReporterCode">
+/// O código pessoal desta pessoa, quando o projeto usa esse modo; <b>nulo</b> nos
+/// outros.
+///
+/// <para><b>Vem em toda confirmação, e não só na primeira.</b> A ferramenta guarda
+/// no navegador e manda de volta no relato seguinte — e se o navegador foi limpo,
+/// ou se o código mandado não existia mais, o que chega aqui é um novo. Devolver
+/// sempre é o que faz a tela mostrar o código que <b>de fato</b> vale, em vez do
+/// que ela achava que valia.</para>
+/// </param>
 public record CreatedReportViewModel(
     string TrackingCode,
     string AccessToken,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? ReporterCode);
 
 /// <summary>
 /// Um relato na lista do painel.
@@ -278,6 +289,54 @@ public record ReportDetailViewModel(
     bool CanAskInfo,
     IReadOnlyList<ReportContextViewModel> Contexts);
 
+
+/// <summary>
+/// Um relato na lista pessoal de quem o escreveu.
+///
+/// <para><b>E resumo, e nao o relato.</b> Aqui a pessoa reconhece qual e qual e
+/// decide o que abrir; o texto inteiro, a jornada e a conversa continuam vindo da
+/// consulta de um relato so.</para>
+///
+/// <para><b>Nao carrega o token de acompanhamento.</b> O codigo pessoal diz quais
+/// relatos sao dela; o link de cada um e que da poder sobre ele — confirmar,
+/// reabrir, responder. Embutir o token aqui faria um codigo de doze simbolos valer
+/// tanto quanto todos os links somados.</para>
+/// </summary>
+/// <param name="TrackingCode">O protocolo, que a pessoa reconhece.</param>
+/// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="Excerpt">O comeco do que ela escreveu, para distinguir um do outro.</param>
+/// <param name="StageLabel">Em que passo da jornada ele esta, com as palavras do cliente. Nulo quando o projeto nao tem jornada.</param>
+/// <param name="IsClosed">Se ja acabou. A lista separa os abertos dos fechados sem precisar abrir cada um.</param>
+/// <param name="CreatedAt">Quando entrou, em UTC.</param>
+public record ReporterCodeReportViewModel(
+    string TrackingCode,
+    ReportTypeEnum Type,
+    string Excerpt,
+    string? StageLabel,
+    bool IsClosed,
+    DateTime CreatedAt);
+
+/// <summary>
+/// A resposta da consulta por codigo pessoal.
+///
+/// <para><b>Codigo que nao existe devolve lista vazia, e nao uma recusa.</b> E a
+/// decisao central desta rota: qualquer diferenca entre "nao existe" e "existe e
+/// esta vazio" transforma a consulta num oraculo, e tentar codigos ate a resposta
+/// mudar e exatamente como se enumera. Quem digitou errado ve uma lista vazia, o
+/// mesmo que veria quem acabou de receber um codigo novo.</para>
+/// </summary>
+/// <param name="Reports">Os relatos ligados ao codigo, do mais novo para o mais antigo.</param>
+/// <param name="HasMore">
+/// Ha relato alem dos que vieram.
+///
+/// <para><b>E um sim ou nao, e nunca um total.</b> A rota e publica e nao pede
+/// credencial: dizer quantos entregaria a quem sonda o tamanho da lista de outra
+/// pessoa. O aviso basta para quem esta lendo saber que a lista nao e tudo — e o
+/// que falta continua alcancavel pelo link de cada relato.</para>
+/// </param>
+public record ReporterCodeReportsViewModel(
+    IReadOnlyList<ReporterCodeReportViewModel> Reports,
+    bool HasMore);
 
 /// <summary>
 /// Um passo da jornada, como quem relatou o le.

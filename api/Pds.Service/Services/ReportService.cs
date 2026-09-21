@@ -127,8 +127,11 @@ public class ReportService : IReportService
                             ?? regras?.AcceptsQuestionsDefault
                             ?? CycleSettingsDefaults.AcceptsQuestionsDefault;
 
+        var codigoPessoal = await ResolveReporterCodeAsync(project.Id, dto.ReporterCode, cancellationToken);
+
         var report = new Report
         {
+            ReporterCode = codigoPessoal,
             AccountId = project.AccountId,
             ProjectId = project.Id,
             TrackingCode = await GenerateTrackingCodeAsync(cancellationToken),
@@ -183,7 +186,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt);
+        return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt, codigoPessoal?.Code);
     }
 
     /// <summary>
@@ -1548,6 +1551,133 @@ public class ReportService : IReportService
         }
 
         throw new UnauthorizedAccessException("Chave publica invalida.");
+    }
+
+    public async Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default)
+    {
+        var vazia = new ReporterCodeReportsViewModel([], false);
+
+        var project = await RequireProjectAsync(dto.Key, cancellationToken);
+        var digitado = (dto.Code ?? string.Empty).Trim().ToUpperInvariant();
+
+        if (digitado.Length == 0)
+            return vazia;
+
+        // **Projeto que nao usa o modo responde vazio, e nao uma recusa.** Recusar
+        // contaria a configuracao do cliente a quem nem relato tem aqui.
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        if ((identidade?.Mode ?? IdentitySettingsDefaults.Mode) != ReporterIdentityModeEnum.PersonalCode)
+            return vazia;
+
+        var codigo = await _unitOfWork.ReporterCodes
+            .FindByCodeWithoutSessionAsync(project.Id, digitado, cancellationToken);
+
+        // **Aqui esta a regra inteira do modo, e ela cabe numa linha:** codigo que
+        // nao existe sai igual a codigo sem relato nenhum. Ver a interface.
+        if (codigo is null)
+            return vazia;
+
+        // **Pede um a mais do que mostra.** E assim que da para dizer "ha mais" sem
+        // contar quantos — e contar entregaria a quem sonda o tamanho da lista
+        // alheia, que e informacao sobre outra pessoa.
+        var encontrados = await _unitOfWork.Reports
+            .ListByReporterCodeWithoutSessionAsync(codigo.Id, ReporterCode.MaxListedReports + 1, cancellationToken);
+
+        var temMais = encontrados.Count > ReporterCode.MaxListedReports;
+        var relatos = temMais
+            ? encontrados.Take(ReporterCode.MaxListedReports).ToList()
+            : encontrados;
+
+        // Uma consulta para a lista inteira, e nao uma por linha: o custo da
+        // resposta nao pode crescer com o tamanho da lista numa rota publica.
+        var fechados = (await _unitOfWork.ReportClosures
+                .ListReportIdsWithPublicClosureWithoutSessionAsync(
+                    [.. relatos.Select(relato => relato.Id)], DateTime.UtcNow, cancellationToken))
+            .ToHashSet();
+
+        return new ReporterCodeReportsViewModel(
+            relatos
+                .Select(relato => new ReporterCodeReportViewModel(
+                    relato.TrackingCode,
+                    relato.Type,
+                    Excerpt(relato.Text),
+                    relato.ProjectPublicStage?.Label,
+                    fechados.Contains(relato.Id),
+                    relato.CreatedAt))
+                .ToList(),
+            temMais);
+    }
+
+    private static string Excerpt(string text)
+    {
+        const int Limit = 120;
+
+        var limpo = text.Trim();
+
+        if (limpo.Length <= Limit)
+            return limpo;
+
+        var corte = limpo.LastIndexOf(' ', Limit);
+
+        return string.Concat(limpo.AsSpan(0, corte > 40 ? corte : Limit).TrimEnd(), "…");
+    }
+
+    /// <summary>
+    /// O codigo pessoal deste relato: o que a pessoa apresentou, ou um novo.
+    ///
+    /// <para><b>Nulo quando o projeto nao usa este modo.</b> E se alguem mandar um
+    /// codigo num projeto de protocolo, a recusa e explicita — aceitar em silencio
+    /// gravaria um vinculo que a configuracao do projeto diz nao existir.</para>
+    ///
+    /// <para><b>Codigo desconhecido nao e erro: vira um codigo novo.</b> Recusar
+    /// diria "este codigo nao existe aqui", e e exatamente o oraculo que este modo
+    /// nao pode ter. A pessoa recebe um codigo novo na confirmacao e ve que mudou —
+    /// que e a mesma coisa que aconteceria se ela nunca tivesse tido um.</para>
+    /// </summary>
+    private async Task<ReporterCode?> ResolveReporterCodeAsync(long projectId, string? apresentado, CancellationToken cancellationToken)
+    {
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(projectId, cancellationToken);
+
+        var modo = identidade?.Mode ?? IdentitySettingsDefaults.Mode;
+        var digitado = (apresentado ?? string.Empty).Trim().ToUpperInvariant();
+
+        if (modo != ReporterIdentityModeEnum.PersonalCode)
+        {
+            if (digitado.Length > 0)
+                throw new ArgumentException("Este projeto nao usa codigo pessoal.");
+
+            return null;
+        }
+
+        if (digitado.Length > 0)
+        {
+            var existente = await _unitOfWork.ReporterCodes
+                .FindByCodeWithoutSessionAsync(projectId, digitado, cancellationToken);
+
+            // Ver o paragrafo do metodo: desconhecido cai para um codigo novo, e nao
+            // para uma recusa que contaria o que ele nao e.
+            if (existente is not null)
+                return existente;
+        }
+
+        for (var tentativa = 0; tentativa < TrackingCodeAttempts; tentativa++)
+        {
+            var candidato = TrackingCode.Generate();
+
+            if (await _unitOfWork.ReporterCodes.ExistsAsync(projectId, candidato, cancellationToken))
+                continue;
+
+            var novo = new ReporterCode { ProjectId = projectId, Code = candidato };
+            await _unitOfWork.ReporterCodes.AddAsync(novo, cancellationToken);
+
+            return novo;
+        }
+
+        throw new InvalidOperationException(
+            $"Nao foi possivel gerar um codigo pessoal unico em {TrackingCodeAttempts} tentativas.");
     }
 
     private async Task<string> GenerateTrackingCodeAsync(CancellationToken cancellationToken)

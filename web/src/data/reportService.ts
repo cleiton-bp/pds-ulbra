@@ -6,6 +6,8 @@ import type {
   PublicReportViewModel,
   ReopenReportRequest,
   ReplyToReportRequest,
+  ReporterCodeLookupRequest,
+  ReporterCodeReportsViewModel,
 } from '@/contracts'
 
 /** Espelha o `ReportService` da API, do lado publico dela. */
@@ -52,4 +54,13 @@ export interface ReportService {
    * outro lado, isto viraria uma caixa de entrada sem dono e sem moderacao.
    */
   replyToReport(request: ReplyToReportRequest): Promise<PublicReportViewModel>
+
+  /**
+   * Os relatos ligados a um codigo pessoal.
+   *
+   * **Codigo desconhecido devolve lista vazia**, e nao um erro: qualquer diferenca
+   * entre "nao existe" e "existe e esta vazio" transformaria a consulta num
+   * oraculo. Quem digitou errado ve o mesmo que quem acabou de receber um codigo.
+   */
+  listByReporterCode(request: ReporterCodeLookupRequest): Promise<ReporterCodeReportsViewModel>
 }

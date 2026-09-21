@@ -20,6 +20,7 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IProjectStatusMappingRepository ProjectStatusMappings { get; }
     IProjectCycleSettingsRepository ProjectCycleSettings { get; }
     IProjectIdentitySettingsRepository ProjectIdentitySettings { get; }
+    IReporterCodeRepository ReporterCodes { get; }
     IReportRepository Reports { get; }
     IReportInternalCommentRepository ReportInternalComments { get; }
     IReportPublicCommentRepository ReportPublicComments { get; }

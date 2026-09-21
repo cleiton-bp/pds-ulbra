@@ -120,6 +120,20 @@ public class Report : PdsBaseEntity
     public bool? AcceptsQuestions { get; set; }
 
     /// <summary>
+    /// O codigo pessoal de quem escreveu, quando o projeto usa esse modo.
+    ///
+    /// <para><b>Anulavel, e vai continuar.</b> Nulo e o relato que entrou sob o modo
+    /// protocolo, ou antes de o modo existir — e ele continua valendo pelo link, que
+    /// e o que impede uma troca de configuracao de tornar ilegivel o que ja
+    /// estava aqui.</para>
+    ///
+    /// <para>O vinculo e o que permite "os meus relatos": sem ele, cada um seria um
+    /// link solto, que e o problema que este modo existe para resolver.</para>
+    /// </summary>
+    public long? ReporterCodeId { get; set; }
+    public ReporterCode? ReporterCode { get; set; }
+
+    /// <summary>
     /// Quando a ultima mudanca de etapa publica passa a valer para quem relatou.
     ///
     /// <para><b>E o agendamento, e nao um aviso.</b> Preenchida, quer dizer que o

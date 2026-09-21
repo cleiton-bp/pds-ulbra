@@ -49,6 +49,7 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectStatusMapping> ProjectStatusMappings { get; set; } = null!;
     public DbSet<ProjectCycleSettings> ProjectCycleSettings { get; set; } = null!;
     public DbSet<ProjectIdentitySettings> ProjectIdentitySettings { get; set; } = null!;
+    public DbSet<ReporterCode> ReporterCodes { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
@@ -142,6 +143,13 @@ public class DataContext : PdsBaseContext
                                         && settings.Project.DeletedAt == null
                                         && settings.Project.AccountId == CurrentAccountId);
 
+        // Codigo pessoal: mesmo caminho. Quem le isto **sem sessao** e a propria
+        // pessoa que digitou o codigo, e la a conta atual e zero — aquela leitura
+        // desliga este filtro e reescreve as condicoes a mao.
+        modelBuilder.Entity<ReporterCode>()
+            .HasQueryFilter(code => code.DeletedAt == null
+                                    && code.Project.DeletedAt == null
+                                    && code.Project.AccountId == CurrentAccountId);
 
         // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
         // cresce e a que o painel lista o tempo todo, entao ela repete account_id de

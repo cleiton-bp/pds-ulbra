@@ -143,6 +143,46 @@ public class PublicReportsController : BaseController
         }
     }
 
+    /// <summary>Os relatos ligados a um código pessoal.</summary>
+    /// <remarks>
+    /// **Sem sessão.** É a lista de quem relatou, no modo em que o projeto entrega um
+    /// código para a pessoa guardar.
+    ///
+    /// **Código desconhecido devolve lista vazia, e não 404.** É a decisão central
+    /// desta rota: qualquer diferença entre "não existe" e "existe e está vazio"
+    /// a transformaria num oráculo, e tentar códigos até a resposta mudar é
+    /// exatamente como se enumera código alheio. Projeto que não usa este modo
+    /// responde igual, pelo mesmo motivo.
+    ///
+    /// **A lista não carrega o token de cada relato.** O código diz *quais* relatos
+    /// são dela; o link de cada um é que dá poder sobre ele — confirmar, reabrir,
+    /// responder. Embutir o token aqui faria doze símbolos valerem tanto quanto
+    /// todos os links somados.
+    ///
+    /// **Não grava visualização.** Ver a lista não é ler o relato, e contar como
+    /// leitura encheria a medida de reação com aberturas que não aconteceram.
+    /// </remarks>
+    /// <param name="dto">A chave pública do projeto e o código.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">A lista, possivelmente vazia.</response>
+    /// <response code="401">Chave pública inválida, como nas outras rotas públicas.</response>
+    [HttpPost("by-code")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReporterCodeReportsViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ByCode([FromBody] ReporterCodeLookupDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var relatos = await _reportService.ListByReporterCodeAsync(dto, cancellationToken);
+            return Success(relatos);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Quem relatou diz que resolveu.</summary>
     /// <remarks>
     /// **É a metade que faltava da metáfora.** "Concluído" é o time dizendo que

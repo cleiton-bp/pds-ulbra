@@ -105,6 +105,7 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'token-secreto',
       CreatedAt: '2026-09-12T00:00:00Z',
+      ReporterCode: null,
     })
 
     render(
@@ -127,6 +128,7 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'token-secreto-que-nao-pode-vazar',
       CreatedAt: '2026-09-12T00:00:00Z',
+      ReporterCode: null,
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
@@ -158,6 +160,7 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'x',
       CreatedAt: '2026-09-12T00:00:00Z',
+      ReporterCode: null,
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
@@ -177,6 +180,7 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'x',
       CreatedAt: '2026-09-12T00:00:00Z',
+      ReporterCode: null,
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} />)
@@ -224,6 +228,7 @@ describe('o formulario', () => {
         TrackingCode: 'VELHO-VELHO-VELH',
         AccessToken: 'x',
         CreatedAt: '2026-09-12T00:00:00Z',
+        ReporterCode: null,
       })
       await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
 
@@ -266,6 +271,7 @@ describe('o formulario', () => {
         TrackingCode: 'VELHO-VELHO-VELH',
         AccessToken: 'x',
         CreatedAt: '2026-09-12T00:00:00Z',
+        ReporterCode: null,
       })
       await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
 
@@ -350,6 +356,7 @@ describe('aceitar responder dúvidas', () => {
       TrackingCode: 'ABCD-EFGH-JKLM',
       AccessToken: 'tok',
       CreatedAt: '2026-09-18T12:00:00.000Z',
+      ReporterCode: null,
     } satisfies CreatedReportViewModel)
 
     render(<EmbedApp settings={settings} config={config} host={null} />)

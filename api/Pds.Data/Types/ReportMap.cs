@@ -102,6 +102,43 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // mantida por insercao.
         builder.HasIndex(report => report.AccessTokenHash);
 
+        builder.Property(report => report.ReporterCodeId)
+            .HasColumnName("reporter_code_id")
+            .HasComment("Codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nulo no modo protocolo e nos relatos anteriores ao modo existir — e esses continuam valendo pelo link.");
+
+        builder.Property(report => report.AcceptsQuestions)
+            .HasColumnName("accepts_questions")
+            .HasComment("Quem relatou aceita responder duvidas da equipe. Escolha dela, nao do projeto. Nulo e o relato que entrou antes de a pergunta existir: ninguem perguntou, e ninguem respondeu.");
+
+        builder.Property(report => report.PublicStageDueAt)
+            .HasColumnName("public_stage_due_at")
+            .HasComment("Quando a ultima mudanca de etapa publica passa a valer para quem relatou. Preenchida e a janela para desfazer; nula e o estado normal. E ela que sobrevive, e nao a mensagem na fila.");
+
+        // Parcial: a varredura de recuperacao pergunta **so** pelos agendados, e a
+        // coluna e nula na esmagadora maioria das linhas. Um indice cheio custaria
+        // manutencao em toda a tabela que mais cresce para servir a um punhado.
+        builder.HasIndex(report => report.PublicStageDueAt)
+            .HasFilter("public_stage_due_at IS NOT NULL");
+
+        // Unico em todo o sistema, e sem o filtro de deleted_at que as outras
+        // unicidades usam: o protocolo esta escrito num papel na mao de alguem, e
+        // reaproveita-lo faria duas pessoas diferentes digitarem o mesmo codigo.
+        builder.HasIndex(report => report.TrackingCode).IsUnique();
+
+        // A lista do painel: os relatos da conta, do mais novo para o mais antigo.
+        builder.HasIndex(report => new { report.AccountId, report.CreatedAt });
+
+        // A mesma lista dentro de um projeto.
+        builder.HasIndex(report => new { report.ProjectId, report.CreatedAt });
+
+        // **Este indice nao tem consulta.** Ele foi criado esperando que o
+        // acompanhamento buscasse pelo hash do token; a pds-017 escreveu a busca
+        // pelo protocolo e deixou a comparacao do segredo em memoria, de proposito
+        // — dentro do banco ela nao seria em tempo constante. Fica porque derruba-lo
+        // pede migracao no banco compartilhado, e o custo dele e uma arvore
+        // mantida por insercao.
+        builder.HasIndex(report => report.AccessTokenHash);
+
         // A lista do painel filtra por estado, e a regra de aposentar precisa saber
         // se ainda ha relato parado naquele estado.
         builder.HasIndex(report => report.ProjectStateId);
@@ -109,6 +146,14 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // Restrict, e nao Cascade: apagar um estado nao pode levar os relatos que
         // passaram por ele. A regra de negocio nem chega a deixar apagar — aqui e a
         // rede embaixo dela.
+        // Restrict: o codigo nao some enquanto houver relato ligado a ele. Apaga-lo
+        // deixaria a pessoa sem a lista e sem aviso nenhum — e os relatos ficariam
+        // orfaos de um vinculo que nao da para reconstruir.
+        builder.HasOne(report => report.ReporterCode)
+            .WithMany(code => code.Reports)
+            .HasForeignKey(report => report.ReporterCodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(report => report.ProjectState)
             .WithMany()
             .HasForeignKey(report => report.ProjectStateId)

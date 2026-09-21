@@ -31,6 +31,20 @@ public interface IReportService
     Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Os relatos ligados a um codigo pessoal — <b>sem sessao</b>.
+    ///
+    /// <para><b>Codigo desconhecido devolve lista vazia</b>, e nao uma recusa. E a
+    /// regra que sustenta o modo: qualquer diferenca entre "nao existe" e "existe e
+    /// esta vazio" transforma esta rota num oraculo, e tentar codigos ate a resposta
+    /// mudar e exatamente como se enumera codigo alheio.</para>
+    ///
+    /// <para><b>Nao grava evento de visualizacao.</b> Ver a lista nao e ler o
+    /// relato, e contar como leitura encheria a medida de reacao com aberturas que
+    /// nao aconteceram.</para>
+    /// </summary>
+    Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Quem relatou diz que resolveu — <b>sem sessao</b>, pelo link.
     ///
     /// <para><b>E a metade que faltava da metafora.</b> "Concluido" e o time

@@ -43,6 +43,17 @@ export interface CreateReportRequest {
    * caixa vem marcada.
    */
   AcceptsQuestions: boolean
+  /**
+   * O codigo pessoal de quem ja relatou antes neste projeto.
+   *
+   * **Ausente quando este navegador nunca relatou aqui** — e ai a resposta traz um
+   * codigo novo. Codigo desconhecido nao e recusado: vira um novo, porque a
+   * diferenca entre conhecido e desconhecido e como se enumera codigo alheio.
+   *
+   * Em projeto que nao usa este modo, mandar um codigo e recusado.
+   */
+  ReporterCode?: string
+
   /** O que veio junto sem ninguem digitar: navegador, tamanho da tela. */
   Context: Record<string, string> | null
 }
@@ -60,6 +71,16 @@ export interface CreatedReportViewModel {
    */
   AccessToken: string
   CreatedAt: string
+  /**
+   * O codigo pessoal de quem escreveu, quando o projeto usa esse modo; **nulo**
+   * nos outros.
+   *
+   * **Vem em toda confirmacao, e nao so na primeira.** A ferramenta guarda no
+   * navegador e manda de volta no relato seguinte — e se o navegador foi limpo,
+   * ou se o codigo mandado nao existia mais, o que chega aqui e um novo.
+   * Devolver sempre e o que faz a tela mostrar o codigo que **de fato** vale.
+   */
+  ReporterCode: string | null
 }
 
 /** Limite da coluna `text`, declarado em `Report.MaxTextLength`. */
@@ -560,4 +581,42 @@ export interface ReportHistoryEntryViewModel {
   FromStateName: string | null
   ToStateName: string | null
   OccurredAt: string
+}
+
+/** Um relato na lista pessoal de quem o escreveu. */
+export interface ReporterCodeReportViewModel {
+  TrackingCode: string
+  Type: ReportType
+  /** O comeco do texto, para distinguir um relato do outro sem abrir. */
+  Excerpt: string
+  /** Em que passo da jornada ele esta. Nulo quando o projeto nao tem jornada. */
+  StageLabel: string | null
+  IsClosed: boolean
+  CreatedAt: string
+}
+
+/**
+ * A resposta da consulta por codigo pessoal.
+ *
+ * **Codigo que nao existe devolve lista vazia, e nao uma recusa.** Qualquer
+ * diferenca entre "nao existe" e "existe e esta vazio" transformaria a consulta
+ * num oraculo, e tentar codigos ate a resposta mudar e como se enumera.
+ */
+export interface ReporterCodeReportsViewModel {
+  Reports: ReporterCodeReportViewModel[]
+
+  /**
+   * Ha relato alem dos que vieram.
+   *
+   * **E um sim ou nao, e nunca um total.** A rota e publica e nao pede
+   * credencial: dizer quantos entregaria a quem sonda o tamanho da lista de outra
+   * pessoa. O aviso basta para quem le saber que a lista nao e tudo.
+   */
+  HasMore: boolean
+}
+
+/** A consulta da lista pessoal. */
+export interface ReporterCodeLookupRequest {
+  Key: string
+  Code: string
 }

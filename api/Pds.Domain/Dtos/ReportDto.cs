@@ -52,6 +52,22 @@ public class CreateReportDto
     public bool? AcceptsQuestions { get; set; }
 
     /// <summary>
+    /// O código pessoal de quem já relatou antes neste projeto.
+    ///
+    /// <para><b>Opcional sempre.</b> Quem nunca teve um recebe o dele na resposta;
+    /// quem tem manda, e os relatos ficam na mesma lista.</para>
+    ///
+    /// <para><b>Código desconhecido não é recusado: vira um código novo.</b>
+    /// Recusar diria "este código não existe aqui", e essa diferença entre conhecido
+    /// e desconhecido é exatamente como se enumera código alheio.</para>
+    ///
+    /// <para>Em projeto que não usa este modo, mandar um código é recusado — aceitar
+    /// em silêncio gravaria um vínculo que a configuração diz não existir.</para>
+    /// </summary>
+    /// <example>H7QK-3M2X-P9WD</example>
+    public string? ReporterCode { get; set; }
+
+    /// <summary>
     /// O que veio junto, sem ninguem digitar: navegador, tamanho da tela, e o que
     /// o produto passar a capturar. Pares livres, gravados como texto.
     /// </summary>
@@ -239,4 +255,23 @@ public class CloseReportDto
     /// </summary>
     /// <example>Corrigimos o botão de finalizar compra na versão desta semana.</example>
     public string? Reason { get; set; }
+}
+
+/// <summary>
+/// A consulta da lista pessoal, pelo código.
+///
+/// <para><b>É `POST` e não `GET` pelo mesmo motivo da consulta de acompanhamento:</b>
+/// o código é o que identifica a pessoa, e em query string ele entraria no log de
+/// acesso do servidor, no histórico do navegador e no `Referer` que sai da página.
+/// No corpo, não entra em nenhum dos três.</para>
+/// </summary>
+public class ReporterCodeLookupDto
+{
+    /// <summary>A chave pública do projeto, que diz onde o código vale.</summary>
+    /// <example>pk_1R0KtQwz</example>
+    public string? Key { get; set; }
+
+    /// <summary>O código que a pessoa guardou.</summary>
+    /// <example>H7QK-3M2X-P9WD</example>
+    public string? Code { get; set; }
 }

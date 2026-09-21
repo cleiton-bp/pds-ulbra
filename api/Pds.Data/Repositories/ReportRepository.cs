@@ -134,6 +134,26 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.PublicId == publicId, cancellationToken);
 
+    public async Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default)
+        // As condicoes do filtro global reescritas a mao, menos a da conta. O
+        // `Include` da etapa publica existe porque a lista mostra em que passo cada
+        // relato esta.
+        //
+        // **O `Take` nao e detalhe de desempenho.** A rota e publica e nao pede
+        // credencial: sem teto, o custo da resposta cresceria com o uso de quem a
+        // pede. Quem chama pede um a mais do que vai mostrar, e e assim que sabe
+        // dizer que ha mais sem contar quantos.
+        => await Context.Reports
+            .IgnoreQueryFilters()
+            .Include(report => report.ProjectPublicStage)
+            .Where(report => report.ReporterCodeId == reporterCodeId
+                             && report.DeletedAt == null
+                             && report.Project.DeletedAt == null)
+            .OrderByDescending(report => report.CreatedAt)
+            .ThenByDescending(report => report.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default)
         // So os identificadores publicos: quem chama vai reabrir cada um no proprio
         // escopo, e carregar as entidades aqui manteria vivo um contexto inteiro

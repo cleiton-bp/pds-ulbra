@@ -92,4 +92,6 @@ public interface IReportRepository : IBaseRepository<Report>
     /// invisiveis para sempre para quem os escreveu.</para>
     /// </summary>
     Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default);
 }
