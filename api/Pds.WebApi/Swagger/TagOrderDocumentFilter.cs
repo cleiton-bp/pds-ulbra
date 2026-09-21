@@ -65,6 +65,16 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.CycleSettings,
+                Description = "Como o relato acaba: quando encerra, se da para reabrir, e o que o relator responde.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.IdentitySettings,
+                Description = "Quem e quem: protocolo, codigo pessoal ou identidade vinda do sistema do cliente.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.Reports,
                 Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos da conta que está logada.",
             },

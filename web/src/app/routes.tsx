@@ -3,6 +3,7 @@ import { AccountShell } from '@/app/AccountShell'
 import { ProjectShell } from '@/app/ProjectShell'
 import { RequireSession } from '@/app/RequireSession'
 import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
+import { IdentityScreen } from '@/features/identity/IdentityScreen'
 import { StartScreen } from '@/features/onboarding/StartScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
           { path: 'states', element: <ProjectStatesScreen /> },
           { path: 'public-stages', element: <PublicStagesScreen /> },
           { path: 'cycle', element: <CycleSettingsScreen /> },
+          { path: 'identity', element: <IdentityScreen /> },
           { path: 'settings', element: <ProjectSettingsScreen /> },
           {
             // O relato aberto e filho da lista: a lista continua montada atras,

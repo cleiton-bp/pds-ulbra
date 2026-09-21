@@ -53,6 +53,16 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'identity' && (
+        // Um contorno de pessoa, sem tracos no rosto. E o que a secao decide:
+        // existe alguem do outro lado, e o quanto dele aparece e a escolha que se
+        // faz aqui.
+        <>
+          <circle cx="6" cy="4.2" r="2.2" />
+          <path d="M1.8 10.8a4.2 4.2 0 0 1 8.4 0" />
+        </>
+      )}
+
       {section === 'reports' && (
         // Balao de fala: o que aparece nesta secao e alguem falando, e nao um
         // registro que o sistema produziu.

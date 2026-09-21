@@ -11,7 +11,16 @@
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
   /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
-  key: 'start' | 'keys' | 'states' | 'stages' | 'cycle' | 'settings' | 'reports' | 'tool'
+  key:
+    | 'start'
+    | 'keys'
+    | 'states'
+    | 'stages'
+    | 'cycle'
+    | 'identity'
+    | 'settings'
+    | 'reports'
+    | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
@@ -39,6 +48,10 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   // fim. Fica fora de "Configurações" porque lá mora o projeto — nome, domínios,
   // arquivar —, e aqui mora o comportamento do ciclo.
   { key: 'cycle', label: 'Ciclo', path: 'cycle' },
+  // Quem e quem. Vem depois do ciclo e antes das configuracoes do projeto pelo
+  // mesmo criterio: aqui mora o comportamento, e la mora o projeto. E e a escolha
+  // que decide o que a lista pessoal e a visibilidade podem ser.
+  { key: 'identity', label: 'Identidade', path: 'identity' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 

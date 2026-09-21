@@ -8,6 +8,11 @@ export type {
 } from '@/contracts/cycleSettings'
 export { MAX_INFO_REQUEST_DAYS, MAX_PUBLIC_DELAY_MINUTES } from '@/contracts/cycleSettings'
 export type {
+  IdentitySettingsViewModel,
+  ReporterIdentityMode,
+  SaveIdentitySettingsRequest,
+} from '@/contracts/identitySettings'
+export type {
   CreateProjectRequest,
   ProjectCreatedViewModel,
   ProjectStatus,
