@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IdentitySettingsViewModel, ProjectViewModel } from '@/contracts'
@@ -49,7 +49,15 @@ const projeto: ProjectViewModel = {
 }
 
 /** O padrao de fabrica, que e o que a API responde para quem nunca salvou nada. */
-const padrao: IdentitySettingsViewModel = { Mode: 'Protocol' }
+const padrao: IdentitySettingsViewModel = { Mode: 'Protocol', Visibility: 'Private' }
+
+/** O grupo de escolha, pelo `fieldset` — as duas perguntas convivem na mesma tela. */
+function grupo(titulo: RegExp) {
+  return within(screen.getByRole('group', { name: titulo }))
+}
+
+const MODO = /Como a pessoa é reconhecida/
+const VISIBILIDADE = /Quem pode ver os relatos/
 
 function montar() {
   const router = createMemoryRouter(
@@ -89,7 +97,7 @@ describe('IdentityScreen', () => {
     montar()
 
     await screen.findByRole('radio', { name: /Protocolo/ })
-    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    expect(grupo(MODO).getAllByRole('radio')).toHaveLength(3)
   })
 
   it('cada modo diz o que destrava e o que custa', async () => {
@@ -99,8 +107,8 @@ describe('IdentityScreen', () => {
 
     // Três de cada: é o que impede alguém acrescentar um modo e esquecer de
     // explicá-lo — que é justamente como esta tela deixaria de cumprir o critério.
-    expect(screen.getAllByText('Destrava:')).toHaveLength(3)
-    expect(screen.getAllByText('Custo:')).toHaveLength(3)
+    expect(grupo(MODO).getAllByText('Destrava:')).toHaveLength(3)
+    expect(grupo(MODO).getAllByText('Custo:')).toHaveLength(3)
   })
 
   it('diz que a lista pessoal não existe no modo protocolo', async () => {
@@ -128,7 +136,7 @@ describe('IdentityScreen', () => {
   })
 
   it('manda o modo escolhido, e não o que veio do servidor', async () => {
-    dublê.salvar.mockResolvedValue({ Mode: 'PersonalCode' })
+    dublê.salvar.mockResolvedValue({ Mode: 'PersonalCode', Visibility: 'Private' })
     montar()
 
     fireEvent.click(await screen.findByRole('radio', { name: /Código pessoal/ }))
@@ -136,7 +144,12 @@ describe('IdentityScreen', () => {
 
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
-    expect(dublê.salvar).toHaveBeenCalledWith('p-1', { Mode: 'PersonalCode' })
+    // **Os dois campos vão juntos**, e o que não mudou vai igual: mandar só o
+    // campo alterado faria a API conferir o par com metade dele.
+    expect(dublê.salvar).toHaveBeenCalledWith('p-1', {
+      Mode: 'PersonalCode',
+      Visibility: 'Private',
+    })
   })
 
   it('não deixa escolher a identidade herdada, que ainda não tem quem a obedeça', async () => {
@@ -151,7 +164,7 @@ describe('IdentityScreen', () => {
   })
 
   it('mas se já for o valor salvo, a tela mostra — e não esconde o estado do projeto', async () => {
-    dublê.ler.mockResolvedValue({ Mode: 'InheritedIdentity' })
+    dublê.ler.mockResolvedValue({ Mode: 'InheritedIdentity', Visibility: 'Private' })
     montar()
 
     const herdada = await screen.findByRole('radio', { name: /Identidade do seu sistema/ })
@@ -160,7 +173,7 @@ describe('IdentityScreen', () => {
   })
 
   it('depois de salvar, o botão volta a ficar quieto', async () => {
-    dublê.salvar.mockResolvedValue({ Mode: 'PersonalCode' })
+    dublê.salvar.mockResolvedValue({ Mode: 'PersonalCode', Visibility: 'Private' })
     montar()
 
     fireEvent.click(await screen.findByRole('radio', { name: /Código pessoal/ }))
@@ -171,6 +184,92 @@ describe('IdentityScreen', () => {
         true,
       ),
     )
+  })
+
+  it('oferece os três níveis de visibilidade, e o padrão é o mais fechado', async () => {
+    montar()
+
+    await screen.findByRole('radio', { name: /Protocolo/ })
+    expect(grupo(VISIBILIDADE).getAllByRole('radio')).toHaveLength(3)
+
+    const privado = grupo(VISIBILIDADE).getByRole('radio', { name: /Privado/ })
+    expect((privado as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('cada nível diz quem vê e o que custa', async () => {
+    montar()
+
+    await screen.findByRole('radio', { name: /Protocolo/ })
+
+    // "Público" é palavra que cada um entende de um jeito. O que trava a tela é
+    // dizer **quem vê**, e não repetir o nome do nível com outras palavras.
+    expect(grupo(VISIBILIDADE).getAllByText('Quem vê:')).toHaveLength(3)
+    expect(grupo(VISIBILIDADE).getAllByText('Custo:')).toHaveLength(3)
+  })
+
+  it('no modo protocolo, público identificado não dá para escolher — e a tela diz por quê', async () => {
+    montar()
+
+    const identificado = await screen.findByRole('radio', { name: /Público identificado/ })
+    expect((identificado as HTMLInputElement).disabled).toBe(true)
+
+    // A trava depende da outra pergunta da tela, então o motivo tem de estar
+    // junto: cinza sem explicação faz quem configura concluir que está quebrado.
+    expect(identificado.closest('label')?.textContent).toMatch(
+      /Depende de um modo que identifique/i,
+    )
+  })
+
+  it('escolher o código pessoal destrava o público identificado, ali mesmo', async () => {
+    montar()
+
+    fireEvent.click(await screen.findByRole('radio', { name: /Código pessoal/ }))
+
+    const identificado = screen.getByRole('radio', { name: /Público identificado/ })
+    expect((identificado as HTMLInputElement).disabled).toBe(false)
+  })
+
+  it('voltar ao protocolo não troca a visibilidade sozinho: avisa e tranca o salvar', async () => {
+    dublê.ler.mockResolvedValue({ Mode: 'PersonalCode', Visibility: 'PublicIdentified' })
+    montar()
+
+    fireEvent.click(await screen.findByRole('radio', { name: /Protocolo/ }))
+
+    // A escolha continua onde estava. Mudar quem pode ver os relatos por causa de
+    // um clique em **outra** pergunta seria decidir no lugar de quem configura.
+    expect(
+      (screen.getByRole('radio', { name: /Público identificado/ }) as HTMLInputElement).checked,
+    ).toBe(true)
+
+    expect((screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+    expect(screen.getByText(/o protocolo não identifica ninguém/i)).toBeTruthy()
+    expect(dublê.salvar).not.toHaveBeenCalled()
+  })
+
+  it('diz que escolher público ainda não publica nada', async () => {
+    montar()
+
+    await screen.findByRole('radio', { name: /Protocolo/ })
+
+    // A ordem é de segurança: a lista pública nasce atrás da moderação, e nunca
+    // antes dela. Quem escolhe hoje precisa saber que nada sai daqui ainda.
+    expect(screen.getByText(/Escolher público ainda não publica nada/i)).toBeTruthy()
+  })
+
+  it('manda a visibilidade escolhida junto do modo', async () => {
+    dublê.salvar.mockResolvedValue({ Mode: 'Protocol', Visibility: 'PublicAnonymous' })
+    montar()
+
+    fireEvent.click(await screen.findByRole('radio', { name: /Público anônimo/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+    expect(dublê.salvar).toHaveBeenCalledWith('p-1', {
+      Mode: 'Protocol',
+      Visibility: 'PublicAnonymous',
+    })
   })
 
   it('a falha ao carregar não mente dizendo que o projeto mudou', async () => {

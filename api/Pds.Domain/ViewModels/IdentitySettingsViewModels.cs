@@ -11,4 +11,7 @@ namespace Pds.Domain.ViewModels;
 /// como o projeto se comporta.</para>
 /// </summary>
 /// <param name="Mode">Protocolo, codigo pessoal ou identidade herdada.</param>
-public record IdentitySettingsViewModel(ReporterIdentityModeEnum Mode);
+/// <param name="Visibility">Privado, publico anonimo ou publico identificado.</param>
+public record IdentitySettingsViewModel(
+    ReporterIdentityModeEnum Mode,
+    ReportVisibilityEnum Visibility);

@@ -10,6 +10,7 @@ export { MAX_INFO_REQUEST_DAYS, MAX_PUBLIC_DELAY_MINUTES } from '@/contracts/cyc
 export type {
   IdentitySettingsViewModel,
   ReporterIdentityMode,
+  ReportVisibility,
   SaveIdentitySettingsRequest,
 } from '@/contracts/identitySettings'
 export type {

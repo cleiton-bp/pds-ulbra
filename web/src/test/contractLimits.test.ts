@@ -100,6 +100,7 @@ const ENUMS: ReadonlyArray<[string, readonly string[]]> = [
   ['PublicOutcomeEnum', ['Done', 'WontDo', 'NoAnswer', 'Duplicate']],
   ['ReportTypeEnum', ['Bug', 'Improvement', 'Question']],
   ['ReporterIdentityModeEnum', ['Protocol', 'PersonalCode', 'InheritedIdentity']],
+  ['ReportVisibilityEnum', ['Private', 'PublicAnonymous', 'PublicIdentified']],
 ]
 
 describe('os enums que a tela escolhe, dos dois lados', () => {

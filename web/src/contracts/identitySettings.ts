@@ -13,6 +13,17 @@
 export type ReporterIdentityMode = 'Protocol' | 'PersonalCode' | 'InheritedIdentity'
 
 /**
+ * Quem pode ver os relatos deste projeto.
+ *
+ * Espelho do `ReportVisibilityEnum` em C#, pelo mesmo motivo do modo.
+ *
+ * **O padrao e o mais fechado**, e `PublicIdentified` so vale onde o modo
+ * identifica: sem identidade nao ha o que mostrar, e o nivel seria o anonimo com
+ * outro nome. A regra e do par, e a API confere os dois juntos.
+ */
+export type ReportVisibility = 'Private' | 'PublicAnonymous' | 'PublicIdentified'
+
+/**
  * O modo de identificacao de um projeto.
  *
  * **Nunca vem vazio.** Projeto que nunca abriu a tela recebe o padrao, e a
@@ -21,15 +32,18 @@ export type ReporterIdentityMode = 'Protocol' | 'PersonalCode' | 'InheritedIdent
  */
 export interface IdentitySettingsViewModel {
   Mode: ReporterIdentityMode
+  Visibility: ReportVisibility
 }
 
 /**
  * O que a tela manda ao salvar.
  *
- * Hoje e um campo so, e continua sendo um objeto: os proximos passos da etapa
- * acrescentam o formato da assinatura, a validade do carimbo e a visibilidade, e
- * todos vao na mesma gravacao.
+ * **Os dois campos vao juntos, e nao e comodidade.** "Publico identificado" so
+ * vale onde o modo identifica — mandar um de cada vez faria o projeto passar por
+ * um estado que a regra proibe, e qual dos dois recusar dependeria de quem
+ * chegou primeiro.
  */
 export interface SaveIdentitySettingsRequest {
   Mode: ReporterIdentityMode
+  Visibility: ReportVisibility
 }

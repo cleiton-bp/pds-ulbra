@@ -25,4 +25,13 @@ public static class IdentitySettingsDefaults
     /// nao o que acontece por omissao.</para>
     /// </summary>
     public const ReporterIdentityModeEnum Mode = ReporterIdentityModeEnum.Protocol;
+    /// <summary>
+    /// Privado: so quem relatou e o time.
+    ///
+    /// <para><b>O padrao mais fechado dos tres</b>, e e o unico defensavel: um
+    /// projeto novo que ja nascesse publicando texto livre publicaria o primeiro
+    /// relato antes de alguem descobrir que a tela existe.</para>
+    /// </summary>
+    public const ReportVisibilityEnum Visibility = ReportVisibilityEnum.Private;
+
 }

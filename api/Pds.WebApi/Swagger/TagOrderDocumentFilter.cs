@@ -71,7 +71,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.IdentitySettings,
-                Description = "Quem e quem: protocolo, codigo pessoal ou identidade vinda do sistema do cliente.",
+                Description = "Quem e quem, e quem pode ver: o modo de identificacao e os tres niveis de visibilidade, gravados juntos porque o primeiro decide o segundo.",
             },
             new OpenApiTag
             {

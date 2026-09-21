@@ -21,8 +21,8 @@ public static class SwaggerTags
     public const string ProjectStatusMappings = "Mapeamento de estados";
     public const string CycleSettings = "Regras do ciclo";
 
-    /// <summary>Como quem relata e identificado no projeto.</summary>
-    public const string IdentitySettings = "Identidade de quem relata";
+    /// <summary>Como quem relata e identificado, e quem pode ver o que ele escreveu.</summary>
+    public const string IdentitySettings = "Identidade e visibilidade";
     public const string Reports = "Relatos";
     public const string ReportComments = "Comentários do relato";
     public const string PublicReports = "Relatos (público)";

@@ -28,6 +28,13 @@ public class ProjectIdentitySettingsMap : BaseEntityConfiguration<ProjectIdentit
             .IsRequired()
             .HasComment("protocol, personal_code ou inherited_identity. Excludentes: cada um responde de um jeito diferente a pergunta 'quem e voce'. Trocar de modo nao reescreve o passado — o relato que entrou sem identidade continua abrindo pelo link.");
 
+        builder.Property(settings => settings.Visibility)
+            .HasColumnName("visibility")
+            .HasConversion(new SnakeCaseEnumConverter<ReportVisibilityEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("private, public_anonymous ou public_identified. Padrao private. public_identified so vale onde o modo identifica — sem identidade nao ha o que mostrar. Gravar publico nao publica nada sozinho: a lista publica so existe atras da fila de moderacao.");
+
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.
         builder.HasIndex(settings => settings.ProjectId)

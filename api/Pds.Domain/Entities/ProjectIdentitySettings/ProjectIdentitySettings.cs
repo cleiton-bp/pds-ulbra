@@ -33,4 +33,19 @@ public class ProjectIdentitySettings : PdsBaseEntity
     /// relato por uma decisao que nao foi dele.</para>
     /// </summary>
     public ReporterIdentityModeEnum Mode { get; set; }
+    /// <summary>
+    /// Quem pode ver os relatos deste projeto. Ver <see cref="ReportVisibilityEnum"/>.
+    ///
+    /// <para><b>Mora aqui, e nao em tabela propria, porque depende do modo.</b>
+    /// "Publico identificado" so faz sentido onde existe identidade — em duas
+    /// tabelas, a regra teria de ser conferida lendo as duas, e a tela ofereceria
+    /// uma combinacao que a regra nao permite.</para>
+    ///
+    /// <para><b>Gravar publico ainda nao publica nada.</b> Nenhuma rota publica le
+    /// este campo hoje: a lista publica nasce junto da moderacao, e o relato so
+    /// aparece nela depois de liberado. Sem essa ordem, o campo sozinho seria uma
+    /// maneira de publicar texto livre sem ninguem ter olhado.</para>
+    /// </summary>
+    public ReportVisibilityEnum Visibility { get; set; }
+
 }
