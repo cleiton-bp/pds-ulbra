@@ -49,7 +49,11 @@ const projeto: ProjectViewModel = {
 }
 
 /** O padrao de fabrica, que e o que a API responde para quem nunca salvou nada. */
-const padrao: IdentitySettingsViewModel = { Mode: 'Protocol', Visibility: 'Private' }
+const padrao: IdentitySettingsViewModel = {
+  Mode: 'Protocol',
+  Visibility: 'Private',
+  AsksForName: false,
+}
 
 /** O grupo de escolha, pelo `fieldset` — as duas perguntas convivem na mesma tela. */
 function grupo(titulo: RegExp) {
@@ -136,7 +140,11 @@ describe('IdentityScreen', () => {
   })
 
   it('manda o modo escolhido, e não o que veio do servidor', async () => {
-    dublê.salvar.mockResolvedValue({ Mode: 'PersonalCode', Visibility: 'Private' })
+    dublê.salvar.mockResolvedValue({
+      Mode: 'PersonalCode',
+      Visibility: 'Private',
+      AsksForName: false,
+    })
     montar()
 
     fireEvent.click(await screen.findByRole('radio', { name: /Código pessoal/ }))
@@ -149,6 +157,7 @@ describe('IdentityScreen', () => {
     expect(dublê.salvar).toHaveBeenCalledWith('p-1', {
       Mode: 'PersonalCode',
       Visibility: 'Private',
+      AsksForName: false,
     })
   })
 
@@ -164,7 +173,11 @@ describe('IdentityScreen', () => {
   })
 
   it('mas se já for o valor salvo, a tela mostra — e não esconde o estado do projeto', async () => {
-    dublê.ler.mockResolvedValue({ Mode: 'InheritedIdentity', Visibility: 'Private' })
+    dublê.ler.mockResolvedValue({
+      Mode: 'InheritedIdentity',
+      Visibility: 'Private',
+      AsksForName: false,
+    })
     montar()
 
     const herdada = await screen.findByRole('radio', { name: /Identidade do seu sistema/ })
@@ -173,7 +186,11 @@ describe('IdentityScreen', () => {
   })
 
   it('depois de salvar, o botão volta a ficar quieto', async () => {
-    dublê.salvar.mockResolvedValue({ Mode: 'PersonalCode', Visibility: 'Private' })
+    dublê.salvar.mockResolvedValue({
+      Mode: 'PersonalCode',
+      Visibility: 'Private',
+      AsksForName: false,
+    })
     montar()
 
     fireEvent.click(await screen.findByRole('radio', { name: /Código pessoal/ }))
@@ -230,7 +247,11 @@ describe('IdentityScreen', () => {
   })
 
   it('voltar ao protocolo não troca a visibilidade sozinho: avisa e tranca o salvar', async () => {
-    dublê.ler.mockResolvedValue({ Mode: 'PersonalCode', Visibility: 'PublicIdentified' })
+    dublê.ler.mockResolvedValue({
+      Mode: 'PersonalCode',
+      Visibility: 'PublicIdentified',
+      AsksForName: false,
+    })
     montar()
 
     fireEvent.click(await screen.findByRole('radio', { name: /Protocolo/ }))
@@ -259,7 +280,11 @@ describe('IdentityScreen', () => {
   })
 
   it('manda a visibilidade escolhida junto do modo', async () => {
-    dublê.salvar.mockResolvedValue({ Mode: 'Protocol', Visibility: 'PublicAnonymous' })
+    dublê.salvar.mockResolvedValue({
+      Mode: 'Protocol',
+      Visibility: 'PublicAnonymous',
+      AsksForName: false,
+    })
     montar()
 
     fireEvent.click(await screen.findByRole('radio', { name: /Público anônimo/ }))
@@ -269,6 +294,7 @@ describe('IdentityScreen', () => {
     expect(dublê.salvar).toHaveBeenCalledWith('p-1', {
       Mode: 'Protocol',
       Visibility: 'PublicAnonymous',
+      AsksForName: false,
     })
   })
 

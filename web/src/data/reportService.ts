@@ -5,11 +5,17 @@ import type {
   OpenByReporterCodeRequest,
   OpenReportTrackingRequest,
   PublicReportViewModel,
+  PublishedReportsViewModel,
   ReopenReportRequest,
   ReplyToReportRequest,
   ReporterCodeLookupRequest,
   ReporterCodeReportsViewModel,
 } from '@/contracts'
+
+/** A consulta da lista publica. A chave nao autentica ninguem: so diz o projeto. */
+export interface PublishedReportsRequest {
+  Key: string
+}
 
 /** Espelha o `ReportService` da API, do lado publico dela. */
 export interface ReportService {
@@ -63,6 +69,14 @@ export interface ReportService {
    * entre "nao existe" e "existe e esta vazio" transformaria a consulta num
    * oraculo. Quem digitou errado ve o mesmo que quem acabou de receber um codigo.
    */
+  /**
+   * O que ja foi liberado para o publico neste projeto.
+   *
+   * **Projeto privado responde lista vazia, e nao uma recusa** — a tela nao tem
+   * como distinguir "nao publica" de "publica e nao tem nada", e e de proposito.
+   */
+  listPublished(request: PublishedReportsRequest): Promise<PublishedReportsViewModel>
+
   listByReporterCode(request: ReporterCodeLookupRequest): Promise<ReporterCodeReportsViewModel>
 
   /**

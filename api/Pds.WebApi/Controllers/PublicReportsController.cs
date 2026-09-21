@@ -143,6 +143,49 @@ public class PublicReportsController : BaseController
         }
     }
 
+    /// <summary>O que já foi liberado para o público neste projeto.</summary>
+    /// <remarks>
+    /// **É `GET`, e as outras consultas públicas são `POST`.** A diferença não é
+    /// estilo: ali o corpo carrega um segredo — o token, o código pessoal —, e
+    /// segredo em query string entra no log do servidor, no histórico do navegador
+    /// e no `Referer`. Aqui não há segredo nenhum: a chave pública já está no
+    /// código-fonte da página do cliente.
+    ///
+    /// **Duas condições, e nenhuma sozinha basta**: o projeto precisa estar num
+    /// nível público, e cada relato precisa ter sido liberado na moderação. Foi por
+    /// isso que os três níveis vieram um passo antes e não ligaram lista nenhuma.
+    ///
+    /// **Projeto privado responde lista vazia, e não uma recusa.** Mesma disciplina
+    /// da consulta por código pessoal: a diferença entre "não publica" e "publica e
+    /// não tem nada" não diz nada a quem lê, e dita em voz alta contaria a
+    /// configuração do cliente a qualquer um que colasse a chave pública numa
+    /// requisição.
+    ///
+    /// **Não sai daqui o protocolo.** Ele é curto, falado em voz alta, e é metade
+    /// da credencial de quem relatou — publicá-lo entregaria a estranhos o número
+    /// que a própria pessoa usa para voltar. O nome só aparece com o projeto em
+    /// `PublicIdentified` **e** a pessoa tendo escolhido assinar.
+    /// </remarks>
+    /// <param name="key">Chave pública do projeto.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Os relatos liberados, ou uma lista vazia.</response>
+    /// <response code="401">Chave ausente, desconhecida ou revogada.</response>
+    [HttpGet("published")]
+    [ProducesResponseType(typeof(ApiResponse<PublishedReportsViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Published([FromQuery] string? key, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var lista = await _reportService.ListPublishedAsync(new PublishedReportsDto { Key = key }, cancellationToken);
+            return Success(lista, total: lista.Reports.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Os relatos ligados a um código pessoal.</summary>
     /// <remarks>
     /// **Sem sessão.** É a lista de quem relatou, no modo em que o projeto entrega um

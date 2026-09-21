@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type CreatedReportViewModel,
   MAX_REPORT_TEXT_LENGTH,
+  MAX_REPORTER_NAME_LENGTH,
   type ReportType,
   type WidgetSettingsViewModel,
 } from '@/contracts'
@@ -10,6 +11,7 @@ import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import type { EmbedConfig } from '@/embed/config'
 import type { HostConnection } from '@/embed/hostBridge'
 import { MyReports } from '@/embed/MyReports'
+import { PublicList } from '@/embed/PublicList'
 import { buildReportContext } from '@/embed/reportContext'
 import { readReporterCode, writeReporterCode } from '@/embed/reporterCodeStore'
 
@@ -67,7 +69,27 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
    * **A lista nao substitui o formulario**: relatar continua sendo o que a
    * ferramenta faz, e a lista e para onde se volta depois.
    */
-  const [view, setView] = useState<'form' | 'list'>('form')
+  const [view, setView] = useState<'form' | 'list' | 'public'>('form')
+
+  /**
+   * O nome, e a escolha de assiná-lo.
+   *
+   * **A caixa nasce desmarcada, e não segue padrão nenhum do projeto.** Ao
+   * contrário de "aceito perguntas", aqui o silêncio não pode cair numa
+   * configuração: o que está em jogo é o nome da pessoa ao lado de um texto que
+   * qualquer um lê, e essa escolha não se herda.
+   */
+  /**
+   * O projeto publica, num nível ou noutro.
+   *
+   * É o que liga o aviso, a entrada da lista pública e a caixa de assinar — e
+   * `Private` é o padrão de fábrica, então um quadro que não conseguiu ler a
+   * configuração não promete vitrine nenhuma.
+   */
+  const ehPublico = settings.Visibility !== 'Private'
+
+  const [reporterName, setReporterName] = useState('')
+  const [signs, setSigns] = useState(false)
 
   /**
    * Conta quantas vezes o quadro foi reiniciado.
@@ -112,6 +134,11 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         Route: config.route,
         Origin: config.origin,
         AcceptsQuestions: acceptsQuestions,
+        // Só vai quando o projeto pergunta: num projeto que não pergunta, mandar
+        // nome gravaria dado pessoal que a configuração diz não coletar.
+        ReporterName:
+          settings.AsksForName && reporterName.trim().length > 0 ? reporterName.trim() : undefined,
+        ReporterNameIsPublic: settings.AsksForName && signs,
         // Vazio quando este navegador nunca relatou aqui — e ai a resposta traz um
         // codigo novo. Num projeto de outro modo, mandar codigo seria recusado,
         // entao so vai quando ha um.
@@ -155,6 +182,8 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
     setSending(false)
     setType(settings.DefaultReportType)
     setAcceptsQuestions(settings.AcceptsQuestionsDefault)
+    setReporterName('')
+    setSigns(false)
   }
 
   function expand() {
@@ -192,6 +221,13 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   // **Antes do formulario e depois de `created`**: quem acabou de relatar ve a
   // confirmacao, e nao a lista — o codigo dela aparece la, e e o momento de
   // guarda-lo.
+  if (view === 'public') {
+    return (
+      <div style={style} className="h-full">
+        <PublicList publicKey={config.key} onBack={() => setView('form')} />
+      </div>
+    )
+  }
 
   if (view === 'list') {
     return (
@@ -329,6 +365,30 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         </button>
       )}
 
+      {ehPublico && (
+        <button
+          type="button"
+          onClick={() => setView('public')}
+          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4"
+        >
+          Ver o que já foi relatado
+        </button>
+      )}
+
+      {/* **Antes de escrever, e não depois.** É o critério da etapa: avisar quando
+          o texto já está pronto seria avisar tarde, e quem descobrisse ali teria
+          de apagar o que escreveu. A frase diz o que acontece, e não o que a
+          política permite. */}
+      {ehPublico && (
+        <p className="rounded-lg border border-border border-dashed bg-surface px-3 py-2 text-detail text-fg-muted leading-normal">
+          <strong className="font-medium text-fg">Este relato pode virar público.</strong> Alguém da
+          equipe lê antes; se for liberado, qualquer pessoa poderá ler o que você escrever aqui.
+          {settings.Visibility === 'PublicIdentified'
+            ? ' O seu nome só aparece se você marcar abaixo.'
+            : ' O seu nome nunca aparece.'}
+        </p>
+      )}
+
       {settings.ShowsTypeField && (
         <fieldset className="flex flex-wrap gap-2">
           <legend className="mb-1.5 text-detail text-fg-muted">O que é</legend>
@@ -389,6 +449,43 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         />
         <span>Pode me perguntar algo sobre isto, se precisarem</span>
       </label>
+
+      {settings.AsksForName && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="pds-nome" className="text-detail text-fg-muted">
+            Como podemos te chamar <span className="text-fg-placeholder">(opcional)</span>
+          </label>
+          <input
+            id="pds-nome"
+            value={reporterName}
+            onChange={(event) => setReporterName(event.target.value)}
+            maxLength={MAX_REPORTER_NAME_LENGTH}
+            className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder"
+          />
+
+          {/* **Só existe onde o nome poderia aparecer.** Num projeto que não
+              publica identificado, oferecer "quero assinar" prometeria uma
+              vitrine que não existe. */}
+          {ehPublico && settings.Visibility === 'PublicIdentified' && (
+            <label className="flex cursor-pointer items-start gap-2 text-detail text-fg-muted">
+              <input
+                type="checkbox"
+                checked={signs}
+                disabled={reporterName.trim().length === 0}
+                onChange={(event) => setSigns(event.target.checked)}
+                className="mt-0.5 flex-none accent-[var(--widget-accent)]"
+              />
+              <span>Quero que o meu nome apareça junto deste relato</span>
+            </label>
+          )}
+
+          {!ehPublico && (
+            <p className="text-detail text-fg-muted leading-normal">
+              Fica só com a equipe. Este projeto não publica relato nenhum.
+            </p>
+          )}
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="text-detail text-error-fg leading-normal">

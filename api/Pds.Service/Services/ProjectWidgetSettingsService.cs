@@ -24,7 +24,6 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
         var settings = await _unitOfWork.ProjectWidgetSettings.GetByProjectAsync(project.Id, cancellationToken);
         var ciclo = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
-
         var identidade = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
 
         return Map(settings, ciclo, identidade);
@@ -60,7 +59,6 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         // caixa e configuracao do ciclo, e esta rota nao manda nele. Ele volta na
         // resposta so porque quem desenha a ferramenta precisa dele.
         var ciclo = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
-
         var identidade = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
 
         return Map(settings, ciclo, identidade);
@@ -140,7 +138,6 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         ProjectWidgetSettings? settings,
         ProjectCycleSettings? cycle,
         ProjectIdentitySettings? identity) => new(
-
         settings?.IsEnabled ?? WidgetSettingsDefaults.IsEnabled,
         settings is null ? WidgetSettingsDefaults.AccentColor : settings.AccentColor,
         settings?.Position ?? WidgetSettingsDefaults.Position,
@@ -152,7 +149,9 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         settings?.ShowsTypeField ?? WidgetSettingsDefaults.ShowsTypeField,
         settings?.DefaultReportType ?? WidgetSettingsDefaults.DefaultReportType,
         cycle?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault,
-        identity?.Mode ?? IdentitySettingsDefaults.Mode);
+        identity?.Mode ?? IdentitySettingsDefaults.Mode,
+        identity?.Visibility ?? IdentitySettingsDefaults.Visibility,
+        identity?.AsksForName ?? IdentitySettingsDefaults.AsksForName);
 
     private static T Required<T>(T? value, string message) where T : struct
         => value ?? throw new ArgumentException(message);

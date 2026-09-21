@@ -39,6 +39,17 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const int MaxReporterNameLength = 80;
 
+    /// <summary>
+    /// Quantos relatos liberados a lista publica devolve de uma vez.
+    ///
+    /// <para><b>Menor que o da lista pessoal, e de proposito.</b> Ali sao os
+    /// relatos da propria pessoa, que ela reconhece de relance; aqui sao textos
+    /// inteiros de estranhos, lidos num quadro de 360 por 520. E a rota e publica
+    /// e sem credencial nenhuma — o custo da resposta nao pode crescer com o
+    /// tamanho do projeto.</para>
+    /// </summary>
+    public const int MaxPublishedListed = 20;
+
     /// <summary>Conta dona do relato. E por este campo que o filtro global isola.</summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;

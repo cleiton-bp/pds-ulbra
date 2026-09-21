@@ -1,6 +1,6 @@
 using Pds.Domain.Dtos;
-using Pds.Domain.ViewModels;
 using Pds.Domain.Enums;
+using Pds.Domain.ViewModels;
 
 namespace Pds.Domain.Interfaces.ServiceInterfaces;
 
@@ -135,6 +135,17 @@ public interface IReportService
     /// nao existe e desfazer para "ninguem olhou", porque alguem olhou.</para>
     /// </summary>
     Task<ModerationItemViewModel> ModerateAsync(Guid projectPublicId, Guid reportPublicId, ModerateReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos ja liberados de um projeto publico, para quem nao tem sessao.
+    ///
+    /// <para><b>Duas condicoes, e nenhuma sozinha basta:</b> o projeto precisa
+    /// estar em publico, e o relato precisa ter sido liberado. Projeto privado
+    /// responde <b>lista vazia</b>, e nao uma recusa — a mesma disciplina da
+    /// consulta por codigo pessoal, para a rota nao contar a configuracao do
+    /// cliente a quem so tem a chave publica.</para>
+    /// </summary>
+    Task<PublishedReportsViewModel> ListPublishedAsync(PublishedReportsDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Move o relato para outra coluna da fila.

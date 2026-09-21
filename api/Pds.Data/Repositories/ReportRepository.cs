@@ -172,6 +172,26 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .CountAsync(report => report.ProjectId == projectId && report.ModerationState == state,
                 cancellationToken);
 
+    public async Task<IReadOnlyList<Report>> ListPublishedWithoutSessionAsync(long projectId, int limit, CancellationToken cancellationToken = default)
+        // As condicoes do filtro global reescritas a mao, menos a da conta — e a de
+        // estar liberado **dentro da consulta**, para o relato pendente nunca chegar
+        // a sair daqui.
+        //
+        // Ordena por `moderated_at`, e nao por `created_at`: a lista publica conta o
+        // que o time acabou de liberar, e relato antigo liberado hoje e novidade
+        // para quem esta lendo.
+        => await Context.Reports
+            .IgnoreQueryFilters()
+            .Include(report => report.ProjectPublicStage)
+            .Where(report => report.ProjectId == projectId
+                             && report.ModerationState == ReportModerationStateEnum.Approved
+                             && report.DeletedAt == null
+                             && report.Project.DeletedAt == null)
+            .OrderByDescending(report => report.ModeratedAt)
+            .ThenByDescending(report => report.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default)
         // So os identificadores publicos: quem chama vai reabrir cada um no proprio
         // escopo, e carregar as entidades aqui manteria vivo um contexto inteiro

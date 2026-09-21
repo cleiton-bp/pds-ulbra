@@ -1,4 +1,4 @@
-import type { ReporterIdentityMode } from '@/contracts/identitySettings'
+import type { ReporterIdentityMode, ReportVisibility } from '@/contracts/identitySettings'
 
 /**
  * A configuracao da ferramenta de relato, por projeto.
@@ -84,6 +84,15 @@ export interface WidgetSettingsViewModel {
    * relato sai como um link solto.
    */
   IdentityMode: ReporterIdentityMode
+  /**
+   * Quem pode ver os relatos deste projeto.
+   *
+   * **A ferramenta le isto para avisar antes de a pessoa escrever.** Avisar
+   * depois seria avisar tarde.
+   */
+  Visibility: ReportVisibility
+  /** A ferramenta pergunta o nome. Opcional sempre, e interno por padrao. */
+  AsksForName: boolean
 }
 
 /** Limites das colunas de texto, iguais aos que a API vai declarar. */

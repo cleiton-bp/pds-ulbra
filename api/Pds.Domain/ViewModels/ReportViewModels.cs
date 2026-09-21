@@ -633,3 +633,48 @@ public record ModerationItemViewModel(
 public record ModerationQueueViewModel(
     IReadOnlyList<ModerationItemViewModel> Items,
     int PendingTotal);
+
+/// <summary>
+/// Um relato ja liberado, como qualquer pessoa o le.
+///
+/// <para><b>Nao ha identificador aqui, e nem o protocolo.</b> O protocolo e curto,
+/// falado em voz alta, e e metade da credencial de quem relatou — publica-lo
+/// entregaria a estranhos o numero que a propria pessoa usa para voltar.</para>
+///
+/// <para><b>O texto vem inteiro, e e o mesmo que foi liberado.</b> Cortar aqui
+/// faria o que alguem aprovou e o que o mundo le serem coisas diferentes.</para>
+/// </summary>
+/// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="Text">O relato como foi escrito, e como foi liberado.</param>
+/// <param name="StageLabel">Em que passo da jornada ele esta, ou <b>nulo</b> quando nao aparece em nenhum.</param>
+/// <param name="IsClosed">Ja acabou, na leitura de quem esta de fora.</param>
+/// <param name="ReporterName">
+/// Quem assinou, ou <b>nulo</b> — que e o caso da esmagadora maioria.
+///
+/// <para>So sai preenchido com as <b>duas</b> condicoes ao mesmo tempo: o projeto
+/// em publico identificado, e a pessoa tendo escolhido assinar. Uma sozinha nao
+/// basta, e e por isso que a regra mora no servidor e nao na tela.</para>
+/// </param>
+/// <param name="PublishedAt">Quando foi liberado, em UTC. E a data que a lista ordena — e nao a da criacao.</param>
+public record PublishedReportViewModel(
+    ReportTypeEnum Type,
+    string Text,
+    string? StageLabel,
+    bool IsClosed,
+    string? ReporterName,
+    DateTime PublishedAt);
+
+/// <summary>
+/// A lista publica de um projeto.
+///
+/// <para><b>Projeto privado responde vazio, e nao uma recusa.</b> Mesma disciplina
+/// da consulta por codigo pessoal: a diferenca entre "nao publica" e "publica e
+/// nao tem nada" nao diz nada a quem le, e dita em voz alta contaria a
+/// configuracao do cliente a qualquer um que colasse a chave publica numa
+/// requisicao.</para>
+/// </summary>
+/// <param name="Reports">Os relatos liberados, do mais recente para o mais antigo.</param>
+/// <param name="HasMore">Ha mais alem dos que vieram. Sim ou nao, nunca um total.</param>
+public record PublishedReportsViewModel(
+    IReadOnlyList<PublishedReportViewModel> Reports,
+    bool HasMore);

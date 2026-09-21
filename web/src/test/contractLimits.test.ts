@@ -8,6 +8,7 @@ import {
   MAX_PUBLIC_DELAY_MINUTES,
   MAX_REOPEN_COMMENT_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
+  MAX_REPORTER_NAME_LENGTH,
 } from '@/contracts'
 
 /**
@@ -73,6 +74,7 @@ const LIMITES: ReadonlyArray<[string, string, number]> = [
   ['ProjectCycleSettings.MaxPublicDelayMinutes', CICLO, MAX_PUBLIC_DELAY_MINUTES],
   ['ProjectCycleSettings.MaxInfoRequestDays', CICLO, MAX_INFO_REQUEST_DAYS],
   ['Report.MaxTextLength', RELATO, MAX_REPORT_TEXT_LENGTH],
+  ['Report.MaxReporterNameLength', RELATO, MAX_REPORTER_NAME_LENGTH],
   ['ReportPublicComment.MaxBodyLength', COMENTARIO, MAX_COMMENT_LENGTH],
 ]
 

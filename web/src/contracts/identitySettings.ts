@@ -33,6 +33,8 @@ export type ReportVisibility = 'Private' | 'PublicAnonymous' | 'PublicIdentified
 export interface IdentitySettingsViewModel {
   Mode: ReporterIdentityMode
   Visibility: ReportVisibility
+  /** A ferramenta pergunta o nome. **Perguntar nao e publicar.** */
+  AsksForName: boolean
 }
 
 /**
@@ -46,4 +48,5 @@ export interface IdentitySettingsViewModel {
 export interface SaveIdentitySettingsRequest {
   Mode: ReporterIdentityMode
   Visibility: ReportVisibility
+  AsksForName: boolean
 }

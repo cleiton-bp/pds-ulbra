@@ -8,8 +8,8 @@ using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Service.Origins;
-using Pds.Service.Security;
 using Pds.Service.Reports;
+using Pds.Service.Security;
 using Pds.Translation;
 
 namespace Pds.Service.Services;
@@ -141,9 +141,9 @@ public class ReportService : IReportService
 
         var report = new Report
         {
-            ReporterCode = codigoPessoal,
             AccountId = project.AccountId,
             ProjectId = project.Id,
+            ReporterCode = codigoPessoal,
             TrackingCode = await GenerateTrackingCodeAsync(cancellationToken),
             AccessTokenHash = tokenHash,
             Type = dto.Type.Value,
@@ -152,6 +152,13 @@ public class ReportService : IReportService
             Origin = Trim(dto.Origin, 260),
             ProjectStateId = landingStateId,
             AcceptsQuestions = aceitaDuvidas,
+            ReporterName = Trim(dto.ReporterName, Report.MaxReporterNameLength),
+            // **Sem nome, assinar nao faz nada.** Gravar o sim isolado deixaria o
+            // relato com uma escolha que nao tem o que mostrar — e no dia em que
+            // alguem preenchesse o nome por outro caminho, ele sairia publicado por
+            // uma marcacao antiga que a pessoa nao lembra de ter feito.
+            ReporterNameIsPublic = dto.ReporterNameIsPublic == true
+                                   && !string.IsNullOrWhiteSpace(dto.ReporterName),
             // **Explicito, e nao pelo primeiro valor do enum.** Vale a mesma regra
             // em projeto privado: nascer liberado faria marcar o projeto como
             // publico publicar o historico inteiro de uma vez.
@@ -1650,6 +1657,54 @@ public class ReportService : IReportService
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return ToModerationItem(report);
+    }
+
+    public async Task<PublishedReportsViewModel> ListPublishedAsync(PublishedReportsDto dto, CancellationToken cancellationToken = default)
+    {
+        var vazia = new PublishedReportsViewModel([], false);
+
+        var project = await RequireProjectAsync(dto.Key, cancellationToken);
+
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        var visibilidade = identidade?.Visibility ?? IdentitySettingsDefaults.Visibility;
+
+        // **Projeto privado responde vazio, e nao uma recusa.** Recusar contaria a
+        // configuracao do cliente a qualquer um que tivesse a chave publica — que e
+        // publica de proposito e esta no codigo-fonte da pagina dele.
+        if (visibilidade == ReportVisibilityEnum.Private)
+            return vazia;
+
+        var encontrados = await _unitOfWork.Reports
+            .ListPublishedWithoutSessionAsync(project.Id, Report.MaxPublishedListed + 1, cancellationToken);
+
+        var temMais = encontrados.Count > Report.MaxPublishedListed;
+        var relatos = temMais
+            ? encontrados.Take(Report.MaxPublishedListed).ToList()
+            : encontrados;
+
+        var fechados = (await _unitOfWork.ReportClosures
+                .ListReportIdsWithPublicClosureWithoutSessionAsync(
+                    [.. relatos.Select(relato => relato.Id)], DateTime.UtcNow, cancellationToken))
+            .ToHashSet();
+
+        // **As duas condicoes do nome, juntas.** A regra mora aqui e nao na tela:
+        // uma tela pode esquecer de conferir, e o que estaria em jogo e o nome de
+        // uma pessoa ao lado de um texto que qualquer um le.
+        var mostraNome = visibilidade == ReportVisibilityEnum.PublicIdentified;
+
+        return new PublishedReportsViewModel(
+            [.. relatos.Select(relato => new PublishedReportViewModel(
+                relato.Type,
+                relato.Text,
+                relato.ProjectPublicStage?.Label,
+                fechados.Contains(relato.Id),
+                mostraNome && relato.ReporterNameIsPublic ? relato.ReporterName : null,
+                // Liberado tem data de liberacao: a consulta so traz aprovado, e
+                // aprovado sem data nao existe.
+                relato.ModeratedAt ?? relato.CreatedAt))],
+            temMais);
     }
 
     /// <summary>

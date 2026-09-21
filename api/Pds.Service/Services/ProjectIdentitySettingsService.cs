@@ -47,6 +47,7 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
         // para a configuracao recusada ir ao banco assim mesmo.
         var mode = Required(dto.Mode, "Informe como quem relata e identificado.");
         var visibility = Required(dto.Visibility, "Informe quem pode ver os relatos.");
+        var asksForName = Required(dto.AsksForName, "Informe se a ferramenta pergunta o nome.");
 
         RequireIdentityForIdentifiedVisibility(mode, visibility);
 
@@ -57,6 +58,7 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
 
         settings.Mode = mode;
         settings.Visibility = visibility;
+        settings.AsksForName = asksForName;
 
         if (novo)
             await _unitOfWork.ProjectIdentitySettings.AddAsync(settings, cancellationToken);
@@ -74,7 +76,8 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
     private static IdentitySettingsViewModel Map(ProjectIdentitySettings? settings)
         => new(
             settings?.Mode ?? IdentitySettingsDefaults.Mode,
-            settings?.Visibility ?? IdentitySettingsDefaults.Visibility);
+            settings?.Visibility ?? IdentitySettingsDefaults.Visibility,
+            settings?.AsksForName ?? IdentitySettingsDefaults.AsksForName);
 
     /// <summary>
     /// Confere o par, e nao cada campo sozinho.

@@ -1,7 +1,7 @@
 using Pds.ApiBase.Interfaces;
 using Pds.Domain.Entities;
-using Pds.Domain.Filters;
 using Pds.Domain.Enums;
+using Pds.Domain.Filters;
 
 namespace Pds.Domain.Interfaces.RepositoryInterfaces;
 
@@ -85,15 +85,13 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<Report?> FindByPublicIdWithoutSessionAsync(Guid publicId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Os relatos cuja espera ja venceu e ninguem aplicou.
+    /// Os relatos de um codigo pessoal, do mais novo para o mais antigo — para quem
+    /// chega <b>sem sessao</b>.
     ///
-    /// <para><b>E a rede embaixo da fila, e nao um substituto dela.</b> Roda na
-    /// subida da aplicacao: o que espera dentro do broker mora no armazenamento
-    /// local do no, sem replicacao, e sem isto perder o no deixaria aqueles relatos
-    /// invisiveis para sempre para quem os escreveu.</para>
+    /// <para><b>Sem o autor e sem o texto inteiro carregados</b>, e de proposito: o
+    /// que sai daqui vira uma lista de resumos, e o campo que nao vem do banco nao
+    /// tem como escapar numa resposta.</para>
     /// </summary>
-    Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default);
-
     Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -107,4 +105,23 @@ public interface IReportRepository : IBaseRepository<Report>
 
     /// <summary>Quantos relatos do projeto estao neste estado de moderacao.</summary>
     Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos ja liberados de um projeto, para quem nao tem sessao nenhuma.
+    ///
+    /// <para><b>A condicao de estar liberado esta na consulta</b>, e nao numa
+    /// conferencia depois: o relato pendente nunca chega a sair daqui, entao nao ha
+    /// como ele aparecer na lista por alguem ter esquecido de olhar a coluna.</para>
+    /// </summary>
+    Task<IReadOnlyList<Report>> ListPublishedWithoutSessionAsync(long projectId, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos cuja espera ja venceu e ninguem aplicou.
+    ///
+    /// <para><b>E a rede embaixo da fila, e nao um substituto dela.</b> Roda na
+    /// subida da aplicacao: o que espera dentro do broker mora no armazenamento
+    /// local do no, sem replicacao, e sem isto perder o no deixaria aqueles relatos
+    /// invisiveis para sempre para quem os escreveu.</para>
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default);
 }

@@ -25,6 +25,7 @@ public static class IdentitySettingsDefaults
     /// nao o que acontece por omissao.</para>
     /// </summary>
     public const ReporterIdentityModeEnum Mode = ReporterIdentityModeEnum.Protocol;
+
     /// <summary>
     /// Privado: so quem relatou e o time.
     ///
@@ -34,4 +35,11 @@ public static class IdentitySettingsDefaults
     /// </summary>
     public const ReportVisibilityEnum Visibility = ReportVisibilityEnum.Private;
 
+    /// <summary>
+    /// Nao pergunta o nome.
+    ///
+    /// <para>Coletar dado pessoal por omissao seria o produto decidindo no lugar de
+    /// quem configura — e de quem relata, que nem chegou a ser perguntada.</para>
+    /// </summary>
+    public const bool AsksForName = false;
 }

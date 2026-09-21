@@ -12,6 +12,8 @@ namespace Pds.Domain.ViewModels;
 /// </summary>
 /// <param name="Mode">Protocolo, codigo pessoal ou identidade herdada.</param>
 /// <param name="Visibility">Privado, publico anonimo ou publico identificado.</param>
+/// <param name="AsksForName">A ferramenta pergunta o nome de quem relata. Perguntar nao e publicar.</param>
 public record IdentitySettingsViewModel(
     ReporterIdentityModeEnum Mode,
-    ReportVisibilityEnum Visibility);
+    ReportVisibilityEnum Visibility,
+    bool AsksForName);

@@ -35,6 +35,11 @@ public class ProjectIdentitySettingsMap : BaseEntityConfiguration<ProjectIdentit
             .IsRequired()
             .HasComment("private, public_anonymous ou public_identified. Padrao private. public_identified so vale onde o modo identifica — sem identidade nao ha o que mostrar. Gravar publico nao publica nada sozinho: a lista publica so existe atras da fila de moderacao.");
 
+        builder.Property(settings => settings.AsksForName)
+            .HasColumnName("asks_for_name")
+            .IsRequired()
+            .HasComment("A ferramenta pergunta o nome de quem relata. Desligado de fabrica: coletar dado pessoal precisa ser um ato de quem configura. Perguntar nao e publicar — o nome so sai la fora com visibility = public_identified E o relato assinado pela propria pessoa.");
+
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.
         builder.HasIndex(settings => settings.ProjectId)

@@ -61,7 +61,11 @@ const CSHARP_IDENTIDADE = fileURLToPath(
 )
 
 /** O campo da identidade que a ferramenta le, e o nome que ele tem la. */
-const DA_IDENTIDADE = [['IdentityMode', 'Mode']] as const
+const DA_IDENTIDADE = [
+  ['IdentityMode', 'Mode'],
+  ['Visibility', 'Visibility'],
+  ['AsksForName', 'AsksForName'],
+] as const
 
 /**
  * Le `public const <tipo> <Nome> = <valor>;`, inclusive quando o valor cai para a

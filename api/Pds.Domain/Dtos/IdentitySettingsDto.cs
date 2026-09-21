@@ -28,4 +28,8 @@ public class IdentitySettingsDto
     /// <summary>Quem pode ver os relatos: <c>Private</c>, <c>PublicAnonymous</c> ou <c>PublicIdentified</c>.</summary>
     /// <example>Private</example>
     public ReportVisibilityEnum? Visibility { get; set; }
+
+    /// <summary>A ferramenta pergunta o nome de quem relata.</summary>
+    /// <example>false</example>
+    public bool? AsksForName { get; set; }
 }

@@ -43,6 +43,8 @@ export interface CreateReportRequest {
    * caixa vem marcada.
    */
   AcceptsQuestions: boolean
+  /** O que veio junto sem ninguem digitar: navegador, tamanho da tela. */
+  Context: Record<string, string> | null
   /**
    * O codigo pessoal de quem ja relatou antes neste projeto.
    *
@@ -54,8 +56,16 @@ export interface CreateReportRequest {
    */
   ReporterCode?: string
 
-  /** O que veio junto sem ninguem digitar: navegador, tamanho da tela. */
-  Context: Record<string, string> | null
+  /** Como a pessoa quer ser chamada. Só vai quando o projeto pergunta. */
+  ReporterName?: string
+  /**
+   * Ela quis assinar este relato.
+   *
+   * **Ausente é "não".** Ao contrário de `AcceptsQuestions`, aqui o silêncio não
+   * cai num padrão do projeto: o que está em jogo é o nome dela ao lado de um
+   * texto que qualquer um lê.
+   */
+  ReporterNameIsPublic?: boolean
 }
 
 /**
@@ -85,6 +95,15 @@ export interface CreatedReportViewModel {
 
 /** Limite da coluna `text`, declarado em `Report.MaxTextLength`. */
 export const MAX_REPORT_TEXT_LENGTH = 5000
+
+/**
+ * Quanto cabe no nome de quem relata. Espelho de `Report.MaxReporterNameLength`.
+ *
+ * Curto de proposito: e um nome, e nao um espaco livre. Sem teto, o campo vira
+ * um segundo relato — e num projeto publico identificado ele sai ao lado do
+ * texto, onde caberia qualquer coisa que a moderacao teria de ler duas vezes.
+ */
+export const MAX_REPORTER_NAME_LENGTH = 80
 
 /**
  * Um relato na lista do painel.
@@ -633,6 +652,28 @@ export interface ModerationQueueViewModel {
 /** A decisao que o painel manda. `Pending` nao e aceito. */
 export interface ModerateReportRequest {
   Decision: Exclude<ReportModerationState, 'Pending'>
+}
+
+/**
+ * Um relato ja liberado, como qualquer pessoa o le.
+ *
+ * **Nao ha protocolo nem identificador aqui.** O protocolo e curto, falado em
+ * voz alta, e e metade da credencial de quem relatou.
+ */
+export interface PublishedReportViewModel {
+  Type: ReportType
+  Text: string
+  StageLabel: string | null
+  IsClosed: boolean
+  /** So com o projeto em publico identificado **e** o relato assinado. */
+  ReporterName: string | null
+  PublishedAt: string
+}
+
+/** A lista publica de um projeto. Projeto privado responde vazio, e nao uma recusa. */
+export interface PublishedReportsViewModel {
+  Reports: PublishedReportViewModel[]
+  HasMore: boolean
 }
 
 /** Um relato na lista pessoal de quem o escreveu. */

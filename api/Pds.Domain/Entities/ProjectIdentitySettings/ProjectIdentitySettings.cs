@@ -33,6 +33,7 @@ public class ProjectIdentitySettings : PdsBaseEntity
     /// relato por uma decisao que nao foi dele.</para>
     /// </summary>
     public ReporterIdentityModeEnum Mode { get; set; }
+
     /// <summary>
     /// Quem pode ver os relatos deste projeto. Ver <see cref="ReportVisibilityEnum"/>.
     ///
@@ -48,4 +49,22 @@ public class ProjectIdentitySettings : PdsBaseEntity
     /// </summary>
     public ReportVisibilityEnum Visibility { get; set; }
 
+    /// <summary>
+    /// A ferramenta pergunta o nome de quem relata.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Desligado de fabrica.</b> Coletar nome e coletar dado pessoal, e
+    /// isso precisa ser um ato de quem configura — nao o que acontece por omissao.
+    /// O produto nunca precisou do nome para funcionar.</para>
+    ///
+    /// <para><b>Perguntar nao e publicar.</b> Ligado, o campo aparece, e opcional, e
+    /// o que a pessoa escrever fica <b>interno</b>: o time ve, o lado de fora nao.
+    /// Para o nome sair la fora sao precisas mais duas coisas — o projeto em
+    /// publico identificado, e a pessoa ter escolhido assinar aquele relato.</para>
+    ///
+    /// <para>Sem isto ligado, <see cref="ReportVisibilityEnum.PublicIdentified"/>
+    /// existe e nao mostra nome nenhum: nao ha o que mostrar. Nao e contradicao, e
+    /// e por isso que a tela diz as duas coisas juntas.</para>
+    /// </remarks>
+    public bool AsksForName { get; set; }
 }

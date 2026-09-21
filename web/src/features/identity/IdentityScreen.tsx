@@ -57,7 +57,9 @@ export function IdentityScreen() {
   const dirty =
     draft !== null &&
     published !== null &&
-    (draft.Mode !== published.Mode || draft.Visibility !== published.Visibility)
+    (draft.Mode !== published.Mode ||
+      draft.Visibility !== published.Visibility ||
+      draft.AsksForName !== published.AsksForName)
 
   /**
    * A combinação que a regra não permite — e que a tela **não** desfaz sozinha.
@@ -79,6 +81,7 @@ export function IdentityScreen() {
       const gravado = await projectIdentitySettingsService.saveIdentitySettings(project.PublicId, {
         Mode: draft.Mode,
         Visibility: draft.Visibility,
+        AsksForName: draft.AsksForName,
       })
       setPublished(gravado)
       setDraft(gravado)
@@ -203,6 +206,38 @@ export function IdentityScreen() {
               aoEscolher={(valor) => setDraft({ ...draft, Visibility: valor })}
             />
           </Grupo>
+
+          <div className="mb-6 rounded-xl border border-border bg-surface p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={draft.AsksForName}
+                onChange={(evento) => setDraft({ ...draft, AsksForName: evento.target.checked })}
+                className="mt-0.5 flex-none accent-accent"
+              />
+              <span className="min-w-0">
+                <span className="mb-0.5 block font-medium text-detail text-fg">
+                  Perguntar o nome de quem relata
+                </span>
+                <span className="block text-caption text-fg-muted leading-relaxed">
+                  O campo aparece na ferramenta e é sempre opcional. O que a pessoa escrever fica{' '}
+                  <strong className="font-medium text-fg">interno</strong>: o seu time vê, e o lado
+                  de fora não.
+                </span>
+                {draft.Visibility === 'PublicIdentified' ? (
+                  <span className="mt-1 block text-caption text-fg-muted leading-relaxed">
+                    Como este projeto publica identificado, quem preencher o nome também pode
+                    escolher assinar o relato — e a caixa nasce desmarcada.
+                  </span>
+                ) : (
+                  <span className="mt-1 block text-caption text-fg-muted leading-relaxed">
+                    Enquanto o projeto não publicar identificado, o nome não aparece para ninguém de
+                    fora — nem se a pessoa quiser.
+                  </span>
+                )}
+              </span>
+            </label>
+          </div>
 
           {conflito && (
             <div className="mb-6 rounded-xl border border-warn-border bg-warn-surface p-4">

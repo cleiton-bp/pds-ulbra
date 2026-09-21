@@ -33,4 +33,10 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   // ferramenta guarda um codigo e oferece "os meus relatos" — e com a API fora do
   // ar o seguro e o modo que nao promete lista nenhuma.
   IdentityMode: 'Protocol',
+  // **Tambem de `IdentitySettingsDefaults.cs`.** Com a API fora do ar o seguro e
+  // o nivel mais fechado: um quadro que avisasse "isto sera publico" por engano
+  // assustaria sem motivo, e um que deixasse de avisar seria pior — a pessoa
+  // escreveria sem saber.
+  Visibility: 'Private',
+  AsksForName: false,
 }

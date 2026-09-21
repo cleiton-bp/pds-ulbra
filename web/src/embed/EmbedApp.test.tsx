@@ -583,6 +583,136 @@ describe('o código pessoal', () => {
     expect(href).not.toContain('ZZZZ')
   })
 
+  it('num projeto público, o aviso aparece ANTES de a pessoa escrever', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ Visibility: 'PublicAnonymous' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    const aviso = screen.getByText(/pode virar público/i)
+    expect(aviso).toBeTruthy()
+
+    // **A posição é o requisito, e não a existência.** Avisar com o texto já
+    // escrito seria avisar tarde: quem descobrisse ali teria de apagar o que
+    // escreveu. `compareDocumentPosition` diz quem vem antes no documento.
+    const caixa = screen.getByPlaceholderText(DEFAULT_WIDGET_SETTINGS.Placeholder)
+    expect(aviso.compareDocumentPosition(caixa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('e diz que o nome nunca aparece quando o projeto é público anônimo', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ Visibility: 'PublicAnonymous' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    expect(screen.getByText(/O seu nome nunca aparece/i)).toBeTruthy()
+  })
+
+  it('num projeto privado não há aviso nenhum, porque não há o que avisar', async () => {
+    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={null} />)
+
+    expect(screen.queryByText(/pode virar público/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ver o que já foi relatado' })).toBeNull()
+  })
+
+  it('o campo de nome só existe quando o projeto pergunta', async () => {
+    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={null} />)
+    expect(screen.queryByLabelText(/Como podemos te chamar/i)).toBeNull()
+
+    cleanup()
+    render(<EmbedApp settings={comSettings({ AsksForName: true })} config={config} host={null} />)
+    expect(screen.getByLabelText(/Como podemos te chamar/i)).toBeTruthy()
+  })
+
+  it('a caixa de assinar só existe onde o nome poderia aparecer', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicAnonymous' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    // Público anônimo: o nome não sai de jeito nenhum, então oferecer "quero
+    // assinar" prometeria uma vitrine que não existe.
+    expect(screen.queryByLabelText(/meu nome apareça/i)).toBeNull()
+
+    cleanup()
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicIdentified' })}
+        config={config}
+        host={null}
+      />,
+    )
+    expect(screen.getByLabelText(/meu nome apareça/i)).toBeTruthy()
+  })
+
+  it('sem nome escrito, não dá para marcar que quer assinar', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicIdentified' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    const assinar = screen.getByLabelText(/meu nome apareça/i) as HTMLInputElement
+    expect(assinar.disabled).toBe(true)
+
+    fireEvent.change(screen.getByLabelText(/Como podemos te chamar/i), {
+      target: { value: 'Ana' },
+    })
+    expect((screen.getByLabelText(/meu nome apareça/i) as HTMLInputElement).disabled).toBe(false)
+  })
+
+  it('manda o nome e a escolha de assinar', async () => {
+    dublê.criar.mockResolvedValue({
+      TrackingCode: 'ABCD-EFGH-JKLM',
+      AccessToken: 'tok',
+      CreatedAt: '2026-09-19T12:00:00.000Z',
+      ReporterCode: null,
+    } satisfies CreatedReportViewModel)
+
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicIdentified' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText(/Como podemos te chamar/i), {
+      target: { value: '  Ana  ' },
+    })
+    fireEvent.click(screen.getByLabelText(/meu nome apareça/i))
+    // Com o campo de nome na tela há dois `textbox`; o relato é o que tem o
+    // texto de caixa vazia configurado pelo cliente.
+    fireEvent.change(screen.getByPlaceholderText(DEFAULT_WIDGET_SETTINGS.Placeholder), {
+      target: { value: 'O botão não responde.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => expect(dublê.criar).toHaveBeenCalledTimes(1))
+    expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({
+      ReporterName: 'Ana',
+      ReporterNameIsPublic: true,
+    })
+  })
+
+  it('num projeto que não pergunta o nome, nada de nome é enviado', async () => {
+    await relatar()
+
+    expect(dublê.criar.mock.calls[0]?.[0].ReporterName).toBeUndefined()
+    expect(dublê.criar.mock.calls[0]?.[0].ReporterNameIsPublic).toBe(false)
+  })
+
   it('quando há mais do que coube, avisa — e não diz quantos', async () => {
     window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
     dublê.listar.mockResolvedValue({
