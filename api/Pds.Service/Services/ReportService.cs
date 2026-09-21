@@ -37,6 +37,16 @@ public class ReportService : IReportService
     private const int MaxPageSize = 100;
 
     /// <summary>
+    /// Quantos relatos a fila de moderacao mostra por vez.
+    ///
+    /// <para><b>Nao ha paginacao, e e escolha.</b> A fila e para ser esvaziada, e
+    /// nao navegada: paginar convidaria a deixar a pagina dois para depois, que e
+    /// exatamente o relato que fica pendente para sempre. Quando passa disto, o que
+    /// falta e gente lendo, e nao pagina.</para>
+    /// </summary>
+    private const int ModerationPageSize = 50;
+
+    /// <summary>
     /// A recusa da consulta publica, escrita uma vez. Ela fala do <b>link</b> e nao
     /// do protocolo: quem chegou aqui clicou num link, e mandar a pessoa conferir o
     /// protocolo que ela nao digitou nao ajuda em nada.
@@ -142,6 +152,10 @@ public class ReportService : IReportService
             Origin = Trim(dto.Origin, 260),
             ProjectStateId = landingStateId,
             AcceptsQuestions = aceitaDuvidas,
+            // **Explicito, e nao pelo primeiro valor do enum.** Vale a mesma regra
+            // em projeto privado: nascer liberado faria marcar o projeto como
+            // publico publicar o historico inteiro de uma vez.
+            ModerationState = ReportModerationStateEnum.Pending,
             Contexts = BuildContexts(dto.Context),
         };
 
@@ -1561,6 +1575,101 @@ public class ReportService : IReportService
         throw new UnauthorizedAccessException("Chave publica invalida.");
     }
 
+    public async Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ReportModerationStateEnum state, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var relatos = await _unitOfWork.Reports
+            .ListByModerationStateAsync(project.Id, state, ModerationPageSize, cancellationToken);
+
+        // O total dos pendentes viaja sempre, e nao so quando o recorte e "pendente":
+        // e o numero da lateral do painel, e ele nao pode sumir porque alguem abriu
+        // a aba dos ja decididos.
+        var pendentes = await _unitOfWork.Reports
+            .CountByModerationStateAsync(project.Id, ReportModerationStateEnum.Pending, cancellationToken);
+
+        return new ModerationQueueViewModel([.. relatos.Select(ToModerationItem)], pendentes);
+    }
+
+    public async Task<ModerationItemViewModel> ModerateAsync(Guid projectPublicId, Guid reportPublicId, ModerateReportDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var decisao = dto.Decision
+                      ?? throw new ArgumentException("Informe se o relato vai ou nao para o publico.");
+
+        // **Pendente nao e decisao.** Aceitar "voltar para a fila" apagaria a
+        // leitura de outra pessoa e faria a fila cobrar de novo um relato que ja
+        // tinha sido lido.
+        if (decisao == ReportModerationStateEnum.Pending)
+            throw new ArgumentException("Nao da para devolver um relato para a fila: alguem ja o leu.");
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+                     ?? throw new KeyNotFoundException("Relato nao encontrado neste projeto.");
+
+        var anterior = report.ModerationState;
+
+        // O autor vem do banco pelo mesmo motivo do encerramento: a sessao guarda o
+        // identificador e nao o nome, e a resposta desta acao precisa do nome. Sem
+        // ele, a tela desenharia "liberado" sem dizer por quem — logo depois de a
+        // propria pessoa ter liberado.
+        var autor = _accountContext.UserId is long userId
+            ? await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            : null;
+
+        report.ModerationState = decisao;
+        report.ModeratedAt = DateTime.UtcNow;
+        report.ModeratedByUserId = autor?.Id;
+        report.ModeratedByUser = autor;
+
+        _unitOfWork.Reports.Update(report);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            UserId = _accountContext.UserId,
+            Type = decisao == ReportModerationStateEnum.Approved
+                ? EventTypeEnum.ReportPublished
+                : EventTypeEnum.ReportModerationRejected,
+            Source = EventSourceEnum.Panel,
+            Payload = JsonSerializer.Serialize(new
+            {
+                // De onde veio a decisao. Sem isto, liberar e **re**liberar depois
+                // de uma recusa contariam como a mesma coisa — e a segunda e a que
+                // diz que a primeira leitura estava errada.
+                from = anterior.ToString(),
+                // Quanto o relato esperou na fila. Fila que demora nao e detalhe de
+                // operacao: enquanto ela demora, quem relatou ve a promessa de
+                // aparecer e nao aparece.
+                waited_minutes = (int)(DateTime.UtcNow - report.CreatedAt).TotalMinutes,
+            }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return ToModerationItem(report);
+    }
+
+    /// <summary>
+    /// A linha da fila, como o painel a le.
+    /// </summary>
+    private static ModerationItemViewModel ToModerationItem(Report report)
+    {
+        return new ModerationItemViewModel(
+            report.PublicId,
+            report.TrackingCode,
+            report.Type,
+            report.Text,
+            report.ReporterName,
+            report.ReporterNameIsPublic,
+            report.ModerationState,
+            report.ModeratedAt,
+            report.ModeratedByUser?.Name,
+            report.CreatedAt);
+    }
+
     public async Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default)
     {
         var vazia = new ReporterCodeReportsViewModel([], false);
@@ -1837,6 +1946,7 @@ public class ReportService : IReportService
         closure,
         infoRequest,
         canAskInfo,
+        report.ModerationState,
         // Em ordem de chave, e nao na que o navegador mandou: a mesma informacao
         // trocando de lugar entre dois relatos faz procurar de novo a cada um.
         report.Contexts

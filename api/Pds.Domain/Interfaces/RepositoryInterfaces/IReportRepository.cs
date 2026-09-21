@@ -1,6 +1,7 @@
 using Pds.ApiBase.Interfaces;
 using Pds.Domain.Entities;
 using Pds.Domain.Filters;
+using Pds.Domain.Enums;
 
 namespace Pds.Domain.Interfaces.RepositoryInterfaces;
 
@@ -94,4 +95,16 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A fila de moderacao de um projeto, num estado so.
+    ///
+    /// <para>Do <b>mais antigo para o mais novo</b>, ao contrario de toda outra
+    /// lista do painel: fila que se le de tras para frente deixa o primeiro que
+    /// chegou esperando para sempre.</para>
+    /// </summary>
+    Task<IReadOnlyList<Report>> ListByModerationStateAsync(long projectId, ReportModerationStateEnum state, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Quantos relatos do projeto estao neste estado de moderacao.</summary>
+    Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default);
 }

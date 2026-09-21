@@ -328,6 +328,18 @@ export function ReportDialog({
               {formatDateTime(report.CreatedAt)}
             </span>
 
+            {/* **Quem abre um relato para responder precisa saber se está falando
+                em público.** A decisão se toma na Moderação; aqui é só o estado,
+                porque descobrir depois de escrever é descobrir tarde.
+
+                "Liberado" e não "público": o projeto também precisa estar num
+                nível público, e esta tela não sabe disso. */}
+            {detalhe?.ModerationState === 'Approved' && (
+              <span className="rounded-md border border-warn-border bg-warn-surface px-1.5 py-0.5 text-caption text-warn-fg">
+                Liberado para o público
+              </span>
+            )}
+
             {/* Onde ele esta na fila, e o controle que o move.
 
                 O texto "Coluna" vem num `span`, e nao num `label`: quem da nome

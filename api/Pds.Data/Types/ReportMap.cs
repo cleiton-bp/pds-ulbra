@@ -69,39 +69,6 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasMaxLength(260)
             .HasComment("Dominio informado pela pagina que embutiu a ferramenta. Indicio, nunca prova.");
 
-        builder.Property(report => report.AcceptsQuestions)
-            .HasColumnName("accepts_questions")
-            .HasComment("Quem relatou aceita responder duvidas da equipe. Escolha dela, nao do projeto. Nulo e o relato que entrou antes de a pergunta existir: ninguem perguntou, e ninguem respondeu.");
-
-        builder.Property(report => report.PublicStageDueAt)
-            .HasColumnName("public_stage_due_at")
-            .HasComment("Quando a ultima mudanca de etapa publica passa a valer para quem relatou. Preenchida e a janela para desfazer; nula e o estado normal. E ela que sobrevive, e nao a mensagem na fila.");
-
-        // Parcial: a varredura de recuperacao pergunta **so** pelos agendados, e a
-        // coluna e nula na esmagadora maioria das linhas. Um indice cheio custaria
-        // manutencao em toda a tabela que mais cresce para servir a um punhado.
-        builder.HasIndex(report => report.PublicStageDueAt)
-            .HasFilter("public_stage_due_at IS NOT NULL");
-
-        // Unico em todo o sistema, e sem o filtro de deleted_at que as outras
-        // unicidades usam: o protocolo esta escrito num papel na mao de alguem, e
-        // reaproveita-lo faria duas pessoas diferentes digitarem o mesmo codigo.
-        builder.HasIndex(report => report.TrackingCode).IsUnique();
-
-        // A lista do painel: os relatos da conta, do mais novo para o mais antigo.
-        builder.HasIndex(report => new { report.AccountId, report.CreatedAt });
-
-        // A mesma lista dentro de um projeto.
-        builder.HasIndex(report => new { report.ProjectId, report.CreatedAt });
-
-        // **Este indice nao tem consulta.** Ele foi criado esperando que o
-        // acompanhamento buscasse pelo hash do token; a pds-017 escreveu a busca
-        // pelo protocolo e deixou a comparacao do segredo em memoria, de proposito
-        // — dentro do banco ela nao seria em tempo constante. Fica porque derruba-lo
-        // pede migracao no banco compartilhado, e o custo dele e uma arvore
-        // mantida por insercao.
-        builder.HasIndex(report => report.AccessTokenHash);
-
         builder.Property(report => report.ReporterCodeId)
             .HasColumnName("reporter_code_id")
             .HasComment("Codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nulo no modo protocolo e nos relatos anteriores ao modo existir — e esses continuam valendo pelo link.");
@@ -138,6 +105,42 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // pede migracao no banco compartilhado, e o custo dele e uma arvore
         // mantida por insercao.
         builder.HasIndex(report => report.AccessTokenHash);
+
+        builder.Property(report => report.ReporterName)
+            .HasColumnName("reporter_name")
+            .HasMaxLength(Report.MaxReporterNameLength)
+            .HasComment("Nome de quem relatou, quando o projeto pede e a pessoa quis dar. Nulo e o normal. Interno por padrao: so aparece la fora com o projeto em publico identificado E reporter_name_is_public verdadeiro.");
+
+        builder.Property(report => report.ReporterNameIsPublic)
+            .HasColumnName("reporter_name_is_public")
+            .IsRequired()
+            .HasComment("Quem relatou escolheu assinar o relato. Falso por padrao — a caixa nasce desmarcada, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le.");
+
+        builder.Property(report => report.ModerationState)
+            .HasColumnName("moderation_state")
+            .HasConversion(new SnakeCaseEnumConverter<ReportModerationStateEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("pending, approved ou rejected. Todo relato nasce pending, inclusive em projeto privado: e o que faz marcar o projeto como publico depois nao publicar o historico inteiro de uma vez.");
+
+        builder.Property(report => report.ModeratedAt)
+            .HasColumnName("moderated_at")
+            .HasComment("Quando alguem do time decidiu. Nulo enquanto ninguem decidiu.");
+
+        builder.Property(report => report.ModeratedByUserId)
+            .HasColumnName("moderated_by_user_id")
+            .HasComment("Quem do time decidiu. Nulo enquanto ninguem decidiu, e tambem quando a conta de quem decidiu foi esvaziada. Nunca sai em rota publica.");
+
+        // A fila da moderacao busca por projeto e estado, e e a consulta que o time
+        // abre todo dia num projeto publico.
+        builder.HasIndex(report => new { report.ProjectId, report.ModerationState });
+
+        // Restrict pelo mesmo motivo de quem encerrou: apagar o usuario nao pode
+        // levar junto o relato que ele liberou.
+        builder.HasOne(report => report.ModeratedByUser)
+            .WithMany()
+            .HasForeignKey(report => report.ModeratedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // A lista do painel filtra por estado, e a regra de aposentar precisa saber
         // se ainda ha relato parado naquele estado.

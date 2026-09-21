@@ -219,6 +219,18 @@ export interface ReportDetailViewModel extends ReportSummaryViewModel {
    * tem em maos.
    */
   CanAskInfo: boolean
+  /**
+   * Se este relato ja pode ser lido por quem nao o escreveu.
+   *
+   * **Viaja no detalhe porque e aqui que o time le o relato.** A decisao se toma
+   * na fila de moderacao, mas quem abre um relato para responder precisa saber se
+   * esta falando em publico — e descobrir isso depois de escrever e descobrir
+   * tarde.
+   *
+   * Liberado **nao quer dizer visivel**: o projeto tambem precisa estar num nivel
+   * publico. Sao duas condicoes, e esta e so uma delas.
+   */
+  ModerationState: ReportModerationState
   /** Em ordem de chave, decidida pela API. */
   Contexts: ReportContextViewModel[]
 }
@@ -556,6 +568,8 @@ export const REPORT_EVENT_TYPES = [
   'ReportInfoRequested',
   'ReportReplied',
   'ReportClosureCancelled',
+  'ReportPublished',
+  'ReportModerationRejected',
 ] as const
 
 /**
@@ -581,6 +595,44 @@ export interface ReportHistoryEntryViewModel {
   FromStateName: string | null
   ToStateName: string | null
   OccurredAt: string
+}
+
+/**
+ * Se o relato ja pode ser lido por quem nao o escreveu.
+ *
+ * Espelho do `ReportModerationStateEnum` em C#. **Todo relato nasce
+ * `Pending`**, inclusive em projeto privado — e e isso que faz marcar o projeto
+ * como publico depois nao publicar o historico inteiro de uma vez.
+ */
+export type ReportModerationState = 'Pending' | 'Approved' | 'Rejected'
+
+/** Um relato na fila de moderacao, como o time o le antes de decidir. */
+export interface ModerationItemViewModel {
+  PublicId: string
+  TrackingCode: string
+  Type: ReportType
+  /** Inteiro: quem decide publicar precisa ler o que vai publicar. */
+  Text: string
+  /** Aparece aqui mesmo quando a pessoa **nao** quis assinar. */
+  ReporterName: string | null
+  ReporterNameIsPublic: boolean
+  State: ReportModerationState
+  ModeratedAt: string | null
+  ModeratedByName: string | null
+  CreatedAt: string
+}
+
+/** A fila de moderacao de um projeto. */
+export interface ModerationQueueViewModel {
+  /** Do mais antigo para o mais novo: fila lida ao contrario nunca esvazia o comeco. */
+  Items: ModerationItemViewModel[]
+  /** Quantos esperam decisao, **independente do recorte pedido**. */
+  PendingTotal: number
+}
+
+/** A decisao que o painel manda. `Pending` nao e aceito. */
+export interface ModerateReportRequest {
+  Decision: Exclude<ReportModerationState, 'Pending'>
 }
 
 /** Um relato na lista pessoal de quem o escreveu. */

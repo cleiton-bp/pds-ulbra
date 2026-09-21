@@ -297,3 +297,20 @@ public class OpenByReporterCodeDto
     /// <example>7K2M-9QXP-4TRV</example>
     public string? TrackingCode { get; set; }
 }
+
+/// <summary>
+/// A decisao de moderacao sobre um relato, vinda do painel.
+/// </summary>
+public class ModerateReportDto
+{
+    /// <summary>
+    /// <c>Approved</c> libera para o publico; <c>Rejected</c> decide que nao vai.
+    ///
+    /// <para><b><c>Pending</c> nao e aceito.</b> Voltar para "ninguem olhou" depois
+    /// de alguem ter olhado seria apagar a decisao de uma pessoa — e a fila diria
+    /// que falta ler o que ja foi lido. Mudar de ideia e decidir de novo, e a nova
+    /// decisao fica gravada por cima com quem a tomou.</para>
+    /// </summary>
+    /// <example>Approved</example>
+    public ReportModerationStateEnum? Decision { get; set; }
+}

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pds.ApiBase.Repositories;
 using Pds.Data.Context;
 using Pds.Domain.Entities;
+using Pds.Domain.Enums;
 using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 
@@ -153,6 +154,23 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .ThenByDescending(report => report.Id)
             .Take(limit)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Report>> ListByModerationStateAsync(long projectId, ReportModerationStateEnum state, int limit, CancellationToken cancellationToken = default)
+        // O filtro global ja isola a conta e esconde o apagado. A ordem e a unica
+        // do painel que vai do mais antigo para o mais novo: fila lida ao
+        // contrario deixa o primeiro que chegou esperando para sempre.
+        => await Context.Reports
+            .Where(report => report.ProjectId == projectId && report.ModerationState == state)
+            .Include(report => report.ModeratedByUser)
+            .OrderBy(report => report.CreatedAt)
+            .ThenBy(report => report.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+    public Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default)
+        => Context.Reports
+            .CountAsync(report => report.ProjectId == projectId && report.ModerationState == state,
+                cancellationToken);
 
     public async Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default)
         // So os identificadores publicos: quem chama vai reabrir cada um no proprio

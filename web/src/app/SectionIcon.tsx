@@ -63,6 +63,15 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'moderation' && (
+        // Um olho, e o que a secao faz: alguem le antes de o resto do mundo ler.
+        // Sem pupila cheia — ela olha, e nao vigia.
+        <>
+          <path d="M1 6s2-3.4 5-3.4S11 6 11 6s-2 3.4-5 3.4S1 6 1 6Z" />
+          <circle cx="6" cy="6" r="1.5" />
+        </>
+      )}
+
       {section === 'reports' && (
         // Balao de fala: o que aparece nesta secao e alguem falando, e nao um
         // registro que o sistema produziu.

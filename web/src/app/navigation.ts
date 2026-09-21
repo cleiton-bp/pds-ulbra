@@ -20,6 +20,7 @@ export interface ConsoleSection {
     | 'identity'
     | 'settings'
     | 'reports'
+    | 'moderation'
     | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
@@ -63,6 +64,15 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
  */
 export const OPERATION_SECTIONS: ConsoleSection[] = [
   { key: 'reports', label: 'Relatos', path: 'reports' },
+  // **Vem depois de Relatos, e nao dentro dela.** As duas leem o mesmo relato e
+  // respondem perguntas diferentes: "o que ainda nao tratei" e "o que ja pode
+  // ser lido por estranhos". Como aba de um filtro, a segunda viraria um recorte
+  // da primeira — e a decisao de publicar nao e um recorte de nada.
+  //
+  // Aparece **sempre**, inclusive em projeto privado. Some-la ali esconderia
+  // que a fila existe e continua enchendo, e quem marcasse o projeto como
+  // publico descobriria um dia uma fila de meses.
+  { key: 'moderation', label: 'Moderação', path: 'moderation' },
 ]
 
 /**

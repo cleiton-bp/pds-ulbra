@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -122,6 +123,86 @@ public class ReportsController : BaseController
         {
             var counts = await _reportService.CountByStateAsync(publicId, cancellationToken);
             return Success(counts, total: counts.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>A fila de moderação do projeto.</summary>
+    /// <remarks>
+    /// **Todo relato nasce pendente, inclusive em projeto privado.** Não é excesso
+    /// de zelo: se o relato de projeto privado nascesse liberado, o dia em que
+    /// alguém marcasse o projeto como público publicaria o histórico inteiro de uma
+    /// vez, sem ninguém ter lido nada.
+    ///
+    /// **Do mais antigo para o mais novo**, ao contrário de toda outra lista do
+    /// painel. Fila que se lê de trás para frente deixa o primeiro que chegou
+    /// esperando para sempre.
+    ///
+    /// O total de pendentes vem em toda resposta, **inclusive quando o recorte é
+    /// outro**: é o número que o painel mostra na lateral, e ele não pode sumir
+    /// porque alguém abriu a aba dos já decididos.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="state">`Pending`, `Approved` ou `Rejected`. Padrão: `Pending`.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">A fila, e quantos ainda esperam decisão.</response>
+    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    [HttpGet("moderation")]
+    [ProducesResponseType(typeof(ApiResponse<ModerationQueueViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Moderation(Guid publicId, [FromQuery] ReportModerationStateEnum state = ReportModerationStateEnum.Pending, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var queue = await _reportService.ListModerationAsync(publicId, state, cancellationToken);
+            return Success(queue, total: queue.Items.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Libera o relato para o público, ou decide que ele não vai.</summary>
+    /// <remarks>
+    /// **Liberar não publica sozinho.** São duas condições, e nenhuma basta: o
+    /// projeto precisa estar num nível público, e o relato precisa ter sido
+    /// liberado aqui. Um relato liberado em projeto privado continua invisível para
+    /// todo mundo — e é por isso que marcar um projeto como público depois não
+    /// publica o histórico inteiro de uma vez.
+    ///
+    /// **Recusar não apaga nem encerra.** O relato continua no painel, continua no
+    /// ciclo, e quem escreveu continua acompanhando pelo link. A recusa fala só da
+    /// vitrine — e quem relatou **não é avisado** dela, porque ela é decisão
+    /// editorial do time e não um recado sobre o problema.
+    ///
+    /// **Decidir de novo é permitido; voltar para `Pending` não é.** Quem liberou
+    /// por engano recusa, e quem recusou e mudou de ideia libera. O que não existe
+    /// é desfazer para "ninguém olhou", porque alguém olhou.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="dto">A decisão.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, com a decisão gravada.</response>
+    /// <response code="400">Decisão ausente, desconhecida, ou `Pending`.</response>
+    /// <response code="404">Projeto ou relato não encontrado nesta conta.</response>
+    [HttpPut("{reportPublicId:guid}/moderation")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ModerationItemViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Moderate(Guid publicId, Guid reportPublicId, [FromBody] ModerateReportDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await _reportService.ModerateAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(item, item.State == ReportModerationStateEnum.Approved
+                ? "Relato liberado para o público."
+                : "Relato marcado como não publicável.");
         }
         catch (Exception exception)
         {

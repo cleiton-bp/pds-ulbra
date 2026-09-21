@@ -29,6 +29,16 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const int MaxTextLength = 5000;
 
+    /// <summary>
+    /// Quanto cabe no nome de quem relatou.
+    ///
+    /// <para>Curto de proposito: e um nome, e nao um espaco livre. Sem teto, o
+    /// campo vira um segundo relato — e num projeto publico identificado ele sai
+    /// ao lado do texto, onde caberia qualquer coisa que a moderacao teria de ler
+    /// duas vezes.</para>
+    /// </summary>
+    public const int MaxReporterNameLength = 80;
+
     /// <summary>Conta dona do relato. E por este campo que o filtro global isola.</summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;
@@ -152,6 +162,59 @@ public class Report : PdsBaseEntity
     /// descarta sozinha. E assim que o desfazer funciona sem cancelar nada.</para>
     /// </summary>
     public DateTime? PublicStageDueAt { get; set; }
+
+    /// <summary>
+    /// Nome de quem relatou, quando o projeto pede e a pessoa quis dar.
+    ///
+    /// <para><b>Nulo e o normal.</b> O campo e opcional em toda configuracao: o
+    /// produto nunca precisou do nome para funcionar, e passar a exigi-lo seria
+    /// trocar o motivo pelo qual este relato pode ser anonimo.</para>
+    ///
+    /// <para><b>Coletar e uma coisa; publicar e outra.</b> Preenchido, o nome e
+    /// <b>interno</b> — o time ve, o lado de fora nao. Para ele aparecer sao
+    /// precisas duas coisas ao mesmo tempo, e nenhuma sozinha basta: o projeto em
+    /// publico identificado, e <see cref="ReporterNameIsPublic"/> verdadeiro.</para>
+    /// </summary>
+    public string? ReporterName { get; set; }
+
+    /// <summary>
+    /// Quem relatou <b>escolheu aparecer</b> junto do relato.
+    ///
+    /// <para><b>Falso por padrao, e a escolha e de quem escreve.</b> O projeto abre
+    /// a possibilidade ao usar o nivel publico identificado; quem decide assinar e
+    /// a pessoa, no formulario, com a caixa desmarcada. Marca-la por padrao faria a
+    /// escolha acontecer por distracao — e o que esta em jogo e o nome dela ao lado
+    /// de um texto que qualquer um le.</para>
+    /// </summary>
+    public bool ReporterNameIsPublic { get; set; }
+
+    /// <summary>
+    /// Se este relato ja pode ser lido por quem nao o escreveu. Ver
+    /// <see cref="ReportModerationStateEnum"/>.
+    ///
+    /// <para><b>Nasce pendente, sempre</b> — inclusive em projeto privado, onde
+    /// ninguem vai olhar a fila. E o que torna seguro marcar o projeto como publico
+    /// depois: a troca nao publica nada, porque nao ha nada liberado.</para>
+    /// </summary>
+    public ReportModerationStateEnum ModerationState { get; set; }
+
+    /// <summary>
+    /// Quando alguem do time decidiu. <b>Nulo enquanto ninguem decidiu.</b>
+    ///
+    /// <para>E a data em que o relato passou a poder ser lido la fora — ou em que
+    /// se decidiu que nao seria. Nao e a data do relato, e nem sempre existe.</para>
+    /// </summary>
+    public DateTime? ModeratedAt { get; set; }
+
+    /// <summary>
+    /// Quem do time decidiu, ou <b>nulo</b> quando ninguem decidiu ainda — e
+    /// tambem quando a conta de quem decidiu foi esvaziada.
+    ///
+    /// <para>Fica do lado de dentro e nunca sai numa rota publica: quem le a lista
+    /// publica esta lendo o relato, e nao a redacao do cliente.</para>
+    /// </summary>
+    public long? ModeratedByUserId { get; set; }
+    public User? ModeratedByUser { get; set; }
 
     /// <summary>O que veio junto com o relato, em pares de chave e valor.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]

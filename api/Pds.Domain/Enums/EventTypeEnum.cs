@@ -156,4 +156,31 @@ public enum EventTypeEnum
     /// para quem esta de fora. E essa diferenca que mede se a janela serve.</para>
     /// </summary>
     ReportClosureCancelled,
+
+    /// <summary>
+    /// Alguem do time liberou o relato para o publico.
+    ///
+    /// <para><b>E o unico evento que abre um relato para quem nao o escreveu</b>, e
+    /// por isso ele existe: sem a linha, a pergunta "quem decidiu publicar isto, e
+    /// quando" nao teria resposta — e e a pergunta que aparece no dia em que algo
+    /// publicado nao devia ter sido.</para>
+    ///
+    /// <para>O payload guarda <b>quanto tempo o relato esperou</b>. Fila que demora
+    /// nao e detalhe de operacao aqui: enquanto ela demora, quem relatou ve a
+    /// promessa de aparecer e nao aparece.</para>
+    /// </summary>
+    ReportPublished,
+
+    /// <summary>
+    /// Alguem do time decidiu que o relato <b>nao</b> vai a publico.
+    ///
+    /// <para><b>Nao e apagar, e nao e encerrar.</b> O relato continua no painel,
+    /// continua no ciclo, e quem escreveu continua acompanhando pelo link. A recusa
+    /// fala so da vitrine.</para>
+    ///
+    /// <para>Existe como evento para a contagem que importa nesta etapa: <b>quanto
+    /// do que chega nao pode ser publicado</b>. Uma taxa alta nao diz que o time
+    /// e rigoroso — diz que o aviso antes de escrever nao esta sendo lido.</para>
+    /// </summary>
+    ReportModerationRejected,
 }

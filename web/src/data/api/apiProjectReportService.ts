@@ -1,5 +1,7 @@
 import type {
   InternalCommentViewModel,
+  ModerationItemViewModel,
+  ModerationQueueViewModel,
   PublicCommentViewModel,
   ReportCommentsViewModel,
   ReportDetailViewModel,
@@ -25,6 +27,15 @@ export const apiProjectReportService: ProjectReportService = {
 
     return { reports: items, total }
   },
+
+  listModeration: (publicId, state) =>
+    apiGet<ModerationQueueViewModel>(`/projects/${publicId}/reports/moderation?state=${state}`),
+
+  moderateReport: (publicId, reportPublicId, request) =>
+    apiPut<ModerationItemViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/moderation`,
+      request,
+    ),
 
   listReportCounts: (publicId) =>
     apiGet<ReportStateCountViewModel[]>(`/projects/${publicId}/reports/counts`),

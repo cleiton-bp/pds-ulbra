@@ -1,5 +1,6 @@
 using Pds.Domain.Dtos;
 using Pds.Domain.ViewModels;
+using Pds.Domain.Enums;
 
 namespace Pds.Domain.Interfaces.ServiceInterfaces;
 
@@ -116,6 +117,24 @@ public interface IReportService
     /// lugar na fila quando ela nao esta vazia.
     /// </summary>
     Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A fila de moderacao de um projeto, num estado so.
+    ///
+    /// <para><b>Existe mesmo em projeto privado</b>, e responde igual. A fila e do
+    /// relato, e nao da visibilidade: um projeto que hoje nao publica pode publicar
+    /// amanha, e o que ja foi lido e decidido nao precisa ser lido de novo.</para>
+    /// </summary>
+    Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ReportModerationStateEnum state, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Libera ou recusa um relato.
+    ///
+    /// <para><b>Decidir de novo e permitido, e voltar para pendente nao e.</b>
+    /// Quem liberou por engano recusa; quem recusou e mudou de ideia libera. O que
+    /// nao existe e desfazer para "ninguem olhou", porque alguem olhou.</para>
+    /// </summary>
+    Task<ModerationItemViewModel> ModerateAsync(Guid projectPublicId, Guid reportPublicId, ModerateReportDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Move o relato para outra coluna da fila.

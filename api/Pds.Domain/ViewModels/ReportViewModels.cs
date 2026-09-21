@@ -271,6 +271,17 @@ public record ReportContextViewModel(string Key, string? Value);
 /// qual dos casos e, lendo o que ja tem em maos.</para>
 /// </param>
 /// <param name="Contexts">O que veio junto, em ordem de chave.</param>
+/// <param name="ModerationState">
+/// Se este relato ja pode ser lido por quem nao o escreveu.
+///
+/// <para><b>Viaja no detalhe porque e aqui que o time le o relato.</b> A decisao
+/// se toma na fila de moderacao, mas quem abre um relato para responder precisa
+/// saber se esta falando em publico — e descobrir isso depois de escrever e
+/// descobrir tarde.</para>
+///
+/// <para>Liberado <b>nao quer dizer visivel</b>: o projeto tambem precisa estar
+/// num nivel publico. Sao duas condicoes, e esta e so uma delas.</para>
+/// </param>
 public record ReportDetailViewModel(
     Guid PublicId,
     string TrackingCode,
@@ -287,6 +298,7 @@ public record ReportDetailViewModel(
     ReportClosureViewModel? Closure,
     ReportInfoRequestViewModel? InfoRequest,
     bool CanAskInfo,
+    ReportModerationStateEnum ModerationState,
     IReadOnlyList<ReportContextViewModel> Contexts);
 
 
@@ -571,3 +583,53 @@ public record PublicReportViewModel(
     IReadOnlyList<PublicMessageViewModel> Conversation,
     PublicInfoRequestViewModel? InfoRequest,
     bool CanReply);
+
+/// <summary>
+/// Um relato na fila de moderacao, como o time o le antes de decidir.
+///
+/// <para><b>O texto vem inteiro.</b> Quem decide publicar precisa ler o que vai
+/// publicar — um resumo faria a decisao ser tomada sobre a parte que coube, e o
+/// que vaza costuma estar no meio de um paragrafo, nao nas primeiras palavras.</para>
+/// </summary>
+/// <param name="PublicId">Identificador do relato para as rotas do painel.</param>
+/// <param name="TrackingCode">O protocolo, para cruzar com o resto do painel.</param>
+/// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="Text">O relato como foi escrito.</param>
+/// <param name="ReporterName">
+/// Como a pessoa se identificou, ou <b>nulo</b> quando nao deu nome.
+///
+/// <para>Aparece aqui mesmo quando ela <b>nao</b> quis assinar: coletar e uma
+/// coisa, publicar e outra, e quem modera precisa saber quem esta do outro lado
+/// para julgar o texto.</para>
+/// </param>
+/// <param name="ReporterNameIsPublic">Ela quis assinar. So com isto <b>e</b> o projeto em publico identificado o nome sai la fora.</param>
+/// <param name="State">Pendente, liberado ou recusado.</param>
+/// <param name="ModeratedAt">Quando alguem decidiu; nulo enquanto ninguem decidiu.</param>
+/// <param name="ModeratedByName">Quem decidiu; nulo enquanto ninguem decidiu, e tambem quando a conta foi esvaziada.</param>
+/// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+public record ModerationItemViewModel(
+    Guid PublicId,
+    string TrackingCode,
+    ReportTypeEnum Type,
+    string Text,
+    string? ReporterName,
+    bool ReporterNameIsPublic,
+    ReportModerationStateEnum State,
+    DateTime? ModeratedAt,
+    string? ModeratedByName,
+    DateTime CreatedAt);
+
+/// <summary>
+/// A fila de moderacao de um projeto.
+/// </summary>
+/// <param name="Items">Os relatos no estado pedido, do mais antigo para o mais novo.</param>
+/// <param name="PendingTotal">
+/// Quantos ainda esperam decisao, <b>independente do recorte pedido</b>.
+///
+/// <para>Viaja sempre porque e o numero que o painel mostra na lateral: sem ele,
+/// quem abrisse a aba dos ja decididos veria o contador sumir e concluiria que a
+/// fila esvaziou.</para>
+/// </param>
+public record ModerationQueueViewModel(
+    IReadOnlyList<ModerationItemViewModel> Items,
+    int PendingTotal);
