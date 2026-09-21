@@ -96,6 +96,8 @@ export type {
   ReportStateCountViewModel,
   ReportSummaryViewModel,
   ReportType,
+  SensitiveDataKind,
+  SensitiveFindingViewModel,
 } from '@/contracts/report'
 export {
   MAX_CLOSURE_REASON_LENGTH,

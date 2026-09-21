@@ -61,6 +61,8 @@ const ITEM: ModerationItemViewModel = {
   ModeratedAt: null,
   ModeratedByName: null,
   CreatedAt: '2026-09-21T12:00:00.000Z',
+  Findings: [],
+  FindingsTruncated: false,
 }
 
 const LONGO =
@@ -169,6 +171,110 @@ describe('ModerationScreen', () => {
     expect(
       await screen.findByText(/só faz o relato aparecer se o projeto estiver num nível público/i),
     ).toBeTruthy()
+  })
+
+  it('marca o trecho suspeito dentro do próprio texto', async () => {
+    dublê.listar.mockResolvedValue(
+      fila({
+        Items: [
+          {
+            ...ITEM,
+            Text: LONGO,
+            Findings: [
+              {
+                Kind: 'Cpf',
+                Start: LONGO.indexOf('000.000.000-00'),
+                Length: '000.000.000-00'.length,
+                Sample: '00**********00',
+              },
+            ],
+          },
+        ],
+      }),
+    )
+    montar()
+
+    // **Marcar no lugar, e não só listar embaixo.** Num parágrafo longo, uma
+    // etiqueta que diz "tem um CPF aqui" obriga a procurar — e procurar é onde o
+    // olho passa direto.
+    const marca = await screen.findByText('000.000.000-00')
+    expect(marca.tagName).toBe('MARK')
+
+    // E o texto continua inteiro em volta da marca.
+    expect(marca.closest('p')?.textContent).toBe(LONGO)
+  })
+
+  it('o aviso diz que não impede nada, e que pode estar errado', async () => {
+    dublê.listar.mockResolvedValue(
+      fila({
+        Items: [
+          {
+            ...ITEM,
+            Text: LONGO,
+            Findings: [{ Kind: 'Cpf', Start: 0, Length: 3, Sample: '***' }],
+          },
+        ],
+      }),
+    )
+    montar()
+
+    // Um aviso que soasse como veredito faria o time liberar no automático quando
+    // ele não aparecesse — e é aí que a varredura erra, deixando passar.
+    expect(await screen.findByText(/Isto não impede nada, e pode estar errado/i)).toBeTruthy()
+
+    // E liberar continua sendo possível com o achado na tela.
+    expect((screen.getByRole('button', { name: 'Liberar' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    )
+  })
+
+  it('a amostra do achado vem mascarada, e não repete o dado', async () => {
+    dublê.listar.mockResolvedValue(
+      fila({
+        Items: [
+          {
+            ...ITEM,
+            Text: 'contato: ana@exemplo.com',
+            Findings: [{ Kind: 'Email', Start: 9, Length: 15, Sample: 'a**@exemplo.com' }],
+          },
+        ],
+      }),
+    )
+    montar()
+
+    // A etiqueta viaja mais do que o relato: cabe num print, num log do painel.
+    expect(await screen.findByText('a**@exemplo.com')).toBeTruthy()
+    expect(screen.getByText('E-mail:', { exact: false }).textContent).not.toContain(
+      'ana@exemplo.com',
+    )
+  })
+
+  it('quando a varredura para no teto, diz que há mais do que a lista', async () => {
+    dublê.listar.mockResolvedValue(
+      fila({
+        Items: [
+          {
+            ...ITEM,
+            Text: LONGO,
+            Findings: [{ Kind: 'Token', Start: 0, Length: 3, Sample: '***' }],
+            FindingsTruncated: true,
+          },
+        ],
+      }),
+    )
+    montar()
+
+    // Doze não é "todos": um texto colado de um log tem centenas de credenciais
+    // iguais, e deixar quem lê achar que viu a lista inteira ajuda a decidir errado.
+    expect(await screen.findByText(/Paramos de listar depois de 1/i)).toBeTruthy()
+  })
+
+  it('sem achado nenhum, não inventa aviso', async () => {
+    montar()
+
+    await screen.findByText(LONGO)
+    expect(screen.queryByText(/dado sensível/i)).toBeNull()
+    expect(document.querySelector('mark')).toBeNull()
   })
 
   it('mostra que a pessoa deu o nome e pediu para ele não aparecer', async () => {

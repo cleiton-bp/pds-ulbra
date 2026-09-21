@@ -585,6 +585,29 @@ public record PublicReportViewModel(
     bool CanReply);
 
 /// <summary>
+/// Um trecho que a varredura reconheceu como dado sensivel.
+///
+/// <para><b>E um aviso, e nao um veredito.</b> Nada aqui impede liberar o relato:
+/// falso positivo nao pode decidir, e quem decide e sempre alguem que leu. O papel
+/// desta lista e so fazer a pessoa olhar de novo para um trecho especifico antes
+/// de publicar.</para>
+///
+/// <para><b>A amostra vem mascarada, mesmo com o texto inteiro ao lado.</b> A
+/// etiqueta viaja mais do que o relato — cabe num print, numa captura de suporte,
+/// num log do painel —, e repetir o dado ali criaria uma segunda copia dele em
+/// lugares que ninguem pensou em proteger.</para>
+/// </summary>
+/// <param name="Kind">CPF, CNPJ, cartao, e-mail, telefone ou credencial.</param>
+/// <param name="Start">Onde o trecho comeca no texto, em caracteres — para a tela marcar.</param>
+/// <param name="Length">Quantos caracteres ele ocupa.</param>
+/// <param name="Sample">O trecho mascarado.</param>
+public record SensitiveFindingViewModel(
+    SensitiveDataKindEnum Kind,
+    int Start,
+    int Length,
+    string Sample);
+
+/// <summary>
 /// Um relato na fila de moderacao, como o time o le antes de decidir.
 ///
 /// <para><b>O texto vem inteiro.</b> Quem decide publicar precisa ler o que vai
@@ -607,6 +630,21 @@ public record PublicReportViewModel(
 /// <param name="ModeratedAt">Quando alguem decidiu; nulo enquanto ninguem decidiu.</param>
 /// <param name="ModeratedByName">Quem decidiu; nulo enquanto ninguem decidiu, e tambem quando a conta foi esvaziada.</param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+/// <param name="FindingsTruncated">
+/// A varredura parou no teto e ha mais trechos do que os que vieram.
+///
+/// <para><b>Sem isto, doze pareceria "todos".</b> Um texto colado de um log tem
+/// centenas de credenciais iguais; listar todas nao ajuda a decidir, mas deixar
+/// quem le achar que sao doze ajuda a decidir <b>errado</b>.</para>
+/// </param>
+/// <param name="Findings">
+/// O que a varredura reconheceu no texto. Vazio na esmagadora maioria.
+///
+/// <para><b>Calculado na leitura, e nao guardado.</b> O achado nao e um fato sobre
+/// o relato: e o que temos a dizer a quem esta decidindo <b>agora</b>. Gravado na
+/// criacao, ele envelheceria — melhorar um padrao deixaria o passado marcado pelo
+/// detector velho, e seria preciso uma migracao para reavaliar a fila.</para>
+/// </param>
 public record ModerationItemViewModel(
     Guid PublicId,
     string TrackingCode,
@@ -617,7 +655,9 @@ public record ModerationItemViewModel(
     ReportModerationStateEnum State,
     DateTime? ModeratedAt,
     string? ModeratedByName,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    IReadOnlyList<SensitiveFindingViewModel> Findings,
+    bool FindingsTruncated);
 
 /// <summary>
 /// A fila de moderacao de um projeto.

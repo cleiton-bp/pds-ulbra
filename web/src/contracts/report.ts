@@ -625,6 +625,24 @@ export interface ReportHistoryEntryViewModel {
  */
 export type ReportModerationState = 'Pending' | 'Approved' | 'Rejected'
 
+/**
+ * O que a varredura reconhece dentro do texto de um relato.
+ *
+ * Espelho do `SensitiveDataKindEnum` em C#. **Nenhum destes bloqueia nada**: a
+ * varredura sinaliza e para por ai, porque falso positivo nao pode decidir.
+ */
+export type SensitiveDataKind = 'Cpf' | 'Cnpj' | 'CreditCard' | 'Email' | 'Phone' | 'Token'
+
+/** Um trecho que a varredura reconheceu. E um aviso, e nao um veredito. */
+export interface SensitiveFindingViewModel {
+  Kind: SensitiveDataKind
+  /** Onde comeca no texto, em caracteres — e o que permite marcar o trecho. */
+  Start: number
+  Length: number
+  /** O trecho **mascarado**: a etiqueta viaja mais do que o relato. */
+  Sample: string
+}
+
 /** Um relato na fila de moderacao, como o time o le antes de decidir. */
 export interface ModerationItemViewModel {
   PublicId: string
@@ -639,6 +657,15 @@ export interface ModerationItemViewModel {
   ModeratedAt: string | null
   ModeratedByName: string | null
   CreatedAt: string
+  /** Vazio na esmagadora maioria. Calculado na leitura, e nao guardado. */
+  Findings: SensitiveFindingViewModel[]
+  /**
+   * A varredura parou no teto e ha mais trechos do que os que vieram.
+   *
+   * **Sem isto, doze pareceria "todos"** — e quem le decidiria achando que viu
+   * a lista inteira.
+   */
+  FindingsTruncated: boolean
 }
 
 /** A fila de moderacao de um projeto. */

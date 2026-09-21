@@ -1,5 +1,10 @@
 import { useCallback, useState } from 'react'
-import type { ModerationItemViewModel, ReportModerationState } from '@/contracts'
+import type {
+  ModerationItemViewModel,
+  ReportModerationState,
+  SensitiveDataKind,
+  SensitiveFindingViewModel,
+} from '@/contracts'
 import { describeError, projectReportService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -131,8 +136,44 @@ export function ModerationScreen() {
               {/* Inteiro, e com as quebras que a pessoa escreveu: decidir sobre um
                   resumo é decidir sobre a parte que coube. */}
               <p className="mb-3 whitespace-pre-wrap text-body text-fg leading-relaxed">
-                {item.Text}
+                <TextoMarcado texto={item.Text} achados={item.Findings} />
               </p>
+
+              {item.Findings.length > 0 && (
+                <div className="mb-3 rounded-lg border border-warn-border bg-warn-surface px-3 py-2">
+                  <p className="text-caption text-warn-fg leading-relaxed">
+                    <strong className="font-medium">
+                      Achamos {item.Findings.length === 1 ? 'um trecho' : 'trechos'} que{' '}
+                      {item.Findings.length === 1 ? 'parece' : 'parecem'} dado sensível.
+                    </strong>{' '}
+                    {/* **A frase diz que a decisão continua sendo da pessoa.** Um
+                        aviso que soasse como veredito faria o time liberar no
+                        automático quando ele não aparecesse — e é justamente aí que
+                        a varredura erra, deixando passar. */}
+                    Olhe o que está marcado antes de liberar. Isto não impede nada, e pode estar
+                    errado.
+                  </p>
+                  {item.FindingsTruncated && (
+                    /* **Doze não é "todos".** Um texto colado de um log tem
+                       centenas de credenciais iguais, e deixar quem lê achar que
+                       são doze ajuda a decidir errado. */
+                    <p className="mt-1 text-caption text-warn-fg leading-relaxed">
+                      Paramos de listar depois de {item.Findings.length}. Há mais trechos marcados
+                      no texto do que os desta lista.
+                    </p>
+                  )}
+                  <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                    {item.Findings.map((achado) => (
+                      <li
+                        key={`${achado.Start}-${achado.Kind}`}
+                        className="text-caption text-warn-fg"
+                      >
+                        {ACHADOS[achado.Kind]}: <span className="font-mono">{achado.Sample}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {item.ReporterName !== null && (
                 <p className="mb-3 text-caption text-fg-muted leading-relaxed">
@@ -198,6 +239,56 @@ export function ModerationScreen() {
       )}
     </div>
   )
+}
+
+/**
+ * O texto com os trechos suspeitos marcados.
+ *
+ * **Marcar no lugar vale mais do que listar embaixo.** Um relato longo com uma
+ * etiqueta dizendo "tem um CPF aqui" obriga quem lê a procurar — e procurar num
+ * parágrafo é exatamente onde o olho passa direto. A lista continua existindo
+ * porque ela resume, e a marca é o que faz achar.
+ *
+ * Os trechos vêm ordenados e sem sobreposição da API, então basta caminhar.
+ */
+function TextoMarcado({ texto, achados }: { texto: string; achados: SensitiveFindingViewModel[] }) {
+  if (achados.length === 0) return <>{texto}</>
+
+  const pedacos: React.ReactNode[] = []
+  let cursor = 0
+
+  for (const achado of achados) {
+    // Um índice fora do texto só aconteceria com API e tela discordando do
+    // tamanho; pular é melhor do que renderizar lixo.
+    if (achado.Start < cursor || achado.Start + achado.Length > texto.length) continue
+
+    if (achado.Start > cursor) pedacos.push(texto.slice(cursor, achado.Start))
+
+    pedacos.push(
+      <mark
+        key={`${achado.Start}-${achado.Kind}`}
+        className="rounded bg-warn-surface px-0.5 text-warn-fg"
+      >
+        {texto.slice(achado.Start, achado.Start + achado.Length)}
+      </mark>,
+    )
+
+    cursor = achado.Start + achado.Length
+  }
+
+  if (cursor < texto.length) pedacos.push(texto.slice(cursor))
+
+  return <>{pedacos}</>
+}
+
+/** O nome de cada achado, na língua de quem lê — e não no do enum. */
+const ACHADOS: Record<SensitiveDataKind, string> = {
+  Cpf: 'CPF',
+  Cnpj: 'CNPJ',
+  CreditCard: 'Cartão',
+  Email: 'E-mail',
+  Phone: 'Telefone',
+  Token: 'Credencial',
 }
 
 const ABAS: Record<ReportModerationState, string> = {

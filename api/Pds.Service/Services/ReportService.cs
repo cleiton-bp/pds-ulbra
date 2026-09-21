@@ -9,6 +9,7 @@ using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Service.Origins;
 using Pds.Service.Reports;
+using Pds.Service.Scanning;
 using Pds.Service.Security;
 using Pds.Translation;
 
@@ -1712,6 +1713,8 @@ public class ReportService : IReportService
     /// </summary>
     private static ModerationItemViewModel ToModerationItem(Report report)
     {
+        var achados = SensitiveDataScanner.Scan(report.Text);
+
         return new ModerationItemViewModel(
             report.PublicId,
             report.TrackingCode,
@@ -1722,7 +1725,13 @@ public class ReportService : IReportService
             report.ModerationState,
             report.ModeratedAt,
             report.ModeratedByUser?.Name,
-            report.CreatedAt);
+            report.CreatedAt,
+            // **A varredura roda aqui**, na leitura da fila: antes de publicar, e
+            // nunca depois. Sinaliza e para por ai — bloquear faria cada falso
+            // positivo virar um relato perdido, e perdido para quem escreveu.
+            [.. achados.Select(achado => new SensitiveFindingViewModel(
+                achado.Kind, achado.Start, achado.Length, achado.Sample))],
+            achados.Count >= SensitiveDataScanner.MaxFindings);
     }
 
     public async Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default)
