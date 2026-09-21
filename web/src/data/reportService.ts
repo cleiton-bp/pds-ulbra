@@ -2,6 +2,7 @@ import type {
   ConfirmReportRequest,
   CreatedReportViewModel,
   CreateReportRequest,
+  OpenByReporterCodeRequest,
   OpenReportTrackingRequest,
   PublicReportViewModel,
   ReopenReportRequest,
@@ -63,4 +64,12 @@ export interface ReportService {
    * oraculo. Quem digitou errado ve o mesmo que quem acabou de receber um codigo.
    */
   listByReporterCode(request: ReporterCodeLookupRequest): Promise<ReporterCodeReportsViewModel>
+
+  /**
+   * Abre um relato da lista, pelo codigo em vez do link.
+   *
+   * As acoes chegam desligadas por padrao: o codigo prova que o relato e dela, e o
+   * link e que da poder sobre ele.
+   */
+  openByReporterCode(request: OpenByReporterCodeRequest): Promise<PublicReportViewModel>
 }

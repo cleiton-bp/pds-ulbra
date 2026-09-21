@@ -1,3 +1,5 @@
+import type { ReporterIdentityMode } from '@/contracts/identitySettings'
+
 /**
  * A configuracao da ferramenta de relato, por projeto.
  *
@@ -74,6 +76,14 @@ export interface WidgetSettingsViewModel {
    * escolha final e de quem escreve o relato.
    */
   AcceptsQuestionsDefault: boolean
+  /**
+   * Como quem relata e reconhecido neste projeto.
+   *
+   * **A ferramenta precisa saber, e o cliente nao configura isso nela.** E o modo
+   * que decide se ela guarda um codigo e oferece "os meus relatos", ou se cada
+   * relato sai como um link solto.
+   */
+  IdentityMode: ReporterIdentityMode
 }
 
 /** Limites das colunas de texto, iguais aos que a API vai declarar. */

@@ -9,7 +9,9 @@ import { describeError, reportService } from '@/data/publicIndex'
 import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import type { EmbedConfig } from '@/embed/config'
 import type { HostConnection } from '@/embed/hostBridge'
+import { MyReports } from '@/embed/MyReports'
 import { buildReportContext } from '@/embed/reportContext'
+import { readReporterCode, writeReporterCode } from '@/embed/reporterCodeStore'
 
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
@@ -47,6 +49,25 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<CreatedReportViewModel | null>(null)
+
+  /**
+   * O codigo pessoal deste navegador, quando o projeto usa esse modo.
+   *
+   * **Comeca do armazenamento e e reescrito pela resposta.** O que vale e o que a
+   * API confirmou: codigo desconhecido vira um novo do lado de la, e insistir no
+   * antigo deixaria este navegador pedindo para sempre um valor que nao existe.
+   */
+  const [reporterCode, setReporterCode] = useState(() =>
+    settings.IdentityMode === 'PersonalCode' ? (readReporterCode(config.key) ?? '') : '',
+  )
+
+  /**
+   * Qual das duas telas o quadro mostra.
+   *
+   * **A lista nao substitui o formulario**: relatar continua sendo o que a
+   * ferramenta faz, e a lista e para onde se volta depois.
+   */
+  const [view, setView] = useState<'form' | 'list'>('form')
 
   /**
    * Conta quantas vezes o quadro foi reiniciado.
@@ -91,11 +112,22 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
         Route: config.route,
         Origin: config.origin,
         AcceptsQuestions: acceptsQuestions,
+        // Vazio quando este navegador nunca relatou aqui — e ai a resposta traz um
+        // codigo novo. Num projeto de outro modo, mandar codigo seria recusado,
+        // entao so vai quando ha um.
+        ReporterCode: reporterCode.length > 0 ? reporterCode : undefined,
         Context: buildReportContext(config),
       })
 
       if (generation.current !== minha) return
       setCreated(criado)
+
+      // **Guarda o que a API confirmou, e nao o que foi mandado.** Ver o comentario
+      // do estado: o codigo pode ter mudado do lado de la.
+      if (criado.ReporterCode !== null) {
+        setReporterCode(criado.ReporterCode)
+        writeReporterCode(config.key, criado.ReporterCode)
+      }
     } catch (failure) {
       if (generation.current !== minha) return
       setError(describeError(failure))
@@ -157,6 +189,26 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
     )
   }
 
+  // **Antes do formulario e depois de `created`**: quem acabou de relatar ve a
+  // confirmacao, e nao a lista — o codigo dela aparece la, e e o momento de
+  // guarda-lo.
+
+  if (view === 'list') {
+    return (
+      <div style={style} className="h-full">
+        <MyReports
+          publicKey={config.key}
+          code={reporterCode}
+          onCodeChange={(codigo) => {
+            setReporterCode(codigo)
+            writeReporterCode(config.key, codigo)
+          }}
+          onBack={() => setView('form')}
+        />
+      </div>
+    )
+  }
+
   if (created) {
     const trackingLink = buildTrackingLink(created.TrackingCode, created.AccessToken)
 
@@ -170,6 +222,25 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
           <p className="mb-1.5 text-detail text-fg-muted">Protocolo</p>
           <p className="font-mono text-fg text-lead tracking-wide">{created.TrackingCode}</p>
         </div>
+
+        {/* **O codigo aparece em toda confirmacao, e nao so na primeira.** Ele e o
+            que reencontra todos os relatos desta pessoa — inclusive de outro
+            aparelho, onde o navegador nao guardou nada. Mostrar so na primeira vez
+            faria quem limpou o navegador nunca mais reencontrar a lista. */}
+        {created.ReporterCode !== null && (
+          <div className="rounded-lg border border-border bg-surface-raised p-4">
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <p className="text-detail text-fg-muted">O seu código</p>
+              <CopyButton value={created.ReporterCode} label="Copiar" size="sm" />
+            </div>
+            <p className="mb-2 font-mono text-fg text-lead tracking-wide">{created.ReporterCode}</p>
+            <p className="text-caption text-fg-muted leading-normal">
+              Guarde: é com ele que você reencontra{' '}
+              <strong className="font-medium text-fg">todos</strong> os seus relatos, de qualquer
+              navegador. Perdê-lo custa a lista, não os relatos — o link acima continua valendo.
+            </p>
+          </div>
+        )}
 
         {/* O link e a unica forma de voltar a este relato, e ele sai daqui uma vez
             so: o token vive no fragmento dele, e o banco guarda apenas o hash.
@@ -244,6 +315,19 @@ export function EmbedApp({ settings, config, host = null }: EmbedAppProps) {
           </Button>
         )}
       </div>
+
+      {/* **So neste modo, e nao so quando ha codigo guardado.** Quem trocou de
+          navegador nao tem nada guardado e e justamente quem mais precisa da
+          entrada — a lista pede o codigo ali dentro. */}
+      {settings.IdentityMode === 'PersonalCode' && (
+        <button
+          type="button"
+          onClick={() => setView('list')}
+          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4"
+        >
+          Ver os meus relatos
+        </button>
+      )}
 
       {settings.ShowsTypeField && (
         <fieldset className="flex flex-wrap gap-2">

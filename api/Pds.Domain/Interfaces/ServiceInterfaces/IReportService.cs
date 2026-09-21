@@ -45,6 +45,23 @@ public interface IReportService
     Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Um relato da lista pessoal, aberto pelo <b>codigo</b> em vez do link.
+    ///
+    /// <para><b>O codigo prova que o relato e dela; o link e que da poder sobre
+    /// ele.</b> Entao isto le, e as acoes saem desligadas — confirmar, reabrir e
+    /// responder continuam exigindo o link, a menos que o projeto tenha ligado
+    /// <c>TrackingCodeCanAct</c>.</para>
+    ///
+    /// <para><b>Grava a visualizacao</b>, como a leitura pelo link: quem abriu foi
+    /// quem relatou, e o instante disso e metade da pergunta da pesquisa.</para>
+    ///
+    /// <para>Recusa com a mesma mensagem quando o codigo nao confere, quando o
+    /// protocolo nao existe, e quando ele existe mas e de outra pessoa. Responder
+    /// diferente contaria a quem sonda o que ele acertou.</para>
+    /// </summary>
+    Task<PublicReportViewModel> OpenByReporterCodeAsync(OpenByReporterCodeDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Quem relatou diz que resolveu — <b>sem sessao</b>, pelo link.
     ///
     /// <para><b>E a metade que faltava da metafora.</b> "Concluido" e o time

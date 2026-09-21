@@ -65,6 +65,7 @@ export type {
   CreateReportRequest,
   InternalCommentViewModel,
   MoveReportRequest,
+  OpenByReporterCodeRequest,
   OpenReportTrackingRequest,
   PublicClosureActionsViewModel,
   PublicClosureViewModel,

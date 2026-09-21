@@ -292,4 +292,30 @@ describe('CycleSettingsScreen', () => {
     // como estava. A frase precisa dizer isso, senão a pessoa reconfigura no medo.
     expect(screen.getByText(/continua se comportando como estava/)).toBeTruthy()
   })
+
+  it('a regra do código sozinho tem controle, e diz de que modo ela depende', async () => {
+    montar()
+
+    const marcador = await screen.findByRole('checkbox', {
+      name: /O código sozinho também confirma e reabre/,
+    })
+    expect((marcador as HTMLInputElement).checked).toBe(false)
+
+    // Sem esta frase, alguém marca esperando um efeito que só existe num modo que
+    // ele talvez não tenha escolhido — e a configuração vira promessa quebrada.
+    expect(screen.getByText(/Só tem efeito quando o projeto usa código pessoal/i)).toBeTruthy()
+  })
+
+  it('marcar a regra do código entra no que é salvo', async () => {
+    dublê.salvar.mockResolvedValue({ ...padroes, TrackingCodeCanAct: true })
+    montar()
+
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: /O código sozinho também confirma e reabre/ }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+    expect(dublê.salvar.mock.calls[0]?.[1]).toMatchObject({ TrackingCodeCanAct: true })
+  })
 })

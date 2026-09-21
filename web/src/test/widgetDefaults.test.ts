@@ -48,6 +48,22 @@ const CSHARP_CICLO = fileURLToPath(
 const DO_CICLO = ['AcceptsQuestionsDefault'] as const
 
 /**
+ * **O terceiro arquivo.** `IdentityMode` decide se a ferramenta guarda um codigo e
+ * oferece "os meus relatos" — e o valor mora nas regras de identidade, que e onde
+ * ele significa alguma coisa. A resposta da API junta os tres porque ela e "tudo
+ * que o quadro precisa para aparecer".
+ */
+const CSHARP_IDENTIDADE = fileURLToPath(
+  new URL(
+    '../../../api/Pds.Domain/Entities/ProjectIdentitySettings/IdentitySettingsDefaults.cs',
+    import.meta.url,
+  ),
+)
+
+/** O campo da identidade que a ferramenta le, e o nome que ele tem la. */
+const DA_IDENTIDADE = [['IdentityMode', 'Mode']] as const
+
+/**
  * Le `public const <tipo> <Nome> = <valor>;`, inclusive quando o valor cai para a
  * linha de baixo — e o caso dos dois textos longos.
  */
@@ -79,14 +95,16 @@ function readValue(raw: string): unknown {
 describe('os padroes da ferramenta, dos dois lados', () => {
   const daFerramenta = parseDefaults(readFileSync(CSHARP, 'utf8'))
   const doCiclo = parseDefaults(readFileSync(CSHARP_CICLO, 'utf8'))
+  const daIdentidade = parseDefaults(readFileSync(CSHARP_IDENTIDADE, 'utf8'))
 
   // Do arquivo do ciclo entra **so** o que a ferramenta le. As outras doze regras
   // de la nao aparecem no quadro, e arrasta-las para ca faria este teste cobrar do
   // TypeScript campos que ele nao tem por que conhecer.
   const csharp: Record<string, unknown> = { ...daFerramenta }
   for (const campo of DO_CICLO) csharp[campo] = doCiclo[campo]
+  for (const [aqui, la] of DA_IDENTIDADE) csharp[aqui] = daIdentidade[la]
 
-  it('os dois arquivos C# ainda cobrem os campos do quadro — se pararam, o resto deste teste nao vale', () => {
+  it('os tres arquivos C# ainda cobrem os campos do quadro — se pararam, o resto deste teste nao vale', () => {
     expect(Object.keys(csharp).sort()).toEqual(Object.keys(DEFAULT_WIDGET_SETTINGS).sort())
   })
 
@@ -95,6 +113,7 @@ describe('os padroes da ferramenta, dos dois lados', () => {
     // `undefined` com `undefined` e passar — que e o jeito mais silencioso de
     // perder uma guarda.
     for (const campo of DO_CICLO) expect(doCiclo).toHaveProperty(campo)
+    for (const [, la] of DA_IDENTIDADE) expect(daIdentidade).toHaveProperty(la)
   })
 
   for (const [campo, valor] of Object.entries(DEFAULT_WIDGET_SETTINGS)) {

@@ -96,4 +96,11 @@ export const apiReportService: ReportService = {
       request,
       'Falha de rede ao buscar os seus relatos.',
     ),
+
+  openByReporterCode: (request) =>
+    post<PublicReportViewModel>(
+      '/public/reports/by-code/open',
+      request,
+      'Falha de rede ao abrir o relato.',
+    ),
 }

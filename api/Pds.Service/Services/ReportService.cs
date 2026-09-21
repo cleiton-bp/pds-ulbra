@@ -243,7 +243,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     public async Task<PublicReportViewModel> ConfirmAsync(ConfirmReportDto dto, CancellationToken cancellationToken = default)
@@ -310,7 +310,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     public async Task<PublicReportViewModel> ReopenAsync(ReopenReportDto dto, CancellationToken cancellationToken = default)
@@ -413,7 +413,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     /// <summary>
@@ -444,7 +444,15 @@ public class ReportService : IReportService
     /// configuracao crua entregaria a quem esta de fora como o cliente organiza o
     /// trabalho dele.</para>
     /// </summary>
-    private async Task<PublicReportViewModel> BuildPublicAsync(Report report, CancellationToken cancellationToken)
+    /// <param name="podeAgir">
+    /// Se quem esta lendo pode <b>agir</b> — confirmar, reabrir, responder.
+    ///
+    /// <para><b>E parametro obrigatorio, e nao um padrao.</b> Quem chega pelo link
+    /// pode; quem chega pela lista pessoal so age se o projeto tiver ligado isso. Um
+    /// valor padrao faria a chamada nova nascer permitindo, que e o lado errado para
+    /// errar — e obrigar a declarar forca quem acrescentar um caminho a pensar nele.</para>
+    /// </param>
+    private async Task<PublicReportViewModel> BuildPublicAsync(Report report, bool podeAgir, CancellationToken cancellationToken)
     {
         // **O fechamento que ja vale la fora**, e nao o que existe por dentro. Com
         // espera configurada os dois diferem durante a janela de desfazer — e e
@@ -469,10 +477,10 @@ public class ReportService : IReportService
                 fechamento.Satisfaction,
                 fechamento.SatisfactionDeclined,
                 new PublicClosureActionsViewModel(
-                    !respondeu,
+                    podeAgir && !respondeu,
                     // Quem confirmou fechou a conversa: o problema que volta depois
                     // disso e outro relato.
-                    (regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen) && !respondeu,
+                    podeAgir && (regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen) && !respondeu,
                     regras?.SatisfactionEnabled ?? CycleSettingsDefaults.SatisfactionEnabled,
                     regras?.SatisfactionStyle ?? CycleSettingsDefaults.SatisfactionStyle,
                     regras?.SatisfactionRequired ?? CycleSettingsDefaults.SatisfactionRequired,
@@ -502,8 +510,8 @@ public class ReportService : IReportService
                 ? null
                 : new PublicInfoRequestViewModel(
                     pedido.AskedAt, pedido.CloseAt, DateTime.UtcNow >= pedido.WarnAt),
-            // Escrever so enquanto ha pergunta aberta. Ver o comentario do campo.
-            pedido is not null);
+            // Escrever so enquanto ha pergunta aberta — e so para quem pode agir.
+            podeAgir && pedido is not null);
     }
 
     /// <summary>
@@ -675,7 +683,7 @@ public class ReportService : IReportService
 
         // **A mensagem agendada nao e cancelada**, e nao precisa: ao chegar, ela nao
         // vai encontrar pedido aberto e se descarta. A mesma propriedade da espera.
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     public async Task ExpireInfoRequestAsync(Guid reportPublicId, CancellationToken cancellationToken = default)
@@ -1610,6 +1618,73 @@ public class ReportService : IReportService
             temMais);
     }
 
+    public async Task<PublicReportViewModel> OpenByReporterCodeAsync(OpenByReporterCodeDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireProjectAsync(dto.Key, cancellationToken);
+
+        var digitado = (dto.Code ?? string.Empty).Trim().ToUpperInvariant();
+        var protocolo = (dto.TrackingCode ?? string.Empty).Trim().ToUpperInvariant();
+
+        // **Uma recusa so, para os quatro caminhos.** Codigo em branco, codigo que
+        // nao existe, protocolo que nao existe, e protocolo que existe mas e de
+        // outra pessoa saem iguais: responder diferente contaria a quem sonda o que
+        // ele acertou, que e como se encontra o relato alheio a partir de um
+        // protocolo — que e curto e falado de proposito.
+        if (digitado.Length == 0 || protocolo.Length == 0)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        if ((identidade?.Mode ?? IdentitySettingsDefaults.Mode) != ReporterIdentityModeEnum.PersonalCode)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var codigo = await _unitOfWork.ReporterCodes
+            .FindByCodeWithoutSessionAsync(project.Id, digitado, cancellationToken);
+
+        if (codigo is null)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var report = await _unitOfWork.Reports
+            .FindByTrackingCodeWithoutSessionAsync(protocolo, cancellationToken);
+
+        // O relato precisa ser **deste codigo**. Sem esta linha, qualquer codigo
+        // valido abriria qualquer protocolo do projeto.
+        if (report is null || report.ReporterCodeId != codigo.Id)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var regras = await _unitOfWork.ProjectCycleSettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        // **Aqui a configuracao orfa da etapa 5 passa a significar alguma coisa.**
+        // Ela ficou gravada e sem tela porque decidir se o protocolo sozinho age so
+        // fazia sentido quando existisse uma consulta por protocolo — e e esta.
+        var podeAgir = regras?.TrackingCodeCanAct ?? CycleSettingsDefaults.TrackingCodeCanAct;
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportViewed,
+            Source = EventSourceEnum.PublicPage,
+            // A carga diz **por onde** ela entrou. Sem isto, a lista pessoal e o
+            // link ficariam indistinguiveis na contagem — e saber se as pessoas
+            // voltam pela lista ou pelo link e o que diz se a lista serviu.
+            Payload = JsonSerializer.Serialize(new { by = "reporter_code" }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return await BuildPublicAsync(report, podeAgir, cancellationToken);
+    }
+
+    /// <summary>
+    /// O comeco do relato, para a pessoa distinguir um do outro na lista.
+    ///
+    /// <para><b>Corta em palavra, e nao no meio de uma.</b> "O botao de finaliz…"
+    /// obriga a abrir para saber o que era, que e o oposto do que a lista serve.</para>
+    /// </summary>
     private static string Excerpt(string text)
     {
         const int Limit = 120;

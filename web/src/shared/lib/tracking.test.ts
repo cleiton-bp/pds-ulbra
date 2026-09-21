@@ -5,7 +5,7 @@
 // As asserticoes sao sobre a forma do endereco, e nao sobre a origem dele.
 
 import { describe, expect, it } from 'vitest'
-import { buildTrackingLink, readTrackingLink } from '@/shared/lib/tracking'
+import { buildReporterCodeLink, buildTrackingLink, readTrackingLink } from '@/shared/lib/tracking'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -44,21 +44,50 @@ describe('o link de acompanhamento', () => {
     const [busca, fragmento] = link.split('#')
 
     expect(readTrackingLink(busca?.slice(busca.indexOf('?')) ?? '', `#${fragmento ?? ''}`)).toEqual(
-      { code: '7K2M-9QXP-4TRV', token: 'tok-ABC_123' },
+      { code: '7K2M-9QXP-4TRV', token: 'tok-ABC_123', key: '', reporterCode: '' },
     )
   })
 
   it('link pela metade volta vazio, e nao pela metade', () => {
     // Cada um destes chega de verdade: o endereco copiado sem o fim, o link
     // colado num aplicativo que corta o fragmento, e a pagina aberta na mao.
-    expect(readTrackingLink('?c=7K2M', '')).toEqual({ code: '7K2M', token: '' })
-    expect(readTrackingLink('', '#t=tok')).toEqual({ code: '', token: 'tok' })
-    expect(readTrackingLink('', '')).toEqual({ code: '', token: '' })
+    const vazio = { code: '', token: '', key: '', reporterCode: '' }
+
+    expect(readTrackingLink('?c=7K2M', '')).toEqual({ ...vazio, code: '7K2M' })
+    expect(readTrackingLink('', '#t=tok')).toEqual({ ...vazio, token: 'tok' })
+    expect(readTrackingLink('', '')).toEqual(vazio)
   })
 
   it('aceita o fragmento com e sem o cerquilha na frente', () => {
     // `location.hash` vem com `#`; um teste ou uma chamada na mao, sem.
     expect(readTrackingLink('', '#t=tok').token).toBe('tok')
     expect(readTrackingLink('', 't=tok').token).toBe('tok')
+  })
+
+  it('o link da lista leva a chave na busca e o código no fragmento', () => {
+    const link = buildReporterCodeLink('7K2M-9QXP-4TRV', 'pk_1R0KtQwz', 'H7QK-3M2X-P9WD')
+    const [busca, fragmento] = link.split('#')
+
+    // **O código não pode estar antes do `#`.** Ali ele entraria no log de acesso
+    // do servidor e no `Referer` — e é ele que identifica a pessoa.
+    expect(busca).not.toContain('H7QK')
+    expect(fragmento).toContain('H7QK-3M2X-P9WD')
+
+    // A chave pública pode ficar à vista: ela já é pública por definição.
+    expect(busca).toContain('k=pk_1R0KtQwz')
+  })
+
+  it('o link da lista é lido de volta inteiro', () => {
+    const link = buildReporterCodeLink('7K2M-9QXP-4TRV', 'pk_1R0KtQwz', 'H7QK-3M2X-P9WD')
+    const [busca, fragmento] = link.split('#')
+
+    expect(readTrackingLink(busca?.slice(busca.indexOf('?')) ?? '', `#${fragmento ?? ''}`)).toEqual(
+      {
+        code: '7K2M-9QXP-4TRV',
+        token: '',
+        key: 'pk_1R0KtQwz',
+        reporterCode: 'H7QK-3M2X-P9WD',
+      },
+    )
   })
 })

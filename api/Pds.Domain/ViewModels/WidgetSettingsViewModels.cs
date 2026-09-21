@@ -37,6 +37,17 @@ namespace Pds.Domain.ViewModels;
 /// caixa; a escolha final e de quem escreve o relato, e o projeto nao manda
 /// nela.</para>
 /// </param>
+/// <param name="IdentityMode">
+/// Como quem relata e reconhecido neste projeto.
+///
+/// <para><b>A ferramenta precisa saber, e o cliente nao configura isso nela.</b> E
+/// o modo que decide se ela guarda um codigo e oferece "os meus relatos", ou se
+/// cada relato sai como um link solto. Sai junto do resto porque esta resposta e
+/// "tudo que o quadro precisa para aparecer".</para>
+///
+/// <para>Nao e segredo: quem abre a pagina do cliente descobriria o mesmo relatando
+/// uma vez e vendo se veio codigo.</para>
+/// </param>
 public record WidgetSettingsViewModel(
     bool IsEnabled,
     string? AccentColor,
@@ -48,4 +59,5 @@ public record WidgetSettingsViewModel(
     string SuccessMessage,
     bool ShowsTypeField,
     ReportTypeEnum DefaultReportType,
-    bool AcceptsQuestionsDefault);
+    bool AcceptsQuestionsDefault,
+    ReporterIdentityModeEnum IdentityMode);

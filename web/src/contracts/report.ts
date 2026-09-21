@@ -620,3 +620,15 @@ export interface ReporterCodeLookupRequest {
   Key: string
   Code: string
 }
+
+/**
+ * A leitura de um relato pelo codigo, em vez do link.
+ *
+ * O codigo prova que o relato e dela; o link e que da poder sobre ele. As acoes
+ * chegam desligadas, a menos que o projeto tenha ligado `TrackingCodeCanAct`.
+ */
+export interface OpenByReporterCodeRequest {
+  Key: string
+  Code: string
+  TrackingCode: string
+}

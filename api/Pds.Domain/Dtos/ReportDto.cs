@@ -275,3 +275,25 @@ public class ReporterCodeLookupDto
     /// <example>H7QK-3M2X-P9WD</example>
     public string? Code { get; set; }
 }
+
+/// <summary>
+/// A leitura de **um** relato pelo código pessoal, em vez do link.
+///
+/// <para><b>O código prova que o relato é dela; o link é que dá poder sobre ele.</b>
+/// Por isso esta rota lê, e as ações vêm desligadas — a menos que o projeto tenha
+/// ligado `tracking_code_can_act`, que existe exatamente para esta decisão.</para>
+/// </summary>
+public class OpenByReporterCodeDto
+{
+    /// <summary>A chave pública do projeto.</summary>
+    /// <example>pk_1R0KtQwz</example>
+    public string? Key { get; set; }
+
+    /// <summary>O código pessoal.</summary>
+    /// <example>H7QK-3M2X-P9WD</example>
+    public string? Code { get; set; }
+
+    /// <summary>O protocolo do relato a abrir, que veio da lista.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
+}

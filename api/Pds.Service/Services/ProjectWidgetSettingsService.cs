@@ -25,7 +25,9 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         var settings = await _unitOfWork.ProjectWidgetSettings.GetByProjectAsync(project.Id, cancellationToken);
         var ciclo = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
-        return Map(settings, ciclo);
+        var identidade = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        return Map(settings, ciclo, identidade);
     }
 
     public async Task<WidgetSettingsViewModel> ReplaceAsync(Guid projectPublicId, WidgetSettingsDto dto, CancellationToken cancellationToken = default)
@@ -59,7 +61,9 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         // resposta so porque quem desenha a ferramenta precisa dele.
         var ciclo = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
-        return Map(settings, ciclo);
+        var identidade = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        return Map(settings, ciclo, identidade);
     }
 
     public async Task<WidgetSettingsViewModel> GetByPublicKeyAsync(string? key, string? origin, CancellationToken cancellationToken = default)
@@ -97,7 +101,13 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         var ciclo = await _unitOfWork.ProjectCycleSettings
             .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
 
-        var view = Map(settings, ciclo);
+        // E a identidade, pelo mesmo motivo: e o modo que decide se a ferramenta
+        // guarda um codigo e oferece "os meus relatos", ou se cada relato sai como
+        // um link solto.
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        var view = Map(settings, ciclo, identidade);
 
         // Projeto arquivado nao aceita relato novo: a criacao responde 403. Deixar a
         // ferramenta abrir levaria a pessoa a escrever ate o fim para ser recusada no
@@ -121,7 +131,16 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
     /// <b>Vem de outra tabela de proposito</b>: o valor mora onde a resposta
     /// significa alguma coisa, e quem precisa dele para desenhar e o quadro.
     /// </param>
-    private static WidgetSettingsViewModel Map(ProjectWidgetSettings? settings, ProjectCycleSettings? cycle) => new(
+    /// <param name="identity">
+    /// A identidade, so para o modo. <b>Terceira tabela, e pelo mesmo criterio</b>:
+    /// cada valor mora onde ele significa alguma coisa, e esta resposta e a costura
+    /// de tudo que o quadro precisa para aparecer.
+    /// </param>
+    private static WidgetSettingsViewModel Map(
+        ProjectWidgetSettings? settings,
+        ProjectCycleSettings? cycle,
+        ProjectIdentitySettings? identity) => new(
+
         settings?.IsEnabled ?? WidgetSettingsDefaults.IsEnabled,
         settings is null ? WidgetSettingsDefaults.AccentColor : settings.AccentColor,
         settings?.Position ?? WidgetSettingsDefaults.Position,
@@ -132,7 +151,8 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         settings?.SuccessMessage ?? WidgetSettingsDefaults.SuccessMessage,
         settings?.ShowsTypeField ?? WidgetSettingsDefaults.ShowsTypeField,
         settings?.DefaultReportType ?? WidgetSettingsDefaults.DefaultReportType,
-        cycle?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault);
+        cycle?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault,
+        identity?.Mode ?? IdentitySettingsDefaults.Mode);
 
     private static T Required<T>(T? value, string message) where T : struct
         => value ?? throw new ArgumentException(message);

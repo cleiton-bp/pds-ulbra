@@ -183,6 +183,46 @@ public class PublicReportsController : BaseController
         }
     }
 
+    /// <summary>Abre um relato da lista pessoal, pelo código.</summary>
+    /// <remarks>
+    /// **Sem sessão.** É o que torna a lista clicável: quem digitou o código num
+    /// navegador novo não tem os links de cada relato, e sem isto veria uma lista
+    /// que não abre nada.
+    ///
+    /// **Lê, e por padrão não age.** O código prova que o relato é dela; o link é
+    /// que dá poder sobre ele — confirmar, reabrir e responder chegam desligados, a
+    /// menos que o projeto tenha ligado `TrackingCodeCanAct` na tela de Ciclo.
+    ///
+    /// **Uma recusa só, para todos os enganos.** Código em branco, código que não
+    /// existe, protocolo que não existe e protocolo que é de outra pessoa recebem a
+    /// mesma mensagem: responder diferente contaria a quem sonda o que ele acertou.
+    ///
+    /// **Grava a visualização**, com `by: reporter_code` na carga — é o que
+    /// distingue, na contagem, quem voltou pela lista de quem voltou pelo link.
+    /// </remarks>
+    /// <param name="dto">A chave pública, o código e o protocolo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, como quem o escreveu o vê.</response>
+    /// <response code="401">Chave pública inválida.</response>
+    /// <response code="404">Código ou protocolo não conferem.</response>
+    [HttpPost("by-code/open")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicReportViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> OpenByCode([FromBody] OpenByReporterCodeDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.OpenByReporterCodeAsync(dto, cancellationToken);
+            return Success(report);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Quem relatou diz que resolveu.</summary>
     /// <remarks>
     /// **É a metade que faltava da metáfora.** "Concluído" é o time dizendo que
