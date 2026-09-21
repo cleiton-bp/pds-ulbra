@@ -49,5 +49,19 @@ public interface IReportClosureRepository : IBaseRepository<ReportClosure>
     /// </summary>
     Task<ReportClosure?> FindPublicWithoutSessionAsync(long reportId, DateTime asOf, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Quais destes relatos ja tem fechamento valendo la fora.
+    ///
+    /// <para><b>Existe para a lista pessoal nao perguntar linha a linha.</b> Ela
+    /// mostra varios relatos de uma vez e so precisa saber, de cada um, se ja
+    /// acabou — uma consulta por linha faria o custo da resposta crescer com o
+    /// tamanho da lista, numa rota publica que nao pede credencial.</para>
+    ///
+    /// <para>Mesmas condicoes de <see cref="FindPublicWithoutSessionAsync"/>,
+    /// inclusive a data de valer la fora: o fechamento que ainda esta na janela de
+    /// desfazer nao sai daqui.</para>
+    /// </summary>
+    Task<IReadOnlyList<long>> ListReportIdsWithPublicClosureWithoutSessionAsync(IReadOnlyList<long> reportIds, DateTime asOf, CancellationToken cancellationToken = default);
+
     Task<ReportClosure?> FindCurrentAsync(long reportId, CancellationToken cancellationToken = default);
 }

@@ -124,6 +124,11 @@ const DESCRICOES: Record<ReportEventType, string> = {
   // desfazendo o próprio encerramento. Usar a mesma palavra faria a linha do tempo
   // atribuir à pessoa de fora um movimento que ela nunca soube que aconteceu.
   ReportClosureCancelled: 'Deixou de estar encerrado',
+  // "Liberado", e nao "publicado": o relato so aparece de fato se o projeto
+  // estiver publico, e a linha do tempo nao sabe disso. Dizer "publicado" num
+  // projeto privado seria a linha afirmando uma coisa que nao aconteceu.
+  ReportPublished: 'Liberado para o público',
+  ReportModerationRejected: 'Não vai para o público',
 }
 
 /**

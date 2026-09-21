@@ -3,11 +3,15 @@ import type {
   CloseReportRequest,
   CreateCommentRequest,
   InternalCommentViewModel,
+  ModerateReportRequest,
+  ModerationItemViewModel,
+  ModerationQueueViewModel,
   MoveReportRequest,
   PublicCommentViewModel,
   ReportCommentsViewModel,
   ReportDetailViewModel,
   ReportHistoryEntryViewModel,
+  ReportModerationState,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
 } from '@/contracts'
@@ -34,6 +38,30 @@ export interface ProjectReportService {
    * coluna, e nao o do projeto.
    */
   listReports(publicId: string, page: number, state?: string | null): Promise<ReportPage>
+
+  /**
+   * A fila de moderacao do projeto, num estado so.
+   *
+   * **Do mais antigo para o mais novo**, ao contrario de `listReports`. E fila:
+   * lida ao contrario, o primeiro que chegou espera para sempre.
+   *
+   * O total de pendentes vem em toda resposta, inclusive quando o recorte e
+   * outro — e o numero que a lateral mostra, e ele nao pode sumir porque alguem
+   * abriu a aba dos ja decididos.
+   */
+  listModeration(publicId: string, state: ReportModerationState): Promise<ModerationQueueViewModel>
+
+  /**
+   * Libera o relato para o publico, ou decide que ele nao vai.
+   *
+   * **Liberar nao publica sozinho**: o projeto tambem precisa estar num nivel
+   * publico. E recusar nao apaga nem encerra — fala so da vitrine.
+   */
+  moderateReport(
+    publicId: string,
+    reportPublicId: string,
+    request: ModerateReportRequest,
+  ): Promise<ModerationItemViewModel>
 
   /**
    * Quantos relatos ha em cada coluna.

@@ -52,10 +52,82 @@ public class CreateReportDto
     public bool? AcceptsQuestions { get; set; }
 
     /// <summary>
+    /// O código pessoal de quem já relatou antes neste projeto.
+    ///
+    /// <para><b>Opcional sempre.</b> Quem nunca teve um recebe o dele na resposta;
+    /// quem tem manda, e os relatos ficam na mesma lista.</para>
+    ///
+    /// <para><b>Código desconhecido não é recusado: vira um código novo.</b>
+    /// Recusar diria "este código não existe aqui", e essa diferença entre conhecido
+    /// e desconhecido é exatamente como se enumera código alheio.</para>
+    ///
+    /// <para>Em projeto que não usa este modo, mandar um código é recusado — aceitar
+    /// em silêncio gravaria um vínculo que a configuração diz não existir.</para>
+    /// </summary>
+    /// <example>H7QK-3M2X-P9WD</example>
+    public string? ReporterCode { get; set; }
+
+    /// <summary>
+    /// Como a pessoa quer ser chamada. <b>Opcional em toda configuracao.</b>
+    ///
+    /// <para>Guardado como <b>interno</b>: o time ve, o lado de fora nao. Para
+    /// aparecer junto do relato publicado sao precisas duas coisas ao mesmo tempo
+    /// — o projeto em publico identificado, e <see cref="ReporterNameIsPublic"/>
+    /// verdadeiro.</para>
+    ///
+    /// <para>Vazio e nulo sao a mesma coisa aqui: ninguem se chama "".</para>
+    /// </summary>
+    /// <example>Ana</example>
+    public string? ReporterName { get; set; }
+
+    /// <summary>
+    /// A pessoa escolheu <b>assinar</b> este relato.
+    ///
+    /// <para><b>Ausente e "nao".</b> Ao contrario de <see cref="AcceptsQuestions"/>,
+    /// aqui o silencio nao pode cair num padrao do projeto: o que esta em jogo e o
+    /// nome dela ao lado de um texto que qualquer um le, e essa escolha nao se
+    /// herda de configuracao nenhuma.</para>
+    ///
+    /// <para>Sem nome, marcar isto nao faz nada — nao ha o que mostrar.</para>
+    /// </summary>
+    /// <example>false</example>
+    public bool? ReporterNameIsPublic { get; set; }
+
+    /// <summary>
     /// O que veio junto, sem ninguem digitar: navegador, tamanho da tela, e o que
     /// o produto passar a capturar. Pares livres, gravados como texto.
     /// </summary>
     public Dictionary<string, string?>? Context { get; set; }
+}
+
+/// <summary>
+/// A consulta da lista publica, feita pela ferramenta.
+///
+/// <para>A chave publica e a unica credencial, e como sempre ela nao autentica
+/// ninguem: so diz de qual projeto se esta falando.</para>
+/// </summary>
+public class PublishedReportsDto
+{
+    /// <summary>Chave publica do projeto.</summary>
+    /// <example>pk_ABC123</example>
+    public string? Key { get; set; }
+}
+
+/// <summary>
+/// A decisao de moderacao sobre um relato, vinda do painel.
+/// </summary>
+public class ModerateReportDto
+{
+    /// <summary>
+    /// <c>Approved</c> libera para o publico; <c>Rejected</c> decide que nao vai.
+    ///
+    /// <para><b><c>Pending</c> nao e aceito.</b> Voltar para "ninguem olhou" depois
+    /// de alguem ter olhado seria apagar a decisao de uma pessoa — e a fila diria
+    /// que falta ler o que ja foi lido. Mudar de ideia e decidir de novo, e a nova
+    /// decisao fica gravada por cima com quem a tomou.</para>
+    /// </summary>
+    /// <example>Approved</example>
+    public ReportModerationStateEnum? Decision { get; set; }
 }
 
 /// <summary>
@@ -239,4 +311,45 @@ public class CloseReportDto
     /// </summary>
     /// <example>Corrigimos o botão de finalizar compra na versão desta semana.</example>
     public string? Reason { get; set; }
+}
+
+/// <summary>
+/// A consulta da lista pessoal, pelo código.
+///
+/// <para><b>É `POST` e não `GET` pelo mesmo motivo da consulta de acompanhamento:</b>
+/// o código é o que identifica a pessoa, e em query string ele entraria no log de
+/// acesso do servidor, no histórico do navegador e no `Referer` que sai da página.
+/// No corpo, não entra em nenhum dos três.</para>
+/// </summary>
+public class ReporterCodeLookupDto
+{
+    /// <summary>A chave pública do projeto, que diz onde o código vale.</summary>
+    /// <example>pk_1R0KtQwz</example>
+    public string? Key { get; set; }
+
+    /// <summary>O código que a pessoa guardou.</summary>
+    /// <example>H7QK-3M2X-P9WD</example>
+    public string? Code { get; set; }
+}
+
+/// <summary>
+/// A leitura de **um** relato pelo código pessoal, em vez do link.
+///
+/// <para><b>O código prova que o relato é dela; o link é que dá poder sobre ele.</b>
+/// Por isso esta rota lê, e as ações vêm desligadas — a menos que o projeto tenha
+/// ligado `tracking_code_can_act`, que existe exatamente para esta decisão.</para>
+/// </summary>
+public class OpenByReporterCodeDto
+{
+    /// <summary>A chave pública do projeto.</summary>
+    /// <example>pk_1R0KtQwz</example>
+    public string? Key { get; set; }
+
+    /// <summary>O código pessoal.</summary>
+    /// <example>H7QK-3M2X-P9WD</example>
+    public string? Code { get; set; }
+
+    /// <summary>O protocolo do relato a abrir, que veio da lista.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
 }

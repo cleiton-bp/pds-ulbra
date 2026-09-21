@@ -621,7 +621,7 @@ function FormularioEtapa({
         />
       )}
 
-      {erro && <p className="text-danger text-detail leading-relaxed">{erro}</p>}
+      {erro && <p className="text-detail text-error-fg leading-relaxed">{erro}</p>}
 
       <div className="flex gap-2">
         <Button size="sm" onClick={enviar} disabled={incompleto || salvando}>

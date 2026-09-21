@@ -167,6 +167,64 @@ describe('valores de cor fora do sistema de tokens', () => {
 })
 
 /**
+ * CLASSE DE COR QUE NAO EXISTE NAO REPROVA NADA — ELA SO NAO PINTA
+ * ============================================================================
+ * As regras acima pegam cor **fora** do sistema: hexadecimal, paleta do Tailwind,
+ * preto cru. Nenhuma delas pega o contrario — um nome que **parece** do sistema e
+ * nao esta nele. `text-danger` era isto: o produto nunca teve `--color-danger`, a
+ * classe nao gerava CSS, e a mensagem de erro da tela de jornada saia na cor
+ * herdada. Nada quebrava, nada avisava, e o teste de contraste media um par que a
+ * tela nao usava.
+ *
+ * E o mesmo defeito que `--text-*: initial` ja tinha criado com `text-sm`, no
+ * outro eixo. Aqui o alfabeto e fechado: as cores sao as de `cn.ts` — conferidas
+ * contra o `index.css` logo acima —, os tamanhos sao os mesmos, e o resto e uma
+ * lista curta de utilitarios do Tailwind que o projeto usa de verdade.
+ */
+describe('nome de cor que nao existe no sistema', () => {
+  /** Utilitarios do Tailwind que nao sao cor, e que este projeto usa. */
+  const NAO_E_COR: Record<string, readonly string[]> = {
+    text: ['left', 'center', 'right', 'ellipsis', 'transparent'],
+    bg: ['transparent', 'grid'],
+    border: ['transparent', 'dashed', 'separate', 'spacing', 'b', 't', 'l', 'r', 'x', 'y'],
+  }
+
+  for (const [prefixo, extras] of Object.entries(NAO_E_COR)) {
+    it(`todo \`${prefixo}-\` aponta para um token publicado`, () => {
+      const permitidos = new Set([
+        ...colorNames,
+        ...(prefixo === 'text' ? fontSizeNames : []),
+        ...extras,
+      ])
+
+      const violations: string[] = []
+
+      for (const file of listFiles(SOURCE_ROOT)) {
+        // So `.tsx`: `className` mora aqui. Em `.css` e `.ts` os mesmos padroes
+        // aparecem como nome de propriedade (`border-radius`) e nao como classe.
+        if (!file.endsWith('.tsx')) continue
+
+        const relativePath = relative(SOURCE_ROOT, file)
+        const lines = readFileSync(file, 'utf8').split('\n')
+
+        lines.forEach((line, index) => {
+          // O nome nao pode terminar em `-`, senao `border-l-2` viraria `l-` e a
+          // lista de permitidos nunca bateria.
+          for (const [, nome] of line.matchAll(
+            new RegExp(`\\b${prefixo}-([a-z]+(?:-[a-z]+)*)\\b`, 'g'),
+          )) {
+            if (nome === undefined || permitidos.has(nome)) continue
+            violations.push(`${relativePath}:${index + 1} — ${prefixo}-${nome}`)
+          }
+        })
+      }
+
+      expect(violations).toEqual([])
+    })
+  }
+})
+
+/**
  * CONTRASTE — a auditoria virando guarda
  * ============================================================================
  * Os numeros foram medidos um por um, nos dois temas. Nao provam que o painel e

@@ -1,5 +1,6 @@
 using Pds.ApiBase.Interfaces;
 using Pds.Domain.Entities;
+using Pds.Domain.Enums;
 using Pds.Domain.Filters;
 
 namespace Pds.Domain.Interfaces.RepositoryInterfaces;
@@ -82,6 +83,37 @@ public interface IReportRepository : IBaseRepository<Report>
     /// traduzir.</para>
     /// </summary>
     Task<Report?> FindByPublicIdWithoutSessionAsync(Guid publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos de um codigo pessoal, do mais novo para o mais antigo — para quem
+    /// chega <b>sem sessao</b>.
+    ///
+    /// <para><b>Sem o autor e sem o texto inteiro carregados</b>, e de proposito: o
+    /// que sai daqui vira uma lista de resumos, e o campo que nao vem do banco nao
+    /// tem como escapar numa resposta.</para>
+    /// </summary>
+    Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A fila de moderacao de um projeto, num estado so.
+    ///
+    /// <para>Do <b>mais antigo para o mais novo</b>, ao contrario de toda outra
+    /// lista do painel: fila que se le de tras para frente deixa o primeiro que
+    /// chegou esperando para sempre.</para>
+    /// </summary>
+    Task<IReadOnlyList<Report>> ListByModerationStateAsync(long projectId, ReportModerationStateEnum state, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Quantos relatos do projeto estao neste estado de moderacao.</summary>
+    Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos ja liberados de um projeto, para quem nao tem sessao nenhuma.
+    ///
+    /// <para><b>A condicao de estar liberado esta na consulta</b>, e nao numa
+    /// conferencia depois: o relato pendente nunca chega a sair daqui, entao nao ha
+    /// como ele aparecer na lista por alguem ter esquecido de olhar a coluna.</para>
+    /// </summary>
+    Task<IReadOnlyList<Report>> ListPublishedWithoutSessionAsync(long projectId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Os relatos cuja espera ja venceu e ninguem aplicou.

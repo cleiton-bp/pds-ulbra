@@ -143,6 +143,129 @@ public class PublicReportsController : BaseController
         }
     }
 
+    /// <summary>O que já foi liberado para o público neste projeto.</summary>
+    /// <remarks>
+    /// **É `GET`, e as outras consultas públicas são `POST`.** A diferença não é
+    /// estilo: ali o corpo carrega um segredo — o token, o código pessoal —, e
+    /// segredo em query string entra no log do servidor, no histórico do navegador
+    /// e no `Referer`. Aqui não há segredo nenhum: a chave pública já está no
+    /// código-fonte da página do cliente.
+    ///
+    /// **Duas condições, e nenhuma sozinha basta**: o projeto precisa estar num
+    /// nível público, e cada relato precisa ter sido liberado na moderação. Foi por
+    /// isso que os três níveis vieram um passo antes e não ligaram lista nenhuma.
+    ///
+    /// **Projeto privado responde lista vazia, e não uma recusa.** Mesma disciplina
+    /// da consulta por código pessoal: a diferença entre "não publica" e "publica e
+    /// não tem nada" não diz nada a quem lê, e dita em voz alta contaria a
+    /// configuração do cliente a qualquer um que colasse a chave pública numa
+    /// requisição.
+    ///
+    /// **Não sai daqui o protocolo.** Ele é curto, falado em voz alta, e é metade
+    /// da credencial de quem relatou — publicá-lo entregaria a estranhos o número
+    /// que a própria pessoa usa para voltar. O nome só aparece com o projeto em
+    /// `PublicIdentified` **e** a pessoa tendo escolhido assinar.
+    /// </remarks>
+    /// <param name="key">Chave pública do projeto.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Os relatos liberados, ou uma lista vazia.</response>
+    /// <response code="401">Chave ausente, desconhecida ou revogada.</response>
+    [HttpGet("published")]
+    [ProducesResponseType(typeof(ApiResponse<PublishedReportsViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Published([FromQuery] string? key, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var lista = await _reportService.ListPublishedAsync(new PublishedReportsDto { Key = key }, cancellationToken);
+            return Success(lista, total: lista.Reports.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Os relatos ligados a um código pessoal.</summary>
+    /// <remarks>
+    /// **Sem sessão.** É a lista de quem relatou, no modo em que o projeto entrega um
+    /// código para a pessoa guardar.
+    ///
+    /// **Código desconhecido devolve lista vazia, e não 404.** É a decisão central
+    /// desta rota: qualquer diferença entre "não existe" e "existe e está vazio"
+    /// a transformaria num oráculo, e tentar códigos até a resposta mudar é
+    /// exatamente como se enumera código alheio. Projeto que não usa este modo
+    /// responde igual, pelo mesmo motivo.
+    ///
+    /// **A lista não carrega o token de cada relato.** O código diz *quais* relatos
+    /// são dela; o link de cada um é que dá poder sobre ele — confirmar, reabrir,
+    /// responder. Embutir o token aqui faria doze símbolos valerem tanto quanto
+    /// todos os links somados.
+    ///
+    /// **Não grava visualização.** Ver a lista não é ler o relato, e contar como
+    /// leitura encheria a medida de reação com aberturas que não aconteceram.
+    /// </remarks>
+    /// <param name="dto">A chave pública do projeto e o código.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">A lista, possivelmente vazia.</response>
+    /// <response code="401">Chave pública inválida, como nas outras rotas públicas.</response>
+    [HttpPost("by-code")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReporterCodeReportsViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ByCode([FromBody] ReporterCodeLookupDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var relatos = await _reportService.ListByReporterCodeAsync(dto, cancellationToken);
+            return Success(relatos);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Abre um relato da lista pessoal, pelo código.</summary>
+    /// <remarks>
+    /// **Sem sessão.** É o que torna a lista clicável: quem digitou o código num
+    /// navegador novo não tem os links de cada relato, e sem isto veria uma lista
+    /// que não abre nada.
+    ///
+    /// **Lê, e por padrão não age.** O código prova que o relato é dela; o link é
+    /// que dá poder sobre ele — confirmar, reabrir e responder chegam desligados, a
+    /// menos que o projeto tenha ligado `TrackingCodeCanAct` na tela de Ciclo.
+    ///
+    /// **Uma recusa só, para todos os enganos.** Código em branco, código que não
+    /// existe, protocolo que não existe e protocolo que é de outra pessoa recebem a
+    /// mesma mensagem: responder diferente contaria a quem sonda o que ele acertou.
+    ///
+    /// **Grava a visualização**, com `by: reporter_code` na carga — é o que
+    /// distingue, na contagem, quem voltou pela lista de quem voltou pelo link.
+    /// </remarks>
+    /// <param name="dto">A chave pública, o código e o protocolo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, como quem o escreveu o vê.</response>
+    /// <response code="401">Chave pública inválida.</response>
+    /// <response code="404">Código ou protocolo não conferem.</response>
+    [HttpPost("by-code/open")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicReportViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> OpenByCode([FromBody] OpenByReporterCodeDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.OpenByReporterCodeAsync(dto, cancellationToken);
+            return Success(report);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Quem relatou diz que resolveu.</summary>
     /// <remarks>
     /// **É a metade que faltava da metáfora.** "Concluído" é o time dizendo que

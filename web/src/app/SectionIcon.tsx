@@ -53,6 +53,25 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'identity' && (
+        // Um contorno de pessoa, sem tracos no rosto. E o que a secao decide:
+        // existe alguem do outro lado, e o quanto dele aparece e a escolha que se
+        // faz aqui.
+        <>
+          <circle cx="6" cy="4.2" r="2.2" />
+          <path d="M1.8 10.8a4.2 4.2 0 0 1 8.4 0" />
+        </>
+      )}
+
+      {section === 'moderation' && (
+        // Um olho, e o que a secao faz: alguem le antes de o resto do mundo ler.
+        // Sem pupila cheia — ela olha, e nao vigia.
+        <>
+          <path d="M1 6s2-3.4 5-3.4S11 6 11 6s-2 3.4-5 3.4S1 6 1 6Z" />
+          <circle cx="6" cy="6" r="1.5" />
+        </>
+      )}
+
       {section === 'reports' && (
         // Balao de fala: o que aparece nesta secao e alguem falando, e nao um
         // registro que o sistema produziu.

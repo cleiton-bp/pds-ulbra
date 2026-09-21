@@ -2,11 +2,20 @@ import type {
   ConfirmReportRequest,
   CreatedReportViewModel,
   CreateReportRequest,
+  OpenByReporterCodeRequest,
   OpenReportTrackingRequest,
   PublicReportViewModel,
+  PublishedReportsViewModel,
   ReopenReportRequest,
   ReplyToReportRequest,
+  ReporterCodeLookupRequest,
+  ReporterCodeReportsViewModel,
 } from '@/contracts'
+
+/** A consulta da lista publica. A chave nao autentica ninguem: so diz o projeto. */
+export interface PublishedReportsRequest {
+  Key: string
+}
 
 /** Espelha o `ReportService` da API, do lado publico dela. */
 export interface ReportService {
@@ -52,4 +61,29 @@ export interface ReportService {
    * outro lado, isto viraria uma caixa de entrada sem dono e sem moderacao.
    */
   replyToReport(request: ReplyToReportRequest): Promise<PublicReportViewModel>
+
+  /**
+   * Os relatos ligados a um codigo pessoal.
+   *
+   * **Codigo desconhecido devolve lista vazia**, e nao um erro: qualquer diferenca
+   * entre "nao existe" e "existe e esta vazio" transformaria a consulta num
+   * oraculo. Quem digitou errado ve o mesmo que quem acabou de receber um codigo.
+   */
+  /**
+   * O que ja foi liberado para o publico neste projeto.
+   *
+   * **Projeto privado responde lista vazia, e nao uma recusa** — a tela nao tem
+   * como distinguir "nao publica" de "publica e nao tem nada", e e de proposito.
+   */
+  listPublished(request: PublishedReportsRequest): Promise<PublishedReportsViewModel>
+
+  listByReporterCode(request: ReporterCodeLookupRequest): Promise<ReporterCodeReportsViewModel>
+
+  /**
+   * Abre um relato da lista, pelo codigo em vez do link.
+   *
+   * As acoes chegam desligadas por padrao: o codigo prova que o relato e dela, e o
+   * link e que da poder sobre ele.
+   */
+  openByReporterCode(request: OpenByReporterCodeRequest): Promise<PublicReportViewModel>
 }

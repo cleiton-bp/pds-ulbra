@@ -1,4 +1,5 @@
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.ViewModels;
 
 namespace Pds.Domain.Interfaces.ServiceInterfaces;
@@ -29,6 +30,37 @@ public interface IReportService
     /// para alguma coisa. Nenhum dos dois e reconstituivel depois.</para>
     /// </summary>
     Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos ligados a um codigo pessoal — <b>sem sessao</b>.
+    ///
+    /// <para><b>Codigo desconhecido devolve lista vazia</b>, e nao uma recusa. E a
+    /// regra que sustenta o modo: qualquer diferenca entre "nao existe" e "existe e
+    /// esta vazio" transforma esta rota num oraculo, e tentar codigos ate a resposta
+    /// mudar e exatamente como se enumera codigo alheio.</para>
+    ///
+    /// <para><b>Nao grava evento de visualizacao.</b> Ver a lista nao e ler o
+    /// relato, e contar como leitura encheria a medida de reacao com aberturas que
+    /// nao aconteceram.</para>
+    /// </summary>
+    Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Um relato da lista pessoal, aberto pelo <b>codigo</b> em vez do link.
+    ///
+    /// <para><b>O codigo prova que o relato e dela; o link e que da poder sobre
+    /// ele.</b> Entao isto le, e as acoes saem desligadas — confirmar, reabrir e
+    /// responder continuam exigindo o link, a menos que o projeto tenha ligado
+    /// <c>TrackingCodeCanAct</c>.</para>
+    ///
+    /// <para><b>Grava a visualizacao</b>, como a leitura pelo link: quem abriu foi
+    /// quem relatou, e o instante disso e metade da pergunta da pesquisa.</para>
+    ///
+    /// <para>Recusa com a mesma mensagem quando o codigo nao confere, quando o
+    /// protocolo nao existe, e quando ele existe mas e de outra pessoa. Responder
+    /// diferente contaria a quem sonda o que ele acertou.</para>
+    /// </summary>
+    Task<PublicReportViewModel> OpenByReporterCodeAsync(OpenByReporterCodeDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Quem relatou diz que resolveu — <b>sem sessao</b>, pelo link.
@@ -85,6 +117,35 @@ public interface IReportService
     /// lugar na fila quando ela nao esta vazia.
     /// </summary>
     Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A fila de moderacao de um projeto, num estado so.
+    ///
+    /// <para><b>Existe mesmo em projeto privado</b>, e responde igual. A fila e do
+    /// relato, e nao da visibilidade: um projeto que hoje nao publica pode publicar
+    /// amanha, e o que ja foi lido e decidido nao precisa ser lido de novo.</para>
+    /// </summary>
+    Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ReportModerationStateEnum state, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Libera ou recusa um relato.
+    ///
+    /// <para><b>Decidir de novo e permitido, e voltar para pendente nao e.</b>
+    /// Quem liberou por engano recusa; quem recusou e mudou de ideia libera. O que
+    /// nao existe e desfazer para "ninguem olhou", porque alguem olhou.</para>
+    /// </summary>
+    Task<ModerationItemViewModel> ModerateAsync(Guid projectPublicId, Guid reportPublicId, ModerateReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos ja liberados de um projeto publico, para quem nao tem sessao.
+    ///
+    /// <para><b>Duas condicoes, e nenhuma sozinha basta:</b> o projeto precisa
+    /// estar em publico, e o relato precisa ter sido liberado. Projeto privado
+    /// responde <b>lista vazia</b>, e nao uma recusa — a mesma disciplina da
+    /// consulta por codigo pessoal, para a rota nao contar a configuracao do
+    /// cliente a quem so tem a chave publica.</para>
+    /// </summary>
+    Task<PublishedReportsViewModel> ListPublishedAsync(PublishedReportsDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Move o relato para outra coluna da fila.

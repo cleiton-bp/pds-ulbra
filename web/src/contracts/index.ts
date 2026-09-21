@@ -8,6 +8,12 @@ export type {
 } from '@/contracts/cycleSettings'
 export { MAX_INFO_REQUEST_DAYS, MAX_PUBLIC_DELAY_MINUTES } from '@/contracts/cycleSettings'
 export type {
+  IdentitySettingsViewModel,
+  ReporterIdentityMode,
+  ReportVisibility,
+  SaveIdentitySettingsRequest,
+} from '@/contracts/identitySettings'
+export type {
   CreateProjectRequest,
   ProjectCreatedViewModel,
   ProjectStatus,
@@ -59,7 +65,11 @@ export type {
   CreatedReportViewModel,
   CreateReportRequest,
   InternalCommentViewModel,
+  ModerateReportRequest,
+  ModerationItemViewModel,
+  ModerationQueueViewModel,
   MoveReportRequest,
+  OpenByReporterCodeRequest,
   OpenReportTrackingRequest,
   PublicClosureActionsViewModel,
   PublicClosureViewModel,
@@ -68,6 +78,8 @@ export type {
   PublicMessageViewModel,
   PublicReportViewModel,
   PublicStageViewModel,
+  PublishedReportsViewModel,
+  PublishedReportViewModel,
   ReopenReportRequest,
   ReplyToReportRequest,
   ReportClosureViewModel,
@@ -75,17 +87,24 @@ export type {
   ReportContextViewModel,
   ReportDetailViewModel,
   ReportEventType,
+  ReporterCodeLookupRequest,
+  ReporterCodeReportsViewModel,
+  ReporterCodeReportViewModel,
   ReportHistoryEntryViewModel,
   ReportInfoRequestViewModel,
+  ReportModerationState,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
   ReportType,
+  SensitiveDataKind,
+  SensitiveFindingViewModel,
 } from '@/contracts/report'
 export {
   MAX_CLOSURE_REASON_LENGTH,
   MAX_COMMENT_LENGTH,
   MAX_REOPEN_COMMENT_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
+  MAX_REPORTER_NAME_LENGTH,
   REPORT_EVENT_TYPES,
   SATISFACTION_SCALE,
   WITHOUT_STATE_FILTER,

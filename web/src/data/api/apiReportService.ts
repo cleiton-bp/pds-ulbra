@@ -1,4 +1,10 @@
-import type { ApiResponse, CreatedReportViewModel, PublicReportViewModel } from '@/contracts'
+import type {
+  ApiResponse,
+  CreatedReportViewModel,
+  PublicReportViewModel,
+  PublishedReportsViewModel,
+  ReporterCodeReportsViewModel,
+} from '@/contracts'
 import { environment } from '@/data/environment'
 import { PanelError } from '@/data/errors'
 import type { ReportService } from '@/data/reportService'
@@ -83,5 +89,43 @@ export const apiReportService: ReportService = {
       '/public/reports/reply',
       request,
       'Falha de rede ao enviar a sua resposta.',
+    ),
+
+  // **`GET`, e as outras sao `POST`.** Ali o corpo carrega um segredo; aqui nao ha
+  // segredo nenhum, e a chave publica ja esta no codigo-fonte da pagina.
+  listPublished: async (request) => {
+    let response: Response
+    const url = `${environment.apiUrl}/public/reports/published?key=${encodeURIComponent(request.Key)}`
+
+    try {
+      response = await fetch(url, { method: 'GET', credentials: 'omit' })
+    } catch {
+      throw new PanelError('Falha de rede ao buscar o que já foi relatado.', 0)
+    }
+
+    const envelope = await response
+      .json()
+      .then((data) => data as ApiResponse<PublishedReportsViewModel>)
+      .catch(() => null)
+
+    if (!response.ok || envelope?.Success === false || !envelope?.Data) {
+      throw new PanelError(envelope?.Message ?? `Erro ${response.status}.`, response.status)
+    }
+
+    return envelope.Data
+  },
+
+  listByReporterCode: (request) =>
+    post<ReporterCodeReportsViewModel>(
+      '/public/reports/by-code',
+      request,
+      'Falha de rede ao buscar os seus relatos.',
+    ),
+
+  openByReporterCode: (request) =>
+    post<PublicReportViewModel>(
+      '/public/reports/by-code/open',
+      request,
+      'Falha de rede ao abrir o relato.',
     ),
 }

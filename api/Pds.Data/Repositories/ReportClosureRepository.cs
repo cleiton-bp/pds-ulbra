@@ -45,6 +45,28 @@ public class ReportClosureRepository : BaseRepository<ReportClosure, DataContext
             .ThenByDescending(closure => closure.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<long>> ListReportIdsWithPublicClosureWithoutSessionAsync(IReadOnlyList<long> reportIds, DateTime asOf, CancellationToken cancellationToken = default)
+    {
+        // Lista vazia nao vira consulta: `IN ()` nao existe em SQL, e perguntar por
+        // nada custaria uma ida ao banco para receber nada.
+        if (reportIds.Count == 0)
+            return [];
+
+        // As mesmas condicoes da consulta de cima, para o conjunto inteiro. So o
+        // identificador volta: quem chama quer saber **quais** acabaram, e carregar
+        // os fechamentos inteiros traria motivo e desfecho que esta lista nao mostra.
+        return await Context.ReportClosures
+            .IgnoreQueryFilters()
+            .Where(closure => reportIds.Contains(closure.ReportId)
+                              && closure.DeletedAt == null
+                              && closure.Report.DeletedAt == null
+                              && closure.ReopenedAt == null
+                              && closure.PublicAt <= asOf)
+            .Select(closure => closure.ReportId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<ReportClosure?> FindCurrentAsync(long reportId, CancellationToken cancellationToken = default)
         // O filtro global vale aqui, e e o que isola a conta. O `Include` do autor
         // so existe nesta: quem relatou nao ve o nome de quem encerrou, e nao

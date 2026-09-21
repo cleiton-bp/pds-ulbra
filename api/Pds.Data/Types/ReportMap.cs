@@ -69,6 +69,10 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasMaxLength(260)
             .HasComment("Dominio informado pela pagina que embutiu a ferramenta. Indicio, nunca prova.");
 
+        builder.Property(report => report.ReporterCodeId)
+            .HasColumnName("reporter_code_id")
+            .HasComment("Codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nulo no modo protocolo e nos relatos anteriores ao modo existir — e esses continuam valendo pelo link.");
+
         builder.Property(report => report.AcceptsQuestions)
             .HasColumnName("accepts_questions")
             .HasComment("Quem relatou aceita responder duvidas da equipe. Escolha dela, nao do projeto. Nulo e o relato que entrou antes de a pergunta existir: ninguem perguntou, e ninguem respondeu.");
@@ -102,6 +106,42 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // mantida por insercao.
         builder.HasIndex(report => report.AccessTokenHash);
 
+        builder.Property(report => report.ReporterName)
+            .HasColumnName("reporter_name")
+            .HasMaxLength(Report.MaxReporterNameLength)
+            .HasComment("Nome de quem relatou, quando o projeto pede e a pessoa quis dar. Nulo e o normal. Interno por padrao: so aparece la fora com o projeto em publico identificado E reporter_name_is_public verdadeiro.");
+
+        builder.Property(report => report.ReporterNameIsPublic)
+            .HasColumnName("reporter_name_is_public")
+            .IsRequired()
+            .HasComment("Quem relatou escolheu assinar o relato. Falso por padrao — a caixa nasce desmarcada, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le.");
+
+        builder.Property(report => report.ModerationState)
+            .HasColumnName("moderation_state")
+            .HasConversion(new SnakeCaseEnumConverter<ReportModerationStateEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("pending, approved ou rejected. Todo relato nasce pending, inclusive em projeto privado: e o que faz marcar o projeto como publico depois nao publicar o historico inteiro de uma vez.");
+
+        builder.Property(report => report.ModeratedAt)
+            .HasColumnName("moderated_at")
+            .HasComment("Quando alguem do time decidiu. Nulo enquanto ninguem decidiu.");
+
+        builder.Property(report => report.ModeratedByUserId)
+            .HasColumnName("moderated_by_user_id")
+            .HasComment("Quem do time decidiu. Nulo enquanto ninguem decidiu, e tambem quando a conta de quem decidiu foi esvaziada. Nunca sai em rota publica.");
+
+        // A fila da moderacao busca por projeto e estado, e e a consulta que o time
+        // abre todo dia num projeto publico.
+        builder.HasIndex(report => new { report.ProjectId, report.ModerationState });
+
+        // Restrict pelo mesmo motivo de quem encerrou: apagar o usuario nao pode
+        // levar junto o relato que ele liberou.
+        builder.HasOne(report => report.ModeratedByUser)
+            .WithMany()
+            .HasForeignKey(report => report.ModeratedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // A lista do painel filtra por estado, e a regra de aposentar precisa saber
         // se ainda ha relato parado naquele estado.
         builder.HasIndex(report => report.ProjectStateId);
@@ -109,6 +149,14 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // Restrict, e nao Cascade: apagar um estado nao pode levar os relatos que
         // passaram por ele. A regra de negocio nem chega a deixar apagar — aqui e a
         // rede embaixo dela.
+        // Restrict: o codigo nao some enquanto houver relato ligado a ele. Apaga-lo
+        // deixaria a pessoa sem a lista e sem aviso nenhum — e os relatos ficariam
+        // orfaos de um vinculo que nao da para reconstruir.
+        builder.HasOne(report => report.ReporterCode)
+            .WithMany(code => code.Reports)
+            .HasForeignKey(report => report.ReporterCodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(report => report.ProjectState)
             .WithMany()
             .HasForeignKey(report => report.ProjectStateId)

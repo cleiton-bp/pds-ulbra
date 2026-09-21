@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pds.ApiBase.Repositories;
 using Pds.Data.Context;
 using Pds.Domain.Entities;
+using Pds.Domain.Enums;
 using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 
@@ -133,6 +134,63 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.Project)
             .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.PublicId == publicId, cancellationToken);
+
+    public async Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default)
+        // As condicoes do filtro global reescritas a mao, menos a da conta. O
+        // `Include` da etapa publica existe porque a lista mostra em que passo cada
+        // relato esta.
+        //
+        // **O `Take` nao e detalhe de desempenho.** A rota e publica e nao pede
+        // credencial: sem teto, o custo da resposta cresceria com o uso de quem a
+        // pede. Quem chama pede um a mais do que vai mostrar, e e assim que sabe
+        // dizer que ha mais sem contar quantos.
+        => await Context.Reports
+            .IgnoreQueryFilters()
+            .Include(report => report.ProjectPublicStage)
+            .Where(report => report.ReporterCodeId == reporterCodeId
+                             && report.DeletedAt == null
+                             && report.Project.DeletedAt == null)
+            .OrderByDescending(report => report.CreatedAt)
+            .ThenByDescending(report => report.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Report>> ListByModerationStateAsync(long projectId, ReportModerationStateEnum state, int limit, CancellationToken cancellationToken = default)
+        // O filtro global ja isola a conta e esconde o apagado. A ordem e a unica
+        // do painel que vai do mais antigo para o mais novo: fila lida ao
+        // contrario deixa o primeiro que chegou esperando para sempre.
+        => await Context.Reports
+            .Where(report => report.ProjectId == projectId && report.ModerationState == state)
+            .Include(report => report.ModeratedByUser)
+            .OrderBy(report => report.CreatedAt)
+            .ThenBy(report => report.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+    public Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default)
+        => Context.Reports
+            .CountAsync(report => report.ProjectId == projectId && report.ModerationState == state,
+                cancellationToken);
+
+    public async Task<IReadOnlyList<Report>> ListPublishedWithoutSessionAsync(long projectId, int limit, CancellationToken cancellationToken = default)
+        // As condicoes do filtro global reescritas a mao, menos a da conta — e a de
+        // estar liberado **dentro da consulta**, para o relato pendente nunca chegar
+        // a sair daqui.
+        //
+        // Ordena por `moderated_at`, e nao por `created_at`: a lista publica conta o
+        // que o time acabou de liberar, e relato antigo liberado hoje e novidade
+        // para quem esta lendo.
+        => await Context.Reports
+            .IgnoreQueryFilters()
+            .Include(report => report.ProjectPublicStage)
+            .Where(report => report.ProjectId == projectId
+                             && report.ModerationState == ReportModerationStateEnum.Approved
+                             && report.DeletedAt == null
+                             && report.Project.DeletedAt == null)
+            .OrderByDescending(report => report.ModeratedAt)
+            .ThenByDescending(report => report.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Guid>> ListOverduePublicStageWithoutSessionAsync(DateTime now, CancellationToken cancellationToken = default)
         // So os identificadores publicos: quem chama vai reabrir cada um no proprio

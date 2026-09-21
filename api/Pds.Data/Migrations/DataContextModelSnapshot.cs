@@ -383,6 +383,81 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectIdentitySettings", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AsksForName")
+                        .HasColumnType("boolean")
+                        .HasColumnName("asks_for_name")
+                        .HasComment("A ferramenta pergunta o nome de quem relata. Desligado de fabrica: coletar dado pessoal precisa ser um ato de quem configura. Perguntar nao e publicar — o nome so sai la fora com visibility = public_identified E o relato assinado pela propria pessoa.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("mode")
+                        .HasComment("protocol, personal_code ou inherited_identity. Excludentes: cada um responde de um jeito diferente a pergunta 'quem e voce'. Trocar de modo nao reescreve o passado — o relato que entrou sem identidade continua abrindo pelo link.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono da configuracao. Unico entre os nao apagados, e e o que faz o 1:1.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("visibility")
+                        .HasComment("private, public_anonymous ou public_identified. Padrao private. public_identified so vale onde o modo identifica — sem identidade nao ha o que mostrar. Gravar publico nao publica nada sozinho: a lista publica so existe atras da fila de moderacao.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_identity_settings");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_identity_settings_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_identity_settings_project_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_identity_settings_public_id");
+
+                    b.ToTable("project_identity_settings", null, t =>
+                        {
+                            t.HasComment("Como quem abre um relato e reconhecido neste projeto, e o que isso permite na visibilidade. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada.");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectInitialState", b =>
                 {
                     b.Property<long>("Id")
@@ -1048,6 +1123,23 @@ namespace Pds.Data.Migrations
                         .HasColumnName("deleted_at")
                         .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
 
+                    b.Property<DateTime?>("ModeratedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("moderated_at")
+                        .HasComment("Quando alguem do time decidiu. Nulo enquanto ninguem decidiu.");
+
+                    b.Property<long?>("ModeratedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("moderated_by_user_id")
+                        .HasComment("Quem do time decidiu. Nulo enquanto ninguem decidiu, e tambem quando a conta de quem decidiu foi esvaziada. Nunca sai em rota publica.");
+
+                    b.Property<string>("ModerationState")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("moderation_state")
+                        .HasComment("pending, approved ou rejected. Todo relato nasce pending, inclusive em projeto privado: e o que faz marcar o projeto como publico depois nao publicar o historico inteiro de uma vez.");
+
                     b.Property<string>("Origin")
                         .HasMaxLength(260)
                         .HasColumnType("character varying(260)")
@@ -1078,6 +1170,22 @@ namespace Pds.Data.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("public_stage_due_at")
                         .HasComment("Quando a ultima mudanca de etapa publica passa a valer para quem relatou. Preenchida e a janela para desfazer; nula e o estado normal. E ela que sobrevive, e nao a mensagem na fila.");
+
+                    b.Property<long?>("ReporterCodeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reporter_code_id")
+                        .HasComment("Codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nulo no modo protocolo e nos relatos anteriores ao modo existir — e esses continuam valendo pelo link.");
+
+                    b.Property<string>("ReporterName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("reporter_name")
+                        .HasComment("Nome de quem relatou, quando o projeto pede e a pessoa quis dar. Nulo e o normal. Interno por padrao: so aparece la fora com o projeto em publico identificado E reporter_name_is_public verdadeiro.");
+
+                    b.Property<bool>("ReporterNameIsPublic")
+                        .HasColumnType("boolean")
+                        .HasColumnName("reporter_name_is_public")
+                        .HasComment("Quem relatou escolheu assinar o relato. Falso por padrao — a caixa nasce desmarcada, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le.");
 
                     b.Property<string>("Route")
                         .HasMaxLength(500)
@@ -1120,6 +1228,9 @@ namespace Pds.Data.Migrations
                     b.HasIndex("DeletedAt")
                         .HasDatabaseName("ix_reports_deleted_at");
 
+                    b.HasIndex("ModeratedByUserId")
+                        .HasDatabaseName("ix_reports_moderated_by_user_id");
+
                     b.HasIndex("ProjectPublicStageId")
                         .HasDatabaseName("ix_reports_project_public_stage_id");
 
@@ -1134,6 +1245,9 @@ namespace Pds.Data.Migrations
                         .HasDatabaseName("ix_reports_public_stage_due_at")
                         .HasFilter("public_stage_due_at IS NOT NULL");
 
+                    b.HasIndex("ReporterCodeId")
+                        .HasDatabaseName("ix_reports_reporter_code_id");
+
                     b.HasIndex("TrackingCode")
                         .IsUnique()
                         .HasDatabaseName("ux_reports_tracking_code");
@@ -1143,6 +1257,9 @@ namespace Pds.Data.Migrations
 
                     b.HasIndex("ProjectId", "CreatedAt")
                         .HasDatabaseName("ix_reports_project_id_created_at");
+
+                    b.HasIndex("ProjectId", "ModerationState")
+                        .HasDatabaseName("ix_reports_project_id_moderation_state");
 
                     b.ToTable("reports", null, t =>
                         {
@@ -1568,6 +1685,69 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ReporterCode", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("code")
+                        .HasComment("O codigo no formato do protocolo, sorteado inteiro pelo sistema. Nunca se consulta se ele existe: qualquer diferenca entre livre e ocupado vira enumeracao.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto onde este codigo vale. Ele nao atravessa projetos.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_reporter_codes");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_reporter_codes_deleted_at");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_reporter_codes_public_id");
+
+                    b.HasIndex("ProjectId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_reporter_codes_project_id_code")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("reporter_codes", null, t =>
+                        {
+                            t.HasComment("O codigo que quem relata guarda para reencontrar os proprios relatos, no modo sem login. Tabela e nao coluna: o codigo vale para varios relatos, entao a unicidade precisa de uma linha propria. Nao guarda nada de pessoa — e um identificador sorteado e nada mais.");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.User", b =>
                 {
                     b.Property<long>("Id")
@@ -1724,6 +1904,18 @@ namespace Pds.Data.Migrations
                     b.Navigation("ReopenState");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectIdentitySettings", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_identity_settings_projects_project_id");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectInitialState", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
@@ -1844,6 +2036,12 @@ namespace Pds.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reports_accounts_account_id");
 
+                    b.HasOne("Pds.Domain.Entities.User", "ModeratedByUser")
+                        .WithMany()
+                        .HasForeignKey("ModeratedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reports_users_moderated_by_user_id");
+
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -1863,13 +2061,23 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_reports_project_states_project_state_id");
 
+                    b.HasOne("Pds.Domain.Entities.ReporterCode", "ReporterCode")
+                        .WithMany("Reports")
+                        .HasForeignKey("ReporterCodeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reports_reporter_codes_reporter_code_id");
+
                     b.Navigation("Account");
+
+                    b.Navigation("ModeratedByUser");
 
                     b.Navigation("Project");
 
                     b.Navigation("ProjectPublicStage");
 
                     b.Navigation("ProjectState");
+
+                    b.Navigation("ReporterCode");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ReportClosure", b =>
@@ -1966,6 +2174,18 @@ namespace Pds.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ReporterCode", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_reporter_codes_projects_project_id");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.User", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Account", "Account")
@@ -1995,6 +2215,11 @@ namespace Pds.Data.Migrations
             modelBuilder.Entity("Pds.Domain.Entities.Report", b =>
                 {
                     b.Navigation("Contexts");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ReporterCode", b =>
+                {
+                    b.Navigation("Reports");
                 });
 #pragma warning restore 612, 618
         }

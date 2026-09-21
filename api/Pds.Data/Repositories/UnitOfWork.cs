@@ -60,6 +60,14 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     public IProjectCycleSettingsRepository ProjectCycleSettings
         => _projectCycleSettings ??= new ProjectCycleSettingsRepository(_context);
 
+    private IProjectIdentitySettingsRepository? _projectIdentitySettings;
+
+    public IProjectIdentitySettingsRepository ProjectIdentitySettings
+        => _projectIdentitySettings ??= new ProjectIdentitySettingsRepository(_context);
+
+    private IReporterCodeRepository? _reporterCodes;
+    public IReporterCodeRepository ReporterCodes => _reporterCodes ??= new ReporterCodeRepository(_context);
+
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
 

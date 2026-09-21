@@ -2,7 +2,11 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { CreatedReportViewModel, WidgetSettingsViewModel } from '@/contracts'
+import type {
+  CreatedReportViewModel,
+  ReporterCodeReportsViewModel,
+  WidgetSettingsViewModel,
+} from '@/contracts'
 import { EmbedApp } from '@/embed/EmbedApp'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
@@ -26,11 +30,14 @@ import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
  * endereco que viaja para o servidor. Por isso a asserticao e sobre o `href`, e
  * nao sobre a tela.
  */
-const dublê = vi.hoisted(() => ({ criar: vi.fn() }))
+const dublê = vi.hoisted(() => ({ criar: vi.fn(), listar: vi.fn() }))
 
 vi.mock('@/data/publicIndex', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/data/publicIndex')>()
-  return { ...real, reportService: { createReport: dublê.criar } }
+  return {
+    ...real,
+    reportService: { createReport: dublê.criar, listByReporterCode: dublê.listar },
+  }
 })
 
 const config = {
@@ -105,6 +112,8 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'token-secreto',
       CreatedAt: '2026-09-12T00:00:00Z',
+      // Nulo: estes testes rodam em projeto no modo protocolo, que nao entrega codigo.
+      ReporterCode: null,
     })
 
     render(
@@ -127,6 +136,8 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'token-secreto-que-nao-pode-vazar',
       CreatedAt: '2026-09-12T00:00:00Z',
+      // Nulo: estes testes rodam em projeto no modo protocolo, que nao entrega codigo.
+      ReporterCode: null,
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
@@ -158,6 +169,8 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'x',
       CreatedAt: '2026-09-12T00:00:00Z',
+      // Nulo: estes testes rodam em projeto no modo protocolo, que nao entrega codigo.
+      ReporterCode: null,
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
@@ -177,6 +190,8 @@ describe('o formulario', () => {
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'x',
       CreatedAt: '2026-09-12T00:00:00Z',
+      // Nulo: estes testes rodam em projeto no modo protocolo, que nao entrega codigo.
+      ReporterCode: null,
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} />)
@@ -224,6 +239,8 @@ describe('o formulario', () => {
         TrackingCode: 'VELHO-VELHO-VELH',
         AccessToken: 'x',
         CreatedAt: '2026-09-12T00:00:00Z',
+        // Nulo: estes testes rodam em projeto no modo protocolo, que nao entrega codigo.
+        ReporterCode: null,
       })
       await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
 
@@ -266,6 +283,8 @@ describe('o formulario', () => {
         TrackingCode: 'VELHO-VELHO-VELH',
         AccessToken: 'x',
         CreatedAt: '2026-09-12T00:00:00Z',
+        // Nulo: estes testes rodam em projeto no modo protocolo, que nao entrega codigo.
+        ReporterCode: null,
       })
       await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
 
@@ -350,6 +369,8 @@ describe('aceitar responder dúvidas', () => {
       TrackingCode: 'ABCD-EFGH-JKLM',
       AccessToken: 'tok',
       CreatedAt: '2026-09-18T12:00:00.000Z',
+      // Nulo: estes testes rodam em projeto no modo protocolo, que nao entrega codigo.
+      ReporterCode: null,
     } satisfies CreatedReportViewModel)
 
     render(<EmbedApp settings={settings} config={config} host={null} />)
@@ -404,5 +425,317 @@ describe('aceitar responder dúvidas', () => {
     // Sem isto, a escolha do relato anterior contaminaria o próximo — e a pessoa
     // não teria como saber que respondeu por engano a mesma coisa duas vezes.
     expect((caixa() as HTMLInputElement).checked).toBe(true)
+  })
+})
+describe('o código pessoal', () => {
+  afterEach(() => {
+    cleanup()
+    window.localStorage.clear()
+  })
+
+  const comCodigo = comSettings({ IdentityMode: 'PersonalCode' })
+
+  async function relatar(resposta: Partial<CreatedReportViewModel> = {}) {
+    dublê.criar.mockResolvedValue({
+      TrackingCode: 'ABCD-EFGH-JKLM',
+      AccessToken: 'tok',
+      CreatedAt: '2026-09-19T12:00:00.000Z',
+      ReporterCode: 'H7QK-3M2X-P9WD',
+      ...resposta,
+    } satisfies CreatedReportViewModel)
+
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'O botão não responde.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await screen.findByText('ABCD-EFGH-JKLM')
+  }
+
+  it('a confirmação mostra o código, e diz para que ele serve', async () => {
+    await relatar()
+
+    expect(screen.getByText('H7QK-3M2X-P9WD')).toBeTruthy()
+    // **Perder o código custa a lista, não os relatos.** Sem essa frase, quem o
+    // perde acha que perdeu tudo — e o link continuava valendo o tempo todo.
+    expect(screen.getByText(/Perdê-lo custa a lista, não os relatos/i)).toBeTruthy()
+  })
+
+  it('guarda o que a API confirmou, e não o que foi mandado', async () => {
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'VELHO-VELHO-VELH')
+
+    // A API não reconheceu o antigo e devolveu outro: insistir no antigo deixaria
+    // este navegador pedindo para sempre um código que não existe.
+    await relatar({ ReporterCode: 'NOVO-NOVO-NOVO' })
+
+    expect(window.localStorage.getItem('pds.reporter-code.pk_DEMO')).toBe('NOVO-NOVO-NOVO')
+  })
+
+  it('manda o código guardado no relato seguinte', async () => {
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
+    await relatar()
+
+    expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({ ReporterCode: 'H7QK-3M2X-P9WD' })
+  })
+
+  it('sem código guardado, não manda o campo', async () => {
+    await relatar()
+
+    expect(dublê.criar.mock.calls[0]?.[0].ReporterCode).toBeUndefined()
+  })
+
+  it('no modo protocolo não há código nem entrada para a lista', async () => {
+    dublê.criar.mockResolvedValue({
+      TrackingCode: 'ABCD-EFGH-JKLM',
+      AccessToken: 'tok',
+      CreatedAt: '2026-09-19T12:00:00.000Z',
+      ReporterCode: null,
+    } satisfies CreatedReportViewModel)
+
+    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={null} />)
+    expect(screen.queryByRole('button', { name: 'Ver os meus relatos' })).toBeNull()
+  })
+
+  it('a entrada para a lista aparece mesmo sem código guardado', async () => {
+    // Quem trocou de navegador não tem nada guardado — e é justamente quem mais
+    // precisa da entrada, porque é lá dentro que ela digita o código.
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+
+    expect(screen.getByRole('button', { name: 'Ver os meus relatos' })).toBeTruthy()
+  })
+
+  it('a lista busca sozinha quando o navegador já tem o código', async () => {
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
+    dublê.listar.mockResolvedValue({
+      Reports: [
+        {
+          TrackingCode: 'ABCD-EFGH-JKLM',
+          Type: 'Bug',
+          Excerpt: 'O botão não responde.',
+          StageLabel: 'Em análise',
+          IsClosed: false,
+          CreatedAt: '2026-09-19T12:00:00.000Z',
+        },
+      ],
+      HasMore: false,
+      // `satisfies` e o que faz o compilador cobrar a resposta inteira: sem ele,
+      // um campo novo no contrato passa em branco por aqui e o teste segue verde
+      // exercitando uma resposta que a API nao devolve mais.
+    } satisfies ReporterCodeReportsViewModel)
+
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
+
+    await waitFor(() => expect(dublê.listar).toHaveBeenCalledTimes(1))
+    expect(dublê.listar).toHaveBeenCalledWith({ Key: 'pk_DEMO', Code: 'H7QK-3M2X-P9WD' })
+
+    // O link de abrir leva o código **no fragmento**, nunca na busca.
+    const abrir = await screen.findByRole('link', { name: 'Abrir' })
+    const href = abrir.getAttribute('href') ?? ''
+    expect(href.split('#')[0]).not.toContain('H7QK')
+    expect(href.split('#')[1]).toContain('H7QK-3M2X-P9WD')
+  })
+
+  it('lista vazia não diz "código não encontrado"', async () => {
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'ZZZZ-ZZZZ-ZZZZ')
+    dublê.listar.mockResolvedValue({
+      Reports: [],
+      HasMore: false,
+    } satisfies ReporterCodeReportsViewModel)
+
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
+
+    // A API responde igual para código errado e código sem relato, de propósito.
+    // A frase da tela precisa servir aos dois casos sem mentir em nenhum.
+    expect(await screen.findByText(/Nenhum relato com esse código/i)).toBeTruthy()
+    expect(screen.queryByText(/não encontrado/i)).toBeNull()
+  })
+
+  it('o link de abrir leva o código que trouxe a lista, e não o que está no campo', async () => {
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
+    dublê.listar.mockResolvedValue({
+      Reports: [
+        {
+          TrackingCode: 'ABCD-EFGH-JKLM',
+          Type: 'Bug',
+          Excerpt: 'O botão não responde.',
+          StageLabel: 'Em análise',
+          IsClosed: false,
+          CreatedAt: '2026-09-19T12:00:00.000Z',
+        },
+      ],
+      HasMore: false,
+    } satisfies ReporterCodeReportsViewModel)
+
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
+    await screen.findByRole('link', { name: 'Abrir' })
+
+    // Digitar outro código **sem buscar** não pode mexer nos links já na tela:
+    // estes relatos são do código que os listou, e montar o link com o do campo
+    // faria cada "Abrir" apontar para uma credencial que nunca os listou.
+    fireEvent.change(screen.getByLabelText('O seu código'), {
+      target: { value: 'ZZZZ-ZZZZ-ZZZZ' },
+    })
+
+    const href = screen.getByRole('link', { name: 'Abrir' }).getAttribute('href') ?? ''
+    expect(href).toContain('H7QK-3M2X-P9WD')
+    expect(href).not.toContain('ZZZZ')
+  })
+
+  it('num projeto público, o aviso aparece ANTES de a pessoa escrever', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ Visibility: 'PublicAnonymous' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    const aviso = screen.getByText(/pode virar público/i)
+    expect(aviso).toBeTruthy()
+
+    // **A posição é o requisito, e não a existência.** Avisar com o texto já
+    // escrito seria avisar tarde: quem descobrisse ali teria de apagar o que
+    // escreveu. `compareDocumentPosition` diz quem vem antes no documento.
+    const caixa = screen.getByPlaceholderText(DEFAULT_WIDGET_SETTINGS.Placeholder)
+    expect(aviso.compareDocumentPosition(caixa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('e diz que o nome nunca aparece quando o projeto é público anônimo', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ Visibility: 'PublicAnonymous' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    expect(screen.getByText(/O seu nome nunca aparece/i)).toBeTruthy()
+  })
+
+  it('num projeto privado não há aviso nenhum, porque não há o que avisar', async () => {
+    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={null} />)
+
+    expect(screen.queryByText(/pode virar público/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ver o que já foi relatado' })).toBeNull()
+  })
+
+  it('o campo de nome só existe quando o projeto pergunta', async () => {
+    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={null} />)
+    expect(screen.queryByLabelText(/Como podemos te chamar/i)).toBeNull()
+
+    cleanup()
+    render(<EmbedApp settings={comSettings({ AsksForName: true })} config={config} host={null} />)
+    expect(screen.getByLabelText(/Como podemos te chamar/i)).toBeTruthy()
+  })
+
+  it('a caixa de assinar só existe onde o nome poderia aparecer', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicAnonymous' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    // Público anônimo: o nome não sai de jeito nenhum, então oferecer "quero
+    // assinar" prometeria uma vitrine que não existe.
+    expect(screen.queryByLabelText(/meu nome apareça/i)).toBeNull()
+
+    cleanup()
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicIdentified' })}
+        config={config}
+        host={null}
+      />,
+    )
+    expect(screen.getByLabelText(/meu nome apareça/i)).toBeTruthy()
+  })
+
+  it('sem nome escrito, não dá para marcar que quer assinar', async () => {
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicIdentified' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    const assinar = screen.getByLabelText(/meu nome apareça/i) as HTMLInputElement
+    expect(assinar.disabled).toBe(true)
+
+    fireEvent.change(screen.getByLabelText(/Como podemos te chamar/i), {
+      target: { value: 'Ana' },
+    })
+    expect((screen.getByLabelText(/meu nome apareça/i) as HTMLInputElement).disabled).toBe(false)
+  })
+
+  it('manda o nome e a escolha de assinar', async () => {
+    dublê.criar.mockResolvedValue({
+      TrackingCode: 'ABCD-EFGH-JKLM',
+      AccessToken: 'tok',
+      CreatedAt: '2026-09-19T12:00:00.000Z',
+      ReporterCode: null,
+    } satisfies CreatedReportViewModel)
+
+    render(
+      <EmbedApp
+        settings={comSettings({ AsksForName: true, Visibility: 'PublicIdentified' })}
+        config={config}
+        host={null}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText(/Como podemos te chamar/i), {
+      target: { value: '  Ana  ' },
+    })
+    fireEvent.click(screen.getByLabelText(/meu nome apareça/i))
+    // Com o campo de nome na tela há dois `textbox`; o relato é o que tem o
+    // texto de caixa vazia configurado pelo cliente.
+    fireEvent.change(screen.getByPlaceholderText(DEFAULT_WIDGET_SETTINGS.Placeholder), {
+      target: { value: 'O botão não responde.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => expect(dublê.criar).toHaveBeenCalledTimes(1))
+    expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({
+      ReporterName: 'Ana',
+      ReporterNameIsPublic: true,
+    })
+  })
+
+  it('num projeto que não pergunta o nome, nada de nome é enviado', async () => {
+    await relatar()
+
+    expect(dublê.criar.mock.calls[0]?.[0].ReporterName).toBeUndefined()
+    expect(dublê.criar.mock.calls[0]?.[0].ReporterNameIsPublic).toBe(false)
+  })
+
+  it('quando há mais do que coube, avisa — e não diz quantos', async () => {
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
+    dublê.listar.mockResolvedValue({
+      Reports: [
+        {
+          TrackingCode: 'ABCD-EFGH-JKLM',
+          Type: 'Bug',
+          Excerpt: 'O botão não responde.',
+          StageLabel: null,
+          IsClosed: false,
+          CreatedAt: '2026-09-19T12:00:00.000Z',
+        },
+      ],
+      HasMore: true,
+    } satisfies ReporterCodeReportsViewModel)
+
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
+
+    // O aviso existe porque a lista tem teto — e esconder relato sem dizer seria
+    // a tela mentindo por omissão. O total fica de fora de propósito: ele é
+    // informação sobre o tamanho da lista de outra pessoa.
+    const aviso = await screen.findByText(/Estes são os mais recentes/i)
+    expect(aviso.textContent).not.toMatch(/\d/)
   })
 })

@@ -8,8 +8,9 @@ using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Service.Origins;
-using Pds.Service.Security;
 using Pds.Service.Reports;
+using Pds.Service.Scanning;
+using Pds.Service.Security;
 using Pds.Translation;
 
 namespace Pds.Service.Services;
@@ -35,6 +36,16 @@ public class ReportService : IReportService
     /// mil linhas seriam megabytes numa resposta que a tela nao desenha.
     /// </summary>
     private const int MaxPageSize = 100;
+
+    /// <summary>
+    /// Quantos relatos a fila de moderacao mostra por vez.
+    ///
+    /// <para><b>Nao ha paginacao, e e escolha.</b> A fila e para ser esvaziada, e
+    /// nao navegada: paginar convidaria a deixar a pagina dois para depois, que e
+    /// exatamente o relato que fica pendente para sempre. Quando passa disto, o que
+    /// falta e gente lendo, e nao pagina.</para>
+    /// </summary>
+    private const int ModerationPageSize = 50;
 
     /// <summary>
     /// A recusa da consulta publica, escrita uma vez. Ela fala do <b>link</b> e nao
@@ -127,10 +138,13 @@ public class ReportService : IReportService
                             ?? regras?.AcceptsQuestionsDefault
                             ?? CycleSettingsDefaults.AcceptsQuestionsDefault;
 
+        var codigoPessoal = await ResolveReporterCodeAsync(project.Id, dto.ReporterCode, cancellationToken);
+
         var report = new Report
         {
             AccountId = project.AccountId,
             ProjectId = project.Id,
+            ReporterCode = codigoPessoal,
             TrackingCode = await GenerateTrackingCodeAsync(cancellationToken),
             AccessTokenHash = tokenHash,
             Type = dto.Type.Value,
@@ -139,6 +153,17 @@ public class ReportService : IReportService
             Origin = Trim(dto.Origin, 260),
             ProjectStateId = landingStateId,
             AcceptsQuestions = aceitaDuvidas,
+            ReporterName = Trim(dto.ReporterName, Report.MaxReporterNameLength),
+            // **Sem nome, assinar nao faz nada.** Gravar o sim isolado deixaria o
+            // relato com uma escolha que nao tem o que mostrar — e no dia em que
+            // alguem preenchesse o nome por outro caminho, ele sairia publicado por
+            // uma marcacao antiga que a pessoa nao lembra de ter feito.
+            ReporterNameIsPublic = dto.ReporterNameIsPublic == true
+                                   && !string.IsNullOrWhiteSpace(dto.ReporterName),
+            // **Explicito, e nao pelo primeiro valor do enum.** Vale a mesma regra
+            // em projeto privado: nascer liberado faria marcar o projeto como
+            // publico publicar o historico inteiro de uma vez.
+            ModerationState = ReportModerationStateEnum.Pending,
             Contexts = BuildContexts(dto.Context),
         };
 
@@ -183,7 +208,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt);
+        return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt, codigoPessoal?.Code);
     }
 
     /// <summary>
@@ -240,7 +265,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     public async Task<PublicReportViewModel> ConfirmAsync(ConfirmReportDto dto, CancellationToken cancellationToken = default)
@@ -307,7 +332,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     public async Task<PublicReportViewModel> ReopenAsync(ReopenReportDto dto, CancellationToken cancellationToken = default)
@@ -410,7 +435,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     /// <summary>
@@ -441,7 +466,15 @@ public class ReportService : IReportService
     /// configuracao crua entregaria a quem esta de fora como o cliente organiza o
     /// trabalho dele.</para>
     /// </summary>
-    private async Task<PublicReportViewModel> BuildPublicAsync(Report report, CancellationToken cancellationToken)
+    /// <param name="podeAgir">
+    /// Se quem esta lendo pode <b>agir</b> — confirmar, reabrir, responder.
+    ///
+    /// <para><b>E parametro obrigatorio, e nao um padrao.</b> Quem chega pelo link
+    /// pode; quem chega pela lista pessoal so age se o projeto tiver ligado isso. Um
+    /// valor padrao faria a chamada nova nascer permitindo, que e o lado errado para
+    /// errar — e obrigar a declarar forca quem acrescentar um caminho a pensar nele.</para>
+    /// </param>
+    private async Task<PublicReportViewModel> BuildPublicAsync(Report report, bool podeAgir, CancellationToken cancellationToken)
     {
         // **O fechamento que ja vale la fora**, e nao o que existe por dentro. Com
         // espera configurada os dois diferem durante a janela de desfazer — e e
@@ -466,10 +499,10 @@ public class ReportService : IReportService
                 fechamento.Satisfaction,
                 fechamento.SatisfactionDeclined,
                 new PublicClosureActionsViewModel(
-                    !respondeu,
+                    podeAgir && !respondeu,
                     // Quem confirmou fechou a conversa: o problema que volta depois
                     // disso e outro relato.
-                    (regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen) && !respondeu,
+                    podeAgir && (regras?.AllowsReopen ?? CycleSettingsDefaults.AllowsReopen) && !respondeu,
                     regras?.SatisfactionEnabled ?? CycleSettingsDefaults.SatisfactionEnabled,
                     regras?.SatisfactionStyle ?? CycleSettingsDefaults.SatisfactionStyle,
                     regras?.SatisfactionRequired ?? CycleSettingsDefaults.SatisfactionRequired,
@@ -499,8 +532,8 @@ public class ReportService : IReportService
                 ? null
                 : new PublicInfoRequestViewModel(
                     pedido.AskedAt, pedido.CloseAt, DateTime.UtcNow >= pedido.WarnAt),
-            // Escrever so enquanto ha pergunta aberta. Ver o comentario do campo.
-            pedido is not null);
+            // Escrever so enquanto ha pergunta aberta — e so para quem pode agir.
+            podeAgir && pedido is not null);
     }
 
     /// <summary>
@@ -672,7 +705,7 @@ public class ReportService : IReportService
 
         // **A mensagem agendada nao e cancelada**, e nao precisa: ao chegar, ela nao
         // vai encontrar pedido aberto e se descarta. A mesma propriedade da espera.
-        return await BuildPublicAsync(report, cancellationToken);
+        return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
 
     public async Task ExpireInfoRequestAsync(Guid reportPublicId, CancellationToken cancellationToken = default)
@@ -1550,6 +1583,351 @@ public class ReportService : IReportService
         throw new UnauthorizedAccessException("Chave publica invalida.");
     }
 
+    public async Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ReportModerationStateEnum state, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var relatos = await _unitOfWork.Reports
+            .ListByModerationStateAsync(project.Id, state, ModerationPageSize, cancellationToken);
+
+        // O total dos pendentes viaja sempre, e nao so quando o recorte e "pendente":
+        // e o numero da lateral do painel, e ele nao pode sumir porque alguem abriu
+        // a aba dos ja decididos.
+        var pendentes = await _unitOfWork.Reports
+            .CountByModerationStateAsync(project.Id, ReportModerationStateEnum.Pending, cancellationToken);
+
+        return new ModerationQueueViewModel([.. relatos.Select(ToModerationItem)], pendentes);
+    }
+
+    public async Task<ModerationItemViewModel> ModerateAsync(Guid projectPublicId, Guid reportPublicId, ModerateReportDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var decisao = dto.Decision
+                      ?? throw new ArgumentException("Informe se o relato vai ou nao para o publico.");
+
+        // **Pendente nao e decisao.** Aceitar "voltar para a fila" apagaria a
+        // leitura de outra pessoa e faria a fila cobrar de novo um relato que ja
+        // tinha sido lido.
+        if (decisao == ReportModerationStateEnum.Pending)
+            throw new ArgumentException("Nao da para devolver um relato para a fila: alguem ja o leu.");
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+                     ?? throw new KeyNotFoundException("Relato nao encontrado neste projeto.");
+
+        var anterior = report.ModerationState;
+
+        // O autor vem do banco pelo mesmo motivo do encerramento: a sessao guarda o
+        // identificador e nao o nome, e a resposta desta acao precisa do nome. Sem
+        // ele, a tela desenharia "liberado" sem dizer por quem — logo depois de a
+        // propria pessoa ter liberado.
+        var autor = _accountContext.UserId is long userId
+            ? await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
+            : null;
+
+        report.ModerationState = decisao;
+        report.ModeratedAt = DateTime.UtcNow;
+        report.ModeratedByUserId = autor?.Id;
+        report.ModeratedByUser = autor;
+
+        _unitOfWork.Reports.Update(report);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            UserId = _accountContext.UserId,
+            Type = decisao == ReportModerationStateEnum.Approved
+                ? EventTypeEnum.ReportPublished
+                : EventTypeEnum.ReportModerationRejected,
+            Source = EventSourceEnum.Panel,
+            Payload = JsonSerializer.Serialize(new
+            {
+                // De onde veio a decisao. Sem isto, liberar e **re**liberar depois
+                // de uma recusa contariam como a mesma coisa — e a segunda e a que
+                // diz que a primeira leitura estava errada.
+                from = anterior.ToString(),
+                // Quanto o relato esperou na fila. Fila que demora nao e detalhe de
+                // operacao: enquanto ela demora, quem relatou ve a promessa de
+                // aparecer e nao aparece.
+                waited_minutes = (int)(DateTime.UtcNow - report.CreatedAt).TotalMinutes,
+            }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return ToModerationItem(report);
+    }
+
+    public async Task<PublishedReportsViewModel> ListPublishedAsync(PublishedReportsDto dto, CancellationToken cancellationToken = default)
+    {
+        var vazia = new PublishedReportsViewModel([], false);
+
+        var project = await RequireProjectAsync(dto.Key, cancellationToken);
+
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        var visibilidade = identidade?.Visibility ?? IdentitySettingsDefaults.Visibility;
+
+        // **Projeto privado responde vazio, e nao uma recusa.** Recusar contaria a
+        // configuracao do cliente a qualquer um que tivesse a chave publica — que e
+        // publica de proposito e esta no codigo-fonte da pagina dele.
+        if (visibilidade == ReportVisibilityEnum.Private)
+            return vazia;
+
+        var encontrados = await _unitOfWork.Reports
+            .ListPublishedWithoutSessionAsync(project.Id, Report.MaxPublishedListed + 1, cancellationToken);
+
+        var temMais = encontrados.Count > Report.MaxPublishedListed;
+        var relatos = temMais
+            ? encontrados.Take(Report.MaxPublishedListed).ToList()
+            : encontrados;
+
+        var fechados = (await _unitOfWork.ReportClosures
+                .ListReportIdsWithPublicClosureWithoutSessionAsync(
+                    [.. relatos.Select(relato => relato.Id)], DateTime.UtcNow, cancellationToken))
+            .ToHashSet();
+
+        // **As duas condicoes do nome, juntas.** A regra mora aqui e nao na tela:
+        // uma tela pode esquecer de conferir, e o que estaria em jogo e o nome de
+        // uma pessoa ao lado de um texto que qualquer um le.
+        var mostraNome = visibilidade == ReportVisibilityEnum.PublicIdentified;
+
+        return new PublishedReportsViewModel(
+            [.. relatos.Select(relato => new PublishedReportViewModel(
+                relato.Type,
+                relato.Text,
+                relato.ProjectPublicStage?.Label,
+                fechados.Contains(relato.Id),
+                mostraNome && relato.ReporterNameIsPublic ? relato.ReporterName : null,
+                // Liberado tem data de liberacao: a consulta so traz aprovado, e
+                // aprovado sem data nao existe.
+                relato.ModeratedAt ?? relato.CreatedAt))],
+            temMais);
+    }
+
+    /// <summary>
+    /// A linha da fila, como o painel a le.
+    /// </summary>
+    private static ModerationItemViewModel ToModerationItem(Report report)
+    {
+        var achados = SensitiveDataScanner.Scan(report.Text);
+
+        return new ModerationItemViewModel(
+            report.PublicId,
+            report.TrackingCode,
+            report.Type,
+            report.Text,
+            report.ReporterName,
+            report.ReporterNameIsPublic,
+            report.ModerationState,
+            report.ModeratedAt,
+            report.ModeratedByUser?.Name,
+            report.CreatedAt,
+            // **A varredura roda aqui**, na leitura da fila: antes de publicar, e
+            // nunca depois. Sinaliza e para por ai — bloquear faria cada falso
+            // positivo virar um relato perdido, e perdido para quem escreveu.
+            [.. achados.Select(achado => new SensitiveFindingViewModel(
+                achado.Kind, achado.Start, achado.Length, achado.Sample))],
+            achados.Count >= SensitiveDataScanner.MaxFindings);
+    }
+
+    public async Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default)
+    {
+        var vazia = new ReporterCodeReportsViewModel([], false);
+
+        var project = await RequireProjectAsync(dto.Key, cancellationToken);
+        var digitado = (dto.Code ?? string.Empty).Trim().ToUpperInvariant();
+
+        if (digitado.Length == 0)
+            return vazia;
+
+        // **Projeto que nao usa o modo responde vazio, e nao uma recusa.** Recusar
+        // contaria a configuracao do cliente a quem nem relato tem aqui.
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        if ((identidade?.Mode ?? IdentitySettingsDefaults.Mode) != ReporterIdentityModeEnum.PersonalCode)
+            return vazia;
+
+        var codigo = await _unitOfWork.ReporterCodes
+            .FindByCodeWithoutSessionAsync(project.Id, digitado, cancellationToken);
+
+        // **Aqui esta a regra inteira do modo, e ela cabe numa linha:** codigo que
+        // nao existe sai igual a codigo sem relato nenhum. Ver a interface.
+        if (codigo is null)
+            return vazia;
+
+        // **Pede um a mais do que mostra.** E assim que da para dizer "ha mais" sem
+        // contar quantos — e contar entregaria a quem sonda o tamanho da lista
+        // alheia, que e informacao sobre outra pessoa.
+        var encontrados = await _unitOfWork.Reports
+            .ListByReporterCodeWithoutSessionAsync(codigo.Id, ReporterCode.MaxListedReports + 1, cancellationToken);
+
+        var temMais = encontrados.Count > ReporterCode.MaxListedReports;
+        var relatos = temMais
+            ? encontrados.Take(ReporterCode.MaxListedReports).ToList()
+            : encontrados;
+
+        // Uma consulta para a lista inteira, e nao uma por linha: o custo da
+        // resposta nao pode crescer com o tamanho da lista numa rota publica.
+        var fechados = (await _unitOfWork.ReportClosures
+                .ListReportIdsWithPublicClosureWithoutSessionAsync(
+                    [.. relatos.Select(relato => relato.Id)], DateTime.UtcNow, cancellationToken))
+            .ToHashSet();
+
+        return new ReporterCodeReportsViewModel(
+            relatos
+                .Select(relato => new ReporterCodeReportViewModel(
+                    relato.TrackingCode,
+                    relato.Type,
+                    Excerpt(relato.Text),
+                    relato.ProjectPublicStage?.Label,
+                    fechados.Contains(relato.Id),
+                    relato.CreatedAt))
+                .ToList(),
+            temMais);
+    }
+
+    public async Task<PublicReportViewModel> OpenByReporterCodeAsync(OpenByReporterCodeDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireProjectAsync(dto.Key, cancellationToken);
+
+        var digitado = (dto.Code ?? string.Empty).Trim().ToUpperInvariant();
+        var protocolo = (dto.TrackingCode ?? string.Empty).Trim().ToUpperInvariant();
+
+        // **Uma recusa so, para os quatro caminhos.** Codigo em branco, codigo que
+        // nao existe, protocolo que nao existe, e protocolo que existe mas e de
+        // outra pessoa saem iguais: responder diferente contaria a quem sonda o que
+        // ele acertou, que e como se encontra o relato alheio a partir de um
+        // protocolo — que e curto e falado de proposito.
+        if (digitado.Length == 0 || protocolo.Length == 0)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        if ((identidade?.Mode ?? IdentitySettingsDefaults.Mode) != ReporterIdentityModeEnum.PersonalCode)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var codigo = await _unitOfWork.ReporterCodes
+            .FindByCodeWithoutSessionAsync(project.Id, digitado, cancellationToken);
+
+        if (codigo is null)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var report = await _unitOfWork.Reports
+            .FindByTrackingCodeWithoutSessionAsync(protocolo, cancellationToken);
+
+        // O relato precisa ser **deste codigo**. Sem esta linha, qualquer codigo
+        // valido abriria qualquer protocolo do projeto.
+        if (report is null || report.ReporterCodeId != codigo.Id)
+            throw new KeyNotFoundException(TrackingRefusal);
+
+        var regras = await _unitOfWork.ProjectCycleSettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        // **Aqui a configuracao orfa da etapa 5 passa a significar alguma coisa.**
+        // Ela ficou gravada e sem tela porque decidir se o protocolo sozinho age so
+        // fazia sentido quando existisse uma consulta por protocolo — e e esta.
+        var podeAgir = regras?.TrackingCodeCanAct ?? CycleSettingsDefaults.TrackingCodeCanAct;
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportViewed,
+            Source = EventSourceEnum.PublicPage,
+            // A carga diz **por onde** ela entrou. Sem isto, a lista pessoal e o
+            // link ficariam indistinguiveis na contagem — e saber se as pessoas
+            // voltam pela lista ou pelo link e o que diz se a lista serviu.
+            Payload = JsonSerializer.Serialize(new { by = "reporter_code" }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return await BuildPublicAsync(report, podeAgir, cancellationToken);
+    }
+
+    /// <summary>
+    /// O comeco do relato, para a pessoa distinguir um do outro na lista.
+    ///
+    /// <para><b>Corta em palavra, e nao no meio de uma.</b> "O botao de finaliz…"
+    /// obriga a abrir para saber o que era, que e o oposto do que a lista serve.</para>
+    /// </summary>
+    private static string Excerpt(string text)
+    {
+        const int Limit = 120;
+
+        var limpo = text.Trim();
+
+        if (limpo.Length <= Limit)
+            return limpo;
+
+        var corte = limpo.LastIndexOf(' ', Limit);
+
+        return string.Concat(limpo.AsSpan(0, corte > 40 ? corte : Limit).TrimEnd(), "…");
+    }
+
+    /// <summary>
+    /// O codigo pessoal deste relato: o que a pessoa apresentou, ou um novo.
+    ///
+    /// <para><b>Nulo quando o projeto nao usa este modo.</b> E se alguem mandar um
+    /// codigo num projeto de protocolo, a recusa e explicita — aceitar em silencio
+    /// gravaria um vinculo que a configuracao do projeto diz nao existir.</para>
+    ///
+    /// <para><b>Codigo desconhecido nao e erro: vira um codigo novo.</b> Recusar
+    /// diria "este codigo nao existe aqui", e e exatamente o oraculo que este modo
+    /// nao pode ter. A pessoa recebe um codigo novo na confirmacao e ve que mudou —
+    /// que e a mesma coisa que aconteceria se ela nunca tivesse tido um.</para>
+    /// </summary>
+    private async Task<ReporterCode?> ResolveReporterCodeAsync(long projectId, string? apresentado, CancellationToken cancellationToken)
+    {
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(projectId, cancellationToken);
+
+        var modo = identidade?.Mode ?? IdentitySettingsDefaults.Mode;
+        var digitado = (apresentado ?? string.Empty).Trim().ToUpperInvariant();
+
+        if (modo != ReporterIdentityModeEnum.PersonalCode)
+        {
+            if (digitado.Length > 0)
+                throw new ArgumentException("Este projeto nao usa codigo pessoal.");
+
+            return null;
+        }
+
+        if (digitado.Length > 0)
+        {
+            var existente = await _unitOfWork.ReporterCodes
+                .FindByCodeWithoutSessionAsync(projectId, digitado, cancellationToken);
+
+            // Ver o paragrafo do metodo: desconhecido cai para um codigo novo, e nao
+            // para uma recusa que contaria o que ele nao e.
+            if (existente is not null)
+                return existente;
+        }
+
+        for (var tentativa = 0; tentativa < TrackingCodeAttempts; tentativa++)
+        {
+            var candidato = TrackingCode.Generate();
+
+            if (await _unitOfWork.ReporterCodes.ExistsAsync(projectId, candidato, cancellationToken))
+                continue;
+
+            var novo = new ReporterCode { ProjectId = projectId, Code = candidato };
+            await _unitOfWork.ReporterCodes.AddAsync(novo, cancellationToken);
+
+            return novo;
+        }
+
+        throw new InvalidOperationException(
+            $"Nao foi possivel gerar um codigo pessoal unico em {TrackingCodeAttempts} tentativas.");
+    }
+
     private async Task<string> GenerateTrackingCodeAsync(CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < TrackingCodeAttempts; attempt++)
@@ -1632,6 +2010,7 @@ public class ReportService : IReportService
         closure,
         infoRequest,
         canAskInfo,
+        report.ModerationState,
         // Em ordem de chave, e nao na que o navegador mandou: a mesma informacao
         // trocando de lugar entre dois relatos faz procurar de novo a cada um.
         report.Contexts

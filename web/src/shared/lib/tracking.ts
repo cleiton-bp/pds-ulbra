@@ -19,10 +19,36 @@ export function buildTrackingLink(trackingCode: string, token: string): string {
   return `${environment.trackingUrl}?c=${code}#t=${encodeURIComponent(token)}`
 }
 
+/**
+ * O link da lista pessoal, que leva ao mesmo lugar por outra credencial.
+ *
+ * **O codigo pessoal vai no fragmento, pelo mesmo motivo do token**: ele e o que
+ * identifica a pessoa, e o que vem depois do `#` nunca chega ao servidor. A chave
+ * publica vai na query porque ela ja e publica por definicao — e a pagina precisa
+ * dela para saber em qual projeto o codigo vale.
+ *
+ * **Leva menos poder que o link do token.** Aberto assim, confirmar e reabrir
+ * chegam desligados, a menos que o projeto tenha ligado isso.
+ */
+export function buildReporterCodeLink(
+  trackingCode: string,
+  publicKey: string,
+  reporterCode: string,
+): string {
+  const code = encodeURIComponent(trackingCode)
+  const key = encodeURIComponent(publicKey)
+
+  return `${environment.trackingUrl}?c=${code}&k=${key}#p=${encodeURIComponent(reporterCode)}`
+}
+
 /** O que o link carrega, vazio quando ele chegou pela metade. */
 export interface TrackingLink {
   code: string
   token: string
+  /** A chave publica, so no link que veio da lista pessoal. */
+  key: string
+  /** O codigo pessoal, so no link que veio da lista pessoal. */
+  reporterCode: string
 }
 
 /**
@@ -39,5 +65,7 @@ export function readTrackingLink(search: string, hash: string): TrackingLink {
   return {
     code: query.get('c')?.trim() ?? '',
     token: fragment.get('t')?.trim() ?? '',
+    key: query.get('k')?.trim() ?? '',
+    reporterCode: fragment.get('p')?.trim() ?? '',
   }
 }

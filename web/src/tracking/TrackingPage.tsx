@@ -45,11 +45,22 @@ export function TrackingPage() {
   const [estado, setEstado] = useState<Estado>({ tipo: 'carregando' })
 
   const abrir = useCallback(async () => {
-    const { code, token } = readTrackingLink(window.location.search, window.location.hash)
+    const { code, token, key, reporterCode } = readTrackingLink(
+      window.location.search,
+      window.location.hash,
+    )
+
+    // **Duas credenciais levam a esta pagina, e elas nao valem o mesmo.** O token
+    // veio no link que a pessoa recebeu ao relatar, e da poder sobre o relato. O
+    // codigo pessoal veio da lista dela e prova que o relato e dela — mas confirmar
+    // e reabrir continuam exigindo o link, a menos que o projeto decida o
+    // contrario. Quem decide isso e a API; aqui so muda por onde se pergunta.
+    const peloToken = token.length > 0
+    const peloCodigo = key.length > 0 && reporterCode.length > 0
 
     // Link pela metade nao vai a rede: a resposta seria a mesma recusa, e pedir
     // ao servidor para confirmar o que ja se sabe atrasa a tela sem ganhar nada.
-    if (code.length === 0 || token.length === 0) {
+    if (code.length === 0 || (!peloToken && !peloCodigo)) {
       setEstado({ tipo: 'recusado' })
       return
     }
@@ -57,7 +68,14 @@ export function TrackingPage() {
     setEstado({ tipo: 'carregando' })
 
     try {
-      const relato = await reportService.openReportTracking({ TrackingCode: code, Token: token })
+      const relato = peloToken
+        ? await reportService.openReportTracking({ TrackingCode: code, Token: token })
+        : await reportService.openByReporterCode({
+            Key: key,
+            Code: reporterCode,
+            TrackingCode: code,
+          })
+
       setEstado({ tipo: 'aberto', relato, code, token })
     } catch (falha) {
       setEstado({ tipo: isPanelError(falha) && falha.status === 404 ? 'recusado' : 'falhou' })

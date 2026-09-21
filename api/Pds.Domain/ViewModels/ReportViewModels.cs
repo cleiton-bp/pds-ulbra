@@ -14,10 +14,21 @@ namespace Pds.Domain.ViewModels;
 /// o hash, e nenhuma rota consegue revela-lo de novo.
 /// </param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+/// <param name="ReporterCode">
+/// O código pessoal desta pessoa, quando o projeto usa esse modo; <b>nulo</b> nos
+/// outros.
+///
+/// <para><b>Vem em toda confirmação, e não só na primeira.</b> A ferramenta guarda
+/// no navegador e manda de volta no relato seguinte — e se o navegador foi limpo,
+/// ou se o código mandado não existia mais, o que chega aqui é um novo. Devolver
+/// sempre é o que faz a tela mostrar o código que <b>de fato</b> vale, em vez do
+/// que ela achava que valia.</para>
+/// </param>
 public record CreatedReportViewModel(
     string TrackingCode,
     string AccessToken,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? ReporterCode);
 
 /// <summary>
 /// Um relato na lista do painel.
@@ -260,6 +271,17 @@ public record ReportContextViewModel(string Key, string? Value);
 /// qual dos casos e, lendo o que ja tem em maos.</para>
 /// </param>
 /// <param name="Contexts">O que veio junto, em ordem de chave.</param>
+/// <param name="ModerationState">
+/// Se este relato ja pode ser lido por quem nao o escreveu.
+///
+/// <para><b>Viaja no detalhe porque e aqui que o time le o relato.</b> A decisao
+/// se toma na fila de moderacao, mas quem abre um relato para responder precisa
+/// saber se esta falando em publico — e descobrir isso depois de escrever e
+/// descobrir tarde.</para>
+///
+/// <para>Liberado <b>nao quer dizer visivel</b>: o projeto tambem precisa estar
+/// num nivel publico. Sao duas condicoes, e esta e so uma delas.</para>
+/// </param>
 public record ReportDetailViewModel(
     Guid PublicId,
     string TrackingCode,
@@ -276,8 +298,57 @@ public record ReportDetailViewModel(
     ReportClosureViewModel? Closure,
     ReportInfoRequestViewModel? InfoRequest,
     bool CanAskInfo,
+    ReportModerationStateEnum ModerationState,
     IReadOnlyList<ReportContextViewModel> Contexts);
 
+
+/// <summary>
+/// Um relato na lista pessoal de quem o escreveu.
+///
+/// <para><b>E resumo, e nao o relato.</b> Aqui a pessoa reconhece qual e qual e
+/// decide o que abrir; o texto inteiro, a jornada e a conversa continuam vindo da
+/// consulta de um relato so.</para>
+///
+/// <para><b>Nao carrega o token de acompanhamento.</b> O codigo pessoal diz quais
+/// relatos sao dela; o link de cada um e que da poder sobre ele — confirmar,
+/// reabrir, responder. Embutir o token aqui faria um codigo de doze simbolos valer
+/// tanto quanto todos os links somados.</para>
+/// </summary>
+/// <param name="TrackingCode">O protocolo, que a pessoa reconhece.</param>
+/// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="Excerpt">O comeco do que ela escreveu, para distinguir um do outro.</param>
+/// <param name="StageLabel">Em que passo da jornada ele esta, com as palavras do cliente. Nulo quando o projeto nao tem jornada.</param>
+/// <param name="IsClosed">Se ja acabou. A lista separa os abertos dos fechados sem precisar abrir cada um.</param>
+/// <param name="CreatedAt">Quando entrou, em UTC.</param>
+public record ReporterCodeReportViewModel(
+    string TrackingCode,
+    ReportTypeEnum Type,
+    string Excerpt,
+    string? StageLabel,
+    bool IsClosed,
+    DateTime CreatedAt);
+
+/// <summary>
+/// A resposta da consulta por codigo pessoal.
+///
+/// <para><b>Codigo que nao existe devolve lista vazia, e nao uma recusa.</b> E a
+/// decisao central desta rota: qualquer diferenca entre "nao existe" e "existe e
+/// esta vazio" transforma a consulta num oraculo, e tentar codigos ate a resposta
+/// mudar e exatamente como se enumera. Quem digitou errado ve uma lista vazia, o
+/// mesmo que veria quem acabou de receber um codigo novo.</para>
+/// </summary>
+/// <param name="Reports">Os relatos ligados ao codigo, do mais novo para o mais antigo.</param>
+/// <param name="HasMore">
+/// Ha relato alem dos que vieram.
+///
+/// <para><b>E um sim ou nao, e nunca um total.</b> A rota e publica e nao pede
+/// credencial: dizer quantos entregaria a quem sonda o tamanho da lista de outra
+/// pessoa. O aviso basta para quem esta lendo saber que a lista nao e tudo — e o
+/// que falta continua alcancavel pelo link de cada relato.</para>
+/// </param>
+public record ReporterCodeReportsViewModel(
+    IReadOnlyList<ReporterCodeReportViewModel> Reports,
+    bool HasMore);
 
 /// <summary>
 /// Um passo da jornada, como quem relatou o le.
@@ -512,3 +583,138 @@ public record PublicReportViewModel(
     IReadOnlyList<PublicMessageViewModel> Conversation,
     PublicInfoRequestViewModel? InfoRequest,
     bool CanReply);
+
+/// <summary>
+/// Um trecho que a varredura reconheceu como dado sensivel.
+///
+/// <para><b>E um aviso, e nao um veredito.</b> Nada aqui impede liberar o relato:
+/// falso positivo nao pode decidir, e quem decide e sempre alguem que leu. O papel
+/// desta lista e so fazer a pessoa olhar de novo para um trecho especifico antes
+/// de publicar.</para>
+///
+/// <para><b>A amostra vem mascarada, mesmo com o texto inteiro ao lado.</b> A
+/// etiqueta viaja mais do que o relato — cabe num print, numa captura de suporte,
+/// num log do painel —, e repetir o dado ali criaria uma segunda copia dele em
+/// lugares que ninguem pensou em proteger.</para>
+/// </summary>
+/// <param name="Kind">CPF, CNPJ, cartao, e-mail, telefone ou credencial.</param>
+/// <param name="Start">Onde o trecho comeca no texto, em caracteres — para a tela marcar.</param>
+/// <param name="Length">Quantos caracteres ele ocupa.</param>
+/// <param name="Sample">O trecho mascarado.</param>
+public record SensitiveFindingViewModel(
+    SensitiveDataKindEnum Kind,
+    int Start,
+    int Length,
+    string Sample);
+
+/// <summary>
+/// Um relato na fila de moderacao, como o time o le antes de decidir.
+///
+/// <para><b>O texto vem inteiro.</b> Quem decide publicar precisa ler o que vai
+/// publicar — um resumo faria a decisao ser tomada sobre a parte que coube, e o
+/// que vaza costuma estar no meio de um paragrafo, nao nas primeiras palavras.</para>
+/// </summary>
+/// <param name="PublicId">Identificador do relato para as rotas do painel.</param>
+/// <param name="TrackingCode">O protocolo, para cruzar com o resto do painel.</param>
+/// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="Text">O relato como foi escrito.</param>
+/// <param name="ReporterName">
+/// Como a pessoa se identificou, ou <b>nulo</b> quando nao deu nome.
+///
+/// <para>Aparece aqui mesmo quando ela <b>nao</b> quis assinar: coletar e uma
+/// coisa, publicar e outra, e quem modera precisa saber quem esta do outro lado
+/// para julgar o texto.</para>
+/// </param>
+/// <param name="ReporterNameIsPublic">Ela quis assinar. So com isto <b>e</b> o projeto em publico identificado o nome sai la fora.</param>
+/// <param name="State">Pendente, liberado ou recusado.</param>
+/// <param name="ModeratedAt">Quando alguem decidiu; nulo enquanto ninguem decidiu.</param>
+/// <param name="ModeratedByName">Quem decidiu; nulo enquanto ninguem decidiu, e tambem quando a conta foi esvaziada.</param>
+/// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+/// <param name="FindingsTruncated">
+/// A varredura parou no teto e ha mais trechos do que os que vieram.
+///
+/// <para><b>Sem isto, doze pareceria "todos".</b> Um texto colado de um log tem
+/// centenas de credenciais iguais; listar todas nao ajuda a decidir, mas deixar
+/// quem le achar que sao doze ajuda a decidir <b>errado</b>.</para>
+/// </param>
+/// <param name="Findings">
+/// O que a varredura reconheceu no texto. Vazio na esmagadora maioria.
+///
+/// <para><b>Calculado na leitura, e nao guardado.</b> O achado nao e um fato sobre
+/// o relato: e o que temos a dizer a quem esta decidindo <b>agora</b>. Gravado na
+/// criacao, ele envelheceria — melhorar um padrao deixaria o passado marcado pelo
+/// detector velho, e seria preciso uma migracao para reavaliar a fila.</para>
+/// </param>
+public record ModerationItemViewModel(
+    Guid PublicId,
+    string TrackingCode,
+    ReportTypeEnum Type,
+    string Text,
+    string? ReporterName,
+    bool ReporterNameIsPublic,
+    ReportModerationStateEnum State,
+    DateTime? ModeratedAt,
+    string? ModeratedByName,
+    DateTime CreatedAt,
+    IReadOnlyList<SensitiveFindingViewModel> Findings,
+    bool FindingsTruncated);
+
+/// <summary>
+/// A fila de moderacao de um projeto.
+/// </summary>
+/// <param name="Items">Os relatos no estado pedido, do mais antigo para o mais novo.</param>
+/// <param name="PendingTotal">
+/// Quantos ainda esperam decisao, <b>independente do recorte pedido</b>.
+///
+/// <para>Viaja sempre porque e o numero que o painel mostra na lateral: sem ele,
+/// quem abrisse a aba dos ja decididos veria o contador sumir e concluiria que a
+/// fila esvaziou.</para>
+/// </param>
+public record ModerationQueueViewModel(
+    IReadOnlyList<ModerationItemViewModel> Items,
+    int PendingTotal);
+
+/// <summary>
+/// Um relato ja liberado, como qualquer pessoa o le.
+///
+/// <para><b>Nao ha identificador aqui, e nem o protocolo.</b> O protocolo e curto,
+/// falado em voz alta, e e metade da credencial de quem relatou — publica-lo
+/// entregaria a estranhos o numero que a propria pessoa usa para voltar.</para>
+///
+/// <para><b>O texto vem inteiro, e e o mesmo que foi liberado.</b> Cortar aqui
+/// faria o que alguem aprovou e o que o mundo le serem coisas diferentes.</para>
+/// </summary>
+/// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="Text">O relato como foi escrito, e como foi liberado.</param>
+/// <param name="StageLabel">Em que passo da jornada ele esta, ou <b>nulo</b> quando nao aparece em nenhum.</param>
+/// <param name="IsClosed">Ja acabou, na leitura de quem esta de fora.</param>
+/// <param name="ReporterName">
+/// Quem assinou, ou <b>nulo</b> — que e o caso da esmagadora maioria.
+///
+/// <para>So sai preenchido com as <b>duas</b> condicoes ao mesmo tempo: o projeto
+/// em publico identificado, e a pessoa tendo escolhido assinar. Uma sozinha nao
+/// basta, e e por isso que a regra mora no servidor e nao na tela.</para>
+/// </param>
+/// <param name="PublishedAt">Quando foi liberado, em UTC. E a data que a lista ordena — e nao a da criacao.</param>
+public record PublishedReportViewModel(
+    ReportTypeEnum Type,
+    string Text,
+    string? StageLabel,
+    bool IsClosed,
+    string? ReporterName,
+    DateTime PublishedAt);
+
+/// <summary>
+/// A lista publica de um projeto.
+///
+/// <para><b>Projeto privado responde vazio, e nao uma recusa.</b> Mesma disciplina
+/// da consulta por codigo pessoal: a diferenca entre "nao publica" e "publica e
+/// nao tem nada" nao diz nada a quem le, e dita em voz alta contaria a
+/// configuracao do cliente a qualquer um que colasse a chave publica numa
+/// requisicao.</para>
+/// </summary>
+/// <param name="Reports">Os relatos liberados, do mais recente para o mais antigo.</param>
+/// <param name="HasMore">Ha mais alem dos que vieram. Sim ou nao, nunca um total.</param>
+public record PublishedReportsViewModel(
+    IReadOnlyList<PublishedReportViewModel> Reports,
+    bool HasMore);

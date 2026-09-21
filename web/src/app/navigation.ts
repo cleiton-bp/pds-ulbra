@@ -11,7 +11,17 @@
 /** O caminho e relativo ao projeto. */
 export interface ConsoleSection {
   /** Tambem escolhe o glifo da lateral, em `SectionIcon`. */
-  key: 'start' | 'keys' | 'states' | 'stages' | 'cycle' | 'settings' | 'reports' | 'tool'
+  key:
+    | 'start'
+    | 'keys'
+    | 'states'
+    | 'stages'
+    | 'cycle'
+    | 'identity'
+    | 'settings'
+    | 'reports'
+    | 'moderation'
+    | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
   path: string
@@ -39,6 +49,10 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   // fim. Fica fora de "Configurações" porque lá mora o projeto — nome, domínios,
   // arquivar —, e aqui mora o comportamento do ciclo.
   { key: 'cycle', label: 'Ciclo', path: 'cycle' },
+  // Quem e quem. Vem depois do ciclo e antes das configuracoes do projeto pelo
+  // mesmo criterio: aqui mora o comportamento, e la mora o projeto. E e a escolha
+  // que decide o que a lista pessoal e a visibilidade podem ser.
+  { key: 'identity', label: 'Identidade', path: 'identity' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 
@@ -50,6 +64,15 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
  */
 export const OPERATION_SECTIONS: ConsoleSection[] = [
   { key: 'reports', label: 'Relatos', path: 'reports' },
+  // **Vem depois de Relatos, e nao dentro dela.** As duas leem o mesmo relato e
+  // respondem perguntas diferentes: "o que ainda nao tratei" e "o que ja pode
+  // ser lido por estranhos". Como aba de um filtro, a segunda viraria um recorte
+  // da primeira — e a decisao de publicar nao e um recorte de nada.
+  //
+  // Aparece **sempre**, inclusive em projeto privado. Some-la ali esconderia
+  // que a fila existe e continua enchendo, e quem marcasse o projeto como
+  // publico descobriria um dia uma fila de meses.
+  { key: 'moderation', label: 'Moderação', path: 'moderation' },
 ]
 
 /**

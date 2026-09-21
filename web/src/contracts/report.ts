@@ -45,6 +45,27 @@ export interface CreateReportRequest {
   AcceptsQuestions: boolean
   /** O que veio junto sem ninguem digitar: navegador, tamanho da tela. */
   Context: Record<string, string> | null
+  /**
+   * O codigo pessoal de quem ja relatou antes neste projeto.
+   *
+   * **Ausente quando este navegador nunca relatou aqui** — e ai a resposta traz um
+   * codigo novo. Codigo desconhecido nao e recusado: vira um novo, porque a
+   * diferenca entre conhecido e desconhecido e como se enumera codigo alheio.
+   *
+   * Em projeto que nao usa este modo, mandar um codigo e recusado.
+   */
+  ReporterCode?: string
+
+  /** Como a pessoa quer ser chamada. Só vai quando o projeto pergunta. */
+  ReporterName?: string
+  /**
+   * Ela quis assinar este relato.
+   *
+   * **Ausente é "não".** Ao contrário de `AcceptsQuestions`, aqui o silêncio não
+   * cai num padrão do projeto: o que está em jogo é o nome dela ao lado de um
+   * texto que qualquer um lê.
+   */
+  ReporterNameIsPublic?: boolean
 }
 
 /**
@@ -60,10 +81,29 @@ export interface CreatedReportViewModel {
    */
   AccessToken: string
   CreatedAt: string
+  /**
+   * O codigo pessoal de quem escreveu, quando o projeto usa esse modo; **nulo**
+   * nos outros.
+   *
+   * **Vem em toda confirmacao, e nao so na primeira.** A ferramenta guarda no
+   * navegador e manda de volta no relato seguinte — e se o navegador foi limpo,
+   * ou se o codigo mandado nao existia mais, o que chega aqui e um novo.
+   * Devolver sempre e o que faz a tela mostrar o codigo que **de fato** vale.
+   */
+  ReporterCode: string | null
 }
 
 /** Limite da coluna `text`, declarado em `Report.MaxTextLength`. */
 export const MAX_REPORT_TEXT_LENGTH = 5000
+
+/**
+ * Quanto cabe no nome de quem relata. Espelho de `Report.MaxReporterNameLength`.
+ *
+ * Curto de proposito: e um nome, e nao um espaco livre. Sem teto, o campo vira
+ * um segundo relato — e num projeto publico identificado ele sai ao lado do
+ * texto, onde caberia qualquer coisa que a moderacao teria de ler duas vezes.
+ */
+export const MAX_REPORTER_NAME_LENGTH = 80
 
 /**
  * Um relato na lista do painel.
@@ -198,6 +238,18 @@ export interface ReportDetailViewModel extends ReportSummaryViewModel {
    * tem em maos.
    */
   CanAskInfo: boolean
+  /**
+   * Se este relato ja pode ser lido por quem nao o escreveu.
+   *
+   * **Viaja no detalhe porque e aqui que o time le o relato.** A decisao se toma
+   * na fila de moderacao, mas quem abre um relato para responder precisa saber se
+   * esta falando em publico — e descobrir isso depois de escrever e descobrir
+   * tarde.
+   *
+   * Liberado **nao quer dizer visivel**: o projeto tambem precisa estar num nivel
+   * publico. Sao duas condicoes, e esta e so uma delas.
+   */
+  ModerationState: ReportModerationState
   /** Em ordem de chave, decidida pela API. */
   Contexts: ReportContextViewModel[]
 }
@@ -535,6 +587,8 @@ export const REPORT_EVENT_TYPES = [
   'ReportInfoRequested',
   'ReportReplied',
   'ReportClosureCancelled',
+  'ReportPublished',
+  'ReportModerationRejected',
 ] as const
 
 /**
@@ -560,4 +614,141 @@ export interface ReportHistoryEntryViewModel {
   FromStateName: string | null
   ToStateName: string | null
   OccurredAt: string
+}
+
+/**
+ * Se o relato ja pode ser lido por quem nao o escreveu.
+ *
+ * Espelho do `ReportModerationStateEnum` em C#. **Todo relato nasce
+ * `Pending`**, inclusive em projeto privado — e e isso que faz marcar o projeto
+ * como publico depois nao publicar o historico inteiro de uma vez.
+ */
+export type ReportModerationState = 'Pending' | 'Approved' | 'Rejected'
+
+/**
+ * O que a varredura reconhece dentro do texto de um relato.
+ *
+ * Espelho do `SensitiveDataKindEnum` em C#. **Nenhum destes bloqueia nada**: a
+ * varredura sinaliza e para por ai, porque falso positivo nao pode decidir.
+ */
+export type SensitiveDataKind = 'Cpf' | 'Cnpj' | 'CreditCard' | 'Email' | 'Phone' | 'Token'
+
+/** Um trecho que a varredura reconheceu. E um aviso, e nao um veredito. */
+export interface SensitiveFindingViewModel {
+  Kind: SensitiveDataKind
+  /** Onde comeca no texto, em caracteres — e o que permite marcar o trecho. */
+  Start: number
+  Length: number
+  /** O trecho **mascarado**: a etiqueta viaja mais do que o relato. */
+  Sample: string
+}
+
+/** Um relato na fila de moderacao, como o time o le antes de decidir. */
+export interface ModerationItemViewModel {
+  PublicId: string
+  TrackingCode: string
+  Type: ReportType
+  /** Inteiro: quem decide publicar precisa ler o que vai publicar. */
+  Text: string
+  /** Aparece aqui mesmo quando a pessoa **nao** quis assinar. */
+  ReporterName: string | null
+  ReporterNameIsPublic: boolean
+  State: ReportModerationState
+  ModeratedAt: string | null
+  ModeratedByName: string | null
+  CreatedAt: string
+  /** Vazio na esmagadora maioria. Calculado na leitura, e nao guardado. */
+  Findings: SensitiveFindingViewModel[]
+  /**
+   * A varredura parou no teto e ha mais trechos do que os que vieram.
+   *
+   * **Sem isto, doze pareceria "todos"** — e quem le decidiria achando que viu
+   * a lista inteira.
+   */
+  FindingsTruncated: boolean
+}
+
+/** A fila de moderacao de um projeto. */
+export interface ModerationQueueViewModel {
+  /** Do mais antigo para o mais novo: fila lida ao contrario nunca esvazia o comeco. */
+  Items: ModerationItemViewModel[]
+  /** Quantos esperam decisao, **independente do recorte pedido**. */
+  PendingTotal: number
+}
+
+/** A decisao que o painel manda. `Pending` nao e aceito. */
+export interface ModerateReportRequest {
+  Decision: Exclude<ReportModerationState, 'Pending'>
+}
+
+/**
+ * Um relato ja liberado, como qualquer pessoa o le.
+ *
+ * **Nao ha protocolo nem identificador aqui.** O protocolo e curto, falado em
+ * voz alta, e e metade da credencial de quem relatou.
+ */
+export interface PublishedReportViewModel {
+  Type: ReportType
+  Text: string
+  StageLabel: string | null
+  IsClosed: boolean
+  /** So com o projeto em publico identificado **e** o relato assinado. */
+  ReporterName: string | null
+  PublishedAt: string
+}
+
+/** A lista publica de um projeto. Projeto privado responde vazio, e nao uma recusa. */
+export interface PublishedReportsViewModel {
+  Reports: PublishedReportViewModel[]
+  HasMore: boolean
+}
+
+/** Um relato na lista pessoal de quem o escreveu. */
+export interface ReporterCodeReportViewModel {
+  TrackingCode: string
+  Type: ReportType
+  /** O comeco do texto, para distinguir um relato do outro sem abrir. */
+  Excerpt: string
+  /** Em que passo da jornada ele esta. Nulo quando o projeto nao tem jornada. */
+  StageLabel: string | null
+  IsClosed: boolean
+  CreatedAt: string
+}
+
+/**
+ * A resposta da consulta por codigo pessoal.
+ *
+ * **Codigo que nao existe devolve lista vazia, e nao uma recusa.** Qualquer
+ * diferenca entre "nao existe" e "existe e esta vazio" transformaria a consulta
+ * num oraculo, e tentar codigos ate a resposta mudar e como se enumera.
+ */
+export interface ReporterCodeReportsViewModel {
+  Reports: ReporterCodeReportViewModel[]
+
+  /**
+   * Ha relato alem dos que vieram.
+   *
+   * **E um sim ou nao, e nunca um total.** A rota e publica e nao pede
+   * credencial: dizer quantos entregaria a quem sonda o tamanho da lista de outra
+   * pessoa. O aviso basta para quem le saber que a lista nao e tudo.
+   */
+  HasMore: boolean
+}
+
+/** A consulta da lista pessoal. */
+export interface ReporterCodeLookupRequest {
+  Key: string
+  Code: string
+}
+
+/**
+ * A leitura de um relato pelo codigo, em vez do link.
+ *
+ * O codigo prova que o relato e dela; o link e que da poder sobre ele. As acoes
+ * chegam desligadas, a menos que o projeto tenha ligado `TrackingCodeCanAct`.
+ */
+export interface OpenByReporterCodeRequest {
+  Key: string
+  Code: string
+  TrackingCode: string
 }
