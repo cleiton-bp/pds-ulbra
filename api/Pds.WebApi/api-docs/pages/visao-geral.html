@@ -157,8 +157,37 @@ quantos dias cada prazo tem — quem dita é o projeto.</p>
 <p>Ficam duas ressalvas registradas. O <strong>Render não fornece broker</strong>: enquanto não
 houver um, a espera e o prazo do pedido ficam indisponíveis em produção, e a tela recusa ligá-los
 dizendo o motivo. E <code>tracking_code_can_act</code> — se o protocolo sozinho confirma e reabre
-— está gravado e <strong>não tem tela</strong>, porque depende de uma consulta por protocolo que o
-produto ainda não tem.</p>
+— ficou gravado <strong>sem tela</strong> até a etapa 6, porque dependia de uma consulta por
+protocolo que o produto ainda não tinha.</p>
+
+<p>A <strong>etapa 6 — Identidade e visibilidade</strong> está completa. O projeto escolhe
+<strong>como quem relata é reconhecido</strong>: por protocolo, que é o comportamento de sempre, ou
+por um <strong>código pessoal</strong> que o sistema sorteia e a pessoa guarda — digitado num
+navegador qualquer, ele reencontra tudo que ela já relatou, sem login nenhum. A identidade herdada
+do sistema do cliente existe na configuração e <strong>ficou para o fim do projeto</strong>: nada a
+lê ainda, e a tela diz isso.</p>
+
+<p>É essa escolha que decide o que a <strong>visibilidade</strong> pode ser: privado, público
+anônimo ou público identificado — e o último só onde existe identidade, porque sem ela não há nome
+nenhum a mostrar. Os dois campos vivem na mesma tela e são gravados juntos, para a tela não oferecer
+uma combinação que a regra não permite.</p>
+
+<p><strong>Gravar público não publica nada.</strong> Todo relato nasce pendente — inclusive em
+projeto privado — e só aparece na lista pública depois de alguém do time liberar. É isso que faz
+marcar um projeto como público não jogar na rua o histórico inteiro de uma vez. A recusa não apaga
+nem encerra: fala só da vitrine, e quem relatou continua acompanhando pelo link.</p>
+
+<p>A fila de moderação mostra o texto inteiro e, sobre ele, o que a <strong>varredura de dado
+sensível</strong> encontrou: CPF, CNPJ, cartão, e-mail, telefone e credencial, com a amostra
+mascarada. Ela <strong>sinaliza e não bloqueia</strong> — um detector que recusasse sozinho
+transformaria cada falso positivo num relato perdido para quem escreveu. E roda na leitura da fila,
+não na gravação: melhorar um padrão amanhã reavalia o que ainda espera decisão, sem migração.</p>
+
+<p>O nome de quem relata é opcional em toda configuração, nasce interno e só sai lá fora com
+<strong>três travas</strong> abertas ao mesmo tempo: o projeto pergunta o nome, está em público
+identificado, e a pessoa escolheu assinar aquele relato. E <code>tracking_code_can_act</code>, que
+estava gravado sem tela desde a etapa 5, ganhou tela junto da lista pessoal — porque decidir se o
+protocolo sozinho age só faz sentido onde existe uma consulta por protocolo.</p>
 
 <p>A <strong>configuração da ferramenta</strong> entrou fora de ordem, e de propósito. Ela
 pertence a uma etapa bem mais adiante, mas o formulário tinha dez campos que já mudavam tudo
@@ -195,14 +224,19 @@ existe e ninguém alcança é dívida que cresce calada.</p>
       <b>Pedido de informação com prazo</b>, e encerramento por falta de resposta<br />
       <b>Conversa nos dois sentidos</b>, numa lista só e sem nome de quem é do time<br />
       <b>Configuração do ciclo</b>: treze regras por projeto, com padrão de fábrica<br />
-      <b>Espera antes de quem relatou ver</b>, agendada por fila
+      <b>Espera antes de quem relatou ver</b>, agendada por fila<br />
+      <b>Identidade de quem relata</b>: protocolo ou código pessoal, por projeto<br />
+      <b>Lista pessoal</b> dentro do quadro, pelo código, sem login<br />
+      <b>Abrir um relato pelo código e o protocolo</b>, sem o link — lendo, e agindo só se o projeto liberou<br />
+      <b>Três níveis de visibilidade</b>, e o modo decide qual é aceito<br />
+      <b>Moderação</b>: todo relato nasce pendente, e a lista pública nasce atrás dela<br />
+      <b>Varredura de dado sensível</b> na fila, que sinaliza e não bloqueia
     </td>
     <td>
       Quadro de cards arrastável<br />
       Limite de envio na rota pública<br />
-      Consulta por protocolo, sem o link<br />
       Renderização da página pública no servidor<br />
-      Identidade de quem relata, e visibilidade por modo<br />
+      Identidade herdada do sistema do cliente, adiada para o fim do projeto<br />
       Relato com imagem<br />
       Notificação<br />
       Conectores (Jira, Trello, GitHub)

@@ -240,6 +240,64 @@ própria pessoa, dizendo que não está certo. É o oposto do caso que a regra c
   possível, e a média contaria como insatisfação quem só não quis responder.</p>
 </div>
 
+<h2>7. Quem relatou volta pelo código</h2>
+
+<p>No modo <strong>código pessoal</strong>, a confirmação entrega uma terceira coisa além do
+protocolo e do link: um código que vale para <em>todos</em> os relatos daquela pessoa naquele
+projeto. Quem já tinha um manda junto do relato novo, e os dois ficam na mesma lista; quem não tinha
+recebe o dele na resposta. Código desconhecido não é recusado — vira um código novo.</p>
+
+<div class="diagram">a pessoa digita o codigo no quadro, num navegador qualquer
+      ↓
+POST /public/reports/by-code  { Key, Code }
+      ↓
+codigo em branco, desconhecido, ou projeto que nao usa o modo  →  lista vazia, e nao 404
+      ↓
+devolve ate 50 relatos, sem o token de nenhum
+      ↓
+a pessoa escolhe um  →  POST /public/reports/by-code/open  { Key, Code, TrackingCode }
+      ↓
+grava "visualizado" com by: reporter_code  →  a mesma visao publica do link, com as acoes desligadas</div>
+
+<div class="note warn">
+  <strong>O código prova que o relato é dela; o link é que dá poder sobre ele</strong>
+  <p>A lista não carrega o token de cada relato — embutir aqui faria doze símbolos valerem tanto
+  quanto todos os links somados. E abrir pelo código <strong>lê, e por padrão não age</strong>:
+  confirmar, reabrir e responder só aparecem se o projeto tiver ligado
+  <code>tracking_code_can_act</code> na tela de Ciclo.</p>
+  <p>Ver a lista não grava visualização; abrir um relato grava, com <code>by: reporter_code</code>
+  na carga — é o que distingue, na contagem, quem voltou pela lista de quem voltou pelo link.</p>
+</div>
+
+<h2>8. O time libera um relato para o público</h2>
+
+<p>Com o projeto num nível público, o que a ferramenta mostra a qualquer visitante é <strong>só o
+que passou pela fila</strong>. Todo relato nasce pendente:</p>
+
+<div class="diagram">GET /projects/{id}/reports/moderation  →  os pendentes, do mais antigo para o mais novo
+      ↓
+cada linha traz o texto inteiro e o que a varredura achou, com a amostra mascarada
+      ↓
+PUT .../reports/{id}/moderation  { Decision: Approved | Rejected }
+      ↓
+grava report_published ou report_moderation_rejected, com quem decidiu
+      ↓
+GET /public/reports/published?key=...  →  os liberados, sem protocolo e sem identificador</div>
+
+<div class="note warn">
+  <strong>Liberar não publica sozinho</strong>
+  <p>São duas condições: o projeto num nível público <em>e</em> o relato liberado. Um relato
+  liberado em projeto privado continua invisível — e é por isso que marcar o projeto como público
+  depois não publica o histórico inteiro.</p>
+  <p>Recusar não apaga nem encerra: o relato continua no painel, no ciclo, e quem escreveu continua
+  acompanhando pelo link. Voltar para pendente não existe, porque alguém olhou.</p>
+</div>
+
+<p>A fila é para esvaziar, não para navegar: os <strong>50 mais antigos</strong> primeiro, e a tela
+diz quantos faltam. Decidir os de cima faz os de baixo subirem. E a varredura <strong>não fura a
+ordem</strong> — dar prioridade ao que ela marcou seria deixar o detector decidir a fila, que é a
+mesma autoridade que ele não tem para bloquear.</p>
+
 <h2>Quando falta informação, em vez de encerrar</h2>
 
 <pre><code>POST /projects/2be49b28-.../reports/9f1c.../info-request

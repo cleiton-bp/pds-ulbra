@@ -55,16 +55,42 @@ em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o 
 tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
 <code>report_contexts</code> volta ao padrão e chega pelo relato.</p>
 
-<h2>As dezessete consultas que atravessam o filtro</h2>
+<h2>As vinte e quatro consultas que atravessam o filtro</h2>
 
-<p>São exatamente dezessete em todo o sistema, todas propositais, e <strong>treze delas têm a
-mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
+<p>São exatamente vinte e quatro em todo o sistema, todas propositais, e <strong>vinte e uma têm
+a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
 <code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
-próprio dono. Todas as dezessete moram em repositório, uma por método, e nenhuma em serviço.</p>
+próprio dono. Todas moram em repositório, uma por método, e nenhuma em serviço.</p>
 
-<p>Eram dez até a etapa 5, que acrescentou sete. Quatro são mais do mesmo: a página pública
-passou a mostrar o desfecho, a conversa e o pedido de informação, e a configuração do ciclo passou
-a ser lida sem sessão. <strong>As outras três são de origem nova</strong>, e vale ler o porquê.</p>
+<p>A contagem é um método por <code>IgnoreQueryFilters()</code>, nos repositórios: dez ao fim da
+etapa 4, dezoito ao fim da etapa 5 e vinte e quatro agora. <strong>Esta página dizia dezessete, e
+estava errada por uma</strong> — o desfecho público entrou com <em>dois</em> métodos
+(<code>FindCurrent</code> e <code>FindPublic</code>), e foram contados como um.</p>
+
+<p>As seis da etapa 6 vêm de três lugares. Duas leem o código pessoal
+(<code>ReporterCodes.FindByCodeWithoutSessionAsync</code> e <code>ReporterCodes.ExistsAsync</code>), duas
+montam listas que a ferramenta mostra sem ninguém logado
+(<code>Reports.ListByReporterCodeWithoutSessionAsync</code> e
+<code>Reports.ListPublishedWithoutSessionAsync</code>), e duas servem essas listas:
+<code>ProjectIdentitySettings.FindByProjectWithoutSessionAsync</code>, porque é o modo e a visibilidade
+que decidem o que elas podem devolver, e
+<code>ReportClosures.ListReportIdsWithPublicClosureWithoutSessionAsync</code>, que é a consulta em lote
+que substituiu uma ida ao banco por linha da lista pessoal.</p>
+
+<div class="note why">
+  <strong>Uma delas é consultada sobre um valor que ninguém de fora escolheu</strong>
+  <p><code>ReporterCodes.ExistsAsync</code> destoa das outras vinte e três: ela não atende uma
+  pergunta vinda de fora. Quem pergunta é a geração do código, sobre um candidato que o
+  <strong>sistema sorteou</strong>, para conferir colisão antes de gravar — mesmo desenho de
+  <code>Reports.TrackingCodeExistsAsync</code>.</p>
+  <p>É por isso que ela pode responder sim ou não sem virar oráculo: a resposta não fala do código
+  de pessoa nenhuma, porque ninguém de fora escolheu o valor consultado. A busca por um código
+  <em>apresentado</em> é a outra, e essa nunca diz se existe — a rota devolve lista vazia.</p>
+  <p>E ela inclui o apagado logicamente, ao contrário da busca por código apresentado:
+  reaproveitar um código que já foi de alguém faria a lista de uma pessoa aparecer para outra.</p>
+</div>
+
+<p><strong>Três são de origem diferente de todas as outras</strong>, e vale ler o porquê.</p>
 
 <div class="note warn">
   <strong>Três não vêm de requisição nenhuma</strong>
@@ -73,9 +99,9 @@ a ser lida sem sessão. <strong>As outras três são de origem nova</strong>, e 
   <code>ReportInfoRequests.ListOverdueWithoutSessionAsync</code> são chamadas pelo consumidor da
   fila. Ali não há sessão a perder, porque <strong>nunca houve requisição</strong>: o que acordou
   o código foi um prazo vencendo.</p>
-  <p>A diferença importa na hora de julgar o risco. As catorze anteriores são atravessadas por
-  quem apresenta uma credencial — a chave pública, ou o protocolo e o token —, e o que protege a
-  resposta é a credencial, não o filtro. Estas três não devolvem nada a ninguém: o resultado vai
+  <p>A diferença importa na hora de julgar o risco. As outras vinte e uma são atravessadas por
+  quem apresenta uma credencial — a chave pública, o protocolo e o token, ou o código pessoal —,
+  e o que protege a resposta é a credencial, não o filtro. Estas três não devolvem nada a ninguém: o resultado vai
   para dentro da própria aplicação, que grava e não responde. <strong>Não há resposta HTTP em que
   vazar.</strong></p>
   <p>As duas de varredura devolvem <code>public_id</code> e mais nada — nem texto de relato, nem

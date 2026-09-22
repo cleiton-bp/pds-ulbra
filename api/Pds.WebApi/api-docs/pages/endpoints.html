@@ -1,8 +1,8 @@
 <h2>Endpoints</h2>
-<p class="lead">Quarenta e oito rotas. Quarenta e uma exigem token de sessão; sete não — a de entrar, que é
-onde a sessão nasce, as duas que a ferramenta usa (a que recebe o relato e a que ela lê para
-saber como se desenhar) e as quatro que quem relatou usa pelo link: abrir o acompanhamento,
-confirmar, reabrir e responder.</p>
+<p class="lead">Cinquenta e cinco rotas. Quarenta e cinco exigem token de sessão; dez não — a de entrar, que
+é onde a sessão nasce, as quatro que a ferramenta usa (a que recebe o relato, a que ela lê para
+saber como se desenhar, a lista pública e a lista pessoal por código) e as cinco por onde quem
+relatou chega a um relato: abrir pelo link, abrir pelo código, confirmar, reabrir e responder.</p>
 
 <div class="table-scroll">
 <table>
@@ -47,10 +47,17 @@ confirmar, reabrir e responder.</p>
   <tr><td><span class="verb post">POST</span></td><td><code>.../comments/public</code></td><td>Escreve para quem relatou. <strong>Rota diferente, não um campo de visibilidade.</strong></td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/closure</code></td><td>Encerra o relato com um desfecho e um <strong>motivo obrigatório</strong>. O motivo é visível para quem relatou.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/info-request</code></td><td>Devolve o relato pedindo informação, em vez de encerrar. Recusada se quem relatou não aceitou responder dúvidas.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/moderation</code></td><td>A fila do que espera decisão, <strong>do mais antigo para o mais novo</strong>. Aceita <code>state</code> para rever o que já foi liberado ou recusado.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/moderation</code></td><td>Libera o relato para o público, ou decide que ele não vai. Voltar para <code>pending</code> é <strong>recusado</strong>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Como o ciclo fecha neste projeto. Sem linha salva, devolve os padrões.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. As treze regras vão sempre juntas.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td>Como quem relata é identificado, e quem pode ver os relatos. Sem linha salva, devolve os padrões — nunca 404 para um projeto que existe.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. Os três campos vão juntos porque o modo <strong>decide</strong> qual visibilidade é aceita.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code</code></td><td><strong>Sem sessão.</strong> Os relatos ligados a um código pessoal. Código desconhecido devolve <strong>lista vazia</strong>, e não 404.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td><strong>Sem sessão.</strong> Abre um relato da lista pessoal. Lê, e só age se o projeto ligou <code>tracking_code_can_act</code>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/reports/published</code></td><td><strong>Sem sessão.</strong> O que já foi liberado para o público neste projeto. Projeto privado responde <strong>lista vazia</strong>, e não uma recusa.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td><strong>Sem sessão.</strong> Quem relatou diz que resolveu, e dá a nota — ou recusa dá-la.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td><strong>Sem sessão.</strong> Diz que não resolveu. O relato volta para a coluna que o projeto configurou.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reply</code></td><td><strong>Sem sessão.</strong> Responde ao pedido de informação. Só enquanto houver pedido aberto.</td></tr>
@@ -135,12 +142,59 @@ gerado a partir do código.</p>
 </div>
 
 <div class="note why">
-  <strong>As quatro rotas públicas passam pela mesma porta</strong>
+  <strong>A quinta rota chegou, e não coube na mesma porta</strong>
   <p>Acompanhar, confirmar, reabrir e responder levam as mesmas credenciais no corpo — protocolo
-  e token — e todas entram por um único método no serviço. Conferência espalhada por quatro
-  rotas é conferência que uma quinta vai esquecer.</p>
-  <p>Todas respondem com a <strong>mesma</strong> visão pública, montada campo a campo. Nenhuma
-  devolve nome de quem é do time, nem o vocabulário interno das colunas.</p>
+  e token — e as quatro entram por um único método, <code>RequireTrackedReportAsync</code>. Esta
+  página dizia que conferência espalhada por quatro rotas é conferência que uma quinta vai
+  esquecer. A quinta chegou: <code>POST /public/reports/by-code/open</code>.</p>
+  <p>E ela chega com <strong>outra credencial</strong> — código pessoal e protocolo, sem token
+  nenhum. Fazê-la entrar pela porta das outras quatro significaria afrouxar a conferência delas
+  para caber um caso que não tem token, que é o oposto do que a porta única existe para garantir.
+  Ela tem entrada própria, com as quatro recusas possíveis colapsadas numa mensagem só.</p>
+  <p>O que as cinco <strong>compartilham</strong> é a saída: todas respondem por
+  <code>BuildPublicAsync</code>, a mesma visão montada campo a campo, sem nome de quem é do time
+  e sem o vocabulário interno das colunas. E há uma assimetria de propósito — nas quatro do link
+  as ações chegam ligadas; na quinta, não. O código prova que o relato é dela, o link é que dá
+  poder sobre ele, e confirmar, reabrir e responder só aparecem se o projeto tiver ligado
+  <code>tracking_code_can_act</code>.</p>
+</div>
+
+<div class="note why">
+  <strong>Código que existe e código que não existe respondem igual</strong>
+  <p><code>POST /public/reports/by-code</code> devolve <strong>lista vazia</strong> para um código
+  desconhecido, e não 404. É a decisão central da rota. Qualquer diferença entre "não existe" e
+  "existe e está vazio" a transformaria num oráculo, e tentar códigos até a resposta mudar é
+  exatamente como se enumera código alheio.</p>
+  <p>Projeto que não usa este modo responde igual, pelo mesmo motivo — dizer "aqui não tem código"
+  contaria a configuração do cliente a qualquer um que colasse a chave pública numa requisição.</p>
+  <p>Em <code>by-code/open</code> a mesma disciplina vira uma recusa só: código em branco, código
+  que não existe, protocolo que não existe e protocolo que é <strong>de outra pessoa</strong>
+  recebem a mesma mensagem. Sem a última, qualquer código válido abriria qualquer protocolo do
+  projeto.</p>
+</div>
+
+<div class="note why">
+  <strong>Uma consulta pública que é <code>GET</code>, e as outras não</strong>
+  <p><code>GET /public/reports/published</code> destoa de propósito. Nas outras consultas públicas
+  o corpo carrega um <strong>segredo</strong> — o token do link, o código pessoal —, e segredo em
+  query string entra no log do servidor, no histórico do navegador e no <code>Referer</code>.</p>
+  <p>Aqui não há segredo nenhum: a chave pública já está no código-fonte da página do cliente.
+  Fazer <code>POST</code> só por simetria esconderia que esta é a única consulta pública que não
+  identifica ninguém.</p>
+</div>
+
+<div class="note warn">
+  <strong>Liberar não publica sozinho, e é isso que segura o histórico</strong>
+  <p>São duas condições, e nenhuma basta: o projeto precisa estar num nível público, e o relato
+  precisa ter sido liberado em <code>PUT .../moderation</code>. Relato liberado em projeto privado
+  continua invisível para todo mundo.</p>
+  <p>É por isso que todo relato nasce <code>pending</code> — <strong>inclusive em projeto
+  privado</strong>. Sem isso, marcar o projeto como público um dia jogaria na rua o histórico
+  inteiro de uma vez, aprovado por nunca ter sido perguntado.</p>
+  <p><strong>Recusar não apaga nem encerra.</strong> O relato continua no painel, continua no
+  ciclo, e quem escreveu continua acompanhando pelo link — a recusa fala só da vitrine, e quem
+  relatou não é avisado dela. Decidir de novo é permitido; voltar para <code>pending</code> não é,
+  porque alguém olhou.</p>
 </div>
 
 <div class="note warn">
@@ -148,8 +202,9 @@ gerado a partir do código.</p>
   <p><code>POST /public/reports/reply</code> é recusada quando não há pedido de informação aberto,
   e <code>reopen</code> quando o projeto desligou a reabertura. A vez volta para a equipe assim
   que a pessoa responde.</p>
-  <p>Canal sempre aberto viraria caixa de entrada sem dono e sem moderação — e moderação ficou de
-  fora desta etapa de propósito. Quem relatou escreve <strong>quando lhe perguntaram</strong>.</p>
+  <p>Canal sempre aberto viraria caixa de entrada sem dono. Quem relatou escreve
+  <strong>quando lhe perguntaram</strong> — e isso continua valendo depois de a moderação existir:
+  a fila decide o que vira público, e não quem pode escrever.</p>
 </div>
 
 <div class="note warn">
@@ -255,8 +310,8 @@ gerado a partir do código.</p>
 
 <div class="note why">
   <strong>Por que uma rota fica fora do padrão</strong>
-  <p>Trinta e sete rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro dele.
-  As duas de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site de um
+  <p>Quarenta e cinco rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro
+  dele. As nove de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site de um
   cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai.</p>
   <p>Chave ausente, desconhecida, revogada ou secreta recebem a mesma recusa, com a mesma

@@ -109,6 +109,60 @@ identifica ainda mais.</p>
   <li>Sobram contagem e tempo, que não identificam ninguém e são o que a pesquisa precisa.</li>
 </ul>
 
+<h2>A varredura sinaliza, e não bloqueia</h2>
+
+<p>Antes de um relato virar público, a fila de moderação mostra o que
+<code>SensitiveDataScanner</code> encontrou no texto: CPF, CNPJ, cartão, e-mail, telefone e
+credencial. Cada achado vem com posição e uma <strong>amostra mascarada</strong> — os dois
+primeiros e os dois últimos caracteres —, para quem lê localizar sem o achado virar uma segunda
+cópia do dado.</p>
+
+<div class="note why">
+  <strong>Por que ela não recusa</strong>
+  <p>Ela erra, e tem de poder errar. Um detector que recusasse sozinho transformaria cada falso
+  positivo num relato perdido — e perdido para quem escreveu, que nem fica sabendo. Aqui o erro
+  custa uma etiqueta a mais para alguém ignorar.</p>
+  <p>Dígito verificador e Luhn entram na conta de propósito: sem eles, qualquer número de pedido de
+  onze dígitos viraria CPF, e o time aprenderia a ignorar a etiqueta — o único jeito de uma
+  varredura que não bloqueia falhar de verdade.</p>
+</div>
+
+<div class="note why">
+  <strong>Roda na leitura da fila, e não na gravação</strong>
+  <p>O achado não é um fato sobre o relato: é o que temos a dizer a quem está decidindo agora.
+  Gravado na criação, envelheceria — melhorar um padrão deixaria o passado marcado pelo detector
+  velho, e reavaliar o que já estava na fila exigiria migração. É função pura sobre uma string,
+  sem estado, sem configuração e sem rede.</p>
+  <p>Dois tetos: 8000 caracteres varridos (o texto já para em 5000 na entrada) e
+  <strong>12 achados</strong> por relato — um log colado tem centenas de tokens iguais, e a partir
+  de um punhado a resposta é a mesma.</p>
+</div>
+
+<div class="note warn">
+  <strong>O que ela não vê</strong>
+  <p>Nome plausível, número de pedido sem dígito verificador, e qualquer coisa que esteja numa
+  imagem. A varredura é a segunda linha; a primeira é a fila, que mostra o texto inteiro
+  justamente porque o detector deixa passar de propósito.</p>
+</div>
+
+<h2>Sem oráculo nas rotas públicas</h2>
+
+<p>Três rotas da etapa 6 respondem sem sessão e sem credencial além da chave pública — que está no
+HTML do cliente. A regra que atravessa as três: <strong>a resposta nunca diz o que existe</strong>.</p>
+
+<table>
+  <tr><th>Rota</th><th>Engano</th><th>Resposta</th></tr>
+  <tr><td><code>by-code</code></td><td>código desconhecido, ou projeto que não usa o modo</td><td>lista vazia, e não 404</td></tr>
+  <tr><td><code>by-code/open</code></td><td>código em branco, inexistente, protocolo inexistente ou de outra pessoa</td><td>uma recusa só, com a mesma mensagem</td></tr>
+  <tr><td><code>published</code></td><td>projeto privado</td><td>lista vazia, e não uma recusa</td></tr>
+</table>
+
+<p>Qualquer diferença entre "não existe" e "existe e está vazio" viraria um oráculo: tentar
+códigos até a resposta mudar é como se enumera código alheio, e "aqui não publica" contaria a
+configuração do cliente a qualquer um com a chave. Por isso o código pessoal é sorteado pelo
+sistema, nunca escolhido, e a lista pessoal tem <strong>teto</strong> de 50 em vez de paginação —
+paginar daria a quem sonda um jeito de medir o tamanho da lista alheia.</p>
+
 <h2>Superfície de rede</h2>
 
 <table>
@@ -126,5 +180,6 @@ identifica ainda mais.</p>
     <li>Rotina de exclusão e anonimização de conta.</li>
     <li>Teste automatizado do isolamento entre contas.</li>
     <li>Invalidar sessão antes de o token expirar.</li>
+    <li>Limite de tentativas nas rotas públicas. Só o login tem limitador, e são as rotas públicas que qualquer visitante alcança — com o código pessoal e a lista pública, a lacuna cresceu.</li>
   </ul>
 </div>

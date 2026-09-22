@@ -118,7 +118,7 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
   </tr>
   <tr>
     <td><code>Service</code></td>
-    <td>Regra de negócio, geração de chave, token</td>
+    <td>Regra de negócio, geração de chave, token, varredura de dado sensível</td>
     <td>Tipos de HTTP</td>
   </tr>
   <tr>
@@ -163,5 +163,10 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
   <tr><td>Nome da exchange, da fila e do cabeçalho de atraso</td><td><code>Pds.Workers/DelayedCheckQueue.cs</code></td></tr>
   <tr><td>Consumo e recuperação na subida</td><td><code>Pds.Workers/DelayedCheckWorker.cs</code></td></tr>
   <tr><td><strong>Aplicar a etapa cuja espera venceu</strong></td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ApplyScheduledPublicStageAsync</code></td></tr>
+  <tr><td>Padrões de fábrica da identidade e da visibilidade</td><td><code>Pds.Domain/Entities/ProjectIdentitySettings/IdentitySettingsDefaults.cs</code></td></tr>
+  <tr><td>O código pessoal: reaproveitar o apresentado, ou sortear um novo</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveReporterCodeAsync</code></td></tr>
+  <tr><td><strong>A varredura de dado sensível</strong></td><td><code>Pds.Service/Scanning/SensitiveDataScanner.cs</code></td></tr>
+  <tr><td>A fila de moderação e a decisão</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ListModerationAsync</code> e <code>ModerateAsync</code></td></tr>
+  <tr><td>O que a lista pública e a lista pessoal devolvem</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ListPublishedAsync</code> e <code>ListByReporterCodeAsync</code></td></tr>
 </table>
 </div>

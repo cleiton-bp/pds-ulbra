@@ -1,5 +1,5 @@
 <h2>Modelagem</h2>
-<p class="lead">Dezoito tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Vinte tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
@@ -15,9 +15,13 @@
     │               │
     │               ├───1:N──  <b>project_status_mappings</b>
     │               │
+    │               ├───1:N──  <b>reporter_codes</b>  ──1:N──  <b>reports</b>
+    │               │
     │               ├───1:1──  <b>project_widget_settings</b>
     │               │
-    │               └───1:1──  <b>project_cycle_settings</b>
+    │               ├───1:1──  <b>project_cycle_settings</b>
+    │               │
+    │               └───1:1──  <b>project_identity_settings</b>
     │
     └───1:N──  <b>reports</b>  ──1:N──  <b>report_contexts</b>
                    │
@@ -31,10 +35,12 @@
 não na conta — porque chave não existe fora de um projeto. O endereço autorizado pendura no
 mesmo lugar, pelo mesmo motivo.</p>
 
-<p>O desenho acima é simplificado em dois pontos, e os dois são deliberados:
+<p>O desenho acima é simplificado em três pontos, e os três são deliberados:
 <code>reports</code> aponta <em>também</em> para <code>projects</code>, e não só para a
-conta; e <code>events</code> aponta para as três — conta, projeto e relato —, todas
-anuláveis. O porquê de cada um está na seção da tabela.</p>
+conta; <code>events</code> aponta para as três — conta, projeto e relato —, todas
+anuláveis; e <code>reports</code> aparece duas vezes, porque além de pendurar na conta ele
+<em>pode</em> pendurar num <code>reporter_codes</code>, que é opcional e vive dentro do
+projeto. O porquê de cada um está na seção da tabela.</p>
 
 <h2>Colunas que toda tabela repete</h2>
 
@@ -480,6 +486,90 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <strong>409</strong> — e o banco é a rede embaixo dela.</p>
 </div>
 
+<h2>project_identity_settings</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
+  <tr><td><code>mode</code></td><td><code>protocol</code> | <code>personal_code</code> | <code>inherited_identity</code>. Excludentes. O terceiro existe na configuração e <b>nada o lê ainda</b> — está adiado, e a tela diz isso.</td></tr>
+  <tr><td><code>visibility</code></td><td><code>private</code> | <code>public_anonymous</code> | <code>public_identified</code>. Padrão <code>private</code>.</td></tr>
+  <tr><td><code>asks_for_name</code></td><td>Se a ferramenta pergunta o nome de quem relata. <b>Desligado de fábrica.</b></td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que identidade e visibilidade moram na mesma tabela</strong>
+  <p>Parecem dois assuntos vizinhos e não são: o modo de identificação <strong>decide</strong> o
+  que a visibilidade pode ser. Sem identidade não existe "o meu relato" — logo não existe lista
+  pessoal, e não existe a opção "só os meus" para o projeto escolher.</p>
+  <p>Em duas tabelas, a regra teria de ser conferida lendo as duas, e a tela ofereceria uma
+  combinação que a regra não permite: o erro só apareceria na hora de salvar.
+  <code>public_identified</code> é recusado onde o modo não identifica, e a conferência é feita
+  no <strong>par</strong>, nunca no campo sozinho.</p>
+</div>
+
+<div class="note warn">
+  <strong>Gravar público ainda não publica nada</strong>
+  <p>Marcar o projeto como público não torna relato nenhum visível. A lista pública só devolve o
+  que passou pela fila de moderação, e a ordem é deliberada: se o campo sozinho publicasse, mudar
+  esta configuração jogaria na rua todo o texto livre já escrito.</p>
+  <p>E texto livre é onde aparece documento, número de pedido e captura de tela com dado de
+  terceiro — o risco do projeto público nunca foi o nome de quem relatou.</p>
+</div>
+
+<div class="note why">
+  <strong>O padrão é o mais fechado, e não o mais útil</strong>
+  <p><code>protocol</code>, <code>private</code> e <code>asks_for_name</code> desligado. Os três
+  vivem em <code>IdentitySettingsDefaults</code>, no código — e não como valor padrão de coluna,
+  pelo mesmo motivo das outras configurações: mudar de ideia deixaria as linhas antigas com o
+  valor velho e as novas com o novo, e nenhuma delas saberia disso.</p>
+  <p>Começar identificando seria começar coletando dado pessoal de quem nunca foi perguntado.
+  Coletar precisa ser um <strong>ato</strong> de quem configura, e não o que acontece por
+  omissão.</p>
+</div>
+
+<h2>reporter_codes</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto onde este código vale. Ele <b>não atravessa projetos</b>.</td></tr>
+  <tr><td><code>code</code></td><td>No formato do protocolo — <code>H7QK-3M2X-P9WD</code> —, sorteado inteiro pelo sistema. Único dentro do projeto, entre os não apagados.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que é tabela, e não uma coluna em <code>reports</code></strong>
+  <p>O código é de uma pessoa e vale para <strong>vários</strong> relatos. Como coluna repetida,
+  "único dentro do projeto" não teria como ser dito ao banco, porque a mesma pessoa repete o valor
+  de propósito. Aqui a unicidade é uma linha, e o relato aponta para ela.</p>
+  <p>E não há nada de pessoa nesta tabela — sem nome, sem contato, sem dispositivo. É um
+  identificador sorteado e nada mais; o que o liga a alguém é a própria pessoa ter guardado o
+  papel.</p>
+</div>
+
+<div class="note warn">
+  <strong>Nunca se pergunta se um código existe</strong>
+  <p>Sugerir outro código só quando o primeiro está ocupado é dizer que ele está ocupado, e
+  qualquer diferença entre livre e ocupado vira uma forma de enumerar o código alheio.</p>
+  <p>Por isso o código é sorteado inteiro, nunca escolhido, e código desconhecido na rota pública
+  não é recusado: vira um código novo.</p>
+  <p><strong>Na geração existe uma consulta, e ela não conta nada.</strong> O candidato é sorteado
+  por nós, e a colisão é conferida antes de gravar — mesmo desenho do protocolo. A diferença que
+  importa é <em>quem escolheu o valor consultado</em>: lá é o sistema, e a resposta não fala do
+  código de ninguém; aqui seria alguém de fora, e a resposta falaria.</p>
+  <p>Essa conferência inclui o <strong>apagado logicamente</strong>, ao contrário da busca por
+  código apresentado — reaproveitar um código que já foi de alguém faria a lista de uma pessoa
+  aparecer para outra.</p>
+</div>
+
+<div class="note warn">
+  <strong>A lista pessoal tem teto, e o teto não é paginação</strong>
+  <p>São <code>MaxListedReports = 50</code>. Há teto porque a rota é pública e não pede credencial
+  nenhuma: sem ele, um código usado em centenas de relatos devolveria centenas, num quadro de 360
+  por 520 e numa rota que ainda não tem limite de tentativas.</p>
+  <p>Paginar daria a quem sonda um jeito de <strong>medir o tamanho da lista alheia</strong>; o
+  teto responde sempre igual. Quem passar dele vê o aviso de que há mais, e chega no que falta
+  pelo link de cada relato — que é a credencial que sempre valeu.</p>
+</div>
+
 <h2>project_cycle_settings</h2>
 
 <table>
@@ -545,6 +635,12 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <tr><td><code>origin</code></td><td>Domínio informado pela página que embutiu a ferramenta.</td></tr>
   <tr><td><code>accepts_questions</code></td><td>Quem relatou aceita responder dúvidas da equipe. <b>Três estados</b>: sim, não, e <b>nulo</b> — o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada. Sem <code>true</code>, não se abre pedido de informação.</td></tr>
   <tr><td><code>public_stage_due_at</code></td><td>Quando o último movimento passa a valer lá fora, ou nulo quando não há espera pendente. <b>É o agendamento durável</b> — a fila só carrega um lembrete, e é esta coluna que decide.</td></tr>
+  <tr><td><code>reporter_code_id</code></td><td>O código pessoal de quem escreveu, quando o projeto usa esse modo. <b>Nulo</b> no modo protocolo e em todo relato anterior ao modo existir — e esses continuam abrindo pelo link de sempre.</td></tr>
+  <tr><td><code>reporter_name</code></td><td>Como a pessoa quis ser chamada, quando o projeto pergunta e ela quis dizer. Nulo é o normal, e o valor nasce <b>interno</b>: o time vê, o lado de fora não.</td></tr>
+  <tr><td><code>reporter_name_is_public</code></td><td>A pessoa escolheu <b>assinar</b> este relato. Falso por padrão, e <b>ausente é não</b> — esta escolha não se herda de configuração nenhuma.</td></tr>
+  <tr><td><code>moderation_state</code></td><td><code>pending</code> | <code>approved</code> | <code>rejected</code>. Todo relato nasce <b>pending</b>, inclusive em projeto privado.</td></tr>
+  <tr><td><code>moderated_at</code></td><td>Quando alguém do time decidiu. Nulo enquanto ninguém decidiu.</td></tr>
+  <tr><td><code>moderated_by_user_id</code></td><td>Quem do time decidiu. Nulo enquanto ninguém decidiu, e também quando a conta de quem decidiu foi esvaziada. <b>Nunca sai em rota pública.</b></td></tr>
 </table>
 
 <div class="note why">
@@ -570,6 +666,30 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   distinção, aplicada ao endereço: o fragmento nunca é enviado a servidor nenhum, então o token
   não entra em log de acesso nem no <code>Referer</code>; o protocolo pode ficar à vista porque
   não abre nada.</p>
+</div>
+
+<div class="note why">
+  <strong>As três travas do nome, e todas precisam estar abertas</strong>
+  <p>Para o nome de quem relatou aparecer do lado de fora são precisas <strong>três</strong>
+  coisas ao mesmo tempo: o projeto perguntar o nome (<code>asks_for_name</code>), o projeto estar
+  em <code>public_identified</code>, e a pessoa ter marcado que quer assinar
+  (<code>reporter_name_is_public</code>).</p>
+  <p>Qualquer uma fechada, o nome fica interno. É por isso que "anônimo com campo de nome" não
+  existe aqui: coletar nome já é tratar dado pessoal, e o modo se chama <strong>sem login</strong>
+  — chamá-lo de anônimo derrubaria a justificativa de LGPD junto com o nome.</p>
+  <p>E as três são independentes de propósito. Perguntar é uma decisão de quem configura, publicar
+  é outra decisão de quem configura, e assinar é decisão de quem escreve — nenhuma das três pode
+  ser inferida das outras duas.</p>
+</div>
+
+<div class="note warn">
+  <strong>Todo relato nasce <code>pending</code>, inclusive em projeto privado</strong>
+  <p>Parece desperdício: projeto privado não publica, logo não precisaria de fila. É exatamente
+  aí que mora o acidente — no dia em que alguém marcar o projeto como público, o backlog inteiro
+  passaria a estar aprovado por <strong>nunca ter sido perguntado</strong>.</p>
+  <p>Nascer pendente custa uma coluna e evita uma publicação em massa que ninguém autorizou. E
+  liberar também não basta sozinho: são duas condições, o projeto num nível público <em>e</em> o
+  relato liberado.</p>
 </div>
 
 <div class="note warn">
@@ -731,7 +851,7 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <tr><td><code>account_id</code></td><td>Anulável. Continua apontando para a conta depois de anonimizada.</td></tr>
   <tr><td><code>project_id</code></td><td>Anulável. O projeto some de verdade e o evento fica.</td></tr>
   <tr><td><code>report_id</code></td><td>Anulável. Nem todo evento nasce de um relato.</td></tr>
-  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code> | <code>report_state_changed</code> | <code>report_internal_commented</code> | <code>report_public_commented</code> | <code>report_public_stage_changed</code> | <code>report_public_stage_unmapped</code> | <code>report_closed</code> | <code>report_confirmed</code> | <code>report_reopened</code> | <code>report_info_requested</code> | <code>report_replied</code> | <code>report_closure_cancelled</code>. A lista cresce.</td></tr>
+  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code> | <code>report_state_changed</code> | <code>report_internal_commented</code> | <code>report_public_commented</code> | <code>report_public_stage_changed</code> | <code>report_public_stage_unmapped</code> | <code>report_closed</code> | <code>report_confirmed</code> | <code>report_reopened</code> | <code>report_info_requested</code> | <code>report_replied</code> | <code>report_closure_cancelled</code> | <code>report_published</code> | <code>report_moderation_rejected</code>. A lista cresce.</td></tr>
   <tr><td><code>source</code></td><td><code>widget</code> | <code>panel</code> | <code>api</code> | <code>public_page</code> | <code>system</code>.</td></tr>
   <tr><td><code>payload</code></td><td><code>jsonb</code>. O resto do evento, para tipo novo entrar sem migração.</td></tr>
   <tr><td><code>occurred_at</code></td><td>Quando aconteceu. <strong>É esta a data que a análise usa.</strong></td></tr>
@@ -783,8 +903,9 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   que marcar. É a única do sistema que não herda das quatro colunas padrão, e a única cuja
   configuração não passa por <code>BaseEntityConfiguration</code>.</p>
   <p>Um evento apagado é um dado de pesquisa perdido, e a análise passaria a mentir sem
-  ninguém perceber. Por isso as três chaves estrangeiras usam <code>SET NULL</code> e não
-  cascata: o evento sobrevive ao que o originou.</p>
+  ninguém perceber. Por isso as <strong>quatro</strong> chaves estrangeiras — conta, projeto,
+  relato e autor — usam <code>SET NULL</code> e não cascata: o evento sobrevive ao que o
+  originou, e sobrevive também a quem o causou.</p>
 </div>
 
 <div class="note why">
