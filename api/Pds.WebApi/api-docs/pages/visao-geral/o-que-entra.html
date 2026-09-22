@@ -1,0 +1,75 @@
+<h2>O que entra, e o que ainda não</h2>
+<p class="lead">A lista inteira do que existe hoje, e a do que ficou declarado para depois.</p>
+
+<p>A <strong>configuração da ferramenta</strong> entrou fora de ordem, e de propósito. Ela
+pertence a uma etapa bem mais adiante, mas o formulário tinha dez campos que já mudavam tudo
+na aparência e nos textos e que só um desenvolvedor conseguia editar — configuração que
+existe e ninguém alcança é dívida que cresce calada.</p>
+
+<table>
+  <tr><th>Entra</th><th>Não entra ainda</th></tr>
+  <tr>
+    <td>
+      Conta, usuário, projeto e chaves<br />
+      Login com Google<br />
+      Isolamento entre contas<br />
+      Chave pública e secreta por projeto<br />
+      Endereços autorizados por projeto<br />
+      Conferência dos endereços autorizados, nas rotas públicas<br />
+      <b>Recebimento de relato</b>, pela rota pública<br />
+      <b>Leitura dos relatos no painel</b>, com o contexto de cada um<br />
+      <b>Configuração da ferramenta</b>: aparência, textos e desligar, por projeto<br />
+      <b>Consulta pública do relato</b>, pelo link que a confirmação entrega<br />
+      <b>Estados internos</b> definidos pelo cliente, com ordem e aposentadoria<br />
+      <b>O relato entra na fila</b>, no estado que o cliente escolheu para aquele tipo<br />
+      <b>Filtro por coluna</b> na lista de relatos, com a contagem de cada uma<br />
+      <b>Endereço próprio</b> para cada relato aberto<br />
+      <b>Mover o relato de coluna</b>, com evento imutável de cada mudança<br />
+      <b>Comentário interno e para quem relatou</b>, em tabelas separadas<br />
+      <b>Histórico do relato</b>, montado a partir dos eventos<br />
+      <b>Etapas públicas</b> desenhadas pelo cliente, com teto e piso<br />
+      <b>Motor de tradução</b> entre a fila interna e a jornada pública<br />
+      <b>Mapa versionado</b> entre estado e etapa, gravado inteiro<br />
+      <b>Andamento na página pública</b>, com as datas por onde o relato passou<br />
+      <b>Encerramento com motivo obrigatório</b>, e o motivo visível lá fora<br />
+      <b>Confirmação e reabertura</b> por quem relatou, com nota e recusa separadas<br />
+      <b>Pedido de informação com prazo</b>, e encerramento por falta de resposta<br />
+      <b>Conversa nos dois sentidos</b>, numa lista só e sem nome de quem é do time<br />
+      <b>Configuração do ciclo</b>: treze regras por projeto, com padrão de fábrica<br />
+      <b>Espera antes de quem relatou ver</b>, agendada por fila<br />
+      <b>Identidade de quem relata</b>: protocolo ou código pessoal, por projeto<br />
+      <b>Lista pessoal</b> dentro do quadro, pelo código, sem login<br />
+      <b>Abrir um relato pelo código e o protocolo</b>, sem o link — lendo, e agindo só se o projeto liberou<br />
+      <b>Três níveis de visibilidade</b>, e o modo decide qual é aceito<br />
+      <b>Moderação</b>: todo relato nasce pendente, e a lista pública nasce atrás dela<br />
+      <b>Varredura de dado sensível</b> na fila, que sinaliza e não bloqueia
+    </td>
+    <td>
+      Quadro de cards arrastável<br />
+      Limite de envio na rota pública<br />
+      Renderização da página pública no servidor<br />
+      Identidade herdada do sistema do cliente, adiada para o fim do projeto<br />
+      Relato com imagem<br />
+      Notificação<br />
+      Conectores (Jira, Trello, GitHub)
+    </td>
+  </tr>
+</table>
+
+<div class="note warn">
+  <strong>Conferido no servidor não é o mesmo que barrado no navegador</strong>
+  <p>A lista de endereços autorizados <b>é conferida</b> nas duas rotas que a ferramenta usa: endereço
+  declarado fora dela não abre a ferramenta e não grava relato. Projeto com a lista vazia aceita
+  qualquer endereço — é o estado de quem ainda não restringiu.</p>
+  <p>Quem declara o endereço é o carregador, que é código nosso, então a chave copiada para
+  outro site é pega. Quem chamar a API sem passar pela ferramenta declara o que quiser: o muro é
+  o <code>frame-ancestors</code>, que precisa de um servidor servindo o documento do quadro e
+  continua sendo tarefa separada.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que começar por aqui</strong>
+  <p>Isolamento entre contas e identificador público não são coisas que se acrescentam
+  depois. Os dois atravessam toda tabela e toda consulta: adiar significa reescrever o
+  acesso a dados quando já houver dado de cliente dentro.</p>
+</div>

@@ -1,0 +1,37 @@
+<h2>Esta documentação</h2>
+
+<p>Fica em <code>Pds.WebApi/api-docs</code>. A pasta seria <code>wwwroot</code> pela
+convenção do ASP.NET Core; o nome foi trocado para dizer o que ela guarda, e a raiz web é
+apontada em <code>Program.cs</code>.</p>
+
+<ul>
+  <li><code>index.html</code> — a casca: menu lateral e área de conteúdo.</li>
+  <li><code>assets/js/docs.js</code> — o roteador. A lista <code>ROUTES</code> define o menu.</li>
+  <li><code>assets/css/docs.css</code> — o estilo.</li>
+  <li><code>pages/*.html</code> — uma página por rota.</li>
+  <li><code>assets/js/swagger-back.js</code> — o botão de volta que aparece na barra do
+  Swagger. É injetado na página dele pelo <code>Startup.cs</code>, e fecha o caminho de ida
+  e volta entre os dois.</li>
+</ul>
+
+<div class="note warn">
+  <strong>Os nomes dos assets não são genéricos por acaso</strong>
+  <p>Eram <code>app.js</code> e <code>styles.css</code>. Nomes assim colidem com os de
+  qualquer outro projeto na mesma origem, e o cache do navegador serve um no lugar do outro.</p>
+</div>
+
+<p>Para acrescentar uma seção: crie <code>pages/nome.html</code> e adicione a entrada em
+<code>ROUTES</code>. A ordem da lista é a ordem do menu e a do anterior/próximo no rodapé.</p>
+
+<div class="note why">
+  <strong>Editar uma página não pede rebuild</strong>
+  <p>Com <code>dotnet run</code>, os arquivos são servidos direto da pasta do projeto: salvar
+  e atualizar o navegador basta. Só mexer em <code>ROUTES</code> pede recarregar a página
+  inteira, porque o menu é montado uma vez.</p>
+</div>
+
+<p>Cada página é só um fragmento de HTML, sem <code>&lt;head&gt;</code> nem
+<code>&lt;body&gt;</code> — o primeiro <code>&lt;h2&gt;</code> vira o título e o
+<code>&lt;p class="lead"&gt;</code> seguinte, o subtítulo. Para os blocos destacados existem
+três estilos: <code>note why</code> para o porquê de uma decisão, <code>note warn</code> para
+armadilha, e <code>note todo</code> para o que ainda falta.</p>

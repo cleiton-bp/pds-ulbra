@@ -92,81 +92,9 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
   precisar sair, ela sai por onde já está separada.</p>
 </div>
 
-<h2>O que cada camada carrega</h2>
+<h2>Nesta seção</h2>
 
-<table>
-  <tr><th>Camada</th><th>Contém</th><th>Não pode conter</th></tr>
-  <tr>
-    <td><code>ApiBase</code></td>
-    <td>Entidade base, repositório genérico, Unit of Work</td>
-    <td>Nada do domínio</td>
-  </tr>
-  <tr>
-    <td><code>Domain</code></td>
-    <td>Entidades, enums, interfaces, DTOs, view models</td>
-    <td>Acesso a banco, HTTP</td>
-  </tr>
-  <tr>
-    <td><code>Translation</code></td>
-    <td>O motor: uma função pura e os valores que ela recebe</td>
-    <td><strong>Qualquer referência</strong>, inclusive a <code>Domain</code></td>
-  </tr>
-  <tr>
-    <td><code>Data</code></td>
-    <td>Contexto, mapeamentos, repositórios, migrações</td>
-    <td>Regra de negócio</td>
-  </tr>
-  <tr>
-    <td><code>Service</code></td>
-    <td>Regra de negócio, geração de chave, token, varredura de dado sensível</td>
-    <td>Tipos de HTTP</td>
-  </tr>
-  <tr>
-    <td><code>Shared</code></td>
-    <td>Registro de dependências, contrato JSON</td>
-    <td>Regra de negócio</td>
-  </tr>
-  <tr>
-    <td><code>Workers</code></td>
-    <td>Conexão com a fila, agendamento, consumidor</td>
-    <td>Transação, consulta, <strong>regra</strong></td>
-  </tr>
-  <tr>
-    <td><code>WebApi</code></td>
-    <td>Controladores, middleware, configuração</td>
-    <td>Regra de negócio, consulta direta</td>
-  </tr>
-</table>
-
-<h2>Onde fica no código</h2>
-
-<p>Mapa para quando a pergunta for "preciso mexer em X, vou onde".</p>
-
-<div class="table-scroll">
-<table>
-  <tr><th>Quero mexer em</th><th>Arquivo</th></tr>
-  <tr><td>Colunas que toda tabela repete</td><td><code>Pds.ApiBase/Entities/BaseEntity.cs</code></td></tr>
-  <tr><td>Consulta genérica (buscar, listar, apagar)</td><td><code>Pds.ApiBase/Repositories/BaseRepository.cs</code></td></tr>
-  <tr><td>Exclusão lógica, auditoria, GUID público</td><td><code>Pds.Data/Context/PdsBaseContext.cs</code></td></tr>
-  <tr><td>Isolamento entre contas</td><td><code>Pds.Data/Context/DataContext.cs</code></td></tr>
-  <tr><td>Nome de tabela, coluna, índice</td><td><code>Pds.Data/Types/*Map.cs</code></td></tr>
-  <tr><td>Login e criação de conta</td><td><code>Pds.Service/Services/AuthService.cs</code></td></tr>
-  <tr><td>Geração e conferência de chave</td><td><code>Pds.Service/Security/ProjectKeyGenerator.cs</code></td></tr>
-  <tr><td>Quem é a conta da requisição</td><td><code>Pds.WebApi/Authorization/AccountMiddleware.cs</code></td></tr>
-  <tr><td>Tradução de erro para status HTTP</td><td><code>Pds.WebApi/Controllers/BaseController.cs</code></td></tr>
-  <tr><td>Registro de serviço novo</td><td><code>Pds.Shared/DependencyInjection/DiResolver.cs</code></td></tr>
-  <tr><td>Formato do JSON</td><td><code>Pds.Shared/Json/PdsJsonOptions.cs</code></td></tr>
-  <tr><td><strong>A decisão da jornada pública</strong></td><td><code>Pds.Translation/StateTranslator.cs</code></td></tr>
-  <tr><td>Gravar o que a decisão disser</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ApplyPublicStageAsync</code></td></tr>
-  <tr><td>Regra da reabertura (não freia por retorno)</td><td><code>Pds.Translation/StateTranslator.cs</code>, <code>TranslateReopen</code></td></tr>
-  <tr><td>Padrões de fábrica do ciclo</td><td><code>Pds.Domain/Entities/ProjectCycleSettings/CycleSettingsDefaults.cs</code></td></tr>
-  <tr><td>Nome da exchange, da fila e do cabeçalho de atraso</td><td><code>Pds.Workers/DelayedCheckQueue.cs</code></td></tr>
-  <tr><td>Consumo e recuperação na subida</td><td><code>Pds.Workers/DelayedCheckWorker.cs</code></td></tr>
-  <tr><td><strong>Aplicar a etapa cuja espera venceu</strong></td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ApplyScheduledPublicStageAsync</code></td></tr>
-  <tr><td>Padrões de fábrica da identidade e da visibilidade</td><td><code>Pds.Domain/Entities/ProjectIdentitySettings/IdentitySettingsDefaults.cs</code></td></tr>
-  <tr><td>O código pessoal: reaproveitar o apresentado, ou sortear um novo</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveReporterCodeAsync</code></td></tr>
-  <tr><td><strong>A varredura de dado sensível</strong></td><td><code>Pds.Service/Scanning/SensitiveDataScanner.cs</code></td></tr>
-  <tr><td>A fila de moderação e a decisão</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ListModerationAsync</code> e <code>ModerateAsync</code></td></tr>
-  <tr><td>O que a lista pública e a lista pessoal devolvem</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ListPublishedAsync</code> e <code>ListByReporterCodeAsync</code></td></tr>
-</table>
+<div class="steps-index">
+  <a href="#/arquitetura/camadas"><strong>O que cada camada carrega</strong><span>Os oito projetos, e o que cada um não pode conter.</span></a>
+  <a href="#/arquitetura/onde-fica"><strong>Onde fica no código</strong><span>Mapa para quando a pergunta for "preciso mexer em X, vou onde".</span></a>
 </div>

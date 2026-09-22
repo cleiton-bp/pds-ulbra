@@ -1,0 +1,123 @@
+<h2>project_public_stages</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>A jornada é de cada sistema, como a fila: quem cuida de dois produtos conta duas histórias diferentes.</td></tr>
+  <tr><td><code>label</code></td><td>O nome do passo, como quem relatou lê. Único no projeto entre os não apagados. 40.</td></tr>
+  <tr><td><code>description</code></td><td>A frase que explica o passo. <b>Obrigatória.</b> 160.</td></tr>
+  <tr><td><code>next_step</code></td><td>O que vem depois, se o cliente quiser dizer. Nulo na última etapa, que não tem depois. 160.</td></tr>
+  <tr><td><code>position</code></td><td>A ordem da jornada. <b>Não é única</b>, pelo mesmo motivo de <code>project_states</code>.</td></tr>
+  <tr><td><code>is_terminal</code></td><td>Onde o trabalho do time acaba. Não quer dizer encerrado — ver abaixo.</td></tr>
+  <tr><td><code>allows_return</code></td><td>A jornada pode voltar para cá. Por padrão ela não anda para trás.</td></tr>
+  <tr><td><code>awaits_reporter</code></td><td>A etapa espera quem relatou, e não o time. <b>Ainda não é lida por ninguém</b> — ver abaixo.</td></tr>
+  <tr><td><code>outcome</code></td><td><code>done</code> | <code>wont_do</code> | <code>no_answer</code> | <code>duplicate</code>. Nulo fora da terminal, obrigatório nela.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que é uma tabela separada de <code>project_states</code></strong>
+  <p>Por dentro o time precisa de granularidade: "Code Review", "QA", "Aguardando merge". Quem
+  está de fora não precisa de nenhuma das três — precisa saber que o problema dele está sendo
+  corrigido. <strong>Vários estados caem numa etapa só, e é essa perda de detalhe que é o
+  produto.</strong></p>
+  <p>Como coluna em <code>project_states</code>, a relação seria 1:1 e a tradução não teria onde
+  acontecer: sobraria renomear o estado interno, que é exatamente o que esta camada existe para
+  não obrigar ninguém a fazer.</p>
+</div>
+
+<div class="note why">
+  <strong>Entre três e sete, e o teto é regra de gravação</strong>
+  <p>O mínimo existe porque uma jornada de duas etapas não conta uma história: vira "chegou" e
+  "acabou". O máximo existe porque acima de sete a jornada volta a ser o organograma interno,
+  só que com palavras mais bonitas.</p>
+  <p>O piso vale na <strong>remoção</strong> e o teto na <strong>criação</strong>: a jornada
+  precisa poder sair do zero uma etapa por vez até chegar ao mínimo. Projeto criado antes desta
+  tabela existir tem jornada vazia, e <code>POST /public-stages/factory</code> é o que preenche
+  — só enquanto ela estiver vazia, senão a rota viraria um jeito de duplicar rótulo.</p>
+</div>
+
+<div class="note why">
+  <strong>Aqui se remove, e em <code>project_states</code> só se aposenta</strong>
+  <p>Não é descuido. O estado interno aposentado precisa continuar visível porque a tela do time
+  mostra a fila inteira, aposentados incluídos; a etapa pública removida não tem esse papel — o
+  que já passou por ela é contado pelos eventos, que guardam o rótulo que valia na época.</p>
+  <p>A remoção é lógica: a linha continua no banco, com <code>deleted_at</code> preenchido.</p>
+</div>
+
+<div class="note warn">
+  <strong>Terminal não quer dizer encerrado</strong>
+  <p><code>is_terminal</code> marca onde o trabalho do time acaba. Depois dela ainda vem a
+  confirmação de quem relatou, que é ação da pessoa e não estado do time — e é por isso que
+  terminal é uma <em>marca</em>, e não "a última posição da lista": o passo seguinte cabe sem
+  mexer nesta tabela.</p>
+  <p><code>outcome</code> é obrigatório na terminal porque um fim sem explicação é pior do que
+  nenhum fim: a pessoa lê "encerrado" e não sabe se foi feito ou descartado. A lista é nossa e
+  fixa, ao contrário do rótulo e da frase — cada equipe inventando o próprio vocabulário de
+  encerramento traria de volta o jargão que esta camada existe para esconder. Mais de uma etapa
+  pode ser terminal, e é assim que uma jornada acomoda finais diferentes.</p>
+</div>
+
+<div class="note why">
+  <strong>Uma coluna que nasce sem leitor</strong>
+  <p><code>awaits_reporter</code> não muda nada hoje. Ela existe porque é uma coluna da tabela
+  que estava sendo criada: guardar a decisão agora custa nada e custaria uma migração depois.
+  Quem vai lê-la é o pedido de informação, junto com o aviso e a confirmação.</p>
+  <p>É o mesmo raciocínio que deixou terminal ser uma marca em vez de uma posição. Prever o
+  passo seguinte enquanto a tabela ainda não tem dado é barato; prever depois é migração.</p>
+</div>
+
+<h2>project_status_mappings</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Repetido aqui, e não alcançado pelo estado, porque toda consulta começa por projeto e versão.</td></tr>
+  <tr><td><code>project_state_id</code></td><td>O estado de dentro, de onde o relato sai. <code>Restrict</code>.</td></tr>
+  <tr><td><code>project_public_stage_id</code></td><td>A etapa de fora, onde quem relatou passa a ver o relato. <code>Restrict</code>.</td></tr>
+  <tr><td><code>version</code></td><td>A versão a que esta linha pertence. A que vale agora é <code>projects.mapping_version</code>.</td></tr>
+</table>
+
+<p>Único em <code>(project_id, version, project_state_id)</code> entre os não apagados: é o que
+impede N:N pela porta dos fundos. Duas linhas para o mesmo estado dentro de uma versão deixariam
+sem resposta a única pergunta que esta tabela responde — onde este relato está agora.</p>
+
+<div class="note why">
+  <strong>N para 1, e nunca o contrário</strong>
+  <p>Vários estados internos caem numa mesma etapa pública: "Code Review", "QA" e "Aguardando
+  merge" viram "Em correção". O time precisa de granularidade que quem está de fora não precisa,
+  e <strong>é essa perda de detalhe que é o produto</strong>.</p>
+  <p>O caminho inverso não existe, e não por falta de espaço no modelo: um estado apontando para
+  duas etapas tornaria a tradução ambígua, e qual etapa valeria dependeria da ordem da consulta.</p>
+</div>
+
+<div class="note warn">
+  <strong>Versão é um retrato do conjunto, e o passado não se reescreve</strong>
+  <p>Alterar o mapeamento não toca em linha nenhuma das versões anteriores: grava o conjunto
+  inteiro de novo, um número acima. São as versões antigas que explicam por onde um relato de três
+  meses atrás passou.</p>
+  <p>Sem isso, reorganizar a jornada hoje mudaria em silêncio o que já aconteceu — e não haveria
+  como perceber depois, porque o dado necessário para perceber seria justamente o apagado. É o
+  tipo de perda que não dá erro em lugar nenhum.</p>
+  <p><strong>Retrato, e não diferença.</strong> Guardar só o que mudou economizaria linhas e
+  cobraria o preço na leitura: reconstruir o mapa de uma época viraria somar alterações desde o
+  começo, e um erro no meio dessa soma devolveria um mapa errado com cara de certo.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que o número da versão mora em <code>projects</code></strong>
+  <p>Parece que bastaria o maior <code>version</code> desta tabela, e não basta: o cliente que
+  desfaz todos os mapeamentos grava uma versão <strong>sem nenhuma linha</strong>. Calculada pelo
+  maior valor, essa versão seria invisível, e a anterior voltaria a valer sozinha — sem ninguém
+  ter pedido.</p>
+  <p>Por isso <code>projects.mapping_version</code>, com padrão zero. Zero quer dizer que o cliente
+  nunca ligou nada, e é o estado de todo projeto criado antes desta tabela.</p>
+</div>
+
+<div class="note why">
+  <strong>Estado não mapeado não tem linha</strong>
+  <p>A ausência é a resposta, e não uma linha apontando para nada: duas formas de dizer a mesma
+  coisa acabariam discordando. Estado novo nasce fora do mapa por consequência disso, que é o
+  comportamento certo — o relato nele fica parado do lado de fora até alguém decidir onde ele
+  entra.</p>
+  <p><code>Restrict</code> nos dois lados pela mesma razão que em <code>project_initial_states</code>:
+  a regra mora no serviço — remover uma etapa que ainda recebe estado é recusado com
+  <strong>409</strong> — e o banco é a rede embaixo dela.</p>
+</div>

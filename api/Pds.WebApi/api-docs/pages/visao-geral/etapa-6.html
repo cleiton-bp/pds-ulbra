@@ -1,0 +1,31 @@
+<h2>Etapa 6 — identidade e visibilidade</h2>
+<p class="lead">Como quem relata é reconhecido, quem pode ver os relatos, e a fila de moderação por onde todo relato passa.</p>
+
+<p>A <strong>etapa 6 — Identidade e visibilidade</strong> está completa. O projeto escolhe
+<strong>como quem relata é reconhecido</strong>: por protocolo, que é o comportamento de sempre, ou
+por um <strong>código pessoal</strong> que o sistema sorteia e a pessoa guarda — digitado num
+navegador qualquer, ele reencontra tudo que ela já relatou, sem login nenhum. A identidade herdada
+do sistema do cliente existe na configuração e <strong>ficou para o fim do projeto</strong>: nada a
+lê ainda, e a tela diz isso.</p>
+
+<p>É essa escolha que decide o que a <strong>visibilidade</strong> pode ser: privado, público
+anônimo ou público identificado — e o último só onde existe identidade, porque sem ela não há nome
+nenhum a mostrar. Os dois campos vivem na mesma tela e são gravados juntos, para a tela não oferecer
+uma combinação que a regra não permite.</p>
+
+<p><strong>Gravar público não publica nada.</strong> Todo relato nasce pendente — inclusive em
+projeto privado — e só aparece na lista pública depois de alguém do time liberar. É isso que faz
+marcar um projeto como público não jogar na rua o histórico inteiro de uma vez. A recusa não apaga
+nem encerra: fala só da vitrine, e quem relatou continua acompanhando pelo link.</p>
+
+<p>A fila de moderação mostra o texto inteiro e, sobre ele, o que a <strong>varredura de dado
+sensível</strong> encontrou: CPF, CNPJ, cartão, e-mail, telefone e credencial, com a amostra
+mascarada. Ela <strong>sinaliza e não bloqueia</strong> — um detector que recusasse sozinho
+transformaria cada falso positivo num relato perdido para quem escreveu. E roda na leitura da fila,
+não na gravação: melhorar um padrão amanhã reavalia o que ainda espera decisão, sem migração.</p>
+
+<p>O nome de quem relata é opcional em toda configuração, nasce interno e só sai lá fora com
+<strong>três travas</strong> abertas ao mesmo tempo: o projeto pergunta o nome, está em público
+identificado, e a pessoa escolheu assinar aquele relato. E <code>tracking_code_can_act</code>, que
+estava gravado sem tela desde a etapa 5, ganhou tela junto da lista pessoal — porque decidir se o
+protocolo sozinho age só faz sentido onde existe uma consulta por protocolo.</p>

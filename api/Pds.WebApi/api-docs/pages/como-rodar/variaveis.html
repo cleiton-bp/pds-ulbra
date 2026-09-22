@@ -1,0 +1,57 @@
+<h2>Variáveis de ambiente</h2>
+
+<p>Nenhum segredo fica no código. Em desenvolvimento vem do
+<code>Environment/.env.local</code>, que não vai para o repositório; em produção, das
+variáveis reais do ambiente.</p>
+
+<div class="note warn">
+  <strong>Peça o <code>.env.local</code>, não monte o seu</strong>
+  <p>O banco é compartilhado pelo grupo e a aplicação no Google está registrada uma vez só:
+  valor inventado não faz a API subir. Peça a quem já roda o projeto, por canal privado —
+  nunca por commit ou grupo.</p>
+  <p>O <code>JWT_SIGNING_KEY</code> é a exceção: cada ambiente emite e valida os próprios
+  tokens, então essa você mesmo gera.</p>
+</div>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Variável</th><th>Para quê</th></tr>
+  <tr><td><code>DB_CONNECTION_STRING</code></td><td>Conexão com o PostgreSQL.</td></tr>
+  <tr><td><code>JWT_SIGNING_KEY</code></td><td>Assinatura do token. <code>openssl rand -base64 48</code>.</td></tr>
+  <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token.</td></tr>
+  <tr><td><code>JWT_EXPIRATION_HOURS</code></td><td>Validade da sessão. Padrão 8.</td></tr>
+  <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>ID do cliente OAuth. Ver abaixo.</td></tr>
+  <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula. <b>E também do quadro de relato</b> — veja o aviso abaixo.</td></tr>
+  <tr><td><code>RABBITMQ_URL</code></td><td><b>Opcional.</b> <code>amqp://usuario:senha@host:5672/</code>. Sem ela a API sobe inteira e só a espera fica indisponível.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>Variável em branco conta como ausente</strong>
+  <p>É o erro de configuração mais comum: o arquivo tem a linha, então parece configurado.
+  Uma verificação só contra nulo deixaria passar.</p>
+</div>
+
+<div class="note warn">
+  <strong>Nem todas falham na hora de subir</strong>
+  <p><code>DB_CONNECTION_STRING</code> e <code>JWT_SIGNING_KEY</code> são lidas ao montar as
+  dependências, então faltando qualquer uma a API não sobe — e o motivo aparece no console.</p>
+  <p><code>GOOGLE_CLIENT_ID</code> só é lida no primeiro login. Isso é proposital: permite
+  rodar a API e abrir esta documentação enquanto o cadastro no Google Cloud não sai. O preço
+  é que, sem ele, <code>POST /auth/google</code> responde <strong>500</strong> com a
+  mensagem genérica — o motivo real fica no log do servidor.</p>
+</div>
+
+<div class="note warn">
+  <strong>O nome da variável mente sobre o alcance dela</strong>
+  <p><code>CORS_ALLOWED_ORIGINS</code> tem nome de painel, mas a política é aplicada ao
+  pipeline inteiro — inclusive a <code>public/reports</code>. Quem chama aquela rota é a
+  ferramenta de relato, servida da mesma origem do painel; servir o painel em outra porta faz
+  o envio do formulário falhar com "Falha de rede", sem erro nenhum do lado do servidor. Dar
+  política própria à rota pública é tarefa separada.</p>
+</div>
+
+<div class="note warn">
+  <strong>A lista de CORS vazia não libera tudo</strong>
+  <p>Nenhuma origem configurada significa nenhuma origem autorizada. O padrão é fechado.</p>
+</div>

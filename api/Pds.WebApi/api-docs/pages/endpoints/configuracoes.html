@@ -1,0 +1,34 @@
+<h2>Configurações do projeto</h2>
+<p class="lead">Aparência da ferramenta, regras do ciclo, identidade e visibilidade. Todas se gravam inteiras.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. Os dez campos vão sempre juntos.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Como o ciclo fecha neste projeto. Sem linha salva, devolve os padrões.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. As treze regras vão sempre juntas.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td>Como quem relata é identificado, e quem pode ver os relatos. Sem linha salva, devolve os padrões — nunca 404 para um projeto que existe.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td>Substitui a configuração <strong>inteira</strong>. Os três campos vão juntos porque o modo <strong>decide</strong> qual visibilidade é aceita.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>Projeto arquivado esconde a ferramenta</strong>
+  <p><code>GET /public/widget-settings</code> devolve <code>IsEnabled: false</code> para projeto
+  arquivado, qualquer que seja o valor salvo. Ele já recusa relato novo com 403: deixar o
+  formulário abrir levaria a pessoa a escrever até o fim para ser recusada no envio, e o texto
+  dela se perderia por uma decisão que não é dela.</p>
+</div>
+
+<div class="note warn">
+  <strong>Ligar a espera sem fila é recusado, e a recusa diz por quê</strong>
+  <p><code>PUT /projects/{publicId}/cycle-settings</code> devolve 409 ao tentar gravar
+  <code>public_delay_minutes</code> acima de zero num ambiente sem <code>RABBITMQ_URL</code>.
+  Aceitar em silêncio gravaria uma janela que nunca vence — o relato ficaria parado do lado de
+  fora para sempre, e a tela continuaria dizendo que está tudo certo.</p>
+  <p><strong>O pedido de informação não é recusado do mesmo jeito</strong>, e a assimetria é
+  conhecida: o prazo dele mora em <code>report_info_requests.close_at</code>, e sem broker não há
+  consumidor nem varredura de subida para lê-lo. Ele continua respondível e o time continua
+  podendo encerrar à mão — mas a data que a página de acompanhamento mostra não chega sozinha.</p>
+</div>

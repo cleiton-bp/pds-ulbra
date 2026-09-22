@@ -1,0 +1,45 @@
+<h2>O que cada camada carrega</h2>
+
+<table>
+  <tr><th>Camada</th><th>Contém</th><th>Não pode conter</th></tr>
+  <tr>
+    <td><code>ApiBase</code></td>
+    <td>Entidade base, repositório genérico, Unit of Work</td>
+    <td>Nada do domínio</td>
+  </tr>
+  <tr>
+    <td><code>Domain</code></td>
+    <td>Entidades, enums, interfaces, DTOs, view models</td>
+    <td>Acesso a banco, HTTP</td>
+  </tr>
+  <tr>
+    <td><code>Translation</code></td>
+    <td>O motor: uma função pura e os valores que ela recebe</td>
+    <td><strong>Qualquer referência</strong>, inclusive a <code>Domain</code></td>
+  </tr>
+  <tr>
+    <td><code>Data</code></td>
+    <td>Contexto, mapeamentos, repositórios, migrações</td>
+    <td>Regra de negócio</td>
+  </tr>
+  <tr>
+    <td><code>Service</code></td>
+    <td>Regra de negócio, geração de chave, token, varredura de dado sensível</td>
+    <td>Tipos de HTTP</td>
+  </tr>
+  <tr>
+    <td><code>Shared</code></td>
+    <td>Registro de dependências, contrato JSON</td>
+    <td>Regra de negócio</td>
+  </tr>
+  <tr>
+    <td><code>Workers</code></td>
+    <td>Conexão com a fila, agendamento, consumidor</td>
+    <td>Transação, consulta, <strong>regra</strong></td>
+  </tr>
+  <tr>
+    <td><code>WebApi</code></td>
+    <td>Controladores, middleware, configuração</td>
+    <td>Regra de negócio, consulta direta</td>
+  </tr>
+</table>

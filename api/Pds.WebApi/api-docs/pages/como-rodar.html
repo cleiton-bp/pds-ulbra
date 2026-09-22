@@ -35,130 +35,6 @@ dotnet run --project Pds.WebApi</code></pre>
   <code>docs.js</code>) e são servidos com <code>no-cache</code>.</p>
 </div>
 
-<h2>Variáveis de ambiente</h2>
-
-<p>Nenhum segredo fica no código. Em desenvolvimento vem do
-<code>Environment/.env.local</code>, que não vai para o repositório; em produção, das
-variáveis reais do ambiente.</p>
-
-<div class="note warn">
-  <strong>Peça o <code>.env.local</code>, não monte o seu</strong>
-  <p>O banco é compartilhado pelo grupo e a aplicação no Google está registrada uma vez só:
-  valor inventado não faz a API subir. Peça a quem já roda o projeto, por canal privado —
-  nunca por commit ou grupo.</p>
-  <p>O <code>JWT_SIGNING_KEY</code> é a exceção: cada ambiente emite e valida os próprios
-  tokens, então essa você mesmo gera.</p>
-</div>
-
-<div class="table-scroll">
-<table>
-  <tr><th>Variável</th><th>Para quê</th></tr>
-  <tr><td><code>DB_CONNECTION_STRING</code></td><td>Conexão com o PostgreSQL.</td></tr>
-  <tr><td><code>JWT_SIGNING_KEY</code></td><td>Assinatura do token. <code>openssl rand -base64 48</code>.</td></tr>
-  <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token.</td></tr>
-  <tr><td><code>JWT_EXPIRATION_HOURS</code></td><td>Validade da sessão. Padrão 8.</td></tr>
-  <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>ID do cliente OAuth. Ver abaixo.</td></tr>
-  <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula. <b>E também do quadro de relato</b> — veja o aviso abaixo.</td></tr>
-  <tr><td><code>RABBITMQ_URL</code></td><td><b>Opcional.</b> <code>amqp://usuario:senha@host:5672/</code>. Sem ela a API sobe inteira e só a espera fica indisponível.</td></tr>
-</table>
-</div>
-
-<div class="note why">
-  <strong>Variável em branco conta como ausente</strong>
-  <p>É o erro de configuração mais comum: o arquivo tem a linha, então parece configurado.
-  Uma verificação só contra nulo deixaria passar.</p>
-</div>
-
-<div class="note warn">
-  <strong>Nem todas falham na hora de subir</strong>
-  <p><code>DB_CONNECTION_STRING</code> e <code>JWT_SIGNING_KEY</code> são lidas ao montar as
-  dependências, então faltando qualquer uma a API não sobe — e o motivo aparece no console.</p>
-  <p><code>GOOGLE_CLIENT_ID</code> só é lida no primeiro login. Isso é proposital: permite
-  rodar a API e abrir esta documentação enquanto o cadastro no Google Cloud não sai. O preço
-  é que, sem ele, <code>POST /auth/google</code> responde <strong>500</strong> com a
-  mensagem genérica — o motivo real fica no log do servidor.</p>
-</div>
-
-<div class="note warn">
-  <strong>O nome da variável mente sobre o alcance dela</strong>
-  <p><code>CORS_ALLOWED_ORIGINS</code> tem nome de painel, mas a política é aplicada ao
-  pipeline inteiro — inclusive a <code>public/reports</code>. Quem chama aquela rota é a
-  ferramenta de relato, servida da mesma origem do painel; servir o painel em outra porta faz
-  o envio do formulário falhar com "Falha de rede", sem erro nenhum do lado do servidor. Dar
-  política própria à rota pública é tarefa separada.</p>
-</div>
-
-<div class="note warn">
-  <strong>A lista de CORS vazia não libera tudo</strong>
-  <p>Nenhuma origem configurada significa nenhuma origem autorizada. O padrão é fechado.</p>
-</div>
-
-<h2>O banco</h2>
-
-<p>PostgreSQL hospedado, compartilhado pelo grupo. Não há banco local nem serviço de banco no
-<code>docker-compose.yml</code> — subir um ao lado seria convite a rodar migração no lugar
-errado sem perceber.</p>
-
-<p>Duas armadilhas na string de conexão:</p>
-
-<ul>
-  <li><strong>O hostname interno não serve da sua máquina.</strong> A hospedagem dá dois: o
-  interno só resolve de dentro dela própria. De fora é preciso o externo, com domínio
-  completo. Quando a API for publicada lá, vale trocar pelo interno, que não sai para a
-  internet e responde mais rápido.</li>
-  <li><strong><code>SSL Mode=Require</code> é obrigatório.</strong> A hospedagem recusa
-  conexão em texto claro.</li>
-</ul>
-
-<div class="note warn">
-  <strong>O banco é compartilhado</strong>
-  <p>Migração aplicada vale para todo mundo na hora. Combine com o grupo antes de rodar
-  <code>database update</code>.</p>
-</div>
-
-<h2>A fila</h2>
-
-<p><strong>Opcional.</strong> Ela existe para dois prazos: a espera entre o time mover o relato e
-quem relatou ver, e o encerramento de um pedido de informação sem resposta. Sem
-<code>RABBITMQ_URL</code>, a API sobe normalmente e essas duas regras ficam indisponíveis — a tela
-de Ciclo recusa ligá-las e diz por quê.</p>
-
-<p>Ao contrário do banco, aqui <strong>há serviço no <code>docker-compose.yml</code></strong>, e o
-motivo é o inverso: o broker é local e descartável, e não há dado de ninguém dentro dele.</p>
-
-<pre><code>cd api
-docker compose up -d rabbitmq</code></pre>
-
-<div class="diagram">container   pds-rabbitmq
-imagem      pds-rabbitmq:dev   (construida de api/rabbitmq/Dockerfile)
-volume      pds-rabbitmq-data
-porta       5672   AMQP
-            15672  painel de administracao (pds / pds)</div>
-
-<p>E a variável, apontando para ele:</p>
-
-<pre><code>RABBITMQ_URL=amqp://pds:pds@localhost:5672/</code></pre>
-
-<div class="note warn">
-  <strong>A imagem é construída, e não baixada pronta</strong>
-  <p>O <code>Dockerfile</code> parte de <code>rabbitmq:3.13-management</code> e instala o
-  <code>rabbitmq_delayed_message_exchange</code>, que <strong>não vem na imagem oficial</strong> —
-  é um <em>plugin</em> distribuído à parte. Sem ele, a <em>exchange</em> do tipo
-  <code>x-delayed-message</code> não pode ser declarada e nada é agendado.</p>
-  <p>É o mesmo ponto que decide onde a fila vai rodar em produção: a hospedagem precisa permitir
-  instalar esse <em>plugin</em>, e nem toda oferta gerenciada permite.</p>
-</div>
-
-<div class="note why">
-  <strong>O que está esperando na fila não é a verdade</strong>
-  <p>O <em>plugin</em> guarda as mensagens atrasadas num banco local do nó, que não é replicado.
-  Por isso o agendamento durável mora no PostgreSQL — <code>reports.public_stage_due_at</code> e
-  <code>report_info_requests.close_at</code> — e a subida da aplicação varre o que venceu sem ter
-  sido aplicado.</p>
-  <p>Consequência prática: apagar o volume do broker não perde relato nenhum. Na próxima subida, o
-  que estava vencido é aplicado.</p>
-</div>
-
 <h2>Login com Google</h2>
 
 <p>O <code>GOOGLE_CLIENT_ID</code> sai do console do Google Cloud, em <em>APIs e serviços →
@@ -169,49 +45,11 @@ antes.</p>
 <p>Não há <em>client secret</em> aqui: quem faz o Sign-In é o painel, no navegador, e a API
 apenas confere o token recebido.</p>
 
-<h2>Migrações</h2>
+<h2>Nesta seção</h2>
 
-<pre><code>dotnet ef migrations add &lt;Nome&gt; --project Pds.Data --startup-project Pds.WebApi --output-dir Migrations
-dotnet ef database update --project Pds.Data --startup-project Pds.WebApi</code></pre>
-
-<p>Usa o <code>dotnet-ef</code> global. O pacote <code>Microsoft.EntityFrameworkCore.Tools</code>
-não está no projeto de propósito: era redundante com o <code>Design</code> já presente na
-<code>WebApi</code> e arrastava uma dependência transitiva com vulnerabilidade conhecida.</p>
-
-<h2>Esta documentação</h2>
-
-<p>Fica em <code>Pds.WebApi/api-docs</code>. A pasta seria <code>wwwroot</code> pela
-convenção do ASP.NET Core; o nome foi trocado para dizer o que ela guarda, e a raiz web é
-apontada em <code>Program.cs</code>.</p>
-
-<ul>
-  <li><code>index.html</code> — a casca: menu lateral e área de conteúdo.</li>
-  <li><code>assets/js/docs.js</code> — o roteador. A lista <code>ROUTES</code> define o menu.</li>
-  <li><code>assets/css/docs.css</code> — o estilo.</li>
-  <li><code>pages/*.html</code> — uma página por rota.</li>
-  <li><code>assets/js/swagger-back.js</code> — o botão de volta que aparece na barra do
-  Swagger. É injetado na página dele pelo <code>Startup.cs</code>, e fecha o caminho de ida
-  e volta entre os dois.</li>
-</ul>
-
-<div class="note warn">
-  <strong>Os nomes dos assets não são genéricos por acaso</strong>
-  <p>Eram <code>app.js</code> e <code>styles.css</code>. Nomes assim colidem com os de
-  qualquer outro projeto na mesma origem, e o cache do navegador serve um no lugar do outro.</p>
+<div class="steps-index">
+  <a href="#/como-rodar/variaveis"><strong>Variáveis de ambiente</strong><span>O que precisa pedir, o que você mesmo gera e o que já vem pronto.</span></a>
+  <a href="#/como-rodar/banco-e-migracoes"><strong>O banco e as migrações</strong><span>Endereço interno x externo, SSL, e como criar e aplicar migração.</span></a>
+  <a href="#/como-rodar/a-fila"><strong>A fila</strong><span>RabbitMQ para a espera e o prazo — e o que acontece sem ele.</span></a>
+  <a href="#/como-rodar/esta-documentacao"><strong>Esta documentação</strong><span>Como estas páginas são servidas, e como acrescentar uma.</span></a>
 </div>
-
-<p>Para acrescentar uma seção: crie <code>pages/nome.html</code> e adicione a entrada em
-<code>ROUTES</code>. A ordem da lista é a ordem do menu e a do anterior/próximo no rodapé.</p>
-
-<div class="note why">
-  <strong>Editar uma página não pede rebuild</strong>
-  <p>Com <code>dotnet run</code>, os arquivos são servidos direto da pasta do projeto: salvar
-  e atualizar o navegador basta. Só mexer em <code>ROUTES</code> pede recarregar a página
-  inteira, porque o menu é montado uma vez.</p>
-</div>
-
-<p>Cada página é só um fragmento de HTML, sem <code>&lt;head&gt;</code> nem
-<code>&lt;body&gt;</code> — o primeiro <code>&lt;h2&gt;</code> vira o título e o
-<code>&lt;p class="lead"&gt;</code> seguinte, o subtítulo. Para os blocos destacados existem
-três estilos: <code>note why</code> para o porquê de uma decisão, <code>note warn</code> para
-armadilha, e <code>note todo</code> para o que ainda falta.</p>

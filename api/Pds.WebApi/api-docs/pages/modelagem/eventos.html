@@ -1,0 +1,97 @@
+<h2>events</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>user_id</code></td><td>Quem do time fez. <b>Nulo</b> quando a ação veio de fora — o relato nasce de um desconhecido, que não tem usuário aqui — e nos eventos gravados antes desta coluna existir.</td></tr>
+  <tr><td><code>account_id</code></td><td>Anulável. Continua apontando para a conta depois de anonimizada.</td></tr>
+  <tr><td><code>project_id</code></td><td>Anulável. O projeto some de verdade e o evento fica.</td></tr>
+  <tr><td><code>report_id</code></td><td>Anulável. Nem todo evento nasce de um relato.</td></tr>
+  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code> | <code>report_state_changed</code> | <code>report_internal_commented</code> | <code>report_public_commented</code> | <code>report_public_stage_changed</code> | <code>report_public_stage_unmapped</code> | <code>report_closed</code> | <code>report_confirmed</code> | <code>report_reopened</code> | <code>report_info_requested</code> | <code>report_replied</code> | <code>report_closure_cancelled</code> | <code>report_published</code> | <code>report_moderation_rejected</code>. A lista cresce.</td></tr>
+  <tr><td><code>source</code></td><td><code>widget</code> | <code>panel</code> | <code>api</code> | <code>public_page</code> | <code>system</code>.</td></tr>
+  <tr><td><code>payload</code></td><td><code>jsonb</code>. O resto do evento, para tipo novo entrar sem migração.</td></tr>
+  <tr><td><code>occurred_at</code></td><td>Quando aconteceu. <strong>É esta a data que a análise usa.</strong></td></tr>
+  <tr><td><code>created_at</code></td><td>Quando a linha foi gravada. Difere da anterior quando houve retentativa.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Duas linhas do tempo, e não uma com um campo dizendo qual é</strong>
+  <p><code>report_state_changed</code> conta o que o time fez; <code>report_public_stage_changed</code>
+  conta o que quem relatou viu. Elas <strong>não andam no mesmo ritmo</strong>: um movimento
+  interno costuma não mover a jornada pública, e quando move é por decisão do motor, não por
+  consequência automática.</p>
+  <p>Juntá-las num registro só obrigaria a análise a adivinhar qual das duas cada linha conta —
+  e essa é exatamente a pergunta de pesquisa do trabalho.</p>
+  <p>O payload da segunda leva os rótulos que valiam na época <em>e</em> a
+  <code>mapping_version</code> que decidiu. Sem a versão, recontar um movimento antigo usaria o
+  mapa de hoje e devolveria outra história.</p>
+</div>
+
+<div class="note why">
+  <strong><code>system</code> é origem de verdade, e não um remendo</strong>
+  <p>Duas ações do produto não partem de clique nenhum: o relato encerrado por falta de resposta,
+  e a etapa pública que anda quando a espera vence. Chamá-las de <code>panel</code> faria a
+  contagem atribuir ao time ações que o time não tomou — e separar origem de tipo existe
+  justamente para poder perguntar "quantas vezes o relator voltou" sem confundir com "quantas
+  vezes o time abriu".</p>
+  <p>Nos dois casos o <code>user_id</code> fica nulo, e isso é verdade e não omissão: o estado que
+  causou o passo pode ter vindo de vários movimentos de pessoas diferentes. Quem moveu continua
+  gravado nos eventos internos, cada um com o seu autor.</p>
+</div>
+
+<div class="note warn">
+  <strong><code>report_public_stage_unmapped</code> registra o que <em>não</em> aconteceu</strong>
+  <p>É o único evento que nasce de uma falta: o relato foi para um estado fora do mapa, e a
+  jornada ficou parada. Ele existe porque o silêncio do lado de fora não deixaria rastro nenhum
+  — e quanto tempo um relato passou invisível para quem o escreveu é justamente o que se vai
+  querer medir.</p>
+  <p><strong>O nome do estado interno não vai no payload.</strong> A tentação de explicar qual
+  estado ficou de fora poria o vocabulário de dentro numa tabela que alimenta a linha do tempo
+  pública. Quem precisa do nome tem o evento interno, gravado no mesmo instante.</p>
+  <p>Os outros dois desfechos do motor — "caiu na mesma etapa" e "seria retroceder" — não geram
+  evento: são o produto funcionando, e a ausência de evento público já diz que nada mudou lá
+  fora.</p>
+</div>
+
+<div class="note warn">
+  <strong>A única tabela sem <code>updated_at</code> e sem <code>deleted_at</code></strong>
+  <p>Ela só cresce. Nada é alterado, então não há o que datar; nada é apagado, então não há o
+  que marcar. É a única do sistema que não herda das quatro colunas padrão, e a única cuja
+  configuração não passa por <code>BaseEntityConfiguration</code>.</p>
+  <p>Um evento apagado é um dado de pesquisa perdido, e a análise passaria a mentir sem
+  ninguém perceber. Por isso as <strong>quatro</strong> chaves estrangeiras — conta, projeto,
+  relato e autor — usam <code>SET NULL</code> e não cascata: o evento sobrevive ao que o
+  originou, e sobrevive também a quem o causou.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que <code>occurred_at</code> e <code>created_at</code> são separados</strong>
+  <p>Parecem a mesma data, e são — até o dia em que uma gravação falhar e for repetida. Aí
+  <code>created_at</code> marca a recuperação do sistema e <code>occurred_at</code> continua
+  marcando o fato. Usar a errada desloca o evento no tempo justamente no caso em que a análise
+  precisa enxergar o que aconteceu.</p>
+</div>
+
+<h2>Convenções</h2>
+
+<ul>
+  <li>Tudo em <code>snake_case</code>, minúsculo, inglês — tabela, coluna, índice e constraint.</li>
+  <li>Tabela no plural, coluna no singular.</li>
+  <li>Booleano com <code>is_</code> / <code>has_</code> / <code>allows_</code>.</li>
+  <li>Data e hora com sufixo <code>_at</code>, sempre em UTC.</li>
+  <li>Valor de enum como texto em <code>snake_case</code>, não como número.</li>
+  <li><strong>Toda tabela e toda coluna levam comentário</strong>, no próprio banco.</li>
+</ul>
+
+<div class="note why">
+  <strong>Por que enum como texto</strong>
+  <p>Guardar o inteiro seria mais curto e deixa a tabela ilegível fora da aplicação. Um
+  <code>status = 1</code> não diz nada a quem abre o banco para investigar;
+  <code>archived</code> se explica sozinho.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que os nomes de índice não são escritos à mão</strong>
+  <p>O EF batiza índice e constraint sozinho, em PascalCase. Os nomes são derivados em
+  <code>PdsBaseContext.ApplySnakeCaseNaming</code>: escrever um a um funciona até alguém
+  esquecer, e aí o banco fica com dois padrões.</p>
+</div>

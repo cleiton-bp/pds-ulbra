@@ -1,0 +1,43 @@
+<h2>accounts</h2>
+
+<p>A fronteira de isolamento. Tudo pertence a uma.</p>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>name</code></td><td>Nome exibido no painel.</td></tr>
+  <tr><td><code>purge_at</code></td><td>Quando a exclusão vira definitiva.</td></tr>
+  <tr><td><code>anonymized_at</code></td><td>Quando a identificação foi removida.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que separar de <code>users</code> já agora</strong>
+  <p>Hoje é uma pessoa por conta. No dia em que alguém quiser convidar um colega, sem essa
+  separação vira migração de todas as tabelas. Criar a entidade agora custa uma tabela;
+  criar depois custa reescrever o isolamento.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que <code>purge_at</code> é coluna, e não <code>deleted_at</code> mais 24h</strong>
+  <p>Se o prazo fosse calculado, mudar a política mudaria o prazo de quem já tinha pedido a
+  exclusão. Gravado no momento do pedido, quem pediu mantém o prazo que foi prometido.</p>
+</div>
+
+<h2>users</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>account_id</code></td><td>Conta a que pertence.</td></tr>
+  <tr><td><code>google_subject</code></td><td>O <code>sub</code> do Google. Único.</td></tr>
+  <tr><td><code>email</code></td><td>Para contato. <strong>Sem índice único.</strong></td></tr>
+  <tr><td><code>name</code>, <code>avatar_url</code></td><td>Vindos do Google.</td></tr>
+  <tr><td><code>last_login_at</code></td><td>Último acesso, em UTC.</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>O e-mail não é único de propósito</strong>
+  <p>Identificar a pessoa pelo e-mail parece natural e está errado: o e-mail da conta Google
+  pode mudar, o <code>sub</code> não. Quem usa e-mail como chave acaba criando conta
+  duplicada ou, pior, entregando a conta de alguém a quem herdou o endereço.</p>
+  <p>Alguém vai olhar essa tabela depois e achar que faltou um índice. Fica registrado que a
+  ausência é escolha.</p>
+</div>

@@ -1,0 +1,31 @@
+<h2>O banco</h2>
+
+<p>PostgreSQL hospedado, compartilhado pelo grupo. Não há banco local nem serviço de banco no
+<code>docker-compose.yml</code> — subir um ao lado seria convite a rodar migração no lugar
+errado sem perceber.</p>
+
+<p>Duas armadilhas na string de conexão:</p>
+
+<ul>
+  <li><strong>O hostname interno não serve da sua máquina.</strong> A hospedagem dá dois: o
+  interno só resolve de dentro dela própria. De fora é preciso o externo, com domínio
+  completo. Quando a API for publicada lá, vale trocar pelo interno, que não sai para a
+  internet e responde mais rápido.</li>
+  <li><strong><code>SSL Mode=Require</code> é obrigatório.</strong> A hospedagem recusa
+  conexão em texto claro.</li>
+</ul>
+
+<div class="note warn">
+  <strong>O banco é compartilhado</strong>
+  <p>Migração aplicada vale para todo mundo na hora. Combine com o grupo antes de rodar
+  <code>database update</code>.</p>
+</div>
+
+<h2>Migrações</h2>
+
+<pre><code>dotnet ef migrations add &lt;Nome&gt; --project Pds.Data --startup-project Pds.WebApi --output-dir Migrations
+dotnet ef database update --project Pds.Data --startup-project Pds.WebApi</code></pre>
+
+<p>Usa o <code>dotnet-ef</code> global. O pacote <code>Microsoft.EntityFrameworkCore.Tools</code>
+não está no projeto de propósito: era redundante com o <code>Design</code> já presente na
+<code>WebApi</code> e arrastava uma dependência transitiva com vulnerabilidade conhecida.</p>

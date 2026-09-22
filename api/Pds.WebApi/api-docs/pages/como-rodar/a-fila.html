@@ -1,0 +1,42 @@
+<h2>A fila</h2>
+
+<p><strong>Opcional.</strong> Ela existe para dois prazos: a espera entre o time mover o relato e
+quem relatou ver, e o encerramento de um pedido de informação sem resposta. Sem
+<code>RABBITMQ_URL</code>, a API sobe normalmente e essas duas regras ficam indisponíveis — a tela
+de Ciclo recusa ligá-las e diz por quê.</p>
+
+<p>Ao contrário do banco, aqui <strong>há serviço no <code>docker-compose.yml</code></strong>, e o
+motivo é o inverso: o broker é local e descartável, e não há dado de ninguém dentro dele.</p>
+
+<pre><code>cd api
+docker compose up -d rabbitmq</code></pre>
+
+<div class="diagram">container   pds-rabbitmq
+imagem      pds-rabbitmq:dev   (construida de api/rabbitmq/Dockerfile)
+volume      pds-rabbitmq-data
+porta       5672   AMQP
+            15672  painel de administracao (pds / pds)</div>
+
+<p>E a variável, apontando para ele:</p>
+
+<pre><code>RABBITMQ_URL=amqp://pds:pds@localhost:5672/</code></pre>
+
+<div class="note warn">
+  <strong>A imagem é construída, e não baixada pronta</strong>
+  <p>O <code>Dockerfile</code> parte de <code>rabbitmq:3.13-management</code> e instala o
+  <code>rabbitmq_delayed_message_exchange</code>, que <strong>não vem na imagem oficial</strong> —
+  é um <em>plugin</em> distribuído à parte. Sem ele, a <em>exchange</em> do tipo
+  <code>x-delayed-message</code> não pode ser declarada e nada é agendado.</p>
+  <p>É o mesmo ponto que decide onde a fila vai rodar em produção: a hospedagem precisa permitir
+  instalar esse <em>plugin</em>, e nem toda oferta gerenciada permite.</p>
+</div>
+
+<div class="note why">
+  <strong>O que está esperando na fila não é a verdade</strong>
+  <p>O <em>plugin</em> guarda as mensagens atrasadas num banco local do nó, que não é replicado.
+  Por isso o agendamento durável mora no PostgreSQL — <code>reports.public_stage_due_at</code> e
+  <code>report_info_requests.close_at</code> — e a subida da aplicação varre o que venceu sem ter
+  sido aplicado.</p>
+  <p>Consequência prática: apagar o volume do broker não perde relato nenhum. Na próxima subida, o
+  que estava vencido é aplicado.</p>
+</div>

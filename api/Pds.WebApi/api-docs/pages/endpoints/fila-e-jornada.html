@@ -1,0 +1,63 @@
+<h2>A fila e a jornada</h2>
+<p class="lead">As duas listas de etapas — a que o time trabalha e a que quem relatou acompanha — e o mapa entre elas.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states</code></td><td>A fila de trabalho do projeto, na ordem do cliente, com os aposentados dentro.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states</code></td><td>Cria um estado no fim da fila. Nome único no projeto, sem diferenciar maiúscula.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/order</code></td><td>Reordena a fila <strong>inteira</strong>, numa chamada só.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/{statePublicId}</code></td><td>Renomeia. O histórico não muda: o evento guarda o nome que valia na época.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td>Aposenta. <strong>Não existe remoção</strong> — relato antigo aponta para ele.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/activate</code></td><td>Traz de volta para a fila.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Onde cada tipo de relato cai ao entrar. Traz os três sempre, escolhidos ou não.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Escolhe o destino de um tipo. Nulo <strong>apaga</strong> a escolha e devolve ao padrão.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/public-stages</code></td><td>A jornada que quem relatou acompanha, na ordem. Pode vir vazia — projeto criado antes dela existir.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages</code></td><td>Cria uma etapa no fim da jornada. Recusada no teto de sete.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages/factory</code></td><td>Preenche uma jornada <strong>vazia</strong> com o conjunto padrão. Recusada se já houver etapa.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/order</code></td><td>Reordena a jornada <strong>inteira</strong>, numa chamada só.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td>Reescreve a etapa inteira. O rótulo novo vale de agora em diante.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td>Tira da jornada. Recusada no piso de três.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/status-mappings</code></td><td>O mapa que vale. Traz <strong>todo estado ativo</strong>, mapeado ou não.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/status-mappings</code></td><td>Grava o mapa <strong>inteiro</strong>, criando uma versão. Estado ausente da lista fica sem mapeamento.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>Por que o mapa se grava inteiro, e não uma ligação de cada vez</strong>
+  <p>Cada gravação de <code>/status-mappings</code> cria uma <strong>versão</strong>, e uma versão
+  é um retrato do conjunto completo. Uma rota por ligação criaria uma versão por clique, e a linha
+  do tempo de um relato passaria a ser contada por um mapa que existiu por trinta segundos.</p>
+  <p>Alterar o mapeamento <strong>não toca nas versões anteriores</strong>. São elas que explicam
+  por onde um relato de três meses atrás passou: sem isso, reorganizar a jornada hoje mudaria em
+  silêncio o que já aconteceu — e não haveria como perceber depois, porque o dado necessário para
+  perceber seria justamente o apagado. Pedido igual ao que já vale não cria versão.</p>
+</div>
+
+<div class="note why">
+  <strong>Duas listas de etapas, e elas não são a mesma coisa</strong>
+  <p><code>/states</code> é a fila em que o time trabalha; <code>/public-stages</code> é a
+  jornada que quem relatou acompanha. Vários estados de dentro cabem numa etapa daqui, e
+  <strong>é essa perda de detalhe que é o produto</strong>: quem abriu o relato não precisa saber
+  que existe revisão de código, precisa saber que o problema está sendo resolvido.</p>
+  <p>Duas diferenças de comportamento saem daí. A fila de trabalho <strong>não tem teto</strong>
+  e a jornada tem — entre três e sete, conferidos na gravação: quantas faixas o time usa é escolha
+  de quem trabalha, mas uma história com quinze capítulos é o mesmo organograma interno com
+  palavras mais bonitas. E o estado interno só se <strong>aposenta</strong>, enquanto a etapa
+  pública se <strong>remove</strong>: o aposentado precisa continuar visível porque a tela do time
+  mostra a fila inteira; a etapa removida não tem esse papel, e o que passou por ela é contado
+  pelos eventos, que guardam o rótulo que valia na época.</p>
+</div>
+
+<div class="note why">
+  <strong>Etapa terminal não quer dizer encerrado</strong>
+  <p><code>IsTerminal</code> marca onde o trabalho <em>do time</em> acaba, e exige
+  <code>Outcome</code> — <code>Done</code>, <code>WontDo</code>, <code>NoAnswer</code> ou
+  <code>Duplicate</code>. Sem os três últimos só existe "foi feito", e o relato que não vai ser
+  feito fica pendurado na jornada esperando um fim que nunca chega, que é pior do que uma
+  recusa.</p>
+  <p>Essa lista é <strong>nossa e fixa</strong>, ao contrário do rótulo e da frase. Cada equipe
+  inventando o próprio vocabulário de encerramento traria de volta o jargão que esta camada
+  existe para esconder. E terminal é uma marca, e não "a última da lista": depois dela ainda vem
+  a confirmação de quem relatou, que é ação da pessoa e não estado do time.</p>
+</div>

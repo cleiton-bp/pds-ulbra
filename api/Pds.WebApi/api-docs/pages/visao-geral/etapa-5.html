@@ -1,0 +1,41 @@
+<h2>Etapa 5 — o ciclo fecha</h2>
+<p class="lead">Encerrar com motivo, confirmar, reabrir, o pedido de informação com prazo e a espera antes de quem relatou ver.</p>
+
+<p>A <strong>etapa 5 — O ciclo fecha</strong> está completa, e é ela que faz o produto
+responder à queixa do README. <strong>Todo encerramento exige um motivo, e o motivo é
+visível</strong>: sem essa regra, a pessoa ficaria sabendo que acabou e não o que aconteceu — que
+é exatamente o problema de origem.</p>
+
+<p>E "concluído" deixou de ser o fim. Quem relatou <strong>confirma</strong> que resolveu, ou
+<strong>reabre</strong> dizendo que não — e reabrir não é regredir: quem pediu a volta foi a
+própria pessoa, então o relato volta para a coluna que o projeto configurou, sem o freio que
+segura o vaivém interno. Ao confirmar, ela dá uma nota, e <strong>recusar opinar é registrado
+como recusa</strong>, e não como silêncio: juntar os dois daria uma métrica que parece precisa e
+não é.</p>
+
+<p>O time também pode <strong>devolver o relato pedindo informação</strong>, em vez de encerrar.
+É a diferença entre "não reproduzi" e "não vamos fazer" — chegando iguais, fazem quem relatou
+entender que acabou e parar de responder. O pedido tem prazo: passado o primeiro, a página avisa;
+passado o segundo, o relato encerra como <strong>sem retorno</strong> — e encerrado assim
+continua reabrível, porque o produto existe justamente para quem foi esquecido.</p>
+
+<p>A conversa acontece pelo próprio relato, numa <strong>lista só com os dois lados em
+ordem</strong>, e sem nome de ninguém do time. E quem relata escolhe, no formulário, se
+<strong>aceita responder dúvidas</strong> — sem esse sim, o time não abre pedido nenhum, e a tela
+diz por quê.</p>
+
+<p>Entre o movimento de dentro e o que quem relatou vê pode haver uma <strong>espera</strong>
+configurável: é a janela para desfazer um movimento errado antes de ele virar notícia. Ela é o
+que trouxe a <strong>fila</strong> para o sistema, e o desenho dela cabe numa frase — a mensagem
+carrega o relato, e nunca a decisão. Quem consome relê o estado atual, e daí saem desfazer sem
+cancelar, mensagem repetida sem dano e mensagem perdida sem perder o relato.</p>
+
+<p>Nada disso é fixo: as <strong>treze regras do ciclo</strong> são configuração por projeto, com
+padrão de fábrica em código. Se dá para reabrir e para onde, se a nota aparece e em que escala,
+quantos dias cada prazo tem — quem dita é o projeto.</p>
+
+<p>Ficam duas ressalvas registradas. O <strong>Render não fornece broker</strong>: enquanto não
+houver um, a espera e o prazo do pedido ficam indisponíveis em produção, e a tela recusa ligá-los
+dizendo o motivo. E <code>tracking_code_can_act</code> — se o protocolo sozinho confirma e reabre
+— ficou gravado <strong>sem tela</strong> até a etapa 6, porque dependia de uma consulta por
+protocolo que o produto ainda não tinha.</p>

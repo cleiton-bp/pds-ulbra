@@ -1,0 +1,43 @@
+<h2>Onde o filtro mora</h2>
+
+<p>Em <code>DataContext</code>, como filtro global de consulta:</p>
+
+<pre><code>modelBuilder.Entity&lt;Project&gt;()
+    .HasQueryFilter(project =&gt;
+        project.DeletedAt == null &amp;&amp;
+        project.AccountId == CurrentAccountId);</code></pre>
+
+<p>O EF lê <code>CurrentAccountId</code> a cada consulta, então o filtro acompanha a
+requisição. Toda leitura de projeto já nasce restrita, venha de onde vier.</p>
+
+<h3>As chaves chegam pela navegação</h3>
+
+<pre><code>modelBuilder.Entity&lt;ProjectKey&gt;()
+    .HasQueryFilter(key =&gt;
+        key.DeletedAt == null &amp;&amp;
+        key.Project.DeletedAt == null &amp;&amp;
+        key.Project.AccountId == CurrentAccountId);</code></pre>
+
+<p>A tabela <code>project_keys</code> não repete <code>account_id</code>, porque a chave não
+existe fora de um projeto. O preço é o filtro passar pela navegação; o ganho é não ter a
+mesma informação em duas tabelas podendo divergir.</p>
+
+<p><code>project_origins</code>, <code>project_states</code>,
+<code>project_initial_states</code> e <code>project_widget_settings</code> seguem exatamente o
+mesmo desenho, pelo mesmo motivo, e
+por isso cada uma tem um filtro próprio idêntico. Vale reparar no detalhe que engana: o filtro escrito no
+<code>DataContext</code> <strong>substitui</strong> o de exclusão lógica herdado, não soma —
+quem esquecer de repetir <code>DeletedAt == null</code> ali perde o apagado sem nenhum erro
+de compilação.</p>
+
+<h3>O relato compara coluna, e não navegação</h3>
+
+<pre><code>modelBuilder.Entity&lt;Report&gt;()
+    .HasQueryFilter(report =&gt;
+        report.DeletedAt == null &amp;&amp;
+        report.AccountId == CurrentAccountId);</code></pre>
+
+<p><code>reports</code> é a exceção deliberada ao desenho acima: ela repete <code>account_id</code>
+em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o painel lista o
+tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.
+<code>report_contexts</code> volta ao padrão e chega pelo relato.</p>

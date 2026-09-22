@@ -1,0 +1,20 @@
+<h2>Superfície de rede</h2>
+
+<table>
+  <tr><th>Proteção</th><th>Como está</th></tr>
+  <tr><td>CORS</td><td>Só as origens configuradas. Lista vazia libera nenhuma.</td></tr>
+  <tr><td>Limite de requisições</td><td>20/min por IP no login.</td></tr>
+  <tr><td>HTTPS</td><td>Redirecionamento obrigatório fora de desenvolvimento.</td></tr>
+  <tr><td>Conexão com o banco</td><td>SSL obrigatório.</td></tr>
+  <tr><td>Mensagem de erro</td><td>Erro não previsto responde texto genérico; detalhe só no log.</td></tr>
+</table>
+
+<div class="note todo">
+  <strong>Pendências conhecidas</strong>
+  <ul>
+    <li>Rotina de exclusão e anonimização de conta.</li>
+    <li>Teste automatizado do isolamento entre contas.</li>
+    <li>Invalidar sessão antes de o token expirar.</li>
+    <li>Limite de tentativas nas rotas públicas. Só o login tem limitador, e são as rotas públicas que qualquer visitante alcança — com o código pessoal e a lista pública, a lacuna cresceu.</li>
+  </ul>
+</div>
