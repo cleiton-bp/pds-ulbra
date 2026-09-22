@@ -26,12 +26,19 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // Sem `DeletedAt == null`, e de proposito: o link de quem relatou continua
         // valendo depois de o relato sair da lista do painel.
         //
-        // **E a segunda das dez consultas que atravessam o filtro a dispensar essa
-        // condicao** — a outra e a conferencia de protocolo repetido, oito linhas
-        // acima. A diferenca entre as duas e o que importa: aquela devolve um
-        // sim/nao, e esta devolve **conteudo** a quem apresenta um token. Das oito
-        // restantes, sete reescrevem a condicao a mao e uma nao precisa — evento nao
+        // **E uma das seis que dispensam essa condicao**, entre as vinte e quatro
+        // consultas que atravessam o filtro. As outras dezoito reescrevem
+        // `DeletedAt == null` a mao, que e o que o filtro dava.
+        //
+        // Das seis, cinco dispensam pelo mesmo motivo: o que saiu da lista do
+        // painel continua valendo para quem tem o papel na mao — o protocolo, o
+        // link ou o codigo. Sao a conferencia de protocolo repetido, oito linhas
+        // acima; esta; as duas que a fila usa para reavaliar relato agendado; e a
+        // conferencia de colisao do codigo pessoal. A sexta nao precisa: evento nao
         // se apaga, entao nao ha exclusao logica para repor.
+        //
+        // A diferenca desta para a conferencia de protocolo e o que importa: aquela
+        // devolve um sim/nao, e esta devolve **conteudo** a quem apresenta um token.
         //
         // O projeto vem junto porque **tres** rotas publicas precisam dele: abrir
         // usa a jornada, e confirmar e reabrir precisam da conta e da versao do
