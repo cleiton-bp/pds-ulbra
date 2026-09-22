@@ -24,7 +24,7 @@ public class ReporterCodeMap : BaseEntityConfiguration<ReporterCode>
             .HasColumnName("code")
             .HasMaxLength(32)
             .IsRequired()
-            .HasComment("O codigo no formato do protocolo, sorteado inteiro pelo sistema. Nunca se consulta se ele existe: qualquer diferenca entre livre e ocupado vira enumeracao.");
+            .HasComment("O codigo no formato do protocolo, sorteado inteiro pelo sistema. Codigo apresentado de fora nunca e consultado para dizer se existe: qualquer diferenca entre livre e ocupado vira enumeracao. Na geracao a consulta existe, e nao conta nada — o candidato foi sorteado por nos.");
 
         // Unico **dentro do projeto**, e nao no sistema: dois clientes diferentes
         // podem sortear o mesmo codigo sem que isso signifique nada. Parcial, para o
