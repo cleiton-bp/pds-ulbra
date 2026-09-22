@@ -1,0 +1,24 @@
+<h2>Regenerar a chave secreta</h2>
+
+<pre><code>POST /projects/2be49b28-.../keys/secret</code></pre>
+
+<p>A anterior é revogada e uma nova nasce, com o valor devolvido uma vez. Listando de novo,
+aparecem as três linhas:</p>
+
+<div class="diagram">Secret  sk_pAzFhfsQ   ativa    (a nova)
+Public  pk_1R0KtQwz   ativa
+Secret  sk_17QxAnh7   revogada (fica como histórico)</div>
+
+<div class="note warn">
+  <strong>Regenerar quebra as integrações que usam a chave antiga</strong>
+  <p>É imediato e não tem desfazer. A anterior não é apagada porque o histórico de quando
+  cada chave valeu é o que permite investigar um incidente depois.</p>
+</div>
+
+<h2>Arquivar</h2>
+
+<pre><code>PATCH /projects/2be49b28-...
+{ "Status": "Archived" }</code></pre>
+
+<p>O que não vier no corpo fica como está. Arquivar não apaga nada: o projeto continua
+visível e consultável, só para de aceitar coisa nova.</p>

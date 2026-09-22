@@ -37,7 +37,7 @@ emitiu. Não há <em>client secret</em> aqui: a API só confere, nunca pede.</p>
 e um estado a menos para o sistema: não existe "conta criada mas sem ninguém dentro".</p>
 
 <p>A busca é sempre pelo <code>google_subject</code>, nunca pelo e-mail. O motivo está na
-<a href="#/modelagem">modelagem</a>.</p>
+<a href="#/modelagem/conta-e-usuario">modelagem de <code>users</code></a>.</p>
 
 <h2>A sessão</h2>
 
@@ -48,10 +48,22 @@ e um estado a menos para o sistema: não existe "conta criada mas sem ninguém d
 
 <table>
   <tr><th>Claim</th><th>Conteúdo</th></tr>
-  <tr><td><code>uid</code></td><td><code>public_id</code> do usuário</td></tr>
+  <tr><td><code>uid</code></td><td><code>public_id</code> do usuário. <b>É o único que o servidor lê.</b></td></tr>
   <tr><td><code>acc</code></td><td><code>public_id</code> da conta</td></tr>
+  <tr><td><code>sub</code></td><td>O mesmo <code>public_id</code> do usuário, no claim padrão de sujeito</td></tr>
+  <tr><td><code>jti</code></td><td>Identificador do token, sorteado a cada emissão</td></tr>
   <tr><td><code>iss</code> / <code>aud</code> / <code>exp</code></td><td>Emissor, destinatário e expiração</td></tr>
 </table>
+
+<div class="note why">
+  <strong><code>sub</code> e <code>jti</code> são emitidos, e nada os lê</strong>
+  <p>Os dois são claims padrão do JWT, e estão ali para quem for depurar o token com uma
+  ferramenta de fora encontrar o que espera encontrar. O <code>sub</code> repete o
+  <code>uid</code> — o mesmo GUID público, nunca o <code>id</code> interno.</p>
+  <p>O <code>jti</code> é um identificador sorteado por emissão. Ele não serve para nada hoje, e
+  existe para o dia em que derrubar sessão antes da expiração virar requisito: é por ele que uma
+  lista de revogados identificaria <em>qual</em> token cair.</p>
+</div>
 
 <div class="note why">
   <strong>Por que só identificadores públicos no token</strong>

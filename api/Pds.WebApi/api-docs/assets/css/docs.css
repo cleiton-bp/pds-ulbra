@@ -121,6 +121,14 @@ nav a.active {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+/* Cada secao e um grupo, e os passos dela so aparecem com a secao aberta: com
+   todos abertos o menu nao caberia na tela, e a secao aberta ja diz onde a
+   pessoa esta. */
+nav .steps { display: none; margin: 2px 0 8px 12px; padding-left: 8px; border-left: 1px solid var(--line); }
+nav .group.open .steps { display: block; }
+nav .steps a { font-size: 13px; padding: 5px 10px; }
+nav .group.open > a:not(.active) { color: var(--text); font-weight: 600; }
+
 main { padding: 38px 46px 100px; min-width: 0; }
 #content { animation: fade 0.18s ease; }
 @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
@@ -188,6 +196,18 @@ td code { white-space: nowrap; }
   font-size: 13px; line-height: 1.75; white-space: pre; color: var(--text-soft);
 }
 .diagram b { color: var(--text); font-weight: 600; }
+
+/* A lista de passos na pagina de uma secao: o mesmo salto que o menu da, para
+   quem chega pelo corpo da pagina e nao pela lateral. */
+.steps-index { display: grid; gap: 8px; margin-top: 4px; }
+.steps-index a {
+  display: block; padding: 12px 15px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--text);
+}
+.steps-index a:hover { border-color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+.steps-index strong { display: block; font-size: 14.5px; margin-bottom: 2px; }
+.steps-index span { color: var(--text-soft); font-size: 13.5px; line-height: 1.5; }
 
 .pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; }
 

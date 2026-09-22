@@ -12,6 +12,7 @@ Editadas pelo canvas do [editor](../) (`npm run dev`) ou direto no editor de tex
 | `stage-3.yaml` | etapa 3 — os estados do projeto, onde cada tipo de relato entra, os dois comentários em tabelas separadas, e as duas colunas que `reports` e `events` ganham |
 | `stage-4.yaml` | etapa 4 — as etapas públicas que o relator vê, o mapeamento versionado que liga os estados a elas, e as duas colunas que `projects` e `reports` ganham |
 | `stage-5.yaml` | etapa 5 — o encerramento com motivo, a resposta de quem relatou, e as regras do ciclo que cada projeto configura |
+| `stage-6.yaml` | etapa 6 — quem é quem num projeto, quem pode ver o que, o código que quem relata guarda, e a fila de moderação por onde todo relato passa antes de virar público |
 
 **Um arquivo por etapa, e os anteriores não se mexem.** Cada `.yaml` é a modelagem **como ela ficou ao fim daquela etapa**, e não a modelagem de hoje: tabela ou coluna que muda depois entra no arquivo da etapa que mudou, marcada ali, e o arquivo antigo continua contando o que era verdade na época. Reescrever o passado apagaria justamente a informação que a sequência de arquivos existe para guardar.
 
@@ -20,6 +21,8 @@ O `example.yaml` existe para conhecer o editor.
 O `stage-4.yaml` é o primeiro em que aparecem duas tabelas que só existem por causa da camada pública: a jornada e o mapa que leva até ela.
 
 O `stage-3.yaml` corrige uma defasagem: `project_widget_settings` já existe no banco e não estava em modelagem nenhuma, então ele aparece ali como herdado.
+
+O `stage-6.yaml` corrige outra, do mesmo tipo: cinco colunas existiam no banco sem estar em desenho nenhum — `avatar_url` e `last_login_at` em `users`, `last_used_at` em `project_keys`, e o `public_id` de `project_initial_states` e de `report_contexts`. Aparecem ali como herdadas, e os arquivos anteriores continuam como estavam.
 
 Nomes seguem o [glossário](../../../local/decisoes-de-projeto.md): entidade e campo em inglês, `label` e `note` em português.
 

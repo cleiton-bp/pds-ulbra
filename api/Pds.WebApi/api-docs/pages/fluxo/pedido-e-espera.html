@@ -1,0 +1,78 @@
+<h2>Quando falta informação, em vez de encerrar</h2>
+
+<pre><code>POST /projects/2be49b28-.../reports/9f1c.../info-request
+{ "Body": "Em qual navegador isso aconteceu?" }</code></pre>
+
+<p>A pergunta vira um <strong>comentário público</strong> — a conversa acontece pelo próprio
+relato —, e a linha em <code>report_info_requests</code> guarda o relógio. Quem relatou responde
+pela mesma porta das outras rotas públicas:</p>
+
+<div class="diagram">o time pergunta   →  asked_at, warn_at, close_at gravados
+      ↓
+passa warn_at     →  a pagina muda de tom: "vai encerrar, e da para reabrir depois"
+      ↓
+     ┌────────────┴────────────┐
+ela responde              ninguem responde
+     ↓                          ↓
+POST /public/reports/reply   passa close_at
+     ↓                          ↓
+answered_at                  encerra como no_answer, sem autor
+a vez volta para a equipe    e continua reabrivel</div>
+
+<div class="note warn">
+  <strong>O primeiro prazo não dispara nada</strong>
+  <p>Só <code>close_at</code> é agendado. O aviso é a página mudando de tom quando a data passa —
+  enquanto não houver canal de comunicação, avisar é isso.</p>
+  <p>E o encerramento por prazo grava origem <code>system</code> e autor nulo. Chamá-lo de
+  <code>panel</code> faria a contagem atribuir ao time uma ação que o time não tomou.</p>
+</div>
+
+<div class="note why">
+  <strong>Só se quem relatou tiver aceitado responder dúvidas</strong>
+  <p>A caixa está no próprio formulário da ferramenta, e o projeto escolhe apenas como ela vem
+  marcada. Sem o sim, a rota é recusada e a tela do painel diz qual é o caso — recurso desligado,
+  relato já encerrado, pedido já aberto, ou a pessoa não ter aceitado.</p>
+  <p>São <strong>três estados</strong> e não dois: nulo é o relato que entrou antes de a pergunta
+  existir. O efeito é o mesmo do não, mas a tela não põe na boca dela uma resposta que ela nunca
+  deu.</p>
+</div>
+
+<h2>A espera antes de quem relatou ver</h2>
+
+<p>Com <code>public_delay_minutes</code> acima de zero, mover o relato não muda a página pública
+na hora:</p>
+
+<div class="diagram">o time move   →  evento interno gravado JA
+      ↓          reports.public_stage_due_at = agora + espera
+      ↓          e uma mensagem entra na fila, com atraso
+      ↓
+     ┌───────────┴───────────┐
+o prazo vence            o time desfaz antes
+     ↓                        ↓
+a mensagem chega          o vencimento e reescrito
+     ↓                        ↓
+rele o estado ATUAL       a mensagem antiga chega, ve data no futuro
+     ↓                        ↓
+grava o evento publico    sai em silencio — nada foi cancelado</div>
+
+<div class="note why">
+  <strong>A mensagem carrega o relato, e nunca a decisão</strong>
+  <p>Dois campos: qual verificação e qual relato. Quem consome relê o estado atual e decide na
+  hora — e é daí que saem as três propriedades: desfazer sem cancelar, mensagem repetida sem dano,
+  mensagem perdida sem perder o relato.</p>
+  <p>A última vale pela coluna no banco: a subida varre <code>public_stage_due_at</code> e
+  <code>close_at</code> vencidos e aplica o que ficou para trás. O <em>plugin</em> de atraso do
+  RabbitMQ não replica o que está esperando, e essas colunas são a resposta a isso.</p>
+</div>
+
+<div class="note todo">
+  <strong>O que falta aqui</strong>
+  <p><strong>Onde a fila roda em produção.</strong> O Render não fornece broker. Até haver um — e
+  até se confirmar que o plano escolhido permite o
+  <code>rabbitmq_delayed_message_exchange</code> —, a espera e o prazo do pedido ficam
+  indisponíveis lá, e a tela de Ciclo recusa ligá-los dizendo o motivo.</p>
+  <p><code>tracking_code_can_act</code> está gravado e <strong>não tem tela</strong>. Ele decide
+  se o protocolo sozinho confirma e reabre, e depende de uma consulta <em>por protocolo</em> que o
+  produto ainda não tem — oferecer o controle antes dela seria oferecer um botão que não muda
+  nada.</p>
+</div>

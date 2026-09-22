@@ -1,0 +1,64 @@
+<h2>A chave secreta não é recuperável</h2>
+
+<p>O banco guarda o hash e o prefixo. O valor completo existe uma única vez, na resposta que
+o criou.</p>
+
+<table>
+  <tr><th></th><th>Chave pública</th><th>Chave secreta</th></tr>
+  <tr><td>Marca</td><td><code>pk_</code></td><td><code>sk_</code></td></tr>
+  <tr><td>Onde vive</td><td>No site do cliente</td><td>No servidor do cliente</td></tr>
+  <tr><td>No banco</td><td><code>value</code>, em claro</td><td><code>hash</code>, SHA-256</td></tr>
+  <tr><td>Some depois de exibida</td><td>Não</td><td>Sim</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que a pública fica em claro</strong>
+  <p>Ela identifica o projeto no navegador, não autentica ninguém. Precisa ser lida por
+  qualquer um que abra a página do cliente — guardá-la como hash não protegeria nada e
+  quebraria o uso.</p>
+</div>
+
+<div class="note warn">
+  <strong>Se o painel conseguir mostrar a secreta de novo, ela deixou de ser secreta</strong>
+  <p>É por isso que não existe rota para revelá-la. Um vazamento do banco entregaria as
+  integrações de todos os clientes de uma vez; guardando só o hash, entrega uma lista de
+  hashes.</p>
+</div>
+
+<h3>Por que SHA-256, e não bcrypt</h3>
+
+<p>bcrypt e parecidos são lentos de propósito, feitos para senha digitada por gente e
+vulnerável a tentativa e erro. A chave secreta já nasce longa e sorteada, então não há o que
+adivinhar, e ela será conferida a cada requisição da integração: bcrypt ali deixaria toda
+chamada mais lenta sem ganhar segurança.</p>
+
+<h3>Comparação em tempo constante</h3>
+
+<p>A conferência não usa <code>==</code>. Uma comparação comum para no primeiro caractere
+diferente, e a diferença de tempo entre parar no primeiro e parar no décimo permite
+descobrir o valor caractere a caractere.</p>
+
+<p>Quem chama a comparação é a consulta pública de acompanhamento, desde a
+<code>pds-017</code>: o token do link é sorteado e guardado com <em>a mesma função de hash</em>
+da chave secreta, e conferi-lo é a única coisa que separa o relato de quem o escreveu de
+qualquer pessoa com o protocolo na mão.</p>
+
+<div class="note todo">
+  <strong>A chave secreta continua sem rota que a aceite</strong>
+  <p>Ela é gerada, guardada como hash e regenerável, e <strong>nenhuma rota autentica por ela</strong>.
+  Quem chega hoje às rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
+  em claro — a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
+  <p>A peça que faltava era o <em>caller</em> da comparação, e ele chegou pelo token do relato.
+  O que falta agora é o outro lado: a primeira rota de integração servidor a servidor.</p>
+</div>
+
+<p>Nas duas rotas que apresentam a chave pública, chave ausente, desconhecida, revogada ou
+secreta recebem
+<strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta chave existe mas foi
+revogada" contaria a quem tenta que ele acertou metade.</p>
+
+<h2>Regenerar não sobrescreve</h2>
+
+<p>Revogar preenche <code>revoked_at</code> e cria uma linha nova. A anterior fica como
+histórico, com a data em que deixou de valer — é o que permite responder "esta chave estava
+ativa quando o acesso aconteceu?" depois de um incidente.</p>

@@ -1,0 +1,64 @@
+<h2>Sessão, projeto e chaves</h2>
+<p class="lead">Entrar, criar o projeto, ver as chaves e autorizar os endereços onde a ferramenta abre.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/auth/google</code></td><td>Entra com o Google. Primeiro acesso cria conta e usuário.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/auth/logout</code></td><td>Encerra a sessão.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/me</code></td><td>Usuário e conta atuais.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Lista os projetos da conta.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto e o par de chaves.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto.</td></tr>
+  <tr><td><span class="verb patch">PATCH</span></td><td><code>/projects/{publicId}</code></td><td>Renomeia, arquiva.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td>Chaves. A secreta só como prefixo.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td>Regenera a secreta e devolve <strong>uma vez</strong>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td>Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td>Retira a autorização. Exclusão lógica.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>A mesma chave, ora no corpo, ora na URL</strong>
+  <p><code>POST /public/reports</code> leva a chave pública no corpo;
+  <code>GET /public/widget-settings</code> leva na URL. Não é descuido, e a diferença não é de
+  segurança: a chave é pública nos dois casos, e está à vista no HTML do site do cliente.</p>
+  <p>O que o carregador evita é outra coisa — pôr a chave no <code>src</code> do quadro, que
+  ficaria no documento <em>do cliente</em>, no histórico de quem visita e no <code>Referer</code>
+  que sai de lá. Esta chamada sai do nosso próprio documento para a nossa própria API, e essa URL
+  não aparece na página de ninguém. Em troca, a resposta pode ganhar cache no dia em que o volume
+  pedir — coisa que um <code>POST</code> fecharia.</p>
+</div>
+
+<div class="note why">
+  <strong>Onde a lista de endereços é conferida</strong>
+  <p>Nas duas rotas que a ferramenta usa, e por motivos diferentes. Em
+  <code>GET /public/widget-settings</code> a recusa é <strong>403</strong> e faz o quadro nunca
+  aparecer naquela página — é o que evita alguém escrever o relato inteiro para ser recusado no
+  envio. Em <code>POST /public/reports</code> ela é o que de fato impede a gravação: sem a
+  segunda, bastaria falar direto com a rota para a lista não valer nada.</p>
+  <p><strong>Lista vazia autoriza qualquer endereço</strong>, e <strong>quem não declara endereço
+  passa.</strong> A primeira regra existe porque a leitura contrária apagaria a ferramenta de toda
+  instalação no ar no dia em que a conferência entrou — sem erro em tela nenhuma, porque o quadro
+  que não pode abrir simplesmente não aparece. A segunda, porque recusar o silêncio não ganha nada
+  (quem quer burlar declara um endereço válido, não omite) e custa o relato de teste do painel,
+  que abre o quadro sem página hospedeira.</p>
+</div>
+
+<div class="note warn">
+  <strong>Isto é grade de proteção, e não muro</strong>
+  <p>O endereço é declarado pela própria página. Como quem o declara é o carregador, que é código
+  nosso, a chave pública copiada para outro site <em>é</em> pega — e é esse o caso comum. Quem
+  chamar a API sem passar pela ferramenta declara o que quiser, ou não declara nada.</p>
+  <p>O muro é o <code>frame-ancestors</code> montado desta lista, que impede o quadro de sequer
+  abrir fora dela. Ele precisa de um servidor servindo o documento do quadro para montar o
+  cabeçalho por projeto, e o quadro hoje é arquivo estático: chega com o domínio próprio.</p>
+</div>
+
+<div class="note warn">
+  <strong>Não existe rota de exclusão de projeto</strong>
+  <p>Arquivar cobre o caso real — parar de aceitar coisa nova sem perder o histórico. Apagar
+  projeto envolve o que fazer com os relatos que apontam para ele, e essa decisão é da etapa
+  em que o relato existir.</p>
+</div>

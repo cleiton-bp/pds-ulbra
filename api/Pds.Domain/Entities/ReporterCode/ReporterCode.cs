@@ -43,10 +43,22 @@ public class ReporterCode : PdsBaseEntity
     /// senha fraca sem usuario, e adivinhar o de outra cairia exatamente no risco de
     /// se passar por alguem que este modo existe para evitar.</para>
     ///
-    /// <para><b>Nunca se consulta se um codigo existe.</b> Sugerir outro so quando o
-    /// primeiro esta ocupado e dizer que esta ocupado, e qualquer diferenca entre
-    /// livre e ocupado vira enumeracao. Como a parte sorteada entra sempre, nao ha
-    /// consulta: colisao se trata gravando, com nova tentativa.</para>
+    /// <para><b>Codigo apresentado de fora nunca e consultado para dizer se
+    /// existe.</b> Sugerir outro so quando o primeiro esta ocupado e dizer que esta
+    /// ocupado, e qualquer diferenca entre livre e ocupado vira enumeracao — por
+    /// isso a rota publica devolve lista vazia para o desconhecido, e nao uma
+    /// recusa.</para>
+    ///
+    /// <para><b>Na geracao a consulta existe, e nao conta nada a ninguem.</b> O
+    /// candidato e sorteado por nos, e <c>ExistsAsync</c> confere a colisao antes de
+    /// gravar — mesmo desenho do protocolo. Quem esta do lado de fora nunca escolhe
+    /// o valor consultado, entao a resposta nao fala do codigo de pessoa
+    /// nenhuma.</para>
+    ///
+    /// <para>Essa conferencia inclui <b>o apagado logicamente</b>, ao contrario da
+    /// busca por codigo apresentado: reaproveitar um codigo que ja foi de alguem
+    /// faria a lista de uma pessoa aparecer para outra, e o papel com o codigo
+    /// antigo continua na mao de alguem.</para>
     /// </summary>
     public string Code { get; set; } = string.Empty;
 

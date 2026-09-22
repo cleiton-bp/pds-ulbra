@@ -1,0 +1,142 @@
+<h2>project_widget_settings</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Único entre os não apagados. É o que faz o 1:1.</td></tr>
+  <tr><td><code>is_enabled</code></td><td>Tira a ferramenta do site sem ninguém editar o HTML do cliente.</td></tr>
+  <tr><td><code>accent_color</code></td><td><code>#rrggbb</code> minúsculo. <b>Nulo é um valor</b>: quer dizer o acento do produto.</td></tr>
+  <tr><td><code>position</code></td><td><code>bottom_right</code> | <code>bottom_left</code>.</td></tr>
+  <tr><td><code>theme</code></td><td><code>auto</code> | <code>light</code> | <code>dark</code>. <code>auto</code> segue quem visita o site, não quem o configurou.</td></tr>
+  <tr><td><code>launcher_label</code></td><td>O texto do botão parado na página. 40.</td></tr>
+  <tr><td><code>title</code></td><td>O título dentro do quadro. 60.</td></tr>
+  <tr><td><code>placeholder</code></td><td>O texto da caixa vazia — é ele que faz a pergunta certa. 160.</td></tr>
+  <tr><td><code>success_message</code></td><td>A frase acima do protocolo. 200.</td></tr>
+  <tr><td><code>shows_type_field</code></td><td>Mostra ou esconde o seletor de tipo.</td></tr>
+  <tr><td><code>default_report_type</code></td><td>Vem pré-marcado, e é o tipo gravado quando o seletor não aparece.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A linha só nasce quando alguém salva</strong>
+  <p>Projeto sem linha aqui <em>não</em> é projeto sem configuração — é projeto usando os
+  padrões, que vivem no código. As duas rotas respondem a mesma coisa nos dois casos, e quem lê
+  não consegue distinguir.</p>
+  <p>Isso custou uma decisão: os projetos que já existiam quando a tabela nasceu não precisaram
+  de nenhum <code>UPDATE</code> no banco compartilhado, e projeto novo continua nascendo sem
+  linha. O caminho "sem linha" vira o caminho comum, exercitado o tempo todo, em vez de um canto
+  que apodrece esperando o dia em que alguém o pisa.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que coluna, se <code>report_contexts</code> é chave e valor</strong>
+  <p>São perguntas diferentes. O que se captura junto de um relato ainda vai crescer, e cada
+  captura nova como coluna seria uma migração na tabela que mais cresce. Aqui a lista é fechada
+  e acordada: dez campos, cada um com um tipo e um limite. Como coluna, cada um se explica no
+  próprio banco e o tipo errado não entra.</p>
+</div>
+
+<div class="note warn">
+  <strong>A gravação substitui a linha inteira</strong>
+  <p>A rota é <code>PUT</code>, e não <code>PATCH</code> como a de projeto. O motivo é o
+  <code>accent_color</code>: nulo ali <em>significa</em> "use o acento do produto". Num corpo
+  parcial, campo ausente e campo nulo seriam a mesma coisa, e voltar a cor ao padrão viraria
+  impossível de pedir.</p>
+  <p>O preço é que duas pessoas da mesma conta editando ao mesmo tempo sobrescrevem uma à
+  outra, e ninguém fica sabendo. Não há coluna de versão para detectar isso.</p>
+</div>
+
+<div class="note why">
+  <strong>Nenhuma coluna tem valor padrão no banco</strong>
+  <p>Os padrões moram uma vez, no código, e a tabela só recebe linha por uma gravação que
+  escreve os dez campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
+  decisão, e nada manteria as duas iguais.</p>
+</div>
+
+<h2>project_cycle_settings</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
+  <tr><td><code>closure_trigger</code></td><td>O que encerra o relato: <code>last_column</code> — cair na última coluna — ou <code>button</code>, só pelo botão.</td></tr>
+  <tr><td><code>public_delay_minutes</code></td><td>Quanto o lado público espera antes de mudar. Zero é o comportamento anterior a esta etapa; acima de zero é a janela para desfazer um movimento errado.</td></tr>
+  <tr><td><code>allows_reopen</code></td><td>Se quem relatou pode reabrir.</td></tr>
+  <tr><td><code>reopen_state_id</code></td><td>Para qual coluna interna o relato volta ao reabrir. <b>Nula usa a primeira ativa</b>, para o projeto funcionar sem ninguém configurar nada.</td></tr>
+  <tr><td><code>reopen_requires_comment</code></td><td>Se reabrir exige dizer por quê. O motivo é para quem vai pegar o relato de volta.</td></tr>
+  <tr><td><code>tracking_code_can_act</code></td><td>Se o protocolo sozinho confirma e reabre, ou se as duas ações exigem o link. Ler é inofensivo; reabrir mexe na fila do time.</td></tr>
+  <tr><td><code>satisfaction_enabled</code></td><td>Se a nota é pedida ao confirmar.</td></tr>
+  <tr><td><code>satisfaction_style</code></td><td><code>stars</code> ou <code>number</code>.</td></tr>
+  <tr><td><code>satisfaction_required</code></td><td>Se confirmar exige responder. Mesmo exigindo, "prefiro não responder" continua existindo, <b>fora da escala</b>.</td></tr>
+  <tr><td><code>info_request_enabled</code></td><td>Se o time pode devolver o relato pedindo informação em vez de encerrar.</td></tr>
+  <tr><td><code>info_request_warn_days</code></td><td>Dias sem resposta até avisar quem relatou de que o relato vai encerrar.</td></tr>
+  <tr><td><code>info_request_close_days</code></td><td>Dias depois do aviso até encerrar como sem retorno.</td></tr>
+  <tr><td><code>accepts_questions_default</code></td><td>Como a opção de aceitar dúvidas vem marcada no formulário. <b>A escolha final é de quem relata</b>, não do projeto.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A linha só nasce quando alguém salva</strong>
+  <p>Os treze padrões vivem no código, em <code>CycleSettingsDefaults</code>. Projeto sem linha
+  aqui é projeto que nunca precisou mudar nada — e lê exatamente o mesmo comportamento de quem
+  salvou os padrões. É o mesmo molde de <code>project_widget_settings</code>.</p>
+  <p>O ganho é que acrescentar uma regra nova não exige tocar em nenhuma linha existente: ela
+  nasce com valor de fábrica para todo mundo, inclusive para quem já salvou.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que isto é tabela, e não constante</strong>
+  <p>Quase tudo que quem relatou encontra no fim do ciclo é decidido aqui: se dá para reabrir,
+  para onde volta, se a nota aparece e em que escala, quanto tempo o time tem antes de o relato
+  encerrar sozinho. Fixar qualquer uma no código é o produto ditando regra para o cliente.</p>
+  <p><code>reopen_state_id</code> é a única que aponta para outra tabela do projeto, e usa
+  <code>Restrict</code>: a coluna escolhida como destino da reabertura não some enquanto for o
+  destino. Apagá-la em silêncio mandaria os relatos reabertos para outro lugar sem ninguém
+  decidir isso.</p>
+</div>
+
+<div class="note warn">
+  <strong>As travas dos prazos estão no banco, e não só na tela</strong>
+  <p><code>public_delay_minutes</code>, <code>info_request_warn_days</code> e
+  <code>info_request_close_days</code> são números digitados por uma pessoa, e um zero a mais não
+  dá erro em lugar nenhum: deixaria quem relatou sem notícia por meses, ou o relato esperando
+  resposta por anos. O teto é conferido no serviço, e as duas <em>check constraints</em> são a
+  rede embaixo.</p>
+</div>
+
+<h2>project_identity_settings</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
+  <tr><td><code>mode</code></td><td><code>protocol</code> | <code>personal_code</code> | <code>inherited_identity</code>. Excludentes. O terceiro existe na configuração e <b>nada o lê ainda</b> — está adiado, e a tela diz isso.</td></tr>
+  <tr><td><code>visibility</code></td><td><code>private</code> | <code>public_anonymous</code> | <code>public_identified</code>. Padrão <code>private</code>.</td></tr>
+  <tr><td><code>asks_for_name</code></td><td>Se a ferramenta pergunta o nome de quem relata. <b>Desligado de fábrica.</b></td></tr>
+</table>
+
+<div class="note why">
+  <strong>Por que identidade e visibilidade moram na mesma tabela</strong>
+  <p>Parecem dois assuntos vizinhos e não são: o modo de identificação <strong>decide</strong> o
+  que a visibilidade pode ser. Sem identidade não existe "o meu relato" — logo não existe lista
+  pessoal, e não existe a opção "só os meus" para o projeto escolher.</p>
+  <p>Em duas tabelas, a regra teria de ser conferida lendo as duas, e a tela ofereceria uma
+  combinação que a regra não permite: o erro só apareceria na hora de salvar.
+  <code>public_identified</code> é recusado onde o modo não identifica, e a conferência é feita
+  no <strong>par</strong>, nunca no campo sozinho.</p>
+</div>
+
+<div class="note warn">
+  <strong>Gravar público ainda não publica nada</strong>
+  <p>Marcar o projeto como público não torna relato nenhum visível. A lista pública só devolve o
+  que passou pela fila de moderação, e a ordem é deliberada: se o campo sozinho publicasse, mudar
+  esta configuração jogaria na rua todo o texto livre já escrito.</p>
+  <p>E texto livre é onde aparece documento, número de pedido e captura de tela com dado de
+  terceiro — o risco do projeto público nunca foi o nome de quem relatou.</p>
+</div>
+
+<div class="note why">
+  <strong>O padrão é o mais fechado, e não o mais útil</strong>
+  <p><code>protocol</code>, <code>private</code> e <code>asks_for_name</code> desligado. Os três
+  vivem em <code>IdentitySettingsDefaults</code>, no código — e não como valor padrão de coluna,
+  pelo mesmo motivo das outras configurações: mudar de ideia deixaria as linhas antigas com o
+  valor velho e as novas com o novo, e nenhuma delas saberia disso.</p>
+  <p>Começar identificando seria começar coletando dado pessoal de quem nunca foi perguntado.
+  Coletar precisa ser um <strong>ato</strong> de quem configura, e não o que acontece por
+  omissão.</p>
+</div>
