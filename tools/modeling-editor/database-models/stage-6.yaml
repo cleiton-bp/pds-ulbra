@@ -1,0 +1,1434 @@
+meta:
+  title: Etapa 6 — Identidade e visibilidade
+  description: Quem e quem num projeto, quem pode ver o que, e a fila que segura todo relato antes de ele virar publico. Montado sobre o que ja existe, que aparece aqui sem alteracao, menos reports, que ganha seis colunas, e events, que ganha dois tipos.
+entities:
+  - name: base_columns
+    label: Colunas padrão
+    description: Não é tabela, é o conjunto de colunas que toda tabela do sistema repete, desenhado aqui uma vez para não precisar explicar em cada uma delas.
+    inherited: true
+    position: { x: 556, y: 162 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: created_at
+        type: datetime
+        note: quando o registro foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o registro vale, preenchido no lugar de apagar
+  - name: accounts
+    label: Contas
+    description: Existe para ser a fronteira de isolamento, é a única garantia de que o dado de um cliente não aparece para outro, e por isso toda tabela do sistema pendura nela.
+    inherited: true
+    position: { x: 1160, y: 228 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: name
+        type: text
+        required: true
+        note: nome da conta, exibido no painel
+      - name: created_at
+        type: datetime
+        note: quando a conta foi criada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a conta vale, preenchido no lugar de apagar
+      - name: purge_at
+        type: datetime
+        note: data em que a exclusão vira definitiva, gravada no pedido para sobreviver a mudança de política
+      - name: anonymized_at
+        type: datetime
+        note: quando a identificação foi removida, e a partir daí nenhuma linha da conta guarda dado pessoal
+  - name: users
+    label: Usuários
+    description: Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra. Nesta modelagem ela ganha um segundo papel — passa a ser referenciada por quem move card e por quem comenta, então o histórico deixa de ser anônimo.
+    inherited: true
+    position: { x: 387, y: 400 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: account_id
+        type: long
+        fk: true
+        required: true
+        note: conta a que este usuário pertence
+      - name: google_subject
+        type: text
+        required: true
+        unique: true
+        note: o sub do Google, identificador estável, é por ele que o login reconhece a pessoa
+      - name: email
+        type: text
+        required: true
+        note: e-mail vindo do Google, usado para exibir e para contato
+      - name: name
+        type: text
+        note: nome vindo do Google, exibido no painel
+      - name: avatar_url
+        type: text
+        note: foto vinda do Google, opcional, e nunca pedida a quem entra
+      - name: last_login_at
+        type: datetime
+        note: último acesso, em UTC
+      - name: created_at
+        type: datetime
+        note: quando o usuário entrou pela primeira vez, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o usuário vale, preenchido no lugar de apagar
+  - name: projects
+    label: Projetos
+    description: Existe porque uma conta acompanha mais de um sistema, e cada um precisa da própria chave, dos próprios domínios, da própria fila de estados e da própria lista de relatos.
+    inherited: true
+    position: { x: 1160, y: 507 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: account_id
+        type: long
+        fk: true
+        required: true
+        note: conta dona do projeto
+      - name: name
+        type: text
+        required: true
+        note: nome do projeto, único dentro da conta entre os não apagados
+      - name: status
+        type: enum
+        required: true
+        note: active | archived, arquivar para de aceitar relato novo sem perder o que já entrou
+      - name: created_at
+        type: datetime
+        note: quando o projeto foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: mapping_version
+        type: int
+        required: true
+        note: a versão do mapeamento que vale agora, zero enquanto o cliente nunca ligou nada, e mora aqui em vez de ser o maior valor da tabela de mapeamento porque desfazer todos os mapeamentos grava uma versão sem nenhuma linha
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o projeto vale, preenchido no lugar de apagar
+  - name: project_keys
+    label: Chaves do projeto
+    description: Existe para separar quem só aponta o projeto de quem prova ser o servidor do cliente, e guarda o histórico das revogadas porque saber quando cada chave valeu é o que permite investigar um incidente depois.
+    inherited: true
+    position: { x: 18, y: 982 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da chave
+      - name: type
+        type: enum
+        required: true
+        note: public | secret, a pública identifica o projeto, a secreta autentica uma integração
+      - name: value
+        type: text
+        note: só a pública fica em claro, porque ela viaja no HTML do site do cliente e precisa ser lida
+      - name: hash
+        type: text
+        note: só a secreta, e é tudo o que sobra dela, porque o valor completo existe uma única vez na resposta que a criou
+      - name: prefix
+        type: text
+        required: true
+        note: o começo do valor, para a tela mostrar qual chave é sem revelar o resto
+      - name: revoked_at
+        type: datetime
+        note: nulo enquanto a chave vale, preenchido ao regenerar, e a linha fica como histórico
+      - name: last_used_at
+        type: datetime
+        note: último uso, em UTC, e é o que diz se dá para revogar uma chave sem quebrar nada
+      - name: created_at
+        type: datetime
+        note: quando a chave foi gerada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a chave vale, preenchido no lugar de apagar
+  - name: project_origins
+    label: Domínios autorizados
+    description: Existe porque a chave pública fica à vista no HTML do cliente e sozinha ela não diz de onde o relato saiu. Lista vazia autoriza qualquer lugar, e o primeiro endereço declarado liga a conferência.
+    inherited: true
+    position: { x: 1906, y: 500 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto que autoriza este endereço
+      - name: domain
+        type: text
+        required: true
+        note: minúsculo, sem esquema e sem barra final, com a porta quando informada, único no projeto entre os não apagados
+      - name: allows_subdomains
+        type: bool
+        required: true
+        note: quando verdadeiro vale também para app. e loja. na frente, e nasce desligado porque autorizar demais é o erro que não aparece
+      - name: created_at
+        type: datetime
+        note: quando o endereço foi autorizado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a autorização vale, preenchido no lugar de apagar
+  - name: project_widget_settings
+    label: Configuração da ferramenta
+    description: Existe para a aparência e os textos do quadro serem escolha do cliente sem ninguém editar o HTML do site dele. É 1:1 com o projeto, e projeto sem linha responde com os padrões em vez de erro. Já existe no banco e não estava em modelagem nenhuma, e aparece aqui para o desenho bater com o que está no ar.
+    inherited: true
+    position: { x: 2409, y: 180 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da configuração, único entre os não apagados, e é o que faz o 1:1
+      - name: is_enabled
+        type: bool
+        required: true
+        note: tira a ferramenta do site do cliente sem ninguém mexer no HTML dele
+      - name: accent_color
+        type: text
+        note: "#rrggbb minúsculo, e nulo é um valor: quer dizer o acento do produto"
+      - name: position
+        type: enum
+        required: true
+        note: bottom_right | bottom_left, o canto onde o gatilho fica parado
+      - name: theme
+        type: enum
+        required: true
+        note: auto | light | dark, e auto segue quem visita o site, não quem o configurou
+      - name: launcher_label
+        type: text
+        required: true
+        note: o texto do botão parado na página
+      - name: title
+        type: text
+        required: true
+        note: o título do formulário aberto
+      - name: placeholder
+        type: text
+        required: true
+        note: o texto da caixa vazia, que é onde se faz a pergunta certa
+      - name: success_message
+        type: text
+        required: true
+        note: a mensagem da tela de confirmação
+      - name: shows_type_field
+        type: bool
+        required: true
+        note: se o seletor de tipo aparece para quem relata
+      - name: default_report_type
+        type: enum
+        required: true
+        note: o tipo pré-marcado, e o único quando o seletor está escondido
+      - name: created_at
+        type: datetime
+        note: quando a configuração foi salva pela primeira vez, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a configuração vale, preenchido no lugar de apagar
+  - name: project_states
+    label: Estados do projeto
+    description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como colunas de Trello — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
+    inherited: true
+    position: { x: 560, y: 700 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono do estado, porque a fila de trabalho é de cada sistema e não da conta
+      - name: name
+        type: text
+        required: true
+        note: o nome que o time deu, como Análise ou Corrigindo, único no projeto entre os não apagados, e renomear não reescreve o passado porque o evento guarda o nome que valia na época
+      - name: position
+        type: int
+        required: true
+        note: a ordem na tela, escolhida pelo cliente, e é coluna em vez de ordem alfabética porque fila de trabalho tem sequência
+      - name: deactivated_at
+        type: datetime
+        note: nulo enquanto o estado aceita card novo, preenchido para aposentá-lo sem apagar, porque card antigo continua apontando para ele e o histórico precisa continuar legível
+      - name: created_at
+        type: datetime
+        note: quando o estado foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o estado vale, preenchido no lugar de apagar
+  - name: project_initial_states
+    label: Onde cada tipo entra
+    description: Existe porque o lugar onde o relato cai é escolha do cliente, e pode ser diferente por tipo. O time que quer tudo no backlog aponta os três tipos para o mesmo estado; o que separa defeito de melhoria aponta cada um para o seu. É tabela em vez de três colunas em projects para tipo novo não pedir migração.
+    inherited: true
+    position: { x: 446, y: 1129 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto a que esta regra pertence
+      - name: report_type
+        type: enum
+        required: true
+        note: bug | improvement | question, único por projeto entre os não apagados, e é a chave da escolha
+      - name: project_state_id
+        type: long
+        fk: true
+        required: true
+        note: o estado onde um relato deste tipo cai ao entrar, e ele precisa ser do mesmo projeto
+      - name: created_at
+        type: datetime
+        note: quando a regra foi definida, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a regra vale, preenchido no lugar de apagar
+  - name: reports
+    label: Relatos
+    description: Ja existia, e ganha seis colunas nesta modelagem — por isso aparece apagada no realce das tabelas novas. Tres dizem quem escreveu, e sao opcionais em toda configuracao; as outras tres dizem se o relato ja pode ser visto de fora, e por decisao de quem.
+    inherited: true
+    position: { x: 1237, y: 893 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador usado na URL do painel
+      - name: account_id
+        type: long
+        fk: true
+        required: true
+        note: conta dona do relato, repetido de propósito em vez de chegar pelo projeto
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto de onde o relato veio, resolvido pela chave pública da requisição
+      - name: project_state_id
+        type: long
+        fk: true
+        required: true
+        note: onde o card está agora, e é cache, porque a verdade é a sequência de eventos e esta coluna existe só para a lista filtrar e contar sem reconstruir o histórico a cada consulta
+      - name: project_public_stage_id
+        type: long
+        fk: true
+        note: em que passo da jornada quem relatou vê este relato, nulo enquanto ele não aparece em nenhum, e é cache como o anterior porque a verdade é a sequência de eventos
+      - name: tracking_code
+        type: text
+        required: true
+        unique: true
+        note: o protocolo que a pessoa lê e repete, alfabeto sem 0, O, 1 e I, colisão tratada na geração
+      - name: access_token_hash
+        type: text
+        required: true
+        note: hash do token que vai no link de acompanhamento, o valor original só existe na URL entregue
+      - name: type
+        type: enum
+        required: true
+        note: bug | improvement | question, e é ele que decide em qual estado o relato cai ao entrar
+      - name: text
+        type: text
+        required: true
+        note: o relato como a pessoa escreveu, com tamanho limitado no servidor
+      - name: route
+        type: text
+        note: só o caminho da página de onde o relato foi aberto, sem query e sem fragmento
+      - name: origin
+        type: text
+        note: domínio da página que embutiu o widget, declarado por ela e conferido contra a lista do projeto
+      - name: accepts_questions
+        type: bool
+        note: 'coluna nova — quem relatou marcou se aceita responder dúvidas da equipe; desmarcado, o time nao consegue abrir pedido de informacao neste relato, e a tela diz o motivo. Anulável, e nulo é um terceiro estado: o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada — gravá-lo como "não aceita" seria pôr na boca da pessoa uma resposta que ela nunca deu'
+      - name: public_stage_due_at
+        type: datetime
+        note: coluna nova — a partir de quando a mudanca de etapa publica vale para quem relatou; e a janela em que o time ainda pode desfazer, e nula quando nao ha espera configurada
+      - name: reporter_code_id
+        type: long
+        fk: true
+        note: coluna nova — o codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nula no modo protocolo e em todo relato anterior ao modo existir, e esses continuam valendo pelo link de sempre
+      - name: reporter_name
+        type: text
+        note: "coluna nova — como a pessoa quis ser chamada, quando o projeto pergunta e ela quis dizer. Nula e o normal, e o valor nasce interno: o time ve, o lado de fora nao"
+      - name: reporter_name_is_public
+        type: bool
+        required: true
+        note: coluna nova — a pessoa escolheu assinar este relato. Falso por padrao, e ausente e nao, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le — escolha que nao se herda de configuracao nenhuma
+      - name: moderation_state
+        type: enum
+        required: true
+        note: coluna nova — pending | approved | rejected. Todo relato nasce pending, inclusive em projeto privado, e e isso que faz marcar o projeto como publico depois nao publicar o historico inteiro de uma vez
+      - name: moderated_at
+        type: datetime
+        note: coluna nova — quando alguem do time decidiu; nula enquanto ninguem decidiu
+      - name: moderated_by_user_id
+        type: long
+        fk: true
+        note: coluna nova — quem do time decidiu; nula enquanto ninguem decidiu, e tambem quando a conta de quem decidiu foi esvaziada. Nunca sai em rota publica
+      - name: created_at
+        type: datetime
+        note: quando o relato entrou, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o relato vale, preenchido no lugar de apagar
+  - name: report_contexts
+    label: Contexto do relato
+    description: Existe para guardar o que veio junto com o relato sem virar coluna nova a cada captura, e é tabela separada em vez de campo dentro de reports porque o que se vai querer saber amanhã ainda não está decidido hoje.
+    inherited: true
+    position: { x: 2409, y: 716 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: report_id
+        type: long
+        fk: true
+        required: true
+        note: relato a que este dado pertence
+      - name: key
+        type: text
+        required: true
+        note: nome do dado em inglês e snake_case, como user_agent ou viewport_width, único dentro do relato
+      - name: value
+        type: text
+        note: o valor como chegou, sempre texto, a interpretação fica com quem lê
+      - name: created_at
+        type: datetime
+        note: quando foi gravado, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o dado vale, preenchido no lugar de apagar
+  - name: report_internal_comments
+    label: Comentário interno
+    description: O dado mais perigoso da aplicação — é onde o time fala livremente, e se um dia vazar para a camada pública é o pior incidente possível para este produto. São duas tabelas em vez de uma com campo de visibilidade porque com sinalizador basta esquecer um filtro para vazar, e com tabelas separadas vazar exige escrever uma consulta que não existe.
+    inherited: true
+    position: { x: 1050, y: 1560 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API do painel, nunca em rota pública
+      - name: report_id
+        type: long
+        fk: true
+        required: true
+        note: relato comentado
+      - name: user_id
+        type: long
+        fk: true
+        required: true
+        note: quem escreveu, e é obrigatório porque comentário interno sem autor não serve para decidir nada depois
+      - name: body
+        type: text
+        required: true
+        note: o texto como o time escreveu, e ele nunca sai desta tabela — nem para o payload do evento
+      - name: created_at
+        type: datetime
+        note: quando foi escrito, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o comentário vale, preenchido no lugar de apagar
+  - name: report_public_comments
+    label: Comentário público
+    description: O que o time escolhe dizer a quem relatou. Nasce aqui e ainda não tem leitor, porque a camada que o relator lê vem depois, então por enquanto ele é público no nome — e a tela diz isso em vez de sugerir que o relator já vê.
+    inherited: true
+    position: { x: 1560, y: 1560 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API, e este sim pode aparecer na camada pública
+      - name: report_id
+        type: long
+        fk: true
+        required: true
+        note: relato comentado
+      - name: user_id
+        type: long
+        fk: true
+        note: coluna alterada — deixou de ser obrigatória, e agora nulo quer dizer que quem escreveu foi o relator; é o que faz desta tabela a conversa dos dois lados, e não só o recado de um deles
+      - name: body
+        type: text
+        required: true
+        note: o texto que vai ser lido por quem relatou, e por isso passa por uma segunda conferência antes de sair para fora
+      - name: created_at
+        type: datetime
+        note: quando foi escrito, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o comentário vale, preenchido no lugar de apagar
+  - name: events
+    label: Eventos
+    description: Ja existia e nao muda de forma nesta modelagem — ganha dois tipos novos, e nada mais. Responde a pergunta de pesquisa do trabalho e e a unica tabela do sistema que so cresce, nunca e alterada e nunca e apagada.
+    inherited: true
+    position: { x: 1857, y: 1223 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: account_id
+        type: long
+        fk: true
+        note: conta de origem, anulável porque o evento sobrevive ao que o originou
+      - name: project_id
+        type: long
+        fk: true
+        note: projeto de origem, anulável pelo mesmo motivo
+      - name: report_id
+        type: long
+        fk: true
+        note: relato a que o evento se refere, nulo quando o evento não nasce de um relato
+      - name: user_id
+        type: long
+        fk: true
+        note: quem agiu, quando a ação partiu de alguém do time, e nula no evento que nasce de fora, como o relato criado pelo widget ou a visualização feita por quem relatou
+      - name: type
+        type: enum
+        required: true
+        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois novos desta etapa: report_published, gravado quando o relato e liberado para o publico, e report_moderation_rejected, quando e recusado"
+      - name: source
+        type: enum
+        required: true
+        note: widget | panel | api | public_page, separado do tipo para a pesquisa distinguir quem voltou de quem foi olhar
+      - name: payload
+        type: json
+        note: o resto do evento, em chave e valor, e é o que guarda de-onde, para-onde e o nome que o estado tinha na época — nunca o texto de um comentário
+      - name: occurred_at
+        type: datetime
+        required: true
+        note: quando aconteceu, em UTC, e é esta a data que a análise usa
+      - name: created_at
+        type: datetime
+        note: quando a linha foi gravada, em UTC, e diverge de occurred_at quando houve retentativa
+  - name: project_public_stages
+    label: Etapas públicas
+    description: "A jornada que quem relatou acompanha. Existe separada dos estados do projeto porque o time precisa de detalhe que quem está de fora não precisa: vários estados caem numa etapa só, e é essa perda de detalhe que é o produto. Como coluna nos estados, a relação seria 1:1 e a tradução não teria onde acontecer."
+    inherited: true
+    position: { x: 240, y: 1980 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da etapa, porque a jornada é de cada sistema e não da conta, como a fila de trabalho
+      - name: label
+        type: text
+        required: true
+        note: o nome do passo como quem relatou lê, único no projeto entre os não apagados, porque dois rótulos iguais na mesma linha do tempo não teriam como ser distinguidos
+      - name: description
+        type: text
+        required: true
+        note: a frase que explica o passo, obrigatória porque rótulo sozinho é exatamente o que a ferramenta de dentro já dava
+      - name: next_step
+        type: text
+        note: o que vem depois, quando o cliente quer dizer, e nulo na última etapa porque ela não tem depois
+      - name: position
+        type: int
+        required: true
+        note: "a ordem da jornada, não única pelo mesmo motivo dos estados: reordenar reescreve a lista inteira de uma vez"
+      - name: is_terminal
+        type: bool
+        required: true
+        note: "a etapa em que o trabalho do time acaba, e não quer dizer encerrado: a confirmação de quem relatou vem depois dela"
+      - name: allows_return
+        type: bool
+        required: true
+        note: a jornada pode voltar para esta etapa, e é a exceção combinada porque por padrão ela não anda para trás
+      - name: awaits_reporter
+        type: bool
+        required: true
+        note: a etapa espera quem relatou e não o time, ainda sem leitor nenhum, e nasceu com a tabela porque guardar a decisão agora custa nada e custaria migração depois
+      - name: outcome
+        type: text
+        note: done, wont_do, no_answer ou duplicate, nulo fora da etapa terminal e obrigatório nela, porque um fim sem desfecho é um fim sem explicação
+      - name: created_at
+        type: datetime
+        note: quando a etapa foi criada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a etapa vale, preenchido no lugar de apagar, e aqui existe remoção de verdade diferente do estado interno, que só se aposenta
+  - name: project_status_mappings
+    label: Mapeamento de estados
+    description: "Liga N estados internos a 1 etapa pública, nunca o contrário — um estado apontando para duas etapas deixaria sem resposta a única pergunta que esta tabela responde, que é onde o relato está agora. Versionada: alterar grava o conjunto inteiro de novo, um número acima, porque reescrever o mapa apagaria o sentido de tudo que já aconteceu."
+    inherited: true
+    position: { x: 900, y: 1980 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono, repetido aqui em vez de alcançado pelo estado porque toda consulta começa por projeto e versão
+      - name: project_state_id
+        type: long
+        fk: true
+        required: true
+        note: o estado de dentro, de onde o relato sai
+      - name: project_public_stage_id
+        type: long
+        fk: true
+        required: true
+        note: a etapa de fora, onde quem relatou passa a ver o relato
+      - name: version
+        type: int
+        required: true
+        note: a versão a que esta linha pertence, única com projeto e estado entre as não apagadas, e a que vale agora é a gravada em projects
+      - name: created_at
+        type: datetime
+        note: quando a ligação foi criada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a ligação vale, preenchido no lugar de apagar
+  - name: report_info_requests
+    label: Pedidos de informação
+    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela nova desta etapa, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
+    inherited: true
+    position: { x: 1889, y: 1695 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: report_id
+        type: long
+        fk: true
+        required: true
+        note: relato devolvido
+      - name: asked_by_user_id
+        type: long
+        fk: true
+        required: true
+        note: quem do time pediu; obrigatório, ao contrário do encerramento, porque pedir informação é sempre ato de uma pessoa — o sistema nunca pergunta nada
+      - name: asked_at
+        type: datetime
+        required: true
+        note: quando o pedido foi aberto, em UTC
+      - name: warn_at
+        type: datetime
+        required: true
+        note: a partir de quando a página pública avisa que o relato vai encerrar por falta de resposta; gravado aqui e não lido da configuração, porque mudar o prazo do projeto não pode mover o prazo de um pedido que já está correndo
+      - name: close_at
+        type: datetime
+        required: true
+        note: quando o relato encerra como sem retorno, se ninguém responder; é este o momento agendado na fila
+      - name: answered_at
+        type: datetime
+        note: quando quem relatou respondeu; preenchido, o pedido deixou de esperar e o prazo não vale mais
+      - name: expired_at
+        type: datetime
+        note: quando o prazo venceu e o relato foi encerrado sem resposta; com answered_at nulo, é o registro de que o silêncio acabou o assunto
+      - name: created_at
+        type: datetime
+        note: quando a linha foi gravada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: exclusão lógica; nulo enquanto o registro vale
+  - name: report_closures
+    label: Encerramentos
+    description: "O encerramento de um relato e a resposta de quem o escreveu, numa linha so. Nao e comentario: acontece uma vez por fechamento, carrega um desfecho e tem resposta. Reabrir e fechar de novo cria uma linha nova, e e dai que saem as metricas — quantos precisaram fechar duas vezes, qual a nota media, quantos encerramentos o relator recusou."
+    inherited: true
+    position: { x: 1560, y: 1980 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: report_id
+        type: long
+        fk: true
+        required: true
+        note: o relato encerrado
+      - name: outcome
+        type: enum
+        required: true
+        note: done | wont_do | no_answer | duplicate — a lista e nossa e fixa, independente de quantos estados internos o time tenha
+      - name: reason
+        type: text
+        required: true
+        note: o motivo, escrito pelo time e lido por quem relatou; encerrar sem ele e impossivel, e nao desencorajado
+      - name: closed_by_user_id
+        type: long
+        fk: true
+        note: quem do time encerrou; nulo quando foi o proprio sistema, no fim do prazo do pedido de informacao
+      - name: closed_at
+        type: datetime
+        required: true
+        note: quando o encerramento foi gravado
+      - name: public_at
+        type: datetime
+        required: true
+        note: "quando este fechamento passa a valer para quem relatou; igual a closed_at quando não há espera configurada, e adiante dele durante a janela de desfazer. Coluna própria, e não conta feita na leitura: calculá-la a partir da espera do projeto faria mexer na configuração reescrever o passado de um fechamento que já aconteceu — o mesmo motivo de warn_at e close_at serem gravados"
+      - name: confirmed_at
+        type: datetime
+        note: quando quem relatou disse que resolveu; nulo enquanto ele nao respondeu
+      - name: satisfaction
+        type: int
+        note: a nota de 1 a 5; nula quando ele nao respondeu e tambem quando recusou responder
+      - name: satisfaction_declined
+        type: bool
+        required: true
+        note: marcado quando ele escolheu "prefiro nao responder"; e o que separa recusa de ausencia, e as duas contam diferente
+      - name: reopened_at
+        type: datetime
+        note: quando ele reabriu em vez de confirmar
+      - name: reopen_comment
+        type: text
+        note: por que ele reabriu, quando o projeto pede o comentario; fica ao lado do motivo do time, que e o par que a metrica le junto
+      - name: created_at
+        type: datetime
+        note: quando o registro foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: ultima alteracao, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o encerramento vale, preenchido no lugar de apagar
+  - name: project_cycle_settings
+    label: Regras do ciclo
+    description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se da para reabrir e como, e o que a pessoa responde no fim. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada."
+    inherited: true
+    position: { x: 2220, y: 1980 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da configuracao, unico entre os nao apagados, e e o que faz o 1:1
+      - name: closure_trigger
+        type: enum
+        required: true
+        note: last_column | button — se o relato encerra ao cair na ultima coluna ou por um botao proprio
+      - name: public_delay_minutes
+        type: int
+        required: true
+        note: quanto o lado publico espera antes de mudar; zero e o comportamento anterior a esta etapa, e e o que da a janela para desfazer um movimento errado
+      - name: allows_reopen
+        type: bool
+        required: true
+        note: se quem relatou pode reabrir
+      - name: reopen_state_id
+        type: long
+        fk: true
+        note: para qual coluna interna o relato volta ao ser reaberto; nula usa a primeira ativa
+      - name: reopen_requires_comment
+        type: bool
+        required: true
+        note: se reabrir exige dizer por que; saber o motivo facilita o trabalho de quem vai pegar o relato de volta
+      - name: tracking_code_can_act
+        type: bool
+        required: true
+        note: se o protocolo sozinho confirma e reabre, ou se essas duas acoes exigem o link; ler e inofensivo, reabrir mexe na fila do time
+      - name: satisfaction_enabled
+        type: bool
+        required: true
+        note: se a nota e pedida ao confirmar
+      - name: satisfaction_style
+        type: enum
+        required: true
+        note: stars | number — como a escala de 1 a 5 aparece para quem relatou
+      - name: satisfaction_required
+        type: bool
+        required: true
+        note: se confirmar exige responder; mesmo exigindo, "prefiro nao responder" continua existindo, fora da escala
+      - name: info_request_enabled
+        type: bool
+        required: true
+        note: se o time pode devolver o relato pedindo informacao em vez de encerrar
+      - name: info_request_warn_days
+        type: int
+        required: true
+        note: dias sem resposta ate avisar quem relatou de que o relato vai encerrar
+      - name: info_request_close_days
+        type: int
+        required: true
+        note: dias depois do aviso ate encerrar como sem retorno; encerrado assim continua reabrivel
+      - name: accepts_questions_default
+        type: bool
+        required: true
+        note: como a opcao de aceitar duvidas vem marcada no formulario; a escolha final e de quem relata, nao do projeto
+      - name: created_at
+        type: datetime
+        note: quando o registro foi criado, em UTC
+      - name: updated_at
+        type: datetime
+        note: ultima alteracao, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a configuracao vale, preenchida no lugar de apagar
+  - name: project_identity_settings
+    label: Identidade e visibilidade
+    description: "Como quem abre um relato e reconhecido neste projeto, e o que isso permite na visibilidade. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada. Os dois assuntos moram juntos de proposito: o modo de identificacao decide o que a visibilidade pode ser."
+    position: { x: 2950, y: 300 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da configuracao, unico entre os nao apagados, e e o que faz o 1:1
+      - name: mode
+        type: enum
+        required: true
+        note: protocol | personal_code | inherited_identity — excludentes, porque cada um responde de um jeito diferente a pergunta "quem e voce". Trocar de modo nao reescreve o passado
+      - name: visibility
+        type: enum
+        required: true
+        note: private | public_anonymous | public_identified — o padrao e private, e public_identified so vale onde o modo identifica, porque sem identidade nao ha nome nenhum a mostrar
+      - name: asks_for_name
+        type: bool
+        required: true
+        note: se a ferramenta pergunta o nome de quem relata; desligado de fabrica, porque coletar dado pessoal precisa ser um ato de quem configura, e nao o que acontece por omissao
+      - name: created_at
+        type: datetime
+        note: quando a configuracao foi salva a primeira vez, em UTC
+      - name: updated_at
+        type: datetime
+        note: ultima alteracao, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a configuracao vale, preenchido no lugar de apagar
+  - name: reporter_codes
+    label: Codigo pessoal
+    description: "O codigo que quem relata guarda para reencontrar os proprios relatos, no modo sem login. E tabela, e nao coluna em reports: o mesmo codigo vale para varios relatos, entao a unicidade dentro do projeto precisa de uma linha propria — como coluna repetida, o banco nao teria como exigi-la. Nao guarda nada de pessoa: sem nome, sem contato, sem dispositivo, e um identificador sorteado e nada mais."
+    position: { x: 2950, y: 800 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto onde este codigo vale; ele nao atravessa projetos
+      - name: code
+        type: text
+        required: true
+        unique: true
+        note: o codigo no formato do protocolo, sorteado inteiro pelo sistema, unico dentro do projeto entre os nao apagados; codigo apresentado de fora nunca e consultado para dizer se existe, porque qualquer diferenca entre livre e ocupado vira enumeracao
+      - name: created_at
+        type: datetime
+        note: quando o codigo foi sorteado, em UTC
+      - name: updated_at
+        type: datetime
+        note: ultima alteracao, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto o codigo vale, preenchido no lugar de apagar
+relations:
+  - from: reports
+    fromField: id
+    to: report_info_requests
+    toField: report_id
+    kind: one-to-many
+    note: Um relato pode ser devolvido mais de uma vez, e cada devolução tem prazo próprio. A pergunta em si não mora aqui — mora num comentário público, porque a conversa acontece pelo próprio relato.
+  - from: users
+    fromField: id
+    to: report_info_requests
+    toField: asked_by_user_id
+    kind: one-to-many
+    note: "Obrigatório, ao contrário de closed_by_user_id: o sistema encerra sozinho no fim do prazo, mas nunca pergunta nada por conta própria."
+  - from: accounts
+    fromField: id
+    to: users
+    toField: account_id
+    kind: one-to-many
+    note: "Todo usuário pertence a uma conta, e é por esta ligação que o isolamento funciona: a sessão diz quem é o usuário, o usuário diz qual é a conta, e a conta filtra todo o resto."
+  - from: accounts
+    fromField: id
+    to: projects
+    toField: account_id
+    kind: one-to-many
+    note: Uma conta tem vários projetos, normalmente um por sistema, e projeto nunca é órfão.
+  - from: projects
+    fromField: id
+    to: project_keys
+    toField: project_id
+    kind: one-to-many
+    note: Um projeto tem uma chave pública e uma secreta válidas por vez, mais o histórico das revogadas.
+  - from: projects
+    fromField: id
+    to: project_origins
+    toField: project_id
+    kind: one-to-many
+    note: Um projeto autoriza vários domínios, porque o mesmo sistema vive em produção, em homologação e no domínio antigo que ainda redireciona.
+  - from: projects
+    fromField: id
+    to: project_widget_settings
+    toField: project_id
+    kind: one-to-one
+    note: Um projeto tem no máximo uma configuração de ferramenta, e projeto sem linha responde com os padrões — que moram em C#, e não como valor padrão de coluna, para existirem num lugar só.
+  - from: projects
+    fromField: id
+    to: project_states
+    toField: project_id
+    kind: one-to-many
+    note: Um projeto tem a própria fila de estados, e não a da conta, porque times diferentes dentro da mesma empresa trabalham sistemas diferentes de formas diferentes.
+  - from: projects
+    fromField: id
+    to: project_initial_states
+    toField: project_id
+    kind: one-to-many
+    note: São no máximo três linhas por projeto, uma por tipo de relato, e elas nascem preenchidas apontando para a área de análise porque cliente que encara tela em branco desiste.
+  - from: project_states
+    fromField: id
+    to: project_initial_states
+    toField: project_state_id
+    kind: one-to-many
+    note: "O mesmo estado pode ser a porta de entrada de vários tipos, e é isso que permite as duas formas de trabalhar com uma configuração só: tudo no backlog, ou cada tipo no seu lugar."
+  - from: project_states
+    fromField: id
+    to: reports
+    toField: project_state_id
+    kind: one-to-many
+    note: Vários cards param no mesmo estado, e esta é a ligação que a lista do painel filtra e conta. Estado desativado continua apontado por cards antigos, e é por isso que desativar não é apagar.
+  - from: accounts
+    fromField: id
+    to: reports
+    toField: account_id
+    kind: one-to-many
+    note: A conta aparece direto no relato em vez de ser alcançada pelo projeto, porque esta é a tabela que mais cresce e a que o painel lista o tempo todo.
+  - from: projects
+    fromField: id
+    to: reports
+    toField: project_id
+    kind: one-to-many
+    note: O relato nasce de um projeto, e quem diz qual é a chave pública da requisição.
+  - from: reports
+    fromField: id
+    to: report_contexts
+    toField: report_id
+    kind: one-to-many
+    note: Cada relato traz de zero a muitos pares de contexto, para o formulário mandar um dado a mais amanhã sem alterar reports.
+  - from: reports
+    fromField: id
+    to: report_internal_comments
+    toField: report_id
+    kind: one-to-many
+    note: O time comenta quantas vezes precisar, e nada aqui tem caminho para a camada pública — não há rota, consulta nem campo que leve esta tabela para fora.
+  - from: reports
+    fromField: id
+    to: report_public_comments
+    toField: report_id
+    kind: one-to-many
+    note: O que o time escolhe dizer ao relator, escrito numa tabela própria, e promover um interno a público não é editar um campo — é escrever de novo, de propósito.
+  - from: users
+    fromField: id
+    to: report_internal_comments
+    toField: user_id
+    kind: one-to-many
+    note: Comentário interno sem autor não serve para decidir nada depois, então o autor é obrigatório.
+  - from: users
+    fromField: id
+    to: report_public_comments
+    toField: user_id
+    kind: one-to-many
+    note: O autor fica gravado do lado de dentro mesmo que a camada pública escolha não mostrar o nome de ninguém — e passa a ser nulo quando quem escreveu foi o relator, que não tem usuário aqui. É o mesmo desenho de closed_by_user_id, onde nulo quer dizer que foi o sistema.
+  - from: users
+    fromField: id
+    to: events
+    toField: user_id
+    kind: one-to-many
+    note: Nulo quando a ação veio de fora — o relato criado pelo widget e a visualização feita por quem relatou não têm usuário do time por trás.
+  - from: accounts
+    fromField: id
+    to: events
+    toField: account_id
+    kind: one-to-many
+    note: O evento guarda a conta para a análise separar por cliente, e a ligação sobrevive à exclusão porque a conta é anonimizada, não apagada.
+  - from: projects
+    fromField: id
+    to: events
+    toField: project_id
+    kind: one-to-many
+    note: A comparação que interessa à pesquisa é entre projetos com acompanhamento e projetos sem.
+  - from: reports
+    fromField: id
+    to: events
+    toField: report_id
+    kind: one-to-many
+    note: Um relato acumula vários eventos ao longo da vida, e a partir daqui também um por mudança de estado e um por comentário.
+  - from: projects
+    fromField: id
+    to: project_public_stages
+    toField: project_id
+    kind: one-to-many
+    note: Um projeto desenha a própria jornada pública, entre três e sete etapas — abaixo de três ela não conta uma história, acima de sete volta a ser o organograma interno com palavras mais bonitas.
+  - from: projects
+    fromField: id
+    to: project_status_mappings
+    toField: project_id
+    kind: one-to-many
+    note: O mapa é do projeto, e cada gravação dele cria uma versão inteira nova em vez de alterar as linhas que já existem.
+  - from: project_states
+    fromField: id
+    to: project_status_mappings
+    toField: project_state_id
+    kind: one-to-many
+    note: Um estado interno aparece uma vez por versão do mapa. Estado sem linha nenhuma é estado não mapeado — a ausência é a resposta, e não uma linha apontando para nada.
+  - from: project_public_stages
+    fromField: id
+    to: project_status_mappings
+    toField: project_public_stage_id
+    kind: one-to-many
+    note: "Vários estados internos caem na mesma etapa pública, e é o caminho normal: o time precisa de granularidade que quem está de fora não precisa."
+  - from: project_public_stages
+    fromField: id
+    to: reports
+    toField: project_public_stage_id
+    kind: one-to-many
+    note: "O passo em que o relato aparece para quem o escreveu. É cache: a verdade é a sequência de eventos de mudança de etapa pública."
+  - from: reports
+    fromField: id
+    to: report_closures
+    toField: report_id
+    kind: one-to-many
+    note: "Um relato pode ser encerrado mais de uma vez, porque entre um encerramento e outro ele pode ter sido reaberto. Guardar so o ultimo apagaria a historia que a metrica quer contar: quantas vezes o time achou que tinha acabado antes de acabar de verdade."
+  - from: users
+    fromField: id
+    to: report_closures
+    toField: closed_by_user_id
+    kind: one-to-many
+    note: Quem do time encerrou. Fica nulo quando quem encerrou foi o proprio sistema, no fim do prazo do pedido de informacao — e essa diferenca importa, porque encerramento automatico e o unico que ninguem leu antes de acontecer.
+  - from: projects
+    fromField: id
+    to: project_cycle_settings
+    toField: project_id
+    kind: one-to-one
+    note: Um projeto tem no maximo uma configuracao de ciclo, e projeto sem linha responde com os padroes — que moram em C#, e nao como valor padrao de coluna, para existirem num lugar so. Mesmo desenho da configuracao da ferramenta.
+  - from: project_states
+    fromField: id
+    to: project_cycle_settings
+    toField: reopen_state_id
+    kind: one-to-many
+    note: A coluna para onde o relato reaberto volta. E escolha do cliente, e a sugestao escrita na tela e apontar para uma coluna diferente da de entrada, para o time separar o que voltou do que chegou agora.
+  - from: projects
+    fromField: id
+    to: project_identity_settings
+    toField: project_id
+    kind: one-to-one
+    note: Um projeto tem no maximo uma configuracao de identidade, e projeto sem linha responde com os padroes — que moram em C#, e nao como valor padrao de coluna. Mesmo desenho da configuracao da ferramenta e das regras do ciclo.
+  - from: projects
+    fromField: id
+    to: reporter_codes
+    toField: project_id
+    kind: one-to-many
+    note: O codigo nao atravessa projetos, e isso e proposital — o mesmo texto em dois projetos sao duas pessoas diferentes, e aceitar um codigo de fora transformaria o codigo numa credencial universal que ninguem escolheu criar.
+  - from: reporter_codes
+    fromField: id
+    to: reports
+    toField: reporter_code_id
+    kind: one-to-many
+    note: "E o que junta os relatos da mesma pessoa sem login nenhum. A ligacao e opcional, e precisa ser: relato do modo protocolo, e relato anterior ao modo existir, nao tem codigo nenhum e continua abrindo pelo link de sempre."
+  - from: users
+    fromField: id
+    to: reports
+    toField: moderated_by_user_id
+    kind: one-to-many
+    note: "Quem do time decidiu se o relato vira publico. Ao contrario de closed_by_user_id, aqui ninguem decide sozinho: nao existe moderacao automatica, e a coluna so fica nula enquanto ninguem olhou."
+notes:
+  - text: |-
+      Toda tabela repete as colunas padrão
+
+      Não vira tabela no banco. É id, created_at, updated_at e deleted_at, e tabela nova começa por elas.
+    anchor: base_columns
+    position: { x: -2, y: 231 }
+    width: 320
+    inherited: true
+  - text: |-
+      Evento primeiro, cache depois
+
+      A verdade é a sequência de eventos; reports.project_state_id é cache dela. Nunca gravar o cache sem o evento ter entrado antes, na mesma transação — se o evento falhar e o cache passar, o dado se perde para sempre, e é justamente ele que alimenta a linha do tempo pública, o histórico e as métricas da pesquisa.
+    anchor: reports
+    anchorField: project_state_id
+    position: { x: 700, y: 1900 }
+    width: 380
+    inherited: true
+  - text: |-
+      O evento nunca carrega o texto de um comentário
+
+      O payload guarda de-onde, para-onde e o nome que o estado tinha na época. Nunca o corpo do comentário. A linha do tempo que o relator vai ler é montada a partir de events — se o texto interno estivesse ali, vazar seria uma junção distraída, e não um erro difícil.
+    anchor: events
+    anchorField: payload
+    position: { x: 2105, y: 1526 }
+    width: 380
+    inherited: true
+  - text: |-
+      Duas tabelas, e não um campo de visibilidade
+
+      O desenho óbvio é uma tabela de comentários com um campo "é público?". Ele é o que mais dá vontade de fazer e o que mais não se pode: com sinalizador, vazar é esquecer um filtro numa consulta; com tabelas separadas, vazar exige escrever uma consulta que não existe. E sem teste automático vigiando, a estrutura precisa carregar essa garantia sozinha.
+    anchor: report_internal_comments
+    position: { x: 566, y: 1688 }
+    width: 380
+    inherited: true
+  - text: |-
+      O evento passa a ter autor
+
+      A mesma tabela guarda ação de quem é do time e ação de quem vem de fora, e por isso a coluna é anulável: o relato criado pelo widget e a visualização feita por quem relatou não têm usuário por trás. Autor vira coluna, e não campo dentro do payload, porque "quem moveu mais cards" não pode virar varredura de texto numa tabela que só cresce.
+    anchor: events
+    anchorField: user_id
+    position: { x: 2364, y: 1120 }
+    width: 380
+    inherited: true
+  - text: |-
+      Estado desativado não some
+
+      Desativar deixa de aceitar card novo; apagar quebraria o histórico de todo card que já passou por ele. Por isso deactivated_at é coluna própria, separada de deleted_at. E o estado que é porta de entrada de algum tipo não pode ser desativado sem que outro assuma o lugar.
+    anchor: project_states
+    anchorField: deactivated_at
+    position: { x: 67, y: 820 }
+    width: 340
+    inherited: true
+  - text: |-
+      Renomear não reescreve o passado
+
+      O histórico mostra o nome que o estado tinha quando o card passou por ele, e é por isso que o nome vai no payload do evento além do id. Sem isso, renomear "Análise" para "Triagem" mudaria a história de todos os cards antigos de uma vez.
+    anchor: project_states
+    anchorField: name
+    position: { x: 70, y: 669 }
+    width: 340
+    inherited: true
+  - text: |-
+      N para 1, e nunca o contrário
+
+      Vários estados internos caem numa mesma etapa pública — "Code Review", "QA" e "Aguardando merge" viram "Em correção". O caminho inverso não existe, e não por falta de espaço no modelo: um estado apontando para duas etapas tornaria a tradução ambígua, e qual delas valeria dependeria da ordem da consulta.
+    anchor: project_status_mappings
+    position: { x: 900, y: 2480 }
+    width: 380
+    inherited: true
+  - text: |-
+      Versão é retrato do conjunto, não a diferença
+
+      Alterar o mapeamento não toca em linha nenhuma das versões anteriores: são elas que explicam por onde um relato de três meses atrás passou. Guardar só o que mudou economizaria linhas e cobraria o preço na leitura — reconstruir o mapa de uma época viraria somar alterações desde o começo, e um erro no meio dessa soma devolveria um mapa errado com cara de certo.
+    anchor: project_status_mappings
+    anchorField: version
+    position: { x: 1430, y: 2260 }
+    width: 400
+    inherited: true
+  - text: |-
+      Por que o número da versão mora em projects
+
+      Parece que bastaria o maior valor desta tabela, e não basta: o cliente que desfaz todos os mapeamentos grava uma versão sem nenhuma linha. Calculada pelo maior valor, essa versão seria invisível, e a anterior voltaria a valer sozinha, sem ninguém ter pedido.
+    anchor: projects
+    anchorField: mapping_version
+    position: { x: 1700, y: 450 }
+    width: 380
+    inherited: true
+  - text: |-
+      Terminal não quer dizer encerrado
+
+      is_terminal marca onde o trabalho do time acaba. Depois dela ainda vem a confirmação de quem relatou, que é ação da pessoa e não estado do time — e é por isso que terminal é uma marca, e não "a última posição da lista": o passo seguinte cabe sem mexer nesta tabela. Mais de uma etapa pode ser terminal, e é assim que uma jornada acomoda finais diferentes.
+    anchor: project_public_stages
+    anchorField: is_terminal
+    position: { x: -220, y: 2380 }
+    width: 380
+    inherited: true
+  - text: |-
+      O desfecho é nosso, o texto é do cliente
+
+      O rótulo e a frase são escritos por quem conhece o próprio usuário. O desfecho não: é uma lista curta e fixa, porque cada equipe inventando o próprio vocabulário de encerramento traria de volta o jargão que esta camada existe para esconder. São quatro porque são os quatro finais que um relato tem — sem os três últimos, o relato que não vai ser feito fica pendurado esperando um fim que nunca chega.
+    anchor: project_public_stages
+    anchorField: outcome
+    position: { x: -220, y: 2700 }
+    width: 380
+    inherited: true
+  - text: |-
+      Aqui se remove, nos estados internos só se aposenta
+
+      Não é descuido. O estado interno aposentado precisa continuar visível porque a tela do time mostra a fila inteira; a etapa pública removida não tem esse papel — o que já passou por ela é contado pelos eventos, que guardam o rótulo que valia na época. A remoção é lógica, então a linha continua no banco.
+    anchor: project_public_stages
+    anchorField: deleted_at
+    position: { x: 240, y: 2700 }
+    width: 380
+    inherited: true
+  - text: |-
+      Duas linhas do tempo, e não uma com um campo dizendo qual é
+
+      events ganha dois tipos: report_public_stage_changed, que conta o que quem relatou viu, e report_public_stage_unmapped, que registra que a jornada não andou porque o estado está fora do mapa. Elas não andam no mesmo ritmo que a mudança interna — um movimento do time costuma não mover a jornada pública. Juntá-las num registro só obrigaria a análise a adivinhar qual das duas cada linha conta, e essa é exatamente a pergunta de pesquisa.
+    anchor: events
+    anchorField: type
+    position: { x: 2625, y: 1312 }
+    width: 400
+    inherited: true
+  - text: |-
+      O evento de tradução carrega a versão do mapa
+
+      Além dos rótulos que valiam na época, o payload guarda qual versão do mapeamento decidiu aquele movimento. Sem ela, recontar um movimento antigo usaria o mapa de hoje e devolveria outra história — e não haveria como perceber, porque o dado necessário para perceber seria justamente o que faltou.
+    anchor: events
+    anchorField: payload
+    position: { x: 2570, y: 1539 }
+    width: 400
+    inherited: true
+  - text: |-
+      Encerramento nao e comentario
+
+      Ele acontece uma vez por fechamento, carrega um dos quatro desfechos e tem resposta de quem relatou. Comentario e conversa: muitos por relato, sem desfecho e sem consequencia.
+
+      Se morasse na tabela de comentarios, a pergunta "quantos fecharam como nao sera feito, e o relator aceitou?" viraria "procure o comentario que por acaso e um encerramento" — o sinalizador dentro da tabela que este projeto ja recusou duas vezes.
+    anchor: report_closures
+    position: { x: 1097, y: 2309 }
+    width: 400
+    inherited: true
+  - text: |-
+      Recusar opinar nao e ausencia de opiniao
+
+      Sao tres estados, e nao dois: respondeu de 1 a 5, recusou clicando em "prefiro nao responder", ou nunca respondeu.
+
+      Por isso a nota e anulavel e existe a marca de recusa ao lado. Guardar so "nota nula" juntaria os dois ultimos, e um e escolha enquanto o outro e ausencia — a metrica pareceria precisa sem ser.
+
+      Na tela vale a mesma separacao: a recusa fica fora da escala, nunca como sexta estrela ou zero, senao ela vira a nota mais baixa para quem le depressa.
+    anchor: report_closures
+    anchorField: satisfaction_declined
+    position: { x: 1838, y: 2513 }
+    width: 400
+    inherited: true
+  - text: |-
+      A espera e o que torna o desfazer possivel
+
+      O time move as 14h com espera de 30 minutos, e a pagina publica so muda as 14h30. Se alguem moveu sem querer, ha janela para voltar atras antes de a pessoa la fora ver.
+
+      Isso muda a etapa 4: la a jornada publica andava na mesma transacao do movimento interno. Agora o movimento interno grava na hora e o lado publico e agendado. Espera zero volta ao comportamento anterior.
+    anchor: reports
+    anchorField: public_stage_due_at
+    position: { x: 1926, y: 980 }
+    width: 380
+    inherited: true
+  - text: |-
+      O projeto dita as regras, e o padrao ja funciona
+
+      Quase tudo desta etapa e configuracao, e nao regra fixa. Mas projeto novo precisa andar sem ninguem abrir esta tela: os padroes vivem no codigo, e a linha so nasce quando alguem salva.
+
+      E a mesma escolha da jornada publica da etapa 4 — o cliente desenha, e o conjunto de fabrica existe para ninguem encarar tela em branco.
+    anchor: project_cycle_settings
+    position: { x: 2559, y: 2239 }
+    width: 400
+    inherited: true
+  - text: |-
+      A escolha de responder e de quem relata
+
+      Nao e configuracao do projeto: o projeto so decide como a opcao vem marcada. Quem relatou um defeito as pressas pode nao querer virar parte da investigacao.
+
+      Desmarcado, o time nao consegue abrir pedido de informacao naquele relato — e encerrar por falta de resposta nao se aplica a quem nunca aceitou responder.
+    anchor: reports
+    anchorField: accepts_questions
+    position: { x: 595, y: 1424 }
+    width: 380
+    inherited: true
+  - text: |-
+      Identidade e visibilidade na mesma tabela
+
+      Parecem dois assuntos vizinhos e nao sao: o modo de identificacao decide o que a visibilidade pode ser. Sem identidade nao existe "o meu relato", entao nao existe "so os meus" para escolher, e publico identificado nao tem nome nenhum a mostrar.
+
+      Em duas tabelas a regra teria de ser conferida lendo as duas, e a tela ofereceria uma combinacao que a regra nao permite — o erro apareceria so na hora de salvar.
+    anchor: project_identity_settings
+    position: { x: 3400, y: 300 }
+    width: 400
+  - text: |-
+      Gravar publico ainda nao publica nada
+
+      Marcar o projeto como publico nao torna relato nenhum visivel: a lista publica so devolve o que passou pela fila de moderacao.
+
+      A ordem e deliberada. Se o campo sozinho publicasse, mudar esta configuracao jogaria na rua todo o texto livre ja escrito — e texto livre e onde aparece documento, numero de pedido e print com dado de terceiro.
+    anchor: project_identity_settings
+    anchorField: visibility
+    position: { x: 3400, y: 640 }
+    width: 400
+  - text: |-
+      Todo relato nasce pending, inclusive em projeto privado
+
+      Tenta-se economizar: projeto privado nao publica, logo nao precisaria de fila. E e exatamente ai que mora o acidente — no dia em que alguem marca o projeto como publico, o backlog inteiro passaria a estar aprovado por nunca ter sido perguntado.
+
+      Nascer pending custa uma coluna e evita uma publicacao em massa que ninguem autorizou.
+    anchor: reports
+    anchorField: moderation_state
+    position: { x: 1780, y: 760 }
+    width: 400
+  - text: |-
+      Perguntar o nome nao e publicar o nome
+
+      Sao tres travas em serie, e todas precisam estar abertas: o projeto pergunta o nome, o projeto esta em publico identificado, e a pessoa marcou que quer assinar aquele relato.
+
+      Qualquer uma fechada, o nome fica interno — o time ve, o lado de fora nao. E por isso que "anonimo com campo de nome" nao existe aqui: o modo se chama sem login, porque coletar nome ja e tratar dado pessoal.
+    anchor: reports
+    anchorField: reporter_name
+    position: { x: 1780, y: 1120 }
+    width: 400
+  - text: |-
+      Nunca se pergunta se um codigo existe
+
+      Sugerir outro codigo so quando o primeiro esta ocupado e dizer que ele esta ocupado, e qualquer diferenca entre livre e ocupado vira uma forma de enumerar o codigo alheio.
+
+      Por isso o codigo e sorteado inteiro, nunca escolhido, e codigo desconhecido na rota publica nao e recusado: vira um codigo novo.
+
+      Na geracao existe uma consulta, e ela nao conta nada: o candidato e sorteado por nos, e a colisao e conferida antes de gravar. A diferenca que importa e quem escolheu o valor consultado.
+    anchor: reporter_codes
+    anchorField: code
+    position: { x: 3400, y: 1000 }
+    width: 400
