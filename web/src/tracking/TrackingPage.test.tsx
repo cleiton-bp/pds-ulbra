@@ -36,6 +36,9 @@ const dublê = vi.hoisted(() => ({
   confirmar: vi.fn(),
   reabrir: vi.fn(),
   responder: vi.fn(),
+  abrirPorCodigo: vi.fn(),
+  anexos: vi.fn(),
+  midia: vi.fn(),
 }))
 
 vi.mock('@/data/publicIndex', async (importOriginal) => {
@@ -48,6 +51,12 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
       confirmReport: dublê.confirmar,
       reopenReport: dublê.reabrir,
       replyToReport: dublê.responder,
+      openByReporterCode: dublê.abrirPorCodigo,
+    },
+    // Sem isto a pagina buscaria os anexos de verdade, pela rede, em todo teste.
+    publicMediaService: {
+      listTrackingAttachments: dublê.anexos,
+      loadTrackingMediaSettings: dublê.midia,
     },
   }
 })
@@ -119,6 +128,15 @@ afterEach(cleanup)
 
 beforeEach(() => {
   for (const mock of Object.values(dublê)) mock.mockReset()
+  dublê.anexos.mockResolvedValue([])
+  // Padrao: o projeto nao aceita anexo na resposta. Os testes que precisam ligam.
+  dublê.midia.mockResolvedValue({
+    IsEnabled: false,
+    AllowsScreenCapture: false,
+    AllowsOnInfoRequest: false,
+    MaxFilesPerReport: 0,
+    Kinds: [],
+  })
 })
 
 describe('a pagina publica de acompanhamento', () => {
@@ -678,5 +696,56 @@ describe('a conversa sobre o relato', () => {
     expect(await screen.findByText('Conversa sobre o seu relato')).toBeTruthy()
     // Canal livre viraria uma caixa de entrada sem dono e sem moderação.
     expect(screen.queryByRole('textbox', { name: 'A sua resposta' })).toBeNull()
+  })
+})
+
+describe('os arquivos na pagina de acompanhamento', () => {
+  /**
+   * **So pelo link.** A rota dos arquivos pede o token, que e o que o link
+   * carrega. Pelo codigo pessoal o relato abre e os arquivos nao — e a terceira
+   * porta, que ficou para depois. O teste trava as duas metades: pedir com o token,
+   * e nao pedir sem ele.
+   */
+  it('pelo link, busca os arquivos com o protocolo e o token', async () => {
+    dublê.abrir.mockResolvedValue(relato)
+    dublê.anexos.mockResolvedValue([
+      {
+        PublicId: 'a-1',
+        Kind: 'Image',
+        Url: 'http://armazenamento/a-1',
+        ThumbnailUrl: 'http://armazenamento/a-1-thumb',
+        ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+        DurationSeconds: null,
+        ReplyPublicId: null,
+        CreatedAt: '2026-09-12T13:24:00.000Z',
+      },
+    ])
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    await screen.findByText('O que você anexou')
+    expect(dublê.anexos).toHaveBeenCalledWith('7K2M-9QXP-4TRV', 'tok-secreto')
+  })
+
+  it('sem arquivo, nao aparece secao nenhuma', async () => {
+    dublê.abrir.mockResolvedValue(relato)
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    await screen.findByText(/O botão de finalizar compra/)
+    await waitFor(() => expect(dublê.anexos).toHaveBeenCalled())
+    expect(screen.queryByText('O que você anexou')).toBeNull()
+  })
+
+  it('pelo codigo pessoal, nao pede os arquivos — a rota exige o token', async () => {
+    dublê.abrirPorCodigo.mockResolvedValue(relato)
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV&k=pk_DEMO#p=H7QK-3M2X-P9WD')
+
+    render(<TrackingPage />)
+
+    await screen.findByText(/O botão de finalizar compra/)
+    expect(dublê.anexos).not.toHaveBeenCalled()
   })
 })

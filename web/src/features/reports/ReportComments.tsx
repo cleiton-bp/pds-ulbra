@@ -1,6 +1,12 @@
 import { useCallback, useState } from 'react'
-import { MAX_COMMENT_LENGTH, type ReportCommentsViewModel } from '@/contracts'
+import {
+  MAX_COMMENT_LENGTH,
+  type PanelAttachmentViewModel,
+  type ReportCommentsViewModel,
+} from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { toPanelGalleryItem } from '@/features/reports/ReportAttachments'
+import { AttachmentGallery } from '@/shared/components/AttachmentGallery'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
@@ -29,11 +35,17 @@ export function ReportComments({
   projectPublicId,
   reportPublicId,
   aoComentar,
+  anexosPorFala = new Map(),
+  aoExpirar = () => {},
 }: {
   projectPublicId: string
   reportPublicId: string
   /** Avisa quem monta a tela de que o historico mudou. */
   aoComentar: () => void
+  /** Os arquivos que vieram numa resposta, pela fala que os trouxe. */
+  anexosPorFala?: Map<string, PanelAttachmentViewModel[]>
+  /** Um endereco de arquivo venceu: quem monta a tela rele. */
+  aoExpirar?: () => void
 }) {
   const {
     data: comentarios,
@@ -89,6 +101,11 @@ export function ReportComments({
         explicacao="Escrito para a pessoa que abriu o relato. Ela ainda não tem onde ler — a página de acompanhamento mostra isto quando essa parte existir."
         destaque
         comentarios={atual?.Public ?? []}
+        // **So a caixa publica recebe arquivo.** A interna nem tem por onde: arquivo
+        // so vem numa resposta de quem relatou, e quem relatou nao escreve no
+        // interno. E a estrutura que garante, e nao um filtro que alguem esqueca.
+        anexosPorFala={anexosPorFala}
+        aoExpirar={aoExpirar}
         aoEnviar={async (body) => {
           const salvo = await projectReportService.addPublicComment(
             projectPublicId,
@@ -128,12 +145,16 @@ function Caixa({
   destaque,
   comentarios,
   aoEnviar,
+  anexosPorFala,
+  aoExpirar = () => {},
 }: {
   titulo: string
   explicacao: string
   destaque: boolean
   comentarios: Comentario[]
   aoEnviar: (body: string) => Promise<void>
+  anexosPorFala?: Map<string, PanelAttachmentViewModel[]>
+  aoExpirar?: () => void
 }) {
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -192,6 +213,14 @@ function Caixa({
               <p className="whitespace-pre-wrap break-words text-detail text-fg leading-relaxed">
                 {comentario.Body}
               </p>
+              {(anexosPorFala?.get(comentario.PublicId)?.length ?? 0) > 0 && (
+                <div className="mt-2">
+                  <AttachmentGallery
+                    onExpired={aoExpirar}
+                    items={(anexosPorFala?.get(comentario.PublicId) ?? []).map(toPanelGalleryItem)}
+                  />
+                </div>
+              )}
             </li>
           ))}
         </ul>

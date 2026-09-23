@@ -10,6 +10,7 @@ import type {
 import { describeError, projectReportService } from '@/data'
 import { AskInfoDialog } from '@/features/reports/AskInfoDialog'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
+import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
 import { ReportComments } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { Button } from '@/shared/components/Button'
@@ -87,6 +88,10 @@ export function ReportDialog({
   // O resumo da lista ganha do que chegou da API so porque chega antes; os dois
   // dizem a mesma coisa. Quando nao ha resumo, a tela espera.
   const report = resumo ?? detalhe
+  // Uma leitura para o dialogo inteiro: os da criacao vao para a secao de
+  // arquivos, os de uma resposta vao para a conversa.
+  const anexos = useReportAttachments(projectPublicId, reportPublicId)
+
   const contexts = detalhe?.Contexts ?? null
 
   // Guarda o relato movido para a tela nao voltar a mostrar a coluna antiga: o
@@ -407,6 +412,12 @@ export function ReportDialog({
             {report.Text}
           </p>
 
+          <ReportAttachments
+            anexos={anexos.daCriacao}
+            failed={anexos.failed}
+            onReload={anexos.reload}
+          />
+
           {pedido && <Devolvido pedido={pedido} />}
 
           {fechamento && <Encerramento fechamento={fechamento} />}
@@ -476,6 +487,8 @@ export function ReportDialog({
             projectPublicId={projectPublicId}
             reportPublicId={reportPublicId}
             aoComentar={() => setVersao((n) => n + 1)}
+            anexosPorFala={anexos.porFala}
+            aoExpirar={anexos.reload}
           />
 
           <ReportHistory
