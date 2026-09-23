@@ -86,6 +86,13 @@ export const FRAME_SIZE = {
   collapsed: { width: 160, height: 48 },
   /** O formulario aberto. */
   expanded: { width: 360, height: 520 },
+  /**
+   * O recorte de uma captura de tela. **E pedido, e nao garantido**: o carregador
+   * limita a janela de quem visita, entao numa tela pequena o quadro so cresce ate
+   * onde cabe. 360 por 520 nao e lugar para escolher um pedaco de tela — o print
+   * inteiro caberia do tamanho de um selo.
+   */
+  capture: { width: 1000, height: 720 },
 } as const
 
 /**

@@ -138,6 +138,18 @@ describe('a ponte com a pagina hospedeira', () => {
     ligacao.stop()
   })
 
+  it('o recorte pede o quadro grande, pela mesma origem guardada', () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(init, 'https://loja.exemplo.com')
+
+    ligacao.enlarge()
+
+    expect(enviados[1]?.alvo).toBe('https://loja.exemplo.com')
+    expect(enviados[1]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.capture })
+    ligacao.stop()
+  })
+
   it('recusa init sem chave: sem ela o quadro nao tem para onde mandar o relato', () => {
     fingirPagina()
     const visto = vi.fn()

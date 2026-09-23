@@ -46,7 +46,14 @@ const config = {
   origin: 'loja.exemplo.com',
   viewport: '1280x800',
 }
-const pagina = { init: null, show: vi.fn(), expand: vi.fn(), collapse: vi.fn(), stop: vi.fn() }
+const pagina = {
+  init: null,
+  show: vi.fn(),
+  expand: vi.fn(),
+  collapse: vi.fn(),
+  enlarge: vi.fn(),
+  stop: vi.fn(),
+}
 
 function comSettings(mudanca: Partial<WidgetSettingsViewModel>): WidgetSettingsViewModel {
   return { ...DEFAULT_WIDGET_SETTINGS, ...mudanca }

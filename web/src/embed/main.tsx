@@ -7,6 +7,7 @@ import {
 } from '@/embed/config'
 import { EmbedApp } from '@/embed/EmbedApp'
 import { connectToHost, type HostConnection, isEmbedded } from '@/embed/hostBridge'
+import { resolveMediaSettings } from '@/embed/resolveMediaSettings'
 import { resolveWidgetSettings } from '@/embed/resolveSettings'
 import '@/styles/index.css'
 
@@ -43,7 +44,12 @@ if (container) {
 }
 
 async function draw(root: Root, config: EmbedConfig, host: HostConnection | null): Promise<void> {
-  const settings = await resolveWidgetSettings(config.key, config.origin)
+  // As duas leituras saem juntas: a de midia nao pode atrasar o quadro aparecer. E
+  // ela nunca falha para fora — sem resposta, o quadro so nao oferece anexo.
+  const [settings, media] = await Promise.all([
+    resolveWidgetSettings(config.key, config.origin),
+    resolveMediaSettings(config.key, config.origin),
+  ])
 
   // Recusado: ou a chave nao vale, ou esta pagina nao esta na lista de enderecos
   // autorizados do projeto. Nao ha o que abrir, e o quadro nunca e revelado —
@@ -61,7 +67,7 @@ async function draw(root: Root, config: EmbedConfig, host: HostConnection | null
     return
   }
 
-  root.render(<EmbedApp settings={settings} config={config} host={host} />)
+  root.render(<EmbedApp settings={settings} config={config} host={host} media={media} />)
 
   // Um quadro de espera antes de revelar: `render` e assincrono, e mandar o
   // `show` no mesmo tique mostraria a caixa vazia por um instante.
