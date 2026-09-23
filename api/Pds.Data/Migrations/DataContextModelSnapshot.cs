@@ -627,6 +627,165 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectMediaKind", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled")
+                        .HasComment("Este tipo e aceito. Desligar deixa os limites gravados, para religar nao obrigar a reconfigurar o que ja tinha sido pensado.");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind")
+                        .HasComment("image ou video. Unico por configuracao entre os nao apagados. A lista cresce com o produto, e acrescentar um valor nao mexe em coluna nenhuma.");
+
+                    b.Property<long>("MaxBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("max_bytes")
+                        .HasComment("Teto de tamanho de cada arquivo, em bytes. E este numero que viaja dentro da assinatura do envio, e quem recusa o que passa e o proprio armazenamento — no quadro nao valeria, porque ele roda no navegador de quem relata, e no servidor tambem nao, porque o arquivo nunca passa por la.");
+
+                    b.Property<int>("MaxCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_count")
+                        .HasComment("Quantos arquivos deste tipo cabem num relato.");
+
+                    b.Property<int?>("MaxDurationSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_duration_seconds")
+                        .HasComment("Duracao maxima em segundos, nula para o que nao tem duracao. E a protecao mais barata desta etapa, porque corta armazenamento e exposicao de uma vez.");
+
+                    b.Property<long>("ProjectMediaSettingsId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_media_settings_id")
+                        .HasComment("Configuracao dona da linha. Pendura na configuracao, e nao no projeto, porque sem ela estes limites nao querem dizer nada.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_media_kinds");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_media_kinds_deleted_at");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_media_kinds_public_id");
+
+                    b.HasIndex("ProjectMediaSettingsId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_media_kinds_project_media_settings_id_kind")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("project_media_kinds", null, t =>
+                        {
+                            t.HasComment("Os limites de um tipo de midia, neste projeto. Uma linha por tipo, e e esse o ponto: acrescentar audio um dia e um INSERT, e nao uma migracao. Com uma coluna por tipo, cada tipo novo custaria migracao e toda linha carregaria campos de tipos que aquele projeto nunca ligou.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectMediaSettings", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AllowsOnInfoRequest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allows_on_info_request")
+                        .HasComment("Da para anexar respondendo a um pedido de informacao do time, que e onde o print mais serve. Chave propria porque ha projeto que quer anexo na criacao e nao quer na conversa.");
+
+                    b.Property<bool>("AllowsScreenCapture")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allows_screen_capture")
+                        .HasComment("O botao de capturar a tela aparece. Nao e a captura automatica, que continua impossivel de dentro do quadro: aqui o navegador pergunta qual tela, e quem decide o que aparece e quem relata. Onde o navegador nao souber fazer, o botao some sozinho.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled")
+                        .HasComment("O quadro mostra anexo. Desligado, nada mais nesta linha vale — nem tipo ligado, nem limite configurado: o botao nao aparece e o servidor recusa assinar permissao. Sem armazenamento configurado nao liga, e a tela diz por que.");
+
+                    b.Property<int>("MaxFilesPerReport")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_files_per_report")
+                        .HasComment("Quantos arquivos cabem num relato, somando todos os tipos. Existe alem do limite por tipo, e nao no lugar dele: so com o limite por tipo, tres imagens mais um video passariam num projeto que so queria dois no total.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono da configuracao. Unico entre os nao apagados, e e o que faz o 1:1.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_media_settings");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_media_settings_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_media_settings_project_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_media_settings_public_id");
+
+                    b.ToTable("project_media_settings", null, t =>
+                        {
+                            t.HasComment("O que este projeto aceita receber junto do relato. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada. Nenhum limite de tipo mora aqui: isso fica em project_media_kinds, uma linha por tipo.");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectOrigin", b =>
                 {
                     b.Property<long>("Id")
@@ -1264,6 +1423,128 @@ namespace Pds.Data.Migrations
                     b.ToTable("reports", null, t =>
                         {
                             t.HasComment("O que a pessoa de fora escreveu. Primeira tabela do sistema que nasce sem conta e sem sessao, e por isso carrega o proprio account_id, o protocolo que a pessoa le e o hash do token que abre o acompanhamento.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ReportAttachment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("confirmed_at")
+                        .HasComment("Quando a nossa API prendeu o anexo ao relato. Nulo e orfao.");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type")
+                        .HasComment("O tipo declarado, que entrou na assinatura do envio. Garante o rotulo, e nao o conteudo — quem confere os bytes e a confirmacao, na nossa API.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_seconds")
+                        .HasComment("Duracao em segundos, so para o que tem duracao.");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind")
+                        .HasComment("image ou video. A mesma lista de project_media_kinds, porque e ela que diz qual limite se aplica.");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("object_key")
+                        .HasComment("O nome do arquivo no armazenamento, sorteado por nos e nunca derivado do nome que veio de fora — nome escolhido de fora permitiria escrever por cima do arquivo de outra pessoa. Nunca um endereco assinado: guardado, ele viraria link permanente com outro nome.");
+
+                    b.Property<string>("OriginalName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("original_name")
+                        .HasComment("O nome que o arquivo tinha na maquina de quem relata. Guardado para o time, e nunca mostrado do lado de fora: nome de arquivo conta pasta, cliente e numero de contrato, que a imagem nao conta.");
+
+                    b.Property<long?>("PublicCommentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("public_comment_id")
+                        .HasComment("Preenchido quando o anexo veio junto de uma resposta ao pedido de informacao. Nulo quando veio na criacao do relato.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<long>("ReportId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("report_id")
+                        .HasComment("Relato a que o anexo pertence. Obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so — e para o isolamento por conta nao depender de uma coluna que pode ser nula.");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes")
+                        .HasComment("Tamanho do que o armazenamento aceitou, lido dele na confirmacao e nao do que o navegador disse.");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status")
+                        .HasComment("pending ou confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que fica pending e orfao — ocupa espaco e nao pertence a nada.");
+
+                    b.Property<string>("ThumbnailObjectKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("thumbnail_object_key")
+                        .HasComment("A miniatura, gerada no proprio navegador antes do envio. No video e o quadro de capa. Vem de fora, entao ela tambem e conferida.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_attachments");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_report_attachments_deleted_at");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_report_attachments_object_key")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("PublicCommentId")
+                        .HasDatabaseName("ix_report_attachments_public_comment_id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_report_attachments_public_id");
+
+                    b.HasIndex("ReportId")
+                        .HasDatabaseName("ix_report_attachments_report_id");
+
+                    b.ToTable("report_attachments", null, t =>
+                        {
+                            t.HasComment("O registro de um arquivo que veio com o relato. O arquivo em si nao esta aqui e nunca estara: o que a linha guarda e o nome dele no armazenamento, o bastante para pedir uma permissao de leitura quando alguem que pode ver aparecer.");
                         });
                 });
 
@@ -1949,6 +2230,30 @@ namespace Pds.Data.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectMediaKind", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.ProjectMediaSettings", "ProjectMediaSettings")
+                        .WithMany("Kinds")
+                        .HasForeignKey("ProjectMediaSettingsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_media_kinds_project_media_settings_id");
+
+                    b.Navigation("ProjectMediaSettings");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectMediaSettings", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_media_settings_projects_project_id");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectOrigin", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
@@ -2078,6 +2383,26 @@ namespace Pds.Data.Migrations
                     b.Navigation("ProjectState");
 
                     b.Navigation("ReporterCode");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ReportAttachment", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.ReportPublicComment", "PublicComment")
+                        .WithMany()
+                        .HasForeignKey("PublicCommentId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_report_attachments_report_public_comments_public_comment_id");
+
+                    b.HasOne("Pds.Domain.Entities.Report", "Report")
+                        .WithMany()
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_attachments_reports_report_id");
+
+                    b.Navigation("PublicComment");
+
+                    b.Navigation("Report");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ReportClosure", b =>
@@ -2210,6 +2535,11 @@ namespace Pds.Data.Migrations
                     b.Navigation("Keys");
 
                     b.Navigation("Origins");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectMediaSettings", b =>
+                {
+                    b.Navigation("Kinds");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.Report", b =>

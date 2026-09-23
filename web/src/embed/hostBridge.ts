@@ -43,6 +43,11 @@ export interface HostConnection {
   expand(): void
   /** Pede a pagina que o quadro volte a ser so o gatilho. */
   collapse(): void
+  /**
+   * Pede a pagina um quadro grande, para recortar uma captura de tela. Voltar e
+   * chamar `expand` de novo.
+   */
+  enlarge(): void
   /** Desliga o ouvinte. */
   stop(): void
 }
@@ -107,6 +112,8 @@ export function connectToHost(onInit: (message: InitMessage) => void): HostConne
       reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.expanded, position }),
     collapse: () =>
       reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.collapsed, position }),
+    enlarge: () =>
+      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.capture, position }),
     stop: () => window.removeEventListener('message', handle),
   }
 }

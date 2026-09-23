@@ -18,6 +18,7 @@ export interface ConsoleSection {
     | 'stages'
     | 'cycle'
     | 'identity'
+    | 'media'
     | 'settings'
     | 'reports'
     | 'moderation'
@@ -53,6 +54,11 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   // mesmo criterio: aqui mora o comportamento, e la mora o projeto. E e a escolha
   // que decide o que a lista pessoal e a visibilidade podem ser.
   { key: 'identity', label: 'Identidade', path: 'identity' },
+  // Depois da identidade e antes das configuracoes do projeto, pelo mesmo
+  // criterio das duas: aqui mora o comportamento, e la mora o projeto. E vem
+  // depois da identidade porque o print publico so faz sentido depois de
+  // decidido quem pode ver o relato.
+  { key: 'media', label: 'Mídia', path: 'media' },
   { key: 'settings', label: 'Configurações', path: 'settings' },
 ]
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
@@ -30,10 +31,17 @@ namespace Pds.WebApi.Controllers;
 public class PublicReportsController : BaseController
 {
     private readonly IReportService _reportService;
+    private readonly IReportAttachmentService _attachmentService;
+    private readonly IProjectMediaSettingsService _mediaSettingsService;
 
-    public PublicReportsController(IReportService reportService)
+    public PublicReportsController(
+        IReportService reportService,
+        IReportAttachmentService attachmentService,
+        IProjectMediaSettingsService mediaSettingsService)
     {
         _reportService = reportService;
+        _attachmentService = attachmentService;
+        _mediaSettingsService = mediaSettingsService;
     }
 
     /// <summary>Abre um relato.</summary>
@@ -402,4 +410,179 @@ public class PublicReportsController : BaseController
             return HandleError(exception);
         }
     }
+    /// <summary>Pede permissão para enviar um arquivo neste relato.</summary>
+    /// <remarks>
+    /// **O arquivo não passa por aqui, e não vai passar.** Esta rota devolve um
+    /// formulário assinado; quem carrega os bytes é o navegador, falando direto com
+    /// o armazenamento. Passar o arquivo pela API significaria carregar megabytes na
+    /// memória do servidor duas vezes, sem ganhar nada.
+    ///
+    /// **O protocolo e o token não são formalidade.** São eles que dizem de quem é o
+    /// relato — assinar permissão para quem não tem relato nenhum seria assinar para
+    /// qualquer um, e esta é a única rota pública do sistema que gera custo em
+    /// dinheiro.
+    ///
+    /// **O teto de tamanho viaja dentro da assinatura**, e quem recusa o que passa é
+    /// o próprio armazenamento. Não há outro lugar onde ele pudesse ser cobrado: no
+    /// widget não vale, porque ele roda no navegador de quem relata; aqui também
+    /// não, porque o arquivo nunca chega.
+    ///
+    /// **A permissão vale poucos minutos**, e é só o tempo de o envio começar.
+    /// Vazou, tem prazo.
+    ///
+    /// Depois de enviar, **confirme**: sem isso o arquivo é órfão e não pertence a
+    /// relato nenhum.
+    /// </remarks>
+    /// <param name="dto">O relato, o tipo e o tamanho do arquivo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Formulário assinado, pronto para enviar.</response>
+    /// <response code="400">Projeto não aceita anexo, formato recusado, limite estourado, ou arquivo grande demais.</response>
+    /// <response code="404">O link não abre nenhum relato.</response>
+    /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
+    [HttpPost("attachments")]
+    [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<AttachmentUploadTicketViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> RequestAttachment(
+        [FromBody] RequestAttachmentUploadDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var ticket = await _attachmentService.RequestUploadAsync(dto, cancellationToken);
+            return Success(ticket);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Confirma que o arquivo chegou, e prende o anexo ao relato.</summary>
+    /// <remarks>
+    /// **É aqui que a API lê os primeiros bytes do arquivo.** A assinatura do envio
+    /// garante o **rótulo** — o objeto é gravado com o tipo que pedimos — e não
+    /// garante o **conteúdo**: nada impede quem obteve a permissão de pôr bytes de
+    /// qualquer coisa num objeto marcado como imagem. Só olhando o começo do arquivo
+    /// dá para saber, e esse é o único lugar onde isso cabe.
+    ///
+    /// **O que não confere é apagado**, no armazenamento e no banco. Sem isso, cada
+    /// recusa deixaria um arquivo guardado para sempre — a conta cresce com o que
+    /// foi aceito, e não pode crescer também com o que foi recusado.
+    ///
+    /// **O tamanho gravado é o que o armazenamento contou**, e não o que o navegador
+    /// disse. O número que vem de fora serve para recusar cedo; o que fica é o real,
+    /// porque é ele que a cobrança um dia vai somar.
+    ///
+    /// **Sem esta chamada o anexo não existe para o produto**: não aparece no
+    /// painel, não aparece na jornada pública, e não conta para o limite do próximo
+    /// envio.
+    /// </remarks>
+    /// <param name="dto">O relato e o anexo que está sendo confirmado.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Anexo confirmado.</response>
+    /// <response code="400">O arquivo não chegou, não é do formato declarado, ou passa do limite.</response>
+    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador.</response>
+    /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
+    [HttpPost("attachments/confirm")]
+    [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ConfirmedAttachmentViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ConfirmAttachment(
+        [FromBody] ConfirmAttachmentDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var confirmado = await _attachmentService.ConfirmAsync(dto, cancellationToken);
+            return Success(confirmado, "Anexo recebido.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Os arquivos do relato, para quem o relatou.</summary>
+    /// <remarks>
+    /// **A mesma porta do acompanhamento.** O protocolo identifica e o token abre;
+    /// protocolo sem token, token errado e relato inexistente recebem a mesma recusa
+    /// 404, e nenhuma assinatura é gerada antes de a porta aceitar.
+    ///
+    /// **Por que um `POST` para uma leitura.** O token é segredo, e segredo em query
+    /// string entra no log do servidor, no histórico do navegador e no `Referer` —
+    /// no corpo, não entra em nenhum dos três.
+    ///
+    /// **Sem o nome original.** Esta resposta é montada campo a campo, num tipo
+    /// próprio, e o nome que o arquivo tinha na máquina de quem relatou nem existe
+    /// nele — com o tipo do painel, o campo acrescentado amanhã sairia aqui sem
+    /// ninguém decidir.
+    ///
+    /// Sai com `Cache-Control: no-store`: são endereços assinados do relato de alguém.
+    /// </remarks>
+    /// <param name="dto">O protocolo e o token, os dois juntos.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Os anexos confirmados, na ordem em que entraram.</response>
+    /// <response code="404">O link não abre nenhum relato.</response>
+    /// <response code="409">Não há armazenamento configurado nesta instalação.</response>
+    [HttpPost("tracking/attachments")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<List<PublicAttachmentViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> TrackingAttachments(
+        [FromBody] OpenReportTrackingDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var anexos = await _attachmentService.ListForTrackingAsync(dto, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(anexos, total: anexos.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>O que dá para anexar ao responder, pela porta do acompanhamento.</summary>
+    /// <remarks>
+    /// **A página de quem relatou não tem a chave pública do projeto** — chegou pelo
+    /// link, que carrega só o relato. Esta é a mesma leitura que a ferramenta faz,
+    /// pela mesma porta das outras rotas do acompanhamento: protocolo e token.
+    ///
+    /// `AllowsOnInfoRequest` é o que a página olha. Sem armazenamento nesta
+    /// instalação, `IsEnabled` vem falso.
+    /// </remarks>
+    /// <param name="dto">O protocolo e o token, os dois juntos.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O que dá para anexar.</response>
+    /// <response code="404">O link não abre nenhum relato.</response>
+    [HttpPost("tracking/media-settings")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicMediaSettingsViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> TrackingMediaSettings(
+        [FromBody] OpenReportTrackingDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var settings = await _mediaSettingsService.GetForTrackingAsync(dto, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(settings);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
 }

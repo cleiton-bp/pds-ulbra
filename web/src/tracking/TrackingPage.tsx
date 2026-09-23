@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { PublicReportViewModel, PublicStageViewModel } from '@/contracts'
+import type {
+  PublicAttachmentViewModel,
+  PublicReportViewModel,
+  PublicStageViewModel,
+} from '@/contracts'
 import { isPanelError, reportService } from '@/data/publicIndex'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
@@ -9,6 +13,8 @@ import { reporterTypeLabel } from '@/shared/lib/reportTypes'
 import { readTrackingLink } from '@/shared/lib/tracking'
 import { ClosurePanel } from '@/tracking/ClosurePanel'
 import { ConversationPanel } from '@/tracking/ConversationPanel'
+import { TrackingAttachments } from '@/tracking/TrackingAttachments'
+import { useTrackingMedia } from '@/tracking/useTrackingMedia'
 
 /**
  * A pagina que quem relatou abre pelo link.
@@ -114,6 +120,25 @@ function Relato({
   token: string
   aoResponder: (relato: PublicReportViewModel) => void
 }) {
+  // So com o token: e ele que as rotas dos arquivos pedem. Pelo codigo pessoal o
+  // relato abre, e os arquivos ainda nao — e a terceira porta.
+  const midia = useTrackingMedia(code, token)
+
+  // Cada arquivo no lugar dele: os da criacao embaixo do relato, os de uma resposta
+  // embaixo da resposta. **O que nao acha a sua fala cai na galeria do relato**, em
+  // vez de sumir — fala publica nao se apaga hoje, mas um arquivo que desaparece em
+  // silencio e o tipo de erro que ninguem percebe.
+  const falas = new Set(relato.Conversation.map((fala) => fala.PublicId))
+  const daCriacao = midia.anexos.filter(
+    (anexo) => anexo.ReplyPublicId === null || !falas.has(anexo.ReplyPublicId),
+  )
+  const porFala = new Map<string, PublicAttachmentViewModel[]>()
+  for (const anexo of midia.anexos) {
+    if (anexo.ReplyPublicId && falas.has(anexo.ReplyPublicId)) {
+      porFala.set(anexo.ReplyPublicId, [...(porFala.get(anexo.ReplyPublicId) ?? []), anexo])
+    }
+  }
+
   return (
     <>
       <h1 className="mb-1.5 font-semibold text-screen text-fg tracking-tight">Seu relato</h1>
@@ -143,11 +168,23 @@ function Relato({
         <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
           {relato.Text}
         </p>
+
+        {/* So os da criacao: os que vieram numa resposta aparecem na conversa,
+            logo abaixo dela. */}
+        <TrackingAttachments anexos={daCriacao} onExpired={midia.recarregar} />
       </section>
 
       {/* Antes do andamento de propósito: quando há pergunta aberta, ela é a
           coisa mais acionável da página, e a jornada é contexto. */}
-      <ConversationPanel relato={relato} protocolo={code} token={token} aoResponder={aoResponder} />
+      <ConversationPanel
+        relato={relato}
+        protocolo={code}
+        token={token}
+        aoResponder={aoResponder}
+        media={midia.paraResposta}
+        anexosPorFala={porFala}
+        aoAnexar={midia.recarregar}
+      />
 
       <Andamento jornada={relato.Journey} />
 

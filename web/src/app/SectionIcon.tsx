@@ -63,6 +63,17 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'media' && (
+        // Uma moldura com um morro e um sol dentro: o desenho de imagem que
+        // todo mundo ja reconhece sem ler. A secao trata de print antes de
+        // qualquer outra coisa, e o glifo diz isso de relance.
+        <>
+          <rect x="1.2" y="2.2" width="9.6" height="7.6" rx="1.4" />
+          <circle cx="4.2" cy="5" r="0.9" />
+          <path d="M1.6 8.4 4.3 6.2l2.2 1.8 1.6-1.3 1.3 1.1" />
+        </>
+      )}
+
       {section === 'moderation' && (
         // Um olho, e o que a secao faz: alguem le antes de o resto do mundo ler.
         // Sem pupila cheia — ela olha, e nao vigia.

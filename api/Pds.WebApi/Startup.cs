@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using Pds.Domain.Constants;
 using Pds.Shared.DependencyInjection;
+using Pds.Storage;
 using Pds.Workers;
 using Pds.Shared.Json;
 using Pds.WebApi.Authorization;
@@ -19,6 +20,9 @@ public class Startup
 {
     /// <summary>Limite de tentativas de login por IP.</summary>
     public const string AuthRateLimitPolicy = "auth";
+
+    /// <summary>Limite de pedidos de envio de midia por IP. E a rota publica que gasta dinheiro.</summary>
+    public const string MediaUploadRateLimitPolicy = "media-upload";
 
     /// <summary>Politica de CORS do painel.</summary>
     public const string PanelCorsPolicy = "panel";
@@ -100,6 +104,12 @@ public class Startup
         // de registro compartilhada.
         services.AddPdsWorkers();
 
+        // O armazenamento de midia, **se** houver armazenamento. Mesma escolha da
+        // fila: sem as variaveis a aplicacao sobe inteira e so a midia fica
+        // indisponivel. Configurado pela metade, porem, derruba na subida — nao
+        // configurar e decisao, esquecer a chave e engano.
+        services.AddPdsStorage();
+
         // Limite por IP no login. O controle de verdade e o Google validar o token;
         // isto so evita que alguem fique martelando a rota.
         services.AddRateLimiter(options =>
@@ -133,6 +143,24 @@ public class Startup
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+
+            // Pedir permissao de envio e confirmar o envio. As duas contam na mesma
+            // janela: a primeira assina espaco no balde, e a segunda le do balde — e
+            // separar as duas daria a quem martela o dobro da cota.
+            //
+            // So a trava minima em cima da rota cara. As quatro camadas, o desafio
+            // invisivel e o aviso no painel sao da etapa 8.
+            var mediaLimit = EnvironmentConstants.GetMediaUploadRateLimitPerMinute();
+
+            options.AddPolicy(MediaUploadRateLimitPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = mediaLimit,
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                     }));

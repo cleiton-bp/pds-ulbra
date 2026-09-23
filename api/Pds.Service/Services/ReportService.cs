@@ -59,7 +59,7 @@ public class ReportService : IReportService
     /// </summary>
     private const string WithoutStateFilter = "none";
 
-    private const string TrackingRefusal = "Este link nao abre nenhum relato. Confira se ele veio inteiro.";
+    private const string TrackingRefusal = TrackedReportGate.Refusal;
 
     private readonly IUnitOfWork _unitOfWork;
 
@@ -214,38 +214,12 @@ public class ReportService : IReportService
     /// <summary>
     /// O relato por tras de um link de acompanhamento, ou a recusa.
     ///
-    /// <para><b>Uma recusa so para tudo que da errado aqui</b>: protocolo em
-    /// branco, token em branco, protocolo que nao existe e token que nao e daquele
-    /// relato. Quatro mensagens diferentes contariam a quem sonda de qual delas ele
-    /// esta perto.</para>
-    ///
-    /// <para><b>E a porta das tres rotas publicas</b> — abrir, confirmar e reabrir.
-    /// Ter uma so porta e o que garante que as duas que escrevem sejam tao exigentes
-    /// quanto a que le: a que le nasceu primeiro, e repetir o confronto a mao nas
-    /// outras duas seria esperar que ninguem esquecesse nada.</para>
+    /// <para><b>A conferencia mora em <see cref="TrackedReportGate"/>.</b> Ela
+    /// deixou de ser assunto so daqui quando o anexo passou a precisar da mesma
+    /// porta — e uma porta copiada e uma porta que um dia diverge.</para>
     /// </summary>
-    private async Task<Report> RequireTrackedReportAsync(string? trackingCode, string? token, CancellationToken cancellationToken)
-    {
-        var code = (trackingCode ?? string.Empty).Trim().ToUpperInvariant();
-        var value = (token ?? string.Empty).Trim();
-
-        if (code.Length == 0 || value.Length == 0)
-            throw new KeyNotFoundException(TrackingRefusal);
-
-        var report = await _unitOfWork.Reports.FindByTrackingCodeWithoutSessionAsync(code, cancellationToken);
-
-        if (report is null)
-            throw new KeyNotFoundException(TrackingRefusal);
-
-        // Tempo constante: um `==` comum para no primeiro caractere diferente, e a
-        // diferenca de tempo entre parar no primeiro e parar no decimo permite
-        // descobrir o token caractere a caractere — com o protocolo em maos, que e
-        // adivinhavel.
-        if (!ProjectKeyGenerator.Matches(value, report.AccessTokenHash))
-            throw new KeyNotFoundException(TrackingRefusal);
-
-        return report;
-    }
+    private Task<Report> RequireTrackedReportAsync(string? trackingCode, string? token, CancellationToken cancellationToken)
+        => TrackedReportGate.RequireAsync(_unitOfWork, trackingCode, token, cancellationToken);
 
     public async Task<PublicReportViewModel> OpenTrackingAsync(OpenReportTrackingDto dto, CancellationToken cancellationToken = default)
     {

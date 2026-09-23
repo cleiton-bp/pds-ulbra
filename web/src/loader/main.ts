@@ -58,6 +58,13 @@ function mount(): void {
   // falar com a nossa API. Sem `allow-top-navigation`: um quadro nunca deve
   // conseguir levar a pagina do cliente para outro lugar.
   frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups')
+  // **A captura de tela so funciona se a pagina deixar, e quem pede e este atributo.**
+  // Sem ele, o navegador recusa a captura pedida de dentro do quadro. Com ele, a
+  // pessoa ainda escolhe o que mostrar: e o navegador que pergunta qual tela ou
+  // janela, e nada e capturado sem ela clicar. O site do cliente pode continuar
+  // proibindo pelo cabecalho `Permissions-Policy` dele — ai o botao some, e anexar
+  // arquivo continua.
+  frame.setAttribute('allow', 'display-capture')
 
   const style = frame.style
   style.position = 'fixed'

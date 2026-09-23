@@ -32,4 +32,18 @@ public interface IReportPublicCommentRepository : IBaseRepository<ReportPublicCo
     /// campo que nao existe nao tem como escapar.</para>
     /// </summary>
     Task<IReadOnlyList<ReportPublicComment>> ListByReportWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A resposta mais recente de quem relatou, se ela foi escrita depois de
+    /// <paramref name="since"/>. Sem sessao: quem pergunta e a propria pessoa, pelo
+    /// link.
+    ///
+    /// <para>E a ancora do anexo na resposta. O arquivo sobe <b>depois</b> de a
+    /// resposta ser gravada — o texto nunca espera o upload —, e e aqui que ele
+    /// descobre a que fala pertence, sem o navegador precisar dizer.</para>
+    /// </summary>
+    Task<ReportPublicComment?> FindLatestFromReporterWithoutSessionAsync(
+        long reportId,
+        DateTime since,
+        CancellationToken cancellationToken = default);
 }

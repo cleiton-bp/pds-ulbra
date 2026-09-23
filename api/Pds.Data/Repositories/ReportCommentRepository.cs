@@ -58,4 +58,22 @@ public class ReportPublicCommentRepository
             .OrderBy(comment => comment.CreatedAt)
             .ThenBy(comment => comment.Id)
             .ToListAsync(cancellationToken);
+
+    public Task<ReportPublicComment?> FindLatestFromReporterWithoutSessionAsync(
+        long reportId,
+        DateTime since,
+        CancellationToken cancellationToken = default)
+        // A fala de quem relatou e a que nao tem usuario. As condicoes do filtro
+        // global reescritas a mao, menos a da conta.
+        => Context.ReportPublicComments
+            .IgnoreQueryFilters()
+            .Where(comment => comment.ReportId == reportId
+                              && comment.UserId == null
+                              && comment.CreatedAt >= since
+                              && comment.DeletedAt == null
+                              && comment.Report.DeletedAt == null)
+            .OrderByDescending(comment => comment.CreatedAt)
+            .ThenByDescending(comment => comment.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
 }
