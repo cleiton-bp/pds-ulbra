@@ -4,6 +4,7 @@ import { ProjectShell } from '@/app/ProjectShell'
 import { RequireSession } from '@/app/RequireSession'
 import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
 import { IdentityScreen } from '@/features/identity/IdentityScreen'
+import { MediaScreen } from '@/features/media/MediaScreen'
 import { ModerationScreen } from '@/features/moderation/ModerationScreen'
 import { StartScreen } from '@/features/onboarding/StartScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
           { path: 'public-stages', element: <PublicStagesScreen /> },
           { path: 'cycle', element: <CycleSettingsScreen /> },
           { path: 'identity', element: <IdentityScreen /> },
+          { path: 'media', element: <MediaScreen /> },
           { path: 'moderation', element: <ModerationScreen /> },
           { path: 'settings', element: <ProjectSettingsScreen /> },
           {

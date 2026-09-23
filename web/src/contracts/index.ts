@@ -1,4 +1,13 @@
 export type { ApiResponse } from '@/contracts/apiResponse'
+export type {
+  AttachmentUploadTicketViewModel,
+  ConfirmAttachmentRequest,
+  ConfirmedAttachmentViewModel,
+  PanelAttachmentViewModel,
+  PublicAttachmentViewModel,
+  RequestAttachmentUploadRequest,
+  SignedUploadViewModel,
+} from '@/contracts/attachments'
 export type { AccountViewModel, MeViewModel, SignInViewModel } from '@/contracts/auth'
 export type {
   ClosureTrigger,
@@ -13,6 +22,14 @@ export type {
   ReportVisibility,
   SaveIdentitySettingsRequest,
 } from '@/contracts/identitySettings'
+export type {
+  MediaKind,
+  MediaKindLimitViewModel,
+  MediaSettingsViewModel,
+  PublicMediaKindViewModel,
+  PublicMediaSettingsViewModel,
+  SaveMediaSettingsRequest,
+} from '@/contracts/mediaSettings'
 export type {
   CreateProjectRequest,
   ProjectCreatedViewModel,

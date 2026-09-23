@@ -2,8 +2,10 @@ import { apiAuthService } from '@/data/api/apiAuthService'
 import { apiProjectCycleSettingsService } from '@/data/api/apiProjectCycleSettingsService'
 import { apiProjectIdentitySettingsService } from '@/data/api/apiProjectIdentitySettingsService'
 import { apiProjectKeyService } from '@/data/api/apiProjectKeyService'
+import { apiProjectMediaSettingsService } from '@/data/api/apiProjectMediaSettingsService'
 import { apiProjectOriginService } from '@/data/api/apiProjectOriginService'
 import { apiProjectPublicStageService } from '@/data/api/apiProjectPublicStageService'
+import { apiProjectReportAttachmentService } from '@/data/api/apiProjectReportAttachmentService'
 import { apiProjectReportService } from '@/data/api/apiProjectReportService'
 import { apiProjectService } from '@/data/api/apiProjectService'
 import { apiProjectStateService } from '@/data/api/apiProjectStateService'
@@ -13,8 +15,10 @@ import type { AuthService } from '@/data/authService'
 import type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
 import type { ProjectIdentitySettingsService } from '@/data/projectIdentitySettingsService'
 import type { ProjectKeyService } from '@/data/projectKeyService'
+import type { ProjectMediaSettingsService } from '@/data/projectMediaSettingsService'
 import type { ProjectOriginService } from '@/data/projectOriginService'
 import type { ProjectPublicStageService } from '@/data/projectPublicStageService'
+import type { ProjectReportAttachmentService } from '@/data/projectReportAttachmentService'
 import type { ProjectReportService } from '@/data/projectReportService'
 import type { ProjectService } from '@/data/projectService'
 import type { ProjectStateService } from '@/data/projectStateService'
@@ -34,6 +38,12 @@ export const projectCycleSettingsService: ProjectCycleSettingsService =
   apiProjectCycleSettingsService
 export const projectIdentitySettingsService: ProjectIdentitySettingsService =
   apiProjectIdentitySettingsService
+
+export const projectMediaSettingsService: ProjectMediaSettingsService =
+  apiProjectMediaSettingsService
+
+export const projectReportAttachmentService: ProjectReportAttachmentService =
+  apiProjectReportAttachmentService
 export const projectReportService: ProjectReportService = apiProjectReportService
 export const projectPublicStageService: ProjectPublicStageService = apiProjectPublicStageService
 export const projectStatusMappingService: ProjectStatusMappingService =
@@ -48,8 +58,10 @@ export { describeError, isPanelError, PanelError } from '@/data/errors'
 export type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
 export type { ProjectIdentitySettingsService } from '@/data/projectIdentitySettingsService'
 export type { ProjectKeyService } from '@/data/projectKeyService'
+export type { ProjectMediaSettingsService } from '@/data/projectMediaSettingsService'
 export type { ProjectOriginService } from '@/data/projectOriginService'
 export type { ProjectPublicStageService } from '@/data/projectPublicStageService'
+export type { ProjectReportAttachmentService } from '@/data/projectReportAttachmentService'
 export type { ProjectReportService, ReportPage } from '@/data/projectReportService'
 export type { ProjectService } from '@/data/projectService'
 export type { ProjectStateService } from '@/data/projectStateService'
