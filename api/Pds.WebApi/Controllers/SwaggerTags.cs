@@ -23,8 +23,10 @@ public static class SwaggerTags
 
     /// <summary>Como quem relata e identificado, e quem pode ver o que ele escreveu.</summary>
     public const string IdentitySettings = "Identidade e visibilidade";
+    public const string MediaSettings = "Mídia";
     public const string Reports = "Relatos";
     public const string ReportComments = "Comentários do relato";
     public const string PublicReports = "Relatos (público)";
     public const string PublicWidgetSettings = "Ferramenta (público)";
+    public const string PublicMediaSettings = "Mídia (público)";
 }

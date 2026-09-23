@@ -49,6 +49,8 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectStatusMapping> ProjectStatusMappings { get; set; } = null!;
     public DbSet<ProjectCycleSettings> ProjectCycleSettings { get; set; } = null!;
     public DbSet<ProjectIdentitySettings> ProjectIdentitySettings { get; set; } = null!;
+    public DbSet<ProjectMediaSettings> ProjectMediaSettings { get; set; } = null!;
+    public DbSet<ProjectMediaKind> ProjectMediaKinds { get; set; } = null!;
     public DbSet<ReporterCode> ReporterCodes { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
@@ -56,6 +58,7 @@ public class DataContext : PdsBaseContext
     public DbSet<ReportPublicComment> ReportPublicComments { get; set; } = null!;
     public DbSet<ReportClosure> ReportClosures { get; set; } = null!;
     public DbSet<ReportInfoRequest> ReportInfoRequests { get; set; } = null!;
+    public DbSet<ReportAttachment> ReportAttachments { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -142,6 +145,36 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(settings => settings.DeletedAt == null
                                         && settings.Project.DeletedAt == null
                                         && settings.Project.AccountId == CurrentAccountId);
+
+        // Configuracao de midia: mesmo caminho do endereco autorizado. Quem le isto
+        // **sem sessao** e o proprio quadro, para saber se mostra o botao de anexar
+        // — e la a conta atual e zero, entao aquela leitura desliga este filtro e
+        // reescreve as condicoes a mao, como a configuracao da ferramenta ja faz.
+        modelBuilder.Entity<ProjectMediaSettings>()
+            .HasQueryFilter(settings => settings.DeletedAt == null
+                                        && settings.Project.DeletedAt == null
+                                        && settings.Project.AccountId == CurrentAccountId);
+
+        // Anexo: chega na conta pelo relato, que e quem guarda a conta. O caminho
+        // e o mesmo do contexto do relato — e passa pelo relato de proposito,
+        // porque e ele o dono, e nao o comentario onde o anexo talvez tenha vindo.
+        //
+        // Quem le isto **sem sessao** e quem relatou, na pagina de acompanhamento e
+        // no proprio quadro; la a conta atual e zero, entao aquela leitura desliga
+        // este filtro e reescreve as condicoes a mao.
+        modelBuilder.Entity<ReportAttachment>()
+            .HasQueryFilter(attachment => attachment.DeletedAt == null
+                                          && attachment.Report.DeletedAt == null
+                                          && attachment.Report.AccountId == CurrentAccountId);
+
+        // Limite por tipo: chega na conta por dois saltos, e nao por um. E o preco
+        // de o limite pendurar na configuracao em vez de no projeto — e vale a pena,
+        // porque sem a configuracao estes numeros nao querem dizer nada.
+        modelBuilder.Entity<ProjectMediaKind>()
+            .HasQueryFilter(kind => kind.DeletedAt == null
+                                    && kind.ProjectMediaSettings.DeletedAt == null
+                                    && kind.ProjectMediaSettings.Project.DeletedAt == null
+                                    && kind.ProjectMediaSettings.Project.AccountId == CurrentAccountId);
 
         // Codigo pessoal: mesmo caminho. Quem le isto **sem sessao** e a propria
         // pessoa que digitou o codigo, e la a conta atual e zero — aquela leitura

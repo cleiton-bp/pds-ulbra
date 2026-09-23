@@ -65,6 +65,16 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     public IProjectIdentitySettingsRepository ProjectIdentitySettings
         => _projectIdentitySettings ??= new ProjectIdentitySettingsRepository(_context);
 
+    private IProjectMediaSettingsRepository? _projectMediaSettings;
+
+    public IProjectMediaSettingsRepository ProjectMediaSettings
+        => _projectMediaSettings ??= new ProjectMediaSettingsRepository(_context);
+
+    private IReportAttachmentRepository? _reportAttachments;
+
+    public IReportAttachmentRepository ReportAttachments
+        => _reportAttachments ??= new ReportAttachmentRepository(_context);
+
     private IReporterCodeRepository? _reporterCodes;
     public IReporterCodeRepository ReporterCodes => _reporterCodes ??= new ReporterCodeRepository(_context);
 

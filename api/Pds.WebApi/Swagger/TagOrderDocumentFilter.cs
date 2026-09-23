@@ -75,6 +75,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.MediaSettings,
+                Description = "O que o projeto aceita receber junto do relato. Os limites de cada tipo moram numa linha por tipo, e o de tamanho viaja dentro da assinatura do envio — quem recusa o que passa e o proprio armazenamento.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.Reports,
                 Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos da conta que está logada.",
             },
@@ -92,6 +97,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
             {
                 Name = SwaggerTags.PublicWidgetSettings,
                 Description = "O que o próprio quadro lê para saber como se desenhar, apresentando a mesma chave pública.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.PublicMediaSettings,
+                Description = "O que a ferramenta pode oferecer de anexo, antes de desenhar qualquer coisa. Sem armazenamento na instalacao, vem desligado — o botao existir e o envio falhar seria pior que o botao nao existir.",
             },
         ];
     }

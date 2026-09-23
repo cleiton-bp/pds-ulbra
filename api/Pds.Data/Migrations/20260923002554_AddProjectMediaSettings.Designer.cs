@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pds.Data.Context;
@@ -11,9 +12,11 @@ using Pds.Data.Context;
 namespace Pds.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260923002554_AddProjectMediaSettings")]
+    partial class AddProjectMediaSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1426,128 +1429,6 @@ namespace Pds.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Pds.Domain.Entities.ReportAttachment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("ConfirmedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("confirmed_at")
-                        .HasComment("Quando a nossa API prendeu o anexo ao relato. Nulo e orfao.");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("content_type")
-                        .HasComment("O tipo declarado, que entrou na assinatura do envio. Garante o rotulo, e nao o conteudo — quem confere os bytes e a confirmacao, na nossa API.");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("Criacao do registro, em UTC.");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at")
-                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<int?>("DurationSeconds")
-                        .HasColumnType("integer")
-                        .HasColumnName("duration_seconds")
-                        .HasComment("Duracao em segundos, so para o que tem duracao.");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("kind")
-                        .HasComment("image ou video. A mesma lista de project_media_kinds, porque e ela que diz qual limite se aplica.");
-
-                    b.Property<string>("ObjectKey")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("object_key")
-                        .HasComment("O nome do arquivo no armazenamento, sorteado por nos e nunca derivado do nome que veio de fora — nome escolhido de fora permitiria escrever por cima do arquivo de outra pessoa. Nunca um endereco assinado: guardado, ele viraria link permanente com outro nome.");
-
-                    b.Property<string>("OriginalName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("original_name")
-                        .HasComment("O nome que o arquivo tinha na maquina de quem relata. Guardado para o time, e nunca mostrado do lado de fora: nome de arquivo conta pasta, cliente e numero de contrato, que a imagem nao conta.");
-
-                    b.Property<long?>("PublicCommentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("public_comment_id")
-                        .HasComment("Preenchido quando o anexo veio junto de uma resposta ao pedido de informacao. Nulo quando veio na criacao do relato.");
-
-                    b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
-
-                    b.Property<long>("ReportId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("report_id")
-                        .HasComment("Relato a que o anexo pertence. Obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so — e para o isolamento por conta nao depender de uma coluna que pode ser nula.");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("size_bytes")
-                        .HasComment("Tamanho do que o armazenamento aceitou, lido dele na confirmacao e nao do que o navegador disse.");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status")
-                        .HasComment("pending ou confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que fica pending e orfao — ocupa espaco e nao pertence a nada.");
-
-                    b.Property<string>("ThumbnailObjectKey")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("thumbnail_object_key")
-                        .HasComment("A miniatura, gerada no proprio navegador antes do envio. No video e o quadro de capa. Vem de fora, entao ela tambem e conferida.");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("Ultima alteracao, em UTC.");
-
-                    b.HasKey("Id")
-                        .HasName("pk_report_attachments");
-
-                    b.HasIndex("DeletedAt")
-                        .HasDatabaseName("ix_report_attachments_deleted_at");
-
-                    b.HasIndex("ObjectKey")
-                        .IsUnique()
-                        .HasDatabaseName("ux_report_attachments_object_key")
-                        .HasFilter("deleted_at IS NULL");
-
-                    b.HasIndex("PublicCommentId")
-                        .HasDatabaseName("ix_report_attachments_public_comment_id");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_report_attachments_public_id");
-
-                    b.HasIndex("ReportId")
-                        .HasDatabaseName("ix_report_attachments_report_id");
-
-                    b.ToTable("report_attachments", null, t =>
-                        {
-                            t.HasComment("O registro de um arquivo que veio com o relato. O arquivo em si nao esta aqui e nunca estara: o que a linha guarda e o nome dele no armazenamento, o bastante para pedir uma permissao de leitura quando alguem que pode ver aparecer.");
-                        });
-                });
-
             modelBuilder.Entity("Pds.Domain.Entities.ReportClosure", b =>
                 {
                     b.Property<long>("Id")
@@ -2383,26 +2264,6 @@ namespace Pds.Data.Migrations
                     b.Navigation("ProjectState");
 
                     b.Navigation("ReporterCode");
-                });
-
-            modelBuilder.Entity("Pds.Domain.Entities.ReportAttachment", b =>
-                {
-                    b.HasOne("Pds.Domain.Entities.ReportPublicComment", "PublicComment")
-                        .WithMany()
-                        .HasForeignKey("PublicCommentId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_report_attachments_report_public_comments_public_comment_id");
-
-                    b.HasOne("Pds.Domain.Entities.Report", "Report")
-                        .WithMany()
-                        .HasForeignKey("ReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_attachments_reports_report_id");
-
-                    b.Navigation("PublicComment");
-
-                    b.Navigation("Report");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ReportClosure", b =>
