@@ -10,9 +10,15 @@
 # ambiente de desenvolvimento. O que está agendado vive numa coluna do relato, no
 # banco; a fila só carrega a hora de olhar de novo.
 #
-# Para subir só a fila, sem a API:
+# O armazenamento de midia segue a mesma ideia da fila: roda aqui ao lado para
+# ninguem precisar de conta em provedor nenhum para desenvolver. **A API nao sabe
+# disso.** Ela fala a API do S3 com o endereco e as chaves que vierem do ambiente,
+# e trocar para um armazenamento de verdade e trocar variavel, nao codigo.
+#
+# Para subir so a fila, ou so o armazenamento, sem a API:
 #
 #   docker compose up -d rabbitmq
+#   docker compose up -d minio minio-init
 name: pds
 
 services:
@@ -46,6 +52,69 @@ services:
       retries: 12
     restart: unless-stopped
 
+  # O armazenamento de midia, compativel com a API do S3.
+  #
+  # **Esta aqui como servico externo, e nao como parte da aplicacao.** A API o
+  # enxerga exatamente como enxergaria o Backblaze B2 ou o Cloudflare R2: um
+  # endereco, um par de chaves e um balde, todos vindos do ambiente. Nada no
+  # codigo sabe que isto e local, e nada sabe que e MinIO.
+  #
+  # O volume e o que faz o arquivo enviado sobreviver a um `down`. Sem ele,
+  # derrubar o ambiente apagaria a midia de todos os relatos de teste.
+  minio:
+    image: pgsty/minio:latest
+    container_name: pds-minio
+    hostname: pds-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-pds}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-pdspdspds}"
+    ports:
+      # 9000 e a API do S3; 9001 e a tela de administracao, para olhar os arquivos.
+      #
+      # **So em 127.0.0.1, e nao na rede toda.** A senha padrao acima esta no
+      # repositorio, que e publico: publicada em todas as interfaces, qualquer um na
+      # mesma rede entraria no painel e leria ou apagaria a midia. A API no compose
+      # nao passa por aqui — fala com `minio:9000`, pela rede interna.
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_UI_PORT:-9001}:9001"
+    volumes:
+      - pds-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # Cria o balde e **garante que ele e privado**.
+  #
+  # Roda uma vez e sai. Existe porque balde nao se cria sozinho em armazenamento
+  # nenhum — no B2 e no R2 isso e um clique no painel deles, e aqui e este passo.
+  #
+  # O `anonymous set none` nao e zelo: **URL assinada sobre arquivo publico nao
+  # protege nada**, e um balde que nasce aberto faria toda a assinatura da
+  # aplicacao virar enfeite. Repetir o comando e inofensivo.
+  minio-init:
+    image: pgsty/minio:latest
+    container_name: pds-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-pds}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-pdspdspds}"
+      MEDIA_STORAGE_BUCKET: "${MEDIA_STORAGE_BUCKET:-pds-media}"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mc alias set pds http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "pds/$$MEDIA_STORAGE_BUCKET"
+        mc anonymous set none "pds/$$MEDIA_STORAGE_BUCKET"
+        echo "balde $$MEDIA_STORAGE_BUCKET pronto e privado"
+    restart: "no"
+
   api:
     build:
       context: .
@@ -55,6 +124,14 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
+
+      # De dentro da rede do compose o armazenamento atende pelo nome do servico, e
+      # nao por `localhost` — que ali dentro seria o proprio container da API.
+      #
+      # Sobrescrever aqui funciona porque o `.env.local` e carregado com
+      # `NoClobber`: variavel real tem precedencia sobre o arquivo. E a mesma porta
+      # que permite publicar a API com a configuracao do ambiente de verdade.
+      MEDIA_STORAGE_ENDPOINT: "http://minio:9000"
     volumes:
       - ./Pds.WebApi/Environment/.env.local:/app/Environment/.env.local:ro
     ports:
@@ -62,8 +139,13 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   pds-rabbitmq-data:
     name: pds-rabbitmq-data
+
+  pds-minio-data:
+    name: pds-minio-data

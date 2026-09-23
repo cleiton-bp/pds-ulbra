@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.Translation", "Pds.Tran
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.Workers", "Pds.Workers\Pds.Workers.csproj", "{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pds.Storage", "Pds.Storage\Pds.Storage.csproj", "{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -125,6 +127,18 @@ Global
 		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|x64.Build.0 = Release|Any CPU
 		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|x86.ActiveCfg = Release|Any CPU
 		{70CD37DA-0E40-4E6C-81EB-7CACC34D497A}.Release|x86.Build.0 = Release|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Debug|x64.Build.0 = Debug|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Debug|x86.Build.0 = Debug|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Release|x64.ActiveCfg = Release|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Release|x64.Build.0 = Release|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Release|x86.ActiveCfg = Release|Any CPU
+		{C35CB9B7-5E31-4CB6-8D15-B3036B7A0C24}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
