@@ -13,7 +13,16 @@ export interface AsyncResource<T> {
   data: T | null
   loading: boolean
   failed: boolean
+  /** Busca de novo **do zero**: o esqueleto volta. E o do "Tentar de novo". */
   reload: () => void
+  /**
+   * Busca de novo **sem tirar o que esta na tela**: a resposta nova substitui a
+   * antiga quando chega, e se falhar a antiga fica.
+   *
+   * E o de renovar enderecos que vencem. Com o `reload`, a lista sumia no meio — e
+   * levava junto a imagem ou o video que alguem estava olhando.
+   */
+  refresh: () => void
 }
 
 export function useAsyncResource<T>(load: () => Promise<T>): AsyncResource<T> {
@@ -54,5 +63,20 @@ export function useAsyncResource<T>(load: () => Promise<T>): AsyncResource<T> {
     void run()
   }, [run])
 
-  return { data, loading: data === null && !failed, failed, reload }
+  const refresh = useCallback(() => {
+    const id = ++requestId.current
+
+    void load().then(
+      (loaded) => {
+        if (id !== requestId.current) return
+        setData(loaded)
+        setFailed(false)
+      },
+      // Falhou renovando: o que esta na tela continua. E melhor um endereco que
+      // talvez ainda sirva do que uma lista que some.
+      () => {},
+    )
+  }, [load])
+
+  return { data, loading: data === null && !failed, failed, reload, refresh }
 }

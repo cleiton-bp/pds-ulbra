@@ -120,3 +120,50 @@ describe('useAsyncResource', () => {
     expect(result.current.data).toBe('chegou certo')
   })
 })
+
+describe('refresh: renovar sem tirar da tela', () => {
+  /** Load estavel que entrega, em ordem, o que a lista pedir. */
+  function emSequencia(respostas: Array<() => Promise<string>>) {
+    let chamada = 0
+    return renderHook(() => {
+      const load = useCallback(() => {
+        const proxima = respostas[Math.min(chamada++, respostas.length - 1)]
+        if (!proxima) throw new Error('o teste nao deu resposta para esta chamada')
+        return proxima()
+      }, [])
+      return useAsyncResource(load)
+    })
+  }
+
+  it('troca os dados sem passar pelo vazio — a lista nao some no meio', async () => {
+    const segunda = deferred<string>()
+    const { result } = emSequencia([
+      () => Promise.resolve('enderecos velhos'),
+      () => segunda.promise,
+    ])
+    await waitFor(() => expect(result.current.data).toBe('enderecos velhos'))
+
+    act(() => result.current.refresh())
+
+    // Enquanto a resposta nao chega, o que estava continua — e o reload, ao
+    // contrario, zeraria aqui.
+    expect(result.current.data).toBe('enderecos velhos')
+    expect(result.current.loading).toBe(false)
+
+    await act(async () => segunda.resolve('enderecos novos'))
+    expect(result.current.data).toBe('enderecos novos')
+  })
+
+  it('renovacao que falha deixa o que estava, sem marcar falha', async () => {
+    const { result } = emSequencia([
+      () => Promise.resolve('enderecos velhos'),
+      () => Promise.reject(new Error('sem rede')),
+    ])
+    await waitFor(() => expect(result.current.data).toBe('enderecos velhos'))
+
+    await act(async () => result.current.refresh())
+
+    expect(result.current.data).toBe('enderecos velhos')
+    expect(result.current.failed).toBe(false)
+  })
+})
