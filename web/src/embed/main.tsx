@@ -1,14 +1,7 @@
-import { createRoot, type Root } from 'react-dom/client'
-import {
-  configFromInit,
-  configFromLocation,
-  type EmbedConfig,
-  shouldWaitForHost,
-} from '@/embed/config'
-import { EmbedApp } from '@/embed/EmbedApp'
-import { connectToHost, type HostConnection, isEmbedded } from '@/embed/hostBridge'
-import { resolveMediaSettings } from '@/embed/resolveMediaSettings'
-import { resolveWidgetSettings } from '@/embed/resolveSettings'
+import { createRoot } from 'react-dom/client'
+import { configFromInit, configFromLocation, shouldWaitForHost } from '@/embed/config'
+import { draw } from '@/embed/draw'
+import { connectToHost, isEmbedded } from '@/embed/hostBridge'
 import '@/styles/index.css'
 
 /**
@@ -23,7 +16,8 @@ import '@/styles/index.css'
  * **E nada aparece antes da configuracao.** O `iframe` nasce invisivel do lado de
  * la e so e revelado pelo `show`, que roda depois da leitura. E o que faz o
  * rotulo do cliente aparecer ja certo, em vez de "Relatar" trocando para "Fale
- * com a gente" na frente de quem ja estava lendo.
+ * com a gente" na frente de quem ja estava lendo. Ler, desenhar e revelar moram
+ * em `draw.tsx`, onde da para testar.
  */
 const container = document.getElementById('pds-embed-root')
 
@@ -41,50 +35,4 @@ if (container) {
     // formulario direto, sem gatilho e sem redimensionar nada.
     void draw(root, configFromLocation(window.location.search), null)
   }
-}
-
-async function draw(root: Root, config: EmbedConfig, host: HostConnection | null): Promise<void> {
-  // As duas leituras saem juntas: a de midia nao pode atrasar o quadro aparecer. E
-  // ela nunca falha para fora — sem resposta, o quadro so nao oferece anexo.
-  const [settings, media] = await Promise.all([
-    resolveWidgetSettings(config.key, config.origin),
-    resolveMediaSettings(config.key, config.origin),
-  ])
-
-  // Recusado: ou a chave nao vale, ou esta pagina nao esta na lista de enderecos
-  // autorizados do projeto. Nao ha o que abrir, e o quadro nunca e revelado —
-  // entao o site fica como se o script nao estivesse la.
-  if (!settings) return
-
-  if (!settings.IsEnabled) {
-    // Dentro de uma pagina, desligada quer dizer **sumir**: o quadro nunca e
-    // revelado, e o site do cliente fica como se o script nao estivesse la.
-    if (host) return
-
-    // Aberto direto — e o que o painel faz no relato de teste —, sumir deixaria
-    // um retangulo branco sem explicacao. Aqui a resposta e dizer o que houve.
-    root.render(<DisabledNotice />)
-    return
-  }
-
-  root.render(<EmbedApp settings={settings} config={config} host={host} media={media} />)
-
-  // Um quadro de espera antes de revelar: `render` e assincrono, e mandar o
-  // `show` no mesmo tique mostraria a caixa vazia por um instante.
-  if (host) requestAnimationFrame(() => host.show(settings.Position))
-}
-
-/**
- * So aparece para quem abre `embed.html` na mao, com a ferramenta desligada. No
- * site do cliente este caminho nao existe: la o quadro simplesmente nao aparece.
- */
-function DisabledNotice() {
-  return (
-    <div className="flex h-full items-center justify-center p-6 text-center">
-      <p className="text-detail text-fg-muted leading-relaxed">
-        A ferramenta de relato está desligada para este projeto. Ligue de novo em Ferramenta, nas
-        configurações do projeto.
-      </p>
-    </div>
-  )
 }
