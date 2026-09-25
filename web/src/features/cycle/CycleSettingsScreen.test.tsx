@@ -293,7 +293,32 @@ describe('CycleSettingsScreen', () => {
     expect(screen.getByText(/continua se comportando como estava/)).toBeTruthy()
   })
 
-  it('a regra do código sozinho tem controle, e diz de que modo ela depende', async () => {
+  // **A regra do código sozinho está escondida**, e não removida: confirmar,
+  // reabrir e responder só aceitam o token do link, e marcada ela mostrava botões
+  // que a API recusava. Os dois testes pulados abaixo voltam junto com ela.
+  it('a regra do código sozinho fica fora da tela enquanto as ações não aceitam o código', async () => {
+    montar()
+
+    await screen.findByRole('checkbox', { name: /Deixar quem relatou reabrir/ })
+    expect(
+      screen.queryByRole('checkbox', { name: /O código sozinho também confirma e reabre/ }),
+    ).toBeNull()
+    expect(screen.queryByText('Quem chega sem o link')).toBeNull()
+  })
+
+  it('escondida, o valor salvo dela segue intacto quando outra regra é salva', async () => {
+    dublê.ler.mockResolvedValue({ ...padroes, TrackingCodeCanAct: true })
+    dublê.salvar.mockResolvedValue({ ...padroes, TrackingCodeCanAct: true, AllowsReopen: false })
+    montar()
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Deixar quem relatou reabrir/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+    expect(dublê.salvar.mock.calls[0]?.[1]).toMatchObject({ TrackingCodeCanAct: true })
+  })
+
+  it.skip('a regra do código sozinho tem controle, e diz de que modo ela depende', async () => {
     montar()
 
     const marcador = await screen.findByRole('checkbox', {
@@ -306,7 +331,7 @@ describe('CycleSettingsScreen', () => {
     expect(screen.getByText(/Só tem efeito quando o projeto usa código pessoal/i)).toBeTruthy()
   })
 
-  it('marcar a regra do código entra no que é salvo', async () => {
+  it.skip('marcar a regra do código entra no que é salvo', async () => {
     dublê.salvar.mockResolvedValue({ ...padroes, TrackingCodeCanAct: true })
     montar()
 
