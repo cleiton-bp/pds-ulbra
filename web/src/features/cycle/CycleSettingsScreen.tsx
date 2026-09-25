@@ -23,6 +23,17 @@ import { cn } from '@/shared/lib/cn'
  * doze. E e por isso que `saved` nunca e descartado: ele e a base de tudo que nao
  * esta na tela.
  */
+
+/**
+ * **"O código sozinho também confirma e reabre" está escondida, e não removida.**
+ * Marcada, ela liga os botões para quem chega pela lista pessoal — mas confirmar,
+ * reabrir e responder só aceitam o token do link, e quem chega pelo código não o
+ * tem: o botão aparecia e a API recusava. Volta quando essas três rotas aceitarem
+ * o código. Até lá o valor salvo segue intacto no rascunho, como o das regras sem
+ * tela.
+ */
+const MOSTRAR_REGRA_DO_CODIGO = false
+
 export function CycleSettingsScreen() {
   const project = useCurrentProject()
 
@@ -311,31 +322,35 @@ export function CycleSettingsScreen() {
             </Button>
           </div>
 
-          {/* O que ainda não está aqui, dito na tela em vez de descoberto depois.
+          {MOSTRAR_REGRA_DO_CODIGO && (
+            <>
+              {/* O que ainda não está aqui, dito na tela em vez de descoberto depois.
               Uma tela de configuração que cala sobre o que não configura faz a
               pessoa procurar o controle que não existe. */}
-          <h2 className="mt-8 mb-1 font-medium text-fg text-lead">Quem chega sem o link</h2>
-          <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-            No modo <strong className="font-medium text-fg">código pessoal</strong>, a pessoa
-            reencontra os relatos dela digitando o código — e chega ao relato sem o link que ela
-            recebeu quando escreveu. Ler, ela lê. O que esta regra decide é se ela também{' '}
-            <strong className="font-medium text-fg">age</strong>.
-          </p>
+              <h2 className="mt-8 mb-1 font-medium text-fg text-lead">Quem chega sem o link</h2>
+              <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+                No modo <strong className="font-medium text-fg">código pessoal</strong>, a pessoa
+                reencontra os relatos dela digitando o código — e chega ao relato sem o link que ela
+                recebeu quando escreveu. Ler, ela lê. O que esta regra decide é se ela também{' '}
+                <strong className="font-medium text-fg">age</strong>.
+              </p>
 
-          <Marcar
-            marcado={draft.TrackingCodeCanAct}
-            titulo="O código sozinho também confirma e reabre"
-            explicacao="Desmarcado, quem chega pela lista lê o relato e as ações ficam desligadas — confirmar, reabrir e responder continuam exigindo o link. Marcado, o código basta para tudo. A diferença importa porque o código é curto e a pessoa o guarda escrito; o link é longo e ninguém o decora."
-            aoTrocar={(marcado) => setDraft({ ...draft, TrackingCodeCanAct: marcado })}
-          />
+              <Marcar
+                marcado={draft.TrackingCodeCanAct}
+                titulo="O código sozinho também confirma e reabre"
+                explicacao="Desmarcado, quem chega pela lista lê o relato e as ações ficam desligadas — confirmar, reabrir e responder continuam exigindo o link. Marcado, o código basta para tudo. A diferença importa porque o código é curto e a pessoa o guarda escrito; o link é longo e ninguém o decora."
+                aoTrocar={(marcado) => setDraft({ ...draft, TrackingCodeCanAct: marcado })}
+              />
 
-          {/* Sem o modo, a regra não tem quando acontecer — e dizer isso evita que
+              {/* Sem o modo, a regra não tem quando acontecer — e dizer isso evita que
               alguém a marque esperando um efeito que não vem. */}
-          <p className="mt-2.5 text-caption text-fg-muted leading-relaxed">
-            Só tem efeito quando o projeto usa código pessoal, na tela de{' '}
-            <strong className="font-medium text-fg">Identidade</strong>. Nos outros modos, chegar ao
-            relato exige o link de qualquer jeito.
-          </p>
+              <p className="mt-2.5 text-caption text-fg-muted leading-relaxed">
+                Só tem efeito quando o projeto usa código pessoal, na tela de{' '}
+                <strong className="font-medium text-fg">Identidade</strong>. Nos outros modos,
+                chegar ao relato exige o link de qualquer jeito.
+              </p>
+            </>
+          )}
         </section>
       )}
     </div>
