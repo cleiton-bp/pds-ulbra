@@ -18,6 +18,9 @@ import { AttachmentGallery, type GalleryItem } from '@/shared/components/Attachm
  * trava era por lista, e quem monta a galeria cria a lista a cada desenho: uma
  * miniatura que o navegador nao decodificava fez a pagina de acompanhamento reler
  * a lista **3.609 vezes em 10 segundos**, medido no navegador.
+ *
+ * **Renovar nao fecha nada.** O que estava aberto continua aberto, e o video
+ * continua no endereco em que comecou.
  */
 function item(mudanca: Partial<GalleryItem> = {}): GalleryItem {
   return {
@@ -233,5 +236,63 @@ describe('o endereco que vence', () => {
 
     act(() => vi.advanceTimersByTime(30_000))
     expect(renovar).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('renovar nao fecha o que esta aberto', () => {
+  it('a imagem aberta continua aberta quando os enderecos mudam', () => {
+    const { container, rerender } = render(
+      <AttachmentGallery items={[item()]} onExpired={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Imagem/ }))
+
+    rerender(
+      <AttachmentGallery
+        items={[item({ url: 'http://armazenamento/inteiro?novo' })]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /Imagem/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(container.innerHTML).toContain('inteiro?novo')
+  })
+
+  it('o video aberto fica no endereco em que comecou — trocar o src voltaria ao inicio', () => {
+    const video = item({ kind: 'Video' })
+    const { container, rerender } = render(
+      <AttachmentGallery items={[video]} onExpired={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Vídeo/ }))
+
+    rerender(
+      <AttachmentGallery
+        items={[{ ...video, url: 'http://armazenamento/inteiro?novo' }]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(container.querySelector('video')?.getAttribute('src')).toBe(
+      'http://armazenamento/inteiro',
+    )
+  })
+
+  it('se o endereco do video aberto falhar, ele passa para o da lista', () => {
+    const video = item({ kind: 'Video' })
+    const { container, rerender } = render(
+      <AttachmentGallery items={[video]} onExpired={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Vídeo/ }))
+    rerender(
+      <AttachmentGallery
+        items={[{ ...video, url: 'http://armazenamento/inteiro?novo' }]}
+        onExpired={() => {}}
+      />,
+    )
+
+    fireEvent.error(container.querySelector('video') as HTMLVideoElement)
+
+    expect(container.querySelector('video')?.getAttribute('src')).toBe(
+      'http://armazenamento/inteiro?novo',
+    )
   })
 })

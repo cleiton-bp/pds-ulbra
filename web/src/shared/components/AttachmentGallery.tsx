@@ -52,6 +52,10 @@ const RECEM_CHEGADO_MS = 5_000
  * pagina reler a lista milhares de vezes em segundos. Agora o arquivo que falha de
  * novo com o endereco novo vira "nao carregou" e para de pedir; o que carrega zera
  * a trava, para o proximo vencimento de verdade.
+ *
+ * **Renovar nao fecha nada.** Quem monta a galeria renova sem apagar a lista, e o
+ * video aberto continua no endereco em que comecou: trocar o `src` no meio o
+ * mandaria de volta ao inicio. Ele so troca se o endereco dele falhar.
  */
 export function AttachmentGallery({
   items,
@@ -60,7 +64,7 @@ export function AttachmentGallery({
   items: GalleryItem[]
   onExpired: () => void
 }) {
-  const [aberto, setAberto] = useState<string | null>(null)
+  const [aberto, setAberto] = useState<{ id: string; videoUrl: string | null } | null>(null)
   const [quebrados, setQuebrados] = useState<ReadonlySet<string>>(() => new Set())
 
   /**
@@ -143,7 +147,15 @@ export function AttachmentGallery({
 
   if (items.length === 0) return null
 
-  const selecionado = items.find((item) => item.id === aberto) ?? null
+  const selecionado = items.find((item) => item.id === aberto?.id) ?? null
+
+  function abrir(item: GalleryItem) {
+    setAberto(
+      aberto?.id === item.id
+        ? null
+        : { id: item.id, videoUrl: item.kind === 'Video' ? item.url : null },
+    )
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -152,12 +164,12 @@ export function AttachmentGallery({
           <li key={item.id}>
             <button
               type="button"
-              onClick={() => setAberto(aberto === item.id ? null : item.id)}
-              aria-pressed={aberto === item.id}
+              onClick={() => abrir(item)}
+              aria-pressed={aberto?.id === item.id}
               aria-label={`${item.kind === 'Video' ? 'Vídeo' : 'Imagem'}${item.caption ? `: ${item.caption}` : ''}`}
               className={cn(
                 'relative block h-16 w-16 overflow-hidden rounded-lg border bg-surface-sunken',
-                aberto === item.id ? 'border-fg' : 'border-border',
+                aberto?.id === item.id ? 'border-fg' : 'border-border',
               )}
             >
               {item.thumbnailUrl && !quebrados.has(item.id) ? (
@@ -204,18 +216,30 @@ export function AttachmentGallery({
             // `preload="metadata"`: so o cabecalho ate alguem apertar play. O
             // video inteiro e o que custa, e ele so desce quando pedido.
             //
+            // O `src` e o do momento em que abriu, e nao o da lista: a renovacao
+            // traz endereco novo a cada poucos minutos, e trocar no meio mandaria o
+            // video de volta ao inicio. So troca se o dele falhar.
+            //
             // Sem `<track>` de legenda, e e de proposito: e gravacao da tela de
             // quem relatou, e nao ha fala para legendar. Uma trilha vazia so para
             // satisfazer a regra anunciaria ao leitor de tela uma legenda que nao
             // existe.
             // biome-ignore lint/a11y/useMediaCaption: gravacao de tela, sem fala para legendar
             <video
-              key={selecionado.url}
-              src={selecionado.url}
+              key={aberto?.videoUrl ?? selecionado.url}
+              src={aberto?.videoUrl ?? selecionado.url}
               poster={selecionado.thumbnailUrl ?? undefined}
               controls
               preload="metadata"
-              onError={() => falhou(`${selecionado.id}:arquivo`, selecionado.url)}
+              onError={() => {
+                const usado = aberto?.videoUrl ?? selecionado.url
+                if (usado !== selecionado.url) {
+                  // O da lista ja e mais novo: passa para ele, sem pedir nada.
+                  setAberto({ id: selecionado.id, videoUrl: selecionado.url })
+                  return
+                }
+                falhou(`${selecionado.id}:arquivo`, usado)
+              }}
               onLoadedMetadata={() => carregou(`${selecionado.id}:arquivo`)}
               className="max-h-96 w-full rounded-lg border border-border bg-surface-sunken"
             />
