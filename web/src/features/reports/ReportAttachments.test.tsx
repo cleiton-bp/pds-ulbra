@@ -56,13 +56,14 @@ function Dialogo() {
         anexos={anexos.daCriacao}
         failed={anexos.failed}
         onReload={anexos.reload}
+        onExpired={anexos.refresh}
       />
       <ReportComments
         projectPublicId="p-1"
         reportPublicId="r-1"
         aoComentar={() => {}}
         anexosPorFala={anexos.porFala}
-        aoExpirar={anexos.reload}
+        aoExpirar={anexos.refresh}
       />
     </>
   )
