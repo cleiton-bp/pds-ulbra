@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import type { Root } from 'react-dom/client'
 import type { EmbedConfig } from '@/embed/config'
 import { EmbedApp } from '@/embed/EmbedApp'
@@ -16,8 +17,9 @@ export async function draw(
   config: EmbedConfig,
   host: HostConnection | null,
 ): Promise<void> {
-  // As duas leituras saem juntas: a de midia nao pode atrasar o quadro aparecer. E
-  // ela nunca falha para fora — sem resposta, o quadro so nao oferece anexo.
+  // As duas leituras saem juntas, e o quadro espera as duas: a de midia so atrasa
+  // o tanto que for mais lenta que a outra. E ela nunca falha para fora — sem
+  // resposta, o quadro so nao oferece anexo.
   const [settings, media] = await Promise.all([
     resolveWidgetSettings(config.key, config.origin),
     resolveMediaSettings(config.key, config.origin),
@@ -39,11 +41,21 @@ export async function draw(
     return
   }
 
-  root.render(<EmbedApp settings={settings} config={config} host={host} media={media} />)
+  // **Desenha de uma vez, e so depois pede para aparecer** — sem esperar o
+  // navegador pintar. Revelar antes de o React terminar mostraria a caixa vazia
+  // por um instante; o `flushSync` deixa o quadro pronto no DOM, e quando a pagina
+  // o revela o navegador pinta o que ja esta la.
+  //
+  // **Esperar um `requestAnimationFrame` aqui era o defeito.** O quadro nasce
+  // invisivel, e o Chrome nao pinta — logo nao roda `requestAnimationFrame` — num
+  // quadro invisivel de OUTRO site. No site do cliente, que e sempre outro site, o
+  // `show` nunca saia e a ferramenta nunca aparecia. Em `localhost` aparecia,
+  // porque o painel e o quadro sao o mesmo site: por isso ninguem viu.
+  flushSync(() => {
+    root.render(<EmbedApp settings={settings} config={config} host={host} media={media} />)
+  })
 
-  // Um quadro de espera antes de revelar: `render` e assincrono, e mandar o
-  // `show` no mesmo tique mostraria a caixa vazia por um instante.
-  if (host) requestAnimationFrame(() => host.show(settings.Position))
+  host?.show(settings.Position)
 }
 
 /**
