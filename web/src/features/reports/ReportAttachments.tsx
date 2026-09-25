@@ -13,7 +13,7 @@ import { formatBytes } from '@/shared/lib/formatBytes'
  * duas pedirem enderecos assinados em dobro — e vencerem em momentos diferentes.
  */
 export function useReportAttachments(projectPublicId: string, reportPublicId: string) {
-  const { data, failed, reload } = useAsyncResource(
+  const { data, failed, reload, refresh } = useAsyncResource(
     useCallback(
       () => projectReportAttachmentService.listAttachments(projectPublicId, reportPublicId),
       [projectPublicId, reportPublicId],
@@ -33,6 +33,8 @@ export function useReportAttachments(projectPublicId: string, reportPublicId: st
     porFala,
     failed,
     reload,
+    /** Renova os enderecos sem tirar a lista da tela — e o da galeria. */
+    refresh,
   }
 }
 
@@ -71,10 +73,14 @@ export function ReportAttachments({
   anexos,
   failed,
   onReload,
+  onExpired,
 }: {
   anexos: PanelAttachmentViewModel[]
   failed: boolean
+  /** "Tentar de novo": busca do zero. */
   onReload: () => void
+  /** Endereco vencendo: renova sem tirar a lista da tela. */
+  onExpired: () => void
 }) {
   if (failed) {
     return (
@@ -96,7 +102,7 @@ export function ReportAttachments({
   return (
     <section className="border-border border-t pt-4">
       <h3 className="mb-2.5 font-medium text-detail text-fg">Arquivos</h3>
-      <AttachmentGallery onExpired={onReload} items={anexos.map(toPanelGalleryItem)} />
+      <AttachmentGallery onExpired={onExpired} items={anexos.map(toPanelGalleryItem)} />
     </section>
   )
 }

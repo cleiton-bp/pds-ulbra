@@ -43,7 +43,9 @@ export function useTrackingMedia(code: string, token: string) {
 
   return {
     anexos: anexos.data ?? [],
-    recarregar: anexos.reload,
+    // Renova sem tirar os arquivos da tela: e o que a galeria pede quando um
+    // endereco vence, e o que a resposta pede depois de enviar um arquivo.
+    recarregar: anexos.refresh,
     paraResposta: configuracao.data ?? null,
   }
 }

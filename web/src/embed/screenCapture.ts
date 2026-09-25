@@ -13,6 +13,9 @@
  * o recorte e nosso.
  */
 
+/** Quanto o print espera um quadro pintado antes de ler o video mesmo assim. */
+const FRAME_WAIT_MS = 100
+
 /** O que o navegador e a pagina permitem, antes de mostrar o botao. */
 export function canCaptureScreen(): boolean {
   if (typeof navigator === 'undefined') return false
@@ -141,7 +144,14 @@ export async function captureFrame(): Promise<HTMLCanvasElement> {
     await video.play()
 
     // Um quadro de espera: o primeiro, logo depois de `play`, as vezes sai preto.
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    //
+    // **Com prazo.** Quem escolhe outra janela no seletor costuma deixar esta aba
+    // encoberta, e aba encoberta nao pinta: o `requestAnimationFrame` so voltaria
+    // quando a pessoa voltasse, e a captura ficaria parada ate la.
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => resolve(null))
+      setTimeout(() => resolve(null), FRAME_WAIT_MS)
+    })
 
     const canvas = document.createElement('canvas')
     canvas.width = video.videoWidth

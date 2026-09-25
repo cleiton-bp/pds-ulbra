@@ -416,6 +416,7 @@ export function ReportDialog({
             anexos={anexos.daCriacao}
             failed={anexos.failed}
             onReload={anexos.reload}
+            onExpired={anexos.refresh}
           />
 
           {pedido && <Devolvido pedido={pedido} />}
@@ -488,7 +489,7 @@ export function ReportDialog({
             reportPublicId={reportPublicId}
             aoComentar={() => setVersao((n) => n + 1)}
             anexosPorFala={anexos.porFala}
-            aoExpirar={anexos.reload}
+            aoExpirar={anexos.refresh}
           />
 
           <ReportHistory
