@@ -1,0 +1,96 @@
+meta:
+  title: O que vira público
+  system: PDS
+  description: Quem decide o que estranhos podem ler, e o que eles veem. O time modera no painel; qualquer visitante lê a lista pública dentro da ferramenta. A escolha de o projeto ser público ou privado está em 03-project-rules.
+actors:
+  - name: Visitante do site
+    description: Qualquer pessoa na página do cliente onde a ferramenta está. Quem relatou também é visitante.
+    position: { x: 40, y: 236 }
+  - name: Membro do time
+    description: Modera pelo painel. O dono do projeto também é um membro do time.
+    position: { x: 950, y: 151 }
+useCases:
+  - id: UC01
+    name: Moderar um relato
+    description: Decide se o relato pode ser lido por estranhos. A fila mostra os mais antigos primeiro, com o texto inteiro e os arquivos.
+    width: 230
+    position: { x: 600, y: 60 }
+    preconditions: O membro está no painel, dentro do projeto.
+    mainFlow:
+      - O membro abre Moderação.
+      - Vê os relatos pendentes, dos mais antigos para os mais novos, e o total da fila.
+      - Lê o texto inteiro, os arquivos, e os trechos que o sistema apontou como dado sensível (UC02).
+      - Libera o relato, ou recusa.
+      - O sistema grava a decisão, com quem decidiu e quando.
+    alternativeFlows:
+      - title: 2a. Há mais de 50 pendentes
+        steps:
+          - A fila mostra os 50 mais antigos e diz de quantos. Decidindo os de cima, os de baixo sobem.
+      - title: 4a. O membro recusa
+        steps:
+          - "O relato sai da vitrine, e só dela: continua no painel, continua no ciclo, e quem relatou continua acompanhando pelo link."
+          - Quem relatou não é avisado da recusa.
+    postconditions: O relato liberado aparece na lista pública — se o projeto estiver num nível público.
+  - id: UC02
+    name: Apontar dado sensível
+    description: O sistema procura CPF, CNPJ, cartão, e-mail, telefone e credencial no texto e marca o trecho. Sinaliza, não bloqueia.
+    width: 230
+    position: { x: 260, y: 0 }
+    mainFlow:
+      - Ao montar a fila, o sistema lê o texto de cada relato pendente.
+      - Confere os achados — dígito verificador no CPF e no CNPJ, e Luhn no cartão —, para não chamar qualquer número de documento.
+      - Mostra cada achado com uma amostra mascarada e marca o trecho dentro do próprio texto.
+    alternativeFlows:
+      - title: 3a. Mais de 12 achados no mesmo relato
+        steps:
+          - A tela mostra 12 e diz que parou ali.
+    postconditions: Quem decide continua sendo o membro. Nome, endereço, print e vídeo não são varridos.
+  - id: UC03
+    name: Tirar do público
+    description: Quem liberou por engano recusa depois, e o relato sai da lista pública. Não existe voltar para “pendente” — alguém já olhou.
+    width: 230
+    position: { x: 600, y: 230 }
+    preconditions: O relato está liberado.
+    mainFlow:
+      - O membro escolhe tirar o relato do público.
+      - O sistema grava a recusa.
+      - O relato sai da lista pública.
+    alternativeFlows:
+      - title: 1a. O relato estava recusado, e o time mudou de ideia
+        steps:
+          - O membro libera, e o relato entra na lista pública.
+  - id: UC04
+    name: Ver o que já foi relatado
+    description: A lista pública, dentro da ferramenta. O texto inteiro dos relatos liberados, sem protocolo e sem arquivo.
+    width: 230
+    position: { x: 260, y: 230 }
+    preconditions: O projeto está num nível público — anônimo ou identificado.
+    mainFlow:
+      - O visitante abre a lista na ferramenta.
+      - O sistema mostra os relatos liberados, os liberados mais recentemente primeiro.
+      - Em cada um, o texto inteiro — e o nome, só em projeto público identificado e só de quem escolheu assinar.
+    alternativeFlows:
+      - title: 2a. Nada foi liberado ainda
+        steps:
+          - A lista vem vazia.
+    postconditions: Nenhum item carrega protocolo nem identificador — ninguém de fora consegue agir sobre o relato de outra pessoa.
+links:
+  - from: Membro do time
+    to: UC01
+    kind: association
+  - from: UC01
+    to: UC02
+    kind: include
+  - from: Membro do time
+    to: UC03
+    kind: association
+  - from: Visitante do site
+    to: UC04
+    kind: association
+notes:
+  - text: Todo relato nasce pendente, inclusive em projeto privado. Marcar o projeto como público um dia não publica o histórico — publica quem liberar, um a um.
+    anchor: UC01
+    position: { x: 600, y: -200 }
+  - text: "Duas condições, juntas: o projeto num nível público e o relato liberado. Liberar em projeto privado não publica nada."
+    anchor: UC04
+    position: { x: 200, y: 390 }

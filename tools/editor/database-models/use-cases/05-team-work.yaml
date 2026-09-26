@@ -1,0 +1,225 @@
+meta:
+  title: O time trabalha o relato
+  system: PDS — painel
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+actors:
+  - name: Membro do time
+    description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
+    position: { x: -180, y: 336 }
+  - name: Armazenamento de arquivos
+    kind: system
+    description: Guarda os prints e os vídeos, privado. Só entrega um arquivo por link assinado, de validade curta.
+    position: { x: 980, y: 136 }
+  - name: Agendador
+    kind: system
+    description: "A fila com mensagem atrasada que segura a espera e os prazos. Não decide nada ao agendar: quando a hora chega, olha o estado atual do relato e só então age."
+    position: { x: 994, y: 541 }
+useCases:
+  - id: UC01
+    name: Ver os relatos
+    description: A fila do projeto, com a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”.
+    width: 220
+    position: { x: 260, y: 0 }
+    preconditions: O membro está no painel, dentro do projeto.
+    mainFlow:
+      - O membro abre Relatos.
+      - Vê os relatos com a data, o tipo, a rota e o começo do texto.
+      - Filtra por coluna, para ver só um estado.
+      - Escolhe um relato para abrir.
+    alternativeFlows:
+      - title: 2a. Nenhum relato ainda
+        steps:
+          - A tela diz que a fila está vazia e aponta a Instalação.
+  - id: UC02
+    name: Ler o relato
+    description: "Tudo o que chegou: texto, tipo, onde aconteceu, quando, os arquivos e o histórico — e se quem relatou aceitou responder dúvidas."
+    width: 220
+    position: { x: 260, y: 125 }
+    preconditions: O relato é deste projeto.
+    mainFlow:
+      - O membro abre o relato.
+      - Lê o texto, o tipo, o site e a página onde aconteceu, e a data.
+      - Vê tudo o que já aconteceu com o relato, em ordem.
+      - Vê em que etapa pública ele está, e se está liberado para o público.
+  - id: UC03
+    name: Comentar
+    description: Por dentro, para o time; ou para fora, para quem relatou ler na página de acompanhamento. Os dois ficam separados de forma visível.
+    width: 220
+    position: { x: 260, y: 250 }
+    preconditions: O relato está aberto no painel.
+    mainFlow:
+      - O membro escolhe entre comentário interno e comentário público.
+      - Escreve e envia.
+      - O comentário entra no relato, com quem escreveu e quando.
+    postconditions: O comentário público aparece na página de acompanhamento. O interno, nunca.
+  - id: UC04
+    name: Pedir uma informação
+    description: Quando falta contexto, o time pergunta pelo próprio relato, dizendo o que falta — e a vez passa para quem relatou, com prazo.
+    width: 220
+    position: { x: 260, y: 375 }
+    preconditions: O projeto tem o pedido de informação ligado, e quem relatou aceitou responder dúvidas.
+    mainFlow:
+      - No relato aberto, o membro escolhe pedir uma informação.
+      - Escreve o que falta.
+      - O sistema grava a pergunta como comentário público e marca que a vez é de quem relatou.
+      - O sistema calcula os dois prazos — o do aviso e o do encerramento.
+    alternativeFlows:
+      - title: 1a. Quem relatou não aceitou responder dúvidas
+        steps:
+          - O painel não deixa pedir, e diz por quê.
+      - title: 4a. Quem relatou responde
+        steps:
+          - A vez volta para o time, e o prazo para de correr.
+    postconditions: A página de acompanhamento mostra a pergunta e deixa quem relatou responder.
+  - id: UC05
+    name: Mover entre os estados
+    description: Leva o relato de uma coluna a outra. Cada movimento vira um evento que não se apaga — é dele que saem o histórico, a linha do tempo pública e as métricas.
+    width: 220
+    position: { x: 260, y: 500 }
+    preconditions: O relato está aberto no painel.
+    mainFlow:
+      - O membro escolhe o estado de destino.
+      - O sistema grava o evento — de onde, para onde, quem e quando — e só depois atualiza o estado atual do relato.
+      - O sistema leva a mudança para a etapa pública (UC09).
+    alternativeFlows:
+      - title: 1a. O destino é a última coluna ativa, e o projeto encerra por coluna
+        steps:
+          - O painel pede o desfecho e o motivo antes de mover — ver UC06.
+      - title: 1b. O movimento foi um engano
+        steps:
+          - O membro move de volta. Dentro da espera do projeto, quem relatou nunca chega a ver o engano.
+  - id: UC06
+    name: Encerrar com motivo
+    description: Diz como terminou — foi feito, não será feito, sem retorno ou já existia — e por quê. O motivo é obrigatório, e é o que quem relatou lê.
+    width: 220
+    position: { x: 260, y: 660 }
+    preconditions: O relato está aberto no painel e não está encerrado.
+    mainFlow:
+      - O membro escolhe encerrar — pelo botão, ou movendo para a última coluna, conforme o projeto.
+      - Escolhe o desfecho.
+      - Escreve o motivo.
+      - O sistema grava o encerramento.
+      - Passada a espera do projeto, o encerramento aparece na página de acompanhamento.
+    alternativeFlows:
+      - title: 3a. O motivo fica em branco
+        steps:
+          - O sistema não encerra e pede o motivo.
+      - title: 5a. O membro tira o relato da última coluna antes de quem relatou confirmar
+        steps:
+          - O encerramento é cancelado, e o histórico registra o cancelamento — que não é uma reabertura.
+    postconditions: Quem relatou pode confirmar que resolveu, ou reabrir — ver 06-tracking.
+  - id: UC07
+    name: Ver os arquivos do relato
+    description: Miniatura no relato, arquivo inteiro só quando alguém abre.
+    width: 240
+    position: { x: 600, y: 125 }
+    mainFlow:
+      - O membro vê as miniaturas dos prints e dos vídeos no relato aberto.
+      - Abre um arquivo.
+      - O sistema confere que o membro pode ver aquele relato, e só então gera um link de leitura de validade curta.
+      - O painel mostra a imagem ou toca o vídeo.
+    alternativeFlows:
+      - title: 4a. O link venceu
+        steps:
+          - O painel pede um link novo, em vez de quebrar em silêncio.
+  - id: UC08
+    name: Encerrar sem retorno
+    description: Quando o segundo prazo do pedido de informação vence sem resposta, o relato encerra sozinho como “sem retorno”.
+    width: 240
+    position: { x: 600, y: 375 }
+    preconditions: Há um pedido de informação aberto, e a vez é de quem relatou.
+    mainFlow:
+      - Passado o primeiro prazo, a página de acompanhamento muda de tom e avisa que o relato vai encerrar.
+      - No segundo prazo, o agendador chega e confere o relato.
+      - Se a vez ainda é de quem relatou, o sistema encerra como “sem retorno”, com a origem marcada como sistema, e não como time.
+    alternativeFlows:
+      - title: 3a. Quem relatou respondeu antes
+        steps:
+          - A mensagem encontra o pedido já respondido e se descarta.
+    postconditions: O relato encerrado assim continua reabrível — quem sumiu por 14 dias pode voltar no dia 30.
+  - id: UC09
+    name: Levar a mudança para a etapa pública
+    description: "O motor de tradução lê o mapa e decide o que quem relatou vê: a etapa anda, fica onde está, ou o estado não tem etapa e o dono é avisado."
+    width: 240
+    position: { x: 600, y: 500 }
+    mainFlow:
+      - O sistema recebe o estado novo, o mapa do projeto e a etapa pública atual.
+      - Decide a etapa pública — sem nunca voltar, a não ser para uma etapa que permite retorno.
+      - Sem espera, a etapa pública muda na hora.
+      - Com espera, o agendador volta no fim dela, olha o estado de agora e só então publica.
+    alternativeFlows:
+      - title: 2a. O estado não tem etapa no mapa
+        steps:
+          - A etapa pública fica onde estava, o evento é gravado como não mapeado, e o dono é avisado.
+      - title: 2b. Os dois estados caem na mesma etapa
+        steps:
+          - A página de acompanhamento não muda — porque não deve.
+      - title: 4a. O relato voltou antes do fim da espera
+        steps:
+          - O agendador encontra o estado novo e descarta a mudança antiga. Nada é cancelado, e nada vaza.
+  - id: UC10
+    name: Apagar a mídia vencida
+    description: Adiado. Quando o prazo de guarda que o projeto escolheu vence, o arquivo sai do armazenamento.
+    width: 230
+    position: { x: 600, y: 660 }
+    preconditions: O projeto definiu um prazo de guarda, e ele venceu para algum arquivo.
+    mainFlow:
+      - O agendador olha o arquivo no momento em que o prazo vence.
+      - Confere o estado atual — o prazo pode ter mudado depois do agendamento.
+      - Apaga o arquivo do armazenamento e registra.
+links:
+  - from: Membro do time
+    to: UC01
+    kind: association
+  - from: Membro do time
+    to: UC02
+    kind: association
+  - from: Membro do time
+    to: UC03
+    kind: association
+  - from: Membro do time
+    to: UC04
+    kind: association
+  - from: Membro do time
+    to: UC05
+    kind: association
+  - from: Membro do time
+    to: UC06
+    kind: association
+  - from: UC07
+    to: UC02
+    kind: extend
+    note: quando o relato tem anexo
+  - from: Armazenamento de arquivos
+    to: UC07
+    kind: association
+  - from: UC08
+    to: UC04
+    kind: extend
+    note: quando o segundo prazo vence sem resposta de quem relatou
+  - from: Agendador
+    to: UC08
+    kind: association
+  - from: UC05
+    to: UC09
+    kind: include
+  - from: Agendador
+    to: UC09
+    kind: association
+  - from: UC06
+    to: UC05
+    kind: extend
+    note: quando o relato cai na última coluna ativa e o projeto encerra por coluna
+  - from: Agendador
+    to: UC10
+    kind: association
+  - from: Armazenamento de arquivos
+    to: UC10
+    kind: association
+notes:
+  - text: "Comentário interno e comentário público são campos separados, e não uma marcação: o interno não tem caminho nenhum até a página pública."
+    anchor: UC03
+    position: { x: 1124, y: 251 }
+  - text: A espera é a janela para desfazer. Quem move por engano move de volta, e a pessoa lá fora nunca vê o vaivém.
+    anchor: UC06
+    position: { x: 287, y: 858 }
