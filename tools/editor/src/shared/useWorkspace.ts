@@ -23,8 +23,8 @@ import { hasYamlComments } from './yamlComments'
  *    conflito sem escolha feita, yaml quebrado (a tela mostra um documento vazio),
  *    arquivo com comentarios que o editor nao sabe guardar, e arquivo que sumiu do
  *    disco. Em todos, uma faixa diz o que houve e oferece a saida.
- * 4. Edicao nao se perde no caminho — trocar de arquivo ou fechar a aba grava antes,
- *    ou para e avisa quando nao da para gravar.
+ * 4. Edicao nao se perde no caminho — trocar de arquivo, sair do editor ou fechar a
+ *    aba grava antes, ou para e avisa quando nao da para gravar.
  */
 
 /** O que muda de um ambiente para o outro: como o arquivo vira documento e volta. */
@@ -44,6 +44,15 @@ const POLL_MS = 3000
 /** Valor de codigo em ingles; o texto que aparece na tela fica na barra de cada editor. */
 export type SaveStatus = 'empty' | 'saved' | 'unsaved' | 'saving' | 'error' | 'conflict'
 
+type Options = {
+  /** Arquivo para abrir assim que a lista chegar — o do endereco ou o ultimo usado. */
+  initialFile?: string | null
+  /** O arquivo inicial veio do endereco: se ele nao existir, vale um aviso. */
+  initialFromAddress?: boolean
+  /** Avisa quem esta em volta que um arquivo abriu — para o endereco e o "ultimo usado". */
+  onOpened?: (name: string | null) => void
+}
+
 /**
  * Estado que tambem e lido fora do render (autosave, poll, troca de arquivo). Grava
  * no estado e na ref ao mesmo tempo: copiar a ref no render deixaria uma janela em
@@ -61,7 +70,7 @@ function useSynced<T>(initial: T): [T, MutableRefObject<T>, (value: T) => void] 
 
 export type Workspace<Doc> = ReturnType<typeof useWorkspace<Doc>>
 
-export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>) {
+export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>, options: Options = {}) {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [dir, setDir] = useState('')
   const [saveError, setSaveError] = useState('')
@@ -82,6 +91,9 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
   const runningRef = useRef<Promise<boolean> | null>(null)
   /** Pediram outra gravacao enquanto uma estava em curso — ela roda assim que a primeira termina. */
   const pendingRef = useRef(false)
+
+  const onOpenedRef = useRef(options.onOpened)
+  onOpenedRef.current = options.onOpened
 
   const refreshFiles = useCallback(async (): Promise<FileEntry[]> => {
     const data = await api.listFiles(collection)
@@ -211,10 +223,21 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
       setComments(false)
       setDoc(format.empty(''))
     }
+    onOpenedRef.current?.(name)
     return true
   }, [collection, format, flush, currentRef, docRef, setCurrent, setDirty, setConflict, setMissing, setParseError, setComments, setDoc])
 
   /** Toda edicao passa por aqui: recalcula os avisos e liga o autosave. */
+  /**
+   * O guarda de saida do editor: grava o que falta e, se nao der, diz por que a
+   * tela nao saiu — senao o botao de inicio pareceria simplesmente nao funcionar.
+   */
+  const leave = useCallback(async (): Promise<boolean> => {
+    const ok = await flush()
+    if (!ok) setSaveError('Há edição que ainda não foi gravada — resolva o aviso acima antes de sair.')
+    return ok
+  }, [flush])
+
   const update = useCallback((fn: (doc: Doc) => Doc): void => {
     const previous = docRef.current
     if (!previous) return
@@ -233,12 +256,26 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
     setComments(false)
     setParseError('')
     setSaveError('')
+    onOpenedRef.current?.(null)
   }, [setCurrent, setDoc, setDirty, setConflict, setMissing, setComments, setParseError])
 
-
+  // Primeira carga: a lista, e o arquivo pedido se ele existir.
+  const { initialFile, initialFromAddress } = options
   useEffect(() => {
-    void refreshFiles().catch((err: Error) => setSaveError(err.message))
-  }, [refreshFiles])
+    void refreshFiles()
+      .then(async (list) => {
+        if (!initialFile) return
+        if (list.some((file) => file.name === initialFile)) {
+          await open(initialFile, { discard: true })
+          return
+        }
+        // Tira do endereco o arquivo que nao existe, para recarregar nao repetir o erro.
+        onOpenedRef.current?.(null)
+        if (initialFromAddress) setSaveError(`O arquivo ${initialFile} não existe mais nesta pasta — escolha outro na lista.`)
+      })
+      .catch((err: Error) => setSaveError(err.message))
+    // So na montagem: trocar de arquivo depois disso e com o `open`.
+  }, [])
 
   // Autosave com espera.
   useEffect(() => {
@@ -308,6 +345,11 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
     }
   }, [collection, format, dirtyRef, currentRef, docRef, parseErrorRef, commentsRef, conflictRef, missingRef])
 
+  // Sair do editor pelo "voltar" do navegador desmonta tudo: grava o que ficou pendente.
+  useEffect(() => () => {
+    if (dirtyRef.current) void save()
+  }, [save, dirtyRef])
+
   const create = useCallback(async (name: string, title: string): Promise<void> => {
     await api.createFile(collection, name, format.serialize(format.empty(title)))
     await refreshFiles()
@@ -375,7 +417,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
 
   return {
     files, dir, current, doc, parseError, saveError, conflict, comments, missing, status,
-    open, save, flush, update, create, remove, close, dropComments, recreate,
+    open, save, flush, leave, update, create, remove, close, dropComments, recreate,
     dismissError: () => setSaveError(''),
   }
 }

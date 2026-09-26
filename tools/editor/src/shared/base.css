@@ -20,6 +20,8 @@
   --fk: #7bc86c;
   --danger: #ff6b6b;
   --warn: #ffb454;
+  /* Traço dos elementos da UML — o boneco, a elipse, as linhas. */
+  --stroke: #aab4c5;
   --radius: 6px;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
@@ -223,6 +225,8 @@ kbd {
 }
 
 .toolbar__actions { display: flex; align-items: center; gap: 8px; flex: none; }
+
+.toolbar__nav { display: flex; align-items: center; gap: 2px; flex: none; }
 
 /* Divisória entre criar e mudar a vista. Usa a linha forte porque a fraca, em 1px
    sobre o painel, some. */
@@ -476,3 +480,15 @@ kbd {
 .btn.is-off { color: var(--text-dim); }
 
 .react-flow__minimap-node { fill: var(--line-strong); }
+
+
+/* ---- caminho de volta: início ------------------------------------------ */
+
+.sidebar__home {
+  padding: 2px 0;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.sidebar__home:hover { color: var(--accent); }

@@ -1,6 +1,6 @@
 /**
- * Testes do que os ambientes dividem: comentario no yaml e as regras do servidor
- * sobre qual pasta e qual nome aceitar.
+ * Testes do que os ambientes dividem: comentario no yaml, endereco da tela e
+ * as regras do servidor sobre qual pasta e qual nome aceitar.
  *
  * Roda com `npm test`, carregando os modulos TypeScript pelo proprio Vite.
  */
@@ -15,6 +15,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 let server
 let hasYamlComments
+let parseHash
+let routeHash
 let files
 
 before(async () => {
@@ -25,6 +27,7 @@ before(async () => {
     logLevel: 'error',
   })
   ;({ hasYamlComments } = await server.ssrLoadModule('/src/shared/yamlComments.ts'))
+  ;({ parseHash, routeHash } = await server.ssrLoadModule('/src/shared/navigation.tsx'))
   files = await server.ssrLoadModule('/server/files.ts')
 })
 
@@ -50,6 +53,27 @@ describe('comentário no arquivo', () => {
   })
 })
 
+describe('endereço da tela', () => {
+  it('lê o ambiente e o arquivo do #', () => {
+    assert.deepEqual(parseHash('#/modeling/07-media-attachments.yaml'), { env: 'modeling', file: '07-media-attachments.yaml' })
+    assert.deepEqual(parseHash('#/modeling'), { env: 'modeling', file: null })
+    assert.deepEqual(parseHash('#/'), { env: null, file: null })
+    assert.deepEqual(parseHash(''), { env: null, file: null })
+  })
+
+  it('endereço desconhecido cai no início, em vez de abrir um editor qualquer', () => {
+    assert.deepEqual(parseHash('#/outra-coisa/x.yaml'), { env: null, file: null })
+  })
+
+  it('ida e volta do endereço', () => {
+    for (const route of [
+      { env: null, file: null },
+      { env: 'modeling', file: null },
+      { env: 'modeling', file: 'example.yaml' },
+    ]) assert.deepEqual(parseHash(routeHash(route)), route)
+  })
+})
+
 describe('servidor: pasta e nome', () => {
   it('só abre as pastas de conteúdo', () => {
     // Uma pasta por ambiente, dentro de `database-models/`.
@@ -67,5 +91,32 @@ describe('servidor: pasta e nome', () => {
     for (const name of ['../package.json', 'a/b.yaml', '.hidden.yaml', 'x.json', '', '..yaml', 42]) {
       await assert.rejects(files.readFile('modeling', name), (err) => err.status === 400, String(name))
     }
+  })
+})
+
+describe('quando o arquivo foi mexido', () => {
+  let whenLabel
+  before(async () => { ({ whenLabel } = await server.ssrLoadModule('/src/shared/dates.ts')) })
+
+  // 24 de setembro de 2026, 20h — a noite, quando o erro dos blocos de 24h aparecia.
+  const now = new Date(2026, 8, 24, 20, 0).getTime()
+  const at = (day, hour) => new Date(2026, 8, day, hour, 0).getTime()
+
+  it('conta dias do calendário, e não blocos de 24 horas', () => {
+    assert.equal(whenLabel(at(24, 6), now), 'hoje')
+    assert.equal(whenLabel(at(23, 23), now), 'ontem')
+    assert.equal(whenLabel(at(23, 6), now), 'ontem')
+    assert.equal(whenLabel(at(21, 12), now), 'há 3 dias')
+  })
+
+  it('de uma semana para trás, mostra a data', () => {
+    assert.match(whenLabel(at(10, 12), now), /^10 de set\.?$/)
+    assert.match(whenLabel(new Date(2025, 11, 31).getTime(), now), /2025/)
+  })
+})
+
+describe('endereço malformado', () => {
+  it('um % sem par não quebra a tela: abre o ambiente sem arquivo', () => {
+    assert.deepEqual(parseHash('#/modeling/%E0%A4%A'), { env: 'modeling', file: null })
   })
 })

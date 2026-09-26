@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import HomeButton from '../../shared/HomeButton'
 import type { SaveStatus } from '../../shared/useWorkspace'
 
 type ToolbarProps = {
@@ -71,14 +72,18 @@ export default function Toolbar({
 
   return (
     <header className="toolbar">
-      <button
-        className={`icon-btn${showFiles ? ' is-on' : ''}`}
-        title={showFiles ? 'esconder a lista de arquivos' : 'mostrar a lista de arquivos'}
-        aria-pressed={showFiles}
-        onClick={onToggleFiles}
-      >
-        ☰
-      </button>
+      {/* Voltar e abrir a lista andam juntos: sao o caminho de volta, nao acoes do arquivo. */}
+      <div className="toolbar__nav">
+        <HomeButton />
+        <button
+          className={`icon-btn${showFiles ? ' is-on' : ''}`}
+          title={showFiles ? 'esconder a lista de arquivos' : 'mostrar a lista de arquivos'}
+          aria-pressed={showFiles}
+          onClick={onToggleFiles}
+        >
+          ☰
+        </button>
+      </div>
 
       <h2 className="toolbar__title">{title}</h2>
 

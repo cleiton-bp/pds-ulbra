@@ -4,6 +4,8 @@ import type { Viewport } from '@xyflow/react'
 import Banners from '../shared/Banners'
 import FileSidebar from '../shared/FileSidebar'
 import { environmentById } from '../shared/environments'
+import { useLeaveGuard } from '../shared/navigation'
+import { useEditorSession } from '../shared/session'
 import { useStickyToggle } from '../shared/useStickyToggle'
 import { useWorkspace } from '../shared/useWorkspace'
 import Toolbar from './components/Toolbar'
@@ -18,9 +20,13 @@ const ENV = environmentById('modeling')
 
 /** Junta as três áreas da tela. A lógica de verdade mora nos hooks e em `model/`. */
 export default function App() {
-  const workspace = useWorkspace(ENV.collection, MODELING_FORMAT)
+  const session = useEditorSession(ENV.id)
+  const workspace = useWorkspace(ENV.collection, MODELING_FORMAT, session)
   const { doc, current, parseError } = workspace
   const [selection, setSelection] = useState<Selection>(null)
+
+  // Sair pelo inicio ou pela aba do outro ambiente grava antes o que ficou pendente.
+  useLeaveGuard(workspace.leave)
 
   const [showFiles, toggleFiles] = useStickyToggle('modeling:files', true)
   const [showPanel, togglePanel] = useStickyToggle('modeling:panel', true)
@@ -67,6 +73,13 @@ export default function App() {
     setSelection(null)
     void open(name, { discard })
   }, [open])
+
+  // Arquivo pedido pelo endereco depois da entrada (link colado, voltar do navegador).
+  const { requestedFile } = session
+  useEffect(() => {
+    if (requestedFile && requestedFile !== workspace.current) openFile(requestedFile)
+    // So quando o endereco pede outro arquivo — nao a cada arquivo aberto pela lista.
+  }, [requestedFile])
 
   // Alt+1 / Alt+2 abrem e fecham as laterais, Alt+3 esconde as notas — sem tirar a mão
   // do teclado. `code`, e não `key`: no Mac, Alt+1 digita "¡".

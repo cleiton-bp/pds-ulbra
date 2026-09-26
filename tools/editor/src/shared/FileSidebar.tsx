@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useNavigation } from './navigation'
 import type { FileEntry } from './types'
 
 /** Transforma "08 Robustness" em "08-robustness.yaml". */
@@ -23,11 +24,22 @@ type FileSidebarProps = {
   onDelete: (name: string) => Promise<void>
 }
 
+/**
+ * A lista de arquivos do ambiente, com o caminho de volta em cima: o inicio. Sair
+ * por aqui grava antes o que estava pendente.
+ */
 export default function FileSidebar({
   files, current, dir, onOpen, onCreate, onDelete,
 }: FileSidebarProps) {
+  const { go, takeIntent } = useNavigation()
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
+  const newInput = useRef<HTMLInputElement>(null)
+
+  // Quem chegou pelo "+ novo" da tela de inicio encontra o campo pronto para digitar.
+  useEffect(() => {
+    if (takeIntent() === 'new-file') newInput.current?.focus()
+  }, [takeIntent])
 
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
@@ -63,6 +75,10 @@ export default function FileSidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar__head">
+        <button className="sidebar__home" title="voltar ao início · Alt+0" onClick={() => void go({ env: null, file: null })}>
+          ‹ início
+        </button>
+
         <h1 className="sidebar__title">Modelagem</h1>
         <p className="sidebar__dir" title={dir}>{dir.split('/').slice(-2).join('/')}</p>
       </div>
@@ -89,6 +105,7 @@ export default function FileSidebar({
       <form className="sidebar__new" onSubmit={(event) => void submit(event)}>
         <div className="sidebar__new-line">
           <input
+            ref={newInput}
             value={draft}
             placeholder="nova modelagem (nome em inglês)…"
             aria-label="nome da nova modelagem, em inglês"
