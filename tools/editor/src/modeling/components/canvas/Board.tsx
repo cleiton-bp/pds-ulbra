@@ -70,6 +70,16 @@ export default function Board({
   // porque e estado de tela — nao deve ir para o arquivo nem sujar o autosave.
   const [editing, setEditing] = useState<Editing>(null)
 
+  /**
+   * O tamanho que o React Flow mediu de cada no, devolvido a ele em cada no.
+   *
+   * Os nos sao refeitos a partir do documento a cada mudanca — a cada quadro de um
+   * arrasto. O React Flow so guarda a medida que vem no proprio objeto do no; sem
+   * devolve-la, todo no volta a "nao medido" a cada quadro, as linhas piscam e o
+   * arrasto reclama de no nao inicializado.
+   */
+  const [measured, setMeasured] = useState<Record<string, { width: number; height: number }>>({})
+
   const editingContext = useMemo(() => ({
     actions,
     editing,
@@ -110,6 +120,7 @@ export default function Board({
       type: 'entity',
       position: entity.position,
       data: { entity, dim: focusNew && entity.inherited },
+      measured: measured[nodeId.entity(entity.uid)],
       selected: selection?.type === 'entity' && selection.uid === entity.uid,
     }))
 
@@ -118,11 +129,12 @@ export default function Board({
       type: 'note',
       position: note.position,
       data: { note, dim: isDim(note) },
+      measured: measured[nodeId.note(note.uid)],
       selected: selection?.type === 'note' && selection.uid === note.uid,
     }))
 
     return [...entities, ...notes]
-  }, [doc.entities, focusNew, visibleNotes, isDim, selection])
+  }, [doc.entities, focusNew, visibleNotes, isDim, selection, measured])
 
   const edges = useMemo<Edge[]>(() => {
     /** O ponto exato onde a linha gruda: a altura do campo, ou a borda da caixa. */
@@ -191,6 +203,19 @@ export default function Board({
   // O React Flow avisa a cada quadro do arrasto; gravamos a posicao no documento na
   // hora e o autosave cuida do resto depois que a mao solta.
   const onNodesChange = useCallback((changes: NodeChange<AppNode>[]) => {
+    const sizes = changes.flatMap((change) =>
+      change.type === 'dimensions' && change.dimensions ? [{ id: change.id, ...change.dimensions }] : [])
+    if (sizes.length > 0) {
+      setMeasured((previous) => {
+        const same = sizes.every(({ id, width, height }) =>
+          previous[id]?.width === width && previous[id]?.height === height)
+        if (same) return previous
+        const next = { ...previous }
+        for (const { id, width, height } of sizes) next[id] = { width, height }
+        return next
+      })
+    }
+
     for (const change of changes) {
       if (change.type !== 'position' || !change.position) continue
       const { kind, uid } = parseNodeId(change.id)
@@ -278,8 +303,9 @@ export default function Board({
         <RefitOnChange signal={`${showNotes}|${hideInherited}`} />
         <Background gap={18} size={1} />
         <Controls showInteractive={false} />
-        {/* O tamanho vem do CSS (`.react-flow__minimap`), que é onde ele é ajustável. */}
-        <MiniMap pannable zoomable />
+        {/* O tamanho vai pelo `style`: é dele que o minimapa tira o tamanho do desenho.
+            Só no CSS, a caixa encolhe e o desenho de dentro vaza. */}
+        <MiniMap style={{ width: 132, height: 92 }} pannable zoomable />
       </ReactFlow>
     </CanvasEditingProvider>
   )

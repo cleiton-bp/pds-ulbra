@@ -63,13 +63,15 @@ export default function App() {
     void workspace.open(name)
   }, [workspace])
 
-  // Alt+1 / Alt+2 abrem e fecham as laterais, Alt+3 esconde as notas — sem tirar a mão do teclado.
+  // Alt+1 / Alt+2 abrem e fecham as laterais, Alt+3 esconde as notas — sem tirar a mão
+  // do teclado. `code`, e não `key`: no Mac, Alt+1 digita "¡".
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (!event.altKey) return
-      if (event.key === '1') { event.preventDefault(); toggleFiles() }
-      if (event.key === '2') { event.preventDefault(); togglePanel() }
-      if (event.key === '3') { event.preventDefault(); toggleNotes() }
+      const toggle = { Digit1: toggleFiles, Digit2: togglePanel, Digit3: toggleNotes }[event.code]
+      if (!toggle) return
+      event.preventDefault()
+      toggle()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -142,6 +144,9 @@ export default function App() {
         <div className="canvas" ref={canvasRef}>
           {doc && canEdit ? (
             <Board
+              // Um Board por arquivo: cada um abre enquadrado, e nada de tela (texto
+              // aberto, medida dos nós) passa de um arquivo para o outro.
+              key={current ?? ''}
               doc={doc}
               showNotes={showNotes}
               hideInherited={hideInherited}

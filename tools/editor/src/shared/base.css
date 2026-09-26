@@ -420,10 +420,9 @@ kbd {
 
 .react-flow__controls-button:hover { background: var(--bg-panel); }
 
-/* Minimapa discreto: serve para se localizar, não para disputar espaço com o canvas. */
+/* Minimapa discreto: serve para se localizar, não para disputar espaço com o canvas.
+   O tamanho vai pelo `style` do componente — ver `Board`. */
 .react-flow__minimap {
-  width: 132px;
-  height: 92px;
   background: var(--bg-panel);
   border: 1px solid var(--line);
   border-radius: 4px;

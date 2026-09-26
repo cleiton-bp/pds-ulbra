@@ -166,6 +166,9 @@
     border-color: var(--pk);
   }
 
+  /* Com o foco, a borda acende como em qualquer campo da tela. */
+  .note-node__input:focus { border-color: var(--accent); }
+
   .note-node__done {
     display: block;
     margin: 5px 0 0 auto;
@@ -250,15 +253,17 @@
   .entity-node__field:hover .handle-field,
   .entity-node.is-selected .handle-field { opacity: 1; }
 
-  .handle-field:hover { opacity: 1; transform: scale(1.35); }
+  /* `scale`, e não `transform`: o React Flow centraliza o ponto na borda com
+     `transform: translate(…)`, e trocar o transform no hover faria o ponto pular de
+     debaixo do mouse. */
+  .handle-field:hover { opacity: 1; scale: 1.35; }
 
   /* Enquanto uma ligação está sendo puxada, mostra todos os alvos possíveis —
      senão seria preciso adivinhar onde soltar. */
   .react-flow:has(.react-flow__connectionline) .handle-field { opacity: 1; }
 
-  .react-flow__handle-connecting { background: var(--fk); }
-
-  .react-flow__handle-valid { background: var(--fk); }
+  /* O ponto de chegada fica verde quando a linha pode ser solta nele. */
+  .react-flow__handle.connectingto.valid { background: var(--fk); }
 
   .react-flow__edge-path { stroke: var(--line-strong); }
 
