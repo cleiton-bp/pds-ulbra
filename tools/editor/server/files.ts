@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-// server/ -> raiz do editor -> database-models
-export const CONTENT_DIR = path.resolve(here, '..', 'database-models')
+// server/ -> raiz do editor -> database-models/modeling
+export const CONTENT_DIR = path.resolve(here, '..', 'database-models', 'modeling')
 
 // So nome simples terminado em .yaml. Barra, ".." ou nome vazio sao recusados: sem isso
 // o navegador conseguiria gravar em qualquer lugar do disco.

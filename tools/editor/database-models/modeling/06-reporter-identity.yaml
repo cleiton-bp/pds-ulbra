@@ -1,6 +1,6 @@
 meta:
-  title: Etapa 7 — Mídia
-  description: "O relato passa a carregar print e video de tela. O arquivo nunca entra no banco: o que fica aqui e o registro dele, e os bytes vivem num armazenamento fora. Montado sobre o que ja existe, que aparece sem alteracao."
+  title: Identidade e visibilidade
+  description: Quem e quem num projeto, quem pode ver o que, e a fila que segura todo relato antes de ele virar publico. Montado sobre o que ja existe, que aparece aqui sem alteracao, menos reports, que ganha seis colunas, e events, que ganha dois tipos.
 entities:
   - name: base_columns
     label: Colunas padrão
@@ -914,7 +914,6 @@ entities:
   - name: project_identity_settings
     label: Identidade e visibilidade
     description: "Como quem abre um relato e reconhecido neste projeto, e o que isso permite na visibilidade. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada. Os dois assuntos moram juntos de proposito: o modo de identificacao decide o que a visibilidade pode ser."
-    inherited: true
     position: { x: 2950, y: 300 }
     fields:
       - name: id
@@ -954,7 +953,6 @@ entities:
   - name: reporter_codes
     label: Codigo pessoal
     description: "O codigo que quem relata guarda para reencontrar os proprios relatos, no modo sem login. E tabela, e nao coluna em reports: o mesmo codigo vale para varios relatos, entao a unicidade dentro do projeto precisa de uma linha propria — como coluna repetida, o banco nao teria como exigi-la. Nao guarda nada de pessoa: sem nome, sem contato, sem dispositivo, e um identificador sorteado e nada mais."
-    inherited: true
     position: { x: 2950, y: 800 }
     fields:
       - name: id
@@ -984,159 +982,6 @@ entities:
       - name: deleted_at
         type: datetime
         note: nulo enquanto o codigo vale, preenchido no lugar de apagar
-  - name: project_media_settings
-    label: Mídia
-    description: "O que este projeto aceita receber junto do relato. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada. Nao guarda limite de tipo nenhum: isso mora na tabela ao lado, uma linha por tipo."
-    position: { x: 2950, y: 1300 }
-    fields:
-      - name: id
-        type: long
-        pk: true
-        note: chave interna, nunca exposta
-      - name: public_id
-        type: guid
-        unique: true
-        note: identificador que aparece em URL e API
-      - name: project_id
-        type: long
-        fk: true
-        required: true
-        note: projeto dono da configuracao, unico entre os nao apagados, e e o que faz o 1:1
-      - name: is_enabled
-        type: bool
-        required: true
-        note: "se o quadro mostra anexo; desligado, nenhuma outra linha desta configuracao importa, e e a unica trava que a etapa constroi de proposito"
-      - name: allows_screen_capture
-        type: bool
-        required: true
-        note: se o botao de capturar a tela aparece; onde o navegador nao souber fazer, ele some sozinho e anexar arquivo continua
-      - name: allows_on_info_request
-        type: bool
-        required: true
-        note: se da para anexar respondendo a um pedido de informacao do time, que e onde o print mais serve
-      - name: max_files_per_report
-        type: int
-        required: true
-        note: teto de arquivos somando todos os tipos, porque o limite por tipo sozinho deixaria a soma passar
-      - name: created_at
-        type: datetime
-        note: quando a configuracao foi salva a primeira vez, em UTC
-      - name: updated_at
-        type: datetime
-        note: ultima alteracao, em UTC
-      - name: deleted_at
-        type: datetime
-        note: nulo enquanto a configuracao vale, preenchido no lugar de apagar
-  - name: project_media_kinds
-    label: Limites por tipo
-    description: "Um tipo de midia por linha, com os limites dele. E a tabela que existe para acrescentar audio um dia ser dado, e nao mudanca de estrutura — com uma coluna por tipo, cada tipo novo custaria migracao, e o banco teria colunas vazias de tipo que aquele projeto nunca liga."
-    position: { x: 2950, y: 1800 }
-    fields:
-      - name: id
-        type: long
-        pk: true
-        note: chave interna, nunca exposta
-      - name: public_id
-        type: guid
-        unique: true
-        note: identificador que aparece em URL e API
-      - name: project_media_settings_id
-        type: long
-        fk: true
-        required: true
-        note: "configuracao dona da linha; pendura na configuracao, e nao no projeto, porque sem ela estes limites nao querem dizer nada"
-      - name: kind
-        type: enum
-        required: true
-        note: image | video — unico por configuracao entre os nao apagados. A lista cresce com o produto, e acrescentar um valor nao mexe em coluna nenhuma
-      - name: is_enabled
-        type: bool
-        required: true
-        note: se este tipo e aceito; desligar deixa os limites gravados, para religar nao apagar o que ja foi pensado
-      - name: max_count
-        type: int
-        required: true
-        note: quantos arquivos deste tipo cabem num relato
-      - name: max_bytes
-        type: long
-        required: true
-        note: "teto de tamanho de cada arquivo, em bytes; e ele que viaja dentro da assinatura do envio, e quem recusa o que passa e o proprio armazenamento"
-      - name: max_duration_seconds
-        type: int
-        note: "duracao maxima, so para o que tem duracao; limitar aqui e a protecao mais barata que existe, porque corta armazenamento e exposicao de uma vez"
-      - name: created_at
-        type: datetime
-        note: quando o limite foi salvo a primeira vez, em UTC
-      - name: updated_at
-        type: datetime
-        note: ultima alteracao, em UTC
-      - name: deleted_at
-        type: datetime
-        note: nulo enquanto o limite vale, preenchido no lugar de apagar
-  - name: report_attachments
-    label: Anexos
-    description: "O registro de um arquivo que veio com o relato. O arquivo em si nao esta aqui e nunca estara: o que a linha guarda e o nome dele no armazenamento, o bastante para pedir uma permissao de leitura quando alguem que pode ver aparecer."
-    position: { x: 2409, y: 1250 }
-    fields:
-      - name: id
-        type: long
-        pk: true
-        note: chave interna, nunca exposta
-      - name: public_id
-        type: guid
-        unique: true
-        note: identificador que aparece em URL e API
-      - name: report_id
-        type: long
-        fk: true
-        required: true
-        note: relato a que o anexo pertence; obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so
-      - name: public_comment_id
-        type: long
-        fk: true
-        note: preenchido quando o anexo veio junto de uma resposta ao pedido de informacao, e nulo quando veio na criacao do relato
-      - name: kind
-        type: enum
-        required: true
-        note: image | video — a mesma lista dos limites, porque e ela que diz qual limite se aplica
-      - name: status
-        type: enum
-        required: true
-        note: "pending | confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que ficar pending e orfao"
-      - name: object_key
-        type: text
-        required: true
-        unique: true
-        note: "o nome do arquivo no armazenamento; nunca um endereco, porque endereco assinado guardado vira link permanente com outro nome"
-      - name: thumbnail_object_key
-        type: text
-        note: a miniatura, gerada no proprio navegador antes do envio; no video e o quadro de capa
-      - name: content_type
-        type: text
-        required: true
-        note: "o tipo declarado, que entrou na assinatura do envio; garante o rotulo, e nao o conteudo — conferir os bytes e trabalho da confirmacao"
-      - name: size_bytes
-        type: long
-        required: true
-        note: tamanho do que o armazenamento aceitou, lido na confirmacao e nao no que o navegador disse
-      - name: duration_seconds
-        type: int
-        note: duracao, so para o que tem duracao
-      - name: original_name
-        type: text
-        note: "o nome que o arquivo tinha na maquina de quem relata; guardado para o time, e nunca mostrado do lado de fora, porque nome de arquivo conta coisa que a imagem nao conta"
-      - name: confirmed_at
-        type: datetime
-        note: quando a nossa API prendeu o anexo ao relato; nulo e orfao
-      - name: created_at
-        type: datetime
-        note: quando a permissao de envio foi assinada, em UTC
-      - name: updated_at
-        type: datetime
-        note: ultima alteracao, em UTC
-      - name: deleted_at
-        type: datetime
-        note: "nulo enquanto o anexo vale, preenchido no lugar de apagar; a linha some logicamente, mas o arquivo la fora nao — apagar os bytes e rotina que esta etapa nao escreveu de proposito"
 relations:
   - from: reports
     fromField: id
@@ -1348,30 +1193,6 @@ relations:
     toField: moderated_by_user_id
     kind: one-to-many
     note: "Quem do time decidiu se o relato vira publico. Ao contrario de closed_by_user_id, aqui ninguem decide sozinho: nao existe moderacao automatica, e a coluna so fica nula enquanto ninguem olhou."
-  - from: projects
-    fromField: id
-    to: project_media_settings
-    toField: project_id
-    kind: one-to-one
-    note: Uma configuracao por projeto, criada so quando alguem salva. Projeto sem linha le os padroes do codigo, e se comporta igual a quem salvou os padroes.
-  - from: project_media_settings
-    fromField: id
-    to: project_media_kinds
-    toField: project_media_settings_id
-    kind: one-to-many
-    note: Um tipo de midia por linha. E o que permite acrescentar audio sem migracao, e o que deixa cada tipo ter limites proprios sem inventar coluna para cada combinacao.
-  - from: reports
-    fromField: id
-    to: report_attachments
-    toField: report_id
-    kind: one-to-many
-    note: O relato carrega quantos anexos o projeto permitir. O teto e do projeto, e nao do sistema, porque quem paga a conta de guardar escolhe quanto quer guardar.
-  - from: report_public_comments
-    fromField: id
-    to: report_attachments
-    toField: public_comment_id
-    kind: one-to-many
-    note: O anexo que veio numa resposta ao pedido de informacao aponta tambem para o comentario. Continua apontando para o relato, entao achar o dono nunca depende de passar por aqui.
 notes:
   - text: |-
       Toda tabela repete as colunas padrão
@@ -1567,7 +1388,6 @@ notes:
 
       Em duas tabelas a regra teria de ser conferida lendo as duas, e a tela ofereceria uma combinacao que a regra nao permite — o erro apareceria so na hora de salvar.
     anchor: project_identity_settings
-    inherited: true
     position: { x: 3400, y: 300 }
     width: 400
   - text: |-
@@ -1578,7 +1398,6 @@ notes:
       A ordem e deliberada. Se o campo sozinho publicasse, mudar esta configuracao jogaria na rua todo o texto livre ja escrito — e texto livre e onde aparece documento, numero de pedido e print com dado de terceiro.
     anchor: project_identity_settings
     anchorField: visibility
-    inherited: true
     position: { x: 3400, y: 640 }
     width: 400
   - text: |-
@@ -1589,7 +1408,6 @@ notes:
       Nascer pending custa uma coluna e evita uma publicacao em massa que ninguem autorizou.
     anchor: reports
     anchorField: moderation_state
-    inherited: true
     position: { x: 1780, y: 760 }
     width: 400
   - text: |-
@@ -1600,7 +1418,6 @@ notes:
       Qualquer uma fechada, o nome fica interno — o time ve, o lado de fora nao. E por isso que "anonimo com campo de nome" nao existe aqui: o modo se chama sem login, porque coletar nome ja e tratar dado pessoal.
     anchor: reports
     anchorField: reporter_name
-    inherited: true
     position: { x: 1780, y: 1120 }
     width: 400
   - text: |-
@@ -1613,24 +1430,5 @@ notes:
       Na geracao existe uma consulta, e ela nao conta nada: o candidato e sorteado por nos, e a colisao e conferida antes de gravar. A diferenca que importa e quem escolheu o valor consultado.
     anchor: reporter_codes
     anchorField: code
-    inherited: true
     position: { x: 3400, y: 1000 }
     width: 400
-
-  - text: "A configuração vem antes do widget\n\nÉ ela que diz o que existe. Ligar anexo, escolher os tipos, os limites, e se o botão de capturar aparece — tudo é do dono do projeto. Projeto que nunca abrir esta tela continua funcionando, com os padrões que moram no código."
-    anchor: project_media_settings
-    position: { x: 3480, y: 1300 }
-    width: 340
-  - text: "Um tipo por linha, e não uma coluna por tipo\n\nCom colunas, acrescentar áudio custaria migração, e toda linha carregaria campos de tipos que aquele projeto nunca ligou. Com linhas, o tipo novo é um INSERT — e cada um leva os limites que fazem sentido para ele, sem obrigar os outros a ter os mesmos."
-    anchor: project_media_kinds
-    position: { x: 3480, y: 1820 }
-    width: 340
-  - text: "O arquivo não está aqui, e nunca vai estar\n\nO que a linha guarda é o nome dele no armazenamento. Os bytes vão do navegador direto para lá, sem passar pela API — passar custaria carregar megabytes na memória do servidor duas vezes, sem ganhar nada.\n\nTudo que não são os bytes passa pela API: pedir a permissão, aplicar o limite do projeto, contar tentativa e confirmar que o anexo existe."
-    anchor: report_attachments
-    position: { x: 1870, y: 1180 }
-    width: 380
-  - text: "Órfão é a regra, não a exceção\n\nGente anexa e desiste de escrever o tempo todo, e o arquivo já está no armazenamento quando isso acontece. Por isso a linha nasce pending e só vira confirmed quando a API prende o anexo ao relato — sem esse estado, não haveria como saber depois o que pertence a alguém e o que é lixo."
-    anchor: report_attachments
-    anchorField: status
-    position: { x: 2409, y: 1900 }
-    width: 340

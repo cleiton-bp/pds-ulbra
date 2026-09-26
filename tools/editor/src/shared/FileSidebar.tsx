@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { FileEntry } from '../modeling/types'
 
-/** Transforma "Stage 1 — Foundation" em "stage-1-foundation.yaml". */
+/** Transforma "08 Robustness" em "08-robustness.yaml". */
 export function toFileName(input: string): string {
   const slug = input
     .normalize('NFD')

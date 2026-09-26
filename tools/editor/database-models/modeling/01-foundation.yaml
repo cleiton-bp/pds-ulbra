@@ -1,5 +1,5 @@
 meta:
-  title: Etapa 1 — Fundação
+  title: Fundação
   description: Conta, usuário, projeto e chaves, que é o que precisa existir antes de qualquer relato entrar, e por isso relato, estados internos e etapas públicas são modelados depois, à parte.
 entities:
   - name: base_columns

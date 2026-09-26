@@ -1,5 +1,5 @@
 meta:
-  title: Etapa 2 — O relato entra
+  title: O relato entra
   description: O relato vindo de fora, o contexto que veio junto com ele, os domínios de onde ele pode ser aberto e o primeiro evento gravado, montados sobre as tabelas que já existiam, que aparecem aqui sem alteração porque é nelas que as novas penduram.
 entities:
   - name: base_columns
