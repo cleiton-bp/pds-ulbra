@@ -2,7 +2,14 @@ import type { Plugin } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createFile, deleteFile, fail, listFiles, readFile, writeFile, type ApiError } from './files'
 
-/** API de arquivos servida pelo proprio Vite — um comando so, uma porta so. */
+/**
+ * API de arquivos servida pelo proprio Vite — um comando so, uma porta so, para
+ * todos os ambientes. Cada um fala com a sua pasta:
+ *
+ *   GET    /api/<pasta>/files
+ *   GET    /api/<pasta>/file?name=…      PUT / POST  /api/<pasta>/file
+ *   DELETE /api/<pasta>/file?name=…
+ */
 
 const MAX_BODY = 5_000_000
 
@@ -81,35 +88,36 @@ async function route(req: IncomingMessage, url: URL): Promise<{ status: number; 
   const refused = refuse(req)
   if (refused) return refused
 
-  if (url.pathname === '/api/files' && req.method === 'GET') {
-    return { status: 200, body: await listFiles() }
+  const match = /^\/api\/([a-z0-9-]+)\/(files|file)$/.exec(url.pathname)
+  if (!match) return { status: 404, body: { error: 'rota não encontrada' } }
+  const [, collection = '', resource] = match
+
+  if (resource === 'files') {
+    if (req.method !== 'GET') return { status: 405, body: { error: 'método não suportado' } }
+    return { status: 200, body: await listFiles(collection) }
   }
 
-  if (url.pathname === '/api/file') {
-    switch (req.method) {
-      case 'GET':
-        return { status: 200, body: await readFile(url.searchParams.get('name')) }
-      case 'PUT': {
-        const { name, content, baseMtime } = await readBody(req)
-        return { status: 200, body: await writeFile(name, content, baseMtime) }
-      }
-      case 'POST': {
-        const { name, content } = await readBody(req)
-        return { status: 201, body: await createFile(name, typeof content === 'string' ? content : '') }
-      }
-      case 'DELETE':
-        return { status: 200, body: await deleteFile(url.searchParams.get('name')) }
-      default:
-        return { status: 405, body: { error: 'método não suportado' } }
+  switch (req.method) {
+    case 'GET':
+      return { status: 200, body: await readFile(collection, url.searchParams.get('name')) }
+    case 'PUT': {
+      const { name, content, baseMtime } = await readBody(req)
+      return { status: 200, body: await writeFile(collection, name, content, baseMtime) }
     }
+    case 'POST': {
+      const { name, content } = await readBody(req)
+      return { status: 201, body: await createFile(collection, name, typeof content === 'string' ? content : '') }
+    }
+    case 'DELETE':
+      return { status: 200, body: await deleteFile(collection, url.searchParams.get('name')) }
+    default:
+      return { status: 405, body: { error: 'método não suportado' } }
   }
-
-  return { status: 404, body: { error: 'rota não encontrada' } }
 }
 
-export function modelingApi(): Plugin {
+export function fileApi(): Plugin {
   return {
-    name: 'modeling-api',
+    name: 'file-api',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = new URL(req.url ?? '/', 'http://localhost')
@@ -119,7 +127,7 @@ export function modelingApi(): Plugin {
           .then(({ status, body }) => send(res, status, body))
           .catch((err: ApiError & NodeJS.ErrnoException) => {
             const status = err.status ?? (err.code === 'ENOENT' ? 404 : 500)
-            if (status >= 500) console.error('[modeling-api]', err)
+            if (status >= 500) console.error('[file-api]', err)
             send(res, status, { error: err.message, ...(err.payload ?? {}) })
           })
       })

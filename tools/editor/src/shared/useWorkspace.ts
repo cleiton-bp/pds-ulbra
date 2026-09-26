@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as api from './api'
 import type { HttpError } from './api'
+import type { Collection } from './environments'
 import { emptyDoc, parseDoc } from '../modeling/model/parse'
 import { serializeDoc } from '../modeling/model/serialize'
 import { withWarnings } from '../modeling/model/operations'
-import type { FileEntry, ModelDoc } from '../modeling/types'
+import type { ModelDoc } from '../modeling/types'
+import type { FileEntry } from './types'
 
 /**
  * O estado do editor: a lista de arquivos, o documento aberto e a gravacao.
@@ -27,7 +29,7 @@ export type SaveStatus = 'empty' | 'saved' | 'unsaved' | 'saving' | 'error' | 'c
 
 export type Workspace = ReturnType<typeof useWorkspace>
 
-export function useWorkspace() {
+export function useWorkspace(collection: Collection) {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [dir, setDir] = useState('')
   const [current, setCurrent] = useState<string | null>(null)
@@ -50,14 +52,14 @@ export function useWorkspace() {
   dirtyRef.current = dirty
 
   const refreshFiles = useCallback(async (): Promise<FileEntry[]> => {
-    const data = await api.listFiles()
+    const data = await api.listFiles(collection)
     setFiles(data.files)
     setDir(data.dir)
     return data.files
-  }, [])
+  }, [collection])
 
   const open = useCallback(async (name: string): Promise<void> => {
-    const loaded = await api.readFile(name)
+    const loaded = await api.readFile(collection, name)
     const parsed = parseDoc(loaded.content)
 
     baseMtimeRef.current = loaded.mtime
@@ -75,7 +77,7 @@ export function useWorkspace() {
       setParseError(parsed.error)
       setDoc(emptyDoc(''))
     }
-  }, [])
+  }, [collection])
 
   const save = useCallback(async ({ force = false }: { force?: boolean } = {}): Promise<void> => {
     const name = currentRef.current
@@ -86,7 +88,7 @@ export function useWorkspace() {
     setSaving(true)
     try {
       const content = serializeDoc(snapshot)
-      const saved = await api.saveFile(name, content, force ? undefined : baseMtimeRef.current)
+      const saved = await api.saveFile(collection, name, content, force ? undefined : baseMtimeRef.current)
       baseMtimeRef.current = saved.mtime
       setDirty(false)
       setSaveError('')
@@ -100,7 +102,7 @@ export function useWorkspace() {
       savingRef.current = false
       setSaving(false)
     }
-  }, [refreshFiles])
+  }, [collection, refreshFiles])
 
   /** Toda edicao passa por aqui: recalcula avisos e liga o autosave. */
   const update = useCallback((fn: (doc: ModelDoc) => ModelDoc): void => {
@@ -150,20 +152,20 @@ export function useWorkspace() {
   }, [save])
 
   const create = useCallback(async (name: string, title: string): Promise<void> => {
-    await api.createFile(name, serializeDoc(emptyDoc(title)))
+    await api.createFile(collection, name, serializeDoc(emptyDoc(title)))
     await refreshFiles()
     await open(name)
-  }, [refreshFiles, open])
+  }, [collection, refreshFiles, open])
 
   const remove = useCallback(async (name: string): Promise<void> => {
-    await api.deleteFile(name)
+    await api.deleteFile(collection, name)
     const rest = await refreshFiles()
     if (name !== currentRef.current) return
     setCurrent(null)
     setDoc(null)
     const next = rest[0]
     if (next) await open(next.name)
-  }, [refreshFiles, open])
+  }, [collection, refreshFiles, open])
 
   const status: SaveStatus = conflict ? 'conflict'
     : saveError ? 'error'

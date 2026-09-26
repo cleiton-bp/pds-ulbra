@@ -151,12 +151,25 @@ kbd {
 
 .file-row__open {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   text-align: left;
-  padding: 6px 8px;
+  padding: 5px 8px;
+}
+
+.file-row__name,
+.file-row__title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* O título de dentro do arquivo, embaixo do nome: "07-media-attachments" diz a ordem, "Mídia" diz o assunto. */
+.file-row__title { font-size: 10.5px; color: var(--text-dim); }
+
+.file-row.is-current .file-row__title { color: var(--accent); opacity: 0.75; }
 
 .file-row.is-current .file-row__open { color: var(--accent); font-weight: 500; }
 

@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { modelingApi } from './server/plugin'
+import { fileApi } from './server/plugin'
 
 export default defineConfig({
-  plugins: [react(), modelingApi()],
+  plugins: [react(), fileApi()],
   server: {
     port: 5180,
     // Abre o navegador sozinho. NO_OPEN=1 desliga, para checagem automatizada.

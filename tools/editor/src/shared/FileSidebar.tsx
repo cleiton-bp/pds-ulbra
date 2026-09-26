@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { FileEntry } from '../modeling/types'
+import type { FileEntry } from './types'
 
 /** Transforma "08 Robustness" em "08-robustness.yaml". */
 export function toFileName(input: string): string {
@@ -60,8 +60,9 @@ export default function FileSidebar({
         {files.length === 0 && <p className="sidebar__empty">nenhum arquivo ainda</p>}
         {files.map((file) => (
           <div key={file.name} className={`file-row${file.name === current ? ' is-current' : ''}`}>
-            <button className="file-row__open" onClick={() => onOpen(file.name)}>
-              {file.name.replace(/\.yaml$/, '')}
+            <button className="file-row__open" title={file.title || undefined} onClick={() => onOpen(file.name)}>
+              <span className="file-row__name">{file.name.replace(/\.yaml$/, '')}</span>
+              {file.title && <span className="file-row__title">{file.title}</span>}
             </button>
             <button
               className="file-row__delete"

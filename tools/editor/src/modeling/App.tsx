@@ -3,6 +3,7 @@ import type { Viewport } from '@xyflow/react'
 
 import Banners from '../shared/Banners'
 import FileSidebar from '../shared/FileSidebar'
+import { environmentById } from '../shared/environments'
 import { useStickyToggle } from '../shared/useStickyToggle'
 import { useWorkspace } from '../shared/useWorkspace'
 import Toolbar from './components/Toolbar'
@@ -12,18 +13,20 @@ import { useModelActions } from './hooks/useModelActions'
 import { COMMON_TYPES } from './model/constants'
 import type { Position, Selection } from './types'
 
+const ENV = environmentById('modeling')
+
 /** Junta as três áreas da tela. A lógica de verdade mora nos hooks e em `model/`. */
 export default function App() {
-  const workspace = useWorkspace()
+  const workspace = useWorkspace(ENV.collection)
   const { doc, current, parseError } = workspace
   const [selection, setSelection] = useState<Selection>(null)
 
-  const [showFiles, toggleFiles] = useStickyToggle('editor:files', true)
-  const [showPanel, togglePanel] = useStickyToggle('editor:panel', true)
-  const [showNotes, toggleNotes] = useStickyToggle('editor:notes', true)
-  const [hideInherited, toggleInherited] = useStickyToggle('editor:notes-herdadas', false)
-  const [focusNotes, toggleFocus] = useStickyToggle('editor:notes-realce', false)
-  const [focusNew, toggleFocusNew] = useStickyToggle('editor:tabelas-realce', false)
+  const [showFiles, toggleFiles] = useStickyToggle('modeling:files', true)
+  const [showPanel, togglePanel] = useStickyToggle('modeling:panel', true)
+  const [showNotes, toggleNotes] = useStickyToggle('modeling:notes', true)
+  const [hideInherited, toggleInherited] = useStickyToggle('modeling:notes-herdadas', false)
+  const [focusNotes, toggleFocus] = useStickyToggle('modeling:notes-realce', false)
+  const [focusNew, toggleFocusNew] = useStickyToggle('modeling:tabelas-realce', false)
 
   const canvasRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<Viewport>({ x: 0, y: 0, zoom: 1 })

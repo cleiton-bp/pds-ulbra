@@ -1,13 +1,24 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import YAML from 'yaml'
 
-/** Acesso ao disco. Tudo restrito a uma unica pasta — ver `resolveSafe`. */
+/**
+ * Acesso ao disco. Cada ambiente tem a sua pasta, e tudo fica restrito a ela —
+ * ver `resolveSafe`.
+ */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(here, '..')
 
-// server/ -> raiz do editor -> database-models/modeling
-export const CONTENT_DIR = path.resolve(here, '..', 'database-models', 'modeling')
+/**
+ * As pastas de conteudo, pelo nome que a API usa na rota — todas dentro de `database-models/`,
+ * uma por ambiente. Nome de fora desta lista nao abre pasta nenhuma: e a lista, e
+ * nao o pedido, que decide onde se grava.
+ */
+const COLLECTIONS: Record<string, string> = {
+  modeling: path.join(ROOT, 'database-models', 'modeling'),
+}
 
 // So nome simples terminado em .yaml. Barra, ".." ou nome vazio sao recusados: sem isso
 // o navegador conseguiria gravar em qualquer lugar do disco.
@@ -18,40 +29,71 @@ export type ApiError = Error & { status: number; payload?: Record<string, unknow
 export const fail = (message: string, status: number, payload?: Record<string, unknown>): ApiError =>
   Object.assign(new Error(message), { status, payload })
 
-function resolveSafe(name: unknown): string {
+export function collectionDir(collection: string): string {
+  const dir = Object.prototype.hasOwnProperty.call(COLLECTIONS, collection) ? COLLECTIONS[collection] : undefined
+  if (!dir) throw fail('pasta desconhecida', 404)
+  return dir
+}
+
+function resolveSafe(dir: string, name: unknown): string {
   if (typeof name !== 'string' || !SAFE_NAME.test(name) || name.includes('..')) {
     throw fail('nome de arquivo inválido', 400)
   }
-  const full = path.join(CONTENT_DIR, name)
+  const full = path.join(dir, name)
   // Cinto e suspensorio: mesmo com a regex, confere que o caminho final ficou dentro da pasta.
-  if (path.dirname(full) !== CONTENT_DIR) {
-    throw fail('caminho fora da pasta de modelagem', 400)
+  if (path.dirname(full) !== dir) {
+    throw fail('caminho fora da pasta de conteúdo', 400)
   }
   return full
 }
 
 const mtimeOf = async (full: string): Promise<number> => (await fs.stat(full)).mtimeMs
 
-export type FileEntry = { name: string; mtime: number; size: number }
+/** `title` e o `meta.title` de dentro do arquivo — o que a tela mostra no lugar do nome. */
+export type FileEntry = { name: string; mtime: number; size: number; title: string }
 
-export async function listFiles(): Promise<{ dir: string; files: FileEntry[] }> {
-  await fs.mkdir(CONTENT_DIR, { recursive: true })
-  const names = await fs.readdir(CONTENT_DIR)
+/**
+ * O titulo de cada arquivo, lido de novo so quando o arquivo muda. A lista e pedida
+ * a cada 3 segundos por cada tela aberta; reler todos os arquivos a cada pedido
+ * seria trabalho jogado fora.
+ */
+const titles = new Map<string, { mtime: number; title: string }>()
+
+async function titleOf(full: string, mtime: number): Promise<string> {
+  const cached = titles.get(full)
+  if (cached?.mtime === mtime) return cached.title
+  let title = ''
+  try {
+    // "failsafe": o titulo volta como texto, do jeito que foi escrito.
+    const doc = YAML.parse(await fs.readFile(full, 'utf8'), { schema: 'failsafe' }) as unknown
+    const meta = typeof doc === 'object' && doc !== null ? (doc as Record<string, unknown>).meta : undefined
+    const value = typeof meta === 'object' && meta !== null ? (meta as Record<string, unknown>).title : undefined
+    if (typeof value === 'string') title = value.trim()
+  } catch { /* yaml quebrado: fica sem titulo, e o editor mostra o erro ao abrir */ }
+  titles.set(full, { mtime, title })
+  return title
+}
+
+export async function listFiles(collection: string): Promise<{ dir: string; files: FileEntry[] }> {
+  const dir = collectionDir(collection)
+  await fs.mkdir(dir, { recursive: true })
+  const names = await fs.readdir(dir)
   const files: FileEntry[] = []
 
   for (const name of names) {
     if (!SAFE_NAME.test(name)) continue
-    const stat = await fs.stat(path.join(CONTENT_DIR, name))
+    const full = path.join(dir, name)
+    const stat = await fs.stat(full)
     if (!stat.isFile()) continue
-    files.push({ name, mtime: stat.mtimeMs, size: stat.size })
+    files.push({ name, mtime: stat.mtimeMs, size: stat.size, title: await titleOf(full, stat.mtimeMs) })
   }
 
   files.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-  return { dir: CONTENT_DIR, files }
+  return { dir, files }
 }
 
-export async function readFile(name: unknown): Promise<{ name: string; content: string; mtime: number }> {
-  const full = resolveSafe(name)
+export async function readFile(collection: string, name: unknown): Promise<{ name: string; content: string; mtime: number }> {
+  const full = resolveSafe(collectionDir(collection), name)
   const content = await fs.readFile(full, 'utf8')
   return { name: name as string, content, mtime: await mtimeOf(full) }
 }
@@ -65,11 +107,12 @@ export async function readFile(name: unknown): Promise<{ name: string; content: 
  * escolhe explicitamente manter a versao da tela.
  */
 export async function writeFile(
+  collection: string,
   name: unknown,
   content: unknown,
   baseMtime: unknown,
 ): Promise<{ name: string; mtime: number }> {
-  const full = resolveSafe(name)
+  const full = resolveSafe(collectionDir(collection), name)
   if (typeof content !== 'string') throw fail('conteúdo ausente', 400)
 
   const current = await mtimeOf(full)
@@ -86,9 +129,10 @@ export async function writeFile(
   return { name: name as string, mtime: await mtimeOf(full) }
 }
 
-export async function createFile(name: unknown, content: string): Promise<{ name: string; mtime: number }> {
-  const full = resolveSafe(name)
-  await fs.mkdir(CONTENT_DIR, { recursive: true })
+export async function createFile(collection: string, name: unknown, content: string): Promise<{ name: string; mtime: number }> {
+  const dir = collectionDir(collection)
+  const full = resolveSafe(dir, name)
+  await fs.mkdir(dir, { recursive: true })
   try {
     // flag wx falha se ja existir — evita zerar um arquivo por engano.
     await fs.writeFile(full, content, { encoding: 'utf8', flag: 'wx' })
@@ -101,8 +145,8 @@ export async function createFile(name: unknown, content: string): Promise<{ name
   return { name: name as string, mtime: await mtimeOf(full) }
 }
 
-export async function deleteFile(name: unknown): Promise<{ name: string }> {
-  const full = resolveSafe(name)
+export async function deleteFile(collection: string, name: unknown): Promise<{ name: string }> {
+  const full = resolveSafe(collectionDir(collection), name)
   await fs.unlink(full)
   return { name: name as string }
 }
