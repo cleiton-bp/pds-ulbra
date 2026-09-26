@@ -3,7 +3,7 @@ import type { FileEntry } from './types'
 
 /**
  * Cliente da API de arquivos. Cada ambiente fala com a pasta dele:
- * `/api/modeling/...` — e cada uma le a sua pasta em `database-models/`.
+ * `/api/modeling/...` ou `/api/use-cases/...` — e cada uma le a sua pasta em `database-models/`.
  *
  * Erro HTTP vira Error com `status` e o corpo da resposta.
  */

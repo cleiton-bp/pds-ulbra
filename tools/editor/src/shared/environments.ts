@@ -10,15 +10,15 @@
  * A pasta de conteudo, dentro de `database-models/` — e o nome que a API usa na rota:
  * `/api/<collection>/...`.
  */
-export type Collection = 'modeling'
+export type Collection = 'modeling' | 'use-cases'
 
-/** O ambiente no endereco: `#/modeling/…`. O mesmo nome da pasta. */
-export type EnvironmentId = 'modeling'
+/** O ambiente no endereco: `#/modeling/…`, `#/use-cases/…`. O mesmo nome da pasta. */
+export type EnvironmentId = 'modeling' | 'use-cases'
 
 export type Environment = {
   id: EnvironmentId
   collection: Collection
-  /** O nome na tela: titulo da aba do navegador e cartao do inicio. */
+  /** O nome na tela: titulo da aba do navegador, cartao do inicio, aba do editor. */
   title: string
   /** O que o ambiente responde, numa frase — aparece no cartao do inicio. */
   summary: string
@@ -33,6 +33,13 @@ export const ENVIRONMENTS: readonly Environment[] = [
     title: 'Modelagem',
     summary: 'As tabelas, os campos e as relações do banco — uma modelagem por etapa.',
     key: '1',
+  },
+  {
+    id: 'use-cases',
+    collection: 'use-cases',
+    title: 'Casos de uso',
+    summary: 'Quem usa o sistema e o que cada ator pode fazer.',
+    key: '2',
   },
 ]
 

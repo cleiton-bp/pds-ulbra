@@ -1,4 +1,4 @@
-/** O vocabulario que os editores dividem. O de cada um mora em `<editor>/types.ts`. */
+/** O vocabulario que os dois editores dividem. O de cada um mora em `<editor>/types.ts`. */
 
 export type FileEntry = {
   name: string

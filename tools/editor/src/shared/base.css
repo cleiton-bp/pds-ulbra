@@ -1,7 +1,8 @@
 /*
- * O que os editores dividem: cores, estrutura da tela, lista de arquivos, barra,
- * menu, faixas e painel. Tema escuro, denso, feito para ficar aberto o dia todo. O
- * que e so de um ambiente mora no `styles.css` dele, preso a `.app--modeling`.
+ * O que os dois editores dividem: cores, estrutura da tela, lista de arquivos,
+ * barra, menu, faixas e painel. Tema escuro, denso, feito para ficar aberto o dia
+ * todo. O que e so de um ambiente mora no `styles.css` dele, preso a
+ * `.app--modeling` ou `.app--use-cases`.
  */
 
 :root {
@@ -18,6 +19,9 @@
   /* Chave primaria e estrangeira, na modelagem. */
   --pk: #f0b429;
   --fk: #7bc86c;
+  /* A cor da nota: amarela, lê como anotação e não como parte do diagrama. */
+  --note: #f0b429;
+  --ok: #7bc86c;
   --danger: #ff6b6b;
   --warn: #ffb454;
   /* Traço dos elementos da UML — o boneco, a elipse, as linhas. */
@@ -68,12 +72,15 @@ kbd {
 /* ---- estrutura da tela -------------------------------------------------- */
 /* As laterais encolhem junto com a janela em vez de comerem o canvas: em tela larga
    ficam no tamanho cheio, em tela estreita cedem espaço até um piso legível. */
+/* As mesmas colunas nos dois ambientes: trocar de aba nao faz a lista nem o painel
+   pularem de largura. O painel tem a largura que a especificacao de um caso de uso
+   pede; a modelagem ganhou alguns pixels com isso. */
 .app {
   display: grid;
   grid-template-columns:
-    clamp(150px, 15vw, 220px)
+    clamp(196px, 15vw, 240px)
     minmax(0, 1fr)
-    clamp(230px, 25vw, 340px);
+    clamp(250px, 26vw, 360px);
   /* Cada área tem lugar fixo. Sem isso, esconder uma lateral com `display: none`
      tira ela do fluxo do grid e joga o canvas para a coluna da lateral — que pode
      ter largura zero, e aí a tela inteira colapsa num canto. */
@@ -89,9 +96,9 @@ kbd {
 .panel { grid-area: panel; }
 
 /* Laterais fechadas: a coluna zera e o canvas ocupa o espaço. */
-.app--no-files { grid-template-columns: 0 minmax(0, 1fr) clamp(230px, 25vw, 340px); }
+.app--no-files { grid-template-columns: 0 minmax(0, 1fr) clamp(250px, 26vw, 360px); }
 
-.app--no-panel { grid-template-columns: clamp(150px, 15vw, 220px) minmax(0, 1fr) 0; }
+.app--no-panel { grid-template-columns: clamp(196px, 15vw, 240px) minmax(0, 1fr) 0; }
 
 .app--no-files.app--no-panel { grid-template-columns: 0 minmax(0, 1fr) 0; }
 
@@ -100,7 +107,7 @@ kbd {
 
 /* Enquanto nenhum arquivo está aberto o painel não é renderizado; sem isso a coluna
    dele continuaria reservando espaço à toa. */
-.app--no-doc { grid-template-columns: clamp(150px, 15vw, 220px) minmax(0, 1fr) 0; }
+.app--no-doc { grid-template-columns: clamp(196px, 15vw, 240px) minmax(0, 1fr) 0; }
 
 .app--no-doc.app--no-files { grid-template-columns: 0 minmax(0, 1fr) 0; }
 
@@ -265,11 +272,20 @@ kbd {
 
 .btn--ghost { background: none; }
 
+.btn--small { padding: 2px 8px; font-size: 11px; }
+
+.btn--block { display: block; width: 100%; margin-bottom: 10px; color: var(--text-dim); }
+
+.btn--block:hover { color: var(--text); }
+
 .btn--danger { color: var(--danger); border-color: rgba(255, 107, 107, 0.4); }
+
+/* O menu com o realce ligado: a barra avisa que parte do canvas está apagada. */
+.btn.is-on { border-color: var(--accent); color: var(--accent); }
 
 .status { font-size: 11px; color: var(--text-dim); min-width: 74px; text-align: right; }
 
-.status--saved { color: var(--fk); }
+.status--saved { color: var(--ok); }
 
 .status--unsaved { color: var(--warn); }
 
@@ -285,7 +301,7 @@ kbd {
   top: calc(100% + 7px);
   right: 0;
   z-index: 20;
-  min-width: 306px;
+  min-width: 320px;
   padding: 5px;
   background: var(--bg-panel);
   border: 1px solid var(--line-strong);
@@ -386,12 +402,24 @@ kbd {
 
 .field-group { display: block; margin-bottom: 10px; }
 
-.field-group > span {
+.field-group > span,
+.field-group__head > span {
   display: block;
   font-size: 11px;
   color: var(--text-dim);
   margin-bottom: 3px;
 }
+
+.field-group small { font-size: 10px; color: var(--line-strong); margin-left: 4px; }
+
+.field-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.field-group--code input { font-family: var(--mono); }
 
 .panel__section {
   display: flex;
@@ -404,9 +432,22 @@ kbd {
 
 .panel__section h3 { margin: 0; font-size: 12px; font-weight: 600; }
 
+.panel__count { font-size: 11px; color: var(--text-dim); }
+
 .panel__counts { font-size: 11px; color: var(--text-dim); }
 
 .panel__hint { margin: -4px 0 12px; font-size: 10.5px; color: var(--text-dim); line-height: 1.5; }
+
+/* A ligação lida como frase, no topo do painel dela. */
+.panel__sentence {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--bg-raised);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
 
 .panel__warnings {
   margin-top: 14px;
@@ -417,7 +458,7 @@ kbd {
 
 .panel__warnings h3 { margin: 0 0 5px; font-size: 11px; color: var(--warn); }
 
-.panel__warnings ul { margin: 0; padding-left: 16px; font-size: 11px; color: var(--warn); }
+.panel__warnings ul { margin: 0; padding-left: 16px; font-size: 11px; color: var(--warn); line-height: 1.5; }
 
 .panel__tip {
   margin-top: 16px;
@@ -482,7 +523,7 @@ kbd {
 .react-flow__minimap-node { fill: var(--line-strong); }
 
 
-/* ---- caminho de volta: início ------------------------------------------ */
+/* ---- caminho de volta: início e abas dos ambientes ---------------------- */
 
 .sidebar__home {
   padding: 2px 0;
@@ -492,3 +533,33 @@ kbd {
 }
 
 .sidebar__home:hover { color: var(--accent); }
+
+/* Os dois ambientes lado a lado, o atual aceso — trocar sem passar pelo início. */
+.env-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 2px;
+  margin-bottom: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.env-tabs__tab {
+  padding: 5px 2px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-dim);
+  /* Uma linha, sempre: a lista nunca fica mais estreita que o necessário para os dois nomes. */
+  white-space: nowrap;
+}
+
+.env-tabs__tab:hover { color: var(--text); }
+
+.env-tabs__tab.is-current {
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+  cursor: default;
+}

@@ -1,0 +1,336 @@
+/*
+ * Editor de casos de uso — o que so ele usa. Tudo aqui vale apenas dentro de
+ * `.app--use-cases`: a modelagem usa os mesmos nomes de classe (`.handle-box`,
+ * `.note-node`, `.chip`) com outro desenho. O que os dois dividem mora em
+ * `shared/base.css`.
+ */
+
+.app--use-cases {
+
+  /* ---- ator no canvas ------------------------------------------------------ */
+  /* A largura do nó é a do desenho, para a linha que chega de lado encostar no boneco.
+     Ver `ActorNode`. */
+  .actor-node { position: relative; cursor: grab; }
+
+  .actor-node:active { cursor: grabbing; }
+
+  .actor-node__figure { display: block; overflow: visible; }
+
+  .actor-node__figure circle,
+  .actor-node__figure line {
+    fill: none;
+    stroke: var(--stroke);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .actor-node__figure circle { fill: var(--bg); }
+
+  .actor-node.is-selected .actor-node__figure circle,
+  .actor-node.is-selected .actor-node__figure line { stroke: var(--accent); }
+
+  .actor-node__name {
+    /* Mais largo que o boneco, centralizado sobre ele: soma na altura do nó, mas não
+       na largura, que continua sendo a do desenho. */
+    width: 150px;
+    margin: 4px 0 0 calc((44px - 150px) / 2);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .actor-node.is-selected .actor-node__name { color: var(--accent); }
+
+  .actor-node__name em,
+  .actor-node__system em { color: var(--text-dim); font-weight: 400; }
+
+  /* Sistema externo: a caixa com «sistema», como a UML desenha um ator que não é gente. */
+  .actor-node__system {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 10px;
+    background: var(--bg-panel);
+    border: 1.5px solid var(--stroke);
+    border-radius: 3px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+  }
+
+  .actor-node__system small { font-size: 10px; font-weight: 400; color: var(--text-dim); }
+
+  .actor-node.is-selected .actor-node__system { border-color: var(--accent); }
+
+  .actor-node__input {
+    padding: 2px 4px;
+    font-size: 12px;
+    text-align: center;
+    border-color: var(--accent);
+  }
+
+  /* ---- caso de uso no canvas ----------------------------------------------- */
+  /* A elipse: largura do arquivo, altura fixa. O texto fica numa área mais estreita
+     que a caixa, porque perto das pontas a elipse afina e cortaria a letra. */
+  .use-case-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 8px 15%;
+    background: var(--bg-panel);
+    border: 1.5px solid var(--stroke);
+    border-radius: 50%;
+    text-align: center;
+    cursor: grab;
+  }
+
+  .use-case-node:active { cursor: grabbing; }
+
+  .use-case-node.is-selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .use-case-node__id {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+  }
+
+  .use-case-node__name {
+    font-size: 12px;
+    line-height: 1.3;
+    /* Três linhas no máximo; o nome inteiro aparece ao parar o mouse. */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+
+  .use-case-node__name em { color: var(--text-dim); }
+
+  .use-case-node__input {
+    padding: 2px 4px;
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: center;
+    resize: none;
+    border-color: var(--accent);
+  }
+
+  /* ---- fronteira do sistema ------------------------------------------------ */
+  /* Não se clica nela: o clique atravessa para o fundo do canvas, e clicar dentro do
+     sistema funciona como clicar fora. `!important` porque o React Flow escreve
+     `pointer-events: all` direto no nó sempre que o canvas tem `onNodeClick`. */
+  .react-flow__node-boundary { pointer-events: none !important; }
+
+  .boundary-node {
+    position: relative;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .boundary-node__title {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    right: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ---- caixa de nota no canvas -------------------------------------------- */
+  .note-node {
+    background: rgba(240, 180, 41, 0.08);
+    border: 1px solid rgba(240, 180, 41, 0.35);
+    border-radius: var(--radius);
+    padding: 9px 11px;
+  }
+
+  .note-node.is-selected { border-color: var(--note); box-shadow: 0 0 0 1px var(--note); }
+
+  .note-node__text {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: text;
+  }
+
+  .note-node__empty { margin: 0; font-size: 11px; color: var(--text-dim); font-style: italic; cursor: text; }
+
+  .note-node__input {
+    font-size: 11.5px;
+    line-height: 1.55;
+    background: var(--bg-input);
+    border-color: var(--note);
+  }
+
+  /* Com o foco, a borda acende como em qualquer campo da tela. */
+  .note-node__input:focus { border-color: var(--accent); }
+
+  .note-node__done {
+    display: block;
+    margin: 5px 0 0 auto;
+    font-size: 10px;
+    color: var(--note);
+    padding: 2px 5px;
+  }
+
+  /* Fora do realce: continua legível de perto, mas para de competir. */
+  .actor-node.is-dim,
+  .use-case-node.is-dim { opacity: 0.22; }
+
+  .note-node.is-dim { opacity: 0.18; }
+
+  .react-flow__edge.is-dim { opacity: 0.14; }
+
+  /* Código e nome lado a lado: o código é curto e não precisa da linha inteira. */
+  .field-row { display: flex; gap: 6px; }
+
+  .field-row .field-group { flex: 1; min-width: 0; }
+
+  .field-row .field-group--code { flex: 0 0 76px; }
+
+  /* Passos de um fluxo: um por linha, então a linha precisa se ver como linha. */
+  textarea.steps { font-size: 12px; line-height: 1.65; }
+
+  .chips { display: flex; gap: 4px; }
+
+  .chip {
+    font-size: 11px;
+    padding: 3px 9px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text-dim);
+  }
+
+  .chip.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  /* ---- listas do painel: quem faz o quê, ligações -------------------------- */
+  .related { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 2px; }
+
+  .related button {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 7px;
+    width: 100%;
+    padding: 5px 7px;
+    border-radius: 4px;
+    text-align: left;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .related button:hover { background: var(--accent-soft); }
+
+  .related__id { font-family: var(--mono); font-size: 10.5px; color: var(--text-dim); flex: none; }
+
+  .related__text { flex: 1; min-width: 0; }
+
+  /* O motivo — "herda de…", "incluído por…" — vai numa linha própria, embaixo. */
+  .related small { flex-basis: 100%; font-size: 10.5px; color: var(--text-dim); }
+
+  .who { margin-bottom: 10px; }
+
+  .who__actor {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .who__actor:hover { color: var(--accent); }
+
+  .who__none { margin: 2px 7px 0; font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+  /* ---- fluxos alternativos -------------------------------------------------- */
+  .flows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+  .flow {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 7px;
+    display: grid;
+    gap: 5px;
+  }
+
+  .flow__line { display: flex; align-items: center; gap: 5px; }
+
+  .flow__remove { flex: none; color: var(--text-dim); padding: 0 3px; }
+
+  .flow__remove:hover { color: var(--danger); }
+
+  /* As pontas de seta ficam num svg próprio, sem ocupar lugar na tela. */
+  .uml-markers { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+  /* Ponto de onde se puxa uma linha: some até o mouse chegar no elemento. */
+  .handle-box {
+    width: 9px;
+    height: 9px;
+    background: var(--bg-raised);
+    border: 1.5px solid var(--accent);
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .react-flow__node:hover .handle-box,
+  .is-selected .handle-box { opacity: 1; }
+
+  /* `scale`, e não `transform`: o React Flow centraliza o ponto na borda com
+     `transform: translate(…)`, e trocar o transform no hover faria o ponto pular de
+     debaixo do mouse — o clique cairia no fundo do canvas. */
+  .handle-box:hover { background: var(--accent); scale: 1.3; }
+
+  /* Enquanto uma linha está sendo puxada, mostra todos os alvos possíveis — senão
+     seria preciso adivinhar onde soltar. */
+  .react-flow:has(.react-flow__connectionline) .handle-box { opacity: 1; }
+
+  /* O ponto de chegada fica verde quando a linha pode ser solta nele. */
+  .react-flow__handle.connectingto.valid { background: var(--ok); opacity: 1; }
+
+  /* As linhas da UML — ver `DiagramEdge` para o que cada tipo desenha. */
+  .react-flow__edge-path.uml-edge { stroke: var(--stroke); stroke-width: 1.5; }
+
+  .uml-edge--include,
+  .uml-edge--extend { stroke-dasharray: 6 4; }
+
+  .react-flow__edge-path.uml-edge--anchor {
+    stroke: rgba(240, 180, 41, 0.55);
+    stroke-width: 1.2;
+    stroke-dasharray: 4 4;
+  }
+
+  .react-flow__edge.selected .react-flow__edge-path.uml-edge { stroke: var(--accent); stroke-width: 2.2; }
+
+  .react-flow__edge.selected .react-flow__edge-path.uml-edge--anchor { stroke: var(--note); }
+
+  .uml-marker path { stroke: var(--stroke); stroke-width: 1.5; stroke-linejoin: round; fill: none; }
+
+  /* O triângulo vazado é preenchido com o fundo: sem isso a linha apareceria por dentro dele. */
+  .uml-marker--hollow path { fill: var(--bg); }
+
+  .uml-marker--selected path { stroke: var(--accent); }
+
+  .react-flow__edge-text { fill: var(--text-dim); font-size: 10.5px; font-family: var(--mono); }
+
+  .react-flow__edge-textbg { fill: var(--bg); }
+}

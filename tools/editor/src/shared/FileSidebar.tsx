@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { ENVIRONMENTS, type Environment } from './environments'
 import { useNavigation } from './navigation'
 import type { FileEntry } from './types'
 
@@ -16,20 +17,23 @@ export function toFileName(input: string): string {
 }
 
 type FileSidebarProps = {
+  env: Environment
   files: FileEntry[]
   current: string | null
   dir: string
+  /** Texto de dentro do campo de arquivo novo. */
+  placeholder: string
   onOpen: (name: string) => void
   onCreate: (name: string, title: string) => Promise<void>
   onDelete: (name: string) => Promise<void>
 }
 
 /**
- * A lista de arquivos do ambiente, com o caminho de volta em cima: o inicio. Sair
- * por aqui grava antes o que estava pendente.
+ * A lista de arquivos do ambiente, com o caminho de volta em cima: o inicio e a
+ * aba do outro ambiente. Sair por aqui grava antes o que estava pendente.
  */
 export default function FileSidebar({
-  files, current, dir, onOpen, onCreate, onDelete,
+  env, files, current, dir, placeholder, onOpen, onCreate, onDelete,
 }: FileSidebarProps) {
   const { go, takeIntent } = useNavigation()
   const [draft, setDraft] = useState('')
@@ -79,7 +83,21 @@ export default function FileSidebar({
           ‹ início
         </button>
 
-        <h1 className="sidebar__title">Modelagem</h1>
+        {/* Os dois ambientes lado a lado: trocar de um para o outro sem passar pelo inicio. */}
+        <nav className="env-tabs" aria-label="ambientes">
+          {ENVIRONMENTS.map((option) => (
+            <button
+              key={option.id}
+              className={`env-tabs__tab${option.id === env.id ? ' is-current' : ''}`}
+              aria-current={option.id === env.id ? 'page' : undefined}
+              title={option.id === env.id ? `você está em ${option.title}` : `ir para ${option.title}`}
+              onClick={() => option.id !== env.id && void go({ env: option.id, file: null })}
+            >
+              {option.title}
+            </button>
+          ))}
+        </nav>
+
         <p className="sidebar__dir" title={dir}>{dir.split('/').slice(-2).join('/')}</p>
       </div>
 
@@ -107,8 +125,8 @@ export default function FileSidebar({
           <input
             ref={newInput}
             value={draft}
-            placeholder="nova modelagem (nome em inglês)…"
-            aria-label="nome da nova modelagem, em inglês"
+            placeholder={placeholder}
+            aria-label={`${placeholder.replace(/…$/, '')}, em inglês`}
             onChange={(event) => { setDraft(event.target.value); setError('') }}
           />
           <button type="submit" disabled={!draft.trim()}>+</button>

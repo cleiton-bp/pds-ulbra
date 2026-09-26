@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Editor visual de modelagem do PDS — le e grava os arquivos de database-models",
+  "description": "Editor visual do PDS — modelagem de dados e casos de uso, lendo e gravando os arquivos de database-models/modeling e database-models/use-cases",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

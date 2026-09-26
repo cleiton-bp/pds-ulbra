@@ -18,6 +18,7 @@ const ROOT = path.resolve(here, '..')
  */
 const COLLECTIONS: Record<string, string> = {
   modeling: path.join(ROOT, 'database-models', 'modeling'),
+  'use-cases': path.join(ROOT, 'database-models', 'use-cases'),
 }
 
 // So nome simples terminado em .yaml. Barra, ".." ou nome vazio sao recusados: sem isso

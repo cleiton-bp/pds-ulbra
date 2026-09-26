@@ -144,7 +144,7 @@ export default function Home() {
     return () => { alive = false }
   }, [attempt])
 
-  // 1 entra no ambiente — menos quando se esta digitando em algum campo.
+  // 1 e 2 entram no ambiente — menos quando se esta digitando em algum campo.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.altKey || event.metaKey || event.ctrlKey) return
@@ -161,7 +161,7 @@ export default function Home() {
     <div className="home">
       <div className="home__inner">
         <header className="home__head">
-          <h1>Modelagem</h1>
+          <h1>Modelagem e casos de uso</h1>
           <p>O desenho do PDS, em arquivos <code>.yaml</code> — o editor e o VSCode mexem nos mesmos arquivos.</p>
         </header>
 
@@ -181,7 +181,7 @@ export default function Home() {
         </main>
 
         <footer className="home__keys">
-          <span><kbd>1</kbd> entra no ambiente</span>
+          <span><kbd>1</kbd> <kbd>2</kbd> entram no ambiente</span>
           <span><kbd>Alt</kbd>+<kbd>0</kbd> volta para cá de qualquer lugar</span>
           <span><kbd>⌘</kbd>+<kbd>S</kbd> grava na hora — mas tudo grava sozinho</span>
         </footer>

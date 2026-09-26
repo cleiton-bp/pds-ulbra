@@ -5,6 +5,7 @@ import '@xyflow/react/dist/style.css'
 import './shared/base.css'
 import './shell/home.css'
 import './modeling/styles.css'
+import './use-cases/styles.css'
 import Shell from './shell/Shell'
 
 const container = document.getElementById('root')
