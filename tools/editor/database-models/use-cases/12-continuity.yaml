@@ -1,0 +1,143 @@
+meta:
+  title: Continuidade
+  system: PDS
+  description: "Continuidade. O que o produto pode vir a ter depois do que está planejado, fora do escopo atual. Está mapeado para não se perder, e com menos decisão tomada: cada caso de uso diz o que já se sabe, e o resto está a decidir."
+actors:
+  - name: Dono do projeto
+    description: Decide para onde os relatos vão, onde a mídia fica e qual plano o projeto usa.
+    position: { x: 85, y: -88 }
+  - name: Membro do time
+    description: Trabalha os relatos com mais ferramenta do que a fila de hoje.
+    position: { x: 80, y: 381 }
+  - name: Relator
+    description: Quem relata, com mais formas de relatar e de saber quando o relato anda.
+    position: { x: 80, y: 556 }
+  - name: Visitante do site
+    description: Qualquer pessoa na página do cliente.
+    position: { x: 75, y: 756 }
+  - name: Ferramenta do time
+    kind: system
+    description: Jira, Trello ou outra — para quem já tem onde trabalhar e não quer sair.
+    position: { x: 787, y: -210 }
+  - name: Armazenamento do cliente
+    kind: system
+    description: O armazenamento de arquivos do próprio cliente.
+    position: { x: 671, y: -354 }
+useCases:
+  - id: UC01
+    name: Levar os relatos para a ferramenta do time
+    description: Continuidade. O cliente escolhe para onde os relatos vão — Jira, Trello ou outra. A ferramenta do PDS continua existindo para quem não usa nenhuma, e ninguém fica preso.
+    position: { x: 294, y: -164 }
+    mainFlow:
+      - O dono escolhe a ferramenta e conecta a conta dela.
+      - Escolhe se a mídia vai como link ou como arquivo.
+      - Os relatos novos passam a virar cards lá.
+  - id: UC02
+    name: Trabalhar num quadro arrastável
+    description: Continuidade. Os estados como colunas, e o card arrastado de uma para a outra.
+    position: { x: 290, y: 206 }
+    mainFlow:
+      - O membro abre o quadro do projeto.
+      - Arrasta o card para outro estado.
+  - id: UC03
+    name: Organizar em sprints
+    description: Continuidade. A ferramenta dá o mecanismo; montar a sprint e organizar os cards é decisão do time.
+    position: { x: 300, y: 305 }
+    mainFlow:
+      - O membro cria uma sprint.
+      - Escolhe os cards que entram nela.
+  - id: UC04
+    name: Ver relatórios do trabalho
+    description: Continuidade. Relatórios e gráficos do trabalho do time sobre os relatos.
+    position: { x: 299, y: 399 }
+    mainFlow:
+      - O membro abre Relatórios.
+      - Escolhe o relatório e o período.
+  - id: UC05
+    name: Relatar por áudio ou por voz
+    description: Continuidade. Addons de áudio e de abertura por voz, que ficaram fora da mídia de hoje, que é imagem e vídeo de tela.
+    position: { x: 307, y: 525 }
+    mainFlow:
+      - O relator grava o áudio, ou fala o que aconteceu.
+      - Envia junto do relato.
+  - id: UC06
+    name: Escolher um plano
+    description: Continuidade. Versão gratuita e versões pagas, com os limites como eixo — quantidade de mídia, duração, tempo de guarda. Por enquanto, tudo é gratuito.
+    position: { x: 289, y: -55 }
+    mainFlow:
+      - O dono compara os planos.
+      - Escolhe um e paga.
+      - Os limites do projeto passam a ser os do plano.
+  - id: UC07
+    name: Guardar a mídia no armazenamento do cliente
+    description: "Continuidade. Para quem tem exigência de conformidade: a mídia sensível nunca passa pelo PDS."
+    position: { x: 308, y: -272 }
+    mainFlow:
+      - O dono conecta o armazenamento dele.
+      - Os arquivos novos passam a ir direto para lá.
+  - id: UC08
+    name: Agrupar relatos duplicados
+    description: "Continuidade. Duplicado não encerra: agrupa, e quem relatou acompanha o original."
+    position: { x: 289, y: 86 }
+    mainFlow:
+      - O membro marca o relato como duplicado de outro.
+      - Quem relatou passa a acompanhar o original.
+  - id: UC09
+    name: Votar num relato não priorizado
+    description: Continuidade. Em projeto público, o que não será feito vira “não priorizado” e acumula voto de quem também quer.
+    position: { x: 361, y: 768 }
+    mainFlow:
+      - O visitante encontra o relato na lista pública.
+      - Vota.
+  - id: UC10
+    name: Ver a estimativa de quando anda
+    description: Continuidade. Uma estimativa de quanto o relato deve demorar, pelo percentil dos que já passaram pelo mesmo caminho.
+    position: { x: 317, y: 645 }
+    mainFlow:
+      - A página de acompanhamento mostra quando a próxima etapa costuma chegar.
+links:
+  - from: Dono do projeto
+    to: UC01
+    kind: association
+  - from: Ferramenta do time
+    to: UC01
+    kind: association
+  - from: Membro do time
+    to: UC02
+    kind: association
+  - from: Membro do time
+    to: UC03
+    kind: association
+  - from: Membro do time
+    to: UC04
+    kind: association
+  - from: Relator
+    to: UC05
+    kind: association
+  - from: Dono do projeto
+    to: UC06
+    kind: association
+  - from: Dono do projeto
+    to: UC07
+    kind: association
+  - from: Armazenamento do cliente
+    to: UC07
+    kind: association
+  - from: Membro do time
+    to: UC08
+    kind: association
+  - from: Visitante do site
+    to: UC09
+    kind: association
+  - from: Relator
+    to: UC10
+    kind: association
+notes:
+  - text: Nada aqui entra antes do que está planejado. É o que o produto pode vir a ser, registrado para não se perder.
+    position: { x: 626, y: 285 }
+  - text: "A decidir: link de validade curta quebra quando o time abre o card dias depois. As saídas são anexar o arquivo, link permanente com login, ou link permanente e não adivinhável — cada uma com um custo."
+    anchor: UC01
+    position: { x: 699, y: -25 }
+  - text: "A decidir: quem vê a estimativa — quem relatou ou só o time."
+    anchor: UC10
+    position: { x: 820, y: 547 }

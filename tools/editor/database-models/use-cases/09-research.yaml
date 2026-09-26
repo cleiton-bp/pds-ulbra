@@ -1,0 +1,65 @@
+meta:
+  title: A pesquisa
+  system: PDS — painel e pesquisa
+  description: "Planejado. A resposta à pergunta de pesquisa: dar visibilidade a quem relatou reduz rechamada e contato redundante? E o quanto? Todo evento é gravado com origem, momento e projeto desde o primeiro relato; aqui ele é só consolidado e analisado."
+actors:
+  - name: Dono do projeto
+    description: Vê os números do próprio projeto, e de nenhum outro.
+    position: { x: 40, y: 60 }
+  - name: Pesquisador
+    description: Quem estuda o efeito da ferramenta. Lê os dados de todos os projetos, sem nada que identifique alguém.
+    position: { x: 40, y: 210 }
+useCases:
+  - id: UC01
+    name: Ver as métricas do projeto
+    description: "Planejado. Os números do ciclo no painel: quantos relatos precisaram fechar duas vezes, a nota média, quantos encerramentos quem relatou recusou e quantos não responderam."
+    position: { x: 280, y: 40 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Métricas.
+      - Escolhe o período.
+      - O painel mostra os números do projeto naquele período.
+    alternativeFlows:
+      - title: 1a. O projeto ainda não tem relato
+        steps:
+          - O painel mostra o caminho até o primeiro relato, em vez de números zerados — métrica vazia parece sistema quebrado.
+    postconditions: Na nota, respondeu, recusou e não respondeu aparecem separados.
+  - id: UC02
+    name: Consolidar os dados da pesquisa
+    description: Planejado. Junta os eventos de todos os projetos num conjunto único, sem nada que identifique quem relatou ou quem trabalhou.
+    position: { x: 530, y: 40 }
+    preconditions: O sistema rodou por tempo suficiente, com relatos entrando, andando e sendo encerrados, para acumular dado.
+    mainFlow:
+      - O pesquisador escolhe o período.
+      - O sistema junta os eventos — relato, movimento, mudança de etapa pública, pedido de informação, encerramento, confirmação, reabertura e nota.
+      - Tira tudo o que identifica alguém e entrega o conjunto.
+    postconditions: O conjunto não é dado pessoal, e por isso sobrevive à exclusão de qualquer conta.
+  - id: UC03
+    name: Responder à pergunta de pesquisa
+    description: Planejado. Mede, nos dados consolidados, o contato que quem relatou precisou fazer com a jornada visível, e responde se ele diminui — e o quanto.
+    position: { x: 288, y: 269 }
+    preconditions: Os dados estão consolidados.
+    mainFlow:
+      - O pesquisador parte do conjunto consolidado.
+      - Mede o contato redundante de quem relatou.
+      - Compara e escreve a resposta.
+links:
+  - from: Dono do projeto
+    to: UC01
+    kind: association
+  - from: Pesquisador
+    to: UC02
+    kind: association
+  - from: Pesquisador
+    to: UC03
+    kind: association
+  - from: UC03
+    to: UC02
+    kind: include
+notes:
+  - text: Métrica não coletada não se reconstitui depois. Por isso todo evento é gravado desde o primeiro relato, e não só quando a análise começa.
+    anchor: UC02
+    position: { x: 840, y: 40 }
+  - text: "A decidir: o que conta como rechamada e contato redundante, e contra o que se compara."
+    anchor: UC03
+    position: { x: 840, y: 200 }
