@@ -39,13 +39,33 @@ export const listFiles = (collection: Collection): Promise<FileList> =>
 export const readFile = (collection: Collection, name: string): Promise<LoadedFile> =>
   fetch(fileUrl(collection, name)).then((res) => parse(res))
 
-/** `baseMtime` undefined sobrescreve sem checar — so na escolha explícita da pessoa. */
+/**
+ * `baseMtime` undefined sobrescreve sem checar — so na escolha explicita da pessoa,
+ * e e tambem o que recria um arquivo que sumiu do disco.
+ */
 export const saveFile = (
   collection: Collection,
   name: string,
   content: string,
   baseMtime?: number,
 ): Promise<SavedFile> => send(collection, 'PUT', { name, content, baseMtime })
+
+/**
+ * A ultima tentativa de gravar, quando a aba esta fechando. `keepalive` deixa o
+ * pedido terminar depois de a pagina ir embora — nao ha resposta para ler, e se
+ * nao der (arquivo grande demais para o navegador, servidor fora do ar), nada
+ * quebra: a confirmacao de saida do navegador ja avisou.
+ */
+export function saveFileOnExit(collection: Collection, name: string, content: string, baseMtime: number): void {
+  try {
+    void fetch(fileUrl(collection), {
+      method: 'PUT',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, content, baseMtime }),
+    }).catch(() => undefined)
+  } catch { /* corpo acima do limite do keepalive — sobra a confirmacao do navegador */ }
+}
 
 export const createFile = (collection: Collection, name: string, content: string): Promise<SavedFile> =>
   send(collection, 'POST', { name, content })

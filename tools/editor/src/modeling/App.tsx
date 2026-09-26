@@ -9,6 +9,7 @@ import { useWorkspace } from '../shared/useWorkspace'
 import Toolbar from './components/Toolbar'
 import Board from './components/canvas/Board'
 import Inspector from './components/inspector/Inspector'
+import { MODELING_FORMAT } from './format'
 import { useModelActions } from './hooks/useModelActions'
 import { COMMON_TYPES } from './model/constants'
 import type { Position, Selection } from './types'
@@ -17,7 +18,7 @@ const ENV = environmentById('modeling')
 
 /** Junta as três áreas da tela. A lógica de verdade mora nos hooks e em `model/`. */
 export default function App() {
-  const workspace = useWorkspace(ENV.collection)
+  const workspace = useWorkspace(ENV.collection, MODELING_FORMAT)
   const { doc, current, parseError } = workspace
   const [selection, setSelection] = useState<Selection>(null)
 
@@ -61,10 +62,11 @@ export default function App() {
     actions.addNote()
   }, [showNotes, toggleNotes, actions])
 
-  const openFile = useCallback((name: string): void => {
+  const { open } = workspace
+  const openFile = useCallback((name: string, discard = false): void => {
     setSelection(null)
-    void workspace.open(name)
-  }, [workspace])
+    void open(name, { discard })
+  }, [open])
 
   // Alt+1 / Alt+2 abrem e fecham as laterais, Alt+3 esconde as notas — sem tirar a mão
   // do teclado. `code`, e não `key`: no Mac, Alt+1 digita "¡".
@@ -105,9 +107,9 @@ export default function App() {
         files={workspace.files}
         current={current}
         dir={workspace.dir}
-        onOpen={openFile}
+        onOpen={(name) => openFile(name)}
         onCreate={workspace.create}
-        onDelete={(name) => void workspace.remove(name)}
+        onDelete={workspace.remove}
       />
 
       <main className="board">
@@ -139,9 +141,14 @@ export default function App() {
           conflict={workspace.conflict}
           parseError={parseError}
           saveError={workspace.saveError}
-          onReload={() => current && openFile(current)}
+          comments={workspace.comments}
+          missing={workspace.missing}
+          onReload={() => current && openFile(current, true)}
           onForceSave={() => void workspace.save({ force: true })}
           onDismissError={workspace.dismissError}
+          onDropComments={workspace.dropComments}
+          onRecreate={() => void workspace.recreate()}
+          onClose={workspace.close}
         />
 
         <div className="canvas" ref={canvasRef}>

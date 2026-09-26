@@ -351,6 +351,8 @@ kbd {
 
 .banner--error { background: rgba(255, 107, 107, 0.12); color: var(--danger); }
 
+.banner code { font-family: var(--mono); }
+
 /* ---- painel da direita -------------------------------------------------- */
 .panel {
   background: var(--bg-panel);

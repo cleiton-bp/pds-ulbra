@@ -20,7 +20,7 @@ type FileSidebarProps = {
   dir: string
   onOpen: (name: string) => void
   onCreate: (name: string, title: string) => Promise<void>
-  onDelete: (name: string) => void
+  onDelete: (name: string) => Promise<void>
 }
 
 export default function FileSidebar({
@@ -41,12 +41,23 @@ export default function FileSidebar({
       return
     }
     setError('')
-    await onCreate(name, draft.trim())
-    setDraft('')
+    try {
+      await onCreate(name, draft.trim())
+      setDraft('')
+    } catch (err) {
+      // A lista pode estar alguns segundos atras do disco: o servidor e quem sabe.
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
-  const remove = (name: string): void => {
-    if (window.confirm(`Apagar ${name}? Não dá para desfazer.`)) onDelete(name)
+  const remove = async (name: string): Promise<void> => {
+    if (!window.confirm(`Apagar ${name}? Não dá para desfazer.`)) return
+    try {
+      await onDelete(name)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   return (
@@ -67,7 +78,7 @@ export default function FileSidebar({
             <button
               className="file-row__delete"
               title="apagar arquivo"
-              onClick={() => remove(file.name)}
+              onClick={() => void remove(file.name)}
             >
               ✕
             </button>

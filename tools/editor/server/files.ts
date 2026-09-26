@@ -49,6 +49,16 @@ function resolveSafe(dir: string, name: unknown): string {
 
 const mtimeOf = async (full: string): Promise<number> => (await fs.stat(full)).mtimeMs
 
+/** O mtime, ou `null` se o arquivo nao existe mais. */
+async function mtimeIfExists(full: string): Promise<number | null> {
+  try {
+    return await mtimeOf(full)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw err
+  }
+}
+
 /** `title` e o `meta.title` de dentro do arquivo — o que a tela mostra no lugar do nome. */
 export type FileEntry = { name: string; mtime: number; size: number; title: string }
 
@@ -72,6 +82,21 @@ async function titleOf(full: string, mtime: number): Promise<string> {
   } catch { /* yaml quebrado: fica sem titulo, e o editor mostra o erro ao abrir */ }
   titles.set(full, { mtime, title })
   return title
+}
+
+/**
+ * Uma escrita por arquivo de cada vez. Conferir o mtime e gravar sao dois passos;
+ * sem a fila, dois pedidos com o mesmo mtime de base passariam os dois pela
+ * conferencia, e o primeiro seria sobrescrito sem ninguem saber.
+ */
+const queues = new Map<string, Promise<unknown>>()
+
+function oneAtATime<T>(full: string, work: () => Promise<T>): Promise<T> {
+  const previous = queues.get(full) ?? Promise.resolve()
+  const next = previous.catch(() => undefined).then(work)
+  queues.set(full, next)
+  void next.finally(() => { if (queues.get(full) === next) queues.delete(full) }).catch(() => undefined)
+  return next
 }
 
 export async function listFiles(collection: string): Promise<{ dir: string; files: FileEntry[] }> {
@@ -101,10 +126,12 @@ export async function readFile(collection: string, name: unknown): Promise<{ nam
 /**
  * Grava so se o arquivo no disco ainda estiver na versao que o editor abriu.
  * Se alguem mexeu no meio do caminho, devolve 409 e o navegador mostra a faixa de
- * conflito — em vez de apagar em silencio o trabalho do outro.
+ * conflito — em vez de apagar em silencio o trabalho do outro. Se o arquivo sumiu,
+ * devolve 404 e o navegador pergunta o que fazer.
  *
- * `baseMtime` ausente significa "sobrescreve mesmo assim", usado quando a pessoa
- * escolhe explicitamente manter a versao da tela.
+ * `baseMtime` ausente significa "grava mesmo assim", usado quando a pessoa escolhe
+ * explicitamente manter a versao da tela — inclusive recriando um arquivo que
+ * sumiu do disco.
  */
 export async function writeFile(
   collection: string,
@@ -115,18 +142,22 @@ export async function writeFile(
   const full = resolveSafe(collectionDir(collection), name)
   if (typeof content !== 'string') throw fail('conteúdo ausente', 400)
 
-  const current = await mtimeOf(full)
-  // Tolerancia de 1ms: alguns sistemas de arquivo arredondam o mtime.
-  if (typeof baseMtime === 'number' && Math.abs(current - baseMtime) > 1) {
-    throw fail('o arquivo mudou no disco', 409, {
-      conflict: true,
-      mtime: current,
-      content: await fs.readFile(full, 'utf8'),
-    })
-  }
+  return oneAtATime(full, async () => {
+    const force = typeof baseMtime !== 'number'
+    const current = await mtimeIfExists(full)
+    if (current === null && !force) throw fail('o arquivo não existe mais no disco', 404)
+    // Tolerancia de 1ms: alguns sistemas de arquivo arredondam o mtime.
+    if (current !== null && !force && Math.abs(current - baseMtime) > 1) {
+      throw fail('o arquivo mudou no disco', 409, {
+        conflict: true,
+        mtime: current,
+        content: await fs.readFile(full, 'utf8'),
+      })
+    }
 
-  await fs.writeFile(full, content, 'utf8')
-  return { name: name as string, mtime: await mtimeOf(full) }
+    await fs.writeFile(full, content, 'utf8')
+    return { name: name as string, mtime: await mtimeOf(full) }
+  })
 }
 
 export async function createFile(collection: string, name: unknown, content: string): Promise<{ name: string; mtime: number }> {
