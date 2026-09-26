@@ -1,0 +1,182 @@
+meta:
+  title: Visão geral
+  system: PDS
+  description: O mapa dos outros onze diagramas. Do lado de fora, quem relata e quem visita o site do cliente usam a ferramenta de relato e a página de acompanhamento, sem conta nenhuma. Do lado de dentro, o time e o dono do projeto usam o painel, com a conta Google. Cada caso de uso daqui diz, na descrição, em qual arquivo ele está em detalhe — e, se ainda não foi construído, avisa logo no começo.
+actors:
+  - name: Relator
+    description: Quem encontrou o problema e relatou. Está fora da empresa, não tem conta, e volta ao relato pelo link que recebeu ao enviar.
+    position: { x: 40, y: 266 }
+  - name: Visitante do site
+    description: Qualquer pessoa na página do cliente onde a ferramenta está. Não precisa ter relatado nada.
+    position: { x: 40, y: 646 }
+  - name: Membro do time
+    description: "Trabalha os relatos pelo painel: lê, move entre os estados, conversa com quem relatou, encerra e modera."
+    position: { x: 1010, y: 206 }
+  - name: Dono do projeto
+    description: Quem criou o projeto. Faz tudo o que o time faz e, além disso, põe o projeto no ar e decide como ele se comporta.
+    position: { x: 1010, y: 586 }
+  - name: Pesquisador
+    description: Quem estuda o efeito da ferramenta. Lê os dados de todos os projetos, sem nada que identifique alguém.
+    position: { x: 1010, y: 1200 }
+useCases:
+  - id: UC01
+    name: Relatar um problema
+    description: "Pela ferramenta, na página onde o problema apareceu: descreve, anexa print ou vídeo se quiser, e recebe o protocolo e o link de acompanhamento. Detalhe em 04-reporting."
+    width: 230
+    position: { x: 250, y: 20 }
+  - id: UC02
+    name: Ver os meus relatos
+    description: A lista de tudo o que a pessoa já relatou naquele projeto, pelo código pessoal. Só existe quando o projeto identifica quem relata por código. Detalhe em 04-reporting.
+    width: 230
+    position: { x: 250, y: 140 }
+  - id: UC03
+    name: Acompanhar o relato
+    description: Pelo link, vê por onde o relato passou, em que etapa está e o que vem depois — sem estado interno e sem nome de ninguém do time. Detalhe em 06-tracking.
+    width: 230
+    position: { x: 250, y: 260 }
+  - id: UC04
+    name: Responder ao time
+    description: Quando o time pede uma informação, responde pelo próprio relato, com texto e arquivo. Detalhe em 06-tracking.
+    width: 230
+    position: { x: 257, y: 378 }
+  - id: UC05
+    name: Confirmar ou reabrir
+    description: Depois que o time encerra, diz se resolveu — e dá uma nota — ou reabre, dizendo por quê. Detalhe em 06-tracking.
+    width: 230
+    position: { x: 250, y: 500 }
+  - id: UC06
+    name: Ver o que já foi relatado
+    description: A lista pública do projeto, dentro da ferramenta. Só relatos que o time liberou, e só em projeto público. Detalhe em 07-moderation.
+    width: 230
+    position: { x: 250, y: 640 }
+  - id: UC07
+    name: Trabalhar o relato
+    description: Lê o que chegou, comenta — por dentro ou para quem relatou — e move entre os estados que o projeto criou. Detalhe em 05-team-work.
+    width: 230
+    position: { x: 620, y: 20 }
+  - id: UC08
+    name: Pedir uma informação
+    description: Quando falta contexto, devolve a vez para quem relatou, com prazo, em vez de encerrar. Detalhe em 05-team-work.
+    width: 230
+    position: { x: 620, y: 140 }
+  - id: UC09
+    name: Encerrar com motivo
+    description: Diz como terminou — foi feito, não será feito, sem retorno ou já existia — e por quê. É o que quem relatou lê. Detalhe em 05-team-work.
+    width: 230
+    position: { x: 620, y: 260 }
+  - id: UC10
+    name: Moderar o que vira público
+    description: Decide, relato por relato, o que pode ser lido por estranhos. Detalhe em 07-moderation.
+    width: 230
+    position: { x: 620, y: 380 }
+  - id: UC11
+    name: Pôr o projeto no ar
+    description: Cria o projeto, pega as chaves e cola a ferramenta no site. Detalhe em 02-project-setup.
+    width: 230
+    position: { x: 620, y: 520 }
+  - id: UC12
+    name: Definir as regras do projeto
+    description: Estados internos, etapas públicas e o mapa entre eles, o ciclo, a identidade e a mídia. Detalhe em 03-project-rules.
+    width: 230
+    position: { x: 620, y: 640 }
+  - id: UC13
+    name: Receber os avisos do relato
+    description: Planejado. Quem deixou contato recebe por e-mail a mudança de etapa e o pedido de informação, e recupera o código pessoal. Detalhe em 10-communication.
+    width: 230
+    position: { x: 250, y: 760 }
+  - id: UC14
+    name: Personalizar o projeto
+    description: Planejado. Tipos de relato e o que cada um pergunta, textos com variáveis, capturas automáticas e como a ferramenta abre no site. Detalhe em 08-customization.
+    width: 230
+    position: { x: 620, y: 760 }
+  - id: UC15
+    name: Ver as métricas do projeto
+    description: Planejado. Os números do ciclo no painel. Detalhe em 09-research.
+    width: 230
+    position: { x: 620, y: 880 }
+  - id: UC16
+    name: Cuidar da conta
+    description: Planejado. Convidar membros, excluir a conta e apagar os dados. Detalhe em 11-account.
+    width: 230
+    position: { x: 620, y: 1000 }
+  - id: UC17
+    name: Levar os relatos para a ferramenta do time
+    description: "Continuidade. Jira ou Trello, e o resto do que o produto pode vir a ter: quadro arrastável, sprints, relatórios, áudio e voz, planos. Detalhe em 12-continuity."
+    width: 230
+    position: { x: 620, y: 1120 }
+  - id: UC18
+    name: Responder à pergunta de pesquisa
+    description: Planejado. Dar visibilidade a quem relatou reduz rechamada e contato redundante? E o quanto? Detalhe em 09-research.
+    width: 230
+    position: { x: 620, y: 1240 }
+links:
+  - from: Relator
+    to: UC01
+    kind: association
+  - from: Relator
+    to: UC02
+    kind: association
+  - from: Relator
+    to: UC03
+    kind: association
+  - from: Relator
+    to: UC04
+    kind: association
+  - from: Relator
+    to: UC05
+    kind: association
+  - from: Visitante do site
+    to: UC06
+    kind: association
+  - from: Relator
+    to: Visitante do site
+    kind: generalization
+  - from: Membro do time
+    to: UC07
+    kind: association
+  - from: Membro do time
+    to: UC08
+    kind: association
+  - from: Membro do time
+    to: UC09
+    kind: association
+  - from: Membro do time
+    to: UC10
+    kind: association
+  - from: Dono do projeto
+    to: UC11
+    kind: association
+  - from: Dono do projeto
+    to: UC12
+    kind: association
+  - from: Dono do projeto
+    to: Membro do time
+    kind: generalization
+  - from: Relator
+    to: UC13
+    kind: association
+  - from: Dono do projeto
+    to: UC14
+    kind: association
+  - from: Dono do projeto
+    to: UC15
+    kind: association
+  - from: Dono do projeto
+    to: UC16
+    kind: association
+  - from: Dono do projeto
+    to: UC17
+    kind: association
+  - from: Pesquisador
+    to: UC18
+    kind: association
+notes:
+  - text: "O centro do produto: o time move o relato por dentro, e a etapa que o relator vê anda sozinha por fora — o motor de tradução leva a mudança, sem ninguém avisar nada à mão."
+    anchor: UC07
+    position: { x: 500, y: -200 }
+  - text: Hoje cada conta tem uma pessoa só, que é dono e time ao mesmo tempo. Convidar outros membros está planejado em 11-account.
+    anchor: Dono do projeto
+    position: { x: 993, y: 772 }
+  - text: O relator é um tipo de visitante — faz tudo o que o visitante faz, e mais o que é dele.
+    anchor: Relator
+    position: { x: -290, y: 440 }
