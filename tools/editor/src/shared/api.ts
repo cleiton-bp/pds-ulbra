@@ -1,4 +1,4 @@
-import type { FileEntry } from '../types'
+import type { FileEntry } from '../modeling/types'
 
 /** Cliente da API de arquivos. Erro HTTP vira Error com `status` e o corpo da resposta. */
 

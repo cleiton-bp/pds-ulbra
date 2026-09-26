@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '../modeling/types'
 
 /** Transforma "Stage 1 — Foundation" em "stage-1-foundation.yaml". */
 export function toFileName(input: string): string {

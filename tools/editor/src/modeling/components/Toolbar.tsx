@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { SaveStatus } from '../hooks/useWorkspace'
+import type { SaveStatus } from '../../shared/useWorkspace'
 
 type ToolbarProps = {
   title: string

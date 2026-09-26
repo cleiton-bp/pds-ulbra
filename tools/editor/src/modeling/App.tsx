@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Viewport } from '@xyflow/react'
 
-import Banners from './components/Banners'
-import FileSidebar from './components/FileSidebar'
+import Banners from '../shared/Banners'
+import FileSidebar from '../shared/FileSidebar'
+import { useStickyToggle } from '../shared/useStickyToggle'
+import { useWorkspace } from '../shared/useWorkspace'
 import Toolbar from './components/Toolbar'
 import Board from './components/canvas/Board'
 import Inspector from './components/inspector/Inspector'
 import { useModelActions } from './hooks/useModelActions'
-import { useStickyToggle } from './hooks/useStickyToggle'
-import { useWorkspace } from './hooks/useWorkspace'
 import { COMMON_TYPES } from './model/constants'
 import type { Position, Selection } from './types'
 
@@ -44,11 +44,11 @@ export default function App() {
   // Nota que saiu da tela não pode continuar aberta no painel — nem a escondida pelo
   // liga/desliga, nem a que o filtro de herdadas tirou.
   useEffect(() => {
-    setSelection((current) => {
-      if (current?.type !== 'note') return current
+    setSelection((selected) => {
+      if (selected?.type !== 'note') return selected
       if (!showNotes) return null
-      const note = doc?.notes.find((n) => n.uid === current.uid)
-      return note && hideInherited && note.inherited ? null : current
+      const note = doc?.notes.find((n) => n.uid === selected.uid)
+      return note && hideInherited && note.inherited ? null : selected
     })
   }, [showNotes, hideInherited, doc])
 
@@ -82,6 +82,7 @@ export default function App() {
 
   const layout = [
     'app',
+    'app--modeling',
     showFiles ? '' : 'app--no-files',
     showPanel ? '' : 'app--no-panel',
     canEdit ? '' : 'app--no-doc',

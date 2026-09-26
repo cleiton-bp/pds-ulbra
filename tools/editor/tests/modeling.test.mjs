@@ -27,10 +27,10 @@ before(async () => {
     server: { middlewareMode: true },
     logLevel: 'error',
   })
-  ;({ parseDoc, emptyDoc } = await server.ssrLoadModule('/src/model/parse.ts'))
-  ;({ serializeDoc } = await server.ssrLoadModule('/src/model/serialize.ts'))
-  ops = await server.ssrLoadModule('/src/model/operations.ts')
-  geometry = await server.ssrLoadModule('/src/model/geometry.ts')
+  ;({ parseDoc, emptyDoc } = await server.ssrLoadModule('/src/modeling/model/parse.ts'))
+  ;({ serializeDoc } = await server.ssrLoadModule('/src/modeling/model/serialize.ts'))
+  ops = await server.ssrLoadModule('/src/modeling/model/operations.ts')
+  geometry = await server.ssrLoadModule('/src/modeling/model/geometry.ts')
 })
 
 after(async () => { await server?.close() })

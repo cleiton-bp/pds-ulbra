@@ -61,8 +61,7 @@ Editar à mão é seguro: falta de `position` vira grade, cardinalidade desconhe
 
 ```
 server/       API de arquivos (Vite serve tudo na mesma porta)
-src/model/    YAML ↔ estado — não sabe que React existe
-src/hooks/    documento aberto, autosave, conflito, ações
-src/components/  canvas/ (React Flow) · inspector/ (painel)
+src/shared/   lista de arquivos, faixas, autosave e conflito — o que não é só da modelagem
+src/modeling/  model/ (YAML ↔ estado, sem React) · hooks/ (ações) · components/ (canvas e painel)
 tests/        camada de modelo
 ```

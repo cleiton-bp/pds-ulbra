@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import * as api from '../api/client'
-import type { HttpError } from '../api/client'
-import { emptyDoc, parseDoc } from '../model/parse'
-import { serializeDoc } from '../model/serialize'
-import { withWarnings } from '../model/operations'
-import type { FileEntry, ModelDoc } from '../types'
+import * as api from './api'
+import type { HttpError } from './api'
+import { emptyDoc, parseDoc } from '../modeling/model/parse'
+import { serializeDoc } from '../modeling/model/serialize'
+import { withWarnings } from '../modeling/model/operations'
+import type { FileEntry, ModelDoc } from '../modeling/types'
 
 /**
  * O estado do editor: a lista de arquivos, o documento aberto e a gravacao.
