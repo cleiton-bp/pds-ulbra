@@ -1,0 +1,92 @@
+meta:
+  title: Exemplo — relator e time
+  system: PDS
+  description: Ponto de partida para conhecer o editor. Usa os quatro tipos de ligação — associação, inclusão, extensão e generalização — e traz a especificação completa de um caso de uso, o UC01.
+actors:
+  - name: Relator
+    description: Quem encontrou o problema. Está fora da empresa e não tem conta.
+    position: { x: 58, y: 194 }
+  - name: Membro do time
+    description: Trabalha o relato por dentro, no painel.
+    position: { x: 886, y: 90 }
+  - name: Administrador
+    description: Membro do time que também configura o projeto.
+    position: { x: 880, y: 380 }
+useCases:
+  - id: UC01
+    name: Abrir relato
+    description: Quem encontrou o problema descreve o que aconteceu e recebe um protocolo para acompanhar.
+    position: { x: 242, y: 22 }
+    preconditions: O widget do projeto está publicado na página.
+    mainFlow:
+      - O relator abre o widget na página onde encontrou o problema.
+      - Descreve o que aconteceu.
+      - Envia o relato.
+      - O sistema registra o relato e mostra o protocolo e o link de acompanhamento.
+    alternativeFlows:
+      - title: 2a. A descrição fica em branco
+        steps:
+          - O formulário não envia e pede a descrição.
+          - O relator volta ao passo 2.
+    postconditions: O relato existe, e quem relatou já o vê na etapa pública "Recebido".
+  - id: UC02
+    name: Anexar print ou gravação
+    description: O relator junta ao relato uma imagem ou um vídeo do problema.
+    position: { x: 260, y: 170 }
+  - id: UC03
+    name: Acompanhar relato
+    description: O relator vê em que etapa o relato está, o que já passou e o que vem depois — sem estado interno nem nome de responsável.
+    position: { x: 260, y: 320 }
+  - id: UC04
+    name: Confirmar ou reabrir
+    description: Depois que o time encerra, quem relatou diz se resolveu, ou reabre.
+    position: { x: 260, y: 450 }
+  - id: UC05
+    name: Mover relato entre os estados
+    description: O time leva o relato de um estado interno a outro; a etapa pública anda sozinha.
+    width: 210
+    position: { x: 540, y: 60 }
+  - id: UC06
+    name: Configurar as etapas públicas
+    description: Define as etapas que quem relata vê e liga cada estado interno a uma delas.
+    width: 210
+    position: { x: 540, y: 400 }
+  - id: UC07
+    name: Entrar com Google
+    description: O acesso ao painel é pela conta Google.
+    width: 210
+    position: { x: 540, y: 230 }
+links:
+  - from: Relator
+    to: UC01
+    kind: association
+  - from: UC02
+    to: UC01
+    kind: extend
+    note: quando o relator escolhe anexar
+  - from: Relator
+    to: UC03
+    kind: association
+  - from: UC04
+    to: UC03
+    kind: extend
+    note: quando o time encerrou o relato
+  - from: Membro do time
+    to: UC05
+    kind: association
+  - from: UC05
+    to: UC07
+    kind: include
+  - from: Administrador
+    to: Membro do time
+    kind: generalization
+  - from: Administrador
+    to: UC06
+    kind: association
+  - from: UC06
+    to: UC07
+    kind: include
+notes:
+  - text: O relator não tem conta. Acompanha pelo link, e é o link que prova que o relato é dele — por isso só por ele dá para confirmar ou reabrir.
+    anchor: Relator
+    position: { x: -134, y: 430 }

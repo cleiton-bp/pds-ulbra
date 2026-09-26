@@ -7,6 +7,7 @@
 
 import { after, before, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
@@ -261,6 +262,19 @@ describe('ida e volta', () => {
     assert.match(text, /from: Fantasma/)
     assert.match(text, /to: UC99/)
     assert.match(text, /anchor: Sumido/)
+  })
+
+  it('abre todo arquivo da pasta sem aviso e sem perder nada', () => {
+    // Os diagramas de verdade, e nao so o exemplo: um arquivo editado a mao que
+    // passou a ter aviso aparece aqui, e nao no dia em que alguem for apresenta-lo.
+    const dir = path.join(ROOT, 'database-models', 'use-cases')
+    const names = fs.readdirSync(dir).filter((name) => name.endsWith('.yaml'))
+    assert.ok(names.includes('example.yaml'))
+    for (const name of names) {
+      const doc = open(fs.readFileSync(path.join(dir, name), 'utf8'))
+      assert.deepEqual(doc.warnings, [], name)
+      assert.deepEqual(strip(open(serializeDoc(doc))), strip(doc), name)
+    }
   })
 })
 
