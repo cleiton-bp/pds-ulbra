@@ -2,7 +2,7 @@
 
 As modelagens do PDS, uma por etapa. Cada `.yaml` guarda entidades, campos, relações e as notas de explicação.
 
-Editadas pelo canvas do [editor](../../) (`npm run dev`) ou direto no editor de texto — os dois escrevem no mesmo arquivo, e o editor avisa quando o arquivo muda por fora.
+Editadas pelo ambiente **Modelagem** do [editor](../../) (`npm run dev`) ou direto no editor de texto — os dois escrevem no mesmo arquivo. O editor recarrega sozinho quando o arquivo muda por fora e, se houver edição na tela ainda não gravada, pergunta em vez de sobrescrever.
 
 | Arquivo | Cobre |
 |---|---|
@@ -27,4 +27,4 @@ O `06-reporter-identity.yaml` corrige outra, do mesmo tipo: cinco colunas existi
 
 Nomes seguem o [glossário](../../../../local/decisoes-de-projeto.md): entidade e campo em inglês, `label` e `note` em português. O nome do arquivo também é em inglês, com o número da etapa na frente — é ele que põe a lista na ordem —, e o título de dentro do arquivo é o nome curto da etapa, em português.
 
-O formato está documentado no [README do editor](../../README.md#o-arquivo).
+O formato está documentado no [README do editor](../../README.md#o-arquivo-de-modelagem).
