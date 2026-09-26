@@ -1,0 +1,139 @@
+meta:
+  title: O relator acompanha
+  system: PDS — página de acompanhamento
+  description: "O que quem relatou faz depois de enviar: acompanhar a jornada pelo link, responder quando o time pergunta, e, no fim, confirmar que resolveu ou reabrir. Tudo aqui acontece dentro do acompanhamento, por isso as outras ações estendem o UC01."
+actors:
+  - name: Relator
+    description: Quem relatou. Não tem conta — é o link recebido ao relatar que prova que o relato é dele.
+    position: { x: 40, y: 156 }
+  - name: Armazenamento de arquivos
+    kind: system
+    description: Guarda os arquivos da resposta, privado, como os do relato.
+    position: { x: 1270, y: 11 }
+useCases:
+  - id: UC01
+    name: Acompanhar o relato
+    description: Pelo link, vê por onde o relato passou, em que etapa está e o que vem depois — como quem acompanha uma entrega.
+    width: 220
+    position: { x: 260, y: 150 }
+    preconditions: Quem relatou tem o link do relato.
+    mainFlow:
+      - O relator abre o link que recebeu ao relatar.
+      - A página mostra a jornada — as etapas por onde já passou, a de agora e as que vêm depois, cada uma com a sua frase.
+      - Mostra os comentários públicos do time e os arquivos que o próprio relator mandou.
+      - Se o relato foi encerrado, mostra como terminou e por quê.
+    alternativeFlows:
+      - title: 1a. O relator chega pela lista pessoal, e não pelo link
+        steps:
+          - "A página abre só para leitura: confirmar, reabrir e responder pedem o link."
+      - title: 1b. O link não é de relato nenhum
+        steps:
+          - A página diz que não encontrou o relato, sem mostrar nada dele.
+  - id: UC02
+    name: Responder ao time
+    description: Quando o time pede uma informação, responde pelo próprio relato. A página deixa claro de quem é a vez.
+    width: 230
+    position: { x: 600, y: 0 }
+    preconditions: Há um pedido de informação aberto, e o relator chegou pelo link.
+    mainFlow:
+      - A página mostra a pergunta do time e avisa que a vez é de quem relatou, com o prazo.
+      - O relator escreve a resposta.
+      - Envia.
+      - A resposta entra na conversa do relato, e a vez volta para o time.
+    alternativeFlows:
+      - title: 1a. O primeiro prazo já passou
+        steps:
+          - A página muda de tom e avisa que o relato vai encerrar se não houver resposta.
+      - title: 1b. O segundo prazo passou sem resposta
+        steps:
+          - O relato já está encerrado como “sem retorno” — e ainda pode ser reaberto (UC06).
+    postconditions: O prazo para de correr.
+  - id: UC03
+    name: Anexar à resposta
+    description: "Um print junto da resposta — é ali que ele mais serve: o time olhou, não entendeu, e pede a tela."
+    width: 230
+    position: { x: 940, y: 0 }
+    preconditions: O projeto deixa anexar respondendo ao time.
+    mainFlow:
+      - O relator escolhe um arquivo ou cola um print, junto da resposta.
+      - O arquivo passa pelas mesmas regras do anexo do relato — permissão, envio direto ao armazenamento e conferência dos bytes.
+      - O arquivo fica preso à resposta, e não ao relato que já tinha entrado.
+  - id: UC04
+    name: Confirmar que resolveu
+    description: "O “entregue” do delivery: quem relatou diz que o problema foi mesmo resolvido."
+    width: 230
+    position: { x: 600, y: 150 }
+    preconditions: O time encerrou o relato, o encerramento já aparece para quem relatou, e o relator chegou pelo link.
+    mainFlow:
+      - A página mostra como terminou e o motivo.
+      - O relator escolhe confirmar.
+      - O sistema grava a confirmação.
+    postconditions: O relato está fechado dos dois lados. Não dá mais para reabrir.
+  - id: UC05
+    name: Dar nota ao atendimento
+    description: De 1 a 5, sobre como foi o tratamento. “Prefiro não responder” fica fora da escala, e é diferente de nunca ter respondido.
+    width: 230
+    position: { x: 940, y: 150 }
+    preconditions: O projeto pede nota.
+    mainFlow:
+      - Ao confirmar, a página pede a nota — em estrelas ou em número, como o projeto escolheu.
+      - O relator dá a nota, ou escolhe “prefiro não responder”.
+      - O sistema grava a nota junto da confirmação.
+    alternativeFlows:
+      - title: 2a. A nota não é obrigatória, e o relator não responde
+        steps:
+          - A confirmação vale sem nota, e fica registrado que não houve resposta.
+    postconditions: Respondeu, recusou ou não respondeu — três estados, separados na contagem.
+  - id: UC06
+    name: Reabrir o relato
+    description: Quem relatou diz que não resolveu. O relato volta para a fila do time, na coluna que o projeto escolheu.
+    width: 230
+    position: { x: 600, y: 300 }
+    preconditions: O relato foi encerrado e ainda não foi confirmado, o projeto permite reabrir, e o relator chegou pelo link.
+    mainFlow:
+      - O relator escolhe reabrir.
+      - Escreve por que está reabrindo, quando o projeto pede o comentário.
+      - O sistema devolve o relato para a coluna que o projeto configurou e grava a reabertura.
+      - A jornada pública volta junto, conforme o mapa daquela coluna.
+    alternativeFlows:
+      - title: 2a. O projeto pede o comentário, e ele fica em branco
+        steps:
+          - A página não reabre e pede o motivo.
+    postconditions: O relato está de novo na fila do time, com o comentário de quem reabriu. Quem reabre não dá nota.
+links:
+  - from: Relator
+    to: UC01
+    kind: association
+  - from: UC02
+    to: UC01
+    kind: extend
+    note: quando o time pediu uma informação e a vez é de quem relatou
+  - from: UC03
+    to: UC02
+    kind: extend
+    note: quando o projeto deixa anexar respondendo
+  - from: Armazenamento de arquivos
+    to: UC03
+    kind: association
+  - from: UC04
+    to: UC01
+    kind: extend
+    note: quando o time encerrou e o relato ainda não foi confirmado
+  - from: UC05
+    to: UC04
+    kind: extend
+    note: quando o projeto pede nota
+  - from: UC06
+    to: UC01
+    kind: extend
+    note: quando o time encerrou, o projeto permite reabrir, e o relato ainda não foi confirmado
+notes:
+  - text: A página mostra só o que foi montado campo a campo para o lado de fora. Comentário interno, estado interno e nome de quem trabalhou nunca atravessam.
+    anchor: UC01
+    position: { x: 250, y: 290 }
+  - text: "Concluído e confirmado são momentos diferentes: o time diz que acabou, quem relatou diz que resolveu. Depois de confirmar não dá mais para reabrir — o problema que volta é outro relato."
+    anchor: UC04
+    position: { x: 900, y: 262 }
+  - text: O time pergunta com prazo. Passado o primeiro, a página avisa que vai encerrar; passado o segundo, encerra como “sem retorno” — e continua reabrível.
+    anchor: UC02
+    position: { x: 560, y: -210 }

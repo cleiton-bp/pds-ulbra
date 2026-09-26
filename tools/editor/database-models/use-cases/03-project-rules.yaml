@@ -1,0 +1,168 @@
+meta:
+  title: Regras do projeto
+  system: PDS — painel
+  description: "O que o dono decide sobre o comportamento do projeto. Tudo tem padrão de fábrica: projeto novo anda sem ninguém abrir estas telas. Aqui está o lado da configuração; o lado de quem usa está nos diagramas 04 a 07."
+actors:
+  - name: Dono do projeto
+    description: Quem criou o projeto. É quem decide como a fila, a jornada pública e o ciclo se comportam.
+    position: { x: -180, y: 318 }
+useCases:
+  - id: UC01
+    name: Definir os estados internos
+    description: As colunas da fila do time, com os nomes que o time usa. São do cliente, e não do PDS — é isso que dá trabalho ao motor de tradução.
+    width: 250
+    position: { x: 260, y: 0 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Estados.
+      - Cria os estados que o time usa, cada um com um nome.
+      - Põe os estados na ordem da fila.
+      - Escolhe em qual estado entra cada tipo de relato — defeito, melhoria ou dúvida.
+      - Renomeia ou aposenta o que não serve mais.
+    alternativeFlows:
+      - title: 5a. O estado aposentado ainda tem relatos
+        steps:
+          - "Ele sai da fila, mas não some: os relatos antigos continuam apontando para ele, e o histórico continua legível."
+      - title: 5b. O estado é a entrada de algum tipo de relato
+        steps:
+          - O painel não aposenta, e pede para escolher outro destino para aquele tipo antes.
+      - title: 5c. O dono reativa um estado aposentado
+        steps:
+          - O estado volta para a fila com o mesmo nome, e volta a poder receber relatos.
+    postconditions: Todo relato novo cai no estado de entrada do tipo dele — sem escolha, no primeiro estado ativo.
+  - id: UC02
+    name: Desenhar as etapas públicas
+    description: "A jornada que quem relatou vê: de 3 a 7 etapas, cada uma com um rótulo curto e uma frase para quem está esperando."
+    width: 250
+    position: { x: 260, y: 125 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - "O dono abre Etapas públicas, que já vem com a jornada de fábrica: Recebido, Em análise, Em desenvolvimento, Em teste pela equipe e Concluído."
+      - Acrescenta, remove, reordena ou reescreve as etapas.
+      - Em cada etapa, escreve o rótulo, a frase que explica e, se quiser, o que vem depois.
+      - Marca as etapas terminais, cada uma com o desfecho que representa, e as que permitem retorno.
+      - Salva.
+    alternativeFlows:
+      - title: 2a. Passar de 7 etapas, ou ficar com menos de 3
+        steps:
+          - O sistema não deixa. Menos que isso não conta uma história; mais que isso cria etapa decorativa, que nunca anda e faz a linha do tempo mentir.
+    postconditions: A página de acompanhamento passa a mostrar a jornada nova.
+  - id: UC03
+    name: Ligar os estados às etapas
+    description: "O mapa: vários estados internos caem numa mesma etapa pública, porque o time precisa de um detalhe que quem relatou não precisa."
+    width: 250
+    position: { x: 260, y: 250 }
+    preconditions: Existem estados internos (UC01) e etapas públicas (UC02).
+    mainFlow:
+      - Na tela das etapas, o dono vê a lista dos estados internos, sem digitar nada.
+      - Escolhe, para cada estado, a etapa pública em que ele cai.
+      - Salva.
+      - O sistema grava uma versão nova do mapa.
+    alternativeFlows:
+      - title: 2a. Um estado fica sem etapa
+        steps:
+          - O relato que entra nesse estado fica na etapa em que estava, o evento é gravado como não mapeado, e o dono é avisado. Nada vaza e nada quebra.
+    postconditions: Daqui em diante, mover o relato por dentro move a etapa por fora. O mapa antigo continua valendo para o que já aconteceu.
+  - id: UC04
+    name: Definir as regras do ciclo
+    description: "Como o relato termina: o gesto que encerra, a espera antes de quem relatou ver, a reabertura, a nota e o pedido de informação."
+    width: 250
+    position: { x: 260, y: 375 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Ciclo.
+      - Escolhe como o time encerra — ao cair na última coluna, ou por um botão.
+      - Escolhe quantos minutos o lado de fora espera antes de ver uma mudança — a janela para desfazer um movimento feito por engano.
+      - Decide se quem relatou pode reabrir, para qual coluna o relato volta, e se reabrir pede um comentário.
+      - Decide se existe nota ao confirmar, como ela aparece — estrelas ou número — e se é obrigatória.
+      - Decide se o time pode pedir informação, e os dois prazos — o do aviso e o do encerramento.
+      - Escolhe se a caixa “aceito responder dúvidas” já vem marcada na ferramenta.
+      - Salva.
+    alternativeFlows:
+      - title: 3a. Não há agendador disponível
+        steps:
+          - O sistema recusa a espera maior que zero e diz por quê.
+    postconditions: "Projeto que nunca abriu esta tela anda com os padrões de fábrica: encerra na última coluna, sem espera, reabre com comentário, nota em estrelas opcional, e pedido de informação com 7 + 7 dias."
+  - id: UC05
+    name: Escolher identidade e visibilidade
+    description: "Como quem relata é reconhecido, e quem pode ler os relatos. As duas perguntas se amarram: sem identidade não existe “o meu relato”."
+    width: 250
+    position: { x: 260, y: 500 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Identidade.
+      - Escolhe o modo — protocolo, que é o padrão; código pessoal; ou identidade herdada, que pode ser escolhida mas ainda não é lida — adiada, ver 04-reporting.
+      - Escolhe a visibilidade — privado, que é o padrão; público anônimo; ou público identificado.
+      - Decide se a ferramenta pergunta o nome de quem relata — sempre opcional para quem escreve.
+      - Salva.
+    alternativeFlows:
+      - title: 3a. Público identificado sem identidade
+        steps:
+          - "O sistema recusa o par e diz a saída: escolher o código pessoal, ou publicar como anônimo. Nada é gravado."
+    postconditions: Trocar de modo não quebra relato antigo. Escolher público não publica nada sozinho — ver 07-moderation.
+  - id: UC06
+    name: Configurar a mídia
+    description: "O que a ferramenta coleta além do texto: imagem, vídeo curto de tela e a captura pedida."
+    width: 250
+    position: { x: 260, y: 625 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Mídia.
+      - Liga ou desliga o anexo.
+      - Para imagem, escolhe quantas e o tamanho máximo de cada uma.
+      - Para vídeo, escolhe quantos e a duração máxima.
+      - Decide se aparece o botão de capturar a tela, e se dá para anexar respondendo ao time.
+      - Salva.
+    alternativeFlows:
+      - title: 2a. Não há armazenamento de arquivos configurado
+        steps:
+          - A mídia fica indisponível, e a tela recusa ligá-la, dizendo por quê.
+      - title: 6a. Um limite passa do teto do sistema
+        steps:
+          - O sistema recusa e diz o teto. O limite vale no servidor, e não só na ferramenta.
+    postconditions: Desligar o vídeo tira o botão de gravar da ferramenta, e o servidor recusa vídeo mandado por fora dela.
+  - id: UC07
+    name: Definir por quanto tempo a mídia fica
+    description: "Adiado. O prazo de guarda de cada arquivo. Hoje nada é apagado por prazo: o mecanismo de limite existe, com padrão generoso, e a rotina de retenção não foi escrita."
+    width: 250
+    position: { x: 260, y: 750 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Mídia.
+      - Escolhe por quanto tempo os arquivos ficam guardados.
+      - Salva.
+    postconditions: Quando o prazo de um arquivo vence, o agendador o apaga — ver 05-team-work.
+links:
+  - from: Dono do projeto
+    to: UC01
+    kind: association
+  - from: Dono do projeto
+    to: UC02
+    kind: association
+  - from: Dono do projeto
+    to: UC03
+    kind: association
+  - from: Dono do projeto
+    to: UC04
+    kind: association
+  - from: Dono do projeto
+    to: UC05
+    kind: association
+  - from: Dono do projeto
+    to: UC06
+    kind: association
+  - from: Dono do projeto
+    to: UC07
+    kind: association
+notes:
+  - text: "De cima para baixo é a ordem em que faz sentido configurar: sem estados e etapas não há o que ligar, e o ciclo usa os dois. Mas nada aqui é obrigatório."
+    position: { x: 590, y: 10 }
+  - text: O motor não anda para trás sozinho. Regressão interna não vira regressão pública, a não ser para uma etapa que permite retorno — e o retrocesso continua gravado por dentro.
+    anchor: UC03
+    position: { x: 590, y: 225 }
+  - text: Com código pessoal, quem relata ganha um código sorteado que reencontra todos os seus relatos. Perder o código custa a lista, não os relatos.
+    anchor: UC05
+    position: { x: 590, y: 490 }
+  - text: "A decidir, junto com a retenção: o prazo, o teto e a cobrança. Por enquanto, nada é apagado por prazo — apagar um print no meio de um relato aberto seria a falha mais constrangedora possível."
+    anchor: UC07
+    position: { x: 590, y: 760 }

@@ -1,0 +1,136 @@
+meta:
+  title: Comunicação
+  system: PDS — avisos
+  description: Planejado. Os avisos por e-mail a quem relatou — a etapa que mudou, o pedido de informação, o código perdido — e o contato que os torna possíveis. Enquanto os avisos não existem, a página de acompanhamento é o único lugar onde quem relatou descobre qualquer coisa. Todo aviso sai por evento numa fila, e nunca dentro da requisição que moveu o relato.
+actors:
+  - name: Relator
+    description: Quem relatou e, se quis, deixou um contato.
+    position: { x: 40, y: 60 }
+  - name: Dono do projeto
+    description: Decide quais avisos saem e o que cada um diz.
+    position: { x: 97, y: 550 }
+  - name: Agendador
+    kind: system
+    description: A fila que segura a espera e os prazos. Aqui ela também leva os avisos.
+    position: { x: 65, y: 236 }
+  - name: Serviço de e-mail
+    kind: system
+    description: Entrega o e-mail. Uma falha nele não desfaz nada no relato — só o aviso não sai.
+    position: { x: 1, y: 399 }
+useCases:
+  - id: UC01
+    name: Deixar um contato ao relatar
+    description: Planejado. Um e-mail opcional junto do relato, para o time conseguir voltar a quem relatou — o canal de volta que o modo sem login não tem.
+    position: { x: 303, y: -105 }
+    preconditions: O projeto pede contato.
+    mainFlow:
+      - A ferramenta mostra o campo de contato, opcional, dizendo para que ele serve.
+      - O relator informa o e-mail, ou deixa em branco.
+      - Envia o relato.
+    alternativeFlows:
+      - title: 2a. O contato fica em branco
+        steps:
+          - O relato entra igual. Sem contato, ele só anda se a pessoa voltar pelo link.
+    postconditions: "O contato é interno: só o time vê, e só os avisos o usam."
+  - id: UC02
+    name: Ser avisado de que a etapa mudou
+    description: Planejado. Quando a jornada pública anda, quem deixou contato recebe o aviso, com a etapa nova, a frase dela e o link.
+    position: { x: 573, y: -49 }
+    preconditions: O relator deixou contato.
+    mainFlow:
+      - A etapa pública do relato muda, depois da espera que o projeto configurou.
+      - O sistema monta o aviso com o texto do projeto e o envia.
+    alternativeFlows:
+      - title: 1a. O time desfaz o movimento dentro da espera
+        steps:
+          - Nada muda do lado de fora, e nenhum aviso sai.
+    postconditions: Quem relatou sabe que o relato andou sem precisar abrir o link.
+  - id: UC03
+    name: Ser avisado do pedido de informação
+    description: Planejado. Quando o time pergunta, quem relatou recebe a pergunta e o prazo; passado o primeiro prazo sem resposta, recebe o aviso de que o relato vai encerrar.
+    position: { x: 280, y: 170 }
+    preconditions: O relator deixou contato, e o time pediu uma informação.
+    mainFlow:
+      - O sistema avisa quem relatou, com a pergunta, o prazo e o link para responder.
+      - "Passado o primeiro prazo sem resposta, o agendador manda o segundo aviso: o relato vai encerrar."
+    alternativeFlows:
+      - title: 2a. Quem relatou respondeu antes
+        steps:
+          - A checagem do prazo chega, vê a resposta e não avisa nada.
+  - id: UC04
+    name: Recuperar o código pessoal
+    description: Planejado. Quem perdeu o código pessoal pede de novo pelo e-mail que deixou. Perder o código custa a lista, não os relatos.
+    position: { x: 426, y: 62 }
+    preconditions: O projeto identifica quem relata por código pessoal, e o relator deixou e-mail.
+    mainFlow:
+      - O relator pede para recuperar o código, informando o e-mail.
+      - O sistema manda o código para aquele e-mail, se ele estiver ligado a algum.
+      - A ferramenta responde sempre a mesma coisa, exista o código ou não.
+    alternativeFlows:
+      - title: 1a. Pedidos seguidos
+        steps:
+          - Cada pedido novo espera mais que o anterior, com o limite controlado pela API.
+    postconditions: Com o código de volta, a lista pessoal volta também.
+  - id: UC05
+    name: Enviar o aviso
+    description: "Planejado. O caminho comum dos avisos: lê o evento já gravado, monta o e-mail e entrega ao serviço de e-mail."
+    position: { x: 299, y: 372 }
+    mainFlow:
+      - A fila lê o evento, que já foi gravado junto do movimento.
+      - Monta o e-mail com o texto do projeto.
+      - Entrega ao serviço de e-mail.
+    alternativeFlows:
+      - title: 3a. O serviço de e-mail falha
+        steps:
+          - "O aviso tenta de novo depois. O relato não volta atrás: ele foi movido, só o aviso não saiu."
+  - id: UC06
+    name: Escrever os avisos
+    description: Planejado. Quais avisos saem e o que cada um diz, com as mesmas variáveis dos textos da ferramenta, em 08-customization. Todos vêm com texto pronto de fábrica.
+    position: { x: 309, y: 570 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Avisos.
+      - Liga ou desliga cada aviso.
+      - Reescreve o texto de cada um.
+      - Salva.
+links:
+  - from: Relator
+    to: UC01
+    kind: association
+  - from: Relator
+    to: UC02
+    kind: association
+  - from: Relator
+    to: UC03
+    kind: association
+  - from: Relator
+    to: UC04
+    kind: association
+  - from: Dono do projeto
+    to: UC06
+    kind: association
+  - from: UC02
+    to: UC05
+    kind: include
+  - from: UC03
+    to: UC05
+    kind: include
+  - from: UC04
+    to: UC05
+    kind: include
+  - from: Agendador
+    to: UC03
+    kind: association
+  - from: Agendador
+    to: UC05
+    kind: association
+  - from: Serviço de e-mail
+    to: UC05
+    kind: association
+notes:
+  - text: "Publicar na fila dentro da transação seria escrever em dois lugares que podem discordar. A fila lê o que já foi gravado: a tabela de eventos nasce no momento certo, e o evento de mudança de etapa já é o gatilho."
+    anchor: UC05
+    position: { x: 840, y: 40 }
+  - text: "Em aberto: quando a identidade vem do sistema do cliente e não há e-mail, como avisar quem relatou. Depende da identidade herdada."
+    anchor: UC01
+    position: { x: 498, y: -281 }
