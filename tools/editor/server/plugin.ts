@@ -3,8 +3,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createFile, deleteFile, fail, listFiles, readFile, writeFile, type ApiError } from './files'
 
 /**
- * API de arquivos servida pelo proprio Vite — um comando so, uma porta so, para
- * todos os ambientes. Cada um fala com a sua pasta:
+ * API de arquivos servida pelo proprio Vite — um comando so, uma porta so, para os
+ * dois ambientes. Cada um fala com a sua pasta:
  *
  *   GET    /api/<pasta>/files
  *   GET    /api/<pasta>/file?name=…      PUT / POST  /api/<pasta>/file

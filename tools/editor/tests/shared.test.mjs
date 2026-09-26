@@ -1,5 +1,5 @@
 /**
- * Testes do que os ambientes dividem: comentario no yaml, endereco da tela e
+ * Testes do que os dois ambientes dividem: comentario no yaml, endereco da tela e
  * as regras do servidor sobre qual pasta e qual nome aceitar.
  *
  * Roda com `npm test`, carregando os modulos TypeScript pelo proprio Vite.
@@ -56,7 +56,7 @@ describe('comentário no arquivo', () => {
 describe('endereço da tela', () => {
   it('lê o ambiente e o arquivo do #', () => {
     assert.deepEqual(parseHash('#/modeling/07-media-attachments.yaml'), { env: 'modeling', file: '07-media-attachments.yaml' })
-    assert.deepEqual(parseHash('#/modeling'), { env: 'modeling', file: null })
+    assert.deepEqual(parseHash('#/use-cases'), { env: 'use-cases', file: null })
     assert.deepEqual(parseHash('#/'), { env: null, file: null })
     assert.deepEqual(parseHash(''), { env: null, file: null })
   })
@@ -69,15 +69,15 @@ describe('endereço da tela', () => {
     for (const route of [
       { env: null, file: null },
       { env: 'modeling', file: null },
-      { env: 'modeling', file: 'example.yaml' },
+      { env: 'use-cases', file: 'example.yaml' },
     ]) assert.deepEqual(parseHash(routeHash(route)), route)
   })
 })
 
 describe('servidor: pasta e nome', () => {
-  it('só abre as pastas de conteúdo', () => {
-    // Uma pasta por ambiente, dentro de `database-models/`.
-    for (const collection of ['modeling']) {
+  it('só abre as duas pastas de conteúdo', () => {
+    // Uma pasta por ambiente, as duas dentro de `database-models/`.
+    for (const collection of ['modeling', 'use-cases']) {
       const dir = files.collectionDir(collection)
       assert.equal(path.basename(dir), collection)
       assert.equal(path.basename(path.dirname(dir)), 'database-models')
@@ -89,7 +89,7 @@ describe('servidor: pasta e nome', () => {
 
   it('recusa nome que sairia da pasta, sem tocar no disco', async () => {
     for (const name of ['../package.json', 'a/b.yaml', '.hidden.yaml', 'x.json', '', '..yaml', 42]) {
-      await assert.rejects(files.readFile('modeling', name), (err) => err.status === 400, String(name))
+      await assert.rejects(files.readFile('use-cases', name), (err) => err.status === 400, String(name))
     }
   })
 })

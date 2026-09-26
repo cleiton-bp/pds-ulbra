@@ -1,6 +1,8 @@
 /*
  * Editor de modelagem — o que so ele usa. Tudo aqui vale apenas dentro de
- * `.app--modeling`. O que os ambientes dividem mora em `shared/base.css`.
+ * `.app--modeling`: os casos de uso usam os mesmos nomes de classe (`.handle-box`,
+ * `.note-node`, `.chip`) com outro desenho. O que os dois dividem mora em
+ * `shared/base.css`.
  */
 
 .app--modeling {

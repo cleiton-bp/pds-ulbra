@@ -9,60 +9,55 @@ import { useEditorSession } from '../shared/session'
 import { useStickyToggle } from '../shared/useStickyToggle'
 import { useWorkspace } from '../shared/useWorkspace'
 import Toolbar from './components/Toolbar'
-import Board from './components/canvas/Board'
+import Board, { type MeasuredSizes } from './components/canvas/Board'
 import Inspector from './components/inspector/Inspector'
-import { MODELING_FORMAT } from './format'
-import { useModelActions } from './hooks/useModelActions'
-import { COMMON_TYPES } from './model/constants'
+import { USE_CASE_FORMAT } from './format'
+import { useDiagramActions } from './hooks/useDiagramActions'
 import type { Position, Selection } from './types'
 
-const ENV = environmentById('modeling')
+const ENV = environmentById('use-cases')
 
-/** Junta as três áreas da tela. A lógica de verdade mora nos hooks e em `model/`. */
+/** Junta as tres areas da tela. A logica de verdade mora nos hooks e em `model/`. */
 export default function App() {
   const session = useEditorSession(ENV.id)
-  const workspace = useWorkspace(ENV.collection, MODELING_FORMAT, session)
+  const workspace = useWorkspace(ENV.collection, USE_CASE_FORMAT, session)
   const { doc, current, parseError } = workspace
   const [selection, setSelection] = useState<Selection>(null)
 
   // Sair pelo inicio ou pela aba do outro ambiente grava antes o que ficou pendente.
   useLeaveGuard(workspace.leave)
 
-  const [showFiles, toggleFiles] = useStickyToggle('modeling:files', true)
-  const [showPanel, togglePanel] = useStickyToggle('modeling:panel', true)
-  const [showNotes, toggleNotes] = useStickyToggle('modeling:notes', true)
-  const [hideInherited, toggleInherited] = useStickyToggle('modeling:notes-herdadas', false)
-  const [focusNotes, toggleFocus] = useStickyToggle('modeling:notes-realce', false)
-  const [focusNew, toggleFocusNew] = useStickyToggle('modeling:tabelas-realce', false)
+  const [showFiles, toggleFiles] = useStickyToggle('use-cases:files', true)
+  const [showPanel, togglePanel] = useStickyToggle('use-cases:panel', true)
+  const [showNotes, toggleNotes] = useStickyToggle('use-cases:notes', true)
+  const [showBoundary, toggleBoundary] = useStickyToggle('use-cases:boundary', true)
+  const [focus, toggleFocus] = useStickyToggle('use-cases:focus', false)
 
   const canvasRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<Viewport>({ x: 0, y: 0, zoom: 1 })
+  // O tamanho medido de cada elemento, que o canvas preenche — para o elemento novo
+  // nao nascer em cima de uma nota alta ou de um nome de ator comprido.
+  const sizesRef = useRef<MeasuredSizes>({})
 
-  // Caixa nova nasce no meio do que está visível — criar fora da tela parece que não funcionou.
-  const nextPosition = useCallback((): Position => {
+  // Elemento novo nasce no meio do que esta visivel — criar fora da tela parece que nao funcionou.
+  const visibleCenter = useCallback((): Position => {
     const box = canvasRef.current?.getBoundingClientRect()
-    if (!box) return { x: 80, y: 80 }
+    if (!box) return { x: 200, y: 160 }
     const { x, y, zoom } = viewportRef.current
     return {
-      x: Math.round((-x + box.width / 2) / zoom) - 110,
-      y: Math.round((-y + box.height / 2) / zoom) - 60,
+      x: Math.round((-x + box.width / 2) / zoom),
+      y: Math.round((-y + box.height / 2) / zoom),
     }
   }, [])
 
-  const actions = useModelActions({ update: workspace.update, setSelection, nextPosition })
+  const actions = useDiagramActions({ update: workspace.update, setSelection, visibleCenter, sizesRef })
 
-  // Nota que saiu da tela não pode continuar aberta no painel — nem a escondida pelo
-  // liga/desliga, nem a que o filtro de herdadas tirou.
+  // Nota que saiu da tela nao pode continuar aberta no painel.
   useEffect(() => {
-    setSelection((selected) => {
-      if (selected?.type !== 'note') return selected
-      if (!showNotes) return null
-      const note = doc?.notes.find((n) => n.uid === selected.uid)
-      return note && hideInherited && note.inherited ? null : selected
-    })
-  }, [showNotes, hideInherited, doc])
+    if (!showNotes) setSelection((selected) => (selected?.type === 'note' ? null : selected))
+  }, [showNotes])
 
-  // Criar nota com as notas escondidas pareceria que o botão não funcionou.
+  // Criar nota com as notas escondidas pareceria que o botao nao funcionou.
   const addNote = useCallback((): void => {
     if (!showNotes) toggleNotes()
     actions.addNote()
@@ -81,19 +76,21 @@ export default function App() {
     // So quando o endereco pede outro arquivo — nao a cada arquivo aberto pela lista.
   }, [requestedFile])
 
-  // Alt+1 / Alt+2 abrem e fecham as laterais, Alt+3 esconde as notas — sem tirar a mão
-  // do teclado. `code`, e não `key`: no Mac, Alt+1 digita "¡".
+  // Alt+1 / Alt+2 abrem e fecham as laterais, Alt+3 esconde as notas e Alt+4 liga o
+  // realce — sem tirar a mao do teclado. `code`, e nao `key`: no Mac, Alt+1 digita "¡".
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (!event.altKey) return
-      const toggle = { Digit1: toggleFiles, Digit2: togglePanel, Digit3: toggleNotes }[event.code]
+      const toggle = {
+        Digit1: toggleFiles, Digit2: togglePanel, Digit3: toggleNotes, Digit4: toggleFocus,
+      }[event.code]
       if (!toggle) return
       event.preventDefault()
       toggle()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [toggleFiles, togglePanel, toggleNotes])
+  }, [toggleFiles, togglePanel, toggleNotes, toggleFocus])
 
   const canEdit = Boolean(doc) && !parseError
   const title = current
@@ -102,7 +99,7 @@ export default function App() {
 
   const layout = [
     'app',
-    'app--modeling',
+    'app--use-cases',
     showFiles ? '' : 'app--no-files',
     showPanel ? '' : 'app--no-panel',
     canEdit ? '' : 'app--no-doc',
@@ -110,18 +107,12 @@ export default function App() {
 
   return (
     <div className={layout}>
-      {/* Sugestões do campo "tipo". Fica no topo porque é usada pelo painel e pelo
-          canvas, e o painel pode estar fechado. */}
-      <datalist id="common-types">
-        {COMMON_TYPES.map((type) => <option key={type} value={type} />)}
-      </datalist>
-
       <FileSidebar
         env={ENV}
         files={workspace.files}
         current={current}
         dir={workspace.dir}
-        placeholder="nova modelagem (nome em inglês)…"
+        placeholder="novo arquivo (nome em inglês)…"
         onOpen={(name) => openFile(name)}
         onCreate={workspace.create}
         onDelete={workspace.remove}
@@ -135,20 +126,16 @@ export default function App() {
           showFiles={showFiles}
           showPanel={showPanel}
           showNotes={showNotes}
-          hideInherited={hideInherited}
-          focusNotes={focusNotes}
+          showBoundary={showBoundary}
+          focus={focus}
           noteCount={doc?.notes.length ?? 0}
-          inheritedCount={doc?.notes.filter((note) => note.inherited).length ?? 0}
-          entityCount={doc?.entities.length ?? 0}
-          newEntityCount={doc?.entities.filter((entity) => !entity.inherited).length ?? 0}
-          focusNew={focusNew}
           onToggleFiles={toggleFiles}
           onTogglePanel={togglePanel}
           onToggleNotes={toggleNotes}
-          onToggleInherited={toggleInherited}
+          onToggleBoundary={toggleBoundary}
           onToggleFocus={toggleFocus}
-          onToggleFocusNew={toggleFocusNew}
-          onAddEntity={actions.addEntity}
+          onAddActor={actions.addActor}
+          onAddUseCase={actions.addUseCase}
           onAddNote={addNote}
         />
 
@@ -170,27 +157,29 @@ export default function App() {
           {doc && canEdit ? (
             <Board
               // Um Board por arquivo: cada um abre enquadrado, e nada de tela (texto
-              // aberto, medida dos nós) passa de um arquivo para o outro.
+              // aberto, medida dos nos) passa de um arquivo para o outro.
               key={current ?? ''}
               doc={doc}
               showNotes={showNotes}
-              hideInherited={hideInherited}
-              focusNotes={focusNotes}
-              focusNew={focusNew}
+              showBoundary={showBoundary}
+              focus={focus}
               selection={selection}
               onSelect={setSelection}
               actions={actions}
+              sizesRef={sizesRef}
               onViewportChange={(viewport) => { viewportRef.current = viewport }}
             />
           ) : (
             <div className="empty-state">
-              <p>Escolha uma modelagem na lista, ou crie uma nova.</p>
+              <p>Escolha um arquivo de casos de uso na lista, ou crie um novo.</p>
             </div>
           )}
         </div>
       </main>
 
-      {doc && canEdit && <Inspector doc={doc} selection={selection} actions={actions} />}
+      {doc && canEdit && (
+        <Inspector doc={doc} selection={selection} actions={actions} onSelect={setSelection} />
+      )}
     </div>
   )
 }

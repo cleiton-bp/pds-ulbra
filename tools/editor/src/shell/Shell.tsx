@@ -5,10 +5,12 @@ import { NavigationProvider, useNavigation } from '../shared/navigation'
 import Home from './Home'
 
 /**
- * O editor de cada ambiente. So e baixado quando se entra nele: o inicio abre leve.
+ * O editor de cada ambiente. So e baixado quando se entra nele: o inicio abre leve,
+ * e quem so mexe na modelagem nunca carrega o editor de casos de uso.
  */
 const EDITORS: Record<EnvironmentId, LazyExoticComponent<ComponentType>> = {
   modeling: lazy(() => import('../modeling/App')),
+  'use-cases': lazy(() => import('../use-cases/App')),
 }
 
 /**
@@ -19,7 +21,7 @@ function Screen() {
   const { route } = useNavigation()
 
   useEffect(() => {
-    document.title = route.env ? `${environmentById(route.env).title} — PDS` : 'Modelagem — PDS'
+    document.title = route.env ? `${environmentById(route.env).title} — PDS` : 'Modelagem e casos de uso — PDS'
   }, [route.env])
 
   if (!route.env) return <Home />

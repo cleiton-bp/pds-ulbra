@@ -25,6 +25,6 @@ O `03-team-workflow.yaml` corrige uma defasagem: `project_widget_settings` já e
 
 O `06-reporter-identity.yaml` corrige outra, do mesmo tipo: cinco colunas existiam no banco sem estar em desenho nenhum — `avatar_url` e `last_login_at` em `users`, `last_used_at` em `project_keys`, e o `public_id` de `project_initial_states` e de `report_contexts`. Aparecem ali como herdadas, e os arquivos anteriores continuam como estavam.
 
-Nomes seguem o [glossário](../../../../local/decisoes-de-projeto.md): entidade e campo em inglês, `label` e `note` em português. O nome do arquivo também é em inglês, com o número da etapa na frente — é ele que põe a lista na ordem —, e o título de dentro do arquivo é o nome curto da etapa, em português.
+Nomes seguem o [glossário](../../../../local/decisoes-de-projeto.md): entidade e campo em inglês, `label` e `note` em português. O nome do arquivo também é em inglês, com o número da etapa na frente — é ele que põe a lista na ordem —, e o título de dentro do arquivo é o nome curto da etapa, em português. O mesmo padrão dos [casos de uso](../use-cases/).
 
 O formato está documentado no [README do editor](../../README.md#o-arquivo-de-modelagem).
