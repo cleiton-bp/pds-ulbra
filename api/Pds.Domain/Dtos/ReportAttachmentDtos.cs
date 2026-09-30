@@ -58,9 +58,13 @@ public class RequestAttachmentUploadDto
     /// criacao do relato.
     ///
     /// <para><b>Nao diz qual resposta, e e de proposito.</b> O servidor prende o
-    /// arquivo a resposta mais recente de quem relatou, se ela for dos ultimos
+    /// arquivo a resposta mais recente de quem relatou, se ela for dos ultimos 15
     /// minutos. Aceitar um identificador vindo de fora obrigaria a conferir de quem
     /// ele e — e cada conferencia a mais e uma chance de esquecer uma.</para>
+    ///
+    /// <para>Sem ele, o arquivo vai com a criacao do relato. Nos dois casos a
+    /// permissao so sai nos 15 minutos depois do envio, e cada permissao tem 1 hora
+    /// para ser confirmada.</para>
     /// </summary>
     /// <example>false</example>
     public bool? ForReply { get; set; }

@@ -29,6 +29,20 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Trava a cota de anexos do relato ate a transacao atual terminar.
+    ///
+    /// <para><b>E ela que faz o limite valer com envios ao mesmo tempo.</b> Contar e
+    /// depois confirmar sao dois passos; sem a trava, duas confirmacoes contam juntas,
+    /// as duas veem vaga, e as duas entram. Com ela, a segunda so conta depois de a
+    /// primeira terminar — e ja a ve.</para>
+    ///
+    /// <para>So vale dentro de uma transacao (<c>InTransactionAsync</c>); fora dela
+    /// o banco soltaria a trava no fim do proprio comando, sem avisar, e por isso a
+    /// chamada fora de uma e recusada.</para>
+    /// </summary>
+    Task LockUploadQuotaAsync(long reportId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// O anexo <b>pendente</b> daquele relato, para confirmar.
     ///
     /// <para>O relato entra na consulta, e nao so o identificador do anexo: sem ele,

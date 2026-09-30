@@ -432,14 +432,22 @@ public class PublicReportsController : BaseController
     /// **A permissão vale poucos minutos**, e é só o tempo de o envio começar.
     /// Vazou, tem prazo.
     ///
+    /// **Anexo tem hora: vai junto do envio, e não depois.** A permissão só sai nos
+    /// 15 minutos depois do envio — a criação do relato, ou a resposta ao time
+    /// (`ForReply`). Cada permissão tem então 1 hora, contada de quando foi pedida,
+    /// para ser confirmada: o envio precisa começar em minutos, mas terminar depende
+    /// da conexão. Passado o prazo, a recusa é 409 — o pedido estava certo, o que
+    /// fechou foi o envio.
+    ///
     /// Depois de enviar, **confirme**: sem isso o arquivo é órfão e não pertence a
     /// relato nenhum.
     /// </remarks>
     /// <param name="dto">O relato, o tipo e o tamanho do arquivo.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Formulário assinado, pronto para enviar.</response>
-    /// <response code="400">Projeto não aceita anexo, formato recusado, limite estourado, ou arquivo grande demais.</response>
+    /// <response code="400">Projeto não aceita anexo, formato recusado, ou arquivo grande demais.</response>
     /// <response code="404">O link não abre nenhum relato.</response>
+    /// <response code="409">O envio já tem o máximo de arquivos, o prazo do envio terminou, ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments")]
     [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
@@ -447,6 +455,7 @@ public class PublicReportsController : BaseController
     [ProducesResponseType(typeof(ApiResponse<AttachmentUploadTicketViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RequestAttachment(
         [FromBody] RequestAttachmentUploadDto dto,
@@ -482,12 +491,24 @@ public class PublicReportsController : BaseController
     /// **Sem esta chamada o anexo não existe para o produto**: não aparece no
     /// painel, não aparece na jornada pública, e não conta para o limite do próximo
     /// envio.
+    ///
+    /// **A cota é contada de novo aqui, e é esta contagem que vale.** A permissão
+    /// só conta o que já foi confirmado, então várias permissões pedidas antes de
+    /// confirmar a primeira enxergam a mesma vaga. Aqui a contagem é feita com a
+    /// cota do relato travada, uma confirmação por vez: a que chega com o envio já
+    /// cheio recebe 409, e o arquivo dela é apagado. A regra do projeto também é
+    /// conferida de novo: mídia, tipo ou anexo na resposta desligados, ou tamanho e
+    /// duração máximos reduzidos depois da permissão, recusam do mesmo jeito.
+    ///
+    /// **Uma permissão vale 1 hora para ser confirmada**, contada de quando foi
+    /// pedida. Depois disso ela venceu: a recusa é 409, sem nem ler o armazenamento.
     /// </remarks>
     /// <param name="dto">O relato e o anexo que está sendo confirmado.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Anexo confirmado.</response>
-    /// <response code="400">O arquivo não chegou, não é do formato declarado, ou passa do limite.</response>
-    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador.</response>
+    /// <response code="400">O arquivo não chegou, ou não é do formato declarado — neste caso ele foi descartado.</response>
+    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador — por exemplo, porque outra confirmação do mesmo anexo terminou antes.</response>
+    /// <response code="409">O envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta, tamanho ou duração máximos), ou a permissão passou de 1 hora sem ser confirmada — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments/confirm")]
     [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
@@ -495,6 +516,7 @@ public class PublicReportsController : BaseController
     [ProducesResponseType(typeof(ApiResponse<ConfirmedAttachmentViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ConfirmAttachment(
         [FromBody] ConfirmAttachmentDto dto,
