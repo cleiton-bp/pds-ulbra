@@ -71,8 +71,8 @@ grava o evento publico    sai em silencio — nada foi cancelado</div>
   até se confirmar que o plano escolhido permite o
   <code>rabbitmq_delayed_message_exchange</code> —, a espera e o prazo do pedido ficam
   indisponíveis lá, e a tela de Ciclo recusa ligá-los dizendo o motivo.</p>
-  <p><code>tracking_code_can_act</code> está gravado e <strong>não tem tela</strong>. Ele decide
-  se o protocolo sozinho confirma e reabre, e depende de uma consulta <em>por protocolo</em> que o
-  produto ainda não tem — oferecer o controle antes dela seria oferecer um botão que não muda
-  nada.</p>
+  <p><code>tracking_code_can_act</code> está gravado, <strong>não tem tela</strong> e a API o
+  ignora. Ele decide se quem chega pelo código pessoal também confirma e reabre, e depende de
+  confirmar, reabrir e responder aceitarem o código no lugar do token — oferecer o controle antes
+  disso seria oferecer um botão que não muda nada.</p>
 </div>

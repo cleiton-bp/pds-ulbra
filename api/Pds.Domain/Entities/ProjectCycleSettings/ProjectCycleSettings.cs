@@ -68,8 +68,10 @@ public class ProjectCycleSettings : PdsBaseEntity
     public bool ReopenRequiresComment { get; set; }
 
     /// <summary>
-    /// Se o protocolo sozinho confirma e reabre, ou se as duas acoes exigem o link.
-    /// Ler e inofensivo; reabrir mexe na fila do time. <b>Ainda nao tem leitor.</b>
+    /// Se quem chega pelo codigo pessoal tambem confirma e reabre, ou se as duas
+    /// acoes exigem o link. Ler e inofensivo; reabrir mexe na fila do time.
+    /// <b>Fica gravado e e ignorado</b> enquanto confirmar, reabrir e responder so
+    /// aceitarem o token do link (ver ActionsAcceptReporterCode no ReportService).
     /// </summary>
     public bool TrackingCodeCanAct { get; set; }
 

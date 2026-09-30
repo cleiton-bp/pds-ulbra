@@ -7,7 +7,7 @@
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code</code></td><td><strong>Sem sessão.</strong> Os relatos ligados a um código pessoal. Código desconhecido devolve <strong>lista vazia</strong>, e não 404.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td><strong>Sem sessão.</strong> Abre um relato da lista pessoal. Lê, e só age se o projeto ligou <code>tracking_code_can_act</code>.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td><strong>Sem sessão.</strong> Abre um relato da lista pessoal. Lê, e não age: confirmar, reabrir e responder pedem o token do link.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/public/reports/published</code></td><td><strong>Sem sessão.</strong> O que já foi liberado para o público neste projeto. Projeto privado responde <strong>lista vazia</strong>, e não uma recusa.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td><strong>Sem sessão.</strong> Quem relatou diz que resolveu, e dá a nota — ou recusa dá-la.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td><strong>Sem sessão.</strong> Diz que não resolveu. O relato volta para a coluna que o projeto configurou.</td></tr>
@@ -44,8 +44,9 @@
   <code>BuildPublicAsync</code>, a mesma visão montada campo a campo, sem nome de quem é do time
   e sem o vocabulário interno das colunas. E há uma assimetria de propósito — nas quatro do link
   as ações chegam ligadas; na quinta, não. O código prova que o relato é dela, o link é que dá
-  poder sobre ele, e confirmar, reabrir e responder só aparecem se o projeto tiver ligado
-  <code>tracking_code_can_act</code>.</p>
+  poder sobre ele, e confirmar, reabrir e responder só aceitam o token.
+  <code>tracking_code_can_act</code> continua gravado e é ignorado até essas três rotas aceitarem
+  o código: obedecê-lo mostraria botões que a própria API recusaria.</p>
 </div>
 
 <div class="note why">

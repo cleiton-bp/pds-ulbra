@@ -745,7 +745,8 @@ export interface ReporterCodeLookupRequest {
  * A leitura de um relato pelo codigo, em vez do link.
  *
  * O codigo prova que o relato e dela; o link e que da poder sobre ele. As acoes
- * chegam desligadas, a menos que o projeto tenha ligado `TrackingCodeCanAct`.
+ * chegam desligadas: confirmar, reabrir e responder so aceitam o token, e a API
+ * ignora `TrackingCodeCanAct` ate elas aceitarem o codigo.
  */
 export interface OpenByReporterCodeRequest {
   Key: string

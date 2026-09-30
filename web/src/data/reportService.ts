@@ -82,8 +82,8 @@ export interface ReportService {
   /**
    * Abre um relato da lista, pelo codigo em vez do link.
    *
-   * As acoes chegam desligadas por padrao: o codigo prova que o relato e dela, e o
-   * link e que da poder sobre ele.
+   * As acoes chegam desligadas: o codigo prova que o relato e dela, e o link e que
+   * da poder sobre ele — confirmar, reabrir e responder so aceitam o token.
    */
   openByReporterCode(request: OpenByReporterCodeRequest): Promise<PublicReportViewModel>
 }

@@ -20,9 +20,9 @@ grava "visualizado" com by: reporter_code  →  a mesma visao publica do link, c
 <div class="note warn">
   <strong>O código prova que o relato é dela; o link é que dá poder sobre ele</strong>
   <p>A lista não carrega o token de cada relato — embutir aqui faria doze símbolos valerem tanto
-  quanto todos os links somados. E abrir pelo código <strong>lê, e por padrão não age</strong>:
-  confirmar, reabrir e responder só aparecem se o projeto tiver ligado
-  <code>tracking_code_can_act</code> na tela de Ciclo.</p>
+  quanto todos os links somados. E abrir pelo código <strong>lê, e não age</strong>: confirmar,
+  reabrir e responder só aceitam o token do link. <code>tracking_code_can_act</code> segue gravado,
+  e a API o ignora até essas três rotas aceitarem o código.</p>
   <p>Ver a lista não grava visualização; abrir um relato grava, com <code>by: reporter_code</code>
   na carga — é o que distingue, na contagem, quem voltou pela lista de quem voltou pelo link.</p>
 </div>

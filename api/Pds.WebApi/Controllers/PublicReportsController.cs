@@ -240,9 +240,11 @@ public class PublicReportsController : BaseController
     /// navegador novo não tem os links de cada relato, e sem isto veria uma lista
     /// que não abre nada.
     ///
-    /// **Lê, e por padrão não age.** O código prova que o relato é dela; o link é
-    /// que dá poder sobre ele — confirmar, reabrir e responder chegam desligados, a
-    /// menos que o projeto tenha ligado `TrackingCodeCanAct` na tela de Ciclo.
+    /// **Lê, e não age.** O código prova que o relato é dela; o link é que dá poder
+    /// sobre ele — confirmar, reabrir e responder chegam desligados, porque hoje
+    /// essas três rotas só aceitam o token do link. `TrackingCodeCanAct` continua
+    /// gravado, e é ignorado aqui até elas aceitarem o código: obedecê-lo mostraria
+    /// botões que a própria API recusaria.
     ///
     /// **Uma recusa só, para todos os enganos.** Código em branco, código que não
     /// existe, protocolo que não existe e protocolo que é de outra pessoa recebem a

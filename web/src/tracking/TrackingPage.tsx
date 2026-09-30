@@ -58,9 +58,10 @@ export function TrackingPage() {
 
     // **Duas credenciais levam a esta pagina, e elas nao valem o mesmo.** O token
     // veio no link que a pessoa recebeu ao relatar, e da poder sobre o relato. O
-    // codigo pessoal veio da lista dela e prova que o relato e dela — mas confirmar
-    // e reabrir continuam exigindo o link, a menos que o projeto decida o
-    // contrario. Quem decide isso e a API; aqui so muda por onde se pergunta.
+    // codigo pessoal veio da lista dela e prova que o relato e dela — mas confirmar,
+    // reabrir e responder so aceitam o token do link, e a API ignora
+    // TrackingCodeCanAct ate elas aceitarem o codigo. Quem decide isso e a API;
+    // aqui so muda por onde se pergunta.
     const peloToken = token.length > 0
     const peloCodigo = key.length > 0 && reporterCode.length > 0
 
