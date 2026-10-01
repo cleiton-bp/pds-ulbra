@@ -179,6 +179,7 @@ export function ConversationPanel({
                   <AttachmentGallery
                     // So quem relata anexa: a imagem da conversa e sempre dela.
                     label="O que você anexou na resposta"
+                    fileLabel="Arquivos que você anexou na resposta"
                     onExpired={aoAnexar}
                     items={(anexosPorFala.get(fala.PublicId) ?? []).map(toGalleryItem)}
                   />

@@ -141,7 +141,6 @@ beforeEach(() => {
     AllowsScreenCapture: false,
     AllowsOnInfoRequest: false,
     AllowsOnReopen: false,
-    MaxFilesPerReport: 0,
     Kinds: [],
   })
 })
@@ -779,6 +778,8 @@ describe('os arquivos na pagina de acompanhamento', () => {
       PublicId: 'a-1',
       Kind: 'Image',
       DisplaySize: 'Full',
+      ContentType: 'image/png',
+      SizeBytes: 120 * 1024,
       Url: 'http://armazenamento/a-1',
       ThumbnailUrl: 'http://armazenamento/a-1-thumb',
       ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -797,6 +798,8 @@ describe('os arquivos na pagina de acompanhamento', () => {
         PublicId: 'a-1',
         Kind: 'Image',
         DisplaySize: 'Full',
+        ContentType: 'image/png',
+        SizeBytes: 120 * 1024,
         Url: 'http://armazenamento/a-1',
         ThumbnailUrl: 'http://armazenamento/a-1-thumb',
         ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -906,7 +909,7 @@ describe('os arquivos na pagina de acompanhamento', () => {
 
 describe('anexar na resposta', () => {
   /**
-   * **So imagem.** O video saiu do produto, e a resposta nao o oferece nem quando a
+   * **Sem video.** O video saiu do produto, e a resposta nao o oferece nem quando a
    * configuracao ainda o lista — o que acontece na janela da troca, com a API
    * ainda antiga. Oferecer seria deixar escolher um arquivo que o envio recusa.
    */
@@ -947,7 +950,6 @@ describe('anexar na resposta', () => {
       AllowsScreenCapture: true,
       AllowsOnInfoRequest: true,
       AllowsOnReopen: true,
-      MaxFilesPerReport: 4,
       Kinds: kinds,
     })
   }

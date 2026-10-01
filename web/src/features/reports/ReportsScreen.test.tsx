@@ -373,6 +373,7 @@ describe('abrir um relato', () => {
         PublicId: 'a-1',
         Kind: 'Image',
         DisplaySize: 'Full',
+        ContentType: 'image/png',
         Url: 'http://armazenamento/inteiro',
         ThumbnailUrl: 'http://armazenamento/miniatura',
         ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),

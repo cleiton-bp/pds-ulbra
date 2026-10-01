@@ -74,6 +74,7 @@ export function ReopenPanel({
                 <div className="mt-3">
                   <AttachmentGallery
                     label="O que você anexou ao reabrir"
+                    fileLabel="Arquivos que você anexou ao reabrir"
                     onExpired={aoExpirar}
                     items={anexos.map(toGalleryItem)}
                   />

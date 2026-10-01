@@ -71,15 +71,19 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         var allowsScreenCapture = Required(dto.AllowsScreenCapture, "Informe se o botao de capturar a tela aparece.");
         var allowsOnInfoRequest = Required(dto.AllowsOnInfoRequest, "Informe se da para anexar respondendo ao time.");
         var allowsOnReopen = Required(dto.AllowsOnReopen, ReopenKeyMissing);
-        var maxFiles = Required(dto.MaxFilesPerReport, "Informe quantos arquivos cabem em cada envio.");
 
-        RequireInRange(maxFiles, 1, ProjectMediaSettings.MaxFilesPerReportCeiling,
-            $"O total de arquivos por envio precisa ficar entre 1 e {ProjectMediaSettings.MaxFilesPerReportCeiling}.");
-
-        var limites = ReadKinds(dto.Kinds);
-        RequireSomethingToAccept(isEnabled, limites);
+        var limites = ReadKinds(dto.Kinds, isEnabled);
 
         var settings = await _unitOfWork.ProjectMediaSettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        // **Sobre o que vai ficar valendo**, e nao so sobre o que veio: tipo que o pedido
+        // nao manda fica como esta — a tela antiga manda so a imagem —, e o arquivo ligado
+        // no banco conta como aceito.
+        var vigentes = MediaSettingsDefaults.Resolve(settings).Kinds
+            .Where(gravado => limites.TrueForAll(lido => lido.Kind != gravado.Kind))
+            .Select(gravado => new MediaKindLimitViewModel(
+                gravado.Kind, gravado.IsEnabled, gravado.MaxCount, gravado.MaxBytes, MaxDurationSeconds: null, gravado.Formats));
+        RequireSomethingToAccept(isEnabled, [.. limites, .. vigentes]);
 
         var novo = settings is null;
         settings ??= new ProjectMediaSettings { ProjectId = project.Id };
@@ -88,7 +92,9 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         settings.AllowsScreenCapture = allowsScreenCapture;
         settings.AllowsOnInfoRequest = allowsOnInfoRequest;
         settings.AllowsOnReopen = allowsOnReopen;
-        settings.MaxFilesPerReport = maxFiles;
+
+        // O total por envio saiu: cada categoria tem o seu limite. Ver MaxFilesPerReport.
+        settings.MaxFilesPerReport = null;
 
         ApplyKinds(settings, limites);
 
@@ -162,18 +168,53 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             vigente.AllowsScreenCapture,
             vigente.AllowsOnInfoRequest,
             vigente.AllowsOnReopen,
-            vigente.MaxFilesPerReport,
             vigente.Kinds
                 .Where(kind => kind.IsEnabled)
-                .Select(kind => new PublicMediaKindViewModel(
-                    kind.Kind,
-                    kind.MaxCount,
-                    kind.MaxBytes,
+                .Select(kind => (Limite: kind, Tipos: TiposAceitos(kind)))
+                // O arquivo ligado sem formato marcado nao aceita nada: a ferramenta nao
+                // tem o que oferecer. Salvar assim ja e recusado; isto e a segunda tranca.
+                .Where(par => par.Tipos.Count > 0)
+                .Select(par => new PublicMediaKindViewModel(
+                    par.Limite.Kind,
+                    par.Limite.MaxCount,
+                    par.Limite.MaxBytes,
                     // Nulo sempre, e presente de proposito: o quadro antigo trata
                     // campo ausente como "tem duracao" e recusaria todo print.
                     MaxDurationSeconds: null,
-                    MediaSignatures.Accepted[kind.Kind]))
+                    par.Tipos.Select(tipo => tipo.ContentType).Distinct().ToList(),
+                    par.Tipos.Select(tipo => new AcceptedTypeViewModel(tipo.Extension, tipo.ContentType)).ToList()))
                 .ToList());
+    }
+
+    /// <summary>As extensoes da imagem, para o seletor do navegador, pelo tipo fixo dela.</summary>
+    private static readonly IReadOnlyDictionary<string, string[]> ExtensoesDaImagem =
+        new Dictionary<string, string[]>
+        {
+            ["image/png"] = [".png"],
+            ["image/jpeg"] = [".jpg", ".jpeg"],
+            ["image/webp"] = [".webp"],
+        };
+
+    /// <summary>
+    /// Os tipos que uma categoria aceita, cada um com a sua extensao: os fixos da imagem,
+    /// ou os dos formatos marcados no arquivo.
+    /// </summary>
+    private static List<(string ContentType, string Extension)> TiposAceitos(EffectiveMediaKind limite)
+    {
+        if (limite.Kind == MediaKindEnum.File)
+            return limite.Formats
+                .Select(FileFormats.Find)
+                .OfType<FileFormat>()
+                .SelectMany(formato => formato.Types)
+                .Select(tipo => (tipo.ContentType, tipo.Extension))
+                .ToList();
+
+        return MediaSignatures.Accepted.TryGetValue(limite.Kind, out var tipos)
+            ? tipos
+                .SelectMany(tipo => ExtensoesDaImagem.GetValueOrDefault(tipo, [])
+                    .Select(extensao => (tipo, extensao)))
+                .ToList()
+            : [];
     }
 
     /// <summary>
@@ -200,6 +241,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
                     IsEnabled = limite.IsEnabled,
                     MaxCount = limite.MaxCount,
                     MaxBytes = limite.MaxBytes,
+                    Formats = FormatosGravados(limite),
                 });
 
                 continue;
@@ -208,18 +250,29 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             kind.IsEnabled = limite.IsEnabled;
             kind.MaxCount = limite.MaxCount;
             kind.MaxBytes = limite.MaxBytes;
+            kind.Formats = FormatosGravados(limite);
         }
     }
+
+    /// <summary>Os formatos que a linha grava: so o arquivo tem; nas outras, nulo.</summary>
+    private static List<string>? FormatosGravados(MediaKindLimitViewModel limite)
+        => limite.Kind == MediaKindEnum.File ? [.. limite.Formats] : null;
 
     /// <summary>
     /// Le e confere os limites que vieram, um tipo por vez.
     ///
-    /// <para><b>So imagem e aceita.</b> O video saiu do produto por pesar demais no
+    /// <para><b>Imagem e arquivo.</b> O video saiu do produto por pesar demais no
     /// armazenamento e na entrega. Grava-lo aqui seria prometer, na tela, um envio
     /// que o pedido de permissao recusa — e por isso a recusa e 400, e nao um
     /// silencio que deixaria a tela antiga achar que salvou.</para>
     /// </summary>
-    private static List<MediaKindLimitViewModel> ReadKinds(List<MediaKindLimitDto>? kinds)
+    /// <param name="kinds">Os limites que vieram.</param>
+    /// <param name="anexoLigado">
+    /// O anexo esta ligado. Desligado, o arquivo pode ficar marcado sem formato — ele nao
+    /// vale nada enquanto o anexo estiver desligado, e a tela nao deixa corrigir a lista
+    /// com o anexo desligado. Religado, a regra volta a valer.
+    /// </param>
+    private static List<MediaKindLimitViewModel> ReadKinds(List<MediaKindLimitDto>? kinds, bool anexoLigado)
     {
         if (kinds is null || kinds.Count == 0)
             throw new ArgumentException("Informe os limites de cada tipo de midia.");
@@ -239,8 +292,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             // um numero fora da lista passaria direto para o banco como uma linha
             // que nenhuma leitura enxerga.
             if (!Enum.IsDefined(tipo))
-                throw new ArgumentException(
-                    $"Tipo de midia desconhecido. Use {string.Join(" ou ", MediaSignatures.Accepted.Keys)}.");
+                throw new ArgumentException("Tipo de midia desconhecido. Use Image ou File.");
 
             if (tipo == MediaKindEnum.Video)
                 throw new ArgumentException(VideoRefused);
@@ -248,19 +300,58 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             // Tipo repetido nao e detalhe: gravar os dois deixaria o banco com duas
             // respostas para a mesma pergunta, e qual valeria dependeria da ordem.
             if (lidos.Any(lido => lido.Kind == tipo))
-                throw new ArgumentException($"O tipo {tipo} apareceu mais de uma vez.");
+                throw new ArgumentException($"O tipo {NomeDoTipo(tipo)} apareceu mais de uma vez.");
 
-            var habilitado = Required(kind.IsEnabled, $"Informe se {tipo} e aceito.");
-            var quantidade = Required(kind.MaxCount, $"Informe a quantidade maxima de {tipo}.");
-            var bytes = Required(kind.MaxBytes, $"Informe o tamanho maximo de {tipo}.");
+            var nome = NomeDoTipo(tipo);
+            var habilitado = Required(kind.IsEnabled, $"Informe se {nome} e aceito.");
+            var quantidade = Required(kind.MaxCount, $"Informe a quantidade maxima de {nome}.");
+            var bytes = Required(kind.MaxBytes, $"Informe o tamanho maximo de {nome}.");
+
+            var teto = ProjectMediaKind.MaxBytesCeilingFor(tipo);
 
             RequireInRange(quantidade, 1, ProjectMediaKind.MaxCountCeiling,
-                $"A quantidade de {tipo} precisa ficar entre 1 e {ProjectMediaKind.MaxCountCeiling}.");
-            RequireInRange(bytes, 1, ProjectMediaKind.ImageMaxBytesCeiling,
-                $"O tamanho de {tipo} precisa ficar entre 1 byte e {ProjectMediaKind.ImageMaxBytesCeiling / (1024 * 1024)} MB.");
+                $"A quantidade de {nome} precisa ficar entre 1 e {ProjectMediaKind.MaxCountCeiling}.");
+            RequireInRange(bytes, 1, teto,
+                $"O tamanho de {nome} precisa ficar entre 1 byte e {teto / (1024 * 1024)} MB.");
 
-            lidos.Add(new MediaKindLimitViewModel(tipo, habilitado, quantidade, bytes, MaxDurationSeconds: null));
+            var formatos = tipo == MediaKindEnum.File ? ReadFormats(kind.Formats, habilitado && anexoLigado) : [];
+
+            lidos.Add(new MediaKindLimitViewModel(tipo, habilitado, quantidade, bytes, MaxDurationSeconds: null, formatos));
         }
+
+        return lidos;
+    }
+
+    /// <summary>
+    /// Os formatos marcados no arquivo, conferidos contra o catalogo.
+    ///
+    /// <para><b>Ligado, ao menos um.</b> Arquivo aceito sem formato nenhum diria que
+    /// aceita e recusaria tudo — quem quer isso desliga o arquivo. Desligado, a lista
+    /// pode ficar vazia, e fica gravada como veio, para religar devolver o que ja tinha
+    /// sido escolhido.</para>
+    ///
+    /// <para><b>Nome fora do catalogo e 400</b>, e nao ignorado: gravar um formato que a
+    /// confirmacao nao sabe conferir seria aceitar arquivo que ninguem olha.</para>
+    /// </summary>
+    private static List<string> ReadFormats(List<string>? formats, bool habilitado)
+    {
+        var lidos = new List<string>();
+
+        foreach (var nome in formats ?? [])
+        {
+            var chave = (nome ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (FileFormats.Find(chave) is null)
+                throw new ArgumentException(
+                    $"Formato de arquivo desconhecido: \"{nome}\". Use {string.Join(", ", FileFormats.All.Select(formato => formato.Key))}.");
+
+            if (!lidos.Contains(chave))
+                lidos.Add(chave);
+        }
+
+        if (habilitado && lidos.Count == 0)
+            throw new ArgumentException(
+                "Arquivo aceito sem formato nenhum nao aceita nada. Marque ao menos um formato, ou desligue o arquivo.");
 
         return lidos;
     }
@@ -302,17 +393,16 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         => vigente.IsEnabled && _mediaStorage.IsAvailable;
 
     /// <summary>
-    /// Recusa anexo ligado sem imagem aceita.
+    /// Recusa anexo ligado sem categoria aceita.
     ///
     /// <para>A configuracao ficaria dizendo que aceita anexo e recusando todos eles.
-    /// Quem quer isso ja tem o caminho certo, que e desligar o anexo. A mensagem fala
-    /// de imagem porque e o unico tipo que se pode ligar.</para>
+    /// Quem quer isso ja tem o caminho certo, que e desligar o anexo.</para>
     /// </summary>
     private static void RequireSomethingToAccept(bool isEnabled, List<MediaKindLimitViewModel> limites)
     {
         if (isEnabled && limites.TrueForAll(limite => !limite.IsEnabled))
             throw new ArgumentException(
-                "Anexo ligado sem imagem aceita nao aceita nada. Aceite imagem, ou desligue o anexo.");
+                "Anexo ligado sem imagem nem arquivo aceito nao aceita nada. Aceite um dos dois, ou desligue o anexo.");
     }
 
     /// <summary>
@@ -337,12 +427,18 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             vigente.AllowsScreenCapture,
             vigente.AllowsOnInfoRequest,
             vigente.AllowsOnReopen,
-            vigente.MaxFilesPerReport,
             vigente.Kinds
                 .Select(kind => new MediaKindLimitViewModel(
                     // Nulo sempre, e presente de proposito: a tela antiga trata campo
                     // ausente como "tem duracao" e desenharia o campo na imagem.
-                    kind.Kind, kind.IsEnabled, kind.MaxCount, kind.MaxBytes, MaxDurationSeconds: null))
+                    kind.Kind, kind.IsEnabled, kind.MaxCount, kind.MaxBytes, MaxDurationSeconds: null,
+                    kind.Formats))
+                .ToList(),
+            FileFormats.All
+                .Select(formato => new FileFormatViewModel(
+                    formato.Key,
+                    formato.IsDefault,
+                    formato.Types.Select(tipo => tipo.Extension).ToList()))
                 .ToList());
     }
 
@@ -354,6 +450,14 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     /// </summary>
     private static T Required<T>(T? value, string message) where T : struct
         => value ?? throw new ArgumentException(message);
+
+    /// <summary>O nome do tipo nas mensagens: "imagem", "arquivo" — e nao o do enum.</summary>
+    private static string NomeDoTipo(MediaKindEnum tipo) => tipo switch
+    {
+        MediaKindEnum.Image => "imagem",
+        MediaKindEnum.File => "arquivo",
+        _ => tipo.ToString(),
+    };
 
     /// <summary>
     /// O teto do sistema, acima do que qualquer projeto escolhe.

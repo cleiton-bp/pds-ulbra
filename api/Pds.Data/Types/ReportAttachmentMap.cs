@@ -42,7 +42,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
             .HasConversion(new SnakeCaseEnumConverter<MediaKindEnum>())
             .HasMaxLength(20)
             .IsRequired()
-            .HasComment("image ou video. A mesma lista de project_media_kinds, porque e ela que diz qual limite se aplica.");
+            .HasComment("image, file ou video (este, so dos anexos antigos). A mesma lista de project_media_kinds, porque e ela que diz qual limite se aplica.");
 
         builder.Property(attachment => attachment.Status)
             .HasColumnName("status")
@@ -96,7 +96,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
         builder.Property(attachment => attachment.DisplayOrder)
             .HasColumnName("display_order")
             .IsRequired()
-            .HasComment("A posicao da imagem no envio, a partir de zero: a ordem em que a pessoa as montou. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros. Vale dentro de um envio; a hora de chegada desempata.");
+            .HasComment("A posicao no envio, a partir de zero, dentro da categoria: a ordem em que a pessoa montou as imagens, e a dos arquivos. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros. Vale dentro de um envio; a hora de chegada desempata.");
 
         builder.HasOne(attachment => attachment.Report)
             .WithMany()

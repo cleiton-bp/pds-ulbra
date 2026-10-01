@@ -5,7 +5,7 @@ import {
   type ReportCommentsViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
-import { toPanelGalleryItem } from '@/features/reports/ReportAttachments'
+import { AVISO_DE_ARQUIVO, toPanelGalleryItem } from '@/features/reports/ReportAttachments'
 import { AttachmentGallery } from '@/shared/components/AttachmentGallery'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -217,6 +217,8 @@ function Caixa({
                 <div className="mt-2">
                   <AttachmentGallery
                     label="Imagens da resposta"
+                    fileLabel="Arquivos da resposta"
+                    fileNote={AVISO_DE_ARQUIVO}
                     onExpired={aoExpirar}
                     items={(anexosPorFala?.get(comentario.PublicId) ?? []).map(toPanelGalleryItem)}
                   />

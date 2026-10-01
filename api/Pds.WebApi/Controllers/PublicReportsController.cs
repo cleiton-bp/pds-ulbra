@@ -472,10 +472,16 @@ public class PublicReportsController : BaseController
     /// cliente com defeito manda: tipo ou tamanho não informados, ou as duas bandeiras
     /// juntas — um arquivo vai com um envio só.
     ///
-    /// **Só imagem.** `Kind` igual a `Video` recebe 409, qualquer que seja o
+    /// **Imagem ou arquivo.** `Kind` igual a `Video` recebe 409, qualquer que seja o
     /// projeto: o vídeo saiu do produto por pesar demais no armazenamento e na
     /// entrega. `DurationSeconds` deixou de existir, e quem ainda o manda não quebra
     /// — o campo é ignorado.
+    ///
+    /// **O arquivo (`File`) é reconhecido pela extensão de `FileName`**, com o tipo que
+    /// o catálogo dá a ela, e só entre os formatos que o dono marcou: extensão e
+    /// `ContentType` que não casam são recusados como formato (409). Arquivo não tem
+    /// miniatura — `WithThumbnail` nele é 400. Na confirmação, os bytes são conferidos
+    /// onde o formato permite, e a leitura é sempre download.
     ///
     /// Depois de enviar, **confirme**: sem isso o arquivo é órfão e não pertence a
     /// relato nenhum.

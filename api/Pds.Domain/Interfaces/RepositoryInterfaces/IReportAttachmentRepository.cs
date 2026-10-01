@@ -8,7 +8,8 @@ namespace Pds.Domain.Interfaces.RepositoryInterfaces;
 public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
 {
     /// <summary>
-    /// Quantos anexos <b>confirmados</b> um envio ja tem, por tipo e no total.
+    /// Quantos anexos <b>confirmados</b> um envio ja tem, por tipo e no total. A cota e
+    /// por tipo; o total fica para quem precisar contar o envio inteiro.
     ///
     /// <para><b>O envio e a criacao do relato, uma resposta ou uma reabertura, e
     /// cada um tem a sua cota.</b> Com uma cota so para o relato, quem mandou quatro

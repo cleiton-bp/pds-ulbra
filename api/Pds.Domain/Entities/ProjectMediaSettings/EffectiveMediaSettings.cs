@@ -8,11 +8,20 @@ namespace Pds.Domain.Entities;
 /// <para>Sem duracao: ela so existia para o video, que saiu do produto. A coluna
 /// continua no banco pelas linhas antigas, e nada mais a le.</para>
 /// </summary>
+/// <param name="Kind">O tipo.</param>
+/// <param name="IsEnabled">O tipo e aceito.</param>
+/// <param name="MaxCount">Quantos cabem em cada envio.</param>
+/// <param name="MaxBytes">Teto de tamanho de cada um, em bytes.</param>
+/// <param name="Formats">
+/// Os formatos aceitos, pelo nome no catalogo. So o arquivo tem; vazio nas outras
+/// categorias. Ver <see cref="FileFormats"/>.
+/// </param>
 public record EffectiveMediaKind(
     MediaKindEnum Kind,
     bool IsEnabled,
     int MaxCount,
-    long MaxBytes);
+    long MaxBytes,
+    IReadOnlyList<string> Formats);
 
 /// <summary>
 /// Como este projeto se comporta, tenha ele configuracao gravada ou nao.
@@ -33,7 +42,6 @@ public record EffectiveMediaSettings(
     bool AllowsScreenCapture,
     bool AllowsOnInfoRequest,
     bool AllowsOnReopen,
-    int MaxFilesPerReport,
     IReadOnlyList<EffectiveMediaKind> Kinds)
 {
     /// <summary>Os limites de um tipo, ou nulo se o produto nao conhece esse tipo.</summary>

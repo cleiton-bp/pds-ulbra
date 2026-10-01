@@ -54,20 +54,16 @@ public static class MediaSettingsDefaults
     /// </summary>
     public const bool AllowsOnReopen = true;
 
-    /// <summary>
-    /// Quatro arquivos por envio, no total.
-    ///
-    /// <para>Cobre "a tela do erro, o que eu fiz antes, o que apareceu depois", com
-    /// folga de um.</para>
-    ///
-    /// <para><b>Com so imagem, de fabrica quem segura e o limite dela</b>, que e
-    /// menor: os dois valem juntos e vence o menor. Este total so passa a pesar
-    /// quando o projeto sobe o limite da imagem.</para>
-    /// </summary>
-    public const int MaxFilesPerReport = 4;
-
-    /// <summary>Tres imagens de ate 5 MB. Print de celular moderno passa de 3 MB.</summary>
+    /// <summary>Tres imagens de ate 5 MB por envio. Print de celular moderno passa de 3 MB.</summary>
     public static readonly (int Count, long Bytes) Image = (3, 5L * 1024 * 1024);
+
+    /// <summary>
+    /// Dois arquivos de ate 10 MB por envio — "o log e o PDF do erro". <b>Desligado de
+    /// fabrica</b>: arquivo de fora e o anexo com mais risco, e recebe-lo e escolha de
+    /// quem configura. Ligado, vem com os formatos seguros marcados
+    /// (<see cref="FileFormats.DefaultKeys"/>).
+    /// </summary>
+    public static readonly (bool IsEnabled, int Count, long Bytes) File = (false, 2, 10L * 1024 * 1024);
 
     /// <summary>
     /// Como o projeto se comporta, com a linha gravada ou sem ela.
@@ -88,7 +84,6 @@ public static class MediaSettingsDefaults
             settings?.AllowsScreenCapture ?? AllowsScreenCapture,
             settings?.AllowsOnInfoRequest ?? AllowsOnInfoRequest,
             settings?.AllowsOnReopen ?? AllowsOnReopen,
-            settings?.MaxFilesPerReport ?? MaxFilesPerReport,
             BuildKinds()
                 .Select(padrao =>
                 {
@@ -98,7 +93,12 @@ public static class MediaSettingsDefaults
                         padrao.Kind,
                         gravado?.IsEnabled ?? padrao.IsEnabled,
                         gravado?.MaxCount ?? padrao.MaxCount,
-                        gravado?.MaxBytes ?? padrao.MaxBytes);
+                        gravado?.MaxBytes ?? padrao.MaxBytes,
+                        // So os formatos que o catalogo ainda conhece: um que saia dele
+                        // um dia nao volta a valer por estar gravado.
+                        (gravado?.Formats ?? padrao.Formats ?? [])
+                            .Where(formato => FileFormats.Find(formato) is not null)
+                            .ToList());
                 })
                 .ToList());
 
@@ -108,7 +108,7 @@ public static class MediaSettingsDefaults
     /// <para>Monta a configuracao inteira de um projeto novo — e quando um tipo novo
     /// entrar no produto, e aqui que ele nasce ligado ou desligado de fabrica.</para>
     ///
-    /// <para><b>So imagem.</b> O video saiu do produto por pesar demais no
+    /// <para><b>Imagem e arquivo.</b> O video saiu do produto por pesar demais no
     /// armazenamento e na entrega, e saiu daqui junto: tipo fora desta lista nao
     /// existe para a configuracao, mesmo com linha gravada.</para>
     /// </summary>
@@ -120,6 +120,14 @@ public static class MediaSettingsDefaults
             IsEnabled = true,
             MaxCount = Image.Count,
             MaxBytes = Image.Bytes,
+        },
+        new()
+        {
+            Kind = MediaKindEnum.File,
+            IsEnabled = File.IsEnabled,
+            MaxCount = File.Count,
+            MaxBytes = File.Bytes,
+            Formats = [.. FileFormats.DefaultKeys],
         },
     ];
 }

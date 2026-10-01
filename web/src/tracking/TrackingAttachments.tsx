@@ -10,6 +10,8 @@ export function toGalleryItem(anexo: PublicAttachmentViewModel): GalleryItem {
     thumbnailUrl: anexo.ThumbnailUrl,
     expiresAt: anexo.ExpiresAt,
     displaySize: anexo.DisplaySize,
+    contentType: anexo.ContentType,
+    sizeBytes: anexo.SizeBytes,
   }
 }
 
@@ -37,6 +39,7 @@ export function TrackingAttachments({
     <div className="mt-4">
       <AttachmentGallery
         label="O que você anexou"
+        fileLabel="Arquivos que você anexou"
         onExpired={onExpired}
         items={anexos.map(toGalleryItem)}
       />

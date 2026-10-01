@@ -422,3 +422,105 @@ describe('renovar nao fecha o video aberto', () => {
     )
   })
 })
+
+// O arquivo que nao e imagem so baixa: a linha diz o que e e quanto pesa, e o nome
+// original so aparece no painel (pela legenda).
+describe('o arquivo que nao e imagem', () => {
+  const pdf = (mudanca: Partial<GalleryItem> = {}) =>
+    item({
+      id: 'f-1',
+      kind: 'File',
+      url: 'http://armazenamento/fatura?assinado',
+      thumbnailUrl: null,
+      contentType: 'application/pdf',
+      sizeBytes: 120 * 1024,
+      caption: undefined,
+      ...mudanca,
+    })
+
+  it('vira uma linha de baixar, com o tipo e o tamanho, e nunca uma imagem', () => {
+    const { container } = render(
+      <AttachmentGallery
+        fileLabel="Arquivos que você anexou"
+        items={[pdf()]}
+        onExpired={() => {}}
+      />,
+    )
+
+    const lista = screen.getByRole('list', { name: 'Arquivos que você anexou' })
+    const link = screen.getByRole('link', { name: 'Baixar PDF · 120 KB' })
+    expect(lista.contains(link)).toBe(true)
+    expect(link.getAttribute('href')).toBe('http://armazenamento/fatura?assinado')
+    expect(link.hasAttribute('download')).toBe(true)
+    // Em outra aba: se o endereco falhar mesmo assim, o erro nao toma o lugar da pagina.
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noreferrer')
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  // O computador dormiu e a renovacao nao rodou: abrir o endereco vencido daria o erro
+  // do armazenamento. O clique pede um novo, e diz o que houve.
+  it('com o endereco vencendo, o clique pede um novo em vez de abrir', () => {
+    const renovar = vi.fn()
+    render(
+      <AttachmentGallery
+        items={[pdf({ expiresAt: new Date(Date.now() + 10_000).toISOString() })]}
+        onExpired={renovar}
+      />,
+    )
+
+    const clique = fireEvent.click(screen.getByRole('link', { name: /^Baixar/ }))
+
+    expect(clique).toBe(false)
+    expect(renovar).toHaveBeenCalledOnce()
+    expect(screen.getByRole('status').textContent).toMatch(/tinha vencido/)
+  })
+
+  it('com o endereco valido, o clique segue para o download', () => {
+    const renovar = vi.fn()
+    render(<AttachmentGallery items={[pdf()]} onExpired={renovar} />)
+
+    expect(fireEvent.click(screen.getByRole('link', { name: /^Baixar/ }))).toBe(true)
+    expect(renovar).not.toHaveBeenCalled()
+  })
+
+  it('o aviso do painel fica embaixo da lista, e nao dentro dela', () => {
+    render(<AttachmentGallery items={[pdf()]} fileNote="Abra com cuidado." onExpired={() => {}} />)
+
+    const aviso = screen.getByText('Abra com cuidado.')
+    expect(screen.getByRole('list', { name: 'Arquivos anexados' }).contains(aviso)).toBe(false)
+  })
+
+  it('no painel, a legenda traz o nome original', () => {
+    render(
+      <AttachmentGallery
+        items={[pdf({ caption: 'fatura-março.pdf · 120 KB' })]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: 'Baixar fatura-março.pdf · 120 KB' })).toBeDefined()
+  })
+
+  it('um tipo que a tela nao conhece tambem so baixa', () => {
+    render(
+      <AttachmentGallery
+        items={[pdf({ kind: 'Audio' as never, contentType: 'audio/ogg' })]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: /^Baixar Arquivo/ })).toBeDefined()
+  })
+
+  it('imagens na grade, e arquivos na lista, cada um no seu lugar', () => {
+    render(<AttachmentGallery items={[pdf(), item({ id: 'i-1' })]} onExpired={() => {}} />)
+
+    expect(
+      screen.getByRole('list', { name: 'Imagens anexadas' }).querySelectorAll('img'),
+    ).toHaveLength(1)
+    expect(
+      screen.getByRole('list', { name: 'Arquivos anexados' }).querySelectorAll('a'),
+    ).toHaveLength(1)
+  })
+})

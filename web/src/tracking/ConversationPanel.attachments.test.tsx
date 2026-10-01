@@ -44,7 +44,6 @@ const media: PublicMediaSettingsViewModel = {
   AllowsScreenCapture: true,
   AllowsOnInfoRequest: true,
   AllowsOnReopen: true,
-  MaxFilesPerReport: 4,
   Kinds: [
     {
       Kind: 'Image',
@@ -115,8 +114,8 @@ describe('anexar ao responder', () => {
     expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
   })
 
-  // O mesmo seletor do quadro: com quatro no total e tres imagens, a terceira
-  // desliga o botao, em vez de deixa-lo ligado para uma recusa depois.
+  // O mesmo seletor do quadro: com tres imagens por envio, a terceira desliga o
+  // botao, em vez de deixa-lo ligado para uma recusa depois.
   it('sem vaga para imagem, o botao desliga', async () => {
     montar()
     const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
@@ -162,6 +161,38 @@ describe('anexar ao responder', () => {
     })
     expect(dublê.enviar.mock.calls[0]?.[3]).toMatchObject({ envio: 'reply' })
     await waitFor(() => expect(aoAnexar).toHaveBeenCalled())
+  })
+
+  // O mesmo seletor do quadro: com a categoria ligada, a resposta tambem leva arquivo.
+  it('na resposta, o arquivo entra na lista e sobe como arquivo da resposta', async () => {
+    dublê.responder.mockResolvedValue(relato({ CanReply: false, InfoRequest: null }))
+    dublê.enviar.mockResolvedValue(undefined)
+    montar({
+      media: {
+        ...media,
+        Kinds: [
+          ...media.Kinds,
+          {
+            Kind: 'File',
+            MaxCount: 2,
+            MaxBytes: 10 * 1024 * 1024,
+            ContentTypes: ['text/plain'],
+            Types: [{ Extension: '.log', ContentType: 'text/plain' }],
+          },
+        ],
+      },
+    })
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'segue o log' } })
+    fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
+      target: { files: [new File([new Uint8Array(100)], 'erro.log', { type: '' })] },
+    })
+    await screen.findByRole('list', { name: 'Arquivos a enviar' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1]).toMatchObject({ kind: 'File', displayOrder: 0 })
+    expect(dublê.enviar.mock.calls[0]?.[3]).toMatchObject({ envio: 'reply' })
   })
 
   it('a imagem fica logo abaixo da resposta, e o tamanho escolhido vai com o arquivo', async () => {
@@ -414,6 +445,8 @@ describe('anexar ao responder', () => {
       PublicId: 'a-1',
       Kind: 'Image',
       DisplaySize: 'Medium',
+      ContentType: 'image/png',
+      SizeBytes: 120 * 1024,
       Url: 'http://armazenamento/a-1',
       ThumbnailUrl: 'http://armazenamento/a-1-thumb',
       ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),

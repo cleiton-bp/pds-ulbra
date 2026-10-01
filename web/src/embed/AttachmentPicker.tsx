@@ -1,11 +1,11 @@
-import { type ReactNode, useRef } from 'react'
+import { type ChangeEvent, type ReactNode, useRef } from 'react'
 import {
   ATTACHMENT_DISPLAY_SIZES,
   type AttachmentDisplaySize,
   type PublicMediaSettingsViewModel,
 } from '@/contracts'
 import type { Anexo } from '@/embed/attachments'
-import { acceptAttribute, hasRoom } from '@/embed/attachments'
+import { acceptAttribute, extensionOf, hasRoom } from '@/embed/attachments'
 import { cn } from '@/shared/lib/cn'
 import {
   DISPLAY_GRID_CLASS,
@@ -14,6 +14,7 @@ import {
   DISPLAY_SIZE_LABEL,
   displaySizeClass,
 } from '@/shared/lib/displaySize'
+import { fileBadge } from '@/shared/lib/fileFormats'
 import { formatBytes } from '@/shared/lib/formatBytes'
 
 /** A classe dos botoes de anexar. Exportada para os botoes extras ficarem iguais. */
@@ -43,6 +44,11 @@ const ESCOLHIDO =
  *
  * **Toda imagem da lista abre no editor** (`onEdit`) — a escolhida, a colada e a
  * capturada. E por ali que a pessoa esconde o que nao quer mostrar antes de enviar.
+ *
+ * **O arquivo que nao e imagem vai numa lista logo abaixo das imagens** — o nome, o
+ * tamanho, e o "remover". Nao ha o que mostrar de um PDF ou de um log, e do lado de
+ * la ele e sempre baixado. Tem botao proprio, que so aparece quando o projeto aceita
+ * arquivo.
  */
 export function AttachmentPicker({
   media,
@@ -60,7 +66,7 @@ export function AttachmentPicker({
   recusa: string | null
   onAdd: (arquivos: File[]) => void
   onRemove: (id: string) => void
-  /** Botoes a mais, ao lado de "Anexar imagem". */
+  /** Botoes a mais, ao lado de "Anexar imagem" e "Anexar arquivo". */
   actions?: ReactNode
   /** Abre a imagem no editor. Sem ele, a imagem so mostra. */
   onEdit?: (id: string) => void
@@ -72,20 +78,52 @@ export function AttachmentPicker({
    */
   disabled?: boolean
 }) {
-  const seletor = useRef<HTMLInputElement>(null)
-  // Cheio pelo total ou pelo limite do tipo, o que vier primeiro.
-  const cheio = !hasRoom(anexos, media)
+  const raiz = useRef<HTMLDivElement>(null)
+  const seletorDeImagem = useRef<HTMLInputElement>(null)
+  const seletorDeArquivo = useRef<HTMLInputElement>(null)
+  // Cada categoria com o seu limite: cheio de imagem, ainda cabe arquivo.
+  const aceitaImagem = media.Kinds.some((kind) => kind.Kind === 'Image')
+  const aceitaArquivo = media.Kinds.some((kind) => kind.Kind === 'File')
   // Travada a lista, a imagem nao muda mais: o arquivo que sobe e o de agora.
   const podeEditar = !!onEdit && !disabled
-  const temImagem = anexos.some((anexo) => anexo.kind === 'Image')
+  const imagens = anexos.filter((anexo) => anexo.kind === 'Image')
+  const arquivos = anexos.filter((anexo) => anexo.kind === 'File')
+  const temImagem = imagens.length > 0
+
+  /**
+   * Tira da lista e leva o foco ao "Remover" seguinte — ou ao anterior, ou ao botao de
+   * anexar. Sem isto, o botao que tinha o foco some, e quem usa teclado volta ao comeco
+   * da pagina.
+   */
+  function removerLevandoFoco(id: string) {
+    const botoes = Array.from(
+      raiz.current?.querySelectorAll<HTMLButtonElement>('button[data-remover]') ?? [],
+    )
+    const indice = botoes.findIndex((botao) => botao.dataset.remover === id)
+    const vizinho = botoes[indice + 1]?.dataset.remover ?? botoes[indice - 1]?.dataset.remover
+    onRemove(id)
+    requestAnimationFrame(() => {
+      const alvo = vizinho
+        ? raiz.current?.querySelector<HTMLButtonElement>(`button[data-remover="${vizinho}"]`)
+        : raiz.current?.querySelector<HTMLButtonElement>('button[data-anexar]:not(:disabled)')
+      alvo?.focus()
+    })
+  }
+
+  /** O arquivo escolhido entra, e o seletor zera — para o mesmo poder voltar depois de removido. */
+  const escolheu = (event: ChangeEvent<HTMLInputElement>) => {
+    const escolhidos = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    onAdd(escolhidos)
+  }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={raiz} className="flex flex-col gap-2">
       {/* Primeiro as imagens, e depois os botoes: e isso que as poe logo abaixo do
           texto, onde elas vao aparecer. */}
-      {anexos.length > 0 && (
+      {imagens.length > 0 && (
         <ul aria-label="Imagens a enviar" className={DISPLAY_GRID_CLASS}>
-          {anexos.map((anexo) => (
+          {imagens.map((anexo) => (
             <li
               key={anexo.id}
               className={cn('flex min-w-0 flex-col gap-1', displaySizeClass(anexo.displaySize))}
@@ -129,7 +167,8 @@ export function AttachmentPicker({
                 {!disabled && (
                   <button
                     type="button"
-                    onClick={() => onRemove(anexo.id)}
+                    onClick={() => removerLevandoFoco(anexo.id)}
+                    data-remover={anexo.id}
                     aria-label={`Remover ${anexo.file.name}`}
                     className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-detail text-fg"
                   >
@@ -146,38 +185,97 @@ export function AttachmentPicker({
         </ul>
       )}
 
+      {arquivos.length > 0 && (
+        <ul aria-label="Arquivos a enviar" className="flex flex-col gap-1.5">
+          {arquivos.map((anexo) => (
+            <li
+              key={anexo.id}
+              className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1 pr-1 pl-1.5"
+            >
+              <span
+                aria-hidden="true"
+                className="flex h-7 min-w-9 flex-none items-center justify-center rounded-md bg-surface-sunken px-1 font-medium text-caption text-fg-muted"
+              >
+                {fileBadge(extensionOf(anexo.file.name))}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-detail text-fg" title={anexo.file.name}>
+                {anexo.file.name}
+              </span>
+              <span className="flex-none text-caption text-fg-muted">
+                {formatBytes(anexo.file.size)}
+              </span>
+              {!disabled && (
+                <button
+                  type="button"
+                  onClick={() => removerLevandoFoco(anexo.id)}
+                  data-remover={anexo.id}
+                  aria-label={`Remover ${anexo.file.name}`}
+                  className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-detail text-fg enabled:hover:bg-surface-sunken"
+                >
+                  ×
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <button
-          type="button"
-          onClick={() => seletor.current?.click()}
-          disabled={cheio || disabled}
-          className={ATTACH_BUTTON_CLASS}
-        >
-          Anexar imagem
-        </button>
+        {aceitaImagem && (
+          <button
+            type="button"
+            onClick={() => seletorDeImagem.current?.click()}
+            data-anexar
+            disabled={!hasRoom(anexos, media, 'Image') || disabled}
+            className={ATTACH_BUTTON_CLASS}
+          >
+            Anexar imagem
+          </button>
+        )}
+
+        {aceitaArquivo && (
+          <button
+            type="button"
+            onClick={() => seletorDeArquivo.current?.click()}
+            data-anexar
+            disabled={!hasRoom(anexos, media, 'File') || disabled}
+            className={ATTACH_BUTTON_CLASS}
+          >
+            Anexar arquivo
+          </button>
+        )}
 
         {actions}
 
-        <span className="text-caption text-fg-muted">ou cole um print aqui</span>
+        {aceitaImagem && <span className="text-caption text-fg-muted">ou cole um print aqui</span>}
       </div>
 
-      {/* Escondido, e aberto pelo botao: o seletor nativo nao aceita a cor do
+      {/* Escondidos, e abertos pelos botoes: o seletor nativo nao aceita a cor do
           cliente nem cabe em 360 pixels com o nome do arquivo ao lado. O `accept`
-          ja faz o navegador esconder o que nao serve. */}
-      <input
-        ref={seletor}
-        type="file"
-        multiple
-        accept={acceptAttribute(media)}
-        aria-label="Escolher imagem para anexar"
-        className="hidden"
-        onChange={(event) => {
-          const arquivos = Array.from(event.target.files ?? [])
-          // Zera para o mesmo arquivo poder ser escolhido de novo depois de removido.
-          event.target.value = ''
-          onAdd(arquivos)
-        }}
-      />
+          ja faz o navegador esconder o que nao serve — um seletor por categoria, para
+          o da imagem nao oferecer PDF, e o do arquivo nao oferecer print. */}
+      {aceitaImagem && (
+        <input
+          ref={seletorDeImagem}
+          type="file"
+          multiple
+          accept={acceptAttribute(media, 'Image')}
+          aria-label="Escolher imagem para anexar"
+          className="hidden"
+          onChange={escolheu}
+        />
+      )}
+      {aceitaArquivo && (
+        <input
+          ref={seletorDeArquivo}
+          type="file"
+          multiple
+          accept={acceptAttribute(media, 'File')}
+          aria-label="Escolher arquivo para anexar"
+          className="hidden"
+          onChange={escolheu}
+        />
+      )}
 
       {temImagem && !disabled && (podeEditar || onResize) && (
         <p className="text-caption text-fg-muted leading-normal">

@@ -29,7 +29,8 @@ public class RequestAttachmentUploadDto
     public string? Token { get; set; }
 
     /// <summary>
-    /// De que tipo e o arquivo. So <c>Image</c>.
+    /// De que tipo e o arquivo: <c>Image</c>, ou <c>File</c> — o que nao e imagem, dos
+    /// formatos que o projeto marcou, reconhecido pela extensao de <see cref="FileName"/>.
     ///
     /// <para><c>Video</c> e recusado com 409: saiu do produto por pesar demais no
     /// armazenamento e na entrega.</para>
@@ -90,12 +91,13 @@ public class RequestAttachmentUploadDto
     public AttachmentDisplaySizeEnum? DisplaySize { get; set; }
 
     /// <summary>
-    /// A posicao da imagem no envio, a partir de zero: a ordem em que a pessoa as montou.
+    /// A posicao no envio, a partir de zero, <b>dentro da categoria</b>: as imagens de 0
+    /// em diante, e os arquivos tambem — a ordem em que a pessoa os montou.
     ///
     /// <para><b>A lista do relato sai nessa ordem</b>, e nao na de chegada — o arquivo
     /// que falhou e foi tentado de novo chega depois dos outros, e voltaria para o fim.
-    /// Sem ele, zero, e a hora de chegada desempata. Vai de zero ao teto de arquivos por
-    /// envio menos um; fora disso, 400.</para>
+    /// Sem ele, zero, e a hora de chegada desempata. Vai de 0 a 9 (o teto de quantos de
+    /// um tipo cabem num envio, menos um); fora disso, 400.</para>
     /// </summary>
     /// <example>0</example>
     public int? DisplayOrder { get; set; }

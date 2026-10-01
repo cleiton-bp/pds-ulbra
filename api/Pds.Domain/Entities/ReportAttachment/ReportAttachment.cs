@@ -148,8 +148,8 @@ public class ReportAttachment : PdsBaseEntity
     public AttachmentDisplaySizeEnum DisplaySize { get; set; } = DefaultDisplaySize;
 
     /// <summary>
-    /// A posicao da imagem no envio, a partir de zero — a ordem em que a pessoa as
-    /// montou.
+    /// A posicao no envio, a partir de zero, dentro da categoria — a ordem em que a
+    /// pessoa montou as imagens, e a dos arquivos, cada uma no seu bloco.
     ///
     /// <para><b>Guardada, e nao deduzida da hora de chegada.</b> Os arquivos sobem um
     /// de cada vez, e o que falhou e foi tentado de novo chega depois dos outros: pela

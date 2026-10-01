@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  type FileFormatViewModel,
   type MediaKind,
   type MediaKindLimitViewModel,
   type MediaSettingsViewModel,
-  UPLOADABLE_MEDIA_KIND,
+  UPLOADABLE_MEDIA_KINDS,
 } from '@/contracts'
 import { describeError, projectMediaSettingsService } from '@/data'
 import {
@@ -20,6 +21,7 @@ import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
+import { fileFormatLabel } from '@/shared/lib/fileFormats'
 
 /**
  * Um tipo que esta tela mostra: só o que ainda se pode enviar.
@@ -29,16 +31,15 @@ import { cn } from '@/shared/lib/cn'
  * com uma API que ainda lista — e uma seção de vídeo aqui prometeria um envio que
  * a ferramenta não oferece mais.
  */
-type ShownKind = MediaKindLimitViewModel & { Kind: typeof UPLOADABLE_MEDIA_KIND }
+type ShownKind = MediaKindLimitViewModel & { Kind: 'Image' | 'File' }
 
 function isShownKind(limite: MediaKindLimitViewModel): limite is ShownKind {
-  return limite.Kind === UPLOADABLE_MEDIA_KIND
+  return UPLOADABLE_MEDIA_KINDS.includes(limite.Kind)
 }
 
-/** Os tetos do sistema, iguais aos de `ProjectMediaSettings` e `ProjectMediaKind` em C#. */
-const TETO_ARQUIVOS = 10
+/** Os tetos do sistema, iguais aos de `ProjectMediaKind` e `FileFormats` em C#. */
 const TETO_QUANTIDADE = 10
-const TETO_MB: Record<ShownKind['Kind'], number> = { Image: 10 }
+const TETO_MB: Record<ShownKind['Kind'], number> = { Image: 10, File: 25 }
 
 /** O que cada tipo é, para quem configura — e não o nome do enum. */
 const TIPOS: Record<ShownKind['Kind'], { titulo: string; resumo: string; custo: string }> = {
@@ -46,6 +47,13 @@ const TIPOS: Record<ShownKind['Kind'], { titulo: string; resumo: string; custo: 
     titulo: 'Imagem',
     resumo: 'Print, foto da tela, recorte de captura.',
     custo: 'Barata de guardar. Print de celular moderno passa de 3 MB.',
+  },
+  File: {
+    titulo: 'Arquivo',
+    resumo:
+      'O PDF da fatura, o log do erro, a planilha que não fecha. Sempre baixado pelo time, e nunca aberto na página.',
+    custo:
+      'Desligado de fábrica: é o anexo com mais risco, porque o conteúdo ninguém olhou. Só entram os formatos marcados, e os bytes de cada um são conferidos onde o formato permite.',
   },
 }
 
@@ -56,7 +64,6 @@ const TIPOS: Record<ShownKind['Kind'], { titulo: string; resumo: string; custo: 
  * do rascunho aquele campo escreve.
  */
 const fieldId = {
-  total: 'max-arquivos',
   count: (kind: MediaKind) => `quantidade-${kind}`,
   size: (kind: MediaKind) => `tamanho-${kind}`,
 }
@@ -71,7 +78,8 @@ const fieldId = {
  * **Os limites aparecem por tipo, porque é assim que eles são guardados** — uma
  * linha por tipo, e não uma coluna por tipo. É o desenho que faz acrescentar áudio
  * um dia ser dado, e não migração. Quando um tipo novo entrar, ele ganha aqui o
- * texto dele e aparece com o padrão de fábrica. Hoje é só imagem.
+ * texto dele e aparece com o padrão de fábrica. Hoje são imagem e arquivo, cada um
+ * com a sua quantidade e o seu tamanho por envio — não há total.
  *
  * **Cada número desta tela é uma conta que alguém paga.** É a primeira parte do
  * produto que custa dinheiro por byte guardado, e é por isso que o custo de cada
@@ -142,10 +150,20 @@ export function MediaScreen() {
    */
   const semTipo = draft?.IsEnabled === true && shownKinds.every((tipo) => !tipo.IsEnabled)
 
+  /**
+   * Arquivo aceito sem formato marcado não aceita nada — e a API recusa salvar assim.
+   * A tela não marca por quem configura, pelo mesmo motivo da imagem.
+   */
+  const semFormato =
+    draft?.IsEnabled === true &&
+    shownKinds.some(
+      (tipo) => tipo.Kind === 'File' && tipo.IsEnabled && (tipo.Formats ?? []).length === 0,
+    )
+
   const noStorage = draft !== null && !draft.IsStorageAvailable
   const invalidCount = invalidFields.size
 
-  const impedido = semTipo || noStorage || invalidCount > 0
+  const impedido = semTipo || semFormato || noStorage || invalidCount > 0
 
   function toggleAttachments(enabled: boolean) {
     if (!draft) return
@@ -178,7 +196,11 @@ export function MediaScreen() {
         AllowsScreenCapture: draft.AllowsScreenCapture,
         AllowsOnInfoRequest: draft.AllowsOnInfoRequest,
         AllowsOnReopen: draft.AllowsOnReopen,
-        MaxFilesPerReport: draft.MaxFilesPerReport,
+        // A API de antes do arquivo exige o total ao salvar; a nova nem o manda. Devolver
+        // o que veio mantém o salvar funcionando na janela da troca.
+        ...(draft.MaxFilesPerReport !== undefined && {
+          MaxFilesPerReport: draft.MaxFilesPerReport,
+        }),
         // Só o que a tela mostra. Tipo que não vai fica como está do lado de lá.
         Kinds: draft.Kinds.filter(isShownKind),
       })
@@ -254,6 +276,7 @@ export function MediaScreen() {
                 <Tipo
                   key={limite.Kind}
                   limite={limite}
+                  formatos={draft.FileFormats ?? []}
                   disabled={!draft.IsEnabled}
                   aoTrocar={(mudanca) => trocarTipo(limite.Kind, mudanca)}
                   onValidityChange={trackField}
@@ -268,24 +291,12 @@ export function MediaScreen() {
               Vídeo não é mais aceito como anexo. Os vídeos já recebidos continuam nos relatos.
             </p>
 
-            <div className="mt-5 rounded-xl border border-border bg-surface p-4">
-              {/* Um, e não zero, no mínimo: zero seria desligar o anexo por outro
-                  caminho. Com um tipo só, este total e o da imagem valem juntos, e
-                  a ajuda diz que vence o menor — sem isso, subir só este número
-                  pareceria não fazer nada. */}
-              <Numero
-                id={fieldId.total}
-                rotulo="Arquivos por envio"
-                unidade="arquivos"
-                valor={draft.MaxFilesPerReport}
-                range={{ min: 1, max: TETO_ARQUIVOS, decimals: 0 }}
-                ajuda="O relato é um envio, e cada resposta ao time é outro — assim como cada reabertura. Vale o menor entre este número e o limite da imagem."
-                emphasized
-                disabled={!draft.IsEnabled}
-                aoTrocar={(valor) => setDraft({ ...draft, MaxFilesPerReport: valor })}
-                onValidityChange={trackField}
-              />
-            </div>
+            {/* Sem total por envio: cada categoria tem o seu. A frase diz o que é um
+                envio, que o total dizia antes. */}
+            <p className="mt-2.5 text-caption text-fg-muted leading-relaxed">
+              Os limites valem para cada envio: o relato é um, cada resposta ao time é outro, e cada
+              reabertura também.
+            </p>
 
             <div className="mt-5 flex flex-col gap-2.5">
               <Interruptor
@@ -317,10 +328,23 @@ export function MediaScreen() {
           {semTipo && (
             <div className="mt-6 rounded-xl border border-warn-border bg-warn-surface p-4">
               <p className="text-caption text-warn-fg leading-relaxed">
-                <strong className="font-medium">O anexo está ligado e imagem não é aceita.</strong>{' '}
-                Assim não entra arquivo nenhum. Aceite imagem, ou desligue o anexo — não marcamos
-                imagem por você, porque cada imagem aceita é espaço que este projeto passa a
-                guardar.
+                <strong className="font-medium">
+                  O anexo está ligado e nem imagem nem arquivo são aceitos.
+                </strong>{' '}
+                Assim não entra nada. Aceite um dos dois, ou desligue o anexo — não marcamos por
+                você, porque cada anexo aceito é espaço que este projeto passa a guardar.
+              </p>
+            </div>
+          )}
+
+          {semFormato && (
+            <div className="mt-6 rounded-xl border border-warn-border bg-warn-surface p-4">
+              <p className="text-caption text-warn-fg leading-relaxed">
+                <strong className="font-medium">
+                  O arquivo está aceito e nenhum formato está marcado.
+                </strong>{' '}
+                Assim não entra arquivo nenhum. Marque ao menos um formato, ou deixe de aceitar
+                arquivo.
               </p>
             </div>
           )}
@@ -368,7 +392,6 @@ function igual(a: MediaSettingsViewModel, b: MediaSettingsViewModel) {
     a.AllowsScreenCapture === b.AllowsScreenCapture &&
     a.AllowsOnInfoRequest === b.AllowsOnInfoRequest &&
     a.AllowsOnReopen === b.AllowsOnReopen &&
-    a.MaxFilesPerReport === b.MaxFilesPerReport &&
     a.Kinds.length === b.Kinds.length &&
     a.Kinds.every((tipo, indice) => {
       const outro = b.Kinds[indice]
@@ -378,7 +401,9 @@ function igual(a: MediaSettingsViewModel, b: MediaSettingsViewModel) {
         tipo.Kind === outro.Kind &&
         tipo.IsEnabled === outro.IsEnabled &&
         tipo.MaxCount === outro.MaxCount &&
-        tipo.MaxBytes === outro.MaxBytes
+        tipo.MaxBytes === outro.MaxBytes &&
+        // A ordem dos marcados nao importa: e o mesmo conjunto de formatos.
+        [...(tipo.Formats ?? [])].sort().join() === [...(outro.Formats ?? [])].sort().join()
       )
     })
   )
@@ -397,9 +422,6 @@ function restoreInvalid(
 ): MediaSettingsViewModel {
   return {
     ...draft,
-    MaxFilesPerReport: invalid.has(fieldId.total)
-      ? published.MaxFilesPerReport
-      : draft.MaxFilesPerReport,
     Kinds: draft.Kinds.map((kind) => {
       const saved = published.Kinds.find((other) => other.Kind === kind.Kind)
 
@@ -461,11 +483,14 @@ function Interruptor({
  */
 function Tipo({
   limite,
+  formatos,
   disabled,
   aoTrocar,
   onValidityChange,
 }: {
   limite: ShownKind
+  /** O catálogo de formatos de arquivo. Só o arquivo usa. */
+  formatos: FileFormatViewModel[]
   /** O anexo está desligado, e os campos ficam fora de alcance. */
   disabled: boolean
   aoTrocar: (mudanca: Partial<MediaKindLimitViewModel>) => void
@@ -517,7 +542,73 @@ function Tipo({
           onValidityChange={onValidityChange}
         />
       </div>
+
+      {limite.Kind === 'File' && (
+        <Formatos
+          catalogo={formatos}
+          marcados={limite.Formats ?? []}
+          aoTrocar={(marcados) => aoTrocar({ Formats: marcados })}
+        />
+      )}
     </div>
+  )
+}
+
+/**
+ * Os formatos de arquivo que o projeto aceita, para marcar.
+ *
+ * **O catálogo é fechado, e vem da API** — é ela que confere os bytes de cada um. Aqui
+ * mora só o nome de cada formato em português, e as extensões dele escritas junto,
+ * para quem configura saber exatamente o que entra.
+ *
+ * **Marcados também com o arquivo desligado**, como os limites: desligar não apaga a
+ * escolha, e religar devolve o que já tinha sido pensado.
+ */
+function Formatos({
+  catalogo,
+  marcados,
+  aoTrocar,
+}: {
+  catalogo: FileFormatViewModel[]
+  marcados: string[]
+  aoTrocar: (marcados: string[]) => void
+}) {
+  return (
+    <fieldset className="mt-3.5 border-border border-t pt-3.5 pl-7">
+      <legend className="sr-only">Formatos aceitos</legend>
+      <p aria-hidden="true" className="mb-2 font-medium text-caption text-fg">
+        Formatos aceitos
+      </p>
+      <div className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+        {catalogo.map((formato) => (
+          <label key={formato.Key} className="flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={marcados.includes(formato.Key)}
+              onChange={(evento) =>
+                aoTrocar(
+                  evento.target.checked
+                    ? [...marcados, formato.Key]
+                    : marcados.filter((marcado) => marcado !== formato.Key),
+                )
+              }
+              className="mt-0.5 flex-none accent-accent"
+            />
+            <span className="min-w-0 text-caption leading-relaxed">
+              <span className="text-fg">{fileFormatLabel(formato.Key)}</span>{' '}
+              <span className="text-fg-muted">{formato.Extensions.join(' ')}</span>
+              {/* O zip é o formato que não dá para conferir por dentro: pode trazer
+                  qualquer arquivo, e quem marca precisa saber disso. */}
+              {formato.Key === 'zip' && (
+                <span className="block text-fg-muted">
+                  Pode trazer qualquer arquivo dentro: só o formato do zip é conferido.
+                </span>
+              )}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   )
 }
 
@@ -541,7 +632,6 @@ function Numero({
   valor,
   range,
   ajuda,
-  emphasized = false,
   disabled,
   aoTrocar,
   onValidityChange,
@@ -552,8 +642,6 @@ function Numero({
   valor: number
   range: LimitRange
   ajuda?: string
-  /** O campo que resume a tela, com o rótulo no tamanho do texto corrido. */
-  emphasized?: boolean
   /** Fora de alcance: o `fieldset` em volta está desabilitado. */
   disabled: boolean
   aoTrocar: (valor: number) => void
@@ -591,14 +679,8 @@ function Numero({
   const messageId = `${id}-mensagem`
 
   return (
-    <div className={emphasized ? undefined : 'min-w-44'}>
-      <label
-        htmlFor={id}
-        className={cn(
-          'mb-1 block font-medium text-fg',
-          emphasized ? 'text-detail' : 'text-caption',
-        )}
-      >
+    <div className="min-w-44">
+      <label htmlFor={id} className="mb-1 block font-medium text-caption text-fg">
         {rotulo}
       </label>
       <div className="mb-1 flex items-center gap-2">
@@ -624,13 +706,11 @@ function Numero({
           }}
           className={cn(
             'h-9 rounded-lg border bg-surface-raised px-3 text-body text-fg',
-            emphasized ? 'w-28' : 'w-24',
+            'w-24',
             invalid ? 'border-error-border' : 'border-border',
           )}
         />
-        <span className={cn('text-fg-muted', emphasized ? 'text-detail' : 'text-caption')}>
-          {unidade}
-        </span>
+        <span className="text-caption text-fg-muted">{unidade}</span>
       </div>
       <p
         id={messageId}

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { AttachmentDisplaySize, MediaKind } from '@/contracts'
 import { cn } from '@/shared/lib/cn'
 import { DISPLAY_GRID_CLASS, DISPLAY_IMAGE_CLASS, displaySizeClass } from '@/shared/lib/displaySize'
+import { fileTypeBadge, fileTypeLabel } from '@/shared/lib/fileFormats'
+import { formatBytes } from '@/shared/lib/formatBytes'
 
 /** Um arquivo, do jeito que a galeria precisa — sem saber de que lado ele veio. */
 export interface GalleryItem {
@@ -15,7 +17,11 @@ export interface GalleryItem {
    * inteira. O video nao tem: ver o comentario da galeria.
    */
   displaySize?: AttachmentDisplaySize
-  /** O que aparece embaixo da imagem, ou do video aberto. O painel mostra nome e tamanho; o lado de fora, nada. */
+  /** O tipo gravado. No arquivo que nao e imagem, e o que diz "PDF" ou "planilha". */
+  contentType?: string
+  /** O tamanho, para quem vai baixar saber o que vem. */
+  sizeBytes?: number
+  /** O que aparece embaixo da imagem, ou do video aberto, ou no arquivo. O painel mostra nome e tamanho; o lado de fora, nada. */
   caption?: string
   /** Uma marca curta na miniatura do video, como "resposta". */
   badge?: string
@@ -53,6 +59,10 @@ const RECEM_CHEGADO_MS = 5_000
  * centenas de kilobytes, e a imagem so baixa quando chega perto da tela
  * (`loading="lazy"`).
  *
+ * **O arquivo que nao e imagem so baixa** — uma linha com o tipo, o tamanho e
+ * "Baixar", logo abaixo das imagens. O endereco dele sai da API com o anexo e o tipo
+ * generico na propria assinatura: o navegador salva, e nunca abre na pagina.
+ *
  * **O video antigo continua como era**: a miniatura numa grade, e o player so quando
  * alguem abre. Video nao entra mais, e os que ficaram nunca tiveram tamanho
  * escolhido — baixar cada um para desenha-lo na linha custaria o que fez o video sair
@@ -78,9 +88,15 @@ export function AttachmentGallery({
   items,
   onExpired,
   label = 'Imagens anexadas',
+  fileLabel = 'Arquivos anexados',
+  fileNote,
 }: {
   items: GalleryItem[]
   onExpired: () => void
+  /** O nome da lista de arquivos para o leitor de tela. */
+  fileLabel?: string
+  /** Uma frase embaixo da lista de arquivos — o painel lembra de onde eles vieram. */
+  fileNote?: string
   /**
    * O nome da lista de imagens para o leitor de tela. **Nao aparece na tela**: a imagem
    * fica logo abaixo do texto que a trouxe, e um titulo no meio separaria os dois.
@@ -90,6 +106,13 @@ export function AttachmentGallery({
   /** O video aberto, e o endereco em que ele comecou. Ver "Renovar nao fecha nada". */
   const [aberto, setAberto] = useState<{ id: string; videoUrl: string } | null>(null)
   const [quebrados, setQuebrados] = useState<ReadonlySet<string>>(() => new Set())
+  /**
+   * O arquivo cujo endereco estava vencendo no clique, e a lista de entao: o aviso vale
+   * ate os enderecos novos chegarem.
+   */
+  const [renovandoArquivo, setRenovandoArquivo] = useState<{ id: string; lista: string } | null>(
+    null,
+  )
 
   /**
    * Arquivo que ja pediu endereco novo por falha, e o endereco com que falhou.
@@ -171,8 +194,11 @@ export function AttachmentGallery({
 
   if (items.length === 0) return null
 
-  const imagens = items.filter((item) => item.kind !== 'Video')
+  const imagens = items.filter((item) => item.kind === 'Image')
   const videos = items.filter((item) => item.kind === 'Video')
+  // O que nao e imagem nem video so baixa — inclusive um tipo que esta tela ainda nao
+  // conhece: baixar e o jeito seguro de entregar o que nao se sabe desenhar.
+  const arquivos = items.filter((item) => item.kind !== 'Image' && item.kind !== 'Video')
   const selecionado = videos.find((item) => item.id === aberto?.id) ?? null
 
   function abrir(item: GalleryItem) {
@@ -199,6 +225,69 @@ export function AttachmentGallery({
             </li>
           ))}
         </ul>
+      )}
+
+      {arquivos.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <ul aria-label={fileLabel} className="flex flex-col gap-1.5">
+            {arquivos.map((item) => {
+              // No painel, o nome e o tamanho; do lado de fora, o tipo e o tamanho — o nome
+              // original nunca sai.
+              const texto =
+                item.caption ??
+                [
+                  fileTypeLabel(item.contentType),
+                  item.sizeBytes !== undefined ? formatBytes(item.sizeBytes) : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              return (
+                <li key={item.id}>
+                  <a
+                    href={item.url}
+                    download
+                    // Em outra aba: se o endereco falhar mesmo assim — o relogio de quem
+                    // olha atrasado —, o erro do armazenamento abre la, e nao no lugar
+                    // desta pagina, com a resposta que alguem estava escrevendo.
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Baixar ${texto}`}
+                    onClick={(evento) => {
+                      // Vencido ou vencendo — o computador dormiu, a renovacao nao rodou:
+                      // pede um endereco novo em vez de abrir um que o armazenamento recusa.
+                      if (Date.parse(item.expiresAt) - Date.now() < RENOVAR_ANTES_MS) {
+                        evento.preventDefault()
+                        setRenovandoArquivo({ id: item.id, lista: assinatura })
+                        renovar()
+                      }
+                    }}
+                    className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1 pr-2.5 pl-1.5 hover:bg-surface-sunken"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex h-7 min-w-9 flex-none items-center justify-center rounded-md bg-surface-sunken px-1 font-medium text-caption text-fg-muted"
+                    >
+                      {fileTypeBadge(item.contentType)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-detail text-fg" title={texto}>
+                      {texto}
+                    </span>
+                    <span className="flex-none font-medium text-detail text-fg underline underline-offset-4">
+                      Baixar
+                    </span>
+                  </a>
+                  {renovandoArquivo?.id === item.id && renovandoArquivo.lista === assinatura && (
+                    <p role="status" className="mt-1 text-caption text-fg-muted leading-normal">
+                      O endereço deste arquivo tinha vencido. Pedimos um novo — clique em Baixar de
+                      novo em alguns segundos.
+                    </p>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+          {fileNote && <p className="text-caption text-fg-muted leading-normal">{fileNote}</p>}
+        </div>
       )}
 
       {videos.length > 0 && (

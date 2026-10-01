@@ -26,7 +26,6 @@ const media: PublicMediaSettingsViewModel = {
   AllowsScreenCapture: true,
   AllowsOnInfoRequest: true,
   AllowsOnReopen: true,
-  MaxFilesPerReport: 4,
   Kinds: [
     {
       Kind: 'Image',

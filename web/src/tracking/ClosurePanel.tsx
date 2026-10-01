@@ -284,7 +284,11 @@ export function ClosurePanel({
                   texto e a imagem, que vai logo abaixo dele. */}
               {anexar.rascunho.anexos.length === 0 && (
                 <p className="mb-2 text-caption text-fg-muted leading-relaxed">
-                  Se ajudar, anexe um print do que ainda está acontecendo.
+                  {/* "Print" só onde imagem é aceita: com só arquivo, colar um print
+                      seria recusado. */}
+                  {anexar.midia.Kinds.some((kind) => kind.Kind === 'Image')
+                    ? 'Se ajudar, anexe um print do que ainda está acontecendo.'
+                    : 'Se ajudar, anexe um arquivo que mostre o que ainda está acontecendo.'}
                 </p>
               )}
               <AttachmentPicker

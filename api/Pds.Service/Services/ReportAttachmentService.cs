@@ -180,6 +180,11 @@ public class ReportAttachmentService : IReportAttachmentService
         if (dto.WithThumbnail == true && !ThumbnailContentTypes.Contains(tipoMiniatura))
             throw new ArgumentException("A miniatura vai em WebP ou JPEG.");
 
+        // Arquivo nao tem miniatura: nao ha o que desenhar de um PDF ou de um log, e a
+        // permissao de uma seria um endereco a mais para gravar o que ninguem confere.
+        if (kind == MediaKindEnum.File && dto.WithThumbnail == true)
+            throw new ArgumentException("Arquivo nao tem miniatura.");
+
         // O tamanho e a posicao sao do quadro, e nao da regra do projeto: fora da lista
         // so vem de cliente com defeito. 400, como o formato da miniatura. O numero que
         // nao e de nenhum tamanho passa pela leitura do JSON — por isso o IsDefined.
@@ -190,9 +195,11 @@ public class ReportAttachmentService : IReportAttachmentService
 
         var posicao = dto.DisplayOrder ?? 0;
 
-        if (posicao < 0 || posicao >= ProjectMediaSettings.MaxFilesPerReportCeiling)
+        // A posicao conta dentro da categoria: as imagens de 0 em diante, e os arquivos
+        // tambem. O teto e o de quantos de um tipo cabem num envio.
+        if (posicao < 0 || posicao >= ProjectMediaKind.MaxCountCeiling)
             throw new ArgumentException(
-                $"A posicao da imagem no envio vai de 0 a {ProjectMediaSettings.MaxFilesPerReportCeiling - 1}.");
+                $"A posicao no envio vai de 0 a {ProjectMediaKind.MaxCountCeiling - 1}.");
 
         var vigente = MediaSettingsDefaults.Resolve(
             await _unitOfWork.ProjectMediaSettings.FindByProjectWithoutSessionAsync(
@@ -261,7 +268,21 @@ public class ReportAttachmentService : IReportAttachmentService
         // O tipo e conferido antes de assinar para a recusa chegar antes do envio.
         // Quem escolheu um arquivo e esperou o envio terminar para ouvir "nao serve"
         // esperou a toa — e gastou a banda dele e o espaco do nosso balde.
-        if (!MediaSignatures.IsAccepted(kind, contentType))
+        //
+        // **O arquivo e reconhecido pela extensao, com o tipo que o catalogo da a ela** —
+        // e so entre os formatos que o dono marcou. Extensao e tipo que nao casam sao
+        // recusados como formato: o quadro manda sempre o tipo do catalogo, e so outro
+        // cliente mandaria diferente.
+        //
+        // **A extensao conferida e a do nome que fica gravado**, ja limpo e cortado — e
+        // nao a do nome que veio: conferir antes do corte deixaria gravar um nome que
+        // termina em outra extensao, e o painel baixaria com ela. Ver NomeOriginal.
+        var nomeOriginal = NomeOriginal(dto.FileName);
+        var aceito = kind == MediaKindEnum.File
+            ? FileFormats.Accepted(limite.Formats, nomeOriginal, contentType) is not null
+            : MediaSignatures.IsAccepted(kind, contentType);
+
+        if (!aceito)
             throw new ConflictException("Esse formato de arquivo nao e aceito.");
 
         // Cada um com a sua frase: "passa do limite" dita de um arquivo vazio mandaria
@@ -275,7 +296,7 @@ public class ReportAttachmentService : IReportAttachmentService
         // Conferido aqui para recusar antes do envio, e nao para garantir o limite:
         // quem garante e a confirmacao, que conta de novo com a cota travada. 409,
         // como na confirmacao: o pedido esta certo, o envio e que ja esta cheio.
-        if (await RoomRefusalAsync(report.Id, respostaId, reaberturaId, kind, vigente, limite, cancellationToken) is { } semVaga)
+        if (await RoomRefusalAsync(report.Id, respostaId, reaberturaId, kind, limite, cancellationToken) is { } semVaga)
             throw new ConflictException(semVaga);
 
         // O nome no armazenamento e sorteado, e nunca derivado do que veio de fora:
@@ -299,7 +320,7 @@ public class ReportAttachmentService : IReportAttachmentService
 
             // O que o navegador disse, ate a confirmacao ler o numero de verdade.
             SizeBytes = tamanho,
-            OriginalName = Trim(dto.FileName, ReportAttachment.MaxOriginalNameLength),
+            OriginalName = nomeOriginal,
             DisplaySize = exibicao,
             DisplayOrder = posicao,
         };
@@ -307,15 +328,19 @@ public class ReportAttachmentService : IReportAttachmentService
         await _unitOfWork.ReportAttachments.AddAsync(attachment, cancellationToken);
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        // O arquivo que nao e imagem nasce so para baixar. Ver AssinarLeituraAsync.
         var arquivo = await _mediaStorage.CreateUploadTicketAsync(
-            chave, contentType, limite.MaxBytes, cancellationToken);
+            chave, contentType, limite.MaxBytes,
+            downloadOnly: kind == MediaKindEnum.File,
+            cancellationToken: cancellationToken);
 
         SignedUploadViewModel? miniatura = null;
 
         if (comMiniatura)
         {
             var assinada = await _mediaStorage.CreateUploadTicketAsync(
-                attachment.ThumbnailObjectKey!, tipoMiniatura, ThumbnailMaxBytes, cancellationToken);
+                attachment.ThumbnailObjectKey!, tipoMiniatura, ThumbnailMaxBytes,
+                cancellationToken: cancellationToken);
 
             miniatura = new SignedUploadViewModel(assinada.Url.ToString(), assinada.Fields, assinada.MaxBytes);
         }
@@ -402,9 +427,15 @@ public class ReportAttachmentService : IReportAttachmentService
         //
         // A frase fala do conteudo, e nao de uma "declaracao": quem relata so escolheu
         // um arquivo, e quem disse o tipo foi o navegador, pela extensao.
+        //
+        // **O tipo gravado tambem e conferido**, e nao so o declarado. Quem garante que o
+        // armazenamento gravou o tipo pedido e a condicao da politica de envio — e o
+        // produto nao quer depender de todo provedor aplica-la: um que nao aplique
+        // gravaria uma imagem como pagina, servida como pagina.
         var arquivoRecusado =
             objeto is not null && limite is not null
-                               && !MediaSignatures.Matches(attachment.ContentType, objeto.Leading)
+                               && (!MesmoTipo(objeto.ContentType, attachment.ContentType)
+                                   || !MediaSignatures.Matches(attachment.ContentType, objeto.Leading))
                 ? "O conteudo do arquivo nao e de um formato aceito."
                 : null;
 
@@ -494,7 +525,7 @@ public class ReportAttachmentService : IReportAttachmentService
                              : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
                                ?? await RoomRefusalAsync(
                                    report.Id, attachment.PublicCommentId, attachment.ReopenedClosureId,
-                                   attachment.Kind, vigente, limite, ct))
+                                   attachment.Kind, limite, ct))
                          is { } regra)
                     motivo = new ConfirmRefusal(regra, Retryable: false);
 
@@ -603,12 +634,13 @@ public class ReportAttachmentService : IReportAttachmentService
 
         foreach (var anexo in anexos)
         {
-            var (arquivo, miniatura) = await AssinarLeituraAsync(anexo, cancellationToken);
+            var (arquivo, miniatura) = await AssinarLeituraAsync(anexo, doPainel: true, cancellationToken);
 
             lista.Add(new PanelAttachmentViewModel(
                 anexo.PublicId,
                 anexo.Kind,
                 anexo.DisplaySize,
+                anexo.ContentType,
                 arquivo.Url.ToString(),
                 miniatura?.Url.ToString(),
                 arquivo.ExpiresAt,
@@ -664,13 +696,15 @@ public class ReportAttachmentService : IReportAttachmentService
 
         foreach (var anexo in anexos)
         {
-            var (arquivo, miniatura) = await AssinarLeituraAsync(anexo, cancellationToken);
+            var (arquivo, miniatura) = await AssinarLeituraAsync(anexo, doPainel: false, cancellationToken);
 
             // Campo a campo, e sem o nome original. Ver o comentario do tipo.
             lista.Add(new PublicAttachmentViewModel(
                 anexo.PublicId,
                 anexo.Kind,
                 anexo.DisplaySize,
+                anexo.ContentType,
+                anexo.SizeBytes,
                 arquivo.Url.ToString(),
                 miniatura?.Url.ToString(),
                 arquivo.ExpiresAt,
@@ -697,6 +731,7 @@ public class ReportAttachmentService : IReportAttachmentService
     /// </summary>
     private async Task<(SignedReadUrl Arquivo, SignedReadUrl? Miniatura)> AssinarLeituraAsync(
         ReportAttachment anexo,
+        bool doPainel,
         CancellationToken cancellationToken)
     {
         // O armazenamento foi tirado depois de os arquivos entrarem. Dizer isso e
@@ -705,14 +740,59 @@ public class ReportAttachmentService : IReportAttachmentService
         if (!_mediaStorage.IsAvailable)
             throw new ConflictException(SemArmazenamento);
 
+        // **O arquivo que nao e imagem so baixa.** O endereco dele sai com o anexo e o
+        // tipo generico na propria assinatura: nem o navegador de quem relatou nem o do
+        // time abre um PDF, um log ou um zip na pagina — o que ha dentro nao roda em
+        // lugar nenhum.
         var arquivo = await _mediaStorage.CreateReadUrlAsync(
-            anexo.ObjectKey, forPlayback: anexo.Kind == MediaKindEnum.Video, cancellationToken);
+            anexo.ObjectKey,
+            forPlayback: anexo.Kind == MediaKindEnum.Video,
+            downloadAs: anexo.Kind == MediaKindEnum.File ? NomeDoDownload(anexo, doPainel) : null,
+            cancellationToken: cancellationToken);
 
         var miniatura = anexo.ThumbnailObjectKey is { } thumb
-            ? await _mediaStorage.CreateReadUrlAsync(thumb, forPlayback: false, cancellationToken)
+            ? await _mediaStorage.CreateReadUrlAsync(thumb, forPlayback: false, cancellationToken: cancellationToken)
             : null;
 
         return (arquivo, miniatura);
+    }
+
+    /// <summary>
+    /// O nome com que o arquivo baixa. **No painel, o que a pessoa deu a ele**; do lado
+    /// de fora, <c>anexo</c> com a extensao — o nome original nunca sai, nem no
+    /// download: ver <see cref="ReportAttachment.OriginalName"/>.
+    /// </summary>
+    private static string NomeDoDownload(ReportAttachment anexo, bool doPainel)
+    {
+        var extensao = ExtensaoDoArquivo(anexo);
+
+        if (!doPainel || string.IsNullOrWhiteSpace(anexo.OriginalName))
+            return $"anexo{extensao}";
+
+        // **O nome baixado termina sempre numa extensao do catalogo.** O nome e o que a
+        // pessoa escreveu; a extensao e a que o tipo conferido tem. Um nome gravado que
+        // termine em outra — cortado antes desta regra, ou escrito para isso — ganha a
+        // do catalogo no fim, e o time nunca baixa um ".hta" com selo de texto.
+        return FileFormats.ExtensionOf(anexo.OriginalName) == extensao
+            ? anexo.OriginalName
+            : $"{anexo.OriginalName}{extensao}";
+    }
+
+    /// <summary>
+    /// A extensao do arquivo, do catalogo: a do nome original quando e uma das do tipo
+    /// gravado (o <c>.log</c> e o <c>.txt</c> gravam o mesmo tipo), e senao a primeira.
+    /// </summary>
+    private static string ExtensaoDoArquivo(ReportAttachment anexo)
+    {
+        var tipos = FileFormats.All
+            .SelectMany(formato => formato.Types)
+            .Where(tipo => tipo.ContentType == anexo.ContentType)
+            .ToList();
+        var original = FileFormats.ExtensionOf(anexo.OriginalName);
+
+        return tipos.FirstOrDefault(tipo => tipo.Extension == original)?.Extension
+               ?? tipos.FirstOrDefault()?.Extension
+               ?? string.Empty;
     }
 
     /// <summary>
@@ -906,9 +986,8 @@ public class ReportAttachmentService : IReportAttachmentService
     /// Ha vaga para mais um arquivo deste tipo neste envio — a criacao do relato, uma
     /// resposta ou uma reabertura. Cada envio tem a sua cota.
     ///
-    /// <para><b>Os dois limites sao conferidos, e nao um deles.</b> Com um tipo so,
-    /// vence o menor; com mais de um, so o do tipo deixaria a soma passar do total
-    /// que o projeto quer, e so o total deixaria um tipo ocupar a cota inteira.</para>
+    /// <para><b>So o limite do tipo.</b> Nao ha total por envio: imagem e arquivo tem
+    /// cada um o seu, e imagem cheia ainda deixa anexar arquivo.</para>
     ///
     /// <para><b>So os confirmados contam.</b> O que ficou pendente e permissao que
     /// alguem pediu e nao usou — faze-lo ocupar vaga deixaria quem tentou tres vezes
@@ -923,11 +1002,10 @@ public class ReportAttachmentService : IReportAttachmentService
         long? respostaId,
         long? reaberturaId,
         MediaKindEnum kind,
-        EffectiveMediaSettings vigente,
         EffectiveMediaKind limite,
         CancellationToken cancellationToken)
     {
-        var (total, doTipo) = await _unitOfWork.ReportAttachments.CountConfirmedWithoutSessionAsync(
+        var (_, doTipo) = await _unitOfWork.ReportAttachments.CountConfirmedWithoutSessionAsync(
             reportId, respostaId, reaberturaId, kind, cancellationToken);
 
         var onde = respostaId is not null
@@ -936,9 +1014,7 @@ public class ReportAttachmentService : IReportAttachmentService
                 ? "Esta reabertura"
                 : "Este relato";
 
-        if (total >= vigente.MaxFilesPerReport)
-            return $"{onde} ja tem o maximo de arquivos que o projeto permite, que e {vigente.MaxFilesPerReport}.";
-
+        // Sem total por envio: cada categoria tem o seu limite. Ver MaxFilesPerReport.
         if (doTipo >= limite.MaxCount)
             return $"{onde} ja tem o maximo desse tipo que o projeto permite, que e {limite.MaxCount}.";
 
@@ -970,6 +1046,15 @@ public class ReportAttachmentService : IReportAttachmentService
 
         if (!limite.IsEnabled)
             return "Este projeto deixou de aceitar esse tipo de arquivo.";
+
+        // O formato desmarcado depois da permissao. Pelo tipo gravado, que e do catalogo
+        // e aponta um formato so — o nome original pode ter sido cortado ao gravar.
+        if (attachment.Kind == MediaKindEnum.File
+            && !limite.Formats
+                .Select(FileFormats.Find)
+                .OfType<FileFormat>()
+                .Any(formato => formato.Types.Any(tipo => tipo.ContentType == attachment.ContentType)))
+            return "Este projeto deixou de aceitar esse formato de arquivo.";
 
         if (attachment.PublicCommentId is not null && !vigente.AllowsOnInfoRequest)
             return "Este projeto deixou de aceitar anexo nas respostas.";
@@ -1027,18 +1112,47 @@ public class ReportAttachmentService : IReportAttachmentService
     /// posicoes; cortado entre elas, sobra meio caractere, o banco recusa o texto, e
     /// aquele arquivo nunca mais seria anexado sem mudar de nome.</para>
     /// </summary>
-    private static string? Trim(string? value, int maxLength)
+    /// <summary>O tipo gravado pelo armazenamento e o declarado sao o mesmo, sem os parametros (<c>; charset=...</c>).</summary>
+    private static bool MesmoTipo(string gravado, string declarado)
+        => string.Equals(
+            gravado.Split(';')[0].Trim(),
+            declarado,
+            StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// O nome do arquivo como ele fica gravado: sem caractere de controle nem de formato,
+    /// e cortado no miolo — <b>nunca na extensao</b>.
+    ///
+    /// <para><b>Sem controle nem formato</b> (categorias Cc e Cf): a quebra de linha
+    /// escreveria na legenda do painel, e os caracteres invisiveis de direcao fazem
+    /// "fatura<c>U+202E</c>fdp.txt" aparecer como "faturatxt.pdf".</para>
+    ///
+    /// <para><b>Cortado no miolo</b>: o corte no fim trocaria a extensao — um nome de 204
+    /// caracteres terminado em ".hta.txt" ficaria ".hta" —, e a extensao conferida seria
+    /// outra que a gravada.</para>
+    /// </summary>
+    private static string? NomeOriginal(string? value)
     {
-        var limpo = (value ?? string.Empty).Trim();
+        var limpo = new string((value ?? string.Empty)
+            .Where(c => !char.IsControl(c) && CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.Format)
+            .ToArray()).Trim();
+
+        var max = ReportAttachment.MaxOriginalNameLength;
 
         if (limpo.Length == 0)
             return null;
 
-        if (limpo.Length <= maxLength)
+        if (limpo.Length <= max)
             return limpo;
 
-        var corte = char.IsHighSurrogate(limpo[maxLength - 1]) ? maxLength - 1 : maxLength;
+        var ponto = limpo.LastIndexOf('.');
+        var extensao = ponto > 0 && limpo.Length - ponto <= 10 ? limpo[ponto..] : string.Empty;
+        var corte = max - extensao.Length;
 
-        return limpo[..corte];
+        if (char.IsHighSurrogate(limpo[corte - 1]))
+            corte--;
+
+        return limpo[..corte] + extensao;
     }
+
 }

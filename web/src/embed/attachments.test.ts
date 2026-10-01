@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { PublicMediaSettingsViewModel } from '@/contracts'
 import {
   acceptAttribute,
+  extensionOf,
   formatBytes,
   hasRoom,
   kindFor,
   onlyUploadable,
   rejectReason,
+  withDeclaredType,
   withRealType,
 } from '@/embed/attachments'
 
@@ -19,16 +21,20 @@ import {
  * ouvir "nao serve", e um que recusasse o que o servidor aceita tiraria dela um
  * anexo valido.
  *
- * **Os dois limites valem juntos.** O do tipo e o total sao conferidos um depois
- * do outro, e a recusa diz qual dos dois encheu. O "cheio" que desliga os botoes
- * faz a mesma conta: so o total deixaria os botoes ligados com o tipo ja cheio.
+ * **Cada categoria com o seu limite, e nenhum total.** Imagem cheia ainda deixa
+ * anexar arquivo, e o contrario. O "cheio" que desliga os botoes faz a mesma conta.
  *
- * **A recusa de formato diz o que serve.** Quem mandava video precisa saber que so
- * imagem entra, e em quais formatos.
+ * **A imagem pelo tipo, e o arquivo pela extensao.** O tipo da imagem vem dos bytes;
+ * o do arquivo, o navegador erra de lugar para lugar — o `.log` chega sem tipo, o
+ * `.csv` chega como planilha do Excel no Windows. O arquivo sobe com o tipo que a API
+ * da a extensao dele, e nao com o que o navegador deduziu.
  *
- * **So imagem entra.** O video saiu do produto, e o quadro nao o oferece nem
+ * **A recusa de formato diz o que serve**, da imagem e do arquivo.
+ *
+ * **Video nao entra.** O video saiu do produto, e o quadro nao o oferece nem
  * quando a configuracao ainda o lista — o que acontece na janela da troca, com a
- * API ainda antiga.
+ * API ainda antiga. O arquivo sem a lista de extensoes, da API de antes dele,
+ * tambem nao.
  *
  * **O tipo que vale e o dos bytes.** O navegador deduz o tipo pela extensao e a API
  * confere pelos bytes: o PNG renomeado para .jpg subia inteiro para ser descartado
@@ -41,13 +47,32 @@ const media: PublicMediaSettingsViewModel = {
   AllowsScreenCapture: true,
   AllowsOnInfoRequest: true,
   AllowsOnReopen: true,
-  MaxFilesPerReport: 3,
   Kinds: [
     {
       Kind: 'Image',
       MaxCount: 2,
       MaxBytes: 5 * MB,
       ContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
+    },
+  ],
+}
+
+/** O projeto que tambem aceita arquivo: PDF, texto e log, e CSV. */
+const comArquivo: PublicMediaSettingsViewModel = {
+  ...media,
+  Kinds: [
+    ...media.Kinds,
+    {
+      Kind: 'File',
+      MaxCount: 2,
+      MaxBytes: 10 * MB,
+      ContentTypes: ['application/pdf', 'text/plain', 'text/csv'],
+      Types: [
+        { Extension: '.pdf', ContentType: 'application/pdf' },
+        { Extension: '.txt', ContentType: 'text/plain' },
+        { Extension: '.log', ContentType: 'text/plain' },
+        { Extension: '.csv', ContentType: 'text/csv' },
+      ],
     },
   ],
 }
@@ -61,17 +86,60 @@ const comVideo: PublicMediaSettingsViewModel = {
   ],
 }
 
-function arquivo(tipo: string, bytes: number) {
-  return new File([new Uint8Array(bytes)], 'x', { type: tipo })
+function arquivo(tipo: string, bytes: number, nome = 'x') {
+  return new File([new Uint8Array(bytes)], nome, { type: tipo })
 }
 
 describe('a categoria de um arquivo', () => {
-  it('vem do tipo, e nao da extensao', () => {
-    expect(kindFor(arquivo('image/png', 10), media)?.Kind).toBe('Image')
+  it('a imagem vem do tipo, e nao da extensao', () => {
+    expect(kindFor(arquivo('image/png', 10, 'tela.bin'), comArquivo)?.Kind).toBe('Image')
     expect(kindFor(arquivo('application/pdf', 10), media)).toBeNull()
   })
 
-  it('o seletor do navegador recebe todos os tipos da configuracao', () => {
+  // O .log chega sem tipo; o .csv, no Windows, como planilha do Excel.
+  it.each([
+    ['fatura.PDF', 'application/pdf'],
+    ['erro.log', ''],
+    ['pedidos.csv', 'application/vnd.ms-excel'],
+    ['C:\\Users\\ana\\notas.txt', 'text/plain'],
+  ])('o arquivo vem da extensao: %s (tipo "%s")', (nome, tipo) => {
+    expect(kindFor(arquivo(tipo, 10, nome), comArquivo)?.Kind).toBe('File')
+  })
+
+  it('extensao que o projeto nao marcou nao e de categoria nenhuma', () => {
+    expect(kindFor(arquivo('application/zip', 10, 'tudo.zip'), comArquivo)).toBeNull()
+    expect(kindFor(arquivo('', 10, 'sem-extensao'), comArquivo)).toBeNull()
+    expect(kindFor(arquivo('', 10, '.log'), comArquivo)).toBeNull()
+  })
+
+  it('o arquivo sobe com o tipo do catalogo, e nao com o que o navegador deduziu', () => {
+    const csv = withDeclaredType(
+      arquivo('application/vnd.ms-excel', 10, 'pedidos.csv'),
+      comArquivo.Kinds[1] as (typeof comArquivo.Kinds)[number],
+    )
+    const log = withDeclaredType(
+      arquivo('', 10, 'erro.log'),
+      comArquivo.Kinds[1] as (typeof comArquivo.Kinds)[number],
+    )
+    expect([csv.type, csv.name]).toEqual(['text/csv', 'pedidos.csv'])
+    expect([log.type, log.name]).toEqual(['text/plain', 'erro.log'])
+
+    const png = arquivo('image/png', 10, 'tela.png')
+    expect(withDeclaredType(png, comArquivo.Kinds[0] as (typeof comArquivo.Kinds)[number])).toBe(
+      png,
+    )
+  })
+
+  it('a extensao e a do ultimo trecho do nome, em minusculas', () => {
+    expect(extensionOf('Relatorio.Final.PDF')).toBe('.pdf')
+    expect(extensionOf('pasta/sub.dir/log')).toBeNull()
+    expect(extensionOf('nome.')).toBeNull()
+    expect(extensionOf(undefined)).toBeNull()
+  })
+
+  it('cada seletor recebe o que a categoria dele aceita', () => {
+    expect(acceptAttribute(comArquivo, 'Image')).toBe('image/png,image/jpeg,image/webp')
+    expect(acceptAttribute(comArquivo, 'File')).toBe('.pdf,.txt,.log,.csv')
     expect(acceptAttribute(media)).toBe('image/png,image/jpeg,image/webp')
   })
 })
@@ -85,10 +153,19 @@ describe('o que ainda se pode enviar', () => {
     expect(kindFor(arquivo('video/webm', 10), filtrada)).toBeNull()
   })
 
+  it('o arquivo fica — e sai quando a API nao manda as extensoes dele', () => {
+    expect(onlyUploadable(comArquivo).Kinds.map((kind) => kind.Kind)).toEqual(['Image', 'File'])
+
+    const semExtensoes = {
+      ...comArquivo,
+      Kinds: comArquivo.Kinds.map(({ Types: _, ...kind }) => kind),
+    }
+    expect(onlyUploadable(semExtensoes).Kinds.map((kind) => kind.Kind)).toEqual(['Image'])
+  })
+
   it('o resto da configuracao continua como veio', () => {
     const filtrada = onlyUploadable(comVideo)
 
-    expect(filtrada.MaxFilesPerReport).toBe(3)
     expect(filtrada.AllowsScreenCapture).toBe(true)
     expect(filtrada.Kinds[0]).toEqual(media.Kinds[0])
   })
@@ -102,11 +179,22 @@ describe('o que ainda se pode enviar', () => {
 describe('a recusa cedo', () => {
   it('aceita o que cabe', () => {
     expect(rejectReason(arquivo('image/png', 1024), [], media)).toBeNull()
+    expect(rejectReason(arquivo('', 1024, 'erro.log'), [], comArquivo)).toBeNull()
   })
 
   it('recusa formato que o projeto nao aceita, dizendo quais servem', () => {
     expect(rejectReason(arquivo('application/pdf', 1024), [], media)).toBe(
       'Só dá para anexar imagem: PNG, JPEG ou WebP.',
+    )
+    expect(rejectReason(arquivo('application/zip', 1024, 'tudo.zip'), [], comArquivo)).toBe(
+      'Só dá para anexar imagem (PNG, JPEG ou WebP) ou arquivo (PDF, TXT, LOG ou CSV).',
+    )
+  })
+
+  it('so arquivo aceito: a recusa fala so de arquivo', () => {
+    const soArquivo = { ...comArquivo, Kinds: comArquivo.Kinds.filter((k) => k.Kind === 'File') }
+    expect(rejectReason(arquivo('image/png', 1024, 'tela.png'), [], soArquivo)).toBe(
+      'Só dá para anexar arquivo: PDF, TXT, LOG ou CSV.',
     )
   })
 
@@ -134,8 +222,10 @@ describe('a recusa cedo', () => {
     expect(rejectReason(arquivo('image/png', 0), [], media)).toBe('O arquivo está vazio.')
   })
 
-  it('recusa acima do teto do tipo', () => {
+  it('recusa acima do teto do tipo — cada categoria com o seu', () => {
     expect(rejectReason(arquivo('image/png', 6 * MB), [], media)).toMatch(/5 MB/)
+    expect(rejectReason(arquivo('', 6 * MB, 'grande.log'), [], comArquivo)).toBeNull()
+    expect(rejectReason(arquivo('', 11 * MB, 'enorme.log'), [], comArquivo)).toMatch(/10 MB/)
   })
 
   it('recusa quando o tipo ja chegou ao limite dele', () => {
@@ -145,14 +235,14 @@ describe('a recusa cedo', () => {
     )
   })
 
-  it('recusa quando o total ja chegou ao limite, mesmo com vaga no tipo', () => {
-    const duas = [{ kind: 'Image' as const }, { kind: 'Image' as const }]
-    const totalDoisComVagaNoTipo = {
-      ...media,
-      MaxFilesPerReport: 2,
-      Kinds: media.Kinds.map((kind) => ({ ...kind, MaxCount: 3 })),
-    }
-    expect(rejectReason(arquivo('image/png', 1024), duas, totalDoisComVagaNoTipo)).toBe(
+  // Sem total por envio: imagem cheia ainda deixa anexar arquivo, e o contrario.
+  it('imagem cheia nao impede arquivo, e arquivo cheio nao impede imagem', () => {
+    const duasImagens = [{ kind: 'Image' as const }, { kind: 'Image' as const }]
+    expect(rejectReason(arquivo('', 1024, 'erro.log'), duasImagens, comArquivo)).toBeNull()
+
+    const doisArquivos = [{ kind: 'File' as const }, { kind: 'File' as const }]
+    expect(rejectReason(arquivo('image/png', 1024), doisArquivos, comArquivo)).toBeNull()
+    expect(rejectReason(arquivo('', 1024, 'mais.log'), doisArquivos, comArquivo)).toBe(
       'Cabem até 2 arquivos por envio.',
     )
   })
@@ -160,46 +250,39 @@ describe('a recusa cedo', () => {
   // O limite vale para cada envio: a criacao do relato e cada resposta. "Por
   // relato" faria quem responde achar que a cota ja tinha acabado na criacao.
   it('fala em envio, e concorda o verbo e a palavra com o numero', () => {
-    const soUm = { ...media, MaxFilesPerReport: 1 }
-    const umaImagem = [{ kind: 'Image' as const }]
-    expect(rejectReason(arquivo('image/png', 1024), umaImagem, soUm)).toBe(
+    const umArquivo = {
+      ...comArquivo,
+      Kinds: comArquivo.Kinds.map((kind) => ({ ...kind, MaxCount: 1 })),
+    }
+    expect(rejectReason(arquivo('', 1024, 'b.log'), [{ kind: 'File' }], umArquivo)).toBe(
       'Cabe até 1 arquivo por envio.',
     )
 
-    const umaPorVez = { ...media, Kinds: media.Kinds.map((kind) => ({ ...kind, MaxCount: 1 })) }
-    expect(rejectReason(arquivo('image/png', 1024), umaImagem, umaPorVez)).toBe(
+    const umaImagem = [{ kind: 'Image' as const }]
+    expect(rejectReason(arquivo('image/png', 1024), umaImagem, umArquivo)).toBe(
       'Cabe até 1 imagem por envio.',
     )
   })
 })
 
-describe('ainda cabe arquivo', () => {
-  // O padrao de fabrica: quatro no total, tres imagens.
-  const fabrica = {
-    ...media,
-    MaxFilesPerReport: 4,
-    Kinds: media.Kinds.map((kind) => ({ ...kind, MaxCount: 3 })),
-  }
+describe('ainda cabe algo', () => {
   const imagens = (n: number) => Array.from({ length: n }, () => ({ kind: 'Image' as const }))
 
-  it('cabe enquanto o tipo e o total tem vaga', () => {
-    expect(hasRoom([], fabrica)).toBe(true)
-    expect(hasRoom(imagens(2), fabrica)).toBe(true)
-    expect(hasRoom(imagens(2), fabrica, 'Image')).toBe(true)
+  it('cabe enquanto a categoria tem vaga', () => {
+    expect(hasRoom([], media)).toBe(true)
+    expect(hasRoom(imagens(1), media, 'Image')).toBe(true)
   })
 
-  it('o tipo cheio enche, mesmo com vaga no total', () => {
-    expect(hasRoom(imagens(3), fabrica)).toBe(false)
-    expect(hasRoom(imagens(3), fabrica, 'Image')).toBe(false)
-  })
-
-  it('o total cheio enche, mesmo com vaga no tipo', () => {
-    const totalDois = { ...fabrica, MaxFilesPerReport: 2 }
-    expect(hasRoom(imagens(2), totalDois)).toBe(false)
+  it('a categoria cheia enche so ela', () => {
+    expect(hasRoom(imagens(2), media)).toBe(false)
+    expect(hasRoom(imagens(2), comArquivo, 'Image')).toBe(false)
+    expect(hasRoom(imagens(2), comArquivo, 'File')).toBe(true)
+    expect(hasRoom(imagens(2), comArquivo)).toBe(true)
   })
 
   it('tipo que o projeto nao aceita nunca tem vaga', () => {
-    expect(hasRoom([], fabrica, 'Video')).toBe(false)
+    expect(hasRoom([], media, 'Video')).toBe(false)
+    expect(hasRoom([], media, 'File')).toBe(false)
   })
 })
 

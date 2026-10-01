@@ -20,8 +20,15 @@ public class ProjectMediaKind : PdsBaseEntity
     /// <summary>Teto do sistema para imagem, em bytes. Acima do que qualquer projeto escolhe.</summary>
     public const long ImageMaxBytesCeiling = 10L * 1024 * 1024;
 
-    /// <summary>Teto do sistema para a quantidade de um mesmo tipo num relato.</summary>
+    /// <summary>
+    /// Teto do sistema para a quantidade de um mesmo tipo num envio — a criacao, cada
+    /// resposta, cada reabertura. E tambem o teto da posicao de cada anexo no envio.
+    /// </summary>
     public const int MaxCountCeiling = 10;
+
+    /// <summary>O teto de tamanho do sistema para o tipo, acima do que qualquer projeto escolhe.</summary>
+    public static long MaxBytesCeilingFor(MediaKindEnum kind)
+        => kind == MediaKindEnum.File ? FileFormats.MaxBytesCeiling : ImageMaxBytesCeiling;
 
     /// <summary>Configuracao dona da linha.</summary>
     public long ProjectMediaSettingsId { get; set; }
@@ -42,7 +49,7 @@ public class ProjectMediaKind : PdsBaseEntity
     /// </remarks>
     public bool IsEnabled { get; set; }
 
-    /// <summary>Quantos arquivos deste tipo cabem num relato.</summary>
+    /// <summary>Quantos arquivos deste tipo cabem em cada envio.</summary>
     public int MaxCount { get; set; }
 
     /// <summary>
@@ -66,4 +73,16 @@ public class ProjectMediaKind : PdsBaseEntity
     /// um numero que ja nao vale nada.</para>
     /// </remarks>
     public int? MaxDurationSeconds { get; set; }
+
+    /// <summary>
+    /// Os formatos aceitos, pelo nome no catalogo (<c>pdf</c>, <c>text</c>...). <b>So do
+    /// arquivo</b>: nulo nas outras categorias, que tem os tipos fixos.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Uma lista, e nao uma linha por formato.</b> Sao poucos nomes de um
+    /// catalogo fechado, lidos sempre juntos com o resto da linha; uma tabela a mais
+    /// seria uma consulta a mais em todo envio para dizer a mesma coisa. Ver
+    /// <see cref="FileFormats"/>.</para>
+    /// </remarks>
+    public List<string>? Formats { get; set; }
 }

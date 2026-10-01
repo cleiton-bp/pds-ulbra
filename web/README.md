@@ -172,6 +172,13 @@ resposta, na reabertura e no painel: a mesma grade de doze colunas
 mesmas imagens lado a lado. O que aparece é o arquivo, e não a miniatura, e ele só
 baixa quando chega perto da tela.
 
+**O arquivo que não é imagem — PDF, log, planilha, zip — é categoria própria**, que o
+dono liga na tela de Mídia e da qual marca os formatos (o catálogo e a conferência dos
+bytes são da API). No quadro ele tem botão próprio e entra numa lista logo abaixo das
+imagens; é reconhecido pela extensão, e sobe com o tipo que a API dá a ela, e não com
+o que o navegador deduziu. Do lado de lá, é sempre baixado: o endereço assinado já
+manda o arquivo como anexo, e nada dele abre na página.
+
 **A conversa entre os dois passa por três conferências**, iguais nas duas pontas:
 a origem esperada, a janela exata (`event.source`), e o carimbo `source: 'pds'`.
 A segunda é a que costuma faltar — sem ela, outro quadro da **mesma** origem se

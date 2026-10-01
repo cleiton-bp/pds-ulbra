@@ -73,6 +73,14 @@ export function useReportAttachments(
 }
 
 /**
+ * O que o painel lembra embaixo dos arquivos. **O arquivo vem de quem relatou**, e o
+ * que ha dentro de um zip ou de uma planilha ninguem conferiu: a leitura e sempre
+ * download, e o resto e cuidado de quem abre.
+ */
+export const AVISO_DE_ARQUIVO =
+  'Os arquivos vêm de quem relatou: abra só o que você esperava receber.'
+
+/**
  * O que a galeria mostra de um anexo, para o time: a imagem no tamanho que quem
  * relatou escolheu, e embaixo o nome original, o tamanho e a duracao.
  */
@@ -84,6 +92,8 @@ export function toPanelGalleryItem(anexo: PanelAttachmentViewModel): GalleryItem
     thumbnailUrl: anexo.ThumbnailUrl,
     expiresAt: anexo.ExpiresAt,
     displaySize: anexo.DisplaySize,
+    contentType: anexo.ContentType,
+    sizeBytes: anexo.SizeBytes,
     caption: [
       anexo.OriginalName,
       formatBytes(anexo.SizeBytes),
@@ -145,6 +155,8 @@ export function ReportAttachments({
   return (
     <AttachmentGallery
       label="Imagens do relato"
+      fileLabel="Arquivos do relato"
+      fileNote={AVISO_DE_ARQUIVO}
       onExpired={onExpired}
       items={anexos.map(toPanelGalleryItem)}
     />

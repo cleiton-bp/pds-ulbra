@@ -28,6 +28,8 @@ export type {
   SaveIdentitySettingsRequest,
 } from '@/contracts/identitySettings'
 export type {
+  AcceptedTypeViewModel,
+  FileFormatViewModel,
   MediaKind,
   MediaKindLimitViewModel,
   MediaSettingsViewModel,
@@ -35,7 +37,7 @@ export type {
   PublicMediaSettingsViewModel,
   SaveMediaSettingsRequest,
 } from '@/contracts/mediaSettings'
-export { UPLOADABLE_MEDIA_KIND } from '@/contracts/mediaSettings'
+export { UPLOADABLE_MEDIA_KINDS } from '@/contracts/mediaSettings'
 export type {
   CreateProjectRequest,
   ProjectCreatedViewModel,

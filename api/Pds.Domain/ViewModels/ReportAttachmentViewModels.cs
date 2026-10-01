@@ -64,7 +64,11 @@ public record ConfirmedAttachmentViewModel(
 /// Em que tamanho a imagem aparece logo abaixo do texto — a escolha de quem relatou. A
 /// lista ja vem na ordem em que ela montou cada envio.
 /// </param>
-/// <param name="Url">Endereco assinado do arquivo.</param>
+/// <param name="ContentType">
+/// O tipo gravado — o do catalogo, conferido pelos bytes. E por ele que a tela sabe
+/// dizer "PDF" ou "planilha" do arquivo que nao e imagem.
+/// </param>
+/// <param name="Url">Endereco assinado do arquivo. No arquivo que nao e imagem, so baixa, com o nome original.</param>
 /// <param name="ThumbnailUrl">Endereco assinado da miniatura, quando ha.</param>
 /// <param name="ExpiresAt">Quando o endereco do arquivo deixa de servir, em UTC.</param>
 /// <param name="SizeBytes">Tamanho real.</param>
@@ -82,6 +86,7 @@ public record PanelAttachmentViewModel(
     Guid PublicId,
     MediaKindEnum Kind,
     AttachmentDisplaySizeEnum DisplaySize,
+    string ContentType,
     string Url,
     string? ThumbnailUrl,
     DateTime ExpiresAt,
@@ -108,7 +113,9 @@ public record PanelAttachmentViewModel(
 /// Em que tamanho a imagem aparece logo abaixo do texto — a escolha de quem relatou. A
 /// lista ja vem na ordem em que ela montou cada envio.
 /// </param>
-/// <param name="Url">Endereco assinado do arquivo.</param>
+/// <param name="ContentType">O tipo gravado, conferido pelos bytes. E por ele que a tela diz "PDF" ou "planilha".</param>
+/// <param name="SizeBytes">Tamanho real, contado pelo armazenamento — para a pessoa saber o que vai baixar.</param>
+/// <param name="Url">Endereco assinado do arquivo. No arquivo que nao e imagem, so baixa, com um nome generico — o original nunca sai.</param>
 /// <param name="ThumbnailUrl">Endereco assinado da miniatura, quando ha.</param>
 /// <param name="ExpiresAt">Quando o endereco do arquivo deixa de servir, em UTC.</param>
 /// <param name="DurationSeconds">Duracao, quando ha. So os videos antigos tem.</param>
@@ -119,6 +126,8 @@ public record PublicAttachmentViewModel(
     Guid PublicId,
     MediaKindEnum Kind,
     AttachmentDisplaySizeEnum DisplaySize,
+    string ContentType,
+    long SizeBytes,
     string Url,
     string? ThumbnailUrl,
     DateTime ExpiresAt,
