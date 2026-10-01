@@ -59,6 +59,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
 
 vi.mock('@/embed/sendAttachment', () => ({ sendAttachment: dublê.enviar }))
 
+vi.mock('@/editor/ImageEditor', () => import('@/test/fakeImageEditor'))
+
 const fechamento: PublicClosureViewModel = {
   Outcome: 'Done',
   Reason: 'Corrigido na versão desta semana.',
@@ -578,5 +580,37 @@ describe('as reaberturas na pagina', () => {
     await screen.findByText(/O botão de finalizar compra/)
     expect(screen.queryByText('Você reabriu este relato')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Reaberturas' })).toBeNull()
+  })
+})
+
+describe('marcar a imagem da reabertura', () => {
+  it('a imagem escolhida abre no editor, e a marcada toma o lugar dela', async () => {
+    await reabrindo()
+    await escolher(new File([new Uint8Array(100)], 'ainda.png', { type: 'image/png' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar ainda.png' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir com marcas' }))
+
+    await screen.findByRole('button', { name: 'Remover marcada-ainda.png' })
+    expect(screen.queryByRole('button', { name: 'Remover ainda.png' })).toBeNull()
+  })
+
+  it('com o editor aberto, a reabertura nao sai', async () => {
+    await reabrindo()
+    // Com o motivo escrito o botao fica ligado: sem ele, o clique nao faria nada de todo
+    // jeito, e o teste passaria sem a trava.
+    fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
+      target: { value: 'ainda falha no pagamento' },
+    })
+    await escolher(new File([new Uint8Array(100)], 'ainda.png', { type: 'image/png' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar ainda.png' }))
+    await screen.findByRole('dialog', { name: 'Editor falso' })
+
+    const reabrir = screen.getByRole('button', { name: 'Reabrir o relato' }) as HTMLButtonElement
+    expect(reabrir.disabled).toBe(false)
+    fireEvent.click(reabrir)
+    await act(async () => {})
+
+    expect(dublê.reabrir).not.toHaveBeenCalled()
   })
 })

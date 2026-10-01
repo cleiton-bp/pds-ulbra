@@ -114,6 +114,7 @@ describe('a ponte com a pagina hospedeira', () => {
     // Pedir tamanho antes do `init` nao pode virar um `postMessage(msg, '*')`.
     ligacao.expand()
     ligacao.collapse()
+    ligacao.enlarge()
 
     expect(enviados).toEqual([])
     ligacao.stop()
@@ -126,8 +127,10 @@ describe('a ponte com a pagina hospedeira', () => {
 
     ligacao.expand()
     ligacao.collapse()
+    ligacao.enlarge()
 
     expect(enviados.map((envio) => envio.alvo)).toEqual([
+      'https://loja.exemplo.com',
       'https://loja.exemplo.com',
       'https://loja.exemplo.com',
       'https://loja.exemplo.com',
@@ -135,6 +138,8 @@ describe('a ponte com a pagina hospedeira', () => {
     expect(enviados.some((envio) => envio.alvo === '*')).toBe(false)
     expect(enviados[1]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.expanded })
     expect(enviados[2]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.collapsed })
+    // O editor da imagem: pedido, e a pagina limita a janela de quem visita.
+    expect(enviados[3]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.editor })
     ligacao.stop()
   })
   it('recusa init sem chave: sem ela o quadro nao tem para onde mandar o relato', () => {

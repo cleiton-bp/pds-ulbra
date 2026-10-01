@@ -91,6 +91,8 @@ src/
 ├── embed/        a ferramenta de relato: o que roda no site do cliente
 ├── tracking/     a página pública: onde quem relatou vê o próprio relato
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
+├── capture/      o que redesenha a página como imagem (pds-captura.js, baixado no clique)
+├── editor/       o editor da imagem: marcar e esconder antes de anexar (baixado ao abrir)
 ├── features/     um assunto por pasta: auth, projects, projectKeys, projectStates,
 │                 publicStages, onboarding, reports, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
@@ -151,8 +153,16 @@ de outra origem não alcança a página, então quem captura é o carregador: el
 esconde o quadro, desenha a camada de marcar a área (numa sombra, com estilo
 próprio) e baixa `pds-captura.js` — a biblioteca que redesenha a página como
 imagem (`@zumer/snapdom`), com uns 50 kB comprimidos — só nesse clique. A imagem
-volta para o quadro pela mesma conversa, e entra na lista como um arquivo
-escolhido. Ver `src/loader/captureFlow.ts` e `src/capture/`.
+volta para o quadro pela mesma conversa e abre no editor; concluída, entra na lista
+como um arquivo escolhido. Ver `src/loader/captureFlow.ts` e `src/capture/`.
+
+**O editor da imagem (`src/editor/`) é onde a pessoa esconde o que não quer
+mostrar** — a captura não esconde nada sozinha. Toda imagem da lista abre nele: a
+capturada, a escolhida e a colada. As marcas ficam numa lista à parte e o original
+não muda, então reabrir traz as marcas editáveis; o arquivo que sobe é desenhado de
+novo, e o que a tarja cobriu não existe nele — nem na miniatura, que sai dele. O
+editor chega por import dinâmico, só quando alguém o abre (uns 20 kB comprimidos, com o
+diálogo que ele usa), e no quadro pede à página um tamanho maior enquanto está aberto.
 
 **A conversa entre os dois passa por três conferências**, iguais nas duas pontas:
 a origem esperada, a janela exata (`event.source`), e o carimbo `source: 'pds'`.

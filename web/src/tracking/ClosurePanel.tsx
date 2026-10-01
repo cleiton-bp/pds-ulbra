@@ -7,6 +7,7 @@ import {
   SATISFACTION_SCALE,
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { AttachmentEditor } from '@/embed/AttachmentEditor'
 import { AttachmentPicker } from '@/embed/AttachmentPicker'
 import type { AttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
@@ -79,7 +80,8 @@ export function ClosurePanel({
     acao: () => Promise<PublicReportViewModel>,
     depois: (relato: PublicReportViewModel) => void = aoResponder,
   ) {
-    if (enviando) return
+    // Nem com o editor aberto: a imagem que esta nele ainda nao e a que vai.
+    if (enviando || anexar?.rascunho.edicao) return
 
     setEnviando(true)
     setErro(null)
@@ -287,6 +289,7 @@ export function ClosurePanel({
                 recusa={anexar.rascunho.recusa}
                 onAdd={(arquivos) => void anexar.rascunho.adicionar(arquivos)}
                 onRemove={anexar.rascunho.remover}
+                onEdit={anexar.rascunho.editar}
                 disabled={enviando}
               />
             </div>
@@ -323,6 +326,9 @@ export function ClosurePanel({
           </div>
         </div>
       )}
+
+      {/* A imagem aberta no editor. Ver `AttachmentEditor`. */}
+      {anexar && <AttachmentEditor draft={anexar.rascunho} />}
     </section>
   )
 }

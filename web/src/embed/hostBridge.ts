@@ -52,6 +52,8 @@ export interface HostConnection {
   expand(): void
   /** Pede a pagina que o quadro volte a ser so o gatilho. */
   collapse(): void
+  /** Pede a pagina o tamanho do editor da imagem. `expand` volta ao formulario. */
+  enlarge(): void
   /**
    * O carregador desta pagina sabe capturar uma area dela. Falso ate o `init`
    * chegar, e com o carregador antigo que nao declara — ver
@@ -164,6 +166,8 @@ export function connectToHost(onInit: (message: InitMessage) => void): HostConne
       reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.expanded, position }),
     collapse: () =>
       reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.collapsed, position }),
+    enlarge: () =>
+      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.editor, position }),
     capture: (maxBytes) =>
       new Promise<CaptureOutcome>((resolve) => {
         if (!hostOrigin) {

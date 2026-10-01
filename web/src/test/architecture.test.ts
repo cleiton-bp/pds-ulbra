@@ -71,6 +71,11 @@ const RULES: Rule[] = [
     why: 'a pagina publica de acompanhamento e aberta por um estranho: casca, telas e cliente HTTP nao entram la',
   },
   {
+    folder: 'editor',
+    forbidden: ['@/data', '@/app', '@/features', '@/embed', '@/tracking', '@/loader'],
+    why: 'o editor abre no quadro e na pagina de acompanhamento: nao conhece nenhum dos dois, nem a API',
+  },
+  {
     folder: 'loader',
     forbidden: ['@/data', '@/app', '@/features', '@/shared', '@/contracts'],
     why: 'o carregador roda na pagina do cliente, fora do nosso documento: nada do painel pode alcancar ele',

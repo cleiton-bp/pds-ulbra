@@ -8,6 +8,7 @@ import {
   type WidgetSettingsViewModel,
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { AttachmentEditor } from '@/embed/AttachmentEditor'
 import { ATTACH_BUTTON_CLASS, AttachmentPicker, AttachmentProgress } from '@/embed/AttachmentPicker'
 import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import { hasRoom } from '@/embed/attachments'
@@ -150,12 +151,15 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     !capturaIndisponivel
 
   // O foco volta ao botao quando a captura termina: quem usa teclado continua de
-  // onde estava. Desligado durante a captura, ele tinha perdido o foco.
+  // onde estava. Desligado durante a captura, ele tinha perdido o foco. **Menos quando
+  // a captura abriu no editor**: o foco e dele, e o botao esta atras — com o foco ali,
+  // um Enter pediria outra captura. O editor o devolve ao fechar.
+  const editando = draft.edicao !== null
   const capturouAntes = useRef(false)
   useEffect(() => {
-    if (capturouAntes.current && !capturando) botaoCaptura.current?.focus()
+    if (capturouAntes.current && !capturando && !editando) botaoCaptura.current?.focus()
     capturouAntes.current = capturando
-  }, [capturando])
+  }, [capturando, editando])
 
   // O tema fixado pelo cliente vale sempre; `Auto` acompanha o sistema de quem
   // visita, inclusive se ele mudar com o quadro ja aberto.
@@ -172,15 +176,18 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
   /**
    * Pede a pagina que capture uma area. **Quem captura e a pagina**: o quadro some,
-   * a pessoa marca o que quer mostrar, e a imagem volta para a lista como se tivesse
-   * sido escolhida — passando pelas mesmas conferencias.
+   * a pessoa marca o que quer mostrar, e a imagem volta **direto para o editor** — e
+   * dele para a lista, como se tivesse sido escolhida, pelas mesmas conferencias.
+   * A captura nao esconde nada sozinha: e no editor que a pessoa cobre o que nao quer
+   * mostrar.
    *
    * **Desistir nao e erro**, e nao merece mensagem. Falhar e a pagina que nao deixou
    * redesenhar: a recusa diz para anexar uma imagem no lugar, e o botao fica — a
    * proxima area pode dar certo.
    */
   async function capturar() {
-    if (!host) return
+    // Com uma imagem no editor, outra captura tomaria o lugar dela sem aviso.
+    if (!host || draft.edicao) return
 
     setRecusa(null)
     setCapturando(true)
@@ -194,7 +201,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       const resultado = await host.capture(tipoImagem?.MaxBytes ?? null)
       if (generation.current !== minha || travado.current) return
 
-      if (resultado.outcome === 'file') void adicionar([resultado.file])
+      if (resultado.outcome === 'file') draft.editarCaptura(resultado.file)
       else if (resultado.outcome === 'failed')
         setRecusa('Não deu para capturar esta página. Anexe uma imagem no lugar.')
       else if (resultado.outcome === 'unavailable') {
@@ -210,7 +217,8 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     event.preventDefault()
     // Arquivo ainda entrando na lista nao subiria: o envio leva a lista como ela
     // esta. Ver `preparando` em useAttachmentDraft.
-    if (!trimmed || sending || draft.preparando) return
+    // Nem com o editor aberto: a imagem que esta nele ainda nao e a que vai.
+    if (!trimmed || sending || draft.preparando || draft.edicao) return
 
     setSending(true)
     setError(null)
@@ -575,6 +583,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           recusa={recusa}
           onAdd={(arquivos) => void adicionar(arquivos)}
           onRemove={remover}
+          onEdit={draft.editar}
           disabled={sending}
           actions={
             podeCapturar && (
@@ -593,6 +602,15 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           }
         />
       )}
+
+      {/* A imagem aberta no editor. Enquanto ele esta aberto, o quadro pede a pagina o
+          tamanho do editor, e volta ao do formulario quando fecha. */}
+      <AttachmentEditor
+        draft={draft}
+        accent={style}
+        onOpenChange={(aberto) => (aberto ? host?.enlarge() : host?.expand())}
+        focusAfterCapture={() => botaoCaptura.current?.focus()}
+      />
 
       {/*
         **A caixa fica depois do texto, e nao antes.** Antes, ela seria uma

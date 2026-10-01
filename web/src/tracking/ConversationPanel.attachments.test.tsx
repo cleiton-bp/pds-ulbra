@@ -37,6 +37,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
 
 vi.mock('@/embed/sendAttachment', () => ({ sendAttachment: dublê.enviar }))
 
+vi.mock('@/editor/ImageEditor', () => import('@/test/fakeImageEditor'))
+
 const media: PublicMediaSettingsViewModel = {
   IsEnabled: true,
   AllowsScreenCapture: true,
@@ -420,5 +422,33 @@ describe('anexar ao responder', () => {
 
     const fala = screen.getByText('segue a tela').closest('li') as HTMLElement
     expect(fala.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/a-1-thumb')
+  })
+})
+
+// A resposta ao pedido de informacao e onde o time pede "manda a tela": e a pessoa
+// esconde o que nao quer mostrar ali tambem.
+describe('marcar a imagem da resposta', () => {
+  it('a imagem escolhida abre no editor, e a marcada toma o lugar dela', async () => {
+    montar()
+    escolher(print())
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar erro.png' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir com marcas' }))
+
+    await screen.findByRole('button', { name: 'Remover marcada-erro.png' })
+    expect(screen.queryByRole('button', { name: 'Remover erro.png' })).toBeNull()
+  })
+
+  it('com o editor aberto, a resposta nao sai', async () => {
+    montar()
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'segue a tela' } })
+    escolher(print())
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar erro.png' }))
+    await screen.findByRole('dialog', { name: 'Editor falso' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+    await act(async () => {})
+
+    expect(dublê.responder).not.toHaveBeenCalled()
   })
 })

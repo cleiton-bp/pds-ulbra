@@ -4,6 +4,7 @@ import {
   type PublicMediaSettingsViewModel,
   UPLOADABLE_MEDIA_KIND,
 } from '@/contracts'
+import type { EditDoc } from '@/editor/doc'
 import { formatBytes } from '@/shared/lib/formatBytes'
 
 /**
@@ -40,6 +41,13 @@ export interface Anexo {
    * e a API responde que ja entrou — em vez de recomecar e subir outro.
    */
   uploaded?: string | null
+  /**
+   * A imagem sem marcas e as marcas, quando a pessoa marcou no editor. **So para
+   * reabrir o editor** com as marcas editaveis: o que sobe e sempre `file`, ja
+   * desenhado, e a miniatura sai dele — o original, com o que a tarja cobriu, nunca
+   * sai do navegador.
+   */
+  edit?: { original: File; doc: EditDoc } | null
 }
 
 /** Largura da miniatura. Cabe numa lista, e pesa poucos kilobytes. */

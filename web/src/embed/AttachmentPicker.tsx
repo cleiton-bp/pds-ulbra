@@ -20,6 +20,9 @@ export const ATTACH_BUTTON_CLASS = cn(
  * **Os botoes extras entram por fora** (`actions`), porque capturar existe no
  * quadro e nao na pagina de acompanhamento. O seletor e o mesmo nos dois lugares,
  * e e isso que este componente garante.
+ *
+ * **Toda imagem da lista abre no editor** (`onEdit`) — a escolhida, a colada e a
+ * capturada. E por ali que a pessoa esconde o que nao quer mostrar antes de enviar.
  */
 export function AttachmentPicker({
   media,
@@ -28,6 +31,7 @@ export function AttachmentPicker({
   onAdd,
   onRemove,
   actions,
+  onEdit,
   disabled = false,
 }: {
   media: PublicMediaSettingsViewModel
@@ -37,6 +41,8 @@ export function AttachmentPicker({
   onRemove: (id: string) => void
   /** Botoes a mais, ao lado de "Anexar imagem". */
   actions?: ReactNode
+  /** Abre a imagem no editor. Sem ele, a miniatura so mostra. */
+  onEdit?: (id: string) => void
   /**
    * A lista esta travada: o texto esta indo, e o envio leva a lista como ela esta.
    * Um arquivo tirado agora subiria mesmo assim, e um posto agora nao subiria.
@@ -46,6 +52,8 @@ export function AttachmentPicker({
   const seletor = useRef<HTMLInputElement>(null)
   // Cheio pelo total ou pelo limite do tipo, o que vier primeiro.
   const cheio = !hasRoom(anexos, media)
+  // Travada a lista, a imagem nao muda mais: o arquivo que sobe e o de agora.
+  const podeEditar = !!onEdit && !disabled
 
   return (
     <div className="flex flex-col gap-2">
@@ -90,16 +98,34 @@ export function AttachmentPicker({
               className="relative h-14 w-14 overflow-hidden rounded-lg border border-border bg-surface-sunken"
               title={`${anexo.file.name} — ${formatBytes(anexo.file.size)}`}
             >
-              {anexo.preview ? (
-                <img
-                  src={anexo.preview}
-                  alt={anexo.file.name}
-                  className="h-full w-full object-cover"
-                />
+              {podeEditar && anexo.kind === 'Image' ? (
+                <button
+                  type="button"
+                  onClick={() => onEdit?.(anexo.id)}
+                  aria-label={`Editar ${anexo.file.name}`}
+                  className="block h-full w-full"
+                >
+                  <Miniatura anexo={anexo} />
+                  <span
+                    aria-hidden="true"
+                    className="absolute bottom-0.5 left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-surface/90 text-fg"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 20 20"
+                      className="h-3 w-3"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m12.5 4 3.5 3.5L7.5 16H4v-3.5z" />
+                    </svg>
+                  </span>
+                </button>
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-caption text-fg-muted">
-                  imagem
-                </span>
+                <Miniatura anexo={anexo} />
               )}
               {!disabled && (
                 <button
@@ -116,12 +142,28 @@ export function AttachmentPicker({
         </ul>
       )}
 
+      {podeEditar && anexos.some((anexo) => anexo.kind === 'Image') && (
+        <p className="text-caption text-fg-muted leading-normal">
+          Clique numa imagem para marcar ou esconder algo antes de enviar.
+        </p>
+      )}
+
       {recusa && (
         <p role="alert" className="text-caption text-error-fg leading-normal">
           {recusa}
         </p>
       )}
     </div>
+  )
+}
+
+function Miniatura({ anexo }: { anexo: Anexo }) {
+  return anexo.preview ? (
+    <img src={anexo.preview} alt={anexo.file.name} className="h-full w-full object-cover" />
+  ) : (
+    <span className="flex h-full w-full items-center justify-center text-caption text-fg-muted">
+      imagem
+    </span>
   )
 }
 

@@ -41,6 +41,14 @@ const COLOR_AUTHORITY = ['styles/tokens.css', 'styles/index.css']
  */
 const FORA_DO_DOCUMENTO = ['loader/main.ts', 'loader/areaPicker.ts', 'capture/pageCapture.ts']
 
+/**
+ * A terceira excecao: as cores que o editor pinta **na imagem**. A seta vermelha sai
+ * vermelha no arquivo, e quem abre o relato no painel claro ou escuro ve a mesma
+ * imagem — um token que mudasse com o tema mudaria o print. A interface do editor
+ * continua nos tokens; so esta lista escreve cor, e a auditoria abaixo a confere.
+ */
+const NA_IMAGEM = ['editor/palette.ts']
+
 /** As 22 famílias da paleta padrao do Tailwind, que este produto nao usa. */
 const TAILWIND_PALETTE =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose'
@@ -123,6 +131,7 @@ describe('valores de cor fora do sistema de tokens', () => {
         const relativePath = relative(SOURCE_ROOT, file)
         if (COLOR_AUTHORITY.includes(relativePath)) continue
         if (FORA_DO_DOCUMENTO.includes(relativePath)) continue
+        if (NA_IMAGEM.includes(relativePath)) continue
 
         const lines = readFileSync(file, 'utf8').split('\n')
 
@@ -394,6 +403,21 @@ describe('as cores da captura na pagina do cliente', () => {
   // tem fundo — que e o que o navegador mostra nesse caso.
   it('a captura so conhece o transparente e o branco de reserva', () => {
     expect(cores('capture/pageCapture.ts')).toEqual(['rgba(0, 0, 0, 0)', '#ffffff'])
+  })
+
+  // O preto e o branco puros sao o contorno e a tarja; as seis cores de marcar sao as
+  // que um print costuma pedir. O veu do recorte so aparece na tela.
+  it('o editor pinta so a paleta dele, declarada num lugar', () => {
+    expect(cores('editor/palette.ts')).toEqual([
+      '#000000',
+      '#ffffff',
+      '#e5484d',
+      '#ffc53d',
+      '#30a46c',
+      '#0090ff',
+      '#1c2024',
+      'rgb(0 0 0 / 0.55)',
+    ])
   })
 })
 

@@ -11,8 +11,8 @@ import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
  * O QUE ESTES TESTES TRAVAM.
  *
  * **Quem captura e a pagina.** O quadro pede, a pagina esconde o quadro, deixa a
- * pessoa marcar a area e devolve a imagem — que entra na lista como um arquivo
- * escolhido. Sem o navegador perguntar nada.
+ * pessoa marcar a area e devolve a imagem — que abre no editor e, concluida, entra na
+ * lista como um arquivo escolhido. Sem o navegador perguntar nada.
  *
  * **O botao so aparece onde vai funcionar.** A configuracao do projeto, uma vaga
  * para imagem e uma pagina que sabe capturar: o carregador antigo nao sabe, e o
@@ -29,6 +29,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
   return { ...real, reportService: { createReport: dublê.criar } }
 })
 
+vi.mock('@/editor/ImageEditor', () => import('@/test/fakeImageEditor'))
+
 const config = {
   key: 'pk_DEMO',
   route: '/checkout',
@@ -43,6 +45,7 @@ function pagina(canCapture = true) {
     show: vi.fn(),
     expand: vi.fn(),
     collapse: vi.fn(),
+    enlarge: vi.fn(),
     canCapture,
     capture: vi.fn<(maxBytes: number | null) => Promise<CaptureOutcome>>(),
     stop: vi.fn(),
@@ -159,12 +162,13 @@ describe('sem vaga para imagem', () => {
 })
 
 describe('a captura', () => {
-  it('pede a pagina, com o teto de imagem, e a imagem vira anexo', async () => {
+  it('pede a pagina, com o teto de imagem, e a imagem vira anexo depois do editor', async () => {
     const host = pagina()
     host.capture.mockResolvedValue({ outcome: 'file', file: captura() })
     montar(host)
 
     fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir sem marcas' }))
 
     await screen.findByRole('button', { name: 'Remover captura.webp' })
     expect(host.capture).toHaveBeenCalledWith(5 * 1024 * 1024)
@@ -177,6 +181,7 @@ describe('a captura', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o botão sumiu' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir sem marcas' }))
 
     await screen.findByRole('button', { name: 'Remover captura.webp' })
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('o botão sumiu')
@@ -271,6 +276,7 @@ describe('a captura', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
 
     expect(screen.queryByRole('button', { name: 'Remover captura.webp' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Editor falso' })).toBeNull()
   })
 
   // O relato saiu com a lista que tinha: a captura que volta depois nao iria junto,
@@ -294,5 +300,6 @@ describe('a captura', () => {
     await act(async () => terminar({ outcome: 'file', file: captura() }))
 
     expect(screen.queryByText('captura.webp')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Editor falso' })).toBeNull()
   })
 })

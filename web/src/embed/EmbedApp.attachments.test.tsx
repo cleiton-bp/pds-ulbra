@@ -463,6 +463,7 @@ describe('a fila de arquivos', () => {
     show: vi.fn(),
     expand: vi.fn(),
     collapse: vi.fn(),
+    enlarge: vi.fn(),
     canCapture: false,
     capture: vi.fn(),
     stop: vi.fn(),

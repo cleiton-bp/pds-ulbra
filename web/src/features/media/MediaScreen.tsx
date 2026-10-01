@@ -291,7 +291,7 @@ export function MediaScreen() {
               <Interruptor
                 marcado={draft.AllowsScreenCapture}
                 titulo="Deixar capturar a tela"
-                explicacao="Liga o botão Capturar tela da ferramenta. A pessoa clica, a ferramenta some e ela arrasta sobre a página para marcar o que quer mostrar — a área vira imagem na hora, sem o navegador perguntar nada, em qualquer navegador, inclusive no iPhone. Nada é capturado sem ela marcar. A captura vira imagem, então o botão só aparece se imagem for aceita. O que a página não deixa ler, como imagem ou conteúdo de outro site, sai em branco no print."
+                explicacao="Liga o botão Capturar tela da ferramenta. A pessoa clica, a ferramenta some e ela arrasta sobre a página para marcar o que quer mostrar — a área vira imagem na hora, sem o navegador perguntar nada, em qualquer navegador, inclusive no iPhone. Nada é capturado sem ela marcar. A captura vira imagem, então o botão só aparece se imagem for aceita. O que a página não deixa ler, como imagem ou conteúdo de outro site, sai em branco no print. Antes de entrar no relato, a imagem abre num editor, onde a pessoa marca e cobre o que não quer mostrar: a captura não esconde nada sozinha."
                 aoTrocar={(valor) => setDraft({ ...draft, AllowsScreenCapture: valor })}
               />
 

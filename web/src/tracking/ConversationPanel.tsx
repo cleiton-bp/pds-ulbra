@@ -6,6 +6,7 @@ import {
   type PublicReportViewModel,
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { AttachmentEditor } from '@/embed/AttachmentEditor'
 import { AttachmentPicker, AttachmentProgress } from '@/embed/AttachmentPicker'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 import { AttachmentGallery } from '@/shared/components/AttachmentGallery'
@@ -93,8 +94,9 @@ export function ConversationPanel({
   }
 
   async function enviar() {
-    // Arquivo ainda entrando na lista nao subiria. Ver `preparando`.
-    if (escrito.length === 0 || enviando || draft.preparando) return
+    // Arquivo ainda entrando na lista nao subiria. Ver `preparando`. Nem com o editor
+    // aberto: a imagem que esta nele ainda nao e a que vai.
+    if (escrito.length === 0 || enviando || draft.preparando || draft.edicao) return
 
     setEnviando(true)
     setErro(null)
@@ -225,6 +227,7 @@ export function ConversationPanel({
                 recusa={draft.recusa}
                 onAdd={(arquivos) => void draft.adicionar(arquivos)}
                 onRemove={draft.remover}
+                onEdit={draft.editar}
                 disabled={enviando}
               />
             </div>
@@ -242,6 +245,9 @@ export function ConversationPanel({
           </Button>
         </div>
       )}
+
+      {/* A imagem aberta no editor. Ver `AttachmentEditor`. */}
+      <AttachmentEditor draft={draft} />
     </section>
   )
 }

@@ -130,6 +130,12 @@ export const FRAME_SIZE = {
   collapsed: { width: 160, height: 48 },
   /** O formulario aberto. */
   expanded: { width: 360, height: 520 },
+  /**
+   * O editor da imagem. **E pedido, e nao garantido**: o carregador limita a janela de
+   * quem visita, entao numa tela pequena o quadro so cresce ate onde cabe — no
+   * telefone, quase a tela toda. 360 por 520 nao e lugar para marcar um print.
+   */
+  editor: { width: 1200, height: 900 },
 } as const
 
 /**
