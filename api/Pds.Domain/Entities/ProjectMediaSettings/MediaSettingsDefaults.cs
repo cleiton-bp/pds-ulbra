@@ -46,23 +46,19 @@ public static class MediaSettingsDefaults
     public const bool AllowsOnInfoRequest = true;
 
     /// <summary>
-    /// Quatro arquivos por relato.
+    /// Quatro arquivos por envio, no total.
     ///
     /// <para>Cobre "a tela do erro, o que eu fiz antes, o que apareceu depois", com
     /// folga de um.</para>
+    ///
+    /// <para><b>Com so imagem, de fabrica quem segura e o limite dela</b>, que e
+    /// menor: os dois valem juntos e vence o menor. Este total so passa a pesar
+    /// quando o projeto sobe o limite da imagem.</para>
     /// </summary>
     public const int MaxFilesPerReport = 4;
 
     /// <summary>Tres imagens de ate 5 MB. Print de celular moderno passa de 3 MB.</summary>
     public static readonly (int Count, long Bytes) Image = (3, 5L * 1024 * 1024);
-
-    /// <summary>
-    /// Um video de ate 20 MB e 60 segundos.
-    ///
-    /// <para>Um so porque e o caro, e mais de um e quase sempre repeticao. Sessenta
-    /// segundos porque e o bastante para mostrar o caminho ate o erro.</para>
-    /// </summary>
-    public static readonly (int Count, long Bytes, int Seconds) Video = (1, 20L * 1024 * 1024, 60);
 
     /// <summary>
     /// Como o projeto se comporta, com a linha gravada ou sem ela.
@@ -71,6 +67,11 @@ public static class MediaSettingsDefaults
     /// rota que assina o envio chamam esta funcao — resolver o padrao em dois
     /// lugares faria, um dia, a tela mostrar um limite e o servidor cobrar
     /// outro.</para>
+    ///
+    /// <para><b>Os tipos saem da lista de fabrica, e nao das linhas gravadas.</b> E
+    /// isso que faz a linha de video de um projeto antigo ficar no banco sem valer
+    /// nada: o painel nao a mostra, a ferramenta nao a oferece, e o pedido de
+    /// permissao nao acha limite para ela.</para>
     /// </summary>
     public static EffectiveMediaSettings Resolve(ProjectMediaSettings? settings)
         => new(
@@ -87,16 +88,19 @@ public static class MediaSettingsDefaults
                         padrao.Kind,
                         gravado?.IsEnabled ?? padrao.IsEnabled,
                         gravado?.MaxCount ?? padrao.MaxCount,
-                        gravado?.MaxBytes ?? padrao.MaxBytes,
-                        gravado?.MaxDurationSeconds ?? padrao.MaxDurationSeconds);
+                        gravado?.MaxBytes ?? padrao.MaxBytes);
                 })
                 .ToList());
 
     /// <summary>
-    /// Os tipos que nascem ligados.
+    /// Os tipos que o produto oferece, com o padrao de cada um.
     ///
     /// <para>Monta a configuracao inteira de um projeto novo — e quando um tipo novo
     /// entrar no produto, e aqui que ele nasce ligado ou desligado de fabrica.</para>
+    ///
+    /// <para><b>So imagem.</b> O video saiu do produto por pesar demais no
+    /// armazenamento e na entrega, e saiu daqui junto: tipo fora desta lista nao
+    /// existe para a configuracao, mesmo com linha gravada.</para>
     /// </summary>
     public static List<ProjectMediaKind> BuildKinds() =>
     [
@@ -106,14 +110,6 @@ public static class MediaSettingsDefaults
             IsEnabled = true,
             MaxCount = Image.Count,
             MaxBytes = Image.Bytes,
-        },
-        new()
-        {
-            Kind = MediaKindEnum.Video,
-            IsEnabled = true,
-            MaxCount = Video.Count,
-            MaxBytes = Video.Bytes,
-            MaxDurationSeconds = Video.Seconds,
         },
     ];
 }

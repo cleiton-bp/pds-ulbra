@@ -30,6 +30,7 @@ export type {
   PublicMediaSettingsViewModel,
   SaveMediaSettingsRequest,
 } from '@/contracts/mediaSettings'
+export { UPLOADABLE_MEDIA_KIND } from '@/contracts/mediaSettings'
 export type {
   CreateProjectRequest,
   ProjectCreatedViewModel,

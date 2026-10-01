@@ -38,7 +38,6 @@ export interface RequestAttachmentUploadRequest {
   /** O que o navegador diz. Serve para recusar cedo; o gravado e o que o armazenamento contar. */
   SizeBytes: number
   FileName: string
-  DurationSeconds?: number
   WithThumbnail: boolean
   /**
    * Vai junto da resposta que a pessoa acabou de mandar. **Nao diz qual**: o
@@ -59,7 +58,6 @@ export interface ConfirmedAttachmentViewModel {
   PublicId: string
   Kind: MediaKind
   SizeBytes: number
-  DurationSeconds: number | null
 }
 
 /**
@@ -76,6 +74,7 @@ export interface PanelAttachmentViewModel {
   ThumbnailUrl: string | null
   ExpiresAt: string
   SizeBytes: number
+  /** So os videos antigos tem. */
   DurationSeconds: number | null
   OriginalName: string | null
   /** Veio numa resposta ao pedido de informacao, e nao na criacao do relato. */
@@ -95,6 +94,7 @@ export interface PublicAttachmentViewModel {
   Url: string
   ThumbnailUrl: string | null
   ExpiresAt: string
+  /** So os videos antigos tem. */
   DurationSeconds: number | null
   /** A fala da conversa em que o arquivo veio, quando veio numa resposta. */
   ReplyPublicId: string | null

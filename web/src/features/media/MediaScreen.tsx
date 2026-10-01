@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { MediaKind, MediaKindLimitViewModel, MediaSettingsViewModel } from '@/contracts'
+import {
+  type MediaKind,
+  type MediaKindLimitViewModel,
+  type MediaSettingsViewModel,
+  UPLOADABLE_MEDIA_KIND,
+} from '@/contracts'
 import { describeError, projectMediaSettingsService } from '@/data'
 import {
   bytesFromMegabytes,
@@ -16,24 +21,31 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 
+/**
+ * Um tipo que esta tela mostra: só o que ainda se pode enviar.
+ *
+ * O vídeo saiu do produto por pesar demais no armazenamento e na entrega. A API
+ * já não o lista; o filtro segura a janela da troca, quando esta tela pode falar
+ * com uma API que ainda lista — e uma seção de vídeo aqui prometeria um envio que
+ * a ferramenta não oferece mais.
+ */
+type ShownKind = MediaKindLimitViewModel & { Kind: typeof UPLOADABLE_MEDIA_KIND }
+
+function isShownKind(limite: MediaKindLimitViewModel): limite is ShownKind {
+  return limite.Kind === UPLOADABLE_MEDIA_KIND
+}
+
 /** Os tetos do sistema, iguais aos de `ProjectMediaSettings` e `ProjectMediaKind` em C#. */
 const TETO_ARQUIVOS = 10
 const TETO_QUANTIDADE = 10
-const TETO_DURACAO_SEGUNDOS = 300
-const TETO_MB: Record<MediaKind, number> = { Image: 10, Video: 50 }
+const TETO_MB: Record<ShownKind['Kind'], number> = { Image: 10 }
 
 /** O que cada tipo é, para quem configura — e não o nome do enum. */
-const TIPOS: Record<MediaKind, { titulo: string; resumo: string; custo: string }> = {
+const TIPOS: Record<ShownKind['Kind'], { titulo: string; resumo: string; custo: string }> = {
   Image: {
     titulo: 'Imagem',
     resumo: 'Print, foto da tela, recorte de captura.',
     custo: 'Barata de guardar. Print de celular moderno passa de 3 MB.',
-  },
-  Video: {
-    titulo: 'Vídeo de tela',
-    resumo: 'Gravação curta do que aconteceu até o erro.',
-    custo:
-      'É o caro, nos dois sentidos: pesa muito mais, e mostra muito mais do que um print — notificação chegando, aba aberta ao lado, nome de arquivo.',
   },
 }
 
@@ -47,7 +59,6 @@ const fieldId = {
   total: 'max-arquivos',
   count: (kind: MediaKind) => `quantidade-${kind}`,
   size: (kind: MediaKind) => `tamanho-${kind}`,
-  duration: (kind: MediaKind) => `duracao-${kind}`,
 }
 
 /**
@@ -59,8 +70,8 @@ const fieldId = {
  *
  * **Os limites aparecem por tipo, porque é assim que eles são guardados** — uma
  * linha por tipo, e não uma coluna por tipo. É o desenho que faz acrescentar áudio
- * um dia ser dado, e não migração. Quando um tipo novo entrar, ele aparece aqui
- * sozinho, com o padrão de fábrica.
+ * um dia ser dado, e não migração. Quando um tipo novo entrar, ele ganha aqui o
+ * texto dele e aparece com o padrão de fábrica. Hoje é só imagem.
  *
  * **Cada número desta tela é uma conta que alguém paga.** É a primeira parte do
  * produto que custa dinheiro por byte guardado, e é por isso que o custo de cada
@@ -116,14 +127,20 @@ export function MediaScreen() {
 
   const dirty = draft !== null && published !== null && !igual(draft, published)
 
+  const shownKinds = draft?.Kinds.filter(isShownKind) ?? []
+
   /**
-   * Ligado e sem nenhum tipo aceito não aceita nada.
+   * Ligado e sem imagem aceita não aceita nada.
    *
-   * A tela **não** liga um tipo sozinha: quem quer isso já tem o caminho certo,
-   * que é desligar o anexo — e escolher por quem configura qual tipo passa a ser
-   * aceito seria decidir uma conta no lugar dele.
+   * A tela **não** liga a imagem sozinha: quem quer isso já tem o caminho certo,
+   * que é desligar o anexo — e aceitar por quem configura seria decidir uma conta
+   * no lugar dele.
+   *
+   * **Conta só o que a tela mostra.** O vídeo que a API ainda liste ligado, na
+   * janela da troca, não é tipo aceito: contá-lo esconderia este aviso de um
+   * projeto que não recebe arquivo nenhum.
    */
-  const semTipo = draft?.IsEnabled === true && draft.Kinds.every((tipo) => !tipo.IsEnabled)
+  const semTipo = draft?.IsEnabled === true && shownKinds.every((tipo) => !tipo.IsEnabled)
 
   const noStorage = draft !== null && !draft.IsStorageAvailable
   const invalidCount = invalidFields.size
@@ -161,7 +178,8 @@ export function MediaScreen() {
         AllowsScreenCapture: draft.AllowsScreenCapture,
         AllowsOnInfoRequest: draft.AllowsOnInfoRequest,
         MaxFilesPerReport: draft.MaxFilesPerReport,
-        Kinds: draft.Kinds,
+        // Só o que a tela mostra. Tipo que não vai fica como está do lado de lá.
+        Kinds: draft.Kinds.filter(isShownKind),
       })
       setPublished(gravado)
       setDraft(gravado)
@@ -207,9 +225,9 @@ export function MediaScreen() {
                 <strong className="font-medium">
                   Não há armazenamento configurado nesta instalação.
                 </strong>{' '}
-                Por isso o anexo aparece desligado, não pode ser ligado, e nada aqui pode ser salvo.
-                O interruptor está desligado só por isso: a escolha do projeto e os limites abaixo
-                passam a valer quando houver armazenamento.
+                Por isso o anexo aparece desligado, qualquer que seja a escolha do projeto, não pode
+                ser ligado, e nada aqui pode ser salvo. A escolha salva e os limites abaixo passam a
+                valer quando houver armazenamento.
               </p>
             </div>
           )}
@@ -231,7 +249,7 @@ export function MediaScreen() {
             </legend>
 
             <div className="flex flex-col gap-2.5">
-              {draft.Kinds.map((limite) => (
+              {shownKinds.map((limite) => (
                 <Tipo
                   key={limite.Kind}
                   limite={limite}
@@ -242,16 +260,25 @@ export function MediaScreen() {
               ))}
             </div>
 
+            {/* Fica sempre, e não só para quem aceitava vídeo: a API já não diz quem
+                aceitava, e sem esta frase a seção de vídeo sumiria da tela sem
+                explicação para a maioria, que o tinha ligado de fábrica. */}
+            <p className="mt-2.5 text-caption text-fg-muted leading-relaxed">
+              Vídeo não é mais aceito como anexo. Os vídeos já recebidos continuam nos relatos.
+            </p>
+
             <div className="mt-5 rounded-xl border border-border bg-surface p-4">
               {/* Um, e não zero, no mínimo: zero seria desligar o anexo por outro
-                  caminho. */}
+                  caminho. Com um tipo só, este total e o da imagem valem juntos, e
+                  a ajuda diz que vence o menor — sem isso, subir só este número
+                  pareceria não fazer nada. */}
               <Numero
                 id={fieldId.total}
-                rotulo="Arquivos por envio, somando os tipos"
+                rotulo="Arquivos por envio"
                 unidade="arquivos"
                 valor={draft.MaxFilesPerReport}
                 range={{ min: 1, max: TETO_ARQUIVOS, decimals: 0 }}
-                ajuda="O relato é um envio, e cada resposta ao time é outro. Este total vale junto com o limite de cada tipo."
+                ajuda="O relato é um envio, e cada resposta ao time é outro. Vale o menor entre este número e o limite da imagem."
                 emphasized
                 disabled={!draft.IsEnabled}
                 aoTrocar={(valor) => setDraft({ ...draft, MaxFilesPerReport: valor })}
@@ -262,8 +289,8 @@ export function MediaScreen() {
             <div className="mt-5 flex flex-col gap-2.5">
               <Interruptor
                 marcado={draft.AllowsScreenCapture}
-                titulo="Deixar capturar e gravar a tela"
-                explicacao="Liga os dois botões da ferramenta: Capturar tela, que vira imagem, e Gravar tela, que vira vídeo. Cada um só aparece se o tipo dele for aceito. A pessoa clica e o navegador pergunta qual tela ou janela mostrar. Onde o navegador não sabe capturar ou gravar, como no iPhone, o botão correspondente não aparece, e anexar arquivo continua."
+                titulo="Deixar capturar a tela"
+                explicacao="Liga o botão Capturar tela da ferramenta. A pessoa clica, o navegador pergunta qual tela ou janela mostrar, e ela pode recortar o pedaço que importa — não é captura automática. A captura vira imagem, então o botão só aparece se imagem for aceita. Onde o navegador não sabe fazer, como no iPhone, o botão não aparece e anexar imagem continua."
                 aoTrocar={(valor) => setDraft({ ...draft, AllowsScreenCapture: valor })}
               />
 
@@ -279,9 +306,10 @@ export function MediaScreen() {
           {semTipo && (
             <div className="mt-6 rounded-xl border border-warn-border bg-warn-surface p-4">
               <p className="text-caption text-warn-fg leading-relaxed">
-                <strong className="font-medium">O anexo está ligado e nenhum tipo é aceito.</strong>{' '}
-                Assim não entra arquivo nenhum. Aceite um tipo, ou desligue o anexo — não ligamos um
-                por você, porque cada tipo aceito é espaço que este projeto passa a guardar.
+                <strong className="font-medium">O anexo está ligado e imagem não é aceita.</strong>{' '}
+                Assim não entra arquivo nenhum. Aceite imagem, ou desligue o anexo — não marcamos
+                imagem por você, porque cada imagem aceita é espaço que este projeto passa a
+                guardar.
               </p>
             </div>
           )}
@@ -338,8 +366,7 @@ function igual(a: MediaSettingsViewModel, b: MediaSettingsViewModel) {
         tipo.Kind === outro.Kind &&
         tipo.IsEnabled === outro.IsEnabled &&
         tipo.MaxCount === outro.MaxCount &&
-        tipo.MaxBytes === outro.MaxBytes &&
-        tipo.MaxDurationSeconds === outro.MaxDurationSeconds
+        tipo.MaxBytes === outro.MaxBytes
       )
     })
   )
@@ -370,9 +397,6 @@ function restoreInvalid(
         ...kind,
         MaxCount: invalid.has(fieldId.count(kind.Kind)) ? saved.MaxCount : kind.MaxCount,
         MaxBytes: invalid.has(fieldId.size(kind.Kind)) ? saved.MaxBytes : kind.MaxBytes,
-        MaxDurationSeconds: invalid.has(fieldId.duration(kind.Kind))
-          ? saved.MaxDurationSeconds
-          : kind.MaxDurationSeconds,
       }
     }),
   }
@@ -429,7 +453,7 @@ function Tipo({
   aoTrocar,
   onValidityChange,
 }: {
-  limite: MediaKindLimitViewModel
+  limite: ShownKind
   /** O anexo está desligado, e os campos ficam fora de alcance. */
   disabled: boolean
   aoTrocar: (mudanca: Partial<MediaKindLimitViewModel>) => void
@@ -480,20 +504,6 @@ function Tipo({
           aoTrocar={(valor) => aoTrocar({ MaxBytes: bytesFromMegabytes(valor) })}
           onValidityChange={onValidityChange}
         />
-
-        {limite.MaxDurationSeconds !== null && (
-          <Numero
-            id={fieldId.duration(limite.Kind)}
-            rotulo="Duração máxima"
-            unidade="segundos"
-            valor={limite.MaxDurationSeconds}
-            range={{ min: 1, max: TETO_DURACAO_SEGUNDOS, decimals: 0 }}
-            disabled={disabled}
-            ajuda="Limitar a duração é a proteção mais barata que existe aqui: corta espaço e corta o que aparece sem querer, de uma vez."
-            aoTrocar={(valor) => aoTrocar({ MaxDurationSeconds: valor })}
-            onValidityChange={onValidityChange}
-          />
-        )}
       </div>
     </div>
   )

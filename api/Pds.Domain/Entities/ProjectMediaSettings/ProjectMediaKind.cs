@@ -6,7 +6,7 @@ namespace Pds.Domain.Entities;
 /// Os limites de <b>um</b> tipo de midia, neste projeto.
 ///
 /// <para><b>Uma linha por tipo, e e esse o ponto.</b> O desenho obvio seria colunas
-/// na configuracao — <c>image_max_count</c>, <c>video_max_bytes</c>, e assim por
+/// na configuracao — <c>image_max_count</c>, <c>image_max_bytes</c>, e assim por
 /// diante. Ele custa uma migracao por tipo novo, e deixa toda linha carregando
 /// campos de tipos que aquele projeto nunca ligou. Em linhas, o tipo novo e um
 /// <c>INSERT</c>, e cada um leva so os limites que fazem sentido para ele.</para>
@@ -19,12 +19,6 @@ public class ProjectMediaKind : PdsBaseEntity
 {
     /// <summary>Teto do sistema para imagem, em bytes. Acima do que qualquer projeto escolhe.</summary>
     public const long ImageMaxBytesCeiling = 10L * 1024 * 1024;
-
-    /// <summary>Teto do sistema para video, em bytes.</summary>
-    public const long VideoMaxBytesCeiling = 50L * 1024 * 1024;
-
-    /// <summary>Teto do sistema para a duracao do video, em segundos.</summary>
-    public const int MaxDurationSecondsCeiling = 300;
 
     /// <summary>Teto do sistema para a quantidade de um mesmo tipo num relato.</summary>
     public const int MaxCountCeiling = 10;
@@ -43,8 +37,8 @@ public class ProjectMediaKind : PdsBaseEntity
     /// </summary>
     /// <remarks>
     /// <para><b>Desligar nao apaga os limites.</b> Eles ficam gravados, e religar
-    /// devolve o que ja tinha sido pensado — apagar a linha faria quem desligou o
-    /// video por um mes reconfigurar tudo ao voltar atras.</para>
+    /// devolve o que ja tinha sido pensado — apagar a linha faria quem desligou a
+    /// imagem por um mes reconfigurar tudo ao voltar atras.</para>
     /// </remarks>
     public bool IsEnabled { get; set; }
 
@@ -63,12 +57,13 @@ public class ProjectMediaKind : PdsBaseEntity
     public long MaxBytes { get; set; }
 
     /// <summary>
-    /// Duracao maxima, em segundos. Nulo para o que nao tem duracao.
+    /// Duracao maxima, em segundos. Era so do video.
     /// </summary>
     /// <remarks>
-    /// <para><b>E a protecao mais barata que existe aqui</b>, porque vale duas vezes:
-    /// corta armazenamento e corta exposicao. Sessenta segundos de tela mostram
-    /// muito mais dado de terceiro que um print, que e um instante escolhido.</para>
+    /// <para><b>Ninguem mais escreve nem le este campo.</b> O video saiu do produto,
+    /// e imagem nao tem duracao. Ele fica porque a coluna existe e as linhas antigas
+    /// de video a preenchem — tira-lo daqui pediria mexer no banco so para apagar
+    /// um numero que ja nao vale nada.</para>
     /// </remarks>
     public int? MaxDurationSeconds { get; set; }
 }

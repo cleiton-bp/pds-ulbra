@@ -4,10 +4,14 @@ namespace Pds.Domain.Dtos;
 
 /// <summary>
 /// Os limites de um tipo de midia, como a tela os manda.
+///
+/// <para><b>Sem duracao.</b> Ela so existia para o video, que saiu do produto.
+/// Cliente antigo que ainda mande <c>MaxDurationSeconds</c> nao quebra: campo que
+/// o contrato nao conhece e ignorado na leitura.</para>
 /// </summary>
 public class MediaKindLimitDto
 {
-    /// <summary>Que tipo esta linha configura: <c>Image</c> ou <c>Video</c>.</summary>
+    /// <summary>Que tipo esta linha configura. So <c>Image</c>: <c>Video</c> saiu do produto e e recusado.</summary>
     /// <example>Image</example>
     public MediaKindEnum? Kind { get; set; }
 
@@ -22,10 +26,6 @@ public class MediaKindLimitDto
     /// <summary>Teto de tamanho de cada arquivo, em bytes.</summary>
     /// <example>5242880</example>
     public long? MaxBytes { get; set; }
-
-    /// <summary>Duracao maxima em segundos. Obrigatoria para video, ignorada no resto.</summary>
-    /// <example>60</example>
-    public int? MaxDurationSeconds { get; set; }
 }
 
 /// <summary>
@@ -46,7 +46,7 @@ public class MediaSettingsDto
     /// <example>true</example>
     public bool? IsEnabled { get; set; }
 
-    /// <summary>Os botoes de capturar e de gravar a tela aparecem.</summary>
+    /// <summary>O botao de capturar a tela aparece. A captura vira imagem.</summary>
     /// <example>true</example>
     public bool? AllowsScreenCapture { get; set; }
 

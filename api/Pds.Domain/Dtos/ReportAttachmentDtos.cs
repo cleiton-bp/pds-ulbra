@@ -9,6 +9,10 @@ namespace Pds.Domain.Dtos;
 /// dizem de quem e o relato — assinar permissao para quem nao tem relato nenhum
 /// seria assinar para qualquer um, e essa e a unica rota publica do sistema que
 /// gera custo em dinheiro.</para>
+///
+/// <para><b>Sem duracao.</b> Ela so existia para o video, que saiu do produto. O
+/// quadro antigo que ainda mande <c>DurationSeconds</c> nao quebra: campo que o
+/// contrato nao conhece e ignorado na leitura.</para>
 /// </summary>
 public class RequestAttachmentUploadDto
 {
@@ -19,7 +23,12 @@ public class RequestAttachmentUploadDto
     /// <summary>O token que saiu junto do protocolo, na criacao.</summary>
     public string? Token { get; set; }
 
-    /// <summary>Imagem ou video.</summary>
+    /// <summary>
+    /// De que tipo e o arquivo. So <c>Image</c>.
+    ///
+    /// <para><c>Video</c> e recusado com 400: saiu do produto por pesar demais no
+    /// armazenamento e na entrega.</para>
+    /// </summary>
     /// <example>Image</example>
     public MediaKindEnum? Kind { get; set; }
 
@@ -39,10 +48,6 @@ public class RequestAttachmentUploadDto
     /// <summary>Nome do arquivo na maquina de quem relata. Guardado para o time, nunca mostrado fora.</summary>
     /// <example>erro-no-pagamento.png</example>
     public string? FileName { get; set; }
-
-    /// <summary>Duracao, so para o que tem duracao.</summary>
-    /// <example>42</example>
-    public int? DurationSeconds { get; set; }
 
     /// <summary>
     /// Ha miniatura para enviar junto.

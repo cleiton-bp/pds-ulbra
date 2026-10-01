@@ -1,5 +1,6 @@
 import type { PublicMediaSettingsViewModel } from '@/contracts'
 import { publicMediaService } from '@/data/publicIndex'
+import { onlyUploadable } from '@/embed/attachments'
 
 /**
  * O que o quadro pode oferecer de anexo nesta abertura — ou `null` para nao
@@ -13,15 +14,19 @@ import { publicMediaService } from '@/data/publicIndex'
  * inteiro: o texto e a parte que importa.
  *
  * **Desligado tambem vira `null`**, para o quadro so precisar perguntar uma coisa.
+ * E sem tipo que ainda se possa enviar tambem: o projeto que so aceitava video
+ * nao tem mais o que oferecer.
  */
 export async function resolveMediaSettings(
   key: string,
   origin: string | null,
 ): Promise<PublicMediaSettingsViewModel | null> {
   try {
-    const settings = await publicMediaService.loadMediaSettings(key, origin)
+    const lida = await publicMediaService.loadMediaSettings(key, origin)
+    if (!lida?.IsEnabled) return null
 
-    return settings?.IsEnabled && settings.Kinds.length > 0 ? settings : null
+    const settings = onlyUploadable(lida)
+    return settings.Kinds.length > 0 ? settings : null
   } catch {
     return null
   }

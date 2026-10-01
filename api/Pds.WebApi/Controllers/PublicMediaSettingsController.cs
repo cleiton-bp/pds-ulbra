@@ -19,7 +19,11 @@ namespace Pds.WebApi.Controllers;
 ///
 /// **Só os tipos ligados aparecem.** A ferramenta não tem o que fazer com um tipo
 /// que o projeto recusa, e listar o que não serve daria a quem inspeciona um mapa
-/// do que existe do outro lado.
+/// do que existe do outro lado. **Vídeo nunca aparece**, nem para o projeto que
+/// tinha limite salvo para ele: saiu do produto por pesar demais no armazenamento e
+/// na entrega. `MaxDurationSeconds` continua em cada tipo, sempre nulo, porque a
+/// ferramenta guardada no navegador antes da troca lê a ausência dele como "tem
+/// duração" e recusaria todo print.
 ///
 /// **Sem armazenamento nesta instalação, vem desligado** — mesmo que o projeto
 /// tenha o anexo ligado na configuração dele. O botão existir e o envio falhar

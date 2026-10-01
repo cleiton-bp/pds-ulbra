@@ -54,9 +54,15 @@ public class ProjectMediaSettingsController : BaseController
     /// projeto dele já se comporta desse jeito, e dizer "não encontrado" sobre algo
     /// que está funcionando seria mentira.
     ///
-    /// **Todo tipo conhecido aparece na lista**, mesmo o que nunca foi salvo — com o
-    /// padrão de fábrica. Assim um tipo novo do produto passa a existir para todo
-    /// projeto no dia em que entra, sem depender de alguém abrir a tela e salvar.
+    /// **Todo tipo que o produto oferece aparece na lista**, mesmo o que nunca foi
+    /// salvo — com o padrão de fábrica. Assim um tipo novo do produto passa a existir
+    /// para todo projeto no dia em que entra, sem depender de alguém abrir a tela e
+    /// salvar.
+    ///
+    /// **Hoje é só imagem.** O vídeo saiu do produto por pesar demais no
+    /// armazenamento e na entrega, e não aparece nem para o projeto que tinha limite
+    /// salvo para ele. `MaxDurationSeconds` continua na resposta, sempre nulo, para
+    /// a tela aberta antes da troca não desenhar um campo de duração na imagem.
     ///
     /// **Sem armazenamento nesta instalação, `IsEnabled` vem falso**, porque a
     /// ferramenta não oferece anexo nenhum. O que o projeto salvou continua guardado,
@@ -96,10 +102,17 @@ public class ProjectMediaSettingsController : BaseController
     /// protege a conta de quem configurou; o teto protege a nossa de quem configurou
     /// errado.
     ///
-    /// **Anexo ligado sem nenhum tipo aceito é recusado**, porque não aceitaria nada
+    /// **Anexo ligado sem imagem aceita é recusado**, porque não aceitaria nada
     /// — quem quer isso já tem o caminho certo, que é desligar o anexo. E **tipo que
     /// a requisição não mandar fica como está**, para uma versão antiga da tela não
     /// apagar a configuração de um tipo que ela não conhece.
+    ///
+    /// **`Video` é recusado com 400**, mesmo desligado. Salvar o limite dele seria
+    /// prometer, na tela, um envio que o pedido de permissão recusa. A mensagem pede
+    /// para recarregar a página, porque quem a recebe é, quase sempre, uma tela
+    /// aberta antes de o vídeo sair, devolvendo a linha que leu.
+    /// `MaxDurationSeconds` deixou de existir no pedido; quem ainda o manda não
+    /// quebra, porque o campo é ignorado.
     ///
     /// **Sem armazenamento nesta instalação, nada se salva**, nem o anexo desligado.
     /// A leitura responde desligado; devolver isso gravaria o desligado por cima da
@@ -109,7 +122,7 @@ public class ProjectMediaSettingsController : BaseController
     /// <param name="dto">A configuração inteira, com os limites de cada tipo.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Configuração salva.</response>
-    /// <response code="400">Campo ausente, limite fora do teto, tipo repetido ou desconhecido, ou anexo ligado sem nenhum tipo aceito.</response>
+    /// <response code="400">Campo ausente, limite fora do teto, tipo repetido ou desconhecido, vídeo, ou anexo ligado sem imagem aceita.</response>
     /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
     /// <response code="409">Não há armazenamento configurado nesta instalação, e sem ele nada desta configuração se salva.</response>
     [HttpPut]

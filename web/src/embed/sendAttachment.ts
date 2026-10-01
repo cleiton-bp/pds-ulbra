@@ -34,7 +34,6 @@ export async function sendAttachment(
     ContentType: anexo.file.type,
     SizeBytes: anexo.file.size,
     FileName: anexo.file.name,
-    DurationSeconds: anexo.durationSeconds ?? undefined,
     WithThumbnail: anexo.thumbnail !== null,
     // Na resposta, o servidor prende o arquivo a resposta mais recente de quem
     // relatou. O navegador nao diz qual — ver `ForReply` na API.

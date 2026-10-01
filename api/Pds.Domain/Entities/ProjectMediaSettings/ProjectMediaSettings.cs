@@ -68,9 +68,10 @@ public class ProjectMediaSettings : PdsBaseEntity
     /// Quantos arquivos cabem num relato, somando todos os tipos.
     /// </summary>
     /// <remarks>
-    /// <para><b>Existe alem do limite de cada tipo, e nao no lugar dele.</b> So com
-    /// o limite por tipo, tres imagens mais um video passariam mesmo num projeto que
-    /// so queria dois arquivos no total — a soma nao tem quem a segure.</para>
+    /// <para><b>Existe alem do limite de cada tipo, e nao no lugar dele.</b> Com um
+    /// tipo so, os dois valem juntos e vence o menor. Com mais de um, so o limite
+    /// por tipo deixaria a soma passar do que o projeto quer no total — e ela nao
+    /// teria quem a segurasse.</para>
     /// </remarks>
     public int MaxFilesPerReport { get; set; }
 

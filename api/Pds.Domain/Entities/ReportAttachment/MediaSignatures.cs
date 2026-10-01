@@ -7,7 +7,7 @@ namespace Pds.Domain.Entities;
 ///
 /// <para><b>Extensao nao e prova, e tipo declarado tambem nao.</b> Os dois sao
 /// escolhidos por quem envia. O unico jeito de saber o que um arquivo e, e olhar o
-/// comeco dele — todo formato de imagem e video abre com uma marca fixa, posta ali
+/// comeco dele — todo formato de imagem abre com uma marca fixa, posta ali
 /// justamente para ser reconhecida sem depender do nome.</para>
 ///
 /// <para><b>Por que isto existe mesmo com a assinatura do envio.</b> A permissao
@@ -17,7 +17,12 @@ namespace Pds.Domain.Entities;
 /// serviria o que alguem quisesse, sob um rotulo que nos mesmos escolhemos.</para>
 ///
 /// <para><b>A lista e curta de proposito.</b> Cada formato a mais e uma superficie
-/// a mais, e os quatro daqui cobrem o que a etapa se propos a receber.</para>
+/// a mais, e os tres daqui cobrem o print, a foto e a captura recortada.</para>
+///
+/// <para><b>Sem video, e para envio novo nenhum.</b> Ele saiu do produto por pesar
+/// demais no armazenamento e na entrega, e o WebM saiu daqui junto. Os videos que
+/// ja estavam confirmados continuam no armazenamento e tocando: esta lista so
+/// decide o que entra, e nao o que ja entrou.</para>
 /// </summary>
 public static class MediaSignatures
 {
@@ -30,20 +35,22 @@ public static class MediaSignatures
     /// </summary>
     public const int LeadingBytes = 12;
 
-    /// <summary>Os tipos aceitos, por categoria. E a lista que a etapa decidiu receber.</summary>
+    /// <summary>
+    /// Os tipos aceitos, por categoria. So imagem: categoria fora daqui nao e
+    /// assinada nem confirmada.
+    /// </summary>
     public static readonly IReadOnlyDictionary<MediaKindEnum, string[]> Accepted =
         new Dictionary<MediaKindEnum, string[]>
         {
             [MediaKindEnum.Image] = ["image/png", "image/jpeg", "image/webp"],
-            [MediaKindEnum.Video] = ["video/webm"],
         };
 
     /// <summary>
     /// Os bytes conferem com o tipo declarado.
     ///
     /// <para><b>Confere contra o tipo, e nao contra a lista inteira.</b> Aceitar um
-    /// PNG num objeto que diz ser video faria o painel entregar um arquivo que nao
-    /// abre — e, pior, faria o rotulo gravado mentir sobre o conteudo.</para>
+    /// PNG num objeto que diz ser JPEG faria o painel entregar um arquivo com o
+    /// rotulo errado — e o rotulo gravado mentiria sobre o conteudo.</para>
     /// </summary>
     public static bool Matches(string contentType, ReadOnlySpan<byte> leading)
         => contentType switch
@@ -58,10 +65,6 @@ public static class MediaSignatures
             // RIFF....WEBP — os quatro bytes do meio sao o tamanho, e variam.
             "image/webp" => Starts(leading, [0x52, 0x49, 0x46, 0x46])
                             && Starts(leading[8..], [0x57, 0x45, 0x42, 0x50]),
-
-            // 1A 45 DF A3 — a marca do EBML, que o WebM usa. E a mesma do Matroska:
-            // WebM e um recorte dele, e nao um formato a parte.
-            "video/webm" => Starts(leading, [0x1A, 0x45, 0xDF, 0xA3]),
 
             _ => false,
         };

@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type { PublicAttachmentViewModel, PublicMediaSettingsViewModel } from '@/contracts'
 import { publicMediaService } from '@/data/publicIndex'
+import { onlyUploadable } from '@/embed/attachments'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 
 /**
@@ -31,10 +32,12 @@ export function useTrackingMedia(code: string, token: string) {
 
       try {
         const lida = await publicMediaService.loadTrackingMediaSettings(code, token)
+        if (!lida.IsEnabled || !lida.AllowsOnInfoRequest) return null
 
-        // So o que vale para a resposta: anexo ligado, tipos aceitos, e o projeto
-        // deixando anexar ao responder.
-        return lida.IsEnabled && lida.AllowsOnInfoRequest && lida.Kinds.length > 0 ? lida : null
+        // So o que vale para a resposta: anexo ligado, o projeto deixando anexar ao
+        // responder, e algum tipo que ainda se possa enviar — imagem.
+        const uploadable = onlyUploadable(lida)
+        return uploadable.Kinds.length > 0 ? uploadable : null
       } catch {
         return null
       }

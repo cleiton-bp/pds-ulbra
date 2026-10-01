@@ -376,7 +376,7 @@ public class PublicReportsController : BaseController
     /// <remarks>
     /// **Só enquanto há pedido aberto.** Sem a pergunta do outro lado, esta rota
     /// viraria uma caixa de entrada sem dono e sem moderação — e moderação ficou de
-    /// fora desta etapa de propósito. Relato sem pedido aberto recebe 409.
+    /// fora de propósito. Relato sem pedido aberto recebe 409.
     ///
     /// A resposta entra na **mesma tabela** do que a equipe escreve, com o autor
     /// nulo: é o que faz a conversa ser uma lista só, em ordem, e é o que "a
@@ -439,13 +439,18 @@ public class PublicReportsController : BaseController
     /// da conexão. Passado o prazo, a recusa é 409 — o pedido estava certo, o que
     /// fechou foi o envio.
     ///
+    /// **Só imagem.** `Kind` igual a `Video` recebe 400, qualquer que seja o
+    /// projeto: o vídeo saiu do produto por pesar demais no armazenamento e na
+    /// entrega. `DurationSeconds` deixou de existir, e quem ainda o manda não quebra
+    /// — o campo é ignorado.
+    ///
     /// Depois de enviar, **confirme**: sem isso o arquivo é órfão e não pertence a
     /// relato nenhum.
     /// </remarks>
     /// <param name="dto">O relato, o tipo e o tamanho do arquivo.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Formulário assinado, pronto para enviar.</response>
-    /// <response code="400">Projeto não aceita anexo, formato recusado, ou arquivo grande demais.</response>
+    /// <response code="400">Vídeo, projeto que não aceita anexo, formato recusado, ou arquivo grande demais.</response>
     /// <response code="404">O link não abre nenhum relato.</response>
     /// <response code="409">O envio já tem o máximo de arquivos, o prazo do envio terminou, ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
@@ -497,8 +502,12 @@ public class PublicReportsController : BaseController
     /// confirmar a primeira enxergam a mesma vaga. Aqui a contagem é feita com a
     /// cota do relato travada, uma confirmação por vez: a que chega com o envio já
     /// cheio recebe 409, e o arquivo dela é apagado. A regra do projeto também é
-    /// conferida de novo: mídia, tipo ou anexo na resposta desligados, ou tamanho e
-    /// duração máximos reduzidos depois da permissão, recusam do mesmo jeito.
+    /// conferida de novo: mídia, tipo ou anexo na resposta desligados, ou tamanho
+    /// máximo reduzido depois da permissão, recusam do mesmo jeito.
+    ///
+    /// **Vídeo pendente é recusado com 409, e descartado.** A permissão pode ter
+    /// sido assinada antes de o vídeo sair do produto; o arquivo que chegou por ela
+    /// é apagado como qualquer outra recusa da regra.
     ///
     /// **Uma permissão vale 1 hora para ser confirmada**, contada de quando foi
     /// pedida. Depois disso ela venceu: a recusa é 409, sem nem ler o armazenamento.
@@ -508,7 +517,7 @@ public class PublicReportsController : BaseController
     /// <response code="200">Anexo confirmado.</response>
     /// <response code="400">O arquivo não chegou, ou não é do formato declarado — neste caso ele foi descartado.</response>
     /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador — por exemplo, porque outra confirmação do mesmo anexo terminou antes.</response>
-    /// <response code="409">O envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta, tamanho ou duração máximos), ou a permissão passou de 1 hora sem ser confirmada — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
+    /// <response code="409">O envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta ou tamanho máximo), a permissão passou de 1 hora sem ser confirmada, ou o anexo é um vídeo, que não é mais aceito — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments/confirm")]
     [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
@@ -584,6 +593,10 @@ public class PublicReportsController : BaseController
     ///
     /// `AllowsOnInfoRequest` é o que a página olha. Sem armazenamento nesta
     /// instalação, `IsEnabled` vem falso.
+    ///
+    /// **Vídeo nunca aparece**, como na leitura da ferramenta, e `MaxDurationSeconds`
+    /// vem sempre nulo: a página aberta antes da troca lê a ausência dele como "tem
+    /// duração".
     /// </remarks>
     /// <param name="dto">O protocolo e o token, os dois juntos.</param>
     /// <param name="cancellationToken"></param>

@@ -49,7 +49,13 @@ public class ReportAttachment : PdsBaseEntity
     public long? PublicCommentId { get; set; }
     public ReportPublicComment? PublicComment { get; set; }
 
-    /// <summary>Imagem ou video. E ele que diz qual limite do projeto se aplica.</summary>
+    /// <summary>
+    /// Imagem, ou video nos anexos antigos. E ele que diz qual limite do projeto se
+    /// aplica.
+    ///
+    /// <para>Anexo novo e sempre imagem: o video saiu do produto. Os videos
+    /// confirmados antes disso continuam aqui, e continuam tocando.</para>
+    /// </summary>
     public MediaKindEnum Kind { get; set; }
 
     /// <summary>Em que ponto do envio este anexo esta.</summary>
@@ -65,8 +71,8 @@ public class ReportAttachment : PdsBaseEntity
     public string ObjectKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// A miniatura, gerada no proprio navegador antes do envio. No video e o quadro
-    /// de capa.
+    /// A miniatura, gerada no proprio navegador antes do envio. Nos videos antigos,
+    /// e o quadro de capa.
     ///
     /// <para><b>Vem de fora, entao ela tambem e conferida.</b> Miniatura e imagem
     /// como qualquer outra, e aceita-la sem olhar seria abrir pelo lado de tras a
@@ -92,7 +98,13 @@ public class ReportAttachment : PdsBaseEntity
     /// </summary>
     public long SizeBytes { get; set; }
 
-    /// <summary>Duracao, so para o que tem duracao.</summary>
+    /// <summary>
+    /// Duracao, so para o que tem duracao.
+    ///
+    /// <para>So video tinha, e video nao entra mais: anexo novo grava nulo. Fica
+    /// pelos videos que ja estavam guardados, que o painel ainda lista com a
+    /// duracao.</para>
+    /// </summary>
     public int? DurationSeconds { get; set; }
 
     /// <summary>

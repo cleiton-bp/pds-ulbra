@@ -6,7 +6,6 @@ import {
   kindFor,
   makeThumbnail,
   previewUrl,
-  readVideoDuration,
   rejectReason,
   releasePreview,
 } from '@/embed/attachments'
@@ -64,7 +63,7 @@ export function useAttachmentDraft(
    * armazenamento. Isto so evita escolher, esperar o envio, e so entao ouvir "nao
    * serve".
    */
-  async function adicionar(arquivos: File[], conhecido?: { durationSeconds: number }) {
+  async function adicionar(arquivos: File[]) {
     if (!media) return
 
     setRecusa(null)
@@ -79,26 +78,7 @@ export function useAttachmentDraft(
       const kind = kindFor(file, media)
       if (!kind) continue
 
-      let durationSeconds: number | null = null
-
-      if (kind.MaxDurationSeconds !== null) {
-        // Gravado aqui, a duracao veio do relogio — e e mais confiavel que ler o
-        // arquivo, que o navegador grava sem duracao no cabecalho.
-        durationSeconds = conhecido?.durationSeconds ?? (await readVideoDuration(file))
-
-        // A API exige a duracao do video, e nao da para chuta-la.
-        if (durationSeconds === null) {
-          setRecusa('Não deu para ler a duração deste vídeo.')
-          continue
-        }
-
-        if (durationSeconds > kind.MaxDurationSeconds) {
-          setRecusa(`O vídeo passa de ${kind.MaxDurationSeconds} segundos.`)
-          continue
-        }
-      }
-
-      const thumbnail = await makeThumbnail(file, kind.Kind)
+      const thumbnail = await makeThumbnail(file)
 
       trocarLista([
         ...anexosRef.current,
@@ -106,14 +86,9 @@ export function useAttachmentDraft(
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file,
           kind: kind.Kind,
-          // Imagem se mostra por ela mesma quando a miniatura nao sai; video, nao.
-          preview: thumbnail
-            ? previewUrl(thumbnail)
-            : kind.Kind === 'Image'
-              ? previewUrl(file)
-              : null,
+          // A imagem se mostra por ela mesma quando a miniatura nao sai.
+          preview: previewUrl(thumbnail ?? file),
           thumbnail,
-          durationSeconds,
           status: 'waiting',
           progress: 0,
           error: null,

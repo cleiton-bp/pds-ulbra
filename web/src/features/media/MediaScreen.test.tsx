@@ -12,12 +12,18 @@ import { MediaScreen } from '@/features/media/MediaScreen'
  * **Sem armazenamento, a API responde o anexo desligado, e a tela so mostra.** O
  * dublê responde como a API: desligado, e o resto como esta salvo. A tela nao deixa
  * ligar nem salvar, como a API, porque salvar gravaria o desligado por cima da
- * escolha do projeto, e diz que o interruptor esta desligado so por falta de
- * armazenamento.
+ * escolha do projeto. O aviso nao diz qual e a escolha salva, porque a API sem
+ * armazenamento responde desligado para todo projeto, e o que desligou de proposito
+ * continua desligado quando o armazenamento chegar.
  *
- * **Ligado sem nenhum tipo aceito nao aceita nada**, e a tela nao liga um tipo
- * sozinha: cada tipo aceito e espaco que o projeto passa a guardar, e escolher
- * isso por quem configura seria decidir uma conta no lugar dele.
+ * **Ligado sem imagem aceita nao aceita nada**, e a tela nao aceita imagem
+ * sozinha: cada imagem aceita e espaco que o projeto passa a guardar, e escolher
+ * isso por quem configura seria decidir uma conta no lugar dele. O aviso fala so
+ * de imagem, e conta so o que a tela mostra: o video que a API ainda liste ligado,
+ * na janela da troca, nao esconde o aviso.
+ *
+ * **O total diz que vence o menor.** Com um tipo so, o total e o da imagem valem
+ * juntos, e subir so o total nao muda nada — a tela precisa dizer isso.
  *
  * **O banco guarda bytes, e quem configura pensa em MB.** A conversao mora na
  * borda, e o teste a trava nos dois sentidos — e ela que faz "5" virar 5242880 e
@@ -25,6 +31,12 @@ import { MediaScreen } from '@/features/media/MediaScreen'
  *
  * **Tipo desligado mantem os limites visiveis.** Escondê-los faria parecer que
  * desligar apaga o que ja tinha sido pensado.
+ *
+ * **Nao ha secao de video, so uma frase dizendo que ele saiu.** A tela nao o
+ * mostra nem quando a API ainda o lista, na janela da troca — nem o manda de volta
+ * ao salvar. A frase fica para todo projeto, porque a maioria tinha video ligado de
+ * fabrica e veria a secao sumir sem explicacao. O interruptor da captura fala so
+ * do Capturar tela.
  *
  * **Campo numerico guarda o que foi digitado.** Apagado, ele fica vazio e avisa,
  * em vez de pular para o minimo e grudar o proximo digito nele. Casa decimal em
@@ -68,16 +80,7 @@ function padrao(mudanca: Partial<MediaSettingsViewModel> = {}): MediaSettingsVie
     AllowsScreenCapture: true,
     AllowsOnInfoRequest: true,
     MaxFilesPerReport: 4,
-    Kinds: [
-      {
-        Kind: 'Image',
-        IsEnabled: true,
-        MaxCount: 3,
-        MaxBytes: 5 * UM_MB,
-        MaxDurationSeconds: null,
-      },
-      { Kind: 'Video', IsEnabled: true, MaxCount: 1, MaxBytes: 20 * UM_MB, MaxDurationSeconds: 60 },
-    ],
+    Kinds: [{ Kind: 'Image', IsEnabled: true, MaxCount: 3, MaxBytes: 5 * UM_MB }],
     ...mudanca,
   }
 }
@@ -141,7 +144,7 @@ describe('MediaScreen', () => {
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
     const tamanhos = screen.getAllByLabelText(/Tamanho de cada um/) as HTMLInputElement[]
-    expect(tamanhos.map((campo) => campo.value)).toEqual(['5', '20'])
+    expect(tamanhos.map((campo) => campo.value)).toEqual(['5'])
   })
 
   it('converte MB para bytes ao salvar', async () => {
@@ -160,12 +163,13 @@ describe('MediaScreen', () => {
     expect(enviado.Kinds[0]?.MaxBytes).toBe(8 * UM_MB)
   })
 
-  it('sem armazenamento, a tela só mostra, e diz que o desligado é por falta de armazenamento', async () => {
+  it('sem armazenamento, a tela só mostra, e não afirma qual é a escolha salva', async () => {
     dublê.ler.mockResolvedValue(semArmazenamento(padrao({ MaxFilesPerReport: 2 })))
     montar()
 
     await screen.findByText(/Não há armazenamento configurado nesta instalação/)
-    expect(screen.getByText(/O interruptor está desligado só por isso/)).toBeDefined()
+    expect(screen.getByText(/qualquer que seja a escolha do projeto/)).toBeDefined()
+    expect(screen.queryByText(/só por isso/)).toBeNull()
     expect(screen.getByText(/passam a valer quando houver armazenamento/)).toBeDefined()
 
     expect((anexo() as HTMLInputElement).checked).toBe(false)
@@ -190,25 +194,100 @@ describe('MediaScreen', () => {
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('anexo ligado sem nenhum tipo aceito avisa, e não deixa salvar', async () => {
+  it('anexo ligado sem imagem aceita avisa, e não deixa salvar', async () => {
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Imagem/ }))
-    fireEvent.click(screen.getByRole('checkbox', { name: /Vídeo de tela/ }))
 
-    await screen.findByText(/O anexo está ligado e nenhum tipo é aceito/)
+    const aviso = await screen.findByText(/O anexo está ligado e imagem não é aceita/)
+    // O aviso e sobre imagem: projeto que nunca aceitou so video nao tem por que
+    // ler sobre video aqui.
+    expect(aviso.closest('p')?.textContent).not.toMatch(/vídeo/i)
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  // Na janela da troca a API antiga ainda lista video. Ligado, ele nao conta como
+  // tipo aceito: a tela nao o mostra, e conta-lo esconderia o aviso de um projeto
+  // que nao recebe arquivo nenhum.
+  it('com a API ainda listando vídeo ligado e imagem desligada, avisa que imagem não é aceita', async () => {
+    dublê.ler.mockResolvedValue(
+      padrao({
+        Kinds: [
+          { Kind: 'Image', IsEnabled: false, MaxCount: 3, MaxBytes: 5 * UM_MB },
+          { Kind: 'Video', IsEnabled: true, MaxCount: 1, MaxBytes: 20 * UM_MB },
+        ],
+      }),
+    )
+    montar()
+
+    await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+    expect(screen.getByText(/O anexo está ligado e imagem não é aceita/)).toBeDefined()
+
+    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('o total diz que vale o menor entre ele e o limite da imagem', async () => {
+    montar()
+
+    await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+    expect(screen.queryByText(/somando os tipos/)).toBeNull()
+    expect(screen.getByText(/Vale o menor entre este número e o limite da imagem/)).toBeDefined()
   })
 
   it('desligar um tipo não esconde os limites dele', async () => {
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
-    fireEvent.click(screen.getByRole('checkbox', { name: /Vídeo de tela/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Imagem/ }))
 
-    expect(screen.getByLabelText(/Duração máxima/)).toBeDefined()
+    expect(screen.getByLabelText(/Quantos por envio/)).toBeDefined()
+    expect(tamanhoImagem().value).toBe('5')
+  })
+
+  it('não tem seção de vídeo, nem campo de duração, e diz que o vídeo saiu', async () => {
+    montar()
+
+    await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+    expect(screen.queryByRole('checkbox', { name: /Vídeo/ })).toBeNull()
+    expect(screen.queryByLabelText(/Duração máxima/)).toBeNull()
+    expect(
+      screen.getByText(
+        'Vídeo não é mais aceito como anexo. Os vídeos já recebidos continuam nos relatos.',
+      ),
+    ).toBeDefined()
+  })
+
+  // Na janela da troca a API antiga ainda lista video. A tela nao o mostra, e
+  // salvar nao o manda: tipo que nao vai fica como esta do lado de la.
+  it('o vídeo que a API ainda lista não aparece, e não vai ao salvar', async () => {
+    const antigo = padrao()
+    const comVideo: MediaSettingsViewModel = {
+      ...antigo,
+      Kinds: [
+        ...antigo.Kinds,
+        { Kind: 'Video', IsEnabled: true, MaxCount: 1, MaxBytes: 20 * UM_MB },
+      ],
+    }
+    dublê.ler.mockResolvedValue(comVideo)
+    dublê.salvar.mockResolvedValue(padrao({ MaxFilesPerReport: 2 }))
+    montar()
+
+    await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+    expect(screen.queryByRole('checkbox', { name: /Vídeo/ })).toBeNull()
+    expect(screen.getAllByLabelText(/Quantos por envio/)).toHaveLength(1)
+
+    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.click(salvar())
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+
+    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
+    expect(enviado.Kinds.map((tipo) => tipo.Kind)).toEqual(['Image'])
   })
 
   it('o botão só age quando há o que salvar', async () => {
@@ -247,13 +326,17 @@ describe('MediaScreen', () => {
     expect(screen.getByText(/O limite de tamanho não é sugestão/)).toBeDefined()
   })
 
-  it('diz que o interruptor da captura também liga e desliga o Gravar', async () => {
+  it('o interruptor da captura fala só do Capturar tela, que vira imagem', async () => {
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    const captura = screen.getByRole('checkbox', { name: /Deixar capturar e gravar a tela/ })
-    expect(captura.closest('label')?.textContent).toMatch(/Gravar tela/)
+    const captura = screen.getByRole('checkbox', { name: /Deixar capturar a tela/ })
+    const texto = captura.closest('label')?.textContent ?? ''
+    expect(texto).toMatch(/Capturar tela/)
+    expect(texto).toMatch(/vira imagem/)
+    expect(texto).not.toMatch(/grava/i)
+    expect(texto).not.toMatch(/vídeo/i)
   })
 
   it('fala em envio, e não em relato, nos limites de quantidade', async () => {
@@ -262,7 +345,7 @@ describe('MediaScreen', () => {
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
     expect(screen.getByText(/O relato é um envio, e cada resposta ao time é outro/)).toBeDefined()
-    expect(screen.getAllByLabelText(/Quantos por envio/)).toHaveLength(2)
+    expect(screen.getAllByLabelText(/Quantos por envio/)).toHaveLength(1)
     expect(screen.queryByLabelText(/por relato/)).toBeNull()
   })
 

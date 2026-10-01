@@ -2,13 +2,17 @@ using Pds.Domain.Enums;
 
 namespace Pds.Domain.Entities;
 
-/// <summary>Os limites de um tipo, ja resolvidos entre o gravado e o padrao.</summary>
+/// <summary>
+/// Os limites de um tipo, ja resolvidos entre o gravado e o padrao.
+///
+/// <para>Sem duracao: ela so existia para o video, que saiu do produto. A coluna
+/// continua no banco pelas linhas antigas, e nada mais a le.</para>
+/// </summary>
 public record EffectiveMediaKind(
     MediaKindEnum Kind,
     bool IsEnabled,
     int MaxCount,
-    long MaxBytes,
-    int? MaxDurationSeconds);
+    long MaxBytes);
 
 /// <summary>
 /// Como este projeto se comporta, tenha ele configuracao gravada ou nao.
@@ -20,7 +24,9 @@ public record EffectiveMediaKind(
 ///
 /// <para><b>Tipo que nao esta gravado sai com o padrao, e nao some.</b> Um tipo
 /// novo do produto passa a existir para todo projeto no dia em que entra, sem
-/// precisar que alguem abra a tela e salve.</para>
+/// precisar que alguem abra a tela e salve. O contrario tambem vale: tipo que o
+/// produto deixou de oferecer, como o video, nao aparece aqui mesmo com linha
+/// gravada.</para>
 /// </summary>
 public record EffectiveMediaSettings(
     bool IsEnabled,

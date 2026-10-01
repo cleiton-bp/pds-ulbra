@@ -3,11 +3,18 @@ using Pds.Domain.Enums;
 namespace Pds.Domain.ViewModels;
 
 /// <summary>Os limites de um tipo de midia neste projeto.</summary>
-/// <param name="Kind">Imagem ou video.</param>
+/// <param name="Kind">So imagem. O video saiu do produto, e nao aparece nem para o projeto que tinha limite gravado para ele.</param>
 /// <param name="IsEnabled">Este tipo e aceito.</param>
 /// <param name="MaxCount">Quantos arquivos deste tipo cabem em cada envio.</param>
 /// <param name="MaxBytes">Teto de tamanho de cada arquivo, em bytes.</param>
-/// <param name="MaxDurationSeconds">Duracao maxima, nula para o que nao tem duracao.</param>
+/// <param name="MaxDurationSeconds">
+/// Sempre nulo: so o video tinha duracao.
+///
+/// <para><b>Fica na resposta para nao quebrar a tela antiga.</b> Ela desenha o
+/// campo de duracao quando este valor nao e nulo — e campo ausente, para ela, nao e
+/// nulo: uma aba aberta antes da troca mostraria um campo de duracao quebrado na
+/// imagem.</para>
+/// </param>
 public record MediaKindLimitViewModel(
     MediaKindEnum Kind,
     bool IsEnabled,
@@ -38,10 +45,10 @@ public record MediaKindLimitViewModel(
 /// tenha ligado: a tela nao mostra ligado o que a ferramenta nao oferece. O que foi
 /// salvo continua guardado.</para>
 /// </param>
-/// <param name="AllowsScreenCapture">Os botoes de capturar e de gravar a tela aparecem.</param>
+/// <param name="AllowsScreenCapture">O botao de capturar a tela aparece. A captura vira imagem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
 /// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, e cada resposta e outro.</param>
-/// <param name="Kinds">Os limites de cada tipo.</param>
+/// <param name="Kinds">Os limites de cada tipo que o produto oferece — hoje, so imagem.</param>
 public record MediaSettingsViewModel(
     bool IsStorageAvailable,
     bool IsEnabled,
@@ -57,10 +64,17 @@ public record MediaSettingsViewModel(
 /// permite o seletor de arquivo do navegador ja filtrar o que nao serve — recusar
 /// depois de a pessoa escolher e recusar tarde.</para>
 /// </summary>
-/// <param name="Kind">Imagem ou video.</param>
+/// <param name="Kind">So imagem. O video saiu do produto.</param>
 /// <param name="MaxCount">Quantos deste tipo cabem em cada envio.</param>
 /// <param name="MaxBytes">Teto de tamanho de cada um.</param>
-/// <param name="MaxDurationSeconds">Duracao maxima, quando ha.</param>
+/// <param name="MaxDurationSeconds">
+/// Sempre nulo: so o video tinha duracao.
+///
+/// <para><b>Fica na resposta para nao quebrar o quadro antigo.</b> Ele le a duracao
+/// do arquivo quando este valor nao e nulo — e campo ausente, para ele, nao e nulo.
+/// Um quadro guardado no navegador antes da troca tentaria ler uma imagem como
+/// video, e recusaria todo print.</para>
+/// </param>
 /// <param name="ContentTypes">Os tipos de arquivo aceitos nesta categoria.</param>
 public record PublicMediaKindViewModel(
     MediaKindEnum Kind,
@@ -81,7 +95,7 @@ public record PublicMediaKindViewModel(
 /// falhar seria pior do que o botao nao existir.</para>
 /// </summary>
 /// <param name="IsEnabled">A ferramenta mostra anexo.</param>
-/// <param name="AllowsScreenCapture">Os botoes de capturar e de gravar a tela aparecem.</param>
+/// <param name="AllowsScreenCapture">O botao de capturar a tela aparece. A captura vira imagem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
 /// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, e cada resposta e outro.</param>
 /// <param name="Kinds">Os tipos aceitos, com os limites de cada um.</param>

@@ -67,10 +67,14 @@ public class ReportAttachmentService : IReportAttachmentService
     /// </summary>
     private static readonly TimeSpan ConfirmWindow = TimeSpan.FromHours(1);
 
-    /// <summary>A miniatura e sempre imagem, mesmo quando o anexo e video — ali ela e o quadro de capa.</summary>
+    /// <summary>A miniatura e sempre imagem. Nos videos antigos, ela e o quadro de capa.</summary>
     private const string ThumbnailContentType = "image/webp";
 
     private const string PendingNotFound = "Nao ha anexo pendente com esse identificador neste relato.";
+
+    // A mesma frase no pedido, na confirmacao e na tela de configuracao: cada um
+    // so acrescenta o que a pessoa faz em seguida. "Mais" diz que ja foi aceito.
+    private const string VideoRefused = "Video nao e mais aceito como anexo.";
 
     private const string SemArmazenamento = "Nao ha armazenamento configurado nesta instalacao para guardar ou ler midia.";
 
@@ -97,6 +101,15 @@ public class ReportAttachmentService : IReportAttachmentService
             throw new ConflictException(SemArmazenamento);
 
         var kind = dto.Kind ?? throw new ArgumentException("Informe de que tipo e o arquivo.");
+
+        // **Antes de olhar o projeto, porque nao depende dele.** O video saiu do
+        // produto por pesar demais no armazenamento e na entrega, e nenhuma
+        // configuracao o traz de volta. Sem esta linha a recusa sairia do mesmo
+        // jeito, mais adiante, como "esse tipo de arquivo" — e quem chama a rota na
+        // mao nao saberia que e o video que deixou de existir.
+        if (kind == MediaKindEnum.Video)
+            throw new ArgumentException($"{VideoRefused} Envie uma imagem.");
+
         var contentType = (dto.ContentType ?? string.Empty).Trim().ToLowerInvariant();
         var tamanho = dto.SizeBytes ?? throw new ArgumentException("Informe o tamanho do arquivo.");
 
@@ -145,15 +158,6 @@ public class ReportAttachmentService : IReportAttachmentService
         if (tamanho < 1 || tamanho > limite.MaxBytes)
             throw new ArgumentException($"O arquivo passa do limite deste projeto, que e de {limite.MaxBytes / (1024 * 1024)} MB.");
 
-        if (limite.MaxDurationSeconds is { } maxDuracao)
-        {
-            var duracao = dto.DurationSeconds
-                          ?? throw new ArgumentException("Informe a duracao do video.");
-
-            if (duracao < 1 || duracao > maxDuracao)
-                throw new ArgumentException($"O video passa do limite deste projeto, que e de {maxDuracao} segundos.");
-        }
-
         // Conferido aqui para recusar antes do envio, e nao para garantir o limite:
         // quem garante e a confirmacao, que conta de novo com a cota travada. 409,
         // como na confirmacao: o pedido esta certo, o envio e que ja esta cheio.
@@ -178,7 +182,6 @@ public class ReportAttachmentService : IReportAttachmentService
 
             // O que o navegador disse, ate a confirmacao ler o numero de verdade.
             SizeBytes = tamanho,
-            DurationSeconds = dto.DurationSeconds,
             OriginalName = Trim(dto.FileName, ReportAttachment.MaxOriginalNameLength),
         };
 
@@ -240,6 +243,9 @@ public class ReportAttachmentService : IReportAttachmentService
             await _unitOfWork.ProjectMediaSettings.FindByProjectWithoutSessionAsync(
                 report.ProjectId, cancellationToken));
 
+        // Nulo quando o produto deixou de oferecer o tipo: e o video pendente, cuja
+        // permissao foi assinada antes de ele sair. A recusa dele e da regra, e sai
+        // la dentro, com a trava e o descarte.
         var limite = vigente.For(attachment.Kind);
 
         // O que ha de errado com o proprio arquivo e decidido aqui, com os bytes que o
@@ -249,12 +255,19 @@ public class ReportAttachmentService : IReportAttachmentService
         // **A conferencia que a assinatura nao faz.** Ela garante que o objeto seja
         // gravado com o rotulo que pedimos, e nada mais: quem obteve a permissao
         // pode ter posto bytes de qualquer coisa la dentro.
+        //
+        // **Tipo sem limite nao tem os bytes conferidos.** A lista de formatos so
+        // conhece o que o produto aceita, e o video pendente sairia daqui como "nao
+        // e do formato declarado" — um 400 que mente sobre um arquivo que e
+        // exatamente o que disse ser. A recusa certa e a da regra, com 409.
         var arquivoRecusado =
-            objeto is not null && !MediaSignatures.Matches(attachment.ContentType, objeto.Leading)
+            objeto is not null && limite is not null
+                               && !MediaSignatures.Matches(attachment.ContentType, objeto.Leading)
                 ? "O arquivo enviado nao e do formato que foi declarado."
                 : null;
 
-        if (objeto is not null && arquivoRecusado is null && attachment.ThumbnailObjectKey is { } thumb)
+        if (objeto is not null && limite is not null && arquivoRecusado is null
+            && attachment.ThumbnailObjectKey is { } thumb)
             await ConferirMiniaturaAsync(attachment, thumb, cancellationToken);
 
         // **A cota e contada de novo aqui, e e esta contagem que vale.** A do pedido
@@ -285,7 +298,7 @@ public class ReportAttachmentService : IReportAttachmentService
             else if (arquivoRecusado is not null)
                 motivo = new ConfirmRefusal(arquivoRecusado, IsAboutTheFile: true);
             else if ((limite is null
-                         ? "Este projeto deixou de aceitar esse tipo de arquivo."
+                         ? NoLongerOffered(attachment.Kind)
                          : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
                            ?? await RoomRefusalAsync(
                                report.Id, attachment.PublicCommentId, attachment.Kind, vigente, limite, ct))
@@ -328,8 +341,7 @@ public class ReportAttachmentService : IReportAttachmentService
             throw new ConflictException(mensagem);
         }
 
-        return new ConfirmedAttachmentViewModel(
-            attachment.PublicId, attachment.Kind, attachment.SizeBytes, attachment.DurationSeconds);
+        return new ConfirmedAttachmentViewModel(attachment.PublicId, attachment.Kind, attachment.SizeBytes);
     }
 
     public async Task<List<PanelAttachmentViewModel>> ListForPanelAsync(
@@ -412,6 +424,10 @@ public class ReportAttachmentService : IReportAttachmentService
     /// pedacos enquanto toca, e cada pedaco confere a assinatura — com a validade
     /// da imagem, pausar quebraria a reproducao. A miniatura e uma imagem pequena
     /// que carrega de uma vez.</para>
+    ///
+    /// <para><b>Continua valendo sem video novo.</b> Os que foram confirmados antes
+    /// de o video sair do produto seguem na lista, e precisam tocar do mesmo
+    /// jeito.</para>
     /// </summary>
     private async Task<(SignedReadUrl Arquivo, SignedReadUrl? Miniatura)> AssinarLeituraAsync(
         ReportAttachment anexo,
@@ -508,10 +524,9 @@ public class ReportAttachmentService : IReportAttachmentService
     /// Ha vaga para mais um arquivo deste tipo neste envio — a criacao do relato, ou
     /// uma resposta. Cada envio tem a sua cota.
     ///
-    /// <para><b>Os dois limites sao conferidos, e nao um deles.</b> So o do tipo
-    /// deixaria tres imagens mais um video passarem num projeto que so queria dois
-    /// arquivos no total; so o total deixaria quatro videos num projeto que queria
-    /// um.</para>
+    /// <para><b>Os dois limites sao conferidos, e nao um deles.</b> Com um tipo so,
+    /// vence o menor; com mais de um, so o do tipo deixaria a soma passar do total
+    /// que o projeto quer, e so o total deixaria um tipo ocupar a cota inteira.</para>
     ///
     /// <para><b>So os confirmados contam.</b> O que ficou pendente e permissao que
     /// alguem pediu e nao usou — faze-lo ocupar vaga deixaria quem tentou tres vezes
@@ -572,11 +587,6 @@ public class ReportAttachmentService : IReportAttachmentService
         if (attachment.PublicCommentId is not null && !vigente.AllowsOnInfoRequest)
             return "Este projeto deixou de aceitar anexo nas respostas.";
 
-        // A duracao e a que foi declarada no pedido; a conferida aqui e so a do limite,
-        // que pode ter baixado depois dele.
-        if (limite.MaxDurationSeconds is { } maxDuracao && attachment.DurationSeconds > maxDuracao)
-            return $"O video passa do limite deste projeto, que e de {maxDuracao} segundos.";
-
         // O tamanho e o real, lido do armazenamento. Ele ja recusa o que passa do teto
         // assinado, entao isto so pega o limite que baixou depois da permissao — e e a
         // segunda tranca: se um dia a assinatura sair sem o teto, o furo nao chega a
@@ -586,6 +596,18 @@ public class ReportAttachmentService : IReportAttachmentService
 
         return null;
     }
+
+    /// <summary>
+    /// A recusa do tipo que o produto deixou de oferecer, e que por isso nao tem
+    /// limite nenhum a conferir.
+    ///
+    /// <para>Hoje e so o video, e a mensagem diz o nome dele: "esse tipo de arquivo"
+    /// faria quem mandou achar que o projeto e que mudou de ideia.</para>
+    /// </summary>
+    private static string NoLongerOffered(MediaKindEnum kind)
+        => kind == MediaKindEnum.Video
+            ? VideoRefused
+            : "Esse tipo de arquivo deixou de ser aceito.";
 
     /// <summary>Corta o que veio de fora no tamanho da coluna, em vez de derrubar a gravacao.</summary>
     private static string? Trim(string? value, int maxLength)

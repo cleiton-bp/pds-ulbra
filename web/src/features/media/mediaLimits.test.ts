@@ -20,7 +20,7 @@ import {
  * aparece inteiro, sem arredondar, e com as casas que precisa, sem sobrar.
  */
 const inteiro: LimitRange = { min: 1, max: 10, decimals: 0 }
-const megabytes: LimitRange = { min: 1, max: 50, decimals: 1 }
+const megabytes: LimitRange = { min: 1, max: 10, decimals: 1 }
 
 describe('o texto de um limite', () => {
   it('le numero inteiro dentro da faixa', () => {
@@ -55,13 +55,13 @@ describe('o texto de um limite', () => {
 
   it('diz o que o campo espera', () => {
     expect(limitHint(inteiro)).toBe('Use um número inteiro de 1 a 10.')
-    expect(limitHint(megabytes)).toBe('Use um número de 1 a 50, com até uma casa decimal.')
+    expect(limitHint(megabytes)).toBe('Use um número de 1 a 10, com até uma casa decimal.')
   })
 })
 
 describe('MB e bytes', () => {
   it('todo tamanho que a tela aceita volta dos bytes igual', () => {
-    for (let decimos = 10; decimos <= 500; decimos++) {
+    for (let decimos = 10; decimos <= 100; decimos++) {
       const mb = decimos / 10
       expect(megabytesFromBytes(bytesFromMegabytes(mb))).toBe(mb)
     }
@@ -81,7 +81,7 @@ describe('MB e bytes', () => {
   })
 
   it('qualquer quantidade de bytes volta dos MB igual', () => {
-    for (let bytes = 1; bytes <= 50 * BYTES_PER_MB; bytes += 99_991) {
+    for (let bytes = 1; bytes <= 10 * BYTES_PER_MB; bytes += 99_991) {
       expect(bytesFromMegabytes(megabytesFromBytes(bytes))).toBe(bytes)
     }
   })

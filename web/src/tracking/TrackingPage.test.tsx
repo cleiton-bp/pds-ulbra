@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   PublicClosureViewModel,
@@ -747,5 +747,82 @@ describe('os arquivos na pagina de acompanhamento', () => {
 
     await screen.findByText(/O botão de finalizar compra/)
     expect(dublê.anexos).not.toHaveBeenCalled()
+  })
+})
+
+describe('anexar na resposta', () => {
+  /**
+   * **So imagem.** O video saiu do produto, e a resposta nao o oferece nem quando a
+   * configuracao ainda o lista — o que acontece na janela da troca, com a API
+   * ainda antiga. Oferecer seria deixar escolher um arquivo que o envio recusa.
+   */
+  const perguntaAberta: PublicReportViewModel = {
+    ...relato,
+    Conversation: [
+      {
+        PublicId: 'm-1',
+        FromReporter: false,
+        Body: 'Manda a tela do erro?',
+        CreatedAt: '2026-09-18T12:00:00.000Z',
+      },
+    ],
+    InfoRequest: {
+      AskedAt: '2026-09-18T12:00:00.000Z',
+      CloseAt: '2026-10-02T12:00:00.000Z',
+      IsWarning: false,
+    },
+    CanReply: true,
+  }
+
+  const imagem = {
+    Kind: 'Image' as const,
+    MaxCount: 3,
+    MaxBytes: 5 * 1024 * 1024,
+    ContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
+  }
+  const video = {
+    Kind: 'Video' as const,
+    MaxCount: 1,
+    MaxBytes: 20 * 1024 * 1024,
+    ContentTypes: ['video/webm'],
+  }
+
+  function midiaCom(kinds: (typeof imagem | typeof video)[]) {
+    dublê.midia.mockResolvedValue({
+      IsEnabled: true,
+      AllowsScreenCapture: true,
+      AllowsOnInfoRequest: true,
+      MaxFilesPerReport: 4,
+      Kinds: kinds,
+    })
+  }
+
+  it('o seletor so aceita imagem, mesmo com a configuracao ainda listando video', async () => {
+    dublê.abrir.mockResolvedValue(perguntaAberta)
+    midiaCom([imagem, video])
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    const seletor = await screen.findByLabelText('Escolher imagem para anexar')
+    expect(seletor.getAttribute('accept')).toBe('image/png,image/jpeg,image/webp')
+  })
+
+  it('projeto que so aceitava video: a resposta fica so com texto', async () => {
+    dublê.abrir.mockResolvedValue(perguntaAberta)
+    midiaCom([video])
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    await screen.findByRole('textbox', { name: 'A sua resposta' })
+    await waitFor(() => expect(dublê.midia).toHaveBeenCalled())
+    // Deixa a leitura da configuracao terminar: sem isto, a ausencia do botao
+    // passaria so porque a resposta ainda nao tinha chegado.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    // Sem depender do rotulo: o seletor de antes se chamava "Anexar arquivo", e
+    // procurar so pelo de agora deixaria a volta dele passar.
+    expect(screen.queryByRole('button', { name: /^Anexar/ })).toBeNull()
+    expect(screen.queryByLabelText(/para anexar/)).toBeNull()
   })
 })

@@ -1,4 +1,9 @@
-import type { MediaKind, PublicMediaKindViewModel, PublicMediaSettingsViewModel } from '@/contracts'
+import {
+  type MediaKind,
+  type PublicMediaKindViewModel,
+  type PublicMediaSettingsViewModel,
+  UPLOADABLE_MEDIA_KIND,
+} from '@/contracts'
 import { formatBytes } from '@/shared/lib/formatBytes'
 
 /**
@@ -18,26 +23,34 @@ export interface Anexo {
   preview: string | null
   /** A miniatura que sobe junto. Nula quando o navegador nao soube gerar. */
   thumbnail: Blob | null
-  durationSeconds: number | null
   status: 'waiting' | 'sending' | 'done' | 'failed'
   progress: number
   error: string | null
 }
-
-/**
- * Quanto se espera o navegador responder sobre um video, antes de desistir.
- *
- * **Sem prazo, um video que o navegador nao sabe decodificar nunca avisa nada** —
- * nem que carregou, nem que falhou — e o anexo ficaria esperando para sempre na
- * lista. Com prazo, a miniatura so nao sai, e o anexo segue sem ela.
- */
-const VIDEO_TIMEOUT_MS = 4000
 
 /** Largura da miniatura. Cabe numa lista, e pesa poucos kilobytes. */
 const THUMBNAIL_WIDTH = 320
 
 /** O tipo que a miniatura precisa ter — a API confere pelos bytes. */
 const THUMBNAIL_TYPE = 'image/webp'
+
+/**
+ * A configuracao com so o que ainda se pode enviar — hoje, so imagem.
+ *
+ * **A API ja nao lista video**, e isto nao e desconfianca dela: e o que segura a
+ * janela da troca, quando o quadro novo pode falar com uma API que ainda nao
+ * mudou. Sem isto, o seletor ofereceria video e o envio seria recusado depois de
+ * a pessoa escolher o arquivo. O quadro e a pagina de acompanhamento passam por
+ * aqui antes de decidir se mostram anexo.
+ */
+export function onlyUploadable(
+  settings: PublicMediaSettingsViewModel,
+): PublicMediaSettingsViewModel {
+  return {
+    ...settings,
+    Kinds: settings.Kinds.filter((kind) => kind.Kind === UPLOADABLE_MEDIA_KIND),
+  }
+}
 
 /** A categoria que aceita este arquivo, pelo tipo dele. */
 export function kindFor(
@@ -70,7 +83,7 @@ export function rejectReason(
 ): string | null {
   const kind = kindFor(file, settings)
 
-  if (!kind) return 'Esse formato de arquivo não é aceito aqui.'
+  if (!kind) return onlyAccepts(settings)
 
   if (file.size > kind.MaxBytes) return `O arquivo passa de ${formatBytes(kind.MaxBytes)}.`
 
@@ -78,18 +91,67 @@ export function rejectReason(
     return fitsUpTo(settings.MaxFilesPerReport, 'arquivo', 'arquivos')
 
   if (already.filter((anexo) => anexo.kind === kind.Kind).length >= kind.MaxCount)
-    return kind.Kind === 'Video'
-      ? fitsUpTo(kind.MaxCount, 'vídeo', 'vídeos')
-      : fitsUpTo(kind.MaxCount, 'imagem', 'imagens')
+    return fitsUpTo(kind.MaxCount, 'imagem', 'imagens')
 
   return null
 }
 
 /**
+ * Ainda cabe arquivo neste envio: de qualquer tipo aceito, ou so de `kind`.
+ *
+ * **Os dois limites, e nao so o total.** Com um tipo so, o de fabrica e quatro no
+ * total e tres imagens — conferindo so o total, os botoes ficariam ligados depois
+ * da terceira imagem, e a pessoa so ouviria "nao cabe" depois de capturar e
+ * recortar a tela. E a mesma conta de `rejectReason`, feita antes do clique.
+ */
+export function hasRoom(
+  already: Pick<Anexo, 'kind'>[],
+  settings: PublicMediaSettingsViewModel,
+  kind?: MediaKind,
+): boolean {
+  if (already.length >= settings.MaxFilesPerReport) return false
+
+  return settings.Kinds.some(
+    (tipo) =>
+      (kind === undefined || tipo.Kind === kind) &&
+      already.filter((anexo) => anexo.kind === tipo.Kind).length < tipo.MaxCount,
+  )
+}
+
+/** Como o formato aparece para quem relata: a sigla, e nao o tipo MIME. */
+const FORMAT_NAMES: Record<string, string> = {
+  'image/png': 'PNG',
+  'image/jpeg': 'JPEG',
+  'image/webp': 'WebP',
+}
+
+/**
+ * "Só dá para anexar imagem: PNG, JPEG ou WebP."
+ *
+ * **Diz o que serve, e nao so que aquele nao serve.** Quem mandava video antes
+ * cola um e precisa saber o que fazer no lugar. Os formatos saem da configuracao,
+ * que vem da API — escritos aqui, os dois lados divergiriam na primeira mudanca.
+ */
+function onlyAccepts(settings: PublicMediaSettingsViewModel): string {
+  const formatos = settings.Kinds.flatMap((kind) => kind.ContentTypes).map(
+    (tipo) => FORMAT_NAMES[tipo] ?? tipo.split('/').pop()?.toUpperCase() ?? tipo,
+  )
+
+  if (formatos.length === 0) return 'Esse formato de arquivo não é aceito aqui.'
+
+  const lista =
+    formatos.length === 1
+      ? formatos[0]
+      : `${formatos.slice(0, -1).join(', ')} ou ${formatos[formatos.length - 1]}`
+
+  return `Só dá para anexar imagem: ${lista}.`
+}
+
+/**
  * "Cabe até 1 imagem por envio.", "Cabem até 2 imagens por envio."
  *
- * O verbo concorda com o numero, e nao so a palavra: com o padrao de um video,
- * esta e a recusa que mais aparece.
+ * O verbo concorda com o numero, e nao so a palavra: um projeto que aceita um
+ * arquivo por envio ve esta recusa no segundo.
  */
 function fitsUpTo(count: number, singular: string, plural: string): string {
   return count === 1
@@ -103,31 +165,18 @@ export { formatBytes }
  * A miniatura, feita **no proprio navegador**, antes de enviar.
  *
  * E o que deixa o painel mostrar uma lista sem baixar megabytes para desenhar 80
- * pixels, e sem o servidor precisar de biblioteca de imagem. No video e o quadro
- * de capa.
+ * pixels, e sem o servidor precisar de biblioteca de imagem.
  *
  * **Devolve `null` em vez de falhar**, e isso e o combinado com a API: o anexo vale
  * sem miniatura. So nao pode ir uma miniatura que nao seja WebP — onde o navegador
  * nao codifica WebP, `toBlob` devolve PNG em silencio, e a API recusaria.
  */
-export async function makeThumbnail(file: File, kind: MediaKind): Promise<Blob | null> {
-  let liberar = () => {}
-
+export async function makeThumbnail(file: File): Promise<Blob | null> {
   try {
-    let fonte: ImageBitmap | HTMLVideoElement | null
+    const fonte = await createImageBitmap(file)
 
-    if (kind === 'Video') {
-      const quadro = await videoFrame(file)
-      fonte = quadro?.video ?? null
-      liberar = () => releasePreview(quadro?.url ?? null)
-    } else {
-      fonte = await createImageBitmap(file)
-    }
-
-    if (!fonte) return null
-
-    const largura = fonte instanceof HTMLVideoElement ? fonte.videoWidth : fonte.width
-    const altura = fonte instanceof HTMLVideoElement ? fonte.videoHeight : fonte.height
+    const largura = fonte.width
+    const altura = fonte.height
     if (!largura || !altura) return null
 
     const escala = Math.min(1, THUMBNAIL_WIDTH / largura)
@@ -146,85 +195,7 @@ export async function makeThumbnail(file: File, kind: MediaKind): Promise<Blob |
     return blob?.type === THUMBNAIL_TYPE ? blob : null
   } catch {
     return null
-  } finally {
-    // O quadro ja foi desenhado: o endereco local do video pode ir embora.
-    liberar()
   }
-}
-
-/**
- * Quantos segundos tem o video, ou `null` se o navegador nao soube dizer.
- *
- * **O `Infinity` e esperado, e tem remedio.** Video gravado pelo proprio navegador
- * sai sem duracao no cabecalho, e ela so aparece depois de pedir para ir muito
- * alem do fim — o navegador percorre o arquivo e descobre onde ele acaba.
- */
-export function readVideoDuration(file: File): Promise<number | null> {
-  return new Promise((resolve) => {
-    const video = document.createElement('video')
-    const url = URL.createObjectURL(file)
-    let terminou = false
-    const fim = (valor: number | null) => {
-      if (terminou) return
-      terminou = true
-      clearTimeout(prazo)
-      URL.revokeObjectURL(url)
-      resolve(valor)
-    }
-    const prazo = setTimeout(() => fim(null), VIDEO_TIMEOUT_MS)
-
-    video.preload = 'metadata'
-    video.muted = true
-    video.onerror = () => fim(null)
-    video.onloadedmetadata = () => {
-      if (Number.isFinite(video.duration)) {
-        fim(Math.max(1, Math.ceil(video.duration)))
-        return
-      }
-
-      video.ontimeupdate = () => {
-        video.ontimeupdate = null
-        fim(Number.isFinite(video.duration) ? Math.max(1, Math.ceil(video.duration)) : null)
-      }
-      video.currentTime = Number.MAX_SAFE_INTEGER
-    }
-    video.src = url
-  })
-}
-
-/**
- * Um quadro do comeco do video, para ser a capa — e o endereco local, que quem
- * chama libera depois de desenhar.
- */
-function videoFrame(file: File): Promise<{ video: HTMLVideoElement; url: string } | null> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file)
-    const video = document.createElement('video')
-    let terminou = false
-    const falhou = () => {
-      if (terminou) return
-      terminou = true
-      clearTimeout(prazo)
-      releasePreview(url)
-      resolve(null)
-    }
-    const prazo = setTimeout(falhou, VIDEO_TIMEOUT_MS)
-
-    video.preload = 'auto'
-    video.muted = true
-    video.onerror = falhou
-    // Um pouco depois do zero: o primeiro quadro de muita gravacao e preto.
-    video.onloadeddata = () => {
-      video.currentTime = Math.min(0.5, Number.isFinite(video.duration) ? video.duration : 0.5)
-    }
-    video.onseeked = () => {
-      if (terminou) return
-      terminou = true
-      clearTimeout(prazo)
-      resolve({ video, url })
-    }
-    video.src = url
-  })
 }
 
 /**

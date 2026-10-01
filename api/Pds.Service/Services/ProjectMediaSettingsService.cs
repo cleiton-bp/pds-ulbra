@@ -25,6 +25,13 @@ namespace Pds.Service.Services;
 /// </summary>
 public class ProjectMediaSettingsService : IProjectMediaSettingsService
 {
+    // Quem ve esta recusa quase sempre e uma aba do painel aberta antes do video
+    // sair: ela devolve a linha de video que leu, mesmo desligada. Dizer so "nao e
+    // aceito" faria a pessoa desmarcar o video e bater na mesma recusa. O comeco e
+    // o mesmo do pedido de envio e da confirmacao: e a mesma noticia nos tres.
+    private const string VideoRefused =
+        "Video nao e mais aceito como anexo. Recarregue a pagina e salve de novo.";
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMediaStorage _mediaStorage;
 
@@ -53,7 +60,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         // fim da requisicao, e bastaria alguem commitar por outro motivo para a
         // configuracao recusada ir ao banco assim mesmo.
         var isEnabled = Required(dto.IsEnabled, "Informe se a ferramenta aceita anexo.");
-        var allowsScreenCapture = Required(dto.AllowsScreenCapture, "Informe se os botoes de capturar e de gravar a tela aparecem.");
+        var allowsScreenCapture = Required(dto.AllowsScreenCapture, "Informe se o botao de capturar a tela aparece.");
         var allowsOnInfoRequest = Required(dto.AllowsOnInfoRequest, "Informe se da para anexar respondendo ao time.");
         var maxFiles = Required(dto.MaxFilesPerReport, "Informe quantos arquivos cabem em cada envio.");
 
@@ -133,6 +140,10 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     /// <summary>
     /// O que o lado de fora pode ver da configuracao. Uma funcao so para as duas
     /// portas publicas, para as duas nunca responderem coisas diferentes.
+    ///
+    /// <para><b>Video nunca sai daqui</b>, nem para o projeto que tinha limite
+    /// gravado para ele: os tipos vem de <see cref="MediaSettingsDefaults.Resolve"/>,
+    /// que so conhece os que o produto oferece.</para>
     /// </summary>
     private PublicMediaSettingsViewModel ToPublic(EffectiveMediaSettings vigente)
     {
@@ -147,7 +158,9 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
                     kind.Kind,
                     kind.MaxCount,
                     kind.MaxBytes,
-                    kind.MaxDurationSeconds,
+                    // Nulo sempre, e presente de proposito: o quadro antigo trata
+                    // campo ausente como "tem duracao" e recusaria todo print.
+                    MaxDurationSeconds: null,
                     MediaSignatures.Accepted[kind.Kind]))
                 .ToList());
     }
@@ -158,7 +171,9 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     ///
     /// <para><b>Tipo que a tela nao mandou fica como esta.</b> Some-lo seria deixar
     /// uma versao antiga da tela, que nao conhece um tipo novo, apagar a
-    /// configuracao dele sem ninguem ter pedido.</para>
+    /// configuracao dele sem ninguem ter pedido. E por isso tambem que a linha de
+    /// video de um projeto antigo continua gravada: ninguem a apaga, e nenhuma
+    /// leitura a enxerga.</para>
     /// </summary>
     private static void ApplyKinds(ProjectMediaSettings settings, List<MediaKindLimitViewModel> limites)
     {
@@ -174,7 +189,6 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
                     IsEnabled = limite.IsEnabled,
                     MaxCount = limite.MaxCount,
                     MaxBytes = limite.MaxBytes,
-                    MaxDurationSeconds = limite.MaxDurationSeconds,
                 });
 
                 continue;
@@ -183,16 +197,16 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             kind.IsEnabled = limite.IsEnabled;
             kind.MaxCount = limite.MaxCount;
             kind.MaxBytes = limite.MaxBytes;
-            kind.MaxDurationSeconds = limite.MaxDurationSeconds;
         }
     }
 
     /// <summary>
     /// Le e confere os limites que vieram, um tipo por vez.
     ///
-    /// <para><b>Cada tipo tem teto proprio</b>, e nao um teto so para todos: video
-    /// pesa dez vezes mais que imagem, e um limite unico ou apertaria demais um ou
-    /// afrouxaria demais o outro.</para>
+    /// <para><b>So imagem e aceita.</b> O video saiu do produto por pesar demais no
+    /// armazenamento e na entrega. Grava-lo aqui seria prometer, na tela, um envio
+    /// que o pedido de permissao recusa — e por isso a recusa e 400, e nao um
+    /// silencio que deixaria a tela antiga achar que salvou.</para>
     /// </summary>
     private static List<MediaKindLimitViewModel> ReadKinds(List<MediaKindLimitDto>? kinds)
     {
@@ -215,7 +229,10 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             // que nenhuma leitura enxerga.
             if (!Enum.IsDefined(tipo))
                 throw new ArgumentException(
-                    $"Tipo de midia desconhecido. Use {string.Join(" ou ", Enum.GetNames<MediaKindEnum>())}.");
+                    $"Tipo de midia desconhecido. Use {string.Join(" ou ", MediaSignatures.Accepted.Keys)}.");
+
+            if (tipo == MediaKindEnum.Video)
+                throw new ArgumentException(VideoRefused);
 
             // Tipo repetido nao e detalhe: gravar os dois deixaria o banco com duas
             // respostas para a mesma pergunta, e qual valeria dependeria da ordem.
@@ -226,28 +243,12 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             var quantidade = Required(kind.MaxCount, $"Informe a quantidade maxima de {tipo}.");
             var bytes = Required(kind.MaxBytes, $"Informe o tamanho maximo de {tipo}.");
 
-            var tetoBytes = tipo == MediaKindEnum.Video
-                ? ProjectMediaKind.VideoMaxBytesCeiling
-                : ProjectMediaKind.ImageMaxBytesCeiling;
-
             RequireInRange(quantidade, 1, ProjectMediaKind.MaxCountCeiling,
                 $"A quantidade de {tipo} precisa ficar entre 1 e {ProjectMediaKind.MaxCountCeiling}.");
-            RequireInRange(bytes, 1, tetoBytes,
-                $"O tamanho de {tipo} precisa ficar entre 1 byte e {tetoBytes / (1024 * 1024)} MB.");
+            RequireInRange(bytes, 1, ProjectMediaKind.ImageMaxBytesCeiling,
+                $"O tamanho de {tipo} precisa ficar entre 1 byte e {ProjectMediaKind.ImageMaxBytesCeiling / (1024 * 1024)} MB.");
 
-            int? duracao = null;
-
-            if (tipo == MediaKindEnum.Video)
-            {
-                duracao = Required(kind.MaxDurationSeconds, "Informe a duracao maxima do video.");
-
-                // Limitar a duracao e a protecao mais barata que existe aqui: ela
-                // corta armazenamento e exposicao de uma vez, sem tela nenhuma.
-                RequireInRange(duracao.Value, 1, ProjectMediaKind.MaxDurationSecondsCeiling,
-                    $"A duracao do video precisa ficar entre 1 e {ProjectMediaKind.MaxDurationSecondsCeiling} segundos.");
-            }
-
-            lidos.Add(new MediaKindLimitViewModel(tipo, habilitado, quantidade, bytes, duracao));
+            lidos.Add(new MediaKindLimitViewModel(tipo, habilitado, quantidade, bytes, MaxDurationSeconds: null));
         }
 
         return lidos;
@@ -290,16 +291,17 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         => vigente.IsEnabled && _mediaStorage.IsAvailable;
 
     /// <summary>
-    /// Recusa anexo ligado sem nenhum tipo aceito.
+    /// Recusa anexo ligado sem imagem aceita.
     ///
     /// <para>A configuracao ficaria dizendo que aceita anexo e recusando todos eles.
-    /// Quem quer isso ja tem o caminho certo, que e desligar o anexo.</para>
+    /// Quem quer isso ja tem o caminho certo, que e desligar o anexo. A mensagem fala
+    /// de imagem porque e o unico tipo que se pode ligar.</para>
     /// </summary>
     private static void RequireSomethingToAccept(bool isEnabled, List<MediaKindLimitViewModel> limites)
     {
         if (isEnabled && limites.TrueForAll(limite => !limite.IsEnabled))
             throw new ArgumentException(
-                "Anexo ligado sem nenhum tipo aceito nao aceita nada. Ligue um tipo, ou desligue o anexo.");
+                "Anexo ligado sem imagem aceita nao aceita nada. Aceite imagem, ou desligue o anexo.");
     }
 
     /// <summary>
@@ -326,7 +328,9 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             vigente.MaxFilesPerReport,
             vigente.Kinds
                 .Select(kind => new MediaKindLimitViewModel(
-                    kind.Kind, kind.IsEnabled, kind.MaxCount, kind.MaxBytes, kind.MaxDurationSeconds))
+                    // Nulo sempre, e presente de proposito: a tela antiga trata campo
+                    // ausente como "tem duracao" e desenharia o campo na imagem.
+                    kind.Kind, kind.IsEnabled, kind.MaxCount, kind.MaxBytes, MaxDurationSeconds: null))
                 .ToList());
     }
 

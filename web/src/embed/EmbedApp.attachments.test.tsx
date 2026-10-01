@@ -46,7 +46,6 @@ const media: PublicMediaSettingsViewModel = {
       Kind: 'Image',
       MaxCount: 3,
       MaxBytes: 5 * 1024 * 1024,
-      MaxDurationSeconds: null,
       ContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
     },
   ],
@@ -62,7 +61,7 @@ const criado: CreatedReportViewModel = {
 const print = () => new File([new Uint8Array(100)], 'erro.png', { type: 'image/png' })
 
 function escolher(arquivo: File) {
-  fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
+  fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
     target: { files: [arquivo] },
   })
 }
@@ -81,12 +80,13 @@ afterEach(() => {
 describe('o anexo no formulario', () => {
   it('sem configuracao de midia, nao ha botao', () => {
     montar(false)
-    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Anexar/ })).toBeNull()
+    expect(screen.queryByLabelText(/para anexar/)).toBeNull()
   })
 
   it('com midia, o botao aparece', () => {
     montar()
-    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
   })
 
   it('escolher um arquivo o poe na lista, e nada sobe ainda', async () => {
@@ -101,7 +101,7 @@ describe('o anexo no formulario', () => {
     montar()
     escolher(new File(['x'], 'contrato.pdf', { type: 'application/pdf' }))
 
-    await screen.findByText(/formato de arquivo não é aceito/)
+    await screen.findByText('Só dá para anexar imagem: PNG, JPEG ou WebP.')
     expect(screen.queryByRole('button', { name: /Remover/ })).toBeNull()
   })
 

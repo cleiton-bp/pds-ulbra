@@ -52,7 +52,7 @@ export const apiPublicMediaService: PublicMediaService = {
   /**
    * **`XMLHttpRequest`, e nao `fetch`, e o motivo e um so: progresso de envio.**
    * O `fetch` informa o andamento da *resposta*, e nao o do corpo que sobe — e um
-   * video de 20 MB em conexao de celular leva o bastante para uma barra parada
+   * print de 5 MB em conexao de celular leva o bastante para uma barra parada
    * parecer travamento.
    *
    * **Os campos vao antes, e o arquivo por ultimo.** E exigencia do armazenamento:

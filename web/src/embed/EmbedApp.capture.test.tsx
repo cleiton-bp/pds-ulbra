@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PublicMediaSettingsViewModel } from '@/contracts'
 import { EmbedApp } from '@/embed/EmbedApp'
@@ -19,16 +19,17 @@ import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
  * **O recorte cresce o quadro e o devolve.** E o texto que a pessoa ja tinha escrito
  * volta intacto quando ela sai do recorte.
  *
- * **A duracao do video gravado vem do relogio.** Video gravado pelo navegador sai
- * sem duracao no cabecalho; se a tela tentasse le-la do arquivo, o anexo ficaria
- * esperando para sempre.
+ * **Nao ha gravar tela.** O video saiu do produto, e a captura e o unico botao
+ * alem de anexar imagem.
+ *
+ * **Sem vaga para imagem, os dois botoes desligam.** O padrao de fabrica e quatro
+ * no total e tres imagens; conferindo so o total, capturar ficaria ligado depois
+ * da terceira, e a recusa so viria depois de a pessoa recortar a tela.
  */
 const dublê = vi.hoisted(() => ({
   capturar: vi.fn(),
-  gravar: vi.fn(),
   cortar: vi.fn(),
   podeCapturar: vi.fn(() => true),
-  podeGravar: vi.fn(() => true),
 }))
 
 vi.mock('@/embed/screenCapture', async (importOriginal) => {
@@ -36,9 +37,7 @@ vi.mock('@/embed/screenCapture', async (importOriginal) => {
   return {
     ...real,
     canCaptureScreen: dublê.podeCapturar,
-    canRecordScreen: dublê.podeGravar,
     captureFrame: dublê.capturar,
-    recordScreen: dublê.gravar,
     cropToFile: dublê.cortar,
   }
 })
@@ -69,15 +68,7 @@ function media(mudanca: Partial<PublicMediaSettingsViewModel> = {}): PublicMedia
         Kind: 'Image',
         MaxCount: 3,
         MaxBytes: 5 * 1024 * 1024,
-        MaxDurationSeconds: null,
         ContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
-      },
-      {
-        Kind: 'Video',
-        MaxCount: 1,
-        MaxBytes: 20 * 1024 * 1024,
-        MaxDurationSeconds: 60,
-        ContentTypes: ['video/webm'],
       },
     ],
     ...mudanca,
@@ -92,7 +83,6 @@ function montar(m: PublicMediaSettingsViewModel = media()) {
 
 beforeEach(() => {
   dublê.podeCapturar.mockReturnValue(true)
-  dublê.podeGravar.mockReturnValue(true)
   // jsdom nao desenha canvas; a previa do recorte so precisa de um endereco.
   HTMLCanvasElement.prototype.toDataURL = () => 'data:image/jpeg;base64,AAAA'
 })
@@ -103,32 +93,78 @@ afterEach(() => {
 })
 
 describe('onde o botao aparece', () => {
-  it('com tudo deixando, aparecem capturar e gravar', () => {
+  it('com tudo deixando, aparece capturar, e so ele', () => {
     montar()
     expect(screen.getByRole('button', { name: 'Capturar tela' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Gravar tela' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Gravar tela' })).toBeNull()
   })
 
-  it('o projeto desligou a captura: nenhum dos dois', () => {
+  // A configuracao ainda pode listar video na janela da troca, e o navegador de
+  // verdade sabe gravar. Os dois juntos eram o que fazia o botao aparecer; sem eles,
+  // a ausencia do botao nao provaria nada.
+  it('mesmo com video na configuracao e navegador que grava, nao ha gravar tela', () => {
+    vi.stubGlobal('MediaRecorder', { isTypeSupported: () => true })
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getDisplayMedia: vi.fn() },
+      configurable: true,
+    })
+
+    try {
+      montar(
+        media({
+          Kinds: [
+            ...media().Kinds,
+            {
+              Kind: 'Video',
+              MaxCount: 1,
+              MaxBytes: 20 * 1024 * 1024,
+              ContentTypes: ['video/webm'],
+            },
+          ],
+        }),
+      )
+
+      expect(screen.getByRole('button', { name: 'Capturar tela' })).toBeDefined()
+      expect(screen.queryByRole('button', { name: /Gravar/ })).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+      Reflect.deleteProperty(navigator, 'mediaDevices')
+    }
+  })
+
+  it('o projeto desligou a captura: o botao some, e anexar continua', () => {
     montar(media({ AllowsScreenCapture: false }))
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Gravar tela' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
   })
 
-  it('navegador sem captura, como o do iPhone: nenhum dos dois, e anexar continua', () => {
+  it('navegador sem captura, como o do iPhone: o botao some, e anexar continua', () => {
     dublê.podeCapturar.mockReturnValue(false)
-    dublê.podeGravar.mockReturnValue(false)
     montar()
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
   })
+})
 
-  it('projeto sem video aceito: captura sim, gravacao nao', () => {
-    const soImagem = media()
-    montar({ ...soImagem, Kinds: soImagem.Kinds.filter((kind) => kind.Kind === 'Image') })
-    expect(screen.getByRole('button', { name: 'Capturar tela' })).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Gravar tela' })).toBeNull()
+describe('sem vaga para imagem', () => {
+  it('com quatro no total e tres imagens, os dois botoes desligam na terceira', async () => {
+    montar()
+    const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
+
+    fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+      target: { files: [imagem('a.png'), imagem('b.png'), imagem('c.png')] },
+    })
+
+    await screen.findByRole('button', { name: 'Remover c.png' })
+    const anexar = screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement
+    const capturar = screen.getByRole('button', { name: 'Capturar tela' }) as HTMLButtonElement
+    expect(anexar.disabled).toBe(true)
+    expect(capturar.disabled).toBe(true)
+
+    // Tirar uma devolve a vaga aos dois.
+    fireEvent.click(screen.getByRole('button', { name: 'Remover c.png' }))
+    expect(anexar.disabled).toBe(false)
+    expect(capturar.disabled).toBe(false)
   })
 })
 
@@ -169,7 +205,7 @@ describe('a captura', () => {
     await screen.findByRole('button', { name: 'Remover captura.png' })
   })
 
-  it('a pagina proibir some com o botao, e diz para anexar arquivo', async () => {
+  it('a pagina proibir some com o botao, e diz para anexar imagem', async () => {
     dublê.capturar.mockRejectedValue(
       Object.assign(new Error('Permission denied by permissions policy'), {
         name: 'NotAllowedError',
@@ -181,7 +217,7 @@ describe('a captura', () => {
 
     await screen.findByText(/Este site não permite capturar a tela/)
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
   })
 
   it('a pessoa fechar o seletor nao e erro: o botao fica, e nada e dito', async () => {
@@ -196,67 +232,4 @@ describe('a captura', () => {
     expect(screen.getByRole('button', { name: 'Capturar tela' })).toBeDefined()
     expect(screen.queryByRole('alert')).toBeNull()
   })
-})
-
-describe('a gravacao', () => {
-  function gravacaoControlada() {
-    let terminar: (valor: { file: File; durationSeconds: number }) => void = () => {}
-    const done = new Promise<{ file: File; durationSeconds: number }>((resolve) => {
-      terminar = resolve
-    })
-    const stop = vi.fn()
-    return { controle: { stop, done }, terminar, stop }
-  }
-
-  it('mostra o contador, trava o envio, e para no botao', async () => {
-    const { controle, stop } = gravacaoControlada()
-    dublê.gravar.mockResolvedValue(controle)
-    montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'olha o que acontece' } })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Gravar tela' }))
-
-    await screen.findByText(/Gravando 0:00 de 1:00/)
-    expect((screen.getByRole('button', { name: 'Enviar' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Parar' }))
-    expect(stop).toHaveBeenCalledOnce()
-  })
-
-  it('grava com o teto e a duracao do projeto', async () => {
-    dublê.gravar.mockResolvedValue(gravacaoControlada().controle)
-    montar()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Gravar tela' }))
-
-    await waitFor(() => expect(dublê.gravar).toHaveBeenCalled())
-    expect(dublê.gravar.mock.calls[0]?.[0]).toMatchObject({
-      maxSeconds: 60,
-      maxBytes: 20 * 1024 * 1024,
-    })
-  })
-
-  it('o video pronto vira anexo, com a duracao do relogio', async () => {
-    const { controle, terminar } = gravacaoControlada()
-    dublê.gravar.mockResolvedValue(controle)
-    montar()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Gravar tela' }))
-    await screen.findByText(/Gravando/)
-
-    await act(async () => {
-      terminar({
-        file: new File([new Uint8Array(100)], 'gravacao.webm', { type: 'video/webm' }),
-        durationSeconds: 12,
-      })
-    })
-
-    // Se a duracao fosse lida do arquivo, isto nunca apareceria: o jsdom nao le
-    // video. A miniatura do video tambem nao sai aqui — e o prazo da leitura que
-    // deixa o anexo seguir sem ela, por isso a espera maior.
-    await screen.findByRole('button', { name: 'Remover gravacao.webm' }, { timeout: 6000 })
-    expect(screen.queryByText(/Gravando/)).toBeNull()
-  }, 10_000)
 })

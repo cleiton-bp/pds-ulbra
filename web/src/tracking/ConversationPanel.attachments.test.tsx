@@ -41,7 +41,6 @@ const media: PublicMediaSettingsViewModel = {
       Kind: 'Image',
       MaxCount: 3,
       MaxBytes: 5 * 1024 * 1024,
-      MaxDurationSeconds: null,
       ContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
     },
   ],
@@ -91,7 +90,7 @@ function montar(extra: Partial<Parameters<typeof ConversationPanel>[0]> = {}) {
 }
 
 function escolher(arquivo: File) {
-  fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
+  fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
     target: { files: [arquivo] },
   })
 }
@@ -104,12 +103,29 @@ afterEach(() => {
 describe('anexar ao responder', () => {
   it('com o projeto deixando, o seletor aparece na resposta', () => {
     montar()
-    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+  })
+
+  // O mesmo seletor do quadro: com quatro no total e tres imagens, a terceira
+  // desliga o botao, em vez de deixa-lo ligado para uma recusa depois.
+  it('sem vaga para imagem, o botao desliga', async () => {
+    montar()
+    const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
+
+    fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+      target: { files: [imagem('a.png'), imagem('b.png'), imagem('c.png')] },
+    })
+
+    await screen.findByRole('button', { name: 'Remover c.png' })
+    expect(
+      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
   })
 
   it('sem o projeto deixar, a resposta e so texto', () => {
     montar({ media: null })
-    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Anexar/ })).toBeNull()
+    expect(screen.queryByLabelText(/para anexar/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Responder' })).toBeDefined()
   })
 
