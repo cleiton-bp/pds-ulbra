@@ -31,7 +31,10 @@ export interface CycleSettingsViewModel {
   /** Coluna de destino da reabertura. **Nulo e uma escolha**: quer dizer "a primeira ativa". */
   ReopenStatePublicId: string | null
   ReopenRequiresComment: boolean
-  /** Se o protocolo sozinho confirma e reabre, ou se as duas acoes exigem o link. */
+  /**
+   * Se o codigo pessoal sozinho confirma e reabre, ou se as duas acoes exigem o link.
+   * Fica gravado e a API o ignora enquanto essas acoes so aceitarem o token do link.
+   */
   TrackingCodeCanAct: boolean
   SatisfactionEnabled: boolean
   SatisfactionStyle: SatisfactionStyle

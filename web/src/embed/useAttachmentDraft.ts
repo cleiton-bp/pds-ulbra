@@ -1,16 +1,32 @@
 import { type ClipboardEvent, type RefObject, useEffect, useRef, useState } from 'react'
 import type { PublicMediaSettingsViewModel } from '@/contracts'
-import { describeError } from '@/data/publicIndex'
+import { describeError, isPanelError } from '@/data/publicIndex'
 import {
   type Anexo,
   kindFor,
   makeThumbnail,
   previewUrl,
-  readVideoDuration,
   rejectReason,
   releasePreview,
 } from '@/embed/attachments'
-import { type ReportCredentials, sendAttachment } from '@/embed/sendAttachment'
+import {
+  type AttachmentEnvio,
+  type ReportCredentials,
+  sendAttachment,
+} from '@/embed/sendAttachment'
+
+/**
+ * A API recusou o arquivo de vez: o envio fechou, encheu, ou a regra do projeto
+ * mudou — e o arquivo ja foi descartado do lado de la.
+ *
+ * **409 e a resposta que tentar de novo nao muda**, e e por isso que a tela nao
+ * oferece. So as rotas da API respondem 409; o que o armazenamento recusa (400 de
+ * tamanho, 403 de assinatura vencida) continua sendo falha, e tentar de novo pede
+ * outra permissao.
+ */
+function isRefusal(falha: unknown): boolean {
+  return isPanelError(falha) && falha.status === 409
+}
 
 /**
  * Os arquivos escolhidos antes de enviar, e o envio deles depois.
@@ -20,17 +36,22 @@ import { type ReportCredentials, sendAttachment } from '@/embed/sendAttachment'
  * resposta — e e isso que faz uma falha no arquivo nunca levar o texto junto.
  *
  * **Mora fora do quadro porque o quadro deixou de ser o unico lugar que anexa.** A
- * resposta ao pedido de informacao, na pagina de acompanhamento, faz a mesma coisa;
- * copiar a logica faria as duas divergirem na primeira correcao.
+ * resposta ao pedido de informacao e a reabertura, na pagina de acompanhamento,
+ * fazem a mesma coisa; copiar a logica faria as tres divergirem na primeira
+ * correcao.
  *
  * @param generation Quem reinicia a tela no meio de um envio passa este contador:
  *   o envio em voo termina do lado de la, mas nao regrava a tela de quem ja esta em
  *   outra coisa. Quem nao reinicia nada nao precisa passar.
- * @param forReply Os arquivos vao junto de uma resposta, e nao da criacao do relato.
+ * @param envio A que envio os arquivos pertencem: a criacao do relato, a resposta
+ *   ou a reabertura.
  */
 export function useAttachmentDraft(
   media: PublicMediaSettingsViewModel | null,
-  { generation, forReply = false }: { generation?: RefObject<number>; forReply?: boolean } = {},
+  {
+    generation,
+    envio = 'creation',
+  }: { generation?: RefObject<number>; envio?: AttachmentEnvio } = {},
 ) {
   const [anexos, setAnexos] = useState<Anexo[]>([])
 
@@ -40,6 +61,22 @@ export function useAttachmentDraft(
 
   /** Por que o ultimo arquivo escolhido nao entrou. */
   const [recusa, setRecusa] = useState<string | null>(null)
+
+  /**
+   * Os recusados do envio que ja terminou, para a tela dizer o que nao foi e por
+   * que. Ficam fora da lista para ela voltar a servir ao proximo envio.
+   */
+  const [naoEnviados, setNaoEnviados] = useState<Anexo[]>([])
+
+  /**
+   * Quantas escolhas ainda estao virando item da lista — a miniatura leva um
+   * instante, e varios arquivos de uma vez entram um de cada vez.
+   *
+   * **Quem envia espera isto zerar.** O envio sobe a lista como ela esta quando
+   * comeca: um arquivo que entrasse depois nao subiria, e na reabertura sumiria
+   * junto com o bloco que o mostrava.
+   */
+  const [preparando, setPreparando] = useState(0)
 
   const propria = useRef(0)
   const geracao = generation ?? propria
@@ -64,61 +101,44 @@ export function useAttachmentDraft(
    * armazenamento. Isto so evita escolher, esperar o envio, e so entao ouvir "nao
    * serve".
    */
-  async function adicionar(arquivos: File[], conhecido?: { durationSeconds: number }) {
+  async function adicionar(arquivos: File[]) {
     if (!media) return
 
     setRecusa(null)
+    // Outro envio comecou: o aviso do anterior ja nao e sobre o que esta na tela.
+    setNaoEnviados([])
+    setPreparando((atual) => atual + 1)
 
-    for (const file of arquivos) {
-      const motivo = rejectReason(file, anexosRef.current, media)
-      if (motivo) {
-        setRecusa(motivo)
-        continue
-      }
-
-      const kind = kindFor(file, media)
-      if (!kind) continue
-
-      let durationSeconds: number | null = null
-
-      if (kind.MaxDurationSeconds !== null) {
-        // Gravado aqui, a duracao veio do relogio — e e mais confiavel que ler o
-        // arquivo, que o navegador grava sem duracao no cabecalho.
-        durationSeconds = conhecido?.durationSeconds ?? (await readVideoDuration(file))
-
-        // A API exige a duracao do video, e nao da para chuta-la.
-        if (durationSeconds === null) {
-          setRecusa('Não deu para ler a duração deste vídeo.')
+    try {
+      for (const file of arquivos) {
+        const motivo = rejectReason(file, anexosRef.current, media)
+        if (motivo) {
+          setRecusa(motivo)
           continue
         }
 
-        if (durationSeconds > kind.MaxDurationSeconds) {
-          setRecusa(`O vídeo passa de ${kind.MaxDurationSeconds} segundos.`)
-          continue
-        }
+        const kind = kindFor(file, media)
+        if (!kind) continue
+
+        const thumbnail = await makeThumbnail(file)
+
+        trocarLista([
+          ...anexosRef.current,
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            file,
+            kind: kind.Kind,
+            // A imagem se mostra por ela mesma quando a miniatura nao sai.
+            preview: previewUrl(thumbnail ?? file),
+            thumbnail,
+            status: 'waiting',
+            progress: 0,
+            error: null,
+          },
+        ])
       }
-
-      const thumbnail = await makeThumbnail(file, kind.Kind)
-
-      trocarLista([
-        ...anexosRef.current,
-        {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          file,
-          kind: kind.Kind,
-          // Imagem se mostra por ela mesma quando a miniatura nao sai; video, nao.
-          preview: thumbnail
-            ? previewUrl(thumbnail)
-            : kind.Kind === 'Image'
-              ? previewUrl(file)
-              : null,
-          thumbnail,
-          durationSeconds,
-          status: 'waiting',
-          progress: 0,
-          error: null,
-        },
-      ])
+    } finally {
+      setPreparando((atual) => atual - 1)
     }
   }
 
@@ -163,12 +183,16 @@ export function useAttachmentDraft(
         (progress) => {
           if (geracao.current === minha) atualizar(anexo.id, { progress })
         },
-        { forReply },
+        { envio },
       )
       if (geracao.current === minha) atualizar(anexo.id, { status: 'done', progress: 1 })
     } catch (falha) {
+      // Recusado nao volta a fila. Ver `isRefusal`.
       if (geracao.current === minha)
-        atualizar(anexo.id, { status: 'failed', error: describeError(falha) })
+        atualizar(anexo.id, {
+          status: isRefusal(falha) ? 'refused' : 'failed',
+          error: describeError(falha),
+        })
     }
   }
 
@@ -185,19 +209,48 @@ export function useAttachmentDraft(
     for (const anexo of anexosRef.current) releasePreview(anexo.preview)
     trocarLista([])
     setRecusa(null)
+    setNaoEnviados([])
+  }
+
+  /**
+   * Fecha o envio, se ele terminou, e diz se fechou.
+   *
+   * **Terminou quando nada mais depende de alguem**: nenhum arquivo na fila,
+   * subindo, ou esperando "Tentar de novo". Recusado nao espera nada — sem esta
+   * conta, um so recusado prenderia a lista na tela para sempre, e o proximo envio
+   * iria sem arquivo ate a pagina recarregar.
+   *
+   * O que foi sai de cena, porque a pagina o mostra no lugar dele depois de reler.
+   * O recusado vai para `naoEnviados`, e fica ate a pessoa escolher outro arquivo.
+   */
+  function fechar(): boolean {
+    const lista = anexosRef.current
+    if (lista.some((anexo) => anexo.status !== 'done' && anexo.status !== 'refused')) return false
+
+    const recusados = lista.filter((anexo) => anexo.status === 'refused')
+    limpar()
+    setNaoEnviados(recusados)
+    return true
   }
 
   return {
     anexos,
     recusa,
     setRecusa,
+    naoEnviados,
+    /** Ha arquivo escolhido que ainda nao entrou na lista. Ver `preparando`. */
+    preparando: preparando > 0,
     adicionar,
     remover,
     colar,
     enviarAnexo,
     enviarAnexos,
     limpar,
+    fechar,
     /** A lista como esta agora, sem esperar o React redesenhar. */
     atual: () => anexosRef.current,
   }
 }
+
+/** O rascunho inteiro, para quem o cria passar adiante a quem desenha o seletor. */
+export type AttachmentDraft = ReturnType<typeof useAttachmentDraft>

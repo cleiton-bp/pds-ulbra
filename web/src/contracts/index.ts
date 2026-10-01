@@ -30,6 +30,7 @@ export type {
   PublicMediaSettingsViewModel,
   SaveMediaSettingsRequest,
 } from '@/contracts/mediaSettings'
+export { UPLOADABLE_MEDIA_KIND } from '@/contracts/mediaSettings'
 export type {
   CreateProjectRequest,
   ProjectCreatedViewModel,
@@ -93,6 +94,7 @@ export type {
   PublicCommentViewModel,
   PublicInfoRequestViewModel,
   PublicMessageViewModel,
+  PublicReopeningViewModel,
   PublicReportViewModel,
   PublicStageViewModel,
   PublishedReportsViewModel,
@@ -110,6 +112,7 @@ export type {
   ReportHistoryEntryViewModel,
   ReportInfoRequestViewModel,
   ReportModerationState,
+  ReportReopeningViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
   ReportType,

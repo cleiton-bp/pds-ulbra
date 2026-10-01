@@ -37,7 +37,11 @@ public class CycleSettingsDto
     /// <summary>Se reabrir exige dizer por que.</summary>
     public bool? ReopenRequiresComment { get; set; }
 
-    /// <summary>Se o protocolo sozinho confirma e reabre, ou se as duas acoes exigem o link.</summary>
+    /// <summary>
+    /// Se quem chega pelo codigo pessoal tambem confirma e reabre, ou se as duas
+    /// acoes exigem o link. <b>Gravado e ignorado</b> ate confirmar, reabrir e
+    /// responder aceitarem o codigo.
+    /// </summary>
     public bool? TrackingCodeCanAct { get; set; }
 
     /// <summary>Se a nota e pedida ao confirmar.</summary>

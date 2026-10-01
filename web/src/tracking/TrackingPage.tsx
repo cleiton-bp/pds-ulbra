@@ -5,6 +5,8 @@ import type {
   PublicStageViewModel,
 } from '@/contracts'
 import { isPanelError, reportService } from '@/data/publicIndex'
+import { AttachmentProgress } from '@/embed/AttachmentPicker'
+import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -13,6 +15,7 @@ import { reporterTypeLabel } from '@/shared/lib/reportTypes'
 import { readTrackingLink } from '@/shared/lib/tracking'
 import { ClosurePanel } from '@/tracking/ClosurePanel'
 import { ConversationPanel } from '@/tracking/ConversationPanel'
+import { ReopenPanel } from '@/tracking/ReopenPanel'
 import { TrackingAttachments } from '@/tracking/TrackingAttachments'
 import { useTrackingMedia } from '@/tracking/useTrackingMedia'
 
@@ -58,9 +61,10 @@ export function TrackingPage() {
 
     // **Duas credenciais levam a esta pagina, e elas nao valem o mesmo.** O token
     // veio no link que a pessoa recebeu ao relatar, e da poder sobre o relato. O
-    // codigo pessoal veio da lista dela e prova que o relato e dela — mas confirmar
-    // e reabrir continuam exigindo o link, a menos que o projeto decida o
-    // contrario. Quem decide isso e a API; aqui so muda por onde se pergunta.
+    // codigo pessoal veio da lista dela e prova que o relato e dela — mas confirmar,
+    // reabrir e responder so aceitam o token do link, e a API ignora
+    // TrackingCodeCanAct ate elas aceitarem o codigo. Quem decide isso e a API;
+    // aqui so muda por onde se pergunta.
     const peloToken = token.length > 0
     const peloCodigo = key.length > 0 && reporterCode.length > 0
 
@@ -123,19 +127,69 @@ function Relato({
   // So com o token: e ele que as rotas dos arquivos pedem. Pelo codigo pessoal o
   // relato abre, e os arquivos ainda nao — e a terceira porta.
   const midia = useTrackingMedia(code, token)
+  const credenciais = { trackingCode: code, token }
+
+  /**
+   * Os arquivos da reabertura. **Moram aqui, e nao no bloco do encerramento**:
+   * reaberto, o relato deixa de ter fechamento e aquele bloco sai da tela — a lista
+   * sairia junto, antes de subir.
+   */
+  const reabertura = useAttachmentDraft(midia.paraReabertura, { envio: 'reopen' })
+  const [subindoReabertura, setSubindoReabertura] = useState(false)
+
+  /**
+   * A reabertura dos arquivos na tela levou motivo. Sem motivo, "o seu texto está
+   * salvo" seria falso. Guardado quando o envio começa: uma reabertura seguinte
+   * mudaria a última da lista enquanto os arquivos na tela ainda são da anterior.
+   */
+  const [reabriuComTexto, setReabriuComTexto] = useState(true)
+
+  /**
+   * Fecha o envio quando ele termina. O que falhou fica, com "tentar de novo"; o
+   * recusado continua dizendo que nao foi, sem prender a proxima reabertura.
+   */
+  function conferirReabertura() {
+    midia.recarregar()
+    if (reabertura.fechar()) setSubindoReabertura(false)
+  }
+
+  function aoReabrir(novo: PublicReportViewModel) {
+    aoResponder(novo)
+
+    // **Depois da reabertura gravada, e so entao.** Com um envio anterior ainda na
+    // tela, nada sobe: a lista e a dele, e manda-la de novo duplicaria o que ja foi.
+    if (subindoReabertura) return
+
+    // Sem arquivo, o aviso de um recusado da reabertura anterior sai: ele falava
+    // de outra reabertura.
+    if (reabertura.atual().length === 0) {
+      reabertura.limpar()
+      return
+    }
+
+    setReabriuComTexto(novo.Reopenings.at(-1)?.Comment != null)
+    setSubindoReabertura(true)
+    void reabertura.enviarAnexos(credenciais, 0).then(conferirReabertura)
+  }
 
   // Cada arquivo no lugar dele: os da criacao embaixo do relato, os de uma resposta
-  // embaixo da resposta. **O que nao acha a sua fala cai na galeria do relato**, em
-  // vez de sumir — fala publica nao se apaga hoje, mas um arquivo que desaparece em
-  // silencio e o tipo de erro que ninguem percebe.
+  // embaixo da resposta, os de uma reabertura junto do motivo dela. **O que nao
+  // acha o seu lugar cai na galeria do relato**, em vez de sumir — fala publica e
+  // reabertura nao se apagam hoje, mas um arquivo que desaparece em silencio e o
+  // tipo de erro que ninguem percebe.
   const falas = new Set(relato.Conversation.map((fala) => fala.PublicId))
-  const daCriacao = midia.anexos.filter(
-    (anexo) => anexo.ReplyPublicId === null || !falas.has(anexo.ReplyPublicId),
-  )
+  const reaberturas = new Set(relato.Reopenings.map((item) => item.PublicId))
+  const daCriacao: PublicAttachmentViewModel[] = []
   const porFala = new Map<string, PublicAttachmentViewModel[]>()
+  const porReabertura = new Map<string, PublicAttachmentViewModel[]>()
+
   for (const anexo of midia.anexos) {
     if (anexo.ReplyPublicId && falas.has(anexo.ReplyPublicId)) {
-      porFala.set(anexo.ReplyPublicId, [...(porFala.get(anexo.ReplyPublicId) ?? []), anexo])
+      juntar(porFala, anexo.ReplyPublicId, anexo)
+    } else if (anexo.ReopenPublicId && reaberturas.has(anexo.ReopenPublicId)) {
+      juntar(porReabertura, anexo.ReopenPublicId, anexo)
+    } else {
+      daCriacao.push(anexo)
     }
   }
 
@@ -188,12 +242,43 @@ function Relato({
 
       <Andamento jornada={relato.Journey} />
 
+      {/* Antes do encerramento de propósito: as reaberturas já aconteceram, e o
+          fechamento que está valendo, quando há um, é o fim mais recente. */}
+      <ReopenPanel
+        reaberturas={relato.Reopenings}
+        anexosPorReabertura={porReabertura}
+        aoExpirar={midia.recarregar}
+        progresso={
+          subindoReabertura || reabertura.naoEnviados.length > 0 ? (
+            <AttachmentProgress
+              anexos={subindoReabertura ? reabertura.anexos : reabertura.naoEnviados}
+              savedNote={
+                reabriuComTexto
+                  ? 'O relato foi reaberto e o seu texto está salvo.'
+                  : 'O relato foi reaberto.'
+              }
+              onRetry={(anexo) =>
+                void reabertura.enviarAnexo(credenciais, anexo, 0).then(conferirReabertura)
+              }
+            />
+          ) : null
+        }
+      />
+
       {relato.Closure && (
         <ClosurePanel
           fechamento={relato.Closure}
           protocolo={code}
           token={token}
           aoResponder={aoResponder}
+          aoReabrir={aoReabrir}
+          // Enquanto o envio de uma reabertura anterior ainda está na tela, a nova
+          // vai só com texto: a lista é uma só, e ela ainda é daquela.
+          anexar={
+            midia.paraReabertura && !subindoReabertura
+              ? { midia: midia.paraReabertura, rascunho: reabertura }
+              : null
+          }
         />
       )}
 
@@ -203,6 +288,15 @@ function Relato({
       </p>
     </>
   )
+}
+
+/** Poe o anexo na lista da sua chave. */
+function juntar(
+  mapa: Map<string, PublicAttachmentViewModel[]>,
+  chave: string,
+  anexo: PublicAttachmentViewModel,
+) {
+  mapa.set(chave, [...(mapa.get(chave) ?? []), anexo])
 }
 
 /**

@@ -27,8 +27,9 @@ export function buildTrackingLink(trackingCode: string, token: string): string {
  * publica vai na query porque ela ja e publica por definicao — e a pagina precisa
  * dela para saber em qual projeto o codigo vale.
  *
- * **Leva menos poder que o link do token.** Aberto assim, confirmar e reabrir
- * chegam desligados, a menos que o projeto tenha ligado isso.
+ * **Leva menos poder que o link do token.** Aberto assim, confirmar, reabrir e
+ * responder chegam desligados: essas rotas so aceitam o token, e a API ignora
+ * `TrackingCodeCanAct` ate elas aceitarem o codigo.
  */
 export function buildReporterCodeLink(
   trackingCode: string,

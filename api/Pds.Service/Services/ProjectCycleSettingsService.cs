@@ -63,7 +63,7 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
         settings.AllowsReopen = Required(dto.AllowsReopen, "Informe se quem relatou pode reabrir.");
         settings.ReopenStateId = await ResolveReopenStateAsync(project.Id, dto.ReopenStatePublicId, cancellationToken);
         settings.ReopenRequiresComment = Required(dto.ReopenRequiresComment, "Informe se reabrir exige um comentario.");
-        settings.TrackingCodeCanAct = Required(dto.TrackingCodeCanAct, "Informe se o protocolo sozinho confirma e reabre.");
+        settings.TrackingCodeCanAct = Required(dto.TrackingCodeCanAct, "Informe se o codigo pessoal sozinho confirma e reabre.");
         settings.SatisfactionEnabled = Required(dto.SatisfactionEnabled, "Informe se a nota e pedida.");
         settings.SatisfactionStyle = Required(dto.SatisfactionStyle, "Informe como a nota aparece.");
         settings.SatisfactionRequired = Required(dto.SatisfactionRequired, "Informe se a nota e obrigatoria.");

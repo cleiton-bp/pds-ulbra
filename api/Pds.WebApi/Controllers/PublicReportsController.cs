@@ -240,9 +240,11 @@ public class PublicReportsController : BaseController
     /// navegador novo não tem os links de cada relato, e sem isto veria uma lista
     /// que não abre nada.
     ///
-    /// **Lê, e por padrão não age.** O código prova que o relato é dela; o link é
-    /// que dá poder sobre ele — confirmar, reabrir e responder chegam desligados, a
-    /// menos que o projeto tenha ligado `TrackingCodeCanAct` na tela de Ciclo.
+    /// **Lê, e não age.** O código prova que o relato é dela; o link é que dá poder
+    /// sobre ele — confirmar, reabrir e responder chegam desligados, porque hoje
+    /// essas três rotas só aceitam o token do link. `TrackingCodeCanAct` continua
+    /// gravado, e é ignorado aqui até elas aceitarem o código: obedecê-lo mostraria
+    /// botões que a própria API recusaria.
     ///
     /// **Uma recusa só, para todos os enganos.** Código em branco, código que não
     /// existe, protocolo que não existe e protocolo que é de outra pessoa recebem a
@@ -342,6 +344,15 @@ public class PublicReportsController : BaseController
     ///
     /// Grava **dois** eventos, e os dois são verdade: a pessoa reabriu, e o relato
     /// mudou de coluna. A origem `PublicPage` é o que diz que não foi o time.
+    ///
+    /// **Os arquivos vêm depois, e não aqui.** Reabrir leva só o texto; os prints do
+    /// que ainda está acontecendo sobem em seguida por `attachments`, com
+    /// `ForReopen`, nos 15 minutos depois da reabertura — o texto nunca espera o
+    /// envio. O motivo em branco, quando o projeto não o pede, não impede anexar: o
+    /// envio é a reabertura, e não o texto dela.
+    ///
+    /// O motivo volta na resposta, em `Reopenings`, junto com o de cada reabertura
+    /// anterior.
     /// </remarks>
     /// <param name="dto">Protocolo, token e o motivo de estar voltando.</param>
     /// <param name="cancellationToken"></param>
@@ -374,7 +385,7 @@ public class PublicReportsController : BaseController
     /// <remarks>
     /// **Só enquanto há pedido aberto.** Sem a pergunta do outro lado, esta rota
     /// viraria uma caixa de entrada sem dono e sem moderação — e moderação ficou de
-    /// fora desta etapa de propósito. Relato sem pedido aberto recebe 409.
+    /// fora de propósito. Relato sem pedido aberto recebe 409.
     ///
     /// A resposta entra na **mesma tabela** do que a equipe escreve, com o autor
     /// nulo: é o que faz a conversa ser uma lista só, em ordem, e é o que "a
@@ -430,14 +441,38 @@ public class PublicReportsController : BaseController
     /// **A permissão vale poucos minutos**, e é só o tempo de o envio começar.
     /// Vazou, tem prazo.
     ///
+    /// **Anexo tem hora: vai junto do envio, e não depois.** São três envios, e cada
+    /// um tem a sua cota:
+    ///
+    /// - **a criação do relato**, sem bandeira nenhuma, nos 15 minutos depois de
+    ///   criado;
+    /// - **a resposta ao time** (`ForReply`), nos 15 minutos depois da resposta
+    ///   mais recente de quem relatou, e só com o projeto deixando anexar ao
+    ///   responder;
+    /// - **a reabertura** (`ForReopen`), nos 15 minutos depois da reabertura mais
+    ///   recente, e só com o projeto deixando anexar ao reabrir.
+    ///
+    /// O navegador nunca diz qual resposta ou qual reabertura: o servidor acha a que
+    /// acabou de acontecer. Cada permissão tem então 1 hora, contada de quando foi
+    /// pedida, para ser confirmada: o envio precisa começar em minutos, mas terminar
+    /// depende da conexão. Passado o prazo, a recusa é 409 — o pedido estava certo, o
+    /// que fechou foi o envio. As duas bandeiras juntas recebem 400: um arquivo vai
+    /// com um envio só.
+    ///
+    /// **Só imagem.** `Kind` igual a `Video` recebe 400, qualquer que seja o
+    /// projeto: o vídeo saiu do produto por pesar demais no armazenamento e na
+    /// entrega. `DurationSeconds` deixou de existir, e quem ainda o manda não quebra
+    /// — o campo é ignorado.
+    ///
     /// Depois de enviar, **confirme**: sem isso o arquivo é órfão e não pertence a
     /// relato nenhum.
     /// </remarks>
     /// <param name="dto">O relato, o tipo e o tamanho do arquivo.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Formulário assinado, pronto para enviar.</response>
-    /// <response code="400">Projeto não aceita anexo, formato recusado, limite estourado, ou arquivo grande demais.</response>
+    /// <response code="400">Vídeo, projeto que não aceita anexo (ou não aceita na resposta, ou na reabertura), `ForReply` e `ForReopen` juntos, formato recusado, ou arquivo grande demais.</response>
     /// <response code="404">O link não abre nenhum relato.</response>
+    /// <response code="409">O envio já tem o máximo de arquivos, o prazo do envio terminou — ou não há resposta, ou reabertura, dos últimos 15 minutos —, ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments")]
     [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
@@ -445,6 +480,7 @@ public class PublicReportsController : BaseController
     [ProducesResponseType(typeof(ApiResponse<AttachmentUploadTicketViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RequestAttachment(
         [FromBody] RequestAttachmentUploadDto dto,
@@ -480,12 +516,30 @@ public class PublicReportsController : BaseController
     /// **Sem esta chamada o anexo não existe para o produto**: não aparece no
     /// painel, não aparece na jornada pública, e não conta para o limite do próximo
     /// envio.
+    ///
+    /// **A cota é contada de novo aqui, e é esta contagem que vale.** A permissão
+    /// só conta o que já foi confirmado, então várias permissões pedidas antes de
+    /// confirmar a primeira enxergam a mesma vaga. Aqui a contagem é feita com a
+    /// cota do relato travada, uma confirmação por vez: a que chega com o envio já
+    /// cheio recebe 409, e o arquivo dela é apagado. Cada envio — a criação, cada
+    /// resposta, cada reabertura — tem a sua cota. A regra do projeto também é
+    /// conferida de novo: mídia, tipo, anexo na resposta ou na reabertura
+    /// desligados, ou tamanho máximo reduzido depois da permissão, recusam do mesmo
+    /// jeito.
+    ///
+    /// **Vídeo pendente é recusado com 409, e descartado.** A permissão pode ter
+    /// sido assinada antes de o vídeo sair do produto; o arquivo que chegou por ela
+    /// é apagado como qualquer outra recusa da regra.
+    ///
+    /// **Uma permissão vale 1 hora para ser confirmada**, contada de quando foi
+    /// pedida. Depois disso ela venceu: a recusa é 409, sem nem ler o armazenamento.
     /// </remarks>
     /// <param name="dto">O relato e o anexo que está sendo confirmado.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Anexo confirmado.</response>
-    /// <response code="400">O arquivo não chegou, não é do formato declarado, ou passa do limite.</response>
-    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador.</response>
+    /// <response code="400">O arquivo não chegou, ou não é do formato declarado — neste caso ele foi descartado.</response>
+    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador — por exemplo, porque outra confirmação do mesmo anexo terminou antes.</response>
+    /// <response code="409">O envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta ou na reabertura, ou tamanho máximo), a permissão passou de 1 hora sem ser confirmada, ou o anexo é um vídeo, que não é mais aceito — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments/confirm")]
     [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
@@ -493,6 +547,7 @@ public class PublicReportsController : BaseController
     [ProducesResponseType(typeof(ApiResponse<ConfirmedAttachmentViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ConfirmAttachment(
         [FromBody] ConfirmAttachmentDto dto,
@@ -552,14 +607,19 @@ public class PublicReportsController : BaseController
         }
     }
 
-    /// <summary>O que dá para anexar ao responder, pela porta do acompanhamento.</summary>
+    /// <summary>O que dá para anexar ao responder ou ao reabrir, pela porta do acompanhamento.</summary>
     /// <remarks>
     /// **A página de quem relatou não tem a chave pública do projeto** — chegou pelo
     /// link, que carrega só o relato. Esta é a mesma leitura que a ferramenta faz,
     /// pela mesma porta das outras rotas do acompanhamento: protocolo e token.
     ///
-    /// `AllowsOnInfoRequest` é o que a página olha. Sem armazenamento nesta
-    /// instalação, `IsEnabled` vem falso.
+    /// `AllowsOnInfoRequest` é o que a página olha para a resposta, e
+    /// `AllowsOnReopen` para a reabertura. Sem armazenamento nesta instalação,
+    /// `IsEnabled` vem falso.
+    ///
+    /// **Vídeo nunca aparece**, como na leitura da ferramenta, e `MaxDurationSeconds`
+    /// vem sempre nulo: a página aberta antes da troca lê a ausência dele como "tem
+    /// duração".
     /// </remarks>
     /// <param name="dto">O protocolo e o token, os dois juntos.</param>
     /// <param name="cancellationToken"></param>

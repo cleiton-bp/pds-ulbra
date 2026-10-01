@@ -13,18 +13,18 @@ namespace Pds.WebApi.Controllers;
 ///
 /// **É esta configuração que diz o que existe.** Desligado o anexo, a ferramenta não
 /// mostra nada de mídia e o servidor recusa assinar qualquer permissão de envio —
-/// não adianta ter tipo ligado nem limite configurado. É a única trava que a etapa
-/// constrói de propósito.
+/// não adianta ter tipo ligado nem limite configurado.
 ///
 /// **Os limites moram numa linha por tipo, e não numa coluna por tipo.** É o desenho
 /// que faz acrescentar áudio um dia ser dado, e não migração: com colunas, cada tipo
 /// novo custaria uma migração, e toda configuração carregaria campos de tipos que
 /// aquele projeto nunca ligou.
 ///
-/// **Sem armazenamento configurado nesta instalação, ligar é recusado.** Ligado sem
-/// ele, a ferramenta mostraria o botão e o envio falharia depois de a pessoa já ter
-/// escolhido o arquivo. `IsStorageAvailable` na resposta é o que a tela usa para
-/// desligar o interruptor e dizer por quê, em vez de deixar tentar.
+/// **Sem armazenamento configurado nesta instalação, o anexo vem desligado e salvar é
+/// recusado.** Ligado sem ele, a ferramenta mostraria o botão e o envio falharia
+/// depois de a pessoa já ter escolhido o arquivo. `IsStorageAvailable` na resposta é
+/// o que a tela usa para travar o interruptor e dizer por quê, em vez de deixar
+/// tentar.
 ///
 /// **O limite de tamanho não é enfeite.** Ele viaja dentro da assinatura do envio, e
 /// quem recusa o que passa é o próprio armazenamento — não há outro lugar onde ele
@@ -54,9 +54,19 @@ public class ProjectMediaSettingsController : BaseController
     /// projeto dele já se comporta desse jeito, e dizer "não encontrado" sobre algo
     /// que está funcionando seria mentira.
     ///
-    /// **Todo tipo conhecido aparece na lista**, mesmo o que nunca foi salvo — com o
-    /// padrão de fábrica. Assim um tipo novo do produto passa a existir para todo
-    /// projeto no dia em que entra, sem depender de alguém abrir a tela e salvar.
+    /// **Todo tipo que o produto oferece aparece na lista**, mesmo o que nunca foi
+    /// salvo — com o padrão de fábrica. Assim um tipo novo do produto passa a existir
+    /// para todo projeto no dia em que entra, sem depender de alguém abrir a tela e
+    /// salvar.
+    ///
+    /// **Hoje é só imagem.** O vídeo saiu do produto por pesar demais no
+    /// armazenamento e na entrega, e não aparece nem para o projeto que tinha limite
+    /// salvo para ele. `MaxDurationSeconds` continua na resposta, sempre nulo, para
+    /// a tela aberta antes da troca não desenhar um campo de duração na imagem.
+    ///
+    /// **Sem armazenamento nesta instalação, `IsEnabled` vem falso**, porque a
+    /// ferramenta não oferece anexo nenhum. O que o projeto salvou continua guardado,
+    /// porque salvar é recusado, e volta a valer quando houver armazenamento.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
@@ -92,22 +102,39 @@ public class ProjectMediaSettingsController : BaseController
     /// protege a conta de quem configurou; o teto protege a nossa de quem configurou
     /// errado.
     ///
-    /// **Anexo ligado sem nenhum tipo aceito é recusado**, porque não aceitaria nada
+    /// **Anexo ligado sem imagem aceita é recusado**, porque não aceitaria nada
     /// — quem quer isso já tem o caminho certo, que é desligar o anexo. E **tipo que
     /// a requisição não mandar fica como está**, para uma versão antiga da tela não
     /// apagar a configuração de um tipo que ela não conhece.
+    ///
+    /// **`Video` é recusado com 400**, mesmo desligado. Salvar o limite dele seria
+    /// prometer, na tela, um envio que o pedido de permissão recusa. A mensagem pede
+    /// para recarregar a página, porque quem a recebe é, quase sempre, uma tela
+    /// aberta antes de o vídeo sair, devolvendo a linha que leu.
+    ///
+    /// **`AllowsOnReopen` ausente também pede para recarregar.** Só a tela aberta
+    /// antes de a chave existir o deixa de fora, e ela não tem a opção que a
+    /// mensagem pede. Essa recusa vem antes da do vídeo.
+    /// `MaxDurationSeconds` deixou de existir no pedido; quem ainda o manda não
+    /// quebra, porque o campo é ignorado.
+    ///
+    /// **Sem armazenamento nesta instalação, nada se salva**, nem o anexo desligado.
+    /// A leitura responde desligado; devolver isso gravaria o desligado por cima da
+    /// escolha do projeto, e ela não voltaria a valer quando houver armazenamento.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="dto">A configuração inteira, com os limites de cada tipo.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Configuração salva.</response>
-    /// <response code="400">Campo ausente, limite fora do teto, tipo repetido, ou anexo ligado sem armazenamento.</response>
+    /// <response code="400">Campo ausente, limite fora do teto, tipo repetido ou desconhecido, vídeo, ou anexo ligado sem imagem aceita.</response>
     /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="409">Não há armazenamento configurado nesta instalação, e sem ele nada desta configuração se salva.</response>
     [HttpPut]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<MediaSettingsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Replace(Guid publicId, [FromBody] MediaSettingsDto dto, CancellationToken cancellationToken)
     {
         try

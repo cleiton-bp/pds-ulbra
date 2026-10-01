@@ -4,10 +4,14 @@ namespace Pds.Domain.Dtos;
 
 /// <summary>
 /// Os limites de um tipo de midia, como a tela os manda.
+///
+/// <para><b>Sem duracao.</b> Ela so existia para o video, que saiu do produto.
+/// Cliente antigo que ainda mande <c>MaxDurationSeconds</c> nao quebra: campo que
+/// o contrato nao conhece e ignorado na leitura.</para>
 /// </summary>
 public class MediaKindLimitDto
 {
-    /// <summary>Que tipo esta linha configura: <c>Image</c> ou <c>Video</c>.</summary>
+    /// <summary>Que tipo esta linha configura. So <c>Image</c>: <c>Video</c> saiu do produto e e recusado.</summary>
     /// <example>Image</example>
     public MediaKindEnum? Kind { get; set; }
 
@@ -15,17 +19,13 @@ public class MediaKindLimitDto
     /// <example>true</example>
     public bool? IsEnabled { get; set; }
 
-    /// <summary>Quantos arquivos deste tipo cabem num relato.</summary>
+    /// <summary>Quantos arquivos deste tipo cabem em cada envio.</summary>
     /// <example>3</example>
     public int? MaxCount { get; set; }
 
     /// <summary>Teto de tamanho de cada arquivo, em bytes.</summary>
     /// <example>5242880</example>
     public long? MaxBytes { get; set; }
-
-    /// <summary>Duracao maxima em segundos. Obrigatoria para video, ignorada no resto.</summary>
-    /// <example>60</example>
-    public int? MaxDurationSeconds { get; set; }
 }
 
 /// <summary>
@@ -42,11 +42,11 @@ public class MediaKindLimitDto
 /// </summary>
 public class MediaSettingsDto
 {
-    /// <summary>O quadro mostra anexo. Sem armazenamento configurado, ligar e recusado.</summary>
+    /// <summary>O quadro mostra anexo. Sem armazenamento configurado, a configuracao inteira e recusada.</summary>
     /// <example>true</example>
     public bool? IsEnabled { get; set; }
 
-    /// <summary>O botao de capturar a tela aparece.</summary>
+    /// <summary>O botao de capturar a tela aparece. A captura vira imagem.</summary>
     /// <example>true</example>
     public bool? AllowsScreenCapture { get; set; }
 
@@ -54,7 +54,11 @@ public class MediaSettingsDto
     /// <example>true</example>
     public bool? AllowsOnInfoRequest { get; set; }
 
-    /// <summary>Quantos arquivos cabem num relato, somando todos os tipos.</summary>
+    /// <summary>Da para anexar ao reabrir um relato encerrado.</summary>
+    /// <example>true</example>
+    public bool? AllowsOnReopen { get; set; }
+
+    /// <summary>Quantos arquivos cabem em cada envio, somando todos os tipos. A criacao do relato e um envio, cada resposta e outro, e cada reabertura tambem.</summary>
     /// <example>4</example>
     public int? MaxFilesPerReport { get; set; }
 

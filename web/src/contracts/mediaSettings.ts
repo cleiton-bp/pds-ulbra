@@ -8,10 +8,22 @@
  *
  * **A lista cresce com o produto.** Acrescentar audio um dia e acrescentar um
  * valor aqui e uma linha no banco — nao ha coluna por tipo em lugar nenhum.
+ *
+ * **`Video` so aparece em anexo antigo.** O video saiu do produto por pesar demais
+ * no armazenamento e na entrega: nada novo entra, e a configuracao nao o lista.
+ * Ele continua aqui porque os videos ja confirmados seguem na galeria, tocando.
  */
 export type MediaKind = 'Image' | 'Video'
 
-/** Os limites de um tipo de midia neste projeto. */
+/** O unico tipo que ainda se pode enviar. Ver `MediaKind`. */
+export const UPLOADABLE_MEDIA_KIND = 'Image' satisfies MediaKind
+
+/**
+ * Os limites de um tipo de midia neste projeto.
+ *
+ * **Sem duracao.** A API ainda manda `MaxDurationSeconds`, sempre nulo, para a
+ * tela aberta antes de o video sair nao quebrar; este lado nao le.
+ */
 export interface MediaKindLimitViewModel {
   Kind: MediaKind
   /** Este tipo e aceito. Desligar mantem os limites gravados. */
@@ -19,8 +31,6 @@ export interface MediaKindLimitViewModel {
   MaxCount: number
   /** Teto de tamanho de cada arquivo, em **bytes**. */
   MaxBytes: number
-  /** Nulo para o que nao tem duracao. */
-  MaxDurationSeconds: number | null
 }
 
 /**
@@ -34,15 +44,24 @@ export interface MediaSettingsViewModel {
    * Ha armazenamento configurado nesta instalacao.
    *
    * **Nao e configuracao do projeto**, e por isso vem separado: e o estado da
-   * instalacao inteira. Falso, a tela desliga o interruptor e diz por que — em
+   * instalacao inteira. Falso, a tela trava o interruptor e diz por que — em
    * vez de deixar ligar uma coisa que falharia no envio, depois de a pessoa ja
    * ter escolhido o arquivo.
    */
   IsStorageAvailable: boolean
+  /**
+   * O quadro mostra anexo. **Sem armazenamento vem falso**, mesmo que o projeto
+   * tenha ligado — o que foi salvo continua guardado do lado de la.
+   */
   IsEnabled: boolean
   AllowsScreenCapture: boolean
   AllowsOnInfoRequest: boolean
-  /** Teto de arquivos por relato, somando todos os tipos. */
+  /** Da para anexar ao reabrir um relato encerrado. */
+  AllowsOnReopen: boolean
+  /**
+   * Teto de arquivos por envio, somando todos os tipos: a criacao do relato, cada
+   * resposta e cada reabertura.
+   */
   MaxFilesPerReport: number
   Kinds: MediaKindLimitViewModel[]
 }
@@ -58,6 +77,7 @@ export interface SaveMediaSettingsRequest {
   IsEnabled: boolean
   AllowsScreenCapture: boolean
   AllowsOnInfoRequest: boolean
+  AllowsOnReopen: boolean
   MaxFilesPerReport: number
   Kinds: MediaKindLimitViewModel[]
 }
@@ -67,13 +87,16 @@ export interface SaveMediaSettingsRequest {
  *
  * **Traz os tipos de arquivo, e nao so a categoria**: e o que deixa o seletor do
  * navegador ja filtrar o que nao serve.
+ *
+ * **Sem duracao.** A API ainda manda `MaxDurationSeconds`, sempre nulo, para o
+ * quadro guardado no navegador antes de o video sair nao recusar todo print; este
+ * lado nao le.
  */
 export interface PublicMediaKindViewModel {
   Kind: MediaKind
   MaxCount: number
   /** Teto de cada arquivo, em **bytes**. */
   MaxBytes: number
-  MaxDurationSeconds: number | null
   ContentTypes: string[]
 }
 
@@ -87,6 +110,8 @@ export interface PublicMediaSettingsViewModel {
   IsEnabled: boolean
   AllowsScreenCapture: boolean
   AllowsOnInfoRequest: boolean
+  /** Da para anexar ao reabrir. E o que a pagina de acompanhamento olha na reabertura. */
+  AllowsOnReopen: boolean
   MaxFilesPerReport: number
   Kinds: PublicMediaKindViewModel[]
 }

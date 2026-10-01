@@ -64,4 +64,41 @@ public interface IReportClosureRepository : IBaseRepository<ReportClosure>
     Task<IReadOnlyList<long>> ListReportIdsWithPublicClosureWithoutSessionAsync(IReadOnlyList<long> reportIds, DateTime asOf, CancellationToken cancellationToken = default);
 
     Task<ReportClosure?> FindCurrentAsync(long reportId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A reabertura mais recente deste relato, se ela aconteceu desde
+    /// <paramref name="since"/>. Sem sessao.
+    ///
+    /// <para><b>Existe para prender o arquivo a reabertura sem o navegador dizer
+    /// qual.</b> Quem pede a permissao diz so que o arquivo e da reabertura; o
+    /// servidor acha a que acabou de acontecer. Aceitar um identificador vindo de
+    /// fora obrigaria a conferir de quem ele e — e cada conferencia a mais e uma
+    /// chance de esquecer uma.</para>
+    ///
+    /// <para>So quem relatou reabre, pela porta do link. Por isso toda reabertura
+    /// e dele, e a consulta nao precisa perguntar quem foi.</para>
+    /// </summary>
+    Task<ReportClosure?> FindLatestReopenedWithoutSessionAsync(
+        long reportId,
+        DateTime since,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os fechamentos que quem relatou reabriu, do mais antigo para o mais novo.
+    /// Sem sessao: e a pagina de acompanhamento, que mostra a pessoa o que ela disse
+    /// ao reabrir.
+    /// </summary>
+    Task<List<ReportClosure>> ListReopenedWithoutSessionAsync(
+        long reportId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os mesmos fechamentos reabertos, <b>com sessao</b>: o painel, que mostra ao
+    /// time por que o relato voltou. O filtro global isola a conta.
+    ///
+    /// <para><b>Sao dois metodos, e nao um com bandeira</b>, pelo mesmo motivo de
+    /// <see cref="FindCurrentAsync"/>: a bandeira convidaria a chamada publica a
+    /// passar "com sessao" num caminho onde a conta atual e zero.</para>
+    /// </summary>
+    Task<List<ReportClosure>> ListReopenedAsync(long reportId, CancellationToken cancellationToken = default);
 }

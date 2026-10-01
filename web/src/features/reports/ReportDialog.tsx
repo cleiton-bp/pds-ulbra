@@ -13,6 +13,7 @@ import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
 import { ReportComments } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
+import { ReportReopenings } from '@/features/reports/ReportReopenings'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { Modal } from '@/shared/components/Modal'
@@ -89,7 +90,8 @@ export function ReportDialog({
   // dizem a mesma coisa. Quando nao ha resumo, a tela espera.
   const report = resumo ?? detalhe
   // Uma leitura para o dialogo inteiro: os da criacao vao para a secao de
-  // arquivos, os de uma resposta vao para a conversa.
+  // arquivos, os de uma resposta vao para a conversa, os de uma reabertura vao
+  // para junto do motivo dela.
   const anexos = useReportAttachments(projectPublicId, reportPublicId)
 
   const contexts = detalhe?.Contexts ?? null
@@ -417,6 +419,16 @@ export function ReportDialog({
             failed={anexos.failed}
             onReload={anexos.reload}
             onExpired={anexos.refresh}
+          />
+
+          {/* Antes do encerramento: as reaberturas já aconteceram, e o fechamento
+              que vale, quando há um, é o fim mais recente. Vem do detalhe, que
+              encerrar e pedir informação também devolvem — por isso a lista não
+              some da tela depois dessas ações. */}
+          <ReportReopenings
+            reaberturas={detalhe?.Reopenings ?? []}
+            anexosPorReabertura={anexos.porReabertura}
+            aoExpirar={anexos.refresh}
           />
 
           {pedido && <Devolvido pedido={pedido} />}

@@ -1,7 +1,7 @@
 import { type ReactNode, useRef } from 'react'
 import type { PublicMediaSettingsViewModel } from '@/contracts'
 import type { Anexo } from '@/embed/attachments'
-import { acceptAttribute } from '@/embed/attachments'
+import { acceptAttribute, hasRoom } from '@/embed/attachments'
 import { cn } from '@/shared/lib/cn'
 import { formatBytes } from '@/shared/lib/formatBytes'
 
@@ -17,9 +17,9 @@ export const ATTACH_BUTTON_CLASS = cn(
  * **Nao sobe nada.** E so a lista local — quem envia e quem monta a tela, depois de
  * o texto existir do lado de la.
  *
- * **Os botoes extras entram por fora** (`actions`), porque capturar e gravar
- * existem no quadro e nao na pagina de acompanhamento. O seletor e o mesmo nos
- * dois lugares, e e isso que este componente garante.
+ * **Os botoes extras entram por fora** (`actions`), porque capturar existe no
+ * quadro e nao na pagina de acompanhamento. O seletor e o mesmo nos dois lugares,
+ * e e isso que este componente garante.
  */
 export function AttachmentPicker({
   media,
@@ -28,23 +28,18 @@ export function AttachmentPicker({
   onAdd,
   onRemove,
   actions,
-  status,
-  busy = false,
 }: {
   media: PublicMediaSettingsViewModel
   anexos: Anexo[]
   recusa: string | null
   onAdd: (arquivos: File[]) => void
   onRemove: (id: string) => void
-  /** Botoes a mais, ao lado de "Anexar arquivo". */
+  /** Botoes a mais, ao lado de "Anexar imagem". */
   actions?: ReactNode
-  /** O que aparece embaixo dos botoes enquanto algo acontece, como uma gravacao. */
-  status?: ReactNode
-  /** Algo em curso: esconde a dica de colar, que so atrapalharia. */
-  busy?: boolean
 }) {
   const seletor = useRef<HTMLInputElement>(null)
-  const cheio = anexos.length >= media.MaxFilesPerReport
+  // Cheio pelo total ou pelo limite do tipo, o que vier primeiro.
+  const cheio = !hasRoom(anexos, media)
 
   return (
     <div className="flex flex-col gap-2">
@@ -55,15 +50,13 @@ export function AttachmentPicker({
           disabled={cheio}
           className={ATTACH_BUTTON_CLASS}
         >
-          Anexar arquivo
+          Anexar imagem
         </button>
 
         {actions}
 
-        {!busy && <span className="text-caption text-fg-muted">ou cole um print aqui</span>}
+        <span className="text-caption text-fg-muted">ou cole um print aqui</span>
       </div>
-
-      {status}
 
       {/* Escondido, e aberto pelo botao: o seletor nativo nao aceita a cor do
           cliente nem cabe em 360 pixels com o nome do arquivo ao lado. O `accept`
@@ -73,7 +66,7 @@ export function AttachmentPicker({
         type="file"
         multiple
         accept={acceptAttribute(media)}
-        aria-label="Escolher arquivo para anexar"
+        aria-label="Escolher imagem para anexar"
         className="hidden"
         onChange={(event) => {
           const arquivos = Array.from(event.target.files ?? [])
@@ -99,7 +92,7 @@ export function AttachmentPicker({
                 />
               ) : (
                 <span className="flex h-full w-full items-center justify-center text-caption text-fg-muted">
-                  {anexo.kind === 'Video' ? 'vídeo' : 'imagem'}
+                  imagem
                 </span>
               )}
               <button
@@ -125,10 +118,15 @@ export function AttachmentPicker({
 }
 
 /**
- * Os arquivos depois de enviar o texto: na fila, subindo, enviado ou com falha.
+ * Os arquivos depois de enviar o texto: na fila, subindo, enviado, com falha ou
+ * recusado.
  *
  * **A frase da falha diz primeiro que o texto esta salvo.** E o que a pessoa precisa
  * saber quando um arquivo nao vai: que nao perdeu o que escreveu.
+ *
+ * **Recusado nao oferece "Tentar de novo".** A API disse que o envio fechou, encheu
+ * ou que o projeto deixou de aceitar — repetir levaria a mesma resposta, e o botao
+ * so ensinaria a pessoa a clicar em vao. A frase diz o motivo que a API deu.
  *
  * @param savedNote O que foi salvo, dito do jeito da tela — "o relato", "a resposta".
  */
@@ -143,7 +141,10 @@ export function AttachmentProgress({
 }) {
   if (anexos.length === 0) return null
 
-  const falha = anexos.find((anexo) => anexo.status === 'failed')
+  // A falha que da para tentar de novo vem primeiro: e a que pede um gesto.
+  const falha =
+    anexos.find((anexo) => anexo.status === 'failed') ??
+    anexos.find((anexo) => anexo.status === 'refused')
 
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-4">
@@ -156,6 +157,9 @@ export function AttachmentProgress({
               {anexo.status === 'waiting' && 'na fila'}
               {anexo.status === 'sending' && `${Math.round(anexo.progress * 100)}%`}
               {anexo.status === 'done' && 'enviado'}
+              {anexo.status === 'refused' && (
+                <span title={anexo.error ?? undefined}>não enviado</span>
+              )}
               {anexo.status === 'failed' && (
                 <button
                   type="button"

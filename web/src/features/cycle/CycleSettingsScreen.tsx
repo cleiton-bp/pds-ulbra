@@ -31,6 +31,10 @@ import { cn } from '@/shared/lib/cn'
  * tem: o botão aparecia e a API recusava. Volta quando essas três rotas aceitarem
  * o código. Até lá o valor salvo segue intacto no rascunho, como o das regras sem
  * tela.
+ *
+ * **Volta junto com `ActionsAcceptReporterCode`, no `ReportService` da API.** Até
+ * lá a API ignora o valor salvo — ligar só esta constante desenharia um controle que
+ * não muda nada.
  */
 const MOSTRAR_REGRA_DO_CODIGO = false
 

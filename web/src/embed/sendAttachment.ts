@@ -8,6 +8,15 @@ export interface ReportCredentials {
 }
 
 /**
+ * A que envio o arquivo pertence: a criacao do relato, a resposta ao time ou a
+ * reabertura.
+ *
+ * **Diz o envio, e nunca qual resposta ou qual reabertura.** O servidor prende o
+ * arquivo a que acabou de acontecer — ver `ForReply` e `ForReopen` na API.
+ */
+export type AttachmentEnvio = 'creation' | 'reply' | 'reopen'
+
+/**
  * Leva um arquivo ate o fim: permissao, envio direto e confirmacao.
  *
  * **Os tres passos, e so dois sao nossos.** Pedir a permissao e confirmar passam
@@ -25,7 +34,7 @@ export async function sendAttachment(
   credentials: ReportCredentials,
   anexo: Anexo,
   onProgress: (fraction: number) => void,
-  { forReply = false }: { forReply?: boolean } = {},
+  { envio = 'creation' }: { envio?: AttachmentEnvio } = {},
 ): Promise<void> {
   const ticket = await publicMediaService.requestUpload({
     TrackingCode: credentials.trackingCode,
@@ -34,11 +43,11 @@ export async function sendAttachment(
     ContentType: anexo.file.type,
     SizeBytes: anexo.file.size,
     FileName: anexo.file.name,
-    DurationSeconds: anexo.durationSeconds ?? undefined,
     WithThumbnail: anexo.thumbnail !== null,
-    // Na resposta, o servidor prende o arquivo a resposta mais recente de quem
-    // relatou. O navegador nao diz qual — ver `ForReply` na API.
-    ForReply: forReply,
+    // Na resposta e na reabertura, o servidor prende o arquivo a que acabou de
+    // acontecer. O navegador nao diz qual — ver `ForReply` e `ForReopen` na API.
+    ForReply: envio === 'reply',
+    ForReopen: envio === 'reopen',
   })
 
   await publicMediaService.uploadToStorage(ticket.File, anexo.file, onProgress)

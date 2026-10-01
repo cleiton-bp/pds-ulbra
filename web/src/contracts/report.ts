@@ -196,6 +196,23 @@ export interface ReportClosureViewModel {
 }
 
 /**
+ * Uma vez em que quem relatou disse que nao resolveu, como **o time** a le.
+ *
+ * **E o fechamento reaberto, e nao um comentario**: reabrir nao escreve na
+ * conversa, e o motivo mora no proprio fechamento. `PublicId` e o mesmo
+ * `ReopenPublicId` dos anexos, e e o que poe cada arquivo junto do motivo.
+ */
+export interface ReportReopeningViewModel {
+  PublicId: string
+  /** Como o time tinha encerrado, antes de a pessoa reabrir. */
+  Outcome: PublicOutcome
+  ClosedAt: string
+  ReopenedAt: string
+  /** O que ainda esta acontecendo, ou nulo quando o projeto nao pede e ficou em branco. */
+  Comment: string | null
+}
+
+/**
  * Um relato aberto. O contexto so vem aqui porque e a resposta a uma pergunta que
  * so nasce depois de ler o relato — "em que navegador isso aconteceu?".
  */
@@ -252,6 +269,8 @@ export interface ReportDetailViewModel extends ReportSummaryViewModel {
   ModerationState: ReportModerationState
   /** Em ordem de chave, decidida pela API. */
   Contexts: ReportContextViewModel[]
+  /** As vezes em que quem relatou reabriu, da mais antiga para a mais nova. */
+  Reopenings: ReportReopeningViewModel[]
 }
 
 /**
@@ -425,6 +444,17 @@ export interface PublicInfoRequestViewModel {
   IsWarning: boolean
 }
 
+/**
+ * Uma vez em que quem relatou reabriu, como ela mesma a le: so o que disse, e
+ * quando. `PublicId` e o mesmo `ReopenPublicId` dos anexos.
+ */
+export interface PublicReopeningViewModel {
+  PublicId: string
+  ReopenedAt: string
+  /** O que ela escreveu ao reabrir, ou nulo quando deixou em branco. */
+  Comment: string | null
+}
+
 export interface PublicReportViewModel {
   TrackingCode: string
   Type: ReportType
@@ -457,6 +487,11 @@ export interface PublicReportViewModel {
    * caixa de entrada sem dono e sem moderacao.
    */
   CanReply: boolean
+  /**
+   * As vezes em que ela reabriu, da mais antiga para a mais nova. Sem isto o motivo
+   * sumia da pagina junto com o fechamento reaberto.
+   */
+  Reopenings: PublicReopeningViewModel[]
 }
 
 /** A resposta de quem relatou. Leva as mesmas credenciais da consulta. */
@@ -745,7 +780,8 @@ export interface ReporterCodeLookupRequest {
  * A leitura de um relato pelo codigo, em vez do link.
  *
  * O codigo prova que o relato e dela; o link e que da poder sobre ele. As acoes
- * chegam desligadas, a menos que o projeto tenha ligado `TrackingCodeCanAct`.
+ * chegam desligadas: confirmar, reabrir e responder so aceitam o token, e a API
+ * ignora `TrackingCodeCanAct` ate elas aceitarem o codigo.
  */
 export interface OpenByReporterCodeRequest {
   Key: string

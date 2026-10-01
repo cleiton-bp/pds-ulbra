@@ -29,6 +29,10 @@ export interface AttachmentUploadTicketViewModel {
  *
  * **O protocolo e o token vem junto**, e sao eles que dizem de quem e o relato:
  * sem relato, nao ha permissao nenhuma.
+ *
+ * **O arquivo vai com um envio**: a criacao do relato (nenhuma bandeira), a
+ * resposta (`ForReply`) ou a reabertura (`ForReopen`). As duas bandeiras juntas sao
+ * recusadas — um arquivo vai com um envio so.
  */
 export interface RequestAttachmentUploadRequest {
   TrackingCode: string
@@ -38,13 +42,17 @@ export interface RequestAttachmentUploadRequest {
   /** O que o navegador diz. Serve para recusar cedo; o gravado e o que o armazenamento contar. */
   SizeBytes: number
   FileName: string
-  DurationSeconds?: number
   WithThumbnail: boolean
   /**
    * Vai junto da resposta que a pessoa acabou de mandar. **Nao diz qual**: o
    * servidor prende a resposta mais recente dela, se for dos ultimos minutos.
    */
   ForReply?: boolean
+  /**
+   * Vai junto da reabertura que a pessoa acabou de fazer. **Nao diz qual**, pelo
+   * mesmo motivo de `ForReply`.
+   */
+  ForReopen?: boolean
 }
 
 /** O aviso de que o arquivo chegou. Sem ele, o anexo nao existe para o produto. */
@@ -59,7 +67,6 @@ export interface ConfirmedAttachmentViewModel {
   PublicId: string
   Kind: MediaKind
   SizeBytes: number
-  DurationSeconds: number | null
 }
 
 /**
@@ -76,12 +83,17 @@ export interface PanelAttachmentViewModel {
   ThumbnailUrl: string | null
   ExpiresAt: string
   SizeBytes: number
+  /** So os videos antigos tem. */
   DurationSeconds: number | null
   OriginalName: string | null
   /** Veio numa resposta ao pedido de informacao, e nao na criacao do relato. */
   CameWithReply: boolean
   /** A fala da conversa em que o arquivo veio — a tela o mostra logo abaixo dela. */
   ReplyPublicId: string | null
+  /** Veio numa reabertura, e nao na criacao do relato. */
+  CameWithReopen: boolean
+  /** A reabertura em que o arquivo veio — o mesmo `PublicId` de `Reopenings` no detalhe. */
+  ReopenPublicId: string | null
   CreatedAt: string
 }
 
@@ -95,8 +107,11 @@ export interface PublicAttachmentViewModel {
   Url: string
   ThumbnailUrl: string | null
   ExpiresAt: string
+  /** So os videos antigos tem. */
   DurationSeconds: number | null
   /** A fala da conversa em que o arquivo veio, quando veio numa resposta. */
   ReplyPublicId: string | null
+  /** A reabertura em que o arquivo veio — o mesmo `PublicId` de `Reopenings` no relato. */
+  ReopenPublicId: string | null
   CreatedAt: string
 }

@@ -50,8 +50,9 @@ public interface IReportService
     ///
     /// <para><b>O codigo prova que o relato e dela; o link e que da poder sobre
     /// ele.</b> Entao isto le, e as acoes saem desligadas — confirmar, reabrir e
-    /// responder continuam exigindo o link, a menos que o projeto tenha ligado
-    /// <c>TrackingCodeCanAct</c>.</para>
+    /// responder continuam exigindo o link. <b>Mesmo com <c>TrackingCodeCanAct</c>
+    /// ligado</b>: enquanto essas tres rotas so aceitarem o token, o valor gravado
+    /// e ignorado aqui, para a pagina nao mostrar botoes que a API recusaria.</para>
     ///
     /// <para><b>Grava a visualizacao</b>, como a leitura pelo link: quem abriu foi
     /// quem relatou, e o instante disso e metade da pergunta da pesquisa.</para>

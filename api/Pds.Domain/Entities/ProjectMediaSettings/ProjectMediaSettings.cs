@@ -11,8 +11,7 @@ namespace Pds.Domain.Entities;
 ///
 /// <para><b>Esta configuracao vem antes do quadro saber anexar, e nao depois.</b> E
 /// ela que diz o que existe: desligada, o quadro nao mostra nada de midia, e nenhum
-/// outro campo desta linha importa. E a unica trava que a etapa constroi de
-/// proposito.</para>
+/// outro campo desta linha importa.</para>
 ///
 /// <para><b>Nenhum limite de tipo mora aqui.</b> Eles estao em
 /// <see cref="ProjectMediaKind"/>, uma linha por tipo — e e esse desenho que faz
@@ -66,12 +65,24 @@ public class ProjectMediaSettings : PdsBaseEntity
     public bool AllowsOnInfoRequest { get; set; }
 
     /// <summary>
+    /// Da para anexar ao reabrir um relato encerrado.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>E outra pergunta, e por isso e outra chave.</b> Anexar na resposta
+    /// atende ao time que pediu a tela; anexar ao reabrir atende a quem diz "ainda
+    /// esta quebrado, olha aqui". Um projeto pode querer um e nao o outro, e uma
+    /// chave so para os dois obrigaria a escolher pelos dois.</para>
+    /// </remarks>
+    public bool AllowsOnReopen { get; set; }
+
+    /// <summary>
     /// Quantos arquivos cabem num relato, somando todos os tipos.
     /// </summary>
     /// <remarks>
-    /// <para><b>Existe alem do limite de cada tipo, e nao no lugar dele.</b> So com
-    /// o limite por tipo, tres imagens mais um video passariam mesmo num projeto que
-    /// so queria dois arquivos no total — a soma nao tem quem a segure.</para>
+    /// <para><b>Existe alem do limite de cada tipo, e nao no lugar dele.</b> Com um
+    /// tipo so, os dois valem juntos e vence o menor. Com mais de um, so o limite
+    /// por tipo deixaria a soma passar do que o projeto quer no total — e ela nao
+    /// teria quem a segurasse.</para>
     /// </remarks>
     public int MaxFilesPerReport { get; set; }
 

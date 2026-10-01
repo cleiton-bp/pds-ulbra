@@ -20,6 +20,9 @@ namespace Pds.WebApi.Controllers;
 /// para pedir antes de a imagem quebrar. O vídeo vale mais que a imagem: ele é lido
 /// em pedaços enquanto toca, e pausar não pode quebrar a reprodução.
 ///
+/// **Vídeo só aparece se entrou antes de sair do produto.** Nenhum vídeo novo é
+/// aceito, mas os que já estavam confirmados continuam listados e tocando.
+///
 /// **Só aparece o que foi confirmado.** Permissão pedida e não usada, ou arquivo
 /// cujos bytes não conferiram, não existem para o time.
 /// </summary>

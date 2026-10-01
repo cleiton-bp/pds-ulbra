@@ -10,6 +10,7 @@ import {
 import { describeError, reportService } from '@/data/publicIndex'
 import { ATTACH_BUTTON_CLASS, AttachmentPicker, AttachmentProgress } from '@/embed/AttachmentPicker'
 import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
+import { hasRoom } from '@/embed/attachments'
 import { CaptureCropper } from '@/embed/CaptureCropper'
 import type { EmbedConfig } from '@/embed/config'
 import type { HostConnection } from '@/embed/hostBridge'
@@ -17,14 +18,7 @@ import { MyReports } from '@/embed/MyReports'
 import { PublicList } from '@/embed/PublicList'
 import { buildReportContext } from '@/embed/reportContext'
 import { readReporterCode, writeReporterCode } from '@/embed/reporterCodeStore'
-import {
-  canCaptureScreen,
-  canRecordScreen,
-  captureFrame,
-  isBlockedByPage,
-  type Recording,
-  recordScreen,
-} from '@/embed/screenCapture'
+import { canCaptureScreen, captureFrame, isBlockedByPage } from '@/embed/screenCapture'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 
 import { Button } from '@/shared/components/Button'
@@ -136,22 +130,13 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   /** A tela capturada, esperando a pessoa escolher o pedaco. */
   const [recorte, setRecorte] = useState<HTMLCanvasElement | null>(null)
 
-  /** A gravacao em andamento, e quantos segundos ja tem. */
-  const [gravando, setGravando] = useState<{ controle: Recording; segundos: number } | null>(null)
-  const gravacaoRef = useRef<Recording | null>(null)
-
   // O navegador nao muda de ideia no meio da pagina: pergunta-se uma vez.
-  const suporta = useMemo(() => ({ captura: canCaptureScreen(), gravacao: canRecordScreen() }), [])
+  const captureSupported = useMemo(() => canCaptureScreen(), [])
 
+  // A captura vira imagem, e so aparece onde imagem e aceita.
   const tipoImagem = media?.Kinds.find((kind) => kind.Kind === 'Image') ?? null
-  const tipoVideo = media?.Kinds.find((kind) => kind.Kind === 'Video') ?? null
   const podeCapturar =
-    !!media?.AllowsScreenCapture && !capturaBloqueada && tipoImagem !== null && suporta.captura
-  const podeGravar =
-    !!media?.AllowsScreenCapture && !capturaBloqueada && tipoVideo !== null && suporta.gravacao
-
-  // Fechar a pagina gravando nao pode deixar a tela compartilhada.
-  useEffect(() => () => gravacaoRef.current?.stop(), [])
+    !!media?.AllowsScreenCapture && !capturaBloqueada && tipoImagem !== null && captureSupported
 
   // O tema fixado pelo cliente vale sempre; `Auto` acompanha o sistema de quem
   // visita, inclusive se ele mudar com o quadro ja aberto.
@@ -174,7 +159,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     if (!isBlockedByPage(falha)) return
 
     setCapturaBloqueada(true)
-    setRecusa('Este site não permite capturar a tela. Anexe um arquivo no lugar.')
+    setRecusa('Este site não permite capturar a tela. Anexe uma imagem no lugar.')
   }
 
   /** Congela a tela e abre o recorte num quadro maior. Chamado direto do clique. */
@@ -195,38 +180,11 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     host?.expand()
   }
 
-  /** Grava ate a pessoa parar, ou ate a duracao maxima. Chamado direto do clique. */
-  async function gravar() {
-    if (!tipoVideo) return
-    setRecusa(null)
-    const minha = generation.current
-
-    try {
-      const controle = await recordScreen({
-        maxSeconds: tipoVideo.MaxDurationSeconds ?? 60,
-        maxBytes: tipoVideo.MaxBytes,
-        onTick: (segundos) => setGravando((atual) => atual && { ...atual, segundos }),
-      })
-      gravacaoRef.current = controle
-      setGravando({ controle, segundos: 0 })
-
-      const { file, durationSeconds } = await controle.done
-      gravacaoRef.current = null
-      if (generation.current !== minha) return
-
-      setGravando(null)
-      await adicionar([file], { durationSeconds })
-    } catch (falha) {
-      gravacaoRef.current = null
-      if (generation.current !== minha) return
-      setGravando(null)
-      falhouCaptura(falha)
-    }
-  }
-
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!trimmed || sending) return
+    // Arquivo ainda entrando na lista nao subiria: o envio leva a lista como ela
+    // esta. Ver `preparando` em useAttachmentDraft.
+    if (!trimmed || sending || draft.preparando) return
 
     setSending(true)
     setError(null)
@@ -259,8 +217,9 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       setCreated(criado)
 
       // **O protocolo aparece antes de os arquivos subirem.** Ele ja esta
-      // garantido — o relato existe —, e fazer a pessoa esperar o video terminar
-      // para ver o protocolo seria esconder a parte que nao pode se perder.
+      // garantido — o relato existe —, e fazer a pessoa esperar os arquivos
+      // terminarem para ver o protocolo seria esconder a parte que nao pode se
+      // perder.
       if (draft.atual().length > 0) {
         void enviarAnexos({ trackingCode: criado.TrackingCode, token: criado.AccessToken }, minha)
       }
@@ -303,9 +262,6 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
     draft.limpar()
 
-    gravacaoRef.current?.stop()
-    gravacaoRef.current = null
-    setGravando(null)
     setRecorte(null)
   }
 
@@ -530,10 +486,9 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
         </button>
       )}
 
-      {/* **Antes de escrever, e não depois.** É o critério da etapa: avisar quando
-          o texto já está pronto seria avisar tarde, e quem descobrisse ali teria
-          de apagar o que escreveu. A frase diz o que acontece, e não o que a
-          política permite. */}
+      {/* **Antes de escrever, e não depois.** Avisar quando o texto já está
+          pronto seria avisar tarde, e quem descobrisse ali teria de apagar o que
+          escreveu. A frase diz o que acontece, e não o que a política permite. */}
       {ehPublico && (
         <p className="rounded-lg border border-border border-dashed bg-surface px-3 py-2 text-detail text-fg-muted leading-normal">
           <strong className="font-medium text-fg">Este relato pode virar público.</strong> Alguém da
@@ -592,53 +547,18 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           recusa={recusa}
           onAdd={(arquivos) => void adicionar(arquivos)}
           onRemove={remover}
-          busy={gravando !== null}
           actions={
-            <>
-              {podeCapturar && !gravando && (
-                <button
-                  type="button"
-                  onClick={() => void capturar()}
-                  disabled={anexos.length >= media.MaxFilesPerReport}
-                  className={ATTACH_BUTTON_CLASS}
-                >
-                  Capturar tela
-                </button>
-              )}
-
-              {podeGravar && !gravando && (
-                <button
-                  type="button"
-                  onClick={() => void gravar()}
-                  disabled={anexos.length >= media.MaxFilesPerReport}
-                  className={ATTACH_BUTTON_CLASS}
-                >
-                  Gravar tela
-                </button>
-              )}
-            </>
-          }
-          status={
-            gravando && (
-              <div
-                role="status"
-                className="flex items-center justify-between gap-2 rounded-lg border border-error-border px-3 py-2"
+            podeCapturar && (
+              <button
+                type="button"
+                onClick={() => void capturar()}
+                // A captura vira imagem: sem vaga para imagem, capturar e recortar
+                // terminaria numa recusa.
+                disabled={!hasRoom(anexos, media, 'Image')}
+                className={ATTACH_BUTTON_CLASS}
               >
-                <span className="text-detail text-fg">
-                  <span aria-hidden className="mr-1.5 text-error-fg">
-                    ●
-                  </span>
-                  Gravando {relogio(gravando.segundos)} de{' '}
-                  {relogio(tipoVideo?.MaxDurationSeconds ?? 60)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => gravando.controle.stop()}
-                  className="font-medium text-detail text-fg underline underline-offset-4"
-                >
-                  Parar
-                </button>
-              </div>
+                Capturar tela
+              </button>
             )
           }
         />
@@ -720,8 +640,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       */}
       <button
         type="submit"
-        // Gravando, o video ainda nao existe: enviar agora mandaria o relato sem ele.
-        disabled={!trimmed || sending || gravando !== null}
+        disabled={!trimmed || sending || draft.preparando}
         className={cn(
           'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg',
           'border border-transparent font-medium text-body transition-opacity',
@@ -734,10 +653,4 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       </button>
     </form>
   )
-}
-
-/** Segundos como `0:07`, para o contador da gravacao. */
-function relogio(segundos: number): string {
-  const inteiros = Math.max(0, Math.floor(segundos))
-  return `${Math.floor(inteiros / 60)}:${String(inteiros % 60).padStart(2, '0')}`
 }

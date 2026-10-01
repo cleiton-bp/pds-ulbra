@@ -44,12 +44,39 @@ public class ReportAttachment : PdsBaseEntity
 
     /// <summary>
     /// Preenchido quando o anexo veio junto de uma resposta ao pedido de informacao.
-    /// Nulo quando veio na criacao do relato.
+    /// Nulo na criacao e na reabertura.
     /// </summary>
     public long? PublicCommentId { get; set; }
     public ReportPublicComment? PublicComment { get; set; }
 
-    /// <summary>Imagem ou video. E ele que diz qual limite do projeto se aplica.</summary>
+    /// <summary>
+    /// Preenchido quando o anexo veio junto de uma reabertura: o fechamento que quem
+    /// relatou reabriu. Nulo na criacao e na resposta.
+    ///
+    /// <para><b>Coluna propria, e nao uma conta feita na hora de ler.</b> Deduzir
+    /// pela data — o anexo que entrou logo depois de uma reabertura e dela —
+    /// faria cada leitura refazer a conta, e a cota da reabertura virar uma busca
+    /// por intervalo. Com a coluna, a cota e um filtro, e a tela sabe onde mostrar o
+    /// arquivo sem adivinhar.</para>
+    ///
+    /// <para><b>Aponta para o fechamento, e nao para um comentario.</b> Reabrir nao
+    /// escreve na conversa — encerramento nao e conversa —, e o motivo pode ficar em
+    /// branco quando o projeto nao o pede. O fechamento reaberto sempre existe, e e
+    /// nele que o motivo mora.</para>
+    ///
+    /// <para>Nunca junto de <see cref="PublicCommentId"/>: um arquivo vai com um envio
+    /// so, e o banco trava isso.</para>
+    /// </summary>
+    public long? ReopenedClosureId { get; set; }
+    public ReportClosure? ReopenedClosure { get; set; }
+
+    /// <summary>
+    /// Imagem, ou video nos anexos antigos. E ele que diz qual limite do projeto se
+    /// aplica.
+    ///
+    /// <para>Anexo novo e sempre imagem: o video saiu do produto. Os videos
+    /// confirmados antes disso continuam aqui, e continuam tocando.</para>
+    /// </summary>
     public MediaKindEnum Kind { get; set; }
 
     /// <summary>Em que ponto do envio este anexo esta.</summary>
@@ -65,8 +92,8 @@ public class ReportAttachment : PdsBaseEntity
     public string ObjectKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// A miniatura, gerada no proprio navegador antes do envio. No video e o quadro
-    /// de capa.
+    /// A miniatura, gerada no proprio navegador antes do envio. Nos videos antigos,
+    /// e o quadro de capa.
     ///
     /// <para><b>Vem de fora, entao ela tambem e conferida.</b> Miniatura e imagem
     /// como qualquer outra, e aceita-la sem olhar seria abrir pelo lado de tras a
@@ -92,7 +119,13 @@ public class ReportAttachment : PdsBaseEntity
     /// </summary>
     public long SizeBytes { get; set; }
 
-    /// <summary>Duracao, so para o que tem duracao.</summary>
+    /// <summary>
+    /// Duracao, so para o que tem duracao.
+    ///
+    /// <para>So video tinha, e video nao entra mais: anexo novo grava nulo. Fica
+    /// pelos videos que ja estavam guardados, que o painel ainda lista com a
+    /// duracao.</para>
+    /// </summary>
     public int? DurationSeconds { get; set; }
 
     /// <summary>

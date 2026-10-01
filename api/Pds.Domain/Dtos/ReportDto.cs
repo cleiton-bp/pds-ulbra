@@ -336,8 +336,9 @@ public class ReporterCodeLookupDto
 /// A leitura de **um** relato pelo código pessoal, em vez do link.
 ///
 /// <para><b>O código prova que o relato é dela; o link é que dá poder sobre ele.</b>
-/// Por isso esta rota lê, e as ações vêm desligadas — a menos que o projeto tenha
-/// ligado `tracking_code_can_act`, que existe exatamente para esta decisão.</para>
+/// Por isso esta rota lê, e as ações vêm desligadas: confirmar, reabrir e responder
+/// só aceitam o token do link. `tracking_code_can_act` continua gravado, e é
+/// ignorado até essas três rotas aceitarem o código.</para>
 /// </summary>
 public class OpenByReporterCodeDto
 {

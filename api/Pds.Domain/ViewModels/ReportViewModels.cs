@@ -178,6 +178,33 @@ public record ReportClosureViewModel(
     bool SatisfactionDeclined);
 
 /// <summary>
+/// Uma vez em que quem relatou disse que nao resolveu, como <b>o time</b> a le.
+///
+/// <para><b>E o fechamento reaberto, e nao um comentario.</b> Reabrir nao escreve
+/// na conversa: o motivo mora no proprio fechamento, e e por isso que ele so
+/// aparecia na linha do historico — "quem relatou reabriu", sem dizer por que.
+/// Quem pega o trabalho de novo precisa ler o que faltou, e os arquivos que vieram
+/// com a reabertura ficam junto do motivo.</para>
+/// </summary>
+/// <param name="PublicId">
+/// O fechamento reaberto. E o mesmo identificador de <c>ReopenPublicId</c> nos
+/// anexos, e e o que liga cada arquivo a sua reabertura.
+/// </param>
+/// <param name="Outcome">Como o time tinha encerrado, antes de a pessoa reabrir.</param>
+/// <param name="ClosedAt">Quando o time tinha encerrado.</param>
+/// <param name="ReopenedAt">Quando quem relatou reabriu.</param>
+/// <param name="Comment">
+/// O que ainda esta acontecendo, nas palavras de quem relatou. <b>Nulo</b> quando o
+/// projeto nao pede o motivo e a pessoa deixou em branco.
+/// </param>
+public record ReportReopeningViewModel(
+    Guid PublicId,
+    PublicOutcomeEnum Outcome,
+    DateTime ClosedAt,
+    DateTime ReopenedAt,
+    string? Comment);
+
+/// <summary>
 /// O pedido de informacao aberto, como <b>o time</b> o le.
 /// </summary>
 /// <param name="AskedByName">Quem perguntou. Nulo so quando a conta do autor foi esvaziada.</param>
@@ -282,6 +309,13 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <para>Liberado <b>nao quer dizer visivel</b>: o projeto tambem precisa estar
 /// num nivel publico. Sao duas condicoes, e esta e so uma delas.</para>
 /// </param>
+/// <param name="Reopenings">
+/// As vezes em que quem relatou reabriu, da mais antiga para a mais nova. Vazia
+/// quando nunca reabriu.
+///
+/// <para><b>Vem no detalhe e nao no resumo</b>, pelo mesmo motivo do fechamento: a
+/// lista nao mostra isto, e uma consulta por linha pagaria caro por nada.</para>
+/// </param>
 public record ReportDetailViewModel(
     Guid PublicId,
     string TrackingCode,
@@ -299,7 +333,8 @@ public record ReportDetailViewModel(
     ReportInfoRequestViewModel? InfoRequest,
     bool CanAskInfo,
     ReportModerationStateEnum ModerationState,
-    IReadOnlyList<ReportContextViewModel> Contexts);
+    IReadOnlyList<ReportContextViewModel> Contexts,
+    IReadOnlyList<ReportReopeningViewModel> Reopenings);
 
 
 /// <summary>
@@ -512,6 +547,24 @@ public record PublicInfoRequestViewModel(
     bool IsWarning);
 
 /// <summary>
+/// Uma vez em que quem relatou reabriu, como ela mesma a le.
+///
+/// <para><b>So o que ela disse, e quando.</b> O desfecho e o motivo do fechamento
+/// que ela reabriu nao voltam aqui: a pagina ja os mostrou quando valiam, e
+/// repeti-los em cada reabertura faria a historia dela parecer a do time.</para>
+/// </summary>
+/// <param name="PublicId">
+/// A reabertura. E o mesmo identificador de <c>ReopenPublicId</c> nos anexos, e e o
+/// que poe cada arquivo junto do motivo com que ele veio.
+/// </param>
+/// <param name="ReopenedAt">Quando ela reabriu.</param>
+/// <param name="Comment">O que ela escreveu ao reabrir, ou <b>nulo</b> quando deixou em branco.</param>
+public record PublicReopeningViewModel(
+    Guid PublicId,
+    DateTime ReopenedAt,
+    string? Comment);
+
+/// <summary>
 /// O relato como quem o escreveu o ve, na pagina publica de acompanhamento.
 ///
 /// <para><b>Tipo proprio, e nao heranca do detalhe do painel.</b> Esta e a unica
@@ -573,6 +626,14 @@ public record PublicInfoRequestViewModel(
 /// uma caixa de entrada sem dono e sem moderacao, e moderacao ficou de fora desta
 /// etapa de proposito. A vez volta para a equipe assim que ela responde.</para>
 /// </param>
+/// <param name="Reopenings">
+/// As vezes em que ela reabriu, da mais antiga para a mais nova, com o que disse em
+/// cada uma. Vazia quando nunca reabriu.
+///
+/// <para>Sem isto o motivo da reabertura era gravado e nunca mais lido: o
+/// fechamento reaberto sai de <c>Closure</c>, e com ele saia a unica coisa que a
+/// pessoa tinha escrito ao dizer que nao resolveu.</para>
+/// </param>
 public record PublicReportViewModel(
     string TrackingCode,
     ReportTypeEnum Type,
@@ -582,7 +643,8 @@ public record PublicReportViewModel(
     PublicClosureViewModel? Closure,
     IReadOnlyList<PublicMessageViewModel> Conversation,
     PublicInfoRequestViewModel? InfoRequest,
-    bool CanReply);
+    bool CanReply,
+    IReadOnlyList<PublicReopeningViewModel> Reopenings);
 
 /// <summary>
 /// Um trecho que a varredura reconheceu como dado sensivel.

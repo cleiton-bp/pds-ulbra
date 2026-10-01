@@ -10,26 +10,32 @@ namespace Pds.Domain.Enums;
 /// custaria uma migracao por tipo, e deixaria toda configuracao carregando campos
 /// de tipos que aquele projeto nunca ligou.</para>
 ///
-/// <para>No banco vira texto em snake_case (image, video).</para>
+/// <para>No banco vira texto em snake_case (image, video). Hoje so imagem entra;
+/// ver <see cref="Video"/>.</para>
 /// </summary>
 public enum MediaKindEnum
 {
     /// <summary>
     /// Print, foto da tela, captura recortada.
     ///
-    /// <para>E o tipo que da nome a etapa, e o mais barato de guardar: alguns
+    /// <para>E o unico tipo que entra, e o mais barato de guardar: alguns
     /// megabytes, sem duracao e sem nada para tocar.</para>
     /// </summary>
     Image,
 
     /// <summary>
-    /// Gravacao curta de tela.
+    /// Gravacao curta de tela. <b>Nao entra mais.</b>
     ///
-    /// <para><b>E o caro, nos dois sentidos.</b> Custa armazenamento de verdade, e
-    /// carrega muito mais dado de terceiro que um print — um print e um instante
-    /// escolhido, e sessenta segundos de tela mostram notificacao chegando e aba
-    /// aberta ao lado. E por isso que a duracao maxima e a protecao mais barata
-    /// que existe aqui: ela corta as duas coisas de uma vez.</para>
+    /// <para><b>Saiu do produto porque pesava demais</b> no armazenamento e na
+    /// entrega: cada video pesava varias vezes o teto de uma imagem, e pesava de
+    /// novo a cada vez que alguem apertava play. Nenhum projeto configura, nenhuma
+    /// permissao de envio e assinada para ele, e o padrao de fabrica nem o
+    /// conhece.</para>
+    ///
+    /// <para><b>O valor fica, e nao e esquecimento.</b> Ha anexo confirmado e linha
+    /// de limite gravados como <c>video</c>, e sem o valor eles deixariam de
+    /// carregar. Os videos que ja estavam guardados continuam listados e
+    /// tocando.</para>
     /// </summary>
     Video,
 }

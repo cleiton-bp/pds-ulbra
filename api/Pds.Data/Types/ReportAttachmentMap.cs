@@ -14,6 +14,14 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
         {
             table.HasComment(
                 "O registro de um arquivo que veio com o relato. O arquivo em si nao esta aqui e nunca estara: o que a linha guarda e o nome dele no armazenamento, o bastante para pedir uma permissao de leitura quando alguem que pode ver aparecer.");
+
+            // Um arquivo vai com um envio so: a criacao, uma resposta ou uma
+            // reabertura. As duas colunas preenchidas deixariam o arquivo contar na
+            // cota de dois envios e aparecer em dois lugares da tela — e o erro que
+            // grava isso nao aparece em lugar nenhum depois.
+            table.HasCheckConstraint(
+                "ck_report_attachments_one_submission",
+                "public_comment_id IS NULL OR reopened_closure_id IS NULL");
         });
 
         builder.Property(attachment => attachment.ReportId)
@@ -23,7 +31,11 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
 
         builder.Property(attachment => attachment.PublicCommentId)
             .HasColumnName("public_comment_id")
-            .HasComment("Preenchido quando o anexo veio junto de uma resposta ao pedido de informacao. Nulo quando veio na criacao do relato.");
+            .HasComment("Preenchido quando o anexo veio junto de uma resposta ao pedido de informacao. Nulo na criacao e na reabertura.");
+
+        builder.Property(attachment => attachment.ReopenedClosureId)
+            .HasColumnName("reopened_closure_id")
+            .HasComment("Preenchido quando o anexo veio junto de uma reabertura: o fechamento que quem relatou reabriu. Nulo na criacao e na resposta. Coluna propria, e nao deduzida pela data: e ela que faz a cota da reabertura ser um filtro, e a tela saber onde mostrar o arquivo.");
 
         builder.Property(attachment => attachment.Kind)
             .HasColumnName("kind")
@@ -84,6 +96,13 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
         builder.HasOne(attachment => attachment.PublicComment)
             .WithMany()
             .HasForeignKey(attachment => attachment.PublicCommentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Pelo mesmo motivo do comentario: o fechamento some, e o anexo fica preso ao
+        // relato. Cascata apagaria a prova junto com o registro de que ele voltou.
+        builder.HasOne(attachment => attachment.ReopenedClosure)
+            .WithMany()
+            .HasForeignKey(attachment => attachment.ReopenedClosureId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // O nome no armazenamento e unico no sistema inteiro, e nao por projeto: ele

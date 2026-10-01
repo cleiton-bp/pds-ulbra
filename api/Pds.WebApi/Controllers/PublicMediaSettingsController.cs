@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
@@ -12,9 +13,17 @@ namespace Pds.WebApi.Controllers;
 /// dentro do site do cliente, e ali não há conta nenhuma logada — a credencial é a
 /// chave pública, e ela só diz de que projeto é o quadro.
 ///
+/// Por isso o `[AllowAnonymous]` está escrito, e não subentendido pela ausência do
+/// `[Authorize]`: no dia em que alguém definir uma política padrão de autorização
+/// para a API inteira, esta rota precisa continuar aberta de propósito.
+///
 /// **Só os tipos ligados aparecem.** A ferramenta não tem o que fazer com um tipo
 /// que o projeto recusa, e listar o que não serve daria a quem inspeciona um mapa
-/// do que existe do outro lado.
+/// do que existe do outro lado. **Vídeo nunca aparece**, nem para o projeto que
+/// tinha limite salvo para ele: saiu do produto por pesar demais no armazenamento e
+/// na entrega. `MaxDurationSeconds` continua em cada tipo, sempre nulo, porque a
+/// ferramenta guardada no navegador antes da troca lê a ausência dele como "tem
+/// duração" e recusaria todo print.
 ///
 /// **Sem armazenamento nesta instalação, vem desligado** — mesmo que o projeto
 /// tenha o anexo ligado na configuração dele. O botão existir e o envio falhar
@@ -25,6 +34,7 @@ namespace Pds.WebApi.Controllers;
 /// diferentes — como o quadro se parece, e o que ele aceita receber —, e juntá-las
 /// faria mudar uma mexer no contrato da outra.
 /// </summary>
+[AllowAnonymous]
 [Route("public/media-settings")]
 [Produces("application/json")]
 [Tags(SwaggerTags.PublicMediaSettings)]

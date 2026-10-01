@@ -19,7 +19,7 @@ namespace Pds.Domain.ViewModels;
 /// <param name="AllowsReopen">Se quem relatou pode reabrir.</param>
 /// <param name="ReopenStatePublicId">Coluna de destino da reabertura; <b>nulo e a primeira ativa</b>.</param>
 /// <param name="ReopenRequiresComment">Se reabrir exige dizer por que.</param>
-/// <param name="TrackingCodeCanAct">Se o protocolo sozinho confirma e reabre.</param>
+/// <param name="TrackingCodeCanAct">Se quem chega pelo codigo pessoal tambem confirma e reabre. <b>Gravado e ignorado</b> ate essas acoes aceitarem o codigo.</param>
 /// <param name="SatisfactionEnabled">Se a nota e pedida ao confirmar.</param>
 /// <param name="SatisfactionStyle">Como a escala aparece.</param>
 /// <param name="SatisfactionRequired">Se confirmar exige responder.</param>

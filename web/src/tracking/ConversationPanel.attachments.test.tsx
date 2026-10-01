@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   PublicAttachmentViewModel,
   PublicMediaSettingsViewModel,
   PublicReportViewModel,
 } from '@/contracts'
+import { PanelError } from '@/data/errors'
 import { ConversationPanel } from '@/tracking/ConversationPanel'
 
 /**
@@ -21,6 +22,11 @@ import { ConversationPanel } from '@/tracking/ConversationPanel'
  *
  * **O print aparece embaixo da fala que o trouxe.** E so com o projeto deixando
  * anexar ao responder o seletor aparece.
+ *
+ * **Recusado (409) nao oferece "Tentar de novo", e nao prende a proxima
+ * resposta.** A API disse que o envio fechou ou encheu: repetir levaria a mesma
+ * resposta. O aviso fica ate a pessoa escolher outro arquivo, e o seletor volta
+ * na hora — sem isso, um recusado deixava a pagina sem anexo ate recarregar.
  */
 const dublê = vi.hoisted(() => ({ responder: vi.fn(), enviar: vi.fn() }))
 
@@ -35,13 +41,13 @@ const media: PublicMediaSettingsViewModel = {
   IsEnabled: true,
   AllowsScreenCapture: true,
   AllowsOnInfoRequest: true,
+  AllowsOnReopen: true,
   MaxFilesPerReport: 4,
   Kinds: [
     {
       Kind: 'Image',
       MaxCount: 3,
       MaxBytes: 5 * 1024 * 1024,
-      MaxDurationSeconds: null,
       ContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
     },
   ],
@@ -91,7 +97,7 @@ function montar(extra: Partial<Parameters<typeof ConversationPanel>[0]> = {}) {
 }
 
 function escolher(arquivo: File) {
-  fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
+  fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
     target: { files: [arquivo] },
   })
 }
@@ -104,12 +110,29 @@ afterEach(() => {
 describe('anexar ao responder', () => {
   it('com o projeto deixando, o seletor aparece na resposta', () => {
     montar()
-    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+  })
+
+  // O mesmo seletor do quadro: com quatro no total e tres imagens, a terceira
+  // desliga o botao, em vez de deixa-lo ligado para uma recusa depois.
+  it('sem vaga para imagem, o botao desliga', async () => {
+    montar()
+    const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
+
+    fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+      target: { files: [imagem('a.png'), imagem('b.png'), imagem('c.png')] },
+    })
+
+    await screen.findByRole('button', { name: 'Remover c.png' })
+    expect(
+      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
   })
 
   it('sem o projeto deixar, a resposta e so texto', () => {
     montar({ media: null })
-    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Anexar/ })).toBeNull()
+    expect(screen.queryByLabelText(/para anexar/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Responder' })).toBeDefined()
   })
 
@@ -135,7 +158,7 @@ describe('anexar ao responder', () => {
       trackingCode: '7K2M-9QXP-4TRV',
       token: 'tok-secreto',
     })
-    expect(dublê.enviar.mock.calls[0]?.[3]).toEqual({ forReply: true })
+    expect(dublê.enviar.mock.calls[0]?.[3]).toEqual({ envio: 'reply' })
     await waitFor(() => expect(aoAnexar).toHaveBeenCalled())
   })
 
@@ -169,6 +192,124 @@ describe('anexar ao responder', () => {
     expect(screen.getByText(/A resposta foi enviada e o seu texto está salvo/)).toBeDefined()
   })
 
+  it('recusado pela API diz o motivo, sem tentar de novo, e a próxima resposta já anexa', async () => {
+    dublê.responder.mockResolvedValue(relato())
+    dublê.enviar.mockRejectedValue(
+      new PanelError(
+        'Esta resposta ja tem o maximo de arquivos que o projeto permite, que e 4.',
+        409,
+      ),
+    )
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    await screen.findByText('não enviado')
+    expect(screen.getByText(/que o projeto permite, que e 4/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    // O envio terminou: o seletor volta para a proxima resposta.
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+
+    // Escolher outro arquivo e comecar outro envio: o aviso do anterior sai.
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    expect(screen.queryByText('não enviado')).toBeNull()
+  })
+
+  it('falha de rede continua oferecendo tentar de novo, e segura o seletor', async () => {
+    dublê.responder.mockResolvedValue(relato())
+    dublê.enviar.mockRejectedValue(new PanelError('Sem conexao.', 0))
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    await screen.findByRole('button', { name: 'Tentar de novo' })
+    expect(screen.queryByText('não enviado')).toBeNull()
+    // Enquanto um arquivo espera "tentar de novo", a lista e dele.
+    expect(screen.queryByRole('button', { name: 'Anexar imagem' })).toBeNull()
+
+    dublê.enviar.mockResolvedValue(undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+
+    await screen.findByRole('button', { name: 'Anexar imagem' })
+    expect(screen.queryByText('Arquivos')).toBeNull()
+  })
+
+  // So o 409 da API e recusa. O armazenamento recusando uma assinatura vencida
+  // (403) resolve com outra permissao, que e o que "tentar de novo" pede.
+  it('armazenamento recusando a assinatura continua oferecendo tentar de novo', async () => {
+    dublê.responder.mockResolvedValue(relato())
+    dublê.enviar
+      .mockRejectedValueOnce(new PanelError('O envio do arquivo falhou (erro 403).', 403))
+      .mockResolvedValueOnce(undefined)
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
+    expect(screen.queryByText('não enviado')).toBeNull()
+
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledTimes(2))
+  })
+
+  it('enquanto um arquivo ainda está entrando na lista, responder espera', async () => {
+    let pronto: (imagem: { width: number; height: number }) => void = () => {}
+    vi.stubGlobal(
+      'createImageBitmap',
+      () =>
+        new Promise((resolve) => {
+          pronto = resolve
+        }),
+    )
+
+    try {
+      montar()
+      fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+      escolher(print())
+
+      const responder = screen.getByRole('button', { name: 'Responder' }) as HTMLButtonElement
+      await waitFor(() => expect(responder.disabled).toBe(true))
+
+      await act(async () => pronto({ width: 0, height: 0 }))
+      await screen.findByRole('button', { name: 'Remover erro.png' })
+      expect(responder.disabled).toBe(false)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('outra resposta sem arquivo tira o aviso do recusado anterior', async () => {
+    dublê.responder.mockResolvedValue(relato())
+    dublê.enviar.mockRejectedValue(
+      new PanelError('O prazo para anexar este arquivo terminou.', 409),
+    )
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+    await screen.findByText('não enviado')
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), {
+      target: { value: 'mais uma coisa' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    await waitFor(() => expect(dublê.responder).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByText('não enviado')).toBeNull())
+    expect(dublê.enviar).toHaveBeenCalledOnce()
+  })
+
   it('o print aparece embaixo da fala que o trouxe', () => {
     const doTime: PublicAttachmentViewModel = {
       PublicId: 'a-1',
@@ -178,6 +319,7 @@ describe('anexar ao responder', () => {
       ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
       DurationSeconds: null,
       ReplyPublicId: 'f-2',
+      ReopenPublicId: null,
       CreatedAt: '2026-09-23T12:20:00.000Z',
     }
     montar({

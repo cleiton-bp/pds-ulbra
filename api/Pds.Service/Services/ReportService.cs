@@ -61,6 +61,54 @@ public class ReportService : IReportService
 
     private const string TrackingRefusal = TrackedReportGate.Refusal;
 
+    /// <summary>
+    /// Se confirmar, reabrir e responder ja aceitam o codigo pessoal no lugar do
+    /// token do link. <b>Enquanto for falso, a regra "o codigo sozinho confirma e
+    /// reabre" (<c>TrackingCodeCanAct</c>) e ignorada</b>: quem abre pela lista
+    /// pessoal le o relato, e as tres acoes saem desligadas, seja qual for o valor
+    /// gravado.
+    ///
+    /// <para><b>A API ignora, e nao so a tela esconde.</b> As tres acoes so passam
+    /// pela porta do link (<see cref="TrackedReportGate"/>), e quem chega pelo codigo
+    /// nao tem o token. Obedecer ao valor gravado ligava botoes que a propria API
+    /// recusava com 404 — e o projeto que ligou a regra antes de ela sair da tela de
+    /// Ciclo ficou sem como desliga-la.</para>
+    ///
+    /// <para><b>Nada e apagado.</b> A coluna, o valor gravado, o DTO e o salvamento
+    /// seguem iguais, e a tela de Ciclo continua mandando de volta o que recebeu.
+    /// Ignorar aqui, em vez de zerar no banco, e o que deixa a volta sem migracao e
+    /// devolve a cada projeto a escolha que ele ja tinha feito.</para>
+    ///
+    /// <para><b>O que falta para virar verdadeiro:</b></para>
+    /// <list type="number">
+    /// <item><see cref="ConfirmAsync"/>, <see cref="ReopenAsync"/> e
+    /// <see cref="ReplyAsync"/> aceitarem chave publica + codigo + protocolo como
+    /// alternativa ao token, com a mesma conferencia de
+    /// <see cref="OpenByReporterCodeAsync"/> — modo codigo pessoal, codigo que existe,
+    /// relato daquele codigo, uma recusa so. E conferindo a regra gravada <b>dentro
+    /// delas</b>: a acao desligada na resposta nao impede ninguem de chamar a rota
+    /// direto.</item>
+    /// <item>A pagina de acompanhamento mandar o codigo nessas tres chamadas quando
+    /// nao tem o token.</item>
+    /// <item>A tela de Ciclo mostrar a regra de novo: <c>MOSTRAR_REGRA_DO_CODIGO</c>,
+    /// em <c>CycleSettingsScreen.tsx</c>, vira verdadeiro, os dois testes pulados
+    /// voltam e sai o que confere que ela esta fora da tela.</item>
+    /// <item>O texto que hoje diz que a regra e ignorada voltar a dizer que ela
+    /// decide: a observacao de <c>by-code/open</c> no controlador, a de
+    /// <see cref="IReportService.OpenByReporterCodeAsync"/>, o resumo de
+    /// <c>OpenByReporterCodeDto</c>, o campo <c>TrackingCodeCanAct</c> em
+    /// <c>CycleSettingsDto</c> e <c>CycleSettingsViewModel</c>, as paginas
+    /// <c>rotas-publicas</c>, <c>codigo-e-moderacao</c>, <c>pedido-e-espera</c>,
+    /// <c>configuracoes</c> e <c>o-que-entra</c> da documentacao, e os comentarios
+    /// da pagina de acompanhamento (<c>report.ts</c>, <c>reportService.ts</c>,
+    /// <c>tracking.ts</c>, <c>TrackingPage.tsx</c>).</item>
+    /// </list>
+    /// <para>Feito isso, a volta da API e esta linha — o espelho da constante da
+    /// tela. Os arquivos do relato sao outra porta, que tambem so aceita o token, e
+    /// nao dependem daqui.</para>
+    /// </summary>
+    private const bool ActionsAcceptReporterCode = false;
+
     private readonly IUnitOfWork _unitOfWork;
 
     /// <summary>
@@ -444,9 +492,11 @@ public class ReportService : IReportService
     /// Se quem esta lendo pode <b>agir</b> — confirmar, reabrir, responder.
     ///
     /// <para><b>E parametro obrigatorio, e nao um padrao.</b> Quem chega pelo link
-    /// pode; quem chega pela lista pessoal so age se o projeto tiver ligado isso. Um
-    /// valor padrao faria a chamada nova nascer permitindo, que e o lado errado para
-    /// errar — e obrigar a declarar forca quem acrescentar um caminho a pensar nele.</para>
+    /// pode; quem chega pela lista pessoal hoje nao pode, e so vai poder quando as
+    /// acoes aceitarem o codigo e o projeto tiver ligado isso — ver
+    /// <see cref="ActionsAcceptReporterCode"/>. Um valor padrao faria a chamada nova
+    /// nascer permitindo, que e o lado errado para errar — e obrigar a declarar forca
+    /// quem acrescentar um caminho a pensar nele.</para>
     /// </param>
     private async Task<PublicReportViewModel> BuildPublicAsync(Report report, bool podeAgir, CancellationToken cancellationToken)
     {
@@ -491,6 +541,12 @@ public class ReportService : IReportService
         var pedido = await _unitOfWork.ReportInfoRequests
             .FindOpenWithoutSessionAsync(report.Id, cancellationToken);
 
+        // O que ela disse ao reabrir. E texto dela, e volta para ela: o fechamento
+        // reaberto sai de `Closure`, e sem esta lista o motivo era gravado e nunca
+        // mais lido.
+        var reaberturas = await _unitOfWork.ReportClosures
+            .ListReopenedWithoutSessionAsync(report.Id, cancellationToken);
+
         return new PublicReportViewModel(
             report.TrackingCode,
             report.Type,
@@ -507,7 +563,11 @@ public class ReportService : IReportService
                 : new PublicInfoRequestViewModel(
                     pedido.AskedAt, pedido.CloseAt, DateTime.UtcNow >= pedido.WarnAt),
             // Escrever so enquanto ha pergunta aberta — e so para quem pode agir.
-            podeAgir && pedido is not null);
+            podeAgir && pedido is not null,
+            reaberturas
+                .Select(reabertura => new PublicReopeningViewModel(
+                    reabertura.PublicId, reabertura.ReopenedAt!.Value, reabertura.ReopenComment))
+                .ToList());
     }
 
     /// <summary>
@@ -631,7 +691,8 @@ public class ReportService : IReportService
             // Ver o paragrafo acima.
         }
 
-        return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false);
+        return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false,
+            await ReopeningsOfAsync(report.Id, cancellationToken));
     }
 
     public async Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default)
@@ -1059,7 +1120,8 @@ public class ReportService : IReportService
         // por `GetAsync` registraria uma segunda visualizacao que ninguem fez.
         // Encerrado: nao ha mais o que perguntar, e um pedido aberto deixou de
         // fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
-        return Detail(report, ClosureOf(fechamento), null, canAskInfo: false);
+        return Detail(report, ClosureOf(fechamento), null, canAskInfo: false,
+            await ReopeningsOfAsync(report.Id, cancellationToken));
     }
 
     /// <summary>
@@ -1803,10 +1865,12 @@ public class ReportService : IReportService
         var regras = await _unitOfWork.ProjectCycleSettings
             .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
 
-        // **Aqui a configuracao orfa da etapa 5 passa a significar alguma coisa.**
-        // Ela ficou gravada e sem tela porque decidir se o protocolo sozinho age so
-        // fazia sentido quando existisse uma consulta por protocolo — e e esta.
-        var podeAgir = regras?.TrackingCodeCanAct ?? CycleSettingsDefaults.TrackingCodeCanAct;
+        // **E aqui que a regra do codigo sozinho decide — quando puder.** Enquanto
+        // confirmar, reabrir e responder so aceitarem o token, obedecer ao valor
+        // gravado mostraria botoes que a propria API recusa; entao ele fica gravado e
+        // e ignorado. O que falta para voltar esta em ActionsAcceptReporterCode.
+        var podeAgir = ActionsAcceptReporterCode
+            && (regras?.TrackingCodeCanAct ?? CycleSettingsDefaults.TrackingCodeCanAct);
 
         await _unitOfWork.Events.AddAsync(new Event
         {
@@ -1942,6 +2006,7 @@ public class ReportService : IReportService
         var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
         var pedido = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+        var reaberturas = await ReopeningsOfAsync(report.Id, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
@@ -1953,7 +2018,7 @@ public class ReportService : IReportService
                         && fechamento is null
                         && pedido is null;
 
-        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir);
+        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir, reaberturas);
     }
 
     /// <summary>
@@ -1963,12 +2028,18 @@ public class ReportService : IReportService
     /// encerra-lo. A segunda nao pode chamar a primeira — abrir <b>grava</b> um
     /// evento de leitura, e encerrar registraria uma visualizacao que ninguem
     /// fez.</para>
+    ///
+    /// <para><b>As reaberturas vem de todos os chamadores</b>, e nao so de abrir: a
+    /// tela troca o relato inteiro pela resposta de encerrar ou de pedir
+    /// informacao, e uma lista vazia ali apagaria da tela o motivo de o relato ter
+    /// voltado.</para>
     /// </summary>
     private static ReportDetailViewModel Detail(
         Report report,
         ReportClosureViewModel? closure,
         ReportInfoRequestViewModel? infoRequest,
-        bool canAskInfo) => new(
+        bool canAskInfo,
+        IReadOnlyList<ReportReopeningViewModel> reopenings) => new(
         report.PublicId,
         report.TrackingCode,
         report.Type,
@@ -1990,7 +2061,27 @@ public class ReportService : IReportService
         report.Contexts
             .OrderBy(context => context.Key, StringComparer.Ordinal)
             .Select(context => new ReportContextViewModel(context.Key, context.Value))
-            .ToList());
+            .ToList(),
+        reopenings);
+
+    /// <summary>
+    /// As reaberturas como o painel as le, com sessao.
+    ///
+    /// <para><b>E o primeiro leitor do motivo da reabertura</b> do lado de dentro.
+    /// Ate aqui ele era gravado e so aparecia no historico como "quem relatou
+    /// reabriu" — o time sabia que voltou, e nao por que.</para>
+    /// </summary>
+    private async Task<IReadOnlyList<ReportReopeningViewModel>> ReopeningsOfAsync(
+        long reportId,
+        CancellationToken cancellationToken)
+        => (await _unitOfWork.ReportClosures.ListReopenedAsync(reportId, cancellationToken))
+            .Select(closure => new ReportReopeningViewModel(
+                closure.PublicId,
+                closure.Outcome,
+                closure.ClosedAt,
+                closure.ReopenedAt!.Value,
+                closure.ReopenComment))
+            .ToList();
 
     /// <summary>
     /// O projeto da sessao atual. O filtro global ja limita a consulta a conta que

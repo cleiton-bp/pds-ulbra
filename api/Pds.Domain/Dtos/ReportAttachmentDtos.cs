@@ -9,6 +9,15 @@ namespace Pds.Domain.Dtos;
 /// dizem de quem e o relato — assinar permissao para quem nao tem relato nenhum
 /// seria assinar para qualquer um, e essa e a unica rota publica do sistema que
 /// gera custo em dinheiro.</para>
+///
+/// <para><b>O arquivo vai com um envio, e o envio tem hora.</b> Sao tres: a criacao
+/// do relato (nenhuma bandeira), a resposta ao time (<see cref="ForReply"/>) e a
+/// reabertura (<see cref="ForReopen"/>). Cada um aceita arquivo nos 15 minutos
+/// seguintes, e cada um tem a sua cota.</para>
+///
+/// <para><b>Sem duracao.</b> Ela so existia para o video, que saiu do produto. O
+/// quadro antigo que ainda mande <c>DurationSeconds</c> nao quebra: campo que o
+/// contrato nao conhece e ignorado na leitura.</para>
 /// </summary>
 public class RequestAttachmentUploadDto
 {
@@ -19,7 +28,12 @@ public class RequestAttachmentUploadDto
     /// <summary>O token que saiu junto do protocolo, na criacao.</summary>
     public string? Token { get; set; }
 
-    /// <summary>Imagem ou video.</summary>
+    /// <summary>
+    /// De que tipo e o arquivo. So <c>Image</c>.
+    ///
+    /// <para><c>Video</c> e recusado com 400: saiu do produto por pesar demais no
+    /// armazenamento e na entrega.</para>
+    /// </summary>
     /// <example>Image</example>
     public MediaKindEnum? Kind { get; set; }
 
@@ -40,10 +54,6 @@ public class RequestAttachmentUploadDto
     /// <example>erro-no-pagamento.png</example>
     public string? FileName { get; set; }
 
-    /// <summary>Duracao, so para o que tem duracao.</summary>
-    /// <example>42</example>
-    public int? DurationSeconds { get; set; }
-
     /// <summary>
     /// Ha miniatura para enviar junto.
     ///
@@ -58,12 +68,30 @@ public class RequestAttachmentUploadDto
     /// criacao do relato.
     ///
     /// <para><b>Nao diz qual resposta, e e de proposito.</b> O servidor prende o
-    /// arquivo a resposta mais recente de quem relatou, se ela for dos ultimos
+    /// arquivo a resposta mais recente de quem relatou, se ela for dos ultimos 15
     /// minutos. Aceitar um identificador vindo de fora obrigaria a conferir de quem
     /// ele e — e cada conferencia a mais e uma chance de esquecer uma.</para>
+    ///
+    /// <para>Sem ele e sem <see cref="ForReopen"/>, o arquivo vai com a criacao do
+    /// relato. Nos tres casos a permissao so sai nos 15 minutos depois do envio, e
+    /// cada permissao tem 1 hora para ser confirmada.</para>
     /// </summary>
     /// <example>false</example>
     public bool? ForReply { get; set; }
+
+    /// <summary>
+    /// O arquivo vai junto da <b>reabertura</b> que a pessoa acabou de fazer — o print
+    /// do que ainda esta acontecendo.
+    ///
+    /// <para><b>Nao diz qual reabertura</b>, pelo mesmo motivo de
+    /// <see cref="ForReply"/>: o servidor prende o arquivo a reabertura mais recente
+    /// deste relato, se ela for dos ultimos 15 minutos.</para>
+    ///
+    /// <para>Junto de <see cref="ForReply"/> e recusado com 400: um arquivo vai com um
+    /// envio so.</para>
+    /// </summary>
+    /// <example>false</example>
+    public bool? ForReopen { get; set; }
 }
 
 /// <summary>
