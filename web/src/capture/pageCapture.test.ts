@@ -26,10 +26,13 @@ import { capturePage, EXCLUDED_FROM_CAPTURE, pageBackground } from '@/capture/pa
 
 function desenhar() {
   const canvas = document.createElement('canvas')
-  vi.spyOn(canvas, 'toBlob').mockImplementation((callback, tipo) =>
+  // No prototipo, e nao so neste canvas: quem codifica pergunta antes, num canvas de um
+  // pixel, se o navegador codifica WebP.
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback, tipo) =>
     callback(new Blob([new Uint8Array(50)], { type: tipo ?? 'image/png' })),
   )
   dublê.snapdom.mockResolvedValue({ toCanvas: async () => canvas })
+  return canvas
 }
 
 function rolar(x: number, y: number) {
@@ -90,6 +93,17 @@ describe('o desenho da area', () => {
     await capturePage('viewport', null)
 
     expect(dublê.snapdom.mock.calls[0]?.[1]).toMatchObject({ dpr: esperada })
+  })
+
+  // Na pagina do cliente: o Safari so devolve a memoria do canvas zerado.
+  it('zera o canvas da captura depois de codificar', async () => {
+    const canvas = desenhar()
+    canvas.width = 1200
+    canvas.height = 800
+
+    await capturePage('viewport', null)
+
+    expect([canvas.width, canvas.height]).toEqual([0, 0])
   })
 
   it('devolve a imagem como arquivo, no formato que cabe no teto', async () => {

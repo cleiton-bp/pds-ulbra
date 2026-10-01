@@ -86,8 +86,15 @@ public class ReportAttachmentService : IReportAttachmentService
     /// </summary>
     private static readonly TimeSpan ConfirmWindow = TimeSpan.FromHours(1);
 
-    /// <summary>A miniatura e sempre imagem. Nos videos antigos, ela e o quadro de capa.</summary>
-    private const string ThumbnailContentType = "image/webp";
+    /// <summary>
+    /// Os formatos da miniatura. <b>WebP e o padrao</b>, e o mais leve; <b>JPEG e o de
+    /// quem nao gera WebP</b> — o Safari, inclusive o do iPhone, que sem ele mandaria
+    /// todo arquivo sem miniatura. Nos videos antigos, ela e o quadro de capa.
+    /// </summary>
+    private static readonly string[] ThumbnailContentTypes = ["image/webp", "image/jpeg"];
+
+    /// <summary>O formato da miniatura quando o pedido nao diz — o do quadro antigo.</summary>
+    private const string DefaultThumbnailContentType = "image/webp";
 
     /// <summary>
     /// Onde o navegador grava: a unica pasta que uma permissao de envio assina.
@@ -163,6 +170,15 @@ public class ReportAttachmentService : IReportAttachmentService
 
         var contentType = (dto.ContentType ?? string.Empty).Trim().ToLowerInvariant();
         var tamanho = dto.SizeBytes ?? throw new ArgumentException("Informe o tamanho do arquivo.");
+
+        // O formato da miniatura e do navegador, e nao da regra do projeto: um que nao
+        // esteja na lista so vem de cliente com defeito. 400, e nao 409.
+        var tipoMiniatura = string.IsNullOrWhiteSpace(dto.ThumbnailContentType)
+            ? DefaultThumbnailContentType
+            : dto.ThumbnailContentType.Trim().ToLowerInvariant();
+
+        if (dto.WithThumbnail == true && !ThumbnailContentTypes.Contains(tipoMiniatura))
+            throw new ArgumentException("A miniatura vai em WebP ou JPEG.");
 
         var vigente = MediaSettingsDefaults.Resolve(
             await _unitOfWork.ProjectMediaSettings.FindByProjectWithoutSessionAsync(
@@ -283,7 +299,7 @@ public class ReportAttachmentService : IReportAttachmentService
         if (comMiniatura)
         {
             var assinada = await _mediaStorage.CreateUploadTicketAsync(
-                attachment.ThumbnailObjectKey!, ThumbnailContentType, ThumbnailMaxBytes, cancellationToken);
+                attachment.ThumbnailObjectKey!, tipoMiniatura, ThumbnailMaxBytes, cancellationToken);
 
             miniatura = new SignedUploadViewModel(assinada.Url.ToString(), assinada.Fields, assinada.MaxBytes);
         }
@@ -705,7 +721,10 @@ public class ReportAttachmentService : IReportAttachmentService
         if (miniatura is null)
             return null;
 
-        if (!MediaSignatures.Matches(ThumbnailContentType, miniatura.Leading))
+        // O tipo e o que a assinatura fixou no envio — o armazenamento o guarda junto do
+        // objeto. Os bytes tem de ser desse tipo, e o tipo, um dos aceitos.
+        var tipo = miniatura.ContentType.Trim().ToLowerInvariant();
+        if (!ThumbnailContentTypes.Contains(tipo) || !MediaSignatures.Matches(tipo, miniatura.Leading))
         {
             await _mediaStorage.DeleteAsync(thumbnailObjectKey, cancellationToken);
             return null;

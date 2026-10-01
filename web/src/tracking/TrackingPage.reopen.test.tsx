@@ -417,7 +417,7 @@ describe('anexar ao reabrir', () => {
   // comeca. Um arquivo que entrasse depois nao subiria — e sumiria com o bloco do
   // encerramento, sem aviso.
   it('enquanto um arquivo ainda está entrando na lista, reabrir espera', async () => {
-    let pronto: (imagem: { width: number; height: number }) => void = () => {}
+    let pronto: (imagem: { width: number; height: number; close: () => void }) => void = () => {}
     vi.stubGlobal(
       'createImageBitmap',
       () =>
@@ -438,7 +438,7 @@ describe('anexar ao reabrir', () => {
       await waitFor(() => expect(reabrir.disabled).toBe(true))
 
       // Sem largura, a miniatura nao sai e o arquivo entra sem ela.
-      await act(async () => pronto({ width: 0, height: 0 }))
+      await act(async () => pronto({ width: 0, height: 0, close: () => {} }))
 
       await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
       expect(reabrir.disabled).toBe(false)

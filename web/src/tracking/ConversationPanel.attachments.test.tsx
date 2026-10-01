@@ -322,7 +322,7 @@ describe('anexar ao responder', () => {
   })
 
   it('enquanto um arquivo ainda está entrando na lista, responder espera', async () => {
-    let pronto: (imagem: { width: number; height: number }) => void = () => {}
+    let pronto: (imagem: { width: number; height: number; close: () => void }) => void = () => {}
     vi.stubGlobal(
       'createImageBitmap',
       () =>
@@ -339,7 +339,7 @@ describe('anexar ao responder', () => {
       const responder = screen.getByRole('button', { name: 'Responder' }) as HTMLButtonElement
       await waitFor(() => expect(responder.disabled).toBe(true))
 
-      await act(async () => pronto({ width: 0, height: 0 }))
+      await act(async () => pronto({ width: 0, height: 0, close: () => {} }))
       await screen.findByRole('button', { name: 'Remover erro.png' })
       expect(responder.disabled).toBe(false)
     } finally {

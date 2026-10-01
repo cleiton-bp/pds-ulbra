@@ -59,7 +59,15 @@ export async function capturePage(area: CaptureArea, maxBytes: number | null): P
     embedFonts: true,
   })
 
-  return canvasToImageFile(await captura.toCanvas(), maxBytes ?? undefined)
+  // O formato mais leve, cabendo no teto: ver `canvasToImageFile`.
+  const canvas = await captura.toCanvas()
+  try {
+    return await canvasToImageFile(canvas, { maxBytes: maxBytes ?? undefined })
+  } finally {
+    // Na pagina do cliente, e ate 2880x1800: o Safari so devolve a memoria zerado.
+    canvas.width = 0
+    canvas.height = 0
+  }
 }
 
 /**

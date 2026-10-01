@@ -49,7 +49,8 @@ export async function openImage(file: Blob): Promise<OpenedImage> {
  * tarja cobriu nao existe nele, e os dados que a camera grava no arquivo (lugar,
  * aparelho) tambem nao vem junto.
  *
- * O nome e o da imagem de origem; a extensao, a do formato que coube.
+ * **No formato da imagem de origem**, com o nome dela: o PNG continua PNG, o JPEG
+ * continua JPEG — ver `canvasToImageFile`, que tambem garante o teto.
  */
 export async function exportEdit(
   opened: OpenedImage,
@@ -58,9 +59,12 @@ export async function exportEdit(
   maxBytes: number | null,
 ): Promise<File> {
   const canvas = renderEdit(opened.image, opened, doc)
-  let gerado: File
   try {
-    gerado = await canvasToImageFile(canvas, maxBytes ?? undefined)
+    return await canvasToImageFile(canvas, {
+      maxBytes: maxBytes ?? undefined,
+      format: source.type,
+      name: source.name.replace(/\.[^.]*$/, '') || 'imagem',
+    })
   } finally {
     // Ate 64 MB de canvas. O Safari do iPhone so devolve essa memoria com o canvas
     // zerado — e sem ela, a proxima tentativa ja nao ganha canvas.
@@ -68,8 +72,4 @@ export async function exportEdit(
     canvas.height = 0
     releaseScratch()
   }
-
-  const extensao = gerado.name.slice(gerado.name.lastIndexOf('.'))
-  const base = source.name.replace(/\.[^.]*$/, '') || 'imagem'
-  return new File([gerado], `${base}${extensao}`, { type: gerado.type })
 }

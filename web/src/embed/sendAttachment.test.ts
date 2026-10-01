@@ -98,6 +98,37 @@ describe('a ordem do envio', () => {
   })
 })
 
+describe('o formato da miniatura', () => {
+  // No Safari a miniatura sai em JPEG: a assinatura tem de ser feita para ele, ou o
+  // armazenamento recusa o envio dela.
+  it.each([['image/webp'], ['image/jpeg']])(
+    'a miniatura em %s pede a permissao para esse formato',
+    async (tipo) => {
+      dublê.pedir.mockResolvedValue({ PublicId: 'p-1', File: {}, Thumbnail: null })
+
+      await sendAttachment(
+        credenciais,
+        { ...anexo, thumbnail: new Blob(['x'], { type: tipo }) },
+        () => {},
+      )
+
+      expect(dublê.pedir.mock.calls[0]?.[0]).toMatchObject({
+        WithThumbnail: true,
+        ThumbnailContentType: tipo,
+      })
+    },
+  )
+
+  it('sem miniatura, nao diz formato nenhum', async () => {
+    dublê.pedir.mockResolvedValue({ PublicId: 'p-1', File: {}, Thumbnail: null })
+
+    await sendAttachment(credenciais, anexo, () => {})
+
+    expect(dublê.pedir.mock.calls[0]?.[0]).toMatchObject({ WithThumbnail: false })
+    expect(dublê.pedir.mock.calls[0]?.[0].ThumbnailContentType).toBeUndefined()
+  })
+})
+
 describe('a que envio o arquivo pertence', () => {
   it.each<[AttachmentEnvio | undefined, boolean, boolean]>([
     [undefined, false, false],

@@ -6,8 +6,8 @@ import { EMPTY_DOC } from '@/editor/doc'
 /**
  * O QUE ESTES TESTES TRAVAM.
  *
- * **O arquivo marcado leva o nome da imagem de origem**, com a extensao do formato
- * que coube — e o teto do projeto chega a quem escolhe o formato.
+ * **O arquivo marcado sai no formato e com o nome da imagem de origem** — e o teto
+ * do projeto chega a quem escolhe o formato.
  *
  * **A imagem aberta devolve a memoria** quando o editor fecha.
  */
@@ -36,28 +36,36 @@ afterEach(() => {
 
 describe('o arquivo marcado', () => {
   it.each([
-    ['foto.jpg', 'foto.webp'],
-    ['captura.webp', 'captura.webp'],
-    ['print', 'print.webp'],
-    ['.png', 'imagem.webp'],
-  ])('%s vira %s', async (origem, esperado) => {
-    dublê.codificar.mockResolvedValue(new File(['x'], 'captura.webp', { type: 'image/webp' }))
+    ['foto.jpg', 'image/jpeg', 'foto'],
+    ['captura.webp', 'image/webp', 'captura'],
+    ['print', 'image/png', 'print'],
+    ['.png', 'image/png', 'imagem'],
+  ])('%s sai no formato dele, com o nome dele', async (origem, tipo, nome) => {
+    const gerado = new File(['x'], `${nome}.algo`, { type: tipo })
+    dublê.codificar.mockResolvedValue(gerado)
 
-    const arquivo = await exportEdit(aberta, EMPTY_DOC, new File(['y'], origem), null)
+    const arquivo = await exportEdit(
+      aberta,
+      EMPTY_DOC,
+      new File(['y'], origem, { type: tipo }),
+      5000,
+    )
 
-    expect(arquivo.name).toBe(esperado)
-    expect(arquivo.type).toBe('image/webp')
+    expect(arquivo).toBe(gerado)
+    expect(dublê.codificar).toHaveBeenCalledWith(expect.any(HTMLCanvasElement), {
+      maxBytes: 5000,
+      format: tipo,
+      name: nome,
+    })
   })
 
-  it('o teto do projeto vai para quem escolhe o formato', async () => {
-    const canvas = document.createElement('canvas')
-    dublê.desenhar.mockReturnValue(canvas)
-    dublê.codificar.mockResolvedValue(new File(['x'], 'captura.jpg', { type: 'image/jpeg' }))
+  it('sem teto, nenhum teto vai para quem codifica', async () => {
+    dublê.codificar.mockResolvedValue(new File(['x'], 'a.png', { type: 'image/png' }))
 
-    await exportEdit(aberta, EMPTY_DOC, new File(['y'], 'a.png'), 5000)
+    await exportEdit(aberta, EMPTY_DOC, new File(['y'], 'a.png', { type: 'image/png' }), null)
 
+    expect(dublê.codificar.mock.calls[0]?.[1]).toMatchObject({ maxBytes: undefined })
     expect(dublê.desenhar).toHaveBeenCalledWith(aberta.image, aberta, EMPTY_DOC)
-    expect(dublê.codificar).toHaveBeenCalledWith(canvas, 5000)
   })
 
   // O Safari do iPhone so devolve a memoria do canvas zerado — mesmo quando falha.

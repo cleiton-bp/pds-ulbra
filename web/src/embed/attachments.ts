@@ -53,8 +53,21 @@ export interface Anexo {
 /** Largura da miniatura. Cabe numa lista, e pesa poucos kilobytes. */
 const THUMBNAIL_WIDTH = 320
 
-/** O tipo que a miniatura precisa ter — a API confere pelos bytes. */
-const THUMBNAIL_TYPE = 'image/webp'
+/**
+ * A altura maxima, em proporcao a largura. **Uma captura de rolagem longa** — 1080 por
+ * 10000 — daria uma miniatura de 320 por 3000, que passa do teto da API; a miniatura
+ * mostra o comeco dela, que e o que cabe numa lista.
+ */
+const THUMBNAIL_MAX_RATIO = 2
+
+/** O teto da miniatura na API. Passando dele, o armazenamento recusa em silencio. */
+const THUMBNAIL_MAX_BYTES = 256 * 1024
+
+/**
+ * Os tipos que a miniatura pode ter, em ordem — a API confere os bytes contra o tipo
+ * declarado. WebP e o mais leve; JPEG e o de quem nao codifica WebP (o Safari).
+ */
+const THUMBNAIL_TYPES = ['image/webp', 'image/jpeg'] as const
 
 /**
  * A configuracao com so o que ainda se pode enviar — hoje, so imagem.
@@ -241,34 +254,70 @@ export { formatBytes }
  * E o que deixa o painel mostrar uma lista sem baixar megabytes para desenhar 80
  * pixels, e sem o servidor precisar de biblioteca de imagem.
  *
+ * **WebP, e JPEG onde o navegador nao codifica WebP.** Onde isso acontece — o
+ * Safari, inclusive o do iPhone —, `toBlob` devolve PNG em silencio; so com WebP, quem
+ * relata por la mandaria tudo sem miniatura, e o time veria so a palavra "imagem".
+ *
  * **Devolve `null` em vez de falhar**, e isso e o combinado com a API: o anexo vale
- * sem miniatura. So nao pode ir uma miniatura que nao seja WebP — onde o navegador
- * nao codifica WebP, `toBlob` devolve PNG em silencio, e a API recusaria.
+ * sem miniatura.
  */
 export async function makeThumbnail(file: File): Promise<Blob | null> {
+  let canvas: HTMLCanvasElement | null = null
+  let fonte: ImageBitmap | null = null
   try {
-    const fonte = await createImageBitmap(file)
+    fonte = await createImageBitmap(file)
 
     const largura = fonte.width
     const altura = fonte.height
     if (!largura || !altura) return null
 
     const escala = Math.min(1, THUMBNAIL_WIDTH / largura)
-    const canvas = document.createElement('canvas')
+    canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(largura * escala))
-    canvas.height = Math.max(1, Math.round(altura * escala))
+    // A captura de rolagem longa mostra o comeco: ver `THUMBNAIL_MAX_RATIO`.
+    canvas.height = Math.max(
+      1,
+      Math.min(Math.round(altura * escala), canvas.width * THUMBNAIL_MAX_RATIO),
+    )
 
     const contexto = canvas.getContext('2d')
     if (!contexto) return null
-    contexto.drawImage(fonte, 0, 0, canvas.width, canvas.height)
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, THUMBNAIL_TYPE, 0.8),
+    // Fundo branco por baixo: o JPEG nao tem transparencia, e o transparente sairia preto.
+    contexto.fillStyle = 'white'
+    contexto.fillRect(0, 0, canvas.width, canvas.height)
+    contexto.drawImage(
+      fonte,
+      0,
+      0,
+      largura,
+      canvas.height / escala,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
     )
 
-    return blob?.type === THUMBNAIL_TYPE ? blob : null
+    for (const tipo of THUMBNAIL_TYPES) {
+      const alvo = canvas
+      // Um degrau abaixo, se a primeira passar do teto da API — que a recusaria calada.
+      for (const qualidade of [0.8, 0.6]) {
+        const blob = await new Promise<Blob | null>((resolve) =>
+          alvo.toBlob(resolve, tipo, qualidade),
+        )
+        if (blob?.type !== tipo) break
+        if (blob.size <= THUMBNAIL_MAX_BYTES) return blob
+      }
+    }
+    return null
   } catch {
     return null
+  } finally {
+    // O bitmap e o canvas devolvem a memoria, mesmo quando o desenho falha no meio.
+    fonte?.close()
+    if (canvas) {
+      canvas.width = 0
+      canvas.height = 0
+    }
   }
 }
 

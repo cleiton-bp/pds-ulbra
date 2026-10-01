@@ -343,7 +343,7 @@ describe('o envio', () => {
   // O envio sobe a lista como ela esta quando comeca: um arquivo que ainda esta
   // virando miniatura ficaria de fora sem ninguem saber.
   it('enquanto um arquivo ainda está entrando na lista, enviar espera', async () => {
-    let pronto: (imagem: { width: number; height: number }) => void = () => {}
+    let pronto: (imagem: { width: number; height: number; close: () => void }) => void = () => {}
     vi.stubGlobal(
       'createImageBitmap',
       () =>
@@ -360,7 +360,7 @@ describe('o envio', () => {
       const enviar = screen.getByRole('button', { name: 'Enviar' }) as HTMLButtonElement
       await waitFor(() => expect(enviar.disabled).toBe(true))
 
-      await act(async () => pronto({ width: 0, height: 0 }))
+      await act(async () => pronto({ width: 0, height: 0, close: () => {} }))
       await screen.findByRole('button', { name: 'Remover erro.png' })
       expect(enviar.disabled).toBe(false)
     } finally {
@@ -471,7 +471,8 @@ describe('a fila de arquivos', () => {
 
   /** A miniatura so sai quando o teste mandar: e o arquivo "ainda sendo preparado". */
   function segurarMiniatura() {
-    const prontos: Array<(imagem: { width: number; height: number }) => void> = []
+    const prontos: Array<(imagem: { width: number; height: number; close: () => void }) => void> =
+      []
     vi.stubGlobal(
       'createImageBitmap',
       () =>
@@ -535,7 +536,7 @@ describe('a fila de arquivos', () => {
     await waitFor(() => expect(prontos).toHaveLength(1))
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
 
-    await act(async () => prontos[0]?.({ width: 0, height: 0 }))
+    await act(async () => prontos[0]?.({ width: 0, height: 0, close: () => {} }))
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
 
     expect(screen.queryByRole('button', { name: 'Remover antigo.png' })).toBeNull()
@@ -557,7 +558,7 @@ describe('a fila de arquivos', () => {
     escolher(nomeado('segundo.png'))
 
     expect(await screen.findByText('Cabe até 1 arquivo por envio.')).toBeDefined()
-    await act(async () => prontos[0]?.({ width: 0, height: 0 }))
+    await act(async () => prontos[0]?.({ width: 0, height: 0, close: () => {} }))
 
     await screen.findByRole('button', { name: 'Remover primeiro.png' })
     expect(screen.queryByRole('button', { name: 'Remover segundo.png' })).toBeNull()

@@ -703,8 +703,9 @@ export function ImageEditor({
     setErro(null)
     try {
       const file = await exportEdit(aberta, doc, source, maxBytes)
-      // O formato mais leve ainda pode passar do teto numa imagem enorme. Dizer aqui
-      // deixa a pessoa recortar, sem perder as marcas.
+      // A qualidade desce e a imagem encolhe ate caber, mas uma enorme ainda pode passar
+      // do teto — ver `canvasToImageFile`. Dizer aqui deixa a pessoa recortar, sem
+      // perder as marcas.
       if (maxBytes !== null && file.size > maxBytes) {
         setErro(`A imagem marcada passa de ${formatBytes(maxBytes)}. Recorte um pedaço menor.`)
         setGerando(false)

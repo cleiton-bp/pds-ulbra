@@ -44,6 +44,11 @@ export interface RequestAttachmentUploadRequest {
   FileName: string
   WithThumbnail: boolean
   /**
+   * O formato da miniatura: WebP, ou JPEG onde o navegador nao codifica WebP (o
+   * Safari). Sem ele, a API entende WebP.
+   */
+  ThumbnailContentType?: string
+  /**
    * Vai junto da resposta que a pessoa acabou de mandar. **Nao diz qual**: o
    * servidor prende a resposta mais recente dela, se for dos ultimos minutos.
    */

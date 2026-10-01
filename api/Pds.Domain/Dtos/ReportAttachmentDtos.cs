@@ -64,6 +64,21 @@ public class RequestAttachmentUploadDto
     public bool? WithThumbnail { get; set; }
 
     /// <summary>
+    /// O formato da miniatura: <c>image/webp</c>, o padrao quando nao vem, ou
+    /// <c>image/jpeg</c>.
+    ///
+    /// <para><b>JPEG e para o navegador que nao gera WebP</b> — o Safari, inclusive o do
+    /// iPhone. Sem ele, quem relata por la mandaria o arquivo sem miniatura, e o time
+    /// veria so a palavra "imagem" na lista.</para>
+    ///
+    /// <para>O formato entra na assinatura, e a confirmacao confere os bytes contra
+    /// ele: miniatura que diz ser JPEG e nao e e descartada, e o arquivo vale sem
+    /// ela.</para>
+    /// </summary>
+    /// <example>image/webp</example>
+    public string? ThumbnailContentType { get; set; }
+
+    /// <summary>
     /// O arquivo vai junto da <b>resposta</b> que a pessoa acabou de mandar, e nao da
     /// criacao do relato.
     ///
