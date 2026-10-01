@@ -34,6 +34,16 @@ public interface IReportAttachmentService
         OpenReportTrackingDto dto,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Os mesmos anexos, para quem voltou pela lista pessoal: pela chave publica, pelo
+    /// codigo e pelo protocolo. <b>So le</b> — o codigo prova que o relato e dela, e
+    /// agir continua pedindo o link. Nao grava visualizacao: quem grava e a abertura
+    /// do relato, que vem antes.
+    /// </summary>
+    Task<List<PublicAttachmentViewModel>> ListForReporterCodeAsync(
+        OpenByReporterCodeDto dto,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Confere os bytes que chegaram e prende o anexo ao relato.</summary>
     Task<ConfirmedAttachmentViewModel> ConfirmAsync(
         ConfirmAttachmentDto dto,

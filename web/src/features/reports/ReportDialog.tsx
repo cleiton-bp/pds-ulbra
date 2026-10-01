@@ -91,8 +91,17 @@ export function ReportDialog({
   const report = resumo ?? detalhe
   // Uma leitura para o dialogo inteiro: os da criacao vao para a secao de
   // arquivos, os de uma resposta vao para a conversa, os de uma reabertura vao
-  // para junto do motivo dela.
-  const anexos = useReportAttachments(projectPublicId, reportPublicId)
+  // para junto do motivo dela — quando ela esta na tela. O detalhe que falhou nao
+  // mostra reabertura nenhuma, e os arquivos delas caem em "Arquivos".
+  const anexos = useReportAttachments(
+    projectPublicId,
+    reportPublicId,
+    detalhe
+      ? new Set((detalhe.Reopenings ?? []).map((reabertura) => reabertura.PublicId))
+      : failed
+        ? new Set()
+        : null,
+  )
 
   const contexts = detalhe?.Contexts ?? null
 

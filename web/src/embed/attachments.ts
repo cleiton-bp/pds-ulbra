@@ -25,12 +25,21 @@ export interface Anexo {
   thumbnail: Blob | null
   /**
    * **Falhou e recusado sao estados diferentes.** Falhou e o que tentar de novo pode
-   * resolver — rede, armazenamento fora. Recusado e o 409 da API: o envio fechou ou a
-   * regra do projeto mudou, e repetir so levaria a mesma resposta.
+   * resolver — rede, armazenamento fora. Recusado e o 409 da API: o envio fechou ou
+   * encheu, a regra do projeto nao aceita, ou o arquivo nao serve — e repetir so
+   * levaria a mesma resposta.
    */
   status: 'waiting' | 'sending' | 'done' | 'failed' | 'refused'
   progress: number
   error: string | null
+  /**
+   * A permissao cujo arquivo ja chegou ao armazenamento, e so falta confirmar.
+   *
+   * **E o que impede o mesmo print de entrar duas vezes.** A confirmacao pode ter
+   * entrado e so a resposta dela se perdido; "Tentar de novo" confirma esta de novo,
+   * e a API responde que ja entrou — em vez de recomecar e subir outro.
+   */
+  uploaded?: string | null
 }
 
 /** Largura da miniatura. Cabe numa lista, e pesa poucos kilobytes. */
@@ -55,6 +64,54 @@ export function onlyUploadable(
     ...settings,
     Kinds: settings.Kinds.filter((kind) => kind.Kind === UPLOADABLE_MEDIA_KIND),
   }
+}
+
+/**
+ * O comeco de cada formato aceito — as mesmas marcas que a API confere na
+ * confirmacao, com os bytes que chegaram ao armazenamento.
+ */
+const SIGNATURES: { type: string; matches: (b: Uint8Array) => boolean }[] = [
+  {
+    type: 'image/png',
+    matches: (b) => startsWith(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  },
+  { type: 'image/jpeg', matches: (b) => startsWith(b, [0xff, 0xd8, 0xff]) },
+  {
+    // RIFF....WEBP — os quatro bytes do meio sao o tamanho, e variam.
+    type: 'image/webp',
+    matches: (b) =>
+      startsWith(b, [0x52, 0x49, 0x46, 0x46]) &&
+      startsWith(b.subarray(8), [0x57, 0x45, 0x42, 0x50]),
+  },
+]
+
+function startsWith(bytes: Uint8Array, marca: number[]): boolean {
+  return bytes.length >= marca.length && marca.every((byte, i) => bytes[i] === byte)
+}
+
+/**
+ * O arquivo com o tipo que os bytes dizem, e nao o que a extensao diz.
+ *
+ * **O navegador deduz o tipo pela extensao, e a API confere pelos bytes.** A imagem
+ * salva de um site que entrega WebP num endereco `.jpg`, ou o PNG renomeado, chegava
+ * como JPEG, subia inteira, e era descartada na confirmacao — e "Tentar de novo"
+ * repetia a mesma recusa para sempre, sobre uma imagem de um formato aceito.
+ *
+ * Bytes de nenhum formato conhecido deixam o arquivo como veio: a recusa, se houver,
+ * e da API. Nao conseguir ler tambem.
+ */
+export async function withRealType(file: File): Promise<File> {
+  let real: string | null = null
+
+  try {
+    const inicio = new Uint8Array(await file.slice(0, 12).arrayBuffer())
+    real = SIGNATURES.find((formato) => formato.matches(inicio))?.type ?? null
+  } catch {
+    return file
+  }
+
+  if (real === null || real === file.type) return file
+  return new File([file], file.name, { type: real, lastModified: file.lastModified })
 }
 
 /** A categoria que aceita este arquivo, pelo tipo dele. */
@@ -89,6 +146,10 @@ export function rejectReason(
   const kind = kindFor(file, settings)
 
   if (!kind) return onlyAccepts(settings)
+
+  // Antes do limite: "passa de 5 MB" dito de um arquivo vazio mandaria a pessoa
+  // procurar um arquivo menor.
+  if (file.size === 0) return 'O arquivo está vazio.'
 
   if (file.size > kind.MaxBytes) return `O arquivo passa de ${formatBytes(kind.MaxBytes)}.`
 

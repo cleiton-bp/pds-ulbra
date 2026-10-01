@@ -107,6 +107,14 @@ export const apiPublicMediaService: PublicMediaService = {
       'Falha de rede ao buscar os arquivos do relato.',
     ),
 
+  // `POST` pelo mesmo motivo: o codigo pessoal tambem e segredo.
+  listAttachmentsByReporterCode: (request) =>
+    postPublic<PublicAttachmentViewModel[]>(
+      '/public/reports/by-code/attachments',
+      request,
+      'Falha de rede ao buscar os arquivos do relato.',
+    ),
+
   loadTrackingMediaSettings: (trackingCode, token) =>
     postPublic<PublicMediaSettingsViewModel>(
       '/public/reports/tracking/media-settings',

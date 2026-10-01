@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { PanelError } from '@/data/errors'
 import type { Anexo } from '@/embed/attachments'
 import { type AttachmentEnvio, sendAttachment } from '@/embed/sendAttachment'
 
@@ -9,6 +10,10 @@ import { type AttachmentEnvio, sendAttachment } from '@/embed/sendAttachment'
  * a resposta leva `ForReply` e a reabertura leva `ForReopen`. O servidor recusa as
  * duas juntas, e uma bandeira trocada prenderia o arquivo ao envio errado — com a
  * cota e o lugar na tela do outro.
+ *
+ * **O arquivo que ja subiu so confirma de novo.** A confirmacao pode ter entrado
+ * com a resposta perdida no caminho; recomecar poria o mesmo print duas vezes no
+ * relato. So quando a API diz que nao ha o que confirmar o envio recomeca.
  */
 const dublê = vi.hoisted(() => ({
   pedir: vi.fn(),
@@ -16,13 +21,18 @@ const dublê = vi.hoisted(() => ({
   confirmar: vi.fn(),
 }))
 
-vi.mock('@/data/publicIndex', () => ({
-  publicMediaService: {
-    requestUpload: dublê.pedir,
-    uploadToStorage: dublê.subir,
-    confirm: dublê.confirmar,
-  },
-}))
+// So o que o envio usa: o indice inteiro le `window`, e este teste roda sem ele.
+vi.mock('@/data/publicIndex', async () => {
+  const { isPanelError } = await import('@/data/errors')
+  return {
+    isPanelError,
+    publicMediaService: {
+      requestUpload: dublê.pedir,
+      uploadToStorage: dublê.subir,
+      confirm: dublê.confirmar,
+    },
+  }
+})
 
 const credenciais = { trackingCode: '7K2M-9QXP-4TRV', token: 'tok-secreto' }
 
@@ -39,6 +49,53 @@ const anexo: Anexo = {
 
 afterEach(() => {
   vi.clearAllMocks()
+})
+
+describe('a ordem do envio', () => {
+  // A permissao da miniatura nasce junto com a do arquivo e vale os mesmos minutos.
+  // Depois de um arquivo grande numa conexao lenta, ela ja teria vencido.
+  it('a miniatura sobe antes do arquivo, e a confirmação vem por último', async () => {
+    const ordem: string[] = []
+    dublê.pedir.mockResolvedValue({
+      PublicId: 'p-1',
+      File: { Url: 'arquivo' },
+      Thumbnail: { Url: 'miniatura' },
+    })
+    dublê.subir.mockImplementation(async (destino: { Url: string }) => {
+      ordem.push(destino.Url)
+    })
+    dublê.confirmar.mockImplementation(async () => {
+      ordem.push('confirmar')
+    })
+
+    await sendAttachment(
+      credenciais,
+      { ...anexo, thumbnail: new Blob(['x'], { type: 'image/webp' }) },
+      () => {},
+    )
+
+    expect(ordem).toEqual(['miniatura', 'arquivo', 'confirmar'])
+  })
+
+  it('miniatura que falha não impede o arquivo', async () => {
+    dublê.pedir.mockResolvedValue({
+      PublicId: 'p-1',
+      File: { Url: 'arquivo' },
+      Thumbnail: { Url: 'miniatura' },
+    })
+    dublê.subir.mockImplementation(async (destino: { Url: string }) => {
+      if (destino.Url === 'miniatura') throw new Error('rede')
+    })
+
+    await sendAttachment(
+      credenciais,
+      { ...anexo, thumbnail: new Blob(['x'], { type: 'image/webp' }) },
+      () => {},
+    )
+
+    expect(dublê.subir).toHaveBeenCalledTimes(2)
+    expect(dublê.confirmar).toHaveBeenCalledOnce()
+  })
 })
 
 describe('a que envio o arquivo pertence', () => {
@@ -62,5 +119,66 @@ describe('a que envio o arquivo pertence', () => {
       Token: 'tok-secreto',
       AttachmentPublicId: 'p-1',
     })
+  })
+})
+
+describe('tentar de novo depois de o arquivo subir', () => {
+  it('diz qual permissão subiu antes de confirmar', async () => {
+    dublê.pedir.mockResolvedValue({ PublicId: 'p-1', File: {}, Thumbnail: null })
+    dublê.confirmar.mockRejectedValue(new Error('rede'))
+    const subiu = vi.fn()
+
+    await expect(
+      sendAttachment(credenciais, anexo, () => {}, { onUploaded: subiu }),
+    ).rejects.toThrow('rede')
+
+    expect(subiu).toHaveBeenCalledWith('p-1')
+  })
+
+  it('arquivo que já subiu só confirma de novo', async () => {
+    dublê.confirmar.mockResolvedValue(undefined)
+
+    await sendAttachment(credenciais, { ...anexo, uploaded: 'p-1' }, () => {})
+
+    expect(dublê.pedir).not.toHaveBeenCalled()
+    expect(dublê.subir).not.toHaveBeenCalled()
+    expect(dublê.confirmar).toHaveBeenCalledOnce()
+    expect(dublê.confirmar).toHaveBeenCalledWith({
+      TrackingCode: '7K2M-9QXP-4TRV',
+      Token: 'tok-secreto',
+      AttachmentPublicId: 'p-1',
+    })
+  })
+
+  // 404: a permissao nao esta pendente nem virou anexo. 400: o arquivo sumiu, ou nao
+  // conferiu e foi descartado. Nos dois, so recomecar resolve.
+  it.each([404, 400])('a confirmação de novo respondendo %i recomeça do zero', async (status) => {
+    dublê.confirmar
+      .mockRejectedValueOnce(new PanelError('Nao ha anexo pendente.', status))
+      .mockResolvedValue(undefined)
+    dublê.pedir.mockResolvedValue({ PublicId: 'p-2', File: {}, Thumbnail: null })
+    const subiu = vi.fn()
+
+    await sendAttachment(credenciais, { ...anexo, uploaded: 'p-1' }, () => {}, {
+      onUploaded: subiu,
+    })
+
+    expect(dublê.pedir).toHaveBeenCalledOnce()
+    expect(subiu).toHaveBeenCalledWith('p-2')
+    expect(dublê.confirmar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ AttachmentPublicId: 'p-2' }),
+    )
+  })
+
+  // A recusa e a resposta: o arquivo foi descartado, e recomecar levaria a mesma.
+  it('a recusa da confirmação de novo é a resposta, e não recomeça', async () => {
+    dublê.confirmar.mockRejectedValue(
+      new PanelError('Este relato ja tem o maximo de arquivos que o projeto permite.', 409),
+    )
+
+    await expect(
+      sendAttachment(credenciais, { ...anexo, uploaded: 'p-1' }, () => {}),
+    ).rejects.toMatchObject({ status: 409 })
+    expect(dublê.pedir).not.toHaveBeenCalled()
   })
 })

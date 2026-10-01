@@ -95,6 +95,12 @@ services:
   # O `anonymous set none` nao e zelo: **URL assinada sobre arquivo publico nao
   # protege nada**, e um balde que nasce aberto faria toda a assinatura da
   # aplicacao virar enfeite. Repetir o comando e inofensivo.
+  #
+  # **A pasta `uploads/` expira em 1 dia.** E onde o navegador grava; o arquivo
+  # aceito sai de la na confirmacao, e o que sobra — envio abandonado, reenvio
+  # depois de confirmado — nao e anexo de ninguem. A confirmacao aceita ate 1 hora
+  # depois do pedido, entao um dia nao apaga nada que ainda possa entrar. `import`
+  # troca a configuracao inteira, e por isso repetir tambem nao duplica a regra.
   minio-init:
     image: pgsty/minio:latest
     container_name: pds-minio-init
@@ -112,7 +118,9 @@ services:
         mc alias set pds http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
         mc mb --ignore-existing "pds/$$MEDIA_STORAGE_BUCKET"
         mc anonymous set none "pds/$$MEDIA_STORAGE_BUCKET"
-        echo "balde $$MEDIA_STORAGE_BUCKET pronto e privado"
+        echo '{"Rules":[{"ID":"expira-envios","Status":"Enabled","Filter":{"Prefix":"uploads/"},"Expiration":{"Days":1}}]}' \
+          | mc ilm import "pds/$$MEDIA_STORAGE_BUCKET"
+        echo "balde $$MEDIA_STORAGE_BUCKET pronto, privado, e com a pasta de envio expirando em 1 dia"
     restart: "no"
 
   api:
@@ -132,6 +140,20 @@ services:
       # `NoClobber`: variavel real tem precedencia sobre o arquivo. E a mesma porta
       # que permite publicar a API com a configuracao do ambiente de verdade.
       MEDIA_STORAGE_ENDPOINT: "http://minio:9000"
+
+      # **As chaves e o balde vao junto do endereco, das mesmas fontes do minio e do
+      # minio-init.** O endereco sozinho deixava o armazenamento configurado pela
+      # metade para quem seguiu o `.env.example`, onde a secao vem comentada: a API
+      # recusava subir, e nenhuma rota respondia. Assim o balde da API e sempre o
+      # que o minio-init criou.
+      MEDIA_STORAGE_ACCESS_KEY: "${MINIO_ROOT_USER:-pds}"
+      MEDIA_STORAGE_SECRET_KEY: "${MINIO_ROOT_PASSWORD:-pdspdspds}"
+      MEDIA_STORAGE_BUCKET: "${MEDIA_STORAGE_BUCKET:-pds-media}"
+
+      # Mas o navegador nao conhece `minio`: a permissao assinada leva o navegador
+      # ao endereco que ela traz, e a assinatura cobre o host. Por isso a API assina
+      # com o endereco de fora, e so fala com o de dentro.
+      MEDIA_STORAGE_PUBLIC_ENDPOINT: "http://localhost:${MINIO_PORT:-9000}"
     volumes:
       - ./Pds.WebApi/Environment/.env.local:/app/Environment/.env.local:ro
     ports:
@@ -141,6 +163,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      # O balde precisa existir antes: com a configuracao completa, a API sobe e
+      # aceita ligar o anexo — e sem o balde, so o primeiro envio descobriria.
+      minio-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:

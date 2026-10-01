@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { createMemoryRouter, Outlet, RouterProvider, useParams } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  PanelAttachmentViewModel,
   ProjectViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
@@ -45,6 +46,7 @@ const dublê = vi.hoisted(() => ({
   abrir: vi.fn(),
   encerrar: vi.fn(),
   pedir: vi.fn(),
+  anexos: vi.fn(),
 }))
 
 vi.mock('@/data', async (importOriginal) => {
@@ -64,6 +66,7 @@ vi.mock('@/data', async (importOriginal) => {
       closeReport: dublê.encerrar,
       askInfo: dublê.pedir,
     },
+    projectReportAttachmentService: { listAttachments: dublê.anexos },
   }
 })
 
@@ -186,6 +189,8 @@ describe('ReportsScreen', () => {
     // A tela busca lista e contagem. Sem esta resposta a barra de filtro nao
     // desenha, e os testes da lista passariam olhando uma tela incompleta.
     dublê.contar.mockResolvedValue([])
+    dublê.anexos.mockReset()
+    dublê.anexos.mockResolvedValue([])
   })
 
   it('mostra o que chegou, com protocolo e pagina de origem', async () => {
@@ -354,6 +359,88 @@ describe('abrir um relato', () => {
 
     expect(await screen.findByText(/O resto do contexto não carregou/)).toBeTruthy()
     expect(screen.getByRole('dialog').textContent).toContain('a conta esta errada')
+  })
+
+  /**
+   * **O motivo e o print da reabertura chegam ao time pelo diálogo de verdade.** Um
+   * diálogo montado à mão no teste passaria com a ligação real quebrada: sem as
+   * reaberturas, o time não lê por que o relato voltou; sem os arquivos delas, o
+   * print some do painel inteiro, porque ele já não está em "Arquivos".
+   */
+  describe('as reaberturas no diálogo', () => {
+    function arquivo(extra: Partial<PanelAttachmentViewModel>): PanelAttachmentViewModel {
+      return {
+        PublicId: 'a-1',
+        Kind: 'Image',
+        Url: 'http://armazenamento/inteiro',
+        ThumbnailUrl: 'http://armazenamento/miniatura',
+        ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+        SizeBytes: 120 * 1024,
+        DurationSeconds: null,
+        OriginalName: 'do-relato.png',
+        CameWithReply: false,
+        ReplyPublicId: null,
+        CameWithReopen: false,
+        ReopenPublicId: null,
+        CreatedAt: '2026-09-23T12:00:00.000Z',
+        ...extra,
+      }
+    }
+
+    const daReabertura = arquivo({
+      PublicId: 'a-2',
+      OriginalName: 'ainda-quebrado.png',
+      CameWithReopen: true,
+      ReopenPublicId: 'fech-1',
+    })
+
+    it('o motivo aparece, e o print fica junto dele e fora de "Arquivos"', async () => {
+      dublê.abrir.mockResolvedValue({
+        ...relato('r-1', 'o botao some'),
+        Closure: null,
+        InfoRequest: null,
+        CanAskInfo: false,
+        Contexts: [],
+        Reopenings: [
+          {
+            PublicId: 'fech-1',
+            Outcome: 'Done',
+            ClosedAt: '2026-09-20T10:00:00.000Z',
+            ReopenedAt: '2026-09-21T09:00:00.000Z',
+            Comment: 'Voltou a travar.',
+          },
+        ],
+      })
+      dublê.anexos.mockResolvedValue([arquivo({}), daReabertura])
+
+      montar()
+      fireEvent.click(await screen.findByText('o botao some'))
+
+      const motivo = await screen.findByText('Voltou a travar.')
+      const print = await screen.findByRole('button', { name: /ainda-quebrado\.png/ })
+      expect((motivo.closest('li') as HTMLElement).contains(print)).toBe(true)
+
+      const secaoArquivos = screen.getByText('Arquivos').closest('section') as HTMLElement
+      expect(secaoArquivos.contains(screen.getByRole('button', { name: /do-relato\.png/ }))).toBe(
+        true,
+      )
+      expect(secaoArquivos.contains(print)).toBe(false)
+    })
+
+    // Sem o detalhe, a reabertura nao aparece — e o print dela iria para um lugar que
+    // nao esta na tela. Em "Arquivos" ele pelo menos chega ao time.
+    it('com o detalhe falhando, o print da reabertura cai em "Arquivos", em vez de sumir', async () => {
+      dublê.abrir.mockRejectedValue(new Error('rede'))
+      dublê.anexos.mockResolvedValue([daReabertura])
+
+      montar()
+      fireEvent.click(await screen.findByText('o botao some'))
+
+      await screen.findByText(/O resto do contexto não carregou/)
+      const print = await screen.findByRole('button', { name: /ainda-quebrado\.png/ })
+      const secaoArquivos = screen.getByText('Arquivos').closest('section') as HTMLElement
+      expect(secaoArquivos.contains(print)).toBe(true)
+    })
   })
 
   it('abrir outro relato antes da resposta do primeiro nao mistura o contexto', async () => {

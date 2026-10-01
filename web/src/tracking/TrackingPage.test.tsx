@@ -3,6 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  PublicAttachmentViewModel,
   PublicClosureViewModel,
   PublicReportViewModel,
   PublicStageViewModel,
@@ -38,6 +39,7 @@ const dublê = vi.hoisted(() => ({
   responder: vi.fn(),
   abrirPorCodigo: vi.fn(),
   anexos: vi.fn(),
+  anexosPorCodigo: vi.fn(),
   midia: vi.fn(),
 }))
 
@@ -56,6 +58,7 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
     // Sem isto a pagina buscaria os anexos de verdade, pela rede, em todo teste.
     publicMediaService: {
       listTrackingAttachments: dublê.anexos,
+      listAttachmentsByReporterCode: dublê.anexosPorCodigo,
       loadTrackingMediaSettings: dublê.midia,
     },
   }
@@ -131,6 +134,7 @@ afterEach(cleanup)
 beforeEach(() => {
   for (const mock of Object.values(dublê)) mock.mockReset()
   dublê.anexos.mockResolvedValue([])
+  dublê.anexosPorCodigo.mockResolvedValue([])
   // Padrao: o projeto nao aceita anexo na resposta. Os testes que precisam ligam.
   dublê.midia.mockResolvedValue({
     IsEnabled: false,
@@ -273,6 +277,19 @@ describe('a pagina publica de acompanhamento', () => {
     expect(screen.getByText('Como terminou')).toBeTruthy()
   })
 
+  // A pagina publicada antes da API nova, ou a API desfeita pela migracao: a resposta
+  // chega sem a lista de reaberturas. Quem so queria confirmar ou responder nao pode
+  // ficar com a pagina em branco por isso.
+  it('resposta sem a lista de reaberturas abre a página mesmo assim', async () => {
+    dublê.abrir.mockResolvedValue({ ...relato, Reopenings: undefined })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    expect(await screen.findByText(/O botão de finalizar compra/)).toBeTruthy()
+    expect(screen.queryByText('Você reabriu este relato')).toBeNull()
+  })
+
   it('o relato aberto não mostra encerramento nenhum', async () => {
     dublê.abrir.mockResolvedValue({
       ...relato,
@@ -403,6 +420,30 @@ describe('a resposta de quem relatou', () => {
         expect.objectContaining({ Satisfaction: 4, SatisfactionDeclined: false }),
       ),
     )
+  })
+
+  // A API devolve o fechamento ja confirmado, e ele continua sendo o da tela. A
+  // escala ficaria embaixo, pedindo uma nota que a API ja recusa — e o segundo
+  // clique voltaria com erro.
+  it('confirmado com nota, a escala sai e fica o que ela respondeu', async () => {
+    encerrado()
+    dublê.confirmar.mockResolvedValue({
+      ...relato,
+      Closure: fechamento({
+        ConfirmedAt: '2026-09-21T09:00:00.000Z',
+        Satisfaction: 4,
+        Actions: { ...fechamento().Actions, CanConfirm: false, CanReopen: false },
+      }),
+    })
+    render(<TrackingPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sim, resolveu' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Nota 4' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    expect(await screen.findByText(/Sua nota: 4 de 5/)).toBeTruthy()
+    expect(screen.queryByText('Como foi o atendimento do seu relato?')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Enviar' })).toBeNull()
   })
 
   it('recusar apaga a nota escolhida, e não vira nota zero', async () => {
@@ -685,6 +726,28 @@ describe('a conversa sobre o relato', () => {
     )
   })
 
+  // Pelo codigo pessoal a pagina so mostra: responder pede o link de quando a pessoa
+  // relatou. Prometer reabrir "por esta pagina" seria prometer o que ali nao ha.
+  it('pelo código pessoal, o pedido diz como responder, e não promete reabrir por aqui', async () => {
+    dublê.abrirPorCodigo.mockResolvedValue({
+      ...relato,
+      Conversation: [fala('m-1', false, 'Em qual navegador?')],
+      InfoRequest: {
+        AskedAt: '2026-09-18T12:00:00.000Z',
+        CloseAt: '2026-10-02T12:00:00.000Z',
+        IsWarning: false,
+      },
+      CanReply: false,
+    })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV&k=pk_DEMO#p=H7QK-3M2X-P9WD')
+
+    render(<TrackingPage />)
+
+    expect(await screen.findByText(/abra o link que você recebeu ao relatar/)).toBeTruthy()
+    expect(screen.queryByText(/reabrir por esta página/)).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'A sua resposta' })).toBeNull()
+  })
+
   it('sem pergunta aberta, a conversa aparece mas não dá para escrever', async () => {
     dublê.abrir.mockResolvedValue({
       ...relato,
@@ -704,11 +767,28 @@ describe('a conversa sobre o relato', () => {
 
 describe('os arquivos na pagina de acompanhamento', () => {
   /**
-   * **So pelo link.** A rota dos arquivos pede o token, que e o que o link
-   * carrega. Pelo codigo pessoal o relato abre e os arquivos nao — e a terceira
-   * porta, que ficou para depois. O teste trava as duas metades: pedir com o token,
-   * e nao pedir sem ele.
+   * **Cada porta pede os arquivos pelo que tem.** O link carrega o token; a lista
+   * pessoal, a chave e o codigo. As duas leem a mesma lista, e cada arquivo cai no
+   * seu lugar do mesmo jeito.
+   *
+   * **Pelo codigo, so ler.** Anexar, responder e reabrir pedem o link: a pagina nao
+   * pergunta o que da para anexar, e nao mostra onde.
    */
+  function anexo(extra: Partial<PublicAttachmentViewModel> = {}): PublicAttachmentViewModel {
+    return {
+      PublicId: 'a-1',
+      Kind: 'Image',
+      Url: 'http://armazenamento/a-1',
+      ThumbnailUrl: 'http://armazenamento/a-1-thumb',
+      ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      DurationSeconds: null,
+      ReplyPublicId: null,
+      ReopenPublicId: null,
+      CreatedAt: '2026-09-12T13:24:00.000Z',
+      ...extra,
+    }
+  }
+
   it('pelo link, busca os arquivos com o protocolo e o token', async () => {
     dublê.abrir.mockResolvedValue(relato)
     dublê.anexos.mockResolvedValue([
@@ -743,14 +823,84 @@ describe('os arquivos na pagina de acompanhamento', () => {
     expect(screen.queryByText('O que você anexou')).toBeNull()
   })
 
-  it('pelo codigo pessoal, nao pede os arquivos — a rota exige o token', async () => {
+  it('pelo código pessoal, busca os arquivos pela chave, pelo código e pelo protocolo', async () => {
     dublê.abrirPorCodigo.mockResolvedValue(relato)
+    dublê.anexosPorCodigo.mockResolvedValue([anexo()])
     abrirEm('/tracking.html?c=7K2M-9QXP-4TRV&k=pk_DEMO#p=H7QK-3M2X-P9WD')
 
     render(<TrackingPage />)
 
-    await screen.findByText(/O botão de finalizar compra/)
+    const doRelato = (await screen.findByText('O que você anexou')).parentElement as HTMLElement
+    expect(doRelato.querySelector('img')?.getAttribute('src')).toBe(
+      'http://armazenamento/a-1-thumb',
+    )
+    expect(dublê.anexosPorCodigo).toHaveBeenCalledWith({
+      Key: 'pk_DEMO',
+      Code: 'H7QK-3M2X-P9WD',
+      TrackingCode: '7K2M-9QXP-4TRV',
+    })
     expect(dublê.anexos).not.toHaveBeenCalled()
+  })
+
+  // Os prints da resposta e da reabertura ficam no lugar deles, como pelo link. E a
+  // pagina so le: nao pergunta o que da para anexar, nem mostra onde.
+  it('pelo código pessoal, cada print fica no seu lugar, e não há onde anexar', async () => {
+    dublê.abrirPorCodigo.mockResolvedValue({
+      ...relato,
+      Conversation: [
+        {
+          PublicId: 'f-1',
+          FromReporter: false,
+          Body: 'Manda a tela?',
+          CreatedAt: '2026-09-18T12:00:00.000Z',
+        },
+        {
+          PublicId: 'f-2',
+          FromReporter: true,
+          Body: 'Segue a tela.',
+          CreatedAt: '2026-09-18T13:00:00.000Z',
+        },
+      ],
+      Reopenings: [
+        { PublicId: 'r-1', ReopenedAt: '2026-09-21T09:00:00.000Z', Comment: 'Voltou a travar.' },
+      ],
+    })
+    dublê.anexosPorCodigo.mockResolvedValue([
+      anexo({ PublicId: 'a-criacao', ThumbnailUrl: 'http://armazenamento/criacao-thumb' }),
+      anexo({
+        PublicId: 'a-resposta',
+        ThumbnailUrl: 'http://armazenamento/resposta-thumb',
+        ReplyPublicId: 'f-2',
+      }),
+      anexo({
+        PublicId: 'a-reabertura',
+        ThumbnailUrl: 'http://armazenamento/reabertura-thumb',
+        ReopenPublicId: 'r-1',
+      }),
+    ])
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV&k=pk_DEMO#p=H7QK-3M2X-P9WD')
+
+    render(<TrackingPage />)
+
+    await screen.findByText('O que você anexou ao reabrir')
+    const imagens = (onde: Element | null) =>
+      Array.from(onde?.querySelectorAll('img') ?? []).map((img) => img.getAttribute('src'))
+
+    expect(imagens(screen.getByText('O que você anexou').parentElement)).toEqual([
+      'http://armazenamento/criacao-thumb',
+    ])
+    expect(imagens(screen.getByText('Segue a tela.').closest('li'))).toEqual([
+      'http://armazenamento/resposta-thumb',
+    ])
+    expect(imagens(screen.getByText('Voltou a travar.').closest('li'))).toEqual([
+      'http://armazenamento/reabertura-thumb',
+    ])
+
+    // A busca do que da para anexar sairia num efeito: a ausencia so prova algo
+    // depois que os efeitos rodaram.
+    await act(async () => {})
+    expect(dublê.midia).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Anexar imagem' })).toBeNull()
   })
 })
 

@@ -5,25 +5,42 @@ import { onlyUploadable } from '@/embed/attachments'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 
 /**
- * Os arquivos do relato e o que da para anexar na resposta e na reabertura — tudo
- * pela porta do link, e so quando ha token.
+ * Os arquivos do relato e o que da para anexar na resposta e na reabertura.
  *
- * **Sem token, nada.** Quem abriu pelo codigo pessoal ve o relato e nao os arquivos:
- * as rotas pedem o token, e essa e a terceira porta, que ficou para depois.
+ * **Os arquivos se leem pelas duas portas; anexar, so pela do link.** Quem abriu
+ * pelo codigo pessoal ve os prints que mandou — ao relatar, ao responder e ao
+ * reabrir —, e nao ve onde anexar: responder e reabrir pedem o link, e o que da para
+ * anexar so importa a quem age.
+ *
+ * @param pessoal A chave e o codigo de quem abriu pela lista pessoal. Nulo quando a
+ *   pagina veio pelo link.
  *
  * **A configuracao que falha vira "nao da para anexar"**, pelo mesmo motivo do
  * quadro: sem saber os limites, o botao prometeria o que o envio recusaria. A
  * resposta e a reabertura em texto continuam funcionando.
  */
-export function useTrackingMedia(code: string, token: string) {
+export function useTrackingMedia(
+  code: string,
+  token: string,
+  pessoal: { key: string; reporterCode: string } | null = null,
+) {
   const temToken = token.length > 0
+  const chave = pessoal?.key ?? ''
+  const codigoPessoal = pessoal?.reporterCode ?? ''
 
   const anexos = useAsyncResource(
-    useCallback(
-      (): Promise<PublicAttachmentViewModel[]> =>
-        temToken ? publicMediaService.listTrackingAttachments(code, token) : Promise.resolve([]),
-      [code, token, temToken],
-    ),
+    useCallback((): Promise<PublicAttachmentViewModel[]> => {
+      if (temToken) return publicMediaService.listTrackingAttachments(code, token)
+
+      if (chave.length > 0 && codigoPessoal.length > 0)
+        return publicMediaService.listAttachmentsByReporterCode({
+          Key: chave,
+          Code: codigoPessoal,
+          TrackingCode: code,
+        })
+
+      return Promise.resolve([])
+    }, [code, token, temToken, chave, codigoPessoal]),
   )
 
   const configuracao = useAsyncResource(

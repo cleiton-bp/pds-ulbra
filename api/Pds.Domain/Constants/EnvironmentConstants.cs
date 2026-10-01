@@ -61,6 +61,18 @@ public static class EnvironmentConstants
     /// </summary>
     public static string? GetMediaStorageEndpoint() => Optional("MEDIA_STORAGE_ENDPOINT");
 
+    /// <summary>
+    /// Endereco do armazenamento como o <b>navegador</b> o alcanca. Padrao: o mesmo
+    /// de <see cref="GetMediaStorageEndpoint"/>.
+    ///
+    /// <para><b>So existe quando a API e o navegador enxergam o armazenamento por
+    /// enderecos diferentes</b> — a API num container, que o alcanca pelo nome do
+    /// servico na rede interna, enquanto o navegador so conhece o endereco de fora.
+    /// A assinatura cobre o host: assinada com o interno, a permissao levaria o
+    /// navegador a um nome que ele nem resolve.</para>
+    /// </summary>
+    public static string? GetMediaStoragePublicEndpoint() => Optional("MEDIA_STORAGE_PUBLIC_ENDPOINT");
+
     /// <summary>Chave de acesso do armazenamento de midia.</summary>
     public static string? GetMediaStorageAccessKey() => Optional("MEDIA_STORAGE_ACCESS_KEY");
 
@@ -137,6 +149,25 @@ public static class EnvironmentConstants
     /// <summary>Origens autorizadas no CORS do painel, separadas por virgula.</summary>
     public static string[] GetCorsAllowedOrigins()
         => (Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS") ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>
+    /// Os proxies cujo <c>X-Forwarded-For</c> vale, separados por virgula: enderecos
+    /// (<c>10.0.0.5</c>) ou redes (<c>10.0.0.0/8</c>). Padrao: nenhum.
+    ///
+    /// <para><b>Vazia, o cabecalho e ignorado</b>, e o IP de cada pedido e o de quem
+    /// abriu a conexao. Atras de um proxy isso junta todo mundo num IP so, e o limite
+    /// por minuto passa a ser dividido entre todos — por isso existe a lista.</para>
+    ///
+    /// <para><b>So o proxy listado e acreditado.</b> O cabecalho e texto que qualquer
+    /// um escreve: aceita-lo de qualquer origem daria a quem martela a rota um IP
+    /// novo a cada pedido, e o limite deixaria de limitar.</para>
+    ///
+    /// <para>Valor que nao e endereco nem rede derruba a subida: um proxy escrito
+    /// errado nao pode virar, em silencio, "nenhum proxy".</para>
+    /// </summary>
+    public static string[] GetTrustedProxies()
+        => (Environment.GetEnvironmentVariable("TRUSTED_PROXIES") ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>

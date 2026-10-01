@@ -2,6 +2,7 @@ import type {
   AttachmentUploadTicketViewModel,
   ConfirmAttachmentRequest,
   ConfirmedAttachmentViewModel,
+  OpenByReporterCodeRequest,
   PublicAttachmentViewModel,
   PublicMediaSettingsViewModel,
   RequestAttachmentUploadRequest,
@@ -42,9 +43,18 @@ export interface PublicMediaService {
 
   /**
    * Os arquivos do relato, para quem o relatou. **Pelo protocolo e pelo token** —
-   * a mesma porta do acompanhamento. Pelo codigo pessoal ainda nao ha rota.
+   * a mesma porta do acompanhamento.
    */
   listTrackingAttachments(trackingCode: string, token: string): Promise<PublicAttachmentViewModel[]>
+
+  /**
+   * Os mesmos arquivos, para quem voltou pela lista pessoal: **pela chave, pelo
+   * codigo e pelo protocolo** — a porta que abre o relato pelo codigo. So le: agir
+   * continua pedindo o link.
+   */
+  listAttachmentsByReporterCode(
+    request: OpenByReporterCodeRequest,
+  ): Promise<PublicAttachmentViewModel[]>
 
   /**
    * O que da para anexar, **pela porta do link**. A pagina de acompanhamento nao

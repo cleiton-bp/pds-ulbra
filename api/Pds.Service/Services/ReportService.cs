@@ -97,15 +97,16 @@ public class ReportService : IReportService
     /// decide: a observacao de <c>by-code/open</c> no controlador, a de
     /// <see cref="IReportService.OpenByReporterCodeAsync"/>, o resumo de
     /// <c>OpenByReporterCodeDto</c>, o campo <c>TrackingCodeCanAct</c> em
-    /// <c>CycleSettingsDto</c> e <c>CycleSettingsViewModel</c>, as paginas
+    /// <c>CycleSettingsDto</c>, <c>CycleSettingsViewModel</c> e
+    /// <c>ProjectCycleSettings</c>, o contrato <c>cycleSettings.ts</c> da web, as paginas
     /// <c>rotas-publicas</c>, <c>codigo-e-moderacao</c>, <c>pedido-e-espera</c>,
     /// <c>configuracoes</c> e <c>o-que-entra</c> da documentacao, e os comentarios
     /// da pagina de acompanhamento (<c>report.ts</c>, <c>reportService.ts</c>,
     /// <c>tracking.ts</c>, <c>TrackingPage.tsx</c>).</item>
     /// </list>
     /// <para>Feito isso, a volta da API e esta linha — o espelho da constante da
-    /// tela. Os arquivos do relato sao outra porta, que tambem so aceita o token, e
-    /// nao dependem daqui.</para>
+    /// tela. Ler os arquivos do relato pelo codigo ja existe, e nao depende daqui:
+    /// ler nunca foi agir (ver ReporterCodeGate).</para>
     /// </summary>
     private const bool ActionsAcceptReporterCode = false;
 
@@ -1829,41 +1830,13 @@ public class ReportService : IReportService
 
     public async Task<PublicReportViewModel> OpenByReporterCodeAsync(OpenByReporterCodeDto dto, CancellationToken cancellationToken = default)
     {
-        var project = await RequireProjectAsync(dto.Key, cancellationToken);
-
-        var digitado = (dto.Code ?? string.Empty).Trim().ToUpperInvariant();
-        var protocolo = (dto.TrackingCode ?? string.Empty).Trim().ToUpperInvariant();
-
-        // **Uma recusa so, para os quatro caminhos.** Codigo em branco, codigo que
-        // nao existe, protocolo que nao existe, e protocolo que existe mas e de
-        // outra pessoa saem iguais: responder diferente contaria a quem sonda o que
-        // ele acertou, que e como se encontra o relato alheio a partir de um
-        // protocolo — que e curto e falado de proposito.
-        if (digitado.Length == 0 || protocolo.Length == 0)
-            throw new KeyNotFoundException(TrackingRefusal);
-
-        var identidade = await _unitOfWork.ProjectIdentitySettings
-            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
-
-        if ((identidade?.Mode ?? IdentitySettingsDefaults.Mode) != ReporterIdentityModeEnum.PersonalCode)
-            throw new KeyNotFoundException(TrackingRefusal);
-
-        var codigo = await _unitOfWork.ReporterCodes
-            .FindByCodeWithoutSessionAsync(project.Id, digitado, cancellationToken);
-
-        if (codigo is null)
-            throw new KeyNotFoundException(TrackingRefusal);
-
-        var report = await _unitOfWork.Reports
-            .FindByTrackingCodeWithoutSessionAsync(protocolo, cancellationToken);
-
-        // O relato precisa ser **deste codigo**. Sem esta linha, qualquer codigo
-        // valido abriria qualquer protocolo do projeto.
-        if (report is null || report.ReporterCodeId != codigo.Id)
-            throw new KeyNotFoundException(TrackingRefusal);
+        // A mesma porta da leitura dos arquivos pelo codigo: chave, codigo e
+        // protocolo, com uma recusa so. Ver ReporterCodeGate.
+        var report = await ReporterCodeGate.RequireAsync(
+            _unitOfWork, dto.Key, dto.Code, dto.TrackingCode, cancellationToken);
 
         var regras = await _unitOfWork.ProjectCycleSettings
-            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+            .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
 
         // **E aqui que a regra do codigo sozinho decide — quando puder.** Enquanto
         // confirmar, reabrir e responder so aceitarem o token, obedecer ao valor

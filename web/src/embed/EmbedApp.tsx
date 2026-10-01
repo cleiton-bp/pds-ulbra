@@ -122,6 +122,14 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   const { anexos, recusa, setRecusa, adicionar, remover, colar, enviarAnexo, enviarAnexos } = draft
 
   /**
+   * O texto ja foi, ou esta indo: a lista de arquivos nao muda mais. **Em ref, alem
+   * do estado**, para a captura que volta depois de a pessoa escolher a tela saber
+   * disso — o estado que ela leu e o do clique.
+   */
+  const travado = useRef(false)
+  travado.current = sending || created !== null
+
+  /**
    * A captura pedida. **Some de vez quando a pagina proibe**: a proibicao do site do
    * cliente e permanente, e deixar o botao falharia em todo clique.
    */
@@ -166,8 +174,14 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   async function capturar() {
     setRecusa(null)
 
+    // O navegador pergunta qual tela mostrar, e isso leva o tempo da pessoa. Fechado
+    // o quadro nesse meio, a captura chegaria num formulario que ja e outro.
+    const minha = generation.current
+
     try {
       const canvas = await captureFrame()
+      // Enviado nesse meio, o relato ja saiu com a lista que tinha: o print nao iria.
+      if (generation.current !== minha || travado.current) return
       host?.enlarge()
       setRecorte(canvas)
     } catch (falha) {
@@ -193,6 +207,11 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     // quadro foi reiniciado no meio e o resultado nao vale mais.
     const minha = generation.current
 
+    // Os arquivos deste relato, guardados agora: fechar o quadro com o relato ainda
+    // sendo criado esvazia a lista da tela, e eles precisam subir mesmo assim. Com o
+    // quadro nao reiniciado, vale a lista da volta — ver abaixo.
+    const arquivos = [...draft.atual()]
+
     try {
       const criado = await reportService.createReport({
         Key: config.key,
@@ -213,23 +232,34 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
         Context: buildReportContext(config),
       })
 
-      if (generation.current !== minha) return
+      const credenciais = { trackingCode: criado.TrackingCode, token: criado.AccessToken }
+
+      // **Guarda o que a API confirmou, e nao o que foi mandado.** Ver o comentario
+      // do estado: o codigo pode ter mudado do lado de la. Guarda mesmo com o quadro
+      // fechado no meio: o relato existe, e sem o codigo dele a proxima vez pediria
+      // outro, dividindo os relatos desta pessoa em dois.
+      if (criado.ReporterCode !== null) {
+        setReporterCode(criado.ReporterCode)
+        writeReporterCode(config.key, criado.ReporterCode)
+      }
+
+      // **Fechado no meio, o relato existe e os arquivos vao.** A tela e outra, e
+      // nada dela muda; o envio so termina.
+      if (generation.current !== minha) {
+        if (arquivos.length > 0) void enviarAnexos(credenciais, minha, arquivos)
+        return
+      }
+
       setCreated(criado)
 
       // **O protocolo aparece antes de os arquivos subirem.** Ele ja esta
       // garantido — o relato existe —, e fazer a pessoa esperar os arquivos
       // terminarem para ver o protocolo seria esconder a parte que nao pode se
       // perder.
-      if (draft.atual().length > 0) {
-        void enviarAnexos({ trackingCode: criado.TrackingCode, token: criado.AccessToken }, minha)
-      }
-
-      // **Guarda o que a API confirmou, e nao o que foi mandado.** Ver o comentario
-      // do estado: o codigo pode ter mudado do lado de la.
-      if (criado.ReporterCode !== null) {
-        setReporterCode(criado.ReporterCode)
-        writeReporterCode(config.key, criado.ReporterCode)
-      }
+      //
+      // A lista e a de agora, e nao a do clique: e ela que a tela mostra. A lista fica
+      // travada durante o envio, e isto e a segunda tranca.
+      if (draft.atual().length > 0) void enviarAnexos(credenciais, minha)
     } catch (failure) {
       if (generation.current !== minha) return
       setError(describeError(failure))
@@ -307,9 +337,13 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       <div style={style} className="h-full">
         <CaptureCropper
           canvas={recorte}
+          maxBytes={tipoImagem?.MaxBytes}
           onCancel={fecharRecorte}
           onUse={(file) => {
             fecharRecorte()
+            // O recorte aberto antes de o relato sair: a lista ja foi, e o print nao
+            // iria junto — entraria na tela de confirmacao como "na fila" para sempre.
+            if (travado.current) return
             void adicionar([file])
           }}
         />
@@ -345,7 +379,10 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     const trackingLink = buildTrackingLink(created.TrackingCode, created.AccessToken)
 
     return (
-      <section style={style} className="flex h-full flex-col gap-4 bg-surface p-5">
+      // `overflow-y-auto` pelo mesmo motivo do formulario: com arquivos na lista e o
+      // codigo pessoal, a confirmacao passa da altura do quadro — e o que ficaria fora
+      // seria o link que aparece uma vez so, e o "Fechar".
+      <section style={style} className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
         <div>
           <p className="text-body text-fg leading-normal">{settings.SuccessMessage}</p>
         </div>
@@ -365,6 +402,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
               generation.current,
             )
           }
+          onDiscard={(anexo) => remover(anexo.id)}
         />
 
         {/* **O codigo aparece em toda confirmacao, e nao so na primeira.** Ele e o
@@ -448,8 +486,8 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       style={style}
       onSubmit={submit}
       // No formulario inteiro, e nao so na caixa de texto: quem tirou o print cola
-      // com o foco onde estiver.
-      onPaste={colar}
+      // com o foco onde estiver. Durante o envio a lista esta travada.
+      onPaste={sending ? undefined : colar}
       // `overflow-y-auto` e a ultima linha de defesa: com o quadro baixo demais
       // para o conteudo minimo, rola em vez de aparar.
       className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5"
@@ -547,6 +585,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           recusa={recusa}
           onAdd={(arquivos) => void adicionar(arquivos)}
           onRemove={remover}
+          disabled={sending}
           actions={
             podeCapturar && (
               <button
@@ -554,7 +593,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
                 onClick={() => void capturar()}
                 // A captura vira imagem: sem vaga para imagem, capturar e recortar
                 // terminaria numa recusa.
-                disabled={!hasRoom(anexos, media, 'Image')}
+                disabled={sending || !hasRoom(anexos, media, 'Image')}
                 className={ATTACH_BUTTON_CLASS}
               >
                 Capturar tela

@@ -39,7 +39,11 @@ public record SignedReadUrl(Uri Url, DateTime ExpiresAt);
 /// <param name="SizeBytes">Tamanho real, como o armazenamento o conta.</param>
 /// <param name="ContentType">Tipo declarado, gravado no objeto.</param>
 /// <param name="Leading">Os primeiros bytes do arquivo.</param>
-public record MediaObjectInfo(long SizeBytes, string ContentType, byte[] Leading);
+/// <param name="ETag">
+/// A identidade do conteudo conferido. Muda quando os bytes mudam, e e com ela que
+/// a copia para a chave final exige que o arquivo ainda seja o mesmo.
+/// </param>
+public record MediaObjectInfo(long SizeBytes, string ContentType, byte[] Leading, string ETag);
 
 /// <summary>
 /// Onde a midia de um relato fica guardada.
@@ -139,6 +143,10 @@ public interface IMediaStorage
     ///
     /// <para>Nulo e o caso comum de quem desistiu no meio: a permissao foi assinada
     /// e o arquivo nunca chegou.</para>
+    ///
+    /// <para><b>O tamanho, os bytes e o <c>ETag</c> sao do mesmo conteudo.</b> Sao
+    /// duas leituras, e quem tem a permissao pode trocar o arquivo entre elas; a
+    /// segunda so vale se o conteudo ainda for o da primeira.</para>
     /// </summary>
     /// <param name="objectKey">Nome do arquivo no armazenamento.</param>
     /// <param name="leadingBytes">Quantos bytes do comeco trazer.</param>
@@ -149,18 +157,41 @@ public interface IMediaStorage
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Copia o arquivo para outro nome, <b>so se</b> ele ainda for o que foi conferido.
+    ///
+    /// <para><b>E o que fecha a troca de bytes depois da confirmacao.</b> A permissao
+    /// de envio continua valendo alguns minutos depois de usada, e reenvia-la grava
+    /// outro conteudo no mesmo nome — um conteudo que ninguem conferiu. Copiado para
+    /// um nome que nenhuma permissao assina, o arquivo conferido fica fora do
+    /// alcance dela.</para>
+    ///
+    /// <para><b>A copia exige o <paramref name="etag"/></b>, e e o armazenamento que
+    /// confere, no mesmo passo em que copia. Conferir antes, noutra chamada, deixaria
+    /// o intervalo em que o arquivo ainda pode ser trocado.</para>
+    ///
+    /// <para>Falso quando o conteudo mudou ou o arquivo sumiu. Nada e copiado.</para>
+    /// </summary>
+    /// <param name="sourceKey">Nome atual do arquivo.</param>
+    /// <param name="destinationKey">Nome final, que nenhuma permissao de envio assina.</param>
+    /// <param name="etag">A identidade do conteudo conferido, vinda de <see cref="InspectAsync"/>.</param>
+    /// <param name="cancellationToken">Cancelamento da requisicao em curso.</param>
+    Task<bool> CopyAsync(
+        string sourceKey,
+        string destinationKey,
+        string etag,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Apaga o arquivo de verdade.
     ///
     /// <para><b>Aqui a exclusao e fisica, e no resto do produto e logica.</b> Conta
     /// de armazenamento cobra pelo que esta la, e nao pelo que a aplicacao resolveu
     /// ignorar numa consulta.</para>
     ///
-    /// <para><b>Nada chama isto ainda, e e decisao.</b> Ficou definido que nada e
-    /// apagado por prazo durante o desenvolvimento: no comeco so uma pessoa usa, e
-    /// apagar midia no meio de um relato aberto seria pior que o custo de guardar.
-    /// O metodo existe porque e a terceira operacao que define um armazenamento —
-    /// deixa-lo de fora faria a proxima pessoa achar que apagar mora noutro
-    /// lugar.</para>
+    /// <para><b>So apaga o que nunca virou anexo</b>: o arquivo recusado na
+    /// confirmacao, e a copia de envio que sobra depois de o arquivo ir para o nome
+    /// final. Nada e apagado por prazo — apagar midia no meio de um relato aberto
+    /// seria pior que o custo de guardar.</para>
     ///
     /// <para>Apagar o que nao existe nao e erro: o pedido e sobre o estado final, e
     /// nao sobre o que havia antes.</para>

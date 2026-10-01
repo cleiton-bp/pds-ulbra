@@ -58,6 +58,13 @@ public class ReportAttachmentRepository
             cancellationToken);
     }
 
+    public Task<bool> IsObjectKeyInUseWithoutSessionAsync(string objectKey, CancellationToken cancellationToken = default)
+        => Context.ReportAttachments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(attachment => attachment.ObjectKey == objectKey && attachment.DeletedAt == null,
+                cancellationToken);
+
     public Task<ReportAttachment?> FindPendingWithoutSessionAsync(
         Guid publicId,
         long reportId,
@@ -69,6 +76,31 @@ public class ReportAttachmentRepository
                                                && attachment.Status == AttachmentStatusEnum.Pending
                                                && attachment.DeletedAt == null
                                                && attachment.Report.DeletedAt == null,
+                cancellationToken);
+
+    public Task<ReportAttachment?> FindConfirmedWithoutSessionAsync(
+        Guid publicId,
+        long reportId,
+        CancellationToken cancellationToken = default)
+        => Confirmados(reportId)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(attachment => attachment.PublicId == publicId, cancellationToken);
+
+    public Task<bool> HasActivitySinceWithoutSessionAsync(
+        long reportId,
+        long? publicCommentId,
+        long? reopenedClosureId,
+        DateTime since,
+        CancellationToken cancellationToken = default)
+        // Sem filtrar o apagado: o descartado tambem foi o envio andando. A
+        // confirmacao e o descarte gravam UpdatedAt — e a hora em que o arquivo
+        // terminou.
+        => Context.ReportAttachments
+            .IgnoreQueryFilters()
+            .AnyAsync(attachment => attachment.ReportId == reportId
+                                    && attachment.PublicCommentId == publicCommentId
+                                    && attachment.ReopenedClosureId == reopenedClosureId
+                                    && (attachment.CreatedAt >= since || attachment.UpdatedAt >= since),
                 cancellationToken);
 
     public Task<List<ReportAttachment>> ListConfirmedAsync(long reportId, CancellationToken cancellationToken = default)

@@ -31,7 +31,7 @@ public class RequestAttachmentUploadDto
     /// <summary>
     /// De que tipo e o arquivo. So <c>Image</c>.
     ///
-    /// <para><c>Video</c> e recusado com 400: saiu do produto por pesar demais no
+    /// <para><c>Video</c> e recusado com 409: saiu do produto por pesar demais no
     /// armazenamento e na entrega.</para>
     /// </summary>
     /// <example>Image</example>

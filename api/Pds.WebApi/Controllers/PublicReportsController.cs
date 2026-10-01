@@ -242,7 +242,8 @@ public class PublicReportsController : BaseController
     ///
     /// **Lê, e não age.** O código prova que o relato é dela; o link é que dá poder
     /// sobre ele — confirmar, reabrir e responder chegam desligados, porque hoje
-    /// essas três rotas só aceitam o token do link. `TrackingCodeCanAct` continua
+    /// essas três rotas só aceitam o token do link. Os arquivos do relato se leem
+    /// pela mesma porta, em `by-code/attachments`. `TrackingCodeCanAct` continua
     /// gravado, e é ignorado aqui até elas aceitarem o código: obedecê-lo mostraria
     /// botões que a própria API recusaria.
     ///
@@ -452,14 +453,26 @@ public class PublicReportsController : BaseController
     /// - **a reabertura** (`ForReopen`), nos 15 minutos depois da reabertura mais
     ///   recente, e só com o projeto deixando anexar ao reabrir.
     ///
+    /// **O prazo anda com o envio.** Os arquivos sobem um de cada vez, e cada um pede
+    /// a permissão quando o anterior termina: enquanto um arquivo do mesmo envio teve
+    /// a permissão pedida, ou terminou (confirmado ou recusado), nos últimos 15
+    /// minutos, o envio continua aberto — até 1 hora depois do texto. É o que deixa o último de muitos arquivos grandes, numa conexão
+    /// lenta, chegar sem ser recusado.
+    ///
     /// O navegador nunca diz qual resposta ou qual reabertura: o servidor acha a que
     /// acabou de acontecer. Cada permissão tem então 1 hora, contada de quando foi
     /// pedida, para ser confirmada: o envio precisa começar em minutos, mas terminar
-    /// depende da conexão. Passado o prazo, a recusa é 409 — o pedido estava certo, o
-    /// que fechou foi o envio. As duas bandeiras juntas recebem 400: um arquivo vai
-    /// com um envio só.
+    /// depende da conexão.
     ///
-    /// **Só imagem.** `Kind` igual a `Video` recebe 400, qualquer que seja o
+    /// **409 é a recusa que tentar de novo não muda; 400, o pedido mal formado.** O
+    /// que a regra do projeto, o produto ou o próprio arquivo recusam — anexo, tipo ou
+    /// envio desligados, formato, arquivo vazio ou grande demais, envio cheio ou
+    /// vencido — é 409: o pedido estava certo, e o mesmo arquivo levaria a mesma
+    /// resposta. A página mostra "não enviado", com o motivo. 400 fica para o que só um
+    /// cliente com defeito manda: tipo ou tamanho não informados, ou as duas bandeiras
+    /// juntas — um arquivo vai com um envio só.
+    ///
+    /// **Só imagem.** `Kind` igual a `Video` recebe 409, qualquer que seja o
     /// projeto: o vídeo saiu do produto por pesar demais no armazenamento e na
     /// entrega. `DurationSeconds` deixou de existir, e quem ainda o manda não quebra
     /// — o campo é ignorado.
@@ -470,9 +483,9 @@ public class PublicReportsController : BaseController
     /// <param name="dto">O relato, o tipo e o tamanho do arquivo.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Formulário assinado, pronto para enviar.</response>
-    /// <response code="400">Vídeo, projeto que não aceita anexo (ou não aceita na resposta, ou na reabertura), `ForReply` e `ForReopen` juntos, formato recusado, ou arquivo grande demais.</response>
+    /// <response code="400">Pedido mal formado: tipo ou tamanho não informados, ou `ForReply` e `ForReopen` juntos.</response>
     /// <response code="404">O link não abre nenhum relato.</response>
-    /// <response code="409">O envio já tem o máximo de arquivos, o prazo do envio terminou — ou não há resposta, ou reabertura, dos últimos 15 minutos —, ou esta instalação está sem armazenamento.</response>
+    /// <response code="409">A regra ou o próprio arquivo recusam, e tentar de novo não muda: vídeo, projeto que não aceita anexo (ou não aceita na resposta, ou na reabertura), tipo desligado, formato recusado, arquivo vazio ou grande demais, o envio já tem o máximo de arquivos, o prazo do envio terminou — ou não há resposta, ou reabertura, dos últimos 15 minutos —, ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments")]
     [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
@@ -533,13 +546,18 @@ public class PublicReportsController : BaseController
     ///
     /// **Uma permissão vale 1 hora para ser confirmada**, contada de quando foi
     /// pedida. Depois disso ela venceu: a recusa é 409, sem nem ler o armazenamento.
+    ///
+    /// **Confirmar de novo um anexo já confirmado responde 200, com os dados dele.**
+    /// A resposta da primeira confirmação pode se perder na rede, e quem tenta de novo
+    /// precisa ouvir que o arquivo entrou — e não recomeçar o envio, pondo o mesmo
+    /// arquivo duas vezes no relato.
     /// </remarks>
     /// <param name="dto">O relato e o anexo que está sendo confirmado.</param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">Anexo confirmado.</response>
-    /// <response code="400">O arquivo não chegou, ou não é do formato declarado — neste caso ele foi descartado.</response>
-    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador — por exemplo, porque outra confirmação do mesmo anexo terminou antes.</response>
-    /// <response code="409">O envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta ou na reabertura, ou tamanho máximo), a permissão passou de 1 hora sem ser confirmada, ou o anexo é um vídeo, que não é mais aceito — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
+    /// <response code="200">Anexo confirmado — agora, ou antes, por outra confirmação do mesmo anexo.</response>
+    /// <response code="400">Subir de novo pode resolver: o arquivo não chegou, ou mudou depois de conferido — neste caso ele foi descartado.</response>
+    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente nem confirmado com esse identificador neste relato — por exemplo, porque ele foi recusado e descartado.</response>
+    /// <response code="409">Tentar de novo não muda: o conteúdo não é de um formato aceito, o envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta ou na reabertura, ou tamanho máximo), a permissão passou de 1 hora sem ser confirmada, ou o anexo é um vídeo, que não é mais aceito — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments/confirm")]
     [EnableRateLimiting(Startup.MediaUploadRateLimitPolicy)]
@@ -598,6 +616,52 @@ public class PublicReportsController : BaseController
         try
         {
             var anexos = await _attachmentService.ListForTrackingAsync(dto, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(anexos, total: anexos.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Os arquivos do relato, para quem voltou pela lista pessoal.</summary>
+    /// <remarks>
+    /// **A mesma lista de `tracking/attachments`, pela porta do código.** Quem abriu o
+    /// relato pela lista pessoal — num navegador novo, sem o link — vê os prints que
+    /// mandou ao relatar, ao responder e ao reabrir, cada um no seu lugar.
+    ///
+    /// **Lê, e não age.** O código prova que o relato é dela; o link é que dá poder
+    /// sobre ele. Anexar, confirmar, reabrir e responder continuam pedindo o token.
+    ///
+    /// **Uma recusa só, para todos os enganos**, a mesma de `by-code/open`: código em
+    /// branco, código que não existe, protocolo que não existe, protocolo de outra
+    /// pessoa, e projeto que não usa o código.
+    ///
+    /// **Não grava visualização.** Quem grava é a abertura do relato, que vem antes; ler
+    /// os arquivos dele não é outra leitura.
+    ///
+    /// Sai com `Cache-Control: no-store`, e sem o nome original, como a leitura pelo link.
+    /// </remarks>
+    /// <param name="dto">A chave pública, o código e o protocolo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Os anexos confirmados, na ordem em que entraram.</response>
+    /// <response code="401">Chave pública inválida.</response>
+    /// <response code="404">Código ou protocolo não conferem.</response>
+    /// <response code="409">Não há armazenamento configurado nesta instalação.</response>
+    [HttpPost("by-code/attachments")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<List<PublicAttachmentViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ByCodeAttachments(
+        [FromBody] OpenByReporterCodeDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var anexos = await _attachmentService.ListForReporterCodeAsync(dto, cancellationToken);
             Response.Headers.CacheControl = "no-store";
             return Success(anexos, total: anexos.Count);
         }

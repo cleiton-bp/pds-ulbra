@@ -1,6 +1,9 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Pds.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -224,6 +227,11 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        // Antes de tudo: o limite por IP e o registro de quem pediu leem o IP que
+        // este passo corrige. Sem proxy listado, nada muda — ver TrustedForwarding.
+        if (TrustedForwarding() is { } encaminhamento)
+            app.UseForwardedHeaders(encaminhamento);
+
         // Documentacao do projeto servida na raiz, a partir da pasta api-docs.
         // Vem antes de tudo por ser conteudo estatico: nao precisa passar por
         // autenticacao nem por limite de requisicao.
@@ -271,8 +279,11 @@ public class Startup
 
         app.UseRouting();
 
-        app.UseRateLimiter();
+        // O CORS antes do limitador: a recusa por excesso sai do limitador sem passar
+        // pelo que vem depois, e sem os cabecalhos do CORS o navegador esconde a
+        // resposta — a tela via "falha de rede", e nunca "muitas tentativas".
         app.UseCors(PanelCorsPolicy);
+        app.UseRateLimiter();
 
         app.UseAuthentication();
         app.UseAuthorization();
@@ -282,5 +293,76 @@ public class Startup
         app.UseMiddleware<AccountMiddleware>();
 
         app.UseEndpoints(endpoints => endpoints.MapControllers());
+    }
+
+    /// <summary>
+    /// O IP de quem pede, quando a API esta atras de um proxy listado em
+    /// <c>TRUSTED_PROXIES</c>; nulo quando a lista esta vazia.
+    ///
+    /// <para><b>Vazia, nada muda.</b> O IP e o de quem abriu a conexao, como sempre
+    /// foi — e o padrao, porque aceitar o cabecalho sem saber de quem ele vem daria a
+    /// quem martela uma rota um IP novo a cada pedido.</para>
+    ///
+    /// <para><b>So o proxy listado e acreditado, e so um salto.</b> O padrao do
+    /// ASP.NET acredita no loopback; aqui ele e esvaziado, para valer so o que foi
+    /// escrito. O endereco IPv4 entra tambem na forma IPv6, que e como a conexao
+    /// chega quando o servidor escuta nas duas.</para>
+    ///
+    /// <para>O protocolo vem junto: atras de um proxy que termina o HTTPS, sem ele o
+    /// redirecionamento para HTTPS mandaria de volta a quem ja esta nele.</para>
+    /// </summary>
+    private static ForwardedHeadersOptions? TrustedForwarding()
+    {
+        var lista = EnvironmentConstants.GetTrustedProxies();
+
+        if (lista.Length == 0)
+            return null;
+
+        var options = new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+            ForwardLimit = 1,
+        };
+
+        options.KnownProxies.Clear();
+        options.KnownIPNetworks.Clear();
+
+        // `System.Net.IPNetwork` por extenso: o HttpOverrides tem um tipo de mesmo
+        // nome, o antigo, que o ASP.NET deixou de usar.
+        foreach (var item in lista)
+        {
+            // **IPv4 so na forma completa, com os quatro numeros.** O leitor de
+            // enderecos aceita "10/8" como 0.0.0.0/8 e "10.0.0" como 10.0.0.0: o proxy
+            // de verdade ficaria de fora da lista, e a subida seguiria como se ele
+            // estivesse nela — o engano que valor invalido derrubando existe para pegar.
+            var inicio = item.Split('/')[0];
+            if (!IPAddress.TryParse(inicio, out var enderecoBase)
+                || (enderecoBase.AddressFamily == AddressFamily.InterNetwork && enderecoBase.ToString() != inicio))
+                throw new InvalidOperationException(
+                    $"TRUSTED_PROXIES tem um valor que nao e endereco nem rede: \"{item}\".");
+
+            if (item.Contains('/') && System.Net.IPNetwork.TryParse(item, out var rede))
+            {
+                options.KnownIPNetworks.Add(rede);
+
+                if (rede.BaseAddress.AddressFamily == AddressFamily.InterNetwork)
+                    options.KnownIPNetworks.Add(
+                        new System.Net.IPNetwork(rede.BaseAddress.MapToIPv6(), rede.PrefixLength + 96));
+            }
+            else if (!item.Contains('/') && IPAddress.TryParse(item, out var endereco))
+            {
+                options.KnownProxies.Add(endereco);
+
+                if (endereco.AddressFamily == AddressFamily.InterNetwork)
+                    options.KnownProxies.Add(endereco.MapToIPv6());
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"TRUSTED_PROXIES tem um valor que nao e endereco nem rede: \"{item}\".");
+            }
+        }
+
+        return options;
     }
 }
