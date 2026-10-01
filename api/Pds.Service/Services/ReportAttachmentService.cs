@@ -122,6 +122,10 @@ public class ReportAttachmentService : IReportAttachmentService
     // so acrescenta o que a pessoa faz em seguida. "Mais" diz que ja foi aceito.
     private const string VideoRefused = "Video nao e mais aceito como anexo.";
 
+    // O zip saiu do catalogo, e a frase diz por que — para ninguem achar que e o
+    // projeto. Como a do video, a mesma nos tres lugares.
+    private const string ZipRefused = "Zip nao e mais aceito como anexo: ele pode trazer qualquer coisa dentro.";
+
     private const string SemArmazenamento = "Nao ha armazenamento configurado nesta instalacao para guardar ou ler midia.";
 
     private readonly IUnitOfWork _unitOfWork;
@@ -201,6 +205,18 @@ public class ReportAttachmentService : IReportAttachmentService
             throw new ArgumentException(
                 $"A posicao no envio vai de 0 a {ProjectMediaKind.MaxCountCeiling - 1}.");
 
+        // **A extensao conferida e a do nome que fica gravado**, ja limpo e cortado — e
+        // nao a do nome que veio: conferir antes do corte deixaria gravar um nome que
+        // termina em outra extensao, e o painel baixaria com ela. Ver NomeOriginal.
+        var nomeOriginal = NomeOriginal(dto.FileName);
+
+        // **O zip, antes do projeto**, como o video: saiu do produto, e nenhuma
+        // configuracao o traz de volta. Mais adiante ele cairia em "esse formato de
+        // arquivo" — ou, com o arquivo desligado, em "esse tipo de arquivo" —, e quem
+        // mandou nao saberia que foi o zip que deixou de ser aceito.
+        if (kind == MediaKindEnum.File && FileFormats.IsRetired(nomeOriginal, contentType))
+            throw new ConflictException($"{ZipRefused} Envie os arquivos sem compactar.");
+
         var vigente = MediaSettingsDefaults.Resolve(
             await _unitOfWork.ProjectMediaSettings.FindByProjectWithoutSessionAsync(
                 report.ProjectId, cancellationToken));
@@ -273,11 +289,6 @@ public class ReportAttachmentService : IReportAttachmentService
         // e so entre os formatos que o dono marcou. Extensao e tipo que nao casam sao
         // recusados como formato: o quadro manda sempre o tipo do catalogo, e so outro
         // cliente mandaria diferente.
-        //
-        // **A extensao conferida e a do nome que fica gravado**, ja limpo e cortado — e
-        // nao a do nome que veio: conferir antes do corte deixaria gravar um nome que
-        // termina em outra extensao, e o painel baixaria com ela. Ver NomeOriginal.
-        var nomeOriginal = NomeOriginal(dto.FileName);
         var aceito = kind == MediaKindEnum.File
             ? FileFormats.Accepted(limite.Formats, nomeOriginal, contentType) is not null
             : MediaSignatures.IsAccepted(kind, contentType);
@@ -432,8 +443,15 @@ public class ReportAttachmentService : IReportAttachmentService
         // armazenamento gravou o tipo pedido e a condicao da politica de envio — e o
         // produto nao quer depender de todo provedor aplica-la: um que nao aplique
         // gravaria uma imagem como pagina, servida como pagina.
+        //
+        // **O formato que saiu do catalogo tambem nao e conferido**, pelo mesmo motivo: o
+        // zip pendente, pedido antes de sair, e recusado pela regra — e nem chega a ser
+        // copiado para o nome final.
+        var foraDoCatalogo = attachment.Kind == MediaKindEnum.File
+                             && FileFormats.IsRetiredContentType(attachment.ContentType);
+
         var arquivoRecusado =
-            objeto is not null && limite is not null
+            objeto is not null && limite is not null && !foraDoCatalogo
                                && (!MesmoTipo(objeto.ContentType, attachment.ContentType)
                                    || !MediaSignatures.Matches(attachment.ContentType, objeto.Leading))
                 ? "O conteudo do arquivo nao e de um formato aceito."
@@ -444,7 +462,7 @@ public class ReportAttachmentService : IReportAttachmentService
         var chaveEnvio = attachment.ObjectKey;
         var miniaturaEnvio = attachment.ThumbnailObjectKey;
 
-        var arquivoAceito = objeto is not null && limite is not null && arquivoRecusado is null;
+        var arquivoAceito = objeto is not null && limite is not null && !foraDoCatalogo && arquivoRecusado is null;
 
         var miniatura = arquivoAceito && miniaturaEnvio is not null
             ? await ConferirMiniaturaAsync(miniaturaEnvio, cancellationToken)
@@ -522,7 +540,9 @@ public class ReportAttachmentService : IReportAttachmentService
                     motivo = new ConfirmRefusal("O arquivo mudou depois de conferido.", Retryable: true);
                 else if ((limite is null
                              ? NoLongerOffered(attachment.Kind)
-                             : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
+                             : foraDoCatalogo
+                                 ? ZipRefused
+                                 : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
                                ?? await RoomRefusalAsync(
                                    report.Id, attachment.PublicCommentId, attachment.ReopenedClosureId,
                                    attachment.Kind, limite, ct))
@@ -746,7 +766,7 @@ public class ReportAttachmentService : IReportAttachmentService
 
         // **O arquivo que nao e imagem so baixa.** O endereco dele sai com o anexo e o
         // tipo generico na propria assinatura: nem o navegador de quem relatou nem o do
-        // time abre um PDF, um log ou um zip na pagina — o que ha dentro nao roda em
+        // time abre um PDF, um log ou uma planilha na pagina — o que ha dentro nao roda em
         // lugar nenhum.
         var arquivo = await _mediaStorage.CreateReadUrlAsync(
             anexo.ObjectKey,
@@ -792,7 +812,10 @@ public class ReportAttachmentService : IReportAttachmentService
     /// </summary>
     private static string ExtensaoDoArquivo(ReportAttachment anexo)
     {
+        // Os formatos que sairam do catalogo entram so aqui: o zip ja guardado continua
+        // baixando como .zip.
         var tipos = FileFormats.All
+            .Concat(FileFormats.Retired)
             .SelectMany(formato => formato.Types)
             .Where(tipo => tipo.ContentType == anexo.ContentType)
             .ToList();

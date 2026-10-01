@@ -3,10 +3,10 @@ namespace Pds.Domain.Entities;
 /// <summary>Como os bytes de um formato de arquivo sao conferidos.</summary>
 public enum FileCheck
 {
-    /// <summary><c>%PDF-</c> no comeco — ver <see cref="FileFormats"/>.</summary>
+    /// <summary><c>%PDF-</c> no primeiro quilobyte, e nao a marca do zip — ver <see cref="FileFormats"/>.</summary>
     Pdf,
 
-    /// <summary>Texto: nenhum byte zero, quase nenhum caractere de controle.</summary>
+    /// <summary>Texto: nenhum byte zero, quase nenhum caractere de controle, e nao a marca do zip.</summary>
     Text,
 
     /// <summary>A marca do zip, que tambem e a do xlsx e do docx.</summary>
@@ -38,6 +38,10 @@ public sealed record FileFormat(string Key, bool IsDefault, IReadOnlyList<FileFo
 /// conferir os bytes. Executavel, pagina HTML, SVG e planilha com macro ficam fora:
 /// nao ha relato que precise deles, e ha ataque que precisa.</para>
 ///
+/// <para><b>O zip saiu do catalogo</b> (ver <see cref="Retired"/>): ele pode trazer
+/// qualquer coisa dentro — um programa, inclusive —, e so a marca dele e conferida.
+/// Quem abre e o time.</para>
+///
 /// <para><b>O tipo gravado sai daqui, e nao do navegador.</b> O navegador deduz pela
 /// extensao e erra de lugar para lugar — o <c>.log</c> chega sem tipo, o <c>.csv</c>
 /// chega como planilha do Excel no Windows. O quadro manda o tipo deste catalogo, e o
@@ -48,6 +52,12 @@ public sealed record FileFormat(string Key, bool IsDefault, IReadOnlyList<FileFo
 /// para <c>.log</c> tem byte zero logo no comeco, e e recusado. O xlsx e o docx so
 /// tem a marca do zip no comeco; o que ha dentro deles nao da para conferir sem
 /// abrir o arquivo — e por isso a leitura e sempre download, e nunca na pagina.</para>
+///
+/// <para><b>A conferencia ve o comeco, e nao o arquivo inteiro.</b> Um zip renomeado
+/// para <c>.xlsx</c> passa, porque o xlsx e zip por dentro; e qualquer formato pode
+/// trazer outro arquivo colado no fim. O que segura e o download: ele sai sempre com
+/// a extensao do catalogo, e abri-lo leva ao programa daquele formato, que recusa o
+/// que nao e dele — e nao ao que desempacota.</para>
 /// </summary>
 public static class FileFormats
 {
@@ -84,8 +94,47 @@ public static class FileFormats
             new(".odt", "application/vnd.oasis.opendocument.text", FileCheck.OpenDocument),
         ]),
         new("json", IsDefault: false, [new(".json", "application/json", FileCheck.Text)]),
-        new("zip", IsDefault: true, [new(".zip", "application/zip", FileCheck.Zip)]),
     ];
+
+    /// <summary>
+    /// Os formatos que sairam do catalogo: <b>nao se aceitam mais</b>, e ficam aqui so
+    /// para nomear o download dos arquivos que ja estavam guardados.
+    ///
+    /// <para>O zip saiu por decisao de produto: ele pode trazer qualquer coisa dentro,
+    /// e o que ha la dentro nao da para conferir — so a marca do zip. O xlsx e o docx
+    /// tambem sao zip por dentro, mas continuam: sao o formato de um documento, e nao
+    /// uma caixa de arquivos.</para>
+    /// </summary>
+    public static readonly IReadOnlyList<FileFormat> Retired =
+    [
+        new("zip", IsDefault: false, [new(".zip", "application/zip", FileCheck.Zip)]),
+    ];
+
+    /// <summary>O formato pelo nome entre os que sairam do catalogo, ou nulo.</summary>
+    public static FileFormat? FindRetired(string key)
+        => Retired.FirstOrDefault(formato => formato.Key == key);
+
+    /// <summary>O tipo e de um formato que saiu do catalogo — o zip, hoje.</summary>
+    public static bool IsRetiredContentType(string contentType)
+        => Retired.Any(formato => formato.Types.Any(tipo => tipo.ContentType == contentType));
+
+    /// <summary>
+    /// O arquivo e de um formato que saiu do catalogo, <b>pela extensao, ou pelo tipo
+    /// quando a extensao nao e de outro formato</b> — um zip chega como zip de um jeito
+    /// ou de outro, conforme quem manda. Mas "planilha.xlsx" com o tipo do zip e um
+    /// xlsx com o tipo errado, e ouve a recusa do formato, e nao a do zip.
+    /// </summary>
+    public static bool IsRetired(string? fileName, string contentType)
+    {
+        var extensao = ExtensionOf(fileName);
+        var tipos = Retired.SelectMany(formato => formato.Types).ToList();
+
+        if (tipos.Any(tipo => tipo.Extension == extensao))
+            return true;
+
+        return tipos.Any(tipo => tipo.ContentType == contentType)
+               && !All.SelectMany(formato => formato.Types).Any(tipo => tipo.Extension == extensao);
+    }
 
     /// <summary>Os formatos marcados de fabrica.</summary>
     public static IReadOnlyList<string> DefaultKeys { get; } =
@@ -146,8 +195,10 @@ public static class FileFormats
 
         return tipo?.Check switch
         {
-            FileCheck.Pdf => Contains(leading, "%PDF-"u8),
-            FileCheck.Text => IsText(leading),
+            // A marca do zip e recusada onde o formato nao e zip: um zip que guarde um PDF
+            // sem compressao traz o "%PDF-" dele no primeiro quilobyte.
+            FileCheck.Pdf => !IsZip(leading) && Contains(leading, "%PDF-"u8),
+            FileCheck.Text => !IsZip(leading) && IsText(leading),
             FileCheck.Zip => IsZip(leading),
             // O ODF guarda o proprio tipo no primeiro item do zip, sem compressao: um
             // xlsx renomeado para .ods tem a marca do zip, e nao tem este texto.

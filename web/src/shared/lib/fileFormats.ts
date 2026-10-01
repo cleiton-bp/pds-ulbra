@@ -4,14 +4,17 @@
  * (`FileFormats`); aqui so mora o nome de cada um.
  */
 
-/** O nome de cada formato do catalogo, na tela de Midia. */
+/**
+ * O nome de cada formato do catalogo, na tela de Midia. O zip saiu do catalogo (pode
+ * trazer qualquer coisa dentro); o nome do tipo dele continua abaixo, para os que ja
+ * estavam guardados.
+ */
 export const FILE_FORMAT_LABEL: Record<string, string> = {
   pdf: 'PDF',
   text: 'Texto e log',
   spreadsheet: 'Planilha',
   document: 'Documento',
   json: 'JSON',
-  zip: 'ZIP',
 }
 
 /** O nome de um formato, ou o proprio nome do catalogo quando esta tela ainda nao o conhece. */

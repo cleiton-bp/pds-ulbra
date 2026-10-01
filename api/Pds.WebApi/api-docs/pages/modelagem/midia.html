@@ -29,7 +29,7 @@
   <tr><th>O que vale sem linha</th><th>Padrão</th><th>Teto do sistema</th></tr>
   <tr><td>Anexo, captura, anexo na resposta, anexo na reabertura</td><td>Os quatro ligados</td><td>—</td></tr>
   <tr><td>Imagem</td><td>Ligada, 3 por envio, até 5 MB cada</td><td>10 por envio, 10 MB</td></tr>
-  <tr><td>Arquivo</td><td><b>Desligado</b>; ligado, 2 por envio, até 10 MB cada, com <code>pdf</code>, <code>text</code>, <code>spreadsheet</code> e <code>zip</code> marcados</td><td>10 por envio, 25 MB</td></tr>
+  <tr><td>Arquivo</td><td><b>Desligado</b>; ligado, 2 por envio, até 10 MB cada, com <code>pdf</code>, <code>text</code> e <code>spreadsheet</code> marcados</td><td>10 por envio, 25 MB</td></tr>
 </table>
 
 <div class="note warn">
@@ -63,7 +63,7 @@
   <tr><td><code>max_count</code></td><td>integer</td><td>Quantos deste tipo cabem em <b>cada envio</b>: a criação do relato, cada resposta, cada reabertura. De 1 a 10.</td></tr>
   <tr><td><code>max_bytes</code></td><td>bigint</td><td>Teto de cada arquivo, em bytes. Até 10 MB na imagem e 25 MB no arquivo. É este número que viaja dentro da assinatura do envio.</td></tr>
   <tr><td><code>max_duration_seconds</code></td><td>integer, anulável</td><td>Só das linhas antigas de vídeo. Nula na imagem e no arquivo, e nada mais a lê.</td></tr>
-  <tr><td><code>formats</code></td><td>text[], anulável</td><td>Os formatos aceitos, pelo nome no catálogo: <code>pdf</code>, <code>text</code>, <code>spreadsheet</code>, <code>document</code>, <code>json</code>, <code>zip</code>. <b>Só do arquivo</b>; nula na imagem, que tem os tipos fixos (PNG, JPEG, WebP).</td></tr>
+  <tr><td><code>formats</code></td><td>text[], anulável</td><td>Os formatos aceitos, pelo nome no catálogo: <code>pdf</code>, <code>text</code>, <code>spreadsheet</code>, <code>document</code>, <code>json</code>. O <code>zip</code> saiu do catálogo: gravado numa configuração antiga, é ignorado. <b>Só do arquivo</b>; nula na imagem, que tem os tipos fixos (PNG, JPEG, WebP).</td></tr>
 </table>
 
 <div class="note why">

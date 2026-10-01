@@ -156,7 +156,7 @@ notes:
     position: { x: 250, y: 290 }
   - text: "Concluído e confirmado são momentos diferentes: o time diz que acabou, quem relatou diz que resolveu. Depois de confirmar não dá mais para reabrir — o problema que volta é outro relato."
     anchor: UC04
-    position: { x: 900, y: 262 }
+    position: { x: 768, y: 479 }
   - text: O time pergunta com prazo. Passado o primeiro, a página avisa que vai encerrar; passado o segundo, encerra como “sem retorno” — e continua reabrível.
     anchor: UC02
     position: { x: 560, y: -210 }

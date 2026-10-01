@@ -47,7 +47,8 @@ a cópia de envio sai do balde           e os arquivos apagados do balde</div>
   obteve a permissão de pôr bytes de qualquer coisa num objeto marcado como imagem.</p>
   <p>Por isso a confirmação lê o começo do arquivo: a marca do PNG, do JPEG e do WebP;
   <code>%PDF-</code> no primeiro quilobyte; texto sem byte zero e com no máximo 2% de caracteres de
-  controle; a marca do zip no <code>.zip</code>, no <code>.xlsx</code> e no <code>.docx</code>; e no
+  controle — e nenhum dos dois com a marca do zip; a marca do zip no <code>.xlsx</code> e no
+  <code>.docx</code>; e no
   <code>.ods</code> e no <code>.odt</code>, a marca do zip e o tipo que o próprio arquivo declara
   dentro. O tipo que o armazenamento gravou também é conferido — o produto não depende de todo
   provedor aplicar a condição da assinatura.</p>

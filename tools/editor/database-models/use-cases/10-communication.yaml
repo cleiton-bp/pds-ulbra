@@ -35,7 +35,7 @@ useCases:
   - id: UC02
     name: Ser avisado de que a etapa mudou
     description: Planejado. Quando a jornada pública anda, quem deixou contato recebe o aviso, com a etapa nova, a frase dela e o link.
-    position: { x: 573, y: -49 }
+    position: { x: 614, y: -32 }
     preconditions: O relator deixou contato.
     mainFlow:
       - A etapa pública do relato muda, depois da espera que o projeto configurou.
@@ -60,7 +60,7 @@ useCases:
   - id: UC04
     name: Recuperar o código pessoal
     description: Planejado. Quem perdeu o código pessoal pede de novo pelo e-mail que deixou. Perder o código custa a lista, não os relatos.
-    position: { x: 426, y: 62 }
+    position: { x: 439, y: 51 }
     preconditions: O projeto identifica quem relata por código pessoal, e o relator deixou e-mail.
     mainFlow:
       - O relator pede para recuperar o código, informando o e-mail.

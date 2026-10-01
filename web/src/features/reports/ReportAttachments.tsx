@@ -79,7 +79,7 @@ export function useReportAttachments(
 
 /**
  * O que o painel lembra embaixo dos arquivos. **O arquivo vem de quem relatou**, e o
- * que ha dentro de um zip ou de uma planilha ninguem conferiu: a leitura e sempre
+ * que ha dentro de uma planilha ou de um documento ninguem conferiu: a leitura e sempre
  * download, e o resto e cuidado de quem abre.
  */
 export const AVISO_DE_ARQUIVO =

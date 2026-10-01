@@ -104,7 +104,7 @@ const ARQUIVO = {
   IsEnabled: false,
   MaxCount: 2,
   MaxBytes: 10 * UM_MB,
-  Formats: ['pdf', 'text', 'spreadsheet', 'zip'],
+  Formats: ['pdf', 'text', 'spreadsheet'],
 }
 
 /** O catalogo da API. */
@@ -114,7 +114,6 @@ const CATALOGO = [
   { Key: 'spreadsheet', IsDefault: true, Extensions: ['.csv', '.xlsx', '.ods'] },
   { Key: 'document', IsDefault: false, Extensions: ['.docx', '.odt'] },
   { Key: 'json', IsDefault: false, Extensions: ['.json'] },
-  { Key: 'zip', IsDefault: true, Extensions: ['.zip'] },
 ]
 
 /**
@@ -654,11 +653,23 @@ describe('MediaScreen', () => {
       expect(formato(/^PDF/).checked).toBe(true)
       expect(formato(/^Texto e log/).checked).toBe(true)
       expect(formato(/^Planilha/).checked).toBe(true)
-      expect(formato(/^ZIP/).checked).toBe(true)
       expect(formato(/^Documento/).checked).toBe(false)
       expect(formato(/^JSON/).checked).toBe(false)
       // As extensoes de cada formato ficam escritas junto dele.
       expect(formato(/^Planilha/).closest('label')?.textContent).toMatch(/\.csv \.xlsx \.ods/)
+    })
+
+    it('não oferece o zip, e diz por quê', async () => {
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+      expect(screen.queryByRole('checkbox', { name: /zip/i })).toBeNull()
+      expect(
+        screen.getByText(
+          'Zip não é aceito: ele pode trazer qualquer coisa dentro. Quem relata envia os arquivos sem compactar.',
+        ),
+      ).toBeDefined()
     })
 
     it('ligar, marcar um formato e salvar manda os formatos e o tamanho em bytes', async () => {
@@ -679,7 +690,7 @@ describe('MediaScreen', () => {
         ...ARQUIVO,
         IsEnabled: true,
         MaxBytes: 20 * UM_MB,
-        Formats: ['pdf', 'text', 'spreadsheet', 'zip', 'json'],
+        Formats: ['pdf', 'text', 'spreadsheet', 'json'],
       })
     })
 
@@ -689,8 +700,7 @@ describe('MediaScreen', () => {
       await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
       fireEvent.click(arquivoAceito())
-      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/, /^ZIP/])
-        fireEvent.click(formato(nome))
+      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
 
       expect(screen.getByText(/O arquivo está aceito e nenhum formato está marcado/)).toBeDefined()
       expect((salvar() as HTMLButtonElement).disabled).toBe(true)
@@ -705,20 +715,10 @@ describe('MediaScreen', () => {
 
       await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/, /^ZIP/])
-        fireEvent.click(formato(nome))
+      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
 
       expect(screen.queryByText(/nenhum formato está marcado/)).toBeNull()
       expect((salvar() as HTMLButtonElement).disabled).toBe(false)
-    })
-
-    it('o zip avisa que pode trazer qualquer arquivo dentro', async () => {
-      montar()
-
-      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
-
-      expect(formato(/^ZIP/).closest('label')?.textContent).toMatch(/Pode trazer qualquer arquivo/)
-      expect(formato(/^PDF/).closest('label')?.textContent).not.toMatch(/Pode trazer/)
     })
 
     // Com o anexo desligado, a lista de formatos fica fora de alcance: travar o Salvar
@@ -729,8 +729,7 @@ describe('MediaScreen', () => {
 
       await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
       fireEvent.click(arquivoAceito())
-      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/, /^ZIP/])
-        fireEvent.click(formato(nome))
+      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
       expect((salvar() as HTMLButtonElement).disabled).toBe(true)
 
       fireEvent.click(anexo())

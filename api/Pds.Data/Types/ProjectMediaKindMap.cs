@@ -49,7 +49,7 @@ public class ProjectMediaKindMap : BaseEntityConfiguration<ProjectMediaKind>
 
         builder.Property(kind => kind.Formats)
             .HasColumnName("formats")
-            .HasComment("Os formatos aceitos, pelo nome no catalogo do sistema (pdf, text, spreadsheet, document, json, zip). So do arquivo; nulo nas outras categorias, que tem os tipos fixos. Uma lista, e nao uma linha por formato: poucos nomes de um catalogo fechado, lidos sempre com o resto da linha.");
+            .HasComment("Os formatos aceitos, pelo nome no catalogo do sistema (pdf, text, spreadsheet, document, json). So do arquivo; nulo nas outras categorias, que tem os tipos fixos. Um formato que saiu do catalogo (o zip) continua gravado e e ignorado. Uma lista, e nao uma linha por formato: poucos nomes de um catalogo fechado, lidos sempre com o resto da linha.");
 
         builder.HasOne(kind => kind.ProjectMediaSettings)
             .WithMany(settings => settings.Kinds)

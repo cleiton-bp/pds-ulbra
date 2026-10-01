@@ -26,7 +26,7 @@ export const UPLOADABLE_MEDIA_KINDS: readonly MediaKind[] = ['Image', 'File']
  * portugues de cada um e da tela; a lista, e a conferencia dos bytes, sao da API.
  */
 export interface FileFormatViewModel {
-  /** `pdf`, `text`, `spreadsheet`, `document`, `json`, `zip`. */
+  /** `pdf`, `text`, `spreadsheet`, `document`, `json`. O zip saiu do catalogo. */
   Key: string
   /** Marcado de fabrica. */
   IsDefault: boolean

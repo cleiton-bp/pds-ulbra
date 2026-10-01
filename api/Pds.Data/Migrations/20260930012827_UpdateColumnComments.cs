@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -108,11 +109,33 @@ namespace Pds.Data.Migrations
                 oldClrType: typeof(int),
                 oldType: "integer",
                 oldComment: "Quanto o lado publico espera antes de mudar. Zero e o comportamento anterior a esta etapa; acima de zero e a janela para desfazer um movimento errado.");
+
+            migrationBuilder.AlterColumn<List<string>>(
+                name: "formats",
+                table: "project_media_kinds",
+                type: "text[]",
+                nullable: true,
+                comment: "Os formatos aceitos, pelo nome no catalogo do sistema (pdf, text, spreadsheet, document, json). So do arquivo; nulo nas outras categorias, que tem os tipos fixos. Um formato que saiu do catalogo (o zip) continua gravado e e ignorado. Uma lista, e nao uma linha por formato: poucos nomes de um catalogo fechado, lidos sempre com o resto da linha.",
+                oldClrType: typeof(List<string>),
+                oldType: "text[]",
+                oldNullable: true,
+                oldComment: "Os formatos aceitos, pelo nome no catalogo do sistema (pdf, text, spreadsheet, document, json, zip). So do arquivo; nulo nas outras categorias, que tem os tipos fixos. Uma lista, e nao uma linha por formato: poucos nomes de um catalogo fechado, lidos sempre com o resto da linha.");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterColumn<List<string>>(
+                name: "formats",
+                table: "project_media_kinds",
+                type: "text[]",
+                nullable: true,
+                comment: "Os formatos aceitos, pelo nome no catalogo do sistema (pdf, text, spreadsheet, document, json, zip). So do arquivo; nulo nas outras categorias, que tem os tipos fixos. Uma lista, e nao uma linha por formato: poucos nomes de um catalogo fechado, lidos sempre com o resto da linha.",
+                oldClrType: typeof(List<string>),
+                oldType: "text[]",
+                oldNullable: true,
+                oldComment: "Os formatos aceitos, pelo nome no catalogo do sistema (pdf, text, spreadsheet, document, json). So do arquivo; nulo nas outras categorias, que tem os tipos fixos. Um formato que saiu do catalogo (o zip) continua gravado e e ignorado. Uma lista, e nao uma linha por formato: poucos nomes de um catalogo fechado, lidos sempre com o resto da linha.");
+
             migrationBuilder.AlterTable(
                 name: "report_public_comments",
                 comment: "O que o time escolhe dizer a quem relatou. Ainda nao tem leitor: a camada que o relator le vem depois, e ate la ele e publico no nome. Tabela separada do interno pelo mesmo motivo que a outra.",

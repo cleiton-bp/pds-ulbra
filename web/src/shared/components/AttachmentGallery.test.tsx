@@ -834,6 +834,17 @@ describe('o arquivo que nao e imagem', () => {
     expect(screen.getByRole('link', { name: 'Baixar fatura-março.pdf · 120 KB' })).toBeDefined()
   })
 
+  // O zip saiu do catalogo, e o que ja estava guardado continua na lista: sem o nome do
+  // tipo dele, a linha diria so "Arquivo", e o selo, "ARQ".
+  it('o zip guardado de antes diz que e zip', () => {
+    render(
+      <AttachmentGallery items={[pdf({ contentType: 'application/zip' })]} onExpired={() => {}} />,
+    )
+
+    const link = screen.getByRole('link', { name: 'Baixar ZIP · 120 KB' })
+    expect(link.querySelector('[aria-hidden="true"]')?.textContent).toBe('ZIP')
+  })
+
   it('um tipo que a tela nao conhece tambem so baixa', () => {
     render(
       <AttachmentGallery

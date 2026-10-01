@@ -1069,7 +1069,7 @@ entities:
         note: "duracao maxima, so das linhas antigas de video; nula na imagem e no arquivo"
       - name: formats
         type: text[]
-        note: "os formatos aceitos, pelo nome no catalogo fechado do sistema (pdf, text, spreadsheet, document, json, zip), reconhecidos pela extensao do arquivo. So do arquivo; nulo nas outras categorias, que tem os tipos fixos"
+        note: "os formatos aceitos, pelo nome no catalogo fechado do sistema (pdf, text, spreadsheet, document, json), reconhecidos pela extensao do arquivo; o zip saiu do catalogo e, gravado, e ignorado. So do arquivo; nulo nas outras categorias, que tem os tipos fixos"
       - name: created_at
         type: datetime
         note: quando o limite foi salvo a primeira vez, em UTC
@@ -1658,7 +1658,7 @@ notes:
     anchorField: kind
     position: { x: 3480, y: 2200 }
     width: 340
-  - text: "O arquivo é uma categoria, e só baixa\n\nO que não é imagem sai de um catálogo fechado — PDF, texto e log, planilha, documento, JSON, zip —, reconhecido pela extensão, com os bytes conferidos onde o formato deixa. Nasce desligado. A leitura é sempre download, com um nome genérico do lado de fora e o original no painel: o que há dentro não roda em lugar nenhum."
+  - text: "O arquivo é uma categoria, e só baixa\n\nO que não é imagem sai de um catálogo fechado — PDF, texto e log, planilha, documento, JSON; zip não —, reconhecido pela extensão, com os bytes conferidos onde o formato deixa. Nasce desligado. A leitura é sempre download, com um nome genérico do lado de fora e o original no painel: o que há dentro não roda em lugar nenhum."
     anchor: project_media_kinds
     anchorField: formats
     position: { x: 3480, y: 2520 }

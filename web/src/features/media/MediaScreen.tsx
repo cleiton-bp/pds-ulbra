@@ -597,17 +597,16 @@ function Formatos({
             <span className="min-w-0 text-caption leading-relaxed">
               <span className="text-fg">{fileFormatLabel(formato.Key)}</span>{' '}
               <span className="text-fg-muted">{formato.Extensions.join(' ')}</span>
-              {/* O zip é o formato que não dá para conferir por dentro: pode trazer
-                  qualquer arquivo, e quem marca precisa saber disso. */}
-              {formato.Key === 'zip' && (
-                <span className="block text-fg-muted">
-                  Pode trazer qualquer arquivo dentro: só o formato do zip é conferido.
-                </span>
-              )}
             </span>
           </label>
         ))}
       </div>
+      {/* O zip não está no catálogo, e quem configura o procura: log costuma ir
+          compactado. A frase diz por que ele ficou fora, e o que a pessoa faz. */}
+      <p className="mt-2.5 text-caption text-fg-muted leading-relaxed">
+        Zip não é aceito: ele pode trazer qualquer coisa dentro. Quem relata envia os arquivos sem
+        compactar.
+      </p>
     </fieldset>
   )
 }

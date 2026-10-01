@@ -52,10 +52,11 @@ confere:</p>
   <li><strong>A marca do formato</strong>, contra o tipo pedido, e não contra a lista inteira: PNG,
   JPEG e WebP pela marca de cada um; PDF por <code>%PDF-</code> no primeiro quilobyte; texto (o
   <code>.txt</code>, o <code>.log</code>, o <code>.csv</code>, o <code>.json</code>) sem byte zero e
-  com no máximo 2% de caracteres de controle; <code>.zip</code>, <code>.xlsx</code> e
+  com no máximo 2% de caracteres de controle; <code>.xlsx</code> e
   <code>.docx</code> pela marca do zip; <code>.ods</code> e <code>.odt</code> pela marca do zip e pelo
   tipo que o próprio arquivo declara dentro dele. Um executável renomeado para <code>.log</code>
-  tem byte zero logo no começo, e é recusado.</li>
+  tem byte zero logo no começo, e é recusado; um zip renomeado para <code>.pdf</code> ou
+  <code>.log</code> também, pela marca do zip.</li>
   <li><strong>O tipo gravado</strong>, igual ao pedido. Quem garante isso é a condição da
   assinatura, e o produto não quer depender de todo provedor aplicá-la: um que não aplicasse
   gravaria uma imagem como página, servida como página.</li>
@@ -142,9 +143,18 @@ desafio invisível antes do envio, são <strong>Planejado</strong>.</p>
   <p>A conferência olha o começo do arquivo; o que há dentro de um formato válido não é aberto nem
   interpretado. Ficam de fora, de propósito: <strong>fórmula em planilha</strong> (CSV, XLSX, ODS),
   <strong>macro em ODF</strong>, <strong>JavaScript em PDF</strong> e <strong>vínculo externo em
-  OOXML</strong>. E o <code>.zip</code>, marcado de fábrica quando o dono liga a categoria de
-  arquivo, pode trazer qualquer coisa dentro. A defesa contra eles é a de cima: o download forçado,
-  que impede o arquivo de rodar na página, e o aviso no painel.</p>
+  OOXML</strong>. A defesa contra eles é a de cima: o download forçado, que impede o arquivo de
+  rodar na página, e o aviso no painel.</p>
+  <p><strong>O <code>.zip</code> não é aceito.</strong> Ele pode trazer qualquer coisa dentro — um
+  programa, inclusive —, e abri-lo desempacota o que houver. Saiu do catálogo: o widget não o
+  oferece, e a API recusa no pedido de envio, na confirmação e ao salvar a configuração. Os que já
+  estavam guardados continuam baixando.</p>
+  <p><strong>O <code>.xlsx</code> e o <code>.docx</code> também são zip por dentro</strong>, e a
+  conferência deles é essa mesma marca: um zip renomeado para <code>.xlsx</code> passa. Eles ficam
+  porque são o formato de um documento, e não uma caixa de arquivos — o download sai sempre com a
+  extensão do catálogo, e abrir leva ao programa da planilha ou do texto, que recusa o que não é
+  dele, e não ao que desempacota. Pelo mesmo motivo, um arquivo colado no fim de outro passa em
+  qualquer formato: a conferência vê o começo.</p>
   <p>Também fica de fora a varredura de dado sensível: ela lê o texto do relato, e não a imagem nem
   o arquivo.</p>
 </div>

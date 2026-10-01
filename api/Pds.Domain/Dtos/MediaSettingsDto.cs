@@ -32,7 +32,8 @@ public class MediaKindLimitDto
 
     /// <summary>
     /// Os formatos aceitos, pelo nome no catalogo: <c>pdf</c>, <c>text</c>,
-    /// <c>spreadsheet</c>, <c>document</c>, <c>json</c>, <c>zip</c>. <b>So no
+    /// <c>spreadsheet</c>, <c>document</c>, <c>json</c>. O <c>zip</c> saiu do catalogo e e
+    /// recusado. <b>So no
     /// <c>File</c></b>, e obrigatorio nele — ligado, ao menos um. Nas outras categorias,
     /// ignorado: os tipos delas sao fixos.
     /// </summary>

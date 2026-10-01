@@ -34,6 +34,12 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     private const string VideoRefused =
         "Video nao e mais aceito como anexo. Recarregue a pagina e salve de novo.";
 
+    // O zip saiu do catalogo. Quem ainda o manda e uma aba aberta antes disso, com o
+    // zip marcado na tela: a frase diz por que ele saiu e o que fazer. O comeco e o
+    // mesmo do pedido de envio e da confirmacao, como no video.
+    private const string ZipRefused =
+        "Zip nao e mais aceito como anexo: ele pode trazer qualquer coisa dentro. Recarregue a pagina e salve de novo.";
+
     // O unico cliente que deixa este campo de fora e uma aba do painel aberta antes
     // de a chave existir — e a tela dela nao tem a opcao que a mensagem pede. Sem o
     // "recarregue", a pessoa tentaria de novo e bateria na mesma recusa.
@@ -340,6 +346,9 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         foreach (var nome in formats ?? [])
         {
             var chave = (nome ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (FileFormats.FindRetired(chave) is not null)
+                throw new ArgumentException(ZipRefused);
 
             if (FileFormats.Find(chave) is null)
                 throw new ArgumentException(

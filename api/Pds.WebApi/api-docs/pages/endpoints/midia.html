@@ -72,7 +72,7 @@ quando as permissões deixam de valer.</p>
   <tr><td><code>200</code></td><td>Formulário assinado. O anexo nasce <code>pending</code>.</td></tr>
   <tr><td><code>400</code></td><td>Pedido mal formado: tipo ou tamanho não informados, <code>ForReply</code> e <code>ForReopen</code> juntos, miniatura em formato que não é WebP nem JPEG, miniatura num arquivo, tamanho de exibição fora da lista, posição fora de 0 a 9.</td></tr>
   <tr><td><code>404</code></td><td>O link não abre nenhum relato.</td></tr>
-  <tr><td><code>409</code></td><td>A regra ou o próprio arquivo recusam: vídeo, projeto sem anexo (ou sem anexo na resposta, ou na reabertura), tipo desligado, formato recusado, arquivo vazio ou grande demais, envio cheio, prazo do envio terminado — ou instalação sem armazenamento.</td></tr>
+  <tr><td><code>409</code></td><td>A regra ou o próprio arquivo recusam: vídeo, zip, projeto sem anexo (ou sem anexo na resposta, ou na reabertura), tipo desligado, formato recusado, arquivo vazio ou grande demais, envio cheio, prazo do envio terminado — ou instalação sem armazenamento.</td></tr>
   <tr><td><code>429</code></td><td>Muitos pedidos de envio a partir do mesmo IP.</td></tr>
 </table>
 
@@ -105,7 +105,7 @@ tamanho real, contado pelo armazenamento —, com a mensagem "Anexo recebido."</
   <tr><td><code>200</code></td><td>Anexo confirmado — agora, ou antes, por outra confirmação do mesmo anexo.</td></tr>
   <tr><td><code>400</code></td><td>Subir de novo pode resolver: o arquivo não chegou, ou mudou depois de conferido (e foi descartado).</td></tr>
   <tr><td><code>404</code></td><td>O link não abre nenhum relato, ou não há anexo pendente nem confirmado com esse identificador neste relato.</td></tr>
-  <tr><td><code>409</code></td><td>Tentar de novo não muda, e o arquivo foi descartado: conteúdo que não é de um formato aceito, envio cheio, regra do projeto que mudou depois da permissão, permissão com mais de 1 hora, vídeo. Ou instalação sem armazenamento.</td></tr>
+  <tr><td><code>409</code></td><td>Tentar de novo não muda, e o arquivo foi descartado: conteúdo que não é de um formato aceito, envio cheio, regra do projeto que mudou depois da permissão, permissão com mais de 1 hora, vídeo ou zip pedidos antes de saírem do produto. Ou instalação sem armazenamento.</td></tr>
   <tr><td><code>429</code></td><td>Muitos pedidos de envio a partir do mesmo IP.</td></tr>
 </table>
 
@@ -113,8 +113,9 @@ tamanho real, contado pelo armazenamento —, com a mensagem "Anexo recebido."</
   <strong>A assinatura garante o rótulo; a confirmação garante o conteúdo</strong>
   <p>Nada impede quem obteve a permissão de pôr bytes de qualquer coisa num objeto marcado como
   imagem. Por isso a confirmação lê o <b>primeiro quilobyte</b> e confere a marca do formato — PNG,
-  JPEG, WebP; <code>%PDF-</code>; texto sem byte zero e com quase nenhum caractere de controle; a
-  marca do zip, e no ODF também o tipo que o arquivo declara dentro dele. Confere também o tipo que
+  JPEG, WebP; <code>%PDF-</code>; texto sem byte zero e com quase nenhum caractere de controle —
+  e nenhum dos dois com a marca do zip; a marca do zip no <code>.xlsx</code> e no
+  <code>.docx</code>, e no ODF também o tipo que o arquivo declara dentro dele. Confere também o tipo que
   o armazenamento gravou, e a miniatura, que vem de fora como o arquivo: miniatura que não confere
   é apagada, e o anexo vale sem ela.</p>
   <p><b>A cota é contada de novo, e é esta contagem que vale.</b> O pedido só conta o que já foi
@@ -248,7 +249,7 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
   <strong>O arquivo que não é imagem só baixa</strong>
   <p>O endereço dele sai com <code>application/octet-stream</code> e
   <code>Content-Disposition: attachment</code> dentro da própria assinatura — trocar na barra
-  invalida o endereço. Nem o navegador de quem relatou nem o do time abre um PDF, um log ou um zip
+  invalida o endereço. Nem o navegador de quem relatou nem o do time abre um PDF, um log ou uma planilha
   na página. Do lado de fora ele baixa como <code>anexo</code> com a extensão; no painel, com o
   nome original, sempre terminando numa extensão do catálogo.</p>
 </div>
@@ -280,7 +281,7 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
 <table>
   <tr><th>Status</th><th>Quando</th></tr>
   <tr><td><code>200</code></td><td>Configuração salva, com a mensagem "Configuração de mídia salva."</td></tr>
-  <tr><td><code>400</code></td><td>Campo ausente, limite fora do teto, tipo repetido ou desconhecido, <code>Video</code> (mesmo desligado), anexo ligado sem imagem nem arquivo aceito, arquivo ligado sem formato, formato fora do catálogo.</td></tr>
+  <tr><td><code>400</code></td><td>Campo ausente, limite fora do teto, tipo repetido ou desconhecido, <code>Video</code> ou o formato <code>zip</code> (mesmo desligados — os dois pedem para recarregar a página), anexo ligado sem imagem nem arquivo aceito, arquivo ligado sem formato, formato fora do catálogo.</td></tr>
   <tr><td><code>404</code></td><td>Projeto não existe, ou pertence a outra conta.</td></tr>
   <tr><td><code>409</code></td><td>Não há armazenamento nesta instalação — conferido antes do corpo, e vale também para salvar desligado.</td></tr>
 </table>

@@ -20,12 +20,11 @@ servidor, acima do que qualquer projeto escolha.</p>
 <div class="table-scroll">
 <table>
   <tr><th>Formato</th><th>Extensões</th><th>Marcado ao ligar</th><th>Como os bytes são conferidos</th></tr>
-  <tr><td>PDF</td><td><code>.pdf</code></td><td>sim</td><td><code>%PDF-</code> no primeiro quilobyte</td></tr>
-  <tr><td>Texto</td><td><code>.txt</code> <code>.log</code></td><td>sim</td><td>nenhum byte zero, e no máximo 2% de caracteres de controle</td></tr>
+  <tr><td>PDF</td><td><code>.pdf</code></td><td>sim</td><td><code>%PDF-</code> no primeiro quilobyte, e não a marca do zip</td></tr>
+  <tr><td>Texto</td><td><code>.txt</code> <code>.log</code></td><td>sim</td><td>nenhum byte zero, no máximo 2% de caracteres de controle, e não a marca do zip</td></tr>
   <tr><td>Planilha</td><td><code>.csv</code> <code>.xlsx</code> <code>.ods</code></td><td>sim</td><td>o <code>.csv</code> como texto; o <code>.xlsx</code> pela marca do zip; o <code>.ods</code> pela marca e pelo tipo que ele declara dentro de si</td></tr>
   <tr><td>Documento</td><td><code>.docx</code> <code>.odt</code></td><td>não</td><td>como a planilha: marca do zip, e no ODF o tipo declarado</td></tr>
   <tr><td>JSON</td><td><code>.json</code></td><td>não</td><td>como texto</td></tr>
-  <tr><td>Zip</td><td><code>.zip</code></td><td>sim</td><td>a marca do zip</td></tr>
 </table>
 </div>
 
@@ -34,6 +33,12 @@ servidor, acima do que qualquer projeto escolha.</p>
   <p>Arquivo de fora é o anexo com mais risco. Cada formato do catálogo está ali por ser o que um
   relato de defeito traz, e por ter como conferir os bytes. Executável, página HTML, SVG e planilha
   com macro ficam fora: não há relato que precise deles, e há ataque que precisa.</p>
+  <p><strong>O <code>.zip</code> também fica fora.</strong> Ele pode trazer qualquer coisa dentro, e
+  abri-lo desempacota o que houver — quem abre é o time. Os que já estavam guardados continuam
+  baixando. O <code>.xlsx</code> e o <code>.docx</code> também são zip por dentro, e um zip
+  renomeado para eles passa na conferência; ficam porque são o formato de um documento, e não uma
+  caixa de arquivos: baixam sempre com a extensão do catálogo, e abrir leva ao programa deles — ver
+  <a href="#/seguranca/midia">Segurança › Os anexos</a>.</p>
   <p>O arquivo é reconhecido <strong>pela extensão</strong>, e o tipo gravado sai do catálogo, e
   não do navegador — o navegador deduz o tipo pela extensão e erra de lugar para lugar: o
   <code>.log</code> chega sem tipo, o <code>.csv</code> chega como planilha do Excel no Windows.
@@ -44,8 +49,7 @@ servidor, acima do que qualquer projeto escolha.</p>
   <strong>Por que o arquivo vem desligado, e a imagem não</strong>
   <p>A imagem é um print que quem relata escolheu mandar. O arquivo é o anexo com mais risco, e
   recebê-lo é escolha de quem configura. Ligado, ele vem só com os formatos mais comuns num relato
-  marcados — PDF, texto, planilha e zip —, e documento e JSON o dono marca se quiser. Ao marcar o
-  zip, a tela avisa: ele pode trazer qualquer coisa dentro, e a conferência só vê a embalagem.</p>
+  marcados — PDF, texto e planilha —, e documento e JSON o dono marca se quiser.</p>
 </div>
 
 <h3>Três envios, cada um com a sua cota</h3>
