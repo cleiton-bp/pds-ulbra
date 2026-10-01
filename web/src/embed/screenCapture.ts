@@ -118,11 +118,21 @@ export async function captureFrame(): Promise<HTMLCanvasElement> {
 /**
  * Corta um pedaco da captura e devolve como arquivo de imagem.
  *
- * **WebP quando o navegador codifica, PNG quando nao.** Os dois sao aceitos pela
- * API; o WebP e o que faz um print de tela inteira caber no limite de 5 MB sem
- * perder a leitura do texto.
+ * **WebP quando o navegador codifica.** E o que faz um print de tela inteira caber
+ * no limite sem perder a leitura do texto.
+ *
+ * **Sem WebP, PNG — se couber.** O Safari nao codifica WebP, e o PNG de uma tela
+ * Retina passa facil de 5 MB: a pessoa recortaria a tela para so entao ouvir que
+ * nao cabe. Passando de `maxBytes`, vai JPEG, que cabe e ainda se le. Os tres sao
+ * aceitos pela API.
+ *
+ * @param maxBytes O teto de imagem do projeto. Sem ele, o PNG vai como sair.
  */
-export async function cropToFile(canvas: HTMLCanvasElement, recorte: Rect): Promise<File> {
+export async function cropToFile(
+  canvas: HTMLCanvasElement,
+  recorte: Rect,
+  maxBytes = Number.POSITIVE_INFINITY,
+): Promise<File> {
   const saida = document.createElement('canvas')
   saida.width = recorte.width
   saida.height = recorte.height
@@ -140,9 +150,21 @@ export async function cropToFile(canvas: HTMLCanvasElement, recorte: Rect): Prom
       recorte.height,
     )
 
-  const blob = await new Promise<Blob | null>((resolve) => saida.toBlob(resolve, 'image/webp', 0.9))
-  if (!blob) throw new Error('Não deu para gerar a imagem da captura.')
+  const codificar = (tipo: string, qualidade?: number) =>
+    new Promise<Blob | null>((resolve) => saida.toBlob(resolve, tipo, qualidade))
 
-  const tipo = blob.type === 'image/webp' ? 'image/webp' : 'image/png'
-  return new File([blob], tipo === 'image/webp' ? 'captura.webp' : 'captura.png', { type: tipo })
+  const webp = await codificar('image/webp', 0.9)
+  if (webp?.type === 'image/webp') return new File([webp], 'captura.webp', { type: 'image/webp' })
+
+  // O navegador que nao codifica WebP devolve PNG no lugar, e esse ja serve.
+  const png = webp?.type === 'image/png' ? webp : await codificar('image/png')
+  if (png && png.size <= maxBytes) return new File([png], 'captura.png', { type: 'image/png' })
+
+  const jpeg = await codificar('image/jpeg', 0.9)
+  if (jpeg?.type === 'image/jpeg') return new File([jpeg], 'captura.jpg', { type: 'image/jpeg' })
+
+  // Nem JPEG: o PNG grande ainda e melhor que nada, e a recusa diz o limite.
+  if (png) return new File([png], 'captura.png', { type: 'image/png' })
+
+  throw new Error('Não deu para gerar a imagem da captura.')
 }

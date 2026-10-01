@@ -50,13 +50,17 @@ export async function sendAttachment(
     ForReopen: envio === 'reopen',
   })
 
-  await publicMediaService.uploadToStorage(ticket.File, anexo.file, onProgress)
-
+  // **A miniatura primeiro.** As duas permissoes nascem juntas e valem os mesmos
+  // minutos, que so contam ate o envio comecar. A miniatura sobe num instante; depois
+  // de um arquivo grande numa conexao lenta, a permissao dela ja teria vencido, e o
+  // anexo ficaria sem capa sem ninguem saber por que.
   if (anexo.thumbnail && ticket.Thumbnail) {
     await publicMediaService.uploadToStorage(ticket.Thumbnail, anexo.thumbnail).catch(() => {
       // Sem miniatura o anexo continua valendo. Ver o comentario da funcao.
     })
   }
+
+  await publicMediaService.uploadToStorage(ticket.File, anexo.file, onProgress)
 
   await publicMediaService.confirm({
     TrackingCode: credentials.trackingCode,

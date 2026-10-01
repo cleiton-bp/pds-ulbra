@@ -166,8 +166,13 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   async function capturar() {
     setRecusa(null)
 
+    // O navegador pergunta qual tela mostrar, e isso leva o tempo da pessoa. Fechado
+    // o quadro nesse meio, a captura chegaria num formulario que ja e outro.
+    const minha = generation.current
+
     try {
       const canvas = await captureFrame()
+      if (generation.current !== minha) return
       host?.enlarge()
       setRecorte(canvas)
     } catch (falha) {
@@ -193,6 +198,10 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     // quadro foi reiniciado no meio e o resultado nao vale mais.
     const minha = generation.current
 
+    // Os arquivos deste relato, guardados agora: fechar o quadro com o relato ainda
+    // sendo criado esvazia a lista da tela, e eles precisam subir mesmo assim.
+    const arquivos = [...draft.atual()]
+
     try {
       const criado = await reportService.createReport({
         Key: config.key,
@@ -213,23 +222,31 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
         Context: buildReportContext(config),
       })
 
-      if (generation.current !== minha) return
+      const credenciais = { trackingCode: criado.TrackingCode, token: criado.AccessToken }
+
+      // **Guarda o que a API confirmou, e nao o que foi mandado.** Ver o comentario
+      // do estado: o codigo pode ter mudado do lado de la. Guarda mesmo com o quadro
+      // fechado no meio: o relato existe, e sem o codigo dele a proxima vez pediria
+      // outro, dividindo os relatos desta pessoa em dois.
+      if (criado.ReporterCode !== null) {
+        setReporterCode(criado.ReporterCode)
+        writeReporterCode(config.key, criado.ReporterCode)
+      }
+
+      // **Fechado no meio, o relato existe e os arquivos vao.** A tela e outra, e
+      // nada dela muda; o envio so termina.
+      if (generation.current !== minha) {
+        if (arquivos.length > 0) void enviarAnexos(credenciais, minha, arquivos)
+        return
+      }
+
       setCreated(criado)
 
       // **O protocolo aparece antes de os arquivos subirem.** Ele ja esta
       // garantido — o relato existe —, e fazer a pessoa esperar os arquivos
       // terminarem para ver o protocolo seria esconder a parte que nao pode se
       // perder.
-      if (draft.atual().length > 0) {
-        void enviarAnexos({ trackingCode: criado.TrackingCode, token: criado.AccessToken }, minha)
-      }
-
-      // **Guarda o que a API confirmou, e nao o que foi mandado.** Ver o comentario
-      // do estado: o codigo pode ter mudado do lado de la.
-      if (criado.ReporterCode !== null) {
-        setReporterCode(criado.ReporterCode)
-        writeReporterCode(config.key, criado.ReporterCode)
-      }
+      if (arquivos.length > 0) void enviarAnexos(credenciais, minha, arquivos)
     } catch (failure) {
       if (generation.current !== minha) return
       setError(describeError(failure))
@@ -307,6 +324,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       <div style={style} className="h-full">
         <CaptureCropper
           canvas={recorte}
+          maxBytes={tipoImagem?.MaxBytes}
           onCancel={fecharRecorte}
           onUse={(file) => {
             fecharRecorte()
@@ -365,6 +383,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
               generation.current,
             )
           }
+          onDiscard={(anexo) => remover(anexo.id)}
         />
 
         {/* **O codigo aparece em toda confirmacao, e nao so na primeira.** Ele e o

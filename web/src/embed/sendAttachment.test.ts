@@ -41,6 +41,53 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+describe('a ordem do envio', () => {
+  // A permissao da miniatura nasce junto com a do arquivo e vale os mesmos minutos.
+  // Depois de um arquivo grande numa conexao lenta, ela ja teria vencido.
+  it('a miniatura sobe antes do arquivo, e a confirmação vem por último', async () => {
+    const ordem: string[] = []
+    dublê.pedir.mockResolvedValue({
+      PublicId: 'p-1',
+      File: { Url: 'arquivo' },
+      Thumbnail: { Url: 'miniatura' },
+    })
+    dublê.subir.mockImplementation(async (destino: { Url: string }) => {
+      ordem.push(destino.Url)
+    })
+    dublê.confirmar.mockImplementation(async () => {
+      ordem.push('confirmar')
+    })
+
+    await sendAttachment(
+      credenciais,
+      { ...anexo, thumbnail: new Blob(['x'], { type: 'image/webp' }) },
+      () => {},
+    )
+
+    expect(ordem).toEqual(['miniatura', 'arquivo', 'confirmar'])
+  })
+
+  it('miniatura que falha não impede o arquivo', async () => {
+    dublê.pedir.mockResolvedValue({
+      PublicId: 'p-1',
+      File: { Url: 'arquivo' },
+      Thumbnail: { Url: 'miniatura' },
+    })
+    dublê.subir.mockImplementation(async (destino: { Url: string }) => {
+      if (destino.Url === 'miniatura') throw new Error('rede')
+    })
+
+    await sendAttachment(
+      credenciais,
+      { ...anexo, thumbnail: new Blob(['x'], { type: 'image/webp' }) },
+      () => {},
+    )
+
+    expect(dublê.subir).toHaveBeenCalledTimes(2)
+    expect(dublê.confirmar).toHaveBeenCalledOnce()
+  })
+})
+
 describe('a que envio o arquivo pertence', () => {
   it.each<[AttachmentEnvio | undefined, boolean, boolean]>([
     [undefined, false, false],

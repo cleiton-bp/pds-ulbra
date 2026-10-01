@@ -260,6 +260,10 @@ function Relato({
               onRetry={(anexo) =>
                 void reabertura.enviarAnexo(credenciais, anexo, 0).then(conferirReabertura)
               }
+              onDiscard={(anexo) => {
+                reabertura.remover(anexo.id)
+                conferirReabertura()
+              }}
             />
           ) : null
         }

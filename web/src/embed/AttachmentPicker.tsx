@@ -128,15 +128,22 @@ export function AttachmentPicker({
  * ou que o projeto deixou de aceitar — repetir levaria a mesma resposta, e o botao
  * so ensinaria a pessoa a clicar em vao. A frase diz o motivo que a API deu.
  *
+ * **Falhou oferece tambem desistir.** Tentar de novo pode continuar falhando — a
+ * rede de quem relata, o armazenamento fora —, e sem saida o arquivo prenderia a
+ * lista na tela ate a pagina recarregar.
+ *
  * @param savedNote O que foi salvo, dito do jeito da tela — "o relato", "a resposta".
+ * @param onDiscard Tira da lista o arquivo que falhou. Sem ele, so tentar de novo.
  */
 export function AttachmentProgress({
   anexos,
   onRetry,
+  onDiscard,
   savedNote,
 }: {
   anexos: Anexo[]
   onRetry: (anexo: Anexo) => void
+  onDiscard?: (anexo: Anexo) => void
   savedNote: string
 }) {
   if (anexos.length === 0) return null
@@ -161,13 +168,24 @@ export function AttachmentProgress({
                 <span title={anexo.error ?? undefined}>não enviado</span>
               )}
               {anexo.status === 'failed' && (
-                <button
-                  type="button"
-                  onClick={() => onRetry(anexo)}
-                  className="font-medium text-fg underline underline-offset-4"
-                >
-                  Tentar de novo
-                </button>
+                <span className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onRetry(anexo)}
+                    className="font-medium text-fg underline underline-offset-4"
+                  >
+                    Tentar de novo
+                  </button>
+                  {onDiscard && (
+                    <button
+                      type="button"
+                      onClick={() => onDiscard(anexo)}
+                      className="text-fg-muted underline underline-offset-4"
+                    >
+                      Desistir
+                    </button>
+                  )}
+                </span>
               )}
             </span>
           </li>

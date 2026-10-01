@@ -123,9 +123,50 @@ describe('o anexo no formulario', () => {
     montar()
     const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
 
-    fireEvent.paste(formulario, { clipboardData: { files: [print()] } })
+    // Um print de verdade traz so a imagem: texto nenhum.
+    fireEvent.paste(formulario, { clipboardData: { files: [print()], getData: () => '' } })
 
     await screen.findByRole('button', { name: 'Remover erro.png' })
+  })
+
+  // O Finder, nos navegadores Chromium, poe o nome do arquivo como texto junto; o
+  // gerenciador de arquivos do Linux, o caminho. Nao e texto da pessoa.
+  it.each([
+    ['o nome, como o Finder', 'erro.png'],
+    ['o nome sem a extensão, que o Finder esconde', 'erro'],
+    ['o caminho, como o Linux', '/home/ana/Imagens/erro.png'],
+  ])('colar arquivo copiado com %s como texto continua anexando', async (_, texto) => {
+    montar()
+    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+
+    const colagem = fireEvent.paste(formulario, {
+      clipboardData: {
+        files: [print()],
+        getData: (tipo: string) => (tipo === 'text/plain' ? texto : ''),
+      },
+    })
+
+    expect(colagem).toBe(false)
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+  })
+
+  // A planilha copia as celulas e, junto, uma imagem delas. Anexar a imagem
+  // engoliria o texto que a pessoa quis colar.
+  it('colar texto de planilha, que traz uma imagem junto, continua sendo colar texto', async () => {
+    montar()
+    const caixa = screen.getByRole('textbox')
+
+    const colagem = fireEvent.paste(caixa, {
+      clipboardData: {
+        files: [print()],
+        getData: (tipo: string) => (tipo === 'text/plain' ? 'pedido\tvalor\n123\t45,00' : ''),
+      },
+    })
+
+    // O navegador segue com a colagem de texto: ninguem a cancelou.
+    expect(colagem).toBe(true)
+    await act(async () => {})
+    expect(screen.queryByRole('button', { name: /^Remover/ })).toBeNull()
   })
 })
 
@@ -257,5 +298,174 @@ describe('o envio', () => {
 
     await screen.findByText('7K2M-9QXP-4TRV')
     expect(dublê.enviar).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * A FILA DEPOIS DO ENVIO, E ENQUANTO OS ARQUIVOS SAO PREPARADOS.
+ *
+ * **Fechar o quadro nao abandona os arquivos de um relato que ja existe.** A tela
+ * nova nao ve o envio antigo, mas ele vai ate o fim.
+ *
+ * **Uma escolha que termina depois de o quadro reiniciar nao entra no formulario
+ * novo**, e duas escolhas ao mesmo tempo nao passam juntas do limite.
+ */
+describe('a fila de arquivos', () => {
+  const nomeado = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
+  const pagina = {
+    init: null,
+    show: vi.fn(),
+    expand: vi.fn(),
+    collapse: vi.fn(),
+    enlarge: vi.fn(),
+    stop: vi.fn(),
+  }
+
+  /** A miniatura so sai quando o teste mandar: e o arquivo "ainda sendo preparado". */
+  function segurarMiniatura() {
+    const prontos: Array<(imagem: { width: number; height: number }) => void> = []
+    vi.stubGlobal(
+      'createImageBitmap',
+      () =>
+        new Promise((resolve) => {
+          prontos.push(resolve)
+        }),
+    )
+    return prontos
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('relatar outra coisa no meio do envio não abandona os arquivos do relato', async () => {
+    dublê.criar.mockResolvedValue(criado)
+    let terminarPrimeiro: () => void = () => {}
+    dublê.enviar
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            terminarPrimeiro = resolve
+          }),
+      )
+      .mockResolvedValue(undefined)
+
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(nomeado('primeiro.png'))
+    await screen.findByRole('button', { name: 'Remover primeiro.png' })
+    escolher(nomeado('segundo.png'))
+    await screen.findByRole('button', { name: 'Remover segundo.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByRole('button', { name: 'Relatar outra coisa' }))
+
+    // O formulario novo esta limpo...
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+    expect(screen.queryByText('segundo.png')).toBeNull()
+
+    // ...e o segundo arquivo do relato anterior sobe mesmo assim.
+    await act(async () => terminarPrimeiro())
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledTimes(2))
+    expect(dublê.enviar.mock.calls[1]?.[1].file.name).toBe('segundo.png')
+    expect(dublê.enviar.mock.calls[1]?.[0]).toEqual({
+      trackingCode: '7K2M-9QXP-4TRV',
+      token: 'tok-secreto',
+    })
+    expect(screen.queryByText('segundo.png')).toBeNull()
+  })
+
+  it('arquivo escolhido antes de fechar o quadro não aparece no formulário reaberto', async () => {
+    const prontos = segurarMiniatura()
+    render(
+      <EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} media={media} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
+
+    escolher(nomeado('antigo.png'))
+    await waitFor(() => expect(prontos).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+
+    await act(async () => prontos[0]?.({ width: 0, height: 0 }))
+    fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
+
+    expect(screen.queryByRole('button', { name: 'Remover antigo.png' })).toBeNull()
+  })
+
+  it('duas escolhas ao mesmo tempo não passam juntas do limite', async () => {
+    const prontos = segurarMiniatura()
+    render(
+      <EmbedApp
+        settings={DEFAULT_WIDGET_SETTINGS}
+        config={config}
+        media={{ ...media, MaxFilesPerReport: 1 }}
+      />,
+    )
+
+    escolher(nomeado('primeiro.png'))
+    await waitFor(() => expect(prontos).toHaveLength(1))
+    // O primeiro ainda nao entrou na lista, mas ja ocupa a vaga.
+    escolher(nomeado('segundo.png'))
+
+    expect(await screen.findByText('Cabe até 1 arquivo por envio.')).toBeDefined()
+    await act(async () => prontos[0]?.({ width: 0, height: 0 }))
+
+    await screen.findByRole('button', { name: 'Remover primeiro.png' })
+    expect(screen.queryByRole('button', { name: 'Remover segundo.png' })).toBeNull()
+  })
+
+  it('fechar com o relato ainda sendo criado não abandona os arquivos, nem o código', async () => {
+    let criar: (relato: CreatedReportViewModel) => void = () => {}
+    dublê.criar.mockImplementation(
+      () =>
+        new Promise<CreatedReportViewModel>((resolve) => {
+          criar = resolve
+        }),
+    )
+    dublê.enviar.mockResolvedValue(undefined)
+    window.localStorage.clear()
+
+    render(
+      <EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} media={media} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(nomeado('erro.png'))
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+    await act(async () => criar({ ...criado, ReporterCode: 'H7QK-3M2X-P9WD' }))
+
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1].file.name).toBe('erro.png')
+    expect(dublê.enviar.mock.calls[0]?.[0]).toEqual({
+      trackingCode: '7K2M-9QXP-4TRV',
+      token: 'tok-secreto',
+    })
+    expect(JSON.stringify(window.localStorage)).toContain('H7QK-3M2X-P9WD')
+
+    // O quadro reaberto e o formulario de quem ainda nao relatou.
+    fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
+    expect(screen.queryByText('7K2M-9QXP-4TRV')).toBeNull()
+  })
+
+  it('arquivo que falha pode ser deixado de lado', async () => {
+    dublê.criar.mockResolvedValue(criado)
+    dublê.enviar.mockRejectedValue(new Error('rede'))
+
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(nomeado('erro.png'))
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Desistir' }))
+
+    expect(screen.queryByText('erro.png')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(screen.getByText('7K2M-9QXP-4TRV')).toBeDefined()
   })
 })

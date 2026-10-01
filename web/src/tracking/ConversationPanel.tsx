@@ -185,6 +185,10 @@ export function ConversationPanel({
             anexos={subindo ? draft.anexos : draft.naoEnviados}
             savedNote="A resposta foi enviada e o seu texto está salvo."
             onRetry={(anexo) => void draft.enviarAnexo(credenciais, anexo, 0).then(conferirEnvio)}
+            onDiscard={(anexo) => {
+              draft.remover(anexo.id)
+              conferirEnvio()
+            }}
           />
         </div>
       )}

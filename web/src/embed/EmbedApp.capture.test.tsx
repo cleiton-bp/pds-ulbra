@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PublicMediaSettingsViewModel } from '@/contracts'
 import { EmbedApp } from '@/embed/EmbedApp'
@@ -204,6 +204,30 @@ describe('a captura', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Usar a tela inteira' }))
 
     await screen.findByRole('button', { name: 'Remover captura.png' })
+    // O teto de imagem do projeto chega ao recorte: e com ele que, sem WebP, o PNG
+    // grande vira JPEG em vez de ser recusado depois.
+    expect(dublê.cortar.mock.calls[0]?.[2]).toBe(5 * 1024 * 1024)
+  })
+
+  // O navegador pergunta qual tela mostrar, e isso leva o tempo da pessoa. Fechado
+  // o quadro nesse meio, a captura nao cresce o quadro nem entra no formulario novo.
+  it('captura que chega depois de fechar o quadro não abre o recorte no formulário novo', async () => {
+    let soltar: (canvas: HTMLCanvasElement) => void = () => {}
+    dublê.capturar.mockImplementation(
+      () =>
+        new Promise<HTMLCanvasElement>((resolve) => {
+          soltar = resolve
+        }),
+    )
+    montar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+    await act(async () => soltar(document.createElement('canvas')))
+
+    expect(pagina.enlarge).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
+    expect(screen.queryByRole('button', { name: 'Usar a tela inteira' })).toBeNull()
   })
 
   it('a pagina proibir some com o botao, e diz para anexar imagem', async () => {

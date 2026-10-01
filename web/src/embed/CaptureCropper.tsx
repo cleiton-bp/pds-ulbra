@@ -19,10 +19,13 @@ const MIN_SELECAO = 12
  */
 export function CaptureCropper({
   canvas,
+  maxBytes,
   onUse,
   onCancel,
 }: {
   canvas: HTMLCanvasElement
+  /** O teto de imagem do projeto: acima dele, o recorte sai em formato menor. */
+  maxBytes?: number
   onUse: (file: File) => void
   onCancel: () => void
 }) {
@@ -63,7 +66,7 @@ export function CaptureCropper({
         ? toSourceRect(recorte, { width: img.clientWidth, height: img.clientHeight }, original)
         : { x: 0, y: 0, ...original }
 
-      onUse(await cropToFile(canvas, pedaco))
+      onUse(await cropToFile(canvas, pedaco, maxBytes))
     } catch (erro) {
       setFalha(erro instanceof Error ? erro.message : 'Não deu para gerar a imagem.')
       setGerando(false)

@@ -147,8 +147,14 @@ async function configuracaoLida() {
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 }
 
-function escolher(arquivo: File) {
-  fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+/**
+ * Escolhe o arquivo no seletor da reabertura. **Espera o seletor aparecer**: ele
+ * depende da configuracao de midia, que a pagina le sem pressa. Procura-lo na hora
+ * so dava certo com a maquina livre — sob carga, o teste quebrava em milissegundos
+ * sem nada de errado na tela.
+ */
+async function escolher(arquivo: File) {
+  fireEvent.change(await screen.findByLabelText('Escolher imagem para anexar'), {
     target: { files: [arquivo] },
   })
 }
@@ -205,7 +211,7 @@ describe('anexar ao reabrir', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
       target: { value: 'Voltou a travar.' },
     })
-    escolher(print())
+    await escolher(print())
     await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
 
@@ -251,7 +257,7 @@ describe('anexar ao reabrir', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
       target: { value: 'Voltou a travar.' },
     })
-    escolher(print())
+    await escolher(print())
     await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
 
@@ -273,7 +279,7 @@ describe('anexar ao reabrir', () => {
     dublê.enviar.mockResolvedValue(undefined)
     await reabrindo()
 
-    escolher(print())
+    await escolher(print())
     await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
 
@@ -300,7 +306,7 @@ describe('anexar ao reabrir', () => {
     dublê.enviar.mockRejectedValue(new Error('rede'))
     await reabrindo()
 
-    escolher(print())
+    await escolher(print())
     await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
 
@@ -328,7 +334,7 @@ describe('anexar ao reabrir', () => {
       fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
         target: { value: 'Voltou a travar.' },
       })
-      escolher(print())
+      await escolher(print())
 
       const reabrir = screen.getByRole('button', { name: 'Reabrir o relato' }) as HTMLButtonElement
       await waitFor(() => expect(reabrir.disabled).toBe(true))
@@ -358,13 +364,33 @@ describe('anexar ao reabrir', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
       target: { value: 'Voltou a travar.' },
     })
-    escolher(print())
+    await escolher(print())
     await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
 
     await screen.findByText('não enviado')
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
     expect(screen.getByText(/O relato foi reaberto e o seu texto está salvo/)).toBeDefined()
+  })
+
+  it('desistir do arquivo que falhou na reabertura tira da lista e fecha o envio', async () => {
+    dublê.enviar.mockRejectedValue(new PanelError('Sem conexao.', 0))
+    await reabrindo()
+
+    fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
+      target: { value: 'Voltou a travar.' },
+    })
+    await escolher(print())
+    await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Desistir' }))
+
+    expect(screen.queryByText('ainda-quebrado.png')).toBeNull()
+    // A pagina le os arquivos ao abrir, de novo quando o envio termina com a falha,
+    // e mais uma vez ao desistir — e essa terceira leitura e a de fechar o envio.
+    // Sem ela, a proxima reabertura iria sem arquivo ate a pagina recarregar.
+    await waitFor(() => expect(dublê.anexos).toHaveBeenCalledTimes(3))
   })
 
   it('falha de rede na reabertura oferece tentar de novo', async () => {
@@ -374,7 +400,7 @@ describe('anexar ao reabrir', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
       target: { value: 'Voltou a travar.' },
     })
-    escolher(print())
+    await escolher(print())
     await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
 

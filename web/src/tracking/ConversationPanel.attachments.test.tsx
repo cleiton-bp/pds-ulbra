@@ -287,6 +287,22 @@ describe('anexar ao responder', () => {
     }
   })
 
+  it('desistir do arquivo que falhou fecha o envio, e a próxima resposta já anexa', async () => {
+    dublê.responder.mockResolvedValue(relato())
+    dublê.enviar.mockRejectedValue(new PanelError('Sem conexao.', 0))
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Desistir' }))
+
+    expect(screen.queryByText('Arquivos')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+  })
+
   it('outra resposta sem arquivo tira o aviso do recusado anterior', async () => {
     dublê.responder.mockResolvedValue(relato())
     dublê.enviar.mockRejectedValue(

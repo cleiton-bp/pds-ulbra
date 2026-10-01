@@ -78,6 +78,14 @@ export function useAttachmentDraft(
    */
   const [preparando, setPreparando] = useState(0)
 
+  /**
+   * Os arquivos que ja passaram pela conferencia do limite e ainda estao virando
+   * item da lista. **Contam no limite como se ja estivessem nela**: duas escolhas ao
+   * mesmo tempo — colar enquanto a miniatura da anterior sai — olhariam a mesma lista
+   * e as duas caberiam, passando do limite que a tela diz respeitar.
+   */
+  const reservados = useRef<Pick<Anexo, 'kind'>[]>([])
+
   const propria = useRef(0)
   const geracao = generation ?? propria
 
@@ -109,9 +117,13 @@ export function useAttachmentDraft(
     setNaoEnviados([])
     setPreparando((atual) => atual + 1)
 
+    // O quadro reiniciado no meio — fechado, ou "relatar outra coisa" — ja e outro
+    // formulario, e o arquivo escolhido para o anterior nao pode entrar nele.
+    const minha = geracao.current
+
     try {
       for (const file of arquivos) {
-        const motivo = rejectReason(file, anexosRef.current, media)
+        const motivo = rejectReason(file, [...anexosRef.current, ...reservados.current], media)
         if (motivo) {
           setRecusa(motivo)
           continue
@@ -120,7 +132,17 @@ export function useAttachmentDraft(
         const kind = kindFor(file, media)
         if (!kind) continue
 
-        const thumbnail = await makeThumbnail(file)
+        const reserva = { kind: kind.Kind }
+        reservados.current = [...reservados.current, reserva]
+
+        let thumbnail: Blob | null
+        try {
+          thumbnail = await makeThumbnail(file)
+        } finally {
+          reservados.current = reservados.current.filter((item) => item !== reserva)
+        }
+
+        if (geracao.current !== minha) return
 
         trocarLista([
           ...anexosRef.current,
@@ -155,12 +177,24 @@ export function useAttachmentDraft(
    *
    * So age quando a colagem traz arquivo: colar texto na caixa continua sendo colar
    * texto.
+   *
+   * **Texto junto com imagem e texto.** A planilha e o editor de texto copiam as
+   * celulas ou o paragrafo e, junto, uma imagem deles. Anexar essa imagem engoliria
+   * o texto que a pessoa quis colar.
+   *
+   * **Menos quando o texto e so o nome do arquivo.** O arquivo copiado no Finder
+   * chega com o nome dele como texto (nos navegadores Chromium), e o gerenciador de
+   * arquivos do Linux, com o caminho. Isso nao e texto da pessoa: tratado como texto,
+   * colar um print salvo deixaria de anexar e escreveria o nome na descricao.
    */
   function colar(event: ClipboardEvent<HTMLElement>) {
     if (!media) return
 
     const arquivos = Array.from(event.clipboardData.files)
     if (arquivos.length === 0) return
+
+    const texto = event.clipboardData.getData('text/plain').trim()
+    if (texto.length > 0 && !soNomesDosArquivos(texto, arquivos)) return
 
     event.preventDefault()
     void adicionar(arquivos)
@@ -172,9 +206,14 @@ export function useAttachmentDraft(
     )
   }
 
-  /** Leva um arquivo ate o fim, respeitando a geracao de quem o pediu. */
+  /**
+   * Leva um arquivo ate o fim. **A geracao decide so se a tela e atualizada**: o
+   * arquivo sobe mesmo com o quadro ja reiniciado, porque o relato existe e a pessoa
+   * contou que o arquivo iria junto.
+   */
   async function enviarAnexo(credenciais: ReportCredentials, anexo: Anexo, minha: number) {
-    atualizar(anexo.id, { status: 'sending', progress: 0, error: null })
+    if (geracao.current === minha)
+      atualizar(anexo.id, { status: 'sending', progress: 0, error: null })
 
     try {
       await sendAttachment(
@@ -196,10 +235,21 @@ export function useAttachmentDraft(
     }
   }
 
-  /** Um de cada vez: a barra de cada um anda de verdade, e a banda nao se divide. */
-  async function enviarAnexos(credenciais: ReportCredentials, minha: number) {
-    for (const anexo of anexosRef.current) {
-      if (geracao.current !== minha) return
+  /**
+   * Um de cada vez: a barra de cada um anda de verdade, e a banda nao se divide.
+   *
+   * **A lista e copiada antes, e o envio vai ate o fim.** Fechar o quadro, ou
+   * "relatar outra coisa", esvazia a lista da tela — e parar ali deixaria sem subir,
+   * sem aviso, os arquivos de um relato que ja existe. A tela nova nao ve este
+   * envio; ele so termina.
+   */
+  async function enviarAnexos(
+    credenciais: ReportCredentials,
+    minha: number,
+    // Quem guardou a lista antes de ela sair da tela passa a copia dela.
+    lista: Anexo[] = anexosRef.current,
+  ) {
+    for (const anexo of [...lista]) {
       await enviarAnexo(credenciais, anexo, minha)
     }
   }
@@ -254,3 +304,27 @@ export function useAttachmentDraft(
 
 /** O rascunho inteiro, para quem o cria passar adiante a quem desenha o seletor. */
 export type AttachmentDraft = ReturnType<typeof useAttachmentDraft>
+
+/**
+ * O texto colado e so o nome — ou o caminho — dos arquivos que vieram junto.
+ *
+ * Uma linha por arquivo, como o Finder e os gerenciadores do Linux poem. O nome
+ * vale com e sem a extensao, porque o Finder a esconde por padrao, e na forma
+ * composta do Unicode, porque o nome do arquivo e o do texto podem vir escritos
+ * cada um de um jeito.
+ */
+function soNomesDosArquivos(texto: string, arquivos: File[]): boolean {
+  const nomes = new Set<string>()
+
+  for (const arquivo of arquivos) {
+    const nome = arquivo.name.normalize('NFC')
+    nomes.add(nome)
+    nomes.add(nome.replace(/\.[^.]+$/, ''))
+  }
+
+  return texto
+    .split(/\r\n|\r|\n/)
+    .map((linha) => linha.trim())
+    .filter((linha) => linha.length > 0)
+    .every((linha) => nomes.has((linha.split(/[\\/]/).pop() ?? linha).normalize('NFC')))
+}
