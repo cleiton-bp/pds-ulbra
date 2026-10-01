@@ -1,20 +1,29 @@
+import { CAPTURE_GLOBAL, type CaptureModule } from '@/capture/area'
 import {
+  CAPTURE_CAPABILITY,
+  type CaptureRequestMessage,
   FRAME_SIZE,
   type InitMessage,
   isOurMessage,
   MESSAGE_SOURCE,
   type ResizeMessage,
 } from '@/embed/protocol'
+import { openAreaPicker } from '@/loader/areaPicker'
+import { createCaptureHandler } from '@/loader/captureFlow'
 
 /**
  * O CARREGADOR — a unica linha que o cliente cola no site dele.
  *
  * <script src="https://.../v1/pds.js" data-key="pk_..." defer></script>
  *
- * **Ele nao desenha nada na pagina.** Cria um `iframe` e cuida de posicao e
- * tamanho, e mais nada — o gatilho, o formulario e as cores moram dentro do
- * quadro. E o que mantem o site do cliente livre do nosso CSS, e o nosso livre do
- * dele.
+ * **Ele quase nao desenha na pagina.** Cria um `iframe` e cuida de posicao e
+ * tamanho — o gatilho, o formulario e as cores moram dentro do quadro. E o que
+ * mantem o site do cliente livre do nosso CSS, e o nosso livre do dele.
+ *
+ * **A excecao e a captura**, e so quando a pessoa pede: codigo dentro de um quadro
+ * de outra origem nao alcanca a pagina, entao quem captura e o carregador. Ele
+ * desenha a camada de marcar a area — numa sombra, com o proprio estilo — e baixa
+ * a biblioteca que redesenha a pagina so nesse clique. Ver `captureFlow`.
  *
  * Tres cuidados que a origem cruzada exige:
  *
@@ -40,6 +49,65 @@ const key = script?.dataset.key?.trim() ?? ''
 /** A origem de onde ESTE arquivo veio, que e tambem de onde o quadro vem. */
 const origin = script ? new URL(script.src, window.location.href).origin : ''
 
+/** O arquivo da captura mora ao lado deste, na mesma versao. */
+const captureSrc = script ? new URL('pds-captura.js', script.src).href : ''
+
+let captureModule: Promise<CaptureModule> | null = null
+
+/** Quanto o arquivo da captura pode levar para chegar. */
+const CAPTURE_LOAD_TIMEOUT_MS = 20_000
+
+/**
+ * Baixa o arquivo da captura, **uma vez**. Por `<script>` comum, como o proprio
+ * carregador: um modulo pediria CORS do servidor dos arquivos. O que falha e
+ * esquecido, para o proximo clique tentar de novo.
+ *
+ * **Com o `nonce` deste script.** A pagina que libera scripts por `nonce` liberou o
+ * carregador pelo dele; sem repassa-lo, o arquivo da captura seria bloqueado.
+ */
+function loadCaptureModule(): Promise<CaptureModule> {
+  captureModule ??= new Promise<CaptureModule>((resolve, reject) => {
+    const tag = document.createElement('script')
+    tag.src = captureSrc
+    tag.async = true
+    if (script?.nonce) tag.nonce = script.nonce
+    const prazo = setTimeout(
+      () => reject(new Error('O arquivo da captura demorou demais.')),
+      CAPTURE_LOAD_TIMEOUT_MS,
+    )
+    tag.onload = () => {
+      clearTimeout(prazo)
+      const carregado = (window as unknown as Record<string, CaptureModule | undefined>)[
+        CAPTURE_GLOBAL
+      ]
+      if (carregado && typeof carregado.capturePage === 'function') resolve(carregado)
+      else reject(new Error('O arquivo da captura não trouxe o que devia.'))
+    }
+    tag.onerror = () => {
+      clearTimeout(prazo)
+      reject(new Error('Não deu para baixar o arquivo da captura.'))
+    }
+    document.head.appendChild(tag)
+  })
+
+  captureModule.catch(() => {
+    captureModule = null
+  })
+
+  return captureModule
+}
+
+/** O pedido de captura so e atendido com os campos no formato combinado. */
+function isCaptureRequest(data: { type: string }): data is CaptureRequestMessage {
+  const pedido = data as Partial<CaptureRequestMessage>
+  return (
+    pedido.type === 'capture' &&
+    typeof pedido.id === 'string' &&
+    pedido.id.length > 0 &&
+    (pedido.maxBytes === null || (typeof pedido.maxBytes === 'number' && pedido.maxBytes > 0))
+  )
+}
+
 /** O caminho da pagina, sem o que vem depois de `?` ou `#`. */
 function currentRoute(): string {
   return window.location.pathname || '/'
@@ -58,13 +126,6 @@ function mount(): void {
   // falar com a nossa API. Sem `allow-top-navigation`: um quadro nunca deve
   // conseguir levar a pagina do cliente para outro lugar.
   frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups')
-  // **A captura de tela so funciona se a pagina deixar, e quem pede e este atributo.**
-  // Sem ele, o navegador recusa a captura pedida de dentro do quadro. Com ele, a
-  // pessoa ainda escolhe o que mostrar: e o navegador que pergunta qual tela ou
-  // janela, e nada e capturado sem ela clicar. O site do cliente pode continuar
-  // proibindo pelo cabecalho `Permissions-Policy` dele — ai o botao some, e anexar
-  // arquivo continua.
-  frame.setAttribute('allow', 'display-capture')
 
   const style = frame.style
   style.position = 'fixed'
@@ -109,10 +170,22 @@ function mount(): void {
       route: currentRoute(),
       origin: window.location.host,
       viewport: { width: window.innerWidth, height: window.innerHeight },
+      // O quadro so oferece capturar se este carregador disser que sabe.
+      capabilities: [CAPTURE_CAPABILITY],
     }
 
     frame.contentWindow?.postMessage(init, origin)
   }
+
+  const capture = createCaptureHandler({
+    frameStyle: style,
+    focusFrame: () => frame.focus(),
+    openPicker: () => openAreaPicker(),
+    loadModule: loadCaptureModule,
+    // So para o nosso quadro, e so para a origem dele: o print e da pagina do
+    // cliente, e nao pode sair para outra janela.
+    reply: (message) => frame.contentWindow?.postMessage(message, origin),
+  })
 
   /** Distancia que o quadro sempre deixa ate a borda da janela. */
   const GUTTER = 20
@@ -137,7 +210,9 @@ function mount(): void {
     style.left = left ? '20px' : ''
     style.right = left ? '' : '20px'
 
-    style.visibility = 'visible'
+    // No meio de uma captura o quadro fica escondido — girar o telefone nao o traz
+    // de volta para baixo do veu. A captura o devolve quando termina.
+    if (!capture.isCapturing()) style.visibility = 'visible'
   }
 
   window.addEventListener('message', (event) => {
@@ -156,7 +231,10 @@ function mount(): void {
     if (event.data.type === 'resize') {
       last = event.data as unknown as ResizeMessage
       apply(last)
+      return
     }
+
+    if (isCaptureRequest(event.data)) void capture(event.data)
   })
 
   // A janela muda de tamanho com o quadro aberto: girar o telefone basta.

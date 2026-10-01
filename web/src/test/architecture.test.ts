@@ -231,15 +231,67 @@ describe('regra de dependencia entre as pastas', () => {
    * import que ele ganha vira peso e superficie na pagina de outra pessoa — por
    * isso a lista do que ele pode conhecer e **uma linha**, e nao um prefixo.
    */
-  it('o carregador so importa o protocolo', () => {
-    const PERMITIDO = ['@/embed/protocol']
-    const offenders: string[] = []
+  /**
+   * **O que o navegador baixa, e nao so o primeiro salto** — o mesmo motivo do fecho
+   * transitivo logo abaixo. Anda o grafo a partir de `loader/main.ts`, pelos imports
+   * que ficam no pacote: `import type` some no build, e nao conta. Um import relativo,
+   * ou um que passe por um arquivo permitido, entraria do mesmo jeito — e foi assim
+   * que a biblioteca da captura chegou a caber no carregador sem teste nenhum
+   * reprovar (conferido de proposito).
+   */
+  it('o carregador so leva o protocolo e as pecas da captura — nem por tabela', () => {
+    // O protocolo com o quadro; as duas pecas da captura, que sao dele mesmo; e o
+    // combinado com o arquivo da captura — um tipo e o nome global, e nada que pese.
+    const PERMITIDO = new Set(
+      [
+        'loader/main.ts',
+        'loader/areaPicker.ts',
+        'loader/captureFlow.ts',
+        'embed/protocol.ts',
+        'capture/area.ts',
+      ].map((arquivo) => join(SOURCE_ROOT, arquivo)),
+    )
 
-    for (const file of listFiles(join(SOURCE_ROOT, 'loader'))) {
-      for (const specifier of importsOf(readFileSync(file, 'utf8'))) {
-        if (!specifier.startsWith('@/')) continue
-        if (PERMITIDO.includes(specifier)) continue
-        offenders.push(`${relative(SOURCE_ROOT, file)} importa ${specifier}`)
+    /** Os imports que ficam no pacote: `import type ... from` e apagado antes. */
+    const importsReais = (conteudo: string) =>
+      importsOf(conteudo.replace(/^\s*(?:import|export)\s+type\s[^;]*?from\s*['"][^'"]+['"]/gm, ''))
+
+    const resolver = (specifier: string, deArquivo: string): string | null => {
+      const base = specifier.startsWith('@/')
+        ? join(SOURCE_ROOT, specifier.slice(2))
+        : join(dirname(deArquivo), specifier)
+      for (const candidato of [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) {
+        if (existsSync(candidato) && statSync(candidato).isFile()) return candidato
+      }
+      return null
+    }
+
+    const offenders: string[] = []
+    const vistos = new Set<string>()
+    const fila = [join(SOURCE_ROOT, 'loader', 'main.ts')]
+
+    while (fila.length > 0) {
+      const atual = fila.shift() as string
+      if (vistos.has(atual)) continue
+      vistos.add(atual)
+
+      if (!PERMITIDO.has(atual)) {
+        offenders.push(`o carregador leva ${relative(SOURCE_ROOT, atual)}`)
+        continue
+      }
+
+      for (const specifier of importsReais(readFileSync(atual, 'utf8'))) {
+        // **Pacote nenhum.** A biblioteca que redesenha a pagina pesa oitenta vezes o
+        // carregador, e mora no arquivo da captura, baixado so no clique: importada
+        // aqui por engano, iria para toda visita de todo site de cliente.
+        if (!specifier.startsWith('@/') && !specifier.startsWith('.')) {
+          offenders.push(`${relative(SOURCE_ROOT, atual)} importa o pacote ${specifier}`)
+          continue
+        }
+
+        const alvo = resolver(specifier, atual)
+        if (alvo) fila.push(alvo)
+        else offenders.push(`${relative(SOURCE_ROOT, atual)} importa ${specifier}, que nao existe`)
       }
     }
 

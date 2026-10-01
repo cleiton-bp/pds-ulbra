@@ -56,7 +56,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 | `npm run lint` | Biome: linter e formatador |
 | `npm run format` | Aplica as correções do Biome |
 | `npm run build` | Checa os tipos, gera o carregador e depois `dist/` |
-| `npm run build:loader` | Só o carregador, em `public/v1/pds.js` |
+| `npm run build:loader` | Só o carregador e o arquivo da captura, em `public/v1/pds.js` e `public/v1/pds-captura.js` |
 
 ---
 
@@ -141,10 +141,18 @@ acidente:
                                                       o protocolo e o token do link
 ```
 
-**O carregador (`src/loader/`) não desenha nada na página.** Ele cria o `iframe`,
-cuida de posição e tamanho, e mais nada. O gatilho, o formulário e as cores moram
-dentro do quadro — é o que mantém o site do cliente livre do nosso CSS, e o nosso
-livre do dele. Ele sai em IIFE, tem 1,6 kB e não carrega React.
+**O carregador (`src/loader/`) quase não desenha na página.** Ele cria o `iframe`
+e cuida de posição e tamanho. O gatilho, o formulário e as cores moram dentro do
+quadro — é o que mantém o site do cliente livre do nosso CSS, e o nosso livre do
+dele. Ele sai em IIFE, tem cerca de 3,5 kB comprimido e não carrega React.
+
+**A exceção é a captura, e só quando a pessoa pede.** Código dentro de um quadro
+de outra origem não alcança a página, então quem captura é o carregador: ele
+esconde o quadro, desenha a camada de marcar a área (numa sombra, com estilo
+próprio) e baixa `pds-captura.js` — a biblioteca que redesenha a página como
+imagem (`@zumer/snapdom`), com uns 50 kB comprimidos — só nesse clique. A imagem
+volta para o quadro pela mesma conversa, e entra na lista como um arquivo
+escolhido. Ver `src/loader/captureFlow.ts` e `src/capture/`.
 
 **A conversa entre os dois passa por três conferências**, iguais nas duas pontas:
 a origem esperada, a janela exata (`event.source`), e o carimbo `source: 'pds'`.
