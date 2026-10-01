@@ -46,7 +46,15 @@ type Estado =
   // O protocolo e o token viajam junto do relato de proposito: confirmar e reabrir
   // precisam deles, e reler o endereco de dentro do bloco criaria uma segunda fonte
   // para a mesma verdade — que passariam a discordar no dia em que a pagina navegar.
-  | { tipo: 'aberto'; relato: PublicReportViewModel; code: string; token: string }
+  // `pessoal` e a chave e o codigo de quem abriu pela lista pessoal: e com eles que
+  // a pagina le os arquivos, ja que ali nao ha token. Nulo quando veio pelo link.
+  | {
+      tipo: 'aberto'
+      relato: PublicReportViewModel
+      code: string
+      token: string
+      pessoal: { key: string; reporterCode: string } | null
+    }
   | { tipo: 'recusado' }
   | { tipo: 'falhou' }
 
@@ -86,7 +94,13 @@ export function TrackingPage() {
             TrackingCode: code,
           })
 
-      setEstado({ tipo: 'aberto', relato, code, token })
+      setEstado({
+        tipo: 'aberto',
+        relato,
+        code,
+        token,
+        pessoal: peloToken ? null : { key, reporterCode },
+      })
     } catch (falha) {
       setEstado({ tipo: isPanelError(falha) && falha.status === 404 ? 'recusado' : 'falhou' })
     }
@@ -104,6 +118,7 @@ export function TrackingPage() {
           relato={estado.relato}
           code={estado.code}
           token={estado.token}
+          pessoal={estado.pessoal}
           aoResponder={(novo) => setEstado({ ...estado, relato: novo })}
         />
       )}
@@ -117,16 +132,18 @@ function Relato({
   relato,
   code,
   token,
+  pessoal,
   aoResponder,
 }: {
   relato: PublicReportViewModel
   code: string
   token: string
+  pessoal: { key: string; reporterCode: string } | null
   aoResponder: (relato: PublicReportViewModel) => void
 }) {
-  // So com o token: e ele que as rotas dos arquivos pedem. Pelo codigo pessoal o
-  // relato abre, e os arquivos ainda nao — e a terceira porta.
-  const midia = useTrackingMedia(code, token)
+  // Os arquivos pela porta por onde a pagina entrou: o token do link, ou a chave e
+  // o codigo da lista pessoal. Anexar, so pelo link.
+  const midia = useTrackingMedia(code, token, pessoal)
   const credenciais = { trackingCode: code, token }
 
   /**

@@ -601,6 +601,29 @@ public class ReportAttachmentService : IReportAttachmentService
         var report = await TrackedReportGate.RequireAsync(
             _unitOfWork, dto.TrackingCode, dto.Token, cancellationToken);
 
+        return await ListarParaQuemRelatouAsync(report, cancellationToken);
+    }
+
+    public async Task<List<PublicAttachmentViewModel>> ListForReporterCodeAsync(
+        OpenByReporterCodeDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        // A porta da abertura pelo codigo, com a mesma recusa unica. So le: ver
+        // ReporterCodeGate.
+        var report = await ReporterCodeGate.RequireAsync(
+            _unitOfWork, dto.Key, dto.Code, dto.TrackingCode, cancellationToken);
+
+        return await ListarParaQuemRelatouAsync(report, cancellationToken);
+    }
+
+    /// <summary>
+    /// Os arquivos confirmados do relato, como quem o escreveu os ve — pelo link ou
+    /// pelo codigo, a mesma lista.
+    /// </summary>
+    private async Task<List<PublicAttachmentViewModel>> ListarParaQuemRelatouAsync(
+        Report report,
+        CancellationToken cancellationToken)
+    {
         var anexos = await _unitOfWork.ReportAttachments.ListConfirmedWithoutSessionAsync(
             report.Id, cancellationToken);
 

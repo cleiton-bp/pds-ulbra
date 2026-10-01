@@ -242,7 +242,8 @@ public class PublicReportsController : BaseController
     ///
     /// **Lê, e não age.** O código prova que o relato é dela; o link é que dá poder
     /// sobre ele — confirmar, reabrir e responder chegam desligados, porque hoje
-    /// essas três rotas só aceitam o token do link. `TrackingCodeCanAct` continua
+    /// essas três rotas só aceitam o token do link. Os arquivos do relato se leem
+    /// pela mesma porta, em `by-code/attachments`. `TrackingCodeCanAct` continua
     /// gravado, e é ignorado aqui até elas aceitarem o código: obedecê-lo mostraria
     /// botões que a própria API recusaria.
     ///
@@ -615,6 +616,52 @@ public class PublicReportsController : BaseController
         try
         {
             var anexos = await _attachmentService.ListForTrackingAsync(dto, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(anexos, total: anexos.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Os arquivos do relato, para quem voltou pela lista pessoal.</summary>
+    /// <remarks>
+    /// **A mesma lista de `tracking/attachments`, pela porta do código.** Quem abriu o
+    /// relato pela lista pessoal — num navegador novo, sem o link — vê os prints que
+    /// mandou ao relatar, ao responder e ao reabrir, cada um no seu lugar.
+    ///
+    /// **Lê, e não age.** O código prova que o relato é dela; o link é que dá poder
+    /// sobre ele. Anexar, confirmar, reabrir e responder continuam pedindo o token.
+    ///
+    /// **Uma recusa só, para todos os enganos**, a mesma de `by-code/open`: código em
+    /// branco, código que não existe, protocolo que não existe, protocolo de outra
+    /// pessoa, e projeto que não usa o código.
+    ///
+    /// **Não grava visualização.** Quem grava é a abertura do relato, que vem antes; ler
+    /// os arquivos dele não é outra leitura.
+    ///
+    /// Sai com `Cache-Control: no-store`, e sem o nome original, como a leitura pelo link.
+    /// </remarks>
+    /// <param name="dto">A chave pública, o código e o protocolo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Os anexos confirmados, na ordem em que entraram.</response>
+    /// <response code="401">Chave pública inválida.</response>
+    /// <response code="404">Código ou protocolo não conferem.</response>
+    /// <response code="409">Não há armazenamento configurado nesta instalação.</response>
+    [HttpPost("by-code/attachments")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<List<PublicAttachmentViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ByCodeAttachments(
+        [FromBody] OpenByReporterCodeDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var anexos = await _attachmentService.ListForReporterCodeAsync(dto, cancellationToken);
             Response.Headers.CacheControl = "no-store";
             return Success(anexos, total: anexos.Count);
         }
