@@ -570,7 +570,12 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           // `min-h-28` e empurra o botao para fora de um documento que nao
           // rola. Em janela de 320px o carregador entrega 280px de quadro, e o
           // "Enviar" ficava inalcancavel com o relato ja escrito.
-          'min-h-0 flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
+          //
+          // **Com imagem na lista, o piso volta.** As imagens ficam logo abaixo do
+          // texto, e passam da altura do quadro: sem piso, o texto encolheria ate
+          // sumir. Com ele, o formulario rola, e o "Enviar" continua alcancavel.
+          anexos.length > 0 ? 'min-h-24' : 'min-h-0',
+          'flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
           'text-body text-fg leading-normal placeholder:text-fg-placeholder',
           error ? 'border-error-border' : 'border-border',
         )}
@@ -584,6 +589,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           onAdd={(arquivos) => void adicionar(arquivos)}
           onRemove={remover}
           onEdit={draft.editar}
+          onResize={draft.redimensionar}
           disabled={sending}
           actions={
             podeCapturar && (

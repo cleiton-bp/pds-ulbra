@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MediaKind } from '@/contracts'
+import type { AttachmentDisplaySize, MediaKind } from '@/contracts'
 import { cn } from '@/shared/lib/cn'
+import { DISPLAY_GRID_CLASS, DISPLAY_IMAGE_CLASS, displaySizeClass } from '@/shared/lib/displaySize'
 
 /** Um arquivo, do jeito que a galeria precisa — sem saber de que lado ele veio. */
 export interface GalleryItem {
@@ -9,9 +10,14 @@ export interface GalleryItem {
   url: string
   thumbnailUrl: string | null
   expiresAt: string
-  /** O que aparece embaixo, quando aberto. O painel mostra nome e tamanho; o lado de fora, nada. */
+  /**
+   * Em que tamanho a imagem aparece — a escolha de quem relatou. Sem ele, a linha
+   * inteira. O video nao tem: ver o comentario da galeria.
+   */
+  displaySize?: AttachmentDisplaySize
+  /** O que aparece embaixo da imagem, ou do video aberto. O painel mostra nome e tamanho; o lado de fora, nada. */
   caption?: string
-  /** Uma marca curta na miniatura, como "resposta". */
+  /** Uma marca curta na miniatura do video, como "resposta". */
   badge?: string
 }
 
@@ -34,12 +40,23 @@ const RENOVAR_ANTES_MS = 30_000
 const RECEM_CHEGADO_MS = 5_000
 
 /**
- * Os arquivos de um relato: miniaturas numa grade, e o arquivo inteiro so quando
- * alguem abre.
+ * Os arquivos de um relato, logo abaixo do texto que os trouxe.
  *
- * **O arquivo inteiro so carrega quando e aberto.** A grade usa a miniatura, que o
- * navegador de quem relatou gerou antes de enviar — e e isso que deixa uma lista
- * com varios prints nao baixar megabytes para desenhar 56 pixels.
+ * **A imagem aparece inteira, no tamanho que quem relatou escolheu** — um terco da
+ * linha, meia, tres quartos ou a linha inteira —, na ordem em que ela montou. O
+ * relato mostra o que a pessoa montou, do jeito que montou: o print e parte do que
+ * ela disse, e nao um anexo para abrir. Um clique abre a imagem em tamanho real, em
+ * outra aba.
+ *
+ * **O arquivo, e nao a miniatura.** A miniatura tem 320 pixels de largura: na linha
+ * inteira, o texto de um print ficaria borrado. O print capturado sai em poucas
+ * centenas de kilobytes, e a imagem so baixa quando chega perto da tela
+ * (`loading="lazy"`).
+ *
+ * **O video antigo continua como era**: a miniatura numa grade, e o player so quando
+ * alguem abre. Video nao entra mais, e os que ficaram nunca tiveram tamanho
+ * escolhido — baixar cada um para desenha-lo na linha custaria o que fez o video sair
+ * do produto.
  *
  * **Link vencido e tratado, e nao deixado quebrar.** Os enderecos vencem em
  * minutos, de proposito. A galeria pede enderecos novos pouco antes do vencimento,
@@ -60,11 +77,18 @@ const RECEM_CHEGADO_MS = 5_000
 export function AttachmentGallery({
   items,
   onExpired,
+  label = 'Imagens anexadas',
 }: {
   items: GalleryItem[]
   onExpired: () => void
+  /**
+   * O nome da lista de imagens para o leitor de tela. **Nao aparece na tela**: a imagem
+   * fica logo abaixo do texto que a trouxe, e um titulo no meio separaria os dois.
+   */
+  label?: string
 }) {
-  const [aberto, setAberto] = useState<{ id: string; videoUrl: string | null } | null>(null)
+  /** O video aberto, e o endereco em que ele comecou. Ver "Renovar nao fecha nada". */
+  const [aberto, setAberto] = useState<{ id: string; videoUrl: string } | null>(null)
   const [quebrados, setQuebrados] = useState<ReadonlySet<string>>(() => new Set())
 
   /**
@@ -147,64 +171,78 @@ export function AttachmentGallery({
 
   if (items.length === 0) return null
 
-  const selecionado = items.find((item) => item.id === aberto?.id) ?? null
+  const imagens = items.filter((item) => item.kind !== 'Video')
+  const videos = items.filter((item) => item.kind === 'Video')
+  const selecionado = videos.find((item) => item.id === aberto?.id) ?? null
 
   function abrir(item: GalleryItem) {
-    setAberto(
-      aberto?.id === item.id
-        ? null
-        : { id: item.id, videoUrl: item.kind === 'Video' ? item.url : null },
-    )
+    setAberto(aberto?.id === item.id ? null : { id: item.id, videoUrl: item.url })
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-wrap gap-2">
-        {items.map((item) => (
-          <li key={item.id}>
-            <button
-              type="button"
-              onClick={() => abrir(item)}
-              aria-pressed={aberto?.id === item.id}
-              aria-label={`${item.kind === 'Video' ? 'Vídeo' : 'Imagem'}${item.caption ? `: ${item.caption}` : ''}`}
-              className={cn(
-                'relative block h-16 w-16 overflow-hidden rounded-lg border bg-surface-sunken',
-                aberto?.id === item.id ? 'border-fg' : 'border-border',
-              )}
-            >
-              {item.thumbnailUrl && !quebrados.has(item.id) ? (
-                <img
-                  src={item.thumbnailUrl}
-                  alt=""
-                  onError={() => falhou(item.id, item.thumbnailUrl ?? '')}
-                  onLoad={() => carregou(item.id)}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-center text-caption text-fg-muted">
-                  {quebrados.has(item.id)
-                    ? 'não carregou'
-                    : item.kind === 'Video'
-                      ? 'vídeo'
-                      : 'imagem'}
-                </span>
-              )}
+      {imagens.length > 0 && (
+        <ul aria-label={label} className={DISPLAY_GRID_CLASS}>
+          {imagens.map((item, i) => (
+            <li key={item.id} className={displaySizeClass(item.displaySize)}>
+              <ImagemAnexada
+                item={item}
+                // Nomes diferentes para o leitor de tela: tres links "Imagem anexada"
+                // seguidos nao dizem qual e qual. Sem o nome do arquivo do lado de fora.
+                nome={
+                  imagens.length > 1 ? `Imagem ${i + 1} de ${imagens.length}` : 'Imagem anexada'
+                }
+                quebrada={quebrados.has(item.id)}
+                onFalha={(url) => falhou(item.id, url)}
+                onCarga={() => carregou(item.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
 
-              {item.kind === 'Video' && (
+      {videos.length > 0 && (
+        <ul className="flex flex-wrap gap-2">
+          {videos.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={() => abrir(item)}
+                aria-pressed={aberto?.id === item.id}
+                aria-label={`Vídeo${item.caption ? `: ${item.caption}` : ''}`}
+                className={cn(
+                  'relative block h-16 w-16 overflow-hidden rounded-lg border bg-surface-sunken',
+                  aberto?.id === item.id ? 'border-fg' : 'border-border',
+                )}
+              >
+                {item.thumbnailUrl && !quebrados.has(item.id) ? (
+                  <img
+                    src={item.thumbnailUrl}
+                    alt=""
+                    onError={() => falhou(item.id, item.thumbnailUrl ?? '')}
+                    onLoad={() => carregou(item.id)}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-center text-caption text-fg-muted">
+                    {quebrados.has(item.id) ? 'não carregou' : 'vídeo'}
+                  </span>
+                )}
+
                 <span className="absolute right-1 bottom-1 rounded bg-surface/90 px-1 text-caption text-fg">
                   ▶
                 </span>
-              )}
 
-              {item.badge && (
-                <span className="absolute top-1 left-1 rounded bg-surface/90 px-1 text-caption text-fg">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
-      </ul>
+                {item.badge && (
+                  <span className="absolute top-1 left-1 rounded bg-surface/90 px-1 text-caption text-fg">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {selecionado && (
         <figure className="flex flex-col gap-1.5">
@@ -212,7 +250,7 @@ export function AttachmentGallery({
             <p className="rounded-lg border border-border bg-surface-sunken p-3 text-caption text-fg-muted">
               Não deu para abrir este arquivo. Recarregar a página pede um endereço novo.
             </p>
-          ) : selecionado.kind === 'Video' ? (
+          ) : (
             // `preload="metadata"`: so o cabecalho ate alguem apertar play. O
             // video inteiro e o que custa, e ele so desce quando pedido.
             //
@@ -243,18 +281,6 @@ export function AttachmentGallery({
               onLoadedMetadata={() => carregou(`${selecionado.id}:arquivo`)}
               className="max-h-96 w-full rounded-lg border border-border bg-surface-sunken"
             />
-          ) : (
-            // Abrir em outra aba e o jeito de ver em tamanho real. `noreferrer`
-            // impede a aba nova de alcancar esta pagina pelo `window.opener`.
-            <a href={selecionado.url} target="_blank" rel="noreferrer">
-              <img
-                src={selecionado.url}
-                alt={selecionado.caption ?? 'Imagem anexada'}
-                onError={() => falhou(`${selecionado.id}:arquivo`, selecionado.url)}
-                onLoad={() => carregou(`${selecionado.id}:arquivo`)}
-                className="max-h-96 w-full rounded-lg border border-border bg-surface-sunken object-contain"
-              />
-            </a>
           )}
           {selecionado.caption && (
             <figcaption className="text-caption text-fg-muted">{selecionado.caption}</figcaption>
@@ -262,5 +288,81 @@ export function AttachmentGallery({
         </figure>
       )}
     </div>
+  )
+}
+
+/**
+ * Uma imagem na linha do relato.
+ *
+ * **A que ja carregou fica no endereco em que carregou.** A lista renova os enderecos a
+ * cada poucos minutos; trocar o `src` de uma imagem ja na tela a baixaria de novo,
+ * inteira, a cada renovacao, sem mudar nada do que a pessoa ve. So troca se o endereco
+ * dela falhar — a imagem montada de novo, com o endereco velho fora do cache. O link
+ * de "abrir" usa sempre o da lista, que e o que ainda vale.
+ *
+ * A que ainda nao carregou — longe da tela, esperando o `lazy` — usa o da lista.
+ */
+function ImagemAnexada({
+  item,
+  nome,
+  quebrada,
+  onFalha,
+  onCarga,
+}: {
+  item: GalleryItem
+  /** Como o leitor de tela chama a imagem, antes da legenda. */
+  nome: string
+  quebrada: boolean
+  onFalha: (url: string) => void
+  onCarga: () => void
+}) {
+  const [fixa, setFixa] = useState<string | null>(null)
+  const src = fixa ?? item.url
+
+  return (
+    <figure className="flex flex-col gap-1">
+      {quebrada ? (
+        <p className="rounded-lg border border-border bg-surface-sunken p-3 text-caption text-fg-muted leading-normal">
+          Esta imagem não carregou. Recarregar a página pede um endereço novo.
+        </p>
+      ) : (
+        // Abrir em outra aba e o jeito de ver em tamanho real. `noreferrer` impede a
+        // aba nova de alcancar esta pagina pelo `window.opener`.
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          title="Abrir em tamanho real"
+          className="block overflow-hidden rounded-lg border border-border bg-surface-sunken"
+        >
+          <img
+            src={src}
+            alt={item.caption ? `${nome}: ${item.caption}` : nome}
+            loading="lazy"
+            decoding="async"
+            onError={() => {
+              // O endereco guardado falhou: dali em diante, vale o da lista. Se ela ja
+              // tem um mais novo, e so passar para ele, sem pedir nada.
+              if (fixa !== null) {
+                setFixa(null)
+                if (fixa !== item.url) return
+              }
+              onFalha(src)
+            }}
+            onLoad={() => {
+              if (fixa !== src) setFixa(src)
+              onCarga()
+            }}
+            className={DISPLAY_IMAGE_CLASS}
+          />
+        </a>
+      )}
+      {/* Cortada na imagem pequena; inteira ao passar o mouse. */}
+      {item.caption && (
+        <figcaption title={item.caption} className="truncate text-caption text-fg-muted">
+          {item.caption}
+        </figcaption>
+      )}
+    </figure>
   )
 }

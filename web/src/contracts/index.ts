@@ -1,5 +1,6 @@
 export type { ApiResponse } from '@/contracts/apiResponse'
 export type {
+  AttachmentDisplaySize,
   AttachmentUploadTicketViewModel,
   ConfirmAttachmentRequest,
   ConfirmedAttachmentViewModel,
@@ -7,6 +8,10 @@ export type {
   PublicAttachmentViewModel,
   RequestAttachmentUploadRequest,
   SignedUploadViewModel,
+} from '@/contracts/attachments'
+export {
+  ATTACHMENT_DISPLAY_SIZES,
+  DEFAULT_ATTACHMENT_DISPLAY_SIZE,
 } from '@/contracts/attachments'
 export type { AccountViewModel, MeViewModel, SignInViewModel } from '@/contracts/auth'
 export type {

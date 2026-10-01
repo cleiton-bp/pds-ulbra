@@ -89,10 +89,10 @@ export function ReportDialog({
   // O resumo da lista ganha do que chegou da API so porque chega antes; os dois
   // dizem a mesma coisa. Quando nao ha resumo, a tela espera.
   const report = resumo ?? detalhe
-  // Uma leitura para o dialogo inteiro: os da criacao vao para a secao de
-  // arquivos, os de uma resposta vao para a conversa, os de uma reabertura vao
-  // para junto do motivo dela — quando ela esta na tela. O detalhe que falhou nao
-  // mostra reabertura nenhuma, e os arquivos delas caem em "Arquivos".
+  // Uma leitura para o dialogo inteiro: os da criacao vao para baixo do texto, os
+  // de uma resposta vao para a conversa, os de uma reabertura vao para junto do
+  // motivo dela — quando ela esta na tela. O detalhe que falhou nao mostra
+  // reabertura nenhuma, e os arquivos delas caem embaixo do texto do relato.
   const anexos = useReportAttachments(
     projectPublicId,
     reportPublicId,

@@ -280,9 +280,13 @@ export function ClosurePanel({
               problema acontece, e capturar daqui mostraria a própria página. */}
           {anexar && (
             <div className="mb-3">
-              <p className="mb-2 text-caption text-fg-muted leading-relaxed">
-                Se ajudar, anexe um print do que ainda está acontecendo.
-              </p>
+              {/* Só antes da primeira imagem: com ela na lista, a frase ficaria entre o
+                  texto e a imagem, que vai logo abaixo dele. */}
+              {anexar.rascunho.anexos.length === 0 && (
+                <p className="mb-2 text-caption text-fg-muted leading-relaxed">
+                  Se ajudar, anexe um print do que ainda está acontecendo.
+                </p>
+              )}
               <AttachmentPicker
                 media={anexar.midia}
                 anexos={anexar.rascunho.anexos}
@@ -290,6 +294,7 @@ export function ClosurePanel({
                 onAdd={(arquivos) => void anexar.rascunho.adicionar(arquivos)}
                 onRemove={anexar.rascunho.remover}
                 onEdit={anexar.rascunho.editar}
+                onResize={anexar.rascunho.redimensionar}
                 disabled={enviando}
               />
             </div>

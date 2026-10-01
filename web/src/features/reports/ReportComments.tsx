@@ -216,6 +216,7 @@ function Caixa({
               {(anexosPorFala?.get(comentario.PublicId)?.length ?? 0) > 0 && (
                 <div className="mt-2">
                   <AttachmentGallery
+                    label="Imagens da resposta"
                     onExpired={aoExpirar}
                     items={(anexosPorFala?.get(comentario.PublicId) ?? []).map(toPanelGalleryItem)}
                   />

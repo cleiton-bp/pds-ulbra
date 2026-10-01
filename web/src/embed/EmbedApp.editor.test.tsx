@@ -239,9 +239,10 @@ describe('toda imagem da lista abre no editor', () => {
     expect(screen.getByText('editando colada.png')).toBeDefined()
   })
 
-  it('diz que da para marcar e esconder, quando ha imagem na lista', async () => {
+  it('diz que da para marcar, esconder e escolher o tamanho, quando ha imagem na lista', async () => {
     montar()
-    const dica = 'Clique numa imagem para marcar ou esconder algo antes de enviar.'
+    const dica =
+      /^Clique numa imagem para marcar ou esconder algo antes de enviar\. Embaixo dela, escolha o tamanho em que ela aparece\.$/
     expect(screen.queryByText(dica)).toBeNull()
 
     escolher(imagem('erro.png'))

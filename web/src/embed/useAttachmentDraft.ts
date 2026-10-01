@@ -1,5 +1,9 @@
 import { type ClipboardEvent, type RefObject, useEffect, useRef, useState } from 'react'
-import type { PublicMediaSettingsViewModel } from '@/contracts'
+import {
+  type AttachmentDisplaySize,
+  DEFAULT_ATTACHMENT_DISPLAY_SIZE,
+  type PublicMediaSettingsViewModel,
+} from '@/contracts'
 import { describeError, isPanelError } from '@/data/publicIndex'
 import type { EditDoc } from '@/editor/doc'
 import {
@@ -123,7 +127,7 @@ export function useAttachmentDraft(
   /** O teto de imagem do projeto. */
   const tetoDeImagem = () => media?.Kinds.find((kind) => kind.Kind === 'Image')?.MaxBytes ?? null
 
-  // Fechar a pagina com miniaturas na tela nao pode deixar a memoria delas presa.
+  // Fechar a pagina com imagens na tela nao pode deixar a memoria delas presa.
   useEffect(
     () => () => {
       for (const anexo of anexosRef.current) releasePreview(anexo.preview)
@@ -188,8 +192,10 @@ export function useAttachmentDraft(
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             file,
             kind: kind.Kind,
-            // A imagem se mostra por ela mesma quando a miniatura nao sai.
-            preview: previewUrl(thumbnail ?? file),
+            // A propria imagem, e nao a miniatura: ver `Anexo.preview`.
+            preview: previewUrl(file),
+            // A linha inteira ate a pessoa escolher outro — o mesmo padrao da API.
+            displaySize: DEFAULT_ATTACHMENT_DISPLAY_SIZE,
             thumbnail,
             status: 'waiting',
             progress: 0,
@@ -259,16 +265,10 @@ export function useAttachmentDraft(
       const thumbnail = await makeThumbnail(file)
       if (geracao.current !== minha) return
 
-      const alvo = vigente()
-      if (!alvo) return
+      if (!vigente()) return
 
-      releasePreview(alvo.preview)
-      atualizar(id, {
-        file,
-        kind: kind.Kind,
-        preview: previewUrl(thumbnail ?? file),
-        thumbnail,
-      })
+      // A imagem na tela ja e a nova, desde o comeco da troca: so a miniatura muda.
+      atualizar(id, { file, kind: kind.Kind, thumbnail })
     } finally {
       setPreparando((atual) => atual - 1)
     }
@@ -323,6 +323,17 @@ export function useAttachmentDraft(
 
   function cancelarEdicao() {
     trocarEdicao(null)
+  }
+
+  /**
+   * Muda o tamanho em que a imagem aparece no relato. **So antes de enviar**: o tamanho
+   * vai junto do pedido de cada arquivo, e a lista que sobe e a de quando o envio
+   * comecou.
+   */
+  function redimensionar(id: string, displaySize: AttachmentDisplaySize) {
+    const anexo = anexosRef.current.find((item) => item.id === id)
+    if (anexo?.status !== 'waiting' || anexo.displaySize === displaySize) return
+    atualizar(id, { displaySize })
   }
 
   function remover(id: string) {
@@ -416,12 +427,18 @@ export function useAttachmentDraft(
     // Quem guardou a lista antes de ela sair da tela passa a copia dela.
     lista: Anexo[] = anexosRef.current,
   ) {
-    for (const anexo of [...lista]) {
+    // A posicao de cada um e a da lista, que e a ordem em que a pessoa montou. Fica no
+    // item da tela para "Tentar de novo" mandar a mesma — ver `Anexo.displayOrder`.
+    const ordenados = lista.map((anexo, displayOrder) => ({ ...anexo, displayOrder }))
+    if (geracao.current === minha)
+      for (const anexo of ordenados) atualizar(anexo.id, { displayOrder: anexo.displayOrder })
+
+    for (const anexo of ordenados) {
       await enviarAnexo(credenciais, anexo, minha)
     }
   }
 
-  /** Esvazia a lista e devolve a memoria das miniaturas. */
+  /** Esvazia a lista e devolve a memoria das imagens. */
   function limpar() {
     for (const anexo of anexosRef.current) releasePreview(anexo.preview)
     trocarLista([])
@@ -460,6 +477,7 @@ export function useAttachmentDraft(
     preparando: preparando > 0,
     adicionar,
     remover,
+    redimensionar,
     colar,
     /** A imagem aberta no editor, ou nulo. */
     edicao,

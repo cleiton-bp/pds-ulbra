@@ -68,12 +68,15 @@ export function ReopenPanel({
                 </p>
               )}
 
+              {/* Logo abaixo do motivo, no tamanho que a pessoa escolheu: o print e
+                  parte do que ela disse ao reabrir. */}
               {anexos.length > 0 && (
-                <div className="mt-4">
-                  <div className="mb-1.5 text-caption text-fg-muted">
-                    O que você anexou ao reabrir
-                  </div>
-                  <AttachmentGallery onExpired={aoExpirar} items={anexos.map(toGalleryItem)} />
+                <div className="mt-3">
+                  <AttachmentGallery
+                    label="O que você anexou ao reabrir"
+                    onExpired={aoExpirar}
+                    items={anexos.map(toGalleryItem)}
+                  />
                 </div>
               )}
 

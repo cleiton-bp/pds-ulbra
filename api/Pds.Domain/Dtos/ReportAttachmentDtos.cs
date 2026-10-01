@@ -79,6 +79,28 @@ public class RequestAttachmentUploadDto
     public string? ThumbnailContentType { get; set; }
 
     /// <summary>
+    /// Em que tamanho a imagem aparece logo abaixo do texto: <c>Small</c> (um terco da
+    /// linha), <c>Medium</c> (meia), <c>Large</c> (tres quartos) ou <c>Full</c> (a linha
+    /// inteira).
+    ///
+    /// <para><b>Sem ele, a linha inteira</b> — e o do quadro de antes deste campo, que
+    /// nao o conhece. Valor fora da lista e recusado com 400.</para>
+    /// </summary>
+    /// <example>Medium</example>
+    public AttachmentDisplaySizeEnum? DisplaySize { get; set; }
+
+    /// <summary>
+    /// A posicao da imagem no envio, a partir de zero: a ordem em que a pessoa as montou.
+    ///
+    /// <para><b>A lista do relato sai nessa ordem</b>, e nao na de chegada — o arquivo
+    /// que falhou e foi tentado de novo chega depois dos outros, e voltaria para o fim.
+    /// Sem ele, zero, e a hora de chegada desempata. Vai de zero ao teto de arquivos por
+    /// envio menos um; fora disso, 400.</para>
+    /// </summary>
+    /// <example>0</example>
+    public int? DisplayOrder { get; set; }
+
+    /// <summary>
     /// O arquivo vai junto da <b>resposta</b> que a pessoa acabou de mandar, e nao da
     /// criacao do relato.
     ///

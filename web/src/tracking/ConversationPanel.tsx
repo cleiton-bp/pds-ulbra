@@ -177,6 +177,8 @@ export function ConversationPanel({
               {(anexosPorFala.get(fala.PublicId)?.length ?? 0) > 0 && (
                 <div className="mt-2">
                   <AttachmentGallery
+                    // So quem relata anexa: a imagem da conversa e sempre dela.
+                    label="O que você anexou na resposta"
                     onExpired={aoAnexar}
                     items={(anexosPorFala.get(fala.PublicId) ?? []).map(toGalleryItem)}
                   />
@@ -228,6 +230,7 @@ export function ConversationPanel({
                 onAdd={(arquivos) => void draft.adicionar(arquivos)}
                 onRemove={draft.remover}
                 onEdit={draft.editar}
+                onResize={draft.redimensionar}
                 disabled={enviando}
               />
             </div>

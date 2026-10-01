@@ -41,6 +41,7 @@ const anexo: Anexo = {
   file: new File([new Uint8Array(100)], 'erro.png', { type: 'image/png' }),
   kind: 'Image',
   preview: null,
+  displaySize: 'Full',
   thumbnail: null,
   status: 'waiting',
   progress: 0,
@@ -126,6 +127,26 @@ describe('o formato da miniatura', () => {
 
     expect(dublê.pedir.mock.calls[0]?.[0]).toMatchObject({ WithThumbnail: false })
     expect(dublê.pedir.mock.calls[0]?.[0].ThumbnailContentType).toBeUndefined()
+  })
+})
+
+// O relato mostra o que a pessoa montou: o tamanho e o lugar de cada imagem vao no
+// pedido de cada arquivo, e a lista sai na ordem da montagem.
+describe('como a imagem aparece no relato', () => {
+  it('o tamanho escolhido e a posicao no envio vao no pedido', async () => {
+    dublê.pedir.mockResolvedValue({ PublicId: 'p-1', File: {}, Thumbnail: null })
+
+    await sendAttachment(credenciais, { ...anexo, displaySize: 'Small', displayOrder: 2 }, () => {})
+
+    expect(dublê.pedir.mock.calls[0]?.[0]).toMatchObject({ DisplaySize: 'Small', DisplayOrder: 2 })
+  })
+
+  it('sem posicao guardada, vai a primeira', async () => {
+    dublê.pedir.mockResolvedValue({ PublicId: 'p-1', File: {}, Thumbnail: null })
+
+    await sendAttachment(credenciais, anexo, () => {})
+
+    expect(dublê.pedir.mock.calls[0]?.[0]).toMatchObject({ DisplaySize: 'Full', DisplayOrder: 0 })
   })
 })
 

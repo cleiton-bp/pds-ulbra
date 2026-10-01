@@ -365,13 +365,14 @@ describe('abrir um relato', () => {
    * **O motivo e o print da reabertura chegam ao time pelo diálogo de verdade.** Um
    * diálogo montado à mão no teste passaria com a ligação real quebrada: sem as
    * reaberturas, o time não lê por que o relato voltou; sem os arquivos delas, o
-   * print some do painel inteiro, porque ele já não está em "Arquivos".
+   * print some do painel inteiro, porque ele já não fica embaixo do relato.
    */
   describe('as reaberturas no diálogo', () => {
     function arquivo(extra: Partial<PanelAttachmentViewModel>): PanelAttachmentViewModel {
       return {
         PublicId: 'a-1',
         Kind: 'Image',
+        DisplaySize: 'Full',
         Url: 'http://armazenamento/inteiro',
         ThumbnailUrl: 'http://armazenamento/miniatura',
         ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -394,7 +395,7 @@ describe('abrir um relato', () => {
       ReopenPublicId: 'fech-1',
     })
 
-    it('o motivo aparece, e o print fica junto dele e fora de "Arquivos"', async () => {
+    it('o motivo aparece, e o print fica junto dele, e não embaixo do relato', async () => {
       dublê.abrir.mockResolvedValue({
         ...relato('r-1', 'o botao some'),
         Closure: null,
@@ -417,19 +418,17 @@ describe('abrir um relato', () => {
       fireEvent.click(await screen.findByText('o botao some'))
 
       const motivo = await screen.findByText('Voltou a travar.')
-      const print = await screen.findByRole('button', { name: /ainda-quebrado\.png/ })
+      const print = await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
       expect((motivo.closest('li') as HTMLElement).contains(print)).toBe(true)
 
-      const secaoArquivos = screen.getByText('Arquivos').closest('section') as HTMLElement
-      expect(secaoArquivos.contains(screen.getByRole('button', { name: /do-relato\.png/ }))).toBe(
-        true,
-      )
-      expect(secaoArquivos.contains(print)).toBe(false)
+      const doTexto = screen.getByRole('list', { name: 'Imagens do relato' })
+      expect(doTexto.contains(screen.getByRole('img', { name: /do-relato\.png/ }))).toBe(true)
+      expect(doTexto.contains(print)).toBe(false)
     })
 
     // Sem o detalhe, a reabertura nao aparece — e o print dela iria para um lugar que
-    // nao esta na tela. Em "Arquivos" ele pelo menos chega ao time.
-    it('com o detalhe falhando, o print da reabertura cai em "Arquivos", em vez de sumir', async () => {
+    // nao esta na tela. Embaixo do relato ele pelo menos chega ao time.
+    it('com o detalhe falhando, o print da reabertura cai embaixo do relato, em vez de sumir', async () => {
       dublê.abrir.mockRejectedValue(new Error('rede'))
       dublê.anexos.mockResolvedValue([daReabertura])
 
@@ -437,9 +436,29 @@ describe('abrir um relato', () => {
       fireEvent.click(await screen.findByText('o botao some'))
 
       await screen.findByText(/O resto do contexto não carregou/)
-      const print = await screen.findByRole('button', { name: /ainda-quebrado\.png/ })
-      const secaoArquivos = screen.getByText('Arquivos').closest('section') as HTMLElement
-      expect(secaoArquivos.contains(print)).toBe(true)
+      const print = await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
+      expect(screen.getByRole('list', { name: 'Imagens do relato' }).contains(print)).toBe(true)
+    })
+
+    // A lista vem na ordem da montagem de cada envio: a posicao 0 da reabertura chega
+    // entre a 0 e a 1 da criacao. Caindo embaixo do relato, ela vai depois das da
+    // criacao — no meio, desmontaria o que a pessoa montou.
+    it('o print que cai embaixo do relato vai depois dos da criacao, e nao no meio', async () => {
+      dublê.abrir.mockRejectedValue(new Error('rede'))
+      dublê.anexos.mockResolvedValue([
+        arquivo({ PublicId: 'a-0', OriginalName: 'primeiro.png', DisplaySize: 'Medium' }),
+        daReabertura,
+        arquivo({ PublicId: 'a-1', OriginalName: 'segundo.png', DisplaySize: 'Medium' }),
+      ])
+
+      montar()
+      fireEvent.click(await screen.findByText('o botao some'))
+
+      await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
+      const nomes = Array.from(
+        screen.getByRole('list', { name: 'Imagens do relato' }).querySelectorAll('figcaption'),
+      ).map((legenda) => legenda.textContent?.split(' · ')[0])
+      expect(nomes).toEqual(['primeiro.png', 'segundo.png', 'ainda-quebrado.png'])
     })
   })
 

@@ -180,6 +180,20 @@ public class ReportAttachmentService : IReportAttachmentService
         if (dto.WithThumbnail == true && !ThumbnailContentTypes.Contains(tipoMiniatura))
             throw new ArgumentException("A miniatura vai em WebP ou JPEG.");
 
+        // O tamanho e a posicao sao do quadro, e nao da regra do projeto: fora da lista
+        // so vem de cliente com defeito. 400, como o formato da miniatura. O numero que
+        // nao e de nenhum tamanho passa pela leitura do JSON — por isso o IsDefined.
+        var exibicao = dto.DisplaySize ?? ReportAttachment.DefaultDisplaySize;
+
+        if (!Enum.IsDefined(exibicao))
+            throw new ArgumentException("O tamanho da imagem nao e um dos que o relato mostra.");
+
+        var posicao = dto.DisplayOrder ?? 0;
+
+        if (posicao < 0 || posicao >= ProjectMediaSettings.MaxFilesPerReportCeiling)
+            throw new ArgumentException(
+                $"A posicao da imagem no envio vai de 0 a {ProjectMediaSettings.MaxFilesPerReportCeiling - 1}.");
+
         var vigente = MediaSettingsDefaults.Resolve(
             await _unitOfWork.ProjectMediaSettings.FindByProjectWithoutSessionAsync(
                 report.ProjectId, cancellationToken));
@@ -286,6 +300,8 @@ public class ReportAttachmentService : IReportAttachmentService
             // O que o navegador disse, ate a confirmacao ler o numero de verdade.
             SizeBytes = tamanho,
             OriginalName = Trim(dto.FileName, ReportAttachment.MaxOriginalNameLength),
+            DisplaySize = exibicao,
+            DisplayOrder = posicao,
         };
 
         await _unitOfWork.ReportAttachments.AddAsync(attachment, cancellationToken);
@@ -592,6 +608,7 @@ public class ReportAttachmentService : IReportAttachmentService
             lista.Add(new PanelAttachmentViewModel(
                 anexo.PublicId,
                 anexo.Kind,
+                anexo.DisplaySize,
                 arquivo.Url.ToString(),
                 miniatura?.Url.ToString(),
                 arquivo.ExpiresAt,
@@ -653,6 +670,7 @@ public class ReportAttachmentService : IReportAttachmentService
             lista.Add(new PublicAttachmentViewModel(
                 anexo.PublicId,
                 anexo.Kind,
+                anexo.DisplaySize,
                 arquivo.Url.ToString(),
                 miniatura?.Url.ToString(),
                 arquivo.ExpiresAt,

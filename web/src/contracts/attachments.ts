@@ -3,6 +3,30 @@
 import type { MediaKind } from '@/contracts/mediaSettings'
 
 /**
+ * Em que tamanho a imagem aparece logo abaixo do texto: um terco da linha, meia, tres
+ * quartos ou a linha inteira.
+ *
+ * **Fracao da largura do texto, e nao pixels.** O relato e montado no quadro, que e
+ * estreito, e lido no painel e no acompanhamento, que sao mais largos: com a fracao,
+ * a imagem que ocupava meia linha ocupa meia linha em todo lugar.
+ */
+export type AttachmentDisplaySize = 'Small' | 'Medium' | 'Large' | 'Full'
+
+/** Os tamanhos, do menor para o maior — a ordem dos botoes. */
+export const ATTACHMENT_DISPLAY_SIZES: readonly AttachmentDisplaySize[] = [
+  'Small',
+  'Medium',
+  'Large',
+  'Full',
+]
+
+/**
+ * O tamanho de quem nao escolheu — o mesmo padrao da API. **A linha inteira**: o print
+ * legivel sem precisar abrir; diminuir e escolha de quem relata.
+ */
+export const DEFAULT_ATTACHMENT_DISPLAY_SIZE: AttachmentDisplaySize = 'Full'
+
+/**
  * Um formulario assinado, pronto para o navegador enviar.
  *
  * **Nao e um endereco solto, e a diferenca e o teto de tamanho.** Os campos
@@ -58,6 +82,13 @@ export interface RequestAttachmentUploadRequest {
    * mesmo motivo de `ForReply`.
    */
   ForReopen?: boolean
+  /** Em que tamanho a imagem aparece. Sem ele, a API entende a linha inteira. */
+  DisplaySize?: AttachmentDisplaySize
+  /**
+   * A posicao da imagem no envio, a partir de zero. **A lista do relato sai nessa
+   * ordem**, e nao na de chegada: o arquivo tentado de novo chega depois dos outros.
+   */
+  DisplayOrder?: number
 }
 
 /** O aviso de que o arquivo chegou. Sem ele, o anexo nao existe para o produto. */
@@ -84,6 +115,11 @@ export interface ConfirmedAttachmentViewModel {
 export interface PanelAttachmentViewModel {
   PublicId: string
   Kind: MediaKind
+  /**
+   * Em que tamanho a imagem aparece — a escolha de quem relatou. A lista ja vem na
+   * ordem em que ela montou cada envio.
+   */
+  DisplaySize: AttachmentDisplaySize
   Url: string
   ThumbnailUrl: string | null
   ExpiresAt: string
@@ -109,6 +145,8 @@ export interface PanelAttachmentViewModel {
 export interface PublicAttachmentViewModel {
   PublicId: string
   Kind: MediaKind
+  /** Em que tamanho a imagem aparece, como a pessoa montou. Ver o do painel. */
+  DisplaySize: AttachmentDisplaySize
   Url: string
   ThumbnailUrl: string | null
   ExpiresAt: string

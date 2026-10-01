@@ -204,15 +204,23 @@ function Relato({
   const porFala = new Map<string, PublicAttachmentViewModel[]>()
   const porReabertura = new Map<string, PublicAttachmentViewModel[]>()
 
+  // Os que nao acharam o seu lugar vao **depois** dos da criacao, e nao no meio deles:
+  // a lista vem na ordem da montagem de cada envio — a posicao 0 da reabertura ao lado
+  // da 0 da criacao —, e intercalar desmontaria a da criacao.
+  const semLugar: PublicAttachmentViewModel[] = []
+
   for (const anexo of midia.anexos) {
     if (anexo.ReplyPublicId && falas.has(anexo.ReplyPublicId)) {
       juntar(porFala, anexo.ReplyPublicId, anexo)
     } else if (anexo.ReopenPublicId && reaberturas.has(anexo.ReopenPublicId)) {
       juntar(porReabertura, anexo.ReopenPublicId, anexo)
+    } else if (anexo.ReplyPublicId || anexo.ReopenPublicId) {
+      semLugar.push(anexo)
     } else {
       daCriacao.push(anexo)
     }
   }
+  daCriacao.push(...semLugar)
 
   return (
     <>

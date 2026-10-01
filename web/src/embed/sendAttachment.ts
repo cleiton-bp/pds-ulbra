@@ -74,6 +74,10 @@ export async function sendAttachment(
     // acontecer. O navegador nao diz qual — ver `ForReply` e `ForReopen` na API.
     ForReply: envio === 'reply',
     ForReopen: envio === 'reopen',
+    // Como a imagem aparece no relato: o tamanho que a pessoa escolheu e o lugar em
+    // que ela a pos. A posicao e a de quando o envio comecou — ver `enviarAnexos`.
+    DisplaySize: anexo.displaySize,
+    DisplayOrder: anexo.displayOrder ?? 0,
   })
 
   // **A miniatura primeiro.** As duas permissoes nascem juntas e valem os mesmos

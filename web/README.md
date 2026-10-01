@@ -164,6 +164,14 @@ novo, e o que a tarja cobriu não existe nele — nem na miniatura, que sai dele
 editor chega por import dinâmico, só quando alguém o abre (uns 20 kB comprimidos, com o
 diálogo que ele usa), e no quadro pede à página um tamanho maior enquanto está aberto.
 
+**A imagem entra no relato logo abaixo do texto, no tamanho que a pessoa escolhe** —
+um terço da linha, meia, três quartos ou a linha inteira, que é o padrão. O tamanho e
+a posição vão com o arquivo, e o relato aparece do mesmo jeito no acompanhamento, na
+resposta, na reabertura e no painel: a mesma grade de doze colunas
+(`src/shared/lib/displaySize.ts`), que no quadro estreito e na página larga põe as
+mesmas imagens lado a lado. O que aparece é o arquivo, e não a miniatura, e ele só
+baixa quando chega perto da tela.
+
 **A conversa entre os dois passa por três conferências**, iguais nas duas pontas:
 a origem esperada, a janela exata (`event.source`), e o carimbo `source: 'pds'`.
 A segunda é a que costuma faltar — sem ela, outro quadro da **mesma** origem se

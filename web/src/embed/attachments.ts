@@ -1,4 +1,5 @@
 import {
+  type AttachmentDisplaySize,
   type MediaKind,
   type PublicMediaKindViewModel,
   type PublicMediaSettingsViewModel,
@@ -20,8 +21,26 @@ export interface Anexo {
   id: string
   file: File
   kind: MediaKind
-  /** Endereco local da miniatura, para mostrar. Nulo onde o navegador nao cria. */
+  /**
+   * Endereco local da propria imagem, para mostrar no relato que a pessoa monta. Nulo
+   * onde o navegador nao cria.
+   *
+   * **A imagem, e nao a miniatura.** Ela aparece no tamanho escolhido, ate a linha
+   * inteira, e a miniatura de 320 pixels ficaria borrada ali — o que a pessoa ve
+   * montando tem de ser o que o time vai ver.
+   */
   preview: string | null
+  /**
+   * Em que tamanho a imagem aparece logo abaixo do texto. Escolha de quem relata, e
+   * vai junto do arquivo — o relato mostra o que ela montou, do jeito que montou.
+   */
+  displaySize: AttachmentDisplaySize
+  /**
+   * A posicao na lista quando o envio comecou. **Fica guardada** para "Tentar de novo"
+   * mandar a mesma: o arquivo tentado de novo chega depois dos outros, e a posicao e o
+   * que o devolve ao lugar em que a pessoa o pos.
+   */
+  displayOrder?: number
   /** A miniatura que sobe junto. Nula quando o navegador nao soube gerar. */
   thumbnail: Blob | null
   /**
@@ -322,14 +341,14 @@ export async function makeThumbnail(file: File): Promise<Blob | null> {
 }
 
 /**
- * Endereco local para mostrar a miniatura, ou `null` onde o navegador nao cria
- * — e o caso do ambiente de teste, que nao tem `createObjectURL`.
+ * Endereco local para mostrar a imagem, ou `null` onde o navegador nao cria — e o
+ * caso do ambiente de teste, que nao tem `createObjectURL`.
  */
 export function previewUrl(blob: Blob): string | null {
   return typeof URL.createObjectURL === 'function' ? URL.createObjectURL(blob) : null
 }
 
-/** Devolve a memoria do endereco local. Sem isto, cada miniatura ficaria presa ate fechar a pagina. */
+/** Devolve a memoria do endereco local. Sem isto, cada imagem ficaria presa ate fechar a pagina. */
 export function releasePreview(url: string | null) {
   if (url && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(url)
 }

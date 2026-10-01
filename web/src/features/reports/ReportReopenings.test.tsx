@@ -13,7 +13,7 @@ import { ReportReopenings } from '@/features/reports/ReportReopenings'
  * virava "quem relatou reabriu" no historico: o time sabia que voltou, e nao o que
  * faltou. Sem motivo, a tela diz que reabriu sem comentario, em vez de um vazio.
  *
- * **O print da reabertura fica junto do motivo, e nao em "Arquivos".** Ali ele
+ * **O print da reabertura fica junto do motivo, e nao embaixo do relato.** Ali ele
  * pareceria ter chegado com o relato — e ele e a prova de que o problema voltou
  * depois do encerramento.
  *
@@ -30,6 +30,7 @@ function anexo(mudanca: Partial<PanelAttachmentViewModel> = {}): PanelAttachment
   return {
     PublicId: 'a-1',
     Kind: 'Image',
+    DisplaySize: 'Full',
     Url: 'http://armazenamento/inteiro',
     ThumbnailUrl: 'http://armazenamento/miniatura',
     ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -99,7 +100,7 @@ describe('as reaberturas no relato do painel', () => {
     expect(await screen.findByText('Reabriu sem comentário.')).toBeDefined()
   })
 
-  it('o arquivo da reabertura fica junto do motivo, e não em "Arquivos"', async () => {
+  it('o arquivo da reabertura fica junto do motivo, e não embaixo do relato', async () => {
     dublê.listar.mockResolvedValue([
       anexo({ PublicId: 'a-criacao', OriginalName: 'do-relato.png' }),
       anexo({
@@ -118,8 +119,8 @@ describe('as reaberturas no relato do painel', () => {
       />,
     )
 
-    const doRelato = await screen.findByRole('button', { name: /do-relato\.png/ })
-    const daReabertura = await screen.findByRole('button', { name: /ainda-quebrado\.png/ })
+    const doRelato = await screen.findByRole('img', { name: /do-relato\.png/ })
+    const daReabertura = await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
 
     // Na segunda reabertura, e so nela.
     const segunda = screen.getByText('Segunda volta.').closest('li') as HTMLElement
@@ -127,17 +128,17 @@ describe('as reaberturas no relato do painel', () => {
     expect(segunda.contains(daReabertura)).toBe(true)
     expect(primeira.contains(daReabertura)).toBe(false)
 
-    // "Arquivos" e o que veio com o relato.
-    const secaoArquivos = screen.getByText('Arquivos').closest('section') as HTMLElement
-    expect(secaoArquivos.contains(doRelato)).toBe(true)
-    expect(secaoArquivos.contains(daReabertura)).toBe(false)
+    // Embaixo do relato fica o que veio com ele.
+    const doTexto = screen.getByRole('list', { name: 'Imagens do relato' })
+    expect(doTexto.contains(doRelato)).toBe(true)
+    expect(doTexto.contains(daReabertura)).toBe(false)
   })
 
   it('relato nunca reaberto não ganha seção', async () => {
     dublê.listar.mockResolvedValue([anexo()])
     render(<Dialogo reaberturas={[]} />)
 
-    await screen.findByText('Arquivos')
+    await screen.findByRole('list', { name: 'Imagens do relato' })
     expect(screen.queryByText('Reaberturas')).toBeNull()
   })
 })

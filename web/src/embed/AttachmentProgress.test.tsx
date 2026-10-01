@@ -21,6 +21,7 @@ function anexo(nome: string, mudanca: Partial<Anexo>): Anexo {
     file: new File([new Uint8Array(100)], nome, { type: 'image/png' }),
     kind: 'Image',
     preview: null,
+    displaySize: 'Full',
     thumbnail: null,
     status: 'done',
     progress: 1,

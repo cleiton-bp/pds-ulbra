@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CreatedReportViewModel, PublicMediaSettingsViewModel } from '@/contracts'
 import { PanelError } from '@/data/errors'
@@ -214,6 +214,84 @@ describe('o anexo no formulario', () => {
     expect(colagem).toBe(true)
     await act(async () => {})
     expect(screen.queryByRole('button', { name: /^Remover/ })).toBeNull()
+  })
+})
+
+// "Adicionar" poe a imagem logo abaixo do texto, no tamanho escolhido: o relato como o
+// time vai ve-lo. O tamanho vai com o arquivo, e a lista travada nao o muda mais.
+describe('a imagem no relato que a pessoa monta', () => {
+  const tamanhos = (nome: string) =>
+    within(screen.getByRole('group', { name: `Tamanho de ${nome}` }))
+
+  it('entra logo abaixo do texto, antes dos botoes, na linha inteira', async () => {
+    montar()
+    escolher(print())
+
+    const lista = await screen.findByRole('list', { name: 'Imagens a enviar' })
+    const texto = screen.getByRole('textbox')
+    const anexar = screen.getByRole('button', { name: 'Anexar imagem' })
+    expect(texto.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(lista.compareDocumentPosition(anexar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(lista.querySelector('li')?.className).toContain('col-span-12')
+    expect(
+      tamanhos('erro.png')
+        .getByRole('button', { name: 'Largura toda' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+  })
+
+  it('o tamanho escolhido muda a imagem na hora, e vai com o arquivo', async () => {
+    dublê.criar.mockResolvedValue(criado)
+    dublê.enviar.mockResolvedValue(undefined)
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(print())
+    await screen.findByRole('list', { name: 'Imagens a enviar' })
+
+    fireEvent.click(tamanhos('erro.png').getByRole('button', { name: 'Pequeno' }))
+
+    expect(
+      tamanhos('erro.png').getByRole('button', { name: 'Pequeno' }).getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      tamanhos('erro.png')
+        .getByRole('button', { name: 'Largura toda' })
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+    expect(
+      screen.getByRole('list', { name: 'Imagens a enviar' }).querySelector('li')?.className,
+    ).toContain('col-span-4')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1]).toMatchObject({ displaySize: 'Small', displayOrder: 0 })
+  })
+
+  it('durante o envio, o tamanho fica travado', async () => {
+    dublê.criar.mockReturnValue(new Promise(() => {}))
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(print())
+    await screen.findByRole('list', { name: 'Imagens a enviar' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await screen.findByRole('button', { name: 'Enviando…' })
+
+    for (const botao of tamanhos('erro.png').getAllByRole('button'))
+      expect((botao as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  // As imagens passam da altura do quadro. Sem piso, o texto encolheria ate sumir; com
+  // ele, o formulario rola.
+  it('com imagem na lista, o texto guarda uma altura minima', async () => {
+    montar()
+    expect(screen.getByRole('textbox').className).toContain('min-h-0')
+
+    escolher(print())
+    await screen.findByRole('list', { name: 'Imagens a enviar' })
+
+    expect(screen.getByRole('textbox').className).toContain('min-h-24')
+    expect(screen.getByRole('textbox').closest('form')?.className).toContain('overflow-y-auto')
   })
 })
 
