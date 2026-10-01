@@ -28,6 +28,7 @@ export function AttachmentPicker({
   onAdd,
   onRemove,
   actions,
+  disabled = false,
 }: {
   media: PublicMediaSettingsViewModel
   anexos: Anexo[]
@@ -36,6 +37,11 @@ export function AttachmentPicker({
   onRemove: (id: string) => void
   /** Botoes a mais, ao lado de "Anexar imagem". */
   actions?: ReactNode
+  /**
+   * A lista esta travada: o texto esta indo, e o envio leva a lista como ela esta.
+   * Um arquivo tirado agora subiria mesmo assim, e um posto agora nao subiria.
+   */
+  disabled?: boolean
 }) {
   const seletor = useRef<HTMLInputElement>(null)
   // Cheio pelo total ou pelo limite do tipo, o que vier primeiro.
@@ -47,7 +53,7 @@ export function AttachmentPicker({
         <button
           type="button"
           onClick={() => seletor.current?.click()}
-          disabled={cheio}
+          disabled={cheio || disabled}
           className={ATTACH_BUTTON_CLASS}
         >
           Anexar imagem
@@ -95,14 +101,16 @@ export function AttachmentPicker({
                   imagem
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => onRemove(anexo.id)}
-                aria-label={`Remover ${anexo.file.name}`}
-                className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-surface/90 text-caption text-fg"
-              >
-                ×
-              </button>
+              {!disabled && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(anexo.id)}
+                  aria-label={`Remover ${anexo.file.name}`}
+                  className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-surface/90 text-caption text-fg"
+                >
+                  ×
+                </button>
+              )}
             </li>
           ))}
         </ul>

@@ -158,8 +158,66 @@ describe('anexar ao responder', () => {
       trackingCode: '7K2M-9QXP-4TRV',
       token: 'tok-secreto',
     })
-    expect(dublê.enviar.mock.calls[0]?.[3]).toEqual({ envio: 'reply' })
+    expect(dublê.enviar.mock.calls[0]?.[3]).toMatchObject({ envio: 'reply' })
     await waitFor(() => expect(aoAnexar).toHaveBeenCalled())
+  })
+
+  // A resposta leva a lista como ela esta quando volta. O que entrasse durante
+  // "Enviando…" ficaria de fora e sumiria sem aviso; o que saisse subiria mesmo assim.
+  it('enquanto a resposta vai, a lista fica travada: nem pôr, nem tirar, nem colar', async () => {
+    let gravar: (novo: PublicReportViewModel) => void = () => {}
+    dublê.responder.mockImplementation(
+      () =>
+        new Promise<PublicReportViewModel>((resolve) => {
+          gravar = resolve
+        }),
+    )
+    dublê.enviar.mockResolvedValue(undefined)
+    montar()
+
+    const caixa = screen.getByLabelText('A sua resposta')
+    fireEvent.change(caixa, { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+    await screen.findByRole('button', { name: 'Enviando…' })
+
+    expect(
+      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Remover erro.png' })).toBeNull()
+    const outro = new File([new Uint8Array(100)], 'outro.png', { type: 'image/png' })
+    const colagem = fireEvent.paste(caixa.parentElement as HTMLElement, {
+      clipboardData: { files: [outro], getData: () => '' },
+    })
+    expect(colagem).toBe(true)
+
+    await act(async () => gravar(relato({ CanReply: false, InfoRequest: null })))
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1].file.name).toBe('erro.png')
+  })
+
+  // PrintScreen e Ctrl+V e como se anexa print de verdade. Texto de planilha, que
+  // traz uma imagem junto, continua sendo texto.
+  it('colar um print na resposta anexa, e texto colado continua texto', async () => {
+    montar()
+    const caixa = screen.getByLabelText('A sua resposta')
+
+    expect(fireEvent.paste(caixa, { clipboardData: { files: [print()], getData: () => '' } })).toBe(
+      false,
+    )
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+
+    const celulas = new File([new Uint8Array(100)], 'celulas.png', { type: 'image/png' })
+    expect(
+      fireEvent.paste(caixa, {
+        clipboardData: {
+          files: [celulas],
+          getData: (tipo: string) => (tipo === 'text/plain' ? 'total\t42' : ''),
+        },
+      }),
+    ).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Remover celulas.png' })).toBeNull()
   })
 
   it('resposta que falha nao sobe arquivo nenhum', async () => {

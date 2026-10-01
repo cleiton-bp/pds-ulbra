@@ -7,6 +7,7 @@ import {
   kindFor,
   onlyUploadable,
   rejectReason,
+  withRealType,
 } from '@/embed/attachments'
 
 /**
@@ -28,6 +29,10 @@ import {
  * **So imagem entra.** O video saiu do produto, e o quadro nao o oferece nem
  * quando a configuracao ainda o lista — o que acontece na janela da troca, com a
  * API ainda antiga.
+ *
+ * **O tipo que vale e o dos bytes.** O navegador deduz o tipo pela extensao e a API
+ * confere pelos bytes: o PNG renomeado para .jpg subia inteiro para ser descartado
+ * na confirmacao, sempre.
  */
 const MB = 1024 * 1024
 
@@ -124,6 +129,11 @@ describe('a recusa cedo', () => {
     )
   })
 
+  // "Passa de 5 MB" dito de um arquivo vazio mandaria procurar um arquivo menor.
+  it('recusa arquivo vazio dizendo que está vazio', () => {
+    expect(rejectReason(arquivo('image/png', 0), [], media)).toBe('O arquivo está vazio.')
+  })
+
   it('recusa acima do teto do tipo', () => {
     expect(rejectReason(arquivo('image/png', 6 * MB), [], media)).toMatch(/5 MB/)
   })
@@ -198,5 +208,34 @@ describe('o tamanho para ler', () => {
     expect(formatBytes(512 * 1024)).toBe('512 KB')
     expect(formatBytes(5 * MB)).toBe('5 MB')
     expect(formatBytes(2.5 * MB)).toBe('2.5 MB')
+  })
+})
+
+describe('o tipo de verdade', () => {
+  /** O comeco de cada formato, completando os 12 bytes que a conferencia le. */
+  const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]
+  const JPEG = [0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]
+  const WEBP = [0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x45, 0x42, 0x50]
+
+  it.each([
+    ['PNG salvo como .jpg', PNG, 'erro.jpg', 'image/jpeg', 'image/png'],
+    ['WebP salvo como .jpg', WEBP, 'foto.jpg', 'image/jpeg', 'image/webp'],
+    ['JPEG salvo como .png', JPEG, 'tela.png', 'image/png', 'image/jpeg'],
+  ])('%s sai com o tipo dos bytes, e o nome de antes', async (_, bytes, nome, dito, real) => {
+    const certo = await withRealType(new File([new Uint8Array(bytes)], nome, { type: dito }))
+
+    expect(certo.type).toBe(real)
+    expect(certo.name).toBe(nome)
+    expect(certo.size).toBe(12)
+  })
+
+  it('o tipo que já bate volta o mesmo arquivo', async () => {
+    const png = new File([new Uint8Array(PNG)], 'erro.png', { type: 'image/png' })
+    expect(await withRealType(png)).toBe(png)
+  })
+
+  it('bytes de formato nenhum deixam o arquivo como veio: quem recusa é a API', async () => {
+    const estranho = arquivo('image/png', 100)
+    expect(await withRealType(estranho)).toBe(estranho)
   })
 })

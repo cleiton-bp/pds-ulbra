@@ -1,4 +1,4 @@
-import { type PointerEvent, useMemo, useRef, useState } from 'react'
+import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { cropToFile, type Rect, toSourceRect } from '@/embed/screenCapture'
 
 /** Menor recorte que conta como recorte, em pixels da tela do quadro. Menos que isso e clique. */
@@ -38,6 +38,22 @@ export function CaptureCropper({
   const [gerando, setGerando] = useState(false)
   const [falha, setFalha] = useState<string | null>(null)
 
+  /**
+   * O recorte ainda esta na tela. **Cancelar enquanto a imagem e gerada tem de
+   * cancelar**: gerar leva ate segundos numa tela grande, e o arquivo que ficasse
+   * pronto depois entraria no formulario — ate no do proximo relato, se a pessoa
+   * tivesse fechado o quadro nesse meio.
+   *
+   * Religado dentro do efeito porque o modo estrito monta, desmonta e monta de novo.
+   */
+  const montado = useRef(true)
+  useEffect(() => {
+    montado.current = true
+    return () => {
+      montado.current = false
+    }
+  }, [])
+
   function ponto(evento: PointerEvent) {
     const caixa = imagem.current?.getBoundingClientRect()
     if (!caixa) return { x: 0, y: 0 }
@@ -66,7 +82,8 @@ export function CaptureCropper({
         ? toSourceRect(recorte, { width: img.clientWidth, height: img.clientHeight }, original)
         : { x: 0, y: 0, ...original }
 
-      onUse(await cropToFile(canvas, pedaco, maxBytes))
+      const arquivo = await cropToFile(canvas, pedaco, maxBytes)
+      if (montado.current) onUse(arquivo)
     } catch (erro) {
       setFalha(erro instanceof Error ? erro.message : 'Não deu para gerar a imagem.')
       setGerando(false)

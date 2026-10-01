@@ -1,4 +1,4 @@
-import { publicMediaService } from '@/data/publicIndex'
+import { isPanelError, publicMediaService } from '@/data/publicIndex'
 import type { Anexo } from '@/embed/attachments'
 
 /** O que prova que o relato e de quem esta enviando: o que saiu da criacao dele. */
@@ -27,6 +27,11 @@ export type AttachmentEnvio = 'creation' | 'reply' | 'reopen'
  * vencido, e reaproveita-la seria apostar num prazo de minutos. O que ficou para
  * tras e orfao, e a API ja o marca assim.
  *
+ * **Menos quando o arquivo ja subiu** (`anexo.uploaded`): ai so a confirmacao
+ * falhou, e ela pode ter entrado com a resposta perdida no caminho. Confirma de
+ * novo a mesma permissao — a API responde que ja entrou, ou que nao ha o que
+ * confirmar, e so entao recomeca.
+ *
  * **A miniatura que falha nao derruba o anexo.** O arquivo vale sem ela, e a API
  * tira a miniatura ausente da linha na confirmacao.
  */
@@ -34,8 +39,26 @@ export async function sendAttachment(
   credentials: ReportCredentials,
   anexo: Anexo,
   onProgress: (fraction: number) => void,
-  { envio = 'creation' }: { envio?: AttachmentEnvio } = {},
+  {
+    envio = 'creation',
+    onUploaded,
+  }: {
+    envio?: AttachmentEnvio
+    /** O arquivo chegou ao armazenamento, e so falta confirmar esta permissao. */
+    onUploaded?: (publicId: string) => void
+  } = {},
 ): Promise<void> {
+  if (anexo.uploaded) {
+    try {
+      await confirm(credentials, anexo.uploaded)
+      return
+    } catch (falha) {
+      // 404: a permissao nao esta pendente nem virou anexo. 400: o arquivo sumiu, ou
+      // nao conferiu e foi descartado. Nos dois, recomeca; o resto e a resposta.
+      if (!isPanelError(falha) || (falha.status !== 404 && falha.status !== 400)) throw falha
+    }
+  }
+
   const ticket = await publicMediaService.requestUpload({
     TrackingCode: credentials.trackingCode,
     Token: credentials.token,
@@ -61,10 +84,15 @@ export async function sendAttachment(
   }
 
   await publicMediaService.uploadToStorage(ticket.File, anexo.file, onProgress)
+  onUploaded?.(ticket.PublicId)
 
-  await publicMediaService.confirm({
+  await confirm(credentials, ticket.PublicId)
+}
+
+function confirm(credentials: ReportCredentials, publicId: string) {
+  return publicMediaService.confirm({
     TrackingCode: credentials.trackingCode,
     Token: credentials.token,
-    AttachmentPublicId: ticket.PublicId,
+    AttachmentPublicId: publicId,
   })
 }

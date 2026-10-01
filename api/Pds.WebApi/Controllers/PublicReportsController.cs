@@ -452,6 +452,12 @@ public class PublicReportsController : BaseController
     /// - **a reabertura** (`ForReopen`), nos 15 minutos depois da reabertura mais
     ///   recente, e só com o projeto deixando anexar ao reabrir.
     ///
+    /// **O prazo anda com o envio.** Os arquivos sobem um de cada vez, e cada um pede
+    /// a permissão quando o anterior termina: enquanto um arquivo do mesmo envio teve
+    /// a permissão pedida, ou terminou (confirmado ou recusado), nos últimos 15
+    /// minutos, o envio continua aberto — até 1 hora depois do texto. É o que deixa o último de muitos arquivos grandes, numa conexão
+    /// lenta, chegar sem ser recusado.
+    ///
     /// O navegador nunca diz qual resposta ou qual reabertura: o servidor acha a que
     /// acabou de acontecer. Cada permissão tem então 1 hora, contada de quando foi
     /// pedida, para ser confirmada: o envio precisa começar em minutos, mas terminar
@@ -470,7 +476,7 @@ public class PublicReportsController : BaseController
     /// <param name="dto">O relato, o tipo e o tamanho do arquivo.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Formulário assinado, pronto para enviar.</response>
-    /// <response code="400">Vídeo, projeto que não aceita anexo (ou não aceita na resposta, ou na reabertura), `ForReply` e `ForReopen` juntos, formato recusado, ou arquivo grande demais.</response>
+    /// <response code="400">Vídeo, projeto que não aceita anexo (ou não aceita na resposta, ou na reabertura), `ForReply` e `ForReopen` juntos, formato recusado, arquivo vazio, ou arquivo grande demais.</response>
     /// <response code="404">O link não abre nenhum relato.</response>
     /// <response code="409">O envio já tem o máximo de arquivos, o prazo do envio terminou — ou não há resposta, ou reabertura, dos últimos 15 minutos —, ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
@@ -533,12 +539,17 @@ public class PublicReportsController : BaseController
     ///
     /// **Uma permissão vale 1 hora para ser confirmada**, contada de quando foi
     /// pedida. Depois disso ela venceu: a recusa é 409, sem nem ler o armazenamento.
+    ///
+    /// **Confirmar de novo um anexo já confirmado responde 200, com os dados dele.**
+    /// A resposta da primeira confirmação pode se perder na rede, e quem tenta de novo
+    /// precisa ouvir que o arquivo entrou — e não recomeçar o envio, pondo o mesmo
+    /// arquivo duas vezes no relato.
     /// </remarks>
     /// <param name="dto">O relato e o anexo que está sendo confirmado.</param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">Anexo confirmado.</response>
+    /// <response code="200">Anexo confirmado — agora, ou antes, por outra confirmação do mesmo anexo.</response>
     /// <response code="400">O arquivo não chegou, não é do formato declarado, ou mudou depois de conferido — nos dois últimos casos ele foi descartado.</response>
-    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador — por exemplo, porque outra confirmação do mesmo anexo terminou antes.</response>
+    /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente nem confirmado com esse identificador neste relato — por exemplo, porque ele foi recusado e descartado.</response>
     /// <response code="409">O envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta ou na reabertura, ou tamanho máximo), a permissão passou de 1 hora sem ser confirmada, ou o anexo é um vídeo, que não é mais aceito — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
     [HttpPost("attachments/confirm")]

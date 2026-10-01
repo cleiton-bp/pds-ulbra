@@ -30,7 +30,13 @@ const dublê = vi.hoisted(() => ({
   capturar: vi.fn(),
   cortar: vi.fn(),
   podeCapturar: vi.fn(() => true),
+  criar: vi.fn(),
 }))
+
+vi.mock('@/data/publicIndex', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/data/publicIndex')>()
+  return { ...real, reportService: { createReport: dublê.criar } }
+})
 
 vi.mock('@/embed/screenCapture', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/embed/screenCapture')>()
@@ -207,6 +213,60 @@ describe('a captura', () => {
     // O teto de imagem do projeto chega ao recorte: e com ele que, sem WebP, o PNG
     // grande vira JPEG em vez de ser recusado depois.
     expect(dublê.cortar.mock.calls[0]?.[2]).toBe(5 * 1024 * 1024)
+  })
+
+  // Gerar a imagem de uma tela grande leva ate segundos. Cancelar nesse meio tem de
+  // cancelar: a imagem pronta depois nao entra no formulario.
+  it('cancelar enquanto a imagem é gerada não anexa nada', async () => {
+    let pronto: (arquivo: File) => void = () => {}
+    dublê.capturar.mockResolvedValue(document.createElement('canvas'))
+    dublê.cortar.mockImplementation(
+      () =>
+        new Promise<File>((resolve) => {
+          pronto = resolve
+        }),
+    )
+    montar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usar a tela inteira' }))
+    await waitFor(() => expect(dublê.cortar).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    await act(async () =>
+      pronto(new File([new Uint8Array(100)], 'captura.png', { type: 'image/png' })),
+    )
+
+    expect(screen.queryByRole('button', { name: 'Remover captura.png' })).toBeNull()
+  })
+
+  // O relato saiu com a lista que tinha: a captura que volta depois nao iria junto,
+  // e entraria na confirmacao como "na fila" para sempre.
+  it('captura que volta depois de o relato sair não abre o recorte', async () => {
+    let soltar: (canvas: HTMLCanvasElement) => void = () => {}
+    dublê.capturar.mockImplementation(
+      () =>
+        new Promise<HTMLCanvasElement>((resolve) => {
+          soltar = resolve
+        }),
+    )
+    dublê.criar.mockResolvedValue({
+      TrackingCode: '7K2M-9QXP-4TRV',
+      AccessToken: 'tok-secreto',
+      CreatedAt: '2026-09-23T12:00:00.000Z',
+      ReporterCode: null,
+    })
+    montar()
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o botão sumiu' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await screen.findByText('7K2M-9QXP-4TRV')
+
+    await act(async () => soltar(document.createElement('canvas')))
+
+    expect(pagina.enlarge).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Usar a tela inteira' })).toBeNull()
   })
 
   // O navegador pergunta qual tela mostrar, e isso leva o tempo da pessoa. Fechado

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
@@ -53,8 +54,26 @@ public class ReportAttachmentService : IReportAttachmentService
     /// mais reabriria o furo. A permissao assinada (MEDIA_STORAGE_UPLOAD_URL_MINUTES,
     /// 2 minutos por padrao) so diz ate quando o envio comeca, e precisa ficar bem
     /// abaixo deste prazo.</para>
+    ///
+    /// <para><b>Conta do texto, ou do ultimo arquivo do mesmo envio</b> — pedido,
+    /// confirmado ou descartado. Os arquivos sobem um de cada vez, e cada um pede a
+    /// permissao quando o anterior termina: com dez arquivos grandes numa conexao
+    /// lenta, os ultimos pedem depois dos quinze minutos, e seriam recusados sem a
+    /// pessoa ter errado nada. Um envio que continua chegando continua aberto — ate
+    /// <see cref="SendingCeiling"/>.</para>
     /// </summary>
     private static readonly TimeSpan AttachmentWindow = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// Ate quando um envio que continua chegando aceita arquivo, contado do texto.
+    ///
+    /// <para><b>O teto que o prazo andando precisa ter.</b> Sem ele, pedir uma
+    /// permissao a cada catorze minutos manteria o envio aberto para sempre, e o
+    /// arquivo de semanas depois entraria como se tivesse vindo com o texto. Uma hora
+    /// e o prazo da confirmacao (<see cref="ConfirmWindow"/>): cabe o maior envio que
+    /// a tela de Midia permite numa conexao lenta.</para>
+    /// </summary>
+    private static readonly TimeSpan SendingCeiling = TimeSpan.FromHours(1);
 
     /// <summary>
     /// Por quanto tempo uma permissao pedida ainda pode ser confirmada.
@@ -153,7 +172,12 @@ public class ReportAttachmentService : IReportAttachmentService
         // oferecer tentar de novo.
         long? respostaId = null;
         long? reaberturaId = null;
-        var desde = DateTime.UtcNow - AttachmentWindow;
+        var agora = DateTime.UtcNow;
+        var desde = agora - AttachmentWindow;
+
+        // O envio e procurado ate o teto, e nao so no prazo: ele pode estar aberto
+        // pelos arquivos que continuam chegando. Ver AttachmentWindow.
+        var teto = agora - SendingCeiling;
 
         if (dto.ForReply == true)
         {
@@ -161,9 +185,12 @@ public class ReportAttachmentService : IReportAttachmentService
                 throw new ArgumentException("Este projeto nao aceita anexo nas respostas.");
 
             var resposta = await _unitOfWork.ReportPublicComments.FindLatestFromReporterWithoutSessionAsync(
-                               report.Id, desde, cancellationToken)
-                           ?? throw new ConflictException(
-                               $"Nao ha resposta sua dos ultimos {AttachmentWindow.TotalMinutes:0} minutos neste relato para prender o arquivo.");
+                report.Id, teto, cancellationToken);
+
+            if (resposta is null
+                || !await EnvioAbertoAsync(report.Id, resposta.Id, null, resposta.CreatedAt, desde, cancellationToken))
+                throw new ConflictException(
+                    $"Nao ha resposta sua dos ultimos {AttachmentWindow.TotalMinutes:0} minutos neste relato para prender o arquivo.");
 
             respostaId = resposta.Id;
         }
@@ -176,13 +203,17 @@ public class ReportAttachmentService : IReportAttachmentService
             // motivo pode ter ficado em branco, e o arquivo vai do mesmo jeito — o
             // envio e a reabertura, e nao o texto dela.
             var reabertura = await _unitOfWork.ReportClosures.FindLatestReopenedWithoutSessionAsync(
-                                 report.Id, desde, cancellationToken)
-                             ?? throw new ConflictException(
-                                 $"Nao ha reabertura sua neste relato nos ultimos {AttachmentWindow.TotalMinutes:0} minutos para prender o arquivo.");
+                report.Id, teto, cancellationToken);
+
+            if (reabertura is null
+                || !await EnvioAbertoAsync(report.Id, null, reabertura.Id, reabertura.ReopenedAt!.Value, desde, cancellationToken))
+                throw new ConflictException(
+                    $"Nao ha reabertura sua neste relato nos ultimos {AttachmentWindow.TotalMinutes:0} minutos para prender o arquivo.");
 
             reaberturaId = reabertura.Id;
         }
-        else if (report.CreatedAt < desde)
+        else if (report.CreatedAt < teto
+                 || !await EnvioAbertoAsync(report.Id, null, null, report.CreatedAt, desde, cancellationToken))
         {
             throw new ConflictException("O prazo para anexar arquivos a este relato terminou.");
         }
@@ -198,8 +229,13 @@ public class ReportAttachmentService : IReportAttachmentService
         if (!MediaSignatures.IsAccepted(kind, contentType))
             throw new ArgumentException("Esse formato de arquivo nao e aceito.");
 
-        if (tamanho < 1 || tamanho > limite.MaxBytes)
-            throw new ArgumentException($"O arquivo passa do limite deste projeto, que e de {limite.MaxBytes / (1024 * 1024)} MB.");
+        // Cada um com a sua frase: "passa do limite" dita de um arquivo vazio mandaria
+        // a pessoa procurar um arquivo menor.
+        if (tamanho < 1)
+            throw new ArgumentException("O arquivo esta vazio.");
+
+        if (tamanho > limite.MaxBytes)
+            throw new ArgumentException($"O arquivo passa do limite deste projeto, que e de {FormatLimit(limite.MaxBytes)}.");
 
         // Conferido aqui para recusar antes do envio, e nao para garantir o limite:
         // quem garante e a confirmacao, que conta de novo com a cota travada. 409,
@@ -270,8 +306,15 @@ public class ReportAttachmentService : IReportAttachmentService
                        ?? throw new ArgumentException("Informe qual anexo esta sendo confirmado.");
 
         var attachment = await _unitOfWork.ReportAttachments.FindPendingWithoutSessionAsync(
-                             publicId, report.Id, cancellationToken)
-                         ?? throw new KeyNotFoundException(PendingNotFound);
+            publicId, report.Id, cancellationToken);
+
+        // **Confirmar o que ja foi confirmado responde o que aconteceu.** A resposta da
+        // primeira confirmacao pode se perder na rede de quem relata, e a tela tenta de
+        // novo: sem isto, ouviria que o arquivo nao existe — e recomecaria o envio,
+        // pondo o mesmo print duas vezes no relato.
+        if (attachment is null)
+            return await JaConfirmadoAsync(publicId, report.Id, cancellationToken)
+                   ?? throw new KeyNotFoundException(PendingNotFound);
 
         // O pendente tambem vence, contado de quando a permissao foi pedida: um envio
         // lento ainda termina, mas uma permissao antiga nao vira anexo semanas depois.
@@ -288,11 +331,12 @@ public class ReportAttachmentService : IReportAttachmentService
         {
             // Nada no nome de envio: ou o arquivo nunca chegou, ou outra confirmacao do
             // mesmo anexo terminou antes e ja o levou para o nome final. A segunda e o
-            // clique duplo, e ouve o mesmo 404 que ouviria depois da trava — "nao
-            // chegou" mentiria sobre um arquivo que acabou de ser aceito.
-            _ = await _unitOfWork.ReportAttachments.FindPendingWithoutSessionAsync(
-                    publicId, report.Id, cancellationToken)
-                ?? throw new KeyNotFoundException(PendingNotFound);
+            // clique duplo, e ouve o que ouviria depois dela — "nao chegou" mentiria
+            // sobre um arquivo que acabou de ser aceito.
+            if (await _unitOfWork.ReportAttachments.FindPendingWithoutSessionAsync(
+                    publicId, report.Id, cancellationToken) is null)
+                return await JaConfirmadoAsync(publicId, report.Id, cancellationToken)
+                       ?? throw new KeyNotFoundException(PendingNotFound);
 
             throw new ArgumentException("O arquivo nao chegou ao armazenamento.");
         }
@@ -435,12 +479,24 @@ public class ReportAttachmentService : IReportAttachmentService
                 return null;
             }, cancellationToken);
         }
-        catch
+        catch (Exception falha)
         {
             // Outra confirmacao terminou antes, a copia falhou, a pessoa fechou a aba, ou
             // a gravacao falhou. As copias finais saem — menos quando o banco gravou a
             // confirmacao e so a resposta dele se perdeu: ai elas sao o anexo.
-            await DescartarCopiasFinaisAsync(destino, miniaturaEnvio is not null, chaveEnvio, miniaturaEnvio);
+            //
+            // **E ai a resposta e o sucesso.** O banco disse que o anexo esta confirmado
+            // e aponta para elas; responder erro faria a tela oferecer "Tentar de novo"
+            // para um arquivo que o time ja ve.
+            if (await DescartarCopiasFinaisAsync(destino, miniaturaEnvio is not null, chaveEnvio, miniaturaEnvio))
+                return new ConfirmedAttachmentViewModel(attachment.PublicId, attachment.Kind, objeto!.SizeBytes);
+
+            // Outra confirmacao do mesmo anexo terminou enquanto esta esperava a trava:
+            // o clique duplo. As copias desta ja sairam acima; a resposta e a daquela.
+            if (falha is KeyNotFoundException
+                && await JaConfirmadoAsync(publicId, report.Id, CancellationToken.None) is { } confirmado)
+                return confirmado;
+
             throw;
         }
 
@@ -460,8 +516,15 @@ public class ReportAttachmentService : IReportAttachmentService
         }
         else
         {
-            await ApagarAsync(chaveFinal, miniaturaFinal);
-            await ApagarObjetosAsync(attachment);
+            // **A recusa ja foi gravada, e e ela que a pessoa precisa ouvir.** Uma falha
+            // do armazenamento aqui trocaria o motivo por "erro ao processar" — e a tela
+            // ofereceria tentar de novo o que foi recusado. Cada copia sai por conta
+            // propria: a primeira que falha nao segura as outras. O que sobrar em
+            // uploads/ expira; o que sobrar em media/ e raro, e fica.
+            await ApagarSemFalharAsync(chaveFinal);
+            await ApagarSemFalharAsync(miniaturaFinal);
+            await ApagarSemFalharAsync(attachment.ObjectKey);
+            await ApagarSemFalharAsync(attachment.ThumbnailObjectKey);
 
             // 400 quando o problema e o proprio arquivo, como sempre foi. 409 quando o
             // arquivo estava certo e o que mudou foi o envio — que encheu ou venceu — ou
@@ -638,22 +701,8 @@ public class ReportAttachmentService : IReportAttachmentService
     }
 
     /// <summary>
-    /// Apaga do armazenamento o arquivo e a miniatura de um anexo ja descartado no
-    /// banco.
-    ///
-    /// <para><b>Sem isto, cada recusa deixaria um arquivo guardado para sempre.</b>
-    /// A conta cresce com o que foi aceito; ela nao pode crescer tambem com o que
-    /// foi recusado — e nele a exclusao precisa ser fisica.</para>
-    ///
-    /// <para><b>Depois do banco, e fora da trava.</b> Na ordem inversa, uma queda
-    /// entre os dois passos — a aba fechada no meio — deixaria o anexo pendente
-    /// apontando para um arquivo que ja saiu. Nesta ordem, o pior caso e um arquivo
-    /// sobrando no balde, com a linha apagada dizendo qual e. E sem o token da
-    /// requisicao pelo mesmo motivo: o descarte ja foi decidido e gravado, e quem
-    /// fechou a aba nao desfaz a limpeza.</para>
-    /// </summary>
-    /// <summary>
-    /// Apaga as copias finais de uma confirmacao que falhou no meio.
+    /// Apaga as copias finais de uma confirmacao que falhou no meio, e diz se elas
+    /// ja sao o arquivo de um anexo.
     ///
     /// <para><b>Apaga pelo nome tentado, e nao so pelo que a copia confirmou</b>: a
     /// chamada cancelada pode ter sido gravada do lado de la. Apagar o que nao existe
@@ -664,15 +713,18 @@ public class ReportAttachmentService : IReportAttachmentService
     /// confirmado, e quem sobra sao as copias de envio. Sem conseguir perguntar ao
     /// banco, nada e apagado: uma copia a mais custa armazenamento, e uma a menos
     /// custa o arquivo.</para>
+    ///
+    /// <para>Devolve verdadeiro so quando o banco respondeu que o anexo aponta para
+    /// elas — a confirmacao entrou, e quem chamou responde o sucesso.</para>
     /// </summary>
-    private async Task DescartarCopiasFinaisAsync(
+    private async Task<bool> DescartarCopiasFinaisAsync(
         string? destino,
         bool comMiniatura,
         string chaveEnvio,
         string? miniaturaEnvio)
     {
         if (destino is null)
-            return;
+            return false;
 
         bool emUso;
 
@@ -683,7 +735,7 @@ public class ReportAttachmentService : IReportAttachmentService
         }
         catch
         {
-            return;
+            return false;
         }
 
         try
@@ -698,15 +750,79 @@ public class ReportAttachmentService : IReportAttachmentService
             // A falha que importa e a de cima, que segue para quem chamou. O que sobrar
             // em media/ e raro e fica; o que sobrar em uploads/ expira.
         }
+
+        return emUso;
     }
 
-    private Task ApagarObjetosAsync(ReportAttachment attachment)
-        => ApagarAsync(attachment.ObjectKey, attachment.ThumbnailObjectKey);
+    /// <summary>
+    /// Apaga do armazenamento um arquivo de um anexo ja descartado no banco — e
+    /// engole a falha.
+    ///
+    /// <para><b>Sem isto, cada recusa deixaria um arquivo guardado para sempre.</b>
+    /// A conta cresce com o que foi aceito; ela nao pode crescer tambem com o que
+    /// foi recusado — e nele a exclusao precisa ser fisica.</para>
+    ///
+    /// <para><b>Depois do banco, e fora da trava.</b> Na ordem inversa, uma queda
+    /// entre os dois passos — a aba fechada no meio — deixaria o anexo pendente
+    /// apontando para um arquivo que ja saiu. Nesta ordem, o pior caso e um arquivo
+    /// sobrando no balde, com a linha apagada dizendo qual e. E sem o token da
+    /// requisicao pelo mesmo motivo: o descarte ja foi decidido e gravado, e quem
+    /// fechou a aba nao desfaz a limpeza.</para>
+    ///
+    /// <para><b>A falha fica aqui</b> porque a recusa ja foi gravada, e a resposta
+    /// precisa ser ela.</para>
+    /// </summary>
+    private async Task ApagarSemFalharAsync(string? objectKey)
+    {
+        if (objectKey is null)
+            return;
+
+        try
+        {
+            await _mediaStorage.DeleteAsync(objectKey, CancellationToken.None);
+        }
+        catch
+        {
+            // Ver o resumo acima.
+        }
+    }
+
+    /// <summary>
+    /// O anexo com esse identificador, se ele ja foi confirmado neste relato, como a
+    /// confirmacao o responde. Nulo quando nao foi — pendente, descartado ou de
+    /// outro relato.
+    /// </summary>
+    private async Task<ConfirmedAttachmentViewModel?> JaConfirmadoAsync(
+        Guid publicId,
+        long reportId,
+        CancellationToken cancellationToken)
+        => await _unitOfWork.ReportAttachments.FindConfirmedWithoutSessionAsync(publicId, reportId, cancellationToken)
+            is { } confirmado
+            ? new ConfirmedAttachmentViewModel(confirmado.PublicId, confirmado.Kind, confirmado.SizeBytes)
+            : null;
+
+    /// <summary>
+    /// O envio ainda aceita arquivo: o texto dele e dos ultimos minutos, ou os
+    /// arquivos dele continuam chegando. Ver <see cref="AttachmentWindow"/>.
+    ///
+    /// <para>O teto (<see cref="SendingCeiling"/>) fica com quem chama: e ele que
+    /// procura o envio, e o procura so ate la.</para>
+    /// </summary>
+    private async Task<bool> EnvioAbertoAsync(
+        long reportId,
+        long? respostaId,
+        long? reaberturaId,
+        DateTime feitoEm,
+        DateTime desde,
+        CancellationToken cancellationToken)
+        => feitoEm >= desde
+           || await _unitOfWork.ReportAttachments.HasActivitySinceWithoutSessionAsync(
+               reportId, respostaId, reaberturaId, desde, cancellationToken);
 
     /// <summary>
     /// Apaga do armazenamento um arquivo e a miniatura dele, os que houver.
     ///
-    /// <para>Sem o token da requisicao, pelo motivo de <see cref="ApagarObjetosAsync"/>:
+    /// <para>Sem o token da requisicao, pelo motivo de <see cref="ApagarSemFalharAsync"/>:
     /// quando se chega aqui, o que apagar ja foi decidido.</para>
     /// </summary>
     private async Task ApagarAsync(string? objectKey, string? thumbnailObjectKey)
@@ -798,9 +914,30 @@ public class ReportAttachmentService : IReportAttachmentService
         // segunda tranca: se um dia a assinatura sair sem o teto, o furo nao chega a
         // virar arquivo guardado.
         if (tamanhoReal > limite.MaxBytes)
-            return $"O arquivo passa do limite deste projeto, que e de {limite.MaxBytes / (1024 * 1024)} MB.";
+            return $"O arquivo passa do limite deste projeto, que e de {FormatLimit(limite.MaxBytes)}.";
 
         return null;
+    }
+
+    /// <summary>
+    /// O limite escrito como a tela de Midia o mostra: "2.5 MB", "512 KB".
+    ///
+    /// <para><b>A mesma conta do formatBytes da web</b>, porque a pessoa le as duas
+    /// frases lado a lado. A tela grava limites com uma casa decimal, e o MB inteiro
+    /// cortado mostraria 2 MB para um limite de 2.5 — menor do que o configurado.</para>
+    /// </summary>
+    private static string FormatLimit(long bytes)
+    {
+        if (bytes < 1024 * 1024)
+            // Meio para cima, como o Math.round da web: o padrao daqui arredonda o meio
+            // para o par, e 2.5 KB sairia 2 aqui e 3 la.
+            return $"{Math.Max(1, (long)Math.Round(bytes / 1024d, MidpointRounding.AwayFromZero))} KB";
+
+        var mb = bytes / (1024d * 1024);
+
+        return mb == Math.Floor(mb)
+            ? $"{mb.ToString("0", CultureInfo.InvariantCulture)} MB"
+            : $"{mb.ToString("0.0", CultureInfo.InvariantCulture)} MB";
     }
 
     /// <summary>
@@ -815,7 +952,13 @@ public class ReportAttachmentService : IReportAttachmentService
             ? VideoRefused
             : "Esse tipo de arquivo deixou de ser aceito.";
 
-    /// <summary>Corta o que veio de fora no tamanho da coluna, em vez de derrubar a gravacao.</summary>
+    /// <summary>
+    /// Corta o que veio de fora no tamanho da coluna, em vez de derrubar a gravacao.
+    ///
+    /// <para><b>Nunca no meio de um emoji.</b> Fora do basico, um caractere ocupa duas
+    /// posicoes; cortado entre elas, sobra meio caractere, o banco recusa o texto, e
+    /// aquele arquivo nunca mais seria anexado sem mudar de nome.</para>
+    /// </summary>
     private static string? Trim(string? value, int maxLength)
     {
         var limpo = (value ?? string.Empty).Trim();
@@ -823,6 +966,11 @@ public class ReportAttachmentService : IReportAttachmentService
         if (limpo.Length == 0)
             return null;
 
-        return limpo.Length <= maxLength ? limpo : limpo[..maxLength];
+        if (limpo.Length <= maxLength)
+            return limpo;
+
+        var corte = char.IsHighSurrogate(limpo[maxLength - 1]) ? maxLength - 1 : maxLength;
+
+        return limpo[..corte];
     }
 }

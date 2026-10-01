@@ -141,6 +141,15 @@ services:
       # que permite publicar a API com a configuracao do ambiente de verdade.
       MEDIA_STORAGE_ENDPOINT: "http://minio:9000"
 
+      # **As chaves e o balde vao junto do endereco, das mesmas fontes do minio e do
+      # minio-init.** O endereco sozinho deixava o armazenamento configurado pela
+      # metade para quem seguiu o `.env.example`, onde a secao vem comentada: a API
+      # recusava subir, e nenhuma rota respondia. Assim o balde da API e sempre o
+      # que o minio-init criou.
+      MEDIA_STORAGE_ACCESS_KEY: "${MINIO_ROOT_USER:-pds}"
+      MEDIA_STORAGE_SECRET_KEY: "${MINIO_ROOT_PASSWORD:-pdspdspds}"
+      MEDIA_STORAGE_BUCKET: "${MEDIA_STORAGE_BUCKET:-pds-media}"
+
       # Mas o navegador nao conhece `minio`: a permissao assinada leva o navegador
       # ao endereco que ela traz, e a assinatura cobre o host. Por isso a API assina
       # com o endereco de fora, e so fala com o de dentro.
@@ -154,6 +163,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      # O balde precisa existir antes: com a configuracao completa, a API sobe e
+      # aceita ligar o anexo — e sem o balde, so o primeiro envio descobriria.
+      minio-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:

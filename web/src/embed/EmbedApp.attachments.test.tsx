@@ -150,6 +150,53 @@ describe('o anexo no formulario', () => {
     await screen.findByRole('button', { name: 'Remover erro.png' })
   })
 
+  // O nome do arquivo e o do texto podem vir escritos cada um de um jeito: o acento
+  // separado da letra, como o Mac grava o nome, ou junto dela, como se digita.
+  it.each([
+    ['o nome do arquivo com o acento separado', 'relato\u0301rio.png', 'relat\u00f3rio.png'],
+    ['o texto com o acento separado', 'relat\u00f3rio.png', 'relato\u0301rio.png'],
+  ])('colar arquivo de nome acentuado, com %s, continua anexando', async (_, nome, texto) => {
+    montar()
+    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+    const arquivo = new File([new Uint8Array(100)], nome, { type: 'image/png' })
+
+    const colagem = fireEvent.paste(formulario, {
+      clipboardData: {
+        files: [arquivo],
+        getData: (tipo: string) => (tipo === 'text/plain' ? texto : ''),
+      },
+    })
+
+    expect(colagem).toBe(false)
+    await screen.findByRole('button', { name: `Remover ${nome}` })
+  })
+
+  // A imagem salva de um site que entrega WebP num endereco .jpg, ou o PNG
+  // renomeado: o navegador deduz o tipo pela extensao, e a API confere pelos bytes.
+  it('imagem com a extensão trocada sobe com o tipo dos bytes', async () => {
+    dublê.criar.mockResolvedValue(criado)
+    dublê.enviar.mockResolvedValue(undefined)
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
+
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(new File([png], 'erro.jpg', { type: 'image/jpeg' }))
+    await screen.findByRole('button', { name: 'Remover erro.jpg' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1].file.type).toBe('image/png')
+    expect(dublê.enviar.mock.calls[0]?.[1].file.name).toBe('erro.jpg')
+  })
+
+  it('arquivo vazio é recusado na hora, dizendo que está vazio', async () => {
+    montar()
+    escolher(new File([], 'erro.png', { type: 'image/png' }))
+
+    await screen.findByText('O arquivo está vazio.')
+    expect(screen.queryByRole('button', { name: /Remover/ })).toBeNull()
+  })
+
   // A planilha copia as celulas e, junto, uma imagem delas. Anexar a imagem
   // engoliria o texto que a pessoa quis colar.
   it('colar texto de planilha, que traz uma imagem junto, continua sendo colar texto', async () => {
@@ -224,6 +271,38 @@ describe('o envio', () => {
     expect(screen.getByText(/seu texto está salvo/)).toBeDefined()
   })
 
+  // A confirmacao pode entrar com a resposta perdida no caminho. Tentar de novo leva
+  // a permissao cujo arquivo ja subiu — e a API responde que ele entrou, em vez de
+  // outro igual entrar junto.
+  it('tentar de novo depois de o arquivo subir leva a permissão que subiu', async () => {
+    dublê.criar.mockResolvedValue(criado)
+    dublê.enviar
+      .mockImplementationOnce(
+        async (
+          _credenciais: unknown,
+          _anexo: unknown,
+          _progresso: unknown,
+          opcoes: { onUploaded?: (publicId: string) => void },
+        ) => {
+          opcoes.onUploaded?.('p-1')
+          throw new Error('rede')
+        },
+      )
+      .mockResolvedValueOnce(undefined)
+
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
+
+    await screen.findByText('enviado')
+    expect(dublê.enviar.mock.calls[0]?.[1].uploaded).toBeNull()
+    expect(dublê.enviar.mock.calls[1]?.[1].uploaded).toBe('p-1')
+  })
+
   it('tentar de novo manda o mesmo arquivo outra vez', async () => {
     dublê.criar.mockResolvedValue(criado)
     dublê.enviar.mockRejectedValueOnce(new Error('rede')).mockResolvedValueOnce(undefined)
@@ -287,6 +366,55 @@ describe('o envio', () => {
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  // O envio leva a lista como ela esta. Tirar um arquivo durante "Enviando…" nao o
+  // impediria de subir — e o que sai da tela nao pode ir para o time —, e o que
+  // entrasse ficaria "na fila" para sempre.
+  it('durante o envio a lista fica travada: nem tirar, nem pôr, nem colar, nem capturar', async () => {
+    let criar: (relato: CreatedReportViewModel) => void = () => {}
+    dublê.criar.mockImplementation(
+      () =>
+        new Promise<CreatedReportViewModel>((resolve) => {
+          criar = resolve
+        }),
+    )
+    dublê.enviar.mockResolvedValue(undefined)
+
+    montar()
+    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+    await screen.findByRole('button', { name: 'Enviando…' })
+
+    expect(screen.queryByRole('button', { name: 'Remover erro.png' })).toBeNull()
+    expect(
+      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
+    const outro = new File([new Uint8Array(100)], 'outro.png', { type: 'image/png' })
+    expect(
+      fireEvent.paste(formulario, { clipboardData: { files: [outro], getData: () => '' } }),
+    ).toBe(true)
+
+    await act(async () => criar(criado))
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1].file.name).toBe('erro.png')
+    expect(screen.queryByText('outro.png')).toBeNull()
+  })
+
+  // Com arquivos na lista e o codigo pessoal, a confirmacao passa da altura do
+  // quadro. O que ficaria fora e o link que aparece uma vez so, e o "Fechar".
+  it('a confirmação rola quando passa da altura do quadro', async () => {
+    dublê.criar.mockResolvedValue(criado)
+
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    const protocolo = await screen.findByText('7K2M-9QXP-4TRV')
+    expect(protocolo.closest('section')?.classList.contains('overflow-y-auto')).toBe(true)
   })
 
   it('sem arquivo, nada sobe', async () => {

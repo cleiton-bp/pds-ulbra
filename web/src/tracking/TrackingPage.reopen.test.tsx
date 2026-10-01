@@ -226,7 +226,103 @@ describe('anexar ao reabrir', () => {
       trackingCode: '7K2M-9QXP-4TRV',
       token: 'tok-secreto',
     })
-    expect(dublê.enviar.mock.calls[0]?.[3]).toEqual({ envio: 'reopen' })
+    expect(dublê.enviar.mock.calls[0]?.[3]).toMatchObject({ envio: 'reopen' })
+  })
+
+  // A reabertura leva a lista como ela esta quando volta. O que entrasse durante
+  // "Enviando…" ficaria de fora — e sumiria junto com o bloco do encerramento.
+  it('enquanto a reabertura vai, a lista fica travada: nem pôr, nem tirar, nem colar', async () => {
+    let gravar: (relato: PublicReportViewModel) => void = () => {}
+    dublê.reabrir.mockImplementation(
+      () =>
+        new Promise<PublicReportViewModel>((resolve) => {
+          gravar = resolve
+        }),
+    )
+    dublê.enviar.mockResolvedValue(undefined)
+    await reabrindo()
+
+    const caixa = screen.getByRole('textbox', { name: /O que ainda está acontecendo/ })
+    fireEvent.change(caixa, { target: { value: 'Voltou a travar.' } })
+    await escolher(print())
+    await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
+    await screen.findByRole('button', { name: 'Enviando…' })
+
+    expect(
+      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Remover ainda-quebrado.png' })).toBeNull()
+    const outro = new File([new Uint8Array(100)], 'outro.png', { type: 'image/png' })
+    const colagem = fireEvent.paste(caixa.parentElement as HTMLElement, {
+      clipboardData: { files: [outro], getData: () => '' },
+    })
+    expect(colagem).toBe(true)
+
+    await act(async () => gravar(reaberto))
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1].file.name).toBe('ainda-quebrado.png')
+  })
+
+  // PrintScreen e Ctrl+V e como se anexa print de verdade. Texto de planilha, que
+  // traz uma imagem junto, continua sendo texto.
+  it('colar um print na reabertura anexa, e texto colado continua texto', async () => {
+    await reabrindo()
+    await screen.findByLabelText('Escolher imagem para anexar')
+    const caixa = screen.getByRole('textbox', { name: /O que ainda está acontecendo/ })
+
+    expect(fireEvent.paste(caixa, { clipboardData: { files: [print()], getData: () => '' } })).toBe(
+      false,
+    )
+    await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
+
+    const celulas = new File([new Uint8Array(100)], 'celulas.png', { type: 'image/png' })
+    expect(
+      fireEvent.paste(caixa, {
+        clipboardData: {
+          files: [celulas],
+          getData: (tipo: string) => (tipo === 'text/plain' ? 'total\t42' : ''),
+        },
+      }),
+    ).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Remover celulas.png' })).toBeNull()
+  })
+
+  // Reaberto antes, encerrado de novo e reaberto agora: o envio e da reabertura que
+  // acabou de acontecer. E a frase fala dela — sem motivo agora, nao ha texto salvo,
+  // mesmo com o motivo da anterior na lista.
+  it('o envio aparece na reabertura mais recente, e a frase fala dela', async () => {
+    const anterior = {
+      PublicId: 'r-1',
+      ReopenedAt: '2026-09-15T09:00:00.000Z',
+      Comment: 'Da primeira vez.',
+    }
+    dublê.abrir.mockResolvedValue({
+      ...encerrado,
+      Reopenings: [anterior],
+      Closure: { ...fechamento, Actions: { ...fechamento.Actions, ReopenRequiresComment: false } },
+    })
+    dublê.reabrir.mockResolvedValue({
+      ...reaberto,
+      Reopenings: [
+        anterior,
+        { PublicId: 'r-2', ReopenedAt: '2026-09-21T09:00:00.000Z', Comment: null },
+      ],
+    })
+    dublê.enviar.mockRejectedValue(new Error('rede'))
+    await reabrindo()
+
+    await escolher(print())
+    await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
+
+    const tentar = await screen.findByRole('button', { name: 'Tentar de novo' })
+    const [primeira, segunda] = screen
+      .getAllByText('Você reabriu este relato')
+      .map((titulo) => titulo.closest('li') as HTMLElement)
+    expect(segunda?.contains(tentar)).toBe(true)
+    expect(primeira?.contains(tentar)).toBe(false)
+    expect(screen.queryByText(/texto está salvo/)).toBeNull()
   })
 
   it('reabrir sem arquivo não sobe nada', async () => {
@@ -407,7 +503,7 @@ describe('anexar ao reabrir', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
 
     await waitFor(() => expect(dublê.enviar).toHaveBeenCalledTimes(2))
-    expect(dublê.enviar.mock.calls[1]?.[3]).toEqual({ envio: 'reopen' })
+    expect(dublê.enviar.mock.calls[1]?.[3]).toMatchObject({ envio: 'reopen' })
     await waitFor(() => expect(screen.queryByText('ainda-quebrado.png')).toBeNull())
   })
 })

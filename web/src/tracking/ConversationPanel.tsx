@@ -142,8 +142,14 @@ export function ConversationPanel({
             : 'Se ninguém responder, este relato será encerrado em '}
           <strong className="font-medium">{formatDateTime(pedido.CloseAt)}</strong>.{' '}
           {/* Não é ameaça: encerrado assim continua reabrível, e dizer isso é o que
-              impede a pessoa de achar que perdeu o assunto. */}
-          Mesmo assim, você poderá reabrir por esta página depois.
+              impede a pessoa de achar que perdeu o assunto.
+
+              **Pelo código pessoal, a página só mostra.** Responder e reabrir pedem o
+              link de quando ela relatou — e prometer as duas coisas "por esta página"
+              deixaria a pessoa procurando uma caixa que não existe aqui. */}
+          {relato.CanReply
+            ? 'Mesmo assim, você poderá reabrir por esta página depois.'
+            : 'Para responder, abra o link que você recebeu ao relatar: por aqui dá só para acompanhar.'}
         </p>
       )}
 
@@ -195,8 +201,9 @@ export function ConversationPanel({
 
       {relato.CanReply && (
         // Colar em qualquer lugar da resposta anexa — a pessoa cola com o foco onde
-        // estiver. Texto colado continua sendo texto.
-        <div onPaste={media ? draft.colar : undefined}>
+        // estiver. Texto colado continua sendo texto. Durante o envio a lista está
+        // travada: o que entrasse agora não subiria.
+        <div onPaste={media && !enviando ? draft.colar : undefined}>
           <label htmlFor="resposta" className="mb-1.5 block text-detail text-fg">
             A sua resposta
           </label>
@@ -218,6 +225,7 @@ export function ConversationPanel({
                 recusa={draft.recusa}
                 onAdd={(arquivos) => void draft.adicionar(arquivos)}
                 onRemove={draft.remover}
+                disabled={enviando}
               />
             </div>
           )}

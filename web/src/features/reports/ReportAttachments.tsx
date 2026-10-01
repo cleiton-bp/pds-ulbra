@@ -12,8 +12,19 @@ import { formatBytes } from '@/shared/lib/formatBytes'
  * os de uma resposta vao para a conversa, embaixo da fala; os de uma reabertura vao
  * para junto do motivo dela. Ler em cada lugar faria as telas pedirem enderecos
  * assinados em dobro — e vencerem em momentos diferentes.
+ *
+ * @param reaberturas As reaberturas que o dialogo mostra, pelo identificador. **O
+ *   arquivo de uma reabertura que nao esta ali cai em "Arquivos"**, em vez de sumir:
+ *   o detalhe que falhou, ou o dialogo aberto antes de a pessoa reabrir, nao mostram
+ *   a reabertura — e o arquivo iria para um lugar que nao aparece. Nulo enquanto o
+ *   detalhe carrega: ai o arquivo espera, em vez de aparecer num lugar e pular para
+ *   o outro.
  */
-export function useReportAttachments(projectPublicId: string, reportPublicId: string) {
+export function useReportAttachments(
+  projectPublicId: string,
+  reportPublicId: string,
+  reaberturas: ReadonlySet<string> | null = null,
+) {
   const { data, failed, reload, refresh } = useAsyncResource(
     useCallback(
       () => projectReportAttachmentService.listAttachments(projectPublicId, reportPublicId),
@@ -29,7 +40,10 @@ export function useReportAttachments(projectPublicId: string, reportPublicId: st
   for (const anexo of anexos) {
     if (anexo.ReplyPublicId) {
       porFala.set(anexo.ReplyPublicId, [...(porFala.get(anexo.ReplyPublicId) ?? []), anexo])
-    } else if (anexo.ReopenPublicId) {
+    } else if (
+      anexo.ReopenPublicId &&
+      (reaberturas === null || reaberturas.has(anexo.ReopenPublicId))
+    ) {
       porReabertura.set(anexo.ReopenPublicId, [
         ...(porReabertura.get(anexo.ReopenPublicId) ?? []),
         anexo,

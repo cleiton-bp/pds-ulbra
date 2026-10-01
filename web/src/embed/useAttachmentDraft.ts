@@ -8,6 +8,7 @@ import {
   previewUrl,
   rejectReason,
   releasePreview,
+  withRealType,
 } from '@/embed/attachments'
 import {
   type AttachmentEnvio,
@@ -122,7 +123,11 @@ export function useAttachmentDraft(
     const minha = geracao.current
 
     try {
-      for (const file of arquivos) {
+      for (const escolhido of arquivos) {
+        // O tipo que os bytes dizem, e nao o da extensao — ver `withRealType`.
+        const file = await withRealType(escolhido)
+        if (geracao.current !== minha) return
+
         const motivo = rejectReason(file, [...anexosRef.current, ...reservados.current], media)
         if (motivo) {
           setRecusa(motivo)
@@ -156,6 +161,7 @@ export function useAttachmentDraft(
             status: 'waiting',
             progress: 0,
             error: null,
+            uploaded: null,
           },
         ])
       }
@@ -222,7 +228,13 @@ export function useAttachmentDraft(
         (progress) => {
           if (geracao.current === minha) atualizar(anexo.id, { progress })
         },
-        { envio },
+        {
+          envio,
+          // Guardado para "Tentar de novo" so confirmar. Ver `Anexo.uploaded`.
+          onUploaded: (publicId) => {
+            if (geracao.current === minha) atualizar(anexo.id, { uploaded: publicId })
+          },
+        },
       )
       if (geracao.current === minha) atualizar(anexo.id, { status: 'done', progress: 1 })
     } catch (falha) {

@@ -273,6 +273,19 @@ describe('a pagina publica de acompanhamento', () => {
     expect(screen.getByText('Como terminou')).toBeTruthy()
   })
 
+  // A pagina publicada antes da API nova, ou a API desfeita pela migracao: a resposta
+  // chega sem a lista de reaberturas. Quem so queria confirmar ou responder nao pode
+  // ficar com a pagina em branco por isso.
+  it('resposta sem a lista de reaberturas abre a página mesmo assim', async () => {
+    dublê.abrir.mockResolvedValue({ ...relato, Reopenings: undefined })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    expect(await screen.findByText(/O botão de finalizar compra/)).toBeTruthy()
+    expect(screen.queryByText('Você reabriu este relato')).toBeNull()
+  })
+
   it('o relato aberto não mostra encerramento nenhum', async () => {
     dublê.abrir.mockResolvedValue({
       ...relato,
@@ -403,6 +416,30 @@ describe('a resposta de quem relatou', () => {
         expect.objectContaining({ Satisfaction: 4, SatisfactionDeclined: false }),
       ),
     )
+  })
+
+  // A API devolve o fechamento ja confirmado, e ele continua sendo o da tela. A
+  // escala ficaria embaixo, pedindo uma nota que a API ja recusa — e o segundo
+  // clique voltaria com erro.
+  it('confirmado com nota, a escala sai e fica o que ela respondeu', async () => {
+    encerrado()
+    dublê.confirmar.mockResolvedValue({
+      ...relato,
+      Closure: fechamento({
+        ConfirmedAt: '2026-09-21T09:00:00.000Z',
+        Satisfaction: 4,
+        Actions: { ...fechamento().Actions, CanConfirm: false, CanReopen: false },
+      }),
+    })
+    render(<TrackingPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sim, resolveu' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Nota 4' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    expect(await screen.findByText(/Sua nota: 4 de 5/)).toBeTruthy()
+    expect(screen.queryByText('Como foi o atendimento do seu relato?')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Enviar' })).toBeNull()
   })
 
   it('recusar apaga a nota escolhida, e não vira nota zero', async () => {
@@ -685,6 +722,28 @@ describe('a conversa sobre o relato', () => {
     )
   })
 
+  // Pelo codigo pessoal a pagina so mostra: responder pede o link de quando a pessoa
+  // relatou. Prometer reabrir "por esta pagina" seria prometer o que ali nao ha.
+  it('pelo código pessoal, o pedido diz como responder, e não promete reabrir por aqui', async () => {
+    dublê.abrirPorCodigo.mockResolvedValue({
+      ...relato,
+      Conversation: [fala('m-1', false, 'Em qual navegador?')],
+      InfoRequest: {
+        AskedAt: '2026-09-18T12:00:00.000Z',
+        CloseAt: '2026-10-02T12:00:00.000Z',
+        IsWarning: false,
+      },
+      CanReply: false,
+    })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV&k=pk_DEMO#p=H7QK-3M2X-P9WD')
+
+    render(<TrackingPage />)
+
+    expect(await screen.findByText(/abra o link que você recebeu ao relatar/)).toBeTruthy()
+    expect(screen.queryByText(/reabrir por esta página/)).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'A sua resposta' })).toBeNull()
+  })
+
   it('sem pergunta aberta, a conversa aparece mas não dá para escrever', async () => {
     dublê.abrir.mockResolvedValue({
       ...relato,
@@ -750,6 +809,9 @@ describe('os arquivos na pagina de acompanhamento', () => {
     render(<TrackingPage />)
 
     await screen.findByText(/O botão de finalizar compra/)
+    // A busca sairia num efeito do relato: a ausencia so prova algo depois que os
+    // efeitos rodaram.
+    await act(async () => {})
     expect(dublê.anexos).not.toHaveBeenCalled()
   })
 })

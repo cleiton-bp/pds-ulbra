@@ -167,7 +167,7 @@ function Relato({
       return
     }
 
-    setReabriuComTexto(novo.Reopenings.at(-1)?.Comment != null)
+    setReabriuComTexto(novo.Reopenings?.at(-1)?.Comment != null)
     setSubindoReabertura(true)
     void reabertura.enviarAnexos(credenciais, 0).then(conferirReabertura)
   }
@@ -178,7 +178,11 @@ function Relato({
   // reabertura nao se apagam hoje, mas um arquivo que desaparece em silencio e o
   // tipo de erro que ninguem percebe.
   const falas = new Set(relato.Conversation.map((fala) => fala.PublicId))
-  const reaberturas = new Set(relato.Reopenings.map((item) => item.PublicId))
+  // Vazia quando a API ainda nao manda a lista: a pagina publicada antes da API nova,
+  // ou a API desfeita pela migracao. Sem isto, a pagina inteira quebraria para quem so
+  // queria confirmar ou responder.
+  const todasAsReaberturas = relato.Reopenings ?? []
+  const reaberturas = new Set(todasAsReaberturas.map((item) => item.PublicId))
   const daCriacao: PublicAttachmentViewModel[] = []
   const porFala = new Map<string, PublicAttachmentViewModel[]>()
   const porReabertura = new Map<string, PublicAttachmentViewModel[]>()
@@ -245,7 +249,7 @@ function Relato({
       {/* Antes do encerramento de propósito: as reaberturas já aconteceram, e o
           fechamento que está valendo, quando há um, é o fim mais recente. */}
       <ReopenPanel
-        reaberturas={relato.Reopenings}
+        reaberturas={todasAsReaberturas}
         anexosPorReabertura={porReabertura}
         aoExpirar={midia.recarregar}
         progresso={

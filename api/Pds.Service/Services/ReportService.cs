@@ -97,7 +97,8 @@ public class ReportService : IReportService
     /// decide: a observacao de <c>by-code/open</c> no controlador, a de
     /// <see cref="IReportService.OpenByReporterCodeAsync"/>, o resumo de
     /// <c>OpenByReporterCodeDto</c>, o campo <c>TrackingCodeCanAct</c> em
-    /// <c>CycleSettingsDto</c> e <c>CycleSettingsViewModel</c>, as paginas
+    /// <c>CycleSettingsDto</c>, <c>CycleSettingsViewModel</c> e
+    /// <c>ProjectCycleSettings</c>, o contrato <c>cycleSettings.ts</c> da web, as paginas
     /// <c>rotas-publicas</c>, <c>codigo-e-moderacao</c>, <c>pedido-e-espera</c>,
     /// <c>configuracoes</c> e <c>o-que-entra</c> da documentacao, e os comentarios
     /// da pagina de acompanhamento (<c>report.ts</c>, <c>reportService.ts</c>,

@@ -67,6 +67,42 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// O anexo <b>ja confirmado</b> daquele relato, com esse identificador.
+    ///
+    /// <para><b>Existe para a confirmacao repetida responder o que ja aconteceu.</b>
+    /// A resposta da primeira pode se perder no caminho — a rede de quem relata, a do
+    /// banco —, e a pessoa tenta de novo um arquivo que ja entrou. Pelo mesmo motivo
+    /// de <see cref="FindPendingWithoutSessionAsync"/>, o relato entra na consulta.
+    /// Le de novo, sem o que o contexto guardou na memoria.</para>
+    /// </summary>
+    Task<ReportAttachment?> FindConfirmedWithoutSessionAsync(
+        Guid publicId,
+        long reportId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Algum arquivo deste envio andou desde <paramref name="since"/>: teve a
+    /// permissao pedida, ou terminou — confirmado ou descartado.
+    ///
+    /// <para><b>E o que diz que o envio ainda esta acontecendo.</b> Os arquivos sobem
+    /// um de cada vez, e cada um pede a permissao quando o anterior termina: numa
+    /// conexao lenta, o ultimo pede muito depois do texto, mas logo depois de o
+    /// penultimo terminar. <b>Terminar conta, e nao so pedir</b>: um arquivo grande
+    /// pode levar mais que o prazo inteiro subindo, e o pedido dele ficaria velho
+    /// antes de o proximo chegar. O descartado conta: foi o envio andando, e o
+    /// proximo arquivo nao tem culpa da recusa dele.</para>
+    ///
+    /// <para>O envio e o de <see cref="CountConfirmedWithoutSessionAsync"/>: as duas
+    /// colunas nulas sao a criacao.</para>
+    /// </summary>
+    Task<bool> HasActivitySinceWithoutSessionAsync(
+        long reportId,
+        long? publicCommentId,
+        long? reopenedClosureId,
+        DateTime since,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Os anexos confirmados de um relato, <b>com sessao</b>, na ordem em que
     /// entraram. O filtro global limita a conta do painel — relato de outra conta
     /// nao traz nada.

@@ -222,13 +222,21 @@ export function ClosurePanel({
               size="sm"
               disabled={enviando || (acoes.SatisfactionRequired && nota === null && !recusou)}
               onClick={() =>
-                void enviar(() =>
-                  reportService.confirmReport({
-                    TrackingCode: protocolo,
-                    Token: token,
-                    Satisfaction: nota,
-                    SatisfactionDeclined: recusou,
-                  }),
+                void enviar(
+                  () =>
+                    reportService.confirmReport({
+                      TrackingCode: protocolo,
+                      Token: token,
+                      Satisfaction: nota,
+                      SatisfactionDeclined: recusou,
+                    }),
+                  // Confirmado, o fechamento continua na tela — agora dizendo o que ela
+                  // respondeu. A escala ficaria embaixo, pedindo uma nota que a API
+                  // já recusa.
+                  (novo) => {
+                    aoResponder(novo)
+                    setModo('parado')
+                  },
                 )
               }
             >
@@ -246,7 +254,8 @@ export function ClosurePanel({
         // colado continua sendo texto.
         <div
           className="mt-5 border-border border-t pt-4"
-          onPaste={anexar ? anexar.rascunho.colar : undefined}
+          // Durante o envio a lista está travada: o que entrasse agora não subiria.
+          onPaste={anexar && !enviando ? anexar.rascunho.colar : undefined}
         >
           <label htmlFor="motivo-da-reabertura" className="mb-1.5 block text-detail text-fg">
             O que ainda está acontecendo?
@@ -278,6 +287,7 @@ export function ClosurePanel({
                 recusa={anexar.rascunho.recusa}
                 onAdd={(arquivos) => void anexar.rascunho.adicionar(arquivos)}
                 onRemove={anexar.rascunho.remover}
+                disabled={enviando}
               />
             </div>
           )}
