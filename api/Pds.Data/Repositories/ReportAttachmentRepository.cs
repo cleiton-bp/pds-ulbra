@@ -111,7 +111,12 @@ public class ReportAttachmentRepository
             .Include(attachment => attachment.ReopenedClosure)
             .Where(attachment => attachment.ReportId == reportId
                                  && attachment.Status == AttachmentStatusEnum.Confirmed)
-            .OrderBy(attachment => attachment.CreatedAt)
+            // A ordem da montagem, e nao a da chegada: o arquivo tentado de novo chega
+            // depois dos outros. Ver DisplayOrder. A posicao vale dentro de um envio, e
+            // a tela separa os envios; a hora desempata, e desempata os de antes da
+            // coluna, que ficaram todos em zero.
+            .OrderBy(attachment => attachment.DisplayOrder)
+            .ThenBy(attachment => attachment.CreatedAt)
             .ThenBy(attachment => attachment.Id)
             .ToListAsync(cancellationToken);
 
@@ -121,7 +126,9 @@ public class ReportAttachmentRepository
         => Confirmados(reportId)
             .Include(attachment => attachment.PublicComment)
             .Include(attachment => attachment.ReopenedClosure)
-            .OrderBy(attachment => attachment.CreatedAt)
+            // A mesma ordem do painel: ver ListConfirmedAsync.
+            .OrderBy(attachment => attachment.DisplayOrder)
+            .ThenBy(attachment => attachment.CreatedAt)
             .ThenBy(attachment => attachment.Id)
             .ToListAsync(cancellationToken);
 

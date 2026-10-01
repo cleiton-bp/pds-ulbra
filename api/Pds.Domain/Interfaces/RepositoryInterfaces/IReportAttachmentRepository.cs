@@ -103,13 +103,16 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Os anexos confirmados de um relato, <b>com sessao</b>, na ordem em que
-    /// entraram. O filtro global limita a conta do painel — relato de outra conta
-    /// nao traz nada.
+    /// Os anexos confirmados de um relato, <b>com sessao</b>, na ordem em que a pessoa
+    /// os montou em cada envio (<c>DisplayOrder</c>), e pela hora de chegada no empate.
+    /// O filtro global limita a conta do painel — relato de outra conta nao traz nada.
     /// </summary>
     Task<List<ReportAttachment>> ListConfirmedAsync(long reportId, CancellationToken cancellationToken = default);
 
-    /// <summary>Os anexos confirmados de um relato, sem sessao, na ordem em que entraram.</summary>
+    /// <summary>
+    /// Os anexos confirmados de um relato, sem sessao, na mesma ordem de
+    /// <see cref="ListConfirmedAsync"/>.
+    /// </summary>
     Task<List<ReportAttachment>> ListConfirmedWithoutSessionAsync(
         long reportId,
         CancellationToken cancellationToken = default);

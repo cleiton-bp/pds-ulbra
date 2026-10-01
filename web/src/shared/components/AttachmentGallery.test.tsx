@@ -8,9 +8,16 @@ import { AttachmentGallery, type GalleryItem } from '@/shared/components/Attachm
 /**
  * O QUE ESTES TESTES TRAVAM.
  *
- * **O arquivo inteiro so carrega quando alguem abre.** A grade usa a miniatura; o
- * endereco do arquivo so entra na pagina depois do clique. Se ele entrasse antes,
- * uma lista de prints baixaria megabytes para desenhar 64 pixels.
+ * **A imagem aparece inteira, no tamanho que quem relatou escolheu**, logo abaixo do
+ * texto — o arquivo, e nao a miniatura de 320 pixels, que ficaria borrada na linha
+ * inteira. Tamanho que a tela nao conhece ocupa a linha inteira. Um clique abre em
+ * tamanho real, em outra aba. **O video antigo continua como era**: miniatura na
+ * grade, e o player so no clique, baixando so o cabecalho.
+ *
+ * **A imagem que ja carregou fica no endereco em que carregou.** A renovacao traz
+ * enderecos novos a cada poucos minutos, e trocar o `src` baixaria a imagem inteira de
+ * novo sem mudar nada na tela. O link de abrir usa o da lista; o guardado que falha
+ * passa para o da lista.
  *
  * **Link vencido e tratado, e nunca em laco.** A galeria pede enderecos novos
  * pouco antes do vencimento e quando um arquivo falha. Mas endereco NOVO que tambem
@@ -19,8 +26,8 @@ import { AttachmentGallery, type GalleryItem } from '@/shared/components/Attachm
  * miniatura que o navegador nao decodificava fez a pagina de acompanhamento reler
  * a lista **3.609 vezes em 10 segundos**, medido no navegador.
  *
- * **Renovar nao fecha nada.** O que estava aberto continua aberto, e o video
- * continua no endereco em que comecou.
+ * **Renovar nao fecha nada.** O video aberto continua aberto, no endereco em que
+ * comecou.
  */
 function item(mudanca: Partial<GalleryItem> = {}): GalleryItem {
   return {
@@ -56,7 +63,7 @@ function DonoQueRenova({ aoRenovar }: { aoRenovar: () => void }) {
 /** Passado o tempo em que uma falha so pode ser o arquivo, e nao o vencimento. */
 const ALEM_DE_RECEM_CHEGADO = 6_000
 
-const miniatura = (container: HTMLElement) => container.querySelector('li img') as HTMLImageElement
+const imagem = (container: HTMLElement) => container.querySelector('li img') as HTMLImageElement
 
 afterEach(() => {
   cleanup()
@@ -69,14 +76,82 @@ describe('a galeria', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('a grade usa a miniatura, e o arquivo inteiro so aparece depois do clique', () => {
-    const { container } = render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
+  it('a imagem aparece inteira, no tamanho que quem relatou escolheu, e nao a miniatura', () => {
+    render(
+      <AttachmentGallery
+        label="O que você anexou"
+        items={[
+          item({ id: 'p', displaySize: 'Small' }),
+          item({ id: 'm', displaySize: 'Medium' }),
+          item({ id: 'g', displaySize: 'Large' }),
+          item({ id: 't', displaySize: 'Full' }),
+        ]}
+        onExpired={() => {}}
+      />,
+    )
 
-    expect(container.innerHTML).toContain('miniatura')
-    expect(container.innerHTML).not.toContain('inteiro')
+    const lista = screen.getByRole('list', { name: 'O que você anexou' })
+    const linhas = Array.from(lista.querySelectorAll(':scope > li'))
+    expect(linhas.map((li) => li.className)).toEqual([
+      'col-span-4',
+      'col-span-6',
+      'col-span-9',
+      'col-span-12',
+    ])
+    for (const img of lista.querySelectorAll('img')) {
+      expect(img.getAttribute('src')).toBe('http://armazenamento/inteiro')
+      // So baixa quando chega perto da tela.
+      expect(img.getAttribute('loading')).toBe('lazy')
+    }
+    expect(lista.innerHTML).not.toContain('miniatura')
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: /Imagem/ }))
-    expect(container.innerHTML).toContain('inteiro')
+  // Tres links "Imagem anexada" seguidos nao dizem qual e qual.
+  it('com mais de uma, cada imagem tem um nome proprio para o leitor de tela', () => {
+    render(
+      <AttachmentGallery
+        items={[item({ id: 'a', caption: undefined }), item({ id: 'b', caption: undefined })]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(
+      screen.getAllByRole('link').map((link) => link.textContent || link.querySelector('img')?.alt),
+    ).toEqual(['Imagem 1 de 2', 'Imagem 2 de 2'])
+  })
+
+  it('sem tamanho, ou com um que a tela nao conhece, a imagem ocupa a linha inteira', () => {
+    const { container } = render(
+      <AttachmentGallery
+        items={[
+          item({ id: 'sem', displaySize: undefined }),
+          item({ id: 'novo', displaySize: 'Enorme' as never }),
+          item({ id: 'proto', displaySize: 'constructor' as never }),
+        ]}
+        onExpired={() => {}}
+      />,
+    )
+
+    const linhas = Array.from(container.querySelectorAll('ul > li'))
+    expect(linhas.map((li) => li.className)).toEqual(['col-span-12', 'col-span-12', 'col-span-12'])
+  })
+
+  it('um clique abre a imagem em tamanho real, em outra aba, sem alcancar esta pagina', () => {
+    render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
+
+    const link = screen.getByRole('link', { name: /Imagem anexada/ })
+    expect(link.getAttribute('href')).toBe('http://armazenamento/inteiro')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noreferrer')
+  })
+
+  it('o painel mostra o nome e o tamanho embaixo da imagem', () => {
+    render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
+
+    const legenda = screen.getByText('erro.png · 120 KB')
+    expect(legenda.tagName).toBe('FIGCAPTION')
+    // Cortada na imagem pequena; inteira ao passar o mouse.
+    expect(legenda.getAttribute('title')).toBe('erro.png · 120 KB')
   })
 
   it('video abre num player, e so baixa o cabecalho ate alguem apertar play', () => {
@@ -93,7 +168,7 @@ describe('a galeria', () => {
 })
 
 describe('o endereco que vence', () => {
-  it('miniatura que falha pede endereco novo — e so uma vez, enquanto ele nao chega', () => {
+  it('imagem que falha pede endereco novo — e so uma vez, enquanto ele nao chega', () => {
     vi.useFakeTimers()
     const renovar = vi.fn()
     const { container, rerender } = render(
@@ -101,10 +176,10 @@ describe('o endereco que vence', () => {
     )
     act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
 
-    fireEvent.error(miniatura(container))
+    fireEvent.error(imagem(container))
     // O dono desenha de novo com o mesmo endereco, antes de a resposta chegar.
     rerender(<AttachmentGallery items={[item()]} onExpired={renovar} />)
-    fireEvent.error(miniatura(container))
+    fireEvent.error(imagem(container))
 
     expect(renovar).toHaveBeenCalledOnce()
   })
@@ -115,22 +190,22 @@ describe('o endereco que vence', () => {
 
     // Falhou logo que a lista chegou: renovar so traria o mesmo arquivo — e, no
     // mesmo segundo, ate o mesmo endereco.
-    fireEvent.error(miniatura(container))
+    fireEvent.error(imagem(container))
 
     expect(renovacoes).not.toHaveBeenCalled()
     expect(container.textContent).toContain('não carregou')
   })
 
-  it('o laco medido: miniatura que nunca decodifica, com endereco novo a cada renovacao', () => {
+  it('o laco medido: imagem que nunca decodifica, com endereco novo a cada renovacao', () => {
     vi.useFakeTimers()
     const renovacoes = vi.fn()
     const { container } = render(<DonoQueRenova aoRenovar={renovacoes} />)
     act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
 
-    // Cada endereco novo falha tambem — como uma miniatura com bytes que o
-    // navegador nao decodifica.
+    // Cada endereco novo falha tambem — como uma imagem com bytes que o navegador
+    // nao decodifica.
     for (let i = 0; i < 50; i++) {
-      const img = miniatura(container)
+      const img = imagem(container)
       if (!img) break
       fireEvent.error(img)
     }
@@ -145,17 +220,17 @@ describe('o endereco que vence', () => {
     const { container } = render(<DonoQueRenova aoRenovar={renovacoes} />)
     act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
 
-    fireEvent.error(miniatura(container))
-    fireEvent.load(miniatura(container))
+    fireEvent.error(imagem(container))
+    fireEvent.load(imagem(container))
     // Relogio atrasado: o endereco novo tambem vence antes da hora marcada.
     act(() => vi.advanceTimersByTime(31_000))
-    fireEvent.error(miniatura(container))
+    fireEvent.error(imagem(container))
 
     expect(renovacoes).toHaveBeenCalledTimes(2)
     expect(container.textContent).not.toContain('não carregou')
   })
 
-  it('varias miniaturas vencendo juntas viram um pedido so', () => {
+  it('varias imagens vencendo juntas viram um pedido so', () => {
     vi.useFakeTimers()
     const renovar = vi.fn()
     const { container } = render(
@@ -200,9 +275,7 @@ describe('o endereco que vence', () => {
       const [v, setV] = useState(1)
       return (
         <AttachmentGallery
-          items={[
-            item({ expiresAt: vencido, thumbnailUrl: `http://armazenamento/miniatura?v=${v}` }),
-          ]}
+          items={[item({ expiresAt: vencido, url: `http://armazenamento/inteiro?v=${v}` })]}
           onExpired={() => {
             renovacoes()
             setV((n) => n + 1)
@@ -239,12 +312,12 @@ describe('o endereco que vence', () => {
   })
 })
 
-describe('renovar nao fecha o que esta aberto', () => {
-  it('a imagem aberta continua aberta quando os enderecos mudam', () => {
+describe('a imagem que ja carregou nao baixa de novo a cada renovacao', () => {
+  it('fica no endereco em que carregou; o link de abrir usa o da lista', () => {
     const { container, rerender } = render(
       <AttachmentGallery items={[item()]} onExpired={() => {}} />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /Imagem/ }))
+    fireEvent.load(imagem(container))
 
     rerender(
       <AttachmentGallery
@@ -253,10 +326,63 @@ describe('renovar nao fecha o que esta aberto', () => {
       />,
     )
 
-    expect(screen.getByRole('button', { name: /Imagem/ }).getAttribute('aria-pressed')).toBe('true')
-    expect(container.innerHTML).toContain('inteiro?novo')
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/inteiro')
+    expect(screen.getByRole('link').getAttribute('href')).toBe('http://armazenamento/inteiro?novo')
   })
 
+  it('a que ainda nao carregou segue a lista', () => {
+    const { container, rerender } = render(
+      <AttachmentGallery items={[item()]} onExpired={() => {}} />,
+    )
+
+    rerender(
+      <AttachmentGallery
+        items={[item({ url: 'http://armazenamento/inteiro?novo' })]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/inteiro?novo')
+  })
+
+  it('o endereco guardado que falha passa para o da lista, sem pedir nada', () => {
+    vi.useFakeTimers()
+    const renovar = vi.fn()
+    const { container, rerender } = render(
+      <AttachmentGallery items={[item()]} onExpired={renovar} />,
+    )
+    fireEvent.load(imagem(container))
+    rerender(
+      <AttachmentGallery
+        items={[item({ url: 'http://armazenamento/inteiro?novo' })]}
+        onExpired={renovar}
+      />,
+    )
+    act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
+
+    fireEvent.error(imagem(container))
+
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/inteiro?novo')
+    expect(renovar).not.toHaveBeenCalled()
+  })
+
+  // A ordem "falhou, depois renovou": sem soltar o guardado, a imagem ficaria presa no
+  // endereco que falhou, com a lista ja renovada.
+  it('o guardado que falha antes da renovacao pede um novo, e depois segue a lista', () => {
+    vi.useFakeTimers()
+    const renovacoes = vi.fn()
+    const { container } = render(<DonoQueRenova aoRenovar={renovacoes} />)
+    fireEvent.load(imagem(container))
+    act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
+
+    fireEvent.error(imagem(container))
+
+    expect(renovacoes).toHaveBeenCalledOnce()
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/inteiro?v=2')
+  })
+})
+
+describe('renovar nao fecha o video aberto', () => {
   it('o video aberto fica no endereco em que comecou — trocar o src voltaria ao inicio', () => {
     const video = item({ kind: 'Video' })
     const { container, rerender } = render(

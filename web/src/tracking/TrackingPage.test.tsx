@@ -778,6 +778,7 @@ describe('os arquivos na pagina de acompanhamento', () => {
     return {
       PublicId: 'a-1',
       Kind: 'Image',
+      DisplaySize: 'Full',
       Url: 'http://armazenamento/a-1',
       ThumbnailUrl: 'http://armazenamento/a-1-thumb',
       ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -795,6 +796,7 @@ describe('os arquivos na pagina de acompanhamento', () => {
       {
         PublicId: 'a-1',
         Kind: 'Image',
+        DisplaySize: 'Full',
         Url: 'http://armazenamento/a-1',
         ThumbnailUrl: 'http://armazenamento/a-1-thumb',
         ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -808,7 +810,7 @@ describe('os arquivos na pagina de acompanhamento', () => {
 
     render(<TrackingPage />)
 
-    await screen.findByText('O que você anexou')
+    await screen.findByRole('list', { name: 'O que você anexou' })
     expect(dublê.anexos).toHaveBeenCalledWith('7K2M-9QXP-4TRV', 'tok-secreto')
   })
 
@@ -820,7 +822,7 @@ describe('os arquivos na pagina de acompanhamento', () => {
 
     await screen.findByText(/O botão de finalizar compra/)
     await waitFor(() => expect(dublê.anexos).toHaveBeenCalled())
-    expect(screen.queryByText('O que você anexou')).toBeNull()
+    expect(screen.queryByRole('list', { name: 'O que você anexou' })).toBeNull()
   })
 
   it('pelo código pessoal, busca os arquivos pela chave, pelo código e pelo protocolo', async () => {
@@ -830,10 +832,8 @@ describe('os arquivos na pagina de acompanhamento', () => {
 
     render(<TrackingPage />)
 
-    const doRelato = (await screen.findByText('O que você anexou')).parentElement as HTMLElement
-    expect(doRelato.querySelector('img')?.getAttribute('src')).toBe(
-      'http://armazenamento/a-1-thumb',
-    )
+    const doRelato = await screen.findByRole('list', { name: 'O que você anexou' })
+    expect(doRelato.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/a-1')
     expect(dublê.anexosPorCodigo).toHaveBeenCalledWith({
       Key: 'pk_DEMO',
       Code: 'H7QK-3M2X-P9WD',
@@ -866,15 +866,15 @@ describe('os arquivos na pagina de acompanhamento', () => {
       ],
     })
     dublê.anexosPorCodigo.mockResolvedValue([
-      anexo({ PublicId: 'a-criacao', ThumbnailUrl: 'http://armazenamento/criacao-thumb' }),
+      anexo({ PublicId: 'a-criacao', Url: 'http://armazenamento/criacao' }),
       anexo({
         PublicId: 'a-resposta',
-        ThumbnailUrl: 'http://armazenamento/resposta-thumb',
+        Url: 'http://armazenamento/resposta',
         ReplyPublicId: 'f-2',
       }),
       anexo({
         PublicId: 'a-reabertura',
-        ThumbnailUrl: 'http://armazenamento/reabertura-thumb',
+        Url: 'http://armazenamento/reabertura',
         ReopenPublicId: 'r-1',
       }),
     ])
@@ -882,18 +882,18 @@ describe('os arquivos na pagina de acompanhamento', () => {
 
     render(<TrackingPage />)
 
-    await screen.findByText('O que você anexou ao reabrir')
+    await screen.findByRole('list', { name: 'O que você anexou ao reabrir' })
     const imagens = (onde: Element | null) =>
       Array.from(onde?.querySelectorAll('img') ?? []).map((img) => img.getAttribute('src'))
 
-    expect(imagens(screen.getByText('O que você anexou').parentElement)).toEqual([
-      'http://armazenamento/criacao-thumb',
+    expect(imagens(screen.getByRole('list', { name: 'O que você anexou' }))).toEqual([
+      'http://armazenamento/criacao',
     ])
     expect(imagens(screen.getByText('Segue a tela.').closest('li'))).toEqual([
-      'http://armazenamento/resposta-thumb',
+      'http://armazenamento/resposta',
     ])
     expect(imagens(screen.getByText('Voltou a travar.').closest('li'))).toEqual([
-      'http://armazenamento/reabertura-thumb',
+      'http://armazenamento/reabertura',
     ])
 
     // A busca do que da para anexar sairia num efeito: a ausencia so prova algo

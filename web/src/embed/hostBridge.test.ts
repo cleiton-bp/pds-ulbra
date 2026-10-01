@@ -114,6 +114,7 @@ describe('a ponte com a pagina hospedeira', () => {
     // Pedir tamanho antes do `init` nao pode virar um `postMessage(msg, '*')`.
     ligacao.expand()
     ligacao.collapse()
+    ligacao.enlarge()
 
     expect(enviados).toEqual([])
     ligacao.stop()
@@ -126,8 +127,10 @@ describe('a ponte com a pagina hospedeira', () => {
 
     ligacao.expand()
     ligacao.collapse()
+    ligacao.enlarge()
 
     expect(enviados.map((envio) => envio.alvo)).toEqual([
+      'https://loja.exemplo.com',
       'https://loja.exemplo.com',
       'https://loja.exemplo.com',
       'https://loja.exemplo.com',
@@ -135,21 +138,10 @@ describe('a ponte com a pagina hospedeira', () => {
     expect(enviados.some((envio) => envio.alvo === '*')).toBe(false)
     expect(enviados[1]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.expanded })
     expect(enviados[2]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.collapsed })
+    // O editor da imagem: pedido, e a pagina limita a janela de quem visita.
+    expect(enviados[3]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.editor })
     ligacao.stop()
   })
-
-  it('o recorte pede o quadro grande, pela mesma origem guardada', () => {
-    fingirPagina()
-    const ligacao = connectToHost(vi.fn())
-    chega(init, 'https://loja.exemplo.com')
-
-    ligacao.enlarge()
-
-    expect(enviados[1]?.alvo).toBe('https://loja.exemplo.com')
-    expect(enviados[1]?.mensagem).toMatchObject({ type: 'resize', ...FRAME_SIZE.capture })
-    ligacao.stop()
-  })
-
   it('recusa init sem chave: sem ela o quadro nao tem para onde mandar o relato', () => {
     fingirPagina()
     const visto = vi.fn()
@@ -245,6 +237,160 @@ describe('a ponte com a pagina hospedeira', () => {
 
     // So o ack. Nenhum pedido de tamanho, entao a pagina nao revela nada.
     expect(enviados.map((enviado) => (enviado.mensagem as { type: string }).type)).toEqual(['ack'])
+    ligacao.stop()
+  })
+})
+
+/**
+ * A CAPTURA, PEDIDA A PAGINA.
+ *
+ * **So o que o carregador declara.** Um carregador antigo, guardado no navegador de
+ * quem visita, nao sabe capturar: o quadro que oferecesse o botao pediria uma
+ * captura que ninguem atende.
+ *
+ * **A resposta passa pelas mesmas conferencias do `init`, e mais uma: o pedido.**
+ * O arquivo que chega vira anexo do relato — outra janela, outra origem ou uma
+ * resposta velha nao podem por uma imagem no lugar da que a pessoa marcou.
+ */
+describe('a captura pela pagina', () => {
+  const comCaptura = { ...init, capabilities: ['capture'] }
+  const print = () => new File([new Uint8Array(10)], 'captura.webp', { type: 'image/webp' })
+
+  /** Pede a captura e devolve a promessa e o identificador do pedido. */
+  function pedir(ligacao: ReturnType<typeof connectToHost>) {
+    const resultado = ligacao.capture(5 * 1024 * 1024)
+    const pedido = enviados.at(-1)?.mensagem as { id: string }
+    return { resultado, id: pedido.id }
+  }
+
+  const resposta = (id: string, extra: Record<string, unknown>) => ({
+    source: MESSAGE_SOURCE,
+    type: 'capture-done',
+    id,
+    file: null,
+    ...extra,
+  })
+
+  it('so oferece capturar quando o carregador declara que sabe', () => {
+    fingirPagina()
+    const antigo = connectToHost(vi.fn())
+    chega(init, 'https://loja.exemplo.com')
+    expect(antigo.canCapture).toBe(false)
+    antigo.stop()
+
+    const novo = connectToHost(vi.fn())
+    chega(comCaptura, 'https://loja.exemplo.com')
+    expect(novo.canCapture).toBe(true)
+    novo.stop()
+  })
+
+  it('pede a captura para a origem guardada, com o teto de imagem', () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(comCaptura, 'https://loja.exemplo.com')
+
+    pedir(ligacao)
+
+    expect(enviados[1]?.alvo).toBe('https://loja.exemplo.com')
+    expect(enviados[1]?.mensagem).toMatchObject({
+      source: MESSAGE_SOURCE,
+      type: 'capture',
+      maxBytes: 5 * 1024 * 1024,
+    })
+    ligacao.stop()
+  })
+
+  it('o arquivo que volta resolve o pedido', async () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(comCaptura, 'https://loja.exemplo.com')
+    const { resultado, id } = pedir(ligacao)
+    const arquivo = print()
+
+    chega(resposta(id, { outcome: 'file', file: arquivo }), 'https://loja.exemplo.com')
+
+    await expect(resultado).resolves.toEqual({ outcome: 'file', file: arquivo })
+    ligacao.stop()
+  })
+
+  it('desistir e falhar voltam como tais', async () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(comCaptura, 'https://loja.exemplo.com')
+
+    const primeiro = pedir(ligacao)
+    chega(resposta(primeiro.id, { outcome: 'cancel' }), 'https://loja.exemplo.com')
+    await expect(primeiro.resultado).resolves.toEqual({ outcome: 'cancel' })
+
+    const segundo = pedir(ligacao)
+    chega(resposta(segundo.id, { outcome: 'failed' }), 'https://loja.exemplo.com')
+    await expect(segundo.resultado).resolves.toEqual({ outcome: 'failed' })
+
+    const terceiro = pedir(ligacao)
+    chega(resposta(terceiro.id, { outcome: 'unavailable' }), 'https://loja.exemplo.com')
+    await expect(terceiro.resultado).resolves.toEqual({ outcome: 'unavailable' })
+    ligacao.stop()
+  })
+
+  it('ignora resposta de outra janela, de outra origem, ou de outro pedido', async () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(comCaptura, 'https://loja.exemplo.com')
+    const { resultado, id } = pedir(ligacao)
+    const falso = print()
+
+    chega(resposta(id, { outcome: 'file', file: falso }), 'https://loja.exemplo.com', {
+      postMessage: () => {},
+    })
+    chega(resposta(id, { outcome: 'file', file: falso }), 'https://outro.exemplo.com')
+    chega(resposta('outro-pedido', { outcome: 'file', file: falso }), 'https://loja.exemplo.com')
+    chega(
+      { ...resposta(id, { outcome: 'file', file: falso }), source: 'outro' },
+      'https://loja.exemplo.com',
+    )
+
+    const verdadeiro = print()
+    chega(resposta(id, { outcome: 'file', file: verdadeiro }), 'https://loja.exemplo.com')
+
+    const final = await resultado
+    expect(final.outcome === 'file' && final.file).toBe(verdadeiro)
+    ligacao.stop()
+  })
+
+  // "Arquivo" que nao e arquivo nao vira anexo: a resposta e tratada como falha.
+  it('resposta de arquivo sem arquivo vira falha', async () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(comCaptura, 'https://loja.exemplo.com')
+    const { resultado, id } = pedir(ligacao)
+
+    chega(
+      resposta(id, { outcome: 'file', file: 'data:image/png;base64,AAAA' }),
+      'https://loja.exemplo.com',
+    )
+
+    await expect(resultado).resolves.toEqual({ outcome: 'failed' })
+    ligacao.stop()
+  })
+
+  it('antes do init nao ha para quem pedir: falha, sem mandar nada', async () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+
+    await expect(ligacao.capture(null)).resolves.toEqual({ outcome: 'failed' })
+    expect(enviados).toEqual([])
+    ligacao.stop()
+  })
+
+  it('um pedido novo da o anterior por desistido', async () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+    chega(comCaptura, 'https://loja.exemplo.com')
+
+    const primeiro = pedir(ligacao)
+    pedir(ligacao)
+
+    await expect(primeiro.resultado).resolves.toEqual({ outcome: 'cancel' })
     ligacao.stop()
   })
 })

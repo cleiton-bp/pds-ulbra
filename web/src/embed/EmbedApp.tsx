@@ -8,17 +8,16 @@ import {
   type WidgetSettingsViewModel,
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { AttachmentEditor } from '@/embed/AttachmentEditor'
 import { ATTACH_BUTTON_CLASS, AttachmentPicker, AttachmentProgress } from '@/embed/AttachmentPicker'
 import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import { hasRoom } from '@/embed/attachments'
-import { CaptureCropper } from '@/embed/CaptureCropper'
 import type { EmbedConfig } from '@/embed/config'
 import type { HostConnection } from '@/embed/hostBridge'
 import { MyReports } from '@/embed/MyReports'
 import { PublicList } from '@/embed/PublicList'
 import { buildReportContext } from '@/embed/reportContext'
 import { readReporterCode, writeReporterCode } from '@/embed/reporterCodeStore'
-import { canCaptureScreen, captureFrame, isBlockedByPage } from '@/embed/screenCapture'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 
 import { Button } from '@/shared/components/Button'
@@ -123,28 +122,44 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
   /**
    * O texto ja foi, ou esta indo: a lista de arquivos nao muda mais. **Em ref, alem
-   * do estado**, para a captura que volta depois de a pessoa escolher a tela saber
+   * do estado**, para a captura que volta depois de a pessoa marcar a area saber
    * disso — o estado que ela leu e o do clique.
    */
   const travado = useRef(false)
   travado.current = sending || created !== null
 
+  /** A pagina esta capturando: o quadro esta escondido, esperando a pessoa marcar. */
+  const [capturando, setCapturando] = useState(false)
+
   /**
-   * A captura pedida. **Some de vez quando a pagina proibe**: a proibicao do site do
-   * cliente e permanente, e deixar o botao falharia em todo clique.
+   * A pagina disse que nao deixa capturar — proibe o nosso script ou a nossa camada.
+   * **O botao some de vez**: a proibicao do site do cliente nao muda no proximo
+   * clique, e deixa-lo faria a pessoa ouvir a mesma recusa toda vez.
    */
-  const [capturaBloqueada, setCapturaBloqueada] = useState(false)
+  const [capturaIndisponivel, setCapturaIndisponivel] = useState(false)
 
-  /** A tela capturada, esperando a pessoa escolher o pedaco. */
-  const [recorte, setRecorte] = useState<HTMLCanvasElement | null>(null)
+  /** O botao de capturar, para o foco voltar a ele quando a captura termina. */
+  const botaoCaptura = useRef<HTMLButtonElement>(null)
 
-  // O navegador nao muda de ideia no meio da pagina: pergunta-se uma vez.
-  const captureSupported = useMemo(() => canCaptureScreen(), [])
-
-  // A captura vira imagem, e so aparece onde imagem e aceita.
+  // A captura vira imagem, e so aparece onde imagem e aceita — e onde ha uma pagina
+  // que sabe capturar. Aberto direto, como no relato de teste do painel, nao ha.
   const tipoImagem = media?.Kinds.find((kind) => kind.Kind === 'Image') ?? null
   const podeCapturar =
-    !!media?.AllowsScreenCapture && !capturaBloqueada && tipoImagem !== null && captureSupported
+    !!media?.AllowsScreenCapture &&
+    tipoImagem !== null &&
+    host?.canCapture === true &&
+    !capturaIndisponivel
+
+  // O foco volta ao botao quando a captura termina: quem usa teclado continua de
+  // onde estava. Desligado durante a captura, ele tinha perdido o foco. **Menos quando
+  // a captura abriu no editor**: o foco e dele, e o botao esta atras — com o foco ali,
+  // um Enter pediria outra captura. O editor o devolve ao fechar.
+  const editando = draft.edicao !== null
+  const capturouAntes = useRef(false)
+  useEffect(() => {
+    if (capturouAntes.current && !capturando && !editando) botaoCaptura.current?.focus()
+    capturouAntes.current = capturando
+  }, [capturando, editando])
 
   // O tema fixado pelo cliente vale sempre; `Auto` acompanha o sistema de quem
   // visita, inclusive se ele mudar com o quadro ja aberto.
@@ -160,45 +175,50 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   const trimmed = text.trim()
 
   /**
-   * O navegador recusou. **So a recusa da pagina muda algo**: a pessoa fechando o
-   * seletor e desistencia, e nao merece mensagem.
+   * Pede a pagina que capture uma area. **Quem captura e a pagina**: o quadro some,
+   * a pessoa marca o que quer mostrar, e a imagem volta **direto para o editor** — e
+   * dele para a lista, como se tivesse sido escolhida, pelas mesmas conferencias.
+   * A captura nao esconde nada sozinha: e no editor que a pessoa cobre o que nao quer
+   * mostrar.
+   *
+   * **Desistir nao e erro**, e nao merece mensagem. Falhar e a pagina que nao deixou
+   * redesenhar: a recusa diz para anexar uma imagem no lugar, e o botao fica — a
+   * proxima area pode dar certo.
    */
-  function falhouCaptura(falha: unknown) {
-    if (!isBlockedByPage(falha)) return
-
-    setCapturaBloqueada(true)
-    setRecusa('Este site não permite capturar a tela. Anexe uma imagem no lugar.')
-  }
-
-  /** Congela a tela e abre o recorte num quadro maior. Chamado direto do clique. */
   async function capturar() {
-    setRecusa(null)
+    // Com uma imagem no editor, outra captura tomaria o lugar dela sem aviso.
+    if (!host || draft.edicao) return
 
-    // O navegador pergunta qual tela mostrar, e isso leva o tempo da pessoa. Fechado
-    // o quadro nesse meio, a captura chegaria num formulario que ja e outro.
+    setRecusa(null)
+    setCapturando(true)
+
+    // Marcar leva o tempo da pessoa. Reiniciado o quadro nesse meio, a captura
+    // chegaria num formulario que ja e outro; enviado o relato, ele ja saiu com a
+    // lista que tinha.
     const minha = generation.current
 
     try {
-      const canvas = await captureFrame()
-      // Enviado nesse meio, o relato ja saiu com a lista que tinha: o print nao iria.
+      const resultado = await host.capture(tipoImagem?.MaxBytes ?? null)
       if (generation.current !== minha || travado.current) return
-      host?.enlarge()
-      setRecorte(canvas)
-    } catch (falha) {
-      falhouCaptura(falha)
-    }
-  }
 
-  function fecharRecorte() {
-    setRecorte(null)
-    host?.expand()
+      if (resultado.outcome === 'file') draft.editarCaptura(resultado.file)
+      else if (resultado.outcome === 'failed')
+        setRecusa('Não deu para capturar esta página. Anexe uma imagem no lugar.')
+      else if (resultado.outcome === 'unavailable') {
+        setCapturaIndisponivel(true)
+        setRecusa('Este site não deixa capturar a página. Anexe uma imagem no lugar.')
+      }
+    } finally {
+      setCapturando(false)
+    }
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     // Arquivo ainda entrando na lista nao subiria: o envio leva a lista como ela
     // esta. Ver `preparando` em useAttachmentDraft.
-    if (!trimmed || sending || draft.preparando) return
+    // Nem com o editor aberto: a imagem que esta nele ainda nao e a que vai.
+    if (!trimmed || sending || draft.preparando || draft.edicao) return
 
     setSending(true)
     setError(null)
@@ -291,8 +311,6 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     setSigns(false)
 
     draft.limpar()
-
-    setRecorte(null)
   }
 
   function expand() {
@@ -330,26 +348,6 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   // **Antes do formulario e depois de `created`**: quem acabou de relatar ve a
   // confirmacao, e nao a lista — o codigo dela aparece la, e e o momento de
   // guarda-lo.
-  // O recorte ocupa o quadro inteiro, e o quadro cresceu para ele. O texto que a
-  // pessoa escreveu continua guardado no estado — volta intacto quando ela sair.
-  if (recorte) {
-    return (
-      <div style={style} className="h-full">
-        <CaptureCropper
-          canvas={recorte}
-          maxBytes={tipoImagem?.MaxBytes}
-          onCancel={fecharRecorte}
-          onUse={(file) => {
-            fecharRecorte()
-            // O recorte aberto antes de o relato sair: a lista ja foi, e o print nao
-            // iria junto — entraria na tela de confirmacao como "na fila" para sempre.
-            if (travado.current) return
-            void adicionar([file])
-          }}
-        />
-      </div>
-    )
-  }
 
   if (view === 'public') {
     return (
@@ -572,7 +570,12 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           // `min-h-28` e empurra o botao para fora de um documento que nao
           // rola. Em janela de 320px o carregador entrega 280px de quadro, e o
           // "Enviar" ficava inalcancavel com o relato ja escrito.
-          'min-h-0 flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
+          //
+          // **Com imagem na lista, o piso volta.** As imagens ficam logo abaixo do
+          // texto, e passam da altura do quadro: sem piso, o texto encolheria ate
+          // sumir. Com ele, o formulario rola, e o "Enviar" continua alcancavel.
+          anexos.length > 0 ? 'min-h-24' : 'min-h-0',
+          'flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
           'text-body text-fg leading-normal placeholder:text-fg-placeholder',
           error ? 'border-error-border' : 'border-border',
         )}
@@ -585,15 +588,18 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           recusa={recusa}
           onAdd={(arquivos) => void adicionar(arquivos)}
           onRemove={remover}
+          onEdit={draft.editar}
+          onResize={draft.redimensionar}
           disabled={sending}
           actions={
             podeCapturar && (
               <button
+                ref={botaoCaptura}
                 type="button"
                 onClick={() => void capturar()}
-                // A captura vira imagem: sem vaga para imagem, capturar e recortar
+                // A captura vira imagem: sem vaga para imagem, marcar a area
                 // terminaria numa recusa.
-                disabled={sending || !hasRoom(anexos, media, 'Image')}
+                disabled={sending || capturando || !hasRoom(anexos, media, 'Image')}
                 className={ATTACH_BUTTON_CLASS}
               >
                 Capturar tela
@@ -602,6 +608,15 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           }
         />
       )}
+
+      {/* A imagem aberta no editor. Enquanto ele esta aberto, o quadro pede a pagina o
+          tamanho do editor, e volta ao do formulario quando fecha. */}
+      <AttachmentEditor
+        draft={draft}
+        accent={style}
+        onOpenChange={(aberto) => (aberto ? host?.enlarge() : host?.expand())}
+        focusAfterCapture={() => botaoCaptura.current?.focus()}
+      />
 
       {/*
         **A caixa fica depois do texto, e nao antes.** Antes, ela seria uma

@@ -42,6 +42,50 @@ export interface InitMessage {
    * declarado pela pagina e conferido de novo do lado de ca.
    */
   viewport: { width: number; height: number } | null
+  /**
+   * O que este carregador sabe fazer alem de posicionar o quadro — hoje, capturar
+   * uma area da pagina (`'capture'`).
+   *
+   * **O quadro so oferece o que o carregador declara.** Os dois saem juntos, mas o
+   * navegador de quem visita pode ter guardado um carregador antigo: sem esta
+   * lista, o botao novo pediria uma captura que ninguem do outro lado atende.
+   */
+  capabilities?: string[]
+}
+
+/** O carregador sabe capturar uma area da pagina. Ver `InitMessage.capabilities`. */
+export const CAPTURE_CAPABILITY = 'capture'
+
+/**
+ * Do quadro para a pagina: a pessoa pediu para capturar uma area.
+ *
+ * **Quem captura e a pagina**, e nao o quadro: codigo dentro de um quadro de outra
+ * origem nao alcanca a pagina onde esta. O carregador esconde o quadro, deixa a
+ * pessoa marcar a area, redesenha e devolve o arquivo em `CaptureDoneMessage`.
+ */
+export interface CaptureRequestMessage {
+  source: typeof MESSAGE_SOURCE
+  type: 'capture'
+  /** Quem pediu. A resposta volta com ele, e a que nao bate e ignorada. */
+  id: string
+  /** O teto de imagem do projeto, para o formato caber nele. */
+  maxBytes: number | null
+}
+
+/**
+ * Da pagina para o quadro: como terminou a captura pedida.
+ *
+ * `file` so vem com `outcome: 'file'`. Desistir (`'cancel'`) nao e erro. Falhar
+ * (`'failed'`) e desta vez — a pagina nao deixou redesenhar, ou demorou demais — e
+ * a proxima pode dar certo. **Indisponivel (`'unavailable'`) e para sempre nesta
+ * pagina**: ela proibe o nosso script ou a nossa camada, e o quadro tira o botao.
+ */
+export interface CaptureDoneMessage {
+  source: typeof MESSAGE_SOURCE
+  type: 'capture-done'
+  id: string
+  outcome: 'file' | 'cancel' | 'failed' | 'unavailable'
+  file: File | null
 }
 
 /** Do quadro para a pagina: recebi o `init` e ja posso ser mostrado. */
@@ -77,8 +121,8 @@ export interface ResizeMessage {
   position: WidgetPosition
 }
 
-export type HostMessage = InitMessage
-export type FrameMessage = AckMessage | ResizeMessage
+export type HostMessage = InitMessage | CaptureDoneMessage
+export type FrameMessage = AckMessage | ResizeMessage | CaptureRequestMessage
 
 /** Os tamanhos do quadro. Ficam aqui porque as duas pontas precisam concordar. */
 export const FRAME_SIZE = {
@@ -87,12 +131,11 @@ export const FRAME_SIZE = {
   /** O formulario aberto. */
   expanded: { width: 360, height: 520 },
   /**
-   * O recorte de uma captura de tela. **E pedido, e nao garantido**: o carregador
-   * limita a janela de quem visita, entao numa tela pequena o quadro so cresce ate
-   * onde cabe. 360 por 520 nao e lugar para escolher um pedaco de tela — o print
-   * inteiro caberia do tamanho de um selo.
+   * O editor da imagem. **E pedido, e nao garantido**: o carregador limita a janela de
+   * quem visita, entao numa tela pequena o quadro so cresce ate onde cabe — no
+   * telefone, quase a tela toda. 360 por 520 nao e lugar para marcar um print.
    */
-  capture: { width: 1000, height: 720 },
+  editor: { width: 1200, height: 900 },
 } as const
 
 /**

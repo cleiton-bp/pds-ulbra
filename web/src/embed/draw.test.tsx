@@ -45,6 +45,8 @@ function pagina() {
     expand: vi.fn(),
     collapse: vi.fn(),
     enlarge: vi.fn(),
+    canCapture: false,
+    capture: vi.fn(),
     stop: vi.fn(),
   }
 }

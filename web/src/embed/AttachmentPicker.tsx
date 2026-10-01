@@ -1,8 +1,19 @@
 import { type ReactNode, useRef } from 'react'
-import type { PublicMediaSettingsViewModel } from '@/contracts'
+import {
+  ATTACHMENT_DISPLAY_SIZES,
+  type AttachmentDisplaySize,
+  type PublicMediaSettingsViewModel,
+} from '@/contracts'
 import type { Anexo } from '@/embed/attachments'
 import { acceptAttribute, hasRoom } from '@/embed/attachments'
 import { cn } from '@/shared/lib/cn'
+import {
+  DISPLAY_GRID_CLASS,
+  DISPLAY_IMAGE_CLASS,
+  DISPLAY_SIZE_FRACTION,
+  DISPLAY_SIZE_LABEL,
+  displaySizeClass,
+} from '@/shared/lib/displaySize'
 import { formatBytes } from '@/shared/lib/formatBytes'
 
 /** A classe dos botoes de anexar. Exportada para os botoes extras ficarem iguais. */
@@ -11,8 +22,17 @@ export const ATTACH_BUTTON_CLASS = cn(
   'enabled:hover:bg-surface-sunken disabled:cursor-not-allowed disabled:text-fg-disabled',
 )
 
+/** O botao escolhido, na cor de quem instalou — a mesma do editor. */
+const ESCOLHIDO =
+  'bg-[var(--widget-accent,var(--accent))] text-[var(--widget-ink,var(--accent-fg))]'
+
 /**
- * Escolher arquivos antes de enviar: o botao, as miniaturas e a recusa.
+ * Escolher arquivos antes de enviar: as imagens no relato, os botoes e a recusa.
+ *
+ * **"Adicionar" poe a imagem logo abaixo do texto**, no tamanho escolhido — um terco
+ * da linha, meia, tres quartos ou a linha inteira — e na ordem em que entrou. E o
+ * relato como o time vai ve-lo, e como a pessoa vai reencontra-lo no acompanhamento:
+ * o mesmo desenho, na mesma grade (ver `displaySize`).
  *
  * **Nao sobe nada.** E so a lista local — quem envia e quem monta a tela, depois de
  * o texto existir do lado de la.
@@ -20,6 +40,9 @@ export const ATTACH_BUTTON_CLASS = cn(
  * **Os botoes extras entram por fora** (`actions`), porque capturar existe no
  * quadro e nao na pagina de acompanhamento. O seletor e o mesmo nos dois lugares,
  * e e isso que este componente garante.
+ *
+ * **Toda imagem da lista abre no editor** (`onEdit`) — a escolhida, a colada e a
+ * capturada. E por ali que a pessoa esconde o que nao quer mostrar antes de enviar.
  */
 export function AttachmentPicker({
   media,
@@ -28,6 +51,8 @@ export function AttachmentPicker({
   onAdd,
   onRemove,
   actions,
+  onEdit,
+  onResize,
   disabled = false,
 }: {
   media: PublicMediaSettingsViewModel
@@ -37,6 +62,10 @@ export function AttachmentPicker({
   onRemove: (id: string) => void
   /** Botoes a mais, ao lado de "Anexar imagem". */
   actions?: ReactNode
+  /** Abre a imagem no editor. Sem ele, a imagem so mostra. */
+  onEdit?: (id: string) => void
+  /** Muda o tamanho em que a imagem aparece. Sem ele, fica o de fabrica. */
+  onResize?: (id: string, size: AttachmentDisplaySize) => void
   /**
    * A lista esta travada: o texto esta indo, e o envio leva a lista como ela esta.
    * Um arquivo tirado agora subiria mesmo assim, e um posto agora nao subiria.
@@ -46,9 +75,77 @@ export function AttachmentPicker({
   const seletor = useRef<HTMLInputElement>(null)
   // Cheio pelo total ou pelo limite do tipo, o que vier primeiro.
   const cheio = !hasRoom(anexos, media)
+  // Travada a lista, a imagem nao muda mais: o arquivo que sobe e o de agora.
+  const podeEditar = !!onEdit && !disabled
+  const temImagem = anexos.some((anexo) => anexo.kind === 'Image')
 
   return (
     <div className="flex flex-col gap-2">
+      {/* Primeiro as imagens, e depois os botoes: e isso que as poe logo abaixo do
+          texto, onde elas vao aparecer. */}
+      {anexos.length > 0 && (
+        <ul aria-label="Imagens a enviar" className={DISPLAY_GRID_CLASS}>
+          {anexos.map((anexo) => (
+            <li
+              key={anexo.id}
+              className={cn('flex min-w-0 flex-col gap-1', displaySizeClass(anexo.displaySize))}
+              title={`${anexo.file.name} — ${formatBytes(anexo.file.size)}`}
+            >
+              <div className="relative">
+                <div className="overflow-hidden rounded-lg border border-border bg-surface-sunken">
+                  {podeEditar && anexo.kind === 'Image' ? (
+                    <button
+                      type="button"
+                      onClick={() => onEdit?.(anexo.id)}
+                      aria-label={`Editar ${anexo.file.name}`}
+                      // O contorno do foco por dentro: por fora, a caixa que corta os
+                      // cantos da imagem o cortaria inteiro.
+                      className="block w-full focus-visible:outline-offset-[-2px]"
+                    >
+                      <Previa anexo={anexo} />
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface/90 text-fg"
+                      >
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 20 20"
+                          className="h-3 w-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m12.5 4 3.5 3.5L7.5 16H4v-3.5z" />
+                        </svg>
+                      </span>
+                    </button>
+                  ) : (
+                    <Previa anexo={anexo} />
+                  )}
+                </div>
+
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(anexo.id)}
+                    aria-label={`Remover ${anexo.file.name}`}
+                    className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-detail text-fg"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {onResize && anexo.kind === 'Image' && (
+                <Tamanhos anexo={anexo} disabled={disabled} onResize={onResize} />
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <button
           type="button"
@@ -82,38 +179,11 @@ export function AttachmentPicker({
         }}
       />
 
-      {anexos.length > 0 && (
-        <ul className="flex flex-wrap gap-2">
-          {anexos.map((anexo) => (
-            <li
-              key={anexo.id}
-              className="relative h-14 w-14 overflow-hidden rounded-lg border border-border bg-surface-sunken"
-              title={`${anexo.file.name} — ${formatBytes(anexo.file.size)}`}
-            >
-              {anexo.preview ? (
-                <img
-                  src={anexo.preview}
-                  alt={anexo.file.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-caption text-fg-muted">
-                  imagem
-                </span>
-              )}
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => onRemove(anexo.id)}
-                  aria-label={`Remover ${anexo.file.name}`}
-                  className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-surface/90 text-caption text-fg"
-                >
-                  ×
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+      {temImagem && !disabled && (podeEditar || onResize) && (
+        <p className="text-caption text-fg-muted leading-normal">
+          {podeEditar && 'Clique numa imagem para marcar ou esconder algo antes de enviar. '}
+          {onResize && 'Embaixo dela, escolha o tamanho em que ela aparece.'}
+        </p>
       )}
 
       {recusa && (
@@ -122,6 +192,83 @@ export function AttachmentPicker({
         </p>
       )}
     </div>
+  )
+}
+
+/** A imagem como vai aparecer no relato. A mesma classe da leitura: ver `displaySize`. */
+function Previa({ anexo }: { anexo: Anexo }) {
+  return anexo.preview ? (
+    <img src={anexo.preview} alt={anexo.file.name} className={DISPLAY_IMAGE_CLASS} />
+  ) : (
+    <span className="flex aspect-video w-full items-center justify-center text-caption text-fg-muted">
+      imagem
+    </span>
+  )
+}
+
+/**
+ * Os quatro tamanhos, logo abaixo da imagem.
+ *
+ * **Sempre a vista, e nao so no passar do mouse**: no telefone nao ha mouse, e o
+ * tamanho que so aparece escondido e o tamanho que ninguem escolhe.
+ *
+ * **Embaixo, e nao por cima.** Por cima, cobririam a faixa baixa — um aviso de erro
+ * capturado sai com 900 por 120, e pequeno fica com 14 pixels de altura — e passariam
+ * da imagem pequena num telefone estreito, por cima dos da vizinha. Embaixo, eles
+ * quebram a linha quando a imagem e estreita, e nunca cobrem nada.
+ *
+ * **Cada botao desenha a imagem dentro da linha** — um terco, meia, tres quartos,
+ * inteira — e diz o nome ao leitor de tela e ao passar o mouse. Com 24 pixels, o
+ * minimo para o dedo.
+ */
+function Tamanhos({
+  anexo,
+  disabled,
+  onResize,
+}: {
+  anexo: Anexo
+  disabled: boolean
+  onResize: (id: string, size: AttachmentDisplaySize) => void
+}) {
+  return (
+    <fieldset aria-label={`Tamanho de ${anexo.file.name}`} className="flex flex-wrap">
+      {ATTACHMENT_DISPLAY_SIZES.map((tamanho) => (
+        <button
+          key={tamanho}
+          type="button"
+          aria-pressed={anexo.displaySize === tamanho}
+          aria-label={DISPLAY_SIZE_LABEL[tamanho]}
+          title={DISPLAY_SIZE_LABEL[tamanho]}
+          disabled={disabled}
+          onClick={() => onResize(anexo.id, tamanho)}
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded-md',
+            'disabled:cursor-not-allowed disabled:opacity-60',
+            anexo.displaySize === tamanho ? ESCOLHIDO : 'text-fg enabled:hover:bg-surface-sunken',
+          )}
+        >
+          <IconeDeTamanho fracao={DISPLAY_SIZE_FRACTION[tamanho]} />
+        </button>
+      ))}
+    </fieldset>
+  )
+}
+
+/** A linha do texto, e a imagem ocupando a fracao dela. */
+function IconeDeTamanho({ fracao }: { fracao: number }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
+      <rect
+        x="1.5"
+        y="3.5"
+        width="13"
+        height="9"
+        rx="1.5"
+        stroke="currentColor"
+        strokeOpacity="0.5"
+      />
+      <rect x="3" y="5" width={10 * fracao} height="6" rx="0.75" fill="currentColor" />
+    </svg>
   )
 }
 

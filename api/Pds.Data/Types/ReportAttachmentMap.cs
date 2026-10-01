@@ -86,6 +86,18 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
             .HasColumnName("confirmed_at")
             .HasComment("Quando a nossa API prendeu o anexo ao relato. Nulo e orfao.");
 
+        builder.Property(attachment => attachment.DisplaySize)
+            .HasColumnName("display_size")
+            .HasConversion(new SnakeCaseEnumConverter<AttachmentDisplaySizeEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("Em que tamanho a imagem aparece logo abaixo do texto: small (um terco da linha), medium (meia), large (tres quartos) ou full (a linha inteira). Fracao da largura do texto, e nao pixels, para o relato montado no quadro aparecer do mesmo jeito no painel e no acompanhamento. Escolha de quem relata; nao muda depois do envio.");
+
+        builder.Property(attachment => attachment.DisplayOrder)
+            .HasColumnName("display_order")
+            .IsRequired()
+            .HasComment("A posicao da imagem no envio, a partir de zero: a ordem em que a pessoa as montou. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros. Vale dentro de um envio; a hora de chegada desempata.");
+
         builder.HasOne(attachment => attachment.Report)
             .WithMany()
             .HasForeignKey(attachment => attachment.ReportId)

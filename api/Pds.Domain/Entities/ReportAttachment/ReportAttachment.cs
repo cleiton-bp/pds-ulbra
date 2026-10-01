@@ -139,4 +139,32 @@ public class ReportAttachment : PdsBaseEntity
 
     /// <summary>Quando a nossa API prendeu o anexo ao relato. Nulo e orfao.</summary>
     public DateTime? ConfirmedAt { get; set; }
+
+    /// <summary>
+    /// Em que tamanho a imagem aparece, logo abaixo do texto do envio que a trouxe.
+    /// Escolha de quem relata, gravada com o anexo — ver
+    /// <see cref="AttachmentDisplaySizeEnum"/>.
+    /// </summary>
+    public AttachmentDisplaySizeEnum DisplaySize { get; set; } = DefaultDisplaySize;
+
+    /// <summary>
+    /// A posicao da imagem no envio, a partir de zero — a ordem em que a pessoa as
+    /// montou.
+    ///
+    /// <para><b>Guardada, e nao deduzida da hora de chegada.</b> Os arquivos sobem um
+    /// de cada vez, e o que falhou e foi tentado de novo chega depois dos outros: pela
+    /// hora, ele pularia para o fim, e duas imagens pequenas que estavam lado a lado
+    /// trocariam de lugar.</para>
+    ///
+    /// <para><b>Vale dentro de um envio</b> — a criacao, uma resposta, uma reabertura —,
+    /// que e onde a tela mostra as imagens juntas. Anexo de antes desta coluna fica com
+    /// zero, e a hora de chegada desempata como sempre desempatou.</para>
+    /// </summary>
+    public int DisplayOrder { get; set; }
+
+    /// <summary>
+    /// O tamanho de quem nao escolheu: o quadro de antes desta coluna, e os anexos que
+    /// ja estavam guardados. A linha inteira — ver <see cref="AttachmentDisplaySizeEnum.Full"/>.
+    /// </summary>
+    public const AttachmentDisplaySizeEnum DefaultDisplaySize = AttachmentDisplaySizeEnum.Full;
 }

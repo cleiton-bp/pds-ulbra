@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PanelAttachmentViewModel, ReportCommentsViewModel } from '@/contracts'
 import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
@@ -9,9 +9,10 @@ import { ReportComments } from '@/features/reports/ReportComments'
 /**
  * O QUE ESTES TESTES TRAVAM.
  *
- * **Cada arquivo no lugar dele.** O da criacao vai para a secao de arquivos; o de
- * uma resposta vai para a conversa, embaixo da fala que o trouxe. Mostrar o da
- * resposta solto em "Arquivos" tiraria dele o que ele e: a resposta a uma pergunta.
+ * **Cada arquivo no lugar dele, no tamanho que quem relatou escolheu.** O da criacao
+ * vai para baixo do texto do relato; o de uma resposta vai para a conversa, embaixo
+ * da fala que o trouxe. Mostrar o da resposta embaixo do relato tiraria dele o que
+ * ele e: a resposta a uma pergunta.
  *
  * **A caixa interna nunca mostra arquivo**, mesmo que alguem passe um para ela. E a
  * estrutura que garante: so a caixa publica recebe o mapa.
@@ -34,6 +35,7 @@ function anexo(mudanca: Partial<PanelAttachmentViewModel> = {}): PanelAttachment
   return {
     PublicId: 'a-1',
     Kind: 'Image',
+    DisplaySize: 'Full',
     Url: 'http://armazenamento/inteiro',
     ThumbnailUrl: 'http://armazenamento/miniatura',
     ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -103,19 +105,23 @@ describe('os arquivos no relato do painel', () => {
     render(<Dialogo />)
 
     await vi.waitFor(() => expect(dublê.listar).toHaveBeenCalledWith('p-1', 'r-1'))
-    expect(screen.queryByText('Arquivos')).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Imagens do relato' })).toBeNull()
   })
 
-  it('mostra o nome original e o tamanho ao abrir', async () => {
-    dublê.listar.mockResolvedValue([anexo()])
+  // O time ve o relato como quem relatou o montou: a imagem inteira, no tamanho
+  // escolhido. O nome original e o tamanho ficam embaixo, so para o time.
+  it('mostra a imagem no tamanho escolhido, com o nome original e o tamanho embaixo', async () => {
+    dublê.listar.mockResolvedValue([anexo({ DisplaySize: 'Small' })])
     dublê.comentarios.mockResolvedValue({ Internal: [], Public: [] })
     render(<Dialogo />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /erro-no-pagamento\.png/ }))
-    expect(screen.getByText('erro-no-pagamento.png · 120 KB')).toBeDefined()
+    const lista = await screen.findByRole('list', { name: 'Imagens do relato' })
+    expect(lista.querySelector('li')?.className).toBe('col-span-4')
+    expect(lista.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/inteiro')
+    expect(screen.getByText('erro-no-pagamento.png · 120 KB').tagName).toBe('FIGCAPTION')
   })
 
-  it('o arquivo da resposta aparece embaixo da fala, e nao em "Arquivos"', async () => {
+  it('o arquivo da resposta aparece embaixo da fala, e nao embaixo do relato', async () => {
     dublê.listar.mockResolvedValue([
       anexo({
         PublicId: 'a-2',
@@ -128,8 +134,9 @@ describe('os arquivos no relato do painel', () => {
     render(<Dialogo />)
 
     await screen.findByText('segue a tela')
-    expect(await screen.findByRole('button', { name: /tela-pedida\.png/ })).toBeDefined()
-    expect(screen.queryByText('Arquivos')).toBeNull()
+    const daResposta = await screen.findByRole('list', { name: 'Imagens da resposta' })
+    expect(within(daResposta).getByRole('img', { name: /tela-pedida\.png/ })).toBeDefined()
+    expect(screen.queryByRole('list', { name: 'Imagens do relato' })).toBeNull()
   })
 
   it('a caixa interna nunca mostra arquivo, mesmo recebendo um', async () => {
@@ -142,7 +149,7 @@ describe('os arquivos no relato do painel', () => {
     render(<Dialogo />)
 
     await screen.findByText('nota interna')
-    expect(screen.queryByRole('button', { name: /nao-deveria\.png/ })).toBeNull()
+    expect(screen.queryByRole('img', { name: /nao-deveria\.png/ })).toBeNull()
   })
 
   it('falha na leitura oferece tentar de novo, e tenta', async () => {
@@ -152,7 +159,7 @@ describe('os arquivos no relato do painel', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
 
-    expect(await screen.findByText('Arquivos')).toBeDefined()
+    expect(await screen.findByRole('list', { name: 'Imagens do relato' })).toBeDefined()
     expect(dublê.listar).toHaveBeenCalledTimes(2)
   })
 })

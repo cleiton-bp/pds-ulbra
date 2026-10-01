@@ -71,7 +71,11 @@ export function ReportReopenings({
 
               {anexos.length > 0 && (
                 <div className="mt-3">
-                  <AttachmentGallery onExpired={aoExpirar} items={anexos.map(toPanelGalleryItem)} />
+                  <AttachmentGallery
+                    label="Imagens da reabertura"
+                    onExpired={aoExpirar}
+                    items={anexos.map(toPanelGalleryItem)}
+                  />
                 </div>
               )}
             </li>

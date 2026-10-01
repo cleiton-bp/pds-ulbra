@@ -60,6 +60,10 @@ public record ConfirmedAttachmentViewModel(
 /// </summary>
 /// <param name="PublicId">Identificador do anexo.</param>
 /// <param name="Kind">Imagem, ou video nos anexos confirmados antes de o video sair do produto.</param>
+/// <param name="DisplaySize">
+/// Em que tamanho a imagem aparece logo abaixo do texto — a escolha de quem relatou. A
+/// lista ja vem na ordem em que ela montou cada envio.
+/// </param>
 /// <param name="Url">Endereco assinado do arquivo.</param>
 /// <param name="ThumbnailUrl">Endereco assinado da miniatura, quando ha.</param>
 /// <param name="ExpiresAt">Quando o endereco do arquivo deixa de servir, em UTC.</param>
@@ -77,6 +81,7 @@ public record ConfirmedAttachmentViewModel(
 public record PanelAttachmentViewModel(
     Guid PublicId,
     MediaKindEnum Kind,
+    AttachmentDisplaySizeEnum DisplaySize,
     string Url,
     string? ThumbnailUrl,
     DateTime ExpiresAt,
@@ -99,6 +104,10 @@ public record PanelAttachmentViewModel(
 /// </summary>
 /// <param name="PublicId">Identificador do anexo.</param>
 /// <param name="Kind">Imagem, ou video nos anexos confirmados antes de o video sair do produto.</param>
+/// <param name="DisplaySize">
+/// Em que tamanho a imagem aparece logo abaixo do texto — a escolha de quem relatou. A
+/// lista ja vem na ordem em que ela montou cada envio.
+/// </param>
 /// <param name="Url">Endereco assinado do arquivo.</param>
 /// <param name="ThumbnailUrl">Endereco assinado da miniatura, quando ha.</param>
 /// <param name="ExpiresAt">Quando o endereco do arquivo deixa de servir, em UTC.</param>
@@ -109,6 +118,7 @@ public record PanelAttachmentViewModel(
 public record PublicAttachmentViewModel(
     Guid PublicId,
     MediaKindEnum Kind,
+    AttachmentDisplaySizeEnum DisplaySize,
     string Url,
     string? ThumbnailUrl,
     DateTime ExpiresAt,

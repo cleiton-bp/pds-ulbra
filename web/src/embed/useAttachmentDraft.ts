@@ -1,6 +1,11 @@
 import { type ClipboardEvent, type RefObject, useEffect, useRef, useState } from 'react'
-import type { PublicMediaSettingsViewModel } from '@/contracts'
+import {
+  type AttachmentDisplaySize,
+  DEFAULT_ATTACHMENT_DISPLAY_SIZE,
+  type PublicMediaSettingsViewModel,
+} from '@/contracts'
 import { describeError, isPanelError } from '@/data/publicIndex'
+import type { EditDoc } from '@/editor/doc'
 import {
   type Anexo,
   kindFor,
@@ -29,6 +34,23 @@ import {
  */
 function isRefusal(falha: unknown): boolean {
   return isPanelError(falha) && falha.status === 409
+}
+
+/**
+ * Uma imagem aberta no editor: a captura que ainda nao entrou na lista, ou uma que
+ * ja esta nela. Ver `editar` e `editarCaptura`.
+ */
+export interface EditRequest {
+  /** Esta abertura. Duas seguidas nao herdam o estado uma da outra. */
+  id: number
+  /** O anexo que a edicao substitui. **Nulo na captura**: ela so entra ao concluir. */
+  target: string | null
+  /** A imagem sem marcas — o original, e nunca o arquivo ja marcado. */
+  source: File
+  /** As marcas de antes, para continuarem editaveis. */
+  doc: EditDoc | null
+  /** O teto de imagem do projeto, para o arquivo marcado caber nele. */
+  maxBytes: number | null
 }
 
 /**
@@ -92,7 +114,20 @@ export function useAttachmentDraft(
   const propria = useRef(0)
   const geracao = generation ?? propria
 
-  // Fechar a pagina com miniaturas na tela nao pode deixar a memoria delas presa.
+  /** A imagem no editor, se houver. Espelhada para quem conclui ler sem esperar o React. */
+  const [edicao, setEdicaoState] = useState<EditRequest | null>(null)
+  const edicaoRef = useRef<EditRequest | null>(null)
+  const aberturas = useRef(0)
+
+  function trocarEdicao(pedido: EditRequest | null) {
+    edicaoRef.current = pedido
+    setEdicaoState(pedido)
+  }
+
+  /** O teto de imagem do projeto. */
+  const tetoDeImagem = () => media?.Kinds.find((kind) => kind.Kind === 'Image')?.MaxBytes ?? null
+
+  // Fechar a pagina com imagens na tela nao pode deixar a memoria delas presa.
   useEffect(
     () => () => {
       for (const anexo of anexosRef.current) releasePreview(anexo.preview)
@@ -112,7 +147,7 @@ export function useAttachmentDraft(
    * armazenamento. Isto so evita escolher, esperar o envio, e so entao ouvir "nao
    * serve".
    */
-  async function adicionar(arquivos: File[]) {
+  async function adicionar(arquivos: File[], edit: Anexo['edit'] = null) {
     if (!media) return
 
     setRecusa(null)
@@ -157,19 +192,148 @@ export function useAttachmentDraft(
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             file,
             kind: kind.Kind,
-            // A imagem se mostra por ela mesma quando a miniatura nao sai.
-            preview: previewUrl(thumbnail ?? file),
+            // A propria imagem, e nao a miniatura: ver `Anexo.preview`.
+            preview: previewUrl(file),
+            // A linha inteira ate a pessoa escolher outro — o mesmo padrao da API.
+            displaySize: DEFAULT_ATTACHMENT_DISPLAY_SIZE,
             thumbnail,
             status: 'waiting',
             progress: 0,
             error: null,
             uploaded: null,
+            edit,
           },
         ])
       }
     } finally {
       setPreparando((atual) => atual - 1)
     }
+  }
+
+  /**
+   * Troca o arquivo de um anexo pelo que saiu do editor, com as mesmas conferencias de
+   * quem entra — e **a miniatura sai do arquivo novo**. Da antiga, com o que a tarja
+   * cobriu agora, nao sobra nada.
+   *
+   * **O que a pessoa salvou vale na hora**, antes da miniatura sair. Reaberto nesse
+   * meio, o editor tem de trazer as marcas: trazendo o original sem elas, a proxima
+   * edicao subiria o que a tarja cobria. A miniatura velha sai junto, para nunca
+   * subir no lugar da nova.
+   *
+   * **Recusado, sai da lista** — e nao fica o original, sem as marcas que a pessoa
+   * acabou de pôr. Tirado da lista enquanto o editor estava aberto, nao volta.
+   */
+  async function substituir(id: string, arquivo: File, edit: Anexo['edit']) {
+    if (!media) return
+
+    const antes = anexosRef.current.find((anexo) => anexo.id === id)
+    if (antes?.status !== 'waiting') return
+
+    setRecusa(null)
+    releasePreview(antes.preview)
+    atualizar(id, { file: arquivo, edit, preview: previewUrl(arquivo), thumbnail: null })
+
+    setPreparando((atual) => atual + 1)
+    const minha = geracao.current
+
+    /** Esta troca ainda e a que vale: outra edicao do mesmo anexo pode ter vindo depois. */
+    const vigente = () => {
+      const agora = anexosRef.current.find((anexo) => anexo.id === id)
+      return agora?.status === 'waiting' && agora.file === arquivo ? agora : null
+    }
+
+    try {
+      const file = await withRealType(arquivo)
+      if (geracao.current !== minha) return
+
+      const outros = anexosRef.current.filter((anexo) => anexo.id !== id)
+      const motivo = rejectReason(file, [...outros, ...reservados.current], media)
+      const kind = kindFor(file, media)
+      if (motivo || !kind) {
+        const recusado = vigente()
+        if (!recusado) return
+        releasePreview(recusado.preview)
+        trocarLista(anexosRef.current.filter((anexo) => anexo.id !== id))
+        // `rejectReason` sempre diz o motivo quando nao ha categoria; o texto de reserva
+        // e so para o tipo.
+        setRecusa(
+          `${motivo ?? 'Esse formato de arquivo não é aceito aqui.'} A imagem saiu da lista para não ir sem as marcas.`,
+        )
+        return
+      }
+
+      const thumbnail = await makeThumbnail(file)
+      if (geracao.current !== minha) return
+
+      if (!vigente()) return
+
+      // A imagem na tela ja e a nova, desde o comeco da troca: so a miniatura muda.
+      atualizar(id, { file, kind: kind.Kind, thumbnail })
+    } finally {
+      setPreparando((atual) => atual - 1)
+    }
+  }
+
+  /**
+   * Abre no editor uma imagem da lista — **a original, com as marcas de antes**. Marcar
+   * de novo parte do que a pessoa escolheu, e nao do arquivo ja desenhado: tirar uma
+   * tarja devolve o que estava embaixo, e nada perde qualidade a cada edicao.
+   */
+  function editar(id: string) {
+    const anexo = anexosRef.current.find((item) => item.id === id)
+    if (anexo?.kind !== 'Image' || anexo.status !== 'waiting') return
+
+    setRecusa(null)
+    aberturas.current += 1
+    trocarEdicao({
+      id: aberturas.current,
+      target: id,
+      source: anexo.edit?.original ?? anexo.file,
+      doc: anexo.edit?.doc ?? null,
+      maxBytes: tetoDeImagem(),
+    })
+  }
+
+  /** Abre a captura no editor. **Ela so entra na lista quando a pessoa adicionar.** */
+  function editarCaptura(file: File) {
+    setRecusa(null)
+    aberturas.current += 1
+    trocarEdicao({
+      id: aberturas.current,
+      target: null,
+      source: file,
+      doc: null,
+      maxBytes: tetoDeImagem(),
+    })
+  }
+
+  /**
+   * O editor terminou. Sem marcas (`doc` nulo), o arquivo e o original, e nao ha o que
+   * guardar para reabrir.
+   */
+  async function concluirEdicao({ file, doc }: { file: File; doc: EditDoc | null }) {
+    const pedido = edicaoRef.current
+    trocarEdicao(null)
+    if (!pedido) return
+
+    const edit = doc ? { original: pedido.source, doc } : null
+    if (pedido.target === null) await adicionar([file], edit)
+    else await substituir(pedido.target, file, edit)
+  }
+
+  function cancelarEdicao() {
+    trocarEdicao(null)
+  }
+
+  /**
+   * Muda o tamanho em que a imagem aparece no relato. **So antes de enviar**: o tamanho
+   * vai junto do pedido de cada arquivo, e a lista que sobe e a de quando o envio
+   * comecou.
+   */
+  function redimensionar(id: string, displaySize: AttachmentDisplaySize) {
+    const anexo = anexosRef.current.find((item) => item.id === id)
+    if (anexo?.status !== 'waiting' || anexo.displaySize === displaySize) return
+    atualizar(id, { displaySize })
   }
 
   function remover(id: string) {
@@ -263,17 +427,24 @@ export function useAttachmentDraft(
     // Quem guardou a lista antes de ela sair da tela passa a copia dela.
     lista: Anexo[] = anexosRef.current,
   ) {
-    for (const anexo of [...lista]) {
+    // A posicao de cada um e a da lista, que e a ordem em que a pessoa montou. Fica no
+    // item da tela para "Tentar de novo" mandar a mesma — ver `Anexo.displayOrder`.
+    const ordenados = lista.map((anexo, displayOrder) => ({ ...anexo, displayOrder }))
+    if (geracao.current === minha)
+      for (const anexo of ordenados) atualizar(anexo.id, { displayOrder: anexo.displayOrder })
+
+    for (const anexo of ordenados) {
       await enviarAnexo(credenciais, anexo, minha)
     }
   }
 
-  /** Esvazia a lista e devolve a memoria das miniaturas. */
+  /** Esvazia a lista e devolve a memoria das imagens. */
   function limpar() {
     for (const anexo of anexosRef.current) releasePreview(anexo.preview)
     trocarLista([])
     setRecusa(null)
     setNaoEnviados([])
+    trocarEdicao(null)
   }
 
   /**
@@ -306,7 +477,14 @@ export function useAttachmentDraft(
     preparando: preparando > 0,
     adicionar,
     remover,
+    redimensionar,
     colar,
+    /** A imagem aberta no editor, ou nulo. */
+    edicao,
+    editar,
+    editarCaptura,
+    concluirEdicao,
+    cancelarEdicao,
     enviarAnexo,
     enviarAnexos,
     limpar,

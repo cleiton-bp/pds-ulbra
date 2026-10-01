@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   PublicAttachmentViewModel,
@@ -58,6 +58,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
 })
 
 vi.mock('@/embed/sendAttachment', () => ({ sendAttachment: dublê.enviar }))
+
+vi.mock('@/editor/ImageEditor', () => import('@/test/fakeImageEditor'))
 
 const fechamento: PublicClosureViewModel = {
   Outcome: 'Done',
@@ -121,6 +123,7 @@ function anexo(extra: Partial<PublicAttachmentViewModel> = {}): PublicAttachment
   return {
     PublicId: 'a-1',
     Kind: 'Image',
+    DisplaySize: 'Full',
     Url: 'http://armazenamento/a-1',
     ThumbnailUrl: 'http://armazenamento/a-1-thumb',
     ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -227,6 +230,25 @@ describe('anexar ao reabrir', () => {
       token: 'tok-secreto',
     })
     expect(dublê.enviar.mock.calls[0]?.[3]).toMatchObject({ envio: 'reopen' })
+  })
+
+  it('a imagem fica logo abaixo do motivo, e o tamanho escolhido vai com o arquivo', async () => {
+    dublê.enviar.mockResolvedValue(undefined)
+    await reabrindo()
+
+    const motivo = screen.getByRole('textbox', { name: /O que ainda está acontecendo/ })
+    fireEvent.change(motivo, { target: { value: 'Voltou a travar.' } })
+    await escolher(print())
+    const lista = await screen.findByRole('list', { name: 'Imagens a enviar' })
+    expect(motivo.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // O convite a anexar sai: com ele, a frase ficaria entre o texto e a imagem.
+    expect(screen.queryByText(/anexe um print do que ainda está acontecendo/)).toBeNull()
+    const grupo = screen.getByRole('group', { name: 'Tamanho de ainda-quebrado.png' })
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Grande' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reabrir o relato' }))
+
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1]).toMatchObject({ displaySize: 'Large', displayOrder: 0 })
   })
 
   // A reabertura leva a lista como ela esta quando volta. O que entrasse durante
@@ -415,7 +437,7 @@ describe('anexar ao reabrir', () => {
   // comeca. Um arquivo que entrasse depois nao subiria — e sumiria com o bloco do
   // encerramento, sem aviso.
   it('enquanto um arquivo ainda está entrando na lista, reabrir espera', async () => {
-    let pronto: (imagem: { width: number; height: number }) => void = () => {}
+    let pronto: (imagem: { width: number; height: number; close: () => void }) => void = () => {}
     vi.stubGlobal(
       'createImageBitmap',
       () =>
@@ -436,7 +458,7 @@ describe('anexar ao reabrir', () => {
       await waitFor(() => expect(reabrir.disabled).toBe(true))
 
       // Sem largura, a miniatura nao sai e o arquivo entra sem ela.
-      await act(async () => pronto({ width: 0, height: 0 }))
+      await act(async () => pronto({ width: 0, height: 0, close: () => {} }))
 
       await screen.findByRole('button', { name: 'Remover ainda-quebrado.png' })
       expect(reabrir.disabled).toBe(false)
@@ -531,43 +553,61 @@ describe('as reaberturas na pagina', () => {
   it('o print da reabertura fica junto dela, e não na galeria do relato', async () => {
     reabertoAntes()
     dublê.anexos.mockResolvedValue([
-      anexo({ PublicId: 'a-criacao', ThumbnailUrl: 'http://armazenamento/criacao-thumb' }),
+      anexo({ PublicId: 'a-criacao', Url: 'http://armazenamento/criacao' }),
       anexo({
         PublicId: 'a-reabertura',
-        ThumbnailUrl: 'http://armazenamento/reabertura-thumb',
+        Url: 'http://armazenamento/reabertura',
         ReopenPublicId: 'r-1',
       }),
     ])
     render(<TrackingPage />)
 
-    await screen.findByText('O que você anexou ao reabrir')
+    await screen.findByRole('list', { name: 'O que você anexou ao reabrir' })
 
     const reabertura = screen.getByText('Você reabriu este relato').closest('li') as HTMLElement
     const imagens = (onde: ParentNode) =>
       Array.from(onde.querySelectorAll('img')).map((img) => img.getAttribute('src'))
 
-    expect(imagens(reabertura)).toEqual(['http://armazenamento/reabertura-thumb'])
+    expect(imagens(reabertura)).toEqual(['http://armazenamento/reabertura'])
 
-    const doRelato = screen.getByText('O que você anexou').parentElement as HTMLElement
-    expect(imagens(doRelato)).toEqual(['http://armazenamento/criacao-thumb'])
+    const doRelato = screen.getByRole('list', { name: 'O que você anexou' })
+    expect(imagens(doRelato)).toEqual(['http://armazenamento/criacao'])
   })
 
   it('print de uma reabertura que a página não conhece cai na galeria do relato', async () => {
     reabertoAntes()
     dublê.anexos.mockResolvedValue([
       anexo({
-        ThumbnailUrl: 'http://armazenamento/perdido-thumb',
+        Url: 'http://armazenamento/perdido',
         ReopenPublicId: 'r-desconhecida',
       }),
     ])
     render(<TrackingPage />)
 
-    await screen.findByText('O que você anexou')
-    const doRelato = screen.getByText('O que você anexou').parentElement as HTMLElement
-    expect(doRelato.querySelector('img')?.getAttribute('src')).toBe(
-      'http://armazenamento/perdido-thumb',
-    )
-    expect(screen.queryByText('O que você anexou ao reabrir')).toBeNull()
+    const doRelato = await screen.findByRole('list', { name: 'O que você anexou' })
+    expect(doRelato.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/perdido')
+    expect(screen.queryByRole('list', { name: 'O que você anexou ao reabrir' })).toBeNull()
+  })
+
+  // A lista vem na ordem da montagem de cada envio: a posicao 0 da reabertura chega
+  // entre a 0 e a 1 da criacao. Sem lugar, ela vai depois das da criacao.
+  it('o print sem lugar vai depois dos da criação, e não no meio deles', async () => {
+    reabertoAntes()
+    dublê.anexos.mockResolvedValue([
+      anexo({ PublicId: 'c-0', Url: 'http://armazenamento/c-0' }),
+      anexo({ PublicId: 'perdido', Url: 'http://armazenamento/perdido', ReopenPublicId: 'r-x' }),
+      anexo({ PublicId: 'c-1', Url: 'http://armazenamento/c-1' }),
+    ])
+    render(<TrackingPage />)
+
+    const doRelato = await screen.findByRole('list', { name: 'O que você anexou' })
+    expect(
+      Array.from(doRelato.querySelectorAll('img')).map((img) => img.getAttribute('src')),
+    ).toEqual([
+      'http://armazenamento/c-0',
+      'http://armazenamento/c-1',
+      'http://armazenamento/perdido',
+    ])
   })
 
   it('relato nunca reaberto não mostra bloco de reabertura', async () => {
@@ -578,5 +618,37 @@ describe('as reaberturas na pagina', () => {
     await screen.findByText(/O botão de finalizar compra/)
     expect(screen.queryByText('Você reabriu este relato')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Reaberturas' })).toBeNull()
+  })
+})
+
+describe('marcar a imagem da reabertura', () => {
+  it('a imagem escolhida abre no editor, e a marcada toma o lugar dela', async () => {
+    await reabrindo()
+    await escolher(new File([new Uint8Array(100)], 'ainda.png', { type: 'image/png' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar ainda.png' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir com marcas' }))
+
+    await screen.findByRole('button', { name: 'Remover marcada-ainda.png' })
+    expect(screen.queryByRole('button', { name: 'Remover ainda.png' })).toBeNull()
+  })
+
+  it('com o editor aberto, a reabertura nao sai', async () => {
+    await reabrindo()
+    // Com o motivo escrito o botao fica ligado: sem ele, o clique nao faria nada de todo
+    // jeito, e o teste passaria sem a trava.
+    fireEvent.change(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ }), {
+      target: { value: 'ainda falha no pagamento' },
+    })
+    await escolher(new File([new Uint8Array(100)], 'ainda.png', { type: 'image/png' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar ainda.png' }))
+    await screen.findByRole('dialog', { name: 'Editor falso' })
+
+    const reabrir = screen.getByRole('button', { name: 'Reabrir o relato' }) as HTMLButtonElement
+    expect(reabrir.disabled).toBe(false)
+    fireEvent.click(reabrir)
+    await act(async () => {})
+
+    expect(dublê.reabrir).not.toHaveBeenCalled()
   })
 })

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   PublicAttachmentViewModel,
@@ -36,6 +36,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
 })
 
 vi.mock('@/embed/sendAttachment', () => ({ sendAttachment: dublê.enviar }))
+
+vi.mock('@/editor/ImageEditor', () => import('@/test/fakeImageEditor'))
 
 const media: PublicMediaSettingsViewModel = {
   IsEnabled: true,
@@ -160,6 +162,29 @@ describe('anexar ao responder', () => {
     })
     expect(dublê.enviar.mock.calls[0]?.[3]).toMatchObject({ envio: 'reply' })
     await waitFor(() => expect(aoAnexar).toHaveBeenCalled())
+  })
+
+  it('a imagem fica logo abaixo da resposta, e o tamanho escolhido vai com o arquivo', async () => {
+    dublê.responder.mockResolvedValue(relato({ CanReply: false, InfoRequest: null }))
+    dublê.enviar.mockResolvedValue(undefined)
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    const lista = await screen.findByRole('list', { name: 'Imagens a enviar' })
+    expect(
+      screen.getByLabelText('A sua resposta').compareDocumentPosition(lista) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    const grupo = screen.getByRole('group', { name: 'Tamanho de erro.png' })
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Médio' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    await waitFor(() => expect(dublê.enviar).toHaveBeenCalledOnce())
+    expect(dublê.enviar.mock.calls[0]?.[1]).toMatchObject({
+      displaySize: 'Medium',
+      displayOrder: 0,
+    })
   })
 
   // A resposta leva a lista como ela esta quando volta. O que entrasse durante
@@ -320,7 +345,7 @@ describe('anexar ao responder', () => {
   })
 
   it('enquanto um arquivo ainda está entrando na lista, responder espera', async () => {
-    let pronto: (imagem: { width: number; height: number }) => void = () => {}
+    let pronto: (imagem: { width: number; height: number; close: () => void }) => void = () => {}
     vi.stubGlobal(
       'createImageBitmap',
       () =>
@@ -337,7 +362,7 @@ describe('anexar ao responder', () => {
       const responder = screen.getByRole('button', { name: 'Responder' }) as HTMLButtonElement
       await waitFor(() => expect(responder.disabled).toBe(true))
 
-      await act(async () => pronto({ width: 0, height: 0 }))
+      await act(async () => pronto({ width: 0, height: 0, close: () => {} }))
       await screen.findByRole('button', { name: 'Remover erro.png' })
       expect(responder.disabled).toBe(false)
     } finally {
@@ -384,10 +409,11 @@ describe('anexar ao responder', () => {
     expect(dublê.enviar).toHaveBeenCalledOnce()
   })
 
-  it('o print aparece embaixo da fala que o trouxe', () => {
+  it('o print aparece embaixo da fala que o trouxe, inteiro e no tamanho escolhido', () => {
     const doTime: PublicAttachmentViewModel = {
       PublicId: 'a-1',
       Kind: 'Image',
+      DisplaySize: 'Medium',
       Url: 'http://armazenamento/a-1',
       ThumbnailUrl: 'http://armazenamento/a-1-thumb',
       ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -419,6 +445,36 @@ describe('anexar ao responder', () => {
     })
 
     const fala = screen.getByText('segue a tela').closest('li') as HTMLElement
-    expect(fala.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/a-1-thumb')
+    const lista = within(fala).getByRole('list', { name: 'O que você anexou na resposta' })
+    expect(lista.querySelector('li')?.className).toBe('col-span-6')
+    expect(lista.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/a-1')
+  })
+})
+
+// A resposta ao pedido de informacao e onde o time pede "manda a tela": e a pessoa
+// esconde o que nao quer mostrar ali tambem.
+describe('marcar a imagem da resposta', () => {
+  it('a imagem escolhida abre no editor, e a marcada toma o lugar dela', async () => {
+    montar()
+    escolher(print())
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar erro.png' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir com marcas' }))
+
+    await screen.findByRole('button', { name: 'Remover marcada-erro.png' })
+    expect(screen.queryByRole('button', { name: 'Remover erro.png' })).toBeNull()
+  })
+
+  it('com o editor aberto, a resposta nao sai', async () => {
+    montar()
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'segue a tela' } })
+    escolher(print())
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar erro.png' }))
+    await screen.findByRole('dialog', { name: 'Editor falso' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+    await act(async () => {})
+
+    expect(dublê.responder).not.toHaveBeenCalled()
   })
 })

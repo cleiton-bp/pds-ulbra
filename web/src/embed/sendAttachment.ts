@@ -68,10 +68,16 @@ export async function sendAttachment(
     SizeBytes: anexo.file.size,
     FileName: anexo.file.name,
     WithThumbnail: anexo.thumbnail !== null,
+    // O formato em que ela saiu: no Safari, JPEG. A assinatura e feita para ele.
+    ThumbnailContentType: anexo.thumbnail?.type,
     // Na resposta e na reabertura, o servidor prende o arquivo a que acabou de
     // acontecer. O navegador nao diz qual — ver `ForReply` e `ForReopen` na API.
     ForReply: envio === 'reply',
     ForReopen: envio === 'reopen',
+    // Como a imagem aparece no relato: o tamanho que a pessoa escolheu e o lugar em
+    // que ela a pos. A posicao e a de quando o envio comecou — ver `enviarAnexos`.
+    DisplaySize: anexo.displaySize,
+    DisplayOrder: anexo.displayOrder ?? 0,
   })
 
   // **A miniatura primeiro.** As duas permissoes nascem juntas e valem os mesmos

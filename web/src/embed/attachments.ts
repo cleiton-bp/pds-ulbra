@@ -1,9 +1,11 @@
 import {
+  type AttachmentDisplaySize,
   type MediaKind,
   type PublicMediaKindViewModel,
   type PublicMediaSettingsViewModel,
   UPLOADABLE_MEDIA_KIND,
 } from '@/contracts'
+import type { EditDoc } from '@/editor/doc'
 import { formatBytes } from '@/shared/lib/formatBytes'
 
 /**
@@ -19,8 +21,26 @@ export interface Anexo {
   id: string
   file: File
   kind: MediaKind
-  /** Endereco local da miniatura, para mostrar. Nulo onde o navegador nao cria. */
+  /**
+   * Endereco local da propria imagem, para mostrar no relato que a pessoa monta. Nulo
+   * onde o navegador nao cria.
+   *
+   * **A imagem, e nao a miniatura.** Ela aparece no tamanho escolhido, ate a linha
+   * inteira, e a miniatura de 320 pixels ficaria borrada ali — o que a pessoa ve
+   * montando tem de ser o que o time vai ver.
+   */
   preview: string | null
+  /**
+   * Em que tamanho a imagem aparece logo abaixo do texto. Escolha de quem relata, e
+   * vai junto do arquivo — o relato mostra o que ela montou, do jeito que montou.
+   */
+  displaySize: AttachmentDisplaySize
+  /**
+   * A posicao na lista quando o envio comecou. **Fica guardada** para "Tentar de novo"
+   * mandar a mesma: o arquivo tentado de novo chega depois dos outros, e a posicao e o
+   * que o devolve ao lugar em que a pessoa o pos.
+   */
+  displayOrder?: number
   /** A miniatura que sobe junto. Nula quando o navegador nao soube gerar. */
   thumbnail: Blob | null
   /**
@@ -40,13 +60,33 @@ export interface Anexo {
    * e a API responde que ja entrou — em vez de recomecar e subir outro.
    */
   uploaded?: string | null
+  /**
+   * A imagem sem marcas e as marcas, quando a pessoa marcou no editor. **So para
+   * reabrir o editor** com as marcas editaveis: o que sobe e sempre `file`, ja
+   * desenhado, e a miniatura sai dele — o original, com o que a tarja cobriu, nunca
+   * sai do navegador.
+   */
+  edit?: { original: File; doc: EditDoc } | null
 }
 
 /** Largura da miniatura. Cabe numa lista, e pesa poucos kilobytes. */
 const THUMBNAIL_WIDTH = 320
 
-/** O tipo que a miniatura precisa ter — a API confere pelos bytes. */
-const THUMBNAIL_TYPE = 'image/webp'
+/**
+ * A altura maxima, em proporcao a largura. **Uma captura de rolagem longa** — 1080 por
+ * 10000 — daria uma miniatura de 320 por 3000, que passa do teto da API; a miniatura
+ * mostra o comeco dela, que e o que cabe numa lista.
+ */
+const THUMBNAIL_MAX_RATIO = 2
+
+/** O teto da miniatura na API. Passando dele, o armazenamento recusa em silencio. */
+const THUMBNAIL_MAX_BYTES = 256 * 1024
+
+/**
+ * Os tipos que a miniatura pode ter, em ordem — a API confere os bytes contra o tipo
+ * declarado. WebP e o mais leve; JPEG e o de quem nao codifica WebP (o Safari).
+ */
+const THUMBNAIL_TYPES = ['image/webp', 'image/jpeg'] as const
 
 /**
  * A configuracao com so o que ainda se pode enviar — hoje, so imagem.
@@ -233,46 +273,82 @@ export { formatBytes }
  * E o que deixa o painel mostrar uma lista sem baixar megabytes para desenhar 80
  * pixels, e sem o servidor precisar de biblioteca de imagem.
  *
+ * **WebP, e JPEG onde o navegador nao codifica WebP.** Onde isso acontece — o
+ * Safari, inclusive o do iPhone —, `toBlob` devolve PNG em silencio; so com WebP, quem
+ * relata por la mandaria tudo sem miniatura, e o time veria so a palavra "imagem".
+ *
  * **Devolve `null` em vez de falhar**, e isso e o combinado com a API: o anexo vale
- * sem miniatura. So nao pode ir uma miniatura que nao seja WebP — onde o navegador
- * nao codifica WebP, `toBlob` devolve PNG em silencio, e a API recusaria.
+ * sem miniatura.
  */
 export async function makeThumbnail(file: File): Promise<Blob | null> {
+  let canvas: HTMLCanvasElement | null = null
+  let fonte: ImageBitmap | null = null
   try {
-    const fonte = await createImageBitmap(file)
+    fonte = await createImageBitmap(file)
 
     const largura = fonte.width
     const altura = fonte.height
     if (!largura || !altura) return null
 
     const escala = Math.min(1, THUMBNAIL_WIDTH / largura)
-    const canvas = document.createElement('canvas')
+    canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(largura * escala))
-    canvas.height = Math.max(1, Math.round(altura * escala))
+    // A captura de rolagem longa mostra o comeco: ver `THUMBNAIL_MAX_RATIO`.
+    canvas.height = Math.max(
+      1,
+      Math.min(Math.round(altura * escala), canvas.width * THUMBNAIL_MAX_RATIO),
+    )
 
     const contexto = canvas.getContext('2d')
     if (!contexto) return null
-    contexto.drawImage(fonte, 0, 0, canvas.width, canvas.height)
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, THUMBNAIL_TYPE, 0.8),
+    // Fundo branco por baixo: o JPEG nao tem transparencia, e o transparente sairia preto.
+    contexto.fillStyle = 'white'
+    contexto.fillRect(0, 0, canvas.width, canvas.height)
+    contexto.drawImage(
+      fonte,
+      0,
+      0,
+      largura,
+      canvas.height / escala,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
     )
 
-    return blob?.type === THUMBNAIL_TYPE ? blob : null
+    for (const tipo of THUMBNAIL_TYPES) {
+      const alvo = canvas
+      // Um degrau abaixo, se a primeira passar do teto da API — que a recusaria calada.
+      for (const qualidade of [0.8, 0.6]) {
+        const blob = await new Promise<Blob | null>((resolve) =>
+          alvo.toBlob(resolve, tipo, qualidade),
+        )
+        if (blob?.type !== tipo) break
+        if (blob.size <= THUMBNAIL_MAX_BYTES) return blob
+      }
+    }
+    return null
   } catch {
     return null
+  } finally {
+    // O bitmap e o canvas devolvem a memoria, mesmo quando o desenho falha no meio.
+    fonte?.close()
+    if (canvas) {
+      canvas.width = 0
+      canvas.height = 0
+    }
   }
 }
 
 /**
- * Endereco local para mostrar a miniatura, ou `null` onde o navegador nao cria
- * — e o caso do ambiente de teste, que nao tem `createObjectURL`.
+ * Endereco local para mostrar a imagem, ou `null` onde o navegador nao cria — e o
+ * caso do ambiente de teste, que nao tem `createObjectURL`.
  */
 export function previewUrl(blob: Blob): string | null {
   return typeof URL.createObjectURL === 'function' ? URL.createObjectURL(blob) : null
 }
 
-/** Devolve a memoria do endereco local. Sem isto, cada miniatura ficaria presa ate fechar a pagina. */
+/** Devolve a memoria do endereco local. Sem isto, cada imagem ficaria presa ate fechar a pagina. */
 export function releasePreview(url: string | null) {
   if (url && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(url)
 }

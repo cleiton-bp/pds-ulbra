@@ -56,7 +56,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 | `npm run lint` | Biome: linter e formatador |
 | `npm run format` | Aplica as correções do Biome |
 | `npm run build` | Checa os tipos, gera o carregador e depois `dist/` |
-| `npm run build:loader` | Só o carregador, em `public/v1/pds.js` |
+| `npm run build:loader` | Só o carregador e o arquivo da captura, em `public/v1/pds.js` e `public/v1/pds-captura.js` |
 
 ---
 
@@ -91,6 +91,8 @@ src/
 ├── embed/        a ferramenta de relato: o que roda no site do cliente
 ├── tracking/     a página pública: onde quem relatou vê o próprio relato
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
+├── capture/      o que redesenha a página como imagem (pds-captura.js, baixado no clique)
+├── editor/       o editor da imagem: marcar e esconder antes de anexar (baixado ao abrir)
 ├── features/     um assunto por pasta: auth, projects, projectKeys, projectStates,
 │                 publicStages, onboarding, reports, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
@@ -141,10 +143,34 @@ acidente:
                                                       o protocolo e o token do link
 ```
 
-**O carregador (`src/loader/`) não desenha nada na página.** Ele cria o `iframe`,
-cuida de posição e tamanho, e mais nada. O gatilho, o formulário e as cores moram
-dentro do quadro — é o que mantém o site do cliente livre do nosso CSS, e o nosso
-livre do dele. Ele sai em IIFE, tem 1,6 kB e não carrega React.
+**O carregador (`src/loader/`) quase não desenha na página.** Ele cria o `iframe`
+e cuida de posição e tamanho. O gatilho, o formulário e as cores moram dentro do
+quadro — é o que mantém o site do cliente livre do nosso CSS, e o nosso livre do
+dele. Ele sai em IIFE, tem cerca de 3,5 kB comprimido e não carrega React.
+
+**A exceção é a captura, e só quando a pessoa pede.** Código dentro de um quadro
+de outra origem não alcança a página, então quem captura é o carregador: ele
+esconde o quadro, desenha a camada de marcar a área (numa sombra, com estilo
+próprio) e baixa `pds-captura.js` — a biblioteca que redesenha a página como
+imagem (`@zumer/snapdom`), com uns 50 kB comprimidos — só nesse clique. A imagem
+volta para o quadro pela mesma conversa e abre no editor; concluída, entra na lista
+como um arquivo escolhido. Ver `src/loader/captureFlow.ts` e `src/capture/`.
+
+**O editor da imagem (`src/editor/`) é onde a pessoa esconde o que não quer
+mostrar** — a captura não esconde nada sozinha. Toda imagem da lista abre nele: a
+capturada, a escolhida e a colada. As marcas ficam numa lista à parte e o original
+não muda, então reabrir traz as marcas editáveis; o arquivo que sobe é desenhado de
+novo, e o que a tarja cobriu não existe nele — nem na miniatura, que sai dele. O
+editor chega por import dinâmico, só quando alguém o abre (uns 20 kB comprimidos, com o
+diálogo que ele usa), e no quadro pede à página um tamanho maior enquanto está aberto.
+
+**A imagem entra no relato logo abaixo do texto, no tamanho que a pessoa escolhe** —
+um terço da linha, meia, três quartos ou a linha inteira, que é o padrão. O tamanho e
+a posição vão com o arquivo, e o relato aparece do mesmo jeito no acompanhamento, na
+resposta, na reabertura e no painel: a mesma grade de doze colunas
+(`src/shared/lib/displaySize.ts`), que no quadro estreito e na página larga põe as
+mesmas imagens lado a lado. O que aparece é o arquivo, e não a miniatura, e ele só
+baixa quando chega perto da tela.
 
 **A conversa entre os dois passa por três conferências**, iguais nas duas pontas:
 a origem esperada, a janela exata (`event.source`), e o carimbo `source: 'pds'`.

@@ -1463,6 +1463,18 @@ namespace Pds.Data.Migrations
                         .HasColumnName("deleted_at")
                         .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order")
+                        .HasComment("A posicao da imagem no envio, a partir de zero: a ordem em que a pessoa as montou. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros. Vale dentro de um envio; a hora de chegada desempata.");
+
+                    b.Property<string>("DisplaySize")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("display_size")
+                        .HasComment("Em que tamanho a imagem aparece logo abaixo do texto: small (um terco da linha), medium (meia), large (tres quartos) ou full (a linha inteira). Fracao da largura do texto, e nao pixels, para o relato montado no quadro aparecer do mesmo jeito no painel e no acompanhamento. Escolha de quem relata; nao muda depois do envio.");
+
                     b.Property<int?>("DurationSeconds")
                         .HasColumnType("integer")
                         .HasColumnName("duration_seconds")

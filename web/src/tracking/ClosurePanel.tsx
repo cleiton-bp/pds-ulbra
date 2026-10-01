@@ -7,6 +7,7 @@ import {
   SATISFACTION_SCALE,
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { AttachmentEditor } from '@/embed/AttachmentEditor'
 import { AttachmentPicker } from '@/embed/AttachmentPicker'
 import type { AttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
@@ -79,7 +80,8 @@ export function ClosurePanel({
     acao: () => Promise<PublicReportViewModel>,
     depois: (relato: PublicReportViewModel) => void = aoResponder,
   ) {
-    if (enviando) return
+    // Nem com o editor aberto: a imagem que esta nele ainda nao e a que vai.
+    if (enviando || anexar?.rascunho.edicao) return
 
     setEnviando(true)
     setErro(null)
@@ -278,15 +280,21 @@ export function ClosurePanel({
               problema acontece, e capturar daqui mostraria a própria página. */}
           {anexar && (
             <div className="mb-3">
-              <p className="mb-2 text-caption text-fg-muted leading-relaxed">
-                Se ajudar, anexe um print do que ainda está acontecendo.
-              </p>
+              {/* Só antes da primeira imagem: com ela na lista, a frase ficaria entre o
+                  texto e a imagem, que vai logo abaixo dele. */}
+              {anexar.rascunho.anexos.length === 0 && (
+                <p className="mb-2 text-caption text-fg-muted leading-relaxed">
+                  Se ajudar, anexe um print do que ainda está acontecendo.
+                </p>
+              )}
               <AttachmentPicker
                 media={anexar.midia}
                 anexos={anexar.rascunho.anexos}
                 recusa={anexar.rascunho.recusa}
                 onAdd={(arquivos) => void anexar.rascunho.adicionar(arquivos)}
                 onRemove={anexar.rascunho.remover}
+                onEdit={anexar.rascunho.editar}
+                onResize={anexar.rascunho.redimensionar}
                 disabled={enviando}
               />
             </div>
@@ -323,6 +331,9 @@ export function ClosurePanel({
           </div>
         </div>
       )}
+
+      {/* A imagem aberta no editor. Ver `AttachmentEditor`. */}
+      {anexar && <AttachmentEditor draft={anexar.rascunho} />}
     </section>
   )
 }

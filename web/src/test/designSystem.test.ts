@@ -34,8 +34,20 @@ const COLOR_AUTHORITY = ['styles/tokens.css', 'styles/index.css']
  *
  * Como no favicon, a excecao e **conferida e nao isenta**: a auditoria logo
  * abaixo diz exatamente que cor ele pode escrever, e reprova qualquer outra.
+ *
+ * O mesmo vale para a camada de marcar a area da captura, que o carregador desenha
+ * na pagina do cliente, e para a captura, que desenha a pagina dele — as duas com
+ * auditoria propria.
  */
-const FORA_DO_DOCUMENTO = ['loader/main.ts']
+const FORA_DO_DOCUMENTO = ['loader/main.ts', 'loader/areaPicker.ts', 'capture/pageCapture.ts']
+
+/**
+ * A terceira excecao: as cores que o editor pinta **na imagem**. A seta vermelha sai
+ * vermelha no arquivo, e quem abre o relato no painel claro ou escuro ve a mesma
+ * imagem — um token que mudasse com o tema mudaria o print. A interface do editor
+ * continua nos tokens; so esta lista escreve cor, e a auditoria abaixo a confere.
+ */
+const NA_IMAGEM = ['editor/palette.ts']
 
 /** As 22 famílias da paleta padrao do Tailwind, que este produto nao usa. */
 const TAILWIND_PALETTE =
@@ -119,6 +131,7 @@ describe('valores de cor fora do sistema de tokens', () => {
         const relativePath = relative(SOURCE_ROOT, file)
         if (COLOR_AUTHORITY.includes(relativePath)) continue
         if (FORA_DO_DOCUMENTO.includes(relativePath)) continue
+        if (NA_IMAGEM.includes(relativePath)) continue
 
         const lines = readFileSync(file, 'utf8').split('\n')
 
@@ -357,6 +370,54 @@ describe('as cores que o carregador escreve na pagina do cliente', () => {
       .map((propriedade) => `o carregador escreve ${propriedade}`)
 
     expect(proibidos).toEqual([])
+  })
+})
+
+/**
+ * A auditoria da camada de marcar a area. Ela aparece por cima da pagina do
+ * cliente so enquanto a pessoa captura, e tem **paleta propria e neutra**,
+ * declarada uma vez: o veu que escurece, a barra escura com texto branco e as
+ * linhas finas. Cor nova so entra mudando esta lista — que e a revisao.
+ */
+describe('as cores da captura na pagina do cliente', () => {
+  const cores = (arquivo: string) =>
+    [
+      ...readFileSync(join(SOURCE_ROOT, arquivo), 'utf8').matchAll(
+        /\b(?:rgba?|hsla?)\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g,
+      ),
+    ].map((match) => match[0])
+
+  it('a camada de marcar declara a paleta uma vez, e so ela', () => {
+    expect(cores('loader/areaPicker.ts')).toEqual([
+      'rgb(15 23 42 / 0.35)',
+      '#111827',
+      '#ffffff',
+      'rgb(0 0 0 / 0.5)',
+      'rgb(0 0 0 / 0.3)',
+      'rgb(255 255 255 / 0.35)',
+      'rgb(255 255 255 / 0.1)',
+    ])
+  })
+
+  // Nao pinta nada: compara com o transparente, e cai no branco quando a pagina nao
+  // tem fundo — que e o que o navegador mostra nesse caso.
+  it('a captura so conhece o transparente e o branco de reserva', () => {
+    expect(cores('capture/pageCapture.ts')).toEqual(['rgba(0, 0, 0, 0)', '#ffffff'])
+  })
+
+  // O preto e o branco puros sao o contorno e a tarja; as seis cores de marcar sao as
+  // que um print costuma pedir. O veu do recorte so aparece na tela.
+  it('o editor pinta so a paleta dele, declarada num lugar', () => {
+    expect(cores('editor/palette.ts')).toEqual([
+      '#000000',
+      '#ffffff',
+      '#e5484d',
+      '#ffc53d',
+      '#30a46c',
+      '#0090ff',
+      '#1c2024',
+      'rgb(0 0 0 / 0.55)',
+    ])
   })
 })
 
