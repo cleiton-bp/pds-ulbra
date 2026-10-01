@@ -70,6 +70,26 @@ public class ReportAttachmentService : IReportAttachmentService
     /// <summary>A miniatura e sempre imagem. Nos videos antigos, ela e o quadro de capa.</summary>
     private const string ThumbnailContentType = "image/webp";
 
+    /// <summary>
+    /// Onde o navegador grava: a unica pasta que uma permissao de envio assina.
+    ///
+    /// <para><b>A permissao continua valendo depois de usada</b> — alguns minutos,
+    /// reenviavel —, e reenvia-la trocaria um arquivo ja conferido. Por isso o
+    /// arquivo aceito sai daqui, na confirmacao, para <see cref="MediaPrefix"/>, que
+    /// nenhuma permissao alcanca.</para>
+    ///
+    /// <para><b>Tudo o que fica aqui e descartavel</b>: envio abandonado, envio
+    /// recusado que falhou ao apagar, reenvio depois da confirmacao. O balde pode
+    /// apagar esta pasta por idade sem risco para anexo nenhum.</para>
+    ///
+    /// <para><b>O projeto entra pelo identificador publico.</b> O nome aparece no
+    /// endereco que o navegador usa, e o id interno nao sai da API.</para>
+    /// </summary>
+    private const string UploadPrefix = "uploads/";
+
+    /// <summary>Onde mora o arquivo conferido. Nenhuma permissao de envio assina esta pasta.</summary>
+    private const string MediaPrefix = "media/";
+
     private const string PendingNotFound = "Nao ha anexo pendente com esse identificador neste relato.";
 
     // A mesma frase no pedido, na confirmacao e na tela de configuracao: cada um
@@ -189,8 +209,10 @@ public class ReportAttachmentService : IReportAttachmentService
 
         // O nome no armazenamento e sorteado, e nunca derivado do que veio de fora:
         // um nome escolhido por quem envia permitiria escrever por cima do arquivo
-        // de outra pessoa, ou sair da pasta onde os arquivos deste projeto moram.
-        var chave = $"media/{report.ProjectId}/{Guid.NewGuid():N}";
+        // de outra pessoa, ou sair da pasta onde os arquivos deste projeto moram. E
+        // e um nome de ENVIO: o arquivo conferido vai para outro, na confirmacao —
+        // ver UploadPrefix.
+        var chave = $"{UploadPrefix}{report.Project.PublicId:N}/{Guid.NewGuid():N}";
         var comMiniatura = dto.WithThumbnail == true;
 
         var attachment = new ReportAttachment
@@ -260,8 +282,20 @@ public class ReportAttachmentService : IReportAttachmentService
         var objeto = vencido
             ? null
             : await _mediaStorage.InspectAsync(
-                  attachment.ObjectKey, MediaSignatures.LeadingBytes, cancellationToken)
-              ?? throw new ArgumentException("O arquivo nao chegou ao armazenamento.");
+                attachment.ObjectKey, MediaSignatures.LeadingBytes, cancellationToken);
+
+        if (!vencido && objeto is null)
+        {
+            // Nada no nome de envio: ou o arquivo nunca chegou, ou outra confirmacao do
+            // mesmo anexo terminou antes e ja o levou para o nome final. A segunda e o
+            // clique duplo, e ouve o mesmo 404 que ouviria depois da trava — "nao
+            // chegou" mentiria sobre um arquivo que acabou de ser aceito.
+            _ = await _unitOfWork.ReportAttachments.FindPendingWithoutSessionAsync(
+                    publicId, report.Id, cancellationToken)
+                ?? throw new KeyNotFoundException(PendingNotFound);
+
+            throw new ArgumentException("O arquivo nao chegou ao armazenamento.");
+        }
 
         var vigente = MediaSettingsDefaults.Resolve(
             await _unitOfWork.ProjectMediaSettings.FindByProjectWithoutSessionAsync(
@@ -290,9 +324,33 @@ public class ReportAttachmentService : IReportAttachmentService
                 ? "O arquivo enviado nao e do formato que foi declarado."
                 : null;
 
-        if (objeto is not null && limite is not null && arquivoRecusado is null
-            && attachment.ThumbnailObjectKey is { } thumb)
-            await ConferirMiniaturaAsync(attachment, thumb, cancellationToken);
+        // Os nomes de envio, guardados antes de qualquer mudanca: confirmado, o anexo
+        // passa a apontar para o nome final, e estes saem do armazenamento.
+        var chaveEnvio = attachment.ObjectKey;
+        var miniaturaEnvio = attachment.ThumbnailObjectKey;
+
+        var arquivoAceito = objeto is not null && limite is not null && arquivoRecusado is null;
+
+        var miniatura = arquivoAceito && miniaturaEnvio is not null
+            ? await ConferirMiniaturaAsync(miniaturaEnvio, cancellationToken)
+            : null;
+
+        // **O arquivo conferido sai do alcance da permissao antes de virar anexo.** A
+        // permissao de envio continua valendo alguns minutos, e reenvia-la grava
+        // outro conteudo no mesmo nome. A copia exige o ETag lido na conferencia:
+        // trocado depois dela, o armazenamento recusa copiar, e o anexo e recusado
+        // junto — o que entraria nao seria o que foi conferido.
+        //
+        // Fora da trava, como a leitura: e o passo que fala com o armazenamento. Uma
+        // regra que recuse la dentro apaga as copias depois.
+        //
+        // **O nome final e guardado antes de copiar**, e nao so quando a copia volta:
+        // a pessoa fechando a aba cancela a chamada, e o armazenamento pode ter gravado
+        // a copia mesmo assim. E esse nome que o tratamento de falha abaixo apaga.
+        string? destino = null;
+        string? chaveFinal = null;
+        string? miniaturaFinal = null;
+        var copiaRecusada = false;
 
         // **A cota e contada de novo aqui, e e esta contagem que vale.** A do pedido
         // de permissao so conta os confirmados, entao quem pede cinco permissoes
@@ -302,55 +360,107 @@ public class ReportAttachmentService : IReportAttachmentService
         //
         // Os bytes foram lidos antes, fora da trava: ler o armazenamento e o passo
         // demorado, e segura-lo com a trava faria cada arquivo esperar o anterior.
-        var recusa = await _unitOfWork.InTransactionAsync(async ct =>
+        ConfirmRefusal? recusa;
+
+        try
         {
-            await _unitOfWork.ReportAttachments.LockUploadQuotaAsync(report.Id, ct);
-
-            // Lido de novo, ja com a trava: um clique duplo manda duas confirmacoes do
-            // mesmo anexo, e a primeira pode ter terminado enquanto esta esperava. Sem
-            // isto a segunda contaria o proprio anexo como ocupando a vaga, e o
-            // descartaria — apagando um arquivo que acabou de ser aceito. O filtro roda
-            // no banco: mesmo devolvendo o objeto ja carregado, a resposta diz o estado
-            // de agora.
-            _ = await _unitOfWork.ReportAttachments.FindPendingWithoutSessionAsync(publicId, report.Id, ct)
-                ?? throw new KeyNotFoundException(PendingNotFound);
-
-            ConfirmRefusal? motivo = null;
-
-            if (objeto is null)
-                motivo = new ConfirmRefusal("O prazo para anexar este arquivo terminou.", IsAboutTheFile: false);
-            else if (arquivoRecusado is not null)
-                motivo = new ConfirmRefusal(arquivoRecusado, IsAboutTheFile: true);
-            else if ((limite is null
-                         ? NoLongerOffered(attachment.Kind)
-                         : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
-                           ?? await RoomRefusalAsync(
-                               report.Id, attachment.PublicCommentId, attachment.ReopenedClosureId,
-                               attachment.Kind, vigente, limite, ct))
-                     is { } regra)
-                motivo = new ConfirmRefusal(regra, IsAboutTheFile: false);
-
-            if (motivo is not null)
+            if (arquivoAceito)
             {
-                // Devolve, e nao lanca: lancando, a transacao desfaria o descarte, e o
-                // anexo recusado continuaria pendente. O arquivo sai do armazenamento
-                // so depois, fora da trava.
-                await MarcarDescartadoAsync(attachment, ct);
-                return motivo;
+                destino = $"{MediaPrefix}{report.Project.PublicId:N}/{Guid.NewGuid():N}";
+
+                if (await _mediaStorage.CopyAsync(chaveEnvio, destino, objeto!.ETag, cancellationToken))
+                {
+                    chaveFinal = destino;
+
+                    // A miniatura trocada so perde a miniatura: o arquivo vale sem ela.
+                    if (miniatura is not null
+                        && await _mediaStorage.CopyAsync(
+                            miniaturaEnvio!, $"{destino}-thumb", miniatura.ETag, cancellationToken))
+                        miniaturaFinal = $"{destino}-thumb";
+                }
+                else
+                {
+                    copiaRecusada = true;
+                }
             }
 
-            // Aqui o arquivo foi lido: sem ele, o anexo estava vencido e ja saiu acima.
-            attachment.Status = AttachmentStatusEnum.Confirmed;
-            attachment.SizeBytes = objeto!.SizeBytes;
-            attachment.ConfirmedAt = DateTime.UtcNow;
+            recusa = await _unitOfWork.InTransactionAsync(async ct =>
+            {
+                await _unitOfWork.ReportAttachments.LockUploadQuotaAsync(report.Id, ct);
 
-            _unitOfWork.ReportAttachments.Update(attachment);
-            await _unitOfWork.CommitAsync(ct);
-            return null;
-        }, cancellationToken);
+                // Lido de novo, ja com a trava: um clique duplo manda duas confirmacoes do
+                // mesmo anexo, e a primeira pode ter terminado enquanto esta esperava. Sem
+                // isto a segunda contaria o proprio anexo como ocupando a vaga, e o
+                // descartaria — apagando um arquivo que acabou de ser aceito. O filtro roda
+                // no banco: mesmo devolvendo o objeto ja carregado, a resposta diz o estado
+                // de agora.
+                _ = await _unitOfWork.ReportAttachments.FindPendingWithoutSessionAsync(publicId, report.Id, ct)
+                    ?? throw new KeyNotFoundException(PendingNotFound);
 
-        if (recusa is not null)
+                ConfirmRefusal? motivo = null;
+
+                if (objeto is null)
+                    motivo = new ConfirmRefusal("O prazo para anexar este arquivo terminou.", IsAboutTheFile: false);
+                else if (arquivoRecusado is not null)
+                    motivo = new ConfirmRefusal(arquivoRecusado, IsAboutTheFile: true);
+                else if (copiaRecusada)
+                    motivo = new ConfirmRefusal("O arquivo mudou depois de conferido.", IsAboutTheFile: true);
+                else if ((limite is null
+                             ? NoLongerOffered(attachment.Kind)
+                             : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
+                               ?? await RoomRefusalAsync(
+                                   report.Id, attachment.PublicCommentId, attachment.ReopenedClosureId,
+                                   attachment.Kind, vigente, limite, ct))
+                         is { } regra)
+                    motivo = new ConfirmRefusal(regra, IsAboutTheFile: false);
+
+                if (motivo is not null)
+                {
+                    // Devolve, e nao lanca: lancando, a transacao desfaria o descarte, e o
+                    // anexo recusado continuaria pendente. O arquivo sai do armazenamento
+                    // so depois, fora da trava.
+                    await MarcarDescartadoAsync(attachment, ct);
+                    return motivo;
+                }
+
+                // Aqui o arquivo foi lido e copiado: sem isso, o anexo ja saiu acima.
+                attachment.Status = AttachmentStatusEnum.Confirmed;
+                attachment.SizeBytes = objeto!.SizeBytes;
+                attachment.ConfirmedAt = DateTime.UtcNow;
+                attachment.ObjectKey = chaveFinal!;
+                attachment.ThumbnailObjectKey = miniaturaFinal;
+
+                _unitOfWork.ReportAttachments.Update(attachment);
+                await _unitOfWork.CommitAsync(ct);
+                return null;
+            }, cancellationToken);
+        }
+        catch
         {
+            // Outra confirmacao terminou antes, a copia falhou, a pessoa fechou a aba, ou
+            // a gravacao falhou. As copias finais saem — menos quando o banco gravou a
+            // confirmacao e so a resposta dele se perdeu: ai elas sao o anexo.
+            await DescartarCopiasFinaisAsync(destino, miniaturaEnvio is not null, chaveEnvio, miniaturaEnvio);
+            throw;
+        }
+
+        if (recusa is null)
+        {
+            // O que foi aceito ja mora no nome final. A copia de envio sobra, e sai.
+            // Falhar aqui nao desfaz a confirmacao: o que sobrar fica na pasta de
+            // envio, que o balde apaga por idade.
+            try
+            {
+                await ApagarAsync(chaveEnvio, miniaturaEnvio);
+            }
+            catch
+            {
+                // Ver o paragrafo acima.
+            }
+        }
+        else
+        {
+            await ApagarAsync(chaveFinal, miniaturaFinal);
             await ApagarObjetosAsync(attachment);
 
             // 400 quando o problema e o proprio arquivo, como sempre foi. 409 quando o
@@ -486,9 +596,12 @@ public class ReportAttachmentService : IReportAttachmentService
     ///
     /// <para>Miniatura que nao chegou nao derruba o anexo: o arquivo esta la e vale.
     /// O que nao pode e guardar uma que nao e imagem.</para>
+    ///
+    /// <para>Devolve o que foi conferido — e o ETag que a copia para o nome final
+    /// exige —, ou nulo quando nao ha miniatura que sirva. Nao mexe no anexo: quem
+    /// decide o que ele guarda e a confirmacao, com a trava.</para>
     /// </summary>
-    private async Task ConferirMiniaturaAsync(
-        ReportAttachment attachment,
+    private async Task<MediaObjectInfo?> ConferirMiniaturaAsync(
         string thumbnailObjectKey,
         CancellationToken cancellationToken)
     {
@@ -496,16 +609,15 @@ public class ReportAttachmentService : IReportAttachmentService
             thumbnailObjectKey, MediaSignatures.LeadingBytes, cancellationToken);
 
         if (miniatura is null)
-        {
-            attachment.ThumbnailObjectKey = null;
-            return;
-        }
+            return null;
 
         if (!MediaSignatures.Matches(ThumbnailContentType, miniatura.Leading))
         {
             await _mediaStorage.DeleteAsync(thumbnailObjectKey, cancellationToken);
-            attachment.ThumbnailObjectKey = null;
+            return null;
         }
+
+        return miniatura;
     }
 
     /// <summary>
@@ -540,12 +652,70 @@ public class ReportAttachmentService : IReportAttachmentService
     /// requisicao pelo mesmo motivo: o descarte ja foi decidido e gravado, e quem
     /// fechou a aba nao desfaz a limpeza.</para>
     /// </summary>
-    private async Task ApagarObjetosAsync(ReportAttachment attachment)
+    /// <summary>
+    /// Apaga as copias finais de uma confirmacao que falhou no meio.
+    ///
+    /// <para><b>Apaga pelo nome tentado, e nao so pelo que a copia confirmou</b>: a
+    /// chamada cancelada pode ter sido gravada do lado de la. Apagar o que nao existe
+    /// nao e erro.</para>
+    ///
+    /// <para><b>Menos quando um anexo ja aponta para elas.</b> O commit pode ter
+    /// entrado e a resposta do banco se perdido — e ai elas sao o arquivo de um anexo
+    /// confirmado, e quem sobra sao as copias de envio. Sem conseguir perguntar ao
+    /// banco, nada e apagado: uma copia a mais custa armazenamento, e uma a menos
+    /// custa o arquivo.</para>
+    /// </summary>
+    private async Task DescartarCopiasFinaisAsync(
+        string? destino,
+        bool comMiniatura,
+        string chaveEnvio,
+        string? miniaturaEnvio)
     {
-        await _mediaStorage.DeleteAsync(attachment.ObjectKey, CancellationToken.None);
+        if (destino is null)
+            return;
 
-        if (attachment.ThumbnailObjectKey is { } thumb)
-            await _mediaStorage.DeleteAsync(thumb, CancellationToken.None);
+        bool emUso;
+
+        try
+        {
+            emUso = await _unitOfWork.ReportAttachments.IsObjectKeyInUseWithoutSessionAsync(
+                destino, CancellationToken.None);
+        }
+        catch
+        {
+            return;
+        }
+
+        try
+        {
+            if (emUso)
+                await ApagarAsync(chaveEnvio, miniaturaEnvio);
+            else
+                await ApagarAsync(destino, comMiniatura ? $"{destino}-thumb" : null);
+        }
+        catch
+        {
+            // A falha que importa e a de cima, que segue para quem chamou. O que sobrar
+            // em media/ e raro e fica; o que sobrar em uploads/ expira.
+        }
+    }
+
+    private Task ApagarObjetosAsync(ReportAttachment attachment)
+        => ApagarAsync(attachment.ObjectKey, attachment.ThumbnailObjectKey);
+
+    /// <summary>
+    /// Apaga do armazenamento um arquivo e a miniatura dele, os que houver.
+    ///
+    /// <para>Sem o token da requisicao, pelo motivo de <see cref="ApagarObjetosAsync"/>:
+    /// quando se chega aqui, o que apagar ja foi decidido.</para>
+    /// </summary>
+    private async Task ApagarAsync(string? objectKey, string? thumbnailObjectKey)
+    {
+        if (objectKey is not null)
+            await _mediaStorage.DeleteAsync(objectKey, CancellationToken.None);
+
+        if (thumbnailObjectKey is not null)
+            await _mediaStorage.DeleteAsync(thumbnailObjectKey, CancellationToken.None);
     }
 
     /// <summary>

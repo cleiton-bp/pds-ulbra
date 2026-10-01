@@ -62,8 +62,12 @@ public static class MediaSignatures
             // FF D8 FF — inicio de todo JPEG, seja JFIF ou Exif.
             "image/jpeg" => Starts(leading, [0xFF, 0xD8, 0xFF]),
 
-            // RIFF....WEBP — os quatro bytes do meio sao o tamanho, e variam.
-            "image/webp" => Starts(leading, [0x52, 0x49, 0x46, 0x46])
+            // RIFF....WEBP — os quatro bytes do meio sao o tamanho, e variam. O
+            // comprimento e conferido antes do recorte: um arquivo de 4 a 7 bytes que
+            // comeca com RIFF faria `leading[8..]` estourar, e a confirmacao
+            // responderia com a mensagem interna em vez de recusar o formato.
+            "image/webp" => leading.Length >= LeadingBytes
+                            && Starts(leading, [0x52, 0x49, 0x46, 0x46])
                             && Starts(leading[8..], [0x57, 0x45, 0x42, 0x50]),
 
             _ => false,

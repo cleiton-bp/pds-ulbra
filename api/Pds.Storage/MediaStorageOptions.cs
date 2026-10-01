@@ -10,7 +10,11 @@ namespace Pds.Storage;
 /// <para>Mora neste projeto, e nao no dominio, porque e detalhe de quem implementa:
 /// quem usa <c>IMediaStorage</c> nunca viu um endpoint na vida.</para>
 /// </summary>
-/// <param name="Endpoint">Endereco do servico.</param>
+/// <param name="Endpoint">Endereco do servico, como a API o alcanca.</param>
+/// <param name="PublicEndpoint">
+/// Endereco do servico como o <b>navegador</b> o alcanca, e o unico com que se
+/// assina. Igual ao <paramref name="Endpoint"/> quando os dois enxergam o mesmo.
+/// </param>
 /// <param name="AccessKey">Chave de acesso.</param>
 /// <param name="SecretKey">Chave secreta.</param>
 /// <param name="Bucket">Balde onde a midia e gravada.</param>
@@ -21,6 +25,7 @@ namespace Pds.Storage;
 /// <param name="PlaybackValidity">Quanto tempo vale a leitura de algo que toca.</param>
 public record MediaStorageOptions(
     string Endpoint,
+    string PublicEndpoint,
     string AccessKey,
     string SecretKey,
     string Bucket,

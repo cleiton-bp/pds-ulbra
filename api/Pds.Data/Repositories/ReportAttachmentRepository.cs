@@ -58,6 +58,13 @@ public class ReportAttachmentRepository
             cancellationToken);
     }
 
+    public Task<bool> IsObjectKeyInUseWithoutSessionAsync(string objectKey, CancellationToken cancellationToken = default)
+        => Context.ReportAttachments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(attachment => attachment.ObjectKey == objectKey && attachment.DeletedAt == null,
+                cancellationToken);
+
     public Task<ReportAttachment?> FindPendingWithoutSessionAsync(
         Guid publicId,
         long reportId,

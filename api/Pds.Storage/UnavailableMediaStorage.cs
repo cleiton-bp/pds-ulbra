@@ -38,6 +38,13 @@ public class UnavailableMediaStorage : IMediaStorage
         CancellationToken cancellationToken = default)
         => throw new InvalidOperationException(Motivo);
 
+    public Task<bool> CopyAsync(
+        string sourceKey,
+        string destinationKey,
+        string etag,
+        CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException(Motivo);
+
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken = default)
         => throw new InvalidOperationException(Motivo);
 

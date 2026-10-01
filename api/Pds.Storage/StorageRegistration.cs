@@ -60,8 +60,11 @@ public static class StorageRegistration
             throw new InvalidOperationException(
                 $"Armazenamento de midia configurado pela metade: falta {string.Join(", ", faltando)}.");
 
+        var endpoint = lidas["MEDIA_STORAGE_ENDPOINT"]!;
+
         return new MediaStorageOptions(
-            Endpoint: lidas["MEDIA_STORAGE_ENDPOINT"]!,
+            Endpoint: endpoint,
+            PublicEndpoint: EnvironmentConstants.GetMediaStoragePublicEndpoint() ?? endpoint,
             AccessKey: lidas["MEDIA_STORAGE_ACCESS_KEY"]!,
             SecretKey: lidas["MEDIA_STORAGE_SECRET_KEY"]!,
             Bucket: lidas["MEDIA_STORAGE_BUCKET"]!,

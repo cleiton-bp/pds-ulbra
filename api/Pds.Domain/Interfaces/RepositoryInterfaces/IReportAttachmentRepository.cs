@@ -45,6 +45,16 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
     Task LockUploadQuotaAsync(long reportId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Algum anexo que nao foi descartado aponta para este nome no armazenamento.
+    ///
+    /// <para><b>Existe para a confirmacao que falhou no fim saber se pode apagar a
+    /// copia final.</b> O banco pode ter gravado a confirmacao e a resposta dele se
+    /// perdido no caminho; apagar ai seria apagar o arquivo de um anexo confirmado.
+    /// Le de novo, sem o que o contexto guardou na memoria.</para>
+    /// </summary>
+    Task<bool> IsObjectKeyInUseWithoutSessionAsync(string objectKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// O anexo <b>pendente</b> daquele relato, para confirmar.
     ///
     /// <para>O relato entra na consulta, e nao so o identificador do anexo: sem ele,

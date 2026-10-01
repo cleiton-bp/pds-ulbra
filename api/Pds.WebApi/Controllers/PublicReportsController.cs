@@ -537,7 +537,7 @@ public class PublicReportsController : BaseController
     /// <param name="dto">O relato e o anexo que está sendo confirmado.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Anexo confirmado.</response>
-    /// <response code="400">O arquivo não chegou, ou não é do formato declarado — neste caso ele foi descartado.</response>
+    /// <response code="400">O arquivo não chegou, não é do formato declarado, ou mudou depois de conferido — nos dois últimos casos ele foi descartado.</response>
     /// <response code="404">O link não abre nenhum relato, ou não há anexo pendente com esse identificador — por exemplo, porque outra confirmação do mesmo anexo terminou antes.</response>
     /// <response code="409">O envio já tem o máximo de arquivos, a regra do projeto mudou depois da permissão (mídia, tipo, anexo na resposta ou na reabertura, ou tamanho máximo), a permissão passou de 1 hora sem ser confirmada, ou o anexo é um vídeo, que não é mais aceito — nesses casos o arquivo foi descartado. Ou esta instalação está sem armazenamento.</response>
     /// <response code="429">Muitos pedidos de envio a partir do mesmo IP.</response>
