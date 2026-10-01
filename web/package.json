@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Painel do PDS — administracao de conta, projetos e chaves. Etapa 1, rodando com dados mocados.",
+  "description": "Painel do PDS, ferramenta de relato e pagina de acompanhamento.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && npm run build:loader && vite build",

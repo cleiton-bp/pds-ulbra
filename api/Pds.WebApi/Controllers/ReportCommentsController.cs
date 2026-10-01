@@ -25,9 +25,9 @@ namespace Pds.WebApi.Controllers;
 /// Com tabelas separadas, vazar exige escrever uma consulta que não existe e que
 /// ninguém teria motivo para escrever.
 ///
-/// **O comentário público ainda não tem leitor.** A camada que o relator lê vem
-/// depois — por enquanto ele é público no nome, e a tela do painel diz isso em vez
-/// de sugerir que a pessoa já está vendo.
+/// **O comentário público tem leitor: quem relatou.** Ele lê na página de
+/// acompanhamento, na conversa, junto das próprias respostas — e a tela do painel
+/// diz isso a quem escreve.
 /// </summary>
 [Authorize]
 [RequireAccount]
@@ -115,8 +115,8 @@ public class ReportCommentsController : BaseController
     /// um valor errado, vindo de qualquer lugar, para o texto interno acabar na
     /// tabela que vai ser lida de fora.
     ///
-    /// **Ele ainda não tem leitor.** A camada que o relator lê vem depois, e até lá
-    /// este texto é público apenas no nome.
+    /// **Quem relatou lê**, na página de acompanhamento: o que se escreve aqui sai da
+    /// empresa.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>

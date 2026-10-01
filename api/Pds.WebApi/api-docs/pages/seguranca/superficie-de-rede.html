@@ -1,20 +1,42 @@
 <h2>Superfície de rede</h2>
 
+<div class="table-scroll">
 <table>
   <tr><th>Proteção</th><th>Como está</th></tr>
   <tr><td>CORS</td><td>Só as origens configuradas. Lista vazia libera nenhuma.</td></tr>
-  <tr><td>Limite de requisições</td><td>20/min por IP no login.</td></tr>
+  <tr><td>CORS antes do limitador</td><td>A recusa por excesso sai do limitador sem passar pelo que vem depois. Com o CORS antes dele, o 429 leva os cabeçalhos e a tela lê "muitas tentativas"; sem eles, o navegador esconderia a resposta e a tela veria "falha de rede".</td></tr>
+  <tr><td>Limite de requisições</td><td>20/min por IP no login. 20/min por IP no pedido de permissão e na confirmação de envio de mídia, somados na mesma janela (<code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code>). As demais rotas públicas não têm.</td></tr>
+  <tr><td>IP de quem pede</td><td>O da conexão. Atrás de um proxy, só o listado em <code>TRUSTED_PROXIES</code> tem o <code>X-Forwarded-For</code> acreditado, e só um salto; lista vazia ignora o cabeçalho, e valor inválido derruba a subida.</td></tr>
   <tr><td>HTTPS</td><td>Redirecionamento obrigatório fora de desenvolvimento.</td></tr>
   <tr><td>Conexão com o banco</td><td>SSL obrigatório.</td></tr>
+  <tr><td>Balde</td><td>Privado: nenhum acesso anônimo. De fora, nada se lê nem se grava nele sem uma assinatura que a API gerou, e ela vale minutos.</td></tr>
+  <tr><td>Respostas com links assinados</td><td><code>Cache-Control: no-store</code> — a lista de arquivos do painel e as da página de quem relatou.</td></tr>
+  <tr><td>Armazenamento local</td><td>O MinIO do <code>docker compose</code> só escuta em <code>127.0.0.1</code>: a senha padrão está no repositório.</td></tr>
   <tr><td>Mensagem de erro</td><td>Erro não previsto responde texto genérico; detalhe só no log.</td></tr>
 </table>
+</div>
+
+<div class="note why">
+  <strong>O limite de mídia soma o pedido e a confirmação</strong>
+  <p>A primeira assina espaço no balde, e a segunda lê do balde; separar as duas daria a quem
+  martela o dobro da cota. E o limite de arquivos do projeto não cobre o caso sozinho: ele conta só
+  o que foi confirmado — de propósito, para permissão pedida e não usada não ocupar vaga —, então
+  sem esta trava quem tem um protocolo pediria permissões em série sem confirmar nenhuma.</p>
+</div>
 
 <div class="note todo">
   <strong>Pendências conhecidas</strong>
   <ul>
-    <li>Rotina de exclusão e anonimização de conta.</li>
-    <li>Teste automatizado do isolamento entre contas.</li>
-    <li>Invalidar sessão antes de o token expirar.</li>
-    <li>Limite de tentativas nas rotas públicas. Só o login tem limitador, e são as rotas públicas que qualquer visitante alcança — com o código pessoal e a lista pública, a lacuna cresceu.</li>
+    <li>Rotina de exclusão e anonimização de conta, com os arquivos do balde junto — <strong>Planejado</strong>.</li>
+    <li>Teste automatizado do isolamento entre contas — <strong>Planejado</strong>.</li>
+    <li>Invalidar sessão antes de o token expirar — <strong>Continuidade</strong>.</li>
+    <li>Limite nas demais rotas públicas — <code>public/reports</code>, <code>tracking</code>,
+    <code>by-code</code>, <code>published</code> —, que qualquer visitante de qualquer site alcança
+    — <strong>Planejado</strong>.</li>
+    <li>Camadas acima do limite por minuto no envio de mídia, como um desafio invisível —
+    <strong>Planejado</strong>.</li>
+    <li>Política de CORS própria das rotas públicas — <strong>Planejado</strong>.</li>
+    <li>A regra de CORS do balde em produção, que precisa deixar o quadro enviar — <strong>Adiado</strong>,
+    junto da escolha do provedor.</li>
   </ul>
 </div>

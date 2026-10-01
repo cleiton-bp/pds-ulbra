@@ -26,10 +26,10 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | `01-overview.yaml` | a visão geral: os cinco atores e os dezoito casos de uso principais |
 | `02-project-setup.yaml` | o dono põe o projeto no ar — entrar com Google, criar o projeto, as chaves, instalar a ferramenta no site, os domínios, a aparência, arquivar |
 | `03-project-rules.yaml` | o dono define as regras — estados internos, etapas públicas e o mapa entre eles, o ciclo, a identidade e a mídia; por quanto tempo a mídia fica é adiado |
-| `04-reporting.yaml` | o relator na ferramenta — abrir relato, anexar, capturar a tela, informar o nome, ver e reencontrar os próprios relatos; relatar já identificado pelo site é adiado |
+| `04-reporting.yaml` | o relator na ferramenta — abrir relato, anexar imagens e arquivos, capturar uma área da página e marcar a imagem, informar o nome, ver e reencontrar os próprios relatos; relatar já identificado pelo site é adiado |
 | `05-team-work.yaml` | o time no painel — ler, comentar, pedir informação, mover, encerrar — e o que o sistema faz sozinho em volta disso; apagar a mídia vencida é adiado |
-| `06-tracking.yaml` | o relator na página de acompanhamento — acompanhar, responder ao time, confirmar com nota, reabrir |
-| `07-moderation.yaml` | o que vira público — moderar, apontar dado sensível, tirar do público, a lista pública |
+| `06-tracking.yaml` | o relator na página de acompanhamento — acompanhar, responder ao time e reabrir, anexando nos dois, confirmar com nota |
+| `07-moderation.yaml` | o que vira público — moderar, apontar dado sensível, tirar do público, a lista pública; a lista com imagens é adiada |
 | `08-customization.yaml` | **Planejado.** Tipos de relato e o que cada um pergunta, textos com variáveis, capturas automáticas e como a ferramenta abre no site |
 | `09-research.yaml` | **Planejado.** As métricas do projeto e a resposta à pergunta de pesquisa |
 | `10-communication.yaml` | **Planejado.** Os avisos por e-mail — etapa que mudou, pedido de informação, código perdido — e o contato que os torna possíveis |
@@ -47,7 +47,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | **Dono do projeto** | põe o projeto no ar e decide como ele se comporta; é um tipo de membro do time | 01, 02, 03, 08 a 12 |
 | **Pesquisador** | quem estuda o efeito da ferramenta; lê os dados de todos os projetos, sem identificação | 01, 09 |
 | **Google** «sistema» | confirma quem entra no painel | 02, 11 |
-| **Armazenamento de arquivos** «sistema» | guarda prints e vídeos, privado, servidos só por link assinado | 04, 05, 06 |
+| **Armazenamento de arquivos** «sistema» | guarda imagens e arquivos (e os vídeos antigos), privado, servidos só por link assinado | 04, 05, 06 |
 | **Agendador** «sistema» | a fila que segura a espera e os prazos, e age quando a hora chega | 05, 10 |
 | **Sistema do cliente** «sistema» | o servidor do site do cliente, que assina a identidade herdada | 04 |
 | **Serviço de e-mail** «sistema» | entrega os avisos | 10 |

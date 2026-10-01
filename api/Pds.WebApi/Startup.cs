@@ -44,9 +44,11 @@ public class Startup
     private const string ApiDescription = """
         Camada pública de acompanhamento de relatos de problemas em software.
 
-        Esta é a **etapa 1 — Fundação**: conta, usuário, projeto e chaves. É o que
-        precisa existir antes de qualquer relato entrar. Recebimento de relato,
-        etapas públicas e notificação vêm depois.
+        Conta, projetos e chaves; o relato que chega do site do cliente e a fila em
+        que o time o trabalha; a jornada pública que quem relatou acompanha; o ciclo
+        que fecha, com pedido de informação, confirmação e reabertura; identidade,
+        visibilidade e moderação; e os anexos — imagens e arquivos. A notificação por
+        e-mail está planejada.
 
         ### Como usar
 
@@ -100,9 +102,10 @@ public class Startup
 
         services.RegisterDependencies();
 
-        // A fila, **se** houver fila. Sem RABBITMQ_URL a aplicacao sobe inteira e
-        // so a espera antes de quem relatou ver fica indisponivel — a configuracao
-        // do ciclo recusa liga-la, dizendo por que. Fica fora do `RegisterDependencies`
+        // A fila, **se** houver fila. Sem RABBITMQ_URL a aplicacao sobe inteira, mas
+        // a espera antes de quem relatou ver fica indisponivel — a configuracao do
+        // ciclo recusa liga-la, dizendo por que — e o pedido de informacao nao encerra
+        // sozinho no prazo: quem encerra e o consumidor da fila, que so existe com ela. Fica fora do `RegisterDependencies`
         // de proposito: quem hospeda o consumidor e este processo, e nao a camada
         // de registro compartilhada.
         services.AddPdsWorkers();
@@ -154,8 +157,9 @@ public class Startup
             // janela: a primeira assina espaco no balde, e a segunda le do balde — e
             // separar as duas daria a quem martela o dobro da cota.
             //
-            // So a trava minima em cima da rota cara. As quatro camadas, o desafio
-            // invisivel e o aviso no painel sao da etapa 8.
+            // So a trava minima em cima da rota cara. As outras defesas contra abuso —
+            // um desafio invisivel antes do envio, e avisar o cliente quando o limite
+            // dispara — ficam como Planejado.
             var mediaLimit = EnvironmentConstants.GetMediaUploadRateLimitPerMinute();
 
             options.AddPolicy(MediaUploadRateLimitPolicy, httpContext =>

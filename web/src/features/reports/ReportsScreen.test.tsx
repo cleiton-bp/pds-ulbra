@@ -752,7 +752,7 @@ describe('abrir um relato', () => {
     expect(dublê.comentarPublico).not.toHaveBeenCalled()
   })
 
-  it('a caixa que sai para fora é a destacada, e diz que ainda não tem leitor', async () => {
+  it('a caixa que sai para fora é a destacada, e diz onde a pessoa lê', async () => {
     dublê.abrir.mockResolvedValue({
       ...relato('r-1', 'o botao some'),
       Closure: null,
@@ -766,8 +766,8 @@ describe('abrir um relato', () => {
     // São dois campos com nomes próprios, e não um com seletor de visibilidade.
     expect(await screen.findByRole('textbox', { name: 'Entre o time' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Para quem relatou' })).toBeTruthy()
-    // Prometer leitura que não existe seria pior do que não ter o campo.
-    expect(screen.getByText(/ainda não tem onde ler/)).toBeTruthy()
+    // Quem escreve ali precisa saber que o texto sai da empresa.
+    expect(screen.getByText(/lê na página de acompanhamento/)).toBeTruthy()
   })
 
   it('o histórico usa o nome que a coluna tinha na época', async () => {

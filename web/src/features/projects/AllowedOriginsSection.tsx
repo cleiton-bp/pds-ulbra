@@ -13,8 +13,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
  *
  * **Agora a lista e conferida**, e a frase do desenho (prancheta 13) — "o bloqueio
  * passa a valer no momento em que voce declara o primeiro" — finalmente pode ser
- * escrita na tela. Ela esperou tres etapas: a pds-011 criou a lista, a pds-013 fez
- * a ferramenta abrir de verdade, e ate a pds-015 nenhuma linha do sistema lia esta
+ * escrita na tela: a ferramenta abre de verdade, e as rotas publicas conferem esta
  * tabela. Dai a etiqueta "ainda nao vale" ter saido daqui, e nao a frase.
  *
  * **A lista nasce aberta**, e isso continua valendo — lista vazia abre em qualquer

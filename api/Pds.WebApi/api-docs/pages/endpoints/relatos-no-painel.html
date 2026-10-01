@@ -6,12 +6,13 @@
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada. Aceita <code>state</code> para recortar por coluna da fila, ou <code>none</code> para os sem coluna.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/counts</code></td><td>Quantos relatos há em cada coluna, incluindo as vazias. Pergunta separada da lista de propósito.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto e a coluna em que ele está. <strong>Registra a visualização.</strong></td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a visualização.</strong></td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/state</code></td><td>Move o relato de coluna. <strong>Grava o evento antes do cache</strong>, na mesma transação.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/history</code></td><td>Tudo que aconteceu com o relato, montado a partir dos eventos. <strong>Não grava.</strong></td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/comments</code></td><td>Os comentários, em <strong>duas listas separadas</strong>.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../comments/internal</code></td><td>Escreve o que fica entre o time. Este texto não sai da tabela dele.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../comments/public</code></td><td>Escreve para quem relatou. <strong>Rota diferente, não um campo de visibilidade.</strong></td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>.../reports/{reportPublicId}/attachments</code></td><td>Os arquivos confirmados, com endereço de leitura assinado na hora e o nome original — que só o painel vê. <strong>Não grava visualização.</strong> Ver <a href="#/endpoints/midia">Mídia: anexar e ler</a>.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/closure</code></td><td>Encerra o relato com um desfecho e um <strong>motivo obrigatório</strong>. O motivo é visível para quem relatou.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/info-request</code></td><td>Devolve o relato pedindo informação, em vez de encerrar. Recusada se quem relatou não aceitou responder dúvidas.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/moderation</code></td><td>A fila do que espera decisão, <strong>do mais antigo para o mais novo</strong>. Aceita <code>state</code> para rever o que já foi liberado ou recusado.</td></tr>
@@ -47,8 +48,8 @@
   <p><b>O texto não entra no evento.</b> O evento registra que houve comentário, não o que foi
   dito — ele só cresce e nunca é apagado, e copiar o texto para lá criaria uma segunda cópia do
   dado mais perigoso numa tabela que não se consegue limpar.</p>
-  <p><b>E o comentário público ainda não tem leitor.</b> A camada que o relator lê vem depois, e
-  até lá ele é público apenas no nome. A tela do painel diz isso.</p>
+  <p><b>E o comentário público tem leitor.</b> A página de acompanhamento o mostra na conversa,
+  junto das respostas de quem relatou: escrever na rota pública é escrever para a pessoa.</p>
 </div>
 
 <div class="note warn">
@@ -72,13 +73,13 @@
   <strong>Uma consulta que grava, de propósito</strong>
   <p><code>GET /projects/{publicId}/reports/{reportPublicId}</code> registra um evento de
   visualização a cada chamada. O intervalo entre ele e a criação do relato é o tempo que o
-  time levou para ir olhar — metade da pergunta que este trabalho investiga, e um dado que
-  não é reconstituível depois.</p>
+  time levou para ir olhar — metade da pergunta de pesquisa, e um dado que não é reconstituível
+  depois.</p>
   <p>A consequência vale para quem for consumir a API: <b>ela não deve ser chamada para
   adiantar dado que ninguém pediu</b>. Uma tela que abrisse os relatos sozinha inventaria
   leituras que não aconteceram. A <b>lista</b> não registra nada, e é ela que serve para
   varrer.</p>
-  <p><b>E agora o relato tem endereço próprio no painel</b>, o que multiplica as chamadas
+  <p><b>O relato tem endereço próprio no painel</b>, o que multiplica as chamadas
   legítimas: recarregar a página abre de novo, e um link colado num grupo gera uma abertura por
   pessoa que clicar. Isso não é ruído a corrigir — é o que de fato aconteceu. Mas a análise
   precisa saber: <b>o tempo de resposta do time é a primeira visualização</b>, e não a média

@@ -28,7 +28,7 @@ public class ProjectMediaSettingsMap : BaseEntityConfiguration<ProjectMediaSetti
         builder.Property(settings => settings.AllowsScreenCapture)
             .HasColumnName("allows_screen_capture")
             .IsRequired()
-            .HasComment("O botao de capturar a tela aparece. Nao e a captura automatica, que continua impossivel de dentro do quadro: aqui o navegador pergunta qual tela, e quem decide o que aparece e quem relata. Onde o navegador nao souber fazer, o botao some sozinho.");
+            .HasComment("O botao de capturar uma area da pagina aparece. Quem captura e o carregador, na pagina do cliente, sem o navegador perguntar nada; a imagem abre no editor antes de entrar na lista, e quem esconde o que nao quer mostrar e quem relata. Onde a pagina nao deixa, o botao some sozinho.");
 
         builder.Property(settings => settings.AllowsOnInfoRequest)
             .HasColumnName("allows_on_info_request")

@@ -55,14 +55,14 @@ useCases:
       - Escolhe o relatório e o período.
   - id: UC05
     name: Relatar por áudio ou por voz
-    description: Continuidade. Addons de áudio e de abertura por voz, que ficaram fora da mídia de hoje, que é imagem e vídeo de tela.
+    description: Continuidade. Addons de áudio e de abertura por voz, que ficaram fora da mídia de hoje, que é imagem e arquivo.
     position: { x: 307, y: 525 }
     mainFlow:
       - O relator grava o áudio, ou fala o que aconteceu.
       - Envia junto do relato.
   - id: UC06
     name: Escolher um plano
-    description: Continuidade. Versão gratuita e versões pagas, com os limites como eixo — quantidade de mídia, duração, tempo de guarda. Por enquanto, tudo é gratuito.
+    description: Continuidade. Versão gratuita e versões pagas, com os limites como eixo — quantidade e tamanho de mídia, tempo de guarda. Por enquanto, tudo é gratuito.
     position: { x: 289, y: -55 }
     mainFlow:
       - O dono compara os planos.

@@ -302,10 +302,11 @@ export interface OpenReportTrackingRequest {
  *
  * **Nao estende `ReportSummaryViewModel`**, e a diferenca e o ponto: este e o
  * unico contrato que chega a alguem fora do time do cliente, e por heranca o
- * campo que a etapa 3 acrescentar ao painel — comentario, responsavel — passaria
- * a sair aqui sem ninguem decidir isso.
+ * campo que o painel ganhar — comentario interno, responsavel — passaria a sair
+ * aqui sem ninguem decidir isso.
  *
- * Nao ha campo de situacao porque nao ha situacao: estado interno e a etapa 3.
+ * Nao ha campo de situacao interna: estado interno e assunto do painel. Quem
+ * relatou ve a jornada publica.
  */
 /**
  * Um passo da jornada, como quem relatou o le.
@@ -570,7 +571,7 @@ export interface InternalCommentViewModel {
   CreatedAt: string
 }
 
-/** Um comentario escrito para quem relatou. Ainda nao tem leitor. */
+/** Um comentario escrito para quem relatou — ou por ele, respondendo. Ele le na pagina de acompanhamento. */
 export interface PublicCommentViewModel {
   PublicId: string
   /**

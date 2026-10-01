@@ -116,7 +116,8 @@ public static class EnvironmentConstants
     ///
     /// <para>O video e lido em pedacos enquanto toca, e cada pedaco confere a
     /// assinatura. Com a validade da imagem, pausar e voltar alguns minutos depois
-    /// quebraria a reproducao no meio.</para>
+    /// quebraria a reproducao no meio. So os videos antigos usam: o video saiu do
+    /// produto, e os que ja estavam confirmados continuam tocando.</para>
     /// </summary>
     public static int GetMediaStoragePlaybackUrlMinutes() => Minutes("MEDIA_STORAGE_PLAYBACK_URL_MINUTES", 15);
 
@@ -130,8 +131,10 @@ public static class EnvironmentConstants
     /// —, entao sem esta trava quem tem um protocolo pediria permissoes em serie
     /// sem confirmar nenhuma.</para>
     ///
-    /// <para>Vinte cobre com folga quem anexa quatro arquivos e tenta de novo os que
-    /// falharam, e para quem tenta encher o balde.</para>
+    /// <para>Com os limites de fabrica — tres imagens e dois arquivos por envio —,
+    /// vinte cobre com folga quem anexa tudo e tenta de novo os que falharam, e para
+    /// quem tenta encher o balde. Cada arquivo gasta dois pedidos: projeto que sobe os
+    /// limites para perto do teto precisa subir este numero junto.</para>
     /// </summary>
     public static int GetMediaUploadRateLimitPerMinute() => PositiveInt("MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE", 20);
 

@@ -8,12 +8,15 @@
 #
 # O RabbitMQ é o contrário: ele **não** guarda nada que precise sobreviver ao
 # ambiente de desenvolvimento. O que está agendado vive numa coluna do relato, no
-# banco; a fila só carrega a hora de olhar de novo.
+# banco; a fila só carrega a hora de olhar de novo. Sem ela, a espera antes de quem
+# relatou ver fica indisponível, e o pedido de informação não encerra sozinho no prazo.
 #
 # O armazenamento de midia segue a mesma ideia da fila: roda aqui ao lado para
 # ninguem precisar de conta em provedor nenhum para desenvolver. **A API nao sabe
 # disso.** Ela fala a API do S3 com o endereco e as chaves que vierem do ambiente,
-# e trocar para um armazenamento de verdade e trocar variavel, nao codigo.
+# e trocar para outro provedor compativel com o S3 que aceite envio por formulario
+# assinado (POST) e trocar variavel, nao codigo. O R2 da Cloudflare nao aceita esse
+# envio, e a escolha do provedor ficou para quando houver hospedagem.
 #
 # Para subir so a fila, ou so o armazenamento, sem a API:
 #
@@ -55,9 +58,9 @@ services:
   # O armazenamento de midia, compativel com a API do S3.
   #
   # **Esta aqui como servico externo, e nao como parte da aplicacao.** A API o
-  # enxerga exatamente como enxergaria o Backblaze B2 ou o Cloudflare R2: um
-  # endereco, um par de chaves e um balde, todos vindos do ambiente. Nada no
-  # codigo sabe que isto e local, e nada sabe que e MinIO.
+  # enxerga exatamente como enxergaria um provedor de verdade: um endereco, um par
+  # de chaves e um balde, todos vindos do ambiente. Nada no codigo sabe que isto e
+  # local, e nada sabe que e MinIO.
   #
   # O volume e o que faz o arquivo enviado sobreviver a um `down`. Sem ele,
   # derrubar o ambiente apagaria a midia de todos os relatos de teste.
@@ -154,6 +157,11 @@ services:
       # ao endereco que ela traz, e a assinatura cobre o host. Por isso a API assina
       # com o endereco de fora, e so fala com o de dentro.
       MEDIA_STORAGE_PUBLIC_ENDPOINT: "http://localhost:${MINIO_PORT:-9000}"
+
+      # A fila tambem atende pelo nome do servico. Com o `localhost` que o
+      # `.env.local` traz para quem roda a API fora do compose, a API dentro do
+      # container procuraria a fila nela mesma — e a espera ficaria sem fila.
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-pds}:${RABBITMQ_PASS:-pds}@rabbitmq:5672/"
     volumes:
       - ./Pds.WebApi/Environment/.env.local:/app/Environment/.env.local:ro
     ports:

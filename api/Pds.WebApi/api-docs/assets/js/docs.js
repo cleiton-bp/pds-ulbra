@@ -8,11 +8,12 @@
   // assunto e cada passo aprofunda uma parte.
   const ROUTES = [
     { id: 'visao-geral', label: 'Visão geral', children: [
-      { id: 'etapas-1-a-3', label: 'Etapas 1 a 3 — do login à fila' },
-      { id: 'etapa-4',      label: 'Etapa 4 — o relator acompanha' },
-      { id: 'etapa-5',      label: 'Etapa 5 — o ciclo fecha' },
-      { id: 'etapa-6',      label: 'Etapa 6 — identidade e visibilidade' },
-      { id: 'o-que-entra',  label: 'O que entra, e o que ainda não' },
+      { id: 'o-relato-entra',            label: 'O relato entra, e o time trabalha' },
+      { id: 'quem-relatou-acompanha',    label: 'Quem relatou acompanha' },
+      { id: 'o-ciclo-fecha',             label: 'O ciclo fecha' },
+      { id: 'identidade-e-visibilidade', label: 'Identidade e visibilidade' },
+      { id: 'imagens-e-arquivos',        label: 'Imagens e arquivos no relato' },
+      { id: 'o-que-existe',              label: 'O que existe, e o que fica para depois' },
     ] },
     { id: 'arquitetura', label: 'Arquitetura', children: [
       { id: 'camadas',   label: 'O que cada camada carrega' },
@@ -26,6 +27,7 @@
       { id: 'jornada-publica',  label: 'A jornada pública' },
       { id: 'relato',           label: 'O relato' },
       { id: 'conversa-e-ciclo', label: 'Conversa e ciclo' },
+      { id: 'midia',            label: 'Mídia' },
       { id: 'eventos',          label: 'Eventos' },
     ] },
     // Autenticacao fica inteira: sao cem linhas e uma historia so, do clique no
@@ -41,28 +43,32 @@
       { id: 'fila-e-jornada',    label: 'A fila e a jornada' },
       { id: 'configuracoes',     label: 'Configurações do projeto' },
       { id: 'relatos-no-painel', label: 'Relatos, no painel' },
+      { id: 'midia',             label: 'Mídia: anexar e ler' },
       { id: 'rotas-publicas',    label: 'Rotas públicas' },
       { id: 'envelope-e-erros',  label: 'O envelope e os erros' },
     ] },
     { id: 'fluxo', label: 'Fluxo rápido', children: [
-      { id: 'entrar-e-criar',     label: '1 a 3 — Entrar e criar o projeto' },
-      { id: 'primeiro-relato',    label: '4 — O primeiro relato chegando' },
-      { id: 'volta-para-olhar',   label: '5 — Quem relatou volta para olhar' },
-      { id: 'ciclo-fecha',        label: '6 — O ciclo fecha' },
+      { id: 'entrar-e-criar',     label: 'Entrar e criar o projeto' },
+      { id: 'primeiro-relato',    label: 'O primeiro relato chegando' },
+      { id: 'anexar',             label: 'Imagens e arquivos no relato' },
+      { id: 'volta-para-olhar',   label: 'Quem relatou volta para olhar' },
+      { id: 'ciclo-fecha',        label: 'O ciclo fecha' },
       { id: 'pedido-e-espera',    label: 'Pedido de informação e a espera' },
-      { id: 'codigo-e-moderacao', label: '7 e 8 — Código pessoal e moderação' },
+      { id: 'codigo-e-moderacao', label: 'Código pessoal e moderação' },
       { id: 'chave-e-arquivar',   label: 'Regenerar a chave, arquivar' },
     ] },
     { id: 'como-rodar', label: 'Como rodar', children: [
       { id: 'variaveis',          label: 'Variáveis de ambiente' },
       { id: 'banco-e-migracoes',  label: 'O banco e as migrações' },
       { id: 'a-fila',             label: 'A fila' },
+      { id: 'armazenamento',      label: 'O armazenamento' },
       { id: 'esta-documentacao',  label: 'Esta documentação' },
     ] },
     { id: 'seguranca', label: 'Segurança', children: [
       { id: 'as-chaves',                  label: 'As chaves' },
       { id: 'identificadores-e-exclusao', label: 'Identificadores e exclusão' },
       { id: 'protecao-do-publico',        label: 'O que protege o público' },
+      { id: 'midia',                      label: 'Os anexos' },
       { id: 'superficie-de-rede',         label: 'Superfície de rede' },
     ] },
   ];

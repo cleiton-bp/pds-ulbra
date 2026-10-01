@@ -14,6 +14,24 @@ dotnet run --project Pds.WebApi</code></pre>
 <p>A API sobe em <code>http://localhost:5080</code>. Esta documentação fica na raiz e o
 <a href="/swagger">Swagger</a> em <code>/swagger</code>.</p>
 
+<h2>Docker é opcional</h2>
+
+<p>Ele serve para <strong>duas</strong> coisas, que rodam na sua máquina: a fila que sustenta a
+espera antes de quem relatou ver, e o armazenamento dos anexos. Sem elas a API sobe inteira. Sem a
+fila, a espera fica indisponível — a tela de Ciclo recusa ligá-la, dizendo por quê — e o prazo do
+pedido de informação não encerra nada sozinho: o pedido fica aberto até quem relatou responder ou o
+time agir. Sem o armazenamento, o anexo fica desligado — a tela de Mídia recusa ligá-lo.</p>
+
+<pre><code>cd api
+
+docker compose up -d rabbitmq             # só a fila
+docker compose up -d minio minio-init     # só o armazenamento
+docker compose up -d --build              # tudo, com a API junto, na mesma 5080</code></pre>
+
+<p>O banco não está entre eles, de propósito: ele é hospedado e compartilhado. O porquê de cada
+serviço, e as variáveis que apontam para ele, estão em <a href="#/como-rodar/a-fila">A fila</a> e
+<a href="#/como-rodar/armazenamento">O armazenamento</a>.</p>
+
 <div class="note warn">
   <strong>Não use a 5000 no macOS</strong>
   <p>O Receptor do AirPlay ocupa a <code>5000</code> e a <code>7000</code>, no curinga
@@ -51,5 +69,6 @@ apenas confere o token recebido.</p>
   <a href="#/como-rodar/variaveis"><strong>Variáveis de ambiente</strong><span>O que precisa pedir, o que você mesmo gera e o que já vem pronto.</span></a>
   <a href="#/como-rodar/banco-e-migracoes"><strong>O banco e as migrações</strong><span>Endereço interno x externo, SSL, e como criar e aplicar migração.</span></a>
   <a href="#/como-rodar/a-fila"><strong>A fila</strong><span>RabbitMQ para a espera e o prazo — e o que acontece sem ele.</span></a>
+  <a href="#/como-rodar/armazenamento"><strong>O armazenamento</strong><span>MinIO para os anexos, o balde privado — e o que acontece sem ele.</span></a>
   <a href="#/como-rodar/esta-documentacao"><strong>Esta documentação</strong><span>Como estas páginas são servidas, e como acrescentar uma.</span></a>
 </div>

@@ -99,18 +99,18 @@ public class ProjectPublicStage : PdsBaseEntity
     ///
     /// <para>Por padrao a linha do tempo nao anda para tras: regressao de dentro
     /// nao vira regressao publica, porque quem acompanha perde a confianca quando o
-    /// que ja andou desanda. Esta marca e a excecao combinada — e e por ela que a
-    /// reabertura vai funcionar.</para>
+    /// que ja andou desanda. Esta marca e a excecao combinada — e e ela que deixa a
+    /// jornada voltar quando o relato e reaberto.</para>
     /// </summary>
     public bool AllowsReturn { get; set; }
 
     /// <summary>
     /// A etapa esta esperando quem relatou, e nao o time.
     ///
-    /// <para><b>Ainda nao e lida por ninguem.</b> Nasce junto com a tabela porque e
-    /// uma coluna da tabela que esta sendo criada agora: guardar a decisao aqui
-    /// custa nada hoje e custaria uma migracao depois. Quem a le e o pedido de
-    /// informacao, que vem junto com o aviso e a confirmacao.</para>
+    /// <para><b>Fica gravada, e nao e lida por ninguem.</b> Nasceu junto com a tabela
+    /// porque guardar a decisao custava nada e custaria uma migracao depois. O pedido
+    /// de informacao, o aviso de prazo e a confirmacao tem registro proprio e nao
+    /// passam por ela.</para>
     /// </summary>
     public bool AwaitsReporter { get; set; }
 

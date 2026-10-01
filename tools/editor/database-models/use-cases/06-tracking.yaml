@@ -8,7 +8,7 @@ actors:
     position: { x: 40, y: 156 }
   - name: Armazenamento de arquivos
     kind: system
-    description: Guarda os arquivos da resposta, privado, como os do relato.
+    description: Guarda os arquivos da resposta e da reabertura, privado, como os do relato. Serve pelo link e pelo código pessoal, sempre por endereço assinado de validade curta.
     position: { x: 1270, y: 11 }
 useCases:
   - id: UC01
@@ -20,12 +20,12 @@ useCases:
     mainFlow:
       - O relator abre o link que recebeu ao relatar.
       - A página mostra a jornada — as etapas por onde já passou, a de agora e as que vêm depois, cada uma com a sua frase.
-      - Mostra os comentários públicos do time e os arquivos que o próprio relator mandou.
+      - Mostra a conversa com o time e o que o próprio relator anexou, cada coisa no seu lugar — embaixo do relato, da resposta ou da reabertura que a trouxe. A imagem aparece no tamanho que ele escolheu; o arquivo só baixa, com um nome genérico; os vídeos antigos continuam tocando.
       - Se o relato foi encerrado, mostra como terminou e por quê.
     alternativeFlows:
       - title: 1a. O relator chega pela lista pessoal, e não pelo link
         steps:
-          - "A página abre só para leitura: confirmar, reabrir e responder pedem o link."
+          - "A página abre só para leitura, com as imagens e os arquivos de cada envio: confirmar, reabrir, responder e anexar pedem o link."
       - title: 1b. O link não é de relato nenhum
         steps:
           - A página diz que não encontrou o relato, sem mostrar nada dele.
@@ -50,14 +50,19 @@ useCases:
     postconditions: O prazo para de correr.
   - id: UC03
     name: Anexar à resposta
-    description: "Um print junto da resposta — é ali que ele mais serve: o time olhou, não entendeu, e pede a tela."
+    description: "Imagens e arquivos junto da resposta — é ali que o print mais serve: o time olhou, não entendeu, e pede a tela."
     width: 230
     position: { x: 940, y: 0 }
     preconditions: O projeto deixa anexar respondendo ao time.
     mainFlow:
-      - O relator escolhe um arquivo ou cola um print, junto da resposta.
-      - O arquivo passa pelas mesmas regras do anexo do relato — permissão, envio direto ao armazenamento e conferência dos bytes.
-      - O arquivo fica preso à resposta, e não ao relato que já tinha entrado.
+      - O relator escolhe imagens ou cola um print — e escolhe arquivos, quando o projeto aceita —, junto da resposta. Marca a imagem pelo "Editar", como na ferramenta.
+      - A resposta é gravada primeiro, e os arquivos passam pelas mesmas regras do anexo do relato — permissão, envio direto ao armazenamento e conferência dos bytes —, com a cota da resposta.
+      - Os arquivos ficam presos à resposta, e aparecem logo abaixo dela.
+    alternativeFlows:
+      - title: 1a. O relator quer capturar a tela
+        steps:
+          - Esta página não captura — ela não é o site onde o problema aconteceu. O print vem colado ou escolhido.
+    postconditions: A resposta vale mesmo se um arquivo não subir; o que falhou fica com "Tentar de novo", e o que o projeto recusa diz o motivo.
   - id: UC04
     name: Confirmar que resolveu
     description: "O “entregue” do delivery: quem relatou diz que o problema foi mesmo resolvido."
@@ -99,7 +104,18 @@ useCases:
       - title: 2a. O projeto pede o comentário, e ele fica em branco
         steps:
           - A página não reabre e pede o motivo.
-    postconditions: O relato está de novo na fila do time, com o comentário de quem reabriu. Quem reabre não dá nota.
+    postconditions: O relato está de novo na fila do time, com o comentário de quem reabriu e o que veio anexado. Quem reabre não dá nota.
+  - id: UC07
+    name: Anexar à reabertura
+    description: "O print do que ainda está acontecendo, junto da reabertura: é a prova de que o problema voltou."
+    width: 230
+    position: { x: 940, y: 300 }
+    preconditions: O projeto deixa anexar ao reabrir — chave própria, e não a da resposta.
+    mainFlow:
+      - O relator escolhe imagens ou cola um print — e escolhe arquivos, quando o projeto aceita —, junto do motivo.
+      - A reabertura é gravada primeiro, e os arquivos seguem as regras do anexo, com a cota da reabertura.
+      - Os arquivos ficam presos à reabertura, e aparecem junto do motivo dela, na página e no painel.
+    postconditions: A reabertura vale mesmo se um arquivo não subir.
 links:
   - from: Relator
     to: UC01
@@ -127,6 +143,13 @@ links:
     to: UC01
     kind: extend
     note: quando o time encerrou, o projeto permite reabrir, e o relato ainda não foi confirmado
+  - from: UC07
+    to: UC06
+    kind: extend
+    note: quando o projeto deixa anexar ao reabrir
+  - from: Armazenamento de arquivos
+    to: UC07
+    kind: association
 notes:
   - text: A página mostra só o que foi montado campo a campo para o lado de fora. Comentário interno, estado interno e nome de quem trabalhou nunca atravessam.
     anchor: UC01

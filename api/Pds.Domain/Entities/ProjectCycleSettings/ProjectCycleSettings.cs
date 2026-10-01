@@ -11,15 +11,14 @@ namespace Pds.Domain.Entities;
 /// ferramenta, e pelo mesmo motivo: criar linha vazia em todo projeto so para
 /// guardar o padrao poe o padrao em dois lugares para divergirem depois.</para>
 ///
-/// <para><b>Quase tudo da etapa mora aqui, e isso e a regra e nao o acaso.</b>
+/// <para><b>Quase toda regra do ciclo mora aqui, e isso e a regra e nao o acaso.</b>
 /// Regra nova de produto nasce como configuracao com padrao que ja funciona;
 /// fixar no codigo e a excecao, e precisa de motivo declarado — como o teto de
 /// sete etapas, que existe para o produto nao virar outra coisa.</para>
 ///
-/// <para><b>A maioria das colunas ainda nao tem leitor.</b> Elas chegam nos passos
-/// seguintes desta etapa, e nascem juntas porque descrevem uma coisa so — as
-/// regras do ciclo — e parti-las custaria uma migracao por passo numa tabela que
-/// nunca passa de uma linha por projeto.</para>
+/// <para><b>As colunas moram juntas porque descrevem uma coisa so</b> — as regras
+/// do ciclo —, e parti-las custaria uma migracao por regra numa tabela que nunca
+/// passa de uma linha por projeto.</para>
 /// </summary>
 public class ProjectCycleSettings : PdsBaseEntity
 {
@@ -45,25 +44,25 @@ public class ProjectCycleSettings : PdsBaseEntity
     /// <summary>
     /// Quanto o lado publico espera antes de mudar.
     ///
-    /// <para>Zero e o comportamento anterior a esta etapa. Acima de zero e a janela
-    /// em que alguem que moveu o card sem querer ainda desfaz antes de a pessoa la
-    /// fora ver. <b>Ainda nao tem leitor.</b></para>
+    /// <para>Zero: o lado publico muda na hora. Acima de zero e a janela em que
+    /// alguem que moveu o card sem querer ainda desfaz antes de a pessoa la fora
+    /// ver.</para>
     /// </summary>
     public int PublicDelayMinutes { get; set; }
 
-    /// <summary>Se quem relatou pode reabrir. <b>Ainda nao tem leitor.</b></summary>
+    /// <summary>Se quem relatou pode reabrir.</summary>
     public bool AllowsReopen { get; set; }
 
     /// <summary>
     /// Para qual coluna interna o relato volta ao ser reaberto; nula usa a primeira
-    /// ativa. <b>Ainda nao tem leitor.</b>
+    /// ativa.
     /// </summary>
     public long? ReopenStateId { get; set; }
     public ProjectState? ReopenState { get; set; }
 
     /// <summary>
     /// Se reabrir exige dizer por que. Saber o motivo facilita o trabalho de quem
-    /// vai pegar o relato de volta. <b>Ainda nao tem leitor.</b>
+    /// vai pegar o relato de volta.
     /// </summary>
     public bool ReopenRequiresComment { get; set; }
 
@@ -75,37 +74,36 @@ public class ProjectCycleSettings : PdsBaseEntity
     /// </summary>
     public bool TrackingCodeCanAct { get; set; }
 
-    /// <summary>Se a nota e pedida ao confirmar. <b>Ainda nao tem leitor.</b></summary>
+    /// <summary>Se a nota e pedida ao confirmar.</summary>
     public bool SatisfactionEnabled { get; set; }
 
-    /// <summary>Como a escala aparece. <b>Ainda nao tem leitor.</b></summary>
+    /// <summary>Como a escala aparece.</summary>
     public SatisfactionStyleEnum SatisfactionStyle { get; set; }
 
     /// <summary>
     /// Se confirmar exige responder. Mesmo exigindo, "prefiro nao responder"
-    /// continua existindo, fora da escala. <b>Ainda nao tem leitor.</b>
+    /// continua existindo, fora da escala.
     /// </summary>
     public bool SatisfactionRequired { get; set; }
 
     /// <summary>
     /// Se o time pode devolver o relato pedindo informacao em vez de encerrar.
-    /// <b>Ainda nao tem leitor.</b>
     /// </summary>
     public bool InfoRequestEnabled { get; set; }
 
-    /// <summary>Dias sem resposta ate avisar quem relatou. <b>Ainda nao tem leitor.</b></summary>
+    /// <summary>Dias sem resposta ate avisar quem relatou.</summary>
     public int InfoRequestWarnDays { get; set; }
 
     /// <summary>
     /// Dias depois do aviso ate encerrar como "sem retorno". Encerrado assim
-    /// continua reabrivel. <b>Ainda nao tem leitor.</b>
+    /// continua reabrivel.
     /// </summary>
     public int InfoRequestCloseDays { get; set; }
 
     /// <summary>
     /// Como a opcao de aceitar duvidas vem marcada no formulario. <b>A escolha
     /// final e de quem relata, e nao do projeto</b> — isto e so o estado inicial da
-    /// caixa. <b>Ainda nao tem leitor.</b>
+    /// caixa.
     /// </summary>
     public bool AcceptsQuestionsDefault { get; set; }
 }

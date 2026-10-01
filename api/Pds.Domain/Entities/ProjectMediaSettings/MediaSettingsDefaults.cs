@@ -30,9 +30,9 @@ public static class MediaSettingsDefaults
     public const bool IsEnabled = true;
 
     /// <summary>
-    /// Captura de tela ligada.
+    /// Captura de area ligada.
     ///
-    /// <para>Onde o navegador nao souber fazer, o botao some sozinho — entao ligado
+    /// <para>Onde o carregador nao puder capturar, o botao some sozinho — entao ligado
     /// de fabrica nao promete nada que nao possa ser cumprido.</para>
     /// </summary>
     public const bool AllowsScreenCapture = true;

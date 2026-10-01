@@ -38,16 +38,19 @@ public class ProjectMediaSettings : PdsBaseEntity
     public bool IsEnabled { get; set; }
 
     /// <summary>
-    /// O botao de capturar a tela aparece.
+    /// O botao de capturar uma area da pagina aparece.
     /// </summary>
     /// <remarks>
-    /// <para><b>Nao e a captura automatica</b>, que continua impossivel: codigo
-    /// dentro de um quadro de outra origem nao alcanca a pagina que o hospeda. Aqui
-    /// e o navegador que pergunta qual tela ou janela, e quem decide o que aparece
-    /// e quem relata.</para>
+    /// <para><b>Quem captura e o carregador, na pagina do cliente</b> — codigo dentro
+    /// de um quadro de outra origem nao alcanca a pagina que o hospeda. A pessoa
+    /// arrasta sobre a area (ou usa a tela inteira), a area e redesenhada como
+    /// imagem, sem o navegador perguntar nada, e abre no editor antes de entrar na
+    /// lista. Quem decide o que aparece e quem relata: a captura nao esconde nada
+    /// sozinha.</para>
     ///
-    /// <para>Ligado nao garante que o botao apareca: onde o navegador nao souber
-    /// fazer — e o iOS nao sabe —, ele some sozinho, e anexar arquivo continua.</para>
+    /// <para>Ligado nao garante que o botao apareca: ele so aparece quando o
+    /// carregador declara que captura, e some onde a pagina nao deixa — e anexar
+    /// continua.</para>
     /// </remarks>
     public bool AllowsScreenCapture { get; set; }
 

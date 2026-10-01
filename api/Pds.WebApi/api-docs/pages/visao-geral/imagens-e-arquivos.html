@@ -1,0 +1,231 @@
+<h2>Imagens e arquivos no relato</h2>
+<p class="lead">O que dá para anexar, em que envio, quem anexa e quem lê; a captura de uma área da página, o editor da imagem, e por que o arquivo nunca abre na página.</p>
+
+<p>Um relato de defeito quase sempre fica melhor com a tela junto. O PDS aceita <strong>duas
+categorias</strong> de anexo: <strong>imagem</strong> — PNG, JPEG ou WebP: o print, a foto, a
+captura — e <strong>arquivo</strong>, de um catálogo fechado: o PDF da fatura, o log, a planilha
+que não fecha. Tudo é configuração do projeto, na tela de Mídia, com padrão de fábrica em código:
+projeto novo aceita imagem sem ninguém abrir a tela.</p>
+
+<table>
+  <tr><th>Categoria</th><th>De fábrica</th><th>Teto do sistema</th></tr>
+  <tr><td><b>Imagem</b> — PNG, JPEG, WebP</td><td>Ligada. 3 por envio, até 5 MB cada</td><td>10 por envio, 10 MB cada</td></tr>
+  <tr><td><b>Arquivo</b> — os formatos que o dono marca</td><td><b>Desligada.</b> Ligada, 2 por envio, até 10 MB cada</td><td>10 por envio, 25 MB cada</td></tr>
+</table>
+
+<p>O padrão também precisa ser <strong>barato</strong>: é a primeira parte do produto que custa
+dinheiro por byte guardado, e cada número desses é uma conta que alguém paga. Os tetos valem no
+servidor, acima do que qualquer projeto escolha.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Formato</th><th>Extensões</th><th>Marcado ao ligar</th><th>Como os bytes são conferidos</th></tr>
+  <tr><td>PDF</td><td><code>.pdf</code></td><td>sim</td><td><code>%PDF-</code> no primeiro quilobyte</td></tr>
+  <tr><td>Texto</td><td><code>.txt</code> <code>.log</code></td><td>sim</td><td>nenhum byte zero, e no máximo 2% de caracteres de controle</td></tr>
+  <tr><td>Planilha</td><td><code>.csv</code> <code>.xlsx</code> <code>.ods</code></td><td>sim</td><td>o <code>.csv</code> como texto; o <code>.xlsx</code> pela marca do zip; o <code>.ods</code> pela marca e pelo tipo que ele declara dentro de si</td></tr>
+  <tr><td>Documento</td><td><code>.docx</code> <code>.odt</code></td><td>não</td><td>como a planilha: marca do zip, e no ODF o tipo declarado</td></tr>
+  <tr><td>JSON</td><td><code>.json</code></td><td>não</td><td>como texto</td></tr>
+  <tr><td>Zip</td><td><code>.zip</code></td><td>sim</td><td>a marca do zip</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>Catálogo fechado, reconhecido pela extensão</strong>
+  <p>Arquivo de fora é o anexo com mais risco. Cada formato do catálogo está ali por ser o que um
+  relato de defeito traz, e por ter como conferir os bytes. Executável, página HTML, SVG e planilha
+  com macro ficam fora: não há relato que precise deles, e há ataque que precisa.</p>
+  <p>O arquivo é reconhecido <strong>pela extensão</strong>, e o tipo gravado sai do catálogo, e
+  não do navegador — o navegador deduz o tipo pela extensão e erra de lugar para lugar: o
+  <code>.log</code> chega sem tipo, o <code>.csv</code> chega como planilha do Excel no Windows.
+  Extensão e tipo que não casam são recusados.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que o arquivo vem desligado, e a imagem não</strong>
+  <p>A imagem é um print que quem relata escolheu mandar. O arquivo é o anexo com mais risco, e
+  recebê-lo é escolha de quem configura. Ligado, ele vem só com os formatos mais comuns num relato
+  marcados — PDF, texto, planilha e zip —, e documento e JSON o dono marca se quiser. Ao marcar o
+  zip, a tela avisa: ele pode trazer qualquer coisa dentro, e a conferência só vê a embalagem.</p>
+</div>
+
+<h3>Três envios, cada um com a sua cota</h3>
+
+<p>Anexo tem hora: vai <strong>junto de um envio</strong>, e não depois. São três — a criação do
+relato, a resposta a um pedido de informação do time e a reabertura —, e o projeto liga em
+separado o anexo na resposta e na reabertura, porque há quem queira um e não o outro. Cada envio
+tem a <strong>sua cota por categoria</strong>: as imagens da criação não gastam as da resposta.</p>
+
+<p><strong>Não há total por envio.</strong> Com duas categorias, um total obrigaria o dono a
+acertar três números entre si — três imagens e dois arquivos, mas no máximo quatro no envio —, e
+cada limite deixaria de dizer uma coisa só. Cada categoria tem a sua quantidade e o seu tamanho, e
+a soma é a soma delas.</p>
+
+<p><strong>O texto sai primeiro, e os arquivos em seguida.</strong> Se um arquivo falha, o relato
+continua valendo com o texto inteiro, que é a parte valiosa. Os arquivos têm <strong>15
+minutos</strong> para chegar, contados do texto do envio ou do último arquivo dele, até
+<strong>1 hora</strong> depois do texto; e cada permissão pedida tem 1 hora para ser confirmada.
+Sem prazo, quem tem o link anexaria semanas depois, e o time veria o arquivo como se tivesse vindo
+com o relato.</p>
+
+<div class="note why">
+  <strong>O prazo não é configuração, e é de propósito</strong>
+  <p>Quase tudo aqui é regra do projeto. O prazo do envio não: ele é tolerância de transporte.
+  Quinze minutos cobrem pedir a permissão de cada arquivo numa conexão ruim e tentar de novo o que
+  falhou. O prazo <strong>anda</strong> enquanto os arquivos do envio continuam chegando — os
+  arquivos sobem um de cada vez, e o último de dez arquivos grandes numa conexão lenta seria
+  recusado sem a pessoa ter errado nada —, e a hora de teto impede que um envio fique aberto para
+  sempre.</p>
+</div>
+
+<p>A recusa diz o motivo. O que a regra do projeto ou o próprio arquivo recusam — categoria
+desligada, formato, tamanho, envio cheio ou vencido — fica como <strong>"não enviado"</strong>, com
+o motivo na linha do arquivo e sem "Tentar de novo": mandar de novo levaria a mesma resposta. A
+falha de rede, essa sim, oferece tentar de novo, e a tentativa volta ao mesmo lugar na montagem.</p>
+
+<h3>Quem anexa, e quem lê</h3>
+
+<p><strong>Só quem relatou anexa, e só pelo link.</strong> Pedir a permissão exige o protocolo e o
+token do relato. É a única rota pública do sistema que gera custo em dinheiro, e sem essa porta
+qualquer um assinaria um envio. O relato vem antes do arquivo, e é isso que faz cada passo do envio
+atravessar a API, onde moram a autorização, o limite do projeto e o limite por minuto. O time não
+anexa: o painel lê.</p>
+
+<p><strong>E três portas leem.</strong> Pelo <strong>link</strong>, quem relatou vê os arquivos na
+página de acompanhamento. Pelo <strong>código pessoal</strong>, vê a mesma lista, e só lê: o código
+prova que o relato é dela, o link é que dá poder sobre ele. E o time lê no <strong>painel</strong>,
+dentro do relato. Em todas, cada arquivo aparece no lugar de onde veio — embaixo do texto do
+relato, da resposta ou da reabertura. A lista pública nunca mostra imagem nem arquivo.</p>
+
+<h3>Capturar uma área da página</h3>
+
+<p>O quadro é um <code>iframe</code> de outra origem, e código ali dentro não alcança a página que
+o hospeda. Por isso <strong>quem captura é o carregador</strong>, o script do PDS na página do
+cliente. A pessoa clica em capturar, o quadro some, e ela arrasta sobre a área que importa — ou
+escolhe a tela inteira, ou desiste com Esc. A área é <strong>redesenhada como imagem</strong>, sem
+o navegador perguntar nada, e o quadro volta com o editor aberto. O próprio quadro nunca aparece
+na imagem.</p>
+
+<p>O carregador <strong>declara</strong> que captura, e o quadro só mostra o botão quando ele
+declara. Onde a página não deixa — uma política de segurança que bloqueia o script da captura, por
+exemplo —, o botão some, e anexar continua funcionando, sem mensagem de erro técnico. O código da
+captura pesa mais de dez vezes o carregador, e é baixado <strong>só quando alguém clica</strong>:
+quem nunca captura não paga por ele.</p>
+
+<p>O <strong>editor da imagem</strong> abre sozinho depois da captura, e qualquer imagem da lista
+abre nele pelo "Editar" — no quadro, na resposta e na reabertura. Tem seta, retângulo, elipse,
+desenho livre, marca-texto, texto e marcadores numerados, em cores; desfoque, ocultar e recorte; e
+desfazer e refazer.</p>
+
+<div class="note warn">
+  <strong>A captura não esconde nada sozinha</strong>
+  <p>Senha, cartão, o nome de outro cliente na tela — o que estiver na área vai na imagem. Quem
+  decide o que aparece é quem relata, e o lugar de esconder é o editor: <em>ocultar</em> põe uma
+  tarja, e o que ela cobre não existe no arquivo enviado nem na miniatura. A imagem sem as marcas
+  fica só no navegador, para o editor reabrir com as marcas editáveis.</p>
+</div>
+
+<h3>O formato, o tamanho e a ordem</h3>
+
+<p><strong>A captura sai no formato mais leve</strong>: WebP e, onde o navegador não codifica WebP
+— o Safari, inclusive o do iPhone —, JPEG. Nunca PNG: o PNG de uma tela de alta densidade passa de
+um megabyte, e cada byte guardado é uma conta que alguém paga. <strong>A imagem escolhida mantém o
+formato dela</strong>; editada, continua no formato de origem enquanto couber no limite e o
+navegador souber gravá-lo. A
+miniatura, de 320 pixels de largura, também é feita no navegador, em WebP ou JPEG, e é conferida
+pelos bytes como o arquivo — aceitá-la sem olhar abriria pelo lado de trás a porta que o arquivo
+tem fechada. Arquivo não tem miniatura.</p>
+
+<p>A imagem aparece <strong>inteira, logo abaixo do texto</strong> do envio que a trouxe, no
+tamanho que quem relatou escolheu — um terço da linha, metade, três quartos ou a linha inteira, que
+é o padrão — e na ordem em que ela montou. O relato mostra o que a pessoa montou, do jeito que
+montou: o print é parte do que ela disse. A ordem é <strong>guardada</strong> com o anexo, dentro da
+categoria, e não deduzida da hora de chegada: o arquivo que falhou e foi tentado de novo chega
+depois dos outros, e pela hora ele pularia para o fim. O arquivo aparece numa linha embaixo das
+imagens, com o tipo e o tamanho.</p>
+
+<h3>O arquivo nunca passa pela API</h3>
+
+<p>O envio tem três passos, e só o do meio não é nosso. O quadro <strong>pede a permissão</strong>;
+a API confere o link, a regra do projeto, a cota e o prazo, e devolve um formulário assinado com as
+regras dentro — o tipo exato e o teto de tamanho. O navegador <strong>manda o arquivo direto ao
+armazenamento</strong>, que recusa o que foge da assinatura. E o quadro <strong>confirma</strong>: a
+API lê o primeiro quilobyte, confere a marca do formato e o tipo gravado, conta a cota de novo
+com trava — duas confirmações ao mesmo tempo não entram juntas na mesma vaga —, e só então o anexo
+existe.</p>
+
+<p>Passar o arquivo pela API significaria carregar megabytes na memória do servidor duas vezes, sem
+ganhar nada. O que importa passa por ela: autorizar, limitar e gravar que o anexo existe são
+chamadas nossas, e o único trecho que não a atravessa viaja sob regras que ela assinou.</p>
+
+<div class="note why">
+  <strong>A assinatura garante o rótulo; a confirmação, o conteúdo</strong>
+  <p>Quem obtém a permissão pode pôr bytes de qualquer coisa num objeto marcado como imagem — o
+  rótulo é assinado, os bytes não. Por isso a confirmação olha o começo do arquivo. E como a
+  permissão continua valendo alguns minutos depois de usada, o arquivo conferido é
+  <strong>copiado para outro nome</strong>, que nenhuma permissão alcança, e a cópia exige que o
+  conteúdo ainda seja o que foi conferido.</p>
+  <p>No armazenamento, <strong>apagar é físico</strong>, e só para o que não virou anexo: o arquivo
+  recusado, a cópia de envio que sobra depois de uma confirmação aceita, as cópias de uma
+  confirmação que não terminou, e a miniatura que não passa na conferência. No resto do produto a
+  exclusão é lógica; aqui não, porque armazenamento cobra pelo que está lá, e não pelo que a
+  aplicação resolveu ignorar numa consulta. Nada que virou anexo é apagado.</p>
+</div>
+
+<p><strong>A leitura é por link assinado</strong>, gerado na hora, depois de conferir quem pede, e
+que vence em minutos. Ele nunca é guardado — guardado, viraria um link permanente com outro nome —,
+e as listas saem com <code>Cache-Control: no-store</code>. A galeria pede a lista de novo pouco antes
+do primeiro vencimento, sem baixar outra vez a imagem que já carregou; com a API fora do ar, a
+espera entre pedidos dobra, de 30 segundos até 5 minutos. A imagem que falha mostra <strong>"não
+carregou"</strong>, com "Tentar de novo", em vez de ficar quebrada sem aviso; e a recusa definitiva
+vira falha declarada — no painel, "Não deu para carregar os arquivos deste relato agora", com o
+mesmo "Tentar de novo".</p>
+
+<h3>O arquivo é sempre baixado</h3>
+
+<p>O que não é imagem <strong>nunca abre na página</strong>. O link de leitura sai com tipo genérico
+e como anexo, e o próprio objeto já nasce marcado como anexo no armazenamento — o que vale mesmo com
+um provedor que ignore o que a leitura pede. Do <code>.xlsx</code> e do <code>.docx</code> a
+conferência só vê a marca do zip no começo, e o que há dentro não roda na página, porque o
+navegador nunca o abre ali.</p>
+
+<p>O resto é cuidado de quem abre, e o painel diz isso junto dos arquivos: <em>"Os arquivos vêm de
+quem relatou: abra só o que você esperava receber."</em> Fórmula em planilha, macro em documento
+ODF, JavaScript em PDF e vínculo externo em <code>.xlsx</code> ou <code>.docx</code> são riscos de
+quem abre, e a defesa contra eles é o aviso e o download forçado.</p>
+
+<p><strong>O nome original fica no painel.</strong> Nome de arquivo conta o que a imagem não conta —
+pasta, cliente, número de contrato —, e do lado de fora ele vazaria sem ninguém ter olhado. Fora do
+painel, o arquivo baixa como <code>anexo.pdf</code>, <code>anexo.csv</code>. No painel, baixa com o
+nome que a pessoa deu, sem caracteres de controle nem de direção invisível, cortado no meio quando é
+longo, e terminando sempre numa extensão do catálogo: o time nunca baixa um <code>.hta</code> com
+selo de texto.</p>
+
+<h3>O vídeo saiu</h3>
+
+<p>O vídeo saiu do produto, por <strong>pesar demais no armazenamento e na entrega</strong>. Pedido
+novo de vídeo recebe 409, qualquer que seja o projeto. Os vídeos confirmados antes continuam
+listados e tocando, com um link que vale mais tempo que o da imagem: o vídeo é lido em pedaços
+enquanto toca, e cada pedaço confere a assinatura de novo.</p>
+
+<h3>Sem armazenamento, o resto funciona</h3>
+
+<p>O armazenamento é opcional. Sem ele, a API sobe inteira, o anexo aparece desligado e a tela de
+Mídia recusa salvar, dizendo por quê — oferecer o botão e falhar no envio seria pior do que não
+oferecer. A escolha que o projeto já tinha gravado fica intacta, e volta a valer quando houver
+armazenamento.</p>
+
+<h3>O que fica para depois</h3>
+
+<p>A lista pública com as imagens, e a página própria de um relato público aprovado, são
+<strong>Adiado</strong>: liberar o relato libera o texto, e mostrar imagem ao público pediria moderar
+cada uma. Escolher o armazenamento de produção é <strong>Adiado</strong>, para quando houver hospedagem:
+trocar de provedor é trocar variável, desde que ele aceite envio por formulário assinado — o R2
+não aceita —, e o balde de lá precisa de uma regra de CORS que deixe o quadro enviar. O prazo de guarda da mídia, e apagar o que venceu, é
+<strong>Adiado</strong>: nada é apagado por prazo, porque apagar um print no meio de um relato
+aberto seria pior que o custo de guardar.</p>
+
+<p>O detalhe de cada parte: as tabelas em <a href="#/modelagem/midia">Modelagem › Mídia</a>, as
+rotas em <a href="#/endpoints/midia">Endpoints › Mídia: anexar e ler</a>, o passo a passo em
+<a href="#/fluxo/anexar">Fluxo rápido › Imagens e arquivos no relato</a>, como subir o
+armazenamento em <a href="#/como-rodar/armazenamento">Como rodar › O armazenamento</a>, e o que
+protege cada passo em <a href="#/seguranca/midia">Segurança › Os anexos</a>.</p>

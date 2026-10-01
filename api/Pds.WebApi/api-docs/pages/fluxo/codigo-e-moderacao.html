@@ -1,4 +1,4 @@
-<h2>7. Quem relatou volta pelo código</h2>
+<h2>Quem relatou volta pelo código</h2>
 
 <p>No modo <strong>código pessoal</strong>, a confirmação entrega uma terceira coisa além do
 protocolo e do link: um código que vale para <em>todos</em> os relatos daquela pessoa naquele
@@ -15,19 +15,31 @@ devolve ate 50 relatos, sem o token de nenhum
       ↓
 a pessoa escolhe um  →  POST /public/reports/by-code/open  { Key, Code, TrackingCode }
       ↓
-grava "visualizado" com by: reporter_code  →  a mesma visao publica do link, com as acoes desligadas</div>
+grava "visualizado" com by: reporter_code  →  a mesma visao publica do link, com as acoes desligadas
+      ↓
+POST /public/reports/by-code/attachments  { Key, Code, TrackingCode }  →  os arquivos, so para ler</div>
 
 <div class="note warn">
   <strong>O código prova que o relato é dela; o link é que dá poder sobre ele</strong>
   <p>A lista não carrega o token de cada relato — embutir aqui faria doze símbolos valerem tanto
   quanto todos os links somados. E abrir pelo código <strong>lê, e não age</strong>: confirmar,
-  reabrir e responder só aceitam o token do link. <code>tracking_code_can_act</code> segue gravado,
-  e a API o ignora até essas três rotas aceitarem o código.</p>
+  reabrir, responder e anexar só aceitam o token do link. <code>tracking_code_can_act</code> segue
+  gravado, e a API o ignora até essas rotas aceitarem o código — o que é <strong>Adiado</strong>.</p>
   <p>Ver a lista não grava visualização; abrir um relato grava, com <code>by: reporter_code</code>
   na carga — é o que distingue, na contagem, quem voltou pela lista de quem voltou pelo link.</p>
 </div>
 
-<h2>8. O time libera um relato para o público</h2>
+<p><strong>Os arquivos também se leem pelo código.</strong> Quem abriu o relato num navegador
+novo, sem o link, vê os prints que mandou ao relatar, ao responder e ao reabrir, cada um no seu
+lugar. A rota passa pela mesma porta de <code>by-code/open</code> — chave pública, código e
+protocolo, com a mesma recusa única para todos os enganos — e devolve a mesma lista que o link
+devolve: links assinados de minutos, <code>Cache-Control: no-store</code>, e sem o nome original
+dos arquivos.</p>
+
+<p><strong>Ler os arquivos não grava visualização.</strong> Quem grava é a abertura do relato, que
+vem antes; ler os arquivos dele não é outra leitura do relato.</p>
+
+<h2>O time libera um relato para o público</h2>
 
 <p>Com o projeto num nível público, o que a ferramenta mostra a qualquer visitante é <strong>só o
 que passou pela fila</strong>. Todo relato nasce pendente:</p>
@@ -40,7 +52,7 @@ PUT .../reports/{id}/moderation  { Decision: Approved | Rejected }
       ↓
 grava report_published ou report_moderation_rejected, com quem decidiu
       ↓
-GET /public/reports/published?key=...  →  os liberados, sem protocolo e sem identificador</div>
+GET /public/reports/published?key=...  →  os liberados, sem protocolo, sem identificador e sem anexo</div>
 
 <div class="note warn">
   <strong>Liberar não publica sozinho</strong>
@@ -49,6 +61,13 @@ GET /public/reports/published?key=...  →  os liberados, sem protocolo e sem id
   depois não publica o histórico inteiro.</p>
   <p>Recusar não apaga nem encerra: o relato continua no painel, no ciclo, e quem escreveu continua
   acompanhando pelo link. Voltar para pendente não existe, porque alguém olhou.</p>
+</div>
+
+<div class="note todo">
+  <strong>A lista pública é só texto</strong>
+  <p>Os arquivos de um relato liberado não saem na lista pública: ela mostra o texto e o
+  andamento de cada um, e mais nada. A lista com as imagens, e a página pública de um relato
+  aprovado, são <strong>Adiado</strong>.</p>
 </div>
 
 <p>A fila é para esvaziar, não para navegar: os <strong>50 mais antigos</strong> primeiro, e a tela

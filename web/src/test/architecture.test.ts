@@ -370,8 +370,8 @@ describe('regra de dependencia entre as pastas', () => {
 
   /**
    * **Os dois documentos publicos, e nao so o quadro.** Enquanto havia um, a
-   * entrada estava escrita aqui direto; a pds-017 acrescentou `tracking.html`, e
-   * por uma revisao ele passou a ter apenas a regra de primeiro salto — a mesma
+   * entrada estava escrita aqui direto; com `tracking.html`, e por uma revisao, ele
+   * passou a ter apenas a regra de primeiro salto — a mesma
    * que o comentario logo acima demonstra ser insuficiente. A lista existe para a
    * pergunta "quantos documentos abre um estranho?" ter uma resposta so.
    *

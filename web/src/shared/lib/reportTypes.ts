@@ -5,15 +5,15 @@ import type { ReportType } from '@/contracts'
  *
  * O rotulo mora aqui e nao no contrato: `Bug` e o nome do valor no C#, "Defeito"
  * e o que se mostra. Sao coisas diferentes, e o dia em que uma empresa escolher
- * as proprias palavras (etapa 8) e este arquivo que passa a vir do servidor.
+ * as proprias palavras (Planejado) e este arquivo que passa a vir do servidor.
  *
- * <b>Saiu de `embed/` na pds-017</b>, quando a pagina de acompanhamento passou a
+ * <b>Saiu de `embed/`</b> quando a pagina de acompanhamento passou a
  * ser a segunda tela que quem relata le: enquanto havia uma so, o rotulo morava
  * dentro dela.
  *
  * <b>E continua separado de `teamReportTypes.ts`</b>, que e o nome do tipo como
  * o **time** o ve. Os dois dizem "Defeito" hoje e vao divergir
- * na etapa 8 de proposito: o do cliente vira configuravel, o do painel precisa
+ * quando os tipos virarem configuracao, de proposito: o do cliente vira configuravel, o do painel precisa
  * continuar igual em todos os projetos justamente para o time nao ter de aprender
  * o vocabulario de cada um.
  *

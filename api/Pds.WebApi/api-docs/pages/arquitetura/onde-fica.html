@@ -28,5 +28,20 @@
   <tr><td><strong>A varredura de dado sensível</strong></td><td><code>Pds.Service/Scanning/SensitiveDataScanner.cs</code></td></tr>
   <tr><td>A fila de moderação e a decisão</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ListModerationAsync</code> e <code>ModerateAsync</code></td></tr>
   <tr><td>O que a lista pública e a lista pessoal devolvem</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ListPublishedAsync</code> e <code>ListByReporterCodeAsync</code></td></tr>
+  <tr><td>A porta do link (protocolo e token) e a do código pessoal</td><td><code>Pds.Service/Security/TrackedReportGate.cs</code> e <code>ReporterCodeGate.cs</code>, <code>RequireAsync</code></td></tr>
+  <tr><td>Padrões de fábrica da mídia, e o único lugar onde eles são aplicados</td><td><code>Pds.Domain/Entities/ProjectMediaSettings/MediaSettingsDefaults.cs</code>, <code>Resolve</code></td></tr>
+  <tr><td>Tetos do sistema por envio e por tamanho</td><td><code>Pds.Domain/Entities/ProjectMediaSettings/ProjectMediaKind.cs</code></td></tr>
+  <tr><td><strong>O catálogo de arquivos</strong>: formatos, extensões, tipo gravado, conferência dos bytes</td><td><code>Pds.Domain/Entities/ReportAttachment/FileFormats.cs</code></td></tr>
+  <tr><td>A conferência dos bytes da imagem</td><td><code>Pds.Domain/Entities/ReportAttachment/MediaSignatures.cs</code></td></tr>
+  <tr><td>A tela de Mídia, e a recusa sem armazenamento</td><td><code>Pds.Service/Services/ProjectMediaSettingsService.cs</code>, <code>ReplaceAsync</code></td></tr>
+  <tr><td><strong>Pedir a permissão de envio</strong>: link, regra, prazo e cota</td><td><code>Pds.Service/Services/ReportAttachmentService.cs</code>, <code>RequestUploadAsync</code></td></tr>
+  <tr><td><strong>Confirmar</strong>: bytes, cota com trava, cópia para o nome final</td><td><code>Pds.Service/Services/ReportAttachmentService.cs</code>, <code>ConfirmAsync</code></td></tr>
+  <tr><td>Ler os anexos: painel, link e código pessoal</td><td><code>Pds.Service/Services/ReportAttachmentService.cs</code>, <code>ListForPanelAsync</code>, <code>ListForTrackingAsync</code> e <code>ListForReporterCodeAsync</code></td></tr>
+  <tr><td>O contrato do armazenamento</td><td><code>Pds.Domain/Interfaces/ServiceInterfaces/IMediaStorage.cs</code></td></tr>
+  <tr><td>Assinar, conferir, copiar e apagar no S3</td><td><code>Pds.Storage/S3MediaStorage.cs</code></td></tr>
+  <tr><td>Ligar o armazenamento na subida, ou não</td><td><code>Pds.Storage/StorageRegistration.cs</code> e <code>UnavailableMediaStorage.cs</code></td></tr>
+  <tr><td>O nome com que o arquivo baixa</td><td><code>Pds.Storage/DownloadDisposition.cs</code></td></tr>
+  <tr><td>Limite por minuto do envio, e de quem é o IP atrás de proxy</td><td><code>Pds.WebApi/Startup.cs</code>, <code>MediaUploadRateLimitPolicy</code> e <code>TrustedForwarding</code></td></tr>
+  <tr><td>O balde, privado, e a pasta de envio que vence em um dia</td><td><code>docker-compose.yml</code>, <code>minio-init</code></td></tr>
 </table>
 </div>

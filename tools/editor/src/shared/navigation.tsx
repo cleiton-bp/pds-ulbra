@@ -6,7 +6,7 @@ import { isEnvironmentId, type EnvironmentId } from './environments'
  * Para onde a tela aponta, e como sair de um editor sem perder o que nao foi gravado.
  *
  * O endereco mora no `#`: `#/` e o inicio, `#/modeling/07-media-attachments.yaml` e
- * a modelagem com a etapa 7 aberta. Assim recarregar a pagina volta ao mesmo lugar, o voltar
+ * a modelagem de mídia aberta. Assim recarregar a pagina volta ao mesmo lugar, o voltar
  * do navegador sai do editor, e da para guardar o link de um arquivo.
  *
  * Toda saida de um editor passa pelo guarda dele — pelos botoes da tela e tambem

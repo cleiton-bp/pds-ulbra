@@ -1,4 +1,4 @@
-<h2>4. O primeiro relato chegando</h2>
+<h2>O primeiro relato chegando</h2>
 
 <p>Com a chave pública em mãos, o site do cliente cola uma linha. É a única coisa nossa que
 fica no HTML dele:</p>
@@ -12,12 +12,17 @@ fica no HTML dele:</p>
 a página manda a chave, a rota e a origem por postMessage
       ↓
 GET /public/widget-settings  →  este endereço pode abrir? como o cliente quer o quadro?
+GET /public/media-settings   →  e o que ele aceita anexar?          (as duas saem juntas)
+      ↓
+chegou a configuração: a de mídia tem até <b>3 s</b> a mais, e depois o quadro segue sem ela
       ↓
 o quadro pede para aparecer, e só então o gatilho surge no canto
       ↓
 quem preenche o formulário está dentro do iframe, na nossa origem
       ↓
-POST /public/reports  →  confere o endereço de novo, protocolo + token</div>
+POST /public/reports  →  confere o endereço de novo, protocolo + token
+      ↓
+com arquivos na lista, eles sobem em seguida, um de cada vez, com o protocolo e o token</div>
 
 <p>O formulário nunca toca a página do cliente, e a página do cliente nunca toca o
 formulário: são origens diferentes, e a única coisa que atravessa é o que as duas pontas
@@ -37,6 +42,28 @@ conferiram.</p>
 </div>
 
 <div class="note why">
+  <strong>A leitura de mídia tem prazo, e a falha dela vira "sem anexo"</strong>
+  <p>São duas perguntas diferentes — como o quadro se parece, e o que ele aceita receber —, e
+  por isso duas rotas. Elas saem juntas e costumam chegar juntas; passar de três segundos depois
+  da configuração já é a leitura de mídia presa. Sem prazo, ela prendia o quadro inteiro: ele
+  nunca aparecia, nem para quem só queria escrever. Com o prazo, o quadro abre sem o botão de
+  anexar, e a resposta que chega depois fica de fora. Chave recusada não espera a mídia.</p>
+  <p>A falha aqui vai para o lado oposto ao da configuração. Lá, os padrões ainda desenham um
+  formulário que funciona; aqui desenhariam um botão com limites chutados, e o envio falharia
+  depois de a pessoa ter escolhido o arquivo — o pior momento para descobrir. Sem anexo, o relato
+  continua inteiro: o texto é a parte que importa.</p>
+</div>
+
+<div class="note why">
+  <strong>O texto não espera os arquivos</strong>
+  <p><code>POST /public/reports</code> leva só o texto. O protocolo aparece na hora, e os arquivos
+  sobem depois, usando o protocolo e o token que a criação acabou de devolver — é o relato
+  existir que dá a alguém o direito de pedir espaço no armazenamento. Fazer a pessoa esperar os
+  arquivos para ver o protocolo seria esconder justamente a parte que não pode se perder. A
+  sequência inteira está em <a href="#/fluxo/anexar">Imagens e arquivos no relato</a>.</p>
+</div>
+
+<div class="note why">
   <strong>Por que o relato carrega a chave no corpo, e não um cabeçalho</strong>
   <p>Não há credencial nesta requisição — a chave pública não autentica ninguém, ela só diz
   para qual projeto o relato vai. Tratá-la como cabeçalho de autorização convidaria o próximo
@@ -46,12 +73,13 @@ conferiram.</p>
 <div class="note warn">
   <strong>A origem é conferida, e continua não sendo prova</strong>
   <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta, e é
-  comparado com a lista de <code>project_origins</code> nas duas rotas que a ferramenta usa.
-  Projeto com a
+  comparado com a lista de <code>project_origins</code> nas três rotas que a ferramenta usa: a
+  configuração, a de mídia e o envio do relato. Projeto com a
   lista vazia aceita qualquer endereço, e quem não declara endereço passa.</p>
   <p>Como quem declara é o carregador, que é código nosso, a chave copiada para outro site é
   pega — e é para isso que a lista serve. Quem chamar a API sem passar pela ferramenta declara o
   que quiser: <strong>grade de proteção, não muro.</strong> O muro é o
   <code>frame-ancestors</code> montado da mesma lista, que impede o quadro de abrir fora dela e
-  precisa de um servidor servindo o documento do quadro — chega com o domínio próprio.</p>
+  precisa de um servidor servindo o documento do quadro — <strong>Planejado</strong>, junto do
+  domínio próprio.</p>
 </div>

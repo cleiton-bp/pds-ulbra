@@ -12,14 +12,14 @@ actors:
 useCases:
   - id: UC01
     name: Moderar um relato
-    description: Decide se o relato pode ser lido por estranhos. A fila mostra os mais antigos primeiro, com o texto inteiro e os arquivos.
+    description: Decide se o relato pode ser lido por estranhos. A fila mostra os mais antigos primeiro, com o texto inteiro.
     width: 230
     position: { x: 600, y: 60 }
     preconditions: O membro está no painel, dentro do projeto.
     mainFlow:
       - O membro abre Moderação.
       - Vê os relatos pendentes, dos mais antigos para os mais novos, e o total da fila.
-      - Lê o texto inteiro, os arquivos, e os trechos que o sistema apontou como dado sensível (UC02).
+      - Lê o texto inteiro e os trechos que o sistema apontou como dado sensível (UC02).
       - Libera o relato, ou recusa.
       - O sistema grava a decisão, com quem decidiu e quando.
     alternativeFlows:
@@ -44,7 +44,7 @@ useCases:
       - title: 3a. Mais de 12 achados no mesmo relato
         steps:
           - A tela mostra 12 e diz que parou ali.
-    postconditions: Quem decide continua sendo o membro. Nome, endereço, print e vídeo não são varridos.
+    postconditions: Quem decide continua sendo o membro. Nome, endereço, imagem e arquivo não são varridos.
   - id: UC03
     name: Tirar do público
     description: Quem liberou por engano recusa depois, e o relato sai da lista pública. Não existe voltar para “pendente” — alguém já olhou.
@@ -94,3 +94,6 @@ notes:
   - text: "Duas condições, juntas: o projeto num nível público e o relato liberado. Liberar em projeto privado não publica nada."
     anchor: UC04
     position: { x: 200, y: 390 }
+  - text: "Adiado: a lista pública com as imagens. Liberar o relato libera o texto; imagem e arquivo nunca saem para o público — mostrá-los pediria moderar cada imagem, e a moderação de hoje olha só o texto."
+    anchor: UC04
+    position: { x: 200, y: 520 }

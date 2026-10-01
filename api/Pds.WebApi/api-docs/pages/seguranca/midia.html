@@ -1,0 +1,150 @@
+<h2>Nada é assinado antes de a porta aceitar</h2>
+
+<p>Pedir permissão de envio é a única rota pública que gasta dinheiro: cada formulário assinado é
+espaço no balde. Por isso a ordem é fixa — primeiro a porta do link (protocolo e token, conferido
+em tempo constante), depois se há armazenamento, o pedido bem formado, a regra do projeto, se o
+envio está aberto, o formato, o tamanho e, por último, se há vaga. <strong>Só então</strong> um nome é sorteado e um formulário é
+assinado.</p>
+
+<p>A leitura segue a mesma ordem. No painel, o filtro global já limita o relato à conta da sessão:
+de outra conta, nada volta, e nenhum link chega a ser gerado. Do lado de fora, a porta do link ou a
+do código pessoal aceita primeiro, e só depois a lista é assinada. Assinar antes e conferir depois
+seria entregar a chave e perguntar em seguida.</p>
+
+<p><strong>Só quem relatou anexa.</strong> Não há rota no painel que envie arquivo, e o código
+pessoal lê e não anexa: anexar pede o token do link, como confirmar, reabrir e responder.</p>
+
+<h2>O formulário assinado</h2>
+
+<p>A permissão é um <strong>formulário</strong>, e não um endereço solto. Um endereço assinado para
+gravar diz o que gravar e onde, mas não diz de que tamanho — quem o obtivesse gravaria um arquivo de
+qualquer tamanho por ele. O formulário leva as regras dentro da assinatura, e o armazenamento recusa
+o que não cabe antes de gravar:</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Condição</th><th>O que garante</th></tr>
+  <tr><td><code>Content-Type</code> exato</td><td>O objeto é gravado com o tipo que a API decidiu — o da imagem, ou o que o catálogo dá à extensão do arquivo, e nunca o que o navegador disse. Vai como campo e como condição: só como campo, seria uma sugestão que o navegador reescreve.</td></tr>
+  <tr><td>Tamanho de 1 byte até o teto</td><td>O teto é o limite do projeto para a categoria, e não o tamanho que o navegador declarou. Arquivo vazio não passa. A miniatura tem o seu, de 256 KB.</td></tr>
+  <tr><td><code>Content-Disposition: attachment</code></td><td>No arquivo que não é imagem: o objeto nasce marcado para baixar, e a cópia para o nome final leva a marca junto.</td></tr>
+  <tr><td>Validade</td><td>2 minutos para o envio começar (<code>MEDIA_STORAGE_UPLOAD_URL_MINUTES</code>). Vazou, tem prazo.</td></tr>
+  <tr><td>O nome</td><td>Um só, sorteado pelo servidor, na pasta de envio do projeto: <code>uploads/&lt;projeto&gt;/&lt;guid&gt;</code>.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>O nome é do servidor, e nunca de quem envia</strong>
+  <p>Um nome escolhido por quem envia permitiria escrever por cima do arquivo de outra pessoa, ou
+  sair da pasta onde os arquivos daquele projeto moram. O projeto entra pelo identificador público:
+  o nome aparece no endereço que o navegador usa, e o id interno não sai da API. O nome original do
+  arquivo é guardado à parte, só como texto.</p>
+</div>
+
+<h2>A confirmação confere o conteúdo</h2>
+
+<p>A assinatura garante o <strong>rótulo</strong>, e nada mais: quem obteve a permissão pode ter
+posto bytes de qualquer coisa num objeto marcado como imagem. A confirmação lê do armazenamento o
+tamanho, o tipo gravado, o ETag e o <strong>primeiro 1 KB</strong> — a faixa só é lida se o conteúdo
+ainda for o dos metadados, para não juntar o tamanho de um arquivo com o começo de outro — e
+confere:</p>
+
+<ul>
+  <li><strong>A marca do formato</strong>, contra o tipo pedido, e não contra a lista inteira: PNG,
+  JPEG e WebP pela marca de cada um; PDF por <code>%PDF-</code> no primeiro quilobyte; texto (o
+  <code>.txt</code>, o <code>.log</code>, o <code>.csv</code>, o <code>.json</code>) sem byte zero e
+  com no máximo 2% de caracteres de controle; <code>.zip</code>, <code>.xlsx</code> e
+  <code>.docx</code> pela marca do zip; <code>.ods</code> e <code>.odt</code> pela marca do zip e pelo
+  tipo que o próprio arquivo declara dentro dele. Um executável renomeado para <code>.log</code>
+  tem byte zero logo no começo, e é recusado.</li>
+  <li><strong>O tipo gravado</strong>, igual ao pedido. Quem garante isso é a condição da
+  assinatura, e o produto não quer depender de todo provedor aplicá-la: um que não aplicasse
+  gravaria uma imagem como página, servida como página.</li>
+  <li><strong>A miniatura</strong>, do mesmo jeito: WebP ou JPEG, pelos bytes. A que não confere é
+  apagada, e o anexo fica sem ela — ela é o que mais gente vê, e aceitá-la sem olhar abriria pelos
+  fundos a porta que o arquivo tem fechada.</li>
+</ul>
+
+<p>O tamanho gravado é o que o armazenamento contou, e não o que o navegador disse. O catálogo é
+fechado de propósito: executável, página HTML, SVG e planilha com macro ficam fora — não há relato
+que precise deles, e há ataque que precisa.</p>
+
+<div class="note warn">
+  <strong>Conferir e depois copiar, com o mesmo ETag</strong>
+  <p>A permissão de envio continua valendo alguns minutos depois de usada, e reenviá-la trocaria
+  o conteúdo de um nome já conferido. Por isso o arquivo aceito é copiado, dentro do próprio
+  armazenamento, de <code>uploads/</code> para <code>media/</code> — que nenhuma permissão alcança —,
+  e a cópia exige o ETag lido na conferência. Trocado entre a leitura e a cópia, o armazenamento
+  recusa copiar, e o anexo é recusado junto: o que entraria não seria o que foi conferido.</p>
+</div>
+
+<div class="note why">
+  <strong>A cota é recontada com trava</strong>
+  <p>O pedido de permissão conta só os confirmados, então várias permissões pedidas antes da
+  primeira confirmação enxergam a mesma vaga. A confirmação conta de novo dentro de uma transação,
+  com uma trava consultiva do PostgreSQL por relato: duas confirmações ao mesmo tempo esperam uma
+  pela outra, e a que chega com o envio cheio é recusada. A trava é consultiva, e não na linha do
+  relato, para não segurar quem só quer mexer nele — o time movendo o card, a pessoa respondendo.</p>
+  <p>A regra do projeto também é conferida de novo ali: o dono que desligou a mídia, um tipo ou
+  um formato, ou baixou o tamanho, depois de a permissão sair, espera que nada mais entre — e uma
+  permissão assinada um minuto antes não vale mais do que a decisão dele.</p>
+</div>
+
+<p><strong>O que não confere sai do balde, apagado de verdade.</strong> A recusa é gravada
+primeiro, e o arquivo sai depois, fora da trava; se apagar falhar, o que sobra em
+<code>uploads/</code> vence em um dia pela regra do balde. Também saem a cópia de envio de um anexo
+aceito, que já mora no nome final, e as cópias finais de uma confirmação que falhou no meio — menos
+quando o banco diz que um anexo já aponta para elas. O arquivo aceito nunca sai: por quanto tempo ele fica guardado
+é <strong>Adiado</strong>.</p>
+
+<h2>A leitura</h2>
+
+<ul>
+  <li><strong>Links assinados de minutos</strong> — 5 para arquivo e miniatura; 15 para os vídeos
+  de antes de o vídeo sair do produto, que são lidos em pedaços enquanto tocam. Gerados a cada
+  leitura, depois da autorização, e <strong>nunca guardados</strong>: vazou, vence.</li>
+  <li><strong>Sem cache</strong>: as três listas saem com <code>Cache-Control: no-store</code>. O
+  <code>ExpiresAt</code> de cada item é o primeiro vencimento entre o arquivo e a miniatura, e a
+  tela pede a lista de novo antes dele.</li>
+  <li><strong>O token no corpo</strong>: as leituras de fora são <code>POST</code>, porque segredo
+  na URL entra no log, no histórico e no <code>Referer</code>.</li>
+</ul>
+
+<div class="note warn">
+  <strong>O arquivo que não é imagem só baixa</strong>
+  <p>O link dele sai com <code>application/octet-stream</code> e <code>Content-Disposition:
+  attachment</code> na própria assinatura — trocá-los na barra invalida o endereço. O navegador
+  salva, e nunca abre na página: o que há dentro não roda em lugar nenhum, nem do lado de quem
+  relatou, nem do lado do time.</p>
+  <p><strong>O nome também é tratado.</strong> Fora do painel, o arquivo baixa como
+  <code>anexo.&lt;extensão&gt;</code>: o nome original nunca sai para o lado de fora. No painel,
+  baixa com o nome que a pessoa deu — sem caracteres de controle nem os invisíveis de direção, que
+  fazem <code>fatura</code> + <code>U+202E</code> + <code>fdp.txt</code> aparecer como <code>faturatxt.pdf</code> na janela de salvar; cortado no meio, e
+  nunca na extensão; e <strong>sempre terminando numa extensão do catálogo</strong>, a do tipo
+  conferido. O cabeçalho leva o nome duas vezes — em ASCII e em UTF-8 codificado —, e nenhum
+  caractere dele consegue sair de dentro do valor.</p>
+  <p>E o painel avisa, junto da lista: "Os arquivos vêm de quem relatou: abra só o que você
+  esperava receber."</p>
+</div>
+
+<h2>O limite por minuto</h2>
+
+<p>Pedir permissão e confirmar somam na mesma janela: 20 por minuto por IP, de padrão
+(<code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code>). Com os limites de fábrica — três imagens e dois
+arquivos por envio —, vinte cobrem com folga quem anexa tudo e tenta de novo os que falharam, e
+param quem tenta encher o balde. Projeto que sobe os limites para perto do teto — dez de cada
+categoria — precisa subir a variável junto: cada arquivo gasta dois pedidos. Atrás de
+um proxy, o IP é o que <code>TRUSTED_PROXIES</code> deixa valer — ver
+<a href="#/seguranca/superficie-de-rede">Superfície de rede</a>. Camadas acima deste limite, como um
+desafio invisível antes do envio, são <strong>Planejado</strong>.</p>
+
+<div class="note todo">
+  <strong>O que continua por conta de quem abre</strong>
+  <p>A conferência olha o começo do arquivo; o que há dentro de um formato válido não é aberto nem
+  interpretado. Ficam de fora, de propósito: <strong>fórmula em planilha</strong> (CSV, XLSX, ODS),
+  <strong>macro em ODF</strong>, <strong>JavaScript em PDF</strong> e <strong>vínculo externo em
+  OOXML</strong>. E o <code>.zip</code>, marcado de fábrica quando o dono liga a categoria de
+  arquivo, pode trazer qualquer coisa dentro. A defesa contra eles é a de cima: o download forçado,
+  que impede o arquivo de rodar na página, e o aviso no painel.</p>
+  <p>Também fica de fora a varredura de dado sensível: ela lê o texto do relato, e não a imagem nem
+  o arquivo.</p>
+</div>

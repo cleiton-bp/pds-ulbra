@@ -10,7 +10,7 @@ namespace Pds.Domain.Enums;
 ///
 /// <para><b>E esta escolha que decide o que a visibilidade pode ser.</b> Sem
 /// identidade nao existe "o meu relato" — logo nao existe lista pessoal, e nao
-/// existe a opcao "so os meus". A regra atravessa a etapa inteira.</para>
+/// existe a opcao "so os meus". A regra vale para identidade e visibilidade juntas.</para>
 ///
 /// <para>No banco vira texto em snake_case (protocol, personal_code,
 /// inherited_identity).</para>

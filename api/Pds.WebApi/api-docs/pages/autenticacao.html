@@ -104,3 +104,9 @@ revogados.</p>
 
 <p>Limite de 20 requisições por minuto por IP. O controle de verdade é o Google validar o
 token; isso apenas evita que alguém fique martelando a rota.</p>
+
+<p>Atrás de um proxy, o IP que conta é o que <code>TRUSTED_PROXIES</code> deixa valer. Com a lista
+vazia — o padrão —, o <code>X-Forwarded-For</code> é ignorado e o IP é o de quem abriu a conexão;
+com ela preenchida, só o proxy listado é acreditado, e só um salto. Aceitar o cabeçalho de
+qualquer um daria a quem martela a rota um IP novo a cada pedido, e o limite deixaria de
+limitar.</p>

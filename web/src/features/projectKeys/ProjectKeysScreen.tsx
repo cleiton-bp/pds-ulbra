@@ -20,7 +20,7 @@ interface RevealState {
 }
 
 /**
- * A explicacao de cada chave fica **ao lado dela** (E1-11): quem integra le no
+ * A explicacao de cada chave fica **ao lado dela**: quem integra le no
  * momento em que copia, que e quando a pergunta "posso deixar isso a vista?"
  * aparece. Os textos respondem pelo que a chave **faz**, nao pelo que ela e.
  *
@@ -278,9 +278,8 @@ function AdvancedSection({
                 painel inteiro ele quer dizer "existe, ainda nao da para usar".
 
                 A frase dizia que as rotas chegavam "junto com o recebimento de
-                relatos", e o recebimento entrou na pds-012 sem elas: nenhuma rota
-                aceita a chave secreta ainda. Agora ela diz o que falta e nao promete
-                quando — a etapa e decisao que nao saiu.
+                relatos", e o recebimento entrou sem elas: nenhuma rota aceita a
+                chave secreta ainda. Agora ela diz o que falta e nao promete quando.
 
                 E "endereços" saiu do texto: com a lista de enderecos autorizados
                 sendo conferida, a mesma palavra passou a significar dominio em

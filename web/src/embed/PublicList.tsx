@@ -9,8 +9,8 @@ import { reporterTypeLabel } from '@/shared/lib/reportTypes'
  * "O que já foi relatado" — a vitrine, dentro do próprio quadro.
  *
  * **Tudo aqui passou por alguém.** Nenhum relato chega nesta lista sem ter sido
- * lido e liberado no painel do cliente: é a ordem da etapa, e é por isso que os
- * três níveis de visibilidade nasceram um passo antes sem ligar lista nenhuma.
+ * lido e liberado no painel do cliente: é a regra da vitrine, e é por isso que
+ * marcar o projeto como público não publica nada sozinho.
  *
  * **Não há protocolo, e não há como abrir um.** O protocolo é curto e é metade
  * da credencial de quem relatou — mostrá-lo aqui entregaria a estranhos o número

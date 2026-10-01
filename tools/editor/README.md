@@ -4,7 +4,7 @@ Uma ferramenta só, com dois ambientes, para documentar o desenho do PDS sem mon
 
 | Ambiente | O que responde | Arquivos |
 |---|---|---|
-| **Modelagem** | as tabelas, os campos e as relações do banco — uma modelagem por etapa | [`database-models/modeling/`](database-models/modeling/) |
+| **Modelagem** | as tabelas, os campos e as relações do banco — uma modelagem por assunto, cada uma somando as anteriores | [`database-models/modeling/`](database-models/modeling/) |
 | **Casos de uso** | quem usa o sistema e o que cada ator pode fazer | [`database-models/use-cases/`](database-models/use-cases/) |
 
 Os arquivos ficam todos em [`database-models/`](database-models/), uma pasta por ambiente: o que é de modelagem em `database-models/modeling/`, o que é de caso de uso em `database-models/use-cases/`. O código fica à parte, em `src/`.

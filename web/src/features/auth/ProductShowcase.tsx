@@ -14,9 +14,8 @@ import { cn } from '@/shared/lib/cn'
  * anda de coluna. **As colunas do quadro sao os passos da trilha** — e por isso
  * que o usuario ve o andamento sem ninguem avisar a mao.
  *
- * **E maquete, e o cartucho "Simulação" fica a vista.** O carregador do site e a
- * fila de relatos ainda nao existem (cards IN-01 e E2-01): nada aqui e captura
- * de tela de algo que roda.
+ * **E maquete, e o cartucho "Simulação" fica a vista.** E uma encenacao do fluxo,
+ * desenhada para a tela de entrada: nada aqui e captura de tela de algo que roda.
  */
 const RELATO = 'O botão de finalizar compra não responde no passo de pagamento.'
 

@@ -28,7 +28,7 @@ import { cn } from '@/shared/lib/cn'
  *
  * **O que cada escolha destrava e o que custa aparece junto dela, e não num aviso
  * depois.** "Sem identidade não existe lista pessoal" é a regra que atravessa a
- * etapa — dizê-la só quando a pessoa já escolheu seria dizer tarde.
+ * tela — dizê-la só quando a pessoa já escolheu seria dizer tarde.
  */
 export function IdentityScreen() {
   const project = useCurrentProject()

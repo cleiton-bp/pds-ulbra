@@ -22,7 +22,7 @@ import { cn } from '@/shared/lib/cn'
  * mesmo movimento.
  *
  * Divergencia conhecida: o design escreve "Entrar com e-mail", e o login por
- * senha segue em aberto (E0-12).
+ * senha segue em aberto.
  */
 export function LoginScreen() {
   const signIn = useSessionStore((state) => state.signIn)

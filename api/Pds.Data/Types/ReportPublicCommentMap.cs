@@ -12,7 +12,7 @@ public class ReportPublicCommentMap : BaseEntityConfiguration<ReportPublicCommen
         builder.ToTable("report_public_comments", table =>
         {
             table.HasComment(
-                "O que o time escolhe dizer a quem relatou. Ainda nao tem leitor: a camada que o relator le vem depois, e ate la ele e publico no nome. Tabela separada do interno pelo mesmo motivo que a outra.");
+                "A conversa com quem relatou: o que o time escolhe dizer a ele, e o que ele responde. Quem relatou le na pagina de acompanhamento. Tabela separada do interno pelo mesmo motivo que a outra.");
         });
 
         builder.Property(comment => comment.ReportId)

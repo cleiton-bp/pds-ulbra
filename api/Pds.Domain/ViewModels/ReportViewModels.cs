@@ -569,8 +569,8 @@ public record PublicReopeningViewModel(
 ///
 /// <para><b>Tipo proprio, e nao heranca do detalhe do painel.</b> Esta e a unica
 /// resposta do sistema que vai para alguem que nao e do time do cliente, e a
-/// separacao e estrutural de proposito: com heranca, o campo que a etapa 3
-/// acrescentar ao detalhe interno — comentario, responsavel, nota de triagem —
+/// separacao e estrutural de proposito: com heranca, o campo que o detalhe
+/// interno ganhar — comentario, responsavel, nota de triagem —
 /// apareceria aqui sem ninguem decidir isso. Vazamento por heranca nao da erro
 /// em teste nenhum.</para>
 ///
@@ -607,7 +607,7 @@ public record PublicReopeningViewModel(
 /// <para><b>E campo proprio, e nao um passo da jornada.</b> A jornada conta por
 /// onde o relato andou; o fechamento conta o que foi decidido, e traz o texto que
 /// explica. Um relato pode estar na etapa terminal sem ter sido encerrado — e e
-/// justamente essa diferenca que a etapa existe para mostrar.</para>
+/// justamente essa diferenca que este campo existe para mostrar.</para>
 ///
 /// <para>Nulo tambem no relato que foi encerrado e <b>reaberto</b>: a linha antiga
 /// continua guardada, mas ela nao e mais o fim de nada.</para>
@@ -623,8 +623,8 @@ public record PublicReopeningViewModel(
 /// Ela pode escrever agora.
 ///
 /// <para><b>So enquanto ha pedido aberto</b>, e isso e decisao: canal livre viraria
-/// uma caixa de entrada sem dono e sem moderacao, e moderacao ficou de fora desta
-/// etapa de proposito. A vez volta para a equipe assim que ela responde.</para>
+/// uma caixa de entrada sem dono e sem moderacao, e a conversa nao passa por
+/// moderacao, de proposito. A vez volta para a equipe assim que ela responde.</para>
 /// </param>
 /// <param name="Reopenings">
 /// As vezes em que ela reabriu, da mais antiga para a mais nova, com o que disse em

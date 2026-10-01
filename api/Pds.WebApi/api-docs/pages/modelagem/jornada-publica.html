@@ -60,7 +60,8 @@
   <strong>Uma coluna que nasce sem leitor</strong>
   <p><code>awaits_reporter</code> não muda nada hoje. Ela existe porque é uma coluna da tabela
   que estava sendo criada: guardar a decisão agora custa nada e custaria uma migração depois.
-  Quem vai lê-la é o pedido de informação, junto com o aviso e a confirmação.</p>
+  O pedido de informação, o aviso de prazo e a confirmação têm registro próprio e não passam
+  por ela: a marca fica gravada, e sem efeito.</p>
   <p>É o mesmo raciocínio que deixou terminal ser uma marca em vez de uma posição. Prever o
   passo seguinte enquanto a tabela ainda não tem dado é barato; prever depois é migração.</p>
 </div>

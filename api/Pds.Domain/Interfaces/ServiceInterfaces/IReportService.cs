@@ -255,8 +255,8 @@ public interface IReportService
     /// Quem relatou responde a pergunta da equipe — <b>sem sessao</b>, pelo link.
     ///
     /// <para><b>So enquanto ha pedido aberto.</b> Sem a pergunta do outro lado, isto
-    /// viraria uma caixa de entrada sem dono e sem moderacao — e moderacao ficou de
-    /// fora desta etapa de proposito. A vez volta para a equipe assim que ela
+    /// viraria uma caixa de entrada sem dono e sem moderacao — e a conversa nao passa
+    /// por moderacao, de proposito. A vez volta para a equipe assim que ela
     /// responde, e o prazo para de correr.</para>
     /// </summary>
     Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default);

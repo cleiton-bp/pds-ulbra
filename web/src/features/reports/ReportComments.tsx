@@ -66,9 +66,9 @@ export function useReportComments(
  * de volta pela porta da tela: bastaria ele estar no valor errado no momento do
  * envio.
  *
- * **E a tela diz que o publico ainda nao tem leitor.** Prometer que a pessoa esta
- * lendo, quando a pagina que mostraria isso ainda nao existe, seria pior do que
- * nao ter o campo.
+ * **E a tela diz onde a pessoa le.** Quem escreve na caixa publica precisa saber que
+ * aquilo sai da empresa: a pessoa le na pagina de acompanhamento, junto das proprias
+ * respostas.
  */
 export function ReportComments({
   projectPublicId,
@@ -130,7 +130,7 @@ export function ReportComments({
 
       <Caixa
         titulo="Para quem relatou"
-        explicacao="Escrito para a pessoa que abriu o relato. Ela ainda não tem onde ler — a página de acompanhamento mostra isto quando essa parte existir."
+        explicacao="Escrito para a pessoa que abriu o relato. Ela lê na página de acompanhamento, junto das próprias respostas."
         destaque
         comentarios={atual?.Public ?? []}
         // **So a caixa publica recebe arquivo.** A interna nem tem por onde: arquivo

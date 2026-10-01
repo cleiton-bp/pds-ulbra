@@ -299,8 +299,8 @@ describe('a pagina publica de acompanhamento', () => {
     const { container } = render(<TrackingPage />)
     await screen.findByText('Recebido')
 
-    // Estar na etapa terminal **nao** e estar encerrado, e e essa diferenca que a
-    // etapa existe para mostrar: o bloco so aparece quando ha fechamento.
+    // Estar na etapa terminal **nao** e estar encerrado, e e essa diferenca que o
+    // bloco de fechamento existe para mostrar: ele so aparece quando ha fechamento.
     expect(container.textContent ?? '').not.toMatch(/Como terminou/)
   })
 

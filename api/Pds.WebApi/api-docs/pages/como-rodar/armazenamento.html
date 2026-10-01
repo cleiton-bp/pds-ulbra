@@ -1,0 +1,102 @@
+<h2>O armazenamento</h2>
+
+<p><strong>Opcional.</strong> Só é necessário para <strong>anexar</strong>: imagens e arquivos no
+relato, na resposta ao time e na reabertura. Sem ele, todo o resto funciona, e a tela de Mídia
+recusa ligar o anexo, dizendo por quê.</p>
+
+<pre><code>cd api
+docker compose up -d minio minio-init</code></pre>
+
+<p>Sobe um MinIO — compatível com a API do S3 — só em <code>127.0.0.1</code>:</p>
+
+<div class="diagram">container   pds-minio
+volume      pds-minio-data
+porta       127.0.0.1:9000   a API do S3
+            127.0.0.1:9001   o console, para olhar os arquivos (pds / pdspdspds)
+balde       pds-media        <b>privado</b>, criado pelo pds-minio-init, que roda uma vez e sai
+            uploads/         onde o navegador grava antes de a API conferir — vence em 1 dia</div>
+
+<p>Depois, no <code>.env.local</code>:</p>
+
+<pre><code>MEDIA_STORAGE_ENDPOINT=http://localhost:9000
+MEDIA_STORAGE_ACCESS_KEY=pds
+MEDIA_STORAGE_SECRET_KEY=pdspdspds
+MEDIA_STORAGE_BUCKET=pds-media</code></pre>
+
+<p><strong>As quatro, ou nenhuma.</strong> Ausentes, a API sobe e o anexo fica desligado; metade
+delas derruba a subida, dizendo qual falta — não configurar é uma decisão, e esquecer a chave é um
+engano que ficaria escondido como "mídia indisponível" até alguém passar uma tarde procurando. As
+demais variáveis do armazenamento têm padrão e estão em
+<a href="#/como-rodar/variaveis">Variáveis de ambiente</a>.</p>
+
+<div class="note why">
+  <strong>Os bytes nunca passam pela API</strong>
+  <p>O navegador pede permissão, manda o arquivo direto ao balde por um formulário assinado — com
+  o teto de tamanho e o tipo dentro da assinatura — e confirma; é na confirmação que a API lê os
+  primeiros bytes e prende o anexo ao relato. A leitura é por link assinado de validade curta,
+  gerado sob demanda, depois de conferir quem pede. A sequência inteira está em
+  <a href="#/fluxo/anexar">Imagens e arquivos no relato</a>.</p>
+</div>
+
+<div class="note why">
+  <strong>O balde nasce privado, e a pasta de envio vence</strong>
+  <p>O <code>minio-init</code> cria o balde e tira dele qualquer acesso anônimo. Não é zelo: link
+  assinado sobre arquivo público não protege nada, e um balde que nascesse aberto faria toda a
+  assinatura da aplicação virar enfeite. Repetir o passo é inofensivo.</p>
+  <p>A pasta <code>uploads/</code> vence em um dia. O arquivo aceito sai de lá na confirmação, e o
+  que sobra — envio abandonado, reenvio depois de confirmado — não é anexo de ninguém. A
+  confirmação aceita até 1 hora depois do pedido, então um dia não apaga nada que ainda possa
+  entrar.</p>
+</div>
+
+<div class="note warn">
+  <strong>Só em <code>127.0.0.1</code>, e não na rede toda</strong>
+  <p>A senha padrão está no repositório, que é público. Publicado em todas as interfaces, qualquer
+  um na mesma rede entraria no console e leria ou apagaria a mídia. A API dentro do compose não
+  passa por essas portas — fala com o armazenamento pela rede interna.</p>
+</div>
+
+<h2>Com a API no compose</h2>
+
+<pre><code>docker compose up -d --build</code></pre>
+
+<p>O endereço, as chaves e o balde vêm do próprio compose, das mesmas fontes do
+<code>minio</code> e do <code>minio-init</code>, e as linhas do <code>.env.local</code> não valem — a
+variável real tem precedência sobre o arquivo. De dentro da rede a API fala com
+<code>minio:9000</code>, e assina com <code>localhost:9000</code>, que é o endereço que o navegador
+conhece (<code>MEDIA_STORAGE_PUBLIC_ENDPOINT</code>).</p>
+
+<div class="note warn">
+  <strong>A assinatura cobre o host</strong>
+  <p>Por isso existem dois endereços. Assinada com o interno, a permissão levaria o navegador a um
+  nome que ele nem resolve; e a API que falasse com <code>localhost</code> de dentro do container
+  procuraria o armazenamento nela mesma. Ela fala com um e assina com o outro — assinar não faz
+  chamada nenhuma. Fora do compose os dois são o mesmo, e a variável do endereço público nem
+  precisa existir.</p>
+</div>
+
+<h2>Sem armazenamento</h2>
+
+<p>A API sobe inteira, e o armazenamento responde que não está disponível:</p>
+
+<ul>
+  <li>a leitura de mídia da ferramenta e da página de quem relatou responde <strong>desligado</strong>,
+  mesmo com o anexo ligado no projeto — o botão não aparece;</li>
+  <li>a tela de Mídia não salva nada, nem o anexo desligado: <code>PUT .../media-settings</code>
+  responde <strong>409</strong>. Gravar o desligado que a leitura mostra apagaria a escolha do
+  projeto, que volta a valer quando houver armazenamento;</li>
+  <li>pedir permissão e confirmar respondem <strong>409</strong>, e ler os arquivos de um relato que
+  tem anexo também — dizendo que não há armazenamento, e não com uma lista vazia, que faria o time
+  achar que o relato nunca teve anexo.</li>
+</ul>
+
+<div class="note todo">
+  <strong>Em produção — Adiado</strong>
+  <p>Trocar de provedor é trocar variável, desde que ele aceite envio por formulário assinado
+  (<code>POST</code>) — o R2 da Cloudflare não aceita. Nada no código nomeia o MinIO: a API fala a
+  API do S3 com o endereço e as chaves que vierem do ambiente, e a região e o balde no caminho são
+  configuráveis para o provedor que pedir diferente.</p>
+  <p>A escolha fica para quando houver hospedagem, junto da regra de CORS do balde: é o navegador,
+  de dentro do quadro, que envia direto ao armazenamento, e o balde precisa deixar essa origem
+  enviar.</p>
+</div>

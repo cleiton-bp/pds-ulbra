@@ -1,4 +1,4 @@
-<h2>6. O ciclo fecha</h2>
+<h2>O ciclo fecha</h2>
 
 <p>O time encerra o relato, e <strong>não consegue sem escrever o motivo</strong>:</p>
 
@@ -20,7 +20,10 @@ quem relatou abre o link e le o desfecho
 POST /public/reports/confirm    POST /public/reports/reopen
      ↓                               ↓
 confirmed_at + nota             volta para a coluna configurada
-(ou recusa, separada)           e a jornada publica volta junto</div>
+(ou recusa, separada)           e a jornada publica volta junto
+                                     ↓
+                                os prints do que ainda acontece
+                                sobem em seguida, com ForReopen</div>
 
 <div class="note why">
   <strong>Com espera configurada, o encerramento também espera</strong>
@@ -35,6 +38,17 @@ confirmed_at + nota             volta para a coluna configurada
 <p><strong>Reabrir não passa pelo freio de regressão.</strong> Aquela regra existe para o vaivém
 interno do time não sacudir a linha do tempo de quem espera — e aqui quem pediu a volta foi a
 própria pessoa, dizendo que não está certo. É o oposto do caso que a regra cobre.</p>
+
+<p><strong>Reabrir leva só o texto, e os arquivos vêm depois.</strong> O motivo — que o projeto
+pode exigir — vai na própria reabertura; os prints do que continua acontecendo sobem em seguida
+pela <a href="#/fluxo/anexar">mesma sequência de anexar</a>, com <code>ForReopen</code>, nos 15
+minutos depois dela. O servidor acha a reabertura que acabou de acontecer, e ela tem a sua própria
+cota. O projeto escolhe se aceita anexo na reabertura, separado do anexo na resposta.</p>
+
+<p><strong>O motivo aparece dos dois lados.</strong> O painel recebe cada reabertura em
+<code>Reopenings</code>, no detalhe do relato, e a página de quem relatou recebe a mesma lista na
+consulta pelo link — cada uma com a data e o motivo, e as duas telas mostram embaixo dela os
+arquivos que vieram junto. É texto dela, e volta para ela.</p>
 
 <div class="note why">
   <strong>A nota e a recusa são campos diferentes</strong>

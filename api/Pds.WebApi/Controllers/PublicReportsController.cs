@@ -483,8 +483,9 @@ public class PublicReportsController : BaseController
     /// miniatura — `WithThumbnail` nele é 400. Na confirmação, os bytes são conferidos
     /// onde o formato permite, e a leitura é sempre download.
     ///
-    /// Depois de enviar, **confirme**: sem isso o arquivo é órfão e não pertence a
-    /// relato nenhum.
+    /// Depois de enviar, **confirme**: sem isso o anexo fica pendente — não aparece,
+    /// não conta no limite, e o arquivo fica na pasta de envio, que o armazenamento
+    /// esvazia sozinho.
     /// </remarks>
     /// <param name="dto">O relato, o tipo e o tamanho do arquivo.</param>
     /// <param name="cancellationToken"></param>
@@ -607,7 +608,7 @@ public class PublicReportsController : BaseController
     /// </remarks>
     /// <param name="dto">O protocolo e o token, os dois juntos.</param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">Os anexos confirmados, na ordem em que entraram.</response>
+    /// <response code="200">Os anexos confirmados, na ordem em que quem relatou montou cada envio.</response>
     /// <response code="404">O link não abre nenhum relato.</response>
     /// <response code="409">Não há armazenamento configurado nesta instalação.</response>
     [HttpPost("tracking/attachments")]
@@ -651,7 +652,7 @@ public class PublicReportsController : BaseController
     /// </remarks>
     /// <param name="dto">A chave pública, o código e o protocolo.</param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">Os anexos confirmados, na ordem em que entraram.</response>
+    /// <response code="200">Os anexos confirmados, na ordem em que quem relatou montou cada envio.</response>
     /// <response code="401">Chave pública inválida.</response>
     /// <response code="404">Código ou protocolo não conferem.</response>
     /// <response code="409">Não há armazenamento configurado nesta instalação.</response>

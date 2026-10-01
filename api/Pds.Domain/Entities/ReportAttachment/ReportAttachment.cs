@@ -137,7 +137,7 @@ public class ReportAttachment : PdsBaseEntity
     /// </summary>
     public string? OriginalName { get; set; }
 
-    /// <summary>Quando a nossa API prendeu o anexo ao relato. Nulo e orfao.</summary>
+    /// <summary>Quando a nossa API prendeu o anexo ao relato. Nulo enquanto pendente.</summary>
     public DateTime? ConfirmedAt { get; set; }
 
     /// <summary>

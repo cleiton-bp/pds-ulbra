@@ -51,7 +51,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 | Comando | O que faz |
 |---|---|
 | `npm run dev` | Sobe em `http://localhost:5173` |
-| `npm test` | Lógica pura, arquitetura, sistema visual, um hook e uma tela |
+| `npm test` | Lógica, arquitetura, sistema visual, os ganchos e as telas (Vitest; as telas em jsdom) |
 | `npm run typecheck` | `tsc --noEmit`, com `strict` ligado |
 | `npm run lint` | Biome: linter e formatador |
 | `npm run format` | Aplica as correções do Biome |
@@ -68,6 +68,10 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/keys ......... console — chaves e integração
 /projects/:publicId/states ....... console — a fila de trabalho do time
 /projects/:publicId/public-stages  console — a jornada que quem relatou acompanha
+/projects/:publicId/cycle ........ console — como o relato fecha e reabre
+/projects/:publicId/identity ..... console — quem relata e quem pode ver
+/projects/:publicId/media ........ console — o que dá para anexar
+/projects/:publicId/moderation ... console — o que vira público
 /projects/:publicId/settings ..... console — nome, identificador, arquivar
 /projects/:publicId/reports ...... console — os relatos que chegaram do site
 /projects/:publicId/tool ......... console — como a ferramenta aparece no site
@@ -94,7 +98,8 @@ src/
 ├── capture/      o que redesenha a página como imagem (pds-captura.js, baixado no clique)
 ├── editor/       o editor da imagem: marcar e esconder antes de anexar (baixado ao abrir)
 ├── features/     um assunto por pasta: auth, projects, projectKeys, projectStates,
-│                 publicStages, onboarding, reports, widgetSettings
+│                 publicStages, cycle, identity, media, moderation, onboarding,
+│                 reports, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
 ```
@@ -231,6 +236,11 @@ mkdir -p /tmp/loja && cd /tmp/loja && python3 -m http.server 3000
 A `5080` é a porta do `launchSettings.json` e o padrão de `VITE_API_URL`. A que a API
 precisa autorizar é **só a 5173**, pelo motivo que está logo abaixo.
 
+Para anexar, o armazenamento também precisa estar no ar — o MinIO do
+`docker-compose` da API, com as variáveis `MEDIA_STORAGE_*` no `.env.local` dela (ver
+[`api/README.md`](../api/README.md)). Sem ele, tudo funciona, e só o anexo fica
+desligado.
+
 O `index.html` da loja precisa só da linha:
 
 ```html
@@ -243,11 +253,7 @@ Dois tropeços que custam tempo:
 `http://localhost:5173`, e é o **quadro** que chama a API — então servir o painel
 em outra porta faz o envio falhar com "Falha de rede", sem nenhum erro do lado do
 servidor. A variável tem nome de painel e hoje decide se o formulário do cliente
-consegue enviar, e **separar as duas coisas é tarefa própria, ainda em aberto**.
-
-Esta frase já nomeou um número de etapa, e ele envelheceu sozinho: a ordem mudou e
-o número passou a apontar para outra coisa. Referência a trabalho futuro fica pelo
-assunto, não pela numeração.
+consegue enviar, e **separar as duas coisas é Planejado**.
 
 **A página de teste não pode ser `file://`.** A origem vira `null`, e `null` não
 entra numa lista de CORS — nem no `frame-ancestors` quando ele entrar. Quem não
@@ -282,113 +288,113 @@ trava o número, e reprova token publicado sem consumidor.
 
 ## O que está aqui, e o que não está
 
-A **etapa 1 — Fundação** está inteira: entrar, criar projeto, listar, buscar,
-renomear, arquivar, ver as chaves, copiar o script de integração e regenerar a
-secreta. Mais a lista de endereços autorizados (pds-011).
+**Conta, projetos e chaves.** Entrar, criar projeto, listar, buscar, renomear,
+arquivar, ver as chaves, copiar o script de integração e regenerar a secreta. E a
+**lista de endereços autorizados**, conferida nas rotas públicas: vazia abre em
+qualquer lugar, e o primeiro endereço declarado liga a conferência.
 
-A **etapa 2 — O relato entra** fechou o ciclo (pds-014): colar o script numa
-página qualquer, escrever, o relato chegar na API com protocolo, rota e origem, e
-o time lê na tela **Relatos** — com o contexto de cada um e a visualização
-registrada como evento. A aparência e os textos da ferramenta saem de
-**Ferramenta** (pds-015), e a **lista de endereços autorizados passou a ser
-conferida** (pds-016): lista vazia abre em qualquer lugar, e o primeiro endereço
-declarado liga a conferência.
+**O relato entra.** Colar o script numa página qualquer, escrever, e o relato chegar
+na API com protocolo, rota e origem; o time lê na tela **Relatos**, com o contexto de
+cada um e a visualização registrada como evento. A aparência e os textos da
+ferramenta saem de **Ferramenta**. A confirmação entrega um link, e `tracking.html`
+mostra a quem relatou o próprio relato — o token viaja no fragmento do link, a parte
+que o navegador nunca envia a servidor nenhum.
 
-**O caminho de volta existe** (pds-017): a confirmação entrega um link, e
-`tracking.html` mostra a quem relatou o próprio relato. O token viaja no fragmento
-do link — a parte que o navegador nunca envia a servidor nenhum.
+**O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
+de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.
+Estado não se apaga — não há botão de remover em lugar nenhum —, porque relato antigo
+aponta para ele e o histórico precisa continuar legível. Projeto novo nasce com uma
+área de análise, e a mesma tela escolhe, por tipo, onde cada relato cai; a opção
+"primeira coluna da fila" **apaga** a escolha em vez de gravar uma vazia — é o que
+mantém "não configurei" como um estado possível do projeto.
 
-A **etapa 3 — O time trabalha o relato** começou pela peça que sustenta o resto
-(pds-018): a tela **Estados**, onde o cliente cria a própria fila de trabalho com
-os nomes que a equipe usa, e reordena, renomeia e aposenta cada um. Estado não se
-apaga — não há botão de remover em lugar nenhum —, porque relato antigo aponta
-para ele e o histórico precisa continuar legível.
+A lista de relatos **filtra por coluna**, com a contagem de cada uma na barra de cima.
+A contagem vem de uma chamada própria: contar as linhas da página daria um número
+errado assim que o projeto passasse de vinte relatos. Coluna vazia continua na barra
+— some só a aposentada que não segura mais nada.
 
-**E o relato entra nessa fila** (pds-019): projeto novo nasce com uma área de
-análise, e a mesma tela escolhe, por tipo, onde cada relato cai. A opção "primeira
-coluna da fila" **apaga** a escolha em vez de gravar uma vazia — é o que mantém
-"não configurei" como um estado possível do projeto.
+Cada relato tem **endereço próprio**: `/projects/:id/reports/:reportId`. Ele é rota
+**filha** da lista, e não uma tela no lugar dela — assim a lista fica montada atrás,
+com o recorte e a rolagem onde estavam, e o botão voltar do navegador fecha o relato
+em vez da tela inteira.
 
-E a lista de relatos **filtra por coluna** (pds-020), com a contagem de cada uma
-na barra de cima. A contagem vem de uma chamada própria: contar as linhas da
-página daria um número errado assim que o projeto passasse de vinte relatos.
-Coluna vazia continua na barra — some só a aposentada que não segura mais nada.
+O time **move o relato de coluna**, pela tela do relato aberto. Cada mudança grava um
+evento imutável, e **o evento entra antes do cache**: a coluna guardada no relato é
+conveniência para a lista; a verdade é a sequência de eventos. Movido para fora do
+recorte ativo, o relato sai da lista na hora — deixá-lo ali mostraria, debaixo do nome
+de uma coluna, um relato que não está mais nela.
 
-Cada relato tem **endereço próprio** (pds-021): `/projects/:id/reports/:reportId`.
-Ele é rota **filha** da lista, e não uma tela no lugar dela — assim a lista fica
-montada atrás, com o recorte e a rolagem onde estavam, e o botão voltar do
-navegador fecha o relato em vez da tela inteira.
+O time **comenta** em duas caixas distintas: o que fica entre a equipe e o que é
+escrito para quem relatou. A separação é **estrutural** — duas rotas, duas tabelas,
+dois tipos de evento —, e o destaque visual fica na caixa que sai para fora, porque é
+lá que o erro custa caro. Ela diz onde a pessoa lê: na página de acompanhamento, junto
+das próprias respostas. E cada relato tem uma **linha do tempo**, montada a partir dos
+eventos, com os nomes de coluna que valiam na época de cada mudança.
 
-E o time **move o relato de coluna** (pds-022), pela tela do relato aberto. Cada
-mudança grava um evento imutável, e **o evento entra antes do cache**: a coluna
-guardada no relato é conveniência para a lista; a verdade é a sequência de
-eventos. Movido para fora do recorte ativo, o relato sai da lista na hora — deixá-lo
-ali mostraria, debaixo do nome de uma coluna, um relato que não está mais nela.
+**A jornada pública.** O cliente desenha os passos que quem relatou vê, cada um com
+rótulo, a frase que explica e, se quiser, o que vem depois. **Não é a tela de Estados
+com outro título** — lá estão as faixas em que o time trabalha, aqui está a história
+que a pessoa de fora lê, e ela é mais curta de propósito. Entre três e sete, com o
+motivo de cada limite escrito na tela; projeto novo nasce com o conjunto padrão e quem
+foi criado antes preenche com um clique. A etapa em que o relato termina carrega o
+**desfecho**, de uma lista curta e nossa — foi feito, não será feito, sem retorno, já
+existia.
 
-O time **comenta** (pds-023), em duas caixas distintas: o que fica entre a equipe
-e o que é escrito para quem relatou. A separação é **estrutural** — duas rotas,
-duas tabelas, dois tipos de evento —, e o destaque visual fica na caixa que sai
-para fora, porque é lá que o erro custa caro. Ela também diz que **ainda não há
-onde ler**, em vez de prometer.
+O cliente **liga as duas listas**: cada estado da fila aponta para um passo da
+jornada, escolhendo numa lista. Vários estados no mesmo passo é o caminho normal. O
+mapa se grava **inteiro**, e cada gravação cria uma versão: alterar hoje não reescreve
+o passado, porque são as versões antigas que explicam por onde um relato de três meses
+atrás passou. É a única tela do painel com botão de salvar, e é por isso.
 
-E cada relato tem uma **linha do tempo** (pds-024), montada a partir dos eventos,
-com os nomes de coluna que valiam na época de cada mudança.
+E o relato **anda sozinho do lado de fora**. O motor que decide isso vive num projeto
+da API que não referencia nada — é o que torna "ele não conhece banco nem HTTP" uma
+garantia do compilador. No painel, a caixa do relato diz **onde quem relatou o vê**,
+junto do controle que o move: quem decide precisa ver, na hora, o que o movimento
+causa lá fora. Essa informação vem da resposta do próprio movimento, e não de uma
+busca nova — abrir o detalhe **grava um evento de leitura**, e refazer essa busca a
+cada clique mediria o time em vez da leitura.
 
-E o cliente desenha a **jornada pública** (pds-025): os passos que quem relatou vê,
-cada um com rótulo, a frase que explica e, se quiser, o que vem depois. **Não é a
-tela de Estados com outro título** — lá estão as faixas em que o time trabalha,
-aqui está a história que a pessoa de fora lê, e ela é mais curta de propósito.
-Entre três e sete, com o motivo de cada limite escrito na tela; projeto novo nasce
-com o conjunto padrão e quem foi criado antes preenche com um clique. A etapa em
-que o relato termina carrega o **desfecho**, de uma lista curta e nossa — foi
-feito, não será feito, sem retorno, já existia.
+Quem relatou **vê o andamento**: `tracking.html` desenha a jornada inteira — por onde
+o relato passou, onde ele está e o que vem depois. **O que já passou vem das datas, e
+não da posição.** Um relato pode pular etapas, e pintar como percorrido tudo que está
+antes contaria uma história que não aconteceu. E a tela **não abre em branco**: o
+esqueleto é escrito dentro do `tracking.html`, com as cores resolvidas pelo mesmo
+script que já decidia o tema antes do primeiro pixel. Ele **não é customizável por
+projeto, e não dá para ser**: o arquivo é estático e igual para todos, e qual é o
+projeto só se sabe quando o pacote roda e pergunta à API. A versão com a cor do cliente
+fica no quadro, onde o carregador conhece a chave pública antes de abrir.
 
-E o cliente **liga as duas listas** (pds-026): cada estado da fila aponta para um
-passo da jornada, escolhendo numa lista — os dois lados já existem, e não há o que
-digitar. Vários estados no mesmo passo é o caminho normal. O mapa se grava
-**inteiro**, e cada gravação cria uma versão: alterar hoje não reescreve o
-passado, porque são as versões antigas que explicam por onde um relato de três
-meses atrás passou. É a única tela do painel com botão de salvar, e é por isso.
+**O ciclo fecha.** O time encerra com motivo, ou pede informação com prazo; quem
+relatou responde, confirma que resolveu — com nota, quando o projeto pede — ou reabre,
+dizendo por quê. A tela **Ciclo** decide as regras: para onde vai o relato reaberto,
+se reabrir pede motivo, os prazos do pedido e quanto o lado público espera antes de
+mudar, que é a janela para desfazer um movimento errado.
 
-E o relato **anda sozinho do lado de fora** (pds-027). O motor que decide isso vive
-num projeto da API que não referencia nada — é o que torna "ele não conhece banco
-nem HTTP" uma garantia do compilador. No painel, a caixa do relato passa a dizer
-**onde quem relatou o vê**, junto do controle que o move: quem decide precisa ver,
-na hora, o que o movimento causa lá fora.
+**Identidade e visibilidade.** A tela **Identidade** escolhe como quem relata é
+reconhecido — pelo protocolo, ou por um código pessoal que traz a lista "os meus
+relatos" na ferramenta — e se o projeto é privado, público anônimo ou público
+identificado. Público, todo relato passa pela **Moderação** antes de aparecer na
+vitrine, "o que já foi relatado", dentro da ferramenta.
 
-Essa informação vem da resposta do próprio movimento, e não de uma busca nova —
-abrir o detalhe **grava um evento de leitura**, e refazer essa busca a cada clique
-mediria o time em vez da leitura.
-
-E quem relatou **vê o andamento** (pds-028). `tracking.html` desenha a jornada
-inteira: por onde o relato passou, onde ele está e o que vem depois. Ela anda
-sozinha conforme a equipe move o card do lado de dentro — ninguém avisa nada.
-
-**O que já passou vem das datas, e não da posição.** Um relato pode pular etapas,
-e pintar como percorrido tudo que está antes contaria uma história que não
-aconteceu. Passo sem data é passo por onde ele não passou, mesmo estando antes do
-atual.
-
-E a tela **não abre em branco**: o esqueleto é escrito dentro do `tracking.html`,
-com as cores resolvidas pelo mesmo script que já decidia o tema antes do primeiro
-pixel. A versão desenhada pela biblioteca nunca serviu para essa espera — ela só
-aparece depois de o pacote inteiro chegar, que é quando a espera acabou.
-
-Ele **não é customizável por projeto, e não dá para ser**: o arquivo é estático e
-igual para todos, e qual é o projeto só se sabe quando o pacote roda e pergunta à
-API. A versão com a cor do cliente fica no quadro, onde o carregador conhece a
-chave pública antes de abrir.
+**Mídia.** A tela **Mídia** liga o anexo e as duas categorias — imagem e arquivo, cada
+uma com quantidade e tamanho por envio; o arquivo com os formatos do catálogo —, a
+captura, e o anexo na resposta e na reabertura. Os arquivos aparecem no lugar de onde
+vieram — embaixo do relato, da resposta ou da reabertura —, no acompanhamento (pelo
+link e pelo código pessoal) e no painel. Os endereços vencem em minutos: a galeria
+pede a lista de novo antes do vencimento, e quando um arquivo falha; o que não carrega
+diz isso, com "Tentar de novo". O arquivo que não é imagem é sempre baixado, e os
+vídeos de antes de o vídeo sair do produto continuam tocando.
 
 | o que falta | onde dói |
 |---|---|
-| a página não é renderizada no servidor | ela baixa **80 kB comprimidos**, 67 deles o próprio React, para desenhar uma tela sem interação nenhuma. A tela branca acabou — `tracking.html` desenha um esqueleto por 0,9 kB, antes de qualquer script —, mas o peso continua |
-| quem relatou ler o que foi escrito para ele | o comentário público existe e não tem leitor |
-| o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança, e a única com limitador é a de login |
+| a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
+| o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: plano, anexo, e o quadro de cards
-com board arrastável, sprint e relatório. E o `frame-ancestors` — a conferência de hoje mora no servidor e pega o
-caso comum; barrar o quadro no navegador precisa de um servidor servindo
-`embed.html`, que é hospedagem que ainda não existe.
+Fora do corte, de propósito: o plano de cobrança e o quadro de cards arrastável, com
+sprint e relatório (**Continuidade**); a lista pública com imagens e a página pública
+de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora
+no servidor e pega o caso comum; barrar o quadro no navegador precisa de um servidor
+servindo `embed.html`, que é hospedagem que ainda não existe — **Planejado**.
 
 ---
 
@@ -397,7 +403,7 @@ caso comum; barrar o quadro no navegador precisa de um servidor servindo
 Cada uma é de uma linha para reverter se a decisão mudar.
 
 **"Entrar com e-mail" virou "Entrar com Google".** A API só tem
-`POST /auth/google`, e login por senha é decisão em aberto (E0-12).
+`POST /auth/google`, e login por senha é decisão em aberto.
 
 **O identificador é um GUID, não um slug.** O design mostra `loja-ativa-b3f9`; a
 API expõe `PublicId` e não tem coluna de slug. Adotar slug é mudança de banco.

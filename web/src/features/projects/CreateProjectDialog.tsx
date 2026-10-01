@@ -10,7 +10,8 @@ import { TextField } from '@/shared/components/TextField'
 const HINT = 'Escolha um nome que você reconheça na lista, e dá para renomear depois.'
 
 /**
- * Pede so o nome: o resto da configuracao depende de decisoes das etapas 3 e 4.
+ * Pede so o nome: o resto da configuracao mora nas telas do projeto, e cada uma ja
+ * funciona com os padroes.
  *
  * A descricao **nao** repete o que e um projeto — o cartao que a pessoa acabou de
  * clicar ja disse isso. Ela avisa o que vem depois do botao, que e a unica coisa

@@ -1,6 +1,6 @@
 meta:
   title: Mídia
-  description: "O relato passa a carregar print e video de tela. O arquivo nunca entra no banco: o que fica aqui e o registro dele, e os bytes vivem num armazenamento fora. Montado sobre o que ja existe, que aparece sem alteracao."
+  description: "O relato, a resposta ao time e a reabertura passam a carregar imagens e arquivos. O arquivo nunca entra no banco: o que fica aqui e o registro dele, e os bytes vivem num armazenamento fora. O video saiu do produto; o valor e as linhas antigas ficam, e os videos ja confirmados continuam tocando. Montado sobre o que ja existe, que aparece sem alteracao."
 entities:
   - name: base_columns
     label: Colunas padrão
@@ -56,7 +56,7 @@ entities:
         note: quando a identificação foi removida, e a partir daí nenhuma linha da conta guarda dado pessoal
   - name: users
     label: Usuários
-    description: Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra. Nesta modelagem ela ganha um segundo papel — passa a ser referenciada por quem move card e por quem comenta, então o histórico deixa de ser anônimo.
+    description: Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra. Tem um segundo papel — é referenciada por quem move card e por quem comenta, então o histórico não é anônimo.
     inherited: true
     position: { x: 387, y: 400 }
     fields:
@@ -369,7 +369,7 @@ entities:
         note: nulo enquanto a regra vale, preenchido no lugar de apagar
   - name: reports
     label: Relatos
-    description: Ja existia, e ganha seis colunas nesta modelagem — por isso aparece apagada no realce das tabelas novas. Tres dizem quem escreveu, e sao opcionais em toda configuracao; as outras tres dizem se o relato ja pode ser visto de fora, e por decisao de quem.
+    description: Ja existia, e nao muda nesta modelagem. Tres colunas dizem quem escreveu, e sao opcionais em toda configuracao; as outras tres dizem se o relato ja pode ser visto de fora, e por decisao de quem.
     inherited: true
     position: { x: 1237, y: 893 }
     fields:
@@ -425,32 +425,32 @@ entities:
         note: domínio da página que embutiu o widget, declarado por ela e conferido contra a lista do projeto
       - name: accepts_questions
         type: bool
-        note: 'coluna nova — quem relatou marcou se aceita responder dúvidas da equipe; desmarcado, o time nao consegue abrir pedido de informacao neste relato, e a tela diz o motivo. Anulável, e nulo é um terceiro estado: o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada — gravá-lo como "não aceita" seria pôr na boca da pessoa uma resposta que ela nunca deu'
+        note: 'quem relatou marcou se aceita responder dúvidas da equipe; desmarcado, o time nao consegue abrir pedido de informacao neste relato, e a tela diz o motivo. Anulável, e nulo é um terceiro estado: o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada — gravá-lo como "não aceita" seria pôr na boca da pessoa uma resposta que ela nunca deu'
       - name: public_stage_due_at
         type: datetime
-        note: coluna nova — a partir de quando a mudanca de etapa publica vale para quem relatou; e a janela em que o time ainda pode desfazer, e nula quando nao ha espera configurada
+        note: a partir de quando a mudanca de etapa publica vale para quem relatou; e a janela em que o time ainda pode desfazer, e nula quando nao ha espera configurada
       - name: reporter_code_id
         type: long
         fk: true
-        note: coluna nova — o codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nula no modo protocolo e em todo relato anterior ao modo existir, e esses continuam valendo pelo link de sempre
+        note: o codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nula no modo protocolo e em todo relato anterior ao modo existir, e esses continuam valendo pelo link de sempre
       - name: reporter_name
         type: text
-        note: "coluna nova — como a pessoa quis ser chamada, quando o projeto pergunta e ela quis dizer. Nula e o normal, e o valor nasce interno: o time ve, o lado de fora nao"
+        note: "como a pessoa quis ser chamada, quando o projeto pergunta e ela quis dizer. Nula e o normal, e o valor nasce interno: o time ve, o lado de fora nao"
       - name: reporter_name_is_public
         type: bool
         required: true
-        note: coluna nova — a pessoa escolheu assinar este relato. Falso por padrao, e ausente e nao, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le — escolha que nao se herda de configuracao nenhuma
+        note: a pessoa escolheu assinar este relato. Falso por padrao, e ausente e nao, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le — escolha que nao se herda de configuracao nenhuma
       - name: moderation_state
         type: enum
         required: true
-        note: coluna nova — pending | approved | rejected. Todo relato nasce pending, inclusive em projeto privado, e e isso que faz marcar o projeto como publico depois nao publicar o historico inteiro de uma vez
+        note: pending | approved | rejected. Todo relato nasce pending, inclusive em projeto privado, e e isso que faz marcar o projeto como publico depois nao publicar o historico inteiro de uma vez
       - name: moderated_at
         type: datetime
-        note: coluna nova — quando alguem do time decidiu; nula enquanto ninguem decidiu
+        note: quando alguem do time decidiu; nula enquanto ninguem decidiu
       - name: moderated_by_user_id
         type: long
         fk: true
-        note: coluna nova — quem do time decidiu; nula enquanto ninguem decidiu, e tambem quando a conta de quem decidiu foi esvaziada. Nunca sai em rota publica
+        note: quem do time decidiu; nula enquanto ninguem decidiu, e tambem quando a conta de quem decidiu foi esvaziada. Nunca sai em rota publica
       - name: created_at
         type: datetime
         note: quando o relato entrou, em UTC
@@ -534,7 +534,7 @@ entities:
         note: nulo enquanto o comentário vale, preenchido no lugar de apagar
   - name: report_public_comments
     label: Comentário público
-    description: O que o time escolhe dizer a quem relatou. Nasce aqui e ainda não tem leitor, porque a camada que o relator lê vem depois, então por enquanto ele é público no nome — e a tela diz isso em vez de sugerir que o relator já vê.
+    description: O que o time escolhe dizer a quem relatou, e o que quem relatou responde. Quem relatou lê na página de acompanhamento, pelo link ou pelo código pessoal; a resposta dele pode trazer arquivos.
     inherited: true
     position: { x: 1560, y: 1560 }
     fields:
@@ -570,7 +570,7 @@ entities:
         note: nulo enquanto o comentário vale, preenchido no lugar de apagar
   - name: events
     label: Eventos
-    description: Ja existia e nao muda de forma nesta modelagem — ganha dois tipos novos, e nada mais. Responde a pergunta de pesquisa do trabalho e e a unica tabela do sistema que so cresce, nunca e alterada e nunca e apagada.
+    description: Ja existia e nao muda nesta modelagem — os anexos nao geram evento. Responde a pergunta de pesquisa do trabalho e e a unica tabela do sistema que so cresce, nunca e alterada e nunca e apagada.
     inherited: true
     position: { x: 1857, y: 1223 }
     fields:
@@ -601,7 +601,7 @@ entities:
       - name: type
         type: enum
         required: true
-        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois novos desta etapa: report_published, gravado quando o relato e liberado para o publico, e report_moderation_rejected, quando e recusado"
+        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois da moderacao: report_published, gravado quando o relato e liberado para o publico, e report_moderation_rejected, quando e recusado"
       - name: source
         type: enum
         required: true
@@ -718,7 +718,7 @@ entities:
         note: nulo enquanto a ligação vale, preenchido no lugar de apagar
   - name: report_info_requests
     label: Pedidos de informação
-    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela nova desta etapa, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
+    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela propria, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
     inherited: true
     position: { x: 1889, y: 1695 }
     fields:
@@ -857,7 +857,7 @@ entities:
       - name: public_delay_minutes
         type: int
         required: true
-        note: quanto o lado publico espera antes de mudar; zero e o comportamento anterior a esta etapa, e e o que da a janela para desfazer um movimento errado
+        note: quanto o lado publico espera antes de mudar; zero muda o lado publico na mesma hora, e acima de zero e o que da a janela para desfazer um movimento errado
       - name: allows_reopen
         type: bool
         required: true
@@ -873,7 +873,7 @@ entities:
       - name: tracking_code_can_act
         type: bool
         required: true
-        note: se o protocolo sozinho confirma e reabre, ou se essas duas acoes exigem o link; ler e inofensivo, reabrir mexe na fila do time
+        note: "se o codigo pessoal sozinho confirma e reabre, ou se essas acoes exigem o link; ler e inofensivo, reabrir mexe na fila do time. Gravado e, por enquanto, ignorado: confirmar, reabrir e responder so aceitam o link"
       - name: satisfaction_enabled
         type: bool
         required: true
@@ -1005,19 +1005,22 @@ entities:
       - name: is_enabled
         type: bool
         required: true
-        note: "se o quadro mostra anexo; desligado, nenhuma outra linha desta configuracao importa, e e a unica trava que a etapa constroi de proposito"
+        note: "se o quadro mostra anexo; desligado, nada mais nesta linha vale — nem tipo ligado, nem limite: o botao nao aparece e o servidor recusa assinar permissao. Sem armazenamento configurado nao liga"
       - name: allows_screen_capture
         type: bool
         required: true
-        note: se o botao de capturar a tela aparece; onde o navegador nao souber fazer, ele some sozinho e anexar arquivo continua
+        note: "se o botao de capturar aparece; ele captura uma area da pagina do cliente, pelo carregador, sem o navegador perguntar nada. Some sozinho onde a pagina nao deixa, e anexar continua"
       - name: allows_on_info_request
         type: bool
         required: true
         note: se da para anexar respondendo a um pedido de informacao do time, que e onde o print mais serve
+      - name: allows_on_reopen
+        type: bool
+        required: true
+        note: "se da para anexar ao reabrir um relato encerrado — o print do que ainda esta acontecendo. Chave propria, e nao a da resposta: atender ao pedido do time e dizer que o problema voltou sao perguntas diferentes"
       - name: max_files_per_report
         type: int
-        required: true
-        note: teto de arquivos somando todos os tipos, porque o limite por tipo sozinho deixaria a soma passar
+        note: "sem uso: era o total de arquivos por envio, somando todos os tipos, e saiu quando cada categoria passou a ter quantidade e tamanho proprios. Fica com o valor antigo; configuracao salva depois grava nulo"
       - name: created_at
         type: datetime
         note: quando a configuracao foi salva a primeira vez, em UTC
@@ -1048,7 +1051,7 @@ entities:
       - name: kind
         type: enum
         required: true
-        note: image | video — unico por configuracao entre os nao apagados. A lista cresce com o produto, e acrescentar um valor nao mexe em coluna nenhuma
+        note: "image | file | video (este, so das linhas antigas: o produto nao oferece mais) — unico por configuracao entre os nao apagados. A lista cresce com o produto, e acrescentar um valor nao mexe em coluna nenhuma"
       - name: is_enabled
         type: bool
         required: true
@@ -1056,14 +1059,17 @@ entities:
       - name: max_count
         type: int
         required: true
-        note: quantos arquivos deste tipo cabem num relato
+        note: "quantos arquivos deste tipo cabem em cada envio — a criacao do relato, cada resposta, cada reabertura. Teto do sistema: 10"
       - name: max_bytes
         type: long
         required: true
-        note: "teto de tamanho de cada arquivo, em bytes; e ele que viaja dentro da assinatura do envio, e quem recusa o que passa e o proprio armazenamento"
+        note: "teto de tamanho de cada arquivo, em bytes; e ele que viaja dentro da assinatura do envio, e quem recusa o que passa e o proprio armazenamento. Teto do sistema: 10 MB na imagem, 25 MB no arquivo"
       - name: max_duration_seconds
         type: int
-        note: "duracao maxima, so para o que tem duracao; limitar aqui e a protecao mais barata que existe, porque corta armazenamento e exposicao de uma vez"
+        note: "duracao maxima, so das linhas antigas de video; nula na imagem e no arquivo"
+      - name: formats
+        type: text[]
+        note: "os formatos aceitos, pelo nome no catalogo fechado do sistema (pdf, text, spreadsheet, document, json, zip), reconhecidos pela extensao do arquivo. So do arquivo; nulo nas outras categorias, que tem os tipos fixos"
       - name: created_at
         type: datetime
         note: quando o limite foi salvo a primeira vez, em UTC
@@ -1094,15 +1100,19 @@ entities:
       - name: public_comment_id
         type: long
         fk: true
-        note: preenchido quando o anexo veio junto de uma resposta ao pedido de informacao, e nulo quando veio na criacao do relato
+        note: preenchido quando o anexo veio junto de uma resposta ao pedido de informacao; nulo na criacao e na reabertura
+      - name: reopened_closure_id
+        type: long
+        fk: true
+        note: "preenchido quando o anexo veio junto de uma reabertura: o fechamento que quem relatou reabriu; nulo na criacao e na resposta. Nunca junto de public_comment_id — um arquivo vai com um envio so, e o banco trava isso"
       - name: kind
         type: enum
         required: true
-        note: image | video — a mesma lista dos limites, porque e ela que diz qual limite se aplica
+        note: "image | file | video (este, so dos anexos antigos) — a mesma lista dos limites, porque e ela que diz qual limite se aplica"
       - name: status
         type: enum
         required: true
-        note: "pending | confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que ficar pending e orfao"
+        note: "pending | confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que fica pending e permissao nao usada: nao aparece nem conta no limite, e o arquivo, se chegou, fica na pasta de envio, que o armazenamento esvazia sozinho"
       - name: object_key
         type: text
         required: true
@@ -1110,24 +1120,32 @@ entities:
         note: "o nome do arquivo no armazenamento; nunca um endereco, porque endereco assinado guardado vira link permanente com outro nome"
       - name: thumbnail_object_key
         type: text
-        note: a miniatura, gerada no proprio navegador antes do envio; no video e o quadro de capa
+        note: "a miniatura da imagem, gerada no proprio navegador antes do envio — WebP, ou JPEG onde o navegador nao codifica WebP; o tipo entra na assinatura e a confirmacao confere os bytes. O arquivo nao tem; no video antigo, e o quadro de capa"
       - name: content_type
         type: text
         required: true
-        note: "o tipo declarado, que entrou na assinatura do envio; garante o rotulo, e nao o conteudo — conferir os bytes e trabalho da confirmacao"
+        note: "o tipo declarado, que entrou na assinatura do envio; garante o rotulo, e nao o conteudo — conferir os bytes e trabalho da confirmacao. Na imagem, png, jpeg ou webp; no arquivo, o tipo do catalogo pela extensao, e nao o que o navegador disse"
       - name: size_bytes
         type: long
         required: true
         note: tamanho do que o armazenamento aceitou, lido na confirmacao e nao no que o navegador disse
       - name: duration_seconds
         type: int
-        note: duracao, so para o que tem duracao
+        note: duracao, so dos videos antigos
       - name: original_name
         type: text
-        note: "o nome que o arquivo tinha na maquina de quem relata; guardado para o time, e nunca mostrado do lado de fora, porque nome de arquivo conta coisa que a imagem nao conta"
+        note: "o nome que o arquivo tinha na maquina de quem relata, sem caractere de controle ou de direcao, e cortado no meio para a extensao ficar; guardado para o time, e nunca mostrado do lado de fora, porque nome de arquivo conta coisa que a imagem nao conta"
       - name: confirmed_at
         type: datetime
-        note: quando a nossa API prendeu o anexo ao relato; nulo e orfao
+        note: quando a nossa API prendeu o anexo ao relato; nulo enquanto pendente
+      - name: display_size
+        type: enum
+        required: true
+        note: "small | medium | large | full — em que tamanho a imagem aparece logo abaixo do texto: um terco da linha, meia, tres quartos ou a linha inteira. Fracao da largura, e nao pixels, para o relato montado caber igual em qualquer tela. Escolha de quem relata; sem escolha, full"
+      - name: display_order
+        type: int
+        required: true
+        note: "a posicao no envio, a partir de zero, dentro da categoria (0 a 9): a ordem em que a pessoa montou. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros; a hora so desempata"
       - name: created_at
         type: datetime
         note: quando a permissao de envio foi assinada, em UTC
@@ -1136,7 +1154,7 @@ entities:
         note: ultima alteracao, em UTC
       - name: deleted_at
         type: datetime
-        note: "nulo enquanto o anexo vale, preenchido no lugar de apagar; a linha some logicamente, mas o arquivo la fora nao — apagar os bytes e rotina que esta etapa nao escreveu de proposito"
+        note: "nulo enquanto o anexo vale, preenchido no lugar de apagar. So o recusado e apagado — a linha logicamente, e o arquivo de verdade, porque nunca chegou a ser anexo; o que virou anexo nunca sai, e a retencao e Adiada"
 relations:
   - from: reports
     fromField: id
@@ -1365,13 +1383,19 @@ relations:
     to: report_attachments
     toField: report_id
     kind: one-to-many
-    note: O relato carrega quantos anexos o projeto permitir. O teto e do projeto, e nao do sistema, porque quem paga a conta de guardar escolhe quanto quer guardar.
+    note: "O relato carrega os anexos de tres envios: a criacao, cada resposta ao pedido de informacao e cada reabertura. O limite vale em cada envio e por categoria — imagem e arquivo, cada um com quantidade e tamanho. O teto e do projeto, dentro do teto do sistema, porque quem paga a conta de guardar escolhe quanto quer guardar."
   - from: report_public_comments
     fromField: id
     to: report_attachments
     toField: public_comment_id
     kind: one-to-many
     note: O anexo que veio numa resposta ao pedido de informacao aponta tambem para o comentario. Continua apontando para o relato, entao achar o dono nunca depende de passar por aqui.
+  - from: report_closures
+    fromField: id
+    to: report_attachments
+    toField: reopened_closure_id
+    kind: one-to-many
+    note: "O anexo que veio numa reabertura aponta para o fechamento que quem relatou reabriu — e nao para um comentario: reabrir nao escreve na conversa, e o motivo pode ficar em branco. Com a coluna, a cota da reabertura e um filtro, e a tela sabe onde mostrar o arquivo sem adivinhar pela data."
 notes:
   - text: |-
       Toda tabela repete as colunas padrão
@@ -1533,7 +1557,7 @@ notes:
 
       O time move as 14h com espera de 30 minutos, e a pagina publica so muda as 14h30. Se alguem moveu sem querer, ha janela para voltar atras antes de a pessoa la fora ver.
 
-      Isso muda a etapa 4: la a jornada publica andava na mesma transacao do movimento interno. Agora o movimento interno grava na hora e o lado publico e agendado. Espera zero volta ao comportamento anterior.
+      Sem espera, a jornada publica anda na mesma transacao do movimento interno. Com espera, o movimento interno grava na hora e o lado publico e agendado.
     anchor: reports
     anchorField: public_stage_due_at
     position: { x: 1926, y: 980 }
@@ -1542,9 +1566,9 @@ notes:
   - text: |-
       O projeto dita as regras, e o padrao ja funciona
 
-      Quase tudo desta etapa e configuracao, e nao regra fixa. Mas projeto novo precisa andar sem ninguem abrir esta tela: os padroes vivem no codigo, e a linha so nasce quando alguem salva.
+      Quase tudo do ciclo e configuracao, e nao regra fixa. Mas projeto novo precisa andar sem ninguem abrir esta tela: os padroes vivem no codigo, e a linha so nasce quando alguem salva.
 
-      E a mesma escolha da jornada publica da etapa 4 — o cliente desenha, e o conjunto de fabrica existe para ninguem encarar tela em branco.
+      E a mesma escolha da jornada publica — o cliente desenha, e o conjunto de fabrica existe para ninguem encarar tela em branco.
     anchor: project_cycle_settings
     position: { x: 2559, y: 2239 }
     width: 400
@@ -1617,7 +1641,7 @@ notes:
     position: { x: 3400, y: 1000 }
     width: 400
 
-  - text: "A configuração vem antes do widget\n\nÉ ela que diz o que existe. Ligar anexo, escolher os tipos, os limites, e se o botão de capturar aparece — tudo é do dono do projeto. Projeto que nunca abrir esta tela continua funcionando, com os padrões que moram no código."
+  - text: "A configuração vem antes do widget\n\nÉ ela que diz o que existe. Ligar anexo, as duas categorias — imagem e arquivo —, os limites de cada uma, os formatos do arquivo, se o botão de capturar aparece e se dá para anexar ao responder e ao reabrir: tudo é do dono do projeto. Projeto que nunca abrir esta tela continua funcionando, com os padrões que moram no código."
     anchor: project_media_settings
     position: { x: 3480, y: 1300 }
     width: 340
@@ -1629,7 +1653,22 @@ notes:
     anchor: report_attachments
     position: { x: 1870, y: 1180 }
     width: 380
-  - text: "Órfão é a regra, não a exceção\n\nGente anexa e desiste de escrever o tempo todo, e o arquivo já está no armazenamento quando isso acontece. Por isso a linha nasce pending e só vira confirmed quando a API prende o anexo ao relato — sem esse estado, não haveria como saber depois o que pertence a alguém e o que é lixo."
+  - text: "O vídeo saiu, e as linhas ficaram\n\nPesava demais no armazenamento e na entrega. Nenhum projeto configura vídeo, e a API recusa pedir um. O valor video continua no tipo, e as linhas antigas — limite e anexo — continuam carregando: os vídeos já confirmados seguem listados e tocando."
+    anchor: project_media_kinds
+    anchorField: kind
+    position: { x: 3480, y: 2200 }
+    width: 340
+  - text: "O arquivo é uma categoria, e só baixa\n\nO que não é imagem sai de um catálogo fechado — PDF, texto e log, planilha, documento, JSON, zip —, reconhecido pela extensão, com os bytes conferidos onde o formato deixa. Nasce desligado. A leitura é sempre download, com um nome genérico do lado de fora e o original no painel: o que há dentro não roda em lugar nenhum."
+    anchor: project_media_kinds
+    anchorField: formats
+    position: { x: 3480, y: 2520 }
+    width: 340
+  - text: "O tamanho de exibição é uma fração, e não pixels\n\nQuem relata monta o relato como quer que ele seja lido: a imagem logo abaixo do texto, num terço, na metade, em três quartos ou na linha inteira. Fração da largura do texto, para caber igual no quadro, no acompanhamento e no painel."
+    anchor: report_attachments
+    anchorField: display_size
+    position: { x: 1870, y: 1900 }
+    width: 340
+  - text: "Pendente é a regra, não a exceção\n\nGente anexa e desiste de escrever o tempo todo, e o arquivo já está no armazenamento quando isso acontece. Por isso a linha nasce pending e só vira confirmed quando a API prende o anexo ao relato — sem esse estado, não haveria como saber depois o que pertence a alguém e o que é lixo."
     anchor: report_attachments
     anchorField: status
     position: { x: 2409, y: 1900 }

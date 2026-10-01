@@ -28,11 +28,13 @@ import { useTrackingMedia } from '@/tracking/useTrackingMedia'
  * configurou jornada devolve a lista vazia, e ai a pagina volta a dizer que nao ha
  * andamento, em vez de prometer.
  *
- * **Quem anda e a jornada, e nao esta pagina.** Ha um `fetch` so, na montagem: uma
- * aba deixada aberta nao muda sozinha, e o texto da tela diz exatamente isso. Buscar
- * de novo por conta propria seria pior do que nao buscar — cada leitura grava um
- * evento de visualizacao, e a pagina passaria a registrar leituras que ninguem fez.
- * Avisar quando algo anda e trabalho da notificacao, que e outra etapa.
+ * **Quem anda e a jornada, e nao esta pagina.** O relato e lido uma vez, na
+ * montagem: uma aba deixada aberta nao muda sozinha, e o texto da tela diz
+ * exatamente isso. Buscar de novo por conta propria seria pior do que nao buscar —
+ * cada leitura grava um evento de visualizacao, e a pagina passaria a registrar
+ * leituras que ninguem fez. Os arquivos se leem a parte, e se renovam sozinhos
+ * porque os enderecos vencem — sem gravar leitura e sem trazer andamento. Avisar
+ * quando algo anda e trabalho da notificacao, e nao desta pagina.
  *
  * **Recusado e falhou sao estados diferentes**, e e por isso que o status do erro
  * atravessa a camada de dados. 404 e resposta definitiva: o link nao abre nada, e
@@ -379,14 +381,15 @@ function Andamento({ jornada }: { jornada: PublicStageViewModel[] }) {
       {/* **A frase promete o que a página faz, e nada além.**
 
           Ela dizia "esta página se atualiza sozinha conforme a equipe trabalha", e
-          isso era falso para quem deixasse a aba aberta: há um único `fetch`, na
-          montagem, e nenhum intervalo, foco de aba ou socket. Quem lesse a frase e
-          esperasse ficaria esperando para sempre.
+          isso era falso para quem deixasse a aba aberta: o relato é lido uma vez, na
+          montagem, sem intervalo, foco de aba ou socket — o que se renova sozinho são
+          só os endereços dos arquivos. Quem lesse a frase e esperasse ficaria
+          esperando para sempre.
 
           E buscar de novo sozinho **não** é a correção: cada leitura grava um
           evento `ReportViewed`, então uma página que se atualiza a cada minuto
           encheria o histórico de leituras que ninguém fez. Avisar quando algo anda
-          é trabalho da notificação, que é outra etapa.
+          é trabalho da notificação, e não desta página.
 
           Então o que fica é o que é verdade: voltar aqui mostra onde o relato está,
           e ninguém precisa ser cobrado para isso acontecer. */}

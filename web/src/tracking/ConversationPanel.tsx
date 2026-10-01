@@ -33,7 +33,7 @@ import { toGalleryItem } from '@/tracking/TrackingAttachments'
  * assunto, e o produto existe justamente para quem foi esquecido.
  *
  * **Escrever só quando há pergunta aberta.** Canal livre viraria uma caixa de
- * entrada sem dono e sem moderação — e moderação ficou de fora desta etapa de
+ * entrada sem dono e sem moderação — e a conversa não passa por moderação, de
  * propósito. A vez volta para a equipe assim que ela responde.
  *
  * **A resposta pode levar arquivo, e o arquivo nunca segura a resposta.** O texto é

@@ -9,7 +9,7 @@
   </tr>
   <tr>
     <td><code>Domain</code></td>
-    <td>Entidades, enums, interfaces, DTOs, view models</td>
+    <td>Entidades, enums, interfaces, DTOs, view models; o catálogo de formatos de arquivo e a conferência dos bytes</td>
     <td>Acesso a banco, HTTP</td>
   </tr>
   <tr>
@@ -24,7 +24,7 @@
   </tr>
   <tr>
     <td><code>Service</code></td>
-    <td>Regra de negócio, geração de chave, token, varredura de dado sensível</td>
+    <td>Regra de negócio, geração de chave, token, varredura de dado sensível, quem anexa o quê e quando</td>
     <td>Tipos de HTTP</td>
   </tr>
   <tr>
@@ -36,6 +36,11 @@
     <td><code>Workers</code></td>
     <td>Conexão com a fila, agendamento, consumidor</td>
     <td>Transação, consulta, <strong>regra</strong></td>
+  </tr>
+  <tr>
+    <td><code>Storage</code></td>
+    <td>Conexão com o armazenamento: assinar envio e leitura, ler os primeiros bytes, copiar exigindo o <code>ETag</code>, o nome do download</td>
+    <td>Transação, consulta, <strong>regra</strong> — e o arquivo inteiro: só o primeiro quilobyte passa por ali</td>
   </tr>
   <tr>
     <td><code>WebApi</code></td>

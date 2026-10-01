@@ -45,7 +45,7 @@ public class ProjectMediaKindMap : BaseEntityConfiguration<ProjectMediaKind>
 
         builder.Property(kind => kind.MaxDurationSeconds)
             .HasColumnName("max_duration_seconds")
-            .HasComment("Duracao maxima em segundos, nula para o que nao tem duracao. E a protecao mais barata desta etapa, porque corta armazenamento e exposicao de uma vez.");
+            .HasComment("Duracao maxima em segundos, so das linhas antigas de video — o video saiu do produto. Nula na imagem e no arquivo.");
 
         builder.Property(kind => kind.Formats)
             .HasColumnName("formats")
