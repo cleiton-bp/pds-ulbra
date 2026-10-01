@@ -10,11 +10,12 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
     /// <summary>
     /// Quantos anexos <b>confirmados</b> um envio ja tem, por tipo e no total.
     ///
-    /// <para><b>O envio e a criacao do relato ou uma resposta, e cada um tem a sua
-    /// cota.</b> Com uma cota so para o relato, quem mandou quatro prints ao relatar
-    /// nao conseguiria responder com o print que o time pediu — que e o caso que o
-    /// anexo na resposta existe para atender. <paramref name="publicCommentId"/>
-    /// nulo e a criacao.</para>
+    /// <para><b>O envio e a criacao do relato, uma resposta ou uma reabertura, e
+    /// cada um tem a sua cota.</b> Com uma cota so para o relato, quem mandou quatro
+    /// prints ao relatar nao conseguiria responder com o print que o time pediu, nem
+    /// mostrar ao reabrir o que ainda esta quebrado. <paramref name="publicCommentId"/>
+    /// e <paramref name="reopenedClosureId"/> nulos juntos sao a criacao; no maximo
+    /// um deles vem preenchido.</para>
     ///
     /// <para><b>So os confirmados contam.</b> O que ficou pendente e permissao que
     /// alguem pediu e nao usou — faze-lo ocupar vaga deixaria quem tentou tres vezes
@@ -25,6 +26,7 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
     Task<(int Total, int OfKind)> CountConfirmedWithoutSessionAsync(
         long reportId,
         long? publicCommentId,
+        long? reopenedClosureId,
         MediaKindEnum kind,
         CancellationToken cancellationToken = default);
 

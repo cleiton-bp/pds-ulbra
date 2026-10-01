@@ -62,7 +62,7 @@ export function ConversationPanel({
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const draft = useAttachmentDraft(media, { forReply: true })
+  const draft = useAttachmentDraft(media, { envio: 'reply' })
   const [subindo, setSubindo] = useState(false)
   const credenciais = { trackingCode: protocolo, token }
 
@@ -74,25 +74,27 @@ export function ConversationPanel({
   if (relato.Conversation.length === 0 && pedido === null) return null
 
   /**
-   * Sobe os arquivos da resposta, e some com a lista quando todos foram.
+   * Sobe os arquivos da resposta, e fecha o envio quando ele termina.
    *
    * O que falhou fica, com "tentar de novo". O que foi aparece logo abaixo da
    * resposta, quando a página reler — a lista de envio sai de cena para não mostrar
-   * o mesmo arquivo duas vezes.
+   * o mesmo arquivo duas vezes. O recusado continua dizendo que não foi, e a
+   * próxima resposta já pode levar arquivo.
    */
   async function subirAnexos() {
     setSubindo(true)
     await draft.enviarAnexos(credenciais, 0)
-    aoAnexar()
+    conferirEnvio()
+  }
 
-    if (draft.atual().every((anexo) => anexo.status === 'done')) {
-      draft.limpar()
-      setSubindo(false)
-    }
+  function conferirEnvio() {
+    aoAnexar()
+    if (draft.fechar()) setSubindo(false)
   }
 
   async function enviar() {
-    if (escrito.length === 0 || enviando) return
+    // Arquivo ainda entrando na lista nao subiria. Ver `preparando`.
+    if (escrito.length === 0 || enviando || draft.preparando) return
 
     setEnviando(true)
     setErro(null)
@@ -116,8 +118,10 @@ export function ConversationPanel({
     setEnviando(false)
 
     // **Depois da resposta gravada, e só então.** O texto já está do lado de lá;
-    // os arquivos se prendem a ele.
+    // os arquivos se prendem a ele. Sem arquivo, o aviso de um recusado da resposta
+    // anterior sai: ele falava de outra resposta.
     if (draft.atual().length > 0) await subirAnexos()
+    else draft.limpar()
   }
 
   return (
@@ -175,20 +179,12 @@ export function ConversationPanel({
         </ul>
       )}
 
-      {subindo && (
+      {(subindo || draft.naoEnviados.length > 0) && (
         <div className="mb-4">
           <AttachmentProgress
-            anexos={draft.anexos}
+            anexos={subindo ? draft.anexos : draft.naoEnviados}
             savedNote="A resposta foi enviada e o seu texto está salvo."
-            onRetry={(anexo) =>
-              void draft.enviarAnexo(credenciais, anexo, 0).then(() => {
-                aoAnexar()
-                if (draft.atual().every((atual) => atual.status === 'done')) {
-                  draft.limpar()
-                  setSubindo(false)
-                }
-              })
-            }
+            onRetry={(anexo) => void draft.enviarAnexo(credenciais, anexo, 0).then(conferirEnvio)}
           />
         </div>
       )}
@@ -227,7 +223,7 @@ export function ConversationPanel({
           <Button
             variant="primary"
             size="sm"
-            disabled={enviando || escrito.length === 0}
+            disabled={enviando || escrito.length === 0 || draft.preparando}
             onClick={() => void enviar()}
           >
             {enviando ? 'Enviando…' : 'Responder'}

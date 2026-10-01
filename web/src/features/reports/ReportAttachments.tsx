@@ -8,9 +8,10 @@ import { formatBytes } from '@/shared/lib/formatBytes'
 /**
  * Os arquivos de um relato, lidos uma vez para o dialogo inteiro.
  *
- * **Uma leitura so, e duas telas.** Os da criacao vao para a secao de arquivos; os
- * de uma resposta vao para a conversa, embaixo da fala. Ler em cada lugar faria as
- * duas pedirem enderecos assinados em dobro — e vencerem em momentos diferentes.
+ * **Uma leitura so, e tres lugares.** Os da criacao vao para a secao de arquivos;
+ * os de uma resposta vao para a conversa, embaixo da fala; os de uma reabertura vao
+ * para junto do motivo dela. Ler em cada lugar faria as telas pedirem enderecos
+ * assinados em dobro — e vencerem em momentos diferentes.
  */
 export function useReportAttachments(projectPublicId: string, reportPublicId: string) {
   const { data, failed, reload, refresh } = useAsyncResource(
@@ -21,16 +22,29 @@ export function useReportAttachments(projectPublicId: string, reportPublicId: st
   )
 
   const anexos = data ?? []
+  const daCriacao: PanelAttachmentViewModel[] = []
   const porFala = new Map<string, PanelAttachmentViewModel[]>()
+  const porReabertura = new Map<string, PanelAttachmentViewModel[]>()
+
   for (const anexo of anexos) {
     if (anexo.ReplyPublicId) {
       porFala.set(anexo.ReplyPublicId, [...(porFala.get(anexo.ReplyPublicId) ?? []), anexo])
+    } else if (anexo.ReopenPublicId) {
+      porReabertura.set(anexo.ReopenPublicId, [
+        ...(porReabertura.get(anexo.ReopenPublicId) ?? []),
+        anexo,
+      ])
+    } else {
+      // "Arquivos" e o que veio com o relato. O da reabertura ali pareceria ter
+      // chegado junto do texto original — e ele e a prova de que o problema voltou.
+      daCriacao.push(anexo)
     }
   }
 
   return {
-    daCriacao: anexos.filter((anexo) => anexo.ReplyPublicId === null),
+    daCriacao,
     porFala,
+    porReabertura,
     failed,
     reload,
     /** Renova os enderecos sem tirar a lista da tela — e o da galeria. */
@@ -67,7 +81,7 @@ export function toPanelGalleryItem(anexo: PanelAttachmentViewModel): GalleryItem
  *
  * Os de uma resposta nao estao aqui: estao na conversa, embaixo da fala que os
  * trouxe. Fala publica nao se apaga nem se edita, entao o arquivo sempre encontra a
- * dele.
+ * dele. Os de uma reabertura estao em "Reaberturas", junto do motivo.
  */
 export function ReportAttachments({
   anexos,

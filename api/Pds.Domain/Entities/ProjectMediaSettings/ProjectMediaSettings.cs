@@ -65,6 +65,17 @@ public class ProjectMediaSettings : PdsBaseEntity
     public bool AllowsOnInfoRequest { get; set; }
 
     /// <summary>
+    /// Da para anexar ao reabrir um relato encerrado.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>E outra pergunta, e por isso e outra chave.</b> Anexar na resposta
+    /// atende ao time que pediu a tela; anexar ao reabrir atende a quem diz "ainda
+    /// esta quebrado, olha aqui". Um projeto pode querer um e nao o outro, e uma
+    /// chave so para os dois obrigaria a escolher pelos dois.</para>
+    /// </remarks>
+    public bool AllowsOnReopen { get; set; }
+
+    /// <summary>
     /// Quantos arquivos cabem num relato, somando todos os tipos.
     /// </summary>
     /// <remarks>

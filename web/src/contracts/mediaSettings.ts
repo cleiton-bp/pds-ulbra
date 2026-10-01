@@ -56,7 +56,12 @@ export interface MediaSettingsViewModel {
   IsEnabled: boolean
   AllowsScreenCapture: boolean
   AllowsOnInfoRequest: boolean
-  /** Teto de arquivos por envio, somando todos os tipos: a criacao do relato e cada resposta. */
+  /** Da para anexar ao reabrir um relato encerrado. */
+  AllowsOnReopen: boolean
+  /**
+   * Teto de arquivos por envio, somando todos os tipos: a criacao do relato, cada
+   * resposta e cada reabertura.
+   */
   MaxFilesPerReport: number
   Kinds: MediaKindLimitViewModel[]
 }
@@ -72,6 +77,7 @@ export interface SaveMediaSettingsRequest {
   IsEnabled: boolean
   AllowsScreenCapture: boolean
   AllowsOnInfoRequest: boolean
+  AllowsOnReopen: boolean
   MaxFilesPerReport: number
   Kinds: MediaKindLimitViewModel[]
 }
@@ -104,6 +110,8 @@ export interface PublicMediaSettingsViewModel {
   IsEnabled: boolean
   AllowsScreenCapture: boolean
   AllowsOnInfoRequest: boolean
+  /** Da para anexar ao reabrir. E o que a pagina de acompanhamento olha na reabertura. */
+  AllowsOnReopen: boolean
   MaxFilesPerReport: number
   Kinds: PublicMediaKindViewModel[]
 }

@@ -20,6 +20,7 @@ public class ReportAttachmentRepository
     public async Task<(int Total, int OfKind)> CountConfirmedWithoutSessionAsync(
         long reportId,
         long? publicCommentId,
+        long? reopenedClosureId,
         MediaKindEnum kind,
         CancellationToken cancellationToken = default)
     {
@@ -27,7 +28,10 @@ public class ReportAttachmentRepository
         // mesmo instante. Isso nao segura dois envios ao mesmo tempo — quem segura e
         // a trava de LockUploadQuotaAsync, na confirmacao.
         var confirmados = await Confirmados(reportId)
-            .Where(attachment => attachment.PublicCommentId == publicCommentId)
+            // As duas colunas, e nao so a do envio pedido: com uma so, a criacao
+            // (as duas nulas) contaria tambem os arquivos das reaberturas.
+            .Where(attachment => attachment.PublicCommentId == publicCommentId
+                                 && attachment.ReopenedClosureId == reopenedClosureId)
             .Select(attachment => attachment.Kind)
             .ToListAsync(cancellationToken);
 
@@ -72,6 +76,7 @@ public class ReportAttachmentRepository
         // conta nunca assinar leitura de arquivo de outra.
         => Context.ReportAttachments
             .Include(attachment => attachment.PublicComment)
+            .Include(attachment => attachment.ReopenedClosure)
             .Where(attachment => attachment.ReportId == reportId
                                  && attachment.Status == AttachmentStatusEnum.Confirmed)
             .OrderBy(attachment => attachment.CreatedAt)
@@ -83,6 +88,7 @@ public class ReportAttachmentRepository
         CancellationToken cancellationToken = default)
         => Confirmados(reportId)
             .Include(attachment => attachment.PublicComment)
+            .Include(attachment => attachment.ReopenedClosure)
             .OrderBy(attachment => attachment.CreatedAt)
             .ThenBy(attachment => attachment.Id)
             .ToListAsync(cancellationToken);

@@ -62,6 +62,7 @@ function media(mudanca: Partial<PublicMediaSettingsViewModel> = {}): PublicMedia
     IsEnabled: true,
     AllowsScreenCapture: true,
     AllowsOnInfoRequest: true,
+    AllowsOnReopen: true,
     MaxFilesPerReport: 4,
     Kinds: [
       {

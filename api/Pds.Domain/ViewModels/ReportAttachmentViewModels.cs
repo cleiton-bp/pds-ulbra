@@ -68,6 +68,11 @@ public record ConfirmedAttachmentViewModel(
 /// <param name="OriginalName">O nome que o arquivo tinha na maquina de quem relatou.</param>
 /// <param name="CameWithReply">Veio numa resposta ao pedido de informacao, e nao na criacao.</param>
 /// <param name="ReplyPublicId">A fala da conversa em que o arquivo veio, para a tela o mostrar logo abaixo dela.</param>
+/// <param name="CameWithReopen">Veio numa reabertura, e nao na criacao.</param>
+/// <param name="ReopenPublicId">
+/// A reabertura em que o arquivo veio — o identificador do fechamento reaberto, o
+/// mesmo de <c>Reopenings</c> no relato —, para a tela o mostrar junto do motivo.
+/// </param>
 /// <param name="CreatedAt">Quando entrou.</param>
 public record PanelAttachmentViewModel(
     Guid PublicId,
@@ -80,6 +85,8 @@ public record PanelAttachmentViewModel(
     string? OriginalName,
     bool CameWithReply,
     Guid? ReplyPublicId,
+    bool CameWithReopen,
+    Guid? ReopenPublicId,
     DateTime CreatedAt);
 
 /// <summary>
@@ -97,6 +104,7 @@ public record PanelAttachmentViewModel(
 /// <param name="ExpiresAt">Quando o endereco do arquivo deixa de servir, em UTC.</param>
 /// <param name="DurationSeconds">Duracao, quando ha. So os videos antigos tem.</param>
 /// <param name="ReplyPublicId">A fala da conversa em que o arquivo veio, quando veio numa resposta.</param>
+/// <param name="ReopenPublicId">A reabertura em que o arquivo veio, quando veio numa — o mesmo identificador de <c>Reopenings</c> no relato.</param>
 /// <param name="CreatedAt">Quando entrou.</param>
 public record PublicAttachmentViewModel(
     Guid PublicId,
@@ -106,4 +114,5 @@ public record PublicAttachmentViewModel(
     DateTime ExpiresAt,
     int? DurationSeconds,
     Guid? ReplyPublicId,
+    Guid? ReopenPublicId,
     DateTime CreatedAt);

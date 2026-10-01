@@ -29,6 +29,10 @@ export interface AttachmentUploadTicketViewModel {
  *
  * **O protocolo e o token vem junto**, e sao eles que dizem de quem e o relato:
  * sem relato, nao ha permissao nenhuma.
+ *
+ * **O arquivo vai com um envio**: a criacao do relato (nenhuma bandeira), a
+ * resposta (`ForReply`) ou a reabertura (`ForReopen`). As duas bandeiras juntas sao
+ * recusadas — um arquivo vai com um envio so.
  */
 export interface RequestAttachmentUploadRequest {
   TrackingCode: string
@@ -44,6 +48,11 @@ export interface RequestAttachmentUploadRequest {
    * servidor prende a resposta mais recente dela, se for dos ultimos minutos.
    */
   ForReply?: boolean
+  /**
+   * Vai junto da reabertura que a pessoa acabou de fazer. **Nao diz qual**, pelo
+   * mesmo motivo de `ForReply`.
+   */
+  ForReopen?: boolean
 }
 
 /** O aviso de que o arquivo chegou. Sem ele, o anexo nao existe para o produto. */
@@ -81,6 +90,10 @@ export interface PanelAttachmentViewModel {
   CameWithReply: boolean
   /** A fala da conversa em que o arquivo veio — a tela o mostra logo abaixo dela. */
   ReplyPublicId: string | null
+  /** Veio numa reabertura, e nao na criacao do relato. */
+  CameWithReopen: boolean
+  /** A reabertura em que o arquivo veio — o mesmo `PublicId` de `Reopenings` no detalhe. */
+  ReopenPublicId: string | null
   CreatedAt: string
 }
 
@@ -98,5 +111,7 @@ export interface PublicAttachmentViewModel {
   DurationSeconds: number | null
   /** A fala da conversa em que o arquivo veio, quando veio numa resposta. */
   ReplyPublicId: string | null
+  /** A reabertura em que o arquivo veio — o mesmo `PublicId` de `Reopenings` no relato. */
+  ReopenPublicId: string | null
   CreatedAt: string
 }

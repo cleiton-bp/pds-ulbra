@@ -541,6 +541,12 @@ public class ReportService : IReportService
         var pedido = await _unitOfWork.ReportInfoRequests
             .FindOpenWithoutSessionAsync(report.Id, cancellationToken);
 
+        // O que ela disse ao reabrir. E texto dela, e volta para ela: o fechamento
+        // reaberto sai de `Closure`, e sem esta lista o motivo era gravado e nunca
+        // mais lido.
+        var reaberturas = await _unitOfWork.ReportClosures
+            .ListReopenedWithoutSessionAsync(report.Id, cancellationToken);
+
         return new PublicReportViewModel(
             report.TrackingCode,
             report.Type,
@@ -557,7 +563,11 @@ public class ReportService : IReportService
                 : new PublicInfoRequestViewModel(
                     pedido.AskedAt, pedido.CloseAt, DateTime.UtcNow >= pedido.WarnAt),
             // Escrever so enquanto ha pergunta aberta — e so para quem pode agir.
-            podeAgir && pedido is not null);
+            podeAgir && pedido is not null,
+            reaberturas
+                .Select(reabertura => new PublicReopeningViewModel(
+                    reabertura.PublicId, reabertura.ReopenedAt!.Value, reabertura.ReopenComment))
+                .ToList());
     }
 
     /// <summary>
@@ -681,7 +691,8 @@ public class ReportService : IReportService
             // Ver o paragrafo acima.
         }
 
-        return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false);
+        return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false,
+            await ReopeningsOfAsync(report.Id, cancellationToken));
     }
 
     public async Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default)
@@ -1109,7 +1120,8 @@ public class ReportService : IReportService
         // por `GetAsync` registraria uma segunda visualizacao que ninguem fez.
         // Encerrado: nao ha mais o que perguntar, e um pedido aberto deixou de
         // fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
-        return Detail(report, ClosureOf(fechamento), null, canAskInfo: false);
+        return Detail(report, ClosureOf(fechamento), null, canAskInfo: false,
+            await ReopeningsOfAsync(report.Id, cancellationToken));
     }
 
     /// <summary>
@@ -1994,6 +2006,7 @@ public class ReportService : IReportService
         var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
         var pedido = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+        var reaberturas = await ReopeningsOfAsync(report.Id, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
@@ -2005,7 +2018,7 @@ public class ReportService : IReportService
                         && fechamento is null
                         && pedido is null;
 
-        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir);
+        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir, reaberturas);
     }
 
     /// <summary>
@@ -2015,12 +2028,18 @@ public class ReportService : IReportService
     /// encerra-lo. A segunda nao pode chamar a primeira — abrir <b>grava</b> um
     /// evento de leitura, e encerrar registraria uma visualizacao que ninguem
     /// fez.</para>
+    ///
+    /// <para><b>As reaberturas vem de todos os chamadores</b>, e nao so de abrir: a
+    /// tela troca o relato inteiro pela resposta de encerrar ou de pedir
+    /// informacao, e uma lista vazia ali apagaria da tela o motivo de o relato ter
+    /// voltado.</para>
     /// </summary>
     private static ReportDetailViewModel Detail(
         Report report,
         ReportClosureViewModel? closure,
         ReportInfoRequestViewModel? infoRequest,
-        bool canAskInfo) => new(
+        bool canAskInfo,
+        IReadOnlyList<ReportReopeningViewModel> reopenings) => new(
         report.PublicId,
         report.TrackingCode,
         report.Type,
@@ -2042,7 +2061,27 @@ public class ReportService : IReportService
         report.Contexts
             .OrderBy(context => context.Key, StringComparer.Ordinal)
             .Select(context => new ReportContextViewModel(context.Key, context.Value))
-            .ToList());
+            .ToList(),
+        reopenings);
+
+    /// <summary>
+    /// As reaberturas como o painel as le, com sessao.
+    ///
+    /// <para><b>E o primeiro leitor do motivo da reabertura</b> do lado de dentro.
+    /// Ate aqui ele era gravado e so aparecia no historico como "quem relatou
+    /// reabriu" — o time sabia que voltou, e nao por que.</para>
+    /// </summary>
+    private async Task<IReadOnlyList<ReportReopeningViewModel>> ReopeningsOfAsync(
+        long reportId,
+        CancellationToken cancellationToken)
+        => (await _unitOfWork.ReportClosures.ListReopenedAsync(reportId, cancellationToken))
+            .Select(closure => new ReportReopeningViewModel(
+                closure.PublicId,
+                closure.Outcome,
+                closure.ClosedAt,
+                closure.ReopenedAt!.Value,
+                closure.ReopenComment))
+            .ToList();
 
     /// <summary>
     /// O projeto da sessao atual. O filtro global ja limita a consulta a conta que

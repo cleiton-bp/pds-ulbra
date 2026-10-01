@@ -35,6 +35,11 @@ public class ProjectMediaSettingsMap : BaseEntityConfiguration<ProjectMediaSetti
             .IsRequired()
             .HasComment("Da para anexar respondendo a um pedido de informacao do time, que e onde o print mais serve. Chave propria porque ha projeto que quer anexo na criacao e nao quer na conversa.");
 
+        builder.Property(settings => settings.AllowsOnReopen)
+            .HasColumnName("allows_on_reopen")
+            .IsRequired()
+            .HasComment("Da para anexar ao reabrir um relato encerrado — o print do que ainda esta acontecendo. Chave propria, e nao a da resposta: atender ao pedido do time e dizer que o problema voltou sao perguntas diferentes.");
+
         builder.Property(settings => settings.MaxFilesPerReport)
             .HasColumnName("max_files_per_report")
             .IsRequired()

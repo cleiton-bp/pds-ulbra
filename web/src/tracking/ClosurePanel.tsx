@@ -2,10 +2,13 @@ import { useState } from 'react'
 import {
   MAX_REOPEN_COMMENT_LENGTH,
   type PublicClosureViewModel,
+  type PublicMediaSettingsViewModel,
   type PublicReportViewModel,
   SATISFACTION_SCALE,
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { AttachmentPicker } from '@/embed/AttachmentPicker'
+import type { AttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
@@ -34,16 +37,31 @@ import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
  * **Quem reabre não dá nota.** Está dizendo que não resolveu, e avaliar serviço
  * inacabado mede outra coisa. A nota volta a ser pedida se o relato for encerrado
  * de novo.
+ *
+ * **Quem reabre pode mostrar o que ainda está acontecendo**, e o print nunca segura
+ * a reabertura. O texto é gravado primeiro; os arquivos sobem depois, presos a ela.
+ * **Os arquivos escolhidos não moram aqui**: reaberto, o relato deixa de ter
+ * fechamento e este bloco sai da tela — com a lista dentro dele, ela sairia junto,
+ * antes de subir. Quem monta a página guarda a lista e sobe os arquivos.
  */
 export function ClosurePanel({
   fechamento,
   aoResponder,
+  aoReabrir = aoResponder,
+  anexar = null,
   protocolo,
   token,
 }: {
   fechamento: PublicClosureViewModel
   /** A resposta da API vira o relato na tela: o que ela mostra é o que ficou gravado. */
   aoResponder: (relato: PublicReportViewModel) => void
+  /** A reabertura foi gravada. Quem monta a página troca o relato e sobe os arquivos. */
+  aoReabrir?: (relato: PublicReportViewModel) => void
+  /**
+   * O que dá para anexar ao reabrir, e a lista que quem monta a página guarda.
+   * Nulo: a reabertura é só texto.
+   */
+  anexar?: { midia: PublicMediaSettingsViewModel; rascunho: AttachmentDraft } | null
   protocolo: string
   token: string
 }) {
@@ -57,14 +75,17 @@ export function ClosurePanel({
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
-  async function enviar(acao: () => Promise<PublicReportViewModel>) {
+  async function enviar(
+    acao: () => Promise<PublicReportViewModel>,
+    depois: (relato: PublicReportViewModel) => void = aoResponder,
+  ) {
     if (enviando) return
 
     setEnviando(true)
     setErro(null)
 
     try {
-      aoResponder(await acao())
+      depois(await acao())
     } catch (falha) {
       // O erro fica **aqui dentro**, e não vira a tela inteira: o relato continua
       // na frente da pessoa, e o que falhou foi só a resposta dela.
@@ -221,7 +242,12 @@ export function ClosurePanel({
       )}
 
       {modo === 'reabrindo' && (
-        <div className="mt-5 border-border border-t pt-4">
+        // Colar em qualquer lugar da reabertura anexa, como na resposta. Texto
+        // colado continua sendo texto.
+        <div
+          className="mt-5 border-border border-t pt-4"
+          onPaste={anexar ? anexar.rascunho.colar : undefined}
+        >
           <label htmlFor="motivo-da-reabertura" className="mb-1.5 block text-detail text-fg">
             O que ainda está acontecendo?
           </label>
@@ -239,20 +265,43 @@ export function ClosurePanel({
             className="mb-3 block w-full resize-y rounded-lg border border-border bg-surface px-2.5 py-2 text-body text-fg leading-relaxed disabled:opacity-60"
           />
 
+          {/* Arquivo e colagem, e não captura: esta página não é o site onde o
+              problema acontece, e capturar daqui mostraria a própria página. */}
+          {anexar && (
+            <div className="mb-3">
+              <p className="mb-2 text-caption text-fg-muted leading-relaxed">
+                Se ajudar, anexe um print do que ainda está acontecendo.
+              </p>
+              <AttachmentPicker
+                media={anexar.midia}
+                anexos={anexar.rascunho.anexos}
+                recusa={anexar.rascunho.recusa}
+                onAdd={(arquivos) => void anexar.rascunho.adicionar(arquivos)}
+                onRemove={anexar.rascunho.remover}
+              />
+            </div>
+          )}
+
           {erro && <p className="mb-2.5 text-caption text-error-fg">{erro}</p>}
 
           <div className="flex flex-wrap gap-2">
             <Button
               variant="primary"
               size="sm"
-              disabled={enviando || !podeReabrir}
+              // Arquivo ainda entrando na lista nao subiria, e sumiria com este
+              // bloco. Ver `preparando` em useAttachmentDraft.
+              disabled={enviando || !podeReabrir || (anexar?.rascunho.preparando ?? false)}
               onClick={() =>
-                void enviar(() =>
-                  reportService.reopenReport({
-                    TrackingCode: protocolo,
-                    Token: token,
-                    Comment: textoDaReabertura.length > 0 ? textoDaReabertura : null,
-                  }),
+                // **A reabertura primeiro, e só ela.** Os arquivos vão depois, por
+                // quem monta a página: o texto nunca espera o envio.
+                void enviar(
+                  () =>
+                    reportService.reopenReport({
+                      TrackingCode: protocolo,
+                      Token: token,
+                      Comment: textoDaReabertura.length > 0 ? textoDaReabertura : null,
+                    }),
+                  aoReabrir,
                 )
               }
             >

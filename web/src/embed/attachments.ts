@@ -23,7 +23,12 @@ export interface Anexo {
   preview: string | null
   /** A miniatura que sobe junto. Nula quando o navegador nao soube gerar. */
   thumbnail: Blob | null
-  status: 'waiting' | 'sending' | 'done' | 'failed'
+  /**
+   * **Falhou e recusado sao estados diferentes.** Falhou e o que tentar de novo pode
+   * resolver — rede, armazenamento fora. Recusado e o 409 da API: o envio fechou ou a
+   * regra do projeto mudou, e repetir so levaria a mesma resposta.
+   */
+  status: 'waiting' | 'sending' | 'done' | 'failed' | 'refused'
   progress: number
   error: string | null
 }

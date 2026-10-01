@@ -40,7 +40,7 @@ public class ReportAttachmentService : IReportAttachmentService
 
     /// <summary>
     /// Por quanto tempo depois do envio a pessoa ainda prende arquivo a ele — a
-    /// criacao do relato ou a resposta.
+    /// criacao do relato, a resposta ou a reabertura.
     ///
     /// <para><b>Anexo tem hora: vai junto do envio, e nao depois.</b> O texto sai
     /// sem esperar os arquivos, que viajam em seguida; o prazo existe so para eles
@@ -110,6 +110,12 @@ public class ReportAttachmentService : IReportAttachmentService
         if (kind == MediaKindEnum.Video)
             throw new ArgumentException($"{VideoRefused} Envie uma imagem.");
 
+        // Um arquivo vai com um envio so. Escolher um dos dois por conta propria
+        // esconderia o erro de quem chamou, e o arquivo apareceria no lugar que ele
+        // nao pediu.
+        if (dto.ForReply == true && dto.ForReopen == true)
+            throw new ArgumentException("Um arquivo vai com um envio so: a resposta ou a reabertura.");
+
         var contentType = (dto.ContentType ?? string.Empty).Trim().ToLowerInvariant();
         var tamanho = dto.SizeBytes ?? throw new ArgumentException("Informe o tamanho do arquivo.");
 
@@ -120,11 +126,13 @@ public class ReportAttachmentService : IReportAttachmentService
         if (!vigente.IsEnabled)
             throw new ArgumentException("Este projeto nao aceita anexo.");
 
-        // O envio a que este arquivo pertence: a criacao do relato, ou a resposta
-        // que a pessoa acabou de mandar. Cada um com a sua cota, e cada um com o seu
-        // prazo. Prazo vencido e 409, e nao 400: o pedido estava certo, o que fechou
-        // foi o envio.
+        // O envio a que este arquivo pertence: a criacao do relato, a resposta que a
+        // pessoa acabou de mandar, ou a reabertura que ela acabou de fazer. Cada um
+        // com a sua cota, e cada um com o seu prazo. Prazo vencido e 409, e nao 400:
+        // o pedido estava certo, o que fechou foi o envio — e a tela nao deve
+        // oferecer tentar de novo.
         long? respostaId = null;
+        long? reaberturaId = null;
         var desde = DateTime.UtcNow - AttachmentWindow;
 
         if (dto.ForReply == true)
@@ -138,6 +146,21 @@ public class ReportAttachmentService : IReportAttachmentService
                                $"Nao ha resposta sua dos ultimos {AttachmentWindow.TotalMinutes:0} minutos neste relato para prender o arquivo.");
 
             respostaId = resposta.Id;
+        }
+        else if (dto.ForReopen == true)
+        {
+            if (!vigente.AllowsOnReopen)
+                throw new ArgumentException("Este projeto nao aceita anexo na reabertura.");
+
+            // A reabertura e achada aqui, e nao informada de fora: ver ForReopen. O
+            // motivo pode ter ficado em branco, e o arquivo vai do mesmo jeito — o
+            // envio e a reabertura, e nao o texto dela.
+            var reabertura = await _unitOfWork.ReportClosures.FindLatestReopenedWithoutSessionAsync(
+                                 report.Id, desde, cancellationToken)
+                             ?? throw new ConflictException(
+                                 $"Nao ha reabertura sua neste relato nos ultimos {AttachmentWindow.TotalMinutes:0} minutos para prender o arquivo.");
+
+            reaberturaId = reabertura.Id;
         }
         else if (report.CreatedAt < desde)
         {
@@ -161,7 +184,7 @@ public class ReportAttachmentService : IReportAttachmentService
         // Conferido aqui para recusar antes do envio, e nao para garantir o limite:
         // quem garante e a confirmacao, que conta de novo com a cota travada. 409,
         // como na confirmacao: o pedido esta certo, o envio e que ja esta cheio.
-        if (await RoomRefusalAsync(report.Id, respostaId, kind, vigente, limite, cancellationToken) is { } semVaga)
+        if (await RoomRefusalAsync(report.Id, respostaId, reaberturaId, kind, vigente, limite, cancellationToken) is { } semVaga)
             throw new ConflictException(semVaga);
 
         // O nome no armazenamento e sorteado, e nunca derivado do que veio de fora:
@@ -174,6 +197,7 @@ public class ReportAttachmentService : IReportAttachmentService
         {
             ReportId = report.Id,
             PublicCommentId = respostaId,
+            ReopenedClosureId = reaberturaId,
             Kind = kind,
             Status = AttachmentStatusEnum.Pending,
             ObjectKey = chave,
@@ -301,7 +325,8 @@ public class ReportAttachmentService : IReportAttachmentService
                          ? NoLongerOffered(attachment.Kind)
                          : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
                            ?? await RoomRefusalAsync(
-                               report.Id, attachment.PublicCommentId, attachment.Kind, vigente, limite, ct))
+                               report.Id, attachment.PublicCommentId, attachment.ReopenedClosureId,
+                               attachment.Kind, vigente, limite, ct))
                      is { } regra)
                 motivo = new ConfirmRefusal(regra, IsAboutTheFile: false);
 
@@ -378,6 +403,8 @@ public class ReportAttachmentService : IReportAttachmentService
                 anexo.OriginalName,
                 anexo.PublicCommentId is not null,
                 anexo.PublicComment?.PublicId,
+                anexo.ReopenedClosureId is not null,
+                anexo.ReopenedClosure?.PublicId,
                 anexo.CreatedAt));
         }
 
@@ -411,6 +438,7 @@ public class ReportAttachmentService : IReportAttachmentService
                 arquivo.ExpiresAt,
                 anexo.DurationSeconds,
                 anexo.PublicComment?.PublicId,
+                anexo.ReopenedClosure?.PublicId,
                 anexo.CreatedAt));
         }
 
@@ -521,8 +549,8 @@ public class ReportAttachmentService : IReportAttachmentService
     }
 
     /// <summary>
-    /// Ha vaga para mais um arquivo deste tipo neste envio — a criacao do relato, ou
-    /// uma resposta. Cada envio tem a sua cota.
+    /// Ha vaga para mais um arquivo deste tipo neste envio — a criacao do relato, uma
+    /// resposta ou uma reabertura. Cada envio tem a sua cota.
     ///
     /// <para><b>Os dois limites sao conferidos, e nao um deles.</b> Com um tipo so,
     /// vence o menor; com mais de um, so o do tipo deixaria a soma passar do total
@@ -539,15 +567,20 @@ public class ReportAttachmentService : IReportAttachmentService
     private async Task<string?> RoomRefusalAsync(
         long reportId,
         long? respostaId,
+        long? reaberturaId,
         MediaKindEnum kind,
         EffectiveMediaSettings vigente,
         EffectiveMediaKind limite,
         CancellationToken cancellationToken)
     {
         var (total, doTipo) = await _unitOfWork.ReportAttachments.CountConfirmedWithoutSessionAsync(
-            reportId, respostaId, kind, cancellationToken);
+            reportId, respostaId, reaberturaId, kind, cancellationToken);
 
-        var onde = respostaId is null ? "Este relato" : "Esta resposta";
+        var onde = respostaId is not null
+            ? "Esta resposta"
+            : reaberturaId is not null
+                ? "Esta reabertura"
+                : "Este relato";
 
         if (total >= vigente.MaxFilesPerReport)
             return $"{onde} ja tem o maximo de arquivos que o projeto permite, que e {vigente.MaxFilesPerReport}.";
@@ -568,9 +601,9 @@ public class ReportAttachmentService : IReportAttachmentService
     /// A regra do projeto ainda aceita este anexo.
     ///
     /// <para><b>Ela pode ter mudado entre a permissao e a confirmacao.</b> O dono
-    /// que desliga a midia, um tipo, ou o anexo na resposta espera que nada mais
-    /// entre dali em diante — e uma permissao assinada um minuto antes nao pode
-    /// valer mais do que a decisao dele.</para>
+    /// que desliga a midia, um tipo, ou o anexo na resposta ou na reabertura espera
+    /// que nada mais entre dali em diante — e uma permissao assinada um minuto antes
+    /// nao pode valer mais do que a decisao dele.</para>
     /// </summary>
     private static string? RuleRefusal(
         EffectiveMediaSettings vigente,
@@ -586,6 +619,9 @@ public class ReportAttachmentService : IReportAttachmentService
 
         if (attachment.PublicCommentId is not null && !vigente.AllowsOnInfoRequest)
             return "Este projeto deixou de aceitar anexo nas respostas.";
+
+        if (attachment.ReopenedClosureId is not null && !vigente.AllowsOnReopen)
+            return "Este projeto deixou de aceitar anexo na reabertura.";
 
         // O tamanho e o real, lido do armazenamento. Ele ja recusa o que passa do teto
         // assinado, entao isto so pega o limite que baixou depois da permissao — e e a

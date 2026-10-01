@@ -25,12 +25,20 @@ namespace Pds.Service.Services;
 /// </summary>
 public class ProjectMediaSettingsService : IProjectMediaSettingsService
 {
-    // Quem ve esta recusa quase sempre e uma aba do painel aberta antes do video
-    // sair: ela devolve a linha de video que leu, mesmo desligada. Dizer so "nao e
-    // aceito" faria a pessoa desmarcar o video e bater na mesma recusa. O comeco e
-    // o mesmo do pedido de envio e da confirmacao: e a mesma noticia nos tres.
+    // Quem ve esta recusa e uma aba do painel aberta antes do video sair que ja sabe
+    // da chave da reabertura: ela devolve a linha de video que leu, mesmo desligada.
+    // A aba mais antiga que isso cai antes em ReopenKeyMissing, que tambem pede para
+    // recarregar. Dizer so "nao e aceito" faria a pessoa desmarcar o video e bater
+    // na mesma recusa. O comeco e o mesmo do pedido de envio e da confirmacao: e a
+    // mesma noticia nos tres.
     private const string VideoRefused =
         "Video nao e mais aceito como anexo. Recarregue a pagina e salve de novo.";
+
+    // O unico cliente que deixa este campo de fora e uma aba do painel aberta antes
+    // de a chave existir — e a tela dela nao tem a opcao que a mensagem pede. Sem o
+    // "recarregue", a pessoa tentaria de novo e bateria na mesma recusa.
+    private const string ReopenKeyMissing =
+        "Informe se da para anexar ao reabrir. Recarregue a pagina e salve de novo.";
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMediaStorage _mediaStorage;
@@ -62,6 +70,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         var isEnabled = Required(dto.IsEnabled, "Informe se a ferramenta aceita anexo.");
         var allowsScreenCapture = Required(dto.AllowsScreenCapture, "Informe se o botao de capturar a tela aparece.");
         var allowsOnInfoRequest = Required(dto.AllowsOnInfoRequest, "Informe se da para anexar respondendo ao time.");
+        var allowsOnReopen = Required(dto.AllowsOnReopen, ReopenKeyMissing);
         var maxFiles = Required(dto.MaxFilesPerReport, "Informe quantos arquivos cabem em cada envio.");
 
         RequireInRange(maxFiles, 1, ProjectMediaSettings.MaxFilesPerReportCeiling,
@@ -78,6 +87,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         settings.IsEnabled = isEnabled;
         settings.AllowsScreenCapture = allowsScreenCapture;
         settings.AllowsOnInfoRequest = allowsOnInfoRequest;
+        settings.AllowsOnReopen = allowsOnReopen;
         settings.MaxFilesPerReport = maxFiles;
 
         ApplyKinds(settings, limites);
@@ -151,6 +161,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             IsOffered(vigente),
             vigente.AllowsScreenCapture,
             vigente.AllowsOnInfoRequest,
+            vigente.AllowsOnReopen,
             vigente.MaxFilesPerReport,
             vigente.Kinds
                 .Where(kind => kind.IsEnabled)
@@ -325,6 +336,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             IsOffered(vigente),
             vigente.AllowsScreenCapture,
             vigente.AllowsOnInfoRequest,
+            vigente.AllowsOnReopen,
             vigente.MaxFilesPerReport,
             vigente.Kinds
                 .Select(kind => new MediaKindLimitViewModel(

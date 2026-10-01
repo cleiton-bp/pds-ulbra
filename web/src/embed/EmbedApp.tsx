@@ -182,7 +182,9 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!trimmed || sending) return
+    // Arquivo ainda entrando na lista nao subiria: o envio leva a lista como ela
+    // esta. Ver `preparando` em useAttachmentDraft.
+    if (!trimmed || sending || draft.preparando) return
 
     setSending(true)
     setError(null)
@@ -638,7 +640,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       */}
       <button
         type="submit"
-        disabled={!trimmed || sending}
+        disabled={!trimmed || sending || draft.preparando}
         className={cn(
           'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg',
           'border border-transparent font-medium text-body transition-opacity',

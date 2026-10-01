@@ -44,10 +44,31 @@ public class ReportAttachment : PdsBaseEntity
 
     /// <summary>
     /// Preenchido quando o anexo veio junto de uma resposta ao pedido de informacao.
-    /// Nulo quando veio na criacao do relato.
+    /// Nulo na criacao e na reabertura.
     /// </summary>
     public long? PublicCommentId { get; set; }
     public ReportPublicComment? PublicComment { get; set; }
+
+    /// <summary>
+    /// Preenchido quando o anexo veio junto de uma reabertura: o fechamento que quem
+    /// relatou reabriu. Nulo na criacao e na resposta.
+    ///
+    /// <para><b>Coluna propria, e nao uma conta feita na hora de ler.</b> Deduzir
+    /// pela data — o anexo que entrou logo depois de uma reabertura e dela —
+    /// faria cada leitura refazer a conta, e a cota da reabertura virar uma busca
+    /// por intervalo. Com a coluna, a cota e um filtro, e a tela sabe onde mostrar o
+    /// arquivo sem adivinhar.</para>
+    ///
+    /// <para><b>Aponta para o fechamento, e nao para um comentario.</b> Reabrir nao
+    /// escreve na conversa — encerramento nao e conversa —, e o motivo pode ficar em
+    /// branco quando o projeto nao o pede. O fechamento reaberto sempre existe, e e
+    /// nele que o motivo mora.</para>
+    ///
+    /// <para>Nunca junto de <see cref="PublicCommentId"/>: um arquivo vai com um envio
+    /// so, e o banco trava isso.</para>
+    /// </summary>
+    public long? ReopenedClosureId { get; set; }
+    public ReportClosure? ReopenedClosure { get; set; }
 
     /// <summary>
     /// Imagem, ou video nos anexos antigos. E ele que diz qual limite do projeto se

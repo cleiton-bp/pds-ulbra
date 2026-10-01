@@ -75,6 +75,8 @@ const relato: PublicReportViewModel = {
   Conversation: [],
   InfoRequest: null,
   CanReply: false,
+  // Nunca reaberto. A reabertura tem bloco proprio, e testes proprios.
+  Reopenings: [],
 }
 
 function passo(
@@ -134,6 +136,7 @@ beforeEach(() => {
     IsEnabled: false,
     AllowsScreenCapture: false,
     AllowsOnInfoRequest: false,
+    AllowsOnReopen: false,
     MaxFilesPerReport: 0,
     Kinds: [],
   })
@@ -717,6 +720,7 @@ describe('os arquivos na pagina de acompanhamento', () => {
         ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
         DurationSeconds: null,
         ReplyPublicId: null,
+        ReopenPublicId: null,
         CreatedAt: '2026-09-12T13:24:00.000Z',
       },
     ])
@@ -792,6 +796,7 @@ describe('anexar na resposta', () => {
       IsEnabled: true,
       AllowsScreenCapture: true,
       AllowsOnInfoRequest: true,
+      AllowsOnReopen: true,
       MaxFilesPerReport: 4,
       Kinds: kinds,
     })

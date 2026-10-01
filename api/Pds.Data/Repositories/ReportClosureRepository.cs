@@ -77,4 +77,45 @@ public class ReportClosureRepository : BaseRepository<ReportClosure, DataContext
             .OrderByDescending(closure => closure.ClosedAt)
             .ThenByDescending(closure => closure.Id)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<ReportClosure?> FindLatestReopenedWithoutSessionAsync(
+        long reportId,
+        DateTime since,
+        CancellationToken cancellationToken = default)
+        // A mais recente, e nao qualquer uma dentro do prazo: reaberto, encerrado e
+        // reaberto de novo em minutos, o arquivo e da reabertura que acabou de
+        // acontecer, que e a que a pessoa tem na frente.
+        => Reabertos(reportId)
+            .Where(closure => closure.ReopenedAt >= since)
+            .OrderByDescending(closure => closure.ReopenedAt)
+            .ThenByDescending(closure => closure.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<List<ReportClosure>> ListReopenedWithoutSessionAsync(
+        long reportId,
+        CancellationToken cancellationToken = default)
+        => Reabertos(reportId)
+            .OrderBy(closure => closure.ReopenedAt)
+            .ThenBy(closure => closure.Id)
+            .ToListAsync(cancellationToken);
+
+    public Task<List<ReportClosure>> ListReopenedAsync(long reportId, CancellationToken cancellationToken = default)
+        // Com o filtro global, que ja carrega a conta.
+        => Context.ReportClosures
+            .Where(closure => closure.ReportId == reportId && closure.ReopenedAt != null)
+            .OrderBy(closure => closure.ReopenedAt)
+            .ThenBy(closure => closure.Id)
+            .ToListAsync(cancellationToken);
+
+    /// <summary>
+    /// Os fechamentos reabertos, com as condicoes do filtro global reescritas a mao,
+    /// menos a da conta — o mesmo desenho das outras leituras publicas daqui.
+    /// </summary>
+    private IQueryable<ReportClosure> Reabertos(long reportId)
+        => Context.ReportClosures
+            .IgnoreQueryFilters()
+            .Where(closure => closure.ReportId == reportId
+                              && closure.DeletedAt == null
+                              && closure.Report.DeletedAt == null
+                              && closure.ReopenedAt != null);
 }

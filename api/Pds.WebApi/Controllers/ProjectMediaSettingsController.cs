@@ -111,6 +111,10 @@ public class ProjectMediaSettingsController : BaseController
     /// prometer, na tela, um envio que o pedido de permissão recusa. A mensagem pede
     /// para recarregar a página, porque quem a recebe é, quase sempre, uma tela
     /// aberta antes de o vídeo sair, devolvendo a linha que leu.
+    ///
+    /// **`AllowsOnReopen` ausente também pede para recarregar.** Só a tela aberta
+    /// antes de a chave existir o deixa de fora, e ela não tem a opção que a
+    /// mensagem pede. Essa recusa vem antes da do vídeo.
     /// `MaxDurationSeconds` deixou de existir no pedido; quem ainda o manda não
     /// quebra, porque o campo é ignorado.
     ///

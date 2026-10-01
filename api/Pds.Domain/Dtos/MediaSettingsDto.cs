@@ -54,7 +54,11 @@ public class MediaSettingsDto
     /// <example>true</example>
     public bool? AllowsOnInfoRequest { get; set; }
 
-    /// <summary>Quantos arquivos cabem em cada envio, somando todos os tipos. A criacao do relato e um envio, e cada resposta e outro.</summary>
+    /// <summary>Da para anexar ao reabrir um relato encerrado.</summary>
+    /// <example>true</example>
+    public bool? AllowsOnReopen { get; set; }
+
+    /// <summary>Quantos arquivos cabem em cada envio, somando todos os tipos. A criacao do relato e um envio, cada resposta e outro, e cada reabertura tambem.</summary>
     /// <example>4</example>
     public int? MaxFilesPerReport { get; set; }
 

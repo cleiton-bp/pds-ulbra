@@ -79,6 +79,7 @@ function padrao(mudanca: Partial<MediaSettingsViewModel> = {}): MediaSettingsVie
     IsEnabled: true,
     AllowsScreenCapture: true,
     AllowsOnInfoRequest: true,
+    AllowsOnReopen: true,
     MaxFilesPerReport: 4,
     Kinds: [{ Kind: 'Image', IsEnabled: true, MaxCount: 3, MaxBytes: 5 * UM_MB }],
     ...mudanca,
@@ -314,6 +315,7 @@ describe('MediaScreen', () => {
       IsEnabled: true,
       AllowsScreenCapture: true,
       AllowsOnInfoRequest: true,
+      AllowsOnReopen: true,
       MaxFilesPerReport: 2,
       Kinds: padrao().Kinds,
     })
@@ -550,6 +552,40 @@ describe('MediaScreen', () => {
 
     expect(tamanhoImagem().validity.stepMismatch).toBe(false)
     expect(tamanhoImagem().getAttribute('aria-invalid')).toBeNull()
+  })
+
+  // Chave propria, e nao a da resposta: um projeto pode querer o print de quem
+  // responde ao time e nao o de quem reabre, e o contrario.
+  it('a chave da reabertura é independente da resposta, e vai no salvar', async () => {
+    ecoarAoSalvar()
+    montar()
+
+    const reabrir = await screen.findByRole('checkbox', { name: /Deixar anexar ao reabrir/ })
+    const responder = screen.getByRole('checkbox', { name: /Deixar anexar ao responder/ })
+    expect((reabrir as HTMLInputElement).checked).toBe(true)
+
+    fireEvent.click(reabrir)
+
+    expect((reabrir as HTMLInputElement).checked).toBe(false)
+    expect((responder as HTMLInputElement).checked).toBe(true)
+    expect(screen.getByText('Há mudança não salva.')).toBeDefined()
+
+    fireEvent.click(salvar())
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+
+    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
+    expect(enviado.AllowsOnReopen).toBe(false)
+    expect(enviado.AllowsOnInfoRequest).toBe(true)
+  })
+
+  it('com o anexo desligado, a chave da reabertura fica fora de alcance', async () => {
+    montar()
+
+    await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+    fireEvent.click(anexo())
+
+    const reabrir = screen.getByRole('checkbox', { name: /Deixar anexar ao reabrir/ })
+    expect(reabrir.closest('fieldset')?.disabled).toBe(true)
   })
 
   it('o campo acompanha o número que o servidor devolve', async () => {

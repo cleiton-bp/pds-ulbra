@@ -47,13 +47,15 @@ public record MediaKindLimitViewModel(
 /// </param>
 /// <param name="AllowsScreenCapture">O botao de capturar a tela aparece. A captura vira imagem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
-/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, e cada resposta e outro.</param>
+/// <param name="AllowsOnReopen">Da para anexar ao reabrir um relato encerrado.</param>
+/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, cada resposta e outro, e cada reabertura tambem.</param>
 /// <param name="Kinds">Os limites de cada tipo que o produto oferece — hoje, so imagem.</param>
 public record MediaSettingsViewModel(
     bool IsStorageAvailable,
     bool IsEnabled,
     bool AllowsScreenCapture,
     bool AllowsOnInfoRequest,
+    bool AllowsOnReopen,
     int MaxFilesPerReport,
     IReadOnlyList<MediaKindLimitViewModel> Kinds);
 
@@ -97,11 +99,13 @@ public record PublicMediaKindViewModel(
 /// <param name="IsEnabled">A ferramenta mostra anexo.</param>
 /// <param name="AllowsScreenCapture">O botao de capturar a tela aparece. A captura vira imagem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
-/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, e cada resposta e outro.</param>
+/// <param name="AllowsOnReopen">Da para anexar ao reabrir um relato encerrado.</param>
+/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, cada resposta e outro, e cada reabertura tambem.</param>
 /// <param name="Kinds">Os tipos aceitos, com os limites de cada um.</param>
 public record PublicMediaSettingsViewModel(
     bool IsEnabled,
     bool AllowsScreenCapture,
     bool AllowsOnInfoRequest,
+    bool AllowsOnReopen,
     int MaxFilesPerReport,
     IReadOnlyList<PublicMediaKindViewModel> Kinds);

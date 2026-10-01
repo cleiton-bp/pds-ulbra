@@ -118,10 +118,15 @@ export function AttachmentPicker({
 }
 
 /**
- * Os arquivos depois de enviar o texto: na fila, subindo, enviado ou com falha.
+ * Os arquivos depois de enviar o texto: na fila, subindo, enviado, com falha ou
+ * recusado.
  *
  * **A frase da falha diz primeiro que o texto esta salvo.** E o que a pessoa precisa
  * saber quando um arquivo nao vai: que nao perdeu o que escreveu.
+ *
+ * **Recusado nao oferece "Tentar de novo".** A API disse que o envio fechou, encheu
+ * ou que o projeto deixou de aceitar — repetir levaria a mesma resposta, e o botao
+ * so ensinaria a pessoa a clicar em vao. A frase diz o motivo que a API deu.
  *
  * @param savedNote O que foi salvo, dito do jeito da tela — "o relato", "a resposta".
  */
@@ -136,7 +141,10 @@ export function AttachmentProgress({
 }) {
   if (anexos.length === 0) return null
 
-  const falha = anexos.find((anexo) => anexo.status === 'failed')
+  // A falha que da para tentar de novo vem primeiro: e a que pede um gesto.
+  const falha =
+    anexos.find((anexo) => anexo.status === 'failed') ??
+    anexos.find((anexo) => anexo.status === 'refused')
 
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-4">
@@ -149,6 +157,9 @@ export function AttachmentProgress({
               {anexo.status === 'waiting' && 'na fila'}
               {anexo.status === 'sending' && `${Math.round(anexo.progress * 100)}%`}
               {anexo.status === 'done' && 'enviado'}
+              {anexo.status === 'refused' && (
+                <span title={anexo.error ?? undefined}>não enviado</span>
+              )}
               {anexo.status === 'failed' && (
                 <button
                   type="button"

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CreatedReportViewModel, PublicMediaSettingsViewModel } from '@/contracts'
+import { PanelError } from '@/data/errors'
 import { EmbedApp } from '@/embed/EmbedApp'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
@@ -19,6 +20,10 @@ import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
  *
  * **Colar anexa.** E como se anexa print de verdade, e um teste que so
  * exercitasse o seletor deixaria a colagem quebrar em silencio.
+ *
+ * **Recusado nao e falha.** O 409 da API diz que o envio fechou ou encheu, e o
+ * arquivo ja foi descartado: a tela diz o motivo e nao oferece tentar de novo. A
+ * falha de rede continua oferecendo.
  */
 const dublê = vi.hoisted(() => ({ criar: vi.fn(), enviar: vi.fn() }))
 
@@ -40,6 +45,7 @@ const media: PublicMediaSettingsViewModel = {
   IsEnabled: true,
   AllowsScreenCapture: true,
   AllowsOnInfoRequest: true,
+  AllowsOnReopen: true,
   MaxFilesPerReport: 4,
   Kinds: [
     {
@@ -191,6 +197,55 @@ describe('o envio', () => {
 
     await screen.findByText('enviado')
     expect(dublê.enviar).toHaveBeenCalledTimes(2)
+  })
+
+  // O prazo da criacao fechou, ou o envio encheu: a API responde 409 e ja apagou o
+  // arquivo. "Tentar de novo" levaria a mesma resposta.
+  it('arquivo recusado pela API diz o motivo, e não oferece tentar de novo', async () => {
+    dublê.criar.mockResolvedValue(criado)
+    dublê.enviar.mockRejectedValue(
+      new PanelError('O prazo para anexar arquivos a este relato terminou.', 409),
+    )
+
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await screen.findByText('não enviado')
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(screen.getByText(/seu texto está salvo/)).toBeDefined()
+    expect(screen.getByText(/O prazo para anexar arquivos a este relato terminou/)).toBeDefined()
+    expect(screen.getByText('7K2M-9QXP-4TRV')).toBeDefined()
+  })
+
+  // O envio sobe a lista como ela esta quando comeca: um arquivo que ainda esta
+  // virando miniatura ficaria de fora sem ninguem saber.
+  it('enquanto um arquivo ainda está entrando na lista, enviar espera', async () => {
+    let pronto: (imagem: { width: number; height: number }) => void = () => {}
+    vi.stubGlobal(
+      'createImageBitmap',
+      () =>
+        new Promise((resolve) => {
+          pronto = resolve
+        }),
+    )
+
+    try {
+      montar()
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+      escolher(print())
+
+      const enviar = screen.getByRole('button', { name: 'Enviar' }) as HTMLButtonElement
+      await waitFor(() => expect(enviar.disabled).toBe(true))
+
+      await act(async () => pronto({ width: 0, height: 0 }))
+      await screen.findByRole('button', { name: 'Remover erro.png' })
+      expect(enviar.disabled).toBe(false)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('sem arquivo, nada sobe', async () => {

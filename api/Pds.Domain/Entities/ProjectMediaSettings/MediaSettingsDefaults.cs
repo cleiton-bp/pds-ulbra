@@ -46,6 +46,15 @@ public static class MediaSettingsDefaults
     public const bool AllowsOnInfoRequest = true;
 
     /// <summary>
+    /// Anexo ao reabrir, ligado.
+    ///
+    /// <para>Quem reabre esta dizendo que o problema continua, e o print do que
+    /// continua e o que poupa a volta seguinte do time. Desligado de fabrica, a
+    /// reabertura chegaria so com texto a quem mais precisa ver.</para>
+    /// </summary>
+    public const bool AllowsOnReopen = true;
+
+    /// <summary>
     /// Quatro arquivos por envio, no total.
     ///
     /// <para>Cobre "a tela do erro, o que eu fiz antes, o que apareceu depois", com
@@ -78,6 +87,7 @@ public static class MediaSettingsDefaults
             settings?.IsEnabled ?? IsEnabled,
             settings?.AllowsScreenCapture ?? AllowsScreenCapture,
             settings?.AllowsOnInfoRequest ?? AllowsOnInfoRequest,
+            settings?.AllowsOnReopen ?? AllowsOnReopen,
             settings?.MaxFilesPerReport ?? MaxFilesPerReport,
             BuildKinds()
                 .Select(padrao =>

@@ -177,6 +177,7 @@ export function MediaScreen() {
         IsEnabled: draft.IsEnabled,
         AllowsScreenCapture: draft.AllowsScreenCapture,
         AllowsOnInfoRequest: draft.AllowsOnInfoRequest,
+        AllowsOnReopen: draft.AllowsOnReopen,
         MaxFilesPerReport: draft.MaxFilesPerReport,
         // Só o que a tela mostra. Tipo que não vai fica como está do lado de lá.
         Kinds: draft.Kinds.filter(isShownKind),
@@ -278,7 +279,7 @@ export function MediaScreen() {
                 unidade="arquivos"
                 valor={draft.MaxFilesPerReport}
                 range={{ min: 1, max: TETO_ARQUIVOS, decimals: 0 }}
-                ajuda="O relato é um envio, e cada resposta ao time é outro. Vale o menor entre este número e o limite da imagem."
+                ajuda="O relato é um envio, e cada resposta ao time é outro — assim como cada reabertura. Vale o menor entre este número e o limite da imagem."
                 emphasized
                 disabled={!draft.IsEnabled}
                 aoTrocar={(valor) => setDraft({ ...draft, MaxFilesPerReport: valor })}
@@ -297,8 +298,18 @@ export function MediaScreen() {
               <Interruptor
                 marcado={draft.AllowsOnInfoRequest}
                 titulo="Deixar anexar ao responder o time"
-                explicacao="É onde o print mais serve: o time olhou o relato, não entendeu, e pediu a tela. Desligado, a pessoa só anexa na hora de criar o relato."
+                explicacao="É onde o print mais serve: o time olhou o relato, não entendeu, e pediu a tela. Desligado, a resposta vai só com o texto."
                 aoTrocar={(valor) => setDraft({ ...draft, AllowsOnInfoRequest: valor })}
+              />
+
+              {/* Chave própria, e não a da resposta: atender ao pedido do time e
+                  dizer que o problema voltou são perguntas diferentes, e um projeto
+                  pode querer uma e não a outra. */}
+              <Interruptor
+                marcado={draft.AllowsOnReopen}
+                titulo="Deixar anexar ao reabrir"
+                explicacao="Quem relatou pode mandar prints ao reabrir um relato encerrado — o que ainda está acontecendo. Desligado, a reabertura vai só com o texto."
+                aoTrocar={(valor) => setDraft({ ...draft, AllowsOnReopen: valor })}
               />
             </div>
           </fieldset>
@@ -356,6 +367,7 @@ function igual(a: MediaSettingsViewModel, b: MediaSettingsViewModel) {
     a.IsEnabled === b.IsEnabled &&
     a.AllowsScreenCapture === b.AllowsScreenCapture &&
     a.AllowsOnInfoRequest === b.AllowsOnInfoRequest &&
+    a.AllowsOnReopen === b.AllowsOnReopen &&
     a.MaxFilesPerReport === b.MaxFilesPerReport &&
     a.Kinds.length === b.Kinds.length &&
     a.Kinds.every((tipo, indice) => {

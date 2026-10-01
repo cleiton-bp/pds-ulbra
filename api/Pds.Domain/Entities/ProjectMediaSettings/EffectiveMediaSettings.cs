@@ -32,6 +32,7 @@ public record EffectiveMediaSettings(
     bool IsEnabled,
     bool AllowsScreenCapture,
     bool AllowsOnInfoRequest,
+    bool AllowsOnReopen,
     int MaxFilesPerReport,
     IReadOnlyList<EffectiveMediaKind> Kinds)
 {
