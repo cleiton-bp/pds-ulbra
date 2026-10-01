@@ -40,7 +40,7 @@ public record AttachmentUploadTicketViewModel(
 /// deixar ninguem para tras.</para>
 /// </summary>
 /// <param name="PublicId">Identificador do anexo.</param>
-/// <param name="Kind">O tipo confirmado. Sempre imagem.</param>
+/// <param name="Kind">O tipo confirmado: imagem ou arquivo.</param>
 /// <param name="SizeBytes">Tamanho real, contado pelo armazenamento.</param>
 public record ConfirmedAttachmentViewModel(
     Guid PublicId,
@@ -59,7 +59,7 @@ public record ConfirmedAttachmentViewModel(
 /// cliente e numero de contrato que a imagem nao conta.</para>
 /// </summary>
 /// <param name="PublicId">Identificador do anexo.</param>
-/// <param name="Kind">Imagem, ou video nos anexos confirmados antes de o video sair do produto.</param>
+/// <param name="Kind">Imagem ou arquivo — ou video, nos anexos confirmados antes de o video sair do produto.</param>
 /// <param name="DisplaySize">
 /// Em que tamanho a imagem aparece logo abaixo do texto — a escolha de quem relatou. A
 /// lista ja vem na ordem em que ela montou cada envio.
@@ -70,7 +70,10 @@ public record ConfirmedAttachmentViewModel(
 /// </param>
 /// <param name="Url">Endereco assinado do arquivo. No arquivo que nao e imagem, so baixa, com o nome original.</param>
 /// <param name="ThumbnailUrl">Endereco assinado da miniatura, quando ha.</param>
-/// <param name="ExpiresAt">Quando o endereco do arquivo deixa de servir, em UTC.</param>
+/// <param name="ExpiresAt">
+/// Quando o primeiro endereco deste anexo deixa de servir — o do arquivo ou o da
+/// miniatura —, em UTC. E antes dele que a tela pede a lista de novo.
+/// </param>
 /// <param name="SizeBytes">Tamanho real.</param>
 /// <param name="DurationSeconds">Duracao, quando ha. So os videos antigos tem.</param>
 /// <param name="OriginalName">O nome que o arquivo tinha na maquina de quem relatou.</param>
@@ -108,7 +111,7 @@ public record PanelAttachmentViewModel(
 /// painel mostra, nem existe neste tipo.</para>
 /// </summary>
 /// <param name="PublicId">Identificador do anexo.</param>
-/// <param name="Kind">Imagem, ou video nos anexos confirmados antes de o video sair do produto.</param>
+/// <param name="Kind">Imagem ou arquivo — ou video, nos anexos confirmados antes de o video sair do produto.</param>
 /// <param name="DisplaySize">
 /// Em que tamanho a imagem aparece logo abaixo do texto — a escolha de quem relatou. A
 /// lista ja vem na ordem em que ela montou cada envio.
@@ -117,7 +120,10 @@ public record PanelAttachmentViewModel(
 /// <param name="SizeBytes">Tamanho real, contado pelo armazenamento — para a pessoa saber o que vai baixar.</param>
 /// <param name="Url">Endereco assinado do arquivo. No arquivo que nao e imagem, so baixa, com um nome generico — o original nunca sai.</param>
 /// <param name="ThumbnailUrl">Endereco assinado da miniatura, quando ha.</param>
-/// <param name="ExpiresAt">Quando o endereco do arquivo deixa de servir, em UTC.</param>
+/// <param name="ExpiresAt">
+/// Quando o primeiro endereco deste anexo deixa de servir — o do arquivo ou o da
+/// miniatura —, em UTC. E antes dele que a tela pede a lista de novo.
+/// </param>
 /// <param name="DurationSeconds">Duracao, quando ha. So os videos antigos tem.</param>
 /// <param name="ReplyPublicId">A fala da conversa em que o arquivo veio, quando veio numa resposta.</param>
 /// <param name="ReopenPublicId">A reabertura em que o arquivo veio, quando veio numa — o mesmo identificador de <c>Reopenings</c> no relato.</param>

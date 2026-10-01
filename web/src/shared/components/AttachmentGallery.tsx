@@ -46,6 +46,14 @@ const RENOVAR_ANTES_MS = 30_000
 const RECEM_CHEGADO_MS = 5_000
 
 /**
+ * Teto da espera entre pedidos que nao trouxeram endereco novo. **A espera dobra a
+ * cada um**, a partir de `RENOVAR_ANTES_MS`: com a API fora do ar a noite inteira e a
+ * aba aberta, sao alguns pedidos por hora, e nao um a cada 30 segundos. A lista nova
+ * zera a conta.
+ */
+const ESPERA_MAXIMA_MS = 5 * 60_000
+
+/**
  * Os arquivos de um relato, logo abaixo do texto que os trouxe.
  *
  * **A imagem aparece inteira, no tamanho que quem relatou escolheu** — um terco da
@@ -80,9 +88,23 @@ const RECEM_CHEGADO_MS = 5_000
  * novo com o endereco novo vira "nao carregou" e para de pedir; o que carrega zera
  * a trava, para o proximo vencimento de verdade.
  *
+ * **"Nao carregou" vale para aquele endereco, e nao para sempre.** A queda da rede no
+ * instante errado tambem acaba ali, e ela passa: a renovacao seguinte traz outro
+ * endereco, e o arquivo tenta de novo com ele, sem pedir nada a mais. **Uma vez so**:
+ * o arquivo que falha de novo — o que o navegador nao sabe abrir — fica em "nao
+ * carregou", em vez de ser baixado inteiro de novo a cada renovacao. E o "Tentar de
+ * novo" tenta na hora, sem recarregar a pagina.
+ *
+ * **Nada fica quebrado sem aviso.** O arquivo que falhou e pediu endereco novo espera
+ * o pedido voltar; se a renovacao seguinte chega e o endereco dele continua o mesmo —
+ * o pedido falhou, a API esta fora —, ele vira "nao carregou", com o "Tentar de novo",
+ * em vez da imagem quebrada do navegador ate a proxima lista.
+ *
  * **Renovar nao fecha nada.** Quem monta a galeria renova sem apagar a lista, e o
  * video aberto continua no endereco em que comecou: trocar o `src` no meio o
- * mandaria de volta ao inicio. Ele so troca se o endereco dele falhar.
+ * mandaria de volta ao inicio. Ele so troca se o endereco dele falhar — e, falhando
+ * com o da lista, passa a seguir a lista ate carregar: a renovacao que o pedido
+ * trouxe e que o faz tocar de novo.
  */
 export function AttachmentGallery({
   items,
@@ -103,9 +125,18 @@ export function AttachmentGallery({
    */
   label?: string
 }) {
-  /** O video aberto, e o endereco em que ele comecou. Ver "Renovar nao fecha nada". */
-  const [aberto, setAberto] = useState<{ id: string; videoUrl: string } | null>(null)
-  const [quebrados, setQuebrados] = useState<ReadonlySet<string>>(() => new Set())
+  /**
+   * O video aberto, e o endereco em que ele comecou. **Nulo e "o da lista"**: o video
+   * que falhou com ele espera o proximo. Ver "Renovar nao fecha nada".
+   */
+  const [aberto, setAberto] = useState<{ id: string; videoUrl: string | null } | null>(null)
+  /**
+   * O que nao carregou: o endereco com que nao carregou, e com quantos enderecos ja
+   * falhou desde o ultimo que carregou. Ver "Nao carregou".
+   */
+  const [quebrados, setQuebrados] = useState<ReadonlyMap<string, { url: string; vezes: number }>>(
+    () => new Map(),
+  )
   /**
    * O arquivo cujo endereco estava vencendo no clique, e a lista de entao: o aviso vale
    * ate os enderecos novos chegarem.
@@ -115,11 +146,11 @@ export function AttachmentGallery({
   )
 
   /**
-   * Arquivo que ja pediu endereco novo por falha, e o endereco com que falhou.
+   * Arquivo que ja pediu endereco novo por falha, o endereco com que falhou, e quando.
    * Falhar de novo com o MESMO endereco e so o pedido ainda a caminho; falhar com
    * OUTRO e o endereco novo falhando — ai nao e vencimento.
    */
-  const falhouCom = useRef(new Map<string, string>())
+  const falhouCom = useRef(new Map<string, { url: string; em: number }>())
 
   /**
    * Quando saiu o ultimo pedido. **No maximo um a cada `RENOVAR_ANTES_MS`**, venha
@@ -128,8 +159,11 @@ export function AttachmentGallery({
    */
   const pedidoEm = useRef<number | null>(null)
 
-  /** Cada pedido rearma o relogio: se a renovacao falhar, ele tenta de novo no piso. */
+  /** Cada pedido rearma o relogio: se a renovacao falhar, ele tenta de novo. */
   const [tentativa, setTentativa] = useState(0)
+
+  /** Pedidos desde a ultima lista nova. Ver `ESPERA_MAXIMA_MS`. */
+  const semNovidade = useRef(0)
 
   // "Lista nova" e endereco novo, e nao array novo: quem monta a galeria cria o
   // array a cada desenho, com os mesmos enderecos. Conferido no proprio desenho,
@@ -142,52 +176,95 @@ export function AttachmentGallery({
     ultimaAssinatura.current = assinatura
     chegouEm.current = Date.now()
     pedidoEm.current = null
+    semNovidade.current = 0
   }
 
   function renovar() {
     const agora = Date.now()
     if (pedidoEm.current !== null && agora - pedidoEm.current < RENOVAR_ANTES_MS) return
     pedidoEm.current = agora
+    semNovidade.current += 1
     setTentativa((n) => n + 1)
     onExpired()
+  }
+
+  function quebrar(id: string, url: string) {
+    setQuebrados((atual) => {
+      const antes = atual.get(id)
+      if (antes?.url === url) return atual
+      return new Map(atual).set(id, { url, vezes: (antes?.vezes ?? 0) + 1 })
+    })
+  }
+
+  /**
+   * Nao carregou com ESTE endereco. Com outro, tenta de novo sozinho — uma vez: o que
+   * ja falhou com dois enderecos so volta pelo "Tentar de novo".
+   */
+  function estaQuebrado(id: string, url: string | null) {
+    const quebrado = quebrados.get(id)
+    if (url === null || quebrado === undefined) return false
+    return quebrado.url === url || quebrado.vezes >= 2
   }
 
   function falhou(id: string, url: string) {
     // Recem-chegado e ja falhou: o arquivo e que nao abre, e nao o endereco que venceu.
     if (Date.now() - chegouEm.current < RECEM_CHEGADO_MS) {
-      setQuebrados((atual) => new Set(atual).add(id))
+      quebrar(id, url)
       return
     }
 
     const antes = falhouCom.current.get(id)
 
     if (antes === undefined) {
-      falhouCom.current.set(id, url)
+      falhouCom.current.set(id, { url, em: Date.now() })
       renovar()
       return
     }
 
     // O mesmo endereco de novo: o pedido ainda nao voltou.
-    if (antes === url) return
+    if (antes.url === url) return
 
     // Endereco novo, e falhou tambem: nao e vencimento. Para de pedir.
-    setQuebrados((atual) => new Set(atual).add(id))
+    quebrar(id, url)
   }
 
   function carregou(id: string) {
     falhouCom.current.delete(id)
+    // Carregou: a proxima falha, se vier, tem de novo a sua volta sozinha.
+    if (quebrados.has(id)) tentarDeNovo(id)
   }
 
-  // Agenda a renovacao para pouco antes do primeiro vencimento — nunca antes do piso.
-  // Rearma a cada pedido: renovacao que falhou deixa a lista igual, e sem isto o
-  // relogio nao voltaria a tentar.
+  /** O "Tentar de novo": esquece a falha, e o arquivo monta de novo com o endereco da lista. */
+  function tentarDeNovo(id: string) {
+    falhouCom.current.delete(id)
+    setQuebrados((atual) => {
+      const proximo = new Map(atual)
+      proximo.delete(id)
+      return proximo
+    })
+  }
+
+  // Agenda a renovacao para pouco antes do primeiro vencimento — nunca antes do piso,
+  // que dobra a cada pedido sem lista nova. Rearma a cada pedido: renovacao que falhou
+  // deixa a lista igual, e sem isto o relogio nao voltaria a tentar.
   // biome-ignore lint/correctness/useExhaustiveDependencies: a assinatura resume os itens; renovar le so refs e a callback atual
   useEffect(() => {
     if (items.length === 0) return
 
     const primeiro = Math.min(...items.map((item) => Date.parse(item.expiresAt)))
-    const espera = Math.max(RENOVAR_ANTES_MS, primeiro - Date.now() - RENOVAR_ANTES_MS)
-    const relogio = setTimeout(renovar, espera)
+    const piso = Math.min(ESPERA_MAXIMA_MS, RENOVAR_ANTES_MS * 2 ** semNovidade.current)
+    const espera = Math.max(piso, primeiro - Date.now() - RENOVAR_ANTES_MS)
+    const relogio = setTimeout(() => {
+      // O que falhou, viu um pedido sair depois disso, e continua com o mesmo
+      // endereco: o pedido nao trouxe. Vira "nao carregou", com o "Tentar de novo".
+      // Ver "Nada fica quebrado".
+      const naLista = new Set(items.flatMap((item) => [item.url, item.thumbnailUrl]))
+      const ultimoPedido = pedidoEm.current
+      for (const [id, { url, em }] of falhouCom.current) {
+        if (naLista.has(url) && ultimoPedido !== null && em <= ultimoPedido) quebrar(id, url)
+      }
+      renovar()
+    }, espera)
 
     return () => clearTimeout(relogio)
   }, [assinatura, tentativa])
@@ -200,6 +277,7 @@ export function AttachmentGallery({
   // conhece: baixar e o jeito seguro de entregar o que nao se sabe desenhar.
   const arquivos = items.filter((item) => item.kind !== 'Image' && item.kind !== 'Video')
   const selecionado = videos.find((item) => item.id === aberto?.id) ?? null
+  const urlDoVideo = selecionado ? (aberto?.videoUrl ?? selecionado.url) : null
 
   function abrir(item: GalleryItem) {
     setAberto(aberto?.id === item.id ? null : { id: item.id, videoUrl: item.url })
@@ -218,9 +296,10 @@ export function AttachmentGallery({
                 nome={
                   imagens.length > 1 ? `Imagem ${i + 1} de ${imagens.length}` : 'Imagem anexada'
                 }
-                quebrada={quebrados.has(item.id)}
+                quebrada={estaQuebrado(item.id, item.url)}
                 onFalha={(url) => falhou(item.id, url)}
                 onCarga={() => carregou(item.id)}
+                onTentarDeNovo={() => tentarDeNovo(item.id)}
               />
             </li>
           ))}
@@ -292,60 +371,65 @@ export function AttachmentGallery({
 
       {videos.length > 0 && (
         <ul className="flex flex-wrap gap-2">
-          {videos.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => abrir(item)}
-                aria-pressed={aberto?.id === item.id}
-                aria-label={`Vídeo${item.caption ? `: ${item.caption}` : ''}`}
-                className={cn(
-                  'relative block h-16 w-16 overflow-hidden rounded-lg border bg-surface-sunken',
-                  aberto?.id === item.id ? 'border-fg' : 'border-border',
-                )}
-              >
-                {item.thumbnailUrl && !quebrados.has(item.id) ? (
-                  <img
-                    src={item.thumbnailUrl}
-                    alt=""
-                    onError={() => falhou(item.id, item.thumbnailUrl ?? '')}
-                    onLoad={() => carregou(item.id)}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-center text-caption text-fg-muted">
-                    {quebrados.has(item.id) ? 'não carregou' : 'vídeo'}
-                  </span>
-                )}
+          {videos.map((item) => {
+            const capaQuebrada = estaQuebrado(item.id, item.thumbnailUrl)
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => abrir(item)}
+                  aria-pressed={aberto?.id === item.id}
+                  aria-label={`Vídeo${item.caption ? `: ${item.caption}` : ''}`}
+                  className={cn(
+                    'relative block h-16 w-16 overflow-hidden rounded-lg border bg-surface-sunken',
+                    aberto?.id === item.id ? 'border-fg' : 'border-border',
+                  )}
+                >
+                  {item.thumbnailUrl && !capaQuebrada ? (
+                    <img
+                      src={item.thumbnailUrl}
+                      alt=""
+                      onError={() => falhou(item.id, item.thumbnailUrl ?? '')}
+                      onLoad={() => carregou(item.id)}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-center text-caption text-fg-muted">
+                      {capaQuebrada ? 'não carregou' : 'vídeo'}
+                    </span>
+                  )}
 
-                <span className="absolute right-1 bottom-1 rounded bg-surface/90 px-1 text-caption text-fg">
-                  ▶
-                </span>
-
-                {item.badge && (
-                  <span className="absolute top-1 left-1 rounded bg-surface/90 px-1 text-caption text-fg">
-                    {item.badge}
+                  <span className="absolute right-1 bottom-1 rounded bg-surface/90 px-1 text-caption text-fg">
+                    ▶
                   </span>
-                )}
-              </button>
-            </li>
-          ))}
+
+                  {item.badge && (
+                    <span className="absolute top-1 left-1 rounded bg-surface/90 px-1 text-caption text-fg">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
 
-      {selecionado && (
+      {selecionado && urlDoVideo !== null && (
         <figure className="flex flex-col gap-1.5">
-          {quebrados.has(`${selecionado.id}:arquivo`) ? (
-            <p className="rounded-lg border border-border bg-surface-sunken p-3 text-caption text-fg-muted">
-              Não deu para abrir este arquivo. Recarregar a página pede um endereço novo.
-            </p>
+          {estaQuebrado(`${selecionado.id}:arquivo`, urlDoVideo) ? (
+            <NaoCarregou
+              texto="Não deu para abrir este vídeo."
+              onTentarDeNovo={() => tentarDeNovo(`${selecionado.id}:arquivo`)}
+            />
           ) : (
             // `preload="metadata"`: so o cabecalho ate alguem apertar play. O
             // video inteiro e o que custa, e ele so desce quando pedido.
             //
             // O `src` e o do momento em que abriu, e nao o da lista: a renovacao
             // traz endereco novo a cada poucos minutos, e trocar no meio mandaria o
-            // video de volta ao inicio. So troca se o dele falhar.
+            // video de volta ao inicio. So troca se o dele falhar — e ai segue a
+            // lista ate carregar, quando fica de novo no endereco em que carregou.
             //
             // Sem `<track>` de legenda, e e de proposito: e gravacao da tela de
             // quem relatou, e nao ha fala para legendar. Uma trilha vazia so para
@@ -353,21 +437,31 @@ export function AttachmentGallery({
             // existe.
             // biome-ignore lint/a11y/useMediaCaption: gravacao de tela, sem fala para legendar
             <video
-              key={aberto?.videoUrl ?? selecionado.url}
-              src={aberto?.videoUrl ?? selecionado.url}
+              key={urlDoVideo}
+              src={urlDoVideo}
               poster={selecionado.thumbnailUrl ?? undefined}
               controls
               preload="metadata"
               onError={() => {
-                const usado = aberto?.videoUrl ?? selecionado.url
-                if (usado !== selecionado.url) {
+                if (urlDoVideo !== selecionado.url) {
                   // O da lista ja e mais novo: passa para ele, sem pedir nada.
                   setAberto({ id: selecionado.id, videoUrl: selecionado.url })
                   return
                 }
-                falhou(`${selecionado.id}:arquivo`, usado)
+                // Falhou com o da lista: dali em diante, segue a lista. Sem isto, a
+                // renovacao que o pedido traz chegava e o video continuava montado no
+                // endereco que falhou, parado e sem mensagem.
+                setAberto({ id: selecionado.id, videoUrl: null })
+                falhou(`${selecionado.id}:arquivo`, urlDoVideo)
               }}
-              onLoadedMetadata={() => carregou(`${selecionado.id}:arquivo`)}
+              onLoadedMetadata={(evento) => {
+                // Carregou seguindo a lista: fica neste endereco, como ao abrir.
+                const src = evento.currentTarget.getAttribute('src')
+                if (aberto?.videoUrl === null && src !== null) {
+                  setAberto({ id: selecionado.id, videoUrl: src })
+                }
+                carregou(`${selecionado.id}:arquivo`)
+              }}
               className="max-h-96 w-full rounded-lg border border-border bg-surface-sunken"
             />
           )}
@@ -397,6 +491,7 @@ function ImagemAnexada({
   quebrada,
   onFalha,
   onCarga,
+  onTentarDeNovo,
 }: {
   item: GalleryItem
   /** Como o leitor de tela chama a imagem, antes da legenda. */
@@ -404,6 +499,7 @@ function ImagemAnexada({
   quebrada: boolean
   onFalha: (url: string) => void
   onCarga: () => void
+  onTentarDeNovo: () => void
 }) {
   const [fixa, setFixa] = useState<string | null>(null)
   const src = fixa ?? item.url
@@ -411,9 +507,7 @@ function ImagemAnexada({
   return (
     <figure className="flex flex-col gap-1">
       {quebrada ? (
-        <p className="rounded-lg border border-border bg-surface-sunken p-3 text-caption text-fg-muted leading-normal">
-          Esta imagem não carregou. Recarregar a página pede um endereço novo.
-        </p>
+        <NaoCarregou texto={`${nome} não carregou.`} onTentarDeNovo={onTentarDeNovo} />
       ) : (
         // Abrir em outra aba e o jeito de ver em tamanho real. `noreferrer` impede a
         // aba nova de alcancar esta pagina pelo `window.opener`.
@@ -453,5 +547,26 @@ function ImagemAnexada({
         </figcaption>
       )}
     </figure>
+  )
+}
+
+/**
+ * O lugar do arquivo que nao carregou. **Diz qual**, para quem le com leitor de tela
+ * saber de que imagem se trata, e oferece tentar de novo ali mesmo — antes, a unica
+ * saida era recarregar a pagina, e com ela ia embora a resposta que alguem estava
+ * escrevendo.
+ */
+function NaoCarregou({ texto, onTentarDeNovo }: { texto: string; onTentarDeNovo: () => void }) {
+  return (
+    <p className="rounded-lg border border-border bg-surface-sunken p-3 text-caption text-fg-muted leading-normal">
+      {texto}{' '}
+      <button
+        type="button"
+        onClick={onTentarDeNovo}
+        className="font-medium text-fg underline underline-offset-4"
+      >
+        Tentar de novo
+      </button>
+    </p>
   )
 }

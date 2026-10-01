@@ -2,8 +2,9 @@
 
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WidgetSettingsViewModel } from '@/contracts'
-import { draw } from '@/embed/draw'
+import type { PublicMediaSettingsViewModel, WidgetSettingsViewModel } from '@/contracts'
+import { draw, MEDIA_GRACE_MS } from '@/embed/draw'
+import { EmbedApp } from '@/embed/EmbedApp'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
 /**
@@ -22,11 +23,27 @@ import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
 const dublê = vi.hoisted(() => ({
   widget: vi.fn<() => Promise<WidgetSettingsViewModel | null>>(),
-  media: vi.fn(async () => null),
+  media: vi.fn<() => Promise<PublicMediaSettingsViewModel | null>>(async () => null),
 }))
 
 vi.mock('@/embed/resolveSettings', () => ({ resolveWidgetSettings: dublê.widget }))
 vi.mock('@/embed/resolveMediaSettings', () => ({ resolveMediaSettings: dublê.media }))
+// O quadro de verdade, espiado: e por ele que se ve o que chegou de midia.
+vi.mock('@/embed/EmbedApp', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/embed/EmbedApp')>()
+  return { ...real, EmbedApp: vi.fn(real.EmbedApp) }
+})
+
+const MIDIA: PublicMediaSettingsViewModel = {
+  IsEnabled: true,
+  AllowsScreenCapture: true,
+  AllowsOnInfoRequest: false,
+  AllowsOnReopen: false,
+  Kinds: [{ Kind: 'Image', MaxCount: 3, MaxBytes: 5 * 1024 * 1024, ContentTypes: ['image/png'] }],
+}
+
+/** A midia que o quadro recebeu no ultimo desenho. */
+const midiaDesenhada = () => vi.mocked(EmbedApp).mock.lastCall?.[0].media
 
 const config = {
   key: 'pk_DEMO',
@@ -52,6 +69,10 @@ function pagina() {
 }
 
 beforeEach(() => {
+  // A leitura de midia volta ao padrao a cada teste: a que nunca responde nao pode
+  // vazar para o seguinte.
+  dublê.media.mockReset()
+  dublê.media.mockResolvedValue(null)
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -120,5 +141,83 @@ describe('desenhar e revelar o quadro', () => {
 
     await draw(root, config, null)
     await vi.waitFor(() => expect(container.textContent).toContain('desligada'))
+  })
+})
+
+describe('a leitura de midia tem prazo', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('presa, ela nao prende o quadro: passado o prazo, ele aparece sem anexo', async () => {
+    vi.useFakeTimers()
+    dublê.widget.mockResolvedValue(DEFAULT_WIDGET_SETTINGS)
+    dublê.media.mockReturnValue(new Promise(() => {}))
+    const host = pagina()
+
+    const desenhando = draw(root, config, host)
+    await vi.advanceTimersByTimeAsync(MEDIA_GRACE_MS - 1)
+    expect(host.show).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    await desenhando
+
+    expect(host.show).toHaveBeenCalledOnce()
+    expect(midiaDesenhada()).toBeNull()
+  })
+
+  it('a que chega dentro do prazo entra, sem esperar o prazo inteiro', async () => {
+    vi.useFakeTimers()
+    dublê.widget.mockResolvedValue(DEFAULT_WIDGET_SETTINGS)
+    dublê.media.mockReturnValue(
+      new Promise((resolve) => setTimeout(() => resolve(MIDIA), MEDIA_GRACE_MS - 500)),
+    )
+    const host = pagina()
+
+    const desenhando = draw(root, config, host)
+    await vi.advanceTimersByTimeAsync(MEDIA_GRACE_MS - 500)
+    await desenhando
+
+    expect(host.show).toHaveBeenCalledOnce()
+    expect(midiaDesenhada()).toEqual(MIDIA)
+  })
+
+  it('a leitura que chega a tempo desarma o prazo: nenhum relogio fica pendurado', async () => {
+    vi.useFakeTimers()
+    dublê.widget.mockResolvedValue(DEFAULT_WIDGET_SETTINGS)
+    dublê.media.mockResolvedValue(MIDIA)
+    const antes = vi.getTimerCount()
+
+    await draw(root, config, pagina())
+
+    // O quadro desenhado nao arma relogio nenhum; o unico que poderia sobrar e o do prazo.
+    expect(vi.getTimerCount()).toBe(antes)
+  })
+
+  it('as duas saem juntas: o prazo conta depois da configuracao, e nao da abertura', async () => {
+    vi.useFakeTimers()
+    // A API lenta para tudo — as duas respostas chegam juntas, depois do prazo.
+    const lenta = <T,>(valor: T) =>
+      new Promise<T>((resolve) => setTimeout(() => resolve(valor), MEDIA_GRACE_MS * 3))
+    dublê.widget.mockReturnValue(lenta(DEFAULT_WIDGET_SETTINGS))
+    dublê.media.mockReturnValue(lenta(MIDIA))
+    const host = pagina()
+
+    const desenhando = draw(root, config, host)
+    await vi.advanceTimersByTimeAsync(MEDIA_GRACE_MS * 3)
+    await desenhando
+
+    expect(dublê.media).toHaveBeenCalledOnce()
+    expect(midiaDesenhada()).toEqual(MIDIA)
+  })
+
+  it('chave recusada nao espera a midia', async () => {
+    dublê.widget.mockResolvedValue(null)
+    dublê.media.mockReturnValue(new Promise(() => {}))
+    const host = pagina()
+
+    await draw(root, config, host)
+
+    expect(host.show).not.toHaveBeenCalled()
   })
 })

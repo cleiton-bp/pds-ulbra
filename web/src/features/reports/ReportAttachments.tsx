@@ -19,11 +19,16 @@ import { formatBytes } from '@/shared/lib/formatBytes'
  *   a reabertura — e o arquivo iria para um lugar que nao aparece. Nulo enquanto o
  *   detalhe carrega: ai o arquivo espera, em vez de aparecer num lugar e pular para
  *   o outro.
+ * @param falas As falas publicas que a conversa mostra — ver `useReportComments`. **O
+ *   arquivo de uma resposta que nao esta ali tambem cai embaixo do relato**: a conversa
+ *   que nao carregou, ou a resposta que chegou depois de o dialogo abrir, e que a
+ *   renovacao dos enderecos trouxe. Nulo enquanto a conversa carrega.
  */
 export function useReportAttachments(
   projectPublicId: string,
   reportPublicId: string,
   reaberturas: ReadonlySet<string> | null = null,
+  falas: ReadonlySet<string> | null = null,
 ) {
   const { data, failed, reload, refresh } = useAsyncResource(
     useCallback(
@@ -36,12 +41,12 @@ export function useReportAttachments(
   const daCriacao: PanelAttachmentViewModel[] = []
   const porFala = new Map<string, PanelAttachmentViewModel[]>()
   const porReabertura = new Map<string, PanelAttachmentViewModel[]>()
-  // O da reabertura que nao esta na tela vai depois dos da criacao, e nao no meio: a
-  // lista vem na ordem da montagem de cada envio, e intercalar desmontaria a da criacao.
+  // O que nao esta na tela vai depois dos da criacao, e nao no meio: a lista vem na
+  // ordem da montagem de cada envio, e intercalar desmontaria a da criacao.
   const semLugar: PanelAttachmentViewModel[] = []
 
   for (const anexo of anexos) {
-    if (anexo.ReplyPublicId) {
+    if (anexo.ReplyPublicId && (falas === null || falas.has(anexo.ReplyPublicId))) {
       porFala.set(anexo.ReplyPublicId, [...(porFala.get(anexo.ReplyPublicId) ?? []), anexo])
     } else if (
       anexo.ReopenPublicId &&
@@ -51,7 +56,7 @@ export function useReportAttachments(
         ...(porReabertura.get(anexo.ReopenPublicId) ?? []),
         anexo,
       ])
-    } else if (anexo.ReopenPublicId) {
+    } else if (anexo.ReplyPublicId || anexo.ReopenPublicId) {
       semLugar.push(anexo)
     } else {
       // Embaixo do relato fica o que veio com ele. O da reabertura ali pareceria ter
@@ -104,6 +109,17 @@ export function toPanelGalleryItem(anexo: PanelAttachmentViewModel): GalleryItem
   }
 }
 
+/** O item da galeria do relato, com a origem na legenda quando ele veio noutro envio. */
+function comOrigem(anexo: PanelAttachmentViewModel): GalleryItem {
+  const item = toPanelGalleryItem(anexo)
+  const origem = anexo.ReplyPublicId
+    ? 'veio numa resposta'
+    : anexo.ReopenPublicId
+      ? 'veio numa reabertura'
+      : null
+  return origem ? { ...item, caption: [item.caption, origem].filter(Boolean).join(' · ') } : item
+}
+
 /**
  * Os arquivos que vieram **com o relato**, para o time — logo abaixo do texto, no
  * tamanho e na ordem em que quem relatou os montou. O time ve o relato como ele foi
@@ -119,8 +135,11 @@ export function toPanelGalleryItem(anexo: PanelAttachmentViewModel): GalleryItem
  * chegou; do lado de fora ele nunca sai.
  *
  * Os de uma resposta nao estao aqui: estao na conversa, embaixo da fala que os
- * trouxe. Fala publica nao se apaga nem se edita, entao o arquivo sempre encontra a
- * dele. Os de uma reabertura estao em "Reaberturas", junto do motivo.
+ * trouxe. Os de uma reabertura estao em "Reaberturas", junto do motivo. **O que nao
+ * acha o seu lugar na tela vem para ca**, depois dos da criacao — a conversa que nao
+ * carregou, a resposta que chegou com o dialogo aberto: um arquivo que some em
+ * silencio e o erro que ninguem percebe. **E diz de onde veio**, na legenda: sem isso,
+ * ele pareceria ter chegado junto do texto original.
  */
 export function ReportAttachments({
   anexos,
@@ -158,7 +177,7 @@ export function ReportAttachments({
       fileLabel="Arquivos do relato"
       fileNote={AVISO_DE_ARQUIVO}
       onExpired={onExpired}
-      items={anexos.map(toPanelGalleryItem)}
+      items={anexos.map(comOrigem)}
     />
   )
 }

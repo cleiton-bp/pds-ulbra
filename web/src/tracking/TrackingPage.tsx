@@ -5,7 +5,7 @@ import type {
   PublicStageViewModel,
 } from '@/contracts'
 import { isPanelError, reportService } from '@/data/publicIndex'
-import { AttachmentProgress } from '@/embed/AttachmentPicker'
+import { AttachmentProgress, resumoDoFim } from '@/embed/AttachmentPicker'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
@@ -153,6 +153,8 @@ function Relato({
    */
   const reabertura = useAttachmentDraft(midia.paraReabertura, { envio: 'reopen' })
   const [subindoReabertura, setSubindoReabertura] = useState(false)
+  /** O fim do envio da reabertura, para o leitor de tela: a lista sai de cena quando tudo foi. */
+  const [avisoDoFim, setAvisoDoFim] = useState('')
 
   /**
    * A reabertura dos arquivos na tela levou motivo. Sem motivo, "o seu texto está
@@ -167,7 +169,11 @@ function Relato({
    */
   function conferirReabertura() {
     midia.recarregar()
-    if (reabertura.fechar()) setSubindoReabertura(false)
+    const fim = resumoDoFim(reabertura.atual())
+    if (reabertura.fechar()) {
+      setSubindoReabertura(false)
+      if (fim) setAvisoDoFim(fim)
+    }
   }
 
   function aoReabrir(novo: PublicReportViewModel) {
@@ -185,6 +191,7 @@ function Relato({
     }
 
     setReabriuComTexto(novo.Reopenings?.at(-1)?.Comment != null)
+    setAvisoDoFim('')
     setSubindoReabertura(true)
     void reabertura.enviarAnexos(credenciais, 0).then(conferirReabertura)
   }
@@ -273,6 +280,12 @@ function Relato({
 
       {/* Antes do encerramento de propósito: as reaberturas já aconteceram, e o
           fechamento que está valendo, quando há um, é o fim mais recente. */}
+      {/* Sempre montado, e vazio ate o fim: e ele que diz "enviado" quando a lista da
+          reabertura sai de cena. */}
+      <p role="status" className="sr-only">
+        {avisoDoFim}
+      </p>
+
       <ReopenPanel
         reaberturas={todasAsReaberturas}
         anexosPorReabertura={porReabertura}
@@ -286,9 +299,10 @@ function Relato({
                   ? 'O relato foi reaberto e o seu texto está salvo.'
                   : 'O relato foi reaberto.'
               }
-              onRetry={(anexo) =>
+              onRetry={(anexo) => {
+                setAvisoDoFim('')
                 void reabertura.enviarAnexo(credenciais, anexo, 0).then(conferirReabertura)
-              }
+              }}
               onDiscard={(anexo) => {
                 reabertura.remover(anexo.id)
                 conferirReabertura()

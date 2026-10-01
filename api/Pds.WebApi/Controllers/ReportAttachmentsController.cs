@@ -17,8 +17,9 @@ namespace Pds.WebApi.Controllers;
 ///
 /// **Os endereços nascem nesta resposta e morrem em minutos.** Nenhum está guardado
 /// em lugar nenhum, e pedir de novo gera outros. `ExpiresAt` é o que a tela usa
-/// para pedir antes de a imagem quebrar. O vídeo vale mais que a imagem: ele é lido
-/// em pedaços enquanto toca, e pausar não pode quebrar a reprodução.
+/// para pedir antes de a imagem quebrar — o primeiro vencimento do anexo, do arquivo
+/// ou da miniatura. O vídeo vale mais que a imagem: ele é lido em pedaços enquanto
+/// toca, e pausar não pode quebrar a reprodução.
 ///
 /// **Vídeo só aparece se entrou antes de sair do produto.** Nenhum vídeo novo é
 /// aceito, mas os que já estavam confirmados continuam listados e tocando.

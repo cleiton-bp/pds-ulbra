@@ -3,6 +3,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useCallback } from 'react'
 import { describe, expect, it } from 'vitest'
+import { isDefinitiveError, PanelError } from '@/data/errors'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 
 /**
@@ -165,5 +166,155 @@ describe('refresh: renovar sem tirar da tela', () => {
 
     expect(result.current.data).toBe('enderecos velhos')
     expect(result.current.failed).toBe(false)
+  })
+
+  it.each([
+    [0, 'rede caida'],
+    [500, 'servidor'],
+    [503, 'servidor fora'],
+    [408, 'demorou'],
+    [429, 'muitas tentativas'],
+  ])('falha passageira (%i, %s) deixa o que estava', async (status) => {
+    const { result } = emSequencia([
+      () => Promise.resolve('enderecos velhos'),
+      () => Promise.reject(new PanelError('passageira', status)),
+    ])
+    await waitFor(() => expect(result.current.data).toBe('enderecos velhos'))
+
+    await act(async () => result.current.refresh())
+
+    expect(result.current.data).toBe('enderecos velhos')
+    expect(result.current.failed).toBe(false)
+  })
+
+  it.each([
+    [400, 'pedido recusado'],
+    [401, 'sessao'],
+    [403, 'sem acesso'],
+    [404, 'relato fora do alcance'],
+    [409, 'armazenamento fora'],
+  ])('falha definitiva (%i, %s) vira falha, como na primeira leitura', async (status) => {
+    // Engolida, ela deixava na tela enderecos que ninguem ia renovar, e a galeria
+    // pedindo de novo, calada, para sempre.
+    const { result } = emSequencia([
+      () => Promise.resolve('enderecos velhos'),
+      () => Promise.reject(new PanelError('definitiva', status)),
+    ])
+    await waitFor(() => expect(result.current.data).toBe('enderecos velhos'))
+
+    await act(async () => result.current.refresh())
+
+    expect(result.current.failed).toBe(true)
+    expect(result.current.data).toBeNull()
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('a falha definitiva de uma renovacao velha nao apaga a resposta nova', async () => {
+    const velha = deferred<string>()
+    const { result } = emSequencia([
+      () => Promise.resolve('primeira'),
+      () => velha.promise,
+      () => Promise.resolve('enderecos novos'),
+    ])
+    await waitFor(() => expect(result.current.data).toBe('primeira'))
+
+    // A renovacao sai, e o "Tentar de novo" busca do zero antes de ela voltar.
+    act(() => result.current.refresh())
+    act(() => result.current.reload())
+    await waitFor(() => expect(result.current.data).toBe('enderecos novos'))
+
+    await act(async () => {
+      velha.reject(new PanelError('tarde', 404))
+      await velha.promise.catch(() => {})
+    })
+
+    expect(result.current.data).toBe('enderecos novos')
+    expect(result.current.failed).toBe(false)
+  })
+
+  it('pedida de novo enquanto a anterior nao voltou, nao sai outra: a resposta serve a todos', async () => {
+    // Varias galerias leem a mesma lista, e os enderecos delas vencem juntos.
+    const segunda = deferred<string>()
+    let chamadas = 0
+    const { result } = renderHook(() => {
+      const load = useCallback(() => {
+        chamadas++
+        return chamadas === 1 ? Promise.resolve('enderecos velhos') : segunda.promise
+      }, [])
+      return useAsyncResource(load)
+    })
+    await waitFor(() => expect(result.current.data).toBe('enderecos velhos'))
+
+    act(() => {
+      result.current.refresh()
+      result.current.refresh()
+      result.current.refresh()
+    })
+    expect(chamadas).toBe(2)
+
+    await act(async () => segunda.resolve('enderecos novos'))
+    expect(result.current.data).toBe('enderecos novos')
+
+    // Voltou: a proxima renovacao sai normalmente.
+    act(() => result.current.refresh())
+    expect(chamadas).toBe(3)
+  })
+
+  it('a renovacao que falhou tambem libera a proxima', async () => {
+    const { result } = emSequencia([
+      () => Promise.resolve('enderecos velhos'),
+      () => Promise.reject(new PanelError('fora do ar', 503)),
+      () => Promise.resolve('enderecos novos'),
+    ])
+    await waitFor(() => expect(result.current.data).toBe('enderecos velhos'))
+
+    await act(async () => result.current.refresh())
+    await act(async () => result.current.refresh())
+
+    expect(result.current.data).toBe('enderecos novos')
+  })
+
+  it('renovacao pedida antes da primeira leitura, e que falha de passagem, vira falha — e nao esqueleto para sempre', async () => {
+    // A pagina de acompanhamento rele depois de um envio, e o envio pode terminar antes
+    // de a primeira lista chegar.
+    const primeira = deferred<string>()
+    const { result } = emSequencia([
+      () => primeira.promise,
+      () => Promise.reject(new PanelError('sem rede', 0)),
+    ])
+
+    await act(async () => result.current.refresh())
+    await act(async () => primeira.resolve('tarde demais'))
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.failed).toBe(true)
+  })
+
+  it('depois da falha definitiva, o "Tentar de novo" busca do zero', async () => {
+    const { result } = emSequencia([
+      () => Promise.resolve('primeira'),
+      () => Promise.reject(new PanelError('armazenamento fora', 409)),
+      () => Promise.resolve('voltou'),
+    ])
+    await waitFor(() => expect(result.current.data).toBe('primeira'))
+    await act(async () => result.current.refresh())
+    expect(result.current.failed).toBe(true)
+
+    act(() => result.current.reload())
+    expect(result.current.loading).toBe(true)
+
+    await waitFor(() => expect(result.current.data).toBe('voltou'))
+    expect(result.current.failed).toBe(false)
+  })
+})
+
+describe('isDefinitiveError', () => {
+  it('so o erro da camada de dados com um 4xx que se repetiria', () => {
+    expect(isDefinitiveError(new PanelError('x', 404))).toBe(true)
+    expect(isDefinitiveError(new PanelError('x', 499))).toBe(true)
+    expect(isDefinitiveError(new PanelError('x', 399))).toBe(false)
+    expect(isDefinitiveError(new PanelError('x', 500))).toBe(false)
+    expect(isDefinitiveError(new Error('qualquer'))).toBe(false)
+    expect(isDefinitiveError('texto')).toBe(false)
   })
 })

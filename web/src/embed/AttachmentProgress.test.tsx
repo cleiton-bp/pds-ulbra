@@ -2,7 +2,7 @@
 
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { AttachmentProgress } from '@/embed/AttachmentPicker'
+import { AttachmentProgress, resumoDoEnvio } from '@/embed/AttachmentPicker'
 import type { Anexo } from '@/embed/attachments'
 
 /**
@@ -109,5 +109,70 @@ describe('os arquivos que não foram', () => {
     montar([anexo('erro.png', { status: 'done' })])
 
     expect(screen.queryByText(/texto está salvo/)).toBeNull()
+  })
+})
+
+// O leitor de tela ouve o andamento — um arquivo terminou, o envio acabou —, e nunca
+// cada porcentagem, que anda varias vezes por segundo.
+describe('o andamento, para o leitor de tela', () => {
+  it('fica num aviso que o leitor de tela anuncia', () => {
+    montar([
+      anexo('a.png', { status: 'done' }),
+      anexo('b.png', { status: 'sending', progress: 0.4 }),
+      anexo('c.png', { status: 'waiting', progress: 0 }),
+    ])
+
+    expect(screen.getByRole('status').textContent).toBe('Enviando os arquivos: 1 de 3 enviados.')
+  })
+
+  it('a porcentagem andando nao muda o aviso', () => {
+    const antes = resumoDoEnvio([
+      anexo('a.png', { status: 'sending', progress: 0.1 }),
+      anexo('b.png', { status: 'waiting', progress: 0 }),
+    ])
+    const depois = resumoDoEnvio([
+      anexo('a.png', { status: 'sending', progress: 0.9 }),
+      anexo('b.png', { status: 'waiting', progress: 0 }),
+    ])
+
+    expect(depois).toBe(antes)
+  })
+
+  it('diz quando acaba, e quantos nao foram', () => {
+    expect(
+      resumoDoEnvio([anexo('a.png', { status: 'done' }), anexo('b.png', { status: 'done' })]),
+    ).toBe('Todos os arquivos foram enviados.')
+    expect(
+      resumoDoEnvio([
+        anexo('a.png', { status: 'done' }),
+        anexo('b.png', { status: 'failed', error: 'rede' }),
+      ]),
+    ).toBe('1 arquivo não foi enviado.')
+    expect(
+      resumoDoEnvio([
+        anexo('a.png', { status: 'refused', error: 'grande' }),
+        anexo('b.png', { status: 'failed', error: 'rede' }),
+        anexo('c.png', { status: 'done' }),
+      ]),
+    ).toBe('2 arquivos não foram enviados.')
+  })
+
+  it('com um arquivo so, fala dele no singular', () => {
+    expect(resumoDoEnvio([anexo('a.png', { status: 'sending', progress: 0.5 })])).toBe(
+      'Enviando o arquivo.',
+    )
+    expect(resumoDoEnvio([anexo('a.png', { status: 'done' })])).toBe('Arquivo enviado.')
+    expect(resumoDoEnvio([anexo('a.png', { status: 'refused', error: 'grande' })])).toBe(
+      'O arquivo não foi enviado.',
+    )
+  })
+
+  it('tentando de novo, volta a dizer que esta enviando', () => {
+    expect(
+      resumoDoEnvio([
+        anexo('a.png', { status: 'done' }),
+        anexo('b.png', { status: 'sending', progress: 0 }),
+      ]),
+    ).toBe('Enviando os arquivos: 1 de 2 enviados.')
   })
 })

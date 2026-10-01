@@ -7,6 +7,16 @@ import { resolveMediaSettings } from '@/embed/resolveMediaSettings'
 import { resolveWidgetSettings } from '@/embed/resolveSettings'
 
 /**
+ * Quanto o quadro espera pela leitura de midia **depois** de a configuracao chegar.
+ *
+ * As duas saem juntas e chegam juntas — sao a mesma API. Passar disto ja e a leitura
+ * de midia presa, e sem prazo ela prendia o quadro inteiro: ele nunca aparecia, nem
+ * para o relato so em texto. Com o prazo, abre sem anexo, que e o que ele faz quando
+ * essa leitura falha.
+ */
+export const MEDIA_GRACE_MS = 3_000
+
+/**
  * Le a configuracao, desenha o quadro e so entao pede a pagina que o revele.
  *
  * Mora aqui, e nao em `main.tsx`, para poder ser testado: `main.tsx` roda no
@@ -17,13 +27,11 @@ export async function draw(
   config: EmbedConfig,
   host: HostConnection | null,
 ): Promise<void> {
-  // As duas leituras saem juntas, e o quadro espera as duas: a de midia so atrasa
-  // o tanto que for mais lenta que a outra. E ela nunca falha para fora — sem
-  // resposta, o quadro so nao oferece anexo.
-  const [settings, media] = await Promise.all([
-    resolveWidgetSettings(config.key, config.origin),
-    resolveMediaSettings(config.key, config.origin),
-  ])
+  // As duas leituras saem juntas. A de midia nunca falha para fora — sem resposta,
+  // o quadro so nao oferece anexo —, e so atrasa o quadro o tanto que for mais lenta
+  // que a outra, ate o prazo.
+  const lendoMidia = resolveMediaSettings(config.key, config.origin)
+  const settings = await resolveWidgetSettings(config.key, config.origin)
 
   // Recusado: ou a chave nao vale, ou esta pagina nao esta na lista de enderecos
   // autorizados do projeto. Nao ha o que abrir, e o quadro nunca e revelado —
@@ -41,6 +49,8 @@ export async function draw(
     return
   }
 
+  const media = await dentroDoPrazo(lendoMidia, MEDIA_GRACE_MS)
+
   // **Desenha de uma vez, e so depois pede para aparecer** — sem esperar o
   // navegador pintar. Revelar antes de o React terminar mostraria a caixa vazia
   // por um instante; o `flushSync` deixa o quadro pronto no DOM, e quando a pagina
@@ -56,6 +66,15 @@ export async function draw(
   })
 
   host?.show(settings.Position)
+}
+
+/** A leitura, ou `null` se ela nao chegar a tempo. */
+function dentroDoPrazo<T>(leitura: Promise<T | null>, ms: number): Promise<T | null> {
+  let relogio: ReturnType<typeof setTimeout> | undefined
+  const prazo = new Promise<null>((resolve) => {
+    relogio = setTimeout(() => resolve(null), ms)
+  })
+  return Promise.race([leitura, prazo]).finally(() => clearTimeout(relogio))
 }
 
 /**

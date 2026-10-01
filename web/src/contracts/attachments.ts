@@ -127,6 +127,7 @@ export interface PanelAttachmentViewModel {
   /** No arquivo que nao e imagem, so baixa, com o nome original. */
   Url: string
   ThumbnailUrl: string | null
+  /** O primeiro vencimento do anexo — o do arquivo ou o da miniatura. */
   ExpiresAt: string
   SizeBytes: number
   /** So os videos antigos tem. */
@@ -159,6 +160,7 @@ export interface PublicAttachmentViewModel {
   /** No arquivo que nao e imagem, so baixa, com um nome generico: o original nunca sai. */
   Url: string
   ThumbnailUrl: string | null
+  /** O primeiro vencimento do anexo — o do arquivo ou o da miniatura. */
   ExpiresAt: string
   /** So os videos antigos tem. */
   DurationSeconds: number | null

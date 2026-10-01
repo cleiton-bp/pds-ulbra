@@ -163,6 +163,53 @@ describe('anexar ao responder', () => {
     await waitFor(() => expect(aoAnexar).toHaveBeenCalled())
   })
 
+  // A lista sai de cena quando tudo foi — o arquivo aparece embaixo da resposta, depois
+  // de a pagina reler. O aviso do leitor de tela nao pode ir junto antes de dizer
+  // "enviado".
+  it('com tudo enviado, a lista sai, e o leitor de tela ouve que o arquivo foi', async () => {
+    dublê.responder.mockResolvedValue(relato({ CanReply: false, InfoRequest: null }))
+    let terminar!: () => void
+    dublê.enviar.mockReturnValue(
+      new Promise<void>((resolve) => {
+        terminar = resolve
+      }),
+    )
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain(
+        'Enviando o arquivo.',
+      ),
+    )
+    await act(async () => terminar())
+
+    await waitFor(() => expect(screen.queryByText('Arquivos')).toBeNull())
+    expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Arquivo enviado.')
+  })
+
+  it('com um recusado, a lista fica e ela mesma diz o que nao foi — sem aviso dobrado', async () => {
+    dublê.responder.mockResolvedValue(relato({ CanReply: false, InfoRequest: null }))
+    dublê.enviar.mockRejectedValue(new PanelError('O arquivo passa do limite.', 409))
+    montar()
+
+    fireEvent.change(screen.getByLabelText('A sua resposta'), { target: { value: 'aqui está' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    await screen.findByText('não enviado')
+    const avisos = () => screen.getAllByRole('status').map((s) => s.textContent)
+    await waitFor(() =>
+      expect(avisos().filter((texto) => texto === 'O arquivo não foi enviado.')).toHaveLength(1),
+    )
+    expect(avisos()).not.toContain('Arquivo enviado.')
+  })
+
   // O mesmo seletor do quadro: com a categoria ligada, a resposta tambem leva arquivo.
   it('na resposta, o arquivo entra na lista e sobe como arquivo da resposta', async () => {
     dublê.responder.mockResolvedValue(relato({ CanReply: false, InfoRequest: null }))

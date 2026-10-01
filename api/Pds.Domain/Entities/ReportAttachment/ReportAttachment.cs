@@ -71,10 +71,10 @@ public class ReportAttachment : PdsBaseEntity
     public ReportClosure? ReopenedClosure { get; set; }
 
     /// <summary>
-    /// Imagem, ou video nos anexos antigos. E ele que diz qual limite do projeto se
-    /// aplica.
+    /// Imagem ou arquivo — ou video, nos anexos antigos. E ele que diz qual limite do
+    /// projeto se aplica.
     ///
-    /// <para>Anexo novo e sempre imagem: o video saiu do produto. Os videos
+    /// <para>Anexo novo e imagem ou arquivo: o video saiu do produto. Os videos
     /// confirmados antes disso continuam aqui, e continuam tocando.</para>
     /// </summary>
     public MediaKindEnum Kind { get; set; }

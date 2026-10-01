@@ -11,7 +11,7 @@ import { describeError, projectReportService } from '@/data'
 import { AskInfoDialog } from '@/features/reports/AskInfoDialog'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
-import { ReportComments } from '@/features/reports/ReportComments'
+import { ReportComments, useReportComments } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { ReportReopenings } from '@/features/reports/ReportReopenings'
 import { Button } from '@/shared/components/Button'
@@ -89,10 +89,14 @@ export function ReportDialog({
   // O resumo da lista ganha do que chegou da API so porque chega antes; os dois
   // dizem a mesma coisa. Quando nao ha resumo, a tela espera.
   const report = resumo ?? detalhe
+  // A conversa e lida aqui, e nao dentro da caixa de comentarios: os arquivos de uma
+  // resposta precisam saber quais falas estao na tela.
+  const conversa = useReportComments(projectPublicId, reportPublicId)
+
   // Uma leitura para o dialogo inteiro: os da criacao vao para baixo do texto, os
   // de uma resposta vao para a conversa, os de uma reabertura vao para junto do
-  // motivo dela — quando ela esta na tela. O detalhe que falhou nao mostra
-  // reabertura nenhuma, e os arquivos delas caem embaixo do texto do relato.
+  // motivo dela — quando a fala ou a reabertura esta na tela. O detalhe ou a conversa
+  // que falhou nao mostra nada, e os arquivos caem embaixo do texto do relato.
   const anexos = useReportAttachments(
     projectPublicId,
     reportPublicId,
@@ -101,6 +105,7 @@ export function ReportDialog({
       : failed
         ? new Set()
         : null,
+    conversa.falas,
   )
 
   const contexts = detalhe?.Contexts ?? null
@@ -508,6 +513,7 @@ export function ReportDialog({
           <ReportComments
             projectPublicId={projectPublicId}
             reportPublicId={reportPublicId}
+            conversa={conversa}
             aoComentar={() => setVersao((n) => n + 1)}
             anexosPorFala={anexos.porFala}
             aoExpirar={anexos.refresh}

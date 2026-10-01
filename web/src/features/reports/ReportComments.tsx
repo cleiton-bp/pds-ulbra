@@ -9,9 +9,48 @@ import { AVISO_DE_ARQUIVO, toPanelGalleryItem } from '@/features/reports/ReportA
 import { AttachmentGallery } from '@/shared/components/AttachmentGallery'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
-import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import { type AsyncResource, useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
+
+/** A conversa de um relato, e as falas publicas que ela pos na tela. */
+export interface ReportConversation extends AsyncResource<ReportCommentsViewModel> {
+  /**
+   * As falas publicas que a conversa mostra, pelo identificador. **Nula enquanto
+   * carrega; vazia se falhou.** E o que os arquivos de uma resposta consultam para
+   * saber se a fala deles esta na tela.
+   */
+  falas: ReadonlySet<string> | null
+}
+
+/**
+ * A conversa do relato, lida uma vez para o dialogo inteiro.
+ *
+ * **Mora fora da caixa de comentarios, e e por causa dos arquivos.** O arquivo de uma
+ * resposta vai embaixo da fala que o trouxe — e, quando ela nao esta na tela, embaixo
+ * do relato, em vez de sumir: a conversa que nao carregou, a resposta que chegou
+ * depois de o dialogo abrir. Para isso quem monta o dialogo precisa saber quais falas
+ * a caixa mostra, e a leitura sobe para ele. Ver `useReportAttachments`.
+ */
+export function useReportComments(
+  projectPublicId: string,
+  reportPublicId: string,
+): ReportConversation {
+  const leitura = useAsyncResource(
+    useCallback(
+      () => projectReportService.listComments(projectPublicId, reportPublicId),
+      [projectPublicId, reportPublicId],
+    ),
+  )
+
+  const falas = leitura.data
+    ? new Set(leitura.data.Public.map((fala) => fala.PublicId))
+    : leitura.failed
+      ? new Set<string>()
+      : null
+
+  return { ...leitura, falas }
+}
 
 /**
  * Os dois comentarios de um relato.
@@ -34,12 +73,15 @@ import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
 export function ReportComments({
   projectPublicId,
   reportPublicId,
+  conversa,
   aoComentar,
   anexosPorFala = new Map(),
   aoExpirar = () => {},
 }: {
   projectPublicId: string
   reportPublicId: string
+  /** A leitura da conversa, feita por quem monta o dialogo — ver `useReportComments`. */
+  conversa: ReportConversation
   /** Avisa quem monta a tela de que o historico mudou. */
   aoComentar: () => void
   /** Os arquivos que vieram numa resposta, pela fala que os trouxe. */
@@ -47,17 +89,7 @@ export function ReportComments({
   /** Um endereco de arquivo venceu: quem monta a tela rele. */
   aoExpirar?: () => void
 }) {
-  const {
-    data: comentarios,
-    loading,
-    failed,
-    reload,
-  } = useAsyncResource(
-    useCallback(
-      () => projectReportService.listComments(projectPublicId, reportPublicId),
-      [projectPublicId, reportPublicId],
-    ),
-  )
+  const { data: comentarios, loading, failed, reload } = conversa
 
   const [local, setLocal] = useState<ReportCommentsViewModel | null>(null)
   const atual = local ?? comentarios

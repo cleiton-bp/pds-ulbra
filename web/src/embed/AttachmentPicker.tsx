@@ -1,4 +1,4 @@
-import { type ChangeEvent, type ReactNode, useRef } from 'react'
+import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   ATTACHMENT_DISPLAY_SIZES,
   type AttachmentDisplaySize,
@@ -389,6 +389,13 @@ function IconeDeTamanho({ fracao }: { fracao: number }) {
  * rede de quem relata, o armazenamento fora —, e sem saida o arquivo prenderia a
  * lista na tela ate a pagina recarregar.
  *
+ * **O leitor de tela ouve o andamento, e nao cada porcentagem.** A porcentagem anda
+ * varias vezes por segundo, e anunciar cada avanco afogaria o resto: o aviso muda
+ * quando um arquivo termina e quando o envio acaba — ver `resumoDoEnvio`. **Ele nasce
+ * vazio e ganha o texto logo depois**: aviso que ja entra escrito na pagina, o leitor
+ * de tela costuma nao anunciar. A tela que tira a lista de cena quando tudo foi diz o
+ * fim num aviso dela — ver `resumoDoFim`.
+ *
  * @param savedNote O que foi salvo, dito do jeito da tela — "o relato", "a resposta".
  * @param onDiscard Tira da lista o arquivo que falhou. Sem ele, so tentar de novo.
  */
@@ -403,6 +410,10 @@ export function AttachmentProgress({
   onDiscard?: (anexo: Anexo) => void
   savedNote: string
 }) {
+  const resumo = resumoDoEnvio(anexos)
+  const [aviso, setAviso] = useState('')
+  useEffect(() => setAviso(resumo), [resumo])
+
   if (anexos.length === 0) return null
 
   // A falha que da para tentar de novo e a que pede um gesto: ela vai para a frase.
@@ -412,6 +423,9 @@ export function AttachmentProgress({
 
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-4">
+      <p role="status" className="sr-only">
+        {aviso}
+      </p>
       <p className="mb-2 text-detail text-fg-muted">Arquivos</p>
       <ul className="flex flex-col gap-1.5">
         {anexos.map((anexo) => (
@@ -468,4 +482,37 @@ export function AttachmentProgress({
       )}
     </div>
   )
+}
+
+/**
+ * O andamento do envio numa frase, para o leitor de tela. **So muda quando o estado
+ * muda** — um arquivo terminou, o envio acabou —, e nunca com a porcentagem.
+ */
+export function resumoDoEnvio(anexos: Anexo[]): string {
+  const total = anexos.length
+  const enviados = anexos.filter((anexo) => anexo.status === 'done').length
+  const andando = anexos.some((anexo) => anexo.status === 'waiting' || anexo.status === 'sending')
+  const naoForam = total - enviados
+
+  if (total === 1) {
+    if (andando) return 'Enviando o arquivo.'
+    return naoForam === 0 ? 'Arquivo enviado.' : 'O arquivo não foi enviado.'
+  }
+
+  if (andando) return `Enviando os arquivos: ${enviados} de ${total} enviados.`
+  if (naoForam === 0) return 'Todos os arquivos foram enviados.'
+  return naoForam === 1 ? '1 arquivo não foi enviado.' : `${naoForam} arquivos não foram enviados.`
+}
+
+/**
+ * O fim do envio, para a tela que tira a lista de cena quando **todos** foram — o
+ * acompanhamento, que mostra o arquivo no lugar dele depois de reler. Sem isto, o
+ * aviso ia embora com a lista, antes de dizer "enviado". Nulo quando algum nao foi:
+ * ai a lista fica na tela, e o aviso dela diz.
+ *
+ * Leia **antes** de fechar o envio: fechado, a lista ja esta vazia.
+ */
+export function resumoDoFim(anexos: Anexo[]): string | null {
+  if (anexos.length === 0 || anexos.some((anexo) => anexo.status !== 'done')) return null
+  return resumoDoEnvio(anexos)
 }

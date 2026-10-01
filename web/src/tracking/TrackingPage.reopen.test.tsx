@@ -410,6 +410,8 @@ describe('anexar ao reabrir', () => {
     // a pagina reler, e duas vezes na tela seria uma a mais.
     await waitFor(() => expect(screen.queryByText('ainda-quebrado.png')).toBeNull())
     await waitFor(() => expect(dublê.anexos).toHaveBeenCalledTimes(2))
+    // O aviso do leitor de tela nao vai junto com a lista antes de dizer "enviado".
+    expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Arquivo enviado.')
   })
 
   it('motivo em branco leva o arquivo, quando o projeto não pede o motivo', async () => {

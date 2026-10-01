@@ -634,7 +634,7 @@ public class ReportAttachmentService : IReportAttachmentService
 
         foreach (var anexo in anexos)
         {
-            var (arquivo, miniatura) = await AssinarLeituraAsync(anexo, doPainel: true, cancellationToken);
+            var (arquivo, miniatura, vence) = await AssinarLeituraAsync(anexo, doPainel: true, cancellationToken);
 
             lista.Add(new PanelAttachmentViewModel(
                 anexo.PublicId,
@@ -643,7 +643,7 @@ public class ReportAttachmentService : IReportAttachmentService
                 anexo.ContentType,
                 arquivo.Url.ToString(),
                 miniatura?.Url.ToString(),
-                arquivo.ExpiresAt,
+                vence,
                 anexo.SizeBytes,
                 anexo.DurationSeconds,
                 anexo.OriginalName,
@@ -696,7 +696,7 @@ public class ReportAttachmentService : IReportAttachmentService
 
         foreach (var anexo in anexos)
         {
-            var (arquivo, miniatura) = await AssinarLeituraAsync(anexo, doPainel: false, cancellationToken);
+            var (arquivo, miniatura, vence) = await AssinarLeituraAsync(anexo, doPainel: false, cancellationToken);
 
             // Campo a campo, e sem o nome original. Ver o comentario do tipo.
             lista.Add(new PublicAttachmentViewModel(
@@ -707,7 +707,7 @@ public class ReportAttachmentService : IReportAttachmentService
                 anexo.SizeBytes,
                 arquivo.Url.ToString(),
                 miniatura?.Url.ToString(),
-                arquivo.ExpiresAt,
+                vence,
                 anexo.DurationSeconds,
                 anexo.PublicComment?.PublicId,
                 anexo.ReopenedClosure?.PublicId,
@@ -728,8 +728,12 @@ public class ReportAttachmentService : IReportAttachmentService
     /// <para><b>Continua valendo sem video novo.</b> Os que foram confirmados antes
     /// de o video sair do produto seguem na lista, e precisam tocar do mesmo
     /// jeito.</para>
+    ///
+    /// <para><b>O vencimento que sai e o primeiro dos dois.</b> A tela renova a lista
+    /// pouco antes dele: com o do video, que dura mais, a capa venceria antes da
+    /// renovacao, e o video aberto nesse meio tempo ficaria sem ela.</para>
     /// </summary>
-    private async Task<(SignedReadUrl Arquivo, SignedReadUrl? Miniatura)> AssinarLeituraAsync(
+    private async Task<(SignedReadUrl Arquivo, SignedReadUrl? Miniatura, DateTime Vence)> AssinarLeituraAsync(
         ReportAttachment anexo,
         bool doPainel,
         CancellationToken cancellationToken)
@@ -754,7 +758,11 @@ public class ReportAttachmentService : IReportAttachmentService
             ? await _mediaStorage.CreateReadUrlAsync(thumb, forPlayback: false, cancellationToken: cancellationToken)
             : null;
 
-        return (arquivo, miniatura);
+        var vence = miniatura is not null && miniatura.ExpiresAt < arquivo.ExpiresAt
+            ? miniatura.ExpiresAt
+            : arquivo.ExpiresAt;
+
+        return (arquivo, miniatura, vence);
     }
 
     /// <summary>
