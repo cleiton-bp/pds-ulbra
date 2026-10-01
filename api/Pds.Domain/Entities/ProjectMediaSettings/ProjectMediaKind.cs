@@ -66,7 +66,7 @@ public class ProjectMediaKind : PdsBaseEntity
     /// Duracao maxima, em segundos. Nulo para o que nao tem duracao.
     /// </summary>
     /// <remarks>
-    /// <para><b>E a protecao mais barata desta etapa</b>, porque vale duas vezes:
+    /// <para><b>E a protecao mais barata que existe aqui</b>, porque vale duas vezes:
     /// corta armazenamento e corta exposicao. Sessenta segundos de tela mostram
     /// muito mais dado de terceiro que um print, que e um instante escolhido.</para>
     /// </remarks>

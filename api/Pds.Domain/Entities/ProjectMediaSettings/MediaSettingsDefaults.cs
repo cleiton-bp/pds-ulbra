@@ -5,9 +5,9 @@ namespace Pds.Domain.Entities;
 /// <summary>
 /// O que vale quando ninguem configurou nada.
 ///
-/// <para><b>Projeto novo tem de andar sem ninguem abrir esta tela.</b> E o criterio
-/// que atravessa a etapa inteira: a configuracao existe para quem quer outra coisa,
-/// e nao para quem precisa comecar.</para>
+/// <para><b>Projeto novo tem de andar sem ninguem abrir esta tela.</b> A
+/// configuracao existe para quem quer outra coisa, e nao para quem precisa
+/// comecar.</para>
 ///
 /// <para><b>Moram em codigo, e nao como valor padrao de coluna.</b> Assim existem
 /// num lugar so — com o padrao no banco, mudar de ideia deixaria as linhas antigas
@@ -22,9 +22,9 @@ public static class MediaSettingsDefaults
     /// <summary>
     /// Anexo ligado.
     ///
-    /// <para>Diferente do padrao da etapa 6, que era o mais fechado: ali a escolha
-    /// era coletar dado pessoal, e aqui e receber um print que quem relata escolheu
-    /// mandar. Sem armazenamento configurado isto nao liga, entao o caminho de quem
+    /// <para>Diferente do padrao da identificacao, que e o mais fechado: ali a
+    /// escolha e coletar dado pessoal, e aqui e receber um print que quem relata
+    /// escolheu mandar. Sem armazenamento configurado isto nao liga, entao o caminho de quem
     /// nunca quis midia continua sendo simplesmente nao configurar.</para>
     /// </summary>
     public const bool IsEnabled = true;
@@ -41,7 +41,7 @@ public static class MediaSettingsDefaults
     /// Anexo na resposta ao time, ligado.
     ///
     /// <para>E onde o print mais serve, e desligado de fabrica faria o caso mais
-    /// util da etapa depender de alguem descobrir uma tela.</para>
+    /// util do anexo depender de alguem descobrir uma tela.</para>
     /// </summary>
     public const bool AllowsOnInfoRequest = true;
 

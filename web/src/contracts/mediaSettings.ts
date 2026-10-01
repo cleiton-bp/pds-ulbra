@@ -34,15 +34,19 @@ export interface MediaSettingsViewModel {
    * Ha armazenamento configurado nesta instalacao.
    *
    * **Nao e configuracao do projeto**, e por isso vem separado: e o estado da
-   * instalacao inteira. Falso, a tela desliga o interruptor e diz por que — em
+   * instalacao inteira. Falso, a tela trava o interruptor e diz por que — em
    * vez de deixar ligar uma coisa que falharia no envio, depois de a pessoa ja
    * ter escolhido o arquivo.
    */
   IsStorageAvailable: boolean
+  /**
+   * O quadro mostra anexo. **Sem armazenamento vem falso**, mesmo que o projeto
+   * tenha ligado — o que foi salvo continua guardado do lado de la.
+   */
   IsEnabled: boolean
   AllowsScreenCapture: boolean
   AllowsOnInfoRequest: boolean
-  /** Teto de arquivos por relato, somando todos os tipos. */
+  /** Teto de arquivos por envio, somando todos os tipos: a criacao do relato e cada resposta. */
   MaxFilesPerReport: number
   Kinds: MediaKindLimitViewModel[]
 }

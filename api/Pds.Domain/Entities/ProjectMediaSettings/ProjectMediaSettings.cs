@@ -11,8 +11,7 @@ namespace Pds.Domain.Entities;
 ///
 /// <para><b>Esta configuracao vem antes do quadro saber anexar, e nao depois.</b> E
 /// ela que diz o que existe: desligada, o quadro nao mostra nada de midia, e nenhum
-/// outro campo desta linha importa. E a unica trava que a etapa constroi de
-/// proposito.</para>
+/// outro campo desta linha importa.</para>
 ///
 /// <para><b>Nenhum limite de tipo mora aqui.</b> Eles estao em
 /// <see cref="ProjectMediaKind"/>, uma linha por tipo — e e esse desenho que faz

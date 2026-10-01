@@ -15,7 +15,7 @@ public class MediaKindLimitDto
     /// <example>true</example>
     public bool? IsEnabled { get; set; }
 
-    /// <summary>Quantos arquivos deste tipo cabem num relato.</summary>
+    /// <summary>Quantos arquivos deste tipo cabem em cada envio.</summary>
     /// <example>3</example>
     public int? MaxCount { get; set; }
 
@@ -42,11 +42,11 @@ public class MediaKindLimitDto
 /// </summary>
 public class MediaSettingsDto
 {
-    /// <summary>O quadro mostra anexo. Sem armazenamento configurado, ligar e recusado.</summary>
+    /// <summary>O quadro mostra anexo. Sem armazenamento configurado, a configuracao inteira e recusada.</summary>
     /// <example>true</example>
     public bool? IsEnabled { get; set; }
 
-    /// <summary>O botao de capturar a tela aparece.</summary>
+    /// <summary>Os botoes de capturar e de gravar a tela aparecem.</summary>
     /// <example>true</example>
     public bool? AllowsScreenCapture { get; set; }
 
@@ -54,7 +54,7 @@ public class MediaSettingsDto
     /// <example>true</example>
     public bool? AllowsOnInfoRequest { get; set; }
 
-    /// <summary>Quantos arquivos cabem num relato, somando todos os tipos.</summary>
+    /// <summary>Quantos arquivos cabem em cada envio, somando todos os tipos. A criacao do relato e um envio, e cada resposta e outro.</summary>
     /// <example>4</example>
     public int? MaxFilesPerReport { get; set; }
 

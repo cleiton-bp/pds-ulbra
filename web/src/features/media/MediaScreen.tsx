@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { MediaKind, MediaKindLimitViewModel, MediaSettingsViewModel } from '@/contracts'
 import { describeError, projectMediaSettingsService } from '@/data'
+import {
+  bytesFromMegabytes,
+  type LimitRange,
+  limitHint,
+  MB_DECIMALS,
+  megabytesFromBytes,
+  parseLimit,
+} from '@/features/media/mediaLimits'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { cn } from '@/shared/lib/cn'
 
 /** Os tetos do sistema, iguais aos de `ProjectMediaSettings` e `ProjectMediaKind` em C#. */
 const TETO_ARQUIVOS = 10
 const TETO_QUANTIDADE = 10
 const TETO_DURACAO_SEGUNDOS = 300
 const TETO_MB: Record<MediaKind, number> = { Image: 10, Video: 50 }
-
-const UM_MB = 1024 * 1024
 
 /** O que cada tipo é, para quem configura — e não o nome do enum. */
 const TIPOS: Record<MediaKind, { titulo: string; resumo: string; custo: string }> = {
@@ -31,12 +38,24 @@ const TIPOS: Record<MediaKind, { titulo: string; resumo: string; custo: string }
 }
 
 /**
+ * O `id` de cada campo numérico, que também é a chave dele em `invalidFields`.
+ *
+ * Mora num lugar só porque a tela precisa achar de volta, pela chave, qual limite
+ * do rascunho aquele campo escreve.
+ */
+const fieldId = {
+  total: 'max-arquivos',
+  count: (kind: MediaKind) => `quantidade-${kind}`,
+  size: (kind: MediaKind) => `tamanho-${kind}`,
+  duration: (kind: MediaKind) => `duracao-${kind}`,
+}
+
+/**
  * O que este projeto aceita receber junto do relato.
  *
  * **Esta tela vem antes da ferramenta saber anexar, e não depois.** É ela que diz
  * o que existe: desligado o anexo, a ferramenta não mostra nada de mídia e o
- * servidor recusa assinar qualquer envio. É a única trava que a etapa constrói de
- * propósito.
+ * servidor recusa assinar qualquer envio.
  *
  * **Os limites aparecem por tipo, porque é assim que eles são guardados** — uma
  * linha por tipo, e não uma coluna por tipo. É o desenho que faz acrescentar áudio
@@ -47,9 +66,10 @@ const TIPOS: Record<MediaKind, { titulo: string; resumo: string; custo: string }
  * produto que custa dinheiro por byte guardado, e é por isso que o custo de cada
  * escolha está escrito junto dela, e não num aviso depois.
  *
- * **Sem armazenamento configurado, o interruptor não liga e a tela diz por quê.**
- * Deixar ligar prometeria um botão que falharia no envio, depois de a pessoa já
- * ter escolhido o arquivo.
+ * **Sem armazenamento configurado, a tela só mostra, e diz por quê.** A API
+ * responde o anexo desligado, porque a ferramenta não o oferece, e recusa salvar:
+ * gravar esse desligado apagaria a escolha do projeto, que precisa passar a valer
+ * quando houver armazenamento.
  */
 export function MediaScreen() {
   const project = useCurrentProject()
@@ -70,6 +90,25 @@ export function MediaScreen() {
   const [published, setPublished] = useState<MediaSettingsViewModel | null>(null)
   const [saving, setSaving] = useState(false)
 
+  /**
+   * Os campos numéricos com texto que não serve.
+   *
+   * O rascunho fica com o último número válido, e é por isso que precisa desta
+   * lista: sem ela, o Salvar mandaria um número diferente do que está escrito.
+   */
+  const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(() => new Set())
+
+  const trackField = useCallback((field: string, valid: boolean) => {
+    setInvalidFields((current) => {
+      if (current.has(field) !== valid) return current
+
+      const next = new Set(current)
+      if (valid) next.delete(field)
+      else next.add(field)
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     setPublished(saved)
     setDraft(saved)
@@ -86,7 +125,21 @@ export function MediaScreen() {
    */
   const semTipo = draft?.IsEnabled === true && draft.Kinds.every((tipo) => !tipo.IsEnabled)
 
-  const impedido = semTipo || (draft?.IsEnabled === true && !draft.IsStorageAvailable)
+  const noStorage = draft !== null && !draft.IsStorageAvailable
+  const invalidCount = invalidFields.size
+
+  const impedido = semTipo || noStorage || invalidCount > 0
+
+  function toggleAttachments(enabled: boolean) {
+    if (!draft) return
+
+    const next = { ...draft, IsEnabled: enabled }
+
+    // Desligado, os campos saem de alcance. O que tinha texto que não serve volta
+    // ao valor salvo, e não ao último número válido do rascunho: esse pode ser só
+    // uma tecla no caminho, como o "1" de quem apagou o "3" para digitar "12".
+    setDraft(enabled || !published ? next : restoreInvalid(next, published, invalidFields))
+  }
 
   function trocarTipo(kind: MediaKind, mudanca: Partial<MediaKindLimitViewModel>) {
     if (!draft) return
@@ -148,14 +201,15 @@ export function MediaScreen() {
 
       {draft && (
         <section>
-          {!draft.IsStorageAvailable && (
+          {noStorage && (
             <div className="mb-5 rounded-xl border border-warn-border bg-warn-surface p-4">
               <p className="text-caption text-warn-fg leading-relaxed">
                 <strong className="font-medium">
                   Não há armazenamento configurado nesta instalação.
                 </strong>{' '}
-                Enquanto não houver, o anexo não liga — e é melhor assim: a ferramenta mostraria o
-                botão, e o envio falharia depois de a pessoa já ter escolhido o arquivo.
+                Por isso o anexo aparece desligado, não pode ser ligado, e nada aqui pode ser salvo.
+                O interruptor está desligado só por isso: a escolha do projeto e os limites abaixo
+                passam a valer quando houver armazenamento.
               </p>
             </div>
           )}
@@ -165,7 +219,7 @@ export function MediaScreen() {
             desabilitado={!draft.IsStorageAvailable}
             titulo="Aceitar anexo no relato"
             explicacao="Desligado, a ferramenta não mostra nada de mídia e o servidor recusa qualquer envio — não adianta ter tipo ligado nem limite configurado aqui embaixo."
-            aoTrocar={(valor) => setDraft({ ...draft, IsEnabled: valor })}
+            aoTrocar={toggleAttachments}
           />
 
           <fieldset
@@ -181,48 +235,35 @@ export function MediaScreen() {
                 <Tipo
                   key={limite.Kind}
                   limite={limite}
+                  disabled={!draft.IsEnabled}
                   aoTrocar={(mudanca) => trocarTipo(limite.Kind, mudanca)}
+                  onValidityChange={trackField}
                 />
               ))}
             </div>
 
             <div className="mt-5 rounded-xl border border-border bg-surface p-4">
-              <label htmlFor="max-arquivos" className="mb-1 block font-medium text-detail text-fg">
-                Arquivos por relato, somando os tipos
-              </label>
-              <div className="mb-1 flex items-center gap-2">
-                <input
-                  id="max-arquivos"
-                  type="number"
-                  min={1}
-                  max={TETO_ARQUIVOS}
-                  value={draft.MaxFilesPerReport}
-                  // Campo vazio vira 1, e não `NaN`: apagar tudo para digitar outro
-                  // número é o gesto comum, e `NaN` quebraria a comparação que
-                  // decide se há o que salvar. Um, e não zero, porque zero seria
-                  // desligar o anexo por outro caminho.
-                  onChange={(evento) =>
-                    setDraft({
-                      ...draft,
-                      MaxFilesPerReport: Number.parseInt(evento.target.value, 10) || 1,
-                    })
-                  }
-                  className="h-9 w-28 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg"
-                />
-                <span className="text-detail text-fg-muted">arquivos</span>
-              </div>
-              <p className="text-caption text-fg-muted leading-relaxed">
-                Existe além do limite de cada tipo, e não no lugar dele: só com o limite por tipo,
-                três imagens mais um vídeo passariam num projeto que só queria dois no total. No
-                máximo {TETO_ARQUIVOS}.
-              </p>
+              {/* Um, e não zero, no mínimo: zero seria desligar o anexo por outro
+                  caminho. */}
+              <Numero
+                id={fieldId.total}
+                rotulo="Arquivos por envio, somando os tipos"
+                unidade="arquivos"
+                valor={draft.MaxFilesPerReport}
+                range={{ min: 1, max: TETO_ARQUIVOS, decimals: 0 }}
+                ajuda="O relato é um envio, e cada resposta ao time é outro. Este total vale junto com o limite de cada tipo."
+                emphasized
+                disabled={!draft.IsEnabled}
+                aoTrocar={(valor) => setDraft({ ...draft, MaxFilesPerReport: valor })}
+                onValidityChange={trackField}
+              />
             </div>
 
             <div className="mt-5 flex flex-col gap-2.5">
               <Interruptor
                 marcado={draft.AllowsScreenCapture}
-                titulo="Deixar capturar a tela"
-                explicacao="A pessoa clica, o navegador pergunta qual tela ou janela, e ela escolhe — não é captura automática, que é impossível de dentro da ferramenta. Onde o navegador não souber fazer, e o iPhone não sabe, o botão some sozinho e anexar arquivo continua."
+                titulo="Deixar capturar e gravar a tela"
+                explicacao="Liga os dois botões da ferramenta: Capturar tela, que vira imagem, e Gravar tela, que vira vídeo. Cada um só aparece se o tipo dele for aceito. A pessoa clica e o navegador pergunta qual tela ou janela mostrar. Onde o navegador não sabe capturar ou gravar, como no iPhone, o botão correspondente não aparece, e anexar arquivo continua."
                 aoTrocar={(valor) => setDraft({ ...draft, AllowsScreenCapture: valor })}
               />
 
@@ -266,6 +307,14 @@ export function MediaScreen() {
             {dirty && !saving && !impedido && (
               <span className="text-caption text-fg-muted">Há mudança não salva.</span>
             )}
+
+            {invalidCount > 0 && (
+              <span className="text-caption text-error-fg">
+                {invalidCount === 1
+                  ? 'Há um campo a corrigir.'
+                  : `Há ${invalidCount} campos a corrigir.`}
+              </span>
+            )}
           </div>
         </section>
       )}
@@ -294,6 +343,39 @@ function igual(a: MediaSettingsViewModel, b: MediaSettingsViewModel) {
       )
     })
   )
+}
+
+/**
+ * O rascunho com o valor salvo de volta em cada campo com texto que não serve.
+ *
+ * Campo inválido não escreve no rascunho, que fica com o último número válido — e
+ * esse número pode ser só uma tecla no caminho. O salvo foi escolhido por alguém.
+ */
+function restoreInvalid(
+  draft: MediaSettingsViewModel,
+  published: MediaSettingsViewModel,
+  invalid: ReadonlySet<string>,
+): MediaSettingsViewModel {
+  return {
+    ...draft,
+    MaxFilesPerReport: invalid.has(fieldId.total)
+      ? published.MaxFilesPerReport
+      : draft.MaxFilesPerReport,
+    Kinds: draft.Kinds.map((kind) => {
+      const saved = published.Kinds.find((other) => other.Kind === kind.Kind)
+
+      if (!saved) return kind
+
+      return {
+        ...kind,
+        MaxCount: invalid.has(fieldId.count(kind.Kind)) ? saved.MaxCount : kind.MaxCount,
+        MaxBytes: invalid.has(fieldId.size(kind.Kind)) ? saved.MaxBytes : kind.MaxBytes,
+        MaxDurationSeconds: invalid.has(fieldId.duration(kind.Kind))
+          ? saved.MaxDurationSeconds
+          : kind.MaxDurationSeconds,
+      }
+    }),
+  }
 }
 
 /**
@@ -343,14 +425,17 @@ function Interruptor({
  */
 function Tipo({
   limite,
+  disabled,
   aoTrocar,
+  onValidityChange,
 }: {
   limite: MediaKindLimitViewModel
+  /** O anexo está desligado, e os campos ficam fora de alcance. */
+  disabled: boolean
   aoTrocar: (mudanca: Partial<MediaKindLimitViewModel>) => void
+  onValidityChange: (field: string, valid: boolean) => void
 }) {
   const texto = TIPOS[limite.Kind]
-  const tetoMb = TETO_MB[limite.Kind]
-  const mb = Math.round((limite.MaxBytes / UM_MB) * 10) / 10
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -372,39 +457,41 @@ function Tipo({
 
       <div className="mt-3.5 flex flex-wrap gap-4 border-border border-t pt-3.5 pl-7">
         <Numero
-          id={`quantidade-${limite.Kind}`}
-          rotulo="Quantos por relato"
+          id={fieldId.count(limite.Kind)}
+          rotulo="Quantos por envio"
           unidade="arquivos"
           valor={limite.MaxCount}
-          minimo={1}
-          maximo={TETO_QUANTIDADE}
+          range={{ min: 1, max: TETO_QUANTIDADE, decimals: 0 }}
+          disabled={disabled}
           aoTrocar={(valor) => aoTrocar({ MaxCount: valor })}
+          onValidityChange={onValidityChange}
         />
 
         <Numero
-          id={`tamanho-${limite.Kind}`}
+          id={fieldId.size(limite.Kind)}
           rotulo="Tamanho de cada um"
           unidade="MB"
-          valor={mb}
-          minimo={1}
-          maximo={tetoMb}
-          passo={0.5}
+          valor={megabytesFromBytes(limite.MaxBytes)}
+          range={{ min: 1, max: TETO_MB[limite.Kind], decimals: MB_DECIMALS }}
+          disabled={disabled}
           // O banco guarda bytes, e quem configura pensa em MB. A conversão mora
           // aqui, na borda: mandar MB para a API faria a unidade virar convenção
           // combinada entre dois lados, e é assim que um dos dois esquece.
-          aoTrocar={(valor) => aoTrocar({ MaxBytes: Math.round(valor * UM_MB) })}
+          aoTrocar={(valor) => aoTrocar({ MaxBytes: bytesFromMegabytes(valor) })}
+          onValidityChange={onValidityChange}
         />
 
         {limite.MaxDurationSeconds !== null && (
           <Numero
-            id={`duracao-${limite.Kind}`}
+            id={fieldId.duration(limite.Kind)}
             rotulo="Duração máxima"
             unidade="segundos"
             valor={limite.MaxDurationSeconds}
-            minimo={1}
-            maximo={TETO_DURACAO_SEGUNDOS}
+            range={{ min: 1, max: TETO_DURACAO_SEGUNDOS, decimals: 0 }}
+            disabled={disabled}
             ajuda="Limitar a duração é a proteção mais barata que existe aqui: corta espaço e corta o que aparece sem querer, de uma vez."
             aoTrocar={(valor) => aoTrocar({ MaxDurationSeconds: valor })}
+            onValidityChange={onValidityChange}
           />
         )}
       </div>
@@ -412,51 +499,124 @@ function Tipo({
   )
 }
 
-/** Um limite numérico, com o teto do sistema declarado. */
+/**
+ * Um limite numérico, com o teto do sistema declarado.
+ *
+ * **O texto mora aqui, e o rascunho só recebe número que serve.** Campo apagado
+ * fica apagado e avisa, em vez de pular para o mínimo; número fora da faixa ou com
+ * casa decimal demais também avisa, e o Salvar espera. O erro troca o texto de
+ * ajuda, como no `TextField`, para a tela não pular de altura.
+ *
+ * **Campo fora de alcance não fica inválido.** Desligado o anexo, ninguém mais
+ * consegue corrigi-lo, e o Salvar ficaria preso por um erro sem saída. A tela
+ * devolve ao rascunho o valor salvo (`restoreInvalid`), e o texto passa a dizer o
+ * número que o rascunho guarda.
+ */
 function Numero({
   id,
   rotulo,
   unidade,
   valor,
-  minimo,
-  maximo,
-  passo,
+  range,
   ajuda,
+  emphasized = false,
+  disabled,
   aoTrocar,
+  onValidityChange,
 }: {
   id: string
   rotulo: string
   unidade: string
   valor: number
-  minimo: number
-  maximo: number
-  passo?: number
+  range: LimitRange
   ajuda?: string
+  /** O campo que resume a tela, com o rótulo no tamanho do texto corrido. */
+  emphasized?: boolean
+  /** Fora de alcance: o `fieldset` em volta está desabilitado. */
+  disabled: boolean
   aoTrocar: (valor: number) => void
+  onValidityChange: (field: string, valid: boolean) => void
 }) {
+  const [text, setText] = useState(() => String(valor))
+  const [invalid, setInvalid] = useState(false)
+  const [lastValue, setLastValue] = useState(valor)
+
+  // A tela só sabe se pode salvar pelo que cada campo conta aqui. Campo que sai da
+  // tela, como ao trocar de projeto, conta como válido: senão o Salvar ficaria
+  // preso por um erro que ninguém mais vê.
+  useEffect(() => {
+    onValidityChange(id, !invalid)
+    return () => onValidityChange(id, true)
+  }, [id, invalid, onValidityChange])
+
+  // O valor também muda por fora, quando o servidor devolve o que gravou. O texto
+  // acompanha, a menos que já diga o mesmo número — "5.0" não vira "5" enquanto a
+  // pessoa digita.
+  if (valor !== lastValue) {
+    setLastValue(valor)
+
+    if (parseLimit(text, range) !== valor) {
+      setText(String(valor))
+      setInvalid(false)
+    }
+  }
+
+  if (disabled && invalid) {
+    setText(String(valor))
+    setInvalid(false)
+  }
+
+  const messageId = `${id}-mensagem`
+
   return (
-    <div className="min-w-44">
-      <label htmlFor={id} className="mb-1 block font-medium text-caption text-fg">
+    <div className={emphasized ? undefined : 'min-w-44'}>
+      <label
+        htmlFor={id}
+        className={cn(
+          'mb-1 block font-medium text-fg',
+          emphasized ? 'text-detail' : 'text-caption',
+        )}
+      >
         {rotulo}
       </label>
       <div className="mb-1 flex items-center gap-2">
         <input
           id={id}
           type="number"
-          min={minimo}
-          max={maximo}
-          step={passo}
-          value={valor}
-          // Campo vazio cai no mínimo, e não em `NaN`: apagar tudo para digitar
-          // outro número é o gesto comum, e `NaN` quebraria a comparação que decide
-          // se há o que salvar.
-          onChange={(evento) => aoTrocar(Number.parseFloat(evento.target.value) || minimo)}
-          className="h-9 w-24 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg"
+          min={range.min}
+          max={range.max}
+          // Com casa decimal, qualquer valor da faixa serve; com passo fixo o
+          // navegador marcaria 5.3 como inválido, e a tela aceita.
+          step={range.decimals === 0 ? 1 : 'any'}
+          value={text}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={messageId}
+          onChange={(evento) => {
+            const typed = evento.target.value
+            const parsed = parseLimit(typed, range)
+
+            setText(typed)
+            setInvalid(parsed === null)
+
+            if (parsed !== null) aoTrocar(parsed)
+          }}
+          className={cn(
+            'h-9 rounded-lg border bg-surface-raised px-3 text-body text-fg',
+            emphasized ? 'w-28' : 'w-24',
+            invalid ? 'border-error-border' : 'border-border',
+          )}
         />
-        <span className="text-caption text-fg-muted">{unidade}</span>
+        <span className={cn('text-fg-muted', emphasized ? 'text-detail' : 'text-caption')}>
+          {unidade}
+        </span>
       </div>
-      <p className="text-caption text-fg-muted leading-relaxed">
-        {ajuda ? `${ajuda} ` : ''}No máximo {maximo} {unidade}.
+      <p
+        id={messageId}
+        className={cn('text-caption leading-relaxed', invalid ? 'text-error-fg' : 'text-fg-muted')}
+      >
+        {invalid
+          ? limitHint(range)
+          : `${ajuda ? `${ajuda} ` : ''}No máximo ${range.max} ${unidade}.`}
       </p>
     </div>
   )

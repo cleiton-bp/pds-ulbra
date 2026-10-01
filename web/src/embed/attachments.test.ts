@@ -75,7 +75,9 @@ describe('a recusa cedo', () => {
 
   it('recusa quando o tipo ja chegou ao limite dele', () => {
     const duas = [{ kind: 'Image' as const }, { kind: 'Image' as const }]
-    expect(rejectReason(arquivo('image/png', 1024), duas, media)).toMatch(/2 imagens/)
+    expect(rejectReason(arquivo('image/png', 1024), duas, media)).toBe(
+      'Cabem até 2 imagens por envio.',
+    )
   })
 
   it('recusa quando o total ja chegou ao limite, mesmo com vaga no tipo', () => {
@@ -84,7 +86,32 @@ describe('a recusa cedo', () => {
       { kind: 'Image' as const },
       { kind: 'Video' as const },
     ]
-    expect(rejectReason(arquivo('image/png', 1024), tres, media)).toMatch(/3 arquivos/)
+    expect(rejectReason(arquivo('image/png', 1024), tres, media)).toBe(
+      'Cabem até 3 arquivos por envio.',
+    )
+  })
+
+  // O limite vale para cada envio: a criacao do relato e cada resposta. "Por
+  // relato" faria quem responde achar que a cota ja tinha acabado na criacao.
+  it('fala em envio, e concorda o verbo e a palavra com o numero', () => {
+    const umVideo = [{ kind: 'Video' as const }]
+    expect(rejectReason(arquivo('video/webm', 1024), umVideo, media)).toBe(
+      'Cabe até 1 vídeo por envio.',
+    )
+
+    const soUm = { ...media, MaxFilesPerReport: 1 }
+    const umaImagem = [{ kind: 'Image' as const }]
+    expect(rejectReason(arquivo('image/png', 1024), umaImagem, soUm)).toBe(
+      'Cabe até 1 arquivo por envio.',
+    )
+
+    const umaPorVez = {
+      ...media,
+      Kinds: media.Kinds.map((kind) => (kind.Kind === 'Image' ? { ...kind, MaxCount: 1 } : kind)),
+    }
+    expect(rejectReason(arquivo('image/png', 1024), umaImagem, umaPorVez)).toBe(
+      'Cabe até 1 imagem por envio.',
+    )
   })
 })
 

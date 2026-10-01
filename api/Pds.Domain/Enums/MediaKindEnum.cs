@@ -17,7 +17,7 @@ public enum MediaKindEnum
     /// <summary>
     /// Print, foto da tela, captura recortada.
     ///
-    /// <para>E o tipo que da nome a etapa, e o mais barato de guardar: alguns
+    /// <para>E o tipo mais barato de guardar: alguns
     /// megabytes, sem duracao e sem nada para tocar.</para>
     /// </summary>
     Image,

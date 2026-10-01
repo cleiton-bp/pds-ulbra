@@ -59,6 +59,9 @@ export function acceptAttribute(settings: PublicMediaSettingsViewModel): string 
  * trava e o servidor, que confere tudo de novo, e o armazenamento, que recusa o
  * que passa do teto assinado. Isto so evita que a pessoa escolha um arquivo, espere
  * o envio, e so entao ouca "nao serve".
+ *
+ * **"Por envio", e nao "por relato".** O limite conta a criacao do relato e cada
+ * resposta separadamente, e esta mesma mensagem aparece nos dois lugares.
  */
 export function rejectReason(
   file: Blob,
@@ -72,14 +75,26 @@ export function rejectReason(
   if (file.size > kind.MaxBytes) return `O arquivo passa de ${formatBytes(kind.MaxBytes)}.`
 
   if (already.length >= settings.MaxFilesPerReport)
-    return `Cabem até ${settings.MaxFilesPerReport} arquivos por relato.`
+    return fitsUpTo(settings.MaxFilesPerReport, 'arquivo', 'arquivos')
 
   if (already.filter((anexo) => anexo.kind === kind.Kind).length >= kind.MaxCount)
     return kind.Kind === 'Video'
-      ? `Cabem até ${kind.MaxCount} vídeo${kind.MaxCount > 1 ? 's' : ''} por relato.`
-      : `Cabem até ${kind.MaxCount} imagens por relato.`
+      ? fitsUpTo(kind.MaxCount, 'vídeo', 'vídeos')
+      : fitsUpTo(kind.MaxCount, 'imagem', 'imagens')
 
   return null
+}
+
+/**
+ * "Cabe até 1 imagem por envio.", "Cabem até 2 imagens por envio."
+ *
+ * O verbo concorda com o numero, e nao so a palavra: com o padrao de um video,
+ * esta e a recusa que mais aparece.
+ */
+function fitsUpTo(count: number, singular: string, plural: string): string {
+  return count === 1
+    ? `Cabe até 1 ${singular} por envio.`
+    : `Cabem até ${count} ${plural} por envio.`
 }
 
 export { formatBytes }

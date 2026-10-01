@@ -18,10 +18,10 @@ namespace Pds.Service.Services;
 /// quem le precisa saber como o projeto se comporta, e nao se existe linha no
 /// banco.</para>
 ///
-/// <para><b>Sem armazenamento configurado, ligar anexo e recusado.</b> Nao e zelo:
-/// ligado sem armazenamento, o quadro mostraria o botao e o envio falharia depois
-/// de a pessoa ja ter escolhido o arquivo. Recusar aqui e a mesma escolha que a
-/// configuracao do ciclo faz com a fila ausente.</para>
+/// <para><b>Sem armazenamento configurado, o anexo esta desligado e salvar e
+/// recusado.</b> Nao e zelo: ligado sem armazenamento, o quadro mostraria o botao e
+/// o envio falharia depois de a pessoa ja ter escolhido o arquivo. Recusar aqui e a
+/// mesma escolha que a configuracao do ciclo faz com a fila ausente.</para>
 /// </summary>
 public class ProjectMediaSettingsService : IProjectMediaSettingsService
 {
@@ -46,18 +46,19 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
+        RequireStorage();
+
         // **Confere antes de tocar na entidade.** A que ja existe vem rastreada pelo
         // contexto: escrever nela e so entao recusar deixaria o objeto sujo ate o
         // fim da requisicao, e bastaria alguem commitar por outro motivo para a
         // configuracao recusada ir ao banco assim mesmo.
         var isEnabled = Required(dto.IsEnabled, "Informe se a ferramenta aceita anexo.");
-        var allowsScreenCapture = Required(dto.AllowsScreenCapture, "Informe se o botao de capturar a tela aparece.");
+        var allowsScreenCapture = Required(dto.AllowsScreenCapture, "Informe se os botoes de capturar e de gravar a tela aparecem.");
         var allowsOnInfoRequest = Required(dto.AllowsOnInfoRequest, "Informe se da para anexar respondendo ao time.");
-        var maxFiles = Required(dto.MaxFilesPerReport, "Informe quantos arquivos cabem num relato.");
+        var maxFiles = Required(dto.MaxFilesPerReport, "Informe quantos arquivos cabem em cada envio.");
 
-        RequireStorageForEnabling(isEnabled);
         RequireInRange(maxFiles, 1, ProjectMediaSettings.MaxFilesPerReportCeiling,
-            $"Arquivos por relato precisa ficar entre 1 e {ProjectMediaSettings.MaxFilesPerReportCeiling}.");
+            $"O total de arquivos por envio precisa ficar entre 1 e {ProjectMediaSettings.MaxFilesPerReportCeiling}.");
 
         var limites = ReadKinds(dto.Kinds);
         RequireSomethingToAccept(isEnabled, limites);
@@ -136,11 +137,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     private PublicMediaSettingsViewModel ToPublic(EffectiveMediaSettings vigente)
     {
         return new PublicMediaSettingsViewModel(
-            // **Sem armazenamento, sai desligado**, mesmo com o projeto tendo
-            // ligado. O botao existir e o envio falhar seria pior que o botao nao
-            // existir — e a configuracao gravada continua intacta para o dia em que
-            // houver armazenamento.
-            vigente.IsEnabled && _mediaStorage.IsAvailable,
+            IsOffered(vigente),
             vigente.AllowsScreenCapture,
             vigente.AllowsOnInfoRequest,
             vigente.MaxFilesPerReport,
@@ -206,7 +203,19 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
 
         foreach (var kind in kinds)
         {
+            // A desserializacao aceita null dentro da lista, e ler o tipo dele
+            // estouraria como falha do servidor, e nao como pedido mal formado.
+            if (kind is null)
+                throw new ArgumentException("Informe os limites de cada tipo de midia.");
+
             var tipo = Required(kind.Kind, "Informe de que tipo e o limite.");
+
+            // O enum chega como texto, mas a desserializacao tambem aceita numero, e
+            // um numero fora da lista passaria direto para o banco como uma linha
+            // que nenhuma leitura enxerga.
+            if (!Enum.IsDefined(tipo))
+                throw new ArgumentException(
+                    $"Tipo de midia desconhecido. Use {string.Join(" ou ", Enum.GetNames<MediaKindEnum>())}.");
 
             // Tipo repetido nao e detalhe: gravar os dois deixaria o banco com duas
             // respostas para a mesma pergunta, e qual valeria dependeria da ordem.
@@ -232,8 +241,8 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             {
                 duracao = Required(kind.MaxDurationSeconds, "Informe a duracao maxima do video.");
 
-                // Limitar a duracao e a protecao mais barata desta etapa: ela corta
-                // armazenamento e exposicao de uma vez, sem tela nenhuma.
+                // Limitar a duracao e a protecao mais barata que existe aqui: ela
+                // corta armazenamento e exposicao de uma vez, sem tela nenhuma.
                 RequireInRange(duracao.Value, 1, ProjectMediaKind.MaxDurationSecondsCeiling,
                     $"A duracao do video precisa ficar entre 1 e {ProjectMediaKind.MaxDurationSecondsCeiling} segundos.");
             }
@@ -245,19 +254,40 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     }
 
     /// <summary>
-    /// Recusa ligar anexo sem armazenamento configurado.
+    /// Recusa salvar sem armazenamento configurado.
     ///
     /// <para><b>O estado do armazenamento e da instalacao, e nao do projeto</b> — e
     /// e por isso que a recusa mora aqui e nao numa coluna. Ligado sem ele, o quadro
-    /// mostraria o botao e o envio falharia depois de a pessoa escolher o arquivo.
-    /// Desligar continua permitido: nao ha nada a prometer.</para>
+    /// mostraria o botao e o envio falharia depois de a pessoa escolher o arquivo.</para>
+    ///
+    /// <para><b>Recusa tambem o desligado, e nao so o ligado.</b> Sem armazenamento,
+    /// a leitura responde o anexo desligado. Quem le, muda um limite e devolve a
+    /// configuracao inteira gravaria esse desligado por cima da escolha do projeto,
+    /// e ela nao voltaria a valer quando houver armazenamento. E o mesmo que a tela
+    /// ja faz.</para>
+    ///
+    /// <para><b>409, e nao 400.</b> O pedido esta bem formado; o que falta e da
+    /// instalacao. E a mesma resposta do ciclo quando a espera pede uma fila que nao
+    /// existe.</para>
     /// </summary>
-    private void RequireStorageForEnabling(bool isEnabled)
+    private void RequireStorage()
     {
-        if (isEnabled && !_mediaStorage.IsAvailable)
-            throw new ArgumentException(
-                "Nao ha armazenamento configurado nesta instalacao, entao o anexo nao pode ser ligado.");
+        if (!_mediaStorage.IsAvailable)
+            throw new ConflictException(
+                "Nao ha armazenamento configurado nesta instalacao, entao a configuracao de midia nao pode ser salva.");
     }
+
+    /// <summary>
+    /// O anexo existe de fato: o projeto ligou, e ha onde guardar.
+    ///
+    /// <para><b>Uma regra so para o painel e para as portas publicas.</b> Sem
+    /// armazenamento, as duas leituras dizem desligado, mesmo com o projeto tendo
+    /// ligado — a tela nao mostra ligado o que a ferramenta esconde. A escolha
+    /// gravada continua intacta, porque salvar e recusado, e volta a valer no dia
+    /// em que houver armazenamento.</para>
+    /// </summary>
+    private bool IsOffered(EffectiveMediaSettings vigente)
+        => vigente.IsEnabled && _mediaStorage.IsAvailable;
 
     /// <summary>
     /// Recusa anexo ligado sem nenhum tipo aceito.
@@ -278,6 +308,11 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
     /// <para>Quem resolve o padrao e <see cref="MediaSettingsDefaults.Resolve"/>, e
     /// nao esta tela: a rota que assina o envio le pela mesma funcao, e duas
     /// resolucoes seriam duas verdades.</para>
+    ///
+    /// <para><b>Sem armazenamento, o anexo sai desligado</b>, e o resto sai como esta
+    /// gravado. Ligado ali, a tela diria uma coisa e a ferramenta faria outra; o resto
+    /// intacto e o que mostra a escolha do projeto, que volta a valer quando houver
+    /// armazenamento.</para>
     /// </summary>
     private MediaSettingsViewModel Map(ProjectMediaSettings? settings)
     {
@@ -285,7 +320,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
 
         return new MediaSettingsViewModel(
             _mediaStorage.IsAvailable,
-            vigente.IsEnabled,
+            IsOffered(vigente),
             vigente.AllowsScreenCapture,
             vigente.AllowsOnInfoRequest,
             vigente.MaxFilesPerReport,

@@ -5,7 +5,7 @@ namespace Pds.Domain.ViewModels;
 /// <summary>Os limites de um tipo de midia neste projeto.</summary>
 /// <param name="Kind">Imagem ou video.</param>
 /// <param name="IsEnabled">Este tipo e aceito.</param>
-/// <param name="MaxCount">Quantos arquivos deste tipo cabem num relato.</param>
+/// <param name="MaxCount">Quantos arquivos deste tipo cabem em cada envio.</param>
 /// <param name="MaxBytes">Teto de tamanho de cada arquivo, em bytes.</param>
 /// <param name="MaxDurationSeconds">Duracao maxima, nula para o que nao tem duracao.</param>
 public record MediaKindLimitViewModel(
@@ -27,14 +27,20 @@ public record MediaKindLimitViewModel(
 /// Ha armazenamento configurado nesta instalacao.
 ///
 /// <para><b>Nao e configuracao do projeto, e por isso vem separado.</b> E o estado
-/// da instalacao inteira, e e o que a tela precisa para desligar o interruptor e
+/// da instalacao inteira, e e o que a tela precisa para travar o interruptor e
 /// dizer por que em vez de deixar alguem ligar uma coisa que falharia no
 /// envio.</para>
 /// </param>
-/// <param name="IsEnabled">O quadro mostra anexo.</param>
-/// <param name="AllowsScreenCapture">O botao de capturar a tela aparece.</param>
+/// <param name="IsEnabled">
+/// O quadro mostra anexo.
+///
+/// <para><b>Sem armazenamento nesta instalacao, vem falso</b>, mesmo que o projeto
+/// tenha ligado: a tela nao mostra ligado o que a ferramenta nao oferece. O que foi
+/// salvo continua guardado.</para>
+/// </param>
+/// <param name="AllowsScreenCapture">Os botoes de capturar e de gravar a tela aparecem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
-/// <param name="MaxFilesPerReport">Teto de arquivos por relato, somando os tipos.</param>
+/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, e cada resposta e outro.</param>
 /// <param name="Kinds">Os limites de cada tipo.</param>
 public record MediaSettingsViewModel(
     bool IsStorageAvailable,
@@ -52,7 +58,7 @@ public record MediaSettingsViewModel(
 /// depois de a pessoa escolher e recusar tarde.</para>
 /// </summary>
 /// <param name="Kind">Imagem ou video.</param>
-/// <param name="MaxCount">Quantos deste tipo cabem num relato.</param>
+/// <param name="MaxCount">Quantos deste tipo cabem em cada envio.</param>
 /// <param name="MaxBytes">Teto de tamanho de cada um.</param>
 /// <param name="MaxDurationSeconds">Duracao maxima, quando ha.</param>
 /// <param name="ContentTypes">Os tipos de arquivo aceitos nesta categoria.</param>
@@ -75,9 +81,9 @@ public record PublicMediaKindViewModel(
 /// falhar seria pior do que o botao nao existir.</para>
 /// </summary>
 /// <param name="IsEnabled">A ferramenta mostra anexo.</param>
-/// <param name="AllowsScreenCapture">O botao de capturar a tela aparece.</param>
+/// <param name="AllowsScreenCapture">Os botoes de capturar e de gravar a tela aparecem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
-/// <param name="MaxFilesPerReport">Teto de arquivos por relato, somando os tipos.</param>
+/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, e cada resposta e outro.</param>
 /// <param name="Kinds">Os tipos aceitos, com os limites de cada um.</param>
 public record PublicMediaSettingsViewModel(
     bool IsEnabled,
