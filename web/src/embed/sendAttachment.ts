@@ -54,7 +54,8 @@ export async function sendAttachment(
       return
     } catch (falha) {
       // 404: a permissao nao esta pendente nem virou anexo. 400: o arquivo sumiu, ou
-      // nao conferiu e foi descartado. Nos dois, recomeca; o resto e a resposta.
+      // mudou no meio da conferencia e foi descartado. Nos dois, recomeca; o resto —
+      // o 409 da recusa, inclusive — e a resposta.
       if (!isPanelError(falha) || (falha.status !== 404 && falha.status !== 400)) throw falha
     }
   }

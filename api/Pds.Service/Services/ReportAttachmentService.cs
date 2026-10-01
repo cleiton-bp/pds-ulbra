@@ -139,6 +139,12 @@ public class ReportAttachmentService : IReportAttachmentService
         if (!_mediaStorage.IsAvailable)
             throw new ConflictException(SemArmazenamento);
 
+        // **Duas recusas, e a tela trata cada uma de um jeito.** 400 fica para o pedido
+        // mal formado — o que so um cliente com defeito manda, e que ele mesmo corrige.
+        // Tudo o que a regra do projeto, o produto ou o proprio arquivo recusam e 409: o
+        // pedido estava certo, e mandar o mesmo arquivo de novo levaria a mesma
+        // resposta. E a tela, com o 409, diz "nao enviado" com o motivo, em vez de
+        // oferecer um "Tentar de novo" que nunca daria certo.
         var kind = dto.Kind ?? throw new ArgumentException("Informe de que tipo e o arquivo.");
 
         // **Antes de olhar o projeto, porque nao depende dele.** O video saiu do
@@ -147,7 +153,7 @@ public class ReportAttachmentService : IReportAttachmentService
         // jeito, mais adiante, como "esse tipo de arquivo" — e quem chama a rota na
         // mao nao saberia que e o video que deixou de existir.
         if (kind == MediaKindEnum.Video)
-            throw new ArgumentException($"{VideoRefused} Envie uma imagem.");
+            throw new ConflictException($"{VideoRefused} Envie uma imagem.");
 
         // Um arquivo vai com um envio so. Escolher um dos dois por conta propria
         // esconderia o erro de quem chamou, e o arquivo apareceria no lugar que ele
@@ -163,13 +169,12 @@ public class ReportAttachmentService : IReportAttachmentService
                 report.ProjectId, cancellationToken));
 
         if (!vigente.IsEnabled)
-            throw new ArgumentException("Este projeto nao aceita anexo.");
+            throw new ConflictException("Este projeto nao aceita anexo.");
 
         // O envio a que este arquivo pertence: a criacao do relato, a resposta que a
         // pessoa acabou de mandar, ou a reabertura que ela acabou de fazer. Cada um
-        // com a sua cota, e cada um com o seu prazo. Prazo vencido e 409, e nao 400:
-        // o pedido estava certo, o que fechou foi o envio — e a tela nao deve
-        // oferecer tentar de novo.
+        // com a sua cota, e cada um com o seu prazo. Prazo vencido e 409, como a regra:
+        // o pedido estava certo, o que fechou foi o envio.
         long? respostaId = null;
         long? reaberturaId = null;
         var agora = DateTime.UtcNow;
@@ -182,7 +187,7 @@ public class ReportAttachmentService : IReportAttachmentService
         if (dto.ForReply == true)
         {
             if (!vigente.AllowsOnInfoRequest)
-                throw new ArgumentException("Este projeto nao aceita anexo nas respostas.");
+                throw new ConflictException("Este projeto nao aceita anexo nas respostas.");
 
             var resposta = await _unitOfWork.ReportPublicComments.FindLatestFromReporterWithoutSessionAsync(
                 report.Id, teto, cancellationToken);
@@ -197,7 +202,7 @@ public class ReportAttachmentService : IReportAttachmentService
         else if (dto.ForReopen == true)
         {
             if (!vigente.AllowsOnReopen)
-                throw new ArgumentException("Este projeto nao aceita anexo na reabertura.");
+                throw new ConflictException("Este projeto nao aceita anexo na reabertura.");
 
             // A reabertura e achada aqui, e nao informada de fora: ver ForReopen. O
             // motivo pode ter ficado em branco, e o arquivo vai do mesmo jeito — o
@@ -221,21 +226,21 @@ public class ReportAttachmentService : IReportAttachmentService
         var limite = vigente.For(kind);
 
         if (limite is null || !limite.IsEnabled)
-            throw new ArgumentException("Este projeto nao aceita esse tipo de arquivo.");
+            throw new ConflictException("Este projeto nao aceita esse tipo de arquivo.");
 
         // O tipo e conferido antes de assinar para a recusa chegar antes do envio.
         // Quem escolheu um arquivo e esperou o envio terminar para ouvir "nao serve"
         // esperou a toa — e gastou a banda dele e o espaco do nosso balde.
         if (!MediaSignatures.IsAccepted(kind, contentType))
-            throw new ArgumentException("Esse formato de arquivo nao e aceito.");
+            throw new ConflictException("Esse formato de arquivo nao e aceito.");
 
         // Cada um com a sua frase: "passa do limite" dita de um arquivo vazio mandaria
         // a pessoa procurar um arquivo menor.
         if (tamanho < 1)
-            throw new ArgumentException("O arquivo esta vazio.");
+            throw new ConflictException("O arquivo esta vazio.");
 
         if (tamanho > limite.MaxBytes)
-            throw new ArgumentException($"O arquivo passa do limite deste projeto, que e de {FormatLimit(limite.MaxBytes)}.");
+            throw new ConflictException($"O arquivo passa do limite deste projeto, que e de {FormatLimit(limite.MaxBytes)}.");
 
         // Conferido aqui para recusar antes do envio, e nao para garantir o limite:
         // quem garante e a confirmacao, que conta de novo com a cota travada. 409,
@@ -360,12 +365,15 @@ public class ReportAttachmentService : IReportAttachmentService
         //
         // **Tipo sem limite nao tem os bytes conferidos.** A lista de formatos so
         // conhece o que o produto aceita, e o video pendente sairia daqui como "nao
-        // e do formato declarado" — um 400 que mente sobre um arquivo que e
-        // exatamente o que disse ser. A recusa certa e a da regra, com 409.
+        // e de um formato aceito" — uma recusa que mente sobre um arquivo que e
+        // exatamente o que disse ser. A recusa certa e a da regra.
+        //
+        // A frase fala do conteudo, e nao de uma "declaracao": quem relata so escolheu
+        // um arquivo, e quem disse o tipo foi o navegador, pela extensao.
         var arquivoRecusado =
             objeto is not null && limite is not null
                                && !MediaSignatures.Matches(attachment.ContentType, objeto.Leading)
-                ? "O arquivo enviado nao e do formato que foi declarado."
+                ? "O conteudo do arquivo nao e de um formato aceito."
                 : null;
 
         // Os nomes de envio, guardados antes de qualquer mudanca: confirmado, o anexo
@@ -444,11 +452,11 @@ public class ReportAttachmentService : IReportAttachmentService
                 ConfirmRefusal? motivo = null;
 
                 if (objeto is null)
-                    motivo = new ConfirmRefusal("O prazo para anexar este arquivo terminou.", IsAboutTheFile: false);
+                    motivo = new ConfirmRefusal("O prazo para anexar este arquivo terminou.", Retryable: false);
                 else if (arquivoRecusado is not null)
-                    motivo = new ConfirmRefusal(arquivoRecusado, IsAboutTheFile: true);
+                    motivo = new ConfirmRefusal(arquivoRecusado, Retryable: false);
                 else if (copiaRecusada)
-                    motivo = new ConfirmRefusal("O arquivo mudou depois de conferido.", IsAboutTheFile: true);
+                    motivo = new ConfirmRefusal("O arquivo mudou depois de conferido.", Retryable: true);
                 else if ((limite is null
                              ? NoLongerOffered(attachment.Kind)
                              : RuleRefusal(vigente, limite, attachment, objeto.SizeBytes)
@@ -456,7 +464,7 @@ public class ReportAttachmentService : IReportAttachmentService
                                    report.Id, attachment.PublicCommentId, attachment.ReopenedClosureId,
                                    attachment.Kind, vigente, limite, ct))
                          is { } regra)
-                    motivo = new ConfirmRefusal(regra, IsAboutTheFile: false);
+                    motivo = new ConfirmRefusal(regra, Retryable: false);
 
                 if (motivo is not null)
                 {
@@ -526,14 +534,14 @@ public class ReportAttachmentService : IReportAttachmentService
             await ApagarSemFalharAsync(attachment.ObjectKey);
             await ApagarSemFalharAsync(attachment.ThumbnailObjectKey);
 
-            // 400 quando o problema e o proprio arquivo, como sempre foi. 409 quando o
-            // arquivo estava certo e o que mudou foi o envio — que encheu ou venceu — ou
-            // a regra do projeto: o mesmo sentido do 409 de "sem armazenamento". Nos
-            // dois a mensagem diz que ele foi apagado, para ninguem esperar que ele
-            // apareca depois.
+            // 409 quando mandar o mesmo arquivo de novo levaria a mesma recusa: o envio
+            // encheu ou venceu, a regra do projeto mudou, ou o conteudo nao e de um
+            // formato aceito — o mesmo sentido do 409 no pedido. 400 so quando subir de
+            // novo resolve: o arquivo trocado no meio da conferencia. Nos dois a mensagem
+            // diz que ele foi apagado, para ninguem esperar que ele apareca depois.
             var mensagem = $"{recusa.Reason} O arquivo foi descartado.";
 
-            if (recusa.IsAboutTheFile)
+            if (recusa.Retryable)
                 throw new ArgumentException(mensagem);
 
             throw new ConflictException(mensagem);
@@ -878,10 +886,10 @@ public class ReportAttachmentService : IReportAttachmentService
     }
 
     /// <summary>
-    /// Por que a confirmacao recusou, e se a culpa e do proprio arquivo (400) ou do
-    /// envio e da regra do projeto (409).
+    /// Por que a confirmacao recusou, e se subir o arquivo de novo pode passar (400)
+    /// ou levaria a mesma recusa (409).
     /// </summary>
-    private sealed record ConfirmRefusal(string Reason, bool IsAboutTheFile);
+    private sealed record ConfirmRefusal(string Reason, bool Retryable);
 
     /// <summary>
     /// A regra do projeto ainda aceita este anexo.

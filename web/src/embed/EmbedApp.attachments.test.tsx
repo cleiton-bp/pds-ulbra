@@ -368,6 +368,24 @@ describe('o envio', () => {
     }
   })
 
+  // O dono desligou o anexo depois de o quadro abrir: a configuracao que o quadro leu
+  // ainda deixava, e a API recusa no pedido. Repetir levaria a mesma resposta.
+  it('projeto que deixou de aceitar anexo depois de o quadro abrir: não enviado, com o motivo', async () => {
+    dublê.criar.mockResolvedValue(criado)
+    dublê.enviar.mockRejectedValue(new PanelError('Este projeto nao aceita anexo.', 409))
+
+    montar()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    escolher(print())
+    await screen.findByRole('button', { name: 'Remover erro.png' })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await screen.findByText('não enviado')
+    expect(screen.getByText('Este projeto nao aceita anexo.')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(screen.getByText(/seu texto está salvo/)).toBeDefined()
+  })
+
   // O envio leva a lista como ela esta. Tirar um arquivo durante "Enviando…" nao o
   // impediria de subir — e o que sai da tela nao pode ir para o time —, e o que
   // entrasse ficaria "na fila" para sempre.

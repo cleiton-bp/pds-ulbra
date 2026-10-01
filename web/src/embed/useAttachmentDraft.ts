@@ -17,13 +17,15 @@ import {
 } from '@/embed/sendAttachment'
 
 /**
- * A API recusou o arquivo de vez: o envio fechou, encheu, ou a regra do projeto
- * mudou — e o arquivo ja foi descartado do lado de la.
+ * A API recusou o arquivo de vez: o envio fechou ou encheu, a regra do projeto nao o
+ * aceita — mudada depois de a tela abrir —, ou o proprio arquivo nao serve. O que
+ * ja tinha subido foi descartado do lado de la.
  *
  * **409 e a resposta que tentar de novo nao muda**, e e por isso que a tela nao
- * oferece. So as rotas da API respondem 409; o que o armazenamento recusa (400 de
- * tamanho, 403 de assinatura vencida) continua sendo falha, e tentar de novo pede
- * outra permissao.
+ * oferece: no pedido da permissao e na confirmacao, a API responde 409 a toda recusa
+ * que o mesmo arquivo levaria de novo. So as rotas da API respondem 409; o que o
+ * armazenamento recusa (400 de tamanho, 403 de assinatura vencida) continua sendo
+ * falha, e tentar de novo pede outra permissao.
  */
 function isRefusal(falha: unknown): boolean {
   return isPanelError(falha) && falha.status === 409

@@ -25,8 +25,9 @@ export interface Anexo {
   thumbnail: Blob | null
   /**
    * **Falhou e recusado sao estados diferentes.** Falhou e o que tentar de novo pode
-   * resolver — rede, armazenamento fora. Recusado e o 409 da API: o envio fechou ou a
-   * regra do projeto mudou, e repetir so levaria a mesma resposta.
+   * resolver — rede, armazenamento fora. Recusado e o 409 da API: o envio fechou ou
+   * encheu, a regra do projeto nao aceita, ou o arquivo nao serve — e repetir so
+   * levaria a mesma resposta.
    */
   status: 'waiting' | 'sending' | 'done' | 'failed' | 'refused'
   progress: number
