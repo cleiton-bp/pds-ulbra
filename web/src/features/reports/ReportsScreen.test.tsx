@@ -70,6 +70,9 @@ vi.mock('@/data', async (importOriginal) => {
   }
 })
 
+/** O papel de quem abre a tela. Administrador por padrao; o teste do membro troca. */
+const papel: { atual: ProjectViewModel['Role'] } = { atual: 'Administrator' }
+
 function projeto(publicId: string): ProjectViewModel {
   return {
     PublicId: publicId,
@@ -77,6 +80,9 @@ function projeto(publicId: string): ProjectViewModel {
     Status: 'Active',
     CreatedAt: '2026-08-01T12:00:00.000Z',
     UpdatedAt: '2026-08-01T12:00:00.000Z',
+    Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
+    Role: papel.atual,
+    IsAccountOwner: papel.atual === 'Administrator',
   }
 }
 
@@ -171,6 +177,7 @@ describe('ReportsScreen', () => {
   afterEach(cleanup)
 
   beforeEach(() => {
+    papel.atual = 'Administrator'
     dublê.listar.mockReset()
     dublê.abrir.mockReset()
     dublê.contar.mockReset()
@@ -223,6 +230,19 @@ describe('ReportsScreen', () => {
 
     expect(await screen.findByText('Nenhum relato ainda')).toBeTruthy()
     expect(screen.getByRole('link', { name: /instalar/ })).toBeTruthy()
+  })
+
+  it('para quem é só membro, a lista vazia não oferece instalar: quem instala é quem administra', async () => {
+    // O link levaria à Instalação, e a guarda devolveria o membro para cá — um
+    // clique que parece não fazer nada, na primeira tela dele.
+    papel.atual = 'Member'
+    dublê.listar.mockResolvedValue({ reports: [], total: 0 })
+
+    montar()
+
+    expect(await screen.findByText('Nenhum relato ainda')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /instalar/ })).toBeNull()
+    expect(screen.getByText(/Quem administra o projeto instala a ferramenta no site/)).toBeTruthy()
   })
 
   it('falha deixa tentar de novo, e a segunda tentativa pinta a lista', async () => {

@@ -10,8 +10,10 @@ import {
 } from '@/shared/components/DropdownMenu'
 
 /**
- * O nome da conta aparece no cabecalho porque a conta e a fronteira de isolamento:
- * quem nao sabe em que conta esta nao sabe de quem e o dado que ve.
+ * O cabecalho mostra a **conta propria** — a que nasceu no primeiro acesso, onde
+ * nascem os projetos que a pessoa cria. Os projetos de outras contas em que ela
+ * esta no time aparecem agrupados pela conta no hub e no seletor do topo, e nao
+ * aqui: este menu e da pessoa, e nao do projeto aberto.
  */
 export function AccountMenu() {
   const user = useSessionStore((state) => state.user)
@@ -59,7 +61,7 @@ export function AccountMenu() {
       <DropdownHeader>
         <div className="font-medium text-fg text-body">{user?.Name ?? 'Sessão'}</div>
         <div className="mt-0.5 text-detail text-fg-muted">{user?.Email ?? '—'}</div>
-        <div className="mt-2 text-detail text-fg-muted">{user?.Account.Name ?? '—'}</div>
+        <div className="mt-2 text-detail text-fg-muted">Sua conta: {user?.Account.Name ?? '—'}</div>
       </DropdownHeader>
 
       <DropdownSeparator />

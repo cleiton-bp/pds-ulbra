@@ -86,6 +86,9 @@ function projeto(publicId: string, name: string): ProjectViewModel {
     Status: 'Active',
     CreatedAt: '2026-08-01T12:00:00.000Z',
     UpdatedAt: '2026-08-01T12:00:00.000Z',
+    Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
+    Role: 'Administrator',
+    IsAccountOwner: true,
   }
 }
 

@@ -3,7 +3,11 @@
  * Datas sao texto ISO-8601 em UTC, nunca `Date` — converter so na borda.
  */
 
-/** Fronteira de isolamento: todo dado pertence a uma conta. */
+/**
+ * A conta propria da pessoa — a que nasceu no primeiro acesso, onde nascem os
+ * projetos que ela cria. Os projetos de outras contas chegam pela lista de projetos,
+ * cada um com a sua conta.
+ */
 export interface AccountViewModel {
   PublicId: string
   Name: string

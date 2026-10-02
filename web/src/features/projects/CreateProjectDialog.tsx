@@ -54,7 +54,13 @@ export function CreateProjectDialog({
       return
     }
 
-    if (projects.some((project) => project.Name.toLowerCase() === trimmed.toLowerCase())) {
+    // So os da conta propria: o projeto novo nasce nela, e o nome so precisa ser
+    // unico dentro da conta — o projeto de outra conta pode ter o mesmo nome.
+    if (
+      projects.some(
+        (project) => project.IsAccountOwner && project.Name.toLowerCase() === trimmed.toLowerCase(),
+      )
+    ) {
       setError('Você já tem um projeto com esse nome, escolha outro para não confundir os dois.')
       return
     }

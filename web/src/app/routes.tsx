@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AccountShell } from '@/app/AccountShell'
 import { ProjectShell } from '@/app/ProjectShell'
+import { ProjectHome, RequireProjectAdministrator } from '@/app/projectAccessRoutes'
 import { RequireSession } from '@/app/RequireSession'
 import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
 import { IdentityScreen } from '@/features/identity/IdentityScreen'
@@ -22,6 +23,10 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  *   /projects .......................... hub, casca so com barra de cima
  *   /projects/:publicId/{start,keys,tool,states,public-stages,settings} .. console, com menu lateral
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
+ *
+ * `/projects/:publicId` sozinho decide a porta pelo papel: quem configura cai na
+ * Instalação, quem e so membro cai nos Relatos. As secoes de Configuração ficam
+ * atras de `RequireProjectAdministrator`, que manda o membro para os Relatos.
  *
  * `createBrowserRouter` e nao o modo simples porque dele vem o `useBlocker`, que
  * avisa antes de sair da tela com a chave secreta na frente.
@@ -60,16 +65,22 @@ export const router = createBrowserRouter([
         path: 'projects/:publicId',
         element: <ProjectShell />,
         children: [
-          { index: true, element: <Navigate to="start" replace /> },
-          { path: 'start', element: <StartScreen /> },
-          { path: 'keys', element: <ProjectKeysScreen /> },
-          { path: 'states', element: <ProjectStatesScreen /> },
-          { path: 'public-stages', element: <PublicStagesScreen /> },
-          { path: 'cycle', element: <CycleSettingsScreen /> },
-          { path: 'identity', element: <IdentityScreen /> },
-          { path: 'media', element: <MediaScreen /> },
+          { index: true, element: <ProjectHome /> },
+          {
+            element: <RequireProjectAdministrator />,
+            children: [
+              { path: 'start', element: <StartScreen /> },
+              { path: 'keys', element: <ProjectKeysScreen /> },
+              { path: 'states', element: <ProjectStatesScreen /> },
+              { path: 'public-stages', element: <PublicStagesScreen /> },
+              { path: 'cycle', element: <CycleSettingsScreen /> },
+              { path: 'identity', element: <IdentityScreen /> },
+              { path: 'media', element: <MediaScreen /> },
+              { path: 'settings', element: <ProjectSettingsScreen /> },
+              { path: 'tool', element: <WidgetSettingsScreen /> },
+            ],
+          },
           { path: 'moderation', element: <ModerationScreen /> },
-          { path: 'settings', element: <ProjectSettingsScreen /> },
           {
             // O relato aberto e filho da lista: a lista continua montada atras,
             // com o recorte e a rolagem onde estavam, e o dialogo ganha endereco
@@ -78,7 +89,6 @@ export const router = createBrowserRouter([
             element: <ReportsScreen />,
             children: [{ path: ':reportPublicId', element: <ReportDetailRoute /> }],
           },
-          { path: 'tool', element: <WidgetSettingsScreen /> },
         ],
       },
     ],
