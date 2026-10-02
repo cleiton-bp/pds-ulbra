@@ -3,13 +3,13 @@
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>report_id</code></td><td>Relato comentado.</td></tr>
-  <tr><td><code>user_id</code></td><td>Quem escreveu, do lado de dentro. <b>Obrigatório no interno</b>: comentário sem autor não serve para decidir nada depois. <b>Anulável no público</b> desde a etapa 5, e ali nulo quer dizer que quem escreveu foi <b>quem relatou</b>.</td></tr>
+  <tr><td><code>user_id</code></td><td>Quem escreveu, do lado de dentro. <b>Obrigatório no interno</b>: comentário sem autor não serve para decidir nada depois. <b>Anulável no público</b>, e ali nulo quer dizer que quem escreveu foi <b>quem relatou</b>, respondendo a um pedido de informação.</td></tr>
   <tr><td><code>body</code></td><td>O texto. 5000 nas duas — limites separados de propósito, porque o público sai para fora e pode ganhar regra própria.</td></tr>
 </table>
 
 <div class="note warn">
   <strong>Duas tabelas, e não uma com campo de visibilidade</strong>
-  <p>É a decisão mais importante desta etapa. Com um sinalizador, vazar o comentário interno é
+  <p>É a decisão mais importante desta parte do banco. Com um sinalizador, vazar o comentário interno é
   esquecer um filtro numa consulta — e o esquecimento não dá erro em lugar nenhum: a resposta sai
   com uma linha a mais. Com tabelas separadas, vazar exige escrever uma consulta que não existe e
   que ninguém teria motivo para escrever.</p>
@@ -35,7 +35,7 @@
   <tr><td><code>satisfaction</code></td><td>Nota de 1 a 5 dada na confirmação. Nula quando não houve resposta — e nula também quando houve recusa, que é outra coisa.</td></tr>
   <tr><td><code>satisfaction_declined</code></td><td>A pessoa clicou em "prefiro não responder".</td></tr>
   <tr><td><code>reopened_at</code></td><td>Quando quem relatou reabriu. Preenchido, esta linha deixou de ser o fim do relato.</td></tr>
-  <tr><td><code>reopen_comment</code></td><td>Por que reabriu, quando o projeto pede. É para quem for pegar o trabalho de novo, e não para justificar o pedido.</td></tr>
+  <tr><td><code>reopen_comment</code></td><td>Por que reabriu, nas palavras de quem relatou. Obrigatório quando o projeto pede; sem o pedido, pode ficar em branco. É para quem for pegar o trabalho de novo, e não para justificar o pedido — e é lido dos dois lados: no relato aberto no painel e na página de quem relatou, com os arquivos que vieram na reabertura logo junto dele.</td></tr>
 </table>
 
 <div class="note why">

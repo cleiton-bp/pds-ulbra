@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PanelAttachmentViewModel, ReportCommentsViewModel } from '@/contracts'
 import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
-import { ReportComments } from '@/features/reports/ReportComments'
+import { ReportComments, useReportComments } from '@/features/reports/ReportComments'
 
 /**
  * O QUE ESTES TESTES TRAVAM.
@@ -16,6 +16,10 @@ import { ReportComments } from '@/features/reports/ReportComments'
  *
  * **A caixa interna nunca mostra arquivo**, mesmo que alguem passe um para ela. E a
  * estrutura que garante: so a caixa publica recebe o mapa.
+ *
+ * **O arquivo que nao acha a sua fala cai embaixo do relato, e nao some** — a conversa
+ * que nao carregou, a resposta que chegou com o dialogo aberto. Enquanto a conversa
+ * carrega, ele espera, em vez de aparecer num lugar e pular para outro.
  *
  * **Relato sem arquivo nao ganha secao**, e o time ve o nome original, que do lado
  * de fora nunca sai.
@@ -36,6 +40,7 @@ function anexo(mudanca: Partial<PanelAttachmentViewModel> = {}): PanelAttachment
     PublicId: 'a-1',
     Kind: 'Image',
     DisplaySize: 'Full',
+    ContentType: 'image/png',
     Url: 'http://armazenamento/inteiro',
     ThumbnailUrl: 'http://armazenamento/miniatura',
     ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -51,9 +56,10 @@ function anexo(mudanca: Partial<PanelAttachmentViewModel> = {}): PanelAttachment
   }
 }
 
-/** Monta como o dialogo monta: uma leitura, duas telas. */
+/** Monta como o dialogo monta: a conversa e os arquivos lidos uma vez, duas telas. */
 function Dialogo() {
-  const anexos = useReportAttachments('p-1', 'r-1')
+  const conversa = useReportComments('p-1', 'r-1')
+  const anexos = useReportAttachments('p-1', 'r-1', null, conversa.falas)
   return (
     <>
       <ReportAttachments
@@ -65,6 +71,7 @@ function Dialogo() {
       <ReportComments
         projectPublicId="p-1"
         reportPublicId="r-1"
+        conversa={conversa}
         aoComentar={() => {}}
         anexosPorFala={anexos.porFala}
         aoExpirar={anexos.refresh}
@@ -141,7 +148,8 @@ describe('os arquivos no relato do painel', () => {
 
   it('a caixa interna nunca mostra arquivo, mesmo recebendo um', async () => {
     // Um arquivo apontando para uma fala interna nao deveria existir. Se existir, a
-    // caixa interna nao tem por onde mostra-lo.
+    // caixa interna nao tem por onde mostra-lo — e ele cai embaixo do relato, como
+    // qualquer arquivo cuja fala nao esta na conversa publica.
     dublê.listar.mockResolvedValue([
       anexo({ OriginalName: 'nao-deveria.png', ReplyPublicId: 'i-1' }),
     ])
@@ -149,7 +157,100 @@ describe('os arquivos no relato do painel', () => {
     render(<Dialogo />)
 
     await screen.findByText('nota interna')
-    expect(screen.queryByRole('img', { name: /nao-deveria\.png/ })).toBeNull()
+    const doRelato = await screen.findByRole('list', { name: 'Imagens do relato' })
+    expect(within(doRelato).getByRole('img', { name: /nao-deveria\.png/ })).toBeDefined()
+    expect(screen.getAllByRole('img', { name: /nao-deveria\.png/ })).toHaveLength(1)
+    expect(screen.queryByRole('list', { name: 'Imagens da resposta' })).toBeNull()
+  })
+
+  it('o arquivo de uma resposta que nao esta na conversa cai embaixo do relato, e nao some', async () => {
+    // A resposta chegou com o dialogo aberto: a renovacao dos enderecos trouxe o
+    // arquivo, e a conversa, lida antes, nao tem a fala.
+    dublê.listar.mockResolvedValue([
+      anexo({ PublicId: 'a-1', OriginalName: 'da-criacao.png' }),
+      anexo({
+        PublicId: 'a-2',
+        OriginalName: 'resposta-nova.png',
+        CameWithReply: true,
+        ReplyPublicId: 'c-9',
+      }),
+    ])
+    dublê.comentarios.mockResolvedValue(conversa)
+    render(<Dialogo />)
+
+    await screen.findByText('segue a tela')
+    const doRelato = await screen.findByRole('list', { name: 'Imagens do relato' })
+    const nomes = within(doRelato)
+      .getAllByRole('img')
+      .map((img) => img.getAttribute('alt'))
+    // Depois dos da criacao, e nao no meio deles.
+    expect(nomes).toEqual([
+      'Imagem 1 de 2: da-criacao.png · 120 KB',
+      'Imagem 2 de 2: resposta-nova.png · 120 KB · veio numa resposta',
+    ])
+  })
+
+  it('o de uma reabertura que nao esta na tela tambem cai embaixo do relato, dizendo de onde veio', async () => {
+    dublê.listar.mockResolvedValue([
+      anexo({ OriginalName: 'ainda-quebra.png', CameWithReopen: true, ReopenPublicId: 'fx-1' }),
+    ])
+    dublê.comentarios.mockResolvedValue(conversa)
+    // O detalhe falhou: nenhuma reabertura na tela.
+    function SemReaberturas() {
+      const leitura = useReportComments('p-1', 'r-1')
+      const anexos = useReportAttachments('p-1', 'r-1', new Set(), leitura.falas)
+      return (
+        <ReportAttachments
+          anexos={anexos.daCriacao}
+          failed={anexos.failed}
+          onReload={anexos.reload}
+          onExpired={anexos.refresh}
+        />
+      )
+    }
+    render(<SemReaberturas />)
+
+    expect(
+      await screen.findByRole('img', {
+        name: 'Imagem anexada: ainda-quebra.png · 120 KB · veio numa reabertura',
+      }),
+    ).toBeDefined()
+  })
+
+  it('a conversa que nao carregou: o arquivo da resposta cai embaixo do relato', async () => {
+    dublê.listar.mockResolvedValue([
+      anexo({ OriginalName: 'tela-pedida.png', CameWithReply: true, ReplyPublicId: 'c-1' }),
+    ])
+    dublê.comentarios.mockRejectedValue(new Error('rede'))
+    render(<Dialogo />)
+
+    await screen.findByText(/Não deu para carregar os comentários/)
+    const doRelato = await screen.findByRole('list', { name: 'Imagens do relato' })
+    expect(within(doRelato).getByRole('img', { name: /tela-pedida\.png/ })).toBeDefined()
+  })
+
+  it('enquanto a conversa carrega, o arquivo da resposta espera', async () => {
+    dublê.listar.mockResolvedValue([
+      anexo({ OriginalName: 'tela-pedida.png', CameWithReply: true, ReplyPublicId: 'c-1' }),
+    ])
+    let entregar!: (valor: ReportCommentsViewModel) => void
+    dublê.comentarios.mockReturnValue(
+      new Promise<ReportCommentsViewModel>((resolve) => {
+        entregar = resolve
+      }),
+    )
+    render(<Dialogo />)
+
+    // Os arquivos ja chegaram; a conversa, nao. Embaixo do relato ele apareceria e,
+    // um instante depois, pularia para a conversa.
+    await waitFor(() => expect(dublê.listar).toHaveBeenCalled())
+    await act(async () => {})
+    expect(screen.queryByRole('img', { name: /tela-pedida\.png/ })).toBeNull()
+
+    await act(async () => entregar(conversa))
+    const daResposta = await screen.findByRole('list', { name: 'Imagens da resposta' })
+    expect(within(daResposta).getByRole('img', { name: /tela-pedida\.png/ })).toBeDefined()
+    expect(screen.queryByRole('list', { name: 'Imagens do relato' })).toBeNull()
   })
 
   it('falha na leitura oferece tentar de novo, e tenta', async () => {

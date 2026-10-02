@@ -1,0 +1,313 @@
+<h2>Mídia: anexar e ler</h2>
+<p class="lead">Nove rotas: seis sem sessão, para a ferramenta e para quem relatou, e três no painel. O
+arquivo nunca passa pela API — ela autoriza, assina, confere e prende o anexo ao relato.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>Credencial</th><th>O que faz</th></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/media-settings</code></td><td>Chave pública, na URL</td><td>O que o quadro pode oferecer de anexo.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments</code></td><td>Protocolo e token</td><td>Pede permissão para enviar um arquivo. <strong>Com limitador.</strong></td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments/confirm</code></td><td>Protocolo e token</td><td>Confirma que o arquivo chegou, e prende o anexo ao relato. <strong>Com limitador.</strong></td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/attachments</code></td><td>Protocolo e token</td><td>Os arquivos do relato, para quem relatou.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/attachments</code></td><td>Chave, código pessoal e protocolo</td><td>A mesma lista, pela porta do código. Lê, e não age.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/media-settings</code></td><td>Protocolo e token</td><td>O que dá para anexar ao responder e ao reabrir.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>Sessão</td><td>A configuração de mídia do projeto, salva ou padrão.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>Sessão</td><td>Substitui a configuração inteira.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/attachments</code></td><td>Sessão</td><td>Os arquivos do relato, para o time, com o nome original.</td></tr>
+</table>
+</div>
+
+<h2>O envio, em três chamadas</h2>
+
+<pre><code>1  POST /public/reports/attachments               → API
+     TrackingCode, Token, Kind, ContentType, SizeBytes, FileName…
+     ← PublicId, File { Url, Fields, MaxBytes }, Thumbnail?, ExpiresAt
+
+2  POST {File.Url}   multipart/form-data           → armazenamento
+     cada campo de Fields, na ordem, e o arquivo por último
+     (o mesmo em Thumbnail.Url, quando há miniatura)
+
+3  POST /public/reports/attachments/confirm       → API
+     TrackingCode, Token, AttachmentPublicId
+     ← PublicId, Kind, SizeBytes</code></pre>
+
+<div class="note why">
+  <strong>O arquivo não passa pela API, e não vai passar</strong>
+  <p>Passar por ela significaria carregar megabytes na memória do servidor duas vezes, sem ganhar
+  nada. Tudo o mais é chamada nossa: pedir a permissão, decidir se aquela pessoa pode, aplicar os
+  limites do projeto e gravar que o anexo existe. O arquivo viaja sob regras que a API
+  assinou.</p>
+  <p><b>E é um formulário assinado, e não um endereço solto.</b> Um endereço assinado para gravar
+  diz o que gravar e onde, e não diz de que tamanho. O formulário leva a política junto, e o
+  armazenamento recusa, antes de gravar, o que não cumprir: o <code>Content-Type</code> exato que
+  foi pedido, o tamanho entre 1 byte e <code>MaxBytes</code>, e — no arquivo que não é imagem —
+  <code>Content-Disposition: attachment</code>. Os campos vão antes do arquivo porque o
+  armazenamento lê a política primeiro; arquivo antes dos campos é recusado.</p>
+  <p>A permissão vale <code>MEDIA_STORAGE_UPLOAD_URL_MINUTES</code> (2 de fábrica): é só o tempo de
+  o envio começar. Vazou, tem prazo.</p>
+</div>
+
+<h3><code>POST /public/reports/attachments</code></h3>
+
+<table>
+  <tr><th>Campo</th><th>Observação</th></tr>
+  <tr><td><code>TrackingCode</code>, <code>Token</code></td><td>O protocolo e o token do link. É o que diz de quem é o relato — assinar permissão para quem não tem relato nenhum seria assinar para qualquer um.</td></tr>
+  <tr><td><code>Kind</code></td><td><code>Image</code> ou <code>File</code>. <code>Video</code> recebe 409, qualquer que seja o projeto.</td></tr>
+  <tr><td><code>ContentType</code></td><td>O tipo que entra na assinatura. Na imagem, <code>image/png</code>, <code>image/jpeg</code> ou <code>image/webp</code>; no arquivo, o tipo que o catálogo dá à extensão.</td></tr>
+  <tr><td><code>SizeBytes</code></td><td>O tamanho que o navegador diz. Serve para recusar cedo; o que fica gravado é o que o armazenamento contar.</td></tr>
+  <tr><td><code>FileName</code></td><td>O nome na máquina de quem relata. No arquivo, é pela extensão dele que o formato é reconhecido. Guardado para o time, nunca mostrado fora.</td></tr>
+  <tr><td><code>WithThumbnail</code>, <code>ThumbnailContentType</code></td><td>Há miniatura para enviar junto, em <code>image/webp</code> (o padrão) ou <code>image/jpeg</code>, até 256 KB. Só na imagem.</td></tr>
+  <tr><td><code>DisplaySize</code></td><td><code>Small</code>, <code>Medium</code>, <code>Large</code> ou <code>Full</code>. Sem ele, <code>Full</code>.</td></tr>
+  <tr><td><code>DisplayOrder</code></td><td>A posição no envio, dentro da categoria, de 0 a 9. Sem ela, 0.</td></tr>
+  <tr><td><code>ForReply</code>, <code>ForReopen</code></td><td>O arquivo vai com a resposta ou com a reabertura que a pessoa acabou de fazer. Nenhum dos dois: vai com a criação. Os dois juntos: 400.</td></tr>
+</table>
+
+<p><strong>Resposta:</strong> <code>PublicId</code> (o anexo, que volta na confirmação),
+<code>File</code> e <code>Thumbnail</code> — cada um com <code>Url</code>, <code>Fields</code> e
+<code>MaxBytes</code>; <code>Thumbnail</code> é nulo sem miniatura — e <code>ExpiresAt</code>,
+quando as permissões deixam de valer.</p>
+
+<table>
+  <tr><th>Status</th><th>Quando</th></tr>
+  <tr><td><code>200</code></td><td>Formulário assinado. O anexo nasce <code>pending</code>.</td></tr>
+  <tr><td><code>400</code></td><td>Pedido mal formado: tipo ou tamanho não informados, <code>ForReply</code> e <code>ForReopen</code> juntos, miniatura em formato que não é WebP nem JPEG, miniatura num arquivo, tamanho de exibição fora da lista, posição fora de 0 a 9.</td></tr>
+  <tr><td><code>404</code></td><td>O link não abre nenhum relato.</td></tr>
+  <tr><td><code>409</code></td><td>A regra ou o próprio arquivo recusam: vídeo, zip, projeto sem anexo (ou sem anexo na resposta, ou na reabertura), tipo desligado, formato recusado, arquivo vazio ou grande demais, envio cheio, prazo do envio terminado — ou instalação sem armazenamento.</td></tr>
+  <tr><td><code>429</code></td><td>Muitos pedidos de envio a partir do mesmo IP.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>O envio tem hora, e a hora anda com ele</strong>
+  <p>São três envios, cada um com a sua cota e sem total entre as categorias: a criação do relato,
+  cada resposta ao time e cada reabertura. O navegador nunca diz qual resposta ou qual reabertura —
+  o servidor acha a que acabou de acontecer, porque aceitar um identificador vindo de fora
+  obrigaria a conferir de quem ele é.</p>
+  <p>O envio aceita arquivo nos <b>15 minutos</b> depois do texto, e continua aberto enquanto um
+  arquivo dele tiver a permissão pedida, ou terminar, nos últimos 15 minutos — até <b>1 hora</b>
+  depois do texto. É o que deixa o último de muitos arquivos grandes, numa conexão lenta, chegar
+  sem ser recusado; o teto é o que impede o envio de ficar aberto para sempre. Cada permissão tem
+  então 1 hora, contada de quando foi pedida, para ser confirmada.</p>
+</div>
+
+<h3><code>POST /public/reports/attachments/confirm</code></h3>
+
+<table>
+  <tr><th>Campo</th><th>Observação</th></tr>
+  <tr><td><code>TrackingCode</code>, <code>Token</code></td><td>As mesmas credenciais do pedido.</td></tr>
+  <tr><td><code>AttachmentPublicId</code></td><td>O <code>PublicId</code> que veio com a permissão.</td></tr>
+</table>
+
+<p><strong>Resposta:</strong> <code>PublicId</code>, <code>Kind</code> e <code>SizeBytes</code> — o
+tamanho real, contado pelo armazenamento —, com a mensagem "Anexo recebido."</p>
+
+<table>
+  <tr><th>Status</th><th>Quando</th></tr>
+  <tr><td><code>200</code></td><td>Anexo confirmado — agora, ou antes, por outra confirmação do mesmo anexo.</td></tr>
+  <tr><td><code>400</code></td><td>Subir de novo pode resolver: o arquivo não chegou, ou mudou depois de conferido (e foi descartado).</td></tr>
+  <tr><td><code>404</code></td><td>O link não abre nenhum relato, ou não há anexo pendente nem confirmado com esse identificador neste relato.</td></tr>
+  <tr><td><code>409</code></td><td>Tentar de novo não muda, e o arquivo foi descartado: conteúdo que não é de um formato aceito, envio cheio, regra do projeto que mudou depois da permissão, permissão com mais de 1 hora, vídeo ou zip pedidos antes de saírem do produto. Ou instalação sem armazenamento.</td></tr>
+  <tr><td><code>429</code></td><td>Muitos pedidos de envio a partir do mesmo IP.</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>A assinatura garante o rótulo; a confirmação garante o conteúdo</strong>
+  <p>Nada impede quem obteve a permissão de pôr bytes de qualquer coisa num objeto marcado como
+  imagem. Por isso a confirmação lê o <b>primeiro quilobyte</b> e confere a marca do formato — PNG,
+  JPEG, WebP; <code>%PDF-</code>; texto sem byte zero e com quase nenhum caractere de controle —
+  e nenhum dos dois com a marca do zip; a marca do zip no <code>.xlsx</code> e no
+  <code>.docx</code>, e no ODF também o tipo que o arquivo declara dentro dele. Confere também o tipo que
+  o armazenamento gravou, e a miniatura, que vem de fora como o arquivo: miniatura que não confere
+  é apagada, e o anexo vale sem ela.</p>
+  <p><b>A cota é contada de novo, e é esta contagem que vale.</b> O pedido só conta o que já foi
+  confirmado, então várias permissões pedidas antes da primeira confirmação enxergam a mesma vaga.
+  Aqui a contagem é feita com a cota do relato travada, uma confirmação por vez. A regra do projeto
+  também é conferida de novo: o dono que desliga a mídia um minuto depois da permissão espera que
+  nada mais entre.</p>
+  <p>O que passa é <b>copiado</b> de <code>uploads/</code> para <code>media/</code> exigindo o ETag
+  lido na conferência — trocado o conteúdo depois dela, a cópia é recusada. O que não passa sai do
+  armazenamento, e a mensagem termina em "O arquivo foi descartado.", para ninguém esperar que ele
+  apareça depois. Ver <a href="#/modelagem/midia">os nomes no armazenamento</a>.</p>
+</div>
+
+<div class="note why">
+  <strong>Confirmar duas vezes responde 200</strong>
+  <p>A resposta da primeira confirmação pode se perder na rede, e quem tenta de novo precisa ouvir
+  que o arquivo entrou — e não recomeçar o envio, pondo o mesmo print duas vezes no relato. Sem
+  esta chamada, o anexo não existe para o produto: não aparece, e não conta no limite.</p>
+</div>
+
+<div class="note why">
+  <strong>409 é a recusa que tentar de novo não muda; 400, o pedido mal formado</strong>
+  <p>O que a regra do projeto, o produto ou o próprio arquivo recusam é 409: o pedido estava certo,
+  e o mesmo arquivo levaria a mesma resposta. A ferramenta mostra "não enviado", com o motivo, em
+  vez de oferecer um "Tentar de novo" que nunca daria certo. 400 fica para o que só um cliente com
+  defeito manda — e, na confirmação, para o único caso em que subir de novo resolve.</p>
+</div>
+
+<h2>As leituras</h2>
+
+<h3><code>GET /public/media-settings</code> e <code>POST /public/reports/tracking/media-settings</code></h3>
+
+<p>A primeira recebe <code>key</code> e <code>origin</code> na URL — é a ferramenta, antes de
+desenhar qualquer coisa. A segunda recebe <code>TrackingCode</code> e <code>Token</code> no corpo:
+é a página de acompanhamento, que chegou pelo link e não tem a chave pública. As duas respondem a
+mesma forma, montada pela mesma função:</p>
+
+<table>
+  <tr><th>Campo</th><th>Observação</th></tr>
+  <tr><td><code>IsEnabled</code></td><td>A ferramenta mostra anexo. <b>Falso sem armazenamento nesta instalação</b>, mesmo com o projeto tendo ligado.</td></tr>
+  <tr><td><code>AllowsScreenCapture</code></td><td>O botão de capturar uma área da página aparece.</td></tr>
+  <tr><td><code>AllowsOnInfoRequest</code>, <code>AllowsOnReopen</code></td><td>Dá para anexar ao responder, e ao reabrir.</td></tr>
+  <tr><td><code>Kinds</code></td><td>Só os tipos ligados, cada um com <code>Kind</code>, <code>MaxCount</code>, <code>MaxBytes</code>, <code>ContentTypes</code> e <code>Types</code> — cada extensão aceita com o tipo que o envio deve declarar para ela. <code>MaxDurationSeconds</code> vem sempre nulo.</td></tr>
+</table>
+
+<table>
+  <tr><th>Status</th><th>Quando</th></tr>
+  <tr><td><code>200</code></td><td>O que dá para oferecer. Projeto que nunca salvou recebe os padrões.</td></tr>
+  <tr><td><code>401</code></td><td>Só na primeira: chave pública ausente, desconhecida ou revogada.</td></tr>
+  <tr><td><code>403</code></td><td>Só na primeira: o endereço declarado não está na lista do projeto.</td></tr>
+  <tr><td><code>404</code></td><td>Só na segunda: o link não abre nenhum relato.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Os tipos vêm com as extensões, e o vídeo não vem</strong>
+  <p>A ferramenta não tem o que fazer com um tipo que o projeto recusa, e listar o que não serve
+  daria a quem inspeciona um mapa do outro lado. As extensões permitem ao seletor do navegador já
+  filtrar o que não serve — recusar depois de a pessoa escolher é recusar tarde. E o arquivo é
+  reconhecido pela extensão, e não pelo tipo que o navegador deduz: o <code>.log</code> chega sem
+  tipo, e o <code>.csv</code> chega como planilha do Excel no Windows.</p>
+  <p><code>MaxDurationSeconds</code> continua na resposta, sempre nulo, porque o quadro guardado
+  no navegador antes de o vídeo sair lê a ausência dele como "tem duração", e recusaria todo
+  print.</p>
+</div>
+
+<h3><code>POST /public/reports/tracking/attachments</code> e <code>POST /public/reports/by-code/attachments</code></h3>
+
+<p>A primeira pelo link (<code>TrackingCode</code>, <code>Token</code>); a segunda pelo código
+pessoal (<code>Key</code>, <code>Code</code>, <code>TrackingCode</code>). A mesma lista, em
+<code>Data</code>, com <code>Total</code>:</p>
+
+<table>
+  <tr><th>Campo</th><th>Observação</th></tr>
+  <tr><td><code>PublicId</code>, <code>Kind</code>, <code>ContentType</code>, <code>SizeBytes</code></td><td>O anexo, o tipo e o tipo gravado — conferido pelos bytes, e por ele que a tela diz "PDF" ou "planilha" —, e o tamanho real.</td></tr>
+  <tr><td><code>DisplaySize</code></td><td>O tamanho que quem relatou escolheu.</td></tr>
+  <tr><td><code>Url</code>, <code>ThumbnailUrl</code></td><td>Endereços de leitura assinados na hora. <code>ThumbnailUrl</code> é nulo sem miniatura.</td></tr>
+  <tr><td><code>ExpiresAt</code></td><td>Quando o <b>primeiro</b> endereço do anexo deixa de servir — o do arquivo ou o da miniatura. É antes dele que a tela pede a lista de novo.</td></tr>
+  <tr><td><code>ReplyPublicId</code>, <code>ReopenPublicId</code></td><td>A resposta ou a reabertura em que o arquivo veio, para a tela o mostrar no lugar de onde veio.</td></tr>
+  <tr><td><code>DurationSeconds</code>, <code>CreatedAt</code></td><td>A duração, só dos vídeos antigos, e quando o anexo entrou.</td></tr>
+</table>
+
+<table>
+  <tr><th>Status</th><th>Quando</th></tr>
+  <tr><td><code>200</code></td><td>Os anexos confirmados, na ordem em que quem relatou montou cada envio.</td></tr>
+  <tr><td><code>401</code></td><td>Só pelo código: chave pública inválida.</td></tr>
+  <tr><td><code>404</code></td><td>O link, ou o código com o protocolo, não abre nenhum relato — sempre a mesma mensagem.</td></tr>
+  <tr><td><code>409</code></td><td>Não há armazenamento configurado nesta instalação, e o relato tem anexo. Relato sem anexo responde 200, com a lista vazia.</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>Sem o nome original, num tipo próprio</strong>
+  <p>A resposta pública é outro tipo, e não o do painel com um campo a menos. Com um tipo só, o
+  campo acrescentado amanhã ao do painel sairia aqui sem ninguém decidir — e vazamento por
+  serialização não dá erro em teste nenhum. O nome original nem existe neste tipo.</p>
+  <p><code>by-code/attachments</code> lê e não age, e <b>não grava visualização</b>: quem grava é
+  a abertura do relato, que vem antes.</p>
+</div>
+
+<h3><code>GET /projects/{publicId}/reports/{reportPublicId}/attachments</code></h3>
+
+<p>A mesma lista para o time, com três campos a mais: <code>OriginalName</code>, o nome que o
+arquivo tinha na máquina de quem relatou; <code>CameWithReply</code> e
+<code>CameWithReopen</code>, ao lado de <code>ReplyPublicId</code> e <code>ReopenPublicId</code>.
+<code>ReopenPublicId</code> é o mesmo identificador de <code>Reopenings</code> no detalhe do relato,
+e é o que põe cada arquivo junto do motivo com que veio.</p>
+
+<table>
+  <tr><th>Status</th><th>Quando</th></tr>
+  <tr><td><code>200</code></td><td>Os anexos confirmados, na ordem de cada envio.</td></tr>
+  <tr><td><code>404</code></td><td>Projeto ou relato não existe, ou pertence a outra conta.</td></tr>
+  <tr><td><code>409</code></td><td>Não há armazenamento configurado nesta instalação, e o relato tem anexo. Relato sem anexo responde 200, com a lista vazia.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>O endereço nasce depois da autorização, e morre em minutos</strong>
+  <p>Uma assinatura é uma autorização em forma de texto: gerar antes de conferir seria entregar a
+  chave e perguntar depois. Nas três listas, a porta — sessão, link ou código — vem primeiro, e só
+  então os endereços são assinados. Nenhum está guardado em lugar nenhum; pedir de novo gera
+  outros. Valem <code>MEDIA_STORAGE_READ_URL_MINUTES</code> (5 de fábrica), e o vídeo antigo
+  <code>MEDIA_STORAGE_PLAYBACK_URL_MINUTES</code> (15): ele é lido em pedaços enquanto toca, e
+  pausar não pode quebrar a reprodução.</p>
+  <p>As três listas e <code>tracking/media-settings</code> saem com
+  <code>Cache-Control: no-store</code>. Guardados num proxy, os endereços continuariam valendo até
+  vencer.</p>
+  <p>Sem armazenamento, a lista de um relato que tem anexo responde 409, e não vazia: vazia, o
+  time acharia que o relato nunca teve anexo. A de um relato sem anexo continua vazia, com 200 —
+  não há o que assinar.</p>
+</div>
+
+<div class="note warn">
+  <strong>O arquivo que não é imagem só baixa</strong>
+  <p>O endereço dele sai com <code>application/octet-stream</code> e
+  <code>Content-Disposition: attachment</code> dentro da própria assinatura — trocar na barra
+  invalida o endereço. Nem o navegador de quem relatou nem o do time abre um PDF, um log ou uma planilha
+  na página. Do lado de fora ele baixa como <code>anexo</code> com a extensão; no painel, com o
+  nome original, sempre terminando numa extensão do catálogo.</p>
+</div>
+
+<h2>A configuração, no painel</h2>
+
+<h3><code>GET /projects/{publicId}/media-settings</code></h3>
+
+<table>
+  <tr><th>Campo</th><th>Observação</th></tr>
+  <tr><td><code>IsStorageAvailable</code></td><td>Há armazenamento nesta instalação. Não é configuração do projeto, e por isso vem separado: é o que a tela usa para travar o interruptor e dizer por quê.</td></tr>
+  <tr><td><code>IsEnabled</code></td><td>O quadro mostra anexo. Falso sem armazenamento, mesmo com o projeto tendo ligado.</td></tr>
+  <tr><td><code>AllowsScreenCapture</code>, <code>AllowsOnInfoRequest</code>, <code>AllowsOnReopen</code></td><td>Captura, anexo na resposta, anexo na reabertura.</td></tr>
+  <tr><td><code>Kinds</code></td><td>Todo tipo que o produto oferece — imagem e arquivo —, mesmo o nunca salvo: <code>Kind</code>, <code>IsEnabled</code>, <code>MaxCount</code>, <code>MaxBytes</code>, <code>Formats</code>, e <code>MaxDurationSeconds</code> sempre nulo.</td></tr>
+  <tr><td><code>FileFormats</code></td><td>O catálogo, para a tela marcar: <code>Key</code>, <code>IsDefault</code> e <code>Extensions</code>. Vem da API porque é ela que confere os bytes de cada formato.</td></tr>
+</table>
+
+<p><code>200</code> com a configuração, salva ou padrão — nunca 404 para um projeto que existe —, e
+<code>404</code> para projeto que não existe ou é de outra conta.</p>
+
+<h3><code>PUT /projects/{publicId}/media-settings</code></h3>
+
+<table>
+  <tr><th>Campo</th><th>Observação</th></tr>
+  <tr><td><code>IsEnabled</code>, <code>AllowsScreenCapture</code>, <code>AllowsOnInfoRequest</code>, <code>AllowsOnReopen</code></td><td>Obrigatórios. <code>AllowsOnReopen</code> ausente pede para recarregar a página: só a tela aberta antes da chave existir o deixa de fora.</td></tr>
+  <tr><td><code>Kinds</code></td><td>Um item por tipo, sem repetir: <code>Kind</code>, <code>IsEnabled</code>, <code>MaxCount</code> (1 a 10), <code>MaxBytes</code> (até 10 MB na imagem, 25 MB no arquivo) e, no arquivo, <code>Formats</code>.</td></tr>
+</table>
+
+<table>
+  <tr><th>Status</th><th>Quando</th></tr>
+  <tr><td><code>200</code></td><td>Configuração salva, com a mensagem "Configuração de mídia salva."</td></tr>
+  <tr><td><code>400</code></td><td>Campo ausente, limite fora do teto, tipo repetido ou desconhecido, <code>Video</code> ou o formato <code>zip</code> (mesmo desligados — os dois pedem para recarregar a página), anexo ligado sem imagem nem arquivo aceito, arquivo ligado sem formato, formato fora do catálogo.</td></tr>
+  <tr><td><code>404</code></td><td>Projeto não existe, ou pertence a outra conta.</td></tr>
+  <tr><td><code>409</code></td><td>Não há armazenamento nesta instalação — conferido antes do corpo, e vale também para salvar desligado.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Inteira, obrigatória, e o tipo que faltar fica como está</strong>
+  <p><b>Vai inteira</b> pelo mesmo motivo das outras configurações: salvar campo a campo faria duas
+  abas gravarem metades diferentes da mesma configuração sem ninguém notar.</p>
+  <p><b>Os campos não assumem o padrão quando faltam.</b> Aqui um número assumido é dinheiro gasto
+  sem ninguém ter decidido: cada limite é o que o projeto vai guardar, e guardar custa.</p>
+  <p><b>Tipo que a requisição não manda fica como está</b>, para uma versão antiga da tela não
+  apagar a configuração de um tipo que ela não conhece. <code>MaxFilesPerReport</code> e
+  <code>MaxDurationSeconds</code>, que telas antigas ainda mandam, são ignorados.</p>
+</div>
+
+<h2>Limite de tentativas</h2>
+
+<div class="note warn">
+  <strong>O pedido e a confirmação dividem a mesma janela</strong>
+  <p>As duas rotas de envio usam a política <code>media-upload</code>: janela fixa de um minuto por
+  IP, com <code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code> pedidos (20 de fábrica). Contam juntas
+  porque a primeira assina espaço no balde e a segunda lê do balde — separá-las daria a quem
+  martela o dobro da cota. É a única rota pública do sistema que gera custo em dinheiro, e a trava
+  mínima fica em cima dela.</p>
+  <p>O 429 sai no mesmo envelope das outras respostas, e o CORS roda antes do limitador: sem os
+  cabeçalhos dele, o navegador esconderia a recusa, e a tela veria "falha de rede" em vez de
+  "muitas tentativas". Atrás de proxy, o IP que conta é decidido por <code>TRUSTED_PROXIES</code>.
+  As leituras de mídia não têm limitador.</p>
+</div>

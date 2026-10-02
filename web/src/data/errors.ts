@@ -18,6 +18,21 @@ export function isPanelError(error: unknown): error is PanelError {
 }
 
 /**
+ * A falha que se repetiria igual: a API respondeu, e respondeu que nao — um 4xx,
+ * menos o 408 (demorou demais) e o 429 (muitas tentativas), que passam sozinhos.
+ *
+ * Rede caida (status 0) e erro do servidor (5xx) **nao** sao definitivos: tentar de
+ * novo daqui a pouco pode dar certo. Nem o erro que nao veio da camada de dados, que
+ * nao diz o que foi.
+ */
+export function isDefinitiveError(error: unknown): boolean {
+  if (!isPanelError(error)) return false
+
+  const { status } = error
+  return status >= 400 && status < 500 && status !== 408 && status !== 429
+}
+
+/**
  * Mensagem e status bastam enquanto a decisao da tela couber num numero (401
  * desloga, 404 nao encontrado, 409 nome repetido, 0 rede caida). O sinal de que
  * a hora de um codigo proprio chegou e o primeiro `if` que le a **mensagem** para

@@ -71,10 +71,10 @@ public class ReportAttachment : PdsBaseEntity
     public ReportClosure? ReopenedClosure { get; set; }
 
     /// <summary>
-    /// Imagem, ou video nos anexos antigos. E ele que diz qual limite do projeto se
-    /// aplica.
+    /// Imagem ou arquivo — ou video, nos anexos antigos. E ele que diz qual limite do
+    /// projeto se aplica.
     ///
-    /// <para>Anexo novo e sempre imagem: o video saiu do produto. Os videos
+    /// <para>Anexo novo e imagem ou arquivo: o video saiu do produto. Os videos
     /// confirmados antes disso continuam aqui, e continuam tocando.</para>
     /// </summary>
     public MediaKindEnum Kind { get; set; }
@@ -137,7 +137,7 @@ public class ReportAttachment : PdsBaseEntity
     /// </summary>
     public string? OriginalName { get; set; }
 
-    /// <summary>Quando a nossa API prendeu o anexo ao relato. Nulo e orfao.</summary>
+    /// <summary>Quando a nossa API prendeu o anexo ao relato. Nulo enquanto pendente.</summary>
     public DateTime? ConfirmedAt { get; set; }
 
     /// <summary>
@@ -148,8 +148,8 @@ public class ReportAttachment : PdsBaseEntity
     public AttachmentDisplaySizeEnum DisplaySize { get; set; } = DefaultDisplaySize;
 
     /// <summary>
-    /// A posicao da imagem no envio, a partir de zero — a ordem em que a pessoa as
-    /// montou.
+    /// A posicao no envio, a partir de zero, dentro da categoria — a ordem em que a
+    /// pessoa montou as imagens, e a dos arquivos, cada uma no seu bloco.
     ///
     /// <para><b>Guardada, e nao deduzida da hora de chegada.</b> Os arquivos sobem um
     /// de cada vez, e o que falhou e foi tentado de novo chega depois dos outros: pela

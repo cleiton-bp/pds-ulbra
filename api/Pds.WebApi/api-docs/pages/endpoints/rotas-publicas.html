@@ -1,5 +1,5 @@
 <h2>Rotas públicas</h2>
-<p class="lead">As nove que chegam sem sessão: a ferramenta no site do cliente, e quem relatou voltando pelo link ou pelo código.</p>
+<p class="lead">As quinze que chegam sem sessão: a ferramenta no site do cliente, e quem relatou voltando pelo link ou pelo código.</p>
 
 <div class="table-scroll">
 <table>
@@ -13,8 +13,16 @@
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reopen</code></td><td><strong>Sem sessão.</strong> Diz que não resolveu. O relato volta para a coluna que o projeto configurou.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/reply</code></td><td><strong>Sem sessão.</strong> Responde ao pedido de informação. Só enquanto houver pedido aberto.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/public/widget-settings</code></td><td><strong>Sem sessão.</strong> O que o próprio quadro lê para se desenhar, pela chave pública. Recebe também o endereço da página.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/public/media-settings</code></td><td><strong>Sem sessão.</strong> O que o quadro pode oferecer de anexo, pela chave pública e pelo endereço da página. Só os tipos ligados aparecem.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments</code></td><td><strong>Sem sessão, com limitador.</strong> Pede permissão para enviar um arquivo ao relato. Devolve um formulário assinado; o arquivo vai direto ao armazenamento.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments/confirm</code></td><td><strong>Sem sessão, com limitador.</strong> Confirma que o arquivo chegou: a API lê os primeiros bytes e prende o anexo ao relato.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/attachments</code></td><td><strong>Sem sessão.</strong> Os arquivos do relato, pelo link, com endereços de leitura que vencem em minutos.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/attachments</code></td><td><strong>Sem sessão.</strong> A mesma lista, pela porta do código pessoal. Lê, e não age.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/media-settings</code></td><td><strong>Sem sessão.</strong> O que dá para anexar ao responder e ao reabrir, para a página que chegou pelo link e não tem a chave pública.</td></tr>
 </table>
 </div>
+
+<p>Corpo, resposta e status das seis de mídia estão em <a href="#/endpoints/midia">Mídia: anexar e ler</a>.</p>
 
 <div class="note why">
   <strong>Uma leitura que é <code>POST</code>, e por quê</strong>
@@ -24,29 +32,32 @@
   corpo, não entra em nenhum dos três. É o mesmo cuidado que põe o token no
   <strong>fragmento</strong> do link (<code>#t=</code>), que é a parte que o navegador nunca
   envia a servidor nenhum.</p>
-  <p>E ela não é leitura pura: grava o evento de visualização com origem
+  <p>O mesmo vale para <code>tracking/attachments</code>, <code>by-code/attachments</code> e
+  <code>tracking/media-settings</code>, que também só leem e também levam segredo no corpo.</p>
+  <p>E <code>tracking</code> não é leitura pura: grava o evento de visualização com origem
   <code>public_page</code>. O intervalo entre o relato e a primeira olhada do time mede a reação;
   a volta de quem relatou mede se a camada pública serve para alguma coisa. Nenhum dos dois é
   reconstituível depois.</p>
 </div>
 
 <div class="note why">
-  <strong>A quinta rota chegou, e não coube na mesma porta</strong>
-  <p>Acompanhar, confirmar, reabrir e responder levam as mesmas credenciais no corpo — protocolo
-  e token — e as quatro entram por um único método, <code>RequireTrackedReportAsync</code>. Esta
-  página dizia que conferência espalhada por quatro rotas é conferência que uma quinta vai
-  esquecer. A quinta chegou: <code>POST /public/reports/by-code/open</code>.</p>
-  <p>E ela chega com <strong>outra credencial</strong> — código pessoal e protocolo, sem token
-  nenhum. Fazê-la entrar pela porta das outras quatro significaria afrouxar a conferência delas
-  para caber um caso que não tem token, que é o oposto do que a porta única existe para garantir.
-  Ela tem entrada própria, com as quatro recusas possíveis colapsadas numa mensagem só.</p>
-  <p>O que as cinco <strong>compartilham</strong> é a saída: todas respondem por
-  <code>BuildPublicAsync</code>, a mesma visão montada campo a campo, sem nome de quem é do time
-  e sem o vocabulário interno das colunas. E há uma assimetria de propósito — nas quatro do link
-  as ações chegam ligadas; na quinta, não. O código prova que o relato é dela, o link é que dá
-  poder sobre ele, e confirmar, reabrir e responder só aceitam o token.
-  <code>tracking_code_can_act</code> continua gravado e é ignorado até essas três rotas aceitarem
-  o código: obedecê-lo mostraria botões que a própria API recusaria.</p>
+  <strong>Duas portas, e cada rota entra por uma delas</strong>
+  <p>Oito rotas levam as mesmas credenciais no corpo — protocolo e token — e todas entram por um
+  único método, <code>TrackedReportGate.RequireAsync</code>: acompanhar, confirmar, reabrir,
+  responder, pedir permissão de anexo, confirmar o anexo, ler os arquivos e ler o que dá para
+  anexar. Conferência espalhada por oito rotas seria conferência que uma nona esqueceria.</p>
+  <p><code>by-code/open</code> e <code>by-code/attachments</code> chegam com <strong>outra
+  credencial</strong> — chave pública, código pessoal e protocolo, sem token nenhum — e entram por
+  <code>ReporterCodeGate.RequireAsync</code>, com as recusas possíveis colapsadas numa mensagem
+  só. Fazê-las entrar pela porta do link significaria afrouxar a conferência das outras para caber
+  um caso sem token, que é o oposto do que a porta única existe para garantir.</p>
+  <p>As que abrem o relato <strong>compartilham</strong> a saída: respondem por
+  <code>BuildPublicAsync</code>, a mesma visão montada campo a campo, sem nome de quem é do time e
+  sem o vocabulário interno das colunas. E há uma assimetria de propósito — pelo link as ações
+  chegam ligadas; pelo código, não. O código prova que o relato é dela, o link é que dá poder sobre
+  ele: confirmar, reabrir, responder e anexar só aceitam o token.
+  <code>tracking_code_can_act</code> fica gravado e é ignorado: obedecê-lo mostraria botões que a
+  própria API recusaria.</p>
 </div>
 
 <div class="note why">
@@ -57,27 +68,30 @@
   exatamente como se enumera código alheio.</p>
   <p>Projeto que não usa este modo responde igual, pelo mesmo motivo — dizer "aqui não tem código"
   contaria a configuração do cliente a qualquer um que colasse a chave pública numa requisição.</p>
-  <p>Em <code>by-code/open</code> a mesma disciplina vira uma recusa só: código em branco, código
-  que não existe, protocolo que não existe e protocolo que é <strong>de outra pessoa</strong>
-  recebem a mesma mensagem. Sem a última, qualquer código válido abriria qualquer protocolo do
-  projeto.</p>
+  <p>Em <code>by-code/open</code> e <code>by-code/attachments</code> o mesmo rigor vira uma recusa
+  só: código em branco, código que não existe, protocolo que não existe, protocolo que é
+  <strong>de outra pessoa</strong> e projeto que não usa o código recebem a mesma mensagem. Sem a
+  quarta, qualquer código válido abriria qualquer protocolo do projeto.</p>
 </div>
 
 <div class="note why">
   <strong>Uma consulta pública que é <code>GET</code>, e as outras não</strong>
   <p><code>GET /public/reports/published</code> destoa de propósito. Nas outras consultas públicas
-  o corpo carrega um <strong>segredo</strong> — o token do link, o código pessoal —, e segredo em
-  query string entra no log do servidor, no histórico do navegador e no <code>Referer</code>.</p>
+  de relato o corpo carrega um <strong>segredo</strong> — o token do link, o código pessoal —, e
+  segredo em query string entra no log do servidor, no histórico do navegador e no
+  <code>Referer</code>.</p>
   <p>Aqui não há segredo nenhum: a chave pública já está no código-fonte da página do cliente.
-  Fazer <code>POST</code> só por simetria esconderia que esta é a única consulta pública que não
-  identifica ninguém.</p>
+  Fazer <code>POST</code> só por simetria esconderia que esta é a única consulta de relatos que não
+  identifica ninguém. É o mesmo motivo de <code>/public/widget-settings</code> e
+  <code>/public/media-settings</code> serem <code>GET</code>.</p>
 </div>
 
 <div class="note warn">
   <strong>Escrever de fora só é possível quando o produto convidou</strong>
   <p><code>POST /public/reports/reply</code> é recusada quando não há pedido de informação aberto,
   e <code>reopen</code> quando o projeto desligou a reabertura. A vez volta para a equipe assim
-  que a pessoa responde.</p>
+  que a pessoa responde. Anexar segue a mesma regra: o arquivo só entra junto de um envio — a
+  criação, uma resposta, uma reabertura — e nos minutos logo depois dele.</p>
   <p>Canal sempre aberto viraria caixa de entrada sem dono. Quem relatou escreve
   <strong>quando lhe perguntaram</strong> — e isso continua valendo depois de a moderação existir:
   a fila decide o que vira público, e não quem pode escrever.</p>
@@ -96,11 +110,12 @@
 </div>
 
 <div class="note why">
-  <strong>Por que uma rota fica fora do padrão</strong>
-  <p>Quarenta e cinco rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro
-  dele. As nove de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site
+  <strong>Por que as rotas públicas ficam fora do padrão</strong>
+  <p>Quarenta e oito rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro
+  dele. As quinze de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site
   de um cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
-  que não autentica ninguém — ela apenas diz para qual projeto o relato vai.</p>
+  que não autentica ninguém — ela apenas diz para qual projeto o relato vai —, ou, nas rotas de
+  quem relatou, o protocolo junto do token do link ou do código pessoal.</p>
   <p>Chave ausente, desconhecida, revogada ou secreta recebem a mesma recusa, com a mesma
   mensagem: responder "esta chave existe, mas foi revogada" contaria a quem tenta que ele
   acertou metade. Ver <a href="#/isolamento/consultas-que-atravessam">a consulta que resolve o projeto pela chave</a>.</p>

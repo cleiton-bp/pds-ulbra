@@ -58,7 +58,6 @@ function media(mudanca: Partial<PublicMediaSettingsViewModel> = {}): PublicMedia
     AllowsScreenCapture: true,
     AllowsOnInfoRequest: true,
     AllowsOnReopen: true,
-    MaxFilesPerReport: 4,
     Kinds: [
       {
         Kind: 'Image',
@@ -140,7 +139,7 @@ describe('onde o botao aparece', () => {
 })
 
 describe('sem vaga para imagem', () => {
-  it('com quatro no total e tres imagens, os dois botoes desligam na terceira', async () => {
+  it('com tres imagens por envio, os dois botoes desligam na terceira', async () => {
     montar()
     const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
 

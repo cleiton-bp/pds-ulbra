@@ -91,7 +91,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.PublicReports,
-                Description = "A entrada do relato, vinda do site do cliente. A credencial é a chave pública, e ela só diz para onde o relato vai.",
+                Description = "O relato, do lado de quem relatou: a entrada vinda do site do cliente, com a chave pública — que só diz para onde o relato vai —; o acompanhamento, a resposta, a confirmação e a reabertura, pelo link; a leitura pelo código pessoal; e os anexos, pedidos e confirmados pelo link.",
             },
             new OpenApiTag
             {

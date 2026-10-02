@@ -3,7 +3,7 @@ using Pds.Domain.Enums;
 namespace Pds.Domain.ViewModels;
 
 /// <summary>Os limites de um tipo de midia neste projeto.</summary>
-/// <param name="Kind">So imagem. O video saiu do produto, e nao aparece nem para o projeto que tinha limite gravado para ele.</param>
+/// <param name="Kind">Imagem ou arquivo. O video saiu do produto, e nao aparece nem para o projeto que tinha limite gravado para ele.</param>
 /// <param name="IsEnabled">Este tipo e aceito.</param>
 /// <param name="MaxCount">Quantos arquivos deste tipo cabem em cada envio.</param>
 /// <param name="MaxBytes">Teto de tamanho de cada arquivo, em bytes.</param>
@@ -15,12 +15,26 @@ namespace Pds.Domain.ViewModels;
 /// nulo: uma aba aberta antes da troca mostraria um campo de duracao quebrado na
 /// imagem.</para>
 /// </param>
+/// <param name="Formats">Os formatos marcados, pelo nome no catalogo. So o arquivo tem; vazio na imagem.</param>
 public record MediaKindLimitViewModel(
     MediaKindEnum Kind,
     bool IsEnabled,
     int MaxCount,
     long MaxBytes,
-    int? MaxDurationSeconds);
+    int? MaxDurationSeconds,
+    IReadOnlyList<string> Formats);
+
+/// <summary>
+/// Um formato do catalogo, para a tela de Midia desenhar a lista de marcar.
+///
+/// <para><b>O catalogo vem da API, e nao da tela.</b> E a API que confere os bytes de
+/// cada formato; uma lista copiada na tela ficaria, um dia, oferecendo o que o envio
+/// recusa. O nome de cada um em portugues e da tela.</para>
+/// </summary>
+/// <param name="Key">O nome do formato no contrato.</param>
+/// <param name="IsDefault">Marcado de fabrica.</param>
+/// <param name="Extensions">As extensoes, com o ponto.</param>
+public record FileFormatViewModel(string Key, bool IsDefault, IReadOnlyList<string> Extensions);
 
 /// <summary>
 /// O que este projeto aceita receber junto do relato.
@@ -48,16 +62,19 @@ public record MediaKindLimitViewModel(
 /// <param name="AllowsScreenCapture">O botao de capturar a tela aparece. A captura vira imagem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
 /// <param name="AllowsOnReopen">Da para anexar ao reabrir um relato encerrado.</param>
-/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, cada resposta e outro, e cada reabertura tambem.</param>
-/// <param name="Kinds">Os limites de cada tipo que o produto oferece — hoje, so imagem.</param>
+/// <param name="Kinds">
+/// Os limites de cada tipo que o produto oferece — imagem e arquivo. Sem total por
+/// envio: cada categoria tem a sua quantidade e o seu tamanho.
+/// </param>
+/// <param name="FileFormats">O catalogo de formatos de arquivo, para a tela marcar.</param>
 public record MediaSettingsViewModel(
     bool IsStorageAvailable,
     bool IsEnabled,
     bool AllowsScreenCapture,
     bool AllowsOnInfoRequest,
     bool AllowsOnReopen,
-    int MaxFilesPerReport,
-    IReadOnlyList<MediaKindLimitViewModel> Kinds);
+    IReadOnlyList<MediaKindLimitViewModel> Kinds,
+    IReadOnlyList<FileFormatViewModel> FileFormats);
 
 /// <summary>
 /// Um tipo aceito, como a ferramenta precisa ver.
@@ -66,7 +83,7 @@ public record MediaSettingsViewModel(
 /// permite o seletor de arquivo do navegador ja filtrar o que nao serve — recusar
 /// depois de a pessoa escolher e recusar tarde.</para>
 /// </summary>
-/// <param name="Kind">So imagem. O video saiu do produto.</param>
+/// <param name="Kind">Imagem ou arquivo. O video saiu do produto.</param>
 /// <param name="MaxCount">Quantos deste tipo cabem em cada envio.</param>
 /// <param name="MaxBytes">Teto de tamanho de cada um.</param>
 /// <param name="MaxDurationSeconds">
@@ -77,13 +94,26 @@ public record MediaSettingsViewModel(
 /// Um quadro guardado no navegador antes da troca tentaria ler uma imagem como
 /// video, e recusaria todo print.</para>
 /// </param>
-/// <param name="ContentTypes">Os tipos de arquivo aceitos nesta categoria.</param>
+/// <param name="ContentTypes">Os tipos de arquivo aceitos nesta categoria. No arquivo, os dos formatos marcados.</param>
+/// <param name="Types">
+/// Cada extensao aceita, com o tipo que o envio deve declarar para ela. <b>E pela
+/// extensao que o arquivo e reconhecido</b>: o navegador deduz o tipo e erra de lugar
+/// para lugar — o <c>.log</c> chega sem tipo, o <c>.csv</c> chega como planilha do
+/// Excel no Windows —, e o pedido de permissao recusa extensao e tipo que nao casam.
+/// Na imagem, as do PNG, JPEG e WebP.
+/// </param>
 public record PublicMediaKindViewModel(
     MediaKindEnum Kind,
     int MaxCount,
     long MaxBytes,
     int? MaxDurationSeconds,
-    IReadOnlyList<string> ContentTypes);
+    IReadOnlyList<string> ContentTypes,
+    IReadOnlyList<AcceptedTypeViewModel> Types);
+
+/// <summary>Uma extensao aceita, e o tipo que o envio declara para ela.</summary>
+/// <param name="Extension">Com o ponto, em minusculas.</param>
+/// <param name="ContentType">O tipo do catalogo, e nao o que o navegador deduzir.</param>
+public record AcceptedTypeViewModel(string Extension, string ContentType);
 
 /// <summary>
 /// O que a ferramenta precisa saber para mostrar — ou nao mostrar — o anexo.
@@ -100,12 +130,10 @@ public record PublicMediaKindViewModel(
 /// <param name="AllowsScreenCapture">O botao de capturar a tela aparece. A captura vira imagem.</param>
 /// <param name="AllowsOnInfoRequest">Da para anexar respondendo ao time.</param>
 /// <param name="AllowsOnReopen">Da para anexar ao reabrir um relato encerrado.</param>
-/// <param name="MaxFilesPerReport">Teto de arquivos por envio, somando os tipos. A criacao do relato e um envio, cada resposta e outro, e cada reabertura tambem.</param>
-/// <param name="Kinds">Os tipos aceitos, com os limites de cada um.</param>
+/// <param name="Kinds">Os tipos aceitos, com os limites de cada um. Sem total por envio: cada categoria tem o seu.</param>
 public record PublicMediaSettingsViewModel(
     bool IsEnabled,
     bool AllowsScreenCapture,
     bool AllowsOnInfoRequest,
     bool AllowsOnReopen,
-    int MaxFilesPerReport,
     IReadOnlyList<PublicMediaKindViewModel> Kinds);

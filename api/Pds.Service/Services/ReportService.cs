@@ -100,7 +100,8 @@ public class ReportService : IReportService
     /// <c>CycleSettingsDto</c>, <c>CycleSettingsViewModel</c> e
     /// <c>ProjectCycleSettings</c>, o contrato <c>cycleSettings.ts</c> da web, as paginas
     /// <c>rotas-publicas</c>, <c>codigo-e-moderacao</c>, <c>pedido-e-espera</c>,
-    /// <c>configuracoes</c> e <c>o-que-entra</c> da documentacao, e os comentarios
+    /// <c>configuracoes</c>, <c>o-ciclo-fecha</c>, <c>identidade-e-visibilidade</c> e
+    /// <c>o-que-existe</c> da documentacao, e os comentarios
     /// da pagina de acompanhamento (<c>report.ts</c>, <c>reportService.ts</c>,
     /// <c>tracking.ts</c>, <c>TrackingPage.tsx</c>).</item>
     /// </list>
@@ -701,7 +702,7 @@ public class ReportService : IReportService
         var report = await RequireTrackedReportAsync(dto.TrackingCode, dto.Token, cancellationToken);
 
         // **So enquanto ha pergunta aberta.** Sem isto, a rota viraria uma caixa de
-        // entrada sem dono e sem moderacao — e moderacao ficou de fora desta etapa
+        // entrada sem dono e sem moderacao — e a conversa nao passa por moderacao,
         // de proposito.
         var pedido = await _unitOfWork.ReportInfoRequests
             .FindOpenWithoutSessionAsync(report.Id, cancellationToken)

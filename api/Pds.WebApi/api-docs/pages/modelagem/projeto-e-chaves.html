@@ -75,8 +75,9 @@ ninguém mais enxerga.</p>
 
 <div class="note why">
   <strong>Lista vazia autoriza qualquer lugar</strong>
-  <p>Ela não quer dizer "ninguém autorizado", e sim "ainda não restringi": as duas rotas que a ferramenta usa
-  conferem o endereço declarado contra esta tabela, e a tabela vazia não recusa nada. A leitura
+  <p>Ela não quer dizer "ninguém autorizado", e sim "ainda não restringi": três rotas da ferramenta
+  conferem o endereço declarado contra esta tabela — a que recebe o relato e as duas que ela lê
+  para se desenhar e para saber o que aceita —, e a tabela vazia não recusa nada. A leitura
   contrária teria apagado a ferramenta de toda instalação no ar no dia em que a conferência
   entrou, e sem erro em tela nenhuma — o quadro que não pode abrir não aparece.</p>
   <p>A regra não mora numa coluna, e sim na ausência de linha — não há "ligado/desligado" para
@@ -87,13 +88,13 @@ ninguém mais enxerga.</p>
   <strong>Origem é dica conferida, e não prova</strong>
   <p>A ferramenta abre num quadro servido pelo nosso domínio, então a origem que o navegador
   carimba na requisição é a <em>nossa</em>, e a que a página hospedeira informa é
-  auto-declarada. As duas rotas públicas comparam essa declaração com esta tabela, e quem a
+  auto-declarada. As três rotas comparam essa declaração com esta tabela, e quem a
   declara é o carregador — código nosso. Por isso a lista pega a chave copiada para outro site,
   que é o caso comum, e não pega quem chamar a API sem passar pela ferramenta.</p>
   <p><strong>Grade de proteção, e não muro.</strong> O muro é o <code>frame-ancestors</code>
   montado desta mesma lista, que impede o quadro de sequer abrir fora dela — e ele precisa de um
   servidor servindo o documento do quadro para montar o cabeçalho por projeto. O quadro hoje é
-  arquivo estático: o cabeçalho chega com o domínio próprio.</p>
+  arquivo estático: o cabeçalho é <strong>Planejado</strong>, para quando houver domínio próprio.</p>
 </div>
 
 <div class="note why">

@@ -102,25 +102,28 @@ useCases:
     postconditions: Trocar de modo não quebra relato antigo. Escolher público não publica nada sozinho — ver 07-moderation.
   - id: UC06
     name: Configurar a mídia
-    description: "O que a ferramenta coleta além do texto: imagem, vídeo curto de tela e a captura pedida."
+    description: "O que a ferramenta coleta além do texto: imagens, arquivos e a captura de uma área da página — e em que momentos dá para anexar."
     width: 250
     position: { x: 260, y: 625 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
       - O dono abre Mídia.
       - Liga ou desliga o anexo.
-      - Para imagem, escolhe quantas e o tamanho máximo de cada uma.
-      - Para vídeo, escolhe quantos e a duração máxima.
-      - Decide se aparece o botão de capturar a tela, e se dá para anexar respondendo ao time.
+      - Para imagem, escolhe quantas cabem em cada envio e o tamanho máximo de cada uma.
+      - Para arquivo — desligado de fábrica —, escolhe quantos, o tamanho máximo, e quais formatos do catálogo aceita — PDF, texto e log, planilha, documento, JSON. Zip não é aceito: pode trazer qualquer coisa dentro.
+      - Decide se aparece o botão de capturar uma área da página, e se dá para anexar respondendo ao time e ao reabrir.
       - Salva.
     alternativeFlows:
       - title: 2a. Não há armazenamento de arquivos configurado
         steps:
           - A mídia fica indisponível, e a tela recusa ligá-la, dizendo por quê.
+      - title: 4a. O arquivo está ligado sem nenhum formato
+        steps:
+          - A tela não salva e diz que falta escolher um formato; o servidor recusa o mesmo.
       - title: 6a. Um limite passa do teto do sistema
         steps:
-          - O sistema recusa e diz o teto. O limite vale no servidor, e não só na ferramenta.
-    postconditions: Desligar o vídeo tira o botão de gravar da ferramenta, e o servidor recusa vídeo mandado por fora dela.
+          - O sistema recusa e diz o teto — 10 por envio; 10 MB na imagem, 25 MB no arquivo. O limite vale no servidor, e não só na ferramenta.
+    postconditions: "Os limites valem em cada envio — a criação, cada resposta, cada reabertura —, e o que a ferramenta não oferece o servidor recusa. De fábrica: anexo ligado; 3 imagens de até 5 MB; arquivo desligado (ligado: 2 de até 10 MB, com PDF, texto e planilha marcados); captura, resposta e reabertura ligadas."
   - id: UC07
     name: Definir por quanto tempo a mídia fica
     description: "Adiado. O prazo de guarda de cada arquivo. Hoje nada é apagado por prazo: o mecanismo de limite existe, com padrão generoso, e a rotina de retenção não foi escrita."

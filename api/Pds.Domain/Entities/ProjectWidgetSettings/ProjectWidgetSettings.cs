@@ -9,7 +9,7 @@ namespace Pds.Domain.Entities;
 /// padroes vivem no codigo, nao no banco: um projeto sem linha nao e um projeto
 /// quebrado, e sim um que nunca precisou mudar nada. Criar a linha junto com o
 /// projeto obrigaria a escolher valores em nome de quem nem abriu a tela, e
-/// deixaria os projetos anteriores a esta etapa como excecao a tratar.</para>
+/// deixaria os projetos criados antes desta tela como excecao a tratar.</para>
 ///
 /// <para><b>Por que coluna, e nao um campo livre.</b> O contexto do relato usa
 /// chave e valor porque a lista do que se captura ainda vai crescer; aqui a lista

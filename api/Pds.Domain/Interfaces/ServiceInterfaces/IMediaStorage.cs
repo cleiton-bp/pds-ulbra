@@ -102,11 +102,18 @@ public interface IMediaStorage
     /// <param name="objectKey">Nome do arquivo no armazenamento.</param>
     /// <param name="contentType">Tipo exato que sera aceito.</param>
     /// <param name="maxBytes">Teto de tamanho, vindo do limite do projeto.</param>
+    /// <param name="downloadOnly">
+    /// O objeto nasce <b>so para baixar</b>: o envio grava junto o cabecalho de anexo, e a
+    /// assinatura o exige. A leitura ja pede o mesmo; gravado no objeto, ele vale tambem
+    /// com um provedor que ignore o que a leitura pede. E como o arquivo que nao e imagem
+    /// e guardado.
+    /// </param>
     /// <param name="cancellationToken">Cancelamento da requisicao em curso.</param>
     Task<MediaUploadTicket> CreateUploadTicketAsync(
         string objectKey,
         string contentType,
         long maxBytes,
+        bool downloadOnly = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -123,10 +130,16 @@ public interface IMediaStorage
     /// </summary>
     /// <param name="objectKey">Nome do arquivo no armazenamento.</param>
     /// <param name="forPlayback">A leitura e de algo que toca, e precisa de mais tempo.</param>
+    /// <param name="downloadAs">
+    /// Com ele, o endereco <b>so baixa</b>: a resposta sai como anexo, com este nome, e
+    /// com tipo generico — o navegador nunca abre o arquivo na pagina, seja o que for
+    /// que haja dentro dele. E como o arquivo que nao e imagem e lido.
+    /// </param>
     /// <param name="cancellationToken">Cancelamento da requisicao em curso.</param>
     Task<SignedReadUrl> CreateReadUrlAsync(
         string objectKey,
         bool forPlayback = false,
+        string? downloadAs = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

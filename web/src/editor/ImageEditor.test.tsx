@@ -393,6 +393,27 @@ describe('o texto', () => {
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Texto da marca' }))
   })
 
+  it('no dedo, apertar com o Texto nao cancela o toque — no Safari, isso cancelaria o clique que abre o campo', async () => {
+    const { canvas } = await abrir()
+    usar('Texto')
+
+    const toque = { pointerId: 3, button: 0, pointerType: 'touch', clientX: 50, clientY: 60 }
+    const naoCancelado = fireEvent.pointerDown(canvas, toque)
+    fireEvent.pointerUp(canvas, toque)
+    fireEvent.click(canvas, { clientX: 50, clientY: 60 })
+
+    expect(naoCancelado).toBe(true)
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Texto da marca' }))
+  })
+
+  it('no mouse, apertar com o Texto continua segurando o foco', async () => {
+    const { canvas } = await abrir()
+    usar('Texto')
+
+    const mouse = { pointerId: 1, button: 0, pointerType: 'mouse', clientX: 50, clientY: 60 }
+    expect(fireEvent.pointerDown(canvas, mouse)).toBe(false)
+  })
+
   it('o Enter que escolhe o candidato da composicao nao conclui o texto', async () => {
     const { canvas } = await abrir()
     usar('Texto')

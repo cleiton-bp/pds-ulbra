@@ -8,7 +8,8 @@ apontada em <code>Program.cs</code>.</p>
   <li><code>index.html</code> — a casca: menu lateral e área de conteúdo.</li>
   <li><code>assets/js/docs.js</code> — o roteador. A lista <code>ROUTES</code> define o menu.</li>
   <li><code>assets/css/docs.css</code> — o estilo.</li>
-  <li><code>pages/*.html</code> — uma página por rota.</li>
+  <li><code>pages/&lt;seção&gt;.html</code> — a abertura de cada seção, e
+  <code>pages/&lt;seção&gt;/&lt;passo&gt;.html</code> — cada passo dela.</li>
   <li><code>assets/js/swagger-back.js</code> — o botão de volta que aparece na barra do
   Swagger. É injetado na página dele pelo <code>Startup.cs</code>, e fecha o caminho de ida
   e volta entre os dois.</li>
@@ -16,12 +17,14 @@ apontada em <code>Program.cs</code>.</p>
 
 <div class="note warn">
   <strong>Os nomes dos assets não são genéricos por acaso</strong>
-  <p>Eram <code>app.js</code> e <code>styles.css</code>. Nomes assim colidem com os de
-  qualquer outro projeto na mesma origem, e o cache do navegador serve um no lugar do outro.</p>
+  <p>Nomes como <code>app.js</code> e <code>styles.css</code> colidem com os de qualquer outro
+  projeto na mesma origem, e o cache do navegador serve um no lugar do outro.</p>
 </div>
 
 <p>Para acrescentar uma seção: crie <code>pages/nome.html</code> e adicione a entrada em
-<code>ROUTES</code>. A ordem da lista é a ordem do menu e a do anterior/próximo no rodapé.</p>
+<code>ROUTES</code>. Para um passo dentro dela, crie <code>pages/nome/passo.html</code> e acrescente
+o passo em <code>children</code>. A ordem da lista é a ordem do menu e a do anterior/próximo no
+rodapé.</p>
 
 <div class="note why">
   <strong>Editar uma página não pede rebuild</strong>
@@ -35,3 +38,18 @@ apontada em <code>Program.cs</code>.</p>
 <code>&lt;p class="lead"&gt;</code> seguinte, o subtítulo. Para os blocos destacados existem
 três estilos: <code>note why</code> para o porquê de uma decisão, <code>note warn</code> para
 armadilha, e <code>note todo</code> para o que ainda falta.</p>
+
+<h2>O que ainda não existe</h2>
+
+<p>As páginas descrevem o que o produto faz, no presente. O que ele ainda não faz leva uma de três
+marcas, sempre em negrito e nunca com data:</p>
+
+<table>
+  <tr><th>Marca</th><th>Quer dizer</th></tr>
+  <tr><td><strong>Planejado</strong></td><td>Vai ser construído.</td></tr>
+  <tr><td><strong>Adiado</strong></td><td>Começou a ser construído e ficou para depois, por decisão.</td></tr>
+  <tr><td><strong>Continuidade</strong></td><td>O que o produto pode vir a ter, fora do escopo atual; está anotado para não se perder.</td></tr>
+</table>
+
+<p>A marca diz o estado da coisa, e não quando ela chega: uma data escrita aqui envelheceria em
+silêncio, e a página passaria a prometer o que ninguém mais está cumprindo.</p>

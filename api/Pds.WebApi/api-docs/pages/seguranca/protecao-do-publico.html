@@ -29,20 +29,24 @@ cópia do dado.</p>
 
 <div class="note warn">
   <strong>O que ela não vê</strong>
-  <p>Nome plausível, número de pedido sem dígito verificador, e qualquer coisa que esteja numa
-  imagem. A varredura é a segunda linha; a primeira é a fila, que mostra o texto inteiro
-  justamente porque o detector deixa passar de propósito.</p>
+  <p>Nome plausível, número de pedido sem dígito verificador, e nada do que vem anexado: ela lê
+  o texto, e só ele — a imagem e o arquivo não passam por varredura nenhuma. A varredura é a
+  segunda linha; a primeira é a fila, que mostra o texto inteiro justamente porque o detector
+  deixa passar de propósito.</p>
+  <p>Hoje isso não chega ao público, porque os anexos não saem da conversa entre quem relatou e o
+  time: a lista pública mostra só o texto. A lista com as imagens é <strong>Adiado</strong>.</p>
 </div>
 
 <h2>Sem oráculo nas rotas públicas</h2>
 
-<p>Três rotas da etapa 6 respondem sem sessão e sem credencial além da chave pública — que está no
-HTML do cliente. A regra que atravessa as três: <strong>a resposta nunca diz o que existe</strong>.</p>
+<p>Quatro rotas respondem sem sessão e sem credencial além da chave pública — que está no
+HTML do cliente. A regra que atravessa as quatro: <strong>a resposta nunca diz o que existe</strong>.</p>
 
 <table>
   <tr><th>Rota</th><th>Engano</th><th>Resposta</th></tr>
   <tr><td><code>by-code</code></td><td>código desconhecido, ou projeto que não usa o modo</td><td>lista vazia, e não 404</td></tr>
-  <tr><td><code>by-code/open</code></td><td>código em branco, inexistente, protocolo inexistente ou de outra pessoa</td><td>uma recusa só, com a mesma mensagem</td></tr>
+  <tr><td><code>by-code/open</code></td><td>código em branco, inexistente, protocolo inexistente ou de outra pessoa, e projeto que não usa o modo</td><td>uma recusa só, com a mesma mensagem</td></tr>
+  <tr><td><code>by-code/attachments</code></td><td>os mesmos de <code>by-code/open</code>, e projeto que não usa o modo</td><td>a mesma recusa única — e nenhum link assinado antes de ela passar</td></tr>
   <tr><td><code>published</code></td><td>projeto privado</td><td>lista vazia, e não uma recusa</td></tr>
 </table>
 

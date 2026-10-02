@@ -17,7 +17,9 @@ namespace Pds.Domain.Entities;
 /// serviria o que alguem quisesse, sob um rotulo que nos mesmos escolhemos.</para>
 ///
 /// <para><b>A lista e curta de proposito.</b> Cada formato a mais e uma superficie
-/// a mais, e os tres daqui cobrem o print, a foto e a captura recortada.</para>
+/// a mais, e os tres daqui cobrem o print, a foto e a captura recortada. Os arquivos
+/// que nao sao imagem tem catalogo proprio, e o dono escolhe quais aceita: ver
+/// <see cref="FileFormats"/>.</para>
 ///
 /// <para><b>Sem video, e para envio novo nenhum.</b> Ele saiu do produto por pesar
 /// demais no armazenamento e na entrega, e o WebM saiu daqui junto. Os videos que
@@ -29,15 +31,21 @@ public static class MediaSignatures
     /// <summary>
     /// Quantos bytes do comeco bastam para decidir.
     ///
-    /// <para>Doze, e nao mais: o formato mais exigente daqui e o WebP, que precisa
-    /// do oitavo ao decimo primeiro byte. Pedir mais so gastaria banda em toda
-    /// confirmacao.</para>
+    /// <para><b>Um quilobyte, por causa do arquivo.</b> A imagem decide em doze — o
+    /// WebP precisa do oitavo ao decimo primeiro byte —, mas o texto precisa de uma
+    /// amostra, e o PDF pode trazer lixo antes da marca: ver
+    /// <see cref="FileFormats.LeadingBytes"/>. Um quilobyte a mais por confirmacao nao
+    /// pesa; duas leituras diferentes pesariam no codigo.</para>
     /// </summary>
-    public const int LeadingBytes = 12;
+    public const int LeadingBytes = FileFormats.LeadingBytes;
+
+    /// <summary>Quantos bytes a marca do WebP ocupa: RIFF, o tamanho, WEBP.</summary>
+    private const int WebpMarkBytes = 12;
 
     /// <summary>
-    /// Os tipos aceitos, por categoria. So imagem: categoria fora daqui nao e
-    /// assinada nem confirmada.
+    /// Os tipos fixos de cada categoria. So imagem: os do arquivo sao os que o dono
+    /// marca, e saem de <see cref="FileFormats"/>. Categoria fora daqui e fora de la
+    /// nao e assinada nem confirmada.
     /// </summary>
     public static readonly IReadOnlyDictionary<MediaKindEnum, string[]> Accepted =
         new Dictionary<MediaKindEnum, string[]>
@@ -65,12 +73,16 @@ public static class MediaSignatures
             // RIFF....WEBP — os quatro bytes do meio sao o tamanho, e variam. O
             // comprimento e conferido antes do recorte: um arquivo de 4 a 7 bytes que
             // comeca com RIFF faria `leading[8..]` estourar, e a confirmacao
-            // responderia com a mensagem interna em vez de recusar o formato.
-            "image/webp" => leading.Length >= LeadingBytes
+            // responderia com a mensagem interna em vez de recusar o formato. **Doze, e
+            // nao o que a leitura pede**: a leitura pede um quilobyte por causa do
+            // arquivo, e o WebP menor que isso — a miniatura de um print pequeno — e
+            // WebP do mesmo jeito.
+            "image/webp" => leading.Length >= WebpMarkBytes
                             && Starts(leading, [0x52, 0x49, 0x46, 0x46])
                             && Starts(leading[8..], [0x57, 0x45, 0x42, 0x50]),
 
-            _ => false,
+            // O que nao e imagem: o catalogo dos arquivos, que nao casa tipo de fora dele.
+            _ => FileFormats.Matches(contentType, leading),
         };
 
     /// <summary>

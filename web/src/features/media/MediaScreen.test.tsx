@@ -22,8 +22,12 @@ import { MediaScreen } from '@/features/media/MediaScreen'
  * de imagem, e conta so o que a tela mostra: o video que a API ainda liste ligado,
  * na janela da troca, nao esconde o aviso.
  *
- * **O total diz que vence o menor.** Com um tipo so, o total e o da imagem valem
- * juntos, e subir so o total nao muda nada — a tela precisa dizer isso.
+ * **Sem total por envio.** Imagem e arquivo tem cada um a sua quantidade e o seu
+ * tamanho, e a tela diz o que e um envio — o que o total dizia antes.
+ *
+ * **O arquivo vem desligado de fabrica, com os formatos seguros marcados**, e ligado
+ * sem formato nenhum nao aceita nada: a tela avisa e nao deixa salvar, como a API. O
+ * tamanho dele vai ate 25 MB, e os formatos vao no salvar.
  *
  * **O banco guarda bytes, e quem configura pensa em MB.** A conversao mora na
  * borda, e o teste a trava nos dois sentidos — e ela que faz "5" virar 5242880 e
@@ -80,11 +84,37 @@ function padrao(mudanca: Partial<MediaSettingsViewModel> = {}): MediaSettingsVie
     AllowsScreenCapture: true,
     AllowsOnInfoRequest: true,
     AllowsOnReopen: true,
-    MaxFilesPerReport: 4,
-    Kinds: [{ Kind: 'Image', IsEnabled: true, MaxCount: 3, MaxBytes: 5 * UM_MB }],
+    Kinds: [IMAGEM, ARQUIVO],
+    FileFormats: CATALOGO,
     ...mudanca,
   }
 }
+
+const IMAGEM = {
+  Kind: 'Image' as const,
+  IsEnabled: true,
+  MaxCount: 3,
+  MaxBytes: 5 * UM_MB,
+  Formats: [],
+}
+
+/** Desligado de fabrica, com os formatos seguros marcados. */
+const ARQUIVO = {
+  Kind: 'File' as const,
+  IsEnabled: false,
+  MaxCount: 2,
+  MaxBytes: 10 * UM_MB,
+  Formats: ['pdf', 'text', 'spreadsheet'],
+}
+
+/** O catalogo da API. */
+const CATALOGO = [
+  { Key: 'pdf', IsDefault: true, Extensions: ['.pdf'] },
+  { Key: 'text', IsDefault: true, Extensions: ['.txt', '.log'] },
+  { Key: 'spreadsheet', IsDefault: true, Extensions: ['.csv', '.xlsx', '.ods'] },
+  { Key: 'document', IsDefault: false, Extensions: ['.docx', '.odt'] },
+  { Key: 'json', IsDefault: false, Extensions: ['.json'] },
+]
 
 /**
  * O que a API responde sem armazenamento na instalacao: o anexo desligado, e o
@@ -111,8 +141,12 @@ function montar() {
 
 const anexo = () => screen.getByRole('checkbox', { name: /Aceitar anexo no relato/ })
 const salvar = () => screen.getByRole('button', { name: /Salvar/ })
-const totalPorEnvio = () => screen.getByLabelText(/Arquivos por envio/) as HTMLInputElement
+const quantidadeImagem = () => screen.getAllByLabelText(/Quantos por envio/)[0] as HTMLInputElement
+const quantidadeArquivo = () => screen.getAllByLabelText(/Quantos por envio/)[1] as HTMLInputElement
 const tamanhoImagem = () => screen.getAllByLabelText(/Tamanho de cada um/)[0] as HTMLInputElement
+const tamanhoArquivo = () => screen.getAllByLabelText(/Tamanho de cada um/)[1] as HTMLInputElement
+const arquivoAceito = () => screen.getByRole('checkbox', { name: /^Arquivo/ }) as HTMLInputElement
+const formato = (nome: RegExp) => screen.getByRole('checkbox', { name: nome }) as HTMLInputElement
 
 /** O `PUT` devolve o que recebeu, como a API faz quando aceita. */
 function ecoarAoSalvar() {
@@ -136,7 +170,8 @@ describe('MediaScreen', () => {
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
     expect((anexo() as HTMLInputElement).checked).toBe(true)
-    expect(totalPorEnvio().value).toBe('4')
+    expect(quantidadeImagem().value).toBe('3')
+    expect(quantidadeArquivo().value).toBe('2')
   })
 
   it('mostra o tamanho em MB, e não os bytes que o banco guarda', async () => {
@@ -145,7 +180,7 @@ describe('MediaScreen', () => {
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
     const tamanhos = screen.getAllByLabelText(/Tamanho de cada um/) as HTMLInputElement[]
-    expect(tamanhos.map((campo) => campo.value)).toEqual(['5'])
+    expect(tamanhos.map((campo) => campo.value)).toEqual(['5', '10'])
   })
 
   it('converte MB para bytes ao salvar', async () => {
@@ -165,7 +200,9 @@ describe('MediaScreen', () => {
   })
 
   it('sem armazenamento, a tela só mostra, e não afirma qual é a escolha salva', async () => {
-    dublê.ler.mockResolvedValue(semArmazenamento(padrao({ MaxFilesPerReport: 2 })))
+    dublê.ler.mockResolvedValue(
+      semArmazenamento(padrao({ Kinds: [{ ...IMAGEM, MaxCount: 2 }, ARQUIVO] })),
+    )
     montar()
 
     await screen.findByText(/Não há armazenamento configurado nesta instalação/)
@@ -178,8 +215,8 @@ describe('MediaScreen', () => {
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
 
     // Os limites que aparecem sao os salvos, e nao o padrao.
-    expect(totalPorEnvio().value).toBe('2')
-    expect(totalPorEnvio().closest('fieldset')?.disabled).toBe(true)
+    expect(quantidadeImagem().value).toBe('2')
+    expect(quantidadeImagem().closest('fieldset')?.disabled).toBe(true)
   })
 
   // A API nao responde ligado sem armazenamento; o teste trava a regra da tela, que
@@ -190,19 +227,21 @@ describe('MediaScreen', () => {
 
     await screen.findByText(/Não há armazenamento configurado nesta instalação/)
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
 
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('anexo ligado sem imagem aceita avisa, e não deixa salvar', async () => {
+  it('anexo ligado sem imagem nem arquivo aceito avisa, e não deixa salvar', async () => {
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Imagem/ }))
 
-    const aviso = await screen.findByText(/O anexo está ligado e imagem não é aceita/)
+    const aviso = await screen.findByText(
+      /O anexo está ligado e nem imagem nem arquivo são aceitos/,
+    )
     // O aviso e sobre imagem: projeto que nunca aceitou so video nao tem por que
     // ler sobre video aqui.
     expect(aviso.closest('p')?.textContent).not.toMatch(/vídeo/i)
@@ -225,19 +264,22 @@ describe('MediaScreen', () => {
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    expect(screen.getByText(/O anexo está ligado e imagem não é aceita/)).toBeDefined()
+    expect(
+      screen.getByText(/O anexo está ligado e nem imagem nem arquivo são aceitos/),
+    ).toBeDefined()
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('o total diz que vale o menor entre ele e o limite da imagem', async () => {
+  it('não há total por envio: cada categoria tem o seu, e a tela diz o que é um envio', async () => {
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    expect(screen.queryByText(/somando os tipos/)).toBeNull()
-    expect(screen.getByText(/Vale o menor entre este número e o limite da imagem/)).toBeDefined()
+    expect(screen.queryByLabelText(/Arquivos por envio/)).toBeNull()
+    expect(screen.queryByText(/Vale o menor/)).toBeNull()
+    expect(screen.getByText(/Os limites valem para cada envio/)).toBeDefined()
   })
 
   it('desligar um tipo não esconde os limites dele', async () => {
@@ -246,7 +288,7 @@ describe('MediaScreen', () => {
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
     fireEvent.click(screen.getByRole('checkbox', { name: /Imagem/ }))
 
-    expect(screen.getByLabelText(/Quantos por envio/)).toBeDefined()
+    expect(quantidadeImagem().value).toBe('3')
     expect(tamanhoImagem().value).toBe('5')
   })
 
@@ -276,19 +318,19 @@ describe('MediaScreen', () => {
       ],
     }
     dublê.ler.mockResolvedValue(comVideo)
-    dublê.salvar.mockResolvedValue(padrao({ MaxFilesPerReport: 2 }))
+    dublê.salvar.mockResolvedValue(padrao())
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
     expect(screen.queryByRole('checkbox', { name: /Vídeo/ })).toBeNull()
-    expect(screen.getAllByLabelText(/Quantos por envio/)).toHaveLength(1)
+    expect(screen.getAllByLabelText(/Quantos por envio/)).toHaveLength(2)
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
     fireEvent.click(salvar())
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
     const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.Kinds.map((tipo) => tipo.Kind)).toEqual(['Image'])
+    expect(enviado.Kinds.map((tipo) => tipo.Kind)).toEqual(['Image', 'File'])
   })
 
   it('o botão só age quando há o que salvar', async () => {
@@ -297,16 +339,16 @@ describe('MediaScreen', () => {
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
     expect((salvar() as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('manda a configuração inteira, com os limites de cada tipo', async () => {
-    dublê.salvar.mockResolvedValue(padrao({ MaxFilesPerReport: 2 }))
+    dublê.salvar.mockResolvedValue(padrao())
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
-    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
     fireEvent.click(salvar())
 
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
@@ -316,8 +358,7 @@ describe('MediaScreen', () => {
       AllowsScreenCapture: true,
       AllowsOnInfoRequest: true,
       AllowsOnReopen: true,
-      MaxFilesPerReport: 2,
-      Kinds: padrao().Kinds,
+      Kinds: [{ ...IMAGEM, MaxCount: 2 }, ARQUIVO],
     })
   })
 
@@ -346,8 +387,8 @@ describe('MediaScreen', () => {
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    expect(screen.getByText(/O relato é um envio, e cada resposta ao time é outro/)).toBeDefined()
-    expect(screen.getAllByLabelText(/Quantos por envio/)).toHaveLength(1)
+    expect(screen.getByText(/o relato é um, cada resposta ao time é outro/)).toBeDefined()
+    expect(screen.getAllByLabelText(/Quantos por envio/)).toHaveLength(2)
     expect(screen.queryByLabelText(/por relato/)).toBeNull()
   })
 
@@ -357,24 +398,24 @@ describe('MediaScreen', () => {
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '' } })
 
-    expect(totalPorEnvio().value).toBe('')
-    expect(totalPorEnvio().getAttribute('aria-invalid')).toBe('true')
+    expect(quantidadeImagem().value).toBe('')
+    expect(quantidadeImagem().getAttribute('aria-invalid')).toBe('true')
     expect(screen.getByText('Use um número inteiro de 1 a 10.')).toBeDefined()
     expect(screen.getByText('Há um campo a corrigir.')).toBeDefined()
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '3' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '4' } })
 
-    expect(totalPorEnvio().value).toBe('3')
+    expect(quantidadeImagem().value).toBe('4')
     expect(screen.queryByText('Há um campo a corrigir.')).toBeNull()
 
     fireEvent.click(salvar())
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
     const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.MaxFilesPerReport).toBe(3)
+    expect(enviado.Kinds[0]?.MaxCount).toBe(4)
   })
 
   it('campo inteiro com casa decimal avisa, e não chega na API', async () => {
@@ -398,7 +439,7 @@ describe('MediaScreen', () => {
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '11' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '11' } })
 
     expect(screen.getByText('Use um número inteiro de 1 a 10.')).toBeDefined()
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
@@ -457,7 +498,7 @@ describe('MediaScreen', () => {
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
     expect(tamanhoImagem().value).toBe('5.25')
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
     fireEvent.click(salvar())
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
@@ -474,15 +515,15 @@ describe('MediaScreen', () => {
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '' } })
+    fireEvent.change(quantidadeArquivo(), { target: { value: '' } })
     fireEvent.change(tamanhoImagem(), { target: { value: '' } })
     expect(screen.getByText('Há 2 campos a corrigir.')).toBeDefined()
 
     fireEvent.click(anexo())
 
     // Fora de alcance, cada campo volta ao valor salvo, e e ele que vai.
-    expect(totalPorEnvio().value).toBe('4')
-    expect(totalPorEnvio().getAttribute('aria-invalid')).toBeNull()
+    expect(quantidadeArquivo().value).toBe('2')
+    expect(quantidadeArquivo().getAttribute('aria-invalid')).toBeNull()
     expect(tamanhoImagem().value).toBe('5')
     expect(screen.queryByText(/campos? a corrigir/)).toBeNull()
     expect((salvar() as HTMLButtonElement).disabled).toBe(false)
@@ -492,7 +533,7 @@ describe('MediaScreen', () => {
 
     const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
     expect(enviado.IsEnabled).toBe(false)
-    expect(enviado.MaxFilesPerReport).toBe(4)
+    expect(enviado.Kinds[1]?.MaxCount).toBe(2)
     expect(enviado.Kinds[0]?.MaxBytes).toBe(5 * UM_MB)
   })
 
@@ -531,10 +572,10 @@ describe('MediaScreen', () => {
     fireEvent.change(quantidade, { target: { value: '2' } })
     expect((salvar() as HTMLButtonElement).disabled).toBe(false)
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '' } })
+    fireEvent.change(quantidadeArquivo(), { target: { value: '' } })
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '11' } })
+    fireEvent.change(quantidadeArquivo(), { target: { value: '11' } })
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
 
     fireEvent.click(salvar())
@@ -589,16 +630,139 @@ describe('MediaScreen', () => {
   })
 
   it('o campo acompanha o número que o servidor devolve', async () => {
-    dublê.salvar.mockResolvedValue(padrao({ MaxFilesPerReport: 3 }))
+    dublê.salvar.mockResolvedValue(padrao())
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
 
-    fireEvent.change(totalPorEnvio(), { target: { value: '2' } })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
     fireEvent.click(salvar())
 
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(totalPorEnvio().value).toBe('3'))
+    await waitFor(() => expect(quantidadeImagem().value).toBe('3'))
     expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  describe('o arquivo', () => {
+    it('vem desligado de fábrica, com os formatos seguros marcados', async () => {
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+      expect(arquivoAceito().checked).toBe(false)
+      expect(formato(/^PDF/).checked).toBe(true)
+      expect(formato(/^Texto e log/).checked).toBe(true)
+      expect(formato(/^Planilha/).checked).toBe(true)
+      expect(formato(/^Documento/).checked).toBe(false)
+      expect(formato(/^JSON/).checked).toBe(false)
+      // As extensoes de cada formato ficam escritas junto dele.
+      expect(formato(/^Planilha/).closest('label')?.textContent).toMatch(/\.csv \.xlsx \.ods/)
+    })
+
+    it('não oferece o zip, e diz por quê', async () => {
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+      expect(screen.queryByRole('checkbox', { name: /zip/i })).toBeNull()
+      expect(
+        screen.getByText(
+          'Zip não é aceito: ele pode trazer qualquer coisa dentro. Quem relata envia os arquivos sem compactar.',
+        ),
+      ).toBeDefined()
+    })
+
+    it('ligar, marcar um formato e salvar manda os formatos e o tamanho em bytes', async () => {
+      ecoarAoSalvar()
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+      fireEvent.click(arquivoAceito())
+      fireEvent.click(formato(/^JSON/))
+      fireEvent.change(tamanhoArquivo(), { target: { value: '20' } })
+      fireEvent.click(salvar())
+
+      await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+
+      const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
+      expect(enviado.Kinds[1]).toEqual({
+        ...ARQUIVO,
+        IsEnabled: true,
+        MaxBytes: 20 * UM_MB,
+        Formats: ['pdf', 'text', 'spreadsheet', 'json'],
+      })
+    })
+
+    it('aceito sem formato nenhum avisa, e não deixa salvar', async () => {
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+      fireEvent.click(arquivoAceito())
+      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
+
+      expect(screen.getByText(/O arquivo está aceito e nenhum formato está marcado/)).toBeDefined()
+      expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+
+      fireEvent.click(formato(/^PDF/))
+      expect(screen.queryByText(/nenhum formato está marcado/)).toBeNull()
+      expect((salvar() as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('desligado sem formato nenhum não avisa: a escolha fica para quando religar', async () => {
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
+
+      expect(screen.queryByText(/nenhum formato está marcado/)).toBeNull()
+      expect((salvar() as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    // Com o anexo desligado, a lista de formatos fica fora de alcance: travar o Salvar
+    // por ela prenderia quem so quer desligar. A API aceita, e religado, a regra volta.
+    it('desligar o anexo com o arquivo sem formato salva', async () => {
+      ecoarAoSalvar()
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+      fireEvent.click(arquivoAceito())
+      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
+      expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+
+      fireEvent.click(anexo())
+
+      expect(screen.queryByText(/nenhum formato está marcado/)).toBeNull()
+      expect((salvar() as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    // Na janela da troca, a API de antes do arquivo exige o total ao salvar.
+    it('a API de antes manda o total, e a tela o devolve ao salvar; a nova, nao', async () => {
+      dublê.ler.mockResolvedValue(padrao({ MaxFilesPerReport: 4 }))
+      ecoarAoSalvar()
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+      fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+      fireEvent.click(salvar())
+      await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+
+      expect(dublê.salvar.mock.calls[0]?.[1]).toMatchObject({ MaxFilesPerReport: 4 })
+    })
+
+    it('o tamanho vai até 25 MB, e a imagem até 10', async () => {
+      montar()
+
+      await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+
+      fireEvent.change(tamanhoArquivo(), { target: { value: '25' } })
+      expect(tamanhoArquivo().getAttribute('aria-invalid')).toBeNull()
+
+      fireEvent.change(tamanhoArquivo(), { target: { value: '26' } })
+      expect(screen.getByText('Use um número de 1 a 25, com até uma casa decimal.')).toBeDefined()
+      expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+    })
   })
 })

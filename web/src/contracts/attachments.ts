@@ -65,6 +65,7 @@ export interface RequestAttachmentUploadRequest {
   ContentType: string
   /** O que o navegador diz. Serve para recusar cedo; o gravado e o que o armazenamento contar. */
   SizeBytes: number
+  /** No arquivo que nao e imagem, e pela extensao dele que a API reconhece o formato. */
   FileName: string
   WithThumbnail: boolean
   /**
@@ -85,8 +86,9 @@ export interface RequestAttachmentUploadRequest {
   /** Em que tamanho a imagem aparece. Sem ele, a API entende a linha inteira. */
   DisplaySize?: AttachmentDisplaySize
   /**
-   * A posicao da imagem no envio, a partir de zero. **A lista do relato sai nessa
-   * ordem**, e nao na de chegada: o arquivo tentado de novo chega depois dos outros.
+   * A posicao no envio, a partir de zero, **dentro da categoria**: as imagens de 0 em
+   * diante, e os arquivos tambem. **A lista do relato sai nessa ordem**, e nao na de
+   * chegada: o arquivo tentado de novo chega depois dos outros.
    */
   DisplayOrder?: number
 }
@@ -120,8 +122,12 @@ export interface PanelAttachmentViewModel {
    * ordem em que ela montou cada envio.
    */
   DisplaySize: AttachmentDisplaySize
+  /** O tipo gravado, conferido pelos bytes — e por ele que a tela diz "PDF" ou "planilha". */
+  ContentType: string
+  /** No arquivo que nao e imagem, so baixa, com o nome original. */
   Url: string
   ThumbnailUrl: string | null
+  /** O primeiro vencimento do anexo — o do arquivo ou o da miniatura. */
   ExpiresAt: string
   SizeBytes: number
   /** So os videos antigos tem. */
@@ -147,8 +153,14 @@ export interface PublicAttachmentViewModel {
   Kind: MediaKind
   /** Em que tamanho a imagem aparece, como a pessoa montou. Ver o do painel. */
   DisplaySize: AttachmentDisplaySize
+  /** O tipo gravado, conferido pelos bytes. */
+  ContentType: string
+  /** Tamanho real — para a pessoa saber o que vai baixar. */
+  SizeBytes: number
+  /** No arquivo que nao e imagem, so baixa, com um nome generico: o original nunca sai. */
   Url: string
   ThumbnailUrl: string | null
+  /** O primeiro vencimento do anexo — o do arquivo ou o da miniatura. */
   ExpiresAt: string
   /** So os videos antigos tem. */
   DurationSeconds: number | null

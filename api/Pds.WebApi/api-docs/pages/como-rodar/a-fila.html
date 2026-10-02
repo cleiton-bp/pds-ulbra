@@ -2,8 +2,10 @@
 
 <p><strong>Opcional.</strong> Ela existe para dois prazos: a espera entre o time mover o relato e
 quem relatou ver, e o encerramento de um pedido de informação sem resposta. Sem
-<code>RABBITMQ_URL</code>, a API sobe normalmente e essas duas regras ficam indisponíveis — a tela
-de Ciclo recusa ligá-las e diz por quê.</p>
+<code>RABBITMQ_URL</code>, a API sobe normalmente: a espera fica indisponível — a tela de Ciclo
+recusa ligá-la e diz por quê —, e o pedido de informação continua funcionando, mas o prazo dele não
+encerra nada sozinho. Sem fila não há consumidor, e sem consumidor não há nem a varredura da
+subida: o pedido fica aberto até quem relatou responder ou o time agir.</p>
 
 <p>Ao contrário do banco, aqui <strong>há serviço no <code>docker-compose.yml</code></strong>, e o
 motivo é o inverso: o broker é local e descartável, e não há dado de ninguém dentro dele.</p>
@@ -21,14 +23,32 @@ porta       5672   AMQP
 
 <pre><code>RABBITMQ_URL=amqp://pds:pds@localhost:5672/</code></pre>
 
+<h3>O que mais o compose sobe</h3>
+
+<p>São quatro serviços. A fila e o armazenamento sobem sozinhos; o <code>minio-init</code> precisa do armazenamento no ar, e a API, dos três:</p>
+
+<div class="diagram">rabbitmq      a fila                                  docker compose up -d rabbitmq
+minio         o armazenamento dos anexos              docker compose up -d minio minio-init
+minio-init    cria o balde, privado, e sai
+api           a própria API, na 5080                  docker compose up -d --build   (sobe tudo)</div>
+
+<p>Com a API dentro do compose, ela procura a fila pelo nome do serviço —
+<code>amqp://pds:pds@rabbitmq:5672/</code> —, e não pelo <code>localhost</code> que o
+<code>.env.local</code> traz para quem roda a API fora dele: ali dentro, <code>localhost</code> seria
+o próprio container da API. A variável do compose vale porque a variável real tem precedência
+sobre o arquivo. A API só sobe depois de a fila e o armazenamento responderem, e de o balde
+existir. O armazenamento tem página própria: <a href="#/como-rodar/armazenamento">O
+armazenamento</a>.</p>
+
 <div class="note warn">
   <strong>A imagem é construída, e não baixada pronta</strong>
   <p>O <code>Dockerfile</code> parte de <code>rabbitmq:3.13-management</code> e instala o
   <code>rabbitmq_delayed_message_exchange</code>, que <strong>não vem na imagem oficial</strong> —
   é um <em>plugin</em> distribuído à parte. Sem ele, a <em>exchange</em> do tipo
   <code>x-delayed-message</code> não pode ser declarada e nada é agendado.</p>
-  <p>É o mesmo ponto que decide onde a fila vai rodar em produção: a hospedagem precisa permitir
-  instalar esse <em>plugin</em>, e nem toda oferta gerenciada permite.</p>
+  <p>É o mesmo ponto que decide onde a fila vai rodar em produção — <strong>Adiado</strong>: a
+  hospedagem precisa permitir instalar esse <em>plugin</em>, e nem toda oferta gerenciada
+  permite.</p>
 </div>
 
 <div class="note why">

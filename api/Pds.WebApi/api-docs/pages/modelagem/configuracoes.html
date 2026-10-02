@@ -57,7 +57,7 @@
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
   <tr><td><code>closure_trigger</code></td><td>O que encerra o relato: <code>last_column</code> — cair na última coluna — ou <code>button</code>, só pelo botão.</td></tr>
-  <tr><td><code>public_delay_minutes</code></td><td>Quanto o lado público espera antes de mudar. Zero é o comportamento anterior a esta etapa; acima de zero é a janela para desfazer um movimento errado.</td></tr>
+  <tr><td><code>public_delay_minutes</code></td><td>Quanto o lado público espera antes de mudar. Zero muda o lado público na hora; acima de zero é a janela para desfazer um movimento errado.</td></tr>
   <tr><td><code>allows_reopen</code></td><td>Se quem relatou pode reabrir.</td></tr>
   <tr><td><code>reopen_state_id</code></td><td>Para qual coluna interna o relato volta ao reabrir. <b>Nula usa a primeira ativa</b>, para o projeto funcionar sem ninguém configurar nada.</td></tr>
   <tr><td><code>reopen_requires_comment</code></td><td>Se reabrir exige dizer por quê. O motivo é para quem vai pegar o relato de volta.</td></tr>
@@ -105,7 +105,7 @@
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
-  <tr><td><code>mode</code></td><td><code>protocol</code> | <code>personal_code</code> | <code>inherited_identity</code>. Excludentes. O terceiro existe na configuração e <b>nada o lê ainda</b> — está adiado, e a tela diz isso.</td></tr>
+  <tr><td><code>mode</code></td><td><code>protocol</code> | <code>personal_code</code> | <code>inherited_identity</code>. Excludentes. O terceiro existe na configuração e <b>nada o lê</b>: é <b>Adiado</b>, e a tela diz isso.</td></tr>
   <tr><td><code>visibility</code></td><td><code>private</code> | <code>public_anonymous</code> | <code>public_identified</code>. Padrão <code>private</code>.</td></tr>
   <tr><td><code>asks_for_name</code></td><td>Se a ferramenta pergunta o nome de quem relata. <b>Desligado de fábrica.</b></td></tr>
 </table>

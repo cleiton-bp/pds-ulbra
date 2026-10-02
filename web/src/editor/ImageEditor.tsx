@@ -413,10 +413,12 @@ export function ImageEditor({
     // O ponteiro toma o lugar da caixa do teclado.
     if (caixa.current) desistirDaCaixa()
 
-    // O texto abre no clique, e nao aqui — ver `clicar`. Segurar o foco agora impede o
-    // navegador de leva-lo para fora quando o campo abrir.
+    // O texto abre no clique, e nao aqui — ver `clicar`. No mouse, segurar o foco agora
+    // impede o navegador de leva-lo para fora quando o campo abrir. **No dedo, nao:** no
+    // Safari, inclusive o do iPhone, cancelar o pointerdown de um toque cancela tambem o
+    // clique que vem depois — e o campo nunca abriria.
     if (ferramenta === 'text') {
-      evento.preventDefault()
+      if (evento.pointerType !== 'touch') evento.preventDefault()
       return
     }
 

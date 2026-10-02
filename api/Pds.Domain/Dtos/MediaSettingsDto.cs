@@ -11,7 +11,7 @@ namespace Pds.Domain.Dtos;
 /// </summary>
 public class MediaKindLimitDto
 {
-    /// <summary>Que tipo esta linha configura. So <c>Image</c>: <c>Video</c> saiu do produto e e recusado.</summary>
+    /// <summary>Que tipo esta linha configura: <c>Image</c> ou <c>File</c>. <c>Video</c> saiu do produto e e recusado.</summary>
     /// <example>Image</example>
     public MediaKindEnum? Kind { get; set; }
 
@@ -23,9 +23,22 @@ public class MediaKindLimitDto
     /// <example>3</example>
     public int? MaxCount { get; set; }
 
-    /// <summary>Teto de tamanho de cada arquivo, em bytes.</summary>
+    /// <summary>
+    /// Teto de tamanho de cada arquivo, em bytes. Ate 10 MB na imagem e 25 MB no
+    /// arquivo.
+    /// </summary>
     /// <example>5242880</example>
     public long? MaxBytes { get; set; }
+
+    /// <summary>
+    /// Os formatos aceitos, pelo nome no catalogo: <c>pdf</c>, <c>text</c>,
+    /// <c>spreadsheet</c>, <c>document</c>, <c>json</c>. O <c>zip</c> saiu do catalogo e e
+    /// recusado. <b>So no
+    /// <c>File</c></b>, e obrigatorio nele — ligado, ao menos um. Nas outras categorias,
+    /// ignorado: os tipos delas sao fixos.
+    /// </summary>
+    /// <example>["pdf", "text"]</example>
+    public List<string>? Formats { get; set; }
 }
 
 /// <summary>
@@ -33,8 +46,11 @@ public class MediaKindLimitDto
 ///
 /// <para><b>Vai inteira, e nao em pedacos</b>, pelo mesmo motivo das outras
 /// configuracoes: salvar campo a campo faria duas abas abertas gravarem metades
-/// diferentes da mesma configuracao sem ninguem notar. Os tipos vao junto porque o
-/// limite total e o limite de cada um so fazem sentido lidos juntos.</para>
+/// diferentes da mesma configuracao sem ninguem notar.</para>
+///
+/// <para><b>Sem total por envio.</b> Cada categoria tem a sua quantidade e o seu
+/// tamanho. A tela antiga que ainda mande <c>MaxFilesPerReport</c> nao quebra: campo
+/// que o contrato nao conhece e ignorado na leitura.</para>
 ///
 /// <para><b>Anulavel aqui, e obrigatorio de verdade.</b> Anulavel e o que permite
 /// responder "informe o limite" em vez de gravar um numero que ninguem escolheu — e
@@ -57,10 +73,6 @@ public class MediaSettingsDto
     /// <summary>Da para anexar ao reabrir um relato encerrado.</summary>
     /// <example>true</example>
     public bool? AllowsOnReopen { get; set; }
-
-    /// <summary>Quantos arquivos cabem em cada envio, somando todos os tipos. A criacao do relato e um envio, cada resposta e outro, e cada reabertura tambem.</summary>
-    /// <example>4</example>
-    public int? MaxFilesPerReport { get; set; }
 
     /// <summary>Os limites de cada tipo, um por tipo, sem repetir.</summary>
     public List<MediaKindLimitDto>? Kinds { get; set; }

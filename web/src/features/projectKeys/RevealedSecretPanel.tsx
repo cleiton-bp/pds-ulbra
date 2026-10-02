@@ -8,7 +8,7 @@ import { copyText } from '@/shared/lib/clipboard'
 
 /**
  * O unico lugar onde o valor da secreta aparece — e ele **nao volta**. Dai as
- * tres travas do E1-11: o painel ambar avisando que e a unica vez, a confirmacao
+ * tres travas: o painel ambar avisando que e a unica vez, a confirmacao
  * ao sair (inclusive pelo botao voltar, por onde as pessoas realmente saem) e o
  * aviso do navegador ao fechar a aba.
  *

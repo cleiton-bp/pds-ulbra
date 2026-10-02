@@ -30,8 +30,8 @@ useCases:
           - O relator volta ao passo 2.
     postconditions: O relato existe, e quem relatou já o vê na etapa pública "Recebido".
   - id: UC02
-    name: Anexar print ou gravação
-    description: O relator junta ao relato uma imagem ou um vídeo do problema.
+    name: Anexar um print
+    description: O relator junta ao relato uma imagem do problema.
     position: { x: 260, y: 170 }
   - id: UC03
     name: Acompanhar relato

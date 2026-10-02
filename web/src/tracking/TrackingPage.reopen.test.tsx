@@ -106,7 +106,6 @@ function midia(extra: Partial<PublicMediaSettingsViewModel> = {}): PublicMediaSe
     AllowsScreenCapture: true,
     AllowsOnInfoRequest: false,
     AllowsOnReopen: true,
-    MaxFilesPerReport: 4,
     Kinds: [
       {
         Kind: 'Image',
@@ -124,6 +123,8 @@ function anexo(extra: Partial<PublicAttachmentViewModel> = {}): PublicAttachment
     PublicId: 'a-1',
     Kind: 'Image',
     DisplaySize: 'Full',
+    ContentType: 'image/png',
+    SizeBytes: 120 * 1024,
     Url: 'http://armazenamento/a-1',
     ThumbnailUrl: 'http://armazenamento/a-1-thumb',
     ExpiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -178,6 +179,28 @@ describe('anexar ao reabrir', () => {
 
     expect(await screen.findByLabelText('Escolher imagem para anexar')).toBeDefined()
     expect(screen.getByText(/anexe um print do que ainda está acontecendo/)).toBeDefined()
+  })
+
+  // "Print" so onde imagem e aceita: com so arquivo, colar um print seria recusado.
+  it('com só arquivo aceito, o convite fala de arquivo, e não de print', async () => {
+    dublê.midia.mockResolvedValue({
+      ...midia(),
+      Kinds: [
+        {
+          Kind: 'File',
+          MaxCount: 2,
+          MaxBytes: 10 * 1024 * 1024,
+          ContentTypes: ['text/plain'],
+          Types: [{ Extension: '.log', ContentType: 'text/plain' }],
+        },
+      ],
+    })
+    await reabrindo()
+
+    expect(
+      await screen.findByText(/anexe um arquivo que mostre o que ainda está acontecendo/),
+    ).toBeDefined()
+    expect(screen.queryByText(/anexe um print/)).toBeNull()
   })
 
   it('sem a chave da reabertura, reabrir é só texto — mesmo com anexo na resposta ligado', async () => {
@@ -387,6 +410,8 @@ describe('anexar ao reabrir', () => {
     // a pagina reler, e duas vezes na tela seria uma a mais.
     await waitFor(() => expect(screen.queryByText('ainda-quebrado.png')).toBeNull())
     await waitFor(() => expect(dublê.anexos).toHaveBeenCalledTimes(2))
+    // O aviso do leitor de tela nao vai junto com a lista antes de dizer "enviado".
+    expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Arquivo enviado.')
   })
 
   it('motivo em branco leva o arquivo, quando o projeto não pede o motivo', async () => {

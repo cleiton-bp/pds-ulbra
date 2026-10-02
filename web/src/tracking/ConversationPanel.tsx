@@ -7,7 +7,7 @@ import {
 } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
 import { AttachmentEditor } from '@/embed/AttachmentEditor'
-import { AttachmentPicker, AttachmentProgress } from '@/embed/AttachmentPicker'
+import { AttachmentPicker, AttachmentProgress, resumoDoFim } from '@/embed/AttachmentPicker'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 import { AttachmentGallery } from '@/shared/components/AttachmentGallery'
 import { Button } from '@/shared/components/Button'
@@ -33,7 +33,7 @@ import { toGalleryItem } from '@/tracking/TrackingAttachments'
  * assunto, e o produto existe justamente para quem foi esquecido.
  *
  * **Escrever só quando há pergunta aberta.** Canal livre viraria uma caixa de
- * entrada sem dono e sem moderação — e moderação ficou de fora desta etapa de
+ * entrada sem dono e sem moderação — e a conversa não passa por moderação, de
  * propósito. A vez volta para a equipe assim que ela responde.
  *
  * **A resposta pode levar arquivo, e o arquivo nunca segura a resposta.** O texto é
@@ -65,6 +65,8 @@ export function ConversationPanel({
   const [erro, setErro] = useState<string | null>(null)
   const draft = useAttachmentDraft(media, { envio: 'reply' })
   const [subindo, setSubindo] = useState(false)
+  /** O fim do envio, para o leitor de tela: a lista sai de cena quando tudo foi. */
+  const [avisoDoFim, setAvisoDoFim] = useState('')
   const credenciais = { trackingCode: protocolo, token }
 
   const pedido = relato.InfoRequest
@@ -83,6 +85,7 @@ export function ConversationPanel({
    * próxima resposta já pode levar arquivo.
    */
   async function subirAnexos() {
+    setAvisoDoFim('')
     setSubindo(true)
     await draft.enviarAnexos(credenciais, 0)
     conferirEnvio()
@@ -90,7 +93,11 @@ export function ConversationPanel({
 
   function conferirEnvio() {
     aoAnexar()
-    if (draft.fechar()) setSubindo(false)
+    const fim = resumoDoFim(draft.atual())
+    if (draft.fechar()) {
+      setSubindo(false)
+      if (fim) setAvisoDoFim(fim)
+    }
   }
 
   async function enviar() {
@@ -179,6 +186,7 @@ export function ConversationPanel({
                   <AttachmentGallery
                     // So quem relata anexa: a imagem da conversa e sempre dela.
                     label="O que você anexou na resposta"
+                    fileLabel="Arquivos que você anexou na resposta"
                     onExpired={aoAnexar}
                     items={(anexosPorFala.get(fala.PublicId) ?? []).map(toGalleryItem)}
                   />
@@ -189,12 +197,20 @@ export function ConversationPanel({
         </ul>
       )}
 
+      {/* Sempre montado, e vazio ate o fim: e ele que diz "enviado" quando a lista sai. */}
+      <p role="status" className="sr-only">
+        {avisoDoFim}
+      </p>
+
       {(subindo || draft.naoEnviados.length > 0) && (
         <div className="mb-4">
           <AttachmentProgress
             anexos={subindo ? draft.anexos : draft.naoEnviados}
             savedNote="A resposta foi enviada e o seu texto está salvo."
-            onRetry={(anexo) => void draft.enviarAnexo(credenciais, anexo, 0).then(conferirEnvio)}
+            onRetry={(anexo) => {
+              setAvisoDoFim('')
+              void draft.enviarAnexo(credenciais, anexo, 0).then(conferirEnvio)
+            }}
             onDiscard={(anexo) => {
               draft.remover(anexo.id)
               conferirEnvio()

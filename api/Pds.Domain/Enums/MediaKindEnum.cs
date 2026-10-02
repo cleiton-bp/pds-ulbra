@@ -10,16 +10,16 @@ namespace Pds.Domain.Enums;
 /// custaria uma migracao por tipo, e deixaria toda configuracao carregando campos
 /// de tipos que aquele projeto nunca ligou.</para>
 ///
-/// <para>No banco vira texto em snake_case (image, video). Hoje so imagem entra;
-/// ver <see cref="Video"/>.</para>
+/// <para>No banco vira texto em snake_case (image, file, video). Entram imagem e
+/// arquivo; o video, nao — ver <see cref="Video"/>.</para>
 /// </summary>
 public enum MediaKindEnum
 {
     /// <summary>
     /// Print, foto da tela, captura recortada.
     ///
-    /// <para>E o unico tipo que entra, e o mais barato de guardar: alguns
-    /// megabytes, sem duracao e sem nada para tocar.</para>
+    /// <para>E o tipo que o quadro oferece de fabrica, e o mais barato de guardar:
+    /// alguns megabytes, sem duracao e sem nada para tocar.</para>
     /// </summary>
     Image,
 
@@ -38,4 +38,15 @@ public enum MediaKindEnum
     /// tocando.</para>
     /// </summary>
     Video,
+
+    /// <summary>
+    /// Arquivo que nao e imagem: o PDF da fatura, o log do erro, a planilha que nao
+    /// fecha. <b>Sempre baixado, e nunca aberto na pagina.</b>
+    ///
+    /// <para><b>So os formatos que o dono marca.</b> Arquivo de fora e o anexo com
+    /// mais risco — o conteudo ninguem olhou —, entao a categoria nasce desligada, e os
+    /// formatos saem de um catalogo fechado, com os bytes conferidos onde o formato
+    /// permite: ver <see cref="Entities.FileFormats"/>.</para>
+    /// </summary>
+    File,
 }

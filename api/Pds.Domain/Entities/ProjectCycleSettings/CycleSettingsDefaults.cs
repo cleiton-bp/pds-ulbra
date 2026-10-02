@@ -6,7 +6,7 @@ namespace Pds.Domain.Entities;
 /// O que vale quando ninguem configurou nada.
 ///
 /// <para><b>Projeto novo tem de andar sem ninguem abrir esta tela.</b> E o criterio
-/// que atravessa a etapa inteira: a configuracao existe para quem quer outra coisa,
+/// de toda configuracao do projeto: ela existe para quem quer outra coisa,
 /// e nao para quem precisa comecar.</para>
 ///
 /// <para><b>Moram em codigo, e nao como valor padrao de coluna.</b> Assim existem
@@ -15,7 +15,7 @@ namespace Pds.Domain.Entities;
 /// </summary>
 public static class CycleSettingsDefaults
 {
-    /// <summary>Ja decidido na etapa: o quadro que termina numa coluna de conclusao e o caso comum.</summary>
+    /// <summary>O caso comum: o quadro que termina numa coluna de conclusao.</summary>
     public const ClosureTriggerEnum ClosureTrigger = ClosureTriggerEnum.LastColumn;
 
     /// <summary>
@@ -25,7 +25,7 @@ public static class CycleSettingsDefaults
     /// </summary>
     public const int PublicDelayMinutes = 0;
 
-    /// <summary>Verdadeiro: e o card que da nome a etapa.</summary>
+    /// <summary>Verdadeiro: reabrir e parte do ciclo desde o comeco — o problema que volta nao pode virar outro relato.</summary>
     public const bool AllowsReopen = true;
 
     /// <summary>

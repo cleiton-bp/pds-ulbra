@@ -26,7 +26,7 @@ public class ProjectMediaKindMap : BaseEntityConfiguration<ProjectMediaKind>
             .HasConversion(new SnakeCaseEnumConverter<MediaKindEnum>())
             .HasMaxLength(20)
             .IsRequired()
-            .HasComment("image ou video. Unico por configuracao entre os nao apagados. A lista cresce com o produto, e acrescentar um valor nao mexe em coluna nenhuma.");
+            .HasComment("image, file ou video (este, das linhas antigas). Unico por configuracao entre os nao apagados. A lista cresce com o produto, e acrescentar um valor nao mexe em coluna nenhuma.");
 
         builder.Property(kind => kind.IsEnabled)
             .HasColumnName("is_enabled")
@@ -36,7 +36,7 @@ public class ProjectMediaKindMap : BaseEntityConfiguration<ProjectMediaKind>
         builder.Property(kind => kind.MaxCount)
             .HasColumnName("max_count")
             .IsRequired()
-            .HasComment("Quantos arquivos deste tipo cabem num relato.");
+            .HasComment("Quantos arquivos deste tipo cabem em cada envio: a criacao do relato, cada resposta, cada reabertura.");
 
         builder.Property(kind => kind.MaxBytes)
             .HasColumnName("max_bytes")
@@ -45,7 +45,11 @@ public class ProjectMediaKindMap : BaseEntityConfiguration<ProjectMediaKind>
 
         builder.Property(kind => kind.MaxDurationSeconds)
             .HasColumnName("max_duration_seconds")
-            .HasComment("Duracao maxima em segundos, nula para o que nao tem duracao. E a protecao mais barata desta etapa, porque corta armazenamento e exposicao de uma vez.");
+            .HasComment("Duracao maxima em segundos, so das linhas antigas de video — o video saiu do produto. Nula na imagem e no arquivo.");
+
+        builder.Property(kind => kind.Formats)
+            .HasColumnName("formats")
+            .HasComment("Os formatos aceitos, pelo nome no catalogo do sistema (pdf, text, spreadsheet, document, json). So do arquivo; nulo nas outras categorias, que tem os tipos fixos. Um formato que saiu do catalogo (o zip) continua gravado e e ignorado. Uma lista, e nao uma linha por formato: poucos nomes de um catalogo fechado, lidos sempre com o resto da linha.");
 
         builder.HasOne(kind => kind.ProjectMediaSettings)
             .WithMany(settings => settings.Kinds)

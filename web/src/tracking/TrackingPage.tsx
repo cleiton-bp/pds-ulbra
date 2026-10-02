@@ -5,7 +5,7 @@ import type {
   PublicStageViewModel,
 } from '@/contracts'
 import { isPanelError, reportService } from '@/data/publicIndex'
-import { AttachmentProgress } from '@/embed/AttachmentPicker'
+import { AttachmentProgress, resumoDoFim } from '@/embed/AttachmentPicker'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
@@ -28,11 +28,13 @@ import { useTrackingMedia } from '@/tracking/useTrackingMedia'
  * configurou jornada devolve a lista vazia, e ai a pagina volta a dizer que nao ha
  * andamento, em vez de prometer.
  *
- * **Quem anda e a jornada, e nao esta pagina.** Ha um `fetch` so, na montagem: uma
- * aba deixada aberta nao muda sozinha, e o texto da tela diz exatamente isso. Buscar
- * de novo por conta propria seria pior do que nao buscar — cada leitura grava um
- * evento de visualizacao, e a pagina passaria a registrar leituras que ninguem fez.
- * Avisar quando algo anda e trabalho da notificacao, que e outra etapa.
+ * **Quem anda e a jornada, e nao esta pagina.** O relato e lido uma vez, na
+ * montagem: uma aba deixada aberta nao muda sozinha, e o texto da tela diz
+ * exatamente isso. Buscar de novo por conta propria seria pior do que nao buscar —
+ * cada leitura grava um evento de visualizacao, e a pagina passaria a registrar
+ * leituras que ninguem fez. Os arquivos se leem a parte, e se renovam sozinhos
+ * porque os enderecos vencem — sem gravar leitura e sem trazer andamento. Avisar
+ * quando algo anda e trabalho da notificacao, e nao desta pagina.
  *
  * **Recusado e falhou sao estados diferentes**, e e por isso que o status do erro
  * atravessa a camada de dados. 404 e resposta definitiva: o link nao abre nada, e
@@ -153,6 +155,8 @@ function Relato({
    */
   const reabertura = useAttachmentDraft(midia.paraReabertura, { envio: 'reopen' })
   const [subindoReabertura, setSubindoReabertura] = useState(false)
+  /** O fim do envio da reabertura, para o leitor de tela: a lista sai de cena quando tudo foi. */
+  const [avisoDoFim, setAvisoDoFim] = useState('')
 
   /**
    * A reabertura dos arquivos na tela levou motivo. Sem motivo, "o seu texto está
@@ -167,7 +171,11 @@ function Relato({
    */
   function conferirReabertura() {
     midia.recarregar()
-    if (reabertura.fechar()) setSubindoReabertura(false)
+    const fim = resumoDoFim(reabertura.atual())
+    if (reabertura.fechar()) {
+      setSubindoReabertura(false)
+      if (fim) setAvisoDoFim(fim)
+    }
   }
 
   function aoReabrir(novo: PublicReportViewModel) {
@@ -185,6 +193,7 @@ function Relato({
     }
 
     setReabriuComTexto(novo.Reopenings?.at(-1)?.Comment != null)
+    setAvisoDoFim('')
     setSubindoReabertura(true)
     void reabertura.enviarAnexos(credenciais, 0).then(conferirReabertura)
   }
@@ -273,6 +282,12 @@ function Relato({
 
       {/* Antes do encerramento de propósito: as reaberturas já aconteceram, e o
           fechamento que está valendo, quando há um, é o fim mais recente. */}
+      {/* Sempre montado, e vazio ate o fim: e ele que diz "enviado" quando a lista da
+          reabertura sai de cena. */}
+      <p role="status" className="sr-only">
+        {avisoDoFim}
+      </p>
+
       <ReopenPanel
         reaberturas={todasAsReaberturas}
         anexosPorReabertura={porReabertura}
@@ -286,9 +301,10 @@ function Relato({
                   ? 'O relato foi reaberto e o seu texto está salvo.'
                   : 'O relato foi reaberto.'
               }
-              onRetry={(anexo) =>
+              onRetry={(anexo) => {
+                setAvisoDoFim('')
                 void reabertura.enviarAnexo(credenciais, anexo, 0).then(conferirReabertura)
-              }
+              }}
               onDiscard={(anexo) => {
                 reabertura.remover(anexo.id)
                 conferirReabertura()
@@ -365,14 +381,15 @@ function Andamento({ jornada }: { jornada: PublicStageViewModel[] }) {
       {/* **A frase promete o que a página faz, e nada além.**
 
           Ela dizia "esta página se atualiza sozinha conforme a equipe trabalha", e
-          isso era falso para quem deixasse a aba aberta: há um único `fetch`, na
-          montagem, e nenhum intervalo, foco de aba ou socket. Quem lesse a frase e
-          esperasse ficaria esperando para sempre.
+          isso era falso para quem deixasse a aba aberta: o relato é lido uma vez, na
+          montagem, sem intervalo, foco de aba ou socket — o que se renova sozinho são
+          só os endereços dos arquivos. Quem lesse a frase e esperasse ficaria
+          esperando para sempre.
 
           E buscar de novo sozinho **não** é a correção: cada leitura grava um
           evento `ReportViewed`, então uma página que se atualiza a cada minuto
           encheria o histórico de leituras que ninguém fez. Avisar quando algo anda
-          é trabalho da notificação, que é outra etapa.
+          é trabalho da notificação, e não desta página.
 
           Então o que fica é o que é verdade: voltar aqui mostra onde o relato está,
           e ninguém precisa ser cobrado para isso acontecer. */}

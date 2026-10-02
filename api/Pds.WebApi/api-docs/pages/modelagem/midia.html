@@ -1,0 +1,230 @@
+<h2>project_media_settings</h2>
+
+<p>O que o projeto aceita receber junto do relato. Além das
+<a href="#/modelagem">colunas que toda tabela repete</a>:</p>
+
+<table>
+  <tr><th>Coluna</th><th>Tipo</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>bigint</td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
+  <tr><td><code>is_enabled</code></td><td>boolean</td><td>O quadro mostra anexo. <b>Desligado, nada mais nesta linha vale</b>: nem tipo ligado, nem limite configurado — o botão não aparece e o servidor recusa assinar permissão.</td></tr>
+  <tr><td><code>allows_screen_capture</code></td><td>boolean</td><td>O botão de capturar uma área da página aparece. Quem captura é o carregador, na página do cliente, sem o navegador perguntar nada; a imagem abre no editor antes de entrar na lista. Onde a página não deixa, o botão some sozinho.</td></tr>
+  <tr><td><code>allows_on_info_request</code></td><td>boolean</td><td>Dá para anexar respondendo a um pedido de informação — que é onde o print mais serve.</td></tr>
+  <tr><td><code>allows_on_reopen</code></td><td>boolean</td><td>Dá para anexar ao reabrir um relato encerrado: o print do que ainda está acontecendo.</td></tr>
+  <tr><td><code>max_files_per_report</code></td><td>integer, anulável</td><td><b>Sem uso.</b> Era o total de arquivos por envio, somando os tipos. Fica com o que cada projeto tinha escolhido, e configuração salva depois disso grava nulo.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A linha só nasce quando alguém salva</strong>
+  <p>O mesmo molde das outras configurações: os padrões vivem no código, em
+  <code>MediaSettingsDefaults</code>, e projeto sem linha aqui é projeto que nunca precisou mudar
+  nada — lê exatamente o mesmo comportamento de quem salvou os padrões. Nenhuma coluna tem
+  <code>DEFAULT</code> no banco: seria uma segunda declaração da mesma decisão, e mudar de ideia
+  deixaria as linhas antigas com o valor velho e as novas com o novo.</p>
+  <p><b>É uma função só que resolve o padrão</b>, <code>MediaSettingsDefaults.Resolve</code>. A
+  tela do painel e a rota que assina o envio chamam a mesma — resolver em dois lugares faria, um
+  dia, a tela mostrar um limite e o servidor cobrar outro.</p>
+</div>
+
+<table>
+  <tr><th>O que vale sem linha</th><th>Padrão</th><th>Teto do sistema</th></tr>
+  <tr><td>Anexo, captura, anexo na resposta, anexo na reabertura</td><td>Os quatro ligados</td><td>—</td></tr>
+  <tr><td>Imagem</td><td>Ligada, 3 por envio, até 5 MB cada</td><td>10 por envio, 10 MB</td></tr>
+  <tr><td>Arquivo</td><td><b>Desligado</b>; ligado, 2 por envio, até 10 MB cada, com <code>pdf</code>, <code>text</code> e <code>spreadsheet</code> marcados</td><td>10 por envio, 25 MB</td></tr>
+</table>
+
+<div class="note warn">
+  <strong>Ligado de fábrica — e mesmo assim nada liga sem armazenamento</strong>
+  <p>É o contrário do padrão da identificação, que é o mais fechado. Ali a escolha é coletar dado
+  pessoal; aqui é receber um print que quem relata <b>escolheu</b> mandar. E quem nunca quis mídia
+  tem um caminho mais simples que desligar: não configurar armazenamento.</p>
+  <p>O arquivo é a exceção, e nasce desligado: é o anexo com mais risco, porque o conteúdo
+  ninguém olhou, e recebê-lo é escolha de quem configura.</p>
+  <p>Sem armazenamento nesta instalação, as leituras respondem o anexo desligado e salvar é
+  recusado — inclusive o desligado. Devolver o que a leitura mostrou gravaria o desligado por cima
+  da escolha do projeto, e ela não voltaria a valer quando houver armazenamento.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que o total por envio saiu, e a coluna ficou</strong>
+  <p>Com imagem e arquivo lado a lado, o total obrigava o dono a acertar três números entre si —
+  três imagens e dois arquivos, mas no máximo quatro no envio —, e cada limite deixava de dizer uma
+  coisa só. Agora cada categoria tem a sua quantidade e o seu tamanho, e a soma é a soma deles.</p>
+  <p>A coluna fica anulável, com o que cada projeto tinha escolhido. Ninguém a lê nem a escreve;
+  tirá-la seria uma migração só para jogar fora um número que já não vale nada.</p>
+</div>
+
+<h2>project_media_kinds</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Tipo</th><th>Observação</th></tr>
+  <tr><td><code>project_media_settings_id</code></td><td>bigint</td><td>Configuração dona da linha. <code>Cascade</code>: sem ela, estes limites não querem dizer nada.</td></tr>
+  <tr><td><code>kind</code></td><td>varchar(20)</td><td><code>image</code> | <code>file</code> | <code>video</code> — este, só das linhas antigas. Único por configuração, entre os não apagados.</td></tr>
+  <tr><td><code>is_enabled</code></td><td>boolean</td><td>Este tipo é aceito. <b>Desligar não apaga os limites</b>: religar devolve o que já tinha sido pensado.</td></tr>
+  <tr><td><code>max_count</code></td><td>integer</td><td>Quantos deste tipo cabem em <b>cada envio</b>: a criação do relato, cada resposta, cada reabertura. De 1 a 10.</td></tr>
+  <tr><td><code>max_bytes</code></td><td>bigint</td><td>Teto de cada arquivo, em bytes. Até 10 MB na imagem e 25 MB no arquivo. É este número que viaja dentro da assinatura do envio.</td></tr>
+  <tr><td><code>max_duration_seconds</code></td><td>integer, anulável</td><td>Só das linhas antigas de vídeo. Nula na imagem e no arquivo, e nada mais a lê.</td></tr>
+  <tr><td><code>formats</code></td><td>text[], anulável</td><td>Os formatos aceitos, pelo nome no catálogo: <code>pdf</code>, <code>text</code>, <code>spreadsheet</code>, <code>document</code>, <code>json</code>. O <code>zip</code> saiu do catálogo: gravado numa configuração antiga, é ignorado. <b>Só do arquivo</b>; nula na imagem, que tem os tipos fixos (PNG, JPEG, WebP).</td></tr>
+</table>
+
+<div class="note why">
+  <strong>Uma linha por tipo, e não uma coluna por tipo</strong>
+  <p>O desenho óbvio seria pôr tudo na configuração — <code>image_max_count</code>,
+  <code>image_max_bytes</code>, e assim por diante. Ele custa uma migração por tipo novo, e deixa
+  toda linha carregando campos de tipos que aquele projeto nunca ligou. Em linhas, um tipo novo —
+  áudio, por exemplo, que é <b>Continuidade</b> — é um <code>INSERT</code>, e cada tipo leva só os
+  limites que fazem sentido para ele.</p>
+  <p>O preço é o caminho até a conta: dois saltos, pela configuração e pelo projeto. Vale a pena,
+  porque o limite pendurado direto no projeto existiria sem a configuração que lhe dá
+  sentido.</p>
+</div>
+
+<div class="note why">
+  <strong>Tipo sem linha sai com o padrão, e tipo fora do produto não sai</strong>
+  <p>Os tipos da resposta vêm da lista de fábrica, e não das linhas gravadas. Um tipo novo passa a
+  existir para todo projeto no dia em que entra, sem ninguém abrir a tela e salvar.</p>
+  <p>O contrário também vale. O vídeo saiu do produto por pesar demais no armazenamento e na
+  entrega, e a linha <code>video</code> de um projeto antigo continua no banco <b>sem valer
+  nada</b>: o painel não a mostra, a ferramenta não a oferece, e o pedido de permissão não acha
+  limite para ela. O valor fica no enum porque há linhas e anexos gravados com ele.</p>
+</div>
+
+<div class="note warn">
+  <strong>O teto de tamanho não é conferido por nós — é assinado</strong>
+  <p><code>max_bytes</code> não teria outro lugar onde ser cobrado: no quadro não vale, porque ele
+  roda no navegador de quem relata; no servidor também não, porque o arquivo nunca passa por lá.
+  Ele entra na política do formulário assinado, e quem recusa o que passa é o próprio
+  armazenamento, antes de gravar. A confirmação confere o tamanho real de novo, e é a segunda
+  tranca.</p>
+  <p>E há um teto do sistema acima do que o projeto escolhe, conferido ao salvar: o limite do
+  projeto protege a conta de quem configurou; o teto protege a nossa de quem configurou
+  errado.</p>
+</div>
+
+<div class="note why">
+  <strong><code>formats</code> é lista, e não tabela</strong>
+  <p>São poucos nomes de um catálogo fechado, lidos sempre junto do resto da linha. Uma tabela a
+  mais seria uma consulta a mais em todo envio para dizer a mesma coisa. O catálogo mora no código
+  (<code>FileFormats</code>), porque é a API que sabe conferir os bytes de cada formato; um nome
+  gravado que saia dele um dia deixa de valer sozinho.</p>
+</div>
+
+<h2>report_attachments</h2>
+
+<table>
+  <tr><th>Coluna</th><th>Tipo</th><th>Observação</th></tr>
+  <tr><td><code>report_id</code></td><td>bigint</td><td>Relato a que o anexo pertence. <b>Obrigatório mesmo quando o anexo veio numa resposta</b>, para achar o relato ser sempre um salto só — e para o isolamento por conta não depender de uma coluna que pode ser nula.</td></tr>
+  <tr><td><code>public_comment_id</code></td><td>bigint, anulável</td><td>Preenchida quando o anexo veio numa resposta ao pedido de informação.</td></tr>
+  <tr><td><code>reopened_closure_id</code></td><td>bigint, anulável</td><td>Preenchida quando o anexo veio numa reabertura: o fechamento que quem relatou reabriu.</td></tr>
+  <tr><td><code>kind</code></td><td>varchar(20)</td><td><code>image</code> | <code>file</code> | <code>video</code> — este, só dos anexos antigos. A mesma lista de <code>project_media_kinds</code>, porque é ela que diz qual limite se aplica.</td></tr>
+  <tr><td><code>status</code></td><td>varchar(20)</td><td><code>pending</code> | <code>confirmed</code>. Nasce <code>pending</code> quando a permissão é assinada.</td></tr>
+  <tr><td><code>object_key</code></td><td>varchar(200)</td><td>O nome do arquivo no armazenamento, <b>sorteado por nós</b>. Único no sistema inteiro, entre os não apagados.</td></tr>
+  <tr><td><code>thumbnail_object_key</code></td><td>varchar(200), anulável</td><td>A miniatura da imagem, gerada no navegador antes do envio — WebP, ou JPEG onde o navegador não codifica WebP. O arquivo não tem; nos vídeos antigos, é o quadro de capa.</td></tr>
+  <tr><td><code>content_type</code></td><td>varchar(100)</td><td>O tipo declarado, que entrou na assinatura. <b>Garante o rótulo, e não o conteúdo</b> — quem confere os bytes é a confirmação.</td></tr>
+  <tr><td><code>size_bytes</code></td><td>bigint</td><td>O tamanho que o armazenamento contou, lido na confirmação — e não o que o navegador disse.</td></tr>
+  <tr><td><code>duration_seconds</code></td><td>integer, anulável</td><td>Só dos vídeos antigos. Anexo novo grava nulo.</td></tr>
+  <tr><td><code>original_name</code></td><td>varchar(200), anulável</td><td>O nome do arquivo na máquina de quem relata, sem caractere de controle e cortado no meio, nunca na extensão. <b>Só o painel o vê</b>: nome de arquivo conta pasta, cliente e número de contrato, que a imagem não conta.</td></tr>
+  <tr><td><code>confirmed_at</code></td><td>timestamp, anulável</td><td>Quando a API prendeu o anexo ao relato. Nulo enquanto pendente.</td></tr>
+  <tr><td><code>display_size</code></td><td>varchar(20)</td><td><code>small</code> (um terço da linha) | <code>medium</code> (meia) | <code>large</code> (três quartos) | <code>full</code> (a linha inteira, o padrão). Escolha de quem relata; não muda depois do envio.</td></tr>
+  <tr><td><code>display_order</code></td><td>integer</td><td>A posição no envio, a partir de zero, <b>dentro da categoria</b> — a ordem em que a pessoa montou as imagens, e a dos arquivos. De 0 a 9.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>O arquivo nunca mora no banco</strong>
+  <p>A linha guarda o nome do objeto no armazenamento — o bastante para pedir uma permissão de
+  leitura quando alguém que pode ver aparecer. Guardar os bytes faria cada consulta arrastar
+  megabytes, e o backup do banco crescer com o que já está guardado noutro lugar.</p>
+  <p><b>E nunca guarda um endereço assinado.</b> Guardado, ele viraria um link permanente com
+  outro nome, e a validade curta deixaria de significar qualquer coisa. O endereço nasce na hora
+  em que alguém autorizado pede, e morre em minutos.</p>
+</div>
+
+<div class="note why">
+  <strong><code>pending</code> existe porque o arquivo chega antes de a gente saber dele</strong>
+  <p>O arquivo vai do navegador direto para o armazenamento, sem passar pela API. Entre assinar a
+  permissão e o arquivo estar de fato lá, a linha existe e o arquivo talvez não.</p>
+  <p>Pendente é o estado normal de quem desistiu, e não um erro: gente anexa e fecha a aba o tempo
+  todo. O que fica assim <b>não aparece e não conta no limite</b> — fazê-lo ocupar vaga deixaria
+  quem tentou três vezes e falhou sem conseguir anexar nada. Só em <code>confirmed</code>, depois
+  de a API ler os primeiros bytes, o anexo passa a existir para o produto.</p>
+</div>
+
+<div class="note warn">
+  <strong>Um arquivo vai com um envio só, e o banco trava isso</strong>
+  <p>São três envios, cada um com a sua cota: a criação do relato (as duas colunas nulas), uma
+  resposta (<code>public_comment_id</code>) e uma reabertura (<code>reopened_closure_id</code>). A
+  <em>check constraint</em> <code>ck_report_attachments_one_submission</code> proíbe as duas
+  preenchidas: o arquivo contaria na cota de dois envios e apareceria em dois lugares da tela — e
+  o erro que grava isso não aparece em lugar nenhum depois.</p>
+  <p><b>Coluna própria, e não deduzida pela data.</b> "O anexo que entrou logo depois de uma
+  reabertura é dela" faria cada leitura refazer a conta, e a cota virar uma busca por intervalo.
+  Com a coluna, a cota é um filtro, e a tela sabe onde mostrar o arquivo sem adivinhar.</p>
+  <p>A reabertura aponta para o <b>fechamento</b>, e não para um comentário: reabrir não escreve
+  na conversa, e o motivo pode ficar em branco. O fechamento reaberto sempre existe, e é nele que
+  o motivo mora.</p>
+</div>
+
+<h3>Os nomes no armazenamento</h3>
+
+<pre><code>pedido de permissão   uploads/{projeto}/{sorteio}         (e {…}-thumb, se há miniatura)
+confirmação           media/{projeto}/{sorteio novo}      (e {…}-thumb)</code></pre>
+
+<p><code>{projeto}</code> é o identificador público do projeto — o id interno não sai da API — e
+<code>{sorteio}</code> é um GUID novo. <code>object_key</code> aponta para <code>uploads/</code>
+enquanto pendente, e passa a apontar para <code>media/</code> na confirmação.</p>
+
+<div class="note why">
+  <strong>Duas pastas, porque a permissão continua valendo depois de usada</strong>
+  <p>O formulário assinado vale alguns minutos, e reenviá-lo grava outro conteúdo no mesmo nome.
+  Por isso o arquivo conferido é <b>copiado</b> para <code>media/</code>, que nenhuma permissão de
+  envio assina — e a cópia exige o ETag lido na conferência: trocado depois dela, o armazenamento
+  recusa copiar, e o anexo é recusado junto.</p>
+  <p>Tudo o que sobra em <code>uploads/</code> é descartável — envio abandonado, reenvio depois da
+  confirmação —, e o balde apaga a pasta por idade. O nome é sorteado, e nunca derivado do nome que
+  veio de fora: um nome escolhido por quem envia permitiria escrever por cima do arquivo de outra
+  pessoa. E é único no sistema inteiro, e não por projeto, porque duas linhas apontando para o
+  mesmo arquivo fariam apagar uma levar a outra junto.</p>
+</div>
+
+<div class="note why">
+  <strong><code>display_size</code> é fração, e <code>display_order</code> é guardada</strong>
+  <p>Quem relata monta o relato no quadro, que é estreito; o time lê no painel, e a pessoa
+  acompanha numa página mais larga. Com a fração da largura do texto, a imagem que ocupava metade
+  da linha no quadro ocupa metade em todo lugar — e duas assim continuam lado a lado. Em pixels,
+  cada tela mostraria outro relato.</p>
+  <p>A posição não é deduzida da hora de chegada porque os arquivos sobem um de cada vez, e o que
+  falhou e foi tentado de novo chega depois dos outros: pela hora, ele pularia para o fim, e duas
+  imagens pequenas lado a lado trocariam de lugar. A lista sai por <code>display_order</code>, e a
+  hora de chegada desempata. Nenhuma das duas tem valor padrão no banco — o padrão mora no
+  código.</p>
+</div>
+
+<div class="note warn">
+  <strong>A conversa some, e a prova fica</strong>
+  <p><code>report_id</code> usa <code>Cascade</code>: o anexo não existe sem o relato. Já
+  <code>public_comment_id</code> e <code>reopened_closure_id</code> usam <code>SET NULL</code> — o
+  comentário ou o fechamento some, e o anexo fica preso ao relato. Cascata ali apagaria a prova
+  junto com a conversa que a pedia.</p>
+  <p>O filtro de isolamento chega à conta pelo relato, que é o dono, e não pelo comentário onde o
+  anexo talvez tenha vindo. Ver <a href="#/isolamento/onde-o-filtro-mora">onde o filtro
+  mora</a>.</p>
+</div>
+
+<div class="note why">
+  <strong>Anexo não gera evento</strong>
+  <p>Nenhum tipo de <code>events</code> fala de arquivo. Ele vai sempre junto de um envio que já
+  tem o seu — <code>report_created</code>, <code>report_replied</code>,
+  <code>report_reopened</code> —, e a própria linha guarda quando entrou e com qual envio veio.
+  Um evento a mais repetiria isso numa tabela que só cresce.</p>
+</div>
+
+<div class="note warn">
+  <strong>Só sai do armazenamento o que não virou anexo</strong>
+  <p>Quando a confirmação recusa — bytes que não são do formato, envio cheio, regra que mudou,
+  permissão com mais de uma hora —, o arquivo sai do armazenamento e a linha é apagada
+  logicamente, dizendo que houve uma tentativa e qual arquivo ela deixou. Sem isso, cada recusa
+  deixaria um arquivo guardado para sempre: a conta cresce com o que foi aceito, e não pode
+  crescer também com o que foi recusado. Quando aceita, sai a cópia de envio que sobrou em
+  <code>uploads/</code>.</p>
+  <p>O arquivo aceito não é apagado por nada. Por quanto tempo a mídia fica, e apagá-la quando o
+  prazo vencer, é <b>Adiado</b>.</p>
+</div>

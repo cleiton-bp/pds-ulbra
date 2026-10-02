@@ -6,7 +6,7 @@ namespace Pds.Domain.Entities;
 /// O que vale quando ninguem configurou nada.
 ///
 /// <para><b>Projeto novo tem de andar sem ninguem abrir esta tela.</b> E o criterio
-/// que atravessa a etapa inteira: a configuracao existe para quem quer outra coisa,
+/// de toda configuracao do projeto: ela existe para quem quer outra coisa,
 /// e nao para quem precisa comecar.</para>
 ///
 /// <para><b>Moram em codigo, e nao como valor padrao de coluna.</b> Assim existem

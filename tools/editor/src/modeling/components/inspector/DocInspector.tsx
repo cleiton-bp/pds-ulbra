@@ -18,7 +18,7 @@ export default function DocInspector({ doc, actions }: DocInspectorProps) {
         <span>Título</span>
         <input
           value={doc.meta.title}
-          placeholder="Etapa 1 — Fundação"
+          placeholder="Fundação"
           onChange={(event) => actions.setMeta({ title: event.target.value })}
         />
       </label>

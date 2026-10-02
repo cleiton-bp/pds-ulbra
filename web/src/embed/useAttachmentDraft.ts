@@ -13,6 +13,7 @@ import {
   previewUrl,
   rejectReason,
   releasePreview,
+  withDeclaredType,
   withRealType,
 } from '@/embed/attachments'
 import {
@@ -177,9 +178,12 @@ export function useAttachmentDraft(
         const reserva = { kind: kind.Kind }
         reservados.current = [...reservados.current, reserva]
 
+        // O arquivo que nao e imagem nao tem miniatura nem mostra: nao ha o que desenhar
+        // de um PDF ou de um log. E sobe com o tipo do catalogo — ver `withDeclaredType`.
+        const imagem = kind.Kind === 'Image'
         let thumbnail: Blob | null
         try {
-          thumbnail = await makeThumbnail(file)
+          thumbnail = imagem ? await makeThumbnail(file) : null
         } finally {
           reservados.current = reservados.current.filter((item) => item !== reserva)
         }
@@ -190,10 +194,10 @@ export function useAttachmentDraft(
           ...anexosRef.current,
           {
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            file,
+            file: withDeclaredType(file, kind),
             kind: kind.Kind,
             // A propria imagem, e nao a miniatura: ver `Anexo.preview`.
-            preview: previewUrl(file),
+            preview: imagem ? previewUrl(file) : null,
             // A linha inteira ate a pessoa escolher outro — o mesmo padrao da API.
             displaySize: DEFAULT_ATTACHMENT_DISPLAY_SIZE,
             thumbnail,
@@ -427,9 +431,14 @@ export function useAttachmentDraft(
     // Quem guardou a lista antes de ela sair da tela passa a copia dela.
     lista: Anexo[] = anexosRef.current,
   ) {
-    // A posicao de cada um e a da lista, que e a ordem em que a pessoa montou. Fica no
-    // item da tela para "Tentar de novo" mandar a mesma — ver `Anexo.displayOrder`.
-    const ordenados = lista.map((anexo, displayOrder) => ({ ...anexo, displayOrder }))
+    // A posicao de cada um e a da lista, que e a ordem em que a pessoa montou — contada
+    // dentro da categoria: as imagens de 0 em diante, e os arquivos tambem, porque cada
+    // categoria aparece no seu bloco. Fica no item da tela para "Tentar de novo" mandar
+    // a mesma — ver `Anexo.displayOrder`.
+    const ordenados = lista.map((anexo, indice) => ({
+      ...anexo,
+      displayOrder: lista.slice(0, indice).filter((antes) => antes.kind === anexo.kind).length,
+    }))
     if (geracao.current === minha)
       for (const anexo of ordenados) atualizar(anexo.id, { displayOrder: anexo.displayOrder })
 

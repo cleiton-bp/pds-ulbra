@@ -65,6 +65,16 @@ const ALEM_DE_RECEM_CHEGADO = 6_000
 
 const imagem = (container: HTMLElement) => container.querySelector('li img') as HTMLImageElement
 
+/**
+ * Passa o tempo em pedacos de 10 s, cada um no seu `act`: o relogio seguinte so e
+ * armado depois de o React rodar o efeito do pedido anterior.
+ */
+function avancar(ms: number) {
+  for (let passado = 0; passado < ms; passado += 10_000) {
+    act(() => vi.advanceTimersByTime(Math.min(10_000, ms - passado)))
+  }
+}
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
@@ -293,10 +303,10 @@ describe('o endereco que vence', () => {
     expect(renovacoes.mock.calls.length).toBeLessThanOrEqual(5)
   })
 
-  it('renovacao que falha nao trava a galeria: o relogio tenta de novo no piso', () => {
+  it('renovacao que falha nao trava a galeria: o relogio tenta de novo, esperando o dobro a cada vez', () => {
     vi.useFakeTimers()
     const renovar = vi.fn()
-    // O dono pede e a resposta nunca chega: a lista fica igual.
+    // O dono pede e a resposta nunca chega: a lista fica igual — a API fora do ar.
     render(
       <AttachmentGallery
         items={[item({ expiresAt: new Date(Date.now() + 40_000).toISOString() })]}
@@ -307,8 +317,258 @@ describe('o endereco que vence', () => {
     act(() => vi.advanceTimersByTime(30_000))
     expect(renovar).toHaveBeenCalledOnce()
 
-    act(() => vi.advanceTimersByTime(30_000))
+    // Sem lista nova: 1 min, depois 2, depois 4 — e nao um pedido a cada 30 s.
+    act(() => vi.advanceTimersByTime(59_000))
+    expect(renovar).toHaveBeenCalledOnce()
+    act(() => vi.advanceTimersByTime(1_000))
     expect(renovar).toHaveBeenCalledTimes(2)
+
+    act(() => vi.advanceTimersByTime(120_000))
+    expect(renovar).toHaveBeenCalledTimes(3)
+    act(() => vi.advanceTimersByTime(240_000))
+    expect(renovar).toHaveBeenCalledTimes(4)
+  })
+
+  it('a espera tem teto: uma noite com a API fora sao alguns pedidos por hora', () => {
+    vi.useFakeTimers()
+    const renovar = vi.fn()
+    render(
+      <AttachmentGallery
+        items={[item({ expiresAt: new Date(Date.now() - 60_000).toISOString() })]}
+        onExpired={renovar}
+      />,
+    )
+
+    avancar(60 * 60_000)
+
+    // 30 s, 1, 2 e 4 min, e dai a cada 5: 14 na primeira hora.
+    expect(renovar.mock.calls.length).toBeLessThanOrEqual(14)
+    expect(renovar.mock.calls.length).toBeGreaterThanOrEqual(12)
+  })
+
+  it('a lista nova zera a espera: o proximo pedido volta a sair no piso', () => {
+    vi.useFakeTimers()
+    const renovar = vi.fn()
+    const vencida = (v: number) => [
+      item({
+        url: `http://armazenamento/inteiro?v=${v}`,
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      }),
+    ]
+    const { rerender } = render(<AttachmentGallery items={vencida(1)} onExpired={renovar} />)
+
+    // Tres pedidos sem resposta: a espera ja esta em 4 min.
+    avancar(30_000 + 60_000 + 120_000)
+    expect(renovar).toHaveBeenCalledTimes(3)
+
+    // A API voltou: a lista chega com enderecos novos (para este relogio, ainda vencidos).
+    rerender(<AttachmentGallery items={vencida(2)} onExpired={renovar} />)
+    act(() => vi.advanceTimersByTime(30_000))
+
+    expect(renovar).toHaveBeenCalledTimes(4)
+  })
+})
+
+describe('a espera que dobra vale so para o relogio', () => {
+  it('com a API fora e a espera em 4 min, a imagem que falha pede na hora — so o piso de 30 s vale', () => {
+    vi.useFakeTimers()
+    const renovar = vi.fn()
+    const { container } = render(
+      <AttachmentGallery
+        items={[item({ expiresAt: new Date(Date.now() - 60_000).toISOString() })]}
+        onExpired={renovar}
+      />,
+    )
+    avancar(30_000 + 60_000 + 120_000)
+    expect(renovar).toHaveBeenCalledTimes(3)
+
+    avancar(31_000)
+    fireEvent.error(imagem(container))
+
+    // Esperar a vez do relogio deixaria a imagem quebrada por mais 3 minutos.
+    expect(renovar).toHaveBeenCalledTimes(4)
+  })
+})
+
+describe('"nao carregou" vale para aquele endereco', () => {
+  it('a volta sozinha e uma so: o que falha de novo fica, em vez de baixar a cada renovacao', () => {
+    const { container, rerender } = render(
+      <AttachmentGallery items={[item({ url: 'http://armazenamento/v1' })]} onExpired={() => {}} />,
+    )
+    // Um arquivo que o navegador nao sabe abrir: falha com todo endereco.
+    fireEvent.error(imagem(container))
+    rerender(
+      <AttachmentGallery items={[item({ url: 'http://armazenamento/v2' })]} onExpired={() => {}} />,
+    )
+    fireEvent.error(imagem(container))
+    expect(container.textContent).toContain('Imagem anexada não carregou.')
+
+    rerender(
+      <AttachmentGallery items={[item({ url: 'http://armazenamento/v3' })]} onExpired={() => {}} />,
+    )
+    expect(imagem(container)).toBeNull()
+
+    // O "Tentar de novo" continua valendo.
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/v3')
+  })
+
+  it('a que voltou e carregou ganha de novo a sua volta sozinha', () => {
+    const { container, rerender } = render(
+      <AttachmentGallery items={[item({ url: 'http://armazenamento/v1' })]} onExpired={() => {}} />,
+    )
+    fireEvent.error(imagem(container))
+    rerender(
+      <AttachmentGallery items={[item({ url: 'http://armazenamento/v2' })]} onExpired={() => {}} />,
+    )
+    fireEvent.load(imagem(container))
+
+    // Outra queda de rede, dias depois: volta sozinha outra vez. (A que carregou fica no
+    // endereco em que carregou: a primeira falha a passa para o da lista, e a segunda e
+    // a do endereco da lista.)
+    rerender(
+      <AttachmentGallery items={[item({ url: 'http://armazenamento/v3' })]} onExpired={() => {}} />,
+    )
+    fireEvent.error(imagem(container))
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/v3')
+    fireEvent.error(imagem(container))
+    expect(container.textContent).toContain('Imagem anexada não carregou.')
+    rerender(
+      <AttachmentGallery items={[item({ url: 'http://armazenamento/v4' })]} onExpired={() => {}} />,
+    )
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/v4')
+  })
+
+  it('a que falhou e pediu, e o pedido nao trouxe endereco novo, vira "nao carregou" na renovacao seguinte', () => {
+    vi.useFakeTimers()
+    const renovar = vi.fn()
+    // A API fora: pedir nao muda a lista.
+    const { container } = render(<AttachmentGallery items={[item()]} onExpired={renovar} />)
+    act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
+
+    fireEvent.error(imagem(container))
+    expect(renovar).toHaveBeenCalledOnce()
+    // Enquanto espera, nada muda — o pedido pode estar a caminho.
+    expect(container.textContent).not.toContain('não carregou')
+
+    // Vence em 5 min: a renovacao seguinte sai 30 s antes, e o endereco continua o mesmo.
+    avancar(5 * 60_000)
+
+    expect(renovar).toHaveBeenCalledTimes(2)
+    expect(container.textContent).toContain('Imagem anexada não carregou.')
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeDefined()
+  })
+
+  it('a que falhou sem pedido nenhum sair depois — o piso segurou — nao pisca "nao carregou"', () => {
+    vi.useFakeTimers()
+    const renovar = vi.fn()
+    const { container } = render(
+      <AttachmentGallery
+        items={[item({ expiresAt: new Date(Date.now() - 60_000).toISOString() })]}
+        onExpired={renovar}
+      />,
+    )
+    avancar(30_000)
+    expect(renovar).toHaveBeenCalledOnce()
+
+    // Dez segundos depois do pedido: o piso segura o da falha.
+    avancar(10_000)
+    fireEvent.error(imagem(container))
+    expect(renovar).toHaveBeenCalledOnce()
+
+    // O relogio pede agora — e o pedido dele e o primeiro depois da falha.
+    avancar(50_000)
+    expect(renovar).toHaveBeenCalledTimes(2)
+    expect(container.textContent).not.toContain('não carregou')
+
+    // Esse tambem nao trouxe: ai sim.
+    avancar(120_000)
+    expect(container.textContent).toContain('Imagem anexada não carregou.')
+  })
+
+  it('o "Tentar de novo" monta a imagem de novo, sem pedir nada e sem recarregar a pagina', () => {
+    const renovar = vi.fn()
+    const { container } = render(<AttachmentGallery items={[item()]} onExpired={renovar} />)
+    // Recem-chegado e ja falhou — a rede caiu no instante errado.
+    fireEvent.error(imagem(container))
+    expect(container.textContent).toContain('Imagem anexada não carregou.')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/inteiro')
+    expect(renovar).not.toHaveBeenCalled()
+  })
+
+  it('o "Tentar de novo" esquece a falha antiga: vencendo depois, pede endereco novo', () => {
+    vi.useFakeTimers()
+    const renovacoes = vi.fn()
+    const { container } = render(<DonoQueRenova aoRenovar={renovacoes} />)
+    act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
+    // Falhou, pediu, e o endereco novo falhou tambem: "nao carregou".
+    fireEvent.error(imagem(container))
+    fireEvent.error(imagem(container))
+    expect(renovacoes).toHaveBeenCalledOnce()
+    act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    act(() => vi.advanceTimersByTime(30_000))
+    fireEvent.error(imagem(container))
+
+    // Sem esquecer, a falha contaria como "endereco novo falhando" e nao pediria nada.
+    expect(renovacoes).toHaveBeenCalledTimes(2)
+  })
+
+  it('a renovacao seguinte traz outro endereco, e a imagem tenta de novo sozinha', () => {
+    const { container, rerender } = render(
+      <AttachmentGallery items={[item()]} onExpired={() => {}} />,
+    )
+    fireEvent.error(imagem(container))
+    expect(imagem(container)).toBeNull()
+
+    // A mesma lista desenhada de novo: continua "nao carregou".
+    rerender(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
+    expect(imagem(container)).toBeNull()
+
+    rerender(
+      <AttachmentGallery
+        items={[item({ url: 'http://armazenamento/inteiro?novo' })]}
+        onExpired={() => {}}
+      />,
+    )
+    expect(imagem(container).getAttribute('src')).toBe('http://armazenamento/inteiro?novo')
+  })
+
+  it('com mais de uma imagem, o aviso diz qual nao carregou', () => {
+    const { container } = render(
+      <AttachmentGallery
+        items={[item({ id: 'a-1' }), item({ id: 'a-2', url: 'http://armazenamento/outra' })]}
+        onExpired={() => {}}
+      />,
+    )
+    fireEvent.error(container.querySelectorAll('li img')[1] as HTMLImageElement)
+
+    expect(container.textContent).toContain('Imagem 2 de 2 não carregou.')
+    expect(container.querySelectorAll('li img')).toHaveLength(1)
+  })
+
+  it('a capa do video tambem tenta de novo com o endereco novo', () => {
+    const video = item({ kind: 'Video' })
+    const { container, rerender } = render(
+      <AttachmentGallery items={[video]} onExpired={() => {}} />,
+    )
+    fireEvent.error(container.querySelector('button img') as HTMLImageElement)
+    expect(container.textContent).toContain('não carregou')
+
+    rerender(
+      <AttachmentGallery
+        items={[{ ...video, thumbnailUrl: 'http://armazenamento/miniatura?novo' }]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(container.querySelector('button img')?.getAttribute('src')).toBe(
+      'http://armazenamento/miniatura?novo',
+    )
   })
 })
 
@@ -420,5 +680,190 @@ describe('renovar nao fecha o video aberto', () => {
     expect(container.querySelector('video')?.getAttribute('src')).toBe(
       'http://armazenamento/inteiro?novo',
     )
+  })
+
+  // A ordem "falhou, depois renovou" (o computador dormiu com o video aberto): antes, a
+  // lista renovava e o video continuava montado no endereco que falhou, parado e sem
+  // mensagem.
+  it('o video que falha com o da lista pede um novo, e monta com ele quando chega', () => {
+    vi.useFakeTimers()
+    const renovar = vi.fn()
+    const video = item({ kind: 'Video' })
+    const { container, rerender } = render(
+      <AttachmentGallery items={[video]} onExpired={renovar} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Vídeo/ }))
+    act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
+
+    fireEvent.error(container.querySelector('video') as HTMLVideoElement)
+    expect(renovar).toHaveBeenCalledOnce()
+
+    rerender(
+      <AttachmentGallery
+        items={[{ ...video, url: 'http://armazenamento/inteiro?novo' }]}
+        onExpired={renovar}
+      />,
+    )
+
+    expect(container.querySelector('video')?.getAttribute('src')).toBe(
+      'http://armazenamento/inteiro?novo',
+    )
+    expect(container.textContent).not.toContain('Não deu para abrir')
+  })
+
+  it('carregou seguindo a lista: volta a ficar no endereco em que carregou', () => {
+    vi.useFakeTimers()
+    const video = item({ kind: 'Video' })
+    const { container, rerender } = render(
+      <AttachmentGallery items={[video]} onExpired={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Vídeo/ }))
+    act(() => vi.advanceTimersByTime(ALEM_DE_RECEM_CHEGADO))
+    fireEvent.error(container.querySelector('video') as HTMLVideoElement)
+    const comNovo = { ...video, url: 'http://armazenamento/inteiro?novo' }
+    rerender(<AttachmentGallery items={[comNovo]} onExpired={() => {}} />)
+
+    fireEvent.loadedMetadata(container.querySelector('video') as HTMLVideoElement)
+    rerender(
+      <AttachmentGallery
+        items={[{ ...video, url: 'http://armazenamento/inteiro?mais-novo' }]}
+        onExpired={() => {}}
+      />,
+    )
+
+    // A renovacao seguinte nao manda o video, ja tocando, de volta ao inicio.
+    expect(container.querySelector('video')?.getAttribute('src')).toBe(
+      'http://armazenamento/inteiro?novo',
+    )
+  })
+
+  it('o video que nao abre diz isso, e o "Tentar de novo" monta o player outra vez', () => {
+    const video = item({ kind: 'Video' })
+    const { container } = render(<AttachmentGallery items={[video]} onExpired={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /Vídeo/ }))
+
+    // Recem-chegado e ja falhou: nao e vencimento.
+    fireEvent.error(container.querySelector('video') as HTMLVideoElement)
+    expect(container.textContent).toContain('Não deu para abrir este vídeo.')
+    expect(container.querySelector('video')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+
+    expect(container.querySelector('video')?.getAttribute('src')).toBe(
+      'http://armazenamento/inteiro',
+    )
+  })
+})
+
+// O arquivo que nao e imagem so baixa: a linha diz o que e e quanto pesa, e o nome
+// original so aparece no painel (pela legenda).
+describe('o arquivo que nao e imagem', () => {
+  const pdf = (mudanca: Partial<GalleryItem> = {}) =>
+    item({
+      id: 'f-1',
+      kind: 'File',
+      url: 'http://armazenamento/fatura?assinado',
+      thumbnailUrl: null,
+      contentType: 'application/pdf',
+      sizeBytes: 120 * 1024,
+      caption: undefined,
+      ...mudanca,
+    })
+
+  it('vira uma linha de baixar, com o tipo e o tamanho, e nunca uma imagem', () => {
+    const { container } = render(
+      <AttachmentGallery
+        fileLabel="Arquivos que você anexou"
+        items={[pdf()]}
+        onExpired={() => {}}
+      />,
+    )
+
+    const lista = screen.getByRole('list', { name: 'Arquivos que você anexou' })
+    const link = screen.getByRole('link', { name: 'Baixar PDF · 120 KB' })
+    expect(lista.contains(link)).toBe(true)
+    expect(link.getAttribute('href')).toBe('http://armazenamento/fatura?assinado')
+    expect(link.hasAttribute('download')).toBe(true)
+    // Em outra aba: se o endereco falhar mesmo assim, o erro nao toma o lugar da pagina.
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noreferrer')
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  // O computador dormiu e a renovacao nao rodou: abrir o endereco vencido daria o erro
+  // do armazenamento. O clique pede um novo, e diz o que houve.
+  it('com o endereco vencendo, o clique pede um novo em vez de abrir', () => {
+    const renovar = vi.fn()
+    render(
+      <AttachmentGallery
+        items={[pdf({ expiresAt: new Date(Date.now() + 10_000).toISOString() })]}
+        onExpired={renovar}
+      />,
+    )
+
+    const clique = fireEvent.click(screen.getByRole('link', { name: /^Baixar/ }))
+
+    expect(clique).toBe(false)
+    expect(renovar).toHaveBeenCalledOnce()
+    expect(screen.getByRole('status').textContent).toMatch(/tinha vencido/)
+  })
+
+  it('com o endereco valido, o clique segue para o download', () => {
+    const renovar = vi.fn()
+    render(<AttachmentGallery items={[pdf()]} onExpired={renovar} />)
+
+    expect(fireEvent.click(screen.getByRole('link', { name: /^Baixar/ }))).toBe(true)
+    expect(renovar).not.toHaveBeenCalled()
+  })
+
+  it('o aviso do painel fica embaixo da lista, e nao dentro dela', () => {
+    render(<AttachmentGallery items={[pdf()]} fileNote="Abra com cuidado." onExpired={() => {}} />)
+
+    const aviso = screen.getByText('Abra com cuidado.')
+    expect(screen.getByRole('list', { name: 'Arquivos anexados' }).contains(aviso)).toBe(false)
+  })
+
+  it('no painel, a legenda traz o nome original', () => {
+    render(
+      <AttachmentGallery
+        items={[pdf({ caption: 'fatura-março.pdf · 120 KB' })]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: 'Baixar fatura-março.pdf · 120 KB' })).toBeDefined()
+  })
+
+  // O zip saiu do catalogo, e o que ja estava guardado continua na lista: sem o nome do
+  // tipo dele, a linha diria so "Arquivo", e o selo, "ARQ".
+  it('o zip guardado de antes diz que e zip', () => {
+    render(
+      <AttachmentGallery items={[pdf({ contentType: 'application/zip' })]} onExpired={() => {}} />,
+    )
+
+    const link = screen.getByRole('link', { name: 'Baixar ZIP · 120 KB' })
+    expect(link.querySelector('[aria-hidden="true"]')?.textContent).toBe('ZIP')
+  })
+
+  it('um tipo que a tela nao conhece tambem so baixa', () => {
+    render(
+      <AttachmentGallery
+        items={[pdf({ kind: 'Audio' as never, contentType: 'audio/ogg' })]}
+        onExpired={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: /^Baixar Arquivo/ })).toBeDefined()
+  })
+
+  it('imagens na grade, e arquivos na lista, cada um no seu lugar', () => {
+    render(<AttachmentGallery items={[pdf(), item({ id: 'i-1' })]} onExpired={() => {}} />)
+
+    expect(
+      screen.getByRole('list', { name: 'Imagens anexadas' }).querySelectorAll('img'),
+    ).toHaveLength(1)
+    expect(
+      screen.getByRole('list', { name: 'Arquivos anexados' }).querySelectorAll('a'),
+    ).toHaveLength(1)
   })
 })

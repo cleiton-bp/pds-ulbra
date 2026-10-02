@@ -17,8 +17,9 @@ namespace Pds.WebApi.Controllers;
 ///
 /// **Os endereços nascem nesta resposta e morrem em minutos.** Nenhum está guardado
 /// em lugar nenhum, e pedir de novo gera outros. `ExpiresAt` é o que a tela usa
-/// para pedir antes de a imagem quebrar. O vídeo vale mais que a imagem: ele é lido
-/// em pedaços enquanto toca, e pausar não pode quebrar a reprodução.
+/// para pedir antes de a imagem quebrar — o primeiro vencimento do anexo, do arquivo
+/// ou da miniatura. O vídeo antigo vale mais que a imagem: ele é lido em pedaços
+/// enquanto toca, e pausar não pode quebrar a reprodução.
 ///
 /// **Vídeo só aparece se entrou antes de sair do produto.** Nenhum vídeo novo é
 /// aceito, mas os que já estavam confirmados continuam listados e tocando.
@@ -51,7 +52,7 @@ public class ReportAttachmentsController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">Os anexos confirmados, na ordem em que entraram.</response>
+    /// <response code="200">Os anexos confirmados, na ordem em que quem relatou montou cada envio.</response>
     /// <response code="404">Projeto ou relato não existe, ou pertence a outra conta.</response>
     /// <response code="409">Não há armazenamento configurado nesta instalação.</response>
     [HttpGet]

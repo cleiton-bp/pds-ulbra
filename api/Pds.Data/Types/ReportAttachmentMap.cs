@@ -13,7 +13,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
         builder.ToTable("report_attachments", table =>
         {
             table.HasComment(
-                "O registro de um arquivo que veio com o relato. O arquivo em si nao esta aqui e nunca estara: o que a linha guarda e o nome dele no armazenamento, o bastante para pedir uma permissao de leitura quando alguem que pode ver aparecer.");
+                "O registro de um arquivo que veio com o relato, com uma resposta ou com uma reabertura. O arquivo em si nao esta aqui e nunca estara: o que a linha guarda e o nome dele no armazenamento, o bastante para pedir uma permissao de leitura quando alguem que pode ver aparecer.");
 
             // Um arquivo vai com um envio so: a criacao, uma resposta ou uma
             // reabertura. As duas colunas preenchidas deixariam o arquivo contar na
@@ -42,14 +42,14 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
             .HasConversion(new SnakeCaseEnumConverter<MediaKindEnum>())
             .HasMaxLength(20)
             .IsRequired()
-            .HasComment("image ou video. A mesma lista de project_media_kinds, porque e ela que diz qual limite se aplica.");
+            .HasComment("image, file ou video (este, so dos anexos antigos). A mesma lista de project_media_kinds, porque e ela que diz qual limite se aplica.");
 
         builder.Property(attachment => attachment.Status)
             .HasColumnName("status")
             .HasConversion(new SnakeCaseEnumConverter<AttachmentStatusEnum>())
             .HasMaxLength(20)
             .IsRequired()
-            .HasComment("pending ou confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que fica pending e orfao — ocupa espaco e nao pertence a nada.");
+            .HasComment("pending ou confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que fica pending e permissao nao usada: nao aparece nem conta no limite, e o arquivo, se chegou, fica na pasta de envio, que o armazenamento esvazia sozinho.");
 
         builder.Property(attachment => attachment.ObjectKey)
             .HasColumnName("object_key")
@@ -60,7 +60,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
         builder.Property(attachment => attachment.ThumbnailObjectKey)
             .HasColumnName("thumbnail_object_key")
             .HasMaxLength(ReportAttachment.MaxObjectKeyLength)
-            .HasComment("A miniatura, gerada no proprio navegador antes do envio. No video e o quadro de capa. Vem de fora, entao ela tambem e conferida.");
+            .HasComment("A miniatura da imagem, gerada no proprio navegador antes do envio — WebP, ou JPEG onde o navegador nao codifica WebP. Vem de fora, entao ela tambem e conferida. O arquivo nao tem; nos videos antigos, e o quadro de capa.");
 
         builder.Property(attachment => attachment.ContentType)
             .HasColumnName("content_type")
@@ -75,7 +75,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
 
         builder.Property(attachment => attachment.DurationSeconds)
             .HasColumnName("duration_seconds")
-            .HasComment("Duracao em segundos, so para o que tem duracao.");
+            .HasComment("Duracao em segundos, so dos videos antigos.");
 
         builder.Property(attachment => attachment.OriginalName)
             .HasColumnName("original_name")
@@ -84,7 +84,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
 
         builder.Property(attachment => attachment.ConfirmedAt)
             .HasColumnName("confirmed_at")
-            .HasComment("Quando a nossa API prendeu o anexo ao relato. Nulo e orfao.");
+            .HasComment("Quando a nossa API prendeu o anexo ao relato. Nulo enquanto pendente.");
 
         builder.Property(attachment => attachment.DisplaySize)
             .HasColumnName("display_size")
@@ -96,7 +96,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
         builder.Property(attachment => attachment.DisplayOrder)
             .HasColumnName("display_order")
             .IsRequired()
-            .HasComment("A posicao da imagem no envio, a partir de zero: a ordem em que a pessoa as montou. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros. Vale dentro de um envio; a hora de chegada desempata.");
+            .HasComment("A posicao no envio, a partir de zero, dentro da categoria: a ordem em que a pessoa montou as imagens, e a dos arquivos. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros. Vale dentro de um envio; a hora de chegada desempata.");
 
         builder.HasOne(attachment => attachment.Report)
             .WithMany()

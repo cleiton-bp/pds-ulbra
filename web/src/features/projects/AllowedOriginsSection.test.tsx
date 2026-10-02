@@ -15,9 +15,8 @@ import { AllowedOriginsSection } from '@/features/projects/AllowedOriginsSection
  * ate alguem recarregar.
  *
  * Os dois ultimos sao de honestidade, e sao os mais faceis de quebrar sem querer.
- * Eles trocaram de lado na pds-016: ate a pds-015 a tela **nao podia** dizer que
- * restringia, porque nenhuma linha do sistema lia esta tabela; agora ela e
- * conferida nas duas rotas publicas, e o que passou a ser mentira e o contrario.
+ * A tela diz que restringe porque a lista e conferida nas tres rotas publicas que a
+ * ferramenta usa ao abrir e ao enviar; dizer o contrario e que seria mentira.
  *
  * O que continua sendo mentira, e por isso tem asserticao negativa: **muro.** Quem
  * declara o endereco e o carregador, que e codigo nosso — a lista pega a chave

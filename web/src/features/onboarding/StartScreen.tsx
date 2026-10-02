@@ -118,8 +118,7 @@ export function StartScreen() {
             )}
 
             {/* A pergunta que vem depois de enviar e "e agora, onde ele esta?", e a
-                resposta e outra tela. Ate a pds-014 nao havia para onde apontar, e
-                a frase acima terminava prometendo a lista para depois. */}
+                resposta e outra tela: a fila de relatos. */}
             <Link
               to="../reports"
               className="mt-4 inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"

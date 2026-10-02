@@ -23,12 +23,14 @@ public class UnavailableMediaStorage : IMediaStorage
         string objectKey,
         string contentType,
         long maxBytes,
+        bool downloadOnly = false,
         CancellationToken cancellationToken = default)
         => throw new InvalidOperationException(Motivo);
 
     public Task<SignedReadUrl> CreateReadUrlAsync(
         string objectKey,
         bool forPlayback = false,
+        string? downloadAs = null,
         CancellationToken cancellationToken = default)
         => throw new InvalidOperationException(Motivo);
 

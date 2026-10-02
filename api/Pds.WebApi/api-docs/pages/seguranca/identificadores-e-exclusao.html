@@ -13,11 +13,13 @@ só expõem <code>PublicId</code>, e as rotas só aceitam GUID.</p>
 desfazer engano e para manter integridade referencial.</p>
 
 <div class="note todo">
-  <strong>Nenhuma rota da etapa 1 exclui</strong>
+  <strong>Nenhuma rota apaga projeto, relato ou conta</strong>
   <p>A máquina existe — <code>BaseRepository.SoftDeleteAsync</code> preenche a data e
-  propaga aos filhos marcados com <code>[SoftDeleteDependent]</code> — mas ainda não há
-  chamador. Projeto se arquiva, não se apaga, e apagar de vez depende de decidir o que
-  fazer com os relatos que apontam para ele.</p>
+  propaga aos filhos marcados com <code>[SoftDeleteDependent]</code> — e é usada no que é
+  miúdo: tirar um endereço autorizado ou uma etapa pública, desfazer a escolha da coluna em que
+  um tipo de relato entra, desfazer um encerramento, descartar um anexo recusado. A propagação, que só existe em projeto, relato e conta, ainda não tem
+  chamador. Projeto se arquiva, não se apaga, e apagar de vez depende de decidir o que fazer
+  com os relatos que apontam para ele.</p>
 </div>
 
 <div class="note warn">
@@ -25,18 +27,25 @@ desfazer engano e para manter integridade referencial.</p>
   <p>Um pedido de exclusão de dados exige apagar de verdade ou anonimizar. As colunas
   <code>purge_at</code> e <code>anonymized_at</code> em <code>accounts</code> existem para
   isso, mas <strong>a rotina ainda não foi implementada</strong>.</p>
+  <p>E a mídia aceita nunca sai do balde hoje. O que se apaga fisicamente é só o que não virou
+  anexo — o arquivo recusado, a cópia de envio que sobra da confirmação, a miniatura que não passa
+  na conferência. Por quanto tempo a mídia fica guardada, e apagá-la quando vencer, é
+  <strong>Adiado</strong>.</p>
 </div>
 
 <h3>O que a anonimização precisará fazer</h3>
 
 <p>Não basta limpar <code>users</code>. O nome da conta e o nome do projeto identificam
-igual, e o que vier pendurado depois — domínios autorizados, os próprios relatos —
-identifica ainda mais.</p>
+igual, e o que vem pendurado neles — domínios autorizados, os próprios relatos, os prints —
+identifica ainda mais. A rotina é <strong>Planejado</strong>.</p>
 
 <ul>
   <li><code>users</code>: saem nome, e-mail, avatar e <code>google_subject</code>. Limpar o
   <code>google_subject</code> é o que impede a conta de ser reencontrada num login futuro.</li>
   <li><code>accounts</code>: sai o nome; a linha fica como âncora do histórico.</li>
   <li>Projeto, chaves e relatos: apagados de verdade.</li>
+  <li>Os arquivos no balde: apagados de verdade também. Apagar a linha do anexo e deixar o
+  objeto seria guardar o print — e um print mostra a tela de alguém, às vezes com o nome, o
+  e-mail ou o pedido dele.</li>
   <li>Sobram contagem e tempo, que não identificam ninguém e são o que a pesquisa precisa.</li>
 </ul>

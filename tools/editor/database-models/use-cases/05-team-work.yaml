@@ -8,7 +8,7 @@ actors:
     position: { x: -180, y: 336 }
   - name: Armazenamento de arquivos
     kind: system
-    description: Guarda os prints e os vídeos, privado. Só entrega um arquivo por link assinado, de validade curta.
+    description: Guarda as imagens e os arquivos (e os vídeos antigos), privado. Só entrega um arquivo por link assinado, de validade curta.
     position: { x: 980, y: 136 }
   - name: Agendador
     kind: system
@@ -41,6 +41,7 @@ useCases:
       - Lê o texto, o tipo, o site e a página onde aconteceu, e a data.
       - Vê tudo o que já aconteceu com o relato, em ordem.
       - Vê em que etapa pública ele está, e se está liberado para o público.
+      - Vê as reaberturas, cada uma com o motivo e o que veio anexado.
   - id: UC03
     name: Comentar
     description: Por dentro, para o time; ou para fora, para quem relatou ler na página de acompanhamento. Os dois ficam separados de forma visível.
@@ -110,18 +111,24 @@ useCases:
     postconditions: Quem relatou pode confirmar que resolveu, ou reabrir — ver 06-tracking.
   - id: UC07
     name: Ver os arquivos do relato
-    description: Miniatura no relato, arquivo inteiro só quando alguém abre.
+    description: O relato como quem relatou montou — a imagem logo abaixo do texto, no tamanho escolhido —, e os arquivos para baixar.
     width: 240
     position: { x: 600, y: 125 }
     mainFlow:
-      - O membro vê as miniaturas dos prints e dos vídeos no relato aberto.
-      - Abre um arquivo.
-      - O sistema confere que o membro pode ver aquele relato, e só então gera um link de leitura de validade curta.
-      - O painel mostra a imagem ou toca o vídeo.
+      - O membro abre o relato, e o sistema confere que ele pode ver aquele relato antes de gerar os links de leitura, de validade curta.
+      - Cada imagem aparece no lugar de onde veio — embaixo do relato, da resposta ou da reabertura —, no tamanho e na ordem que quem relatou escolheu, com o nome original e o tamanho. Um clique abre em tamanho real, em outra aba.
+      - Cada arquivo aparece como uma linha para baixar, com o nome original e o aviso de abrir só o que se esperava receber. Baixar nunca abre o arquivo na página.
+      - Os vídeos antigos continuam tocando.
     alternativeFlows:
-      - title: 4a. O link venceu
+      - title: 2a. O link venceu
         steps:
-          - O painel pede um link novo, em vez de quebrar em silêncio.
+          - O painel pede links novos antes de vencer, e de novo quando um arquivo falha — em vez de quebrar em silêncio.
+      - title: 2b. Um arquivo não carregou
+        steps:
+          - O lugar dele diz que não carregou, com "Tentar de novo".
+      - title: 2c. A fala ou a reabertura do arquivo não está na tela
+        steps:
+          - O arquivo aparece embaixo do relato, depois dos da criação, dizendo de onde veio — em vez de sumir.
   - id: UC08
     name: Encerrar sem retorno
     description: Quando o segundo prazo do pedido de informação vence sem resposta, o relato encerra sozinho como “sem retorno”.

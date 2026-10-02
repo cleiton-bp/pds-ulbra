@@ -89,7 +89,7 @@ public enum EventTypeEnum
     /// <summary>
     /// Quem relatou disse que resolveu.
     ///
-    /// <para><b>E o evento que da sentido a etapa inteira.</b> "Concluido" e o time
+    /// <para><b>E o evento que da sentido ao ciclo inteiro.</b> "Concluido" e o time
     /// dizendo que acabou; este e a pessoa do outro lado dizendo que chegou. Sem o
     /// segundo, o produto vira o que o proprio README denuncia — um sistema que
     /// avisa que fechou o chamado.</para>
@@ -178,7 +178,7 @@ public enum EventTypeEnum
     /// continua no ciclo, e quem escreveu continua acompanhando pelo link. A recusa
     /// fala so da vitrine.</para>
     ///
-    /// <para>Existe como evento para a contagem que importa nesta etapa: <b>quanto
+    /// <para>Existe como evento para a contagem que importa na moderacao: <b>quanto
     /// do que chega nao pode ser publicado</b>. Uma taxa alta nao diz que o time
     /// e rigoroso — diz que o aviso antes de escrever nao esta sendo lido.</para>
     /// </summary>

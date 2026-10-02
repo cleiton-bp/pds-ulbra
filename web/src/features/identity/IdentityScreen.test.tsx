@@ -9,8 +9,7 @@ import { IdentityScreen } from '@/features/identity/IdentityScreen'
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
  *
- * **Esta tela ensina, e o ensino e o requisito.** O criterio de pronto da etapa
- * diz: "leio a tela sem saber o que e HMAC e consigo montar a integracao com o que
+ * **Esta tela ensina, e o ensino e o requisito.** O requisito diz: "leio a tela sem saber o que e HMAC e consigo montar a integracao com o que
  * esta escrito ali". Uma tela com tres radios e os nomes dos modos passaria em
  * qualquer teste de comportamento e falharia no criterio — por isso o que cada
  * modo **destrava** e o que **custa** sao verificados como conteudo, e nao como
@@ -120,7 +119,7 @@ describe('IdentityScreen', () => {
 
     const protocolo = await screen.findByRole('radio', { name: /Protocolo/ })
 
-    // A regra que atravessa a etapa precisa estar legível **junto da opção**, e
+    // A regra que atravessa a tela precisa estar legível **junto da opção**, e
     // não num aviso que aparece depois de escolher.
     expect(protocolo.closest('label')?.textContent).toMatch(/não há lista pessoal/i)
   })

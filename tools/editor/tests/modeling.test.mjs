@@ -40,7 +40,7 @@ const strip = (doc) => JSON.parse(JSON.stringify(doc, (key, value) => (key === '
 
 const SAMPLE = `
 meta:
-  title: Etapa 1 — Fundação
+  title: Fundação
 entities:
   - name: Account
     label: Conta
@@ -83,7 +83,7 @@ describe('parse', () => {
     assert.equal(result.ok, true)
 
     const { doc } = result
-    assert.equal(doc.meta.title, 'Etapa 1 — Fundação')
+    assert.equal(doc.meta.title, 'Fundação')
     assert.deepEqual(doc.entities.map((e) => e.name), ['Account', 'User'])
     assert.equal(doc.entities[0].fields.length, 2)
     assert.equal(doc.entities[0].fields[0].pk, true)

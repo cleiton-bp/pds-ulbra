@@ -3,7 +3,7 @@ import {
   type MediaKind,
   type PublicMediaKindViewModel,
   type PublicMediaSettingsViewModel,
-  UPLOADABLE_MEDIA_KIND,
+  UPLOADABLE_MEDIA_KINDS,
 } from '@/contracts'
 import type { EditDoc } from '@/editor/doc'
 import { formatBytes } from '@/shared/lib/formatBytes'
@@ -89,7 +89,7 @@ const THUMBNAIL_MAX_BYTES = 256 * 1024
 const THUMBNAIL_TYPES = ['image/webp', 'image/jpeg'] as const
 
 /**
- * A configuracao com so o que ainda se pode enviar — hoje, so imagem.
+ * A configuracao com so o que ainda se pode enviar — imagem e arquivo.
  *
  * **A API ja nao lista video**, e isto nao e desconfianca dela: e o que segura a
  * janela da troca, quando o quadro novo pode falar com uma API que ainda nao
@@ -102,7 +102,13 @@ export function onlyUploadable(
 ): PublicMediaSettingsViewModel {
   return {
     ...settings,
-    Kinds: settings.Kinds.filter((kind) => kind.Kind === UPLOADABLE_MEDIA_KIND),
+    Kinds: settings.Kinds.filter(
+      (kind) =>
+        UPLOADABLE_MEDIA_KINDS.includes(kind.Kind) &&
+        // O arquivo e reconhecido pela extensao: sem a lista delas — a API de antes do
+        // arquivo nao a manda —, nao ha como aceitar nenhum.
+        (kind.Kind !== 'File' || (kind.Types ?? []).length > 0),
+    ),
   }
 }
 
@@ -154,17 +160,68 @@ export async function withRealType(file: File): Promise<File> {
   return new File([file], file.name, { type: real, lastModified: file.lastModified })
 }
 
-/** A categoria que aceita este arquivo, pelo tipo dele. */
+/**
+ * A extensao do nome, com o ponto e em minusculas, ou nulo. A mesma regra da API
+ * (`FileFormats.ExtensionOf`).
+ */
+export function extensionOf(name: string | undefined): string | null {
+  const nome = (name ?? '').trim().replaceAll('\\', '/').split('/').pop() ?? ''
+  const ponto = nome.lastIndexOf('.')
+  return ponto <= 0 || ponto === nome.length - 1 ? null : nome.slice(ponto).toLowerCase()
+}
+
+/**
+ * A categoria que aceita este arquivo.
+ *
+ * **A imagem pelo tipo, e o arquivo pela extensao.** O tipo da imagem ja foi acertado
+ * pelos bytes (`withRealType`). O do arquivo nao da para acertar assim, e o que o
+ * navegador deduz erra de lugar para lugar — o `.log` chega sem tipo, o `.csv` chega
+ * como planilha do Excel no Windows. A extensao e a mesma em todo lugar, e e por ela
+ * que a API reconhece o formato.
+ */
 export function kindFor(
   file: Blob,
   settings: PublicMediaSettingsViewModel,
 ): PublicMediaKindViewModel | null {
-  return settings.Kinds.find((kind) => kind.ContentTypes.includes(file.type)) ?? null
+  const imagem = settings.Kinds.find(
+    (kind) => kind.Kind === 'Image' && kind.ContentTypes.includes(file.type),
+  )
+  if (imagem) return imagem
+
+  const extensao = extensionOf((file as Partial<File>).name)
+  if (extensao === null) return null
+
+  return (
+    settings.Kinds.find(
+      (kind) =>
+        kind.Kind === 'File' && (kind.Types ?? []).some((tipo) => tipo.Extension === extensao),
+    ) ?? null
+  )
 }
 
-/** O que vai no `accept` do seletor, para o navegador ja esconder o que nao serve. */
-export function acceptAttribute(settings: PublicMediaSettingsViewModel): string {
-  return settings.Kinds.flatMap((kind) => kind.ContentTypes).join(',')
+/**
+ * O arquivo com o tipo que a API espera para a extensao dele — o do catalogo, e nao o
+ * que o navegador deduziu. A imagem fica como esta: o tipo dela veio dos bytes.
+ */
+export function withDeclaredType(file: File, kind: PublicMediaKindViewModel): File {
+  if (kind.Kind !== 'File') return file
+
+  const extensao = extensionOf(file.name)
+  const tipo = (kind.Types ?? []).find((item) => item.Extension === extensao)?.ContentType
+  if (!tipo || tipo === file.type) return file
+  return new File([file], file.name, { type: tipo, lastModified: file.lastModified })
+}
+
+/**
+ * O que vai no `accept` do seletor, para o navegador ja esconder o que nao serve: os
+ * tipos da imagem e as extensoes do arquivo — de uma categoria so, ou das duas.
+ */
+export function acceptAttribute(settings: PublicMediaSettingsViewModel, kind?: MediaKind): string {
+  return settings.Kinds.filter((item) => kind === undefined || item.Kind === kind)
+    .flatMap((item) =>
+      item.Kind === 'File' ? (item.Types ?? []).map((tipo) => tipo.Extension) : item.ContentTypes,
+    )
+    .join(',')
 }
 
 /**
@@ -193,30 +250,28 @@ export function rejectReason(
 
   if (file.size > kind.MaxBytes) return `O arquivo passa de ${formatBytes(kind.MaxBytes)}.`
 
-  if (already.length >= settings.MaxFilesPerReport)
-    return fitsUpTo(settings.MaxFilesPerReport, 'arquivo', 'arquivos')
-
+  // Cada categoria com o seu limite: nao ha total por envio.
   if (already.filter((anexo) => anexo.kind === kind.Kind).length >= kind.MaxCount)
-    return fitsUpTo(kind.MaxCount, 'imagem', 'imagens')
+    return kind.Kind === 'File'
+      ? fitsUpTo(kind.MaxCount, 'arquivo', 'arquivos')
+      : fitsUpTo(kind.MaxCount, 'imagem', 'imagens')
 
   return null
 }
 
 /**
- * Ainda cabe arquivo neste envio: de qualquer tipo aceito, ou so de `kind`.
+ * Ainda cabe algo neste envio: de qualquer categoria aceita, ou so de `kind`.
  *
- * **Os dois limites, e nao so o total.** Com um tipo so, o de fabrica e quatro no
- * total e tres imagens — conferindo so o total, os botoes ficariam ligados depois
- * da terceira imagem, e a pessoa so ouviria "nao cabe" depois de capturar e
- * recortar a tela. E a mesma conta de `rejectReason`, feita antes do clique.
+ * **Pelo limite de cada categoria**, que e o unico: nao ha total por envio. E a mesma
+ * conta de `rejectReason`, feita antes do clique — sem ela, o botao de capturar
+ * ficaria ligado depois da ultima imagem, e a pessoa so ouviria "nao cabe" depois de
+ * marcar a area da tela.
  */
 export function hasRoom(
   already: Pick<Anexo, 'kind'>[],
   settings: PublicMediaSettingsViewModel,
   kind?: MediaKind,
 ): boolean {
-  if (already.length >= settings.MaxFilesPerReport) return false
-
   return settings.Kinds.some(
     (tipo) =>
       (kind === undefined || tipo.Kind === kind) &&
@@ -232,25 +287,33 @@ const FORMAT_NAMES: Record<string, string> = {
 }
 
 /**
- * "Só dá para anexar imagem: PNG, JPEG ou WebP."
+ * "Só dá para anexar imagem: PNG, JPEG ou WebP." — ou, com arquivo aceito, "Só dá para
+ * anexar imagem (PNG, JPEG ou WebP) ou arquivo (PDF, TXT ou LOG)."
  *
  * **Diz o que serve, e nao so que aquele nao serve.** Quem mandava video antes
  * cola um e precisa saber o que fazer no lugar. Os formatos saem da configuracao,
  * que vem da API — escritos aqui, os dois lados divergiriam na primeira mudanca.
  */
 function onlyAccepts(settings: PublicMediaSettingsViewModel): string {
-  const formatos = settings.Kinds.flatMap((kind) => kind.ContentTypes).map(
-    (tipo) => FORMAT_NAMES[tipo] ?? tipo.split('/').pop()?.toUpperCase() ?? tipo,
-  )
+  const imagens = settings.Kinds.filter((kind) => kind.Kind === 'Image')
+    .flatMap((kind) => kind.ContentTypes)
+    .map((tipo) => FORMAT_NAMES[tipo] ?? tipo.split('/').pop()?.toUpperCase() ?? tipo)
+  const arquivos = settings.Kinds.filter((kind) => kind.Kind === 'File')
+    .flatMap((kind) => kind.Types ?? [])
+    .map((tipo) => tipo.Extension.slice(1).toUpperCase())
 
-  if (formatos.length === 0) return 'Esse formato de arquivo não é aceito aqui.'
+  if (imagens.length === 0 && arquivos.length === 0)
+    return 'Esse formato de arquivo não é aceito aqui.'
+  if (arquivos.length === 0) return `Só dá para anexar imagem: ${emLista(imagens)}.`
+  if (imagens.length === 0) return `Só dá para anexar arquivo: ${emLista(arquivos)}.`
+  return `Só dá para anexar imagem (${emLista(imagens)}) ou arquivo (${emLista(arquivos)}).`
+}
 
-  const lista =
-    formatos.length === 1
-      ? formatos[0]
-      : `${formatos.slice(0, -1).join(', ')} ou ${formatos[formatos.length - 1]}`
-
-  return `Só dá para anexar imagem: ${lista}.`
+/** "A", "A ou B", "A, B ou C". */
+function emLista(itens: string[]): string {
+  return itens.length === 1
+    ? (itens[0] ?? '')
+    : `${itens.slice(0, -1).join(', ')} ou ${itens[itens.length - 1]}`
 }
 
 /**

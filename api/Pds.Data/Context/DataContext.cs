@@ -137,10 +137,10 @@ public class DataContext : PdsBaseContext
                                         && settings.Project.DeletedAt == null
                                         && settings.Project.AccountId == CurrentAccountId);
 
-        // Identidade: mesmo caminho dos dois acima. Quem vai ler isto **sem sessao**
-        // e a propria ferramenta, que precisa saber se pede identidade, codigo, ou
-        // nada — e essa leitura vem nos passos seguintes, desligando este filtro e
-        // reescrevendo as condicoes a mao, como as outras fazem.
+        // Identidade: mesmo caminho dos dois acima. Quem le isto **sem sessao** e a
+        // propria ferramenta, que precisa saber se pede identidade, codigo, ou nada —
+        // e essa leitura desliga este filtro e reescreve as condicoes a mao, como as
+        // outras fazem.
         modelBuilder.Entity<ProjectIdentitySettings>()
             .HasQueryFilter(settings => settings.DeletedAt == null
                                         && settings.Project.DeletedAt == null

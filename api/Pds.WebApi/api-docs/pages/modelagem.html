@@ -1,5 +1,5 @@
 <h2>Modelagem</h2>
-<p class="lead">Vinte tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Vinte e três tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
@@ -21,13 +21,21 @@
     │               │
     │               ├───1:1──  <b>project_cycle_settings</b>
     │               │
-    │               └───1:1──  <b>project_identity_settings</b>
+    │               ├───1:1──  <b>project_identity_settings</b>
+    │               │
+    │               └───1:1──  <b>project_media_settings</b>  ──1:N──  <b>project_media_kinds</b>
     │
     └───1:N──  <b>reports</b>  ──1:N──  <b>report_contexts</b>
+                   │
+                   ├───1:N──  <b>report_internal_comments</b>
+                   │
+                   ├───1:N──  <b>report_public_comments</b>
                    │
                    ├───1:N──  <b>report_closures</b>
                    │
                    ├───1:N──  <b>report_info_requests</b>
+                   │
+                   ├───1:N──  <b>report_attachments</b>
                    │
                    └───1:N──  <b>events</b></div>
 
@@ -35,12 +43,15 @@
 não na conta — porque chave não existe fora de um projeto. O endereço autorizado pendura no
 mesmo lugar, pelo mesmo motivo.</p>
 
-<p>O desenho acima é simplificado em três pontos, e os três são deliberados:
+<p>O desenho acima é simplificado em quatro pontos, e os quatro são deliberados:
 <code>reports</code> aponta <em>também</em> para <code>projects</code>, e não só para a
 conta; <code>events</code> aponta para as três — conta, projeto e relato —, todas
-anuláveis; e <code>reports</code> aparece duas vezes, porque além de pendurar na conta ele
+anuláveis; <code>reports</code> aparece duas vezes, porque além de pendurar na conta ele
 <em>pode</em> pendurar num <code>reporter_codes</code>, que é opcional e vive dentro do
-projeto. O porquê de cada um está na página da tabela, logo abaixo.</p>
+projeto; e <code>report_attachments</code> pendura sempre no relato, mas <em>pode</em>
+apontar também para uma resposta (<code>report_public_comments</code>) ou para uma
+reabertura (<code>report_closures</code>) — nunca para as duas. O porquê de cada um está na
+página da tabela, logo abaixo.</p>
 
 <h2>Colunas que toda tabela repete</h2>
 
@@ -76,5 +87,6 @@ projeto. O porquê de cada um está na página da tabela, logo abaixo.</p>
   <a href="#/modelagem/jornada-publica"><strong>A jornada pública</strong><span>Os passos que quem relatou vê, e o mapa versionado que leva até eles.</span></a>
   <a href="#/modelagem/relato"><strong>O relato</strong><span>A tabela que mais cresce, o contexto que vem junto e o código de quem escreveu.</span></a>
   <a href="#/modelagem/conversa-e-ciclo"><strong>Conversa e ciclo</strong><span>Os dois comentários em tabelas separadas, o encerramento e o pedido de informação.</span></a>
+  <a href="#/modelagem/midia"><strong>Mídia</strong><span>O que o projeto aceita, o limite de cada tipo numa linha própria, e o registro de cada arquivo — que nunca mora no banco.</span></a>
   <a href="#/modelagem/eventos"><strong>Eventos</strong><span>A única tabela que só cresce — e as convenções de nome do banco inteiro.</span></a>
 </div>

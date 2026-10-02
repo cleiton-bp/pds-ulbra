@@ -37,7 +37,6 @@ const media: PublicMediaSettingsViewModel = {
   AllowsScreenCapture: true,
   AllowsOnInfoRequest: true,
   AllowsOnReopen: true,
-  MaxFilesPerReport: 4,
   Kinds: [
     {
       Kind: 'Image',
@@ -83,6 +82,22 @@ describe('a troca pelo arquivo marcado', () => {
 
 const credenciais = { trackingCode: '7K2M-9QXP-4TRV', token: 'tok-secreto' }
 const png = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
+/** O .log chega sem tipo: o navegador nao sabe o que e. */
+const log = (nome: string) => new File([new Uint8Array(100)], nome, { type: '' })
+
+const comArquivo: PublicMediaSettingsViewModel = {
+  ...media,
+  Kinds: [
+    ...media.Kinds,
+    {
+      Kind: 'File',
+      MaxCount: 3,
+      MaxBytes: 10 * 1024 * 1024,
+      ContentTypes: ['text/plain'],
+      Types: [{ Extension: '.log', ContentType: 'text/plain' }],
+    },
+  ],
+}
 
 describe('o tamanho em que a imagem aparece', () => {
   it('entra na linha inteira, e muda para o que a pessoa escolher', async () => {
@@ -179,6 +194,27 @@ describe('a ordem em que a pessoa montou', () => {
     expect([tentativa?.file.name, tentativa?.displayOrder]).toEqual(['b.png', 1])
   })
 
+  // As imagens aparecem na grade, e os arquivos na lista deles: a posicao de cada um
+  // conta dentro da sua categoria.
+  it('a posicao conta dentro da categoria: imagens e arquivos, cada um de 0 em diante', async () => {
+    dublê.enviar.mockResolvedValue(undefined)
+    const { result } = renderHook(() => useAttachmentDraft(comArquivo))
+    await act(() =>
+      result.current.adicionar([png('a.png'), log('erro.log'), png('b.png'), log('outro.log')]),
+    )
+
+    await act(() => result.current.enviarAnexos(credenciais, 0))
+
+    expect(
+      dublê.enviar.mock.calls.map(([, anexo]) => [anexo.file.name, anexo.displayOrder]),
+    ).toEqual([
+      ['a.png', 0],
+      ['erro.log', 0],
+      ['b.png', 1],
+      ['outro.log', 1],
+    ])
+  })
+
   it('o que tirou um da lista antes de enviar nao deixa buraco', async () => {
     dublê.enviar.mockResolvedValue(undefined)
     const { result } = renderHook(() => useAttachmentDraft(media))
@@ -188,5 +224,30 @@ describe('a ordem em que a pessoa montou', () => {
     await act(() => result.current.enviarAnexos(credenciais, 0))
 
     expect(dublê.enviar.mock.calls.map(([, anexo]) => anexo.displayOrder)).toEqual([0, 1])
+  })
+})
+
+describe('o arquivo que nao e imagem', () => {
+  it('entra sem miniatura e sem mostra, com o tipo do catalogo', async () => {
+    dublê.miniatura.mockClear()
+    const { result } = renderHook(() => useAttachmentDraft(comArquivo))
+
+    await act(() => result.current.adicionar([log('erro.log')]))
+
+    const anexo = result.current.atual()[0]
+    expect(anexo?.kind).toBe('File')
+    expect(anexo?.file.type).toBe('text/plain')
+    expect(anexo?.thumbnail).toBeNull()
+    expect(anexo?.preview).toBeNull()
+    expect(dublê.miniatura).not.toHaveBeenCalled()
+  })
+
+  it('nao abre no editor', async () => {
+    const { result } = renderHook(() => useAttachmentDraft(comArquivo))
+    await act(() => result.current.adicionar([log('erro.log')]))
+
+    act(() => result.current.editar(result.current.atual()[0]?.id ?? ''))
+
+    expect(result.current.edicao).toBeNull()
   })
 })

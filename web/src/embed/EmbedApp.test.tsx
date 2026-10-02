@@ -19,9 +19,8 @@ import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
  * ele se demonstra sem carregador.
  *
  * E o token de acompanhamento **nao aparece como texto, e existe dentro do
- * link**. As duas metades importam, e a pds-017 trocou a razao da primeira: antes
- * nao havia pagina de acompanhamento e mostrar o segredo nao servia para nada;
- * agora ele serve, e continua nao podendo ser lido na tela — ninguem decora 43
+ * link**. As duas metades importam. O link serve porque existe a pagina de
+ * acompanhamento, e continua nao podendo ser lido na tela — ninguem decora 43
  * caracteres, e imprimir segredo ensina quem le a tratar segredo como enfeite.
  *
  * A metade nova e a **forma do endereco**: o token depois do `#`, o protocolo

@@ -1,17 +1,22 @@
-<h2>Etapa 5 — o ciclo fecha</h2>
+<h2>O ciclo fecha</h2>
 <p class="lead">Encerrar com motivo, confirmar, reabrir, o pedido de informação com prazo e a espera antes de quem relatou ver.</p>
 
-<p>A <strong>etapa 5 — O ciclo fecha</strong> está completa, e é ela que faz o produto
-responder à queixa do README. <strong>Todo encerramento exige um motivo, e o motivo é
-visível</strong>: sem essa regra, a pessoa ficaria sabendo que acabou e não o que aconteceu — que
-é exatamente o problema de origem.</p>
+<p>É o <strong>ciclo que fecha</strong> que faz o produto responder à queixa do README.
+<strong>Todo encerramento exige um motivo, e o motivo é visível</strong>: sem essa regra, a
+pessoa ficaria sabendo que acabou e não o que aconteceu — que é exatamente o problema de
+origem.</p>
 
-<p>E "concluído" deixou de ser o fim. Quem relatou <strong>confirma</strong> que resolveu, ou
+<p>E "concluído" não é o fim. Quem relatou <strong>confirma</strong> que resolveu, ou
 <strong>reabre</strong> dizendo que não — e reabrir não é regredir: quem pediu a volta foi a
 própria pessoa, então o relato volta para a coluna que o projeto configurou, sem o freio que
 segura o vaivém interno. Ao confirmar, ela dá uma nota, e <strong>recusar opinar é registrado
 como recusa</strong>, e não como silêncio: juntar os dois daria uma métrica que parece precisa e
 não é.</p>
+
+<p>O que ela escreve ao reabrir aparece <strong>dos dois lados</strong>, no painel e na página
+de acompanhamento: é a única coisa que a pessoa disse ao avisar que não resolveu, e quem pega o
+relato de volta precisa dela. E a reabertura pode levar imagens e arquivos, como a resposta ao
+time — ver <a href="#/visao-geral/imagens-e-arquivos">imagens e arquivos no relato</a>.</p>
 
 <p>O time também pode <strong>devolver o relato pedindo informação</strong>, em vez de encerrar.
 É a diferença entre "não reproduzi" e "não vamos fazer" — chegando iguais, fazem quem relatou
@@ -34,8 +39,11 @@ cancelar, mensagem repetida sem dano e mensagem perdida sem perder o relato.</p>
 padrão de fábrica em código. Se dá para reabrir e para onde, se a nota aparece e em que escala,
 quantos dias cada prazo tem — quem dita é o projeto.</p>
 
-<p>Ficam duas ressalvas registradas. O <strong>Render não fornece broker</strong>: enquanto não
-houver um, a espera e o prazo do pedido ficam indisponíveis em produção, e a tela recusa ligá-los
-dizendo o motivo. E <code>tracking_code_can_act</code> — se quem chega pelo código pessoal também
-confirma e reabre — ficou gravado <strong>sem tela</strong>, porque dependia de uma consulta por
-código que o produto ainda não tinha. Hoje ele continua sem tela, e a API o ignora.</p>
+<p>Ficam duas ressalvas. <strong>Onde a fila roda em produção</strong> é <strong>Adiado</strong>:
+o Render não fornece broker, e sem fila a espera não liga — a tela de Ciclo recusa salvar uma
+espera maior que zero, dizendo o motivo — e o prazo do pedido <strong>nunca encerra o relato
+sozinho</strong>: quem aplica o vencimento é o consumidor da fila, e sem fila ele não existe.</p>
+
+<p>E <code>tracking_code_can_act</code> — se quem chega pelo código pessoal também confirma e
+reabre — fica gravado, <strong>escondido na tela de Ciclo</strong>, e a API o ignora: confirmar,
+reabrir e responder aceitam só o link. Fazer essas três ações aceitarem o código é <strong>Adiado</strong>.</p>

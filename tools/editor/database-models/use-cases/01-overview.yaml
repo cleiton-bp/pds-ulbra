@@ -21,7 +21,7 @@ actors:
 useCases:
   - id: UC01
     name: Relatar um problema
-    description: "Pela ferramenta, na página onde o problema apareceu: descreve, anexa print ou vídeo se quiser, e recebe o protocolo e o link de acompanhamento. Detalhe em 04-reporting."
+    description: "Pela ferramenta, na página onde o problema apareceu: descreve, anexa imagens — capturadas de uma área da página e marcadas no editor — ou arquivos, se o projeto aceitar, e recebe o protocolo e o link de acompanhamento. Detalhe em 04-reporting."
     width: 230
     position: { x: 250, y: 20 }
   - id: UC02
@@ -36,17 +36,17 @@ useCases:
     position: { x: 250, y: 260 }
   - id: UC04
     name: Responder ao time
-    description: Quando o time pede uma informação, responde pelo próprio relato, com texto e arquivo. Detalhe em 06-tracking.
+    description: Quando o time pede uma informação, responde pelo próprio relato, com texto, imagens e arquivos. Detalhe em 06-tracking.
     width: 230
     position: { x: 257, y: 378 }
   - id: UC05
     name: Confirmar ou reabrir
-    description: Depois que o time encerra, diz se resolveu — e dá uma nota — ou reabre, dizendo por quê. Detalhe em 06-tracking.
+    description: Depois que o time encerra, diz se resolveu — e dá uma nota — ou reabre, dizendo por quê, com imagens e arquivos se o projeto deixar. Detalhe em 06-tracking.
     width: 230
     position: { x: 250, y: 500 }
   - id: UC06
     name: Ver o que já foi relatado
-    description: A lista pública do projeto, dentro da ferramenta. Só relatos que o time liberou, e só em projeto público. Detalhe em 07-moderation.
+    description: A lista pública do projeto, dentro da ferramenta. Só relatos que o time liberou, e só em projeto público — o texto, sem as imagens (com imagens, Adiado). Detalhe em 07-moderation.
     width: 230
     position: { x: 250, y: 640 }
   - id: UC07

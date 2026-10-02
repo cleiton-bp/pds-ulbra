@@ -59,7 +59,9 @@ public class ProjectMediaSettingsController : BaseController
     /// para todo projeto no dia em que entra, sem depender de alguém abrir a tela e
     /// salvar.
     ///
-    /// **Hoje é só imagem.** O vídeo saiu do produto por pesar demais no
+    /// **Imagem e arquivo.** O arquivo vem desligado de fábrica, com os formatos
+    /// seguros marcados, e `FileFormats` traz o catálogo para a tela marcar. O vídeo
+    /// saiu do produto por pesar demais no
     /// armazenamento e na entrega, e não aparece nem para o projeto que tinha limite
     /// salvo para ele. `MaxDurationSeconds` continua na resposta, sempre nulo, para
     /// a tela aberta antes da troca não desenhar um campo de duração na imagem.
@@ -91,8 +93,10 @@ public class ProjectMediaSettingsController : BaseController
     /// <summary>Substitui a configuração de mídia inteira.</summary>
     /// <remarks>
     /// **Vai inteira, e não em pedaços.** Salvar campo a campo faria duas abas
-    /// abertas gravarem metades diferentes da mesma configuração sem ninguém notar —
-    /// e o limite total e o de cada tipo só fazem sentido lidos juntos.
+    /// abertas gravarem metades diferentes da mesma configuração sem ninguém notar.
+    ///
+    /// **Sem total por envio.** Imagem e arquivo têm cada um a sua quantidade e o seu
+    /// tamanho; `MaxFilesPerReport`, que a tela antiga ainda manda, é ignorado.
     ///
     /// **Os campos são obrigatórios, e não assumem o padrão quando faltam.** Aqui um
     /// número assumido é dinheiro gasto sem ninguém ter decidido: cada limite destes
@@ -102,10 +106,11 @@ public class ProjectMediaSettingsController : BaseController
     /// protege a conta de quem configurou; o teto protege a nossa de quem configurou
     /// errado.
     ///
-    /// **Anexo ligado sem imagem aceita é recusado**, porque não aceitaria nada
-    /// — quem quer isso já tem o caminho certo, que é desligar o anexo. E **tipo que
-    /// a requisição não mandar fica como está**, para uma versão antiga da tela não
-    /// apagar a configuração de um tipo que ela não conhece.
+    /// **Anexo ligado sem imagem nem arquivo aceito é recusado**, porque não aceitaria
+    /// nada — quem quer isso já tem o caminho certo, que é desligar o anexo. **O
+    /// arquivo ligado precisa de ao menos um formato** em `Formats`, e nome fora do
+    /// catálogo é 400. E **tipo que a requisição não mandar fica como está**, para uma
+    /// versão antiga da tela não apagar a configuração de um tipo que ela não conhece.
     ///
     /// **`Video` é recusado com 400**, mesmo desligado. Salvar o limite dele seria
     /// prometer, na tela, um envio que o pedido de permissão recusa. A mensagem pede

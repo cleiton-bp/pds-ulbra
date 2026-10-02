@@ -46,12 +46,12 @@ em vez de descobrir o formato do erro a cada rota.</p>
 
 <table>
   <tr><th>Status</th><th>Quando</th></tr>
-  <tr><td><code>400</code></td><td>Requisição inválida, por exemplo nome de projeto vazio.</td></tr>
-  <tr><td><code>401</code></td><td>Sem sessão, sessão expirada ou token do Google inválido.</td></tr>
-  <tr><td><code>403</code></td><td>Regra de negócio negou o acesso. As duas rotas públicas o produzem: projeto arquivado, e endereço declarado fora da lista do projeto.</td></tr>
-  <tr><td><code>404</code></td><td>Não existe — ou existe em outra conta. Ver <a href="#/isolamento/de-onde-vem-a-conta">por que 404, e não 403</a>.</td></tr>
-  <tr><td><code>409</code></td><td>Conflito, por exemplo nome de projeto já usado na conta.</td></tr>
-  <tr><td><code>429</code></td><td>Limite de requisições no login.</td></tr>
+  <tr><td><code>400</code></td><td>Requisição inválida, por exemplo nome de projeto vazio. Na mídia, o pedido que só um cliente com defeito manda — tipo ou tamanho não informados, resposta e reabertura juntas, posição fora de 0 a 9, vídeo na configuração — e o arquivo que mudou depois de conferido, que subir de novo resolve.</td></tr>
+  <tr><td><code>401</code></td><td>Sem sessão, sessão expirada ou token do Google inválido. Nas rotas públicas que pedem a chave, chave ausente, desconhecida ou revogada.</td></tr>
+  <tr><td><code>403</code></td><td>Regra de negócio negou o acesso: relato novo em projeto arquivado, reabertura em projeto que não a aceita, pedido de informação em projeto que não os faz ou a quem não aceitou perguntas, e endereço declarado fora da lista do projeto — conferido em <code>POST /public/reports</code>, <code>GET /public/widget-settings</code> e <code>GET /public/media-settings</code>.</td></tr>
+  <tr><td><code>404</code></td><td>Não existe — ou existe em outra conta. Nas rotas de quem relatou, o link ou o código que não abre nenhum relato, sempre com a mesma mensagem. Ver <a href="#/isolamento/de-onde-vem-a-conta">por que 404, e não 403</a>.</td></tr>
+  <tr><td><code>409</code></td><td>Conflito, por exemplo nome de projeto já usado na conta. Também o estado da instalação — sem armazenamento, pedir envio, confirmar, salvar a configuração de mídia e ler os anexos de um relato que tem anexo respondem 409; as leituras da configuração respondem 200, com o anexo desligado — e, no anexo, toda recusa que tentar de novo não muda: regra do projeto, formato, tamanho, envio cheio ou vencido. A ferramenta mostra "não enviado", com o motivo, e não oferece tentar de novo.</td></tr>
+  <tr><td><code>429</code></td><td>Limite de requisições por IP: no login, 20 por minuto; no pedido de permissão e na confirmação de anexo, que dividem a mesma janela, <code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code> por minuto (20 de fábrica). Sai no mesmo envelope, com a mensagem "Muitas tentativas. Espere um minuto e tente de novo."</td></tr>
   <tr><td><code>500</code></td><td>Erro não previsto.</td></tr>
 </table>
 

@@ -38,24 +38,27 @@ chamada mais lenta sem ganhar segurança.</p>
 diferente, e a diferença de tempo entre parar no primeiro e parar no décimo permite
 descobrir o valor caractere a caractere.</p>
 
-<p>Quem chama a comparação é a consulta pública de acompanhamento, desde a
-<code>pds-017</code>: o token do link é sorteado e guardado com <em>a mesma função de hash</em>
-da chave secreta, e conferi-lo é a única coisa que separa o relato de quem o escreveu de
-qualquer pessoa com o protocolo na mão.</p>
+<p>Quem chama a comparação é a porta das rotas públicas de um relato
+(<code>TrackedReportGate</code>): o token do link é sorteado e guardado com <em>a mesma função de
+hash</em> da chave secreta, e conferi-lo é a única coisa que separa o relato de quem o escreveu de
+qualquer pessoa com o protocolo na mão. As oito rotas que chegam a um relato pelo link — abrir,
+confirmar, reabrir, responder, pedir permissão de anexo, confirmar o anexo, ler os arquivos e ler o
+que dá para anexar — entram todas por ela.</p>
 
 <div class="note todo">
   <strong>A chave secreta continua sem rota que a aceite</strong>
   <p>Ela é gerada, guardada como hash e regenerável, e <strong>nenhuma rota autentica por ela</strong>.
   Quem chega hoje às rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
   em claro — a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
-  <p>A peça que faltava era o <em>caller</em> da comparação, e ele chegou pelo token do relato.
-  O que falta agora é o outro lado: a primeira rota de integração servidor a servidor.</p>
+  <p>O uso previsto para ela é o servidor do cliente dizer quem está relatando — a identidade
+  herdada do site —, e ele é <strong>Adiado</strong>: a assinatura pedia HMAC com a chave secreta,
+  e o banco guarda só o hash dela.</p>
 </div>
 
-<p>Nas duas rotas que apresentam a chave pública, chave ausente, desconhecida, revogada ou
-secreta recebem
-<strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta chave existe mas foi
-revogada" contaria a quem tenta que ele acertou metade.</p>
+<p>Nas sete rotas que apresentam a chave pública — a configuração da ferramenta, a de mídia, o
+envio do relato, a lista pública e as três do código pessoal —, chave ausente, desconhecida,
+revogada ou secreta recebem <strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta
+chave existe mas foi revogada" contaria a quem tenta que ele acertou metade.</p>
 
 <h2>Regenerar não sobrescreve</h2>
 

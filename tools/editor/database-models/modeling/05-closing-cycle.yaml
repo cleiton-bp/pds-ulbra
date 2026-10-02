@@ -562,7 +562,7 @@ entities:
       - name: type
         type: enum
         required: true
-        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped, e os seis novos desta etapa: report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled"
+        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped, e os seis do encerramento: report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled"
       - name: source
         type: enum
         required: true
@@ -679,7 +679,7 @@ entities:
         note: nulo enquanto a ligação vale, preenchido no lugar de apagar
   - name: report_info_requests
     label: Pedidos de informação
-    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela nova desta etapa, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
+    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela propria, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
     position: { x: 1889, y: 1695 }
     fields:
       - name: id
@@ -815,7 +815,7 @@ entities:
       - name: public_delay_minutes
         type: int
         required: true
-        note: quanto o lado publico espera antes de mudar; zero e o comportamento anterior a esta etapa, e e o que da a janela para desfazer um movimento errado
+        note: quanto o lado publico espera antes de mudar; zero muda o lado publico na mesma hora, e acima de zero e o que da a janela para desfazer um movimento errado
       - name: allows_reopen
         type: bool
         required: true
@@ -1215,7 +1215,7 @@ notes:
 
       O time move as 14h com espera de 30 minutos, e a pagina publica so muda as 14h30. Se alguem moveu sem querer, ha janela para voltar atras antes de a pessoa la fora ver.
 
-      Isso muda a etapa 4: la a jornada publica andava na mesma transacao do movimento interno. Agora o movimento interno grava na hora e o lado publico e agendado. Espera zero volta ao comportamento anterior.
+      Sem espera, a jornada publica anda na mesma transacao do movimento interno. Com espera, o movimento interno grava na hora e o lado publico e agendado.
     anchor: reports
     anchorField: public_stage_due_at
     position: { x: 1926, y: 980 }
@@ -1223,9 +1223,9 @@ notes:
   - text: |-
       O projeto dita as regras, e o padrao ja funciona
 
-      Quase tudo desta etapa e configuracao, e nao regra fixa. Mas projeto novo precisa andar sem ninguem abrir esta tela: os padroes vivem no codigo, e a linha so nasce quando alguem salva.
+      Quase tudo do ciclo e configuracao, e nao regra fixa. Mas projeto novo precisa andar sem ninguem abrir esta tela: os padroes vivem no codigo, e a linha so nasce quando alguem salva.
 
-      E a mesma escolha da jornada publica da etapa 4 — o cliente desenha, e o conjunto de fabrica existe para ninguem encarar tela em branco.
+      E a mesma escolha da jornada publica — o cliente desenha, e o conjunto de fabrica existe para ninguem encarar tela em branco.
     anchor: project_cycle_settings
     position: { x: 2559, y: 2239 }
     width: 400

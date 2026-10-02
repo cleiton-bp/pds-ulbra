@@ -14,7 +14,7 @@ import { resolveMediaSettings } from '@/embed/resolveMediaSettings'
  * trava a inversao, porque ela e o tipo de coisa que alguem "conserta" copiando a
  * regra do arquivo vizinho.
  *
- * **So imagem sai daqui.** O video saiu do produto; na janela da troca a API
+ * **Video nao sai daqui.** O video saiu do produto; na janela da troca a API
  * antiga ainda o lista, e o quadro nao pode oferecer o que o envio vai recusar.
  */
 const dublê = vi.hoisted(() => ({ ler: vi.fn() }))
@@ -29,7 +29,6 @@ const ligado: PublicMediaSettingsViewModel = {
   AllowsScreenCapture: true,
   AllowsOnInfoRequest: true,
   AllowsOnReopen: true,
-  MaxFilesPerReport: 4,
   Kinds: [
     {
       Kind: 'Image',

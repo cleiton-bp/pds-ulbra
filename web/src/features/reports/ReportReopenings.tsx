@@ -1,5 +1,5 @@
 import type { PanelAttachmentViewModel, ReportReopeningViewModel } from '@/contracts'
-import { toPanelGalleryItem } from '@/features/reports/ReportAttachments'
+import { AVISO_DE_ARQUIVO, toPanelGalleryItem } from '@/features/reports/ReportAttachments'
 import { AttachmentGallery } from '@/shared/components/AttachmentGallery'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
@@ -73,6 +73,8 @@ export function ReportReopenings({
                 <div className="mt-3">
                   <AttachmentGallery
                     label="Imagens da reabertura"
+                    fileLabel="Arquivos da reabertura"
+                    fileNote={AVISO_DE_ARQUIVO}
                     onExpired={aoExpirar}
                     items={anexos.map(toPanelGalleryItem)}
                   />

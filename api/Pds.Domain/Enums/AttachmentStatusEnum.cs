@@ -16,9 +16,10 @@ public enum AttachmentStatusEnum
     /// A permissao foi assinada, e ninguem confirmou que o arquivo chegou.
     ///
     /// <para><b>E o estado normal de quem desistiu, e nao um erro.</b> Gente anexa e
-    /// fecha a aba o tempo todo. O que fica assim e orfao: ocupa espaco e nao
-    /// pertence a relato nenhum — e e por isso que este estado precisa existir, para
-    /// haver como saber depois o que e lixo.</para>
+    /// fecha a aba o tempo todo. O que fica assim e permissao nao usada: nao aparece
+    /// e nao conta no limite, e o arquivo, se chegou, fica na pasta de envio, que o
+    /// armazenamento esvazia sozinho — e e por isso que este estado precisa existir,
+    /// para haver como saber o que nunca chegou a ser anexo.</para>
     /// </summary>
     Pending,
 
@@ -27,8 +28,8 @@ public enum AttachmentStatusEnum
     /// prendeu o anexo ao relato.
     ///
     /// <para><b>So aqui o anexo comeca a existir para o produto.</b> Antes disto ele
-    /// nao aparece no painel, nao aparece na jornada publica, e nao conta para o
-    /// limite de arquivos do proximo envio.</para>
+    /// nao aparece no painel nem no acompanhamento, e nao conta no limite do
+    /// envio.</para>
     /// </summary>
     Confirmed,
 }

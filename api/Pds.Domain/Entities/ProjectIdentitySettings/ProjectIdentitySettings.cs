@@ -3,7 +3,7 @@ using Pds.Domain.Enums;
 namespace Pds.Domain.Entities;
 
 /// <summary>
-/// Quem e quem neste projeto, e — mais adiante nesta etapa — quem pode ver o que.
+/// Quem e quem neste projeto, e quem pode ver o que.
 ///
 /// <para><b>Uma linha por projeto, criada so quando alguem salva.</b> O mesmo molde
 /// de <see cref="ProjectWidgetSettings"/> e <see cref="ProjectCycleSettings"/>: os

@@ -16,11 +16,9 @@ namespace Pds.Domain.Entities;
 /// historia que o produto existe para contar: o time disse que acabou, a pessoa
 /// disse que nao, e o time disse de novo.</para>
 ///
-/// <para><b>Metade das colunas ainda nao tem leitor</b> — confirmacao, nota,
-/// reabertura. Nascem junto com a tabela pelo mesmo motivo que
-/// <see cref="ProjectPublicStage.AwaitsReporter"/> nasceu: descrevem a vida de uma
-/// linha so, e separa-las custaria uma segunda migracao numa tabela criada
-/// agora.</para>
+/// <para><b>O fechamento e o que vem depois dele moram na mesma linha</b> —
+/// confirmacao, nota, reabertura —, porque descrevem a vida de um fechamento so, e
+/// separa-los custaria uma tabela a mais para cada resposta de quem relatou.</para>
 /// </summary>
 public class ReportClosure : PdsBaseEntity
 {
@@ -96,7 +94,6 @@ public class ReportClosure : PdsBaseEntity
 
     /// <summary>
     /// Quando quem relatou confirmou que resolveu. Nulo enquanto ele nao respondeu.
-    /// <b>Ainda nao tem leitor</b>: a confirmacao e o passo seguinte.
     /// </summary>
     public DateTime? ConfirmedAt { get; set; }
 

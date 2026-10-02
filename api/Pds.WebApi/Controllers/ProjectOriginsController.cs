@@ -15,9 +15,10 @@ namespace Pds.WebApi.Controllers;
 /// consegue lê-la. Sozinha, ela diz apenas qual projeto procurar — não de onde o
 /// relato saiu. É esta lista que responde a segunda pergunta.
 ///
-/// **A lista é conferida nas duas rotas que a ferramenta usa**: a que entrega a configuração
-/// do quadro, para ele não abrir onde não devia, e a que recebe o relato, que é
-/// onde a recusa de fato impede a gravação.
+/// **A lista é conferida nas três rotas que a ferramenta usa ao abrir e ao enviar**: a
+/// que entrega a configuração do quadro, para ele não abrir onde não devia; a que diz o
+/// que dá para anexar; e a que recebe o relato, que é onde a recusa de fato impede a
+/// gravação.
 ///
 /// **E ela é grade de proteção, não muro.** A ferramenta abre num quadro servido
 /// pelo nosso domínio, então a origem que o navegador carimba é a nossa, e a que a
@@ -25,7 +26,7 @@ namespace Pds.WebApi.Controllers;
 /// que é código nosso, a chave copiada para outro site é pega; quem falar direto
 /// com a API declara o que quiser. O muro é o `frame-ancestors` montado a partir
 /// desta lista, que precisa de um servidor servindo o documento do quadro para
-/// montar o cabeçalho por projeto — e chega com o domínio próprio.
+/// montar o cabeçalho por projeto — **Planejado**, para quando houver domínio próprio.
 /// </summary>
 [Authorize]
 [RequireAccount]

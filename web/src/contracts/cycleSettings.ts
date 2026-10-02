@@ -19,9 +19,8 @@ export type SatisfactionStyle = 'Stars' | 'Number'
  * resposta e indistinguivel da de quem salvou aqueles mesmos valores: quem le
  * precisa saber como o ciclo se comporta, e nao se existe linha no banco.
  *
- * **A maior parte destes campos ainda nao tem leitor.** Eles chegam nos passos
- * seguintes da etapa, e viajam desde agora porque a configuracao e salva inteira
- * — uma tela que mandasse so o que sabe apagaria o resto.
+ * **Os campos viajam juntos** porque a configuracao e salva inteira — uma tela que
+ * mandasse so o que sabe apagaria o resto.
  */
 export interface CycleSettingsViewModel {
   ClosureTrigger: ClosureTrigger

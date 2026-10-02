@@ -240,8 +240,8 @@ public class AskInfoDto
 /// A resposta de quem relatou ao pedido de informacao.
 ///
 /// <para><b>So enquanto ha pedido aberto.</b> Nao e canal livre: sem a pergunta do
-/// outro lado, isto viraria uma caixa de entrada sem dono e sem moderacao — e
-/// moderacao foi deixada de fora desta etapa de proposito.</para>
+/// outro lado, isto viraria uma caixa de entrada sem dono e sem moderacao — e a
+/// conversa nao passa por moderacao, de proposito.</para>
 /// </summary>
 public class ReplyToReportDto
 {

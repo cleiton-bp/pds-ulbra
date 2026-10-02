@@ -1,8 +1,8 @@
-<h2>Etapa 4 — o relator acompanha</h2>
+<h2>Quem relatou acompanha</h2>
 <p class="lead">A jornada pública, o mapa versionado entre as duas listas, e o motor que traduz uma na outra.</p>
 
-<p>A <strong>etapa 4 — O relator acompanha</strong> começou pela jornada pública. O cliente
-desenha os passos que quem relatou vê: rótulo, a frase que explica cada um e, se quiser, o que
+<p>Quem relatou acompanha pela <strong>jornada pública</strong>. O cliente desenha os passos
+que essa pessoa vê: rótulo, a frase que explica cada um e, se quiser, o que
 vem depois. <strong>Não é a fila de trabalho com outro nome</strong> — vários estados de dentro
 cabem numa etapa daqui, e é essa perda de detalhe que é o produto.</p>
 
@@ -55,21 +55,21 @@ nada manualmente. Projeto que não configurou jornada devolve a lista vazia, e a
 a dizer que não há andamento, em vez de prometer.</p>
 
 <p>Quem anda é a jornada, e não a página: ela busca uma vez, ao abrir. Uma aba deixada aberta
-não muda sozinha, e <strong>o texto da tela diz isso</strong> — ele prometia o contrário, e essa
-é a diferença entre a pessoa voltar quando quiser e ficar esperando uma tela que nunca se mexe.
-Buscar de novo por conta própria seria pior: cada leitura grava um evento de visualização, e a
-página passaria a registrar leituras que ninguém fez. Avisar quando algo anda é a notificação, e
-ela é de outra etapa.</p>
+não muda sozinha, e <strong>o texto da tela diz isso</strong>: é a diferença entre a pessoa
+voltar quando quiser e ficar esperando uma tela que nunca se mexe. Buscar de novo por conta
+própria seria pior: cada leitura grava um evento de visualização, e a página passaria a registrar
+leituras que ninguém fez. Avisar quando algo anda é papel do aviso por e-mail, que é
+<strong>Planejado</strong>.</p>
 
 <p>O que sai nessa resposta é montado <strong>campo a campo</strong>, e nenhuma entidade é
 serializada nela. É a única resposta do sistema que vai para alguém de fora do time do cliente:
 com serialização, a coluna acrescentada amanhã a uma tabela interna apareceria ali sem ninguém
 decidir — e vazamento por serialização não dá erro em teste nenhum.</p>
 
-<p>O que <strong>ainda não existe</strong> é o quadro arrastável. E a etapa 4 fecha com três
-ressalvas registradas: o motor <strong>não tem teste</strong> do lado C#, o teste de vazamento
-não foi escrito — os dois esperam o projeto de testes da API, que é decisão de calendário —, e
-a página pública <strong>não é renderizada no servidor</strong>: ela é uma aplicação React que
-baixa 80 kB comprimidos para desenhar uma tela sem interação. Dessa terceira, o sintoma foi
-tratado — um esqueleto escrito no próprio HTML aparece antes de qualquer script, e a tela branca
-acabou —, mas o peso continua lá.</p>
+<p>O <strong>quadro arrastável</strong> não existe, e é <strong>Continuidade</strong>. E ficam
+três ressalvas. O motor <strong>não tem teste</strong> do lado C#, e o teste de vazamento não foi
+escrito: os dois esperam o projeto de testes da API, e são <strong>Planejado</strong>. E a página
+pública <strong>não é renderizada no servidor</strong>, também <strong>Planejado</strong>: ela é
+uma aplicação React que baixa cerca de 86 kB de JavaScript comprimido, uns 60 deles o próprio
+React, para desenhar uma tela quase sem interação. O sintoma foi tratado — um esqueleto escrito no
+próprio HTML aparece antes de qualquer script, e não há tela branca —, mas o peso continua lá.</p>

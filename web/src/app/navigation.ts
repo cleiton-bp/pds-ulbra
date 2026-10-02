@@ -2,10 +2,9 @@
  * Dois grupos, como no design: **Configuração** é o que se ajusta uma vez, e
  * **Operação** é o que o time usa todo dia.
  *
- * O segundo grupo nasceu inteiro bloqueado, com a etapa em que cada seção chega
- * escrita na dica — esconder faria o painel parecer só uma tela de chaves. Com
- * **Relatos** no ar, ele passou a ter as duas coisas ao mesmo tempo, e é por isso
- * que existem três listas aqui e não duas.
+ * O segundo grupo tem o que já funciona e o que ainda não existe, bloqueado, com o
+ * que a seção vai fazer escrito na dica — esconder faria o painel parecer menor do
+ * que o produto vai ser. É por isso que existem três listas aqui e não duas.
  */
 
 /** O caminho e relativo ao projeto. */
@@ -82,9 +81,8 @@ export const OPERATION_SECTIONS: ConsoleSection[] = [
 ]
 
 /**
- * A dica comeca pelo **que a secao vai fazer** e so entao diz em que etapa chega.
- * Comecando pela etapa, ela respondia "quando" para quem ainda nao sabia "o que"
- * — e "etapa 3" e numero de cronograma nosso, nao de quem usa o painel.
+ * A dica diz **o que a secao vai fazer**, e que ainda nao esta disponivel. Sem data:
+ * cronograma e assunto nosso, e nao de quem usa o painel.
  */
 export interface LockedSection {
   key: string
@@ -96,17 +94,21 @@ export const LOCKED_SECTIONS: LockedSection[] = [
   {
     key: 'board',
     label: 'Quadro',
-    hint: 'Os relatos como cartões, que o time move entre os estados que você criar, na etapa 3.',
+    hint: 'Os relatos como cartões, que o time arrasta entre os estados que você criar. Ainda não disponível.',
   },
   {
     key: 'addons',
     label: 'Addons',
-    hint: 'Integrações com Slack, GitHub e e-mail, na etapa 5.',
+    hint: 'Integrações com Slack, GitHub e e-mail. Ainda não disponível.',
   },
   {
     key: 'members',
     label: 'Membros',
-    hint: 'Convites para outras pessoas usarem esta conta, na etapa 5.',
+    hint: 'Convites para outras pessoas usarem esta conta. Ainda não disponível.',
   },
-  { key: 'usage', label: 'Uso', hint: 'Volume de relatos e limites da conta, na etapa 5.' },
+  {
+    key: 'usage',
+    label: 'Uso',
+    hint: 'Volume de relatos e limites da conta. Ainda não disponível.',
+  },
 ]

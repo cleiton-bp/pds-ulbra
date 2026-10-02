@@ -50,7 +50,7 @@ export function useTrackingMedia(
       try {
         const lida = await publicMediaService.loadTrackingMediaSettings(code, token)
 
-        // Anexo ligado e algum tipo que ainda se possa enviar — imagem. Cada envio
+        // Anexo ligado e algum tipo que ainda se possa enviar — imagem ou arquivo. Cada envio
         // olha a propria chave logo abaixo.
         const uploadable = onlyUploadable(lida)
         return lida.IsEnabled && uploadable.Kinds.length > 0 ? uploadable : null

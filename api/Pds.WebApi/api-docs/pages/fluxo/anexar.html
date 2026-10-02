@@ -1,0 +1,147 @@
+<h2>Anexar: três passos, e só dois são nossos</h2>
+
+<p>Quem anexa é sempre quem relatou, e sempre depois do texto: o relato já existe, e o protocolo
+com o token que a criação devolveu é o que abre a porta. Pedir a permissão e confirmar passam pela
+API; o arquivo vai do navegador <strong>direto ao armazenamento</strong>, e os bytes nunca passam
+por aqui.</p>
+
+<div class="diagram">o quadro já mandou o texto: tem o protocolo e o token na mão
+      ↓
+POST /public/reports/attachments   { TrackingCode, Token, Kind, ContentType, SizeBytes, FileName, ... }
+      ↓
+a porta do link aceita  →  há armazenamento? o projeto aceita? o envio está aberto? cabe mais um?
+      ↓
+grava o anexo <b>pendente</b>, com um nome sorteado:  uploads/&lt;projeto&gt;/&lt;guid&gt;
+      ↓
+devolve o formulário assinado — e o da miniatura, quando há — que vale <b>2 minutos</b> para começar
+      ↓
+o navegador faz o POST do formulário direto ao armazenamento
+      ↓
+o armazenamento recusa o que foge da assinatura: tipo exato, de 1 byte até o teto,
+e no arquivo que não é imagem, Content-Disposition: attachment
+      ↓
+POST /public/reports/attachments/confirm   { TrackingCode, Token, AttachmentPublicId }
+      ↓
+lê o <b>primeiro 1 KB</b> e o ETag  →  os bytes são do formato? o tipo gravado é o pedido?
+      ↓
+copia uploads/ → media/ exigindo o <b>mesmo ETag</b>
+      ↓
+trava a cota do relato  →  conta de novo  →  confere a regra do projeto de novo
+     ┌──────────────────┴──────────────────┐
+  aceito                                 recusado
+     ↓                                       ↓
+<b>confirmado</b>, apontando para media/       descartado no banco
+a cópia de envio sai do balde           e os arquivos apagados do balde</div>
+
+<div class="note why">
+  <strong>O relato vem antes do arquivo</strong>
+  <p>É a única rota pública que gasta dinheiro: cada permissão assinada é espaço no balde. Exigir
+  o protocolo e o token fecha essa porta — sem ela, qualquer um que achasse a rota assinaria um
+  envio. Nada é assinado antes de a porta aceitar.</p>
+</div>
+
+<div class="note why">
+  <strong>A assinatura garante o rótulo; a confirmação, o conteúdo</strong>
+  <p>O formulário leva as regras dentro da assinatura — o tipo, o teto de tamanho, o anexo para
+  baixar —, e o armazenamento recusa o que não cabe <em>antes</em> de gravar. Mas nada impede quem
+  obteve a permissão de pôr bytes de qualquer coisa num objeto marcado como imagem.</p>
+  <p>Por isso a confirmação lê o começo do arquivo: a marca do PNG, do JPEG e do WebP;
+  <code>%PDF-</code> no primeiro quilobyte; texto sem byte zero e com no máximo 2% de caracteres de
+  controle — e nenhum dos dois com a marca do zip; a marca do zip no <code>.xlsx</code> e no
+  <code>.docx</code>; e no
+  <code>.ods</code> e no <code>.odt</code>, a marca do zip e o tipo que o próprio arquivo declara
+  dentro. O tipo que o armazenamento gravou também é conferido — o produto não depende de todo
+  provedor aplicar a condição da assinatura.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que copiar para outra pasta</strong>
+  <p>A permissão de envio continua valendo alguns minutos depois de usada, e reenviá-la gravaria
+  outro conteúdo no mesmo nome — depois de conferido. O arquivo aceito sai de
+  <code>uploads/</code> para <code>media/</code>, que nenhuma permissão alcança, e a cópia exige o
+  ETag lido na conferência: trocado depois dela, o armazenamento recusa copiar, e o anexo é
+  recusado junto (400, "mudou depois de conferido" — subir de novo resolve).</p>
+</div>
+
+<div class="note why">
+  <strong>A cota é contada duas vezes, e a segunda é a que vale</strong>
+  <p>O pedido de permissão conta só os confirmados, para recusar cedo; cinco permissões pedidas
+  antes da primeira confirmação enxergam a mesma vaga. A confirmação conta de novo com a cota do
+  relato travada, uma de cada vez, e confere de novo a regra do projeto: o dono que desligou a
+  mídia, um tipo ou baixou o tamanho depois da permissão não vê entrar o que ele acabou de
+  proibir. Ler o armazenamento, que é o passo demorado, acontece antes da trava.</p>
+</div>
+
+<h3>As recusas</h3>
+
+<p><strong>409 é a recusa que tentar de novo não muda</strong> — anexo, tipo ou envio desligados,
+formato, arquivo vazio ou grande demais, envio cheio ou vencido, sem armazenamento —, e a tela
+diz "não enviado", com o motivo, sem oferecer "Tentar de novo". <strong>400</strong> fica para o
+pedido mal formado e para o que subir de novo resolve: o arquivo que não chegou, ou que mudou no
+meio da conferência. Confirmar de novo um anexo já confirmado responde 200, com os dados dele: a
+resposta da primeira confirmação pode ter se perdido na rede, e recomeçar poria o mesmo arquivo
+duas vezes no relato.</p>
+
+<p>O arquivo aceito <strong>nunca sai do balde</strong>. Saem, apagados de verdade, o arquivo
+recusado, a cópia de envio que sobra da confirmação e a miniatura que não passa na conferência —
+esta sem derrubar o anexo, que vale sem ela. O que sobra em <code>uploads/</code> — envio
+abandonado, reenvio depois de confirmado — vence sozinho, por uma regra do próprio balde. Por
+quanto tempo a mídia aceita fica guardada, e apagá-la quando vencer, é
+<strong>Adiado</strong>.</p>
+
+<h3>Os prazos</h3>
+
+<ul>
+  <li><strong>O envio:</strong> 15 minutos depois do texto — ou do último arquivo do mesmo envio,
+  pedido, confirmado ou descartado, porque os arquivos sobem um de cada vez e o último de muitos
+  grandes, numa conexão lenta, pede a permissão tarde. Com teto de 1 hora depois do texto.</li>
+  <li><strong>A permissão:</strong> 1 hora para ser confirmada. Começar leva minutos; terminar
+  depende da conexão.</li>
+  <li><strong>O formulário:</strong> 2 minutos para o envio começar
+  (<code>MEDIA_STORAGE_UPLOAD_URL_MINUTES</code>). Vazou, tem prazo.</li>
+</ul>
+
+<h2>Ler de volta</h2>
+
+<div class="diagram">a página de quem relatou  →  POST /public/reports/tracking/attachments   { TrackingCode, Token }
+pelo código pessoal     →  POST /public/reports/by-code/attachments    { Key, Code, TrackingCode }
+o painel                →  GET  /projects/{id}/reports/{id}/attachments   (com sessão)
+      ↓
+a porta aceita  →  <b>só então</b> assina: um link por arquivo e um por miniatura, de 5 minutos
+                   (o de um vídeo antigo, que é lido em pedaços enquanto toca, 15)
+      ↓
+responde com Cache-Control: no-store, e ExpiresAt = o primeiro vencimento dos links
+      ↓
+a galeria pede a lista de novo 30 s antes de ExpiresAt
+      ↓
+a API fora do ar: a espera dobra a cada pedido, de 30 s até 5 min
+a recusa definitiva — sem armazenamento, relato que não abre —: vira falha, e os pedidos param</div>
+
+<p>Os links são gerados a cada leitura e <strong>nunca guardados</strong>: vazou, vence em
+minutos. A leitura é um <code>POST</code> porque o token é segredo, e segredo na URL entra no log,
+no histórico e no <code>Referer</code>. O arquivo que não é imagem é sempre baixado, e nunca aberto
+na página — fora do painel, com o nome <code>anexo.&lt;extensão&gt;</code>; no painel, com o nome
+que a pessoa deu a ele. Os detalhes estão em <a href="#/seguranca/midia">Os anexos</a>.</p>
+
+<h2>O mesmo, na resposta e na reabertura</h2>
+
+<p>São três envios, e cada um tem a sua cota por categoria, sem total somado: a criação do
+relato, a resposta a um pedido de informação e a reabertura. A sequência é a mesma; muda uma
+bandeira no pedido de permissão.</p>
+
+<div class="diagram">POST /public/reports/reply     →  depois, attachments com <b>ForReply</b>
+POST /public/reports/reopen    →  depois, attachments com <b>ForReopen</b>
+      ↓
+o servidor acha a resposta, ou a reabertura, que acabou de acontecer — o navegador nunca diz qual
+      ↓
+os 15 minutos contam dela, e a cota é dela</div>
+
+<p>A página de quem relatou chegou pelo link e não tem a chave pública, então pergunta o que dá
+para anexar pela mesma porta: <code>POST /public/reports/tracking/media-settings</code>, com o
+protocolo e o token. O projeto escolhe separadamente se aceita anexo na resposta e na reabertura;
+o motivo da reabertura em branco, quando o projeto não o exige, não impede anexar — o envio é a
+reabertura, e não o texto dela. As duas bandeiras juntas são 400: um arquivo vai com um envio
+só.</p>
+
+<p>Na leitura, cada arquivo volta ao lugar de onde veio — embaixo do relato, da resposta ou da
+reabertura. Quem volta pelo código pessoal vê os mesmos arquivos, e não anexa: ler não é agir.</p>

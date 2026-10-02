@@ -1,14 +1,14 @@
 meta:
   title: O relato entra
   system: PDS — ferramenta de relato
-  description: "O que quem relata faz dentro da ferramenta, na página onde o problema apareceu: escrever, anexar, capturar a tela e reencontrar os próprios relatos. O que acontece depois de enviar está em 05-team-work e 06-tracking."
+  description: "O que quem relata faz dentro da ferramenta, na página onde o problema apareceu: escrever, anexar imagens e arquivos, capturar uma área da página, marcar a imagem e reencontrar os próprios relatos. O que acontece depois de enviar está em 05-team-work e 06-tracking."
 actors:
   - name: Relator
     description: Quem encontrou o problema. Está fora da empresa, não tem conta e não instala nada.
     position: { x: 40, y: 306 }
   - name: Armazenamento de arquivos
     kind: system
-    description: Guarda os prints e os vídeos, privado. Os bytes vão direto da ferramenta para ele, sem passar pela API, e nada é servido sem um link assinado de validade curta.
+    description: Guarda as imagens e os arquivos (e os vídeos antigos), privado. Os bytes vão direto da ferramenta para ele, sem passar pela API, e nada é servido sem um link assinado de validade curta.
     position: { x: 950, y: 151 }
   - name: Sistema do cliente
     kind: system
@@ -44,46 +44,67 @@ useCases:
           - A confirmação mostra o código, para o relator guardar.
     postconditions: O relato está no painel do time, e quem relatou já o vê na primeira etapa pública.
   - id: UC02
-    name: Anexar print ou vídeo
-    description: Escolhe um arquivo ou cola um print da área de transferência, vê a miniatura e pode remover antes de enviar.
+    name: Anexar imagens e arquivos
+    description: Escolhe imagens — ou cola um print — e, quando o projeto aceita, arquivos. A imagem fica logo abaixo do texto, no tamanho que o relator escolhe; o arquivo, numa lista embaixo dela. Dá para remover antes de enviar.
     width: 230
     position: { x: 600, y: 140 }
-    preconditions: O projeto aceita anexo, e o tipo do arquivo está entre os que ele aceita.
+    preconditions: O projeto aceita anexo, e a categoria — imagem ou arquivo — está ligada.
     mainFlow:
-      - O relator escolhe um arquivo ou cola um print.
-      - A ferramenta mostra a miniatura, feita no próprio navegador.
-      - Ao enviar o relato, a ferramenta pede ao sistema permissão para cada arquivo.
-      - O sistema confere quantidade, tipo e tamanho contra os limites do projeto e devolve um endereço de envio de validade curta.
+      - O relator escolhe imagens (PNG, JPEG ou WebP) ou cola um print; ou escolhe um arquivo dos formatos que o projeto marcou, reconhecido pela extensão.
+      - A imagem aparece logo abaixo do texto, no tamanho escolhido — um terço, metade, três quartos ou a linha inteira —, na ordem em que o relator monta. O arquivo aparece numa linha com o tipo e o tamanho.
+      - Ao enviar o relato, o texto é gravado primeiro, e a ferramenta pede ao sistema permissão para cada arquivo.
+      - O sistema confere, em cada categoria, quantidade e tamanho contra os limites do projeto, e devolve um endereço de envio de validade curta.
       - A ferramenta manda o arquivo direto ao armazenamento, mostrando o progresso.
-      - O sistema confere os primeiros bytes do arquivo e o prende ao relato.
+      - O sistema confere os primeiros bytes do arquivo e o prende ao relato, com o tamanho de exibição e a posição.
     alternativeFlows:
-      - title: 4a. O arquivo passa de um limite do projeto
+      - title: 1a. Não cabe mais nada daquela categoria
         steps:
-          - O sistema recusa aquele arquivo e diz qual limite.
+          - O botão daquela categoria desliga, e a ferramenta diz o limite.
+      - title: 4a. O arquivo passa de um limite do projeto, ou não é do tipo que diz ser
+        steps:
+          - O arquivo fica como "não enviado", com o motivo, e sem "Tentar de novo" — mandar de novo levaria a mesma resposta.
       - title: 5a. O envio do arquivo falha
         steps:
           - O relato continua valendo, com o texto inteiro — o texto é a parte valiosa.
-          - O relator pode tentar de novo, e a tentativa começa com permissão nova.
-    postconditions: O arquivo pertence ao relato e só é servido por link assinado, a quem pode ver aquele relato.
+          - O relator pode tentar de novo, e a tentativa volta ao mesmo lugar na montagem; ou desistir daquele arquivo.
+    postconditions: "O arquivo pertence ao relato e só é servido por link assinado, a quem pode ver aquele relato. A imagem aparece como o relator montou; o arquivo é sempre baixado, e nunca aberto na página."
   - id: UC03
-    name: Capturar a tela
-    description: O navegador pergunta qual tela, janela ou aba mostrar. Dali sai um print, que o relator recorta, ou um vídeo curto.
+    name: Capturar uma área da página
+    description: A ferramenta some, e o relator arrasta sobre a página onde o problema apareceu. A área vira imagem ali mesmo — sem o navegador perguntar nada —, e o editor abre com ela.
     width: 230
     position: { x: 600, y: 300 }
-    preconditions: O projeto liga a captura, e o navegador permite — no iPhone e no iPad não existe.
+    preconditions: O projeto liga a captura e aceita imagem, e a página deixa o carregador capturar.
     mainFlow:
-      - O relator escolhe capturar a tela.
-      - O navegador pergunta o que compartilhar, e o relator escolhe.
-      - Para um print, a ferramenta congela o quadro e o relator recorta o pedaço que importa.
-      - Para um vídeo, a ferramenta grava até a duração máxima do projeto, em qualidade baixa de propósito.
-      - A captura vira um anexo, e segue como em UC02.
+      - O relator escolhe capturar.
+      - A ferramenta some, e o carregador — o script do PDS na página do cliente — mostra a página por inteiro para o relator arrastar.
+      - O relator arrasta sobre a área que importa, ou escolhe a tela inteira.
+      - O carregador redesenha a área como imagem, no formato mais leve que o navegador sabe gravar. A própria ferramenta nunca aparece na imagem.
+      - A ferramenta volta, e o editor abre com a imagem, como em UC08.
+      - A imagem segue como em UC02.
     alternativeFlows:
-      - title: 1a. O navegador ou o site não deixam capturar
+      - title: 1a. A página não deixa capturar
         steps:
-          - O botão de capturar não aparece, e anexar arquivo continua funcionando — sem mensagem de erro técnico.
-      - title: 2a. O relator desiste na pergunta do navegador
+          - O botão de capturar não aparece, e anexar continua funcionando — sem mensagem de erro técnico.
+      - title: 3a. O relator desiste
         steps:
-          - Nada é anexado, e o relato continua como estava.
+          - Esc ou "Cancelar" volta à ferramenta, e nada é anexado.
+    postconditions: A captura não esconde nada sozinha — senha, cartão ou o que mais estiver na área. Quem esconde é o relator, no editor.
+  - id: UC08
+    name: Marcar a imagem
+    description: Antes de enviar, o relator aponta o que importa e esconde o que não quer mostrar — na captura e em qualquer imagem da lista.
+    width: 220
+    position: { x: 260, y: 300 }
+    preconditions: A imagem está na lista, ainda não enviada.
+    mainFlow:
+      - O editor abre sozinho depois da captura; as outras imagens abrem pelo "Editar".
+      - O relator marca com seta, retângulo, elipse, desenho livre, marca-texto, texto e marcadores numerados, em cores; e desfoca, oculta ou recorta.
+      - Desfaz e refaz o que quiser.
+      - Adiciona, e a imagem marcada toma o lugar da original na lista.
+    alternativeFlows:
+      - title: 4a. O relator descarta
+        steps:
+          - A imagem continua como estava.
+    postconditions: O que foi ocultado não existe no arquivo enviado nem na miniatura. A original fica só no navegador, para reabrir com as marcas editáveis.
   - id: UC04
     name: Informar o nome
     description: Sempre opcional, e interno por padrão. O nome só aparece para o público se o projeto for público identificado e o relator marcar que quer assinar.
@@ -108,7 +129,7 @@ useCases:
       - title: 2a. O código tem mais de 50 relatos
         steps:
           - A lista mostra 50 e avisa que há mais — sem dizer quantos.
-    postconditions: "Pela lista, o relator só lê: confirmar, reabrir e responder continuam pedindo o link do relato."
+    postconditions: "Pela lista, o relator só lê — o relato e o que veio anexado: confirmar, reabrir, responder e anexar continuam pedindo o link do relato."
   - id: UC06
     name: Reencontrar os relatos pelo código
     description: Em outro navegador ou aparelho, digita o código que guardou, e a lista volta.
@@ -152,7 +173,15 @@ links:
   - from: UC03
     to: UC02
     kind: extend
-    note: quando o projeto liga a captura e o navegador permite
+    note: quando o projeto liga a captura e a página deixa o carregador capturar
+  - from: UC08
+    to: UC02
+    kind: extend
+    note: pelo "Editar", em qualquer imagem da lista
+  - from: UC08
+    to: UC03
+    kind: extend
+    note: abre sozinho depois da captura
   - from: UC04
     to: UC01
     kind: extend
@@ -171,7 +200,7 @@ links:
     to: UC07
     kind: association
 notes:
-  - text: A ferramenta roda num iframe do PDS. A página do cliente carrega só o script e o botão, e não enxerga o que o relator escreve.
+  - text: A ferramenta roda num iframe do PDS. A página do cliente carrega só o script e o botão, e não enxerga o que o relator escreve. É o script — o carregador — que faz a captura da área, porque só ele está na página.
     anchor: UC01
     position: { x: -77, y: 5 }
   - text: Perder o código custa a lista, não os relatos — cada um continua alcançável pelo próprio link.

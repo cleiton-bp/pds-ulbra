@@ -43,7 +43,7 @@ public class ProjectCycleSettingsMap : BaseEntityConfiguration<ProjectCycleSetti
         builder.Property(settings => settings.PublicDelayMinutes)
             .HasColumnName("public_delay_minutes")
             .IsRequired()
-            .HasComment("Quanto o lado publico espera antes de mudar. Zero e o comportamento anterior a esta etapa; acima de zero e a janela para desfazer um movimento errado.");
+            .HasComment("Quanto o lado publico espera antes de mudar. Zero: muda na hora; acima de zero e a janela para desfazer um movimento errado.");
 
         builder.Property(settings => settings.AllowsReopen)
             .HasColumnName("allows_reopen")
@@ -62,7 +62,7 @@ public class ProjectCycleSettingsMap : BaseEntityConfiguration<ProjectCycleSetti
         builder.Property(settings => settings.TrackingCodeCanAct)
             .HasColumnName("tracking_code_can_act")
             .IsRequired()
-            .HasComment("Se o protocolo sozinho confirma e reabre, ou se as duas acoes exigem o link. Ler e inofensivo; reabrir mexe na fila do time.");
+            .HasComment("Se o codigo pessoal sozinho confirma e reabre, ou se as acoes exigem o link. Ler e inofensivo; reabrir mexe na fila do time. Gravado e, por enquanto, ignorado: confirmar, reabrir e responder so aceitam o link.");
 
         builder.Property(settings => settings.SatisfactionEnabled)
             .HasColumnName("satisfaction_enabled")

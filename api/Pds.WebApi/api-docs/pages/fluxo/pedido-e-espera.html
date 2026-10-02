@@ -17,12 +17,23 @@ ela responde              ninguem responde
 POST /public/reports/reply   passa close_at
      ↓                          ↓
 answered_at                  encerra como no_answer, sem autor
-a vez volta para a equipe    e continua reabrivel</div>
+a vez volta para a equipe    e continua reabrivel
+     ↓
+os prints da resposta sobem
+em seguida, com ForReply</div>
+
+<p><strong>A resposta leva só o texto, e os arquivos vêm depois</strong>, pela
+<a href="#/fluxo/anexar">mesma sequência de anexar</a>, com <code>ForReply</code>, nos 15 minutos
+depois da resposta mais recente de quem relatou. O servidor acha a resposta que acabou de chegar, e
+ela tem a sua própria cota. É onde o print mais serve — "em que tela isso aparece?" —, e por isso
+o anexo na resposta já vem ligado: desligado de fábrica, o caso mais útil do anexo dependeria de
+alguém descobrir uma tela.</p>
 
 <div class="note warn">
   <strong>O primeiro prazo não dispara nada</strong>
   <p>Só <code>close_at</code> é agendado. O aviso é a página mudando de tom quando a data passa —
-  enquanto não houver canal de comunicação, avisar é isso.</p>
+  enquanto não houver canal de comunicação, avisar é isso. Os avisos por e-mail são
+  <strong>Planejado</strong>.</p>
   <p>E o encerramento por prazo grava origem <code>system</code> e autor nulo. Chamá-lo de
   <code>panel</code> faria a contagem atribuir ao time uma ação que o time não tomou.</p>
 </div>
@@ -67,12 +78,16 @@ grava o evento publico    sai em silencio — nada foi cancelado</div>
 
 <div class="note todo">
   <strong>O que falta aqui</strong>
-  <p><strong>Onde a fila roda em produção.</strong> O Render não fornece broker. Até haver um — e
-  até se confirmar que o plano escolhido permite o
-  <code>rabbitmq_delayed_message_exchange</code> —, a espera e o prazo do pedido ficam
-  indisponíveis lá, e a tela de Ciclo recusa ligá-los dizendo o motivo.</p>
-  <p><code>tracking_code_can_act</code> está gravado, <strong>não tem tela</strong> e a API o
+  <p><strong>Onde a fila roda em produção — Adiado.</strong> O Render não fornece broker. Até haver
+  um — e até se confirmar que o plano escolhido permite o
+  <code>rabbitmq_delayed_message_exchange</code> —, a espera fica indisponível lá, e a tela de
+  Ciclo recusa ligá-la dizendo o motivo. O pedido de informação continua funcionando, mas o prazo
+  dele não encerra nada sozinho — sem fila não há consumidor, nem a varredura de
+  <code>close_at</code> na subida —, e o pedido fica aberto até quem relatou responder ou o time
+  agir.</p>
+  <p><code>tracking_code_can_act</code> está gravado, <strong>fica escondido na tela de Ciclo</strong> e a API o
   ignora. Ele decide se quem chega pelo código pessoal também confirma e reabre, e depende de
   confirmar, reabrir e responder aceitarem o código no lugar do token — oferecer o controle antes
-  disso seria oferecer um botão que não muda nada.</p>
+  disso seria oferecer um botão que não muda nada. Fazer as três aceitarem o código é
+  <strong>Adiado</strong>.</p>
 </div>

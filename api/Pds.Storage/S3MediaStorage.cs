@@ -84,6 +84,7 @@ public class S3MediaStorage : IMediaStorage, IDisposable
         string objectKey,
         string contentType,
         long maxBytes,
+        bool downloadOnly = false,
         CancellationToken cancellationToken = default)
     {
         var vencimento = DateTime.UtcNow.Add(_validadeEnvio);
@@ -100,6 +101,14 @@ public class S3MediaStorage : IMediaStorage, IDisposable
         // sugestao que o navegador reescreve.
         pedido.Fields["Content-Type"] = contentType;
         pedido.Conditions.Add(new ExactMatchCondition("Content-Type", contentType));
+
+        // So para baixar: o objeto guarda o cabecalho de anexo, e a copia para o nome
+        // final o leva junto. Pelo mesmo motivo do tipo, campo e condicao.
+        if (downloadOnly)
+        {
+            pedido.Fields["Content-Disposition"] = "attachment";
+            pedido.Conditions.Add(new ExactMatchCondition("Content-Disposition", "attachment"));
+        }
 
         // O teto, que e a razao de este metodo assinar formulario.
         //
@@ -119,17 +128,30 @@ public class S3MediaStorage : IMediaStorage, IDisposable
     public async Task<SignedReadUrl> CreateReadUrlAsync(
         string objectKey,
         bool forPlayback = false,
+        string? downloadAs = null,
         CancellationToken cancellationToken = default)
     {
         var vencimento = DateTime.UtcNow.Add(forPlayback ? _validadeReproducao : _validadeLeitura);
 
-        var url = await _signer.GetPreSignedURLAsync(new GetPreSignedUrlRequest
+        var pedido = new GetPreSignedUrlRequest
         {
             BucketName = _bucket,
             Key = objectKey,
             Verb = HttpVerb.GET,
             Expires = vencimento,
-        });
+        };
+
+        // **So baixa.** O armazenamento responde com os cabecalhos que a assinatura
+        // manda, e eles entram na assinatura: trocar na barra invalida o endereco. O
+        // tipo generico impede o navegador de abrir o arquivo na pagina, e o anexo com
+        // nome o faz salvar — o que ha dentro nao roda em lugar nenhum.
+        if (downloadAs is not null)
+        {
+            pedido.ResponseHeaderOverrides.ContentType = "application/octet-stream";
+            pedido.ResponseHeaderOverrides.ContentDisposition = DownloadDisposition.For(downloadAs);
+        }
+
+        var url = await _signer.GetPreSignedURLAsync(pedido);
 
         return new SignedReadUrl(ComEsquemaDoEndereco(url), vencimento);
     }

@@ -28,7 +28,7 @@ public class ProjectMediaSettingsMap : BaseEntityConfiguration<ProjectMediaSetti
         builder.Property(settings => settings.AllowsScreenCapture)
             .HasColumnName("allows_screen_capture")
             .IsRequired()
-            .HasComment("O botao de capturar a tela aparece. Nao e a captura automatica, que continua impossivel de dentro do quadro: aqui o navegador pergunta qual tela, e quem decide o que aparece e quem relata. Onde o navegador nao souber fazer, o botao some sozinho.");
+            .HasComment("O botao de capturar uma area da pagina aparece. Quem captura e o carregador, na pagina do cliente, sem o navegador perguntar nada; a imagem abre no editor antes de entrar na lista, e quem esconde o que nao quer mostrar e quem relata. Onde a pagina nao deixa, o botao some sozinho.");
 
         builder.Property(settings => settings.AllowsOnInfoRequest)
             .HasColumnName("allows_on_info_request")
@@ -42,8 +42,7 @@ public class ProjectMediaSettingsMap : BaseEntityConfiguration<ProjectMediaSetti
 
         builder.Property(settings => settings.MaxFilesPerReport)
             .HasColumnName("max_files_per_report")
-            .IsRequired()
-            .HasComment("Quantos arquivos cabem num relato, somando todos os tipos. Existe alem do limite por tipo, e nao no lugar dele: so com o limite por tipo, tres imagens mais um video passariam num projeto que so queria dois no total.");
+            .HasComment("Sem uso: era o total de arquivos por envio, somando todos os tipos. Saiu quando o arquivo virou categoria ao lado da imagem — cada categoria tem a sua quantidade e o seu tamanho. Fica com o que cada projeto tinha escolhido; configuracao salva depois disso grava nulo.");
 
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.

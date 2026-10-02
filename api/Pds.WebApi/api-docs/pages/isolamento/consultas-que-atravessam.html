@@ -1,16 +1,18 @@
-<h2>As vinte e quatro consultas que atravessam o filtro</h2>
+<h2>As trinta e quatro consultas que atravessam o filtro</h2>
 
-<p>São exatamente vinte e quatro em todo o sistema, todas propositais, e <strong>vinte e uma têm
+<p>São exatamente trinta e quatro em todo o sistema, todas propositais, e <strong>trinta e uma têm
 a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
 <code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
-próprio dono. Todas moram em repositório, uma por método, e nenhuma em serviço.</p>
+próprio dono. Todas moram em repositório, cada uma num método, e nenhuma em serviço.</p>
 
-<p>A contagem é um método por <code>IgnoreQueryFilters()</code>, nos repositórios: dez ao fim da
-etapa 4, dezoito ao fim da etapa 5 e vinte e quatro agora. <strong>Esta página dizia dezessete, e
-estava errada por uma</strong> — o desfecho público entrou com <em>dois</em> métodos
-(<code>FindCurrent</code> e <code>FindPublic</code>), e foram contados como um.</p>
+<p>A contagem é por <strong>método público</strong> de repositório, porque é o método que alguém
+chama. As chamadas a <code>IgnoreQueryFilters()</code> são trinta e uma: duas moram em auxiliares
+privados — <code>Confirmados</code>, em <code>ReportAttachmentRepository</code>, e
+<code>Reabertos</code>, em <code>ReportClosureRepository</code> —, uma em cada, e os dois servem
+cinco métodos públicos entre eles. O auxiliar existe para as condições reescritas à mão morarem
+num lugar só; contar as chamadas esconderia quantas portas passam por ele.</p>
 
-<p>As seis da etapa 6 vêm de três lugares. Duas leem o código pessoal
+<p>As seis do código pessoal e das listas públicas vêm de três lugares. Duas leem o código pessoal
 (<code>ReporterCodes.FindByCodeWithoutSessionAsync</code> e <code>ReporterCodes.ExistsAsync</code>), duas
 montam listas que a ferramenta mostra sem ninguém logado
 (<code>Reports.ListByReporterCodeWithoutSessionAsync</code> e
@@ -18,19 +20,61 @@ montam listas que a ferramenta mostra sem ninguém logado
 <code>ProjectIdentitySettings.FindByProjectWithoutSessionAsync</code>, porque é o modo e a visibilidade
 que decidem o que elas podem devolver, e
 <code>ReportClosures.ListReportIdsWithPublicClosureWithoutSessionAsync</code>, que é a consulta em lote
-que substituiu uma ida ao banco por linha da lista pessoal.</p>
+que evita uma ida ao banco por linha da lista pessoal.</p>
+
+<h3>As dez da mídia e da reabertura</h3>
+
+<p><strong>Quem anexa é quem relatou, e quem relatou não tem sessão.</strong> A causa é a mesma das
+outras, e o desenho também: as condições do filtro reescritas à mão, menos a da conta, e cada
+consulta chamada só depois de a porta aceitar — o link (protocolo e token), o código pessoal ou a
+chave pública.</p>
+
+<ul>
+  <li><code>ProjectMediaSettings.FindByProjectWithoutSessionAsync</code> — a regra de mídia do
+  projeto, que a ferramenta lê pela chave, a página de quem relatou lê pelo link, e cada pedido de
+  permissão e cada confirmação leem de novo. <code>IgnoreQueryFilters</code> vale para a consulta
+  inteira, então o filtro dos limites de cada categoria cai junto — e o <code>Include</code> repete
+  a condição deles, ou traria o limite apagado.</li>
+  <li><code>ReportAttachments.CountConfirmedWithoutSessionAsync</code> — a cota: quantos
+  confirmados daquele tipo há naquele envio.</li>
+  <li><code>ReportAttachments.HasActivitySinceWithoutSessionAsync</code> — se o envio continua
+  chegando. <strong>Não</strong> reescreve <code>DeletedAt == null</code>, de propósito: o arquivo
+  recusado também é o envio andando.</li>
+  <li><code>ReportAttachments.FindPendingWithoutSessionAsync</code> — o anexo pendente que está
+  sendo confirmado, e só daquele relato.</li>
+  <li><code>ReportAttachments.FindConfirmedWithoutSessionAsync</code> — a resposta a quem confirma
+  de novo o que já entrou.</li>
+  <li><code>ReportAttachments.ListConfirmedWithoutSessionAsync</code> — os arquivos, para quem
+  relatou, pelo link ou pelo código.</li>
+  <li><code>ReportAttachments.IsObjectKeyInUseWithoutSessionAsync</code> — ver a nota abaixo.</li>
+  <li><code>ReportPublicComments.FindLatestFromReporterWithoutSessionAsync</code> e
+  <code>ReportClosures.FindLatestReopenedWithoutSessionAsync</code> — a resposta e a reabertura que
+  acabaram de acontecer. O navegador nunca diz a qual delas o arquivo pertence; o servidor acha a
+  mais recente de quem relatou.</li>
+  <li><code>ReportClosures.ListReopenedWithoutSessionAsync</code> — as reaberturas com o motivo,
+  que a página de quem relatou mostra de volta.</li>
+</ul>
+
+<p>No painel, a mesma leitura de arquivos é outro método —
+<code>ReportAttachments.ListConfirmedAsync</code> —, com o filtro ligado: é ele que faz a conta de um
+painel nunca assinar a leitura de um arquivo de outra.</p>
 
 <div class="note why">
-  <strong>Uma delas é consultada sobre um valor que ninguém de fora escolheu</strong>
-  <p><code>ReporterCodes.ExistsAsync</code> destoa das outras vinte e três: ela não atende uma
-  pergunta vinda de fora. Quem pergunta é a geração do código, sobre um candidato que o
-  <strong>sistema sorteou</strong>, para conferir colisão antes de gravar — mesmo desenho de
-  <code>Reports.TrackingCodeExistsAsync</code>.</p>
-  <p>É por isso que ela pode responder sim ou não sem virar oráculo: a resposta não fala do código
-  de pessoa nenhuma, porque ninguém de fora escolheu o valor consultado. A busca por um código
-  <em>apresentado</em> é a outra, e essa nunca diz se existe — a rota devolve lista vazia.</p>
-  <p>E ela inclui o apagado logicamente, ao contrário da busca por código apresentado:
-  reaproveitar um código que já foi de alguém faria a lista de uma pessoa aparecer para outra.</p>
+  <strong>Três são consultadas sobre um valor que ninguém de fora escolheu</strong>
+  <p><code>Reports.TrackingCodeExistsAsync</code>, <code>ReporterCodes.ExistsAsync</code> e
+  <code>ReportAttachments.IsObjectKeyInUseWithoutSessionAsync</code> não atendem uma pergunta
+  vinda de fora. As duas primeiras são a geração do protocolo e do código pessoal conferindo
+  colisão de um candidato que o <strong>sistema sorteou</strong>, antes de gravar. A terceira é a
+  confirmação de um anexo que falhou no meio — a aba fechada, a resposta do banco perdida —
+  perguntando se algum anexo já aponta para o nome final que ela mesma sorteou segundos antes: se
+  aponta, a gravação entrou e aquelas cópias são o anexo; se não, elas saem do balde.</p>
+  <p>É por isso que elas podem responder sim ou não sem virar oráculo: a resposta não fala do
+  código nem do arquivo de pessoa nenhuma, porque ninguém de fora escolheu o valor consultado. A
+  busca por um código <em>apresentado</em> é a outra, e essa nunca diz se existe — a rota devolve
+  lista vazia.</p>
+  <p>E a do código pessoal inclui o apagado logicamente, ao contrário da busca por código
+  apresentado: reaproveitar um código que já foi de alguém faria a lista de uma pessoa aparecer
+  para outra.</p>
 </div>
 
 <p><strong>Três são de origem diferente de todas as outras</strong>, e vale ler o porquê.</p>
@@ -42,7 +86,7 @@ que substituiu uma ida ao banco por linha da lista pessoal.</p>
   <code>ReportInfoRequests.ListOverdueWithoutSessionAsync</code> são chamadas pelo consumidor da
   fila. Ali não há sessão a perder, porque <strong>nunca houve requisição</strong>: o que acordou
   o código foi um prazo vencendo.</p>
-  <p>A diferença importa na hora de julgar o risco. As outras vinte e uma são atravessadas por
+  <p>A diferença importa na hora de julgar o risco. As outras trinta e uma são atravessadas por
   quem apresenta uma credencial — a chave pública, o protocolo e o token, ou o código pessoal —,
   e o que protege a resposta é a credencial, não o filtro. Estas três não devolvem nada a ninguém: o resultado vai
   para dentro da própria aplicação, que grava e não responde. <strong>Não há resposta HTTP em que
@@ -52,7 +96,7 @@ que substituiu uma ida ao banco por linha da lista pessoal.</p>
   de cliente que ela não tem motivo para ver.</p>
 </div>
 
-<p>A mais nova é a que monta o <strong>andamento</strong> da página pública, e ela tem uma
+<p>Uma delas monta o <strong>andamento</strong> da página pública, e tem uma
 particularidade que vale ler: o tipo de evento está na <strong>consulta</strong>, e não num
 filtro aplicado depois. Uma leitura genérica "eventos do relato", filtrada na saída,
 funcionaria hoje e seria o vazamento de amanhã — bastaria alguém acrescentar um tipo de evento
@@ -129,9 +173,8 @@ acompanhamento:</p>
     .IgnoreQueryFilters()
     .FirstOrDefaultAsync(report =&gt; report.TrackingCode == trackingCode);</code></pre>
 
-<p>É a <strong>segunda</strong> das cinco que não reescreve <code>DeletedAt == null</code> — a
-outra é a conferência de protocolo repetido, duas seções acima —, e a única das duas que devolve
-<strong>conteúdo</strong>. Aquela responde um sim/não; esta entrega um relato a quem apresenta um
+<p>É uma das poucas que não reescrevem <code>DeletedAt == null</code> — como a conferência de
+protocolo repetido, duas seções acima —, e a que devolve <strong>conteúdo</strong>. Aquela responde um sim/não; esta entrega um relato a quem apresenta um
 token.</p>
 
 <p>É deliberado: o link continua na mão de quem escreveu o relato depois de a linha sair da lista

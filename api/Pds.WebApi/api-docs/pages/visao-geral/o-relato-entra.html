@@ -1,19 +1,21 @@
-<h2>Etapas 1 a 3 — do login à fila</h2>
+<h2>O relato entra, e o time trabalha</h2>
 <p class="lead">Conta, projeto e chaves; o relato entrando pela ferramenta; e o time trabalhando o relato numa fila que o cliente desenha.</p>
 
-<p>A <strong>etapa 1 — Fundação</strong> está inteira, e a <strong>etapa 2 — O relato
-entra</strong> fechou o ciclo nas duas direções: dá para colar o script numa página qualquer,
-ver o relato chegar, lê-lo na lista do painel — e quem relatou volta pelo link e vê o próprio
-relato. O que falta dela é o limite de envio na rota pública.</p>
+<p>A <strong>base</strong> é a de todo produto com conta: login com Google, projeto, chave
+pública e secreta, e o isolamento que impede uma conta de alcançar a outra. Sobre ela, <strong>o
+relato entra</strong>, e o caminho funciona nas duas direções: dá para colar o script numa página
+qualquer, ver o relato chegar, lê-lo na lista do painel — e quem relatou volta pelo link e vê o
+próprio relato. O limite de envio em <code>POST /public/reports</code> é <strong>Planejado</strong>:
+hoje têm limitador o login e as duas rotas de envio de arquivo.</p>
 
-<p>A <strong>etapa 3 — O time trabalha o relato</strong> está fechada. O cliente cria a
-própria fila de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada
+<p>O <strong>time trabalha o relato</strong> numa fila que é do cliente. Ele cria a própria
+fila de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada
 estado. <strong>E o relato entra nessa fila</strong>: projeto novo já nasce com uma área de
 análise, e o cliente escolhe por tipo onde cada relato cai — ou deixa no padrão, que é a
 primeira coluna.</p>
 
 <p>A lista de relatos <strong>filtra por coluna</strong>, com a contagem de cada uma à vista —
-é ela que responde "o que ainda não tratei", a pergunta que a tela não tinha como fazer antes.
+é ela que responde "o que ainda não tratei", a pergunta que uma lista sem recorte não responde.
 A contagem vem de uma chamada própria: contar as linhas da página daria um número errado assim
 que o projeto passasse de vinte relatos.</p>
 
@@ -27,8 +29,9 @@ do cache, na mesma transação. A fila deixou de ser uma foto.</p>
 
 <p>O time também <strong>comenta</strong>: o que fica entre a equipe e o que é escrito para
 quem relatou, em duas caixas distintas — e a separação é estrutural, com duas tabelas, e não um
-campo que alguém esquece de marcar. O comentário para quem relatou <strong>ainda não tem
-leitor</strong>, e a tela diz isso em vez de prometer.</p>
+campo que alguém esquece de marcar. O comentário para quem relatou <strong>é lido na página de
+acompanhamento</strong>, junto das respostas dela, numa conversa só; o interno não tem caminho
+nenhum até lá.</p>
 
 <p>E cada relato tem uma <strong>linha do tempo</strong>, montada a partir dos eventos, com os
 nomes de coluna que valiam na época de cada mudança.</p>
