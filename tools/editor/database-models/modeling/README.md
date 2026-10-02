@@ -13,6 +13,7 @@ Editadas pelo ambiente **Modelagem** do [editor](../../) (`npm run dev`) ou dire
 | `05-closing-cycle.yaml` | o ciclo fecha — o encerramento com motivo, a resposta de quem relatou, e as regras do ciclo que cada projeto configura |
 | `06-reporter-identity.yaml` | identidade e visibilidade — quem é quem num projeto, quem pode ver o que, o código que quem relata guarda, e a fila de moderação por onde todo relato passa antes de virar público |
 | `07-media-attachments.yaml` | mídia — o que cada projeto aceita receber (imagem e arquivo), os limites de cada categoria numa linha por categoria, e o registro do anexo cujo arquivo mora fora do banco: de que envio veio e como aparece |
+| `08-team-work.yaml` | o time — quem entra em cada projeto e com que papel (administrador ou membro); a mesma pessoa em projetos de várias contas, o dono mandando em todos os projetos da conta sem linha nova, e a conta deixando de ser a fronteira de isolamento |
 | `example.yaml` | ponto de partida: `Account` e `User`, uma relação presa aos campos e duas notas com seta |
 
 **Um arquivo por assunto, e os anteriores não se mexem.** Cada `.yaml` é a modelagem **como ela ficou quando aquele assunto entrou**, e não a modelagem de hoje: tabela ou coluna que muda depois entra no arquivo do assunto que a mudou, marcada ali, e o arquivo antigo continua contando o que era verdade na época. Reescrever o passado apagaria justamente a informação que a sequência de arquivos existe para guardar. A exceção é o vocabulário: a nota que citava a ordem em que o trabalho foi feito foi reescrita, sem mudar o que ela conta.
@@ -22,6 +23,8 @@ O `example.yaml` existe para conhecer o editor.
 O `04-public-journey.yaml` é o primeiro em que aparecem duas tabelas que só existem por causa da camada pública: a jornada e o mapa que leva até ela.
 
 O `03-team-workflow.yaml` corrige uma defasagem: `project_widget_settings` já existe no banco e não estava em modelagem nenhuma, então ele aparece ali como herdado.
+
+O `08-team-work.yaml` é o primeiro que muda o sentido de uma coluna sem mudar a forma dela: `account_id` de `users` passa a ser a conta própria da pessoa, e não mais a única conta que ela enxerga. A nota da coluna começa com "sentido novo —", do mesmo jeito que coluna acrescentada começa com "coluna nova —".
 
 O `06-reporter-identity.yaml` corrige outra, do mesmo tipo: cinco colunas existiam no banco sem estar em desenho nenhum — `avatar_url` e `last_login_at` em `users`, `last_used_at` em `project_keys`, e o `public_id` de `project_initial_states` e de `report_contexts`. Aparecem ali como herdadas, e os arquivos anteriores continuam como estavam.
 

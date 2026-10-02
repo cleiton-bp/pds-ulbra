@@ -8,11 +8,13 @@
   <tr><td>Colunas que toda tabela repete</td><td><code>Pds.ApiBase/Entities/BaseEntity.cs</code></td></tr>
   <tr><td>Consulta genérica (buscar, listar, apagar)</td><td><code>Pds.ApiBase/Repositories/BaseRepository.cs</code></td></tr>
   <tr><td>Exclusão lógica, auditoria, GUID público</td><td><code>Pds.Data/Context/PdsBaseContext.cs</code></td></tr>
-  <tr><td>Isolamento entre contas</td><td><code>Pds.Data/Context/DataContext.cs</code></td></tr>
+  <tr><td>Isolamento por projeto: o filtro global</td><td><code>Pds.Data/Context/DataContext.cs</code></td></tr>
   <tr><td>Nome de tabela, coluna, índice</td><td><code>Pds.Data/Types/*Map.cs</code></td></tr>
   <tr><td>Login e criação de conta</td><td><code>Pds.Service/Services/AuthService.cs</code></td></tr>
   <tr><td>Geração e conferência de chave</td><td><code>Pds.Service/Security/ProjectKeyGenerator.cs</code></td></tr>
-  <tr><td>Quem é a conta da requisição</td><td><code>Pds.WebApi/Authorization/AccountMiddleware.cs</code></td></tr>
+  <tr><td>Quem é a pessoa da requisição, e que projetos ela enxerga</td><td><code>Pds.WebApi/Authorization/AccountMiddleware.cs</code></td></tr>
+  <tr><td>O papel que cada rota exige, e o 403</td><td><code>Pds.WebApi/Authorization/RequireProjectRoleAttribute.cs</code></td></tr>
+  <tr><td>A subida que recusa rota de projeto sem papel, ou de escrita sem administrador</td><td><code>Pds.WebApi/Authorization/ProjectRoleCoverage.cs</code></td></tr>
   <tr><td>Tradução de erro para status HTTP</td><td><code>Pds.WebApi/Controllers/BaseController.cs</code></td></tr>
   <tr><td>Registro de serviço novo</td><td><code>Pds.Shared/DependencyInjection/DiResolver.cs</code></td></tr>
   <tr><td>Formato do JSON</td><td><code>Pds.Shared/Json/PdsJsonOptions.cs</code></td></tr>

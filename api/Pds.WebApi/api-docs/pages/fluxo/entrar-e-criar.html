@@ -20,8 +20,9 @@
   }
 }</code></pre>
 
-<p>Se for o primeiro acesso, a conta e o usuário nasceram nesta chamada. Não há tela de
-cadastro.</p>
+<p>Se for o primeiro acesso, a conta própria e o usuário nasceram nesta chamada. Não há tela de
+cadastro. O <code>Account</code> da resposta é sempre a conta própria — os projetos de outras
+contas em que a pessoa estiver vêm na lista de projetos, cada um com a sua.</p>
 
 <h2>Criar o projeto</h2>
 
@@ -37,7 +38,9 @@ da chave secreta existe fora do servidor:</p>
   "Success": true,
   "Message": "Projeto criado. Guarde a chave secreta: ela nao sera exibida de novo.",
   "Data": {
-    "Project":   { "PublicId": "2be49b28-...", "Name": "Loja Online", "Status": "Active" },
+    "Project":   { "PublicId": "2be49b28-...", "Name": "Loja Online", "Status": "Active",
+                   "Account": { "PublicId": "11111111-...", "Name": "Conta de Ana" },
+                   "Role": "Administrator", "IsAccountOwner": true },
     "PublicKey": { "Type": "Public", "Value": "pk_1R0KtQwzLCVyS4RKh-8CqcHy" },
     "SecretKey": { "Value": "sk_17QxAnh7pQ1raP8J1RtxgWOn0OL6Zx_S2voTo-8TJW4",
                    "Prefix": "sk_17QxAnh7" }
@@ -53,6 +56,9 @@ da chave secreta existe fora do servidor:</p>
 <p>Projeto, chave pública e chave secreta entram numa gravação só: ou tudo entra, ou nada
 entra. Não existe projeto sem chave.</p>
 
+<p>O projeto nasce na conta própria de quem cria, e quem cria é dono dele — por isso a resposta
+traz <code>Role: "Administrator"</code> e <code>IsAccountOwner: true</code>.</p>
+
 <h2>Conferir as chaves</h2>
 
 <pre><code>GET /projects/2be49b28-.../keys</code></pre>
@@ -67,3 +73,6 @@ entra. Não existe projeto sem chave.</p>
 
 <p>A secreta vem com <code>Value: null</code>. Não é a tela que esconde — o banco não tem o
 valor dela para devolver.</p>
+
+<p>Ler as chaves é de administrador, e o dono sempre é. Quem é só membro recebe 403: as chaves
+são a credencial da integração, e o trabalho nos relatos não precisa delas.</p>

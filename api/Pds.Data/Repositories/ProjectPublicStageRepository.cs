@@ -23,7 +23,7 @@ public class ProjectPublicStageRepository : BaseRepository<ProjectPublicStage, D
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<ProjectPublicStage>> ListByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta — o mesmo
+        // As condicoes do filtro global reescritas a mao, menos a do acesso — o mesmo
         // desenho da busca da chave publica e da do endereco autorizado.
         => await Context.ProjectPublicStages
             .IgnoreQueryFilters()

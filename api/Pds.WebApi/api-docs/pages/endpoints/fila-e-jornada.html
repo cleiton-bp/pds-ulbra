@@ -5,23 +5,26 @@
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states</code></td><td>A fila de trabalho do projeto, na ordem do cliente, com os aposentados dentro.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states</code></td><td>Cria um estado no fim da fila. Nome único no projeto, sem diferenciar maiúscula.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/order</code></td><td>Reordena a fila <strong>inteira</strong>, numa chamada só.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/{statePublicId}</code></td><td>Renomeia. O histórico não muda: o evento guarda o nome que valia na época.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td>Aposenta. <strong>Não existe remoção</strong> — relato antigo aponta para ele.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/activate</code></td><td>Traz de volta para a fila.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states</code></td><td><strong>Administrador.</strong> Cria um estado no fim da fila. Nome único no projeto, sem diferenciar maiúscula.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/order</code></td><td><strong>Administrador.</strong> Reordena a fila <strong>inteira</strong>, numa chamada só.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/{statePublicId}</code></td><td><strong>Administrador.</strong> Renomeia. O histórico não muda: o evento guarda o nome que valia na época.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td><strong>Administrador.</strong> Aposenta. <strong>Não existe remoção</strong> — relato antigo aponta para ele.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/activate</code></td><td><strong>Administrador.</strong> Traz de volta para a fila.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Onde cada tipo de relato cai ao entrar. Traz os três sempre, escolhidos ou não.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Escolhe o destino de um tipo. Nulo <strong>apaga</strong> a escolha e devolve ao padrão.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/initial</code></td><td><strong>Administrador.</strong> Escolhe o destino de um tipo. Nulo <strong>apaga</strong> a escolha e devolve ao padrão.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/public-stages</code></td><td>A jornada que quem relatou acompanha, na ordem. Pode vir vazia — projeto criado antes dela existir.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages</code></td><td>Cria uma etapa no fim da jornada. Recusada no teto de sete.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages/factory</code></td><td>Preenche uma jornada <strong>vazia</strong> com o conjunto padrão. Recusada se já houver etapa.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/order</code></td><td>Reordena a jornada <strong>inteira</strong>, numa chamada só.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td>Reescreve a etapa inteira. O rótulo novo vale de agora em diante.</td></tr>
-  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td>Tira da jornada. Recusada no piso de três.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages</code></td><td><strong>Administrador.</strong> Cria uma etapa no fim da jornada. Recusada no teto de sete.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/public-stages/factory</code></td><td><strong>Administrador.</strong> Preenche uma jornada <strong>vazia</strong> com o conjunto padrão. Recusada se já houver etapa.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/order</code></td><td><strong>Administrador.</strong> Reordena a jornada <strong>inteira</strong>, numa chamada só.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td><strong>Administrador.</strong> Reescreve a etapa inteira. O rótulo novo vale de agora em diante.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/public-stages/{stagePublicId}</code></td><td><strong>Administrador.</strong> Tira da jornada. Recusada no piso de três.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/status-mappings</code></td><td>O mapa que vale. Traz <strong>todo estado ativo</strong>, mapeado ou não.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/status-mappings</code></td><td>Grava o mapa <strong>inteiro</strong>, criando uma versão. Estado ausente da lista fica sem mapeamento.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/status-mappings</code></td><td><strong>Administrador.</strong> Grava o mapa <strong>inteiro</strong>, criando uma versão. Estado ausente da lista fica sem mapeamento.</td></tr>
 </table>
 </div>
+
+<p>Ler as duas listas e o mapa vale para qualquer papel — o trabalho nos relatos usa os três —, e
+mudá-los é de administrador.</p>
 
 <div class="note why">
   <strong>Por que o mapa se grava inteiro, e não uma ligação de cada vez</strong>

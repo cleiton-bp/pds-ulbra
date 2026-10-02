@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
 import type { ConsoleSection } from '@/app/navigation'
@@ -13,6 +13,7 @@ import {
   DropdownGroup,
   DropdownItem,
   DropdownMenu,
+  DropdownSection,
   DropdownSeparator,
 } from '@/shared/components/DropdownMenu'
 import { LockIcon } from '@/shared/components/LockIcon'
@@ -21,11 +22,12 @@ import { StatusDot } from '@/shared/components/StatusDot'
 import { Tooltip } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
+import { canConfigure, groupByAccount } from '@/shared/lib/projectAccess'
 
 /**
  * Nao e um booleano `notFound`: "nao encontrado" e "nao deu para saber" pedem
  * acoes diferentes — conferir o endereco ou tentar de novo. Com um so, a frase
- * "ele nao existe ou nao pertence a esta conta" era dita tambem com a API fora do ar.
+ * "ele nao existe ou voce nao esta nele" era dita tambem com a API fora do ar.
  */
 type ProjectFailure = 'notFound' | 'failed'
 
@@ -53,18 +55,39 @@ export function ProjectShell() {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const project = projects.find((item) => item.PublicId === publicId)
+  const accountGroups = groupByAccount(projects)
+
+  // O projeto que a casca esta abrindo agora: a resposta que chega depois de a
+  // pessoa ter ido para outro projeto nao pode marcar este como "nao encontrado".
+  const current = useRef(publicId)
+  current.current = publicId
+  const opening = useRef(false)
 
   const openProject = useCallback(async () => {
     if (!publicId) return
     setFailure(null)
 
     if (!useProjectsStore.getState().projects.some((item) => item.PublicId === publicId)) {
+      opening.current = true
       try {
         await loadOne(publicId)
       } catch (error) {
-        setFailure(isPanelError(error) && error.status === 404 ? 'notFound' : 'failed')
+        if (current.current === publicId) {
+          setFailure(isPanelError(error) && error.status === 404 ? 'notFound' : 'failed')
+        }
         return
+      } finally {
+        opening.current = false
       }
+    } else {
+      // Ja estava na lista, e a lista envelhece: o papel muda, e a pessoa sai do
+      // time. Abre na hora com o que se sabia e confere em segundo plano — quem
+      // saiu ve "nao encontrado", e nao telas respondendo 404 uma a uma.
+      loadOne(publicId).catch((error) => {
+        if (current.current === publicId && isPanelError(error) && error.status === 404) {
+          setFailure('notFound')
+        }
+      })
     }
 
     // A lista completa alimenta o seletor do topo. Tenta tambem depois de um erro
@@ -79,6 +102,13 @@ export function ProjectShell() {
     void openProject()
   }, [openProject])
 
+  // A lista recarregou sem o projeto aberto: a pessoa saiu do time, ou o projeto
+  // sumiu. Sem isto, a tela ficava no esqueleto para sempre.
+  useEffect(() => {
+    if (failure || listStatus !== 'ready' || project || opening.current) return
+    void openProject()
+  }, [failure, listStatus, project, openProject])
+
   if (failure) {
     return (
       <div className="mx-auto w-full max-w-3xl px-6 py-20 text-center">
@@ -87,8 +117,8 @@ export function ProjectShell() {
         </h1>
         <p className="mt-1.5 text-fg-muted text-body">
           {failure === 'notFound'
-            ? 'Ele não existe ou não pertence a esta conta.'
-            : 'A falha foi ao consultar, e não no projeto: ele e as chaves dele seguem como estavam.'}
+            ? 'Ele não existe, ou você não está no time dele.'
+            : 'A falha foi ao consultar, e não no projeto: nada mudou nele.'}
         </p>
 
         <div className="mt-6 flex items-center justify-center gap-3">
@@ -141,25 +171,41 @@ export function ProjectShell() {
               }
             >
               <DropdownGroup>
-                {projects.map((item) => (
-                  <DropdownItem
-                    key={item.PublicId}
-                    onSelect={() => navigate(`/projects/${item.PublicId}/start`)}
-                  >
-                    <StatusDot active={item.Status === 'Active'} className="size-[7px]" />
-                    <span
-                      className={cn(
-                        'min-w-0 flex-1 truncate',
-                        item.Status === 'Archived' && 'text-fg-muted',
-                      )}
+                {/* O nome da conta so aparece quando ha mais de uma: com uma so,
+                    seria um rotulo repetindo o que a pessoa ja sabe. O destino e o
+                    projeto, e nao uma secao — quem decide a porta e o papel. */}
+                {accountGroups.map((group) => {
+                  const items = group.projects.map((item) => (
+                    <DropdownItem
+                      key={item.PublicId}
+                      onSelect={() => navigate(`/projects/${item.PublicId}`)}
                     >
-                      {item.Name}
-                    </span>
-                    {item.Status === 'Archived' && (
-                      <span className="text-detail text-fg-muted">arquivado</span>
-                    )}
-                  </DropdownItem>
-                ))}
+                      <StatusDot active={item.Status === 'Active'} className="size-[7px]" />
+                      <span
+                        className={cn(
+                          'min-w-0 flex-1 truncate',
+                          item.Status === 'Archived' && 'text-fg-muted',
+                        )}
+                      >
+                        {item.Name}
+                      </span>
+                      {item.Status === 'Archived' && (
+                        <span className="text-detail text-fg-muted">arquivado</span>
+                      )}
+                    </DropdownItem>
+                  ))
+
+                  return accountGroups.length > 1 ? (
+                    <DropdownSection
+                      key={group.account.PublicId}
+                      label={group.own ? 'Seus projetos' : group.account.Name}
+                    >
+                      {items}
+                    </DropdownSection>
+                  ) : (
+                    <div key={group.account.PublicId}>{items}</div>
+                  )
+                })}
 
                 {listStatus === 'loading' && (
                   <div className="px-2.5 py-2 text-caption text-fg-muted">
@@ -214,19 +260,24 @@ export function ProjectShell() {
             drawerOpen ? 'flex' : 'hidden lg:flex',
           )}
         >
-          <div>
-            <div className="px-2.5 pb-2 text-caption text-fg-muted">Configuração</div>
-            <div className="flex flex-col gap-0.5">
-              {CONSOLE_SECTIONS.map((section) => (
-                <SectionLink
-                  key={section.key}
-                  section={section}
-                  publicId={publicId}
-                  onNavigate={() => setDrawerOpen(false)}
-                />
-              ))}
+          {/* Quem e so membro nao ve a Configuração: ele trabalha nos relatos, e a
+              API recusaria tudo o que ele tentasse mudar ali. Enquanto o projeto
+              carrega, nada aparece — mostrar e depois sumir piscaria o menu. */}
+          {project && canConfigure(project) && (
+            <div>
+              <div className="px-2.5 pb-2 text-caption text-fg-muted">Configuração</div>
+              <div className="flex flex-col gap-0.5">
+                {CONSOLE_SECTIONS.map((section) => (
+                  <SectionLink
+                    key={section.key}
+                    section={section}
+                    publicId={publicId}
+                    onNavigate={() => setDrawerOpen(false)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             {/* A etiqueta "em breve" ficava aqui enquanto o grupo inteiro

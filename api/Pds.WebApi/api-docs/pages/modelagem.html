@@ -1,9 +1,11 @@
 <h2>Modelagem</h2>
-<p class="lead">Vinte e três tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Vinte e quatro tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
     ├───1:N──  <b>projects</b>  ──1:N──  <b>project_keys</b>
+    │               │
+    │               ├───1:N──  <b>project_members</b>  ──N:1──  <b>users</b>
     │               │
     │               ├───1:N──  <b>project_origins</b>
     │               │
@@ -41,16 +43,19 @@
 
 <p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto —
 não na conta — porque chave não existe fora de um projeto. O endereço autorizado pendura no
-mesmo lugar, pelo mesmo motivo.</p>
+mesmo lugar, pelo mesmo motivo. E quem está no time também: <code>project_members</code> liga a
+pessoa ao projeto, e não à conta, porque a entrada é por projeto.</p>
 
-<p>O desenho acima é simplificado em quatro pontos, e os quatro são deliberados:
+<p>O desenho acima é simplificado em cinco pontos, e os cinco são deliberados:
 <code>reports</code> aponta <em>também</em> para <code>projects</code>, e não só para a
 conta; <code>events</code> aponta para as três — conta, projeto e relato —, todas
 anuláveis; <code>reports</code> aparece duas vezes, porque além de pendurar na conta ele
 <em>pode</em> pendurar num <code>reporter_codes</code>, que é opcional e vive dentro do
-projeto; e <code>report_attachments</code> pendura sempre no relato, mas <em>pode</em>
+projeto; <code>report_attachments</code> pendura sempre no relato, mas <em>pode</em>
 apontar também para uma resposta (<code>report_public_comments</code>) ou para uma
-reabertura (<code>report_closures</code>) — nunca para as duas. O porquê de cada um está na
+reabertura (<code>report_closures</code>) — nunca para as duas —; e <code>users</code> aparece
+duas vezes, porque além de pendurar na conta própria ele entra, por
+<code>project_members</code>, no time de projetos de qualquer conta. O porquê de cada um está na
 página da tabela, logo abaixo.</p>
 
 <h2>Colunas que toda tabela repete</h2>
@@ -80,7 +85,7 @@ página da tabela, logo abaixo.</p>
 <h2>Nesta seção</h2>
 
 <div class="steps-index">
-  <a href="#/modelagem/conta-e-usuario"><strong>Conta e usuário</strong><span>A raiz do isolamento, e quem entra no painel.</span></a>
+  <a href="#/modelagem/conta-e-usuario"><strong>Conta, usuário e time</strong><span>A dona dos dados, quem entra no painel, e quem está em cada projeto, com que papel.</span></a>
   <a href="#/modelagem/projeto-e-chaves"><strong>Projeto, chaves e endereços</strong><span>O que o cliente cria, e o que autoriza a ferramenta a abrir.</span></a>
   <a href="#/modelagem/configuracoes"><strong>Configurações do projeto</strong><span>Aparência, ciclo, identidade e visibilidade — uma linha por projeto, só quando alguém salva.</span></a>
   <a href="#/modelagem/fila-interna"><strong>A fila interna</strong><span>Os estados que o time usa, e onde cada tipo de relato entra.</span></a>

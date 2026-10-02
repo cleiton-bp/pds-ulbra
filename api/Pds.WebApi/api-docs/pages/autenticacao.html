@@ -49,7 +49,7 @@ e um estado a menos para o sistema: não existe "conta criada mas sem ninguém d
 <table>
   <tr><th>Claim</th><th>Conteúdo</th></tr>
   <tr><td><code>uid</code></td><td><code>public_id</code> do usuário. <b>É o único que o servidor lê.</b></td></tr>
-  <tr><td><code>acc</code></td><td><code>public_id</code> da conta</td></tr>
+  <tr><td><code>acc</code></td><td><code>public_id</code> da conta própria</td></tr>
   <tr><td><code>sub</code></td><td>O mesmo <code>public_id</code> do usuário, no claim padrão de sujeito</td></tr>
   <tr><td><code>jti</code></td><td>Identificador do token, sorteado a cada emissão</td></tr>
   <tr><td><code>iss</code> / <code>aud</code> / <code>exp</code></td><td>Emissor, destinatário e expiração</td></tr>
@@ -76,9 +76,12 @@ e um estado a menos para o sistema: não existe "conta criada mas sem ninguém d
 
 <div class="note warn">
   <strong>O <code>acc</code> não é confiado pelo servidor</strong>
-  <p>A conta usada nas consultas vem sempre da linha do usuário no banco, resolvida pelo
-  middleware — nunca do claim. O <code>acc</code> existe para o painel saber em qual conta
-  está sem uma chamada extra. Quem for mexer aqui não deve passar a confiar nele.</p>
+  <p>A conta própria vem sempre da linha do usuário no banco, resolvida pelo
+  middleware — nunca do claim. Hoje ninguém lê o <code>acc</code>: nem a API nem o painel,
+  que pergunta a <code>/me</code>. Quem for mexer aqui não deve passar a confiar nele.</p>
+  <p>Nem os projetos nem o papel viajam no token: o middleware os lê do banco a cada requisição,
+  e por isso quem sai do time de um projeto perde o acesso na requisição seguinte, sem esperar o
+  token vencer. Ver <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o acesso</a>.</p>
 </div>
 
 <h2>Sem tolerância de relógio</h2>

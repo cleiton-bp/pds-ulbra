@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ProjectViewModel } from '@/contracts'
 import { useSessionStore } from '@/features/auth/sessionStore'
@@ -9,6 +9,7 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { StatusDot } from '@/shared/components/StatusDot'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
+import { canConfigure, groupByAccount, roleLabel } from '@/shared/lib/projectAccess'
 
 /**
  * Criar a esquerda, sempre visivel; a lista a direita. Isso resolve o estado
@@ -20,6 +21,10 @@ import { formatRelative } from '@/shared/lib/datetime'
  * partir de cinco projetos), a contagem (so filtrando) e o "Limpar busca" (so
  * quando a busca zerou a lista). Controle que nao faz nada e ruido que a pessoa
  * ainda precisa ler para descobrir que nao faz nada.
+ *
+ * Pelo mesmo motivo, **o nome da conta so aparece com mais de uma**: quem esta no
+ * time de projetos de outras contas ve os grupos ("Seus projetos" primeiro); quem
+ * so tem os proprios continua vendo a lista simples de sempre.
  */
 export function ProjectsHubScreen() {
   const projects = useProjectsStore((state) => state.projects)
@@ -43,7 +48,15 @@ export function ProjectsHubScreen() {
       project.PublicId.toLowerCase().includes(term),
   )
 
+  // Agrupar ou nao se decide pela lista inteira, e nao pelo que a busca deixou:
+  // senao os titulos das contas sumiam e voltavam enquanto a pessoa digitava.
+  const grouped = groupByAccount(projects).length > 1
+  const groups = groupByAccount(rows)
   const firstName = (user?.Name ?? '').trim().split(/\s+/)[0]
+
+  // Quem so esta no time de projetos dos outros nao pega chave nem instala nada:
+  // a frase de quem configura nao serviria para ele.
+  const onlyWorks = projects.length > 0 && !projects.some(canConfigure)
 
   return (
     <div className="px-5 py-7 lg:px-8 lg:pt-12">
@@ -53,11 +66,16 @@ export function ProjectsHubScreen() {
             Olá{firstName ? `, ${firstName}` : ''}
           </h1>
           <p className="max-w-[56ch] text-fg-muted text-body">
-            Abra um projeto para pegar a chave dele e ver o passo a passo da integração.
+            {onlyWorks
+              ? 'Abra um projeto para trabalhar nos relatos dele.'
+              : 'Abra um projeto para pegar a chave dele e ver o passo a passo da integração.'}
           </p>
         </div>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[300px_1fr] lg:gap-8">
+        {/* `minmax(0, ...)` nas duas formas: coluna de grade nao encolhe abaixo do
+            conteudo sem isso, e o identificador inteiro de um projeto esticava a
+            pagina para o lado no celular. */}
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8">
           <div className="rounded-xl border border-border bg-surface-raised p-5">
             <h2 className="mb-1.5 font-semibold text-lead">Criar projeto</h2>
             <p className="mb-4 text-detail text-fg-muted leading-relaxed">
@@ -104,7 +122,7 @@ export function ProjectsHubScreen() {
               </div>
             )}
 
-            {status === 'ready' && rows.length > 0 && (
+            {status === 'ready' && rows.length > 0 && !grouped && (
               <ul className="border-border border-t">
                 {rows.map((project) => (
                   <li key={project.PublicId}>
@@ -112,6 +130,18 @@ export function ProjectsHubScreen() {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {status === 'ready' && rows.length > 0 && grouped && (
+              <div className="flex flex-col gap-7">
+                {groups.map((group) => (
+                  <AccountSection
+                    key={group.account.PublicId}
+                    title={group.own ? 'Seus projetos' : group.account.Name}
+                    projects={group.projects}
+                  />
+                ))}
+              </div>
             )}
 
             {status === 'ready' && rows.length === 0 && (
@@ -143,6 +173,26 @@ export function ProjectsHubScreen() {
   )
 }
 
+/** Um grupo do hub: a secao leva o nome do proprio titulo, sem repeti-lo. */
+function AccountSection({ title, projects }: { title: string; projects: ProjectViewModel[] }) {
+  const titleId = useId()
+
+  return (
+    <section aria-labelledby={titleId}>
+      <h2 id={titleId} className="mb-2 px-1 font-medium text-caption text-fg-muted">
+        {title}
+      </h2>
+      <ul className="border-border border-t">
+        {projects.map((project) => (
+          <li key={project.PublicId}>
+            <ProjectRow project={project} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 /**
  * O arquivado se distingue por tres sinais ao mesmo tempo — ponto cinza, nome
  * apagado e a palavra "arquivado" no lugar da data —, e nao so pela cor.
@@ -152,29 +202,45 @@ function ProjectRow({ project }: { project: ProjectViewModel }) {
 
   return (
     <Link
-      to={`/projects/${project.PublicId}/start`}
+      to={`/projects/${project.PublicId}`}
       className="flex items-center gap-3 border-border border-b px-1 py-3.5 transition-colors hover:bg-surface-raised"
     >
       <StatusDot active={active} />
 
-      <div className="min-w-0 flex-1">
-        <div className={cn('truncate font-medium text-body', active ? 'text-fg' : 'text-fg-muted')}>
-          {project.Name}
+      {/* No celular o papel e a data descem para uma linha propria: lado a lado
+          com eles, o nome do projeto ficava com duas ou tres letras. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+        <div className="min-w-0 sm:flex-1">
+          <div
+            className={cn('truncate font-medium text-body', active ? 'text-fg' : 'text-fg-muted')}
+          >
+            {project.Name}
+          </div>
+          {/* E o identificador do projeto na URL, e nao a chave do script — essa e
+              a `pk_...` da tela de integracao. Monoespacada para ser lida
+              caractere a caractere quando alguem precisa casar uma URL com a
+              linha certa. */}
+          <div className="mt-0.5 truncate font-mono text-detail text-fg-muted">
+            {project.PublicId}
+          </div>
         </div>
-        {/* E o identificador do projeto na URL, e nao a chave do script — essa e
-            a `pk_...` da tela de integracao. Monoespacada para ser lida
-            caractere a caractere quando alguem precisa casar uma URL com a
-            linha certa. */}
-        <div className="mt-0.5 truncate font-mono text-detail text-fg-muted">
-          {project.PublicId}
-        </div>
-      </div>
 
-      {/* A celula se rotula sozinha. "há 2 dias" solto no fim da linha nao diz
-          de que — e cabecalho de coluna para tres campos e mais estrutura do que
-          esta lista precisa. */}
-      <div className="flex-none text-detail text-fg-muted">
-        {active ? `criado ${formatRelative(project.CreatedAt)}` : 'arquivado'}
+        <div className="flex flex-none items-center gap-2 sm:gap-3">
+          {/* O papel so aparece no projeto dos outros: nos proprios a pessoa e
+              sempre dona, e repetir "Dono" em toda linha seria ruido. */}
+          {!project.IsAccountOwner && (
+            <span className="rounded-md border border-border px-1.5 py-0.5 text-caption text-fg-muted">
+              {roleLabel(project)}
+            </span>
+          )}
+
+          {/* A celula se rotula sozinha. "há 2 dias" solto no fim da linha nao
+              diz de que — e cabecalho de coluna para tres campos e mais estrutura
+              do que esta lista precisa. */}
+          <div className="text-detail text-fg-muted">
+            {active ? `criado ${formatRelative(project.CreatedAt)}` : 'arquivado'}
+          </div>
+        </div>
       </div>
 
       <svg

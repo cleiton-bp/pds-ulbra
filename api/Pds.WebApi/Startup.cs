@@ -64,8 +64,9 @@ public class Startup
         Propriedades e valores de enum em `PascalCase`. Datas em ISO-8601 UTC, com
         `Z` no fim. Identificadores são sempre GUID: o id interno nunca sai daqui.
 
-        Recurso de outra conta responde **404**, e não 403 — dizer "existe, mas não
-        é seu" já é contar que existe.
+        Projeto em que a pessoa não está responde **404**, e não 403 — dizer "existe,
+        mas não é seu" já é contar que existe. O **403** fica para quem está no projeto
+        e não tem o papel: a configuração é só de quem administra.
 
         A explicação das decisões por trás disso está na
         [documentação do projeto](/#/visao-geral).
@@ -231,6 +232,10 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        // Antes de atender qualquer pedido: rota de projeto sem papel declarado
+        // deixaria um membro mudar a configuracao. Melhor nao subir.
+        ProjectRoleCoverage.EnsureEveryProjectRouteDeclaresRole(app.ApplicationServices);
+
         // Antes de tudo: o limite por IP e o registro de quem pediu leem o IP que
         // este passo corrige. Sem proxy listado, nada muda — ver TrustedForwarding.
         if (TrustedForwarding() is { } encaminhamento)

@@ -12,7 +12,7 @@ arquivo nunca passa pela API — ela autoriza, assina, confere e prende o anexo 
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/attachments</code></td><td>Chave, código pessoal e protocolo</td><td>A mesma lista, pela porta do código. Lê, e não age.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/media-settings</code></td><td>Protocolo e token</td><td>O que dá para anexar ao responder e ao reabrir.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>Sessão</td><td>A configuração de mídia do projeto, salva ou padrão.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>Sessão</td><td>Substitui a configuração inteira.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>Sessão</td><td><strong>Administrador.</strong> Substitui a configuração inteira.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/attachments</code></td><td>Sessão</td><td>Os arquivos do relato, para o time, com o nome original.</td></tr>
 </table>
 </div>
@@ -121,7 +121,7 @@ tamanho real, contado pelo armazenamento —, com a mensagem "Anexo recebido."</
   <p><b>A cota é contada de novo, e é esta contagem que vale.</b> O pedido só conta o que já foi
   confirmado, então várias permissões pedidas antes da primeira confirmação enxergam a mesma vaga.
   Aqui a contagem é feita com a cota do relato travada, uma confirmação por vez. A regra do projeto
-  também é conferida de novo: o dono que desliga a mídia um minuto depois da permissão espera que
+  também é conferida de novo: o administrador que desliga a mídia um minuto depois da permissão espera que
   nada mais entre.</p>
   <p>O que passa é <b>copiado</b> de <code>uploads/</code> para <code>media/</code> exigindo o ETag
   lido na conferência — trocado o conteúdo depois dela, a cópia é recusada. O que não passa sai do
@@ -225,7 +225,7 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
 <table>
   <tr><th>Status</th><th>Quando</th></tr>
   <tr><td><code>200</code></td><td>Os anexos confirmados, na ordem de cada envio.</td></tr>
-  <tr><td><code>404</code></td><td>Projeto ou relato não existe, ou pertence a outra conta.</td></tr>
+  <tr><td><code>404</code></td><td>Projeto ou relato não existe, ou a pessoa não está no projeto.</td></tr>
   <tr><td><code>409</code></td><td>Não há armazenamento configurado nesta instalação, e o relato tem anexo. Relato sem anexo responde 200, com a lista vazia.</td></tr>
 </table>
 
@@ -268,7 +268,7 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
 </table>
 
 <p><code>200</code> com a configuração, salva ou padrão — nunca 404 para um projeto que existe —, e
-<code>404</code> para projeto que não existe ou é de outra conta.</p>
+<code>404</code> para projeto que não existe ou em que a pessoa não está. Qualquer papel lê.</p>
 
 <h3><code>PUT /projects/{publicId}/media-settings</code></h3>
 
@@ -282,7 +282,8 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
   <tr><th>Status</th><th>Quando</th></tr>
   <tr><td><code>200</code></td><td>Configuração salva, com a mensagem "Configuração de mídia salva."</td></tr>
   <tr><td><code>400</code></td><td>Campo ausente, limite fora do teto, tipo repetido ou desconhecido, <code>Video</code> ou o formato <code>zip</code> (mesmo desligados — os dois pedem para recarregar a página), anexo ligado sem imagem nem arquivo aceito, arquivo ligado sem formato, formato fora do catálogo.</td></tr>
-  <tr><td><code>404</code></td><td>Projeto não existe, ou pertence a outra conta.</td></tr>
+  <tr><td><code>403</code></td><td>A pessoa está no projeto, mas não é administradora — conferido antes de tudo, inclusive do corpo e do armazenamento.</td></tr>
+  <tr><td><code>404</code></td><td>Projeto não existe, ou a pessoa não está no projeto.</td></tr>
   <tr><td><code>409</code></td><td>Não há armazenamento nesta instalação — conferido antes do corpo, e vale também para salvar desligado.</td></tr>
 </table>
 

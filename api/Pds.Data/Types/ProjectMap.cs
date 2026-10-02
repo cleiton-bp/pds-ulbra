@@ -16,7 +16,7 @@ public class ProjectMap : BaseEntityConfiguration<Project>
         builder.Property(project => project.AccountId)
             .HasColumnName("account_id")
             .IsRequired()
-            .HasComment("Conta dona do projeto. E por este campo que o isolamento filtra.");
+            .HasComment("Conta dona do projeto. Quem e dono dela manda neste projeto sem linha em project_members; o resto do time chega por la.");
 
         builder.Property(project => project.Name)
             .HasColumnName("name")
@@ -52,6 +52,11 @@ public class ProjectMap : BaseEntityConfiguration<Project>
         builder.HasMany(project => project.Origins)
             .WithOne(origin => origin.Project)
             .HasForeignKey(origin => origin.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(project => project.Members)
+            .WithOne(member => member.Project)
+            .HasForeignKey(member => member.ProjectId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

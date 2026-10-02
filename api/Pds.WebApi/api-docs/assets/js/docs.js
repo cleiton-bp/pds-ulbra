@@ -20,7 +20,7 @@
       { id: 'onde-fica', label: 'Onde fica no código' },
     ] },
     { id: 'modelagem', label: 'Modelagem', children: [
-      { id: 'conta-e-usuario',  label: 'Conta e usuário' },
+      { id: 'conta-e-usuario',  label: 'Conta, usuário e time' },
       { id: 'projeto-e-chaves', label: 'Projeto, chaves e endereços' },
       { id: 'configuracoes',    label: 'Configurações do projeto' },
       { id: 'fila-interna',     label: 'A fila interna' },
@@ -33,10 +33,12 @@
     // Autenticacao fica inteira: sao cem linhas e uma historia so, do clique no
     // botao do Google ate o token expirar. Cortar aqui seria cortar por simetria.
     { id: 'autenticacao', label: 'Autenticação' },
-    { id: 'isolamento', label: 'Isolamento por conta', children: [
+    // A pagina "De onde vem o acesso" guarda o endereco antigo (de-onde-vem-a-conta):
+    // trocar o id quebraria os links que ja apontam para ela.
+    { id: 'isolamento', label: 'Isolamento por projeto', children: [
       { id: 'onde-o-filtro-mora',       label: 'Onde o filtro mora' },
       { id: 'consultas-que-atravessam', label: 'As consultas que atravessam o filtro' },
-      { id: 'de-onde-vem-a-conta',      label: 'De onde vem a conta' },
+      { id: 'de-onde-vem-a-conta',      label: 'De onde vem o acesso' },
     ] },
     { id: 'endpoints', label: 'Endpoints', children: [
       { id: 'sessao-e-projeto',  label: 'Sessão, projeto e chaves' },

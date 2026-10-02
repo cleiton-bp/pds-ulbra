@@ -1,5 +1,5 @@
 import * as Menu from '@radix-ui/react-dropdown-menu'
-import type { ReactNode } from 'react'
+import { type ReactNode, useId } from 'react'
 import { cn } from '@/shared/lib/cn'
 
 /**
@@ -43,6 +43,24 @@ export function DropdownHeader({ children }: { children: ReactNode }) {
 
 export function DropdownGroup({ children }: { children: ReactNode }) {
   return <div className="p-1.5">{children}</div>
+}
+
+/**
+ * Um grupo com nome dentro do menu — o seletor de projeto separa as contas assim.
+ * O nome e rotulo do grupo, e nao item: o leitor de tela anuncia o grupo, e as
+ * setas pulam o rotulo.
+ */
+export function DropdownSection({ label, children }: { label: string; children: ReactNode }) {
+  const labelId = useId()
+
+  return (
+    <Menu.Group aria-labelledby={labelId}>
+      <Menu.Label id={labelId} className="px-2.5 pt-2 pb-1 text-caption text-fg-muted">
+        {label}
+      </Menu.Label>
+      {children}
+    </Menu.Group>
+  )
 }
 
 export function DropdownItem({

@@ -144,7 +144,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .FirstOrDefaultAsync(report => report.PublicId == publicId, cancellationToken);
 
     public async Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta. O
+        // As condicoes do filtro global reescritas a mao, menos a do acesso. O
         // `Include` da etapa publica existe porque a lista mostra em que passo cada
         // relato esta.
         //
@@ -164,7 +164,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Report>> ListByModerationStateAsync(long projectId, ReportModerationStateEnum state, int limit, CancellationToken cancellationToken = default)
-        // O filtro global ja isola a conta e esconde o apagado. A ordem e a unica
+        // O filtro global ja isola o acesso e esconde o apagado. A ordem e a unica
         // do painel que vai do mais antigo para o mais novo: fila lida ao
         // contrario deixa o primeiro que chegou esperando para sempre.
         => await Context.Reports
@@ -181,7 +181,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 cancellationToken);
 
     public async Task<IReadOnlyList<Report>> ListPublishedWithoutSessionAsync(long projectId, int limit, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta — e a de
+        // As condicoes do filtro global reescritas a mao, menos a do acesso — e a de
         // estar liberado **dentro da consulta**, para o relato pendente nunca chegar
         // a sair daqui.
         //

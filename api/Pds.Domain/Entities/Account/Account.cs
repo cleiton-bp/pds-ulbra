@@ -3,13 +3,13 @@ using Pds.ApiBase.Attributes;
 namespace Pds.Domain.Entities;
 
 /// <summary>
-/// A conta e a fronteira de isolamento do sistema: todo dado pertence a uma, e
-/// nenhuma consulta atravessa de uma para outra.
+/// A conta e a dona dos dados: todo projeto, e tudo o que pende dele, pertence a
+/// uma. Quem enxerga o que e decidido por projeto — o dono da conta enxerga todos
+/// os projetos dela, e o time so os projetos em que entrou.
 ///
-/// Fica separada de <see cref="User"/> de proposito. Hoje e uma pessoa por conta,
-/// mas quem opera nao e necessariamente quem e dono, e no dia em que alguem quiser
-/// convidar um colega a separacao ja existe. Criar a entidade agora custa uma
-/// tabela; criar depois custa reescrever o isolamento inteiro.
+/// Fica separada de <see cref="User"/> de proposito. Cada pessoa tem uma conta
+/// propria, que nasce no primeiro acesso, e pode trabalhar em projetos de outras
+/// contas sem que nenhuma delas deixe de ser de quem e.
 /// </summary>
 public class Account : PdsBaseEntity
 {

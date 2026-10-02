@@ -17,11 +17,11 @@ public interface IProjectKeyRepository : IBaseRepository<ProjectKey>
     /// junto. Devolve nulo quando a chave nao existe, foi revogada, nao e publica,
     /// ou o projeto dela foi apagado.
     ///
-    /// <para><b>Esta e a unica consulta do sistema que atravessa o filtro de
-    /// conta.</b> Ela existe para a rota publica de relato, que chega sem sessao:
-    /// nesse momento a conta ainda nao e conhecida, e e justamente a chave que vai
-    /// revela-la. Com o filtro ligado a consulta nunca acharia nada, porque a conta
-    /// atual e zero.</para>
+    /// <para><b>Atravessa o filtro de acesso.</b> Ela existe para a rota publica de
+    /// relato, que chega sem sessao: nesse momento o projeto ainda nao e conhecido, e
+    /// e justamente a chave que vai revela-lo. Com o filtro ligado a consulta nunca
+    /// acharia nada, porque sem sessao a lista de projetos acessiveis esta
+    /// vazia.</para>
     ///
     /// <para>O preco de desligar o filtro e que as condicoes que ele garantia
     /// passam a ser responsabilidade de quem escreve a consulta — e e por isso que

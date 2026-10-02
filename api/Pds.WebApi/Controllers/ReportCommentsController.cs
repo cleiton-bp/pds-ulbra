@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -31,6 +32,7 @@ namespace Pds.WebApi.Controllers;
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/reports/{reportPublicId:guid}/comments")]
 [Produces("application/json")]
 [Tags(SwaggerTags.ReportComments)]
@@ -56,7 +58,7 @@ public class ReportCommentsController : BaseController
     /// <param name="reportPublicId">Identificador público do relato.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Os comentários do relato.</response>
-    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<ReportCommentsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -89,7 +91,7 @@ public class ReportCommentsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Comentário escrito.</response>
     /// <response code="400">Texto em branco ou comprido demais.</response>
-    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpPost("internal")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<InternalCommentViewModel>), StatusCodes.Status200OK)]
@@ -124,7 +126,7 @@ public class ReportCommentsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Comentário escrito.</response>
     /// <response code="400">Texto em branco ou comprido demais.</response>
-    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpPost("public")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<PublicCommentViewModel>), StatusCodes.Status200OK)]

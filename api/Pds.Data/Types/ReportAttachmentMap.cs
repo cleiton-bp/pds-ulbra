@@ -27,7 +27,7 @@ public class ReportAttachmentMap : BaseEntityConfiguration<ReportAttachment>
         builder.Property(attachment => attachment.ReportId)
             .HasColumnName("report_id")
             .IsRequired()
-            .HasComment("Relato a que o anexo pertence. Obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so — e para o isolamento por conta nao depender de uma coluna que pode ser nula.");
+            .HasComment("Relato a que o anexo pertence. Obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so — e para o isolamento por projeto nao depender de uma coluna que pode ser nula.");
 
         builder.Property(attachment => attachment.PublicCommentId)
             .HasColumnName("public_comment_id")

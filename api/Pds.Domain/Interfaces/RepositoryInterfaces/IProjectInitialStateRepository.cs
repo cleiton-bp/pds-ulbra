@@ -16,9 +16,9 @@ public interface IProjectInitialStateRepository : IBaseRepository<ProjectInitial
     /// A mesma busca, para quem chega <b>sem sessao</b>: a entrada do relato, vinda
     /// do site do cliente.
     ///
-    /// <para>Existe separada porque o filtro global exige que a linha pertenca a
-    /// conta da sessao, e ali a conta atual e zero — a escolha do cliente voltaria
-    /// vazia, e todo relato cairia no primeiro estado da fila como se ninguem
+    /// <para>Existe separada porque o filtro global exige que a linha seja de um
+    /// projeto que a pessoa da sessao enxerga, e ali nao ha sessao — a escolha do
+    /// cliente voltaria vazia, e todo relato cairia no primeiro estado da fila como se ninguem
     /// tivesse configurado nada. Erro nenhum, e a configuracao simplesmente nao
     /// valendo.</para>
     /// </summary>

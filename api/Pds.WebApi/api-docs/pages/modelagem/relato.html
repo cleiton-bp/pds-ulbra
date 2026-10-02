@@ -68,9 +68,9 @@
 <div class="note why">
   <strong>Por que esta tabela repete <code>account_id</code></strong>
   <p><code>project_keys</code> e <code>project_origins</code> chegam à conta pela navegação, e
-  aqui o desenho é o contrário de propósito. Esta é a tabela que mais cresce e a que o painel
-  lista o tempo todo: com a coluna repetida, o filtro de isolamento vira comparação de coluna
-  em vez de junção em toda consulta.</p>
+  aqui o desenho é o contrário de propósito: esta é a tabela que mais cresce, e saber de qual
+  conta é o relato não pode custar uma junção. O filtro de acesso não usa esta coluna — ele
+  compara o <code>project_id</code>, que também é coluna daqui, e continua sem junção.</p>
   <p>O preço é a mesma informação em dois lugares podendo divergir. É aceitável porque o
   <code>account_id</code> do relato nunca muda depois de gravado — ele nasce do projeto e
   morre com ele.</p>

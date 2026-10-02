@@ -18,12 +18,12 @@ public class ProjectCycleSettingsRepository
             .FirstOrDefaultAsync(settings => settings.ProjectId == projectId, cancellationToken);
 
     public Task<ProjectCycleSettings?> FindByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta — o mesmo
+        // As condicoes do filtro global reescritas a mao, menos a do acesso — o mesmo
         // desenho da configuracao da ferramenta.
         //
         // A coluna de destino da reabertura vem junto: quem le isto sem sessao e a
         // propria reabertura, e buscar o estado depois esbarraria no filtro global
-        // — la a conta atual e zero, e a consulta voltaria vazia sem erro nenhum.
+        // — la a lista de projetos acessiveis esta vazia, e a consulta voltaria vazia sem erro nenhum.
         => Context.ProjectCycleSettings
             .IgnoreQueryFilters()
             .Include(settings => settings.ReopenState)

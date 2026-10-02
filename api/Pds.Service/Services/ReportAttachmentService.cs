@@ -639,8 +639,8 @@ public class ReportAttachmentService : IReportAttachmentService
         CancellationToken cancellationToken = default)
     {
         // **Autoriza antes de assinar, sempre.** O filtro global ja limita projeto e
-        // relato a conta do painel: de outra conta, nada volta, e nenhuma assinatura
-        // chega a ser gerada. Assinar primeiro e conferir depois seria entregar a
+        // relato aos projetos que a pessoa enxerga: de outro projeto, nada volta, e
+        // nenhuma assinatura chega a ser gerada. Assinar primeiro e conferir depois seria entregar a
         // chave e perguntar em seguida.
         var project = await _unitOfWork.Projects.GetByPublicIdAsync(projectPublicId, cancellationToken)
                       ?? throw new KeyNotFoundException("Projeto nao encontrado.");

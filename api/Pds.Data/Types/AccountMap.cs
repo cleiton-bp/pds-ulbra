@@ -10,7 +10,7 @@ public class AccountMap : BaseEntityConfiguration<Account>
     protected override void ConfigureEntity(EntityTypeBuilder<Account> builder)
     {
         builder.ToTable("accounts", table => table.HasComment(
-            "Conta: a fronteira de isolamento do sistema. Todo dado pertence a uma, e nenhuma consulta atravessa de uma para outra."));
+            "Conta: a dona dos dados. Todo projeto pertence a uma; o dono enxerga todos os projetos dela, e o time so os projetos em que entrou (project_members)."));
 
         builder.Property(account => account.Name)
             .HasColumnName("name")

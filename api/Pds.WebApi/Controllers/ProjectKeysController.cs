@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -13,9 +14,14 @@ namespace Pds.WebApi.Controllers;
 /// São duas, de naturezas diferentes: a **pública** identifica o projeto no
 /// navegador e pode ser lida por qualquer um; a **secreta** autentica o servidor do
 /// cliente e o banco guarda apenas o hash dela.
+///
+/// **Só administradores, inclusive para ler.** É a única leitura do projeto fechada
+/// para o membro: as chaves são a credencial da integração, e o trabalho nos
+/// relatos não precisa delas.
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Administrator)]
 [Route("projects/{publicId:guid}/keys")]
 [Produces("application/json")]
 [Tags(SwaggerTags.ProjectKeys)]
@@ -40,9 +46,11 @@ public class ProjectKeysController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Chaves do projeto.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas as chaves são só dos administradores.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectKeyViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> List(Guid publicId, CancellationToken cancellationToken)
     {
@@ -69,9 +77,11 @@ public class ProjectKeysController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Chave nova, com o valor completo. Não será exibido de novo.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas as chaves são só dos administradores.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpPost("secret")]
     [ProducesResponseType(typeof(ApiResponse<RevealedSecretKeyViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RegenerateSecret(Guid publicId, CancellationToken cancellationToken)
     {

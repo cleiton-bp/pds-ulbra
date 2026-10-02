@@ -12,7 +12,9 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { cn } from '@/shared/lib/cn'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
+import { canConfigure } from '@/shared/lib/projectAccess'
 import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /**
@@ -61,8 +63,8 @@ export function ReportsScreen() {
     <div className="max-w-170">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Relatos</h1>
       <p className="mb-6 text-fg-muted text-body">
-        O que as pessoas escreveram pela ferramenta instalada no seu site, do mais recente para o
-        mais antigo.
+        O que as pessoas escreveram pela ferramenta instalada no site, do mais recente para o mais
+        antigo.
       </p>
 
       {failed && (
@@ -90,7 +92,7 @@ export function ReportsScreen() {
 
       {reports?.length === 0 &&
         (filtro === null ? (
-          <EmptyState />
+          <EmptyState installs={canConfigure(project)} />
         ) : (
           <ColunaVazia nome={nomeDaColuna(contagens, filtro)} aoVerTodos={() => setFiltro(null)} />
         ))}
@@ -334,20 +336,25 @@ function ReportCard({ report }: { report: ReportSummaryViewModel }) {
  * chega aqui no primeiro dia precisa saber que falta instalar, e nao que o
  * produto esta quebrado.
  */
-function EmptyState() {
+function EmptyState({ installs }: { installs: boolean }) {
   return (
     <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
       <h2 className="mb-1.5 font-semibold text-fg text-lead">Nenhum relato ainda</h2>
-      <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-        Assim que alguém enviar pela ferramenta instalada no seu site, ele aparece aqui — com o
+      <p className={cn('text-detail text-fg-muted leading-relaxed', installs && 'mb-4')}>
+        Assim que alguém enviar pela ferramenta instalada no site, ele aparece aqui — com o
         protocolo, a página de onde saiu e o que a pessoa escreveu.
+        {/* Quem e so membro nao instala nada: o link levaria a Instalação, e a
+            guarda o devolveria para ca — um clique que parece nao fazer nada. */}
+        {!installs && ' Quem administra o projeto instala a ferramenta no site.'}
       </p>
-      <Link
-        to="../start"
-        className="inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
-      >
-        Ver como instalar no seu site
-      </Link>
+      {installs && (
+        <Link
+          to="../start"
+          className="inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
+        >
+          Ver como instalar no seu site
+        </Link>
+      )}
     </div>
   )
 }

@@ -247,9 +247,10 @@ public class ProjectStateService : IProjectStateService
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);
         var state = await _unitOfWork.ProjectStates.GetByPublicIdAsync(statePublicId, cancellationToken);
 
-        // O filtro global ja garante que o estado e da conta da sessao, mas nao que
-        // e **deste** projeto: sem esta conferencia, o identificador de um estado de
-        // outro projeto da mesma conta seria aceito pela rota errada.
+        // O filtro global ja garante que o estado e de um projeto que a pessoa
+        // enxerga, mas nao que e deste: sem esta conferencia, um estado de outro
+        // projeto dela seria aceito pela rota errada — e quem e administrador aqui
+        // e so membro la mudaria a configuracao de la. Nao e redundante.
         if (state is null || state.ProjectId != project.Id)
             throw new KeyNotFoundException("Estado nao encontrado neste projeto.");
 

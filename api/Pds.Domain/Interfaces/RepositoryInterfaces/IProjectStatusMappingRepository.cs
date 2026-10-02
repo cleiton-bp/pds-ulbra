@@ -23,7 +23,7 @@ public interface IProjectStatusMappingRepository : IBaseRepository<ProjectStatus
 
     /// <summary>
     /// O mapa de uma versao, para quem chega <b>sem sessao</b>. E a leitura que a
-    /// pagina de acompanhamento vai fazer: sem sessao a conta atual e zero, e o
+    /// pagina de acompanhamento vai fazer: sem sessao a lista de projetos acessiveis esta vazia, e o
     /// filtro que protege o painel devolveria vazio para o proprio dono.
     /// </summary>
     Task<IReadOnlyList<ProjectStatusMapping>> ListByVersionWithoutSessionAsync(long projectId, int version, CancellationToken cancellationToken = default);

@@ -25,7 +25,7 @@ export interface AsyncResource<T> {
    * levava junto a imagem ou o video que alguem estava olhando.
    *
    * **A falha definitiva vira falha**, como na primeira leitura: a API disse que
-   * nao — o relato nao e mais desta conta, o armazenamento saiu. Engolida, ela
+   * nao — a pessoa saiu do projeto, o armazenamento saiu. Engolida, ela
    * deixava na tela uma lista cujos enderecos ninguem mais ia renovar, e quem pede a
    * renovacao continuava pedindo, calado, para sempre.
    *

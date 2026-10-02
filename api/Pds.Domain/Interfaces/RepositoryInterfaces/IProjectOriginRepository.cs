@@ -12,9 +12,9 @@ public interface IProjectOriginRepository : IBaseRepository<ProjectOrigin>
     /// A mesma lista, para quem chega <b>sem sessao</b>: o quadro aberto no site de
     /// um cliente, perguntando se aquela pagina pode abri-lo.
     ///
-    /// <para>Existe separada porque o filtro global exige que o endereco pertenca a
-    /// conta da sessao, e ali a conta atual e zero — a lista inteira voltaria vazia,
-    /// e lista vazia autoriza qualquer lugar. A conferencia passaria a autorizar
+    /// <para>Existe separada porque o filtro global exige que o endereco seja de um
+    /// projeto que a pessoa da sessao enxerga, e ali nao ha sessao — a lista inteira
+    /// voltaria vazia, e lista vazia autoriza qualquer lugar. A conferencia passaria a autorizar
     /// justamente quem ela existe para barrar, sem erro em lugar nenhum.</para>
     /// </summary>
     Task<IReadOnlyList<ProjectOrigin>> ListByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default);

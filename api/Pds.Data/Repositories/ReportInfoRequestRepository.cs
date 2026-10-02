@@ -23,7 +23,7 @@ public class ReportInfoRequestRepository
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task<ReportInfoRequest?> FindOpenWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta.
+        // As condicoes do filtro global reescritas a mao, menos a do acesso.
         => Context.ReportInfoRequests
             .IgnoreQueryFilters()
             .Where(request => request.ReportId == reportId

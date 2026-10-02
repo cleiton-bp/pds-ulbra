@@ -74,9 +74,10 @@ public class ProjectOriginService : IProjectOriginService
 
         var origin = await _unitOfWork.ProjectOrigins.GetByPublicIdAsync(originPublicId, cancellationToken);
 
-        // O filtro global ja garante que o endereco e da conta da sessao, mas nao
-        // que e **deste** projeto: sem esta conferencia, o identificador de um
-        // endereco de outro projeto da mesma conta seria aceito pela rota errada.
+        // O filtro global ja garante que o endereco e de um projeto que a pessoa
+        // enxerga, mas nao que e deste: sem esta conferencia, um endereco de outro
+        // projeto dela seria aceito pela rota errada — e quem e administrador aqui
+        // e so membro la mudaria a configuracao de la. Nao e redundante.
         if (origin is null || origin.ProjectId != project.Id)
             throw new KeyNotFoundException("Dominio nao encontrado neste projeto.");
 

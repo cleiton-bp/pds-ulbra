@@ -245,7 +245,7 @@ public class ReportService : IReportService
         // abriria sem nada, justamente no momento em que a pessoa mais quer olhar.
         //
         // As leituras sao as **sem sessao**: o relato entra pela chave publica, e ali
-        // a conta atual e zero.
+        // a lista de projetos acessiveis esta vazia.
         if (landingStateId is long landing)
         {
             var mapa = await _unitOfWork.ProjectStatusMappings
@@ -1586,7 +1586,7 @@ public class ReportService : IReportService
     /// isso.</para>
     ///
     /// <para>As duas consultas desligam o filtro global: aqui nao ha sessao, e a
-    /// conta atual e zero. Sem isso a escolha do cliente voltaria vazia e todo
+    /// lista de projetos acessiveis esta vazia. Sem isso a escolha do cliente voltaria vazia e todo
     /// relato cairia no padrao, sem erro em lugar nenhum.</para>
     ///
     /// <para>O estado escolhido nao precisa ser conferido de novo: aposentar um
@@ -2058,8 +2058,8 @@ public class ReportService : IReportService
             .ToList();
 
     /// <summary>
-    /// O projeto da sessao atual. O filtro global ja limita a consulta a conta que
-    /// esta usando o painel, entao projeto de outra conta simplesmente nao volta —
+    /// O projeto da sessao atual. O filtro global ja limita a consulta aos projetos que
+    /// a pessoa da sessao enxerga, entao projeto em que ela nao esta simplesmente nao volta —
     /// e a resposta e a mesma de um identificador inventado, de proposito: dizer
     /// "existe, mas nao e seu" confirmaria a existencia dele a um estranho.
     /// </summary>

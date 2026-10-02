@@ -4,7 +4,7 @@ Backend da plataforma. C# no .NET 10, PostgreSQL, Entity Framework Core.
 
 > **A documentação do projeto está dentro da própria aplicação.** Suba a API e abra
 > `http://localhost:5080` — arquitetura, modelagem, autenticação, isolamento por
-> conta, rotas e as decisões por trás de cada uma. O Swagger fica em `/swagger`.
+> projeto, rotas e as decisões por trás de cada uma. O Swagger fica em `/swagger`.
 >
 > Este arquivo cobre só o que você precisa saber **antes** de conseguir rodar.
 

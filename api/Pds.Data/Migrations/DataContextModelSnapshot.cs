@@ -82,7 +82,7 @@ namespace Pds.Data.Migrations
 
                     b.ToTable("accounts", null, t =>
                         {
-                            t.HasComment("Conta: a fronteira de isolamento do sistema. Todo dado pertence a uma, e nenhuma consulta atravessa de uma para outra.");
+                            t.HasComment("Conta: a dona dos dados. Todo projeto pertence a uma; o dono enxerga todos os projetos dela, e o time so os projetos em que entrou (project_members).");
                         });
                 });
 
@@ -188,7 +188,7 @@ namespace Pds.Data.Migrations
                     b.Property<long>("AccountId")
                         .HasColumnType("bigint")
                         .HasColumnName("account_id")
-                        .HasComment("Conta dona do projeto. E por este campo que o isolamento filtra.");
+                        .HasComment("Conta dona do projeto. Quem e dono dela manda neste projeto sem linha em project_members; o resto do time chega por la.");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
@@ -794,6 +794,79 @@ namespace Pds.Data.Migrations
                     b.ToTable("project_media_settings", null, t =>
                         {
                             t.HasComment("O que este projeto aceita receber junto do relato. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada. Nenhum limite de tipo mora aqui: isso fica em project_media_kinds, uma linha por tipo.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectMember", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto em que a pessoa entrou.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role")
+                        .HasComment("member | administrator. Membro trabalha nos relatos e le a configuracao sem muda-la; administrador configura o projeto e decide quem entra.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id")
+                        .HasComment("A pessoa. Pode ter conta propria e estar em projetos de outras contas.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_members");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_members_deleted_at");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_members_public_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_project_members_user_id");
+
+                    b.HasIndex("ProjectId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_members_project_id_user_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("project_members", null, t =>
+                        {
+                            t.HasComment("Quem do time entrou em cada projeto, e com que papel. A entrada e por projeto, e nao pela conta: a mesma pessoa pode estar em projetos de varias contas. O dono da conta nao tem linha aqui — manda em todos os projetos dela pelo users.account_id.");
+
+                            t.HasCheckConstraint("ck_project_members_role", "role IN ('member', 'administrator')");
                         });
                 });
 
@@ -1524,7 +1597,7 @@ namespace Pds.Data.Migrations
                     b.Property<long>("ReportId")
                         .HasColumnType("bigint")
                         .HasColumnName("report_id")
-                        .HasComment("Relato a que o anexo pertence. Obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so — e para o isolamento por conta nao depender de uma coluna que pode ser nula.");
+                        .HasComment("Relato a que o anexo pertence. Obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so — e para o isolamento por projeto nao depender de uma coluna que pode ser nula.");
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint")
@@ -2075,7 +2148,7 @@ namespace Pds.Data.Migrations
                     b.Property<long>("AccountId")
                         .HasColumnType("bigint")
                         .HasColumnName("account_id")
-                        .HasComment("Conta a que este usuario pertence.");
+                        .HasComment("Conta propria: nasce no primeiro acesso, e a pessoa e dona dela. Os projetos de outras contas chegam por project_members.");
 
                     b.Property<string>("AvatarUrl")
                         .HasMaxLength(500)
@@ -2285,6 +2358,27 @@ namespace Pds.Data.Migrations
                         .HasConstraintName("fk_project_media_settings_projects_project_id");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectMember", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany("Members")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_projects_project_id");
+
+                    b.HasOne("Pds.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_users_user_id");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ProjectOrigin", b =>
@@ -2574,6 +2668,8 @@ namespace Pds.Data.Migrations
             modelBuilder.Entity("Pds.Domain.Entities.Project", b =>
                 {
                     b.Navigation("Keys");
+
+                    b.Navigation("Members");
 
                     b.Navigation("Origins");
                 });

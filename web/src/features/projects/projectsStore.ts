@@ -18,7 +18,20 @@ interface ProjectsState {
   loadOne: (publicId: string) => Promise<ProjectViewModel>
   create: (name: string) => Promise<ProjectCreatedViewModel>
   update: (publicId: string, patch: UpdateProjectRequest) => Promise<ProjectViewModel>
+  /**
+   * Esquece tudo. Chamado quando a sessao acaba: no mesmo navegador, a pessoa
+   * seguinte veria por um instante os projetos — e as contas — da anterior.
+   */
+  reset: () => void
 }
+
+/**
+ * Conta as vezes que a lista foi esquecida. Toda busca anota o numero antes de
+ * esperar a resposta e so grava se ele nao mudou: sem isso, uma busca que saiu
+ * antes de a sessao acabar voltava depois do `reset` e punha os projetos — e as
+ * contas — da pessoa anterior de volta na memoria.
+ */
+let generation = 0
 
 /** Substitui o projeto se ja estiver na lista; insere no topo se for novo. */
 function merge(projects: ProjectViewModel[], project: ProjectViewModel): ProjectViewModel[] {
@@ -42,11 +55,13 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     if (get().status === 'loading') return
 
     set({ status: 'loading', error: null })
+    const started = generation
 
     try {
-      set({ projects: await projectService.listProjects(), status: 'ready' })
+      const projects = await projectService.listProjects()
+      if (started === generation) set({ projects, status: 'ready' })
     } catch (error) {
-      set({ status: 'error', error: describeError(error) })
+      if (started === generation) set({ status: 'error', error: describeError(error) })
     }
   },
 
@@ -54,20 +69,28 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     // Nao captura de proposito, igual a `create` e a `update`: 404 e 500 pedem
     // telas diferentes, e devolver `null` para os dois fazia a casca acusar "nao
     // existe" quando a verdade era que a API nao respondeu.
+    const started = generation
     const project = await projectService.getProject(publicId)
-    set({ projects: merge(get().projects, project) })
+    if (started === generation) set({ projects: merge(get().projects, project) })
     return project
   },
 
   async create(name) {
+    const started = generation
     const created = await projectService.createProject(name)
-    set({ projects: merge(get().projects, created.Project) })
+    if (started === generation) set({ projects: merge(get().projects, created.Project) })
     return created
   },
 
   async update(publicId, patch) {
+    const started = generation
     const project = await projectService.updateProject(publicId, patch)
-    set({ projects: merge(get().projects, project) })
+    if (started === generation) set({ projects: merge(get().projects, project) })
     return project
+  },
+
+  reset() {
+    generation++
+    set({ projects: [], status: 'idle', error: null })
   },
 }))

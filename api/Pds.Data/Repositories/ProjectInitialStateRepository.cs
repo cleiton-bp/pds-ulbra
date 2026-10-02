@@ -24,8 +24,8 @@ public class ProjectInitialStateRepository : BaseRepository<ProjectInitialState,
 
     public Task<ProjectInitialState?> FindByTypeWithoutSessionAsync(long projectId, ReportTypeEnum reportType, CancellationToken cancellationToken = default)
         // Desliga o filtro global e reescreve as condicoes a mao, como a busca da
-        // chave publica e a do endereco autorizado: o que o filtro dava de graca era
-        // a conta da sessao, e aqui nao ha sessao nenhuma.
+        // chave publica e a do endereco autorizado: o que o filtro dava de graca eram
+        // os projetos da sessao, e aqui nao ha sessao nenhuma.
         => Context.ProjectInitialStates
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(initial => initial.ProjectId == projectId

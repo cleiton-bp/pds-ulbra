@@ -1,14 +1,17 @@
 meta:
   title: A conta
   system: PDS — painel
-  description: "Planejado. O que é da conta, e não de um projeto: chamar quem trabalha junto, e sair de vez — excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. Hoje cada conta tem uma pessoa só, que é dono e time ao mesmo tempo."
+  description: "Planejado. Chamar quem trabalha junto — por projeto, como administrador ou como membro — e sair de vez, excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. O papel no projeto já existe; o que falta é o convite, e até ele chegar cada projeto tem só o dono."
 actors:
   - name: Dono do projeto
-    description: Quem criou a conta e os projetos dela.
-    position: { x: 40, y: 60 }
+    description: Quem criou a conta; manda em todos os projetos dela, e é administrador de cada um.
+    position: { x: 40, y: 20 }
+  - name: Administrador do projeto
+    description: Configura um projeto e decide quem entra nele. Pode haver mais de um.
+    position: { x: 40, y: 135 }
   - name: Membro do time
     description: Quem entra pelo convite, para trabalhar os relatos.
-    position: { x: 40, y: 210 }
+    position: { x: 40, y: 250 }
   - name: Google
     kind: system
     description: Confirma quem entra, como no primeiro acesso.
@@ -16,23 +19,23 @@ actors:
 useCases:
   - id: UC01
     name: Convidar um membro
-    description: "Planejado. O passo seguinte ao painel separar Configuração de Operação: chamar outra pessoa para trabalhar os relatos na mesma conta."
+    description: "Planejado. Chamar outra pessoa para trabalhar num projeto, como administradora ou como membro. O convite é por projeto, e não pela conta inteira."
     position: { x: 280, y: 40 }
-    preconditions: O dono está no painel.
+    preconditions: Quem convida é administrador do projeto.
     mainFlow:
-      - O dono abre Pessoas.
-      - Informa o e-mail de quem quer convidar.
-      - O sistema manda o convite.
-    postconditions: O convite fica pendente até a pessoa aceitar.
+      - O administrador abre Membros no projeto.
+      - Informa o e-mail de quem quer convidar e o papel.
+      - O sistema manda o convite por e-mail.
+    postconditions: O convite fica pendente até a pessoa aceitar, com o Google do mesmo e-mail.
   - id: UC02
     name: Aceitar o convite
-    description: Planejado. Quem foi convidado entra com a conta Google e passa a ver os projetos da conta.
+    description: Planejado. Quem foi convidado entra com o Google do e-mail convidado e passa a ver o projeto, com o papel do convite.
     position: { x: 299, y: 415 }
     preconditions: Há um convite pendente para a pessoa.
     mainFlow:
-      - O convidado abre o convite.
-      - Entra com Google.
-      - Passa a ver os projetos da conta no painel.
+      - O convidado abre o convite que chegou por e-mail.
+      - Entra com o Google do mesmo e-mail.
+      - Passa a ver o projeto no painel, agrupado pela conta dona.
   - id: UC03
     name: Excluir a conta
     description: Planejado. Apaga tudo de verdade, e não só marca como apagado — depois de um prazo de arrependimento, para dar chance de desfazer uma exclusão acidental.
@@ -64,9 +67,12 @@ useCases:
       - O dono confirma.
       - O sistema apaga, na hora, o que identifica a pessoa.
 links:
-  - from: Dono do projeto
+  - from: Administrador do projeto
     to: UC01
     kind: association
+  - from: Dono do projeto
+    to: Administrador do projeto
+    kind: generalization
   - from: Dono do projeto
     to: UC03
     kind: association
@@ -84,7 +90,7 @@ links:
     to: UC02
     kind: association
 notes:
-  - text: "A decidir: o que o membro pode fazer — só Operação, ou também Configuração —, e se o convite vale para a conta inteira ou por projeto. O e-mail do convite depende dos avisos por e-mail, em 10-communication."
+  - text: "Decidido: o convite é por projeto, e não pela conta inteira. O papel é administrador — configura o projeto e decide quem entra — ou membro — trabalha nos relatos, e não vê a Configuração. O convite vai por e-mail e só vale aceito com o Google do mesmo endereço. A mesma pessoa pode estar em projetos de várias contas."
     anchor: UC01
     position: { x: 500, y: -185 }
   - text: "O prazo de 24 horas está decidido; a proposta é de 7 a 30 dias, porque quem exclui numa sexta e percebe na segunda perde tudo. A decidir também: se a ferramenta continua aceitando relato durante o prazo."

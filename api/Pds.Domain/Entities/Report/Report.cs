@@ -15,8 +15,9 @@ namespace Pds.Domain.Entities;
 ///
 /// <para><b>Por que repete <see cref="AccountId"/>.</b> A chave e o endereco
 /// autorizado alcancam a conta pelo projeto, e aqui o desenho e o contrario de
-/// proposito: esta e a tabela que mais cresce e a que o painel lista o tempo todo,
-/// entao o filtro de isolamento vira comparacao de coluna em vez de juncao.</para>
+/// proposito: esta e a tabela que mais cresce, e saber de qual conta e o relato
+/// nao pode custar uma juncao. O filtro de acesso compara o
+/// <see cref="ProjectId"/>, que tambem e coluna daqui — e continua sem juncao.</para>
 /// </summary>
 public class Report : PdsBaseEntity
 {
@@ -50,7 +51,7 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const int MaxPublishedListed = 20;
 
-    /// <summary>Conta dona do relato. E por este campo que o filtro global isola.</summary>
+    /// <summary>Conta dona do relato, repetida do projeto para nao custar juncao.</summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;
 

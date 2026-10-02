@@ -92,7 +92,10 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // reaproveita-lo faria duas pessoas diferentes digitarem o mesmo codigo.
         builder.HasIndex(report => report.TrackingCode).IsUnique();
 
-        // A lista do painel: os relatos da conta, do mais novo para o mais antigo.
+        // Nasceu para a lista do painel, quando o acesso era pela conta. Desde que o
+        // acesso passou a ser por projeto, nenhuma consulta le por aqui — o indice
+        // fica, como o de access_token_hash, porque derruba-lo pede migracao no banco
+        // compartilhado, e a leitura por conta (exclusao da conta) ainda vai existir.
         builder.HasIndex(report => new { report.AccountId, report.CreatedAt });
 
         // A mesma lista dentro de um projeto.

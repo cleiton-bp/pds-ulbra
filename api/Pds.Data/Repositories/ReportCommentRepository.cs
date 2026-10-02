@@ -49,7 +49,7 @@ public class ReportPublicCommentRepository
         // o nome de quem escreveu do lado de dentro nao aparece. O campo que nao
         // vem do banco nao tem como escapar numa resposta.
         //
-        // As condicoes do filtro global reescritas a mao, menos a da conta.
+        // As condicoes do filtro global reescritas a mao, menos a do acesso.
         => await Context.ReportPublicComments
             .IgnoreQueryFilters()
             .Where(comment => comment.ReportId == reportId
@@ -64,7 +64,7 @@ public class ReportPublicCommentRepository
         DateTime since,
         CancellationToken cancellationToken = default)
         // A fala de quem relatou e a que nao tem usuario. As condicoes do filtro
-        // global reescritas a mao, menos a da conta.
+        // global reescritas a mao, menos a do acesso.
         => Context.ReportPublicComments
             .IgnoreQueryFilters()
             .Where(comment => comment.ReportId == reportId

@@ -40,7 +40,9 @@ export type {
 export { UPLOADABLE_MEDIA_KINDS } from '@/contracts/mediaSettings'
 export type {
   CreateProjectRequest,
+  ProjectAccountViewModel,
   ProjectCreatedViewModel,
+  ProjectRole,
   ProjectStatus,
   ProjectViewModel,
   UpdateProjectRequest,

@@ -11,12 +11,28 @@ namespace Pds.Domain.ViewModels;
 /// <param name="Status">Ativo ou arquivado.</param>
 /// <param name="CreatedAt">Criacao, em UTC.</param>
 /// <param name="UpdatedAt">Ultima alteracao, em UTC.</param>
+/// <param name="Account">Conta dona do projeto. O painel agrupa os projetos por ela.</param>
+/// <param name="Role">O papel da pessoa da sessao neste projeto. A dona da conta e sempre administradora.</param>
+/// <param name="IsAccountOwner">A pessoa da sessao e dona da conta deste projeto.</param>
 public record ProjectViewModel(
     Guid PublicId,
     string Name,
     ProjectStatusEnum Status,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    ProjectAccountViewModel Account,
+    ProjectRoleEnum Role,
+    bool IsAccountOwner);
+
+/// <summary>
+/// A conta dona de um projeto, como aparece junto dele. So o necessario para
+/// agrupar e nomear — quem esta no time de um projeto nao ve mais nada da conta.
+/// </summary>
+/// <param name="PublicId">Identificador publico da conta.</param>
+/// <param name="Name">Nome da conta, exibido no painel.</param>
+public record ProjectAccountViewModel(
+    Guid PublicId,
+    string Name);
 
 /// <summary>
 /// Projeto recem-criado junto com o par de chaves. E a unica resposta do sistema

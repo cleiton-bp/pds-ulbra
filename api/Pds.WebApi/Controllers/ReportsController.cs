@@ -19,6 +19,7 @@ namespace Pds.WebApi.Controllers;
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/reports")]
 [Produces("application/json")]
 [Tags(SwaggerTags.Reports)]
@@ -63,7 +64,7 @@ public class ReportsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relatos do projeto.</response>
     /// <response code="400">Filtro de estado fora do formato.</response>
-    /// <response code="404">Projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportSummaryViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -113,7 +114,7 @@ public class ReportsController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">A contagem de cada coluna.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet("counts")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportStateCountViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -149,7 +150,7 @@ public class ReportsController : BaseController
     /// <param name="state">`Pending`, `Approved` ou `Rejected`. Padrão: `Pending`.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">A fila, e quantos ainda esperam decisão.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet("moderation")]
     [ProducesResponseType(typeof(ApiResponse<ModerationQueueViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -189,7 +190,7 @@ public class ReportsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, com a decisão gravada.</response>
     /// <response code="400">Decisão ausente, desconhecida, ou `Pending`.</response>
-    /// <response code="404">Projeto ou relato não encontrado nesta conta.</response>
+    /// <response code="404">Projeto ou relato não encontrado entre os que a pessoa enxerga.</response>
     [HttpPut("{reportPublicId:guid}/moderation")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ModerationItemViewModel>), StatusCodes.Status200OK)]
@@ -232,7 +233,7 @@ public class ReportsController : BaseController
     /// <param name="reportPublicId">Identificador público do relato.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">O histórico, do mais antigo para o mais novo.</response>
-    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet("{reportPublicId:guid}/history")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportHistoryEntryViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -278,7 +279,7 @@ public class ReportsController : BaseController
     /// <response code="200">O relato, agora esperando resposta.</response>
     /// <response code="400">Texto em branco ou longo demais.</response>
     /// <response code="403">O projeto não usa pedido de informação, ou quem escreveu não aceitou responder.</response>
-    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">O relato já está encerrado, ou já há um pedido aberto.</response>
     [HttpPost("{reportPublicId:guid}/info-request")]
     [Consumes("application/json")]
@@ -326,7 +327,7 @@ public class ReportsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, agora encerrado.</response>
     /// <response code="400">Desfecho ausente, motivo em branco ou longo demais.</response>
-    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">O relato já está encerrado.</response>
     [HttpPost("{reportPublicId:guid}/closure")]
     [Consumes("application/json")]
@@ -386,7 +387,7 @@ public class ReportsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, na coluna nova.</response>
     /// <response code="400">Coluna de destino ausente; encerramento sem desfecho ou sem motivo; desfecho ou motivo num movimento que não encerra.</response>
-    /// <response code="404">Relato, projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato, projeto ou estado não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">A coluna de destino está aposentada.</response>
     [HttpPut("{reportPublicId:guid}/state")]
     [Consumes("application/json")]
@@ -425,7 +426,7 @@ public class ReportsController : BaseController
     /// <param name="reportPublicId">Identificador público do relato.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, com o contexto. A visualização foi registrada.</response>
-    /// <response code="404">Relato ou projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet("{reportPublicId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]

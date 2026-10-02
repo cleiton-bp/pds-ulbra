@@ -41,7 +41,7 @@ public interface IEventRepository
     /// invisivel para fora, que e a mesma regra da lista de permissao que monta a
     /// resposta publica.</para>
     ///
-    /// <para>Sem sessao a conta atual e zero, e o filtro global devolveria vazio —
+    /// <para>Sem sessao a lista de projetos acessiveis esta vazia, e o filtro global devolveria vazio —
     /// quem chega aqui ja provou que pode ver este relato, pelo token do link.</para>
     /// </summary>
     Task<IReadOnlyList<Event>> ListPublicStageChangesWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default);

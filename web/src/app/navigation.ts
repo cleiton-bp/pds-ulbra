@@ -104,7 +104,7 @@ export const LOCKED_SECTIONS: LockedSection[] = [
   {
     key: 'members',
     label: 'Membros',
-    hint: 'Convites para outras pessoas usarem esta conta. Ainda não disponível.',
+    hint: 'Convites para outras pessoas trabalharem neste projeto. Ainda não disponível.',
   },
   {
     key: 'usage',
