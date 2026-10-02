@@ -19,7 +19,7 @@ public class ProjectMediaSettingsRepository
             .FirstOrDefaultAsync(settings => settings.ProjectId == projectId, cancellationToken);
 
     public Task<ProjectMediaSettings?> FindByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta — o mesmo
+        // As condicoes do filtro global reescritas a mao, menos a do acesso — o mesmo
         // desenho da configuracao da ferramenta e das regras do ciclo.
         //
         // **O filtro dos tipos cai junto**, e por isso a condicao deles tambem e

@@ -7,7 +7,7 @@ namespace Pds.Data.Context;
 
 /// <summary>
 /// Usada apenas em tempo de projeto, pelo <c>dotnet ef</c>. Carrega o
-/// <c>.env.local</c> e monta o contexto com uma conta vazia — migracao nao executa
+/// <c>.env.local</c> e monta o contexto com o acesso vazio — migracao nao executa
 /// consulta de negocio, entao nao ha o que isolar.
 /// </summary>
 public class DataContextFactory : IDesignTimeDbContextFactory<DataContext>

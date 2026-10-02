@@ -24,7 +24,7 @@ public class ProjectStatusMappingRepository : BaseRepository<ProjectStatusMappin
                 cancellationToken);
 
     public async Task<IReadOnlyList<ProjectStatusMapping>> ListByVersionWithoutSessionAsync(long projectId, int version, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta: quem
+        // As condicoes do filtro global reescritas a mao, menos a do acesso: quem
         // chega aqui ja provou que pode ver este projeto, pelo token do relato. E o
         // mesmo desenho da leitura publica da configuracao da ferramenta.
         => await Context.ProjectStatusMappings

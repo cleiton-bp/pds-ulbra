@@ -93,7 +93,7 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         var settings = await _unitOfWork.ProjectWidgetSettings
             .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
 
-        // Sem sessao aqui tambem: a conta atual e zero, e o filtro global devolveria
+        // Sem sessao aqui tambem: a lista de projetos acessiveis esta vazia, e o filtro global devolveria
         // vazio sem erro nenhum — a caixa apareceria marcada num projeto que a
         // configurou desmarcada, e nada acusaria.
         var ciclo = await _unitOfWork.ProjectCycleSettings

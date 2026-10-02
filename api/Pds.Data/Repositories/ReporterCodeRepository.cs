@@ -13,7 +13,7 @@ public class ReporterCodeRepository : BaseRepository<ReporterCode, DataContext>,
     }
 
     public Task<ReporterCode?> FindByCodeWithoutSessionAsync(long projectId, string code, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta — o mesmo
+        // As condicoes do filtro global reescritas a mao, menos a do acesso — o mesmo
         // desenho da chave publica e do relato pelo protocolo.
         => Context.ReporterCodes
             .IgnoreQueryFilters()

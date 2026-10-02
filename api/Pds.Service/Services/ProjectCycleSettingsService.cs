@@ -163,8 +163,8 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
     }
 
     /// <summary>
-    /// O projeto da sessao atual. O filtro global ja limita a consulta a conta que
-    /// esta usando o painel, entao projeto de outra conta simplesmente nao volta.
+    /// O projeto da sessao atual. O filtro global ja limita a consulta aos projetos que
+    /// a pessoa da sessao enxerga, entao projeto em que ela nao esta simplesmente nao volta.
     /// </summary>
     private async Task<Project> RequireOwnProjectAsync(Guid publicId, CancellationToken cancellationToken)
         => await _unitOfWork.Projects.GetByPublicIdAsync(publicId, cancellationToken)

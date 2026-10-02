@@ -13,7 +13,7 @@ namespace Pds.ApiBase.Repositories;
 /// Repositorio generico com o CRUD basico e a exclusao logica. Os repositorios
 /// especificos herdam daqui e acrescentam apenas as consultas proprias.
 ///
-/// Nada aqui filtra por conta: o isolamento vive no filtro global do contexto,
+/// Nada aqui filtra por projeto: o isolamento vive no filtro global do contexto,
 /// justamente para nao depender de cada consulta lembrar de aplicar.
 /// </summary>
 public abstract class BaseRepository<TEntity, TContext> : IBaseRepository<TEntity>

@@ -9,12 +9,12 @@ public interface IReportRepository : IBaseRepository<Report>
 {
     /// <summary>
     /// Este protocolo ja existe? A pergunta vale para o sistema inteiro, e nao para
-    /// a conta atual: quem digita o protocolo nao sabe de qual projeto o relato e,
+    /// os projetos da sessao: quem digita o protocolo nao sabe de qual projeto o relato e,
     /// entao dois relatos de contas diferentes com o mesmo codigo levariam a pessoa
     /// ao lugar errado.
     ///
     /// <para>Por isso a consulta atravessa o filtro — e na criacao ela roda sem
-    /// sessao nenhuma, quando a conta atual e zero e o filtro nao devolveria nada.</para>
+    /// sessao nenhuma, quando a lista de projetos acessiveis esta vazia e o filtro nao devolveria nada.</para>
     /// </summary>
     Task<bool> TrackingCodeExistsAsync(string trackingCode, CancellationToken cancellationToken = default);
 
@@ -22,8 +22,8 @@ public interface IReportRepository : IBaseRepository<Report>
     /// O relato de um protocolo, para a consulta publica de acompanhamento.
     ///
     /// <para>Atravessa o filtro global pela mesma razao das outras leituras
-    /// publicas: quem chega e quem relatou, sem sessao nenhuma, e ali a conta atual
-    /// e zero — com o filtro ligado o proprio dono do relato receberia "nao
+    /// publicas: quem chega e quem relatou, sem sessao nenhuma, e ali a lista de projetos
+    /// acessiveis esta vazia — com o filtro ligado o proprio dono do relato receberia "nao
     /// encontrado".</para>
     ///
     /// <para><b>Busca pelo protocolo, e a conferencia do token vem depois</b>, no
@@ -69,8 +69,9 @@ public interface IReportRepository : IBaseRepository<Report>
     /// Um relato do projeto, com o contexto junto.
     ///
     /// <para>O projeto entra na condicao, e nao so o identificador do relato: sem
-    /// ele, um relato da mesma conta abriria por baixo do endereco de outro projeto
-    /// — e a tela diria que ele veio de onde nao veio.</para>
+    /// ele, um relato de outro projeto que a pessoa enxerga abriria por baixo do
+    /// endereco deste — e a tela diria que ele veio de onde nao veio, para alguem que
+    /// talvez seja so membro de um dos dois.</para>
     /// </summary>
     Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
 

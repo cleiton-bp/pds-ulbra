@@ -19,9 +19,9 @@ public interface IProjectPublicStageRepository : IBaseRepository<ProjectPublicSt
     /// A jornada do projeto, para quem chega <b>sem sessao</b>.
     ///
     /// <para>E a leitura que a entrada do relato faz: o relato chega pela chave
-    /// publica, sem sessao, e precisa ja nascer numa etapa. Sem sessao a conta atual
-    /// e zero, e o filtro que protege o painel devolveria vazio para o proprio
-    /// dono.</para>
+    /// publica, sem sessao, e precisa ja nascer numa etapa. Sem sessao a lista de
+    /// projetos acessiveis esta vazia, e o filtro que protege o painel devolveria
+    /// vazio para o proprio dono.</para>
     /// </summary>
     Task<IReadOnlyList<ProjectPublicStage>> ListByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default);
 

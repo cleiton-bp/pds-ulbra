@@ -11,7 +11,10 @@ namespace Pds.Domain.Entities;
 /// </summary>
 public class Project : PdsBaseEntity
 {
-    /// <summary>Conta dona do projeto. E por este campo que o filtro global isola.</summary>
+    /// <summary>
+    /// Conta dona do projeto. Quem e dono da conta manda neste projeto sem precisar
+    /// de linha em <see cref="Members"/>; os demais chegam por la.
+    /// </summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;
 
@@ -39,4 +42,11 @@ public class Project : PdsBaseEntity
     /// <summary>Enderecos autorizados a abrir a ferramenta deste projeto.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectOrigin> Origins { get; set; } = [];
+
+    /// <summary>
+    /// Quem do time entrou neste projeto, com o papel de cada um. O dono da conta
+    /// nao aparece aqui: ele manda pelo <see cref="AccountId"/>.
+    /// </summary>
+    [SoftDeleteDependent(RemoveType.Cascade)]
+    public List<ProjectMember> Members { get; set; } = [];
 }

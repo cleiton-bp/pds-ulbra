@@ -23,7 +23,7 @@ public class ProjectOriginRepository : BaseRepository<ProjectOrigin, DataContext
     public async Task<IReadOnlyList<ProjectOrigin>> ListByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default)
         // Desliga o filtro global e reescreve as condicoes a mao, como a busca da
         // chave publica e a leitura da configuracao do quadro: o que o filtro dava
-        // de graca era a conta da sessao, e aqui nao ha sessao nenhuma.
+        // de graca eram os projetos da sessao, e aqui nao ha sessao nenhuma.
         => await Context.ProjectOrigins
             .IgnoreQueryFilters()
             .Where(origin => origin.ProjectId == projectId

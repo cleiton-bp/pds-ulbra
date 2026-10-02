@@ -13,7 +13,7 @@ public class ReportClosureRepository : BaseRepository<ReportClosure, DataContext
     }
 
     public Task<ReportClosure?> FindCurrentWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta — o mesmo
+        // As condicoes do filtro global reescritas a mao, menos a do acesso — o mesmo
         // desenho da jornada publica e da chave publica.
         //
         // `ReopenedAt == null` esta na **consulta**, e nao numa conferencia depois:
@@ -68,7 +68,7 @@ public class ReportClosureRepository : BaseRepository<ReportClosure, DataContext
     }
 
     public Task<ReportClosure?> FindCurrentAsync(long reportId, CancellationToken cancellationToken = default)
-        // O filtro global vale aqui, e e o que isola a conta. O `Include` do autor
+        // O filtro global vale aqui, e e o que isola o acesso. O `Include` do autor
         // so existe nesta: quem relatou nao ve o nome de quem encerrou, e nao
         // carregar e mais seguro do que carregar e confiar em nao usar.
         => Context.ReportClosures
@@ -109,7 +109,7 @@ public class ReportClosureRepository : BaseRepository<ReportClosure, DataContext
 
     /// <summary>
     /// Os fechamentos reabertos, com as condicoes do filtro global reescritas a mao,
-    /// menos a da conta — o mesmo desenho das outras leituras publicas daqui.
+    /// menos a do acesso — o mesmo desenho das outras leituras publicas daqui.
     /// </summary>
     private IQueryable<ReportClosure> Reabertos(long reportId)
         => Context.ReportClosures

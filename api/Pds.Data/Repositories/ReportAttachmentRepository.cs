@@ -133,7 +133,7 @@ public class ReportAttachmentRepository
             .ToListAsync(cancellationToken);
 
     /// <summary>
-    /// As condicoes do filtro global reescritas a mao, menos a da conta — o mesmo
+    /// As condicoes do filtro global reescritas a mao, menos a do acesso — o mesmo
     /// desenho das demais leituras publicas.
     /// </summary>
     private IQueryable<ReportAttachment> Confirmados(long reportId)

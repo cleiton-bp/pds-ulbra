@@ -15,7 +15,7 @@ public class UserMap : BaseEntityConfiguration<User>
         builder.Property(user => user.AccountId)
             .HasColumnName("account_id")
             .IsRequired()
-            .HasComment("Conta a que este usuario pertence.");
+            .HasComment("Conta propria: nasce no primeiro acesso, e a pessoa e dona dela. Os projetos de outras contas chegam por project_members.");
 
         builder.Property(user => user.GoogleSubject)
             .HasColumnName("google_subject")

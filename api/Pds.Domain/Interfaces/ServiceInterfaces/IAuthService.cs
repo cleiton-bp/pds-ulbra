@@ -12,6 +12,6 @@ public interface IAuthService
     /// </summary>
     Task<SignInViewModel> SignInWithGoogleAsync(GoogleSignInDto dto, CancellationToken cancellationToken = default);
 
-    /// <summary>Usuario e conta da sessao atual.</summary>
+    /// <summary>Usuario da sessao atual, com a conta propria dele.</summary>
     Task<MeViewModel> GetCurrentAsync(CancellationToken cancellationToken = default);
 }

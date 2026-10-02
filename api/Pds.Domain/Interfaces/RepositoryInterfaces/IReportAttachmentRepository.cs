@@ -22,7 +22,7 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
     /// alguem pediu e nao usou — faze-lo ocupar vaga deixaria quem tentou tres vezes
     /// e falhou sem conseguir anexar nada.</para>
     ///
-    /// <para>Sem sessao: quem anexa e quem relatou, e la a conta atual e zero.</para>
+    /// <para>Sem sessao: quem anexa e quem relatou, e la a lista de projetos acessiveis esta vazia.</para>
     /// </summary>
     Task<(int Total, int OfKind)> CountConfirmedWithoutSessionAsync(
         long reportId,
@@ -106,7 +106,8 @@ public interface IReportAttachmentRepository : IBaseRepository<ReportAttachment>
     /// <summary>
     /// Os anexos confirmados de um relato, <b>com sessao</b>, na ordem em que a pessoa
     /// os montou em cada envio (<c>DisplayOrder</c>), e pela hora de chegada no empate.
-    /// O filtro global limita a conta do painel — relato de outra conta nao traz nada.
+    /// O filtro global limita aos projetos que a pessoa enxerga — relato de outro
+    /// projeto nao traz nada.
     /// </summary>
     Task<List<ReportAttachment>> ListConfirmedAsync(long reportId, CancellationToken cancellationToken = default);
 

@@ -18,7 +18,7 @@ public class ProjectIdentitySettingsRepository
             .FirstOrDefaultAsync(settings => settings.ProjectId == projectId, cancellationToken);
 
     public Task<ProjectIdentitySettings?> FindByProjectWithoutSessionAsync(long projectId, CancellationToken cancellationToken = default)
-        // As condicoes do filtro global reescritas a mao, menos a da conta — o mesmo
+        // As condicoes do filtro global reescritas a mao, menos a do acesso — o mesmo
         // desenho das regras do ciclo e da configuracao da ferramenta.
         => Context.ProjectIdentitySettings
             .IgnoreQueryFilters()

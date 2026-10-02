@@ -36,7 +36,7 @@ public class ReportAttachment : PdsBaseEntity
     /// Relato a que o anexo pertence.
     ///
     /// <para><b>Obrigatorio mesmo quando o anexo veio numa resposta</b>, para achar
-    /// o relato ser sempre um salto so — e para o isolamento por conta nao depender
+    /// o relato ser sempre um salto so — e para o isolamento por projeto nao depender
     /// de passar por uma coluna que pode ser nula.</para>
     /// </summary>
     public long ReportId { get; set; }

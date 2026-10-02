@@ -4,6 +4,7 @@ using Pds.Domain.Enums;
 using Pds.Domain.Exceptions;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
+using Pds.Domain.Security;
 using Pds.Domain.ViewModels;
 using Pds.Service.PublicStages;
 using Pds.Service.Security;
@@ -34,7 +35,10 @@ public class ProjectService : IProjectService
         _accountContext = accountContext;
     }
 
-    /// <summary>A conta vem sempre da sessao. Nenhuma rota aceita conta por parametro.</summary>
+    /// <summary>
+    /// A conta propria vem sempre da sessao. Nenhuma rota aceita conta por
+    /// parametro — e por isso projeto novo nasce sempre na conta de quem cria.
+    /// </summary>
     private long AccountId => _accountContext.AccountId
                               ?? throw new UnauthorizedAccessException("Sessao sem conta.");
 
@@ -45,12 +49,16 @@ public class ProjectService : IProjectService
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do projeto e obrigatorio.");
 
-        if (await _unitOfWork.Projects.NameExistsAsync(name, cancellationToken: cancellationToken))
+        if (await _unitOfWork.Projects.NameExistsAsync(AccountId, name, cancellationToken: cancellationToken))
             throw new ConflictException("Ja existe um projeto com este nome na conta.");
+
+        var account = await _unitOfWork.Accounts.GetByIdAsync(AccountId, cancellationToken)
+                      ?? throw new UnauthorizedAccessException("Sessao sem conta.");
 
         var project = new Project
         {
-            AccountId = AccountId,
+            AccountId = account.Id,
+            Account = account,
             Name = name,
             Status = ProjectStatusEnum.Active,
         };
@@ -102,8 +110,10 @@ public class ProjectService : IProjectService
         // ou nao entra nada.
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        // Quem cria e dono: o projeto nasceu na conta propria. A lista de acesso da
+        // requisicao foi montada antes dele existir, entao o papel sai daqui.
         return new ProjectCreatedViewModel(
-            Map(project),
+            Map(project, new ProjectAccess(project.Id, project.PublicId, ProjectRoleEnum.Administrator, true)),
             MapKey(publicKey),
             new RevealedSecretKeyViewModel(secretKey.PublicId, secretValue, secretKey.Prefix, secretKey.CreatedAt));
     }
@@ -111,11 +121,14 @@ public class ProjectService : IProjectService
     public async Task<IReadOnlyList<ProjectViewModel>> ListAsync(CancellationToken cancellationToken = default)
     {
         var projects = await _unitOfWork.Projects.ListAsync(cancellationToken);
-        return projects.Select(Map).ToList();
+        return projects.Select(project => Map(project, AccessTo(project))).ToList();
     }
 
     public async Task<ProjectViewModel> GetAsync(Guid publicId, CancellationToken cancellationToken = default)
-        => Map(await RequireProjectAsync(publicId, cancellationToken));
+    {
+        var project = await RequireProjectAsync(publicId, cancellationToken);
+        return Map(project, AccessTo(project));
+    }
 
     public async Task<ProjectViewModel> UpdateAsync(Guid publicId, UpdateProjectDto dto, CancellationToken cancellationToken = default)
     {
@@ -128,7 +141,9 @@ public class ProjectService : IProjectService
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("O nome do projeto e obrigatorio.");
 
-            if (await _unitOfWork.Projects.NameExistsAsync(name, project.Id, cancellationToken))
+            // A conta do projeto, e nao a da sessao: quem renomeia pode ser
+            // administrador de um projeto de outra conta.
+            if (await _unitOfWork.Projects.NameExistsAsync(project.AccountId, name, project.Id, cancellationToken))
                 throw new ConflictException("Ja existe um projeto com este nome na conta.");
 
             project.Name = name;
@@ -140,27 +155,39 @@ public class ProjectService : IProjectService
         _unitOfWork.Projects.Update(project);
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return Map(project);
+        return Map(project, AccessTo(project));
     }
 
     /// <summary>
-    /// Busca o projeto da conta atual pelo identificador publico.
+    /// Busca, entre os projetos que a pessoa enxerga, o projeto pelo identificador
+    /// publico — com a conta dona, que a resposta leva.
     ///
-    /// Projeto de outra conta cai aqui como "nao encontrado", e nao como "sem
-    /// permissao" — o filtro global simplesmente nao o devolve. E a resposta certa
-    /// tambem do ponto de vista de quem pergunta: dizer "existe, mas nao e seu" ja
-    /// e contar que existe.
+    /// Projeto em que a pessoa nao esta cai aqui como "nao encontrado", e nao como
+    /// "sem permissao" — o filtro global simplesmente nao o devolve. E a resposta
+    /// certa tambem do ponto de vista de quem pergunta: dizer "existe, mas nao e
+    /// seu" ja e contar que existe.
     /// </summary>
     private async Task<Project> RequireProjectAsync(Guid publicId, CancellationToken cancellationToken)
-        => await _unitOfWork.Projects.GetByPublicIdAsync(publicId, cancellationToken)
+        => await _unitOfWork.Projects.GetWithAccountAsync(publicId, cancellationToken)
            ?? throw new KeyNotFoundException("Projeto nao encontrado.");
 
-    private static ProjectViewModel Map(Project project) => new(
+    /// <summary>
+    /// O papel da pessoa num projeto que o filtro devolveu. Se o filtro devolveu, o
+    /// acesso esta na lista — os dois vem da mesma montagem no middleware.
+    /// </summary>
+    private ProjectAccess AccessTo(Project project)
+        => _accountContext.FindProject(project.Id)
+           ?? throw new InvalidOperationException("Projeto devolvido pelo filtro sem acesso na sessao.");
+
+    private static ProjectViewModel Map(Project project, ProjectAccess access) => new(
         project.PublicId,
         project.Name,
         project.Status,
         project.CreatedAt,
-        project.UpdatedAt);
+        project.UpdatedAt,
+        new ProjectAccountViewModel(project.Account.PublicId, project.Account.Name),
+        access.Role,
+        access.IsAccountOwner);
 
     private static ProjectKeyViewModel MapKey(ProjectKey key) => new(
         key.PublicId,

@@ -228,9 +228,10 @@ public class ProjectPublicStageService : IProjectPublicStageService
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);
         var stage = await _unitOfWork.ProjectPublicStages.GetByPublicIdAsync(stagePublicId, cancellationToken);
 
-        // O filtro global ja garante que a etapa e da conta da sessao, mas nao que e
-        // **deste** projeto: sem esta conferencia, o identificador de uma etapa de
-        // outro projeto da mesma conta seria aceito pela rota errada.
+        // O filtro global ja garante que a etapa e de um projeto que a pessoa
+        // enxerga, mas nao que e deste: sem esta conferencia, uma etapa de outro
+        // projeto dela seria aceito pela rota errada — e quem e administrador aqui
+        // e so membro la mudaria a configuracao de la. Nao e redundante.
         if (stage is null || stage.ProjectId != project.Id)
             throw new KeyNotFoundException("Etapa nao encontrada neste projeto.");
 

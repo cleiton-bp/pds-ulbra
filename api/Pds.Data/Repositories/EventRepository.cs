@@ -41,7 +41,7 @@ public class EventRepository : IEventRepository
         // usuario, tambem de proposito — quem relatou nao precisa saber o nome de
         // quem mexeu, e nao carregar e mais seguro do que carregar e nao usar.
         //
-        // Sem sessao a conta atual e zero, entao o filtro global e desligado. Nao ha
+        // Sem sessao a lista de projetos acessiveis esta vazia, entao o filtro global e desligado. Nao ha
         // condicao de exclusao logica para reescrever: evento nao se apaga.
         => await _context.Events
             .IgnoreQueryFilters()

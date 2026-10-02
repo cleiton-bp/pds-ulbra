@@ -30,8 +30,9 @@ public interface IReportClosureRepository : IBaseRepository<ReportClosure>
     /// saber se o relato ja acabou antes de oferecer encerrar de novo.
     ///
     /// <para><b>Sao dois metodos e nao um com bandeira.</b> A bandeira convidaria a
-    /// chamada publica a passar "com sessao" por engano num caminho onde a conta
-    /// atual e zero — e ali o resultado seria sempre nulo, silenciosamente.</para>
+    /// chamada publica a passar "com sessao" por engano num caminho onde a lista de
+    /// projetos acessiveis esta vazia — e ali o resultado seria sempre nulo,
+    /// silenciosamente.</para>
     ///
     /// <para>Traz o autor junto: o painel mostra quem encerrou, e a camada publica
     /// nao — por isso o <c>Include</c> mora so nesta.</para>
@@ -94,11 +95,11 @@ public interface IReportClosureRepository : IBaseRepository<ReportClosure>
 
     /// <summary>
     /// Os mesmos fechamentos reabertos, <b>com sessao</b>: o painel, que mostra ao
-    /// time por que o relato voltou. O filtro global isola a conta.
+    /// time por que o relato voltou. O filtro global isola os projetos que a pessoa enxerga.
     ///
     /// <para><b>Sao dois metodos, e nao um com bandeira</b>, pelo mesmo motivo de
     /// <see cref="FindCurrentAsync"/>: a bandeira convidaria a chamada publica a
-    /// passar "com sessao" num caminho onde a conta atual e zero.</para>
+    /// passar "com sessao" num caminho onde a lista de projetos acessiveis esta vazia.</para>
     /// </summary>
     Task<List<ReportClosure>> ListReopenedAsync(long reportId, CancellationToken cancellationToken = default);
 }

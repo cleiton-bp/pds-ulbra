@@ -21,7 +21,7 @@ public class ProjectKeyRepository : BaseRepository<ProjectKey, DataContext>, IPr
             .ToListAsync(cancellationToken);
 
     public Task<ProjectKey?> FindActivePublicAsync(string value, CancellationToken cancellationToken = default)
-        // IgnoreQueryFilters desliga o isolamento por conta **e** o de exclusao
+        // IgnoreQueryFilters desliga o isolamento por projeto **e** o de exclusao
         // logica, entao as duas condicoes que o filtro garantia estao reescritas a
         // mao logo abaixo. Retirar qualquer uma delas faz chave revogada ou projeto
         // apagado voltarem a aceitar relato, sem nada acusar.

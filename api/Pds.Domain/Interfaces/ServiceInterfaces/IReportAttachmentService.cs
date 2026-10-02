@@ -19,7 +19,8 @@ public interface IReportAttachmentService
 
     /// <summary>
     /// Os anexos de um relato, para o time, com endereco de leitura assinado na hora.
-    /// So depois de conferir que o relato e da conta do painel.
+    /// So depois de conferir que o relato e do projeto da rota, e que a pessoa enxerga
+    /// esse projeto.
     /// </summary>
     Task<List<PanelAttachmentViewModel>> ListForPanelAsync(
         Guid projectPublicId,

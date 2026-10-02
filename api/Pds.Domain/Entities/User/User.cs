@@ -6,7 +6,11 @@ namespace Pds.Domain.Entities;
 /// </summary>
 public class User : PdsBaseEntity
 {
-    /// <summary>Conta a que este usuario pertence.</summary>
+    /// <summary>
+    /// Conta propria: a que nasce no primeiro acesso, e da qual a pessoa e dona.
+    /// Os projetos de outras contas chegam por <c>project_members</c>, e nao por
+    /// aqui — a mesma pessoa pode estar em projetos de varias contas.
+    /// </summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;
 
