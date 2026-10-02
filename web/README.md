@@ -63,8 +63,9 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 ## As telas
 
 ```
-/projects ........................ hub — saudação, criar projeto, busca, lista
-/projects/:publicId/start ........ console — "Comece por aqui", 3 passos
+/projects ........................ hub — saudação, criar projeto, busca, lista por conta
+/projects/:publicId .............. a porta — Instalação para quem configura, Relatos para o membro
+/projects/:publicId/start ........ console — Instalação, 3 passos
 /projects/:publicId/keys ......... console — chaves e integração
 /projects/:publicId/states ....... console — a fila de trabalho do time
 /projects/:publicId/public-stages  console — a jornada que quem relatou acompanha
@@ -79,6 +80,14 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 
 Dois níveis, como um console de nuvem. **Não existe rota `/login`**: quem abre
 uma URL sem sessão vê a entrada naquele mesmo endereço e cai direto onde queria.
+
+**O papel decide a porta.** `/projects/:publicId` leva quem configura — o dono e o
+administrador — à **Instalação**, e quem é só membro aos **Relatos**. O membro não vê
+o grupo **Configuração** no menu, e o endereço de uma seção dele, digitado ou num link
+antigo, o manda para os Relatos. A regra mora na API, que recusa com 403 o que o
+membro tentar mudar; aqui só se decide o que mostrar. O hub e o seletor do topo agrupam
+os projetos pela conta dona quando há mais de uma — "Seus projetos" primeiro —, e no
+hub o projeto de outra conta mostra o papel da pessoa nele.
 
 ---
 
@@ -293,6 +302,11 @@ arquivar, ver as chaves, copiar o script de integração e regenerar a secreta. 
 **lista de endereços autorizados**, conferida nas rotas públicas: vazia abre em
 qualquer lugar, e o primeiro endereço declarado liga a conferência.
 
+**O time, por projeto.** Cada projeto chega com a conta dona e o papel da pessoa nele:
+o dono e o administrador configuram; o membro trabalha nos relatos e não vê a
+Configuração. O convite, que põe alguém num projeto, e a tela de **Membros** — que
+aparece bloqueada no menu — são **Planejado**; até lá, cada projeto tem só o dono.
+
 **O relato entra.** Colar o script numa página qualquer, escrever, e o relato chegar
 na API com protocolo, rota e origem; o time lê na tela **Relatos**, com o contexto de
 cada um e a visualização registrada como evento. A aparência e os textos da
@@ -390,8 +404,8 @@ vídeos de antes de o vídeo sair do produto continuam tocando.
 | a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: o plano de cobrança e o quadro de cards arrastável, com
-sprint e relatório (**Continuidade**); a lista pública com imagens e a página pública
+Fora do corte, de propósito: o plano de cobrança (**Continuidade**); o quadro de cards
+arrastável, com sprint e relatório (**Planejado**); a lista pública com imagens e a página pública
 de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora
 no servidor e pega o caso comum; barrar o quadro no navegador precisa de um servidor
 servindo `embed.html`, que é hospedagem que ainda não existe — **Planejado**.
@@ -414,7 +428,7 @@ inglês, e esse atributo aparece no HTML de todo cliente.
 **As dicas dos itens bloqueados usam Radix Tooltip.** No design aparecem no
 `hover`; assim aparecem também no foco do teclado e são lidas por leitor de tela.
 
-**O progresso de "Comece por aqui" fica no navegador.** Não é dado de domínio: é
+**O progresso da Instalação fica no navegador.** Não é dado de domínio: é
 a lembrança de que este navegador já copiou a chave. O sinal de verdade — o
 primeiro relato ter chegado — passou a existir com a tela **Relatos**, e o passo
 continua sem lê-lo: ler significa uma chamada a mais em toda visita à instalação,

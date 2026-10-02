@@ -1,6 +1,8 @@
 <h2>accounts</h2>
 
-<p>A fronteira de isolamento. Tudo pertence a uma.</p>
+<p>A dona dos dados. Todo projeto pertence a uma, e o que pende dele junto — mas quem enxerga o
+quê é decidido por projeto: o dono da conta enxerga todos os projetos dela, e o time só os projetos
+em que entrou.</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
@@ -10,10 +12,11 @@
 </table>
 
 <div class="note why">
-  <strong>Por que separar de <code>users</code> já agora</strong>
-  <p>Hoje é uma pessoa por conta. No dia em que alguém quiser convidar um colega, sem essa
-  separação vira migração de todas as tabelas. Criar a entidade agora custa uma tabela;
-  criar depois custa reescrever o isolamento.</p>
+  <strong>Por que é separada de <code>users</code></strong>
+  <p>Cada pessoa tem uma conta própria, que nasce no primeiro acesso, e pode trabalhar em projetos
+  de outras contas sem que nenhuma delas deixe de ser de quem é.</p>
+  <p>A separação veio antes de ser usada: quando o time chegou, entrou numa tabela nova, e nenhum
+  dado precisou mudar de lugar.</p>
 </div>
 
 <div class="note why">
@@ -26,7 +29,7 @@
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
-  <tr><td><code>account_id</code></td><td>Conta a que pertence.</td></tr>
+  <tr><td><code>account_id</code></td><td>Conta própria: nasce no primeiro acesso, e a pessoa é dona dela. Os projetos de outras contas chegam por <code>project_members</code>, e não por aqui.</td></tr>
   <tr><td><code>google_subject</code></td><td>O <code>sub</code> do Google. Único.</td></tr>
   <tr><td><code>email</code></td><td>Para contato. <strong>Sem índice único.</strong></td></tr>
   <tr><td><code>name</code>, <code>avatar_url</code></td><td>Vindos do Google.</td></tr>
@@ -40,4 +43,49 @@
   duplicada ou, pior, entregando a conta de alguém a quem herdou o endereço.</p>
   <p>Alguém vai olhar essa tabela depois e achar que faltou um índice. Fica registrado que a
   ausência é escolha.</p>
+</div>
+
+<h2>project_members</h2>
+
+<p>Quem do time entrou em cada projeto, e com que papel.</p>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto em que a pessoa entrou. <code>Cascade</code>: a linha não existe sem o projeto.</td></tr>
+  <tr><td><code>user_id</code></td><td>A pessoa. <code>Restrict</code>: ela não some enquanto estiver num projeto.</td></tr>
+  <tr><td><code>role</code></td><td><code>member</code> | <code>administrator</code>. Membro trabalha nos relatos e lê a configuração, sem mudá-la; administrador configura o projeto e decide quem entra. Uma trava no banco (<code>CHECK</code>) só aceita os dois.</td></tr>
+</table>
+
+<p>Único por <code>(project_id, user_id)</code> entre os que não foram apagados — o mesmo filtro
+<code>deleted_at IS NULL</code> que <code>projects</code> usa no nome, e pelo mesmo motivo: sem ele,
+quem saiu e voltou esbarraria numa linha que ninguém mais enxerga. E <code>user_id</code> tem
+índice próprio, porque "em que projetos esta pessoa entrou" é a pergunta que o acesso faz a cada
+requisição.</p>
+
+<div class="note why">
+  <strong>A entrada é por projeto, e não pela conta</strong>
+  <p>Quem atende dois clientes entra no projeto de cada um, e quem tem clientes diferentes na mesma
+  conta separa quem trabalha em qual. A mesma pessoa pode estar em projetos de várias contas.</p>
+</div>
+
+<div class="note warn">
+  <strong>O dono da conta não tem linha aqui</strong>
+  <p>Ele manda em todos os projetos da conta própria pelo próprio <code>users.account_id</code>.
+  Se dependesse de linha, remover a linha errada trancaria o dono fora do que é dele.</p>
+  <p>É também por isso que a migração que criou a tabela não copiou ninguém para ela: os donos
+  continuaram entrando por onde já entravam.</p>
+</div>
+
+<div class="note why">
+  <strong>Sair apaga a linha, e nunca a pessoa</strong>
+  <p>Sair do projeto preenche <code>deleted_at</code>, e vale na requisição seguinte: o acesso é
+  lido do banco a cada requisição, e não guardado no token. O usuário fica, e o que ele escreveu
+  nos relatos continua com o nome dele.</p>
+</div>
+
+<div class="note todo">
+  <strong>Nenhuma rota grava aqui ainda</strong>
+  <p>O convite — o administrador convida por e-mail, com o papel, e a pessoa aceita entrando com a
+  conta Google do mesmo endereço — é <strong>Planejado</strong>, como o envio de e-mail e a tela de
+  Membros. Até lá, na prática, cada projeto tem só o dono.</p>
 </div>

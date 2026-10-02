@@ -1,12 +1,15 @@
-<h2>As trinta e quatro consultas que atravessam o filtro</h2>
+<h2>As trinta e sete consultas que atravessam o filtro</h2>
 
-<p>São exatamente trinta e quatro em todo o sistema, todas propositais, e <strong>trinta e uma têm
-a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão
-<code>CurrentAccountId</code> é zero — o filtro que protege o painel devolveria vazio para o
-próprio dono. Todas moram em repositório, cada uma num método, e nenhuma em serviço.</p>
+<p>São exatamente trinta e sete em todo o sistema, todas propositais, e <strong>trinta e uma têm
+a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão a lista de projetos da
+requisição é vazia — o filtro que protege o painel devolveria vazio para o próprio dono. Trinta e
+cinco moram em repositório, cada uma num método, e nenhuma em serviço; as outras duas são as
+leituras que montam o acesso, no <code>AccountMiddleware</code>. Três atravessam com sessão, no
+painel, e estão no fim da página.</p>
 
 <p>A contagem é por <strong>método público</strong> de repositório, porque é o método que alguém
-chama. As chamadas a <code>IgnoreQueryFilters()</code> são trinta e uma: duas moram em auxiliares
+chama — e, no middleware, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são trinta
+e quatro: as duas do middleware e trinta e duas em repositório, das quais duas moram em auxiliares
 privados — <code>Confirmados</code>, em <code>ReportAttachmentRepository</code>, e
 <code>Reabertos</code>, em <code>ReportClosureRepository</code> —, uma em cada, e os dois servem
 cinco métodos públicos entre eles. O auxiliar existe para as condições reescritas à mão morarem
@@ -25,7 +28,7 @@ que evita uma ida ao banco por linha da lista pessoal.</p>
 <h3>As dez da mídia e da reabertura</h3>
 
 <p><strong>Quem anexa é quem relatou, e quem relatou não tem sessão.</strong> A causa é a mesma das
-outras, e o desenho também: as condições do filtro reescritas à mão, menos a da conta, e cada
+outras, e o desenho também: as condições do filtro reescritas à mão, menos a do acesso, e cada
 consulta chamada só depois de a porta aceitar — o link (protocolo e token), o código pessoal ou a
 chave pública.</p>
 
@@ -56,8 +59,8 @@ chave pública.</p>
 </ul>
 
 <p>No painel, a mesma leitura de arquivos é outro método —
-<code>ReportAttachments.ListConfirmedAsync</code> —, com o filtro ligado: é ele que faz a conta de um
-painel nunca assinar a leitura de um arquivo de outra.</p>
+<code>ReportAttachments.ListConfirmedAsync</code> —, com o filtro ligado: é ele que faz o painel
+nunca assinar a leitura de um arquivo de projeto em que a pessoa não está.</p>
 
 <div class="note why">
   <strong>Três são consultadas sobre um valor que ninguém de fora escolheu</strong>
@@ -86,7 +89,7 @@ painel nunca assinar a leitura de um arquivo de outra.</p>
   <code>ReportInfoRequests.ListOverdueWithoutSessionAsync</code> são chamadas pelo consumidor da
   fila. Ali não há sessão a perder, porque <strong>nunca houve requisição</strong>: o que acordou
   o código foi um prazo vencendo.</p>
-  <p>A diferença importa na hora de julgar o risco. As outras trinta e uma são atravessadas por
+  <p>A diferença importa na hora de julgar o risco. Trinta e uma das outras são atravessadas por
   quem apresenta uma credencial — a chave pública, o protocolo e o token, ou o código pessoal —,
   e o que protege a resposta é a credencial, não o filtro. Estas três não devolvem nada a ninguém: o resultado vai
   para dentro da própria aplicação, que grava e não responde. <strong>Não há resposta HTTP em que
@@ -113,8 +116,8 @@ relato cairia no estado padrão e não apareceria em jornada nenhuma, como se o 
 tivesse configurado nada. Sem erro em lugar nenhum.</p>
 
 <p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
-momento a conta ainda não é conhecida, e é justamente a chave pública que vai revelá-la. Com o
-filtro ligado, a consulta nunca acharia nada — sem sessão, <code>CurrentAccountId</code> é zero.</p>
+momento o projeto ainda não é conhecido, e é justamente a chave pública que vai revelá-lo. Com o
+filtro ligado, a consulta nunca acharia nada — sem sessão, a lista de projetos é vazia.</p>
 
 <pre><code>Context.ProjectKeys
     .IgnoreQueryFilters()
@@ -127,7 +130,7 @@ filtro ligado, a consulta nunca acharia nada — sem sessão, <code>CurrentAccou
         key.Project.DeletedAt == null);</code></pre>
 
 <div class="note warn">
-  <strong><code>IgnoreQueryFilters</code> desliga os dois filtros, não só o da conta</strong>
+  <strong><code>IgnoreQueryFilters</code> desliga os dois filtros, não só o do acesso</strong>
   <p>Junto com o isolamento cai também a exclusão lógica. Por isso as duas condições que o
   filtro garantia estão reescritas à mão logo ali — <code>DeletedAt == null</code> na chave e
   no projeto. Retirar qualquer uma faz chave revogada ou projeto apagado voltarem a aceitar
@@ -184,9 +187,65 @@ a resposta não é o filtro — é o token, conferido em tempo constante no serv
 <div class="note why">
   <strong>Atravessar o filtro para ler não é atravessar para gravar</strong>
   <p>O filtro global vale para <strong>leitura</strong>. Gravar um relato sem sessão funciona
-  normalmente: o <code>account_id</code> da linha nova vem do projeto que a chave resolveu, e
-  não da sessão que não existe.</p>
-  <p>O efeito é que o relato entra sem sessão e, a partir daí, só a conta dona o enxerga. Foi
-  medido: com a conta dona, a consulta devolve o relato; sem sessão ou com outra conta,
-  devolve zero.</p>
+  normalmente: o <code>project_id</code> e o <code>account_id</code> da linha nova vêm do projeto
+  que a chave resolveu, e não da sessão que não existe.</p>
+  <p>O efeito é que o relato entra sem sessão e, a partir daí, só quem está no projeto o
+  enxerga. Foi conferido de dois jeitos: pela resposta — a dona, a administradora e o membro do
+  projeto veem o relato; sem sessão, ou de fora do projeto, nada volta — e pelo SQL que a API
+  gera, em que toda leitura do painel sobre tabela de dado sai com o parâmetro do acesso
+  (<code>project_id = ANY (...)</code>).</p>
+  <p>O efeito é que o relato entra sem sessão e, a partir daí, só quem enxerga o projeto o vê: o
+  dono da conta e quem estiver no time daquele projeto.</p>
 </div>
+
+<h3>As três do painel</h3>
+
+<p>Três atravessam o filtro <strong>com sessão</strong>, e não por falta dela: há duas perguntas
+que a lista de projetos da requisição não sabe responder — qual é a própria lista, e se um nome
+já existe na conta inteira.</p>
+
+<p><strong>As duas que montam o acesso</strong> moram no <code>AccountMiddleware</code>, e não em
+repositório. O filtro depende justamente da lista que elas montam: enquanto ela está vazia, ele
+não devolveria nada. A primeira traz os projetos da conta própria, em que a pessoa é dona; a
+segunda, as linhas dela em <code>project_members</code>, fora da conta própria — se a dona também
+tiver linha no time de um projeto dela, vale o acesso de dona.</p>
+
+<pre><code>dataContext.Projects
+    .TagWith(AccessQueryTag)
+    .IgnoreQueryFilters()
+    .Where(project =&gt;
+        project.DeletedAt == null &amp;&amp;
+        project.AccountId == accountId)
+
+dataContext.ProjectMembers
+    .TagWith(AccessQueryTag)
+    .IgnoreQueryFilters()
+    .Where(member =&gt;
+        member.DeletedAt == null &amp;&amp;
+        member.UserId == userId &amp;&amp;
+        member.Project.DeletedAt == null &amp;&amp;
+        member.Project.Account.DeletedAt == null &amp;&amp;
+        member.Project.AccountId != accountId)</code></pre>
+
+<p>As duas reescrevem à mão a exclusão lógica — a segunda, da linha, do projeto e da conta dona:
+conta apagada leva os projetos junto, e conferir ali não depende de a exclusão ter
+cascateado.</p>
+
+<p><strong>A terceira é a conferência de nome repetido</strong>, em
+<code>Projects.NameExistsAsync</code>. O nome é único na conta inteira, e quem está no time de um
+projeto de outra conta não enxerga os projetos vizinhos: com o filtro ligado, o nome repetido
+passaria pela conferência e só pararia no índice único do banco, como erro não previsto — e só
+quando a grafia fosse idêntica. Por isso a conta vem explícita — a própria, ao criar; a do
+projeto, ao renomear — e a consulta reescreve à mão a exclusão lógica.</p>
+
+<div class="note warn">
+  <strong>A conferência de nome responde por projetos que a pessoa não enxerga</strong>
+  <p>É uma troca aceita: quem administra um projeto de outra conta, ao renomear, descobre pelo
+  409 que a conta já tem um projeto com aquele nome, mesmo sem estar nele. É só o nome, e só para
+  quem já administra um projeto daquela conta — renomear é de administrador.</p>
+</div>
+
+<p>As três levam uma marca no SQL, pelo <code>TagWith</code>:
+<code>-- montagem do acesso da requisicao</code> nas duas do middleware, e
+<code>-- conferencia de nome repetido na conta</code> na terceira. No log, é o que as separa das
+leituras de painel que nunca deveriam desligar o filtro.</p>

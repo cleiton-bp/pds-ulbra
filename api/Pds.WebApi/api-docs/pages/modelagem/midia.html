@@ -46,7 +46,7 @@
 
 <div class="note why">
   <strong>Por que o total por envio saiu, e a coluna ficou</strong>
-  <p>Com imagem e arquivo lado a lado, o total obrigava o dono a acertar três números entre si —
+  <p>Com imagem e arquivo lado a lado, o total obrigava o administrador a acertar três números entre si —
   três imagens e dois arquivos, mas no máximo quatro no envio —, e cada limite deixava de dizer uma
   coisa só. Agora cada categoria tem a sua quantidade e o seu tamanho, e a soma é a soma deles.</p>
   <p>A coluna fica anulável, com o que cada projeto tinha escolhido. Ninguém a lê nem a escreve;
@@ -73,7 +73,7 @@
   toda linha carregando campos de tipos que aquele projeto nunca ligou. Em linhas, um tipo novo —
   áudio, por exemplo, que é <b>Continuidade</b> — é um <code>INSERT</code>, e cada tipo leva só os
   limites que fazem sentido para ele.</p>
-  <p>O preço é o caminho até a conta: dois saltos, pela configuração e pelo projeto. Vale a pena,
+  <p>O preço é o caminho até o projeto: dois saltos, pela configuração. Vale a pena,
   porque o limite pendurado direto no projeto existiria sem a configuração que lhe dá
   sentido.</p>
 </div>
@@ -112,7 +112,7 @@
 
 <table>
   <tr><th>Coluna</th><th>Tipo</th><th>Observação</th></tr>
-  <tr><td><code>report_id</code></td><td>bigint</td><td>Relato a que o anexo pertence. <b>Obrigatório mesmo quando o anexo veio numa resposta</b>, para achar o relato ser sempre um salto só — e para o isolamento por conta não depender de uma coluna que pode ser nula.</td></tr>
+  <tr><td><code>report_id</code></td><td>bigint</td><td>Relato a que o anexo pertence. <b>Obrigatório mesmo quando o anexo veio numa resposta</b>, para achar o relato ser sempre um salto só — e para o isolamento por projeto não depender de uma coluna que pode ser nula.</td></tr>
   <tr><td><code>public_comment_id</code></td><td>bigint, anulável</td><td>Preenchida quando o anexo veio numa resposta ao pedido de informação.</td></tr>
   <tr><td><code>reopened_closure_id</code></td><td>bigint, anulável</td><td>Preenchida quando o anexo veio numa reabertura: o fechamento que quem relatou reabriu.</td></tr>
   <tr><td><code>kind</code></td><td>varchar(20)</td><td><code>image</code> | <code>file</code> | <code>video</code> — este, só dos anexos antigos. A mesma lista de <code>project_media_kinds</code>, porque é ela que diz qual limite se aplica.</td></tr>
@@ -204,7 +204,7 @@ enquanto pendente, e passa a apontar para <code>media/</code> na confirmação.<
   <code>public_comment_id</code> e <code>reopened_closure_id</code> usam <code>SET NULL</code> — o
   comentário ou o fechamento some, e o anexo fica preso ao relato. Cascata ali apagaria a prova
   junto com a conversa que a pedia.</p>
-  <p>O filtro de isolamento chega à conta pelo relato, que é o dono, e não pelo comentário onde o
+  <p>O filtro de acesso chega ao projeto pelo relato, que é o dono, e não pelo comentário onde o
   anexo talvez tenha vindo. Ver <a href="#/isolamento/onde-o-filtro-mora">onde o filtro
   mora</a>.</p>
 </div>

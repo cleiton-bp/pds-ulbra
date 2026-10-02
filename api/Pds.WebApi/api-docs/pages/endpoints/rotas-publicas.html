@@ -111,9 +111,9 @@
 
 <div class="note why">
   <strong>Por que as rotas públicas ficam fora do padrão</strong>
-  <p>Quarenta e oito rotas exigem token e resolvem a conta pelo <code>uid</code> que vem dentro
-  dele. As quinze de <code>/public</code> não podem: quem chega ali é um visitante anônimo do site
-  de um cliente, e a conta ainda não é conhecida. A credencial é a <strong>chave pública</strong>,
+  <p>Quarenta e oito rotas exigem token e resolvem, pelo <code>uid</code> que vem dentro dele, quem
+  é a pessoa e os projetos que ela enxerga. As quinze de <code>/public</code> não podem: quem chega
+  ali é um visitante anônimo do site de um cliente, e o projeto ainda não é conhecido. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai —, ou, nas rotas de
   quem relatou, o protocolo junto do token do link ou do código pessoal.</p>
   <p>Chave ausente, desconhecida, revogada ou secreta recebem a mesma recusa, com a mesma

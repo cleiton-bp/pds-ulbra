@@ -4,19 +4,33 @@
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/auth/google</code></td><td>Entra com o Google. Primeiro acesso cria conta e usuário.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/auth/google</code></td><td>Entra com o Google. Primeiro acesso cria a conta própria e o usuário.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/auth/logout</code></td><td>Encerra a sessão.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/me</code></td><td>Usuário e conta atuais.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Lista os projetos da conta.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto e o par de chaves.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto.</td></tr>
-  <tr><td><span class="verb patch">PATCH</span></td><td><code>/projects/{publicId}</code></td><td>Renomeia, arquiva.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td>Chaves. A secreta só como prefixo.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td>Regenera a secreta e devolve <strong>uma vez</strong>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/me</code></td><td>Usuário e a conta própria.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Os projetos que a pessoa enxerga, de todas as contas, cada um com a conta dona e o papel dela.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto e o par de chaves, sempre na conta própria.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto, com a conta dona e o papel.</td></tr>
+  <tr><td><span class="verb patch">PATCH</span></td><td><code>/projects/{publicId}</code></td><td><strong>Administrador.</strong> Renomeia, arquiva.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td><strong>Administrador.</strong> Chaves. A secreta só como prefixo.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td><strong>Administrador.</strong> Regenera a secreta e devolve <strong>uma vez</strong>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td>Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
-  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td>Retira a autorização. Exclusão lógica.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td><strong>Administrador.</strong> Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td><strong>Administrador.</strong> Retira a autorização. Exclusão lógica.</td></tr>
 </table>
+</div>
+
+<div class="note why">
+  <strong>Projeto novo nasce na conta própria, e a lista junta todas</strong>
+  <p><code>POST /projects</code> cria o projeto sempre na conta própria de quem chama, e quem cria
+  é dono dele. Estar no time de projetos de outra conta não deixa criar projeto lá — nenhuma rota
+  aceita conta por parâmetro.</p>
+  <p><code>GET /projects</code> devolve todo projeto que a pessoa enxerga, de todas as contas. Cada
+  um vem com <code>Account</code> — a conta dona, só <code>PublicId</code> e <code>Name</code> —,
+  <code>Role</code> (<code>Administrator</code> ou <code>Member</code>) e
+  <code>IsAccountOwner</code>; o dono vem sempre como <code>Administrator</code>, com
+  <code>IsAccountOwner</code> verdadeiro. É o que o painel usa para agrupar os projetos por conta e
+  para esconder a configuração de quem é só membro. Já o <code>Account</code> de <code>/me</code> é
+  a conta própria.</p>
 </div>
 
 <div class="note why">

@@ -5,24 +5,32 @@
 <pre><code>modelBuilder.Entity&lt;Project&gt;()
     .HasQueryFilter(project =&gt;
         project.DeletedAt == null &amp;&amp;
-        project.AccountId == CurrentAccountId);</code></pre>
+        CurrentProjectIds.Contains(project.Id));</code></pre>
 
-<p>O EF lê <code>CurrentAccountId</code> a cada consulta, então o filtro acompanha a
+<p>O EF lê <code>CurrentProjectIds</code> a cada consulta, então o filtro acompanha a
 requisição. Toda leitura de projeto já nasce restrita, venha de onde vier.</p>
 
-<h3>As chaves chegam pela navegação</h3>
+<p><code>CurrentProjectIds</code> são as chaves internas dos projetos que a pessoa da requisição
+enxerga — os da conta própria e os do time —, e a lista chega pronta do middleware. Por isso o filtro é
+comparação de coluna, sem junção com <code>project_members</code>, e a lista vai ao PostgreSQL
+como um parâmetro só, um vetor: a comparação vira <code>= ANY(...)</code>. Sem sessão, a lista é
+vazia, e vazia não enxerga nada — ver <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o
+acesso</a>.</p>
+
+<h3>As chaves comparam a própria coluna</h3>
 
 <pre><code>modelBuilder.Entity&lt;ProjectKey&gt;()
     .HasQueryFilter(key =&gt;
         key.DeletedAt == null &amp;&amp;
         key.Project.DeletedAt == null &amp;&amp;
-        key.Project.AccountId == CurrentAccountId);</code></pre>
+        CurrentProjectIds.Contains(key.ProjectId));</code></pre>
 
 <p>A tabela <code>project_keys</code> não repete <code>account_id</code>, porque a chave não
-existe fora de um projeto. O preço é o filtro passar pela navegação; o ganho é não ter a
-mesma informação em duas tabelas podendo divergir.</p>
+existe fora de um projeto — e o acesso, que é por projeto, compara o <code>project_id</code> da
+própria linha. Só a exclusão lógica do projeto passa pela navegação. O ganho é não ter a mesma
+informação em duas tabelas podendo divergir.</p>
 
-<p><code>project_origins</code>, <code>project_states</code>, <code>project_initial_states</code>,
+<p><code>project_members</code>, <code>project_origins</code>, <code>project_states</code>, <code>project_initial_states</code>,
 <code>project_public_stages</code>, <code>project_status_mappings</code>,
 <code>project_widget_settings</code>, <code>project_cycle_settings</code>,
 <code>project_identity_settings</code>, <code>project_media_settings</code> e
@@ -32,40 +40,45 @@ por isso cada uma tem um filtro próprio idêntico. Vale reparar no detalhe que 
 quem esquecer de repetir <code>DeletedAt == null</code> ali perde o apagado sem nenhum erro
 de compilação.</p>
 
-<p><code>project_media_kinds</code> chega à conta por <strong>dois saltos</strong>: o limite de
+<p><code>project_media_kinds</code> chega ao projeto por <strong>dois saltos</strong>: o limite de
 cada categoria pendura na configuração de mídia, e a configuração no projeto. É o preço de o limite
 não pendurar direto no projeto — e vale a pena, porque sem a configuração esses números não querem
-dizer nada. O filtro repete a exclusão lógica dos três degraus:</p>
+dizer nada. O acesso compara o <code>project_id</code> da configuração, e o filtro repete a
+exclusão lógica dos três degraus:</p>
 
 <pre><code>modelBuilder.Entity&lt;ProjectMediaKind&gt;()
     .HasQueryFilter(kind =&gt;
         kind.DeletedAt == null &amp;&amp;
         kind.ProjectMediaSettings.DeletedAt == null &amp;&amp;
         kind.ProjectMediaSettings.Project.DeletedAt == null &amp;&amp;
-        kind.ProjectMediaSettings.Project.AccountId == CurrentAccountId);</code></pre>
+        CurrentProjectIds.Contains(kind.ProjectMediaSettings.ProjectId));</code></pre>
 
 <h3>O relato compara coluna, e não navegação</h3>
 
 <pre><code>modelBuilder.Entity&lt;Report&gt;()
     .HasQueryFilter(report =&gt;
         report.DeletedAt == null &amp;&amp;
-        report.AccountId == CurrentAccountId);</code></pre>
+        CurrentProjectIds.Contains(report.ProjectId));</code></pre>
 
-<p><code>reports</code> é a exceção deliberada ao desenho acima: ela repete <code>account_id</code>
-em vez de alcançar a conta pelo projeto. É a tabela que mais cresce e a que o painel lista o
-tempo todo, então o isolamento vira comparação de coluna em vez de junção em toda consulta.</p>
+<p><code>reports</code> é a exceção ao desenho acima: não navega até o projeto para nada. É a
+tabela que mais cresce e a que o painel lista o tempo todo, então o acesso é comparação de
+coluna, sem junção em toda consulta. Ela também repete <code>account_id</code>, copiado do
+projeto, para saber de qual conta é o relato sem junção — mas não é mais por ele que o isolamento
+compara.</p>
 
-<p>O que pendura no relato volta ao padrão e chega à conta por ele: <code>report_contexts</code>,
+<p>O que pendura no relato volta ao padrão e chega ao projeto por ele: <code>report_contexts</code>,
 <code>report_internal_comments</code>, <code>report_public_comments</code>,
 <code>report_closures</code>, <code>report_info_requests</code> e
 <code>report_attachments</code>.</p>
 
 <p><strong>O anexo chega pelo relato, e não pelo lugar onde veio.</strong> Um arquivo pode ter
 vindo com uma resposta ou com uma reabertura, e a linha aponta para elas — mas quem é dono dele é
-o relato, e é pelo relato que o filtro passa. É também esse filtro que faz o painel de uma conta
-nunca assinar a leitura de um arquivo de outra: o relato de fora não volta, e nenhum link chega a
-ser gerado.</p>
+o relato, e é pelo relato que o filtro passa. É também esse filtro que faz o painel nunca
+assinar a leitura de um arquivo de projeto em que a pessoa não está: o relato de fora não volta,
+e nenhum link chega a ser gerado.</p>
 
-<p><code>events</code> também compara coluna, e só a conta: evento não se apaga, então não há
-exclusão lógica para repetir. <code>accounts</code> e <code>users</code> ficam de fora do filtro —
-ver <a href="#/isolamento/de-onde-vem-a-conta">De onde vem a conta</a>.</p>
+<p><code>events</code> também compara coluna, e só o projeto: evento não se apaga, então não há
+exclusão lógica para repetir. Todo evento gravado hoje nasce de um projeto; o que um dia ficar sem
+ele — o projeto some de verdade, e o evento fica — não aparece no painel. <code>accounts</code> e
+<code>users</code> ficam de fora do filtro — ver <a href="#/isolamento/de-onde-vem-a-conta">De
+onde vem o acesso</a>.</p>

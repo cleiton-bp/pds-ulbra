@@ -45,6 +45,9 @@
   <tr>
     <td><code>WebApi</code></td>
     <td>Controladores, middleware, configuração</td>
-    <td>Regra de negócio, consulta direta</td>
+    <td>Regra de negócio, consulta direta — com uma exceção de propósito: o
+    <code>AccountMiddleware</code> lê do banco quem é a pessoa e os projetos que ela enxerga,
+    antes de qualquer serviço existir na requisição. Ver
+    <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o acesso</a>.</td>
   </tr>
 </table>
