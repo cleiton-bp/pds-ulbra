@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -9,11 +10,13 @@ using Pds.WebApi.Authorization;
 namespace Pds.WebApi.Controllers;
 
 /// <summary>
-/// Projetos da conta da sessão.
+/// Os projetos que a pessoa da sessão enxerga: todos os da conta própria, como
+/// dona, e os de outras contas em que entrou pelo time, com o papel de cada um.
 ///
 /// Toda rota usa o identificador público na URL: o id interno não aparece em rota
-/// nem em resposta. Projeto de outra conta responde 404, e não 403 — dizer
-/// "existe, mas não é seu" já é contar que existe.
+/// nem em resposta. Projeto em que a pessoa não está responde 404, e não 403 —
+/// dizer "existe, mas não é seu" já é contar que existe. O 403 fica para quem
+/// está no projeto e não tem o papel.
 /// </summary>
 [Authorize]
 [RequireAccount]
@@ -38,6 +41,9 @@ public class ProjectsController : BaseController
     /// A partir da próxima requisição o banco só tem o hash dela, e nenhuma rota
     /// consegue revelá-la de novo.
     ///
+    /// O projeto nasce sempre na **conta própria** de quem cria, e quem cria é dono
+    /// dele. Estar no time de projetos de outra conta não deixa criar projeto lá.
+    ///
     /// O nome é único dentro da conta, sem diferenciar maiúscula.
     /// </remarks>
     /// <response code="200">Projeto criado, com a chave pública e a secreta.</response>
@@ -61,12 +67,16 @@ public class ProjectsController : BaseController
         }
     }
 
-    /// <summary>Lista os projetos da conta.</summary>
+    /// <summary>Lista os projetos que a pessoa enxerga.</summary>
     /// <remarks>
-    /// Do mais recente para o mais antigo, incluindo os arquivados. O campo
-    /// `Total` traz a contagem.
+    /// Todos os da conta própria e os de outras contas em que ela entrou pelo time,
+    /// do mais recente para o mais antigo, incluindo os arquivados. Cada um vem com
+    /// a conta dona (`Account`), o papel da pessoa nele (`Role`) e se ela é a dona
+    /// da conta (`IsAccountOwner`) — é o que o painel usa para agrupar e para
+    /// esconder a configuração de quem é só membro. O campo `Total` traz a
+    /// contagem.
     /// </remarks>
-    /// <response code="200">Projetos da conta.</response>
+    /// <response code="200">Projetos que a pessoa enxerga.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectViewModel>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
@@ -86,7 +96,8 @@ public class ProjectsController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Projeto encontrado.</response>
-    /// <response code="404">Não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Não existe, ou a pessoa não está nele.</response>
+    [RequireProjectRole(ProjectRoleEnum.Member)]
     [HttpGet("{publicId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<ProjectViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -114,12 +125,15 @@ public class ProjectsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Projeto atualizado.</response>
     /// <response code="400">Nome informado em branco.</response>
-    /// <response code="404">Não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Não existe, ou a pessoa não está nele.</response>
     /// <response code="409">Já existe projeto com este nome na conta.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPatch("{publicId:guid}")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProjectViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(Guid publicId, [FromBody] UpdateProjectDto dto, CancellationToken cancellationToken)

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -34,6 +35,7 @@ namespace Pds.WebApi.Controllers;
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/public-stages")]
 [Produces("application/json")]
 [Tags(SwaggerTags.ProjectPublicStages)]
@@ -58,7 +60,7 @@ public class ProjectPublicStagesController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Etapas do projeto.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectPublicStageViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -90,12 +92,15 @@ public class ProjectPublicStagesController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Etapa criada.</response>
     /// <response code="400">Texto em branco, comprido demais, ou o par terminal/desfecho incompleto.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">A jornada já está no máximo de etapas, ou o rótulo se repete.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProjectPublicStageViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create(Guid publicId, [FromBody] SaveProjectPublicStageDto dto, CancellationToken cancellationToken)
@@ -123,10 +128,13 @@ public class ProjectPublicStagesController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">A jornada padrão, na ordem.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">A jornada já tem etapas.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPost("factory")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectPublicStageViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ApplyFactory(Guid publicId, CancellationToken cancellationToken)
@@ -153,11 +161,14 @@ public class ProjectPublicStagesController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">A jornada na ordem nova.</response>
     /// <response code="400">A lista não traz todas as etapas, uma vez cada.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPut("order")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectPublicStageViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Reorder(Guid publicId, [FromBody] ReorderProjectPublicStagesDto dto, CancellationToken cancellationToken)
     {
@@ -186,12 +197,15 @@ public class ProjectPublicStagesController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Etapa salva.</response>
     /// <response code="400">Texto em branco, comprido demais, ou o par terminal/desfecho incompleto.</response>
-    /// <response code="404">Projeto ou etapa não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou etapa não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">Outra etapa da jornada já tem este rótulo.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPut("{stagePublicId:guid}")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProjectPublicStageViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(Guid publicId, Guid stagePublicId, [FromBody] SaveProjectPublicStageDto dto, CancellationToken cancellationToken)
@@ -221,10 +235,13 @@ public class ProjectPublicStagesController : BaseController
     /// <param name="stagePublicId">Identificador público da etapa.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Etapa removida.</response>
-    /// <response code="404">Projeto ou etapa não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou etapa não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">A jornada ficaria com menos que o mínimo de etapas.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpDelete("{stagePublicId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Remove(Guid publicId, Guid stagePublicId, CancellationToken cancellationToken)

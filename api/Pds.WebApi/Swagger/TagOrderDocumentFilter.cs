@@ -81,7 +81,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.Reports,
-                Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos da conta que está logada.",
+                Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos dos projetos em que a pessoa está.",
             },
             new OpenApiTag
             {

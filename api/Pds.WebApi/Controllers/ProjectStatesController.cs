@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -29,6 +30,7 @@ namespace Pds.WebApi.Controllers;
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/states")]
 [Produces("application/json")]
 [Tags(SwaggerTags.ProjectStates)]
@@ -53,7 +55,7 @@ public class ProjectStatesController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Estados do projeto.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectStateViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -83,7 +85,7 @@ public class ProjectStatesController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">O destino de cada tipo.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet("initial")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectInitialStateViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -117,12 +119,15 @@ public class ProjectStatesController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Destino salvo.</response>
     /// <response code="400">Tipo de relato ausente ou desconhecido.</response>
-    /// <response code="404">Projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">O estado escolhido está aposentado.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPut("initial")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProjectInitialStateViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SetInitial(Guid publicId, [FromBody] SetInitialStateDto dto, CancellationToken cancellationToken)
@@ -153,12 +158,15 @@ public class ProjectStatesController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Estado criado.</response>
     /// <response code="400">Nome em branco ou comprido demais.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">Já existe um estado com este nome no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProjectStateViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create(Guid publicId, [FromBody] CreateProjectStateDto dto, CancellationToken cancellationToken)
@@ -193,11 +201,14 @@ public class ProjectStatesController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Fila reordenada, na ordem nova.</response>
     /// <response code="400">A lista não corresponde aos estados do projeto.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPut("order")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectStateViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Reorder(Guid publicId, [FromBody] ReorderProjectStatesDto dto, CancellationToken cancellationToken)
     {
@@ -225,12 +236,15 @@ public class ProjectStatesController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Estado renomeado.</response>
     /// <response code="400">Nome em branco ou comprido demais.</response>
-    /// <response code="404">Projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">Já existe um estado com este nome no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPut("{statePublicId:guid}")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProjectStateViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Rename(Guid publicId, Guid statePublicId, [FromBody] RenameProjectStateDto dto, CancellationToken cancellationToken)
@@ -263,10 +277,13 @@ public class ProjectStatesController : BaseController
     /// <param name="statePublicId">Identificador público do estado.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Estado aposentado.</response>
-    /// <response code="404">Projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">O estado é a entrada de algum tipo de relato.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPost("{statePublicId:guid}/deactivate")]
     [ProducesResponseType(typeof(ApiResponse<ProjectStateViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Deactivate(Guid publicId, Guid statePublicId, CancellationToken cancellationToken)
@@ -292,9 +309,12 @@ public class ProjectStatesController : BaseController
     /// <param name="statePublicId">Identificador público do estado.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Estado de volta à fila.</response>
-    /// <response code="404">Projeto ou estado não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPost("{statePublicId:guid}/activate")]
     [ProducesResponseType(typeof(ApiResponse<ProjectStateViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Activate(Guid publicId, Guid statePublicId, CancellationToken cancellationToken)
     {

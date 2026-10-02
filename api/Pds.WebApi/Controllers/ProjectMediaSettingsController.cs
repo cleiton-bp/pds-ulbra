@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -36,6 +37,7 @@ namespace Pds.WebApi.Controllers;
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/media-settings")]
 [Produces("application/json")]
 [Tags(SwaggerTags.MediaSettings)]
@@ -73,7 +75,7 @@ public class ProjectMediaSettingsController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">A configuração, salva ou padrão.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<MediaSettingsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -132,12 +134,15 @@ public class ProjectMediaSettingsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Configuração salva.</response>
     /// <response code="400">Campo ausente, limite fora do teto, tipo repetido ou desconhecido, vídeo, ou anexo ligado sem imagem aceita.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">Não há armazenamento configurado nesta instalação, e sem ele nada desta configuração se salva.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPut]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<MediaSettingsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Replace(Guid publicId, [FromBody] MediaSettingsDto dto, CancellationToken cancellationToken)

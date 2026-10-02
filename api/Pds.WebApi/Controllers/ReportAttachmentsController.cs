@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -10,8 +11,9 @@ namespace Pds.WebApi.Controllers;
 /// <summary>
 /// Os arquivos que vieram com um relato, para o time.
 ///
-/// **Autoriza antes de assinar, sempre.** O relato é procurado dentro da conta do
-/// painel; de outra conta, nada volta e nenhuma assinatura chega a ser gerada. Uma
+/// **Autoriza antes de assinar, sempre.** O relato é procurado entre os projetos
+/// que a pessoa enxerga; de outro projeto, nada volta e nenhuma assinatura chega a
+/// ser gerada. Uma
 /// assinatura é uma autorização em forma de texto — gerar antes de conferir seria
 /// entregar a chave e perguntar depois.
 ///
@@ -29,6 +31,7 @@ namespace Pds.WebApi.Controllers;
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/reports/{reportPublicId:guid}/attachments")]
 [Produces("application/json")]
 [Tags(SwaggerTags.Reports)]
@@ -53,7 +56,7 @@ public class ReportAttachmentsController : BaseController
     /// <param name="reportPublicId">Identificador público do relato.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Os anexos confirmados, na ordem em que quem relatou montou cada envio.</response>
-    /// <response code="404">Projeto ou relato não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto ou relato não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">Não há armazenamento configurado nesta instalação.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<List<PanelAttachmentViewModel>>), StatusCodes.Status200OK)]

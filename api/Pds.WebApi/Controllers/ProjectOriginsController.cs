@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pds.Domain.Dtos;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Shared.Models;
@@ -30,6 +31,7 @@ namespace Pds.WebApi.Controllers;
 /// </summary>
 [Authorize]
 [RequireAccount]
+[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/origins")]
 [Produces("application/json")]
 [Tags(SwaggerTags.ProjectOrigins)]
@@ -55,7 +57,7 @@ public class ProjectOriginsController : BaseController
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Endereços autorizados.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectOriginViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -87,12 +89,15 @@ public class ProjectOriginsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Endereço autorizado.</response>
     /// <response code="400">Domínio em branco ou fora do formato.</response>
-    /// <response code="404">Projeto não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
     /// <response code="409">Endereço já autorizado, ou limite do projeto atingido.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProjectOriginViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create(Guid publicId, [FromBody] CreateProjectOriginDto dto, CancellationToken cancellationToken)
@@ -117,9 +122,12 @@ public class ProjectOriginsController : BaseController
     /// <param name="originPublicId">Identificador público do endereço.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Autorização retirada.</response>
-    /// <response code="404">Projeto ou endereço não existe, ou pertence a outra conta.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
+    /// <response code="404">Projeto ou endereço não existe, ou a pessoa não está no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpDelete("{originPublicId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid publicId, Guid originPublicId, CancellationToken cancellationToken)
     {
