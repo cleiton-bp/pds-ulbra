@@ -1,7 +1,7 @@
 meta:
   title: Continuidade
   system: PDS
-  description: "Continuidade. O que o produto pode vir a ter depois do que está planejado, fora do escopo atual. Está mapeado para não se perder, e com menos decisão tomada: cada caso de uso diz o que já se sabe, e o resto está a decidir."
+  description: "Continuidade. O que o produto pode vir a ter depois do que está planejado, fora do escopo atual. Está mapeado para não se perder, e com menos decisão tomada: cada caso de uso diz o que já se sabe, e o resto está a decidir. O quadro arrastável, as sprints, os relatórios e os duplicados entraram no plano, e por isso aparecem marcados Planejado."
 actors:
   - name: Dono do projeto
     description: Decide para onde os relatos vão, onde a mídia fica e qual plano o projeto usa.
@@ -34,21 +34,21 @@ useCases:
       - Os relatos novos passam a virar cards lá.
   - id: UC02
     name: Trabalhar num quadro arrastável
-    description: Continuidade. Os estados como colunas, e o card arrastado de uma para a outra.
+    description: Planejado. Os estados como colunas, e o card arrastado de uma para a outra.
     position: { x: 290, y: 206 }
     mainFlow:
       - O membro abre o quadro do projeto.
       - Arrasta o card para outro estado.
   - id: UC03
     name: Organizar em sprints
-    description: Continuidade. A ferramenta dá o mecanismo; montar a sprint e organizar os cards é decisão do time.
+    description: Planejado. A ferramenta dá o mecanismo; montar a sprint e organizar os cards é decisão do time.
     position: { x: 300, y: 305 }
     mainFlow:
       - O membro cria uma sprint.
       - Escolhe os cards que entram nela.
   - id: UC04
     name: Ver relatórios do trabalho
-    description: Continuidade. Relatórios e gráficos do trabalho do time sobre os relatos.
+    description: Planejado. Relatórios e gráficos do trabalho do time sobre os relatos.
     position: { x: 299, y: 399 }
     mainFlow:
       - O membro abre Relatórios.
@@ -77,7 +77,7 @@ useCases:
       - Os arquivos novos passam a ir direto para lá.
   - id: UC08
     name: Agrupar relatos duplicados
-    description: "Continuidade. Duplicado não encerra: agrupa, e quem relatou acompanha o original."
+    description: "Planejado. Duplicado não encerra: agrupa, e quem relatou acompanha o original."
     position: { x: 289, y: 86 }
     mainFlow:
       - O membro marca o relato como duplicado de outro.

@@ -33,8 +33,8 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | `08-customization.yaml` | **Planejado.** Tipos de relato e o que cada um pergunta, textos com variáveis, capturas automáticas e como a ferramenta abre no site |
 | `09-research.yaml` | **Planejado.** As métricas do projeto e a resposta à pergunta de pesquisa |
 | `10-communication.yaml` | **Planejado.** Os avisos por e-mail — etapa que mudou, pedido de informação, código perdido — e o contato que os torna possíveis |
-| `11-account.yaml` | **Planejado.** Convidar membros, excluir a conta com prazo de arrependimento, apagar os dados |
-| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, quadro arrastável, sprints, relatórios, áudio e voz, planos, armazenamento do cliente, duplicados, voto e estimativa |
+| `11-account.yaml` | **Planejado.** Convidar para o projeto, como administrador ou membro; excluir a conta com prazo de arrependimento; apagar os dados |
+| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto e estimativa — e, já marcados **Planejado**, o quadro arrastável, as sprints, os relatórios e os duplicados |
 | `example.yaml` | ponto de partida para conhecer o editor: os quatro tipos de ligação e a especificação completa de um caso de uso |
 
 ## Os atores
@@ -44,7 +44,8 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | **Relator** | quem encontrou o problema e relatou; não tem conta, volta pelo link | 01, 04, 06, 08, 10, 12 |
 | **Visitante do site** | qualquer pessoa na página do cliente; o relator é um tipo de visitante | 01, 07, 08, 12 |
 | **Membro do time** | trabalha os relatos pelo painel, com a conta Google | 01, 05, 07, 11, 12 |
-| **Dono do projeto** | põe o projeto no ar e decide como ele se comporta; é um tipo de membro do time | 01, 02, 03, 08 a 12 |
+| **Dono do projeto** | põe o projeto no ar e decide como ele se comporta; é administrador de todos os projetos da conta | 01, 02, 03, 08 a 12 |
+| **Administrador do projeto** | configura um projeto e decide quem entra nele; pode haver mais de um | 11 |
 | **Pesquisador** | quem estuda o efeito da ferramenta; lê os dados de todos os projetos, sem identificação | 01, 09 |
 | **Google** «sistema» | confirma quem entra no painel | 02, 11 |
 | **Armazenamento de arquivos** «sistema» | guarda imagens e arquivos (e os vídeos antigos), privado, servidos só por link assinado | 04, 05, 06 |
@@ -54,7 +55,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | **Ferramenta do time** «sistema» | Jira, Trello ou outra, para quem não quer sair dela | 12 |
 | **Armazenamento do cliente** «sistema» | o armazenamento de arquivos do próprio cliente | 12 |
 
-Hoje cada conta tem uma pessoa só, que é dono e time ao mesmo tempo. A separação existe porque o painel já separa **Configuração** de **Operação**, e porque convidar membros é o passo seguinte — planejado em `11-account`.
+O papel no projeto já existe: o administrador configura e decide quem entra, o membro trabalha nos relatos e não vê a **Configuração**, e o dono da conta é administrador de todos os projetos dela. A mesma pessoa pode estar em projetos de várias contas. O convite — a porta para alguém entrar num projeto — está planejado em `11-account`; até ele chegar, cada projeto tem só o dono, e por isso os outros diagramas ainda chamam de **Dono do projeto** quem configura.
 
 ## O que não vira caso de uso
 
