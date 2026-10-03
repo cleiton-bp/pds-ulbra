@@ -65,7 +65,7 @@ useCases:
     postconditions: Daqui em diante, mover o relato por dentro move a etapa por fora. O mapa antigo continua valendo para o que já aconteceu.
   - id: UC04
     name: Definir as regras do ciclo
-    description: "Como o relato termina: o gesto que encerra, a espera antes de quem relatou ver, a reabertura, a nota e o pedido de informação."
+    description: "Como o relato termina: o gesto que encerra, a espera antes de quem relatou ver, a reabertura, a nota, o pedido de informação e se o time arquiva relato. E duas regras do quadro: quantos dias a última coluna mostra, e quando o prazo fica em destaque."
     width: 250
     position: { x: 260, y: 375 }
     preconditions: O dono está no painel, dentro do projeto.
@@ -77,12 +77,14 @@ useCases:
       - Decide se existe nota ao confirmar, como ela aparece — estrelas ou número — e se é obrigatória.
       - Decide se o time pode pedir informação, e os dois prazos — o do aviso e o do encerramento.
       - Escolhe se a caixa “aceito responder dúvidas” já vem marcada na ferramenta.
+      - Decide se o time pode arquivar relato — arquivar um relato aberto encerra junto, com o motivo que quem relatou lê.
+      - Escolhe quantos dias a última coluna do quadro mostra — com uma coluna só, ela é a entrada da fila e mostra tudo; zero mostra todos, e o resto continua na lista — e com quantos dias de antecedência o prazo do card fica em destaque.
       - Salva.
     alternativeFlows:
       - title: 3a. Não há agendador disponível
         steps:
           - O sistema recusa a espera maior que zero e diz por quê.
-    postconditions: "Projeto que nunca abriu esta tela anda com os padrões de fábrica: encerra na última coluna, sem espera, reabre com comentário, nota em estrelas opcional, e pedido de informação com 7 + 7 dias."
+    postconditions: "Projeto que nunca abriu esta tela anda com os padrões de fábrica: encerra na última coluna, sem espera, reabre com comentário, nota em estrelas opcional, pedido de informação com 7 + 7 dias e relato sem arquivar; no quadro, a última coluna mostra 14 dias, e o prazo fica em destaque faltando 2."
   - id: UC05
     name: Escolher identidade e visibilidade
     description: "Como quem relata é reconhecido, e quem pode ler os relatos. As duas perguntas se amarram: sem identidade não existe “o meu relato”."

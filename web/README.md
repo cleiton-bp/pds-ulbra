@@ -77,7 +77,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/moderation ... console — o que vira público
 /projects/:publicId/members ...... console — o time, e os convites para quem administra
 /projects/:publicId/settings ..... console — nome, identificador, arquivar
-/projects/:publicId/reports ...... console — Trabalho: os relatos do site e os cards do time
+/projects/:publicId/reports ...... console — Trabalho: os relatos e os cards do time, em lista ou quadro
 /projects/:publicId/tool ......... console — como a ferramenta aparece no site
 /invite#t=... .................... o link do e-mail do convite — abrir e aceitar
 ```
@@ -349,6 +349,33 @@ de etiqueta e prioridade são a paleta de dado de `tokens.css`, com o par certo 
 temas e o nome sempre escrito junto. **Prioridades** e **Etiquetas**, na Configuração, são
 de quem administra.
 
+**O quadro.** A tela **Trabalho** tem duas vistas, a lista e o **quadro** — uma coluna por
+estado, cada uma com a própria leitura na ordem do quadro, cinquenta de cada vez, e "Mostrar
+mais" continuando depois do último card da tela (`after`), e não pela página seguinte —, e o
+navegador lembra a escolhida, por projeto. Cada vista lê só o que é dela: a lista não é lida com
+o quadro na tela, e é lida de novo ao voltar. A frente do card é um resumo
+(`BoardCardFace`): número, título, prioridade, até três etiquetas, o prazo — vermelho quando
+venceu, amarelo quando está perto, sempre com as palavras (`DueChip`) —, quantos comentários
+e anexos, e as iniciais de quem está com ele. O detalhe só abre no clique, no mesmo diálogo
+da lista. Arrastar usa `@dnd-kit`: o mouse pega depois de andar uns pixels, o toque depois
+de segurar um instante (deslizar continua rolando), e o teclado com espaço, setas, espaço ou Enter
+para soltar, e Esc, anunciando cada passo ao leitor de tela. O alvo é o que está debaixo do
+ponteiro (`boardCollision`): a coluna inteira recebe, o cabeçalho também, e soltar fora das colunas
+que recebem devolve o card. A ordem é do time inteiro e mora na API; o que
+chega — relato novo, card novo, movido pelo seletor, reaberto — entra no topo. Soltar um
+relato aberto na coluna que encerra pede o desfecho antes de mover. A última coluna mostra
+só o que entrou nela nos últimos dias — com mais de uma coluna ativa: com uma só, ela é a entrada da
+fila —, e diz quantos ficaram na lista. "Sem coluna" e a
+coluna aposentada aparecem só enquanto seguram card, e não recebem nenhum. O código fica em
+`features/reports/board/`.
+
+**O clique do soltar é barrado na janela.** A biblioteca engole, antes do React, o clique
+que o navegador dispara junto do soltar, mas não impede o link de ser seguido: segurar o
+card no celular e soltar sem andar recarregava a página inteira no endereço do card. A
+guarda, em `ReportsBoard`, fica na janela e vale do pegar até um instante depois de soltar
+— menos no teclado, que não clica ao soltar, e onde o Enter logo depois continua abrindo o
+card.
+
 **O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
 de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.
 Estado não se apaga — não há botão de remover em lugar nenhum —, porque relato antigo
@@ -367,9 +394,9 @@ Cada relato tem **endereço próprio**: `/projects/:id/reports/:reportId`. Ele �
 com o recorte e a rolagem onde estavam, e o botão voltar do navegador fecha o relato
 em vez da tela inteira.
 
-O time **move o relato de coluna**, pela tela do relato aberto. Cada mudança grava um
-evento imutável, e **o evento entra antes do cache**: a coluna guardada no relato é
-conveniência para a lista; a verdade é a sequência de eventos. Movido para fora do
+O time **move o relato de coluna**, pela tela do relato aberto ou arrastando o card no
+quadro. Cada mudança grava um evento imutável, e **o evento entra antes do cache**: a coluna
+guardada no relato é conveniência para a lista; a verdade é a sequência de eventos. Movido para fora do
 recorte ativo, o relato sai da lista na hora — deixá-lo ali mostraria, debaixo do nome
 de uma coluna, um relato que não está mais nela.
 
@@ -417,7 +444,9 @@ fica no quadro, onde o carregador conhece a chave pública antes de abrir.
 relatou responde, confirma que resolveu — com nota, quando o projeto pede — ou reabre,
 dizendo por quê. A tela **Ciclo** decide as regras: para onde vai o relato reaberto,
 se reabrir pede motivo, os prazos do pedido e quanto o lado público espera antes de
-mudar, que é a janela para desfazer um movimento errado.
+mudar, que é a janela para desfazer um movimento errado. E, para o quadro, quantos dias a
+última coluna mostra quando há mais de uma (de fábrica 14; zero mostra tudo) e com quanta
+antecedência o prazo fica amarelo.
 
 **Identidade e visibilidade.** A tela **Identidade** escolhe como quem relata é
 reconhecido — pelo protocolo, ou por um código pessoal que traz a lista "os meus
@@ -439,8 +468,8 @@ vídeos de antes de o vídeo sair do produto continuam tocando.
 | a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: o plano de cobrança (**Continuidade**); o quadro de cards
-arrastável, com sprint e relatório (**Planejado**); a lista pública com imagens e a página pública
+Fora do corte, de propósito: o plano de cobrança (**Continuidade**); o quadro de cards em
+tempo real, filtros rápidos e busca, sprints e relatórios (**Planejado**); a lista pública com imagens e a página pública
 de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora
 no servidor e pega o caso comum; barrar o quadro no navegador precisa de um servidor
 servindo `embed.html`, que é hospedagem que ainda não existe — **Planejado**.

@@ -1,6 +1,6 @@
 meta:
   title: O time
-  description: "Quem do time entra em cada projeto, e com que papel. A entrada é por projeto, e não pela conta: a mesma pessoa pode estar em projetos de várias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Quem entra chega por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. E o card do time entra na tabela do relato: todo card ganha um número curto no projeto, e se arquiva. E o card ganha o título de quem relatou, responsável, prioridade, etiquetas e prazo, com as prioridades e as etiquetas do projeto. Montado sobre o que já existe, que aparece sem alteração, menos: accounts, que deixa de ser a fronteira de isolamento; users e projects, cujo account_id muda de sentido — e projects ganha o contador do número do card; reports, que passa a guardar os dois tipos de card; e as regras do ciclo e da ferramenta, que ganham o arquivar relato e a pergunta do título."
+  description: "Quem do time entra em cada projeto, e com que papel. A entrada é por projeto, e não pela conta: a mesma pessoa pode estar em projetos de várias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Quem entra chega por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. E o card do time entra na tabela do relato: todo card ganha um número curto no projeto, e se arquiva. E o card ganha o título de quem relatou, responsável, prioridade, etiquetas e prazo, com as prioridades e as etiquetas do projeto. E o quadro: a ordem de cada coluna, que é do time inteiro, e quando o card entrou na coluna em que está. Montado sobre o que já existe, que aparece sem alteração, menos: accounts, que deixa de ser a fronteira de isolamento; users e projects, cujo account_id muda de sentido — e projects ganha o contador do número do card e o topo do quadro; reports, que passa a guardar os dois tipos de card; e as regras do ciclo e da ferramenta, que ganham o arquivar relato, a pergunta do título e as duas regras do quadro."
 entities:
   - name: base_columns
     label: Colunas padrão
@@ -145,6 +145,10 @@ entities:
         type: int
         required: true
         note: coluna nova — o último número de card dado no projeto; somado e lido num comando só, que serializa quem cria ao mesmo tempo, e por isso mora aqui em vez de ser o maior número de reports
+      - name: board_top_rank
+        type: long
+        required: true
+        note: coluna nova — o topo do quadro, o lugar do último card posto no topo de uma coluna — o que chega sem ser arrastado, ou o que foi solto no topo. Só desce, num comando só, no mesmo desenho do número (que sobe); o card que chega fica acima de tudo sem ninguém ler a coluna
       - name: deleted_at
         type: datetime
         note: nulo enquanto o projeto vale, preenchido no lugar de apagar
@@ -305,7 +309,7 @@ entities:
         note: nulo enquanto a configuração vale, preenchido no lugar de apagar
   - name: project_states
     label: Estados do projeto
-    description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como colunas de Trello — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
+    description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como as colunas de um quadro Kanban — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
     inherited: true
     position: { x: 560, y: 700 }
     fields:
@@ -381,7 +385,7 @@ entities:
         note: nulo enquanto a regra vale, preenchido no lugar de apagar
   - name: reports
     label: Relatos e cards
-    description: Já existia, e passa a guardar todo card do trabalho do time — o relato, que chegou de fora, e o card do time, que nasceu no painel (kind). Ganha o número curto do projeto, o título e a descrição do card do time, quem o criou e o arquivamento; protocolo, token, tipo e texto ficam nulos no card do time, e duas travas no banco separam os dois tipos. E ganha o título que quem relatou escreveu, o responsável, a prioridade e o prazo — tudo interno, menos o título dela, que volta só para ela.
+    description: Já existia, e passa a guardar todo card do trabalho do time — o relato, que chegou de fora, e o card do time, que nasceu no painel (kind). Ganha o número curto do projeto, o título e a descrição do card do time, quem o criou e o arquivamento; protocolo, token, tipo e texto ficam nulos no card do time, e duas travas no banco separam os dois tipos. E ganha o título que quem relatou escreveu, o responsável, a prioridade e o prazo — tudo interno, menos o título dela, que volta só para ela. E o lugar no quadro e quando entrou na coluna.
     inherited: true
     position: { x: 1237, y: 893 }
     fields:
@@ -428,6 +432,14 @@ entities:
       - name: due_date
         type: date
         note: coluna nova — o prazo, só a data, sem hora. Nulo é sem prazo
+      - name: board_rank
+        type: long
+        required: true
+        note: coluna nova — o lugar do card na coluna do quadro, o menor em cima. Só se compara dentro da mesma coluna, e tem folga entre vizinhos — pôr um card entre dois escolhe o meio, e só quando a folga acaba a coluna é renumerada. A ordem é do time inteiro, e arrumá-la não é evento
+      - name: state_changed_at
+        type: datetime
+        required: true
+        note: coluna nova — quando o card entrou na coluna em que está, ou voltou a ela (reaberto, ou tirado do arquivo pela resposta de quem relatou). É o que a última coluna do quadro usa para mostrar só o que entrou nela há pouco
       - name: account_id
         type: long
         fk: true
@@ -875,7 +887,7 @@ entities:
         note: nulo enquanto o encerramento vale, preenchido no lugar de apagar
   - name: project_cycle_settings
     label: Regras do ciclo
-    description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se da para reabrir e como, e o que a pessoa responde no fim. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada."
+    description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se dá para reabrir e como, e o que a pessoa responde no fim. E, no quadro, quantos dias a última coluna mostra e quando o prazo fica em destaque. Uma linha por projeto, criada só quando alguém salva — os padrões vivem no código, e projeto sem linha é projeto que nunca precisou mudar nada."
     inherited: true
     position: { x: 2220, y: 1980 }
     fields:
@@ -948,6 +960,14 @@ entities:
         type: bool
         required: true
         note: coluna nova — o time pode arquivar relato; desligado de fábrica. Ligado, arquivar um relato aberto encerra junto, com desfecho e motivo, e quem relatou pode reabrir ou finalizar
+      - name: last_column_visible_days
+        type: int
+        required: true
+        note: coluna nova — quantos dias a última coluna do quadro mostra, quando há mais de uma coluna ativa (com uma só, ela é a entrada da fila e mostra tudo); o card que entrou nela há mais tempo continua na lista. De fábrica 14, como nos quadros Kanban; zero mostra todos. Até 365
+      - name: due_soon_days
+        type: int
+        required: true
+        note: coluna nova — faltando até quantos dias o prazo do card fica em destaque, no quadro e na lista. De fábrica 2; zero destaca só no próprio dia. Até 30. O vencido tem destaque próprio, sempre
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
@@ -1932,7 +1952,7 @@ notes:
       Na tela vale a mesma separacao: a recusa fica fora da escala, nunca como sexta estrela ou zero, senao ela vira a nota mais baixa para quem le depressa.
     anchor: report_closures
     anchorField: satisfaction_declined
-    position: { x: 1838, y: 2513 }
+    position: { x: 1838, y: 2563 }
     width: 400
     inherited: true
   - text: |-

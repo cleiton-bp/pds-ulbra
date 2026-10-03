@@ -1,7 +1,7 @@
 meta:
   title: Continuidade
   system: PDS
-  description: "Continuidade. O que o produto pode vir a ter depois do que está planejado, fora do escopo atual. Está mapeado para não se perder, e com menos decisão tomada: cada caso de uso diz o que já se sabe, e o resto está a decidir. O quadro arrastável, as sprints, os relatórios e os duplicados entraram no plano, e por isso aparecem marcados Planejado."
+  description: "Continuidade. O que o produto pode vir a ter depois do que está planejado, fora do escopo atual. Está mapeado para não se perder, e com menos decisão tomada: cada caso de uso diz o que já se sabe, e o resto está a decidir. O quadro de cards em tempo real, as sprints, os relatórios e os duplicados aparecem marcados Planejado. O quadro arrastável já existe — ver 05-team-work."
 actors:
   - name: Dono do projeto
     description: Decide para onde os relatos vão, onde a mídia fica e qual plano o projeto usa.
@@ -33,12 +33,13 @@ useCases:
       - Escolhe se a mídia vai como link ou como arquivo.
       - Os relatos novos passam a virar cards lá.
   - id: UC02
-    name: Trabalhar num quadro arrastável
-    description: Planejado. Os estados como colunas, e o card arrastado de uma para a outra.
+    name: Ver o quadro em tempo real
+    description: Planejado. O quadro arrastável já existe; falta ele mudar sozinho quando outra pessoa do time mexe.
     position: { x: 290, y: 206 }
     mainFlow:
-      - O membro abre o quadro do projeto.
-      - Arrasta o card para outro estado.
+      - O membro deixa o quadro aberto.
+      - Outra pessoa do time move, cria ou arruma um card.
+      - O card aparece no lugar novo sem ninguém recarregar a tela.
   - id: UC03
     name: Organizar em sprints
     description: Planejado. A ferramenta dá o mecanismo; montar a sprint e organizar os cards é decisão do time.

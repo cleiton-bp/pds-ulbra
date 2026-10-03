@@ -75,21 +75,21 @@ administrador</strong> —, com quatro exceções:</p>
   ainda não estão no time. Quem está no time, ao contrário, todo membro vê — é a lista de com quem
   ele trabalha.</li>
   <li><strong>Tudo sob <code>/reports</code></strong> é de membro, inclusive o que grava — criar e
-  editar o card do time, mover, comentar, pedir informação, encerrar, arquivar, moderar e dar ao
-  card título, responsável, prioridade, etiquetas e prazo. É o trabalho do time, e não
-  configuração.</li>
+  editar o card do time, mover, arrumar a ordem do quadro, comentar, pedir informação, encerrar,
+  arquivar, moderar e dar ao card título, responsável, prioridade, etiquetas e prazo. É o trabalho
+  do time, e não configuração.</li>
   <li><strong>Criar etiqueta</strong> também é de membro, embora more em <code>/labels</code>: o
   time cria a etiqueta ao etiquetar um card. Mudar e apagar etiqueta, e tudo que grava em
   <code>/priorities</code>, é de administrador.</li>
 </ul>
 
-<p>Das setenta e uma rotas de projeto, trinta e seis valem para qualquer papel, e trinta e cinco
+<p>Das setenta e duas rotas de projeto, trinta e sete valem para qualquer papel, e trinta e cinco
 pedem administrador:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Papel</th><th>Rotas</th></tr>
-  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, os campos do card (título, responsável, prioridade, etiquetas e prazo), os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação.</td></tr>
+  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação.</td></tr>
   <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e regenerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar do time; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
 </table>
 </div>

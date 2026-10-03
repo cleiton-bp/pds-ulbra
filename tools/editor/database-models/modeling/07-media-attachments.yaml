@@ -293,7 +293,7 @@ entities:
         note: nulo enquanto a configuração vale, preenchido no lugar de apagar
   - name: project_states
     label: Estados do projeto
-    description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como colunas de Trello — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
+    description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como as colunas de um quadro Kanban — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
     inherited: true
     position: { x: 560, y: 700 }
     fields:

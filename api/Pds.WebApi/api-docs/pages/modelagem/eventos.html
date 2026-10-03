@@ -69,7 +69,9 @@
   época, como o estado: renomear a prioridade ou a etiqueta não reescreve o passado. Apagar a
   etiqueta grava um <code>card_labels_changed</code> em cada card que a tinha, em nome de quem apagou.
   <code>card_due_date_changed</code> leva as duas datas, sem hora.</p>
-  <p>Cada um só nasce quando o campo muda de verdade: pedir o que já é verdade não vira linha.</p>
+  <p>Cada um só nasce quando o campo muda de verdade: pedir o que já é verdade não vira linha. E
+  mudar o card de lugar dentro da coluna do quadro <strong>não é evento</strong>: arrumar não muda o
+  card, e uma linha por arrumação enterraria o que aconteceu de verdade.</p>
 </div>
 
 <div class="note warn">

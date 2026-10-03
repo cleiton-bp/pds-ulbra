@@ -72,5 +72,11 @@
   <tr><td>As etiquetas do projeto: criar (ou devolver a que existe), organizar, apagar</td><td><code>Pds.Service/Services/ProjectLabelService.cs</code></td></tr>
   <tr><td>A escrita de membro fora de <code>/reports</code>, declarada</td><td><code>Pds.WebApi/Authorization/MemberWriteAttribute.cs</code> e <code>ProjectRoleCoverage.cs</code></td></tr>
   <tr><td>O que cada mudança de campo conta na história</td><td><code>Pds.Service/Cards/CardChange.cs</code></td></tr>
+  <tr><td><strong>A ordem do quadro</strong>: o lugar ao soltar, o topo de quem chega, e arrumar sem evento</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>SaveInPlaceAsync</code>, <code>RankBelowAsync</code> e <code>SetPositionAsync</code></td></tr>
+  <tr><td>O topo do quadro, que só desce</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextTopRankAsync</code></td></tr>
+  <tr><td>A trava da ordem, a renumeração da coluna e os números da frente do card</td><td><code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>LockBoardAsync</code>, <code>RenumberColumnAsync</code> e <code>CountFacesAsync</code></td></tr>
+  <tr><td>A última coluna do quadro, que só mostra o recente — e não vale com uma coluna só</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>LastColumnWindowAsync</code></td></tr>
+  <tr><td>O "Mostrar mais" do quadro, depois do último card da tela</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveAfterAsync</code></td></tr>
+  <tr><td>O reaberto, e o desarquivado pela resposta de quem relatou, voltando ao topo</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>PutOnTopAsync</code></td></tr>
 </table>
 </div>

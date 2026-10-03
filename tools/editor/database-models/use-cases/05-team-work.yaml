@@ -1,7 +1,7 @@
 meta:
   title: O time trabalha o relato
   system: PDS — painel
-  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
 actors:
   - name: Membro do time
     description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
@@ -17,7 +17,7 @@ actors:
 useCases:
   - id: UC01
     name: Ver o trabalho
-    description: A tela de Trabalho, com os relatos e os cards do time, a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”.
+    description: A tela de Trabalho, com os relatos e os cards do time, em lista ou em quadro, a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”.
     width: 220
     position: { x: 260, y: 0 }
     preconditions: O membro está no painel, dentro do projeto.
@@ -30,6 +30,11 @@ useCases:
       - title: 2a. Nenhum relato ainda
         steps:
           - A tela diz que a fila está vazia e aponta a Instalação.
+      - title: 3a. O membro escolhe o quadro
+        steps:
+          - Cada estado vira uma coluna, com os cards na ordem que o time arrumou — ver UC18. A escolha fica lembrada no navegador.
+          - A frente do card é um resumo — título, prioridade, etiquetas, prazo, quantos comentários e anexos, e quem está com ele —, e o detalhe abre no clique.
+          - A última coluna — quando há mais de uma — mostra só o que entrou nela nos últimos dias, e diz quantos ficaram na lista. "Mostrar mais" traz os seguintes de cada coluna.
   - id: UC02
     name: Ler o relato
     description: "Tudo o que chegou: texto, tipo, onde aconteceu, quando, os arquivos e o histórico — e se quem relatou aceitou responder dúvidas."
@@ -77,9 +82,9 @@ useCases:
     description: Leva o relato de uma coluna a outra. Cada movimento vira um evento que não se apaga — é dele que saem o histórico, a linha do tempo pública e as métricas.
     width: 220
     position: { x: 260, y: 500 }
-    preconditions: O relato está aberto no painel.
+    preconditions: O relato está aberto no painel, ou à vista no quadro, e não está arquivado.
     mainFlow:
-      - O membro escolhe o estado de destino.
+      - O membro escolhe o estado de destino — no card aberto, ou soltando o card em outra coluna do quadro (UC18).
       - O sistema grava o evento — de onde, para onde, quem e quando — e só depois atualiza o estado atual do relato.
       - O sistema leva a mudança para a etapa pública (UC09).
     alternativeFlows:
@@ -94,7 +99,7 @@ useCases:
     description: Diz como terminou — foi feito, não será feito, sem retorno ou já existia — e por quê. O motivo é obrigatório, e é o que quem relatou lê.
     width: 220
     position: { x: 260, y: 660 }
-    preconditions: O relato está aberto no painel e não está encerrado.
+    preconditions: O relato está aberto no painel, ou é solto no quadro, e não está encerrado.
     mainFlow:
       - O membro escolhe encerrar — pelo botão, ou movendo para a última coluna, conforme o projeto.
       - Escolhe o desfecho.
@@ -283,7 +288,34 @@ useCases:
     mainFlow:
       - O membro escolhe a data do prazo, ou tira o prazo.
       - O sistema guarda e conta a mudança no histórico.
-    postconditions: A linha do card mostra o prazo.
+    postconditions: A linha do card e o quadro mostram o prazo com o destaque — vermelho quando venceu, amarelo quando está perto, sempre com as palavras.
+  - id: UC18
+    name: Arrumar o quadro
+    description: Muda o card de lugar no quadro, arrastando com o mouse, o toque ou o teclado — dentro da coluna, na ordem que o time inteiro vê, ou para outra coluna.
+    width: 220
+    position: { x: 600, y: 1320 }
+    preconditions: O membro está na tela de Trabalho, no quadro, e o card não está arquivado.
+    mainFlow:
+      - O membro pega um card — o mouse depois de andar um pouco, o toque depois de segurar um instante, o teclado com espaço.
+      - Solta o card entre dois outros, na mesma coluna.
+      - O sistema guarda o lugar novo, e todo o time passa a ver o card ali.
+    alternativeFlows:
+      - title: 2a. O membro solta o card em outra coluna
+        steps:
+          - O card muda de estado (UC05), já no lugar em que foi solto.
+      - title: 2b. É um relato aberto, solto na coluna que encerra
+        steps:
+          - O painel pede o desfecho e o motivo antes de mover — ver UC06. Desistir devolve o card ao lugar.
+      - title: 2c. O card é solto fora das colunas que recebem
+        steps:
+          - No cabeçalho da página, em "Sem coluna" ou na coluna aposentada ninguém solta card. O card volta ao lugar, e nada muda.
+      - title: 3a. O card de cima, ou o próprio card, já saiu da coluna
+        steps:
+          - Outra pessoa o moveu ou arquivou. O sistema recusa o lugar, porque ele já não existe; o painel avisa e lê a coluna de novo.
+      - title: 3b. Outra pessoa solta na mesma coluna ao mesmo tempo
+        steps:
+          - Um espera o outro, e cada card ganha um lugar só dele.
+    postconditions: "O que chega a uma coluna sem ser arrastado — o relato novo, o card novo, o movido pelo card aberto, o reaberto por quem relatou (mude de coluna ou não) e o que ela tira do arquivo ao responder — entra no topo."
 links:
   - from: Membro do time
     to: UC01
@@ -354,6 +386,13 @@ links:
   - from: Membro do time
     to: UC17
     kind: association
+  - from: Membro do time
+    to: UC18
+    kind: association
+  - from: UC05
+    to: UC18
+    kind: extend
+    note: quando o card é solto em outra coluna
 notes:
   - text: "Comentário interno e comentário público são campos separados, e não uma marcação: o interno não tem caminho nenhum até a página pública."
     anchor: UC03
@@ -367,3 +406,6 @@ notes:
   - text: Tudo o que o time dá ao card é interno. Quem relatou continua vendo o que escreveu — e só o próprio título.
     anchor: UC13
     position: { x: -180, y: 900 }
+  - text: Arrumar o quadro não conta no histórico. A ordem é do time inteiro, mas a história do card é o que mudou nele — e não o lugar dele na fila.
+    anchor: UC18
+    position: { x: 900, y: 1320 }
