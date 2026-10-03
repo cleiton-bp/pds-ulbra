@@ -65,5 +65,12 @@
   <tr><td>Reservar o próximo número do card</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextCardNumberAsync</code></td></tr>
   <tr><td>O lado de fora de um relato, e a falha alta se chegar um card do time</td><td><code>Pds.Domain/Entities/Report/Report.cs</code>, <code>ReporterFields</code></td></tr>
   <tr><td>O relato arquivado que volta quando quem relatou escreve</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>UnarchiveFromOutsideAsync</code></td></tr>
+  <tr><td><strong>Os campos do card</strong>: título do time, responsável, prioridade, etiquetas e prazo</td><td><code>Pds.Service/Services/ReportService.CardFields.cs</code></td></tr>
+  <tr><td>O título que a pessoa escreve, e a pergunta obrigatória</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateAsync</code></td></tr>
+  <tr><td>Arrumar título e nome (uma linha, sem espaço repetido)</td><td><code>Pds.Service/Cards/CardText.cs</code></td></tr>
+  <tr><td>As prioridades do projeto, e as quatro de fábrica</td><td><code>Pds.Service/Services/ProjectPriorityService.cs</code>, <code>Pds.Domain/Entities/ProjectPriority/PriorityDefaults.cs</code></td></tr>
+  <tr><td>As etiquetas do projeto: criar (ou devolver a que existe), organizar, apagar</td><td><code>Pds.Service/Services/ProjectLabelService.cs</code></td></tr>
+  <tr><td>A escrita de membro fora de <code>/reports</code>, declarada</td><td><code>Pds.WebApi/Authorization/MemberWriteAttribute.cs</code> e <code>ProjectRoleCoverage.cs</code></td></tr>
+  <tr><td>O que cada mudança de campo conta na história</td><td><code>Pds.Service/Cards/CardChange.cs</code></td></tr>
 </table>
 </div>

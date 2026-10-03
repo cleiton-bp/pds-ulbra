@@ -1,0 +1,50 @@
+<h2>A pessoa dá o título</h2>
+
+<p>A ferramenta pergunta, antes do texto: <strong>"Em poucas palavras, o que aconteceu?"</strong>. A
+resposta vai junto do relato:</p>
+
+<pre><code>POST /public/reports
+{ "Key": "pk_ABC123", "Type": "Bug",
+  "Title": "O botão de pagar não responde",
+  "Text": "Depois de escolher o cartão, o botão fica cinza e nada acontece.", ... }</code></pre>
+
+<p>A pergunta é <strong>opcional</strong> de fábrica. Na tela Ferramenta, o dono a torna obrigatória
+— e aí a API recusa o relato sem título (400) — ou a esconde, e o card mostra o começo do texto.
+O título que a pessoa escreveu fica em <code>reporter_title</code> e <strong>nunca muda</strong>.</p>
+
+<h2>O time reescreve, se quiser</h2>
+
+<pre><code>PUT /projects/2be49b28-.../reports/9f3e.../title
+{ "Title": "Pagamento recusado no celular" }</code></pre>
+
+<p>O card passa a mostrar o título do time, com o que a pessoa escreveu logo embaixo. Mandar vazio
+— ou o mesmo título dela — volta ao dela. <strong>Quem relatou continua vendo só o que
+escreveu</strong>, no acompanhamento e em "meus relatos": o título do time não sai do painel.</p>
+
+<h2>Quem, o quanto, o quê, até quando</h2>
+
+<pre><code>PUT .../reports/9f3e.../assignee   { "UserPublicId": "b1000000-..." }
+PUT .../reports/9f3e.../priority   { "PriorityPublicId": "7b2f..." }
+POST /projects/2be49b28-.../labels { "Name": "pagamento" }
+PUT .../reports/9f3e.../labels     { "LabelPublicIds": [ "c41a..." ] }
+PUT .../reports/9f3e.../due-date   { "DueDate": "2026-10-16" }</code></pre>
+
+<p>Cada <code>PUT</code> devolve o card inteiro — a criação da etiqueta devolve a etiqueta —, e a
+linha do card na tela de Trabalho passa a mostrar a
+prioridade, as etiquetas, quem está com ele e o prazo. O card nasce sem nada disso: <strong>sem
+responsável e sem prioridade</strong> até alguém do time escolher.</p>
+
+<div class="note why">
+  <strong>A etiqueta nasce no card</strong>
+  <p>No painel, escrever o nome de uma etiqueta que não existe oferece criá-la — qualquer pessoa do
+  time cria, e o nome que já existe devolve a que existe, mesmo com duas pessoas criando o mesmo
+  nome ao mesmo tempo. Enter põe a de nome igual, e nunca uma parecida. A tela Etiquetas, de quem
+  administra, é para organizar depois: renomear, trocar a cor, apagar a que sobrou.</p>
+</div>
+
+<div class="note warn">
+  <strong>Nada disto chega a quem relatou</strong>
+  <p>O acompanhamento, a consulta por código pessoal e a lista pública montam a resposta campo a
+  campo, e nenhum deles conhece responsável, prioridade, etiqueta, prazo ou o título do time. A lista
+  pública também não mostra o título que a pessoa escreveu: lá continua só o texto liberado.</p>
+</div>

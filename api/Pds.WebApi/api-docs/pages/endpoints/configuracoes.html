@@ -5,7 +5,7 @@
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>. Os dez campos vão sempre juntos.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>. Os onze campos vão sempre juntos — entre eles <code>ReportTitleMode</code> (<code>Optional</code>, <code>Required</code> ou <code>Hidden</code>), como a ferramenta pergunta o título.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Como o ciclo fecha neste projeto. Sem linha salva, devolve os padrões.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>. As catorze regras vão sempre juntas.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td>Como quem relata é identificado, e quem pode ver os relatos. Sem linha salva, devolve os padrões — nunca 404 para um projeto que existe.</td></tr>

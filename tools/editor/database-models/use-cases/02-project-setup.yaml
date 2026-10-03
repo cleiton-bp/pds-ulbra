@@ -92,6 +92,7 @@ useCases:
       - Escolhe o canto, a cor do botão e o tema.
       - Escreve o título do formulário, o texto da caixa vazia e a frase da confirmação.
       - Decide se quem relata escolhe o tipo — defeito, melhoria ou dúvida — ou se todo relato entra com um tipo só.
+      - Escolhe como a ferramenta pergunta o título — "em poucas palavras, o que aconteceu?" —, opcional, obrigatória ou escondida.
       - Confere na prévia e salva.
     postconditions: A próxima vez que a ferramenta abrir no site, ela já vem do jeito novo, sem trocar o script.
   - id: UC07

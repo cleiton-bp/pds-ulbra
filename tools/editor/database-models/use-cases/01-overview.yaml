@@ -51,7 +51,7 @@ useCases:
     position: { x: 250, y: 640 }
   - id: UC07
     name: Trabalhar o relato
-    description: Lê o que chegou, comenta — por dentro ou para quem relatou — e move entre os estados que o projeto criou. Detalhe em 05-team-work.
+    description: Lê o que chegou, comenta — por dentro ou para quem relatou —, move entre os estados que o projeto criou e organiza o card — título, responsável, prioridade, etiquetas e prazo. Detalhe em 05-team-work.
     width: 230
     position: { x: 620, y: 20 }
   - id: UC08
@@ -76,7 +76,7 @@ useCases:
     position: { x: 620, y: 520 }
   - id: UC12
     name: Definir as regras do projeto
-    description: Estados internos, etapas públicas e o mapa entre eles, o ciclo, a identidade e a mídia. Detalhe em 03-project-rules.
+    description: Estados internos, etapas públicas e o mapa entre eles, as prioridades e as etiquetas, o ciclo, a identidade e a mídia. Detalhe em 03-project-rules.
     width: 230
     position: { x: 620, y: 640 }
   - id: UC13

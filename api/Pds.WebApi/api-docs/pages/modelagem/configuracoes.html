@@ -13,6 +13,7 @@
   <tr><td><code>success_message</code></td><td>A frase acima do protocolo. 200.</td></tr>
   <tr><td><code>shows_type_field</code></td><td>Mostra ou esconde o seletor de tipo.</td></tr>
   <tr><td><code>default_report_type</code></td><td>Vem pré-marcado, e é o tipo gravado quando o seletor não aparece.</td></tr>
+  <tr><td><code>report_title_mode</code></td><td><code>optional</code> | <code>required</code> | <code>hidden</code>. Como a ferramenta pergunta "em poucas palavras, o que aconteceu?" — a resposta vira o título do card. Opcional de fábrica; obrigatória, a API recusa o relato sem ela.</td></tr>
 </table>
 
 <div class="note why">
@@ -30,7 +31,7 @@
   <strong>Por que coluna, se <code>report_contexts</code> é chave e valor</strong>
   <p>São perguntas diferentes. O que se captura junto de um relato ainda vai crescer, e cada
   captura nova como coluna seria uma migração na tabela que mais cresce. Aqui a lista é fechada
-  e acordada: dez campos, cada um com um tipo e um limite. Como coluna, cada um se explica no
+  e acordada: onze campos, cada um com um tipo e um limite. Como coluna, cada um se explica no
   próprio banco e o tipo errado não entra.</p>
 </div>
 
@@ -47,7 +48,7 @@
 <div class="note why">
   <strong>Nenhuma coluna tem valor padrão no banco</strong>
   <p>Os padrões moram uma vez, no código, e a tabela só recebe linha por uma gravação que
-  escreve os dez campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
+  escreve os onze campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
   decisão, e nada manteria as duas iguais.</p>
 </div>
 

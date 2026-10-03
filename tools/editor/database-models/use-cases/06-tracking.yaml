@@ -19,6 +19,7 @@ useCases:
     preconditions: Quem relatou tem o link do relato.
     mainFlow:
       - O relator abre o link que recebeu ao relatar.
+      - A página mostra o que ele escreveu, com o título que ele mesmo deu — nunca o título que o time deu ao card.
       - A página mostra a jornada — as etapas por onde já passou, a de agora e as que vêm depois, cada uma com a sua frase.
       - Mostra a conversa com o time e o que o próprio relator anexou, cada coisa no seu lugar — embaixo do relato, da resposta ou da reabertura que a trouxe. A imagem aparece no tamanho que ele escolheu; o arquivo só baixa, com um nome genérico; os vídeos antigos continuam tocando.
       - Se o relato foi encerrado, mostra como terminou e por quê.

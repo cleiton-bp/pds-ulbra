@@ -1,7 +1,7 @@
 meta:
   title: O time trabalha o relato
   system: PDS — painel
-  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
 actors:
   - name: Membro do time
     description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
@@ -212,6 +212,78 @@ useCases:
         steps:
           - O relato volta sozinho para a tela de Trabalho. No histórico, o desarquivar aparece sem nome de ninguém do time, junto da reabertura ou da resposta de quem relatou.
     postconditions: Quem relatou lê o motivo pelo link, e pode reabrir ou finalizar, com a nota.
+  - id: UC13
+    name: Dar título ao relato
+    description: O time reescreve o título que o relato traz, para reconhecer o card de cara. O que quem relatou escreveu fica guardado, e é o único título que volta para ela.
+    width: 220
+    position: { x: 260, y: 1000 }
+    preconditions: O relato está aberto no painel, e não está arquivado.
+    mainFlow:
+      - O membro escolhe reescrever o título.
+      - Escreve o título do time, numa linha.
+      - O sistema guarda o título do time ao lado do que quem relatou escreveu.
+      - O card passa a mostrar o título do time, com o de quem relatou logo embaixo.
+    alternativeFlows:
+      - title: 2a. O membro quer voltar ao título de quem relatou
+        steps:
+          - Escolhe voltar ao de quem relatou, e o card volta a mostrá-lo.
+    postconditions: Quem relatou continua vendo só o título que escreveu, no acompanhamento e na lista pessoal.
+  - id: UC14
+    name: Escolher o responsável
+    description: Diz quem do time está com o card — um só, para nunca ficar a dúvida.
+    width: 220
+    position: { x: 260, y: 1160 }
+    preconditions: O card está aberto no painel, e não está arquivado.
+    mainFlow:
+      - O membro escolhe alguém do time como responsável, ou ninguém.
+      - O sistema guarda e conta a mudança no histórico.
+    alternativeFlows:
+      - title: 1a. O responsável saiu do time
+        steps:
+          - O card continua com ele, como registro, marcado como fora do time — e só alguém do time pode ser escolhido no lugar.
+    postconditions: A linha do card na tela de Trabalho mostra quem está com ele.
+  - id: UC15
+    name: Priorizar o card
+    description: Diz o quanto o card importa, com as prioridades do projeto. O card nasce sem prioridade.
+    width: 220
+    position: { x: 600, y: 1000 }
+    preconditions: O card está aberto no painel, e não está arquivado.
+    mainFlow:
+      - O membro escolhe uma das prioridades do projeto, ou nenhuma.
+      - O sistema guarda e conta a mudança no histórico, com o nome da prioridade.
+    alternativeFlows:
+      - title: 1a. A prioridade do card foi aposentada
+        steps:
+          - Ela continua no card, marcada, e não é oferecida para outro.
+    postconditions: A linha do card mostra a prioridade, na cor dela e com o nome escrito.
+  - id: UC16
+    name: Etiquetar o card
+    description: Põe e tira etiquetas do projeto no card. A etiqueta que falta, o próprio membro cria.
+    width: 220
+    position: { x: 260, y: 1320 }
+    preconditions: O card está aberto no painel, e não está arquivado.
+    mainFlow:
+      - O membro escreve o nome de uma etiqueta.
+      - Escolhe uma das etiquetas do projeto que aparecem.
+      - O sistema põe a etiqueta no card e conta no histórico.
+    alternativeFlows:
+      - title: 2a. A etiqueta não existe
+        steps:
+          - O membro escolhe criá-la, e ela entra no card já criada, com uma cor da paleta.
+      - title: 2b. O membro tira uma etiqueta
+        steps:
+          - A etiqueta sai do card, e o histórico conta.
+    postconditions: O card leva até dez etiquetas, e a linha dele mostra as primeiras.
+  - id: UC17
+    name: Dar prazo ao card
+    description: Diz para quando o card precisa estar pronto — só a data.
+    width: 220
+    position: { x: 600, y: 1160 }
+    preconditions: O card está aberto no painel, e não está arquivado.
+    mainFlow:
+      - O membro escolhe a data do prazo, ou tira o prazo.
+      - O sistema guarda e conta a mudança no histórico.
+    postconditions: A linha do card mostra o prazo.
 links:
   - from: Membro do time
     to: UC01
@@ -267,6 +339,21 @@ links:
   - from: Armazenamento de arquivos
     to: UC10
     kind: association
+  - from: Membro do time
+    to: UC13
+    kind: association
+  - from: Membro do time
+    to: UC14
+    kind: association
+  - from: Membro do time
+    to: UC15
+    kind: association
+  - from: Membro do time
+    to: UC16
+    kind: association
+  - from: Membro do time
+    to: UC17
+    kind: association
 notes:
   - text: "Comentário interno e comentário público são campos separados, e não uma marcação: o interno não tem caminho nenhum até a página pública."
     anchor: UC03
@@ -277,3 +364,6 @@ notes:
   - text: Arquivar nunca deixa quem relatou sem retorno. O relato aberto só sai da tela com um motivo — e volta sozinho se a pessoa escrever de novo.
     anchor: UC12
     position: { x: 900, y: 860 }
+  - text: Tudo o que o time dá ao card é interno. Quem relatou continua vendo o que escreveu — e só o próprio título.
+    anchor: UC13
+    position: { x: -180, y: 900 }

@@ -66,7 +66,7 @@ e decide quem entra — pode haver mais de um. <strong>Membro</strong> trabalha 
 configuração, sem mudá-la. O dono da conta é administrador em todos os projetos dela.</p>
 
 <p>A regra cabe numa linha — <strong>ler é de membro, e mudar a configuração é de
-administrador</strong> —, com três exceções:</p>
+administrador</strong> —, com quatro exceções:</p>
 
 <ul>
   <li><strong>As chaves</strong> são só de administrador, inclusive para ler. São a credencial da
@@ -75,18 +75,22 @@ administrador</strong> —, com três exceções:</p>
   ainda não estão no time. Quem está no time, ao contrário, todo membro vê — é a lista de com quem
   ele trabalha.</li>
   <li><strong>Tudo sob <code>/reports</code></strong> é de membro, inclusive o que grava — criar e
-  editar o card do time, mover, comentar, pedir informação, encerrar, arquivar e moderar. É o
-  trabalho do time, e não configuração.</li>
+  editar o card do time, mover, comentar, pedir informação, encerrar, arquivar, moderar e dar ao
+  card título, responsável, prioridade, etiquetas e prazo. É o trabalho do time, e não
+  configuração.</li>
+  <li><strong>Criar etiqueta</strong> também é de membro, embora more em <code>/labels</code>: o
+  time cria a etiqueta ao etiquetar um card. Mudar e apagar etiqueta, e tudo que grava em
+  <code>/priorities</code>, é de administrador.</li>
 </ul>
 
-<p>Das cinquenta e seis rotas de projeto, vinte e oito valem para qualquer papel, e vinte e oito
+<p>Das setenta e uma rotas de projeto, trinta e seis valem para qualquer papel, e trinta e cinco
 pedem administrador:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Papel</th><th>Rotas</th></tr>
-  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação.</td></tr>
-  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e regenerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code> e <code>/public-stages</code>; mudar o papel de alguém e tirar do time; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
+  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, os campos do card (título, responsável, prioridade, etiquetas e prazo), os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação.</td></tr>
+  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e regenerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar do time; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
 </table>
 </div>
 
@@ -123,8 +127,11 @@ public class ProjectOriginsController : BaseController
   configuração herdaria o <code>Member</code> da classe sem ninguém notar.</p>
   <p>Esquecer não abriria o projeto para quem é de fora — o filtro global continua respondendo
   "não encontrado". O que o esquecimento abriria é a configuração para quem é só membro, e, se
-  depender de lembrar, um dia alguém esquece. Escrita de membro fora de <code>/reports</code>, se um
-  dia existir, muda a regra de propósito, e não por esquecimento.</p>
+  depender de lembrar, um dia alguém esquece.</p>
+  <p><strong>A escrita de membro fora de <code>/reports</code> é declarada, e não esquecida.</strong>
+  Criar etiqueta é a única: a ação leva <code>[MemberWrite]</code>, com o motivo escrito ao lado — e a
+  regra aceita só a ação que declara, ela mesma, que é trabalho do time. Tirar a marca faz a API
+  voltar a não subir.</p>
 </div>
 
 <h2>Por que 404, e não 403</h2>

@@ -375,7 +375,6 @@ entities:
       - name: project_state_id
         type: long
         fk: true
-        required: true
         note: coluna nova — onde o card está agora, e é cache, porque a verdade é a sequência de eventos e esta coluna existe só para a lista filtrar e contar sem reconstruir o histórico a cada consulta
       - name: tracking_code
         type: text

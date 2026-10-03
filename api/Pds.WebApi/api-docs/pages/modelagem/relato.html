@@ -53,10 +53,14 @@ relato porque ele veio primeiro.</p>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>kind</code></td><td><code>report</code> | <code>team</code>. De onde o card veio: de fora, pela ferramenta, ou do time, no painel.</td></tr>
   <tr><td><code>number</code></td><td>O número curto do card no projeto — o #42 que o time fala e escreve. <b>Interno</b>: nenhuma rota pública o devolve. Único por projeto, inclusive entre os apagados.</td></tr>
-  <tr><td><code>title</code></td><td>O título do card do time, uma linha, até 200. Nulo no relato.</td></tr>
+  <tr><td><code>title</code></td><td>O título do time, uma linha, até 200. Obrigatório no card do time; no relato, é o que o time reescreveu — <b>nulo até alguém reescrever</b>, e aí o painel mostra o de quem relatou. <b>Interno</b>: nenhuma rota pública o devolve.</td></tr>
+  <tr><td><code>reporter_title</code></td><td>O título que a pessoa escreveu na ferramenta, respondendo "em poucas palavras, o que aconteceu?". <b>Nunca muda</b>, e é o único título que volta para ela. Nulo quando ela não respondeu, e sempre no card do time.</td></tr>
   <tr><td><code>description</code></td><td>A descrição do card do time, em Markdown, até 10 000. <b>Sempre nula no relato</b>: o texto dele é de quem relatou, e o time não o reescreve.</td></tr>
   <tr><td><code>archived_at</code></td><td>Quando o card saiu da tela de Trabalho. Nulo enquanto está nela. Arquivado se lê e se comenta; mover e editar pedem desarquivar.</td></tr>
   <tr><td><code>created_by_user_id</code></td><td>Quem do time criou o card. Nulo no relato: quem escreveu não tem usuário aqui. <code>Restrict</code>.</td></tr>
+  <tr><td><code>assignee_user_id</code></td><td>Quem do time está com o card — um só. <b>Quem sai do time continua aqui</b>, como registro; o painel o marca como fora do time. <code>Restrict</code>. Interno.</td></tr>
+  <tr><td><code>priority_id</code></td><td>A prioridade do projeto que o time escolheu (<code>project_priorities</code>). <b>Nulo é sem prioridade</b>, e é como o card nasce. <code>Restrict</code>. Interno.</td></tr>
+  <tr><td><code>due_date</code></td><td>O prazo: <b>só a data</b>, sem hora — sem fuso para confundir. Nulo é sem prazo. Interno.</td></tr>
   <tr><td><code>project_state_id</code></td><td>Onde o relato está na fila. <b>Anulável</b>, e vai continuar: projeto sem estado nenhum não tem onde pô-lo, e recusar o relato por isso seria perder o que veio de fora por uma configuração que o cliente não fez.</td></tr>
   <tr><td><code>project_public_stage_id</code></td><td>Em que passo da jornada quem relatou vê este relato. Nulo enquanto ele não aparece em nenhum. <b>Cache</b>, como o anterior: a verdade é a sequência de eventos.</td></tr>
   <tr><td><code>account_id</code></td><td>Conta dona. Repetido de propósito — ver a nota abaixo.</td></tr>
@@ -82,8 +86,8 @@ relato porque ele veio primeiro.</p>
   <strong>O card do time nunca tem lado de fora — e quem garante é o banco</strong>
   <p>Duas travas (<code>CHECK</code>) separam os dois tipos de card. O relato continua obrigado a
   ter protocolo, token, tipo e texto, e nunca tem descrição. O card do time tem título e
-  <strong>não pode ter</strong> protocolo, token, código pessoal, etapa pública nem espera
-  agendada — e só fica em moderação <code>pending</code>.</p>
+  <strong>não pode ter</strong> protocolo, token, código pessoal, etapa pública, espera agendada
+  nem título de quem relatou — e só fica em moderação <code>pending</code>.</p>
   <p>É o que faz "nunca aparece na parte pública" deixar de depender de cada consulta lembrar: as
   portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado, e o card
   do time não tem nenhum dos três. Mesmo assim as consultas públicas e a fila de moderação levam

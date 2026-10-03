@@ -68,6 +68,8 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/start ........ console — Instalação, 3 passos
 /projects/:publicId/keys ......... console — chaves e integração
 /projects/:publicId/states ....... console — a fila de trabalho do time
+/projects/:publicId/priorities ... console — as prioridades do projeto
+/projects/:publicId/labels ....... console — organizar as etiquetas que o time criou
 /projects/:publicId/public-stages  console — a jornada que quem relatou acompanha
 /projects/:publicId/cycle ........ console — como o relato fecha e reabre
 /projects/:publicId/identity ..... console — quem relata e quem pode ver
@@ -202,8 +204,8 @@ passa pelo nosso. Nenhuma resposta sai para `'*'`.
 [`src/embed/hostBridge.test.ts`](src/embed/hostBridge.test.ts) exercita cada uma
 pelo caminho em que ela falha: remover qualquer guarda reprova três testes.
 
-**A configuração vive em `contracts/widgetSettings.ts`** — dez campos que decidem
-textos, cores, tema, posição e quais tipos aparecem. A tela **Ferramenta** os
+**A configuração vive em `contracts/widgetSettings.ts`** — onze campos que decidem
+textos, cores, tema, posição, quais tipos aparecem e como a pergunta do título é feita. A tela **Ferramenta** os
 edita, a API os guarda, e o quadro os lê pela chave pública antes de desenhar
 qualquer coisa. Projeto que nunca salvou nada recebe os padrões de
 `embed/settings.ts`, na mesma forma — e quem lê não distingue os dois casos.
@@ -334,6 +336,18 @@ para quem relatou nem encerramento: mover para a última coluna é só mover. **
 tira o card da tela — o do time sempre; o relato só com a regra do Ciclo, e o relato
 aberto encerra junto, com o motivo que quem relatou lê. O filtro **Arquivados** mostra
 o que saiu, para ler, comentar ou desarquivar.
+
+**O card diz quem, o quê, o quanto importa e para quando.** A ferramenta pergunta, antes
+do texto, "em poucas palavras, o que aconteceu?" — opcional, obrigatória ou escondida, na
+**Ferramenta** —, e a resposta vira o título do card. O time reescreve (`ReportTitle`), e o
+que a pessoa escreveu fica guardado: é o único título que volta para ela, no acompanhamento
+e em "meus relatos". No card aberto, `CardFields` dá o **responsável** (um só; quem sai do
+time continua marcado), a **prioridade** (as do projeto, de fábrica Baixa, Média, Alta e
+Urgente — o card nasce sem), as **etiquetas** (escrever o nome que não existe cria a
+etiqueta) e o **prazo** (só a data). A linha da lista mostra tudo isso numa faixa. As cores
+de etiqueta e prioridade são a paleta de dado de `tokens.css`, com o par certo nos dois
+temas e o nome sempre escrito junto. **Prioridades** e **Etiquetas**, na Configuração, são
+de quem administra.
 
 **O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
 de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.

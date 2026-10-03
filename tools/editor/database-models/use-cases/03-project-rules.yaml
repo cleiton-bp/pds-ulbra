@@ -135,6 +135,33 @@ useCases:
       - Escolhe por quanto tempo os arquivos ficam guardados.
       - Salva.
     postconditions: Quando o prazo de um arquivo vence, o agendador o apaga — ver 05-team-work.
+  - id: UC08
+    name: Organizar as prioridades
+    description: As prioridades que o time escolhe para o card, com os nomes e as cores do time. O projeto nasce com Baixa, Média, Alta e Urgente.
+    width: 250
+    position: { x: 260, y: 875 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Prioridades.
+      - Renomeia ou troca a cor de uma prioridade, ou cria outra.
+      - Põe as prioridades na ordem, da menos para a mais urgente.
+      - Aposenta a que não serve mais.
+    alternativeFlows:
+      - title: 4a. A prioridade aposentada está em cards
+        steps:
+          - Ela continua neles, marcada, e sai da lista de escolha.
+    postconditions: O time escolhe a prioridade do card entre as que estão ativas — e o card nasce sem nenhuma.
+  - id: UC09
+    name: Organizar as etiquetas
+    description: As etiquetas nascem no card, criadas pelo time. Aqui o dono arruma depois.
+    width: 250
+    position: { x: 260, y: 1000 }
+    preconditions: O dono está no painel, dentro do projeto, e o time já criou etiquetas.
+    mainFlow:
+      - O dono abre Etiquetas, e vê em quantos cards cada uma está.
+      - Renomeia ou troca a cor de uma etiqueta.
+      - Apaga a que sobrou, depois de ver de quantos cards ela sai.
+    postconditions: A etiqueta apagada sai de todos os cards, e o histórico de cada um continua com o nome dela.
 links:
   - from: Dono do projeto
     to: UC01
@@ -156,6 +183,12 @@ links:
     kind: association
   - from: Dono do projeto
     to: UC07
+    kind: association
+  - from: Dono do projeto
+    to: UC08
+    kind: association
+  - from: Dono do projeto
+    to: UC09
     kind: association
 notes:
   - text: "De cima para baixo é a ordem em que faz sentido configurar: sem estados e etapas não há o que ligar, e o ciclo usa os dois. Mas nada aqui é obrigatório."
