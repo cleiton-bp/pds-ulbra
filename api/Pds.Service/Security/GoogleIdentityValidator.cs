@@ -40,6 +40,8 @@ public class GoogleIdentityValidator : IGoogleIdentityValidator
         if (string.IsNullOrWhiteSpace(payload.Subject))
             throw new UnauthorizedAccessException("Token do Google sem identificador de usuario.");
 
-        return new GoogleIdentity(payload.Subject, payload.Email, payload.Name, payload.Picture);
+        // O "confirmado" vai junto: o convite so e aceito com e-mail que o Google
+        // garante ser da pessoa.
+        return new GoogleIdentity(payload.Subject, payload.Email, payload.Name, payload.Picture, payload.EmailVerified);
     }
 }

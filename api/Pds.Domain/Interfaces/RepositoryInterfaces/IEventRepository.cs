@@ -45,4 +45,11 @@ public interface IEventRepository
     /// quem chega aqui ja provou que pode ver este relato, pelo token do link.</para>
     /// </summary>
     Task<IReadOnlyList<Event>> ListPublicStageChangesWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quantos e-mails de convite o projeto pediu desde um momento — envios e
+    /// reenvios. E a contagem do limite por hora. Passa pelo filtro de acesso: quem
+    /// conta e o administrador, na propria sessao.
+    /// </summary>
+    Task<int> CountInvitationEmailsSinceAsync(long projectId, DateTime since, CancellationToken cancellationToken = default);
 }

@@ -24,6 +24,7 @@ public static class WorkersRegistration
         if (url is null)
         {
             services.AddSingleton<IDelayedScheduler, UnavailableDelayedScheduler>();
+            services.AddSingleton<IEmailQueue, UnavailableEmailQueue>();
             return services;
         }
 
@@ -32,6 +33,10 @@ public static class WorkersRegistration
 
         services.AddSingleton<IDelayedScheduler, RabbitMqDelayedScheduler>();
         services.AddHostedService<DelayedCheckWorker>();
+
+        // A fila de e-mail usa a mesma conexao: um broker so, duas filas.
+        services.AddSingleton<IEmailQueue, RabbitMqEmailQueue>();
+        services.AddHostedService<EmailWorker>();
 
         return services;
     }

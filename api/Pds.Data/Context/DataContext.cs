@@ -44,6 +44,8 @@ public class DataContext : PdsBaseContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<ProjectMember> ProjectMembers { get; set; } = null!;
+    public DbSet<ProjectInvitation> ProjectInvitations { get; set; } = null!;
+    public DbSet<ProjectTeamSettings> ProjectTeamSettings { get; set; } = null!;
     public DbSet<ProjectKey> ProjectKeys { get; set; } = null!;
     public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
     public DbSet<ProjectWidgetSettings> ProjectWidgetSettings { get; set; } = null!;
@@ -84,6 +86,22 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(member => member.DeletedAt == null
                                       && member.Project.DeletedAt == null
                                       && CurrentProjectIds.Contains(member.ProjectId));
+
+        // Convite: chega ao acesso pelo projeto, como o membro. Quem le isto **sem
+        // sessao** sao tres: o consumidor da fila, que monta o e-mail; a pessoa
+        // convidada, que ainda nao esta no projeto e abre o convite pelo link; e a
+        // varredura da subida. Os tres desligam este filtro e reescrevem as
+        // condicoes a mao, marcados com TagWith.
+        modelBuilder.Entity<ProjectInvitation>()
+            .HasQueryFilter(invitation => invitation.DeletedAt == null
+                                          && invitation.Project.DeletedAt == null
+                                          && CurrentProjectIds.Contains(invitation.ProjectId));
+
+        // Configuracao do time: mesmo caminho das outras configuracoes do projeto.
+        modelBuilder.Entity<ProjectTeamSettings>()
+            .HasQueryFilter(settings => settings.DeletedAt == null
+                                        && settings.Project.DeletedAt == null
+                                        && CurrentProjectIds.Contains(settings.ProjectId));
 
         // Chave: chega ao acesso pelo projeto. A modelagem nao repete account_id aqui
         // porque a chave nao existe fora de um projeto; o acesso compara o

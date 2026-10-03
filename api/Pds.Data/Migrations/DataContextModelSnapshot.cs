@@ -143,7 +143,7 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
                         .HasColumnName("type")
-                        .HasComment("report_created | report_viewed por enquanto. A lista cresce conforme o produto anda.");
+                        .HasComment("O que aconteceu, em snake_case: os do relato (report_*) e os do time (project_invitation_*, project_member_*). A lista cresce conforme o produto anda.");
 
                     b.Property<long?>("UserId")
                         .HasColumnType("bigint")
@@ -527,6 +527,149 @@ namespace Pds.Data.Migrations
                     b.ToTable("project_initial_states", null, t =>
                         {
                             t.HasComment("Onde um relato cai ao entrar, por tipo. E tabela em vez de colunas em projects para tipo novo nao pedir migracao, e a linha so nasce quando o cliente escolhe: sem linha, vale o primeiro estado ativo da fila.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectInvitation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("accepted_at")
+                        .HasComment("Quando a pessoa aceitou. Preenchido, o convite fechou.");
+
+                    b.Property<long?>("AcceptedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accepted_by_user_id")
+                        .HasComment("Quem aceitou — a pessoa que entrou no time.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email")
+                        .HasComment("Endereco convidado, em minusculas. Aceitar exige o Google confirmando este mesmo endereco.");
+
+                    b.Property<DateTime?>("EmailAttemptedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("email_attempted_at")
+                        .HasComment("Quando o envio foi tentado pela ultima vez.");
+
+                    b.Property<string>("EmailError")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email_error")
+                        .HasComment("Por que o e-mail nao saiu: o tipo da falha, e nunca a mensagem do servidor, que costuma repetir o endereco de quem recebe.");
+
+                    b.Property<DateTime?>("EmailSentAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("email_sent_at")
+                        .HasComment("Quando o servidor de e-mail aceitou a mensagem.");
+
+                    b.Property<string>("EmailStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("email_status")
+                        .HasComment("pending | sending | sent | failed. Onde esta o e-mail do convite — o unico registro do envio: o texto do e-mail nao e guardado.");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("expires_at")
+                        .HasComment("Ate quando o convite vale, em UTC. Nasce do prazo da configuracao do time; reenviar renova.");
+
+                    b.Property<long>("InvitedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("invited_by_user_id")
+                        .HasComment("Quem convidou. O nome vai no e-mail.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto para o qual a pessoa foi convidada.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("revoked_at")
+                        .HasComment("Quando um administrador cancelou. Preenchido, o convite fechou e o link deixa de valer.");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role")
+                        .HasComment("member | administrator. O papel com que a pessoa entra ao aceitar.");
+
+                    b.Property<string>("TokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash")
+                        .HasComment("SHA-256 do link que esta valendo, em hexadecimal. Nulo enquanto o e-mail nao foi montado; trocado a cada reenvio, o que invalida o link anterior.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_invitations");
+
+                    b.HasIndex("AcceptedByUserId")
+                        .HasDatabaseName("ix_project_invitations_accepted_by_user_id");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_invitations_deleted_at");
+
+                    b.HasIndex("EmailStatus")
+                        .HasDatabaseName("ix_project_invitations_email_status")
+                        .HasFilter("email_status IN ('pending', 'sending')");
+
+                    b.HasIndex("InvitedByUserId")
+                        .HasDatabaseName("ix_project_invitations_invited_by_user_id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_invitations_public_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_invitations_token_hash")
+                        .HasFilter("token_hash IS NOT NULL");
+
+                    b.HasIndex("ProjectId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_invitations_project_id_email")
+                        .HasFilter("deleted_at IS NULL AND accepted_at IS NULL AND revoked_at IS NULL");
+
+                    b.ToTable("project_invitations", null, t =>
+                        {
+                            t.HasComment("Convites para entrar no time de um projeto, com o papel. O link de aceitar nunca e guardado: nasce na hora de montar o e-mail, e aqui fica so o hash dele. Aceitar exige entrar com o Google do mesmo endereco. Aberto e o convite nem aceito nem cancelado; vencido continua aberto, para poder ser reenviado.");
+
+                            t.HasCheckConstraint("ck_project_invitations_email_status", "email_status IN ('pending', 'sending', 'sent', 'failed')");
+
+                            t.HasCheckConstraint("ck_project_invitations_role", "role IN ('member', 'administrator')");
                         });
                 });
 
@@ -1201,6 +1344,69 @@ namespace Pds.Data.Migrations
                     b.ToTable("project_status_mappings", null, t =>
                         {
                             t.HasComment("Liga N estados de dentro a 1 etapa de fora. Versionada: alterar grava o conjunto inteiro de novo, um numero acima, porque reescrever o mapa apagaria o sentido de tudo que ja aconteceu.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectTeamSettings", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<int>("InvitationValidityDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("invitation_validity_days")
+                        .HasComment("Por quantos dias um convite vale, a contar do envio. De 1 a 30; padrao 7.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono da configuracao. Unico entre os nao apagados, e e o que faz o 1:1.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_team_settings");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_team_settings_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_team_settings_project_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_team_settings_public_id");
+
+                    b.ToTable("project_team_settings", null, t =>
+                        {
+                            t.HasComment("Como o time trabalha neste projeto: por enquanto, o prazo do convite. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada.");
+
+                            t.HasCheckConstraint("ck_project_team_settings_invitation_validity", "invitation_validity_days >= 1 AND invitation_validity_days <= 30");
                         });
                 });
 
@@ -2172,6 +2378,13 @@ namespace Pds.Data.Migrations
                         .HasColumnName("email")
                         .HasComment("E-mail vindo do Google. Pode mudar la, entao serve para contato e nao como identidade.");
 
+                    b.Property<bool>("EmailVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("email_verified")
+                        .HasComment("Se o Google confirmou, no ultimo login, que a pessoa e dona do e-mail. Aceitar convite exige: e o que faz o e-mail do convite querer dizer a mesma pessoa.");
+
                     b.Property<string>("GoogleSubject")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -2324,6 +2537,35 @@ namespace Pds.Data.Migrations
                     b.Navigation("ProjectState");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectInvitation", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.User", "AcceptedByUser")
+                        .WithMany()
+                        .HasForeignKey("AcceptedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_invitations_users_accepted_by_user_id");
+
+                    b.HasOne("Pds.Domain.Entities.User", "InvitedByUser")
+                        .WithMany()
+                        .HasForeignKey("InvitedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_invitations_users_invited_by_user_id");
+
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany("Invitations")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_invitations_projects_project_id");
+
+                    b.Navigation("AcceptedByUser");
+
+                    b.Navigation("InvitedByUser");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectKey", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
@@ -2445,6 +2687,18 @@ namespace Pds.Data.Migrations
                     b.Navigation("ProjectPublicStage");
 
                     b.Navigation("ProjectState");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectTeamSettings", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_team_settings_projects_project_id");
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ProjectWidgetSettings", b =>
@@ -2667,6 +2921,8 @@ namespace Pds.Data.Migrations
 
             modelBuilder.Entity("Pds.Domain.Entities.Project", b =>
                 {
+                    b.Navigation("Invitations");
+
                     b.Navigation("Keys");
 
                     b.Navigation("Members");

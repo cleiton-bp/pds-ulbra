@@ -26,6 +26,19 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IProjectRepository? _projects;
     public IProjectRepository Projects => _projects ??= new ProjectRepository(_context);
 
+    private IProjectMemberRepository? _projectMembers;
+    public IProjectMemberRepository ProjectMembers => _projectMembers ??= new ProjectMemberRepository(_context);
+
+    private IProjectInvitationRepository? _projectInvitations;
+
+    public IProjectInvitationRepository ProjectInvitations
+        => _projectInvitations ??= new ProjectInvitationRepository(_context);
+
+    private IProjectTeamSettingsRepository? _projectTeamSettings;
+
+    public IProjectTeamSettingsRepository ProjectTeamSettings
+        => _projectTeamSettings ??= new ProjectTeamSettingsRepository(_context);
+
     private IProjectKeyRepository? _projectKeys;
     public IProjectKeyRepository ProjectKeys => _projectKeys ??= new ProjectKeyRepository(_context);
 

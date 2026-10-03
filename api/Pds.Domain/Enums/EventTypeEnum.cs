@@ -183,4 +183,40 @@ public enum EventTypeEnum
     /// e rigoroso — diz que o aviso antes de escrever nao esta sendo lido.</para>
     /// </summary>
     ReportModerationRejected,
+
+    /// <summary>
+    /// Um administrador convidou alguem para o projeto, com um papel.
+    ///
+    /// <para><b>O e-mail de quem foi convidado nao vai no payload</b>: esta tabela
+    /// nao se apaga, e o endereco e dado da pessoa — fica no convite, que se apaga.
+    /// Vao o identificador do convite e o papel.</para>
+    ///
+    /// <para>E tambem a contagem do limite por hora: convite e a unica rota do painel
+    /// que manda e-mail para fora.</para>
+    /// </summary>
+    ProjectInvitationSent,
+
+    /// <summary>
+    /// Um administrador mandou o mesmo convite de novo, com prazo novo — e o link
+    /// anterior deixou de valer. Conta no limite por hora, como o primeiro envio.
+    /// </summary>
+    ProjectInvitationResent,
+
+    /// <summary>Um administrador cancelou um convite que ainda nao tinha sido aceito.</summary>
+    ProjectInvitationRevoked,
+
+    /// <summary>
+    /// A pessoa convidada aceitou, entrando com o Google do mesmo endereco, e
+    /// passou a fazer parte do time.
+    /// </summary>
+    ProjectInvitationAccepted,
+
+    /// <summary>Um administrador mudou o papel de alguem do time.</summary>
+    ProjectMemberRoleChanged,
+
+    /// <summary>
+    /// Um administrador tirou alguem do time. O acesso acaba na requisicao
+    /// seguinte; o que a pessoa escreveu nos relatos continua com o nome dela.
+    /// </summary>
+    ProjectMemberRemoved,
 }

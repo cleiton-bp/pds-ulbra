@@ -117,6 +117,15 @@ public sealed class RabbitMqConnection : IAsyncDisposable
             exchange: DelayedCheckQueue.Exchange,
             routingKey: DelayedCheckQueue.RoutingKey,
             cancellationToken: cancellationToken);
+
+        // A fila de e-mail, ligada a troca padrao pelo proprio nome — nao ha atraso
+        // nem roteamento. Duravel, como a outra.
+        await channel.QueueDeclareAsync(
+            queue: EmailQueueNames.Queue,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            cancellationToken: cancellationToken);
     }
 
     public async ValueTask DisposeAsync()

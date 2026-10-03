@@ -129,6 +129,10 @@ public class Startup
         // senha de SMTP em arquivo versionado e senha vazada.
         services.AddPdsEmail(new ConfigurationBuilder().AddEnvironmentVariables().Build());
 
+        // O endereco do painel e conferido aqui, na subida: escrito errado, viraria
+        // o link quebrado de todo convite, descoberto so por quem foi convidado.
+        _ = EnvironmentConstants.GetPanelUrl();
+
         // Limite por IP no login. O controle de verdade e o Google validar o token;
         // isto so evita que alguem fique martelando a rota.
         services.AddRateLimiter(options =>

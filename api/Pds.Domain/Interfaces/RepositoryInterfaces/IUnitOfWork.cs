@@ -11,6 +11,9 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IAccountRepository Accounts { get; }
     IUserRepository Users { get; }
     IProjectRepository Projects { get; }
+    IProjectMemberRepository ProjectMembers { get; }
+    IProjectInvitationRepository ProjectInvitations { get; }
+    IProjectTeamSettingsRepository ProjectTeamSettings { get; }
     IProjectKeyRepository ProjectKeys { get; }
     IProjectOriginRepository ProjectOrigins { get; }
     IProjectWidgetSettingsRepository ProjectWidgetSettings { get; }

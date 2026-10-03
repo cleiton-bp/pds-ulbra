@@ -49,4 +49,11 @@ public class Project : PdsBaseEntity
     /// </summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectMember> Members { get; set; } = [];
+
+    /// <summary>
+    /// Os convites do projeto. Apagar o projeto apaga os convites junto: um link
+    /// enviado nao pode levar a um projeto que nao existe mais.
+    /// </summary>
+    [SoftDeleteDependent(RemoveType.Cascade)]
+    public List<ProjectInvitation> Invitations { get; set; } = [];
 }

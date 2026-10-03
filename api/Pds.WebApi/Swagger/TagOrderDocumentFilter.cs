@@ -80,6 +80,21 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.Team,
+                Description = "Quem está no time do projeto, com que papel, e a configuração do time. Ler é de quem está no projeto; mudar o papel e tirar alguém, só do administrador. O dono da conta aparece como administrador, e não sai nem muda de papel.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ProjectInvitations,
+                Description = "Convidar, reenviar e cancelar, só do administrador. O e-mail sai pela fila, fora da requisição; o convite guarda só se ele saiu. O link de aceitar nunca aparece aqui — só dentro do e-mail.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.Invitations,
+                Description = "O lado de quem foi convidado, com a própria sessão: ver o convite pelo link e aceitar. Aceitar exige o Google do mesmo endereço do convite, confirmado.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.Reports,
                 Description = "O que chegou do site do cliente, para o time que usa o painel. Exige sessão, e mostra apenas os relatos dos projetos em que a pessoa está.",
             },

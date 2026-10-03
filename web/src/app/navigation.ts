@@ -21,6 +21,7 @@ export interface ConsoleSection {
     | 'settings'
     | 'reports'
     | 'moderation'
+    | 'members'
     | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
@@ -78,6 +79,11 @@ export const OPERATION_SECTIONS: ConsoleSection[] = [
   // que a fila existe e continua enchendo, e quem marcasse o projeto como
   // publico descobriria um dia uma fila de meses.
   { key: 'moderation', label: 'Moderação', path: 'moderation' },
+  // **Fica na Operação, e não na Configuração.** O time inteiro vê quem está no
+  // projeto — é de onde sai com quem trabalhar —, e quem é só membro também abre a
+  // tela, só para ler. Convidar, mudar papel e remover aparecem para o
+  // administrador.
+  { key: 'members', label: 'Membros', path: 'members' },
 ]
 
 /**
@@ -100,11 +106,6 @@ export const LOCKED_SECTIONS: LockedSection[] = [
     key: 'addons',
     label: 'Addons',
     hint: 'Integrações com Slack, GitHub e e-mail. Ainda não disponível.',
-  },
-  {
-    key: 'members',
-    label: 'Membros',
-    hint: 'Convites para outras pessoas trabalharem neste projeto. Ainda não disponível.',
   },
   {
     key: 'usage',

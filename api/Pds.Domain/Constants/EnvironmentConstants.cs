@@ -149,6 +149,40 @@ public static class EnvironmentConstants
     public static bool GetMediaStorageForcePathStyle()
         => !bool.TryParse(Environment.GetEnvironmentVariable("MEDIA_STORAGE_FORCE_PATH_STYLE"), out var value) || value;
 
+    /// <summary>
+    /// Endereco do painel como a pessoa o abre no navegador, como
+    /// <c>http://localhost:5173</c>. E o comeco do link que vai no e-mail do convite.
+    ///
+    /// <para><b>Opcional, e devolve nulo quando falta</b> — sem ele o convite fica
+    /// indisponivel, e a tela de Membros diz por que. Mas <b>escrito errado derruba
+    /// a subida</b>: um endereco que nao abre viraria um e-mail com link quebrado,
+    /// descoberto so por quem foi convidado.</para>
+    /// </summary>
+    public static Uri? GetPanelUrl()
+    {
+        var value = Optional("PANEL_URL");
+
+        if (value is null)
+            return null;
+
+        return Uri.TryCreate(value.TrimEnd('/'), UriKind.Absolute, out var uri)
+               && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+               && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment)
+            ? uri
+            : throw new InvalidOperationException(
+                "PANEL_URL precisa ser um endereco http ou https completo, sem ? nem #, como http://localhost:5173.");
+    }
+
+    /// <summary>
+    /// Quantos e-mails de convite um projeto pede por hora — convites e reenvios.
+    /// Padrao: 20.
+    ///
+    /// <para>Convite e a unica rota do painel que manda e-mail para fora, e o
+    /// servidor de e-mail tem cota diaria. Sem teto, um administrador — ou uma
+    /// sessao roubada — gastaria a cota de todos em minutos.</para>
+    /// </summary>
+    public static int GetInvitationEmailsPerHour() => PositiveInt("INVITATION_EMAILS_PER_HOUR", 20);
+
     /// <summary>Origens autorizadas no CORS do painel, separadas por virgula.</summary>
     public static string[] GetCorsAllowedOrigins()
         => (Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS") ?? string.Empty)

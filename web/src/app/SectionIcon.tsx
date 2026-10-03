@@ -83,6 +83,16 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'members' && (
+        // Duas pessoas, uma atras da outra: e um time, e nao um perfil.
+        <>
+          <circle cx="4.4" cy="4" r="1.7" />
+          <path d="M1.2 10.2c.3-1.8 1.6-2.9 3.2-2.9s2.9 1.1 3.2 2.9" />
+          <path d="M7.6 2.6a1.6 1.6 0 1 1 .4 3.1" />
+          <path d="M8.9 7.4c1 .3 1.7 1.2 1.9 2.6" />
+        </>
+      )}
+
       {section === 'reports' && (
         // Balao de fala: o que aparece nesta secao e alguem falando, e nao um
         // registro que o sistema produziu.

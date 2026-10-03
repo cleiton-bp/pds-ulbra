@@ -100,5 +100,8 @@ public static class DiResolver
         services.AddScoped<IReportAttachmentService, ReportAttachmentService>();
         services.AddScoped<IReportCommentService, ReportCommentService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IProjectMemberService, ProjectMemberService>();
+        services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+        services.AddScoped<IProjectTeamSettingsService, ProjectTeamSettingsService>();
     }
 }

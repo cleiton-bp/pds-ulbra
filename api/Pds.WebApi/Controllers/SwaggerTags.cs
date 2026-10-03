@@ -24,6 +24,9 @@ public static class SwaggerTags
     /// <summary>Como quem relata e identificado, e quem pode ver o que ele escreveu.</summary>
     public const string IdentitySettings = "Identidade e visibilidade";
     public const string MediaSettings = "Mídia";
+    public const string Team = "Time do projeto";
+    public const string ProjectInvitations = "Convites do projeto";
+    public const string Invitations = "Convite (quem foi convidado)";
     public const string Reports = "Relatos";
     public const string ReportComments = "Comentários do relato";
     public const string PublicReports = "Relatos (público)";

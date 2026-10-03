@@ -58,5 +58,10 @@ public class ProjectMap : BaseEntityConfiguration<Project>
             .WithOne(member => member.Project)
             .HasForeignKey(member => member.ProjectId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(project => project.Invitations)
+            .WithOne(invitation => invitation.Project)
+            .HasForeignKey(invitation => invitation.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

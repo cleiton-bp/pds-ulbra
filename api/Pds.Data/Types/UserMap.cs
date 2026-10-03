@@ -28,6 +28,12 @@ public class UserMap : BaseEntityConfiguration<User>
             .HasMaxLength(320)
             .HasComment("E-mail vindo do Google. Pode mudar la, entao serve para contato e nao como identidade.");
 
+        builder.Property(user => user.EmailVerified)
+            .HasColumnName("email_verified")
+            .IsRequired()
+            .HasDefaultValue(false)
+            .HasComment("Se o Google confirmou, no ultimo login, que a pessoa e dona do e-mail. Aceitar convite exige: e o que faz o e-mail do convite querer dizer a mesma pessoa.");
+
         builder.Property(user => user.Name)
             .HasColumnName("name")
             .HasMaxLength(180)

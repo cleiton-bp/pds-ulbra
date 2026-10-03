@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { environment } from '@/data'
 import { AccessSteps } from '@/features/auth/AccessSteps'
 import { renderGoogleButton } from '@/features/auth/googleIdentity'
@@ -68,6 +69,11 @@ export function LoginScreen() {
 
   const rolou = useScrolledPast()
 
+  // Quem chega pelo link de um convite cai aqui antes de qualquer coisa — e a
+  // pagina, que fala com quem nunca ouviu falar do produto, nao diria por que ele
+  // esta aqui nem com qual conta entrar.
+  const convite = useLocation().pathname === '/invite'
+
   return (
     <div className="bg-surface">
       <header
@@ -94,6 +100,18 @@ export function LoginScreen() {
           <div className="absolute inset-0 bg-grid" aria-hidden="true" />
 
           <div className="relative mx-auto max-w-280 px-5 pt-14 pb-20 text-center lg:px-8 lg:pt-20 lg:pb-24">
+            {convite && (
+              <div className="mx-auto mb-8 max-w-[52ch] rounded-xl border border-border bg-surface-raised px-5 py-4 text-left">
+                <p className="font-medium text-body text-fg">
+                  Você recebeu um convite para um time
+                </p>
+                <p className="mt-1 text-detail text-fg-muted leading-relaxed">
+                  Entre com a conta Google do e-mail em que o convite chegou. Depois disso, o
+                  convite abre aqui mesmo.
+                </p>
+              </div>
+            )}
+
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-raised px-3 py-1 text-detail text-fg-muted">
               <span className="size-1.5 rounded-full bg-active" aria-hidden="true" />
               Sem cadastro e sem senha
