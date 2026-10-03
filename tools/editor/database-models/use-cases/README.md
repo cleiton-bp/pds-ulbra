@@ -33,7 +33,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | `08-customization.yaml` | **Planejado.** Tipos de relato e o que cada um pergunta, textos com variáveis, capturas automáticas e como a ferramenta abre no site |
 | `09-research.yaml` | **Planejado.** As métricas do projeto e a resposta à pergunta de pesquisa |
 | `10-communication.yaml` | **Planejado.** Os avisos por e-mail — etapa que mudou, pedido de informação, código perdido — e o contato que os torna possíveis |
-| `11-account.yaml` | **Planejado.** Convidar para o projeto, como administrador ou membro; excluir a conta com prazo de arrependimento; apagar os dados |
+| `11-account.yaml` | Convidar para o projeto, como administrador ou membro, aceitar pelo link do e-mail e cuidar do time; e, **Planejado**, excluir a conta com prazo de arrependimento e apagar os dados |
 | `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto e estimativa — e, já marcados **Planejado**, o quadro arrastável, as sprints, os relatórios e os duplicados |
 | `example.yaml` | ponto de partida para conhecer o editor: os quatro tipos de ligação e a especificação completa de um caso de uso |
 
@@ -55,7 +55,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | **Ferramenta do time** «sistema» | Jira, Trello ou outra, para quem não quer sair dela | 12 |
 | **Armazenamento do cliente** «sistema» | o armazenamento de arquivos do próprio cliente | 12 |
 
-O papel no projeto já existe: o administrador configura e decide quem entra, o membro trabalha nos relatos e não vê a **Configuração**, e o dono da conta é administrador de todos os projetos dela. A mesma pessoa pode estar em projetos de várias contas. O convite — a porta para alguém entrar num projeto — está planejado em `11-account`; até ele chegar, cada projeto tem só o dono, e por isso os outros diagramas ainda chamam de **Dono do projeto** quem configura.
+O papel no projeto já existe: o administrador configura e decide quem entra, o membro trabalha nos relatos e não vê a **Configuração**, e o dono da conta é administrador de todos os projetos dela. A mesma pessoa pode estar em projetos de várias contas. O convite — a porta para alguém entrar num projeto — está em `11-account`: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. Os diagramas mais antigos ainda chamam de **Dono do projeto** quem configura; o **Administrador do projeto** faz o mesmo, e o dono é um caso dele.
 
 ## O que não vira caso de uso
 

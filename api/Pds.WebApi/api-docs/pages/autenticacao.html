@@ -39,6 +39,11 @@ e um estado a menos para o sistema: não existe "conta criada mas sem ninguém d
 <p>A busca é sempre pelo <code>google_subject</code>, nunca pelo e-mail. O motivo está na
 <a href="#/modelagem/conta-e-usuario">modelagem de <code>users</code></a>.</p>
 
+<p>A cada login, o nome, a foto e o e-mail são copiados do token de novo — e, junto com o e-mail,
+se o Google o confirmou (<code>email_verified</code>). A API não confirma e-mail; ela guarda o que
+o Google diz. O convite depende disso: ele é aceito pelo endereço, e endereço que o Google não
+confirmou não prova que a pessoa é dona dele.</p>
+
 <h2>A sessão</h2>
 
 <p>A resposta do login traz um JWT assinado em HS256, com validade de 8 horas por padrão

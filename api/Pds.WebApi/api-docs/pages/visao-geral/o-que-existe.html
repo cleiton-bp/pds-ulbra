@@ -14,6 +14,9 @@ dívida que cresce calada.</p>
       Login com Google<br />
       <b>Isolamento por projeto</b>: o dono vê todos os da conta própria, e o time só os projetos em que está<br />
       <b>Dois papéis por projeto</b> — administrador e membro —, conferidos em toda rota de projeto<br />
+      <b>Convite para o time</b>, por e-mail, aceito só com o Google do mesmo endereço, confirmado<br />
+      <b>Tela de Membros</b>: o time, o papel de cada um, tirar do time, e os convites com onde está o e-mail de cada um<br />
+      <b>Configuração do time</b>: o prazo do convite, por projeto<br />
       Chave pública e secreta por projeto<br />
       Endereços autorizados por projeto<br />
       Conferência dos endereços autorizados, nas rotas públicas<br />
@@ -54,7 +57,8 @@ dívida que cresce calada.</p>
       <b>Bytes conferidos</b> na confirmação, e o arquivo aceito copiado para onde nenhuma permissão de envio alcança<br />
       <b>Leitura por link assinado</b>, de validade curta, no painel, pelo link e pelo código pessoal<br />
       <b>Limite por minuto</b> no login e no envio de arquivo<br />
-      <b>Envio de e-mail por SMTP</b>, qualquer provedor, configurado pela seção <code>Smtp</code>
+      <b>Envio de e-mail por SMTP</b>, qualquer provedor, configurado pela seção <code>Smtp</code><br />
+      <b>Saída do e-mail pela fila</b>, depois de gravado, com o estado do envio guardado no convite
     </td>
   </tr>
 </table>
@@ -76,10 +80,7 @@ declarado para não se perder.</p>
   <tr><td>Testes automatizados da API: o motor, o vazamento na resposta pública, o isolamento por projeto e os papéis</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Barrar no navegador o quadro aberto em endereço não autorizado (<code>frame-ancestors</code>)</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Excluir a conta, com prazo de arrependimento, e apagar os dados</td><td><strong>Planejado</strong></td></tr>
-  <tr><td>Convite para o projeto: o administrador convida por e-mail, com o papel, e a pessoa aceita entrando com a conta Google do mesmo endereço. Até lá, cada projeto tem só o dono</td><td><strong>Planejado</strong></td></tr>
-  <tr><td>A saída do e-mail pela fila, gravada antes de sair e com nova tentativa — de que dependem o convite e o aviso</td><td><strong>Planejado</strong></td></tr>
   <tr><td>O remetente com o domínio do produto, verificado no provedor de e-mail — até lá, o provedor troca o domínio do remetente</td><td><strong>Adiado</strong></td></tr>
-  <tr><td>A tela de Membros</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Tipos de relato e palavras escolhidos por projeto</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Uma política de CORS própria para as rotas públicas, separada da do painel</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Camadas acima do limite de envio de arquivo, como um desafio invisível antes do envio</td><td><strong>Planejado</strong></td></tr>

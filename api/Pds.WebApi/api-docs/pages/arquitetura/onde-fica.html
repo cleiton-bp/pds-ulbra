@@ -50,5 +50,14 @@
   <tr><td>As opções da seção <code>Smtp</code>, e os padrões</td><td><code>Pds.Email/SmtpOptions.cs</code></td></tr>
   <tr><td>Ligar o e-mail na subida, ou não, e o que é configuração pela metade</td><td><code>Pds.Email/EmailRegistration.cs</code> e <code>UnavailableEmailSender.cs</code></td></tr>
   <tr><td>O que conta como endereço: um só, com domínio</td><td><code>Pds.Email/EmailAddresses.cs</code></td></tr>
+  <tr><td>O time: listar, mudar o papel, tirar do time</td><td><code>Pds.Service/Services/ProjectMemberService.cs</code></td></tr>
+  <tr><td><strong>O convite</strong>: convidar, reenviar, cancelar, abrir pelo link e aceitar</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code></td></tr>
+  <tr><td>Montar e mandar o e-mail do convite, e a recuperação da subida</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code>, <code>SendEmailAsync</code> e <code>RecoverEmailsAsync</code></td></tr>
+  <tr><td>Sortear o link do convite, e o hash dele</td><td><code>Pds.Service/Security/InvitationToken.cs</code></td></tr>
+  <tr><td>O texto do e-mail do convite</td><td><code>Pds.Service/Email/InvitationEmailComposer.cs</code></td></tr>
+  <tr><td>A reserva do envio, para não sair dois e-mails, e o fim dele, que não cobre um reenvio</td><td><code>Pds.Data/Repositories/ProjectInvitationRepository.cs</code>, <code>TryClaimForSendingWithoutSessionAsync</code> e <code>FinishSendingWithoutSessionAsync</code></td></tr>
+  <tr><td>A fila do e-mail: o nome, a publicação e o consumidor</td><td><code>Pds.Workers/EmailQueueNames.cs</code>, <code>RabbitMqEmailQueue.cs</code> e <code>EmailWorker.cs</code></td></tr>
+  <tr><td>O prazo do convite, e o padrão de fábrica</td><td><code>Pds.Domain/Entities/ProjectTeamSettings/ProjectTeamSettings.cs</code></td></tr>
+  <tr><td>O endereço do painel no link, e o limite de convites por hora</td><td><code>Pds.Domain/Constants/EnvironmentConstants.cs</code>, <code>GetPanelUrl</code> e <code>GetInvitationEmailsPerHour</code></td></tr>
 </table>
 </div>

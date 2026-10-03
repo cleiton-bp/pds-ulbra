@@ -1,11 +1,12 @@
 <h2>A fila</h2>
 
-<p><strong>Opcional.</strong> Ela existe para dois prazos: a espera entre o time mover o relato e
-quem relatou ver, e o encerramento de um pedido de informação sem resposta. Sem
-<code>RABBITMQ_URL</code>, a API sobe normalmente: a espera fica indisponível — a tela de Ciclo
+<p><strong>Opcional.</strong> Ela existe para dois prazos e uma saída: a espera entre o time mover
+o relato e quem relatou ver, o encerramento de um pedido de informação sem resposta, e o e-mail.
+Sem <code>RABBITMQ_URL</code>, a API sobe normalmente: a espera fica indisponível — a tela de Ciclo
 recusa ligá-la e diz por quê —, e o pedido de informação continua funcionando, mas o prazo dele não
 encerra nada sozinho. Sem fila não há consumidor, e sem consumidor não há nem a varredura da
-subida: o pedido fica aberto até quem relatou responder ou o time agir.</p>
+subida: o pedido fica aberto até quem relatou responder ou o time agir. E o convite não sai: a tela
+de Membros diz que falta a fila.</p>
 
 <p>Ao contrário do banco, aqui <strong>há serviço no <code>docker-compose.yml</code></strong>, e o
 motivo é o inverso: o broker é local e descartável, e não há dado de ninguém dentro dele.</p>
@@ -59,4 +60,30 @@ armazenamento</a>.</p>
   sido aplicado.</p>
   <p>Consequência prática: apagar o volume do broker não perde relato nenhum. Na próxima subida, o
   que estava vencido é aplicado.</p>
+</div>
+
+<h3>A fila do e-mail</h3>
+
+<p>O e-mail tem fila própria, <code>pds.emails</code>, durável, e não usa a <em>exchange</em> de
+atraso: o pedido entra pela <em>exchange</em> padrão e sai assim que houver consumidor. O consumidor
+pega <strong>um pedido por vez</strong> — e-mail é pouco, e um de cada vez mantém um só envio
+aberto contra o servidor SMTP.</p>
+
+<p>O pedido leva o tipo de e-mail e o identificador do convite, e mais nada: nem o endereço, nem o
+texto, nem o link. Quem consome relê o convite e monta na hora. É isso que torna a repetição
+inofensiva — o convite já enviado, cancelado ou reenviado depois de entrar na fila não sai de
+novo — e que mantém o link fora da fila.</p>
+
+<div class="note why">
+  <strong>Aqui também, o que está na fila não é a verdade</strong>
+  <p>A verdade é <code>project_invitations.email_status</code>. A aplicação que desce no meio de um
+  envio já o marca como falho. Para a queda sem aviso, na subida o consumidor marca como falho o
+  envio que ficou "saindo" por mais de dez minutos — não dá para saber se o servidor chegou a
+  aceitar; marcar falha deixa reenviar, e o reenvio sorteia link novo — e publica de novo o que
+  continua pendente. Apagar o volume do broker não perde convite nenhum. E a tela de Membros
+  oferece reenviar em qualquer situação: é o que solta um e-mail que ficou preso entre duas
+  subidas.</p>
+  <p>A falha do envio não devolve o pedido para a fila: ela fica gravada no convite. Só o que dá
+  errado fora do envio — o banco fora do ar — devolve o pedido, depois de cinco segundos, para uma
+  falha que se repete não virar um laço martelando o banco.</p>
 </div>

@@ -2,8 +2,8 @@
 
 <p><strong>Opcional.</strong> A API manda e-mail por SMTP, que todo provedor fala: trocar de
 provedor é trocar configuração, e não código. Sem a seção <code>Smtp</code>, a API sobe
-normalmente e o envio responde que não está disponível. Hoje nada no produto manda e-mail ainda:
-o convite para o projeto e o aviso quando o relato anda, os primeiros a usar, são
+normalmente e o envio responde que não está disponível. O primeiro a usar é o convite para o time
+— ver <a href="#/fluxo/convidar">Convidar alguém para o time</a>; o aviso quando o relato anda é
 <strong>Planejado</strong>.</p>
 
 <p>O servidor do projeto é o <strong>Brevo</strong>. O plano grátis manda 300 e-mails por dia e
@@ -113,10 +113,25 @@ domínio.</p>
 <div class="note warn">
   <strong>Não é para mandar de dentro da requisição</strong>
   <p>Mandar e-mail na hora faria quem clicou esperar um servidor de fora, e uma falha no envio
-  desfaria o que a pessoa fez — o convite <em>foi</em> criado, só o e-mail é que não saiu. O envio
-  sai pela fila, depois de gravado, e com nova tentativa: <strong>Planejado</strong>, junto com o
-  primeiro uso.</p>
+  desfaria o que a pessoa fez — o convite <em>foi</em> criado, só o e-mail é que não saiu. Por isso
+  a rota grava e põe um pedido na fila, e quem manda é o consumidor, depois: ver
+  <a href="#/como-rodar/a-fila">A fila</a>. Sem fila, o convite fica indisponível — e não passa a
+  sair de dentro da requisição.</p>
 </div>
+
+<h3>O e-mail do convite</h3>
+
+<p>Assunto <em>Convite para o projeto {nome}</em>, em texto e em HTML: quem convidou, o projeto, o
+papel, por quantos dias vale, e o link — <code>PANEL_URL</code> mais
+<code>/invite#t=</code> e o link sorteado. O nome do projeto e o de quem convidou são escritos por
+gente, e vão escapados no HTML. O produto não é nomeado: quem recebe conhece o projeto e quem
+convidou, e é isso que o e-mail diz.</p>
+
+<p><strong>Não há nova tentativa automática.</strong> O envio que falha fica marcado no convite —
+a tela de Membros mostra "O e-mail não saiu" e oferece reenviar —, e o motivo vai para o log da
+API: o tipo do erro, e nunca a mensagem do servidor, que costuma repetir o endereço. Tentar de novo
+sozinho repetiria o mesmo erro contra a cota do dia; quem decide é o administrador, que vê o
+aviso.</p>
 
 <p>Com a API dentro do <code>docker compose</code>, nada muda: o <code>.env.local</code> é montado
 no container, e o servidor é o mesmo endereço de fora.</p>

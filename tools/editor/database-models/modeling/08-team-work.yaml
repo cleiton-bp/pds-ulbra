@@ -1,6 +1,6 @@
 meta:
   title: O time
-  description: "Quem do time entra em cada projeto, e com que papel. A entrada e por projeto, e nao pela conta: a mesma pessoa pode estar em projetos de varias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Montado sobre o que ja existe, que aparece sem alteracao, menos accounts, que deixa de ser a fronteira de isolamento, e users e projects, cujo account_id muda de sentido."
+  description: "Quem do time entra em cada projeto, e com que papel. A entrada e por projeto, e nao pela conta: a mesma pessoa pode estar em projetos de varias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Quem entra chega por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. Montado sobre o que ja existe, que aparece sem alteracao, menos accounts, que deixa de ser a fronteira de isolamento, e users e projects, cujo account_id muda de sentido."
 entities:
   - name: base_columns
     label: Colunas padrão
@@ -56,7 +56,7 @@ entities:
         note: quando a identificação foi removida, e a partir daí nenhuma linha da conta guarda dado pessoal
   - name: users
     label: Usuários
-    description: Já existia, e muda o sentido de account_id nesta modelagem — por isso aparece apagada no realce. Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra, e é referenciada por quem move card e por quem comenta. A mesma pessoa passa a poder trabalhar em projetos de várias contas.
+    description: Já existia, muda o sentido de account_id e ganha email_verified nesta modelagem. Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra, e é referenciada por quem move card, por quem comenta e por quem convida. A mesma pessoa passa a poder trabalhar em projetos de várias contas.
     inherited: true
     position: { x: 387, y: 400 }
     fields:
@@ -82,6 +82,10 @@ entities:
         type: text
         required: true
         note: e-mail vindo do Google, usado para exibir e para contato
+      - name: email_verified
+        type: bool
+        required: true
+        note: coluna nova — se o Google confirmou, no último login, que a pessoa é dona do e-mail. Aceitar convite exige; começa falso e se acerta no próximo login
       - name: name
         type: text
         note: nome vindo do Google, exibido no painel
@@ -570,7 +574,7 @@ entities:
         note: nulo enquanto o comentário vale, preenchido no lugar de apagar
   - name: events
     label: Eventos
-    description: Ja existia e nao muda nesta modelagem — os anexos nao geram evento. Responde a pergunta de pesquisa do trabalho e e a unica tabela do sistema que so cresce, nunca e alterada e nunca e apagada.
+    description: Ja existia, e nesta modelagem ganha os tipos do time — sem coluna nova. Responde a pergunta de pesquisa do trabalho e e a unica tabela do sistema que so cresce, nunca e alterada e nunca e apagada.
     inherited: true
     position: { x: 1857, y: 1223 }
     fields:
@@ -601,7 +605,7 @@ entities:
       - name: type
         type: enum
         required: true
-        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois da moderacao: report_published, gravado quando o relato e liberado para o publico, e report_moderation_rejected, quando e recusado"
+        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois da moderacao: report_published, gravado quando o relato e liberado para o publico, e report_moderation_rejected, quando e recusado. Sentido novo — e os do time, sem relato: project_invitation_sent, project_invitation_resent, project_invitation_revoked, project_invitation_accepted, project_member_role_changed e project_member_removed. O e-mail de quem foi convidado nao vai no payload: esta tabela nao se apaga"
       - name: source
         type: enum
         required: true
@@ -1194,6 +1198,109 @@ entities:
       - name: deleted_at
         type: datetime
         note: preenchido quando a pessoa sai do projeto — a linha some, e a pessoa e o que ela escreveu ficam
+  - name: project_invitations
+    label: Convites
+    description: "Existe porque ninguém entra no time sozinho: o administrador convida por e-mail, com o papel, e a pessoa aceita entrando com o Google do mesmo endereço. O link de aceitar nunca é guardado — nasce na hora de montar o e-mail, e aqui fica só o hash dele. O texto do e-mail também não é guardado: o convite sabe só onde o e-mail está."
+    position: { x: 360, y: -640 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto para o qual a pessoa foi convidada
+      - name: email
+        type: text
+        required: true
+        note: endereço convidado, em minúsculas; um convite aberto por endereço em cada projeto — convidar de novo reenvia o mesmo
+      - name: role
+        type: enum
+        required: true
+        note: administrator | member — o papel com que a pessoa entra ao aceitar
+      - name: invited_by_user_id
+        type: long
+        fk: true
+        required: true
+        note: quem convidou, ou reenviou por último; o nome vai no e-mail
+      - name: token_hash
+        type: text
+        unique: true
+        note: SHA-256 do link que está valendo; nulo até o e-mail ser montado, trocado a cada reenvio — o que invalida o link anterior
+      - name: expires_at
+        type: datetime
+        required: true
+        note: até quando o convite vale, em UTC; nasce do prazo da configuração do time, e reenviar renova
+      - name: accepted_at
+        type: datetime
+        note: quando a pessoa aceitou; preenchido, o convite fechou
+      - name: accepted_by_user_id
+        type: long
+        fk: true
+        note: quem aceitou — a pessoa que entrou no time
+      - name: revoked_at
+        type: datetime
+        note: quando um administrador cancelou; o link deixa de valer
+      - name: email_status
+        type: enum
+        required: true
+        note: pending | sending | sent | failed — onde está o e-mail; é o único registro do envio
+      - name: email_attempted_at
+        type: datetime
+        note: quando o envio foi tentado pela última vez
+      - name: email_sent_at
+        type: datetime
+        note: quando o servidor de e-mail aceitou a mensagem
+      - name: email_error
+        type: text
+        note: por que o e-mail não saiu — o tipo da falha, e nunca a mensagem do servidor, que costuma repetir o endereço de quem recebe
+      - name: created_at
+        type: datetime
+        note: quando o convite nasceu, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: preenchido no lugar de apagar
+  - name: project_team_settings
+    label: Configuração do time
+    description: "Existe porque o prazo do convite é regra do projeto, e não do sistema. Uma linha por projeto, criada só quando alguém salva — o padrão vive no código, e projeto sem linha é projeto que nunca precisou mudar nada. É onde as outras regras do time vão morar quando chegarem."
+    position: { x: 1260, y: -640 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        unique: true
+        note: projeto dono da configuração; uma por projeto, entre as não apagadas
+      - name: invitation_validity_days
+        type: int
+        required: true
+        note: por quantos dias um convite vale, a contar do envio — de 1 a 30, padrão 7; mudar vale para o próximo convite
+      - name: created_at
+        type: datetime
+        note: criação, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: preenchido no lugar de apagar
 relations:
   - from: reports
     fromField: id
@@ -1447,6 +1554,30 @@ relations:
     toField: user_id
     kind: one-to-many
     note: A mesma pessoa em projetos de várias contas — é isto que o painel agrupa pela conta dona.
+  - from: projects
+    fromField: id
+    to: project_invitations
+    toField: project_id
+    kind: one-to-many
+    note: Um projeto tem os convites que já fecharam e, no máximo, um aberto por endereço.
+  - from: users
+    fromField: id
+    to: project_invitations
+    toField: invited_by_user_id
+    kind: one-to-many
+    note: Quem convidou — ou quem reenviou por último, porque é o nome que vai no e-mail que está valendo.
+  - from: users
+    fromField: id
+    to: project_invitations
+    toField: accepted_by_user_id
+    kind: one-to-many
+    note: Quem aceitou. É a mesma pessoa que ganha a linha em project_members, no mesmo gesto.
+  - from: projects
+    fromField: id
+    to: project_team_settings
+    toField: project_id
+    kind: one-to-one
+    note: Uma configuração do time por projeto, e só se alguém salvou; sem ela, valem os padrões.
 notes:
   - text: |-
       Toda tabela repete as colunas padrão
@@ -1759,4 +1890,12 @@ notes:
       A cada requisição, o acesso é montado assim: todos os projetos da conta própria, como dono — que é administrador —, e os projetos em que a pessoa tem linha aqui, com o papel. O filtro global de todas as tabelas de dado olha essa lista de projetos, e não mais a conta. Sair do projeto vale na requisição seguinte, sem esperar o login vencer.
     anchor: project_members
     position: { x: 1180, y: -300 }
+    width: 360
+  - text: |-
+      O link do convite nunca é guardado
+
+      Ele nasce na hora de montar o e-mail, e o banco fica só com o hash — o mesmo cuidado da chave secreta do projeto. Quem lê o banco não aceita convite de ninguém, reenviar troca o hash e invalida o link anterior, e aceitar ainda exige o Google do mesmo endereço, confirmado: encaminhado, o link não serve para outra pessoa.
+    anchor: project_invitations
+    anchorField: token_hash
+    position: { x: -60, y: -560 }
     width: 360

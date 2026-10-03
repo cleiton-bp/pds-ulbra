@@ -111,9 +111,9 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
 
 <div class="note why">
   <strong>Sem fila, a aplicação sobe inteira</strong>
-  <p><code>RABBITMQ_URL</code> é opcional. Faltando, entra um agendador que se declara
-  indisponível, e o efeito é cirúrgico: tudo funciona, e só a espera e o encerramento automático
-  do pedido ficam de fora. A tela de Ciclo recusa salvar uma espera maior que zero e diz por quê;
+  <p><code>RABBITMQ_URL</code> é opcional. Faltando, entram um agendador e uma fila de e-mail que se
+  declaram indisponíveis, e o efeito é cirúrgico: tudo funciona, e só a espera, o encerramento
+  automático do pedido e o convite ficam de fora — a tela de Membros diz que falta a fila. A tela de Ciclo recusa salvar uma espera maior que zero e diz por quê;
   e o prazo do pedido nunca encerra o relato sozinho, porque quem aplica o vencimento — e reencontra
   na subida o que venceu — é o consumidor, registrado só quando há broker.</p>
   <p>Exigir o broker na subida faria um projeto que nunca quis a janela deixar de funcionar por

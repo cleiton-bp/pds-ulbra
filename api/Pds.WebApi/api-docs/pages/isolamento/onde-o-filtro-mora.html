@@ -30,11 +30,12 @@ existe fora de um projeto — e o acesso, que é por projeto, compara o <code>pr
 própria linha. Só a exclusão lógica do projeto passa pela navegação. O ganho é não ter a mesma
 informação em duas tabelas podendo divergir.</p>
 
-<p><code>project_members</code>, <code>project_origins</code>, <code>project_states</code>, <code>project_initial_states</code>,
+<p><code>project_members</code>, <code>project_invitations</code>, <code>project_origins</code>,
+<code>project_states</code>, <code>project_initial_states</code>,
 <code>project_public_stages</code>, <code>project_status_mappings</code>,
 <code>project_widget_settings</code>, <code>project_cycle_settings</code>,
-<code>project_identity_settings</code>, <code>project_media_settings</code> e
-<code>reporter_codes</code> seguem exatamente o mesmo desenho, pelo mesmo motivo, e
+<code>project_identity_settings</code>, <code>project_media_settings</code>,
+<code>project_team_settings</code> e <code>reporter_codes</code> seguem exatamente o mesmo desenho, pelo mesmo motivo, e
 por isso cada uma tem um filtro próprio idêntico. Vale reparar no detalhe que engana: o filtro escrito no
 <code>DataContext</code> <strong>substitui</strong> o de exclusão lógica herdado, não soma —
 quem esquecer de repetir <code>DeletedAt == null</code> ali perde o apagado sem nenhum erro

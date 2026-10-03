@@ -6,6 +6,7 @@
   <tr><td>CORS</td><td>Só as origens configuradas. Lista vazia libera nenhuma.</td></tr>
   <tr><td>CORS antes do limitador</td><td>A recusa por excesso sai do limitador sem passar pelo que vem depois. Com o CORS antes dele, o 429 leva os cabeçalhos e a tela lê "muitas tentativas"; sem eles, o navegador esconderia a resposta e a tela veria "falha de rede".</td></tr>
   <tr><td>Limite de requisições</td><td>20/min por IP no login. 20/min por IP no pedido de permissão e na confirmação de envio de mídia, somados na mesma janela (<code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code>). As demais rotas públicas não têm.</td></tr>
+  <tr><td>Convites por hora</td><td>Por projeto, os novos e os reenviados somados (<code>INVITATION_EMAILS_PER_HOUR</code>, padrão 20). É a única rota do painel que manda e-mail para fora, e o servidor de e-mail tem cota por dia.</td></tr>
   <tr><td>IP de quem pede</td><td>O da conexão. Atrás de um proxy, só o listado em <code>TRUSTED_PROXIES</code> tem o <code>X-Forwarded-For</code> acreditado, e só um salto; lista vazia ignora o cabeçalho, e valor inválido derruba a subida.</td></tr>
   <tr><td>HTTPS</td><td>Redirecionamento obrigatório fora de desenvolvimento.</td></tr>
   <tr><td>Conexão com o banco</td><td>SSL obrigatório.</td></tr>

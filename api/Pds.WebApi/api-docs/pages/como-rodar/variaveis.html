@@ -22,7 +22,7 @@ variáveis reais do ambiente — que têm precedência sobre o arquivo quando as
   <tr><td><code>JWT_EXPIRATION_HOURS</code></td><td>Validade da sessão. Padrão 8.</td></tr>
   <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>ID do cliente OAuth. Ver abaixo.</td></tr>
   <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula. <b>E também do quadro de relato</b> — veja o aviso abaixo.</td></tr>
-  <tr><td><code>RABBITMQ_URL</code></td><td><b>Opcional.</b> <code>amqp://usuario:senha@host:5672/</code>. A fila da espera antes de quem relatou ver e do prazo do pedido de informação. Sem ela a API sobe inteira: a espera fica indisponível, e o prazo do pedido não encerra nada sozinho — o pedido fica aberto até quem relatou responder ou o time agir.</td></tr>
+  <tr><td><code>RABBITMQ_URL</code></td><td><b>Opcional.</b> <code>amqp://usuario:senha@host:5672/</code>. A fila da espera antes de quem relatou ver, do prazo do pedido de informação e da saída do e-mail. Sem ela a API sobe inteira: a espera fica indisponível, o prazo do pedido não encerra nada sozinho — o pedido fica aberto até quem relatou responder ou o time agir —, e o convite não sai.</td></tr>
   <tr><td><code>MEDIA_STORAGE_ENDPOINT</code> / <code>_ACCESS_KEY</code> / <code>_SECRET_KEY</code> / <code>_BUCKET</code></td><td><b>Opcionais, e juntas.</b> O armazenamento dos anexos: endereço, chaves e balde. <b>As quatro, ou nenhuma</b> — ausentes, o anexo fica desligado; metade delas derruba a subida, dizendo qual falta.</td></tr>
   <tr><td><code>MEDIA_STORAGE_PUBLIC_ENDPOINT</code></td><td>O endereço com que o <b>navegador</b> alcança o armazenamento, e o único com que se assina. Padrão: o <code>MEDIA_STORAGE_ENDPOINT</code>.</td></tr>
   <tr><td><code>MEDIA_STORAGE_REGION</code></td><td>A região declarada na assinatura. Padrão <code>us-east-1</code>.</td></tr>
@@ -32,11 +32,13 @@ variáveis reais do ambiente — que têm precedência sobre o arquivo quando as
   <tr><td><code>MEDIA_STORAGE_PLAYBACK_URL_MINUTES</code></td><td>Validade do link de um vídeo antigo, que é lido em pedaços enquanto toca. Padrão 15.</td></tr>
   <tr><td><code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code></td><td>Pedidos e confirmações de envio por IP, por minuto, somados na mesma janela. Padrão 20.</td></tr>
   <tr><td><code>Smtp__Host</code>, <code>Smtp__Port</code>, <code>Smtp__Security</code>, <code>Smtp__FromAddress</code>…</td><td><b>Opcionais, e juntas.</b> O servidor de e-mail, lido como a seção <code>Smtp</code> — os dois sublinhados são o separador de seção do .NET —, e só das variáveis de ambiente. Sem nenhuma das quatro essenciais (<code>Smtp__Host</code>, <code>Smtp__FromAddress</code>, <code>Smtp__Username</code>, <code>Smtp__Password</code>) o e-mail fica indisponível; com parte delas, ou com senha sem TLS, a subida recusa, dizendo tudo o que falta. As chaves e os padrões estão em <a href="#/como-rodar/o-email">O e-mail</a>.</td></tr>
+  <tr><td><code>PANEL_URL</code></td><td><b>Opcional.</b> O endereço do painel, que vai no link do convite: <code>http://localhost:5173</code> no desenvolvimento. Sem ela, a API sobe e não manda convite. Valor que não é um endereço <code>http</code> ou <code>https</code> completo, ou que traz <code>?</code> ou <code>#</code>, derruba a subida.</td></tr>
+  <tr><td><code>INVITATION_EMAILS_PER_HOUR</code></td><td>Quantos convites cada projeto manda por hora, os novos e os reenviados somados. Padrão 20. O servidor de e-mail tem cota por dia, e sem teto um administrador — ou uma sessão roubada — gastaria a de todos em minutos.</td></tr>
   <tr><td><code>TRUSTED_PROXIES</code></td><td>Os proxies cujo <code>X-Forwarded-For</code> vale, separados por vírgula: endereço (<code>10.0.0.5</code>) ou rede (<code>10.0.0.0/8</code>). Vazio, o cabeçalho é ignorado e o IP é o da conexão. Valor que não é endereço nem rede derruba a subida.</td></tr>
 </table>
 </div>
 
-<p>Número zero ou negativo nas de minutos e na do limite vale o padrão: validade zero geraria uma
+<p>Número zero ou negativo nas de minutos e nas de limite vale o padrão: validade zero geraria uma
 permissão que já nasce vencida, e zero numa trava fecharia a rota inteira sem ninguém ter
 pedido.</p>
 
@@ -50,8 +52,8 @@ pedido.</p>
   <strong>Nem todas falham na hora de subir</strong>
   <p><code>DB_CONNECTION_STRING</code> e <code>JWT_SIGNING_KEY</code> são lidas ao montar as
   dependências, então faltando qualquer uma a API não sobe — e o motivo aparece no console.
-  Também derrubam a subida o armazenamento ou o e-mail configurados pela metade e um
-  <code>TRUSTED_PROXIES</code> inválido: não configurar é uma decisão, e esquecer a chave, o
+  Também derrubam a subida o armazenamento ou o e-mail configurados pela metade, e um
+  <code>PANEL_URL</code> ou um <code>TRUSTED_PROXIES</code> inválidos: não configurar é uma decisão, e esquecer a chave, o
   remetente ou escrever o proxy errado é um engano que ficaria escondido como "mídia
   indisponível", como "e-mail que não saiu" ou como "nenhum proxy".</p>
   <p><code>GOOGLE_CLIENT_ID</code> só é lida no primeiro login. Isso é proposital: permite
@@ -63,8 +65,9 @@ pedido.</p>
 <div class="note warn">
   <strong>Sem a fila, sem o armazenamento ou sem o e-mail, a API sobe</strong>
   <p>Ausentes, só o que depende deles para: a espera e o encerramento do pedido por prazo, sem a
-  fila; o anexo, sem o armazenamento; o envio de e-mail, sem o servidor. A espera e o anexo, a
-  tela que os liga recusa, dizendo por quê.
+  fila; o anexo, sem o armazenamento; o envio de e-mail, sem o servidor; e o convite, sem a fila, sem o
+  e-mail ou sem o <code>PANEL_URL</code>. A espera e o anexo, a tela que os liga recusa, dizendo
+  por quê; o convite, a tela de Membros diz qual das três falta.
   Com a API dentro do <code>docker compose</code>, o endereço da fila e o endereço, as chaves e o
   balde do armazenamento vêm do próprio compose, e as linhas do <code>.env.local</code> não valem:
   ver <a href="#/como-rodar/a-fila">A fila</a> e <a href="#/como-rodar/armazenamento">O

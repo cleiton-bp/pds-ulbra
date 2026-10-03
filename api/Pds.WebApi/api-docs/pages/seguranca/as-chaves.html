@@ -65,3 +65,31 @@ chave existe mas foi revogada" contaria a quem tenta que ele acertou metade.</p>
 <p>Revogar preenche <code>revoked_at</code> e cria uma linha nova. A anterior fica como
 histórico, com a data em que deixou de valer — é o que permite responder "esta chave estava
 ativa quando o acesso aconteceu?" depois de um incidente.</p>
+
+<h2>O link do convite</h2>
+
+<p>É a outra credencial que o sistema sorteia, e segue o desenho da chave secreta: 256 bits
+aleatórios, e o banco guarda só o SHA-256. O que muda é onde ele mora — <strong>só no
+e-mail</strong>.</p>
+
+<ul>
+  <li><strong>Nasce no consumidor da fila</strong>, na hora do envio. Não viaja pela fila, não volta
+  em resposta nenhuma e não aparece em tela, nem para quem convidou.</li>
+  <li><strong>Vem depois do <code>#</code></strong> no endereço, e o navegador não manda essa parte
+  a servidor nenhum ao abrir a página. Do painel para a API ele vai no corpo de um
+  <code>POST</code>, e não na URL.</li>
+  <li><strong>Reenviar sorteia outro</strong>, e o hash do anterior é trocado; cancelar marca o
+  convite como cancelado. Nos dois casos, o link anterior responde "não vale mais" — igual a um link
+  que nunca existiu.</li>
+  <li><strong>Sozinho, não basta.</strong> Aceitar exige a sessão da conta Google do endereço
+  convidado, com o e-mail confirmado pelo Google. Com a conta errada, a resposta não traz nada do
+  projeto — só a primeira letra e o domínio do endereço.</li>
+</ul>
+
+<div class="note why">
+  <strong>Busca pelo hash, e não comparação em tempo constante</strong>
+  <p>O convite é achado por uma consulta pelo hash, como a chave pública é achada pelo valor. O
+  tempo dessa consulta poderia, no máximo, contar algo sobre o hash — e conhecer o hash de 256 bits
+  sorteados não leva ao link. A comparação em tempo constante protege o token do relato porque ali
+  o relato é achado pelo protocolo, e o token é conferido depois, contra o valor guardado.</p>
+</div>

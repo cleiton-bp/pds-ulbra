@@ -26,8 +26,9 @@ administrador em cada um — sem linha nenhuma em <code>project_members</code>, 
 perde o acesso porque alguém removeu a linha errada.</p>
 
 <p>Os outros entram pelo projeto, e não pela conta: uma linha em <code>project_members</code> por
-pessoa em cada projeto, com o papel. A mesma pessoa pode estar em projetos de várias contas, e a
-lista da requisição junta todos.</p>
+pessoa em cada projeto, com o papel. A linha nasce de um convite aceito — ver
+<a href="#/fluxo/convidar">Convidar alguém para o time</a>. A mesma pessoa pode estar em projetos de
+várias contas, e a lista da requisição junta todos.</p>
 
 <p>São duas leituras a cada requisição autenticada: os projetos da conta própria, e as linhas da
 pessoa no time, fora da conta própria. <strong>O dono vence</strong>: se ele também tiver linha no
@@ -65,23 +66,26 @@ e decide quem entra — pode haver mais de um. <strong>Membro</strong> trabalha 
 configuração, sem mudá-la. O dono da conta é administrador em todos os projetos dela.</p>
 
 <p>A regra cabe numa linha — <strong>ler é de membro, e mudar a configuração é de
-administrador</strong> —, com uma exceção para cada lado:</p>
+administrador</strong> —, com três exceções:</p>
 
 <ul>
   <li><strong>As chaves</strong> são só de administrador, inclusive para ler. São a credencial da
   integração, e o trabalho nos relatos não precisa delas.</li>
+  <li><strong>Os convites</strong> também, inclusive a lista: ela traz o endereço de pessoas que
+  ainda não estão no time. Quem está no time, ao contrário, todo membro vê — é a lista de com quem
+  ele trabalha.</li>
   <li><strong>Tudo sob <code>/reports</code></strong> é de membro, inclusive o que grava — mover,
   comentar, pedir informação, encerrar e moderar. É o trabalho do time, e não configuração.</li>
 </ul>
 
-<p>Das quarenta e quatro rotas de projeto, vinte e três valem para qualquer papel, e vinte e uma
+<p>Das cinquenta e três rotas de projeto, vinte e cinco valem para qualquer papel, e vinte e oito
 pedem administrador:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Papel</th><th>Rotas</th></tr>
-  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as quatro configurações — e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, mover de estado, os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação.</td></tr>
-  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e regenerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia e o mapa; e tudo que grava em <code>/states</code> e <code>/public-stages</code>.</td></tr>
+  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, mover de estado, os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação.</td></tr>
+  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e regenerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code> e <code>/public-stages</code>; mudar o papel de alguém e tirar do time; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
 </table>
 </div>
 
@@ -148,13 +152,25 @@ enxerga — filtrá-las quebraria justamente as consultas que montam o acesso.</
 identificador que veio do token, ou por um projeto que a pessoa já enxerga — é assim que cada
 projeto da lista traz a conta dona, só com o nome e o identificador.</p>
 
+<h2>Quem aceita ainda não está no projeto</h2>
+
+<p>As duas rotas do convite do lado de quem foi convidado — abrir e aceitar — ficam em
+<code>/invitations</code>, <strong>fora</strong> de <code>projects/{publicId}</code>, de propósito:
+quem aceita ainda não está no projeto, e a rota dele responderia "não encontrado". Elas pedem
+sessão, e mais nada do projeto.</p>
+
+<p>O que prende o convite à pessoa são duas coisas juntas. O <strong>link</strong> do e-mail, com
+256 bits sorteados, que o banco guarda só como hash. E o <strong>Google</strong> de quem está
+logado: o e-mail da sessão precisa ser o endereço convidado, e confirmado pelo Google
+(<code>users.email_verified</code>). Encaminhado para outra pessoa, o link não serve para ela — e
+quem o abre com a conta errada vê só uma pista do endereço, a primeira letra e o domínio, e nada
+do projeto.</p>
+
+<p>Aceitar cria a linha em <code>project_members</code>, e o acesso vale a partir da requisição
+seguinte, como todo o resto: a lista de projetos é lida do banco a cada requisição.</p>
+
 <div class="note todo">
   <strong>O que falta</strong>
-  <p><strong>Planejado:</strong> o convite, que é como uma pessoa entra num projeto — o
-  administrador convida por e-mail, com o papel, e a pessoa aceita entrando com a conta Google do
-  mesmo endereço. A saída do e-mail pela fila, de que o convite depende, e a tela de Membros
-  também são <strong>Planejado</strong> — o envio por SMTP em si já existe. Até lá, nenhuma rota grava em <code>project_members</code>, e na
-  prática cada projeto tem só o dono.</p>
   <p><strong>Planejado:</strong> teste automatizado provando que uma pessoa não alcança, por
   nenhum caminho, projeto em que não está — e que o membro não muda a configuração.</p>
 </div>

@@ -21,14 +21,15 @@ Backend da plataforma. C# no .NET 10, PostgreSQL, Entity Framework Core.
 Não precisa de banco local: o PostgreSQL é hospedado.
 
 Docker é opcional, e serve para **duas** coisas, que rodam na sua máquina: a fila
-que sustenta a espera antes de quem relatou ver, e o armazenamento dos anexos. Sem
-elas a API sobe inteira: sem a fila, a espera fica indisponível — a tela de Ciclo
-recusa ligá-la, dizendo por quê — e o pedido de informação não encerra sozinho no
-prazo, fica aberto até quem relatou responder ou o time agir; sem o armazenamento, o anexo fica desligado — a
-tela de Mídia recusa ligá-lo.
+que sustenta a espera antes de quem relatou ver e a saída do e-mail, e o armazenamento
+dos anexos. Sem elas a API sobe inteira: sem a fila, a espera fica indisponível — a
+tela de Ciclo recusa ligá-la, dizendo por quê —, o pedido de informação não encerra
+sozinho no prazo, fica aberto até quem relatou responder ou o time agir, e o convite
+não sai; sem o armazenamento, o anexo fica desligado — a tela de Mídia recusa ligá-lo.
 
 O e-mail não roda na sua máquina: sai por um servidor SMTP de verdade, o Brevo. Sem
-ele configurado, a API sobe inteira e só o envio de e-mail fica indisponível.
+ele configurado, a API sobe inteira e só o envio de e-mail fica indisponível — e, com
+ele, o convite.
 
 ---
 
@@ -70,7 +71,7 @@ Em produção, vêm das variáveis reais do ambiente.
 | `JWT_ISSUER` / `JWT_AUDIENCE` | não | Emissor e destinatário. Padrão `pds` e `pds.panel` |
 | `JWT_EXPIRATION_HOURS` | não | Validade da sessão. Padrão 8 |
 | `CORS_ALLOWED_ORIGINS` | não | Origens do painel, separadas por vírgula |
-| `RABBITMQ_URL` | não | A fila da espera e dos prazos do pedido. Ausente, a espera fica indisponível e o pedido não encerra sozinho |
+| `RABBITMQ_URL` | não | A fila da espera, dos prazos do pedido e da saída do e-mail. Ausente, a espera fica indisponível, o pedido não encerra sozinho e o convite não sai |
 | `MEDIA_STORAGE_ENDPOINT` / `_ACCESS_KEY` / `_SECRET_KEY` / `_BUCKET` | não | O armazenamento dos anexos. **As quatro, ou nenhuma**: ausentes, o anexo fica desligado; metade delas derruba a subida, dizendo qual falta |
 | `MEDIA_STORAGE_PUBLIC_ENDPOINT` | não | O endereço com que o navegador alcança o armazenamento, e com que se assina. Padrão: o `MEDIA_STORAGE_ENDPOINT` |
 | `MEDIA_STORAGE_REGION` / `MEDIA_STORAGE_FORCE_PATH_STYLE` | não | Padrão `us-east-1` e `true` (o balde no caminho, como o MinIO espera) |
@@ -78,10 +79,12 @@ Em produção, vêm das variáveis reais do ambiente.
 | `MEDIA_STORAGE_READ_URL_MINUTES` | não | Validade do link de leitura. Padrão 5 |
 | `MEDIA_STORAGE_PLAYBACK_URL_MINUTES` | não | Validade do link de um vídeo antigo, que é lido em pedaços enquanto toca. Padrão 15 |
 | `MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE` | não | Pedidos e confirmações de envio por IP, por minuto. Padrão 20 |
+| `PANEL_URL` | não | O endereço do painel, que vai no link do convite — `http://localhost:5173` no desenvolvimento. Ausente, o convite não sai; sem `http`/`https`, ou com `?` ou `#`, a subida recusa |
+| `INVITATION_EMAILS_PER_HOUR` | não | Convites por projeto por hora, os novos e os reenviados somados. Padrão 20 |
 | `TRUSTED_PROXIES` | não | Proxies cujo `X-Forwarded-For` vale — endereço ou rede. Vazio, o IP é o da conexão. Valor inválido derruba a subida |
 | `Smtp__Host`, `Smtp__Port`, `Smtp__Security`, `Smtp__FromAddress`… | não | O envio de e-mail, lido como a seção `Smtp`, só das variáveis de ambiente (os dois sublinhados são o separador de seção do .NET). Sem nenhuma das quatro essenciais (`Host`, `FromAddress`, `Username`, `Password`), o e-mail fica indisponível; com parte delas, ou senha sem TLS, a subida recusa dizendo tudo o que falta. Ver [O e-mail](#o-e-mail) |
 
-Número zero ou negativo nas de minutos e na do limite vale o padrão.
+Número zero ou negativo nas de minutos e nas de limite vale o padrão.
 
 A chave de assinatura sai de:
 
@@ -101,10 +104,11 @@ comum, porque o arquivo tem a linha e parece configurado.
 ## A fila
 
 Só é necessária para a **espera antes de quem relatou ver** — a janela entre o time
-mover o card e a pessoa lá fora enxergar o movimento — e para o **prazo do pedido de
-informação** encerrar sozinho. Sem ela, todo o resto funciona: configurar uma espera
-maior que zero é recusado com o motivo, e o pedido de informação fica aberto até quem
-relatou responder ou o time agir.
+mover o card e a pessoa lá fora enxergar o movimento —, para o **prazo do pedido de
+informação** encerrar sozinho e para a **saída do e-mail**. Sem ela, todo o resto
+funciona: configurar uma espera maior que zero é recusado com o motivo, o pedido de
+informação fica aberto até quem relatou responder ou o time agir, e a tela de Membros
+diz que o convite não sai porque falta a fila.
 
 ```bash
 cd api
@@ -131,6 +135,11 @@ troca, e a recusa acontece na subida — que é onde se quer descobrir isso.
 relato: a mensagem só carrega a hora de olhar de novo. Por isso derrubar o
 ambiente de desenvolvimento não perde nada, e por isso a API reavalia na subida o
 que venceu sem ter sido aplicado.
+
+**O e-mail tem fila própria**, `pds.emails`, sem atraso. O pedido leva só o tipo e o
+identificador do convite — nem o endereço, nem o link —, e o estado do envio vive no
+convite (`project_invitations.email_status`). Na subida, a API marca como falho o que
+ficou preso no meio de um envio e publica de novo o que continua pendente.
 
 ---
 
@@ -179,8 +188,8 @@ navegador conhece (`MEDIA_STORAGE_PUBLIC_ENDPOINT`).
 ## O e-mail
 
 A API manda e-mail por **SMTP**, que todo provedor fala: trocar de provedor é trocar
-configuração, e não código. Hoje nada no produto manda e-mail ainda — o convite para o
-projeto e o aviso quando o relato anda são os primeiros, **Planejado**. Sem nenhuma das
+configuração, e não código. O primeiro a usar é o **convite para o time**, que sai pela
+fila depois de gravado; o aviso quando o relato anda é **Planejado**. Sem nenhuma das
 quatro chaves essenciais — servidor, remetente, usuário e senha —, a API sobe normalmente
 e o envio responde que não está disponível; com parte delas, não sobe, e diz o que falta.
 
@@ -221,6 +230,11 @@ Outro provedor é trocar os valores: a porta e a segurança que ele pedir (`587`
 na subida** — iria em texto aberto. Com `StartTls`, o padrão, servidor sem TLS é
 recusado: conexão aberta só com `Security=None`, escrito de propósito. Padrões: porta
 587, `StartTls`, 30 segundos de espera (de 1 a 300). Linha em branco vale o padrão.
+
+**O convite precisa de três peças**: o e-mail, a fila e o `PANEL_URL`, que é o endereço
+do painel no link. Faltando qualquer uma, a API sobe, e a tela de Membros diz qual falta.
+O envio que falha não é tentado de novo sozinho: fica marcado no convite, o motivo vai
+para o log — o tipo do erro, e nunca o endereço —, e a tela oferece reenviar.
 
 **Com a API no `docker compose up -d --build`**, o e-mail vem do mesmo `.env.local`,
 montado no container: o Brevo é um endereço de fora, e não um serviço do compose.

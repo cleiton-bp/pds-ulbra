@@ -1,7 +1,7 @@
 meta:
   title: A conta
   system: PDS — painel
-  description: "Planejado. Chamar quem trabalha junto — por projeto, como administrador ou como membro — e sair de vez, excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. O papel no projeto já existe; o que falta é o convite, e até ele chegar cada projeto tem só o dono."
+  description: "Chamar quem trabalha junto — por projeto, como administrador ou como membro —, cuidar de quem está no time, e sair de vez, excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. O convite e o time já existem; a exclusão é Planejado."
 actors:
   - name: Dono do projeto
     description: Quem criou a conta; manda em todos os projetos dela, e é administrador de cada um.
@@ -19,23 +19,41 @@ actors:
 useCases:
   - id: UC01
     name: Convidar um membro
-    description: "Planejado. Chamar outra pessoa para trabalhar num projeto, como administradora ou como membro. O convite é por projeto, e não pela conta inteira."
+    description: "Chamar outra pessoa para trabalhar num projeto, como administradora ou como membro. O convite é por projeto, e não pela conta inteira, e só por e-mail: o link nunca aparece na tela."
     position: { x: 280, y: 40 }
-    preconditions: Quem convida é administrador do projeto.
+    preconditions: Quem convida é administrador do projeto, e o servidor tem e-mail, fila e o endereço do painel configurados.
     mainFlow:
       - O administrador abre Membros no projeto.
       - Informa o e-mail de quem quer convidar e o papel.
-      - O sistema manda o convite por e-mail.
-    postconditions: O convite fica pendente até a pessoa aceitar, com o Google do mesmo e-mail.
+      - O sistema grava o convite e põe o e-mail na fila, sem esperar o envio.
+      - O e-mail sai com o link, e a tela passa a mostrar "enviado".
+    alternativeFlows:
+      - Se o e-mail não sai, a tela mostra que não saiu, o motivo vai para o log, e o administrador reenvia.
+      - Se o endereço já tem convite aberto, convidar de novo reenvia o mesmo, com prazo novo e o papel novo.
+    postconditions: O convite fica aberto até a pessoa aceitar, até vencer — 7 dias, ajustável no projeto — ou até ser cancelado. Reenviar troca o link, e o anterior deixa de valer.
   - id: UC02
     name: Aceitar o convite
-    description: Planejado. Quem foi convidado entra com o Google do e-mail convidado e passa a ver o projeto, com o papel do convite.
+    description: Quem foi convidado entra com o Google do e-mail convidado, confirmado pelo Google, e passa a ver o projeto, com o papel do convite.
     position: { x: 299, y: 415 }
-    preconditions: Há um convite pendente para a pessoa.
+    preconditions: Há um convite aberto para a pessoa, dentro do prazo.
     mainFlow:
-      - O convidado abre o convite que chegou por e-mail.
-      - Entra com o Google do mesmo e-mail.
+      - O convidado abre o link que chegou por e-mail.
+      - Entra com o Google do mesmo e-mail, se ainda não estava no painel.
+      - Vê o projeto, quem convidou e o papel, e aceita.
       - Passa a ver o projeto no painel, agrupado pela conta dona.
+    alternativeFlows:
+      - Com outra conta Google, a página mostra só uma pista do endereço convidado, e nada do projeto, e oferece trocar de conta.
+      - Vencido, cancelado ou trocado por um reenvio, o link não vale, e a página diz a quem pedir um novo.
+  - id: UC06
+    name: Cuidar do time
+    description: Ver quem está no projeto, mudar o papel de alguém ou tirar alguém do time. Todo o time vê a lista; mudar é do administrador.
+    position: { x: 530, y: 40 }
+    preconditions: Quem muda é administrador do projeto.
+    mainFlow:
+      - O administrador abre Membros no projeto.
+      - Muda o papel de alguém, ou tira a pessoa do time, confirmando.
+      - O acesso muda na requisição seguinte da pessoa, sem esperar o login vencer.
+    postconditions: O dono não muda de papel nem sai do time — manda em todos os projetos da conta. O que quem saiu escreveu nos relatos continua com o nome dela.
   - id: UC03
     name: Excluir a conta
     description: Planejado. Apaga tudo de verdade, e não só marca como apagado — depois de um prazo de arrependimento, para dar chance de desfazer uma exclusão acidental.
@@ -70,6 +88,13 @@ links:
   - from: Administrador do projeto
     to: UC01
     kind: association
+  - from: Administrador do projeto
+    to: UC06
+    kind: association
+  - from: Membro do time
+    to: UC06
+    kind: association
+    note: só vê a lista
   - from: Dono do projeto
     to: Administrador do projeto
     kind: generalization
@@ -90,7 +115,7 @@ links:
     to: UC02
     kind: association
 notes:
-  - text: "Decidido: o convite é por projeto, e não pela conta inteira. O papel é administrador — configura o projeto e decide quem entra — ou membro — trabalha nos relatos, e não vê a Configuração. O convite vai por e-mail e só vale aceito com o Google do mesmo endereço. A mesma pessoa pode estar em projetos de várias contas."
+  - text: "O convite é por projeto, e não pela conta inteira. O papel é administrador — configura o projeto e decide quem entra — ou membro — trabalha nos relatos, e não vê a Configuração. O convite vai só por e-mail, e só vale aceito com o Google do mesmo endereço, confirmado. O link nunca é guardado: o banco tem só o hash dele. A mesma pessoa pode estar em projetos de várias contas."
     anchor: UC01
     position: { x: 500, y: -185 }
   - text: "O prazo de 24 horas está decidido; a proposta é de 7 a 30 dias, porque quem exclui numa sexta e percebe na segunda perde tudo. A decidir também: se a ferramenta continua aceitando relato durante o prazo."
