@@ -29,9 +29,10 @@ const CSHARP = fileURLToPath(
  * Le os membros do enum: o que sobra depois de tirar comentarios de bloco, de
  * linha e o cabecalho do proprio `enum`.
  *
- * So interessam os que comecam com `Report`. O enum pode ganhar um dia um tipo
- * que nao fale de relato — de projeto, de conta —, e esse nao passaria pela rota
- * de historico nem precisaria de frase.
+ * Interessam os que passam pela rota de historico de um card: os do relato
+ * (`Report...`) e os do card em si (`TeamCard...` e `Card...`, que valem para o
+ * relato tambem). Os do time e do convite (`Project...`) nao tem card, nao passam
+ * por ela e nao precisam de frase.
  */
 function parseMembers(source: string): string[] {
   const body = source
@@ -44,7 +45,7 @@ function parseMembers(source: string): string[] {
   return inside
     .split(',')
     .map((member) => member.trim())
-    .filter((member) => member.startsWith('Report'))
+    .filter((member) => /^(Report|TeamCard|Card)/.test(member))
 }
 
 describe('os tipos de evento, dos dois lados', () => {

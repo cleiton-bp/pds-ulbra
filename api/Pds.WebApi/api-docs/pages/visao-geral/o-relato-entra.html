@@ -3,12 +3,14 @@
 
 <p>A <strong>base</strong> é a de todo produto com conta: login com Google, projeto, chave
 pública e secreta, e o isolamento por projeto — cada pessoa enxerga só os projetos em que está,
-como administradora, que configura, ou como membro, que trabalha nos relatos; o convite, que põe
-alguém num projeto, é <strong>Planejado</strong>. Sobre ela, <strong>o
+como administradora, que configura, ou como membro, que trabalha nos relatos. Alguém entra num
+projeto por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google
+do mesmo endereço. Sobre ela, <strong>o
 relato entra</strong>, e o caminho funciona nas duas direções: dá para colar o script numa página
 qualquer, ver o relato chegar, lê-lo na lista do painel — e quem relatou volta pelo link e vê o
 próprio relato. O limite de envio em <code>POST /public/reports</code> é <strong>Planejado</strong>:
-hoje têm limitador o login e as duas rotas de envio de arquivo.</p>
+hoje têm limitador o login e as duas rotas de envio de arquivo — e o convite, um teto por hora em
+cada projeto.</p>
 
 <p>O <strong>time trabalha o relato</strong> numa fila que é do cliente. Ele cria a própria
 fila de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada
@@ -25,7 +27,8 @@ que o projeto passasse de vinte relatos.</p>
 colega, abrir em outra aba e recarregar sem perdê-lo. Ele abre <em>sobre</em> a lista, que
 continua montada atrás com o recorte e a rolagem onde estavam.</p>
 
-<p>E o time <strong>move o relato de coluna</strong>, pela tela do relato aberto. Cada mudança
+<p>E o time <strong>move o relato de coluna</strong>, pela tela do relato aberto ou arrastando o card no
+quadro. Cada mudança
 grava um evento imutável com de onde, para onde, quem e quando — e o evento entra <em>antes</em>
 do cache, na mesma transação. A fila deixou de ser uma foto.</p>
 

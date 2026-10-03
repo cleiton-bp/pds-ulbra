@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ReportType, WidgetPosition, WidgetSettingsViewModel, WidgetTheme } from '@/contracts'
+import type {
+  ReportTitleMode,
+  ReportType,
+  WidgetPosition,
+  WidgetSettingsViewModel,
+  WidgetTheme,
+} from '@/contracts'
 import { WIDGET_TEXT_LIMITS } from '@/contracts'
 import { describeError, projectKeyService, projectWidgetSettingsService } from '@/data'
 import { readProductAccent } from '@/features/widgetSettings/productAccent'
@@ -254,6 +260,21 @@ export function WidgetSettingsScreen() {
                 outra coisa.
               </p>
             )}
+
+            <Field label="Pergunta do título" className="mt-6">
+              <Options
+                value={draft.ReportTitleMode}
+                onChange={(ReportTitleMode) => change({ ReportTitleMode })}
+                options={[
+                  { value: 'Optional', label: 'Opcional' },
+                  { value: 'Required', label: 'Obrigatória' },
+                  { value: 'Hidden', label: 'Escondida' },
+                ]}
+              />
+            </Field>
+            <p className="mt-2 text-detail text-fg-muted leading-relaxed">
+              {TITULO_POR_MODO[draft.ReportTitleMode]}
+            </p>
           </Section>
 
           {/* A barra so existe quando ha o que publicar: um botao "Publicar"
@@ -309,8 +330,23 @@ function same(a: WidgetSettingsViewModel, b: WidgetSettingsViewModel): boolean {
     a.Placeholder === b.Placeholder &&
     a.SuccessMessage === b.SuccessMessage &&
     a.ShowsTypeField === b.ShowsTypeField &&
-    a.DefaultReportType === b.DefaultReportType
+    a.DefaultReportType === b.DefaultReportType &&
+    a.ReportTitleMode === b.ReportTitleMode
   )
+}
+
+/**
+ * O que cada modo da pergunta faz, dito para quem escolhe. A pergunta e sempre a
+ * mesma — "Em poucas palavras, o que aconteceu?" —, e a resposta vira o titulo do
+ * card: o time pode reescrever, e quem relatou continua vendo o que escreveu.
+ */
+const TITULO_POR_MODO: Record<ReportTitleMode, string> = {
+  Optional:
+    'A ferramenta pergunta “Em poucas palavras, o que aconteceu?”, e quem não responder envia assim mesmo. A resposta vira o título do card no Trabalho.',
+  Required:
+    'Ninguém envia sem responder. O time reconhece o card de cara, mas a pergunta a mais pode fazer alguém desistir no meio.',
+  Hidden:
+    'A ferramenta não pergunta. No Trabalho, o card mostra o começo do texto no lugar do título.',
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -347,7 +383,7 @@ function Field({
  * de verdade, com a aparencia do resto do painel; o leitor de tela anuncia
  * "pressionado", que e o estado real.
  */
-function Options<T extends WidgetPosition | WidgetTheme | ReportType>({
+function Options<T extends WidgetPosition | WidgetTheme | ReportType | ReportTitleMode>({
   value,
   onChange,
   options,

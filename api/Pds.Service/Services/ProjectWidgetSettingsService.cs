@@ -47,6 +47,12 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         settings.SuccessMessage = RequireText(dto.SuccessMessage, ProjectWidgetSettings.MaxSuccessMessageLength, "a mensagem de confirmação");
         settings.ShowsTypeField = Required(dto.ShowsTypeField, "Informe se o seletor de tipo aparece.");
         settings.DefaultReportType = Required(dto.DefaultReportType, "Informe o tipo pre-marcado.");
+        settings.ReportTitleMode = Required(dto.ReportTitleMode, "Informe como a ferramenta pergunta o titulo.");
+
+        // O numero que nao e modo nenhum passa pela leitura do JSON — e iria parar no
+        // banco como texto que a ferramenta nao sabe desenhar.
+        if (!Enum.IsDefined(settings.ReportTitleMode))
+            throw new ArgumentException("Informe como a ferramenta pergunta o titulo: opcional, obrigatoria ou escondida.");
 
         if (novo)
             await _unitOfWork.ProjectWidgetSettings.AddAsync(settings, cancellationToken);
@@ -148,6 +154,7 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         settings?.SuccessMessage ?? WidgetSettingsDefaults.SuccessMessage,
         settings?.ShowsTypeField ?? WidgetSettingsDefaults.ShowsTypeField,
         settings?.DefaultReportType ?? WidgetSettingsDefaults.DefaultReportType,
+        settings?.ReportTitleMode ?? WidgetSettingsDefaults.ReportTitleMode,
         cycle?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault,
         identity?.Mode ?? IdentitySettingsDefaults.Mode,
         identity?.Visibility ?? IdentitySettingsDefaults.Visibility,

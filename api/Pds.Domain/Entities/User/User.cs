@@ -30,6 +30,13 @@ public class User : PdsBaseEntity
     /// </summary>
     public string? Email { get; set; }
 
+    /// <summary>
+    /// Se o Google confirmou que a pessoa e dona do <see cref="Email"/>, no ultimo
+    /// login. Aceitar convite exige isto: e o que faz "o mesmo e-mail do convite"
+    /// querer dizer a mesma pessoa, e nao alguem que digitou o endereco numa conta.
+    /// </summary>
+    public bool EmailVerified { get; set; }
+
     /// <summary>Nome vindo do Google.</summary>
     public string? Name { get; set; }
 

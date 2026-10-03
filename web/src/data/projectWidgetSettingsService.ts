@@ -15,7 +15,7 @@ export interface ProjectWidgetSettingsService {
   getWidgetSettings(publicId: string): Promise<WidgetSettingsViewModel>
 
   /**
-   * Substitui a configuracao inteira, com os dez campos.
+   * Substitui a configuracao inteira, com os onze campos.
    *
    * Substitui, e nao altera campo a campo: `AccentColor` nulo e um valor — quer
    * dizer "use o acento do produto" —, e num corpo parcial ele seria

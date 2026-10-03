@@ -298,6 +298,14 @@ const PARES: Array<{ fg: string; bg: string; onde: string; minimo: number }> = [
   { fg: 'active-fg', bg: 'active', onde: 'check do passo concluido', minimo: 3 },
   { fg: 'warn-fg', bg: 'warn-surface', onde: 'painel da chave secreta', minimo: 4.2 },
   { fg: 'fg-placeholder', bg: 'surface-raised', onde: 'exemplo em campo vazio', minimo: 3.5 },
+  { fg: 'chip-gray-fg', bg: 'chip-gray-surface', onde: 'etiqueta gray', minimo: 4.5 },
+  { fg: 'chip-blue-fg', bg: 'chip-blue-surface', onde: 'etiqueta blue', minimo: 4.5 },
+  { fg: 'chip-green-fg', bg: 'chip-green-surface', onde: 'etiqueta green', minimo: 4.5 },
+  { fg: 'chip-yellow-fg', bg: 'chip-yellow-surface', onde: 'etiqueta yellow', minimo: 4.5 },
+  { fg: 'chip-orange-fg', bg: 'chip-orange-surface', onde: 'etiqueta orange', minimo: 4.5 },
+  { fg: 'chip-red-fg', bg: 'chip-red-surface', onde: 'etiqueta red', minimo: 4.5 },
+  { fg: 'chip-purple-fg', bg: 'chip-purple-surface', onde: 'etiqueta purple', minimo: 4.5 },
+  { fg: 'chip-pink-fg', bg: 'chip-pink-surface', onde: 'etiqueta pink', minimo: 4.5 },
 ]
 
 describe('contraste dos pares de cor', () => {

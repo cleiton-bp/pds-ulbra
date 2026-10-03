@@ -64,6 +64,37 @@
   --red-7: #f3aeaf;
   --red-11: #ce2c31;
 
+  /* A PALETA DE DADO — as oito cores que o time escolhe para etiqueta e
+     prioridade. Degraus 3 (fundo), 7 (borda), 11 e 12 (texto) do Radix; o
+     significado delas esta na camada 2. */
+  --slate-7: #cdced6;
+  --blue-3: #e6f4fe;
+  --blue-7: #8ec8f6;
+  --blue-11: #0d74ce;
+  --blue-12: #113264;
+  --grass-3: #e9f6e9;
+  --grass-7: #94ce9a;
+  --grass-11: #2a7e3b;
+  --grass-12: #203c25;
+  --yellow-3: #fffab8;
+  --yellow-7: #e4c767;
+  --yellow-11: #9e6c00;
+  --yellow-12: #473b1f;
+  --orange-3: #ffefd6;
+  --orange-7: #f5ae73;
+  --orange-11: #cc4e00;
+  --orange-12: #582d1d;
+  --red-3: #feebec;
+  --red-12: #641723;
+  --purple-3: #f7edfe;
+  --purple-7: #d1afec;
+  --purple-11: #8145b5;
+  --purple-12: #402060;
+  --pink-3: #fee9f5;
+  --pink-7: #e7acd0;
+  --pink-11: #c2298a;
+  --pink-12: #651249;
+
   --white: #ffffff;
 
   /* PAR FIXO — a tinta que vai sobre uma cor que **nao vem do tema**.
@@ -128,6 +159,36 @@
 
   /* Tres lugares desenham o veu, e dois ja divergiram em 5% de opacidade. */
   --overlay: rgb(0 0 0 / 45%);
+
+  /* PALETA DE DADO — a cor que o time escolhe para uma etiqueta ou prioridade.
+     **Nao e significado do produto**: nao diz erro nem funcionando, e do dado. Por
+     isso vem sempre com o nome escrito ao lado — cor nunca sozinha —, e o vermelho
+     daqui e o "Urgente" de alguem, e nao um botao. Texto no degrau 12 no claro: o
+     11 nao chega a 4,5:1 no azul, no amarelo e no laranja. */
+  --chip-gray-surface: var(--slate-3);
+  --chip-gray-border: var(--slate-7);
+  --chip-gray-fg: var(--slate-12);
+  --chip-blue-surface: var(--blue-3);
+  --chip-blue-border: var(--blue-7);
+  --chip-blue-fg: var(--blue-12);
+  --chip-green-surface: var(--grass-3);
+  --chip-green-border: var(--grass-7);
+  --chip-green-fg: var(--grass-12);
+  --chip-yellow-surface: var(--yellow-3);
+  --chip-yellow-border: var(--yellow-7);
+  --chip-yellow-fg: var(--yellow-12);
+  --chip-orange-surface: var(--orange-3);
+  --chip-orange-border: var(--orange-7);
+  --chip-orange-fg: var(--orange-12);
+  --chip-red-surface: var(--red-3);
+  --chip-red-border: var(--red-7);
+  --chip-red-fg: var(--red-12);
+  --chip-purple-surface: var(--purple-3);
+  --chip-purple-border: var(--purple-7);
+  --chip-purple-fg: var(--purple-12);
+  --chip-pink-surface: var(--pink-3);
+  --chip-pink-border: var(--pink-7);
+  --chip-pink-fg: var(--pink-12);
 }
 
 /* ---------------------------------------------------------------------------
@@ -156,6 +217,37 @@
 
   --red-7: #8c333a;
   --red-11: #ff9592;
+
+  --slate-7: #43484e;
+  --blue-3: #0d2847;
+  --blue-7: #205d9e;
+  --blue-11: #70b8ff;
+  --grass-3: #1b2a1e;
+  --grass-7: #366740;
+  --grass-11: #71d083;
+  --yellow-3: #2d2305;
+  --yellow-7: #665417;
+  --yellow-11: #f5e147;
+  --orange-3: #331e0b;
+  --orange-7: #7e451d;
+  --orange-11: #ffa057;
+  --red-3: #3b1219;
+  --purple-3: #301c3b;
+  --purple-7: #664282;
+  --purple-11: #d19dff;
+  --pink-3: #37172f;
+  --pink-7: #833869;
+  --pink-11: #ff8dcc;
+
+  /* No escuro o texto da paleta e o degrau 11: o 12 quase some no fundo 3. */
+  --chip-gray-fg: var(--slate-11);
+  --chip-blue-fg: var(--blue-11);
+  --chip-green-fg: var(--grass-11);
+  --chip-yellow-fg: var(--yellow-11);
+  --chip-orange-fg: var(--orange-11);
+  --chip-red-fg: var(--red-11);
+  --chip-purple-fg: var(--purple-11);
+  --chip-pink-fg: var(--pink-11);
 
   /* O acento inverte junto com a escala: quase branco sobre fundo quase preto. */
   --accent: var(--slate-12);

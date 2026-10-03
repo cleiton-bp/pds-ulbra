@@ -6,6 +6,8 @@
   <tr><td><code>name</code></td><td>Único dentro da conta, entre os não apagados.</td></tr>
   <tr><td><code>status</code></td><td><code>active</code> ou <code>archived</code>.</td></tr>
   <tr><td><code>mapping_version</code></td><td>A versão do mapeamento que vale agora. Zero enquanto nada foi ligado — ver <code>project_status_mappings</code>.</td></tr>
+  <tr><td><code>last_card_number</code></td><td>O último número de card dado no projeto; o próximo leva este mais um. Somado e lido num comando só, que serializa quem cria ao mesmo tempo — ver <code>reports.number</code>.</td></tr>
+  <tr><td><code>board_top_rank</code></td><td>O topo do quadro: o lugar do último card posto no topo de uma coluna — o que chega sem ser arrastado, ou o que foi solto no topo. <b>Só desce</b>, num comando só, no mesmo desenho do número do card (que sobe): o card que chega fica acima de tudo sem ninguém ler a coluna. Ver <code>reports.board_rank</code>.</td></tr>
 </table>
 
 <p>Arquivar não apaga nada: o projeto continua visível e consultável, só para de aceitar

@@ -14,6 +14,8 @@ export interface ConsoleSection {
     | 'start'
     | 'keys'
     | 'states'
+    | 'priorities'
+    | 'labels'
     | 'stages'
     | 'cycle'
     | 'identity'
@@ -21,6 +23,7 @@ export interface ConsoleSection {
     | 'settings'
     | 'reports'
     | 'moderation'
+    | 'members'
     | 'tool'
   label: string
   /** Segmento final da rota: `/projects/:publicId/<path>`. */
@@ -40,6 +43,10 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   { key: 'keys', label: 'Chaves', path: 'keys' },
   { key: 'tool', label: 'Ferramenta', path: 'tool' },
   { key: 'states', label: 'Estados', path: 'states' },
+  // Logo depois dos estados: e o mesmo tipo de lista — nomes do time, na ordem do
+  // time —, e o que o card ganha alem da coluna.
+  { key: 'priorities', label: 'Prioridades', path: 'priorities' },
+  { key: 'labels', label: 'Etiquetas', path: 'labels' },
   // O caminho e `public-stages`, e nao `stages`: na barra de endereco
   // `states` e `stages` diferem por uma letra, e as duas telas sao justamente
   // as duas que se confundem.
@@ -64,12 +71,13 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
 /**
  * O grupo de baixo, na parte que ja funciona.
  *
- * **Relatos** e a primeira: ate aqui o painel so mostrava o que a propria pessoa
- * tinha configurado, e esta e a secao que mostra o que chegou de fora.
+ * **Trabalho** e a primeira: e onde o time trabalha — o que chegou de fora e os
+ * cards que ele mesmo criou. O caminho continua `reports`, porque o relato veio
+ * primeiro e os enderecos ja foram copiados para conversas.
  */
 export const OPERATION_SECTIONS: ConsoleSection[] = [
-  { key: 'reports', label: 'Relatos', path: 'reports' },
-  // **Vem depois de Relatos, e nao dentro dela.** As duas leem o mesmo relato e
+  { key: 'reports', label: 'Trabalho', path: 'reports' },
+  // **Vem depois de Trabalho, e nao dentro dela.** As duas leem o mesmo relato e
   // respondem perguntas diferentes: "o que ainda nao tratei" e "o que ja pode
   // ser lido por estranhos". Como aba de um filtro, a segunda viraria um recorte
   // da primeira — e a decisao de publicar nao e um recorte de nada.
@@ -78,6 +86,11 @@ export const OPERATION_SECTIONS: ConsoleSection[] = [
   // que a fila existe e continua enchendo, e quem marcasse o projeto como
   // publico descobriria um dia uma fila de meses.
   { key: 'moderation', label: 'Moderação', path: 'moderation' },
+  // **Fica na Operação, e não na Configuração.** O time inteiro vê quem está no
+  // projeto — é de onde sai com quem trabalhar —, e quem é só membro também abre a
+  // tela, só para ler. Convidar, mudar papel e remover aparecem para o
+  // administrador.
+  { key: 'members', label: 'Membros', path: 'members' },
 ]
 
 /**
@@ -91,20 +104,12 @@ export interface LockedSection {
 }
 
 export const LOCKED_SECTIONS: LockedSection[] = [
-  {
-    key: 'board',
-    label: 'Quadro',
-    hint: 'Os relatos como cartões, que o time arrasta entre os estados que você criar. Ainda não disponível.',
-  },
+  // O quadro nao esta aqui: ele e a segunda vista da tela de Trabalho, e nao uma
+  // secao propria.
   {
     key: 'addons',
     label: 'Addons',
     hint: 'Integrações com Slack, GitHub e e-mail. Ainda não disponível.',
-  },
-  {
-    key: 'members',
-    label: 'Membros',
-    hint: 'Convites para outras pessoas trabalharem neste projeto. Ainda não disponível.',
   },
   {
     key: 'usage',

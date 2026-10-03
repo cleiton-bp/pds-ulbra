@@ -66,8 +66,8 @@ serializada nela. É a única resposta do sistema que vai para alguém de fora d
 com serialização, a coluna acrescentada amanhã a uma tabela interna apareceria ali sem ninguém
 decidir — e vazamento por serialização não dá erro em teste nenhum.</p>
 
-<p>O <strong>quadro arrastável</strong> não existe, e é <strong>Continuidade</strong>. E ficam
-três ressalvas. O motor <strong>não tem teste</strong> do lado C#, e o teste de vazamento não foi
+<p>No painel, arrastar um card no <strong>quadro</strong> é o mesmo movimento do seletor de coluna: a
+etapa pública anda pela mesma espera. Ficam três ressalvas. O motor <strong>não tem teste</strong> do lado C#, e o teste de vazamento não foi
 escrito: os dois esperam o projeto de testes da API, e são <strong>Planejado</strong>. E a página
 pública <strong>não é renderizada no servidor</strong>, também <strong>Planejado</strong>: ela é
 uma aplicação React que baixa cerca de 86 kB de JavaScript comprimido, uns 60 deles o próprio

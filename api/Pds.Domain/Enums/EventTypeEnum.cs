@@ -183,4 +183,86 @@ public enum EventTypeEnum
     /// e rigoroso — diz que o aviso antes de escrever nao esta sendo lido.</para>
     /// </summary>
     ReportModerationRejected,
+
+    /// <summary>
+    /// Um administrador convidou alguem para o projeto, com um papel.
+    ///
+    /// <para><b>O e-mail de quem foi convidado nao vai no payload</b>: esta tabela
+    /// nao se apaga, e o endereco e dado da pessoa — fica no convite, que se apaga.
+    /// Vao o identificador do convite e o papel.</para>
+    ///
+    /// <para>E tambem a contagem do limite por hora: convite e a unica rota do painel
+    /// que manda e-mail para fora.</para>
+    /// </summary>
+    ProjectInvitationSent,
+
+    /// <summary>
+    /// Um administrador mandou o mesmo convite de novo, com prazo novo — e o link
+    /// anterior deixou de valer. Conta no limite por hora, como o primeiro envio.
+    /// </summary>
+    ProjectInvitationResent,
+
+    /// <summary>Um administrador cancelou um convite que ainda nao tinha sido aceito.</summary>
+    ProjectInvitationRevoked,
+
+    /// <summary>
+    /// A pessoa convidada aceitou, entrando com o Google do mesmo endereco, e
+    /// passou a fazer parte do time.
+    /// </summary>
+    ProjectInvitationAccepted,
+
+    /// <summary>Um administrador mudou o papel de alguem do time.</summary>
+    ProjectMemberRoleChanged,
+
+    /// <summary>
+    /// Um administrador tirou alguem do time. O acesso acaba na requisicao
+    /// seguinte; o que a pessoa escreveu nos relatos continua com o nome dela.
+    /// </summary>
+    ProjectMemberRemoved,
+
+    /// <summary>
+    /// O time criou um card no painel, sem relator. Sem titulo nem descricao no
+    /// payload: esta tabela nao se apaga, e o texto e do card, que se apaga.
+    /// </summary>
+    TeamCardCreated,
+
+    /// <summary>O time mudou o titulo ou a descricao de um card do time.</summary>
+    TeamCardEdited,
+
+    /// <summary>
+    /// O card saiu da tela de Trabalho. No relato aberto, vem junto do
+    /// encerramento (<see cref="ReportClosed"/>), que leva o motivo a quem relatou.
+    /// </summary>
+    CardArchived,
+
+    /// <summary>
+    /// O card voltou para a tela de Trabalho — pelo time, ou sozinho, quando quem
+    /// relatou reabriu ou respondeu (origem <c>public_page</c>).
+    /// </summary>
+    CardUnarchived,
+
+    /// <summary>
+    /// O time reescreveu o titulo do relato, ou voltou ao que quem relatou escreveu.
+    /// Sem o texto no payload — so o tamanho e se voltou —, pela mesma razao do card
+    /// do time: esta tabela nao se apaga.
+    /// </summary>
+    CardTitleChanged,
+
+    /// <summary>
+    /// Mudou quem esta com o card. O payload leva os identificadores publicos das
+    /// pessoas, e nao os nomes: nome e dado de alguem, e esta tabela nao se apaga.
+    /// </summary>
+    CardAssigneeChanged,
+
+    /// <summary>
+    /// Mudou a prioridade. Os nomes vao junto dos identificadores, como no estado:
+    /// renomear a prioridade nao reescreve o passado.
+    /// </summary>
+    CardPriorityChanged,
+
+    /// <summary>Entraram ou sairam etiquetas, com os nomes que valiam na epoca.</summary>
+    CardLabelsChanged,
+
+    /// <summary>Mudou o prazo. Datas, sem hora.</summary>
+    CardDueDateChanged,
 }

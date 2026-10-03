@@ -92,6 +92,8 @@ public static class DiResolver
         services.AddScoped<IProjectOriginService, ProjectOriginService>();
         services.AddScoped<IProjectWidgetSettingsService, ProjectWidgetSettingsService>();
         services.AddScoped<IProjectStateService, ProjectStateService>();
+        services.AddScoped<IProjectPriorityService, ProjectPriorityService>();
+        services.AddScoped<IProjectLabelService, ProjectLabelService>();
         services.AddScoped<IProjectPublicStageService, ProjectPublicStageService>();
         services.AddScoped<IProjectStatusMappingService, ProjectStatusMappingService>();
         services.AddScoped<IProjectCycleSettingsService, ProjectCycleSettingsService>();
@@ -100,5 +102,8 @@ public static class DiResolver
         services.AddScoped<IReportAttachmentService, ReportAttachmentService>();
         services.AddScoped<IReportCommentService, ReportCommentService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IProjectMemberService, ProjectMemberService>();
+        services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+        services.AddScoped<IProjectTeamSettingsService, ProjectTeamSettingsService>();
     }
 }

@@ -34,6 +34,12 @@ public class ProjectCycleSettings : PdsBaseEntity
     /// <summary>Teto de cada um dos dois prazos do pedido de informacao, em dias.</summary>
     public const int MaxInfoRequestDays = 365;
 
+    /// <summary>Teto dos dias que a ultima coluna do quadro mostra: um ano.</summary>
+    public const int MaxLastColumnVisibleDays = 365;
+
+    /// <summary>Teto do "perto do prazo", em dias: um mes. Mais que isso, todo prazo fica perto.</summary>
+    public const int MaxDueSoonDays = 30;
+
     /// <summary>Projeto dono da configuracao. E por ele que o 1:1 acontece.</summary>
     public long ProjectId { get; set; }
     public Project Project { get; set; } = null!;
@@ -106,4 +112,30 @@ public class ProjectCycleSettings : PdsBaseEntity
     /// caixa.
     /// </summary>
     public bool AcceptsQuestionsDefault { get; set; }
+
+    /// <summary>
+    /// O time pode arquivar relato — tira-lo da tela de Trabalho.
+    ///
+    /// <para><b>Desligada de fabrica.</b> O caminho do relato e encerrar com
+    /// desfecho. Ligada, arquivar um relato aberto <b>encerra junto</b>, com
+    /// desfecho e motivo: quem relatou le o motivo e pode reabrir ou finalizar —
+    /// arquivar nunca deixa a pessoa sem retorno.</para>
+    /// </summary>
+    public bool AllowsReportArchiving { get; set; }
+
+    /// <summary>
+    /// Quantos dias a ultima coluna do quadro mostra: o card que entrou nela ha mais
+    /// tempo sai do quadro e continua na lista. <b>Zero mostra todos.</b>
+    ///
+    /// <para><b>Como nos quadros Kanban.</b> A ultima coluna so cresce — e onde o
+    /// trabalho termina —, e meses de encerrados nela empurrariam para longe o
+    /// trabalho de agora.</para>
+    /// </summary>
+    public int LastColumnVisibleDays { get; set; }
+
+    /// <summary>
+    /// Quando o prazo do card fica perto e o quadro o destaca: faltando ate tantos
+    /// dias. <b>Zero destaca so no proprio dia.</b> O vencido e sempre vencido.
+    /// </summary>
+    public int DueSoonDays { get; set; }
 }

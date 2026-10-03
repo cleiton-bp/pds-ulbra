@@ -101,6 +101,21 @@ public class ProjectCycleSettingsMap : BaseEntityConfiguration<ProjectCycleSetti
             .IsRequired()
             .HasComment("Como a opcao de aceitar duvidas vem marcada no formulario. A escolha final e de quem relata, nao do projeto.");
 
+        builder.Property(settings => settings.AllowsReportArchiving)
+            .HasColumnName("allows_report_archiving")
+            .IsRequired()
+            .HasComment("O time pode arquivar relato. Desligado de fabrica. Ligado, arquivar um relato aberto encerra junto, com desfecho e motivo: quem relatou le o motivo e pode reabrir ou finalizar.");
+
+        builder.Property(settings => settings.LastColumnVisibleDays)
+            .HasColumnName("last_column_visible_days")
+            .IsRequired()
+            .HasComment("Quantos dias a ultima coluna do quadro mostra; o card que entrou nela ha mais tempo continua na lista. Zero mostra todos. De fabrica 14, como nos quadros Kanban.");
+
+        builder.Property(settings => settings.DueSoonDays)
+            .HasColumnName("due_soon_days")
+            .IsRequired()
+            .HasComment("Faltando ate quantos dias o prazo do card fica em destaque no quadro e na lista. Zero destaca so no proprio dia. De fabrica 2.");
+
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.
         builder.HasIndex(settings => settings.ProjectId)

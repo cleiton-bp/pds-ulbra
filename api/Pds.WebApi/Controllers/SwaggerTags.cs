@@ -17,6 +17,8 @@ public static class SwaggerTags
     public const string ProjectOrigins = "Domínios autorizados";
     public const string WidgetSettings = "Ferramenta";
     public const string ProjectStates = "Estados do projeto";
+    public const string ProjectPriorities = "Prioridades do projeto";
+    public const string ProjectLabels = "Etiquetas do projeto";
     public const string ProjectPublicStages = "Etapas públicas";
     public const string ProjectStatusMappings = "Mapeamento de estados";
     public const string CycleSettings = "Regras do ciclo";
@@ -24,6 +26,9 @@ public static class SwaggerTags
     /// <summary>Como quem relata e identificado, e quem pode ver o que ele escreveu.</summary>
     public const string IdentitySettings = "Identidade e visibilidade";
     public const string MediaSettings = "Mídia";
+    public const string Team = "Time do projeto";
+    public const string ProjectInvitations = "Convites do projeto";
+    public const string Invitations = "Convite (quem foi convidado)";
     public const string Reports = "Relatos";
     public const string ReportComments = "Comentários do relato";
     public const string PublicReports = "Relatos (público)";

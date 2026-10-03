@@ -97,7 +97,7 @@ describe('ProjectShell', () => {
     abrir()
 
     expect(await screen.findByText('tela de relatos')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Relatos/ })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Trabalho/ })).toBeTruthy()
     expect(screen.queryByText('Configuração')).toBeNull()
     expect(screen.queryByRole('link', { name: /Instalação/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Chaves/ })).toBeNull()
@@ -112,6 +112,12 @@ describe('ProjectShell', () => {
     expect(screen.getByText('Configuração')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Instalação/ })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Chaves/ })).toBeTruthy()
+    // As listas do card moram junto dos estados: nomes do time, na ordem do time.
+    expect(screen.getByRole('link', { name: /Prioridades/ })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Etiquetas/ })).toBeTruthy()
+    // O quadro saiu do "ainda não disponível": é a segunda vista da tela de Trabalho,
+    // e não uma seção própria no menu.
+    expect(screen.queryByText('Quadro')).toBeNull()
   })
 
   it('projeto em que a pessoa não está: fala de time, e não de conta', async () => {

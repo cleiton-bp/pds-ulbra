@@ -21,6 +21,14 @@ public class CreateReportDto
     /// <example>Bug</example>
     public ReportTypeEnum? Type { get; set; }
 
+    /// <summary>
+    /// A resposta a "em poucas palavras, o que aconteceu?", numa linha. Opcional, a
+    /// nao ser que o projeto torne a pergunta obrigatoria. Vira o titulo do card para
+    /// o time — que pode reescrever — e e o unico titulo que volta para quem relatou.
+    /// </summary>
+    /// <example>O botão de pagar não responde no celular</example>
+    public string? Title { get; set; }
+
     /// <summary>O que a pessoa escreveu.</summary>
     /// <example>O botão de finalizar compra não responde no passo de pagamento.</example>
     public string? Text { get; set; }
@@ -289,6 +297,24 @@ public class MoveReportDto
     /// </summary>
     /// <example>Corrigimos o botão de finalizar compra na versão desta semana.</example>
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// O card que fica logo acima deste na coluna de destino, quando ele foi solto
+    /// num lugar do quadro. <b>Nulo poe no topo</b> — e e onde o card chega quando
+    /// ninguem escolheu o lugar, como pelo seletor de coluna.
+    /// </summary>
+    public Guid? AfterPublicId { get; set; }
+}
+
+/// <summary>
+/// Um lugar novo para o card na propria coluna do quadro.
+/// </summary>
+public class SetCardPositionDto
+{
+    /// <summary>
+    /// O card que fica logo acima deste, na mesma coluna. <b>Nulo poe no topo.</b>
+    /// </summary>
+    public Guid? AfterPublicId { get; set; }
 }
 
 /// <summary>
@@ -353,4 +379,63 @@ public class OpenByReporterCodeDto
     /// <summary>O protocolo do relato a abrir, que veio da lista.</summary>
     /// <example>7K2M-9QXP-4TRV</example>
     public string? TrackingCode { get; set; }
+}
+
+/// <summary>
+/// O card que o time cria no painel, sem relator.
+///
+/// <para>Nao ha protocolo, tipo, texto de quem relatou nem nada do lado de fora:
+/// o card do time nunca tem lado de fora.</para>
+/// </summary>
+public class CreateTeamCardDto
+{
+    /// <summary>O titulo. Obrigatorio, ate 200 caracteres.</summary>
+    /// <example>Trocar o provedor de e-mail antes do lançamento</example>
+    public string? Title { get; set; }
+
+    /// <summary>A descricao, em Markdown. Opcional, ate 10 000 caracteres.</summary>
+    /// <example>Hoje o envio sai pelo **plano grátis**; antes do lançamento, verificar o domínio.</example>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Em que estado o card nasce. Ausente, o primeiro estado ativo do projeto — ou
+    /// nenhum, se o projeto ainda nao tem estado.
+    /// </summary>
+    public Guid? StatePublicId { get; set; }
+}
+
+/// <summary>
+/// O titulo e a descricao de um card do time, gravados inteiros. O texto do relato
+/// e de quem relatou, e nao passa por aqui.
+/// </summary>
+public class EditTeamCardDto
+{
+    /// <summary>O titulo. Obrigatorio, ate 200 caracteres.</summary>
+    public string? Title { get; set; }
+
+    /// <summary>A descricao, em Markdown. Vazia apaga.</summary>
+    public string? Description { get; set; }
+}
+
+/// <summary>
+/// Arquivar ou desarquivar um card.
+///
+/// <para><b>No relato aberto, arquivar encerra junto</b>, e por isso pede o
+/// desfecho e o motivo — o que quem relatou vai ler, e a partir do que pode reabrir
+/// ou finalizar. No relato ja encerrado e no card do time, os dois ficam de
+/// fora.</para>
+/// </summary>
+public class ArchiveCardDto
+{
+    /// <summary>Verdadeiro arquiva; falso desarquiva. Obrigatorio.</summary>
+    /// <example>true</example>
+    public bool? Archived { get; set; }
+
+    /// <summary>O desfecho, so ao arquivar um relato aberto.</summary>
+    /// <example>WontDo</example>
+    public PublicOutcomeEnum? Outcome { get; set; }
+
+    /// <summary>O motivo que quem relatou le, so ao arquivar um relato aberto.</summary>
+    /// <example>Esta mudança não vai entrar no produto. Obrigado por escrever.</example>
+    public string? Reason { get; set; }
 }

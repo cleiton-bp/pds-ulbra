@@ -32,6 +32,7 @@ em que entrou.</p>
   <tr><td><code>account_id</code></td><td>Conta própria: nasce no primeiro acesso, e a pessoa é dona dela. Os projetos de outras contas chegam por <code>project_members</code>, e não por aqui.</td></tr>
   <tr><td><code>google_subject</code></td><td>O <code>sub</code> do Google. Único.</td></tr>
   <tr><td><code>email</code></td><td>Para contato. <strong>Sem índice único.</strong></td></tr>
+  <tr><td><code>email_verified</code></td><td>Se o Google confirmou o <code>email</code>. Gravado a cada login, junto com o endereço; quem já existia antes da coluna começa com falso, até entrar de novo. O convite só se aceita com ele verdadeiro.</td></tr>
   <tr><td><code>name</code>, <code>avatar_url</code></td><td>Vindos do Google.</td></tr>
   <tr><td><code>last_login_at</code></td><td>Último acesso, em UTC.</td></tr>
 </table>
@@ -83,9 +84,70 @@ requisição.</p>
   nos relatos continua com o nome dele.</p>
 </div>
 
-<div class="note todo">
-  <strong>Nenhuma rota grava aqui ainda</strong>
-  <p>O convite — o administrador convida por e-mail, com o papel, e a pessoa aceita entrando com a
-  conta Google do mesmo endereço — é <strong>Planejado</strong>, como o envio de e-mail e a tela de
-  Membros. Até lá, na prática, cada projeto tem só o dono.</p>
+<div class="note why">
+  <strong>A linha nasce do convite aceito, e só dele</strong>
+  <p>A única rota que cria linha aqui é a de aceitar o convite — a tabela seguinte. Mudar o papel e
+  tirar do time são do administrador. O dono não muda de papel nem sai: não tem linha para mudar.</p>
 </div>
+
+<h2>project_invitations</h2>
+
+<p>O convite para o time: para qual endereço, com que papel, até quando — e onde está o e-mail
+dele.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto do convite. <code>Cascade</code>: o convite não existe sem o projeto.</td></tr>
+  <tr><td><code>email</code></td><td>O endereço convidado, em minúsculas. Até 320 caracteres. Só um endereço — sem nome junto, sem lista.</td></tr>
+  <tr><td><code>role</code></td><td>O papel que a pessoa terá ao aceitar: <code>member</code> | <code>administrator</code>, com a mesma trava no banco de <code>project_members</code>.</td></tr>
+  <tr><td><code>invited_by_user_id</code></td><td>Quem convidou — ou quem reenviou por último: é o nome que o e-mail mostra. <code>Restrict</code>.</td></tr>
+  <tr><td><code>token_hash</code></td><td>SHA-256 do link que foi no e-mail. <b>Nulo até o e-mail sair</b>, e de novo a cada reenvio. Único entre os preenchidos.</td></tr>
+  <tr><td><code>expires_at</code></td><td>Até quando o link vale. Calculado ao convidar e a cada reenvio, com o prazo do projeto.</td></tr>
+  <tr><td><code>accepted_at</code> / <code>accepted_by_user_id</code></td><td>Quando e quem aceitou. <code>Restrict</code> na pessoa.</td></tr>
+  <tr><td><code>revoked_at</code></td><td>Quando foi cancelado. O link deixa de valer.</td></tr>
+  <tr><td><code>email_status</code></td><td><code>pending</code> | <code>sending</code> | <code>sent</code> | <code>failed</code>. Onde está o e-mail: na fila, saindo, entregue ao servidor ou não saiu. Uma trava no banco só aceita os quatro.</td></tr>
+  <tr><td><code>email_attempted_at</code> / <code>email_sent_at</code></td><td>Quando o envio começou, e quando o servidor de e-mail aceitou.</td></tr>
+  <tr><td><code>email_error</code></td><td>Por que não saiu, até 200 caracteres: o tipo do erro, ou um motivo curto (<code>expired</code>, <code>queue_unavailable</code>, <code>interrupted</code>). <b>Nunca a mensagem do servidor</b>, que costuma repetir o endereço.</td></tr>
+</table>
+</div>
+
+<p>Único por <code>(project_id, email)</code> entre os <strong>abertos</strong> — nem aceitos, nem
+cancelados, nem apagados: convidar de novo o mesmo endereço reenvia o convite que já existe, em vez
+de empilhar links que valeriam ao mesmo tempo. E um índice parcial sobre os que estão
+<code>pending</code> ou <code>sending</code> serve a varredura da subida, que procura justamente
+esses.</p>
+
+<div class="note warn">
+  <strong>O link nunca é guardado</strong>
+  <p>Só o hash. Quem lê o banco — um backup, um log de consulta — não tem com o que entrar. E o
+  link nasce no consumidor da fila, na hora do envio: não viaja pela fila, não volta em resposta
+  nenhuma e não aparece em tela, nem para quem convidou. Reenviar sorteia outro, e o anterior deixa
+  de valer.</p>
+  <p>O hash vai para o banco <strong>antes</strong> de o e-mail sair, na mesma gravação que reserva
+  o envio. Ao contrário, um e-mail que saísse antes de a gravação terminar levaria um link que não
+  abre nada. E "enviado" só é gravado se a linha continua "enviando", com o hash daquele envio: um
+  reenvio no meio põe o convite de novo na fila, e o e-mail que vale é o do pedido novo.</p>
+</div>
+
+<div class="note why">
+  <strong>Do e-mail, só o estado</strong>
+  <p>O texto do e-mail não é guardado: ele se monta do convite, a qualquer hora. Guardar seria
+  repetir o endereço e o link num segundo lugar. O que a tela de Membros precisa saber é onde o
+  e-mail está — na fila, entregue ou não saiu —, e é isso que <code>email_status</code> diz.</p>
+</div>
+
+<div class="note warn">
+  <strong>O endereço é de quem ainda não está no time</strong>
+  <p>Por isso a lista de convites é só de administrador, inclusive para ler. E por isso o endereço
+  não vai para os eventos: <code>events</code> não se apaga, e o convite, sim.</p>
+</div>
+
+<h2>project_team_settings</h2>
+
+<p>A configuração do time, uma linha por projeto. Sem linha, vale o padrão de fábrica.</p>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>invitation_validity_days</code></td><td>Por quantos dias o convite vale. De 1 a 30, com trava no banco; padrão 7. Vale para o próximo convite: quem já foi convidado mantém o prazo que recebeu.</td></tr>
+</table>

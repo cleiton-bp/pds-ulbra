@@ -4,7 +4,14 @@ using Pds.Domain.Enums;
 namespace Pds.Domain.Entities;
 
 /// <summary>
-/// O que a pessoa de fora escreveu.
+/// Um card do trabalho do time — o relato que a pessoa de fora escreveu, ou o
+/// card que o proprio time criou (<see cref="Kind"/>).
+///
+/// <para><b>O nome da tabela e do relato porque ele veio primeiro.</b> O card do
+/// time entrou depois, na mesma tabela, para andar pelos mesmos estados e contar a
+/// mesma historia. As colunas do lado de fora — protocolo, token, tipo e texto de
+/// quem relatou — ficam nulas nele, e o banco garante as duas regras: relato sem
+/// elas nao entra, e card do time com elas tambem nao.</para>
 ///
 /// <para><b>E a primeira tabela do sistema que nasce sem conta e sem sessao.</b>
 /// Todas as outras chegam por alguem que entrou no painel; esta chega por um
@@ -51,6 +58,110 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const int MaxPublishedListed = 20;
 
+    /// <summary>
+    /// Teto do titulo: o do card do time, o que o time reescreve no relato e o que
+    /// a pessoa responde na ferramenta. Um so, para o titulo que a pessoa escreveu
+    /// sempre caber no lugar do que o time escreveria.
+    /// </summary>
+    public const int MaxTitleLength = 200;
+
+    /// <summary>
+    /// Quantas etiquetas um card leva. Passar disso deixa de separar e vira ruido —
+    /// e a linha do card nao tem onde mostrar.
+    /// </summary>
+    public const int MaxLabelsPerCard = 10;
+
+    /// <summary>
+    /// A folga entre dois cards vizinhos na ordem do quadro. Grande o bastante para
+    /// por um card entre dois uma vintena de vezes no mesmo lugar antes de a coluna
+    /// precisar ser renumerada, e pequena o bastante para o inteiro nunca acabar.
+    /// </summary>
+    public const long BoardRankGap = 1L << 20;
+
+    /// <summary>
+    /// Teto da descricao do card do time, em Markdown. Maior que o texto do relato:
+    /// e o time descrevendo o proprio trabalho, com lista e trecho de codigo.
+    /// </summary>
+    public const int MaxDescriptionLength = 10000;
+
+    /// <summary>
+    /// De onde o card veio: de fora, pela ferramenta, ou do time, no painel. Ver
+    /// <see cref="CardKindEnum"/>.
+    /// </summary>
+    public CardKindEnum Kind { get; set; }
+
+    /// <summary>
+    /// O numero curto do card no projeto — o #42 que o time fala e escreve.
+    ///
+    /// <para><b>Interno, e separado do protocolo.</b> O protocolo e de quem relatou
+    /// e vale no sistema inteiro; o numero e do time e vale dentro do projeto.
+    /// Nenhuma rota publica o devolve.</para>
+    ///
+    /// <para><b>Pode pular, nunca repete.</b> Vem do contador do projeto
+    /// (<see cref="Project.LastCardNumber"/>), somado numa gravacao so; um card que
+    /// falha depois de reservar o numero deixa o buraco, e e so.</para>
+    /// </summary>
+    public int Number { get; set; }
+
+    /// <summary>
+    /// O titulo do time. Obrigatorio no card do time; no relato, e o que o time
+    /// reescreveu — nulo ate alguem reescrever, e o painel mostra o de quem relatou
+    /// (<see cref="ReporterTitle"/>).
+    ///
+    /// <para><b>Interno.</b> Nenhuma rota publica o devolve: quem relatou ve so o
+    /// que escreveu.</para>
+    /// </summary>
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// O titulo que a pessoa escreveu na ferramenta, respondendo "em poucas
+    /// palavras, o que aconteceu?". Nulo quando ela nao respondeu, e sempre no card
+    /// do time.
+    ///
+    /// <para><b>Nunca muda.</b> O time reescreve em <see cref="Title"/>, e este fica
+    /// guardado — e e o unico titulo que volta para quem relatou.</para>
+    /// </summary>
+    public string? ReporterTitle { get; set; }
+
+    /// <summary>
+    /// A descricao do card do time, em Markdown. <b>Nula no relato</b>: ali o texto
+    /// e o de quem relatou, e o time nao o reescreve.
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Quando o card saiu da tela de Trabalho. Nulo enquanto esta nela.
+    ///
+    /// <para>Arquivado se le e se comenta, e so; mover e editar pedem desarquivar
+    /// antes. No relato, arquivar so existe com a regra do ciclo ligada, e o
+    /// relato aberto e encerrado junto — quem relatou recebe o motivo.</para>
+    /// </summary>
+    public DateTime? ArchivedAt { get; set; }
+
+    /// <summary>
+    /// Quem do time criou o card. Nulo no relato: quem escreveu nao tem usuario
+    /// aqui.
+    /// </summary>
+    public long? CreatedByUserId { get; set; }
+    public User? CreatedByUser { get; set; }
+
+    /// <summary>
+    /// Quem do time esta com o card. Um so. Nulo enquanto ninguem assumiu.
+    ///
+    /// <para><b>Quem sai do time continua aqui, como registro</b>: perde o acesso, e
+    /// o painel o mostra marcado como fora do time ate alguem trocar. A marca e lida
+    /// na hora, e voltar ao time a apaga sozinha.</para>
+    /// </summary>
+    public long? AssigneeUserId { get; set; }
+    public User? AssigneeUser { get; set; }
+
+    /// <summary>A prioridade do projeto que o time escolheu. Nulo e sem prioridade — e como o card nasce.</summary>
+    public long? PriorityId { get; set; }
+    public ProjectPriority? Priority { get; set; }
+
+    /// <summary>O prazo: so a data, sem hora — sem fuso para confundir. Nulo e sem prazo.</summary>
+    public DateOnly? DueDate { get; set; }
+
     /// <summary>Conta dona do relato, repetida do projeto para nao custar juncao.</summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;
@@ -75,6 +186,26 @@ public class Report : PdsBaseEntity
     public ProjectState? ProjectState { get; set; }
 
     /// <summary>
+    /// O lugar do card na coluna do quadro: o menor fica em cima. So se compara com
+    /// os cards da mesma coluna.
+    ///
+    /// <para><b>Com folga entre vizinhos.</b> Por um card entre dois e escolher um
+    /// numero no meio, sem mexer nos outros; quando a folga acaba, a coluna inteira e
+    /// renumerada de uma vez. O card que chega sem ser arrastado vem do topo do
+    /// projeto (<see cref="Project.BoardTopRank"/>), que fica acima de
+    /// tudo.</para>
+    /// </summary>
+    public long BoardRank { get; set; }
+
+    /// <summary>
+    /// Quando o card entrou na coluna em que esta, ou voltou a ela — reaberto, ou
+    /// desarquivado por quem relatou —, em UTC. E o que a ultima coluna do quadro usa
+    /// para mostrar so o que entrou nela ha pouco tempo — o encerrado de meses atras
+    /// continua na lista.
+    /// </summary>
+    public DateTime StateChangedAt { get; set; }
+
+    /// <summary>
     /// A etapa publica em que o relato esta, <b>como cache</b>. Nula enquanto ele
     /// nao apareceu em nenhuma — porque o estado dele nao esta mapeado, ou porque o
     /// projeto ainda nao tem jornada.
@@ -92,7 +223,7 @@ public class Report : PdsBaseEntity
     /// em voz alta. Unico em todo o sistema, porque quem digita nao sabe de qual
     /// projeto o relato dele e.
     /// </summary>
-    public string TrackingCode { get; set; } = string.Empty;
+    public string? TrackingCode { get; set; }
 
     /// <summary>
     /// Hash do token que vai no link de acompanhamento. O valor original existe
@@ -102,13 +233,16 @@ public class Report : PdsBaseEntity
     /// Nao confundir com o <see cref="TrackingCode"/>: o protocolo identifica, o
     /// token abre. E por isso que o protocolo pode ser curto e falado.
     /// </summary>
-    public string AccessTokenHash { get; set; } = string.Empty;
+    public string? AccessTokenHash { get; set; }
 
-    /// <summary>Defeito, melhoria ou duvida.</summary>
-    public ReportTypeEnum Type { get; set; }
+    /// <summary>Defeito, melhoria ou duvida. Nulo no card do time.</summary>
+    public ReportTypeEnum? Type { get; set; }
 
-    /// <summary>O relato como a pessoa escreveu, com tamanho limitado no servidor.</summary>
-    public string Text { get; set; } = string.Empty;
+    /// <summary>
+    /// O relato como a pessoa escreveu, com tamanho limitado no servidor. Nulo no
+    /// card do time, que tem titulo e descricao.
+    /// </summary>
+    public string? Text { get; set; }
 
     /// <summary>
     /// So o caminho da pagina de onde o relato foi aberto. A parte depois do
@@ -228,7 +362,25 @@ public class Report : PdsBaseEntity
     public long? ModeratedByUserId { get; set; }
     public User? ModeratedByUser { get; set; }
 
+    /// <summary>
+    /// O protocolo, o tipo e o texto — o que so o relato tem, e o que o lado de
+    /// fora mostra.
+    ///
+    /// <para><b>Para quem monta resposta de fora.</b> As portas publicas so acham
+    /// relato, e o banco nao deixa o card do time ter protocolo. Um card do time
+    /// chegando aqui e defeito de quem chamou — e falhar alto e melhor do que
+    /// devolver um relato em branco para alguem de fora.</para>
+    /// </summary>
+    public (string TrackingCode, ReportTypeEnum Type, string Text) ReporterFields()
+        => Kind == CardKindEnum.Report && TrackingCode is not null && Type is not null && Text is not null
+            ? (TrackingCode, Type.Value, Text)
+            : throw new InvalidOperationException("O card do time nao tem lado de fora.");
+
     /// <summary>O que veio junto com o relato, em pares de chave e valor.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ReportContext> Contexts { get; set; } = [];
+
+    /// <summary>As etiquetas do card. Ate <see cref="MaxLabelsPerCard"/>.</summary>
+    [SoftDeleteDependent(RemoveType.Cascade)]
+    public List<ReportLabel> Labels { get; set; } = [];
 }

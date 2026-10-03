@@ -255,6 +255,11 @@ function Relato({
         </dl>
 
         <div className="mb-1.5 text-caption text-fg-muted">O que você escreveu</div>
+        {/* O titulo que ela mesma deu, quando deu. **Nunca o do time**: o titulo
+            reescrito no painel e interno, e a API nem o manda para ca. */}
+        {relato.Title && (
+          <p className="mb-1.5 break-words font-semibold text-fg text-lead">{relato.Title}</p>
+        )}
         {/* `whitespace-pre-wrap`: a pessoa escreveu em linhas, e juntar tudo num
             paragrafo so muda o que ela disse. */}
         <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">

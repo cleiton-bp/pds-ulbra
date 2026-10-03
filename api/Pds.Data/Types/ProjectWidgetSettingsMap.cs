@@ -83,6 +83,13 @@ public class ProjectWidgetSettingsMap : BaseEntityConfiguration<ProjectWidgetSet
             .IsRequired()
             .HasComment("bug | improvement | question. Vem pre-marcado, e e o tipo gravado quando o seletor esta escondido.");
 
+        builder.Property(settings => settings.ReportTitleMode)
+            .HasColumnName("report_title_mode")
+            .HasConversion(new SnakeCaseEnumConverter<ReportTitleModeEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("optional | required | hidden. Como a ferramenta pergunta o titulo (\"em poucas palavras, o que aconteceu?\"). Obrigatoria, a API recusa o relato sem ele.");
+
         // Uma linha por projeto. O filtro deixa de fora o que foi apagado: sem ele,
         // um projeto apagado logicamente e recriado esbarraria numa linha invisivel.
         builder.HasIndex(settings => settings.ProjectId)

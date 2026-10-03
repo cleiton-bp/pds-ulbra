@@ -5,7 +5,7 @@ import type { CycleSettingsViewModel, SaveCycleSettingsRequest } from '@/contrac
  *
  * **Nao ha par publico desta leitura ainda.** A pagina de acompanhamento vai
  * precisar de parte dela — se reabrir existe, se a nota e pedida —, e quando
- * precisar sera uma rota propria, com so aqueles campos: mandar as treze regras
+ * precisar sera uma rota propria, com so aqueles campos: mandar todas as regras
  * para fora entregaria a quem relatou a configuracao interna do cliente.
  */
 export interface ProjectCycleSettingsService {

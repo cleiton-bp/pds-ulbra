@@ -1,15 +1,19 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AccountShell } from '@/app/AccountShell'
+import { InviteScreen } from '@/app/InviteScreen'
 import { ProjectShell } from '@/app/ProjectShell'
 import { ProjectHome, RequireProjectAdministrator } from '@/app/projectAccessRoutes'
 import { RequireSession } from '@/app/RequireSession'
 import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
 import { IdentityScreen } from '@/features/identity/IdentityScreen'
+import { LabelsScreen } from '@/features/labels/LabelsScreen'
 import { MediaScreen } from '@/features/media/MediaScreen'
 import { ModerationScreen } from '@/features/moderation/ModerationScreen'
 import { StartScreen } from '@/features/onboarding/StartScreen'
+import { PrioritiesScreen } from '@/features/priorities/PrioritiesScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
+import { MembersScreen } from '@/features/projects/MembersScreen'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { ProjectsHubScreen } from '@/features/projects/ProjectsHubScreen'
 import { PublicStagesScreen } from '@/features/publicStages/PublicStagesScreen'
@@ -21,7 +25,8 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  * Dois niveis: fora do projeto nao ha o que navegar, dentro dele vai haver muito.
  *
  *   /projects .......................... hub, casca so com barra de cima
- *   /projects/:publicId/{start,keys,tool,states,public-stages,settings} .. console, com menu lateral
+ *   /invite#t=... ...................... o convite do e-mail, na mesma casca
+ *   /projects/:publicId/{start,keys,tool,states,priorities,labels,public-stages,settings} .. console
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
  * `/projects/:publicId` sozinho decide a porta pelo papel: quem configura cai na
@@ -59,7 +64,13 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/projects" replace /> },
       {
         element: <AccountShell />,
-        children: [{ path: 'projects', element: <ProjectsHubScreen /> }],
+        children: [
+          { path: 'projects', element: <ProjectsHubScreen /> },
+          // Fora do projeto de proposito: quem abre o convite ainda nao esta nele.
+          // Dentro do `RequireSession`, a entrada com Google aparece neste mesmo
+          // endereco — e o `#t=` sobrevive ao login.
+          { path: 'invite', element: <InviteScreen /> },
+        ],
       },
       {
         path: 'projects/:publicId',
@@ -72,6 +83,8 @@ export const router = createBrowserRouter([
               { path: 'start', element: <StartScreen /> },
               { path: 'keys', element: <ProjectKeysScreen /> },
               { path: 'states', element: <ProjectStatesScreen /> },
+              { path: 'priorities', element: <PrioritiesScreen /> },
+              { path: 'labels', element: <LabelsScreen /> },
               { path: 'public-stages', element: <PublicStagesScreen /> },
               { path: 'cycle', element: <CycleSettingsScreen /> },
               { path: 'identity', element: <IdentityScreen /> },
@@ -81,6 +94,9 @@ export const router = createBrowserRouter([
             ],
           },
           { path: 'moderation', element: <ModerationScreen /> },
+          // Fora da guarda: todo o time abre, e quem e so membro le. O que muda o
+          // time aparece so para quem administra.
+          { path: 'members', element: <MembersScreen /> },
           {
             // O relato aberto e filho da lista: a lista continua montada atras,
             // com o recorte e a rolagem onde estavam, e o dialogo ganha endereco

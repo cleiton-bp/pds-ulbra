@@ -1,15 +1,16 @@
-<h2>As trinta e sete consultas que atravessam o filtro</h2>
+<h2>As quarenta e cinco consultas que atravessam o filtro</h2>
 
-<p>São exatamente trinta e sete em todo o sistema, todas propositais, e <strong>trinta e uma têm
-a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão a lista de projetos da
-requisição é vazia — o filtro que protege o painel devolveria vazio para o próprio dono. Trinta e
-cinco moram em repositório, cada uma num método, e nenhuma em serviço; as outras duas são as
-leituras que montam o acesso, no <code>AccountMiddleware</code>. Três atravessam com sessão, no
-painel, e estão no fim da página.</p>
+<p>São exatamente quarenta e cinco em todo o sistema, todas propositais, e <strong>trinta e uma
+têm a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão a lista de projetos
+da requisição é vazia — o filtro que protege o painel devolveria vazio para o próprio dono.
+Quarenta e três moram em repositório, cada uma num método, e nenhuma em serviço; as outras duas são
+as leituras que montam o acesso, no <code>AccountMiddleware</code>. Nove vêm do consumidor da fila,
+onde nunca houve requisição. E cinco atravessam com sessão — três no painel, duas no convite —, e
+estão no fim da página.</p>
 
 <p>A contagem é por <strong>método público</strong> de repositório, porque é o método que alguém
-chama — e, no middleware, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são trinta
-e quatro: as duas do middleware e trinta e duas em repositório, das quais duas moram em auxiliares
+chama — e, no middleware, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são quarenta e
+duas: as duas do middleware e quarenta em repositório, das quais duas moram em auxiliares
 privados — <code>Confirmados</code>, em <code>ReportAttachmentRepository</code>, e
 <code>Reabertos</code>, em <code>ReportClosureRepository</code> —, uma em cada, e os dois servem
 cinco métodos públicos entre eles. O auxiliar existe para as condições reescritas à mão morarem
@@ -80,7 +81,8 @@ nunca assinar a leitura de um arquivo de projeto em que a pessoa não está.</p>
   para outra.</p>
 </div>
 
-<p><strong>Três são de origem diferente de todas as outras</strong>, e vale ler o porquê.</p>
+<p><strong>Três não vêm de requisição nenhuma</strong> — como as seis do e-mail do convite, no
+fim da página —, e vale ler o porquê.</p>
 
 <div class="note warn">
   <strong>Três não vêm de requisição nenhuma</strong>
@@ -249,3 +251,71 @@ projeto, ao renomear — e a consulta reescreve à mão a exclusão lógica.</p>
 <code>-- montagem do acesso da requisicao</code> nas duas do middleware, e
 <code>-- conferencia de nome repetido na conta</code> na terceira. No log, é o que as separa das
 leituras de painel que nunca deveriam desligar o filtro.</p>
+
+<h3>As oito do convite</h3>
+
+<p>O convite atravessa o filtro por dois motivos, e nenhum deles é a rota pública.</p>
+
+<p><strong>Seis são do consumidor da fila</strong> que monta e manda o e-mail, e que — como o das
+esperas — não tem sessão nenhuma. <code>ProjectInvitations.GetForEmailWithoutSessionAsync</code> lê
+o convite que a mensagem aponta, sem rastreio; <code>TryClaimForSendingWithoutSessionAsync</code>
+reserva o envio e grava o hash do link; <code>FinishSendingWithoutSessionAsync</code> fecha o envio
+como enviado ou não saiu; e <code>FailPendingWithoutSessionAsync</code> marca como não saiu o que nem
+chegou a ser reservado — vencido, ou sem e-mail no servidor. Uma vez por subida, <code>FailStuckSendingWithoutSessionAsync</code> marca como falho o que
+ficou preso no meio de um envio, e <code>ListPendingEmailWithoutSessionAsync</code> lista o que
+ainda não saiu, para publicar de novo. As duas de varredura devolvem a contagem ou o identificador,
+e nada do convite.</p>
+
+<p><strong>Duas são de quem abre o link</strong>, com sessão, mas de fora do projeto: a pessoa está
+justamente entrando, e ainda não enxerga o projeto do convite.
+<code>ProjectInvitations.FindByTokenHashWithoutSessionAsync</code> acha o convite pelo hash do
+link, e <code>ProjectMembers.ExistsWithoutSessionAsync</code> confere se ela já está no time, para
+o aceite não criar uma segunda linha.</p>
+
+<div class="note warn">
+  <strong>A reserva é uma gravação condicional, e não ler e depois gravar</strong>
+  <p>Na subida, a varredura publica de novo o que estava pendente — e a mensagem original pode
+  continuar na fila. Se o consumidor lesse "pendente" e depois gravasse "enviando", as duas
+  entregas passariam pela leitura antes de qualquer uma gravar, e a pessoa receberia dois e-mails
+  com links diferentes, um deles já sem valer. A reserva é um <code>UPDATE</code> só, com
+  <code>email_status = 'pending'</code> e o <code>updated_at</code> lido na condição: o banco deixa
+  um dos dois mudar a linha, e o outro vê zero linhas e desiste. O <code>updated_at</code> garante
+  também que o e-mail diz o papel e o prazo que valem: se um reenvio mudou a linha depois da
+  leitura, a reserva desiste, e o pedido do reenvio, já na fila, manda o e-mail certo. O hash do
+  link vai na mesma gravação.</p>
+  <p><strong>O fim do envio também é condicional</strong>: "enviado" só é gravado se a linha continua
+  "enviando", com o hash deste envio. Um reenvio no meio do envio põe o convite de novo na fila, sem
+  hash; sem a condição, o "enviado" do envio antigo cobriria o pedido novo, que desistiria — e o
+  único e-mail que saiu teria um link que não abre nada. Com um consumidor só, o status já basta; o
+  hash cobre duas instâncias da API, em que o pedido novo pode reservar antes de o antigo
+  terminar.</p>
+  <p>Nenhuma delas passa pelo <code>SaveChanges</code>, então o <code>updated_at</code>, que a
+  auditoria preencheria, vai escrito à mão.</p>
+</div>
+
+<div class="note why">
+  <strong>O que protege a resposta do link é o link, e mais o Google</strong>
+  <p>O link tem 256 bits sorteados, e o banco guarda só o hash: achar o convite pelo hash não
+  ajuda quem não tem o link. E ter o link não basta — o aceite confere que o Google de quem está
+  logado é o do endereço convidado, e que o Google confirmou esse endereço. Com a conta errada, a
+  resposta traz só uma pista do endereço, e nada do projeto.</p>
+</div>
+
+<p>As oito reescrevem à mão a exclusão lógica do convite ou da linha do time — e as que chegam ao
+projeto, a dele também — e levam marca no SQL: <code>-- envio do e-mail do convite</code> nas
+seis da fila, <code>-- convite aberto pelo link</code> e <code>-- conferencia de quem aceita um
+convite</code> nas duas do link.</p>
+
+<div class="note why">
+  <strong>O número do card e a ordem do quadro não são consultas que atravessam — são <code>UPDATE</code> escritos à mão</strong>
+  <p>Reservar o próximo número soma e lê o contador do projeto num comando só
+  (<code>UPDATE projects ... RETURNING</code>), marcado no SQL com <code>-- numero do card</code>. SQL
+  escrito à mão não passa pelo filtro global, e é isso que o relato precisa: ele chega pela
+  ferramenta, sem sessão, e também ganha número. O projeto já veio resolvido — pela chave pública, ou
+  pela rota do painel, que só abre para quem está nele —, e o comando não devolve nada além do
+  número.</p>
+  <p>O topo do quadro é o mesmo desenho, contando para baixo (<code>-- topo do quadro</code>): o
+  relato que chega pela ferramenta também entra no topo da coluna. E renumerar a coluna quando a
+  folga entre dois cards acaba (<code>-- ordem do quadro</code>) grava só nos cards do projeto já
+  resolvido, e não devolve nada.</p>
+</div>

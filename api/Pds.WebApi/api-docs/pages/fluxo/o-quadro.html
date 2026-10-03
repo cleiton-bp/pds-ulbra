@@ -1,0 +1,82 @@
+<h2>A segunda vista da tela de Trabalho</h2>
+
+<p>A tela de Trabalho tem duas vistas: a lista, do mais recente para o mais antigo, e o
+<strong>quadro</strong>, uma coluna por estado. A vista escolhida fica lembrada no navegador, por
+projeto. Cada coluna é uma leitura própria, na ordem do quadro, cinquenta de cada vez:</p>
+
+<pre><code>GET /projects/2be49b28-.../reports?state=e12fef6c-...&amp;order=board&amp;pageSize=50</code></pre>
+
+<p>"Mostrar mais" continua <strong>depois do último card da tela</strong>, e não pela página
+seguinte: o card que sai de cima, ou chega ao topo, muda as páginas, e a seguinte pularia um card
+ou repetiria outro.</p>
+
+<pre><code>GET /projects/2be49b28-.../reports?state=e12fef6c-...&amp;order=board&amp;pageSize=50&amp;after=5b20...</code></pre>
+
+<p>Se aquele card já saiu da coluna — outra pessoa o moveu ou arquivou —, a resposta é 409, e a
+tela lê a coluna de novo.</p>
+
+<p>A frente do card é um resumo: o número, o título, a prioridade, até três etiquetas, o prazo com o
+destaque (vencido em vermelho, perto em amarelo, sempre com as palavras), quantos comentários e
+anexos, e as iniciais de quem está com ele. <strong>O detalhe só abre no clique</strong>, no mesmo
+diálogo da lista — e é só ali que a leitura é registrada. Os arquivados ficam fora do quadro: o
+botão Arquivados mostra a lista deles.</p>
+
+<h2>Arrastar para outra coluna</h2>
+
+<p>Soltar um card noutra coluna é o mesmo movimento do seletor de coluna, com o lugar junto:</p>
+
+<pre><code>PUT /projects/2be49b28-.../reports/9f3e.../state
+{ "StatePublicId": "c7d1...", "AfterPublicId": "5b20..." }</code></pre>
+
+<p><code>AfterPublicId</code> é o card que fica logo acima dele. Sem ele — como pelo seletor, ou
+soltando no topo —, o card entra no topo. O evento é o de sempre, e a etapa pública anda pela
+mesma espera. A coluna inteira recebe o card, o cabeçalho também; soltar fora das colunas que
+recebem devolve o card ao lugar, sem pedido nenhum.</p>
+
+<div class="note warn">
+  <strong>Soltar na coluna que encerra pede o desfecho antes</strong>
+  <p>Quando o projeto encerra pela última coluna (a regra do Ciclo), um relato aberto solto nela
+  abre o diálogo do desfecho e do motivo — o que quem relatou vai ler — antes de qualquer pedido à
+  API. Desistir devolve o card ao lugar; confirmar manda <code>Outcome</code> e
+  <code>Reason</code> junto do movimento, e, se falhar, o diálogo fica, com o motivo escrito. O
+  card do time e o relato já encerrado só andam.</p>
+</div>
+
+<h2>Arrumar dentro da coluna</h2>
+
+<pre><code>PUT /projects/2be49b28-.../reports/9f3e.../position
+{ "AfterPublicId": null }</code></pre>
+
+<p>A ordem é a mesma para o time inteiro. Arrumar não muda o card, e por isso <strong>não grava
+evento</strong> nem aparece na história. Dois soltando na mesma coluna ao mesmo tempo esperam um pelo
+outro, e cada um ganha um lugar só dele. A tela que ficou velha — o card de cima, ou o próprio
+card, já saiu dali — recebe 409 e lê a coluna de novo.</p>
+
+<div class="note why">
+  <strong>O que chega fica no topo</strong>
+  <p>O relato novo, o card do time novo, o movido pelo seletor, o reaberto por quem relatou — mude
+  de coluna ou não — e o que quem relatou tira do arquivo ao responder entram no topo da coluna: o
+  que acabou de chegar é o que o time precisa ver. O topo vem de um contador do projeto, no mesmo
+  desenho do número do card, só que contando para baixo — o card que chega fica acima de tudo sem
+  ninguém ler a coluna.</p>
+</div>
+
+<h2>A última coluna</h2>
+
+<p>É onde o trabalho termina, e só cresce. Como nos quadros Kanban, ela mostra só o que entrou nela
+nos últimos dias — de fábrica 14, configurável no Ciclo; zero mostra todos. O resto continua na
+lista, e a coluna diz quantos ficaram lá, com o caminho até eles. <strong>Com uma coluna só, a regra
+não vale</strong>: todo projeto nasce assim, e ali ainda é a entrada da fila — esconder o que chegou
+há mais tempo seria esconder o relato que ninguém olhou.</p>
+
+<p>"Sem coluna" aparece primeiro, só quando tem card, e a coluna aposentada só enquanto segura
+algum: nenhuma das duas recebe card, e o card que sai delas só sai arrastado até uma coluna que
+recebe.</p>
+
+<h2>Mouse, toque e teclado</h2>
+
+<p>O mouse pega depois de andar alguns pixels: o clique continua abrindo o card. No celular,
+segura-se o card um instante antes de arrastar, e deslizar continua rolando o quadro; segurar e
+soltar sem andar devolve o card ao lugar, sem abrir. No teclado, espaço pega, as setas escolhem o
+lugar — para os lados, o topo da próxima coluna que recebe card —, espaço ou Enter solta e Esc
+desiste; fora do arraste, Enter abre o card. Cada passo é anunciado ao leitor de tela.</p>

@@ -56,7 +56,7 @@ public class EventMap : IEntityTypeConfiguration<Event>
             .HasConversion(new SnakeCaseEnumConverter<EventTypeEnum>())
             .HasMaxLength(40)
             .IsRequired()
-            .HasComment("report_created | report_viewed por enquanto. A lista cresce conforme o produto anda.");
+            .HasComment("O que aconteceu, em snake_case: os do relato (report_*) e os do time (project_invitation_*, project_member_*). A lista cresce conforme o produto anda.");
 
         builder.Property(entity => entity.Source)
             .HasColumnName("source")

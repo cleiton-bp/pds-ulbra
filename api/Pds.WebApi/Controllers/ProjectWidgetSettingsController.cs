@@ -12,9 +12,9 @@ namespace Pds.WebApi.Controllers;
 /// <summary>
 /// Como a ferramenta de relato aparece no site de um projeto.
 ///
-/// São dez campos: se a ferramenta aparece, a cor, o canto, o tema, os quatro
-/// textos e o que o seletor de tipo faz. Tudo que muda a **aparência** dela mora
-/// aqui; o que muda para onde o relato vai mora nas chaves.
+/// São onze campos: se a ferramenta aparece, a cor, o canto, o tema, os quatro
+/// textos, o que o seletor de tipo faz e a pergunta do título. Tudo que muda a
+/// **aparência** dela mora aqui; o que muda para onde o relato vai mora nas chaves.
 ///
 /// **Projeto sem configuração salva não é projeto sem configuração.** Ele usa os
 /// padrões, e é isso que esta rota devolve — por isso ela nunca responde 404 para
@@ -63,7 +63,7 @@ public class ProjectWidgetSettingsController : BaseController
 
     /// <summary>Substitui a configuração da ferramenta.</summary>
     /// <remarks>
-    /// **Substitui, e não altera campo a campo** — os dez campos vão sempre juntos.
+    /// **Substitui, e não altera campo a campo** — os onze campos vão sempre juntos.
     /// O motivo é a cor: `AccentColor: null` é um valor, e quer dizer "use o acento
     /// do produto". Num corpo parcial ele seria indistinguível de "não mexa na
     /// cor", e voltar ao padrão viraria impossível de pedir.
@@ -77,7 +77,7 @@ public class ProjectWidgetSettingsController : BaseController
     /// ninguém editar o HTML.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
-    /// <param name="dto">Os dez campos.</param>
+    /// <param name="dto">Os onze campos.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Configuração salva.</response>
     /// <response code="400">Campo ausente, texto em branco, longo demais, ou cor inválida.</response>

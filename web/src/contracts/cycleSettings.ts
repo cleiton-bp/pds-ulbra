@@ -43,6 +43,23 @@ export interface CycleSettingsViewModel {
   InfoRequestCloseDays: number
   /** Como a caixa de aceitar duvidas vem marcada. A escolha final e de quem relata. */
   AcceptsQuestionsDefault: boolean
+  /**
+   * Se o time pode arquivar relato. Desligado de fabrica. Arquivar o relato aberto
+   * encerra junto, com desfecho e motivo — quem relatou le e pode reabrir ou
+   * finalizar.
+   */
+  AllowsReportArchiving: boolean
+  /**
+   * Quantos dias a ultima coluna do quadro mostra: o card que entrou nela ha mais
+   * tempo continua na lista. **Zero mostra todos.** De fabrica 14, como nos quadros
+   * Kanban.
+   */
+  LastColumnVisibleDays: number
+  /**
+   * Faltando ate quantos dias o prazo do card fica em destaque. **Zero: so no
+   * proprio dia.** O vencido e sempre vencido. De fabrica 2.
+   */
+  DueSoonDays: number
 }
 
 /**
@@ -58,3 +75,9 @@ export const MAX_PUBLIC_DELAY_MINUTES = 7 * 24 * 60
 
 /** Teto de cada prazo do pedido de informacao, em dias. */
 export const MAX_INFO_REQUEST_DAYS = 365
+
+/** Teto dos dias que a ultima coluna do quadro mostra, declarado em `ProjectCycleSettings.MaxLastColumnVisibleDays`. */
+export const MAX_LAST_COLUMN_VISIBLE_DAYS = 365
+
+/** Teto do destaque do prazo, em dias, declarado em `ProjectCycleSettings.MaxDueSoonDays`. */
+export const MAX_DUE_SOON_DAYS = 30

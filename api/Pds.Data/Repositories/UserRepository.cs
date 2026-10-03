@@ -16,4 +16,17 @@ public class UserRepository : BaseRepository<User, DataContext>, IUserRepository
         => Context.Users
             .Include(user => user.Account)
             .FirstOrDefaultAsync(user => user.GoogleSubject == googleSubject, cancellationToken);
+
+    public async Task<IReadOnlyList<User>> ListByAccountAsync(long accountId, CancellationToken cancellationToken = default)
+        => await Context.Users
+            .AsNoTracking()
+            .Where(user => user.AccountId == accountId)
+            .OrderBy(user => user.Id)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<User>> ListByPublicIdsAsync(IReadOnlyCollection<Guid> publicIds, CancellationToken cancellationToken = default)
+        => await Context.Users
+            .AsNoTracking()
+            .Where(user => publicIds.Contains(user.PublicId))
+            .ToListAsync(cancellationToken);
 }

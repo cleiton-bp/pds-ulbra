@@ -43,16 +43,34 @@
 
 <h2>reports</h2>
 
+<p><strong>Todo card do trabalho do time mora aqui</strong>: o relato, que chegou de fora pela
+ferramenta, e o card do time, que nasceu no painel (<code>kind</code>). Os dois andam pelos mesmos
+estados, recebem o mesmo comentário interno e contam a mesma história. O nome da tabela é do
+relato porque ele veio primeiro.</p>
+
+<div class="table-scroll">
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>kind</code></td><td><code>report</code> | <code>team</code>. De onde o card veio: de fora, pela ferramenta, ou do time, no painel.</td></tr>
+  <tr><td><code>number</code></td><td>O número curto do card no projeto — o #42 que o time fala e escreve. <b>Interno</b>: nenhuma rota pública o devolve. Único por projeto, inclusive entre os apagados.</td></tr>
+  <tr><td><code>title</code></td><td>O título do time, uma linha, até 200. Obrigatório no card do time; no relato, é o que o time reescreveu — <b>nulo até alguém reescrever</b>, e aí o painel mostra o de quem relatou. <b>Interno</b>: nenhuma rota pública o devolve.</td></tr>
+  <tr><td><code>reporter_title</code></td><td>O título que a pessoa escreveu na ferramenta, respondendo "em poucas palavras, o que aconteceu?". <b>Nunca muda</b>, e é o único título que volta para ela. Nulo quando ela não respondeu, e sempre no card do time.</td></tr>
+  <tr><td><code>description</code></td><td>A descrição do card do time, em Markdown, até 10 000. <b>Sempre nula no relato</b>: o texto dele é de quem relatou, e o time não o reescreve.</td></tr>
+  <tr><td><code>archived_at</code></td><td>Quando o card saiu da tela de Trabalho. Nulo enquanto está nela. Arquivado se lê e se comenta; mover e editar pedem desarquivar.</td></tr>
+  <tr><td><code>created_by_user_id</code></td><td>Quem do time criou o card. Nulo no relato: quem escreveu não tem usuário aqui. <code>Restrict</code>.</td></tr>
+  <tr><td><code>assignee_user_id</code></td><td>Quem do time está com o card — um só. <b>Quem sai do time continua aqui</b>, como registro; o painel o marca como fora do time. <code>Restrict</code>. Interno.</td></tr>
+  <tr><td><code>priority_id</code></td><td>A prioridade do projeto que o time escolheu (<code>project_priorities</code>). <b>Nulo é sem prioridade</b>, e é como o card nasce. <code>Restrict</code>. Interno.</td></tr>
+  <tr><td><code>due_date</code></td><td>O prazo: <b>só a data</b>, sem hora — sem fuso para confundir. Nulo é sem prazo. Interno.</td></tr>
   <tr><td><code>project_state_id</code></td><td>Onde o relato está na fila. <b>Anulável</b>, e vai continuar: projeto sem estado nenhum não tem onde pô-lo, e recusar o relato por isso seria perder o que veio de fora por uma configuração que o cliente não fez.</td></tr>
+  <tr><td><code>board_rank</code></td><td>O lugar do card na coluna do quadro: o menor fica em cima. Só se compara dentro da mesma coluna, e tem folga entre vizinhos — pôr um card entre dois escolhe um número no meio.</td></tr>
+  <tr><td><code>state_changed_at</code></td><td>Quando o card entrou na coluna em que está, ou voltou a ela — reaberto, ou tirado do arquivo pela resposta de quem relatou. É o que a última coluna do quadro usa para mostrar só o que entrou nela há pouco.</td></tr>
   <tr><td><code>project_public_stage_id</code></td><td>Em que passo da jornada quem relatou vê este relato. Nulo enquanto ele não aparece em nenhum. <b>Cache</b>, como o anterior: a verdade é a sequência de eventos.</td></tr>
   <tr><td><code>account_id</code></td><td>Conta dona. Repetido de propósito — ver a nota abaixo.</td></tr>
   <tr><td><code>project_id</code></td><td>Projeto, resolvido pela chave pública da requisição.</td></tr>
-  <tr><td><code>tracking_code</code></td><td>O protocolo que a pessoa lê. Único no sistema inteiro.</td></tr>
-  <tr><td><code>access_token_hash</code></td><td>Hash do token do link. O valor original só existe na URL entregue, e é conferido em tempo constante na consulta pública.</td></tr>
-  <tr><td><code>type</code></td><td><code>bug</code>, <code>improvement</code> ou <code>question</code>. Lista fixa por enquanto.</td></tr>
-  <tr><td><code>text</code></td><td>O relato como a pessoa escreveu. Até 5000 caracteres.</td></tr>
+  <tr><td><code>tracking_code</code></td><td>O protocolo que a pessoa lê. Único no sistema inteiro. Nulo no card do time.</td></tr>
+  <tr><td><code>access_token_hash</code></td><td>Hash do token do link. O valor original só existe na URL entregue, e é conferido em tempo constante na consulta pública. Nulo no card do time.</td></tr>
+  <tr><td><code>type</code></td><td><code>bug</code>, <code>improvement</code> ou <code>question</code>. Lista fixa por enquanto. Nulo no card do time.</td></tr>
+  <tr><td><code>text</code></td><td>O relato como a pessoa escreveu. Até 5000 caracteres. Nulo no card do time, que tem título e descrição.</td></tr>
   <tr><td><code>route</code></td><td>Só o caminho da página. Sem query e sem fragmento.</td></tr>
   <tr><td><code>origin</code></td><td>Domínio informado pela página que embutiu a ferramenta.</td></tr>
   <tr><td><code>accepts_questions</code></td><td>Quem relatou aceita responder dúvidas da equipe. <b>Três estados</b>: sim, não, e <b>nulo</b> — o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada. Sem <code>true</code>, não se abre pedido de informação.</td></tr>
@@ -64,6 +82,55 @@
   <tr><td><code>moderated_at</code></td><td>Quando alguém do time decidiu. Nulo enquanto ninguém decidiu.</td></tr>
   <tr><td><code>moderated_by_user_id</code></td><td>Quem do time decidiu. Nulo enquanto ninguém decidiu, e também quando a conta de quem decidiu foi esvaziada. <b>Nunca sai em rota pública.</b></td></tr>
 </table>
+</div>
+
+<div class="note warn">
+  <strong>O card do time nunca tem lado de fora — e quem garante é o banco</strong>
+  <p>Duas travas (<code>CHECK</code>) separam os dois tipos de card. O relato continua obrigado a
+  ter protocolo, token, tipo e texto, e nunca tem descrição. O card do time tem título e
+  <strong>não pode ter</strong> protocolo, token, código pessoal, etapa pública, espera agendada
+  nem título de quem relatou — e só fica em moderação <code>pending</code>.</p>
+  <p>É o que faz "nunca aparece na parte pública" deixar de depender de cada consulta lembrar: as
+  portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado, e o card
+  do time não tem nenhum dos três. Mesmo assim as consultas públicas e a fila de moderação levam
+  <code>kind = report</code> escrito — duas cercas, e a do banco não esquece.</p>
+</div>
+
+<div class="note why">
+  <strong>O número vem de um contador, e não do maior número da tabela</strong>
+  <p><code>projects.last_card_number</code> é somado e lido no mesmo comando
+  (<code>UPDATE ... RETURNING</code>). Dois cards criados no mesmo instante — um relato chegando
+  pela ferramenta e um card do time no painel — esperam um pelo outro na linha do projeto, e cada um
+  sai com o seu. Lendo o maior número e somando um, os dois tentariam o mesmo.</p>
+  <p><strong>Pode pular, nunca repete.</strong> Um card que falha depois de reservar o número deixa
+  o buraco; o índice único por projeto, sem filtro de apagado, garante que #42 nunca quer dizer
+  duas coisas. Os relatos que já existiam foram numerados na migração, por projeto, na ordem em que
+  chegaram.</p>
+</div>
+
+<div class="note why">
+  <strong>A ordem do quadro: folga entre vizinhos, e o topo por um contador</strong>
+  <p><code>board_rank</code> é um inteiro com folga — 2<sup>20</sup> — entre um card e o vizinho.
+  Soltar um card entre dois escolhe o número do meio, sem mexer em mais nenhum; quando a folga
+  acaba, a coluna inteira ganha a folga de novo, na ordem em que está, numa gravação só. Pôr entre
+  dois trava a ordem do quadro do projeto, porque precisa ler os vizinhos.</p>
+  <p><strong>O que chega fica no topo</strong> — o relato novo, o card do time novo, o movido pelo
+  seletor, o reaberto (mude de coluna ou não), o que quem relatou tira do arquivo ao responder, e o
+  card solto no topo — com o lugar de <code>projects.board_top_rank</code>, que só desce: fica acima
+  de tudo sem ler a coluna, e a criação do relato não espera ninguém arrumando o quadro.</p>
+  <p>Na migração, cada coluna começou com a ordem que a lista já tinha — do mais recente para o mais
+  antigo —, e a hora de entrada veio do último movimento do card (do time, ou da reabertura), senão
+  da criação.</p>
+</div>
+
+<div class="note why">
+  <strong>Arquivar o relato encerra junto</strong>
+  <p>Arquivar tira o card da tela de Trabalho. O card do time arquiva sempre; o relato só com a
+  regra do ciclo ligada, e o relato <strong>aberto</strong> é encerrado junto, com desfecho e
+  motivo — quem relatou lê pelo link e pode reabrir ou finalizar. Reabrir, ou responder a uma
+  pergunta que ainda estava aberta, traz o relato de volta sozinho: ninguém escreve para um relato
+  que ninguém vê.</p>
+</div>
 
 <div class="note why">
   <strong>Por que esta tabela repete <code>account_id</code></strong>

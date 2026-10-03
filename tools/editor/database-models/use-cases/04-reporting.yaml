@@ -24,6 +24,7 @@ useCases:
     mainFlow:
       - O relator abre a ferramenta pelo botão, na página onde encontrou o problema.
       - Escolhe o tipo — defeito, melhoria ou dúvida —, quando o projeto deixa escolher.
+      - Responde, em poucas palavras, o que aconteceu — a resposta vira o título do card para o time, e é o título que o relator vê depois.
       - Descreve o que aconteceu.
       - Marca se aceita responder dúvidas do time; a caixa já vem como o projeto definiu.
       - Envia o relato.
@@ -34,11 +35,18 @@ useCases:
         steps:
           - Antes de o relator escrever, a ferramenta avisa que o relato poderá ser lido por outras pessoas depois de o time liberar.
           - Segue no passo 2.
-      - title: 3a. A descrição fica em branco
+      - title: 3a. O projeto torna a pergunta obrigatória
+        steps:
+          - A ferramenta não envia sem o título.
+      - title: 3b. O projeto esconde a pergunta
+        steps:
+          - A ferramenta não pergunta; no painel, o card mostra o começo do texto no lugar do título.
+          - Segue no passo 4.
+      - title: 4a. A descrição fica em branco
         steps:
           - A ferramenta não envia e pede a descrição.
-          - O relator volta ao passo 3.
-      - title: 6a. O projeto identifica por código pessoal
+          - O relator volta ao passo 4.
+      - title: 7a. O projeto identifica por código pessoal
         steps:
           - O sistema liga o relato ao código guardado neste navegador — ou sorteia um código novo, se não houver nenhum.
           - A confirmação mostra o código, para o relator guardar.

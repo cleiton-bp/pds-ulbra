@@ -11,10 +11,15 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IAccountRepository Accounts { get; }
     IUserRepository Users { get; }
     IProjectRepository Projects { get; }
+    IProjectMemberRepository ProjectMembers { get; }
+    IProjectInvitationRepository ProjectInvitations { get; }
+    IProjectTeamSettingsRepository ProjectTeamSettings { get; }
     IProjectKeyRepository ProjectKeys { get; }
     IProjectOriginRepository ProjectOrigins { get; }
     IProjectWidgetSettingsRepository ProjectWidgetSettings { get; }
     IProjectStateRepository ProjectStates { get; }
+    IProjectPriorityRepository ProjectPriorities { get; }
+    IProjectLabelRepository ProjectLabels { get; }
     IProjectInitialStateRepository ProjectInitialStates { get; }
     IProjectPublicStageRepository ProjectPublicStages { get; }
     IProjectStatusMappingRepository ProjectStatusMappings { get; }
@@ -24,6 +29,7 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IReportAttachmentRepository ReportAttachments { get; }
     IReporterCodeRepository ReporterCodes { get; }
     IReportRepository Reports { get; }
+    IReportLabelRepository ReportLabels { get; }
     IReportInternalCommentRepository ReportInternalComments { get; }
     IReportPublicCommentRepository ReportPublicComments { get; }
     IReportClosureRepository ReportClosures { get; }

@@ -1,6 +1,7 @@
 using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
+using Pds.Domain.Exceptions;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
@@ -80,6 +81,17 @@ public class ReportCommentService : IReportCommentService
     public async Task<PublicCommentViewModel> AddPublicAsync(Guid projectPublicId, Guid reportPublicId, CreatePublicCommentDto dto, CancellationToken cancellationToken = default)
     {
         var report = await RequireReportAsync(projectPublicId, reportPublicId, cancellationToken);
+
+        // O comentario publico e escrito para quem relatou. O card do time nao tem
+        // essa pessoa — e um texto gravado aqui seria uma conversa sem ninguem do
+        // outro lado.
+        if (report.Kind == CardKindEnum.Team)
+            throw new ConflictException("O card do time nao tem quem relatou para ler este comentario.");
+
+        // Arquivado se le e se comenta entre o time; escrever para fora e mexer no
+        // relato, e isso pede desarquivar antes.
+        if (report.ArchivedAt is not null)
+            throw new ConflictException("Desarquive o relato para escrever a quem relatou.");
         var body = RequireBody(dto.Body, ReportPublicComment.MaxBodyLength);
         var userId = RequireUserId();
 

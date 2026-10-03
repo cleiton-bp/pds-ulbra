@@ -1,7 +1,7 @@
 <h2>O que existe, e o que fica para depois</h2>
 <p class="lead">O que existe hoje, e o que está declarado para depois, cada item com a sua situação.</p>
 
-<p>A <strong>configuração da ferramenta</strong> se edita pelo painel, como as outras. São dez
+<p>A <strong>configuração da ferramenta</strong> se edita pelo painel, como as outras. São onze
 campos que mudam a aparência e os textos do quadro na página do cliente, e se só um desenvolvedor
 conseguisse editá-los, eles não seriam configuração — configuração que existe e ninguém alcança é
 dívida que cresce calada.</p>
@@ -14,6 +14,16 @@ dívida que cresce calada.</p>
       Login com Google<br />
       <b>Isolamento por projeto</b>: o dono vê todos os da conta própria, e o time só os projetos em que está<br />
       <b>Dois papéis por projeto</b> — administrador e membro —, conferidos em toda rota de projeto<br />
+      <b>Convite para o time</b>, por e-mail, aceito só com o Google do mesmo endereço, confirmado<br />
+      <b>Tela de Membros</b>: o time, o papel de cada um, tirar do time, e os convites com onde está o e-mail de cada um<br />
+      <b>Configuração do time</b>: o prazo do convite, por projeto<br />
+      <b>Tela de Trabalho</b>: os relatos e os cards do time juntos, com o filtro por coluna e os arquivados<br />
+      <b>Card do time</b>: criado no painel, com título e descrição em Markdown, e nunca com lado de fora<br />
+      <b>Quadro de cards</b>: a tela de Trabalho em colunas, na ordem que o time arruma, arrastando com mouse, toque ou teclado<br />
+      <b>Número do card</b>, curto e por projeto (#42), para relato e card do time, separado do protocolo<br />
+      <b>Arquivar</b>: o card do time sempre; o relato só com a regra do ciclo, encerrando junto com o motivo para quem relatou<br />
+      <b>Título</b>: a pergunta curta na ferramenta — opcional, obrigatória ou escondida, por projeto —; o time reescreve, e quem relatou vê só o que escreveu<br />
+      <b>Responsável, prioridade, etiquetas e prazo</b> no card, com as prioridades (quatro de fábrica) e as etiquetas do projeto, e nada disso fora do painel<br />
       Chave pública e secreta por projeto<br />
       Endereços autorizados por projeto<br />
       Conferência dos endereços autorizados, nas rotas públicas<br />
@@ -37,7 +47,7 @@ dívida que cresce calada.</p>
       <b>Motivo da reabertura</b> visível dos dois lados, no painel e no acompanhamento<br />
       <b>Pedido de informação com prazo</b>, e encerramento por falta de resposta<br />
       <b>Conversa nos dois sentidos</b>, numa lista só e sem nome de quem é do time<br />
-      <b>Configuração do ciclo</b>: treze regras por projeto, com padrão de fábrica<br />
+      <b>Configuração do ciclo</b>: dezesseis regras por projeto, com padrão de fábrica<br />
       <b>Espera antes de quem relatou ver</b>, agendada por fila<br />
       <b>Identidade de quem relata</b>: protocolo ou código pessoal, por projeto<br />
       <b>Lista pessoal</b> dentro do quadro, pelo código, sem login<br />
@@ -53,7 +63,9 @@ dívida que cresce calada.</p>
       <b>Editor da imagem</b>: marcar, desfocar, ocultar e recortar antes de enviar<br />
       <b>Bytes conferidos</b> na confirmação, e o arquivo aceito copiado para onde nenhuma permissão de envio alcança<br />
       <b>Leitura por link assinado</b>, de validade curta, no painel, pelo link e pelo código pessoal<br />
-      <b>Limite por minuto</b> no login e no envio de arquivo
+      <b>Limite por minuto</b> no login e no envio de arquivo<br />
+      <b>Envio de e-mail por SMTP</b>, qualquer provedor, configurado pela seção <code>Smtp</code><br />
+      <b>Saída do e-mail pela fila</b>, depois de gravado, com o estado do envio guardado no convite
     </td>
   </tr>
 </table>
@@ -75,9 +87,7 @@ declarado para não se perder.</p>
   <tr><td>Testes automatizados da API: o motor, o vazamento na resposta pública, o isolamento por projeto e os papéis</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Barrar no navegador o quadro aberto em endereço não autorizado (<code>frame-ancestors</code>)</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Excluir a conta, com prazo de arrependimento, e apagar os dados</td><td><strong>Planejado</strong></td></tr>
-  <tr><td>Convite para o projeto: o administrador convida por e-mail, com o papel, e a pessoa aceita entrando com a conta Google do mesmo endereço. Até lá, cada projeto tem só o dono</td><td><strong>Planejado</strong></td></tr>
-  <tr><td>Envio de e-mail, de que dependem o convite e o aviso</td><td><strong>Planejado</strong></td></tr>
-  <tr><td>A tela de Membros</td><td><strong>Planejado</strong></td></tr>
+  <tr><td>O remetente com o domínio do produto, verificado no provedor de e-mail — até lá, o provedor troca o domínio do remetente</td><td><strong>Adiado</strong></td></tr>
   <tr><td>Tipos de relato e palavras escolhidos por projeto</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Uma política de CORS própria para as rotas públicas, separada da do painel</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Camadas acima do limite de envio de arquivo, como um desafio invisível antes do envio</td><td><strong>Planejado</strong></td></tr>
@@ -86,7 +96,7 @@ declarado para não se perder.</p>
   <tr><td>A lista pública com as imagens, e a página própria de um relato público aprovado</td><td><strong>Adiado</strong></td></tr>
   <tr><td>O armazenamento de produção: o provedor — que precisa aceitar envio por formulário assinado, e o R2 não aceita — e a regra de CORS do balde</td><td><strong>Adiado</strong></td></tr>
   <tr><td>Prazo de guarda da mídia, e apagar o que venceu</td><td><strong>Adiado</strong></td></tr>
-  <tr><td>Quadro de cards arrastável e sprints, com responsável, etiqueta, prioridade, prazo, subtarefas e vínculos entre cards</td><td><strong>Planejado</strong></td></tr>
+  <tr><td>O quadro de cards em tempo real, filtros rápidos e busca, sprints, subtarefas e vínculos entre cards</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Relato duplicado acompanhando o original — quem relatou recebe o desfecho dele</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Relatórios e gráficos do trabalho do time</td><td><strong>Planejado</strong></td></tr>
   <tr><td>Conectores com a ferramenta do time (Jira, Trello e outras)</td><td><strong>Continuidade</strong></td></tr>

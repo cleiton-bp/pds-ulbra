@@ -109,8 +109,50 @@ public interface IReportService
     /// <para><paramref name="page"/> e <paramref name="pageSize"/> sao corrigidos
     /// em vez de recusados — pedir a pagina zero e engano de quem chama, e nao
     /// motivo para a tela ficar sem lista.</para>
+    ///
+    /// <para><paramref name="archived"/> verdadeiro troca a lista pelos arquivados.
+    /// <paramref name="order"/> <c>board</c> devolve a coluna na ordem do quadro, e na
+    /// ultima coluna ativa so o que entrou nela nos dias que o projeto escolheu.
+    /// <paramref name="after"/>, na ordem do quadro e numa coluna, continua a leitura
+    /// logo depois daquele card, e a pagina deixa de valer.</para>
     /// </summary>
-    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, CancellationToken cancellationToken = default);
+    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cria um card do time: titulo, descricao em Markdown e o estado em que nasce.
+    /// Ganha o proximo numero do projeto, como o relato. Nunca tem lado de fora.
+    /// </summary>
+    Task<ReportDetailViewModel> CreateTeamCardAsync(Guid projectPublicId, CreateTeamCardDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Grava o titulo e a descricao de um card do time. Relato e recusado: o texto
+    /// dele e de quem relatou. Arquivado tambem: editar pede desarquivar antes.
+    /// </summary>
+    Task<ReportDetailViewModel> EditTeamCardAsync(Guid projectPublicId, Guid reportPublicId, EditTeamCardDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Arquiva ou desarquiva um card. O relato so com a regra do ciclo ligada; e o
+    /// relato aberto e encerrado junto, com desfecho e motivo, que quem relatou le.
+    /// </summary>
+    Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O titulo que o time da ao relato. Vazio volta ao que quem relatou escreveu, que
+    /// nunca se perde. O card do time e recusado: la o titulo vai com a descricao.
+    /// </summary>
+    Task<ReportDetailViewModel> SetTitleAsync(Guid projectPublicId, Guid reportPublicId, SetCardTitleDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Quem do time fica com o card — alguem do time agora —, ou ninguem.</summary>
+    Task<ReportDetailViewModel> SetAssigneeAsync(Guid projectPublicId, Guid reportPublicId, SetCardAssigneeDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>A prioridade do card — uma ativa do projeto —, ou nenhuma.</summary>
+    Task<ReportDetailViewModel> SetPriorityAsync(Guid projectPublicId, Guid reportPublicId, SetCardPriorityDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Troca o conjunto de etiquetas do card de uma vez.</summary>
+    Task<ReportDetailViewModel> SetLabelsAsync(Guid projectPublicId, Guid reportPublicId, SetCardLabelsDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>O prazo do card, so a data — ou nenhum.</summary>
+    Task<ReportDetailViewModel> SetDueDateAsync(Guid projectPublicId, Guid reportPublicId, SetCardDueDateDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Quantos relatos ha em cada coluna da fila. Sai uma linha por coluna do
@@ -165,6 +207,16 @@ public interface IReportService
     /// "Testando" para "Corrigindo" e o caso mais comum de todos.</para>
     /// </summary>
     Task<ReportSummaryViewModel> MoveAsync(Guid projectPublicId, Guid reportPublicId, MoveReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Muda o card de lugar na propria coluna do quadro: logo abaixo de outro card,
+    /// ou no topo.
+    ///
+    /// <para><b>Nao e evento.</b> Arrumar a coluna nao muda o card — nem a coluna,
+    /// nem o que quem relatou ve —, e uma linha na historia por arrumacao enterraria
+    /// o que aconteceu de verdade.</para>
+    /// </summary>
+    Task<ReportSummaryViewModel> SetPositionAsync(Guid projectPublicId, Guid reportPublicId, SetCardPositionDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Tudo que aconteceu com o relato, em ordem, <b>montado a partir dos

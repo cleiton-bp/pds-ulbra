@@ -70,7 +70,7 @@ describe('o quadro dentro de uma pagina', () => {
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} />)
 
     expect(screen.getByRole('button', { name: 'Relatar' })).toBeDefined()
-    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.queryByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })).toBeNull()
   })
 
   it('abrir o gatilho pede o tamanho maior a pagina', () => {
@@ -78,7 +78,7 @@ describe('o quadro dentro de uma pagina', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
 
     expect(pagina.expand).toHaveBeenCalledOnce()
-    expect(screen.getByRole('textbox')).toBeDefined()
+    expect(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })).toBeDefined()
   })
 
   it('o rotulo do gatilho vem da configuracao', () => {
@@ -98,7 +98,7 @@ describe('o quadro aberto direto, sem pagina', () => {
   it('ja nasce no formulario', () => {
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
 
-    expect(screen.getByRole('textbox')).toBeDefined()
+    expect(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Fechar' })).toBeNull()
   })
 })
@@ -109,9 +109,13 @@ describe('o formulario', () => {
     const enviar = screen.getByRole('button', { name: 'Enviar' }) as HTMLButtonElement
 
     expect(enviar.disabled).toBe(true)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '   ' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: '   ' },
+    })
     expect(enviar.disabled).toBe(true)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'algo quebrou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'algo quebrou' },
+    })
     expect(enviar.disabled).toBe(false)
   })
 
@@ -132,11 +136,78 @@ describe('o formulario', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Defeito' })).toBeNull()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'como faço isso?' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'como faço isso?' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
     expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({ Type: 'Question', Route: '/checkout' })
+  })
+
+  describe('a pergunta do titulo', () => {
+    const criado = {
+      TrackingCode: 'ABCD-EFGH-IJKL',
+      AccessToken: 'token-secreto',
+      CreatedAt: '2026-09-12T00:00:00Z',
+      ReporterCode: null,
+    }
+    const texto = () => screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+    const titulo = () =>
+      screen.getByRole('textbox', { name: /Em poucas palavras, o que aconteceu\?/ })
+    const enviar = () => screen.getByRole('button', { name: 'Enviar' })
+
+    it('opcional, o padrao: vai sem titulo, e com titulo vai o que a pessoa escreveu, aparado', async () => {
+      dublê.criar.mockResolvedValue(criado)
+      render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
+
+      expect(titulo().getAttribute('required')).toBeNull()
+      expect(screen.getByText(/\(opcional\)/)).toBeTruthy()
+      fireEvent.change(titulo(), { target: { value: '  Tela branca no carrinho  ' } })
+      fireEvent.change(texto(), { target: { value: 'Depois de escolher o frete.' } })
+      fireEvent.click(enviar())
+
+      await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
+      expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({
+        Title: 'Tela branca no carrinho',
+        Text: 'Depois de escolher o frete.',
+      })
+    })
+
+    it('opcional e em branco: o titulo vai nulo, e nao vazio', async () => {
+      dublê.criar.mockResolvedValue(criado)
+      render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
+
+      fireEvent.change(titulo(), { target: { value: '   ' } })
+      fireEvent.change(texto(), { target: { value: 'Algo deu errado.' } })
+      fireEvent.click(enviar())
+
+      await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
+      expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({ Title: null })
+    })
+
+    it('obrigatoria: sem titulo o botao nao libera, nem com o texto escrito', () => {
+      render(<EmbedApp settings={comSettings({ ReportTitleMode: 'Required' })} config={config} />)
+
+      fireEvent.change(texto(), { target: { value: 'Algo deu errado.' } })
+      expect(enviar().hasAttribute('disabled')).toBe(true)
+      expect(screen.queryByText(/\(opcional\)/)).toBeNull()
+
+      fireEvent.change(titulo(), { target: { value: 'Erro no login' } })
+      expect(enviar().hasAttribute('disabled')).toBe(false)
+    })
+
+    it('escondida: nao pergunta, e nao manda titulo nenhum', async () => {
+      dublê.criar.mockResolvedValue(criado)
+      render(<EmbedApp settings={comSettings({ ReportTitleMode: 'Hidden' })} config={config} />)
+
+      expect(screen.queryByRole('textbox', { name: /Em poucas palavras/ })).toBeNull()
+      fireEvent.change(texto(), { target: { value: 'Algo deu errado.' } })
+      fireEvent.click(enviar())
+
+      await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
+      expect(dublê.criar.mock.calls[0]?.[0]).toMatchObject({ Title: null })
+    })
   })
 
   it('mostra o protocolo, e o token so dentro do link — nunca como texto', async () => {
@@ -149,7 +220,9 @@ describe('o formulario', () => {
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'algo quebrou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'algo quebrou' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => expect(screen.getByText('ABCD-EFGH-IJKL')).toBeDefined())
@@ -182,14 +255,19 @@ describe('o formulario', () => {
     })
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'algo quebrou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'algo quebrou' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => expect(screen.getByText('ABCD-EFGH-IJKL')).toBeDefined())
     fireEvent.click(screen.getByRole('button', { name: 'Relatar outra coisa' }))
 
     // Formulario de volta, e vazio: nada do relato anterior sobra.
-    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+    expect(
+      (screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }) as HTMLTextAreaElement)
+        .value,
+    ).toBe('')
     expect(screen.queryByText('ABCD-EFGH-IJKL')).toBeNull()
   })
 
@@ -204,14 +282,16 @@ describe('o formulario', () => {
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} />)
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'algo quebrou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'algo quebrou' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => expect(screen.getByText('ABCD-EFGH-IJKL')).toBeDefined())
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
 
-    expect(screen.getByRole('textbox')).toBeDefined()
+    expect(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })).toBeDefined()
     expect(screen.queryByText('ABCD-EFGH-IJKL')).toBeNull()
   })
 
@@ -239,7 +319,9 @@ describe('o formulario', () => {
 
       render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} />)
       fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'algo quebrou' } })
+      fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+        target: { value: 'algo quebrou' },
+      })
       fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
       fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
@@ -254,7 +336,13 @@ describe('o formulario', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
       expect(screen.queryByText('VELHO-VELHO-VELH')).toBeNull()
-      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+      expect(
+        (
+          screen.getByRole('textbox', {
+            name: DEFAULT_WIDGET_SETTINGS.Title,
+          }) as HTMLTextAreaElement
+        ).value,
+      ).toBe('')
     })
 
     it('erro que chega depois do fechamento nao reaparece', async () => {
@@ -263,7 +351,9 @@ describe('o formulario', () => {
 
       render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} />)
       fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'algo quebrou' } })
+      fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+        target: { value: 'algo quebrou' },
+      })
       fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
       fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
@@ -280,12 +370,16 @@ describe('o formulario', () => {
 
       render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} />)
       fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'primeiro' } })
+      fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+        target: { value: 'primeiro' },
+      })
       fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
       fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
       fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'segundo, escrito agora' } })
+      fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+        target: { value: 'segundo, escrito agora' },
+      })
 
       voo.entregar({
         TrackingCode: 'VELHO-VELHO-VELH',
@@ -296,9 +390,13 @@ describe('o formulario', () => {
       })
       await waitFor(() => expect(dublê.criar).toHaveBeenCalledOnce())
 
-      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
-        'segundo, escrito agora',
-      )
+      expect(
+        (
+          screen.getByRole('textbox', {
+            name: DEFAULT_WIDGET_SETTINGS.Title,
+          }) as HTMLTextAreaElement
+        ).value,
+      ).toBe('segundo, escrito agora')
       expect(screen.queryByText('VELHO-VELHO-VELH')).toBeNull()
     })
   })
@@ -336,7 +434,7 @@ describe('o formulario', () => {
   it('a caixa de texto pode encolher e o botao nao', () => {
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
 
-    const caixa = screen.getByRole('textbox').className
+    const caixa = screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }).className
     expect(caixa).toMatch(/\bmin-h-0\b/)
     expect(caixa).not.toMatch(/\bmin-h-(?!0\b)[\w.[\]]+/)
 
@@ -344,7 +442,9 @@ describe('o formulario', () => {
     expect(enviar).toMatch(/\bshrink-0\b/)
 
     // E o formulario rola quando nem assim couber.
-    const formulario = screen.getByRole('textbox').closest('form')
+    const formulario = screen
+      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .closest('form')
     expect(formulario?.className).toMatch(/\boverflow-y-auto\b/)
   })
 
@@ -352,11 +452,16 @@ describe('o formulario', () => {
     dublê.criar.mockRejectedValue(new Error('caiu'))
 
     render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'algo quebrou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'algo quebrou' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeDefined())
-    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('algo quebrou')
+    expect(
+      (screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }) as HTMLTextAreaElement)
+        .value,
+    ).toBe('algo quebrou')
   })
 })
 
@@ -382,7 +487,9 @@ describe('aceitar responder dúvidas', () => {
     } satisfies CreatedReportViewModel)
 
     render(<EmbedApp settings={settings} config={config} host={null} />)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'O botão não responde.' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'O botão não responde.' },
+    })
   }
 
   const caixa = () => screen.getByRole('checkbox', { name: /Pode me perguntar algo/ })
@@ -453,7 +560,9 @@ describe('o código pessoal', () => {
     } satisfies CreatedReportViewModel)
 
     render(<EmbedApp settings={comCodigo} config={config} host={null} />)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'O botão não responde.' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'O botão não responde.' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await screen.findByText('ABCD-EFGH-JKLM')
@@ -518,6 +627,7 @@ describe('o código pessoal', () => {
         {
           TrackingCode: 'ABCD-EFGH-JKLM',
           Type: 'Bug',
+          Title: null,
           Excerpt: 'O botão não responde.',
           StageLabel: 'Em análise',
           IsClosed: false,
@@ -543,6 +653,30 @@ describe('o código pessoal', () => {
     expect(href.split('#')[1]).toContain('H7QK-3M2X-P9WD')
   })
 
+  it('na lista, o relato com titulo mostra o titulo que a pessoa escreveu acima do comeco', async () => {
+    window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
+    dublê.listar.mockResolvedValue({
+      Reports: [
+        {
+          TrackingCode: 'ABCD-EFGH-JKLM',
+          Type: 'Bug',
+          Title: 'Tela branca no carrinho',
+          Excerpt: 'Depois de escolher o frete, a página fica em branco.',
+          StageLabel: 'Em análise',
+          IsClosed: false,
+          CreatedAt: '2026-09-19T12:00:00.000Z',
+        },
+      ],
+      HasMore: false,
+    } satisfies ReporterCodeReportsViewModel)
+
+    render(<EmbedApp settings={comCodigo} config={config} host={null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
+
+    expect(await screen.findByText('Tela branca no carrinho')).toBeTruthy()
+    expect(screen.getByText('Depois de escolher o frete, a página fica em branco.')).toBeTruthy()
+  })
+
   it('lista vazia não diz "código não encontrado"', async () => {
     window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'ZZZZ-ZZZZ-ZZZZ')
     dublê.listar.mockResolvedValue({
@@ -566,6 +700,7 @@ describe('o código pessoal', () => {
         {
           TrackingCode: 'ABCD-EFGH-JKLM',
           Type: 'Bug',
+          Title: null,
           Excerpt: 'O botão não responde.',
           StageLabel: 'Em análise',
           IsClosed: false,
@@ -728,6 +863,7 @@ describe('o código pessoal', () => {
         {
           TrackingCode: 'ABCD-EFGH-JKLM',
           Type: 'Bug',
+          Title: null,
           Excerpt: 'O botão não responde.',
           StageLabel: null,
           IsClosed: false,

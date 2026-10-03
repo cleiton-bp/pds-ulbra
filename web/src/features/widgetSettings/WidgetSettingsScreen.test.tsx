@@ -19,7 +19,7 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  * - **o rotulo do tipo muda de significado** quando o seletor esta escondido: ali
  *   ele deixa de ser "vem marcado" e vira "e o unico que vai existir".
  *
- * O quarto e o contrato com a API: publicar manda **os dez campos**, porque a
+ * O quarto e o contrato com a API: publicar manda **os onze campos**, porque a
  * rota substitui a linha inteira — mandar menos apagaria o resto.
  */
 const dublê = vi.hoisted(() => ({
@@ -134,7 +134,7 @@ describe('WidgetSettingsScreen', () => {
     expect(barra()).toBeNull()
   })
 
-  it('publicar manda os dez campos, porque a rota substitui a linha inteira', async () => {
+  it('publicar manda os campos todos, porque a rota substitui a linha inteira', async () => {
     dublê.salvar.mockImplementation(
       async (_publicId: string, settings: WidgetSettingsViewModel) => settings,
     )
@@ -163,6 +163,22 @@ describe('WidgetSettingsScreen', () => {
 
     expect(screen.getByText('mostrando o que está publicado')).toBeTruthy()
     expect(screen.queryByText('igual ao seu site')).toBeNull()
+  })
+
+  it('a pergunta do titulo: o modo escolhido vai na publicacao, e a tela diz o que ele faz', async () => {
+    dublê.salvar.mockImplementation(
+      async (_publicId: string, settings: WidgetSettingsViewModel) => settings,
+    )
+    montar()
+
+    expect(await screen.findByText(/quem não responder envia assim mesmo/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Obrigatória' }))
+    expect(screen.getByText(/Ninguém envia sem responder/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar' }))
+
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+    const enviado = dublê.salvar.mock.calls[0]?.[1] as WidgetSettingsViewModel | undefined
+    expect(enviado?.ReportTitleMode).toBe('Required')
   })
 
   it('o rotulo do tipo muda de significado quando o seletor esta escondido', async () => {

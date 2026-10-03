@@ -26,6 +26,19 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IProjectRepository? _projects;
     public IProjectRepository Projects => _projects ??= new ProjectRepository(_context);
 
+    private IProjectMemberRepository? _projectMembers;
+    public IProjectMemberRepository ProjectMembers => _projectMembers ??= new ProjectMemberRepository(_context);
+
+    private IProjectInvitationRepository? _projectInvitations;
+
+    public IProjectInvitationRepository ProjectInvitations
+        => _projectInvitations ??= new ProjectInvitationRepository(_context);
+
+    private IProjectTeamSettingsRepository? _projectTeamSettings;
+
+    public IProjectTeamSettingsRepository ProjectTeamSettings
+        => _projectTeamSettings ??= new ProjectTeamSettingsRepository(_context);
+
     private IProjectKeyRepository? _projectKeys;
     public IProjectKeyRepository ProjectKeys => _projectKeys ??= new ProjectKeyRepository(_context);
 
@@ -39,6 +52,12 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
 
     private IProjectStateRepository? _projectStates;
     public IProjectStateRepository ProjectStates => _projectStates ??= new ProjectStateRepository(_context);
+
+    private IProjectPriorityRepository? _projectPriorities;
+    public IProjectPriorityRepository ProjectPriorities => _projectPriorities ??= new ProjectPriorityRepository(_context);
+
+    private IProjectLabelRepository? _projectLabels;
+    public IProjectLabelRepository ProjectLabels => _projectLabels ??= new ProjectLabelRepository(_context);
 
     private IProjectInitialStateRepository? _projectInitialStates;
 
@@ -80,6 +99,9 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
 
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
+
+    private IReportLabelRepository? _reportLabels;
+    public IReportLabelRepository ReportLabels => _reportLabels ??= new ReportLabelRepository(_context);
 
     private IReportInternalCommentRepository? _reportInternalComments;
 

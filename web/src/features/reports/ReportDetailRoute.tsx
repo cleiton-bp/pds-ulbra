@@ -9,8 +9,8 @@ export interface ReportListContext {
   reports: ReportSummaryViewModel[] | null
   /** As colunas da fila, na ordem, vindas da contagem que a lista ja carregou. */
   colunas: ReportStateCountViewModel[] | null
-  /** Avisa a lista de que este relato mudou de coluna. */
-  aoMover: (report: ReportSummaryViewModel) => void
+  /** Avisa a lista de que este card mudou — de coluna, de texto ou de arquivo. */
+  aoMudar: (report: ReportSummaryViewModel) => void
 }
 
 /**
@@ -28,7 +28,7 @@ export interface ReportListContext {
  */
 export function ReportDetailRoute() {
   const { reportPublicId = '' } = useParams()
-  const { projectPublicId, reports, colunas, aoMover } = useOutletContext<ReportListContext>()
+  const { projectPublicId, reports, colunas, aoMudar } = useOutletContext<ReportListContext>()
   const navigate = useNavigate()
 
   const resumo = reports?.find((report) => report.PublicId === reportPublicId) ?? null
@@ -43,7 +43,7 @@ export function ReportDetailRoute() {
       reportPublicId={reportPublicId}
       resumo={resumo}
       colunas={colunas}
-      aoMover={aoMover}
+      aoMudar={aoMudar}
       // `..` e a lista, com o recorte e a rolagem onde estavam. `replace` mantem
       // o botao voltar do navegador levando para antes de a lista abrir, e nao de
       // volta para o relato que a pessoa acabou de fechar.

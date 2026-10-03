@@ -22,6 +22,12 @@ export interface CreateReportRequest {
   /** Chave publica do projeto, a mesma que esta no `data-key` do script. */
   Key: string
   Type: ReportType
+  /**
+   * A resposta a "em poucas palavras, o que aconteceu?", numa linha. Nulo quando a
+   * pessoa nao respondeu, ou quando a pergunta esta escondida. Vira o titulo do card
+   * para o time, e e o unico titulo que volta para ela.
+   */
+  Title: string | null
   Text: string
   /**
    * Caminho da pagina de onde o relato foi aberto. A API descarta o que vier
@@ -111,12 +117,88 @@ export const MAX_REPORTER_NAME_LENGTH = 80
  * O `Text` vem inteiro, e nao cortado: quem corta para caber na linha e a tela.
  * Se a API cortasse, ler o resto exigiria uma rota que ainda nao existe.
  */
+/**
+ * De onde o card veio. Espelho do `CardKindEnum` em C#.
+ *
+ * **Todo card mora na mesma lista**: o relato chegou de fora, pela ferramenta; o
+ * card do time nasceu aqui, e **nunca tem lado de fora** — sem protocolo, sem
+ * link, sem etapa publica, sem moderacao.
+ */
+export type CardKind = 'Report' | 'Team'
+
+/** Teto do titulo do card do time, o mesmo da API. */
+export const MAX_CARD_TITLE_LENGTH = 200
+
+/** Teto da descricao do card do time, em Markdown, o mesmo da API. */
+export const MAX_CARD_DESCRIPTION_LENGTH = 10000
+
+/** Quantas etiquetas um card leva, o mesmo da API. */
+export const MAX_LABELS_PER_CARD = 10
+
+/**
+ * A paleta fixa de etiqueta e prioridade, espelho do `CardColorEnum` em C#. Cada
+ * cor tem o par certo no tema claro e no escuro (`tokens.css`); um hexadecimal
+ * livre ficaria ilegivel num dos dois.
+ */
+export const CARD_COLORS = [
+  'Gray',
+  'Blue',
+  'Green',
+  'Yellow',
+  'Orange',
+  'Red',
+  'Purple',
+  'Pink',
+] as const
+export type CardColor = (typeof CARD_COLORS)[number]
+
+/**
+ * Quem esta com o card. **Quem saiu do time continua aqui**, como registro:
+ * `InTeam` falso, e a tela o marca ate alguem trocar.
+ */
+export interface CardAssigneeViewModel {
+  UserPublicId: string
+  /** Nulo quando a conta da pessoa foi esvaziada. */
+  Name: string | null
+  AvatarUrl: string | null
+  InTeam: boolean
+}
+
+/** A prioridade de um card, com o nome e a cor de agora. */
+export interface CardPriorityViewModel {
+  PublicId: string
+  Name: string
+  Color: CardColor
+  /** Falso quando foi aposentada: continua no card, e nao e mais oferecida. */
+  IsActive: boolean
+}
+
+/** Uma etiqueta de um card. */
+export interface CardLabelViewModel {
+  PublicId: string
+  Name: string
+  Color: CardColor
+}
+
 export interface ReportSummaryViewModel {
   PublicId: string
-  /** O protocolo, o mesmo que a pessoa que relatou anotou. */
-  TrackingCode: string
-  Type: ReportType
-  Text: string
+  Kind: CardKind
+  /** O numero curto do card no projeto — o #42. Interno: nenhuma rota publica o devolve. */
+  Number: number
+  /**
+   * O titulo do time: o do card do time, ou o que o time reescreveu no relato —
+   * nulo no relato que ninguem reescreveu. A tela mostra este, senao
+   * `ReporterTitle`, senao o comeco do texto.
+   */
+  Title: string | null
+  /** O titulo que quem relatou escreveu na ferramenta; nunca muda. Nulo no card do time. */
+  ReporterTitle: string | null
+  /** O protocolo, o mesmo que a pessoa que relatou anotou. Nulo no card do time. */
+  TrackingCode: string | null
+  /** Nulo no card do time. */
+  Type: ReportType | null
+  /** O texto de quem relatou. Nulo no card do time. */
+  Text: string | null
   /** So o caminho da pagina: a API descarta query e fragmento antes de gravar. */
   Route: string | null
   /** Dominio informado pela pagina hospedeira. Indicio, nunca prova de origem. */
@@ -161,7 +243,39 @@ export interface ReportSummaryViewModel {
    * reescrito a cada movimento.
    */
   PublicStageDueAt: string | null
+  /** Quando o card saiu da tela de Trabalho; nulo enquanto esta nela. */
+  ArchivedAt: string | null
   CreatedAt: string
+  /** Quem esta com o card; nulo enquanto ninguem assumiu. */
+  Assignee: CardAssigneeViewModel | null
+  /** Nula e sem prioridade — e como o card nasce. */
+  Priority: CardPriorityViewModel | null
+  /** Em ordem de nome. */
+  Labels: CardLabelViewModel[]
+  /** O prazo, so a data (`aaaa-mm-dd`); nulo e sem prazo. */
+  DueDate: string | null
+  /** Os comentarios do card — os internos e os trocados com quem relatou. Numero da frente do card. */
+  CommentCount: number
+  /** Os anexos confirmados do card. */
+  AttachmentCount: number
+  /**
+   * Se o relato ja tem um encerramento valendo. E o que diz ao quadro se soltar o
+   * card na coluna que encerra pede desfecho e motivo: o ja encerrado so anda.
+   */
+  Closed: boolean
+}
+
+/**
+ * A ordem da lista: `recent`, do mais novo para o mais antigo (a de sempre), ou
+ * `board`, a que o time arrumou em cada coluna do quadro. Na ultima coluna ativa,
+ * `board` traz so o que entrou nela nos dias que o projeto escolheu no Ciclo.
+ */
+export type ReportListOrder = 'recent' | 'board'
+
+/** Um lugar novo para o card na propria coluna do quadro. */
+export interface SetCardPositionRequest {
+  /** O card que fica logo acima deste, na mesma coluna. **Nulo poe no topo.** */
+  AfterPublicId: string | null
 }
 
 /** Um par do contexto que veio junto com o relato, sem ninguem digitar. */
@@ -235,6 +349,20 @@ export interface AskInfoRequest {
 }
 
 export interface ReportDetailViewModel extends ReportSummaryViewModel {
+  /** A descricao do card do time, em Markdown; nula no relato. */
+  Description: string | null
+  /** Quem do time criou o card; nulo no relato. */
+  CreatedByName: string | null
+  /**
+   * Da para arquivar este card **agora**: sempre no card do time; no relato, so com
+   * a regra do ciclo ligada. Falso no que ja esta arquivado.
+   */
+  CanArchive: boolean
+  /**
+   * Arquivar este relato **encerra** junto, e por isso pede desfecho e motivo — o
+   * que quem relatou vai ler. Verdadeiro no relato aberto.
+   */
+  ArchiveCloses: boolean
   /**
    * O fim do relato, ou **nulo** enquanto ele nao acabou.
    *
@@ -459,6 +587,11 @@ export interface PublicReopeningViewModel {
 export interface PublicReportViewModel {
   TrackingCode: string
   Type: ReportType
+  /**
+   * O titulo que ela escreveu, ou nulo quando nao respondeu. **Nunca o do time**: o
+   * titulo reescrito no painel e interno.
+   */
+  Title: string | null
   Text: string
   CreatedAt: string
   /**
@@ -552,6 +685,12 @@ export interface MoveReportRequest {
    * nao ha encerramento sem ele.
    */
   Reason?: string
+  /**
+   * O card que fica logo acima deste na coluna de destino, quando ele foi solto num
+   * lugar do quadro. **Ausente ou nulo poe no topo** — e e onde o card chega pelo
+   * seletor de coluna.
+   */
+  AfterPublicId?: string | null
 }
 
 /** Limite da coluna `reason`, declarado em `ReportClosure.MaxReasonLength`. */
@@ -625,6 +764,15 @@ export const REPORT_EVENT_TYPES = [
   'ReportClosureCancelled',
   'ReportPublished',
   'ReportModerationRejected',
+  'TeamCardCreated',
+  'TeamCardEdited',
+  'CardArchived',
+  'CardUnarchived',
+  'CardTitleChanged',
+  'CardAssigneeChanged',
+  'CardPriorityChanged',
+  'CardLabelsChanged',
+  'CardDueDateChanged',
 ] as const
 
 /**
@@ -650,6 +798,19 @@ export interface ReportHistoryEntryViewModel {
   FromStateName: string | null
   ToStateName: string | null
   OccurredAt: string
+  /**
+   * O valor de antes, nos campos do card: o nome da prioridade (o da epoca), o nome
+   * de quem estava com o card (o de agora) ou o prazo (`aaaa-mm-dd`).
+   */
+  From: string | null
+  /** O valor de depois, do mesmo jeito. Nulo quando ficou sem. */
+  To: string | null
+  /** As etiquetas que entraram, com o nome da epoca. */
+  Added: string[]
+  /** As etiquetas que sairam. */
+  Removed: string[]
+  /** Na mudanca de titulo: verdadeiro quando o time voltou ao de quem relatou. */
+  TitleRestored: boolean | null
 }
 
 /**
@@ -743,6 +904,8 @@ export interface PublishedReportsViewModel {
 export interface ReporterCodeReportViewModel {
   TrackingCode: string
   Type: ReportType
+  /** O titulo que ela escreveu, ou nulo quando nao respondeu. Nunca o do time. */
+  Title: string | null
   /** O comeco do texto, para distinguir um relato do outro sem abrir. */
   Excerpt: string
   /** Em que passo da jornada ele esta. Nulo quando o projeto nao tem jornada. */
@@ -788,4 +951,54 @@ export interface OpenByReporterCodeRequest {
   Key: string
   Code: string
   TrackingCode: string
+}
+
+/** O card que o time cria, sem relator. */
+export interface CreateTeamCardRequest {
+  Title: string
+  /** Markdown. Vazia, o card nasce sem descricao. */
+  Description: string | null
+  /** Ausente, o primeiro estado ativo do projeto. */
+  StatePublicId: string | null
+}
+
+/** O titulo e a descricao de um card do time, gravados inteiros. */
+export interface EditTeamCardRequest {
+  Title: string
+  Description: string | null
+}
+
+/**
+ * Arquivar ou desarquivar. O desfecho e o motivo so ao arquivar um relato aberto
+ * (`ArchiveCloses`): e o que quem relatou vai ler.
+ */
+export interface ArchiveCardRequest {
+  Archived: boolean
+  Outcome?: PublicOutcome
+  Reason?: string
+}
+
+/** O titulo do time num relato. Vazio, ou nulo, volta ao de quem relatou. */
+export interface SetCardTitleRequest {
+  Title: string | null
+}
+
+/** Quem do time fica com o card; nulo tira o responsavel. */
+export interface SetCardAssigneeRequest {
+  UserPublicId: string | null
+}
+
+/** A prioridade do card; nula e sem prioridade. */
+export interface SetCardPriorityRequest {
+  PriorityPublicId: string | null
+}
+
+/** O conjunto inteiro de etiquetas do card; a lista vazia tira todas. */
+export interface SetCardLabelsRequest {
+  LabelPublicIds: string[]
+}
+
+/** O prazo (`aaaa-mm-dd`); nulo tira. */
+export interface SetCardDueDateRequest {
+  DueDate: string | null
 }

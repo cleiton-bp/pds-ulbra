@@ -4,9 +4,9 @@
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code</code></td><td><strong>Sem sessão.</strong> Os relatos ligados a um código pessoal. Código desconhecido devolve <strong>lista vazia</strong>, e não 404.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports</code></td><td><strong>Sem sessão.</strong> Abre um relato; o projeto vem da chave pública do corpo. <code>Title</code> é a resposta a "em poucas palavras, o que aconteceu?" — opcional, a não ser que o projeto torne a pergunta obrigatória (aí, sem ela, 400).</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking</code></td><td><strong>Sem sessão.</strong> Abre o acompanhamento de um relato, pelo protocolo e pelo token do link. Traz o título que a pessoa escreveu (<code>Title</code>) — <strong>nunca o do time</strong>.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code</code></td><td><strong>Sem sessão.</strong> Os relatos ligados a um código pessoal. Código desconhecido devolve <strong>lista vazia</strong>, e não 404. Cada um com o título que a pessoa escreveu, quando escreveu.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/open</code></td><td><strong>Sem sessão.</strong> Abre um relato da lista pessoal. Lê, e não age: confirmar, reabrir e responder pedem o token do link.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/public/reports/published</code></td><td><strong>Sem sessão.</strong> O que já foi liberado para o público neste projeto. Projeto privado responde <strong>lista vazia</strong>, e não uma recusa.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/confirm</code></td><td><strong>Sem sessão.</strong> Quem relatou diz que resolveu, e dá a nota — ou recusa dá-la.</td></tr>
@@ -111,7 +111,7 @@
 
 <div class="note why">
   <strong>Por que as rotas públicas ficam fora do padrão</strong>
-  <p>Quarenta e oito rotas exigem token e resolvem, pelo <code>uid</code> que vem dentro dele, quem
+  <p>Setenta e oito rotas exigem token e resolvem, pelo <code>uid</code> que vem dentro dele, quem
   é a pessoa e os projetos que ela enxerga. As quinze de <code>/public</code> não podem: quem chega
   ali é um visitante anônimo do site de um cliente, e o projeto ainda não é conhecido. A credencial é a <strong>chave pública</strong>,
   que não autentica ninguém — ela apenas diz para qual projeto o relato vai —, ou, nas rotas de

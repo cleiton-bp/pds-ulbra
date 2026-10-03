@@ -177,13 +177,18 @@ describe('a captura', () => {
     const host = pagina()
     host.capture.mockResolvedValue({ outcome: 'file', file: captura() })
     montar(host)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o botão sumiu' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o botão sumiu' },
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Concluir sem marcas' }))
 
     await screen.findByRole('button', { name: 'Remover captura.webp' })
-    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('o botão sumiu')
+    expect(
+      (screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }) as HTMLTextAreaElement)
+        .value,
+    ).toBe('o botão sumiu')
   })
 
   it('enquanto a pagina captura, o botao fica desligado', async () => {
@@ -291,7 +296,9 @@ describe('a captura', () => {
     const terminar = segurar(host)
     montar(host)
 
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o botão sumiu' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o botão sumiu' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
     await screen.findByText('7K2M-9QXP-4TRV')

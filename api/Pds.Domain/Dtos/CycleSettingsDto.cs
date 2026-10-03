@@ -67,4 +67,25 @@ public class CycleSettingsDto
 
     /// <summary>Como a opcao de aceitar duvidas vem marcada no formulario.</summary>
     public bool? AcceptsQuestionsDefault { get; set; }
+
+    /// <summary>
+    /// Se o time pode arquivar relato. Arquivar um relato aberto encerra junto, com
+    /// desfecho e motivo — quem relatou le e pode reabrir ou finalizar.
+    /// </summary>
+    /// <example>false</example>
+    public bool? AllowsReportArchiving { get; set; }
+
+    /// <summary>
+    /// Quantos dias a ultima coluna do quadro mostra; o card que entrou nela ha mais
+    /// tempo continua na lista. Zero mostra todos. Ate 365.
+    /// </summary>
+    /// <example>14</example>
+    public int? LastColumnVisibleDays { get; set; }
+
+    /// <summary>
+    /// Faltando ate quantos dias o prazo do card fica em destaque. Zero: so no
+    /// proprio dia. Ate 30.
+    /// </summary>
+    /// <example>2</example>
+    public int? DueSoonDays { get; set; }
 }

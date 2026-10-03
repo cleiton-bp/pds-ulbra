@@ -45,5 +45,38 @@
   <tr><td>O nome com que o arquivo baixa</td><td><code>Pds.Storage/DownloadDisposition.cs</code></td></tr>
   <tr><td>Limite por minuto do envio, e de quem é o IP atrás de proxy</td><td><code>Pds.WebApi/Startup.cs</code>, <code>MediaUploadRateLimitPolicy</code> e <code>TrustedForwarding</code></td></tr>
   <tr><td>O balde, privado, e a pasta de envio que vence em um dia</td><td><code>docker-compose.yml</code>, <code>minio-init</code></td></tr>
+  <tr><td>O contrato do envio de e-mail</td><td><code>Pds.Domain/Interfaces/ServiceInterfaces/IEmailSender.cs</code></td></tr>
+  <tr><td>Montar a mensagem e entregar por SMTP</td><td><code>Pds.Email/MailKitEmailSender.cs</code></td></tr>
+  <tr><td>As opções da seção <code>Smtp</code>, e os padrões</td><td><code>Pds.Email/SmtpOptions.cs</code></td></tr>
+  <tr><td>Ligar o e-mail na subida, ou não, e o que é configuração pela metade</td><td><code>Pds.Email/EmailRegistration.cs</code> e <code>UnavailableEmailSender.cs</code></td></tr>
+  <tr><td>O que conta como endereço: um só, com domínio</td><td><code>Pds.Email/EmailAddresses.cs</code></td></tr>
+  <tr><td>O time: listar, mudar o papel, tirar do time</td><td><code>Pds.Service/Services/ProjectMemberService.cs</code></td></tr>
+  <tr><td><strong>O convite</strong>: convidar, reenviar, cancelar, abrir pelo link e aceitar</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code></td></tr>
+  <tr><td>Montar e mandar o e-mail do convite, e a recuperação da subida</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code>, <code>SendEmailAsync</code> e <code>RecoverEmailsAsync</code></td></tr>
+  <tr><td>Sortear o link do convite, e o hash dele</td><td><code>Pds.Service/Security/InvitationToken.cs</code></td></tr>
+  <tr><td>O texto do e-mail do convite</td><td><code>Pds.Service/Email/InvitationEmailComposer.cs</code></td></tr>
+  <tr><td>A reserva do envio, para não sair dois e-mails, e o fim dele, que não cobre um reenvio</td><td><code>Pds.Data/Repositories/ProjectInvitationRepository.cs</code>, <code>TryClaimForSendingWithoutSessionAsync</code> e <code>FinishSendingWithoutSessionAsync</code></td></tr>
+  <tr><td>A fila do e-mail: o nome, a publicação e o consumidor</td><td><code>Pds.Workers/EmailQueueNames.cs</code>, <code>RabbitMqEmailQueue.cs</code> e <code>EmailWorker.cs</code></td></tr>
+  <tr><td>O prazo do convite, e o padrão de fábrica</td><td><code>Pds.Domain/Entities/ProjectTeamSettings/ProjectTeamSettings.cs</code></td></tr>
+  <tr><td>O endereço do painel no link, e o limite de convites por hora</td><td><code>Pds.Domain/Constants/EnvironmentConstants.cs</code>, <code>GetPanelUrl</code> e <code>GetInvitationEmailsPerHour</code></td></tr>
+  <tr><td><strong>O card do time</strong>: criar, editar, arquivar e desarquivar</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateTeamCardAsync</code>, <code>EditTeamCardAsync</code> e <code>SetArchivedAsync</code></td></tr>
+  <tr><td>O que o card do time recusa, e o mover que não encerra nem anda lá fora</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>MoveAsync</code>, <code>CloseAsync</code> e <code>AskInfoAsync</code></td></tr>
+  <tr><td>As travas que separam relato de card do time</td><td><code>Pds.Data/Types/ReportMap.cs</code></td></tr>
+  <tr><td>Reservar o próximo número do card</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextCardNumberAsync</code></td></tr>
+  <tr><td>O lado de fora de um relato, e a falha alta se chegar um card do time</td><td><code>Pds.Domain/Entities/Report/Report.cs</code>, <code>ReporterFields</code></td></tr>
+  <tr><td>O relato arquivado que volta quando quem relatou escreve</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>UnarchiveFromOutsideAsync</code></td></tr>
+  <tr><td><strong>Os campos do card</strong>: título do time, responsável, prioridade, etiquetas e prazo</td><td><code>Pds.Service/Services/ReportService.CardFields.cs</code></td></tr>
+  <tr><td>O título que a pessoa escreve, e a pergunta obrigatória</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateAsync</code></td></tr>
+  <tr><td>Arrumar título e nome (uma linha, sem espaço repetido)</td><td><code>Pds.Service/Cards/CardText.cs</code></td></tr>
+  <tr><td>As prioridades do projeto, e as quatro de fábrica</td><td><code>Pds.Service/Services/ProjectPriorityService.cs</code>, <code>Pds.Domain/Entities/ProjectPriority/PriorityDefaults.cs</code></td></tr>
+  <tr><td>As etiquetas do projeto: criar (ou devolver a que existe), organizar, apagar</td><td><code>Pds.Service/Services/ProjectLabelService.cs</code></td></tr>
+  <tr><td>A escrita de membro fora de <code>/reports</code>, declarada</td><td><code>Pds.WebApi/Authorization/MemberWriteAttribute.cs</code> e <code>ProjectRoleCoverage.cs</code></td></tr>
+  <tr><td>O que cada mudança de campo conta na história</td><td><code>Pds.Service/Cards/CardChange.cs</code></td></tr>
+  <tr><td><strong>A ordem do quadro</strong>: o lugar ao soltar, o topo de quem chega, e arrumar sem evento</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>SaveInPlaceAsync</code>, <code>RankBelowAsync</code> e <code>SetPositionAsync</code></td></tr>
+  <tr><td>O topo do quadro, que só desce</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextTopRankAsync</code></td></tr>
+  <tr><td>A trava da ordem, a renumeração da coluna e os números da frente do card</td><td><code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>LockBoardAsync</code>, <code>RenumberColumnAsync</code> e <code>CountFacesAsync</code></td></tr>
+  <tr><td>A última coluna do quadro, que só mostra o recente — e não vale com uma coluna só</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>LastColumnWindowAsync</code></td></tr>
+  <tr><td>O "Mostrar mais" do quadro, depois do último card da tela</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveAfterAsync</code></td></tr>
+  <tr><td>O reaberto, e o desarquivado pela resposta de quem relatou, voltando ao topo</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>PutOnTopAsync</code></td></tr>
 </table>
 </div>

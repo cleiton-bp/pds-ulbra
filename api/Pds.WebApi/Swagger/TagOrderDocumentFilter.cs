@@ -55,6 +55,16 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.ProjectPriorities,
+                Description = "As prioridades do projeto, com os nomes e as cores que o time deu. Nasce com quatro de fábrica (Baixa, Média, Alta, Urgente). Como o estado, não se apaga: aposenta.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ProjectLabels,
+                Description = "As etiquetas do projeto. Quem cria é o time, ao etiquetar um card; o administrador renomeia, troca a cor e apaga — apagar tira a etiqueta de todos os cards.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.ProjectPublicStages,
                 Description = "A jornada que quem relatou acompanha. Vários estados de dentro cabem numa etapa daqui, e é essa perda de detalhe que é o produto. Entre três e sete.",
             },
@@ -77,6 +87,21 @@ public class TagOrderDocumentFilter : IDocumentFilter
             {
                 Name = SwaggerTags.MediaSettings,
                 Description = "O que o projeto aceita receber junto do relato. Os limites de cada tipo moram numa linha por tipo, e o de tamanho viaja dentro da assinatura do envio — quem recusa o que passa e o proprio armazenamento.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.Team,
+                Description = "Quem está no time do projeto, com que papel, e a configuração do time. Ler é de quem está no projeto; mudar o papel e tirar alguém, só do administrador. O dono da conta aparece como administrador, e não sai nem muda de papel.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ProjectInvitations,
+                Description = "Convidar, reenviar e cancelar, só do administrador. O e-mail sai pela fila, fora da requisição; o convite guarda só se ele saiu. O link de aceitar nunca aparece aqui — só dentro do e-mail.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.Invitations,
+                Description = "O lado de quem foi convidado, com a própria sessão: ver o convite pelo link e aceitar. Aceitar exige o Google do mesmo endereço do convite, confirmado.",
             },
             new OpenApiTag
             {

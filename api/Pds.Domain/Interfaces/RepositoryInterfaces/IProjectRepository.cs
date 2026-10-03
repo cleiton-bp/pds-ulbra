@@ -30,4 +30,33 @@ public interface IProjectRepository : IBaseRepository<Project>
     /// </summary>
     Task<bool> NameExistsAsync(long accountId, string name, long? ignoreProjectId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reserva o proximo numero de card do projeto — o #42 —, numa gravacao so.
+    ///
+    /// <para><b>Somar e ler no mesmo comando</b> e o que faz dois cards criados ao
+    /// mesmo tempo sairem com numeros diferentes: o segundo espera a linha do
+    /// projeto que o primeiro esta somando. Ler o maior numero e somar um daria aos
+    /// dois o mesmo.</para>
+    ///
+    /// <para><b>Sem sessao, de proposito</b>: o relato que chega pela ferramenta
+    /// tambem e card e tambem ganha numero, e chega sem ninguem logado. O projeto ja
+    /// foi resolvido pela chave, ou pela rota do painel, antes de chegar aqui.</para>
+    /// </summary>
+    Task<int> NextCardNumberAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Desce o topo do quadro e devolve o lugar novo: o do card que acaba de chegar a
+    /// uma coluna sem ser arrastado.
+    ///
+    /// <para><b>Uma gravacao so, como o numero do card.</b> O lugar novo fica acima
+    /// de tudo o que ja foi dado no projeto — em qualquer coluna —, entao o card que
+    /// chega fica no topo sem ninguem ler a coluna, e dois que chegam juntos esperam
+    /// um pelo outro na linha do projeto e saem com lugares diferentes.</para>
+    ///
+    /// <para><b>Sem sessao, de proposito</b>, pelo mesmo motivo do numero: o relato
+    /// que chega pela ferramenta e o reaberto por quem relatou nao tem ninguem
+    /// logado.</para>
+    /// </summary>
+    Task<long> NextTopRankAsync(long projectId, CancellationToken cancellationToken = default);
 }

@@ -22,7 +22,13 @@ const EMPTY: InboxState = { reports: null, total: 0, failed: false, loadingMore:
  * cancelar a anterior, e sem ele a resposta do projeto que a pessoa acabou de
  * deixar chega depois e pinta relato de um projeto no endereco de outro.
  */
-export function useReportInbox(publicId: string, stateFilter?: string | null) {
+export function useReportInbox(
+  publicId: string,
+  stateFilter?: string | null,
+  archived = false,
+  /** Fora da vista da lista, nada e lido — e, ao voltar para ela, a lista e lida de novo. */
+  enabled = true,
+) {
   const [state, setState] = useState<InboxState>(EMPTY)
 
   const generation = useRef(0)
@@ -38,7 +44,7 @@ export function useReportInbox(publicId: string, stateFilter?: string | null) {
     setState(EMPTY)
 
     try {
-      const page = await projectReportService.listReports(publicId, 1, stateFilter)
+      const page = await projectReportService.listReports(publicId, 1, stateFilter, archived)
       if (minha !== generation.current) return
 
       nextPage.current = 2
@@ -48,18 +54,23 @@ export function useReportInbox(publicId: string, stateFilter?: string | null) {
       if (minha !== generation.current) return
       setState({ ...EMPTY, failed: true })
     }
-  }, [publicId, stateFilter])
+  }, [publicId, stateFilter, archived])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    if (enabled) void load()
+  }, [load, enabled])
 
   const loadMore = useCallback(async () => {
     const minha = generation.current
     setState((current) => ({ ...current, loadingMore: true }))
 
     try {
-      const page = await projectReportService.listReports(publicId, nextPage.current, stateFilter)
+      const page = await projectReportService.listReports(
+        publicId,
+        nextPage.current,
+        stateFilter,
+        archived,
+      )
       if (minha !== generation.current) return
 
       nextPage.current += 1
@@ -81,7 +92,18 @@ export function useReportInbox(publicId: string, stateFilter?: string | null) {
       // que a API escreveu, e trocar por um texto generico aqui apagaria ela.
       throw error
     }
-  }, [publicId, stateFilter])
+  }, [publicId, stateFilter, archived])
+
+  /** Se o card pertence a esta lista: a coluna do recorte, e o lado do arquivo. */
+  const fits = useCallback(
+    (report: ReportSummaryViewModel) =>
+      (report.ArchivedAt !== null) === archived &&
+      (!stateFilter ||
+        (stateFilter === WITHOUT_STATE_FILTER
+          ? report.StatePublicId === null
+          : report.StatePublicId === stateFilter)),
+    [stateFilter, archived],
+  )
 
   /**
    * Troca um relato que acabou de mudar, sem refazer a busca.
@@ -99,13 +121,8 @@ export function useReportInbox(publicId: string, stateFilter?: string | null) {
       setState((current) => {
         if (current.reports === null) return current
 
-        const cabe =
-          !stateFilter ||
-          (stateFilter === WITHOUT_STATE_FILTER
-            ? report.StatePublicId === null
-            : report.StatePublicId === stateFilter)
-
-        return cabe
+        // Arquivar tambem tira da lista — e desarquivar tira da lista dos arquivados.
+        return fits(report)
           ? {
               ...current,
               reports: current.reports.map((item) =>
@@ -119,7 +136,22 @@ export function useReportInbox(publicId: string, stateFilter?: string | null) {
             }
       })
     },
-    [stateFilter],
+    [fits],
+  )
+
+  /**
+   * Poe no topo o card que acabou de ser criado, se ele pertence a esta lista. E o
+   * mais novo, e a lista vai do mais novo para o mais antigo.
+   */
+  const prepend = useCallback(
+    (report: ReportSummaryViewModel) => {
+      setState((current) =>
+        current.reports === null || !fits(report)
+          ? current
+          : { ...current, reports: [report, ...current.reports], total: current.total + 1 },
+      )
+    },
+    [fits],
   )
 
   return {
@@ -133,6 +165,7 @@ export function useReportInbox(publicId: string, stateFilter?: string | null) {
     reload: () => void load(),
     loadMore,
     apply,
+    prepend,
   }
 }
 

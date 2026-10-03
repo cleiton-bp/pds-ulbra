@@ -81,7 +81,7 @@ public class ProjectCycleSettingsController : BaseController
     /// perdê-lo de novo — que é o que a reabertura existe para evitar.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
-    /// <param name="dto">As treze regras.</param>
+    /// <param name="dto">As dezesseis regras.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Regras salvas.</response>
     /// <response code="400">Campo ausente, número fora da faixa, ou coluna de reabertura aposentada.</response>

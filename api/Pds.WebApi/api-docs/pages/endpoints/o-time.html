@@ -1,0 +1,134 @@
+<h2>O time e o convite</h2>
+<p class="lead">Quem está no time, o papel de cada um, a configuração do time — e o convite, dos dois lados: de quem convida e de quem aceita.</p>
+
+<h3>O time</h3>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/members</code></td><td>Quem está no time: o dono primeiro, como administrador marcado com <code>IsAccountOwner</code>; depois quem entrou, na ordem em que entrou.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/members/{userPublicId}/role</code></td><td><strong>Administrador.</strong> Muda o papel. O dono não muda: 409.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/members/{userPublicId}</code></td><td><strong>Administrador.</strong> Tira do time. O dono não sai: 409.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/team-settings</code></td><td>A configuração do time. Sem nada salvo, o padrão: o convite vale 7 dias.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/team-settings</code></td><td><strong>Administrador.</strong> Grava a configuração inteira. Prazo de 1 a 30 dias.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>O membro lê o time</strong>
+  <p>A lista do time é de qualquer papel: é com quem ele trabalha. Cada pessoa vem com
+  <code>Name</code>, <code>Email</code>, <code>AvatarUrl</code>, <code>Role</code> e
+  <code>IsYou</code> — o painel marca "(você)" sem comparar identificadores.</p>
+  <p>Tirar do time é de administrador — inclusive tirar a si mesmo, que vale como sair: o acesso
+  acaba na requisição seguinte, e o que a pessoa escreveu nos relatos continua com o nome dela.
+  Quem é só membro não sai sozinho: pede a quem administra.</p>
+</div>
+
+<h3>Os convites, do lado de quem convida</h3>
+
+<p>Todas de administrador, <strong>inclusive a lista</strong>: ela traz o endereço de pessoas que
+ainda não estão no time.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/invitations</code></td><td><strong>Administrador.</strong> Os convites abertos, e se este servidor manda convite.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/invitations</code></td><td><strong>Administrador.</strong> Convida: grava e põe o e-mail na fila.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/invitations/{invitationPublicId}/resend</code></td><td><strong>Administrador.</strong> Manda de novo, com prazo novo. O link anterior deixa de valer.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/invitations/{invitationPublicId}</code></td><td><strong>Administrador.</strong> Cancela. O link deixa de valer.</td></tr>
+</table>
+</div>
+
+<pre><code>POST /projects/2be49b28-.../invitations
+{ "Email": "bruno@exemplo.com", "Role": "Member" }</code></pre>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Convite enviado.",
+  "Data": {
+    "PublicId": "7c1d...", "Email": "bruno@exemplo.com", "Role": "Member",
+    "InvitedByName": "Ana", "CreatedAt": "2026-10-02T21:00:00Z",
+    "ExpiresAt": "2026-10-09T21:00:00Z", "IsExpired": false,
+    "EmailStatus": "Pending", "EmailSentAt": null
+  }
+}</code></pre>
+
+<p><strong>A resposta não espera o servidor de e-mail.</strong> O convite volta com
+<code>EmailStatus</code> <code>Pending</code> — na fila —, e anda sozinho para <code>Sending</code>,
+<code>Sent</code> ou <code>Failed</code>. A tela de Membros relê a lista a cada dois segundos
+enquanto houver convite na fila ou saindo, por até meio minuto depois de cada convite ou reenvio. Se o envio falha, o motivo vai para o log da API, e a resposta não vira erro: o
+convite existe, só o e-mail é que não saiu.</p>
+
+<div class="note why">
+  <strong>Convidar de novo o mesmo endereço reenvia</strong>
+  <p>Endereço que já tem convite aberto não ganha outro: o mesmo convite sai de novo, com o papel
+  pedido agora, prazo novo e link novo. Dois links valendo ao mesmo tempo para a mesma pessoa
+  seriam dois jeitos de entrar, e um deles com o papel errado.</p>
+</div>
+
+<p>O <code>GET</code> traz, junto dos convites, o que a tela precisa para oferecer o campo:</p>
+
+<pre><code>{ "Items": [ ... ], "CanInvite": true, "UnavailableReason": null,
+  "ValidityDays": 7, "MaxPerHour": 20 }</code></pre>
+
+<p><code>CanInvite</code> falso diz que falta, neste servidor, uma das três peças do convite, e
+<code>UnavailableReason</code> diz qual: <code>EmailNotConfigured</code>,
+<code>QueueNotConfigured</code> ou <code>PanelUrlNotConfigured</code>. Aberto é o convite nem
+aceito nem cancelado — o vencido continua na lista, com <code>IsExpired</code>, para poder ser
+reenviado.</p>
+
+<div class="note warn">
+  <strong>Os 409 do convite</strong>
+  <p>Convidar responde 409 quando quem foi convidado já está no time ou é o dono; quando o
+  servidor não manda convite; e quando o projeto chegou ao limite da hora
+  (<code>INVITATION_EMAILS_PER_HOUR</code>, padrão 20, os novos e os reenviados somados). Reenviar
+  conta no mesmo limite. Cancelar não devolve a vaga: o e-mail já saiu.</p>
+</div>
+
+<h3>O convite, do lado de quem aceita</h3>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/invitations/preview</code></td><td>O convite do link, para a pessoa logada: o que fazer com ele.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/invitations/accept</code></td><td>Aceita: a pessoa logada entra no time, com o papel do convite.</td></tr>
+</table>
+</div>
+
+<pre><code>POST /invitations/preview
+{ "Token": "&lt;o que vem depois de #t= no link do e-mail&gt;" }</code></pre>
+
+<p>As duas ficam <strong>fora</strong> de <code>/projects/{publicId}</code>: quem aceita ainda não
+está no projeto, e a rota dele responderia "não encontrado". E as duas são <code>POST</code>, com o
+link no corpo, mesmo a que só lê: URL acaba em log de servidor e em histórico, e o link é a
+credencial do convite.</p>
+
+<p>A prévia responde com um <code>Status</code>:</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th><code>Status</code></th><th>Quer dizer</th></tr>
+  <tr><td><code>Valid</code></td><td>Pode aceitar. Vêm o projeto, quem convidou, o papel e o prazo.</td></tr>
+  <tr><td><code>WrongAccount</code></td><td>A sessão é de outra conta. Vem só <code>InvitedEmailHint</code> — a primeira letra e o domínio, como <code>b•••@exemplo.com</code> — e nada do projeto.</td></tr>
+  <tr><td><code>EmailNotVerified</code></td><td>É o endereço certo, mas o Google não o confirmou. Também só a pista.</td></tr>
+  <tr><td><code>Expired</code></td><td>Venceu. Vêm o projeto e quem convidou, para a pessoa saber a quem pedir de novo.</td></tr>
+  <tr><td><code>AlreadyAccepted</code></td><td>Esta pessoa já aceitou, e continua no time. Vem o projeto, para o painel levar até ele. Se ela saiu do time depois, o link já foi usado: 404, como um link que não vale.</td></tr>
+  <tr><td><code>AlreadyMember</code></td><td>Ela já estava no time, ou é dona. Aceitar só fecha o convite — e o painel aceita ao abrir o projeto, para o convite não ficar aberto na tela de quem convidou.</td></tr>
+</table>
+</div>
+
+<p>Aceitar recusa com <strong>403</strong> a conta errada e o e-mail não confirmado, e com
+<strong>409</strong> o convite vencido. Aceitar de novo não é erro: devolve o projeto. Link que não
+existe, cancelado, trocado por um reenvio ou já usado por quem saiu do time responde
+<strong>404</strong>, nas duas rotas, com a
+mesma mensagem — "Este convite nao vale mais. Peca um novo a quem convidou." —, para não
+contar qual foi.</p>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Você entrou no time.",
+  "Data": { "ProjectPublicId": "2be49b28-...", "ProjectName": "Loja Online" }
+}</code></pre>
+
+<p>O acesso vale a partir da requisição seguinte — é ela que relê, do banco, os projetos que a
+pessoa enxerga.</p>

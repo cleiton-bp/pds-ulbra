@@ -1,5 +1,5 @@
 import * as Primitive from '@radix-ui/react-select'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { cn } from '@/shared/lib/cn'
 
 export interface SelectOption {
@@ -21,6 +21,12 @@ interface SelectProps {
   disabled?: boolean
   size?: 'md' | 'sm'
   className?: string
+  /**
+   * Digitar com a lista fechada abre a lista, em vez de escolher. E para o campo que
+   * grava ao escolher: la, a primeira letra gravaria o primeiro nome que comeca com
+   * ela, e o resto do que a pessoa digitou se perderia.
+   */
+  openOnType?: boolean
 }
 
 /**
@@ -50,8 +56,10 @@ export function Select({
   disabled,
   size = 'md',
   className,
+  openOnType = false,
 }: SelectProps) {
   const fieldId = useId()
+  const [aberta, setAberta] = useState(false)
   const messageId = `${fieldId}-message`
 
   // O Radix trata string vazia como "nada escolhido" e nao deixa usa-la como
@@ -72,12 +80,29 @@ export function Select({
         value={value === '' ? VAZIO : value}
         onValueChange={(novo) => onChange(novo === VAZIO ? '' : novo)}
         disabled={disabled}
+        open={openOnType ? aberta : undefined}
+        onOpenChange={openOnType ? setAberta : undefined}
       >
         <Primitive.Trigger
           id={fieldId}
           aria-label={label ? undefined : ariaLabel}
           aria-invalid={error ? true : undefined}
           aria-describedby={error || hint ? messageId : undefined}
+          onKeyDown={
+            openOnType
+              ? (evento) => {
+                  // Com a lista fechada, o Radix escolheria ali mesmo o primeiro item
+                  // que comeca com a letra. Aqui a letra so abre a lista — e dentro
+                  // dela digitar procura, sem escolher. O espaco continua abrindo
+                  // pelo caminho de sempre.
+                  const letra = evento.key.length === 1 && evento.key !== ' '
+                  if (letra && !evento.ctrlKey && !evento.metaKey && !evento.altKey) {
+                    evento.preventDefault()
+                    setAberta(true)
+                  }
+                }
+              : undefined
+          }
           className={cn(
             'flex w-full items-center justify-between gap-2 rounded-lg border bg-surface-raised text-left text-fg',
             'disabled:cursor-not-allowed disabled:opacity-60',

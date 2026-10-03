@@ -1,6 +1,6 @@
 meta:
   title: O time
-  description: "Quem do time entra em cada projeto, e com que papel. A entrada e por projeto, e nao pela conta: a mesma pessoa pode estar em projetos de varias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Montado sobre o que ja existe, que aparece sem alteracao, menos accounts, que deixa de ser a fronteira de isolamento, e users e projects, cujo account_id muda de sentido."
+  description: "Quem do time entra em cada projeto, e com que papel. A entrada é por projeto, e não pela conta: a mesma pessoa pode estar em projetos de várias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Quem entra chega por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. E o card do time entra na tabela do relato: todo card ganha um número curto no projeto, e se arquiva. E o card ganha o título de quem relatou, responsável, prioridade, etiquetas e prazo, com as prioridades e as etiquetas do projeto. E o quadro: a ordem de cada coluna, que é do time inteiro, e quando o card entrou na coluna em que está. Montado sobre o que já existe, que aparece sem alteração, menos: accounts, que deixa de ser a fronteira de isolamento; users e projects, cujo account_id muda de sentido — e projects ganha o contador do número do card e o topo do quadro; reports, que passa a guardar os dois tipos de card; e as regras do ciclo e da ferramenta, que ganham o arquivar relato, a pergunta do título e as duas regras do quadro."
 entities:
   - name: base_columns
     label: Colunas padrão
@@ -56,7 +56,7 @@ entities:
         note: quando a identificação foi removida, e a partir daí nenhuma linha da conta guarda dado pessoal
   - name: users
     label: Usuários
-    description: Já existia, e muda o sentido de account_id nesta modelagem — por isso aparece apagada no realce. Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra, e é referenciada por quem move card e por quem comenta. A mesma pessoa passa a poder trabalhar em projetos de várias contas.
+    description: Já existia, muda o sentido de account_id e ganha email_verified nesta modelagem. Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra, e é referenciada por quem move card, por quem comenta e por quem convida. A mesma pessoa passa a poder trabalhar em projetos de várias contas.
     inherited: true
     position: { x: 387, y: 400 }
     fields:
@@ -82,6 +82,10 @@ entities:
         type: text
         required: true
         note: e-mail vindo do Google, usado para exibir e para contato
+      - name: email_verified
+        type: bool
+        required: true
+        note: coluna nova — se o Google confirmou, no último login, que a pessoa é dona do e-mail. Aceitar convite exige; começa falso e se acerta no próximo login
       - name: name
         type: text
         note: nome vindo do Google, exibido no painel
@@ -137,6 +141,14 @@ entities:
         type: int
         required: true
         note: a versão do mapeamento que vale agora, zero enquanto o cliente nunca ligou nada, e mora aqui em vez de ser o maior valor da tabela de mapeamento porque desfazer todos os mapeamentos grava uma versão sem nenhuma linha
+      - name: last_card_number
+        type: int
+        required: true
+        note: coluna nova — o último número de card dado no projeto; somado e lido num comando só, que serializa quem cria ao mesmo tempo, e por isso mora aqui em vez de ser o maior número de reports
+      - name: board_top_rank
+        type: long
+        required: true
+        note: coluna nova — o topo do quadro, o lugar do último card posto no topo de uma coluna — o que chega sem ser arrastado, ou o que foi solto no topo. Só desce, num comando só, no mesmo desenho do número (que sobe); o card que chega fica acima de tudo sem ninguém ler a coluna
       - name: deleted_at
         type: datetime
         note: nulo enquanto o projeto vale, preenchido no lugar de apagar
@@ -226,7 +238,7 @@ entities:
         note: nulo enquanto a autorização vale, preenchido no lugar de apagar
   - name: project_widget_settings
     label: Configuração da ferramenta
-    description: Existe para a aparência e os textos do quadro serem escolha do cliente sem ninguém editar o HTML do site dele. É 1:1 com o projeto, e projeto sem linha responde com os padrões em vez de erro. Já existe no banco e não estava em modelagem nenhuma, e aparece aqui para o desenho bater com o que está no ar.
+    description: Existe para a aparência e os textos do quadro serem escolha do cliente sem ninguém editar o HTML do site dele. É 1:1 com o projeto, e projeto sem linha responde com os padrões em vez de erro. Já existe no banco e não estava em modelagem nenhuma, e aparece aqui para o desenho bater com o que está no ar. Nesta modelagem ganha a pergunta do título (report_title_mode).
     inherited: true
     position: { x: 2409, y: 180 }
     fields:
@@ -282,6 +294,10 @@ entities:
         type: enum
         required: true
         note: o tipo pré-marcado, e o único quando o seletor está escondido
+      - name: report_title_mode
+        type: enum
+        required: true
+        note: coluna nova — optional | required | hidden, como a ferramenta pergunta "em poucas palavras, o que aconteceu?". Opcional de fábrica; obrigatória, a API recusa o relato sem resposta
       - name: created_at
         type: datetime
         note: quando a configuração foi salva pela primeira vez, em UTC
@@ -293,7 +309,7 @@ entities:
         note: nulo enquanto a configuração vale, preenchido no lugar de apagar
   - name: project_states
     label: Estados do projeto
-    description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como colunas de Trello — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
+    description: A tabela que não pode ser cortada. Existe porque os estados precisam ser criados pelo cliente, como as colunas de um quadro Kanban — se fossem fixos, definidos por nós, o motor de tradução viraria mapear os nossos estados nas nossas próprias etapas públicas, e o trabalho perderia justamente o peso técnico que o README aponta.
     inherited: true
     position: { x: 560, y: 700 }
     fields:
@@ -368,8 +384,8 @@ entities:
         type: datetime
         note: nulo enquanto a regra vale, preenchido no lugar de apagar
   - name: reports
-    label: Relatos
-    description: Ja existia, e nao muda nesta modelagem. Tres colunas dizem quem escreveu, e sao opcionais em toda configuracao; as outras tres dizem se o relato ja pode ser visto de fora, e por decisao de quem.
+    label: Relatos e cards
+    description: Já existia, e passa a guardar todo card do trabalho do time — o relato, que chegou de fora, e o card do time, que nasceu no painel (kind). Ganha o número curto do projeto, o título e a descrição do card do time, quem o criou e o arquivamento; protocolo, token, tipo e texto ficam nulos no card do time, e duas travas no banco separam os dois tipos. E ganha o título que quem relatou escreveu, o responsável, a prioridade e o prazo — tudo interno, menos o título dela, que volta só para ela. E o lugar no quadro e quando entrou na coluna.
     inherited: true
     position: { x: 1237, y: 893 }
     fields:
@@ -381,6 +397,49 @@ entities:
         type: guid
         unique: true
         note: identificador usado na URL do painel
+      - name: kind
+        type: enum
+        required: true
+        note: coluna nova — report | team. O relato veio de fora, pela ferramenta; o card do time nasceu no painel e nunca tem lado de fora
+      - name: number
+        type: int
+        required: true
+        note: coluna nova — o número curto do card no projeto (#42), interno, separado do protocolo. Único por projeto, inclusive entre os apagados; vem de projects.last_card_number, pode pular e nunca repete
+      - name: title
+        type: text
+        note: coluna nova — o título do time, uma linha. Obrigatório no card do time; no relato, o que o time reescreveu, nulo até alguém reescrever. Interno
+      - name: reporter_title
+        type: text
+        note: coluna nova — o título que a pessoa escreveu na ferramenta, respondendo "em poucas palavras, o que aconteceu?". Nunca muda, e é o único título que volta para ela. Nulo quando ela não respondeu, e sempre no card do time
+      - name: description
+        type: text
+        note: coluna nova — a descrição do card do time, em Markdown, desenhada pelo painel sem HTML. Sempre nula no relato, cujo texto é de quem relatou
+      - name: archived_at
+        type: datetime
+        note: coluna nova — quando o card saiu da tela de Trabalho; arquivado se le e se comenta, e mover ou editar pedem desarquivar
+      - name: created_by_user_id
+        type: long
+        fk: true
+        note: coluna nova — quem do time criou o card. Nulo no relato, porque quem escreveu não tem usuário aqui
+      - name: assignee_user_id
+        type: long
+        fk: true
+        note: coluna nova — quem do time está com o card, um só. Quem sai do time continua aqui como registro, e o painel o marca como fora do time
+      - name: priority_id
+        type: long
+        fk: true
+        note: coluna nova — a prioridade do projeto que o time escolheu. Nula é sem prioridade, e é como o card nasce
+      - name: due_date
+        type: date
+        note: coluna nova — o prazo, só a data, sem hora. Nulo é sem prazo
+      - name: board_rank
+        type: long
+        required: true
+        note: coluna nova — o lugar do card na coluna do quadro, o menor em cima. Só se compara dentro da mesma coluna, e tem folga entre vizinhos — pôr um card entre dois escolhe o meio, e só quando a folga acaba a coluna é renumerada. A ordem é do time inteiro, e arrumá-la não é evento
+      - name: state_changed_at
+        type: datetime
+        required: true
+        note: coluna nova — quando o card entrou na coluna em que está, ou voltou a ela (reaberto, ou tirado do arquivo pela resposta de quem relatou). É o que a última coluna do quadro usa para mostrar só o que entrou nela há pouco
       - name: account_id
         type: long
         fk: true
@@ -394,7 +453,6 @@ entities:
       - name: project_state_id
         type: long
         fk: true
-        required: true
         note: onde o card está agora, e é cache, porque a verdade é a sequência de eventos e esta coluna existe só para a lista filtrar e contar sem reconstruir o histórico a cada consulta
       - name: project_public_stage_id
         type: long
@@ -402,21 +460,17 @@ entities:
         note: em que passo da jornada quem relatou vê este relato, nulo enquanto ele não aparece em nenhum, e é cache como o anterior porque a verdade é a sequência de eventos
       - name: tracking_code
         type: text
-        required: true
         unique: true
-        note: o protocolo que a pessoa lê e repete, alfabeto sem 0, O, 1 e I, colisão tratada na geração
+        note: o protocolo que a pessoa lê e repete, alfabeto sem 0, O, 1 e I, colisão tratada na geração. Passa a anulável — nulo no card do time, e o banco exige no relato
       - name: access_token_hash
         type: text
-        required: true
-        note: hash do token que vai no link de acompanhamento, o valor original só existe na URL entregue
+        note: hash do token que vai no link de acompanhamento, o valor original só existe na URL entregue. Nulo no card do time
       - name: type
         type: enum
-        required: true
-        note: bug | improvement | question, e é ele que decide em qual estado o relato cai ao entrar
+        note: bug | improvement | question, e é ele que decide em qual estado o relato cai ao entrar. Nulo no card do time
       - name: text
         type: text
-        required: true
-        note: o relato como a pessoa escreveu, com tamanho limitado no servidor
+        note: o relato como a pessoa escreveu, com tamanho limitado no servidor. Nulo no card do time, que tem título e descrição
       - name: route
         type: text
         note: só o caminho da página de onde o relato foi aberto, sem query e sem fragmento
@@ -570,7 +624,7 @@ entities:
         note: nulo enquanto o comentário vale, preenchido no lugar de apagar
   - name: events
     label: Eventos
-    description: Ja existia e nao muda nesta modelagem — os anexos nao geram evento. Responde a pergunta de pesquisa do trabalho e e a unica tabela do sistema que so cresce, nunca e alterada e nunca e apagada.
+    description: Já existia, e nesta modelagem ganha os tipos do time e os do card — sem coluna nova. Responde à pergunta de pesquisa do trabalho e é a única tabela do sistema que só cresce, nunca é alterada e nunca é apagada.
     inherited: true
     position: { x: 1857, y: 1223 }
     fields:
@@ -601,11 +655,11 @@ entities:
       - name: type
         type: enum
         required: true
-        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois da moderacao: report_published, gravado quando o relato e liberado para o publico, e report_moderation_rejected, quando e recusado"
+        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois da moderação: report_published, gravado quando o relato é liberado para o público, e report_moderation_rejected, quando é recusado. Sentido novo — os do time, sem relato: project_invitation_sent, project_invitation_resent, project_invitation_revoked, project_invitation_accepted, project_member_role_changed e project_member_removed; e os do card: team_card_created, team_card_edited, card_archived, card_unarchived, card_title_changed, card_assignee_changed, card_priority_changed, card_labels_changed e card_due_date_changed. Nem o e-mail de quem foi convidado nem o texto do título vão no payload: esta tabela não se apaga"
       - name: source
         type: enum
         required: true
-        note: widget | panel | api | public_page, separado do tipo para a pesquisa distinguir quem voltou de quem foi olhar
+        note: widget | panel | api | public_page | system, separado do tipo para a pesquisa distinguir quem voltou de quem foi olhar; system é a própria aplicação, quando um prazo venceu sem clique nenhum
       - name: payload
         type: json
         note: o resto do evento, em chave e valor, e é o que guarda de-onde, para-onde e o nome que o estado tinha na época — nunca o texto de um comentário
@@ -833,7 +887,7 @@ entities:
         note: nulo enquanto o encerramento vale, preenchido no lugar de apagar
   - name: project_cycle_settings
     label: Regras do ciclo
-    description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se da para reabrir e como, e o que a pessoa responde no fim. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada."
+    description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se dá para reabrir e como, e o que a pessoa responde no fim. E, no quadro, quantos dias a última coluna mostra e quando o prazo fica em destaque. Uma linha por projeto, criada só quando alguém salva — os padrões vivem no código, e projeto sem linha é projeto que nunca precisou mudar nada."
     inherited: true
     position: { x: 2220, y: 1980 }
     fields:
@@ -902,6 +956,18 @@ entities:
         type: bool
         required: true
         note: como a opcao de aceitar duvidas vem marcada no formulario; a escolha final e de quem relata, nao do projeto
+      - name: allows_report_archiving
+        type: bool
+        required: true
+        note: coluna nova — o time pode arquivar relato; desligado de fábrica. Ligado, arquivar um relato aberto encerra junto, com desfecho e motivo, e quem relatou pode reabrir ou finalizar
+      - name: last_column_visible_days
+        type: int
+        required: true
+        note: coluna nova — quantos dias a última coluna do quadro mostra, quando há mais de uma coluna ativa (com uma só, ela é a entrada da fila e mostra tudo); o card que entrou nela há mais tempo continua na lista. De fábrica 14, como nos quadros Kanban; zero mostra todos. Até 365
+      - name: due_soon_days
+        type: int
+        required: true
+        note: coluna nova — faltando até quantos dias o prazo do card fica em destaque, no quadro e na lista. De fábrica 2; zero destaca só no próprio dia. Até 30. O vencido tem destaque próprio, sempre
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
@@ -1194,6 +1260,218 @@ entities:
       - name: deleted_at
         type: datetime
         note: preenchido quando a pessoa sai do projeto — a linha some, e a pessoa e o que ela escreveu ficam
+  - name: project_invitations
+    label: Convites
+    description: "Existe porque ninguém entra no time sozinho: o administrador convida por e-mail, com o papel, e a pessoa aceita entrando com o Google do mesmo endereço. O link de aceitar nunca é guardado — nasce na hora de montar o e-mail, e aqui fica só o hash dele. O texto do e-mail também não é guardado: o convite sabe só onde o e-mail está."
+    position: { x: 360, y: -640 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto para o qual a pessoa foi convidada
+      - name: email
+        type: text
+        required: true
+        note: endereço convidado, em minúsculas; um convite aberto por endereço em cada projeto — convidar de novo reenvia o mesmo
+      - name: role
+        type: enum
+        required: true
+        note: administrator | member — o papel com que a pessoa entra ao aceitar
+      - name: invited_by_user_id
+        type: long
+        fk: true
+        required: true
+        note: quem convidou, ou reenviou por último; o nome vai no e-mail
+      - name: token_hash
+        type: text
+        unique: true
+        note: SHA-256 do link que está valendo; nulo até o e-mail ser montado, trocado a cada reenvio — o que invalida o link anterior
+      - name: expires_at
+        type: datetime
+        required: true
+        note: até quando o convite vale, em UTC; nasce do prazo da configuração do time, e reenviar renova
+      - name: accepted_at
+        type: datetime
+        note: quando a pessoa aceitou; preenchido, o convite fechou
+      - name: accepted_by_user_id
+        type: long
+        fk: true
+        note: quem aceitou — a pessoa que entrou no time
+      - name: revoked_at
+        type: datetime
+        note: quando um administrador cancelou; o link deixa de valer
+      - name: email_status
+        type: enum
+        required: true
+        note: pending | sending | sent | failed — onde está o e-mail; é o único registro do envio
+      - name: email_attempted_at
+        type: datetime
+        note: quando o envio foi tentado pela última vez
+      - name: email_sent_at
+        type: datetime
+        note: quando o servidor de e-mail aceitou a mensagem
+      - name: email_error
+        type: text
+        note: por que o e-mail não saiu — o tipo da falha, e nunca a mensagem do servidor, que costuma repetir o endereço de quem recebe
+      - name: created_at
+        type: datetime
+        note: quando o convite nasceu, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: preenchido no lugar de apagar
+  - name: project_team_settings
+    label: Configuração do time
+    description: "Existe porque o prazo do convite é regra do projeto, e não do sistema. Uma linha por projeto, criada só quando alguém salva — o padrão vive no código, e projeto sem linha é projeto que nunca precisou mudar nada. É onde as outras regras do time vão morar quando chegarem."
+    position: { x: 1260, y: -640 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        unique: true
+        note: projeto dono da configuração; uma por projeto, entre as não apagadas
+      - name: invitation_validity_days
+        type: int
+        required: true
+        note: por quantos dias um convite vale, a contar do envio — de 1 a 30, padrão 7; mudar vale para o próximo convite
+      - name: created_at
+        type: datetime
+        note: criação, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: preenchido no lugar de apagar
+  - name: project_priorities
+    label: Prioridades do projeto
+    description: "Existe porque cada time mede urgência com as próprias palavras, como faz com os estados. Todo projeto nasce com quatro — Baixa, Média, Alta e Urgente —, e o administrador renomeia, troca a cor, reordena ou cria outras. Prioridade não se apaga, se aposenta: continua no card que já a tinha e sai da lista de escolha."
+    position: { x: 3950, y: 300 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da prioridade
+      - name: name
+        type: text
+        required: true
+        note: o nome que o time deu, único no projeto sem diferenciar maiúscula, e renomear não reescreve o passado porque o evento guarda o nome da época
+      - name: color
+        type: enum
+        required: true
+        note: gray | blue | green | yellow | orange | red | purple | pink, uma paleta fixa com o par certo no tema claro e no escuro
+      - name: position
+        type: int
+        required: true
+        note: a ordem, da menos para a mais urgente
+      - name: deactivated_at
+        type: datetime
+        note: nulo enquanto a prioridade pode ser escolhida, preenchido para aposentá-la
+      - name: created_at
+        type: datetime
+        note: quando a prioridade foi criada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto a prioridade vale, preenchido no lugar de apagar
+  - name: project_labels
+    label: Etiquetas do projeto
+    description: "Existe para o time separar o trabalho do jeito dele — pagamento, celular, cliente grande. Quem cria é o time, ao etiquetar um card; o administrador renomeia, troca a cor e apaga. Apagar tira a etiqueta de todos os cards, e os eventos continuam com o nome da época."
+    position: { x: 3950, y: 800 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador que aparece em URL e API
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: projeto dono da etiqueta
+      - name: name
+        type: text
+        required: true
+        note: o nome, até 30, único no projeto sem diferenciar maiúscula — o mesmo nome devolve a etiqueta que existe
+      - name: color
+        type: enum
+        required: true
+        note: a mesma paleta fixa da prioridade; sem cor escolhida, a menos usada no projeto
+      - name: created_at
+        type: datetime
+        note: quando a etiqueta foi criada, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: preenchido quando o administrador apaga — e as ligações com os cards saem junto
+  - name: report_labels
+    label: Etiquetas no card
+    description: "Liga o card às etiquetas dele, um par por linha, até dez por card. A rota troca o conjunto inteiro de uma vez; a que sai é apagada logicamente, e pode voltar depois numa linha nova."
+    position: { x: 3950, y: 1300 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador da ligação
+      - name: report_id
+        type: long
+        fk: true
+        required: true
+        note: o card etiquetado
+      - name: project_label_id
+        type: long
+        fk: true
+        required: true
+        note: a etiqueta, do mesmo projeto do card; o mesmo par não entra duas vezes entre os que valem
+      - name: created_at
+        type: datetime
+        note: quando a etiqueta entrou no card, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: preenchido quando a etiqueta sai do card, ou quando ela é apagada
 relations:
   - from: reports
     fromField: id
@@ -1272,7 +1550,13 @@ relations:
     to: reports
     toField: project_id
     kind: one-to-many
-    note: O relato nasce de um projeto, e quem diz qual é a chave pública da requisição.
+    note: O relato nasce de um projeto, e quem diz qual é a chave pública da requisição; o card do time, da rota do painel.
+  - from: users
+    fromField: id
+    to: reports
+    toField: created_by_user_id
+    kind: one-to-many
+    note: Quem do time criou o card do time. O relato não tem, porque quem escreveu não tem usuário aqui.
   - from: reports
     fromField: id
     to: report_contexts
@@ -1447,7 +1731,75 @@ relations:
     toField: user_id
     kind: one-to-many
     note: A mesma pessoa em projetos de várias contas — é isto que o painel agrupa pela conta dona.
+  - from: projects
+    fromField: id
+    to: project_invitations
+    toField: project_id
+    kind: one-to-many
+    note: Um projeto tem os convites que já fecharam e, no máximo, um aberto por endereço.
+  - from: users
+    fromField: id
+    to: project_invitations
+    toField: invited_by_user_id
+    kind: one-to-many
+    note: Quem convidou — ou quem reenviou por último, porque é o nome que vai no e-mail que está valendo.
+  - from: users
+    fromField: id
+    to: project_invitations
+    toField: accepted_by_user_id
+    kind: one-to-many
+    note: Quem aceitou. É a mesma pessoa que ganha a linha em project_members, no mesmo gesto.
+  - from: projects
+    fromField: id
+    to: project_team_settings
+    toField: project_id
+    kind: one-to-one
+    note: Uma configuração do time por projeto, e só se alguém salvou; sem ela, valem os padrões.
+  - from: users
+    fromField: id
+    to: reports
+    toField: assignee_user_id
+    kind: one-to-many
+    note: Uma pessoa está com vários cards, e cada card com uma só. Quem sai do time continua ligado aos cards que eram dele, como registro.
+  - from: projects
+    fromField: id
+    to: project_priorities
+    toField: project_id
+    kind: one-to-many
+    note: Cada projeto tem as próprias prioridades, nascidas com as quatro de fábrica.
+  - from: project_priorities
+    fromField: id
+    to: reports
+    toField: priority_id
+    kind: one-to-many
+    note: Restrict, como o estado — prioridade não se apaga, se aposenta, porque card antigo aponta para ela.
+  - from: projects
+    fromField: id
+    to: project_labels
+    toField: project_id
+    kind: one-to-many
+    note: Cada projeto tem as próprias etiquetas, criadas pelo time ao etiquetar.
+  - from: reports
+    fromField: id
+    to: report_labels
+    toField: report_id
+    kind: one-to-many
+    note: Um card leva até dez etiquetas.
+  - from: project_labels
+    fromField: id
+    to: report_labels
+    toField: project_label_id
+    kind: one-to-many
+    note: Uma etiqueta está em vários cards; apagá-la tira de todos.
 notes:
+  - text: |-
+      Dois títulos, e só um volta para fora
+
+      reporter_title é o que a pessoa escreveu na ferramenta, e nunca muda; title é o do time, interno. O painel mostra o do time, senão o dela, senão o começo do texto. O acompanhamento e a lista pessoal devolvem só reporter_title — e a lista pública, nenhum dos dois.
+    anchor: reports
+    anchorField: reporter_title
+    position: { x: 3950, y: 1800 }
+    width: 380
   - text: |-
       Toda tabela repete as colunas padrão
 
@@ -1600,7 +1952,7 @@ notes:
       Na tela vale a mesma separacao: a recusa fica fora da escala, nunca como sexta estrela ou zero, senao ela vira a nota mais baixa para quem le depressa.
     anchor: report_closures
     anchorField: satisfaction_declined
-    position: { x: 1838, y: 2513 }
+    position: { x: 1838, y: 2563 }
     width: 400
     inherited: true
   - text: |-
@@ -1759,4 +2111,20 @@ notes:
       A cada requisição, o acesso é montado assim: todos os projetos da conta própria, como dono — que é administrador —, e os projetos em que a pessoa tem linha aqui, com o papel. O filtro global de todas as tabelas de dado olha essa lista de projetos, e não mais a conta. Sair do projeto vale na requisição seguinte, sem esperar o login vencer.
     anchor: project_members
     position: { x: 1180, y: -300 }
+    width: 360
+  - text: |-
+      O link do convite nunca é guardado
+
+      Ele nasce na hora de montar o e-mail, e o banco fica só com o hash — o mesmo cuidado da chave secreta do projeto. Quem lê o banco não aceita convite de ninguém, reenviar troca o hash e invalida o link anterior, e aceitar ainda exige o Google do mesmo endereço, confirmado: encaminhado, o link não serve para outra pessoa.
+    anchor: project_invitations
+    anchorField: token_hash
+    position: { x: -60, y: -560 }
+    width: 360
+  - text: |-
+      O card do time nunca tem lado de fora
+
+      Ele mora em reports junto do relato, e duas travas no banco separam os dois: o relato continua obrigado a ter protocolo, token, tipo e texto; o card do time não pode ter protocolo, token, código pessoal, etapa pública nem espera, e só fica pendente na moderação. As portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado — o card do time não tem nenhum dos três.
+    anchor: reports
+    anchorField: kind
+    position: { x: 1700, y: 760 }
     width: 360

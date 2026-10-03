@@ -13,6 +13,7 @@
   <tr><td><code>success_message</code></td><td>A frase acima do protocolo. 200.</td></tr>
   <tr><td><code>shows_type_field</code></td><td>Mostra ou esconde o seletor de tipo.</td></tr>
   <tr><td><code>default_report_type</code></td><td>Vem pré-marcado, e é o tipo gravado quando o seletor não aparece.</td></tr>
+  <tr><td><code>report_title_mode</code></td><td><code>optional</code> | <code>required</code> | <code>hidden</code>. Como a ferramenta pergunta "em poucas palavras, o que aconteceu?" — a resposta vira o título do card. Opcional de fábrica; obrigatória, a API recusa o relato sem ela.</td></tr>
 </table>
 
 <div class="note why">
@@ -30,7 +31,7 @@
   <strong>Por que coluna, se <code>report_contexts</code> é chave e valor</strong>
   <p>São perguntas diferentes. O que se captura junto de um relato ainda vai crescer, e cada
   captura nova como coluna seria uma migração na tabela que mais cresce. Aqui a lista é fechada
-  e acordada: dez campos, cada um com um tipo e um limite. Como coluna, cada um se explica no
+  e acordada: onze campos, cada um com um tipo e um limite. Como coluna, cada um se explica no
   próprio banco e o tipo errado não entra.</p>
 </div>
 
@@ -47,7 +48,7 @@
 <div class="note why">
   <strong>Nenhuma coluna tem valor padrão no banco</strong>
   <p>Os padrões moram uma vez, no código, e a tabela só recebe linha por uma gravação que
-  escreve os dez campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
+  escreve os onze campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
   decisão, e nada manteria as duas iguais.</p>
 </div>
 
@@ -69,11 +70,14 @@
   <tr><td><code>info_request_warn_days</code></td><td>Dias sem resposta até avisar quem relatou de que o relato vai encerrar.</td></tr>
   <tr><td><code>info_request_close_days</code></td><td>Dias depois do aviso até encerrar como sem retorno.</td></tr>
   <tr><td><code>accepts_questions_default</code></td><td>Como a opção de aceitar dúvidas vem marcada no formulário. <b>A escolha final é de quem relata</b>, não do projeto.</td></tr>
+  <tr><td><code>allows_report_archiving</code></td><td>O time pode arquivar relato. <b>Desligado de fábrica</b>. Ligado, arquivar um relato aberto encerra junto, com desfecho e motivo — quem relatou lê e pode reabrir ou finalizar.</td></tr>
+  <tr><td><code>last_column_visible_days</code></td><td>Quantos dias a última coluna do quadro mostra, quando há mais de uma coluna ativa — com uma só, ela é a entrada da fila, e mostra tudo: o card que entrou nela há mais tempo continua na lista. <b>De fábrica 14</b>, como nos quadros Kanban; zero mostra todos. Até 365.</td></tr>
+  <tr><td><code>due_soon_days</code></td><td>Faltando até quantos dias o prazo do card fica em destaque, no quadro e na lista. <b>De fábrica 2</b>; zero destaca só no próprio dia. Até 30. O vencido aparece sempre.</td></tr>
 </table>
 
 <div class="note why">
   <strong>A linha só nasce quando alguém salva</strong>
-  <p>Os treze padrões vivem no código, em <code>CycleSettingsDefaults</code>. Projeto sem linha
+  <p>Os dezesseis padrões vivem no código, em <code>CycleSettingsDefaults</code>. Projeto sem linha
   aqui é projeto que nunca precisou mudar nada — e lê exatamente o mesmo comportamento de quem
   salvou os padrões. É o mesmo molde de <code>project_widget_settings</code>.</p>
   <p>O ganho é que acrescentar uma regra nova não exige tocar em nenhuma linha existente: ela

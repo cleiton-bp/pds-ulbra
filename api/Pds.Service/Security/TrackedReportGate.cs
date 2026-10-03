@@ -47,7 +47,9 @@ public static class TrackedReportGate
         // diferenca de tempo entre parar no primeiro e parar no decimo permite
         // descobrir o token caractere a caractere — com o protocolo em maos, que e
         // adivinhavel.
-        if (!ProjectKeyGenerator.Matches(value, report.AccessTokenHash))
+        // Sem hash nao ha link: e o card do time, que o protocolo nunca acha — a
+        // conferencia so fecha a porta de novo.
+        if (report.AccessTokenHash is null || !ProjectKeyGenerator.Matches(value, report.AccessTokenHash))
             throw new KeyNotFoundException(Refusal);
 
         return report;

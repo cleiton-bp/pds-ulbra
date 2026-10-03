@@ -47,6 +47,7 @@ public class AuthService : IAuthService
         // Dados do Google podem ter mudado desde o ultimo acesso; a sessao e o
         // momento natural de acompanhar.
         user.Email = identity.Email;
+        user.EmailVerified = identity.EmailVerified && !string.IsNullOrWhiteSpace(identity.Email);
         user.Name = identity.Name;
         user.AvatarUrl = identity.PictureUrl;
         user.LastLoginAt = DateTime.UtcNow;

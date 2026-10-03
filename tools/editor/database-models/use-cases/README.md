@@ -25,16 +25,16 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 |---|---|
 | `01-overview.yaml` | a visão geral: os cinco atores e os dezoito casos de uso principais |
 | `02-project-setup.yaml` | o dono põe o projeto no ar — entrar com Google, criar o projeto, as chaves, instalar a ferramenta no site, os domínios, a aparência, arquivar |
-| `03-project-rules.yaml` | o dono define as regras — estados internos, etapas públicas e o mapa entre eles, o ciclo, a identidade e a mídia; por quanto tempo a mídia fica é adiado |
+| `03-project-rules.yaml` | o dono define as regras — estados internos, etapas públicas e o mapa entre eles, o ciclo (com as regras do quadro), a identidade e a mídia, e organiza as prioridades e as etiquetas; por quanto tempo a mídia fica é adiado |
 | `04-reporting.yaml` | o relator na ferramenta — abrir relato, anexar imagens e arquivos, capturar uma área da página e marcar a imagem, informar o nome, ver e reencontrar os próprios relatos; relatar já identificado pelo site é adiado |
-| `05-team-work.yaml` | o time no painel — ler, comentar, pedir informação, mover, encerrar — e o que o sistema faz sozinho em volta disso; apagar a mídia vencida é adiado |
+| `05-team-work.yaml` | o time no painel — ler, comentar, pedir informação, mover, encerrar, criar o card do time e arquivar, dar ao card título, responsável, prioridade, etiquetas e prazo, e arrumar o quadro, arrastando com mouse, toque ou teclado — e o que o sistema faz sozinho em volta disso; apagar a mídia vencida é adiado |
 | `06-tracking.yaml` | o relator na página de acompanhamento — acompanhar, responder ao time e reabrir, anexando nos dois, confirmar com nota |
 | `07-moderation.yaml` | o que vira público — moderar, apontar dado sensível, tirar do público, a lista pública; a lista com imagens é adiada |
 | `08-customization.yaml` | **Planejado.** Tipos de relato e o que cada um pergunta, textos com variáveis, capturas automáticas e como a ferramenta abre no site |
 | `09-research.yaml` | **Planejado.** As métricas do projeto e a resposta à pergunta de pesquisa |
 | `10-communication.yaml` | **Planejado.** Os avisos por e-mail — etapa que mudou, pedido de informação, código perdido — e o contato que os torna possíveis |
-| `11-account.yaml` | **Planejado.** Convidar para o projeto, como administrador ou membro; excluir a conta com prazo de arrependimento; apagar os dados |
-| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto e estimativa — e, já marcados **Planejado**, o quadro arrastável, as sprints, os relatórios e os duplicados |
+| `11-account.yaml` | Convidar para o projeto, como administrador ou membro, aceitar pelo link do e-mail e cuidar do time; e, **Planejado**, excluir a conta com prazo de arrependimento e apagar os dados |
+| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto e estimativa — e, já marcados **Planejado**, o quadro em tempo real, as sprints, os relatórios e os duplicados |
 | `example.yaml` | ponto de partida para conhecer o editor: os quatro tipos de ligação e a especificação completa de um caso de uso |
 
 ## Os atores
@@ -55,7 +55,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | **Ferramenta do time** «sistema» | Jira, Trello ou outra, para quem não quer sair dela | 12 |
 | **Armazenamento do cliente** «sistema» | o armazenamento de arquivos do próprio cliente | 12 |
 
-O papel no projeto já existe: o administrador configura e decide quem entra, o membro trabalha nos relatos e não vê a **Configuração**, e o dono da conta é administrador de todos os projetos dela. A mesma pessoa pode estar em projetos de várias contas. O convite — a porta para alguém entrar num projeto — está planejado em `11-account`; até ele chegar, cada projeto tem só o dono, e por isso os outros diagramas ainda chamam de **Dono do projeto** quem configura.
+O papel no projeto já existe: o administrador configura e decide quem entra, o membro trabalha nos relatos e não vê a **Configuração**, e o dono da conta é administrador de todos os projetos dela. A mesma pessoa pode estar em projetos de várias contas. O convite — a porta para alguém entrar num projeto — está em `11-account`: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. Os diagramas mais antigos ainda chamam de **Dono do projeto** quem configura; o **Administrador do projeto** faz o mesmo, e o dono é um caso dele.
 
 ## O que não vira caso de uso
 

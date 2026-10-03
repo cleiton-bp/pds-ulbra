@@ -22,6 +22,12 @@ export type WidgetPosition = 'BottomRight' | 'BottomLeft'
 /** `Auto` segue o `prefers-color-scheme` de quem visita o site do cliente. */
 export type WidgetTheme = 'Auto' | 'Light' | 'Dark'
 
+/**
+ * Como a ferramenta pergunta o titulo — "em poucas palavras, o que aconteceu?".
+ * Obrigatoria, a ferramenta nao envia sem resposta, e a API recusa.
+ */
+export type ReportTitleMode = 'Optional' | 'Required' | 'Hidden'
+
 export interface WidgetSettingsViewModel {
   /**
    * Desliga a ferramenta no site inteiro sem ninguem tocar no script colado. E a
@@ -63,6 +69,9 @@ export interface WidgetSettingsViewModel {
    * quando ele esta escondido.
    */
   DefaultReportType: ReportType
+
+  /** Como a ferramenta pergunta o titulo: opcional (o padrao), obrigatoria ou escondida. */
+  ReportTitleMode: ReportTitleMode
 
   /**
    * Como a caixa "aceito responder duvidas" vem marcada no formulario.

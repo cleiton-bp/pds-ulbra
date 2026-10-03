@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pds.Data.Configurations;
 using Pds.Domain.Entities;
@@ -37,6 +38,31 @@ public class ProjectMap : BaseEntityConfiguration<Project>
             .HasDefaultValue(0)
             .HasComment("Versao do mapeamento que vale agora. Zero enquanto nada foi ligado. Nao e o maior valor de project_status_mappings: desfazer tudo grava uma versao sem linha nenhuma.");
 
+        builder.Property(project => project.LastCardNumber)
+            .HasColumnName("last_card_number")
+            .IsRequired()
+            .HasDefaultValue(0)
+            .HasComment("O ultimo numero de card dado no projeto; o proximo leva este mais um. Somado numa gravacao so (UPDATE ... RETURNING), que serializa quem cria ao mesmo tempo. Nao e o maior reports.number: lido assim, dois cards simultaneos tentariam o mesmo numero.");
+
+        // **O contador so anda pelo UPDATE ... RETURNING do numero do card.**
+        // Renomear, arquivar ou salvar o mapa grava a linha inteira do projeto, com o
+        // contador lido antes; se um card nascesse no meio, o numero dele voltaria a
+        // ser dado, e o card seguinte esbarraria no indice unico. Ignorado depois de
+        // criado, o EF nunca o escreve.
+        builder.Property(project => project.LastCardNumber)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
+        builder.Property(project => project.BoardTopRank)
+            .HasColumnName("board_top_rank")
+            .IsRequired()
+            .HasDefaultValue(0L)
+            .HasComment("O lugar do ultimo card posto no topo de uma coluna do quadro: o que chega sem ser arrastado, ou o que foi solto no topo. O proximo fica uma folga acima. So desce, numa gravacao so (UPDATE ... RETURNING): o card que chega fica acima de tudo sem ler a coluna.");
+
+        // Como o contador do numero: so anda pelo UPDATE ... RETURNING, e o EF nunca o
+        // escreve — a gravacao da linha inteira do projeto o faria voltar.
+        builder.Property(project => project.BoardTopRank)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
         // Nome unico por conta, ignorando o que foi apagado: sem o filtro, o nome de
         // um projeto excluido continuaria ocupando o lugar e o cliente nao
         // conseguiria reaproveita-lo.
@@ -57,6 +83,11 @@ public class ProjectMap : BaseEntityConfiguration<Project>
         builder.HasMany(project => project.Members)
             .WithOne(member => member.Project)
             .HasForeignKey(member => member.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(project => project.Invitations)
+            .WithOne(invitation => invitation.Project)
+            .HasForeignKey(invitation => invitation.ProjectId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

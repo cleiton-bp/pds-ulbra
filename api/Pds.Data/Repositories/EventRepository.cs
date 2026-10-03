@@ -50,4 +50,14 @@ public class EventRepository : IEventRepository
             .OrderBy(entity => entity.OccurredAt)
             .ThenBy(entity => entity.Id)
             .ToListAsync(cancellationToken);
+
+    public Task<int> CountInvitationEmailsSinceAsync(long projectId, DateTime since, CancellationToken cancellationToken = default)
+        // Os dois tipos escritos na consulta, e nao uma lista: a coluna e texto
+        // convertido do enum, e comparacao direta e o que vira SQL sem surpresa.
+        => _context.Events
+            .Where(entity => entity.ProjectId == projectId
+                             && (entity.Type == EventTypeEnum.ProjectInvitationSent
+                                 || entity.Type == EventTypeEnum.ProjectInvitationResent)
+                             && entity.OccurredAt >= since)
+            .CountAsync(cancellationToken);
 }

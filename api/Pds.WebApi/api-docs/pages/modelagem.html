@@ -1,5 +1,5 @@
 <h2>Modelagem</h2>
-<p class="lead">Vinte e quatro tabelas, e as decisões que cada uma carrega.</p>
+<p class="lead">Vinte e nove tabelas, e as decisões que cada uma carrega.</p>
 
 <div class="diagram"><b>accounts</b>  ──1:N──  <b>users</b>
     │
@@ -7,9 +7,17 @@
     │               │
     │               ├───1:N──  <b>project_members</b>  ──N:1──  <b>users</b>
     │               │
+    │               ├───1:N──  <b>project_invitations</b>
+    │               │
+    │               ├───1:1──  <b>project_team_settings</b>
+    │               │
     │               ├───1:N──  <b>project_origins</b>
     │               │
     │               ├───1:N──  <b>project_states</b>
+    │               │
+    │               ├───1:N──  <b>project_priorities</b>
+    │               │
+    │               ├───1:N──  <b>project_labels</b>
     │               │
     │               ├───1:N──  <b>project_initial_states</b>
     │               │
@@ -29,6 +37,8 @@
     │
     └───1:N──  <b>reports</b>  ──1:N──  <b>report_contexts</b>
                    │
+                   ├───1:N──  <b>report_labels</b>  ──N:1──  <b>project_labels</b>
+                   │
                    ├───1:N──  <b>report_internal_comments</b>
                    │
                    ├───1:N──  <b>report_public_comments</b>
@@ -44,9 +54,10 @@
 <p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto —
 não na conta — porque chave não existe fora de um projeto. O endereço autorizado pendura no
 mesmo lugar, pelo mesmo motivo. E quem está no time também: <code>project_members</code> liga a
-pessoa ao projeto, e não à conta, porque a entrada é por projeto.</p>
+pessoa ao projeto, e não à conta, porque a entrada é por projeto — e o convite, que é a porta
+dessa entrada, pendura no mesmo lugar.</p>
 
-<p>O desenho acima é simplificado em cinco pontos, e os cinco são deliberados:
+<p>O desenho acima é simplificado em seis pontos, e os seis são deliberados:
 <code>reports</code> aponta <em>também</em> para <code>projects</code>, e não só para a
 conta; <code>events</code> aponta para as três — conta, projeto e relato —, todas
 anuláveis; <code>reports</code> aparece duas vezes, porque além de pendurar na conta ele
@@ -55,8 +66,10 @@ projeto; <code>report_attachments</code> pendura sempre no relato, mas <em>pode<
 apontar também para uma resposta (<code>report_public_comments</code>) ou para uma
 reabertura (<code>report_closures</code>) — nunca para as duas —; e <code>users</code> aparece
 duas vezes, porque além de pendurar na conta própria ele entra, por
-<code>project_members</code>, no time de projetos de qualquer conta. O porquê de cada um está na
-página da tabela, logo abaixo.</p>
+<code>project_members</code>, no time de projetos de qualquer conta; e
+<code>project_labels</code> aparece duas vezes, porque a etiqueta pendura no projeto e chega a cada
+card por <code>report_labels</code>, uma linha por par. O porquê de cada um está na página da tabela,
+logo abaixo.</p>
 
 <h2>Colunas que toda tabela repete</h2>
 
@@ -91,6 +104,7 @@ página da tabela, logo abaixo.</p>
   <a href="#/modelagem/fila-interna"><strong>A fila interna</strong><span>Os estados que o time usa, e onde cada tipo de relato entra.</span></a>
   <a href="#/modelagem/jornada-publica"><strong>A jornada pública</strong><span>Os passos que quem relatou vê, e o mapa versionado que leva até eles.</span></a>
   <a href="#/modelagem/relato"><strong>O relato</strong><span>A tabela que mais cresce, o contexto que vem junto e o código de quem escreveu.</span></a>
+  <a href="#/modelagem/campos-do-card"><strong>O que o time dá ao card</strong><span>Responsável, prioridade, etiquetas e prazo — as prioridades e as etiquetas do projeto, e a paleta.</span></a>
   <a href="#/modelagem/conversa-e-ciclo"><strong>Conversa e ciclo</strong><span>Os dois comentários em tabelas separadas, o encerramento e o pedido de informação.</span></a>
   <a href="#/modelagem/midia"><strong>Mídia</strong><span>O que o projeto aceita, o limite de cada tipo numa linha própria, e o registro de cada arquivo — que nunca mora no banco.</span></a>
   <a href="#/modelagem/eventos"><strong>Eventos</strong><span>A única tabela que só cresce — e as convenções de nome do banco inteiro.</span></a>

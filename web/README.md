@@ -68,23 +68,27 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/start ........ console — Instalação, 3 passos
 /projects/:publicId/keys ......... console — chaves e integração
 /projects/:publicId/states ....... console — a fila de trabalho do time
+/projects/:publicId/priorities ... console — as prioridades do projeto
+/projects/:publicId/labels ....... console — organizar as etiquetas que o time criou
 /projects/:publicId/public-stages  console — a jornada que quem relatou acompanha
 /projects/:publicId/cycle ........ console — como o relato fecha e reabre
 /projects/:publicId/identity ..... console — quem relata e quem pode ver
 /projects/:publicId/media ........ console — o que dá para anexar
 /projects/:publicId/moderation ... console — o que vira público
+/projects/:publicId/members ...... console — o time, e os convites para quem administra
 /projects/:publicId/settings ..... console — nome, identificador, arquivar
-/projects/:publicId/reports ...... console — os relatos que chegaram do site
+/projects/:publicId/reports ...... console — Trabalho: os relatos e os cards do time, em lista ou quadro
 /projects/:publicId/tool ......... console — como a ferramenta aparece no site
+/invite#t=... .................... o link do e-mail do convite — abrir e aceitar
 ```
 
 Dois níveis, como um console de nuvem. **Não existe rota `/login`**: quem abre
 uma URL sem sessão vê a entrada naquele mesmo endereço e cai direto onde queria.
 
 **O papel decide a porta.** `/projects/:publicId` leva quem configura — o dono e o
-administrador — à **Instalação**, e quem é só membro aos **Relatos**. O membro não vê
+administrador — à **Instalação**, e quem é só membro ao **Trabalho**. O membro não vê
 o grupo **Configuração** no menu, e o endereço de uma seção dele, digitado ou num link
-antigo, o manda para os Relatos. A regra mora na API, que recusa com 403 o que o
+antigo, o manda para o Trabalho. A regra mora na API, que recusa com 403 o que o
 membro tentar mudar; aqui só se decide o que mostrar. O hub e o seletor do topo agrupam
 os projetos pela conta dona quando há mais de uma — "Seus projetos" primeiro —, e no
 hub o projeto de outra conta mostra o papel da pessoa nele.
@@ -200,8 +204,8 @@ passa pelo nosso. Nenhuma resposta sai para `'*'`.
 [`src/embed/hostBridge.test.ts`](src/embed/hostBridge.test.ts) exercita cada uma
 pelo caminho em que ela falha: remover qualquer guarda reprova três testes.
 
-**A configuração vive em `contracts/widgetSettings.ts`** — dez campos que decidem
-textos, cores, tema, posição e quais tipos aparecem. A tela **Ferramenta** os
+**A configuração vive em `contracts/widgetSettings.ts`** — onze campos que decidem
+textos, cores, tema, posição, quais tipos aparecem e como a pergunta do título é feita. A tela **Ferramenta** os
 edita, a API os guarda, e o quadro os lê pela chave pública antes de desenhar
 qualquer coisa. Projeto que nunca salvou nada recebe os padrões de
 `embed/settings.ts`, na mesma forma — e quem lê não distingue os dois casos.
@@ -304,15 +308,73 @@ qualquer lugar, e o primeiro endereço declarado liga a conferência.
 
 **O time, por projeto.** Cada projeto chega com a conta dona e o papel da pessoa nele:
 o dono e o administrador configuram; o membro trabalha nos relatos e não vê a
-Configuração. O convite, que põe alguém num projeto, e a tela de **Membros** — que
-aparece bloqueada no menu — são **Planejado**; até lá, cada projeto tem só o dono.
+Configuração. A tela de **Membros** é de todos: o membro vê o time; quem administra
+muda o papel, tira do time e convida por e-mail, e cada convite mostra onde está o
+e-mail dele — na fila, enviado, ou que não saiu, com **Reenviar**. O link nunca
+aparece na tela: ele só existe no e-mail.
+
+**O convite, do outro lado.** O link do e-mail abre `/invite`, com o link depois do
+`#` — essa parte nunca vai a servidor nenhum ao abrir a página. Sem sessão, a entrada
+aparece no mesmo endereço, com um aviso de que há um convite, e o `#` sobrevive ao
+login. Com a conta Google do endereço convidado, a pessoa vê o projeto, quem convidou
+e o papel, e aceita; com outra conta, vê só a pista do endereço e o caminho para
+trocar de conta.
 
 **O relato entra.** Colar o script numa página qualquer, escrever, e o relato chegar
-na API com protocolo, rota e origem; o time lê na tela **Relatos**, com o contexto de
+na API com protocolo, rota e origem; o time lê na tela **Trabalho**, com o contexto de
 cada um e a visualização registrada como evento. A aparência e os textos da
 ferramenta saem de **Ferramenta**. A confirmação entrega um link, e `tracking.html`
 mostra a quem relatou o próprio relato — o token viaja no fragmento do link, a parte
 que o navegador nunca envia a servidor nenhum.
+
+**O trabalho que não veio de fora.** A tela **Trabalho** junta os relatos e os cards
+do time — **Novo card** cria um, com título e descrição em Markdown: a barra escreve
+as marcas, "Visualizar" mostra o que o card vai mostrar, e o painel desenha o texto sem
+HTML nenhum (`shared/lib/markdown.ts`). Todo card tem um número curto no projeto
+(#42), o mesmo para relato e card do time. O card do time não tem protocolo, caixa
+para quem relatou nem encerramento: mover para a última coluna é só mover. **Arquivar**
+tira o card da tela — o do time sempre; o relato só com a regra do Ciclo, e o relato
+aberto encerra junto, com o motivo que quem relatou lê. O filtro **Arquivados** mostra
+o que saiu, para ler, comentar ou desarquivar.
+
+**O card diz quem, o quê, o quanto importa e para quando.** A ferramenta pergunta, antes
+do texto, "em poucas palavras, o que aconteceu?" — opcional, obrigatória ou escondida, na
+**Ferramenta** —, e a resposta vira o título do card. O time reescreve (`ReportTitle`), e o
+que a pessoa escreveu fica guardado: é o único título que volta para ela, no acompanhamento
+e em "meus relatos". No card aberto, `CardFields` dá o **responsável** (um só; quem sai do
+time continua marcado), a **prioridade** (as do projeto, de fábrica Baixa, Média, Alta e
+Urgente — o card nasce sem), as **etiquetas** (escrever o nome que não existe cria a
+etiqueta) e o **prazo** (só a data). A linha da lista mostra tudo isso numa faixa. As cores
+de etiqueta e prioridade são a paleta de dado de `tokens.css`, com o par certo nos dois
+temas e o nome sempre escrito junto. **Prioridades** e **Etiquetas**, na Configuração, são
+de quem administra.
+
+**O quadro.** A tela **Trabalho** tem duas vistas, a lista e o **quadro** — uma coluna por
+estado, cada uma com a própria leitura na ordem do quadro, cinquenta de cada vez, e "Mostrar
+mais" continuando depois do último card da tela (`after`), e não pela página seguinte —, e o
+navegador lembra a escolhida, por projeto. Cada vista lê só o que é dela: a lista não é lida com
+o quadro na tela, e é lida de novo ao voltar. A frente do card é um resumo
+(`BoardCardFace`): número, título, prioridade, até três etiquetas, o prazo — vermelho quando
+venceu, amarelo quando está perto, sempre com as palavras (`DueChip`) —, quantos comentários
+e anexos, e as iniciais de quem está com ele. O detalhe só abre no clique, no mesmo diálogo
+da lista. Arrastar usa `@dnd-kit`: o mouse pega depois de andar uns pixels, o toque depois
+de segurar um instante (deslizar continua rolando), e o teclado com espaço, setas, espaço ou Enter
+para soltar, e Esc, anunciando cada passo ao leitor de tela. O alvo é o que está debaixo do
+ponteiro (`boardCollision`): a coluna inteira recebe, o cabeçalho também, e soltar fora das colunas
+que recebem devolve o card. A ordem é do time inteiro e mora na API; o que
+chega — relato novo, card novo, movido pelo seletor, reaberto — entra no topo. Soltar um
+relato aberto na coluna que encerra pede o desfecho antes de mover. A última coluna mostra
+só o que entrou nela nos últimos dias — com mais de uma coluna ativa: com uma só, ela é a entrada da
+fila —, e diz quantos ficaram na lista. "Sem coluna" e a
+coluna aposentada aparecem só enquanto seguram card, e não recebem nenhum. O código fica em
+`features/reports/board/`.
+
+**O clique do soltar é barrado na janela.** A biblioteca engole, antes do React, o clique
+que o navegador dispara junto do soltar, mas não impede o link de ser seguido: segurar o
+card no celular e soltar sem andar recarregava a página inteira no endereço do card. A
+guarda, em `ReportsBoard`, fica na janela e vale do pegar até um instante depois de soltar
+— menos no teclado, que não clica ao soltar, e onde o Enter logo depois continua abrindo o
+card.
 
 **O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
 de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.
@@ -332,9 +394,9 @@ Cada relato tem **endereço próprio**: `/projects/:id/reports/:reportId`. Ele �
 com o recorte e a rolagem onde estavam, e o botão voltar do navegador fecha o relato
 em vez da tela inteira.
 
-O time **move o relato de coluna**, pela tela do relato aberto. Cada mudança grava um
-evento imutável, e **o evento entra antes do cache**: a coluna guardada no relato é
-conveniência para a lista; a verdade é a sequência de eventos. Movido para fora do
+O time **move o relato de coluna**, pela tela do relato aberto ou arrastando o card no
+quadro. Cada mudança grava um evento imutável, e **o evento entra antes do cache**: a coluna
+guardada no relato é conveniência para a lista; a verdade é a sequência de eventos. Movido para fora do
 recorte ativo, o relato sai da lista na hora — deixá-lo ali mostraria, debaixo do nome
 de uma coluna, um relato que não está mais nela.
 
@@ -382,7 +444,9 @@ fica no quadro, onde o carregador conhece a chave pública antes de abrir.
 relatou responde, confirma que resolveu — com nota, quando o projeto pede — ou reabre,
 dizendo por quê. A tela **Ciclo** decide as regras: para onde vai o relato reaberto,
 se reabrir pede motivo, os prazos do pedido e quanto o lado público espera antes de
-mudar, que é a janela para desfazer um movimento errado.
+mudar, que é a janela para desfazer um movimento errado. E, para o quadro, quantos dias a
+última coluna mostra quando há mais de uma (de fábrica 14; zero mostra tudo) e com quanta
+antecedência o prazo fica amarelo.
 
 **Identidade e visibilidade.** A tela **Identidade** escolhe como quem relata é
 reconhecido — pelo protocolo, ou por um código pessoal que traz a lista "os meus
@@ -404,8 +468,8 @@ vídeos de antes de o vídeo sair do produto continuam tocando.
 | a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: o plano de cobrança (**Continuidade**); o quadro de cards
-arrastável, com sprint e relatório (**Planejado**); a lista pública com imagens e a página pública
+Fora do corte, de propósito: o plano de cobrança (**Continuidade**); o quadro de cards em
+tempo real, filtros rápidos e busca, sprints e relatórios (**Planejado**); a lista pública com imagens e a página pública
 de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora
 no servidor e pega o caso comum; barrar o quadro no navegador precisa de um servidor
 servindo `embed.html`, que é hospedagem que ainda não existe — **Planejado**.
@@ -430,7 +494,7 @@ inglês, e esse atributo aparece no HTML de todo cliente.
 
 **O progresso da Instalação fica no navegador.** Não é dado de domínio: é
 a lembrança de que este navegador já copiou a chave. O sinal de verdade — o
-primeiro relato ter chegado — passou a existir com a tela **Relatos**, e o passo
+primeiro relato ter chegado — passou a existir com a tela de relatos (hoje **Trabalho**), e o passo
 continua sem lê-lo: ler significa uma chamada a mais em toda visita à instalação,
 e a troca é decisão de produto, não conserto de texto.
 

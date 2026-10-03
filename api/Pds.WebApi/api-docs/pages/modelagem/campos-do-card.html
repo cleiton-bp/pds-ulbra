@@ -1,0 +1,91 @@
+<h2>O que o time dá ao card</h2>
+
+<p>Além da coluna, o card ganha <strong>quem está com ele, o quanto importa, as etiquetas e o
+prazo</strong> — o responsável (<code>reports.assignee_user_id</code>), a prioridade
+(<code>reports.priority_id</code>), as etiquetas (<code>report_labels</code>) e o prazo
+(<code>reports.due_date</code>). O relato e o card do time ganham os mesmos campos.</p>
+
+<div class="note warn">
+  <strong>Tudo isto é interno</strong>
+  <p>Nenhuma rota pública lê estas tabelas nem estas colunas. Quem relatou continua vendo o que
+  escreveu — inclusive o próprio título — e nada do que o time deu ao card.</p>
+</div>
+
+<h2>project_priorities</h2>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono da prioridade.</td></tr>
+  <tr><td><code>name</code></td><td>O nome que o time deu. Até 40, único no projeto sem diferenciar maiúscula (conferido no serviço; o índice único é a rede embaixo).</td></tr>
+  <tr><td><code>color</code></td><td><code>gray</code> | <code>blue</code> | <code>green</code> | <code>yellow</code> | <code>orange</code> | <code>red</code> | <code>purple</code> | <code>pink</code>. Paleta fixa.</td></tr>
+  <tr><td><code>position</code></td><td>A ordem, da menos para a mais urgente. Não é única: reordenar reescreve a lista inteira.</td></tr>
+  <tr><td><code>deactivated_at</code></td><td>Nulo enquanto a prioridade pode ser escolhida. Preenchido, ela está <b>aposentada</b>.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>Do projeto, com quatro de fábrica</strong>
+  <p>Cada time mede urgência com as próprias palavras, como os estados. Todo projeto nasce com
+  <strong>Baixa, Média, Alta e Urgente</strong> (azul, amarelo, laranja, vermelho), e os projetos
+  que já existiam as ganharam na migração. O administrador renomeia, troca a cor, reordena ou cria
+  outras.</p>
+  <p><strong>O card nasce sem prioridade.</strong> Escolher é decisão de alguém do time; uma
+  prioridade de fábrica no card novo faria "Média" querer dizer "ninguém olhou ainda".</p>
+</div>
+
+<div class="note why">
+  <strong>Prioridade não se apaga, se aposenta</strong>
+  <p>Como o estado: card antigo aponta para ela (<code>Restrict</code>), e o histórico precisa
+  continuar legível. Aposentada, ela continua no card que já a tinha e sai da lista de escolha — a
+  API recusa pô-la num card novo.</p>
+</div>
+
+<h2>project_labels</h2>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono da etiqueta.</td></tr>
+  <tr><td><code>name</code></td><td>O nome. Até 30 — etiqueta é palavra, e não frase. Único no projeto sem diferenciar maiúscula.</td></tr>
+  <tr><td><code>color</code></td><td>A mesma paleta fixa da prioridade. Sem cor escolhida, a menos usada no projeto.</td></tr>
+</table>
+</div>
+
+<div class="note why">
+  <strong>Quem cria é o time, ao etiquetar</strong>
+  <p>Faltar a etiqueta certa não vira pedido ao administrador: qualquer pessoa do time cria a
+  etiqueta no próprio card, e o nome que já existe devolve a que existe. O administrador organiza —
+  renomeia, troca a cor, apaga.</p>
+  <p><strong>Apagar tira a etiqueta de todos os cards</strong>, na mesma gravação: a etiqueta e as
+  ligações dela são apagadas logicamente, e cada card que a tinha ganha um evento com a saída dela,
+  em nome de quem apagou. O que o histórico já contava continua com o nome que ela tinha.</p>
+</div>
+
+<h2>report_labels</h2>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>report_id</code></td><td>O card etiquetado.</td></tr>
+  <tr><td><code>project_label_id</code></td><td>A etiqueta, do mesmo projeto do card.</td></tr>
+</table>
+</div>
+
+<p>Um par por linha, e o mesmo par não entra duas vezes entre as que valem (índice único com
+<code>deleted_at IS NULL</code>). Um card leva até dez etiquetas. A rota troca o conjunto inteiro
+de uma vez: a que sai é apagada logicamente, e pode voltar depois numa linha nova.</p>
+
+<h2>O filtro de acesso</h2>
+
+<p>As três tabelas passam pelo filtro global, como o estado e o contexto: a prioridade e a etiqueta
+pelo projeto da linha, e a ligação pelo relato. A ligação some também quando a etiqueta foi
+apagada, e a leitura da etiqueta pela ligação, que é obrigatória, carrega o mesmo filtro — três
+cercas para a etiqueta apagada nunca aparecer num card.</p>
+
+<h2>A paleta</h2>
+
+<p>Oito cores fixas, e não um seletor livre: cada uma tem o par certo de fundo, borda e texto no
+tema claro e no escuro do painel, conferido por teste de contraste. Um hexadecimal livre ficaria
+ilegível num dos dois. E a cor nunca vem sozinha: o nome da etiqueta ou da prioridade está sempre
+escrito nela.</p>

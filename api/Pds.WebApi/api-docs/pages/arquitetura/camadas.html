@@ -34,13 +34,18 @@
   </tr>
   <tr>
     <td><code>Workers</code></td>
-    <td>Conexão com a fila, agendamento, consumidor</td>
+    <td>Conexão com a fila, agendamento, os consumidores — o das esperas e o do e-mail</td>
     <td>Transação, consulta, <strong>regra</strong></td>
   </tr>
   <tr>
     <td><code>Storage</code></td>
     <td>Conexão com o armazenamento: assinar envio e leitura, ler os primeiros bytes, copiar exigindo o <code>ETag</code>, o nome do download</td>
     <td>Transação, consulta, <strong>regra</strong> — e o arquivo inteiro: só o primeiro quilobyte passa por ali</td>
+  </tr>
+  <tr>
+    <td><code>Email</code></td>
+    <td>Conexão com o servidor SMTP: as opções da seção <code>Smtp</code>, montar a mensagem e entregá-la</td>
+    <td>Transação, consulta, <strong>regra</strong> — e nova tentativa: a falha sobe, e quem chama decide</td>
   </tr>
   <tr>
     <td><code>WebApi</code></td>

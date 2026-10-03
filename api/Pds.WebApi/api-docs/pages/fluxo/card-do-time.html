@@ -1,0 +1,85 @@
+<h2>Criar o card do time</h2>
+
+<p>Nem todo trabalho chega pela ferramenta. Na tela de Trabalho, "Novo card" cria um card do
+próprio time — título, descrição em Markdown e a coluna em que ele nasce:</p>
+
+<pre><code>POST /projects/2be49b28-.../reports
+Authorization: Bearer &lt;AccessToken&gt;
+
+{ "Title": "Trocar o provedor de e-mail",
+  "Description": "Hoje sai pelo **plano grátis**.\n\n- verificar o domínio",
+  "StatePublicId": "e12fef6c-..." }</code></pre>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Card criado.",
+  "Data": { "PublicId": "7a1c...", "Kind": "Team", "Number": 42,
+            "Title": "Trocar o provedor de e-mail", "TrackingCode": null,
+            "CreatedByName": "Ana", "StateName": "Análise", ... }
+}</code></pre>
+
+<p>Ele ganha o próximo número do projeto — <strong>#42</strong> — da mesma sequência dos
+relatos: o relato que chegar depois pela ferramenta leva o #43. É o número que o time fala no
+grupo e escreve no commit.</p>
+
+<div class="note warn">
+  <strong>O card do time não tem lado de fora</strong>
+  <p>Sem protocolo, sem link de acompanhamento, sem código pessoal, sem etapa pública e sem
+  moderação — e o banco recusa a linha que tente ter. Nenhuma porta pública chega a ele.</p>
+</div>
+
+<h2>Trabalhar nele</h2>
+
+<p>O card do time anda pelos mesmos estados do relato, com o mesmo
+<code>PUT .../state</code> e o mesmo evento. Duas diferenças: mover para a coluna que encerra
+<strong>não pede desfecho nem motivo</strong> — não há quem relatou para ler —, e a etapa pública
+nunca se mexe por ele.</p>
+
+<p>O título e a descrição se editam inteiros:</p>
+
+<pre><code>PUT /projects/2be49b28-.../reports/7a1c...
+{ "Title": "Trocar o provedor antes de sexta", "Description": "..." }</code></pre>
+
+<p>O texto de um relato não passa por aqui (409): é de quem relatou, e fica como ela escreveu. O
+comentário interno serve aos dois; o comentário para quem relatou, o pedido de informação e o
+encerramento são só do relato.</p>
+
+<div class="note why">
+  <strong>A descrição é Markdown, e o painel a desenha sem HTML</strong>
+  <p>Negrito, itálico, código, listas, títulos, citação e links — a barra do editor escreve as
+  marcas, e a aba "Visualizar" mostra exatamente o que o card vai mostrar. O texto vira elementos
+  na tela, nunca HTML: um <code>&lt;script&gt;</code> escrito na descrição aparece como texto. Link
+  só com <code>http</code>, <code>https</code> ou <code>mailto</code>, e imagem não carrega.</p>
+</div>
+
+<h2>Arquivar</h2>
+
+<pre><code>PUT /projects/2be49b28-.../reports/7a1c.../archive
+{ "Archived": true }</code></pre>
+
+<p>O card sai da tela de Trabalho e da contagem das colunas, e passa a aparecer em
+"Arquivados" (<code>GET .../reports?archived=true</code>). Arquivado se lê e se comenta;
+mover e editar pedem desarquivar antes — <code>{ "Archived": false }</code>.</p>
+
+<h2>Arquivar um relato</h2>
+
+<p>O caminho do relato é encerrar com desfecho. Arquivar relato existe só com a regra do ciclo
+ligada — "Deixar o time arquivar relato", na tela de Ciclo —, e <strong>arquivar o relato aberto
+encerra junto</strong>:</p>
+
+<pre><code>PUT /projects/2be49b28-.../reports/9f3e.../archive
+{ "Archived": true, "Outcome": "WontDo",
+  "Reason": "Esta mudança não vai entrar no produto. Obrigado por escrever." }</code></pre>
+
+<p>Quem relatou abre o link e lê o motivo, como em qualquer encerramento. Dali, pode
+<strong>finalizar</strong> — confirmando, com a nota — ou <strong>reabrir</strong>. Reabrir traz o
+relato de volta para a tela de Trabalho sozinho: no histórico, "Desarquivou" aparece sem o nome de
+ninguém do time, junto de "Quem relatou reabriu". O relato já encerrado arquiva sem pedir nada: o
+motivo já foi.</p>
+
+<div class="note why">
+  <strong>Arquivar nunca deixa quem relatou sem retorno</strong>
+  <p>Tirar um relato da tela do time sem dizer nada à pessoa seria exatamente o silêncio que o
+  produto existe para acabar. Por isso o relato aberto só sai da tela com um motivo — e se a pessoa
+  escrever de novo, reabrindo ou respondendo a uma pergunta que ainda estava aberta, ele volta.</p>
+</div>

@@ -1,0 +1,111 @@
+<h2>Convidar</h2>
+
+<p>Ana, dona do projeto, convida Bruno pela tela de Membros. O painel manda:</p>
+
+<pre><code>POST /projects/2be49b28-.../invitations
+Authorization: Bearer &lt;AccessToken da Ana&gt;
+
+{ "Email": "bruno@exemplo.com", "Role": "Member" }</code></pre>
+
+<p>A API confere o endereço — um só, com domínio —, que Bruno não está no time nem é dono, e que o
+projeto não passou do limite da hora. Grava o convite com o prazo do projeto, grava o evento, e só
+então põe um pedido na fila. A resposta volta sem esperar o e-mail:</p>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Convite enviado.",
+  "Data": { "PublicId": "7c1d...", "Email": "bruno@exemplo.com", "Role": "Member",
+            "ExpiresAt": "2026-10-09T21:00:00Z", "EmailStatus": "Pending", ... }
+}</code></pre>
+
+<div class="note warn">
+  <strong>A tela não recebe o link, nem nunca vai receber</strong>
+  <p>Neste ponto o link ainda nem existe. Ele nasce no consumidor da fila, e só vai para o e-mail.
+  Copiar o link da tela e mandar por outro canal seria cômodo, e faria o link passar por lugares
+  que ninguém controla — e quem convida não precisa dele para nada.</p>
+</div>
+
+<h2>O e-mail sai</h2>
+
+<p>O consumidor da fila pega o pedido, relê o convite, sorteia o link e reserva o envio gravando o
+hash dele — só um consumidor passa dessa reserva. E manda:</p>
+
+<div class="diagram">fila ─▶ consumidor
+          │
+          ├─▶ convite ainda aberto e na fila?   não ─▶ nada a fazer
+          │
+          ├─▶ sorteia o link
+          │
+          ├─▶ reserva: pending ─▶ sending,      outro já reservou, ou a linha
+          │   com o hash, numa gravação só       mudou depois da leitura ─▶ nada a fazer
+          │
+          └─▶ SMTP
+                ├─ aceito ─▶ sent     (só se continua sending, com o hash deste envio)
+                └─ falhou ─▶ failed, e o motivo no log</div>
+
+<p>O e-mail diz quem convidou, o projeto, o papel e o prazo, e traz o link:</p>
+
+<pre><code>http://localhost:5173/invite#t=Q2h2xL...</code></pre>
+
+<p>Enquanto isso, a tela de Membros relê a lista a cada dois segundos, por até meio minuto, e a
+linha do convite passa de "Enviando o e-mail…" para "E-mail enviado". Se não saiu, a linha diz "O
+e-mail não saiu", e <strong>Reenviar</strong> tenta de novo — com link novo e prazo novo.
+Reenviar vale em qualquer situação, inclusive com o e-mail ainda saindo: o link do envio em curso
+deixa de valer, e o que chega por último é o que abre.</p>
+
+<div class="note why">
+  <strong>Por que o link vem depois do <code>#</code></strong>
+  <p>O que vem depois do <code>#</code> não é mandado a servidor nenhum quando o navegador abre a
+  página: nem ao que serve o painel, nem a um proxy no caminho, nem ao log de acesso de nenhum
+  deles. O painel lê o link no navegador, e manda à API no corpo do pedido.</p>
+</div>
+
+<h2>Bruno abre o link</h2>
+
+<p>Sem sessão, o painel mostra a entrada com Google <strong>no mesmo endereço</strong>, com um aviso
+de que ali há um convite — e o <code>#</code> sobrevive ao login. Já logado, o painel pergunta:</p>
+
+<pre><code>POST /invitations/preview
+Authorization: Bearer &lt;AccessToken do Bruno&gt;
+
+{ "Token": "Q2h2xL..." }</code></pre>
+
+<pre><code>{
+  "Data": { "Status": "Valid", "ProjectPublicId": "2be49b28-...", "ProjectName": "Loja Online",
+            "InvitedByName": "Ana", "Role": "Member", "ExpiresAt": "2026-10-09T21:00:00Z",
+            "InvitedEmailHint": null }
+}</code></pre>
+
+<p>Se Bruno estivesse logado com outra conta Google, a resposta seria <code>WrongAccount</code>,
+com só a pista <code>b•••@exemplo.com</code> e nada do projeto, e o painel ofereceria sair e entrar
+com a conta certa. Com o endereço certo e ainda não confirmado pelo Google,
+<code>EmailNotVerified</code>.</p>
+
+<h2>Bruno aceita</h2>
+
+<pre><code>POST /invitations/accept
+{ "Token": "Q2h2xL..." }</code></pre>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Você entrou no time.",
+  "Data": { "ProjectPublicId": "2be49b28-...", "ProjectName": "Loja Online" }
+}</code></pre>
+
+<p>Nasce a linha de Bruno em <code>project_members</code>, como membro; o convite fecha como aceito
+e sai da lista de Ana. O painel recarrega a lista de projetos — a anterior ainda não tinha este — e
+abre o projeto. O acesso vale a partir dali: a requisição seguinte já lê o projeto novo do
+banco.</p>
+
+<div class="note why">
+  <strong>Ter o link não basta</strong>
+  <p>O aceite confere, de novo, o que a prévia conferiu: a conta da sessão é a do endereço
+  convidado, e o Google confirmou esse endereço. Um e-mail encaminhado não leva ninguém para
+  dentro do projeto — leva só a pista de para quem o convite era.</p>
+</div>
+
+<h2>Depois</h2>
+
+<p>Na tela de Membros, Ana muda o papel de Bruno, ou o tira do time — o acesso dele acaba na
+requisição seguinte, e o que ele escreveu nos relatos continua com o nome dele. Bruno, como membro,
+vê a mesma lista, sem convidar, sem mudar papel e sem tirar ninguém.</p>

@@ -109,7 +109,7 @@ export function StartScreen() {
           <Step number={3} title="Fazer um relato de teste">
             <p className="mb-3.5 text-detail text-fg-muted leading-relaxed">
               Abre a mesma ferramenta que o seu site abre, com esta chave. O relato entra de
-              verdade, e é por isso que ele aparece em Relatos como qualquer outro.
+              verdade, e é por isso que ele aparece em Trabalho como qualquer outro.
             </p>
             {publicKey ? (
               <TestReportDialog publicKey={publicKey} />

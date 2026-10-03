@@ -35,6 +35,30 @@ public class Project : PdsBaseEntity
     /// </summary>
     public int MappingVersion { get; set; }
 
+    /// <summary>
+    /// O ultimo numero de card dado neste projeto. O proximo card leva este mais
+    /// um.
+    ///
+    /// <para><b>Um contador, e nao o maior numero da tabela.</b> Somado numa
+    /// gravacao so (<c>UPDATE ... RETURNING</c>), ele faz dois cards criados no
+    /// mesmo instante esperarem um pelo outro na linha do projeto — e cada um sair
+    /// com o seu. Pelo maior valor, os dois leriam o mesmo e tentariam o mesmo
+    /// numero.</para>
+    /// </summary>
+    public int LastCardNumber { get; set; }
+
+    /// <summary>
+    /// O topo do quadro: o lugar do ultimo card posto no topo de uma coluna — o que
+    /// chega sem ser arrastado, ou o que foi solto no topo. O proximo fica uma folga
+    /// acima dele.
+    ///
+    /// <para><b>Um contador que so desce</b>, pelo mesmo motivo do numero do card:
+    /// descido numa gravacao so (<c>UPDATE ... RETURNING</c>), o card que chega fica
+    /// acima de tudo o que ja estava, em qualquer coluna, sem ler a coluna e sem
+    /// esperar quem esta arrumando o quadro.</para>
+    /// </summary>
+    public long BoardTopRank { get; set; }
+
     /// <summary>Chaves do projeto: a que vale agora de cada tipo, mais o historico das revogadas.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectKey> Keys { get; set; } = [];
@@ -49,4 +73,11 @@ public class Project : PdsBaseEntity
     /// </summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectMember> Members { get; set; } = [];
+
+    /// <summary>
+    /// Os convites do projeto. Apagar o projeto apaga os convites junto: um link
+    /// enviado nao pode levar a um projeto que nao existe mais.
+    /// </summary>
+    [SoftDeleteDependent(RemoveType.Cascade)]
+    public List<ProjectInvitation> Invitations { get; set; } = [];
 }

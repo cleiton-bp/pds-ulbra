@@ -22,8 +22,9 @@ namespace Pds.WebApi.Authorization;
 /// uma acao nova de escrita num controlador de configuração herdaria o "membro" da
 /// classe sem ninguem notar.</item>
 /// </list>
-/// <para>Se um dia existir escrita de membro fora de <c>/reports</c>, e esta regra que
-/// muda — de proposito, e nao por esquecimento.</para>
+/// <para>A escrita de membro fora de <c>/reports</c> existe, e e declarada: a acao
+/// leva <see cref="MemberWriteAttribute"/>, com o motivo. Criar etiqueta e a primeira —
+/// o time cria ao etiquetar. Sem a marca, a regra continua barrando a subida.</para>
 /// </summary>
 public static partial class ProjectRoleCoverage
 {
@@ -66,7 +67,13 @@ public static partial class ProjectRoleCoverage
                 .ToList();
             var writes = methods.Count == 0 || methods.Any(method => !ReadMethods.Contains(method));
 
-            if (writes && !OperationRoute().IsMatch(template) && !roles.Contains(ProjectRoleEnum.Administrator))
+            // A excecao escrita: so a acao que declara, ela mesma, que e trabalho de membro.
+            var declaredMemberWrite = action.MethodInfo
+                .GetCustomAttributes(typeof(MemberWriteAttribute), inherit: false)
+                .Length > 0;
+
+            if (writes && !OperationRoute().IsMatch(template) && !roles.Contains(ProjectRoleEnum.Administrator)
+                && !declaredMemberWrite)
                 writesWithoutAdministrator.Add($"{action.ControllerName}.{action.ActionName} ({template})");
         }
 
@@ -79,6 +86,6 @@ public static partial class ProjectRoleCoverage
             throw new InvalidOperationException(
                 "Rota de projeto que muda configuracao sem [RequireProjectRole(Administrator)]: " +
                 string.Join(", ", writesWithoutAdministrator) +
-                ". Fora de /reports, toda escrita e de administrador.");
+                ". Fora de /reports, toda escrita e de administrador — ou declara [MemberWrite], com o motivo.");
     }
 }

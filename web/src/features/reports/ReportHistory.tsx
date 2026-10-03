@@ -3,7 +3,7 @@ import type { ReportEventType, ReportHistoryEntryViewModel } from '@/contracts'
 import { projectReportService } from '@/data'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
-import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
+import { formatDateTime, formatDay, formatRelative } from '@/shared/lib/datetime'
 
 /**
  * A linha do tempo do relato.
@@ -129,6 +129,15 @@ const DESCRICOES: Record<ReportEventType, string> = {
   // projeto privado seria a linha afirmando uma coisa que nao aconteceu.
   ReportPublished: 'Liberado para o público',
   ReportModerationRejected: 'Não vai para o público',
+  TeamCardCreated: 'Criou o card',
+  TeamCardEdited: 'Editou o título ou a descrição',
+  CardArchived: 'Arquivou',
+  CardUnarchived: 'Desarquivou',
+  CardTitleChanged: 'Reescreveu o título',
+  CardAssigneeChanged: 'Mudou o responsável',
+  CardPriorityChanged: 'Mudou a prioridade',
+  CardLabelsChanged: 'Mudou as etiquetas',
+  CardDueDateChanged: 'Mudou o prazo',
 }
 
 /**
@@ -139,6 +148,9 @@ const DESCRICOES: Record<ReportEventType, string> = {
  * buraco e pior do que linha do tempo com nome feio.
  */
 function descrever(entrada: ReportHistoryEntryViewModel): string {
+  const campo = descreverCampo(entrada)
+  if (campo !== null) return campo
+
   if (entrada.Type !== 'ReportStateChanged') {
     return DESCRICOES[entrada.Type] ?? entrada.Type
   }
@@ -151,4 +163,35 @@ function descrever(entrada: ReportHistoryEntryViewModel): string {
   return entrada.FromStateName
     ? `Movido de ${entrada.FromStateName} para ${destino}`
     : `Colocado em ${destino}`
+}
+
+/**
+ * As linhas dos campos do card, com o que mudou. A prioridade e as etiquetas vem
+ * com o nome da epoca; quem passou pelo card, com o nome de agora — o evento guarda
+ * so quem e, e nao como se chamava.
+ */
+function descreverCampo(entrada: ReportHistoryEntryViewModel): string | null {
+  switch (entrada.Type) {
+    case 'CardTitleChanged':
+      return entrada.TitleRestored ? 'Tirou o título do time' : 'Reescreveu o título'
+    case 'CardAssigneeChanged':
+      // Nulo e ninguem; o texto vazio e alguem sem nome nem e-mail — que nao pode
+      // virar "ficou sem responsavel".
+      return entrada.To === null
+        ? 'Ficou sem responsável'
+        : `Passou para ${entrada.To || 'alguém sem nome'}`
+    case 'CardPriorityChanged':
+      return entrada.To ? `Prioridade: ${entrada.To}` : 'Ficou sem prioridade'
+    case 'CardDueDateChanged':
+      return entrada.To ? `Prazo: ${formatDay(entrada.To)}` : 'Ficou sem prazo'
+    case 'CardLabelsChanged': {
+      const mudancas = [
+        ...entrada.Added.map((nome) => `+ ${nome}`),
+        ...entrada.Removed.map((nome) => `− ${nome}`),
+      ]
+      return mudancas.length > 0 ? `Etiquetas: ${mudancas.join(', ')}` : 'Mudou as etiquetas'
+    }
+    default:
+      return null
+  }
 }

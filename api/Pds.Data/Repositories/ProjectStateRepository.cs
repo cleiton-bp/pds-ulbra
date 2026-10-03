@@ -57,6 +57,10 @@ public class ProjectStateRepository : BaseRepository<ProjectState, DataContext>,
             .ThenByDescending(state => state.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<int> CountActiveAsync(long projectId, CancellationToken cancellationToken = default)
+        => Context.ProjectStates
+            .CountAsync(state => state.ProjectId == projectId && state.DeactivatedAt == null, cancellationToken);
+
     public async Task<int?> LastPositionAsync(long projectId, CancellationToken cancellationToken = default)
         // MaxAsync direto quebraria na fila vazia, que e justamente o estado de
         // todo projeto ate alguem criar o primeiro.

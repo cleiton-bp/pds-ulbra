@@ -24,6 +24,7 @@ namespace Pds.Domain.ViewModels;
 /// <param name="SuccessMessage">A frase acima do protocolo, na confirmacao.</param>
 /// <param name="ShowsTypeField">Mostra ou esconde o seletor de tipo.</param>
 /// <param name="DefaultReportType">O tipo pre-marcado, e o gravado quando o seletor nao aparece.</param>
+/// <param name="ReportTitleMode">Como a ferramenta pergunta o titulo: opcional, obrigatoria ou escondida.</param>
 /// <param name="AcceptsQuestionsDefault">
 /// Como a caixa "aceito responder duvidas" vem marcada no formulario.
 ///
@@ -78,6 +79,7 @@ public record WidgetSettingsViewModel(
     string SuccessMessage,
     bool ShowsTypeField,
     ReportTypeEnum DefaultReportType,
+    ReportTitleModeEnum ReportTitleMode,
     bool AcceptsQuestionsDefault,
     ReporterIdentityModeEnum IdentityMode,
     ReportVisibilityEnum Visibility,

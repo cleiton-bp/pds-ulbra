@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type CreatedReportViewModel,
+  MAX_CARD_TITLE_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
   MAX_REPORTER_NAME_LENGTH,
   type PublicMediaSettingsViewModel,
@@ -55,6 +56,9 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   // pediu um formulario no meio da tela.
   const [open, setOpen] = useState(!host)
   const [text, setText] = useState('')
+  // A resposta a "em poucas palavras, o que aconteceu?". Vira o titulo do card para
+  // o time, e e o unico titulo que volta para quem relatou.
+  const [title, setTitle] = useState('')
   // **A escolha e dela, e o projeto so decide como a caixa comeca.** Quem relatou
   // um defeito as pressas pode nao querer virar parte da investigacao — e prometer
   // resposta a quem nao vai responder deixa o relato pendurado esperando.
@@ -173,6 +177,11 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
   const style = useMemo(() => accentStyle(settings), [settings])
   const trimmed = text.trim()
+  const perguntaTitulo = settings.ReportTitleMode !== 'Hidden'
+  const tituloAparado = title.trim()
+  // Obrigatoria, sem resposta nao envia — a API recusaria do mesmo jeito, e a
+  // pessoa so descobriria depois de clicar.
+  const faltaTitulo = settings.ReportTitleMode === 'Required' && tituloAparado.length === 0
 
   /**
    * Pede a pagina que capture uma area. **Quem captura e a pagina**: o quadro some,
@@ -218,7 +227,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     // Arquivo ainda entrando na lista nao subiria: o envio leva a lista como ela
     // esta. Ver `preparando` em useAttachmentDraft.
     // Nem com o editor aberto: a imagem que esta nele ainda nao e a que vai.
-    if (!trimmed || sending || draft.preparando || draft.edicao) return
+    if (!trimmed || faltaTitulo || sending || draft.preparando || draft.edicao) return
 
     setSending(true)
     setError(null)
@@ -236,6 +245,9 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       const criado = await reportService.createReport({
         Key: config.key,
         Type: type,
+        // Escondida, a pergunta nao foi feita: nada vai, nem o que ficou de uma
+        // configuracao anterior.
+        Title: perguntaTitulo && tituloAparado.length > 0 ? tituloAparado : null,
         Text: trimmed,
         Route: config.route,
         Origin: config.origin,
@@ -303,6 +315,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
     setCreated(null)
     setText('')
+    setTitle('')
     setError(null)
     setSending(false)
     setType(settings.DefaultReportType)
@@ -558,6 +571,30 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
         </fieldset>
       )}
 
+      {/* Antes do texto: e a pergunta curta, e quem responde ja pensou no que vai
+          contar. Numa linha so — titulo nao e paragrafo. */}
+      {perguntaTitulo && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-detail text-fg-muted">
+            Em poucas palavras, o que aconteceu?
+            {settings.ReportTitleMode === 'Optional' && ' (opcional)'}
+          </span>
+          <input
+            type="text"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter numa linha so enviaria o formulario pela metade, sem o texto.
+              if (event.key === 'Enter') event.preventDefault()
+            }}
+            maxLength={MAX_CARD_TITLE_LENGTH}
+            required={settings.ReportTitleMode === 'Required'}
+            placeholder="O botão de pagar não responde"
+            className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder"
+          />
+        </label>
+      )}
+
       <textarea
         value={text}
         onChange={(event) => setText(event.target.value)}
@@ -694,7 +731,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       */}
       <button
         type="submit"
-        disabled={!trimmed || sending || draft.preparando}
+        disabled={!trimmed || faltaTitulo || sending || draft.preparando}
         className={cn(
           'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg',
           'border border-transparent font-medium text-body transition-opacity',
