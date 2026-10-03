@@ -71,4 +71,16 @@ public static class CycleSettingsDefaults
     /// do projeto, e nao o padrao.
     /// </summary>
     public const bool AllowsReportArchiving = false;
+
+    /// <summary>
+    /// Duas semanas, como nos quadros Kanban: tempo para o time ver o que acabou
+    /// de terminar, sem a ultima coluna virar arquivo.
+    /// </summary>
+    public const int LastColumnVisibleDays = 14;
+
+    /// <summary>
+    /// Dois dias: ainda da tempo de fazer alguma coisa, e o destaque nao pinta o
+    /// quadro inteiro.
+    /// </summary>
+    public const int DueSoonDays = 2;
 }

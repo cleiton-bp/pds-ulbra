@@ -206,6 +206,10 @@ public partial class ReportService : IReportService
         var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, cancellationToken);
         var protocolo = await GenerateTrackingCodeAsync(cancellationToken);
 
+        // O lugar no quadro vem junto do numero, e pelo mesmo motivo: o relato novo
+        // entra no topo da coluna, acima de tudo, sem ninguem ler a coluna.
+        var topo = await _unitOfWork.Projects.NextTopRankAsync(project.Id, cancellationToken);
+
         var report = new Report
         {
             Kind = CardKindEnum.Report,
@@ -221,6 +225,8 @@ public partial class ReportService : IReportService
             Route = SanitizeRoute(dto.Route),
             Origin = Trim(dto.Origin, 260),
             ProjectStateId = landingStateId,
+            BoardRank = topo,
+            StateChangedAt = DateTime.UtcNow,
             AcceptsQuestions = aceitaDuvidas,
             ReporterName = Trim(dto.ReporterName, Report.MaxReporterNameLength),
             // **Sem nome, assinar nao faz nada.** Gravar o sim isolado deixaria o
@@ -463,6 +469,10 @@ public partial class ReportService : IReportService
             report.ProjectState = destino;
         }
 
+        // Volta no topo da coluna, mude de coluna ou nao, como todo card que chega sem
+        // ser arrastado: o relato reaberto e o que o time precisa ver primeiro.
+        await PutOnTopAsync(report, cancellationToken);
+
         // E a jornada publica volta junto. Projeto sem coluna ativa nenhuma nao tem
         // para onde voltar, e ai o relato reabre sem sair do lugar — o fechamento
         // deixou de valer, que e o que a pessoa pediu.
@@ -493,11 +503,13 @@ public partial class ReportService : IReportService
     /// encerrado junto, com o motivo, e ela pode reabrir. Reabrir e ela dizendo que
     /// ainda nao acabou — e isso nao pode cair num lugar que o time nao olha. A
     /// origem <c>public_page</c> diz no historico que quem trouxe de volta foi ela.</para>
+    ///
+    /// <para>Devolve se desarquivou.</para>
     /// </summary>
-    private async Task UnarchiveFromOutsideAsync(Report report, string motivo, CancellationToken cancellationToken)
+    private async Task<bool> UnarchiveFromOutsideAsync(Report report, string motivo, CancellationToken cancellationToken)
     {
         if (report.ArchivedAt is null)
-            return;
+            return false;
 
         report.ArchivedAt = null;
 
@@ -510,6 +522,19 @@ public partial class ReportService : IReportService
             Source = EventSourceEnum.PublicPage,
             Payload = JsonSerializer.Serialize(new { because = motivo }),
         }, cancellationToken);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Poe o card no topo da coluna em que ele fica, como todo card que chega sem ser
+    /// arrastado, e conta a chegada como a entrada dele na coluna — a ultima coluna do
+    /// quadro nao esconde o que acabou de voltar.
+    /// </summary>
+    private async Task PutOnTopAsync(Report report, CancellationToken cancellationToken)
+    {
+        report.BoardRank = await _unitOfWork.Projects.NextTopRankAsync(report.ProjectId, cancellationToken);
+        report.StateChangedAt = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -755,7 +780,8 @@ public partial class ReportService : IReportService
 
         return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false,
             await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
-            await TeamIdsForAsync([report], cancellationToken));
+            await TeamIdsForAsync([report], cancellationToken),
+            await FaceOfAsync(report, cancellationToken));
     }
 
     public async Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default)
@@ -799,7 +825,9 @@ public partial class ReportService : IReportService
             Payload = JsonSerializer.Serialize(new { body_length = texto.Length }),
         }, cancellationToken);
 
-        await UnarchiveFromOutsideAsync(report, "replied", cancellationToken);
+        // Desarquivado pela resposta dela, volta ao quadro pelo topo, como o reaberto.
+        if (await UnarchiveFromOutsideAsync(report, "replied", cancellationToken))
+            await PutOnTopAsync(report, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
@@ -912,29 +940,102 @@ public partial class ReportService : IReportService
             : new ReportInfoRequestViewModel(
                 request.AskedByUser?.Name, request.AskedAt, request.WarnAt, request.CloseAt);
 
-    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, CancellationToken cancellationToken = default)
+    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+        var ordem = ResolveOrder(order);
         var filter = await ResolveStateFilterAsync(project.Id, state, cancellationToken);
+        var depois = after is Guid referencia
+            ? await ResolveAfterAsync(project.Id, referencia, filter, archived, ordem, cancellationToken)
+            : (BoardSpot?)null;
+        var desde = await LastColumnWindowAsync(project.Id, filter, archived, ordem, cancellationToken);
 
         var size = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
         var current = Math.Max(page, 1);
 
-        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, filter, archived, cancellationToken);
+        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, filter, archived, desde, cancellationToken);
 
         // Em long porque o produto estoura o int muito antes de estourar a tabela:
         // pagina 200 milhoes vezes 20 nao existe como pergunta, mas chega como
         // numero, e em int ele volta negativo e a consulta quebra em vez de
         // responder "acabou".
-        var skip = (long)(current - 1) * size;
+        //
+        // Depois de um card, a pagina e a primeira que vem depois dele.
+        var skip = depois is null ? (long)(current - 1) * size : 0;
 
         if (skip >= total)
             return new ReportPageViewModel([], total);
 
-        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, (int)skip, size, cancellationToken);
+        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cancellationToken);
 
         var time = await TeamIdsForAsync(reports, cancellationToken);
-        return new ReportPageViewModel(reports.Select(report => Map(report, time)).ToList(), total);
+        var faces = await _unitOfWork.Reports.CountFacesAsync(reports.Select(report => report.Id).ToList(), cancellationToken);
+
+        return new ReportPageViewModel(
+            reports.Select(report => Map(report, time, faces.GetValueOrDefault(report.Id, CardFace.Empty))).ToList(),
+            total);
+    }
+
+    /// <summary>
+    /// O card depois do qual o "Mostrar mais" do quadro continua.
+    ///
+    /// <para><b>So na ordem do quadro, e numa coluna.</b> E a continuacao pelo lugar
+    /// na coluna, e nao pelo numero da pagina: o card que sai de cima, ou chega ao
+    /// topo, muda as paginas, e a seguinte pularia um card ou repetiria outro. O card
+    /// que ja saiu da coluna — movido ou arquivado — da 409, e a tela le a coluna de
+    /// novo.</para>
+    /// </summary>
+    private async Task<BoardSpot> ResolveAfterAsync(long projectId, Guid after, ReportStateFilter filter, bool archived, ReportListOrder ordem, CancellationToken cancellationToken)
+    {
+        if (ordem != ReportListOrder.Board || !filter.Restricted)
+            throw new ArgumentException("O after so vale na ordem do quadro (order=board) e numa coluna (state).");
+
+        var ancora = await _unitOfWork.Reports.FindBoardSpotAsync(projectId, after, cancellationToken)
+                     ?? throw new KeyNotFoundException("O card de referencia nao foi encontrado neste projeto.");
+
+        if (ancora.StateId != filter.StateId || ancora.Archived != archived)
+            throw new ConflictException("O card de referencia nao esta mais nesta coluna. Leia a coluna de novo.");
+
+        return ancora;
+    }
+
+    /// <summary>A ordem pedida: <c>recent</c> (o padrao) ou <c>board</c>.</summary>
+    private static ReportListOrder ResolveOrder(string? order)
+        => order?.Trim().ToLowerInvariant() switch
+        {
+            null or "" or "recent" => ReportListOrder.Recent,
+            "board" => ReportListOrder.Board,
+            _ => throw new ArgumentException("Ordem desconhecida. Use recent ou board."),
+        };
+
+    /// <summary>
+    /// A regra da ultima coluna do quadro: de quando para ca ela mostra.
+    ///
+    /// <para><b>So no quadro, e so na ultima coluna ativa.</b> A lista continua
+    /// mostrando tudo — e para onde vai quem procura o encerrado de meses atras —, e
+    /// as outras colunas nao acumulam: o trabalho passa por elas. Nulo quando a
+    /// regra nao vale aqui, ou quando o projeto escolheu mostrar todos.</para>
+    ///
+    /// <para><b>Com uma coluna so, a regra nao vale.</b> Todo projeto nasce assim, e
+    /// ai a unica coluna e a entrada da fila, e nao onde o trabalho termina: esconder
+    /// o que chegou ha mais tempo seria esconder o relato que ninguem olhou.</para>
+    /// </summary>
+    private async Task<DateTime?> LastColumnWindowAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder ordem, CancellationToken cancellationToken)
+    {
+        if (ordem != ReportListOrder.Board || archived || filter is not { Restricted: true, StateId: long estadoId })
+            return null;
+
+        var ultima = await _unitOfWork.ProjectStates.LastActiveAsync(projectId, cancellationToken);
+        if (ultima?.Id != estadoId)
+            return null;
+
+        if (await _unitOfWork.ProjectStates.CountActiveAsync(projectId, cancellationToken) < 2)
+            return null;
+
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(projectId, cancellationToken);
+        var dias = regras?.LastColumnVisibleDays ?? CycleSettingsDefaults.LastColumnVisibleDays;
+
+        return dias > 0 ? DateTime.UtcNow.AddDays(-dias) : null;
     }
 
     // ─── Card do time ─────────────────────────────────────────────────────────
@@ -956,6 +1057,9 @@ public partial class ReportService : IReportService
         // seria um buraco a toa.
         var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, cancellationToken);
 
+        // No topo da coluna, como o relato que chega.
+        var topo = await _unitOfWork.Projects.NextTopRankAsync(project.Id, cancellationToken);
+
         var card = new Report
         {
             Kind = CardKindEnum.Team,
@@ -966,6 +1070,8 @@ public partial class ReportService : IReportService
             Description = descricao,
             ProjectStateId = estado?.Id,
             ProjectState = estado,
+            BoardRank = topo,
+            StateChangedAt = DateTime.UtcNow,
             CreatedByUserId = autorId,
             // O banco so aceita card do time pendente: e o que o mantem fora da
             // lista publica mesmo que alguem esqueca o filtro numa consulta.
@@ -999,7 +1105,8 @@ public partial class ReportService : IReportService
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
         return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
-            await TeamIdsForAsync([card], cancellationToken));
+            await TeamIdsForAsync([card], cancellationToken),
+            await FaceOfAsync(card, cancellationToken));
     }
 
     public async Task<ReportDetailViewModel> EditTeamCardAsync(Guid projectPublicId, Guid reportPublicId, EditTeamCardDto dto, CancellationToken cancellationToken = default)
@@ -1053,7 +1160,8 @@ public partial class ReportService : IReportService
         }
 
         return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
-            await TeamIdsForAsync([card], cancellationToken));
+            await TeamIdsForAsync([card], cancellationToken),
+            await FaceOfAsync(card, cancellationToken));
     }
 
     public async Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default)
@@ -1139,14 +1247,16 @@ public partial class ReportService : IReportService
     {
         if (report.Kind == CardKindEnum.Team)
             return Detail(report, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
-            await TeamIdsForAsync([report], cancellationToken));
+            await TeamIdsForAsync([report], cancellationToken),
+            await FaceOfAsync(report, cancellationToken));
 
         var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
         var pedido = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
 
         return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), CanAskInfo(report, regras, fechamento, pedido),
             await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
-            await TeamIdsForAsync([report], cancellationToken));
+            await TeamIdsForAsync([report], cancellationToken),
+            await FaceOfAsync(report, cancellationToken));
     }
 
     /// <summary>
@@ -1259,7 +1369,7 @@ public partial class ReportService : IReportService
         // assim mesmo encheria o historico de linhas que nao dizem nada, e a
         // contagem da pesquisa passaria a medir cliques em vez de movimentos.
         if (report.ProjectStateId == destino.Id)
-            return Map(report, await TeamIdsForAsync([report], cancellationToken));
+            return Map(report, await TeamIdsForAsync([report], cancellationToken), await FaceOfAsync(report, cancellationToken));
 
         // **A conferencia do encerramento vem antes de qualquer gravacao.** Ela nao
         // depende da traducao — quem encerra e a coluna de dentro, e nao a etapa
@@ -1337,6 +1447,7 @@ public partial class ReportService : IReportService
         // arquivamento, lidos antes de outra pessoa mudar.
         report.ProjectStateId = destino.Id;
         report.ProjectState = destino;
+        report.StateChangedAt = DateTime.UtcNow;
 
         // **A espera decide se a jornada anda agora ou depois.** Zero e o
         // comportamento de sempre: a traducao acontece junto do movimento. Acima de
@@ -1403,7 +1514,9 @@ public partial class ReportService : IReportService
             await CancelClosureAsync(project, report, cancellationToken);
         }
 
-        await _unitOfWork.CommitAsync(cancellationToken);
+        // O lugar na coluna nova entra na mesma gravacao: logo abaixo do card que o
+        // quadro mandou, ou no topo.
+        await SaveInPlaceAsync(project.Id, report, destino.Id, dto.AfterPublicId, cancellationToken);
 
         // **Depois da gravacao, sempre.** O vencimento esta numa coluna do relato;
         // publicar antes do commit deixaria quem consome chegar antes de a linha
@@ -1428,8 +1541,115 @@ public partial class ReportService : IReportService
             }
         }
 
-        return Map(report, await TeamIdsForAsync([report], cancellationToken));
+        return Map(report, await TeamIdsForAsync([report], cancellationToken), await FaceOfAsync(report, cancellationToken));
     }
+
+    public async Task<ReportSummaryViewModel> SetPositionAsync(Guid projectPublicId, Guid reportPublicId, SetCardPositionDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+                     ?? throw new KeyNotFoundException("Card nao encontrado.");
+
+        // O arquivado esta fora do quadro: muda-lo de lugar seria arrumar o que
+        // ninguem ve.
+        EnsureNotArchived(report, "muda-lo de lugar no quadro");
+
+        // Sem evento, de proposito: ver a interface. Na mesma coluna em que esta —
+        // trocar de coluna e mover, e mover tem a sua rota. Com a ordem travada, o card
+        // e relido: outra pessoa pode te-lo movido ou arquivado depois da leitura de
+        // cima, e o lugar seria contado numa coluna em que ele ja nao esta.
+        await _unitOfWork.InTransactionAsync(async ct =>
+        {
+            await _unitOfWork.Reports.LockBoardAsync(project.Id, ct);
+
+            var aqui = await _unitOfWork.Reports.FindBoardSpotAsync(project.Id, report.PublicId, ct)
+                       ?? throw new KeyNotFoundException("Card nao encontrado.");
+            if (aqui.StateId != report.ProjectStateId || aqui.Archived)
+                throw new ConflictException("O card mudou de coluna ou saiu do quadro. Atualize o quadro e solte de novo.");
+
+            report.BoardRank = dto.AfterPublicId is Guid acima
+                ? await RankBelowAsync(project.Id, report.ProjectStateId, acima, report.Id, ct)
+                : await _unitOfWork.Projects.NextTopRankAsync(project.Id, ct);
+            await _unitOfWork.CommitAsync(ct);
+            return true;
+        }, cancellationToken);
+
+        return Map(report, await TeamIdsForAsync([report], cancellationToken), await FaceOfAsync(report, cancellationToken));
+    }
+
+    /// <summary>
+    /// Grava o que esta pendente com o card no lugar pedido da coluna: logo abaixo de
+    /// <paramref name="afterPublicId"/>, ou no topo.
+    ///
+    /// <para><b>O topo nao trava nada</b>: vem do contador do projeto, que ja fica
+    /// acima de tudo. <b>Entre dois trava a ordem do quadro</b>, porque precisa ler
+    /// os vizinhos — e a leitura, a conta e a gravacao vao juntas.</para>
+    /// </summary>
+    private async Task SaveInPlaceAsync(long projectId, Report report, long? stateId, Guid? afterPublicId, CancellationToken cancellationToken)
+    {
+        if (afterPublicId is not Guid acima)
+        {
+            report.BoardRank = await _unitOfWork.Projects.NextTopRankAsync(projectId, cancellationToken);
+            await _unitOfWork.CommitAsync(cancellationToken);
+            return;
+        }
+
+        await _unitOfWork.InTransactionAsync(async ct =>
+        {
+            await _unitOfWork.Reports.LockBoardAsync(projectId, ct);
+            report.BoardRank = await RankBelowAsync(projectId, stateId, acima, report.Id, ct);
+            await _unitOfWork.CommitAsync(ct);
+            return true;
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// O lugar logo abaixo do card de referencia: o meio entre ele e o vizinho de
+    /// baixo, ou uma folga abaixo dele quando nao ha vizinho. Sem folga no meio, a
+    /// coluna e renumerada e a conta e refeita.
+    ///
+    /// <para><b>A referencia precisa estar na coluna, e no quadro.</b> A tela que
+    /// mandou pode estar velha — outra pessoa moveu ou arquivou o card de cima — e
+    /// por o card ao lado de um que ja nao esta ali o deixaria num lugar que ninguem
+    /// escolheu.</para>
+    /// </summary>
+    private async Task<long> RankBelowAsync(long projectId, long? stateId, Guid acima, long movingId, CancellationToken cancellationToken)
+    {
+        var referencia = await _unitOfWork.Reports.FindBoardSpotAsync(projectId, acima, cancellationToken)
+                         ?? throw new KeyNotFoundException("O card de referencia nao foi encontrado neste projeto.");
+
+        if (referencia.Id == movingId)
+            throw new ArgumentException("O card nao fica abaixo dele mesmo.");
+
+        if (referencia.StateId != stateId || referencia.Archived)
+            throw new ConflictException("O card de referencia nao esta mais nesta coluna. Atualize o quadro e solte de novo.");
+
+        var abaixo = await _unitOfWork.Reports.FindRankBelowAsync(projectId, stateId, referencia.Rank, referencia.Id, movingId, cancellationToken);
+
+        if (abaixo is null)
+            return referencia.Rank + Report.BoardRankGap;
+
+        if (abaixo.Value - referencia.Rank >= 2)
+            return referencia.Rank + (abaixo.Value - referencia.Rank) / 2;
+
+        // Sem folga: a coluna ganha a folga inteira de novo, na ordem em que esta, e
+        // a conta e refeita com os lugares novos.
+        await _unitOfWork.Reports.RenumberColumnAsync(projectId, stateId, movingId, cancellationToken);
+
+        referencia = await _unitOfWork.Reports.FindBoardSpotAsync(projectId, acima, cancellationToken)
+                     ?? throw new KeyNotFoundException("O card de referencia nao foi encontrado neste projeto.");
+        abaixo = await _unitOfWork.Reports.FindRankBelowAsync(projectId, stateId, referencia.Rank, referencia.Id, movingId, cancellationToken);
+
+        return abaixo is long vizinho
+            ? referencia.Rank + (vizinho - referencia.Rank) / 2
+            : referencia.Rank + Report.BoardRankGap;
+    }
+
+    /// <summary>Os numeros da frente de um card so.</summary>
+    private async Task<CardFace> FaceOfAsync(Report report, CancellationToken cancellationToken)
+        => (await _unitOfWork.Reports.CountFacesAsync([report.Id], cancellationToken))
+            .GetValueOrDefault(report.Id, CardFace.Empty);
 
     /// <summary>
     /// Encerra o relato por um botao, e nao por um movimento.
@@ -1495,7 +1715,8 @@ public partial class ReportService : IReportService
         // fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
         return Detail(report, ClosureOf(fechamento), null, canAskInfo: false,
             await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
-            await TeamIdsForAsync([report], cancellationToken));
+            await TeamIdsForAsync([report], cancellationToken),
+            await FaceOfAsync(report, cancellationToken));
     }
 
     /// <summary>
@@ -2388,7 +2609,8 @@ public partial class ReportService : IReportService
 
         return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), CanAskInfo(report, regras, fechamento, pedido),
             reaberturas, AllowsReportArchiving(regras),
-            await TeamIdsForAsync([report], cancellationToken));
+            await TeamIdsForAsync([report], cancellationToken),
+            await FaceOfAsync(report, cancellationToken));
     }
 
     /// <summary>
@@ -2411,7 +2633,8 @@ public partial class ReportService : IReportService
         bool canAskInfo,
         IReadOnlyList<ReportReopeningViewModel> reopenings,
         bool allowsReportArchiving,
-        IReadOnlySet<long> team) => new(
+        IReadOnlySet<long> team,
+        CardFace face) => new(
         report.PublicId,
         report.Kind,
         report.Number,
@@ -2450,7 +2673,10 @@ public partial class ReportService : IReportService
         AssigneeOf(report, team),
         PriorityOf(report),
         LabelsOf(report),
-        report.DueDate);
+        report.DueDate,
+        face.Comments,
+        face.Attachments,
+        face.Closed);
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2541,7 +2767,7 @@ public partial class ReportService : IReportService
 
     /// <param name="report">O card.</param>
     /// <param name="team">Quem esta no time agora, para marcar o responsavel que saiu.</param>
-    private static ReportSummaryViewModel Map(Report report, IReadOnlySet<long> team) => new(
+    private static ReportSummaryViewModel Map(Report report, IReadOnlySet<long> team, CardFace face) => new(
         report.PublicId,
         report.Kind,
         report.Number,
@@ -2562,7 +2788,10 @@ public partial class ReportService : IReportService
         AssigneeOf(report, team),
         PriorityOf(report),
         LabelsOf(report),
-        report.DueDate);
+        report.DueDate,
+        face.Comments,
+        face.Attachments,
+        face.Closed);
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem

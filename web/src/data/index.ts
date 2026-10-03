@@ -73,7 +73,11 @@ export type { ProjectOriginService } from '@/data/projectOriginService'
 export type { ProjectPriorityService } from '@/data/projectPriorityService'
 export type { ProjectPublicStageService } from '@/data/projectPublicStageService'
 export type { ProjectReportAttachmentService } from '@/data/projectReportAttachmentService'
-export type { ProjectReportService, ReportPage } from '@/data/projectReportService'
+export type {
+  ProjectReportService,
+  ReportListOptions,
+  ReportPage,
+} from '@/data/projectReportService'
 export type { ProjectService } from '@/data/projectService'
 export type { ProjectStateService } from '@/data/projectStateService'
 export type { ProjectStatusMappingService } from '@/data/projectStatusMappingService'

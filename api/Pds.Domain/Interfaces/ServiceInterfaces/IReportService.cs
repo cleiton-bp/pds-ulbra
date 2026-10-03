@@ -110,9 +110,13 @@ public interface IReportService
     /// em vez de recusados — pedir a pagina zero e engano de quem chama, e nao
     /// motivo para a tela ficar sem lista.</para>
     ///
-    /// <para><paramref name="archived"/> verdadeiro troca a lista pelos arquivados.</para>
+    /// <para><paramref name="archived"/> verdadeiro troca a lista pelos arquivados.
+    /// <paramref name="order"/> <c>board</c> devolve a coluna na ordem do quadro, e na
+    /// ultima coluna ativa so o que entrou nela nos dias que o projeto escolheu.
+    /// <paramref name="after"/>, na ordem do quadro e numa coluna, continua a leitura
+    /// logo depois daquele card, e a pagina deixa de valer.</para>
     /// </summary>
-    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, CancellationToken cancellationToken = default);
+    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Cria um card do time: titulo, descricao em Markdown e o estado em que nasce.
@@ -203,6 +207,16 @@ public interface IReportService
     /// "Testando" para "Corrigindo" e o caso mais comum de todos.</para>
     /// </summary>
     Task<ReportSummaryViewModel> MoveAsync(Guid projectPublicId, Guid reportPublicId, MoveReportDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Muda o card de lugar na propria coluna do quadro: logo abaixo de outro card,
+    /// ou no topo.
+    ///
+    /// <para><b>Nao e evento.</b> Arrumar a coluna nao muda o card — nem a coluna,
+    /// nem o que quem relatou ve —, e uma linha na historia por arrumacao enterraria
+    /// o que aconteceu de verdade.</para>
+    /// </summary>
+    Task<ReportSummaryViewModel> SetPositionAsync(Guid projectPublicId, Guid reportPublicId, SetCardPositionDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Tudo que aconteceu com o relato, em ordem, <b>montado a partir dos

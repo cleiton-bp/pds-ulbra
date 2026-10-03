@@ -74,4 +74,18 @@ public class CycleSettingsDto
     /// </summary>
     /// <example>false</example>
     public bool? AllowsReportArchiving { get; set; }
+
+    /// <summary>
+    /// Quantos dias a ultima coluna do quadro mostra; o card que entrou nela ha mais
+    /// tempo continua na lista. Zero mostra todos. Ate 365.
+    /// </summary>
+    /// <example>14</example>
+    public int? LastColumnVisibleDays { get; set; }
+
+    /// <summary>
+    /// Faltando ate quantos dias o prazo do card fica em destaque. Zero: so no
+    /// proprio dia. Ate 30.
+    /// </summary>
+    /// <example>2</example>
+    public int? DueSoonDays { get; set; }
 }

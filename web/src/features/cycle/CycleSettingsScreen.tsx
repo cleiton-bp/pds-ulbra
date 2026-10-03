@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ClosureTrigger, CycleSettingsViewModel, SatisfactionStyle } from '@/contracts'
-import { MAX_INFO_REQUEST_DAYS, MAX_PUBLIC_DELAY_MINUTES } from '@/contracts'
+import {
+  MAX_DUE_SOON_DAYS,
+  MAX_INFO_REQUEST_DAYS,
+  MAX_LAST_COLUMN_VISIBLE_DAYS,
+  MAX_PUBLIC_DELAY_MINUTES,
+} from '@/contracts'
 import { describeError, projectCycleSettingsService, projectStateService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
@@ -13,15 +18,15 @@ import { cn } from '@/shared/lib/cn'
 /**
  * Como o ciclo fecha neste projeto.
  *
- * **A tela nasce com um campo, e vai crescer.** As treze regras do ciclo ja
+ * **A tela mostra o que o produto ja sabe obedecer.** Todas as regras do ciclo
  * existem no banco e viajam inteiras a cada salvamento, mas so aparece aqui o que
- * o produto ja sabe obedecer — desenhar um controle que nao muda nada seria pior
- * do que nao ter o controle.
+ * muda alguma coisa — desenhar um controle que nao muda nada seria pior do que nao
+ * ter o controle.
  *
- * **O rascunho manda de volta o que recebeu.** O salvamento substitui as treze
- * regras de uma vez; uma tela que mandasse so o campo visivel apagaria as outras
- * doze. E e por isso que `saved` nunca e descartado: ele e a base de tudo que nao
- * esta na tela.
+ * **O rascunho manda de volta o que recebeu.** O salvamento substitui todas as
+ * regras de uma vez; uma tela que mandasse so os campos visiveis apagaria as
+ * outras. E e por isso que `saved` nunca e descartado: ele e a base de tudo que
+ * nao esta na tela.
  */
 
 /**
@@ -68,7 +73,7 @@ export function CycleSettingsScreen() {
     setDraft(saved)
   }, [saved])
 
-  // Compara so o que a tela mexe. Comparar as treze diria "há mudança" para uma
+  // Compara so o que a tela mexe. Comparar todas diria "há mudança" para uma
   // diferença que ninguém pode ter feito, porque não há controle para ela.
   const CAMPOS_NA_TELA = [
     'ClosureTrigger',
@@ -84,6 +89,8 @@ export function CycleSettingsScreen() {
     'InfoRequestWarnDays',
     'InfoRequestCloseDays',
     'AllowsReportArchiving',
+    'LastColumnVisibleDays',
+    'DueSoonDays',
   ] as const
 
   const dirty =
@@ -112,8 +119,8 @@ export function CycleSettingsScreen() {
     <div className="max-w-170">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Ciclo</h1>
       <p className="mb-6 text-body text-fg-muted leading-relaxed">
-        O que acontece quando o trabalho acaba: como o relato encerra, e o que quem escreveu lê
-        sobre isso.
+        O que acontece quando o trabalho acaba: como o relato encerra, o que quem escreveu lê sobre
+        isso, e como o quadro mostra o que terminou e o prazo que está perto.
       </p>
 
       {failed && (
@@ -335,6 +342,43 @@ export function CycleSettingsScreen() {
             aoTrocar={(valor) => setDraft({ ...draft, AllowsReportArchiving: valor })}
           />
 
+          <h2 className="mt-8 mb-1 font-medium text-fg text-lead">No quadro</h2>
+          <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+            A última coluna só cresce — é onde o trabalho termina. Como nos quadros Kanban, ela
+            mostra só o que entrou nela há pouco tempo;{' '}
+            <strong className="font-medium text-fg">o resto continua na lista</strong> da tela de
+            Trabalho, e nada sai do projeto. Com uma coluna só, a regra não vale: ali ainda é a
+            entrada da fila.
+          </p>
+
+          <Dias
+            id="ultima-coluna"
+            rotulo="A última coluna mostra o que entrou nela nos últimos"
+            minimo={0}
+            maximo={MAX_LAST_COLUMN_VISIBLE_DAYS}
+            valor={draft.LastColumnVisibleDays}
+            aoTrocar={(valor) => setDraft({ ...draft, LastColumnVisibleDays: valor })}
+            explicacao={
+              draft.LastColumnVisibleDays === 0
+                ? 'Zero: mostra todos, por mais antigos que sejam.'
+                : 'O card que entrou nela antes disso sai do quadro e continua na lista.'
+            }
+          />
+
+          <Dias
+            id="prazo-perto"
+            rotulo="O prazo fica em destaque faltando"
+            minimo={0}
+            maximo={MAX_DUE_SOON_DAYS}
+            valor={draft.DueSoonDays}
+            aoTrocar={(valor) => setDraft({ ...draft, DueSoonDays: valor })}
+            explicacao={
+              draft.DueSoonDays === 0
+                ? 'Zero: só no próprio dia, em amarelo. O vencido aparece sempre, em vermelho.'
+                : 'Em amarelo, no quadro e na lista. O vencido aparece sempre, em vermelho.'
+            }
+          />
+
           <div className="mt-8">
             <Button variant="primary" disabled={!dirty || saving} onClick={salvar}>
               {saving ? 'Salvando…' : 'Salvar'}
@@ -379,9 +423,10 @@ export function CycleSettingsScreen() {
 /**
  * Um prazo em dias.
  *
- * Mesmo `number` de verdade da espera, e pelo mesmo motivo: teclado numérico no
- * telefone, setas funcionando, e letra recusada pelo navegador. O mínimo é **1** —
- * prazo zero encerraria o relato no mesmo instante em que a pergunta saiu.
+ * Mesmo `number` de verdade da espera, e pelo mesmo motivo: teclado numerico no
+ * telefone, setas funcionando, e letra recusada pelo navegador. O minimo e **1** nos
+ * prazos do pedido de informacao — prazo zero encerraria o relato no mesmo instante
+ * em que a pergunta saiu. Nas regras do quadro, zero quer dizer alguma coisa.
  */
 function Dias({
   id,
@@ -389,12 +434,16 @@ function Dias({
   valor,
   explicacao,
   aoTrocar,
+  minimo = 1,
+  maximo = MAX_INFO_REQUEST_DAYS,
 }: {
   id: string
   rotulo: string
   valor: number
   explicacao: string
   aoTrocar: (valor: number) => void
+  minimo?: number
+  maximo?: number
 }) {
   return (
     <div className="mb-3">
@@ -405,13 +454,16 @@ function Dias({
         <input
           id={id}
           type="number"
-          min={1}
-          max={MAX_INFO_REQUEST_DAYS}
+          min={minimo}
+          max={maximo}
           value={valor}
-          // Campo vazio vira 1, e não `NaN`: apagar tudo para digitar outro número
-          // é o gesto comum, e `NaN` quebraria a comparação que decide se há o que
-          // salvar. Um, e não zero, porque zero não é um prazo.
-          onChange={(evento) => aoTrocar(Number.parseInt(evento.target.value, 10) || 1)}
+          // Campo vazio vira o minimo, e nao `NaN`: apagar tudo para digitar outro
+          // numero e o gesto comum, e `NaN` quebraria a comparacao que decide se ha o
+          // que salvar. E abaixo do minimo tambem — nos prazos, zero nao e um prazo.
+          onChange={(evento) => {
+            const numero = Number.parseInt(evento.target.value, 10)
+            aoTrocar(Number.isNaN(numero) ? minimo : Math.max(minimo, numero))
+          }}
           className="h-9 w-28 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg"
         />
         <span className="text-detail text-fg-muted">dias</span>

@@ -22,7 +22,13 @@ const EMPTY: InboxState = { reports: null, total: 0, failed: false, loadingMore:
  * cancelar a anterior, e sem ele a resposta do projeto que a pessoa acabou de
  * deixar chega depois e pinta relato de um projeto no endereco de outro.
  */
-export function useReportInbox(publicId: string, stateFilter?: string | null, archived = false) {
+export function useReportInbox(
+  publicId: string,
+  stateFilter?: string | null,
+  archived = false,
+  /** Fora da vista da lista, nada e lido — e, ao voltar para ela, a lista e lida de novo. */
+  enabled = true,
+) {
   const [state, setState] = useState<InboxState>(EMPTY)
 
   const generation = useRef(0)
@@ -51,8 +57,8 @@ export function useReportInbox(publicId: string, stateFilter?: string | null, ar
   }, [publicId, stateFilter, archived])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    if (enabled) void load()
+  }, [load, enabled])
 
   const loadMore = useCallback(async () => {
     const minha = generation.current

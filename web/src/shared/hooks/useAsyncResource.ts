@@ -36,6 +36,21 @@ export interface AsyncResource<T> {
    * iguais quantas galerias houvesse na tela.
    */
   refresh: () => void
+  /**
+   * Busca de novo **sem tirar o que esta na tela, e sem aproveitar a busca a
+   * caminho**: e o de depois de uma mudanca, quando a resposta pedida antes dela ja
+   * nasce velha.
+   *
+   * E o das contagens da tela de Trabalho depois de mover um card. Com o `reload`, a
+   * contagem passava pelo vazio a cada movimento, e o quadro saia da tela e voltava
+   * lido do zero — sem o "Mostrar mais", sem a rolagem e sem o foco de quem estava
+   * nele. Com o `refresh`, dois movimentos seguidos ficavam com a resposta do
+   * primeiro.
+   *
+   * A falha e a do `refresh`: a passageira guarda o que estava, e a definitiva vira
+   * falha.
+   */
+  revalidate: () => void
 }
 
 export function useAsyncResource<T>(load: () => Promise<T>): AsyncResource<T> {
@@ -89,37 +104,50 @@ export function useAsyncResource<T>(load: () => Promise<T>): AsyncResource<T> {
     void run()
   }, [run])
 
+  // A resposta de quem busca sem tirar o que esta na tela: o refresh e o revalidate.
+  const porTras = useCallback(
+    (id: number) => ({
+      chegou: (loaded: T) => {
+        if (id !== requestId.current) return
+        setData(loaded)
+        setFailed(false)
+        temDado.current = true
+      },
+      falhou: (error: unknown) => {
+        if (id !== requestId.current) return
+
+        // Passageira: o que esta na tela continua. E melhor um endereco que talvez
+        // ainda sirva do que uma lista que some.
+        if (!isDefinitiveError(error) && temDado.current) return
+
+        setData(null)
+        setFailed(true)
+        temDado.current = false
+      },
+    }),
+    [],
+  )
+
   const refresh = useCallback(() => {
     // A que esta a caminho ainda e a mais nova: a resposta dela serve.
     if (renovando.current !== null && renovando.current === requestId.current) return
 
     const id = ++requestId.current
     renovando.current = id
+    const { chegou, falhou } = porTras(id)
 
     void load()
       .finally(() => {
         if (renovando.current === id) renovando.current = null
       })
-      .then(
-        (loaded) => {
-          if (id !== requestId.current) return
-          setData(loaded)
-          setFailed(false)
-          temDado.current = true
-        },
-        (error) => {
-          if (id !== requestId.current) return
+      .then(chegou, falhou)
+  }, [load, porTras])
 
-          // Passageira: o que esta na tela continua. E melhor um endereco que talvez
-          // ainda sirva do que uma lista que some.
-          if (!isDefinitiveError(error) && temDado.current) return
+  const revalidate = useCallback(() => {
+    // Numero novo: a busca a caminho, de antes da mudanca, perde a vez.
+    const { chegou, falhou } = porTras(++requestId.current)
+    void load().then(chegou, falhou)
+  }, [load, porTras])
 
-          setData(null)
-          setFailed(true)
-          temDado.current = false
-        },
-      )
-  }, [load])
-
-  return { data, loading: data === null && !failed, failed, reload, refresh }
+  return { data, loading: data === null && !failed, failed, reload, refresh, revalidate }
 }

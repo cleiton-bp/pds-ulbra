@@ -52,6 +52,17 @@ public class ProjectMap : BaseEntityConfiguration<Project>
         builder.Property(project => project.LastCardNumber)
             .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
+        builder.Property(project => project.BoardTopRank)
+            .HasColumnName("board_top_rank")
+            .IsRequired()
+            .HasDefaultValue(0L)
+            .HasComment("O lugar do ultimo card posto no topo de uma coluna do quadro: o que chega sem ser arrastado, ou o que foi solto no topo. O proximo fica uma folga acima. So desce, numa gravacao so (UPDATE ... RETURNING): o card que chega fica acima de tudo sem ler a coluna.");
+
+        // Como o contador do numero: so anda pelo UPDATE ... RETURNING, e o EF nunca o
+        // escreve — a gravacao da linha inteira do projeto o faria voltar.
+        builder.Property(project => project.BoardTopRank)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
         // Nome unico por conta, ignorando o que foi apagado: sem o filtro, o nome de
         // um projeto excluido continuaria ocupando o lugar e o cliente nao
         // conseguiria reaproveita-lo.

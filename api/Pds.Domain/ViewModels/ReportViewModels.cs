@@ -101,6 +101,12 @@ public record CreatedReportViewModel(
 /// <param name="Priority">A prioridade; nula e sem prioridade.</param>
 /// <param name="Labels">As etiquetas, em ordem de nome.</param>
 /// <param name="DueDate">O prazo, so a data; nulo e sem prazo.</param>
+/// <param name="CommentCount">Os comentarios do card, os internos e os trocados com quem relatou. E o numero da frente do card no quadro.</param>
+/// <param name="AttachmentCount">Os anexos confirmados do card.</param>
+/// <param name="Closed">
+/// Se o relato tem um encerramento valendo. E o que diz ao quadro se soltar o card
+/// na coluna que encerra pede desfecho e motivo — o ja encerrado so anda.
+/// </param>
 public record ReportSummaryViewModel(
     Guid PublicId,
     CardKindEnum Kind,
@@ -122,7 +128,10 @@ public record ReportSummaryViewModel(
     CardAssigneeViewModel? Assignee,
     CardPriorityViewModel? Priority,
     IReadOnlyList<CardLabelViewModel> Labels,
-    DateOnly? DueDate);
+    DateOnly? DueDate,
+    int CommentCount,
+    int AttachmentCount,
+    bool Closed);
 
 /// <summary>
 /// Quem esta com o card.
@@ -396,6 +405,9 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <param name="Priority">A prioridade; nula e sem prioridade.</param>
 /// <param name="Labels">As etiquetas, em ordem de nome.</param>
 /// <param name="DueDate">O prazo, so a data; nulo e sem prazo.</param>
+/// <param name="CommentCount">Os comentarios do card, como na linha da lista: o painel troca a linha pelo card aberto.</param>
+/// <param name="AttachmentCount">Os anexos confirmados do card.</param>
+/// <param name="Closed">Se o relato tem um encerramento valendo — o mesmo que <c>Closure</c> nao nulo.</param>
 /// <param name="ArchiveCloses">
 /// Arquivar este relato <b>encerra</b> junto — e por isso pede desfecho e motivo, o
 /// que quem relatou vai ler. Verdadeiro no relato aberto; falso no ja encerrado e
@@ -432,7 +444,10 @@ public record ReportDetailViewModel(
     CardAssigneeViewModel? Assignee,
     CardPriorityViewModel? Priority,
     IReadOnlyList<CardLabelViewModel> Labels,
-    DateOnly? DueDate);
+    DateOnly? DueDate,
+    int CommentCount,
+    int AttachmentCount,
+    bool Closed);
 
 
 /// <summary>

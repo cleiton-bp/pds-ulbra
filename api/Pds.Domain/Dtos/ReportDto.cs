@@ -297,6 +297,24 @@ public class MoveReportDto
     /// </summary>
     /// <example>Corrigimos o botão de finalizar compra na versão desta semana.</example>
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// O card que fica logo acima deste na coluna de destino, quando ele foi solto
+    /// num lugar do quadro. <b>Nulo poe no topo</b> — e e onde o card chega quando
+    /// ninguem escolheu o lugar, como pelo seletor de coluna.
+    /// </summary>
+    public Guid? AfterPublicId { get; set; }
+}
+
+/// <summary>
+/// Um lugar novo para o card na propria coluna do quadro.
+/// </summary>
+public class SetCardPositionDto
+{
+    /// <summary>
+    /// O card que fica logo acima deste, na mesma coluna. <b>Nulo poe no topo.</b>
+    /// </summary>
+    public Guid? AfterPublicId { get; set; }
 }
 
 /// <summary>

@@ -50,4 +50,7 @@ public interface IProjectStateRepository : IBaseRepository<ProjectState>
     /// que encerre, o que e o estado de todo projeto recem-criado.</para>
     /// </summary>
     Task<ProjectState?> LastActiveAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>Quantas colunas ativas o projeto tem.</summary>
+    Task<int> CountActiveAsync(long projectId, CancellationToken cancellationToken = default);
 }

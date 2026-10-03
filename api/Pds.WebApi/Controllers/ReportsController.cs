@@ -62,16 +62,32 @@ public class ReportsController : BaseController
     /// Vêm os relatos e os cards do time, cada um com `Kind` e o número (`Number`).
     /// **O arquivado não vem**: `archived=true` troca a lista pelos arquivados — os
     /// dois nunca juntos.
+    ///
+    /// **`order=board` é a ordem do quadro**: a que o time arrumou na coluna, de cima
+    /// para baixo. Na **última coluna ativa**, ela traz só o que entrou ali nos dias
+    /// que o projeto escolheu no Ciclo (de fábrica 14; zero traz todos) — o `Total`
+    /// acompanha, e o resto continua na lista. Sem `order`, ou com `recent`, a lista
+    /// de sempre: do mais recente para o mais antigo.
+    ///
+    /// **`after` é o "Mostrar mais" do quadro**: os que vêm logo depois daquele card
+    /// na coluna, e não a página seguinte — o card que sai de cima, ou chega ao topo,
+    /// muda as páginas, e a seguinte pularia um card ou repetiria outro.
+    ///
+    /// Cada card traz os números da frente do quadro: `CommentCount`,
+    /// `AttachmentCount` e `Closed` (se o relato já tem encerramento valendo).
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="page">Página, começando em 1.</param>
     /// <param name="pageSize">Quantos relatos por página. Padrão 20, máximo 100.</param>
     /// <param name="state">Identificador da coluna, ou `none` para os que não têm lugar na fila. Ausente traz tudo.</param>
     /// <param name="archived">Verdadeiro traz só os arquivados.</param>
+    /// <param name="order">`recent` (o padrão) ou `board`, a ordem do quadro.</param>
+    /// <param name="after">Só com `order=board` e `state`: o card depois do qual a leitura continua — o "Mostrar mais" do quadro. Com ele, a página não vale.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relatos do projeto.</response>
-    /// <response code="400">Filtro de estado fora do formato.</response>
-    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, ou `after` fora do quadro ou sem coluna.</response>
+    /// <response code="404">Projeto, estado ou o card de `after` não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">O card de `after` já saiu da coluna: a tela lê a coluna de novo.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportSummaryViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -82,11 +98,13 @@ public class ReportsController : BaseController
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? state = null,
-        [FromQuery] bool archived = false)
+        [FromQuery] bool archived = false,
+        [FromQuery] string? order = null,
+        [FromQuery] Guid? after = null)
     {
         try
         {
-            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, archived, cancellationToken);
+            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, archived, order, after, cancellationToken);
             return Success(reports.Items, total: reports.Total);
         }
         catch (Exception exception)
@@ -391,12 +409,12 @@ public class ReportsController : BaseController
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>
-    /// <param name="dto">A coluna de destino, mais o desfecho e o motivo quando ela encerra.</param>
+    /// <param name="dto">A coluna de destino, mais o desfecho e o motivo quando ela encerra, e o lugar nela (`AfterPublicId`, o card que fica logo acima; nulo é o topo).</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">O relato, na coluna nova.</response>
     /// <response code="400">Coluna de destino ausente; encerramento sem desfecho ou sem motivo; desfecho ou motivo num movimento que não encerra.</response>
-    /// <response code="404">Relato, projeto ou estado não existe, ou a pessoa não está no projeto.</response>
-    /// <response code="409">A coluna de destino está aposentada.</response>
+    /// <response code="404">Relato, projeto, estado ou o card de referência (`AfterPublicId`) não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">A coluna de destino está aposentada, ou o card de referência já não está nela.</response>
     [HttpPut("{reportPublicId:guid}/state")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportSummaryViewModel>), StatusCodes.Status200OK)]
@@ -409,6 +427,47 @@ public class ReportsController : BaseController
         {
             var report = await _reportService.MoveAsync(publicId, reportPublicId, dto, cancellationToken);
             return Success(report, "Relato movido.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Muda o card de lugar na própria coluna do quadro.</summary>
+    /// <remarks>
+    /// `AfterPublicId` é o card que fica logo acima deste, **na mesma coluna**; nulo
+    /// põe no topo. Trocar de coluna é mover (`PUT .../state`, que também aceita o
+    /// lugar).
+    ///
+    /// **Não é evento, e não aparece na história.** Arrumar a coluna não muda o card —
+    /// nem a coluna, nem o que quem relatou vê.
+    ///
+    /// A ordem é a mesma para o time inteiro. Dois soltando na mesma coluna ao mesmo
+    /// tempo esperam um pelo outro, e o card de referência que já não está na coluna
+    /// (outra pessoa o moveu) recusa o pedido em vez de pôr o card num lugar que
+    /// ninguém escolheu.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do card.</param>
+    /// <param name="dto">O card que fica logo acima, ou nulo para o topo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O card, no lugar novo.</response>
+    /// <response code="400">O card de referência é o próprio card.</response>
+    /// <response code="404">Card, projeto ou o card de referência não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">O card está arquivado, ou o card de referência já não está na coluna.</response>
+    [HttpPut("{reportPublicId:guid}/position")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportSummaryViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetPosition(Guid publicId, Guid reportPublicId, [FromBody] SetCardPositionDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.SetPositionAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(report, "Card no lugar novo.");
         }
         catch (Exception exception)
         {

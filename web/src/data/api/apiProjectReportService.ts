@@ -13,14 +13,17 @@ import { apiGet, apiGetPage, apiPost, apiPut } from '@/data/api/httpClient'
 import type { ProjectReportService } from '@/data/projectReportService'
 
 export const apiProjectReportService: ProjectReportService = {
-  // Sem `pageSize`: o tamanho da pagina e decisao da API, e repeti-lo aqui criaria
-  // dois numeros para discordarem no dia em que um mudar.
-  listReports: async (publicId, page, state, archived) => {
+  // O tamanho da pagina e decisao da API: so o quadro manda o dele, e a lista nunca —
+  // repeti-lo aqui criaria dois numeros para discordarem no dia em que um mudar.
+  listReports: async (publicId, page, state, archived, options) => {
     const query = new URLSearchParams({ page: String(page) })
     // So entra quando ha recorte: `state=` vazio na URL chegaria como string vazia
     // e a API leria isso como "sem filtro" por acaso, e nao por decisao.
     if (state) query.set('state', state)
     if (archived) query.set('archived', 'true')
+    if (options?.order) query.set('order', options.order)
+    if (options?.pageSize) query.set('pageSize', String(options.pageSize))
+    if (options?.after) query.set('after', options.after)
 
     const { items, total } = await apiGetPage<ReportSummaryViewModel>(
       `/projects/${publicId}/reports?${query}`,
@@ -86,6 +89,12 @@ export const apiProjectReportService: ProjectReportService = {
   moveReport: (publicId, reportPublicId, request) =>
     apiPut<ReportSummaryViewModel>(
       `/projects/${publicId}/reports/${reportPublicId}/state`,
+      request,
+    ),
+
+  setPosition: (publicId, reportPublicId, request) =>
+    apiPut<ReportSummaryViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/position`,
       request,
     ),
   closeReport: (publicId, reportPublicId, request) =>

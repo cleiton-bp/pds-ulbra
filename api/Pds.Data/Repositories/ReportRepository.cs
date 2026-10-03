@@ -12,10 +12,13 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
 {
     /// <summary>
     /// O espaco das travas dos campos do card. Arbitrario; so precisa nao mudar nem
-    /// repetir outro — o 7001 e o da cota de anexos, e o 7003 o dos nomes das
-    /// etiquetas.
+    /// repetir outro — o 7001 e o da cota de anexos, o 7003 o dos nomes das
+    /// etiquetas, e o 7004 o da ordem do quadro.
     /// </summary>
     private const int CardFieldsLockSpace = 7002;
+
+    /// <summary>O espaco da trava da ordem do quadro, uma por projeto. Ver o anterior.</summary>
+    private const int BoardLockSpace = 7004;
 
     public ReportRepository(DataContext context) : base(context)
     {
@@ -64,7 +67,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
 
-    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, int skip, int take, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, CancellationToken cancellationToken = default)
         // O filtro global ja isola por conta e esconde o que foi apagado; aqui so
         // resta escolher o projeto e o recorte. O Id no fim desempata os relatos do
         // mesmo instante, que sem isso trocariam de lugar entre uma pagina e a
@@ -81,7 +84,8 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // cada card viria repetido uma vez por etiqueta, com o texto e a descricao
         // inteiros a cada repeticao. A ordem e unica (o Id desempata), e e ela que faz
         // as consultas separadas concordarem sobre qual e a pagina.
-        => await Context.Reports
+    {
+        var recorte = Context.Reports
             .Include(report => report.ProjectState)
             .Include(report => report.ProjectPublicStage)
             .Include(report => report.AssigneeUser)
@@ -91,19 +95,134 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
             .Where(Arquivados(archived))
-            .OrderByDescending(report => report.CreatedAt)
-            .ThenByDescending(report => report.Id)
+            .Where(EnteredSince(enteredSince))
+            .Where(AfterSpot(after));
+
+        // Na ordem do quadro, o menor lugar fica em cima — e o Id desempata tambem
+        // aqui, para a pagina nunca depender da sorte.
+        var ordenada = order == ReportListOrder.Board
+            ? recorte.OrderBy(report => report.BoardRank).ThenBy(report => report.Id)
+            : recorte.OrderByDescending(report => report.CreatedAt).ThenByDescending(report => report.Id);
+
+        return await ordenada
             .Skip(skip)
             .Take(take)
             .AsSplitQuery()
             .ToListAsync(cancellationToken);
+    }
 
-    public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, CancellationToken cancellationToken = default)
+    public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, CancellationToken cancellationToken = default)
         => Context.Reports
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
             .Where(Arquivados(archived))
+            .Where(EnteredSince(enteredSince))
             .CountAsync(cancellationToken);
+
+    public async Task<IReadOnlyDictionary<long, CardFace>> CountFacesAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default)
+    {
+        if (reportIds.Count == 0)
+            return new Dictionary<long, CardFace>();
+
+        // Os dois tipos de comentario, juntos na frente do card: para quem olha o
+        // quadro, conversa e conversa — a de dentro e a com quem relatou.
+        var internos = await Context.ReportInternalComments
+            .Where(comment => reportIds.Contains(comment.ReportId))
+            .GroupBy(comment => comment.ReportId)
+            .Select(group => new { group.Key, Total = group.Count() })
+            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
+
+        var publicos = await Context.ReportPublicComments
+            .Where(comment => reportIds.Contains(comment.ReportId))
+            .GroupBy(comment => comment.ReportId)
+            .Select(group => new { group.Key, Total = group.Count() })
+            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
+
+        // So o confirmado: o pendente ainda pode nao chegar, e o descartado nunca vale.
+        var anexos = await Context.ReportAttachments
+            .Where(attachment => reportIds.Contains(attachment.ReportId)
+                                 && attachment.Status == AttachmentStatusEnum.Confirmed)
+            .GroupBy(attachment => attachment.ReportId)
+            .Select(group => new { group.Key, Total = group.Count() })
+            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
+
+        // O encerramento que vale e o que ninguem reabriu, como na leitura de um so.
+        var encerrados = (await Context.ReportClosures
+                .Where(closure => reportIds.Contains(closure.ReportId) && closure.ReopenedAt == null)
+                .Select(closure => closure.ReportId)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        return reportIds.Distinct().ToDictionary(
+            id => id,
+            id => new CardFace(
+                internos.GetValueOrDefault(id) + publicos.GetValueOrDefault(id),
+                anexos.GetValueOrDefault(id),
+                encerrados.Contains(id)));
+    }
+
+    public async Task LockBoardAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        // Como as outras travas consultivas: fora de uma transacao ela nao seguraria
+        // nada, e por isso quebra alto.
+        if (Context.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A trava da ordem do quadro so vale dentro de uma transacao.");
+
+        var projeto = unchecked((int)projectId);
+
+        await Context.Database.ExecuteSqlAsync(
+            $"SELECT pg_advisory_xact_lock({BoardLockSpace}, {projeto})",
+            cancellationToken);
+    }
+
+    public Task<BoardSpot?> FindBoardSpotAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+        // Pelo filtro global, como toda leitura com sessao: o card de outro projeto,
+        // ou que ja foi apagado, nao existe aqui.
+        => Context.Reports
+            .AsNoTracking()
+            .Where(report => report.ProjectId == projectId && report.PublicId == publicId)
+            .Select(report => new BoardSpot(report.Id, report.ProjectStateId, report.BoardRank, report.ArchivedAt != null))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<long?> FindRankBelowAsync(long projectId, long? stateId, long rank, long anchorId, long exceptId, CancellationToken cancellationToken = default)
+        // O arquivado conta: ele guarda o lugar e volta a ele ao desarquivar, entao o
+        // numero escolhido nao pode cair em cima do dele.
+        => Context.Reports
+            .AsNoTracking()
+            .Where(report => report.ProjectId == projectId
+                             && report.ProjectStateId == stateId
+                             && report.Id != exceptId
+                             && (report.BoardRank > rank || (report.BoardRank == rank && report.Id > anchorId)))
+            .OrderBy(report => report.BoardRank)
+            .ThenBy(report => report.Id)
+            .Select(report => (long?)report.BoardRank)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task RenumberColumnAsync(long projectId, long? stateId, long exceptId, CancellationToken cancellationToken = default)
+        // SQL escrito a mao: uma gravacao so para a coluna inteira, na ordem em que
+        // ela esta. A marca "ordem do quadro" vai escrita, e nao interpolada, para o
+        // log do banco mostra-la. O apagado e o arquivado entram: renumerar so os
+        // visiveis poria um arquivado em cima de um deles.
+        //
+        // A linha que mudou depois da leitura fica como esta. O topo nao trava a ordem,
+        // e um card que saiu da coluna, ou foi para o topo dela, no meio desta gravacao
+        // voltaria ao lugar velho: o banco espera a outra gravacao, e sem as duas
+        // ultimas condicoes escreveria por cima dela.
+        => Context.Database.ExecuteSqlAsync($"""
+            -- ordem do quadro
+            UPDATE reports AS r
+            SET board_rank = o.new_rank
+            FROM (SELECT id, board_rank AS old_rank,
+                         (row_number() OVER (ORDER BY board_rank, id) - 1) * {Report.BoardRankGap} AS new_rank
+                  FROM reports
+                  WHERE project_id = {projectId}
+                    AND project_state_id IS NOT DISTINCT FROM {stateId}::bigint
+                    AND id <> {exceptId}) AS o
+            WHERE r.id = o.id
+              AND r.board_rank = o.old_rank
+              AND r.project_state_id IS NOT DISTINCT FROM {stateId}::bigint
+            """, cancellationToken);
 
     public async Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, CancellationToken cancellationToken = default)
     {
@@ -155,6 +274,24 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         => archived
             ? report => report.ArchivedAt != null
             : report => report.ArchivedAt == null;
+
+    /// <summary>
+    /// A regra da ultima coluna do quadro: so o que entrou na coluna a partir de
+    /// <paramref name="since"/>. Sem data, todos.
+    /// </summary>
+    private static System.Linq.Expressions.Expression<Func<Report, bool>> EnteredSince(DateTime? since)
+        => since is DateTime desde
+            ? report => report.StateChangedAt >= desde
+            : _ => true;
+
+    /// <summary>
+    /// So o que vem depois de <paramref name="spot"/> na ordem do quadro — o mesmo
+    /// criterio da ordem, com o Id desempatando. Sem lugar, todos.
+    /// </summary>
+    private static System.Linq.Expressions.Expression<Func<Report, bool>> AfterSpot(BoardSpot? spot)
+        => spot is BoardSpot ancora
+            ? report => report.BoardRank > ancora.Rank || (report.BoardRank == ancora.Rank && report.Id > ancora.Id)
+            : _ => true;
 
     public Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
         // O estado vem junto porque a tela de detalhe diz em que coluna o relato

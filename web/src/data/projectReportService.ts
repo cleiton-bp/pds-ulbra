@@ -14,12 +14,14 @@ import type {
   ReportCommentsViewModel,
   ReportDetailViewModel,
   ReportHistoryEntryViewModel,
+  ReportListOrder,
   ReportModerationState,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
   SetCardAssigneeRequest,
   SetCardDueDateRequest,
   SetCardLabelsRequest,
+  SetCardPositionRequest,
   SetCardPriorityRequest,
   SetCardTitleRequest,
 } from '@/contracts'
@@ -33,6 +35,25 @@ import type {
 export interface ReportPage {
   reports: ReportSummaryViewModel[]
   total: number
+}
+
+/**
+ * O que muda na lista alem do recorte.
+ *
+ * `order: 'board'` traz a coluna na ordem do quadro — e, na ultima coluna ativa, so
+ * o que entrou nela nos dias que o projeto escolheu. `pageSize` so vem do quadro,
+ * que mostra os 50 de cima de cada coluna (decisao de produto, e nao de pagina): a
+ * lista continua com o tamanho que a API decide.
+ *
+ * `after` e o "Mostrar mais" do quadro: os que vem logo depois daquele card na
+ * coluna, e nao a pagina seguinte. Um card que sai de cima, ou chega ao topo, mexe
+ * nas paginas — e a seguinte pularia um card, ou repetiria. O card de referencia
+ * que ja saiu da coluna da 409, e a coluna e lida de novo.
+ */
+export interface ReportListOptions {
+  order?: ReportListOrder
+  pageSize?: number
+  after?: string
 }
 
 /** Espelha o `ReportService` da API, do lado que exige sessao. */
@@ -53,6 +74,7 @@ export interface ProjectReportService {
     page: number,
     state?: string | null,
     archived?: boolean,
+    options?: ReportListOptions,
   ): Promise<ReportPage>
 
   /**
@@ -173,6 +195,17 @@ export interface ProjectReportService {
     publicId: string,
     reportPublicId: string,
     request: MoveReportRequest,
+  ): Promise<ReportSummaryViewModel>
+
+  /**
+   * Muda o card de lugar na propria coluna do quadro: logo abaixo de outro card, ou
+   * no topo. **Nao e evento** — arrumar a coluna nao muda o card. Trocar de coluna e
+   * `moveReport`, que tambem leva o lugar.
+   */
+  setPosition(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardPositionRequest,
   ): Promise<ReportSummaryViewModel>
 
   /**

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider, useParams } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -10,7 +10,7 @@ import type {
   ReportSummaryViewModel,
   ReportType,
 } from '@/contracts'
-import type { ReportPage } from '@/data'
+import type { ReportListOptions, ReportPage } from '@/data'
 import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
@@ -36,7 +36,18 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * esconder o texto do relato, que a lista ja tinha em maos.
  */
 const dublê = vi.hoisted(() => ({
-  listar: vi.fn<(publicId: string, page: number) => Promise<ReportPage>>(),
+  listar:
+    vi.fn<
+      (
+        publicId: string,
+        page: number,
+        state?: string | null,
+        archived?: boolean,
+        options?: ReportListOptions,
+      ) => Promise<ReportPage>
+    >(),
+  lugar: vi.fn(),
+  ciclo: vi.fn(),
   contar: vi.fn(),
   mover: vi.fn(),
   listarComentarios: vi.fn(),
@@ -65,8 +76,10 @@ vi.mock('@/data', async (importOriginal) => {
       listReportHistory: dublê.historico,
       closeReport: dublê.encerrar,
       askInfo: dublê.pedir,
+      setPosition: dublê.lugar,
     },
     projectReportAttachmentService: { listAttachments: dublê.anexos },
+    projectCycleSettingsService: { getCycleSettings: dublê.ciclo },
   }
 })
 
@@ -117,6 +130,9 @@ function relato(
     Priority: null,
     Labels: [],
     DueDate: null,
+    CommentCount: 0,
+    AttachmentCount: 0,
+    Closed: false,
     ...extra,
   }
 }
@@ -208,6 +224,13 @@ describe('ReportsScreen', () => {
     dublê.contar.mockResolvedValue([])
     dublê.anexos.mockReset()
     dublê.anexos.mockResolvedValue([])
+    // As regras do quadro que a tela le do Ciclo: a ultima coluna mostra 14 dias, e o
+    // prazo fica perto faltando 2.
+    dublê.ciclo.mockReset()
+    dublê.ciclo.mockResolvedValue({ LastColumnVisibleDays: 14, DueSoonDays: 2 })
+    dublê.lugar.mockReset()
+    // A vista lembrada passaria de um teste para o outro.
+    window.localStorage.clear()
   })
 
   it('mostra o que chegou, com protocolo e pagina de origem', async () => {
@@ -1466,5 +1489,246 @@ describe('devolver o relato pedindo informação', () => {
     expect(await screen.findByText('Esperando quem relatou')).toBeTruthy()
     expect(screen.getByText(/pedido por Cleiton/)).toBeTruthy()
     expect(screen.getByText(/ainda assim poderá ser reaberto/)).toBeTruthy()
+  })
+})
+
+describe('o quadro', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    papel.atual = 'Administrator'
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.anexos.mockResolvedValue([])
+    // As regras do quadro que a tela le do Ciclo: a ultima coluna mostra 14 dias, e o
+    // prazo fica perto faltando 2.
+    dublê.ciclo.mockResolvedValue({ LastColumnVisibleDays: 14, DueSoonDays: 2 })
+    // A vista lembrada passaria de um teste para o outro.
+    window.localStorage.clear()
+  })
+
+  /** Uma coluna por chamada: a lista responde o recorte pedido. */
+  function porColuna(
+    colunas: Record<string, ReportSummaryViewModel[]>,
+    totais: Record<string, number> = {},
+  ) {
+    dublê.listar.mockImplementation(async (_p, _pagina, estado) => {
+      const reports = estado ? (colunas[estado] ?? []) : Object.values(colunas).flat()
+      return { reports, total: estado ? (totais[estado] ?? reports.length) : reports.length }
+    })
+  }
+
+  it('Quadro mostra uma coluna por estado, cada uma lida na ordem do quadro, e a vista fica lembrada no projeto', async () => {
+    dublê.contar.mockResolvedValue([
+      contagem('s-1', 'Análise', 1),
+      contagem('s-2', 'Pronto', 1, true, true),
+    ])
+    porColuna({
+      's-1': [relato('r-1', 'o botao some')],
+      's-2': [relato('r-2', 'ja resolvido', { StatePublicId: 's-2', StateName: 'Pronto' })],
+    })
+
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: 'Quadro' }))
+
+    const analise = await screen.findByRole('region', { name: 'Análise' })
+    expect(await within(analise).findByText('o botao some')).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Pronto' })).toBeTruthy()
+    expect(dublê.listar).toHaveBeenCalledWith('p-1', 1, 's-1', false, {
+      order: 'board',
+      pageSize: 50,
+    })
+    // A coluna que encerra avisa o que soltar nela faz.
+    expect(screen.getByText(/Soltar um relato aberto aqui encerra/)).toBeTruthy()
+
+    cleanup()
+    montar()
+    expect(await screen.findByRole('region', { name: 'Pronto' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Quadro' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('o card do quadro e um link para ele: o detalhe abre so no clique, e so ai a leitura conta', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
+    porColuna({ 's-1': [relato('r-1', 'o botao some')] })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    const link = (await screen.findByText('o botao some')).closest('a')
+    expect(link?.getAttribute('href')).toBe('/p/p-1/r-1')
+    expect(dublê.abrir).not.toHaveBeenCalled()
+
+    fireEvent.click(link as HTMLElement)
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(dublê.abrir).toHaveBeenCalledTimes(1)
+  })
+
+  it('a ultima coluna diz quantos ficaram so na lista, e "Ver na lista" abre a lista nessa coluna', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 0), contagem('s-2', 'Pronto', 3)])
+    porColuna(
+      { 's-2': [relato('r-2', 'ja resolvido', { StatePublicId: 's-2', StateName: 'Pronto' })] },
+      { 's-2': 1 },
+    )
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    const pronto = await screen.findByRole('region', { name: 'Pronto' })
+    expect(
+      await within(pronto).findByText(
+        /2 cards entraram aqui há mais de 14 dias e ficam só na lista/,
+      ),
+    ).toBeTruthy()
+
+    fireEvent.click(within(pronto).getByRole('button', { name: 'Ver na lista' }))
+    const ficha = await screen.findByRole('button', { name: 'Pronto, 3 relatos' })
+    expect(ficha.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Lista' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('a coluna que nao carregou diz, e tenta de novo; a coluna cheia mostra mais', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 51)])
+    let falhar = true
+    dublê.listar.mockImplementation(async (_p, _pagina, _estado, _arquivados, opcoes) => {
+      if (falhar) throw new Error('sem rede')
+      return opcoes?.after
+        ? { reports: [relato('r-50', 'o de numero 51')], total: 51 }
+        : {
+            reports: Array.from({ length: 50 }, (_, i) => relato(`r-${i}`, `relato ${i}`)),
+            total: 51,
+          }
+    })
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    expect(await screen.findByText('Não deu para carregar esta coluna.')).toBeTruthy()
+
+    falhar = false
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByText('relato 49')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar mais' }))
+    expect(await screen.findByText('o de numero 51')).toBeTruthy()
+    // O que vem depois do ultimo card da tela, e nao a pagina seguinte.
+    expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 's-1', false, {
+      order: 'board',
+      pageSize: 50,
+      after: 'r-49',
+    })
+    expect(screen.queryByRole('button', { name: 'Mostrar mais' })).toBeNull()
+  })
+
+  it('mover pelo dialogo nao tira o quadro da tela: o "Mostrar mais" fica, e nenhuma coluna e lida do zero', async () => {
+    // A recontagem fica no ar ate o teste mandar, como na rede: respondida na hora, o
+    // React desenhava o vazio e a resposta de uma vez so, e o quadro nunca saia.
+    const recontagem = emVoo<ReportStateCountViewModel[]>()
+    dublê.contar
+      .mockResolvedValueOnce([contagem('s-1', 'Análise', 51), contagem('s-2', 'Pronto', 0)])
+      .mockReturnValueOnce(recontagem.promessa)
+    dublê.listar.mockImplementation(async (_p, _pagina, estado, _arquivados, opcoes) => {
+      if (estado === 's-2') return { reports: [], total: 0 }
+      return opcoes?.after
+        ? { reports: [relato('r-50', 'o de numero 51')], total: 51 }
+        : {
+            reports: Array.from({ length: 50 }, (_, i) => relato(`r-${i}`, `relato ${i}`)),
+            total: 51,
+          }
+    })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'relato 1'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'relato 1', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: 'Mostrar mais' }))
+    expect(await screen.findByText('o de numero 51')).toBeTruthy()
+    const analise = screen.getByRole('region', { name: 'Análise' })
+    const leituras = dublê.listar.mock.calls.length
+
+    fireEvent.click(screen.getByText('relato 1').closest('a') as HTMLElement)
+    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+    await waitFor(() => expect(dublê.contar).toHaveBeenCalledTimes(2))
+
+    // Recontando, o quadro continua na tela; respondida a contagem, ele e o mesmo — a
+    // mesma coluna, com a pagina que o "Mostrar mais" trouxe, e nenhuma coluna buscada
+    // de novo. O card ja esta na outra.
+    expect(screen.getByRole('region', { name: 'Análise', hidden: true })).toBe(analise)
+    await act(async () =>
+      recontagem.resolver([contagem('s-1', 'Análise', 50), contagem('s-2', 'Pronto', 1)]),
+    )
+    const pronto = screen.getByRole('region', { name: 'Pronto', hidden: true })
+    await waitFor(() => expect(within(pronto).getByText('relato 1')).toBeTruthy())
+    expect(screen.getByRole('region', { name: 'Análise', hidden: true })).toBe(analise)
+    expect(screen.getByText('o de numero 51')).toBeTruthy()
+    expect(dublê.listar.mock.calls.length).toBe(leituras)
+  })
+
+  it('trocar de projeto com o quadro aberto nao pede ao projeto novo as colunas do anterior', async () => {
+    dublê.contar.mockImplementation(async (publicId: string) =>
+      publicId === 'p-1' ? [contagem('s-1', 'Análise', 1)] : [contagem('s-9', 'Triagem', 1)],
+    )
+    dublê.listar.mockImplementation(async (publicId, _pagina, estado) => ({
+      reports: [relato(`r-${publicId}`, `card de ${publicId}`, { StatePublicId: estado ?? null })],
+      total: 1,
+    }))
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+    window.localStorage.setItem('pds.web.trabalho.vista.p-2', 'quadro')
+
+    const router = montar('p-1')
+    await screen.findByRole('region', { name: 'Análise' })
+    await router.navigate('/p/p-2')
+
+    expect(await screen.findByRole('region', { name: 'Triagem' })).toBeTruthy()
+    // Por uma renderizacao, a contagem ainda era a do anterior: a coluna dele nunca
+    // pode virar pedido ao projeto novo.
+    expect(
+      dublê.listar.mock.calls.some(([projeto, , estado]) => projeto === 'p-2' && estado === 's-1'),
+    ).toBe(false)
+  })
+
+  it('no quadro, a contagem que nao carregou diz, e tenta de novo', async () => {
+    dublê.contar
+      .mockRejectedValueOnce(new Error('sem rede'))
+      .mockResolvedValue([contagem('s-1', 'Análise', 1)])
+    porColuna({ 's-1': [relato('r-1', 'o botao some')] })
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    expect(await screen.findByText(/Não deu para carregar o quadro agora/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    const analise = await screen.findByRole('region', { name: 'Análise' })
+    expect(await within(analise).findByText('o botao some')).toBeTruthy()
+  })
+
+  it('com o quadro na tela, a lista nao e lida; voltando a ela, e lida de novo', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
+    porColuna({ 's-1': [relato('r-1', 'o botao some')] })
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    await screen.findByRole('region', { name: 'Análise' })
+    // So as leituras do quadro: a ordem dele em cada chamada.
+    expect(dublê.listar.mock.calls.every((chamada) => chamada[4]?.order === 'board')).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lista' }))
+    await waitFor(() =>
+      expect(dublê.listar.mock.calls.some((chamada) => chamada[4] === undefined)).toBe(true),
+    )
+    expect(await screen.findByText('o botao some')).toBeTruthy()
   })
 })

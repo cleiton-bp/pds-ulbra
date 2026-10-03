@@ -38,20 +38,63 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<Report?> FindByTrackingCodeWithoutSessionAsync(string trackingCode, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Uma pagina dos relatos de um projeto, do mais novo para o mais antigo.
+    /// Uma pagina dos relatos de um projeto: do mais novo para o mais antigo, ou na
+    /// ordem do quadro.
     ///
-    /// <para>A ordem tem dois criterios de proposito. Paginacao por posicao supoe
-    /// ordem total, e <c>created_at</c> sozinho nao da isso: dois relatos gravados
-    /// no mesmo instante podem trocar de lugar entre uma pagina e a seguinte, e a
-    /// pessoa veria um repetido enquanto o outro nunca apareceria.</para>
+    /// <para>As duas ordens tem dois criterios de proposito. Paginacao por posicao
+    /// supoe ordem total, e <c>created_at</c> sozinho nao da isso: dois relatos
+    /// gravados no mesmo instante podem trocar de lugar entre uma pagina e a
+    /// seguinte, e a pessoa veria um repetido enquanto o outro nunca apareceria. O
+    /// Id desempata nas duas.</para>
     ///
     /// <para><paramref name="archived"/> escolhe o lado: os que estao na tela de
-    /// Trabalho, ou so os arquivados — nunca os dois juntos.</para>
+    /// Trabalho, ou so os arquivados — nunca os dois juntos.
+    /// <paramref name="enteredSince"/>, quando vem, deixa so o que entrou na coluna
+    /// a partir dali: e a regra da ultima coluna do quadro. <paramref name="after"/>,
+    /// na ordem do quadro, deixa so o que vem depois daquele lugar da coluna: e o
+    /// "Mostrar mais" do quadro.</para>
     /// </summary>
-    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, int skip, int take, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, CancellationToken cancellationToken = default);
 
     /// <summary>Quantos cards o projeto tem no recorte. E o que diz se ainda ha o que carregar.</summary>
-    Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, CancellationToken cancellationToken = default);
+    Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os numeros da frente do card — comentarios, anexos e se ja encerrou —, numa
+    /// consulta por numero para a pagina inteira, e nao uma por card.
+    /// </summary>
+    Task<IReadOnlyDictionary<long, CardFace>> CountFacesAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Trava a ordem do quadro do projeto ate a transacao atual terminar.
+    ///
+    /// <para><b>E ela que deixa por um card entre dois sem errar o lugar.</b> Quem
+    /// solta le os vizinhos e escolhe um numero no meio — e, sem folga, renumera a
+    /// coluna. Dois soltando juntos leriam os mesmos vizinhos, ou um leria a coluna
+    /// no meio da renumeracao do outro.</para>
+    ///
+    /// <para>So vale dentro de uma transacao (<c>InTransactionAsync</c>), como as
+    /// outras travas. O card que chega pelo topo nao passa por ela: o topo vem do
+    /// contador do projeto.</para>
+    /// </summary>
+    Task LockBoardAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>Onde um card do projeto esta no quadro, sem carrega-lo. Nulo se ele nao existe aqui.</summary>
+    Task<BoardSpot?> FindBoardSpotAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O lugar do card logo abaixo de um outro na mesma coluna, na ordem do quadro
+    /// (o lugar, e o Id para desempatar). Nulo quando nao ha card abaixo.
+    /// <paramref name="exceptId"/> fica de fora: e o card que esta sendo solto.
+    /// </summary>
+    Task<long?> FindRankBelowAsync(long projectId, long? stateId, long rank, long anchorId, long exceptId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Renumera a coluna com a folga inteira entre vizinhos, na ordem em que esta.
+    /// <paramref name="exceptId"/> fica de fora: e o card que esta sendo solto, e ganha
+    /// o lugar dele em seguida.
+    /// </summary>
+    Task RenumberColumnAsync(long projectId, long? stateId, long exceptId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Quantos relatos ha em cada coluna da fila, mais a linha dos que ainda nao

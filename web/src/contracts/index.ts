@@ -20,7 +20,12 @@ export type {
   SatisfactionStyle,
   SaveCycleSettingsRequest,
 } from '@/contracts/cycleSettings'
-export { MAX_INFO_REQUEST_DAYS, MAX_PUBLIC_DELAY_MINUTES } from '@/contracts/cycleSettings'
+export {
+  MAX_DUE_SOON_DAYS,
+  MAX_INFO_REQUEST_DAYS,
+  MAX_LAST_COLUMN_VISIBLE_DAYS,
+  MAX_PUBLIC_DELAY_MINUTES,
+} from '@/contracts/cycleSettings'
 export type {
   IdentitySettingsViewModel,
   ReporterIdentityMode,
@@ -141,6 +146,7 @@ export type {
   ReporterCodeReportViewModel,
   ReportHistoryEntryViewModel,
   ReportInfoRequestViewModel,
+  ReportListOrder,
   ReportModerationState,
   ReportReopeningViewModel,
   ReportStateCountViewModel,
@@ -151,6 +157,7 @@ export type {
   SetCardAssigneeRequest,
   SetCardDueDateRequest,
   SetCardLabelsRequest,
+  SetCardPositionRequest,
   SetCardPriorityRequest,
   SetCardTitleRequest,
 } from '@/contracts/report'

@@ -138,6 +138,9 @@ function cardDoTime(
     Priority: null,
     Labels: [],
     DueDate: null,
+    CommentCount: 0,
+    AttachmentCount: 0,
+    Closed: false,
     ...extra,
   }
 }

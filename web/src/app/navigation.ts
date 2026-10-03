@@ -104,11 +104,8 @@ export interface LockedSection {
 }
 
 export const LOCKED_SECTIONS: LockedSection[] = [
-  {
-    key: 'board',
-    label: 'Quadro',
-    hint: 'Os relatos como cartões, que o time arrasta entre os estados que você criar. Ainda não disponível.',
-  },
+  // O quadro nao esta aqui: ele e a segunda vista da tela de Trabalho, e nao uma
+  // secao propria.
   {
     key: 'addons',
     label: 'Addons',

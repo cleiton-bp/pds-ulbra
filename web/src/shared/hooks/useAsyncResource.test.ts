@@ -308,6 +308,62 @@ describe('refresh: renovar sem tirar da tela', () => {
   })
 })
 
+describe('revalidate: buscar de novo depois de uma mudanca', () => {
+  it('troca os dados sem passar pelo vazio, e nao aproveita a busca a caminho', async () => {
+    // Dois movimentos seguidos: a resposta pedida depois do primeiro nao conhece o
+    // segundo. Ela chega por ultimo, e mesmo assim nao vale.
+    const depoisDoPrimeiro = deferred<string>()
+    const depoisDoSegundo = deferred<string>()
+    let chamadas = 0
+    const { result } = renderHook(() => {
+      const load = useCallback(() => {
+        chamadas++
+        if (chamadas === 1) return Promise.resolve('contagem de antes')
+        return chamadas === 2 ? depoisDoPrimeiro.promise : depoisDoSegundo.promise
+      }, [])
+      return useAsyncResource(load)
+    })
+    await waitFor(() => expect(result.current.data).toBe('contagem de antes'))
+
+    act(() => result.current.revalidate())
+    act(() => result.current.revalidate())
+    expect(chamadas).toBe(3)
+    // Enquanto nada chega, o que estava continua: o quadro nao sai da tela.
+    expect(result.current.data).toBe('contagem de antes')
+    expect(result.current.loading).toBe(false)
+
+    await act(async () => depoisDoSegundo.resolve('contagem dos dois movimentos'))
+    await act(async () => depoisDoPrimeiro.resolve('contagem so do primeiro'))
+    expect(result.current.data).toBe('contagem dos dois movimentos')
+  })
+
+  it('a falha passageira deixa o que estava; a definitiva vira falha', async () => {
+    const respostas = [
+      () => Promise.resolve('contagem de antes'),
+      () => Promise.reject(new PanelError('fora do ar', 503)),
+      () => Promise.reject(new PanelError('saiu do projeto', 403)),
+    ]
+    let chamada = 0
+    const { result } = renderHook(() => {
+      const load = useCallback(() => {
+        const proxima = respostas[chamada++]
+        if (!proxima) throw new Error('o teste nao deu resposta para esta chamada')
+        return proxima()
+      }, [])
+      return useAsyncResource(load)
+    })
+    await waitFor(() => expect(result.current.data).toBe('contagem de antes'))
+
+    await act(async () => result.current.revalidate())
+    expect(result.current.data).toBe('contagem de antes')
+    expect(result.current.failed).toBe(false)
+
+    await act(async () => result.current.revalidate())
+    expect(result.current.failed).toBe(true)
+    expect(result.current.data).toBeNull()
+  })
+})
+
 describe('isDefinitiveError', () => {
   it('so o erro da camada de dados com um 4xx que se repetiria', () => {
     expect(isDefinitiveError(new PanelError('x', 404))).toBe(true)

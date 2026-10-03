@@ -130,6 +130,16 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasColumnName("project_state_id")
             .HasComment("Onde o relato esta na fila do projeto. Nulo quando o projeto ainda nao tem estado nenhum. E cache: a verdade e a sequencia de eventos.");
 
+        builder.Property(report => report.BoardRank)
+            .HasColumnName("board_rank")
+            .IsRequired()
+            .HasComment("O lugar do card na coluna do quadro; o menor fica em cima. So se compara dentro da mesma coluna. Com folga entre vizinhos: por um card entre dois escolhe um numero no meio, e a coluna e renumerada quando a folga acaba.");
+
+        builder.Property(report => report.StateChangedAt)
+            .HasColumnName("state_changed_at")
+            .IsRequired()
+            .HasComment("Quando o card entrou na coluna em que esta, ou voltou a ela (reaberto, ou desarquivado por quem relatou), em UTC. A ultima coluna do quadro mostra so o que entrou nela nos ultimos dias do projeto.");
+
         builder.Property(report => report.ProjectPublicStageId)
             .HasColumnName("project_public_stage_id")
             .HasComment("Em que etapa da jornada publica o relato aparece. Nulo enquanto ele nao apareceu em nenhuma. E cache, como project_state_id: a verdade e a sequencia de eventos.");
@@ -244,6 +254,10 @@ public class ReportMap : BaseEntityConfiguration<Report>
         // A lista do painel filtra por estado, e a regra de aposentar precisa saber
         // se ainda ha relato parado naquele estado.
         builder.HasIndex(report => report.ProjectStateId);
+
+        // A coluna do quadro na ordem do quadro: e a leitura de cada coluna, e a busca
+        // dos vizinhos ao soltar um card.
+        builder.HasIndex(report => new { report.ProjectId, report.ProjectStateId, report.BoardRank });
 
         // Restrict, e nao Cascade: apagar um estado nao pode levar os relatos que
         // passaram por ele. A regra de negocio nem chega a deixar apagar — aqui e a

@@ -10,8 +10,8 @@ import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
  *
- * **A tela mostra um campo e salva treze.** As outras doze regras ja existem no
- * banco e ainda nao tem controle na tela; uma tela que mandasse so o campo visivel
+ * **A tela salva todas as regras, e nao so as que mostra.** A regra sem controle
+ * na tela continua no banco; uma tela que mandasse so os campos visiveis
  * apagaria as outras no primeiro salvamento — e ninguem descobriria, porque a
  * resposta viria com os padroes de volta e pareceria certa. E o erro mais caro
  * possivel aqui, e o mais facil de cometer.
@@ -72,6 +72,8 @@ const padroes: CycleSettingsViewModel = {
   InfoRequestCloseDays: 7,
   AcceptsQuestionsDefault: true,
   AllowsReportArchiving: false,
+  LastColumnVisibleDays: 14,
+  DueSoonDays: 2,
 }
 
 function montar() {
@@ -127,7 +129,7 @@ describe('CycleSettingsScreen', () => {
     expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
-  it('salvar manda as treze regras, e não só a que mudou', async () => {
+  it('salvar manda todas as regras, e não só a que mudou', async () => {
     dublê.salvar.mockResolvedValue({ ...padroes, ClosureTrigger: 'Button' })
 
     montar()
@@ -136,7 +138,7 @@ describe('CycleSettingsScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     // **O ponto do teste.** Mandar só `ClosureTrigger` faria a API — que
-    // substitui, e não mescla — reescrever as outras doze com o que viesse do
+    // substitui, e não mescla — reescrever as outras com o que viesse do
     // corpo, e o prazo que alguém configurou voltaria ao padrão sem aviso.
     await waitFor(() =>
       expect(dublê.salvar).toHaveBeenCalledWith('p-1', { ...padroes, ClosureTrigger: 'Button' }),
@@ -252,6 +254,32 @@ describe('CycleSettingsScreen', () => {
       expect(dublê.salvar).toHaveBeenCalledWith('p-1', {
         ...padroes,
         SatisfactionRequired: true,
+      }),
+    )
+  })
+
+  it('as regras do quadro viajam junto, e nelas zero quer dizer alguma coisa', async () => {
+    dublê.salvar.mockResolvedValue({ ...padroes, LastColumnVisibleDays: 0, DueSoonDays: 5 })
+
+    montar()
+
+    const dias = await screen.findByLabelText(/A última coluna mostra o que entrou nela/)
+    expect((dias as HTMLInputElement).value).toBe('14')
+    // Zero na última coluna é "mostrar todos" — e não vira um, como nos prazos.
+    fireEvent.change(dias, { target: { value: '0' } })
+    expect((dias as HTMLInputElement).value).toBe('0')
+    expect(screen.getByText(/Zero: mostra todos/)).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText(/O prazo fica em destaque faltando/), {
+      target: { value: '5' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() =>
+      expect(dublê.salvar).toHaveBeenCalledWith('p-1', {
+        ...padroes,
+        LastColumnVisibleDays: 0,
+        DueSoonDays: 5,
       }),
     )
   })

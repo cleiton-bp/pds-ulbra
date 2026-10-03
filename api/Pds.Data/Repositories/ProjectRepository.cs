@@ -67,4 +67,25 @@ public class ProjectRepository : BaseRepository<Project, DataContext>, IProjectR
             ? numeros[0]
             : throw new InvalidOperationException("Projeto nao encontrado ao numerar o card.");
     }
+
+    public async Task<long> NextTopRankAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        // O mesmo desenho do numero: "desca e devolva o valor novo" num comando so, e
+        // escrito a mao porque o LINQ nao o escreve — e porque o relato que chega
+        // pela ferramenta nao tem sessao. Sem updated_at: arrumar o quadro nao e
+        // mudar o projeto.
+        var topos = await Context.Database
+            .SqlQuery<long>($"""
+                -- topo do quadro
+                UPDATE projects
+                SET board_top_rank = board_top_rank - {Report.BoardRankGap}
+                WHERE id = {projectId}
+                RETURNING board_top_rank AS "Value"
+                """)
+            .ToListAsync(cancellationToken);
+
+        return topos.Count == 1
+            ? topos[0]
+            : throw new InvalidOperationException("Projeto nao encontrado ao por o card no topo do quadro.");
+    }
 }

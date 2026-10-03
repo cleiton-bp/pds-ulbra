@@ -76,6 +76,12 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
             "o prazo ate encerrar sem retorno", "dias");
         settings.AcceptsQuestionsDefault = Required(dto.AcceptsQuestionsDefault, "Informe como a opcao de aceitar duvidas vem marcada.");
         settings.AllowsReportArchiving = Required(dto.AllowsReportArchiving, "Informe se o time pode arquivar relato.");
+        settings.LastColumnVisibleDays = Range(
+            dto.LastColumnVisibleDays, 0, ProjectCycleSettings.MaxLastColumnVisibleDays,
+            "os dias que a ultima coluna do quadro mostra", "dias");
+        settings.DueSoonDays = Range(
+            dto.DueSoonDays, 0, ProjectCycleSettings.MaxDueSoonDays,
+            "a antecedencia do destaque do prazo", "dias");
 
         if (novo)
             await _unitOfWork.ProjectCycleSettings.AddAsync(settings, cancellationToken);
@@ -141,7 +147,9 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
             settings?.InfoRequestWarnDays ?? CycleSettingsDefaults.InfoRequestWarnDays,
             settings?.InfoRequestCloseDays ?? CycleSettingsDefaults.InfoRequestCloseDays,
             settings?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault,
-            settings?.AllowsReportArchiving ?? CycleSettingsDefaults.AllowsReportArchiving);
+            settings?.AllowsReportArchiving ?? CycleSettingsDefaults.AllowsReportArchiving,
+            settings?.LastColumnVisibleDays ?? CycleSettingsDefaults.LastColumnVisibleDays,
+            settings?.DueSoonDays ?? CycleSettingsDefaults.DueSoonDays);
     }
 
     private static T Required<T>(T? value, string message) where T : struct

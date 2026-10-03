@@ -72,6 +72,13 @@ public class Report : PdsBaseEntity
     public const int MaxLabelsPerCard = 10;
 
     /// <summary>
+    /// A folga entre dois cards vizinhos na ordem do quadro. Grande o bastante para
+    /// por um card entre dois uma vintena de vezes no mesmo lugar antes de a coluna
+    /// precisar ser renumerada, e pequena o bastante para o inteiro nunca acabar.
+    /// </summary>
+    public const long BoardRankGap = 1L << 20;
+
+    /// <summary>
     /// Teto da descricao do card do time, em Markdown. Maior que o texto do relato:
     /// e o time descrevendo o proprio trabalho, com lista e trecho de codigo.
     /// </summary>
@@ -177,6 +184,26 @@ public class Report : PdsBaseEntity
     /// </summary>
     public long? ProjectStateId { get; set; }
     public ProjectState? ProjectState { get; set; }
+
+    /// <summary>
+    /// O lugar do card na coluna do quadro: o menor fica em cima. So se compara com
+    /// os cards da mesma coluna.
+    ///
+    /// <para><b>Com folga entre vizinhos.</b> Por um card entre dois e escolher um
+    /// numero no meio, sem mexer nos outros; quando a folga acaba, a coluna inteira e
+    /// renumerada de uma vez. O card que chega sem ser arrastado vem do topo do
+    /// projeto (<see cref="Project.BoardTopRank"/>), que fica acima de
+    /// tudo.</para>
+    /// </summary>
+    public long BoardRank { get; set; }
+
+    /// <summary>
+    /// Quando o card entrou na coluna em que esta, ou voltou a ela — reaberto, ou
+    /// desarquivado por quem relatou —, em UTC. E o que a ultima coluna do quadro usa
+    /// para mostrar so o que entrou nela ha pouco tempo — o encerrado de meses atras
+    /// continua na lista.
+    /// </summary>
+    public DateTime StateChangedAt { get; set; }
 
     /// <summary>
     /// A etapa publica em que o relato esta, <b>como cache</b>. Nula enquanto ele

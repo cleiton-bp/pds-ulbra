@@ -47,6 +47,18 @@ public class Project : PdsBaseEntity
     /// </summary>
     public int LastCardNumber { get; set; }
 
+    /// <summary>
+    /// O topo do quadro: o lugar do ultimo card posto no topo de uma coluna — o que
+    /// chega sem ser arrastado, ou o que foi solto no topo. O proximo fica uma folga
+    /// acima dele.
+    ///
+    /// <para><b>Um contador que so desce</b>, pelo mesmo motivo do numero do card:
+    /// descido numa gravacao so (<c>UPDATE ... RETURNING</c>), o card que chega fica
+    /// acima de tudo o que ja estava, em qualquer coluna, sem ler a coluna e sem
+    /// esperar quem esta arrumando o quadro.</para>
+    /// </summary>
+    public long BoardTopRank { get; set; }
+
     /// <summary>Chaves do projeto: a que vale agora de cada tipo, mais o historico das revogadas.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectKey> Keys { get; set; } = [];

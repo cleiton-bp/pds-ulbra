@@ -254,6 +254,28 @@ export interface ReportSummaryViewModel {
   Labels: CardLabelViewModel[]
   /** O prazo, so a data (`aaaa-mm-dd`); nulo e sem prazo. */
   DueDate: string | null
+  /** Os comentarios do card — os internos e os trocados com quem relatou. Numero da frente do card. */
+  CommentCount: number
+  /** Os anexos confirmados do card. */
+  AttachmentCount: number
+  /**
+   * Se o relato ja tem um encerramento valendo. E o que diz ao quadro se soltar o
+   * card na coluna que encerra pede desfecho e motivo: o ja encerrado so anda.
+   */
+  Closed: boolean
+}
+
+/**
+ * A ordem da lista: `recent`, do mais novo para o mais antigo (a de sempre), ou
+ * `board`, a que o time arrumou em cada coluna do quadro. Na ultima coluna ativa,
+ * `board` traz so o que entrou nela nos dias que o projeto escolheu no Ciclo.
+ */
+export type ReportListOrder = 'recent' | 'board'
+
+/** Um lugar novo para o card na propria coluna do quadro. */
+export interface SetCardPositionRequest {
+  /** O card que fica logo acima deste, na mesma coluna. **Nulo poe no topo.** */
+  AfterPublicId: string | null
 }
 
 /** Um par do contexto que veio junto com o relato, sem ninguem digitar. */
@@ -663,6 +685,12 @@ export interface MoveReportRequest {
    * nao ha encerramento sem ele.
    */
   Reason?: string
+  /**
+   * O card que fica logo acima deste na coluna de destino, quando ele foi solto num
+   * lugar do quadro. **Ausente ou nulo poe no topo** — e e onde o card chega pelo
+   * seletor de coluna.
+   */
+  AfterPublicId?: string | null
 }
 
 /** Limite da coluna `reason`, declarado em `ReportClosure.MaxReasonLength`. */
