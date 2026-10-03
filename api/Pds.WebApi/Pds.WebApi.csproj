@@ -33,6 +33,7 @@
     <ProjectReference Include="..\Pds.Data\Pds.Data.csproj" />
     <ProjectReference Include="..\Pds.Workers\Pds.Workers.csproj" />
     <ProjectReference Include="..\Pds.Storage\Pds.Storage.csproj" />
+    <ProjectReference Include="..\Pds.Email\Pds.Email.csproj" />
   </ItemGroup>
 
 </Project>

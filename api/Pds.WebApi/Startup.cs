@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using Pds.Domain.Constants;
 using Pds.Shared.DependencyInjection;
+using Pds.Email;
 using Pds.Storage;
 using Pds.Workers;
 using Pds.Shared.Json;
@@ -116,6 +117,17 @@ public class Startup
         // indisponivel. Configurado pela metade, porem, derruba na subida — nao
         // configurar e decisao, esquecer a chave e engano.
         services.AddPdsStorage();
+
+        // O envio de e-mail, **se** houver servidor. Mesma escolha do armazenamento:
+        // sem a secao Smtp a aplicacao sobe inteira e o envio responde que nao esta
+        // disponivel; configurado pela metade, derruba na subida dizendo o que
+        // falta.
+        //
+        // **So das variaveis de ambiente**, e nao do Configuration inteiro: os
+        // valores vem do .env.local (Smtp__Host e as irmas), e uma secao Smtp no
+        // appsettings.json ou na linha de comando nao pode valer sem ninguem ver —
+        // senha de SMTP em arquivo versionado e senha vazada.
+        services.AddPdsEmail(new ConfigurationBuilder().AddEnvironmentVariables().Build());
 
         // Limite por IP no login. O controle de verdade e o Google validar o token;
         // isto so evita que alguem fique martelando a rota.
