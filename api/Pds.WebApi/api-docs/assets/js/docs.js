@@ -64,6 +64,7 @@
       { id: 'banco-e-migracoes',  label: 'O banco e as migrações' },
       { id: 'a-fila',             label: 'A fila' },
       { id: 'armazenamento',      label: 'O armazenamento' },
+      { id: 'o-email',            label: 'O e-mail' },
       { id: 'esta-documentacao',  label: 'Esta documentação' },
     ] },
     { id: 'seguranca', label: 'Segurança', children: [

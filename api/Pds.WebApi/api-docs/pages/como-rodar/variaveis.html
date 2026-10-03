@@ -31,6 +31,7 @@ variáveis reais do ambiente — que têm precedência sobre o arquivo quando as
   <tr><td><code>MEDIA_STORAGE_READ_URL_MINUTES</code></td><td>Validade do link de leitura. Padrão 5.</td></tr>
   <tr><td><code>MEDIA_STORAGE_PLAYBACK_URL_MINUTES</code></td><td>Validade do link de um vídeo antigo, que é lido em pedaços enquanto toca. Padrão 15.</td></tr>
   <tr><td><code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code></td><td>Pedidos e confirmações de envio por IP, por minuto, somados na mesma janela. Padrão 20.</td></tr>
+  <tr><td><code>Smtp__Host</code>, <code>Smtp__Port</code>, <code>Smtp__Security</code>, <code>Smtp__FromAddress</code>…</td><td><b>Opcionais, e juntas.</b> O servidor de e-mail, lido como a seção <code>Smtp</code> — os dois sublinhados são o separador de seção do .NET —, e só das variáveis de ambiente. Sem nenhuma das quatro essenciais (<code>Smtp__Host</code>, <code>Smtp__FromAddress</code>, <code>Smtp__Username</code>, <code>Smtp__Password</code>) o e-mail fica indisponível; com parte delas, ou com senha sem TLS, a subida recusa, dizendo tudo o que falta. As chaves e os padrões estão em <a href="#/como-rodar/o-email">O e-mail</a>.</td></tr>
   <tr><td><code>TRUSTED_PROXIES</code></td><td>Os proxies cujo <code>X-Forwarded-For</code> vale, separados por vírgula: endereço (<code>10.0.0.5</code>) ou rede (<code>10.0.0.0/8</code>). Vazio, o cabeçalho é ignorado e o IP é o da conexão. Valor que não é endereço nem rede derruba a subida.</td></tr>
 </table>
 </div>
@@ -49,10 +50,10 @@ pedido.</p>
   <strong>Nem todas falham na hora de subir</strong>
   <p><code>DB_CONNECTION_STRING</code> e <code>JWT_SIGNING_KEY</code> são lidas ao montar as
   dependências, então faltando qualquer uma a API não sobe — e o motivo aparece no console.
-  Também derrubam a subida o armazenamento configurado pela metade e um
-  <code>TRUSTED_PROXIES</code> inválido: não configurar é uma decisão, e esquecer a chave ou
-  escrever o proxy errado é um engano que ficaria escondido como "mídia indisponível" ou como
-  "nenhum proxy".</p>
+  Também derrubam a subida o armazenamento ou o e-mail configurados pela metade e um
+  <code>TRUSTED_PROXIES</code> inválido: não configurar é uma decisão, e esquecer a chave, o
+  remetente ou escrever o proxy errado é um engano que ficaria escondido como "mídia
+  indisponível", como "e-mail que não saiu" ou como "nenhum proxy".</p>
   <p><code>GOOGLE_CLIENT_ID</code> só é lida no primeiro login. Isso é proposital: permite
   rodar a API e abrir esta documentação enquanto o cadastro no Google Cloud não sai. O preço
   é que, sem ele, <code>POST /auth/google</code> responde <strong>500</strong> com a
@@ -60,15 +61,15 @@ pedido.</p>
 </div>
 
 <div class="note warn">
-  <strong>Sem a fila ou sem o armazenamento, a API sobe</strong>
+  <strong>Sem a fila, sem o armazenamento ou sem o e-mail, a API sobe</strong>
   <p>Ausentes, só o que depende deles para: a espera e o encerramento do pedido por prazo, sem a
-  fila; o anexo, sem o armazenamento. A espera e o anexo, a tela que os liga recusa, dizendo por
-  quê.
+  fila; o anexo, sem o armazenamento; o envio de e-mail, sem o servidor. A espera e o anexo, a
+  tela que os liga recusa, dizendo por quê.
   Com a API dentro do <code>docker compose</code>, o endereço da fila e o endereço, as chaves e o
   balde do armazenamento vêm do próprio compose, e as linhas do <code>.env.local</code> não valem:
-  ver
-  <a href="#/como-rodar/a-fila">A fila</a> e <a href="#/como-rodar/armazenamento">O
-  armazenamento</a>.</p>
+  ver <a href="#/como-rodar/a-fila">A fila</a> e <a href="#/como-rodar/armazenamento">O
+  armazenamento</a>. O e-mail é o contrário: o servidor é de fora, e vem do mesmo
+  <code>.env.local</code> — ver <a href="#/como-rodar/o-email">O e-mail</a>.</p>
 </div>
 
 <div class="note warn">

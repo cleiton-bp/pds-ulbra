@@ -27,6 +27,9 @@ recusa ligá-la, dizendo por quê — e o pedido de informação não encerra so
 prazo, fica aberto até quem relatou responder ou o time agir; sem o armazenamento, o anexo fica desligado — a
 tela de Mídia recusa ligá-lo.
 
+O e-mail não roda na sua máquina: sai por um servidor SMTP de verdade, o Brevo. Sem
+ele configurado, a API sobe inteira e só o envio de e-mail fica indisponível.
+
 ---
 
 ## Rodar
@@ -76,6 +79,7 @@ Em produção, vêm das variáveis reais do ambiente.
 | `MEDIA_STORAGE_PLAYBACK_URL_MINUTES` | não | Validade do link de um vídeo antigo, que é lido em pedaços enquanto toca. Padrão 15 |
 | `MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE` | não | Pedidos e confirmações de envio por IP, por minuto. Padrão 20 |
 | `TRUSTED_PROXIES` | não | Proxies cujo `X-Forwarded-For` vale — endereço ou rede. Vazio, o IP é o da conexão. Valor inválido derruba a subida |
+| `Smtp__Host`, `Smtp__Port`, `Smtp__Security`, `Smtp__FromAddress`… | não | O envio de e-mail, lido como a seção `Smtp`, só das variáveis de ambiente (os dois sublinhados são o separador de seção do .NET). Sem nenhuma das quatro essenciais (`Host`, `FromAddress`, `Username`, `Password`), o e-mail fica indisponível; com parte delas, ou senha sem TLS, a subida recusa dizendo tudo o que falta. Ver [O e-mail](#o-e-mail) |
 
 Número zero ou negativo nas de minutos e na do limite vale o padrão.
 
@@ -169,6 +173,57 @@ navegador conhece (`MEDIA_STORAGE_PUBLIC_ENDPOINT`).
 > que ele aceite envio por formulário assinado (POST) — o R2 da Cloudflare não
 > aceita. A escolha fica para quando houver hospedagem, junto da regra de CORS do
 > balde, que precisa deixar o quadro enviar.
+
+---
+
+## O e-mail
+
+A API manda e-mail por **SMTP**, que todo provedor fala: trocar de provedor é trocar
+configuração, e não código. Hoje nada no produto manda e-mail ainda — o convite para o
+projeto e o aviso quando o relato anda são os primeiros, **Planejado**. Sem nenhuma das
+quatro chaves essenciais — servidor, remetente, usuário e senha —, a API sobe normalmente
+e o envio responde que não está disponível; com parte delas, não sobe, e diz o que falta.
+
+O servidor do projeto é o **Brevo**: o plano grátis manda 300 e-mails por dia, sem
+cartão de crédito. No painel dele, em *SMTP e API → SMTP*, ficam o login e as chaves
+SMTP; o remetente precisa estar verificado em *Remetentes, domínios e IPs*. No
+`.env.local`:
+
+```
+Smtp__Host=smtp-relay.brevo.com
+Smtp__Port=587
+Smtp__Security=StartTls
+Smtp__Username=<o login SMTP, algo como 9a1b2c001@smtp-brevo.com>
+Smtp__Password=<uma chave SMTP — não é a senha da conta>
+Smtp__FromAddress=<um remetente verificado no Brevo>
+```
+
+**A chave SMTP é segredo**, como o resto do `.env.local`: peça a quem já roda o projeto,
+por canal privado. E **cada envio é um e-mail de verdade**, que chega na caixa de
+alguém e conta no limite do dia — teste mandando para o seu próprio endereço.
+
+**Os dois sublinhados são de propósito.** A configuração é a seção `Smtp`, lida para
+um objeto de opções, e numa variável de ambiente o separador de seção do .NET é o
+`__`. Os valores ficam no `.env.local` como todo o resto, e a seção é lida **só das
+variáveis de ambiente**: uma seção `Smtp` no `appsettings.json` não vale.
+
+**O remetente, sem domínio próprio, chega trocado.** Gmail, Yahoo e Microsoft só
+aceitam bem remetente autenticado, e um `@gmail.com` mandado pelo Brevo não é — o domínio
+é do Google. Então, sem domínio verificado no Brevo, verifique como remetente o seu
+e-mail de sempre: o Brevo troca o domínio dele na hora de mandar, e ele sai como algo
+parecido com `seu-nome@5000001.brevosend.com`. O e-mail chega. Verificar um domínio do
+produto (os registros DKIM e DMARC que o Brevo mostra) é o que deixa o remetente com o
+nome dele: **Adiado**, para quando houver domínio.
+
+Outro provedor é trocar os valores: a porta e a segurança que ele pedir (`587` com
+`StartTls` é o comum; `465` com `SslOnConnect`), e `Smtp__Username` com
+`Smtp__Password`, que vêm sempre juntos. **Senha com `Smtp__Security=None` é recusada
+na subida** — iria em texto aberto. Com `StartTls`, o padrão, servidor sem TLS é
+recusado: conexão aberta só com `Security=None`, escrito de propósito. Padrões: porta
+587, `StartTls`, 30 segundos de espera (de 1 a 300). Linha em branco vale o padrão.
+
+**Com a API no `docker compose up -d --build`**, o e-mail vem do mesmo `.env.local`,
+montado no container: o Brevo é um endereço de fora, e não um serviço do compose.
 
 ---
 

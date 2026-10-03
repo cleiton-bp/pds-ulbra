@@ -1,0 +1,122 @@
+<h2>O e-mail</h2>
+
+<p><strong>Opcional.</strong> A API manda e-mail por SMTP, que todo provedor fala: trocar de
+provedor é trocar configuração, e não código. Sem a seção <code>Smtp</code>, a API sobe
+normalmente e o envio responde que não está disponível. Hoje nada no produto manda e-mail ainda:
+o convite para o projeto e o aviso quando o relato anda, os primeiros a usar, são
+<strong>Planejado</strong>.</p>
+
+<p>O servidor do projeto é o <strong>Brevo</strong>. O plano grátis manda 300 e-mails por dia e
+não pede cartão de crédito — sobra para um time pequeno. Ao contrário da fila e do armazenamento,
+<strong>não há nada dele no <code>docker-compose.yml</code></strong>: é um servidor de fora, e a
+API fala com ele pela internet.</p>
+
+<pre><code>Smtp__Host=smtp-relay.brevo.com
+Smtp__Port=587
+Smtp__Security=StartTls
+Smtp__Username=&lt;o login SMTP&gt;
+Smtp__Password=&lt;uma chave SMTP&gt;
+Smtp__FromAddress=&lt;um remetente verificado&gt;</code></pre>
+
+<p>No painel do Brevo, em <em>SMTP e API → SMTP</em>, ficam o <strong>login</strong> (algo como
+<code>9a1b2c001@smtp-brevo.com</code>) e as <strong>chaves SMTP</strong> — uma chave gerada ali,
+e não a senha da conta. O remetente precisa estar verificado em <em>Remetentes, domínios e
+IPs</em>: o Brevo manda um código para o endereço confirmar que é seu. Sem domínio próprio, serve o
+seu e-mail de sempre — veja abaixo o que acontece com ele.</p>
+
+<div class="note warn">
+  <strong>Cada envio é um e-mail de verdade</strong>
+  <p>Não há caixa de mentira no desenvolvimento: o que a API manda chega na caixa de alguém e conta
+  no limite do dia. Teste mandando para o seu próprio endereço. E a chave SMTP é segredo, como o
+  resto do <code>.env.local</code>: peça a quem já roda o projeto, por canal privado.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que dois sublinhados</strong>
+  <p>A configuração do e-mail é uma seção, <code>Smtp</code>, lida inteira para um objeto de
+  opções (<code>SmtpOptions</code>). Numa variável de ambiente, o separador de seção do .NET é o
+  <code>__</code>: <code>Smtp__Host</code> é a chave <code>Smtp:Host</code>. Os valores continuam
+  no <code>.env.local</code>, como toda a configuração da API, e a seção é lida <strong>só das
+  variáveis de ambiente</strong>: uma seção <code>Smtp</code> no <code>appsettings.json</code> não
+  vale, porque senha de SMTP em arquivo versionado é senha vazada.</p>
+</div>
+
+<h3>O remetente, e por que ele pode chegar trocado</h3>
+
+<p>Gmail, Yahoo e Microsoft só aceitam bem e-mail cujo remetente é <strong>autenticado</strong>:
+o domínio do endereço declara, no DNS, quem pode mandar em nome dele. Um <code>@gmail.com</code>
+mandado pelo servidor do Brevo não passa nisso — o domínio é do Google, e só o Google manda por
+ele.</p>
+
+<p>Por isso, <strong>sem domínio próprio verificado no Brevo</strong>, ele troca o domínio do
+remetente na hora de mandar: o endereço verificado — o seu e-mail de sempre, por exemplo — sai
+como algo parecido com <code>seu-nome@5000001.brevosend.com</code>. O e-mail chega, com o
+remetente trocado. Verificar um domínio do produto, com os registros DKIM e DMARC que o Brevo
+mostra, é o que deixa o remetente com o nome dele: <strong>Adiado</strong>, para quando houver
+domínio.</p>
+
+<h3>As chaves da seção</h3>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Chave</th><th>Para quê</th></tr>
+  <tr><td><code>Smtp__Host</code></td><td>O servidor. Uma das quatro essenciais, com o remetente, o usuário e a senha: sem nenhuma delas, o e-mail fica indisponível.</td></tr>
+  <tr><td><code>Smtp__Port</code></td><td>A porta. Padrão 587.</td></tr>
+  <tr><td><code>Smtp__Security</code></td><td><code>StartTls</code> (padrão, a porta 587), <code>SslOnConnect</code> (a porta 465) ou <code>None</code> (só um servidor na própria máquina ou numa rede fechada, sem senha).</td></tr>
+  <tr><td><code>Smtp__Username</code> / <code>Smtp__Password</code></td><td>Quando o servidor exige. <b>Os dois, ou nenhum.</b></td></tr>
+  <tr><td><code>Smtp__FromAddress</code></td><td>O remetente. Obrigatório com o servidor configurado.</td></tr>
+  <tr><td><code>Smtp__FromName</code></td><td>O nome ao lado do remetente. Opcional.</td></tr>
+  <tr><td><code>Smtp__TimeoutSeconds</code></td><td>Quanto esperar o servidor. Padrão 30, de 1 a 300.</td></tr>
+</table>
+</div>
+
+<div class="note warn">
+  <strong>Configurado pela metade, a API não sobe</strong>
+  <p>Não configurar é uma decisão; configurar o servidor e esquecer o remetente é um engano, que
+  só apareceria no primeiro e-mail que não saiu. Com qualquer uma das quatro essenciais preenchida,
+  a subida confere tudo de uma vez e diz <strong>tudo</strong> o que está errado: servidor sem
+  remetente, remetente que não é endereço, usuário sem senha, porta fora de 1 a 65535, porta ou
+  espera escritas como texto, espera fora de 1 a 300 segundos, <code>Security</code> escrito errado.
+  Linha em branco vale o padrão — <code>Smtp__Port=</code> é a porta 587.</p>
+  <p>E recusa usuário e senha com <code>Security=None</code>: a senha atravessaria a rede em texto
+  aberto. Servidor que pede senha oferece TLS, então quem cai nisso errou o
+  <code>Security</code>.</p>
+</div>
+
+<div class="note why">
+  <strong><code>StartTls</code> é obrigatório, e não "quando der"</strong>
+  <p>Com <code>StartTls</code> — o padrão —, servidor que não oferece TLS é recusado, e nada sai.
+  Conexão aberta só com <code>Security=None</code>, escrito de propósito. A alternativa —
+  seguir aberto quando o servidor não oferece — é exatamente o que um intermediário na rede
+  provoca para ler a senha.</p>
+</div>
+
+<h3>O que o envio garante</h3>
+
+<ul>
+  <li><strong>Um destinatário por mensagem, com domínio.</strong> Lista separada por vírgula ou
+  ponto e vírgula, quebra de linha no endereço e endereço sem <code>@domínio</code> são recusados
+  antes de conectar.</li>
+  <li><strong>O assunto é uma linha.</strong> Quebra de linha vira espaço: ninguém acrescenta
+  cabeçalho — uma cópia oculta, por exemplo — escrevendo no assunto.</li>
+  <li><strong>Texto sempre, HTML se houver.</strong> Todo leitor de e-mail mostra texto, e filtro
+  de spam desconfia de mensagem só com HTML. O HTML vai como foi montado: quem monta escapa o que
+  veio de pessoa.</li>
+  <li><strong>Declarado como automático</strong> (<code>Auto-Submitted: auto-generated</code>):
+  resposta de férias não volta para um remetente que ninguém lê.</li>
+  <li><strong>Um teto de espera.</strong> Servidor que aceita a conexão e não responde não prende
+  o envio para sempre.</li>
+  <li><strong>O endereço de quem recebe não vai para o log</strong> — só o identificador da
+  mensagem, que basta para achá-la no servidor.</li>
+</ul>
+
+<div class="note warn">
+  <strong>Não é para mandar de dentro da requisição</strong>
+  <p>Mandar e-mail na hora faria quem clicou esperar um servidor de fora, e uma falha no envio
+  desfaria o que a pessoa fez — o convite <em>foi</em> criado, só o e-mail é que não saiu. O envio
+  sai pela fila, depois de gravado, e com nova tentativa: <strong>Planejado</strong>, junto com o
+  primeiro uso.</p>
+</div>
+
+<p>Com a API dentro do <code>docker compose</code>, nada muda: o <code>.env.local</code> é montado
+no container, e o servidor é o mesmo endereço de fora.</p>

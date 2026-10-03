@@ -1,5 +1,5 @@
 <h2>Arquitetura</h2>
-<p class="lead">Nove projetos, dependência sempre apontando para dentro.</p>
+<p class="lead">Dez projetos, dependência sempre apontando para dentro.</p>
 
 <div class="diagram">          <b>Pds.WebApi</b>              rotas, middleware, pipeline HTTP
                │
@@ -15,7 +15,9 @@
 
        <b>Pds.Workers</b>             a fila — só o domínio, e nada mais
 
-       <b>Pds.Storage</b>             o armazenamento — só o domínio e o SDK do S3</div>
+       <b>Pds.Storage</b>             o armazenamento — só o domínio e o SDK do S3
+
+       <b>Pds.Email</b>               o e-mail — só o domínio e o MailKit</div>
 
 <p>A linha liga quem usa a quem é usado, de cima para baixo. Repare que
 <code>Pds.Service</code> e <code>Pds.Data</code> ficam lado a lado, e não um sobre o
@@ -79,6 +81,20 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
   <code>AddPdsStorage()</code> chamado pelo <code>Startup</code>.</p>
 </div>
 
+<div class="note warn">
+  <strong><code>Pds.Email</code> referencia só <code>Pds.Domain</code></strong>
+  <p>A mesma forma do <code>Pds.Storage</code>, agora com o e-mail: de projeto, só o domínio; de
+  pacote, o <code>MailKit</code> e as abstrações de registro, de log e de opções. O que faz é
+  implementar <code>IEmailSender</code>, que mora no domínio: montar a mensagem e entregá-la ao
+  servidor SMTP. Quem decide quem recebe o quê é <code>Pds.Service</code>, e ele conhece só a
+  interface — trocar de provedor é trocar configuração.</p>
+  <p>A configuração chega como opções (<code>SmtpOptions</code>), lidas da seção
+  <code>Smtp</code> — no <code>.env.local</code>, <code>Smtp__Host</code> e as irmãs. E, como a
+  fila e o armazenamento, o registro fica fora do <code>DiResolver</code>, num
+  <code>AddPdsEmail()</code> chamado pelo <code>Startup</code>, que decide na subida: sem a seção,
+  o envio indisponível; pela metade, a API não sobe.</p>
+</div>
+
 <div class="note why">
   <strong>A mensagem carrega o relato, e nunca a decisão</strong>
   <p>Ela leva dois campos: qual verificação e qual relato. Nada mais — nem a etapa de destino,
@@ -128,6 +144,6 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
 <h2>Nesta seção</h2>
 
 <div class="steps-index">
-  <a href="#/arquitetura/camadas"><strong>O que cada camada carrega</strong><span>Os nove projetos, e o que cada um não pode conter.</span></a>
+  <a href="#/arquitetura/camadas"><strong>O que cada camada carrega</strong><span>Os dez projetos, e o que cada um não pode conter.</span></a>
   <a href="#/arquitetura/onde-fica"><strong>Onde fica no código</strong><span>Mapa para quando a pergunta for "preciso mexer em X, vou onde".</span></a>
 </div>

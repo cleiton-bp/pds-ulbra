@@ -45,5 +45,10 @@
   <tr><td>O nome com que o arquivo baixa</td><td><code>Pds.Storage/DownloadDisposition.cs</code></td></tr>
   <tr><td>Limite por minuto do envio, e de quem é o IP atrás de proxy</td><td><code>Pds.WebApi/Startup.cs</code>, <code>MediaUploadRateLimitPolicy</code> e <code>TrustedForwarding</code></td></tr>
   <tr><td>O balde, privado, e a pasta de envio que vence em um dia</td><td><code>docker-compose.yml</code>, <code>minio-init</code></td></tr>
+  <tr><td>O contrato do envio de e-mail</td><td><code>Pds.Domain/Interfaces/ServiceInterfaces/IEmailSender.cs</code></td></tr>
+  <tr><td>Montar a mensagem e entregar por SMTP</td><td><code>Pds.Email/MailKitEmailSender.cs</code></td></tr>
+  <tr><td>As opções da seção <code>Smtp</code>, e os padrões</td><td><code>Pds.Email/SmtpOptions.cs</code></td></tr>
+  <tr><td>Ligar o e-mail na subida, ou não, e o que é configuração pela metade</td><td><code>Pds.Email/EmailRegistration.cs</code> e <code>UnavailableEmailSender.cs</code></td></tr>
+  <tr><td>O que conta como endereço: um só, com domínio</td><td><code>Pds.Email/EmailAddresses.cs</code></td></tr>
 </table>
 </div>
