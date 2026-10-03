@@ -17,6 +17,11 @@ import type {
   ReportModerationState,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
+  SetCardAssigneeRequest,
+  SetCardDueDateRequest,
+  SetCardLabelsRequest,
+  SetCardPriorityRequest,
+  SetCardTitleRequest,
 } from '@/contracts'
 
 /**
@@ -71,6 +76,47 @@ export interface ProjectReportService {
     publicId: string,
     reportPublicId: string,
     request: ArchiveCardRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /**
+   * O titulo do time num relato. Vazio volta ao que quem relatou escreveu — que
+   * nunca se perde. O card do time a API recusa: la o titulo vai com a descricao.
+   *
+   * Cada campo tem a sua chamada, e cada uma devolve o card **aberto**, sem
+   * registrar leitura: a tela troca o card inteiro pela resposta.
+   */
+  setTitle(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardTitleRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /** Quem do time fica com o card — so quem esta no time agora —, ou ninguem. */
+  setAssignee(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardAssigneeRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /** A prioridade — uma ativa do projeto —, ou nenhuma. */
+  setPriority(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardPriorityRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /** O conjunto inteiro de etiquetas, trocado de uma vez. */
+  setLabels(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardLabelsRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /** O prazo, so a data — ou nenhum. */
+  setDueDate(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardDueDateRequest,
   ): Promise<ReportDetailViewModel>
 
   /**

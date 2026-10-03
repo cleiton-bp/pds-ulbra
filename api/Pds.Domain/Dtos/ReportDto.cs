@@ -21,6 +21,14 @@ public class CreateReportDto
     /// <example>Bug</example>
     public ReportTypeEnum? Type { get; set; }
 
+    /// <summary>
+    /// A resposta a "em poucas palavras, o que aconteceu?", numa linha. Opcional, a
+    /// nao ser que o projeto torne a pergunta obrigatoria. Vira o titulo do card para
+    /// o time — que pode reescrever — e e o unico titulo que volta para quem relatou.
+    /// </summary>
+    /// <example>O botão de pagar não responde no celular</example>
+    public string? Title { get; set; }
+
     /// <summary>O que a pessoa escreveu.</summary>
     /// <example>O botão de finalizar compra não responde no passo de pagamento.</example>
     public string? Text { get; set; }

@@ -9,12 +9,13 @@ import { describeError, projectReportService } from '@/data'
 import { NewCardDialog } from '@/features/reports/NewCardDialog'
 import { useReportInbox } from '@/features/reports/useReportInbox'
 import { Button } from '@/shared/components/Button'
+import { CardChip } from '@/shared/components/CardChip'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
-import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
+import { formatDateTime, formatDay, formatRelative } from '@/shared/lib/datetime'
 import { canConfigure } from '@/shared/lib/projectAccess'
 import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
@@ -351,6 +352,7 @@ function Ficha({
 
 function ReportCard({ report }: { report: ReportSummaryViewModel }) {
   const doTime = report.Kind === 'Team'
+  const titulo = report.Title ?? report.ReporterTitle
 
   return (
     // Link, e nao botao: e o que faz o relato ter endereco proprio, abrir em outra
@@ -386,20 +388,28 @@ function ReportCard({ report }: { report: ReportSummaryViewModel }) {
         </time>
       </header>
 
-      {/* O card do time mostra o titulo; o relato, o texto de quem relatou — que
-          e dela, e nao ganha titulo do time. */}
-      <p
-        className={cn(
-          'line-clamp-3 whitespace-pre-wrap break-words text-body text-fg leading-relaxed',
-          !doTime && 'mb-2.5',
-          doTime && 'font-medium',
-        )}
-      >
-        {doTime ? report.Title : report.Text}
-      </p>
+      {/* O titulo do time, senao o que quem relatou escreveu — e o texto dela logo
+          abaixo, que continua sendo o que ela escreveu. Sem titulo nenhum, o comeco
+          do texto faz as vezes de titulo. */}
+      {titulo ? (
+        <>
+          <p className="line-clamp-2 break-words font-medium text-body text-fg">{titulo}</p>
+          {!doTime && (
+            <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-detail text-fg-muted leading-relaxed">
+              {report.Text}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="line-clamp-3 whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
+          {report.Text}
+        </p>
+      )}
+
+      <CardFacts report={report} />
 
       {!doTime && (
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-caption text-fg-muted">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-caption text-fg-muted">
           <code className="font-mono">{report.TrackingCode}</code>
           {report.Route && (
             <>
@@ -410,6 +420,45 @@ function ReportCard({ report }: { report: ReportSummaryViewModel }) {
         </div>
       )}
     </Link>
+  )
+}
+
+/**
+ * O que o time deu ao card, numa faixa so: prioridade, etiquetas, quem esta com
+ * ele e o prazo. Some quando nao ha nada — a lista de um time que nao usa os campos
+ * nao ganha uma linha vazia em cada card.
+ */
+function CardFacts({ report }: { report: ReportSummaryViewModel }) {
+  const { Priority, Labels, Assignee, DueDate } = report
+  if (!Priority && Labels.length === 0 && !Assignee && !DueDate) return null
+
+  // Tres etiquetas e um "+2": a linha e para passar os olhos, e o card aberto
+  // mostra todas.
+  const visiveis = Labels.slice(0, 3)
+  const restantes = Labels.length - visiveis.length
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-caption text-fg-muted">
+      {Priority && (
+        <CardChip color={Priority.Color}>
+          {Priority.IsActive ? Priority.Name : `${Priority.Name} (aposentada)`}
+        </CardChip>
+      )}
+      {visiveis.map((etiqueta) => (
+        <CardChip key={etiqueta.PublicId} color={etiqueta.Color}>
+          {etiqueta.Name}
+        </CardChip>
+      ))}
+      {restantes > 0 && <span>+{restantes}</span>}
+      {Assignee && (
+        <span className="min-w-0 truncate">
+          {/* Sem nome no Google, a API ja manda o e-mail no lugar. */}
+          {Assignee.Name || 'Sem nome'}
+          {!Assignee.InTeam && ' (saiu do time)'}
+        </span>
+      )}
+      {DueDate && <span className="tabular-nums">Prazo {formatDay(DueDate)}</span>}
+    </div>
   )
 }
 

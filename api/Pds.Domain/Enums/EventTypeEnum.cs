@@ -240,4 +240,29 @@ public enum EventTypeEnum
     /// relatou reabriu ou respondeu (origem <c>public_page</c>).
     /// </summary>
     CardUnarchived,
+
+    /// <summary>
+    /// O time reescreveu o titulo do relato, ou voltou ao que quem relatou escreveu.
+    /// Sem o texto no payload — so o tamanho e se voltou —, pela mesma razao do card
+    /// do time: esta tabela nao se apaga.
+    /// </summary>
+    CardTitleChanged,
+
+    /// <summary>
+    /// Mudou quem esta com o card. O payload leva os identificadores publicos das
+    /// pessoas, e nao os nomes: nome e dado de alguem, e esta tabela nao se apaga.
+    /// </summary>
+    CardAssigneeChanged,
+
+    /// <summary>
+    /// Mudou a prioridade. Os nomes vao junto dos identificadores, como no estado:
+    /// renomear a prioridade nao reescreve o passado.
+    /// </summary>
+    CardPriorityChanged,
+
+    /// <summary>Entraram ou sairam etiquetas, com os nomes que valiam na epoca.</summary>
+    CardLabelsChanged,
+
+    /// <summary>Mudou o prazo. Datas, sem hora.</summary>
+    CardDueDateChanged,
 }

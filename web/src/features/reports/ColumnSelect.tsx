@@ -30,6 +30,8 @@ export function ColumnSelect({
         ariaLabel="Mover para a coluna"
         value={atual ?? ''}
         disabled={disabled}
+        // Escolher move o card: a letra digitada com a lista fechada so abre a lista.
+        openOnType
         onChange={(valor) => aoEscolher(valor)}
         options={[
           // "Sem coluna" nao e destino: nao ha como tirar um card da fila de volta,

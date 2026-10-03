@@ -90,13 +90,23 @@ public record CreatedReportViewModel(
 /// <param name="CreatedAt">Quando o card entrou, em UTC.</param>
 /// <param name="Kind">De onde o card veio: <c>Report</c>, de fora, ou <c>Team</c>, do time.</param>
 /// <param name="Number">O numero curto do card no projeto (#42). Interno: nenhuma rota publica o devolve.</param>
-/// <param name="Title">O titulo do card do time; nulo no relato.</param>
+/// <param name="Title">
+/// O titulo do time: o do card do time, ou o que o time reescreveu no relato — nulo
+/// no relato que ninguem reescreveu. A tela mostra este, senao <c>ReporterTitle</c>,
+/// senao o comeco do texto.
+/// </param>
+/// <param name="ReporterTitle">O titulo que quem relatou escreveu na ferramenta; nunca muda. Nulo quando ela nao respondeu, e no card do time.</param>
 /// <param name="ArchivedAt">Quando o card saiu da tela de Trabalho; nulo enquanto esta nela.</param>
+/// <param name="Assignee">Quem esta com o card; nulo enquanto ninguem assumiu.</param>
+/// <param name="Priority">A prioridade; nula e sem prioridade.</param>
+/// <param name="Labels">As etiquetas, em ordem de nome.</param>
+/// <param name="DueDate">O prazo, so a data; nulo e sem prazo.</param>
 public record ReportSummaryViewModel(
     Guid PublicId,
     CardKindEnum Kind,
     int Number,
     string? Title,
+    string? ReporterTitle,
     string? TrackingCode,
     ReportTypeEnum? Type,
     string? Text,
@@ -108,7 +118,50 @@ public record ReportSummaryViewModel(
     bool? AcceptsQuestions,
     DateTime? PublicStageDueAt,
     DateTime? ArchivedAt,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    CardAssigneeViewModel? Assignee,
+    CardPriorityViewModel? Priority,
+    IReadOnlyList<CardLabelViewModel> Labels,
+    DateOnly? DueDate);
+
+/// <summary>
+/// Quem esta com o card.
+///
+/// <para><b>Quem saiu do time continua aqui</b>, como registro: <c>InTeam</c> falso, e
+/// a tela o marca ate alguem trocar. Lido na hora — voltar ao time apaga a marca.</para>
+/// </summary>
+/// <param name="UserPublicId">A pessoa.</param>
+/// <param name="Name">
+/// Como a pessoa aparece: o nome que veio do Google, ou o e-mail de quem nao tem
+/// nome la — o mesmo jeito da lista do time, de onde ela foi escolhida.
+/// </param>
+/// <param name="AvatarUrl">A foto do Google, quando ha.</param>
+/// <param name="InTeam">Se ela esta no time do projeto agora.</param>
+public record CardAssigneeViewModel(
+    Guid UserPublicId,
+    string? Name,
+    string? AvatarUrl,
+    bool InTeam);
+
+/// <summary>A prioridade de um card, com o nome e a cor de agora.</summary>
+/// <param name="PublicId">A prioridade.</param>
+/// <param name="Name">O nome.</param>
+/// <param name="Color">A cor, da paleta fixa.</param>
+/// <param name="IsActive">Falso quando foi aposentada: continua no card, e nao e mais oferecida.</param>
+public record CardPriorityViewModel(
+    Guid PublicId,
+    string Name,
+    CardColorEnum Color,
+    bool IsActive);
+
+/// <summary>Uma etiqueta de um card.</summary>
+/// <param name="PublicId">A etiqueta.</param>
+/// <param name="Name">O nome.</param>
+/// <param name="Color">A cor, da paleta fixa.</param>
+public record CardLabelViewModel(
+    Guid PublicId,
+    string Name,
+    CardColorEnum Color);
 
 /// <summary>
 /// Uma pagina de relatos e o total que existe fora dela.
@@ -326,14 +379,23 @@ public record ReportContextViewModel(string Key, string? Value);
 /// </param>
 /// <param name="Kind">De onde o card veio: <c>Report</c>, de fora, ou <c>Team</c>, do time.</param>
 /// <param name="Number">O numero curto do card no projeto (#42).</param>
-/// <param name="Title">O titulo do card do time; nulo no relato.</param>
+/// <param name="Title">
+/// O titulo do time: o do card do time, ou o que o time reescreveu no relato — nulo
+/// no relato que ninguem reescreveu. A tela mostra este, senao <c>ReporterTitle</c>,
+/// senao o comeco do texto.
+/// </param>
 /// <param name="Description">A descricao do card do time, em Markdown; nula no relato.</param>
+/// <param name="ReporterTitle">O titulo que quem relatou escreveu; nunca muda. Nulo quando ela nao respondeu, e no card do time.</param>
 /// <param name="CreatedByName">Quem do time criou o card; nulo no relato.</param>
 /// <param name="ArchivedAt">Quando o card saiu da tela de Trabalho; nulo enquanto esta nela.</param>
 /// <param name="CanArchive">
 /// Da para arquivar este card <b>agora</b>. Sempre no card do time; no relato, so com
 /// a regra do ciclo ligada. Falso no que ja esta arquivado.
 /// </param>
+/// <param name="Assignee">Quem esta com o card; nulo enquanto ninguem assumiu.</param>
+/// <param name="Priority">A prioridade; nula e sem prioridade.</param>
+/// <param name="Labels">As etiquetas, em ordem de nome.</param>
+/// <param name="DueDate">O prazo, so a data; nulo e sem prazo.</param>
 /// <param name="ArchiveCloses">
 /// Arquivar este relato <b>encerra</b> junto — e por isso pede desfecho e motivo, o
 /// que quem relatou vai ler. Verdadeiro no relato aberto; falso no ja encerrado e
@@ -344,6 +406,7 @@ public record ReportDetailViewModel(
     CardKindEnum Kind,
     int Number,
     string? Title,
+    string? ReporterTitle,
     string? Description,
     string? CreatedByName,
     DateTime? ArchivedAt,
@@ -365,7 +428,11 @@ public record ReportDetailViewModel(
     bool CanAskInfo,
     ReportModerationStateEnum ModerationState,
     IReadOnlyList<ReportContextViewModel> Contexts,
-    IReadOnlyList<ReportReopeningViewModel> Reopenings);
+    IReadOnlyList<ReportReopeningViewModel> Reopenings,
+    CardAssigneeViewModel? Assignee,
+    CardPriorityViewModel? Priority,
+    IReadOnlyList<CardLabelViewModel> Labels,
+    DateOnly? DueDate);
 
 
 /// <summary>
@@ -382,6 +449,7 @@ public record ReportDetailViewModel(
 /// </summary>
 /// <param name="TrackingCode">O protocolo, que a pessoa reconhece.</param>
 /// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="Title">O titulo que ela escreveu, ou nulo quando nao respondeu. Nunca o do time.</param>
 /// <param name="Excerpt">O comeco do que ela escreveu, para distinguir um do outro.</param>
 /// <param name="StageLabel">Em que passo da jornada ele esta, com as palavras do cliente. Nulo quando o projeto nao tem jornada.</param>
 /// <param name="IsClosed">Se ja acabou. A lista separa os abertos dos fechados sem precisar abrir cada um.</param>
@@ -389,6 +457,7 @@ public record ReportDetailViewModel(
 public record ReporterCodeReportViewModel(
     string TrackingCode,
     ReportTypeEnum Type,
+    string? Title,
     string Excerpt,
     string? StageLabel,
     bool IsClosed,
@@ -625,6 +694,10 @@ public record PublicReopeningViewModel(
 /// </summary>
 /// <param name="TrackingCode">O protocolo, o mesmo que a pessoa anotou.</param>
 /// <param name="Type">Defeito, melhoria ou duvida, como ela escolheu.</param>
+/// <param name="Title">
+/// O titulo que ela escreveu, ou nulo quando nao respondeu. <b>Nunca o do time</b>: o
+/// titulo reescrito no painel e interno, e quem relatou ve so o que escreveu.
+/// </param>
 /// <param name="Text">O que ela escreveu, inteiro.</param>
 /// <param name="CreatedAt">Quando o relato entrou.</param>
 /// <param name="Journey">
@@ -668,6 +741,7 @@ public record PublicReopeningViewModel(
 public record PublicReportViewModel(
     string TrackingCode,
     ReportTypeEnum Type,
+    string? Title,
     string Text,
     DateTime CreatedAt,
     IReadOnlyList<PublicStageViewModel> Journey,

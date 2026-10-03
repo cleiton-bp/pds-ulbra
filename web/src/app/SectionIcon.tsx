@@ -120,6 +120,23 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'priorities' && (
+        // Tres barras subindo: o quanto importa, do pouco ao muito.
+        <>
+          <path d="M2.6 9.6V7.8" />
+          <path d="M6 9.6V5.2" />
+          <path d="M9.4 9.6V2.4" />
+        </>
+      )}
+
+      {section === 'labels' && (
+        // A etiqueta de pendurar: a ponta e o furo.
+        <>
+          <path d="M1.9 6.1V2.7a.8.8 0 0 1 .8-.8h3.4l4 4-4.2 4.2z" />
+          <circle cx="4.3" cy="4.3" r="0.7" />
+        </>
+      )}
+
       {section === 'stages' && (
         // Uma linha com tres marcos: e a linha do tempo que quem relatou ve, e
         // nao as colunas de `states` — as duas telas se confundem, e os glifos

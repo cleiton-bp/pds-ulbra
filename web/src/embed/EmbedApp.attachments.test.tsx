@@ -120,7 +120,9 @@ describe('o anexo no formulario', () => {
 
   it('colar um print anexa', async () => {
     montar()
-    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+    const formulario = screen
+      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .closest('form') as HTMLFormElement
 
     // Um print de verdade traz so a imagem: texto nenhum.
     fireEvent.paste(formulario, { clipboardData: { files: [print()], getData: () => '' } })
@@ -136,7 +138,9 @@ describe('o anexo no formulario', () => {
     ['o caminho, como o Linux', '/home/ana/Imagens/erro.png'],
   ])('colar arquivo copiado com %s como texto continua anexando', async (_, texto) => {
     montar()
-    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+    const formulario = screen
+      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .closest('form') as HTMLFormElement
 
     const colagem = fireEvent.paste(formulario, {
       clipboardData: {
@@ -156,7 +160,9 @@ describe('o anexo no formulario', () => {
     ['o texto com o acento separado', 'relat\u00f3rio.png', 'relato\u0301rio.png'],
   ])('colar arquivo de nome acentuado, com %s, continua anexando', async (_, nome, texto) => {
     montar()
-    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+    const formulario = screen
+      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .closest('form') as HTMLFormElement
     const arquivo = new File([new Uint8Array(100)], nome, { type: 'image/png' })
 
     const colagem = fireEvent.paste(formulario, {
@@ -178,7 +184,9 @@ describe('o anexo no formulario', () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(new File([png], 'erro.jpg', { type: 'image/jpeg' }))
     await screen.findByRole('button', { name: 'Remover erro.jpg' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -200,7 +208,7 @@ describe('o anexo no formulario', () => {
   // engoliria o texto que a pessoa quis colar.
   it('colar texto de planilha, que traz uma imagem junto, continua sendo colar texto', async () => {
     montar()
-    const caixa = screen.getByRole('textbox')
+    const caixa = screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
 
     const colagem = fireEvent.paste(caixa, {
       clipboardData: {
@@ -263,7 +271,9 @@ describe('o arquivo que nao e imagem, no formulario', () => {
     dublê.criar.mockResolvedValue(criado)
     dublê.enviar.mockResolvedValue(undefined)
     montarComArquivo()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
 
     escolherArquivo(new File([new Uint8Array(2048)], 'erro.log', { type: '' }))
 
@@ -280,7 +290,9 @@ describe('o arquivo que nao e imagem, no formulario', () => {
 
   it('colar um PDF anexa como arquivo', async () => {
     montarComArquivo()
-    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+    const formulario = screen
+      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .closest('form') as HTMLFormElement
     const pdf = new File([new Uint8Array(100)], 'fatura.pdf', { type: 'application/pdf' })
 
     fireEvent.paste(formulario, { clipboardData: { files: [pdf], getData: () => '' } })
@@ -349,7 +361,7 @@ describe('a imagem no relato que a pessoa monta', () => {
     escolher(print())
 
     const lista = await screen.findByRole('list', { name: 'Imagens a enviar' })
-    const texto = screen.getByRole('textbox')
+    const texto = screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
     const anexar = screen.getByRole('button', { name: 'Anexar imagem' })
     expect(texto.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(lista.compareDocumentPosition(anexar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -365,7 +377,9 @@ describe('a imagem no relato que a pessoa monta', () => {
     dublê.criar.mockResolvedValue(criado)
     dublê.enviar.mockResolvedValue(undefined)
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('list', { name: 'Imagens a enviar' })
 
@@ -391,7 +405,9 @@ describe('a imagem no relato que a pessoa monta', () => {
   it('durante o envio, o tamanho fica travado', async () => {
     dublê.criar.mockReturnValue(new Promise(() => {}))
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('list', { name: 'Imagens a enviar' })
 
@@ -406,13 +422,20 @@ describe('a imagem no relato que a pessoa monta', () => {
   // ele, o formulario rola.
   it('com imagem na lista, o texto guarda uma altura minima', async () => {
     montar()
-    expect(screen.getByRole('textbox').className).toContain('min-h-0')
+    expect(
+      screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }).className,
+    ).toContain('min-h-0')
 
     escolher(print())
     await screen.findByRole('list', { name: 'Imagens a enviar' })
 
-    expect(screen.getByRole('textbox').className).toContain('min-h-24')
-    expect(screen.getByRole('textbox').closest('form')?.className).toContain('overflow-y-auto')
+    expect(
+      screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }).className,
+    ).toContain('min-h-24')
+    expect(
+      screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }).closest('form')
+        ?.className,
+    ).toContain('overflow-y-auto')
   })
 })
 
@@ -428,7 +451,9 @@ describe('o envio', () => {
     })
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -447,7 +472,9 @@ describe('o envio', () => {
     dublê.enviar.mockReturnValue(new Promise(() => {}))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -460,7 +487,9 @@ describe('o envio', () => {
     dublê.enviar.mockRejectedValue(new Error('rede'))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -490,7 +519,9 @@ describe('o envio', () => {
       .mockResolvedValueOnce(undefined)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -507,7 +538,9 @@ describe('o envio', () => {
     dublê.enviar.mockRejectedValueOnce(new Error('rede')).mockResolvedValueOnce(undefined)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -527,7 +560,9 @@ describe('o envio', () => {
     )
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -553,7 +588,9 @@ describe('o envio', () => {
 
     try {
       montar()
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+      fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+        target: { value: 'o pagamento falhou' },
+      })
       escolher(print())
 
       const enviar = screen.getByRole('button', { name: 'Enviar' }) as HTMLButtonElement
@@ -574,7 +611,9 @@ describe('o envio', () => {
     dublê.enviar.mockRejectedValue(new PanelError('Este projeto nao aceita anexo.', 409))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -599,8 +638,12 @@ describe('o envio', () => {
     dublê.enviar.mockResolvedValue(undefined)
 
     montar()
-    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    const formulario = screen
+      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .closest('form') as HTMLFormElement
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(print())
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -627,7 +670,9 @@ describe('o envio', () => {
     dublê.criar.mockResolvedValue(criado)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     const protocolo = await screen.findByText('7K2M-9QXP-4TRV')
@@ -638,7 +683,9 @@ describe('o envio', () => {
     dublê.criar.mockResolvedValue(criado)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await screen.findByText('7K2M-9QXP-4TRV')
@@ -699,7 +746,9 @@ describe('a fila de arquivos', () => {
       .mockResolvedValue(undefined)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(nomeado('primeiro.png'))
     await screen.findByRole('button', { name: 'Remover primeiro.png' })
     escolher(nomeado('segundo.png'))
@@ -710,7 +759,10 @@ describe('a fila de arquivos', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Relatar outra coisa' }))
 
     // O formulario novo esta limpo...
-    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+    expect(
+      (screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }) as HTMLTextAreaElement)
+        .value,
+    ).toBe('')
     expect(screen.queryByText('segundo.png')).toBeNull()
 
     // ...e o segundo arquivo do relato anterior sobe mesmo assim.
@@ -778,7 +830,9 @@ describe('a fila de arquivos', () => {
       <EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} media={media} />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(nomeado('erro.png'))
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -805,7 +859,9 @@ describe('a fila de arquivos', () => {
     dublê.enviar.mockRejectedValue(new Error('rede'))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o pagamento falhou' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o pagamento falhou' },
+    })
     escolher(nomeado('erro.png'))
     await screen.findByRole('button', { name: 'Remover erro.png' })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))

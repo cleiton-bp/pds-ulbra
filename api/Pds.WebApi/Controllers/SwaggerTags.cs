@@ -17,6 +17,8 @@ public static class SwaggerTags
     public const string ProjectOrigins = "Domínios autorizados";
     public const string WidgetSettings = "Ferramenta";
     public const string ProjectStates = "Estados do projeto";
+    public const string ProjectPriorities = "Prioridades do projeto";
+    public const string ProjectLabels = "Etiquetas do projeto";
     public const string ProjectPublicStages = "Etapas públicas";
     public const string ProjectStatusMappings = "Mapeamento de estados";
     public const string CycleSettings = "Regras do ciclo";

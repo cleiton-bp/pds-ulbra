@@ -79,6 +79,20 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Trava os campos do card (titulo, responsavel, prioridade, etiquetas, prazo) ate
+    /// a transacao atual terminar.
+    ///
+    /// <para><b>E ela que faz dois pedidos ao mesmo card contarem um depois do
+    /// outro.</b> Quem chama trava e so entao le o card: o segundo pedido espera o
+    /// primeiro gravar e ja ve o que ele deixou.</para>
+    ///
+    /// <para>So vale dentro de uma transacao (<c>InTransactionAsync</c>), como a da
+    /// cota de anexos. O card que nao existe neste projeto nao trava nada — a busca
+    /// que vem em seguida e que recusa.</para>
+    /// </summary>
+    Task LockCardFieldsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Um relato pelo identificador publico, <b>sem sessao</b>, com o projeto e a
     /// coluna atual carregados.
     ///

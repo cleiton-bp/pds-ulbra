@@ -37,6 +37,32 @@
   --color-muted-dot: var(--muted-dot);
   --color-overlay: var(--overlay);
 
+  /* A paleta de dado: etiqueta e prioridade. Ver a nota em tokens.css. */
+  --color-chip-gray-surface: var(--chip-gray-surface);
+  --color-chip-gray-border: var(--chip-gray-border);
+  --color-chip-gray-fg: var(--chip-gray-fg);
+  --color-chip-blue-surface: var(--chip-blue-surface);
+  --color-chip-blue-border: var(--chip-blue-border);
+  --color-chip-blue-fg: var(--chip-blue-fg);
+  --color-chip-green-surface: var(--chip-green-surface);
+  --color-chip-green-border: var(--chip-green-border);
+  --color-chip-green-fg: var(--chip-green-fg);
+  --color-chip-yellow-surface: var(--chip-yellow-surface);
+  --color-chip-yellow-border: var(--chip-yellow-border);
+  --color-chip-yellow-fg: var(--chip-yellow-fg);
+  --color-chip-orange-surface: var(--chip-orange-surface);
+  --color-chip-orange-border: var(--chip-orange-border);
+  --color-chip-orange-fg: var(--chip-orange-fg);
+  --color-chip-red-surface: var(--chip-red-surface);
+  --color-chip-red-border: var(--chip-red-border);
+  --color-chip-red-fg: var(--chip-red-fg);
+  --color-chip-purple-surface: var(--chip-purple-surface);
+  --color-chip-purple-border: var(--chip-purple-border);
+  --color-chip-purple-fg: var(--chip-purple-fg);
+  --color-chip-pink-surface: var(--chip-pink-surface);
+  --color-chip-pink-border: var(--chip-pink-border);
+  --color-chip-pink-fg: var(--chip-pink-fg);
+
   /* Inter vem do Google Fonts (index.html). A reserva evita a tela trocar de
      metrica se a fonte demorar ou falhar. */
   --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

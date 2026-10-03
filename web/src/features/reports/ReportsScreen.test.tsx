@@ -97,6 +97,7 @@ function relato(
     // O numero sai do identificador, para cada relato do teste ter o seu.
     Number: [...publicId].reduce((soma, letra) => soma + letra.charCodeAt(0), 0),
     Title: null,
+    ReporterTitle: null,
     TrackingCode: `COD-${publicId.toUpperCase()}`,
     Type: 'Bug',
     Text: text,
@@ -112,6 +113,10 @@ function relato(
     PublicStageDueAt: null,
     ArchivedAt: null,
     CreatedAt: '2026-09-01T12:00:00.000Z',
+    Assignee: null,
+    Priority: null,
+    Labels: [],
+    DueDate: null,
     ...extra,
   }
 }
@@ -214,6 +219,55 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('COD-R-1')).toBeTruthy()
     expect(screen.getByText('/checkout')).toBeTruthy()
     expect(screen.getByText('Defeito')).toBeTruthy()
+  })
+
+  it('o titulo do time vem primeiro, e a faixa diz prioridade, etiquetas, quem e o prazo', async () => {
+    dublê.listar.mockResolvedValue({
+      reports: [
+        relato('r-1', 'o botao some depois do frete', {
+          Title: 'Pagamento recusado no celular',
+          ReporterTitle: 'O botão sumiu',
+          // Aposentada depois de ir para o card: continua nele, marcada.
+          Priority: { PublicId: 'p-alta', Name: 'Alta', Color: 'Orange', IsActive: false },
+          Labels: [
+            { PublicId: 'l-1', Name: 'pagamento', Color: 'Blue' },
+            { PublicId: 'l-2', Name: 'celular', Color: 'Green' },
+            { PublicId: 'l-3', Name: 'cliente', Color: 'Pink' },
+            { PublicId: 'l-4', Name: 'urgente', Color: 'Red' },
+          ],
+          Assignee: { UserPublicId: 'u-1', Name: 'Bruno', AvatarUrl: null, InTeam: false },
+          DueDate: '2026-10-16',
+        }),
+      ],
+      total: 1,
+    })
+
+    montar()
+
+    expect(await screen.findByText('Pagamento recusado no celular')).toBeTruthy()
+    // O texto de quem relatou continua na linha; o titulo que ela escreveu, nao —
+    // a linha mostra um titulo so.
+    expect(screen.getByText('o botao some depois do frete')).toBeTruthy()
+    expect(screen.queryByText('O botão sumiu')).toBeNull()
+    expect(screen.getByText('Alta (aposentada)')).toBeTruthy()
+    expect(screen.getByText('+1')).toBeTruthy()
+    expect(screen.getByText(/Bruno.*saiu do time/)).toBeTruthy()
+    expect(screen.getByText(/Prazo 16/)).toBeTruthy()
+  })
+
+  it('sem titulo do time, o de quem relatou faz as vezes; sem nenhum, o texto', async () => {
+    dublê.listar.mockResolvedValue({
+      reports: [
+        relato('r-1', 'texto do primeiro', { ReporterTitle: 'Título de quem relatou' }),
+        relato('r-2', 'texto sem titulo nenhum'),
+      ],
+      total: 2,
+    })
+
+    montar()
+
+    expect(await screen.findByText('Título de quem relatou')).toBeTruthy()
+    expect(screen.getByText('texto sem titulo nenhum')).toBeTruthy()
   })
 
   it('tipo que esta tela nao conhece aparece com o proprio valor, em vez de sumir', async () => {
@@ -622,6 +676,26 @@ describe('abrir um relato', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/p/p-1'))
     // A lista fica montada atras: fechar nao e recarregar. Uma busca por montagem.
     expect(dublê.listar).toHaveBeenCalledTimes(1)
+  })
+
+  it('digitar no seletor de coluna fechado abre a lista, e nao move o card pela primeira letra', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+
+    montar('p-1', '/p/p-1/r-1')
+
+    const campo = await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    fireEvent.keyDown(campo, { key: 'P' })
+
+    expect(await screen.findByRole('option', { name: 'Pronto' })).toBeTruthy()
+    expect(dublê.mover).not.toHaveBeenCalled()
   })
 
   it('mover grava a coluna nova, e a lista passa a mostrá-la', async () => {

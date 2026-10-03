@@ -24,6 +24,9 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   SuccessMessage: 'Recebemos. Anote o protocolo — é com ele que você acompanha.',
   ShowsTypeField: true,
   DefaultReportType: 'Bug',
+  // A pergunta aparece e nao obriga: obrigar faria parte de quem relata desistir
+  // antes de enviar.
+  ReportTitleMode: 'Optional',
   // **Este nao vem de `WidgetSettingsDefaults.cs`**, e sim de
   // `CycleSettingsDefaults.cs`: ele decide o estado inicial de uma caixa do
   // formulario, mas a resposta dela pertence ao ciclo do relato. O teste de

@@ -33,9 +33,10 @@ public class ReportMap : BaseEntityConfiguration<Report>
             // publica nem espera, o motor nunca o mostra; e preso em "pendente", a
             // lista publica — que so le o liberado — nunca o le. A regra "nunca
             // aparece na parte publica" deixa de depender de cada consulta lembrar.
+            // E sem o titulo de quem relatou: nao ha quem relatou.
             table.HasCheckConstraint(
                 "ck_reports_team_fields",
-                "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL)");
+                "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL AND reporter_title IS NULL)");
         });
 
         builder.Property(report => report.Kind)
@@ -58,7 +59,12 @@ public class ReportMap : BaseEntityConfiguration<Report>
         builder.Property(report => report.Title)
             .HasColumnName("title")
             .HasMaxLength(Report.MaxTitleLength)
-            .HasComment("Titulo do card do time. Nulo no relato.");
+            .HasComment("Titulo do time. Obrigatorio no card do time; no relato, o que o time reescreveu, nulo ate alguem reescrever. Interno: nenhuma rota publica o devolve.");
+
+        builder.Property(report => report.ReporterTitle)
+            .HasColumnName("reporter_title")
+            .HasMaxLength(Report.MaxTitleLength)
+            .HasComment("O titulo que a pessoa escreveu na ferramenta. Nunca muda, e e o unico titulo que volta para ela. Nulo quando ela nao respondeu, e sempre no card do time.");
 
         builder.Property(report => report.Description)
             .HasColumnName("description")
@@ -79,6 +85,36 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .WithMany()
             .HasForeignKey(report => report.CreatedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(report => report.AssigneeUserId)
+            .HasColumnName("assignee_user_id")
+            .HasComment("Quem do time esta com o card; um so. Quem sai do time continua aqui, como registro, e o painel o marca como fora do time. Interno.");
+
+        // Restrict, como quem criou: a pessoa nao some do sistema enquanto houver
+        // card com ela. O indice vem do EF, e serve ao filtro "meus cards".
+        builder.HasOne(report => report.AssigneeUser)
+            .WithMany()
+            .HasForeignKey(report => report.AssigneeUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(report => report.PriorityId)
+            .HasColumnName("priority_id")
+            .HasComment("A prioridade do projeto que o time escolheu. Nulo e sem prioridade, e e como o card nasce. Interno.");
+
+        // Restrict pelo mesmo motivo do estado: prioridade nao se apaga, se aposenta.
+        builder.HasOne(report => report.Priority)
+            .WithMany()
+            .HasForeignKey(report => report.PriorityId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(report => report.DueDate)
+            .HasColumnName("due_date")
+            .HasComment("O prazo: so a data, sem hora. Nulo e sem prazo. Interno.");
+
+        builder.HasMany(report => report.Labels)
+            .WithOne(label => label.Report)
+            .HasForeignKey(label => label.ReportId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(report => report.AccountId)
             .HasColumnName("account_id")

@@ -133,6 +133,24 @@ public interface IReportService
     Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// O titulo que o time da ao relato. Vazio volta ao que quem relatou escreveu, que
+    /// nunca se perde. O card do time e recusado: la o titulo vai com a descricao.
+    /// </summary>
+    Task<ReportDetailViewModel> SetTitleAsync(Guid projectPublicId, Guid reportPublicId, SetCardTitleDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Quem do time fica com o card — alguem do time agora —, ou ninguem.</summary>
+    Task<ReportDetailViewModel> SetAssigneeAsync(Guid projectPublicId, Guid reportPublicId, SetCardAssigneeDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>A prioridade do card — uma ativa do projeto —, ou nenhuma.</summary>
+    Task<ReportDetailViewModel> SetPriorityAsync(Guid projectPublicId, Guid reportPublicId, SetCardPriorityDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Troca o conjunto de etiquetas do card de uma vez.</summary>
+    Task<ReportDetailViewModel> SetLabelsAsync(Guid projectPublicId, Guid reportPublicId, SetCardLabelsDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>O prazo do card, so a data — ou nenhum.</summary>
+    Task<ReportDetailViewModel> SetDueDateAsync(Guid projectPublicId, Guid reportPublicId, SetCardDueDateDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Quantos relatos ha em cada coluna da fila. Sai uma linha por coluna do
     /// projeto, <b>inclusive as vazias</b>, mais a linha dos que ainda nao tem
     /// lugar na fila quando ela nao esta vazia.

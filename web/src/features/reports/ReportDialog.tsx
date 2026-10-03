@@ -9,12 +9,14 @@ import type {
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
 import { AskInfoDialog } from '@/features/reports/AskInfoDialog'
+import { CardFields } from '@/features/reports/CardFields'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
 import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
 import { ReportComments, useReportComments } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { ReportReopenings } from '@/features/reports/ReportReopenings'
+import { ReportTitle } from '@/features/reports/ReportTitle'
 import { TeamCardBody } from '@/features/reports/TeamCardBody'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
@@ -495,9 +497,25 @@ export function ReportDialog({
               embaixo, e prender a rolagem no texto deixaria o resto inalcancavel —
               entao quem rola e o corpo inteiro, e o protocolo e o botao de fechar
               continuam fixos porque moram fora dele. */}
+          {/* O titulo do time, e o de quem relatou, que nunca muda — e logo abaixo
+              quem esta com o card, o quanto importa, as etiquetas e o prazo. */}
+          <ReportTitle
+            projectPublicId={projectPublicId}
+            reportPublicId={reportPublicId}
+            card={atual ?? report}
+            aoMudar={receber}
+          />
+
           <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
             {report.Text}
           </p>
+
+          <CardFields
+            projectPublicId={projectPublicId}
+            reportPublicId={reportPublicId}
+            card={atual ?? report}
+            aoMudar={receber}
+          />
 
           <ReportAttachments
             anexos={anexos.daCriacao}

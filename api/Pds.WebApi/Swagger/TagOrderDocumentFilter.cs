@@ -55,6 +55,16 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.ProjectPriorities,
+                Description = "As prioridades do projeto, com os nomes e as cores que o time deu. Nasce com quatro de fábrica (Baixa, Média, Alta, Urgente). Como o estado, não se apaga: aposenta.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ProjectLabels,
+                Description = "As etiquetas do projeto. Quem cria é o time, ao etiquetar um card; o administrador renomeia, troca a cor e apaga — apagar tira a etiqueta de todos os cards.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.ProjectPublicStages,
                 Description = "A jornada que quem relatou acompanha. Vários estados de dentro cabem numa etapa daqui, e é essa perda de detalhe que é o produto. Entre três e sete.",
             },

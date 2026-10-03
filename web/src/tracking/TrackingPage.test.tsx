@@ -67,6 +67,7 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
 const relato: PublicReportViewModel = {
   TrackingCode: '7K2M-9QXP-4TRV',
   Type: 'Bug',
+  Title: null,
   Text: 'O botão de finalizar compra não responde.\nTentei duas vezes.',
   CreatedAt: '2026-09-12T13:24:00.000Z',
   // Sem jornada: e o projeto que nao configurou nenhuma, e continua sendo o caso
@@ -159,6 +160,26 @@ describe('a pagina publica de acompanhamento', () => {
       TrackingCode: '7K2M-9QXP-4TRV',
       Token: 'tok-secreto',
     })
+  })
+
+  it('mostra o titulo que a pessoa escreveu, quando escreveu, acima do texto', async () => {
+    dublê.abrir.mockResolvedValue({ ...relato, Title: 'Finalizar compra travado' })
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    expect(await screen.findByText('Finalizar compra travado')).toBeTruthy()
+    expect(screen.getByText(/O botão de finalizar compra não responde/)).toBeTruthy()
+  })
+
+  it('sem titulo, a pagina mostra so o texto, sem lugar vazio', async () => {
+    dublê.abrir.mockResolvedValue(relato)
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    const { container } = render(<TrackingPage />)
+
+    await screen.findByText('7K2M-9QXP-4TRV')
+    expect(container.querySelectorAll('p.font-semibold.text-lead')).toHaveLength(0)
   })
 
   it('sem jornada configurada, nao promete andamento', async () => {

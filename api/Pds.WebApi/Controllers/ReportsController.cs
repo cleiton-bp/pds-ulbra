@@ -547,4 +547,150 @@ public class ReportsController : BaseController
             return HandleError(exception);
         }
     }
+
+    /// <summary>Dá ao relato o título do time — ou volta ao de quem relatou.</summary>
+    /// <remarks>
+    /// O título que a pessoa escreveu na ferramenta **nunca muda** (`ReporterTitle`), e é
+    /// o único que volta para ela. O do time é interno. `Title` vazio, ou igual ao de
+    /// quem relatou, volta a ele.
+    ///
+    /// O card do time é recusado (409): lá o título se edita junto da descrição, em
+    /// `PUT .../reports/{reportPublicId}`.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="400">Título comprido demais.</response>
+    /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">Card do time, ou card arquivado.</response>
+    [HttpPut("{reportPublicId:guid}/title")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetTitle(Guid publicId, Guid reportPublicId, [FromBody] SetCardTitleDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var card = await _reportService.SetTitleAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(card, "Título salvo.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Escolhe quem do time fica com o card — ou ninguém.</summary>
+    /// <remarks>
+    /// **Um só responsável.** Só quem está no time agora pode ser escolhido. Quem sai do
+    /// time continua nos cards que eram dele, como registro, com `InTeam` falso — até
+    /// alguém trocar. `UserPublicId` nulo tira o responsável.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="400">A pessoa não está no time do projeto.</response>
+    /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">Card arquivado.</response>
+    [HttpPut("{reportPublicId:guid}/assignee")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetAssignee(Guid publicId, Guid reportPublicId, [FromBody] SetCardAssigneeDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var card = await _reportService.SetAssigneeAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(card, "Responsável salvo.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Escolhe a prioridade do card — ou nenhuma.</summary>
+    /// <remarks>
+    /// Uma prioridade ativa do projeto. A aposentada continua no card que já a tinha, e
+    /// não vai para outro (409). `PriorityPublicId` nulo é sem prioridade — como o card
+    /// nasce.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="404">Card, projeto ou prioridade não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">Prioridade aposentada, ou card arquivado.</response>
+    [HttpPut("{reportPublicId:guid}/priority")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetPriority(Guid publicId, Guid reportPublicId, [FromBody] SetCardPriorityDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var card = await _reportService.SetPriorityAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(card, "Prioridade salva.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Troca as etiquetas do card de uma vez.</summary>
+    /// <remarks>
+    /// `LabelPublicIds` é **o conjunto inteiro**: a lista que vier passa a ser a do card,
+    /// e a vazia tira todas. Etiquetas do projeto, até dez. Para uma etiqueta que ainda
+    /// não existe, crie antes em `POST /projects/{publicId}/labels` — qualquer pessoa do
+    /// time pode.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="400">Sem a lista, ou mais de dez etiquetas.</response>
+    /// <response code="404">Card, projeto ou alguma etiqueta não existe neste projeto.</response>
+    /// <response code="409">Card arquivado.</response>
+    [HttpPut("{reportPublicId:guid}/labels")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetLabels(Guid publicId, Guid reportPublicId, [FromBody] SetCardLabelsDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var card = await _reportService.SetLabelsAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(card, "Etiquetas salvas.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Dá um prazo ao card — ou tira.</summary>
+    /// <remarks>
+    /// Só a data, sem hora (`2026-10-16`). Data no passado é aceita: registrar um prazo
+    /// que já venceu é um registro válido. `DueDate` nulo tira o prazo.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="400">Data fora dos anos 2000 a 2100.</response>
+    /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">Card arquivado.</response>
+    [HttpPut("{reportPublicId:guid}/due-date")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetDueDate(Guid publicId, Guid reportPublicId, [FromBody] SetCardDueDateDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var card = await _reportService.SetDueDateAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(card, "Prazo salvo.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
 }

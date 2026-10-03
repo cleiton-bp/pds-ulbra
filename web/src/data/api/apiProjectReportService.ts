@@ -41,6 +41,33 @@ export const apiProjectReportService: ProjectReportService = {
       request,
     ),
 
+  setTitle: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(`/projects/${publicId}/reports/${reportPublicId}/title`, request),
+
+  setAssignee: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/assignee`,
+      request,
+    ),
+
+  setPriority: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/priority`,
+      request,
+    ),
+
+  setLabels: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/labels`,
+      request,
+    ),
+
+  setDueDate: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/due-date`,
+      request,
+    ),
+
   listModeration: (publicId, state) =>
     apiGet<ModerationQueueViewModel>(`/projects/${publicId}/reports/moderation?state=${state}`),
 

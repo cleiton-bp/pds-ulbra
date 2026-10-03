@@ -6,9 +6,11 @@ import { ProjectHome, RequireProjectAdministrator } from '@/app/projectAccessRou
 import { RequireSession } from '@/app/RequireSession'
 import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
 import { IdentityScreen } from '@/features/identity/IdentityScreen'
+import { LabelsScreen } from '@/features/labels/LabelsScreen'
 import { MediaScreen } from '@/features/media/MediaScreen'
 import { ModerationScreen } from '@/features/moderation/ModerationScreen'
 import { StartScreen } from '@/features/onboarding/StartScreen'
+import { PrioritiesScreen } from '@/features/priorities/PrioritiesScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
 import { MembersScreen } from '@/features/projects/MembersScreen'
@@ -24,7 +26,7 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  *
  *   /projects .......................... hub, casca so com barra de cima
  *   /invite#t=... ...................... o convite do e-mail, na mesma casca
- *   /projects/:publicId/{start,keys,tool,states,public-stages,settings} .. console, com menu lateral
+ *   /projects/:publicId/{start,keys,tool,states,priorities,labels,public-stages,settings} .. console
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
  * `/projects/:publicId` sozinho decide a porta pelo papel: quem configura cai na
@@ -81,6 +83,8 @@ export const router = createBrowserRouter([
               { path: 'start', element: <StartScreen /> },
               { path: 'keys', element: <ProjectKeysScreen /> },
               { path: 'states', element: <ProjectStatesScreen /> },
+              { path: 'priorities', element: <PrioritiesScreen /> },
+              { path: 'labels', element: <LabelsScreen /> },
               { path: 'public-stages', element: <PublicStagesScreen /> },
               { path: 'cycle', element: <CycleSettingsScreen /> },
               { path: 'identity', element: <IdentityScreen /> },

@@ -53,6 +53,12 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IProjectStateRepository? _projectStates;
     public IProjectStateRepository ProjectStates => _projectStates ??= new ProjectStateRepository(_context);
 
+    private IProjectPriorityRepository? _projectPriorities;
+    public IProjectPriorityRepository ProjectPriorities => _projectPriorities ??= new ProjectPriorityRepository(_context);
+
+    private IProjectLabelRepository? _projectLabels;
+    public IProjectLabelRepository ProjectLabels => _projectLabels ??= new ProjectLabelRepository(_context);
+
     private IProjectInitialStateRepository? _projectInitialStates;
 
     public IProjectInitialStateRepository ProjectInitialStates
@@ -93,6 +99,9 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
 
     private IReportRepository? _reports;
     public IReportRepository Reports => _reports ??= new ReportRepository(_context);
+
+    private IReportLabelRepository? _reportLabels;
+    public IReportLabelRepository ReportLabels => _reportLabels ??= new ReportLabelRepository(_context);
 
     private IReportInternalCommentRepository? _reportInternalComments;
 

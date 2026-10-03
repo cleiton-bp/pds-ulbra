@@ -92,6 +92,8 @@ public static class DiResolver
         services.AddScoped<IProjectOriginService, ProjectOriginService>();
         services.AddScoped<IProjectWidgetSettingsService, ProjectWidgetSettingsService>();
         services.AddScoped<IProjectStateService, ProjectStateService>();
+        services.AddScoped<IProjectPriorityService, ProjectPriorityService>();
+        services.AddScoped<IProjectLabelService, ProjectLabelService>();
         services.AddScoped<IProjectPublicStageService, ProjectPublicStageService>();
         services.AddScoped<IProjectStatusMappingService, ProjectStatusMappingService>();
         services.AddScoped<IProjectCycleSettingsService, ProjectCycleSettingsService>();

@@ -10,6 +10,13 @@ namespace Pds.Data.Repositories;
 
 public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepository
 {
+    /// <summary>
+    /// O espaco das travas dos campos do card. Arbitrario; so precisa nao mudar nem
+    /// repetir outro — o 7001 e o da cota de anexos, e o 7003 o dos nomes das
+    /// etiquetas.
+    /// </summary>
+    private const int CardFieldsLockSpace = 7002;
+
     public ReportRepository(DataContext context) : base(context)
     {
     }
@@ -66,9 +73,21 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // O estado vem por Include porque a lista mostra o nome da coluna: sem ele,
         // a tela teria de buscar os estados a parte e cruzar a mao, e um relato
         // parado numa coluna aposentada ficaria sem nome nenhum.
+        //
+        // Responsavel, prioridade e etiquetas vem junto pelo mesmo motivo: a linha do
+        // card os mostra.
+        //
+        // Em consultas separadas, como no detalhe: com as etiquetas na mesma consulta,
+        // cada card viria repetido uma vez por etiqueta, com o texto e a descricao
+        // inteiros a cada repeticao. A ordem e unica (o Id desempata), e e ela que faz
+        // as consultas separadas concordarem sobre qual e a pagina.
         => await Context.Reports
             .Include(report => report.ProjectState)
             .Include(report => report.ProjectPublicStage)
+            .Include(report => report.AssigneeUser)
+            .Include(report => report.Priority)
+            .Include(report => report.Labels)
+            .ThenInclude(link => link.ProjectLabel)
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
             .Where(Arquivados(archived))
@@ -76,6 +95,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .ThenByDescending(report => report.Id)
             .Skip(skip)
             .Take(take)
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
     public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, CancellationToken cancellationToken = default)
@@ -139,13 +159,50 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
     public Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
         // O estado vem junto porque a tela de detalhe diz em que coluna o relato
         // esta — e e de la que ele vai ser movido.
+        //
+        // Em consultas separadas: o contexto e as etiquetas sao duas listas, e numa
+        // consulta so cada linha de uma se repetiria para cada linha da outra.
         => Context.Reports
             .Include(report => report.Contexts)
             .Include(report => report.ProjectState)
             .Include(report => report.ProjectPublicStage)
             .Include(report => report.CreatedByUser)
+            .Include(report => report.AssigneeUser)
+            .Include(report => report.Priority)
+            .Include(report => report.Labels)
+            .ThenInclude(link => link.ProjectLabel)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(report => report.ProjectId == projectId && report.PublicId == publicId,
                 cancellationToken);
+
+    public async Task LockCardFieldsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+    {
+        // Fora de uma transacao, o banco solta a trava no fim deste proprio comando:
+        // a chamada "funcionaria" e nao travaria nada. Melhor quebrar alto.
+        if (Context.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A trava dos campos do card so vale dentro de uma transacao.");
+
+        // So o numero, e pelo filtro global: o card de outro projeto, ou que nao
+        // existe, nao trava nada — quem chamou vai procura-lo em seguida, e e la que
+        // a recusa nasce.
+        var id = await Context.Reports
+            .Where(report => report.ProjectId == projectId && report.PublicId == publicId)
+            .Select(report => (long?)report.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (id is not long encontrado)
+            return;
+
+        // Consultiva, e nao FOR UPDATE na linha do card: a da linha seguraria tambem
+        // quem so quer mover o card ou responder, e esta so espera por outra mudanca
+        // de campo do mesmo card. Cards que coincidam no corte para int so esperam um
+        // pelo outro, sem erro.
+        var card = unchecked((int)encontrado);
+
+        await Context.Database.ExecuteSqlAsync(
+            $"SELECT pg_advisory_xact_lock({CardFieldsLockSpace}, {card})",
+            cancellationToken);
+    }
 
     public Task<Report?> FindByPublicIdWithoutSessionAsync(Guid publicId, CancellationToken cancellationToken = default)
         // Sem `DeletedAt == null`, como a busca por protocolo: o agendamento de um

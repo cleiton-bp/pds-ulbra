@@ -37,4 +37,10 @@ public static class WidgetSettingsDefaults
 
     public const bool ShowsTypeField = true;
     public const ReportTypeEnum DefaultReportType = ReportTypeEnum.Bug;
+
+    /// <summary>
+    /// A pergunta do titulo aparece, e nao obriga: o titulo ajuda o time a reconhecer
+    /// o card, mas obrigar faria parte de quem relata desistir antes de enviar.
+    /// </summary>
+    public const ReportTitleModeEnum ReportTitleMode = ReportTitleModeEnum.Optional;
 }

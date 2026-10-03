@@ -783,6 +783,79 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectLabel", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("color")
+                        .HasComment("gray | blue | green | yellow | orange | red | purple | pink. Paleta fixa, como a da prioridade.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("name")
+                        .HasComment("O nome. Unico no projeto, sem diferenciar maiuscula de minuscula (conferido no servico).");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono da etiqueta.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_labels");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_labels_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_project_labels_project_id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_labels_public_id");
+
+                    b.HasIndex("ProjectId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_labels_project_id_name")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("project_labels", null, t =>
+                        {
+                            t.HasComment("As etiquetas de cada projeto. O time cria ao etiquetar um card; o administrador renomeia, troca a cor e apaga. Apagar tira a etiqueta de todos os cards; os eventos guardam o nome da epoca.");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectMediaKind", b =>
                 {
                     b.Property<long>("Id")
@@ -1095,6 +1168,89 @@ namespace Pds.Data.Migrations
                     b.ToTable("project_origins", null, t =>
                         {
                             t.HasComment("De quais enderecos um relato pode ser aberto. A chave publica viaja no site do cliente e qualquer um consegue le-la; sem esta lista, a chave copiada de um site funciona em qualquer outro.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectPriority", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("color")
+                        .HasComment("gray | blue | green | yellow | orange | red | purple | pink. Paleta fixa: cada cor tem o par certo no tema claro e no escuro.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deactivated_at")
+                        .HasComment("Nulo enquanto a prioridade pode ser escolhida; preenchido para aposenta-la sem apagar, porque card antigo continua apontando para ela.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name")
+                        .HasComment("Nome dado pelo time. Renomear nao reescreve o passado: o evento guarda o nome que valia na epoca.");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position")
+                        .HasComment("Ordem na tela, da menos para a mais urgente, escolhida pelo time.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono da prioridade.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_priorities");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_priorities_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_project_priorities_project_id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_priorities_public_id");
+
+                    b.HasIndex("ProjectId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_priorities_project_id_name")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("project_priorities", null, t =>
+                        {
+                            t.HasComment("As prioridades de cada projeto, com os nomes que o time deu. Nasce com quatro de fabrica (Baixa, Media, Alta, Urgente); o administrador renomeia, troca a cor, reordena ou cria outras, como faz com os estados.");
                         });
                 });
 
@@ -1493,6 +1649,13 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
 
+                    b.Property<string>("ReportTitleMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("report_title_mode")
+                        .HasComment("optional | required | hidden. Como a ferramenta pergunta o titulo (\"em poucas palavras, o que aconteceu?\"). Obrigatoria, a API recusa o relato sem ele.");
+
                     b.Property<bool>("ShowsTypeField")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1578,6 +1741,11 @@ namespace Pds.Data.Migrations
                         .HasColumnName("archived_at")
                         .HasComment("Quando o card saiu da tela de Trabalho. Nulo enquanto esta nela. Arquivado se le e se comenta; mover e editar pedem desarquivar.");
 
+                    b.Property<long?>("AssigneeUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assignee_user_id")
+                        .HasComment("Quem do time esta com o card; um so. Quem sai do time continua aqui, como registro, e o painel o marca como fora do time. Interno.");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
@@ -1598,6 +1766,11 @@ namespace Pds.Data.Migrations
                         .HasColumnType("character varying(10000)")
                         .HasColumnName("description")
                         .HasComment("Descricao do card do time, em Markdown; o painel a desenha sem HTML. Sempre nula no relato, cujo texto e de quem relatou.");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date")
+                        .HasComment("O prazo: so a data, sem hora. Nulo e sem prazo. Interno.");
 
                     b.Property<string>("Kind")
                         .IsRequired()
@@ -1633,6 +1806,11 @@ namespace Pds.Data.Migrations
                         .HasColumnType("character varying(260)")
                         .HasColumnName("origin")
                         .HasComment("Dominio informado pela pagina que embutiu a ferramenta. Indicio, nunca prova.");
+
+                    b.Property<long?>("PriorityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("priority_id")
+                        .HasComment("A prioridade do projeto que o time escolheu. Nulo e sem prioridade, e e como o card nasce. Interno.");
 
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint")
@@ -1675,6 +1853,12 @@ namespace Pds.Data.Migrations
                         .HasColumnName("reporter_name_is_public")
                         .HasComment("Quem relatou escolheu assinar o relato. Falso por padrao — a caixa nasce desmarcada, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le.");
 
+                    b.Property<string>("ReporterTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reporter_title")
+                        .HasComment("O titulo que a pessoa escreveu na ferramenta. Nunca muda, e e o unico titulo que volta para ela. Nulo quando ela nao respondeu, e sempre no card do time.");
+
                     b.Property<string>("Route")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -1691,7 +1875,7 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("title")
-                        .HasComment("Titulo do card do time. Nulo no relato.");
+                        .HasComment("Titulo do time. Obrigatorio no card do time; no relato, o que o time reescreveu, nulo ate alguem reescrever. Interno: nenhuma rota publica o devolve.");
 
                     b.Property<string>("TrackingCode")
                         .HasMaxLength(20)
@@ -1716,6 +1900,9 @@ namespace Pds.Data.Migrations
                     b.HasIndex("AccessTokenHash")
                         .HasDatabaseName("ix_reports_access_token_hash");
 
+                    b.HasIndex("AssigneeUserId")
+                        .HasDatabaseName("ix_reports_assignee_user_id");
+
                     b.HasIndex("CreatedByUserId")
                         .HasDatabaseName("ix_reports_created_by_user_id");
 
@@ -1724,6 +1911,9 @@ namespace Pds.Data.Migrations
 
                     b.HasIndex("ModeratedByUserId")
                         .HasDatabaseName("ix_reports_moderated_by_user_id");
+
+                    b.HasIndex("PriorityId")
+                        .HasDatabaseName("ix_reports_priority_id");
 
                     b.HasIndex("ProjectPublicStageId")
                         .HasDatabaseName("ix_reports_project_public_stage_id");
@@ -1769,7 +1959,7 @@ namespace Pds.Data.Migrations
 
                             t.HasCheckConstraint("ck_reports_report_fields", "kind <> 'report' OR (tracking_code IS NOT NULL AND access_token_hash IS NOT NULL AND type IS NOT NULL AND text IS NOT NULL AND description IS NULL)");
 
-                            t.HasCheckConstraint("ck_reports_team_fields", "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL)");
+                            t.HasCheckConstraint("ck_reports_team_fields", "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL AND reporter_title IS NULL)");
                         });
                 });
 
@@ -2266,6 +2456,70 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ReportLabel", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<long>("ProjectLabelId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_label_id")
+                        .HasComment("A etiqueta, do mesmo projeto do card.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<long>("ReportId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("report_id")
+                        .HasComment("O card etiquetado.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_labels");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_report_labels_deleted_at");
+
+                    b.HasIndex("ProjectLabelId")
+                        .HasDatabaseName("ix_report_labels_project_label_id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_report_labels_public_id");
+
+                    b.HasIndex("ReportId", "ProjectLabelId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_report_labels_report_id_project_label_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("report_labels", null, t =>
+                        {
+                            t.HasComment("As etiquetas de cada card, um par por linha. Interno: nenhuma rota publica le esta tabela.");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ReportPublicComment", b =>
                 {
                     b.Property<long>("Id")
@@ -2635,6 +2889,18 @@ namespace Pds.Data.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectLabel", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_labels_projects_project_id");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectMediaKind", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.ProjectMediaSettings", "ProjectMediaSettings")
@@ -2688,6 +2954,18 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_project_origins_projects_project_id");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectPriority", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_priorities_projects_project_id");
 
                     b.Navigation("Project");
                 });
@@ -2779,6 +3057,12 @@ namespace Pds.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reports_accounts_account_id");
 
+                    b.HasOne("Pds.Domain.Entities.User", "AssigneeUser")
+                        .WithMany()
+                        .HasForeignKey("AssigneeUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reports_users_assignee_user_id");
+
                     b.HasOne("Pds.Domain.Entities.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
@@ -2790,6 +3074,12 @@ namespace Pds.Data.Migrations
                         .HasForeignKey("ModeratedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_reports_users_moderated_by_user_id");
+
+                    b.HasOne("Pds.Domain.Entities.ProjectPriority", "Priority")
+                        .WithMany()
+                        .HasForeignKey("PriorityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reports_project_priorities_priority_id");
 
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
                         .WithMany()
@@ -2818,9 +3108,13 @@ namespace Pds.Data.Migrations
 
                     b.Navigation("Account");
 
+                    b.Navigation("AssigneeUser");
+
                     b.Navigation("CreatedByUser");
 
                     b.Navigation("ModeratedByUser");
+
+                    b.Navigation("Priority");
 
                     b.Navigation("Project");
 
@@ -2933,6 +3227,27 @@ namespace Pds.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ReportLabel", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.ProjectLabel", "ProjectLabel")
+                        .WithMany()
+                        .HasForeignKey("ProjectLabelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_labels_project_labels_project_label_id");
+
+                    b.HasOne("Pds.Domain.Entities.Report", "Report")
+                        .WithMany("Labels")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_labels_reports_report_id");
+
+                    b.Navigation("ProjectLabel");
+
+                    b.Navigation("Report");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ReportPublicComment", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Report", "Report")
@@ -3003,6 +3318,8 @@ namespace Pds.Data.Migrations
             modelBuilder.Entity("Pds.Domain.Entities.Report", b =>
                 {
                     b.Navigation("Contexts");
+
+                    b.Navigation("Labels");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ReporterCode", b =>

@@ -14,6 +14,8 @@ export interface ConsoleSection {
     | 'start'
     | 'keys'
     | 'states'
+    | 'priorities'
+    | 'labels'
     | 'stages'
     | 'cycle'
     | 'identity'
@@ -41,6 +43,10 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   { key: 'keys', label: 'Chaves', path: 'keys' },
   { key: 'tool', label: 'Ferramenta', path: 'tool' },
   { key: 'states', label: 'Estados', path: 'states' },
+  // Logo depois dos estados: e o mesmo tipo de lista — nomes do time, na ordem do
+  // time —, e o que o card ganha alem da coluna.
+  { key: 'priorities', label: 'Prioridades', path: 'priorities' },
+  { key: 'labels', label: 'Etiquetas', path: 'labels' },
   // O caminho e `public-stages`, e nao `stages`: na barra de endereco
   // `states` e `stages` diferem por uma letra, e as duas telas sao justamente
   // as duas que se confundem.

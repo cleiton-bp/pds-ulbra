@@ -81,6 +81,7 @@ const fechamento: PublicClosureViewModel = {
 const encerrado: PublicReportViewModel = {
   TrackingCode: '7K2M-9QXP-4TRV',
   Type: 'Bug',
+  Title: null,
   Text: 'O botão de finalizar compra não responde.',
   CreatedAt: '2026-09-12T13:24:00.000Z',
   Journey: [],

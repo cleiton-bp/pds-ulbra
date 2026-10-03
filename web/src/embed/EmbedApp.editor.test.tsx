@@ -229,7 +229,9 @@ describe('toda imagem da lista abre no editor', () => {
 
   it('a colada tambem abre', async () => {
     montar()
-    const formulario = screen.getByRole('textbox').closest('form') as HTMLFormElement
+    const formulario = screen
+      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .closest('form') as HTMLFormElement
     fireEvent.paste(formulario, {
       clipboardData: { files: [imagem('colada.png')], getData: () => '' },
     })
@@ -279,7 +281,9 @@ describe('toda imagem da lista abre no editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Concluir com marcas' }))
     await screen.findByRole('button', { name: 'Remover marcada-senha.png' })
 
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o login trava' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o login trava' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => expect(dublê.enviar).toHaveBeenCalledTimes(1))
@@ -337,7 +341,9 @@ describe('toda imagem da lista abre no editor', () => {
     escolher(imagem('erro.png'))
     await screen.findByRole('button', { name: 'Editar erro.png' })
 
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o login trava' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o login trava' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await waitFor(() =>
@@ -374,7 +380,9 @@ describe('toda imagem da lista abre no editor', () => {
     dublê.miniatura.mockImplementationOnce(() => new Promise(() => {}))
 
     fireEvent.click(screen.getByRole('button', { name: 'Concluir com marcas' }))
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o login trava' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o login trava' },
+    })
 
     const enviar = screen.getByRole('button', { name: 'Enviar' }) as HTMLButtonElement
     expect(enviar.disabled).toBe(true)
@@ -396,11 +404,17 @@ describe('toda imagem da lista abre no editor', () => {
 
   it('com o editor aberto, o relato nao sai', async () => {
     montar()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'o login trava' } })
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'o login trava' },
+    })
     escolher(imagem('senha.png'))
     await editar('senha.png')
 
-    fireEvent.submit(screen.getByRole('textbox').closest('form') as HTMLFormElement)
+    fireEvent.submit(
+      screen
+        .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+        .closest('form') as HTMLFormElement,
+    )
     await act(async () => {})
 
     expect(dublê.criar).not.toHaveBeenCalled()

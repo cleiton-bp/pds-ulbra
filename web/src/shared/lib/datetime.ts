@@ -33,6 +33,18 @@ export function formatDate(isoDate: string | null | undefined): string {
   return parsed ? dateFormatter.format(parsed) : '—'
 }
 
+/**
+ * Uma data sem hora (`aaaa-mm-dd`), como o prazo do card.
+ *
+ * **Nao passa por `new Date(texto)`**: a data sem hora vira meia-noite em UTC, e
+ * aqui, tres horas antes, o prazo do dia 16 apareceria como dia 15.
+ */
+export function formatDay(day: string | null | undefined): string {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '')
+  if (!partes) return '—'
+  return dateFormatter.format(new Date(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3])))
+}
+
 export function formatDateTime(isoDate: string | null | undefined): string {
   const parsed = parse(isoDate)
   return parsed ? dateTimeFormatter.format(parsed) : '—'

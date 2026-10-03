@@ -50,6 +50,8 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
     public DbSet<ProjectWidgetSettings> ProjectWidgetSettings { get; set; } = null!;
     public DbSet<ProjectState> ProjectStates { get; set; } = null!;
+    public DbSet<ProjectPriority> ProjectPriorities { get; set; } = null!;
+    public DbSet<ProjectLabel> ProjectLabels { get; set; } = null!;
     public DbSet<ProjectInitialState> ProjectInitialStates { get; set; } = null!;
     public DbSet<ProjectPublicStage> ProjectPublicStages { get; set; } = null!;
     public DbSet<ProjectStatusMapping> ProjectStatusMappings { get; set; } = null!;
@@ -60,6 +62,7 @@ public class DataContext : PdsBaseContext
     public DbSet<ReporterCode> ReporterCodes { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
+    public DbSet<ReportLabel> ReportLabels { get; set; } = null!;
     public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
     public DbSet<ReportPublicComment> ReportPublicComments { get; set; } = null!;
     public DbSet<ReportClosure> ReportClosures { get; set; } = null!;
@@ -134,6 +137,18 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(state => state.DeletedAt == null
                                      && state.Project.DeletedAt == null
                                      && CurrentProjectIds.Contains(state.ProjectId));
+
+        // Prioridade e etiqueta: mesmo caminho do estado, e pelo mesmo motivo. Nenhuma
+        // leitura sem sessao chega a elas — sao do time, e so do time.
+        modelBuilder.Entity<ProjectPriority>()
+            .HasQueryFilter(priority => priority.DeletedAt == null
+                                        && priority.Project.DeletedAt == null
+                                        && CurrentProjectIds.Contains(priority.ProjectId));
+
+        modelBuilder.Entity<ProjectLabel>()
+            .HasQueryFilter(label => label.DeletedAt == null
+                                     && label.Project.DeletedAt == null
+                                     && CurrentProjectIds.Contains(label.ProjectId));
 
         // Onde cada tipo entra: mesmo caminho do estado, e pelo mesmo motivo. Quem
         // le isto **sem sessao** e a entrada do relato, e la o acesso esta vazio —
@@ -229,6 +244,14 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(context => context.DeletedAt == null
                                        && context.Report.DeletedAt == null
                                        && CurrentProjectIds.Contains(context.Report.ProjectId));
+
+        // Etiqueta no card: chega ao acesso pelo relato, como o contexto. E some junto
+        // com a etiqueta apagada, mesmo que alguma linha tenha ficado para tras.
+        modelBuilder.Entity<ReportLabel>()
+            .HasQueryFilter(link => link.DeletedAt == null
+                                    && link.Report.DeletedAt == null
+                                    && link.ProjectLabel.DeletedAt == null
+                                    && CurrentProjectIds.Contains(link.Report.ProjectId));
 
         // Comentarios: chegam ao acesso pelo relato, como o contexto. Sao duas
         // entidades e dois filtros iguais, e nao uma com campo de visibilidade —

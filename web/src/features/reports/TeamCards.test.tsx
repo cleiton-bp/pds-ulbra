@@ -121,6 +121,7 @@ function cardDoTime(
     Kind: 'Team',
     Number: 7,
     Title: titulo,
+    ReporterTitle: null,
     TrackingCode: null,
     Type: null,
     Text: null,
@@ -133,6 +134,10 @@ function cardDoTime(
     PublicStageDueAt: null,
     ArchivedAt: null,
     CreatedAt: '2026-10-02T12:00:00.000Z',
+    Assignee: null,
+    Priority: null,
+    Labels: [],
+    DueDate: null,
     ...extra,
   }
 }
@@ -147,6 +152,7 @@ function relato(
     Kind: 'Report',
     Number: 3,
     Title: null,
+    ReporterTitle: null,
     TrackingCode: 'ABCD-EFGH',
     Type: 'Bug',
     Text: texto,

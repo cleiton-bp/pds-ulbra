@@ -36,5 +36,9 @@ export default defineConfig({
     // testes que montam componente ligam `jsdom` para si, na primeira linha.
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}'],
+    // Um fuso fixo, e fora do UTC: o teste que garante "o dia 16 continua dia 16"
+    // so pega o erro de fuso onde o fuso existe. Sem isto ele passaria numa maquina
+    // em UTC com o erro dentro.
+    env: { TZ: 'America/Sao_Paulo' },
   },
 })

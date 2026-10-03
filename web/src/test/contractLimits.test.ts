@@ -2,9 +2,14 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  CARD_COLORS,
+  MAX_CARD_TITLE_LENGTH,
   MAX_CLOSURE_REASON_LENGTH,
   MAX_COMMENT_LENGTH,
   MAX_INFO_REQUEST_DAYS,
+  MAX_LABEL_NAME_LENGTH,
+  MAX_LABELS_PER_CARD,
+  MAX_PRIORITY_NAME_LENGTH,
   MAX_PUBLIC_DELAY_MINUTES,
   MAX_REOPEN_COMMENT_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
@@ -67,6 +72,8 @@ const CLOSURE = csharp('Pds.Domain/Entities/ReportClosure/ReportClosure.cs')
 const CICLO = csharp('Pds.Domain/Entities/ProjectCycleSettings/ProjectCycleSettings.cs')
 const RELATO = csharp('Pds.Domain/Entities/Report/Report.cs')
 const COMENTARIO = csharp('Pds.Domain/Entities/ReportComment/ReportPublicComment.cs')
+const PRIORIDADE = csharp('Pds.Domain/Entities/ProjectPriority/ProjectPriority.cs')
+const ETIQUETA = csharp('Pds.Domain/Entities/ProjectLabel/ProjectLabel.cs')
 
 const LIMITES: ReadonlyArray<[string, string, number]> = [
   ['ReportClosure.MaxReasonLength', CLOSURE, MAX_CLOSURE_REASON_LENGTH],
@@ -76,6 +83,10 @@ const LIMITES: ReadonlyArray<[string, string, number]> = [
   ['Report.MaxTextLength', RELATO, MAX_REPORT_TEXT_LENGTH],
   ['Report.MaxReporterNameLength', RELATO, MAX_REPORTER_NAME_LENGTH],
   ['ReportPublicComment.MaxBodyLength', COMENTARIO, MAX_COMMENT_LENGTH],
+  ['Report.MaxTitleLength', RELATO, MAX_CARD_TITLE_LENGTH],
+  ['Report.MaxLabelsPerCard', RELATO, MAX_LABELS_PER_CARD],
+  ['ProjectPriority.MaxNameLength', PRIORIDADE, MAX_PRIORITY_NAME_LENGTH],
+  ['ProjectLabel.MaxNameLength', ETIQUETA, MAX_LABEL_NAME_LENGTH],
 ]
 
 describe('os limites de tamanho, dos dois lados', () => {
@@ -105,6 +116,8 @@ const ENUMS: ReadonlyArray<[string, readonly string[]]> = [
   ['ReportVisibilityEnum', ['Private', 'PublicAnonymous', 'PublicIdentified']],
   ['ReportModerationStateEnum', ['Pending', 'Approved', 'Rejected']],
   ['SensitiveDataKindEnum', ['Cpf', 'Cnpj', 'CreditCard', 'Email', 'Phone', 'Token']],
+  ['CardColorEnum', CARD_COLORS],
+  ['ReportTitleModeEnum', ['Optional', 'Required', 'Hidden']],
 ]
 
 describe('os enums que a tela escolhe, dos dois lados', () => {

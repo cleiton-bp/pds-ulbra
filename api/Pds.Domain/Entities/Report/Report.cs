@@ -58,8 +58,18 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const int MaxPublishedListed = 20;
 
-    /// <summary>Teto do titulo do card do time.</summary>
+    /// <summary>
+    /// Teto do titulo: o do card do time, o que o time reescreve no relato e o que
+    /// a pessoa responde na ferramenta. Um so, para o titulo que a pessoa escreveu
+    /// sempre caber no lugar do que o time escreveria.
+    /// </summary>
     public const int MaxTitleLength = 200;
+
+    /// <summary>
+    /// Quantas etiquetas um card leva. Passar disso deixa de separar e vira ruido —
+    /// e a linha do card nao tem onde mostrar.
+    /// </summary>
+    public const int MaxLabelsPerCard = 10;
 
     /// <summary>
     /// Teto da descricao do card do time, em Markdown. Maior que o texto do relato:
@@ -87,10 +97,24 @@ public class Report : PdsBaseEntity
     public int Number { get; set; }
 
     /// <summary>
-    /// O titulo do card do time. Nulo no relato — o titulo do relato chega depois,
-    /// pela pergunta da ferramenta.
+    /// O titulo do time. Obrigatorio no card do time; no relato, e o que o time
+    /// reescreveu — nulo ate alguem reescrever, e o painel mostra o de quem relatou
+    /// (<see cref="ReporterTitle"/>).
+    ///
+    /// <para><b>Interno.</b> Nenhuma rota publica o devolve: quem relatou ve so o
+    /// que escreveu.</para>
     /// </summary>
     public string? Title { get; set; }
+
+    /// <summary>
+    /// O titulo que a pessoa escreveu na ferramenta, respondendo "em poucas
+    /// palavras, o que aconteceu?". Nulo quando ela nao respondeu, e sempre no card
+    /// do time.
+    ///
+    /// <para><b>Nunca muda.</b> O time reescreve em <see cref="Title"/>, e este fica
+    /// guardado — e e o unico titulo que volta para quem relatou.</para>
+    /// </summary>
+    public string? ReporterTitle { get; set; }
 
     /// <summary>
     /// A descricao do card do time, em Markdown. <b>Nula no relato</b>: ali o texto
@@ -113,6 +137,23 @@ public class Report : PdsBaseEntity
     /// </summary>
     public long? CreatedByUserId { get; set; }
     public User? CreatedByUser { get; set; }
+
+    /// <summary>
+    /// Quem do time esta com o card. Um so. Nulo enquanto ninguem assumiu.
+    ///
+    /// <para><b>Quem sai do time continua aqui, como registro</b>: perde o acesso, e
+    /// o painel o mostra marcado como fora do time ate alguem trocar. A marca e lida
+    /// na hora, e voltar ao time a apaga sozinha.</para>
+    /// </summary>
+    public long? AssigneeUserId { get; set; }
+    public User? AssigneeUser { get; set; }
+
+    /// <summary>A prioridade do projeto que o time escolheu. Nulo e sem prioridade — e como o card nasce.</summary>
+    public long? PriorityId { get; set; }
+    public ProjectPriority? Priority { get; set; }
+
+    /// <summary>O prazo: so a data, sem hora — sem fuso para confundir. Nulo e sem prazo.</summary>
+    public DateOnly? DueDate { get; set; }
 
     /// <summary>Conta dona do relato, repetida do projeto para nao custar juncao.</summary>
     public long AccountId { get; set; }
@@ -311,4 +352,8 @@ public class Report : PdsBaseEntity
     /// <summary>O que veio junto com o relato, em pares de chave e valor.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ReportContext> Contexts { get; set; } = [];
+
+    /// <summary>As etiquetas do card. Ate <see cref="MaxLabelsPerCard"/>.</summary>
+    [SoftDeleteDependent(RemoveType.Cascade)]
+    public List<ReportLabel> Labels { get; set; } = [];
 }

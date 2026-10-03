@@ -106,8 +106,24 @@ public class ProjectService : IProjectService
         foreach (var stage in FactoryPublicStages.For(project))
             await _unitOfWork.ProjectPublicStages.AddAsync(stage, cancellationToken);
 
-        // Um unico commit: ou o projeto, as duas chaves, a fila e a jornada entram,
-        // ou nao entra nada.
+        // E as prioridades de fabrica, da menos para a mais urgente: o time prioriza
+        // no primeiro dia sem abrir a Configuracao. O card continua nascendo sem
+        // prioridade — escolher e do time.
+        for (var position = 0; position < PriorityDefaults.Factory.Count; position++)
+        {
+            var (nome, cor) = PriorityDefaults.Factory[position];
+
+            await _unitOfWork.ProjectPriorities.AddAsync(new ProjectPriority
+            {
+                Project = project,
+                Name = nome,
+                Color = cor,
+                Position = position,
+            }, cancellationToken);
+        }
+
+        // Um unico commit: ou o projeto, as duas chaves, a fila, a jornada e as
+        // prioridades entram, ou nao entra nada.
         await _unitOfWork.CommitAsync(cancellationToken);
 
         // Quem cria e dono: o projeto nasceu na conta propria. A lista de acesso da

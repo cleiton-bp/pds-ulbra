@@ -13,7 +13,7 @@ namespace Pds.Domain.Entities;
 ///
 /// <para><b>Por que coluna, e nao um campo livre.</b> O contexto do relato usa
 /// chave e valor porque a lista do que se captura ainda vai crescer; aqui a lista
-/// e fechada e acordada — dez campos, cada um com um tipo e um limite. Como
+/// e fechada e acordada — onze campos, cada um com um tipo e um limite. Como
 /// coluna, cada um se explica no proprio banco e o tipo errado nao entra.</para>
 /// </summary>
 public class ProjectWidgetSettings : PdsBaseEntity
@@ -87,4 +87,10 @@ public class ProjectWidgetSettings : PdsBaseEntity
     /// quando ele esta escondido.
     /// </summary>
     public ReportTypeEnum DefaultReportType { get; set; } = ReportTypeEnum.Bug;
+
+    /// <summary>
+    /// Como a ferramenta pergunta o titulo — "em poucas palavras, o que aconteceu?".
+    /// Opcional de fabrica; obrigatoria, a API recusa o relato sem ele.
+    /// </summary>
+    public ReportTitleModeEnum ReportTitleMode { get; set; } = ReportTitleModeEnum.Optional;
 }

@@ -7,6 +7,7 @@ import {
   type ReportSummaryViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { CardFields } from '@/features/reports/CardFields'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
 import { ReportComments, type ReportConversation } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
@@ -204,6 +205,15 @@ export function TeamCardBody({
             </p>
           )}
         </div>
+      )}
+
+      {!editando && (
+        <CardFields
+          projectPublicId={projectPublicId}
+          reportPublicId={reportPublicId}
+          card={card}
+          aoMudar={aoSalvo}
+        />
       )}
 
       {!editando && (

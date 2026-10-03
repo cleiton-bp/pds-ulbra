@@ -139,7 +139,18 @@ export function MyReports({
                 </span>
               </div>
 
-              <p className="mb-2 text-detail text-fg leading-relaxed">{relato.Excerpt}</p>
+              {/* O titulo que ela escreveu, quando escreveu — o do time nao chega aqui. */}
+              {relato.Title && (
+                <p className="mb-0.5 font-medium text-detail text-fg">{relato.Title}</p>
+              )}
+              <p
+                className={cn(
+                  'mb-2 text-detail leading-relaxed',
+                  relato.Title ? 'text-fg-muted' : 'text-fg',
+                )}
+              >
+                {relato.Excerpt}
+              </p>
 
               <div className="flex items-baseline justify-between gap-2">
                 {/* Janela nova pelo mesmo motivo do link da confirmação: aqui dentro

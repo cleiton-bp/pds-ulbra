@@ -7,6 +7,7 @@ using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
+using Pds.Service.Cards;
 using Pds.Service.Origins;
 using Pds.Service.Reports;
 using Pds.Service.Scanning;
@@ -15,7 +16,7 @@ using Pds.Translation;
 
 namespace Pds.Service.Services;
 
-public class ReportService : IReportService
+public partial class ReportService : IReportService
 {
     /// <summary>
     /// Quantas vezes tentar um protocolo novo antes de desistir. Com 32^12
@@ -173,6 +174,16 @@ public class ReportService : IReportService
         if (text.Length > Report.MaxTextLength)
             throw new ArgumentException($"O relato pode ter ate {Report.MaxTextLength} caracteres.");
 
+        // O titulo e o que a pessoa respondeu a pergunta curta da ferramenta. A
+        // pergunta escondida nao faz a API recusar quem mandar titulo assim mesmo:
+        // nao ha o que proteger recusando — ele so nao e pedido.
+        var titulo = CardText.Title(dto.Title);
+        var ferramenta = await _unitOfWork.ProjectWidgetSettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+
+        if (titulo is null && (ferramenta?.ReportTitleMode ?? WidgetSettingsDefaults.ReportTitleMode) == ReportTitleModeEnum.Required)
+            throw new ArgumentException("Escreva o titulo: em poucas palavras, o que aconteceu.");
+
         var (token, tokenHash) = AccessToken.Generate();
 
         var landingStateId = await ResolveLandingStateAsync(project.Id, dto.Type.Value, cancellationToken);
@@ -205,6 +216,7 @@ public class ReportService : IReportService
             TrackingCode = protocolo,
             AccessTokenHash = tokenHash,
             Type = dto.Type.Value,
+            ReporterTitle = titulo,
             Text = text,
             Route = SanitizeRoute(dto.Route),
             Origin = Trim(dto.Origin, 260),
@@ -242,6 +254,9 @@ public class ReportService : IReportService
                 origin = report.Origin,
                 route = report.Route,
                 text_length = text.Length,
+                // O tamanho, e nao o titulo: e texto de uma pessoa, e esta tabela nao
+                // se apaga. Zero diz que ela nao respondeu.
+                title_length = titulo?.Length ?? 0,
             }),
         }, cancellationToken);
 
@@ -586,9 +601,12 @@ public class ReportService : IReportService
 
         var (protocolo, tipo, texto) = report.ReporterFields();
 
+        // O titulo que ela escreveu, e nunca o do time: o reescrito no painel e
+        // interno, e quem relatou ve so o que escreveu.
         return new PublicReportViewModel(
             protocolo,
             tipo,
+            report.ReporterTitle,
             texto,
             report.CreatedAt,
             await BuildJourneyAsync(report, cancellationToken),
@@ -736,7 +754,8 @@ public class ReportService : IReportService
         }
 
         return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false,
-            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras));
+            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
+            await TeamIdsForAsync([report], cancellationToken));
     }
 
     public async Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default)
@@ -914,7 +933,8 @@ public class ReportService : IReportService
 
         var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, (int)skip, size, cancellationToken);
 
-        return new ReportPageViewModel(reports.Select(Map).ToList(), total);
+        var time = await TeamIdsForAsync(reports, cancellationToken);
+        return new ReportPageViewModel(reports.Select(report => Map(report, time)).ToList(), total);
     }
 
     // ─── Card do time ─────────────────────────────────────────────────────────
@@ -978,7 +998,8 @@ public class ReportService : IReportService
         card.CreatedByUser = await _unitOfWork.Users.GetByIdAsync(autorId, cancellationToken);
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
-        return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras));
+        return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
+            await TeamIdsForAsync([card], cancellationToken));
     }
 
     public async Task<ReportDetailViewModel> EditTeamCardAsync(Guid projectPublicId, Guid reportPublicId, EditTeamCardDto dto, CancellationToken cancellationToken = default)
@@ -1031,7 +1052,8 @@ public class ReportService : IReportService
             await _unitOfWork.CommitAsync(cancellationToken);
         }
 
-        return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras));
+        return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
+            await TeamIdsForAsync([card], cancellationToken));
     }
 
     public async Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default)
@@ -1116,28 +1138,39 @@ public class ReportService : IReportService
     private async Task<ReportDetailViewModel> DetailOfAsync(Report report, ProjectCycleSettings? regras, CancellationToken cancellationToken)
     {
         if (report.Kind == CardKindEnum.Team)
-            return Detail(report, null, null, canAskInfo: false, [], AllowsReportArchiving(regras));
+            return Detail(report, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
+            await TeamIdsForAsync([report], cancellationToken));
 
         var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
         var pedido = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
 
-        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), canAskInfo: false,
-            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras));
+        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), CanAskInfo(report, regras, fechamento, pedido),
+            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
+            await TeamIdsForAsync([report], cancellationToken));
     }
 
+    /// <summary>
+    /// Se o time pode pedir informacao a quem relatou, agora.
+    ///
+    /// <para><b>A conclusao, e nao a configuracao.</b> Todas as condicoes precisam ser
+    /// verdade ao mesmo tempo, e a tela nao tem por que saber quais — ela le uma
+    /// resposta so e decide se oferece o botao.</para>
+    ///
+    /// <para><b>Vale para abrir e para toda acao que devolve o card aberto.</b> A tela
+    /// troca o que tem pela resposta: um "nao pode" fixo ali tiraria o botao da tela
+    /// depois de mudar a prioridade, ate alguem fechar e abrir o card de novo.</para>
+    /// </summary>
+    private static bool CanAskInfo(Report report, ProjectCycleSettings? regras, ReportClosure? fechamento, ReportInfoRequest? pedido)
+        => (regras?.InfoRequestEnabled ?? CycleSettingsDefaults.InfoRequestEnabled)
+           && report.Kind == CardKindEnum.Report
+           && report.ArchivedAt is null
+           && report.AcceptsQuestions == true
+           && fechamento is null
+           && pedido is null;
+
+    /// <summary>O titulo do card do time, numa linha e obrigatorio.</summary>
     private static string RequireTitle(string? value)
-    {
-        var titulo = (value ?? string.Empty).Trim();
-
-        if (titulo.Length == 0)
-            throw new ArgumentException("De um titulo ao card.");
-
-        if (titulo.Length > Report.MaxTitleLength)
-            throw new ArgumentException($"O titulo pode ter ate {Report.MaxTitleLength} caracteres.");
-
-        // O titulo e uma linha: quebra no meio vira espaco, como no assunto do e-mail.
-        return string.Join(' ', titulo.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Select(parte => parte.Trim()));
-    }
+        => CardText.Title(value) ?? throw new ArgumentException("De um titulo ao card.");
 
     /// <summary>
     /// A descricao como veio, menos as bordas em branco. <b>Vazia vira nula</b>: um
@@ -1226,7 +1259,7 @@ public class ReportService : IReportService
         // assim mesmo encheria o historico de linhas que nao dizem nada, e a
         // contagem da pesquisa passaria a medir cliques em vez de movimentos.
         if (report.ProjectStateId == destino.Id)
-            return Map(report);
+            return Map(report, await TeamIdsForAsync([report], cancellationToken));
 
         // **A conferencia do encerramento vem antes de qualquer gravacao.** Ela nao
         // depende da traducao — quem encerra e a coluna de dentro, e nao a etapa
@@ -1395,7 +1428,7 @@ public class ReportService : IReportService
             }
         }
 
-        return Map(report);
+        return Map(report, await TeamIdsForAsync([report], cancellationToken));
     }
 
     /// <summary>
@@ -1461,7 +1494,8 @@ public class ReportService : IReportService
         // Encerrado: nao ha mais o que perguntar, e um pedido aberto deixou de
         // fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
         return Detail(report, ClosureOf(fechamento), null, canAskInfo: false,
-            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras));
+            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
+            await TeamIdsForAsync([report], cancellationToken));
     }
 
     /// <summary>
@@ -1649,10 +1683,24 @@ public class ReportService : IReportService
             ?? throw new KeyNotFoundException("Relato nao encontrado.");
 
         var events = await _unitOfWork.Events.ListByReportAsync(report.Id, cancellationToken);
+        var mudancas = events.Select(CardChange.Read).ToList();
 
-        return events.Select(entity =>
+        // Quem passou pelo card aparece com o nome de agora, numa consulta so: o evento
+        // guarda so o identificador — nome e dado de alguem, e esta tabela nao se apaga.
+        var pessoas = mudancas
+            .SelectMany(mudanca => new[] { mudanca.FromPerson, mudanca.ToPerson })
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+        var nomes = pessoas.Count == 0
+            ? new Dictionary<Guid, string>()
+            : (await _unitOfWork.Users.ListByPublicIdsAsync(pessoas, cancellationToken))
+                .ToDictionary(pessoa => pessoa.PublicId, PersonName);
+
+        return events.Select((entity, indice) =>
         {
             var (de, para) = StateNames(entity);
+            var mudanca = mudancas[indice];
 
             return new ReportHistoryEntryViewModel(
                 entity.PublicId,
@@ -1660,7 +1708,14 @@ public class ReportService : IReportService
                 entity.User?.Name,
                 de,
                 para,
-                entity.OccurredAt);
+                entity.OccurredAt,
+                // Havia alguem, ha sempre um texto: nulo, na mudanca de responsavel, e
+                // "ficou sem ninguem" — e a pessoa sem nome nao pode virar ninguem.
+                mudanca.FromPerson is Guid antes ? nomes.GetValueOrDefault(antes, string.Empty) : mudanca.From,
+                mudanca.ToPerson is Guid depois ? nomes.GetValueOrDefault(depois, string.Empty) : mudanca.To,
+                mudanca.Added,
+                mudanca.Removed,
+                mudanca.TitleRestored);
         }).ToList();
     }
 
@@ -2161,6 +2216,7 @@ public class ReportService : IReportService
                 .Select(relato => new ReporterCodeReportViewModel(
                     relato.ReporterFields().TrackingCode,
                     relato.ReporterFields().Type,
+                    relato.ReporterTitle,
                     Excerpt(relato.ReporterFields().Text),
                     relato.ProjectPublicStage?.Label,
                     fechados.Contains(relato.Id),
@@ -2330,17 +2386,9 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        // **A conclusao, e nao a configuracao.** Quatro coisas precisam ser
-        // verdade ao mesmo tempo, e a tela nao tem por que saber quais — ela le uma
-        // resposta so e decide se oferece o botao.
-        var podePedir = (regras?.InfoRequestEnabled ?? CycleSettingsDefaults.InfoRequestEnabled)
-                        && report.Kind == CardKindEnum.Report
-                        && report.ArchivedAt is null
-                        && report.AcceptsQuestions == true
-                        && fechamento is null
-                        && pedido is null;
-
-        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir, reaberturas, AllowsReportArchiving(regras));
+        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), CanAskInfo(report, regras, fechamento, pedido),
+            reaberturas, AllowsReportArchiving(regras),
+            await TeamIdsForAsync([report], cancellationToken));
     }
 
     /// <summary>
@@ -2362,11 +2410,13 @@ public class ReportService : IReportService
         ReportInfoRequestViewModel? infoRequest,
         bool canAskInfo,
         IReadOnlyList<ReportReopeningViewModel> reopenings,
-        bool allowsReportArchiving) => new(
+        bool allowsReportArchiving,
+        IReadOnlySet<long> team) => new(
         report.PublicId,
         report.Kind,
         report.Number,
         report.Title,
+        report.ReporterTitle,
         report.Description,
         report.CreatedByUser?.Name,
         report.ArchivedAt,
@@ -2396,7 +2446,11 @@ public class ReportService : IReportService
             .OrderBy(context => context.Key, StringComparer.Ordinal)
             .Select(context => new ReportContextViewModel(context.Key, context.Value))
             .ToList(),
-        reopenings);
+        reopenings,
+        AssigneeOf(report, team),
+        PriorityOf(report),
+        LabelsOf(report),
+        report.DueDate);
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2485,11 +2539,14 @@ public class ReportService : IReportService
         return ReportStateFilter.In(projectState.Id);
     }
 
-    private static ReportSummaryViewModel Map(Report report) => new(
+    /// <param name="report">O card.</param>
+    /// <param name="team">Quem esta no time agora, para marcar o responsavel que saiu.</param>
+    private static ReportSummaryViewModel Map(Report report, IReadOnlySet<long> team) => new(
         report.PublicId,
         report.Kind,
         report.Number,
         report.Title,
+        report.ReporterTitle,
         report.TrackingCode,
         report.Type,
         report.Text,
@@ -2501,7 +2558,11 @@ public class ReportService : IReportService
         report.AcceptsQuestions,
         report.PublicStageDueAt,
         report.ArchivedAt,
-        report.CreatedAt);
+        report.CreatedAt,
+        AssigneeOf(report, team),
+        PriorityOf(report),
+        LabelsOf(report),
+        report.DueDate);
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem

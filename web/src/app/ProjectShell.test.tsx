@@ -112,6 +112,9 @@ describe('ProjectShell', () => {
     expect(screen.getByText('Configuração')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Instalação/ })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Chaves/ })).toBeTruthy()
+    // As listas do card moram junto dos estados: nomes do time, na ordem do time.
+    expect(screen.getByRole('link', { name: /Prioridades/ })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Etiquetas/ })).toBeTruthy()
   })
 
   it('projeto em que a pessoa não está: fala de time, e não de conta', async () => {

@@ -12,7 +12,7 @@ namespace Pds.Domain.Dtos;
 /// indistinguivel de "nao mexa na cor". Voltar a cor ao padrao viraria impossivel
 /// de expressar.</para>
 ///
-/// <para>Entao a rota substitui a linha inteira, e a tela manda os dez campos
+/// <para>Entao a rota substitui a linha inteira, e a tela manda os onze campos
 /// sempre. Em troca, ela precisa ter lido antes de escrever — o que ela faz.</para>
 ///
 /// <para><b>Os tipos anulaveis aqui nao querem dizer "opcional".</b> Sem eles, um
@@ -52,4 +52,11 @@ public class WidgetSettingsDto
 
     /// <example>Bug</example>
     public ReportTypeEnum? DefaultReportType { get; set; }
+
+    /// <summary>
+    /// Como a ferramenta pergunta o titulo ("em poucas palavras, o que aconteceu?"):
+    /// opcional, obrigatoria ou escondida. Obrigatorio informar.
+    /// </summary>
+    /// <example>Optional</example>
+    public ReportTitleModeEnum? ReportTitleMode { get; set; }
 }

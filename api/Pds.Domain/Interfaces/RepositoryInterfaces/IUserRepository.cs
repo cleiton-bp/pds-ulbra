@@ -17,4 +17,6 @@ public interface IUserRepository : IBaseRepository<User>
     /// tem filtro de acesso: quem chama ja conferiu que enxerga o projeto da conta.
     /// </summary>
     Task<IReadOnlyList<User>> ListByAccountAsync(long accountId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<User>> ListByPublicIdsAsync(IReadOnlyCollection<Guid> publicIds, CancellationToken cancellationToken = default);
 }
