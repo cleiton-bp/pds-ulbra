@@ -10,14 +10,16 @@ import type {
 import { describeError, projectReportService } from '@/data'
 import { AskInfoDialog } from '@/features/reports/AskInfoDialog'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
+import { ColumnSelect } from '@/features/reports/ColumnSelect'
 import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
 import { ReportComments, useReportComments } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { ReportReopenings } from '@/features/reports/ReportReopenings'
+import { TeamCardBody } from '@/features/reports/TeamCardBody'
 import { Button } from '@/shared/components/Button'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { Modal } from '@/shared/components/Modal'
-import { Select } from '@/shared/components/Select'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { formatDateTime } from '@/shared/lib/datetime'
@@ -47,7 +49,7 @@ export function ReportDialog({
   reportPublicId,
   resumo,
   colunas,
-  aoMover,
+  aoMudar,
   aoFechar,
 }: {
   projectPublicId: string
@@ -56,7 +58,8 @@ export function ReportDialog({
   resumo: ReportSummaryViewModel | null
   /** As colunas da fila, para onde este relato pode ir. */
   colunas: ReportStateCountViewModel[] | null
-  aoMover: (report: ReportSummaryViewModel) => void
+  /** O card mudou — de coluna, de texto ou de arquivo. A lista se acerta com isto. */
+  aoMudar: (report: ReportSummaryViewModel) => void
   aoFechar: () => void
 }) {
   const [detalhe, setDetalhe] = useState<ReportDetailViewModel | null>(null)
@@ -86,9 +89,11 @@ export function ReportDialog({
       })
   }, [projectPublicId, reportPublicId])
 
-  // O resumo da lista ganha do que chegou da API so porque chega antes; os dois
-  // dizem a mesma coisa. Quando nao ha resumo, a tela espera.
-  const report = resumo ?? detalhe
+  // O resumo da lista desenha na hora; quando o detalhe chega, ele vale por cima,
+  // campo a campo — e a leitura mais nova. Os dois costumam dizer a mesma coisa, mas
+  // nao sempre: o card arquivado em outra aba continua "na tela" no resumo que a
+  // lista guardou. Quando nao ha resumo, a tela espera.
+  const report: ReportSummaryViewModel | null = detalhe ? { ...resumo, ...detalhe } : resumo
   // A conversa e lida aqui, e nao dentro da caixa de comentarios: os arquivos de uma
   // resposta precisam saber quais falas estao na tela.
   const conversa = useReportComments(projectPublicId, reportPublicId)
@@ -189,7 +194,9 @@ export function ReportDialog({
    * aposentadas junto, entao a ultima dela nao e a que encerra.
    */
   function escolher(statePublicId: string) {
-    if (colunaQueEncerra?.StatePublicId === statePublicId) {
+    // Ja encerrado so anda: a API nao encerra de novo, e pedir motivo aqui cobraria
+    // uma decisao que ja foi tomada.
+    if (colunaQueEncerra?.StatePublicId === statePublicId && fechamento === null) {
       setEncerrando({
         publicId: statePublicId,
         nome: colunaQueEncerra.StateName ?? 'esta coluna',
@@ -214,7 +221,7 @@ export function ReportDialog({
         ...fechamento_,
       })
       setMovido(salvo)
-      aoMover(salvo)
+      aoMudar(salvo)
       setVersao((n) => n + 1)
       setEncerrando(null)
 
@@ -233,6 +240,12 @@ export function ReportDialog({
           Satisfaction: null,
           SatisfactionDeclined: false,
         })
+      // Sair da coluna que encerra desfaz o encerramento que quem relatou ainda nao
+      // confirmou: a API faz isso no mesmo movimento, e a tela acompanha. Chegar a
+      // ela com o fechamento valendo nao desfaz nada, e no encerramento por botao
+      // mover e so mover.
+      else if (colunaQueEncerra !== null && colunaQueEncerra.StatePublicId !== statePublicId)
+        setFechamento((anterior) => (anterior?.ConfirmedAt === null ? null : anterior))
     } catch (failure) {
       // A coluna volta sozinha para a antiga, porque o seletor le `atual` e ele
       // nao mudou. O aviso e o unico jeito de contar o que houve.
@@ -309,13 +322,72 @@ export function ReportDialog({
     }
   }
 
+  /**
+   * Arquivar o relato. **Aberto, ele encerra junto**: o dialogo e o do encerramento,
+   * com desfecho e motivo, porque quem relatou le — e a partir dali reabre ou
+   * finaliza. Ja encerrado, so sai da tela, e a confirmacao e simples.
+   *
+   * Quem decide e o `fechamento` da tela, e nao o `ArchiveCloses` do detalhe: mover
+   * para a coluna que encerra, ou para fora dela, muda o fechamento sem buscar o
+   * detalhe de novo — e o pedido montado com o valor da abertura levaria um 400.
+   */
+  const [arquivando, setArquivando] = useState<'encerra' | 'so-arquiva' | null>(null)
+  const [mexendoNoArquivo, setMexendoNoArquivo] = useState(false)
+
+  /** A resposta de uma acao que devolve o card aberto: tudo na tela passa a ela. */
+  function receber(aberto: ReportDetailViewModel) {
+    setDetalhe(aberto)
+    setFechamento(aberto.Closure)
+    setPedido(aberto.InfoRequest)
+    setPodePedir(aberto.CanAskInfo)
+    setMovido(aberto)
+    aoMudar(aberto)
+    setVersao((n) => n + 1)
+  }
+
+  async function mudarArquivo(
+    arquivar: boolean,
+    fechamento_?: { Outcome: PublicOutcome; Reason: string },
+  ) {
+    if (mexendoNoArquivo) return
+    setMexendoNoArquivo(true)
+
+    try {
+      const aberto = await projectReportService.setArchived(projectPublicId, reportPublicId, {
+        Archived: arquivar,
+        ...fechamento_,
+      })
+      receber(aberto)
+      setArquivando(null)
+      toast.done(
+        arquivar ? `#${aberto.Number} arquivado.` : `#${aberto.Number} de volta ao Trabalho.`,
+      )
+    } catch (falha) {
+      // O dialogo do motivo fica aberto: o texto escrito continua la para tentar de novo.
+      toast.error(describeError(falha))
+    } finally {
+      setMexendoNoArquivo(false)
+    }
+  }
+
+  const ehDoTime = report?.Kind === 'Team'
+  const arquivado = atual?.ArchivedAt != null
+
   return (
     <Modal
       open
       onOpenChange={(aberto) => {
         if (!aberto) aoFechar()
       }}
-      title={report ? teamTypeLabel(report.Type) : 'Relato'}
+      title={
+        report === null
+          ? 'Card'
+          : ehDoTime
+            ? 'Card do time'
+            : report.Type
+              ? teamTypeLabel(report.Type)
+              : 'Relato'
+      }
       width="w-[min(38rem,calc(100vw-2rem))]"
       footer={
         <Button variant="quiet" onClick={aoFechar}>
@@ -340,11 +412,31 @@ export function ReportDialog({
         </div>
       )}
 
-      {report && (
+      {report && atual && ehDoTime && (
+        <TeamCardBody
+          projectPublicId={projectPublicId}
+          reportPublicId={reportPublicId}
+          card={atual}
+          detalhe={detalhe}
+          failed={failed}
+          colunas={colunas}
+          movendo={movendo}
+          conversa={conversa}
+          versao={versao}
+          aoMover={(statePublicId) => void mover(statePublicId)}
+          aoSalvo={receber}
+          aoComentar={() => setVersao((n) => n + 1)}
+        />
+      )}
+
+      {report && !ehDoTime && (
         <div className="flex max-h-[60vh] flex-col gap-5 overflow-y-auto">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            {/* O numero e do time, e vem antes: e como o time fala do card. O
+                protocolo e o de quem relatou, e e o que se copia para responder. */}
+            <span className="font-mono text-detail text-fg">#{report.Number}</span>
             <code className="font-mono text-detail text-fg">{report.TrackingCode}</code>
-            <CopyButton value={report.TrackingCode} label="Copiar protocolo" size="sm" />
+            <CopyButton value={report.TrackingCode ?? ''} label="Copiar protocolo" size="sm" />
             <span className="text-detail text-fg-muted tabular-nums">
               {formatDateTime(report.CreatedAt)}
             </span>
@@ -361,40 +453,19 @@ export function ReportDialog({
               </span>
             )}
 
-            {/* Onde ele esta na fila, e o controle que o move.
-
-                O texto "Coluna" vem num `span`, e nao num `label`: quem da nome
-                ao controle e o `ariaLabel` do proprio `Select`, que vira
-                `aria-label` no `select`. Um `label` por fora, sem `htmlFor`, nao
-                nomeia nada — so parecia nomear. */}
-            {colunas && colunas.length > 0 ? (
-              <span className="flex items-center gap-1.5 text-caption text-fg-muted">
-                Coluna
-                <Select
-                  className="max-w-40"
-                  size="sm"
-                  ariaLabel="Mover para a coluna"
-                  value={atual?.StatePublicId ?? ''}
-                  disabled={movendo}
-                  onChange={(valor) => escolher(valor)}
-                  options={[
-                    // "Sem coluna" nao e destino: nao ha como tirar um relato da
-                    // fila de volta, e oferecer isso prometeria uma acao que a API
-                    // nao tem. Ela so aparece enquanto ele ainda nao tem coluna.
-                    ...(atual?.StatePublicId == null ? [{ value: '', label: 'Sem coluna' }] : []),
-                    ...colunas
-                      .filter((coluna) => coluna.StatePublicId !== null)
-                      .filter(
-                        (coluna) =>
-                          coluna.IsActive || coluna.StatePublicId === atual?.StatePublicId,
-                      )
-                      .map((coluna) => ({
-                        value: coluna.StatePublicId as string,
-                        label: coluna.StateName ?? '',
-                      })),
-                  ]}
-                />
+            {/* Onde ele esta na fila, e o controle que o move. Arquivado nao se
+                move: o seletor da lugar a etiqueta, e mover pede desarquivar. */}
+            {arquivado ? (
+              <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px text-caption text-warn-fg">
+                Arquivado
               </span>
+            ) : colunas && colunas.length > 0 ? (
+              <ColumnSelect
+                colunas={colunas}
+                atual={atual?.StatePublicId ?? null}
+                disabled={movendo}
+                aoEscolher={escolher}
+              />
             ) : (
               atual?.StateName && (
                 <span className="rounded-full border border-border px-2 py-px text-caption text-fg-muted">
@@ -449,7 +520,7 @@ export function ReportDialog({
 
           {fechamento && <Encerramento fechamento={fechamento} />}
 
-          {ofereceBotao && (
+          {ofereceBotao && !arquivado && (
             <div className="border-border border-t pt-4">
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -473,6 +544,39 @@ export function ReportDialog({
               <p className="mt-1.5 text-caption text-fg-muted leading-normal">
                 Encerrar pede um motivo, e é ele que quem relatou lê. Pedir informação devolve o
                 relato sem encerrar.
+              </p>
+            </div>
+          )}
+
+          {/* Arquivar so aparece com a regra do ciclo ligada (`CanArchive`), e
+              desarquivar sempre que estiver arquivado — inclusive com a regra
+              desligada depois: o que saiu da tela nao pode ficar preso fora dela. */}
+          {(arquivado || detalhe?.CanArchive) && (
+            <div className="border-border border-t pt-4">
+              {arquivado ? (
+                <Button
+                  size="sm"
+                  disabled={mexendoNoArquivo}
+                  onClick={() => void mudarArquivo(false)}
+                >
+                  Desarquivar
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="quiet"
+                  disabled={mexendoNoArquivo}
+                  onClick={() => setArquivando(fechamento === null ? 'encerra' : 'so-arquiva')}
+                >
+                  Arquivar relato
+                </Button>
+              )}
+              <p className="mt-1.5 text-caption text-fg-muted leading-normal">
+                {arquivado
+                  ? 'Arquivado: dá para ler e comentar entre o time. Para mover ou escrever a quem relatou, desarquive.'
+                  : fechamento === null
+                    ? 'Arquivar encerra o relato com um motivo, que quem relatou lê e a partir do qual pode reabrir ou finalizar.'
+                    : 'Quem relatou já recebeu o motivo do encerramento. Arquivar só tira o relato da tela de Trabalho.'}
               </p>
             </div>
           )}
@@ -517,6 +621,7 @@ export function ReportDialog({
             aoComentar={() => setVersao((n) => n + 1)}
             anexosPorFala={anexos.porFala}
             aoExpirar={anexos.refresh}
+            paraQuemRelatou={arquivado ? 'ler' : 'escrever'}
           />
 
           <ReportHistory
@@ -537,6 +642,29 @@ export function ReportDialog({
           aoCancelar={() => setPerguntando(false)}
         />
       )}
+
+      {arquivando === 'encerra' && (
+        <CloseReportDialog
+          coluna={null}
+          arquivando
+          encerrando={mexendoNoArquivo}
+          aoConfirmar={(outcome, reason) =>
+            void mudarArquivo(true, { Outcome: outcome, Reason: reason })
+          }
+          aoCancelar={() => setArquivando(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        open={arquivando === 'so-arquiva'}
+        onOpenChange={(aberto) => {
+          if (!aberto) setArquivando(null)
+        }}
+        title={report ? `Arquivar #${report.Number}` : 'Arquivar'}
+        description="O relato sai da tela de Trabalho. Quem relatou já recebeu o motivo do encerramento; se reabrir, ele volta sozinho."
+        confirmLabel="Arquivar"
+        onConfirm={() => mudarArquivo(true)}
+      />
 
       {encerrando && (
         <CloseReportDialog

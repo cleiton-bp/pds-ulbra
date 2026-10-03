@@ -71,6 +71,7 @@ const padroes: CycleSettingsViewModel = {
   InfoRequestWarnDays: 7,
   InfoRequestCloseDays: 7,
   AcceptsQuestionsDefault: true,
+  AllowsReportArchiving: false,
 }
 
 function montar() {

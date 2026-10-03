@@ -77,9 +77,16 @@ export function ReportComments({
   aoComentar,
   anexosPorFala = new Map(),
   aoExpirar = () => {},
+  paraQuemRelatou = 'escrever',
 }: {
   projectPublicId: string
   reportPublicId: string
+  /**
+   * O que fazer com a caixa de quem relatou. **O card do time nao tem ninguem do
+   * lado de fora**, e a caixa nem aparece; no relato arquivado ela fica para ler, e
+   * escrever pede desarquivar.
+   */
+  paraQuemRelatou?: 'escrever' | 'ler' | 'nenhum'
   /** A leitura da conversa, feita por quem monta o dialogo — ver `useReportComments`. */
   conversa: ReportConversation
   /** Avisa quem monta a tela de que o historico mudou. */
@@ -128,29 +135,36 @@ export function ReportComments({
         }}
       />
 
-      <Caixa
-        titulo="Para quem relatou"
-        explicacao="Escrito para a pessoa que abriu o relato. Ela lê na página de acompanhamento, junto das próprias respostas."
-        destaque
-        comentarios={atual?.Public ?? []}
-        // **So a caixa publica recebe arquivo.** A interna nem tem por onde: arquivo
-        // so vem numa resposta de quem relatou, e quem relatou nao escreve no
-        // interno. E a estrutura que garante, e nao um filtro que alguem esqueca.
-        anexosPorFala={anexosPorFala}
-        aoExpirar={aoExpirar}
-        aoEnviar={async (body) => {
-          const salvo = await projectReportService.addPublicComment(
-            projectPublicId,
-            reportPublicId,
-            { Body: body },
-          )
-          setLocal((antes) => {
-            const base = antes ?? comentarios
-            return base ? { ...base, Public: [...base.Public, salvo] } : base
-          })
-          aoComentar()
-        }}
-      />
+      {paraQuemRelatou !== 'nenhum' && (
+        <Caixa
+          titulo="Para quem relatou"
+          explicacao={
+            paraQuemRelatou === 'ler'
+              ? 'O relato está arquivado. Para escrever a quem relatou, desarquive antes.'
+              : 'Escrito para a pessoa que abriu o relato. Ela lê na página de acompanhamento, junto das próprias respostas.'
+          }
+          destaque
+          podeEscrever={paraQuemRelatou === 'escrever'}
+          comentarios={atual?.Public ?? []}
+          // **So a caixa publica recebe arquivo.** A interna nem tem por onde: arquivo
+          // so vem numa resposta de quem relatou, e quem relatou nao escreve no
+          // interno. E a estrutura que garante, e nao um filtro que alguem esqueca.
+          anexosPorFala={anexosPorFala}
+          aoExpirar={aoExpirar}
+          aoEnviar={async (body) => {
+            const salvo = await projectReportService.addPublicComment(
+              projectPublicId,
+              reportPublicId,
+              { Body: body },
+            )
+            setLocal((antes) => {
+              const base = antes ?? comentarios
+              return base ? { ...base, Public: [...base.Public, salvo] } : base
+            })
+            aoComentar()
+          }}
+        />
+      )}
     </section>
   )
 }
@@ -175,6 +189,7 @@ function Caixa({
   titulo,
   explicacao,
   destaque,
+  podeEscrever = true,
   comentarios,
   aoEnviar,
   anexosPorFala,
@@ -183,6 +198,8 @@ function Caixa({
   titulo: string
   explicacao: string
   destaque: boolean
+  /** Falso deixa so a leitura: a conversa continua na tela, e o campo sai. */
+  podeEscrever?: boolean
   comentarios: Comentario[]
   aoEnviar: (body: string) => Promise<void>
   anexosPorFala?: Map<string, PanelAttachmentViewModel[]>
@@ -261,24 +278,28 @@ function Caixa({
         </ul>
       )}
 
-      <textarea
-        aria-label={titulo}
-        value={texto}
-        onChange={(event) => {
-          setTexto(event.target.value)
-          if (erro) setErro(null)
-        }}
-        maxLength={MAX_COMMENT_LENGTH}
-        disabled={enviando}
-        rows={2}
-        className="mb-2 block w-full resize-y rounded-lg border border-border bg-surface px-2.5 py-2 text-detail text-fg leading-relaxed"
-      />
+      {podeEscrever && (
+        <>
+          <textarea
+            aria-label={titulo}
+            value={texto}
+            onChange={(event) => {
+              setTexto(event.target.value)
+              if (erro) setErro(null)
+            }}
+            maxLength={MAX_COMMENT_LENGTH}
+            disabled={enviando}
+            rows={2}
+            className="mb-2 block w-full resize-y rounded-lg border border-border bg-surface px-2.5 py-2 text-detail text-fg leading-relaxed"
+          />
 
-      {erro && <p className="mb-2 text-caption text-error-fg">{erro}</p>}
+          {erro && <p className="mb-2 text-caption text-error-fg">{erro}</p>}
 
-      <Button size="sm" disabled={texto.trim().length === 0 || enviando} onClick={enviar}>
-        {destaque ? 'Escrever para quem relatou' : 'Comentar entre o time'}
-      </Button>
+          <Button size="sm" disabled={texto.trim().length === 0 || enviando} onClick={enviar}>
+            {destaque ? 'Escrever para quem relatou' : 'Comentar entre o time'}
+          </Button>
+        </>
+      )}
     </div>
   )
 }

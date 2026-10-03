@@ -1,7 +1,10 @@
 import type {
+  ArchiveCardRequest,
   AskInfoRequest,
   CloseReportRequest,
   CreateCommentRequest,
+  CreateTeamCardRequest,
+  EditTeamCardRequest,
   InternalCommentViewModel,
   ModerateReportRequest,
   ModerationItemViewModel,
@@ -36,8 +39,39 @@ export interface ProjectReportService {
    * so aquela coluna, e `WITHOUT_STATE_FILTER` traz os que ainda nao tem lugar
    * nela. **O `total` acompanha o recorte** — filtrando, ele e o numero daquela
    * coluna, e nao o do projeto.
+   *
+   * Vem relato e card do time. **O arquivado nao vem**: `archived` verdadeiro troca
+   * a lista pelos arquivados — os dois nunca juntos.
    */
-  listReports(publicId: string, page: number, state?: string | null): Promise<ReportPage>
+  listReports(
+    publicId: string,
+    page: number,
+    state?: string | null,
+    archived?: boolean,
+  ): Promise<ReportPage>
+
+  /**
+   * Cria um card do time. Ganha o proximo numero do projeto, e nunca tem lado de
+   * fora. Devolve o card **aberto**, sem registrar leitura.
+   */
+  createTeamCard(publicId: string, request: CreateTeamCardRequest): Promise<ReportDetailViewModel>
+
+  /** Grava o titulo e a descricao de um card do time. O relato a API recusa. */
+  editTeamCard(
+    publicId: string,
+    reportPublicId: string,
+    request: EditTeamCardRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /**
+   * Arquiva ou desarquiva. No relato aberto, arquivar encerra junto — por isso o
+   * desfecho e o motivo, que quem relatou le.
+   */
+  setArchived(
+    publicId: string,
+    reportPublicId: string,
+    request: ArchiveCardRequest,
+  ): Promise<ReportDetailViewModel>
 
   /**
    * A fila de moderacao do projeto, num estado so.

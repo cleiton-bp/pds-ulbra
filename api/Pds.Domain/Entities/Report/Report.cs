@@ -4,7 +4,14 @@ using Pds.Domain.Enums;
 namespace Pds.Domain.Entities;
 
 /// <summary>
-/// O que a pessoa de fora escreveu.
+/// Um card do trabalho do time — o relato que a pessoa de fora escreveu, ou o
+/// card que o proprio time criou (<see cref="Kind"/>).
+///
+/// <para><b>O nome da tabela e do relato porque ele veio primeiro.</b> O card do
+/// time entrou depois, na mesma tabela, para andar pelos mesmos estados e contar a
+/// mesma historia. As colunas do lado de fora — protocolo, token, tipo e texto de
+/// quem relatou — ficam nulas nele, e o banco garante as duas regras: relato sem
+/// elas nao entra, e card do time com elas tambem nao.</para>
 ///
 /// <para><b>E a primeira tabela do sistema que nasce sem conta e sem sessao.</b>
 /// Todas as outras chegam por alguem que entrou no painel; esta chega por um
@@ -51,6 +58,62 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const int MaxPublishedListed = 20;
 
+    /// <summary>Teto do titulo do card do time.</summary>
+    public const int MaxTitleLength = 200;
+
+    /// <summary>
+    /// Teto da descricao do card do time, em Markdown. Maior que o texto do relato:
+    /// e o time descrevendo o proprio trabalho, com lista e trecho de codigo.
+    /// </summary>
+    public const int MaxDescriptionLength = 10000;
+
+    /// <summary>
+    /// De onde o card veio: de fora, pela ferramenta, ou do time, no painel. Ver
+    /// <see cref="CardKindEnum"/>.
+    /// </summary>
+    public CardKindEnum Kind { get; set; }
+
+    /// <summary>
+    /// O numero curto do card no projeto — o #42 que o time fala e escreve.
+    ///
+    /// <para><b>Interno, e separado do protocolo.</b> O protocolo e de quem relatou
+    /// e vale no sistema inteiro; o numero e do time e vale dentro do projeto.
+    /// Nenhuma rota publica o devolve.</para>
+    ///
+    /// <para><b>Pode pular, nunca repete.</b> Vem do contador do projeto
+    /// (<see cref="Project.LastCardNumber"/>), somado numa gravacao so; um card que
+    /// falha depois de reservar o numero deixa o buraco, e e so.</para>
+    /// </summary>
+    public int Number { get; set; }
+
+    /// <summary>
+    /// O titulo do card do time. Nulo no relato — o titulo do relato chega depois,
+    /// pela pergunta da ferramenta.
+    /// </summary>
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// A descricao do card do time, em Markdown. <b>Nula no relato</b>: ali o texto
+    /// e o de quem relatou, e o time nao o reescreve.
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Quando o card saiu da tela de Trabalho. Nulo enquanto esta nela.
+    ///
+    /// <para>Arquivado se le e se comenta, e so; mover e editar pedem desarquivar
+    /// antes. No relato, arquivar so existe com a regra do ciclo ligada, e o
+    /// relato aberto e encerrado junto — quem relatou recebe o motivo.</para>
+    /// </summary>
+    public DateTime? ArchivedAt { get; set; }
+
+    /// <summary>
+    /// Quem do time criou o card. Nulo no relato: quem escreveu nao tem usuario
+    /// aqui.
+    /// </summary>
+    public long? CreatedByUserId { get; set; }
+    public User? CreatedByUser { get; set; }
+
     /// <summary>Conta dona do relato, repetida do projeto para nao custar juncao.</summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;
@@ -92,7 +155,7 @@ public class Report : PdsBaseEntity
     /// em voz alta. Unico em todo o sistema, porque quem digita nao sabe de qual
     /// projeto o relato dele e.
     /// </summary>
-    public string TrackingCode { get; set; } = string.Empty;
+    public string? TrackingCode { get; set; }
 
     /// <summary>
     /// Hash do token que vai no link de acompanhamento. O valor original existe
@@ -102,13 +165,16 @@ public class Report : PdsBaseEntity
     /// Nao confundir com o <see cref="TrackingCode"/>: o protocolo identifica, o
     /// token abre. E por isso que o protocolo pode ser curto e falado.
     /// </summary>
-    public string AccessTokenHash { get; set; } = string.Empty;
+    public string? AccessTokenHash { get; set; }
 
-    /// <summary>Defeito, melhoria ou duvida.</summary>
-    public ReportTypeEnum Type { get; set; }
+    /// <summary>Defeito, melhoria ou duvida. Nulo no card do time.</summary>
+    public ReportTypeEnum? Type { get; set; }
 
-    /// <summary>O relato como a pessoa escreveu, com tamanho limitado no servidor.</summary>
-    public string Text { get; set; } = string.Empty;
+    /// <summary>
+    /// O relato como a pessoa escreveu, com tamanho limitado no servidor. Nulo no
+    /// card do time, que tem titulo e descricao.
+    /// </summary>
+    public string? Text { get; set; }
 
     /// <summary>
     /// So o caminho da pagina de onde o relato foi aberto. A parte depois do
@@ -227,6 +293,20 @@ public class Report : PdsBaseEntity
     /// </summary>
     public long? ModeratedByUserId { get; set; }
     public User? ModeratedByUser { get; set; }
+
+    /// <summary>
+    /// O protocolo, o tipo e o texto — o que so o relato tem, e o que o lado de
+    /// fora mostra.
+    ///
+    /// <para><b>Para quem monta resposta de fora.</b> As portas publicas so acham
+    /// relato, e o banco nao deixa o card do time ter protocolo. Um card do time
+    /// chegando aqui e defeito de quem chamou — e falhar alto e melhor do que
+    /// devolver um relato em branco para alguem de fora.</para>
+    /// </summary>
+    public (string TrackingCode, ReportTypeEnum Type, string Text) ReporterFields()
+        => Kind == CardKindEnum.Report && TrackingCode is not null && Type is not null && Text is not null
+            ? (TrackingCode, Type.Value, Text)
+            : throw new InvalidOperationException("O card do time nao tem lado de fora.");
 
     /// <summary>O que veio junto com o relato, em pares de chave e valor.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]

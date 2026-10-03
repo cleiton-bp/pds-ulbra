@@ -6,6 +6,7 @@ import {
   WITHOUT_STATE_FILTER,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { NewCardDialog } from '@/features/reports/NewCardDialog'
 import { useReportInbox } from '@/features/reports/useReportInbox'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -18,7 +19,9 @@ import { canConfigure } from '@/shared/lib/projectAccess'
 import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /**
- * O que chegou do site do cliente.
+ * O trabalho do time: o que chegou do site do cliente e os cards que o proprio time
+ * criou, juntos. Cada card tem o seu numero (#42); o relato tem tambem o protocolo
+ * de quem relatou.
  *
  * **E a primeira tela do painel que mostra dado de fora.** Todas as outras
  * mostram o que a propria pessoa configurou; esta mostra o que um desconhecido
@@ -43,6 +46,14 @@ export function ReportsScreen() {
 
   const [filtro, setFiltro] = useState<string | null>(null)
 
+  /**
+   * Os arquivados, no lugar da lista. **Nunca os dois juntos**: misturar faria o
+   * arquivado parecer de volta. O recorte por coluna sai junto — a contagem das
+   * colunas e a da tela de Trabalho, e nao conta arquivado.
+   */
+  const [arquivados, setArquivados] = useState(false)
+  const [criando, setCriando] = useState(false)
+
   // Trocar de projeto zera o recorte, e isto vem **antes** da busca: o
   // identificador de uma coluna do projeto anterior nao existe no novo, e a API
   // recusaria a lista inteira com 404.
@@ -50,10 +61,21 @@ export function ReportsScreen() {
   if (projetoDoFiltro !== project.PublicId) {
     setProjetoDoFiltro(project.PublicId)
     setFiltro(null)
+    setArquivados(false)
   }
 
-  const { reports, total, loading, failed, loadingMore, hasMore, reload, loadMore, apply } =
-    useReportInbox(project.PublicId, filtro)
+  const {
+    reports,
+    total,
+    loading,
+    failed,
+    loadingMore,
+    hasMore,
+    reload,
+    loadMore,
+    apply,
+    prepend,
+  } = useReportInbox(project.PublicId, arquivados ? null : filtro, arquivados)
 
   const { data: contagens, reload: recarregarContagens } = useAsyncResource(
     useCallback(() => projectReportService.listReportCounts(project.PublicId), [project.PublicId]),
@@ -61,10 +83,18 @@ export function ReportsScreen() {
 
   return (
     <div className="max-w-170">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Relatos</h1>
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-semibold text-screen tracking-tight">
+          {arquivados ? 'Arquivados' : 'Trabalho'}
+        </h1>
+        <Button variant="primary" onClick={() => setCriando(true)}>
+          Novo card
+        </Button>
+      </div>
       <p className="mb-6 text-fg-muted text-body">
-        O que as pessoas escreveram pela ferramenta instalada no site, do mais recente para o mais
-        antigo.
+        {arquivados
+          ? 'Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.'
+          : 'O que as pessoas escreveram pela ferramenta instalada no site e os cards que o time criou, do mais recente para o mais antigo.'}
       </p>
 
       {failed && (
@@ -84,15 +114,39 @@ export function ReportsScreen() {
         </div>
       )}
 
-      {contagens && contagens.length > 0 && (
-        <FiltroPorColuna contagens={contagens} escolhido={filtro} aoEscolher={setFiltro} />
-      )}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-2">
+        {!arquivados && contagens && contagens.length > 0 ? (
+          <FiltroPorColuna contagens={contagens} escolhido={filtro} aoEscolher={setFiltro} />
+        ) : (
+          <span />
+        )}
+
+        <button
+          type="button"
+          aria-pressed={arquivados}
+          onClick={() => setArquivados((valor) => !valor)}
+          className={cn(
+            'flex h-8 flex-none items-center rounded-lg border px-3 text-detail transition-colors',
+            arquivados
+              ? 'border-accent bg-accent text-accent-fg'
+              : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
+          )}
+        >
+          Arquivados
+        </button>
+      </div>
 
       {loading && <LoadingList />}
 
       {reports?.length === 0 &&
-        (filtro === null ? (
-          <EmptyState installs={canConfigure(project)} />
+        (arquivados ? (
+          <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
+            <p className="text-detail text-fg-muted leading-relaxed">
+              Nenhum card arquivado. O que sai da tela de Trabalho aparece aqui.
+            </p>
+          </div>
+        ) : filtro === null ? (
+          <EmptyState installs={canConfigure(project)} aoCriar={() => setCriando(true)} />
         ) : (
           <ColunaVazia nome={nomeDaColuna(contagens, filtro)} aoVerTodos={() => setFiltro(null)} />
         ))}
@@ -139,15 +193,29 @@ export function ReportsScreen() {
           // As colunas saem da contagem que esta tela ja carregou: mesma ordem, e
           // sem uma segunda requisicao para perguntar o que ja esta na mao.
           colunas: contagens,
-          aoMover: (movido: ReportSummaryViewModel) => {
-            apply(movido)
-            // A contagem muda em duas colunas de uma vez, e ela nao se recalcula
-            // sozinha — sem isto as fichas passariam a discordar da lista na
-            // frente de quem esta olhando.
+          aoMudar: (mudou: ReportSummaryViewModel) => {
+            apply(mudou)
+            // A contagem muda em duas colunas de uma vez — ou numa so, quando o card
+            // vai para o arquivo —, e ela nao se recalcula sozinha. Sem isto as
+            // fichas passariam a discordar da lista na frente de quem esta olhando.
             recarregarContagens()
           },
         }}
       />
+
+      {criando && (
+        <NewCardDialog
+          projectPublicId={project.PublicId}
+          colunas={contagens}
+          aoCriar={(card) => {
+            setCriando(false)
+            prepend(card)
+            recarregarContagens()
+            toast.done(`#${card.Number} criado.`)
+          }}
+          aoCancelar={() => setCriando(false)}
+        />
+      )}
     </div>
   )
 }
@@ -221,7 +289,7 @@ function FiltroPorColuna({
   const total = contagens.reduce((soma, item) => soma + item.Total, 0)
 
   return (
-    <div className="mb-6 flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
       <Ficha
         rotulo="Todos"
         total={total}
@@ -282,6 +350,8 @@ function Ficha({
 }
 
 function ReportCard({ report }: { report: ReportSummaryViewModel }) {
+  const doTime = report.Kind === 'Team'
+
   return (
     // Link, e nao botao: e o que faz o relato ter endereco proprio, abrir em outra
     // aba com o meio do mouse e sobreviver a um recarregamento da pagina.
@@ -291,8 +361,10 @@ function ReportCard({ report }: { report: ReportSummaryViewModel }) {
     >
       <header className="mb-2 flex items-baseline justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+          {/* O numero e como o time fala do card — no grupo, no commit, em voz alta. */}
+          <span className="flex-none font-mono text-caption text-fg">#{report.Number}</span>
           <span className="flex-none rounded-full border border-border px-2 py-px text-caption text-fg-muted">
-            {teamTypeLabel(report.Type)}
+            {doTime ? 'Do time' : report.Type ? teamTypeLabel(report.Type) : 'Relato'}
           </span>
 
           {/* Onde ele esta na fila. Sem ficha quando nao ha coluna: desenhar
@@ -314,19 +386,29 @@ function ReportCard({ report }: { report: ReportSummaryViewModel }) {
         </time>
       </header>
 
-      <p className="mb-2.5 line-clamp-3 whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
-        {report.Text}
+      {/* O card do time mostra o titulo; o relato, o texto de quem relatou — que
+          e dela, e nao ganha titulo do time. */}
+      <p
+        className={cn(
+          'line-clamp-3 whitespace-pre-wrap break-words text-body text-fg leading-relaxed',
+          !doTime && 'mb-2.5',
+          doTime && 'font-medium',
+        )}
+      >
+        {doTime ? report.Title : report.Text}
       </p>
 
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-caption text-fg-muted">
-        <code className="font-mono">{report.TrackingCode}</code>
-        {report.Route && (
-          <>
-            <span aria-hidden>·</span>
-            <span className="min-w-0 truncate">{report.Route}</span>
-          </>
-        )}
-      </div>
+      {!doTime && (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-caption text-fg-muted">
+          <code className="font-mono">{report.TrackingCode}</code>
+          {report.Route && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="min-w-0 truncate">{report.Route}</span>
+            </>
+          )}
+        </div>
+      )}
     </Link>
   )
 }
@@ -336,25 +418,29 @@ function ReportCard({ report }: { report: ReportSummaryViewModel }) {
  * chega aqui no primeiro dia precisa saber que falta instalar, e nao que o
  * produto esta quebrado.
  */
-function EmptyState({ installs }: { installs: boolean }) {
+function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => void }) {
   return (
     <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
-      <h2 className="mb-1.5 font-semibold text-fg text-lead">Nenhum relato ainda</h2>
-      <p className={cn('text-detail text-fg-muted leading-relaxed', installs && 'mb-4')}>
-        Assim que alguém enviar pela ferramenta instalada no site, ele aparece aqui — com o
-        protocolo, a página de onde saiu e o que a pessoa escreveu.
+      <h2 className="mb-1.5 font-semibold text-fg text-lead">Nada aqui ainda</h2>
+      <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+        Assim que alguém enviar pela ferramenta instalada no site, o relato aparece aqui — com o
+        protocolo, a página de onde saiu e o que a pessoa escreveu. O time também cria os próprios
+        cards.
         {/* Quem e so membro nao instala nada: o link levaria a Instalação, e a
             guarda o devolveria para ca — um clique que parece nao fazer nada. */}
         {!installs && ' Quem administra o projeto instala a ferramenta no site.'}
       </p>
-      {installs && (
-        <Link
-          to="../start"
-          className="inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
-        >
-          Ver como instalar no seu site
-        </Link>
-      )}
+      <div className="flex flex-wrap items-center gap-4">
+        <Button onClick={aoCriar}>Criar um card</Button>
+        {installs && (
+          <Link
+            to="../start"
+            className="inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
+          >
+            Ver como instalar no seu site
+          </Link>
+        )}
+      </div>
     </div>
   )
 }

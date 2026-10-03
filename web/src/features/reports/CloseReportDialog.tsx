@@ -36,6 +36,7 @@ export function CloseReportDialog({
   encerrando,
   aoConfirmar,
   aoCancelar,
+  arquivando = false,
 }: {
   /**
    * O nome da coluna de destino, ou **nulo** quando o encerramento vem do botao e
@@ -45,6 +46,12 @@ export function CloseReportDialog({
   encerrando: boolean
   aoConfirmar: (outcome: PublicOutcome, reason: string) => void
   aoCancelar: () => void
+  /**
+   * Arquivar um relato aberto: o mesmo encerramento — desfecho e motivo, que quem
+   * relatou le e a partir do qual reabre ou finaliza —, e o relato sai da tela de
+   * Trabalho junto.
+   */
+  arquivando?: boolean
 }) {
   const [outcome, setOutcome] = useState<PublicOutcome>('Done')
   const [motivo, setMotivo] = useState('')
@@ -57,11 +64,13 @@ export function CloseReportDialog({
       onOpenChange={(aberto) => {
         if (!aberto && !encerrando) aoCancelar()
       }}
-      title="Encerrar o relato"
+      title={arquivando ? 'Arquivar o relato' : 'Encerrar o relato'}
       description={
-        coluna === null
-          ? 'Este relato passa a constar como terminado, e continua na coluna em que está. Quem escreveu vai ler o motivo na página de acompanhamento.'
-          : `Mover para ${coluna} encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.`
+        arquivando
+          ? 'Arquivar encerra este relato e o tira da tela de Trabalho. Quem escreveu lê o motivo na página de acompanhamento e pode reabrir — e reabrir traz o relato de volta — ou finalizar, dando a nota.'
+          : coluna === null
+            ? 'Este relato passa a constar como terminado, e continua na coluna em que está. Quem escreveu vai ler o motivo na página de acompanhamento.'
+            : `Mover para ${coluna} encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.`
       }
       width="w-[min(32rem,calc(100vw-2rem))]"
       footer={
@@ -74,7 +83,13 @@ export function CloseReportDialog({
             disabled={texto.length === 0 || encerrando}
             onClick={() => aoConfirmar(outcome, texto)}
           >
-            {encerrando ? 'Encerrando…' : 'Encerrar'}
+            {encerrando
+              ? arquivando
+                ? 'Arquivando…'
+                : 'Encerrando…'
+              : arquivando
+                ? 'Arquivar'
+                : 'Encerrar'}
           </Button>
         </>
       }

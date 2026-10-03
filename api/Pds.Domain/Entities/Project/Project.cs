@@ -35,6 +35,18 @@ public class Project : PdsBaseEntity
     /// </summary>
     public int MappingVersion { get; set; }
 
+    /// <summary>
+    /// O ultimo numero de card dado neste projeto. O proximo card leva este mais
+    /// um.
+    ///
+    /// <para><b>Um contador, e nao o maior numero da tabela.</b> Somado numa
+    /// gravacao so (<c>UPDATE ... RETURNING</c>), ele faz dois cards criados no
+    /// mesmo instante esperarem um pelo outro na linha do projeto — e cada um sair
+    /// com o seu. Pelo maior valor, os dois leriam o mesmo e tentariam o mesmo
+    /// numero.</para>
+    /// </summary>
+    public int LastCardNumber { get; set; }
+
     /// <summary>Chaves do projeto: a que vale agora de cada tipo, mais o historico das revogadas.</summary>
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectKey> Keys { get; set; } = [];

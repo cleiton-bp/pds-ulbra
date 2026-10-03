@@ -44,11 +44,14 @@ public interface IReportRepository : IBaseRepository<Report>
     /// ordem total, e <c>created_at</c> sozinho nao da isso: dois relatos gravados
     /// no mesmo instante podem trocar de lugar entre uma pagina e a seguinte, e a
     /// pessoa veria um repetido enquanto o outro nunca apareceria.</para>
+    ///
+    /// <para><paramref name="archived"/> escolhe o lado: os que estao na tela de
+    /// Trabalho, ou so os arquivados — nunca os dois juntos.</para>
     /// </summary>
-    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, int skip, int take, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, int skip, int take, CancellationToken cancellationToken = default);
 
-    /// <summary>Quantos relatos o projeto tem. E o que diz se ainda ha o que carregar.</summary>
-    Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, CancellationToken cancellationToken = default);
+    /// <summary>Quantos cards o projeto tem no recorte. E o que diz se ainda ha o que carregar.</summary>
+    Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Quantos relatos ha em cada coluna da fila, mais a linha dos que ainda nao

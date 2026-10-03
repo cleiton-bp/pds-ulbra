@@ -83,6 +83,7 @@ export function CycleSettingsScreen() {
     'InfoRequestEnabled',
     'InfoRequestWarnDays',
     'InfoRequestCloseDays',
+    'AllowsReportArchiving',
   ] as const
 
   const dirty =
@@ -319,6 +320,20 @@ export function CycleSettingsScreen() {
               </p>
             </div>
           )}
+
+          <h2 className="mt-8 mb-1 font-medium text-fg text-lead">Arquivar relato</h2>
+          <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+            O caminho do relato é encerrar com desfecho. Arquivar tira o relato da tela de Trabalho
+            — e, para <strong className="font-medium text-fg">ninguém ficar sem retorno</strong>,
+            arquivar um relato aberto encerra junto, com desfecho e motivo.
+          </p>
+
+          <Marcar
+            marcado={draft.AllowsReportArchiving}
+            titulo="Deixar o time arquivar relato"
+            explicacao="Quem relatou lê o motivo na página de acompanhamento e pode reabrir — reabrir traz o relato de volta para a tela de Trabalho — ou finalizar, dando a nota. O card do time se arquiva sempre, com ou sem esta regra."
+            aoTrocar={(valor) => setDraft({ ...draft, AllowsReportArchiving: valor })}
+          />
 
           <div className="mt-8">
             <Button variant="primary" disabled={!dirty || saving} onClick={salvar}>

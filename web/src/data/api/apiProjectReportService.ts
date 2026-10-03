@@ -15,11 +15,12 @@ import type { ProjectReportService } from '@/data/projectReportService'
 export const apiProjectReportService: ProjectReportService = {
   // Sem `pageSize`: o tamanho da pagina e decisao da API, e repeti-lo aqui criaria
   // dois numeros para discordarem no dia em que um mudar.
-  listReports: async (publicId, page, state) => {
+  listReports: async (publicId, page, state, archived) => {
     const query = new URLSearchParams({ page: String(page) })
     // So entra quando ha recorte: `state=` vazio na URL chegaria como string vazia
     // e a API leria isso como "sem filtro" por acaso, e nao por decisao.
     if (state) query.set('state', state)
+    if (archived) query.set('archived', 'true')
 
     const { items, total } = await apiGetPage<ReportSummaryViewModel>(
       `/projects/${publicId}/reports?${query}`,
@@ -27,6 +28,18 @@ export const apiProjectReportService: ProjectReportService = {
 
     return { reports: items, total }
   },
+
+  createTeamCard: (publicId, request) =>
+    apiPost<ReportDetailViewModel>(`/projects/${publicId}/reports`, request),
+
+  editTeamCard: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(`/projects/${publicId}/reports/${reportPublicId}`, request),
+
+  setArchived: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/archive`,
+      request,
+    ),
 
   listModeration: (publicId, state) =>
     apiGet<ModerationQueueViewModel>(`/projects/${publicId}/reports/moderation?state=${state}`),

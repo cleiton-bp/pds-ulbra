@@ -57,7 +57,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
 
-    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, int skip, int take, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, int skip, int take, CancellationToken cancellationToken = default)
         // O filtro global ja isola por conta e esconde o que foi apagado; aqui so
         // resta escolher o projeto e o recorte. O Id no fim desempata os relatos do
         // mesmo instante, que sem isso trocariam de lugar entre uma pagina e a
@@ -71,16 +71,18 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectPublicStage)
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
+            .Where(Arquivados(archived))
             .OrderByDescending(report => report.CreatedAt)
             .ThenByDescending(report => report.Id)
             .Skip(skip)
             .Take(take)
             .ToListAsync(cancellationToken);
 
-    public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, CancellationToken cancellationToken = default)
+    public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, CancellationToken cancellationToken = default)
         => Context.Reports
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
+            .Where(Arquivados(archived))
             .CountAsync(cancellationToken);
 
     public async Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, CancellationToken cancellationToken = default)
@@ -97,13 +99,15 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 state.PublicId,
                 state.Name,
                 state.DeactivatedAt == null,
-                Context.Reports.Count(report => report.ProjectStateId == state.Id)))
+                // O arquivado nao conta: a contagem e a da tela de Trabalho, e ele
+                // saiu dela.
+                Context.Reports.Count(report => report.ProjectStateId == state.Id && report.ArchivedAt == null)))
             .ToListAsync(cancellationToken);
 
         // A linha dos que nao tem lugar na fila. Sem ela, a soma das colunas nao
         // bateria com o total e ninguem saberia por que.
         var semEstado = await Context.Reports
-            .CountAsync(report => report.ProjectId == projectId && report.ProjectStateId == null,
+            .CountAsync(report => report.ProjectId == projectId && report.ProjectStateId == null && report.ArchivedAt == null,
                 cancellationToken);
 
         return semEstado == 0
@@ -123,6 +127,15 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             { StateId: var stateId } => report => report.ProjectStateId == stateId,
         };
 
+    /// <summary>
+    /// A tela de Trabalho mostra os que estao nela; o filtro "Arquivados", so os que
+    /// sairam. Os dois nunca juntos: misturar faria o arquivado parecer de volta.
+    /// </summary>
+    private static System.Linq.Expressions.Expression<Func<Report, bool>> Arquivados(bool archived)
+        => archived
+            ? report => report.ArchivedAt != null
+            : report => report.ArchivedAt == null;
+
     public Task<Report?> GetByPublicIdWithContextsAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
         // O estado vem junto porque a tela de detalhe diz em que coluna o relato
         // esta — e e de la que ele vai ser movido.
@@ -130,6 +143,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.Contexts)
             .Include(report => report.ProjectState)
             .Include(report => report.ProjectPublicStage)
+            .Include(report => report.CreatedByUser)
             .FirstOrDefaultAsync(report => report.ProjectId == projectId && report.PublicId == publicId,
                 cancellationToken);
 
@@ -167,8 +181,14 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // O filtro global ja isola o acesso e esconde o apagado. A ordem e a unica
         // do painel que vai do mais antigo para o mais novo: fila lida ao
         // contrario deixa o primeiro que chegou esperando para sempre.
+        //
+        // **So relato.** O card do time fica "pendente" para sempre — e o que o
+        // banco exige dele —, e sem esta condicao encheria a fila de quem modera
+        // com cards que nunca vao ser liberados.
         => await Context.Reports
-            .Where(report => report.ProjectId == projectId && report.ModerationState == state)
+            .Where(report => report.ProjectId == projectId
+                             && report.Kind == CardKindEnum.Report
+                             && report.ModerationState == state)
             .Include(report => report.ModeratedByUser)
             .OrderBy(report => report.CreatedAt)
             .ThenBy(report => report.Id)
@@ -177,7 +197,9 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
 
     public Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default)
         => Context.Reports
-            .CountAsync(report => report.ProjectId == projectId && report.ModerationState == state,
+            .CountAsync(report => report.ProjectId == projectId
+                                  && report.Kind == CardKindEnum.Report
+                                  && report.ModerationState == state,
                 cancellationToken);
 
     public async Task<IReadOnlyList<Report>> ListPublishedWithoutSessionAsync(long projectId, int limit, CancellationToken cancellationToken = default)
@@ -192,6 +214,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .IgnoreQueryFilters()
             .Include(report => report.ProjectPublicStage)
             .Where(report => report.ProjectId == projectId
+                             && report.Kind == CardKindEnum.Report
                              && report.ModerationState == ReportModerationStateEnum.Approved
                              && report.DeletedAt == null
                              && report.Project.DeletedAt == null)

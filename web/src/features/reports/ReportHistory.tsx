@@ -129,6 +129,10 @@ const DESCRICOES: Record<ReportEventType, string> = {
   // projeto privado seria a linha afirmando uma coisa que nao aconteceu.
   ReportPublished: 'Liberado para o público',
   ReportModerationRejected: 'Não vai para o público',
+  TeamCardCreated: 'Criou o card',
+  TeamCardEdited: 'Editou o título ou a descrição',
+  CardArchived: 'Arquivou',
+  CardUnarchived: 'Desarquivou',
 }
 
 /**

@@ -43,6 +43,12 @@ export interface CycleSettingsViewModel {
   InfoRequestCloseDays: number
   /** Como a caixa de aceitar duvidas vem marcada. A escolha final e de quem relata. */
   AcceptsQuestionsDefault: boolean
+  /**
+   * Se o time pode arquivar relato. Desligado de fabrica. Arquivar o relato aberto
+   * encerra junto, com desfecho e motivo — quem relatou le e pode reabrir ou
+   * finalizar.
+   */
+  AllowsReportArchiving: boolean
 }
 
 /**

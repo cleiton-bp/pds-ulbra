@@ -27,6 +27,7 @@ namespace Pds.Domain.ViewModels;
 /// <param name="InfoRequestWarnDays">Dias ate avisar.</param>
 /// <param name="InfoRequestCloseDays">Dias depois do aviso ate encerrar.</param>
 /// <param name="AcceptsQuestionsDefault">Como a caixa de aceitar duvidas vem marcada.</param>
+/// <param name="AllowsReportArchiving">Se o time pode arquivar relato. Arquivar o aberto encerra junto, com desfecho e motivo.</param>
 public record CycleSettingsViewModel(
     ClosureTriggerEnum ClosureTrigger,
     int PublicDelayMinutes,
@@ -40,4 +41,5 @@ public record CycleSettingsViewModel(
     bool InfoRequestEnabled,
     int InfoRequestWarnDays,
     int InfoRequestCloseDays,
-    bool AcceptsQuestionsDefault);
+    bool AcceptsQuestionsDefault,
+    bool AllowsReportArchiving);

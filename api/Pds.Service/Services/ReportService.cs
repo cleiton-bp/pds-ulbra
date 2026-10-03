@@ -190,12 +190,19 @@ public class ReportService : IReportService
 
         var codigoPessoal = await ResolveReporterCodeAsync(project.Id, dto.ReporterCode, cancellationToken);
 
+        // O numero vem depois de tudo o que podia recusar o relato: reservado para um
+        // relato recusado, ele seria um buraco a toa na sequencia do time.
+        var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, cancellationToken);
+        var protocolo = await GenerateTrackingCodeAsync(cancellationToken);
+
         var report = new Report
         {
+            Kind = CardKindEnum.Report,
+            Number = numero,
             AccountId = project.AccountId,
             ProjectId = project.Id,
             ReporterCode = codigoPessoal,
-            TrackingCode = await GenerateTrackingCodeAsync(cancellationToken),
+            TrackingCode = protocolo,
             AccessTokenHash = tokenHash,
             Type = dto.Type.Value,
             Text = text,
@@ -231,10 +238,10 @@ public class ReportService : IReportService
             Source = EventSourceEnum.Widget,
             Payload = JsonSerializer.Serialize(new
             {
-                type = report.Type.ToString().ToLowerInvariant(),
+                type = dto.Type.Value.ToString().ToLowerInvariant(),
                 origin = report.Origin,
                 route = report.Route,
-                text_length = report.Text.Length,
+                text_length = text.Length,
             }),
         }, cancellationToken);
 
@@ -258,7 +265,7 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return new CreatedReportViewModel(report.TrackingCode, token, report.CreatedAt, codigoPessoal?.Code);
+        return new CreatedReportViewModel(protocolo, token, report.CreatedAt, codigoPessoal?.Code);
     }
 
     /// <summary>
@@ -439,7 +446,6 @@ public class ReportService : IReportService
 
             report.ProjectStateId = destino.Id;
             report.ProjectState = destino;
-            _unitOfWork.Reports.Update(report);
         }
 
         // E a jornada publica volta junto. Projeto sem coluna ativa nenhuma nao tem
@@ -457,9 +463,38 @@ public class ReportService : IReportService
                 mapa, etapas, cancellationToken, reopening: true);
         }
 
+        await UnarchiveFromOutsideAsync(report, "reopened", cancellationToken);
+
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Traz de volta para a tela de Trabalho o relato arquivado em que quem relatou
+    /// acabou de escrever — reabrindo, ou respondendo a uma pergunta do time.
+    ///
+    /// <para><b>Arquivar nunca deixa a pessoa sem retorno</b>: o relato aberto e
+    /// encerrado junto, com o motivo, e ela pode reabrir. Reabrir e ela dizendo que
+    /// ainda nao acabou — e isso nao pode cair num lugar que o time nao olha. A
+    /// origem <c>public_page</c> diz no historico que quem trouxe de volta foi ela.</para>
+    /// </summary>
+    private async Task UnarchiveFromOutsideAsync(Report report, string motivo, CancellationToken cancellationToken)
+    {
+        if (report.ArchivedAt is null)
+            return;
+
+        report.ArchivedAt = null;
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.CardUnarchived,
+            Source = EventSourceEnum.PublicPage,
+            Payload = JsonSerializer.Serialize(new { because = motivo }),
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -549,10 +584,12 @@ public class ReportService : IReportService
         var reaberturas = await _unitOfWork.ReportClosures
             .ListReopenedWithoutSessionAsync(report.Id, cancellationToken);
 
+        var (protocolo, tipo, texto) = report.ReporterFields();
+
         return new PublicReportViewModel(
-            report.TrackingCode,
-            report.Type,
-            report.Text,
+            protocolo,
+            tipo,
+            texto,
             report.CreatedAt,
             await BuildJourneyAsync(report, cancellationToken),
             publico,
@@ -590,6 +627,11 @@ public class ReportService : IReportService
 
         var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
             ?? throw new KeyNotFoundException("Relato nao encontrado.");
+
+        if (report.Kind == CardKindEnum.Team)
+            throw new ConflictException("O card do time nao tem quem relatou para responder.");
+
+        EnsureNotArchived(report, "perguntar a quem relatou");
 
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
@@ -694,7 +736,7 @@ public class ReportService : IReportService
         }
 
         return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false,
-            await ReopeningsOfAsync(report.Id, cancellationToken));
+            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras));
     }
 
     public async Task<PublicReportViewModel> ReplyAsync(ReplyToReportDto dto, CancellationToken cancellationToken = default)
@@ -737,6 +779,8 @@ public class ReportService : IReportService
             Source = EventSourceEnum.PublicPage,
             Payload = JsonSerializer.Serialize(new { body_length = texto.Length }),
         }, cancellationToken);
+
+        await UnarchiveFromOutsideAsync(report, "replied", cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
@@ -849,7 +893,7 @@ public class ReportService : IReportService
             : new ReportInfoRequestViewModel(
                 request.AskedByUser?.Name, request.AskedAt, request.WarnAt, request.CloseAt);
 
-    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, CancellationToken cancellationToken = default)
+    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
         var filter = await ResolveStateFilterAsync(project.Id, state, cancellationToken);
@@ -857,7 +901,7 @@ public class ReportService : IReportService
         var size = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
         var current = Math.Max(page, 1);
 
-        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, filter, cancellationToken);
+        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, filter, archived, cancellationToken);
 
         // Em long porque o produto estoura o int muito antes de estourar a tabela:
         // pagina 200 milhoes vezes 20 nao existe como pergunta, mas chega como
@@ -868,9 +912,273 @@ public class ReportService : IReportService
         if (skip >= total)
             return new ReportPageViewModel([], total);
 
-        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, (int)skip, size, cancellationToken);
+        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, (int)skip, size, cancellationToken);
 
         return new ReportPageViewModel(reports.Select(Map).ToList(), total);
+    }
+
+    // ─── Card do time ─────────────────────────────────────────────────────────
+
+    public async Task<ReportDetailViewModel> CreateTeamCardAsync(Guid projectPublicId, CreateTeamCardDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        // Arquivar o projeto para de aceitar coisa nova — de fora e de dentro.
+        if (project.Status == ProjectStatusEnum.Archived)
+            throw new ForbiddenException("Este projeto esta arquivado e nao aceita cards novos.");
+
+        var titulo = RequireTitle(dto.Title);
+        var descricao = NormalizeDescription(dto.Description);
+        var estado = await ResolveTeamCardStateAsync(project.Id, dto.StatePublicId, cancellationToken);
+        var autorId = _accountContext.UserId ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
+
+        // Depois de tudo o que podia recusar: numero reservado para card recusado
+        // seria um buraco a toa.
+        var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, cancellationToken);
+
+        var card = new Report
+        {
+            Kind = CardKindEnum.Team,
+            Number = numero,
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            Title = titulo,
+            Description = descricao,
+            ProjectStateId = estado?.Id,
+            ProjectState = estado,
+            CreatedByUserId = autorId,
+            // O banco so aceita card do time pendente: e o que o mantem fora da
+            // lista publica mesmo que alguem esqueca o filtro numa consulta.
+            ModerationState = ReportModerationStateEnum.Pending,
+        };
+
+        await _unitOfWork.Reports.AddAsync(card, cancellationToken);
+
+        // Na mesma gravacao do card, como o do relato. Sem titulo nem descricao: a
+        // tabela de eventos nao se apaga, e o texto e do card.
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            Report = card,
+            UserId = autorId,
+            Type = EventTypeEnum.TeamCardCreated,
+            Source = EventSourceEnum.Panel,
+            Payload = JsonSerializer.Serialize(new
+            {
+                number = numero,
+                state_id = estado?.PublicId,
+                state_name = estado?.Name,
+                description_length = descricao?.Length ?? 0,
+            }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        card.CreatedByUser = await _unitOfWork.Users.GetByIdAsync(autorId, cancellationToken);
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras));
+    }
+
+    public async Task<ReportDetailViewModel> EditTeamCardAsync(Guid projectPublicId, Guid reportPublicId, EditTeamCardDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var card = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Card nao encontrado.");
+
+        // O texto do relato e de quem relatou, e o que ela escreveu fica como ela
+        // escreveu.
+        if (card.Kind != CardKindEnum.Team)
+            throw new ConflictException("O texto do relato e de quem relatou: o time nao o reescreve.");
+
+        EnsureNotArchived(card, "edita-lo");
+
+        var titulo = RequireTitle(dto.Title);
+        var descricao = NormalizeDescription(dto.Description);
+
+        var mudou = new List<string>();
+        if (card.Title != titulo)
+            mudou.Add("title");
+        if (card.Description != descricao)
+            mudou.Add("description");
+
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        // Gravar o mesmo texto nao e edicao: o historico ganharia uma linha que nao
+        // diz nada.
+        if (mudou.Count > 0)
+        {
+            card.Title = titulo;
+            card.Description = descricao;
+
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                ReportId = card.Id,
+                UserId = _accountContext.UserId,
+                Type = EventTypeEnum.TeamCardEdited,
+                Source = EventSourceEnum.Panel,
+                Payload = JsonSerializer.Serialize(new
+                {
+                    fields = mudou,
+                    description_length = descricao?.Length ?? 0,
+                }),
+            }, cancellationToken);
+
+            await _unitOfWork.CommitAsync(cancellationToken);
+        }
+
+        return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras));
+    }
+
+    public async Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Card nao encontrado.");
+
+        var arquivar = dto.Archived
+                       ?? throw new ArgumentException("Diga se o card vai para o arquivo ou sai dele.");
+
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        // Pedir o que ja e verdade nao e erro — e a segunda aba, ou o segundo clique.
+        // Vem antes de olhar desfecho e motivo: a segunda aba manda os que escreveu,
+        // e o relato ja saiu arquivado, e encerrado, pela primeira.
+        if (arquivar == (report.ArchivedAt is not null))
+            return await DetailOfAsync(report, regras, cancellationToken);
+
+        var relato = report.Kind == CardKindEnum.Report;
+        var fechamento = relato
+            ? await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken)
+            : null;
+        var motivo = (dto.Reason ?? string.Empty).Trim();
+
+        // Encerra junto so o relato aberto, e so ao arquivar.
+        var encerra = arquivar && relato && fechamento is null;
+
+        if (!encerra && (dto.Outcome is not null || motivo.Length > 0))
+        {
+            // Recusado, e nao ignorado: um motivo aceito aqui seria gravado sem ter
+            // onde morar, e quem escreveu acharia que quem relatou vai le-lo.
+            throw new ArgumentException(arquivar
+                ? "Arquivar este card nao encerra nada, entao nao leva desfecho nem motivo."
+                : "Desarquivar nao leva desfecho nem motivo.");
+        }
+
+        if (arquivar && relato && !AllowsReportArchiving(regras))
+            throw new ForbiddenException("Este projeto nao arquiva relato. O caminho do relato e encerrar com desfecho.");
+
+        if (encerra)
+        {
+            if (dto.Outcome is null)
+                throw new ArgumentException("Informe o desfecho. Arquivar um relato aberto encerra o relato junto.");
+
+            // **Arquivar nunca deixa quem relatou sem retorno.** O motivo e o que ela
+            // le pelo link — e e a partir dele que ela reabre ou finaliza.
+            if (motivo.Length == 0)
+                throw new ArgumentException("Escreva o motivo. E o que quem relatou vai ler, e a partir dele pode reabrir ou finalizar.");
+
+            if (motivo.Length > ReportClosure.MaxReasonLength)
+                throw new ArgumentException($"O motivo pode ter ate {ReportClosure.MaxReasonLength} caracteres.");
+
+            // Sem esperar, como o encerramento por botao: houve um dialogo, um
+            // desfecho escolhido e um motivo escrito — nao ha engano a desfazer.
+            await RegisterClosureAsync(project, report, dto.Outcome.Value, motivo, DateTime.UtcNow, cancellationToken);
+        }
+
+        report.ArchivedAt = arquivar ? DateTime.UtcNow : null;
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = project.AccountId,
+            ProjectId = project.Id,
+            ReportId = report.Id,
+            UserId = _accountContext.UserId,
+            Type = arquivar ? EventTypeEnum.CardArchived : EventTypeEnum.CardUnarchived,
+            Source = EventSourceEnum.Panel,
+            Payload = JsonSerializer.Serialize(new { closed = encerra }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return await DetailOfAsync(report, regras, cancellationToken);
+    }
+
+    /// <summary>
+    /// O detalhe depois de uma acao, sem gravar leitura — abrir grava, e a acao nao
+    /// e uma leitura.
+    /// </summary>
+    private async Task<ReportDetailViewModel> DetailOfAsync(Report report, ProjectCycleSettings? regras, CancellationToken cancellationToken)
+    {
+        if (report.Kind == CardKindEnum.Team)
+            return Detail(report, null, null, canAskInfo: false, [], AllowsReportArchiving(regras));
+
+        var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
+        var pedido = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
+
+        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), canAskInfo: false,
+            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras));
+    }
+
+    private static string RequireTitle(string? value)
+    {
+        var titulo = (value ?? string.Empty).Trim();
+
+        if (titulo.Length == 0)
+            throw new ArgumentException("De um titulo ao card.");
+
+        if (titulo.Length > Report.MaxTitleLength)
+            throw new ArgumentException($"O titulo pode ter ate {Report.MaxTitleLength} caracteres.");
+
+        // O titulo e uma linha: quebra no meio vira espaco, como no assunto do e-mail.
+        return string.Join(' ', titulo.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Select(parte => parte.Trim()));
+    }
+
+    /// <summary>
+    /// A descricao como veio, menos as bordas em branco. <b>Vazia vira nula</b>: um
+    /// card sem descricao e um card sem descricao, e nao um card com descricao vazia.
+    /// O Markdown nao e lido aqui — quem desenha e o painel, sem HTML.
+    /// </summary>
+    private static string? NormalizeDescription(string? value)
+    {
+        var descricao = (value ?? string.Empty).Trim();
+
+        if (descricao.Length > Report.MaxDescriptionLength)
+            throw new ArgumentException($"A descricao pode ter ate {Report.MaxDescriptionLength} caracteres.");
+
+        return descricao.Length == 0 ? null : descricao.Replace("\r\n", "\n");
+    }
+
+    /// <summary>
+    /// O estado em que o card do time nasce. Escolhido, tem de ser deste projeto e
+    /// estar ativo; sem escolha, o primeiro ativo — e nenhum, se o projeto ainda nao
+    /// tem estado, como acontece com o relato.
+    /// </summary>
+    private async Task<ProjectState?> ResolveTeamCardStateAsync(long projectId, Guid? statePublicId, CancellationToken cancellationToken)
+    {
+        if (statePublicId is Guid escolhido)
+        {
+            var estado = await _unitOfWork.ProjectStates.GetByPublicIdAsync(escolhido, cancellationToken);
+
+            if (estado is null || estado.ProjectId != projectId)
+                throw new KeyNotFoundException("Estado nao encontrado neste projeto.");
+
+            if (!estado.IsActive)
+                throw new ConflictException("Este estado esta aposentado e nao recebe card novo.");
+
+            return estado;
+        }
+
+        return (await _unitOfWork.ProjectStates.ListByProjectAsync(projectId, cancellationToken))
+            .Where(estado => estado.IsActive)
+            .OrderBy(estado => estado.Position)
+            .ThenBy(estado => estado.Id)
+            .FirstOrDefault();
     }
 
     /// <summary>
@@ -899,6 +1207,13 @@ public class ReportService : IReportService
         if (dto.StatePublicId is null)
             throw new ArgumentException("Informe a coluna de destino.");
 
+        EnsureNotArchived(report, "move-lo");
+
+        // **O card do time nao encerra nem anda la fora.** Nao ha quem relatou para
+        // ler desfecho, nem jornada para mostrar: a ultima coluna e so a ultima
+        // coluna, e a etapa publica nunca se mexe por ele.
+        var doTime = report.Kind == CardKindEnum.Team;
+
         var destino = await _unitOfWork.ProjectStates.GetByPublicIdAsync(dto.StatePublicId.Value, cancellationToken);
 
         if (destino is null || destino.ProjectId != project.Id)
@@ -923,11 +1238,19 @@ public class ReportService : IReportService
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
         var gatilho = regras?.ClosureTrigger ?? CycleSettingsDefaults.ClosureTrigger;
 
-        var ultimaAtiva = gatilho == ClosureTriggerEnum.LastColumn
+        var ultimaAtiva = gatilho == ClosureTriggerEnum.LastColumn && !doTime
             ? await _unitOfWork.ProjectStates.LastActiveAsync(project.Id, cancellationToken)
             : null;
 
-        var encerra = ultimaAtiva is not null && ultimaAtiva.Id == destino.Id;
+        var paraAQueEncerra = ultimaAtiva is not null && ultimaAtiva.Id == destino.Id;
+
+        // **Ja encerrado nao encerra de novo**, como no botao. Chega a coluna que
+        // encerra com um fechamento valendo o relato que o arquivo encerrou e o time
+        // desarquivou, ou o que quem relatou ja confirmou: ali ele so anda. Um
+        // segundo fechamento deixaria o primeiro valendo por baixo, e reabrir faria
+        // a pagina de quem relatou voltar a ele.
+        var encerra = paraAQueEncerra
+            && await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken) is null;
         var motivo = (dto.Reason ?? string.Empty).Trim();
 
         if (encerra)
@@ -976,10 +1299,11 @@ public class ReportService : IReportService
             }),
         }, cancellationToken);
 
-        // E o cache depois.
+        // E o cache depois. Sem gravar a linha inteira: o card ja e acompanhado, e o
+        // commit leva so o que mudou. A linha inteira devolveria o titulo, ou o
+        // arquivamento, lidos antes de outra pessoa mudar.
         report.ProjectStateId = destino.Id;
         report.ProjectState = destino;
-        _unitOfWork.Reports.Update(report);
 
         // **A espera decide se a jornada anda agora ou depois.** Zero e o
         // comportamento de sempre: a traducao acontece junto do movimento. Acima de
@@ -988,7 +1312,11 @@ public class ReportService : IReportService
         // antes de a pessoa ver.
         var espera = regras?.PublicDelayMinutes ?? CycleSettingsDefaults.PublicDelayMinutes;
 
-        if (espera <= 0)
+        if (doTime)
+        {
+            // Nada la fora: nem traducao, nem espera. O movimento termina aqui.
+        }
+        else if (espera <= 0)
         {
             // So entao a traducao: ela e **consequencia** do movimento, e nao parte
             // da decisao de mover. Se ela viesse antes, um projeto sem jornada
@@ -1029,7 +1357,7 @@ public class ReportService : IReportService
                 project, report, dto.Outcome!.Value, motivo,
                 report.PublicStageDueAt ?? DateTime.UtcNow, cancellationToken);
         }
-        else if (gatilho == ClosureTriggerEnum.LastColumn)
+        else if (gatilho == ClosureTriggerEnum.LastColumn && !doTime && !paraAQueEncerra)
         {
             // **Sair da coluna que encerra desfaz o encerramento**, e so neste
             // gatilho. Sem isto, desfazer um movimento errado devolvia o relato para
@@ -1037,7 +1365,8 @@ public class ReportService : IReportService
             // sobre um relato que o time voltou a trabalhar.
             //
             // No gatilho por botao nao se faz nada: la o fechamento nasceu de uma
-            // decisao propria, e mover o relato e so mover.
+            // decisao propria, e mover o relato e so mover. Nem chegar a coluna que
+            // encerra com o fechamento valendo: ali e onde ele mora.
             await CancelClosureAsync(project, report, cancellationToken);
         }
 
@@ -1090,6 +1419,13 @@ public class ReportService : IReportService
         var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
             ?? throw new KeyNotFoundException("Relato nao encontrado.");
 
+        // O encerramento e o que quem relatou le. O card do time termina movendo
+        // para a ultima coluna: nao ha ninguem do lado de fora para ler desfecho.
+        if (report.Kind == CardKindEnum.Team)
+            throw new ConflictException("O card do time nao tem quem relatou para ler o desfecho: ele termina na ultima coluna.");
+
+        EnsureNotArchived(report, "encerra-lo");
+
         // Encerrar duas vezes nao e engano de digitacao: e a segunda aba, ou o
         // segundo clique. Recusar mantem uma linha por fechamento, que e o que faz
         // a sequencia "fechou, reabriu, fechou de novo" contar a historia certa.
@@ -1117,13 +1453,15 @@ public class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
+
         // **Sem gravar leitura.** Esta resposta e a mesma forma do detalhe porque a
         // tela ja esta com o relato aberto e so precisa dele atualizado; passar
         // por `GetAsync` registraria uma segunda visualizacao que ninguem fez.
         // Encerrado: nao ha mais o que perguntar, e um pedido aberto deixou de
         // fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
         return Detail(report, ClosureOf(fechamento), null, canAskInfo: false,
-            await ReopeningsOfAsync(report.Id, cancellationToken));
+            await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras));
     }
 
     /// <summary>
@@ -1274,7 +1612,6 @@ public class ReportService : IReportService
         if (report.ProjectStateId is not long estadoAtual)
         {
             report.PublicStageDueAt = null;
-            _unitOfWork.Reports.Update(report);
             await _unitOfWork.CommitAsync(cancellationToken);
             return;
         }
@@ -1297,7 +1634,6 @@ public class ReportService : IReportService
             mapa, etapas, cancellationToken);
 
         report.PublicStageDueAt = null;
-        _unitOfWork.Reports.Update(report);
 
         await _unitOfWork.CommitAsync(cancellationToken);
     }
@@ -1653,6 +1989,11 @@ public class ReportService : IReportService
         var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
                      ?? throw new KeyNotFoundException("Relato nao encontrado neste projeto.");
 
+        // A moderacao decide o que gente de fora le — e o card do time nunca vai
+        // para fora. Para a fila, ele nao existe; e o banco recusaria liberar.
+        if (report.Kind == CardKindEnum.Team)
+            throw new KeyNotFoundException("Relato nao encontrado neste projeto.");
+
         var anterior = report.ModerationState;
 
         // O autor vem do banco pelo mesmo motivo do encerramento: a sessao guarda o
@@ -1667,8 +2008,6 @@ public class ReportService : IReportService
         report.ModeratedAt = DateTime.UtcNow;
         report.ModeratedByUserId = autor?.Id;
         report.ModeratedByUser = autor;
-
-        _unitOfWork.Reports.Update(report);
 
         await _unitOfWork.Events.AddAsync(new Event
         {
@@ -1735,8 +2074,8 @@ public class ReportService : IReportService
 
         return new PublishedReportsViewModel(
             [.. relatos.Select(relato => new PublishedReportViewModel(
-                relato.Type,
-                relato.Text,
+                relato.ReporterFields().Type,
+                relato.ReporterFields().Text,
                 relato.ProjectPublicStage?.Label,
                 fechados.Contains(relato.Id),
                 mostraNome && relato.ReporterNameIsPublic ? relato.ReporterName : null,
@@ -1751,13 +2090,14 @@ public class ReportService : IReportService
     /// </summary>
     private static ModerationItemViewModel ToModerationItem(Report report)
     {
-        var achados = SensitiveDataScanner.Scan(report.Text);
+        var (protocolo, tipo, texto) = report.ReporterFields();
+        var achados = SensitiveDataScanner.Scan(texto);
 
         return new ModerationItemViewModel(
             report.PublicId,
-            report.TrackingCode,
-            report.Type,
-            report.Text,
+            protocolo,
+            tipo,
+            texto,
             report.ReporterName,
             report.ReporterNameIsPublic,
             report.ModerationState,
@@ -1819,9 +2159,9 @@ public class ReportService : IReportService
         return new ReporterCodeReportsViewModel(
             relatos
                 .Select(relato => new ReporterCodeReportViewModel(
-                    relato.TrackingCode,
-                    relato.Type,
-                    Excerpt(relato.Text),
+                    relato.ReporterFields().TrackingCode,
+                    relato.ReporterFields().Type,
+                    Excerpt(relato.ReporterFields().Text),
                     relato.ProjectPublicStage?.Label,
                     fechados.Contains(relato.Id),
                     relato.CreatedAt))
@@ -1968,14 +2308,20 @@ public class ReportService : IReportService
         //
         // Sem payload: origem, momento, projeto e relato ja sao colunas, e repetir
         // no campo livre criaria duas versoes do mesmo dado para divergirem depois.
-        await _unitOfWork.Events.AddAsync(new Event
+        //
+        // **So no relato.** O evento mede quanto o time demora a olhar o que veio de
+        // fora; o card do time nasceu dentro, e a leitura dele so mediria cliques.
+        if (report.Kind == CardKindEnum.Report)
         {
-            AccountId = project.AccountId,
-            ProjectId = project.Id,
-            ReportId = report.Id,
-            Type = EventTypeEnum.ReportViewed,
-            Source = EventSourceEnum.Panel,
-        }, cancellationToken);
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                ReportId = report.Id,
+                Type = EventTypeEnum.ReportViewed,
+                Source = EventSourceEnum.Panel,
+            }, cancellationToken);
+        }
 
         var fechamento = await _unitOfWork.ReportClosures.FindCurrentAsync(report.Id, cancellationToken);
         var pedido = await _unitOfWork.ReportInfoRequests.FindOpenAsync(report.Id, cancellationToken);
@@ -1988,11 +2334,13 @@ public class ReportService : IReportService
         // verdade ao mesmo tempo, e a tela nao tem por que saber quais — ela le uma
         // resposta so e decide se oferece o botao.
         var podePedir = (regras?.InfoRequestEnabled ?? CycleSettingsDefaults.InfoRequestEnabled)
+                        && report.Kind == CardKindEnum.Report
+                        && report.ArchivedAt is null
                         && report.AcceptsQuestions == true
                         && fechamento is null
                         && pedido is null;
 
-        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir, reaberturas);
+        return Detail(report, ClosureOf(fechamento), InfoRequestOf(pedido), podePedir, reaberturas, AllowsReportArchiving(regras));
     }
 
     /// <summary>
@@ -2013,8 +2361,20 @@ public class ReportService : IReportService
         ReportClosureViewModel? closure,
         ReportInfoRequestViewModel? infoRequest,
         bool canAskInfo,
-        IReadOnlyList<ReportReopeningViewModel> reopenings) => new(
+        IReadOnlyList<ReportReopeningViewModel> reopenings,
+        bool allowsReportArchiving) => new(
         report.PublicId,
+        report.Kind,
+        report.Number,
+        report.Title,
+        report.Description,
+        report.CreatedByUser?.Name,
+        report.ArchivedAt,
+        // Sempre no card do time; no relato, so com a regra do ciclo ligada.
+        report.ArchivedAt is null && (report.Kind == CardKindEnum.Team || allowsReportArchiving),
+        // Encerra junto so o relato que ainda nao acabou: o que ja acabou ja levou o
+        // motivo a quem relatou.
+        report.Kind == CardKindEnum.Report && closure is null,
         report.TrackingCode,
         report.Type,
         report.Text,
@@ -2127,6 +2487,9 @@ public class ReportService : IReportService
 
     private static ReportSummaryViewModel Map(Report report) => new(
         report.PublicId,
+        report.Kind,
+        report.Number,
+        report.Title,
         report.TrackingCode,
         report.Type,
         report.Text,
@@ -2137,7 +2500,22 @@ public class ReportService : IReportService
         report.ProjectPublicStage?.Label,
         report.AcceptsQuestions,
         report.PublicStageDueAt,
+        report.ArchivedAt,
         report.CreatedAt);
+
+    /// <summary>
+    /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem
+    /// desarquivar antes — arquivar e tirar da tela de Trabalho, e mexer num card
+    /// que ninguem ve na tela mudaria o trabalho do time as escondidas.
+    /// </summary>
+    private static void EnsureNotArchived(Report report, string acao)
+    {
+        if (report.ArchivedAt is not null)
+            throw new ConflictException($"Este card esta arquivado. Desarquive para {acao}.");
+    }
+
+    private static bool AllowsReportArchiving(ProjectCycleSettings? regras)
+        => regras?.AllowsReportArchiving ?? CycleSettingsDefaults.AllowsReportArchiving;
 
     /// <summary>
     /// Guarda so o caminho. O que vem depois do <c>?</c> ou do <c>#</c> e descartado

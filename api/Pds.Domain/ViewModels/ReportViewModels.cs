@@ -42,9 +42,9 @@ public record CreatedReportViewModel(
 /// abre o acompanhamento, mas ja sabe o que procurar num vazamento de banco.</para>
 /// </summary>
 /// <param name="PublicId">Identificador do relato para as rotas do painel.</param>
-/// <param name="TrackingCode">O protocolo, que a pessoa que relatou tambem tem.</param>
-/// <param name="Type">Defeito, melhoria ou duvida.</param>
-/// <param name="Text">O relato como foi escrito.</param>
+/// <param name="TrackingCode">O protocolo, que a pessoa que relatou tambem tem. Nulo no card do time.</param>
+/// <param name="Type">Defeito, melhoria ou duvida. Nulo no card do time.</param>
+/// <param name="Text">O relato como foi escrito. Nulo no card do time, que tem titulo e descricao.</param>
 /// <param name="Route">O caminho da pagina de onde saiu, sem query e sem fragmento.</param>
 /// <param name="Origin">O dominio informado pela pagina hospedeira. Indicio, nunca prova.</param>
 /// <param name="StatePublicId">Onde o relato esta na fila; <b>nulo</b> quando o projeto nao tinha coluna ativa na hora em que ele chegou.</param>
@@ -87,12 +87,19 @@ public record CreatedReportViewModel(
 /// <para>Desfazer e mover de volta: nao ha acao propria para isso, e nem precisa —
 /// o agendamento e reescrito a cada movimento.</para>
 /// </param>
-/// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+/// <param name="CreatedAt">Quando o card entrou, em UTC.</param>
+/// <param name="Kind">De onde o card veio: <c>Report</c>, de fora, ou <c>Team</c>, do time.</param>
+/// <param name="Number">O numero curto do card no projeto (#42). Interno: nenhuma rota publica o devolve.</param>
+/// <param name="Title">O titulo do card do time; nulo no relato.</param>
+/// <param name="ArchivedAt">Quando o card saiu da tela de Trabalho; nulo enquanto esta nela.</param>
 public record ReportSummaryViewModel(
     Guid PublicId,
-    string TrackingCode,
-    ReportTypeEnum Type,
-    string Text,
+    CardKindEnum Kind,
+    int Number,
+    string? Title,
+    string? TrackingCode,
+    ReportTypeEnum? Type,
+    string? Text,
     string? Route,
     string? Origin,
     Guid? StatePublicId,
@@ -100,6 +107,7 @@ public record ReportSummaryViewModel(
     string? PublicStageLabel,
     bool? AcceptsQuestions,
     DateTime? PublicStageDueAt,
+    DateTime? ArchivedAt,
     DateTime CreatedAt);
 
 /// <summary>
@@ -230,9 +238,9 @@ public record ReportContextViewModel(string Key, string? Value);
 /// seria ruido em toda linha para servir a uma.</para>
 /// </summary>
 /// <param name="PublicId">Identificador do relato.</param>
-/// <param name="TrackingCode">O protocolo, que a pessoa que relatou tambem tem.</param>
-/// <param name="Type">Defeito, melhoria ou duvida.</param>
-/// <param name="Text">O relato como foi escrito.</param>
+/// <param name="TrackingCode">O protocolo, que a pessoa que relatou tambem tem. Nulo no card do time.</param>
+/// <param name="Type">Defeito, melhoria ou duvida. Nulo no card do time.</param>
+/// <param name="Text">O relato como foi escrito. Nulo no card do time, que tem titulo e descricao.</param>
 /// <param name="Route">O caminho da pagina de onde saiu, sem query e sem fragmento.</param>
 /// <param name="Origin">O dominio informado pela pagina hospedeira. Indicio, nunca prova.</param>
 /// <param name="StatePublicId">Onde o relato esta na fila; <b>nulo</b> quando o projeto nao tinha coluna ativa quando ele chegou.</param>
@@ -316,11 +324,34 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <para><b>Vem no detalhe e nao no resumo</b>, pelo mesmo motivo do fechamento: a
 /// lista nao mostra isto, e uma consulta por linha pagaria caro por nada.</para>
 /// </param>
+/// <param name="Kind">De onde o card veio: <c>Report</c>, de fora, ou <c>Team</c>, do time.</param>
+/// <param name="Number">O numero curto do card no projeto (#42).</param>
+/// <param name="Title">O titulo do card do time; nulo no relato.</param>
+/// <param name="Description">A descricao do card do time, em Markdown; nula no relato.</param>
+/// <param name="CreatedByName">Quem do time criou o card; nulo no relato.</param>
+/// <param name="ArchivedAt">Quando o card saiu da tela de Trabalho; nulo enquanto esta nela.</param>
+/// <param name="CanArchive">
+/// Da para arquivar este card <b>agora</b>. Sempre no card do time; no relato, so com
+/// a regra do ciclo ligada. Falso no que ja esta arquivado.
+/// </param>
+/// <param name="ArchiveCloses">
+/// Arquivar este relato <b>encerra</b> junto — e por isso pede desfecho e motivo, o
+/// que quem relatou vai ler. Verdadeiro no relato aberto; falso no ja encerrado e
+/// no card do time, que arquivam sem pedir nada.
+/// </param>
 public record ReportDetailViewModel(
     Guid PublicId,
-    string TrackingCode,
-    ReportTypeEnum Type,
-    string Text,
+    CardKindEnum Kind,
+    int Number,
+    string? Title,
+    string? Description,
+    string? CreatedByName,
+    DateTime? ArchivedAt,
+    bool CanArchive,
+    bool ArchiveCloses,
+    string? TrackingCode,
+    ReportTypeEnum? Type,
+    string? Text,
     string? Route,
     string? Origin,
     Guid? StatePublicId,

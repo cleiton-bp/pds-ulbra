@@ -93,6 +93,10 @@ function relato(
 ): ReportSummaryViewModel {
   return {
     PublicId: publicId,
+    Kind: 'Report',
+    // O numero sai do identificador, para cada relato do teste ter o seu.
+    Number: [...publicId].reduce((soma, letra) => soma + letra.charCodeAt(0), 0),
+    Title: null,
     TrackingCode: `COD-${publicId.toUpperCase()}`,
     Type: 'Bug',
     Text: text,
@@ -106,6 +110,7 @@ function relato(
     AcceptsQuestions: true,
     // Sem espera pendente: e o padrao de fabrica, zero minutos.
     PublicStageDueAt: null,
+    ArchivedAt: null,
     CreatedAt: '2026-09-01T12:00:00.000Z',
     ...extra,
   }
@@ -228,7 +233,7 @@ describe('ReportsScreen', () => {
 
     montar()
 
-    expect(await screen.findByText('Nenhum relato ainda')).toBeTruthy()
+    expect(await screen.findByText('Nada aqui ainda')).toBeTruthy()
     expect(screen.getByRole('link', { name: /instalar/ })).toBeTruthy()
   })
 
@@ -240,7 +245,7 @@ describe('ReportsScreen', () => {
 
     montar()
 
-    expect(await screen.findByText('Nenhum relato ainda')).toBeTruthy()
+    expect(await screen.findByText('Nada aqui ainda')).toBeTruthy()
     expect(screen.queryByRole('link', { name: /instalar/ })).toBeNull()
     expect(screen.getByText(/Quem administra o projeto instala a ferramenta no site/)).toBeTruthy()
   })
@@ -523,7 +528,7 @@ describe('abrir um relato', () => {
     // 12 + 40 + 3, com um unico relato na tela: contar as linhas que vieram daria 1.
     expect(await screen.findByRole('button', { name: 'Todos, 55 relatos' })).toBeTruthy()
     // E "Todos" e a ausencia de recorte, e nao um recorte chamado "todos".
-    expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, null)
+    expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, null, false)
   })
 
   it('escolher uma coluna refaz a busca com o recorte', async () => {
@@ -536,7 +541,7 @@ describe('abrir um relato', () => {
 
     // Página 1 de novo: trocar de coluna é começar uma lista nova, e não
     // acrescentar à que estava na tela.
-    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 's-1'))
+    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 's-1', false))
   })
 
   it('a coluna sem relato aparece, mas a aposentada vazia não', async () => {
@@ -567,7 +572,7 @@ describe('abrir um relato', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Sem coluna, 3 relatos' }))
 
     // A linha sem coluna não tem identificador: a rota espera uma palavra.
-    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 'none'))
+    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 'none', false))
   })
 
   it('coluna vazia não é o mesmo que projeto sem relato', async () => {
@@ -580,7 +585,7 @@ describe('abrir um relato', () => {
 
     // O convite para instalar a ferramenta seria mentira duas vezes: sobre o que
     // existe, e sobre o que a pessoa precisa fazer.
-    await waitFor(() => expect(screen.queryByText('Nenhum relato ainda')).toBeNull())
+    await waitFor(() => expect(screen.queryByText('Nada aqui ainda')).toBeNull())
     expect(screen.queryByRole('link', { name: /instalar/i })).toBeNull()
     expect(screen.getByRole('button', { name: 'Ver todos' })).toBeTruthy()
   })

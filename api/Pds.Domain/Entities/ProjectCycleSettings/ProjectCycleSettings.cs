@@ -106,4 +106,14 @@ public class ProjectCycleSettings : PdsBaseEntity
     /// caixa.
     /// </summary>
     public bool AcceptsQuestionsDefault { get; set; }
+
+    /// <summary>
+    /// O time pode arquivar relato — tira-lo da tela de Trabalho.
+    ///
+    /// <para><b>Desligada de fabrica.</b> O caminho do relato e encerrar com
+    /// desfecho. Ligada, arquivar um relato aberto <b>encerra junto</b>, com
+    /// desfecho e motivo: quem relatou le o motivo e pode reabrir ou finalizar —
+    /// arquivar nunca deixa a pessoa sem retorno.</para>
+    /// </summary>
+    public bool AllowsReportArchiving { get; set; }
 }

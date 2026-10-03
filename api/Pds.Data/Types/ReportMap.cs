@@ -13,8 +13,72 @@ public class ReportMap : BaseEntityConfiguration<Report>
         builder.ToTable("reports", table =>
         {
             table.HasComment(
-                "O que a pessoa de fora escreveu. Primeira tabela do sistema que nasce sem conta e sem sessao, e por isso carrega o proprio account_id, o protocolo que a pessoa le e o hash do token que abre o acompanhamento.");
+                "Os cards do trabalho do time: o relato que a pessoa de fora escreveu (kind = report) e o card que o time criou no painel (kind = team). O relato e a primeira tabela do sistema que nasce sem conta e sem sessao, e por isso carrega o proprio account_id, o protocolo que a pessoa le e o hash do token que abre o acompanhamento; o card do time nao tem lado de fora nenhum.");
+
+            table.HasCheckConstraint("ck_reports_kind", "kind IN ('report', 'team')");
+
+            // O numero vem do contador do projeto, que comeca em 1. Zero seria um
+            // card gravado sem passar por ele — e o segundo esbarraria no indice.
+            table.HasCheckConstraint("ck_reports_number", "number > 0");
+
+            // O relato continua obrigado a ter o que o torna relato: o protocolo
+            // que a pessoa le, o token que abre o acompanhamento, o tipo e o texto.
+            // A descricao e do card do time: o texto do relato e de quem relatou.
+            table.HasCheckConstraint(
+                "ck_reports_report_fields",
+                "kind <> 'report' OR (tracking_code IS NOT NULL AND access_token_hash IS NOT NULL AND type IS NOT NULL AND text IS NOT NULL AND description IS NULL)");
+
+            // **E o card do time nunca tem lado de fora.** Sem protocolo, token ou
+            // codigo pessoal, nao ha porta publica que o encontre; sem etapa
+            // publica nem espera, o motor nunca o mostra; e preso em "pendente", a
+            // lista publica — que so le o liberado — nunca o le. A regra "nunca
+            // aparece na parte publica" deixa de depender de cada consulta lembrar.
+            table.HasCheckConstraint(
+                "ck_reports_team_fields",
+                "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL)");
         });
+
+        builder.Property(report => report.Kind)
+            .HasColumnName("kind")
+            .HasConversion(new SnakeCaseEnumConverter<CardKindEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("report | team. O relato veio de fora, pela ferramenta; o card do time nasceu no painel e nunca tem lado de fora.");
+
+        builder.Property(report => report.Number)
+            .HasColumnName("number")
+            .IsRequired()
+            .HasComment("O numero curto do card no projeto (#42). Interno: nenhuma rota publica o devolve. Vem de projects.last_card_number; pode pular, nunca repete.");
+
+        // Unico no projeto, e sem o filtro de deleted_at: o numero foi dito numa
+        // conversa e escrito num commit, e reaproveita-lo faria #42 querer dizer
+        // duas coisas.
+        builder.HasIndex(report => new { report.ProjectId, report.Number }).IsUnique();
+
+        builder.Property(report => report.Title)
+            .HasColumnName("title")
+            .HasMaxLength(Report.MaxTitleLength)
+            .HasComment("Titulo do card do time. Nulo no relato.");
+
+        builder.Property(report => report.Description)
+            .HasColumnName("description")
+            .HasMaxLength(Report.MaxDescriptionLength)
+            .HasComment("Descricao do card do time, em Markdown; o painel a desenha sem HTML. Sempre nula no relato, cujo texto e de quem relatou.");
+
+        builder.Property(report => report.ArchivedAt)
+            .HasColumnName("archived_at")
+            .HasComment("Quando o card saiu da tela de Trabalho. Nulo enquanto esta nela. Arquivado se le e se comenta; mover e editar pedem desarquivar.");
+
+        builder.Property(report => report.CreatedByUserId)
+            .HasColumnName("created_by_user_id")
+            .HasComment("Quem do time criou o card. Nulo no relato: quem escreveu nao tem usuario aqui.");
+
+        // Restrict, como quem moderou: a pessoa nao some do sistema enquanto houver
+        // card que ela criou.
+        builder.HasOne(report => report.CreatedByUser)
+            .WithMany()
+            .HasForeignKey(report => report.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(report => report.AccountId)
             .HasColumnName("account_id")
@@ -37,27 +101,23 @@ public class ReportMap : BaseEntityConfiguration<Report>
         builder.Property(report => report.TrackingCode)
             .HasColumnName("tracking_code")
             .HasMaxLength(20)
-            .IsRequired()
-            .HasComment("O protocolo que a pessoa le e repete. Alfabeto sem 0, O, 1 e I; colisao tratada na geracao.");
+            .HasComment("O protocolo que a pessoa le e repete. Alfabeto sem 0, O, 1 e I; colisao tratada na geracao. Nulo no card do time, que nao tem lado de fora.");
 
         builder.Property(report => report.AccessTokenHash)
             .HasColumnName("access_token_hash")
             .HasMaxLength(128)
-            .IsRequired()
-            .HasComment("Hash do token do link de acompanhamento. O valor original so existe na URL entregue.");
+            .HasComment("Hash do token do link de acompanhamento. O valor original so existe na URL entregue. Nulo no card do time.");
 
         builder.Property(report => report.Type)
             .HasColumnName("type")
             .HasConversion(new SnakeCaseEnumConverter<ReportTypeEnum>())
             .HasMaxLength(20)
-            .IsRequired()
-            .HasComment("bug | improvement | question. Lista fixa por enquanto.");
+            .HasComment("bug | improvement | question. Lista fixa por enquanto. Nulo no card do time.");
 
         builder.Property(report => report.Text)
             .HasColumnName("text")
             .HasMaxLength(Report.MaxTextLength)
-            .IsRequired()
-            .HasComment("O relato como a pessoa escreveu.");
+            .HasComment("O relato como a pessoa escreveu. Nulo no card do time, que tem titulo e descricao.");
 
         builder.Property(report => report.Route)
             .HasColumnName("route")

@@ -219,4 +219,25 @@ public enum EventTypeEnum
     /// seguinte; o que a pessoa escreveu nos relatos continua com o nome dela.
     /// </summary>
     ProjectMemberRemoved,
+
+    /// <summary>
+    /// O time criou um card no painel, sem relator. Sem titulo nem descricao no
+    /// payload: esta tabela nao se apaga, e o texto e do card, que se apaga.
+    /// </summary>
+    TeamCardCreated,
+
+    /// <summary>O time mudou o titulo ou a descricao de um card do time.</summary>
+    TeamCardEdited,
+
+    /// <summary>
+    /// O card saiu da tela de Trabalho. No relato aberto, vem junto do
+    /// encerramento (<see cref="ReportClosed"/>), que leva o motivo a quem relatou.
+    /// </summary>
+    CardArchived,
+
+    /// <summary>
+    /// O card voltou para a tela de Trabalho — pelo time, ou sozinho, quando quem
+    /// relatou reabriu ou respondeu (origem <c>public_page</c>).
+    /// </summary>
+    CardUnarchived,
 }

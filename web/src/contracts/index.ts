@@ -85,12 +85,16 @@ export type {
   StatusMappingEntryViewModel,
 } from '@/contracts/projectStatusMapping'
 export type {
+  ArchiveCardRequest,
   AskInfoRequest,
+  CardKind,
   CloseReportRequest,
   ConfirmReportRequest,
   CreateCommentRequest,
   CreatedReportViewModel,
   CreateReportRequest,
+  CreateTeamCardRequest,
+  EditTeamCardRequest,
   InternalCommentViewModel,
   ModerateReportRequest,
   ModerationItemViewModel,
@@ -129,6 +133,8 @@ export type {
   SensitiveFindingViewModel,
 } from '@/contracts/report'
 export {
+  MAX_CARD_DESCRIPTION_LENGTH,
+  MAX_CARD_TITLE_LENGTH,
   MAX_CLOSURE_REASON_LENGTH,
   MAX_COMMENT_LENGTH,
   MAX_REOPEN_COMMENT_LENGTH,

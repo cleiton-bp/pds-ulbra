@@ -111,12 +111,34 @@ export const MAX_REPORTER_NAME_LENGTH = 80
  * O `Text` vem inteiro, e nao cortado: quem corta para caber na linha e a tela.
  * Se a API cortasse, ler o resto exigiria uma rota que ainda nao existe.
  */
+/**
+ * De onde o card veio. Espelho do `CardKindEnum` em C#.
+ *
+ * **Todo card mora na mesma lista**: o relato chegou de fora, pela ferramenta; o
+ * card do time nasceu aqui, e **nunca tem lado de fora** — sem protocolo, sem
+ * link, sem etapa publica, sem moderacao.
+ */
+export type CardKind = 'Report' | 'Team'
+
+/** Teto do titulo do card do time, o mesmo da API. */
+export const MAX_CARD_TITLE_LENGTH = 200
+
+/** Teto da descricao do card do time, em Markdown, o mesmo da API. */
+export const MAX_CARD_DESCRIPTION_LENGTH = 10000
+
 export interface ReportSummaryViewModel {
   PublicId: string
-  /** O protocolo, o mesmo que a pessoa que relatou anotou. */
-  TrackingCode: string
-  Type: ReportType
-  Text: string
+  Kind: CardKind
+  /** O numero curto do card no projeto — o #42. Interno: nenhuma rota publica o devolve. */
+  Number: number
+  /** O titulo do card do time; nulo no relato. */
+  Title: string | null
+  /** O protocolo, o mesmo que a pessoa que relatou anotou. Nulo no card do time. */
+  TrackingCode: string | null
+  /** Nulo no card do time. */
+  Type: ReportType | null
+  /** O texto de quem relatou. Nulo no card do time. */
+  Text: string | null
   /** So o caminho da pagina: a API descarta query e fragmento antes de gravar. */
   Route: string | null
   /** Dominio informado pela pagina hospedeira. Indicio, nunca prova de origem. */
@@ -161,6 +183,8 @@ export interface ReportSummaryViewModel {
    * reescrito a cada movimento.
    */
   PublicStageDueAt: string | null
+  /** Quando o card saiu da tela de Trabalho; nulo enquanto esta nela. */
+  ArchivedAt: string | null
   CreatedAt: string
 }
 
@@ -235,6 +259,20 @@ export interface AskInfoRequest {
 }
 
 export interface ReportDetailViewModel extends ReportSummaryViewModel {
+  /** A descricao do card do time, em Markdown; nula no relato. */
+  Description: string | null
+  /** Quem do time criou o card; nulo no relato. */
+  CreatedByName: string | null
+  /**
+   * Da para arquivar este card **agora**: sempre no card do time; no relato, so com
+   * a regra do ciclo ligada. Falso no que ja esta arquivado.
+   */
+  CanArchive: boolean
+  /**
+   * Arquivar este relato **encerra** junto, e por isso pede desfecho e motivo — o
+   * que quem relatou vai ler. Verdadeiro no relato aberto.
+   */
+  ArchiveCloses: boolean
   /**
    * O fim do relato, ou **nulo** enquanto ele nao acabou.
    *
@@ -625,6 +663,10 @@ export const REPORT_EVENT_TYPES = [
   'ReportClosureCancelled',
   'ReportPublished',
   'ReportModerationRejected',
+  'TeamCardCreated',
+  'TeamCardEdited',
+  'CardArchived',
+  'CardUnarchived',
 ] as const
 
 /**
@@ -788,4 +830,29 @@ export interface OpenByReporterCodeRequest {
   Key: string
   Code: string
   TrackingCode: string
+}
+
+/** O card que o time cria, sem relator. */
+export interface CreateTeamCardRequest {
+  Title: string
+  /** Markdown. Vazia, o card nasce sem descricao. */
+  Description: string | null
+  /** Ausente, o primeiro estado ativo do projeto. */
+  StatePublicId: string | null
+}
+
+/** O titulo e a descricao de um card do time, gravados inteiros. */
+export interface EditTeamCardRequest {
+  Title: string
+  Description: string | null
+}
+
+/**
+ * Arquivar ou desarquivar. O desfecho e o motivo so ao arquivar um relato aberto
+ * (`ArchiveCloses`): e o que quem relatou vai ler.
+ */
+export interface ArchiveCardRequest {
+  Archived: boolean
+  Outcome?: PublicOutcome
+  Reason?: string
 }

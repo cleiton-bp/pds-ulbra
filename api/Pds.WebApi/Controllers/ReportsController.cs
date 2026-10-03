@@ -10,7 +10,9 @@ using Pds.WebApi.Authorization;
 namespace Pds.WebApi.Controllers;
 
 /// <summary>
-/// Os relatos que chegaram a um projeto, para o time que usa o painel.
+/// Os cards de um projeto, para o time que usa o painel: os relatos que chegaram
+/// e os cards que o proprio time criou. A rota se chama <c>reports</c> porque o
+/// relato veio primeiro; todo card mora nela.
 ///
 /// **É o outro lado do `/public/reports`.** Lá o relato entra sem que ninguém
 /// esteja identificado, porque quem escreve é um visitante anônimo do site do
@@ -56,11 +58,16 @@ public class ReportsController : BaseController
     /// Identificador que não existe no projeto é **recusado**, e não vira lista
     /// vazia: lista vazia responderia "não há relatos ali" a uma pergunta sobre uma
     /// coluna que não existe, e o erro de digitação passaria despercebido.
+    ///
+    /// Vêm os relatos e os cards do time, cada um com `Kind` e o número (`Number`).
+    /// **O arquivado não vem**: `archived=true` troca a lista pelos arquivados — os
+    /// dois nunca juntos.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="page">Página, começando em 1.</param>
     /// <param name="pageSize">Quantos relatos por página. Padrão 20, máximo 100.</param>
     /// <param name="state">Identificador da coluna, ou `none` para os que não têm lugar na fila. Ausente traz tudo.</param>
+    /// <param name="archived">Verdadeiro traz só os arquivados.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relatos do projeto.</response>
     /// <response code="400">Filtro de estado fora do formato.</response>
@@ -74,11 +81,12 @@ public class ReportsController : BaseController
         CancellationToken cancellationToken,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] string? state = null)
+        [FromQuery] string? state = null,
+        [FromQuery] bool archived = false)
     {
         try
         {
-            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, cancellationToken);
+            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, archived, cancellationToken);
             return Success(reports.Items, total: reports.Total);
         }
         catch (Exception exception)
@@ -436,6 +444,103 @@ public class ReportsController : BaseController
         {
             var report = await _reportService.GetAsync(publicId, reportPublicId, cancellationToken);
             return Success(report);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Cria um card do time.</summary>
+    /// <remarks>
+    /// Sem relator e **sem lado de fora**: não tem protocolo, link de
+    /// acompanhamento, etapa pública nem moderação — e o banco recusa a linha que
+    /// tente ter. Ganha o próximo número do projeto, como o relato.
+    ///
+    /// O título é obrigatório (até 200 caracteres, uma linha); a descrição é
+    /// Markdown, opcional (até 10 000). Sem `StatePublicId`, nasce no primeiro estado
+    /// ativo do projeto.
+    /// </remarks>
+    /// <response code="200">O card criado.</response>
+    /// <response code="400">Sem título, ou título ou descrição longos demais.</response>
+    /// <response code="403">O projeto está arquivado.</response>
+    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">O estado escolhido está aposentado.</response>
+    [HttpPost]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateTeamCard(Guid publicId, [FromBody] CreateTeamCardDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Success(await _reportService.CreateTeamCardAsync(publicId, dto, cancellationToken), "Card criado.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Grava o título e a descrição de um card do time.</summary>
+    /// <remarks>
+    /// Os dois inteiros. **Relato é recusado** (409): o texto dele é de quem
+    /// relatou. Arquivado também: editar pede desarquivar antes.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="400">Sem título, ou título ou descrição longos demais.</response>
+    /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">É um relato, ou o card está arquivado.</response>
+    [HttpPut("{reportPublicId:guid}")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> EditTeamCard(Guid publicId, Guid reportPublicId, [FromBody] EditTeamCardDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Success(await _reportService.EditTeamCardAsync(publicId, reportPublicId, dto, cancellationToken), "Card salvo.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Arquiva ou desarquiva um card.</summary>
+    /// <remarks>
+    /// Arquivado sai da tela de Trabalho; se lê e se comenta, e mover ou editar pedem
+    /// desarquivar antes.
+    ///
+    /// **O relato só se arquiva com a regra do ciclo ligada** (`AllowsReportArchiving`),
+    /// e o relato **aberto** é encerrado junto: pede `Outcome` e `Reason`, que quem
+    /// relatou lê pelo link — e a partir dali pode reabrir ou finalizar, com a
+    /// avaliação. Reabrir pelo link traz o relato de volta para a tela de Trabalho.
+    /// O relato já encerrado e o card do time arquivam sem desfecho nem motivo.
+    ///
+    /// Pedir o que já é verdade não é erro: devolve o card como está.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="400">Sem `Archived`; relato aberto sem desfecho ou motivo; ou desfecho e motivo onde não cabem.</response>
+    /// <response code="403">O projeto não arquiva relato.</response>
+    /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
+    [HttpPut("{reportPublicId:guid}/archive")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetArchived(Guid publicId, Guid reportPublicId, [FromBody] ArchiveCardDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var card = await _reportService.SetArchivedAsync(publicId, reportPublicId, dto, cancellationToken);
+            return Success(card, card.ArchivedAt is null ? "Card de volta ao Trabalho." : "Card arquivado.");
         }
         catch (Exception exception)
         {

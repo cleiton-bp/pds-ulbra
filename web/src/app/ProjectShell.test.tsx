@@ -97,7 +97,7 @@ describe('ProjectShell', () => {
     abrir()
 
     expect(await screen.findByText('tela de relatos')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Relatos/ })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Trabalho/ })).toBeTruthy()
     expect(screen.queryByText('Configuração')).toBeNull()
     expect(screen.queryByRole('link', { name: /Instalação/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Chaves/ })).toBeNull()

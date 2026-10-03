@@ -65,4 +65,10 @@ public static class CycleSettingsDefaults
     /// mundo, e o passo inteiro nasceria sem uso.
     /// </summary>
     public const bool AcceptsQuestionsDefault = true;
+
+    /// <summary>
+    /// Desligado: o caminho do relato e encerrar com desfecho. Arquivar e escolha
+    /// do projeto, e nao o padrao.
+    /// </summary>
+    public const bool AllowsReportArchiving = false;
 }

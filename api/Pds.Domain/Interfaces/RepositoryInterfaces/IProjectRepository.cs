@@ -30,4 +30,18 @@ public interface IProjectRepository : IBaseRepository<Project>
     /// </summary>
     Task<bool> NameExistsAsync(long accountId, string name, long? ignoreProjectId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reserva o proximo numero de card do projeto — o #42 —, numa gravacao so.
+    ///
+    /// <para><b>Somar e ler no mesmo comando</b> e o que faz dois cards criados ao
+    /// mesmo tempo sairem com numeros diferentes: o segundo espera a linha do
+    /// projeto que o primeiro esta somando. Ler o maior numero e somar um daria aos
+    /// dois o mesmo.</para>
+    ///
+    /// <para><b>Sem sessao, de proposito</b>: o relato que chega pela ferramenta
+    /// tambem e card e tambem ganha numero, e chega sem ninguem logado. O projeto ja
+    /// foi resolvido pela chave, ou pela rota do painel, antes de chegar aqui.</para>
+    /// </summary>
+    Task<int> NextCardNumberAsync(long projectId, CancellationToken cancellationToken = default);
 }

@@ -101,6 +101,11 @@ public class ProjectCycleSettingsMap : BaseEntityConfiguration<ProjectCycleSetti
             .IsRequired()
             .HasComment("Como a opcao de aceitar duvidas vem marcada no formulario. A escolha final e de quem relata, nao do projeto.");
 
+        builder.Property(settings => settings.AllowsReportArchiving)
+            .HasColumnName("allows_report_archiving")
+            .IsRequired()
+            .HasComment("O time pode arquivar relato. Desligado de fabrica. Ligado, arquivar um relato aberto encerra junto, com desfecho e motivo: quem relatou le o motivo e pode reabrir ou finalizar.");
+
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.
         builder.HasIndex(settings => settings.ProjectId)

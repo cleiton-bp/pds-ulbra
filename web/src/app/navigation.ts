@@ -65,12 +65,13 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
 /**
  * O grupo de baixo, na parte que ja funciona.
  *
- * **Relatos** e a primeira: ate aqui o painel so mostrava o que a propria pessoa
- * tinha configurado, e esta e a secao que mostra o que chegou de fora.
+ * **Trabalho** e a primeira: e onde o time trabalha — o que chegou de fora e os
+ * cards que ele mesmo criou. O caminho continua `reports`, porque o relato veio
+ * primeiro e os enderecos ja foram copiados para conversas.
  */
 export const OPERATION_SECTIONS: ConsoleSection[] = [
-  { key: 'reports', label: 'Relatos', path: 'reports' },
-  // **Vem depois de Relatos, e nao dentro dela.** As duas leem o mesmo relato e
+  { key: 'reports', label: 'Trabalho', path: 'reports' },
+  // **Vem depois de Trabalho, e nao dentro dela.** As duas leem o mesmo relato e
   // respondem perguntas diferentes: "o que ainda nao tratei" e "o que ja pode
   // ser lido por estranhos". Como aba de um filtro, a segunda viraria um recorte
   // da primeira — e a decisao de publicar nao e um recorte de nada.

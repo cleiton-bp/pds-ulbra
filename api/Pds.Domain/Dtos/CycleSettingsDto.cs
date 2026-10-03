@@ -67,4 +67,11 @@ public class CycleSettingsDto
 
     /// <summary>Como a opcao de aceitar duvidas vem marcada no formulario.</summary>
     public bool? AcceptsQuestionsDefault { get; set; }
+
+    /// <summary>
+    /// Se o time pode arquivar relato. Arquivar um relato aberto encerra junto, com
+    /// desfecho e motivo — quem relatou le e pode reabrir ou finalizar.
+    /// </summary>
+    /// <example>false</example>
+    public bool? AllowsReportArchiving { get; set; }
 }

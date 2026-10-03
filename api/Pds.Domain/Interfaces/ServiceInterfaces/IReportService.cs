@@ -109,8 +109,28 @@ public interface IReportService
     /// <para><paramref name="page"/> e <paramref name="pageSize"/> sao corrigidos
     /// em vez de recusados — pedir a pagina zero e engano de quem chama, e nao
     /// motivo para a tela ficar sem lista.</para>
+    ///
+    /// <para><paramref name="archived"/> verdadeiro troca a lista pelos arquivados.</para>
     /// </summary>
-    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, CancellationToken cancellationToken = default);
+    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cria um card do time: titulo, descricao em Markdown e o estado em que nasce.
+    /// Ganha o proximo numero do projeto, como o relato. Nunca tem lado de fora.
+    /// </summary>
+    Task<ReportDetailViewModel> CreateTeamCardAsync(Guid projectPublicId, CreateTeamCardDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Grava o titulo e a descricao de um card do time. Relato e recusado: o texto
+    /// dele e de quem relatou. Arquivado tambem: editar pede desarquivar antes.
+    /// </summary>
+    Task<ReportDetailViewModel> EditTeamCardAsync(Guid projectPublicId, Guid reportPublicId, EditTeamCardDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Arquiva ou desarquiva um card. O relato so com a regra do ciclo ligada; e o
+    /// relato aberto e encerrado junto, com desfecho e motivo, que quem relatou le.
+    /// </summary>
+    Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Quantos relatos ha em cada coluna da fila. Sai uma linha por coluna do

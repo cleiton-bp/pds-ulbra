@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pds.Data.Configurations;
 using Pds.Domain.Entities;
@@ -36,6 +37,20 @@ public class ProjectMap : BaseEntityConfiguration<Project>
             .IsRequired()
             .HasDefaultValue(0)
             .HasComment("Versao do mapeamento que vale agora. Zero enquanto nada foi ligado. Nao e o maior valor de project_status_mappings: desfazer tudo grava uma versao sem linha nenhuma.");
+
+        builder.Property(project => project.LastCardNumber)
+            .HasColumnName("last_card_number")
+            .IsRequired()
+            .HasDefaultValue(0)
+            .HasComment("O ultimo numero de card dado no projeto; o proximo leva este mais um. Somado numa gravacao so (UPDATE ... RETURNING), que serializa quem cria ao mesmo tempo. Nao e o maior reports.number: lido assim, dois cards simultaneos tentariam o mesmo numero.");
+
+        // **O contador so anda pelo UPDATE ... RETURNING do numero do card.**
+        // Renomear, arquivar ou salvar o mapa grava a linha inteira do projeto, com o
+        // contador lido antes; se um card nascesse no meio, o numero dele voltaria a
+        // ser dado, e o card seguinte esbarraria no indice unico. Ignorado depois de
+        // criado, o EF nunca o escreve.
+        builder.Property(project => project.LastCardNumber)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
         // Nome unico por conta, ignorando o que foi apagado: sem o filtro, o nome de
         // um projeto excluido continuaria ocupando o lugar e o cliente nao
