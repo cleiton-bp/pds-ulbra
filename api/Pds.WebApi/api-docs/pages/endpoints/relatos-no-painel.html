@@ -1,10 +1,18 @@
-<h2>Relatos, no painel</h2>
-<p class="lead">Ler, mover, comentar, encerrar, devolver pedindo informação e decidir o que vira público.</p>
+<h2>Relatos e cards, no painel</h2>
+<p class="lead">Ler, criar o card do time, mover, comentar, encerrar, arquivar, devolver pedindo informação e decidir o que vira público.</p>
+
+<p>Todo card mora em <code>/reports</code>: o relato, que chegou de fora, e o card do time, que
+nasceu no painel. Cada um vem com <code>Kind</code> (<code>Report</code> ou <code>Team</code>) e o
+número curto do projeto (<code>Number</code>, o #42). A rota tem o nome do relato porque ele veio
+primeiro.</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada. Aceita <code>state</code> para recortar por coluna da fila, ou <code>none</code> para os sem coluna.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo. Paginada. Aceita <code>state</code> para recortar por coluna da fila, ou <code>none</code> para os sem coluna. O arquivado não vem; <code>archived=true</code> troca a lista pelos arquivados.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/reports</code></td><td>Cria um <strong>card do time</strong>: título (obrigatório, uma linha, até 200), descrição em Markdown (até 10 000) e a coluna em que nasce — sem ela, a primeira ativa. Ganha o próximo número do projeto. Projeto arquivado recusa (403).</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}</code></td><td>Grava o título e a descrição do card do time, inteiros. <strong>Relato é recusado</strong> (409): o texto dele é de quem relatou.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/archive</code></td><td>Arquiva (<code>Archived: true</code>) ou desarquiva. O relato só com a regra do ciclo ligada (senão 403), e o relato aberto <strong>encerra junto</strong>: pede <code>Outcome</code> e <code>Reason</code>, que quem relatou lê. Pedir o que já é verdade — a segunda aba, com ou sem motivo — devolve o card como está.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/counts</code></td><td>Quantos relatos há em cada coluna, incluindo as vazias. Pergunta separada da lista de propósito.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a visualização.</strong></td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/state</code></td><td>Move o relato de coluna. <strong>Grava o evento antes do cache</strong>, na mesma transação.</td></tr>
@@ -20,8 +28,26 @@
 </table>
 </div>
 
-<p>Todas valem para qualquer papel no projeto, inclusive as que gravam: mover, comentar, pedir
-informação, encerrar e moderar são o trabalho do time, e não configuração.</p>
+<p>Todas valem para qualquer papel no projeto, inclusive as que gravam: criar e editar card,
+mover, comentar, pedir informação, encerrar, arquivar e moderar são o trabalho do time, e não
+configuração.</p>
+
+<div class="note warn">
+  <strong>O card do time só faz o que existe para ele</strong>
+  <p>Não tem quem relatou, e por isso <code>closure</code>, <code>info-request</code> e
+  <code>comments/public</code> respondem 409, e <code>moderation</code> responde 404 — ele não
+  existe para a fila. Mover para a coluna que encerra <strong>não pede desfecho nem motivo</strong>
+  e não mexe na etapa pública: é só mover. Abrir o card do time não grava leitura.</p>
+</div>
+
+<div class="note why">
+  <strong>Arquivado se lê e se comenta</strong>
+  <p>O arquivado sai da lista e da contagem das colunas. Ler, comentar entre o time e
+  desarquivar continuam; mover, editar, encerrar, perguntar e escrever para quem relatou respondem
+  409 até desarquivar. Pedir o que já é verdade — arquivar o arquivado — devolve o card como está.</p>
+  <p>O relato arquivado volta sozinho quando quem relatou reabre pelo link, ou responde a uma
+  pergunta que ainda estava aberta: ninguém escreve para um relato que ninguém vê.</p>
+</div>
 
 <div class="note warn">
   <strong>Liberar não publica sozinho, e é isso que segura o histórico</strong>

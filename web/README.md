@@ -73,18 +73,20 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/identity ..... console — quem relata e quem pode ver
 /projects/:publicId/media ........ console — o que dá para anexar
 /projects/:publicId/moderation ... console — o que vira público
+/projects/:publicId/members ...... console — o time, e os convites para quem administra
 /projects/:publicId/settings ..... console — nome, identificador, arquivar
-/projects/:publicId/reports ...... console — os relatos que chegaram do site
+/projects/:publicId/reports ...... console — Trabalho: os relatos do site e os cards do time
 /projects/:publicId/tool ......... console — como a ferramenta aparece no site
+/invite#t=... .................... o link do e-mail do convite — abrir e aceitar
 ```
 
 Dois níveis, como um console de nuvem. **Não existe rota `/login`**: quem abre
 uma URL sem sessão vê a entrada naquele mesmo endereço e cai direto onde queria.
 
 **O papel decide a porta.** `/projects/:publicId` leva quem configura — o dono e o
-administrador — à **Instalação**, e quem é só membro aos **Relatos**. O membro não vê
+administrador — à **Instalação**, e quem é só membro ao **Trabalho**. O membro não vê
 o grupo **Configuração** no menu, e o endereço de uma seção dele, digitado ou num link
-antigo, o manda para os Relatos. A regra mora na API, que recusa com 403 o que o
+antigo, o manda para o Trabalho. A regra mora na API, que recusa com 403 o que o
 membro tentar mudar; aqui só se decide o que mostrar. O hub e o seletor do topo agrupam
 os projetos pela conta dona quando há mais de uma — "Seus projetos" primeiro —, e no
 hub o projeto de outra conta mostra o papel da pessoa nele.
@@ -304,15 +306,34 @@ qualquer lugar, e o primeiro endereço declarado liga a conferência.
 
 **O time, por projeto.** Cada projeto chega com a conta dona e o papel da pessoa nele:
 o dono e o administrador configuram; o membro trabalha nos relatos e não vê a
-Configuração. O convite, que põe alguém num projeto, e a tela de **Membros** — que
-aparece bloqueada no menu — são **Planejado**; até lá, cada projeto tem só o dono.
+Configuração. A tela de **Membros** é de todos: o membro vê o time; quem administra
+muda o papel, tira do time e convida por e-mail, e cada convite mostra onde está o
+e-mail dele — na fila, enviado, ou que não saiu, com **Reenviar**. O link nunca
+aparece na tela: ele só existe no e-mail.
+
+**O convite, do outro lado.** O link do e-mail abre `/invite`, com o link depois do
+`#` — essa parte nunca vai a servidor nenhum ao abrir a página. Sem sessão, a entrada
+aparece no mesmo endereço, com um aviso de que há um convite, e o `#` sobrevive ao
+login. Com a conta Google do endereço convidado, a pessoa vê o projeto, quem convidou
+e o papel, e aceita; com outra conta, vê só a pista do endereço e o caminho para
+trocar de conta.
 
 **O relato entra.** Colar o script numa página qualquer, escrever, e o relato chegar
-na API com protocolo, rota e origem; o time lê na tela **Relatos**, com o contexto de
+na API com protocolo, rota e origem; o time lê na tela **Trabalho**, com o contexto de
 cada um e a visualização registrada como evento. A aparência e os textos da
 ferramenta saem de **Ferramenta**. A confirmação entrega um link, e `tracking.html`
 mostra a quem relatou o próprio relato — o token viaja no fragmento do link, a parte
 que o navegador nunca envia a servidor nenhum.
+
+**O trabalho que não veio de fora.** A tela **Trabalho** junta os relatos e os cards
+do time — **Novo card** cria um, com título e descrição em Markdown: a barra escreve
+as marcas, "Visualizar" mostra o que o card vai mostrar, e o painel desenha o texto sem
+HTML nenhum (`shared/lib/markdown.ts`). Todo card tem um número curto no projeto
+(#42), o mesmo para relato e card do time. O card do time não tem protocolo, caixa
+para quem relatou nem encerramento: mover para a última coluna é só mover. **Arquivar**
+tira o card da tela — o do time sempre; o relato só com a regra do Ciclo, e o relato
+aberto encerra junto, com o motivo que quem relatou lê. O filtro **Arquivados** mostra
+o que saiu, para ler, comentar ou desarquivar.
 
 **O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
 de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.
@@ -430,7 +451,7 @@ inglês, e esse atributo aparece no HTML de todo cliente.
 
 **O progresso da Instalação fica no navegador.** Não é dado de domínio: é
 a lembrança de que este navegador já copiou a chave. O sinal de verdade — o
-primeiro relato ter chegado — passou a existir com a tela **Relatos**, e o passo
+primeiro relato ter chegado — passou a existir com a tela de relatos (hoje **Trabalho**), e o passo
 continua sem lê-lo: ler significa uma chamada a mais em toda visita à instalação,
 e a troca é decisão de produto, não conserto de texto.
 

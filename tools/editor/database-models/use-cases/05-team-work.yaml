@@ -1,7 +1,7 @@
 meta:
   title: O time trabalha o relato
   system: PDS — painel
-  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
 actors:
   - name: Membro do time
     description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
@@ -16,14 +16,14 @@ actors:
     position: { x: 994, y: 541 }
 useCases:
   - id: UC01
-    name: Ver os relatos
-    description: A fila do projeto, com a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”.
+    name: Ver o trabalho
+    description: A tela de Trabalho, com os relatos e os cards do time, a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”.
     width: 220
     position: { x: 260, y: 0 }
     preconditions: O membro está no painel, dentro do projeto.
     mainFlow:
-      - O membro abre Relatos.
-      - Vê os relatos com a data, o tipo, a rota e o começo do texto.
+      - O membro abre Trabalho.
+      - Vê cada card com o número (#42), a data e a coluna — o relato com o tipo, a rota e o começo do texto; o card do time com o título.
       - Filtra por coluna, para ver só um estado.
       - Escolhe um relato para abrir.
     alternativeFlows:
@@ -174,6 +174,44 @@ useCases:
       - O agendador olha o arquivo no momento em que o prazo vence.
       - Confere o estado atual — o prazo pode ter mudado depois do agendamento.
       - Apaga o arquivo do armazenamento e registra.
+  - id: UC11
+    name: Criar o card do time
+    description: O trabalho que não veio de fora. Título, descrição em Markdown e a coluna em que nasce; ganha o número seguinte do projeto e nunca tem lado de fora.
+    width: 220
+    position: { x: 600, y: 0 }
+    preconditions: O membro está na tela de Trabalho, e o projeto não está arquivado.
+    mainFlow:
+      - O membro escolhe Novo card.
+      - Escreve o título e, se quiser, a descrição — a barra escreve as marcas, e Visualizar mostra como fica.
+      - Escolhe a coluna, ou fica com a primeira.
+      - O sistema dá o próximo número do projeto e grava o card.
+    alternativeFlows:
+      - title: 2a. O título fica em branco
+        steps:
+          - O painel não cria, e pede o título.
+      - title: 4a. O card é movido para a última coluna
+        steps:
+          - Não há desfecho nem motivo a pedir — ninguém de fora vai ler —, e a etapa pública não se mexe.
+    postconditions: O card aparece no topo da tela de Trabalho, e não aparece em lugar nenhum do lado de fora.
+  - id: UC12
+    name: Arquivar
+    description: Tira o card da tela de Trabalho. O card do time sempre; o relato só com a regra do ciclo ligada, e o relato aberto encerra junto, com o motivo que quem relatou lê.
+    width: 220
+    position: { x: 600, y: 820 }
+    preconditions: O card está aberto no painel, e não está arquivado.
+    mainFlow:
+      - O membro escolhe arquivar.
+      - Num relato aberto, escolhe o desfecho e escreve o motivo; no card do time ou no relato já encerrado, só confirma.
+      - O sistema arquiva — e encerra junto o relato aberto.
+      - O card sai da tela de Trabalho e aparece em Arquivados, para ler, comentar ou desarquivar.
+    alternativeFlows:
+      - title: 1a. O projeto não arquiva relato
+        steps:
+          - O painel não oferece arquivar o relato; o caminho continua sendo encerrar.
+      - title: 4a. Quem relatou reabre, ou responde a uma pergunta que estava aberta
+        steps:
+          - O relato volta sozinho para a tela de Trabalho. No histórico, o desarquivar aparece sem nome de ninguém do time, junto da reabertura ou da resposta de quem relatou.
+    postconditions: Quem relatou lê o motivo pelo link, e pode reabrir ou finalizar, com a nota.
 links:
   - from: Membro do time
     to: UC01
@@ -220,6 +258,12 @@ links:
   - from: Agendador
     to: UC10
     kind: association
+  - from: Membro do time
+    to: UC11
+    kind: association
+  - from: Membro do time
+    to: UC12
+    kind: association
   - from: Armazenamento de arquivos
     to: UC10
     kind: association
@@ -230,3 +274,6 @@ notes:
   - text: A espera é a janela para desfazer. Quem move por engano move de volta, e a pessoa lá fora nunca vê o vaivém.
     anchor: UC06
     position: { x: 287, y: 858 }
+  - text: Arquivar nunca deixa quem relatou sem retorno. O relato aberto só sai da tela com um motivo — e volta sozinho se a pessoa escrever de novo.
+    anchor: UC12
+    position: { x: 900, y: 860 }

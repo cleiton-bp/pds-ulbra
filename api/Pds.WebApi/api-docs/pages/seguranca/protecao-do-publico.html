@@ -55,3 +55,27 @@ códigos até a resposta mudar é como se enumera código alheio, e "aqui não p
 configuração do cliente a qualquer um com a chave. Por isso o código pessoal é sorteado pelo
 sistema, nunca escolhido, e a lista pessoal tem <strong>teto</strong> de 50 em vez de paginação —
 paginar daria a quem sonda um jeito de medir o tamanho da lista alheia.</p>
+
+<h2>O que é do time não sai</h2>
+
+<p>O número do card (#42), o card do time inteiro, o título e a descrição dele e o arquivamento
+são do lado de dentro. Nenhuma resposta pública os leva: as respostas de fora são montadas campo a
+campo, e nenhuma lista esses campos.</p>
+
+<div class="note warn">
+  <strong>O card do time nem tem por onde sair</strong>
+  <p>As portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado na
+  moderação. O banco recusa card do time com protocolo, token, código pessoal, etapa pública ou
+  moderação diferente de pendente — então não há porta que o encontre, mesmo que uma consulta
+  esqueça o filtro do tipo. E o montador das respostas de fora falha alto se receber um card do
+  time, em vez de devolver um relato em branco.</p>
+</div>
+
+<div class="note why">
+  <strong>A descrição em Markdown não abre porta para código</strong>
+  <p>O painel desenha a descrição do card transformando o texto em elementos, nunca em HTML: o que
+  alguém escrever com sinal de menor e maior aparece como texto. Link só com <code>http</code>,
+  <code>https</code> ou <code>mailto</code> — <code>javascript:</code> fica como o texto que era —,
+  abre em outra aba sem levar a página junto, e imagem não carrega, para um card aberto não avisar
+  servidor nenhum de que alguém o leu.</p>
+</div>

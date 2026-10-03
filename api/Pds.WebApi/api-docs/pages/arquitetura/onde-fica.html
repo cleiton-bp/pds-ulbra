@@ -59,5 +59,11 @@
   <tr><td>A fila do e-mail: o nome, a publicação e o consumidor</td><td><code>Pds.Workers/EmailQueueNames.cs</code>, <code>RabbitMqEmailQueue.cs</code> e <code>EmailWorker.cs</code></td></tr>
   <tr><td>O prazo do convite, e o padrão de fábrica</td><td><code>Pds.Domain/Entities/ProjectTeamSettings/ProjectTeamSettings.cs</code></td></tr>
   <tr><td>O endereço do painel no link, e o limite de convites por hora</td><td><code>Pds.Domain/Constants/EnvironmentConstants.cs</code>, <code>GetPanelUrl</code> e <code>GetInvitationEmailsPerHour</code></td></tr>
+  <tr><td><strong>O card do time</strong>: criar, editar, arquivar e desarquivar</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateTeamCardAsync</code>, <code>EditTeamCardAsync</code> e <code>SetArchivedAsync</code></td></tr>
+  <tr><td>O que o card do time recusa, e o mover que não encerra nem anda lá fora</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>MoveAsync</code>, <code>CloseAsync</code> e <code>AskInfoAsync</code></td></tr>
+  <tr><td>As travas que separam relato de card do time</td><td><code>Pds.Data/Types/ReportMap.cs</code></td></tr>
+  <tr><td>Reservar o próximo número do card</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextCardNumberAsync</code></td></tr>
+  <tr><td>O lado de fora de um relato, e a falha alta se chegar um card do time</td><td><code>Pds.Domain/Entities/Report/Report.cs</code>, <code>ReporterFields</code></td></tr>
+  <tr><td>O relato arquivado que volta quando quem relatou escreve</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>UnarchiveFromOutsideAsync</code></td></tr>
 </table>
 </div>

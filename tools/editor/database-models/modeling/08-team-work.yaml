@@ -1,6 +1,6 @@
 meta:
   title: O time
-  description: "Quem do time entra em cada projeto, e com que papel. A entrada e por projeto, e nao pela conta: a mesma pessoa pode estar em projetos de varias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Quem entra chega por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. Montado sobre o que ja existe, que aparece sem alteracao, menos accounts, que deixa de ser a fronteira de isolamento, e users e projects, cujo account_id muda de sentido."
+  description: "Quem do time entra em cada projeto, e com que papel. A entrada e por projeto, e nao pela conta: a mesma pessoa pode estar em projetos de varias contas, e o dono da conta manda em todos os projetos dela sem linha nova. Quem entra chega por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. E o card do time entra na tabela do relato: todo card ganha um numero curto no projeto, e se arquiva. Montado sobre o que ja existe, que aparece sem alteracao, menos accounts, que deixa de ser a fronteira de isolamento, users e projects, cujo account_id muda de sentido, e reports, que passa a guardar os dois tipos de card."
 entities:
   - name: base_columns
     label: Colunas padrão
@@ -141,6 +141,10 @@ entities:
         type: int
         required: true
         note: a versão do mapeamento que vale agora, zero enquanto o cliente nunca ligou nada, e mora aqui em vez de ser o maior valor da tabela de mapeamento porque desfazer todos os mapeamentos grava uma versão sem nenhuma linha
+      - name: last_card_number
+        type: int
+        required: true
+        note: coluna nova — o ultimo numero de card dado no projeto; somado e lido num comando so, que serializa quem cria ao mesmo tempo, e por isso mora aqui em vez de ser o maior numero de reports
       - name: deleted_at
         type: datetime
         note: nulo enquanto o projeto vale, preenchido no lugar de apagar
@@ -372,8 +376,8 @@ entities:
         type: datetime
         note: nulo enquanto a regra vale, preenchido no lugar de apagar
   - name: reports
-    label: Relatos
-    description: Ja existia, e nao muda nesta modelagem. Tres colunas dizem quem escreveu, e sao opcionais em toda configuracao; as outras tres dizem se o relato ja pode ser visto de fora, e por decisao de quem.
+    label: Relatos e cards
+    description: Ja existia, e passa a guardar todo card do trabalho do time — o relato, que chegou de fora, e o card do time, que nasceu no painel (kind). Ganha o numero curto do projeto, o titulo e a descricao do card do time, quem o criou e o arquivamento; protocolo, token, tipo e texto ficam nulos no card do time, e duas travas no banco separam os dois tipos.
     inherited: true
     position: { x: 1237, y: 893 }
     fields:
@@ -385,6 +389,27 @@ entities:
         type: guid
         unique: true
         note: identificador usado na URL do painel
+      - name: kind
+        type: enum
+        required: true
+        note: coluna nova — report | team. O relato veio de fora, pela ferramenta; o card do time nasceu no painel e nunca tem lado de fora
+      - name: number
+        type: int
+        required: true
+        note: coluna nova — o numero curto do card no projeto (#42), interno, separado do protocolo. Unico por projeto, inclusive entre os apagados; vem de projects.last_card_number, pode pular e nunca repete
+      - name: title
+        type: text
+        note: coluna nova — o titulo do card do time, uma linha. Nulo no relato
+      - name: description
+        type: text
+        note: coluna nova — a descricao do card do time, em Markdown, desenhada pelo painel sem HTML. Sempre nula no relato, cujo texto e de quem relatou
+      - name: archived_at
+        type: datetime
+        note: coluna nova — quando o card saiu da tela de Trabalho; arquivado se le e se comenta, e mover ou editar pedem desarquivar
+      - name: created_by_user_id
+        type: long
+        fk: true
+        note: coluna nova — quem do time criou o card. Nulo no relato, porque quem escreveu nao tem usuario aqui
       - name: account_id
         type: long
         fk: true
@@ -406,21 +431,17 @@ entities:
         note: em que passo da jornada quem relatou vê este relato, nulo enquanto ele não aparece em nenhum, e é cache como o anterior porque a verdade é a sequência de eventos
       - name: tracking_code
         type: text
-        required: true
         unique: true
-        note: o protocolo que a pessoa lê e repete, alfabeto sem 0, O, 1 e I, colisão tratada na geração
+        note: o protocolo que a pessoa lê e repete, alfabeto sem 0, O, 1 e I, colisão tratada na geração. Passa a anulável — nulo no card do time, e o banco exige no relato
       - name: access_token_hash
         type: text
-        required: true
-        note: hash do token que vai no link de acompanhamento, o valor original só existe na URL entregue
+        note: hash do token que vai no link de acompanhamento, o valor original só existe na URL entregue. Nulo no card do time
       - name: type
         type: enum
-        required: true
-        note: bug | improvement | question, e é ele que decide em qual estado o relato cai ao entrar
+        note: bug | improvement | question, e é ele que decide em qual estado o relato cai ao entrar. Nulo no card do time
       - name: text
         type: text
-        required: true
-        note: o relato como a pessoa escreveu, com tamanho limitado no servidor
+        note: o relato como a pessoa escreveu, com tamanho limitado no servidor. Nulo no card do time, que tem título e descrição
       - name: route
         type: text
         note: só o caminho da página de onde o relato foi aberto, sem query e sem fragmento
@@ -906,6 +927,10 @@ entities:
         type: bool
         required: true
         note: como a opcao de aceitar duvidas vem marcada no formulario; a escolha final e de quem relata, nao do projeto
+      - name: allows_report_archiving
+        type: bool
+        required: true
+        note: coluna nova — o time pode arquivar relato; desligado de fabrica. Ligado, arquivar um relato aberto encerra junto, com desfecho e motivo, e quem relatou pode reabrir ou finalizar
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
@@ -1379,7 +1404,13 @@ relations:
     to: reports
     toField: project_id
     kind: one-to-many
-    note: O relato nasce de um projeto, e quem diz qual é a chave pública da requisição.
+    note: O relato nasce de um projeto, e quem diz qual é a chave pública da requisição; o card do time, da rota do painel.
+  - from: users
+    fromField: id
+    to: reports
+    toField: created_by_user_id
+    kind: one-to-many
+    note: Quem do time criou o card do time. O relato nao tem, porque quem escreveu nao tem usuario aqui.
   - from: reports
     fromField: id
     to: report_contexts
@@ -1898,4 +1929,12 @@ notes:
     anchor: project_invitations
     anchorField: token_hash
     position: { x: -60, y: -560 }
+    width: 360
+  - text: |-
+      O card do time nunca tem lado de fora
+
+      Ele mora em reports junto do relato, e duas travas no banco separam os dois: o relato continua obrigado a ter protocolo, token, tipo e texto; o card do time não pode ter protocolo, token, código pessoal, etapa pública nem espera, e só fica pendente na moderação. As portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado — o card do time não tem nenhum dos três.
+    anchor: reports
+    anchorField: kind
+    position: { x: 1700, y: 760 }
     width: 360

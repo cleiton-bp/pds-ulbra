@@ -1,5 +1,5 @@
 <h2>Endpoints</h2>
-<p class="lead">Setenta e cinco rotas. Cinquenta e nove exigem token de sessão; dezesseis não — a de
+<p class="lead">Setenta e oito rotas. Sessenta e duas exigem token de sessão; dezesseis não — a de
 entrar, que é onde a sessão nasce, e as quinze de <code>/public</code>: as cinco que a ferramenta
 usa (a que recebe o relato, as duas que ela lê para saber como se desenhar e o que aceita, a lista
 pública e a lista pessoal por código), as cinco por onde quem relatou chega a um relato (abrir pelo
@@ -7,8 +7,8 @@ link, abrir pelo código, confirmar, reabrir e responder) e as cinco da mídia d
 (pedir permissão de envio, confirmar o envio, ler os arquivos pelo link e pelo código, e saber o
 que dá para anexar pela página de acompanhamento).</p>
 
-<p>Das cinquenta e nove com sessão, cinquenta e três são de um projeto —
-<code>/projects/{publicId}/...</code> — e pedem que a pessoa esteja nele: vinte e cinco valem para
+<p>Das sessenta e duas com sessão, cinquenta e seis são de um projeto —
+<code>/projects/{publicId}/...</code> — e pedem que a pessoa esteja nele: vinte e oito valem para
 qualquer papel, e vinte e oito só para administrador, marcadas <strong>Administrador.</strong> nas
 tabelas. Quem não está no projeto recebe 404; quem está e não tem o papel, 403. A regra está em
 <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o acesso</a>. As duas de quem aceita um
@@ -25,7 +25,7 @@ gerado a partir do código.</p>
   <a href="#/endpoints/o-time"><strong>O time e o convite</strong><span>Quem está no time e com que papel, a configuração do time, e o convite dos dois lados: de quem convida e de quem aceita.</span></a>
   <a href="#/endpoints/fila-e-jornada"><strong>A fila e a jornada</strong><span>As duas listas de etapas — a que o time trabalha e a que quem relatou acompanha — e o mapa entre elas.</span></a>
   <a href="#/endpoints/configuracoes"><strong>Configurações do projeto</strong><span>Aparência da ferramenta, regras do ciclo, identidade e visibilidade, e mídia. Todas se gravam inteiras.</span></a>
-  <a href="#/endpoints/relatos-no-painel"><strong>Relatos, no painel</strong><span>Ler, mover, comentar, encerrar, devolver pedindo informação e decidir o que vira público.</span></a>
+  <a href="#/endpoints/relatos-no-painel"><strong>Relatos e cards, no painel</strong><span>Ler, criar o card do time, mover, comentar, encerrar, arquivar, devolver pedindo informação e decidir o que vira público.</span></a>
   <a href="#/endpoints/midia"><strong>Mídia: anexar e ler</strong><span>As nove rotas de imagem e arquivo: o pedido de permissão, o envio direto ao armazenamento, a confirmação e as leituras assinadas.</span></a>
   <a href="#/endpoints/rotas-publicas"><strong>Rotas públicas</strong><span>As quinze que chegam sem sessão: a ferramenta no site do cliente, e quem relatou voltando pelo link ou pelo código.</span></a>
   <a href="#/endpoints/envelope-e-erros"><strong>O envelope e os erros</strong><span>O formato de toda resposta, as convenções do JSON e o que cada status quer dizer.</span></a>

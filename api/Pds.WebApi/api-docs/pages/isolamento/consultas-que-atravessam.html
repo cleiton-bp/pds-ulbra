@@ -305,3 +305,13 @@ o aceite não criar uma segunda linha.</p>
 projeto, a dele também — e levam marca no SQL: <code>-- envio do e-mail do convite</code> nas
 seis da fila, <code>-- convite aberto pelo link</code> e <code>-- conferencia de quem aceita um
 convite</code> nas duas do link.</p>
+
+<div class="note why">
+  <strong>O número do card não é consulta que atravessa — é um <code>UPDATE</code> escrito à mão</strong>
+  <p>Reservar o próximo número soma e lê o contador do projeto num comando só
+  (<code>UPDATE projects ... RETURNING</code>), marcado no SQL com <code>-- numero do card</code>. SQL
+  escrito à mão não passa pelo filtro global, e é isso que o relato precisa: ele chega pela
+  ferramenta, sem sessão, e também ganha número. O projeto já veio resolvido — pela chave pública, ou
+  pela rota do painel, que só abre para quem está nele —, e o comando não devolve nada além do
+  número.</p>
+</div>

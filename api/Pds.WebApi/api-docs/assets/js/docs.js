@@ -45,7 +45,7 @@
       { id: 'o-time',            label: 'O time e o convite' },
       { id: 'fila-e-jornada',    label: 'A fila e a jornada' },
       { id: 'configuracoes',     label: 'Configurações do projeto' },
-      { id: 'relatos-no-painel', label: 'Relatos, no painel' },
+      { id: 'relatos-no-painel', label: 'Relatos e cards, no painel' },
       { id: 'midia',             label: 'Mídia: anexar e ler' },
       { id: 'rotas-publicas',    label: 'Rotas públicas' },
       { id: 'envelope-e-erros',  label: 'O envelope e os erros' },
@@ -53,6 +53,7 @@
     { id: 'fluxo', label: 'Fluxo rápido', children: [
       { id: 'entrar-e-criar',     label: 'Entrar e criar o projeto' },
       { id: 'convidar',           label: 'Convidar alguém para o time' },
+      { id: 'card-do-time',       label: 'O card do time e o arquivar' },
       { id: 'primeiro-relato',    label: 'O primeiro relato chegando' },
       { id: 'anexar',             label: 'Imagens e arquivos no relato' },
       { id: 'volta-para-olhar',   label: 'Quem relatou volta para olhar' },
