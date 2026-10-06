@@ -25,6 +25,9 @@ duas colunas: à esquerda o card (título, texto, anexos, conversa e história);
 em que ele está, as ações e os detalhes (responsável, prioridade, etiquetas, prazo, protocolo e
 de onde veio) — e, no celular, uma coluna só. Os arquivados ficam fora do quadro: o botão Arquivados mostra a lista deles.</p>
 
+<p>O que outra pessoa muda aparece no quadro sem recarregar — ver <a href="#/fluxo/tempo-real">O
+tempo real</a>.</p>
+
 <p>No pé de cada coluna que recebe card, <strong>Criar</strong> abre o card novo já naquela coluna
 — o mesmo <code>POST</code> do "Novo card", com o <code>StatePublicId</code> dela.</p>
 
@@ -57,7 +60,8 @@ recebem devolve o card ao lugar, sem pedido nenhum.</p>
 <p>A ordem é a mesma para o time inteiro. Arrumar não muda o card, e por isso <strong>não grava
 evento</strong> nem aparece na história. Dois soltando na mesma coluna ao mesmo tempo esperam um pelo
 outro, e cada um ganha um lugar só dele. A tela que ficou velha — o card de cima, ou o próprio
-card, já saiu dali — recebe 409 e lê a coluna de novo.</p>
+card, já saiu dali — recebe 409: diz que outra pessoa mexeu no card enquanto ele estava na mão, lê
+o quadro de novo e mostra o card onde ele está.</p>
 
 <div class="note why">
   <strong>O que chega fica no topo</strong>

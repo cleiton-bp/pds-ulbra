@@ -382,6 +382,31 @@ guarda, em `ReportsBoard`, fica na janela e vale do pegar até um instante depoi
 — menos no teclado, que não clica ao soltar, e onde o Enter logo depois continua abrindo o
 card.
 
+**O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
+recarregar. A conexão (`realtimeService`, em `data/api/apiRealtimeService.ts`, com a biblioteca
+do SignalR carregada só nesta tela) pede um bilhete de um minuto a cada conexão — o token da
+sessão nunca vai no endereço —, entra no projeto e reconecta sozinha, para sempre: logo, e
+depois esperando 2, 5, 10 e 30 segundos entre uma tentativa e outra; as esperas só voltam ao
+começo com a conexão de volta dentro do projeto. De volta — ou aberta só depois de falhar —, a
+tela relê tudo. O aviso só traz identificadores, e cada parte relê pela REST o que é dela
+(`useWorkRealtime` repassa): o quadro, só as colunas que o card tocou, juntando avisos próximos
+e esperando o arraste, a gravação ou o desfecho terminar (`board.hold`); a lista, as páginas da
+tela, sem esvaziar; a contagem; e o card aberto, com `refreshReport` — que não grava leitura —,
+a conversa, os anexos, a história e, quando a configuração muda, as escolhas dos campos, sem
+apagar o que a pessoa está escrevendo. **Leitura atrasada não passa por cima**: a coluna, a
+lista ou o card que mudou nesta aba enquanto a releitura estava no ar é lido de novo, e de duas
+releituras no ar vale a última. Todo pedido da aba leva o id da conexão
+(`X-Realtime-Connection`), e o aviso da própria mudança volta marcado e é ignorado.
+
+Na tela, o card que mudou se acende por dois segundos, com uma faixa à esquerda — quando a
+releitura chega, e não o aviso —, e uma região anunciada conta o mesmo a quem usa leitor de tela
+(`LiveStatus`). O card com o foco que outra pessoa move leva o foco junto, e o que sai da tela
+deixa o foco no vizinho (`useKeepFocus`). O clique num card nos 0,6 segundo depois de uma
+mudança de outra pessoa entrar na tela não abre nada: a linha que estava ali pode ter descido. A
+queda que passa de três segundos mostra um selo preso ao pé da tela — "Reconectando…", ou "Sem
+atualização ao vivo" quando a conexão nunca abriu —, dito também dentro do card aberto. Quem
+perde o acesso volta para a lista de projetos, que diz de qual projeto saiu.
+
 **O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
 de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.
 Estado não se apaga — não há botão de remover em lugar nenhum —, porque relato antigo
@@ -474,8 +499,9 @@ vídeos de antes de o vídeo sair do produto continuam tocando.
 | a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: o plano de cobrança (**Continuidade**); o quadro de cards em
-tempo real, filtros rápidos e busca, sprints e relatórios (**Planejado**); a lista pública com imagens e a página pública
+Fora do corte, de propósito: o plano de cobrança (**Continuidade**); filtros rápidos e busca,
+sprints e relatórios (**Planejado**); o tempo real com mais de uma instância da API e a página de
+acompanhamento ao vivo de quem relatou (**Continuidade**); a lista pública com imagens e a página pública
 de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora
 no servidor e pega o caso comum; barrar o quadro no navegador precisa de um servidor
 servindo `embed.html`, que é hospedagem que ainda não existe — **Planejado**.

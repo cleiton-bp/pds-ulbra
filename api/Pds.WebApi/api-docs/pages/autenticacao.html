@@ -89,6 +89,16 @@ confirmou não prova que a pessoa é dona dele.</p>
   token vencer. Ver <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o acesso</a>.</p>
 </div>
 
+<h2>O bilhete do tempo real</h2>
+
+<p>A conexão em tempo real da tela de Trabalho não leva o token da sessão: o navegador não manda
+cabeçalho numa conexão WebSocket, e o token iria no endereço, que fica em log. Ela leva um
+<strong>bilhete</strong>, pedido com a sessão em <code>POST /realtime/ticket</code>: o mesmo formato e a
+mesma assinatura, com <strong>um minuto</strong> de validade e outro destinatário (o da sessão com
+<code>.realtime</code> no fim). Um esquema de autenticação próprio, que só o hub usa, aceita o bilhete
+— e só lê o endereço no caminho do hub; as rotas REST recusam o bilhete, e o hub recusa a sessão.
+Ver <a href="#/fluxo/tempo-real">O tempo real</a>.</p>
+
 <h2>Sem tolerância de relógio</h2>
 
 <p>A validação usa <code>ClockSkew = TimeSpan.Zero</code>. O padrão do .NET aceita cinco

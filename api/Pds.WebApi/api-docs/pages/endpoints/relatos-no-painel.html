@@ -22,7 +22,7 @@ internos e com quem relatou), <code>AttachmentCount</code> (os anexos confirmado
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}</code></td><td>Grava o título e a descrição do card do time, inteiros. <strong>Relato é recusado</strong> (409): o texto dele é de quem relatou.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/archive</code></td><td>Arquiva (<code>Archived: true</code>) ou desarquiva. O relato só com a regra do ciclo ligada (senão 403), e o relato aberto <strong>encerra junto</strong>: pede <code>Outcome</code> e <code>Reason</code>, que quem relatou lê. Pedir o que já é verdade — a segunda aba, com ou sem motivo — devolve o card como está.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/counts</code></td><td>Quantos relatos há em cada coluna, incluindo as vazias. Pergunta separada da lista de propósito.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a visualização.</strong></td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a visualização</strong> — menos com <code>?refresh=true</code>, a releitura do card que já está aberto quando outra pessoa mexe nele (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/state</code></td><td>Move o relato de coluna. <strong>Grava o evento antes do cache</strong>, na mesma transação. <code>AfterPublicId</code> é o lugar na coluna nova: o card logo acima — sem ele, o topo, que é onde o card chega pelo seletor. O card de referência que já não está na coluna de destino recusa o pedido (409), e o próprio card como referência, 400. Para a coluna em que o card já está, nada muda — arrumar é a rota de baixo.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/position</code></td><td>Muda o card de lugar <strong>na própria coluna</strong>: <code>AfterPublicId</code> é o card logo acima, nulo é o topo. <strong>Não grava evento</strong> nem linha na história — arrumar a coluna não muda o card. Arquivado, o próprio card que outra pessoa acabou de mover, ou referência que já saiu da coluna ou foi arquivada, 409. O card não fica abaixo dele mesmo (400).</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/history</code></td><td>Tudo que aconteceu com o relato, montado a partir dos eventos. <strong>Não grava.</strong></td></tr>
@@ -120,7 +120,8 @@ do time, e não configuração.</p>
 <div class="note why">
   <strong>Uma consulta que grava, de propósito</strong>
   <p><code>GET /projects/{publicId}/reports/{reportPublicId}</code> registra um evento de
-  visualização a cada chamada. O intervalo entre ele e a criação do relato é o tempo que o
+  visualização a cada abertura — a releitura com <code>?refresh=true</code>, do card já aberto
+  quando outra pessoa mexe nele, não registra. O intervalo entre ele e a criação do relato é o tempo que o
   time levou para ir olhar — metade da pergunta de pesquisa, e um dado que não é reconstituível
   depois.</p>
   <p>A consequência vale para quem for consumir a API: <b>ela não deve ser chamada para

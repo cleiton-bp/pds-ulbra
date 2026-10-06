@@ -18,7 +18,7 @@ variáveis reais do ambiente — que têm precedência sobre o arquivo quando as
   <tr><th>Variável</th><th>Para quê</th></tr>
   <tr><td><code>DB_CONNECTION_STRING</code></td><td>Conexão com o PostgreSQL.</td></tr>
   <tr><td><code>JWT_SIGNING_KEY</code></td><td>Assinatura do token. <code>openssl rand -base64 48</code>.</td></tr>
-  <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token. Padrão <code>pds</code> e <code>pds.panel</code> — só quando a variável falta: estas duas, em branco, valem vazias.</td></tr>
+  <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token. Padrão <code>pds</code> e <code>pds.panel</code> — só quando a variável falta: estas duas, em branco, valem vazias. O bilhete do tempo real usa o mesmo destinatário com <code>.realtime</code> no fim (<code>pds.panel.realtime</code>).</td></tr>
   <tr><td><code>JWT_EXPIRATION_HOURS</code></td><td>Validade da sessão. Padrão 8.</td></tr>
   <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>ID do cliente OAuth. Ver abaixo.</td></tr>
   <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula. <b>E também do quadro de relato</b> — veja o aviso abaixo.</td></tr>

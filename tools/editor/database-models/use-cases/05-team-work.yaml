@@ -1,7 +1,7 @@
 meta:
   title: O time trabalha o relato
   system: PDS — painel
-  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards — e que, como a lista e o card aberto, muda sozinho quando outra pessoa do time mexe. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
 actors:
   - name: Membro do time
     description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
@@ -47,6 +47,10 @@ useCases:
       - Vê tudo o que já aconteceu com o relato, em ordem.
       - Vê em que etapa pública ele está, e se está liberado para o público.
       - Vê as reaberturas, cada uma com o motivo e o que veio anexado.
+    alternativeFlows:
+      - title: 1a. Outra pessoa do time mexe no relato enquanto ele está aberto
+        steps:
+          - A coluna, os campos, a conversa, os arquivos e o histórico se acertam sozinhos, sem recarregar e sem contar outra leitura. O que o membro está escrevendo continua onde estava.
   - id: UC03
     name: Comentar
     description: Por dentro, para o time; ou para fora, para quem relatou ler na página de acompanhamento. Os dois ficam separados de forma visível.
@@ -312,9 +316,12 @@ useCases:
       - title: 2c. O card é solto fora das colunas que recebem
         steps:
           - No cabeçalho da página, em "Sem coluna" ou na coluna aposentada ninguém solta card. O card volta ao lugar, e nada muda.
+      - title: 2d. Outra pessoa do time muda o quadro enquanto ele está aberto
+        steps:
+          - O card movido, criado ou editado por ela aparece na tela sem recarregar, aceso por um instante — e, se o membro estiver arrastando, a tela espera ele soltar. O card com o foco que ela move leva o foco junto.
       - title: 3a. O card de cima, ou o próprio card, já saiu da coluna
         steps:
-          - Outra pessoa o moveu ou arquivou. O sistema recusa o lugar, porque ele já não existe; o painel avisa e lê a coluna de novo.
+          - Outra pessoa o moveu ou arquivou. O sistema recusa o lugar, porque ele já não existe; o painel diz que foi outra pessoa, lê o quadro de novo e mostra o card onde ele está.
       - title: 3b. Outra pessoa solta na mesma coluna ao mesmo tempo
         steps:
           - Um espera o outro, e cada card ganha um lugar só dele.

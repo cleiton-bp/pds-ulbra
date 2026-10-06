@@ -7,6 +7,7 @@
   <tr><td><span class="verb post">POST</span></td><td><code>/auth/google</code></td><td>Entra com o Google. Primeiro acesso cria a conta própria e o usuário.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/auth/logout</code></td><td>Encerra a sessão.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/me</code></td><td>Usuário e a conta própria.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/realtime/ticket</code></td><td>O bilhete da conexão em tempo real: vale um minuto e só abre o hub (<code>/realtime/hub</code>). Ver <a href="#/fluxo/tempo-real">O tempo real</a>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Os projetos que a pessoa enxerga, de todas as contas, cada um com a conta dona e o papel dela.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto e o par de chaves, sempre na conta própria.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto, com a conta dona e o papel.</td></tr>

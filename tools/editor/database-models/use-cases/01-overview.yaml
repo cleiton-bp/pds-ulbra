@@ -101,7 +101,7 @@ useCases:
     position: { x: 620, y: 1000 }
   - id: UC17
     name: Levar os relatos para a ferramenta do time
-    description: "Continuidade. Jira ou Trello, e o resto do que o produto pode vir a ter: quadro em tempo real, sprints, relatórios, áudio e voz, planos. Detalhe em 12-continuity."
+    description: "Continuidade. A ferramenta de gestão que o time já usa, e o resto do que o produto pode vir a ter: sprints, relatórios, áudio e voz, planos, o quadro ao vivo com a API em mais de uma instância. Detalhe em 12-continuity."
     width: 230
     position: { x: 620, y: 1120 }
   - id: UC18
