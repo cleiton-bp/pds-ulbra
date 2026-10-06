@@ -143,6 +143,7 @@ function cardDoTime(
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    Finished: false,
     ...extra,
   }
 }

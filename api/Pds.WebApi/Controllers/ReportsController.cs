@@ -74,7 +74,18 @@ public class ReportsController : BaseController
     /// muda as páginas, e a seguinte pularia um card ou repetiria outro.
     ///
     /// Cada card traz os números da frente do quadro: `CommentCount`,
-    /// `AttachmentCount` e `Closed` (se o relato já tem encerramento valendo).
+    /// `AttachmentCount`, `Closed` (se o relato já tem encerramento valendo) e
+    /// `Finished` (se o card já terminou: encerrado, ou na última coluna ativa).
+    ///
+    /// **Os filtros da tela de Trabalho** valem aqui e na contagem das colunas, iguais:
+    /// `assignee` (`me`, `none` ou o identificador de alguém do time), `label`,
+    /// `priority` (o identificador ou `none`), `type` (`bug`, `improvement`, `question`,
+    /// `team`), `due=overdue` com `today` (o dia de quem olha) e `q`, a busca — no
+    /// título, no texto, na descrição, no número (`42` ou `#42`) e no protocolo, sem
+    /// diferenciar maiúscula nem acento. Repetir um filtro soma (a etiqueta A **ou** a
+    /// B); filtros diferentes se cruzam (da Ana **e** vencido). O identificador que não
+    /// é do projeto é recusado, como o de coluna. Vencido é o card com prazo antes de
+    /// `today` que ainda não terminou.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="page">Página, começando em 1.</param>
@@ -83,10 +94,11 @@ public class ReportsController : BaseController
     /// <param name="archived">Verdadeiro traz só os arquivados.</param>
     /// <param name="order">`recent` (o padrão) ou `board`, a ordem do quadro.</param>
     /// <param name="after">Só com `order=board` e `state`: o card depois do qual a leitura continua — o "Mostrar mais" do quadro. Com ele, a página não vale.</param>
+    /// <param name="filters">Os filtros da tela de Trabalho — ver acima.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relatos do projeto.</response>
-    /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, ou `after` fora do quadro ou sem coluna.</response>
-    /// <response code="404">Projeto, estado ou o card de `after` não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, `after` fora do quadro ou sem coluna, ou um filtro fora do formato (busca com mais de 200 caracteres, tipo ou prazo desconhecido).</response>
+    /// <response code="404">Projeto, estado, o card de `after`, a pessoa, a etiqueta ou a prioridade do filtro não existe no projeto, ou a pessoa não está no projeto.</response>
     /// <response code="409">O card de `after` já saiu da coluna: a tela lê a coluna de novo.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportSummaryViewModel>>), StatusCodes.Status200OK)]
@@ -100,11 +112,12 @@ public class ReportsController : BaseController
         [FromQuery] string? state = null,
         [FromQuery] bool archived = false,
         [FromQuery] string? order = null,
-        [FromQuery] Guid? after = null)
+        [FromQuery] Guid? after = null,
+        [FromQuery] ReportFilterDto? filters = null)
     {
         try
         {
-            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, archived, order, after, cancellationToken);
+            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, archived, order, after, filters, cancellationToken);
             return Success(reports.Items, total: reports.Total);
         }
         catch (Exception exception)
@@ -136,19 +149,25 @@ public class ReportsController : BaseController
     /// *antes* de mover, para pedir o desfecho e o motivo no mesmo gesto — perguntar
     /// depois seria mandar o movimento, levar a recusa, e só então abrir o diálogo.
     /// Vem verdadeiro em uma linha no máximo: a última coluna ativa.
+    ///
+    /// **Com os filtros da tela de Trabalho** — os mesmos da lista —, conta só o que
+    /// passa neles: o número de cada coluna é o que a tela mostra.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="filters">Os filtros da tela de Trabalho, os mesmos da lista.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">A contagem de cada coluna.</response>
-    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="400">Um filtro fora do formato.</response>
+    /// <response code="404">Projeto não existe, a pessoa, a etiqueta ou a prioridade do filtro não é do projeto, ou a pessoa não está no projeto.</response>
     [HttpGet("counts")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportStateCountViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Counts(Guid publicId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Counts(Guid publicId, CancellationToken cancellationToken, [FromQuery] ReportFilterDto? filters = null)
     {
         try
         {
-            var counts = await _reportService.CountByStateAsync(publicId, cancellationToken);
+            var counts = await _reportService.CountByStateAsync(publicId, filters, cancellationToken);
             return Success(counts, total: counts.Count);
         }
         catch (Exception exception)

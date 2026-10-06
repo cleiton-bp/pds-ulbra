@@ -75,6 +75,12 @@ public class DataContext : PdsBaseContext
         // Aplica os mapeamentos de Types/ e o filtro global de exclusao logica.
         base.OnModelCreating(modelBuilder);
 
+        // A translate do Postgres, para a busca sem acento. E funcao que ja existe no
+        // banco: o mapeamento nao cria nada nem muda o esquema.
+        modelBuilder.HasDbFunction(typeof(SqlText).GetMethod(nameof(SqlText.Translate))!)
+            .HasName("translate")
+            .IsBuiltIn();
+
         // Projeto: exclusao logica mais acesso. Substitui o filtro herdado. A lista
         // ja chega pronta do middleware — os da conta propria e os do time —, entao
         // aqui e uma comparacao de coluna, sem juncao com project_members.

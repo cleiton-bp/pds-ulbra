@@ -78,9 +78,12 @@ export type { ProjectPublicStageService } from '@/data/projectPublicStageService
 export type { ProjectReportAttachmentService } from '@/data/projectReportAttachmentService'
 export type {
   ProjectReportService,
+  ReportFilters,
+  ReportFilterType,
   ReportListOptions,
   ReportPage,
 } from '@/data/projectReportService'
+export { NO_REPORT_FILTERS } from '@/data/projectReportService'
 export type { ProjectService } from '@/data/projectService'
 export type { ProjectStateService } from '@/data/projectStateService'
 export type { ProjectStatusMappingService } from '@/data/projectStatusMappingService'

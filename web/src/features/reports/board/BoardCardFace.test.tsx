@@ -39,6 +39,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    Finished: false,
     ...extra,
   }
 }

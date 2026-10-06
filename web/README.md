@@ -382,6 +382,16 @@ guarda, em `ReportsBoard`, fica na janela e vale do pegar até um instante depoi
 — menos no teclado, que não clica ao soltar, e onde o Enter logo depois continua abrindo o
 card.
 
+**Filtros e busca.** A barra acima da lista e do quadro (`WorkFilterBar`) tem a busca — título,
+texto, descrição, número (`42` ou `#42`) e protocolo, sem diferenciar maiúscula nem acento —, os
+atalhos "Meus cards" e "Vencidos" e os menus de marcar de responsável, etiqueta, prioridade e tipo.
+Dentro de um filtro vale ou; entre filtros, e. Os filtros (`useWorkFilters`) ficam lembrados na aba,
+por projeto (`sessionStorage`), e a busca espera 300 ms depois da última tecla; a chave deles entra
+na leitura da lista, de cada coluna do quadro, da contagem das colunas e das releituras do tempo
+real, e trocar de filtro relê tudo **sem esvaziar** a tela. Vencido é o prazo passado no card que
+ainda não terminou — quem diz se terminou é a API, em `Finished` —, e o prazo do card que terminou
+fica sem vermelho e sem amarelo. Quando nada passa, a tela diz isso, com "Limpar filtros".
+
 **O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
 recarregar. A conexão (`realtimeService`, em `data/api/apiRealtimeService.ts`, com a biblioteca
 do SignalR carregada só nesta tela) pede um bilhete de um minuto a cada conexão — o token da
@@ -499,8 +509,8 @@ vídeos de antes de o vídeo sair do produto continuam tocando.
 | a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: o plano de cobrança (**Continuidade**); filtros rápidos e busca,
-sprints e relatórios (**Planejado**); o tempo real com mais de uma instância da API e a página de
+Fora do corte, de propósito: o plano de cobrança (**Continuidade**); sprints e relatórios
+(**Planejado**); a busca nos comentários e um índice de busca de texto (**Continuidade**); o tempo real com mais de uma instância da API e a página de
 acompanhamento ao vivo de quem relatou (**Continuidade**); a lista pública com imagens e a página pública
 de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora
 no servidor e pega o caso comum; barrar o quadro no navegador precisa de um servidor

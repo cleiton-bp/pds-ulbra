@@ -108,6 +108,12 @@ public record CreatedReportViewModel(
 /// Se o relato tem um encerramento valendo. E o que diz ao quadro se soltar o card
 /// na coluna que encerra pede desfecho e motivo — o ja encerrado so anda.
 /// </param>
+/// <param name="Finished">
+/// Se o card ja terminou: o relato com encerramento valendo, ou o card na ultima
+/// coluna ativa (com duas colunas ou mais — com uma so, ela e a entrada da fila). O
+/// prazo do card que terminou nao fica vermelho, e o filtro de vencidos o deixa de
+/// fora: atrasado e o que ainda nao acabou.
+/// </param>
 public record ReportSummaryViewModel(
     Guid PublicId,
     CardKindEnum Kind,
@@ -132,7 +138,8 @@ public record ReportSummaryViewModel(
     DateOnly? DueDate,
     int CommentCount,
     int AttachmentCount,
-    bool Closed);
+    bool Closed,
+    bool Finished);
 
 /// <summary>
 /// Quem esta com o card.
@@ -409,6 +416,7 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <param name="CommentCount">Os comentarios do card, como na linha da lista: o painel troca a linha pelo card aberto.</param>
 /// <param name="AttachmentCount">Os anexos confirmados do card.</param>
 /// <param name="Closed">Se o relato tem um encerramento valendo — o mesmo que <c>Closure</c> nao nulo.</param>
+/// <param name="Finished">Se o card ja terminou — ver o resumo do card.</param>
 /// <param name="ArchiveCloses">
 /// Arquivar este relato <b>encerra</b> junto — e por isso pede desfecho e motivo, o
 /// que quem relatou vai ler. Verdadeiro no relato aberto; falso no ja encerrado e
@@ -448,7 +456,8 @@ public record ReportDetailViewModel(
     DateOnly? DueDate,
     int CommentCount,
     int AttachmentCount,
-    bool Closed);
+    bool Closed,
+    bool Finished);
 
 
 /// <summary>

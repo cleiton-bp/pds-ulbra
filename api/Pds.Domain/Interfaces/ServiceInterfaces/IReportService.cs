@@ -115,8 +115,12 @@ public interface IReportService
     /// ultima coluna ativa so o que entrou nela nos dias que o projeto escolheu.
     /// <paramref name="after"/>, na ordem do quadro e numa coluna, continua a leitura
     /// logo depois daquele card, e a pagina deixa de valer.</para>
+    ///
+    /// <para><paramref name="filters"/> sao os filtros da tela de Trabalho —
+    /// responsavel, etiqueta, prioridade, tipo, vencidos e a busca. O identificador que
+    /// nao e do projeto e recusado, como o de coluna.</para>
     /// </summary>
-    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, CancellationToken cancellationToken = default);
+    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Cria um card do time: titulo, descricao em Markdown e o estado em que nasce.
@@ -157,9 +161,10 @@ public interface IReportService
     /// <summary>
     /// Quantos relatos ha em cada coluna da fila. Sai uma linha por coluna do
     /// projeto, <b>inclusive as vazias</b>, mais a linha dos que ainda nao tem
-    /// lugar na fila quando ela nao esta vazia.
+    /// lugar na fila quando ela nao esta vazia. Com <paramref name="filters"/>, conta so
+    /// o que passa neles.
     /// </summary>
-    Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, ReportFilterDto? filters = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// A fila de moderacao de um projeto, num estado so.

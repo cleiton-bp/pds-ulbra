@@ -17,7 +17,7 @@ actors:
 useCases:
   - id: UC01
     name: Ver o trabalho
-    description: A tela de Trabalho, com os relatos e os cards do time, em lista ou em quadro, a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”.
+    description: A tela de Trabalho, com os relatos e os cards do time, em lista ou em quadro, a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”. Os filtros e a busca estão no UC19.
     width: 220
     position: { x: 260, y: 0 }
     preconditions: O membro está no painel, dentro do projeto.
@@ -326,6 +326,24 @@ useCases:
         steps:
           - Um espera o outro, e cada card ganha um lugar só dele.
     postconditions: "O que chega a uma coluna sem ser arrastado — o relato novo, o card novo, o movido pelo card aberto, o reaberto por quem relatou (mude de coluna ou não) e o que ela tira do arquivo ao responder — entra no topo."
+  - id: UC19
+    name: Filtrar e buscar os cards
+    description: "Recorta a tela de Trabalho — na lista e no quadro, com os mesmos filtros — por responsável, etiqueta, prioridade, tipo e vencidos, e busca pelo título, pelo texto, pelo número ou pelo protocolo, sem diferenciar maiúscula nem acento."
+    width: 220
+    position: { x: 600, y: 1480 }
+    preconditions: O membro está na tela de Trabalho.
+    mainFlow:
+      - O membro digita na busca, ou liga um atalho — "Meus cards", "Vencidos" —, ou marca opções nos menus de responsável, etiqueta, prioridade e tipo.
+      - A lista e cada coluna do quadro passam a mostrar só os cards que passam nos filtros, e o total de cada coluna acompanha.
+      - O filtro ligado fica à vista no próprio controle, e "Limpar filtros" volta a tudo.
+    alternativeFlows:
+      - title: 1a. Nenhum card passa nos filtros
+        steps:
+          - A tela diz que nada passa nos filtros, e não que o projeto está vazio; "Limpar filtros" fica ao lado.
+      - title: 1b. Vencidos
+        steps:
+          - Entram só os cards com prazo antes de hoje que ainda não terminaram — o relato encerrado e o card na última coluna não entram, e o prazo deles não fica vermelho.
+    postconditions: Os filtros ficam lembrados enquanto a aba estiver aberta, só naquele projeto.
 links:
   - from: Membro do time
     to: UC01
@@ -402,6 +420,9 @@ links:
   - from: UC05
     to: UC18
     kind: extend
+  - from: Membro do time
+    to: UC19
+    kind: association
     note: quando o card é solto em outra coluna
 notes:
   - text: "Comentário interno e comentário público são campos separados, e não uma marcação: o interno não tem caminho nenhum até a página pública."

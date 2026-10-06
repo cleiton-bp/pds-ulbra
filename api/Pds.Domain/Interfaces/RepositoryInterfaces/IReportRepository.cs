@@ -52,16 +52,17 @@ public interface IReportRepository : IBaseRepository<Report>
     /// <paramref name="enteredSince"/>, quando vem, deixa so o que entrou na coluna
     /// a partir dali: e a regra da ultima coluna do quadro. <paramref name="after"/>,
     /// na ordem do quadro, deixa so o que vem depois daquele lugar da coluna: e o
-    /// "Mostrar mais" do quadro.</para>
+    /// "Mostrar mais" do quadro. <paramref name="cards"/> sao os filtros da tela de
+    /// Trabalho — responsavel, etiqueta, prioridade, tipo, vencidos e a busca.</para>
     /// </summary>
-    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, ReportCardFilter cards, CancellationToken cancellationToken = default);
 
     /// <summary>Quantos cards o projeto tem no recorte. E o que diz se ainda ha o que carregar.</summary>
-    Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, CancellationToken cancellationToken = default);
+    Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, ReportCardFilter cards, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Os numeros da frente do card — comentarios, anexos e se ja encerrou —, numa
-    /// consulta por numero para a pagina inteira, e nao uma por card.
+    /// Os numeros da frente do card — comentarios, anexos, se ja encerrou e se ja
+    /// terminou —, numa consulta por numero para a pagina inteira, e nao uma por card.
     /// </summary>
     Task<IReadOnlyDictionary<long, CardFace>> CountFacesAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default);
 
@@ -108,8 +109,11 @@ public interface IReportRepository : IBaseRepository<Report>
     /// <para>E pergunta separada da lista de proposito. A lista traz uma pagina; a
     /// contagem varre tudo. Na mesma consulta, ou a contagem mente ou a lista
     /// deixa de paginar.</para>
+    ///
+    /// <para>Com <paramref name="cards"/>, conta so o que passa nos filtros da tela de
+    /// Trabalho: o numero de cada coluna e o que a tela mostra.</para>
     /// </summary>
-    Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, ReportCardFilter cards, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Um relato do projeto, com o contexto junto.

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type ReportSummaryViewModel, WITHOUT_STATE_FILTER } from '@/contracts'
+import type { ReportFilters } from '@/data'
 import { projectReportService } from '@/data'
 import { isPanelError } from '@/data/errors'
 import { type BoardColumn, type BoardItems, columnOf } from '@/features/reports/board/boardState'
@@ -63,7 +64,15 @@ export function useBoard(
    * acenderia num lugar em que o card ainda nao esta.
    */
   aoReler?: (mudados: { id: string; numero?: number }[]) => void,
+  /**
+   * Os filtros da tela de Trabalho, e a chave deles. Cada coluna e lida com eles, e
+   * a chave nova rele todas as colunas abertas.
+   */
+  filters?: ReportFilters,
+  filtersKey = '',
 ) {
+  const filtros = useRef(filters)
+  filtros.current = filters
   const aoRelerAgora = useRef(aoReler)
   aoRelerAgora.current = aoReler
   const [items, setItemsState] = useState<BoardItems>({})
@@ -126,8 +135,9 @@ export function useBoard(
         order: 'board',
         pageSize,
         ...(after ? { after } : {}),
+        ...(filtersKey && filtros.current ? { filters: filtros.current } : {}),
       }),
-    [projectPublicId],
+    [projectPublicId, filtersKey],
   )
 
   const loadColumn = useCallback(
@@ -258,6 +268,18 @@ export function useBoard(
     }
     for (const chave of lista) if (!antes.has(chave)) void loadColumn(chave)
   }, [enabled, chaves, projectPublicId, loadColumn, setItems])
+
+  // O filtro mudou: cada coluna aberta e lida de novo do comeco, com os cards de agora
+  // na tela ate a leitura nova chegar. A geracao nova descarta o "Mostrar mais" que
+  // estava no ar com o filtro de antes.
+  const filtroLido = useRef(filtersKey)
+  useEffect(() => {
+    if (filtroLido.current === filtersKey) return
+    filtroLido.current = filtersKey
+    if (!enabled || aberto.current === null) return
+    generation.current += 1
+    for (const chave of aberto.current.chaves) void loadColumn(chave)
+  }, [filtersKey, enabled, loadColumn])
 
   const loadMore = useCallback(
     async (chave: string) => {

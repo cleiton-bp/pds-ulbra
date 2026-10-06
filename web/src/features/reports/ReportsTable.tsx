@@ -89,7 +89,8 @@ function Linha({
   const endereco = useHref(report.PublicId)
   const titulo = cardHeadline(report)
   const tom = statusTone(report.StatePublicId, colunas)
-  const prazoUrgente = report.DueDate !== null && dueState(report.DueDate, soonDays) !== 'later'
+  const prazoUrgente =
+    report.DueDate !== null && !report.Finished && dueState(report.DueDate, soonDays) !== 'later'
 
   // O clique em qualquer ponto da linha abre o card — menos no proprio link e nos
   // botoes, que ja fazem o que e deles. **Nao abre quem esta selecionando texto**: o
@@ -159,7 +160,12 @@ function Linha({
           )}
           {prazoUrgente && report.DueDate && (
             <span className="mt-1 text-caption text-fg-muted xl:hidden">
-              <DueChip day={report.DueDate} soonDays={soonDays} compact />
+              <DueChip
+                day={report.DueDate}
+                soonDays={soonDays}
+                compact
+                finished={report.Finished}
+              />
             </span>
           )}
         </span>
@@ -190,7 +196,15 @@ function Linha({
         <Etiquetas report={report} />
       </td>
       <td className="hidden whitespace-nowrap px-2 py-2 text-fg-muted xl:table-cell">
-        {report.DueDate ? <DueChip day={report.DueDate} soonDays={soonDays} compact bare /> : null}
+        {report.DueDate ? (
+          <DueChip
+            day={report.DueDate}
+            soonDays={soonDays}
+            compact
+            bare
+            finished={report.Finished}
+          />
+        ) : null}
       </td>
       <td className="hidden whitespace-nowrap py-2 pr-3 pl-2 text-fg-muted 2xl:table-cell">
         {/* O relativo responde "isto e recente?"; a data exata fica no `title`, para

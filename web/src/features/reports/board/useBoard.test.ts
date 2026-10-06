@@ -3,7 +3,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReportSummaryViewModel } from '@/contracts'
-import type { ReportListOptions } from '@/data'
+import { NO_REPORT_FILTERS, type ReportListOptions } from '@/data'
 import { PanelError } from '@/data/errors'
 import type { BoardColumn } from '@/features/reports/board/boardState'
 import { useBoard } from '@/features/reports/board/useBoard'
@@ -73,6 +73,7 @@ function card(
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    Finished: false,
     ...extra,
   }
 }
@@ -469,6 +470,32 @@ describe('o que chega pelo tempo real', () => {
     await waitFor(() => expect(aoReler).toHaveBeenCalledWith([{ id: '1', numero: 41 }]))
     expect(aoReler).toHaveBeenCalledTimes(1)
     expect(result.current.items).toEqual({ a: [], b: ['1', '4'] })
+  })
+
+  it('o filtro novo rele cada coluna aberta do comeco, com ele — sem esvaziar a tela', async () => {
+    dublê.listar.mockImplementation(async (_p: string, _pg: number, estado: string) =>
+      estado === 'a'
+        ? { reports: [card('1', 'a')], total: 1 }
+        : { reports: [card('4', 'b')], total: 1 },
+    )
+    const filtros = { ...NO_REPORT_FILTERS, assignees: ['me'] }
+    const { result, rerender } = renderHook(
+      ({ chave }) => useBoard('p-1', COLUNAS, true, undefined, filtros, chave),
+      { initialProps: { chave: '' } },
+    )
+    await waitFor(() => expect(result.current.items).toEqual({ a: ['1'], b: ['4'] }))
+    expect(dublê.listar.mock.calls.every((chamada) => !chamada[4]?.filters)).toBe(true)
+
+    dublê.listar.mockImplementation(() => new Promise(() => {}))
+    const antes = dublê.listar.mock.calls.length
+    rerender({ chave: 'so-os-meus' })
+
+    await waitFor(() => expect(dublê.listar.mock.calls.length).toBe(antes + 2))
+    for (const chamada of dublê.listar.mock.calls.slice(antes))
+      expect(chamada[4]).toEqual({ order: 'board', pageSize: 50, filters: filtros })
+    // Enquanto le, os cards de antes continuam.
+    expect(result.current.items).toEqual({ a: ['1'], b: ['4'] })
+    expect(result.current.state.a?.loading).toBe(false)
   })
 
   it('de duas leituras da mesma coluna no ar, so a ultima pedida vale', async () => {

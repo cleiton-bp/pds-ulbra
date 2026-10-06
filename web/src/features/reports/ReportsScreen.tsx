@@ -28,7 +28,9 @@ import {
 import { NewCardDialog } from '@/features/reports/NewCardDialog'
 import { ReportsTable, ReportsTableSkeleton } from '@/features/reports/ReportsTable'
 import { useReportInbox } from '@/features/reports/useReportInbox'
+import { useWorkFilters } from '@/features/reports/useWorkFilters'
 import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
+import { WorkFilterBar } from '@/features/reports/WorkFilterBar'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
 import { toast } from '@/shared/components/toastStore'
@@ -100,6 +102,10 @@ export function ReportsScreen() {
 
   const quadro = vista === 'quadro' && !arquivados
 
+  // Os filtros da tela — os mesmos na lista, no quadro e na contagem das colunas.
+  const filtros = useWorkFilters(project.PublicId)
+  const comFiltro = filtros.key !== ''
+
   // O quadro tem as proprias leituras: a lista so e lida na vista dela, e de novo a
   // cada volta — o que o quadro mudou nao passa por ela.
   const {
@@ -114,10 +120,23 @@ export function ReportsScreen() {
     loadMore,
     apply,
     prepend,
-  } = useReportInbox(project.PublicId, arquivados ? null : filtro, arquivados, !quadro)
+  } = useReportInbox(
+    project.PublicId,
+    arquivados ? null : filtro,
+    arquivados,
+    !quadro,
+    filtros.applied,
+    comFiltro ? filtros.key : '',
+  )
 
   // Depois de uma mudanca, a contagem e relida sem sair da tela (`revalidate`): pelo
-  // vazio, o quadro saia da tela e voltava lido do zero a cada movimento.
+  // vazio, o quadro saia da tela e voltava lido do zero a cada movimento. Os filtros
+  // entram pela referencia, e trocar de filtro tambem rele sem sair da tela.
+  const filtrosDaContagem = useRef<{ aplicados: typeof filtros.applied; ligado: boolean }>({
+    aplicados: filtros.applied,
+    ligado: comFiltro,
+  })
+  filtrosDaContagem.current = { aplicados: filtros.applied, ligado: comFiltro }
   const {
     data: contagensLidas,
     failed: contagensFalharam,
@@ -127,7 +146,12 @@ export function ReportsScreen() {
     useCallback(
       async () => ({
         projeto: project.PublicId,
-        linhas: await projectReportService.listReportCounts(project.PublicId),
+        linhas: filtrosDaContagem.current.ligado
+          ? await projectReportService.listReportCounts(
+              project.PublicId,
+              filtrosDaContagem.current.aplicados,
+            )
+          : await projectReportService.listReportCounts(project.PublicId),
       }),
       [project.PublicId],
     ),
@@ -162,7 +186,23 @@ export function ReportsScreen() {
     },
     [destacar, anunciar],
   )
-  const board = useBoard(project.PublicId, colunasDoQuadro, quadro, acender)
+  const board = useBoard(
+    project.PublicId,
+    colunasDoQuadro,
+    quadro,
+    acender,
+    filtros.applied,
+    comFiltro ? filtros.key : '',
+  )
+
+  // O filtro mudou: a contagem das colunas e relida, sem tirar o quadro da tela.
+  const chaveDaContagem = comFiltro ? filtros.key : ''
+  const contagemLida = useRef(chaveDaContagem)
+  useEffect(() => {
+    if (contagemLida.current === chaveDaContagem) return
+    contagemLida.current = chaveDaContagem
+    renovarContagens()
+  }, [chaveDaContagem, renovarContagens])
 
   // ─── O tempo real ──────────────────────────────────────────────────────────
   // O que outra pessoa muda chega como aviso, so com os identificadores, e cada parte
@@ -299,7 +339,9 @@ export function ReportsScreen() {
 
           {reports?.length === 0 && (
             <div className="max-w-170">
-              {arquivados ? (
+              {comFiltro ? (
+                <SemCardNoFiltro arquivados={arquivados} aoLimpar={filtros.clear} />
+              ) : arquivados ? (
                 <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
                   <p className="text-detail text-fg-muted leading-relaxed">
                     Nenhum card arquivado. O que sai da tela de Trabalho aparece aqui.
@@ -366,6 +408,14 @@ export function ReportsScreen() {
       ) : (
         <Abas vista={vista} painel={painel} aoEscolher={setVista} />
       )}
+
+      <WorkFilterBar
+        projectPublicId={project.PublicId}
+        filters={filtros.filters}
+        active={filtros.active}
+        onChange={filtros.setFilters}
+        onClear={filtros.clear}
+      />
 
       {/* A barra de ferramentas. O recorte por coluna e so da lista: no quadro, cada
           coluna ja esta na tela, e no lugar dele fica como arrastar — no celular, o
@@ -582,6 +632,22 @@ function nomeDaColuna(
     (item) => (item.StatePublicId ?? WITHOUT_STATE_FILTER) === filtro,
   )
   return achada?.StateName ?? null
+}
+
+/**
+ * Nada passa nos filtros. Diz isso, e nao "nenhum card ainda": os cards existem, e a
+ * saida e um clique.
+ */
+function SemCardNoFiltro({ arquivados, aoLimpar }: { arquivados: boolean; aoLimpar: () => void }) {
+  return (
+    <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
+      <p className="mb-3.5 text-detail text-fg-muted leading-relaxed">
+        {arquivados ? 'Nenhum card arquivado passa nos filtros.' : 'Nenhum card passa nos filtros.'}{' '}
+        Os outros continuam onde estão.
+      </p>
+      <Button onClick={aoLimpar}>Limpar filtros</Button>
+    </div>
+  )
 }
 
 /**

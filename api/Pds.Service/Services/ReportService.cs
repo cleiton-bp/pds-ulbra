@@ -958,11 +958,12 @@ public partial class ReportService : IReportService
             : new ReportInfoRequestViewModel(
                 request.AskedByUser?.Name, request.AskedAt, request.WarnAt, request.CloseAt);
 
-    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, CancellationToken cancellationToken = default)
+    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
         var ordem = ResolveOrder(order);
         var filter = await ResolveStateFilterAsync(project.Id, state, cancellationToken);
+        var cards = await ResolveCardFilterAsync(project, filters, cancellationToken);
         var depois = after is Guid referencia
             ? await ResolveAfterAsync(project.Id, referencia, filter, archived, ordem, cancellationToken)
             : (BoardSpot?)null;
@@ -971,7 +972,7 @@ public partial class ReportService : IReportService
         var size = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
         var current = Math.Max(page, 1);
 
-        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, filter, archived, desde, cancellationToken);
+        var total = await _unitOfWork.Reports.CountByProjectAsync(project.Id, filter, archived, desde, cards, cancellationToken);
 
         // Em long porque o produto estoura o int muito antes de estourar a tabela:
         // pagina 200 milhoes vezes 20 nao existe como pergunta, mas chega como
@@ -984,7 +985,7 @@ public partial class ReportService : IReportService
         if (skip >= total)
             return new ReportPageViewModel([], total);
 
-        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cancellationToken);
+        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cards, cancellationToken);
 
         var time = await TeamIdsForAsync(reports, cancellationToken);
         var faces = await _unitOfWork.Reports.CountFacesAsync(reports.Select(report => report.Id).ToList(), cancellationToken);
@@ -2712,7 +2713,8 @@ public partial class ReportService : IReportService
         report.DueDate,
         face.Comments,
         face.Attachments,
-        face.Closed);
+        face.Closed,
+        face.Finished);
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2743,10 +2745,11 @@ public partial class ReportService : IReportService
         => await _unitOfWork.Projects.GetByPublicIdAsync(publicId, cancellationToken)
            ?? throw new KeyNotFoundException("Projeto nao encontrado.");
 
-    public async Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ReportStateCountViewModel>> CountByStateAsync(Guid projectPublicId, ReportFilterDto? filters = null, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
-        var counts = await _unitOfWork.Reports.CountByStateAsync(project.Id, cancellationToken);
+        var cards = await ResolveCardFilterAsync(project, filters, cancellationToken);
+        var counts = await _unitOfWork.Reports.CountByStateAsync(project.Id, cards, cancellationToken);
 
         // Qual coluna encerra vem da **mesma pergunta** que o movimento faz, e nao
         // de contar a lista de tras para a frente: a lista traz as aposentadas
@@ -2827,7 +2830,8 @@ public partial class ReportService : IReportService
         report.DueDate,
         face.Comments,
         face.Attachments,
-        face.Closed);
+        face.Closed,
+        face.Finished);
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem
