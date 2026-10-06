@@ -92,6 +92,9 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     Parent: null,
     SubtaskCount: 0,
     SubtasksDone: 0,
+    BlockedBy: [],
+    DuplicateOf: null,
+    DuplicateReporters: 0,
     ...extra,
   }
 }

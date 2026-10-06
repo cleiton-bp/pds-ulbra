@@ -18,6 +18,7 @@ import {
   DetailsBox,
 } from '@/features/reports/CardDetailLayout'
 import { CardFields } from '@/features/reports/CardFields'
+import { CardLinks } from '@/features/reports/CardLinks'
 import { CardSubtasks, ParentLink } from '@/features/reports/CardSubtasks'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
@@ -448,6 +449,25 @@ export function ReportDialog({
     />
   )
 
+  /**
+   * Os vinculos do card aberto. Marcar como duplicado pode levar este card para o
+   * arquivo, e desfazer pode trazer de volta: o card e relido sem gravar leitura.
+   */
+  const vinculos = (card: ReportSummaryViewModel) => (
+    <CardLinks
+      projectPublicId={projectPublicId}
+      card={card}
+      colunas={colunas}
+      versao={versao}
+      aoMudar={() => {
+        projectReportService
+          .refreshReport(projectPublicId, reportPublicId)
+          .then(receber)
+          .catch(() => {})
+      }}
+    />
+  )
+
   /** A resposta de uma acao que devolve o card aberto: tudo na tela passa a ela. */
   function receber(aberto: ReportDetailViewModel) {
     acoes.current += 1
@@ -540,7 +560,12 @@ export function ReportDialog({
           aoSalvo={receber}
           aoComentar={() => setVersao((n) => n + 1)}
           antes={atual.Parent ? <ParentLink parent={atual.Parent} /> : null}
-          depois={atual.Parent ? null : subtarefas(atual)}
+          depois={
+            <>
+              {atual.Parent ? null : subtarefas(atual)}
+              {vinculos(atual)}
+            </>
+          }
         />
       )}
 
@@ -583,6 +608,7 @@ export function ReportDialog({
               {fechamento && <Encerramento fechamento={fechamento} />}
 
               {subtarefas(atual ?? report)}
+              {vinculos(atual ?? report)}
             </>
           }
           lado={
@@ -765,7 +791,9 @@ export function ReportDialog({
                   )}
                   <p className="mt-1.5 text-caption text-fg-muted leading-normal">
                     {arquivado
-                      ? 'Arquivado: dá para ler e comentar entre o time. Para mover ou escrever a quem relatou, desarquive.'
+                      ? atual?.DuplicateOf
+                        ? `Duplicado de #${atual.DuplicateOf.Number}: quem relatou acompanha o original. Desarquivar desfaz o vínculo, e o relato volta a andar sozinho.`
+                        : 'Arquivado: dá para ler e comentar entre o time. Para mover ou escrever a quem relatou, desarquive.'
                       : fechamento === null
                         ? 'Arquivar encerra o relato com um motivo, que quem relatou lê e a partir do qual pode reabrir ou finalizar.'
                         : 'Quem relatou já recebeu o motivo do encerramento. Arquivar só tira o relato da tela de Trabalho.'}
@@ -811,6 +839,7 @@ export function ReportDialog({
         <CloseReportDialog
           coluna={null}
           arquivando
+          maisLeitores={atual?.DuplicateReporters ?? 0}
           encerrando={mexendoNoArquivo}
           aoConfirmar={(outcome, reason) =>
             void mudarArquivo(true, { Outcome: outcome, Reason: reason })
@@ -833,6 +862,7 @@ export function ReportDialog({
       {encerrando && (
         <CloseReportDialog
           coluna={encerrando.nome}
+          maisLeitores={atual?.DuplicateReporters ?? 0}
           encerrando={movendo}
           aoConfirmar={(outcome, reason) => {
             // Um diálogo, duas rotas. Com coluna de destino é o movimento que

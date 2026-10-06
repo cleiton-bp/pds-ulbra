@@ -140,6 +140,18 @@ public interface IReportService
     /// </summary>
     Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default);
 
+    /// <summary>Os vinculos do card, vistos dele, na ordem em que foram feitos.</summary>
+    Task<IReadOnlyList<CardLinkViewModel>> ListLinksAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Vincula o card a outro do mesmo projeto. Marcar como duplicado leva o duplicado
+    /// para o arquivo, e o relato duplicado passa a acompanhar o original.
+    /// </summary>
+    Task<IReadOnlyList<CardLinkViewModel>> LinkAsync(Guid projectPublicId, Guid reportPublicId, CreateCardLinkDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Desfaz um vinculo do card. O duplicado volta do arquivo.</summary>
+    Task<IReadOnlyList<CardLinkViewModel>> UnlinkAsync(Guid projectPublicId, Guid reportPublicId, Guid linkPublicId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// O titulo que o time da ao relato. Vazio volta ao que quem relatou escreveu, que
     /// nunca se perde. O card do time e recusado: la o titulo vai com a descricao.

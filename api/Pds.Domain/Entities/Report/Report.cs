@@ -78,6 +78,24 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const long BoardRankGap = 1L << 20;
 
+    /// <summary>Quanto do texto vira titulo, quando o card nao tem titulo.</summary>
+    public const int HeadlineExcerptLength = 140;
+
+    /// <summary>
+    /// O titulo de um card como a tela o mostra: o do time, senao o de quem relatou,
+    /// senao o comeco do texto. Estatico porque as listas leem so as tres colunas.
+    /// </summary>
+    public static string HeadlineOf(string? title, string? reporterTitle, string? text)
+    {
+        if (!string.IsNullOrWhiteSpace(title))
+            return title;
+        if (!string.IsNullOrWhiteSpace(reporterTitle))
+            return reporterTitle;
+
+        var corrido = string.Join(' ', (text ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return corrido.Length <= HeadlineExcerptLength ? corrido : $"{corrido[..HeadlineExcerptLength].TrimEnd()}…";
+    }
+
     /// <summary>
     /// Teto da descricao do card do time, em Markdown. Maior que o texto do relato:
     /// e o time descrevendo o proprio trabalho, com lista e trecho de codigo.

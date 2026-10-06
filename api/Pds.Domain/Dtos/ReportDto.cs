@@ -400,7 +400,7 @@ public class CreateTeamCardDto
     /// <summary>
     /// Em que estado o card nasce. Ausente, o primeiro estado ativo do projeto — ou
     /// nenhum, se o projeto ainda nao tem estado. Na subtarefa, nao vai: ela nasce no
-    /// primeiro, como no Jira.
+    /// primeiro, que e o comeco do trabalho.
     /// </summary>
     public Guid? StatePublicId { get; set; }
 

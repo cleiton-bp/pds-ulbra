@@ -143,6 +143,35 @@ const DESCRICOES: Record<ReportEventType, string> = {
   CardPriorityChanged: 'Mudou a prioridade',
   CardLabelsChanged: 'Mudou as etiquetas',
   CardDueDateChanged: 'Mudou o prazo',
+  CardLinked: 'Ganhou um vínculo',
+  CardUnlinked: 'Perdeu um vínculo',
+}
+
+/**
+ * O vinculo na linha do tempo, visto deste card: o tipo vem do evento, e o numero e o
+ * do outro card. Tipo que esta versao nao conhece cai na frase geral.
+ */
+const VINCULOS: Record<string, { ganhou: (n: string) => string; perdeu: (n: string) => string }> = {
+  duplicate_of: {
+    ganhou: (n) => `Marcado como duplicado de #${n}`,
+    perdeu: (n) => `Deixou de ser duplicado de #${n}`,
+  },
+  duplicated_by: {
+    ganhou: (n) => `#${n} marcado como duplicado deste`,
+    perdeu: (n) => `#${n} deixou de ser duplicado deste`,
+  },
+  blocks: {
+    ganhou: (n) => `Passou a bloquear #${n}`,
+    perdeu: (n) => `Deixou de bloquear #${n}`,
+  },
+  blocked_by: {
+    ganhou: (n) => `Bloqueado por #${n}`,
+    perdeu: (n) => `Deixou de ser bloqueado por #${n}`,
+  },
+  relates_to: {
+    ganhou: (n) => `Relacionado a #${n}`,
+    perdeu: (n) => `Deixou de estar relacionado a #${n}`,
+  },
 }
 
 /**
@@ -189,6 +218,12 @@ function descreverCampo(entrada: ReportHistoryEntryViewModel): string | null {
       return entrada.To ? `Prioridade: ${entrada.To}` : 'Ficou sem prioridade'
     case 'CardDueDateChanged':
       return entrada.To ? `Prazo: ${formatDay(entrada.To)}` : 'Ficou sem prazo'
+    case 'CardLinked':
+    case 'CardUnlinked': {
+      const frases = entrada.From ? VINCULOS[entrada.From] : undefined
+      if (!frases || !entrada.To) return null
+      return entrada.Type === 'CardLinked' ? frases.ganhou(entrada.To) : frases.perdeu(entrada.To)
+    }
     case 'CardLabelsChanged': {
       const mudancas = [
         ...entrada.Added.map((nome) => `+ ${nome}`),

@@ -1,4 +1,5 @@
 import type {
+  CardLinkViewModel,
   InternalCommentViewModel,
   ModerationItemViewModel,
   ModerationQueueViewModel,
@@ -9,7 +10,7 @@ import type {
   ReportStateCountViewModel,
   ReportSummaryViewModel,
 } from '@/contracts'
-import { apiGet, apiGetPage, apiPost, apiPut } from '@/data/api/httpClient'
+import { apiDelete, apiGet, apiGetPage, apiPost, apiPut } from '@/data/api/httpClient'
 import type { ProjectReportService, ReportFilters } from '@/data/projectReportService'
 
 /**
@@ -72,6 +73,17 @@ export const apiProjectReportService: ProjectReportService = {
     apiPut<ReportDetailViewModel>(
       `/projects/${publicId}/reports/${reportPublicId}/archive`,
       request,
+    ),
+
+  listLinks: (publicId, reportPublicId) =>
+    apiGet<CardLinkViewModel[]>(`/projects/${publicId}/reports/${reportPublicId}/links`),
+
+  link: (publicId, reportPublicId, request) =>
+    apiPost<CardLinkViewModel[]>(`/projects/${publicId}/reports/${reportPublicId}/links`, request),
+
+  unlink: (publicId, reportPublicId, linkPublicId) =>
+    apiDelete<CardLinkViewModel[]>(
+      `/projects/${publicId}/reports/${reportPublicId}/links/${linkPublicId}`,
     ),
 
   setTitle: (publicId, reportPublicId, request) =>

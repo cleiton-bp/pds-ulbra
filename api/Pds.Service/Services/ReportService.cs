@@ -434,6 +434,9 @@ public partial class ReportService : IReportService
         fechamento.ReopenComment = comentario.Length > 0 ? comentario : null;
         _unitOfWork.ReportClosures.Update(fechamento);
 
+        // Os duplicados que receberam este encerramento voltam a esperar o proximo.
+        await WithdrawCopiedClosuresAsync(project, report, fechamento, EventSourceEnum.PublicPage, null, cancellationToken);
+
         var origem = report.ProjectState;
 
         await _unitOfWork.Events.AddAsync(new Event
@@ -499,11 +502,13 @@ public partial class ReportService : IReportService
                 mapa, etapas, cancellationToken, reopening: true);
         }
 
-        await UnarchiveFromOutsideAsync(report, "reopened", cancellationToken);
+        var voltaram = await UnarchiveFromOutsideAsync(report, "reopened", cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
         await _notifier.CardChangedAsync(report.PublicId);
+        foreach (var subtarefa in voltaram ?? [])
+            await _notifier.CardChangedAsync(subtarefa);
 
         return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
@@ -517,26 +522,22 @@ public partial class ReportService : IReportService
     /// ainda nao acabou — e isso nao pode cair num lugar que o time nao olha. A
     /// origem <c>public_page</c> diz no historico que quem trouxe de volta foi ela.</para>
     ///
-    /// <para>Devolve se desarquivou.</para>
+    /// <para>Devolve as subtarefas que voltaram junto — quem chama avisa o painel
+    /// delas depois de gravar —, ou nulo quando o card nao estava no arquivo.</para>
     /// </summary>
-    private async Task<bool> UnarchiveFromOutsideAsync(Report report, string motivo, CancellationToken cancellationToken)
+    private async Task<List<Guid>?> UnarchiveFromOutsideAsync(Report report, string motivo, CancellationToken cancellationToken)
     {
+        // O duplicado que volta deixa de ser duplicado: ver o metodo.
+        await DetachDuplicateFromOutsideAsync(report, cancellationToken);
+
         if (report.ArchivedAt is null)
-            return false;
+            return null;
 
-        report.ArchivedAt = null;
+        // As subtarefas que foram com ele voltam junto, como na volta pelo painel.
+        var subtarefas = await SetArchivedWithSubtasksAsync(
+            report.Project, report, arquivar: false, EventSourceEnum.PublicPage, new { because = motivo }, cancellationToken);
 
-        await _unitOfWork.Events.AddAsync(new Event
-        {
-            AccountId = report.AccountId,
-            ProjectId = report.ProjectId,
-            ReportId = report.Id,
-            Type = EventTypeEnum.CardUnarchived,
-            Source = EventSourceEnum.PublicPage,
-            Payload = JsonSerializer.Serialize(new { because = motivo }),
-        }, cancellationToken);
-
-        return true;
+        return subtarefas.Select(subtarefa => subtarefa.PublicId).ToList();
     }
 
     /// <summary>
@@ -841,11 +842,14 @@ public partial class ReportService : IReportService
         }, cancellationToken);
 
         // Desarquivado pela resposta dela, volta ao quadro pelo topo, como o reaberto.
-        if (await UnarchiveFromOutsideAsync(report, "replied", cancellationToken))
+        var voltaram = await UnarchiveFromOutsideAsync(report, "replied", cancellationToken);
+        if (voltaram is not null)
             await PutOnTopAsync(report, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
         await _notifier.CardChangedAsync(report.PublicId);
+        foreach (var subtarefa in voltaram ?? [])
+            await _notifier.CardChangedAsync(subtarefa);
 
         // **A mensagem agendada nao e cancelada**, e nao precisa: ao chegar, ela nao
         // vai encontrar pedido aberto e se descarta. A mesma propriedade da espera.
@@ -1070,7 +1074,8 @@ public partial class ReportService : IReportService
         var titulo = RequireTitle(dto.Title);
         var descricao = NormalizeDescription(dto.Description);
         var pai = await ResolveParentAsync(project.Id, dto, cancellationToken);
-        // A subtarefa nasce no primeiro estado, como no Jira — e sem responsavel.
+        // A subtarefa nasce no primeiro estado, o comeco do trabalho — e sem responsavel:
+        // quem a pega e quem a faz.
         var estado = await ResolveTeamCardStateAsync(project.Id, pai is null ? dto.StatePublicId : null, cancellationToken);
         var autorId = _accountContext.UserId ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
 
@@ -1194,8 +1199,8 @@ public partial class ReportService : IReportService
 
     /// <summary>
     /// O pai da subtarefa que vai nascer. Tem de ser do projeto, estar fora do arquivo e
-    /// nao ser subtarefa — um nivel so, como no Jira. Com pai, a coluna nao se escolhe:
-    /// a subtarefa nasce na primeira.
+    /// nao ser subtarefa — um nivel so: mais fundo, o pai deixa de mostrar o que falta.
+    /// Com pai, a coluna nao se escolhe: a subtarefa nasce na primeira.
     /// </summary>
     private async Task<Report?> ResolveParentAsync(long projectId, CreateTeamCardDto dto, CancellationToken cancellationToken)
     {
@@ -1203,7 +1208,7 @@ public partial class ReportService : IReportService
             return null;
 
         if (dto.StatePublicId is not null)
-            throw new ArgumentException("A subtarefa nasce na primeira coluna, como no Jira: nao escolha a coluna.");
+            throw new ArgumentException("A subtarefa nasce na primeira coluna: nao escolha a coluna.");
 
         var pai = await _unitOfWork.Reports.FindParentAsync(projectId, paiPublicId, cancellationToken)
                   ?? throw new KeyNotFoundException("O card pai nao foi encontrado neste projeto.");
@@ -1280,37 +1285,29 @@ public partial class ReportService : IReportService
             await RegisterClosureAsync(project, report, dto.Outcome.Value, motivo, DateTime.UtcNow, cancellationToken);
         }
 
+        // **Desarquivar o duplicado desfaz o vinculo**: de volta ao quadro, ele deixa de
+        // ser duplicado. O original fica sabendo pelo evento dele.
+        Guid? original = null;
+        if (!arquivar && await _unitOfWork.CardLinks.FindOriginalLinkWithoutSessionAsync(report.Id, cancellationToken) is { } vinculo)
+        {
+            await _unitOfWork.CardLinks.SoftDeleteAsync(vinculo, cancellationToken);
+            await AddLinkEventAsync(project, report, EventTypeEnum.CardUnlinked, "duplicate_of", vinculo.ToReport, EventSourceEnum.Panel, cancellationToken);
+            await AddLinkEventAsync(project, vinculo.ToReport, EventTypeEnum.CardUnlinked, "duplicated_by", report, EventSourceEnum.Panel, cancellationToken);
+            original = vinculo.ToReport.PublicId;
+        }
+
         // **As subtarefas vao junto, e voltam junto** — com o mesmo instante no arquivo.
         // E ele que separa, na volta, as que foram com o pai das que ja estavam la.
-        var agora = DateTime.UtcNow;
-        var subtarefas = await _unitOfWork.Reports.ListSubtasksArchivedAtAsync(
-            report.Id, arquivar ? null : report.ArchivedAt, cancellationToken);
-        report.ArchivedAt = arquivar ? agora : null;
-
-        foreach (var card in subtarefas.Prepend(report))
-        {
-            if (!ReferenceEquals(card, report))
-                card.ArchivedAt = report.ArchivedAt;
-
-            await _unitOfWork.Events.AddAsync(new Event
-            {
-                AccountId = project.AccountId,
-                ProjectId = project.Id,
-                ReportId = card.Id,
-                UserId = _accountContext.UserId,
-                Type = arquivar ? EventTypeEnum.CardArchived : EventTypeEnum.CardUnarchived,
-                Source = EventSourceEnum.Panel,
-                Payload = ReferenceEquals(card, report)
-                    ? JsonSerializer.Serialize(new { closed = encerra })
-                    : JsonSerializer.Serialize(new { closed = false, with_parent = report.Number }),
-            }, cancellationToken);
-        }
+        var subtarefas = await SetArchivedWithSubtasksAsync(
+            project, report, arquivar, EventSourceEnum.Panel, new { closed = encerra }, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
         await _notifier.CardChangedAsync(report.PublicId);
         foreach (var subtarefa in subtarefas)
             await _notifier.CardChangedAsync(subtarefa.PublicId);
+        if (original is Guid doOriginal)
+            await _notifier.CardChangedAsync(doOriginal);
 
         return await DetailOfAsync(report, regras, cancellationToken);
     }
@@ -1863,6 +1860,9 @@ public partial class ReportService : IReportService
 
         await _unitOfWork.ReportClosures.AddAsync(fechamento, cancellationToken);
 
+        // Os relatos duplicados deste recebem o mesmo desfecho e o mesmo motivo.
+        await CopyClosureToDuplicatesAsync(project, report, fechamento, cancellationToken);
+
         return fechamento;
     }
 
@@ -1905,6 +1905,8 @@ public partial class ReportService : IReportService
         }, cancellationToken);
 
         await _unitOfWork.ReportClosures.SoftDeleteAsync(fechamento, cancellationToken);
+
+        await WithdrawCopiedClosuresAsync(project, report, fechamento, EventSourceEnum.Panel, _accountContext.UserId, cancellationToken);
     }
 
     /// <summary>
@@ -2253,6 +2255,9 @@ public partial class ReportService : IReportService
 
         report.ProjectPublicStageId = etapaDestino.Id;
         report.ProjectPublicStage = etapaDestino;
+
+        // E os relatos duplicados deste andam com ele: quem os escreveu acompanha o original.
+        await FollowStageOfDuplicatesAsync(project, report, etapaDestino, etapaPorId, source, userId, cancellationToken);
 
         // **Sem `Update` aqui, e isso nao e economia.** Este metodo roda nos dois
         // momentos, e num deles o relato ainda nao existe no banco: quando ele
@@ -2768,7 +2773,10 @@ public partial class ReportService : IReportService
         face.Finished,
         face.Parent is { } pai ? new CardParentViewModel(pai.PublicId, pai.Number, pai.Headline) : null,
         face.Subtasks,
-        face.SubtasksDone);
+        face.SubtasksDone,
+        face.BlockedBy,
+        face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
+        face.DuplicateReporters);
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2888,7 +2896,10 @@ public partial class ReportService : IReportService
         face.Finished,
         face.Parent is { } pai ? new CardParentViewModel(pai.PublicId, pai.Number, pai.Headline) : null,
         face.Subtasks,
-        face.SubtasksDone);
+        face.SubtasksDone,
+        face.BlockedBy,
+        face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
+        face.DuplicateReporters);
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem

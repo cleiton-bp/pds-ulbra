@@ -1,5 +1,6 @@
 import type { ReportSummaryViewModel } from '@/contracts'
 import {
+  BlockedMark,
   CardTypeIcon,
   cardHeadline,
   MoreLabels,
@@ -75,6 +76,8 @@ export function BoardCardFace({
           {restantes > 0 && <MoreLabels labels={card.Labels.slice(visiveis.length)} />}
         </div>
       )}
+
+      <BlockedMark card={card} className="mt-2" />
 
       {card.DueDate && (
         <div className="mt-2 text-caption text-fg-muted">

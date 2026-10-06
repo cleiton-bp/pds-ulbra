@@ -178,7 +178,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 .ToListAsync(cancellationToken))
             .ToDictionary(
                 row => row.Id,
-                row => new CardParent(row.Pai, row.Number, Titulo(row.Title, row.ReporterTitle, row.Text)));
+                row => new CardParent(row.Pai, row.Number, Report.HeadlineOf(row.Title, row.ReporterTitle, row.Text)));
 
         // O progresso de quem e pai: as subtarefas fora do arquivo, e as que terminaram
         // — pela mesma regra do "terminou".
@@ -200,6 +200,55 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 .Select(group => new { group.Key, Total = group.Count() })
                 .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
 
+        // Quem bloqueia: o que ainda nao terminou e continua no trabalho. O que terminou,
+        // ou saiu para o arquivo, deixa de bloquear — pela mesma regra do "terminou".
+        var bloqueios = await Context.CardLinks
+            .Where(link => link.Type == CardLinkTypeEnum.Blocks
+                           && reportIds.Contains(link.ToReportId)
+                           && link.FromReport.ArchivedAt == null)
+            .Select(link => new { link.ToReportId, link.FromReportId, link.FromReport.Number })
+            .ToListAsync(cancellationToken);
+        var bloqueadores = bloqueios.Select(row => row.FromReportId).Distinct().ToList();
+        var bloqueadoresTerminados = bloqueadores.Count == 0
+            ? []
+            : (await Context.Reports
+                    .Where(report => bloqueadores.Contains(report.Id))
+                    .Where(Terminado())
+                    .Select(report => report.Id)
+                    .ToListAsync(cancellationToken))
+                .ToHashSet();
+        var bloqueadoPor = bloqueios
+            .Where(row => !bloqueadoresTerminados.Contains(row.FromReportId))
+            .GroupBy(row => row.ToReportId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<int>)group.Select(row => row.Number).Order().ToList());
+
+        // O original de quem e duplicado, como o pai de quem e subtarefa.
+        var originais = (await Context.CardLinks
+                .Where(link => link.Type == CardLinkTypeEnum.DuplicateOf && reportIds.Contains(link.FromReportId))
+                .Select(link => new
+                {
+                    link.FromReportId,
+                    Original = link.ToReport.PublicId,
+                    link.ToReport.Number,
+                    link.ToReport.Title,
+                    link.ToReport.ReporterTitle,
+                    link.ToReport.Text,
+                })
+                .ToListAsync(cancellationToken))
+            .ToDictionary(
+                row => row.FromReportId,
+                row => new CardParent(row.Original, row.Number, Report.HeadlineOf(row.Title, row.ReporterTitle, row.Text)));
+
+        // Quantas pessoas a mais leem o desfecho: os relatos duplicados sem encerramento valendo.
+        var leitores = await Context.CardLinks
+            .Where(link => link.Type == CardLinkTypeEnum.DuplicateOf
+                           && reportIds.Contains(link.ToReportId)
+                           && link.FromReport.Kind == CardKindEnum.Report
+                           && !Context.ReportClosures.Any(closure => closure.ReportId == link.FromReportId && closure.ReopenedAt == null))
+            .GroupBy(link => link.ToReportId)
+            .Select(group => new { group.Key, Total = group.Count() })
+            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
+
         return reportIds.Distinct().ToDictionary(
             id => id,
             id => new CardFace(
@@ -209,33 +258,35 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 terminados.Contains(id),
                 pais.GetValueOrDefault(id),
                 subtarefas.GetValueOrDefault(id),
-                feitas.GetValueOrDefault(id)));
+                feitas.GetValueOrDefault(id),
+                bloqueadoPor.GetValueOrDefault(id) ?? [],
+                originais.GetValueOrDefault(id),
+                leitores.GetValueOrDefault(id)));
     }
-
-    /// <summary>
-    /// O titulo de um card como a tela o mostra: o do time, senao o de quem relatou,
-    /// senao o comeco do texto.
-    /// </summary>
-    private static string Titulo(string? titulo, string? deQuemRelatou, string? texto)
-    {
-        if (!string.IsNullOrWhiteSpace(titulo))
-            return titulo;
-        if (!string.IsNullOrWhiteSpace(deQuemRelatou))
-            return deQuemRelatou;
-
-        var corrido = string.Join(' ', (texto ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        return corrido.Length <= TrechoDoTitulo ? corrido : $"{corrido[..TrechoDoTitulo].TrimEnd()}…";
-    }
-
-    /// <summary>Quanto do texto vira titulo, quando o card nao tem titulo.</summary>
-    private const int TrechoDoTitulo = 140;
 
     public Task<List<Report>> ListSubtasksArchivedAtAsync(long parentId, DateTime? archivedAt, CancellationToken cancellationToken = default)
         // Rastreadas: quem chama muda o arquivo delas. O instante exato e o que separa
         // as que foram com o pai das que ja estavam no arquivo antes.
+        //
+        // Sem o filtro global, com a exclusao reescrita a mao: o pai tambem volta do
+        // arquivo pela pagina de acompanhamento, sem sessao — e quem chega aqui ja
+        // provou que pode mexer no pai.
         => Context.Reports
-            .Where(report => report.ParentReportId == parentId && report.ArchivedAt == archivedAt)
+            .IgnoreQueryFilters()
+            .Where(report => report.ParentReportId == parentId
+                             && report.DeletedAt == null
+                             && report.ArchivedAt == archivedAt)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlySet<long>> ListFinishedAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default)
+        => reportIds.Count == 0
+            ? new HashSet<long>()
+            : (await Context.Reports
+                    .Where(report => reportIds.Contains(report.Id))
+                    .Where(Terminado())
+                    .Select(report => report.Id)
+                    .ToListAsync(cancellationToken))
+                .ToHashSet();
 
     public Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default)
         // Pelo filtro global: o card de outro projeto, ou apagado, nao existe aqui.
@@ -396,7 +447,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
 
         if (filtro.OverdueOn is DateOnly dia)
         {
-            // Como o vencido do Jira: o prazo passou e o card ainda nao terminou.
+            // Vencido e o que esta atrasado: o prazo passou e o card ainda nao terminou.
             var terminado = Terminado();
             var aberto = Expression.Lambda<Func<Report, bool>>(Expression.Not(terminado.Body), terminado.Parameters);
             cards = cards.Where(report => report.DueDate != null && report.DueDate < dia).Where(aberto);

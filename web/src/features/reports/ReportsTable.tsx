@@ -2,6 +2,7 @@ import { type MouseEvent, useRef } from 'react'
 import { Link, useHref, useNavigate } from 'react-router-dom'
 import type { ReportStateCountViewModel, ReportSummaryViewModel } from '@/contracts'
 import {
+  BlockedMark,
   CardTypeIcon,
   cardHeadline,
   MoreLabels,
@@ -156,6 +157,14 @@ function Linha({
             coluna do card no celular, e o prazo vencido ou perto ate a tela larga. */}
         <span className="flex flex-wrap items-center gap-x-1.5">
           {report.Parent && <ParentLine parent={report.Parent} className="mt-0.5 max-w-full" />}
+          {report.DuplicateOf && (
+            <ParentLine
+              parent={report.DuplicateOf}
+              prefix="Duplicado de"
+              className="mt-0.5 max-w-full"
+            />
+          )}
+          <BlockedMark card={report} className="mt-1" />
           {report.SubtaskCount > 0 && (
             <span className="mt-0.5 text-caption">
               <SubtaskProgress card={report} />

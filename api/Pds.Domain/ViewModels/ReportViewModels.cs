@@ -117,6 +117,15 @@ public record CreatedReportViewModel(
 /// <param name="Parent">O pai, quando o card e subtarefa: o numero e o titulo dele.</param>
 /// <param name="SubtaskCount">Quantas subtarefas o card tem fora do arquivo.</param>
 /// <param name="SubtasksDone">Delas, quantas terminaram — o progresso do pai (2/5).</param>
+/// <param name="BlockedBy">
+/// Os numeros dos cards que bloqueiam este e ainda nao terminaram, em ordem. Vazio e
+/// card livre. So marca: mover continua livre.
+/// </param>
+/// <param name="DuplicateOf">O original, quando o card e duplicado — e esta no arquivo por isso.</param>
+/// <param name="DuplicateReporters">
+/// Quantos relatos duplicados deste card ainda esperam o desfecho: as pessoas a mais
+/// que leem o motivo quando ele encerra.
+/// </param>
 public record ReportSummaryViewModel(
     Guid PublicId,
     CardKindEnum Kind,
@@ -145,12 +154,15 @@ public record ReportSummaryViewModel(
     bool Finished,
     CardParentViewModel? Parent,
     int SubtaskCount,
-    int SubtasksDone);
+    int SubtasksDone,
+    IReadOnlyList<int> BlockedBy,
+    CardParentViewModel? DuplicateOf,
+    int DuplicateReporters);
 
-/// <summary>O pai de uma subtarefa.</summary>
-/// <param name="PublicId">O identificador do pai.</param>
-/// <param name="Number">O numero do pai (#42).</param>
-/// <param name="Headline">O titulo do pai: o do time, senao o de quem relatou, senao o comeco do texto.</param>
+/// <summary>Outro card, citado por este: o pai da subtarefa, ou o original do duplicado.</summary>
+/// <param name="PublicId">O identificador do card.</param>
+/// <param name="Number">O numero do card (#42).</param>
+/// <param name="Headline">O titulo do card: o do time, senao o de quem relatou, senao o comeco do texto.</param>
 public record CardParentViewModel(Guid PublicId, int Number, string Headline);
 
 /// <summary>
@@ -432,6 +444,9 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <param name="Parent">O pai, quando o card e subtarefa.</param>
 /// <param name="SubtaskCount">Quantas subtarefas o card tem fora do arquivo.</param>
 /// <param name="SubtasksDone">Delas, quantas terminaram.</param>
+/// <param name="BlockedBy">Os numeros dos bloqueadores que nao terminaram — ver o resumo do card.</param>
+/// <param name="DuplicateOf">O original, quando o card e duplicado.</param>
+/// <param name="DuplicateReporters">Quantos relatos duplicados ainda esperam o desfecho deste.</param>
 /// <param name="ArchiveCloses">
 /// Arquivar este relato <b>encerra</b> junto — e por isso pede desfecho e motivo, o
 /// que quem relatou vai ler. Verdadeiro no relato aberto; falso no ja encerrado e
@@ -475,7 +490,10 @@ public record ReportDetailViewModel(
     bool Finished,
     CardParentViewModel? Parent,
     int SubtaskCount,
-    int SubtasksDone);
+    int SubtasksDone,
+    IReadOnlyList<int> BlockedBy,
+    CardParentViewModel? DuplicateOf,
+    int DuplicateReporters);
 
 
 /// <summary>

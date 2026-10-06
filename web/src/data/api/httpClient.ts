@@ -121,6 +121,6 @@ export const apiPut = <T>(path: string, body?: unknown) => request<T>('PUT', pat
 
 export const apiPatch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body)
 
-// A resposta de remocao vem com `Data: null`, e o envelope so carrega a mensagem.
-// Dai o `void`: nao ha o que desembrulhar.
-export const apiDelete = (path: string) => request<void>('DELETE', path)
+// A resposta de remocao costuma vir com `Data: null`, e o envelope so carrega a
+// mensagem — dai o `void` de padrao. A que devolve o que ficou diz o tipo.
+export const apiDelete = <T = void>(path: string) => request<T>('DELETE', path)

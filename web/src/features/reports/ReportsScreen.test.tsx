@@ -95,6 +95,8 @@ vi.mock('@/data', async (importOriginal) => {
       askInfo: dublê.pedir,
       setPosition: dublê.lugar,
       refreshReport: dublê.atualizar,
+      // Os vinculos do card aberto: nenhum, nestes testes.
+      listLinks: vi.fn().mockResolvedValue([]),
     },
     realtimeService: { connectWork: aoVivo.conectar },
     projectReportAttachmentService: { listAttachments: dublê.anexos },
@@ -157,6 +159,9 @@ function relato(
     Parent: null,
     SubtaskCount: 0,
     SubtasksDone: 0,
+    BlockedBy: [],
+    DuplicateOf: null,
+    DuplicateReporters: 0,
     ...extra,
   }
 }

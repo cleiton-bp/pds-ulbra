@@ -60,6 +60,8 @@ vi.mock('@/data', async (importOriginal) => {
       addPublicComment: vi.fn(),
       closeReport: vi.fn(),
       askInfo: vi.fn(),
+      // Os vinculos do card aberto: nenhum, nestes testes.
+      listLinks: vi.fn().mockResolvedValue([]),
     },
     projectReportAttachmentService: { listAttachments: dublê.anexos },
   }
@@ -147,6 +149,9 @@ function cardDoTime(
     Parent: null,
     SubtaskCount: 0,
     SubtasksDone: 0,
+    BlockedBy: [],
+    DuplicateOf: null,
+    DuplicateReporters: 0,
     ...extra,
   }
 }

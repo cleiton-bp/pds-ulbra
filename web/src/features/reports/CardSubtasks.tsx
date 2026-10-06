@@ -36,7 +36,7 @@ export function ParentLink({ parent }: { parent: CardParentViewModel }) {
 /**
  * As subtarefas do card aberto — o relato ou o card do time —, e o "Criar subtarefa".
  *
- * **Um nivel so**, como no Jira: a subtarefa nao tem esta secao. A subtarefa nasce na
+ * **Um nivel so**: a subtarefa nao tem esta secao. A subtarefa nasce na
  * primeira coluna e sem responsavel; daqui ela anda pelo quadro como qualquer card. O
  * progresso conta as que terminaram, pela mesma regra do prazo: relato encerrado, ou
  * card na ultima coluna.

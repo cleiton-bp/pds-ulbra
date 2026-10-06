@@ -319,14 +319,17 @@ export function PersonAvatar({
  */
 export function ParentLine({
   parent,
+  prefix = 'Subtarefa de',
   className,
 }: {
   parent: CardParentViewModel
+  /** O que o outro card e deste: o pai da subtarefa, ou o original do duplicado. */
+  prefix?: string
   className?: string
 }) {
   return (
     <span
-      title={`Subtarefa de #${parent.Number} ${parent.Headline}`}
+      title={`${prefix} #${parent.Number} ${parent.Headline}`}
       className={cn('flex min-w-0 items-center gap-1 text-caption text-fg-muted', className)}
     >
       <svg
@@ -341,7 +344,7 @@ export function ParentLine({
       >
         <path d="M3 2v4.5a1.5 1.5 0 0 0 1.5 1.5H10M7.5 5.5 10 8l-2.5 2.5" />
       </svg>
-      <span className="sr-only">Subtarefa de </span>
+      <span className="sr-only">{prefix} </span>
       <span className="flex-none font-mono">#{parent.Number}</span>{' '}
       <span className="min-w-0 truncate">{parent.Headline}</span>
     </span>
@@ -385,6 +388,48 @@ export function SubtaskProgress({
         {card.SubtasksDone} de {card.SubtaskCount}{' '}
         {card.SubtaskCount === 1 ? 'subtarefa feita' : 'subtarefas feitas'}
       </span>
+    </span>
+  )
+}
+
+/**
+ * O card bloqueado: os numeros de quem o bloqueia e ainda nao terminou. **So marca** —
+ * mover continua livre. Vermelho, com a palavra, para quem nao ve a cor.
+ */
+export function BlockedMark({
+  card,
+  className,
+}: {
+  card: Pick<ReportSummaryViewModel, 'BlockedBy'>
+  className?: string
+}) {
+  if (card.BlockedBy.length === 0) return null
+  const numeros = card.BlockedBy.map((numero) => `#${numero}`)
+  const lista =
+    numeros.length === 1
+      ? numeros[0]
+      : `${numeros.slice(0, -1).join(', ')} e ${numeros[numeros.length - 1]}`
+  return (
+    <span
+      title={`Bloqueado por ${lista}`}
+      className={cn(
+        'inline-flex max-w-full items-center gap-1 rounded-full border border-chip-red-border bg-chip-red-surface px-1.5 py-px text-caption text-chip-red-fg',
+        className,
+      )}
+    >
+      <svg
+        viewBox="0 0 12 12"
+        className="size-3 flex-none"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        aria-hidden
+      >
+        <circle cx="6" cy="6" r="4.25" />
+        <path d="M3 9 9 3" />
+      </svg>
+      <span className="truncate">Bloqueado por {lista}</span>
     </span>
   )
 }

@@ -152,13 +152,56 @@ export const CARD_COLORS = [
 ] as const
 export type CardColor = (typeof CARD_COLORS)[number]
 
-/** O pai de uma subtarefa, como a frente dela o mostra. */
+/** Outro card citado por este: o pai da subtarefa, ou o original do duplicado. */
 export interface CardParentViewModel {
   PublicId: string
-  /** O #42 do pai. */
+  /** O #42 do card. */
   Number: number
-  /** O titulo do pai: o do time, senao o de quem relatou, senao o comeco do texto. */
+  /** O titulo do card: o do time, senao o de quem relatou, senao o comeco do texto. */
   Headline: string
+}
+
+/**
+ * Um vinculo visto do card aberto. O banco guarda a direcao em que vale; a tela le e
+ * escreve pelo card que esta aberto.
+ */
+export const CARD_LINK_RELATIONS = [
+  'DuplicateOf',
+  'DuplicatedBy',
+  'Blocks',
+  'BlockedBy',
+  'RelatesTo',
+] as const
+export type CardLinkRelation = (typeof CARD_LINK_RELATIONS)[number]
+
+/** O outro card de um vinculo. */
+export interface CardLinkCardViewModel {
+  PublicId: string
+  Kind: CardKind
+  Number: number
+  Headline: string
+  StatePublicId: string | null
+  StateName: string | null
+  /** Se terminou, pela mesma regra do prazo: e o que solta o bloqueado. */
+  Finished: boolean
+  ArchivedAt: string | null
+}
+
+/** Um vinculo do card, visto dele. */
+export interface CardLinkViewModel {
+  /** O identificador do vinculo: e o que se manda para desfazer. */
+  PublicId: string
+  Type: CardLinkRelation
+  Card: CardLinkCardViewModel
+}
+
+/**
+ * Vincular o card aberto a outro do projeto. Um vinculo por par de cards; marcar como
+ * duplicado leva o duplicado para o arquivo.
+ */
+export interface CreateCardLinkRequest {
+  Type: CardLinkRelation
+  TargetPublicId: string
 }
 
 /**
@@ -285,6 +328,18 @@ export interface ReportSummaryViewModel {
   SubtaskCount: number
   /** Delas, quantas terminaram — o progresso do pai (2/5). */
   SubtasksDone: number
+  /**
+   * Os numeros dos cards que bloqueiam este e ainda nao terminaram. Vazio e card livre.
+   * So marca: mover continua livre.
+   */
+  BlockedBy: number[]
+  /** O original, quando o card e duplicado — e esta no arquivo por isso. */
+  DuplicateOf: CardParentViewModel | null
+  /**
+   * Quantos relatos duplicados deste ainda esperam o desfecho: as pessoas a mais que
+   * leem o motivo quando ele encerra.
+   */
+  DuplicateReporters: number
 }
 
 /**
@@ -795,6 +850,8 @@ export const REPORT_EVENT_TYPES = [
   'CardPriorityChanged',
   'CardLabelsChanged',
   'CardDueDateChanged',
+  'CardLinked',
+  'CardUnlinked',
 ] as const
 
 /**
