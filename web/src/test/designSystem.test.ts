@@ -199,7 +199,19 @@ describe('nome de cor que nao existe no sistema', () => {
   const NAO_E_COR: Record<string, readonly string[]> = {
     text: ['left', 'center', 'right', 'ellipsis', 'transparent'],
     bg: ['transparent', 'grid'],
-    border: ['transparent', 'dashed', 'separate', 'spacing', 'b', 't', 'l', 'r', 'x', 'y'],
+    border: [
+      'transparent',
+      'dashed',
+      'separate',
+      'collapse',
+      'spacing',
+      'b',
+      't',
+      'l',
+      'r',
+      'x',
+      'y',
+    ],
   }
 
   for (const [prefixo, extras] of Object.entries(NAO_E_COR)) {

@@ -13,6 +13,7 @@ import type {
 import type { ReportListOptions, ReportPage } from '@/data'
 import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
+import { TooltipProvider } from '@/shared/components/Tooltip'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -191,7 +192,13 @@ function montar(publicId = 'p-1', endereco?: string) {
     { initialEntries: [endereco ?? `/p/${publicId}`] },
   )
 
-  render(<RouterProvider router={router} />)
+  // O provedor das dicas, como no app: a coluna que encerra explica o que soltar nela
+  // faz numa dica.
+  render(
+    <TooltipProvider>
+      <RouterProvider router={router} />
+    </TooltipProvider>,
+  )
   return router
 }
 
@@ -233,18 +240,94 @@ describe('ReportsScreen', () => {
     window.localStorage.clear()
   })
 
-  it('mostra o que chegou, com protocolo e pagina de origem', async () => {
+  it('a linha diz o tipo, o numero, o texto e a coluna; protocolo e pagina ficam no card aberto', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
 
     montar()
 
-    expect(await screen.findByText('o botao some')).toBeTruthy()
-    expect(screen.getByText('COD-R-1')).toBeTruthy()
-    expect(screen.getByText('/checkout')).toBeTruthy()
-    expect(screen.getByText('Defeito')).toBeTruthy()
+    const linha = (await screen.findByRole('link', { name: 'o botao some' })).closest('tr')
+    if (!linha) throw new Error('a linha da tabela')
+    expect(within(linha).getByText('Defeito')).toBeTruthy()
+    expect(within(linha).getByText(`#${relato('r-1', '').Number}`)).toBeTruthy()
+    // A coluna aparece na celula do status (e, no celular, embaixo do titulo).
+    expect(within(linha).getAllByText('Análise').length).toBeGreaterThan(0)
+    // A linha e para comparar card com card: o protocolo e a pagina sao do card aberto.
+    expect(within(linha).queryByText('COD-R-1')).toBeNull()
+    expect(within(linha).queryByText('/checkout')).toBeNull()
   })
 
-  it('o titulo do time vem primeiro, e a faixa diz prioridade, etiquetas, quem e o prazo', async () => {
+  it('a tabela nomeia as colunas, e clicar em qualquer ponto da linha abre o card', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-1', 'o botao some'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+
+    montar()
+
+    for (const nome of ['Nº', 'Título', 'Coluna', 'Responsável', 'Prioridade', 'Prazo'])
+      expect(await screen.findByRole('columnheader', { name: nome })).toBeTruthy()
+
+    const linha = screen.getByRole('link', { name: 'o botao some' }).closest('tr')
+    if (!linha) throw new Error('a linha da tabela')
+    fireEvent.click(within(linha).getByText('Defeito'))
+
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(dublê.abrir).toHaveBeenCalledTimes(1)
+  })
+
+  it('selecionar texto na linha nao abre o card; com Ctrl, a linha abre em outra aba', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    const outraAba = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    montar()
+    const linha = (await screen.findByRole('link', { name: 'o botao some' })).closest('tr')
+    if (!linha) throw new Error('a linha da tabela')
+    const numero = within(linha).getByText(`#${relato('r-1', '').Number}`)
+
+    // Quem arrasta para copiar o numero termina com um clique — que nao abre nada.
+    const selecao = window.getSelection()
+    const trecho = document.createRange()
+    trecho.selectNodeContents(numero)
+    selecao?.removeAllRanges()
+    selecao?.addRange(trecho)
+    fireEvent.click(numero)
+    selecao?.removeAllRanges()
+
+    // O Ctrl na linha faz o que faria no link: outra aba, e nada nesta.
+    fireEvent.click(numero, { ctrlKey: true })
+    expect(outraAba).toHaveBeenCalledWith(expect.stringMatching(/\/r-1$/), '_blank', 'noopener')
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(dublê.abrir).not.toHaveBeenCalled()
+    outraAba.mockRestore()
+  })
+
+  it('o prazo vencido nao some com a coluna dele: vem tambem embaixo do titulo', async () => {
+    const ontem = new Date(Date.now() - 86_400_000)
+    const dia = `${ontem.getFullYear()}-${String(ontem.getMonth() + 1).padStart(2, '0')}-${String(ontem.getDate()).padStart(2, '0')}`
+    dublê.listar.mockResolvedValue({
+      reports: [
+        relato('r-1', 'vencido', { DueDate: dia }),
+        relato('r-2', 'com folga', { DueDate: '2099-12-31' }),
+      ],
+      total: 2,
+    })
+
+    montar()
+    await screen.findByRole('link', { name: 'vencido' })
+
+    // Uma na celula do prazo, outra embaixo do titulo (que a tela larga esconde).
+    expect(screen.getAllByText(/venceu ontem/)).toHaveLength(2)
+    // O prazo com folga fica so na coluna dele.
+    expect(screen.getAllByText(/31 de dez\. de 2099/)).toHaveLength(1)
+  })
+
+  it('a linha diz o titulo do time, a prioridade, as etiquetas, quem esta com o card e o prazo', async () => {
     dublê.listar.mockResolvedValue({
       reports: [
         relato('r-1', 'o botao some depois do frete', {
@@ -268,14 +351,18 @@ describe('ReportsScreen', () => {
     montar()
 
     expect(await screen.findByText('Pagamento recusado no celular')).toBeTruthy()
-    // O texto de quem relatou continua na linha; o titulo que ela escreveu, nao —
-    // a linha mostra um titulo so.
-    expect(screen.getByText('o botao some depois do frete')).toBeTruthy()
+    // A linha mostra um titulo so: nem o que ela escreveu como titulo, nem o texto —
+    // os dois estao no card aberto.
     expect(screen.queryByText('O botão sumiu')).toBeNull()
+    expect(screen.queryByText('o botao some depois do frete')).toBeNull()
     expect(screen.getByText('Alta (aposentada)')).toBeTruthy()
-    expect(screen.getByText('+1')).toBeTruthy()
+    // Uma etiqueta e o resto contado.
+    expect(screen.getByText('pagamento')).toBeTruthy()
+    expect(screen.getByText('+3')).toBeTruthy()
     expect(screen.getByText(/Bruno.*saiu do time/)).toBeTruthy()
-    expect(screen.getByText(/Prazo 16/)).toBeTruthy()
+    // O cabecalho da coluna ja diz "Prazo": a data vem sem a palavra.
+    expect(screen.getByText(/^16 de out\./)).toBeTruthy()
+    expect(screen.queryByText(/Prazo 16/)).toBeNull()
   })
 
   it('sem titulo do time, o de quem relatou faz as vezes; sem nenhum, o texto', async () => {
@@ -592,7 +679,7 @@ describe('abrir um relato', () => {
     expect(screen.getByText('Firefox do segundo')).toBeTruthy()
   })
 
-  it('a ficha "Todos" soma as colunas, e não chama a API de novo', async () => {
+  it('"Todas as colunas" soma as colunas, e não chama a API de novo', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'um')], total: 1 })
     dublê.contar.mockResolvedValue([
       contagem('s-1', 'Análise', 12),
@@ -603,8 +690,9 @@ describe('abrir um relato', () => {
     montar()
 
     // 12 + 40 + 3, com um unico relato na tela: contar as linhas que vieram daria 1.
-    expect(await screen.findByRole('button', { name: 'Todos, 55 relatos' })).toBeTruthy()
-    // E "Todos" e a ausencia de recorte, e nao um recorte chamado "todos".
+    const campo = await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
+    await waitFor(() => expect(campo.textContent).toContain('Todas as colunas · 55'))
+    // E "Todas" e a ausencia de recorte, e nao um recorte chamado "todas".
     expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, null, false)
   })
 
@@ -614,7 +702,8 @@ describe('abrir um relato', () => {
 
     montar()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Análise, 12 relatos' }))
+    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 12')
 
     // Página 1 de novo: trocar de coluna é começar uma lista nova, e não
     // acrescentar à que estava na tela.
@@ -631,13 +720,16 @@ describe('abrir um relato', () => {
 
     montar()
 
+    const campo = await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
+    fireEvent.pointerDown(campo, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+
     // Coluna ativa vazia fica: some do filtro no dia em que o último relato dela
     // é movido, e quem olha acharia que ela deixou de existir.
-    expect(await screen.findByRole('button', { name: 'Análise, 0 relatos' })).toBeTruthy()
+    expect(await screen.findByRole('option', { name: 'Análise · 0' })).toBeTruthy()
     // Aposentada e vazia não serve para nada.
-    expect(screen.queryByRole('button', { name: 'Parado (aposentada), 0 relatos' })).toBeNull()
+    expect(screen.queryByRole('option', { name: 'Parado (aposentada) · 0' })).toBeNull()
     // Aposentada com relato fica: é o único caminho até esses relatos.
-    expect(screen.getByRole('button', { name: 'Encerrado (aposentada), 4 relatos' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Encerrado (aposentada) · 4' })).toBeTruthy()
   })
 
   it('os sem coluna viram o recorte "none"', async () => {
@@ -646,7 +738,8 @@ describe('abrir um relato', () => {
 
     montar()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Sem coluna, 3 relatos' }))
+    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Sem coluna · 3')
 
     // A linha sem coluna não tem identificador: a rota espera uma palavra.
     await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 'none', false))
@@ -658,7 +751,8 @@ describe('abrir um relato', () => {
 
     montar()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Análise, 0 relatos' }))
+    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 0')
 
     // O convite para instalar a ferramenta seria mentira duas vezes: sobre o que
     // existe, e sobre o que a pessoa precisa fazer.
@@ -743,7 +837,7 @@ describe('abrir um relato', () => {
     await waitFor(() =>
       expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-2' }),
     )
-    // A contagem muda em duas colunas de uma vez; sem recontar, as fichas
+    // A contagem muda em duas colunas de uma vez; sem recontar, as contagens do filtro
     // passariam a discordar da lista na frente de quem está olhando.
     await waitFor(() => expect(dublê.contar).toHaveBeenCalledTimes(2))
   })
@@ -826,7 +920,8 @@ describe('abrir um relato', () => {
     montar()
 
     // Filtra em Análise, abre o relato de lá e manda ele para Pronto.
-    fireEvent.click(await screen.findByRole('button', { name: 'Análise, 1 relato' }))
+    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
+    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 1')
     fireEvent.click(await screen.findByRole('link', { name: /o botao some/ }))
 
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
@@ -839,7 +934,7 @@ describe('abrir um relato', () => {
     // primeira versão deste teste passava por isso, e não pelo comportamento.
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
 
-    // Deixar o cartão ali mostraria, debaixo do nome de uma coluna, um relato
+    // Deixar a linha ali mostraria, debaixo do nome de uma coluna, um relato
     // que não está mais nela.
     await waitFor(() => expect(screen.queryByRole('link', { name: /o botao some/ })).toBeNull())
   })
@@ -1287,7 +1382,7 @@ describe('a escolha de quem relatou sobre responder dúvidas', () => {
 
   it('quem aceitou não vira etiqueta nenhuma', async () => {
     comEscolha(true)
-    // O relato aparece duas vezes: no cartao da lista e no dialogo aberto por
+    // O relato aparece duas vezes: na linha da tabela e no dialogo aberto por
     // cima dele. Esperar o botao do dialogo e o que garante que ele ja desenhou.
     await screen.findByRole('button', { name: 'Fechar' })
 
@@ -1519,6 +1614,40 @@ describe('o quadro', () => {
     })
   }
 
+  it('as abas trocam pelas setas, o foco vai junto, e so a escolhida e parada do Tab', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 0)])
+    porColuna({ 's-1': [] })
+
+    montar()
+    const lista = await screen.findByRole('tab', { name: 'Lista' })
+    expect(lista.getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(lista, { key: 'ArrowRight' })
+
+    const quadro = screen.getByRole('tab', { name: 'Quadro' })
+    await waitFor(() => expect(quadro.getAttribute('aria-selected')).toBe('true'))
+    expect(document.activeElement).toBe(quadro)
+    expect(lista.getAttribute('tabindex')).toBe('-1')
+    expect(await screen.findByRole('region', { name: 'Análise' })).toBeTruthy()
+
+    // E a seta para o outro lado volta, dando a volta na lista de abas.
+    fireEvent.keyDown(quadro, { key: 'ArrowRight' })
+    await waitFor(() => expect(lista.getAttribute('aria-selected')).toBe('true'))
+  })
+
+  it('"Criar" no pe de uma coluna abre o card novo ja nela', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 0), contagem('s-2', 'Pronto', 0)])
+    porColuna({ 's-1': [], 's-2': [] })
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    const pronto = await screen.findByRole('region', { name: 'Pronto' })
+    fireEvent.click(within(pronto).getByRole('button', { name: 'Criar card em Pronto' }))
+
+    const campo = await screen.findByRole('combobox', { name: 'Coluna' })
+    expect(campo.textContent).toContain('Pronto')
+  })
+
   it('Quadro mostra uma coluna por estado, cada uma lida na ordem do quadro, e a vista fica lembrada no projeto', async () => {
     dublê.contar.mockResolvedValue([
       contagem('s-1', 'Análise', 1),
@@ -1530,7 +1659,7 @@ describe('o quadro', () => {
     })
 
     montar()
-    fireEvent.click(await screen.findByRole('button', { name: 'Quadro' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Quadro' }))
 
     const analise = await screen.findByRole('region', { name: 'Análise' })
     expect(await within(analise).findByText('o botao some')).toBeTruthy()
@@ -1539,13 +1668,14 @@ describe('o quadro', () => {
       order: 'board',
       pageSize: 50,
     })
-    // A coluna que encerra avisa o que soltar nela faz.
+    // A coluna que encerra avisa o que soltar nela faz — escrito, porque a dica nao
+    // abre no toque.
     expect(screen.getByText(/Soltar um relato aberto aqui encerra/)).toBeTruthy()
 
     cleanup()
     montar()
     expect(await screen.findByRole('region', { name: 'Pronto' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Quadro' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('tab', { name: 'Quadro' }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('o card do quadro e um link para ele: o detalhe abre so no clique, e so ai a leitura conta', async () => {
@@ -1587,9 +1717,11 @@ describe('o quadro', () => {
     ).toBeTruthy()
 
     fireEvent.click(within(pronto).getByRole('button', { name: 'Ver na lista' }))
-    const ficha = await screen.findByRole('button', { name: 'Pronto, 3 relatos' })
-    expect(ficha.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Lista' }).getAttribute('aria-pressed')).toBe('true')
+    const campo = await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
+    expect(campo.textContent).toContain('Pronto · 3')
+    // O botao que levou ate la sumiu com o quadro: o foco vai para a aba da lista.
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Lista' }))
+    expect(screen.getByRole('tab', { name: 'Lista' }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('a coluna que nao carregou diz, e tenta de novo; a coluna cheia mostra mais', async () => {
@@ -1725,7 +1857,7 @@ describe('o quadro', () => {
     // So as leituras do quadro: a ordem dele em cada chamada.
     expect(dublê.listar.mock.calls.every((chamada) => chamada[4]?.order === 'board')).toBe(true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lista' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Lista' }))
     await waitFor(() =>
       expect(dublê.listar.mock.calls.some((chamada) => chamada[4] === undefined)).toBe(true),
     )

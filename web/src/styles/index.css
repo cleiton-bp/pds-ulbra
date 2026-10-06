@@ -62,6 +62,14 @@
   --color-chip-pink-surface: var(--chip-pink-surface);
   --color-chip-pink-border: var(--chip-pink-border);
   --color-chip-pink-fg: var(--chip-pink-fg);
+  --color-chip-gray-glyph: var(--chip-gray-glyph);
+  --color-chip-blue-glyph: var(--chip-blue-glyph);
+  --color-chip-green-glyph: var(--chip-green-glyph);
+  --color-chip-yellow-glyph: var(--chip-yellow-glyph);
+  --color-chip-orange-glyph: var(--chip-orange-glyph);
+  --color-chip-red-glyph: var(--chip-red-glyph);
+  --color-chip-purple-glyph: var(--chip-purple-glyph);
+  --color-chip-pink-glyph: var(--chip-pink-glyph);
 
   /* Inter vem do Google Fonts (index.html). A reserva evita a tela trocar de
      metrica se a fonte demorar ou falhar. */

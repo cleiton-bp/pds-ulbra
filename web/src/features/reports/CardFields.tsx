@@ -146,7 +146,7 @@ export function CardFields({
   const algoFalhou = time === 'falhou' || prioridades === 'falhou' || etiquetas === 'falhou'
 
   return (
-    <section aria-label="Campos do card" className="border-border border-t pt-4">
+    <section aria-label="Campos do card">
       <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5">
         <dt className="text-detail text-fg-muted">Responsável</dt>
         <dd className="min-w-0">
@@ -492,7 +492,7 @@ function Prazo({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <input
         type="date"
         aria-label="Prazo"

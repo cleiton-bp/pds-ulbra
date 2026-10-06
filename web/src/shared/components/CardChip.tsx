@@ -19,6 +19,21 @@ export const CARD_COLOR_CLASSES: Record<CardColor, string> = {
   Pink: 'border-chip-pink-border bg-chip-pink-surface text-chip-pink-fg',
 }
 
+/**
+ * O tom de cada cor para um desenho que vai ao lado do nome (o icone da prioridade):
+ * o nome fica na cor do texto, e a cor vai so no desenho, num degrau proprio.
+ */
+export const CARD_COLOR_GLYPH: Record<CardColor, string> = {
+  Gray: 'text-chip-gray-glyph',
+  Blue: 'text-chip-blue-glyph',
+  Green: 'text-chip-green-glyph',
+  Yellow: 'text-chip-yellow-glyph',
+  Orange: 'text-chip-orange-glyph',
+  Red: 'text-chip-red-glyph',
+  Purple: 'text-chip-purple-glyph',
+  Pink: 'text-chip-pink-glyph',
+}
+
 /** O nome de cada cor, para o seletor e para quem nao ve a cor. */
 export const CARD_COLOR_NAMES: Record<CardColor, string> = {
   Gray: 'Cinza',

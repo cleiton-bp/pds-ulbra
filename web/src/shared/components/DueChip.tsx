@@ -13,12 +13,15 @@ export function DueChip({
   day,
   soonDays,
   compact = false,
+  bare = false,
   className,
 }: {
   day: string
   soonDays: number
-  /** No quadro, sem o ano quando ele e o deste ano: o card e estreito. */
+  /** No quadro e na tabela, sem o ano quando ele e o deste ano: o espaco e curto. */
   compact?: boolean
+  /** Sem a palavra "Prazo": na tabela, o cabecalho da coluna ja a diz. */
+  bare?: boolean
   className?: string
 }) {
   const estado = dueState(day, soonDays)
@@ -39,7 +42,7 @@ export function DueChip({
         className,
       )}
     >
-      Prazo {data}
+      {bare ? data : `Prazo ${data}`}
       {palavras && ` · ${palavras}`}
     </span>
   )

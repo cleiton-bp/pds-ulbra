@@ -22,6 +22,11 @@ interface SelectProps {
   size?: 'md' | 'sm'
   className?: string
   /**
+   * Classes do botao fechado, por cima das de sempre. E para o seletor que mostra o
+   * valor como dado — o status do card, na cor dele.
+   */
+  triggerClassName?: string
+  /**
    * Digitar com a lista fechada abre a lista, em vez de escolher. E para o campo que
    * grava ao escolher: la, a primeira letra gravaria o primeiro nome que comeca com
    * ela, e o resto do que a pessoa digitou se perderia.
@@ -56,6 +61,7 @@ export function Select({
   disabled,
   size = 'md',
   className,
+  triggerClassName,
   openOnType = false,
 }: SelectProps) {
   const fieldId = useId()
@@ -108,6 +114,7 @@ export function Select({
             'disabled:cursor-not-allowed disabled:opacity-60',
             size === 'md' ? 'h-9 px-3 text-body' : 'h-8 px-2.5 text-detail',
             error ? 'border-error-border' : 'border-border',
+            triggerClassName,
           )}
         >
           {/* O texto trunca em vez de esticar o campo: nome de coluna longo numa

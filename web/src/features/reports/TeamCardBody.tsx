@@ -7,8 +7,10 @@ import {
   type ReportSummaryViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { CardDetailLayout, DetailRow, DetailsBox } from '@/features/reports/CardDetailLayout'
 import { CardFields } from '@/features/reports/CardFields'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
+import { StatusLozenge, statusTone } from '@/features/reports/cardLook'
 import { ReportComments, type ReportConversation } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { Button } from '@/shared/components/Button'
@@ -118,135 +120,158 @@ export function TeamCardBody({
   }
 
   return (
-    <div className="flex max-h-[60vh] flex-col gap-5 overflow-y-auto">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="font-mono text-detail text-fg">#{card.Number}</span>
-        <span className="rounded-full border border-border px-2 py-px text-caption text-fg-muted">
-          Do time
-        </span>
-        <span className="text-detail text-fg-muted">
-          {detalhe?.CreatedByName ? `${detalhe.CreatedByName}, ` : ''}
-          <span className="tabular-nums">{formatDateTime(card.CreatedAt)}</span>
-        </span>
-
-        {arquivado ? (
-          <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px text-caption text-warn-fg">
-            Arquivado
-          </span>
-        ) : colunas && colunas.length > 0 ? (
-          <ColumnSelect
-            colunas={colunas}
-            atual={card.StatePublicId}
-            disabled={movendo}
-            aoEscolher={aoMover}
-          />
-        ) : (
-          card.StateName && (
-            <span className="rounded-full border border-border px-2 py-px text-caption text-fg-muted">
-              {card.StateName}
-            </span>
-          )
-        )}
-      </div>
-
-      {editando ? (
-        <div className="flex flex-col gap-4">
-          <TextField
-            label="Título"
-            value={titulo}
-            onChange={(valor) => {
-              setTitulo(valor)
-              if (erro) setErro(null)
-            }}
-            maxLength={MAX_CARD_TITLE_LENGTH}
-            disabled={salvando}
-            error={erro}
-          />
-          <MarkdownEditor
-            label="Descrição"
-            value={texto}
-            onChange={setTexto}
-            maxLength={MAX_CARD_DESCRIPTION_LENGTH}
-            disabled={salvando}
-            rows={8}
-          />
-          <div className="flex gap-2">
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={titulo.trim().length === 0 || salvando}
-              onClick={() => void salvar()}
-            >
-              {salvando ? 'Salvando…' : 'Salvar'}
-            </Button>
-            <Button
-              variant="quiet"
-              size="sm"
-              disabled={salvando}
-              onClick={() => setEditando(false)}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <h3 className="mb-2 break-words font-semibold text-fg text-lead">{card.Title}</h3>
-          {detalhe === null && !failed ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-4/5" />
+    <>
+      <CardDetailLayout
+        cabeca={
+          editando ? (
+            <div className="flex flex-col gap-4">
+              <TextField
+                label="Título"
+                value={titulo}
+                onChange={(valor) => {
+                  setTitulo(valor)
+                  if (erro) setErro(null)
+                }}
+                maxLength={MAX_CARD_TITLE_LENGTH}
+                disabled={salvando}
+                error={erro}
+              />
+              <MarkdownEditor
+                label="Descrição"
+                value={texto}
+                onChange={setTexto}
+                maxLength={MAX_CARD_DESCRIPTION_LENGTH}
+                disabled={salvando}
+                rows={10}
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={titulo.trim().length === 0 || salvando}
+                  onClick={() => void salvar()}
+                >
+                  {salvando ? 'Salvando…' : 'Salvar'}
+                </Button>
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  disabled={salvando}
+                  onClick={() => setEditando(false)}
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
-          ) : descricao ? (
-            <Markdown source={descricao} />
           ) : (
-            <p className="text-detail text-fg-muted">
-              {failed ? 'A descrição não carregou agora.' : 'Sem descrição.'}
-            </p>
-          )}
-        </div>
-      )}
+            <div>
+              <h3 className="mb-3 break-words font-semibold text-fg text-lead">{card.Title}</h3>
+              {detalhe === null && !failed ? (
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                </div>
+              ) : descricao ? (
+                <Markdown source={descricao} />
+              ) : (
+                <p className="text-detail text-fg-muted">
+                  {failed ? 'A descrição não carregou agora.' : 'Sem descrição.'}
+                </p>
+              )}
+            </div>
+          )
+        }
+        lado={
+          <>
+            <div className="flex flex-col items-start gap-2">
+              {arquivado ? (
+                <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px text-caption text-warn-fg">
+                  Arquivado
+                </span>
+              ) : colunas && colunas.length > 0 ? (
+                <ColumnSelect
+                  colunas={colunas}
+                  atual={card.StatePublicId}
+                  disabled={movendo}
+                  tone={statusTone(card.StatePublicId, colunas)}
+                  aoEscolher={aoMover}
+                />
+              ) : (
+                card.StateName && (
+                  <StatusLozenge
+                    name={card.StateName}
+                    tone={statusTone(card.StatePublicId, colunas)}
+                  />
+                )
+              )}
+            </div>
 
-      {!editando && (
-        <CardFields
-          projectPublicId={projectPublicId}
-          reportPublicId={reportPublicId}
-          card={card}
-          aoMudar={aoSalvo}
-        />
-      )}
+            {!editando && (
+              <div className="flex flex-wrap gap-2">
+                {arquivado ? (
+                  <Button size="sm" onClick={() => void mudarArquivo(false)}>
+                    Desarquivar
+                  </Button>
+                ) : (
+                  <>
+                    <Button size="sm" disabled={detalhe === null} onClick={editar}>
+                      Editar
+                    </Button>
+                    <Button size="sm" variant="quiet" onClick={() => setConfirmandoArquivo(true)}>
+                      Arquivar
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
 
-      {!editando && (
-        <div className="flex flex-wrap gap-2 border-border border-t pt-4">
-          {arquivado ? (
-            <Button size="sm" onClick={() => void mudarArquivo(false)}>
-              Desarquivar
-            </Button>
-          ) : (
-            <>
-              <Button size="sm" disabled={detalhe === null} onClick={editar}>
-                Editar
-              </Button>
-              <Button size="sm" variant="quiet" onClick={() => setConfirmandoArquivo(true)}>
-                Arquivar
-              </Button>
-            </>
-          )}
-        </div>
-      )}
+            <DetailsBox>
+              {/* Escondidos enquanto o titulo e a descricao estao em edicao: os campos
+                  gravam na hora, e "Cancelar" nao desfaria o que mudou neles no meio. */}
+              {!editando && (
+                <CardFields
+                  projectPublicId={projectPublicId}
+                  reportPublicId={reportPublicId}
+                  card={card}
+                  aoMudar={aoSalvo}
+                />
+              )}
 
-      <ReportComments
-        projectPublicId={projectPublicId}
-        reportPublicId={reportPublicId}
-        conversa={conversa}
-        aoComentar={aoComentar}
-        paraQuemRelatou="nenhum"
-      />
+              <dl
+                className={`flex flex-col gap-1.5 ${editando ? '' : 'border-border border-t pt-3'}`}
+              >
+                <DetailRow
+                  label="Criado"
+                  value={
+                    <>
+                      <span className="tabular-nums">{formatDateTime(card.CreatedAt)}</span>
+                      {detalhe?.CreatedByName && (
+                        <span className="text-fg-muted">, por {detalhe.CreatedByName}</span>
+                      )}
+                    </>
+                  }
+                />
+              </dl>
+            </DetailsBox>
+          </>
+        }
+        atividade={
+          <>
+            <ReportComments
+              projectPublicId={projectPublicId}
+              reportPublicId={reportPublicId}
+              conversa={conversa}
+              aoComentar={aoComentar}
+              paraQuemRelatou="nenhum"
+            />
 
-      <ReportHistory
-        projectPublicId={projectPublicId}
-        reportPublicId={reportPublicId}
-        versao={versao}
+            <ReportHistory
+              projectPublicId={projectPublicId}
+              reportPublicId={reportPublicId}
+              versao={versao}
+            />
+          </>
+        }
       />
 
       <ConfirmDialog
@@ -257,6 +282,6 @@ export function TeamCardBody({
         confirmLabel="Arquivar"
         onConfirm={() => mudarArquivo(true)}
       />
-    </div>
+    </>
   )
 }

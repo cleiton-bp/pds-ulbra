@@ -17,7 +17,7 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 /**
  * O QUE ESTES TESTES TRAVAM: o card do time e o arquivar, na tela de Trabalho.
  *
- * - **O card do time nao tem lado de fora.** Sem protocolo na linha, sem caixa
+ * - **O card do time nao tem lado de fora.** Sem protocolo, sem caixa
  *   para quem relatou, e mover para a coluna que encerra nao pergunta motivo — nao
  *   ha quem leia.
  * - **Arquivar um relato aberto leva o motivo a quem relatou.** O desfecho e o
@@ -215,20 +215,22 @@ describe('card do time e arquivar', () => {
     })
   })
 
-  it('a linha do card do time tem numero e titulo, e nada de protocolo', async () => {
+  it('a linha do card do time tem numero, tipo e titulo; o protocolo de um relato fica no card aberto', async () => {
     montar()
 
     const linha = (await screen.findByText('Trocar o provedor de e-mail')).closest(
-      'a',
+      'tr',
     ) as HTMLElement
     expect(within(linha).getByText('#7')).toBeTruthy()
     expect(within(linha).getByText('Do time')).toBeTruthy()
     expect(within(linha).queryByText(/ABCD/)).toBeNull()
 
-    // O relato continua mostrando o protocolo de quem relatou, junto do numero.
-    const doRelato = screen.getByText('o botao some').closest('a') as HTMLElement
+    // O relato tem numero e tipo na linha; o protocolo de quem relatou, nao — a
+    // linha e para comparar card com card.
+    const doRelato = screen.getByText('o botao some').closest('tr') as HTMLElement
     expect(within(doRelato).getByText('#3')).toBeTruthy()
-    expect(within(doRelato).getByText('ABCD-EFGH')).toBeTruthy()
+    expect(within(doRelato).getByText('Defeito')).toBeTruthy()
+    expect(within(doRelato).queryByText('ABCD-EFGH')).toBeNull()
   })
 
   it('novo card leva titulo, descricao e coluna, e entra no topo da lista', async () => {
@@ -257,9 +259,10 @@ describe('card do time e arquivar', () => {
         StatePublicId: 's-2',
       }),
     )
-    const itens = await screen.findAllByRole('listitem')
+    // A primeira linha e a do cabecalho; a seguinte e a do card que acabou de nascer.
+    const linhas = await screen.findAllByRole('row')
     expect(
-      within(itens[0] as HTMLElement).getByText('Revisar o texto da página de ajuda'),
+      within(linhas[1] as HTMLElement).getByText('Revisar o texto da página de ajuda'),
     ).toBeTruthy()
   })
 

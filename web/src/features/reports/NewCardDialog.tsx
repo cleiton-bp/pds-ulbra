@@ -19,16 +19,21 @@ import { TextField } from '@/shared/components/TextField'
  * relatou — o formulario so pergunta o que existe para ele.
  *
  * A coluna vem escolhida na primeira ativa, que e onde a API o poria sem escolha
- * nenhuma; trocar e um clique, e nao um campo obrigatorio a mais.
+ * nenhuma; trocar e um clique, e nao um campo obrigatorio a mais. Aberto pelo
+ * "Criar" de uma coluna do quadro, vem escolhida aquela.
  */
 export function NewCardDialog({
   projectPublicId,
   colunas,
+  colunaInicial,
   aoCriar,
   aoCancelar,
 }: {
   projectPublicId: string
   colunas: ReportStateCountViewModel[] | null
+  /** A coluna ja escolhida; sem ela (ou se ela nao recebe mais), a primeira ativa. */
+  colunaInicial?: string
+
   aoCriar: (card: ReportDetailViewModel) => void
   aoCancelar: () => void
 }) {
@@ -39,7 +44,11 @@ export function NewCardDialog({
 
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [coluna, setColuna] = useState(ativas[0]?.StatePublicId ?? '')
+  const [coluna, setColuna] = useState(
+    ativas.find((item) => item.StatePublicId === colunaInicial)?.StatePublicId ??
+      ativas[0]?.StatePublicId ??
+      '',
+  )
   const [criando, setCriando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
