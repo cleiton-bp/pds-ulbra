@@ -23,7 +23,7 @@ useCases:
     preconditions: O membro está no painel, dentro do projeto.
     mainFlow:
       - O membro abre Trabalho.
-      - Vê cada card com o número (#42), a data e a coluna — o relato com o tipo, a rota e o começo do texto; o card do time com o título.
+      - Vê os cards numa tabela, do mais recente para o mais antigo — o tipo, o número (#42), o título (o do time, senão o de quem relatou, senão o começo do texto), a coluna, quem está com ele, a prioridade, as etiquetas, o prazo e quando chegou. O protocolo e a página de onde o relato veio ficam no card aberto.
       - Filtra por coluna, para ver só um estado.
       - Escolhe um relato para abrir.
     alternativeFlows:
@@ -33,7 +33,7 @@ useCases:
       - title: 3a. O membro escolhe o quadro
         steps:
           - Cada estado vira uma coluna, com os cards na ordem que o time arrumou — ver UC18. A escolha fica lembrada no navegador.
-          - A frente do card é um resumo — título, prioridade, etiquetas, prazo, quantos comentários e anexos, e quem está com ele —, e o detalhe abre no clique.
+          - A frente do card é um resumo — o título primeiro, até três etiquetas e o prazo; no pé, o tipo, o número, a prioridade, quantos comentários e anexos, e quem está com ele —, e o detalhe abre no clique.
           - A última coluna — quando há mais de uma — mostra só o que entrou nela nos últimos dias, e diz quantos ficaram na lista. "Mostrar mais" traz os seguintes de cada coluna.
   - id: UC02
     name: Ler o relato
@@ -194,6 +194,9 @@ useCases:
       - title: 2a. O título fica em branco
         steps:
           - O painel não cria, e pede o título.
+      - title: 1a. O membro cria pela coluna, no quadro
+        steps:
+          - Escolhe Criar, no pé de uma coluna que recebe card, e o formulário abre com ela já escolhida.
       - title: 4a. O card é movido para a última coluna
         steps:
           - Não há desfecho nem motivo a pedir — ninguém de fora vai ler —, e a etapa pública não se mexe.
@@ -278,7 +281,7 @@ useCases:
       - title: 2b. O membro tira uma etiqueta
         steps:
           - A etiqueta sai do card, e o histórico conta.
-    postconditions: O card leva até dez etiquetas, e a linha dele mostra as primeiras.
+    postconditions: O card leva até dez etiquetas; a linha da lista mostra a primeira e quantas mais há, e a frente no quadro, até três.
   - id: UC17
     name: Dar prazo ao card
     description: Diz para quando o card precisa estar pronto — só a data.

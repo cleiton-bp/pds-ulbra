@@ -1,8 +1,10 @@
 <h2>A segunda vista da tela de Trabalho</h2>
 
-<p>A tela de Trabalho tem duas vistas: a lista, do mais recente para o mais antigo, e o
-<strong>quadro</strong>, uma coluna por estado. A vista escolhida fica lembrada no navegador, por
-projeto. Cada coluna é uma leitura própria, na ordem do quadro, cinquenta de cada vez:</p>
+<p>A tela de Trabalho tem duas vistas, em abas: a <strong>lista</strong>, uma tabela do mais
+recente para o mais antigo — o tipo, o número, o título, a coluna, quem está com o card, a
+prioridade, as etiquetas, o prazo e quando chegou —, e o <strong>quadro</strong>, uma coluna por
+estado. A vista escolhida fica lembrada no navegador, por projeto. No quadro, cada coluna é uma
+leitura própria, na ordem do quadro, cinquenta de cada vez:</p>
 
 <pre><code>GET /projects/2be49b28-.../reports?state=e12fef6c-...&amp;order=board&amp;pageSize=50</code></pre>
 
@@ -15,11 +17,16 @@ ou repetiria outro.</p>
 <p>Se aquele card já saiu da coluna — outra pessoa o moveu ou arquivou —, a resposta é 409, e a
 tela lê a coluna de novo.</p>
 
-<p>A frente do card é um resumo: o número, o título, a prioridade, até três etiquetas, o prazo com o
-destaque (vencido em vermelho, perto em amarelo, sempre com as palavras), quantos comentários e
-anexos, e as iniciais de quem está com ele. <strong>O detalhe só abre no clique</strong>, no mesmo
-diálogo da lista — e é só ali que a leitura é registrada. Os arquivados ficam fora do quadro: o
-botão Arquivados mostra a lista deles.</p>
+<p>A frente do card é um resumo, com o título primeiro: até três etiquetas, o prazo com o destaque
+(vencido em vermelho, perto em amarelo, sempre com as palavras) e, no pé, o tipo, o número, a
+prioridade, quantos comentários e anexos, e quem está com ele. <strong>O detalhe só abre no
+clique</strong>, no mesmo diálogo da lista — e é só ali que a leitura é registrada. O diálogo tem
+duas colunas: à esquerda o card (título, texto, anexos, conversa e história); à direita a coluna
+em que ele está, as ações e os detalhes (responsável, prioridade, etiquetas, prazo, protocolo e
+de onde veio) — e, no celular, uma coluna só. Os arquivados ficam fora do quadro: o botão Arquivados mostra a lista deles.</p>
+
+<p>No pé de cada coluna que recebe card, <strong>Criar</strong> abre o card novo já naquela coluna
+— o mesmo <code>POST</code> do "Novo card", com o <code>StatePublicId</code> dela.</p>
 
 <h2>Arrastar para outra coluna</h2>
 

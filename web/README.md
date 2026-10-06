@@ -344,20 +344,26 @@ que a pessoa escreveu fica guardado: é o único título que volta para ela, no 
 e em "meus relatos". No card aberto, `CardFields` dá o **responsável** (um só; quem sai do
 time continua marcado), a **prioridade** (as do projeto, de fábrica Baixa, Média, Alta e
 Urgente — o card nasce sem), as **etiquetas** (escrever o nome que não existe cria a
-etiqueta) e o **prazo** (só a data). A linha da lista mostra tudo isso numa faixa. As cores
+etiqueta) e o **prazo** (só a data). A tabela da lista mostra cada um numa coluna própria — e,
+na tela estreita, as colunas de apoio saem antes do título. As cores
 de etiqueta e prioridade são a paleta de dado de `tokens.css`, com o par certo nos dois
 temas e o nome sempre escrito junto. **Prioridades** e **Etiquetas**, na Configuração, são
 de quem administra.
 
-**O quadro.** A tela **Trabalho** tem duas vistas, a lista e o **quadro** — uma coluna por
+**O quadro.** A tela **Trabalho** tem duas vistas, em abas: a lista, uma tabela (`ReportsTable`),
+e o **quadro** — uma coluna por
 estado, cada uma com a própria leitura na ordem do quadro, cinquenta de cada vez, e "Mostrar
 mais" continuando depois do último card da tela (`after`), e não pela página seguinte —, e o
 navegador lembra a escolhida, por projeto. Cada vista lê só o que é dela: a lista não é lida com
 o quadro na tela, e é lida de novo ao voltar. A frente do card é um resumo
-(`BoardCardFace`): número, título, prioridade, até três etiquetas, o prazo — vermelho quando
-venceu, amarelo quando está perto, sempre com as palavras (`DueChip`) —, quantos comentários
-e anexos, e as iniciais de quem está com ele. O detalhe só abre no clique, no mesmo diálogo
-da lista. Arrastar usa `@dnd-kit`: o mouse pega depois de andar uns pixels, o toque depois
+(`BoardCardFace`): o título primeiro, até três etiquetas e o prazo — vermelho quando venceu,
+amarelo quando está perto, sempre com as palavras (`DueChip`) — e, no pé, o tipo, o número, a
+prioridade com o nome, quantos comentários e anexos e quem está com ele — a foto do Google,
+senão as iniciais. As peças que a lista, o quadro e o card aberto desenham igual ficam em
+`cardLook.tsx`. "Criar", no pé de cada coluna que recebe card, abre o card novo já nela. O
+detalhe só abre no clique, no mesmo diálogo da lista, em duas colunas (`CardDetailLayout`): o
+card e a atividade à esquerda; a coluna, as ações e os detalhes à direita, cada lado com a
+própria rolagem — e, no celular, uma coluna só. Arrastar usa `@dnd-kit`: o mouse pega depois de andar uns pixels, o toque depois
 de segurar um instante (deslizar continua rolando), e o teclado com espaço, setas, espaço ou Enter
 para soltar, e Esc, anunciando cada passo ao leitor de tela. O alvo é o que está debaixo do
 ponteiro (`boardCollision`): a coluna inteira recebe, o cabeçalho também, e soltar fora das colunas
@@ -384,10 +390,10 @@ aponta para ele e o histórico precisa continuar legível. Projeto novo nasce co
 "primeira coluna da fila" **apaga** a escolha em vez de gravar uma vazia — é o que
 mantém "não configurei" como um estado possível do projeto.
 
-A lista de relatos **filtra por coluna**, com a contagem de cada uma na barra de cima.
-A contagem vem de uma chamada própria: contar as linhas da página daria um número
-errado assim que o projeto passasse de vinte relatos. Coluna vazia continua na barra
-— some só a aposentada que não segura mais nada.
+A lista **filtra por coluna**, numa caixa de escolha na barra de ferramentas, com a
+contagem em cada opção. A contagem vem de uma chamada própria: contar as linhas da página
+daria um número errado assim que o projeto passasse de vinte relatos. Coluna vazia continua
+entre as opções — some só a aposentada que não segura mais nada.
 
 Cada relato tem **endereço próprio**: `/projects/:id/reports/:reportId`. Ele é rota
 **filha** da lista, e não uma tela no lugar dela — assim a lista fica montada atrás,
