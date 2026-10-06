@@ -387,6 +387,27 @@ useCases:
         steps:
           - O vínculo some dos dois cards; o duplicado volta do arquivo, com as subtarefas que foram com ele.
     postconditions: Bloquear só marca — mover continua livre. Nada do vínculo aparece para quem relatou além da etapa e do encerramento, que seguem o original.
+  - id: UC22
+    name: Mencionar e ser avisado
+    description: "O membro chama alguém do time com @ no comentário entre o time, ou o escolhe como responsável; a pessoa é avisada no sino do painel — e, como responsável, também por e-mail, que ela pode desligar."
+    width: 220
+    position: { x: 600, y: 1640 }
+    preconditions: O card está aberto.
+    mainFlow:
+      - O membro digita @ na caixa "Entre o time" e escolhe alguém na lista do time.
+      - O sistema grava o comentário com a menção e põe um aviso no sino de quem foi mencionado.
+      - A pessoa vê o número no sino, abre o aviso e cai no card; o aviso fica lido.
+    alternativeFlows:
+      - title: 1a. Escolhido como responsável
+        steps:
+          - O aviso vai para o sino da pessoa, e o e-mail sai pela fila — se ela não desligou nas preferências de aviso.
+      - title: 1b. A pessoa mencionou a si mesma, ou se escolheu
+        steps:
+          - Ninguém é avisado do que fez.
+      - title: 3a. A pessoa saiu do time
+        steps:
+          - Os avisos daquele projeto somem do sino dela, e o e-mail que ainda estava na fila não sai.
+    postconditions: A menção avisa só no sino. Nada disso aparece para quem relatou — a caixa dele nem oferece a lista do @.
 links:
   - from: Membro do time
     to: UC01
@@ -471,6 +492,9 @@ links:
     kind: association
   - from: Membro do time
     to: UC21
+    kind: association
+  - from: Membro do time
+    to: UC22
     kind: association
     note: quando o card é solto em outra coluna
 notes:

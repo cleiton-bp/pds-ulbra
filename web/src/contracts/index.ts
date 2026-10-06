@@ -44,6 +44,14 @@ export type {
 } from '@/contracts/mediaSettings'
 export { UPLOADABLE_MEDIA_KINDS } from '@/contracts/mediaSettings'
 export type {
+  NotificationCountViewModel,
+  NotificationKind,
+  NotificationListViewModel,
+  NotificationSettingsViewModel,
+  NotificationViewModel,
+  SaveNotificationSettingsRequest,
+} from '@/contracts/notification'
+export type {
   CreateProjectRequest,
   ProjectAccountViewModel,
   ProjectCreatedViewModel,

@@ -1,4 +1,5 @@
 import { apiAuthService } from '@/data/api/apiAuthService'
+import { apiNotificationService } from '@/data/api/apiNotificationService'
 import { apiProjectCycleSettingsService } from '@/data/api/apiProjectCycleSettingsService'
 import { apiProjectIdentitySettingsService } from '@/data/api/apiProjectIdentitySettingsService'
 import { apiProjectKeyService } from '@/data/api/apiProjectKeyService'
@@ -16,6 +17,7 @@ import { apiProjectTeamService } from '@/data/api/apiProjectTeamService'
 import { apiProjectWidgetSettingsService } from '@/data/api/apiProjectWidgetSettingsService'
 import { apiRealtimeService } from '@/data/api/apiRealtimeService'
 import type { AuthService } from '@/data/authService'
+import type { NotificationService } from '@/data/notificationService'
 import type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
 import type { ProjectIdentitySettingsService } from '@/data/projectIdentitySettingsService'
 import type { ProjectKeyService } from '@/data/projectKeyService'
@@ -40,6 +42,7 @@ import type { RealtimeService } from '@/data/realtimeService'
  */
 export const authService: AuthService = apiAuthService
 export const realtimeService: RealtimeService = apiRealtimeService
+export const notificationService: NotificationService = apiNotificationService
 export const projectService: ProjectService = apiProjectService
 export const projectKeyService: ProjectKeyService = apiProjectKeyService
 export const projectOriginService: ProjectOriginService = apiProjectOriginService
@@ -67,6 +70,7 @@ export const projectWidgetSettingsService: ProjectWidgetSettingsService =
 export type { AuthService } from '@/data/authService'
 export { environment } from '@/data/environment'
 export { describeError, isPanelError, PanelError } from '@/data/errors'
+export type { NotificationService } from '@/data/notificationService'
 export type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
 export type { ProjectIdentitySettingsService } from '@/data/projectIdentitySettingsService'
 export type { ProjectKeyService } from '@/data/projectKeyService'

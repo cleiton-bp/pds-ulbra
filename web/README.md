@@ -411,6 +411,17 @@ arquivo, mostra o original (`ParentLine` com `prefix`). O diálogo de encerrar o
 quantas pessoas a mais vão ler o motivo (`DuplicateReporters`), e o histórico conta cada vínculo
 com o número do outro card.
 
+**Menções e o sino.** Na caixa "Entre o time", digitar "@" abre a lista do time
+(`MentionTextarea`, lida no primeiro "@"; setas, Enter ou Tab, e o Esc que fecha só a lista — ele é
+ouvido na janela, antes do diálogo). No campo fica "@Nome"; no envio, `encodeMentions` troca o
+"@Nome" que ficou no texto pela marca `@[Nome](identificador)`, e a leitura mostra a menção
+destacada (`CommentBody`). A caixa de quem relatou não menciona. O sino (`NotificationBell`, no topo
+do projeto e do hub) mostra o número de não lidos — `useUnreadCount` pergunta a cada troca de tela,
+ao voltar para a aba e a cada minuto com a aba à vista, e a resposta atrasada não passa por cima da
+de uma ação —, lê a lista ao abrir, leva ao card e marca como lido, e abre as preferências
+(`NotificationSettingsDialog`: o e-mail de responsável, e o aviso quando o servidor não manda
+e-mail). Os dados em `data/notificationService.ts`.
+
 **O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
 recarregar. A conexão (`realtimeService`, em `data/api/apiRealtimeService.ts`, com a biblioteca
 do SignalR carregada só nesta tela) pede um bilhete de um minuto a cada conexão — o token da

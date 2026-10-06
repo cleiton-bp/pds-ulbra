@@ -106,6 +106,9 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private ICardLinkRepository? _cardLinks;
     public ICardLinkRepository CardLinks => _cardLinks ??= new CardLinkRepository(_context);
 
+    private INotificationRepository? _notifications;
+    public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
+
     private IReportInternalCommentRepository? _reportInternalComments;
 
     public IReportInternalCommentRepository ReportInternalComments

@@ -1,0 +1,65 @@
+<h2>Menções e avisos</h2>
+
+<p>Ninguém precisa ficar olhando o quadro para saber que é com ele. Duas coisas avisam uma pessoa
+do time, no <strong>sino</strong> do topo do painel:</p>
+
+<ul>
+  <li><strong>Alguém a menciona</strong> num comentário entre o time — <em>"@Ana, consegue
+  olhar?"</em>. A menção avisa <strong>só no sino</strong>, sem e-mail.</li>
+  <li><strong>Alguém a escolhe como responsável</strong> por um card. Avisa no sino e <strong>por
+  e-mail</strong>, que a pessoa pode desligar.</li>
+</ul>
+
+<p><strong>Ninguém é avisado do que fez</strong>: mencionar a si mesmo, ou se escolher como
+responsável, não gera aviso.</p>
+
+<h2>A menção</h2>
+
+<p>Na caixa <em>Entre o time</em> do card aberto, digitar <strong>@</strong> abre a lista do time,
+filtrada pelo que vem depois — sem acento, pelo começo do nome ou do e-mail. As setas escolhem,
+Enter ou Tab mencionam, e Esc fecha só a lista. No campo fica <em>@Ana Dona</em>; o comentário
+gravado leva a marca <code>@[Ana Dona](identificador)</code>, que diz quem é — o nome muda, a
+pessoa não. Na leitura, a menção aparece destacada.</p>
+
+<ul>
+  <li><strong>Só quem está no time é avisado.</strong> A marca de outra pessoa fica no texto, e mais
+  nada.</li>
+  <li><strong>Só na caixa de dentro.</strong> A caixa de quem relatou não oferece a lista, e uma marca
+  escrita ali à mão não avisa ninguém: o que se escreve ali sai do painel.</li>
+</ul>
+
+<h2>O sino</h2>
+
+<p>O número de não lidos fica no sino, com a palavra para quem não vê o número. Abrir o sino mostra
+os cinquenta avisos mais recentes de todos os projetos em que a pessoa está — quem fez, o que fez,
+o número e o título do card, o projeto e quando. Abrir um aviso leva ao card e o marca como lido;
+<strong>Marcar todos como lidos</strong> zera o número.</p>
+
+<p>O sino pergunta o número ao abrir o painel, a cada troca de tela, ao voltar para a aba e a cada
+minuto com a aba à vista — sem tempo real: a conexão ao vivo só existe na tela de Trabalho, e o
+sino está em todas. <strong>Quem sai do time deixa de ver</strong> os avisos daquele projeto.</p>
+
+<h2>O e-mail de responsável</h2>
+
+<p>Escolher alguém como responsável põe o e-mail na fila, depois da gravação e sem derrubar a
+ação — sem fila, o e-mail só não sai, e o aviso continua no sino. Na hora de mandar, o consumidor
+confere a preferência da pessoa e se ela ainda está no time. O e-mail diz quem escolheu, o número e
+o título do card, o projeto, o link para abrir o card e onde desligar. A falha no envio fica no log
+da API, sem reenvio.</p>
+
+<p><strong>Preferências de aviso</strong>, no sino, desligam o e-mail de responsável. A preferência
+é da pessoa, e vale em todos os projetos dela; vem ligada. Quando a instalação não manda e-mail, a
+tela diz isso, e a preferência fica guardada.</p>
+
+<h2>As rotas</h2>
+
+<pre><code>GET  /me/notifications
+GET  /me/notifications/unread-count
+POST /me/notifications/{aviso}/read
+POST /me/notifications/read-all
+GET  /me/notification-settings
+PUT  /me/notification-settings
+{ "AssignmentByEmail": false }</code></pre>
+
+<p>Todas da pessoa da sessão, e não de um projeto. O aviso de outra pessoa não existe para quem
+pergunta (404).</p>

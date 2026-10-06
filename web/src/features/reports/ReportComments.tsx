@@ -5,6 +5,8 @@ import {
   type ReportCommentsViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { CommentBody, MentionTextarea } from '@/features/reports/MentionTextarea'
+import { type ChosenMention, encodeMentions } from '@/features/reports/mentions'
 import { AVISO_DE_ARQUIVO, toPanelGalleryItem } from '@/features/reports/ReportAttachments'
 import { AttachmentGallery } from '@/shared/components/AttachmentGallery'
 import { Button } from '@/shared/components/Button'
@@ -132,8 +134,9 @@ export function ReportComments({
 
       <Caixa
         titulo="Entre o time"
-        explicacao="Só quem tem acesso a este painel lê. Não sai daqui."
+        explicacao="Só quem tem acesso a este painel lê. Não sai daqui. Escreva @ para chamar alguém do time — a pessoa é avisada no sino."
         destaque={false}
+        mencoesNoProjeto={projectPublicId}
         comentarios={atual?.Internal ?? []}
         aoEnviar={async (body) => {
           const salvo = await projectReportService.addInternalComment(
@@ -224,10 +227,16 @@ function Caixa({
   aoEnviar,
   anexosPorFala,
   aoExpirar = () => {},
+  mencoesNoProjeto,
 }: {
   titulo: string
   explicacao: string
   destaque: boolean
+  /**
+   * O projeto, na caixa que menciona — só a de dentro: a de fora é lida por quem
+   * relatou, e menção ali seria mostrar o time a quem está de fora.
+   */
+  mencoesNoProjeto?: string
   /** Falso deixa so a leitura: a conversa continua na tela, e o campo sai. */
   podeEscrever?: boolean
   comentarios: Comentario[]
@@ -238,10 +247,14 @@ function Caixa({
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  // Quem foi escolhido na lista do "@": no envio, o "@Nome" que ainda está no texto
+  // vira a marca que diz quem é.
+  const [mencionados, setMencionados] = useState<ChosenMention[]>([])
 
   async function enviar() {
-    const body = texto.trim()
-    if (body.length === 0 || enviando) return
+    const escrito = texto.trim()
+    if (escrito.length === 0 || enviando) return
+    const body = mencoesNoProjeto ? encodeMentions(escrito, mencionados) : escrito
 
     setEnviando(true)
     setErro(null)
@@ -249,6 +262,7 @@ function Caixa({
     try {
       await aoEnviar(body)
       setTexto('')
+      setMencionados([])
     } catch (failure) {
       setErro(describeError(failure))
     } finally {
@@ -290,7 +304,7 @@ function Caixa({
                 </time>
               </div>
               <p className="whitespace-pre-wrap break-words text-detail text-fg leading-relaxed">
-                {comentario.Body}
+                {mencoesNoProjeto ? <CommentBody body={comentario.Body} /> : comentario.Body}
               </p>
               {(anexosPorFala?.get(comentario.PublicId)?.length ?? 0) > 0 && (
                 <div className="mt-2">
@@ -310,18 +324,36 @@ function Caixa({
 
       {podeEscrever && (
         <>
-          <textarea
-            aria-label={titulo}
-            value={texto}
-            onChange={(event) => {
-              setTexto(event.target.value)
-              if (erro) setErro(null)
-            }}
-            maxLength={MAX_COMMENT_LENGTH}
-            disabled={enviando}
-            rows={2}
-            className="mb-2 block w-full resize-y rounded-lg border border-border bg-surface px-2.5 py-2 text-detail text-fg leading-relaxed"
-          />
+          {mencoesNoProjeto ? (
+            <div className="mb-2">
+              <MentionTextarea
+                projectPublicId={mencoesNoProjeto}
+                ariaLabel={titulo}
+                value={texto}
+                onChange={(valor) => {
+                  setTexto(valor)
+                  if (erro) setErro(null)
+                }}
+                onMention={(pessoa) => setMencionados((antes) => [...antes, pessoa])}
+                maxLength={MAX_COMMENT_LENGTH}
+                disabled={enviando}
+                className="block w-full resize-y rounded-lg border border-border bg-surface px-2.5 py-2 text-detail text-fg leading-relaxed"
+              />
+            </div>
+          ) : (
+            <textarea
+              aria-label={titulo}
+              value={texto}
+              onChange={(event) => {
+                setTexto(event.target.value)
+                if (erro) setErro(null)
+              }}
+              maxLength={MAX_COMMENT_LENGTH}
+              disabled={enviando}
+              rows={2}
+              className="mb-2 block w-full resize-y rounded-lg border border-border bg-surface px-2.5 py-2 text-detail text-fg leading-relaxed"
+            />
+          )}
 
           {erro && <p className="mb-2 text-caption text-error-fg">{erro}</p>}
 

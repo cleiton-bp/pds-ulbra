@@ -45,4 +45,11 @@ public class User : PdsBaseEntity
 
     /// <summary>Ultimo acesso, em UTC.</summary>
     public DateTime? LastLoginAt { get; set; }
+
+    /// <summary>
+    /// Se a pessoa recebe e-mail quando alguem do time a escolhe como responsavel por
+    /// um card. Ligado de fabrica; vale em todos os projetos dela. O aviso no sino
+    /// chega de qualquer jeito.
+    /// </summary>
+    public bool NotifyAssignmentByEmail { get; set; } = true;
 }

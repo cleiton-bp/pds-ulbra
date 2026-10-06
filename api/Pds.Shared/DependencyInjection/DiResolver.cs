@@ -123,6 +123,7 @@ public static class DiResolver
         services.AddScoped<IProjectMediaSettingsService, ProjectMediaSettingsService>();
         services.AddScoped<IReportAttachmentService, ReportAttachmentService>();
         services.AddScoped<IReportCommentService, ReportCommentService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IProjectMemberService, ProjectMemberService>();
         services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
