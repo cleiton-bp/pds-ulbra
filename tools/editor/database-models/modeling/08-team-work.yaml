@@ -56,7 +56,7 @@ entities:
         note: quando a identificação foi removida, e a partir daí nenhuma linha da conta guarda dado pessoal
   - name: users
     label: Usuários
-    description: Já existia, muda o sentido de account_id e ganha email_verified nesta modelagem. Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra, e é referenciada por quem move card, por quem comenta e por quem convida. A mesma pessoa passa a poder trabalhar em projetos de várias contas.
+    description: Já existia, muda o sentido de account_id e ganha email_verified nesta modelagem. Existe porque alguém precisa entrar no painel e ser reconhecido entre uma visita e outra, e é referenciada por quem move card, por quem comenta e por quem convida. A mesma pessoa passa a poder trabalhar em projetos de várias contas. E ganha a preferência do e-mail de responsável.
     inherited: true
     position: { x: 387, y: 400 }
     fields:
@@ -95,6 +95,10 @@ entities:
       - name: last_login_at
         type: datetime
         note: último acesso, em UTC
+      - name: notify_assignment_by_email
+        type: bool
+        required: true
+        note: coluna nova — se a pessoa recebe e-mail quando alguém do time a escolhe como responsável por um card; ligado de fábrica, também para quem já existia; vale em todos os projetos dela. O aviso no sino chega de qualquer jeito
       - name: created_at
         type: datetime
         note: quando o usuário entrou pela primeira vez, em UTC
@@ -1517,6 +1521,58 @@ entities:
       - name: deleted_at
         type: datetime
         note: preenchido quando o vínculo é desfeito
+  - name: notifications
+    label: Avisos do sino
+    description: "Um aviso para uma pessoa do time: alguém a mencionou num comentário interno, ou a escolheu como responsável por um card. Cada pessoa lê só os próprios, e só dos projetos em que ainda está. A menção avisa só no sino; a escolha como responsável também por e-mail, se a pessoa quiser. Interno."
+    position: { x: 4450, y: 1500 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador do aviso, o que se manda para marcar como lido
+      - name: user_id
+        type: long
+        fk: true
+        required: true
+        note: quem recebe o aviso; os mais recentes e os não lidos dela têm índice próprio
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: o projeto do card, repetido para o filtro de acesso não precisar de junção — quem sai do time deixa de ver
+      - name: report_id
+        type: long
+        fk: true
+        required: true
+        note: o card de que o aviso fala
+      - name: actor_user_id
+        type: long
+        fk: true
+        note: quem fez — quem mencionou, ou quem escolheu o responsável; ninguém é avisado do que fez
+      - name: kind
+        type: enum
+        required: true
+        note: mention | assignment
+      - name: report_internal_comment_id
+        type: long
+        fk: true
+        note: o comentário interno da menção; nulo na atribuição (trava no banco)
+      - name: read_at
+        type: datetime
+        note: quando a pessoa abriu ou marcou como lido; nulo enquanto não leu
+      - name: created_at
+        type: datetime
+        note: quando aconteceu, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: exclusão lógica
 relations:
   - from: reports
     fromField: id
@@ -1830,6 +1886,36 @@ relations:
     toField: project_id
     kind: one-to-many
     note: Os dois cards são do mesmo projeto, e o vínculo também.
+  - from: users
+    fromField: id
+    to: notifications
+    toField: user_id
+    kind: one-to-many
+    note: Os avisos de uma pessoa. Só ela os lê.
+  - from: users
+    fromField: id
+    to: notifications
+    toField: actor_user_id
+    kind: one-to-many
+    note: Quem mencionou, ou quem escolheu o responsável.
+  - from: reports
+    fromField: id
+    to: notifications
+    toField: report_id
+    kind: one-to-many
+    note: O card de que o aviso fala.
+  - from: report_internal_comments
+    fromField: id
+    to: notifications
+    toField: report_internal_comment_id
+    kind: one-to-many
+    note: Um comentário menciona várias pessoas; cada uma ganha o seu aviso.
+  - from: projects
+    fromField: id
+    to: notifications
+    toField: project_id
+    kind: one-to-many
+    note: O projeto do card, para o filtro de acesso.
   - from: projects
     fromField: id
     to: project_priorities

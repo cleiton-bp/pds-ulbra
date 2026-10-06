@@ -1,0 +1,53 @@
+<h2>Os avisos do sino</h2>
+
+<p>O que avisa uma pessoa do time mora em <code>notifications</code>: uma linha por pessoa avisada,
+com quem fez, o card e, na menção, o comentário. A preferência do e-mail mora na própria pessoa,
+em <code>users.notify_assignment_by_email</code>.</p>
+
+<div class="note warn">
+  <strong>Interno, e de uma pessoa só</strong>
+  <p>Nenhuma rota pública lê esta tabela. Cada pessoa lê só os próprios avisos, e só dos projetos
+  em que ainda está.</p>
+</div>
+
+<h2>notifications</h2>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>user_id</code></td><td>Quem recebe o aviso.</td></tr>
+  <tr><td><code>project_id</code></td><td>O projeto do card, repetido para o filtro de acesso não precisar de junção.</td></tr>
+  <tr><td><code>report_id</code></td><td>O card de que o aviso fala.</td></tr>
+  <tr><td><code>actor_user_id</code></td><td>Quem fez: quem mencionou, ou quem escolheu o responsável.</td></tr>
+  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code>. A menção só aparece no sino; a atribuição também vai por e-mail, se a pessoa quiser.</td></tr>
+  <tr><td><code>report_internal_comment_id</code></td><td>O comentário interno da menção. Nulo na atribuição.</td></tr>
+  <tr><td><code>read_at</code></td><td>Quando a pessoa abriu ou marcou como lido. Nulo enquanto não leu.</td></tr>
+</table>
+</div>
+
+<p>As travas do banco: o tipo fica na lista (<code>ck_notifications_kind</code>), e a menção
+aponta o comentário enquanto a atribuição não aponta (<code>ck_notifications_comment</code>). Todas as
+chaves com <code>Restrict</code>: nada disso se apaga de verdade. Dois índices servem o sino: os
+mais recentes de uma pessoa (<code>user_id, created_at</code>) e os não lidos dela (com
+<code>read_at IS NULL</code>).</p>
+
+<div class="note why">
+  <strong>Por que a menção não guarda um texto, e sim o comentário</strong>
+  <p>O aviso aponta o comentário em vez de copiar o que foi escrito: o texto continua num lugar só,
+  com o filtro de acesso dele. E o e-mail não leva texto de comentário — a menção nem manda
+  e-mail.</p>
+</div>
+
+<h2>users.notify_assignment_by_email</h2>
+
+<p>Se a pessoa recebe e-mail quando alguém do time a escolhe como responsável. Ligado de fábrica —
+também para quem já existia quando a coluna nasceu — e vale em todos os projetos da pessoa. O aviso
+no sino chega de qualquer jeito.</p>
+
+<h2>O filtro de acesso</h2>
+
+<p>A tabela passa pelo filtro global pela coluna do projeto, e some com o card apagado. De quem é o
+aviso, cada leitura diz: o filtro guarda o projeto, e a pessoa vai na consulta. Quem sai do time
+deixa de ver os avisos daquele projeto — e, se voltar, eles voltam como estavam. O consumidor da
+fila, que manda o e-mail sem sessão, atravessa o filtro numa leitura só — ver
+<a href="#/isolamento/consultas-que-atravessam">As consultas que atravessam o filtro</a>.</p>
