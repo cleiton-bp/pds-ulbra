@@ -31,6 +31,7 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IReportRepository Reports { get; }
     IReportLabelRepository ReportLabels { get; }
     ICardLinkRepository CardLinks { get; }
+    INotificationRepository Notifications { get; }
     IReportInternalCommentRepository ReportInternalComments { get; }
     IReportPublicCommentRepository ReportPublicComments { get; }
     IReportClosureRepository ReportClosures { get; }

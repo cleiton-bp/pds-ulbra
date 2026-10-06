@@ -48,6 +48,13 @@ public class UserMap : BaseEntityConfiguration<User>
             .HasColumnName("last_login_at")
             .HasComment("Ultimo acesso, em UTC.");
 
+        // Sem valor padrao no modelo: o padrao do banco (verdadeiro) vem da migracao,
+        // para quem ja existia, e quem nasce agora nasce com o da entidade.
+        builder.Property(user => user.NotifyAssignmentByEmail)
+            .HasColumnName("notify_assignment_by_email")
+            .IsRequired()
+            .HasComment("Se a pessoa recebe e-mail quando alguem do time a escolhe como responsavel por um card. Ligado de fabrica; vale em todos os projetos dela. O aviso no painel chega de qualquer jeito.");
+
         // O sub e unico entre os usuarios que valem. O filtro por deleted_at existe
         // para que um usuario apagado nao impeca a mesma pessoa de entrar de novo.
         builder.HasIndex(user => user.GoogleSubject)

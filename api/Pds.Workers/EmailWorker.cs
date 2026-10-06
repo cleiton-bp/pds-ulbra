@@ -120,6 +120,11 @@ public class EmailWorker : BackgroundService
                         .SendEmailAsync(mensagem.PublicId, cancellationToken);
                     break;
 
+                case EmailJobKind.Assignment:
+                    await escopo.ServiceProvider.GetRequiredService<INotificationService>()
+                        .SendAssignmentEmailAsync(mensagem.PublicId, cancellationToken);
+                    break;
+
                 default:
                     // Tipo que esta versao nao conhece: confirmado e descartado.
                     // Devolver criaria um laco — a proxima entrega nao entende melhor.

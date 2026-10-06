@@ -3,6 +3,7 @@ using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
 using Pds.Domain.Exceptions;
+using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Service.Cards;
 
@@ -54,8 +55,13 @@ public partial class ReportService
             await _unitOfWork.CommitAsync(ct);
         }, cancellationToken);
 
-    public Task<ReportDetailViewModel> SetAssigneeAsync(Guid projectPublicId, Guid reportPublicId, SetCardAssigneeDto dto, CancellationToken cancellationToken = default)
-        => ChangeCardAsync(projectPublicId, reportPublicId, "mudar o responsavel", async (project, report, ct) =>
+    public async Task<ReportDetailViewModel> SetAssigneeAsync(Guid projectPublicId, Guid reportPublicId, SetCardAssigneeDto dto, CancellationToken cancellationToken = default)
+    {
+        // O aviso de quem passou a ser responsavel: no sino, na mesma gravacao; e o
+        // e-mail, pela fila, depois dela.
+        Notification? aviso = null;
+
+        var detalhe = await ChangeCardAsync(projectPublicId, reportPublicId, "mudar o responsavel", async (project, report, ct) =>
         {
             // Pedir quem ja esta com o card nao e erro — nem quando a pessoa saiu do time:
             // ela continua ali como registro, e a segunda aba nao muda isso.
@@ -93,8 +99,49 @@ public partial class ReportService
                 to_id = depois?.PublicId,
             }, ct);
 
+            // **Ninguem e avisado do que fez**: quem se escolhe ja sabe.
+            if (depois is not null && depois.Id != _accountContext.UserId)
+            {
+                aviso = new Notification
+                {
+                    UserId = depois.Id,
+                    ProjectId = report.ProjectId,
+                    ReportId = report.Id,
+                    ActorUserId = _accountContext.UserId,
+                    Kind = NotificationKindEnum.Assignment,
+                };
+                await _unitOfWork.Notifications.AddAsync(aviso, ct);
+            }
+
             await _unitOfWork.CommitAsync(ct);
         }, cancellationToken);
+
+        if (aviso is not null)
+            await EnqueueAssignmentEmailAsync(aviso.PublicId, cancellationToken);
+
+        return detalhe;
+    }
+
+    /// <summary>
+    /// O e-mail de quem passou a ser responsavel, na fila. **Depois da gravacao**, e
+    /// sem derrubar a acao: o card ja mudou de maos e o sino ja tem o aviso — sem a
+    /// fila, o e-mail so nao sai. Quem confere a preferencia e o consumidor, na hora
+    /// de mandar.
+    /// </summary>
+    private async Task EnqueueAssignmentEmailAsync(Guid avisoPublicId, CancellationToken cancellationToken)
+    {
+        if (!_emailQueue.IsAvailable)
+            return;
+
+        try
+        {
+            await _emailQueue.EnqueueAsync(EmailJobKind.Assignment, avisoPublicId, cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Engolida de proposito, como o agendamento: ver o paragrafo acima.
+        }
+    }
 
     public Task<ReportDetailViewModel> SetPriorityAsync(Guid projectPublicId, Guid reportPublicId, SetCardPriorityDto dto, CancellationToken cancellationToken = default)
         => ChangeCardAsync(projectPublicId, reportPublicId, "mudar a prioridade", async (project, report, ct) =>
@@ -283,13 +330,8 @@ public partial class ReportService
     /// O time do projeto agora: quem e dono da conta e quem tem linha no time. E a
     /// mesma conta da tela Membros.
     /// </summary>
-    private async Task<IReadOnlyList<User>> TeamOfAsync(long accountId, long projectId, CancellationToken cancellationToken)
-    {
-        var donos = await _unitOfWork.Users.ListByAccountAsync(accountId, cancellationToken);
-        var membros = await _unitOfWork.ProjectMembers.ListByProjectAsync(projectId, cancellationToken);
-
-        return donos.Concat(membros.Select(membro => membro.User)).DistinctBy(pessoa => pessoa.Id).ToList();
-    }
+    private Task<IReadOnlyList<User>> TeamOfAsync(long accountId, long projectId, CancellationToken cancellationToken)
+        => Team.OfProjectAsync(_unitOfWork, accountId, projectId, cancellationToken);
 
     /// <summary>
     /// Quem esta no time, para marcar o responsavel que saiu. So vai ao banco quando

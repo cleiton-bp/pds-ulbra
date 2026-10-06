@@ -11,14 +11,17 @@ export function DropdownMenu({
   children,
   width = 'w-64',
   align = 'end',
+  onOpenChange,
 }: {
   trigger: ReactNode
   children: ReactNode
   width?: string
   align?: 'start' | 'end'
+  /** Abriu ou fechou — o sino le os avisos ao abrir. */
+  onOpenChange?: (open: boolean) => void
 }) {
   return (
-    <Menu.Root>
+    <Menu.Root onOpenChange={onOpenChange}>
       <Menu.Trigger asChild>{trigger}</Menu.Trigger>
       <Menu.Portal>
         <Menu.Content

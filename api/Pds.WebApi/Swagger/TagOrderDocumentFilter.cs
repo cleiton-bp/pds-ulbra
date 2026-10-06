@@ -30,6 +30,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
             },
             new OpenApiTag
             {
+                Name = SwaggerTags.Notifications,
+                Description = "O sino de quem está na sessão: as menções em comentário interno e as vezes em que foi escolhido como responsável, de todos os projetos em que está. E a preferência do e-mail de responsável — a menção não manda e-mail.",
+            },
+            new OpenApiTag
+            {
                 Name = SwaggerTags.Projects,
                 Description = "A unidade que o cliente configura e a que identifica de onde veio cada relato.",
             },

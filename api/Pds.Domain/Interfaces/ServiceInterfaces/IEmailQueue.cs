@@ -5,6 +5,9 @@ public enum EmailJobKind
 {
     /// <summary>O convite para o time de um projeto.</summary>
     Invitation,
+
+    /// <summary>O aviso de quem passou a ser responsavel por um card. O identificador e o do aviso.</summary>
+    Assignment,
 }
 
 /// <summary>

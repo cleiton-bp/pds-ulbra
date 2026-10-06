@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
 import { ThemeButton } from '@/app/ThemeButton'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { Brand } from '@/shared/components/Brand'
 
 /**
@@ -14,6 +15,7 @@ export function AccountShell() {
         <Brand />
         <div className="flex items-center gap-2">
           <ThemeButton />
+          <NotificationBell />
           <AccountMenu />
         </div>
       </header>

@@ -6,6 +6,7 @@ import { CONSOLE_SECTIONS, LOCKED_SECTIONS, OPERATION_SECTIONS } from '@/app/nav
 import { SectionIcon } from '@/app/SectionIcon'
 import { ThemeButton } from '@/app/ThemeButton'
 import { isPanelError } from '@/data'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { useProjectsStore } from '@/features/projects/projectsStore'
 import { Brand } from '@/shared/components/Brand'
 import { Button } from '@/shared/components/Button'
@@ -238,6 +239,7 @@ export function ProjectShell() {
 
         <div className="flex items-center gap-2">
           <ThemeButton />
+          <NotificationBell />
           <AccountMenu />
         </div>
       </header>

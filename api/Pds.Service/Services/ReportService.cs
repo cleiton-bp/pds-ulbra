@@ -138,12 +138,16 @@ public partial class ReportService : IReportService
     /// </summary>
     private readonly IWorkNotifier _notifier;
 
-    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext, IDelayedScheduler scheduler, IWorkNotifier notifier)
+    /// <summary>A fila do e-mail: o de quem passa a ser responsavel sai por ela.</summary>
+    private readonly IEmailQueue _emailQueue;
+
+    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext, IDelayedScheduler scheduler, IWorkNotifier notifier, IEmailQueue emailQueue)
     {
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
         _scheduler = scheduler;
         _notifier = notifier;
+        _emailQueue = emailQueue;
     }
 
     public async Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, CancellationToken cancellationToken = default)

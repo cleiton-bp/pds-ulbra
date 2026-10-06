@@ -64,6 +64,7 @@ public class DataContext : PdsBaseContext
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<ReportLabel> ReportLabels { get; set; } = null!;
     public DbSet<CardLink> CardLinks { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
     public DbSet<ReportPublicComment> ReportPublicComments { get; set; } = null!;
     public DbSet<ReportClosure> ReportClosures { get; set; } = null!;
@@ -269,6 +270,14 @@ public class DataContext : PdsBaseContext
                                     && link.FromReport.DeletedAt == null
                                     && link.ToReport.DeletedAt == null
                                     && CurrentProjectIds.Contains(link.ProjectId));
+
+        // Aviso do sino: o acesso pela coluna do projeto, como o vinculo. Quem sai do
+        // time deixa de ver os avisos daquele projeto. De quem e o aviso, cada leitura
+        // diz: o filtro guarda o projeto, e a pessoa vai na consulta.
+        modelBuilder.Entity<Notification>()
+            .HasQueryFilter(aviso => aviso.DeletedAt == null
+                                     && aviso.Report.DeletedAt == null
+                                     && CurrentProjectIds.Contains(aviso.ProjectId));
 
         // Comentarios: chegam ao acesso pelo relato, como o contexto. Sao duas
         // entidades e dois filtros iguais, e nao uma com campo de visibilidade —

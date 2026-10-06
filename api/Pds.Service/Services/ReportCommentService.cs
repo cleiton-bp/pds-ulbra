@@ -5,6 +5,7 @@ using Pds.Domain.Exceptions;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
+using Pds.Service.Cards;
 
 namespace Pds.Service.Services;
 
@@ -75,6 +76,7 @@ public class ReportCommentService : IReportCommentService
 
         await _unitOfWork.ReportInternalComments.AddAsync(comment, cancellationToken);
         await AddEventAsync(report, userId, EventTypeEnum.ReportInternalCommented, cancellationToken);
+        await NotifyMentionedAsync(report, comment, userId, cancellationToken);
         await _unitOfWork.CommitAsync(cancellationToken);
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
@@ -120,6 +122,35 @@ public class ReportCommentService : IReportCommentService
         // A resposta de quem relatou entra por outra porta, sem sessao.
         return new PublicCommentViewModel(
             comment.PublicId, false, user?.Name, comment.Body, comment.CreatedAt);
+    }
+
+    /// <summary>
+    /// O aviso de cada pessoa mencionada, na mesma gravacao do comentario. **So no
+    /// sino**: a mencao nao manda e-mail.
+    ///
+    /// <para>So quem esta no time agora e avisado — a marca de outra pessoa fica no
+    /// texto, e mais nada. E ninguem e avisado da propria mencao.</para>
+    /// </summary>
+    private async Task NotifyMentionedAsync(Report report, ReportInternalComment comment, long autorId, CancellationToken cancellationToken)
+    {
+        var mencionados = Mentions.Read(comment.Body);
+        if (mencionados.Count == 0)
+            return;
+
+        var time = await Team.OfProjectAsync(_unitOfWork, report.AccountId, report.ProjectId, cancellationToken);
+
+        foreach (var pessoa in time.Where(pessoa => mencionados.Contains(pessoa.PublicId) && pessoa.Id != autorId))
+        {
+            await _unitOfWork.Notifications.AddAsync(new Notification
+            {
+                UserId = pessoa.Id,
+                ProjectId = report.ProjectId,
+                ReportId = report.Id,
+                ActorUserId = autorId,
+                Kind = NotificationKindEnum.Mention,
+                ReportInternalComment = comment,
+            }, cancellationToken);
+        }
     }
 
     /// <summary>
