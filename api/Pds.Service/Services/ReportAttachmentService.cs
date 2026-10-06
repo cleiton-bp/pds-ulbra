@@ -131,10 +131,14 @@ public class ReportAttachmentService : IReportAttachmentService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMediaStorage _mediaStorage;
 
-    public ReportAttachmentService(IUnitOfWork unitOfWork, IMediaStorage mediaStorage)
+    /// <summary>O anexo confirmado muda o contador da frente do card e o card aberto dos outros.</summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ReportAttachmentService(IUnitOfWork unitOfWork, IMediaStorage mediaStorage, IWorkNotifier notifier)
     {
         _unitOfWork = unitOfWork;
         _mediaStorage = mediaStorage;
+        _notifier = notifier;
     }
 
     public async Task<AttachmentUploadTicketViewModel> RequestUploadAsync(
@@ -629,6 +633,8 @@ public class ReportAttachmentService : IReportAttachmentService
 
             throw new ConflictException(mensagem);
         }
+
+        await _notifier.CardChangedAsync(report.PublicId);
 
         return new ConfirmedAttachmentViewModel(attachment.PublicId, attachment.Kind, attachment.SizeBytes);
     }

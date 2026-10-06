@@ -40,42 +40,52 @@ export function CardFields({
   reportPublicId,
   card,
   aoMudar,
+  configuracao = 0,
 }: {
   projectPublicId: string
   reportPublicId: string
   card: ReportSummaryViewModel
   aoMudar: (card: ReportDetailViewModel) => void
+  /**
+   * Sobe quando a configuracao do projeto mudou pelas maos de outra pessoa — ou a
+   * conexao em tempo real voltou e pode ter perdido o aviso: as listas sao lidas de novo.
+   */
+  configuracao?: number
 }) {
   const arquivado = card.ArchivedAt !== null
 
   // As listas de escolha: quem esta no time, as prioridades e as etiquetas do
-  // projeto. Lidas uma vez por card aberto. Falhar aqui so tira a escolha: o valor
-  // do card continua na tela, so para leitura, e a tela diz por que.
+  // projeto. Lidas uma vez por card aberto, e de novo quando a configuracao muda.
+  // Falhar aqui so tira a escolha: o valor do card continua na tela, so para leitura,
+  // e a tela diz por que. Falhar ao ler de novo deixa a lista que ja estava.
   const [time, setTime] = useState<Lista<TeamMemberViewModel>>(null)
   const [prioridades, setPrioridades] = useState<Lista<ProjectPriorityViewModel>>(null)
   const [etiquetas, setEtiquetas] = useState<Lista<ProjectLabelViewModel>>(null)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `configuracao` e o gatilho de ler de novo.
   useEffect(() => {
     if (arquivado) return
     let vivo = true
 
+    const falhou = <T,>(antes: Lista<T>): Lista<T> => (Array.isArray(antes) ? antes : 'falhou')
+
     projectTeamService
       .listMembers(projectPublicId)
       .then((lista) => vivo && setTime(lista))
-      .catch(() => vivo && setTime('falhou'))
+      .catch(() => vivo && setTime(falhou))
     projectPriorityService
       .listPriorities(projectPublicId)
       .then((lista) => vivo && setPrioridades(lista))
-      .catch(() => vivo && setPrioridades('falhou'))
+      .catch(() => vivo && setPrioridades(falhou))
     projectLabelService
       .listLabels(projectPublicId)
       .then((lista) => vivo && setEtiquetas(lista))
-      .catch(() => vivo && setEtiquetas('falhou'))
+      .catch(() => vivo && setEtiquetas(falhou))
 
     return () => {
       vivo = false
     }
-  }, [projectPublicId, arquivado])
+  }, [projectPublicId, arquivado, configuracao])
 
   // **Uma mudanca de cada vez, na ordem em que a pessoa fez.** A seguinte espera a
   // resposta da anterior e parte do card que ela devolveu: duas etiquetas escolhidas
@@ -146,7 +156,7 @@ export function CardFields({
   const algoFalhou = time === 'falhou' || prioridades === 'falhou' || etiquetas === 'falhou'
 
   return (
-    <section aria-label="Campos do card" className="border-border border-t pt-4">
+    <section aria-label="Campos do card">
       <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5">
         <dt className="text-detail text-fg-muted">Responsável</dt>
         <dd className="min-w-0">
@@ -467,17 +477,31 @@ function Prazo({
 }) {
   const [rascunho, setRascunho] = useState(valor ?? '')
   const digitando = useRef(false)
+  // O que o campo mostrava quando a digitacao comecou. Tecla que so anda entre dia,
+  // mes e ano nao muda nada — e sair do campo assim nao pode gravar por cima do prazo
+  // que outra pessoa pos enquanto isso.
+  const antesDeDigitar = useRef<string | null>(null)
 
-  // O prazo que chega de fora — a resposta, ou outra mudanca — vale sobre o rascunho.
+  // O prazo que chega de fora — a resposta, ou outra pessoa pelo tempo real — vale
+  // sobre o rascunho, **menos no meio da digitacao**: ai quem sai do campo decide, e o
+  // que escreveu nao some debaixo do dedo.
   useEffect(() => {
-    setRascunho(valor ?? '')
+    if (!digitando.current) setRascunho(valor ?? '')
   }, [valor])
 
   function confirmar(campo: HTMLInputElement) {
+    const comecou = digitando.current ? antesDeDigitar.current : null
     digitando.current = false
+    antesDeDigitar.current = null
     const data = campo.value
 
     if (data === (valor ?? '')) return
+
+    if (comecou !== null && data === comecou) {
+      // Nada mudou no campo: fica o prazo que vale agora.
+      setRascunho(valor ?? '')
+      return
+    }
 
     if (!prazoValido(data)) {
       if (data !== '') toast.error('Escolha um prazo entre os anos 2000 e 2100.')
@@ -492,7 +516,7 @@ function Prazo({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <input
         type="date"
         aria-label="Prazo"
@@ -503,8 +527,9 @@ function Prazo({
           if (evento.key === 'Enter') {
             evento.preventDefault()
             confirmar(evento.currentTarget)
-          } else if (evento.key !== 'Tab') {
+          } else if (evento.key !== 'Tab' && !digitando.current) {
             digitando.current = true
+            antesDeDigitar.current = evento.currentTarget.value
           }
         }}
         onChange={(evento) => {

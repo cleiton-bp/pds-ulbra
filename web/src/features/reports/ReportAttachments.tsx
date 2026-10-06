@@ -30,7 +30,7 @@ export function useReportAttachments(
   reaberturas: ReadonlySet<string> | null = null,
   falas: ReadonlySet<string> | null = null,
 ) {
-  const { data, failed, reload, refresh } = useAsyncResource(
+  const { data, failed, reload, refresh, revalidate } = useAsyncResource(
     useCallback(
       () => projectReportAttachmentService.listAttachments(projectPublicId, reportPublicId),
       [projectPublicId, reportPublicId],
@@ -72,6 +72,8 @@ export function useReportAttachments(
     porReabertura,
     failed,
     reload,
+    /** Busca de novo sem tirar da tela: o anexo que outra pessoa mandou, pelo tempo real. */
+    revalidate,
     /** Renova os enderecos sem tirar a lista da tela — e o da galeria. */
     refresh,
   }

@@ -73,6 +73,14 @@ const COLOR_NAMES = [
   'chip-pink-surface',
   'chip-pink-border',
   'chip-pink-fg',
+  'chip-gray-glyph',
+  'chip-blue-glyph',
+  'chip-green-glyph',
+  'chip-yellow-glyph',
+  'chip-orange-glyph',
+  'chip-red-glyph',
+  'chip-purple-glyph',
+  'chip-pink-glyph',
 ]
 
 const twMerge = extendTailwindMerge({

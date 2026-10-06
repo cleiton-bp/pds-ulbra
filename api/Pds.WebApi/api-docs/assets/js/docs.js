@@ -58,6 +58,7 @@
       { id: 'card-do-time',       label: 'O card do time e o arquivar' },
       { id: 'organizar-o-card',   label: 'Título, responsável, prioridade e prazo' },
       { id: 'o-quadro',           label: 'O quadro' },
+      { id: 'tempo-real',         label: 'O tempo real' },
       { id: 'primeiro-relato',    label: 'O primeiro relato chegando' },
       { id: 'anexar',             label: 'Imagens e arquivos no relato' },
       { id: 'volta-para-olhar',   label: 'Quem relatou volta para olhar' },

@@ -103,6 +103,12 @@ export type {
   StatusMappingEntryViewModel,
 } from '@/contracts/projectStatusMapping'
 export type {
+  AccessLostNotice,
+  CardChangedNotice,
+  ProjectChangedNotice,
+  RealtimeTicketViewModel,
+} from '@/contracts/realtime'
+export type {
   ArchiveCardRequest,
   AskInfoRequest,
   CardAssigneeViewModel,

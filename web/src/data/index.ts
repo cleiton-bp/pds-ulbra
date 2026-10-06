@@ -14,6 +14,7 @@ import { apiProjectStateService } from '@/data/api/apiProjectStateService'
 import { apiProjectStatusMappingService } from '@/data/api/apiProjectStatusMappingService'
 import { apiProjectTeamService } from '@/data/api/apiProjectTeamService'
 import { apiProjectWidgetSettingsService } from '@/data/api/apiProjectWidgetSettingsService'
+import { apiRealtimeService } from '@/data/api/apiRealtimeService'
 import type { AuthService } from '@/data/authService'
 import type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
 import type { ProjectIdentitySettingsService } from '@/data/projectIdentitySettingsService'
@@ -30,6 +31,7 @@ import type { ProjectStateService } from '@/data/projectStateService'
 import type { ProjectStatusMappingService } from '@/data/projectStatusMappingService'
 import type { ProjectTeamService } from '@/data/projectTeamService'
 import type { ProjectWidgetSettingsService } from '@/data/projectWidgetSettingsService'
+import type { RealtimeService } from '@/data/realtimeService'
 
 /**
  * Ponto unico de acesso aos dados. Tela, store e componente importam daqui e
@@ -37,6 +39,7 @@ import type { ProjectWidgetSettingsService } from '@/data/projectWidgetSettingsS
  * mantem a troca de implementacao contida neste arquivo.
  */
 export const authService: AuthService = apiAuthService
+export const realtimeService: RealtimeService = apiRealtimeService
 export const projectService: ProjectService = apiProjectService
 export const projectKeyService: ProjectKeyService = apiProjectKeyService
 export const projectOriginService: ProjectOriginService = apiProjectOriginService
@@ -83,4 +86,11 @@ export type { ProjectStateService } from '@/data/projectStateService'
 export type { ProjectStatusMappingService } from '@/data/projectStatusMappingService'
 export type { ProjectTeamService } from '@/data/projectTeamService'
 export type { ProjectWidgetSettingsService } from '@/data/projectWidgetSettingsService'
+export type {
+  RealtimeConnection,
+  RealtimeEvent,
+  RealtimeHandlers,
+  RealtimeService,
+  RealtimeStatus,
+} from '@/data/realtimeService'
 export { clearToken, getToken, UNAUTHORIZED_EVENT } from '@/data/sessionToken'

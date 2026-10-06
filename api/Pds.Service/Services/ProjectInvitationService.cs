@@ -55,13 +55,21 @@ public class ProjectInvitationService : IProjectInvitationService
     private readonly IEmailQueue _emailQueue;
     private readonly ILogger<ProjectInvitationService> _logger;
 
+    /// <summary>
+    /// Quem aceita entra na escolha de responsavel do card aberto dos outros. Ver
+    /// <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
     public ProjectInvitationService(
         IUnitOfWork unitOfWork,
         IAccountContext accountContext,
         IEmailSender emailSender,
         IEmailQueue emailQueue,
-        ILogger<ProjectInvitationService> logger)
+        ILogger<ProjectInvitationService> logger,
+        IWorkNotifier notifier)
     {
+        _notifier = notifier;
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
         _emailSender = emailSender;
@@ -255,6 +263,7 @@ public class ProjectInvitationService : IProjectInvitationService
         }, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.ProjectChangedAsync(convite.Project.PublicId);
 
         return new AcceptedInvitationViewModel(convite.Project.PublicId, convite.Project.Name);
     }

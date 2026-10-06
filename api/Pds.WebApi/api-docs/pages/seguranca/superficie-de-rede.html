@@ -8,6 +8,7 @@
   <tr><td>Limite de requisições</td><td>20/min por IP no login. 20/min por IP no pedido de permissão e na confirmação de envio de mídia, somados na mesma janela (<code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code>). As demais rotas públicas não têm.</td></tr>
   <tr><td>Convites por hora</td><td>Por projeto, os novos e os reenviados somados (<code>INVITATION_EMAILS_PER_HOUR</code>, padrão 20). É a única rota do painel que manda e-mail para fora, e o servidor de e-mail tem cota por dia.</td></tr>
   <tr><td>IP de quem pede</td><td>O da conexão. Atrás de um proxy, só o listado em <code>TRUSTED_PROXIES</code> tem o <code>X-Forwarded-For</code> acreditado, e só um salto; lista vazia ignora o cabeçalho, e valor inválido derruba a subida.</td></tr>
+  <tr><td>Tempo real</td><td>O hub (<code>/realtime/hub</code>) abre só com o bilhete de um minuto (<code>POST /realtime/ticket</code>), de destinatário próprio: nenhuma rota REST o aceita, e o hub não aceita o token da sessão — que assim nunca vai no endereço. Só quem está no projeto entra, e o time é conferido de novo a cada aviso. O aviso leva só identificadores.</td></tr>
   <tr><td>HTTPS</td><td>Redirecionamento obrigatório fora de desenvolvimento.</td></tr>
   <tr><td>Conexão com o banco</td><td>SSL obrigatório.</td></tr>
   <tr><td>Balde</td><td>Privado: nenhum acesso anônimo. De fora, nada se lê nem se grava nele sem uma assinatura que a API gerou, e ela vale minutos.</td></tr>

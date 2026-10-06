@@ -35,8 +35,15 @@ public class ProjectLabelService : IProjectLabelService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountContext _accountContext;
 
-    public ProjectLabelService(IUnitOfWork unitOfWork, IAccountContext accountContext)
+    /// <summary>
+    /// A tela de Trabalho dos outros le esta configuracao: mudou, ela rele. Ver
+    /// <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ProjectLabelService(IUnitOfWork unitOfWork, IAccountContext accountContext, IWorkNotifier notifier)
     {
+        _notifier = notifier;
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
     }
@@ -63,7 +70,7 @@ public class ProjectLabelService : IProjectLabelService
         if (dto.Color is CardColorEnum escolhida && !Enum.IsDefined(escolhida))
             throw new ArgumentException("Escolha uma cor da paleta.");
 
-        return await _unitOfWork.InTransactionAsync(async ct =>
+        var (etiqueta, criada) = await _unitOfWork.InTransactionAsync(async ct =>
         {
             // **Um nome de cada vez no projeto.** Dois "pagamento" juntos — o Enter
             // duplo, ou duas pessoas etiquetando ao mesmo tempo — viram uma etiqueta so,
@@ -91,6 +98,13 @@ public class ProjectLabelService : IProjectLabelService
 
             return (Map(label, 0), true);
         }, cancellationToken);
+
+        // A etiqueta nova entra na escolha do card aberto dos outros. A que ja existia
+        // nao muda nada, e nao avisa.
+        if (criada)
+            await _notifier.ProjectChangedAsync(projectPublicId);
+
+        return (etiqueta, criada);
     }
 
     public async Task<ProjectLabelViewModel> UpdateAsync(Guid projectPublicId, Guid labelPublicId, UpdateProjectLabelDto dto, CancellationToken cancellationToken = default)
@@ -102,7 +116,7 @@ public class ProjectLabelService : IProjectLabelService
         if (!Enum.IsDefined(color))
             throw new ArgumentException("Escolha uma cor da paleta.");
 
-        return await _unitOfWork.InTransactionAsync(async ct =>
+        var salva = await _unitOfWork.InTransactionAsync(async ct =>
         {
             // A mesma trava de criar: renomear para o nome que alguem esta criando agora
             // espera a criacao terminar, e encontra o nome ocupado.
@@ -118,6 +132,10 @@ public class ProjectLabelService : IProjectLabelService
             var cards = await _unitOfWork.ProjectLabels.CountCardsAsync(project.Id, ct);
             return Map(label, cards.GetValueOrDefault(label.Id));
         }, cancellationToken);
+
+        // O nome e a cor aparecem nos cards: as telas de Trabalho releem.
+        await _notifier.ProjectChangedAsync(projectPublicId);
+        return salva;
     }
 
     /// <summary>
@@ -158,6 +176,9 @@ public class ProjectLabelService : IProjectLabelService
 
         label.DeletedAt = agora;
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        // A etiqueta saiu de todos os cards de uma vez.
+        await _notifier.ProjectChangedAsync(projectPublicId);
     }
 
     private async Task<CardColorEnum> LeastUsedColorAsync(long projectId, CancellationToken cancellationToken)

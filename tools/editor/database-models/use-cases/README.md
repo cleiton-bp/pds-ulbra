@@ -34,7 +34,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | `09-research.yaml` | **Planejado.** As métricas do projeto e a resposta à pergunta de pesquisa |
 | `10-communication.yaml` | **Planejado.** Os avisos por e-mail — etapa que mudou, pedido de informação, código perdido — e o contato que os torna possíveis |
 | `11-account.yaml` | Convidar para o projeto, como administrador ou membro, aceitar pelo link do e-mail e cuidar do time; e, **Planejado**, excluir a conta com prazo de arrependimento e apagar os dados |
-| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto e estimativa — e, já marcados **Planejado**, o quadro em tempo real, as sprints, os relatórios e os duplicados |
+| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto, estimativa e o quadro ao vivo com a API em mais de uma instância — e, já marcados **Planejado**, as sprints, os relatórios e os duplicados |
 | `example.yaml` | ponto de partida para conhecer o editor: os quatro tipos de ligação e a especificação completa de um caso de uso |
 
 ## Os atores
@@ -52,7 +52,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | **Agendador** «sistema» | a fila que segura a espera e os prazos, e age quando a hora chega | 05, 10 |
 | **Sistema do cliente** «sistema» | o servidor do site do cliente, que assina a identidade herdada | 04 |
 | **Serviço de e-mail** «sistema» | entrega os avisos | 10 |
-| **Ferramenta do time** «sistema» | Jira, Trello ou outra, para quem não quer sair dela | 12 |
+| **Ferramenta do time** «sistema» | a ferramenta de gestão que o time já usa, para quem não quer sair dela | 12 |
 | **Armazenamento do cliente** «sistema» | o armazenamento de arquivos do próprio cliente | 12 |
 
 O papel no projeto já existe: o administrador configura e decide quem entra, o membro trabalha nos relatos e não vê a **Configuração**, e o dono da conta é administrador de todos os projetos dela. A mesma pessoa pode estar em projetos de várias contas. O convite — a porta para alguém entrar num projeto — está em `11-account`: o administrador convida por e-mail, e a pessoa aceita entrando com o Google do mesmo endereço. Os diagramas mais antigos ainda chamam de **Dono do projeto** quem configura; o **Administrador do projeto** faz o mesmo, e o dono é um caso dele.

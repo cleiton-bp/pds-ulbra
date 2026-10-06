@@ -189,6 +189,19 @@
   --chip-pink-surface: var(--pink-3);
   --chip-pink-border: var(--pink-7);
   --chip-pink-fg: var(--pink-12);
+
+  /* O desenho na cor do dado — o icone da prioridade. Desenho pede 3:1, e nao os
+     4,5:1 do texto, entao o degrau 11 serve: no 12 do claro, vermelho, laranja e
+     amarelo viravam o mesmo marrom. O tema escuro ja usa o 11 e herda sozinho, porque
+     o degrau e reatribuido la. */
+  --chip-gray-glyph: var(--slate-11);
+  --chip-blue-glyph: var(--blue-11);
+  --chip-green-glyph: var(--grass-11);
+  --chip-yellow-glyph: var(--yellow-11);
+  --chip-orange-glyph: var(--orange-11);
+  --chip-red-glyph: var(--red-11);
+  --chip-purple-glyph: var(--purple-11);
+  --chip-pink-glyph: var(--pink-11);
 }
 
 /* ---------------------------------------------------------------------------

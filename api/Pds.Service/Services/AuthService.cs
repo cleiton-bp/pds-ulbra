@@ -65,6 +65,16 @@ public class AuthService : IAuthService
     }
 
     public async Task<MeViewModel> GetCurrentAsync(CancellationToken cancellationToken = default)
+        => Map(await CurrentUserAsync(cancellationToken));
+
+    public async Task<RealtimeTicketViewModel> IssueRealtimeTicketAsync(CancellationToken cancellationToken = default)
+    {
+        var (ticket, expiresAt) = _tokenService.IssueRealtimeTicket(await CurrentUserAsync(cancellationToken));
+        return new RealtimeTicketViewModel(ticket, expiresAt);
+    }
+
+    /// <summary>A pessoa da sessao, com a conta propria dela.</summary>
+    private async Task<User> CurrentUserAsync(CancellationToken cancellationToken)
     {
         var userId = _accountContext.UserId
                      ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
@@ -76,7 +86,7 @@ public class AuthService : IAuthService
         user.Account = await _unitOfWork.Accounts.GetByIdAsync(user.AccountId, cancellationToken)
                        ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
 
-        return Map(user);
+        return user;
     }
 
     /// <summary>Primeiro acesso: nasce a conta e o usuario juntos, numa unica gravacao.</summary>

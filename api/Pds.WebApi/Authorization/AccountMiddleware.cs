@@ -30,10 +30,10 @@ public class AccountMiddleware
 {
     /// <summary>
     /// Marca no SQL do log as duas leituras que montam o acesso. As leituras de
-    /// painel que desligam o filtro de proposito sao estas duas e a conferencia de
-    /// nome repetido (<see cref="Pds.Data.Repositories.ProjectRepository.NameCheckQueryTag"/>),
-    /// todas marcadas — e com a marca da para separa-las das que nunca deveriam
-    /// desligar.
+    /// painel que desligam o filtro de proposito sao estas duas, a conferencia de
+    /// nome repetido (<see cref="Pds.Data.Repositories.ProjectRepository.NameCheckQueryTag"/>)
+    /// e as do aviso em tempo real (<c>HubWorkNotifier.QueryTag</c>), todas marcadas —
+    /// e com a marca da para separa-las das que nunca deveriam desligar.
     /// </summary>
     public const string AccessQueryTag = "montagem do acesso da requisicao";
 
@@ -87,8 +87,11 @@ public class AccountMiddleware
     /// <para><b>O dono vence.</b> Se a pessoa for dona da conta e tambem tiver
     /// linha no time do mesmo projeto, vale o acesso de dona — a linha nao rebaixa
     /// quem manda na conta.</para>
+    ///
+    /// <para>O hub do tempo real usa a mesma leitura ao entrar num projeto: a regra de
+    /// quem enxerga o que fica num lugar so.</para>
     /// </summary>
-    private static async Task<List<ProjectAccess>> LoadProjectsAsync(
+    internal static async Task<List<ProjectAccess>> LoadProjectsAsync(
         DataContext dataContext, long userId, long accountId, CancellationToken cancellationToken)
     {
         var owned = await dataContext.Projects

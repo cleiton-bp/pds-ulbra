@@ -344,20 +344,26 @@ que a pessoa escreveu fica guardado: é o único título que volta para ela, no 
 e em "meus relatos". No card aberto, `CardFields` dá o **responsável** (um só; quem sai do
 time continua marcado), a **prioridade** (as do projeto, de fábrica Baixa, Média, Alta e
 Urgente — o card nasce sem), as **etiquetas** (escrever o nome que não existe cria a
-etiqueta) e o **prazo** (só a data). A linha da lista mostra tudo isso numa faixa. As cores
+etiqueta) e o **prazo** (só a data). A tabela da lista mostra cada um numa coluna própria — e,
+na tela estreita, as colunas de apoio saem antes do título. As cores
 de etiqueta e prioridade são a paleta de dado de `tokens.css`, com o par certo nos dois
 temas e o nome sempre escrito junto. **Prioridades** e **Etiquetas**, na Configuração, são
 de quem administra.
 
-**O quadro.** A tela **Trabalho** tem duas vistas, a lista e o **quadro** — uma coluna por
+**O quadro.** A tela **Trabalho** tem duas vistas, em abas: a lista, uma tabela (`ReportsTable`),
+e o **quadro** — uma coluna por
 estado, cada uma com a própria leitura na ordem do quadro, cinquenta de cada vez, e "Mostrar
 mais" continuando depois do último card da tela (`after`), e não pela página seguinte —, e o
 navegador lembra a escolhida, por projeto. Cada vista lê só o que é dela: a lista não é lida com
 o quadro na tela, e é lida de novo ao voltar. A frente do card é um resumo
-(`BoardCardFace`): número, título, prioridade, até três etiquetas, o prazo — vermelho quando
-venceu, amarelo quando está perto, sempre com as palavras (`DueChip`) —, quantos comentários
-e anexos, e as iniciais de quem está com ele. O detalhe só abre no clique, no mesmo diálogo
-da lista. Arrastar usa `@dnd-kit`: o mouse pega depois de andar uns pixels, o toque depois
+(`BoardCardFace`): o título primeiro, até três etiquetas e o prazo — vermelho quando venceu,
+amarelo quando está perto, sempre com as palavras (`DueChip`) — e, no pé, o tipo, o número, a
+prioridade com o nome, quantos comentários e anexos e quem está com ele — a foto do Google,
+senão as iniciais. As peças que a lista, o quadro e o card aberto desenham igual ficam em
+`cardLook.tsx`. "Criar", no pé de cada coluna que recebe card, abre o card novo já nela. O
+detalhe só abre no clique, no mesmo diálogo da lista, em duas colunas (`CardDetailLayout`): o
+card e a atividade à esquerda; a coluna, as ações e os detalhes à direita, cada lado com a
+própria rolagem — e, no celular, uma coluna só. Arrastar usa `@dnd-kit`: o mouse pega depois de andar uns pixels, o toque depois
 de segurar um instante (deslizar continua rolando), e o teclado com espaço, setas, espaço ou Enter
 para soltar, e Esc, anunciando cada passo ao leitor de tela. O alvo é o que está debaixo do
 ponteiro (`boardCollision`): a coluna inteira recebe, o cabeçalho também, e soltar fora das colunas
@@ -376,6 +382,31 @@ guarda, em `ReportsBoard`, fica na janela e vale do pegar até um instante depoi
 — menos no teclado, que não clica ao soltar, e onde o Enter logo depois continua abrindo o
 card.
 
+**O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
+recarregar. A conexão (`realtimeService`, em `data/api/apiRealtimeService.ts`, com a biblioteca
+do SignalR carregada só nesta tela) pede um bilhete de um minuto a cada conexão — o token da
+sessão nunca vai no endereço —, entra no projeto e reconecta sozinha, para sempre: logo, e
+depois esperando 2, 5, 10 e 30 segundos entre uma tentativa e outra; as esperas só voltam ao
+começo com a conexão de volta dentro do projeto. De volta — ou aberta só depois de falhar —, a
+tela relê tudo. O aviso só traz identificadores, e cada parte relê pela REST o que é dela
+(`useWorkRealtime` repassa): o quadro, só as colunas que o card tocou, juntando avisos próximos
+e esperando o arraste, a gravação ou o desfecho terminar (`board.hold`); a lista, as páginas da
+tela, sem esvaziar; a contagem; e o card aberto, com `refreshReport` — que não grava leitura —,
+a conversa, os anexos, a história e, quando a configuração muda, as escolhas dos campos, sem
+apagar o que a pessoa está escrevendo. **Leitura atrasada não passa por cima**: a coluna, a
+lista ou o card que mudou nesta aba enquanto a releitura estava no ar é lido de novo, e de duas
+releituras no ar vale a última. Todo pedido da aba leva o id da conexão
+(`X-Realtime-Connection`), e o aviso da própria mudança volta marcado e é ignorado.
+
+Na tela, o card que mudou se acende por dois segundos, com uma faixa à esquerda — quando a
+releitura chega, e não o aviso —, e uma região anunciada conta o mesmo a quem usa leitor de tela
+(`LiveStatus`). O card com o foco que outra pessoa move leva o foco junto, e o que sai da tela
+deixa o foco no vizinho (`useKeepFocus`). O clique num card nos 0,6 segundo depois de uma
+mudança de outra pessoa entrar na tela não abre nada: a linha que estava ali pode ter descido. A
+queda que passa de três segundos mostra um selo preso ao pé da tela — "Reconectando…", ou "Sem
+atualização ao vivo" quando a conexão nunca abriu —, dito também dentro do card aberto. Quem
+perde o acesso volta para a lista de projetos, que diz de qual projeto saiu.
+
 **O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
 de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.
 Estado não se apaga — não há botão de remover em lugar nenhum —, porque relato antigo
@@ -384,10 +415,10 @@ aponta para ele e o histórico precisa continuar legível. Projeto novo nasce co
 "primeira coluna da fila" **apaga** a escolha em vez de gravar uma vazia — é o que
 mantém "não configurei" como um estado possível do projeto.
 
-A lista de relatos **filtra por coluna**, com a contagem de cada uma na barra de cima.
-A contagem vem de uma chamada própria: contar as linhas da página daria um número
-errado assim que o projeto passasse de vinte relatos. Coluna vazia continua na barra
-— some só a aposentada que não segura mais nada.
+A lista **filtra por coluna**, numa caixa de escolha na barra de ferramentas, com a
+contagem em cada opção. A contagem vem de uma chamada própria: contar as linhas da página
+daria um número errado assim que o projeto passasse de vinte relatos. Coluna vazia continua
+entre as opções — some só a aposentada que não segura mais nada.
 
 Cada relato tem **endereço próprio**: `/projects/:id/reports/:reportId`. Ele é rota
 **filha** da lista, e não uma tela no lugar dela — assim a lista fica montada atrás,
@@ -468,8 +499,9 @@ vídeos de antes de o vídeo sair do produto continuam tocando.
 | a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: o plano de cobrança (**Continuidade**); o quadro de cards em
-tempo real, filtros rápidos e busca, sprints e relatórios (**Planejado**); a lista pública com imagens e a página pública
+Fora do corte, de propósito: o plano de cobrança (**Continuidade**); filtros rápidos e busca,
+sprints e relatórios (**Planejado**); o tempo real com mais de uma instância da API e a página de
+acompanhamento ao vivo de quem relatou (**Continuidade**); a lista pública com imagens e a página pública
 de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora
 no servidor e pega o caso comum; barrar o quadro no navegador precisa de um servidor
 servindo `embed.html`, que é hospedagem que ainda não existe — **Planejado**.

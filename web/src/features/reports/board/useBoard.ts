@@ -7,8 +7,11 @@ import { type BoardColumn, type BoardItems, columnOf } from '@/features/reports/
 /** Quantos cards cada coluna mostra antes do "Mostrar mais". */
 export const BOARD_PAGE_SIZE = 50
 
-/** O teto da API para uma pagina. E ate onde uma coluna aberta se recarrega de uma vez. */
+/** O teto da API para uma pagina. A coluna aberta alem dele e relida em mais de um pedido. */
 const MAX_PAGE_SIZE = 100
+
+/** Avisos que chegam juntos — um movimento e o comentario logo depois — viram uma releitura so. */
+export const REMOTE_BATCH_MS = 250
 
 export interface BoardColumnState {
   /** Quantos a coluna tem no quadro — na ultima, so os que a regra dos dias deixa. */
@@ -50,20 +53,66 @@ const CARREGANDO: BoardColumnState = {
  * cancelar as antigas, e sem ele a resposta do projeto anterior pintaria card no
  * quadro do novo.
  */
-export function useBoard(projectPublicId: string, columns: BoardColumn[] | null, enabled: boolean) {
+export function useBoard(
+  projectPublicId: string,
+  columns: BoardColumn[] | null,
+  enabled: boolean,
+  /**
+   * Os cards que outra pessoa mudou, quando as colunas deles acabaram de ser relidas —
+   * e nao quando o aviso chegou: a releitura pode esperar um arraste, e o destaque
+   * acenderia num lugar em que o card ainda nao esta.
+   */
+  aoReler?: (mudados: { id: string; numero?: number }[]) => void,
+) {
+  const aoRelerAgora = useRef(aoReler)
+  aoRelerAgora.current = aoReler
   const [items, setItemsState] = useState<BoardItems>({})
   const itemsRef = useRef<BoardItems>({})
   const [cards, setCards] = useState<Record<string, ReportSummaryViewModel>>({})
+  // Os cards lidos ate agora, para quem pergunta antes da proxima renderizacao.
+  const cardsRef = useRef<Record<string, ReportSummaryViewModel>>({})
   const [state, setState] = useState<Record<string, BoardColumnState>>({})
   const generation = useRef(0)
 
-  const setItems = useCallback((proximo: BoardItems | ((atual: BoardItems) => BoardItems)) => {
-    const valor = typeof proximo === 'function' ? proximo(itemsRef.current) : proximo
+  /**
+   * Quantas vezes a ordem de cada coluna mudou nesta tela — um arraste, um card criado,
+   * um "Mostrar mais". A leitura da coluna que estava no ar quando ela mudou pode ter
+   * sido feita antes, e nao passa por cima: a coluna e lida de novo.
+   */
+  const mexidas = useRef<Record<string, number>>({})
+  /** A ultima leitura pedida de cada coluna. So ela vale quando chega. */
+  const ultimaLeitura = useRef<Record<string, number>>({})
+
+  const escrever = useCallback((valor: BoardItems) => {
     itemsRef.current = valor
     setItemsState(valor)
   }, [])
 
+  const setItems = useCallback(
+    (proximo: BoardItems | ((atual: BoardItems) => BoardItems)) => {
+      const antes = itemsRef.current
+      const valor = typeof proximo === 'function' ? proximo(antes) : proximo
+      for (const chave of new Set([...Object.keys(antes), ...Object.keys(valor)]))
+        if (antes[chave] !== valor[chave])
+          mexidas.current[chave] = (mexidas.current[chave] ?? 0) + 1
+      escrever(valor)
+    },
+    [escrever],
+  )
+
+  // ─── O que chega pelo tempo real (as filas; quem as usa vem mais abaixo) ──
+  /** As colunas a reler por causa de avisos, esperando a vez. */
+  const pendentes = useRef(new Set<string>())
+  /** Os cards dos avisos, para acender quando a releitura chegar. */
+  const mudadosPorOutros = useRef(new Set<string>())
+  /** Quantos motivos ha para esperar: um arraste, um movimento gravando, o desfecho aberto. */
+  const segurando = useRef(0)
+  const juntando = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Agenda a releitura do que esta em `pendentes` — definido mais abaixo. */
+  const agendarReleitura = useRef<() => void>(() => {})
+
   const guardar = useCallback((lista: ReportSummaryViewModel[]) => {
+    for (const card of lista) cardsRef.current[card.PublicId] = card
     setCards((atual) => {
       const novo = { ...atual }
       for (const card of lista) novo[card.PublicId] = card
@@ -82,52 +131,88 @@ export function useBoard(projectPublicId: string, columns: BoardColumn[] | null,
   )
 
   const loadColumn = useCallback(
-    async (chave: string, pageSize = BOARD_PAGE_SIZE) => {
+    async (chave: string, quantos = BOARD_PAGE_SIZE) => {
       const minha = generation.current
-      // A coluna que ja mostra cards continua mostrando enquanto e relida: o esqueleto
-      // no lugar dela piscava a cada dialogo fechado, e a pagina encolhia e pulava.
-      const temCards = (itemsRef.current[chave]?.length ?? 0) > 0
-      setState((atual) => ({
-        ...atual,
-        [chave]: { ...(atual[chave] ?? CARREGANDO), loading: !temCards, failed: false },
-      }))
-
-      try {
-        const pagina = await buscar(chave, pageSize)
-        if (minha !== generation.current) return
-
-        guardar(pagina.reports)
-        setItems((atual) => ({ ...atual, [chave]: pagina.reports.map((card) => card.PublicId) }))
+      const esta = (ultimaLeitura.current[chave] ?? 0) + 1
+      ultimaLeitura.current[chave] = esta
+      const mexidaAntes = mexidas.current[chave] ?? 0
+      const valendo = () => minha === generation.current && esta === ultimaLeitura.current[chave]
+      /** Le de novo pelo caminho que espera a mao terminar, sem esqueleto nem erro na tela. */
+      const deNovo = () => {
         setState((atual) => ({
           ...atual,
-          [chave]: {
-            total: pagina.total,
-            end: pagina.reports.length < pageSize,
-            loading: false,
-            loadingMore: false,
-            failed: false,
-          },
+          [chave]: { ...(atual[chave] ?? CARREGANDO), loading: false },
         }))
-      } catch {
-        if (minha !== generation.current) return
+        pendentes.current.add(chave)
+        agendarReleitura.current()
+      }
+      // A coluna ja lida continua na tela enquanto e relida — com cards ou vazia: o
+      // esqueleto no lugar dela piscava a cada dialogo fechado, e a coluna mudava de altura.
+      const jaLida = itemsRef.current[chave] !== undefined
+      setState((atual) => ({
+        ...atual,
+        [chave]: { ...(atual[chave] ?? CARREGANDO), loading: !jaLida, failed: false },
+      }))
+
+      // Ate o teto da API por pedido; o que passa dele vem depois do ultimo lido.
+      const lidos: ReportSummaryViewModel[] = []
+      let total = 0
+      let fim = false
+      try {
+        while (!fim && lidos.length < quantos) {
+          const pedir = Math.min(MAX_PAGE_SIZE, quantos - lidos.length)
+          const pagina = await buscar(chave, pedir, lidos.at(-1)?.PublicId)
+          if (!valendo()) return
+          lidos.push(...pagina.reports)
+          total = pagina.total
+          fim = pagina.reports.length < pedir
+        }
+      } catch (falha) {
+        if (!valendo()) return
+        // O card de referencia saiu da coluna entre um pedido e outro: comeca de novo.
+        if (
+          lidos.length > 0 &&
+          isPanelError(falha) &&
+          (falha.status === 409 || falha.status === 404)
+        ) {
+          deNovo()
+          return
+        }
         setState((atual) => ({
           ...atual,
           [chave]: { ...(atual[chave] ?? CARREGANDO), loading: false, failed: true },
         }))
+        return
       }
+
+      // A ordem mudou aqui enquanto a leitura estava no ar: ela pode ter sido feita antes.
+      if ((mexidas.current[chave] ?? 0) !== mexidaAntes) {
+        deNovo()
+        return
+      }
+
+      guardar(lidos)
+      escrever({
+        ...itemsRef.current,
+        [chave]: [...new Set(lidos.map((card) => card.PublicId))],
+      })
+      setState((atual) => ({
+        ...atual,
+        [chave]: { total, end: fim, loading: false, loadingMore: false, failed: false },
+      }))
     },
-    [buscar, guardar, setItems],
+    [buscar, guardar, escrever],
   )
 
   /**
-   * Recarrega a coluna com tudo o que ja estava aberto nela (ate o teto da pagina).
-   * E o que acerta os numeros da frente do card depois de alguem comentar ou anexar
-   * pelo dialogo — eles nao voltam nas respostas de la.
+   * Recarrega a coluna com tudo o que ja estava aberto nela. E o que acerta os numeros
+   * da frente do card depois de alguem comentar ou anexar pelo dialogo — eles nao voltam
+   * nas respostas de la.
    */
   const reloadColumn = useCallback(
     (chave: string) => {
       const abertos = itemsRef.current[chave]?.length ?? 0
-      return loadColumn(chave, Math.min(MAX_PAGE_SIZE, Math.max(BOARD_PAGE_SIZE, abertos)))
+      return loadColumn(chave, Math.max(BOARD_PAGE_SIZE, abertos))
     },
     [loadColumn],
   )
@@ -153,6 +238,7 @@ export function useBoard(projectPublicId: string, columns: BoardColumn[] | null,
       aberto.current = { projeto: projectPublicId, chaves: new Set(lista) }
       setItems({})
       setCards({})
+      cardsRef.current = {}
       setState({})
       for (const chave of lista) void loadColumn(chave)
       return
@@ -294,6 +380,74 @@ export function useBoard(projectPublicId: string, columns: BoardColumn[] | null,
     [adjustTotal, guardar, setItems],
   )
 
+  // ─── O que chega pelo tempo real ──────────────────────────────────────────
+  const reler = useCallback(() => {
+    juntando.current = null
+    if (segurando.current > 0) return
+    const lista = [...pendentes.current].filter((chave) => aberto.current?.chaves.has(chave))
+    const mudados = [...mudadosPorOutros.current]
+    pendentes.current.clear()
+    mudadosPorOutros.current.clear()
+    if (aberto.current === null) return
+    void Promise.all(lista.map((chave) => reloadColumn(chave))).then(() => {
+      if (mudados.length > 0)
+        aoRelerAgora.current?.(mudados.map((id) => ({ id, numero: cardsRef.current[id]?.Number })))
+    })
+  }, [reloadColumn])
+
+  const agendar = useCallback(() => {
+    if (juntando.current === null) juntando.current = setTimeout(reler, REMOTE_BATCH_MS)
+  }, [reler])
+  agendarReleitura.current = agendar
+
+  useEffect(
+    () => () => {
+      if (juntando.current !== null) clearTimeout(juntando.current)
+    },
+    [],
+  )
+
+  /**
+   * Outra pessoa mudou um card: relê a coluna em que ele esta **nesta tela** e a coluna
+   * em que ele esta **agora** (a do aviso) — uma so, quando sao a mesma; nenhuma de
+   * destino, quando ele foi para o arquivo. Coluna que esta tela nao tem (nova, ou fora
+   * do quadro) nao e lida aqui: a contagem relida traz a coluna nova, e ela entra pelo
+   * caminho de sempre.
+   */
+  const remoteChange = useCallback(
+    (cardId: string, destino: string | null) => {
+      const daqui = columnOf(itemsRef.current, cardId)
+      if (daqui) pendentes.current.add(daqui)
+      if (destino) pendentes.current.add(destino)
+      mudadosPorOutros.current.add(cardId)
+      agendar()
+    },
+    [agendar],
+  )
+
+  /** Rele todas as colunas: a configuracao mudou, ou a conexao voltou e pode ter perdido avisos. */
+  const reloadAll = useCallback(() => {
+    for (const chave of aberto.current?.chaves ?? []) pendentes.current.add(chave)
+    agendar()
+  }, [agendar])
+
+  /**
+   * Segura as releituras ate a mao terminar. Reler a coluna no meio de um arraste
+   * tiraria o card debaixo do ponteiro; reler enquanto o proprio movimento grava traria
+   * a ordem de antes dele, e o card pularia para tras e para a frente. Devolve quem
+   * solta — uma vez so; o que chegou no meio e relido ao soltar o ultimo.
+   */
+  const hold = useCallback(() => {
+    segurando.current += 1
+    let solto = false
+    return () => {
+      if (solto) return
+      solto = true
+      segurando.current -= 1
+      if (segurando.current === 0 && pendentes.current.size > 0) agendar()
+    }
+  }, [agendar])
+
   return {
     items,
     itemsRef,
@@ -307,6 +461,9 @@ export function useBoard(projectPublicId: string, columns: BoardColumn[] | null,
     apply,
     update,
     insert,
+    remoteChange,
+    reloadAll,
+    hold,
   }
 }
 

@@ -53,6 +53,10 @@ useCases:
       - O administrador abre Membros no projeto.
       - Muda o papel de alguém, ou tira a pessoa do time, confirmando.
       - O acesso muda na requisição seguinte da pessoa, sem esperar o login vencer.
+    alternativeFlows:
+      - title: 2a. A pessoa tirada do time está com a tela de Trabalho aberta
+        steps:
+          - A tela fecha na hora e volta para a lista de projetos, que diz de qual projeto ela saiu. Na tela dos outros, o nome dela sai da escolha de responsável.
     postconditions: O dono não muda de papel nem sai do time — manda em todos os projetos da conta. O que quem saiu escreveu nos relatos continua com o nome dela.
   - id: UC03
     name: Excluir a conta

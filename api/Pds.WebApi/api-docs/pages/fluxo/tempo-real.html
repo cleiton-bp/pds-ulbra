@@ -1,0 +1,163 @@
+<h2>O tempo real</h2>
+
+<p>Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece <strong>sem
+recarregar</strong>: o card que andou de coluna, o card novo, o título, os campos, a conversa, os
+anexos, o card arquivado ou desarquivado — e o que vem de fora, como a resposta de quem relatou ou
+o relato novo que chegou pela ferramenta. A configuração que a tela usa também: a coluna
+renomeada, a etiqueta nova, a etapa pública renomeada, quem entrou no time ou saiu dele.</p>
+
+<p>O card (ou a linha da lista) que mudou se acende por um instante, com uma faixa à esquerda,
+quando a releitura chega — e não antes, para não acender um lugar em que o card ainda não está.
+Quem usa leitor de tela ouve o mesmo, numa região que anuncia: <em>“O card #42 foi
+atualizado.”</em></p>
+
+<h2>O aviso não leva o card</h2>
+
+<p>A API manda só identificadores, e cada tela relê pela rota de sempre:</p>
+
+<pre><code>CardChanged    { "ProjectPublicId": "2be49b28-...", "ReportPublicId": "9f3e...",
+                 "StatePublicId": "c7d1...", "Archived": false, "Origin": "Xq3c...w" }
+ProjectChanged { "ProjectPublicId": "2be49b28-...", "Origin": null }
+AccessLost     { "ProjectPublicId": "2be49b28-..." }</code></pre>
+
+<p><code>StatePublicId</code> é a coluna em que o card está agora, e <code>Archived</code> diz se ele
+foi para o arquivo. O quadro relê a coluna de onde o card saiu e a de onde ele está; a lista, as
+páginas que estão na tela, sem esvaziar; a contagem das colunas, sem sair da tela. Avisos próximos
+viram uma releitura só — e nenhuma espera mais de um segundo por eles. O quadro espera a mão
+terminar — o arraste, o movimento que ainda está gravando, o desfecho que está sendo escolhido —
+para não tirar um card de debaixo do ponteiro.</p>
+
+<p><code>ProjectChanged</code> sai quando muda o que a tela de Trabalho usa do projeto, e a tela relê
+tudo:</p>
+
+<ul>
+  <li>coluna ou prioridade criada, renomeada, reordenada, aposentada ou reativada;</li>
+  <li>etiqueta criada, renomeada, recolorida ou apagada;</li>
+  <li>o Ciclo gravado;</li>
+  <li>etapa pública renomeada, ou o mapa das etapas gravado — o card aberto mostra a etapa;</li>
+  <li>alguém entrou no time pelo convite, ou saiu dele — a escolha de responsável muda.</li>
+</ul>
+
+<p>Gravar o que já estava — aposentar a coluna aposentada, reativar a ativa, criar a etiqueta que já
+existe, gravar o mapa igual — não avisa ninguém.</p>
+
+<div class="note">
+  <strong>Nada interno ganha um caminho novo</strong>
+  <p>Como o aviso não leva conteúdo, o que a pessoa vê continua passando pelo filtro de acesso e
+  pela montagem do objeto de sempre. Um aviso que chegasse a quem não devia contaria, no máximo,
+  que algo mudou num card.</p>
+</div>
+
+<h2>O card aberto</h2>
+
+<p>O card aberto se acerta sozinho quando outra pessoa mexe nele: a coluna, os campos, o
+encerramento, a conversa, os anexos e a história. Quando a configuração muda, as escolhas dos
+campos — o time, as prioridades, as etiquetas — são lidas de novo. A releitura <strong>não conta
+como leitura</strong>:</p>
+
+<pre><code>GET /projects/2be49b28-.../reports/9f3e...?refresh=true</code></pre>
+
+<p>Abrir o card continua registrando a leitura — é ali que alguém foi olhar, e é isso que a medida
+de quanto o time demora para ver compara com a criação.</p>
+
+<p>O que a pessoa está escrevendo no card aberto — o comentário, o título, a descrição, o prazo no
+meio da digitação — não é apagado pela releitura. O comentário que ela acabou de mandar também
+não, e a conversa continua chegando depois dele; a fala nova que entra acima do campo não o tira
+da tela. E a releitura que saiu antes de uma ação da própria aba e chegou depois dela não passa por
+cima da ação: a tela lê de novo.</p>
+
+<h2>Na tela de quem olha</h2>
+
+<ul>
+  <li><strong>O foco não se perde.</strong> O card com o foco que outra pessoa move leva o foco
+  junto, para a coluna nova. O que sai da tela — arquivado, fora do recorte — deixa o foco no
+  vizinho da mesma coluna, ou na própria coluna. Fechar o card que mudou de lugar enquanto estava
+  aberto devolve o foco a ele, no lugar novo.</li>
+  <li><strong>O clique não cai no card errado.</strong> Logo depois de uma mudança de outra pessoa
+  entrar na tela — o card novo no topo empurra os de baixo —, o clique num card não abre nada por
+  um instante (0,6 segundo); o clique seguinte vale. Abrir grava leitura, e abrir o card errado
+  contaria uma leitura que ninguém quis.</li>
+  <li><strong>O arraste em conflito diz o que houve.</strong> Soltar um card que outra pessoa moveu
+  no meio do caminho é recusado pela API (409). A tela diz que foi outra pessoa, relê o quadro, e o
+  card aparece onde está de verdade, com o foco nele.</li>
+  <li><strong>Quem perde o acesso sabe por quê.</strong> A tela fecha e volta para a lista de
+  projetos, que diz de qual projeto a pessoa saiu — até ela dizer que viu.</li>
+</ul>
+
+<h2>A conexão e o bilhete</h2>
+
+<p>A tela abre uma conexão por aba com o hub (SignalR, em <code>/realtime/hub</code>) e entra no
+projeto. Antes de cada conexão — e de cada reconexão — pede um bilhete, com a sessão de sempre. O
+pedido não tem corpo:</p>
+
+<pre><code>POST /realtime/ticket
+Authorization: Bearer &lt;AccessToken&gt;</code></pre>
+
+<p>A resposta vem no envelope de sempre:</p>
+
+<pre><code>{
+  "Success": true,
+  "Message": null,
+  "Data": { "Ticket": "eyJ...", "ExpiresAt": "2026-10-03T13:01:00Z" }
+}</code></pre>
+
+<div class="note warn">
+  <strong>O token da sessão nunca vai no endereço</strong>
+  <p>O navegador não manda cabeçalho na conexão WebSocket, e o token vai no endereço
+  (<code>/realtime/hub?access_token=...</code>), que fica gravado em log de servidor e de proxy. Por
+  isso vai o bilhete: vale um minuto, tem destinatário próprio e só abre o hub. Nenhuma rota REST o
+  aceita, e o hub não aceita o token da sessão. Vencido o minuto, a conexão aberta continua — quem
+  decide se a pessoa ainda recebe é o time do projeto, conferido a cada aviso.</p>
+</div>
+
+<p><strong>Só quem está no projeto entra.</strong> Entrar (<code>Watch</code>) confere o acesso com
+a mesma leitura das rotas do painel, e devolve falso para quem não está. <strong>E o time é
+conferido de novo a cada aviso</strong>: quem sai do time para de receber na hora, mesmo com a
+conexão aberta — e recebe o <code>AccessLost</code>, e a tela fecha.</p>
+
+<h2>O eco, a queda e a volta</h2>
+
+<p>Cada pedido da aba leva o id da conexão dela, no cabeçalho <code>X-Realtime-Connection</code>; o
+aviso volta com ele em <code>Origin</code>, e a aba que fez a mudança o ignora — ela já mostra o que
+mudou. As outras abas, até da mesma pessoa, recebem. O que vem de fora do painel — quem relatou, a
+fila — chega com <code>Origin</code> nulo, e o cabeçalho que não tem a forma de um id de conexão é
+descartado.</p>
+
+<p>Caiu, a conexão tenta de novo sozinha — logo, e depois esperando 2, 5, 10 e 30 segundos entre uma
+tentativa e outra; dali em diante, a cada 30, sem desistir. As esperas só voltam ao começo com a
+conexão de volta dentro do projeto: a que abre e não consegue entrar não fica tentando sem parar.</p>
+
+<p>Depois de alguns segundos fora, um selo preso ao pé da tela diz <strong>Reconectando…</strong> —
+ou <strong>Sem atualização ao vivo</strong>, quando a conexão ainda não abriu nenhuma vez —, sem
+empurrar nada da tela; com o card aberto, quem usa leitor de tela ouve o mesmo dentro dele. De
+volta, a conexão entra de novo no projeto e a tela relê tudo, porque pode ter perdido avisos no
+meio. A primeira conexão que só abriu depois de falhar também relê: a tela já tinha lido, e o que
+mudou entre uma coisa e outra não veio por aviso nenhum.</p>
+
+<h2>O envio não segura ninguém</h2>
+
+<p>As leituras do aviso — de qual projeto é o card, quem está no time agora — acontecem no pedido de
+quem mudou, depois de gravado, com prazo de 2 segundos. O envio vai à parte, também com prazo. Uma
+conexão que para de ler — de propósito ou não — enche o que o servidor guarda para ela, e o envio
+esperaria; esperando dentro do pedido, travaria as escritas do projeto inteiro. Passou do prazo, o
+aviso é registrado como não enviado e nada mais muda: a mudança já está gravada.</p>
+
+<h2>O que não chega ao vivo</h2>
+
+<ul>
+  <li>As telas de configuração e a Moderação: o tempo real é da tela de Trabalho.</li>
+  <li>O papel de alguém no time. A API aplica o papel novo na hora; a tela de quem mudou de papel
+  passa a mostrá-lo quando a lista de projetos é lida de novo — ao voltar para ela, ou ao
+  recarregar a página.</li>
+  <li>A coluna em que entra o relato novo de cada tipo: a tela de Trabalho não a mostra.</li>
+</ul>
+
+<h2>Os limites</h2>
+
+<div class="note warn">
+  <strong>Uma instância da API</strong>
+  <p>Os grupos das conexões moram na memória do processo. Com duas instâncias, um aviso só chegaria a
+  quem estivesse conectado na mesma — aí o hub precisa de um backplane (Redis), ligado no registro do
+  tempo real. É <strong>Continuidade</strong>, junto da página de acompanhamento de quem relatou ao
+  vivo: o tempo real de hoje é do time.</p>
+</div>

@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { ReportEventType, ReportHistoryEntryViewModel } from '@/contracts'
 import { projectReportService } from '@/data'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -31,17 +31,22 @@ export function ReportHistory({
   /** Muda quando algo novo aconteceu, para a linha do tempo buscar de novo. */
   versao: number
 }) {
-  const { data, loading, failed } = useAsyncResource(
-    // A supressao fica **aqui**, colada no `useCallback`: e nesta linha que a
-    // regra reclama, e um comentario la embaixo, junto do array, nao suprimia
-    // nada — sobrava como supressao sem uso e o erro continuava de pe.
-    //
-    // biome-ignore lint/correctness/useExhaustiveDependencies: `versao` e o gatilho da nova busca, e nao algo que a funcao le
+  const { data, loading, failed, revalidate } = useAsyncResource(
     useCallback(
       () => projectReportService.listReportHistory(projectPublicId, reportPublicId),
-      [projectPublicId, reportPublicId, versao],
+      [projectPublicId, reportPublicId],
     ),
   )
+
+  // Algo novo aconteceu — uma acao aqui, ou outra pessoa pelo tempo real —: a linha do
+  // tempo busca de novo **sem sumir da tela**. Pelo esqueleto, ela piscaria a cada
+  // aviso de quem esta mexendo no mesmo card.
+  const vista = useRef(versao)
+  useEffect(() => {
+    if (vista.current === versao) return
+    vista.current = versao
+    revalidate()
+  }, [versao, revalidate])
 
   return (
     <section className="border-border border-t pt-4">

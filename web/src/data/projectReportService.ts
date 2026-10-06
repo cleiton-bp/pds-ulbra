@@ -185,6 +185,13 @@ export interface ProjectReportService {
   openReport(publicId: string, reportPublicId: string): Promise<ReportDetailViewModel>
 
   /**
+   * Rele o card **que ja esta aberto**, quando outra pessoa mexe nele (o aviso chega
+   * pelo tempo real). Nao registra leitura: ela foi contada ao abrir, e cada aviso
+   * viraria uma leitura que ninguem fez.
+   */
+  refreshReport(publicId: string, reportPublicId: string): Promise<ReportDetailViewModel>
+
+  /**
    * Move o relato para outra coluna.
    *
    * Devolve o relato com a coluna nova — e essa resposta que a tela usa, e nao o

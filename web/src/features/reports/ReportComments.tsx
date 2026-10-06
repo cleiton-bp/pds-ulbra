@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   MAX_COMMENT_LENGTH,
   type PanelAttachmentViewModel,
@@ -98,11 +98,25 @@ export function ReportComments({
 }) {
   const { data: comentarios, loading, failed, reload } = conversa
 
-  const [local, setLocal] = useState<ReportCommentsViewModel | null>(null)
-  const atual = local ?? comentarios
+  // O que esta aba gravou fica guardado a parte e entra na lista que chegar: a
+  // releitura ao vivo continua trocando a conversa, e uma releitura pedida antes do
+  // comentario gravar nao o tira da tela.
+  const [proprios, setProprios] = useState<ReportCommentsViewModel>(SEM_PROPRIOS)
+  const atual = useMemo(() => juntar(comentarios, proprios), [comentarios, proprios])
+
+  // A fala que chega ao vivo entra acima do campo, e o empurra para baixo: quem esta
+  // escrevendo — no celular, com o teclado aberto — perdia o campo de vista. Ele volta
+  // para a tela, e o rascunho e o foco ficam onde estavam.
+  const secao = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    if (!atual) return
+    const ativo = document.activeElement
+    if (ativo instanceof HTMLTextAreaElement && secao.current?.contains(ativo))
+      ativo.scrollIntoView?.({ block: 'nearest' })
+  }, [atual])
 
   return (
-    <section className="border-border border-t pt-4">
+    <section ref={secao} className="border-border border-t pt-4">
       {failed && (
         <div className="mb-3">
           <p className="mb-2.5 text-detail text-fg-muted leading-relaxed">
@@ -127,10 +141,7 @@ export function ReportComments({
             reportPublicId,
             { Body: body },
           )
-          setLocal((antes) => {
-            const base = antes ?? comentarios
-            return base ? { ...base, Internal: [...base.Internal, salvo] } : base
-          })
+          setProprios((antes) => ({ ...antes, Internal: [...antes.Internal, salvo] }))
           aoComentar()
         }}
       />
@@ -157,16 +168,35 @@ export function ReportComments({
               reportPublicId,
               { Body: body },
             )
-            setLocal((antes) => {
-              const base = antes ?? comentarios
-              return base ? { ...base, Public: [...base.Public, salvo] } : base
-            })
+            setProprios((antes) => ({ ...antes, Public: [...antes.Public, salvo] }))
             aoComentar()
           }}
         />
       )}
     </section>
   )
+}
+
+const SEM_PROPRIOS: ReportCommentsViewModel = { Internal: [], Public: [] }
+
+/**
+ * A conversa lida, com o que esta aba gravou e a leitura ainda nao trouxe no fim — a
+ * leitura que nao o trouxe foi pedida antes dele, entao tudo nela e mais antigo.
+ */
+function juntar(
+  lida: ReportCommentsViewModel | null,
+  proprios: ReportCommentsViewModel,
+): ReportCommentsViewModel | null {
+  if (!lida) return null
+  const faltando = <T extends { PublicId: string }>(dela: T[], meus: T[]) => {
+    const tem = new Set(dela.map((fala) => fala.PublicId))
+    return [...dela, ...meus.filter((fala) => !tem.has(fala.PublicId))]
+  }
+  return {
+    ...lida,
+    Internal: faltando(lida.Internal, proprios.Internal),
+    Public: faltando(lida.Public, proprios.Public),
+  }
 }
 
 interface Comentario {

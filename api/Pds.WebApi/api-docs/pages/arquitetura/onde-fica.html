@@ -78,5 +78,9 @@
   <tr><td>A última coluna do quadro, que só mostra o recente — e não vale com uma coluna só</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>LastColumnWindowAsync</code></td></tr>
   <tr><td>O "Mostrar mais" do quadro, depois do último card da tela</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveAfterAsync</code></td></tr>
   <tr><td>O reaberto, e o desarquivado pela resposta de quem relatou, voltando ao topo</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>PutOnTopAsync</code></td></tr>
+  <tr><td>O tempo real: o hub e quem entra num projeto</td><td><code>Pds.WebApi/Realtime/WorkHub.cs</code></td></tr>
+  <tr><td>Quem recebe cada aviso (o time de agora), a marca da aba que fez, o aviso que nunca derruba a ação e o envio fora do caminho do pedido, com prazo</td><td><code>Pds.WebApi/Realtime/HubWorkNotifier.cs</code></td></tr>
+  <tr><td>Onde cada mudança avisa — sempre depois de gravar</td><td>As chamadas a <code>IWorkNotifier</code> nos serviços (<code>Pds.Domain/Interfaces/ServiceInterfaces/IWorkNotifier.cs</code>)</td></tr>
+  <tr><td>O bilhete da conexão: a validade e o esquema que só o hub usa</td><td><code>Pds.Domain/Security/RealtimeTicket.cs</code> e <code>Pds.Shared/DependencyInjection/DiResolver.cs</code></td></tr>
 </table>
 </div>

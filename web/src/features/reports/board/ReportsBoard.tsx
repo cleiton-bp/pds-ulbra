@@ -25,6 +25,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { PublicOutcome, ReportSummaryViewModel } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { isPanelError } from '@/data/errors'
 import { BoardCardFace } from '@/features/reports/board/BoardCardFace'
 import { boardCollision } from '@/features/reports/board/boardCollision'
 import { boardKeyboardCoordinates } from '@/features/reports/board/boardKeyboard'
@@ -36,6 +37,7 @@ import {
 } from '@/features/reports/board/boardState'
 import type { Board, BoardColumnState } from '@/features/reports/board/useBoard'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
+import { useKeepFocus } from '@/features/reports/useKeepFocus'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
@@ -88,6 +90,8 @@ export function ReportsBoard({
   lastColumnDays,
   aoMudarColunas,
   aoVerNaLista,
+  aoCriar,
+  destacados,
 }: {
   projectPublicId: string
   board: Board
@@ -99,6 +103,10 @@ export function ReportsBoard({
   aoMudarColunas: () => void
   /** Os escondidos da ultima coluna, na lista. */
   aoVerNaLista: (chave: string) => void
+  /** Criar um card ja nesta coluna. */
+  aoCriar: (chave: string) => void
+  /** Os cards que outra pessoa acabou de mudar: piscam um contorno por um instante. */
+  destacados: ReadonlySet<string>
 }) {
   // As colunas numa referencia: a conta das setas le a de agora a cada tecla, e as
   // opcoes do teclado continuam as mesmas entre uma renderizacao e outra.
@@ -129,6 +137,30 @@ export function ReportsBoard({
   const inicio = useRef<{ de: string; indice: number } | null>(null)
   const [encerrando, setEncerrando] = useState<Soltura | null>(null)
   const [salvandoEncerramento, setSalvandoEncerramento] = useState(false)
+
+  // O que outra pessoa muda espera a mao terminar: o arraste, o movimento gravando e o
+  // desfecho aberto seguram as releituras do tempo real (ver `board.hold`).
+  const soltarArraste = useRef<(() => void) | null>(null)
+  const soltarDesfecho = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    if (encerrando !== null) return
+    soltarDesfecho.current?.()
+    soltarDesfecho.current = null
+  }, [encerrando])
+  const largarArraste = () => {
+    soltarArraste.current?.()
+    soltarArraste.current = null
+  }
+  // Sair do quadro no meio da mao — trocar para a lista com o desfecho aberto — solta o
+  // que ela segurava: os avisos continuam chegando, e a releitura presa deixaria o
+  // quadro parado na volta.
+  useEffect(
+    () => () => {
+      soltarArraste.current?.()
+      soltarDesfecho.current?.()
+    },
+    [],
+  )
 
   // O clique que vem junto do soltar nao abre o card. Ele cai no card quando o dedo
   // segura, pega e solta sem andar; a biblioteca o engole antes do React — nem o
@@ -170,6 +202,8 @@ export function ReportsBoard({
 
     inicio.current = { de, indice: (board.itemsRef.current[de] ?? []).indexOf(id) }
     if (activatorEvent.type !== 'keydown') fimDoArraste.current = Number.POSITIVE_INFINITY
+    largarArraste()
+    soltarArraste.current = board.hold()
     setAtivo(id)
   }
 
@@ -201,6 +235,8 @@ export function ReportsBoard({
   function aoSoltar({ active, over }: DragEndEvent) {
     setAtivo(null)
     marcarFimDoArraste()
+    // Solta antes de gravar: a gravacao segura por conta propria, ja na primeira linha.
+    largarArraste()
 
     const id = String(active.id)
     const comeco = inicio.current
@@ -240,6 +276,7 @@ export function ReportsBoard({
   function aoDesistir({ active }: DragCancelEvent) {
     setAtivo(null)
     marcarFimDoArraste()
+    largarArraste()
     const comeco = inicio.current
     inicio.current = null
     if (comeco) devolver(String(active.id), comeco.de, comeco.indice)
@@ -249,6 +286,19 @@ export function ReportsBoard({
   async function soltar(
     soltura: Soltura,
     fim?: { Outcome: PublicOutcome; Reason: string },
+  ): Promise<boolean> {
+    const liberar = board.hold()
+    try {
+      return await gravar(soltura, fim, liberar)
+    } finally {
+      if (soltarDesfecho.current !== liberar) liberar()
+    }
+  }
+
+  async function gravar(
+    soltura: Soltura,
+    fim: { Outcome: PublicOutcome; Reason: string } | undefined,
+    liberar: () => void,
   ): Promise<boolean> {
     const card = board.cards[soltura.id]
     const mudouDeColuna = soltura.para !== soltura.de
@@ -262,6 +312,10 @@ export function ReportsBoard({
       card?.Kind === 'Report' &&
       !card.Closed
     ) {
+      // O card fica no lugar novo enquanto o desfecho esta aberto: a releitura espera
+      // ate ele ser confirmado ou desistido.
+      soltarDesfecho.current?.()
+      soltarDesfecho.current = liberar
       setEncerrando(soltura)
       return false
     }
@@ -297,7 +351,13 @@ export function ReportsBoard({
       if (mudouDeColuna) aoMudarColunas()
       return true
     } catch (falha) {
-      toast.error(describeError(falha))
+      // O conflito e de outra pessoa ter mexido no card, ou no vizinho de referencia,
+      // enquanto este estava na mao: o quadro e relido aqui mesmo, e o texto diz isso.
+      toast.error(
+        isPanelError(falha) && falha.status === 409
+          ? 'Outra pessoa mexeu neste card, ou nesta coluna, enquanto você o movia. O quadro foi relido: solte de novo, se ainda quiser.'
+          : describeError(falha),
+      )
       devolver(soltura.id, soltura.de, soltura.indice)
       if (mudouDeColuna) {
         board.adjustTotal(soltura.de, 1)
@@ -365,6 +425,11 @@ export function ReportsBoard({
 
   const cardAtivo = ativo ? board.cards[ativo] : undefined
 
+  // O card com o foco que sai da coluna por outra pessoa nao leva o foco para o comeco
+  // da pagina.
+  const area = useRef<HTMLDivElement>(null)
+  useKeepFocus(area)
+
   return (
     <>
       <DndContext
@@ -382,7 +447,10 @@ export function ReportsBoard({
           },
         }}
       >
-        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:px-0">
+        <div
+          ref={area}
+          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:px-0"
+        >
           {columns.map((coluna) => (
             <Coluna
               key={coluna.key}
@@ -397,6 +465,8 @@ export function ReportsBoard({
               }}
               aoTentarDeNovo={() => void board.loadColumn(coluna.key)}
               aoVerNaLista={() => aoVerNaLista(coluna.key)}
+              aoCriar={() => aoCriar(coluna.key)}
+              destacados={destacados}
             />
           ))}
         </div>
@@ -440,6 +510,8 @@ function Coluna({
   aoMostrarMais,
   aoTentarDeNovo,
   aoVerNaLista,
+  aoCriar,
+  destacados,
 }: {
   coluna: BoardColumn
   ids: string[]
@@ -450,6 +522,8 @@ function Coluna({
   aoMostrarMais: () => void
   aoTentarDeNovo: () => void
   aoVerNaLista: () => void
+  aoCriar: () => void
+  destacados: ReadonlySet<string>
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: coluna.key, disabled: !coluna.accepts })
   const titulo = coluna.retired ? `${coluna.name} (aposentada)` : coluna.name
@@ -461,24 +535,53 @@ function Coluna({
       ? Math.max(0, coluna.total - estado.total)
       : 0
   const diasDaRegra = lastColumnDays === 1 ? '1 dia' : `${lastColumnDays} dias`
+  const total = estado && !estado.loading ? estado.total : coluna.total
 
   // A coluna inteira recebe — o cabecalho tambem: e para la que a mao mira.
   return (
     <section
       ref={setNodeRef}
       aria-label={titulo}
+      // O foco do card que saiu desta coluna fica nela (ver `useKeepFocus`).
+      data-focus-group
       className={cn(
-        'flex w-[85vw] max-w-80 flex-none snap-start flex-col rounded-xl border border-border bg-surface-sunken sm:w-72',
+        'flex w-[85vw] max-w-80 flex-none snap-start flex-col rounded-lg border border-transparent bg-surface-sunken sm:w-68',
         isOver && coluna.accepts && 'border-accent',
       )}
     >
-      <header className="flex items-baseline justify-between gap-2 px-3 pt-3 pb-1.5">
-        <h2 className="min-w-0 truncate font-medium text-detail text-fg">{titulo}</h2>
+      {/* O nome em caixa alta e a contagem logo depois dele: o cabecalho rotula a
+          coluna, e nao compete com os titulos dos cards. O nome que nao cabe vai inteiro
+          no `title`. */}
+      <header className="flex items-center gap-2 px-3 pt-3 pb-2">
+        <h2
+          title={titulo}
+          className="min-w-0 truncate font-semibold text-caption text-fg-muted uppercase tracking-wide"
+        >
+          {titulo}
+        </h2>
         <span className="flex-none text-caption text-fg-muted tabular-nums">
-          {estado && !estado.loading ? estado.total : coluna.total}
+          {total}
+          <span className="sr-only">{total === 1 ? ' card' : ' cards'}</span>
         </span>
+        {/* O visto marca a coluna que encerra; o que ela faz esta escrito logo abaixo. */}
+        {coluna.closes && (
+          <svg
+            viewBox="0 0 12 12"
+            className="ml-auto size-3.5 flex-none text-chip-green-glyph"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M2.5 6.3 4.8 8.6 9.5 3.9" />
+          </svg>
+        )}
       </header>
 
+      {/* Escrito, e nao numa dica: a dica nao abre no toque, e quem arrasta pelo
+          celular precisa saber antes de soltar. */}
       {coluna.closes && (
         <p className="px-3 pb-1.5 text-caption text-fg-muted leading-snug">
           Soltar um relato aberto aqui encerra: o painel pede o desfecho e o motivo.
@@ -513,6 +616,7 @@ function Coluna({
                   card={card}
                   soonDays={soonDays}
                   recebe={coluna.accepts}
+                  destacado={destacados.has(id)}
                 />
               ) : null
             })
@@ -562,13 +666,61 @@ function Coluna({
           </button>
         </p>
       )}
+
+      {/* Criar ja na coluna, no pe dela, onde o olho termina de ler a coluna. So na que
+          recebe: nas outras, o card nasceria onde ninguem pode coloca-lo. */}
+      {coluna.accepts && (
+        <div className="px-2 pb-2">
+          <button
+            type="button"
+            onClick={aoCriar}
+            // O nome inteiro, e nao so "Criar": cada coluna tem o seu botao.
+            aria-label={`Criar card em ${coluna.name}`}
+            className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-detail text-fg-muted transition-colors hover:bg-surface-strong hover:text-fg"
+          >
+            <svg
+              viewBox="0 0 12 12"
+              className="size-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <path d="M6 2.5v7M2.5 6h7" />
+            </svg>
+            Criar
+          </button>
+        </div>
+      )}
     </section>
   )
 }
 
 /**
- * O card no quadro: **um link para o card**, como a linha da lista — Enter e o
- * clique abrem, o meio do mouse abre em outra aba —, e ao mesmo tempo o que se
+ * O quadro carregando: a moldura das colunas, com cards de espera — e nao uma lista,
+ * que faria a tela trocar de forma quando o quadro chegasse.
+ */
+export function BoardSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-hidden pb-4">
+      {['w-11/12', 'w-3/4', 'w-5/6'].map((largura) => (
+        <div
+          key={largura}
+          className="flex w-[85vw] max-w-80 flex-none flex-col gap-2 rounded-lg bg-surface-sunken p-2 sm:w-68"
+        >
+          <Skeleton className={`mx-1 mt-1 mb-1 h-3 ${largura === 'w-3/4' ? 'w-20' : 'w-16'}`} />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * O card no quadro: **um link para o card**, como o titulo na linha da lista — Enter
+ * e o clique abrem, o meio do mouse abre em outra aba —, e ao mesmo tempo o que se
  * arrasta.
  */
 function CardArrastavel({
@@ -576,10 +728,13 @@ function CardArrastavel({
   card,
   soonDays,
   recebe,
+  destacado,
 }: {
   id: string
   card: ReportSummaryViewModel
   soonDays: number
+  /** Outra pessoa acabou de muda-lo. */
+  destacado: boolean
   /** A coluna recebe card. Na que nao recebe, o card sai arrastando, mas ninguem cai em cima dele. */
   recebe: boolean
 }) {
@@ -603,7 +758,7 @@ function CardArrastavel({
         // selecionar o texto.
         className="block touch-manipulation select-none rounded-lg outline-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <BoardCardFace card={card} soonDays={soonDays} />
+        <BoardCardFace card={card} soonDays={soonDays} highlighted={destacado} />
       </Link>
     </li>
   )

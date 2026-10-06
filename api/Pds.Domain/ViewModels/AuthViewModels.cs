@@ -32,3 +32,11 @@ public record AccountViewModel(
     Guid PublicId,
     string Name,
     DateTime CreatedAt);
+
+/// <summary>
+/// O bilhete da conexao em tempo real: abre o hub e nada mais, e vale um minuto. O
+/// painel pede um a cada conexao e a cada reconexao.
+/// </summary>
+/// <param name="Ticket">O bilhete, que vai no endereco do hub.</param>
+/// <param name="ExpiresAt">Ate quando ele abre a conexao, em UTC.</param>
+public record RealtimeTicketViewModel(string Ticket, DateTime ExpiresAt);

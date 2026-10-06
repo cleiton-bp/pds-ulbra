@@ -14,4 +14,7 @@ public interface IAuthService
 
     /// <summary>Usuario da sessao atual, com a conta propria dele.</summary>
     Task<MeViewModel> GetCurrentAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>O bilhete da conexao em tempo real, para a pessoa da sessao.</summary>
+    Task<RealtimeTicketViewModel> IssueRealtimeTicketAsync(CancellationToken cancellationToken = default);
 }

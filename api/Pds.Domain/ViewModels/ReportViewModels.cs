@@ -60,9 +60,10 @@ public record CreatedReportViewModel(
 /// e como ela sabe o que aquele movimento causou la fora sem ter de buscar o
 /// detalhe de novo.</para>
 ///
-/// <para>Buscar de novo e justamente o que nao da: abrir o detalhe <b>grava</b> um
-/// evento de leitura, e refazer essa busca a cada movimento mediria cliques do time
-/// em vez de leituras.</para>
+/// <para>Abrir de novo e justamente o que nao da: abrir o detalhe <b>grava</b> um
+/// evento de leitura, e refazer essa abertura a cada movimento mediria cliques do time
+/// em vez de leituras. (A releitura com <c>refresh=true</c> nao grava, e e a do tempo
+/// real.)</para>
 /// </param>
 /// <param name="AcceptsQuestions">
 /// Quem relatou aceita responder duvidas da equipe sobre este relato.

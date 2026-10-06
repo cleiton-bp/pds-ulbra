@@ -16,6 +16,7 @@ using Pds.Workers;
 using Pds.Shared.Json;
 using Pds.WebApi.Authorization;
 using Pds.WebApi.Controllers;
+using Pds.WebApi.Realtime;
 using Pds.WebApi.Swagger;
 
 namespace Pds.WebApi;
@@ -50,6 +51,9 @@ public class Startup
         que fecha, com pedido de informação, confirmação e reabertura; identidade,
         visibilidade e moderação; e os anexos — imagens e arquivos. A notificação por
         e-mail está planejada.
+
+        O tempo real da tela de Trabalho (SignalR, em `/realtime/hub`) fica fora desta
+        página; aqui está o bilhete que abre a conexão, em `POST /realtime/ticket`.
 
         ### Como usar
 
@@ -103,6 +107,9 @@ public class Startup
         });
 
         services.RegisterDependencies();
+
+        // O tempo real da tela de Trabalho: o hub e os avisos depois de cada mudanca.
+        services.AddPdsRealtime();
 
         // A fila, **se** houver fila. Sem RABBITMQ_URL a aplicacao sobe inteira, mas
         // a espera antes de quem relatou ver fica indisponivel — a configuracao do
@@ -317,7 +324,11 @@ public class Startup
         // porque o filtro global do contexto depende do que ele preenche.
         app.UseMiddleware<AccountMiddleware>();
 
-        app.UseEndpoints(endpoints => endpoints.MapControllers());
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+            endpoints.MapPdsRealtime();
+        });
     }
 
     /// <summary>

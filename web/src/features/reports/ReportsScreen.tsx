@@ -1,5 +1,14 @@
-import { useCallback, useMemo, useState } from 'react'
-import { Link, Outlet } from 'react-router-dom'
+import {
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
 import {
   type ReportDetailViewModel,
   type ReportStateCountViewModel,
@@ -8,21 +17,25 @@ import {
 } from '@/contracts'
 import { describeError, projectCycleSettingsService, projectReportService } from '@/data'
 import { boardColumns } from '@/features/reports/board/boardState'
-import { ReportsBoard } from '@/features/reports/board/ReportsBoard'
+import { BoardSkeleton, ReportsBoard } from '@/features/reports/board/ReportsBoard'
 import { useBoard } from '@/features/reports/board/useBoard'
+import {
+  describeRemoteChange,
+  LiveAnnouncer,
+  LiveBadge,
+  useAnnouncer,
+} from '@/features/reports/LiveStatus'
 import { NewCardDialog } from '@/features/reports/NewCardDialog'
+import { ReportsTable, ReportsTableSkeleton } from '@/features/reports/ReportsTable'
 import { useReportInbox } from '@/features/reports/useReportInbox'
+import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
 import { Button } from '@/shared/components/Button'
-import { CardChip } from '@/shared/components/CardChip'
-import { DueChip } from '@/shared/components/DueChip'
-import { Skeleton } from '@/shared/components/Skeleton'
+import { Select } from '@/shared/components/Select'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
-import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
 import { canConfigure } from '@/shared/lib/projectAccess'
-import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /** As duas vistas da tela de Trabalho. */
 type Vista = 'lista' | 'quadro'
@@ -38,15 +51,17 @@ const DESTAQUE_DE_FABRICA = 2
  * criou, juntos. Cada card tem o seu numero (#42); o relato tem tambem o protocolo
  * de quem relatou.
  *
- * **Uma tela, duas vistas**: a lista, do mais recente para o mais antigo, e o
- * quadro, uma coluna por estado na ordem que o time arrumou. A ultima escolhida fica
- * guardada neste navegador, por projeto. O card abre no mesmo dialogo nas duas, e
- * so ao clicar — a frente do quadro e um resumo.
+ * **Uma tela, duas vistas, em abas**: a lista, uma tabela do mais recente para o
+ * mais antigo, e o quadro, uma coluna por estado na ordem que o time arrumou. A
+ * ultima escolhida fica guardada neste navegador, por projeto. O card abre no mesmo
+ * dialogo nas duas, e so ao clicar — a linha e a frente do quadro sao um resumo.
  *
- * **E a primeira tela do painel que mostra dado de fora.** Todas as outras
- * mostram o que a propria pessoa configurou; esta mostra o que um desconhecido
- * escreveu, e por isso o texto dele e o elemento maior da linha — protocolo, tipo
- * e data existem para localizar, nao para serem lidos.
+ * **Abaixo das abas, a barra de ferramentas**: o recorte por coluna (na lista), o
+ * lembrete de como arrastar (no quadro) e os arquivados — e o lugar da busca e dos
+ * filtros rapidos, quando vierem.
+ *
+ * **A tela usa a largura toda.** A tabela e o quadro sao feitos para comparar card
+ * com card, e uma faixa estreita cortaria colunas que cabem.
  *
  * **A contagem vem de uma chamada propria**, e nao de contar as linhas que
  * chegaram: a lista traz uma pagina, e contar o que veio daria um numero errado
@@ -69,7 +84,8 @@ export function ReportsScreen() {
    * mostra: e a lista deles que aparece.
    */
   const [arquivados, setArquivados] = useState(false)
-  const [criando, setCriando] = useState(false)
+  /** O "Novo card" aberto — com a coluna, quando veio do "Criar" de uma coluna do quadro. */
+  const [criando, setCriando] = useState<{ coluna?: string } | null>(null)
   const [vista, setVista] = useVistaLembrada(project.PublicId)
 
   // Trocar de projeto zera o recorte, e isto vem **antes** da busca: o
@@ -94,6 +110,7 @@ export function ReportsScreen() {
     loadingMore,
     hasMore,
     reload,
+    refresh: releituraDaLista,
     loadMore,
     apply,
     prepend,
@@ -122,7 +139,7 @@ export function ReportsScreen() {
   // As regras do Ciclo que a tela usa: quando o prazo fica perto, e quantos dias a
   // ultima coluna do quadro mostra. Falhando, o destaque fica no padrao de fabrica e
   // o quadro so nao diz quantos ficaram na lista — a API aplica a regra do mesmo jeito.
-  const { data: ciclo } = useAsyncResource(
+  const { data: ciclo, revalidate: renovarCiclo } = useAsyncResource(
     useCallback(
       () => projectCycleSettingsService.getCycleSettings(project.PublicId),
       [project.PublicId],
@@ -131,7 +148,74 @@ export function ReportsScreen() {
   const destaque = ciclo?.DueSoonDays ?? DESTAQUE_DE_FABRICA
 
   const colunasDoQuadro = useMemo(() => (contagens ? boardColumns(contagens) : null), [contagens])
-  const board = useBoard(project.PublicId, colunasDoQuadro, quadro)
+  // O card que outra pessoa mudou acende — e e anunciado — quando a releitura chega, e
+  // nao quando o aviso chega: no quadro, ela pode esperar o arraste terminar.
+  const [destacados, destacar] = useDestaques()
+  const [anuncio, anunciar] = useAnnouncer()
+  /** Quando a ultima mudanca de outra pessoa entrou na tela — ver `guardaDoClique`. */
+  const mudouAgora = useRef(Number.NEGATIVE_INFINITY)
+  const acender = useCallback(
+    (mudados: { id: string; numero?: number }[]) => {
+      mudouAgora.current = performance.now()
+      for (const { id } of mudados) destacar(id)
+      anunciar(describeRemoteChange(mudados.map(({ numero }) => numero)))
+    },
+    [destacar, anunciar],
+  )
+  const board = useBoard(project.PublicId, colunasDoQuadro, quadro, acender)
+
+  // ─── O tempo real ──────────────────────────────────────────────────────────
+  // O que outra pessoa muda chega como aviso, so com os identificadores, e cada parte
+  // da tela rele o que e dela: o quadro, as colunas que o card tocou; a lista, as
+  // paginas que estao na tela; a contagem, sem sair da tela. Avisos proximos viram uma
+  // releitura so.
+  const navigate = useNavigate()
+  const juntarContagens = useJuntar(renovarContagens)
+  /** Os cards dos avisos que a lista ainda vai reler, para acender quando ela chegar. */
+  const acenderNaLista = useRef(new Set<string>())
+  const juntarLista = useJuntar(() => {
+    if (quadro) return
+    const ids = [...acenderNaLista.current]
+    acenderNaLista.current.clear()
+    void releituraDaLista().then((lista) => {
+      if (lista === null || ids.length === 0) return
+      acender(ids.map((id) => ({ id, numero: lista.find((card) => card.PublicId === id)?.Number })))
+    })
+  })
+
+  const aoVivo = useWorkRealtime(project.PublicId, (evento) => {
+    switch (evento.kind) {
+      case 'card': {
+        const { ReportPublicId, StatePublicId, Archived } = evento.notice
+        board.remoteChange(
+          ReportPublicId,
+          Archived ? null : (StatePublicId ?? WITHOUT_STATE_FILTER),
+        )
+        if (!quadro) acenderNaLista.current.add(ReportPublicId)
+        juntarLista()
+        juntarContagens()
+        break
+      }
+      case 'project':
+      case 'resync':
+        // A configuracao mudou, ou a conexao voltou e pode ter perdido avisos: tudo.
+        renovarContagens()
+        renovarCiclo()
+        board.reloadAll()
+        juntarLista()
+        anunciar(
+          evento.kind === 'project'
+            ? 'A configuração do projeto mudou, e a tela foi relida.'
+            : 'A atualização ao vivo voltou, e a tela foi relida.',
+        )
+        break
+      case 'access-lost':
+        // O aviso fica no hub, e nao num toast que some: quem estava no meio de um
+        // comentario precisa saber por que a tela fechou.
+        navigate('/projects', { replace: true, state: { leftProject: project.Name } })
+        break
+    }
+  })
 
   /**
    * O card que mudou no dialogo, nas duas vistas: a lista troca a linha, e o quadro
@@ -141,36 +225,31 @@ export function ReportsScreen() {
     apply(mudou)
     board.apply(mudou)
     // A contagem muda em duas colunas de uma vez — ou numa so, quando o card vai
-    // para o arquivo —, e ela nao se recalcula sozinha. Sem isto as fichas
-    // passariam a discordar da lista na frente de quem esta olhando.
+    // para o arquivo —, e ela nao se recalcula sozinha. Sem isto, as contagens do
+    // filtro de coluna e do quadro passariam a discordar da lista na frente de quem
+    // esta olhando.
     renovarContagens()
   }
 
-  return (
-    <div className={cn(!quadro && 'max-w-170')}>
-      <div className="max-w-170">
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-semibold text-screen tracking-tight">
-            {arquivados ? 'Arquivados' : 'Trabalho'}
-          </h1>
-          <Button variant="primary" onClick={() => setCriando(true)}>
-            Novo card
-          </Button>
-        </div>
-        <p className="mb-6 text-fg-muted text-body">
-          {arquivados
-            ? 'Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.'
-            : quadro
-              ? 'Uma coluna por estado, na ordem que o time arrumou. Arraste os cards — no celular, segure um instante antes; no teclado, espaço pega e solta, e as setas escolhem o lugar.'
-              : 'O que as pessoas escreveram pela ferramenta instalada no site e os cards que o time criou, do mais recente para o mais antigo.'}
-        </p>
-      </div>
+  const painel = useId()
 
+  // O clique num card logo depois de a mudanca de outra pessoa entrar na tela nao abre
+  // nada: o card novo no topo empurra os de baixo, e o clique mirado num cairia no
+  // vizinho — e abrir grava leitura. O clique seguinte vale.
+  const guardaDoClique = (evento: ReactMouseEvent) => {
+    if (performance.now() - mudouAgora.current > CLIQUE_DEPOIS_DA_MUDANCA_MS) return
+    if (!(evento.target as Element).closest('a[href*="/reports/"], tbody tr')) return
+    evento.preventDefault()
+    evento.stopPropagation()
+  }
+
+  const conteudo = (
+    <>
       {failed && !quadro && (
-        <div className="rounded-xl border border-border bg-surface-raised p-5">
+        <div className="max-w-170 rounded-xl border border-border bg-surface-raised p-5">
           <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
-            Não deu para carregar os relatos agora. Nada se perdeu: a falha foi ao consultar, e o
-            que chegou continua guardado.
+            Não deu para carregar os cards agora. Nada se perdeu: a falha foi ao consultar, e o que
+            chegou continua guardado.
           </p>
           <Button
             onClick={() => {
@@ -183,16 +262,127 @@ export function ReportsScreen() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-2">
+      {quadro ? (
+        colunasDoQuadro === null ? (
+          contagensFalharam ? (
+            <div className="max-w-170 rounded-xl border border-border bg-surface-raised p-5">
+              <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
+                Não deu para carregar o quadro agora. Nada se perdeu: a falha foi ao consultar.
+              </p>
+              <Button onClick={recarregarContagens}>Tentar de novo</Button>
+            </div>
+          ) : (
+            <BoardSkeleton />
+          )
+        ) : (
+          <ReportsBoard
+            projectPublicId={project.PublicId}
+            board={board}
+            columns={colunasDoQuadro}
+            soonDays={destaque}
+            lastColumnDays={ciclo?.LastColumnVisibleDays ?? 0}
+            aoMudarColunas={renovarContagens}
+            aoVerNaLista={(chave) => {
+              setFiltro(chave)
+              setVista('lista')
+              // O botao que levou ate la some com o quadro: o foco vai para a aba da
+              // lista, e nao para o comeco da pagina.
+              document.getElementById(`${painel}-lista`)?.focus()
+            }}
+            aoCriar={(chave) => setCriando({ coluna: chave })}
+            destacados={destacados}
+          />
+        )
+      ) : (
+        <>
+          {loading && <ReportsTableSkeleton />}
+
+          {reports?.length === 0 && (
+            <div className="max-w-170">
+              {arquivados ? (
+                <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
+                  <p className="text-detail text-fg-muted leading-relaxed">
+                    Nenhum card arquivado. O que sai da tela de Trabalho aparece aqui.
+                  </p>
+                </div>
+              ) : filtro === null ? (
+                <EmptyState installs={canConfigure(project)} aoCriar={() => setCriando({})} />
+              ) : (
+                <ColunaVazia
+                  nome={nomeDaColuna(contagens, filtro)}
+                  aoVerTodos={() => setFiltro(null)}
+                />
+              )}
+            </div>
+          )}
+
+          {reports && reports.length > 0 && (
+            <>
+              <ReportsTable
+                reports={reports}
+                colunas={contagens}
+                soonDays={destaque}
+                destacados={destacados}
+              />
+
+              <footer className="mt-3 flex items-center gap-3">
+                {hasMore && (
+                  <Button
+                    disabled={loadingMore}
+                    onClick={() => {
+                      loadMore().catch((error) => toast.error(describeError(error)))
+                    }}
+                  >
+                    {loadingMore ? 'Carregando…' : 'Carregar mais'}
+                  </Button>
+                )}
+
+                <span className="text-detail text-fg-muted tabular-nums">
+                  {reports.length} de {total}
+                </span>
+              </footer>
+            </>
+          )}
+        </>
+      )}
+    </>
+  )
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h1 id={`${painel}-titulo`} className="font-semibold text-screen tracking-tight">
+          {arquivados ? 'Arquivados' : 'Trabalho'}
+        </h1>
+        <Button variant="primary" onClick={() => setCriando({})}>
+          Novo card
+        </Button>
+      </div>
+
+      {arquivados ? (
+        <p className="mb-4 text-detail text-fg-muted">
+          Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.
+        </p>
+      ) : (
+        <Abas vista={vista} painel={painel} aoEscolher={setVista} />
+      )}
+
+      {/* A barra de ferramentas. O recorte por coluna e so da lista: no quadro, cada
+          coluna ja esta na tela, e no lugar dele fica como arrastar — no celular, o
+          segurar antes nao se adivinha. */}
+      <div className="my-4 flex flex-wrap items-center justify-between gap-2">
         {!arquivados && !quadro && contagens && contagens.length > 0 ? (
-          <FiltroPorColuna contagens={contagens} escolhido={filtro} aoEscolher={setFiltro} />
+          <FiltroDeColuna contagens={contagens} escolhido={filtro} aoEscolher={setFiltro} />
+        ) : quadro ? (
+          <p className="text-caption text-fg-muted">
+            Arraste os cards entre as colunas — no celular, segure um instante antes; no teclado,
+            espaço pega e solta.
+          </p>
         ) : (
           <span />
         )}
 
         <div className="flex flex-none items-center gap-2">
-          {!arquivados && <EscolhaDeVista vista={vista} aoEscolher={setVista} />}
-
           <button
             type="button"
             aria-pressed={arquivados}
@@ -209,83 +399,25 @@ export function ReportsScreen() {
         </div>
       </div>
 
-      {quadro ? (
-        colunasDoQuadro === null ? (
-          contagensFalharam ? (
-            <div className="rounded-xl border border-border bg-surface-raised p-5">
-              <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
-                Não deu para carregar o quadro agora. Nada se perdeu: a falha foi ao consultar.
-              </p>
-              <Button onClick={recarregarContagens}>Tentar de novo</Button>
-            </div>
-          ) : (
-            <LoadingList />
-          )
-        ) : (
-          <ReportsBoard
-            projectPublicId={project.PublicId}
-            board={board}
-            columns={colunasDoQuadro}
-            soonDays={destaque}
-            lastColumnDays={ciclo?.LastColumnVisibleDays ?? 0}
-            aoMudarColunas={renovarContagens}
-            aoVerNaLista={(chave) => {
-              setFiltro(chave)
-              setVista('lista')
-            }}
-          />
-        )
+      {/* Nos arquivados nao ha abas: o conteudo e uma regiao com o nome do titulo. */}
+      {arquivados ? (
+        <section
+          aria-labelledby={`${painel}-titulo`}
+          data-work-area
+          onClickCapture={guardaDoClique}
+        >
+          {conteudo}
+        </section>
       ) : (
-        <>
-          {loading && <LoadingList />}
-
-          {reports?.length === 0 &&
-            (arquivados ? (
-              <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
-                <p className="text-detail text-fg-muted leading-relaxed">
-                  Nenhum card arquivado. O que sai da tela de Trabalho aparece aqui.
-                </p>
-              </div>
-            ) : filtro === null ? (
-              <EmptyState installs={canConfigure(project)} aoCriar={() => setCriando(true)} />
-            ) : (
-              <ColunaVazia
-                nome={nomeDaColuna(contagens, filtro)}
-                aoVerTodos={() => setFiltro(null)}
-              />
-            ))}
-
-          {reports && reports.length > 0 && (
-            <>
-              <ul className="flex flex-col gap-3">
-                {reports.map((report) => (
-                  <li key={report.PublicId}>
-                    <ReportCard report={report} soonDays={destaque} />
-                  </li>
-                ))}
-              </ul>
-
-              <footer className="mt-5 flex items-center gap-3">
-                {hasMore && (
-                  <Button
-                    disabled={loadingMore}
-                    onClick={() => {
-                      loadMore().catch((error) => toast.error(describeError(error)))
-                    }}
-                  >
-                    {loadingMore ? 'Carregando…' : 'Carregar mais'}
-                  </Button>
-                )}
-
-                {/* O numero fica fora do titulo: la ele viraria a primeira coisa lida
-                    numa tela cujo assunto e o que as pessoas escreveram. */}
-                <span className="text-detail text-fg-muted tabular-nums">
-                  {reports.length} de {total}
-                </span>
-              </footer>
-            </>
-          )}
-        </>
+        <div
+          id={painel}
+          role="tabpanel"
+          aria-labelledby={`${painel}-${vista}`}
+          data-work-area
+          onClickCapture={guardaDoClique}
+        >
+          {conteudo}
+        </div>
       )}
 
       {/* O relato aberto e uma rota filha, e nao um estado desta tela: assim ele
@@ -300,22 +432,30 @@ export function ReportsScreen() {
           // sem uma segunda requisicao para perguntar o que ja esta na mao.
           colunas: contagens,
           aoMudar,
+          assinarAvisos: aoVivo.assinar,
+          semAoVivo: aoVivo.semAoVivo,
         }}
       />
+
+      {/* So quando a conexao fica fora de verdade (alguns segundos): a queda curta
+          volta sozinha, e um selo que pisca a cada uma ensina a nao olhar para ele. */}
+      <LiveBadge estado={aoVivo.semAoVivo} />
+      <LiveAnnouncer anuncio={anuncio} />
 
       {criando && (
         <NewCardDialog
           projectPublicId={project.PublicId}
           colunas={contagens}
+          colunaInicial={criando.coluna}
           aoCriar={(card) => {
-            setCriando(false)
+            setCriando(null)
             // Nas duas vistas: no topo da lista, e no topo da coluna dele no quadro.
             prepend(card)
             board.insert(card)
             renovarContagens()
             toast.done(`#${card.Number} criado.`)
           }}
-          aoCancelar={() => setCriando(false)}
+          aoCancelar={() => setCriando(null)}
         />
       )}
     </div>
@@ -360,50 +500,74 @@ function useVistaLembrada(projectPublicId: string) {
   return [vista, setVista] as const
 }
 
-/** Lista ou quadro: duas escolhas exclusivas, como as fichas do recorte. */
-function EscolhaDeVista({
+/**
+ * Lista e quadro, em abas: a escolha de **como ver**, e nao um filtro — por isso fica
+ * acima da barra de ferramentas, e nao dentro dela.
+ *
+ * As setas trocam de aba e levam o foco junto, como em toda lista de abas; a aba
+ * escolhida e a unica parada do Tab.
+ */
+function Abas({
   vista,
+  painel,
   aoEscolher,
 }: {
   vista: Vista
+  /** O id do painel que as abas controlam. */
+  painel: string
   aoEscolher: (vista: Vista) => void
 }) {
+  const opcoes = ['lista', 'quadro'] as const
+  const botoes = useRef<Partial<Record<Vista, HTMLButtonElement | null>>>({})
+
+  const teclas = (evento: KeyboardEvent, atual: Vista) => {
+    const indice = opcoes.indexOf(atual)
+    const proxima =
+      evento.key === 'ArrowRight'
+        ? opcoes[(indice + 1) % opcoes.length]
+        : evento.key === 'ArrowLeft'
+          ? opcoes[(indice - 1 + opcoes.length) % opcoes.length]
+          : evento.key === 'Home'
+            ? opcoes[0]
+            : evento.key === 'End'
+              ? opcoes[opcoes.length - 1]
+              : undefined
+    if (!proxima) return
+    evento.preventDefault()
+    aoEscolher(proxima)
+    botoes.current[proxima]?.focus()
+  }
+
   return (
-    <fieldset className="flex rounded-lg border border-border bg-surface p-0.5">
-      <legend className="sr-only">Vista</legend>
-      {(['lista', 'quadro'] as const).map((opcao) => (
+    <div role="tablist" aria-label="Vista" className="flex gap-5 border-border border-b">
+      {opcoes.map((opcao) => (
         <button
           key={opcao}
+          ref={(no) => {
+            botoes.current[opcao] = no
+          }}
+          id={`${painel}-${opcao}`}
           type="button"
-          aria-pressed={vista === opcao}
+          role="tab"
+          aria-selected={vista === opcao}
+          aria-controls={painel}
+          tabIndex={vista === opcao ? 0 : -1}
           onClick={() => aoEscolher(opcao)}
+          onKeyDown={(evento) => teclas(evento, opcao)}
           className={cn(
-            'flex h-7 items-center rounded-md px-2.5 text-detail transition-colors',
-            vista === opcao ? 'bg-accent text-accent-fg' : 'text-fg-muted hover:text-fg',
+            '-mb-px flex h-9 items-center border-b-2 px-0.5 font-medium text-body transition-colors',
+            vista === opcao
+              ? 'border-accent text-fg'
+              : 'border-transparent text-fg-muted hover:text-fg',
           )}
         >
           {opcao === 'lista' ? 'Lista' : 'Quadro'}
         </button>
       ))}
-    </fieldset>
+    </div>
   )
 }
 
-/**
- * A linha inteira e o botao, e nao um "ver mais" no canto: o alvo do clique e o
- * relato, e dividir a linha em area clicavel e area morta obriga a mirar.
- */
-/**
- * As fichas de recorte, com a contagem de cada coluna.
- *
- * **"Todos" soma as colunas**, e nao chama a API de novo. A soma e exata porque a
- * contagem ja traz todas as colunas e a linha dos sem coluna — nao ha relato fora
- * dessas linhas.
- *
- * **A coluna aposentada so aparece se ainda segurar relato.** Escondê-la sempre
- * esconderia esses relatos do unico caminho que leva ate eles; mostra-la sempre
- * encheria a barra de colunas que ninguem usa mais.
- */
 /**
  * O nome da coluna escolhida, para a tela poder dize-lo.
  *
@@ -433,10 +597,10 @@ function ColunaVazia({ nome, aoVerTodos }: { nome: string | null; aoVerTodos: ()
       <p className="mb-3.5 text-detail text-fg-muted leading-relaxed">
         {nome ? (
           <>
-            Nenhum relato em <strong className="font-medium text-fg">{nome}</strong> agora.
+            Nenhum card em <strong className="font-medium text-fg">{nome}</strong> agora.
           </>
         ) : (
-          'Nenhum relato neste recorte agora.'
+          'Nenhum card neste recorte agora.'
         )}{' '}
         Os outros continuam onde estão.
       </p>
@@ -445,7 +609,18 @@ function ColunaVazia({ nome, aoVerTodos }: { nome: string | null; aoVerTodos: ()
   )
 }
 
-function FiltroPorColuna({
+/**
+ * O recorte por coluna, com a contagem de cada uma.
+ *
+ * **"Todas" soma as colunas**, e nao chama a API de novo. A soma e exata porque a
+ * contagem ja traz todas as colunas e a linha dos sem coluna — nao ha relato fora
+ * dessas linhas.
+ *
+ * **A coluna aposentada so aparece se ainda segurar relato.** Esconde-la sempre
+ * esconderia esses relatos do unico caminho que leva ate eles; mostra-la sempre
+ * encheria a lista de colunas que ninguem usa mais.
+ */
+function FiltroDeColuna({
   contagens,
   escolhido,
   aoEscolher,
@@ -454,179 +629,34 @@ function FiltroPorColuna({
   escolhido: string | null
   aoEscolher: (valor: string | null) => void
 }) {
-  const visiveis = contagens.filter((item) => item.IsActive || item.Total > 0)
+  // A escolhida fica entre as opcoes mesmo vazia: a aposentada que acabou de perder o
+  // ultimo card deixaria o campo em branco, sem dizer qual recorte esta na tela.
+  const visiveis = contagens.filter(
+    (item) =>
+      item.IsActive || item.Total > 0 || (item.StatePublicId ?? WITHOUT_STATE_FILTER) === escolhido,
+  )
   const total = contagens.reduce((soma, item) => soma + item.Total, 0)
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Ficha
-        rotulo="Todos"
-        total={total}
-        ativa={escolhido === null}
-        aoClicar={() => aoEscolher(null)}
-      />
-
-      {visiveis.map((item) => {
-        // A linha sem coluna nao tem identificador: o valor que a rota espera para
-        // ela e uma palavra, e nao um GUID.
-        const valor = item.StatePublicId ?? WITHOUT_STATE_FILTER
-        const rotulo = item.StateName ?? 'Sem coluna'
-
-        return (
-          <Ficha
-            key={valor}
-            rotulo={item.IsActive ? rotulo : `${rotulo} (aposentada)`}
-            total={item.Total}
-            ativa={escolhido === valor}
-            aoClicar={() => aoEscolher(valor)}
-          />
-        )
-      })}
-    </div>
-  )
-}
-
-function Ficha({
-  rotulo,
-  total,
-  ativa,
-  aoClicar,
-}: {
-  rotulo: string
-  total: number
-  ativa: boolean
-  aoClicar: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={ativa}
-      // O espaco entre o rotulo e o numero e visual, feito pelo `gap` — no texto
-      // nao ha nada entre os dois, e o leitor de tela anunciaria "Todos55". O nome
-      // proprio tambem diz o que o numero conta, que a tela deixa implicito.
-      aria-label={`${rotulo}, ${total} ${total === 1 ? 'relato' : 'relatos'}`}
-      onClick={aoClicar}
-      className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors ${
-        ativa
-          ? 'border-accent bg-accent text-accent-fg'
-          : 'border-border bg-surface text-fg hover:bg-surface-sunken'
-      }`}
-    >
-      {rotulo}
-      <span className={ativa ? 'opacity-80' : 'text-fg-muted'}>{total}</span>
-    </button>
-  )
-}
-
-function ReportCard({ report, soonDays }: { report: ReportSummaryViewModel; soonDays: number }) {
-  const doTime = report.Kind === 'Team'
-  const titulo = report.Title ?? report.ReporterTitle
-
-  return (
-    // Link, e nao botao: e o que faz o relato ter endereco proprio, abrir em outra
-    // aba com o meio do mouse e sobreviver a um recarregamento da pagina.
-    <Link
-      to={report.PublicId}
-      className="block w-full rounded-xl border border-border bg-surface-raised p-4 text-left transition-colors hover:bg-surface-sunken"
-    >
-      <header className="mb-2 flex items-baseline justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-          {/* O numero e como o time fala do card — no grupo, no commit, em voz alta. */}
-          <span className="flex-none font-mono text-caption text-fg">#{report.Number}</span>
-          <span className="flex-none rounded-full border border-border px-2 py-px text-caption text-fg-muted">
-            {doTime ? 'Do time' : report.Type ? teamTypeLabel(report.Type) : 'Relato'}
-          </span>
-
-          {/* Onde ele esta na fila. Sem ficha quando nao ha coluna: desenhar
-              "Sem coluna" em todo cartao de um projeto que ainda nao criou
-              nenhuma encheria a lista de um aviso que nao pede acao. */}
-          {report.StateName && (
-            <span className="min-w-0 truncate text-caption text-fg-muted">{report.StateName}</span>
-          )}
-        </div>
-
-        {/* O relativo responde "isto e recente?", que e a pergunta de quem passa
-            os olhos; a data exata fica no `title`, para quem precisa dela. */}
-        <time
-          dateTime={report.CreatedAt}
-          title={formatDateTime(report.CreatedAt)}
-          className="flex-none text-caption text-fg-muted"
-        >
-          {formatRelative(report.CreatedAt)}
-        </time>
-      </header>
-
-      {/* O titulo do time, senao o que quem relatou escreveu — e o texto dela logo
-          abaixo, que continua sendo o que ela escreveu. Sem titulo nenhum, o comeco
-          do texto faz as vezes de titulo. */}
-      {titulo ? (
-        <>
-          <p className="line-clamp-2 break-words font-medium text-body text-fg">{titulo}</p>
-          {!doTime && (
-            <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-detail text-fg-muted leading-relaxed">
-              {report.Text}
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="line-clamp-3 whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
-          {report.Text}
-        </p>
-      )}
-
-      <CardFacts report={report} soonDays={soonDays} />
-
-      {!doTime && (
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-caption text-fg-muted">
-          <code className="font-mono">{report.TrackingCode}</code>
-          {report.Route && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="min-w-0 truncate">{report.Route}</span>
-            </>
-          )}
-        </div>
-      )}
-    </Link>
-  )
-}
-
-/**
- * O que o time deu ao card, numa faixa so: prioridade, etiquetas, quem esta com
- * ele e o prazo. Some quando nao ha nada — a lista de um time que nao usa os campos
- * nao ganha uma linha vazia em cada card.
- */
-function CardFacts({ report, soonDays }: { report: ReportSummaryViewModel; soonDays: number }) {
-  const { Priority, Labels, Assignee, DueDate } = report
-  if (!Priority && Labels.length === 0 && !Assignee && !DueDate) return null
-
-  // Tres etiquetas e um "+2": a linha e para passar os olhos, e o card aberto
-  // mostra todas.
-  const visiveis = Labels.slice(0, 3)
-  const restantes = Labels.length - visiveis.length
-
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-caption text-fg-muted">
-      {Priority && (
-        <CardChip color={Priority.Color}>
-          {Priority.IsActive ? Priority.Name : `${Priority.Name} (aposentada)`}
-        </CardChip>
-      )}
-      {visiveis.map((etiqueta) => (
-        <CardChip key={etiqueta.PublicId} color={etiqueta.Color}>
-          {etiqueta.Name}
-        </CardChip>
-      ))}
-      {restantes > 0 && <span>+{restantes}</span>}
-      {Assignee && (
-        <span className="min-w-0 truncate">
-          {/* Sem nome no Google, a API ja manda o e-mail no lugar. */}
-          {Assignee.Name || 'Sem nome'}
-          {!Assignee.InTeam && ' (saiu do time)'}
-        </span>
-      )}
-      {DueDate && <DueChip day={DueDate} soonDays={soonDays} />}
-    </div>
+    <Select
+      className="w-60"
+      size="sm"
+      ariaLabel="Filtrar por coluna"
+      value={escolhido ?? ''}
+      onChange={(valor) => aoEscolher(valor === '' ? null : valor)}
+      options={[
+        { value: '', label: `Todas as colunas · ${total}` },
+        ...visiveis.map((item) => {
+          // A linha sem coluna nao tem identificador: o valor que a rota espera para
+          // ela e uma palavra, e nao um GUID.
+          const nome = item.StateName ?? 'Sem coluna'
+          return {
+            value: item.StatePublicId ?? WITHOUT_STATE_FILTER,
+            label: `${item.IsActive ? nome : `${nome} (aposentada)`} · ${item.Total}`,
+          }
+        }),
+      ]}
+    />
   )
 }
 
@@ -640,9 +670,9 @@ function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => v
     <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
       <h2 className="mb-1.5 font-semibold text-fg text-lead">Nada aqui ainda</h2>
       <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-        Assim que alguém enviar pela ferramenta instalada no site, o relato aparece aqui — com o
-        protocolo, a página de onde saiu e o que a pessoa escreveu. O time também cria os próprios
-        cards.
+        Assim que alguém enviar pela ferramenta instalada no site, o relato aparece aqui; aberto,
+        ele mostra o protocolo, a página de onde saiu e o que a pessoa escreveu. O time também cria
+        os próprios cards.
         {/* Quem e so membro nao instala nada: o link levaria a Instalação, e a
             guarda o devolveria para ca — um clique que parece nao fazer nada. */}
         {!installs && ' Quem administra o projeto instala a ferramenta no site.'}
@@ -662,20 +692,80 @@ function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => v
   )
 }
 
-function LoadingList() {
-  return (
-    <div className="flex flex-col gap-3">
-      {['w-11/12', 'w-3/4', 'w-2/3'].map((width) => (
-        <div key={width} className="rounded-xl border border-border bg-surface-raised p-4">
-          <div className="mb-3 flex justify-between">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-          <Skeleton className="mb-2 h-3 w-full" />
-          <Skeleton className={`mb-3 h-3 ${width}`} />
-          <Skeleton className="h-2 w-28" />
-        </div>
-      ))}
-    </div>
+/** Quanto tempo o card que outra pessoa mudou fica aceso. */
+const DESTAQUE_MS = 2_000
+
+/** Quanto esperar por mais avisos antes de reler: um movimento e o comentario logo depois. */
+const JUNTAR_MS = 250
+
+/** O mais que uma releitura espera: avisos sem parar nao a adiam para sempre. */
+const JUNTAR_MAX_MS = 1_000
+
+/** Quanto tempo, depois de a mudanca de outra pessoa entrar na tela, o clique num card nao vale. */
+const CLIQUE_DEPOIS_DA_MUDANCA_MS = 600
+
+/**
+ * Os cards acesos agora, e quem acende um. Cada um apaga sozinho; acender de novo o
+ * que ja esta aceso recomeca a conta.
+ */
+function useDestaques() {
+  const [acesos, setAcesos] = useState<ReadonlySet<string>>(new Set())
+  const apagar = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+
+  useEffect(() => {
+    const timers = apagar.current
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer)
+    }
+  }, [])
+
+  const acender = useCallback((id: string) => {
+    const anterior = apagar.current.get(id)
+    if (anterior) clearTimeout(anterior)
+    setAcesos((atual) => new Set(atual).add(id))
+    apagar.current.set(
+      id,
+      setTimeout(() => {
+        apagar.current.delete(id)
+        setAcesos((atual) => {
+          const sem = new Set(atual)
+          sem.delete(id)
+          return sem
+        })
+      }, DESTAQUE_MS),
+    )
+  }, [])
+
+  return [acesos, acender] as const
+}
+
+/**
+ * Junta chamadas proximas numa so: chamar varias vezes em seguida roda uma vez, um
+ * instante depois da ultima — e nunca mais de `JUNTAR_MAX_MS` depois da primeira, para
+ * um time agitado nao deixar a tela parada. Roda a versao de agora da funcao, e nao a
+ * da primeira chamada.
+ */
+function useJuntar(fazer: () => void) {
+  const atual = useRef(fazer)
+  atual.current = fazer
+  const espera = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const primeira = useRef(0)
+
+  useEffect(
+    () => () => {
+      if (espera.current !== null) clearTimeout(espera.current)
+    },
+    [],
   )
+
+  return useCallback(() => {
+    const agora = Date.now()
+    if (espera.current === null) primeira.current = agora
+    else clearTimeout(espera.current)
+    const ms = Math.min(JUNTAR_MS, Math.max(0, primeira.current + JUNTAR_MAX_MS - agora))
+    espera.current = setTimeout(() => {
+      espera.current = null
+      atual.current()
+    }, ms)
+  }, [])
 }

@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Pds.Domain.Constants;
 using Pds.Domain.Entities;
 using Pds.Domain.Interfaces.ServiceInterfaces;
+using Pds.Domain.Security;
 
 namespace Pds.Service.Services;
 
@@ -25,13 +26,23 @@ public class TokenService : ITokenService
     public const string AccountClaim = "acc";
 
     public (string AccessToken, DateTime ExpiresAt) Issue(User user)
+        => Write(user, EnvironmentConstants.GetJwtAudience(),
+            DateTime.UtcNow.AddHours(EnvironmentConstants.GetJwtExpirationHours()));
+
+    /// <summary>
+    /// O mesmo formato e a mesma assinatura do token da sessao, com outro destinatario
+    /// e um minuto de vida: quem o valida e um esquema que so o hub usa.
+    /// </summary>
+    public (string Ticket, DateTime ExpiresAt) IssueRealtimeTicket(User user)
+        => Write(user, EnvironmentConstants.GetRealtimeAudience(), DateTime.UtcNow.Add(RealtimeTicket.Lifetime));
+
+    private static (string, DateTime) Write(User user, string audience, DateTime expiresAt)
     {
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(EnvironmentConstants.GetJwtSigningKey()));
-        var expiresAt = DateTime.UtcNow.AddHours(EnvironmentConstants.GetJwtExpirationHours());
 
         var token = new JwtSecurityToken(
             issuer: EnvironmentConstants.GetJwtIssuer(),
-            audience: EnvironmentConstants.GetJwtAudience(),
+            audience: audience,
             claims:
             [
                 new Claim(JwtRegisteredClaimNames.Sub, user.PublicId.ToString()),

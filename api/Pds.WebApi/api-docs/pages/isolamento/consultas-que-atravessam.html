@@ -1,16 +1,17 @@
-<h2>As quarenta e cinco consultas que atravessam o filtro</h2>
+<h2>As quarenta e nove consultas que atravessam o filtro</h2>
 
-<p>São exatamente quarenta e cinco em todo o sistema, todas propositais, e <strong>trinta e uma
+<p>São exatamente quarenta e nove em todo o sistema, todas propositais, e <strong>trinta e uma
 têm a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão a lista de projetos
 da requisição é vazia — o filtro que protege o painel devolveria vazio para o próprio dono.
-Quarenta e três moram em repositório, cada uma num método, e nenhuma em serviço; as outras duas são
-as leituras que montam o acesso, no <code>AccountMiddleware</code>. Nove vêm do consumidor da fila,
-onde nunca houve requisição. E cinco atravessam com sessão — três no painel, duas no convite —, e
-estão no fim da página.</p>
+Quarenta e três moram em repositório, cada uma num método, e nenhuma em serviço; duas são as
+leituras que montam o acesso, no <code>AccountMiddleware</code>; e quatro são as do aviso em tempo
+real, no <code>HubWorkNotifier</code>. Nove vêm do consumidor da fila, onde nunca houve requisição.
+Cinco atravessam com sessão — três no painel, duas no convite. As do aviso estão no fim da
+página.</p>
 
 <p>A contagem é por <strong>método público</strong> de repositório, porque é o método que alguém
-chama — e, no middleware, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são quarenta e
-duas: as duas do middleware e quarenta em repositório, das quais duas moram em auxiliares
+chama — e, no middleware e no aviso, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são
+quarenta e seis: as duas do middleware, as quatro do aviso e quarenta em repositório, das quais duas moram em auxiliares
 privados — <code>Confirmados</code>, em <code>ReportAttachmentRepository</code>, e
 <code>Reabertos</code>, em <code>ReportClosureRepository</code> —, uma em cada, e os dois servem
 cinco métodos públicos entre eles. O auxiliar existe para as condições reescritas à mão morarem
@@ -305,6 +306,29 @@ o aceite não criar uma segunda linha.</p>
 projeto, a dele também — e levam marca no SQL: <code>-- envio do e-mail do convite</code> nas
 seis da fila, <code>-- convite aberto pelo link</code> e <code>-- conferencia de quem aceita um
 convite</code> nas duas do link.</p>
+
+<h3>As quatro do aviso em tempo real</h3>
+
+<p>O aviso de que algo mudou na tela de Trabalho sai de qualquer lugar que muda um card — e nem
+sempre há sessão: <strong>quem relatou responde sem sessão, e a fila também muda cards</strong>. Com
+a sessão, também não serviria: o aviso vai para o time do projeto, e não para quem fez a mudança,
+cuja lista de projetos não responde quem mais está ali. Por isso as quatro leituras moram no
+<code>HubWorkNotifier</code>, e não em repositório:</p>
+
+<ul>
+  <li><strong>O card</strong>: de qual projeto ele é, em qual coluna está e se foi para o arquivo —
+  com o card e o projeto não apagados.</li>
+  <li><strong>O projeto</strong>: o identificador interno e a conta dona — com o projeto e a conta
+  não apagados.</li>
+  <li><strong>Os donos da conta</strong>: os usuários da conta, não apagados.</li>
+  <li><strong>O time</strong>: as linhas de <code>project_members</code> do projeto, com a linha e o
+  usuário não apagados.</li>
+</ul>
+
+<p>As quatro reescrevem à mão a exclusão lógica e levam a marca <code>-- aviso em tempo real</code>
+no SQL. Nenhuma devolve dado do card: o que sai delas são identificadores — o do card, o da coluna,
+os das pessoas —, e o aviso leva só os do card e da coluna. Ver <a href="#/fluxo/tempo-real">O tempo
+real</a>.</p>
 
 <div class="note why">
   <strong>O número do card e a ordem do quadro não são consultas que atravessam — são <code>UPDATE</code> escritos à mão</strong>

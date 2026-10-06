@@ -235,8 +235,12 @@ public interface IReportService
     /// com origem no painel — e a contagem de quantas vezes o time foi olhar, que a
     /// pesquisa compara com a de quem relatou. Por isso nao pode ser chamado para
     /// adiantar dado que ninguem pediu: cada chamada vira uma linha.</para>
+    ///
+    /// <para><paramref name="recordView"/> falso e a <b>releitura do card que ja esta
+    /// aberto</b>, quando outra pessoa mexe nele: a leitura foi registrada ao abrir, e
+    /// cada aviso em tempo real viraria uma leitura que ninguem fez.</para>
     /// </summary>
-    Task<ReportDetailViewModel> GetAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default);
+    Task<ReportDetailViewModel> GetAsync(Guid projectPublicId, Guid reportPublicId, bool recordView = true, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Encerra o relato por um botao, com desfecho e motivo.

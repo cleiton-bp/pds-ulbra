@@ -25,8 +25,12 @@ public class ProjectMemberService : IProjectMemberService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountContext _accountContext;
 
-    public ProjectMemberService(IUnitOfWork unitOfWork, IAccountContext accountContext)
+    /// <summary>Quem sai do time e avisado na tela de Trabalho que estiver aberta.</summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ProjectMemberService(IUnitOfWork unitOfWork, IAccountContext accountContext, IWorkNotifier notifier)
     {
+        _notifier = notifier;
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
     }
@@ -98,6 +102,12 @@ public class ProjectMemberService : IProjectMemberService
         }, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        // A tela de quem saiu deixa de valer na hora: ela ja nao recebe os avisos do
+        // projeto, e este diz por que. A dos outros tira a pessoa da escolha de
+        // responsavel.
+        await _notifier.AccessLostAsync(projectPublicId, userPublicId);
+        await _notifier.ProjectChangedAsync(projectPublicId);
     }
 
     /// <summary>

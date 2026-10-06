@@ -1,6 +1,8 @@
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import type { ReportStateCountViewModel, ReportSummaryViewModel } from '@/contracts'
+import type { SemAoVivo } from '@/features/reports/LiveStatus'
 import { ReportDialog } from '@/features/reports/ReportDialog'
+import type { WorkListener } from '@/features/reports/useWorkRealtime'
 
 /** O que a lista entrega para a rota do detalhe, por contexto de rota. */
 export interface ReportListContext {
@@ -11,6 +13,10 @@ export interface ReportListContext {
   colunas: ReportStateCountViewModel[] | null
   /** Avisa a lista de que este card mudou — de coluna, de texto ou de arquivo. */
   aoMudar: (report: ReportSummaryViewModel) => void
+  /** Ouve os avisos do tempo real da tela, para o card aberto se atualizar sozinho. */
+  assinarAvisos?: (ouvinte: WorkListener) => () => void
+  /** Por que a tela esta sem atualizacao ao vivo, quando esta. */
+  semAoVivo?: SemAoVivo
 }
 
 /**
@@ -28,7 +34,8 @@ export interface ReportListContext {
  */
 export function ReportDetailRoute() {
   const { reportPublicId = '' } = useParams()
-  const { projectPublicId, reports, colunas, aoMudar } = useOutletContext<ReportListContext>()
+  const { projectPublicId, reports, colunas, aoMudar, assinarAvisos, semAoVivo } =
+    useOutletContext<ReportListContext>()
   const navigate = useNavigate()
 
   const resumo = reports?.find((report) => report.PublicId === reportPublicId) ?? null
@@ -44,6 +51,8 @@ export function ReportDetailRoute() {
       resumo={resumo}
       colunas={colunas}
       aoMudar={aoMudar}
+      assinarAvisos={assinarAvisos}
+      semAoVivo={semAoVivo ?? null}
       // `..` e a lista, com o recorte e a rolagem onde estavam. `replace` mantem
       // o botao voltar do navegador levando para antes de a lista abrir, e nao de
       // volta para o relato que a pessoa acabou de fechar.

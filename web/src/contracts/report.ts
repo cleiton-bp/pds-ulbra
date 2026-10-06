@@ -214,9 +214,10 @@ export interface ReportSummaryViewModel {
    * **Viaja na lista sem ser desenhado nela**, de proposito: a lista responde "o
    * que ainda nao tratei", e uma segunda etiqueta em toda linha disputaria essa
    * leitura. Quem le e a tela do relato aberto — inclusive na resposta do proprio
-   * movimento, que e como ela sabe o que aquele movimento causou la fora sem buscar
-   * o detalhe de novo. Buscar de novo **grava um evento de leitura**, e isso
-   * mediria cliques do time em vez de leituras.
+   * movimento, que e como ela sabe o que aquele movimento causou la fora sem abrir
+   * o detalhe de novo. Abrir de novo **grava um evento de leitura**, e isso mediria
+   * cliques do time em vez de leituras. (A releitura com `refresh=true` nao grava; e
+   * a do tempo real.)
    */
   PublicStageLabel: string | null
   /**

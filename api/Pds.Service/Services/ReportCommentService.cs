@@ -26,10 +26,14 @@ public class ReportCommentService : IReportCommentService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountContext _accountContext;
 
-    public ReportCommentService(IUnitOfWork unitOfWork, IAccountContext accountContext)
+    /// <summary>A conversa muda o contador da frente do card e o card aberto dos outros.</summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ReportCommentService(IUnitOfWork unitOfWork, IAccountContext accountContext, IWorkNotifier notifier)
     {
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
+        _notifier = notifier;
     }
 
     public async Task<ReportCommentsViewModel> ListAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default)
@@ -75,6 +79,8 @@ public class ReportCommentService : IReportCommentService
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
 
+        await _notifier.CardChangedAsync(reportPublicId);
+
         return new InternalCommentViewModel(comment.PublicId, user?.Name ?? string.Empty, comment.Body, comment.CreatedAt);
     }
 
@@ -105,6 +111,8 @@ public class ReportCommentService : IReportCommentService
         await _unitOfWork.ReportPublicComments.AddAsync(comment, cancellationToken);
         await AddEventAsync(report, userId, EventTypeEnum.ReportPublicCommented, cancellationToken);
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        await _notifier.CardChangedAsync(reportPublicId);
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
 
