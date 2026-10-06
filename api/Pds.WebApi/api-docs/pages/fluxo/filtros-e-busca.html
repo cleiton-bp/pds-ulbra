@@ -1,0 +1,78 @@
+<h2>Filtros e busca</h2>
+
+<p>A tela de Trabalho filtra e busca na lista e no quadro <strong>com os mesmos filtros</strong>: a
+lista mostra só o que passa neles, cada coluna do quadro também, e o total de cada coluna conta só
+os que passam. A barra fica acima da lista e do quadro:</p>
+
+<ul>
+  <li><strong>A busca</strong> — no título (o que o time deu e o de quem relatou), no texto, na
+  descrição, no número (<code>42</code> ou <code>#42</code>) e no protocolo, com ou sem hífen. Sem
+  diferenciar maiúscula nem acento: "nao" acha "não". Ela espera a pessoa parar de digitar.</li>
+  <li><strong>Meus cards</strong> e <strong>Vencidos</strong>, os dois atalhos de um clique.</li>
+  <li><strong>Responsável</strong> (qualquer pessoa do time, e "Sem responsável"),
+  <strong>Etiqueta</strong>, <strong>Prioridade</strong> (e "Sem prioridade") e
+  <strong>Tipo</strong> (defeito, melhoria, dúvida e o card do time), em menus de marcar.</li>
+</ul>
+
+<p><strong>Dentro de um filtro, ou; entre filtros, e.</strong> A etiqueta "pagamento" ou a
+"celular"; da Ana e vencido. O filtro ligado aparece no próprio controle — o atalho pressionado, o
+menu com quantos estão marcados — e em "Limpar filtros". Quando nada passa, a tela diz isso, com o
+"Limpar filtros" ao lado: os cards existem, e o vazio não é o do projeto.</p>
+
+<h2>Vencido é o que ainda não terminou</h2>
+
+<p>O card vencido é o que tem <strong>prazo antes de hoje e ainda não terminou</strong>. Terminou o
+relato com encerramento valendo, ou o card na <strong>última coluna ativa</strong> — com duas
+colunas ou mais; com uma só, ela é a entrada da fila, a mesma regra da última coluna do quadro. O
+card que terminou também não mostra o prazo em vermelho nem "venceu há": atrasado é o que ainda não
+acabou. Quem decide é a API, e o card diz em <code>Finished</code>.</p>
+
+<p>O "hoje" é o <strong>dia de quem olha</strong>, que a tela manda: no fim da noite no Brasil, o
+dia em UTC já é o seguinte, e o card que vence hoje apareceria como vencido.</p>
+
+<h2>Na API</h2>
+
+<p>A lista e a contagem das colunas recebem os mesmos parâmetros. Repetir um parâmetro soma:</p>
+
+<pre><code>GET /projects/2be49b28-.../reports?assignee=me&amp;label=7c1e...&amp;label=90af...&amp;due=overdue&amp;today=2026-10-03
+GET /projects/2be49b28-.../reports/counts?assignee=me&amp;label=7c1e...&amp;label=90af...&amp;due=overdue&amp;today=2026-10-03
+GET /projects/2be49b28-.../reports?q=nao+responde</code></pre>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Parâmetro</th><th>Valores</th></tr>
+  <tr><td><code>assignee</code></td><td><code>me</code>, <code>none</code> (sem responsável) ou o identificador de alguém do time</td></tr>
+  <tr><td><code>label</code></td><td>O identificador da etiqueta; basta o card ter uma delas</td></tr>
+  <tr><td><code>priority</code></td><td>O identificador da prioridade, ou <code>none</code></td></tr>
+  <tr><td><code>type</code></td><td><code>bug</code>, <code>improvement</code>, <code>question</code> ou <code>team</code> (o card do time)</td></tr>
+  <tr><td><code>due</code> e <code>today</code></td><td><code>due=overdue</code>, com <code>today</code> no formato <code>aaaa-mm-dd</code>; sem <code>today</code>, vale o dia em UTC</td></tr>
+  <tr><td><code>q</code></td><td>A busca, até 200 caracteres</td></tr>
+</table>
+</div>
+
+<p>O identificador que não é do projeto é <strong>recusado</strong> (404), e não vira lista vazia —
+o mesmo desenho do filtro de coluna: lista vazia responderia "nada com esta etiqueta" sobre uma
+etiqueta que não existe, e o erro passaria despercebido. A pessoa do filtro tem de estar no time
+agora. O formato errado — tipo ou prazo desconhecido, busca longa demais — é 400.</p>
+
+<div class="note">
+  <strong>O acento sai sem extensão no banco</strong>
+  <p>A busca compara o texto pela função <code>translate</code> do Postgres, que troca cada letra
+  acentuada pela sem acento, e o termo digitado passa pela mesma tabela de letras do lado da API
+  (<code>SearchText</code>). A função já existe no banco: o mapeamento no modelo não cria nada nem
+  muda o esquema.</p>
+</div>
+
+<h2>Na tela</h2>
+
+<p>Os filtros e a busca ficam <strong>lembrados na aba, por projeto</strong>: ir à Configuração e
+voltar, ou recarregar a página, os traz de volta; fechar a aba os apaga — um filtro esquecido de
+ontem faria a pessoa achar que cards sumiram. Trocar de filtro relê a lista e as colunas sem esvaziar
+a tela, e o tempo real relê com os filtros de agora.</p>
+
+<div class="note warn">
+  <strong>O que fica de fora</strong>
+  <p>A busca não olha os comentários. O card criado com um filtro ligado aparece mesmo que não passe
+  nele: é a resposta ao que a pessoa acabou de fazer. E a busca varre os cards do projeto, sem índice
+  próprio de texto — se o volume pedir, um índice de busca é <strong>Continuidade</strong>.</p>
+</div>
