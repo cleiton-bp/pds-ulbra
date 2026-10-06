@@ -60,6 +60,7 @@
       { id: 'o-quadro',           label: 'O quadro' },
       { id: 'tempo-real',         label: 'O tempo real' },
       { id: 'filtros-e-busca',    label: 'Filtros e busca' },
+      { id: 'subtarefas',         label: 'Subtarefas' },
       { id: 'primeiro-relato',    label: 'O primeiro relato chegando' },
       { id: 'anexar',             label: 'Imagens e arquivos no relato' },
       { id: 'volta-para-olhar',   label: 'Quem relatou volta para olhar' },

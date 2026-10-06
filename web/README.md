@@ -392,6 +392,14 @@ real, e trocar de filtro relê tudo **sem esvaziar** a tela. Vencido é o prazo 
 ainda não terminou — quem diz se terminou é a API, em `Finished` —, e o prazo do card que terminou
 fica sem vermelho e sem amarelo. Quando nada passa, a tela diz isso, com "Limpar filtros".
 
+**Subtarefas.** O card aberto tem a seção Subtarefas (`CardSubtasks`): o progresso, a lista na
+ordem em que nasceram — lida com `parent`, e só quando o contador da frente diz que há alguma — e o
+campo de criar, que manda o pai. A subtarefa nasce na primeira coluna e sem responsável, como no
+Jira, entra no quadro e na lista na hora, e o pai é relido sem gravar leitura. Um nível só: a
+subtarefa aberta se chama Subtarefa e mostra o pai (`ParentLink`), sem a seção. Na frente do card e
+na linha da tabela, a subtarefa mostra o pai (`ParentLine`) e o pai mostra o progresso
+(`SubtaskProgress`), verde quando todas terminaram.
+
 **O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
 recarregar. A conexão (`realtimeService`, em `data/api/apiRealtimeService.ts`, com a biblioteca
 do SignalR carregada só nesta tela) pede um bilhete de um minuto a cada conexão — o token da

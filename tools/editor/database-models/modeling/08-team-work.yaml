@@ -385,7 +385,7 @@ entities:
         note: nulo enquanto a regra vale, preenchido no lugar de apagar
   - name: reports
     label: Relatos e cards
-    description: Já existia, e passa a guardar todo card do trabalho do time — o relato, que chegou de fora, e o card do time, que nasceu no painel (kind). Ganha o número curto do projeto, o título e a descrição do card do time, quem o criou e o arquivamento; protocolo, token, tipo e texto ficam nulos no card do time, e duas travas no banco separam os dois tipos. E ganha o título que quem relatou escreveu, o responsável, a prioridade e o prazo — tudo interno, menos o título dela, que volta só para ela. E o lugar no quadro e quando entrou na coluna.
+    description: Já existia, e passa a guardar todo card do trabalho do time — o relato, que chegou de fora, e o card do time, que nasceu no painel (kind). Ganha o número curto do projeto, o título e a descrição do card do time, quem o criou e o arquivamento; protocolo, token, tipo e texto ficam nulos no card do time, e duas travas no banco separam os dois tipos. E ganha o título que quem relatou escreveu, o responsável, a prioridade e o prazo — tudo interno, menos o título dela, que volta só para ela. E o lugar no quadro e quando entrou na coluna. E o pai, quando o card é subtarefa.
     inherited: true
     position: { x: 1237, y: 893 }
     fields:
@@ -432,6 +432,10 @@ entities:
       - name: due_date
         type: date
         note: coluna nova — o prazo, só a data, sem hora. Nulo é sem prazo
+      - name: parent_report_id
+        type: long
+        fk: true
+        note: coluna nova — o card de que este é subtarefa; nulo no card que não é. Só o card do time é subtarefa, e ninguém é pai de si mesmo (duas travas no banco); um nível só, e o pai do mesmo projeto, o serviço confere. Arquivar o pai leva as subtarefas, com o mesmo instante em archived_at
       - name: board_rank
         type: long
         required: true
@@ -1761,6 +1765,12 @@ relations:
     toField: assignee_user_id
     kind: one-to-many
     note: Uma pessoa está com vários cards, e cada card com uma só. Quem sai do time continua ligado aos cards que eram dele, como registro.
+  - from: reports
+    fromField: id
+    to: reports
+    toField: parent_report_id
+    kind: one-to-many
+    note: Um card tem várias subtarefas, e a subtarefa tem um pai só. Um nível — subtarefa não tem subtarefa —, e só o card do time é subtarefa.
   - from: projects
     fromField: id
     to: project_priorities

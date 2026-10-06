@@ -326,6 +326,24 @@ useCases:
         steps:
           - Um espera o outro, e cada card ganha um lugar só dele.
     postconditions: "O que chega a uma coluna sem ser arrastado — o relato novo, o card novo, o movido pelo card aberto, o reaberto por quem relatou (mude de coluna ou não) e o que ela tira do arquivo ao responder — entra no topo."
+  - id: UC20
+    name: Quebrar o card em subtarefas
+    description: "O membro quebra um relato ou um card do time em partes menores: cada subtarefa é um card do time filho dele, com coluna e responsável próprios, e o pai mostra quantas terminaram. Um nível só, como no Jira."
+    width: 220
+    position: { x: 260, y: 1480 }
+    preconditions: O card está aberto e fora do arquivo, e não é subtarefa.
+    mainFlow:
+      - O membro escreve o que precisa ser feito no campo "Criar subtarefa" do card aberto.
+      - O sistema cria a subtarefa na primeira coluna, sem responsável, com o próximo número do projeto.
+      - A subtarefa aparece no quadro e na lista, com o pai indicado, e o pai passa a mostrar o progresso.
+    alternativeFlows:
+      - title: 3a. A subtarefa chega à última coluna
+        steps:
+          - Ela conta como feita, e o progresso do pai anda — na tela de quem tem o pai aberto também, ao vivo.
+      - title: 3b. O pai é arquivado
+        steps:
+          - As subtarefas vão junto para o arquivo; desarquivar o pai traz de volta as que foram com ele.
+    postconditions: Mover a subtarefa nunca mexe na etapa pública — quem relatou só vê o relato andar quando o relato anda.
   - id: UC19
     name: Filtrar e buscar os cards
     description: "Recorta a tela de Trabalho — na lista e no quadro, com os mesmos filtros — por responsável, etiqueta, prioridade, tipo e vencidos, e busca pelo título, pelo texto, pelo número ou pelo protocolo, sem diferenciar maiúscula nem acento."
@@ -422,6 +440,9 @@ links:
     kind: extend
   - from: Membro do time
     to: UC19
+    kind: association
+  - from: Membro do time
+    to: UC20
     kind: association
     note: quando o card é solto em outra coluna
 notes:
