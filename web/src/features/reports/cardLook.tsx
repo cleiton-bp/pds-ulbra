@@ -3,6 +3,7 @@ import type {
   CardAssigneeViewModel,
   CardColor,
   CardLabelViewModel,
+  CardParentViewModel,
   CardPriorityViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
@@ -307,6 +308,83 @@ export function PersonAvatar({
         </span>
       )}
       <span className="sr-only">{descricao}</span>
+    </span>
+  )
+}
+
+/**
+ * O pai da subtarefa, numa linha: o numero e o titulo dele. **Texto, e nao link**: na
+ * frente do card e na linha da tabela, o clique abre a propria subtarefa — e o pai
+ * esta a um clique, dentro dela.
+ */
+export function ParentLine({
+  parent,
+  className,
+}: {
+  parent: CardParentViewModel
+  className?: string
+}) {
+  return (
+    <span
+      title={`Subtarefa de #${parent.Number} ${parent.Headline}`}
+      className={cn('flex min-w-0 items-center gap-1 text-caption text-fg-muted', className)}
+    >
+      <svg
+        viewBox="0 0 12 12"
+        className="size-3 flex-none"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M3 2v4.5a1.5 1.5 0 0 0 1.5 1.5H10M7.5 5.5 10 8l-2.5 2.5" />
+      </svg>
+      <span className="sr-only">Subtarefa de </span>
+      <span className="flex-none font-mono">#{parent.Number}</span>{' '}
+      <span className="min-w-0 truncate">{parent.Headline}</span>
+    </span>
+  )
+}
+
+/**
+ * O progresso do pai: quantas subtarefas terminaram, de quantas. Verde quando todas
+ * terminaram — e com as palavras para quem nao ve a cor.
+ */
+export function SubtaskProgress({
+  card,
+}: {
+  card: Pick<ReportSummaryViewModel, 'SubtaskCount' | 'SubtasksDone'>
+}) {
+  if (card.SubtaskCount === 0) return null
+  const todas = card.SubtasksDone === card.SubtaskCount
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-0.5 tabular-nums',
+        todas ? 'text-chip-green-glyph' : 'text-fg-muted',
+      )}
+    >
+      <svg
+        viewBox="0 0 14 14"
+        className="size-3.5 flex-none"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M2.5 3.5h2M2.5 7h2M2.5 10.5h2M6.5 3.5h5M6.5 7h5M6.5 10.5h5" />
+      </svg>
+      <span aria-hidden>
+        {card.SubtasksDone}/{card.SubtaskCount}
+      </span>
+      <span className="sr-only">
+        {card.SubtasksDone} de {card.SubtaskCount}{' '}
+        {card.SubtaskCount === 1 ? 'subtarefa feita' : 'subtarefas feitas'}
+      </span>
     </span>
   )
 }

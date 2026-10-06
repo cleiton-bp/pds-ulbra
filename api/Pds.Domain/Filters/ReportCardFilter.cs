@@ -22,6 +22,7 @@ namespace Pds.Domain.Filters;
 /// terminou.
 /// </param>
 /// <param name="Search">A busca, quando ha uma.</param>
+/// <param name="ParentId">So as subtarefas deste card.</param>
 public sealed record ReportCardFilter(
     IReadOnlyList<long> AssigneeIds,
     bool WithoutAssignee,
@@ -31,7 +32,8 @@ public sealed record ReportCardFilter(
     IReadOnlyList<ReportTypeEnum> Types,
     bool TeamCards,
     DateOnly? OverdueOn,
-    ReportSearch? Search)
+    ReportSearch? Search,
+    long? ParentId = null)
 {
     /// <summary>Nenhum filtro: a tela inteira.</summary>
     public static readonly ReportCardFilter None = new([], false, [], [], false, [], false, null, null);

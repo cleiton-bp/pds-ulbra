@@ -484,6 +484,12 @@ export function ReportsScreen() {
           aoMudar,
           assinarAvisos: aoVivo.assinar,
           semAoVivo: aoVivo.semAoVivo,
+          // A subtarefa nasce como o card novo: no topo da lista e da coluna dela.
+          aoCriarSubtarefa: (subtarefa: ReportDetailViewModel) => {
+            prepend(subtarefa)
+            board.insert(subtarefa)
+            renovarContagens()
+          },
         }}
       />
 

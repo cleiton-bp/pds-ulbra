@@ -53,6 +53,7 @@ export const apiProjectReportService: ProjectReportService = {
     if (options?.pageSize) query.set('pageSize', String(options.pageSize))
     if (options?.after) query.set('after', options.after)
     appendReportFilters(query, options?.filters)
+    if (options?.parent) query.set('parent', options.parent)
 
     const { items, total } = await apiGetPage<ReportSummaryViewModel>(
       `/projects/${publicId}/reports?${query}`,

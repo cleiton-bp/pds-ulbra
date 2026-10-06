@@ -71,8 +71,14 @@ export function CardDetailLayout({
 export function CardDialogTitle({ card }: { card: ReportSummaryViewModel | null }) {
   if (card === null) return 'Card'
 
-  const tipo =
-    card.Kind === 'Team' ? 'Card do time' : card.Type ? teamTypeLabel(card.Type) : 'Relato'
+  // A subtarefa e card do time, mas e como o time a chama — como no Jira.
+  const tipo = card.Parent
+    ? 'Subtarefa'
+    : card.Kind === 'Team'
+      ? 'Card do time'
+      : card.Type
+        ? teamTypeLabel(card.Type)
+        : 'Relato'
 
   return (
     <span className="flex items-center gap-2">

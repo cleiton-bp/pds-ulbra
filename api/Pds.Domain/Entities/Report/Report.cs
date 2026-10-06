@@ -139,6 +139,21 @@ public class Report : PdsBaseEntity
     public DateTime? ArchivedAt { get; set; }
 
     /// <summary>
+    /// O card de que este e subtarefa. Nulo no card que nao e subtarefa.
+    ///
+    /// <para><b>So o card do time e subtarefa</b> — o banco recusa o relato com pai —,
+    /// e <b>um nivel so</b>: subtarefa nao tem subtarefa (isso o servico confere). O
+    /// pai pode ser relato ou card do time, do mesmo projeto. Mover a subtarefa nunca
+    /// mexe na etapa publica: ela nao tem lado de fora, e o pai anda sozinho.</para>
+    ///
+    /// <para><b>Arquivar o pai leva as subtarefas junto</b>, com o mesmo instante em
+    /// <see cref="ArchivedAt"/>; desarquivar o pai traz de volta as que tem esse
+    /// instante — as que ja estavam no arquivo antes ficam la.</para>
+    /// </summary>
+    public long? ParentReportId { get; set; }
+    public Report? ParentReport { get; set; }
+
+    /// <summary>
     /// Quem do time criou o card. Nulo no relato: quem escreveu nao tem usuario
     /// aqui.
     /// </summary>

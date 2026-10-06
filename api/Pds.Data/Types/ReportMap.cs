@@ -17,6 +17,11 @@ public class ReportMap : BaseEntityConfiguration<Report>
 
             table.HasCheckConstraint("ck_reports_kind", "kind IN ('report', 'team')");
 
+            // A subtarefa e card do time — o relato veio de fora e nao e pedaco de
+            // outro card —, e ninguem e pai de si mesmo.
+            table.HasCheckConstraint("ck_reports_parent_team", "parent_report_id IS NULL OR kind = 'team'");
+            table.HasCheckConstraint("ck_reports_parent_not_self", "parent_report_id IS NULL OR parent_report_id <> id");
+
             // O numero vem do contador do projeto, que comeca em 1. Zero seria um
             // card gravado sem passar por ele — e o segundo esbarraria no indice.
             table.HasCheckConstraint("ck_reports_number", "number > 0");
@@ -95,6 +100,17 @@ public class ReportMap : BaseEntityConfiguration<Report>
         builder.HasOne(report => report.AssigneeUser)
             .WithMany()
             .HasForeignKey(report => report.AssigneeUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(report => report.ParentReportId)
+            .HasColumnName("parent_report_id")
+            .HasComment("O card de que este e subtarefa; nulo no card que nao e subtarefa. So o card do time e subtarefa, e um nivel so (o servico confere). Interno.");
+
+        // Restrict: card nao se apaga, e o pai nao some debaixo das subtarefas. O
+        // indice serve a lista das subtarefas e a contagem do progresso do pai.
+        builder.HasOne(report => report.ParentReport)
+            .WithMany()
+            .HasForeignKey(report => report.ParentReportId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(report => report.PriorityId)

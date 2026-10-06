@@ -152,6 +152,15 @@ export const CARD_COLORS = [
 ] as const
 export type CardColor = (typeof CARD_COLORS)[number]
 
+/** O pai de uma subtarefa, como a frente dela o mostra. */
+export interface CardParentViewModel {
+  PublicId: string
+  /** O #42 do pai. */
+  Number: number
+  /** O titulo do pai: o do time, senao o de quem relatou, senao o comeco do texto. */
+  Headline: string
+}
+
 /**
  * Quem esta com o card. **Quem saiu do time continua aqui**, como registro:
  * `InTeam` falso, e a tela o marca ate alguem trocar.
@@ -270,6 +279,12 @@ export interface ReportSummaryViewModel {
    * vencidos: o prazo do card que terminou nao fica vermelho nem amarelo.
    */
   Finished: boolean
+  /** O pai, quando o card e subtarefa — um nivel so: subtarefa nao tem subtarefa. */
+  Parent: CardParentViewModel | null
+  /** Quantas subtarefas o card tem fora do arquivo. */
+  SubtaskCount: number
+  /** Delas, quantas terminaram — o progresso do pai (2/5). */
+  SubtasksDone: number
 }
 
 /**
@@ -965,8 +980,10 @@ export interface CreateTeamCardRequest {
   Title: string
   /** Markdown. Vazia, o card nasce sem descricao. */
   Description: string | null
-  /** Ausente, o primeiro estado ativo do projeto. */
+  /** Ausente, o primeiro estado ativo do projeto. Na subtarefa, nao vai: ela nasce no primeiro. */
   StatePublicId: string | null
+  /** O card de que este e subtarefa. Ausente, o card nao e subtarefa. */
+  ParentPublicId?: string
 }
 
 /** O titulo e a descricao de um card do time, gravados inteiros. */

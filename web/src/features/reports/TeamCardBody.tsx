@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import {
   MAX_CARD_DESCRIPTION_LENGTH,
   MAX_CARD_TITLE_LENGTH,
@@ -49,6 +49,8 @@ export function TeamCardBody({
   aoMover,
   aoSalvo,
   aoComentar,
+  antes,
+  depois,
 }: {
   projectPublicId: string
   reportPublicId: string
@@ -65,6 +67,10 @@ export function TeamCardBody({
   /** O card mudou de texto ou de arquivo: quem abriu o dialogo e a lista se acertam. */
   aoSalvo: (card: ReportDetailViewModel) => void
   aoComentar: () => void
+  /** O que vem antes do titulo — na subtarefa, o pai. */
+  antes?: ReactNode
+  /** O que vem depois da descricao — as subtarefas. */
+  depois?: ReactNode
 }) {
   const arquivado = card.ArchivedAt !== null
   const descricao = detalhe?.Description ?? null
@@ -123,63 +129,67 @@ export function TeamCardBody({
     <>
       <CardDetailLayout
         cabeca={
-          editando ? (
-            <div className="flex flex-col gap-4">
-              <TextField
-                label="Título"
-                value={titulo}
-                onChange={(valor) => {
-                  setTitulo(valor)
-                  if (erro) setErro(null)
-                }}
-                maxLength={MAX_CARD_TITLE_LENGTH}
-                disabled={salvando}
-                error={erro}
-              />
-              <MarkdownEditor
-                label="Descrição"
-                value={texto}
-                onChange={setTexto}
-                maxLength={MAX_CARD_DESCRIPTION_LENGTH}
-                disabled={salvando}
-                rows={10}
-              />
-              <div className="flex gap-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={titulo.trim().length === 0 || salvando}
-                  onClick={() => void salvar()}
-                >
-                  {salvando ? 'Salvando…' : 'Salvar'}
-                </Button>
-                <Button
-                  variant="quiet"
-                  size="sm"
+          <>
+            {antes}
+            {editando ? (
+              <div className="flex flex-col gap-4">
+                <TextField
+                  label="Título"
+                  value={titulo}
+                  onChange={(valor) => {
+                    setTitulo(valor)
+                    if (erro) setErro(null)
+                  }}
+                  maxLength={MAX_CARD_TITLE_LENGTH}
                   disabled={salvando}
-                  onClick={() => setEditando(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <h3 className="mb-3 break-words font-semibold text-fg text-lead">{card.Title}</h3>
-              {detalhe === null && !failed ? (
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-4/5" />
+                  error={erro}
+                />
+                <MarkdownEditor
+                  label="Descrição"
+                  value={texto}
+                  onChange={setTexto}
+                  maxLength={MAX_CARD_DESCRIPTION_LENGTH}
+                  disabled={salvando}
+                  rows={10}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={titulo.trim().length === 0 || salvando}
+                    onClick={() => void salvar()}
+                  >
+                    {salvando ? 'Salvando…' : 'Salvar'}
+                  </Button>
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    disabled={salvando}
+                    onClick={() => setEditando(false)}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
-              ) : descricao ? (
-                <Markdown source={descricao} />
-              ) : (
-                <p className="text-detail text-fg-muted">
-                  {failed ? 'A descrição não carregou agora.' : 'Sem descrição.'}
-                </p>
-              )}
-            </div>
-          )
+              </div>
+            ) : (
+              <div>
+                <h3 className="mb-3 break-words font-semibold text-fg text-lead">{card.Title}</h3>
+                {detalhe === null && !failed ? (
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-4/5" />
+                  </div>
+                ) : descricao ? (
+                  <Markdown source={descricao} />
+                ) : (
+                  <p className="text-detail text-fg-muted">
+                    {failed ? 'A descrição não carregou agora.' : 'Sem descrição.'}
+                  </p>
+                )}
+              </div>
+            )}
+            {depois}
+          </>
         }
         lado={
           <>

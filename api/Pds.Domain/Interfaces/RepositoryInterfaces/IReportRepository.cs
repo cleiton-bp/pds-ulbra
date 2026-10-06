@@ -67,6 +67,15 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<IReadOnlyDictionary<long, CardFace>> CountFacesAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// As subtarefas de um card com este instante no arquivo — nulo traz as que estao
+    /// fora dele —, rastreadas: e o que arquivar e desarquivar o pai levam junto.
+    /// </summary>
+    Task<List<Report>> ListSubtasksArchivedAtAsync(long parentId, DateTime? archivedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>O card que vai ser pai de uma subtarefa, sem rastreio. Nulo quando nao e do projeto.</summary>
+    Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Trava a ordem do quadro do projeto ate a transacao atual terminar.
     ///
     /// <para><b>E ela que deixa por um card entre dois sem errar o lugar.</b> Quem
