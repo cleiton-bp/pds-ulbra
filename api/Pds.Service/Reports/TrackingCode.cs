@@ -27,6 +27,14 @@ public static class TrackingCode
     public const int SymbolCount = BlockCount * BlockLength;
 
     /// <summary>
+    /// Se os simbolos podem ser um pedaco de protocolo — so letras e digitos do
+    /// alfabeto, de quatro em diante. Menos que isso acharia protocolo demais por
+    /// acaso: "42" esta em muitos.
+    /// </summary>
+    public static bool CouldBeFragment(string symbols)
+        => symbols.Length is >= 4 and <= SymbolCount && symbols.All(Alphabet.Contains);
+
+    /// <summary>
     /// Sorteia um protocolo novo. Nao consulta o banco: a conferencia de colisao e
     /// de quem grava, porque so ali existe transacao.
     ///

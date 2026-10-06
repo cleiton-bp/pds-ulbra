@@ -264,6 +264,12 @@ export interface ReportSummaryViewModel {
    * card na coluna que encerra pede desfecho e motivo: o ja encerrado so anda.
    */
   Closed: boolean
+  /**
+   * Se o card ja terminou: o relato encerrado, ou o card na ultima coluna ativa (com
+   * duas colunas ou mais). **Quem decide e a API**, pela mesma regra do filtro de
+   * vencidos: o prazo do card que terminou nao fica vermelho nem amarelo.
+   */
+  Finished: boolean
 }
 
 /**

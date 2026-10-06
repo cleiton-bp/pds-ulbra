@@ -153,6 +153,7 @@ function relato(
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    Finished: false,
     ...extra,
   }
 }
@@ -2223,5 +2224,89 @@ describe('o tempo real', () => {
     await waitFor(() => expect(dublê.atualizar).toHaveBeenCalledTimes(2))
     await act(() => new Promise((pronto) => setTimeout(pronto, 20)))
     expect(campo.textContent).toContain('Pronto')
+  })
+})
+
+describe('os filtros e a busca', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    papel.atual = 'Administrator'
+    for (const mock of [dublê.listar, dublê.contar, dublê.ciclo]) mock.mockReset()
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
+    dublê.ciclo.mockResolvedValue({ LastColumnVisibleDays: 14, DueSoonDays: 2 })
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    aoVivo.estado.handlers = null
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  const ultimaLista = () => dublê.listar.mock.calls.at(-1)
+  const ultimaContagem = () => dublê.contar.mock.calls.at(-1)
+
+  it('"Meus cards" le a lista e a contagem com o filtro, e desligar volta a tudo', async () => {
+    montar()
+    await screen.findByRole('link', { name: 'o botao some' })
+    expect(ultimaLista()?.[4]).toBeUndefined()
+
+    const meus = screen.getByRole('button', { name: 'Meus cards' })
+    fireEvent.click(meus)
+
+    expect(meus.getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() => expect(ultimaLista()?.[4]?.filters?.assignees).toEqual(['me']))
+    await waitFor(() => expect(ultimaContagem()?.[1]?.assignees).toEqual(['me']))
+
+    fireEvent.click(meus)
+    await waitFor(() => expect(ultimaLista()?.[4]).toBeUndefined())
+    await waitFor(() => expect(ultimaContagem()?.[1]).toBeUndefined())
+  })
+
+  it('a busca vale depois que a pessoa para de digitar', async () => {
+    montar()
+    await screen.findByRole('link', { name: 'o botao some' })
+    const leiturasAntes = dublê.listar.mock.calls.length
+
+    const busca = screen.getByRole('searchbox', { name: 'Buscar cards' })
+    fireEvent.change(busca, { target: { value: 'pag' } })
+    fireEvent.change(busca, { target: { value: 'pagamento' } })
+
+    await waitFor(() => expect(ultimaLista()?.[4]?.filters?.search).toBe('pagamento'))
+    // Uma leitura so, pela palavra inteira — e nao uma por letra.
+    expect(dublê.listar.mock.calls.length).toBe(leiturasAntes + 1)
+  })
+
+  it('nada passa nos filtros: a tela diz isso, e "Limpar filtros" volta a tudo', async () => {
+    montar()
+    await screen.findByRole('link', { name: 'o botao some' })
+
+    dublê.listar.mockResolvedValue({ reports: [], total: 0 })
+    fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+
+    expect(await screen.findByText(/Nenhum card passa nos filtros\./)).toBeTruthy()
+    expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true)
+
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    const limpar = screen.getAllByRole('button', { name: /Limpar filtros/ })
+    fireEvent.click(limpar[limpar.length - 1] as HTMLElement)
+
+    expect(await screen.findByRole('link', { name: 'o botao some' })).toBeTruthy()
+    expect(ultimaLista()?.[4]).toBeUndefined()
+    expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    )
+  })
+
+  it('o filtro fica lembrado ao sair da tela e voltar', async () => {
+    montar()
+    await screen.findByRole('link', { name: 'o botao some' })
+    fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+    await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true))
+    cleanup()
+
+    montar()
+    await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true))
+    expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
   })
 })

@@ -8,12 +8,16 @@ import { dueState, dueWords } from '@/shared/lib/dueDate'
  *
  * `soonDays` e a regra do projeto (Ciclo): faltando ate tantos dias, o prazo fica
  * perto. O vencido nao depende dela.
+ *
+ * **O card que ja terminou nao tem prazo a cumprir** (`finished`): a data fica, sem
+ * cor e sem "venceu ha" — atrasado e o que ainda nao acabou.
  */
 export function DueChip({
   day,
   soonDays,
   compact = false,
   bare = false,
+  finished = false,
   className,
 }: {
   day: string
@@ -22,10 +26,12 @@ export function DueChip({
   compact?: boolean
   /** Sem a palavra "Prazo": na tabela, o cabecalho da coluna ja a diz. */
   bare?: boolean
+  /** O card ja terminou: a data, sem destaque. */
+  finished?: boolean
   className?: string
 }) {
-  const estado = dueState(day, soonDays)
-  const palavras = dueWords(day, soonDays)
+  const estado = finished ? 'later' : dueState(day, soonDays)
+  const palavras = finished ? null : dueWords(day, soonDays)
   // O ano so sai quando e o de agora: "5 de jan." do ano que vem seria outro prazo.
   const desteAno = day.slice(0, 4) === String(new Date().getFullYear())
   const data = compact && desteAno ? formatDay(day).replace(/ de \d{4}$/, '') : formatDay(day)

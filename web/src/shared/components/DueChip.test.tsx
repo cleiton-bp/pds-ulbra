@@ -10,6 +10,7 @@ import { DueChip } from '@/shared/components/DueChip'
  * - Vencido em vermelho, perto em amarelo, **sempre com as palavras** — e com tempo,
  *   so o prazo, sem destaque.
  * - **No quadro sai o ano**, que o card estreito nao comporta.
+ * - **O card que ja terminou** mostra a data sem destaque: atrasado e o que nao acabou.
  */
 describe('o prazo com o destaque', () => {
   beforeEach(() => {
@@ -25,6 +26,16 @@ describe('o prazo com o destaque', () => {
     render(<DueChip day="2026-10-13" soonDays={2} />)
     const chip = screen.getByText(/Prazo 13 de out\. de 2026 · venceu há 3 dias/)
     expect(chip.className).toContain('chip-red')
+  })
+
+  it('o card que ja terminou: so a data, sem vermelho, sem amarelo e sem "venceu ha"', () => {
+    render(<DueChip day="2026-10-13" soonDays={2} finished />)
+    const vencido = screen.getByText('Prazo 13 de out. de 2026')
+    expect(vencido.className).not.toContain('chip-')
+    cleanup()
+
+    render(<DueChip day="2026-10-17" soonDays={2} finished />)
+    expect(screen.getByText('Prazo 17 de out. de 2026').className).not.toContain('chip-')
   })
 
   it('perto: amarelo, e diz quando vence', () => {

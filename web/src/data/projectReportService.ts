@@ -50,10 +50,44 @@ export interface ReportPage {
  * nas paginas — e a seguinte pularia um card, ou repetiria. O card de referencia
  * que ja saiu da coluna da 409, e a coluna e lida de novo.
  */
+/** Os tipos do filtro da tela de Trabalho: os tres de relato, e o card do time. */
+export type ReportFilterType = 'bug' | 'improvement' | 'question' | 'team'
+
+/**
+ * Os filtros da tela de Trabalho — os mesmos para a lista, para cada coluna do quadro
+ * e para a contagem das colunas. **Dentro de um filtro, ou; entre filtros, e**: a
+ * etiqueta A ou a B, da Ana e vencido. Lista vazia e `false` sao "sem este filtro".
+ */
+export interface ReportFilters {
+  /** Responsavel: `me`, `none` (sem responsavel) ou o identificador de alguem do time. */
+  assignees: string[]
+  /** Etiquetas, pelo identificador: basta o card ter uma delas. */
+  labels: string[]
+  /** Prioridades, pelo identificador, ou `none` (sem prioridade). */
+  priorities: string[]
+  types: ReportFilterType[]
+  /** So os vencidos: o prazo passou e o card nao terminou. */
+  overdue: boolean
+  /** A busca: titulo, texto, descricao, numero (`42` ou `#42`) e protocolo. */
+  search: string
+}
+
+/** Nenhum filtro: a tela inteira. */
+export const NO_REPORT_FILTERS: ReportFilters = {
+  assignees: [],
+  labels: [],
+  priorities: [],
+  types: [],
+  overdue: false,
+  search: '',
+}
+
 export interface ReportListOptions {
   order?: ReportListOrder
   pageSize?: number
   after?: string
+  /** Os filtros da tela de Trabalho. Sem eles, ou vazios, a lista inteira. */
+  filters?: ReportFilters
 }
 
 /** Espelha o `ReportService` da API, do lado que exige sessao. */
@@ -171,8 +205,11 @@ export interface ProjectReportService {
    * E chamada separada da lista de proposito: a lista traz uma pagina e a contagem
    * varre tudo. Contar as linhas que vieram daria um numero errado assim que o
    * projeto passasse de uma pagina.
+   *
+   * Com `filters` — os mesmos da lista —, conta so o que passa neles: o numero de
+   * cada coluna e o que a tela mostra.
    */
-  listReportCounts(publicId: string): Promise<ReportStateCountViewModel[]>
+  listReportCounts(publicId: string, filters?: ReportFilters): Promise<ReportStateCountViewModel[]>
 
   /**
    * Abre um relato e traz o contexto que veio junto.

@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Pds.ApiBase.Repositories;
 using Pds.Data.Context;
@@ -67,7 +68,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
 
-    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, ReportCardFilter cards, CancellationToken cancellationToken = default)
         // O filtro global ja isola por conta e esconde o que foi apagado; aqui so
         // resta escolher o projeto e o recorte. O Id no fim desempata os relatos do
         // mesmo instante, que sem isso trocariam de lugar entre uma pagina e a
@@ -85,7 +86,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // inteiros a cada repeticao. A ordem e unica (o Id desempata), e e ela que faz
         // as consultas separadas concordarem sobre qual e a pagina.
     {
-        var recorte = Context.Reports
+        var recorte = Filtrar(Context.Reports
             .Include(report => report.ProjectState)
             .Include(report => report.ProjectPublicStage)
             .Include(report => report.AssigneeUser)
@@ -96,7 +97,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Where(Recorte(filter))
             .Where(Arquivados(archived))
             .Where(EnteredSince(enteredSince))
-            .Where(AfterSpot(after));
+            .Where(AfterSpot(after)), cards);
 
         // Na ordem do quadro, o menor lugar fica em cima — e o Id desempata tambem
         // aqui, para a pagina nunca depender da sorte.
@@ -111,12 +112,12 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .ToListAsync(cancellationToken);
     }
 
-    public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, CancellationToken cancellationToken = default)
-        => Context.Reports
+    public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, ReportCardFilter cards, CancellationToken cancellationToken = default)
+        => Filtrar(Context.Reports
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
             .Where(Arquivados(archived))
-            .Where(EnteredSince(enteredSince))
+            .Where(EnteredSince(enteredSince)), cards)
             .CountAsync(cancellationToken);
 
     public async Task<IReadOnlyDictionary<long, CardFace>> CountFacesAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default)
@@ -154,12 +155,21 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 .ToListAsync(cancellationToken))
             .ToHashSet();
 
+        // Pela mesma regra do filtro de vencidos, e nao por uma copia dela.
+        var terminados = (await Context.Reports
+                .Where(report => reportIds.Contains(report.Id))
+                .Where(Terminado())
+                .Select(report => report.Id)
+                .ToListAsync(cancellationToken))
+            .ToHashSet();
+
         return reportIds.Distinct().ToDictionary(
             id => id,
             id => new CardFace(
                 internos.GetValueOrDefault(id) + publicos.GetValueOrDefault(id),
                 anexos.GetValueOrDefault(id),
-                encerrados.Contains(id)));
+                encerrados.Contains(id),
+                terminados.Contains(id)));
     }
 
     public async Task LockBoardAsync(long projectId, CancellationToken cancellationToken = default)
@@ -224,34 +234,38 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
               AND r.project_state_id IS NOT DISTINCT FROM {stateId}::bigint
             """, cancellationToken);
 
-    public async Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, ReportCardFilter cards, CancellationToken cancellationToken = default)
     {
-        // Comeca pelos estados, e nao por um agrupamento dos relatos: agrupar so
+        // Comeca pelos estados, e nao so por um agrupamento dos relatos: agrupar so
         // devolveria as colunas que tem relato, e a coluna vazia sumiria do filtro
         // no dia em que o ultimo relato dela fosse movido.
-        var porEstado = await Context.ProjectStates
+        var estados = await Context.ProjectStates
             .Where(state => state.ProjectId == projectId)
             .OrderBy(state => state.Position)
             .ThenBy(state => state.Id)
-            .Select(state => new ReportStateCount(
-                state.Id,
-                state.PublicId,
-                state.Name,
-                state.DeactivatedAt == null,
-                // O arquivado nao conta: a contagem e a da tela de Trabalho, e ele
-                // saiu dela.
-                Context.Reports.Count(report => report.ProjectStateId == state.Id && report.ArchivedAt == null)))
+            .Select(state => new { state.Id, state.PublicId, state.Name, Ativo = state.DeactivatedAt == null })
             .ToListAsync(cancellationToken);
 
+        // Os cards que passam nos filtros, por coluna. O arquivado nao conta: a
+        // contagem e a da tela de Trabalho, e ele saiu dela.
+        var porEstado = await Filtrar(Context.Reports
+                .Where(report => report.ProjectId == projectId && report.ArchivedAt == null), cards)
+            .GroupBy(report => report.ProjectStateId)
+            .Select(group => new { group.Key, Total = group.Count() })
+            .ToDictionaryAsync(row => row.Key ?? 0, row => row.Total, cancellationToken);
+
+        var colunas = estados
+            .Select(state => new ReportStateCount(
+                state.Id, state.PublicId, state.Name, state.Ativo, porEstado.GetValueOrDefault(state.Id)))
+            .ToList();
+
         // A linha dos que nao tem lugar na fila. Sem ela, a soma das colunas nao
-        // bateria com o total e ninguem saberia por que.
-        var semEstado = await Context.Reports
-            .CountAsync(report => report.ProjectId == projectId && report.ProjectStateId == null && report.ArchivedAt == null,
-                cancellationToken);
+        // bateria com o total e ninguem saberia por que. (Nenhum estado tem o id 0.)
+        var semEstado = porEstado.GetValueOrDefault(0);
 
         return semEstado == 0
-            ? porEstado
-            : [.. porEstado, new ReportStateCount(null, null, null, true, semEstado)];
+            ? colunas
+            : [.. colunas, new ReportStateCount(null, null, null, true, semEstado)];
     }
 
     /// <summary>
@@ -265,6 +279,91 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             { StateId: null } => report => report.ProjectStateId == null,
             { StateId: var stateId } => report => report.ProjectStateId == stateId,
         };
+
+    /// <summary>
+    /// Os filtros da tela de Trabalho sobre uma consulta de cards. Dentro de um filtro
+    /// os valores valem com ou; entre filtros, com e. Filtro nao pedido nao entra na
+    /// consulta.
+    /// </summary>
+    private IQueryable<Report> Filtrar(IQueryable<Report> cards, ReportCardFilter filtro)
+    {
+        if (filtro.AssigneeIds.Count > 0 || filtro.WithoutAssignee)
+        {
+            var pessoas = filtro.AssigneeIds;
+            var semNinguem = filtro.WithoutAssignee;
+            cards = cards.Where(report =>
+                (report.AssigneeUserId != null && pessoas.Contains(report.AssigneeUserId.Value))
+                || (semNinguem && report.AssigneeUserId == null));
+        }
+
+        if (filtro.LabelIds.Count > 0)
+        {
+            var etiquetas = filtro.LabelIds;
+            cards = cards.Where(report => report.Labels.Any(link => etiquetas.Contains(link.ProjectLabelId)));
+        }
+
+        if (filtro.PriorityIds.Count > 0 || filtro.WithoutPriority)
+        {
+            var prioridades = filtro.PriorityIds;
+            var semPrioridade = filtro.WithoutPriority;
+            cards = cards.Where(report =>
+                (report.PriorityId != null && prioridades.Contains(report.PriorityId.Value))
+                || (semPrioridade && report.PriorityId == null));
+        }
+
+        if (filtro.Types.Count > 0 || filtro.TeamCards)
+        {
+            var tipos = filtro.Types;
+            var doTime = filtro.TeamCards;
+            cards = cards.Where(report =>
+                (report.Kind == CardKindEnum.Report && report.Type != null && tipos.Contains(report.Type.Value))
+                || (doTime && report.Kind == CardKindEnum.Team));
+        }
+
+        if (filtro.OverdueOn is DateOnly dia)
+        {
+            // Como o vencido do Jira: o prazo passou e o card ainda nao terminou.
+            var terminado = Terminado();
+            var aberto = Expression.Lambda<Func<Report, bool>>(Expression.Not(terminado.Body), terminado.Parameters);
+            cards = cards.Where(report => report.DueDate != null && report.DueDate < dia).Where(aberto);
+        }
+
+        if (filtro.Search is { } busca)
+        {
+            // Sem acento e sem diferenciar maiuscula, pela mesma tabela do termo (ver
+            // SearchText). O numero e o protocolo so entram quando o termo pode ser um.
+            var texto = busca.Text;
+            var numero = busca.Number;
+            var codigo = busca.Code;
+            cards = cards.Where(report =>
+                (numero != null && report.Number == numero)
+                || (codigo != null && report.TrackingCode != null && report.TrackingCode.Replace("-", "").Contains(codigo))
+                || SqlText.Translate(report.Title, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
+                || SqlText.Translate(report.ReporterTitle, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
+                || SqlText.Translate(report.Text, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
+                || SqlText.Translate(report.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto));
+        }
+
+        return cards;
+    }
+
+    /// <summary>
+    /// O card que ja terminou: o relato com encerramento valendo, ou o card na ultima
+    /// coluna ativa — com duas colunas ou mais, como a regra da ultima coluna do
+    /// quadro; com uma so, ela e a entrada da fila, e nada terminou por estar nela. O
+    /// desempate da ultima coluna e o de <c>ProjectStates.LastActiveAsync</c>.
+    /// </summary>
+    private Expression<Func<Report, bool>> Terminado()
+        => report =>
+            Context.ReportClosures.Any(closure => closure.ReportId == report.Id && closure.ReopenedAt == null)
+            || (report.ProjectStateId != null
+                && Context.ProjectStates.Count(state => state.ProjectId == report.ProjectId && state.DeactivatedAt == null) >= 2
+                && report.ProjectStateId == Context.ProjectStates
+                    .Where(state => state.ProjectId == report.ProjectId && state.DeactivatedAt == null)
+                    .OrderByDescending(state => state.Position)
+                    .ThenByDescending(state => state.Id)
+                    .Select(state => (long?)state.Id)
+                    .FirstOrDefault());
 
     /// <summary>
     /// A tela de Trabalho mostra os que estao nela; o filtro "Arquivados", so os que

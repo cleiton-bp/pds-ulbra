@@ -75,7 +75,7 @@ export function BoardCardFace({
 
       {card.DueDate && (
         <div className="mt-2 text-caption text-fg-muted">
-          <DueChip day={card.DueDate} soonDays={soonDays} compact />
+          <DueChip day={card.DueDate} soonDays={soonDays} compact finished={card.Finished} />
         </div>
       )}
 

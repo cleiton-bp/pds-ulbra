@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type ReportSummaryViewModel, WITHOUT_STATE_FILTER } from '@/contracts'
+import type { ReportFilters } from '@/data'
 import { projectReportService } from '@/data'
 
 interface InboxState {
@@ -28,8 +29,28 @@ export function useReportInbox(
   archived = false,
   /** Fora da vista da lista, nada e lido — e, ao voltar para ela, a lista e lida de novo. */
   enabled = true,
+  /**
+   * Os filtros da tela de Trabalho, e a chave deles: a lista e lida de novo quando a
+   * chave muda — **sem esvaziar**, e com a pagina de volta a primeira.
+   */
+  filters?: ReportFilters,
+  filtersKey = '',
 ) {
   const [state, setState] = useState<InboxState>(EMPTY)
+  const filtros = useRef(filters)
+  filtros.current = filters
+  /** A leitura com os filtros de agora — e sem o argumento, quando nao ha nenhum. */
+  const ler = useCallback(
+    (pagina: number) => {
+      const atuais = filtros.current
+      return filtersKey && atuais
+        ? projectReportService.listReports(publicId, pagina, stateFilter, archived, {
+            filters: atuais,
+          })
+        : projectReportService.listReports(publicId, pagina, stateFilter, archived)
+    },
+    [publicId, stateFilter, archived, filtersKey],
+  )
 
   const generation = useRef(0)
   const nextPage = useRef(1)
@@ -46,13 +67,20 @@ export function useReportInbox(
   // uma lista nova, e nao acrescentar a que esta na tela. O contador de geracao
   // cuida do resto — a resposta da coluna que a pessoa acabou de deixar chega
   // depois, e sem ele pintaria relato de uma coluna debaixo do nome de outra.
+  //
+  // **So o filtro mudou** (a busca, um responsavel): a lista que esta na tela fica
+  // ate a nova chegar. Esvaziar a cada palavra digitada piscaria a tela inteira.
+  const recorte = `${publicId}|${stateFilter ?? ''}|${archived}`
+  const recorteLido = useRef<string | null>(null)
   const load = useCallback(async () => {
     const minha = ++generation.current
     nextPage.current = 1
-    setState(EMPTY)
+    const soOFiltro = recorteLido.current === recorte
+    recorteLido.current = recorte
+    if (!soOFiltro) setState(EMPTY)
 
     try {
-      const page = await projectReportService.listReports(publicId, 1, stateFilter, archived)
+      const page = await ler(1)
       if (minha !== generation.current) return
 
       nextPage.current = 2
@@ -62,7 +90,7 @@ export function useReportInbox(
       if (minha !== generation.current) return
       setState({ ...EMPTY, failed: true })
     }
-  }, [publicId, stateFilter, archived])
+  }, [ler, recorte])
 
   useEffect(() => {
     if (enabled) void load()
@@ -73,12 +101,7 @@ export function useReportInbox(
     setState((current) => ({ ...current, loadingMore: true }))
 
     try {
-      const page = await projectReportService.listReports(
-        publicId,
-        nextPage.current,
-        stateFilter,
-        archived,
-      )
+      const page = await ler(nextPage.current)
       if (minha !== generation.current) return
 
       nextPage.current += 1
@@ -101,7 +124,7 @@ export function useReportInbox(
       // que a API escreveu, e trocar por um texto generico aqui apagaria ela.
       throw error
     }
-  }, [publicId, stateFilter, archived])
+  }, [ler])
 
   /**
    * Rele **sem esvaziar** as paginas que estao na tela — e troca tudo de uma vez quando
@@ -128,12 +151,7 @@ export function useReportInbox(
 
       try {
         for (let pagina = 1; pagina <= paginas; pagina++) {
-          const lida = await projectReportService.listReports(
-            publicId,
-            pagina,
-            stateFilter,
-            archived,
-          )
+          const lida = await ler(pagina)
           if (!valendo()) return null
           reports = merge(reports, lida.reports)
           total = lida.total
@@ -151,7 +169,7 @@ export function useReportInbox(
       )
       return reports
     }
-  }, [publicId, stateFilter, archived])
+  }, [ler])
 
   /** Se o card pertence a esta lista: a coluna do recorte, e o lado do arquivo. */
   const fits = useCallback(
