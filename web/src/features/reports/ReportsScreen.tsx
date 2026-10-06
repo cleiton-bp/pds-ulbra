@@ -1,5 +1,14 @@
-import { type KeyboardEvent, useCallback, useId, useMemo, useRef, useState } from 'react'
-import { Link, Outlet } from 'react-router-dom'
+import {
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
 import {
   type ReportDetailViewModel,
   type ReportStateCountViewModel,
@@ -10,9 +19,16 @@ import { describeError, projectCycleSettingsService, projectReportService } from
 import { boardColumns } from '@/features/reports/board/boardState'
 import { BoardSkeleton, ReportsBoard } from '@/features/reports/board/ReportsBoard'
 import { useBoard } from '@/features/reports/board/useBoard'
+import {
+  describeRemoteChange,
+  LiveAnnouncer,
+  LiveBadge,
+  useAnnouncer,
+} from '@/features/reports/LiveStatus'
 import { NewCardDialog } from '@/features/reports/NewCardDialog'
 import { ReportsTable, ReportsTableSkeleton } from '@/features/reports/ReportsTable'
 import { useReportInbox } from '@/features/reports/useReportInbox'
+import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
 import { toast } from '@/shared/components/toastStore'
@@ -94,6 +110,7 @@ export function ReportsScreen() {
     loadingMore,
     hasMore,
     reload,
+    refresh: releituraDaLista,
     loadMore,
     apply,
     prepend,
@@ -122,7 +139,7 @@ export function ReportsScreen() {
   // As regras do Ciclo que a tela usa: quando o prazo fica perto, e quantos dias a
   // ultima coluna do quadro mostra. Falhando, o destaque fica no padrao de fabrica e
   // o quadro so nao diz quantos ficaram na lista — a API aplica a regra do mesmo jeito.
-  const { data: ciclo } = useAsyncResource(
+  const { data: ciclo, revalidate: renovarCiclo } = useAsyncResource(
     useCallback(
       () => projectCycleSettingsService.getCycleSettings(project.PublicId),
       [project.PublicId],
@@ -131,7 +148,74 @@ export function ReportsScreen() {
   const destaque = ciclo?.DueSoonDays ?? DESTAQUE_DE_FABRICA
 
   const colunasDoQuadro = useMemo(() => (contagens ? boardColumns(contagens) : null), [contagens])
-  const board = useBoard(project.PublicId, colunasDoQuadro, quadro)
+  // O card que outra pessoa mudou acende — e e anunciado — quando a releitura chega, e
+  // nao quando o aviso chega: no quadro, ela pode esperar o arraste terminar.
+  const [destacados, destacar] = useDestaques()
+  const [anuncio, anunciar] = useAnnouncer()
+  /** Quando a ultima mudanca de outra pessoa entrou na tela — ver `guardaDoClique`. */
+  const mudouAgora = useRef(Number.NEGATIVE_INFINITY)
+  const acender = useCallback(
+    (mudados: { id: string; numero?: number }[]) => {
+      mudouAgora.current = performance.now()
+      for (const { id } of mudados) destacar(id)
+      anunciar(describeRemoteChange(mudados.map(({ numero }) => numero)))
+    },
+    [destacar, anunciar],
+  )
+  const board = useBoard(project.PublicId, colunasDoQuadro, quadro, acender)
+
+  // ─── O tempo real ──────────────────────────────────────────────────────────
+  // O que outra pessoa muda chega como aviso, so com os identificadores, e cada parte
+  // da tela rele o que e dela: o quadro, as colunas que o card tocou; a lista, as
+  // paginas que estao na tela; a contagem, sem sair da tela. Avisos proximos viram uma
+  // releitura so.
+  const navigate = useNavigate()
+  const juntarContagens = useJuntar(renovarContagens)
+  /** Os cards dos avisos que a lista ainda vai reler, para acender quando ela chegar. */
+  const acenderNaLista = useRef(new Set<string>())
+  const juntarLista = useJuntar(() => {
+    if (quadro) return
+    const ids = [...acenderNaLista.current]
+    acenderNaLista.current.clear()
+    void releituraDaLista().then((lista) => {
+      if (lista === null || ids.length === 0) return
+      acender(ids.map((id) => ({ id, numero: lista.find((card) => card.PublicId === id)?.Number })))
+    })
+  })
+
+  const aoVivo = useWorkRealtime(project.PublicId, (evento) => {
+    switch (evento.kind) {
+      case 'card': {
+        const { ReportPublicId, StatePublicId, Archived } = evento.notice
+        board.remoteChange(
+          ReportPublicId,
+          Archived ? null : (StatePublicId ?? WITHOUT_STATE_FILTER),
+        )
+        if (!quadro) acenderNaLista.current.add(ReportPublicId)
+        juntarLista()
+        juntarContagens()
+        break
+      }
+      case 'project':
+      case 'resync':
+        // A configuracao mudou, ou a conexao voltou e pode ter perdido avisos: tudo.
+        renovarContagens()
+        renovarCiclo()
+        board.reloadAll()
+        juntarLista()
+        anunciar(
+          evento.kind === 'project'
+            ? 'A configuração do projeto mudou, e a tela foi relida.'
+            : 'A atualização ao vivo voltou, e a tela foi relida.',
+        )
+        break
+      case 'access-lost':
+        // O aviso fica no hub, e nao num toast que some: quem estava no meio de um
+        // comentario precisa saber por que a tela fechou.
+        navigate('/projects', { replace: true, state: { leftProject: project.Name } })
+        break
+    }
+  })
 
   /**
    * O card que mudou no dialogo, nas duas vistas: a lista troca a linha, e o quadro
@@ -148,6 +232,16 @@ export function ReportsScreen() {
   }
 
   const painel = useId()
+
+  // O clique num card logo depois de a mudanca de outra pessoa entrar na tela nao abre
+  // nada: o card novo no topo empurra os de baixo, e o clique mirado num cairia no
+  // vizinho — e abrir grava leitura. O clique seguinte vale.
+  const guardaDoClique = (evento: ReactMouseEvent) => {
+    if (performance.now() - mudouAgora.current > CLIQUE_DEPOIS_DA_MUDANCA_MS) return
+    if (!(evento.target as Element).closest('a[href*="/reports/"], tbody tr')) return
+    evento.preventDefault()
+    evento.stopPropagation()
+  }
 
   const conteudo = (
     <>
@@ -196,6 +290,7 @@ export function ReportsScreen() {
               document.getElementById(`${painel}-lista`)?.focus()
             }}
             aoCriar={(chave) => setCriando({ coluna: chave })}
+            destacados={destacados}
           />
         )
       ) : (
@@ -223,7 +318,12 @@ export function ReportsScreen() {
 
           {reports && reports.length > 0 && (
             <>
-              <ReportsTable reports={reports} colunas={contagens} soonDays={destaque} />
+              <ReportsTable
+                reports={reports}
+                colunas={contagens}
+                soonDays={destaque}
+                destacados={destacados}
+              />
 
               <footer className="mt-3 flex items-center gap-3">
                 {hasMore && (
@@ -282,26 +382,40 @@ export function ReportsScreen() {
           <span />
         )}
 
-        <button
-          type="button"
-          aria-pressed={arquivados}
-          onClick={() => setArquivados((valor) => !valor)}
-          className={cn(
-            'flex h-8 flex-none items-center rounded-lg border px-3 text-detail transition-colors',
-            arquivados
-              ? 'border-accent bg-accent text-accent-fg'
-              : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
-          )}
-        >
-          Arquivados
-        </button>
+        <div className="flex flex-none items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={arquivados}
+            onClick={() => setArquivados((valor) => !valor)}
+            className={cn(
+              'flex h-8 flex-none items-center rounded-lg border px-3 text-detail transition-colors',
+              arquivados
+                ? 'border-accent bg-accent text-accent-fg'
+                : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
+            )}
+          >
+            Arquivados
+          </button>
+        </div>
       </div>
 
       {/* Nos arquivados nao ha abas: o conteudo e uma regiao com o nome do titulo. */}
       {arquivados ? (
-        <section aria-labelledby={`${painel}-titulo`}>{conteudo}</section>
+        <section
+          aria-labelledby={`${painel}-titulo`}
+          data-work-area
+          onClickCapture={guardaDoClique}
+        >
+          {conteudo}
+        </section>
       ) : (
-        <div id={painel} role="tabpanel" aria-labelledby={`${painel}-${vista}`}>
+        <div
+          id={painel}
+          role="tabpanel"
+          aria-labelledby={`${painel}-${vista}`}
+          data-work-area
+          onClickCapture={guardaDoClique}
+        >
           {conteudo}
         </div>
       )}
@@ -318,8 +432,15 @@ export function ReportsScreen() {
           // sem uma segunda requisicao para perguntar o que ja esta na mao.
           colunas: contagens,
           aoMudar,
+          assinarAvisos: aoVivo.assinar,
+          semAoVivo: aoVivo.semAoVivo,
         }}
       />
+
+      {/* So quando a conexao fica fora de verdade (alguns segundos): a queda curta
+          volta sozinha, e um selo que pisca a cada uma ensina a nao olhar para ele. */}
+      <LiveBadge estado={aoVivo.semAoVivo} />
+      <LiveAnnouncer anuncio={anuncio} />
 
       {criando && (
         <NewCardDialog
@@ -569,4 +690,82 @@ function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => v
       </div>
     </div>
   )
+}
+
+/** Quanto tempo o card que outra pessoa mudou fica aceso. */
+const DESTAQUE_MS = 2_000
+
+/** Quanto esperar por mais avisos antes de reler: um movimento e o comentario logo depois. */
+const JUNTAR_MS = 250
+
+/** O mais que uma releitura espera: avisos sem parar nao a adiam para sempre. */
+const JUNTAR_MAX_MS = 1_000
+
+/** Quanto tempo, depois de a mudanca de outra pessoa entrar na tela, o clique num card nao vale. */
+const CLIQUE_DEPOIS_DA_MUDANCA_MS = 600
+
+/**
+ * Os cards acesos agora, e quem acende um. Cada um apaga sozinho; acender de novo o
+ * que ja esta aceso recomeca a conta.
+ */
+function useDestaques() {
+  const [acesos, setAcesos] = useState<ReadonlySet<string>>(new Set())
+  const apagar = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+
+  useEffect(() => {
+    const timers = apagar.current
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer)
+    }
+  }, [])
+
+  const acender = useCallback((id: string) => {
+    const anterior = apagar.current.get(id)
+    if (anterior) clearTimeout(anterior)
+    setAcesos((atual) => new Set(atual).add(id))
+    apagar.current.set(
+      id,
+      setTimeout(() => {
+        apagar.current.delete(id)
+        setAcesos((atual) => {
+          const sem = new Set(atual)
+          sem.delete(id)
+          return sem
+        })
+      }, DESTAQUE_MS),
+    )
+  }, [])
+
+  return [acesos, acender] as const
+}
+
+/**
+ * Junta chamadas proximas numa so: chamar varias vezes em seguida roda uma vez, um
+ * instante depois da ultima — e nunca mais de `JUNTAR_MAX_MS` depois da primeira, para
+ * um time agitado nao deixar a tela parada. Roda a versao de agora da funcao, e nao a
+ * da primeira chamada.
+ */
+function useJuntar(fazer: () => void) {
+  const atual = useRef(fazer)
+  atual.current = fazer
+  const espera = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const primeira = useRef(0)
+
+  useEffect(
+    () => () => {
+      if (espera.current !== null) clearTimeout(espera.current)
+    },
+    [],
+  )
+
+  return useCallback(() => {
+    const agora = Date.now()
+    if (espera.current === null) primeira.current = agora
+    else clearTimeout(espera.current)
+    const ms = Math.min(JUNTAR_MS, Math.max(0, primeira.current + JUNTAR_MAX_MS - agora))
+    espera.current = setTimeout(() => {
+      espera.current = null
+      atual.current()
+    }, ms)
+  }, [])
 }

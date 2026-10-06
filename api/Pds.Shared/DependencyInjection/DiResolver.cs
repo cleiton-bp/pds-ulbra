@@ -41,24 +41,46 @@ public static class DiResolver
                 // ASP.NET renomeia para URLs longas do padrao WS-Federation e a
                 // busca por "uid" no middleware devolve nulo.
                 options.MapInboundClaims = false;
-
-                options.TokenValidationParameters = new TokenValidationParameters
+                options.TokenValidationParameters = Validation(signingKey, EnvironmentConstants.GetJwtAudience());
+            })
+            // O bilhete do tempo real: mesma assinatura, outro destinatario. So o hub
+            // usa este esquema, e so ele le o token do endereco — o navegador nao manda
+            // cabecalho na conexao WebSocket. Nenhuma rota REST le o endereco, e o
+            // destinatario de cada um faz o bilhete nao valer na REST e a sessao nao
+            // valer no hub. Ver RealtimeTicket.
+            .AddJwtBearer(RealtimeTicket.Scheme, options =>
+            {
+                options.MapInboundClaims = false;
+                options.TokenValidationParameters = Validation(signingKey, EnvironmentConstants.GetRealtimeAudience());
+                options.Events = new JwtBearerEvents
                 {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = signingKey,
-                    ValidateIssuer = true,
-                    ValidIssuer = EnvironmentConstants.GetJwtIssuer(),
-                    ValidateAudience = true,
-                    ValidAudience = EnvironmentConstants.GetJwtAudience(),
-                    ValidateLifetime = true,
+                    OnMessageReceived = context =>
+                    {
+                        if (context.HttpContext.Request.Path.StartsWithSegments(RealtimeTicket.HubPath)
+                            && context.Request.Query.TryGetValue("access_token", out var bilhete))
+                            context.Token = bilhete;
 
-                    // Sem tolerancia de relogio: token expirado e token expirado. O
-                    // padrao do .NET aceita cinco minutos a mais, o que na pratica
-                    // estende toda sessao em cinco minutos silenciosamente.
-                    ClockSkew = TimeSpan.Zero,
+                        return Task.CompletedTask;
+                    },
                 };
             });
     }
+
+    private static TokenValidationParameters Validation(SecurityKey signingKey, string audience) => new()
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = signingKey,
+        ValidateIssuer = true,
+        ValidIssuer = EnvironmentConstants.GetJwtIssuer(),
+        ValidateAudience = true,
+        ValidAudience = audience,
+        ValidateLifetime = true,
+
+        // Sem tolerancia de relogio: token expirado e token expirado. O padrao do .NET
+        // aceita cinco minutos a mais, o que na pratica estende toda sessao em cinco
+        // minutos silenciosamente.
+        ClockSkew = TimeSpan.Zero,
+    };
 
     private static void RegisterPersistence(this IServiceCollection services)
     {

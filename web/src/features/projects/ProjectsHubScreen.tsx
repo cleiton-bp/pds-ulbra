@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { ProjectViewModel } from '@/contracts'
 import { useSessionStore } from '@/features/auth/sessionStore'
 import { CreateProjectDialog } from '@/features/projects/CreateProjectDialog'
@@ -25,6 +25,10 @@ import { canConfigure, groupByAccount, roleLabel } from '@/shared/lib/projectAcc
  * Pelo mesmo motivo, **o nome da conta so aparece com mais de uma**: quem esta no
  * time de projetos de outras contas ve os grupos ("Seus projetos" primeiro); quem
  * so tem os proprios continua vendo a lista simples de sempre.
+ *
+ * **Quem perdeu o acesso a um projeto com a tela dele aberta chega aqui com o nome
+ * dele**, e o aviso fica ate a pessoa dizer que viu: um toast sumia em segundos, e quem
+ * estava no meio de um comentario ficava sem saber por que a tela fechou.
  */
 export function ProjectsHubScreen() {
   const projects = useProjectsStore((state) => state.projects)
@@ -35,6 +39,10 @@ export function ProjectsHubScreen() {
 
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState('')
+
+  const location = useLocation()
+  const navigate = useNavigate()
+  const leftProject = (location.state as { leftProject?: string } | null)?.leftProject
 
   useEffect(() => {
     void load()
@@ -71,6 +79,20 @@ export function ProjectsHubScreen() {
               : 'Abra um projeto para pegar a chave dele e ver o passo a passo da integração.'}
           </p>
         </div>
+
+        {leftProject && (
+          <div
+            role="status"
+            className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn-border bg-warn-surface px-4 py-3"
+          >
+            <p className="text-body text-warn-fg">
+              Você não tem mais acesso ao projeto “{leftProject}”, e a tela dele foi fechada.
+            </p>
+            <Button size="sm" onClick={() => navigate('.', { replace: true, state: null })}>
+              Entendi
+            </Button>
+          </div>
+        )}
 
         {/* `minmax(0, ...)` nas duas formas: coluna de grade nao encolhe abaixo do
             conteudo sem isso, e o identificador inteiro de um projeto esticava a

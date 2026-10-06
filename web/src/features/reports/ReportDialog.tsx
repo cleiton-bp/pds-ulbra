@@ -21,12 +21,19 @@ import { CardFields } from '@/features/reports/CardFields'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
 import { StatusLozenge, statusTone } from '@/features/reports/cardLook'
+import {
+  LiveAnnouncer,
+  LiveStatusText,
+  type SemAoVivo,
+  useAnnouncer,
+} from '@/features/reports/LiveStatus'
 import { ReportAttachments, useReportAttachments } from '@/features/reports/ReportAttachments'
 import { ReportComments, useReportComments } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { ReportReopenings } from '@/features/reports/ReportReopenings'
 import { ReportTitle } from '@/features/reports/ReportTitle'
 import { TeamCardBody } from '@/features/reports/TeamCardBody'
+import type { WorkListener } from '@/features/reports/useWorkRealtime'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { CopyButton } from '@/shared/components/CopyButton'
@@ -61,6 +68,8 @@ export function ReportDialog({
   colunas,
   aoMudar,
   aoFechar,
+  assinarAvisos,
+  semAoVivo = null,
 }: {
   projectPublicId: string
   reportPublicId: string
@@ -71,6 +80,10 @@ export function ReportDialog({
   /** O card mudou — de coluna, de texto ou de arquivo. A lista se acerta com isto. */
   aoMudar: (report: ReportSummaryViewModel) => void
   aoFechar: () => void
+  /** Os avisos do tempo real da tela de Trabalho: outra pessoa mexeu neste card. */
+  assinarAvisos?: (ouvinte: WorkListener) => () => void
+  /** Por que a tela esta sem atualizacao ao vivo, quando esta — dito tambem aqui dentro. */
+  semAoVivo?: SemAoVivo
 }) {
   const [detalhe, setDetalhe] = useState<ReportDetailViewModel | null>(null)
   const [failed, setFailed] = useState(false)
@@ -135,6 +148,10 @@ export function ReportDialog({
   // na frente de quem acabou de agir.
   const [versao, setVersao] = useState(0)
 
+  // Sobe a cada resposta de uma acao desta aba. A releitura ao vivo que estava no ar
+  // quando ela chegou pode ter sido lida antes dela, e nao passa por cima — le de novo.
+  const acoes = useRef(0)
+
   const atual = movido ?? report
 
   /**
@@ -143,8 +160,9 @@ export function ReportDialog({
    * **E estado proprio, e nao `detalhe.Closure`.** Encerrar pelo movimento devolve
    * o resumo, que nao carrega o fechamento — sem isto, a tela continuaria
    * oferecendo "Concluir" um segundo depois de encerrar, e so pararia quando
-   * alguem fechasse e abrisse de novo. Buscar o detalhe outra vez nao serve:
-   * **abrir grava** um evento de leitura.
+   * alguem fechasse e abrisse de novo. Abrir o detalhe outra vez nao serve: **abrir
+   * grava** um evento de leitura. (A releitura que nao grava, `refreshReport`, e a do
+   * tempo real: traz o que outra pessoa mudou.)
    */
   const [fechamento, setFechamento] = useState<ReportClosureViewModel | null>(null)
 
@@ -230,6 +248,7 @@ export function ReportDialog({
         StatePublicId: statePublicId,
         ...fechamento_,
       })
+      acoes.current += 1
       setMovido(salvo)
       aoMudar(salvo)
       setVersao((n) => n + 1)
@@ -290,6 +309,7 @@ export function ReportDialog({
 
       // Esta rota devolve o relato **aberto**, e nao o resumo: o fechamento vem
       // completo, com quem encerrou, sem precisar inventar nada.
+      acoes.current += 1
       setDetalhe(aberto)
       setFechamento(aberto.Closure)
       setPedido(aberto.InfoRequest)
@@ -320,6 +340,7 @@ export function ReportDialog({
         Body: body,
       })
 
+      acoes.current += 1
       setDetalhe(aberto)
       setPedido(aberto.InfoRequest)
       setPodePedir(aberto.CanAskInfo)
@@ -344,8 +365,68 @@ export function ReportDialog({
   const [arquivando, setArquivando] = useState<'encerra' | 'so-arquiva' | null>(null)
   const [mexendoNoArquivo, setMexendoNoArquivo] = useState(false)
 
+  /**
+   * **Ao vivo**: outra pessoa mexeu neste card (ou na configuracao do projeto, ou a
+   * conexao voltou e pode ter perdido avisos), e tudo na tela se acerta — a coluna, os
+   * campos, o encerramento, a conversa, os anexos e a historia.
+   *
+   * O detalhe e relido **sem gravar leitura** (`refreshReport`): a leitura foi contada
+   * ao abrir, e cada aviso viraria uma leitura que ninguem fez. O que a pessoa esta
+   * escrevendo — comentario, titulo, descricao — fica: cada caixa guarda o proprio
+   * rascunho, e a releitura nao passa por ele. A lista e o quadro atras se acertam pelo
+   * proprio aviso; daqui nao vai `aoMudar`.
+   */
+  const aoVivo = useRef<() => Promise<void>>(async () => {})
+  const releituras = useRef(0)
+  // Sobe quando a configuracao do projeto pode ter mudado: as listas de escolha dos
+  // campos do card sao lidas de novo.
+  const [configuracao, setConfiguracao] = useState(0)
+  // Quem usa leitor de tela fica sabendo que outra pessoa mudou o card — quando a
+  // releitura chega, e nao antes.
+  const [anuncio, anunciar] = useAnnouncer()
+  const contarAoChegar = useRef(false)
+  aoVivo.current = async () => {
+    const minha = generation.current
+    const esta = ++releituras.current
+    const acoesAntes = acoes.current
+    conversa.revalidate()
+    anexos.revalidate()
+    setVersao((n) => n + 1)
+
+    try {
+      const aberto = await projectReportService.refreshReport(projectPublicId, reportPublicId)
+      // Outro relato aberto, ou uma releitura mais nova no ar: esta ja nao vale.
+      if (minha !== generation.current || esta !== releituras.current) return
+      if (acoes.current !== acoesAntes) {
+        void aoVivo.current()
+        return
+      }
+      setDetalhe(aberto)
+      setFechamento(aberto.Closure)
+      setPedido(aberto.InfoRequest)
+      setPodePedir(aberto.CanAskInfo)
+      setMovido(aberto)
+      if (contarAoChegar.current) anunciar('Este card foi atualizado.')
+      contarAoChegar.current = false
+    } catch {
+      // Fica o que esta na tela; o proximo aviso tenta de novo.
+    }
+  }
+
+  useEffect(() => {
+    if (!assinarAvisos) return
+    return assinarAvisos((evento) => {
+      if (evento.kind === 'access-lost') return
+      if (evento.kind === 'card' && evento.notice.ReportPublicId !== reportPublicId) return
+      if (evento.kind === 'card') contarAoChegar.current = true
+      else setConfiguracao((n) => n + 1)
+      void aoVivo.current()
+    })
+  }, [assinarAvisos, reportPublicId])
+
   /** A resposta de uma acao que devolve o card aberto: tudo na tela passa a ela. */
   function receber(aberto: ReportDetailViewModel) {
+    acoes.current += 1
     setDetalhe(aberto)
     setFechamento(aberto.Closure)
     setPedido(aberto.InfoRequest)
@@ -393,7 +474,16 @@ export function ReportDialog({
       closeButton
       width={CARD_DIALOG_WIDTH}
       className={CARD_DIALOG_CLASS}
+      // O card pode ter trocado de lugar enquanto estava aberto — outra pessoa o
+      // moveu —, e quem o abriu saiu da pagina: o foco vai para ele no lugar novo, ou,
+      // se ele saiu da tela, para a area de Trabalho.
+      fallbackFocus={() =>
+        document.querySelector<HTMLElement>(`a[href$="/reports/${reportPublicId}"]`) ??
+        document.querySelector<HTMLElement>('[data-work-area]')
+      }
     >
+      <LiveStatusText estado={semAoVivo} />
+      <LiveAnnouncer anuncio={anuncio} />
       {/* Link aberto direto e que falhou: sem resumo nao ha o que mostrar, e
           insistir num esqueleto eterno seria pior do que dizer o que houve. */}
       {report === null && failed && (
@@ -454,8 +544,8 @@ export function ReportDialog({
 
               {/* Antes do encerramento: as reaberturas ja aconteceram, e o fechamento
                   que vale, quando ha um, e o fim mais recente. Vem do detalhe, que encerrar e pedir
-                  informação também devolvem — por isso a lista não some da tela
-                  depois dessas ações. */}
+                  informacao tambem devolvem — por isso a lista nao some da tela
+                  depois dessas acoes. */}
               <ReportReopenings
                 reaberturas={detalhe?.Reopenings ?? []}
                 anexosPorReabertura={anexos.porReabertura}
@@ -493,11 +583,11 @@ export function ReportDialog({
                   )
                 )}
 
-                {/* O outro lado. Fica junto do controle que move de propósito: é aqui
-                    que alguém decide, e a consequência lá fora precisa estar à vista
-                    no momento da decisão — não numa tela que se abre depois.
+                {/* O outro lado. Fica junto do controle que move de proposito: e aqui
+                    que alguem decide, e a consequencia la fora precisa estar a vista
+                    no momento da decisao — nao numa tela que se abre depois.
 
-                    Vem de `atual`, que é a resposta do próprio movimento. Buscar o
+                    Vem de `atual`, que e a resposta do proprio movimento. Abrir o
                     detalhe de novo **grava um evento de leitura**, e isso mediria
                     cliques do time em vez de leituras. */}
                 {atual && <LadoDeFora etapa={atual.PublicStageLabel} />}
@@ -559,6 +649,7 @@ export function ReportDialog({
                   reportPublicId={reportPublicId}
                   card={atual ?? report}
                   aoMudar={receber}
+                  configuracao={configuracao}
                 />
 
                 <dl className="flex flex-col gap-1.5 border-border border-t pt-3">

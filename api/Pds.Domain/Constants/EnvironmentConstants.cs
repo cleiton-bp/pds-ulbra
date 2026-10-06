@@ -24,6 +24,12 @@ public static class EnvironmentConstants
     public static string GetJwtAudience()
         => Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "pds.panel";
 
+    /// <summary>
+    /// Destinatario do bilhete do tempo real: o da sessao com um sufixo, para os dois
+    /// nunca coincidirem — nem quando a sessao tiver um destinatario configurado.
+    /// </summary>
+    public static string GetRealtimeAudience() => $"{GetJwtAudience()}.realtime";
+
     /// <summary>Validade do JWT em horas. Padrao: 8.</summary>
     public static int GetJwtExpirationHours()
         => int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRATION_HOURS"), out var hours) ? hours : 8;

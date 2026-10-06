@@ -132,11 +132,18 @@ public partial class ReportService : IReportService
     /// </summary>
     private readonly IDelayedScheduler _scheduler;
 
-    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext, IDelayedScheduler scheduler)
+    /// <summary>
+    /// Quem avisa as outras telas do projeto que um card mudou — sempre depois da
+    /// gravacao, e sem derrubar a acao se falhar. Ver <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext, IDelayedScheduler scheduler, IWorkNotifier notifier)
     {
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
         _scheduler = scheduler;
+        _notifier = notifier;
     }
 
     public async Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, CancellationToken cancellationToken = default)
@@ -286,6 +293,8 @@ public partial class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        await _notifier.CardChangedAsync(report.PublicId);
+
         return new CreatedReportViewModel(protocolo, token, report.CreatedAt, codigoPessoal?.Code);
     }
 
@@ -383,6 +392,8 @@ public partial class ReportService : IReportService
         }, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        await _notifier.CardChangedAsync(report.PublicId);
 
         return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
@@ -491,6 +502,8 @@ public partial class ReportService : IReportService
         await UnarchiveFromOutsideAsync(report, "reopened", cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        await _notifier.CardChangedAsync(report.PublicId);
 
         return await BuildPublicAsync(report, podeAgir: true, cancellationToken);
     }
@@ -778,6 +791,8 @@ public partial class ReportService : IReportService
             // Ver o paragrafo acima.
         }
 
+        await _notifier.CardChangedAsync(report.PublicId);
+
         return Detail(report, null, InfoRequestOf(pedido), canAskInfo: false,
             await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
             await TeamIdsForAsync([report], cancellationToken),
@@ -830,6 +845,7 @@ public partial class ReportService : IReportService
             await PutOnTopAsync(report, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.CardChangedAsync(report.PublicId);
 
         // **A mensagem agendada nao e cancelada**, e nao precisa: ao chegar, ela nao
         // vai encontrar pedido aberto e se descarta. A mesma propriedade da espera.
@@ -892,6 +908,7 @@ public partial class ReportService : IReportService
         if (fechamento is not null)
         {
             await _unitOfWork.CommitAsync(cancellationToken);
+            await _notifier.CardChangedAsync(report.PublicId);
             return;
         }
 
@@ -929,6 +946,7 @@ public partial class ReportService : IReportService
         }, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.CardChangedAsync(report.PublicId);
     }
 
     public Task<IReadOnlyList<Guid>> ListOverdueInfoRequestsAsync(CancellationToken cancellationToken = default)
@@ -1104,6 +1122,8 @@ public partial class ReportService : IReportService
         card.CreatedByUser = await _unitOfWork.Users.GetByIdAsync(autorId, cancellationToken);
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
+        await _notifier.CardChangedAsync(card.PublicId);
+
         return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
             await TeamIdsForAsync([card], cancellationToken),
             await FaceOfAsync(card, cancellationToken));
@@ -1158,6 +1178,8 @@ public partial class ReportService : IReportService
 
             await _unitOfWork.CommitAsync(cancellationToken);
         }
+
+        await _notifier.CardChangedAsync(card.PublicId);
 
         return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
             await TeamIdsForAsync([card], cancellationToken),
@@ -1235,6 +1257,8 @@ public partial class ReportService : IReportService
         }, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        await _notifier.CardChangedAsync(report.PublicId);
 
         return await DetailOfAsync(report, regras, cancellationToken);
     }
@@ -1541,6 +1565,8 @@ public partial class ReportService : IReportService
             }
         }
 
+        await _notifier.CardChangedAsync(report.PublicId);
+
         return Map(report, await TeamIdsForAsync([report], cancellationToken), await FaceOfAsync(report, cancellationToken));
     }
 
@@ -1574,6 +1600,8 @@ public partial class ReportService : IReportService
             await _unitOfWork.CommitAsync(ct);
             return true;
         }, cancellationToken);
+
+        await _notifier.CardChangedAsync(report.PublicId);
 
         return Map(report, await TeamIdsForAsync([report], cancellationToken), await FaceOfAsync(report, cancellationToken));
     }
@@ -1705,14 +1733,15 @@ public partial class ReportService : IReportService
             project, report, dto.Outcome.Value, motivo, DateTime.UtcNow, cancellationToken);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.CardChangedAsync(report.PublicId);
 
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
         // **Sem gravar leitura.** Esta resposta e a mesma forma do detalhe porque a
         // tela ja esta com o relato aberto e so precisa dele atualizado; passar
-        // por `GetAsync` registraria uma segunda visualizacao que ninguem fez.
-        // Encerrado: nao ha mais o que perguntar, e um pedido aberto deixou de
-        // fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
+        // por `GetAsync` como numa abertura registraria uma segunda visualizacao que
+        // ninguem fez. Encerrado: nao ha mais o que perguntar, e um pedido aberto
+        // deixou de fazer sentido — mas quem o fecha e o prazo dele, nao este caminho.
         return Detail(report, ClosureOf(fechamento), null, canAskInfo: false,
             await ReopeningsOfAsync(report.Id, cancellationToken), AllowsReportArchiving(regras),
             await TeamIdsForAsync([report], cancellationToken),
@@ -1758,7 +1787,7 @@ public partial class ReportService : IReportService
 
         // O autor vem do banco porque a sessao guarda o identificador e nao o nome,
         // e a resposta desta acao precisa do nome: a tela ja esta aberta e nao pode
-        // buscar o detalhe de novo — buscar **grava** um evento de leitura.
+        // abrir o detalhe de novo — abrir **grava** um evento de leitura.
         var autor = _accountContext.UserId is long userId
             ? await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken)
             : null;
@@ -1868,6 +1897,7 @@ public partial class ReportService : IReportService
         {
             report.PublicStageDueAt = null;
             await _unitOfWork.CommitAsync(cancellationToken);
+            await _notifier.CardChangedAsync(report.PublicId);
             return;
         }
 
@@ -1891,6 +1921,7 @@ public partial class ReportService : IReportService
         report.PublicStageDueAt = null;
 
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.CardChangedAsync(report.PublicId);
     }
 
     public Task<IReadOnlyList<Guid>> ListOverdueScheduledAsync(CancellationToken cancellationToken = default)
@@ -2310,6 +2341,8 @@ public partial class ReportService : IReportService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        await _notifier.CardChangedAsync(report.PublicId);
+
         return ToModerationItem(report);
     }
 
@@ -2571,7 +2604,7 @@ public partial class ReportService : IReportService
             $"Nao foi possivel gerar um protocolo unico em {TrackingCodeAttempts} tentativas.");
     }
 
-    public async Task<ReportDetailViewModel> GetAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default)
+    public async Task<ReportDetailViewModel> GetAsync(Guid projectPublicId, Guid reportPublicId, bool recordView = true, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
@@ -2588,7 +2621,10 @@ public partial class ReportService : IReportService
         //
         // **So no relato.** O evento mede quanto o time demora a olhar o que veio de
         // fora; o card do time nasceu dentro, e a leitura dele so mediria cliques.
-        if (report.Kind == CardKindEnum.Report)
+        //
+        // **E so ao abrir.** A releitura do card que ja esta aberto, por causa de um
+        // aviso em tempo real, nao e alguem indo olhar: a leitura ja foi contada.
+        if (report.Kind == CardKindEnum.Report && recordView)
         {
             await _unitOfWork.Events.AddAsync(new Event
             {

@@ -86,6 +86,9 @@ export const apiProjectReportService: ProjectReportService = {
   openReport: (publicId, reportPublicId) =>
     apiGet<ReportDetailViewModel>(`/projects/${publicId}/reports/${reportPublicId}`),
 
+  refreshReport: (publicId, reportPublicId) =>
+    apiGet<ReportDetailViewModel>(`/projects/${publicId}/reports/${reportPublicId}?refresh=true`),
+
   moveReport: (publicId, reportPublicId, request) =>
     apiPut<ReportSummaryViewModel>(
       `/projects/${publicId}/reports/${reportPublicId}/state`,

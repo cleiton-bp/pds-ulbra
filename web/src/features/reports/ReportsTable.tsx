@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import { type MouseEvent, useRef } from 'react'
 import { Link, useHref, useNavigate } from 'react-router-dom'
 import type { ReportStateCountViewModel, ReportSummaryViewModel } from '@/contracts'
 import {
@@ -10,6 +10,7 @@ import {
   StatusLozenge,
   statusTone,
 } from '@/features/reports/cardLook'
+import { useKeepFocus } from '@/features/reports/useKeepFocus'
 import { CardChip } from '@/shared/components/CardChip'
 import { DueChip } from '@/shared/components/DueChip'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -39,19 +40,33 @@ export function ReportsTable({
   reports,
   colunas,
   soonDays,
+  destacados,
 }: {
   reports: ReportSummaryViewModel[]
   /** As colunas do projeto, para o tom da coluna de cada card. */
   colunas: ReportStateCountViewModel[] | null
   soonDays: number
+  /** Os cards que outra pessoa acabou de mudar: a linha se acende por um instante. */
+  destacados?: ReadonlySet<string>
 }) {
+  const area = useRef<HTMLDivElement>(null)
+  useKeepFocus(area)
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    // A linha com o foco que sai da lista por outra pessoa deixa o foco na vizinha, e
+    // nao no comeco da pagina (ver `useKeepFocus`).
+    <div ref={area} data-focus-group className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full border-collapse text-left text-detail">
         <Cabecalho />
         <tbody>
           {reports.map((report) => (
-            <Linha key={report.PublicId} report={report} colunas={colunas} soonDays={soonDays} />
+            <Linha
+              key={report.PublicId}
+              report={report}
+              colunas={colunas}
+              soonDays={soonDays}
+              destacada={destacados?.has(report.PublicId) ?? false}
+            />
           ))}
         </tbody>
       </table>
@@ -63,10 +78,12 @@ function Linha({
   report,
   colunas,
   soonDays,
+  destacada,
 }: {
   report: ReportSummaryViewModel
   colunas: ReportStateCountViewModel[] | null
   soonDays: number
+  destacada: boolean
 }) {
   const navigate = useNavigate()
   const endereco = useHref(report.PublicId)
@@ -100,9 +117,21 @@ function Linha({
     <tr
       onClick={abrir}
       onAuxClick={meio}
-      className="cursor-pointer border-border border-b transition-colors last:border-b-0 hover:bg-surface-raised"
+      data-highlighted={destacada || undefined}
+      className={cn(
+        'cursor-pointer border-border border-b transition-colors last:border-b-0 hover:bg-surface-raised',
+        destacada && 'bg-chip-blue-surface',
+      )}
     >
-      <td className="w-9 py-2 pr-1 pl-3">
+      {/* A faixa do destaque mora na primeira celula: o fundo sozinho quase nao se ve,
+          e cor nunca vai sozinha. Some devagar; o resto da linha responde na hora. */}
+      <td
+        className={cn(
+          'relative w-9 py-2 pr-1 pl-3',
+          'before:pointer-events-none before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-r-full before:bg-chip-blue-glyph before:opacity-0 before:transition-opacity before:duration-700',
+          destacada && 'before:opacity-100',
+        )}
+      >
         <CardTypeIcon card={report} />
       </td>
       <td className="whitespace-nowrap px-2 py-2 font-medium font-mono text-fg-muted">

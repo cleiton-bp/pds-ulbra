@@ -25,9 +25,16 @@ public class ProjectStatusMappingService : IProjectStatusMappingService
 {
     private readonly IUnitOfWork _unitOfWork;
 
-    public ProjectStatusMappingService(IUnitOfWork unitOfWork)
+    /// <summary>
+    /// O card aberto na tela de Trabalho mostra a etapa publica em que o relato esta:
+    /// o mapa mudou, ela rele. Ver <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ProjectStatusMappingService(IUnitOfWork unitOfWork, IWorkNotifier notifier)
     {
         _unitOfWork = unitOfWork;
+        _notifier = notifier;
     }
 
     public async Task<ProjectStatusMappingViewModel> GetAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
@@ -89,6 +96,7 @@ public class ProjectStatusMappingService : IProjectStatusMappingService
         _unitOfWork.Projects.Update(project);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.ProjectChangedAsync(projectPublicId);
 
         return await BuildAsync(project, cancellationToken);
     }

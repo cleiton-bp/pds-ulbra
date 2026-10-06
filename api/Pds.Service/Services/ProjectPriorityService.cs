@@ -25,8 +25,15 @@ public class ProjectPriorityService : IProjectPriorityService
 
     private readonly IUnitOfWork _unitOfWork;
 
-    public ProjectPriorityService(IUnitOfWork unitOfWork)
+    /// <summary>
+    /// A tela de Trabalho dos outros le esta configuracao: mudou, ela rele. Ver
+    /// <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ProjectPriorityService(IUnitOfWork unitOfWork, IWorkNotifier notifier)
     {
+        _notifier = notifier;
         _unitOfWork = unitOfWork;
     }
 
@@ -62,6 +69,8 @@ public class ProjectPriorityService : IProjectPriorityService
         await _unitOfWork.ProjectPriorities.AddAsync(priority, cancellationToken);
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        await _notifier.ProjectChangedAsync(projectPublicId);
+
         return Map(priority);
     }
 
@@ -78,6 +87,8 @@ public class ProjectPriorityService : IProjectPriorityService
         priority.Name = name;
         priority.Color = color;
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        await _notifier.ProjectChangedAsync(projectPublicId);
 
         return Map(priority);
     }
@@ -104,6 +115,8 @@ public class ProjectPriorityService : IProjectPriorityService
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        await _notifier.ProjectChangedAsync(projectPublicId);
+
         return order.Select(publicId => Map(byPublicId[publicId])).ToList();
     }
 
@@ -119,6 +132,7 @@ public class ProjectPriorityService : IProjectPriorityService
         {
             priority.DeactivatedAt = DateTime.UtcNow;
             await _unitOfWork.CommitAsync(cancellationToken);
+            await _notifier.ProjectChangedAsync(projectPublicId);
         }
 
         return Map(priority);
@@ -133,6 +147,7 @@ public class ProjectPriorityService : IProjectPriorityService
         {
             priority.DeactivatedAt = null;
             await _unitOfWork.CommitAsync(cancellationToken);
+            await _notifier.ProjectChangedAsync(projectPublicId);
         }
 
         return Map(priority);

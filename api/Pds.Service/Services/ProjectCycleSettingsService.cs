@@ -27,8 +27,15 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
     /// </summary>
     private readonly IDelayedScheduler _scheduler;
 
-    public ProjectCycleSettingsService(IUnitOfWork unitOfWork, IDelayedScheduler scheduler)
+    /// <summary>
+    /// A tela de Trabalho dos outros le esta configuracao: mudou, ela rele. Ver
+    /// <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ProjectCycleSettingsService(IUnitOfWork unitOfWork, IDelayedScheduler scheduler, IWorkNotifier notifier)
     {
+        _notifier = notifier;
         _unitOfWork = unitOfWork;
         _scheduler = scheduler;
     }
@@ -89,6 +96,8 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
             _unitOfWork.ProjectCycleSettings.Update(settings);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        await _notifier.ProjectChangedAsync(projectPublicId);
 
         return await MapAsync(settings, cancellationToken);
     }

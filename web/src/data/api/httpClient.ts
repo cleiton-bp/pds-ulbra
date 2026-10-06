@@ -10,6 +10,25 @@ import { clearToken, getToken, notifyUnauthorized } from '@/data/sessionToken'
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
+/**
+ * A conexao em tempo real desta aba, quando ha uma. Vai em todo pedido, e volta no
+ * aviso que ele causar: a aba que fez a mudanca ja mostra o que mudou, e ignora o
+ * proprio aviso — as outras abas, ate da mesma pessoa, recebem.
+ */
+let conexaoAoVivo: string | null = null
+
+export function setRealtimeConnectionId(id: string | null): void {
+  conexaoAoVivo = id
+}
+
+/**
+ * Tira o id da conexao — **se ainda for o dela**: a conexao que fecha atrasada (a tela
+ * de um projeto saindo enquanto a do outro entra) nao apaga a que a substituiu.
+ */
+export function clearRealtimeConnectionId(id: string | null): void {
+  if (id !== null && conexaoAoVivo === id) conexaoAoVivo = null
+}
+
 interface RequestOptions {
   /** `false` no login: la um 401 e credencial recusada, nao sessao expirada. */
   handleUnauthorized?: boolean
@@ -30,6 +49,7 @@ async function exchange<T>(
   const token = getToken()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
+  if (conexaoAoVivo) headers['X-Realtime-Connection'] = conexaoAoVivo
 
   let response: Response
   try {

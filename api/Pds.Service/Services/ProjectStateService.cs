@@ -25,8 +25,15 @@ public class ProjectStateService : IProjectStateService
 {
     private readonly IUnitOfWork _unitOfWork;
 
-    public ProjectStateService(IUnitOfWork unitOfWork)
+    /// <summary>
+    /// A tela de Trabalho dos outros le esta configuracao: mudou, ela rele. Ver
+    /// <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ProjectStateService(IUnitOfWork unitOfWork, IWorkNotifier notifier)
     {
+        _notifier = notifier;
         _unitOfWork = unitOfWork;
     }
 
@@ -60,6 +67,8 @@ public class ProjectStateService : IProjectStateService
         await _unitOfWork.ProjectStates.AddAsync(state, cancellationToken);
         await _unitOfWork.CommitAsync(cancellationToken);
 
+        await _notifier.ProjectChangedAsync(projectPublicId);
+
         return Map(state);
     }
 
@@ -76,6 +85,8 @@ public class ProjectStateService : IProjectStateService
         state.Name = name;
         _unitOfWork.ProjectStates.Update(state);
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        await _notifier.ProjectChangedAsync(projectPublicId);
 
         return Map(state);
     }
@@ -110,6 +121,7 @@ public class ProjectStateService : IProjectStateService
         }
 
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.ProjectChangedAsync(projectPublicId);
 
         // Devolve na ordem pedida, e nao relendo do banco: e a mesma lista, e uma
         // segunda consulta so daria chance de a tela receber algo diferente do que
@@ -145,6 +157,7 @@ public class ProjectStateService : IProjectStateService
             state.DeactivatedAt = DateTime.UtcNow;
             _unitOfWork.ProjectStates.Update(state);
             await _unitOfWork.CommitAsync(cancellationToken);
+            await _notifier.ProjectChangedAsync(projectPublicId);
         }
 
         return Map(state);
@@ -161,6 +174,7 @@ public class ProjectStateService : IProjectStateService
             state.DeactivatedAt = null;
             _unitOfWork.ProjectStates.Update(state);
             await _unitOfWork.CommitAsync(cancellationToken);
+            await _notifier.ProjectChangedAsync(projectPublicId);
         }
 
         return Map(state);
@@ -188,6 +202,10 @@ public class ProjectStateService : IProjectStateService
             .ToList();
     }
 
+    /// <summary>
+    /// <b>Sem aviso em tempo real</b>: a coluna em que o relato novo entra nao aparece na
+    /// tela de Trabalho, e nenhum card muda de lugar por causa dela.
+    /// </summary>
     public async Task<ProjectInitialStateViewModel> SetInitialAsync(Guid projectPublicId, SetInitialStateDto dto, CancellationToken cancellationToken = default)
     {
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);

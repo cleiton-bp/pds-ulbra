@@ -482,8 +482,9 @@ public class ReportsController : BaseController
     /// time levou para ir olhar — metade da pergunta que este trabalho investiga.
     ///
     /// Por isso ela **não deve ser chamada para adiantar dado que ninguém pediu**:
-    /// cada chamada vira uma linha, e uma lista que abrisse os relatos sozinha
-    /// inventaria leituras que não aconteceram.
+    /// cada abertura vira uma linha, e uma lista que abrisse os relatos sozinha
+    /// inventaria leituras que não aconteceram. A exceção é `refresh=true`, a releitura
+    /// do card já aberto quando outra pessoa mexe nele: essa não grava.
     ///
     /// O contexto sai em ordem de chave. Ele vem do navegador de quem relatou, e
     /// não de quem digitou: serve para reproduzir o problema, nunca para
@@ -491,17 +492,22 @@ public class ReportsController : BaseController
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="refresh">
+    /// Verdadeiro na **releitura do card que já está aberto**, quando outra pessoa mexe
+    /// nele (o painel fica sabendo pelo tempo real): a leitura foi registrada ao abrir,
+    /// e esta não registra outra. Abrir é sempre sem ele.
+    /// </param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">O relato, com o contexto. A visualização foi registrada.</response>
+    /// <response code="200">O relato, com o contexto. A visualização foi registrada — menos com <c>refresh</c>.</response>
     /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet("{reportPublicId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Get(Guid publicId, Guid reportPublicId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(Guid publicId, Guid reportPublicId, [FromQuery] bool refresh, CancellationToken cancellationToken)
     {
         try
         {
-            var report = await _reportService.GetAsync(publicId, reportPublicId, cancellationToken);
+            var report = await _reportService.GetAsync(publicId, reportPublicId, recordView: !refresh, cancellationToken);
             return Success(report);
         }
         catch (Exception exception)

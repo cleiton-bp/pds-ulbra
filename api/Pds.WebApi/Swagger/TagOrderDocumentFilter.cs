@@ -26,7 +26,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.Session,
-                Description = "Quem está logado e em qual conta.",
+                Description = "Quem está logado e em qual conta — e o bilhete da conexão em tempo real.",
             },
             new OpenApiTag
             {

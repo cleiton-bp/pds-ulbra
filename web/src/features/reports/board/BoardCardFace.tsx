@@ -24,12 +24,19 @@ export function BoardCardFace({
   card,
   soonDays,
   lifted = false,
+  highlighted = false,
 }: {
   card: ReportSummaryViewModel
   /** A regra do projeto para o prazo ficar perto (Ciclo). */
   soonDays: number
   /** O card que esta sendo arrastado: a copia que segue o ponteiro. */
   lifted?: boolean
+  /**
+   * Outra pessoa acabou de muda-lo: uma faixa a esquerda e um fundo por um instante,
+   * que somem devagar. Diz onde olhar sem tirar ninguem do que estava fazendo — e nao
+   * e um contorno, que e o desenho do foco: os dois juntos ficavam iguais.
+   */
+  highlighted?: boolean
 }) {
   const titulo = cardHeadline(card)
   const visiveis = card.Labels.slice(0, 3)
@@ -37,8 +44,12 @@ export function BoardCardFace({
 
   return (
     <div
+      data-highlighted={highlighted || undefined}
       className={cn(
-        'rounded-lg border border-border bg-surface p-3 text-left shadow-xs transition-colors hover:bg-surface-raised',
+        'relative rounded-lg border border-border bg-surface p-3 text-left shadow-xs transition-colors hover:bg-surface-raised',
+        // A faixa e o fundo do destaque somem devagar; o resto responde na hora.
+        'before:pointer-events-none before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-r-full before:bg-chip-blue-glyph before:opacity-0 before:transition-opacity before:duration-700',
+        highlighted && 'bg-chip-blue-surface before:opacity-100',
         lifted && 'rotate-2 shadow-lg ring-2 ring-accent',
       )}
     >

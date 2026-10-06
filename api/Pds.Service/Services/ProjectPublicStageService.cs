@@ -29,9 +29,16 @@ public class ProjectPublicStageService : IProjectPublicStageService
 {
     private readonly IUnitOfWork _unitOfWork;
 
-    public ProjectPublicStageService(IUnitOfWork unitOfWork)
+    /// <summary>
+    /// O card aberto na tela de Trabalho mostra a etapa publica em que o relato esta:
+    /// o nome mudou, ela rele. Ver <see cref="IWorkNotifier"/>.
+    /// </summary>
+    private readonly IWorkNotifier _notifier;
+
+    public ProjectPublicStageService(IUnitOfWork unitOfWork, IWorkNotifier notifier)
     {
         _unitOfWork = unitOfWork;
+        _notifier = notifier;
     }
 
     public async Task<IReadOnlyList<ProjectPublicStageViewModel>> ListAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
@@ -112,6 +119,7 @@ public class ProjectPublicStageService : IProjectPublicStageService
 
         _unitOfWork.ProjectPublicStages.Update(stage);
         await _unitOfWork.CommitAsync(cancellationToken);
+        await _notifier.ProjectChangedAsync(projectPublicId);
 
         return Map(stage);
     }

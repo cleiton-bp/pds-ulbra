@@ -33,6 +33,14 @@ export function useReportInbox(
 
   const generation = useRef(0)
   const nextPage = useRef(1)
+  /**
+   * Quantas vezes a lista mudou nesta tela sem ser lida — um card criado, um card
+   * mudado pelo dialogo, uma pagina a mais. A releitura que estava no ar quando ela
+   * mudou pode ter sido feita antes, e nao passa por cima: le de novo.
+   */
+  const mexidas = useRef(0)
+  /** A ultima releitura pedida. So ela vale quando chega. */
+  const ultimaReleitura = useRef(0)
 
   // O recorte entra na dependencia junto com o projeto: trocar de coluna e comecar
   // uma lista nova, e nao acrescentar a que esta na tela. O contador de geracao
@@ -74,6 +82,7 @@ export function useReportInbox(
       if (minha !== generation.current) return
 
       nextPage.current += 1
+      mexidas.current += 1
 
       setState((current) => ({
         reports: merge(current.reports ?? [], page.reports),
@@ -91,6 +100,56 @@ export function useReportInbox(
       // Devolve o erro original em vez de um proprio: a tela mostra a mensagem
       // que a API escreveu, e trocar por um texto generico aqui apagaria ela.
       throw error
+    }
+  }, [publicId, stateFilter, archived])
+
+  /**
+   * Rele **sem esvaziar** as paginas que estao na tela — e troca tudo de uma vez quando
+   * a ultima chega. E o que o tempo real usa: outra pessoa mudou um card, e a lista se
+   * acerta sem piscar e sem voltar a primeira pagina de quem estava na terceira.
+   *
+   * A pagina e por posicao, e uma pagina relida pode trazer de novo um card da anterior
+   * (alguem entrou no topo): o `merge` tira a repeticao. Falhando, fica o que esta na
+   * tela — o proximo aviso tenta de novo. **Duas no ar, vale a ultima**; e a lista que
+   * mudou aqui no meio do caminho — "Carregar mais", um card criado — e lida de novo:
+   * a troca descartaria a mudanca. Devolve a lista que foi para a tela, ou nulo quando
+   * nada foi.
+   */
+  const refresh = useCallback(async (): Promise<ReportSummaryViewModel[] | null> => {
+    const minha = generation.current
+    const esta = ++ultimaReleitura.current
+    const valendo = () => minha === generation.current && esta === ultimaReleitura.current
+
+    for (;;) {
+      const mexidaAntes = mexidas.current
+      const paginas = Math.max(1, nextPage.current - 1)
+      let reports: ReportSummaryViewModel[] = []
+      let total = 0
+
+      try {
+        for (let pagina = 1; pagina <= paginas; pagina++) {
+          const lida = await projectReportService.listReports(
+            publicId,
+            pagina,
+            stateFilter,
+            archived,
+          )
+          if (!valendo()) return null
+          reports = merge(reports, lida.reports)
+          total = lida.total
+          if (lida.reports.length === 0) break
+        }
+      } catch {
+        // Fica o que esta na tela.
+        return null
+      }
+
+      if (mexidas.current !== mexidaAntes) continue
+
+      setState((current) =>
+        current.reports === null ? current : { ...current, reports, total, failed: false },
+      )
+      return reports
     }
   }, [publicId, stateFilter, archived])
 
@@ -118,6 +177,7 @@ export function useReportInbox(
    */
   const apply = useCallback(
     (report: ReportSummaryViewModel) => {
+      mexidas.current += 1
       setState((current) => {
         if (current.reports === null) return current
 
@@ -145,6 +205,7 @@ export function useReportInbox(
    */
   const prepend = useCallback(
     (report: ReportSummaryViewModel) => {
+      mexidas.current += 1
       setState((current) =>
         current.reports === null || !fits(report)
           ? current
@@ -163,6 +224,7 @@ export function useReportInbox(
     /** Ha mais para carregar do que ja esta na tela. */
     hasMore: state.reports !== null && state.reports.length < state.total,
     reload: () => void load(),
+    refresh,
     loadMore,
     apply,
     prepend,

@@ -252,6 +252,8 @@ public partial class ReportService
             return card;
         }, cancellationToken);
 
+        await _notifier.CardChangedAsync(report.PublicId);
+
         return await CardDetailAsync(project, report, cancellationToken);
     }
 

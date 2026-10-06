@@ -50,9 +50,9 @@ function projeto(
 const minha = { id: 'c-minha', nome: 'Conta de Bruno' }
 const daAna = { id: 'c-ana', nome: 'Conta da Ana' }
 
-function abrir() {
+function abrir(state?: unknown) {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[{ pathname: '/projects', state }]}>
       <ProjectsHubScreen />
     </MemoryRouter>,
   )
@@ -64,6 +64,19 @@ describe('ProjectsHubScreen', () => {
   beforeEach(() => {
     dublê.listar.mockReset()
     useProjectsStore.getState().reset()
+  })
+
+  it('quem perdeu o acesso a um projeto aberto chega com o nome dele, e o aviso fica até dizer que viu', async () => {
+    dublê.listar.mockResolvedValue([])
+    abrir({ leftProject: 'Loja Online' })
+
+    expect(
+      await screen.findByText(
+        'Você não tem mais acesso ao projeto “Loja Online”, e a tela dele foi fechada.',
+      ),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Entendi' }))
+    expect(screen.queryByText(/não tem mais acesso/)).toBeNull()
   })
 
   it('só com os próprios projetos: lista simples, sem nome de conta nem papel', async () => {

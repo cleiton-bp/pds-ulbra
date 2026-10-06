@@ -25,6 +25,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { PublicOutcome, ReportSummaryViewModel } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { isPanelError } from '@/data/errors'
 import { BoardCardFace } from '@/features/reports/board/BoardCardFace'
 import { boardCollision } from '@/features/reports/board/boardCollision'
 import { boardKeyboardCoordinates } from '@/features/reports/board/boardKeyboard'
@@ -36,6 +37,7 @@ import {
 } from '@/features/reports/board/boardState'
 import type { Board, BoardColumnState } from '@/features/reports/board/useBoard'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
+import { useKeepFocus } from '@/features/reports/useKeepFocus'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
@@ -89,6 +91,7 @@ export function ReportsBoard({
   aoMudarColunas,
   aoVerNaLista,
   aoCriar,
+  destacados,
 }: {
   projectPublicId: string
   board: Board
@@ -102,6 +105,8 @@ export function ReportsBoard({
   aoVerNaLista: (chave: string) => void
   /** Criar um card ja nesta coluna. */
   aoCriar: (chave: string) => void
+  /** Os cards que outra pessoa acabou de mudar: piscam um contorno por um instante. */
+  destacados: ReadonlySet<string>
 }) {
   // As colunas numa referencia: a conta das setas le a de agora a cada tecla, e as
   // opcoes do teclado continuam as mesmas entre uma renderizacao e outra.
@@ -132,6 +137,30 @@ export function ReportsBoard({
   const inicio = useRef<{ de: string; indice: number } | null>(null)
   const [encerrando, setEncerrando] = useState<Soltura | null>(null)
   const [salvandoEncerramento, setSalvandoEncerramento] = useState(false)
+
+  // O que outra pessoa muda espera a mao terminar: o arraste, o movimento gravando e o
+  // desfecho aberto seguram as releituras do tempo real (ver `board.hold`).
+  const soltarArraste = useRef<(() => void) | null>(null)
+  const soltarDesfecho = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    if (encerrando !== null) return
+    soltarDesfecho.current?.()
+    soltarDesfecho.current = null
+  }, [encerrando])
+  const largarArraste = () => {
+    soltarArraste.current?.()
+    soltarArraste.current = null
+  }
+  // Sair do quadro no meio da mao — trocar para a lista com o desfecho aberto — solta o
+  // que ela segurava: os avisos continuam chegando, e a releitura presa deixaria o
+  // quadro parado na volta.
+  useEffect(
+    () => () => {
+      soltarArraste.current?.()
+      soltarDesfecho.current?.()
+    },
+    [],
+  )
 
   // O clique que vem junto do soltar nao abre o card. Ele cai no card quando o dedo
   // segura, pega e solta sem andar; a biblioteca o engole antes do React — nem o
@@ -173,6 +202,8 @@ export function ReportsBoard({
 
     inicio.current = { de, indice: (board.itemsRef.current[de] ?? []).indexOf(id) }
     if (activatorEvent.type !== 'keydown') fimDoArraste.current = Number.POSITIVE_INFINITY
+    largarArraste()
+    soltarArraste.current = board.hold()
     setAtivo(id)
   }
 
@@ -204,6 +235,8 @@ export function ReportsBoard({
   function aoSoltar({ active, over }: DragEndEvent) {
     setAtivo(null)
     marcarFimDoArraste()
+    // Solta antes de gravar: a gravacao segura por conta propria, ja na primeira linha.
+    largarArraste()
 
     const id = String(active.id)
     const comeco = inicio.current
@@ -243,6 +276,7 @@ export function ReportsBoard({
   function aoDesistir({ active }: DragCancelEvent) {
     setAtivo(null)
     marcarFimDoArraste()
+    largarArraste()
     const comeco = inicio.current
     inicio.current = null
     if (comeco) devolver(String(active.id), comeco.de, comeco.indice)
@@ -252,6 +286,19 @@ export function ReportsBoard({
   async function soltar(
     soltura: Soltura,
     fim?: { Outcome: PublicOutcome; Reason: string },
+  ): Promise<boolean> {
+    const liberar = board.hold()
+    try {
+      return await gravar(soltura, fim, liberar)
+    } finally {
+      if (soltarDesfecho.current !== liberar) liberar()
+    }
+  }
+
+  async function gravar(
+    soltura: Soltura,
+    fim: { Outcome: PublicOutcome; Reason: string } | undefined,
+    liberar: () => void,
   ): Promise<boolean> {
     const card = board.cards[soltura.id]
     const mudouDeColuna = soltura.para !== soltura.de
@@ -265,6 +312,10 @@ export function ReportsBoard({
       card?.Kind === 'Report' &&
       !card.Closed
     ) {
+      // O card fica no lugar novo enquanto o desfecho esta aberto: a releitura espera
+      // ate ele ser confirmado ou desistido.
+      soltarDesfecho.current?.()
+      soltarDesfecho.current = liberar
       setEncerrando(soltura)
       return false
     }
@@ -300,7 +351,13 @@ export function ReportsBoard({
       if (mudouDeColuna) aoMudarColunas()
       return true
     } catch (falha) {
-      toast.error(describeError(falha))
+      // O conflito e de outra pessoa ter mexido no card, ou no vizinho de referencia,
+      // enquanto este estava na mao: o quadro e relido aqui mesmo, e o texto diz isso.
+      toast.error(
+        isPanelError(falha) && falha.status === 409
+          ? 'Outra pessoa mexeu neste card, ou nesta coluna, enquanto você o movia. O quadro foi relido: solte de novo, se ainda quiser.'
+          : describeError(falha),
+      )
       devolver(soltura.id, soltura.de, soltura.indice)
       if (mudouDeColuna) {
         board.adjustTotal(soltura.de, 1)
@@ -368,6 +425,11 @@ export function ReportsBoard({
 
   const cardAtivo = ativo ? board.cards[ativo] : undefined
 
+  // O card com o foco que sai da coluna por outra pessoa nao leva o foco para o comeco
+  // da pagina.
+  const area = useRef<HTMLDivElement>(null)
+  useKeepFocus(area)
+
   return (
     <>
       <DndContext
@@ -385,7 +447,10 @@ export function ReportsBoard({
           },
         }}
       >
-        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:px-0">
+        <div
+          ref={area}
+          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:px-0"
+        >
           {columns.map((coluna) => (
             <Coluna
               key={coluna.key}
@@ -401,6 +466,7 @@ export function ReportsBoard({
               aoTentarDeNovo={() => void board.loadColumn(coluna.key)}
               aoVerNaLista={() => aoVerNaLista(coluna.key)}
               aoCriar={() => aoCriar(coluna.key)}
+              destacados={destacados}
             />
           ))}
         </div>
@@ -445,6 +511,7 @@ function Coluna({
   aoTentarDeNovo,
   aoVerNaLista,
   aoCriar,
+  destacados,
 }: {
   coluna: BoardColumn
   ids: string[]
@@ -456,6 +523,7 @@ function Coluna({
   aoTentarDeNovo: () => void
   aoVerNaLista: () => void
   aoCriar: () => void
+  destacados: ReadonlySet<string>
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: coluna.key, disabled: !coluna.accepts })
   const titulo = coluna.retired ? `${coluna.name} (aposentada)` : coluna.name
@@ -474,6 +542,8 @@ function Coluna({
     <section
       ref={setNodeRef}
       aria-label={titulo}
+      // O foco do card que saiu desta coluna fica nela (ver `useKeepFocus`).
+      data-focus-group
       className={cn(
         'flex w-[85vw] max-w-80 flex-none snap-start flex-col rounded-lg border border-transparent bg-surface-sunken sm:w-68',
         isOver && coluna.accepts && 'border-accent',
@@ -546,6 +616,7 @@ function Coluna({
                   card={card}
                   soonDays={soonDays}
                   recebe={coluna.accepts}
+                  destacado={destacados.has(id)}
                 />
               ) : null
             })
@@ -657,10 +728,13 @@ function CardArrastavel({
   card,
   soonDays,
   recebe,
+  destacado,
 }: {
   id: string
   card: ReportSummaryViewModel
   soonDays: number
+  /** Outra pessoa acabou de muda-lo. */
+  destacado: boolean
   /** A coluna recebe card. Na que nao recebe, o card sai arrastando, mas ninguem cai em cima dele. */
   recebe: boolean
 }) {
@@ -684,7 +758,7 @@ function CardArrastavel({
         // selecionar o texto.
         className="block touch-manipulation select-none rounded-lg outline-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <BoardCardFace card={card} soonDays={soonDays} />
+        <BoardCardFace card={card} soonDays={soonDays} highlighted={destacado} />
       </Link>
     </li>
   )

@@ -44,6 +44,8 @@ vi.mock('@/data', async (importOriginal) => {
 
   return {
     ...real,
+    // Sem conexao em tempo real de verdade nos testes: ela tentaria a rede.
+    realtimeService: { connectWork: () => ({ stop: async () => {} }) },
     projectReportService: {
       listReports: dublê.listar,
       listReportCounts: dublê.contar,

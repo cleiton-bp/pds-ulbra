@@ -10,4 +10,10 @@ public interface ITokenService
     /// legivel por quem o possui, e o id interno nao tem por que trafegar.
     /// </summary>
     (string AccessToken, DateTime ExpiresAt) Issue(User user);
+
+    /// <summary>
+    /// Emite o bilhete do tempo real: um minuto, destinatario proprio, so abre a
+    /// conexao do hub. Ver <see cref="Pds.Domain.Security.RealtimeTicket"/>.
+    /// </summary>
+    (string Ticket, DateTime ExpiresAt) IssueRealtimeTicket(User user);
 }

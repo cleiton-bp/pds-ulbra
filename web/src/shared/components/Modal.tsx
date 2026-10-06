@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { type ReactNode, useLayoutEffect, useRef } from 'react'
 import { cn } from '@/shared/lib/cn'
+import { focusAnyway } from '@/shared/lib/focus'
 
 /**
  * Radix da o que costuma faltar em modal escrito a mao: foco preso, `Esc` e o resto da
@@ -30,6 +31,11 @@ interface ModalProps {
   closeButton?: boolean
   /** Classes a mais da caixa — a altura maxima e a coluna do dialogo grande. */
   className?: string
+  /**
+   * Para onde vai o foco quando quem abriu ja nao esta na pagina — o elemento foi
+   * trocado enquanto o dialogo estava aberto. Sem isto, ou sem achar, o Radix decide.
+   */
+  fallbackFocus?: () => HTMLElement | null
 }
 
 export function Modal({
@@ -42,6 +48,7 @@ export function Modal({
   width = 'w-[min(26.25rem,calc(100vw-2rem))]',
   closeButton = false,
   className,
+  fallbackFocus,
 }: ModalProps) {
   const quemAbriu = useRef<HTMLElement | null>(null)
   const abertoEm = useRef(0)
@@ -68,12 +75,26 @@ export function Modal({
             className,
           )}
           onCloseAutoFocus={(evento) => {
-            // Quem abriu pode ter saido da pagina (a linha de um card arquivado): ai o
-            // Radix decide.
-            const alvo = quemAbriu.current
-            if (!alvo?.isConnected) return
+            // O Radix devolve o foco um instante depois de fechar. Se nesse instante o
+            // foco ja foi para outro lugar — a pessoa ja estava no proximo card —, ele
+            // fica la: devolver agora seria tirar o foco de quem ja se mexeu.
+            const agora = document.activeElement
+            if (agora && agora !== document.body) {
+              evento.preventDefault()
+              return
+            }
+            // Quem abriu pode ter saido da pagina (a linha de um card arquivado): ai vai
+            // para a reserva de quem montou o dialogo, ou o Radix decide.
+            const abriu = quemAbriu.current
+            if (abriu?.isConnected) {
+              evento.preventDefault()
+              abriu.focus()
+              return
+            }
+            const reserva = fallbackFocus?.() ?? null
+            if (!reserva) return
             evento.preventDefault()
-            alvo.focus()
+            focusAnyway(reserva)
           }}
           onPointerDownOutside={(evento) => {
             if (performance.now() - abertoEm.current < DUPLO_CLIQUE_MS) evento.preventDefault()

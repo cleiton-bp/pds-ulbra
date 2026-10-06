@@ -10,7 +10,7 @@ import type {
   ReportSummaryViewModel,
   ReportType,
 } from '@/contracts'
-import type { ReportListOptions, ReportPage } from '@/data'
+import type { RealtimeEvent, RealtimeHandlers, ReportListOptions, ReportPage } from '@/data'
 import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { TooltipProvider } from '@/shared/components/Tooltip'
@@ -59,7 +59,23 @@ const dublê = vi.hoisted(() => ({
   encerrar: vi.fn(),
   pedir: vi.fn(),
   anexos: vi.fn(),
+  atualizar: vi.fn(),
+  // As listas de escolha dos campos do card: so as etiquetas sao olhadas aqui.
+  etiquetasDoProjeto: vi.fn(async () => []),
 }))
+
+/** A conexao em tempo real de mentira: guarda quem ouve, e o teste manda os avisos. */
+const aoVivo = vi.hoisted(() => {
+  const estado: { handlers: RealtimeHandlers | null } = { handlers: null }
+  return {
+    estado,
+    conectar: vi.fn((_projeto: string, handlers: RealtimeHandlers) => {
+      estado.handlers = handlers
+      return { stop: async () => {} }
+    }),
+  }
+})
+const avisar = (evento: RealtimeEvent) => act(() => aoVivo.estado.handlers?.onEvent(evento))
 
 vi.mock('@/data', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/data')>()
@@ -78,9 +94,12 @@ vi.mock('@/data', async (importOriginal) => {
       closeReport: dublê.encerrar,
       askInfo: dublê.pedir,
       setPosition: dublê.lugar,
+      refreshReport: dublê.atualizar,
     },
+    realtimeService: { connectWork: aoVivo.conectar },
     projectReportAttachmentService: { listAttachments: dublê.anexos },
     projectCycleSettingsService: { getCycleSettings: dublê.ciclo },
+    projectLabelService: { listLabels: dublê.etiquetasDoProjeto },
   }
 })
 
@@ -1862,5 +1881,347 @@ describe('o quadro', () => {
       expect(dublê.listar.mock.calls.some((chamada) => chamada[4] === undefined)).toBe(true),
     )
     expect(await screen.findByText('o botao some')).toBeTruthy()
+  })
+})
+
+describe('o tempo real', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    papel.atual = 'Administrator'
+    for (const mock of [
+      dublê.listar,
+      dublê.abrir,
+      dublê.contar,
+      dublê.listarComentarios,
+      dublê.historico,
+      dublê.anexos,
+      dublê.ciclo,
+      dublê.atualizar,
+    ])
+      mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.anexos.mockResolvedValue([])
+    dublê.ciclo.mockResolvedValue({ LastColumnVisibleDays: 14, DueSoonDays: 2 })
+    dublê.contar.mockResolvedValue([])
+    dublê.etiquetasDoProjeto.mockClear()
+    aoVivo.estado.handlers = null
+    window.localStorage.clear()
+  })
+
+  const cardMudou = (ReportPublicId: string, StatePublicId: string | null, Archived = false) =>
+    avisar({
+      kind: 'card',
+      notice: { ProjectPublicId: 'p-1', ReportPublicId, StatePublicId, Archived, Origin: null },
+    })
+  const leiturasDe = (estado: string) =>
+    dublê.listar.mock.calls.filter((chamada) => chamada[2] === estado).length
+
+  it('no quadro, o aviso de outra pessoa rele so as colunas que o card tocou, a contagem, e acende o card', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    const colunas: Record<string, ReportSummaryViewModel[]> = {
+      's-1': [relato('r-1', 'o botao some')],
+      's-2': [],
+      's-3': [],
+    }
+    dublê.listar.mockImplementation(async (_p, _pagina, estado) => {
+      const reports = colunas[estado ?? ''] ?? []
+      return { reports, total: reports.length }
+    })
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+
+    montar()
+    const pronto = await screen.findByRole('region', { name: 'Pronto' })
+    await within(screen.getByRole('region', { name: 'Análise' })).findByText('o botao some')
+    const antes = {
+      analise: leiturasDe('s-1'),
+      pronto: leiturasDe('s-2'),
+      contagem: dublê.contar.mock.calls.length,
+    }
+
+    // Outra pessoa moveu o card para Pronto.
+    colunas['s-1'] = []
+    colunas['s-2'] = [relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' })]
+    cardMudou('r-1', 's-2')
+    cardMudou('r-1', 's-2')
+
+    const link = await within(pronto).findByRole('link', { name: /o botao some/ })
+    expect(leiturasDe('s-1')).toBe(antes.analise + 1)
+    expect(leiturasDe('s-2')).toBe(antes.pronto + 1)
+    await waitFor(() => expect(dublê.contar.mock.calls.length).toBe(antes.contagem + 1))
+    // Aceso por um instante, para quem olha saber onde mudou — e contado a quem usa
+    // leitor de tela.
+    await waitFor(() =>
+      expect(link.firstElementChild?.getAttribute('data-highlighted')).toBe('true'),
+    )
+    expect(screen.getByText(/^O card #\d+ foi atualizado\.$/)).toBeTruthy()
+  })
+
+  it('na lista, o aviso rele as paginas da tela, e a linha que mudou se acende', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+
+    montar()
+    await screen.findByRole('link', { name: 'o botao some' })
+
+    dublê.listar.mockResolvedValue({
+      reports: [relato('r-1', 'o botao some', { Title: 'Reescrito por outra pessoa' })],
+      total: 1,
+    })
+    cardMudou('r-1', 's-1')
+
+    const link = await screen.findByRole('link', { name: 'Reescrito por outra pessoa' })
+    await waitFor(() => expect(link.closest('tr')?.getAttribute('data-highlighted')).toBe('true'))
+    expect(screen.getByText(/^O card #\d+ foi atualizado\.$/)).toBeTruthy()
+  })
+
+  it('avisos sem parar nao adiam a releitura da lista para sempre', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    montar()
+    await screen.findByRole('link', { name: 'o botao some' })
+    const antes = dublê.listar.mock.calls.length
+
+    // Um aviso a cada 150 ms, por 1,5 s: cada um chega antes de a espera acabar.
+    let releuNoMeio = false
+    for (let vez = 0; vez < 10; vez++) {
+      cardMudou('r-1', 's-1')
+      await act(() => new Promise((pronto) => setTimeout(pronto, 150)))
+      if (vez < 9 && dublê.listar.mock.calls.length > antes) releuNoMeio = true
+    }
+    expect(releuNoMeio).toBe(true)
+  })
+
+  it('o clique num card logo depois de a mudanca de outra pessoa entrar na tela nao abre nada; o seguinte abre', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    dublê.abrir.mockResolvedValue({
+      ...relato('r-9', 'card novo de outra pessoa'),
+      Closure: null,
+      InfoRequest: null,
+      CanAskInfo: false,
+      Contexts: [],
+    })
+    const router = montar()
+    await screen.findByRole('link', { name: 'o botao some' })
+
+    // Outra pessoa criou um card, que entra no topo e empurra a linha para baixo.
+    dublê.listar.mockResolvedValue({
+      reports: [relato('r-9', 'card novo de outra pessoa'), relato('r-1', 'o botao some')],
+      total: 2,
+    })
+    cardMudou('r-9', 's-1')
+    const novo = await screen.findByRole('link', { name: 'card novo de outra pessoa' })
+    await waitFor(() => expect(novo.closest('tr')?.getAttribute('data-highlighted')).toBe('true'))
+
+    // O clique mirava na linha que estava ali: nao abre.
+    fireEvent.click(novo)
+    await act(() => new Promise((pronto) => setTimeout(pronto, 50)))
+    expect(router.state.location.pathname).not.toMatch(/r-9$/)
+
+    await act(() => new Promise((pronto) => setTimeout(pronto, 650)))
+    fireEvent.click(screen.getByRole('link', { name: 'card novo de outra pessoa' }))
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/r-9$/))
+  })
+
+  it('a configuracao mudou: a contagem e as regras do quadro sao relidas', async () => {
+    dublê.listar.mockResolvedValue({ reports: [], total: 0 })
+    montar()
+    await screen.findByRole('tab', { name: 'Lista' })
+    await waitFor(() => expect(dublê.ciclo).toHaveBeenCalledTimes(1))
+    const contagens = dublê.contar.mock.calls.length
+
+    avisar({ kind: 'project' })
+
+    await waitFor(() => expect(dublê.ciclo).toHaveBeenCalledTimes(2))
+    expect(dublê.contar.mock.calls.length).toBe(contagens + 1)
+  })
+
+  it('quem saiu do time sai da tela, para os projetos', async () => {
+    dublê.listar.mockResolvedValue({ reports: [], total: 0 })
+    const router = montar()
+    await screen.findByRole('tab', { name: 'Lista' })
+
+    avisar({ kind: 'access-lost' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects'))
+    // O hub diz qual projeto, e por que a tela fechou.
+    expect(router.state.location.state).toEqual({ leftProject: expect.any(String) })
+  })
+
+  it('o card aberto se atualiza sozinho com o aviso dele — sem gravar outra leitura', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    const aberto = { Closure: null, InfoRequest: null, CanAskInfo: false, Contexts: [] }
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
+    dublê.atualizar.mockResolvedValue({
+      ...relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+      ...aberto,
+    })
+
+    montar('p-1', '/p/p-1/r-1')
+    const campo = await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+    await waitFor(() => expect(dublê.listarComentarios).toHaveBeenCalledTimes(1))
+
+    // O aviso de outro card nao mexe neste.
+    cardMudou('r-2', 's-1')
+    await act(() => new Promise((pronto) => setTimeout(pronto, 50)))
+    expect(dublê.atualizar).not.toHaveBeenCalled()
+
+    cardMudou('r-1', 's-2')
+
+    await waitFor(() => expect(campo.textContent).toContain('Pronto'))
+    expect(dublê.atualizar).toHaveBeenCalledWith('p-1', 'r-1')
+    expect(dublê.abrir).toHaveBeenCalledTimes(1)
+    // A conversa e a historia vem de novo junto.
+    await waitFor(() => expect(dublê.listarComentarios).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(dublê.historico.mock.calls.length).toBeGreaterThanOrEqual(2))
+
+    // Quem usa leitor de tela fica sabendo, dentro do card.
+    expect(within(screen.getByRole('dialog')).getByText('Este card foi atualizado.')).toBeTruthy()
+
+    // O aviso do proprio card nao rele as listas de escolha; o da configuracao, sim.
+    const listas = dublê.etiquetasDoProjeto.mock.calls.length
+    expect(listas).toBe(1)
+    avisar({ kind: 'project' })
+    await waitFor(() => expect(dublê.etiquetasDoProjeto.mock.calls.length).toBe(listas + 1))
+    await waitFor(() => expect(dublê.atualizar).toHaveBeenCalledTimes(2))
+  })
+
+  it('depois de comentar, a conversa continua chegando ao vivo — e o proprio comentario nao some', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    const aberto = { Closure: null, InfoRequest: null, CanAskInfo: false, Contexts: [] }
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
+    dublê.atualizar.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
+    const fala = (PublicId: string, Body: string) => ({
+      PublicId,
+      AuthorName: 'Alguém',
+      Body,
+      CreatedAt: '2026-09-14T12:00:00.000Z',
+    })
+    dublê.comentarInterno.mockResolvedValue(fala('c-meu', 'suspeito do cache'))
+
+    montar('p-1', '/p/p-1/r-1')
+    const interno = await screen.findByRole('textbox', { name: 'Entre o time' })
+    fireEvent.change(interno, { target: { value: 'suspeito do cache' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Comentar entre o time' }))
+    await screen.findByText('suspeito do cache')
+
+    // A releitura que o aviso pede foi feita antes do comentario gravar: traz so o
+    // de outra pessoa.
+    dublê.listarComentarios.mockResolvedValue({
+      Internal: [fala('c-outro', 'reproduzi no celular')],
+      Public: [],
+    })
+    cardMudou('r-1', 's-1')
+
+    expect(await screen.findByText('reproduzi no celular')).toBeTruthy()
+    expect(screen.getByText('suspeito do cache')).toBeTruthy()
+  })
+
+  it('a fala que chega ao vivo acima do campo em que a pessoa escreve nao tira o campo da tela', async () => {
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    const aberto = { Closure: null, InfoRequest: null, CanAskInfo: false, Contexts: [] }
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
+    dublê.atualizar.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
+    const rolar = vi.fn()
+    const original = HTMLElement.prototype.scrollIntoView
+    HTMLElement.prototype.scrollIntoView = rolar
+
+    try {
+      montar('p-1', '/p/p-1/r-1')
+      const campo = await screen.findByRole('textbox', { name: 'Entre o time' })
+      campo.focus()
+      fireEvent.change(campo, { target: { value: 'escrevendo...' } })
+      rolar.mockClear()
+
+      dublê.listarComentarios.mockResolvedValue({
+        Internal: [
+          {
+            PublicId: 'c-outro',
+            AuthorName: 'Alguém',
+            Body: 'reproduzi no celular',
+            CreatedAt: '2026-09-14T12:00:00.000Z',
+          },
+        ],
+        Public: [],
+      })
+      cardMudou('r-1', 's-1')
+
+      await screen.findByText('reproduzi no celular')
+      expect(rolar).toHaveBeenCalledWith({ block: 'nearest' })
+      expect(rolar.mock.contexts.at(-1)).toBe(campo)
+      expect((campo as HTMLTextAreaElement).value).toBe('escrevendo...')
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original
+    }
+  })
+
+  it('duas releituras do card aberto fora de ordem: a mais velha, chegando depois, nao vale', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    const aberto = { Closure: null, InfoRequest: null, CanAskInfo: false, Contexts: [] }
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
+    let soltarVelha: () => void = () => {}
+    dublê.atualizar
+      .mockImplementationOnce(
+        () =>
+          new Promise((pronto) => {
+            soltarVelha = () => pronto({ ...relato('r-1', 'o botao some'), ...aberto })
+          }),
+      )
+      .mockResolvedValue({
+        ...relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+        ...aberto,
+      })
+
+    montar('p-1', '/p/p-1/r-1')
+    const campo = await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+
+    cardMudou('r-1', 's-1')
+    cardMudou('r-1', 's-2')
+    await waitFor(() => expect(campo.textContent).toContain('Pronto'))
+
+    await act(async () => soltarVelha())
+    await act(() => new Promise((pronto) => setTimeout(pronto, 20)))
+    expect(campo.textContent).toContain('Pronto')
+    expect(dublê.atualizar).toHaveBeenCalledTimes(2)
+  })
+
+  it('a releitura ao vivo que chega depois do proprio movimento nao volta o card para a coluna antiga', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    const aberto = { Closure: null, InfoRequest: null, CanAskInfo: false, Contexts: [] }
+    dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
+    dublê.mover.mockReset()
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
+    // A primeira releitura demora, e foi lida antes do movimento: ainda em Análise.
+    let soltarVelha: () => void = () => {}
+    dublê.atualizar
+      .mockImplementationOnce(
+        () =>
+          new Promise((pronto) => {
+            soltarVelha = () => pronto({ ...relato('r-1', 'o botao some'), ...aberto })
+          }),
+      )
+      .mockResolvedValue({
+        ...relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+        ...aberto,
+      })
+
+    montar('p-1', '/p/p-1/r-1')
+    const campo = await screen.findByRole('combobox', { name: 'Mover para a coluna' })
+
+    cardMudou('r-1', 's-1')
+    await waitFor(() => expect(dublê.atualizar).toHaveBeenCalledTimes(1))
+    await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
+    await waitFor(() => expect(campo.textContent).toContain('Pronto'))
+
+    await act(async () => soltarVelha())
+
+    // A velha nao vale; a tela le de novo, e fica em Pronto.
+    await waitFor(() => expect(dublê.atualizar).toHaveBeenCalledTimes(2))
+    await act(() => new Promise((pronto) => setTimeout(pronto, 20)))
+    expect(campo.textContent).toContain('Pronto')
   })
 })

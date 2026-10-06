@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ProjectLabelViewModel,
@@ -259,6 +259,39 @@ describe('os campos do card', () => {
     )
   })
 
+  it('a configuracao mudou: as listas sao lidas de novo; falhar ao reler deixa a que estava', async () => {
+    const campos = (configuracao: number) => (
+      <CardFields
+        projectPublicId="p-1"
+        reportPublicId="r-1"
+        card={card()}
+        aoMudar={vi.fn()}
+        configuracao={configuracao}
+      />
+    )
+    dublê.etiquetas.mockResolvedValue([pagamento])
+    const { rerender } = render(campos(0))
+    const campo = await screen.findByRole('textbox', { name: 'Adicionar etiqueta' })
+    await waitFor(() => expect(dublê.etiquetas).toHaveBeenCalledTimes(1))
+
+    // Outra pessoa criou "revenda".
+    dublê.etiquetas.mockResolvedValue([pagamento, revenda])
+    rerender(campos(1))
+    await waitFor(() => expect(dublê.etiquetas).toHaveBeenCalledTimes(2))
+    fireEvent.change(campo, { target: { value: 'rev' } })
+    expect(
+      await within(screen.getByRole('list', { name: 'Etiquetas para escolher' })).findByText(
+        'revenda',
+      ),
+    ).toBeTruthy()
+
+    dublê.etiquetas.mockRejectedValue(new Error('sem rede'))
+    rerender(campos(2))
+    await waitFor(() => expect(dublê.etiquetas).toHaveBeenCalledTimes(3))
+    await act(() => new Promise((pronto) => setTimeout(pronto, 20)))
+    expect(screen.queryByText(/Não deu para carregar tudo/)).toBeNull()
+  })
+
   it('etiquetar: a que existe entra pelo nome; tirar manda o conjunto sem ela', async () => {
     ecoarEtiquetas()
     montar(card({ Labels: [noCard('l-cel')] }))
@@ -450,6 +483,57 @@ describe('os campos do card', () => {
       expect(dublê.prazo).toHaveBeenCalledWith('p-1', 'r-1', { DueDate: '2026-03-20' }),
     )
     expect(dublê.prazo).toHaveBeenCalledTimes(1)
+  })
+
+  it('o prazo que outra pessoa mudou nao apaga o que esta sendo digitado; fora da digitacao, vale o novo', async () => {
+    ecoarPrazo()
+    const campos = (DueDate: string) => (
+      <CardFields
+        projectPublicId="p-1"
+        reportPublicId="r-1"
+        card={card({ DueDate })}
+        aoMudar={vi.fn()}
+      />
+    )
+    const { rerender } = render(campos('2026-03-15'))
+    const campo = screen.getByLabelText('Prazo') as HTMLInputElement
+
+    fireEvent.keyDown(campo, { key: '2' })
+    fireEvent.change(campo, { target: { value: '2026-03-20' } })
+    // Chega pelo tempo real o prazo que outra pessoa gravou.
+    rerender(campos('2026-04-01'))
+    expect(campo.value).toBe('2026-03-20')
+
+    fireEvent.blur(campo)
+    await waitFor(() =>
+      expect(dublê.prazo).toHaveBeenCalledWith('p-1', 'r-1', { DueDate: '2026-03-20' }),
+    )
+
+    rerender(campos('2026-05-05'))
+    expect(campo.value).toBe('2026-05-05')
+  })
+
+  it('so andar pelo campo, sem mudar a data, e sair nao grava por cima do prazo que outra pessoa pos', async () => {
+    ecoarPrazo()
+    const campos = (DueDate: string) => (
+      <CardFields
+        projectPublicId="p-1"
+        reportPublicId="r-1"
+        card={card({ DueDate })}
+        aoMudar={vi.fn()}
+      />
+    )
+    const { rerender } = render(campos('2026-03-15'))
+    const campo = screen.getByLabelText('Prazo') as HTMLInputElement
+
+    // As setas andam entre dia, mes e ano; nada muda.
+    fireEvent.keyDown(campo, { key: 'ArrowRight' })
+    fireEvent.keyDown(campo, { key: 'ArrowLeft' })
+    rerender(campos('2026-04-01'))
+
+    fireEvent.blur(campo)
+    await waitFor(() => expect(campo.value).toBe('2026-04-01'))
+    expect(dublê.prazo).not.toHaveBeenCalled()
   })
 
   it('prazo pela metade, ou fora de 2000 a 2100, nao vira pedido, e o campo volta ao que vale', () => {
