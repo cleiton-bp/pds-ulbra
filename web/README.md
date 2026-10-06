@@ -394,11 +394,22 @@ fica sem vermelho e sem amarelo. Quando nada passa, a tela diz isso, com "Limpar
 
 **Subtarefas.** O card aberto tem a seção Subtarefas (`CardSubtasks`): o progresso, a lista na
 ordem em que nasceram — lida com `parent`, e só quando o contador da frente diz que há alguma — e o
-campo de criar, que manda o pai. A subtarefa nasce na primeira coluna e sem responsável, como no
-Jira, entra no quadro e na lista na hora, e o pai é relido sem gravar leitura. Um nível só: a
+campo de criar, que manda o pai. A subtarefa nasce na primeira coluna e sem responsável, entra no
+quadro e na lista na hora, e o pai é relido sem gravar leitura. Um nível só: a
 subtarefa aberta se chama Subtarefa e mostra o pai (`ParentLink`), sem a seção. Na frente do card e
 na linha da tabela, a subtarefa mostra o pai (`ParentLine`) e o pai mostra o progresso
 (`SubtaskProgress`), verde quando todas terminaram.
+
+**Vínculos.** O card aberto tem a seção Vínculos (`CardLinks`): os cards ligados, agrupados pelo
+tipo visto dele (duplicado de, duplicados deste, bloqueado por, bloqueia, relacionado a), com a
+coluna, o riscado de quem terminou e o "×" que desfaz — inclusive no card arquivado, que é o
+caminho de volta do duplicado. "+ Vincular" escolhe o tipo e acha o outro card pela busca da tela
+de Trabalho, sem o próprio card nem os já vinculados. Vincular e desfazer releem o card aberto sem
+gravar leitura: marcar este card como duplicado o leva para o arquivo. O bloqueado mostra
+`BlockedMark` ("Bloqueado por #12") na frente do card e na linha da tabela; o duplicado, no
+arquivo, mostra o original (`ParentLine` com `prefix`). O diálogo de encerrar o original avisa
+quantas pessoas a mais vão ler o motivo (`DuplicateReporters`), e o histórico conta cada vínculo
+com o número do outro card.
 
 **O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
 recarregar. A conexão (`realtimeService`, em `data/api/apiRealtimeService.ts`, com a biblioteca

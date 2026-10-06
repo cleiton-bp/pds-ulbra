@@ -1,7 +1,7 @@
 meta:
   title: O time trabalha o relato
   system: PDS — painel
-  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards — e que, como a lista e o card aberto, muda sozinho quando outra pessoa do time mexe. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards — e que, como a lista e o card aberto, muda sozinho quando outra pessoa do time mexe. E as subtarefas e os vínculos entre cards, com o relato duplicado acompanhando o original. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
 actors:
   - name: Membro do time
     description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
@@ -328,7 +328,7 @@ useCases:
     postconditions: "O que chega a uma coluna sem ser arrastado — o relato novo, o card novo, o movido pelo card aberto, o reaberto por quem relatou (mude de coluna ou não) e o que ela tira do arquivo ao responder — entra no topo."
   - id: UC20
     name: Quebrar o card em subtarefas
-    description: "O membro quebra um relato ou um card do time em partes menores: cada subtarefa é um card do time filho dele, com coluna e responsável próprios, e o pai mostra quantas terminaram. Um nível só, como no Jira."
+    description: "O membro quebra um relato ou um card do time em partes menores: cada subtarefa é um card do time filho dele, com coluna e responsável próprios, e o pai mostra quantas terminaram. Um nível só."
     width: 220
     position: { x: 260, y: 1480 }
     preconditions: O card está aberto e fora do arquivo, e não é subtarefa.
@@ -362,6 +362,31 @@ useCases:
         steps:
           - Entram só os cards com prazo antes de hoje que ainda não terminaram — o relato encerrado e o card na última coluna não entram, e o prazo deles não fica vermelho.
     postconditions: Os filtros ficam lembrados enquanto a aba estiver aberta, só naquele projeto.
+  - id: UC21
+    name: Vincular cards
+    description: "Liga dois cards do projeto: um bloqueia o outro, os dois estão relacionados, ou um é duplicado do outro — e o relato duplicado passa a acompanhar o original até o desfecho."
+    width: 220
+    position: { x: 260, y: 1640 }
+    preconditions: O card está aberto e fora do arquivo.
+    mainFlow:
+      - O membro escolhe o tipo do vínculo e acha o outro card pela busca, pelo número ou pelo título.
+      - O sistema grava o vínculo nos dois cards, cada um visto do seu lado, e a história de cada um conta.
+      - O card bloqueado passa a mostrar, no quadro e na lista, por quem está bloqueado — até o bloqueador terminar.
+    alternativeFlows:
+      - title: 1a. Duplicado de
+        steps:
+          - O duplicado vai para o arquivo. Se é relato, quem o escreveu passa a ver a etapa do original, e quando o original encerra recebe o mesmo desfecho e o mesmo motivo.
+          - Os duplicados do duplicado passam para o original.
+      - title: 1b. O original volta
+        steps:
+          - O time tira o original da coluna que encerra, ou quem relatou o original reabre — o encerramento que os duplicados receberam sai, e eles esperam o próximo.
+      - title: 1c. Quem relatou o duplicado reabre ou responde
+        steps:
+          - O card volta ao quadro, e o vínculo vira "relacionado a".
+      - title: 2a. Desfazer
+        steps:
+          - O vínculo some dos dois cards; o duplicado volta do arquivo, com as subtarefas que foram com ele.
+    postconditions: Bloquear só marca — mover continua livre. Nada do vínculo aparece para quem relatou além da etapa e do encerramento, que seguem o original.
 links:
   - from: Membro do time
     to: UC01
@@ -444,6 +469,9 @@ links:
   - from: Membro do time
     to: UC20
     kind: association
+  - from: Membro do time
+    to: UC21
+    kind: association
     note: quando o card é solto em outra coluna
 notes:
   - text: "Comentário interno e comentário público são campos separados, e não uma marcação: o interno não tem caminho nenhum até a página pública."
@@ -461,3 +489,6 @@ notes:
   - text: Arrumar o quadro não conta no histórico. A ordem é do time inteiro, mas a história do card é o que mudou nele — e não o lugar dele na fila.
     anchor: UC18
     position: { x: 900, y: 1320 }
+  - text: Três relatos do mesmo problema, um trabalho só, e três pessoas com retorno. O duplicado segue o original, mas a resposta de cada pessoa — confirmar, avaliar, reabrir — continua sendo dela.
+    anchor: UC21
+    position: { x: 900, y: 1640 }
