@@ -88,6 +88,8 @@ export interface ReportListOptions {
   after?: string
   /** Os filtros da tela de Trabalho. Sem eles, ou vazios, a lista inteira. */
   filters?: ReportFilters
+  /** So as subtarefas deste card. */
+  parent?: string
 }
 
 /** Espelha o `ReportService` da API, do lado que exige sessao. */

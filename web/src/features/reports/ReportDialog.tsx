@@ -18,6 +18,7 @@ import {
   DetailsBox,
 } from '@/features/reports/CardDetailLayout'
 import { CardFields } from '@/features/reports/CardFields'
+import { CardSubtasks, ParentLink } from '@/features/reports/CardSubtasks'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
 import { StatusLozenge, statusTone } from '@/features/reports/cardLook'
@@ -70,6 +71,7 @@ export function ReportDialog({
   aoFechar,
   assinarAvisos,
   semAoVivo = null,
+  aoCriarSubtarefa,
 }: {
   projectPublicId: string
   reportPublicId: string
@@ -84,6 +86,8 @@ export function ReportDialog({
   assinarAvisos?: (ouvinte: WorkListener) => () => void
   /** Por que a tela esta sem atualizacao ao vivo, quando esta — dito tambem aqui dentro. */
   semAoVivo?: SemAoVivo
+  /** Uma subtarefa nasceu neste card: a lista e o quadro a poem na tela. */
+  aoCriarSubtarefa?: (subtarefa: ReportDetailViewModel) => void
 }) {
   const [detalhe, setDetalhe] = useState<ReportDetailViewModel | null>(null)
   const [failed, setFailed] = useState(false)
@@ -424,6 +428,26 @@ export function ReportDialog({
     })
   }, [assinarAvisos, reportPublicId])
 
+  /**
+   * As subtarefas do card aberto. A que nasce entra na tela de Trabalho, e o pai e
+   * relido sem gravar leitura — o progresso dele mudou, na frente do card tambem.
+   */
+  const subtarefas = (card: ReportSummaryViewModel) => (
+    <CardSubtasks
+      projectPublicId={projectPublicId}
+      card={card}
+      colunas={colunas}
+      versao={versao}
+      aoCriar={(nova) => {
+        aoCriarSubtarefa?.(nova)
+        projectReportService
+          .refreshReport(projectPublicId, reportPublicId)
+          .then(receber)
+          .catch(() => {})
+      }}
+    />
+  )
+
   /** A resposta de uma acao que devolve o card aberto: tudo na tela passa a ela. */
   function receber(aberto: ReportDetailViewModel) {
     acoes.current += 1
@@ -515,6 +539,8 @@ export function ReportDialog({
           aoMover={(statePublicId) => void mover(statePublicId)}
           aoSalvo={receber}
           aoComentar={() => setVersao((n) => n + 1)}
+          antes={atual.Parent ? <ParentLink parent={atual.Parent} /> : null}
+          depois={atual.Parent ? null : subtarefas(atual)}
         />
       )}
 
@@ -555,6 +581,8 @@ export function ReportDialog({
               {pedido && <Devolvido pedido={pedido} />}
 
               {fechamento && <Encerramento fechamento={fechamento} />}
+
+              {subtarefas(atual ?? report)}
             </>
           }
           lado={

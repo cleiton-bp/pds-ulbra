@@ -114,6 +114,9 @@ public record CreatedReportViewModel(
 /// prazo do card que terminou nao fica vermelho, e o filtro de vencidos o deixa de
 /// fora: atrasado e o que ainda nao acabou.
 /// </param>
+/// <param name="Parent">O pai, quando o card e subtarefa: o numero e o titulo dele.</param>
+/// <param name="SubtaskCount">Quantas subtarefas o card tem fora do arquivo.</param>
+/// <param name="SubtasksDone">Delas, quantas terminaram — o progresso do pai (2/5).</param>
 public record ReportSummaryViewModel(
     Guid PublicId,
     CardKindEnum Kind,
@@ -139,7 +142,16 @@ public record ReportSummaryViewModel(
     int CommentCount,
     int AttachmentCount,
     bool Closed,
-    bool Finished);
+    bool Finished,
+    CardParentViewModel? Parent,
+    int SubtaskCount,
+    int SubtasksDone);
+
+/// <summary>O pai de uma subtarefa.</summary>
+/// <param name="PublicId">O identificador do pai.</param>
+/// <param name="Number">O numero do pai (#42).</param>
+/// <param name="Headline">O titulo do pai: o do time, senao o de quem relatou, senao o comeco do texto.</param>
+public record CardParentViewModel(Guid PublicId, int Number, string Headline);
 
 /// <summary>
 /// Quem esta com o card.
@@ -417,6 +429,9 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <param name="AttachmentCount">Os anexos confirmados do card.</param>
 /// <param name="Closed">Se o relato tem um encerramento valendo — o mesmo que <c>Closure</c> nao nulo.</param>
 /// <param name="Finished">Se o card ja terminou — ver o resumo do card.</param>
+/// <param name="Parent">O pai, quando o card e subtarefa.</param>
+/// <param name="SubtaskCount">Quantas subtarefas o card tem fora do arquivo.</param>
+/// <param name="SubtasksDone">Delas, quantas terminaram.</param>
 /// <param name="ArchiveCloses">
 /// Arquivar este relato <b>encerra</b> junto — e por isso pede desfecho e motivo, o
 /// que quem relatou vai ler. Verdadeiro no relato aberto; falso no ja encerrado e
@@ -457,7 +472,10 @@ public record ReportDetailViewModel(
     int CommentCount,
     int AttachmentCount,
     bool Closed,
-    bool Finished);
+    bool Finished,
+    CardParentViewModel? Parent,
+    int SubtaskCount,
+    int SubtasksDone);
 
 
 /// <summary>

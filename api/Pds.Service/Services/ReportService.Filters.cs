@@ -37,9 +37,15 @@ public partial class ReportService
         var (prioridades, semPrioridade) = await ResolvePrioritiesAsync(project.Id, dto.Priority, cancellationToken);
         var (tipos, doTime) = ResolveTypes(dto.Type);
 
+        // As subtarefas de um card: o card tem de ser do projeto, como todo filtro.
+        long? pai = dto.Parent is Guid paiPublicId
+            ? (await _unitOfWork.Reports.FindParentAsync(project.Id, paiPublicId, cancellationToken))?.Id
+              ?? throw new KeyNotFoundException("Card nao encontrado neste projeto.")
+            : null;
+
         return new ReportCardFilter(
             pessoas, semResponsavel, etiquetas, prioridades, semPrioridade, tipos, doTime,
-            ResolveOverdue(dto.Due, dto.Today), ResolveSearch(dto.Q));
+            ResolveOverdue(dto.Due, dto.Today), ResolveSearch(dto.Q), pai);
     }
 
     private async Task<(IReadOnlyList<long> Pessoas, bool SemResponsavel)> ResolveAssigneesAsync(Project project, List<string>? valores, CancellationToken cancellationToken)

@@ -154,6 +154,9 @@ function relato(
     AttachmentCount: 0,
     Closed: false,
     Finished: false,
+    Parent: null,
+    SubtaskCount: 0,
+    SubtasksDone: 0,
     ...extra,
   }
 }

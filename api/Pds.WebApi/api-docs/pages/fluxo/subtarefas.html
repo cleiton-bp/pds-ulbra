@@ -1,0 +1,50 @@
+<h2>Subtarefas</h2>
+
+<p>O time quebra um card em partes menores: a <strong>subtarefa</strong> é um card do time filho de
+outro card — de um relato ou de outro card do time. Ela tem coluna, responsável, prioridade,
+etiquetas e prazo próprios, e anda no quadro como qualquer card, com o pai indicado na frente
+(<em>↳ #42 Título do pai</em>). O pai mostra o progresso: quantas subtarefas terminaram, de quantas
+(<em>2/5</em>).</p>
+
+<ul>
+  <li><strong>Um nível só</strong>, como no Jira: subtarefa não tem subtarefa.</li>
+  <li><strong>Nasce como no Jira</strong>: na primeira coluna ativa — o status inicial — e sem
+  responsável. A coluna não se escolhe ao criar.</li>
+  <li><strong>Terminou</strong> pela mesma regra do prazo: na última coluna ativa. O progresso conta
+  só as subtarefas fora do arquivo.</li>
+  <li><strong>Nunca mexe na etapa pública.</strong> A subtarefa é card do time, sem lado de fora, e
+  mover uma não mexe no pai: quem relatou só vê o relato andar quando o relato anda.</li>
+  <li><strong>Nasce dentro do pai, e fica dele</strong>: um card que já existe não vira subtarefa de
+  outro, e a subtarefa não troca de pai.</li>
+</ul>
+
+<h2>Criar e listar</h2>
+
+<p>A subtarefa nasce pela rota do card do time, com o pai:</p>
+
+<pre><code>POST /projects/2be49b28-.../reports
+{ "Title": "Testar no Safari", "Description": null, "ParentPublicId": "9f3e..." }</code></pre>
+
+<p>O pai tem de ser do projeto (404), estar fora do arquivo e não ser subtarefa (409). Mandar a
+coluna junto é recusado (400). As subtarefas de um card são a lista de sempre, com
+<code>parent</code>:</p>
+
+<pre><code>GET /projects/2be49b28-.../reports?parent=9f3e...&amp;pageSize=100</code></pre>
+
+<p>Todo card traz, na frente: <code>Parent</code> (o identificador, o número e o título do pai, na
+subtarefa), <code>SubtaskCount</code> e <code>SubtasksDone</code> (no pai).</p>
+
+<h2>O arquivo</h2>
+
+<p><strong>Arquivar o pai leva as subtarefas junto</strong>, com o mesmo instante em
+<code>archived_at</code>; desarquivar o pai traz de volta só as que têm esse instante — a subtarefa
+que já estava no arquivo antes fica lá. Enquanto o pai está no arquivo, a subtarefa não sai dele
+sozinha (409), e não nasce subtarefa nova: ficaria no quadro como filha de um card que ninguém vê.</p>
+
+<h2>No card aberto e ao vivo</h2>
+
+<p>O card aberto tem a seção <strong>Subtarefas</strong>: o progresso, a lista na ordem em que
+nasceram — com a coluna, o responsável e o visto de quem terminou — e o campo de criar. A subtarefa
+aberta se chama Subtarefa e mostra o pai, com o link para ele. A subtarefa criada entra no quadro e
+na lista na hora. Pelo tempo real, o aviso de uma subtarefa avisa o pai junto: o progresso dele
+mudou, e o pai aberto relê a lista.</p>

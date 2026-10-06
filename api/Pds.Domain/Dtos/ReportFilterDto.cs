@@ -27,4 +27,7 @@ public class ReportFilterDto
 
     /// <summary>A busca: no titulo, no texto, na descricao, no numero (<c>42</c> ou <c>#42</c>) e no protocolo.</summary>
     public string? Q { get; set; }
+
+    /// <summary>So as subtarefas deste card (o identificador dele).</summary>
+    public Guid? Parent { get; set; }
 }

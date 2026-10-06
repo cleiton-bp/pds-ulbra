@@ -1069,7 +1069,9 @@ public partial class ReportService : IReportService
 
         var titulo = RequireTitle(dto.Title);
         var descricao = NormalizeDescription(dto.Description);
-        var estado = await ResolveTeamCardStateAsync(project.Id, dto.StatePublicId, cancellationToken);
+        var pai = await ResolveParentAsync(project.Id, dto, cancellationToken);
+        // A subtarefa nasce no primeiro estado, como no Jira — e sem responsavel.
+        var estado = await ResolveTeamCardStateAsync(project.Id, pai is null ? dto.StatePublicId : null, cancellationToken);
         var autorId = _accountContext.UserId ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
 
         // Depois de tudo o que podia recusar: numero reservado para card recusado
@@ -1092,6 +1094,7 @@ public partial class ReportService : IReportService
             BoardRank = topo,
             StateChangedAt = DateTime.UtcNow,
             CreatedByUserId = autorId,
+            ParentReportId = pai?.Id,
             // O banco so aceita card do time pendente: e o que o mantem fora da
             // lista publica mesmo que alguem esqueca o filtro numa consulta.
             ModerationState = ReportModerationStateEnum.Pending,
@@ -1115,6 +1118,8 @@ public partial class ReportService : IReportService
                 state_id = estado?.PublicId,
                 state_name = estado?.Name,
                 description_length = descricao?.Length ?? 0,
+                parent_id = pai?.PublicId,
+                parent_number = pai?.Number,
             }),
         }, cancellationToken);
 
@@ -1187,6 +1192,31 @@ public partial class ReportService : IReportService
             await FaceOfAsync(card, cancellationToken));
     }
 
+    /// <summary>
+    /// O pai da subtarefa que vai nascer. Tem de ser do projeto, estar fora do arquivo e
+    /// nao ser subtarefa — um nivel so, como no Jira. Com pai, a coluna nao se escolhe:
+    /// a subtarefa nasce na primeira.
+    /// </summary>
+    private async Task<Report?> ResolveParentAsync(long projectId, CreateTeamCardDto dto, CancellationToken cancellationToken)
+    {
+        if (dto.ParentPublicId is not Guid paiPublicId)
+            return null;
+
+        if (dto.StatePublicId is not null)
+            throw new ArgumentException("A subtarefa nasce na primeira coluna, como no Jira: nao escolha a coluna.");
+
+        var pai = await _unitOfWork.Reports.FindParentAsync(projectId, paiPublicId, cancellationToken)
+                  ?? throw new KeyNotFoundException("O card pai nao foi encontrado neste projeto.");
+
+        if (pai.ParentReportId is not null)
+            throw new ConflictException("Subtarefa nao tem subtarefa: crie no card pai.");
+
+        if (pai.ArchivedAt is not null)
+            throw new ConflictException("O card pai esta arquivado. Desarquive antes de criar subtarefa.");
+
+        return pai;
+    }
+
     public async Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
@@ -1226,6 +1256,12 @@ public partial class ReportService : IReportService
         if (arquivar && relato && !AllowsReportArchiving(regras))
             throw new ForbiddenException("Este projeto nao arquiva relato. O caminho do relato e encerrar com desfecho.");
 
+        // A subtarefa nao volta sozinha enquanto o pai esta arquivado: ficaria no quadro
+        // como filha de um card que ninguem ve.
+        if (!arquivar && report.ParentReportId is long paiId
+            && (await _unitOfWork.Reports.GetByIdAsync(paiId, cancellationToken))?.ArchivedAt is not null)
+            throw new ConflictException("O card pai esta arquivado. Desarquive o pai, e as subtarefas que foram com ele voltam junto.");
+
         if (encerra)
         {
             if (dto.Outcome is null)
@@ -1244,22 +1280,37 @@ public partial class ReportService : IReportService
             await RegisterClosureAsync(project, report, dto.Outcome.Value, motivo, DateTime.UtcNow, cancellationToken);
         }
 
-        report.ArchivedAt = arquivar ? DateTime.UtcNow : null;
+        // **As subtarefas vao junto, e voltam junto** — com o mesmo instante no arquivo.
+        // E ele que separa, na volta, as que foram com o pai das que ja estavam la.
+        var agora = DateTime.UtcNow;
+        var subtarefas = await _unitOfWork.Reports.ListSubtasksArchivedAtAsync(
+            report.Id, arquivar ? null : report.ArchivedAt, cancellationToken);
+        report.ArchivedAt = arquivar ? agora : null;
 
-        await _unitOfWork.Events.AddAsync(new Event
+        foreach (var card in subtarefas.Prepend(report))
         {
-            AccountId = project.AccountId,
-            ProjectId = project.Id,
-            ReportId = report.Id,
-            UserId = _accountContext.UserId,
-            Type = arquivar ? EventTypeEnum.CardArchived : EventTypeEnum.CardUnarchived,
-            Source = EventSourceEnum.Panel,
-            Payload = JsonSerializer.Serialize(new { closed = encerra }),
-        }, cancellationToken);
+            if (!ReferenceEquals(card, report))
+                card.ArchivedAt = report.ArchivedAt;
+
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                ReportId = card.Id,
+                UserId = _accountContext.UserId,
+                Type = arquivar ? EventTypeEnum.CardArchived : EventTypeEnum.CardUnarchived,
+                Source = EventSourceEnum.Panel,
+                Payload = ReferenceEquals(card, report)
+                    ? JsonSerializer.Serialize(new { closed = encerra })
+                    : JsonSerializer.Serialize(new { closed = false, with_parent = report.Number }),
+            }, cancellationToken);
+        }
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
         await _notifier.CardChangedAsync(report.PublicId);
+        foreach (var subtarefa in subtarefas)
+            await _notifier.CardChangedAsync(subtarefa.PublicId);
 
         return await DetailOfAsync(report, regras, cancellationToken);
     }
@@ -2714,7 +2765,10 @@ public partial class ReportService : IReportService
         face.Comments,
         face.Attachments,
         face.Closed,
-        face.Finished);
+        face.Finished,
+        face.Parent is { } pai ? new CardParentViewModel(pai.PublicId, pai.Number, pai.Headline) : null,
+        face.Subtasks,
+        face.SubtasksDone);
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2831,7 +2885,10 @@ public partial class ReportService : IReportService
         face.Comments,
         face.Attachments,
         face.Closed,
-        face.Finished);
+        face.Finished,
+        face.Parent is { } pai ? new CardParentViewModel(pai.PublicId, pai.Number, pai.Headline) : null,
+        face.Subtasks,
+        face.SubtasksDone);
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem

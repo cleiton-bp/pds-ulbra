@@ -544,12 +544,17 @@ public class ReportsController : BaseController
     /// O título é obrigatório (até 200 caracteres, uma linha); a descrição é
     /// Markdown, opcional (até 10 000). Sem `StatePublicId`, nasce no primeiro estado
     /// ativo do projeto.
+    ///
+    /// **Com `ParentPublicId`, nasce como subtarefa** daquele card — um relato ou card
+    /// do time do projeto, fora do arquivo, que não seja subtarefa: um nível só, como
+    /// no Jira. Nasce no primeiro estado ativo e sem responsável; mandar a coluna junto
+    /// é recusado.
     /// </remarks>
     /// <response code="200">O card criado.</response>
-    /// <response code="400">Sem título, ou título ou descrição longos demais.</response>
+    /// <response code="400">Sem título, título ou descrição longos demais, ou a coluna mandada com o pai.</response>
     /// <response code="403">O projeto está arquivado.</response>
-    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
-    /// <response code="409">O estado escolhido está aposentado.</response>
+    /// <response code="404">Projeto, estado ou o card pai não existe no projeto, ou a pessoa não está no projeto.</response>
+    /// <response code="409">O estado escolhido está aposentado, ou o pai está arquivado ou é subtarefa.</response>
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
@@ -607,18 +612,24 @@ public class ReportsController : BaseController
     /// avaliação. Reabrir pelo link traz o relato de volta para a tela de Trabalho.
     /// O relato já encerrado e o card do time arquivam sem desfecho nem motivo.
     ///
+    /// **As subtarefas vão junto, e voltam junto**: arquivar o pai arquiva as que estão
+    /// fora do arquivo, no mesmo instante, e desarquivar traz de volta só as que têm
+    /// esse instante. Com o pai no arquivo, a subtarefa não sai dele sozinha (409).
+    ///
     /// Pedir o que já é verdade não é erro: devolve o card como está.
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
     /// <response code="400">Sem `Archived`; relato aberto sem desfecho ou motivo; ou desfecho e motivo onde não cabem.</response>
     /// <response code="403">O projeto não arquiva relato.</response>
     /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">Desarquivar a subtarefa com o pai ainda no arquivo.</response>
     [HttpPut("{reportPublicId:guid}/archive")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SetArchived(Guid publicId, Guid reportPublicId, [FromBody] ArchiveCardDto dto, CancellationToken cancellationToken)
     {
         try

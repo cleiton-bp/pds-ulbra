@@ -74,14 +74,28 @@ public sealed class HubWorkNotifier : IWorkNotifier
                     Project = report.Project.PublicId,
                     State = report.ProjectState == null ? (Guid?)null : report.ProjectState.PublicId,
                     report.ArchivedAt,
+                    // A subtarefa que muda muda o progresso do pai: ele e avisado junto.
+                    Pai = report.ParentReport == null || report.ParentReport.DeletedAt != null
+                        ? null
+                        : new
+                        {
+                            report.ParentReport.PublicId,
+                            State = report.ParentReport.ProjectState == null ? (Guid?)null : report.ParentReport.ProjectState.PublicId,
+                            report.ParentReport.ArchivedAt,
+                        },
                 })
                 .FirstOrDefaultAsync(ct);
 
             if (card is null)
                 return;
 
+            var origem = Origem();
             await MandarAoTimeAsync("card", reportPublicId, card.Project, "CardChanged",
-                new CardChangedNotice(card.Project, reportPublicId, card.State, card.ArchivedAt != null, Origem()), ct);
+                new CardChangedNotice(card.Project, reportPublicId, card.State, card.ArchivedAt != null, origem), ct);
+
+            if (card.Pai is { } pai)
+                await MandarAoTimeAsync("card", pai.PublicId, card.Project, "CardChanged",
+                    new CardChangedNotice(card.Project, pai.PublicId, pai.State, pai.ArchivedAt != null, origem), ct);
         });
 
     public Task ProjectChangedAsync(Guid projectPublicId)

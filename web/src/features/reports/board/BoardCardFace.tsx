@@ -3,8 +3,10 @@ import {
   CardTypeIcon,
   cardHeadline,
   MoreLabels,
+  ParentLine,
   PersonAvatar,
   PriorityIcon,
+  SubtaskProgress,
 } from '@/features/reports/cardLook'
 import { CardChip } from '@/shared/components/CardChip'
 import { DueChip } from '@/shared/components/DueChip'
@@ -53,6 +55,7 @@ export function BoardCardFace({
         lifted && 'rotate-2 shadow-lg ring-2 ring-accent',
       )}
     >
+      {card.Parent && <ParentLine parent={card.Parent} className="mb-1" />}
       <p
         className={cn(
           'line-clamp-3 break-words text-body leading-snug',
@@ -87,6 +90,7 @@ export function BoardCardFace({
             <span className="font-medium font-mono text-fg-muted">#{card.Number}</span>
           </span>
           {card.Priority && <PriorityIcon priority={card.Priority} />}
+          <SubtaskProgress card={card} />
           {card.CommentCount > 0 && (
             <Contador
               quantos={card.CommentCount}

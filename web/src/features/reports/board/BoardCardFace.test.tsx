@@ -40,12 +40,41 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     AttachmentCount: 0,
     Closed: false,
     Finished: false,
+    Parent: null,
+    SubtaskCount: 0,
+    SubtasksDone: 0,
     ...extra,
   }
 }
 
 describe('a frente do card', () => {
   afterEach(cleanup)
+
+  it('a subtarefa mostra o pai; o pai mostra o progresso, verde so com todas feitas', () => {
+    render(
+      <BoardCardFace
+        card={card({ Parent: { PublicId: 'p-9', Number: 7, Headline: 'Pagar no Safari' } })}
+        soonDays={2}
+      />,
+    )
+    expect(screen.getByText('#7')).toBeTruthy()
+    expect(screen.getByText('Pagar no Safari')).toBeTruthy()
+    expect(screen.getByText('Subtarefa de', { exact: false })).toBeTruthy()
+    cleanup()
+
+    render(<BoardCardFace card={card({ SubtaskCount: 5, SubtasksDone: 2 })} soonDays={2} />)
+    const parcial = screen.getByText('2/5')
+    expect(screen.getByText('2 de 5 subtarefas feitas')).toBeTruthy()
+    expect(parcial.parentElement?.className).not.toContain('chip-green')
+    cleanup()
+
+    render(<BoardCardFace card={card({ SubtaskCount: 3, SubtasksDone: 3 })} soonDays={2} />)
+    expect(screen.getByText('3/3').parentElement?.className).toContain('chip-green')
+    cleanup()
+
+    render(<BoardCardFace card={card()} soonDays={2} />)
+    expect(screen.queryByText(/subtarefa/)).toBeNull()
+  })
 
   it('numero, tipo e o titulo de quem relatou quando o time nao deu outro', () => {
     render(<BoardCardFace card={card()} soonDays={2} />)

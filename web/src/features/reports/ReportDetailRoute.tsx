@@ -1,5 +1,9 @@
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
-import type { ReportStateCountViewModel, ReportSummaryViewModel } from '@/contracts'
+import type {
+  ReportDetailViewModel,
+  ReportStateCountViewModel,
+  ReportSummaryViewModel,
+} from '@/contracts'
 import type { SemAoVivo } from '@/features/reports/LiveStatus'
 import { ReportDialog } from '@/features/reports/ReportDialog'
 import type { WorkListener } from '@/features/reports/useWorkRealtime'
@@ -17,6 +21,8 @@ export interface ReportListContext {
   assinarAvisos?: (ouvinte: WorkListener) => () => void
   /** Por que a tela esta sem atualizacao ao vivo, quando esta. */
   semAoVivo?: SemAoVivo
+  /** Uma subtarefa nasceu no card aberto: a lista e o quadro a poem na tela. */
+  aoCriarSubtarefa?: (subtarefa: ReportDetailViewModel) => void
 }
 
 /**
@@ -34,7 +40,7 @@ export interface ReportListContext {
  */
 export function ReportDetailRoute() {
   const { reportPublicId = '' } = useParams()
-  const { projectPublicId, reports, colunas, aoMudar, assinarAvisos, semAoVivo } =
+  const { projectPublicId, reports, colunas, aoMudar, assinarAvisos, semAoVivo, aoCriarSubtarefa } =
     useOutletContext<ReportListContext>()
   const navigate = useNavigate()
 
@@ -53,6 +59,7 @@ export function ReportDetailRoute() {
       aoMudar={aoMudar}
       assinarAvisos={assinarAvisos}
       semAoVivo={semAoVivo ?? null}
+      aoCriarSubtarefa={aoCriarSubtarefa}
       // `..` e a lista, com o recorte e a rolagem onde estavam. `replace` mantem
       // o botao voltar do navegador levando para antes de a lista abrir, e nao de
       // volta para o relato que a pessoa acabou de fechar.

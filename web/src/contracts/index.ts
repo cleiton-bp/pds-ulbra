@@ -115,6 +115,7 @@ export type {
   CardColor,
   CardKind,
   CardLabelViewModel,
+  CardParentViewModel,
   CardPriorityViewModel,
   CloseReportRequest,
   ConfirmReportRequest,

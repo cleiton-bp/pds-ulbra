@@ -5,9 +5,11 @@ import {
   CardTypeIcon,
   cardHeadline,
   MoreLabels,
+  ParentLine,
   PersonAvatar,
   PriorityIcon,
   StatusLozenge,
+  SubtaskProgress,
   statusTone,
 } from '@/features/reports/cardLook'
 import { useKeepFocus } from '@/features/reports/useKeepFocus'
@@ -153,6 +155,12 @@ function Linha({
         {/* O que perdeu a coluna propria na tela estreita vem embaixo do titulo: a
             coluna do card no celular, e o prazo vencido ou perto ate a tela larga. */}
         <span className="flex flex-wrap items-center gap-x-1.5">
+          {report.Parent && <ParentLine parent={report.Parent} className="mt-0.5 max-w-full" />}
+          {report.SubtaskCount > 0 && (
+            <span className="mt-0.5 text-caption">
+              <SubtaskProgress card={report} />
+            </span>
+          )}
           {report.StateName && (
             <span className="mt-1 flex sm:hidden">
               <StatusLozenge name={report.StateName} tone={tom} />
