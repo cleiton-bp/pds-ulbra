@@ -546,8 +546,8 @@ public class ReportsController : BaseController
     /// ativo do projeto.
     ///
     /// **Com `ParentPublicId`, nasce como subtarefa** daquele card — um relato ou card
-    /// do time do projeto, fora do arquivo, que não seja subtarefa: um nível só, como
-    /// no Jira. Nasce no primeiro estado ativo e sem responsável; mandar a coluna junto
+    /// do time do projeto, fora do arquivo, que não seja subtarefa: um nível só. Nasce
+    /// no primeiro estado ativo e sem responsável; mandar a coluna junto
     /// é recusado.
     /// </remarks>
     /// <response code="200">O card criado.</response>
@@ -616,6 +616,9 @@ public class ReportsController : BaseController
     /// fora do arquivo, no mesmo instante, e desarquivar traz de volta só as que têm
     /// esse instante. Com o pai no arquivo, a subtarefa não sai dele sozinha (409).
     ///
+    /// **Desarquivar o duplicado desfaz o vínculo** com o original: de volta ao quadro,
+    /// ele deixa de ser duplicado.
+    ///
     /// Pedir o que já é verdade não é erro: devolve o card como está.
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
@@ -636,6 +639,100 @@ public class ReportsController : BaseController
         {
             var card = await _reportService.SetArchivedAsync(publicId, reportPublicId, dto, cancellationToken);
             return Success(card, card.ArchivedAt is null ? "Card de volta ao Trabalho." : "Card arquivado.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Lista os vínculos do card.</summary>
+    /// <remarks>
+    /// Vistos do card pedido, na ordem em que foram feitos: `DuplicateOf` (este é
+    /// duplicado do outro), `DuplicatedBy`, `Blocks`, `BlockedBy` e `RelatesTo`. Cada um
+    /// traz o outro card com o número, o título, a coluna, se terminou e se está no
+    /// arquivo. Interno: nenhuma rota pública lê vínculo.
+    /// </remarks>
+    /// <response code="200">Os vínculos do card.</response>
+    /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
+    [HttpGet("{reportPublicId:guid}/links")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CardLinkViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListLinks(Guid publicId, Guid reportPublicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Success(await _reportService.ListLinksAsync(publicId, reportPublicId, cancellationToken));
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Vincula o card a outro do mesmo projeto.</summary>
+    /// <remarks>
+    /// `Type` é o vínculo visto deste card. **Um vínculo por par de cards**, em qualquer
+    /// direção: trocar o tipo é desfazer e vincular de novo. Os dois cards fora do
+    /// arquivo.
+    ///
+    /// **Bloquear só marca**: o bloqueado mostra "Bloqueado por #N" enquanto o
+    /// bloqueador não terminou (relato encerrado, ou card na última coluna) e não foi
+    /// para o arquivo. Mover continua livre.
+    ///
+    /// **Marcar como duplicado** (`DuplicateOf`, ou `DuplicatedBy` pelo original):
+    /// - o duplicado vai para o arquivo, com as subtarefas;
+    /// - o relato duplicado acompanha o original: a etapa pública dele segue a do
+    ///   original, e quando o original encerra ele recebe o mesmo desfecho e o mesmo
+    ///   motivo — se ainda não tiver encerramento. Se o original já encerrou, recebe na hora;
+    /// - os duplicados do duplicado passam para o original;
+    /// - relato só é duplicado de relato (409): é do original que quem relatou recebe o
+    ///   andamento e o desfecho. O card do time pode ser duplicado de qualquer card;
+    /// - o original não pode ser duplicado de outro card (409, com o original dele).
+    ///
+    /// Quem relatou o duplicado pode reabrir ou responder pela página: o card volta ao
+    /// quadro, e o vínculo vira `RelatesTo`.
+    /// </remarks>
+    /// <response code="200">Os vínculos do card, como ficaram.</response>
+    /// <response code="400">Sem tipo ou sem card; tipo desconhecido; o card com ele mesmo.</response>
+    /// <response code="404">Um dos cards, ou o projeto, não existe aqui; ou a pessoa não está no projeto.</response>
+    /// <response code="409">Card arquivado; os dois já vinculados; relato duplicado de card do time; original que já é duplicado.</response>
+    [HttpPost("{reportPublicId:guid}/links")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CardLinkViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Link(Guid publicId, Guid reportPublicId, [FromBody] CreateCardLinkDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Success(await _reportService.LinkAsync(publicId, reportPublicId, dto, cancellationToken), "Cards vinculados.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Desfaz um vínculo do card.</summary>
+    /// <remarks>
+    /// Vale pelos dois cards do vínculo, e mesmo com o duplicado no arquivo — é o
+    /// caminho de volta dele: **desfazer o duplicado traz o duplicado de volta ao
+    /// quadro**, com as subtarefas que foram com ele (a não ser que seja subtarefa de
+    /// um pai arquivado). O que o relato duplicado já recebeu do original — a etapa e o
+    /// encerramento — fica com ele.
+    /// </remarks>
+    /// <response code="200">Os vínculos do card, como ficaram.</response>
+    /// <response code="404">Card, vínculo ou projeto não existe aqui, ou a pessoa não está no projeto.</response>
+    [HttpDelete("{reportPublicId:guid}/links/{linkPublicId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CardLinkViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Unlink(Guid publicId, Guid reportPublicId, Guid linkPublicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Success(await _reportService.UnlinkAsync(publicId, reportPublicId, linkPublicId, cancellationToken), "Vínculo desfeito.");
         }
         catch (Exception exception)
         {

@@ -265,4 +265,14 @@ public enum EventTypeEnum
 
     /// <summary>Mudou o prazo. Datas, sem hora.</summary>
     CardDueDateChanged,
+
+    /// <summary>
+    /// Ganhou um vinculo com outro card. Um evento em cada card, com o tipo visto dele
+    /// (<c>duplicate_of</c>, <c>duplicated_by</c>, <c>blocks</c>, <c>blocked_by</c>,
+    /// <c>relates_to</c>) e o numero e o identificador do outro.
+    /// </summary>
+    CardLinked,
+
+    /// <summary>Perdeu um vinculo com outro card. A mesma carga do vinculo que saiu.</summary>
+    CardUnlinked,
 }

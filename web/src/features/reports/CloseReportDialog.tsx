@@ -37,6 +37,7 @@ export function CloseReportDialog({
   aoConfirmar,
   aoCancelar,
   arquivando = false,
+  maisLeitores = 0,
 }: {
   /**
    * O nome da coluna de destino, ou **nulo** quando o encerramento vem do botao e
@@ -52,6 +53,11 @@ export function CloseReportDialog({
    * Trabalho junto.
    */
   arquivando?: boolean
+  /**
+   * Quantos relatos duplicados deste recebem o mesmo desfecho e motivo: as pessoas a
+   * mais que vao ler o que se escreve aqui.
+   */
+  maisLeitores?: number
 }) {
   const [outcome, setOutcome] = useState<PublicOutcome>('Done')
   const [motivo, setMotivo] = useState('')
@@ -104,6 +110,14 @@ export function CloseReportDialog({
         }))}
         className="mb-4"
       />
+
+      {maisLeitores > 0 && (
+        <p className="mb-4 rounded-lg border border-border bg-surface-sunken px-3 py-2 text-detail text-fg leading-normal">
+          {maisLeitores === 1
+            ? 'Mais 1 pessoa vai ler este motivo: o relato duplicado deste recebe o mesmo desfecho.'
+            : `Mais ${maisLeitores} pessoas vão ler este motivo: os relatos duplicados deste recebem o mesmo desfecho.`}
+        </p>
+      )}
 
       <label htmlFor="motivo-do-encerramento" className="mb-1.5 block text-detail text-fg-muted">
         Por que acabou

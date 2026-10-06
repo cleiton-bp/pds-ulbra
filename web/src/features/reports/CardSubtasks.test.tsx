@@ -57,14 +57,17 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     Parent: null,
     SubtaskCount: 0,
     SubtasksDone: 0,
+    BlockedBy: [],
+    DuplicateOf: null,
+    DuplicateReporters: 0,
     ...extra,
   }
 }
 
-const filha = (Number: number, Title: string, Finished = false) =>
+const filha = (numero: number, Title: string, Finished = false) =>
   card({
-    PublicId: `f-${Number}`,
-    Number,
+    PublicId: `f-${numero}`,
+    Number: numero,
     Title,
     Finished,
     Parent: { PublicId: 'pai', Number: 10, Headline: 'x' },
@@ -145,7 +148,7 @@ describe('as subtarefas do card aberto', () => {
     expect(screen.queryByRole('textbox', { name: 'Criar subtarefa' })).toBeNull()
   })
 
-  it('o card aberto da subtarefa se chama Subtarefa, como no Jira', () => {
+  it('o card aberto da subtarefa se chama Subtarefa', () => {
     render(<CardDialogTitle card={filha(12, 'Trocar o botão')} />)
     expect(screen.getByText('Subtarefa')).toBeTruthy()
     cleanup()

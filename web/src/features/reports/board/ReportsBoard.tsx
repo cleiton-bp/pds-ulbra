@@ -479,6 +479,7 @@ export function ReportsBoard({
       {encerrando && (
         <CloseReportDialog
           coluna={porChave[encerrando.para]?.name ?? null}
+          maisLeitores={board.cards[encerrando.id]?.DuplicateReporters ?? 0}
           encerrando={salvandoEncerramento}
           aoConfirmar={(outcome, reason) => {
             setSalvandoEncerramento(true)

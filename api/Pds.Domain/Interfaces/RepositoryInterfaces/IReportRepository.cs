@@ -72,6 +72,9 @@ public interface IReportRepository : IBaseRepository<Report>
     /// </summary>
     Task<List<Report>> ListSubtasksArchivedAtAsync(long parentId, DateTime? archivedAt, CancellationToken cancellationToken = default);
 
+    /// <summary>Dos cards pedidos, os que ja terminaram — a mesma regra do prazo e do bloqueio.</summary>
+    Task<IReadOnlySet<long>> ListFinishedAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default);
+
     /// <summary>O card que vai ser pai de uma subtarefa, sem rastreio. Nulo quando nao e do projeto.</summary>
     Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default);
 

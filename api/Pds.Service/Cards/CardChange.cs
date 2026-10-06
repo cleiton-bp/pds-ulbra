@@ -12,8 +12,8 @@ namespace Pds.Service.Cards;
 /// a tabela so cresce e guarda eventos de versoes antigas, e um payload em outro
 /// formato faz a linha aparecer sem o detalhe, em vez de derrubar o historico.</para>
 /// </summary>
-/// <param name="From">O valor de antes: nome da prioridade, ou prazo (<c>aaaa-mm-dd</c>).</param>
-/// <param name="To">O valor de depois, do mesmo jeito.</param>
+/// <param name="From">O valor de antes: nome da prioridade, ou prazo (<c>aaaa-mm-dd</c>). No vinculo, o tipo visto deste card.</param>
+/// <param name="To">O valor de depois, do mesmo jeito. No vinculo, o numero do outro card.</param>
 /// <param name="FromPerson">Quem estava com o card, na mudanca de responsavel.</param>
 /// <param name="ToPerson">Quem ficou com o card.</param>
 /// <param name="Added">As etiquetas que entraram, com o nome da epoca.</param>
@@ -49,6 +49,14 @@ public sealed record CardChange(
                 EventTypeEnum.CardDueDateChanged => None with { From = Texto(raiz, "from"), To = Texto(raiz, "to") },
                 EventTypeEnum.CardAssigneeChanged => None with { FromPerson = Pessoa(raiz, "from_id"), ToPerson = Pessoa(raiz, "to_id") },
                 EventTypeEnum.CardLabelsChanged => None with { Added = Nomes(raiz, "added"), Removed = Nomes(raiz, "removed") },
+                // O tipo visto deste card, e o numero do outro (#42).
+                EventTypeEnum.CardLinked or EventTypeEnum.CardUnlinked => None with
+                {
+                    From = Texto(raiz, "type"),
+                    To = raiz.TryGetProperty("other", out var outro) && outro.ValueKind == JsonValueKind.Number && outro.TryGetInt32(out var numero)
+                        ? numero.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        : null,
+                },
                 EventTypeEnum.CardTitleChanged => None with
                 {
                     TitleRestored = raiz.TryGetProperty("restored", out var voltou) && voltou.ValueKind == JsonValueKind.True,

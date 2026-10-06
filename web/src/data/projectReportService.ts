@@ -1,7 +1,9 @@
 import type {
   ArchiveCardRequest,
   AskInfoRequest,
+  CardLinkViewModel,
   CloseReportRequest,
+  CreateCardLinkRequest,
   CreateCommentRequest,
   CreateTeamCardRequest,
   EditTeamCardRequest,
@@ -135,6 +137,26 @@ export interface ProjectReportService {
     reportPublicId: string,
     request: ArchiveCardRequest,
   ): Promise<ReportDetailViewModel>
+
+  /** Os vinculos do card, vistos dele, na ordem em que foram feitos. */
+  listLinks(publicId: string, reportPublicId: string): Promise<CardLinkViewModel[]>
+
+  /**
+   * Vincula o card a outro do projeto. Marcar como duplicado leva o duplicado para o
+   * arquivo; o relato duplicado passa a acompanhar o original. Devolve os vinculos.
+   */
+  link(
+    publicId: string,
+    reportPublicId: string,
+    request: CreateCardLinkRequest,
+  ): Promise<CardLinkViewModel[]>
+
+  /** Desfaz um vinculo. O duplicado volta do arquivo. Devolve os vinculos que ficaram. */
+  unlink(
+    publicId: string,
+    reportPublicId: string,
+    linkPublicId: string,
+  ): Promise<CardLinkViewModel[]>
 
   /**
    * O titulo do time num relato. Vazio volta ao que quem relatou escreveu — que

@@ -115,10 +115,14 @@ export type {
   CardColor,
   CardKind,
   CardLabelViewModel,
+  CardLinkCardViewModel,
+  CardLinkRelation,
+  CardLinkViewModel,
   CardParentViewModel,
   CardPriorityViewModel,
   CloseReportRequest,
   ConfirmReportRequest,
+  CreateCardLinkRequest,
   CreateCommentRequest,
   CreatedReportViewModel,
   CreateReportRequest,
@@ -170,6 +174,7 @@ export type {
 } from '@/contracts/report'
 export {
   CARD_COLORS,
+  CARD_LINK_RELATIONS,
   MAX_CARD_DESCRIPTION_LENGTH,
   MAX_CARD_TITLE_LENGTH,
   MAX_CLOSURE_REASON_LENGTH,

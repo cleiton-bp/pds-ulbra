@@ -1,0 +1,77 @@
+<h2>Vínculos e duplicados</h2>
+
+<p>O card aberto tem a seção <strong>Vínculos</strong>: os cards ligados a ele, agrupados pelo
+tipo visto dele — <em>Duplicado de</em>, <em>Duplicados deste</em>, <em>Bloqueado por</em>,
+<em>Bloqueia</em> e <em>Relacionado a</em> —, cada um com a coluna, o riscado de quem terminou e o
+link para abrir. <strong>+ Vincular</strong> escolhe o tipo e acha o outro card pela mesma busca da
+tela de Trabalho: número, título ou texto.</p>
+
+<ul>
+  <li><strong>Um vínculo por par de cards</strong>, em qualquer direção: trocar o tipo é desfazer e
+  vincular de novo.</li>
+  <li><strong>Os dois fora do arquivo</strong> para vincular. Desfazer vale sempre.</li>
+  <li><strong>Interno.</strong> Quem relatou nunca vê vínculo nenhum.</li>
+</ul>
+
+<h2>Bloqueia</h2>
+
+<p><strong>Só marca.</strong> O card bloqueado mostra, na frente do quadro e na linha da lista,
+<em>Bloqueado por #12</em> — com os números de quem o bloqueia e ainda não terminou. Mover
+continua livre: a marca avisa, e quem decide é o time. Quando o bloqueador termina — relato
+encerrado, ou card na última coluna, a mesma regra do prazo — ou vai para o arquivo, a marca sai,
+e o vínculo fica, riscado.</p>
+
+<h2>Duplicado de</h2>
+
+<p>Três pessoas relatam o mesmo problema: o time escolhe um dos relatos como o original e marca
+os outros dois como duplicados dele. <strong>Um trabalho só, e três pessoas com retorno.</strong></p>
+
+<ul>
+  <li><strong>O duplicado sai do quadro</strong>: vai para o arquivo, com as subtarefas. No
+  arquivo, a linha mostra <em>Duplicado de #N</em>.</li>
+  <li><strong>Quem relatou o duplicado acompanha o original</strong>: a etapa da página dele passa
+  a ser a do original, e anda com ela.</li>
+  <li><strong>O mesmo desfecho e o mesmo motivo</strong>: quando o original encerra — pelo botão,
+  pela coluna que encerra ou pelo arquivo —, cada relato duplicado que ainda espera recebe o
+  encerramento dele. O diálogo de encerrar o original avisa quantas pessoas a mais vão ler o
+  motivo.</li>
+  <li><strong>O original que volta leva os duplicados junto</strong>: se o time tira o original da
+  coluna que encerra, ou quem relatou o original reabre, o encerramento que os duplicados
+  receberam sai, e eles voltam a esperar o próximo. O já confirmado fica.</li>
+  <li><strong>Os duplicados do duplicado vão junto</strong>: marcar um original como duplicado de
+  outro passa os duplicados dele para o novo original.</li>
+  <li><strong>Relato só é duplicado de relato</strong>: é do original que quem relatou recebe o
+  andamento e o desfecho, e o card do time não tem nem um nem outro. O card do time pode ser
+  duplicado de qualquer card — e só vai para o arquivo.</li>
+  <li><strong>O original não é duplicado de ninguém</strong>: apontar para um duplicado é recusado,
+  com o número do original dele.</li>
+</ul>
+
+<h3>O caminho de volta</h3>
+
+<p><strong>Desfazer o vínculo traz o duplicado de volta ao quadro</strong>, com as subtarefas que
+foram com ele, e <strong>desarquivar o duplicado desfaz o vínculo</strong>. O que o relato já
+recebeu do original — a etapa e o encerramento — fica com ele.</p>
+
+<p><strong>Quem relatou o duplicado também decide.</strong> Se reabre — "comigo ainda acontece" —
+ou responde a uma pergunta do time, o card volta ao quadro e o vínculo vira <em>Relacionado a</em>:
+o caso dele passou a ser dele, e o time ainda vê de onde veio.</p>
+
+<h2>As rotas</h2>
+
+<pre><code>GET    /projects/2be49b28-.../reports/{card}/links
+POST   /projects/2be49b28-.../reports/{card}/links
+{ "Type": "DuplicateOf", "TargetPublicId": "9f3e..." }
+DELETE /projects/2be49b28-.../reports/{card}/links/{vinculo}</code></pre>
+
+<p><code>Type</code> é o vínculo visto do card da rota: <code>DuplicateOf</code>,
+<code>DuplicatedBy</code>, <code>Blocks</code>, <code>BlockedBy</code> ou <code>RelatesTo</code>. As
+três devolvem os vínculos do card como ficaram. Todo card traz, na frente: <code>BlockedBy</code>
+(os números de quem bloqueia e não terminou), <code>DuplicateOf</code> (o original) e
+<code>DuplicateReporters</code> (quantos relatos duplicados ainda esperam o desfecho).</p>
+
+<h2>O histórico e o tempo real</h2>
+
+<p>Cada vínculo grava um evento em cada card, com o tipo visto dele e o número do outro:
+<em>Bloqueado por #12</em> num, <em>Passou a bloquear #14</em> no outro. Desfazer grava a volta.
+Pelo tempo real, vincular e desfazer avisam os dois cards — e os duplicados que se mexeram junto.</p>

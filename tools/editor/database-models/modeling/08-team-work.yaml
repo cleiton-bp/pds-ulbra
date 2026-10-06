@@ -1476,6 +1476,47 @@ entities:
       - name: deleted_at
         type: datetime
         note: preenchido quando a etiqueta sai do card, ou quando ela é apagada
+  - name: card_links
+    label: Vínculos entre cards
+    description: "Liga dois cards do mesmo projeto: duplicado de, bloqueia ou relacionado a, um vínculo por par de cards. Interno. O duplicado vai para o arquivo e, quando é relato, segue a etapa e recebe o encerramento do original — gravados no próprio relato, e não lidos daqui."
+    position: { x: 4450, y: 800 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador do vínculo, o que se manda para desfazer
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: o projeto dos dois cards, repetido para o filtro de acesso não precisar de junção
+      - name: from_report_id
+        type: long
+        fk: true
+        required: true
+        note: o card de origem — o duplicado, o que bloqueia, ou quem vinculou o relacionado; um original por duplicado (índice único só para duplicate_of)
+      - name: to_report_id
+        type: long
+        fk: true
+        required: true
+        note: o card de destino — o original, o bloqueado, ou o relacionado; ninguém se vincula a si mesmo (trava no banco)
+      - name: type
+        type: enum
+        required: true
+        note: duplicate_of | blocks | relates_to, na direção de from para to; um vínculo por par na mesma direção (índice único), e em qualquer direção o serviço confere
+      - name: created_at
+        type: datetime
+        note: quando o vínculo foi feito, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC — o duplicado do duplicado passa para o novo original, e o duplicado que quem relatou reabre vira relates_to
+      - name: deleted_at
+        type: datetime
+        note: preenchido quando o vínculo é desfeito
 relations:
   - from: reports
     fromField: id
@@ -1771,6 +1812,24 @@ relations:
     toField: parent_report_id
     kind: one-to-many
     note: Um card tem várias subtarefas, e a subtarefa tem um pai só. Um nível — subtarefa não tem subtarefa —, e só o card do time é subtarefa.
+  - from: reports
+    fromField: id
+    to: card_links
+    toField: from_report_id
+    kind: one-to-many
+    note: O card de origem do vínculo. Restrict, como o pai — card não se apaga, e o vínculo não some debaixo dele.
+  - from: reports
+    fromField: id
+    to: card_links
+    toField: to_report_id
+    kind: one-to-many
+    note: O card de destino. Um original tem vários duplicados; um card é bloqueado por vários.
+  - from: projects
+    fromField: id
+    to: card_links
+    toField: project_id
+    kind: one-to-many
+    note: Os dois cards são do mesmo projeto, e o vínculo também.
   - from: projects
     fromField: id
     to: project_priorities

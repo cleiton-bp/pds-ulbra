@@ -63,6 +63,7 @@ public class DataContext : PdsBaseContext
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
     public DbSet<ReportLabel> ReportLabels { get; set; } = null!;
+    public DbSet<CardLink> CardLinks { get; set; } = null!;
     public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
     public DbSet<ReportPublicComment> ReportPublicComments { get; set; } = null!;
     public DbSet<ReportClosure> ReportClosures { get; set; } = null!;
@@ -258,6 +259,16 @@ public class DataContext : PdsBaseContext
                                     && link.Report.DeletedAt == null
                                     && link.ProjectLabel.DeletedAt == null
                                     && CurrentProjectIds.Contains(link.Report.ProjectId));
+
+        // Vinculo entre cards: o acesso pela coluna do projeto, como o relato, e some
+        // junto com qualquer um dos dois cards. Quem le sem sessao — a etapa que o
+        // duplicado segue, mudada pela pagina de acompanhamento ou pela fila — desliga
+        // este filtro e reescreve as condicoes a mao.
+        modelBuilder.Entity<CardLink>()
+            .HasQueryFilter(link => link.DeletedAt == null
+                                    && link.FromReport.DeletedAt == null
+                                    && link.ToReport.DeletedAt == null
+                                    && CurrentProjectIds.Contains(link.ProjectId));
 
         // Comentarios: chegam ao acesso pelo relato, como o contexto. Sao duas
         // entidades e dois filtros iguais, e nao uma com campo de visibilidade —

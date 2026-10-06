@@ -103,6 +103,9 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IReportLabelRepository? _reportLabels;
     public IReportLabelRepository ReportLabels => _reportLabels ??= new ReportLabelRepository(_context);
 
+    private ICardLinkRepository? _cardLinks;
+    public ICardLinkRepository CardLinks => _cardLinks ??= new CardLinkRepository(_context);
+
     private IReportInternalCommentRepository? _reportInternalComments;
 
     public IReportInternalCommentRepository ReportInternalComments

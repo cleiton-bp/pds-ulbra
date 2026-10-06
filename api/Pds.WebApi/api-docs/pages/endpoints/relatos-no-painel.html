@@ -11,8 +11,13 @@ primeiro.</p>
 (<code>Title</code>) e o que quem relatou escreveu (<code>ReporterTitle</code>). As rotas que mudam
 esses campos estão em <a href="#/endpoints/campos-do-card">Campos do card, prioridades e
 etiquetas</a>. E os números da frente do card no quadro: <code>CommentCount</code> (os comentários,
-internos e com quem relatou), <code>AttachmentCount</code> (os anexos confirmados) e
-<code>Closed</code> (se o relato já tem um encerramento valendo).</p>
+internos e com quem relatou), <code>AttachmentCount</code> (os anexos confirmados),
+<code>Closed</code> (se o relato já tem um encerramento valendo) e <code>Finished</code> (se o card
+já terminou: relato encerrado, ou card na última coluna). As
+<a href="#/fluxo/subtarefas">subtarefas</a> trazem <code>Parent</code>, <code>SubtaskCount</code> e
+<code>SubtasksDone</code>; os <a href="#/fluxo/vinculos">vínculos</a>, <code>BlockedBy</code> (os
+números de quem bloqueia e não terminou), <code>DuplicateOf</code> (o original do duplicado) e
+<code>DuplicateReporters</code> (quantos relatos duplicados ainda esperam o desfecho).</p>
 
 <div class="table-scroll">
 <table>
@@ -21,6 +26,9 @@ internos e com quem relatou), <code>AttachmentCount</code> (os anexos confirmado
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/reports</code></td><td>Cria um <strong>card do time</strong>: título (obrigatório, uma linha, até 200), descrição em Markdown (até 10 000) e a coluna em que nasce — sem ela, a primeira ativa. Ganha o próximo número do projeto. Projeto arquivado recusa (403). Com <code>ParentPublicId</code>, nasce como <strong>subtarefa</strong> daquele card, na primeira coluna e sem responsável — ver <a href="#/fluxo/subtarefas">Subtarefas</a>.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}</code></td><td>Grava o título e a descrição do card do time, inteiros. <strong>Relato é recusado</strong> (409): o texto dele é de quem relatou.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/archive</code></td><td>Arquiva (<code>Archived: true</code>) ou desarquiva. O relato só com a regra do ciclo ligada (senão 403), e o relato aberto <strong>encerra junto</strong>: pede <code>Outcome</code> e <code>Reason</code>, que quem relatou lê. Pedir o que já é verdade — a segunda aba, com ou sem motivo — devolve o card como está. Arquivar o pai leva as subtarefas, e desarquivar traz de volta as que foram com ele.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>.../reports/{reportPublicId}/links</code></td><td>Os vínculos do card, vistos dele, na ordem em que foram feitos: <code>DuplicateOf</code>, <code>DuplicatedBy</code>, <code>Blocks</code>, <code>BlockedBy</code> ou <code>RelatesTo</code>, cada um com o outro card — número, título, coluna, se terminou e se está no arquivo.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/links</code></td><td>Vincula o card a outro do projeto (<code>Type</code> e <code>TargetPublicId</code>). <strong>Um vínculo por par</strong>, os dois fora do arquivo (409). <strong>Marcar como duplicado leva o duplicado para o arquivo</strong>, e o relato duplicado acompanha o original — a etapa e o desfecho; relato só é duplicado de relato, e o original não pode ser duplicado (409). Ver <a href="#/fluxo/vinculos">Vínculos e duplicados</a>.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>.../reports/{reportPublicId}/links/{linkPublicId}</code></td><td>Desfaz o vínculo, pelos dois cards e mesmo no arquivo. <strong>O duplicado volta ao quadro</strong>, com as subtarefas que foram com ele.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/counts</code></td><td>Quantos relatos há em cada coluna, incluindo as vazias. Pergunta separada da lista de propósito. Com os mesmos filtros da lista, conta só o que passa neles.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a visualização</strong> — menos com <code>?refresh=true</code>, a releitura do card que já está aberto quando outra pessoa mexe nele (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/state</code></td><td>Move o relato de coluna. <strong>Grava o evento antes do cache</strong>, na mesma transação. <code>AfterPublicId</code> é o lugar na coluna nova: o card logo acima — sem ele, o topo, que é onde o card chega pelo seletor. O card de referência que já não está na coluna de destino recusa o pedido (409), e o próprio card como referência, 400. Para a coluna em que o card já está, nada muda — arrumar é a rota de baixo.</td></tr>
