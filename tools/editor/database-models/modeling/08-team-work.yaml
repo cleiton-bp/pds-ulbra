@@ -153,6 +153,10 @@ entities:
         type: long
         required: true
         note: coluna nova — o topo do quadro, o lugar do último card posto no topo de uma coluna — o que chega sem ser arrastado, ou o que foi solto no topo. Só desce, num comando só, no mesmo desenho do número (que sobe); o card que chega fica acima de tudo sem ninguém ler a coluna
+      - name: last_sprint_number
+        type: int
+        required: true
+        note: coluna nova — o último número de sprint dado no projeto, somado e lido num comando só, como o do card; a sprint apagada não devolve o número
       - name: deleted_at
         type: datetime
         note: nulo enquanto o projeto vale, preenchido no lugar de apagar
@@ -440,6 +444,17 @@ entities:
         type: long
         fk: true
         note: coluna nova — o card de que este é subtarefa; nulo no card que não é. Só o card do time é subtarefa, e ninguém é pai de si mesmo (duas travas no banco); um nível só, e o pai do mesmo projeto, o serviço confere. Arquivar o pai leva as subtarefas, com o mesmo instante em archived_at
+      - name: sprint_id
+        type: long
+        fk: true
+        note: coluna nova — a sprint do card; nula é o backlog. A subtarefa acompanha o pai (o serviço confere). Interno
+      - name: story_points
+        type: decimal
+        note: coluna nova — a estimativa em pontos, de 0 a 999 com meio ponto (trava no banco); a subtarefa não leva. Interno
+      - name: backlog_rank
+        type: long
+        required: true
+        note: coluna nova — o lugar no backlog e nas listas das sprints, o menor em cima, com a folga do quadro; nasce com o número vezes a folga, e o card novo entra no fim
       - name: board_rank
         type: long
         required: true
@@ -976,6 +991,14 @@ entities:
         type: int
         required: true
         note: coluna nova — faltando até quantos dias o prazo do card fica em destaque, no quadro e na lista. De fábrica 2; zero destaca só no próprio dia. Até 30. O vencido tem destaque próprio, sempre
+      - name: sprints_enabled
+        type: bool
+        required: true
+        note: coluna nova — o time trabalha em sprints; desligado de fábrica. Ligado, a tela de Trabalho ganha o Backlog, e o quadro mostra só a sprint em andamento. Desligar não apaga nada
+      - name: sprint_length_weeks
+        type: int
+        required: true
+        note: coluna nova — com quantas semanas a sprint nasce, de 1 a 4; de fábrica 2. A sprint planejada pode ter outras datas
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
@@ -1573,6 +1596,62 @@ entities:
       - name: deleted_at
         type: datetime
         note: exclusão lógica
+  - name: sprints
+    label: Sprints
+    description: "As sprints do projeto, com a sprint ligada no Ciclo: uma em andamento por vez — a que o quadro mostra —, as planejadas e as concluídas, que guardam o que terminou nelas. Interno."
+    position: { x: 4450, y: 2200 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador da sprint
+      - name: project_id
+        type: long
+        fk: true
+        required: true
+        note: o projeto; uma em andamento por projeto (índice único com state = active)
+      - name: number
+        type: int
+        required: true
+        note: o número da sprint no projeto (Sprint 3), único, de projects.last_sprint_number; a apagada não devolve
+      - name: name
+        type: string
+        required: true
+        note: até 60; de fábrica, Sprint e o número
+      - name: goal
+        type: string
+        note: o objetivo, opcional, até 500
+      - name: state
+        type: enum
+        required: true
+        note: planned | active | closed
+      - name: starts_on
+        type: date
+        required: true
+        note: o primeiro dia
+      - name: ends_on
+        type: date
+        required: true
+        note: o último dia, no primeiro ou depois (trava no banco); nasce com a duração padrão do projeto
+      - name: started_at
+        type: datetime
+        note: quando foi iniciada
+      - name: closed_at
+        type: datetime
+        note: quando foi concluída
+      - name: created_at
+        type: datetime
+        note: criação, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: a planejada apagada; os cards dela voltam ao backlog antes
 relations:
   - from: reports
     fromField: id
@@ -1886,6 +1965,18 @@ relations:
     toField: project_id
     kind: one-to-many
     note: Os dois cards são do mesmo projeto, e o vínculo também.
+  - from: projects
+    fromField: id
+    to: sprints
+    toField: project_id
+    kind: one-to-many
+    note: Uma em andamento por vez, e quantas planejadas o time quiser.
+  - from: sprints
+    fromField: id
+    to: reports
+    toField: sprint_id
+    kind: one-to-many
+    note: Os cards da sprint. Restrict — a sprint apagada devolve os cards ao backlog antes; a concluída guarda o que terminou nela.
   - from: users
     fromField: id
     to: notifications

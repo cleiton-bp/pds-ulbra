@@ -1,0 +1,20 @@
+<h2>Sprints</h2>
+<p class="lead">Com as sprints ligadas no Ciclo: planejar, iniciar, concluir e apagar — e o card na sprint e nos pontos.</p>
+
+<p>Todas são de membro: planejar é trabalho do time, como mover card, e as escritas levam
+<code>[MemberWrite]</code> com o motivo. Ligar as sprints é do administrador, no Ciclo
+(<code>SprintsEnabled</code>). Ver <a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/sprints</code></td><td>As sprints que não fecharam: a em andamento primeiro, depois as planejadas, cada uma com os cards (sem as subtarefas e o arquivo), os que terminaram e os pontos, planejados e feitos.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/sprints</code></td><td>Cria uma sprint planejada. Sem nome, ela se chama Sprint e o número; sem datas, começa logo depois da última que não fechou (ou hoje) e dura o padrão do projeto. Sem as sprints ligadas, 409.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../sprints/{sprintPublicId}</code></td><td>Nome, objetivo e datas, inteiros; o objetivo vazio apaga. A sprint fechada não muda (409).</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../sprints/{sprintPublicId}/start</code></td><td>Inicia uma planejada — <strong>uma em andamento por vez</strong> (409 com outra). O corpo é opcional: o nome, o objetivo e as datas que vierem valem para a sprint que começa. A partir daqui, o quadro mostra só ela.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../sprints/{sprintPublicId}/close</code></td><td>Conclui a em andamento. <code>Destination</code>: <code>Backlog</code>, <code>Sprint</code> (uma planejada, em <code>SprintPublicId</code>) ou <code>NewSprint</code> (uma planejada que nasce agora). O que não terminou vai para o fim da lista de destino, com as subtarefas; o que terminou fica na sprint concluída. A resposta traz os números de quando fechou e quantos foram.</td></tr>
+  <tr><td><span class="verb delete">DELETE</span></td><td><code>.../sprints/{sprintPublicId}</code></td><td>Apaga uma planejada; os cards dela voltam para o fim do backlog. A em andamento se conclui, e a concluída fica (409).</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/sprint</code></td><td>Põe o card numa sprint (<code>SprintPublicId</code>; nulo é o backlog) e no lugar da lista: logo abaixo de <code>AfterPublicId</code>, ou no topo (<code>Top</code>), ou no fim. A mesma lista arruma a ordem, que é do time inteiro. <strong>A subtarefa vai com o pai</strong> (409 se for movida sozinha), e a sprint concluída não recebe card (409).</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/points</code></td><td>A estimativa, de 0 a 999, de meio em meio ponto; nulo tira. Nunca na subtarefa (409).</td></tr>
+</table>
+</div>

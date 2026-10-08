@@ -81,15 +81,18 @@ administrador</strong> —, com quatro exceções:</p>
   <li><strong>Criar etiqueta</strong> também é de membro, embora more em <code>/labels</code>: o
   time cria a etiqueta ao etiquetar um card. Mudar e apagar etiqueta, e tudo que grava em
   <code>/priorities</code>, é de administrador.</li>
+  <li><strong>As sprints</strong> também são de membro, embora morem em <code>/sprints</code>:
+  planejar, iniciar, concluir e apagar sprint é trabalho do time, como mover card. Ligar as
+  sprints é configuração — está no Ciclo, e é de administrador.</li>
 </ul>
 
-<p>Das setenta e cinco rotas de projeto, quarenta valem para qualquer papel, e trinta e cinco
+<p>Das oitenta e três rotas de projeto, quarenta e oito valem para qualquer papel, e trinta e cinco
 pedem administrador:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Papel</th><th>Rotas</th></tr>
-  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação.</td></tr>
+  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação; e as sprints — criar, editar, iniciar, concluir e apagar.</td></tr>
   <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e regenerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar do time; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
 </table>
 </div>
@@ -129,7 +132,7 @@ public class ProjectOriginsController : BaseController
   "não encontrado". O que o esquecimento abriria é a configuração para quem é só membro, e, se
   depender de lembrar, um dia alguém esquece.</p>
   <p><strong>A escrita de membro fora de <code>/reports</code> é declarada, e não esquecida.</strong>
-  Criar etiqueta é a única: a ação leva <code>[MemberWrite]</code>, com o motivo escrito ao lado — e a
+  Criar etiqueta e as escritas das sprints: cada ação leva <code>[MemberWrite]</code>, com o motivo escrito ao lado — e a
   regra aceita só a ação que declara, ela mesma, que é trabalho do time. Tirar a marca faz a API
   voltar a não subir.</p>
 </div>
