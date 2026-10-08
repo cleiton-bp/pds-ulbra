@@ -160,14 +160,18 @@ function Linha({
       )}
     >
       {selecao && (
-        <td className="w-8 py-2 pl-3">
-          <input
-            type="checkbox"
-            aria-label={`Selecionar #${report.Number}`}
-            checked={selecao.marcados.has(report.PublicId)}
-            onChange={(evento) => selecao.definir([report.PublicId], evento.target.checked)}
-            className="size-4 cursor-pointer accent-accent"
-          />
+        // A celula inteira marca: a caixa sozinha e pequena, e o clique ao lado dela abria
+        // o card. A linha ignora o clique no `label`.
+        <td className="w-8 p-0">
+          <label className="flex cursor-pointer items-center py-2.5 pr-1 pl-3">
+            <input
+              type="checkbox"
+              aria-label={`Selecionar #${report.Number}: ${titulo.text}`}
+              checked={selecao.marcados.has(report.PublicId)}
+              onChange={(evento) => selecao.definir([report.PublicId], evento.target.checked)}
+              className="size-4 cursor-pointer accent-accent"
+            />
+          </label>
         </td>
       )}
       {/* A faixa do destaque mora na primeira celula: o fundo sozinho quase nao se ve,

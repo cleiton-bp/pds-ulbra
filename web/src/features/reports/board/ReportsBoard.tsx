@@ -210,7 +210,13 @@ export function ReportsBoard({
   const porChave = Object.fromEntries(columns.map((coluna) => [coluna.key, coluna]))
   /** A celula de um alvo do arraste: a propria, ou a do card. */
   const chaveDe = (celulas: BoardItems, id: string) => (id in celulas ? id : columnOf(celulas, id))
-  const recebe = (celula: string) => porChave[splitCell(celula).coluna]?.accepts === true
+  const recebe = (celula: string) => {
+    const { coluna, raia } = splitCell(celula)
+    return (
+      porChave[coluna]?.accepts === true &&
+      (raia === null || raias?.find((linha) => linha.key === raia)?.accepts !== false)
+    )
+  }
   const nomeDaRaia = (raia: string | null) =>
     raia === null ? '' : (raias?.find((linha) => linha.key === raia)?.name ?? '')
 
@@ -493,8 +499,11 @@ export function ReportsBoard({
               })
         board.update(mudado)
       } catch (falha) {
+        // **O movimento ja esta gravado** (e, na coluna que encerra, o encerramento):
+        // o card fica onde a API o pos, e so a raia volta. Devolver "falso" deixaria o
+        // dialogo do desfecho aberto, e o "Cancelar" dele desfaria na tela o que o
+        // servidor ja fez.
         toast.error(describeError(falha))
-        return false
       } finally {
         forcar(soltura.id, null)
       }
@@ -685,6 +694,7 @@ export function ReportsBoard({
                               celula={chave}
                               rotulo={`${coluna.name}, ${raia.name}`}
                               coluna={coluna}
+                              recebe={coluna.accepts && raia.accepts}
                               ids={celulasDaTela[chave] ?? []}
                               cards={board.cards}
                               // A coluna lendo: a espera aparece na primeira raia so.
@@ -947,6 +957,7 @@ function Celula({
   celula,
   rotulo,
   coluna,
+  recebe,
   ids,
   cards,
   carregando,
@@ -956,13 +967,15 @@ function Celula({
   celula: string
   rotulo: string
   coluna: BoardColumn
+  /** A coluna recebe, e a raia tambem. */
+  recebe: boolean
   ids: string[]
   cards: Record<string, ReportSummaryViewModel>
   carregando: boolean
   soonDays: number
   destacados: ReadonlySet<string>
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: celula, disabled: !coluna.accepts })
+  const { setNodeRef, isOver } = useDroppable({ id: celula, disabled: !recebe })
   return (
     <section
       ref={setNodeRef}
@@ -971,9 +984,14 @@ function Celula({
       className={cn(
         'flex flex-col rounded-lg border border-transparent bg-surface-sunken pt-1',
         LARGURA,
-        isOver && coluna.accepts && 'border-accent',
+        isOver && recebe && 'border-accent',
       )}
     >
+      {/* No celular, uma coluna por vez na tela: o nome dela em cada raia, para nao se
+          perder ao rolar. Na tela larga, o cabecalho de cima basta. */}
+      <p className="px-3 pt-1 text-caption text-fg-muted uppercase tracking-wide sm:hidden">
+        {coluna.name}
+      </p>
       <ListaDaCelula
         celula={celula}
         ids={ids}

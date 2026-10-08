@@ -115,6 +115,11 @@ export const NO_LANE = '-'
 export interface BoardLane {
   key: string
   name: string
+  /**
+   * Recebe card: soltar nela troca o campo. A prioridade aposentada e a pessoa que saiu
+   * do time aparecem — os cards delas estao la —, mas nao recebem: a API recusaria.
+   */
+  accepts: boolean
 }
 
 /** Separa a coluna da raia na chave da celula. Nao aparece em identificador nenhum. */
@@ -145,30 +150,51 @@ export function laneOfCard(
 }
 
 /**
- * As raias que aparecem: as que tem card no que ja foi lido, mais a raia "sem", por
- * ultimo e sempre — e soltando nela que se tira o responsavel, ou a prioridade. As
- * pessoas em ordem alfabetica, as prioridades da mais para a menos urgente (a ordem
- * do projeto, de tras para a frente).
+ * As raias que aparecem. **Por prioridade, todas as ativas do projeto**, da mais para a
+ * menos urgente (a ordem do projeto, de tras para a frente), com card ou nao: soltar na
+ * raia vazia e dar a prioridade. **Por responsavel, as pessoas com card**, em ordem
+ * alfabetica — o time inteiro encheria o quadro de faixas vazias. A aposentada e quem
+ * saiu do time aparecem se ainda tem card, sem receber. A raia "sem" vem por ultimo, e
+ * sempre: e soltando nela que se tira o campo.
  */
 export function boardLanes(
   cards: Pick<ReportSummaryViewModel, 'Assignee' | 'Priority'>[],
   por: Exclude<LaneBy, 'none'>,
-  prioridades: Pick<ProjectPriorityViewModel, 'PublicId' | 'Position'>[] | null,
+  prioridades:
+    | Pick<ProjectPriorityViewModel, 'PublicId' | 'Position' | 'Name' | 'IsActive'>[]
+    | null,
 ): BoardLane[] {
-  const vistas = new Map<string, string>()
+  const vistas = new Map<string, BoardLane>()
+  if (por === 'priority')
+    for (const prioridade of prioridades ?? [])
+      if (prioridade.IsActive)
+        vistas.set(prioridade.PublicId, {
+          key: prioridade.PublicId,
+          name: prioridade.Name,
+          accepts: true,
+        })
+
   for (const card of cards) {
     const chave = laneOfCard(card, por)
-    if (chave !== NO_LANE && !vistas.has(chave))
-      vistas.set(
-        chave,
-        por === 'assignee'
-          ? (card.Assignee?.Name ?? 'Pessoa sem nome')
-          : (card.Priority?.Name ?? ''),
-      )
+    if (chave === NO_LANE || vistas.has(chave)) continue
+    vistas.set(
+      chave,
+      por === 'assignee'
+        ? {
+            key: chave,
+            name: card.Assignee?.Name ?? 'Pessoa sem nome',
+            accepts: card.Assignee?.InTeam !== false,
+          }
+        : {
+            key: chave,
+            name: card.Priority?.Name ?? '',
+            accepts: card.Priority?.IsActive !== false,
+          },
+    )
   }
 
   const ordem = new Map(prioridades?.map((p) => [p.PublicId, p.Position]) ?? [])
-  const raias = [...vistas].map(([key, name]) => ({ key, name }))
+  const raias = [...vistas.values()]
   raias.sort((a, b) => {
     if (por === 'priority') {
       // A aposentada que nao vem na lista do projeto fica depois das que vem.
@@ -178,7 +204,11 @@ export function boardLanes(
     }
     return a.name.localeCompare(b.name, 'pt-BR')
   })
-  raias.push({ key: NO_LANE, name: por === 'assignee' ? 'Sem responsável' : 'Sem prioridade' })
+  raias.push({
+    key: NO_LANE,
+    name: por === 'assignee' ? 'Sem responsável' : 'Sem prioridade',
+    accepts: true,
+  })
   return raias
 }
 

@@ -21,7 +21,7 @@ import {
   projectPriorityService,
   projectReportService,
 } from '@/data'
-import { BulkActions } from '@/features/reports/BulkActions'
+import { BulkActions, BulkFailures, type Falha } from '@/features/reports/BulkActions'
 import { boardColumns, type LaneBy } from '@/features/reports/board/boardState'
 import { BoardSkeleton, ReportsBoard } from '@/features/reports/board/ReportsBoard'
 import { useBoard } from '@/features/reports/board/useBoard'
@@ -174,6 +174,10 @@ export function ReportsScreen() {
     setRecorteMarcado(recorteDaLista)
     setMarcados(new Set())
   }
+  /** O que nao mudou no ultimo lote, mostrado aqui: a barra pode ter saido da tela. */
+  const [falhasDoLote, setFalhasDoLote] = useState<{ mudaram: number; falhas: Falha[] } | null>(
+    null,
+  )
   const selecao = {
     marcados,
     definir: (ids: string[], marcar: boolean) =>
@@ -477,14 +481,24 @@ export function ReportsScreen() {
 
           {reports && reports.length > 0 && (
             <>
+              <ReportsTable
+                reports={reports}
+                colunas={contagens}
+                soonDays={destaque}
+                destacados={destacados}
+                selecao={arquivados ? undefined : selecao}
+              />
+
+              {/* Depois da tabela, presa embaixo da tela: marcar nao empurra as linhas. */}
               {!arquivados && reports.some((report) => marcados.has(report.PublicId)) && (
                 <BulkActions
                   projectPublicId={project.PublicId}
                   cards={reports.filter((report) => marcados.has(report.PublicId))}
                   colunas={contagens}
                   sprints={sprintsLigadas ? (sprints.sprints ?? []) : null}
-                  aoTerminar={() => {
-                    setMarcados(new Set())
+                  aoTerminar={(resultado) => {
+                    // A selecao fica: da para fazer outra mudanca nos mesmos cards.
+                    if (resultado.falhas.length > 0) setFalhasDoLote(resultado)
                     void releituraDaLista()
                     renovarContagens()
                     if (sprintsLigadas) {
@@ -495,13 +509,6 @@ export function ReportsScreen() {
                   aoLimpar={() => setMarcados(new Set())}
                 />
               )}
-              <ReportsTable
-                reports={reports}
-                colunas={contagens}
-                soonDays={destaque}
-                destacados={destacados}
-                selecao={arquivados ? undefined : selecao}
-              />
 
               <footer className="mt-3 flex items-center gap-3">
                 {hasMore && (
@@ -656,6 +663,14 @@ export function ReportsScreen() {
           },
         }}
       />
+
+      {falhasDoLote && (
+        <BulkFailures
+          mudaram={falhasDoLote.mudaram}
+          falhas={falhasDoLote.falhas}
+          aoFechar={() => setFalhasDoLote(null)}
+        />
+      )}
 
       {concluindo && sprints.ativa && (
         <CloseSprintDialog

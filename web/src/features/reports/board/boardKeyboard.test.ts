@@ -1,7 +1,7 @@
 import type { KeyboardCoordinateGetter } from '@dnd-kit/core'
 import { describe, expect, it, vi } from 'vitest'
 import { boardKeyboardCoordinates } from '@/features/reports/board/boardKeyboard'
-import type { BoardColumn, BoardItems } from '@/features/reports/board/boardState'
+import { type BoardColumn, type BoardItems, cellKey } from '@/features/reports/board/boardState'
 
 /**
  * O QUE ESTES TESTES TRAVAM: para onde as setas levam o card arrastado pelo teclado.
@@ -91,5 +91,63 @@ describe('as setas no quadro', () => {
     expect(resultado).toBeUndefined()
     expect(evento.preventDefault).not.toHaveBeenCalled()
     expect(tecla('ArrowDown', 'a1').evento.preventDefault).toHaveBeenCalled()
+  })
+})
+
+describe('as setas no quadro com raias', () => {
+  // Duas colunas (a, b) e tres raias (r1, r2, r3); a celula b/r2 vazia, e a raia r2
+  // recolhida em "a" (sem caixa na tela).
+  const A1 = cellKey('a', 'r1')
+  const A3 = cellKey('a', 'r3')
+  const B1 = cellKey('b', 'r1')
+  const B2 = cellKey('b', 'r2')
+  const B3 = cellKey('b', 'r3')
+  const itens: BoardItems = { [A1]: ['p', 'q'], [A3]: ['z'], [B1]: ['w'], [B2]: [], [B3]: [] }
+  const caixas = new Map<string, ReturnType<typeof rect>>([
+    [A1, rect(300, 90, 120)],
+    [A3, rect(300, 400, 80)],
+    [B1, rect(600, 90, 80)],
+    [B2, rect(600, 250, 60)],
+    [B3, rect(600, 400, 60)],
+    ['p', rect(300, 100)],
+    ['q', rect(300, 150, 60)],
+    ['z', rect(300, 410)],
+    ['w', rect(600, 100)],
+  ])
+  const getter = boardKeyboardCoordinates(
+    { current: [coluna('a'), coluna('b')] },
+    { current: itens },
+    { current: ['r1', 'r2', 'r3'] },
+  )
+  const seta = (code: string, ativo: string, sobre: string | null = ativo) =>
+    getter(
+      { code, preventDefault: vi.fn() } as unknown as KeyboardEvent,
+      {
+        active: ativo,
+        currentCoordinates: { x: 0, y: 0 },
+        context: {
+          active: { id: ativo },
+          over: sobre ? { id: sobre } : null,
+          collisionRect: rect(0, 0),
+          droppableRects: caixas,
+        },
+      } as never,
+    )
+
+  it('na ponta da celula, para baixo vai ao comeco da raia de baixo — pulando a recolhida', () => {
+    expect(seta('ArrowDown', 'q')).toEqual({ x: 300, y: 410 })
+    // Na raia de baixo vazia (b/r2), a propria celula.
+    expect(seta('ArrowDown', 'w')).toEqual({ x: 600, y: 250 })
+  })
+
+  it('para cima vai ao fim da raia de cima; na primeira raia, nao ha para onde subir', () => {
+    // O fim de a/r1 e q: a borda de baixo do card encosta na dele.
+    expect(seta('ArrowUp', 'z')).toEqual({ x: 300, y: 150 + 60 - 40 })
+    expect(seta('ArrowUp', 'p')).toBeUndefined()
+  })
+
+  it('para os lados, a mesma raia da proxima coluna', () => {
+    expect(seta('ArrowRight', 'z')).toEqual({ x: 600, y: 400 })
+    expect(seta('ArrowLeft', 'w')).toEqual({ x: 300, y: 90 })
   })
 })

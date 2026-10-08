@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useState } from 'react'
+import { type ReactNode, useCallback, useRef, useState } from 'react'
 import type {
   PublicOutcome,
   ReportStateCountViewModel,
@@ -21,7 +21,7 @@ import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 
 /** Um card que nao mudou no lote, e por que. */
-interface Falha {
+export interface Falha {
   card: ReportSummaryViewModel
   motivo: string
 }
@@ -35,10 +35,14 @@ type Passo = (card: ReportSummaryViewModel) => Promise<unknown> | null
  * as sprints ligadas, a sprint.
  *
  * **Card por card, pelas rotas de sempre**: as regras e as travas sao as de mexer num
- * card so, e um card recusado nao desfaz os outros. No fim, a barra diz quantos
- * mudaram, e um dialogo lista os que nao mudaram, com o porque. Um de cada vez, na
- * ordem da lista: a ordem em que chegam a sprint, ou ao topo da coluna, e a de quem
- * marcou.
+ * card so, e um card recusado nao desfaz os outros. No fim, uma mensagem diz o que
+ * mudou e em quantos, e a tela (`aoTerminar`) mostra o que nao mudou, com o porque —
+ * a barra pode sumir junto com os cards que sairam da lista. Um de cada vez, na ordem
+ * da lista: a ordem em que chegam a sprint, ou ao topo da coluna, e a de quem marcou.
+ *
+ * **A selecao fica** depois de cada mudanca: da para por o responsavel e depois a
+ * prioridade nos mesmos cards. Os botoes ficam na tela enquanto o lote anda — o foco
+ * nao cai para o comeco da pagina —, e um segundo pedido no meio e ignorado.
  *
  * **A coluna que encerra pergunta uma vez**: os relatos abertos da selecao encerram
  * todos com o mesmo desfecho e o mesmo motivo — e cada pessoa que relatou le o mesmo
@@ -58,12 +62,12 @@ export function BulkActions({
   colunas: ReportStateCountViewModel[] | null
   /** As sprints abertas, com as sprints ligadas; nulo sem elas. */
   sprints: SprintViewModel[] | null
-  /** O lote terminou: a tela rele o que mudou e limpa a selecao. */
-  aoTerminar: () => void
+  /** O lote terminou: a tela rele o que mudou e mostra o que nao mudou. */
+  aoTerminar: (resultado: { mudaram: number; falhas: Falha[] }) => void
   aoLimpar: () => void
 }) {
   const [andamento, setAndamento] = useState<{ feitos: number; total: number } | null>(null)
-  const [falhas, setFalhas] = useState<Falha[] | null>(null)
+  const ocupado = useRef(false)
   const [encerrar, setEncerrar] = useState<ReportStateCountViewModel | null>(null)
 
   const { data: time } = useAsyncResource(
@@ -78,8 +82,13 @@ export function BulkActions({
 
   const rodando = andamento !== null
 
-  /** Muda card por card, e conta. Os pulados entram na lista do que nao mudou. */
-  async function rodar(passo: Passo, pulados: Falha[] = []) {
+  /**
+   * Muda card por card, e conta. Os pulados entram na lista do que nao mudou.
+   * `descricao` e o que a mensagem do fim diz: "Responsavel: Ana".
+   */
+  async function rodar(descricao: string, passo: Passo, pulados: Falha[] = []) {
+    if (ocupado.current) return
+    ocupado.current = true
     const naoMudaram = [...pulados]
     const fila = cards.filter((card) => !pulados.some((pulado) => pulado.card === card))
     let mudaram = 0
@@ -97,10 +106,23 @@ export function BulkActions({
       setAndamento({ feitos: i + 1, total: fila.length })
     }
     setAndamento(null)
-    aoTerminar()
-    if (mudaram > 0) toast.done(mudaram === 1 ? '1 card mudou.' : `${mudaram} cards mudaram.`)
+    ocupado.current = false
+    if (mudaram > 0) toast.done(`${descricao} — ${mudaram === 1 ? '1 card' : `${mudaram} cards`}.`)
     else if (naoMudaram.length === 0) toast.done('Os cards já estavam assim.')
-    if (naoMudaram.length > 0) setFalhas(naoMudaram)
+    aoTerminar({ mudaram, falhas: naoMudaram })
+  }
+
+  /**
+   * As etiquetas sao gravadas inteiras: o card e lido na hora, e a mudanca vale sobre o
+   * que ele tem agora — e nao sobre a lista da tela, que pode estar velha. Sem isso, a
+   * etiqueta que outra pessoa pos no meio do lote sumia.
+   */
+  async function trocarEtiquetas(card: ReportSummaryViewModel, mudar: (ids: string[]) => string[]) {
+    const agora = await projectReportService.refreshReport(projectPublicId, card.PublicId)
+    const antes = agora.Labels.map((dele) => dele.PublicId)
+    const depois = [...new Set(mudar(antes))]
+    if (depois.length === antes.length && depois.every((id) => antes.includes(id))) return
+    await projectReportService.setLabels(projectPublicId, card.PublicId, { LabelPublicIds: depois })
   }
 
   function mover(
@@ -109,7 +131,7 @@ export function BulkActions({
   ) {
     const estado = coluna.StatePublicId
     if (estado === null) return
-    void rodar((card) =>
+    void rodar(`Mover para ${coluna.StateName ?? 'a coluna'}`, (card) =>
       card.StatePublicId === estado
         ? null
         : projectReportService.moveReport(projectPublicId, card.PublicId, {
@@ -135,19 +157,17 @@ export function BulkActions({
   )
 
   return (
+    // Presa embaixo da tela, depois da tabela: marcar a primeira caixa nao empurra as
+    // linhas — o proximo clique cai onde a pessoa mirou.
     <section
       aria-label="Ações em lote"
-      className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
+      className="sticky bottom-3 mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
     >
       <span className="mr-1 font-medium text-detail text-fg tabular-nums">
         {cards.length === 1 ? '1 selecionado' : `${cards.length} selecionados`}
       </span>
 
-      {rodando ? (
-        <span role="status" className="text-detail text-fg-muted tabular-nums">
-          Mudando {andamento.feitos} de {andamento.total}…
-        </span>
-      ) : (
+      {
         <>
           <Acao rotulo="Mover para">
             {ativas.map((coluna) => (
@@ -174,7 +194,7 @@ export function BulkActions({
               <DropdownItem
                 key={pessoa.UserPublicId}
                 onSelect={() =>
-                  void rodar((card) =>
+                  void rodar(`Responsável: ${pessoa.Name ?? 'Pessoa sem nome'}`, (card) =>
                     card.Assignee?.UserPublicId === pessoa.UserPublicId
                       ? null
                       : projectReportService.setAssignee(projectPublicId, card.PublicId, {
@@ -189,7 +209,7 @@ export function BulkActions({
             <DropdownItem
               quiet
               onSelect={() =>
-                void rodar((card) =>
+                void rodar('Sem responsável', (card) =>
                   card.Assignee === null
                     ? null
                     : projectReportService.setAssignee(projectPublicId, card.PublicId, {
@@ -207,7 +227,7 @@ export function BulkActions({
               <DropdownItem
                 key={prioridade.PublicId}
                 onSelect={() =>
-                  void rodar((card) =>
+                  void rodar(`Prioridade: ${prioridade.Name}`, (card) =>
                     card.Priority?.PublicId === prioridade.PublicId
                       ? null
                       : projectReportService.setPriority(projectPublicId, card.PublicId, {
@@ -222,7 +242,7 @@ export function BulkActions({
             <DropdownItem
               quiet
               onSelect={() =>
-                void rodar((card) =>
+                void rodar('Sem prioridade', (card) =>
                   card.Priority === null
                     ? null
                     : projectReportService.setPriority(projectPublicId, card.PublicId, {
@@ -247,15 +267,10 @@ export function BulkActions({
                 <DropdownItem
                   key={etiqueta.PublicId}
                   onSelect={() =>
-                    void rodar((card) =>
+                    void rodar(`Etiqueta ${etiqueta.Name} posta`, (card) =>
                       card.Labels.some((dele) => dele.PublicId === etiqueta.PublicId)
                         ? null
-                        : projectReportService.setLabels(projectPublicId, card.PublicId, {
-                            LabelPublicIds: [
-                              ...card.Labels.map((dele) => dele.PublicId),
-                              etiqueta.PublicId,
-                            ],
-                          }),
+                        : trocarEtiquetas(card, (ids) => [...ids, etiqueta.PublicId]),
                     )
                   }
                 >
@@ -271,13 +286,11 @@ export function BulkActions({
                 <DropdownItem
                   key={etiqueta.PublicId}
                   onSelect={() =>
-                    void rodar((card) =>
+                    void rodar(`Etiqueta ${etiqueta.Name} tirada`, (card) =>
                       card.Labels.some((dele) => dele.PublicId === etiqueta.PublicId)
-                        ? projectReportService.setLabels(projectPublicId, card.PublicId, {
-                            LabelPublicIds: card.Labels.map((dele) => dele.PublicId).filter(
-                              (id) => id !== etiqueta.PublicId,
-                            ),
-                          })
+                        ? trocarEtiquetas(card, (ids) =>
+                            ids.filter((id) => id !== etiqueta.PublicId),
+                          )
                         : null,
                     )
                   }
@@ -296,6 +309,7 @@ export function BulkActions({
                   key={sprint.PublicId ?? 'backlog'}
                   onSelect={() =>
                     void rodar(
+                      sprint.PublicId === null ? 'Para o backlog' : `Para a ${sprint.Name}`,
                       (card) =>
                         (card.Sprint?.PublicId ?? null) === sprint.PublicId
                           ? null
@@ -314,7 +328,12 @@ export function BulkActions({
             </Acao>
           )}
         </>
-      )}
+      }
+
+      {/* O andamento ao lado dos botoes, que ficam: o foco continua onde estava. */}
+      <span role="status" className="text-detail text-fg-muted tabular-nums">
+        {rodando ? `Mudando ${andamento.feitos} de ${andamento.total}…` : ''}
+      </span>
 
       <Button size="sm" variant="quiet" disabled={rodando} onClick={aoLimpar} className="ml-auto">
         Limpar seleção
@@ -334,33 +353,51 @@ export function BulkActions({
           aoCancelar={() => setEncerrar(null)}
         />
       )}
-
-      {falhas && (
-        <Modal
-          open
-          onOpenChange={(aberto) => {
-            if (!aberto) setFalhas(null)
-          }}
-          title={falhas.length === 1 ? '1 card não mudou' : `${falhas.length} cards não mudaram`}
-          description="Os outros mudaram. Estes ficaram como estavam:"
-          footer={
-            <Button variant="primary" onClick={() => setFalhas(null)}>
-              Entendi
-            </Button>
-          }
-        >
-          <ul className="flex max-h-80 flex-col gap-2 overflow-y-auto">
-            {falhas.map(({ card, motivo }) => (
-              <li key={card.PublicId} className="text-detail leading-snug">
-                <span className="font-medium font-mono text-fg-muted">#{card.Number}</span>{' '}
-                <span className="text-fg">{cardHeadline(card).text}</span>
-                <span className="block text-fg-muted">{motivo}</span>
-              </li>
-            ))}
-          </ul>
-        </Modal>
-      )}
     </section>
+  )
+}
+
+/**
+ * Os cards que nao mudaram no lote, com o porque. Mora na tela, e nao na barra: a barra
+ * some junto com os cards que sairam da lista, e o dialogo iria junto.
+ */
+export function BulkFailures({
+  mudaram,
+  falhas,
+  aoFechar,
+}: {
+  mudaram: number
+  falhas: Falha[]
+  aoFechar: () => void
+}) {
+  return (
+    <Modal
+      open
+      onOpenChange={(aberto) => {
+        if (!aberto) aoFechar()
+      }}
+      title={falhas.length === 1 ? '1 card não mudou' : `${falhas.length} cards não mudaram`}
+      description={
+        mudaram > 0
+          ? 'Os outros mudaram. Estes ficaram como estavam:'
+          : 'Estes ficaram como estavam:'
+      }
+      footer={
+        <Button variant="primary" onClick={aoFechar}>
+          Entendi
+        </Button>
+      }
+    >
+      <ul className="flex max-h-80 flex-col gap-2 overflow-y-auto">
+        {falhas.map(({ card, motivo }) => (
+          <li key={card.PublicId} className="text-detail leading-snug">
+            <span className="font-medium font-mono text-fg-muted">#{card.Number}</span>{' '}
+            <span className="text-fg">{cardHeadline(card).text}</span>
+            <span className="block text-fg-muted">{motivo}</span>
+          </li>
+        ))}
+      </ul>
+    </Modal>
   )
 }
 

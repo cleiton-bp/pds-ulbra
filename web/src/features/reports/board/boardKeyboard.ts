@@ -44,6 +44,7 @@ export function boardKeyboardCoordinates(
     const id = String(active.id)
     const aqui = columnOf(itens, id)
     if (aqui === undefined) return undefined
+    const { coluna: colunaAqui, raia } = splitCell(aqui)
 
     if (evento.code === 'ArrowUp' || evento.code === 'ArrowDown') {
       const ids = itens[aqui] ?? []
@@ -61,7 +62,6 @@ export function boardKeyboardCoordinates(
         : { x: rect.left, y: rect.top }
     }
 
-    const { coluna: colunaAqui, raia } = splitCell(aqui)
     const colunas = columns.current
     const ordem = colunas.map((coluna) => coluna.key)
     const passo = evento.code === 'ArrowRight' ? 1 : -1
