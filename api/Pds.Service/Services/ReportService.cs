@@ -1190,51 +1190,71 @@ public partial class ReportService : IReportService
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
-        var card = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
-            ?? throw new KeyNotFoundException("Card nao encontrado.");
+        // **A conferencia do `Base` e a gravacao, sob a trava dos campos do card.** Sem
+        // ela, duas pessoas que partiram do mesmo texto conferiam ao mesmo tempo, as
+        // duas passavam, e a segunda gravava por cima da primeira — justamente o que o
+        // `Base` existe para impedir. Com ela, a segunda espera a primeira gravar, le o
+        // texto novo e recebe o 409. A mesma trava das rotas de campo: o titulo pela
+        // rota de titulo tambem espera.
+        var card = await _unitOfWork.InTransactionAsync(async ct =>
+        {
+            await _unitOfWork.Reports.LockCardFieldsAsync(project.Id, reportPublicId, ct);
 
-        // O texto do relato e de quem relatou, e o que ela escreveu fica como ela
-        // escreveu.
-        if (card.Kind != CardKindEnum.Team)
-            throw new ConflictException("O texto do relato e de quem relatou: o time nao o reescreve.");
+            var atual = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, ct)
+                ?? throw new KeyNotFoundException("Card nao encontrado.");
 
-        EnsureNotArchived(card, "edita-lo");
+            // O texto do relato e de quem relatou, e o que ela escreveu fica como ela
+            // escreveu.
+            if (atual.Kind != CardKindEnum.Team)
+                throw new ConflictException("O texto do relato e de quem relatou: o time nao o reescreve.");
 
-        var titulo = RequireTitle(dto.Title);
-        var descricao = NormalizeDescription(dto.Description);
+            EnsureNotArchived(atual, "edita-lo");
 
-        var mudou = new List<string>();
-        if (card.Title != titulo)
-            mudou.Add("title");
-        if (card.Description != descricao)
-            mudou.Add("description");
+            // **De onde a edicao partiu.** Outra pessoa salvou o titulo ou a descricao
+            // enquanto esta escrevia: gravar por cima apagaria o texto dela em silencio. O
+            // texto, e nao a data do card — a data muda com a prioridade, a coluna, a
+            // etiqueta, e isso nao se perde.
+            if (dto.Base is not null && !MesmoTexto(atual, dto.Base))
+                throw new ConflictException("Outra pessoa salvou este card enquanto voce editava. Leia a versao nova antes de salvar.");
+
+            var titulo = RequireTitle(dto.Title);
+            var descricao = NormalizeDescription(dto.Description);
+
+            var mudou = new List<string>();
+            if (atual.Title != titulo)
+                mudou.Add("title");
+            if (atual.Description != descricao)
+                mudou.Add("description");
+
+            // Gravar o mesmo texto nao e edicao: o historico ganharia uma linha que nao
+            // diz nada.
+            if (mudou.Count > 0)
+            {
+                atual.Title = titulo;
+                atual.Description = descricao;
+
+                await _unitOfWork.Events.AddAsync(new Event
+                {
+                    AccountId = project.AccountId,
+                    ProjectId = project.Id,
+                    ReportId = atual.Id,
+                    UserId = _accountContext.UserId,
+                    Type = EventTypeEnum.TeamCardEdited,
+                    Source = EventSourceEnum.Panel,
+                    Payload = JsonSerializer.Serialize(new
+                    {
+                        fields = mudou,
+                        description_length = descricao?.Length ?? 0,
+                    }),
+                }, ct);
+
+                await _unitOfWork.CommitAsync(ct);
+            }
+
+            return atual;
+        }, cancellationToken);
 
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
-
-        // Gravar o mesmo texto nao e edicao: o historico ganharia uma linha que nao
-        // diz nada.
-        if (mudou.Count > 0)
-        {
-            card.Title = titulo;
-            card.Description = descricao;
-
-            await _unitOfWork.Events.AddAsync(new Event
-            {
-                AccountId = project.AccountId,
-                ProjectId = project.Id,
-                ReportId = card.Id,
-                UserId = _accountContext.UserId,
-                Type = EventTypeEnum.TeamCardEdited,
-                Source = EventSourceEnum.Panel,
-                Payload = JsonSerializer.Serialize(new
-                {
-                    fields = mudou,
-                    description_length = descricao?.Length ?? 0,
-                }),
-            }, cancellationToken);
-
-            await _unitOfWork.CommitAsync(cancellationToken);
-        }
 
         await _notifier.CardChangedAsync(card.PublicId);
 
@@ -1423,6 +1443,20 @@ public partial class ReportService : IReportService
             throw new ArgumentException($"A descricao pode ter ate {Report.MaxDescriptionLength} caracteres.");
 
         return descricao.Length == 0 ? null : descricao.Replace("\r\n", "\n");
+    }
+
+    /// <summary>
+    /// Se o card ainda tem o titulo e a descricao de onde a edicao partiu. A tela manda
+    /// o que leu da API, ja arrumado; o arrumar daqui e so o das bordas e da quebra de
+    /// linha, sem recusar o tamanho — quem conferiu o tamanho foi a gravacao anterior.
+    /// </summary>
+    private static bool MesmoTexto(Report card, TeamCardTextDto lido)
+    {
+        var titulo = (lido.Title ?? string.Empty).Trim();
+        var descricao = (lido.Description ?? string.Empty).Trim().Replace("\r\n", "\n");
+
+        return (card.Title ?? string.Empty) == titulo
+               && (card.Description ?? string.Empty) == descricao;
     }
 
     /// <summary>

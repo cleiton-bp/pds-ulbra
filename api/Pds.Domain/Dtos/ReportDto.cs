@@ -448,6 +448,28 @@ public class EditTeamCardDto
 
     /// <summary>A descricao, em Markdown. Vazia apaga.</summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// O titulo e a descricao <b>de onde a edicao partiu</b> — os que a tela leu ao
+    /// abrir o editor. Quando vem, e o card ja nao tem esse texto, a gravacao e
+    /// recusada com 409: outra pessoa salvou no meio, e gravar por cima apagaria o que
+    /// ela escreveu sem ninguem perceber. Sem ele, grava como sempre.
+    ///
+    /// <para><b>O texto, e nao a data de alteracao do card.</b> A data muda com qualquer
+    /// campo gravado no card — prioridade, coluna, prazo —, e quem so trocou a prioridade enquanto o
+    /// outro escrevia a descricao nao fez nada que se perca.</para>
+    /// </summary>
+    public TeamCardTextDto? Base { get; set; }
+}
+
+/// <summary>O titulo e a descricao de um card do time, como a tela os leu.</summary>
+public class TeamCardTextDto
+{
+    /// <summary>O titulo lido.</summary>
+    public string? Title { get; set; }
+
+    /// <summary>A descricao lida; nula ou vazia quando nao havia.</summary>
+    public string? Description { get; set; }
 }
 
 /// <summary>

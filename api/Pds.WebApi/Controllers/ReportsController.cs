@@ -606,11 +606,18 @@ public class ReportsController : BaseController
     /// <remarks>
     /// Os dois inteiros. **Relato é recusado** (409): o texto dele é de quem
     /// relatou. Arquivado também: editar pede desarquivar antes.
+    ///
+    /// **`Base` é o texto de onde a edição partiu** — o título e a descrição que a
+    /// tela leu ao abrir o editor. Se o card já não tem esse texto, outra pessoa
+    /// salvou no meio, e a gravação é recusada com 409 em vez de apagar o que ela
+    /// escreveu; a tela lê a versão nova e a pessoa decide. É o texto, e não a data
+    /// de alteração do card: trocar a prioridade ou a coluna no meio não é conflito.
+    /// Sem `Base`, grava como sempre.
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
     /// <response code="400">Sem título, ou título ou descrição longos demais.</response>
     /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
-    /// <response code="409">É um relato, ou o card está arquivado.</response>
+    /// <response code="409">É um relato, o card está arquivado, ou outra pessoa salvou o título ou a descrição depois de `Base`.</response>
     [HttpPut("{reportPublicId:guid}")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
