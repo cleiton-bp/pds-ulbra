@@ -84,6 +84,26 @@ há mais tempo seria esconder o relato que ninguém olhou.</p>
 algum: nenhuma das duas recebe card, e o card que sai delas só sai arrastado até uma coluna que
 recebe.</p>
 
+<h2>Raias</h2>
+
+<p>Na barra do quadro, <strong>Raias por responsável</strong> ou <strong>Raias por
+prioridade</strong> dividem o quadro em faixas — uma por pessoa, ou por prioridade —, com as
+colunas de sempre em cada faixa. Aparecem as raias que têm card, as pessoas em ordem alfabética e
+as prioridades da mais para a menos urgente; <em>Sem responsável</em> (ou <em>Sem prioridade</em>)
+vem por último, sempre. Cada raia recolhe. A escolha fica lembrada neste navegador, por projeto,
+como a vista: é preferência de quem olha.</p>
+
+<p><strong>Arrastar para outra raia troca o campo</strong>: soltar o card na raia da Ana passa o
+card para a Ana (<code>PUT .../assignee</code>); na de uma prioridade, muda a prioridade
+(<code>PUT .../priority</code>); em <em>Sem responsável</em>, tira. Na diagonal, a coluna e a raia
+mudam juntas — o movimento primeiro, o campo depois. Soltar entre dois cards da raia põe o card logo
+abaixo do de cima, na ordem da coluna inteira; na célula vazia, no topo da coluna. O campo que a API
+recusa deixa o card na coluna em que ficou, e de volta na raia do dado dele.</p>
+
+<p>A raia é um recorte do que o quadro já leu: cada coluna continua lida de cinquenta em cinquenta,
+e o <em>Mostrar mais</em> e o <em>Criar</em> de cada coluna ficam embaixo de todas as raias. No
+teclado, para cima e para baixo atravessam para a raia vizinha na ponta da célula.</p>
+
 <h2>Mouse, toque e teclado</h2>
 
 <p>O mouse pega depois de andar alguns pixels: o clique continua abrindo o card. No celular,

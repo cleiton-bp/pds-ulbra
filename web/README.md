@@ -80,6 +80,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 /projects/:publicId/reports ...... console — Trabalho: os relatos e os cards do time, em lista ou quadro
 /projects/:publicId/tool ......... console — como a ferramenta aparece no site
 /invite#t=... .................... o link do e-mail do convite — abrir e aceitar
+/profile ......................... o perfil da pessoa e o som dos avisos
 ```
 
 Dois níveis, como um console de nuvem. **Não existe rota `/login`**: quem abre
@@ -423,27 +424,35 @@ coluna manda a sprint em andamento ao `NewCardDialog`. O card aberto ganha Sprin
 (`PointsChip`). As sprints chegam à rota do card pelo contexto. Os dados em
 `data/sprintService.ts`.
 
-**Menções e o sino.** Na caixa "Entre o time", digitar "@" abre a lista do time
-(`MentionTextarea`, lida no primeiro "@"; setas, Enter ou Tab, e o Esc que fecha só a lista — ele é
-ouvido na janela, antes do diálogo). No campo fica "@Nome"; no envio, `encodeMentions` troca o
-"@Nome" que ficou no texto pela marca `@[Nome](identificador)`, e a leitura mostra a menção
-destacada (`CommentBody`). A caixa de quem relatou não menciona. O sino (`NotificationBell`, no topo
-do projeto e do hub) mostra o número de não lidos — `useUnreadCount` pergunta a cada troca de tela,
-ao voltar para a aba e a cada minuto com a aba à vista, e a resposta atrasada não passa por cima da
-de uma ação —, lê a lista ao abrir, leva ao card e marca como lido, e abre as preferências
-(`NotificationSettingsDialog`: o e-mail de responsável, e o aviso quando o servidor não manda
-e-mail). Os dados em `data/notificationService.ts`.
+**Raias.** No quadro, a escolha "Raias" (lembrada por projeto neste navegador, como a vista)
+agrupa por responsável ou por prioridade: `boardLanes` monta as raias do que já foi lido, e
+`boardCells` divide cada coluna em células (coluna × raia). O arraste passa a ser de célula em
+célula — `moveToCell` põe o card na ordem da coluna inteira, logo abaixo do de cima na célula —, e
+soltar em outra raia chama `setAssignee` ou `setPriority` depois do movimento (o card fica na raia
+nova, `forcadas`, até a API responder). `boardKeyboardCoordinates` atravessa para a raia vizinha na
+ponta da célula. O cabeçalho das colunas fica em cima, e o "Mostrar mais" e o "Criar" embaixo de
+todas as raias. Sem raias, o quadro monta o mesmo de antes.
 
-**Menções e o sino.** Na caixa "Entre o time", digitar "@" abre a lista do time
+**Ações em lote.** A lista ganha uma caixa por linha (`ReportsTable` com `selecao`) e, com cards
+marcados, a barra `BulkActions`: mover de coluna, responsável, prioridade, pôr ou tirar etiqueta e,
+com as sprints ligadas, a sprint. Card por card, pelas rotas de sempre, na ordem da lista; o que
+não mudou aparece num diálogo com o porquê. A coluna que encerra pede o desfecho uma vez
+(`CloseReportDialog` com `lote`). Trocar o filtro, a coluna, a vista ou o projeto desmarca tudo.
+
+**Menções, o sino e o som.** Na caixa "Entre o time", digitar "@" abre a lista do time
 (`MentionTextarea`, lida no primeiro "@"; setas, Enter ou Tab, e o Esc que fecha só a lista — ele é
 ouvido na janela, antes do diálogo). No campo fica "@Nome"; no envio, `encodeMentions` troca o
 "@Nome" que ficou no texto pela marca `@[Nome](identificador)`, e a leitura mostra a menção
 destacada (`CommentBody`). A caixa de quem relatou não menciona. O sino (`NotificationBell`, no topo
 do projeto e do hub) mostra o número de não lidos — `useUnreadCount` pergunta a cada troca de tela,
-ao voltar para a aba e a cada minuto com a aba à vista, e a resposta atrasada não passa por cima da
-de uma ação —, lê a lista ao abrir, leva ao card e marca como lido, e abre as preferências
-(`NotificationSettingsDialog`: o e-mail de responsável, e o aviso quando o servidor não manda
-e-mail). Os dados em `data/notificationService.ts`.
+ao voltar para a aba, a cada minuto com a aba à vista e, na tela de Trabalho, na hora em que o
+`NotificationArrived` chega pelo tempo real (`announceNotificationArrival`); a resposta atrasada não
+passa por cima da de uma ação —, lê a lista ao abrir, leva ao card e marca como lido. **Quando o
+número sobe, toca o som** do tipo do aviso mais novo, no volume da pessoa (`playNotificationSound`,
+em `features/notifications/sounds.ts`: os sons são notas geradas com Web Audio, sem arquivo). As
+preferências ficam no **Perfil** (`/profile`, `ProfileScreen`, no menu da pessoa e em "Preferências
+de aviso" no sino): um som para cada tipo de aviso, com "Ouvir", e o volume. Os dados em
+`data/notificationService.ts`.
 
 **O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
 recarregar. A conexão (`realtimeService`, em `data/api/apiRealtimeService.ts`, com a biblioteca

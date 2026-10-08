@@ -389,7 +389,7 @@ useCases:
     postconditions: Bloquear só marca — mover continua livre. Nada do vínculo aparece para quem relatou além da etapa e do encerramento, que seguem o original.
   - id: UC22
     name: Mencionar e ser avisado
-    description: "O membro chama alguém do time com @ no comentário entre o time, ou o escolhe como responsável; a pessoa é avisada no sino do painel — e, como responsável, também por e-mail, que ela pode desligar."
+    description: "O membro chama alguém do time com @ no comentário entre o time, ou o escolhe como responsável; a pessoa é avisada no sino do painel, com o som que ela escolheu para aquele tipo de aviso."
     width: 220
     position: { x: 600, y: 1640 }
     preconditions: O card está aberto.
@@ -400,14 +400,17 @@ useCases:
     alternativeFlows:
       - title: 1a. Escolhido como responsável
         steps:
-          - O aviso vai para o sino da pessoa, e o e-mail sai pela fila — se ela não desligou nas preferências de aviso.
+          - O aviso vai para o sino da pessoa, com o som da escolha como responsável.
+      - title: 2a. A pessoa está na tela de Trabalho
+        steps:
+          - O sino dela muda na hora, pelo tempo real, e toca o som que ela escolheu no Perfil para o tipo — ou nenhum, se escolheu "Sem som". Nas outras telas, em até um minuto.
       - title: 1b. A pessoa mencionou a si mesma, ou se escolheu
         steps:
           - Ninguém é avisado do que fez.
       - title: 3a. A pessoa saiu do time
         steps:
-          - Os avisos daquele projeto somem do sino dela, e o e-mail que ainda estava na fila não sai.
-    postconditions: A menção avisa só no sino. Nada disso aparece para quem relatou — a caixa dele nem oferece a lista do @.
+          - Os avisos daquele projeto somem do sino dela.
+    postconditions: Os avisos ficam no painel, sem e-mail. Nada disso aparece para quem relatou — a caixa dele nem oferece a lista do @.
   - id: UC23
     name: Planejar e trabalhar em sprints
     description: "Com as sprints ligadas no Ciclo, o time planeja no Backlog o que entra em cada sprint, estima em pontos, inicia uma — e o quadro passa a mostrar só ela — e, ao concluir, escolhe para onde vai o que não terminou."
@@ -437,6 +440,48 @@ useCases:
         steps:
           - O Backlog sai da tela e o quadro volta a mostrar tudo; nada é apagado, e religar devolve como estava.
     postconditions: A sprint concluída guarda o que terminou nela. Nada da sprint aparece para quem relatou.
+  - id: UC24
+    name: Agrupar o quadro em raias
+    description: "O membro divide o quadro em raias por responsável ou por prioridade, e passa um card para outra pessoa — ou outra prioridade — arrastando para a raia dela."
+    width: 220
+    position: { x: 600, y: 1960 }
+    preconditions: O quadro está aberto.
+    mainFlow:
+      - O membro escolhe "Raias por responsável" (ou "por prioridade") na barra do quadro.
+      - O sistema mostra uma raia por pessoa com card, em ordem alfabética, e "Sem responsável" por último, com as colunas de sempre em cada uma.
+      - O membro arrasta um card para a raia de outra pessoa; o sistema passa o card para ela, e a pessoa é avisada no sino.
+    alternativeFlows:
+      - title: 3a. Na diagonal
+        steps:
+          - O card muda de coluna e de responsável no mesmo movimento.
+      - title: 3b. Para "Sem responsável"
+        steps:
+          - O card fica sem responsável.
+      - title: 3c. O sistema recusa o campo
+        steps:
+          - O card fica na coluna em que foi solto e volta para a raia de antes, com o motivo na tela.
+    postconditions: A escolha das raias fica lembrada neste navegador, por projeto. Cada pessoa do time vê o quadro como preferir.
+  - id: UC25
+    name: Mudar vários cards de uma vez
+    description: "Na lista, o membro marca vários cards e, de uma vez, os move de coluna, escolhe o responsável ou a prioridade, põe ou tira uma etiqueta, ou os leva para uma sprint."
+    width: 220
+    position: { x: 260, y: 1960 }
+    preconditions: A lista da tela de Trabalho está aberta.
+    mainFlow:
+      - O membro marca os cards, um a um ou todos os da tela.
+      - O sistema mostra a barra do lote com quantos estão marcados.
+      - O membro escolhe a mudança; o sistema aplica card por card, com as regras de sempre, e diz quantos mudaram.
+    alternativeFlows:
+      - title: 3a. Alguns não mudam
+        steps:
+          - O sistema lista os que não mudaram, com o porquê; os outros ficam mudados.
+      - title: 3b. Para a coluna que encerra
+        steps:
+          - O sistema pede o desfecho e o motivo uma vez, e os relatos abertos encerram todos com eles.
+      - title: 3c. Subtarefas para uma sprint
+        steps:
+          - Ficam de fora: a subtarefa vai com o pai.
+    postconditions: Trocar o filtro, a coluna, a vista ou o projeto desmarca tudo.
 links:
   - from: Membro do time
     to: UC01
@@ -527,6 +572,12 @@ links:
     kind: association
   - from: Membro do time
     to: UC23
+    kind: association
+  - from: Membro do time
+    to: UC24
+    kind: association
+  - from: Membro do time
+    to: UC25
     kind: association
     note: quando o card é solto em outra coluna
 notes:

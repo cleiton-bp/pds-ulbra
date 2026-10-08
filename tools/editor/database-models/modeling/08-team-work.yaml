@@ -95,10 +95,10 @@ entities:
       - name: last_login_at
         type: datetime
         note: último acesso, em UTC
-      - name: notify_assignment_by_email
-        type: bool
+      - name: notification_volume
+        type: int
         required: true
-        note: coluna nova — se a pessoa recebe e-mail quando alguém do time a escolhe como responsável por um card; ligado de fábrica, também para quem já existia; vale em todos os projetos dela. O aviso no sino chega de qualquer jeito
+        note: coluna nova — o volume do som dos avisos no painel, de 0 a 100 (trava no banco); 70 de fábrica, também para quem já existia. O som de cada tipo de aviso fica em user_notification_sounds
       - name: created_at
         type: datetime
         note: quando o usuário entrou pela primeira vez, em UTC
@@ -1652,6 +1652,41 @@ entities:
       - name: deleted_at
         type: datetime
         note: a planejada apagada; os cards dela voltam ao backlog antes
+  - name: user_notification_sounds
+    label: Sons dos avisos
+    description: "O som que cada pessoa escolheu para cada tipo de aviso do painel — a menção com um, a escolha como responsável com outro. Sem linha para um tipo, vale o de fábrica. Vale em todos os projetos da pessoa. Interno."
+    position: { x: 4450, y: 2900 }
+    fields:
+      - name: id
+        type: long
+        pk: true
+        note: chave interna, nunca exposta
+      - name: public_id
+        type: guid
+        unique: true
+        note: identificador público, padrão de toda tabela
+      - name: user_id
+        type: long
+        fk: true
+        required: true
+        note: a pessoa; um som por tipo (índice único com deleted_at IS NULL)
+      - name: kind
+        type: enum
+        required: true
+        note: mention | assignment, como em notifications.kind
+      - name: sound
+        type: enum
+        required: true
+        note: none | bell | drop | ping | chime | bubble | soft; gerado no navegador, none é só o sino. De fábrica, ping na menção e bell na escolha como responsável
+      - name: created_at
+        type: datetime
+        note: criação, em UTC
+      - name: updated_at
+        type: datetime
+        note: última alteração, em UTC
+      - name: deleted_at
+        type: datetime
+        note: nulo enquanto vale
 relations:
   - from: reports
     fromField: id
@@ -1977,6 +2012,12 @@ relations:
     toField: sprint_id
     kind: one-to-many
     note: Os cards da sprint. Restrict — a sprint apagada devolve os cards ao backlog antes; a concluída guarda o que terminou nela.
+  - from: users
+    fromField: id
+    to: user_notification_sounds
+    toField: user_id
+    kind: one-to-many
+    note: Um som por tipo de aviso; o tipo sem linha usa o de fábrica.
   - from: users
     fromField: id
     to: notifications

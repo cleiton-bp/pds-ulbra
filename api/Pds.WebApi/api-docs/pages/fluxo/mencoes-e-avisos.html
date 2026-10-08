@@ -1,14 +1,17 @@
 <h2>Menções e avisos</h2>
 
 <p>Ninguém precisa ficar olhando o quadro para saber que é com ele. Duas coisas avisam uma pessoa
-do time, no <strong>sino</strong> do topo do painel:</p>
+do time, no <strong>sino</strong> do topo do painel — e com o <strong>som</strong> que ela escolheu
+para cada uma:</p>
 
 <ul>
   <li><strong>Alguém a menciona</strong> num comentário entre o time — <em>"@Ana, consegue
-  olhar?"</em>. A menção avisa <strong>só no sino</strong>, sem e-mail.</li>
-  <li><strong>Alguém a escolhe como responsável</strong> por um card. Avisa no sino e <strong>por
-  e-mail</strong>, que a pessoa pode desligar.</li>
+  olhar?"</em>.</li>
+  <li><strong>Alguém a escolhe como responsável</strong> por um card.</li>
 </ul>
+
+<p><strong>Os avisos ficam no painel.</strong> Nenhum deles manda e-mail: o único e-mail do
+produto é o convite para o time.</p>
 
 <p><strong>Ninguém é avisado do que fez</strong>: mencionar a si mesmo, ou se escolher como
 responsável, não gera aviso.</p>
@@ -35,21 +38,26 @@ os cinquenta avisos mais recentes de todos os projetos em que a pessoa está —
 o número e o título do card, o projeto e quando. Abrir um aviso leva ao card e o marca como lido;
 <strong>Marcar todos como lidos</strong> zera o número.</p>
 
-<p>O sino pergunta o número ao abrir o painel, a cada troca de tela, ao voltar para a aba e a cada
-minuto com a aba à vista — sem tempo real: a conexão ao vivo só existe na tela de Trabalho, e o
-sino está em todas. <strong>Quem sai do time deixa de ver</strong> os avisos daquele projeto.</p>
+<p><strong>Na tela de Trabalho, na hora.</strong> O aviso novo manda, pelo
+<a href="#fluxo/tempo-real">tempo real</a>, um <code>NotificationArrived</code> só para a pessoa
+avisada, e o sino pergunta o número na mesma hora. Nas outras telas — a conexão ao vivo só existe
+na de Trabalho —, o sino pergunta ao abrir o painel, a cada troca de tela, ao voltar para a aba e a
+cada minuto com a aba à vista. <strong>Quem sai do time deixa de ver</strong> os avisos daquele
+projeto.</p>
 
-<h2>O e-mail de responsável</h2>
+<h2>O som</h2>
 
-<p>Escolher alguém como responsável põe o e-mail na fila, depois da gravação e sem derrubar a
-ação — sem fila, o e-mail só não sai, e o aviso continua no sino. Na hora de mandar, o consumidor
-confere a preferência da pessoa e se ela ainda está no time. O e-mail diz quem escolheu, o número e
-o título do card, o projeto, o link para abrir o card e onde desligar. A falha no envio fica no log
-da API, sem reenvio.</p>
+<p>Quando o número sobe, o painel toca o som do tipo do aviso mais novo — o da menção, ou o da
+escolha como responsável —, no volume da pessoa. Cada pessoa escolhe no <strong>Perfil</strong>
+(no menu dela, ou em <em>Preferências de aviso</em>, no sino): um som para cada tipo, entre Plim,
+Sino, Campainha, Gota, Bolha e Suave — ou <em>Sem som</em> —, e o volume, de 0 a 100. "Ouvir" toca
+o som antes de salvar. Vale em todos os projetos e em qualquer computador: fica guardado na pessoa
+(<a href="#modelagem/avisos">user_notification_sounds</a>). De fábrica, a menção toca Plim, a
+escolha como responsável toca Sino, e o volume é 70.</p>
 
-<p><strong>Preferências de aviso</strong>, no sino, desligam o e-mail de responsável. A preferência
-é da pessoa, e vale em todos os projetos dela; vem ligada. Quando a instalação não manda e-mail, a
-tela diz isso, e a preferência fica guardada.</p>
+<p>Os sons são gerados no navegador, sem arquivo de áudio. O navegador só deixa tocar depois de a
+pessoa ter mexido na página — um clique, uma tecla —: o aviso que chega antes disso aparece só no
+sino.</p>
 
 <h2>As rotas</h2>
 
@@ -59,7 +67,9 @@ POST /me/notifications/{aviso}/read
 POST /me/notifications/read-all
 GET  /me/notification-settings
 PUT  /me/notification-settings
-{ "AssignmentByEmail": false }</code></pre>
+{ "Volume": 70,
+  "Sounds": [ { "Kind": "Mention", "Sound": "Ping" },
+              { "Kind": "Assignment", "Sound": "Bell" } ] }</code></pre>
 
 <p>Todas da pessoa da sessão, e não de um projeto. O aviso de outra pessoa não existe para quem
 pergunta (404).</p>
