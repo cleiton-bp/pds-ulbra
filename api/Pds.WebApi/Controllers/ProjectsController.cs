@@ -32,21 +32,27 @@ public class ProjectsController : BaseController
         _projectService = projectService;
     }
 
-    /// <summary>Cria o projeto e gera o par de chaves.</summary>
+    /// <summary>Cria o projeto, com a chave pública e o padrão de fábrica.</summary>
     /// <remarks>
-    /// A chave pública e a secreta nascem junto com o projeto, numa única gravação:
-    /// ou entra tudo, ou não entra nada. Não existe projeto sem chave.
+    /// Numa única gravação — ou entra tudo, ou não entra nada — o projeto nasce com:
     ///
-    /// **Esta é a única resposta do sistema que carrega o valor da chave secreta.**
-    /// A partir da próxima requisição o banco só tem o hash dela, e nenhuma rota
-    /// consegue revelá-la de novo.
+    /// - a **chave pública**, que vai no script do site;
+    /// - as colunas **A fazer**, **Fazendo** e **Feito** (a última é a que encerra o
+    ///   relato, pela regra de fábrica do ciclo);
+    /// - o andamento público de fábrica, **já ligado às colunas**: A fazer → Recebido,
+    ///   Fazendo → Em desenvolvimento, Feito → Concluído (a versão 1 do mapa);
+    /// - as prioridades de fábrica.
+    ///
+    /// **A chave secreta não nasce aqui.** Ela é gerada sob pedido, em
+    /// `POST /projects/{publicId}/keys/secret`, e o valor aparece só
+    /// naquela resposta.
     ///
     /// O projeto nasce sempre na **conta própria** de quem cria, e quem cria é dono
     /// dele. Estar no time de projetos de outra conta não deixa criar projeto lá.
     ///
     /// O nome é único dentro da conta, sem diferenciar maiúscula.
     /// </remarks>
-    /// <response code="200">Projeto criado, com a chave pública e a secreta.</response>
+    /// <response code="200">Projeto criado, com a chave pública.</response>
     /// <response code="400">Nome não informado.</response>
     /// <response code="409">Já existe projeto com este nome na conta.</response>
     [HttpPost]
@@ -59,7 +65,7 @@ public class ProjectsController : BaseController
         try
         {
             var created = await _projectService.CreateAsync(dto, cancellationToken);
-            return Success(created, "Projeto criado. Guarde a chave secreta: ela não será exibida de novo.");
+            return Success(created, "Projeto criado.");
         }
         catch (Exception exception)
         {
@@ -73,8 +79,10 @@ public class ProjectsController : BaseController
     /// do mais recente para o mais antigo, incluindo os arquivados. Cada um vem com
     /// a conta dona (`Account`), o papel da pessoa nele (`Role`) e se ela é a dona
     /// da conta (`IsAccountOwner`) — é o que o painel usa para agrupar e para
-    /// esconder a configuração de quem é só membro. O campo `Total` traz a
-    /// contagem.
+    /// esconder a configuração de quem é só membro. E com o movimento:
+    /// `LastReportReceivedAt` (o último relato que chegou pela ferramenta; nulo
+    /// enquanto o site não mandou nenhum) e `LastActivityAt` (a última mudança em
+    /// qualquer card). O campo `Total` traz a contagem.
     /// </remarks>
     /// <response code="200">Projetos que a pessoa enxerga.</response>
     [HttpGet]

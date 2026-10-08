@@ -12,8 +12,9 @@ namespace Pds.WebApi.Controllers;
 /// Chaves de um projeto.
 ///
 /// São duas, de naturezas diferentes: a **pública** identifica o projeto no
-/// navegador e pode ser lida por qualquer um; a **secreta** autentica o servidor do
-/// cliente e o banco guarda apenas o hash dela.
+/// navegador e pode ser lida por qualquer um, e nasce com o projeto; a **secreta**
+/// autentica o servidor do cliente, nasce só quando alguém a gera, e o banco guarda
+/// apenas o hash dela.
 ///
 /// **Só administradores, inclusive para ler.** É a única leitura do projeto fechada
 /// para o membro: as chaves são a credencial da integração, e o trabalho nos
@@ -65,13 +66,14 @@ public class ProjectKeysController : BaseController
         }
     }
 
-    /// <summary>Regenera a chave secreta.</summary>
+    /// <summary>Gera a chave secreta, ou uma nova no lugar da atual.</summary>
     /// <remarks>
-    /// Revoga a secreta atual e cria uma nova, devolvendo o valor **uma única vez**.
-    /// A anterior não é sobrescrita: fica na lista como histórico, com a data em que
-    /// deixou de valer.
+    /// O projeto nasce **sem** chave secreta: ela é gerada aqui, sob pedido, e o valor
+    /// volta **uma única vez**, nesta resposta.
     ///
-    /// **É imediato e não tem desfazer.** As integrações que usam a chave anterior
+    /// Com uma secreta valendo, ela é revogada e a nova toma o lugar. A anterior não é
+    /// sobrescrita: fica na lista como histórico, com a data em que deixou de valer.
+    /// **É imediato e não tem desfazer** — as integrações que usam a chave anterior
     /// param de funcionar a partir daqui.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
@@ -88,7 +90,7 @@ public class ProjectKeysController : BaseController
         try
         {
             var key = await _projectKeyService.RegenerateSecretAsync(publicId, cancellationToken);
-            return Success(key, "Chave secreta gerada. A anterior foi revogada e esta não será exibida de novo.");
+            return Success(key, "Chave secreta gerada. Ela não será exibida de novo.");
         }
         catch (Exception exception)
         {

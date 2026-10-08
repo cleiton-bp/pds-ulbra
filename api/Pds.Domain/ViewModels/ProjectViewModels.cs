@@ -14,6 +14,12 @@ namespace Pds.Domain.ViewModels;
 /// <param name="Account">Conta dona do projeto. O painel agrupa os projetos por ela.</param>
 /// <param name="Role">O papel da pessoa da sessao neste projeto. A dona da conta e sempre administradora.</param>
 /// <param name="IsAccountOwner">A pessoa da sessao e dona da conta deste projeto.</param>
+/// <param name="LastReportReceivedAt">
+/// Quando chegou o ultimo relato de fora, pela ferramenta, em UTC. Nulo enquanto o site
+/// nao mandou nenhum — e o que decide a porta do projeto para quem administra: a
+/// Instalacao so enquanto nada chegou. O card do time nao conta.
+/// </param>
+/// <param name="LastActivityAt">Ultima mudanca em qualquer card do projeto, em UTC. Nulo sem card nenhum.</param>
 public record ProjectViewModel(
     Guid PublicId,
     string Name,
@@ -22,7 +28,9 @@ public record ProjectViewModel(
     DateTime UpdatedAt,
     ProjectAccountViewModel Account,
     ProjectRoleEnum Role,
-    bool IsAccountOwner);
+    bool IsAccountOwner,
+    DateTime? LastReportReceivedAt,
+    DateTime? LastActivityAt);
 
 /// <summary>
 /// A conta dona de um projeto, como aparece junto dele. So o necessario para
@@ -35,14 +43,14 @@ public record ProjectAccountViewModel(
     string Name);
 
 /// <summary>
-/// Projeto recem-criado junto com o par de chaves. E a unica resposta do sistema
-/// que carrega o valor da chave secreta, porque e a unica vez em que ele existe
-/// fora do servidor.
+/// Projeto recem-criado, com a chave publica que nasce junto.
+///
+/// <para><b>A chave secreta nao vem aqui.</b> Ela nasce sob pedido, na tela de chaves:
+/// e para um uso que pouca gente tem, e nascer junto obrigava quem acabou de criar o
+/// projeto a decidir o que fazer com um valor que aparece uma vez so.</para>
 /// </summary>
 /// <param name="Project">O projeto criado.</param>
 /// <param name="PublicKey">Chave publica. Pode ser lida a vontade e aparece no site do cliente.</param>
-/// <param name="SecretKey">Chave secreta, com o valor completo. Nao sera exibido de novo.</param>
 public record ProjectCreatedViewModel(
     ProjectViewModel Project,
-    ProjectKeyViewModel PublicKey,
-    RevealedSecretKeyViewModel SecretKey);
+    ProjectKeyViewModel PublicKey);
