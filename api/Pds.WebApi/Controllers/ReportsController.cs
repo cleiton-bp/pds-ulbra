@@ -646,6 +646,63 @@ public class ReportsController : BaseController
         }
     }
 
+    /// <summary>Põe o card numa sprint, ou no backlog, e no lugar da lista.</summary>
+    /// <remarks>
+    /// Com a sprint ligada no Ciclo (senão 409). `SprintPublicId` nulo é o backlog. O
+    /// lugar: logo abaixo de `AfterPublicId`, na lista de destino; sem ele, o topo
+    /// (`Top`) ou o fim. A mesma lista arruma a ordem — que é do time inteiro, como a do
+    /// quadro. **A subtarefa vai com o pai** (mover a subtarefa é 409), e a sprint
+    /// fechada não recebe card (409). Grava `card_sprint_changed` quando a sprint muda;
+    /// arrumar a ordem não é evento.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="404">Card, sprint ou o card de referência não existe aqui.</response>
+    /// <response code="409">Sem sprints no projeto, card arquivado, subtarefa, sprint fechada, ou o card de referência saiu da lista.</response>
+    [HttpPut("{reportPublicId:guid}/sprint")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetSprint(Guid publicId, Guid reportPublicId, [FromBody] SetCardSprintDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Success(await _reportService.SetSprintAsync(publicId, reportPublicId, dto, cancellationToken), "Card planejado.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>A estimativa do card em pontos.</summary>
+    /// <remarks>
+    /// De 0 a 999, de meio em meio ponto; nulo tira. Com a sprint ligada (senão 409), e
+    /// nunca na subtarefa (409) — ela vai com o pai.
+    /// </remarks>
+    /// <response code="200">O card como ficou.</response>
+    /// <response code="400">Fora de 0 a 999, ou sem ser de meio em meio.</response>
+    /// <response code="404">Card ou projeto não existe aqui.</response>
+    /// <response code="409">Sem sprints no projeto, card arquivado ou subtarefa.</response>
+    [HttpPut("{reportPublicId:guid}/points")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetPoints(Guid publicId, Guid reportPublicId, [FromBody] SetCardPointsDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Success(await _reportService.SetPointsAsync(publicId, reportPublicId, dto, cancellationToken), "Estimativa salva.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Lista os vínculos do card.</summary>
     /// <remarks>
     /// Vistos do card pedido, na ordem em que foram feitos: `DuplicateOf` (este é

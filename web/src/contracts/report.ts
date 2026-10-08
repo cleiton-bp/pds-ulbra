@@ -340,14 +340,28 @@ export interface ReportSummaryViewModel {
    * leem o motivo quando ele encerra.
    */
   DuplicateReporters: number
+  /** A sprint do card, com a sprint ligada; nula e o backlog. */
+  Sprint: CardSprintViewModel | null
+  /** A estimativa em pontos, de 0 a 999 com meio ponto; nula e sem estimativa. */
+  StoryPoints: number | null
 }
+
+/** A sprint de um card. */
+export interface CardSprintViewModel {
+  PublicId: string
+  Name: string
+  State: SprintState
+}
+
+/** Onde a sprint esta: planejada, em andamento (a do quadro) ou fechada. */
+export type SprintState = 'Planned' | 'Active' | 'Closed'
 
 /**
  * A ordem da lista: `recent`, do mais novo para o mais antigo (a de sempre), ou
  * `board`, a que o time arrumou em cada coluna do quadro. Na ultima coluna ativa,
  * `board` traz so o que entrou nela nos dias que o projeto escolheu no Ciclo.
  */
-export type ReportListOrder = 'recent' | 'board'
+export type ReportListOrder = 'recent' | 'board' | 'backlog'
 
 /** Um lugar novo para o card na propria coluna do quadro. */
 export interface SetCardPositionRequest {
@@ -852,6 +866,8 @@ export const REPORT_EVENT_TYPES = [
   'CardDueDateChanged',
   'CardLinked',
   'CardUnlinked',
+  'CardSprintChanged',
+  'CardPointsChanged',
 ] as const
 
 /**
@@ -1041,6 +1057,20 @@ export interface CreateTeamCardRequest {
   StatePublicId: string | null
   /** O card de que este e subtarefa. Ausente, o card nao e subtarefa. */
   ParentPublicId?: string
+  /** A sprint em que nasce — o "Criar" de uma coluna do quadro, com sprint ligada. Ausente, o backlog. */
+  SprintPublicId?: string
+}
+
+/** Pôr o card numa sprint (nulo e o backlog), e no lugar da lista: abaixo de um card, no topo ou no fim. */
+export interface SetCardSprintRequest {
+  SprintPublicId: string | null
+  AfterPublicId?: string | null
+  Top?: boolean
+}
+
+/** A estimativa do card: de 0 a 999, de meio em meio ponto. Nulo tira. */
+export interface SetCardPointsRequest {
+  Points: number | null
 }
 
 /** O titulo e a descricao de um card do time, gravados inteiros. */

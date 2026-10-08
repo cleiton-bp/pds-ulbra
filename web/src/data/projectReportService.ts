@@ -23,8 +23,10 @@ import type {
   SetCardAssigneeRequest,
   SetCardDueDateRequest,
   SetCardLabelsRequest,
+  SetCardPointsRequest,
   SetCardPositionRequest,
   SetCardPriorityRequest,
+  SetCardSprintRequest,
   SetCardTitleRequest,
 } from '@/contracts'
 
@@ -92,6 +94,12 @@ export interface ReportListOptions {
   filters?: ReportFilters
   /** So as subtarefas deste card. */
   parent?: string
+  /**
+   * O recorte das sprints: `active` (a em andamento, com as subtarefas — o quadro),
+   * `backlog` (sem sprint, sem subtarefa e sem o que terminou) ou o identificador de
+   * uma sprint (os cards dela, sem as subtarefas).
+   */
+  sprint?: string
 }
 
 /** Espelha o `ReportService` da API, do lado que exige sessao. */
@@ -136,6 +144,23 @@ export interface ProjectReportService {
     publicId: string,
     reportPublicId: string,
     request: ArchiveCardRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /**
+   * Poe o card numa sprint (nula e o backlog), e no lugar da lista: abaixo de um card,
+   * no topo ou no fim. A subtarefa vai com o pai. Devolve o card aberto.
+   */
+  setSprint(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardSprintRequest,
+  ): Promise<ReportDetailViewModel>
+
+  /** A estimativa em pontos. Nunca na subtarefa. */
+  setPoints(
+    publicId: string,
+    reportPublicId: string,
+    request: SetCardPointsRequest,
   ): Promise<ReportDetailViewModel>
 
   /** Os vinculos do card, vistos dele, na ordem em que foram feitos. */
@@ -233,7 +258,12 @@ export interface ProjectReportService {
    * Com `filters` — os mesmos da lista —, conta so o que passa neles: o numero de
    * cada coluna e o que a tela mostra.
    */
-  listReportCounts(publicId: string, filters?: ReportFilters): Promise<ReportStateCountViewModel[]>
+  listReportCounts(
+    publicId: string,
+    filters?: ReportFilters,
+    /** Com a sprint ligada, o quadro conta so a sprint em andamento (`active`). */
+    sprint?: string,
+  ): Promise<ReportStateCountViewModel[]>
 
   /**
    * Abre um relato e traz o contexto que veio junto.

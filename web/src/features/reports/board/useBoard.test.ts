@@ -80,6 +80,8 @@ function card(
     BlockedBy: [],
     DuplicateOf: null,
     DuplicateReporters: 0,
+    Sprint: null,
+    StoryPoints: null,
     ...extra,
   }
 }

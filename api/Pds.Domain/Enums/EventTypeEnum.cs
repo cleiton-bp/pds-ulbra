@@ -275,4 +275,20 @@ public enum EventTypeEnum
 
     /// <summary>Perdeu um vinculo com outro card. A mesma carga do vinculo que saiu.</summary>
     CardUnlinked,
+
+    /// <summary>
+    /// O card mudou de sprint, ou foi para o backlog ou saiu dele. Os nomes da epoca
+    /// vao junto, e o porque quando nao foi a mao (a sprint fechou, ou foi apagada; a
+    /// subtarefa foi com o pai).
+    /// </summary>
+    CardSprintChanged,
+
+    /// <summary>Mudou a estimativa em pontos.</summary>
+    CardPointsChanged,
+
+    /// <summary>Uma sprint foi iniciada. Do projeto, sem card.</summary>
+    SprintStarted,
+
+    /// <summary>Uma sprint foi fechada, com os numeros dela e o destino do que nao terminou. Do projeto, sem card.</summary>
+    SprintClosed,
 }

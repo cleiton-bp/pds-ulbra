@@ -5,6 +5,7 @@ import {
   type ReportDetailViewModel,
   type ReportStateCountViewModel,
   type ReportSummaryViewModel,
+  type SprintViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
 import { CardDetailLayout, DetailRow, DetailsBox } from '@/features/reports/CardDetailLayout'
@@ -51,6 +52,7 @@ export function TeamCardBody({
   aoComentar,
   antes,
   depois,
+  sprints = null,
 }: {
   projectPublicId: string
   reportPublicId: string
@@ -67,6 +69,8 @@ export function TeamCardBody({
   /** O card mudou de texto ou de arquivo: quem abriu o dialogo e a lista se acertam. */
   aoSalvo: (card: ReportDetailViewModel) => void
   aoComentar: () => void
+  /** As sprints que nao fecharam, com a sprint ligada. */
+  sprints?: SprintViewModel[] | null
   /** O que vem antes do titulo — na subtarefa, o pai. */
   antes?: ReactNode
   /** O que vem depois da descricao — as subtarefas. */
@@ -244,6 +248,7 @@ export function TeamCardBody({
                   reportPublicId={reportPublicId}
                   card={card}
                   aoMudar={aoSalvo}
+                  sprints={sprints}
                 />
               )}
 

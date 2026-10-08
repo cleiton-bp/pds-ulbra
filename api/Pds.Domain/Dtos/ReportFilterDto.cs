@@ -30,4 +30,11 @@ public class ReportFilterDto
 
     /// <summary>So as subtarefas deste card (o identificador dele).</summary>
     public Guid? Parent { get; set; }
+
+    /// <summary>
+    /// O recorte das sprints: <c>active</c> (a sprint em andamento, com as subtarefas —
+    /// o quadro), <c>backlog</c> (sem sprint, sem subtarefa e sem o que terminou) ou o
+    /// identificador de uma sprint (os cards dela, sem as subtarefas).
+    /// </summary>
+    public string? Sprint { get; set; }
 }

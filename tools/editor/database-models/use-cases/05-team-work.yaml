@@ -408,6 +408,35 @@ useCases:
         steps:
           - Os avisos daquele projeto somem do sino dela, e o e-mail que ainda estava na fila não sai.
     postconditions: A menção avisa só no sino. Nada disso aparece para quem relatou — a caixa dele nem oferece a lista do @.
+  - id: UC23
+    name: Planejar e trabalhar em sprints
+    description: "Com as sprints ligadas no Ciclo, o time planeja no Backlog o que entra em cada sprint, estima em pontos, inicia uma — e o quadro passa a mostrar só ela — e, ao concluir, escolhe para onde vai o que não terminou."
+    width: 220
+    position: { x: 260, y: 1800 }
+    preconditions: O administrador ligou "Trabalhar em sprints" no Ciclo.
+    mainFlow:
+      - O membro abre a aba Backlog e cria uma sprint; ela nasce planejada, com o próximo número e a duração padrão do projeto, logo depois da última.
+      - O membro leva cards do backlog para a sprint — arrastando, pelo teclado ou pelo menu do card — e estima cada um em pontos.
+      - O membro inicia a sprint, podendo acertar o nome, o objetivo e as datas; o quadro passa a mostrar só os cards dela, com a barra da sprint em cima.
+      - O time trabalha no quadro; a barra mostra quantos cards e quantos pontos já terminaram, e quanto falta para o fim.
+      - O membro conclui a sprint e escolhe para onde vai o que não terminou.
+    alternativeFlows:
+      - title: 2a. Subtarefa
+        steps:
+          - A subtarefa vai com o pai, e não leva pontos.
+      - title: 3a. Já há uma sprint em andamento
+        steps:
+          - O sistema recusa; uma de cada vez.
+      - title: 5a. Para onde vai o que não terminou
+        steps:
+          - Para o backlog, para uma sprint planejada ou para uma sprint nova, criada na hora — sempre no fim da lista, com a história do card contando.
+      - title: 5b. Apagar uma sprint planejada
+        steps:
+          - Os cards dela voltam para o fim do backlog, e o número não volta.
+      - title: 1a. As sprints são desligadas
+        steps:
+          - O Backlog sai da tela e o quadro volta a mostrar tudo; nada é apagado, e religar devolve como estava.
+    postconditions: A sprint concluída guarda o que terminou nela. Nada da sprint aparece para quem relatou.
 links:
   - from: Membro do time
     to: UC01
@@ -496,6 +525,9 @@ links:
   - from: Membro do time
     to: UC22
     kind: association
+  - from: Membro do time
+    to: UC23
+    kind: association
     note: quando o card é solto em outra coluna
 notes:
   - text: "Comentário interno e comentário público são campos separados, e não uma marcação: o interno não tem caminho nenhum até a página pública."
@@ -516,3 +548,6 @@ notes:
   - text: Três relatos do mesmo problema, um trabalho só, e três pessoas com retorno. O duplicado segue o original, mas a resposta de cada pessoa — confirmar, avaliar, reabrir — continua sendo dela.
     anchor: UC21
     position: { x: 900, y: 1640 }
+  - text: A sprint é um recorte do backlog, e não outro lugar. O card continua o mesmo — o número, a coluna, a história —; a sprint só diz quando o time quer fazê-lo.
+    anchor: UC23
+    position: { x: 600, y: 1800 }

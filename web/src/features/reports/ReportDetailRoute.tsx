@@ -3,6 +3,7 @@ import type {
   ReportDetailViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
+  SprintViewModel,
 } from '@/contracts'
 import type { SemAoVivo } from '@/features/reports/LiveStatus'
 import { ReportDialog } from '@/features/reports/ReportDialog'
@@ -23,6 +24,8 @@ export interface ReportListContext {
   semAoVivo?: SemAoVivo
   /** Uma subtarefa nasceu no card aberto: a lista e o quadro a poem na tela. */
   aoCriarSubtarefa?: (subtarefa: ReportDetailViewModel) => void
+  /** As sprints que nao fecharam, com a sprint ligada; nulo sem sprints. */
+  sprints?: SprintViewModel[] | null
 }
 
 /**
@@ -40,8 +43,16 @@ export interface ReportListContext {
  */
 export function ReportDetailRoute() {
   const { reportPublicId = '' } = useParams()
-  const { projectPublicId, reports, colunas, aoMudar, assinarAvisos, semAoVivo, aoCriarSubtarefa } =
-    useOutletContext<ReportListContext>()
+  const {
+    projectPublicId,
+    reports,
+    colunas,
+    aoMudar,
+    assinarAvisos,
+    semAoVivo,
+    aoCriarSubtarefa,
+    sprints,
+  } = useOutletContext<ReportListContext>()
   const navigate = useNavigate()
 
   const resumo = reports?.find((report) => report.PublicId === reportPublicId) ?? null
@@ -60,6 +71,7 @@ export function ReportDetailRoute() {
       assinarAvisos={assinarAvisos}
       semAoVivo={semAoVivo ?? null}
       aoCriarSubtarefa={aoCriarSubtarefa}
+      sprints={sprints ?? null}
       // `..` e a lista, com o recorte e a rolagem onde estavam. `replace` mantem
       // o botao voltar do navegador levando para antes de a lista abrir, e nao de
       // volta para o relato que a pessoa acabou de fechar.

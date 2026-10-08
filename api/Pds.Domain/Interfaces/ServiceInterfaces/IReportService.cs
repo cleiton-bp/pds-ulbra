@@ -140,6 +140,15 @@ public interface IReportService
     /// </summary>
     Task<ReportDetailViewModel> SetArchivedAsync(Guid projectPublicId, Guid reportPublicId, ArchiveCardDto dto, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Poe o card numa sprint, ou no backlog, e no lugar da lista: abaixo de um card, no
+    /// topo ou no fim. A subtarefa vai com o pai. So com a sprint ligada.
+    /// </summary>
+    Task<ReportDetailViewModel> SetSprintAsync(Guid projectPublicId, Guid reportPublicId, SetCardSprintDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>A estimativa em pontos. So com a sprint ligada, e nunca na subtarefa.</summary>
+    Task<ReportDetailViewModel> SetPointsAsync(Guid projectPublicId, Guid reportPublicId, SetCardPointsDto dto, CancellationToken cancellationToken = default);
+
     /// <summary>Os vinculos do card, vistos dele, na ordem em que foram feitos.</summary>
     Task<IReadOnlyList<CardLinkViewModel>> ListLinksAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default);
 

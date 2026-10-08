@@ -75,6 +75,30 @@ public interface IReportRepository : IBaseRepository<Report>
     /// <summary>Dos cards pedidos, os que ja terminaram — a mesma regra do prazo e do bloqueio.</summary>
     Task<IReadOnlySet<long>> ListFinishedAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default);
 
+    /// <summary>O lugar do card na ordem do backlog: a lista (a sprint, ou nenhuma) e o numero.</summary>
+    Task<BacklogSpot?> FindBacklogSpotAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>O lugar do vizinho de baixo na mesma lista do backlog, ou nulo no fim dela.</summary>
+    Task<long?> FindBacklogRankBelowAsync(long projectId, long? sprintId, long rank, long anchorId, long exceptId, CancellationToken cancellationToken = default);
+
+    /// <summary>O menor (topo) ou o maior (fim) lugar de uma lista do backlog, sem o card que se move.</summary>
+    Task<long?> FindBacklogEdgeRankAsync(long projectId, long? sprintId, bool top, long exceptId, CancellationToken cancellationToken = default);
+
+    /// <summary>Renumera uma lista do backlog com a folga inteira, na ordem em que esta.</summary>
+    Task RenumberBacklogAsync(long projectId, long? sprintId, long exceptId, CancellationToken cancellationToken = default);
+
+    /// <summary>Todas as subtarefas de um card, rastreadas — elas acompanham a sprint do pai.</summary>
+    Task<List<Report>> ListSubtasksAsync(long parentId, CancellationToken cancellationToken = default);
+
+    /// <summary>Os cards de uma sprint, sem as subtarefas e sem o arquivo, rastreados, na ordem dela.</summary>
+    Task<List<Report>> ListSprintCardsAsync(long sprintId, CancellationToken cancellationToken = default);
+
+    /// <summary>Os cards arquivados de uma sprint, sem as subtarefas, rastreados — a sprint apagada os solta.</summary>
+    Task<List<Report>> ListArchivedSprintCardsAsync(long sprintId, CancellationToken cancellationToken = default);
+
+    /// <summary>Os numeros de cada sprint: cards, os que terminaram, e os pontos.</summary>
+    Task<IReadOnlyDictionary<long, SprintStats>> CountSprintsAsync(IReadOnlyCollection<long> sprintIds, CancellationToken cancellationToken = default);
+
     /// <summary>O card que vai ser pai de uma subtarefa, sem rastreio. Nulo quando nao e do projeto.</summary>
     Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default);
 

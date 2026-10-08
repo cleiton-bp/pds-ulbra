@@ -109,6 +109,9 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private INotificationRepository? _notifications;
     public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
 
+    private ISprintRepository? _sprints;
+    public ISprintRepository Sprints => _sprints ??= new SprintRepository(_context);
+
     private IReportInternalCommentRepository? _reportInternalComments;
 
     public IReportInternalCommentRepository ReportInternalComments

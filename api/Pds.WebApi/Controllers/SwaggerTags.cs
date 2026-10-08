@@ -31,6 +31,7 @@ public static class SwaggerTags
     public const string ProjectInvitations = "Convites do projeto";
     public const string Invitations = "Convite (quem foi convidado)";
     public const string Reports = "Relatos";
+    public const string Sprints = "Sprints";
     public const string ReportComments = "Comentários do relato";
     public const string PublicReports = "Relatos (público)";
     public const string PublicWidgetSettings = "Ferramenta (público)";

@@ -23,6 +23,7 @@ namespace Pds.Domain.Filters;
 /// </param>
 /// <param name="Search">A busca, quando ha uma.</param>
 /// <param name="ParentId">So as subtarefas deste card.</param>
+/// <param name="Sprint">O recorte de sprint: a em andamento, o backlog, ou uma sprint.</param>
 public sealed record ReportCardFilter(
     IReadOnlyList<long> AssigneeIds,
     bool WithoutAssignee,
@@ -33,7 +34,8 @@ public sealed record ReportCardFilter(
     bool TeamCards,
     DateOnly? OverdueOn,
     ReportSearch? Search,
-    long? ParentId = null)
+    long? ParentId = null,
+    SprintScope? Sprint = null)
 {
     /// <summary>Nenhum filtro: a tela inteira.</summary>
     public static readonly ReportCardFilter None = new([], false, [], [], false, [], false, null, null);
@@ -46,3 +48,20 @@ public sealed record ReportCardFilter(
 /// <param name="Number">O numero do card, quando o termo e um (<c>42</c> ou <c>#42</c>).</param>
 /// <param name="Code">O termo como protocolo: so letras e digitos, em maiusculas. Nulo quando nao sobra nada.</param>
 public sealed record ReportSearch(string Text, int? Number, string? Code);
+
+/// <summary>Que parte do trabalho em sprints a lista quer.</summary>
+public enum SprintScopeKind
+{
+    /// <summary>A sprint em andamento, com as subtarefas: o que o quadro mostra.</summary>
+    Active,
+
+    /// <summary>O backlog: sem sprint, sem as subtarefas (vao com o pai) e sem o que ja terminou.</summary>
+    Backlog,
+
+    /// <summary>Uma sprint, sem as subtarefas: a lista dela no backlog.</summary>
+    Specific,
+}
+
+/// <summary>O recorte de sprint da lista. Na <see cref="SprintScopeKind.Specific"/>, a sprint.</summary>
+public sealed record SprintScope(SprintScopeKind Kind, long? SprintId = null);
+

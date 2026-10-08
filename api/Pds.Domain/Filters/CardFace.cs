@@ -18,6 +18,7 @@ namespace Pds.Domain.Filters;
 /// terminou, ou foi para o arquivo, deixa de bloquear.
 /// </param>
 /// <param name="DuplicateOf">O original, quando o card e duplicado.</param>
+/// <param name="Sprint">A sprint do card; nula no backlog.</param>
 /// <param name="DuplicateReporters">
 /// Quantos relatos duplicados deste card ainda esperam o desfecho — as pessoas a mais
 /// que leem o motivo quando ele encerra.
@@ -32,11 +33,15 @@ public record CardFace(
     int SubtasksDone,
     IReadOnlyList<int> BlockedBy,
     CardParent? DuplicateOf,
-    int DuplicateReporters)
+    int DuplicateReporters,
+    CardSprint? Sprint = null)
 {
-    /// <summary>O card sem comentario, sem anexo, sem encerramento, sem pai, sem subtarefa e sem vinculo.</summary>
+    /// <summary>O card sem comentario, sem anexo, sem encerramento, sem pai, sem subtarefa, sem vinculo e sem sprint.</summary>
     public static readonly CardFace Empty = new(0, 0, false, false, null, 0, 0, [], null, 0);
 }
+
+/// <summary>A sprint do card, como a frente dele a mostra.</summary>
+public record CardSprint(Guid PublicId, string Name, Pds.Domain.Enums.SprintStateEnum State);
 
 /// <summary>Outro card, como a frente deste o mostra: o pai da subtarefa, ou o original do duplicado.</summary>
 /// <param name="PublicId">O identificador do card.</param>

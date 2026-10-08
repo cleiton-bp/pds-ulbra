@@ -411,6 +411,29 @@ arquivo, mostra o original (`ParentLine` com `prefix`). O diálogo de encerrar o
 quantas pessoas a mais vão ler o motivo (`DuplicateReporters`), e o histórico conta cada vínculo
 com o número do outro card.
 
+**Backlog e sprints.** Com `SprintsEnabled` no Ciclo, a tela de Trabalho ganha a aba Backlog
+(`SprintBacklog`): a sprint em andamento, as planejadas e o backlog, cada um lido com
+`sprint=<id>|backlog` e `order=backlog`; arrastar entre e dentro das listas com `@dnd-kit/sortable`
+(mouse, toque segurando, teclado — `backlogKeyboardCoordinates` atravessa as listas, e o anúncio
+diz a lista e a posição), e o menu de cada card. O quadro lê só `sprint=active` (as colunas e a
+contagem), com a `SprintBar` e "Concluir sprint" (`CloseSprintDialog`, que pergunta o destino do
+que não terminou); sem sprint em andamento, `NoActiveSprint` leva ao backlog. O "Criar" de uma
+coluna manda a sprint em andamento ao `NewCardDialog`. O card aberto ganha Sprint e Pontos nos
+`CardFields` (sem pontos na subtarefa, que vai com o pai), e a frente do card mostra os pontos
+(`PointsChip`). As sprints chegam à rota do card pelo contexto. Os dados em
+`data/sprintService.ts`.
+
+**Menções e o sino.** Na caixa "Entre o time", digitar "@" abre a lista do time
+(`MentionTextarea`, lida no primeiro "@"; setas, Enter ou Tab, e o Esc que fecha só a lista — ele é
+ouvido na janela, antes do diálogo). No campo fica "@Nome"; no envio, `encodeMentions` troca o
+"@Nome" que ficou no texto pela marca `@[Nome](identificador)`, e a leitura mostra a menção
+destacada (`CommentBody`). A caixa de quem relatou não menciona. O sino (`NotificationBell`, no topo
+do projeto e do hub) mostra o número de não lidos — `useUnreadCount` pergunta a cada troca de tela,
+ao voltar para a aba e a cada minuto com a aba à vista, e a resposta atrasada não passa por cima da
+de uma ação —, lê a lista ao abrir, leva ao card e marca como lido, e abre as preferências
+(`NotificationSettingsDialog`: o e-mail de responsável, e o aviso quando o servidor não manda
+e-mail). Os dados em `data/notificationService.ts`.
+
 **Menções e o sino.** Na caixa "Entre o time", digitar "@" abre a lista do time
 (`MentionTextarea`, lida no primeiro "@"; setas, Enter ou Tab, e o Esc que fecha só a lista — ele é
 ouvido na janela, antes do diálogo). No campo fica "@Nome"; no envio, `encodeMentions` troca o

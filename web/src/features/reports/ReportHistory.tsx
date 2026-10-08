@@ -145,6 +145,8 @@ const DESCRICOES: Record<ReportEventType, string> = {
   CardDueDateChanged: 'Mudou o prazo',
   CardLinked: 'Ganhou um vínculo',
   CardUnlinked: 'Perdeu um vínculo',
+  CardSprintChanged: 'Mudou de sprint',
+  CardPointsChanged: 'Mudou a estimativa',
 }
 
 /**
@@ -224,6 +226,17 @@ function descreverCampo(entrada: ReportHistoryEntryViewModel): string | null {
       if (!frases || !entrada.To) return null
       return entrada.Type === 'CardLinked' ? frases.ganhou(entrada.To) : frases.perdeu(entrada.To)
     }
+    case 'CardSprintChanged':
+      // Nulo e o backlog: o nome da epoca, como o da coluna.
+      return entrada.To
+        ? entrada.From
+          ? `De ${entrada.From} para ${entrada.To}`
+          : `Planejado na ${entrada.To}`
+        : `De ${entrada.From ?? 'uma sprint'} para o backlog`
+    case 'CardPointsChanged':
+      return entrada.To !== null
+        ? `Estimativa: ${formatPoints(entrada.To)}`
+        : 'Ficou sem estimativa'
     case 'CardLabelsChanged': {
       const mudancas = [
         ...entrada.Added.map((nome) => `+ ${nome}`),
@@ -234,4 +247,10 @@ function descreverCampo(entrada: ReportHistoryEntryViewModel): string | null {
     default:
       return null
   }
+}
+
+/** Os pontos como o time le: "2,5", sem o ".0" de quem guardou. */
+function formatPoints(valor: string): string {
+  const numero = Number(valor)
+  return Number.isFinite(numero) ? numero.toLocaleString('pt-BR') : valor
 }

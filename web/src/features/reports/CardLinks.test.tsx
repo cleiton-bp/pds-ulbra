@@ -81,6 +81,8 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     BlockedBy: [],
     DuplicateOf: null,
     DuplicateReporters: 0,
+    Sprint: null,
+    StoryPoints: null,
     ...extra,
   }
 }

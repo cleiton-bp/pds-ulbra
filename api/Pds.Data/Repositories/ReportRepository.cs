@@ -101,9 +101,12 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
 
         // Na ordem do quadro, o menor lugar fica em cima — e o Id desempata tambem
         // aqui, para a pagina nunca depender da sorte.
-        var ordenada = order == ReportListOrder.Board
-            ? recorte.OrderBy(report => report.BoardRank).ThenBy(report => report.Id)
-            : recorte.OrderByDescending(report => report.CreatedAt).ThenByDescending(report => report.Id);
+        var ordenada = order switch
+        {
+            ReportListOrder.Board => recorte.OrderBy(report => report.BoardRank).ThenBy(report => report.Id),
+            ReportListOrder.Backlog => recorte.OrderBy(report => report.BacklogRank).ThenBy(report => report.Id),
+            _ => recorte.OrderByDescending(report => report.CreatedAt).ThenByDescending(report => report.Id),
+        };
 
         return await ordenada
             .Skip(skip)
@@ -249,6 +252,13 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Select(group => new { group.Key, Total = group.Count() })
             .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
 
+        // A sprint de quem tem uma: o nome e o estado, para a frente e para o backlog.
+        var sprints = (await Context.Reports
+                .Where(report => reportIds.Contains(report.Id) && report.SprintId != null)
+                .Select(report => new { report.Id, report.Sprint!.PublicId, report.Sprint.Name, report.Sprint.State })
+                .ToListAsync(cancellationToken))
+            .ToDictionary(row => row.Id, row => new CardSprint(row.PublicId, row.Name, row.State));
+
         return reportIds.Distinct().ToDictionary(
             id => id,
             id => new CardFace(
@@ -261,7 +271,8 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 feitas.GetValueOrDefault(id),
                 bloqueadoPor.GetValueOrDefault(id) ?? [],
                 originais.GetValueOrDefault(id),
-                leitores.GetValueOrDefault(id)));
+                leitores.GetValueOrDefault(id),
+                sprints.GetValueOrDefault(id)));
     }
 
     public Task<List<Report>> ListSubtasksArchivedAtAsync(long parentId, DateTime? archivedAt, CancellationToken cancellationToken = default)
@@ -356,6 +367,124 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
               AND r.project_state_id IS NOT DISTINCT FROM {stateId}::bigint
             """, cancellationToken);
 
+    public Task<BacklogSpot?> FindBacklogSpotAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+        // O card de sprint fechada conta como do backlog: ver NoBacklog.
+        => Context.Reports
+            .AsNoTracking()
+            .Where(report => report.ProjectId == projectId && report.PublicId == publicId)
+            .Select(report => new BacklogSpot(
+                report.Id,
+                report.Sprint != null && report.Sprint.State == SprintStateEnum.Closed ? null : report.SprintId,
+                report.BacklogRank,
+                report.ArchivedAt != null,
+                report.ParentReportId))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <summary>
+    /// O card da lista do backlog: sem sprint, ou numa sprint que ja fechou — o que
+    /// terminou nela fica na historia dela, e o que voltou a andar e backlog de novo.
+    /// </summary>
+    private Expression<Func<Report, bool>> NoBacklog()
+        => report => report.SprintId == null
+                     || Context.Sprints.Any(sprint => sprint.Id == report.SprintId && sprint.State == SprintStateEnum.Closed);
+
+    /// <summary>A lista de uma sprint, ou a do backlog (<see cref="NoBacklog"/>), sem as subtarefas.</summary>
+    private IQueryable<Report> ListaDoBacklog(long projectId, long? sprintId)
+    {
+        var doProjeto = Context.Reports.AsNoTracking()
+            .Where(report => report.ProjectId == projectId && report.ParentReportId == null);
+        return sprintId is long id
+            ? doProjeto.Where(report => report.SprintId == id)
+            : doProjeto.Where(NoBacklog());
+    }
+
+    public Task<long?> FindBacklogRankBelowAsync(long projectId, long? sprintId, long rank, long anchorId, long exceptId, CancellationToken cancellationToken = default)
+        // A lista e a da sprint (ou do backlog), sem as subtarefas. O arquivado conta,
+        // como no quadro: ele guarda o lugar.
+        => ListaDoBacklog(projectId, sprintId)
+            .Where(report => report.Id != exceptId
+                             && (report.BacklogRank > rank || (report.BacklogRank == rank && report.Id > anchorId)))
+            .OrderBy(report => report.BacklogRank)
+            .ThenBy(report => report.Id)
+            .Select(report => (long?)report.BacklogRank)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<long?> FindBacklogEdgeRankAsync(long projectId, long? sprintId, bool top, long exceptId, CancellationToken cancellationToken = default)
+    {
+        var lista = ListaDoBacklog(projectId, sprintId)
+            .Where(report => report.Id != exceptId)
+            .Select(report => (long?)report.BacklogRank);
+
+        return top ? lista.MinAsync(cancellationToken) : lista.MaxAsync(cancellationToken);
+    }
+
+    public Task RenumberBacklogAsync(long projectId, long? sprintId, long exceptId, CancellationToken cancellationToken = default)
+        // O mesmo desenho da ordem do quadro: uma gravacao so, na ordem em que a lista
+        // esta, sem escrever por cima de quem mudou depois da leitura.
+        => Context.Database.ExecuteSqlAsync($"""
+            -- ordem do backlog
+            UPDATE reports AS r
+            SET backlog_rank = o.new_rank
+            FROM (SELECT id, backlog_rank AS old_rank,
+                         (row_number() OVER (ORDER BY backlog_rank, id) - 1) * {Report.BoardRankGap} AS new_rank
+                  FROM reports
+                  WHERE project_id = {projectId}
+                    AND (sprint_id IS NOT DISTINCT FROM {sprintId}::bigint
+                         OR ({sprintId}::bigint IS NULL AND sprint_id IN (SELECT id FROM sprints WHERE state = 'closed')))
+                    AND parent_report_id IS NULL
+                    AND id <> {exceptId}) AS o
+            WHERE r.id = o.id
+              AND r.backlog_rank = o.old_rank
+            """, cancellationToken);
+
+    public Task<List<Report>> ListSubtasksAsync(long parentId, CancellationToken cancellationToken = default)
+        // Rastreadas: quem chama leva as subtarefas para a sprint do pai.
+        => Context.Reports
+            .Where(report => report.ParentReportId == parentId)
+            .ToListAsync(cancellationToken);
+
+    public Task<List<Report>> ListSprintCardsAsync(long sprintId, CancellationToken cancellationToken = default)
+        // Rastreados: fechar a sprint leva os que nao terminaram. Sem as subtarefas (vao
+        // com o pai) e sem o arquivo (saiu do trabalho).
+        => Context.Reports
+            .Where(report => report.SprintId == sprintId && report.ParentReportId == null && report.ArchivedAt == null)
+            .OrderBy(report => report.BacklogRank)
+            .ThenBy(report => report.Id)
+            .ToListAsync(cancellationToken);
+
+    public Task<List<Report>> ListArchivedSprintCardsAsync(long sprintId, CancellationToken cancellationToken = default)
+        => Context.Reports
+            .Where(report => report.SprintId == sprintId && report.ParentReportId == null && report.ArchivedAt != null)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyDictionary<long, SprintStats>> CountSprintsAsync(IReadOnlyCollection<long> sprintIds, CancellationToken cancellationToken = default)
+    {
+        if (sprintIds.Count == 0)
+            return new Dictionary<long, SprintStats>();
+
+        // Pela mesma regra do "terminou" — e sem as subtarefas, que nao levam pontos.
+        var cards = await Context.Reports
+            .Where(report => report.SprintId != null
+                             && sprintIds.Contains(report.SprintId.Value)
+                             && report.ParentReportId == null
+                             && report.ArchivedAt == null)
+            .Select(report => new { report.Id, Sprint = report.SprintId!.Value, report.StoryPoints })
+            .ToListAsync(cancellationToken);
+
+        var ids = cards.Select(card => card.Id).ToList();
+        var terminados = await ListFinishedAsync(ids, cancellationToken);
+
+        return cards
+            .GroupBy(card => card.Sprint)
+            .ToDictionary(
+                grupo => grupo.Key,
+                grupo => new SprintStats(
+                    grupo.Count(),
+                    grupo.Count(card => terminados.Contains(card.Id)),
+                    grupo.Sum(card => card.StoryPoints ?? 0),
+                    grupo.Where(card => terminados.Contains(card.Id)).Sum(card => card.StoryPoints ?? 0)));
+    }
+
     public async Task<IReadOnlyList<ReportStateCount>> CountByStateAsync(long projectId, ReportCardFilter cards, CancellationToken cancellationToken = default)
     {
         // Comeca pelos estados, e nao so por um agrupamento dos relatos: agrupar so
@@ -411,6 +540,30 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
     {
         if (filtro.ParentId is long pai)
             cards = cards.Where(report => report.ParentReportId == pai);
+
+        if (filtro.Sprint is { } sprint)
+        {
+            switch (sprint.Kind)
+            {
+                case SprintScopeKind.Active:
+                    // Com as subtarefas: elas acompanham o pai, e estao no quadro.
+                    cards = cards.Where(report => report.SprintId != null
+                                                  && Context.Sprints.Any(item => item.Id == report.SprintId && item.State == SprintStateEnum.Active));
+                    break;
+                case SprintScopeKind.Backlog:
+                    // O que terminou sem sprint fica na lista, e nao no backlog. E o que
+                    // esta numa sprint fechada e voltou a andar (o relato reaberto) e
+                    // backlog de novo: a fechada nao recebe nem mostra nada.
+                    var terminado = Terminado();
+                    var aberto = Expression.Lambda<Func<Report, bool>>(Expression.Not(terminado.Body), terminado.Parameters);
+                    cards = cards.Where(NoBacklog()).Where(report => report.ParentReportId == null).Where(aberto);
+                    break;
+                default:
+                    var id = sprint.SprintId;
+                    cards = cards.Where(report => report.SprintId == id && report.ParentReportId == null);
+                    break;
+            }
+        }
 
         if (filtro.AssigneeIds.Count > 0 || filtro.WithoutAssignee)
         {

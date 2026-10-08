@@ -55,6 +55,7 @@ export const apiProjectReportService: ProjectReportService = {
     if (options?.after) query.set('after', options.after)
     appendReportFilters(query, options?.filters)
     if (options?.parent) query.set('parent', options.parent)
+    if (options?.sprint) query.set('sprint', options.sprint)
 
     const { items, total } = await apiGetPage<ReportSummaryViewModel>(
       `/projects/${publicId}/reports?${query}`,
@@ -72,6 +73,18 @@ export const apiProjectReportService: ProjectReportService = {
   setArchived: (publicId, reportPublicId, request) =>
     apiPut<ReportDetailViewModel>(
       `/projects/${publicId}/reports/${reportPublicId}/archive`,
+      request,
+    ),
+
+  setSprint: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/sprint`,
+      request,
+    ),
+
+  setPoints: (publicId, reportPublicId, request) =>
+    apiPut<ReportDetailViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/points`,
       request,
     ),
 
@@ -122,9 +135,10 @@ export const apiProjectReportService: ProjectReportService = {
       request,
     ),
 
-  listReportCounts: (publicId, filters) => {
+  listReportCounts: (publicId, filters, sprint) => {
     const query = new URLSearchParams()
     appendReportFilters(query, filters)
+    if (sprint) query.set('sprint', sprint)
     const resto = query.toString()
     return apiGet<ReportStateCountViewModel[]>(
       `/projects/${publicId}/reports/counts${resto ? `?${resto}` : ''}`,

@@ -6,6 +6,7 @@ import type {
   ReportInfoRequestViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
+  SprintViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
 import { AskInfoDialog } from '@/features/reports/AskInfoDialog'
@@ -73,6 +74,7 @@ export function ReportDialog({
   assinarAvisos,
   semAoVivo = null,
   aoCriarSubtarefa,
+  sprints = null,
 }: {
   projectPublicId: string
   reportPublicId: string
@@ -89,6 +91,8 @@ export function ReportDialog({
   semAoVivo?: SemAoVivo
   /** Uma subtarefa nasceu neste card: a lista e o quadro a poem na tela. */
   aoCriarSubtarefa?: (subtarefa: ReportDetailViewModel) => void
+  /** As sprints que nao fecharam, com a sprint ligada: o card mostra a sprint e os pontos. */
+  sprints?: SprintViewModel[] | null
 }) {
   const [detalhe, setDetalhe] = useState<ReportDetailViewModel | null>(null)
   const [failed, setFailed] = useState(false)
@@ -549,6 +553,7 @@ export function ReportDialog({
         <TeamCardBody
           projectPublicId={projectPublicId}
           reportPublicId={reportPublicId}
+          sprints={sprints}
           card={atual}
           detalhe={detalhe}
           failed={failed}
@@ -704,6 +709,7 @@ export function ReportDialog({
                   card={atual ?? report}
                   aoMudar={receber}
                   configuracao={configuracao}
+                  sprints={sprints}
                 />
 
                 <dl className="flex flex-col gap-1.5 border-border border-t pt-3">

@@ -26,6 +26,7 @@ export function NewCardDialog({
   projectPublicId,
   colunas,
   colunaInicial,
+  sprintPublicId,
   aoCriar,
   aoCancelar,
 }: {
@@ -33,6 +34,8 @@ export function NewCardDialog({
   colunas: ReportStateCountViewModel[] | null
   /** A coluna ja escolhida; sem ela (ou se ela nao recebe mais), a primeira ativa. */
   colunaInicial?: string
+  /** A sprint em que o card nasce — a em andamento, quando veio de uma coluna do quadro. */
+  sprintPublicId?: string
 
   aoCriar: (card: ReportDetailViewModel) => void
   aoCancelar: () => void
@@ -65,6 +68,7 @@ export function NewCardDialog({
           Title: texto,
           Description: descricao.trim().length > 0 ? descricao : null,
           StatePublicId: coluna || null,
+          ...(sprintPublicId ? { SprintPublicId: sprintPublicId } : {}),
         }),
       )
     } catch (falha) {

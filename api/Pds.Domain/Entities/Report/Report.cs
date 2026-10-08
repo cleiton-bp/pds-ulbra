@@ -195,6 +195,26 @@ public class Report : PdsBaseEntity
     /// <summary>O prazo: so a data, sem hora — sem fuso para confundir. Nulo e sem prazo.</summary>
     public DateOnly? DueDate { get; set; }
 
+    /// <summary>
+    /// A sprint do card. Nulo e o backlog. **A subtarefa acompanha o pai**: vai e volta
+    /// com ele, e nao se move sozinha.
+    /// </summary>
+    public long? SprintId { get; set; }
+    public Sprint? Sprint { get; set; }
+
+    /// <summary>A estimativa em pontos, de 0 a 999, com meio ponto. Nulo e sem estimativa. A subtarefa nao leva.</summary>
+    public decimal? StoryPoints { get; set; }
+
+    /// <summary>Teto da estimativa em pontos.</summary>
+    public const decimal MaxStoryPoints = 999m;
+
+    /// <summary>
+    /// O lugar do card no backlog e nas listas das sprints; o menor fica em cima. A
+    /// ordem e do time inteiro, como a do quadro. Nasce com o numero do card vezes a
+    /// folga — o card novo entra no fim.
+    /// </summary>
+    public long BacklogRank { get; set; }
+
     /// <summary>Conta dona do relato, repetida do projeto para nao custar juncao.</summary>
     public long AccountId { get; set; }
     public Account Account { get; set; } = null!;

@@ -116,6 +116,16 @@ public class ProjectCycleSettingsMap : BaseEntityConfiguration<ProjectCycleSetti
             .IsRequired()
             .HasComment("Faltando ate quantos dias o prazo do card fica em destaque no quadro e na lista. Zero destaca so no proprio dia. De fabrica 2.");
 
+        builder.Property(settings => settings.SprintsEnabled)
+            .HasColumnName("sprints_enabled")
+            .IsRequired()
+            .HasComment("Se o time trabalha em sprints: o backlog aparece, o quadro mostra so a sprint em andamento, e o card ganha pontos. Desligado de fabrica; desligar nao apaga nada.");
+
+        builder.Property(settings => settings.SprintLengthWeeks)
+            .HasColumnName("sprint_length_weeks")
+            .IsRequired()
+            .HasComment("A duracao com que cada sprint nasce, em semanas, de 1 a 4. De fabrica 2. Cada sprint ajusta as proprias datas.");
+
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.
         builder.HasIndex(settings => settings.ProjectId)

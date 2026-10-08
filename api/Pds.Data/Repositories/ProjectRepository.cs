@@ -44,6 +44,24 @@ public class ProjectRepository : BaseRepository<Project, DataContext>, IProjectR
             // sao o mesmo projeto, e deixar os dois existirem so gera confusao.
             .AnyAsync(project => project.Name.ToLower() == name.ToLower(), cancellationToken);
 
+    public async Task<int> NextSprintNumberAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        // O mesmo desenho do numero do card: ver ali.
+        var numeros = await Context.Database
+            .SqlQuery<int>($"""
+                -- numero da sprint
+                UPDATE projects
+                SET last_sprint_number = last_sprint_number + 1
+                WHERE id = {projectId}
+                RETURNING last_sprint_number AS "Value"
+                """)
+            .ToListAsync(cancellationToken);
+
+        return numeros.Count == 1
+            ? numeros[0]
+            : throw new InvalidOperationException("Projeto nao encontrado ao numerar a sprint.");
+    }
+
     public async Task<int> NextCardNumberAsync(long projectId, CancellationToken cancellationToken = default)
     {
         // SQL direto: o LINQ nao escreve "some e devolva o valor novo" num comando

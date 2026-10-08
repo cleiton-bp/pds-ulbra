@@ -1,0 +1,52 @@
+<h2>Sprints e backlog</h2>
+
+<p>O time que trabalha em ciclos curtos liga as sprints no Ciclo
+(<code>project_cycle_settings.sprints_enabled</code>). As sprints moram em <code>sprints</code>; o
+card ganha a sprint em que está (<code>reports.sprint_id</code>, nula no backlog), a estimativa em
+pontos (<code>reports.story_points</code>) e o lugar no backlog (<code>reports.backlog_rank</code>).</p>
+
+<div class="note warn">
+  <strong>Interno, como os campos do card</strong>
+  <p>Nenhuma rota pública lê a sprint nem os pontos: quem relatou continua vendo só a etapa e o
+  encerramento.</p>
+</div>
+
+<h2>sprints</h2>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>O projeto da sprint.</td></tr>
+  <tr><td><code>number</code></td><td>O número da sprint no projeto — o da "Sprint 3". Vem de <code>projects.last_sprint_number</code>, somado numa gravação só, como o número do card: duas sprints criadas ao mesmo tempo saem cada uma com o seu, e a apagada não devolve o número.</td></tr>
+  <tr><td><code>name</code>, <code>goal</code></td><td>O nome (até 60) e o objetivo opcional (até 500).</td></tr>
+  <tr><td><code>state</code></td><td><code>planned</code> | <code>active</code> | <code>closed</code>.</td></tr>
+  <tr><td><code>starts_on</code>, <code>ends_on</code></td><td>O primeiro e o último dia, só datas. Nascem com a duração padrão do projeto, e se ajustam.</td></tr>
+  <tr><td><code>started_at</code>, <code>closed_at</code></td><td>Quando foi iniciada e concluída.</td></tr>
+</table>
+</div>
+
+<p>As travas do banco: o estado na lista, o fim no começo ou depois dele, o número único no projeto
+e <strong>uma em andamento por projeto</strong> (índice único com <code>state = 'active'</code>) — a
+conferência do serviço vem antes, sob a trava da ordem do projeto, e o índice segura as duas abas
+que iniciam ao mesmo tempo.</p>
+
+<h2>O card nas sprints</h2>
+
+<ul>
+  <li><code>reports.sprint_id</code> — a sprint do card; nula é o backlog. <code>Restrict</code>: a
+  sprint apagada devolve os cards ao backlog antes. <strong>A subtarefa acompanha o pai</strong>:
+  vai e volta com ele, e o serviço recusa movê-la sozinha.</li>
+  <li><code>reports.story_points</code> — de 0 a 999, de meio em meio ponto
+  (<code>ck_reports_story_points</code>). A subtarefa não leva.</li>
+  <li><code>reports.backlog_rank</code> — o lugar na lista do backlog e nas listas das sprints, o
+  menor em cima, com a mesma folga da ordem do quadro. Nasce com o número do card vezes a folga: o
+  card novo entra no fim. Os cards que já existiam entraram na ordem em que nasceram.</li>
+</ul>
+
+<div class="note why">
+  <strong>O que terminou fica na sprint concluída</strong>
+  <p>Concluir a sprint leva o que não terminou para o destino escolhido; o que terminou continua
+  apontando para ela, que é a história do que aconteceu. Se um desses cards volta a andar — o
+  relato que quem relatou reabriu —, ele conta como backlog de novo: a sprint concluída não recebe
+  nem mostra nada.</p>
+</div>

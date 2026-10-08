@@ -74,6 +74,8 @@ const padroes: CycleSettingsViewModel = {
   AllowsReportArchiving: false,
   LastColumnVisibleDays: 14,
   DueSoonDays: 2,
+  SprintsEnabled: false,
+  SprintLengthWeeks: 2,
 }
 
 function montar() {
