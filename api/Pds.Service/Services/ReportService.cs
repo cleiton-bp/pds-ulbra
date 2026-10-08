@@ -225,6 +225,8 @@ public partial class ReportService : IReportService
         {
             Kind = CardKindEnum.Report,
             Number = numero,
+            // No fim do backlog, como todo card novo.
+            BacklogRank = numero * Report.BoardRankGap,
             AccountId = project.AccountId,
             ProjectId = project.Id,
             ReporterCode = codigoPessoal,
@@ -1032,7 +1034,8 @@ public partial class ReportService : IReportService
         {
             null or "" or "recent" => ReportListOrder.Recent,
             "board" => ReportListOrder.Board,
-            _ => throw new ArgumentException("Ordem desconhecida. Use recent ou board."),
+            "backlog" => ReportListOrder.Backlog,
+            _ => throw new ArgumentException("Ordem desconhecida. Use recent, board ou backlog."),
         };
 
     /// <summary>
@@ -1081,6 +1084,9 @@ public partial class ReportService : IReportService
         // A subtarefa nasce no primeiro estado, o comeco do trabalho — e sem responsavel:
         // quem a pega e quem a faz.
         var estado = await ResolveTeamCardStateAsync(project.Id, pai is null ? dto.StatePublicId : null, cancellationToken);
+        // Com sprint ligada: o criado numa coluna do quadro entra na sprint que veio; a
+        // subtarefa, na do pai; o resto, no backlog.
+        var sprint = await ResolveCreateSprintAsync(project.Id, pai, dto.SprintPublicId, cancellationToken);
         var autorId = _accountContext.UserId ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
 
         // Depois de tudo o que podia recusar: numero reservado para card recusado
@@ -1094,6 +1100,8 @@ public partial class ReportService : IReportService
         {
             Kind = CardKindEnum.Team,
             Number = numero,
+            // No fim do backlog, como todo card novo.
+            BacklogRank = numero * Report.BoardRankGap,
             AccountId = project.AccountId,
             ProjectId = project.Id,
             Title = titulo,
@@ -1104,6 +1112,7 @@ public partial class ReportService : IReportService
             StateChangedAt = DateTime.UtcNow,
             CreatedByUserId = autorId,
             ParentReportId = pai?.Id,
+            SprintId = sprint?.Id,
             // O banco so aceita card do time pendente: e o que o mantem fora da
             // lista publica mesmo que alguem esqueca o filtro numa consulta.
             ModerationState = ReportModerationStateEnum.Pending,
@@ -1129,6 +1138,7 @@ public partial class ReportService : IReportService
                 description_length = descricao?.Length ?? 0,
                 parent_id = pai?.PublicId,
                 parent_number = pai?.Number,
+                sprint_id = sprint?.PublicId,
             }),
         }, cancellationToken);
 
@@ -2780,7 +2790,9 @@ public partial class ReportService : IReportService
         face.SubtasksDone,
         face.BlockedBy,
         face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
-        face.DuplicateReporters);
+        face.DuplicateReporters,
+        face.Sprint is { } sprint ? new CardSprintViewModel(sprint.PublicId, sprint.Name, sprint.State) : null,
+        report.StoryPoints);
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2903,7 +2915,9 @@ public partial class ReportService : IReportService
         face.SubtasksDone,
         face.BlockedBy,
         face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
-        face.DuplicateReporters);
+        face.DuplicateReporters,
+        face.Sprint is { } sprint ? new CardSprintViewModel(sprint.PublicId, sprint.Name, sprint.State) : null,
+        report.StoryPoints);
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem

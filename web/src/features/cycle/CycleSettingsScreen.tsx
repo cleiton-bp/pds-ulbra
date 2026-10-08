@@ -5,6 +5,8 @@ import {
   MAX_INFO_REQUEST_DAYS,
   MAX_LAST_COLUMN_VISIBLE_DAYS,
   MAX_PUBLIC_DELAY_MINUTES,
+  MAX_SPRINT_LENGTH_WEEKS,
+  MIN_SPRINT_LENGTH_WEEKS,
 } from '@/contracts'
 import { describeError, projectCycleSettingsService, projectStateService } from '@/data'
 import { Button } from '@/shared/components/Button'
@@ -91,6 +93,8 @@ export function CycleSettingsScreen() {
     'AllowsReportArchiving',
     'LastColumnVisibleDays',
     'DueSoonDays',
+    'SprintsEnabled',
+    'SprintLengthWeeks',
   ] as const
 
   const dirty =
@@ -378,6 +382,43 @@ export function CycleSettingsScreen() {
                 : 'Em amarelo, no quadro e na lista. O vencido aparece sempre, em vermelho.'
             }
           />
+
+          <h2 className="mt-8 mb-1 font-medium text-fg text-lead">Sprints</h2>
+          <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+            Para o time que trabalha em ciclos curtos. Com as sprints ligadas, a tela de Trabalho
+            ganha o <strong className="font-medium text-fg">Backlog</strong>, onde o time planeja as
+            sprints; o quadro mostra só a sprint em andamento; e o card ganha a estimativa em
+            pontos. Desligar não apaga nada.
+          </p>
+
+          <Marcar
+            marcado={draft.SprintsEnabled}
+            titulo="Trabalhar em sprints"
+            explicacao="Uma sprint em andamento por vez, e quantas planejadas o time quiser. Planejar, iniciar e fechar é de qualquer pessoa do time."
+            aoTrocar={(valor) => setDraft({ ...draft, SprintsEnabled: valor })}
+          />
+
+          {draft.SprintsEnabled && (
+            <div className="mt-3 ml-6">
+              <Select
+                label="Cada sprint nasce com"
+                value={String(draft.SprintLengthWeeks)}
+                onChange={(valor) => setDraft({ ...draft, SprintLengthWeeks: Number(valor) })}
+                options={Array.from(
+                  { length: MAX_SPRINT_LENGTH_WEEKS - MIN_SPRINT_LENGTH_WEEKS + 1 },
+                  (_, indice) => {
+                    const semanas = MIN_SPRINT_LENGTH_WEEKS + indice
+                    return {
+                      value: String(semanas),
+                      label: semanas === 1 ? '1 semana' : `${semanas} semanas`,
+                    }
+                  },
+                )}
+                hint="As datas de cada sprint se ajustam ao planejar ou iniciar."
+                className="max-w-60"
+              />
+            </div>
+          )}
 
           <div className="mt-8">
             <Button variant="primary" disabled={!dirty || saving} onClick={salvar}>

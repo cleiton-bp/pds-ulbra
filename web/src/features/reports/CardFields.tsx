@@ -2,10 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react'
 import {
   MAX_LABEL_NAME_LENGTH,
   MAX_LABELS_PER_CARD,
+  MAX_STORY_POINTS,
   type ProjectLabelViewModel,
   type ProjectPriorityViewModel,
   type ReportDetailViewModel,
   type ReportSummaryViewModel,
+  type SprintViewModel,
   type TeamMemberViewModel,
 } from '@/contracts'
 import {
@@ -15,6 +17,7 @@ import {
   projectReportService,
   projectTeamService,
 } from '@/data'
+import { formatPoints } from '@/features/reports/sprints/sprintLook'
 import { CardChip } from '@/shared/components/CardChip'
 import { Select } from '@/shared/components/Select'
 import { toast } from '@/shared/components/toastStore'
@@ -41,11 +44,17 @@ export function CardFields({
   card,
   aoMudar,
   configuracao = 0,
+  sprints = null,
 }: {
   projectPublicId: string
   reportPublicId: string
   card: ReportSummaryViewModel
   aoMudar: (card: ReportDetailViewModel) => void
+  /**
+   * As sprints que nao fecharam, com a sprint ligada — e ai o card mostra a sprint e
+   * os pontos. Nulo sem sprints: os dois campos nem aparecem.
+   */
+  sprints?: SprintViewModel[] | null
   /**
    * Sobe quando a configuracao do projeto mudou pelas maos de outra pessoa — ou a
    * conexao em tempo real voltou e pode ter perdido o aviso: as listas sao lidas de novo.
@@ -272,6 +281,78 @@ export function CardFields({
             />
           )}
         </dd>
+
+        {sprints && (
+          <>
+            <dt className="text-detail text-fg-muted">Sprint</dt>
+            <dd className="min-w-0">
+              {arquivado || card.Parent ? (
+                <span className={cn('text-body', card.Sprint ? 'text-fg' : 'text-fg-muted')}>
+                  {card.Sprint ? card.Sprint.Name : 'Backlog'}
+                  {card.Parent && (
+                    <span className="text-caption text-fg-muted"> · vai com o pai</span>
+                  )}
+                </span>
+              ) : (
+                <Select
+                  size="sm"
+                  ariaLabel="Sprint"
+                  value={card.Sprint && card.Sprint.State !== 'Closed' ? card.Sprint.PublicId : ''}
+                  onChange={(valor) =>
+                    salvar(async (c) =>
+                      (c.Sprint && c.Sprint.State !== 'Closed' ? c.Sprint.PublicId : '') === valor
+                        ? null
+                        : projectReportService.setSprint(projectPublicId, reportPublicId, {
+                            SprintPublicId: valor === '' ? null : valor,
+                          }),
+                    )
+                  }
+                  options={[
+                    { value: '', label: 'Backlog' },
+                    ...sprints.map((sprint) => ({
+                      value: sprint.PublicId,
+                      label:
+                        sprint.State === 'Active' ? `${sprint.Name} (em andamento)` : sprint.Name,
+                    })),
+                  ]}
+                />
+              )}
+            </dd>
+
+            {!card.Parent && (
+              <>
+                <dt className="text-detail text-fg-muted">Pontos</dt>
+                <dd className="min-w-0">
+                  {arquivado ? (
+                    <span
+                      className={cn(
+                        'text-body',
+                        card.StoryPoints !== null ? 'text-fg' : 'text-fg-muted',
+                      )}
+                    >
+                      {card.StoryPoints !== null
+                        ? formatPoints(card.StoryPoints)
+                        : 'Sem estimativa'}
+                    </span>
+                  ) : (
+                    <Pontos
+                      valor={card.StoryPoints}
+                      aoMudar={(pontos) =>
+                        salvar(async (c) =>
+                          c.StoryPoints === pontos
+                            ? null
+                            : projectReportService.setPoints(projectPublicId, reportPublicId, {
+                                Points: pontos,
+                              }),
+                        )
+                      }
+                    />
+                  )}
+                </dd>
+              </>
+            )}
+          </>
+        )}
       </dl>
 
       {algoFalhou && (
@@ -549,5 +630,64 @@ function Prazo({
         </button>
       )}
     </div>
+  )
+}
+
+/**
+ * A estimativa: um numero de 0 a 999, de meio em meio ponto. Grava ao sair do campo
+ * ou com Enter; vazio tira a estimativa. O que nao for um numero valido volta ao que
+ * estava, com o aviso.
+ */
+function Pontos({
+  valor,
+  aoMudar,
+}: {
+  valor: number | null
+  aoMudar: (pontos: number | null) => void
+}) {
+  const [texto, setTexto] = useState(valor === null ? '' : String(valor).replace('.', ','))
+  const [lido, setLido] = useState(valor)
+  if (lido !== valor) {
+    setLido(valor)
+    setTexto(valor === null ? '' : String(valor).replace('.', ','))
+  }
+
+  function gravar() {
+    const limpo = texto.trim().replace(',', '.')
+    if (limpo === '') {
+      if (valor !== null) aoMudar(null)
+      return
+    }
+    const numero = Number(limpo)
+    if (
+      !Number.isFinite(numero) ||
+      numero < 0 ||
+      numero > MAX_STORY_POINTS ||
+      numero * 2 !== Math.trunc(numero * 2)
+    ) {
+      toast.error(`A estimativa vai de 0 a ${MAX_STORY_POINTS}, de meio em meio ponto.`)
+      setTexto(valor === null ? '' : String(valor).replace('.', ','))
+      return
+    }
+    if (numero !== valor) aoMudar(numero)
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label="Pontos"
+      value={texto}
+      placeholder="Sem estimativa"
+      onChange={(evento) => setTexto(evento.target.value)}
+      onBlur={gravar}
+      onKeyDown={(evento) => {
+        if (evento.key === 'Enter') {
+          evento.preventDefault()
+          gravar()
+        }
+      }}
+      className="h-8 w-28 rounded-lg border border-border bg-surface px-2.5 text-body text-fg tabular-nums placeholder:text-fg-placeholder"
+    />
   )
 }

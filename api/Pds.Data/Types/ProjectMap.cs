@@ -52,6 +52,16 @@ public class ProjectMap : BaseEntityConfiguration<Project>
         builder.Property(project => project.LastCardNumber)
             .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
+        builder.Property(project => project.LastSprintNumber)
+            .HasColumnName("last_sprint_number")
+            .IsRequired()
+            .HasDefaultValue(0)
+            .HasComment("O ultimo numero de sprint dado no projeto (Sprint 3); a proxima leva este mais um. Somado numa gravacao so (UPDATE ... RETURNING), como o numero do card.");
+
+        // Como o numero do card: so anda pelo UPDATE ... RETURNING.
+        builder.Property(project => project.LastSprintNumber)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
         builder.Property(project => project.BoardTopRank)
             .HasColumnName("board_top_rank")
             .IsRequired()

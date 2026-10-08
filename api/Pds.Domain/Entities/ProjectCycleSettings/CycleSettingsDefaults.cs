@@ -83,4 +83,10 @@ public static class CycleSettingsDefaults
     /// quadro inteiro.
     /// </summary>
     public const int DueSoonDays = 2;
+
+    /// <summary>Sem sprints: o quadro mostra tudo, e o time que trabalha em sprint liga.</summary>
+    public const bool SprintsEnabled = false;
+
+    /// <summary>Duas semanas, a duracao mais comum de sprint.</summary>
+    public const int SprintLengthWeeks = 2;
 }

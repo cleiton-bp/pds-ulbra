@@ -26,6 +26,11 @@ public class ReportMap : BaseEntityConfiguration<Report>
             // card gravado sem passar por ele — e o segundo esbarraria no indice.
             table.HasCheckConstraint("ck_reports_number", "number > 0");
 
+            // Meio ponto em meio ponto, de 0 a 999.
+            table.HasCheckConstraint(
+                "ck_reports_story_points",
+                "story_points IS NULL OR (story_points >= 0 AND story_points <= 999 AND story_points * 2 = trunc(story_points * 2))");
+
             // O relato continua obrigado a ter o que o torna relato: o protocolo
             // que a pessoa le, o token que abre o acompanhamento, o tipo e o texto.
             // A descricao e do card do time: o texto do relato e de quem relatou.
@@ -126,6 +131,29 @@ public class ReportMap : BaseEntityConfiguration<Report>
         builder.Property(report => report.DueDate)
             .HasColumnName("due_date")
             .HasComment("O prazo: so a data, sem hora. Nulo e sem prazo. Interno.");
+
+        builder.Property(report => report.SprintId)
+            .HasColumnName("sprint_id")
+            .HasComment("A sprint do card; nulo e o backlog. A subtarefa acompanha o pai (o servico confere). Interno.");
+
+        // Restrict: a sprint apagada devolve os cards ao backlog antes; a fechada fica.
+        builder.HasOne(report => report.Sprint)
+            .WithMany()
+            .HasForeignKey(report => report.SprintId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(report => report.StoryPoints)
+            .HasColumnName("story_points")
+            .HasPrecision(4, 1)
+            .HasComment("A estimativa em pontos, de 0 a 999 com meio ponto. Nulo e sem estimativa; a subtarefa nao leva. Interno.");
+
+        builder.Property(report => report.BacklogRank)
+            .HasColumnName("backlog_rank")
+            .IsRequired()
+            .HasComment("O lugar do card no backlog e nas listas das sprints; o menor fica em cima. Nasce com o numero do card vezes a folga: o novo entra no fim. Interno.");
+
+        // As listas do backlog: o que esta em cada sprint (ou em nenhuma), na ordem do time.
+        builder.HasIndex(report => new { report.ProjectId, report.SprintId, report.BacklogRank });
 
         builder.HasMany(report => report.Labels)
             .WithOne(label => label.Report)

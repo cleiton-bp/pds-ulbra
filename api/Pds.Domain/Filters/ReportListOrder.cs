@@ -11,4 +11,7 @@ public enum ReportListOrder
     /// So faz sentido dentro de uma coluna.
     /// </summary>
     Board,
+
+    /// <summary>A ordem do backlog e das listas das sprints, que o time arruma.</summary>
+    Backlog,
 }

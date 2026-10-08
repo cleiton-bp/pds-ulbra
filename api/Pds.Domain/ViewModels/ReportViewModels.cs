@@ -121,6 +121,8 @@ public record CreatedReportViewModel(
 /// Os numeros dos cards que bloqueiam este e ainda nao terminaram, em ordem. Vazio e
 /// card livre. So marca: mover continua livre.
 /// </param>
+/// <param name="Sprint">A sprint do card, com a sprint ligada; nula e o backlog. Interno.</param>
+/// <param name="StoryPoints">A estimativa em pontos, de 0 a 999 com meio ponto; nula e sem estimativa. Interno.</param>
 /// <param name="DuplicateOf">O original, quando o card e duplicado — e esta no arquivo por isso.</param>
 /// <param name="DuplicateReporters">
 /// Quantos relatos duplicados deste card ainda esperam o desfecho: as pessoas a mais
@@ -157,7 +159,15 @@ public record ReportSummaryViewModel(
     int SubtasksDone,
     IReadOnlyList<int> BlockedBy,
     CardParentViewModel? DuplicateOf,
-    int DuplicateReporters);
+    int DuplicateReporters,
+    CardSprintViewModel? Sprint,
+    decimal? StoryPoints);
+
+/// <summary>A sprint do card: nula e o backlog.</summary>
+/// <param name="PublicId">O identificador da sprint.</param>
+/// <param name="Name">O nome dela (Sprint 3).</param>
+/// <param name="State">Planejada, em andamento ou fechada.</param>
+public record CardSprintViewModel(Guid PublicId, string Name, SprintStateEnum State);
 
 /// <summary>Outro card, citado por este: o pai da subtarefa, ou o original do duplicado.</summary>
 /// <param name="PublicId">O identificador do card.</param>
@@ -445,6 +455,8 @@ public record ReportContextViewModel(string Key, string? Value);
 /// <param name="SubtaskCount">Quantas subtarefas o card tem fora do arquivo.</param>
 /// <param name="SubtasksDone">Delas, quantas terminaram.</param>
 /// <param name="BlockedBy">Os numeros dos bloqueadores que nao terminaram — ver o resumo do card.</param>
+/// <param name="Sprint">A sprint do card; nula e o backlog.</param>
+/// <param name="StoryPoints">A estimativa em pontos; nula e sem estimativa.</param>
 /// <param name="DuplicateOf">O original, quando o card e duplicado.</param>
 /// <param name="DuplicateReporters">Quantos relatos duplicados ainda esperam o desfecho deste.</param>
 /// <param name="ArchiveCloses">
@@ -493,7 +505,9 @@ public record ReportDetailViewModel(
     int SubtasksDone,
     IReadOnlyList<int> BlockedBy,
     CardParentViewModel? DuplicateOf,
-    int DuplicateReporters);
+    int DuplicateReporters,
+    CardSprintViewModel? Sprint,
+    decimal? StoryPoints);
 
 
 /// <summary>

@@ -410,6 +410,13 @@ public class CreateTeamCardDto
     /// responsavel.
     /// </summary>
     public Guid? ParentPublicId { get; set; }
+
+    /// <summary>
+    /// A sprint em que o card nasce, com a sprint ligada — o "Criar" de uma coluna do
+    /// quadro manda a em andamento. Sem ela, o backlog. A subtarefa ignora: vai para a
+    /// sprint do pai.
+    /// </summary>
+    public Guid? SprintPublicId { get; set; }
 }
 
 /// <summary>

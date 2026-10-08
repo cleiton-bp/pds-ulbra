@@ -70,9 +70,16 @@ export function useBoard(
    */
   filters?: ReportFilters,
   filtersKey = '',
+  /**
+   * Com a sprint ligada, o recorte do quadro: `active`, a sprint em andamento. Entra
+   * na chave junto dos filtros — ligar ou desligar rele as colunas.
+   */
+  sprint?: string,
 ) {
   const filtros = useRef(filters)
   filtros.current = filters
+  const recorte = useRef(sprint)
+  recorte.current = sprint
   const aoRelerAgora = useRef(aoReler)
   aoRelerAgora.current = aoReler
   const [items, setItemsState] = useState<BoardItems>({})
@@ -136,6 +143,7 @@ export function useBoard(
         pageSize,
         ...(after ? { after } : {}),
         ...(filtersKey && filtros.current ? { filters: filtros.current } : {}),
+        ...(recorte.current ? { sprint: recorte.current } : {}),
       }),
     [projectPublicId, filtersKey],
   )

@@ -45,6 +45,9 @@ public interface IProjectRepository : IBaseRepository<Project>
     /// </summary>
     Task<int> NextCardNumberAsync(long projectId, CancellationToken cancellationToken = default);
 
+    /// <summary>O proximo numero de sprint do projeto, somado numa gravacao so, como o do card.</summary>
+    Task<int> NextSprintNumberAsync(long projectId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Desce o topo do quadro e devolve o lugar novo: o do card que acaba de chegar a
     /// uma coluna sem ser arrastado.

@@ -48,6 +48,13 @@ public class Project : PdsBaseEntity
     public int LastCardNumber { get; set; }
 
     /// <summary>
+    /// O ultimo numero de sprint dado no projeto — o da "Sprint 3". Um contador, pelo
+    /// mesmo motivo do numero do card: duas sprints criadas no mesmo instante saem cada
+    /// uma com o seu, e a apagada nao devolve o numero.
+    /// </summary>
+    public int LastSprintNumber { get; set; }
+
+    /// <summary>
     /// O topo do quadro: o lugar do ultimo card posto no topo de uma coluna — o que
     /// chega sem ser arrastado, ou o que foi solto no topo. O proximo fica uma folga
     /// acima dele.

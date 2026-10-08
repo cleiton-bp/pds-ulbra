@@ -9,6 +9,7 @@ import {
   PriorityIcon,
   SubtaskProgress,
 } from '@/features/reports/cardLook'
+import { PointsChip } from '@/features/reports/sprints/SprintBacklog'
 import { CardChip } from '@/shared/components/CardChip'
 import { DueChip } from '@/shared/components/DueChip'
 import { cn } from '@/shared/lib/cn'
@@ -109,7 +110,10 @@ export function BoardCardFace({
             />
           )}
         </div>
-        {card.Assignee && <PersonAvatar pessoa={card.Assignee} />}
+        <span className="flex flex-none items-center gap-1.5">
+          <PointsChip points={card.StoryPoints} />
+          {card.Assignee && <PersonAvatar pessoa={card.Assignee} />}
+        </span>
       </div>
     </div>
   )

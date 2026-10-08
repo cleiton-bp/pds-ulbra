@@ -27,6 +27,13 @@ import {
 } from '@/features/reports/LiveStatus'
 import { NewCardDialog } from '@/features/reports/NewCardDialog'
 import { ReportsTable, ReportsTableSkeleton } from '@/features/reports/ReportsTable'
+import { SprintBacklog } from '@/features/reports/sprints/SprintBacklog'
+import {
+  CloseSprintDialog,
+  NoActiveSprint,
+  SprintBar,
+  useSprints,
+} from '@/features/reports/sprints/sprintLook'
 import { useReportInbox } from '@/features/reports/useReportInbox'
 import { useWorkFilters } from '@/features/reports/useWorkFilters'
 import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
@@ -39,8 +46,8 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
 
-/** As duas vistas da tela de Trabalho. */
-type Vista = 'lista' | 'quadro'
+/** As vistas da tela de Trabalho. O backlog so com a sprint ligada. */
+type Vista = 'lista' | 'quadro' | 'backlog'
 
 /**
  * Faltando ate quantos dias o prazo fica em destaque enquanto a regra do projeto
@@ -100,7 +107,31 @@ export function ReportsScreen() {
     setArquivados(false)
   }
 
-  const quadro = vista === 'quadro' && !arquivados
+  // As regras do Ciclo que a tela usa: quando o prazo fica perto, e quantos dias a
+  // ultima coluna do quadro mostra. Falhando, o destaque fica no padrao de fabrica e
+  // o quadro so nao diz quantos ficaram na lista — a API aplica a regra do mesmo jeito.
+  const { data: ciclo, revalidate: renovarCiclo } = useAsyncResource(
+    useCallback(
+      () => projectCycleSettingsService.getCycleSettings(project.PublicId),
+      [project.PublicId],
+    ),
+  )
+  const destaque = ciclo?.DueSoonDays ?? DESTAQUE_DE_FABRICA
+
+  // Com a sprint ligada: a aba Backlog existe, e o quadro mostra so a sprint em
+  // andamento. A vista lembrada "backlog" de quando estava ligada volta a ser a lista.
+  const sprintsLigadas = ciclo?.SprintsEnabled === true
+  const vistaEfetiva: Vista = vista === 'backlog' && !sprintsLigadas ? 'lista' : vista
+  const sprints = useSprints(project.PublicId, sprintsLigadas)
+  const [concluindo, setConcluindo] = useState(false)
+  /** Sobe a cada mudanca que o backlog precisa reler: um card, uma sprint. */
+  const [versaoDoBacklog, setVersaoDoBacklog] = useState(0)
+  const mexeuNoBacklog = useCallback(() => setVersaoDoBacklog((n) => n + 1), [])
+
+  const quadro = vistaEfetiva === 'quadro' && !arquivados
+  const backlog = vistaEfetiva === 'backlog' && !arquivados
+  const modoSprint = sprintsLigadas && quadro
+  const sprintDoQuadro = modoSprint ? 'active' : undefined
 
   // Os filtros da tela — os mesmos na lista, no quadro e na contagem das colunas.
   const filtros = useWorkFilters(project.PublicId)
@@ -124,7 +155,7 @@ export function ReportsScreen() {
     project.PublicId,
     arquivados ? null : filtro,
     arquivados,
-    !quadro,
+    !quadro && !backlog,
     filtros.applied,
     comFiltro ? filtros.key : '',
   )
@@ -132,11 +163,19 @@ export function ReportsScreen() {
   // Depois de uma mudanca, a contagem e relida sem sair da tela (`revalidate`): pelo
   // vazio, o quadro saia da tela e voltava lido do zero a cada movimento. Os filtros
   // entram pela referencia, e trocar de filtro tambem rele sem sair da tela.
-  const filtrosDaContagem = useRef<{ aplicados: typeof filtros.applied; ligado: boolean }>({
+  const filtrosDaContagem = useRef<{
+    aplicados: typeof filtros.applied
+    ligado: boolean
+    sprint?: string
+  }>({
     aplicados: filtros.applied,
     ligado: comFiltro,
   })
-  filtrosDaContagem.current = { aplicados: filtros.applied, ligado: comFiltro }
+  filtrosDaContagem.current = {
+    aplicados: filtros.applied,
+    ligado: comFiltro,
+    sprint: sprintDoQuadro,
+  }
   const {
     data: contagensLidas,
     failed: contagensFalharam,
@@ -146,12 +185,14 @@ export function ReportsScreen() {
     useCallback(
       async () => ({
         projeto: project.PublicId,
-        linhas: filtrosDaContagem.current.ligado
-          ? await projectReportService.listReportCounts(
-              project.PublicId,
-              filtrosDaContagem.current.aplicados,
-            )
-          : await projectReportService.listReportCounts(project.PublicId),
+        linhas:
+          filtrosDaContagem.current.ligado || filtrosDaContagem.current.sprint
+            ? await projectReportService.listReportCounts(
+                project.PublicId,
+                filtrosDaContagem.current.ligado ? filtrosDaContagem.current.aplicados : undefined,
+                filtrosDaContagem.current.sprint,
+              )
+            : await projectReportService.listReportCounts(project.PublicId),
       }),
       [project.PublicId],
     ),
@@ -159,17 +200,6 @@ export function ReportsScreen() {
   // A contagem de outro projeto nao serve: na troca, ela ainda e a do anterior por
   // uma renderizacao, e o quadro pediria as colunas dele ao projeto novo.
   const contagens = contagensLidas?.projeto === project.PublicId ? contagensLidas.linhas : null
-
-  // As regras do Ciclo que a tela usa: quando o prazo fica perto, e quantos dias a
-  // ultima coluna do quadro mostra. Falhando, o destaque fica no padrao de fabrica e
-  // o quadro so nao diz quantos ficaram na lista — a API aplica a regra do mesmo jeito.
-  const { data: ciclo, revalidate: renovarCiclo } = useAsyncResource(
-    useCallback(
-      () => projectCycleSettingsService.getCycleSettings(project.PublicId),
-      [project.PublicId],
-    ),
-  )
-  const destaque = ciclo?.DueSoonDays ?? DESTAQUE_DE_FABRICA
 
   const colunasDoQuadro = useMemo(() => (contagens ? boardColumns(contagens) : null), [contagens])
   // O card que outra pessoa mudou acende — e e anunciado — quando a releitura chega, e
@@ -186,17 +216,20 @@ export function ReportsScreen() {
     },
     [destacar, anunciar],
   )
+  // A sprint entra na chave: ligar, desligar ou trocar de vista rele as colunas.
+  const chaveDoQuadro = `${comFiltro ? filtros.key : ''}${sprintDoQuadro ? '|sprint' : ''}`
   const board = useBoard(
     project.PublicId,
     colunasDoQuadro,
-    quadro,
+    quadro && (!modoSprint || sprints.ativa !== null),
     acender,
     filtros.applied,
-    comFiltro ? filtros.key : '',
+    chaveDoQuadro,
+    sprintDoQuadro,
   )
 
   // O filtro mudou: a contagem das colunas e relida, sem tirar o quadro da tela.
-  const chaveDaContagem = comFiltro ? filtros.key : ''
+  const chaveDaContagem = chaveDoQuadro
   const contagemLida = useRef(chaveDaContagem)
   useEffect(() => {
     if (contagemLida.current === chaveDaContagem) return
@@ -234,6 +267,10 @@ export function ReportsScreen() {
         if (!quadro) acenderNaLista.current.add(ReportPublicId)
         juntarLista()
         juntarContagens()
+        if (sprintsLigadas) {
+          sprints.revalidate()
+          mexeuNoBacklog()
+        }
         break
       }
       case 'project':
@@ -241,6 +278,8 @@ export function ReportsScreen() {
         // A configuracao mudou, ou a conexao voltou e pode ter perdido avisos: tudo.
         renovarContagens()
         renovarCiclo()
+        sprints.revalidate()
+        mexeuNoBacklog()
         board.reloadAll()
         juntarLista()
         anunciar(
@@ -264,6 +303,13 @@ export function ReportsScreen() {
   const aoMudar = (mudou: ReportSummaryViewModel | ReportDetailViewModel) => {
     apply(mudou)
     board.apply(mudou)
+    // Com a sprint ligada, o card que saiu da sprint em andamento sai do quadro: a
+    // coluna dele e relida com o recorte.
+    if (modoSprint && mudou.Sprint?.State !== 'Active') board.remoteChange(mudou.PublicId, null)
+    if (sprintsLigadas) {
+      sprints.revalidate()
+      mexeuNoBacklog()
+    }
     // A contagem muda em duas colunas de uma vez — ou numa so, quando o card vai
     // para o arquivo —, e ela nao se recalcula sozinha. Sem isto, as contagens do
     // filtro de coluna e do quadro passariam a discordar da lista na frente de quem
@@ -302,7 +348,21 @@ export function ReportsScreen() {
         </div>
       )}
 
-      {quadro ? (
+      {backlog ? (
+        <SprintBacklog
+          projectPublicId={project.PublicId}
+          sprints={sprints.sprints}
+          colunas={contagens}
+          versao={versaoDoBacklog}
+          aoMudou={() => {
+            sprints.revalidate()
+            mexeuNoBacklog()
+            renovarContagens()
+          }}
+        />
+      ) : quadro && modoSprint && sprints.sprints !== null && sprints.ativa === null ? (
+        <NoActiveSprint aoIrAoBacklog={() => setVista('backlog')} />
+      ) : quadro ? (
         colunasDoQuadro === null ? (
           contagensFalharam ? (
             <div className="max-w-170 rounded-xl border border-border bg-surface-raised p-5">
@@ -315,23 +375,28 @@ export function ReportsScreen() {
             <BoardSkeleton />
           )
         ) : (
-          <ReportsBoard
-            projectPublicId={project.PublicId}
-            board={board}
-            columns={colunasDoQuadro}
-            soonDays={destaque}
-            lastColumnDays={ciclo?.LastColumnVisibleDays ?? 0}
-            aoMudarColunas={renovarContagens}
-            aoVerNaLista={(chave) => {
-              setFiltro(chave)
-              setVista('lista')
-              // O botao que levou ate la some com o quadro: o foco vai para a aba da
-              // lista, e nao para o comeco da pagina.
-              document.getElementById(`${painel}-lista`)?.focus()
-            }}
-            aoCriar={(chave) => setCriando({ coluna: chave })}
-            destacados={destacados}
-          />
+          <>
+            {modoSprint && sprints.ativa && (
+              <SprintBar sprint={sprints.ativa} aoConcluir={() => setConcluindo(true)} />
+            )}
+            <ReportsBoard
+              projectPublicId={project.PublicId}
+              board={board}
+              columns={colunasDoQuadro}
+              soonDays={destaque}
+              lastColumnDays={ciclo?.LastColumnVisibleDays ?? 0}
+              aoMudarColunas={renovarContagens}
+              aoVerNaLista={(chave) => {
+                setFiltro(chave)
+                setVista('lista')
+                // O botao que levou ate la some com o quadro: o foco vai para a aba da
+                // lista, e nao para o comeco da pagina.
+                document.getElementById(`${painel}-lista`)?.focus()
+              }}
+              aoCriar={(chave) => setCriando({ coluna: chave })}
+              destacados={destacados}
+            />
+          </>
         )
       ) : (
         <>
@@ -406,27 +471,39 @@ export function ReportsScreen() {
           Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.
         </p>
       ) : (
-        <Abas vista={vista} painel={painel} aoEscolher={setVista} />
+        <Abas
+          vista={vistaEfetiva}
+          painel={painel}
+          aoEscolher={setVista}
+          comBacklog={sprintsLigadas}
+        />
       )}
 
-      <WorkFilterBar
-        projectPublicId={project.PublicId}
-        filters={filtros.filters}
-        active={filtros.active}
-        onChange={filtros.setFilters}
-        onClear={filtros.clear}
-      />
+      {/* O backlog tem a ordem do time, e nao recorte: os filtros sao da lista e do quadro. */}
+      {!backlog && (
+        <WorkFilterBar
+          projectPublicId={project.PublicId}
+          filters={filtros.filters}
+          active={filtros.active}
+          onChange={filtros.setFilters}
+          onClear={filtros.clear}
+        />
+      )}
 
       {/* A barra de ferramentas. O recorte por coluna e so da lista: no quadro, cada
           coluna ja esta na tela, e no lugar dele fica como arrastar — no celular, o
           segurar antes nao se adivinha. */}
       <div className="my-4 flex flex-wrap items-center justify-between gap-2">
-        {!arquivados && !quadro && contagens && contagens.length > 0 ? (
+        {!arquivados && !quadro && !backlog && contagens && contagens.length > 0 ? (
           <FiltroDeColuna contagens={contagens} escolhido={filtro} aoEscolher={setFiltro} />
         ) : quadro ? (
           <p className="text-caption text-fg-muted">
             Arraste os cards entre as colunas — no celular, segure um instante antes; no teclado,
             espaço pega e solta.
+          </p>
+        ) : backlog ? (
+          <p className="text-caption text-fg-muted">
+            Arraste os cards entre o backlog e as sprints, ou use o menu de cada card.
           </p>
         ) : (
           <span />
@@ -462,7 +539,7 @@ export function ReportsScreen() {
         <div
           id={painel}
           role="tabpanel"
-          aria-labelledby={`${painel}-${vista}`}
+          aria-labelledby={`${painel}-${vistaEfetiva}`}
           data-work-area
           onClickCapture={guardaDoClique}
         >
@@ -485,6 +562,7 @@ export function ReportsScreen() {
           assinarAvisos: aoVivo.assinar,
           semAoVivo: aoVivo.semAoVivo,
           // A subtarefa nasce como o card novo: no topo da lista e da coluna dela.
+          sprints: sprintsLigadas ? (sprints.sprints ?? []) : null,
           aoCriarSubtarefa: (subtarefa: ReportDetailViewModel) => {
             prepend(subtarefa)
             board.insert(subtarefa)
@@ -492,6 +570,22 @@ export function ReportsScreen() {
           },
         }}
       />
+
+      {concluindo && sprints.ativa && (
+        <CloseSprintDialog
+          projectPublicId={project.PublicId}
+          sprint={sprints.ativa}
+          planejadas={(sprints.sprints ?? []).filter((sprint) => sprint.State === 'Planned')}
+          aoFechar={() => {
+            setConcluindo(false)
+            sprints.revalidate()
+            mexeuNoBacklog()
+            board.reloadAll()
+            renovarContagens()
+          }}
+          aoCancelar={() => setConcluindo(false)}
+        />
+      )}
 
       {/* So quando a conexao fica fora de verdade (alguns segundos): a queda curta
           volta sozinha, e um selo que pisca a cada uma ensina a nao olhar para ele. */}
@@ -503,11 +597,19 @@ export function ReportsScreen() {
           projectPublicId={project.PublicId}
           colunas={contagens}
           colunaInicial={criando.coluna}
+          // O "Criar" de uma coluna do quadro, com a sprint ligada, cria na sprint em
+          // andamento; o "Novo card", no backlog.
+          sprintPublicId={criando.coluna && modoSprint ? sprints.ativa?.PublicId : undefined}
           aoCriar={(card) => {
             setCriando(null)
-            // Nas duas vistas: no topo da lista, e no topo da coluna dele no quadro.
+            // Nas duas vistas: no topo da lista, e no topo da coluna dele no quadro —
+            // que, com a sprint ligada, so mostra a sprint em andamento.
             prepend(card)
-            board.insert(card)
+            if (!modoSprint || card.Sprint?.State === 'Active') board.insert(card)
+            if (sprintsLigadas) {
+              sprints.revalidate()
+              mexeuNoBacklog()
+            }
             renovarContagens()
             toast.done(`#${card.Number} criado.`)
           }}
@@ -529,7 +631,8 @@ function useVistaLembrada(projectPublicId: string) {
 
   const ler = useCallback((): Vista => {
     try {
-      return window.localStorage.getItem(chave) === 'quadro' ? 'quadro' : 'lista'
+      const lida = window.localStorage.getItem(chave)
+      return lida === 'quadro' || lida === 'backlog' ? lida : 'lista'
     } catch {
       return 'lista'
     }
@@ -567,13 +670,16 @@ function Abas({
   vista,
   painel,
   aoEscolher,
+  comBacklog,
 }: {
   vista: Vista
   /** O id do painel que as abas controlam. */
   painel: string
   aoEscolher: (vista: Vista) => void
+  /** Com a sprint ligada, a terceira aba. */
+  comBacklog: boolean
 }) {
-  const opcoes = ['lista', 'quadro'] as const
+  const opcoes: Vista[] = comBacklog ? ['lista', 'quadro', 'backlog'] : ['lista', 'quadro']
   const botoes = useRef<Partial<Record<Vista, HTMLButtonElement | null>>>({})
 
   const teclas = (evento: KeyboardEvent, atual: Vista) => {
@@ -617,7 +723,7 @@ function Abas({
               : 'border-transparent text-fg-muted hover:text-fg',
           )}
         >
-          {opcao === 'lista' ? 'Lista' : 'Quadro'}
+          {opcao === 'lista' ? 'Lista' : opcao === 'quadro' ? 'Quadro' : 'Backlog'}
         </button>
       ))}
     </div>

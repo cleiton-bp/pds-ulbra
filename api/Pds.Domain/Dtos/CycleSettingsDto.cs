@@ -88,4 +88,15 @@ public class CycleSettingsDto
     /// </summary>
     /// <example>2</example>
     public int? DueSoonDays { get; set; }
+
+    /// <summary>
+    /// Se o time trabalha em sprints: o backlog, o quadro so com a sprint em andamento
+    /// e os pontos. Desligar nao apaga nada.
+    /// </summary>
+    /// <example>true</example>
+    public bool? SprintsEnabled { get; set; }
+
+    /// <summary>A duracao com que cada sprint nasce, em semanas: de 1 a 4.</summary>
+    /// <example>2</example>
+    public int? SprintLengthWeeks { get; set; }
 }

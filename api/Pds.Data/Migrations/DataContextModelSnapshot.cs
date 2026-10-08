@@ -408,6 +408,13 @@ namespace Pds.Data.Migrations
                         .HasColumnName("last_card_number")
                         .HasComment("O ultimo numero de card dado no projeto; o proximo leva este mais um. Somado numa gravacao so (UPDATE ... RETURNING), que serializa quem cria ao mesmo tempo. Nao e o maior reports.number: lido assim, dois cards simultaneos tentariam o mesmo numero.");
 
+                    b.Property<int>("LastSprintNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("last_sprint_number")
+                        .HasComment("O ultimo numero de sprint dado no projeto (Sprint 3); a proxima leva este mais um. Somado numa gravacao so (UPDATE ... RETURNING), como o numero do card.");
+
                     b.Property<int>("MappingVersion")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -568,6 +575,16 @@ namespace Pds.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("satisfaction_style")
                         .HasComment("stars | number — como a escala de 1 a 5 aparece. Muda o desenho, e nao o dado: os dois guardam o mesmo inteiro.");
+
+                    b.Property<int>("SprintLengthWeeks")
+                        .HasColumnType("integer")
+                        .HasColumnName("sprint_length_weeks")
+                        .HasComment("A duracao com que cada sprint nasce, em semanas, de 1 a 4. De fabrica 2. Cada sprint ajusta as proprias datas.");
+
+                    b.Property<bool>("SprintsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sprints_enabled")
+                        .HasComment("Se o time trabalha em sprints: o backlog aparece, o quadro mostra so a sprint em andamento, e o card ganha pontos. Desligado de fabrica; desligar nao apaga nada.");
 
                     b.Property<bool>("TrackingCodeCanAct")
                         .HasColumnType("boolean")
@@ -1957,6 +1974,11 @@ namespace Pds.Data.Migrations
                         .HasColumnName("assignee_user_id")
                         .HasComment("Quem do time esta com o card; um so. Quem sai do time continua aqui, como registro, e o painel o marca como fora do time. Interno.");
 
+                    b.Property<long>("BacklogRank")
+                        .HasColumnType("bigint")
+                        .HasColumnName("backlog_rank")
+                        .HasComment("O lugar do card no backlog e nas listas das sprints; o menor fica em cima. Nasce com o numero do card vezes a folga: o novo entra no fim. Interno.");
+
                     b.Property<long>("BoardRank")
                         .HasColumnType("bigint")
                         .HasColumnName("board_rank")
@@ -2086,10 +2108,21 @@ namespace Pds.Data.Migrations
                         .HasColumnName("route")
                         .HasComment("So o caminho da pagina, sem query e sem fragmento: e na query que viaja dado sensivel.");
 
+                    b.Property<long?>("SprintId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sprint_id")
+                        .HasComment("A sprint do card; nulo e o backlog. A subtarefa acompanha o pai (o servico confere). Interno.");
+
                     b.Property<DateTime>("StateChangedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("state_changed_at")
                         .HasComment("Quando o card entrou na coluna em que esta, ou voltou a ela (reaberto, ou desarquivado por quem relatou), em UTC. A ultima coluna do quadro mostra so o que entrou nela nos ultimos dias do projeto.");
+
+                    b.Property<decimal?>("StoryPoints")
+                        .HasPrecision(4, 1)
+                        .HasColumnType("numeric(4,1)")
+                        .HasColumnName("story_points")
+                        .HasComment("A estimativa em pontos, de 0 a 999 com meio ponto. Nulo e sem estimativa; a subtarefa nao leva. Interno.");
 
                     b.Property<string>("Text")
                         .HasMaxLength(5000)
@@ -2161,6 +2194,9 @@ namespace Pds.Data.Migrations
                     b.HasIndex("ReporterCodeId")
                         .HasDatabaseName("ix_reports_reporter_code_id");
 
+                    b.HasIndex("SprintId")
+                        .HasDatabaseName("ix_reports_sprint_id");
+
                     b.HasIndex("TrackingCode")
                         .IsUnique()
                         .HasDatabaseName("ux_reports_tracking_code");
@@ -2181,6 +2217,9 @@ namespace Pds.Data.Migrations
                     b.HasIndex("ProjectId", "ProjectStateId", "BoardRank")
                         .HasDatabaseName("ix_reports_project_id_project_state_id_board_rank");
 
+                    b.HasIndex("ProjectId", "SprintId", "BacklogRank")
+                        .HasDatabaseName("ix_reports_project_id_sprint_id_backlog_rank");
+
                     b.ToTable("reports", null, t =>
                         {
                             t.HasComment("Os cards do trabalho do time: o relato que a pessoa de fora escreveu (kind = report) e o card que o time criou no painel (kind = team). O relato e a primeira tabela do sistema que nasce sem conta e sem sessao, e por isso carrega o proprio account_id, o protocolo que a pessoa le e o hash do token que abre o acompanhamento; o card do time nao tem lado de fora nenhum.");
@@ -2194,6 +2233,8 @@ namespace Pds.Data.Migrations
                             t.HasCheckConstraint("ck_reports_parent_team", "parent_report_id IS NULL OR kind = 'team'");
 
                             t.HasCheckConstraint("ck_reports_report_fields", "kind <> 'report' OR (tracking_code IS NOT NULL AND access_token_hash IS NOT NULL AND type IS NOT NULL AND text IS NOT NULL AND description IS NULL)");
+
+                            t.HasCheckConstraint("ck_reports_story_points", "story_points IS NULL OR (story_points >= 0 AND story_points <= 999 AND story_points * 2 = trunc(story_points * 2))");
 
                             t.HasCheckConstraint("ck_reports_team_fields", "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL AND reporter_title IS NULL)");
                         });
@@ -2888,6 +2929,117 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.Sprint", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("closed_at")
+                        .HasComment("Quando foi fechada, em UTC. Nulo enquanto nao fechou.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<DateOnly>("EndsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("ends_on")
+                        .HasComment("O ultimo dia da sprint. Nasce com a duracao padrao do projeto, e se ajusta.");
+
+                    b.Property<string>("Goal")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("goal")
+                        .HasComment("O que o time quer entregar nesta sprint. Opcional.");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name")
+                        .HasComment("O nome da sprint. De fabrica, Sprint e o numero.");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number")
+                        .HasComment("O numero da sprint no projeto, que da o nome de fabrica (Sprint 3). Nunca repete, nem com a apagada.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("O projeto da sprint.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("started_at")
+                        .HasComment("Quando foi iniciada, em UTC. Nulo enquanto planejada.");
+
+                    b.Property<DateOnly>("StartsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("starts_on")
+                        .HasComment("O primeiro dia da sprint.");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("state")
+                        .HasComment("planned | active | closed. Uma active por projeto.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sprints");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_sprints_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sprints_project_id")
+                        .HasFilter("deleted_at IS NULL AND state = 'active'");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sprints_public_id");
+
+                    b.HasIndex("ProjectId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sprints_project_id_number");
+
+                    b.ToTable("sprints", null, t =>
+                        {
+                            t.HasComment("As sprints do projeto: uma em andamento por vez — a que o quadro mostra —, as planejadas e as fechadas. Interno: nenhuma rota publica le esta tabela.");
+
+                            t.HasCheckConstraint("ck_sprints_dates", "ends_on >= starts_on");
+
+                            t.HasCheckConstraint("ck_sprints_number", "number > 0");
+
+                            t.HasCheckConstraint("ck_sprints_state", "state IN ('planned', 'active', 'closed')");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.User", b =>
                 {
                     b.Property<long>("Id")
@@ -3429,6 +3581,12 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_reports_reporter_codes_reporter_code_id");
 
+                    b.HasOne("Pds.Domain.Entities.Sprint", "Sprint")
+                        .WithMany()
+                        .HasForeignKey("SprintId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reports_sprints_sprint_id");
+
                     b.Navigation("Account");
 
                     b.Navigation("AssigneeUser");
@@ -3448,6 +3606,8 @@ namespace Pds.Data.Migrations
                     b.Navigation("ProjectState");
 
                     b.Navigation("ReporterCode");
+
+                    b.Navigation("Sprint");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ReportAttachment", b =>
@@ -3601,6 +3761,18 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_reporter_codes_projects_project_id");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.Sprint", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_sprints_projects_project_id");
 
                     b.Navigation("Project");
                 });

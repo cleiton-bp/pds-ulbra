@@ -57,6 +57,8 @@ public sealed record CardChange(
                         ? numero.ToString(System.Globalization.CultureInfo.InvariantCulture)
                         : null,
                 },
+                EventTypeEnum.CardSprintChanged => None with { From = Texto(raiz, "from_name"), To = Texto(raiz, "to_name") },
+                EventTypeEnum.CardPointsChanged => None with { From = Numero(raiz, "from"), To = Numero(raiz, "to") },
                 EventTypeEnum.CardTitleChanged => None with
                 {
                     TitleRestored = raiz.TryGetProperty("restored", out var voltou) && voltou.ValueKind == JsonValueKind.True,
@@ -73,6 +75,11 @@ public sealed record CardChange(
     private static string? Texto(JsonElement raiz, string nome)
         => raiz.TryGetProperty(nome, out var valor) && valor.ValueKind == JsonValueKind.String
             ? valor.GetString()
+            : null;
+
+    private static string? Numero(JsonElement raiz, string nome)
+        => raiz.TryGetProperty(nome, out var valor) && valor.ValueKind == JsonValueKind.Number && valor.TryGetDecimal(out var numero)
+            ? numero.ToString(System.Globalization.CultureInfo.InvariantCulture)
             : null;
 
     private static Guid? Pessoa(JsonElement raiz, string nome)

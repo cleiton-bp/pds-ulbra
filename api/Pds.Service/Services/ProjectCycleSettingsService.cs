@@ -89,6 +89,10 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
         settings.DueSoonDays = Range(
             dto.DueSoonDays, 0, ProjectCycleSettings.MaxDueSoonDays,
             "a antecedencia do destaque do prazo", "dias");
+        settings.SprintsEnabled = Required(dto.SprintsEnabled, "Informe se o time trabalha em sprints.");
+        settings.SprintLengthWeeks = Range(
+            dto.SprintLengthWeeks, ProjectCycleSettings.MinSprintLengthWeeks, ProjectCycleSettings.MaxSprintLengthWeeks,
+            "a duracao padrao da sprint", "semanas");
 
         if (novo)
             await _unitOfWork.ProjectCycleSettings.AddAsync(settings, cancellationToken);
@@ -158,7 +162,9 @@ public class ProjectCycleSettingsService : IProjectCycleSettingsService
             settings?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault,
             settings?.AllowsReportArchiving ?? CycleSettingsDefaults.AllowsReportArchiving,
             settings?.LastColumnVisibleDays ?? CycleSettingsDefaults.LastColumnVisibleDays,
-            settings?.DueSoonDays ?? CycleSettingsDefaults.DueSoonDays);
+            settings?.DueSoonDays ?? CycleSettingsDefaults.DueSoonDays,
+            settings?.SprintsEnabled ?? CycleSettingsDefaults.SprintsEnabled,
+            settings?.SprintLengthWeeks ?? CycleSettingsDefaults.SprintLengthWeeks);
     }
 
     private static T Required<T>(T? value, string message) where T : struct

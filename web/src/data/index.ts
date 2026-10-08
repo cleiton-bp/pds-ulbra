@@ -16,6 +16,7 @@ import { apiProjectStatusMappingService } from '@/data/api/apiProjectStatusMappi
 import { apiProjectTeamService } from '@/data/api/apiProjectTeamService'
 import { apiProjectWidgetSettingsService } from '@/data/api/apiProjectWidgetSettingsService'
 import { apiRealtimeService } from '@/data/api/apiRealtimeService'
+import { apiSprintService } from '@/data/api/apiSprintService'
 import type { AuthService } from '@/data/authService'
 import type { NotificationService } from '@/data/notificationService'
 import type { ProjectCycleSettingsService } from '@/data/projectCycleSettingsService'
@@ -34,6 +35,7 @@ import type { ProjectStatusMappingService } from '@/data/projectStatusMappingSer
 import type { ProjectTeamService } from '@/data/projectTeamService'
 import type { ProjectWidgetSettingsService } from '@/data/projectWidgetSettingsService'
 import type { RealtimeService } from '@/data/realtimeService'
+import type { SprintService } from '@/data/sprintService'
 
 /**
  * Ponto unico de acesso aos dados. Tela, store e componente importam daqui e
@@ -43,6 +45,7 @@ import type { RealtimeService } from '@/data/realtimeService'
 export const authService: AuthService = apiAuthService
 export const realtimeService: RealtimeService = apiRealtimeService
 export const notificationService: NotificationService = apiNotificationService
+export const sprintService: SprintService = apiSprintService
 export const projectService: ProjectService = apiProjectService
 export const projectKeyService: ProjectKeyService = apiProjectKeyService
 export const projectOriginService: ProjectOriginService = apiProjectOriginService
@@ -101,3 +104,4 @@ export type {
   RealtimeStatus,
 } from '@/data/realtimeService'
 export { clearToken, getToken, UNAUTHORIZED_EVENT } from '@/data/sessionToken'
+export type { SprintService } from '@/data/sprintService'

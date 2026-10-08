@@ -60,6 +60,13 @@ export interface CycleSettingsViewModel {
    * proprio dia.** O vencido e sempre vencido. De fabrica 2.
    */
   DueSoonDays: number
+  /**
+   * Se o time trabalha em sprints: o backlog aparece, o quadro mostra so a sprint em
+   * andamento, e o card ganha pontos. Desligado de fabrica; desligar nao apaga nada.
+   */
+  SprintsEnabled: boolean
+  /** A duracao com que cada sprint nasce, em semanas: de 1 a 4. De fabrica 2. */
+  SprintLengthWeeks: number
 }
 
 /**
@@ -81,3 +88,7 @@ export const MAX_LAST_COLUMN_VISIBLE_DAYS = 365
 
 /** Teto do destaque do prazo, em dias, declarado em `ProjectCycleSettings.MaxDueSoonDays`. */
 export const MAX_DUE_SOON_DAYS = 30
+
+/** A duracao padrao da sprint, em semanas, declarada em `ProjectCycleSettings`. */
+export const MIN_SPRINT_LENGTH_WEEKS = 1
+export const MAX_SPRINT_LENGTH_WEEKS = 4

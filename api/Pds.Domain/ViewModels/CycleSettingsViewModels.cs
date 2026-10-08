@@ -30,6 +30,8 @@ namespace Pds.Domain.ViewModels;
 /// <param name="AllowsReportArchiving">Se o time pode arquivar relato. Arquivar o aberto encerra junto, com desfecho e motivo.</param>
 /// <param name="LastColumnVisibleDays">Quantos dias a ultima coluna do quadro mostra. Zero mostra todos.</param>
 /// <param name="DueSoonDays">Faltando ate quantos dias o prazo fica em destaque. Zero: so no proprio dia.</param>
+/// <param name="SprintsEnabled">Se o time trabalha em sprints: o backlog, o quadro so com a sprint em andamento, e os pontos.</param>
+/// <param name="SprintLengthWeeks">A duracao com que cada sprint nasce, em semanas.</param>
 public record CycleSettingsViewModel(
     ClosureTriggerEnum ClosureTrigger,
     int PublicDelayMinutes,
@@ -46,4 +48,6 @@ public record CycleSettingsViewModel(
     bool AcceptsQuestionsDefault,
     bool AllowsReportArchiving,
     int LastColumnVisibleDays,
-    int DueSoonDays);
+    int DueSoonDays,
+    bool SprintsEnabled,
+    int SprintLengthWeeks);

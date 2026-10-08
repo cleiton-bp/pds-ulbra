@@ -40,6 +40,11 @@ public class ProjectCycleSettings : PdsBaseEntity
     /// <summary>Teto do "perto do prazo", em dias: um mes. Mais que isso, todo prazo fica perto.</summary>
     public const int MaxDueSoonDays = 30;
 
+    /// <summary>A duracao padrao da sprint, em semanas: de uma a quatro.</summary>
+    public const int MinSprintLengthWeeks = 1;
+
+    public const int MaxSprintLengthWeeks = 4;
+
     /// <summary>Projeto dono da configuracao. E por ele que o 1:1 acontece.</summary>
     public long ProjectId { get; set; }
     public Project Project { get; set; } = null!;
@@ -138,4 +143,14 @@ public class ProjectCycleSettings : PdsBaseEntity
     /// dias. <b>Zero destaca so no proprio dia.</b> O vencido e sempre vencido.
     /// </summary>
     public int DueSoonDays { get; set; }
+
+    /// <summary>
+    /// Se o time trabalha em sprints: o backlog aparece, o quadro mostra so a sprint em
+    /// andamento, e o card ganha pontos. Desligado de fabrica — e desligar nao apaga
+    /// nada: ao religar, a sprint em andamento continua.
+    /// </summary>
+    public bool SprintsEnabled { get; set; }
+
+    /// <summary>A duracao com que cada sprint nasce, em semanas. Cada sprint ajusta as proprias datas.</summary>
+    public int SprintLengthWeeks { get; set; } = CycleSettingsDefaults.SprintLengthWeeks;
 }

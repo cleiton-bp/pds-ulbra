@@ -45,7 +45,27 @@ public partial class ReportService
 
         return new ReportCardFilter(
             pessoas, semResponsavel, etiquetas, prioridades, semPrioridade, tipos, doTime,
-            ResolveOverdue(dto.Due, dto.Today), ResolveSearch(dto.Q), pai);
+            ResolveOverdue(dto.Due, dto.Today), ResolveSearch(dto.Q), pai,
+            await ResolveSprintScopeAsync(project.Id, dto.Sprint, cancellationToken));
+    }
+
+    /// <summary>O recorte das sprints. A sprint pedida tem de ser do projeto, como todo filtro.</summary>
+    private async Task<SprintScope?> ResolveSprintScopeAsync(long projectId, string? valor, CancellationToken cancellationToken)
+    {
+        var pedido = valor?.Trim();
+        if (string.IsNullOrEmpty(pedido))
+            return null;
+
+        if (pedido.Equals("active", StringComparison.OrdinalIgnoreCase))
+            return new SprintScope(SprintScopeKind.Active);
+        if (pedido.Equals("backlog", StringComparison.OrdinalIgnoreCase))
+            return new SprintScope(SprintScopeKind.Backlog);
+        if (!Guid.TryParse(pedido, out var publicId))
+            throw new ArgumentException("Sprint invalida: use active, backlog ou o identificador da sprint.");
+
+        var sprint = await _unitOfWork.Sprints.FindAsync(projectId, publicId, cancellationToken)
+                     ?? throw new KeyNotFoundException("Sprint nao encontrada neste projeto.");
+        return new SprintScope(SprintScopeKind.Specific, sprint.Id);
     }
 
     private async Task<(IReadOnlyList<long> Pessoas, bool SemResponsavel)> ResolveAssigneesAsync(Project project, List<string>? valores, CancellationToken cancellationToken)
