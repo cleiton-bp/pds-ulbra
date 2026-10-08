@@ -11,6 +11,8 @@ export type RealtimeEvent =
   | { kind: 'resync' }
   /** A pessoa saiu do time do projeto. */
   | { kind: 'access-lost' }
+  /** Chegou um aviso para quem esta conectado: o sino rele, e toca o som. */
+  | { kind: 'notification' }
 
 export interface RealtimeHandlers {
   onEvent: (evento: RealtimeEvent) => void

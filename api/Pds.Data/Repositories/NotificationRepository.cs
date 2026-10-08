@@ -38,34 +38,4 @@ public class NotificationRepository : BaseRepository<Notification, DataContext>,
             .ExecuteUpdateAsync(set => set
                 .SetProperty(aviso => aviso.ReadAt, readAt)
                 .SetProperty(aviso => aviso.UpdatedAt, readAt), cancellationToken);
-
-    public async Task<(Notification Aviso, bool AindaNoTime)?> FindForEmailWithoutSessionAsync(Guid publicId, CancellationToken cancellationToken = default)
-    {
-        // As condicoes do filtro global reescritas a mao, menos a do acesso — que aqui e
-        // a pergunta: quem recebe ainda e dono da conta do projeto, ou esta no time dele?
-        var achado = await Context.Notifications
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Include(aviso => aviso.User)
-            .Include(aviso => aviso.ActorUser)
-            .Include(aviso => aviso.Project)
-            .Include(aviso => aviso.Report)
-            .Where(aviso => aviso.PublicId == publicId
-                            && aviso.DeletedAt == null
-                            && aviso.Report.DeletedAt == null
-                            && aviso.Project.DeletedAt == null
-                            && aviso.User.DeletedAt == null)
-            .Select(aviso => new
-            {
-                Aviso = aviso,
-                AindaNoTime = aviso.Project.AccountId == aviso.User.AccountId
-                              || Context.ProjectMembers.IgnoreQueryFilters().Any(membro =>
-                                  membro.ProjectId == aviso.ProjectId
-                                  && membro.UserId == aviso.UserId
-                                  && membro.DeletedAt == null),
-            })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return achado is null ? null : (achado.Aviso, achado.AindaNoTime);
-    }
 }

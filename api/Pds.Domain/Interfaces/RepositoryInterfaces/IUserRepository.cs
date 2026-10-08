@@ -19,4 +19,7 @@ public interface IUserRepository : IBaseRepository<User>
     Task<IReadOnlyList<User>> ListByAccountAsync(long accountId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<User>> ListByPublicIdsAsync(IReadOnlyCollection<Guid> publicIds, CancellationToken cancellationToken = default);
+
+    /// <summary>A pessoa, rastreada, com o som que escolheu para cada tipo de aviso.</summary>
+    Task<User?> GetWithNotificationSoundsAsync(long userId, CancellationToken cancellationToken = default);
 }

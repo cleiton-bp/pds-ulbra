@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { NotificationViewModel } from '@/contracts'
 import { describeError, notificationService } from '@/data'
-import { NotificationSettingsDialog } from '@/features/notifications/NotificationSettingsDialog'
 import { useUnreadCount } from '@/features/notifications/useUnreadCount'
 import {
   DropdownGroup,
@@ -33,7 +32,6 @@ export function NotificationBell() {
   const { count, setCount } = useUnreadCount()
   const [avisos, setAvisos] = useState<NotificationViewModel[] | null>(null)
   const [falhou, setFalhou] = useState(false)
-  const [preferencias, setPreferencias] = useState(false)
 
   async function aoAbrir(aberto: boolean) {
     if (!aberto) return
@@ -174,13 +172,11 @@ export function NotificationBell() {
               Marcar todos como lidos
             </DropdownItem>
           )}
-          <DropdownItem quiet onSelect={() => setPreferencias(true)}>
+          <DropdownItem quiet onSelect={() => navigate('/profile')}>
             Preferências de aviso
           </DropdownItem>
         </DropdownGroup>
       </DropdownMenu>
-
-      {preferencias && <NotificationSettingsDialog onClose={() => setPreferencias(false)} />}
     </>
   )
 }

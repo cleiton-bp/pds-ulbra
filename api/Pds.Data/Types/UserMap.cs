@@ -9,8 +9,14 @@ public class UserMap : BaseEntityConfiguration<User>
 {
     protected override void ConfigureEntity(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("users", table => table.HasComment(
-            "Quem entra no painel. A identidade vem do Google, entao nao ha senha nem recuperacao."));
+        builder.ToTable("users", table =>
+        {
+            table.HasComment(
+                "Quem entra no painel. A identidade vem do Google, entao nao ha senha nem recuperacao.");
+            table.HasCheckConstraint(
+                "ck_users_notification_volume",
+                "notification_volume >= 0 AND notification_volume <= 100");
+        });
 
         builder.Property(user => user.AccountId)
             .HasColumnName("account_id")
@@ -48,12 +54,12 @@ public class UserMap : BaseEntityConfiguration<User>
             .HasColumnName("last_login_at")
             .HasComment("Ultimo acesso, em UTC.");
 
-        // Sem valor padrao no modelo: o padrao do banco (verdadeiro) vem da migracao,
-        // para quem ja existia, e quem nasce agora nasce com o da entidade.
-        builder.Property(user => user.NotifyAssignmentByEmail)
-            .HasColumnName("notify_assignment_by_email")
+        // O padrao do banco vem da migracao, para quem ja existia; quem nasce agora nasce
+        // com o da entidade.
+        builder.Property(user => user.NotificationVolume)
+            .HasColumnName("notification_volume")
             .IsRequired()
-            .HasComment("Se a pessoa recebe e-mail quando alguem do time a escolhe como responsavel por um card. Ligado de fabrica; vale em todos os projetos dela. O aviso no painel chega de qualquer jeito.");
+            .HasComment("O volume do som dos avisos no painel, de 0 a 100; 70 de fabrica. O som de cada tipo de aviso fica em user_notification_sounds.");
 
         // O sub e unico entre os usuarios que valem. O filtro por deleted_at existe
         // para que um usuario apagado nao impeca a mesma pessoa de entrar de novo.

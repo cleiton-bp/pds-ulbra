@@ -5,7 +5,6 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationViewModel } from '@/contracts'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
-import { NotificationSettingsDialog } from '@/features/notifications/NotificationSettingsDialog'
 import { UNREAD_POLL_MS } from '@/features/notifications/useUnreadCount'
 
 /**
@@ -142,28 +141,5 @@ describe('o sino', () => {
 
     await act(async () => responder({ UnreadCount: 1 }))
     expect(screen.getByRole('button', { name: 'Avisos' })).toBeTruthy()
-  })
-})
-
-describe('as preferências de aviso', () => {
-  afterEach(cleanup)
-  beforeEach(() => {
-    for (const dublé of Object.values(dublê)) dublé.mockReset()
-  })
-
-  it('o e-mail de responsável liga e desliga; sem e-mail no servidor, a tela diz', async () => {
-    dublê.preferencias.mockResolvedValue({ AssignmentByEmail: true, EmailAvailable: false })
-    dublê.salvar.mockResolvedValue({ AssignmentByEmail: false, EmailAvailable: false })
-    render(<NotificationSettingsDialog onClose={vi.fn()} />)
-
-    const chave = (await screen.findByRole('checkbox', {
-      name: /E-mail quando me escolherem como responsável/,
-    })) as HTMLInputElement
-    expect(chave.checked).toBe(true)
-    expect(screen.getByText(/Este servidor ainda não manda e-mail/)).toBeTruthy()
-
-    fireEvent.click(chave)
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledWith({ AssignmentByEmail: false }))
-    await waitFor(() => expect(chave.checked).toBe(false))
   })
 })

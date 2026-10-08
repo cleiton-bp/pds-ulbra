@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type RealtimeEvent, type RealtimeStatus, realtimeService } from '@/data'
+import { announceNotificationArrival } from '@/features/notifications/sounds'
 import type { SemAoVivo } from '@/features/reports/LiveStatus'
 
 export type WorkListener = (evento: RealtimeEvent) => void
@@ -32,6 +33,11 @@ export function useWorkRealtime(projectPublicId: string, aoAviso: WorkListener) 
   useEffect(() => {
     const conexao = realtimeService.connectWork(projectPublicId, {
       onEvent: (evento) => {
+        // O aviso para a pessoa e do sino, que fica no topo de todas as telas.
+        if (evento.kind === 'notification') {
+          announceNotificationArrival()
+          return
+        }
         atual.current(evento)
         for (const ouvinte of ouvintes.current) ouvinte(evento)
       },

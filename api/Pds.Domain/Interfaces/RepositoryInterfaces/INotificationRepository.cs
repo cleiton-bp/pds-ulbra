@@ -17,10 +17,4 @@ public interface INotificationRepository : IBaseRepository<Notification>
     /// <summary>Marca como lidos todos os avisos da pessoa que ela ainda enxerga. Devolve quantos.</summary>
     Task<int> MarkAllReadAsync(long userId, DateTime readAt, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// O aviso de atribuicao para o e-mail, com quem recebe, quem fez, o card e o
-    /// projeto — e se quem recebe ainda esta no time. Sem sessao: quem le e o
-    /// consumidor da fila.
-    /// </summary>
-    Task<(Notification Aviso, bool AindaNoTime)?> FindForEmailWithoutSessionAsync(Guid publicId, CancellationToken cancellationToken = default);
 }

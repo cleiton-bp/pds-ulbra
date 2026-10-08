@@ -3,7 +3,7 @@ using Pds.Domain.ViewModels;
 
 namespace Pds.Domain.Interfaces.ServiceInterfaces;
 
-/// <summary>Os avisos de quem esta na sessao, e o e-mail de quem passou a ser responsavel.</summary>
+/// <summary>Os avisos de quem esta na sessao, e o som de cada um.</summary>
 public interface INotificationService
 {
     /// <summary>Os avisos mais recentes da pessoa, dos projetos em que ela esta, e quantos nao leu.</summary>
@@ -18,14 +18,9 @@ public interface INotificationService
     /// <summary>Marca todos os avisos da pessoa como lidos.</summary>
     Task<NotificationCountViewModel> MarkAllReadAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>O volume e o som de cada tipo de aviso, com os de fabrica no que a pessoa nao escolheu.</summary>
     Task<NotificationSettingsViewModel> GetSettingsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Grava o volume e o som de cada tipo de aviso, inteiros.</summary>
     Task<NotificationSettingsViewModel> SaveSettingsAsync(SaveNotificationSettingsDto dto, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Manda o e-mail de quem passou a ser responsavel. Quem chama e o consumidor da
-    /// fila, sem sessao; aviso que sumiu, pessoa que desligou o e-mail ou saiu do time
-    /// saem em silencio.
-    /// </summary>
-    Task SendAssignmentEmailAsync(Guid notificationPublicId, CancellationToken cancellationToken = default);
 }

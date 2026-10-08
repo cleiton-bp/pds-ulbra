@@ -104,11 +104,13 @@ public class NotificationsController : BaseController
         }
     }
 
-    /// <summary>As preferências de aviso.</summary>
+    /// <summary>As preferências de aviso: o volume e o som de cada tipo.</summary>
     /// <remarks>
-    /// `AssignmentByEmail`: se a pessoa recebe e-mail quando alguém a escolhe como
-    /// responsável. Vale em todos os projetos dela. A menção avisa só no sino, sem
-    /// e-mail. `EmailAvailable` diz se esta instalação manda e-mail.
+    /// Os avisos ficam no painel — o sino, e o som que a pessoa escolheu para cada tipo
+    /// (`Mention`, `Assignment`): `None` é só o sino. `Volume` vai de 0 a 100. Vale em
+    /// todos os projetos dela. Os sons são gerados no navegador; aqui fica só o nome. O
+    /// tipo que a pessoa nunca escolheu vem com o de fábrica (`Ping` na menção, `Bell`
+    /// na escolha como responsável, volume 70).
     /// </remarks>
     /// <response code="200">As preferências.</response>
     [HttpGet("notification-settings")]
@@ -126,9 +128,9 @@ public class NotificationsController : BaseController
     }
 
     /// <summary>Grava as preferências de aviso.</summary>
-    /// <remarks>Inteiras. O aviso no sino chega de qualquer jeito: o que se desliga é o e-mail.</remarks>
+    /// <remarks>Inteiras: o volume e um som para cada tipo de aviso, todos os tipos, cada um uma vez.</remarks>
     /// <response code="200">As preferências como ficaram.</response>
-    /// <response code="400">Sem `AssignmentByEmail`.</response>
+    /// <response code="400">Sem o volume ou fora de 0 a 100; sem a lista de sons; tipo ou som desconhecido, repetido ou faltando.</response>
     [HttpPut("notification-settings")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<NotificationSettingsViewModel>), StatusCodes.Status200OK)]

@@ -47,9 +47,15 @@ public class User : PdsBaseEntity
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
-    /// Se a pessoa recebe e-mail quando alguem do time a escolhe como responsavel por
-    /// um card. Ligado de fabrica; vale em todos os projetos dela. O aviso no sino
-    /// chega de qualquer jeito.
+    /// O volume do som dos avisos no painel, de 0 a 100. O som de cada tipo de aviso fica
+    /// em <see cref="NotificationSounds"/>.
     /// </summary>
-    public bool NotifyAssignmentByEmail { get; set; } = true;
+    public int NotificationVolume { get; set; } = NotificationSoundDefaults.Volume;
+
+    /// <summary>O som que a pessoa escolheu para cada tipo de aviso.</summary>
+    public ICollection<UserNotificationSound> NotificationSounds { get; set; } = new List<UserNotificationSound>();
+
+    /// <summary>O menor e o maior volume.</summary>
+    public const int MinNotificationVolume = 0;
+    public const int MaxNotificationVolume = 100;
 }

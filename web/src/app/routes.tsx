@@ -11,6 +11,7 @@ import { MediaScreen } from '@/features/media/MediaScreen'
 import { ModerationScreen } from '@/features/moderation/ModerationScreen'
 import { StartScreen } from '@/features/onboarding/StartScreen'
 import { PrioritiesScreen } from '@/features/priorities/PrioritiesScreen'
+import { ProfileScreen } from '@/features/profile/ProfileScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
 import { MembersScreen } from '@/features/projects/MembersScreen'
@@ -26,6 +27,7 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  *
  *   /projects .......................... hub, casca so com barra de cima
  *   /invite#t=... ...................... o convite do e-mail, na mesma casca
+ *   /profile ........................... o perfil da pessoa e o som dos avisos, na mesma casca
  *   /projects/:publicId/{start,keys,tool,states,priorities,labels,public-stages,settings} .. console
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
@@ -66,6 +68,8 @@ export const router = createBrowserRouter([
         element: <AccountShell />,
         children: [
           { path: 'projects', element: <ProjectsHubScreen /> },
+          // O perfil e da pessoa, e nao de um projeto: fora dele, como o hub.
+          { path: 'profile', element: <ProfileScreen /> },
           // Fora do projeto de proposito: quem abre o convite ainda nao esta nele.
           // Dentro do `RequireSession`, a entrada com Google aparece neste mesmo
           // endereco — e o `#t=` sobrevive ao login.
