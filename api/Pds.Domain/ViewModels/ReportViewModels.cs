@@ -161,7 +161,22 @@ public record ReportSummaryViewModel(
     CardParentViewModel? DuplicateOf,
     int DuplicateReporters,
     CardSprintViewModel? Sprint,
-    decimal? StoryPoints);
+    decimal? StoryPoints)
+{
+    /// <summary>
+    /// A ultima mudanca gravada no proprio card: um campo, a coluna, o lugar no quadro.
+    /// Comentario, anexo e etiqueta nao contam — moram em tabela propria. E o "Atualizado" da
+    /// lista, e uma das ordens dela.
+    /// </summary>
+    public DateTime UpdatedAt { get; init; }
+
+    /// <summary>
+    /// Se quem relatou ja confirmou o encerramento que vale. O confirmado nao se desfaz
+    /// ao tirar o card da coluna que encerra: o quadro e o lote so perguntam "Reabrir?"
+    /// quando ele ainda nao foi confirmado.
+    /// </summary>
+    public bool ClosureConfirmed { get; init; }
+}
 
 /// <summary>A sprint do card: nula e o backlog.</summary>
 /// <param name="PublicId">O identificador da sprint.</param>
@@ -507,7 +522,14 @@ public record ReportDetailViewModel(
     CardParentViewModel? DuplicateOf,
     int DuplicateReporters,
     CardSprintViewModel? Sprint,
-    decimal? StoryPoints);
+    decimal? StoryPoints)
+{
+    /// <summary>A ultima mudanca gravada no proprio card — ver o resumo do card.</summary>
+    public DateTime UpdatedAt { get; init; }
+
+    /// <summary>Se quem relatou ja confirmou o encerramento que vale — ver o resumo do card.</summary>
+    public bool ClosureConfirmed { get; init; }
+}
 
 
 /// <summary>

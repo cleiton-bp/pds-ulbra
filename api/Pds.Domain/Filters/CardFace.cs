@@ -36,6 +36,9 @@ public record CardFace(
     int DuplicateReporters,
     CardSprint? Sprint = null)
 {
+    /// <summary>Se quem relatou ja confirmou o encerramento que vale; falso sem encerramento.</summary>
+    public bool ClosureConfirmed { get; init; }
+
     /// <summary>O card sem comentario, sem anexo, sem encerramento, sem pai, sem subtarefa, sem vinculo e sem sprint.</summary>
     public static readonly CardFace Empty = new(0, 0, false, false, null, 0, 0, [], null, 0);
 }

@@ -4,7 +4,8 @@ namespace Pds.Domain.Filters;
 
 /// <summary>
 /// Os filtros da tela de Trabalho, ja resolvidos para os identificadores do banco:
-/// quem esta com o card, as etiquetas, a prioridade, o tipo, o prazo vencido e a busca.
+/// quem esta com o card, as etiquetas, a prioridade, o tipo, o prazo vencido, a busca,
+/// o "Em aberto", as subtarefas e as colunas da lista.
 ///
 /// <para><b>Dentro de um filtro, ou; entre filtros, e.</b> A etiqueta A ou a B; da Ana
 /// e vencido. Lista vazia e <c>false</c> querem dizer que aquele filtro nao foi
@@ -24,6 +25,16 @@ namespace Pds.Domain.Filters;
 /// <param name="Search">A busca, quando ha uma.</param>
 /// <param name="ParentId">So as subtarefas deste card.</param>
 /// <param name="Sprint">O recorte de sprint: a em andamento, o backlog, ou uma sprint.</param>
+/// <param name="OpenOnly">
+/// So o que nao terminou — o "Em aberto" da tela: sai o relato encerrado e o card na
+/// ultima coluna, pela mesma regra do vencido.
+/// </param>
+/// <param name="WithoutSubtasks">Sem as subtarefas: so os cards de primeiro nivel.</param>
+/// <param name="StateIds">
+/// As colunas escolhidas no filtro da lista. Nula ou vazia, e sem <paramref name="WithoutState"/>,
+/// e sem este filtro. Diferente do recorte <c>state</c>, que e uma coluna so e e o do quadro.
+/// </param>
+/// <param name="WithoutState">Tambem o card que ainda nao tem coluna.</param>
 public sealed record ReportCardFilter(
     IReadOnlyList<long> AssigneeIds,
     bool WithoutAssignee,
@@ -35,7 +46,11 @@ public sealed record ReportCardFilter(
     DateOnly? OverdueOn,
     ReportSearch? Search,
     long? ParentId = null,
-    SprintScope? Sprint = null)
+    SprintScope? Sprint = null,
+    bool OpenOnly = false,
+    bool WithoutSubtasks = false,
+    IReadOnlyList<long>? StateIds = null,
+    bool WithoutState = false)
 {
     /// <summary>Nenhum filtro: a tela inteira.</summary>
     public static readonly ReportCardFilter None = new([], false, [], [], false, [], false, null, null);

@@ -37,4 +37,17 @@ public class ReportFilterDto
     /// identificador de uma sprint (os cards dela, sem as subtarefas).
     /// </summary>
     public string? Sprint { get; set; }
+
+    /// <summary><c>true</c>: so o que nao terminou — sai o relato encerrado e o card na ultima coluna.</summary>
+    public bool? Open { get; set; }
+
+    /// <summary><c>hide</c>: sem as subtarefas, so os cards de primeiro nivel.</summary>
+    public string? Subtasks { get; set; }
+
+    /// <summary>
+    /// Coluna, para o filtro da lista: o identificador ou <c>none</c> (sem coluna).
+    /// Repetivel — basta o card estar numa delas. O <c>state</c> da lista continua sendo
+    /// o recorte de uma coluna so, o do quadro.
+    /// </summary>
+    public List<string>? Column { get; set; }
 }

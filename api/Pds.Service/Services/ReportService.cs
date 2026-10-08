@@ -29,8 +29,12 @@ public partial class ReportService : IReportService
     /// <summary>Teto de pares de contexto por relato, para o corpo da requisicao nao virar deposito.</summary>
     private const int MaxContextEntries = 30;
 
-    /// <summary>Quantos relatos a lista do painel traz quando ninguem pede outra coisa.</summary>
-    private const int DefaultPageSize = 20;
+    /// <summary>
+    /// Quantos relatos a lista do painel traz quando ninguem pede outra coisa. Cinquenta
+    /// e mais de duas telas de tabela: de vinte em vinte, passar o olho, ordenar e marcar
+    /// todos dependiam de clicar em "Carregar mais".
+    /// </summary>
+    private const int DefaultPageSize = 50;
 
     /// <summary>
     /// Teto por pagina. O texto do relato vai inteiro na lista, entao uma pagina de
@@ -964,10 +968,11 @@ public partial class ReportService : IReportService
             : new ReportInfoRequestViewModel(
                 request.AskedByUser?.Name, request.AskedAt, request.WarnAt, request.CloseAt);
 
-    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, CancellationToken cancellationToken = default)
+    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, string? sort = null, string? dir = null, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
         var ordem = ResolveOrder(order);
+        var ordenacao = ResolveSort(sort, dir, ordem);
         var filter = await ResolveStateFilterAsync(project.Id, state, cancellationToken);
         var cards = await ResolveCardFilterAsync(project, filters, cancellationToken);
         var depois = after is Guid referencia
@@ -991,7 +996,7 @@ public partial class ReportService : IReportService
         if (skip >= total)
             return new ReportPageViewModel([], total);
 
-        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cards, cancellationToken);
+        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cards, ordenacao, cancellationToken);
 
         var time = await TeamIdsForAsync(reports, cancellationToken);
         var faces = await _unitOfWork.Reports.CountFacesAsync(reports.Select(report => report.Id).ToList(), cancellationToken);
@@ -2788,7 +2793,11 @@ public partial class ReportService : IReportService
         face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
         face.DuplicateReporters,
         face.Sprint is { } sprint ? new CardSprintViewModel(sprint.PublicId, sprint.Name, sprint.State) : null,
-        report.StoryPoints);
+        report.StoryPoints)
+    {
+        UpdatedAt = report.UpdatedAt,
+        ClosureConfirmed = face.ClosureConfirmed,
+    };
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2913,7 +2922,11 @@ public partial class ReportService : IReportService
         face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
         face.DuplicateReporters,
         face.Sprint is { } sprint ? new CardSprintViewModel(sprint.PublicId, sprint.Name, sprint.State) : null,
-        report.StoryPoints);
+        report.StoryPoints)
+    {
+        UpdatedAt = report.UpdatedAt,
+        ClosureConfirmed = face.ClosureConfirmed,
+    };
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem

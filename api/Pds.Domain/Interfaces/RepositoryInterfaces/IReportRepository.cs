@@ -54,8 +54,12 @@ public interface IReportRepository : IBaseRepository<Report>
     /// na ordem do quadro, deixa so o que vem depois daquele lugar da coluna: e o
     /// "Mostrar mais" do quadro. <paramref name="cards"/> sao os filtros da tela de
     /// Trabalho — responsavel, etiqueta, prioridade, tipo, vencidos e a busca.</para>
+    ///
+    /// <para><paramref name="sort"/>, na lista de sempre, troca o "mais novo primeiro"
+    /// pela ordem que a pessoa escolheu: o vazio no fim, o mais novo desempatando e o
+    /// Id no fim de tudo, para a pagina continuar com ordem total.</para>
     /// </summary>
-    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, ReportCardFilter cards, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, ReportCardFilter cards, ReportListSort? sort = null, CancellationToken cancellationToken = default);
 
     /// <summary>Quantos cards o projeto tem no recorte. E o que diz se ainda ha o que carregar.</summary>
     Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, ReportCardFilter cards, CancellationToken cancellationToken = default);

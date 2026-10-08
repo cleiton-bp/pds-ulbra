@@ -117,10 +117,16 @@ public interface IReportService
     /// logo depois daquele card, e a pagina deixa de valer.</para>
     ///
     /// <para><paramref name="filters"/> sao os filtros da tela de Trabalho —
-    /// responsavel, etiqueta, prioridade, tipo, vencidos e a busca. O identificador que
-    /// nao e do projeto e recusado, como o de coluna.</para>
+    /// responsavel, etiqueta, prioridade, tipo, vencidos, a busca, o "Em aberto", as
+    /// subtarefas e as colunas da lista. O identificador que nao e do projeto e
+    /// recusado, como o de coluna.</para>
+    ///
+    /// <para><paramref name="sort"/> e <paramref name="dir"/> sao a ordem que a pessoa
+    /// escolheu na tabela — so na lista de sempre, e nunca com <c>board</c> ou
+    /// <c>backlog</c>. O vazio (sem prazo, sem prioridade) fica no fim nas duas
+    /// direcoes.</para>
     /// </summary>
-    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, CancellationToken cancellationToken = default);
+    Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, string? sort = null, string? dir = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Cria um card do time: titulo, descricao em Markdown e o estado em que nasce.
