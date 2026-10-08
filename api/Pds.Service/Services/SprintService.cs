@@ -95,7 +95,7 @@ public class SprintService : ISprintService
                     : "A sprint fechada nao volta a andar.");
 
             if (await _unitOfWork.Sprints.FindActiveAsync(project.Id, ct) is { } emAndamento)
-                throw new ConflictException($"A {emAndamento.Name} esta em andamento. Feche-a antes de iniciar outra.");
+                throw new ConflictException($"A {emAndamento.Name} esta em andamento. Conclua-a antes de iniciar outra.");
 
             // O que vier no pedido vale para a sprint que comeca — o dialogo de iniciar
             // ajusta nome, objetivo e datas.
@@ -148,7 +148,7 @@ public class SprintService : ISprintService
 
             var alvo = await RequireSprintAsync(project.Id, sprintPublicId, ct);
             if (alvo.State != SprintStateEnum.Active)
-                throw new ConflictException("So a sprint em andamento fecha.");
+                throw new ConflictException("So a sprint em andamento se conclui.");
 
             destino = destinoTipo switch
             {
@@ -168,11 +168,30 @@ public class SprintService : ISprintService
             var cards = await _unitOfWork.Reports.ListSprintCardsAsync(alvo.Id, ct);
             var terminados = await _unitOfWork.Reports.ListFinishedAsync(cards.Select(card => card.Id).ToList(), ct);
 
+            // **O pai terminado com subtarefa aberta tambem vai**: a subtarefa acompanha o
+            // pai, e ficar na concluida a tiraria do quadro e do backlog, sem como move-la.
+            var aMover = new List<Report>();
+            foreach (var card in cards)
+            {
+                if (!terminados.Contains(card.Id))
+                {
+                    aMover.Add(card);
+                    continue;
+                }
+
+                var subtarefas = await _unitOfWork.Reports.ListSubtasksAsync(card.Id, ct);
+                if (subtarefas.Count == 0)
+                    continue;
+                var feitas = await _unitOfWork.Reports.ListFinishedAsync(subtarefas.Select(sub => sub.Id).ToList(), ct);
+                if (subtarefas.Any(sub => !feitas.Contains(sub.Id)))
+                    aMover.Add(card);
+            }
+
             // No fim da lista de destino, na ordem em que estavam.
             var fim = await _unitOfWork.Reports.FindBacklogEdgeRankAsync(project.Id, destino?.Id, top: false, exceptId: 0, ct) ?? 0;
-            foreach (var card in cards.Where(card => !terminados.Contains(card.Id)))
+            foreach (var card in aMover)
             {
-                fim += Report.BoardRankGap;
+                fim = Report.BacklogAfter(fim, project.LastCardNumber);
                 card.BacklogRank = fim;
                 var foram = await SprintMoves.MoveAsync(_unitOfWork, project, card, destino, _accountContext.UserId, "sprint_closed", ct);
                 movidos.Add(card);
@@ -190,7 +209,7 @@ public class SprintService : ISprintService
                 done_cards = numeros.DoneCards,
                 points = numeros.Points,
                 done_points = numeros.DonePoints,
-                moved = cards.Count - terminados.Count,
+                moved = aMover.Count,
                 destination = destinoTipo.ToString(),
                 destination_id = destino?.PublicId,
             }, ct);
@@ -224,14 +243,14 @@ public class SprintService : ISprintService
             // So a planejada se apaga: a em andamento fecha, e a fechada e a historia.
             if (alvo.State != SprintStateEnum.Planned)
                 throw new ConflictException(alvo.State == SprintStateEnum.Active
-                    ? "A sprint em andamento nao se apaga: feche-a."
+                    ? "A sprint em andamento nao se apaga: conclua-a."
                     : "A sprint fechada nao se apaga: ela e a historia do que aconteceu.");
 
             // Os cards voltam para o fim do backlog, na ordem em que estavam.
             var fim = await _unitOfWork.Reports.FindBacklogEdgeRankAsync(project.Id, null, top: false, exceptId: 0, ct) ?? 0;
             foreach (var card in await _unitOfWork.Reports.ListSprintCardsAsync(alvo.Id, ct))
             {
-                fim += Report.BoardRankGap;
+                fim = Report.BacklogAfter(fim, project.LastCardNumber);
                 card.BacklogRank = fim;
                 movidos.Add(card);
                 movidos.AddRange(await SprintMoves.MoveAsync(_unitOfWork, project, card, null, _accountContext.UserId, "sprint_deleted", ct));

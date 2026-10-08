@@ -62,14 +62,14 @@ export interface CreateReportRequest {
    */
   ReporterCode?: string
 
-  /** Como a pessoa quer ser chamada. Só vai quando o projeto pergunta. */
+  /** Como a pessoa quer ser chamada. So vai quando o projeto pergunta. */
   ReporterName?: string
   /**
    * Ela quis assinar este relato.
    *
-   * **Ausente é "não".** Ao contrário de `AcceptsQuestions`, aqui o silêncio não
-   * cai num padrão do projeto: o que está em jogo é o nome dela ao lado de um
-   * texto que qualquer um lê.
+   * **Ausente e "nao".** Ao contrario de `AcceptsQuestions`, aqui o silencio nao
+   * cai num padrao do projeto: o que esta em jogo e o nome dela ao lado de um
+   * texto que qualquer um le.
    */
   ReporterNameIsPublic?: boolean
 }
@@ -1061,7 +1061,7 @@ export interface CreateTeamCardRequest {
   SprintPublicId?: string
 }
 
-/** Pôr o card numa sprint (nulo e o backlog), e no lugar da lista: abaixo de um card, no topo ou no fim. */
+/** Por o card numa sprint (nulo e o backlog), e no lugar da lista: abaixo de um card, no topo ou no fim. */
 export interface SetCardSprintRequest {
   SprintPublicId: string | null
   AfterPublicId?: string | null

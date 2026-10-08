@@ -1,5 +1,5 @@
 import * as Menu from '@radix-ui/react-dropdown-menu'
-import { type ReactNode, useCallback, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import {
   projectLabelService,
   projectPriorityService,
@@ -108,6 +108,39 @@ export function WorkFilterBar({
       [projectPublicId, filters.priorities],
     ),
   )
+
+  // **O valor que sumiu sai do filtro** — a etiqueta apagada, a pessoa que saiu do
+  // time, a prioridade apagada. O filtro fica guardado na aba; sem isto, ele continuaria
+  // ligado sobre algo que nao existe, e o menu nem o mostraria para desmarcar. As listas
+  // sao lidas so quando o filtro tem algum valor desses.
+  const temPessoa = filters.assignees.some((valor) => valor !== 'me' && valor !== 'none')
+  const temEtiqueta = filters.labels.length > 0
+  const temPrioridade = filters.priorities.some((valor) => valor !== 'none')
+  useEffect(() => {
+    if (temPessoa) lerPessoas()
+  }, [temPessoa, lerPessoas])
+  useEffect(() => {
+    if (temEtiqueta) lerEtiquetas()
+  }, [temEtiqueta, lerEtiquetas])
+  useEffect(() => {
+    if (temPrioridade) lerPrioridades()
+  }, [temPrioridade, lerPrioridades])
+  useEffect(() => {
+    const existe = (lista: Opcao[] | 'falhou' | null, valor: string) =>
+      !Array.isArray(lista) ||
+      valor === 'me' ||
+      valor === 'none' ||
+      lista.some((o) => o.value === valor)
+    const assignees = filters.assignees.filter((valor) => existe(pessoas, valor))
+    const labels = filters.labels.filter((valor) => existe(etiquetas, valor))
+    const priorities = filters.priorities.filter((valor) => existe(prioridades, valor))
+    if (
+      assignees.length !== filters.assignees.length ||
+      labels.length !== filters.labels.length ||
+      priorities.length !== filters.priorities.length
+    )
+      onChange({ ...filters, assignees, labels, priorities })
+  }, [pessoas, etiquetas, prioridades, filters, onChange])
 
   return (
     <search className="mb-3 flex flex-wrap items-center gap-2" aria-label="Filtrar cards">
@@ -236,7 +269,7 @@ function MenuDeMarcar({
 }: {
   rotulo: string
   escolhidos: string[]
-  /** As que existem sempre, antes das do projeto: "Sem responsável", "Sem prioridade". */
+  /** As que existem sempre, antes das do projeto: "Sem responsavel", "Sem prioridade". */
   fixas?: Opcao[]
   /** Nulo enquanto le; "falhou" quando a leitura falhou. */
   opcoes: Opcao[] | 'falhou' | null

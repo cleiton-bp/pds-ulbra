@@ -5,18 +5,21 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationViewModel } from '@/contracts'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
-import { NotificationSettingsDialog } from '@/features/notifications/NotificationSettingsDialog'
 import { UNREAD_POLL_MS } from '@/features/notifications/useUnreadCount'
+import { announceNotificationArrival } from '@/shared/lib/notificationSounds'
 
 /**
  * O QUE ESTES TESTES TRAVAM: o sino.
  *
- * - **O número vem da API**, com a palavra para quem não vê o número — e volta a ser
- *   perguntado a cada minuto com a aba à vista.
- * - **A lista é lida ao abrir**: quem fez, o que fez, o card e o projeto.
- * - **Abrir o aviso leva ao card** e o marca como lido; "Marcar todos" zera o número.
- * - **A resposta atrasada não passa por cima** do número que uma ação devolveu.
- * - **As preferências**: o e-mail de responsável, e o aviso de que o servidor não manda.
+ * - **O numero vem da API**, com a palavra para quem nao ve o numero — e volta a ser
+ *   perguntado a cada minuto com a aba a vista.
+ * - **A lista e lida ao abrir**: quem fez, o que fez, o card e o projeto.
+ * - **Abrir o aviso leva ao card** e o marca como lido; "Marcar todos" zera o numero.
+ * - **A resposta atrasada nao passa por cima** do numero que uma acao devolveu.
+ * - **O numero que sobe toca o som** do tipo do aviso mais novo, no volume da pessoa — e o
+ *   primeiro numero da tela nao toca.
+ * - **O aviso que chega pelo tempo real** faz o sino perguntar na hora.
+ * - **"Preferencias de aviso" leva ao Perfil.**
  */
 const dublê = vi.hoisted(() => ({
   contar: vi.fn(),
@@ -26,6 +29,13 @@ const dublê = vi.hoisted(() => ({
   preferencias: vi.fn(),
   salvar: vi.fn(),
 }))
+
+const som = vi.hoisted(() => ({ tocar: vi.fn() }))
+
+vi.mock('@/shared/lib/notificationSounds', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/shared/lib/notificationSounds')>()
+  return { ...real, playNotificationSound: som.tocar }
+})
 
 vi.mock('@/data', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/data')>()
@@ -80,6 +90,7 @@ describe('o sino', () => {
   })
   beforeEach(() => {
     for (const dublé of Object.values(dublê)) dublé.mockReset()
+    som.tocar.mockReset()
   })
 
   it('o número vem da API, com a palavra; e é perguntado de novo a cada minuto', async () => {
@@ -145,25 +156,70 @@ describe('o sino', () => {
   })
 })
 
-describe('as preferências de aviso', () => {
-  afterEach(cleanup)
+describe('o som e o tempo real do sino', () => {
+  const AJUSTES = {
+    Volume: 40,
+    Sounds: [
+      { Kind: 'Mention' as const, Sound: 'Drop' as const },
+      { Kind: 'Assignment' as const, Sound: 'Chime' as const },
+    ],
+  }
+
+  // Cada teste com o seu relogio, longe do anterior: o som toca no maximo a cada
+  // poucos segundos, e o limite e do modulo.
+  let relogio = Date.now() + 3_600_000
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+  })
   beforeEach(() => {
     for (const dublé of Object.values(dublê)) dublé.mockReset()
+    som.tocar.mockReset()
+    dublê.preferencias.mockResolvedValue(AJUSTES)
+    relogio += 600_000
+    vi.useFakeTimers({ shouldAdvanceTime: true, now: relogio })
   })
 
-  it('o e-mail de responsável liga e desliga; sem e-mail no servidor, a tela diz', async () => {
-    dublê.preferencias.mockResolvedValue({ AssignmentByEmail: true, EmailAvailable: false })
-    dublê.salvar.mockResolvedValue({ AssignmentByEmail: false, EmailAvailable: false })
-    render(<NotificationSettingsDialog onClose={vi.fn()} />)
+  it('o primeiro número não toca; o que sobe toca o som do tipo do aviso mais novo, no volume da pessoa', async () => {
+    dublê.contar.mockResolvedValueOnce({ UnreadCount: 1 }).mockResolvedValue({ UnreadCount: 2 })
+    dublê.listar.mockResolvedValue({
+      Items: [
+        aviso({ PublicId: 'n-2', Kind: 'Assignment', CreatedAt: new Date().toISOString() }),
+        aviso({ ReadAt: '2026-10-03T13:00:00.000Z' }),
+      ],
+      UnreadCount: 2,
+    })
+    montar()
+    expect(await screen.findByRole('button', { name: 'Avisos: 1 não lido' })).toBeTruthy()
+    expect(som.tocar).not.toHaveBeenCalled()
 
-    const chave = (await screen.findByRole('checkbox', {
-      name: /E-mail quando me escolherem como responsável/,
-    })) as HTMLInputElement
-    expect(chave.checked).toBe(true)
-    expect(screen.getByText(/Este servidor ainda não manda e-mail/)).toBeTruthy()
+    // O aviso chega pelo tempo real: o sino pergunta na hora, sem esperar o minuto.
+    await act(async () => announceNotificationArrival())
+    expect(await screen.findByRole('button', { name: 'Avisos: 2 não lidos' })).toBeTruthy()
+    await waitFor(() => expect(som.tocar).toHaveBeenCalledWith('Chime', 40))
+    expect(som.tocar).toHaveBeenCalledTimes(1)
+  })
 
-    fireEvent.click(chave)
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledWith({ AssignmentByEmail: false }))
-    await waitFor(() => expect(chave.checked).toBe(false))
+  it('"Preferências de aviso" leva ao Perfil', async () => {
+    dublê.contar.mockResolvedValue({ UnreadCount: 0 })
+    dublê.listar.mockResolvedValue({ Items: [], UnreadCount: 0 })
+    montar()
+    abrirMenu(await screen.findByRole('button', { name: /^Avisos/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Preferências de aviso' }))
+    await waitFor(() => expect(screen.getByTestId('onde').textContent).toBe('/profile'))
+  })
+
+  it('o aviso velho que volta a contar nao toca', async () => {
+    dublê.contar.mockResolvedValueOnce({ UnreadCount: 0 }).mockResolvedValue({ UnreadCount: 1 })
+    dublê.listar.mockResolvedValue({
+      Items: [aviso({ PublicId: 'n-velho', CreatedAt: '2026-01-01T12:00:00.000Z' })],
+      UnreadCount: 1,
+    })
+    montar()
+    await screen.findByRole('button', { name: 'Avisos' })
+    await act(async () => announceNotificationArrival())
+    expect(await screen.findByRole('button', { name: 'Avisos: 1 não lido' })).toBeTruthy()
+    await waitFor(() => expect(dublê.listar).toHaveBeenCalled())
+    expect(som.tocar).not.toHaveBeenCalled()
   })
 })

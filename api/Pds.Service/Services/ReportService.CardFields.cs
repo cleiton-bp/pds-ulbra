@@ -57,9 +57,9 @@ public partial class ReportService
 
     public async Task<ReportDetailViewModel> SetAssigneeAsync(Guid projectPublicId, Guid reportPublicId, SetCardAssigneeDto dto, CancellationToken cancellationToken = default)
     {
-        // O aviso de quem passou a ser responsavel: no sino, na mesma gravacao; e o
-        // e-mail, pela fila, depois dela.
-        Notification? aviso = null;
+        // O aviso de quem passou a ser responsavel: no sino, na mesma gravacao; e o sinal
+        // ao vivo, so para a pessoa, depois dela.
+        Guid? avisado = null;
 
         var detalhe = await ChangeCardAsync(projectPublicId, reportPublicId, "mudar o responsavel", async (project, report, ct) =>
         {
@@ -102,45 +102,24 @@ public partial class ReportService
             // **Ninguem e avisado do que fez**: quem se escolhe ja sabe.
             if (depois is not null && depois.Id != _accountContext.UserId)
             {
-                aviso = new Notification
+                await _unitOfWork.Notifications.AddAsync(new Notification
                 {
                     UserId = depois.Id,
                     ProjectId = report.ProjectId,
                     ReportId = report.Id,
                     ActorUserId = _accountContext.UserId,
                     Kind = NotificationKindEnum.Assignment,
-                };
-                await _unitOfWork.Notifications.AddAsync(aviso, ct);
+                }, ct);
+                avisado = depois.PublicId;
             }
 
             await _unitOfWork.CommitAsync(ct);
         }, cancellationToken);
 
-        if (aviso is not null)
-            await EnqueueAssignmentEmailAsync(aviso.PublicId, cancellationToken);
+        if (avisado is Guid pessoa)
+            await _notifier.NotificationArrivedAsync(projectPublicId, pessoa, NotificationKindEnum.Assignment);
 
         return detalhe;
-    }
-
-    /// <summary>
-    /// O e-mail de quem passou a ser responsavel, na fila. **Depois da gravacao**, e
-    /// sem derrubar a acao: o card ja mudou de maos e o sino ja tem o aviso — sem a
-    /// fila, o e-mail so nao sai. Quem confere a preferencia e o consumidor, na hora
-    /// de mandar.
-    /// </summary>
-    private async Task EnqueueAssignmentEmailAsync(Guid avisoPublicId, CancellationToken cancellationToken)
-    {
-        if (!_emailQueue.IsAvailable)
-            return;
-
-        try
-        {
-            await _emailQueue.EnqueueAsync(EmailJobKind.Assignment, avisoPublicId, cancellationToken);
-        }
-        catch (Exception)
-        {
-            // Engolida de proposito, como o agendamento: ver o paragrafo acima.
-        }
     }
 
     public Task<ReportDetailViewModel> SetPriorityAsync(Guid projectPublicId, Guid reportPublicId, SetCardPriorityDto dto, CancellationToken cancellationToken = default)

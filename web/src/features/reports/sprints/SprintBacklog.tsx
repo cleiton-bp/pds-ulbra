@@ -62,13 +62,13 @@ const TOQUE = { activationConstraint: { delay: 250, tolerance: 6 } }
 type Listas = Record<string, string[]>
 
 /**
- * O backlog e as sprints que nao fecharam: a em andamento, as planejadas, e o backlog
+ * O backlog e as sprints que nao foram concluidas: a em andamento, as planejadas, e o backlog
  * embaixo, cada um na ordem que o time arruma.
  *
  * **Arrastar** leva o card para outra lista ou para outro lugar na mesma — com o mouse,
- * com o toque (segurando um instante) ou com o teclado (espaço pega, setas, espaço
+ * com o toque (segurando um instante) ou com o teclado (espaco pega, setas, espaco
  * solta). **O menu de cada card** faz o mesmo sem arrastar: mover para uma sprint ou
- * para o backlog, o topo, o fim. O card abre pelo título.
+ * para o backlog, o topo, o fim. O card abre pelo titulo.
  */
 export function SprintBacklog({
   projectPublicId,
@@ -78,7 +78,7 @@ export function SprintBacklog({
   aoMudou,
 }: {
   projectPublicId: string
-  /** As sprints que nao fecharam; nula enquanto carrega. */
+  /** As sprints que nao foram concluidas; nula enquanto carrega. */
   sprints: SprintViewModel[] | null
   colunas: ReportStateCountViewModel[] | null
   /** Sobe quando um card ou uma sprint mudou fora daqui: as listas sao relidas. */
@@ -400,7 +400,7 @@ export function SprintBacklog({
         title={dialogo?.tipo === 'delete' ? `Apagar ${dialogo.sprint.Name}` : 'Apagar a sprint'}
         description={
           dialogo?.tipo === 'delete'
-            ? `${dialogo.sprint.Cards === 0 ? 'A sprint está vazia.' : `Os ${dialogo.sprint.Cards} cards dela voltam para o fim do backlog.`} Só a sprint planejada se apaga.`
+            ? `${dialogo.sprint.Cards === 0 ? 'A sprint está vazia.' : dialogo.sprint.Cards === 1 ? 'O card dela volta para o fim do backlog.' : `Os ${dialogo.sprint.Cards} cards dela voltam para o fim do backlog.`} Só a sprint planejada se apaga.`
             : ''
         }
         confirmLabel="Apagar"
@@ -421,7 +421,7 @@ export function SprintBacklog({
   )
 }
 
-/** Uma lista: o cabeçalho da sprint (ou do backlog) e os cards dela. */
+/** Uma lista: o cabecalho da sprint (ou do backlog) e os cards dela. */
 function Secao({
   secao,
   sprint,
@@ -498,17 +498,13 @@ function Secao({
             <Button size="sm" onClick={() => aoConcluir(sprint)}>
               Concluir sprint
             </Button>
+          ) : // O porque escrito, e nao numa dica: a dica nao abre no toque nem no teclado.
+          temAtiva ? (
+            <span className="text-caption text-fg-muted">
+              Inicia depois que a em andamento for concluída
+            </span>
           ) : (
-            <Button
-              size="sm"
-              disabled={temAtiva}
-              onClick={() => aoIniciar(sprint)}
-              title={
-                temAtiva
-                  ? 'Há uma sprint em andamento: conclua-a antes de iniciar outra.'
-                  : undefined
-              }
-            >
+            <Button size="sm" onClick={() => aoIniciar(sprint)}>
               Iniciar sprint
             </Button>
           )}
@@ -662,7 +658,7 @@ function ItemArrastavel({
   )
 }
 
-/** A linha de um card no backlog: tipo, número, título, coluna, pontos e responsável. */
+/** A linha de um card no backlog: tipo, numero, titulo, coluna, pontos e responsavel. */
 function Linha({
   card,
   colunas,

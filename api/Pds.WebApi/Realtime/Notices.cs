@@ -21,3 +21,8 @@ public record ProjectChangedNotice(Guid ProjectPublicId, string? Origin);
 
 /// <summary>A pessoa saiu do time do projeto.</summary>
 public record AccessLostNotice(Guid ProjectPublicId);
+
+/// <summary>Chegou um aviso para a pessoa. So o tipo: o sino rele pela REST.</summary>
+/// <param name="ProjectPublicId">O projeto do card do aviso.</param>
+/// <param name="Kind">`Mention` ou `Assignment` — o som que toca e o deste tipo.</param>
+public record NotificationArrivedNotice(Guid ProjectPublicId, string Kind);

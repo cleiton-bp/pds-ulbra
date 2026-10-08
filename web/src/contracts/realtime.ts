@@ -34,3 +34,9 @@ export interface ProjectChangedNotice {
 export interface AccessLostNotice {
   ProjectPublicId: string
 }
+
+/** Chegou um aviso para quem esta conectado. So o tipo: o sino rele pela REST. */
+export interface NotificationArrivedNotice {
+  ProjectPublicId: string
+  Kind: string
+}

@@ -16,15 +16,15 @@ import {
 import { ReportComments } from '@/features/reports/ReportComments'
 
 /**
- * O QUE ESTES TESTES TRAVAM: a menção no comentário entre o time.
+ * O QUE ESTES TESTES TRAVAM: a mencao no comentario entre o time.
  *
- * - **No campo, "@Nome"; no envio, a marca com quem é** — só da menção que ficou no
- *   texto, e sem pegar o começo de outro nome.
- * - **O "@" só abre a palavra**, e a busca acaba na quebra de linha.
+ * - **No campo, "@Nome"; no envio, a marca com quem e** — so da mencao que ficou no
+ *   texto, e sem pegar o comeco de outro nome.
+ * - **O "@" so abre a palavra**, e a busca acaba na quebra de linha.
  * - **A lista do "@"**: o time lido uma vez, sem quem escreve, sem acento; setas e
- *   Enter escolhem; Esc fecha só a lista — o card aberto continua aberto.
- * - **A leitura mostra "@Nome" destacado**, e não a marca.
- * - **Só a caixa de dentro menciona.**
+ *   Enter escolhem; Esc fecha so a lista — o card aberto continua aberto.
+ * - **A leitura mostra "@Nome" destacado**, e nao a marca.
+ * - **So a caixa de dentro menciona.**
  */
 const ANA = 'a1000000-0000-4000-8000-000000000001'
 const BRUNO = 'b1000000-0000-4000-8000-000000000002'
@@ -115,6 +115,21 @@ describe('o campo com "@"', () => {
   function digitar(campo: HTMLTextAreaElement, valor: string) {
     fireEvent.change(campo, { target: { value: valor, selectionStart: valor.length } })
   }
+
+  it('no meio do texto, o cursor vai para depois da mencao na mesma hora — sem esperar o quadro seguinte', async () => {
+    render(<Campo aoMencionar={vi.fn()} />)
+    const campo = screen.getByRole('textbox', { name: 'Entre o time' }) as HTMLTextAreaElement
+    fireEvent.change(campo, { target: { value: 'Olha @bru, por favor', selectionStart: 9 } })
+    await screen.findByRole('listbox', { name: 'Pessoas do time' })
+    const quadro = vi.spyOn(window, 'requestAnimationFrame')
+    fireEvent.keyDown(campo, { key: 'Enter' })
+
+    expect(campo.value).toBe('Olha @Bruno Membro , por favor')
+    // Logo depois do Enter, antes de qualquer quadro: a proxima tecla cai no lugar certo.
+    expect(campo.selectionStart).toBe('Olha @Bruno Membro '.length)
+    expect(quadro).not.toHaveBeenCalled()
+    quadro.mockRestore()
+  })
 
   it('o "@" abre o time, sem quem escreve e sem acento; Enter escolhe', async () => {
     const aoMencionar = vi.fn()

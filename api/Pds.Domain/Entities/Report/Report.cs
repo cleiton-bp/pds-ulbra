@@ -78,6 +78,19 @@ public class Report : PdsBaseEntity
     /// </summary>
     public const long BoardRankGap = 1L << 20;
 
+    /// <summary>O passo de quem vai para o fim do backlog: miudo, para caber antes do proximo card que nascer.</summary>
+    public const long BacklogEndStep = BoardRankGap / 1024;
+
+    /// <summary>
+    /// O lugar no fim de uma lista do backlog, logo depois de <paramref name="ultimo"/>.
+    /// <b>Nunca passa do lugar do proximo card que nascer</b>: o card novo entra no
+    /// backlog com o numero vezes a folga — o relato chega pela rota publica, sem sessao,
+    /// e nao tem como ler a lista. O que vai para o fim fica entre o ultimo numero dado
+    /// e o proximo, em passo miudo; o card que nascer depois fica depois dele.
+    /// </summary>
+    public static long BacklogAfter(long ultimo, int ultimoNumero)
+        => Math.Max(ultimo, ultimoNumero * BoardRankGap) + BacklogEndStep;
+
     /// <summary>Quanto do texto vira titulo, quando o card nao tem titulo.</summary>
     public const int HeadlineExcerptLength = 140;
 

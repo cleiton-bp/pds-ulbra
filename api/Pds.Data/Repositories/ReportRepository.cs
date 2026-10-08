@@ -554,9 +554,9 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                     // O que terminou sem sprint fica na lista, e nao no backlog. E o que
                     // esta numa sprint fechada e voltou a andar (o relato reaberto) e
                     // backlog de novo: a fechada nao recebe nem mostra nada.
-                    var terminado = Terminado();
-                    var aberto = Expression.Lambda<Func<Report, bool>>(Expression.Not(terminado.Body), terminado.Parameters);
-                    cards = cards.Where(NoBacklog()).Where(report => report.ParentReportId == null).Where(aberto);
+                    // O pai que terminou com subtarefa aberta tambem fica: a subtarefa vai com
+                    // ele, e sem ele ela nao teria lugar nenhum.
+                    cards = cards.Where(NoBacklog()).Where(report => report.ParentReportId == null).Where(AbertoOuComSubtarefaAberta());
                     break;
                 default:
                     var id = sprint.SprintId;
@@ -631,6 +631,35 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
     /// quadro; com uma so, ela e a entrada da fila, e nada terminou por estar nela. O
     /// desempate da ultima coluna e o de <c>ProjectStates.LastActiveAsync</c>.
     /// </summary>
+    /// <summary>
+    /// O card que nao terminou — ou que terminou com alguma subtarefa ainda aberta, fora do
+    /// arquivo. E o que o backlog mostra.
+    /// </summary>
+    private Expression<Func<Report, bool>> AbertoOuComSubtarefaAberta()
+    {
+        var terminado = Terminado();
+        var aberto = Expression.Lambda<Func<Report, bool>>(Expression.Not(terminado.Body), terminado.Parameters);
+        // A condicao da subtarefa com parametro proprio: o mesmo parametro dentro e fora
+        // do lambda o EF nao traduz.
+        var sub = Expression.Parameter(typeof(Report), "sub");
+        var subAberta = Expression.Lambda<Func<Report, bool>>(
+            new TrocaDeParametro(aberto.Parameters[0], sub).Visit(aberto.Body), sub);
+        Expression<Func<Report, bool>> comSubtarefaAberta = report => Context.Reports
+            .Where(filha => filha.ParentReportId == report.Id && filha.ArchivedAt == null)
+            .Where(subAberta)
+            .Any();
+        var corpo = Expression.OrElse(
+            aberto.Body,
+            new TrocaDeParametro(comSubtarefaAberta.Parameters[0], aberto.Parameters[0]).Visit(comSubtarefaAberta.Body));
+        return Expression.Lambda<Func<Report, bool>>(corpo, aberto.Parameters);
+    }
+
+    /// <summary>Troca um parametro por outro numa expressao, para juntar duas condicoes num lambda so.</summary>
+    private sealed class TrocaDeParametro(ParameterExpression de, ParameterExpression para) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node) => node == de ? para : base.VisitParameter(node);
+    }
+
     private Expression<Func<Report, bool>> Terminado()
         => report =>
             Context.ReportClosures.Any(closure => closure.ReportId == report.Id && closure.ReopenedAt == null)

@@ -2,6 +2,7 @@ import type { HubConnection } from '@microsoft/signalr'
 import type {
   AccessLostNotice,
   CardChangedNotice,
+  NotificationArrivedNotice,
   ProjectChangedNotice,
   RealtimeTicketViewModel,
 } from '@/contracts'
@@ -112,6 +113,9 @@ function connectWork(projectPublicId: string, handlers: RealtimeHandlers): Realt
     })
     nova.on('AccessLost', (aviso: AccessLostNotice) => {
       if (doProjeto(aviso)) handlers.onEvent({ kind: 'access-lost' })
+    })
+    nova.on('NotificationArrived', (aviso: NotificationArrivedNotice) => {
+      if (doProjeto(aviso)) handlers.onEvent({ kind: 'notification' })
     })
 
     nova.onreconnecting(() => {

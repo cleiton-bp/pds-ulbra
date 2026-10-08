@@ -10,7 +10,7 @@ using Pds.WebApi.Authorization;
 namespace Pds.WebApi.Controllers;
 
 /// <summary>
-/// As sprints do projeto. Planejar, iniciar e fechar e trabalho do time — qualquer
+/// As sprints do projeto. Planejar, iniciar e concluir e trabalho do time — qualquer
 /// pessoa do projeto; ligar as sprints e do administrador, no Ciclo.
 /// </summary>
 [Authorize]
@@ -28,7 +28,7 @@ public class SprintsController : BaseController
         _sprintService = sprintService;
     }
 
-    /// <summary>As sprints que não fecharam.</summary>
+    /// <summary>As sprints que não foram concluídas.</summary>
     /// <remarks>
     /// A em andamento primeiro, depois as planejadas, pelo número — cada uma com os
     /// cards (sem as subtarefas e o arquivo), os que terminaram e os pontos, planejados
@@ -54,13 +54,13 @@ public class SprintsController : BaseController
     /// <summary>Cria uma sprint planejada.</summary>
     /// <remarks>
     /// Sem nome, ela se chama Sprint e o número; sem datas, começa logo depois da última
-    /// que não fechou (ou hoje) e dura o padrão do projeto. Só com a sprint ligada (409).
+    /// que não foi concluída (ou hoje) e dura o padrão do projeto. Só com as sprints ligadas (409).
     /// </remarks>
     /// <response code="200">A sprint criada.</response>
     /// <response code="400">Nome comprido, objetivo comprido ou datas fora de ordem.</response>
     /// <response code="409">O projeto não trabalha em sprints.</response>
     [HttpPost]
-    [MemberWrite("Planejar, iniciar e fechar sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
+    [MemberWrite("Planejar, iniciar e concluir sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<SprintViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -78,13 +78,13 @@ public class SprintsController : BaseController
     }
 
     /// <summary>Muda o nome, o objetivo e as datas.</summary>
-    /// <remarks>Inteiro: nome e as duas datas obrigatórios; o objetivo vazio apaga. A sprint fechada não muda (409).</remarks>
+    /// <remarks>Inteiro: nome e as duas datas obrigatórios; o objetivo vazio apaga. A sprint concluída não muda (409).</remarks>
     /// <response code="200">A sprint como ficou.</response>
     /// <response code="400">Sem nome ou datas, ou datas fora de ordem.</response>
     /// <response code="404">Sprint ou projeto não existe aqui.</response>
-    /// <response code="409">A sprint já fechou.</response>
+    /// <response code="409">A sprint já foi concluída.</response>
     [HttpPut("{sprintPublicId:guid}")]
-    [MemberWrite("Planejar, iniciar e fechar sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
+    [MemberWrite("Planejar, iniciar e concluir sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<SprintViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -112,7 +112,7 @@ public class SprintsController : BaseController
     /// <response code="404">Sprint ou projeto não existe aqui.</response>
     /// <response code="409">Outra em andamento, a sprint não é planejada, ou o projeto não trabalha em sprints.</response>
     [HttpPost("{sprintPublicId:guid}/start")]
-    [MemberWrite("Planejar, iniciar e fechar sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
+    [MemberWrite("Planejar, iniciar e concluir sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
     [ProducesResponseType(typeof(ApiResponse<SprintViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -129,19 +129,19 @@ public class SprintsController : BaseController
         }
     }
 
-    /// <summary>Fecha a sprint em andamento.</summary>
+    /// <summary>Conclui a sprint em andamento.</summary>
     /// <remarks>
     /// **O que não terminou vai para o destino escolhido** — `Backlog`, `Sprint` (uma
     /// planejada, em `SprintPublicId`) ou `NewSprint` (uma planejada que nasce agora) —,
-    /// no fim da lista, com as subtarefas. O que terminou fica na sprint fechada. A
-    /// resposta traz os números de quando fechou e quantos foram.
+    /// no fim da lista, com as subtarefas. O que terminou fica na sprint concluída. A
+    /// resposta traz os números de quando foi concluída e quantos foram.
     /// </remarks>
-    /// <response code="200">A sprint fechada, quantos foram e o destino.</response>
+    /// <response code="200">A sprint concluída, quantos foram e o destino.</response>
     /// <response code="400">Sem destino, ou sem a sprint de destino.</response>
     /// <response code="404">Sprint ou projeto não existe aqui.</response>
     /// <response code="409">A sprint não está em andamento, ou o destino não é uma planejada.</response>
     [HttpPost("{sprintPublicId:guid}/close")]
-    [MemberWrite("Planejar, iniciar e fechar sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
+    [MemberWrite("Planejar, iniciar e concluir sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<CloseSprintResultViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -151,7 +151,7 @@ public class SprintsController : BaseController
     {
         try
         {
-            return Success(await _sprintService.CloseAsync(publicId, sprintPublicId, dto, cancellationToken), "Sprint fechada.");
+            return Success(await _sprintService.CloseAsync(publicId, sprintPublicId, dto, cancellationToken), "Sprint concluída.");
         }
         catch (Exception exception)
         {
@@ -160,12 +160,12 @@ public class SprintsController : BaseController
     }
 
     /// <summary>Apaga uma sprint planejada.</summary>
-    /// <remarks>Os cards dela voltam para o fim do backlog. A em andamento fecha, e a fechada fica (409).</remarks>
+    /// <remarks>Os cards dela voltam para o fim do backlog. A em andamento se conclui, e a concluída fica (409).</remarks>
     /// <response code="200">Apagada.</response>
     /// <response code="404">Sprint ou projeto não existe aqui.</response>
     /// <response code="409">A sprint não é planejada.</response>
     [HttpDelete("{sprintPublicId:guid}")]
-    [MemberWrite("Planejar, iniciar e fechar sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
+    [MemberWrite("Planejar, iniciar e concluir sprint e trabalho do time, como mover card; ligar as sprints e que e configuracao, no Ciclo.")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]

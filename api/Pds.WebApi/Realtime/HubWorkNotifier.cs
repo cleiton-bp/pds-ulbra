@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Pds.Data.Context;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 
 namespace Pds.WebApi.Realtime;
@@ -108,6 +109,14 @@ public sealed class HubWorkNotifier : IWorkNotifier
         Despachar("acesso", projectPublicId, prazo =>
             _hub.Clients.Group(WorkGroups.Of(projectPublicId, userPublicId))
                 .SendAsync("AccessLost", new AccessLostNotice(projectPublicId), prazo));
+        return Task.CompletedTask;
+    }
+
+    public Task NotificationArrivedAsync(Guid projectPublicId, Guid userPublicId, NotificationKindEnum kind)
+    {
+        Despachar("aviso", projectPublicId, prazo =>
+            _hub.Clients.Group(WorkGroups.Of(projectPublicId, userPublicId))
+                .SendAsync("NotificationArrived", new NotificationArrivedNotice(projectPublicId, kind.ToString()), prazo));
         return Task.CompletedTask;
     }
 

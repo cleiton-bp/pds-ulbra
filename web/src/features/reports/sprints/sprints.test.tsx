@@ -21,13 +21,13 @@ instalarRemendosDoRadix()
  * O QUE ESTES TESTES TRAVAM: as sprints no painel.
  *
  * - **O prazo da sprint pelo dia de quem olha**, e a barra do quadro com o que falta.
- * - **Concluir manda o destino** do que não terminou: o backlog, uma planejada, uma nova.
+ * - **Concluir manda o destino** do que nao terminou: o backlog, uma planejada, uma nova.
  * - **O backlog**: as sprints em cima, o backlog embaixo, cada um com os seus cards; o
  *   menu do card move para outra lista (no fim) ou para o topo; iniciar fica fechado
  *   com outra em andamento; criar sprint.
- * - **Os campos do card**: a sprint e os pontos só com a sprint ligada; pontos de meio em
- *   meio, com vírgula; a subtarefa vai com o pai e não leva pontos.
- * - **O histórico** conta a sprint e a estimativa.
+ * - **Os campos do card**: a sprint e os pontos so com a sprint ligada; pontos de meio em
+ *   meio, com virgula; a subtarefa vai com o pai e nao leva pontos.
+ * - **O historico** conta a sprint e a estimativa.
  */
 const dublê = vi.hoisted(() => ({
   listarSprints: vi.fn(),
@@ -238,14 +238,13 @@ describe('o backlog', () => {
       pageSize: 100,
       sprint: 'backlog',
     })
-    // Com uma em andamento, a planejada nao inicia.
+    // Com uma em andamento, a planejada nao inicia — e diz por que, escrito.
     expect(
-      (
-        within(secoes[1] as HTMLElement).getByRole('button', {
-          name: 'Iniciar sprint',
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true)
+      within(secoes[1] as HTMLElement).queryByRole('button', { name: 'Iniciar sprint' }),
+    ).toBeNull()
+    expect(
+      within(secoes[1] as HTMLElement).getByText('Inicia depois que a em andamento for concluída'),
+    ).toBeTruthy()
   })
 
   it('o menu do card leva para outra lista, no fim — e para o topo da propria', async () => {

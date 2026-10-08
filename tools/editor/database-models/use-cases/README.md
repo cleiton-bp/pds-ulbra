@@ -34,7 +34,7 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | `09-research.yaml` | **Planejado.** As métricas do projeto e a resposta à pergunta de pesquisa |
 | `10-communication.yaml` | **Planejado.** Os avisos por e-mail — etapa que mudou, pedido de informação, código perdido — e o contato que os torna possíveis |
 | `11-account.yaml` | Convidar para o projeto, como administrador ou membro, aceitar pelo link do e-mail e cuidar do time; e, **Planejado**, excluir a conta com prazo de arrependimento e apagar os dados |
-| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto, estimativa e o quadro ao vivo com a API em mais de uma instância — e, já marcados **Planejado**, as sprints, os relatórios e os duplicados |
+| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto, estimativa e o quadro ao vivo com a API em mais de uma instância — e, já marcado **Planejado**, os relatórios |
 | `example.yaml` | ponto de partida para conhecer o editor: os quatro tipos de ligação e a especificação completa de um caso de uso |
 
 ## Os atores

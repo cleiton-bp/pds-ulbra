@@ -65,6 +65,7 @@ public class DataContext : PdsBaseContext
     public DbSet<ReportLabel> ReportLabels { get; set; } = null!;
     public DbSet<CardLink> CardLinks { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<UserNotificationSound> UserNotificationSounds { get; set; } = null!;
     public DbSet<Sprint> Sprints { get; set; } = null!;
     public DbSet<ReportInternalComment> ReportInternalComments { get; set; } = null!;
     public DbSet<ReportPublicComment> ReportPublicComments { get; set; } = null!;
@@ -279,6 +280,11 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(aviso => aviso.DeletedAt == null
                                      && aviso.Report.DeletedAt == null
                                      && CurrentProjectIds.Contains(aviso.ProjectId));
+
+        // O som de cada aviso e da pessoa, e nao de projeto: so a exclusao. Quem le diz
+        // de quem, como no aviso.
+        modelBuilder.Entity<UserNotificationSound>()
+            .HasQueryFilter(som => som.DeletedAt == null);
 
         // Sprint: o acesso pela coluna do projeto, como o estado.
         modelBuilder.Entity<Sprint>()

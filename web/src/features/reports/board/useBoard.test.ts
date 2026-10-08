@@ -112,7 +112,7 @@ async function montado() {
 }
 
 describe('o quadro carregado coluna por coluna', () => {
-  // Entre chaves: devolvido, o dublê viraria a limpeza do teste — o vitest o chamaria
+  // Entre chaves: devolvido, o duble viraria a limpeza do teste — o vitest o chamaria
   // no fim, e a promessa que nunca responde seguraria o teste.
   beforeEach(() => {
     dublê.listar.mockReset()

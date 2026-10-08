@@ -1,3 +1,5 @@
+using Pds.Domain.Enums;
+
 namespace Pds.Domain.Interfaces.ServiceInterfaces;
 
 /// <summary>
@@ -39,4 +41,10 @@ public interface IWorkNotifier
 
     /// <summary>A pessoa saiu do time do projeto: a tela dela deixa de valer.</summary>
     Task AccessLostAsync(Guid projectPublicId, Guid userPublicId);
+
+    /// <summary>
+    /// Chegou um aviso para a pessoa — so para ela: o sino rele e toca o som que ela
+    /// escolheu para o tipo. Depois da gravacao, como os outros.
+    /// </summary>
+    Task NotificationArrivedAsync(Guid projectPublicId, Guid userPublicId, NotificationKindEnum kind);
 }

@@ -50,7 +50,7 @@ describe('o tom da coluna', () => {
   })
 
   it('com uma coluna ativa so, nada e feito — nem a unica, que tambem encerra', () => {
-    // E o projeto que acabou de nascer: a "Análise" de fabrica e a coluna que encerra.
+    // E o projeto que acabou de nascer: a "Analise" de fabrica e a coluna que encerra.
     const nascendo = [coluna(null), coluna('analise', true, true), coluna('velha', false)]
     expect(statusTone('analise', nascendo)).toBe('todo')
   })

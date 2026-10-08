@@ -103,7 +103,8 @@ export function CardSubtasks({
         StatePublicId: null,
         ParentPublicId: card.PublicId,
       })
-      setTitulo('')
+      // So limpa o que foi enviado: o que se digitou enquanto criava fica no campo.
+      setTitulo((atual) => (atual.trim() === texto ? '' : atual))
       toast.done(`#${nova.Number} criada.`)
       revalidate()
       aoCriar(nova)
@@ -199,7 +200,9 @@ export function CardSubtasks({
               onChange={(evento) => setTitulo(evento.target.value)}
               placeholder="Criar subtarefa: o que precisa ser feito?"
               maxLength={MAX_CARD_TITLE_LENGTH}
-              disabled={criando}
+              // Nao trava enquanto cria: o campo travado perdia o foco, e o que a pessoa
+              // digitava em seguida se perdia. O segundo Enter e ignorado em `criar`.
+              aria-busy={criando}
               className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
             />
           </label>

@@ -29,4 +29,9 @@ public class UserRepository : BaseRepository<User, DataContext>, IUserRepository
             .AsNoTracking()
             .Where(user => publicIds.Contains(user.PublicId))
             .ToListAsync(cancellationToken);
+
+    public Task<User?> GetWithNotificationSoundsAsync(long userId, CancellationToken cancellationToken = default)
+        => Context.Users
+            .Include(user => user.NotificationSounds)
+            .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
 }

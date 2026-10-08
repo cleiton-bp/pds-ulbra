@@ -48,7 +48,7 @@ public class CloseSprintDto
 }
 
 /// <summary>
-/// Pôr o card numa sprint, ou no backlog, e no lugar da lista: logo abaixo de um card,
+/// Por o card numa sprint, ou no backlog, e no lugar da lista: logo abaixo de um card,
 /// no topo, ou no fim.
 /// </summary>
 public class SetCardSprintDto

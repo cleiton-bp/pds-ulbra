@@ -50,10 +50,13 @@ GET /projects/2be49b28-.../reports?q=nao+responde</code></pre>
 </table>
 </div>
 
-<p>O identificador que não é do projeto é <strong>recusado</strong> (404), e não vira lista vazia —
-o mesmo desenho do filtro de coluna: lista vazia responderia "nada com esta etiqueta" sobre uma
-etiqueta que não existe, e o erro passaria despercebido. A pessoa do filtro tem de estar no time
-agora. O formato errado — tipo ou prazo desconhecido, busca longa demais — é 400.</p>
+<p><strong>O valor que sumiu não casa com card nenhum</strong> — a etiqueta apagada, a prioridade
+apagada, a pessoa que saiu do time —, em vez de recusar a lista. O filtro fica guardado na aba de
+quem o escolheu: recusado, ele derrubaria a lista, o quadro e a contagem a cada releitura, até a
+pessoa achar "Limpar filtros". O painel tira o valor do filtro assim que vê que ele sumiu. O
+identificador que nunca foi do projeto tem o mesmo tratamento, e não diz se existe noutro. O
+formato errado — tipo ou prazo desconhecido, identificador que não é um, busca longa demais — é
+400.</p>
 
 <div class="note">
   <strong>O acento sai sem extensão no banco</strong>

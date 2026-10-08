@@ -233,8 +233,8 @@ function Caixa({
   explicacao: string
   destaque: boolean
   /**
-   * O projeto, na caixa que menciona — só a de dentro: a de fora é lida por quem
-   * relatou, e menção ali seria mostrar o time a quem está de fora.
+   * O projeto, na caixa que menciona — so a de dentro: a de fora e lida por quem
+   * relatou, e mencao ali seria mostrar o time a quem esta de fora.
    */
   mencoesNoProjeto?: string
   /** Falso deixa so a leitura: a conversa continua na tela, e o campo sai. */
@@ -247,8 +247,8 @@ function Caixa({
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  // Quem foi escolhido na lista do "@": no envio, o "@Nome" que ainda está no texto
-  // vira a marca que diz quem é.
+  // Quem foi escolhido na lista do "@": no envio, o "@Nome" que ainda esta no texto
+  // vira a marca que diz quem e.
   const [mencionados, setMencionados] = useState<ChosenMention[]>([])
 
   async function enviar() {
@@ -290,10 +290,10 @@ function Caixa({
           {comentarios.map((comentario) => (
             <li key={comentario.PublicId}>
               <div className="mb-0.5 flex items-baseline gap-2 text-caption text-fg-muted">
-                {/* **Três casos, e não dois.** Quem relatou é a pessoa de fora
-                    respondendo; nome vazio é alguém do time cuja conta foi
+                {/* **Tres casos, e nao dois.** Quem relatou e a pessoa de fora
+                    respondendo; nome vazio e alguem do time cuja conta foi
                     esvaziada. Mostrar os dois igual poria palavra de um na boca
-                    do outro — e aqui a diferença decide quem responde a quem. */}
+                    do outro — e aqui a diferenca decide quem responde a quem. */}
                 <span className={cn('font-medium', comentario.FromReporter && 'text-fg')}>
                   {comentario.FromReporter
                     ? 'Quem relatou'

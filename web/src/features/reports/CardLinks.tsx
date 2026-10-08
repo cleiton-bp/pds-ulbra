@@ -273,6 +273,20 @@ function LinkForm({
     (achado) => achado.PublicId !== card.PublicId && !vinculados.includes(achado.PublicId),
   )
 
+  // Ao fechar — vinculou ou desistiu —, o foco volta ao "+ Vincular": o formulario
+  // some, e sem isto o foco caia no dialogo inteiro.
+  const idDoBotao = useId()
+  const devolverFoco = useRef(false)
+  useEffect(() => {
+    if (aberto || !devolverFoco.current) return
+    devolverFoco.current = false
+    document.getElementById(idDoBotao)?.focus()
+  }, [aberto, idDoBotao])
+  const fechar = () => {
+    devolverFoco.current = true
+    setAberto(false)
+  }
+
   async function vincular(alvo: ReportSummaryViewModel) {
     if (vinculando) return
     setVinculando(true)
@@ -283,7 +297,7 @@ function LinkForm({
       })
       toast.done(`#${card.Number} ${ESCOLHAS[tipo]} #${alvo.Number}.`)
       setTermo('')
-      setAberto(false)
+      fechar()
       aoVincular(lista)
     } catch (falha) {
       toast.error(describeError(falha))
@@ -294,7 +308,7 @@ function LinkForm({
 
   if (!aberto) {
     return (
-      <Button size="sm" variant="quiet" onClick={() => setAberto(true)}>
+      <Button id={idDoBotao} size="sm" variant="quiet" onClick={() => setAberto(true)}>
         + Vincular
       </Button>
     )
@@ -366,7 +380,7 @@ function LinkForm({
           variant="quiet"
           disabled={vinculando}
           onClick={() => {
-            setAberto(false)
+            fechar()
             setTermo('')
           }}
         >

@@ -138,8 +138,8 @@ export function ProjectShell() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-surface">
-      <header className="flex h-14 flex-none items-center justify-between border-border border-b bg-surface-raised pr-5 pl-6">
-        <div className="flex items-center gap-2.5 lg:gap-4">
+      <header className="flex h-14 flex-none items-center justify-between gap-2 border-border border-b bg-surface-raised pr-4 pl-4 sm:pr-5 sm:pl-6">
+        <div className="flex min-w-0 items-center gap-2.5 lg:gap-4">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -166,7 +166,7 @@ export function ProjectShell() {
                   className="flex h-8 items-center gap-2 rounded-lg border border-border bg-surface px-2.5 font-medium text-fg text-body transition-colors hover:bg-surface-sunken"
                 >
                   <StatusDot active={project.Status === 'Active'} className="size-[7px]" />
-                  <span className="max-w-40 truncate">{project.Name}</span>
+                  <span className="max-w-28 truncate sm:max-w-40">{project.Name}</span>
                   <span className="text-caption text-fg-muted">▾</span>
                 </button>
               }
@@ -237,7 +237,7 @@ export function ProjectShell() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-none items-center gap-2">
           <ThemeButton />
           <NotificationBell />
           <AccountMenu />
@@ -262,7 +262,7 @@ export function ProjectShell() {
             drawerOpen ? 'flex' : 'hidden lg:flex',
           )}
         >
-          {/* Quem e so membro nao ve a Configuração: ele trabalha nos relatos, e a
+          {/* Quem e so membro nao ve a Configuracao: ele trabalha nos relatos, e a
               API recusaria tudo o que ele tentasse mudar ali. Enquanto o projeto
               carrega, nada aparece — mostrar e depois sumir piscaria o menu. */}
           {project && canConfigure(project) && (
@@ -327,7 +327,7 @@ export function ProjectShell() {
 
 /**
  * Um item da lateral que leva a algum lugar. Os dois grupos usam o mesmo: a
- * diferenca entre "Configuração" e "Operação" e de assunto, e nao de aparencia.
+ * diferenca entre "Configuracao" e "Operacao" e de assunto, e nao de aparencia.
  */
 function SectionLink({
   section,

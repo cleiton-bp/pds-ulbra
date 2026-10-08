@@ -76,12 +76,14 @@ public class ReportCommentService : IReportCommentService
 
         await _unitOfWork.ReportInternalComments.AddAsync(comment, cancellationToken);
         await AddEventAsync(report, userId, EventTypeEnum.ReportInternalCommented, cancellationToken);
-        await NotifyMentionedAsync(report, comment, userId, cancellationToken);
+        var mencionados = await NotifyMentionedAsync(report, comment, userId, cancellationToken);
         await _unitOfWork.CommitAsync(cancellationToken);
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
 
         await _notifier.CardChangedAsync(reportPublicId);
+        foreach (var pessoa in mencionados)
+            await _notifier.NotificationArrivedAsync(projectPublicId, pessoa, NotificationKindEnum.Mention);
 
         return new InternalCommentViewModel(comment.PublicId, user?.Name ?? string.Empty, comment.Body, comment.CreatedAt);
     }
@@ -125,22 +127,24 @@ public class ReportCommentService : IReportCommentService
     }
 
     /// <summary>
-    /// O aviso de cada pessoa mencionada, na mesma gravacao do comentario. **So no
-    /// sino**: a mencao nao manda e-mail.
+    /// O aviso de cada pessoa mencionada, na mesma gravacao do comentario. Devolve quem
+    /// foi avisado, para o sinal ao vivo depois da gravacao.
     ///
     /// <para>So quem esta no time agora e avisado — a marca de outra pessoa fica no
     /// texto, e mais nada. E ninguem e avisado da propria mencao.</para>
     /// </summary>
-    private async Task NotifyMentionedAsync(Report report, ReportInternalComment comment, long autorId, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<Guid>> NotifyMentionedAsync(Report report, ReportInternalComment comment, long autorId, CancellationToken cancellationToken)
     {
         var mencionados = Mentions.Read(comment.Body);
         if (mencionados.Count == 0)
-            return;
+            return [];
 
         var time = await Team.OfProjectAsync(_unitOfWork, report.AccountId, report.ProjectId, cancellationToken);
+        var avisados = new List<Guid>();
 
         foreach (var pessoa in time.Where(pessoa => mencionados.Contains(pessoa.PublicId) && pessoa.Id != autorId))
         {
+            avisados.Add(pessoa.PublicId);
             await _unitOfWork.Notifications.AddAsync(new Notification
             {
                 UserId = pessoa.Id,
@@ -151,6 +155,8 @@ public class ReportCommentService : IReportCommentService
                 ReportInternalComment = comment,
             }, cancellationToken);
         }
+
+        return avisados;
     }
 
     /// <summary>

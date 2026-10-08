@@ -47,7 +47,7 @@ public class NotificationMap : BaseEntityConfiguration<Notification>
             .HasConversion(new SnakeCaseEnumConverter<NotificationKindEnum>())
             .HasMaxLength(20)
             .IsRequired()
-            .HasComment("mention | assignment. A mencao so aparece no sino; a atribuicao tambem vai por e-mail, se a pessoa quiser.");
+            .HasComment("mention | assignment. Os dois so no painel: no sino, com o som que a pessoa escolheu para o tipo.");
 
         builder.Property(aviso => aviso.ReportInternalCommentId)
             .HasColumnName("report_internal_comment_id")

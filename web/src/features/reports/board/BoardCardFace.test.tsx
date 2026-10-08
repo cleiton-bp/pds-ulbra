@@ -121,7 +121,7 @@ describe('a frente do card', () => {
         soonDays={2}
       />,
     )
-    // O numero e o que ele conta juntos: "3" para quem ve, "3 comentários" para o leitor de tela.
+    // O numero e o que ele conta juntos: "3" para quem ve, "3 comentarios" para o leitor de tela.
     expect(screen.getByText('comentários', { exact: false }).parentElement?.textContent).toBe(
       '3 comentários',
     )

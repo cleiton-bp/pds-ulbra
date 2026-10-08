@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { TeamMemberViewModel } from '@/contracts'
 import { projectTeamService } from '@/data'
 import { PersonAvatar } from '@/features/reports/cardLook'
@@ -14,11 +14,11 @@ import { cn } from '@/shared/lib/cn'
 const MAX_OPTIONS = 6
 
 /**
- * O campo do comentário entre o time, com o "@" que menciona alguém do time.
+ * O campo do comentario entre o time, com o "@" que menciona alguem do time.
  *
  * **Digitar "@" abre a lista do time**, filtrada pelo que vem depois (sem acento, pelo
- * começo do nome, de qualquer parte do nome ou do e-mail). Setas escolhem, Enter ou Tab
- * mencionam, Esc fecha só a lista — o card aberto continua aberto. O time é lido no
+ * comeco do nome, de qualquer parte do nome ou do e-mail). Setas escolhem, Enter ou Tab
+ * mencionam, Esc fecha so a lista — o card aberto continua aberto. O time e lido no
  * primeiro "@", uma vez.
  */
 export function MentionTextarea({
@@ -34,7 +34,7 @@ export function MentionTextarea({
   projectPublicId: string
   value: string
   onChange: (value: string) => void
-  /** Alguém foi escolhido na lista: quem monta o campo guarda para o envio. */
+  /** Alguem foi escolhido na lista: quem monta o campo guarda para o envio. */
   onMention: (mention: ChosenMention) => void
   ariaLabel: string
   disabled?: boolean
@@ -96,19 +96,27 @@ export function MentionTextarea({
     return () => window.removeEventListener('keydown', aoTeclar, true)
   }, [aberta])
 
+  // O cursor depois da mencao, posto **assim que o texto novo chega a caixa** — antes de
+  // a proxima tecla ser lida. Num quadro depois (como era), o que se digitava no
+  // intervalo ia para o fim, e o cursor voltava para tras dele: "@Ana gada.? Obri".
+  const cursorDepois = useRef<{ valor: string; posicao: number } | null>(null)
+  useLayoutEffect(() => {
+    const pendente = cursorDepois.current
+    if (!pendente || pendente.valor !== value) return
+    cursorDepois.current = null
+    campo.current?.focus()
+    campo.current?.setSelectionRange(pendente.posicao, pendente.posicao)
+  }, [value])
+
   function escolher(pessoa: TeamMemberViewModel) {
     if (!consulta) return
     const nome = pessoa.Name?.trim() || pessoa.Email || 'Alguém do time'
     const cursor = campo.current?.selectionStart ?? value.length
     const novo = `${value.slice(0, consulta.start)}@${nome} ${value.slice(cursor)}`
-    const depois = consulta.start + nome.length + 2
+    cursorDepois.current = { valor: novo, posicao: consulta.start + nome.length + 2 }
     onChange(novo)
     onMention({ name: nome, id: pessoa.UserPublicId })
     setConsulta(null)
-    requestAnimationFrame(() => {
-      campo.current?.focus()
-      campo.current?.setSelectionRange(depois, depois)
-    })
   }
 
   return (
@@ -202,8 +210,8 @@ export function MentionTextarea({
 }
 
 /**
- * O texto de um comentário entre o time, com as menções destacadas: "@Ana Dona", e
- * não a marca que o texto guarda.
+ * O texto de um comentario entre o time, com as mencoes destacadas: "@Ana Dona", e
+ * nao a marca que o texto guarda.
  */
 export function CommentBody({ body }: { body: string }) {
   return (

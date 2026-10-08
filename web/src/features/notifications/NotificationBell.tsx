@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { NotificationViewModel } from '@/contracts'
 import { describeError, notificationService } from '@/data'
-import { NotificationSettingsDialog } from '@/features/notifications/NotificationSettingsDialog'
 import { useUnreadCount } from '@/features/notifications/useUnreadCount'
 import {
   DropdownGroup,
@@ -22,18 +21,17 @@ const ACOES: Record<NotificationViewModel['Kind'], string> = {
 }
 
 /**
- * O sino do topo: as menções e as vezes em que a pessoa foi escolhida como
- * responsável, de todos os projetos em que ela está.
+ * O sino do topo: as mencoes e as vezes em que a pessoa foi escolhida como
+ * responsavel, de todos os projetos em que ela esta.
  *
- * **A lista é lida ao abrir**, e o número, o tempo todo (`useUnreadCount`). Abrir um
- * aviso leva ao card e o marca como lido; "Marcar todos como lidos" zera o número.
+ * **A lista e lida ao abrir**, e o numero, o tempo todo (`useUnreadCount`). Abrir um
+ * aviso leva ao card e o marca como lido; "Marcar todos como lidos" zera o numero.
  */
 export function NotificationBell() {
   const navigate = useNavigate()
   const { count, setCount } = useUnreadCount()
   const [avisos, setAvisos] = useState<NotificationViewModel[] | null>(null)
   const [falhou, setFalhou] = useState(false)
-  const [preferencias, setPreferencias] = useState(false)
 
   async function aoAbrir(aberto: boolean) {
     if (!aberto) return
@@ -60,7 +58,7 @@ export function NotificationBell() {
         ),
       )
     } catch {
-      // O card abriu; o aviso continua como não lido, e a próxima leitura conta certo.
+      // O card abriu; o aviso continua como nao lido, e a proxima leitura conta certo.
     }
   }
 
@@ -115,7 +113,7 @@ export function NotificationBell() {
         <DropdownHeader>
           <div className="font-medium text-body text-fg">Avisos</div>
           <div className="mt-0.5 text-caption text-fg-muted">
-            Menções e cards de que você é responsável
+            Menções e cards que passaram para você
           </div>
         </DropdownHeader>
 
@@ -174,13 +172,11 @@ export function NotificationBell() {
               Marcar todos como lidos
             </DropdownItem>
           )}
-          <DropdownItem quiet onSelect={() => setPreferencias(true)}>
+          <DropdownItem quiet onSelect={() => navigate('/profile')}>
             Preferências de aviso
           </DropdownItem>
         </DropdownGroup>
       </DropdownMenu>
-
-      {preferencias && <NotificationSettingsDialog onClose={() => setPreferencias(false)} />}
     </>
   )
 }

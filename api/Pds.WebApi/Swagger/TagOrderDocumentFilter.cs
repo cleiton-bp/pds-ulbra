@@ -31,7 +31,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.Notifications,
-                Description = "O sino de quem está na sessão: as menções em comentário interno e as vezes em que foi escolhido como responsável, de todos os projetos em que está. E a preferência do e-mail de responsável — a menção não manda e-mail.",
+                Description = "O sino de quem está na sessão: as menções em comentário interno e as vezes em que foi escolhido como responsável, de todos os projetos em que está. E as preferências: o som de cada tipo de aviso, e o volume. Os avisos ficam no painel, sem e-mail.",
             },
             new OpenApiTag
             {
@@ -116,7 +116,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.Sprints,
-                Description = "As sprints do projeto, com a sprint ligada no Ciclo: uma em andamento por vez — a que o quadro mostra —, e quantas planejadas o time quiser. Fechar decide o destino do que não terminou. Planejar é de qualquer pessoa do time.",
+                Description = "As sprints do projeto, com as sprints ligadas no Ciclo: uma em andamento por vez — a que o quadro mostra —, e quantas planejadas o time quiser. Concluir decide o destino do que não terminou. Planejar é de qualquer pessoa do time.",
             },
             new OpenApiTag
             {

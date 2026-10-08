@@ -59,7 +59,7 @@ export function ReportDetailRoute() {
 
   return (
     <ReportDialog
-      // A chave força um dialogo novo ao trocar de relato pela URL. Sem ela, o
+      // A chave forca um dialogo novo ao trocar de relato pela URL. Sem ela, o
       // estado do anterior sobreviveria e o contexto de um apareceria debaixo do
       // texto do outro por um instante.
       key={reportPublicId}

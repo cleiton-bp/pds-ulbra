@@ -60,42 +60,51 @@ public partial class ReportService
             _ => (card, outro, CardLinkTypeEnum.RelatesTo),
         };
 
-        // **O original nao e duplicado de ninguem**: a cadeia faria o duplicado seguir um
-        // card que saiu do quadro e nao anda mais. Vem antes da conferencia do arquivo —
-        // todo duplicado esta la — para a recusa dizer qual e o original de verdade.
-        if (tipo == CardLinkTypeEnum.DuplicateOf
-            && await _unitOfWork.CardLinks.FindOriginalLinkWithoutSessionAsync(para.Id, cancellationToken) is { } doOriginal)
-            throw new ConflictException($"O #{para.Number} ja e duplicado do #{doOriginal.ToReport.Number}. Marque como duplicado do #{doOriginal.ToReport.Number}.");
-
-        // Os dois no trabalho: o arquivado se le, e nao muda.
-        EnsureNotArchived(card, "vincula-lo");
-
-        if (outro.ArchivedAt is not null)
-            throw new ConflictException($"O #{outro.Number} esta arquivado. Desarquive antes de vincular.");
-
-        // **Um vinculo por par**, em qualquer direcao: "A bloqueia B" e "B relacionado a
-        // A" juntos diriam duas coisas sobre a mesma relacao. Trocar e desfazer e
-        // vincular de novo.
-        if (await _unitOfWork.CardLinks.FindBetweenAsync(card.Id, outro.Id, cancellationToken) is not null)
-            throw new ConflictException($"Este card ja tem um vinculo com o #{outro.Number}. Desfaca o atual para trocar.");
-
         var avisar = new List<Guid> { de.PublicId, para.PublicId };
 
-        if (tipo == CardLinkTypeEnum.DuplicateOf)
-            avisar.AddRange(await MarkDuplicateAsync(project, de, para, cancellationToken));
-
-        await _unitOfWork.CardLinks.AddAsync(new CardLink
+        // **Sob a trava do projeto, numa transacao**: as conferencias (o original, o par)
+        // e a gravacao vao juntas. Sem isso, "A duplicado de B" e "B duplicado de A" ao
+        // mesmo tempo passavam os dois, e nenhum original ficava no quadro.
+        await _unitOfWork.InTransactionAsync(async ct =>
         {
-            ProjectId = project.Id,
-            FromReportId = de.Id,
-            ToReportId = para.Id,
-            Type = tipo,
+            await _unitOfWork.Reports.LockBoardAsync(project.Id, ct);
+
+            // **O original nao e duplicado de ninguem**: a cadeia faria o duplicado seguir um
+            // card que saiu do quadro e nao anda mais. Vem antes da conferencia do arquivo —
+            // todo duplicado esta la — para a recusa dizer qual e o original de verdade.
+            if (tipo == CardLinkTypeEnum.DuplicateOf
+                && await _unitOfWork.CardLinks.FindOriginalLinkWithoutSessionAsync(para.Id, ct) is { } doOriginal)
+                throw new ConflictException($"O #{para.Number} ja e duplicado do #{doOriginal.ToReport.Number}. Marque como duplicado do #{doOriginal.ToReport.Number}.");
+
+            // Os dois no trabalho: o arquivado se le, e nao muda.
+            EnsureNotArchived(card, "vincula-lo");
+
+            if (outro.ArchivedAt is not null)
+                throw new ConflictException($"O #{outro.Number} esta arquivado. Desarquive antes de vincular.");
+
+            // **Um vinculo por par**, em qualquer direcao: "A bloqueia B" e "B relacionado a
+            // A" juntos diriam duas coisas sobre a mesma relacao. Trocar e desfazer e
+            // vincular de novo.
+            if (await _unitOfWork.CardLinks.FindBetweenAsync(card.Id, outro.Id, ct) is not null)
+                throw new ConflictException($"Este card ja tem um vinculo com o #{outro.Number}. Desfaca o atual para trocar.");
+
+            if (tipo == CardLinkTypeEnum.DuplicateOf)
+                avisar.AddRange(await MarkDuplicateAsync(project, de, para, ct));
+
+            await _unitOfWork.CardLinks.AddAsync(new CardLink
+            {
+                ProjectId = project.Id,
+                FromReportId = de.Id,
+                ToReportId = para.Id,
+                Type = tipo,
+            }, ct);
+
+            await AddLinkEventAsync(project, de, EventTypeEnum.CardLinked, Lado(tipo, origem: true), para, EventSourceEnum.Panel, ct);
+            await AddLinkEventAsync(project, para, EventTypeEnum.CardLinked, Lado(tipo, origem: false), de, EventSourceEnum.Panel, ct);
+
+            await _unitOfWork.CommitAsync(ct);
+            return true;
         }, cancellationToken);
-
-        await AddLinkEventAsync(project, de, EventTypeEnum.CardLinked, Lado(tipo, origem: true), para, EventSourceEnum.Panel, cancellationToken);
-        await AddLinkEventAsync(project, para, EventTypeEnum.CardLinked, Lado(tipo, origem: false), de, EventSourceEnum.Panel, cancellationToken);
-
-        await _unitOfWork.CommitAsync(cancellationToken);
 
         foreach (var publicId in avisar.Distinct())
             await _notifier.CardChangedAsync(publicId);

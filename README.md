@@ -4,7 +4,9 @@
 
 Uma camada pública de acompanhamento: quem relata um problema recebe um protocolo e consegue ver em que etapa do processo o relato está, do mesmo jeito que acompanha uma entrega de delivery. As etapas são definidas por cada empresa que opera o sistema.
 
-Nada é instalado no sistema de ninguém: sem biblioteca, sem SDK, sem pacote pra manter atualizado. A aplicação é hospedada e a ligação é feita por API e webhook, o que torna a adoção viável em qualquer sistema, independente de linguagem ou stack.
+Nada é instalado no sistema de ninguém: sem biblioteca, sem SDK, sem pacote pra manter atualizado. A aplicação é hospedada, e a ferramenta de relato entra no site do cliente com uma linha de código, o que torna a adoção viável em qualquer sistema, independente de linguagem ou stack.
+
+E o time trabalha os relatos no próprio painel: uma ferramenta de trabalho completa — lista e quadro, sprints, avisos —, ligada à jornada pública. O que o time move do lado de dentro, quem relatou vê andar do lado de fora.
 
 ---
 
@@ -30,7 +32,7 @@ Existe rastreio em tempo real para uma entrega de trinta reais e nenhum para o c
 
 ## O trajeto
 
-O relator abre um link e vê uma linha do tempo simples: por onde já passou, em que etapa está agora, o que vem depois e uma previsão. Sem jargão, sem nome de responsável, sem conversa interna.
+O relator abre um link e vê uma linha do tempo simples: por onde já passou, em que etapa está agora e o que vem depois. Sem jargão, sem nome de responsável, sem conversa interna.
 
 ```
 Recebido  ─►  Em análise  ─►  Em correção  ─►  Publicado  ─►  Confirmado
@@ -47,15 +49,24 @@ O processo muda de empresa para empresa, então não existe trajeto único embut
 
 Cada empresa desenha as próprias etapas públicas e escolhe o texto que o relator lê em cada uma. Depois liga cada etapa pública aos estados internos que ela representa — normalmente vários estados internos caem numa mesma etapa pública, porque o time precisa de granularidade que o relator não precisa.
 
-Feito esse mapeamento uma vez, o trajeto passa a andar sozinho: o registro se move do lado de dentro e o relator é avisado do lado de fora.
+Feito esse mapeamento uma vez, o trajeto passa a andar sozinho: o registro se move do lado de dentro e o relator vê a mudança do lado de fora.
 
 ---
 
-## O recorte
+## Os dois lados
 
-Não é mais uma ferramenta de gestão de trabalho. É a camada pública que fica **na frente** da ferramenta que o time já usa.
+**Do lado de fora, a camada pública.** O relato entra pela ferramenta colada no site, na página onde o problema apareceu — sem conta e sem download, com imagens capturadas e marcadas ali mesmo. Quem relatou acompanha pelo link: a linha do tempo, o pedido de informação do time, e no fim a confirmação ou a reabertura.
 
-O relato entra por um canal sem instalação — link, QR code, e-mail ou WhatsApp — sem conta e sem download. Do lado de dentro nada muda: o relato vira um registro na ferramenta atual do time, com sincronização nos dois sentidos.
+**Do lado de dentro, a ferramenta de trabalho do time.** O painel onde os relatos chegam e viram cards, ao lado do trabalho que o próprio time cria:
+
+- lista e quadro, arrastando com mouse, toque ou teclado, e raias por responsável ou por prioridade;
+- responsável, prioridade, etiquetas, prazo, subtarefas e vínculos entre cards — o relato duplicado acompanha o original até o desfecho;
+- filtros, busca e mudanças em lote;
+- backlog e sprints, para o projeto que trabalha assim, com a estimativa em pontos;
+- menções e avisos no sino, com o som que cada pessoa escolhe;
+- a tela de Trabalho em tempo real para o time inteiro, com convite por e-mail e papéis de administrador e membro.
+
+O que o time faz do lado de dentro nunca vaza: comentário interno, responsável, título do time e estados internos ficam no painel, e o lado de fora vê só a etapa pública.
 
 ---
 
@@ -63,11 +74,24 @@ O relato entra por um canal sem instalação — link, QR code, e-mail ou WhatsA
 
 O núcleo é um **motor de tradução de estados**: mapear a máquina de estados interna, configurável por empresa, para uma jornada pública curta e compreensível, sem vazar o que é interno. Em volta dele:
 
-- deduplicação de relatos iguais num único registro, com notificação em leque;
-- estimativa por percentil histórico, em vez de promessa;
-- identidade sem senha por protocolo, com controle de abuso;
-- sincronização bidirecional com webhook idempotente, retentativa e resolução de conflito;
-- redação automática do que nunca pode aparecer no lado público.
+- isolamento por projeto em toda consulta, no banco, com papéis por projeto;
+- relatos iguais ligados ao original, cada pessoa recebendo o mesmo desfecho;
+- identidade sem senha, pelo protocolo e pelo código pessoal;
+- tempo real para o time, avisando só quem está no projeto;
+- filas para o que não pode prender a requisição — o e-mail do convite e as esperas da jornada;
+- mídia enviada direto ao armazenamento, por formulário assinado;
+- redação do que nunca pode aparecer no lado público.
+
+---
+
+## Continuidade
+
+O que o produto pode vir a ter, fora do escopo atual:
+
+- **conectores com as ferramentas de gestão que o time já usa**, para quem prefere continuar nelas: sincronização nos dois sentidos, com webhook idempotente, retentativa e resolução de conflito;
+- previsão de quando o relato anda, por percentil histórico, em vez de promessa.
+
+O que existe, o que está planejado e o que ficou para depois está em [o que existe](api/Pds.WebApi/api-docs/pages/visao-geral/o-que-existe.html), na documentação da API.
 
 ---
 

@@ -1,4 +1,9 @@
-import { type ReportStateCountViewModel, WITHOUT_STATE_FILTER } from '@/contracts'
+import type { ProjectPriorityViewModel } from '@/contracts'
+import {
+  type ReportStateCountViewModel,
+  type ReportSummaryViewModel,
+  WITHOUT_STATE_FILTER,
+} from '@/contracts'
 
 /** Uma coluna do quadro, montada da contagem que a tela ja carregou. */
 export interface BoardColumn {
@@ -96,4 +101,169 @@ export function moveBetween(items: BoardItems, id: string, to: string, index: nu
 export function cardAbove(ids: string[], id: string): string | null {
   const indice = ids.indexOf(id)
   return indice > 0 ? (ids[indice - 1] ?? null) : null
+}
+
+// ─── Raias ──────────────────────────────────────────────────────────────────
+
+/** Como o quadro agrupa os cards em raias: nada, por responsavel, ou por prioridade. */
+export type LaneBy = 'none' | 'assignee' | 'priority'
+
+/** A chave da raia dos cards sem responsavel, ou sem prioridade. */
+export const NO_LANE = '-'
+
+/** Uma raia do quadro: a pessoa, ou a prioridade, e o nome que aparece. */
+export interface BoardLane {
+  key: string
+  name: string
+  /**
+   * Recebe card: soltar nela troca o campo. A prioridade aposentada e a pessoa que saiu
+   * do time aparecem — os cards delas estao la —, mas nao recebem: a API recusaria.
+   */
+  accepts: boolean
+}
+
+/** Separa a coluna da raia na chave da celula. Nao aparece em identificador nenhum. */
+const SEPARADOR = '\u001f'
+
+/** A chave da celula — a coluna e a raia. Sem raias, a propria coluna. */
+export function cellKey(coluna: string, raia: string | null): string {
+  return raia === null ? coluna : `${coluna}${SEPARADOR}${raia}`
+}
+
+/** A coluna e a raia de uma celula; a raia e nula sem raias. */
+export function splitCell(celula: string): { coluna: string; raia: string | null } {
+  const corte = celula.indexOf(SEPARADOR)
+  return corte < 0
+    ? { coluna: celula, raia: null }
+    : { coluna: celula.slice(0, corte), raia: celula.slice(corte + 1) }
+}
+
+/** A raia do card, pelo dado dele. */
+export function laneOfCard(
+  card: Pick<ReportSummaryViewModel, 'Assignee' | 'Priority'> | undefined,
+  por: Exclude<LaneBy, 'none'>,
+): string {
+  if (!card) return NO_LANE
+  return por === 'assignee'
+    ? (card.Assignee?.UserPublicId ?? NO_LANE)
+    : (card.Priority?.PublicId ?? NO_LANE)
+}
+
+/**
+ * As raias que aparecem. **Por prioridade, todas as ativas do projeto**, da mais para a
+ * menos urgente (a ordem do projeto, de tras para a frente), com card ou nao: soltar na
+ * raia vazia e dar a prioridade. **Por responsavel, as pessoas com card**, em ordem
+ * alfabetica — o time inteiro encheria o quadro de faixas vazias. A aposentada e quem
+ * saiu do time aparecem se ainda tem card, sem receber. A raia "sem" vem por ultimo, e
+ * sempre: e soltando nela que se tira o campo.
+ */
+export function boardLanes(
+  cards: Pick<ReportSummaryViewModel, 'Assignee' | 'Priority'>[],
+  por: Exclude<LaneBy, 'none'>,
+  prioridades:
+    | Pick<ProjectPriorityViewModel, 'PublicId' | 'Position' | 'Name' | 'IsActive'>[]
+    | null,
+): BoardLane[] {
+  const vistas = new Map<string, BoardLane>()
+  if (por === 'priority')
+    for (const prioridade of prioridades ?? [])
+      if (prioridade.IsActive)
+        vistas.set(prioridade.PublicId, {
+          key: prioridade.PublicId,
+          name: prioridade.Name,
+          accepts: true,
+        })
+
+  for (const card of cards) {
+    const chave = laneOfCard(card, por)
+    if (chave === NO_LANE || vistas.has(chave)) continue
+    vistas.set(
+      chave,
+      por === 'assignee'
+        ? {
+            key: chave,
+            name: card.Assignee?.Name ?? 'Pessoa sem nome',
+            accepts: card.Assignee?.InTeam !== false,
+          }
+        : {
+            key: chave,
+            name: card.Priority?.Name ?? '',
+            accepts: card.Priority?.IsActive !== false,
+          },
+    )
+  }
+
+  const ordem = new Map(prioridades?.map((p) => [p.PublicId, p.Position]) ?? [])
+  const raias = [...vistas.values()]
+  raias.sort((a, b) => {
+    if (por === 'priority') {
+      // A aposentada que nao vem na lista do projeto fica depois das que vem.
+      const pa = ordem.get(a.key) ?? -1
+      const pb = ordem.get(b.key) ?? -1
+      if (pa !== pb) return pb - pa
+    }
+    return a.name.localeCompare(b.name, 'pt-BR')
+  })
+  raias.push({
+    key: NO_LANE,
+    name: por === 'assignee' ? 'Sem responsável' : 'Sem prioridade',
+    accepts: true,
+  })
+  return raias
+}
+
+/**
+ * As celulas do quadro: os cards de cada coluna separados pela raia, cada celula na
+ * ordem da coluna. Sem raias, as proprias colunas.
+ */
+export function boardCells(
+  items: BoardItems,
+  colunas: string[],
+  raias: string[] | null,
+  raiaDe: (id: string) => string,
+): BoardItems {
+  if (raias === null) return items
+  const celulas: BoardItems = {}
+  for (const coluna of colunas) {
+    for (const raia of raias) celulas[cellKey(coluna, raia)] = []
+    for (const id of items[coluna] ?? []) {
+      const chave = cellKey(coluna, raiaDe(id))
+      celulas[chave] = [...(celulas[chave] ?? []), id]
+    }
+  }
+  return celulas
+}
+
+/**
+ * Tira o card de onde estiver e o poe na coluna `coluna`, no lugar `indice` da celula
+ * de destino — logo abaixo do card que fica acima dele na celula, na ordem da coluna
+ * inteira; sem card acima, logo acima do primeiro da celula; na celula vazia, no topo
+ * da coluna. `celula` sao os cards da celula de destino agora. Sem raias, a celula e
+ * a coluna, e e o mesmo que `moveBetween`.
+ */
+export function moveToCell(
+  items: BoardItems,
+  id: string,
+  coluna: string,
+  celula: string[],
+  indice: number,
+): BoardItems {
+  const novo: BoardItems = {}
+  for (const [chave, ids] of Object.entries(items)) novo[chave] = ids.filter((item) => item !== id)
+
+  const destino = [...(novo[coluna] ?? [])]
+  const vizinhos = celula.filter((item) => item !== id && destino.includes(item))
+  const i = Math.max(0, Math.min(indice, vizinhos.length))
+  const acima = i > 0 ? vizinhos[i - 1] : undefined
+  const abaixo = vizinhos[0]
+  const lugar =
+    acima !== undefined
+      ? destino.indexOf(acima) + 1
+      : abaixo !== undefined
+        ? destino.indexOf(abaixo)
+        : 0
+  destino.splice(lugar, 0, id)
+  novo[coluna] = destino
+
+  return novo
 }

@@ -50,9 +50,12 @@ export type {
   NotificationKind,
   NotificationListViewModel,
   NotificationSettingsViewModel,
+  NotificationSound,
+  NotificationSoundSetting,
   NotificationViewModel,
   SaveNotificationSettingsRequest,
 } from '@/contracts/notification'
+export { MAX_NOTIFICATION_VOLUME, MIN_NOTIFICATION_VOLUME } from '@/contracts/notification'
 export type {
   CreateProjectRequest,
   ProjectAccountViewModel,
@@ -115,6 +118,7 @@ export type {
 export type {
   AccessLostNotice,
   CardChangedNotice,
+  NotificationArrivedNotice,
   ProjectChangedNotice,
   RealtimeTicketViewModel,
 } from '@/contracts/realtime'

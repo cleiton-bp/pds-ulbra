@@ -1,8 +1,9 @@
 <h2>Os avisos do sino</h2>
 
 <p>O que avisa uma pessoa do time mora em <code>notifications</code>: uma linha por pessoa avisada,
-com quem fez, o card e, na menção, o comentário. A preferência do e-mail mora na própria pessoa,
-em <code>users.notify_assignment_by_email</code>.</p>
+com quem fez, o card e, na menção, o comentário. O som de cada tipo de aviso mora em
+<code>user_notification_sounds</code>, e o volume na própria pessoa, em
+<code>users.notification_volume</code>.</p>
 
 <div class="note warn">
   <strong>Interno, e de uma pessoa só</strong>
@@ -19,7 +20,7 @@ em <code>users.notify_assignment_by_email</code>.</p>
   <tr><td><code>project_id</code></td><td>O projeto do card, repetido para o filtro de acesso não precisar de junção.</td></tr>
   <tr><td><code>report_id</code></td><td>O card de que o aviso fala.</td></tr>
   <tr><td><code>actor_user_id</code></td><td>Quem fez: quem mencionou, ou quem escolheu o responsável.</td></tr>
-  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code>. A menção só aparece no sino; a atribuição também vai por e-mail, se a pessoa quiser.</td></tr>
+  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code>. Os dois só no painel: no sino, com o som que a pessoa escolheu para o tipo.</td></tr>
   <tr><td><code>report_internal_comment_id</code></td><td>O comentário interno da menção. Nulo na atribuição.</td></tr>
   <tr><td><code>read_at</code></td><td>Quando a pessoa abriu ou marcou como lido. Nulo enquanto não leu.</td></tr>
 </table>
@@ -34,20 +35,43 @@ mais recentes de uma pessoa (<code>user_id, created_at</code>) e os não lidos d
 <div class="note why">
   <strong>Por que a menção não guarda um texto, e sim o comentário</strong>
   <p>O aviso aponta o comentário em vez de copiar o que foi escrito: o texto continua num lugar só,
-  com o filtro de acesso dele. E o e-mail não leva texto de comentário — a menção nem manda
-  e-mail.</p>
+  com o filtro de acesso dele.</p>
 </div>
 
-<h2>users.notify_assignment_by_email</h2>
+<h2>user_notification_sounds</h2>
 
-<p>Se a pessoa recebe e-mail quando alguém do time a escolhe como responsável. Ligado de fábrica —
-também para quem já existia quando a coluna nasceu — e vale em todos os projetos da pessoa. O aviso
-no sino chega de qualquer jeito.</p>
+<p>O som que cada pessoa escolheu para cada tipo de aviso. <strong>Sem linha para um tipo, vale o de
+fábrica</strong> — Plim (<code>ping</code>) na menção, Sino (<code>bell</code>) na escolha como
+responsável —: a tabela só guarda o que alguém escolheu.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>user_id</code></td><td>A pessoa.</td></tr>
+  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code>: o tipo de aviso, como em <code>notifications.kind</code>.</td></tr>
+  <tr><td><code>sound</code></td><td><code>none</code> | <code>bell</code> | <code>drop</code> | <code>ping</code> | <code>chime</code> | <code>bubble</code> | <code>soft</code>. O som é gerado no navegador; <code>none</code> é só o sino.</td></tr>
+</table>
+</div>
+
+<p>As travas: o tipo e o som ficam nas listas (<code>ck_user_notification_sounds_kind</code>,
+<code>ck_user_notification_sounds_sound</code>), e cada pessoa tem um som por tipo (índice único em
+<code>user_id, kind</code>, com <code>deleted_at IS NULL</code>). A chave da pessoa com
+<code>Restrict</code>. A tabela é da pessoa, e não de projeto: o filtro global só tira o apagado, e
+cada leitura diz de quem.</p>
+
+<div class="note why">
+  <strong>Por que uma tabela, e não uma coluna por tipo</strong>
+  <p>Um tipo de aviso novo — o prazo chegando, o card que a pessoa acompanha — entra como um valor a
+  mais em <code>kind</code>, com o som de fábrica dele, sem coluna nova em <code>users</code>.</p>
+</div>
+
+<h2>users.notification_volume</h2>
+
+<p>O volume do som dos avisos, de 0 a 100 (<code>ck_users_notification_volume</code>); 70 de fábrica,
+também para quem já existia quando a coluna nasceu. Vale em todos os projetos da pessoa.</p>
 
 <h2>O filtro de acesso</h2>
 
 <p>A tabela passa pelo filtro global pela coluna do projeto, e some com o card apagado. De quem é o
 aviso, cada leitura diz: o filtro guarda o projeto, e a pessoa vai na consulta. Quem sai do time
-deixa de ver os avisos daquele projeto — e, se voltar, eles voltam como estavam. O consumidor da
-fila, que manda o e-mail sem sessão, atravessa o filtro numa leitura só — ver
-<a href="#/isolamento/consultas-que-atravessam">As consultas que atravessam o filtro</a>.</p>
+deixa de ver os avisos daquele projeto — e, se voltar, eles voltam como estavam.</p>

@@ -15,8 +15,14 @@ import {
   type ReportSummaryViewModel,
   WITHOUT_STATE_FILTER,
 } from '@/contracts'
-import { describeError, projectCycleSettingsService, projectReportService } from '@/data'
-import { boardColumns } from '@/features/reports/board/boardState'
+import {
+  describeError,
+  projectCycleSettingsService,
+  projectPriorityService,
+  projectReportService,
+} from '@/data'
+import { BulkActions, BulkFailures, type Falha } from '@/features/reports/BulkActions'
+import { boardColumns, type LaneBy } from '@/features/reports/board/boardState'
 import { BoardSkeleton, ReportsBoard } from '@/features/reports/board/ReportsBoard'
 import { useBoard } from '@/features/reports/board/useBoard'
 import {
@@ -48,6 +54,8 @@ import { canConfigure } from '@/shared/lib/projectAccess'
 
 /** As vistas da tela de Trabalho. O backlog so com a sprint ligada. */
 type Vista = 'lista' | 'quadro' | 'backlog'
+const VISTAS: readonly Vista[] = ['lista', 'quadro', 'backlog']
+const AGRUPAMENTOS: readonly LaneBy[] = ['none', 'assignee', 'priority']
 
 /**
  * Faltando ate quantos dias o prazo fica em destaque enquanto a regra do projeto
@@ -95,7 +103,17 @@ export function ReportsScreen() {
   const [arquivados, setArquivados] = useState(false)
   /** O "Novo card" aberto — com a coluna, quando veio do "Criar" de uma coluna do quadro. */
   const [criando, setCriando] = useState<{ coluna?: string } | null>(null)
-  const [vista, setVista] = useVistaLembrada(project.PublicId)
+  const [vista, setVista] = useEscolhaLembrada(
+    `pds.web.trabalho.vista.${project.PublicId}`,
+    VISTAS,
+    'lista',
+  )
+  // As raias do quadro, lembradas como a vista: preferencia de quem olha.
+  const [agrupar, setAgrupar] = useEscolhaLembrada(
+    `pds.web.trabalho.raias.${project.PublicId}`,
+    AGRUPAMENTOS,
+    'none',
+  )
 
   // Trocar de projeto zera o recorte, e isto vem **antes** da busca: o
   // identificador de uma coluna do projeto anterior nao existe no novo, e a API
@@ -129,6 +147,16 @@ export function ReportsScreen() {
   const mexeuNoBacklog = useCallback(() => setVersaoDoBacklog((n) => n + 1), [])
 
   const quadro = vistaEfetiva === 'quadro' && !arquivados
+  // A ordem das raias de prioridade e a do projeto: lida so quando elas estao na tela.
+  const { data: prioridades } = useAsyncResource(
+    useCallback(
+      async () =>
+        quadro && agrupar === 'priority'
+          ? await projectPriorityService.listPriorities(project.PublicId)
+          : null,
+      [project.PublicId, quadro, agrupar],
+    ),
+  )
   const backlog = vistaEfetiva === 'backlog' && !arquivados
   const modoSprint = sprintsLigadas && quadro
   const sprintDoQuadro = modoSprint ? 'active' : undefined
@@ -136,6 +164,32 @@ export function ReportsScreen() {
   // Os filtros da tela — os mesmos na lista, no quadro e na contagem das colunas.
   const filtros = useWorkFilters(project.PublicId)
   const comFiltro = filtros.key !== ''
+
+  // Os marcados para o lote, so na lista dos que estao em trabalho. Trocar o que a
+  // lista mostra desmarca tudo: ninguem muda em lote o que nao esta vendo.
+  const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set())
+  const recorteDaLista = `${project.PublicId}|${filtro}|${filtros.key}|${arquivados}|${vistaEfetiva}`
+  const [recorteMarcado, setRecorteMarcado] = useState(recorteDaLista)
+  if (recorteMarcado !== recorteDaLista) {
+    setRecorteMarcado(recorteDaLista)
+    setMarcados(new Set())
+  }
+  /** O que nao mudou no ultimo lote, mostrado aqui: a barra pode ter saido da tela. */
+  const [falhasDoLote, setFalhasDoLote] = useState<{ mudaram: number; falhas: Falha[] } | null>(
+    null,
+  )
+  const selecao = {
+    marcados,
+    definir: (ids: string[], marcar: boolean) =>
+      setMarcados((atual) => {
+        const novo = new Set(atual)
+        for (const id of ids) {
+          if (marcar) novo.add(id)
+          else novo.delete(id)
+        }
+        return novo
+      }),
+  }
 
   // O quadro tem as proprias leituras: a lista so e lida na vista dela, e de novo a
   // cada volta — o que o quadro mudou nao passa por ela.
@@ -395,6 +449,8 @@ export function ReportsScreen() {
               }}
               aoCriar={(chave) => setCriando({ coluna: chave })}
               destacados={destacados}
+              agrupar={agrupar}
+              prioridades={prioridades}
             />
           </>
         )
@@ -430,7 +486,29 @@ export function ReportsScreen() {
                 colunas={contagens}
                 soonDays={destaque}
                 destacados={destacados}
+                selecao={arquivados ? undefined : selecao}
               />
+
+              {/* Depois da tabela, presa embaixo da tela: marcar nao empurra as linhas. */}
+              {!arquivados && reports.some((report) => marcados.has(report.PublicId)) && (
+                <BulkActions
+                  projectPublicId={project.PublicId}
+                  cards={reports.filter((report) => marcados.has(report.PublicId))}
+                  colunas={contagens}
+                  sprints={sprintsLigadas ? (sprints.sprints ?? []) : null}
+                  aoTerminar={(resultado) => {
+                    // A selecao fica: da para fazer outra mudanca nos mesmos cards.
+                    if (resultado.falhas.length > 0) setFalhasDoLote(resultado)
+                    void releituraDaLista()
+                    renovarContagens()
+                    if (sprintsLigadas) {
+                      sprints.revalidate()
+                      mexeuNoBacklog()
+                    }
+                  }}
+                  aoLimpar={() => setMarcados(new Set())}
+                />
+              )}
 
               <footer className="mt-3 flex items-center gap-3">
                 {hasMore && (
@@ -498,8 +576,10 @@ export function ReportsScreen() {
           <FiltroDeColuna contagens={contagens} escolhido={filtro} aoEscolher={setFiltro} />
         ) : quadro ? (
           <p className="text-caption text-fg-muted">
-            Arraste os cards entre as colunas — no celular, segure um instante antes; no teclado,
-            espaço pega e solta.
+            {agrupar === 'none'
+              ? 'Arraste os cards entre as colunas'
+              : `Arraste os cards entre as colunas e as raias — outra raia troca ${agrupar === 'assignee' ? 'o responsável' : 'a prioridade'}`}{' '}
+            — no celular, segure um instante antes; no teclado, espaço pega e solta.
           </p>
         ) : backlog ? (
           <p className="text-caption text-fg-muted">
@@ -510,6 +590,19 @@ export function ReportsScreen() {
         )}
 
         <div className="flex flex-none items-center gap-2">
+          {quadro && (
+            <Select
+              ariaLabel="Raias do quadro"
+              size="sm"
+              value={agrupar}
+              onChange={(valor) => setAgrupar(valor as LaneBy)}
+              options={[
+                { value: 'none', label: 'Sem raias' },
+                { value: 'assignee', label: 'Raias por responsável' },
+                { value: 'priority', label: 'Raias por prioridade' },
+              ]}
+            />
+          )}
           <button
             type="button"
             aria-pressed={arquivados}
@@ -571,6 +664,14 @@ export function ReportsScreen() {
         }}
       />
 
+      {falhasDoLote && (
+        <BulkFailures
+          mudaram={falhasDoLote.mudaram}
+          falhas={falhasDoLote.falhas}
+          aoFechar={() => setFalhasDoLote(null)}
+        />
+      )}
+
       {concluindo && sprints.ativa && (
         <CloseSprintDialog
           projectPublicId={project.PublicId}
@@ -621,42 +722,40 @@ export function ReportsScreen() {
 }
 
 /**
- * A ultima vista escolhida, guardada neste navegador por projeto. **Preferencia de
- * quem olha**, e nao regra do projeto: cada pessoa do time trabalha na vista que
- * prefere. O navegador pode negar o armazenamento — janela privada, dados
- * bloqueados —, e ai a tela so nao lembra.
+ * Uma escolha de quem olha — a ultima vista, as raias do quadro —, guardada neste
+ * navegador por projeto. **Preferencia de quem olha**, e nao regra do projeto: cada
+ * pessoa do time trabalha como prefere. O navegador pode negar o armazenamento —
+ * janela privada, dados bloqueados —, e ai a tela so nao lembra.
  */
-function useVistaLembrada(projectPublicId: string) {
-  const chave = `pds.web.trabalho.vista.${projectPublicId}`
-
-  const ler = useCallback((): Vista => {
+function useEscolhaLembrada<T extends string>(chave: string, validas: readonly T[], padrao: T) {
+  const ler = useCallback((): T => {
     try {
       const lida = window.localStorage.getItem(chave)
-      return lida === 'quadro' || lida === 'backlog' ? lida : 'lista'
+      return validas.find((valida) => valida === lida) ?? padrao
     } catch {
-      return 'lista'
+      return padrao
     }
-  }, [chave])
+  }, [chave, validas, padrao])
 
-  const [vista, setVistaEstado] = useState<Vista>(ler)
+  const [escolha, setEscolhaEstado] = useState<T>(ler)
 
   // Outro projeto, outra lembranca.
   const [daChave, setDaChave] = useState(chave)
   if (daChave !== chave) {
     setDaChave(chave)
-    setVistaEstado(ler())
+    setEscolhaEstado(ler())
   }
 
-  const setVista = (nova: Vista) => {
-    setVistaEstado(nova)
+  const setEscolha = (nova: T) => {
+    setEscolhaEstado(nova)
     try {
       window.localStorage.setItem(chave, nova)
     } catch {
-      // Sem onde guardar, a vista vale ate sair da tela.
+      // Sem onde guardar, a escolha vale ate sair da tela.
     }
   }
 
-  return [vista, setVista] as const
+  return [escolha, setEscolha] as const
 }
 
 /**
@@ -851,7 +950,7 @@ function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => v
         Assim que alguém enviar pela ferramenta instalada no site, o relato aparece aqui; aberto,
         ele mostra o protocolo, a página de onde saiu e o que a pessoa escreveu. O time também cria
         os próprios cards.
-        {/* Quem e so membro nao instala nada: o link levaria a Instalação, e a
+        {/* Quem e so membro nao instala nada: o link levaria a Instalacao, e a
             guarda o devolveria para ca — um clique que parece nao fazer nada. */}
         {!installs && ' Quem administra o projeto instala a ferramenta no site.'}
       </p>

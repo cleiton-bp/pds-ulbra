@@ -29,14 +29,28 @@ export interface NotificationCountViewModel {
   UnreadCount: number
 }
 
-/** As preferencias de aviso da pessoa. */
-export interface NotificationSettingsViewModel {
-  /** Receber e-mail quando a escolhem como responsavel. A mencao so avisa no sino. */
-  AssignmentByEmail: boolean
-  /** Se esta instalacao manda e-mail. Sem isso a preferencia fica guardada, e nada sai. */
-  EmailAvailable: boolean
+/** O som de um aviso no painel, gerado no navegador. `None` e so o sino, sem som. */
+export type NotificationSound = 'None' | 'Bell' | 'Drop' | 'Ping' | 'Chime' | 'Bubble' | 'Soft'
+
+/** O som de um tipo de aviso. */
+export interface NotificationSoundSetting {
+  Kind: NotificationKind
+  Sound: NotificationSound
 }
 
-export interface SaveNotificationSettingsRequest {
-  AssignmentByEmail: boolean
+/** As preferencias de aviso da pessoa: o volume e o som de cada tipo — todos os tipos. */
+export interface NotificationSettingsViewModel {
+  /** De 0 a 100. */
+  Volume: number
+  Sounds: NotificationSoundSetting[]
 }
+
+/** As preferencias gravadas inteiras: o volume e um som para cada tipo de aviso. */
+export interface SaveNotificationSettingsRequest {
+  Volume: number
+  Sounds: NotificationSoundSetting[]
+}
+
+/** O volume do som dos avisos vai de 0 a 100. */
+export const MIN_NOTIFICATION_VOLUME = 0
+export const MAX_NOTIFICATION_VOLUME = 100

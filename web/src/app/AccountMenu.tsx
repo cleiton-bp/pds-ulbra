@@ -67,6 +67,7 @@ export function AccountMenu() {
       <DropdownSeparator />
 
       <DropdownGroup>
+        <DropdownItem onSelect={() => navigate('/profile')}>Perfil</DropdownItem>
         <DropdownItem onSelect={toggleTheme}>{themeLabel}</DropdownItem>
         <DropdownItem onSelect={() => void sair()}>Sair</DropdownItem>
       </DropdownGroup>

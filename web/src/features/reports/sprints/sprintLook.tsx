@@ -15,7 +15,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { formatDay } from '@/shared/lib/datetime'
 
 /**
- * As sprints que nao fecharam, lidas so com a sprint ligada. A em andamento e a que o
+ * As sprints que nao foram concluidas, lidas so com as sprints ligadas. A em andamento e a que o
  * quadro mostra.
  */
 export function useSprints(projectPublicId: string, enabled: boolean) {
@@ -32,6 +32,11 @@ export function useSprints(projectPublicId: string, enabled: boolean) {
 /** Os pontos como o time le: "2,5", sem o ".0". */
 export function formatPoints(pontos: number): string {
   return pontos.toLocaleString('pt-BR')
+}
+
+/** "1 ponto", "2,5 pontos". */
+export function pointsText(pontos: number): string {
+  return `${formatPoints(pontos)} ${pontos === 1 ? 'ponto' : 'pontos'}`
 }
 
 /** "5 out. – 18 out.": as datas da sprint, sem o ano quando e o mesmo. */
@@ -89,7 +94,7 @@ export function SprintBar({
       <div className="flex flex-none items-center gap-3">
         <span className="text-detail text-fg-muted tabular-nums">
           {sprint.DoneCards} de {sprint.Cards} {sprint.Cards === 1 ? 'card' : 'cards'} ·{' '}
-          {formatPoints(sprint.DonePoints)} de {formatPoints(sprint.Points)} pontos
+          {formatPoints(sprint.DonePoints)} de {pointsText(sprint.Points)}
         </span>
         <Button size="sm" onClick={aoConcluir}>
           Concluir sprint
@@ -166,7 +171,7 @@ export function SprintDialog({
       title={mode === 'start' ? `Iniciar ${sprint.Name}` : `Editar ${sprint.Name}`}
       description={
         mode === 'start'
-          ? `${sprint.Cards} ${sprint.Cards === 1 ? 'card' : 'cards'} e ${formatPoints(sprint.Points)} pontos. A partir daqui, o quadro mostra só esta sprint.`
+          ? `${sprint.Cards} ${sprint.Cards === 1 ? 'card' : 'cards'} e ${pointsText(sprint.Points)}. A partir daqui, o quadro mostra só esta sprint.`
           : undefined
       }
       footer={
@@ -290,7 +295,7 @@ export function CloseSprintDialog({
         if (!aberto && !fechando) aoCancelar()
       }}
       title={`Concluir ${sprint.Name}`}
-      description={`${sprint.DoneCards} de ${sprint.Cards} ${sprint.Cards === 1 ? 'card terminou' : 'cards terminaram'} — ${formatPoints(sprint.DonePoints)} de ${formatPoints(sprint.Points)} pontos. O que terminou fica na sprint concluída.`}
+      description={`${sprint.DoneCards} de ${sprint.Cards} ${sprint.Cards === 1 ? 'card terminou' : 'cards terminaram'} — ${formatPoints(sprint.DonePoints)} de ${pointsText(sprint.Points)}. O que terminou fica na sprint concluída.`}
       footer={
         <>
           <Button variant="quiet" disabled={fechando} onClick={aoCancelar}>
@@ -304,7 +309,11 @@ export function CloseSprintDialog({
     >
       {faltaram > 0 ? (
         <Select
-          label={`Os ${faltaram === 1 ? 'que não terminou vai' : `${faltaram} que não terminaram vão`} para`}
+          label={
+            faltaram === 1
+              ? 'O que não terminou vai para'
+              : `Os ${faltaram} que não terminaram vão para`
+          }
           value={destino}
           onChange={setDestino}
           options={[

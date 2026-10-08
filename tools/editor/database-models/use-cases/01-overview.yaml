@@ -51,7 +51,7 @@ useCases:
     position: { x: 250, y: 640 }
   - id: UC07
     name: Trabalhar o relato
-    description: Lê o que chegou, comenta — por dentro ou para quem relatou —, move entre os estados que o projeto criou, pelo card ou arrastando no quadro, e organiza o card — título, responsável, prioridade, etiquetas e prazo. Detalhe em 05-team-work.
+    description: Lê o que chegou, comenta — por dentro ou para quem relatou —, move entre os estados que o projeto criou, pelo card ou arrastando no quadro (em raias, se quiser), organiza o card — título, responsável, prioridade, etiquetas, prazo, subtarefas e vínculos —, muda vários de uma vez, planeja em sprints se o projeto ligar, e é avisado no sino quando o chamam. Detalhe em 05-team-work.
     width: 230
     position: { x: 620, y: 20 }
   - id: UC08
@@ -96,12 +96,12 @@ useCases:
     position: { x: 620, y: 880 }
   - id: UC16
     name: Cuidar da conta
-    description: Planejado. Convidar membros, excluir a conta e apagar os dados. Detalhe em 11-account.
+    description: Convidar o time por projeto, cuidar de quem está nele e escolher como cada um é avisado; e, Planejado, excluir a conta e apagar os dados. Detalhe em 11-account.
     width: 230
     position: { x: 620, y: 1000 }
   - id: UC17
     name: Levar os relatos para a ferramenta do time
-    description: "Continuidade. A ferramenta de gestão que o time já usa, e o resto do que o produto pode vir a ter: sprints, relatórios, áudio e voz, planos, o quadro ao vivo com a API em mais de uma instância. Detalhe em 12-continuity."
+    description: "Continuidade. A ferramenta de gestão que o time já usa, e o resto do que o produto pode vir a ter: relatórios, áudio e voz, planos, o quadro ao vivo com a API em mais de uma instância. Detalhe em 12-continuity."
     width: 230
     position: { x: 620, y: 1120 }
   - id: UC18
@@ -174,7 +174,7 @@ notes:
   - text: "O centro do produto: o time move o relato por dentro, e a etapa que o relator vê anda sozinha por fora — o motor de tradução leva a mudança, sem ninguém avisar nada à mão."
     anchor: UC07
     position: { x: 500, y: -200 }
-  - text: Hoje cada conta tem uma pessoa só, que é dono e time ao mesmo tempo. Convidar outros membros está planejado em 11-account.
+  - text: O dono convida o time por projeto, como administrador ou como membro, e a mesma pessoa pode estar em projetos de várias contas. Detalhe em 11-account.
     anchor: Dono do projeto
     position: { x: 993, y: 772 }
   - text: O relator é um tipo de visitante — faz tudo o que o visitante faz, e mais o que é dele.

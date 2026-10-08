@@ -11,7 +11,7 @@ import { Brand } from '@/shared/components/Brand'
 export function AccountShell() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="flex h-14 flex-none items-center justify-between border-border border-b bg-surface-raised px-8">
+      <header className="flex h-14 flex-none items-center justify-between border-border border-b bg-surface-raised px-4 sm:px-8">
         <Brand />
         <div className="flex items-center gap-2">
           <ThemeButton />

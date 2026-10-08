@@ -293,7 +293,7 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("kind")
-                        .HasComment("mention | assignment. A mencao so aparece no sino; a atribuicao tambem vai por e-mail, se a pessoa quiser.");
+                        .HasComment("mention | assignment. Os dois so no painel: no sino, com o som que a pessoa escolheu para o tipo.");
 
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint")
@@ -3102,10 +3102,10 @@ namespace Pds.Data.Migrations
                         .HasColumnName("name")
                         .HasComment("Nome vindo do Google.");
 
-                    b.Property<bool>("NotifyAssignmentByEmail")
-                        .HasColumnType("boolean")
-                        .HasColumnName("notify_assignment_by_email")
-                        .HasComment("Se a pessoa recebe e-mail quando alguem do time a escolhe como responsavel por um card. Ligado de fabrica; vale em todos os projetos dela. O aviso no painel chega de qualquer jeito.");
+                    b.Property<int>("NotificationVolume")
+                        .HasColumnType("integer")
+                        .HasColumnName("notification_volume")
+                        .HasComment("O volume do som dos avisos no painel, de 0 a 100; 70 de fabrica. O som de cada tipo de aviso fica em user_notification_sounds.");
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uuid")
@@ -3138,6 +3138,82 @@ namespace Pds.Data.Migrations
                     b.ToTable("users", null, t =>
                         {
                             t.HasComment("Quem entra no painel. A identidade vem do Google, entao nao ha senha nem recuperacao.");
+
+                            t.HasCheckConstraint("ck_users_notification_volume", "notification_volume >= 0 AND notification_volume <= 100");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.UserNotificationSound", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind")
+                        .HasComment("mention | assignment: o tipo de aviso, como em notifications.kind.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<string>("Sound")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("sound")
+                        .HasComment("none | bell | drop | ping | chime | bubble | soft. O som e gerado no navegador; none e so o sino, sem som.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id")
+                        .HasComment("A pessoa.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_notification_sounds");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_user_notification_sounds_deleted_at");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_notification_sounds_public_id");
+
+                    b.HasIndex("UserId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_notification_sounds_user_id_kind")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("user_notification_sounds", null, t =>
+                        {
+                            t.HasComment("O som que cada pessoa escolheu para cada tipo de aviso do painel. Sem linha para um tipo, vale o de fabrica. Vale em todos os projetos da pessoa. Interno.");
+
+                            t.HasCheckConstraint("ck_user_notification_sounds_kind", "kind IN ('mention', 'assignment')");
+
+                            t.HasCheckConstraint("ck_user_notification_sounds_sound", "sound IN ('none', 'bell', 'drop', 'ping', 'chime', 'bubble', 'soft')");
                         });
                 });
 
@@ -3789,6 +3865,18 @@ namespace Pds.Data.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.UserNotificationSound", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.User", "User")
+                        .WithMany("NotificationSounds")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_notification_sounds_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.Account", b =>
                 {
                     b.Navigation("Projects");
@@ -3822,6 +3910,11 @@ namespace Pds.Data.Migrations
             modelBuilder.Entity("Pds.Domain.Entities.ReporterCode", b =>
                 {
                     b.Navigation("Reports");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.User", b =>
+                {
+                    b.Navigation("NotificationSounds");
                 });
 #pragma warning restore 612, 618
         }
