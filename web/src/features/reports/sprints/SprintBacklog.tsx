@@ -62,7 +62,7 @@ const TOQUE = { activationConstraint: { delay: 250, tolerance: 6 } }
 type Listas = Record<string, string[]>
 
 /**
- * O backlog e as sprints que nao fecharam: a em andamento, as planejadas, e o backlog
+ * O backlog e as sprints que nao foram concluidas: a em andamento, as planejadas, e o backlog
  * embaixo, cada um na ordem que o time arruma.
  *
  * **Arrastar** leva o card para outra lista ou para outro lugar na mesma — com o mouse,
@@ -78,7 +78,7 @@ export function SprintBacklog({
   aoMudou,
 }: {
   projectPublicId: string
-  /** As sprints que nao fecharam; nula enquanto carrega. */
+  /** As sprints que nao foram concluidas; nula enquanto carrega. */
   sprints: SprintViewModel[] | null
   colunas: ReportStateCountViewModel[] | null
   /** Sobe quando um card ou uma sprint mudou fora daqui: as listas sao relidas. */
@@ -400,7 +400,7 @@ export function SprintBacklog({
         title={dialogo?.tipo === 'delete' ? `Apagar ${dialogo.sprint.Name}` : 'Apagar a sprint'}
         description={
           dialogo?.tipo === 'delete'
-            ? `${dialogo.sprint.Cards === 0 ? 'A sprint está vazia.' : `Os ${dialogo.sprint.Cards} cards dela voltam para o fim do backlog.`} Só a sprint planejada se apaga.`
+            ? `${dialogo.sprint.Cards === 0 ? 'A sprint está vazia.' : dialogo.sprint.Cards === 1 ? 'O card dela volta para o fim do backlog.' : `Os ${dialogo.sprint.Cards} cards dela voltam para o fim do backlog.`} Só a sprint planejada se apaga.`
             : ''
         }
         confirmLabel="Apagar"
@@ -498,17 +498,13 @@ function Secao({
             <Button size="sm" onClick={() => aoConcluir(sprint)}>
               Concluir sprint
             </Button>
+          ) : // O porque escrito, e nao numa dica: a dica nao abre no toque nem no teclado.
+          temAtiva ? (
+            <span className="text-caption text-fg-muted">
+              Inicia depois que a em andamento for concluída
+            </span>
           ) : (
-            <Button
-              size="sm"
-              disabled={temAtiva}
-              onClick={() => aoIniciar(sprint)}
-              title={
-                temAtiva
-                  ? 'Há uma sprint em andamento: conclua-a antes de iniciar outra.'
-                  : undefined
-              }
-            >
+            <Button size="sm" onClick={() => aoIniciar(sprint)}>
               Iniciar sprint
             </Button>
           )}

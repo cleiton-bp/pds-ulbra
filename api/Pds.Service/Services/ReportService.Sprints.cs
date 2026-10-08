@@ -29,22 +29,24 @@ public partial class ReportService
             throw new ConflictException("A subtarefa acompanha o pai: mude a sprint do pai.");
 
         Sprint? destino = null;
-        if (dto.SprintPublicId is Guid sprintId)
-        {
-            destino = await _unitOfWork.Sprints.FindAsync(project.Id, sprintId, cancellationToken)
-                      ?? throw new KeyNotFoundException("Sprint nao encontrada neste projeto.");
-
-            if (destino.State == SprintStateEnum.Closed)
-                throw new ConflictException("Esta sprint ja fechou e nao recebe card.");
-        }
-
         var foram = new List<Report>();
 
         // Sob a trava da ordem do projeto, como o quadro: o lugar e contado sobre os
-        // vizinhos, e a leitura, a conta e a gravacao vao juntas.
+        // vizinhos, e a leitura, a conta e a gravacao vao juntas. A sprint de destino e
+        // lida depois da trava — quem conclui a sprint tambem trava, e a sprint lida antes
+        // podia ter sido concluida no meio.
         await _unitOfWork.InTransactionAsync(async ct =>
         {
             await _unitOfWork.Reports.LockBoardAsync(project.Id, ct);
+
+            if (dto.SprintPublicId is Guid sprintId)
+            {
+                destino = await _unitOfWork.Sprints.FindAsync(project.Id, sprintId, ct)
+                          ?? throw new KeyNotFoundException("Sprint nao encontrada neste projeto.");
+
+                if (destino.State == SprintStateEnum.Closed)
+                    throw new ConflictException("Esta sprint ja foi concluida e nao recebe card.");
+            }
 
             var aqui = await _unitOfWork.Reports.FindBacklogSpotAsync(project.Id, report.PublicId, ct)
                        ?? throw new KeyNotFoundException("Card nao encontrado.");
@@ -52,8 +54,8 @@ public partial class ReportService
                 throw new ConflictException("O card saiu para o arquivo. Atualize o backlog.");
 
             report.BacklogRank = dto.AfterPublicId is Guid acima
-                ? await BacklogRankBelowAsync(project.Id, destino?.Id, acima, report.Id, ct)
-                : await BacklogEdgeRankAsync(project.Id, destino?.Id, dto.Top == true, report, ct);
+                ? await BacklogRankBelowAsync(project.Id, destino?.Id, acima, report.Id, project.LastCardNumber, ct)
+                : await BacklogEdgeRankAsync(project.Id, destino?.Id, dto.Top == true, report, project.LastCardNumber, ct);
 
             foram = await SprintMoves.MoveAsync(_unitOfWork, project, report, destino, _accountContext.UserId, null, ct);
 
@@ -116,7 +118,7 @@ public partial class ReportService
                      ?? throw new KeyNotFoundException("Sprint nao encontrada neste projeto.");
 
         return sprint.State == SprintStateEnum.Closed
-            ? throw new ConflictException("Esta sprint ja fechou e nao recebe card.")
+            ? throw new ConflictException("Esta sprint ja foi concluida e nao recebe card.")
             : sprint;
     }
 
@@ -130,12 +132,12 @@ public partial class ReportService
     }
 
     /// <summary>O topo ou o fim da lista de destino, sem o card que se move. Lista vazia: o lugar que ele ja tem.</summary>
-    private async Task<long> BacklogEdgeRankAsync(long projectId, long? sprintId, bool top, Report report, CancellationToken cancellationToken)
+    private async Task<long> BacklogEdgeRankAsync(long projectId, long? sprintId, bool top, Report report, int ultimoNumero, CancellationToken cancellationToken)
     {
         var borda = await _unitOfWork.Reports.FindBacklogEdgeRankAsync(projectId, sprintId, top, report.Id, cancellationToken);
         if (borda is not long valor)
             return report.BacklogRank;
-        return top ? valor - Report.BoardRankGap : valor + Report.BoardRankGap;
+        return top ? valor - Report.BoardRankGap : Report.BacklogAfter(valor, ultimoNumero);
     }
 
     /// <summary>
@@ -143,7 +145,7 @@ public partial class ReportService
     /// do quadro: o meio entre ele e o vizinho de baixo, e sem folga a lista e
     /// renumerada. A referencia precisa estar na lista: a tela pode estar velha.
     /// </summary>
-    private async Task<long> BacklogRankBelowAsync(long projectId, long? sprintId, Guid acima, long movingId, CancellationToken cancellationToken)
+    private async Task<long> BacklogRankBelowAsync(long projectId, long? sprintId, Guid acima, long movingId, int ultimoNumero, CancellationToken cancellationToken)
     {
         var referencia = await _unitOfWork.Reports.FindBacklogSpotAsync(projectId, acima, cancellationToken)
                          ?? throw new KeyNotFoundException("O card de referencia nao foi encontrado neste projeto.");
@@ -157,7 +159,7 @@ public partial class ReportService
         var abaixo = await _unitOfWork.Reports.FindBacklogRankBelowAsync(projectId, sprintId, referencia.Rank, referencia.Id, movingId, cancellationToken);
 
         if (abaixo is null)
-            return referencia.Rank + Report.BoardRankGap;
+            return Report.BacklogAfter(referencia.Rank, ultimoNumero);
         if (abaixo.Value - referencia.Rank >= 2)
             return referencia.Rank + (abaixo.Value - referencia.Rank) / 2;
 
@@ -169,7 +171,7 @@ public partial class ReportService
 
         return abaixo is long vizinho
             ? referencia.Rank + (vizinho - referencia.Rank) / 2
-            : referencia.Rank + Report.BoardRankGap;
+            : Report.BacklogAfter(referencia.Rank, ultimoNumero);
     }
 
     private static bool NaLista(BacklogSpot spot, long? sprintId)

@@ -394,7 +394,7 @@ export function CycleSettingsScreen() {
           <Marcar
             marcado={draft.SprintsEnabled}
             titulo="Trabalhar em sprints"
-            explicacao="Uma sprint em andamento por vez, e quantas planejadas o time quiser. Planejar, iniciar e fechar é de qualquer pessoa do time."
+            explicacao="Uma sprint em andamento por vez, e quantas planejadas o time quiser. Planejar, iniciar e concluir é de qualquer pessoa do time."
             aoTrocar={(valor) => setDraft({ ...draft, SprintsEnabled: valor })}
           />
 

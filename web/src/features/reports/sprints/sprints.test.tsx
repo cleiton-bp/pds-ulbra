@@ -238,14 +238,13 @@ describe('o backlog', () => {
       pageSize: 100,
       sprint: 'backlog',
     })
-    // Com uma em andamento, a planejada nao inicia.
+    // Com uma em andamento, a planejada nao inicia — e diz por que, escrito.
     expect(
-      (
-        within(secoes[1] as HTMLElement).getByRole('button', {
-          name: 'Iniciar sprint',
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true)
+      within(secoes[1] as HTMLElement).queryByRole('button', { name: 'Iniciar sprint' }),
+    ).toBeNull()
+    expect(
+      within(secoes[1] as HTMLElement).getByText('Inicia depois que a em andamento for concluída'),
+    ).toBeTruthy()
   })
 
   it('o menu do card leva para outra lista, no fim — e para o topo da propria', async () => {

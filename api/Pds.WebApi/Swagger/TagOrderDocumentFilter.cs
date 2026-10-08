@@ -116,7 +116,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.Sprints,
-                Description = "As sprints do projeto, com a sprint ligada no Ciclo: uma em andamento por vez — a que o quadro mostra —, e quantas planejadas o time quiser. Fechar decide o destino do que não terminou. Planejar é de qualquer pessoa do time.",
+                Description = "As sprints do projeto, com as sprints ligadas no Ciclo: uma em andamento por vez — a que o quadro mostra —, e quantas planejadas o time quiser. Concluir decide o destino do que não terminou. Planejar é de qualquer pessoa do time.",
             },
             new OpenApiTag
             {

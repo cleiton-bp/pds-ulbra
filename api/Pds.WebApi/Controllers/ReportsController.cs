@@ -648,7 +648,7 @@ public class ReportsController : BaseController
 
     /// <summary>Põe o card numa sprint, ou no backlog, e no lugar da lista.</summary>
     /// <remarks>
-    /// Com a sprint ligada no Ciclo (senão 409). `SprintPublicId` nulo é o backlog. O
+    /// Com as sprints ligadas no Ciclo (senão 409). `SprintPublicId` nulo é o backlog. O
     /// lugar: logo abaixo de `AfterPublicId`, na lista de destino; sem ele, o topo
     /// (`Top`) ou o fim. A mesma lista arruma a ordem — que é do time inteiro, como a do
     /// quadro. **A subtarefa vai com o pai** (mover a subtarefa é 409), e a sprint
@@ -657,7 +657,7 @@ public class ReportsController : BaseController
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
     /// <response code="404">Card, sprint ou o card de referência não existe aqui.</response>
-    /// <response code="409">Sem sprints no projeto, card arquivado, subtarefa, sprint fechada, ou o card de referência saiu da lista.</response>
+    /// <response code="409">Sem sprints no projeto, card arquivado, subtarefa, sprint concluída, ou o card de referência saiu da lista.</response>
     [HttpPut("{reportPublicId:guid}/sprint")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
@@ -678,7 +678,7 @@ public class ReportsController : BaseController
 
     /// <summary>A estimativa do card em pontos.</summary>
     /// <remarks>
-    /// De 0 a 999, de meio em meio ponto; nulo tira. Com a sprint ligada (senão 409), e
+    /// De 0 a 999, de meio em meio ponto; nulo tira. Com as sprints ligadas (senão 409), e
     /// nunca na subtarefa (409) — ela vai com o pai.
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
