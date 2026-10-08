@@ -110,6 +110,75 @@ public class ReportCommentsController : BaseController
         }
     }
 
+    /// <summary>Corrige um comentário que fica entre o time.</summary>
+    /// <remarks>
+    /// **Só quem escreveu** (403 para as outras pessoas, inclusive quem administra): o
+    /// comentário é a palavra de alguém, com o nome dela em cima.
+    ///
+    /// As menções passam a ser as do texto novo: quem entrou é avisado no sino, e o
+    /// aviso de quem saiu sai junto — corrigir o "@" na pessoa errada é isso. O
+    /// comentário volta com `EditedAt`, e a tela o marca como editado. **Só o
+    /// interno**: o comentário para quem relatou já saiu da empresa, e não se corrige.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="commentPublicId">Identificador público do comentário interno.</param>
+    /// <param name="dto">O texto novo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Comentário corrigido.</response>
+    /// <response code="400">Texto em branco ou comprido demais.</response>
+    /// <response code="403">O comentário é de outra pessoa.</response>
+    /// <response code="404">Comentário, relato ou projeto não existe, ou a pessoa não está no projeto.</response>
+    [HttpPut("internal/{commentPublicId:guid}")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<InternalCommentViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditInternal(Guid publicId, Guid reportPublicId, Guid commentPublicId, [FromBody] EditInternalCommentDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var comment = await _reportCommentService.EditInternalAsync(publicId, reportPublicId, commentPublicId, dto, cancellationToken);
+            return Success(comment, "Comentário interno corrigido.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Apaga um comentário que fica entre o time.</summary>
+    /// <remarks>
+    /// **Só quem escreveu** (403 para as outras pessoas). Sai da conversa e da contagem
+    /// da frente do card, e os avisos das menções dele saem do sino. A linha do
+    /// histórico que diz que houve comentário fica: o histórico registra que houve, e
+    /// não o que foi dito.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="reportPublicId">Identificador público do relato.</param>
+    /// <param name="commentPublicId">Identificador público do comentário interno.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Comentário apagado.</response>
+    /// <response code="403">O comentário é de outra pessoa.</response>
+    /// <response code="404">Comentário, relato ou projeto não existe, ou a pessoa não está no projeto.</response>
+    [HttpDelete("internal/{commentPublicId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteInternal(Guid publicId, Guid reportPublicId, Guid commentPublicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _reportCommentService.DeleteInternalAsync(publicId, reportPublicId, commentPublicId, cancellationToken);
+            return Success<object?>(null, "Comentário interno apagado.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Escreve um comentário para quem relatou.</summary>
     /// <remarks>
     /// **É uma rota diferente, e não a mesma com um campo de visibilidade.** Um

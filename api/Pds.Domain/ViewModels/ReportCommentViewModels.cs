@@ -7,11 +7,21 @@ namespace Pds.Domain.ViewModels;
 /// <param name="AuthorName">Quem escreveu. Vazio quando a conta do autor foi anonimizada.</param>
 /// <param name="Body">O texto.</param>
 /// <param name="CreatedAt">Quando foi escrito, em UTC.</param>
+/// <param name="EditedAt">
+/// Quando foi corrigido pela ultima vez, em UTC; nulo se nunca foi. A tela marca
+/// "editado": quem ja tinha lido precisa saber que o texto mudou.
+/// </param>
+/// <param name="IsYours">
+/// Quem pergunta e quem escreveu — so ela corrige e apaga. Calculado a cada leitura,
+/// pela sessao: o mesmo comentario e "seu" para uma pessoa e nao para as outras.
+/// </param>
 public record InternalCommentViewModel(
     Guid PublicId,
     string AuthorName,
     string Body,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    DateTime? EditedAt,
+    bool IsYours);
 
 /// <summary>
 /// Um comentario para quem relatou, como o painel o le.
