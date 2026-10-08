@@ -1088,67 +1088,98 @@ public partial class ReportService : IReportService
         // Com sprint ligada: o criado numa coluna do quadro entra na sprint que veio; a
         // subtarefa, na do pai; o resto, no backlog.
         var sprint = await ResolveCreateSprintAsync(project.Id, pai, dto.SprintPublicId, cancellationToken);
+        // O responsavel e a prioridade de quem ja os escolhe ao criar, pelas regras do
+        // campo: so quem esta no time agora, so prioridade ativa do projeto — com as
+        // mesmas recusas.
+        var responsavel = dto.AssigneeUserPublicId is Guid pessoa
+            ? await RequireAssigneeAsync(project.AccountId, project.Id, pessoa, cancellationToken)
+            : null;
+        var prioridade = dto.PriorityPublicId is Guid escolhida
+            ? await RequirePriorityAsync(project.Id, escolhida, null, cancellationToken)
+            : null;
         var autorId = _accountContext.UserId ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
 
-        // Depois de tudo o que podia recusar: numero reservado para card recusado
-        // seria um buraco a toa.
-        var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, cancellationToken);
-
-        // No topo da coluna, como o relato que chega.
-        var topo = await _unitOfWork.Projects.NextTopRankAsync(project.Id, cancellationToken);
-
-        var card = new Report
+        // Tudo numa transacao so — o numero, o card, o "criou" e, quando vieram, o
+        // responsavel e a prioridade: ou o card nasce inteiro, ou nao nasce.
+        Guid? avisado = null;
+        var card = await _unitOfWork.InTransactionAsync(async ct =>
         {
-            Kind = CardKindEnum.Team,
-            Number = numero,
-            // No fim do backlog, como todo card novo.
-            BacklogRank = numero * Report.BoardRankGap,
-            AccountId = project.AccountId,
-            ProjectId = project.Id,
-            Title = titulo,
-            Description = descricao,
-            ProjectStateId = estado?.Id,
-            ProjectState = estado,
-            BoardRank = topo,
-            StateChangedAt = DateTime.UtcNow,
-            CreatedByUserId = autorId,
-            ParentReportId = pai?.Id,
-            SprintId = sprint?.Id,
-            // O banco so aceita card do time pendente: e o que o mantem fora da
-            // lista publica mesmo que alguem esqueca o filtro numa consulta.
-            ModerationState = ReportModerationStateEnum.Pending,
-        };
+            // Depois de tudo o que podia recusar: numero reservado para card recusado
+            // seria um buraco a toa.
+            var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, ct);
 
-        await _unitOfWork.Reports.AddAsync(card, cancellationToken);
+            // No topo da coluna, como o relato que chega.
+            var topo = await _unitOfWork.Projects.NextTopRankAsync(project.Id, ct);
 
-        // Na mesma gravacao do card, como o do relato. Sem titulo nem descricao: a
-        // tabela de eventos nao se apaga, e o texto e do card.
-        await _unitOfWork.Events.AddAsync(new Event
-        {
-            AccountId = project.AccountId,
-            ProjectId = project.Id,
-            Report = card,
-            UserId = autorId,
-            Type = EventTypeEnum.TeamCardCreated,
-            Source = EventSourceEnum.Panel,
-            Payload = JsonSerializer.Serialize(new
+            var novo = new Report
             {
-                number = numero,
-                state_id = estado?.PublicId,
-                state_name = estado?.Name,
-                description_length = descricao?.Length ?? 0,
-                parent_id = pai?.PublicId,
-                parent_number = pai?.Number,
-                sprint_id = sprint?.PublicId,
-            }),
-        }, cancellationToken);
+                Kind = CardKindEnum.Team,
+                Number = numero,
+                // No fim do backlog, como todo card novo.
+                BacklogRank = numero * Report.BoardRankGap,
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                Title = titulo,
+                Description = descricao,
+                ProjectStateId = estado?.Id,
+                ProjectState = estado,
+                BoardRank = topo,
+                StateChangedAt = DateTime.UtcNow,
+                CreatedByUserId = autorId,
+                ParentReportId = pai?.Id,
+                SprintId = sprint?.Id,
+                // O banco so aceita card do time pendente: e o que o mantem fora da
+                // lista publica mesmo que alguem esqueca o filtro numa consulta.
+                ModerationState = ReportModerationStateEnum.Pending,
+            };
 
-        await _unitOfWork.CommitAsync(cancellationToken);
+            await _unitOfWork.Reports.AddAsync(novo, ct);
+
+            // Na mesma gravacao do card, como o do relato. Sem titulo nem descricao: a
+            // tabela de eventos nao se apaga, e o texto e do card.
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                Report = novo,
+                UserId = autorId,
+                Type = EventTypeEnum.TeamCardCreated,
+                Source = EventSourceEnum.Panel,
+                Payload = JsonSerializer.Serialize(new
+                {
+                    number = numero,
+                    state_id = estado?.PublicId,
+                    state_name = estado?.Name,
+                    description_length = descricao?.Length ?? 0,
+                    parent_id = pai?.PublicId,
+                    parent_number = pai?.Number,
+                    sprint_id = sprint?.PublicId,
+                }),
+            }, ct);
+
+            await _unitOfWork.CommitAsync(ct);
+
+            // O responsavel e a prioridade escolhidos ao criar ficam como se escolhidos
+            // pelo campo logo depois, pelo mesmo codigo: o mesmo evento no historico,
+            // depois do "criou", e o mesmo aviso no sino. Por isso o card grava antes —
+            // o evento e o aviso apontam para ele.
+            if (responsavel is not null)
+                avisado = await AssignAsync(project, novo, responsavel, ct);
+            if (prioridade is not null)
+                await PrioritizeAsync(project, novo, prioridade, ct);
+            if (responsavel is not null || prioridade is not null)
+                await _unitOfWork.CommitAsync(ct);
+
+            return novo;
+        }, cancellationToken);
 
         card.CreatedByUser = await _unitOfWork.Users.GetByIdAsync(autorId, cancellationToken);
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
         await _notifier.CardChangedAsync(card.PublicId);
+
+        if (avisado is Guid avisada)
+            await _notifier.NotificationArrivedAsync(project.PublicId, avisada, NotificationKindEnum.Assignment);
 
         return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
             await TeamIdsForAsync([card], cancellationToken),
@@ -1215,7 +1246,8 @@ public partial class ReportService : IReportService
     /// <summary>
     /// O pai da subtarefa que vai nascer. Tem de ser do projeto, estar fora do arquivo e
     /// nao ser subtarefa — um nivel so: mais fundo, o pai deixa de mostrar o que falta.
-    /// Com pai, a coluna nao se escolhe: a subtarefa nasce na primeira.
+    /// Com pai, a coluna nao se escolhe — a subtarefa nasce na primeira —, nem o
+    /// responsavel nem a prioridade: ela nasce sem os dois.
     /// </summary>
     private async Task<Report?> ResolveParentAsync(long projectId, CreateTeamCardDto dto, CancellationToken cancellationToken)
     {
@@ -1224,6 +1256,14 @@ public partial class ReportService : IReportService
 
         if (dto.StatePublicId is not null)
             throw new ArgumentException("A subtarefa nasce na primeira coluna: nao escolha a coluna.");
+
+        // Sem responsavel, porque quem a pega e quem a faz; e sem prioridade, como sempre
+        // nasceu. Recusar, e nao ignorar: quem mandou saberia so depois que nao entrou.
+        if (dto.AssigneeUserPublicId is not null)
+            throw new ArgumentException("A subtarefa nasce sem responsavel: nao escolha o responsavel.");
+
+        if (dto.PriorityPublicId is not null)
+            throw new ArgumentException("A subtarefa nasce sem prioridade: nao escolha a prioridade.");
 
         var pai = await _unitOfWork.Reports.FindParentAsync(projectId, paiPublicId, cancellationToken)
                   ?? throw new KeyNotFoundException("O card pai nao foi encontrado neste projeto.");

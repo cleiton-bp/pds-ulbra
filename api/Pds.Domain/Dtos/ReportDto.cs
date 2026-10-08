@@ -406,8 +406,9 @@ public class CreateTeamCardDto
 
     /// <summary>
     /// O card de que este e subtarefa: um relato ou card do time do projeto, fora do
-    /// arquivo, que nao seja subtarefa. A subtarefa nasce na primeira coluna e sem
-    /// responsavel.
+    /// arquivo, que nao seja subtarefa. A subtarefa nasce na primeira coluna, sem
+    /// responsavel e sem prioridade: mandar a coluna, o responsavel ou a prioridade
+    /// junto e recusado.
     /// </summary>
     public Guid? ParentPublicId { get; set; }
 
@@ -417,6 +418,23 @@ public class CreateTeamCardDto
     /// sprint do pai.
     /// </summary>
     public Guid? SprintPublicId { get; set; }
+
+    /// <summary>
+    /// Quem fica com o card desde que nasce. Opcional: ausente, o card nasce sem
+    /// responsavel. A mesma regra de escolher pelo campo — so quem esta no time do
+    /// projeto agora —, e o mesmo registro: o evento de responsavel no historico e o
+    /// aviso no sino da pessoa escolhida, se nao for quem cria. Recusado na subtarefa.
+    /// </summary>
+    /// <example>a1000000-0000-4000-8000-000000000001</example>
+    public Guid? AssigneeUserPublicId { get; set; }
+
+    /// <summary>
+    /// A prioridade com que o card nasce. Opcional: ausente, o card nasce sem
+    /// prioridade. A mesma regra de escolher pelo campo — uma prioridade ativa do
+    /// projeto —, e o mesmo evento de prioridade no historico. Recusada na subtarefa.
+    /// </summary>
+    /// <example>7b2f0c4e-1d3a-4a8e-9f61-0c2b5d9e8a10</example>
+    public Guid? PriorityPublicId { get; set; }
 }
 
 /// <summary>

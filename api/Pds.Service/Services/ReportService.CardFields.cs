@@ -68,50 +68,14 @@ public partial class ReportService
             if (dto.UserPublicId is Guid mesma && mesma == report.AssigneeUser?.PublicId)
                 return;
 
-            long? novo = null;
+            var depois = dto.UserPublicId is Guid escolhido
+                ? await RequireAssigneeAsync(report.AccountId, report.ProjectId, escolhido, ct)
+                : null;
 
-            if (dto.UserPublicId is Guid escolhido)
-            {
-                // **So quem esta no time agora.** Quem saiu continua nos cards que ja eram
-                // dele, como registro, mas nao recebe card novo — ele nem enxerga mais o
-                // projeto.
-                var time = await TeamOfAsync(report.AccountId, report.ProjectId, ct);
-
-                novo = time.FirstOrDefault(pessoa => pessoa.PublicId == escolhido)?.Id
-                       ?? throw new ArgumentException("Esta pessoa nao esta no time do projeto.");
-            }
-
-            if (report.AssigneeUserId == novo)
+            if (report.AssigneeUserId == depois?.Id)
                 return;
 
-            var antes = report.AssigneeUser?.PublicId;
-
-            // A pessoa vem rastreada, pela leitura comum: a do time chega sem rastreio, e
-            // ligada ao card assim seria gravada de novo, linha inteira.
-            var depois = novo is long id ? await _unitOfWork.Users.GetByIdAsync(id, ct) : null;
-
-            report.AssigneeUserId = novo;
-            report.AssigneeUser = depois;
-
-            await AddCardEventAsync(project, report, EventTypeEnum.CardAssigneeChanged, new
-            {
-                from_id = antes,
-                to_id = depois?.PublicId,
-            }, ct);
-
-            // **Ninguem e avisado do que fez**: quem se escolhe ja sabe.
-            if (depois is not null && depois.Id != _accountContext.UserId)
-            {
-                await _unitOfWork.Notifications.AddAsync(new Notification
-                {
-                    UserId = depois.Id,
-                    ProjectId = report.ProjectId,
-                    ReportId = report.Id,
-                    ActorUserId = _accountContext.UserId,
-                    Kind = NotificationKindEnum.Assignment,
-                }, ct);
-                avisado = depois.PublicId;
-            }
+            avisado = await AssignAsync(project, report, depois, ct);
 
             await _unitOfWork.CommitAsync(ct);
         }, cancellationToken);
@@ -125,39 +89,14 @@ public partial class ReportService
     public Task<ReportDetailViewModel> SetPriorityAsync(Guid projectPublicId, Guid reportPublicId, SetCardPriorityDto dto, CancellationToken cancellationToken = default)
         => ChangeCardAsync(projectPublicId, reportPublicId, "mudar a prioridade", async (project, report, ct) =>
         {
-            ProjectPriority? nova = null;
-
-            if (dto.PriorityPublicId is Guid escolhida)
-            {
-                nova = await _unitOfWork.ProjectPriorities.GetByPublicIdAsync(escolhida, ct);
-
-                // O filtro garante o acesso ao projeto da prioridade, e nao que ela e deste.
-                if (nova is null || nova.ProjectId != report.ProjectId)
-                    throw new KeyNotFoundException("Prioridade nao encontrada neste projeto.");
-
-                // A aposentada continua no card que ja a tinha — escolher a mesma de novo
-                // nao e erro —, mas nao vai para outro.
-                if (!nova.IsActive && nova.Id != report.PriorityId)
-                    throw new ConflictException("Esta prioridade esta aposentada e nao e mais oferecida.");
-            }
+            var nova = dto.PriorityPublicId is Guid escolhida
+                ? await RequirePriorityAsync(report.ProjectId, escolhida, report.PriorityId, ct)
+                : null;
 
             if (report.PriorityId == nova?.Id)
                 return;
 
-            var antes = report.Priority;
-
-            report.PriorityId = nova?.Id;
-            report.Priority = nova;
-
-            // Os nomes vao junto, como no estado: renomear a prioridade nao reescreve
-            // o passado.
-            await AddCardEventAsync(project, report, EventTypeEnum.CardPriorityChanged, new
-            {
-                from_id = antes?.PublicId,
-                from_name = antes?.Name,
-                to_id = nova?.PublicId,
-                to_name = nova?.Name,
-            }, ct);
+            await PrioritizeAsync(project, report, nova, ct);
 
             await _unitOfWork.CommitAsync(ct);
         }, cancellationToken);
@@ -304,6 +243,97 @@ public partial class ReportService
             Source = EventSourceEnum.Panel,
             Payload = JsonSerializer.Serialize(payload),
         }, cancellationToken);
+
+    /// <summary>
+    /// A pessoa escolhida para ficar com um card do projeto. <b>So quem esta no time
+    /// agora</b>: quem saiu continua nos cards que ja eram dele, como registro, mas nao
+    /// recebe card novo — ele nem enxerga mais o projeto. E a regra do campo e a do card
+    /// que ja nasce com responsavel.
+    /// </summary>
+    private async Task<User> RequireAssigneeAsync(long accountId, long projectId, Guid escolhido, CancellationToken cancellationToken)
+    {
+        var time = await TeamOfAsync(accountId, projectId, cancellationToken);
+
+        var id = time.FirstOrDefault(pessoa => pessoa.PublicId == escolhido)?.Id
+                 ?? throw new ArgumentException("Esta pessoa nao esta no time do projeto.");
+
+        // A pessoa vem rastreada, pela leitura comum: a do time chega sem rastreio, e
+        // ligada ao card assim seria gravada de novo, linha inteira.
+        return await _unitOfWork.Users.GetByIdAsync(id, cancellationToken)
+               ?? throw new ArgumentException("Esta pessoa nao esta no time do projeto.");
+    }
+
+    /// <summary>
+    /// Passa o card para <paramref name="depois"/> (nula: ninguem), com o evento e o aviso
+    /// no sino de quem foi escolhido — na gravacao de quem chama. Devolve quem foi
+    /// avisado, para o sinal ao vivo, que so sai depois de gravar.
+    /// </summary>
+    private async Task<Guid?> AssignAsync(Project project, Report report, User? depois, CancellationToken cancellationToken)
+    {
+        var antes = report.AssigneeUser?.PublicId;
+
+        report.AssigneeUserId = depois?.Id;
+        report.AssigneeUser = depois;
+
+        await AddCardEventAsync(project, report, EventTypeEnum.CardAssigneeChanged, new
+        {
+            from_id = antes,
+            to_id = depois?.PublicId,
+        }, cancellationToken);
+
+        // **Ninguem e avisado do que fez**: quem se escolhe ja sabe.
+        if (depois is null || depois.Id == _accountContext.UserId)
+            return null;
+
+        await _unitOfWork.Notifications.AddAsync(new Notification
+        {
+            UserId = depois.Id,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            ActorUserId = _accountContext.UserId,
+            Kind = NotificationKindEnum.Assignment,
+        }, cancellationToken);
+
+        return depois.PublicId;
+    }
+
+    /// <summary>
+    /// A prioridade escolhida para um card do projeto: tem de ser deste projeto e estar
+    /// ativa. A aposentada continua no card que ja a tinha (<paramref name="atual"/>) —
+    /// escolher a mesma de novo nao e erro —, mas nao vai para outro.
+    /// </summary>
+    private async Task<ProjectPriority> RequirePriorityAsync(long projectId, Guid escolhida, long? atual, CancellationToken cancellationToken)
+    {
+        var prioridade = await _unitOfWork.ProjectPriorities.GetByPublicIdAsync(escolhida, cancellationToken);
+
+        // O filtro garante o acesso ao projeto da prioridade, e nao que ela e deste.
+        if (prioridade is null || prioridade.ProjectId != projectId)
+            throw new KeyNotFoundException("Prioridade nao encontrada neste projeto.");
+
+        if (!prioridade.IsActive && prioridade.Id != atual)
+            throw new ConflictException("Esta prioridade esta aposentada e nao e mais oferecida.");
+
+        return prioridade;
+    }
+
+    /// <summary>Troca a prioridade do card, com o evento — na gravacao de quem chama.</summary>
+    private Task PrioritizeAsync(Project project, Report report, ProjectPriority? nova, CancellationToken cancellationToken)
+    {
+        var antes = report.Priority;
+
+        report.PriorityId = nova?.Id;
+        report.Priority = nova;
+
+        // Os nomes vao junto, como no estado: renomear a prioridade nao reescreve
+        // o passado.
+        return AddCardEventAsync(project, report, EventTypeEnum.CardPriorityChanged, new
+        {
+            from_id = antes?.PublicId,
+            from_name = antes?.Name,
+            to_id = nova?.PublicId,
+            to_name = nova?.Name,
+        }, cancellationToken);
+    }
 
     /// <summary>
     /// O time do projeto agora: quem e dono da conta e quem tem linha no time. E a

@@ -129,8 +129,10 @@ public interface IReportService
     Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, string? sort = null, string? dir = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cria um card do time: titulo, descricao em Markdown e o estado em que nasce.
-    /// Ganha o proximo numero do projeto, como o relato. Nunca tem lado de fora.
+    /// Cria um card do time: titulo, descricao em Markdown, o estado em que nasce e, se
+    /// vierem, o responsavel e a prioridade — pelas regras e com o registro de escolher
+    /// pelo campo, numa transacao so. Ganha o proximo numero do projeto, como o relato.
+    /// Nunca tem lado de fora.
     /// </summary>
     Task<ReportDetailViewModel> CreateTeamCardAsync(Guid projectPublicId, CreateTeamCardDto dto, CancellationToken cancellationToken = default);
 

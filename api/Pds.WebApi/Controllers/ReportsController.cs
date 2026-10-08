@@ -565,16 +565,24 @@ public class ReportsController : BaseController
     /// Markdown, opcional (até 10 000). Sem `StatePublicId`, nasce no primeiro estado
     /// ativo do projeto.
     ///
+    /// **Responsável e prioridade podem vir na própria criação** — `AssigneeUserPublicId`
+    /// e `PriorityPublicId`, opcionais —, pelas regras das rotas de campo
+    /// (`PUT …/assignee` e `PUT …/priority`), com as mesmas recusas: o responsável tem
+    /// de estar no time do projeto (400), e a prioridade tem de ser do projeto (404) e
+    /// ativa (409). O registro também é o mesmo: no histórico, depois de "criou", a
+    /// mudança de responsável e a de prioridade; e o aviso no sino da pessoa escolhida,
+    /// se não for quem cria. Tudo numa transação só: recusado um, o card não nasce.
+    ///
     /// **Com `ParentPublicId`, nasce como subtarefa** daquele card — um relato ou card
     /// do time do projeto, fora do arquivo, que não seja subtarefa: um nível só. Nasce
-    /// no primeiro estado ativo e sem responsável; mandar a coluna junto
-    /// é recusado.
+    /// no primeiro estado ativo, sem responsável e sem prioridade; mandar a coluna, o
+    /// responsável ou a prioridade junto é recusado (400).
     /// </remarks>
     /// <response code="200">O card criado.</response>
-    /// <response code="400">Sem título, título ou descrição longos demais, ou a coluna mandada com o pai.</response>
+    /// <response code="400">Sem título, título ou descrição longos demais, o responsável fora do time do projeto, ou a coluna, o responsável ou a prioridade mandados com o pai.</response>
     /// <response code="403">O projeto está arquivado.</response>
-    /// <response code="404">Projeto, estado ou o card pai não existe no projeto, ou a pessoa não está no projeto.</response>
-    /// <response code="409">O estado escolhido está aposentado, ou o pai está arquivado ou é subtarefa.</response>
+    /// <response code="404">Projeto, estado, sprint, prioridade ou o card pai não existe no projeto, ou a pessoa não está no projeto.</response>
+    /// <response code="409">O estado ou a prioridade escolhidos estão aposentados, a sprint já foi concluída ou o projeto não trabalha em sprints, ou o pai está arquivado ou é subtarefa.</response>
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
@@ -882,7 +890,7 @@ public class ReportsController : BaseController
     /// <remarks>
     /// Uma prioridade ativa do projeto. A aposentada continua no card que já a tinha, e
     /// não vai para outro (409). `PriorityPublicId` nulo é sem prioridade — como o card
-    /// nasce.
+    /// nasce, se não se escolhe uma ao criar.
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
     /// <response code="404">Card, projeto ou prioridade não existe, ou a pessoa não está no projeto.</response>
