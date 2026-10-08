@@ -20,7 +20,7 @@ namespace Pds.Service.Services;
 /// historia.</para>
 ///
 /// <para>E trabalho do time, e nao configuracao: qualquer pessoa do time planeja. Quem
-/// liga as sprints e o administrador, no Ciclo.</para>
+/// liga as sprints e o administrador, em Sprints.</para>
 /// </summary>
 public class SprintService : ISprintService
 {
@@ -35,10 +35,16 @@ public class SprintService : ISprintService
         _notifier = notifier;
     }
 
-    public async Task<IReadOnlyList<SprintViewModel>> ListAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<SprintViewModel>> ListAsync(Guid projectPublicId, bool withClosed = false, CancellationToken cancellationToken = default)
     {
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);
         var sprints = await _unitOfWork.Sprints.ListOpenAsync(project.Id, cancellationToken);
+
+        // As concluidas so a pedido, depois das abertas: e o filtro de sprint da lista. O
+        // backlog, o quadro e o card leem sem elas — a concluida nao recebe card.
+        if (withClosed)
+            sprints = [.. sprints, .. await _unitOfWork.Sprints.ListClosedAsync(project.Id, cancellationToken)];
+
         var numeros = await _unitOfWork.Reports.CountSprintsAsync(sprints.Select(sprint => sprint.Id).ToList(), cancellationToken);
 
         return sprints.Select(sprint => Map(sprint, numeros.GetValueOrDefault(sprint.Id, SprintStats.Empty))).ToList();
@@ -49,7 +55,7 @@ public class SprintService : ISprintService
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);
         var regras = await RequireSprintsAsync(project.Id, cancellationToken);
 
-        var sprint = await NewPlannedAsync(project, regras, dto, cancellationToken);
+        var sprint = await NewPlannedAsync(project, regras, dto, null, cancellationToken);
         await _unitOfWork.CommitAsync(cancellationToken);
 
         await _notifier.ProjectChangedAsync(project.PublicId);
@@ -62,7 +68,7 @@ public class SprintService : ISprintService
         var sprint = await RequireSprintAsync(project.Id, sprintPublicId, cancellationToken);
 
         if (sprint.State == SprintStateEnum.Closed)
-            throw new ConflictException("A sprint fechada nao muda: ela e a historia do que aconteceu.");
+            throw new ConflictException("A sprint concluida nao muda: ela e a historia do que aconteceu.");
 
         sprint.Name = RequireName(dto.Name);
         sprint.Goal = NormalizeGoal(dto.Goal);
@@ -79,7 +85,7 @@ public class SprintService : ISprintService
     public async Task<SprintViewModel> StartAsync(Guid projectPublicId, Guid sprintPublicId, SaveSprintDto? dto, CancellationToken cancellationToken = default)
     {
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);
-        await RequireSprintsAsync(project.Id, cancellationToken);
+        var regras = await RequireSprintsAsync(project.Id, cancellationToken);
 
         var sprint = await _unitOfWork.InTransactionAsync(async ct =>
         {
@@ -92,21 +98,24 @@ public class SprintService : ISprintService
             if (alvo.State != SprintStateEnum.Planned)
                 throw new ConflictException(alvo.State == SprintStateEnum.Active
                     ? "Esta sprint ja esta em andamento."
-                    : "A sprint fechada nao volta a andar.");
+                    : "A sprint concluida nao volta a andar.");
 
             if (await _unitOfWork.Sprints.FindActiveAsync(project.Id, ct) is { } emAndamento)
-                throw new ConflictException($"A {emAndamento.Name} esta em andamento. Conclua-a antes de iniciar outra.");
+                throw new ConflictException($"A {emAndamento.Name} esta em andamento: conclua essa antes de iniciar outra.");
 
             // O que vier no pedido vale para a sprint que comeca — o dialogo de iniciar
             // ajusta nome, objetivo e datas.
-            if (dto is not null)
-            {
-                if (dto.Name is not null)
-                    alvo.Name = RequireName(dto.Name);
-                if (dto.Goal is not null)
-                    alvo.Goal = NormalizeGoal(dto.Goal);
-                (alvo.StartsOn, alvo.EndsOn) = RequireDates(dto.StartsOn ?? alvo.StartsOn, dto.EndsOn ?? alvo.EndsOn);
-            }
+            if (dto?.Name is not null)
+                alvo.Name = RequireName(dto.Name);
+            if (dto?.Goal is not null)
+                alvo.Goal = NormalizeGoal(dto.Goal);
+
+            // **Iniciar comeca hoje** — o dia de quem inicia —, com a duracao do projeto.
+            // As datas planejadas eram previsao: mantidas, a sprint iniciada antes da hora
+            // "comecava" no futuro, e a barra contava os dias errado. So as datas que a
+            // pessoa escolheu no dialogo valem no lugar.
+            var comeca = dto?.StartsOn ?? TodayOf(dto?.Today);
+            (alvo.StartsOn, alvo.EndsOn) = RequireDates(comeca, dto?.EndsOn ?? comeca.AddDays(regras.SprintLengthWeeks * 7 - 1));
 
             alvo.State = SprintStateEnum.Active;
             alvo.StartedAt = DateTime.UtcNow;
@@ -150,11 +159,17 @@ public class SprintService : ISprintService
             if (alvo.State != SprintStateEnum.Active)
                 throw new ConflictException("So a sprint em andamento se conclui.");
 
+            // A sprint nova conta as datas sem a que esta sendo concluida: o fim planejado
+            // dela ja nao diz nada, e a nova nasceria depois dele.
             destino = destinoTipo switch
             {
                 SprintCloseDestinationEnum.Sprint => await RequirePlannedDestinationAsync(project.Id, dto.SprintPublicId, alvo, ct),
                 SprintCloseDestinationEnum.NewSprint => await NewPlannedAsync(
-                    project, await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, ct), new SaveSprintDto(), ct),
+                    project,
+                    await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, ct),
+                    new SaveSprintDto { Today = dto.Today },
+                    alvo.Id,
+                    ct),
                 _ => null,
             };
 
@@ -243,8 +258,8 @@ public class SprintService : ISprintService
             // So a planejada se apaga: a em andamento fecha, e a fechada e a historia.
             if (alvo.State != SprintStateEnum.Planned)
                 throw new ConflictException(alvo.State == SprintStateEnum.Active
-                    ? "A sprint em andamento nao se apaga: conclua-a."
-                    : "A sprint fechada nao se apaga: ela e a historia do que aconteceu.");
+                    ? "A sprint em andamento nao se apaga: ela se conclui."
+                    : "A sprint concluida nao se apaga: ela e a historia do que aconteceu.");
 
             // Os cards voltam para o fim do backlog, na ordem em que estavam.
             var fim = await _unitOfWork.Reports.FindBacklogEdgeRankAsync(project.Id, null, top: false, exceptId: 0, ct) ?? 0;
@@ -275,13 +290,14 @@ public class SprintService : ISprintService
 
     /// <summary>
     /// Uma sprint planejada nova: o proximo numero, o nome de fabrica, e as datas logo
-    /// depois da ultima que nao fechou (ou a partir de hoje), com a duracao do projeto.
-    /// Nao grava: quem chama confirma.
+    /// depois da ultima que nao fechou (ou a partir de hoje, o dia de quem pede), com a
+    /// duracao do projeto. <paramref name="exceto"/> nao conta: e a sprint que esta sendo
+    /// concluida. Nao grava: quem chama confirma.
     /// </summary>
-    private async Task<Sprint> NewPlannedAsync(Project project, ProjectCycleSettings? regras, SaveSprintDto dto, CancellationToken cancellationToken)
+    private async Task<Sprint> NewPlannedAsync(Project project, ProjectCycleSettings? regras, SaveSprintDto dto, long? exceto, CancellationToken cancellationToken)
     {
-        var hoje = DateOnly.FromDateTime(DateTime.UtcNow);
-        var ultimoFim = await _unitOfWork.Sprints.FindLastEndAsync(project.Id, cancellationToken);
+        var hoje = TodayOf(dto.Today);
+        var ultimoFim = await _unitOfWork.Sprints.FindLastEndAsync(project.Id, exceto, cancellationToken);
         var inicio = dto.StartsOn ?? (ultimoFim is DateOnly fim && fim >= hoje ? fim.AddDays(1) : hoje);
         var semanas = regras?.SprintLengthWeeks ?? CycleSettingsDefaults.SprintLengthWeeks;
         var (comeca, termina) = RequireDates(inicio, dto.EndsOn ?? inicio.AddDays(semanas * 7 - 1));
@@ -365,12 +381,24 @@ public class SprintService : ISprintService
         return objetivo.Length == 0 ? null : objetivo.Replace("\r\n", "\n");
     }
 
+    /// <summary>
+    /// O dia de hoje de quem pede. **O painel manda o dia do relogio da pessoa**, e nao o
+    /// de Greenwich: a noite, no Brasil, o UTC ja esta no dia seguinte, e a sprint criada
+    /// ou iniciada as 22h "comecava amanha". Sem ele, ou a mais de um dia do relogio do
+    /// servidor — o que nenhum fuso explica —, vale o dia em UTC.
+    /// </summary>
+    private static DateOnly TodayOf(DateOnly? doPedido)
+    {
+        var utc = DateOnly.FromDateTime(DateTime.UtcNow);
+        return doPedido is DateOnly dia && Math.Abs(dia.DayNumber - utc.DayNumber) <= 1 ? dia : utc;
+    }
+
     private static (DateOnly, DateOnly) RequireDates(DateOnly comeca, DateOnly termina)
     {
         if (comeca.Year < 2000 || termina.Year > 2100)
             throw new ArgumentException("Escolha datas entre os anos 2000 e 2100.");
         if (termina < comeca)
-            throw new ArgumentException("O ultimo dia da sprint vem depois do primeiro.");
+            throw new ArgumentException("O ultimo dia da sprint nao pode vir antes do primeiro.");
         if (termina.DayNumber - comeca.DayNumber > 365)
             throw new ArgumentException("Uma sprint dura ate um ano.");
 
@@ -382,7 +410,7 @@ public class SprintService : ISprintService
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(projectId, cancellationToken);
         return regras is { SprintsEnabled: true }
             ? regras
-            : throw new ConflictException("Este projeto nao trabalha em sprints. O administrador liga no Ciclo.");
+            : throw new ConflictException("Este projeto nao trabalha em sprints. O administrador liga em Sprints.");
     }
 
     private async Task<Sprint> RequireSprintAsync(long projectId, Guid publicId, CancellationToken cancellationToken)

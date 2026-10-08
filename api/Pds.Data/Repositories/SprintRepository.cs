@@ -21,15 +21,26 @@ public class SprintRepository : BaseRepository<Sprint, DataContext>, ISprintRepo
             .ThenBy(sprint => sprint.Number)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Sprint>> ListClosedAsync(long projectId, CancellationToken cancellationToken = default)
+        // Pela data em que fechou; o numero desempata, e a mais nova fica em cima.
+        => await Context.Sprints
+            .AsNoTracking()
+            .Where(sprint => sprint.ProjectId == projectId && sprint.State == SprintStateEnum.Closed)
+            .OrderByDescending(sprint => sprint.ClosedAt)
+            .ThenByDescending(sprint => sprint.Number)
+            .ToListAsync(cancellationToken);
+
     public Task<Sprint?> FindAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
         => Context.Sprints.FirstOrDefaultAsync(sprint => sprint.ProjectId == projectId && sprint.PublicId == publicId, cancellationToken);
 
     public Task<Sprint?> FindActiveAsync(long projectId, CancellationToken cancellationToken = default)
         => Context.Sprints.FirstOrDefaultAsync(sprint => sprint.ProjectId == projectId && sprint.State == SprintStateEnum.Active, cancellationToken);
 
-    public Task<DateOnly?> FindLastEndAsync(long projectId, CancellationToken cancellationToken = default)
+    public Task<DateOnly?> FindLastEndAsync(long projectId, long? exceptId = null, CancellationToken cancellationToken = default)
         => Context.Sprints
-            .Where(sprint => sprint.ProjectId == projectId && sprint.State != SprintStateEnum.Closed)
+            .Where(sprint => sprint.ProjectId == projectId
+                             && sprint.State != SprintStateEnum.Closed
+                             && sprint.Id != exceptId)
             .Select(sprint => (DateOnly?)sprint.EndsOn)
             .MaxAsync(cancellationToken);
 }
