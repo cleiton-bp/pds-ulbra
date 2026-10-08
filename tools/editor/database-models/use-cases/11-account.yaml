@@ -1,7 +1,7 @@
 meta:
   title: A conta
   system: PDS — painel
-  description: "Chamar quem trabalha junto — por projeto, como administrador ou como membro —, cuidar de quem está no time, e sair de vez, excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. O convite e o time já existem; a exclusão é Planejado."
+  description: "Chamar quem trabalha junto — por projeto, como administrador ou como membro —, cuidar de quem está no time, escolher como cada um é avisado, e sair de vez, excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. O convite, o time e o perfil já existem; a exclusão é Planejado."
 actors:
   - name: Dono do projeto
     description: Quem criou a conta; manda em todos os projetos dela, e é administrador de cada um.
@@ -88,7 +88,27 @@ useCases:
       - O painel explica que é imediato e sem volta.
       - O dono confirma.
       - O sistema apaga, na hora, o que identifica a pessoa.
+  - id: UC07
+    name: Escolher como sou avisado
+    description: "No Perfil, a pessoa escolhe um som para cada tipo de aviso do painel — quando a mencionam, quando a escolhem como responsável — e o volume. Vale em todos os projetos e em qualquer computador."
+    position: { x: 530, y: 300 }
+    preconditions: A pessoa está no painel.
+    mainFlow:
+      - A pessoa abre o Perfil, pelo menu dela ou por "Preferências de aviso", no sino.
+      - O painel mostra o nome, o e-mail e a conta — que vêm do Google, só para ler — e o som de cada tipo de aviso, com o volume.
+      - A pessoa escolhe um som para cada tipo, ouve antes, ajusta o volume e salva.
+    alternativeFlows:
+      - title: 3a. Sem som
+        steps:
+          - O aviso daquele tipo chega só no sino.
+      - title: 3b. Nunca escolheu
+        steps:
+          - Vale o de fábrica — Plim na menção, Sino na escolha como responsável —, no volume 70.
+    postconditions: Os avisos ficam no painel; nenhum vai por e-mail.
 links:
+  - from: Membro do time
+    to: UC07
+    kind: association
   - from: Administrador do projeto
     to: UC01
     kind: association

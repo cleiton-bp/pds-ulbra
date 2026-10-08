@@ -51,7 +51,7 @@ useCases:
     position: { x: 250, y: 640 }
   - id: UC07
     name: Trabalhar o relato
-    description: Lê o que chegou, comenta — por dentro ou para quem relatou —, move entre os estados que o projeto criou, pelo card ou arrastando no quadro, e organiza o card — título, responsável, prioridade, etiquetas e prazo. Detalhe em 05-team-work.
+    description: Lê o que chegou, comenta — por dentro ou para quem relatou —, move entre os estados que o projeto criou, pelo card ou arrastando no quadro (em raias, se quiser), organiza o card — título, responsável, prioridade, etiquetas, prazo, subtarefas e vínculos —, muda vários de uma vez, planeja em sprints se o projeto ligar, e é avisado no sino quando o chamam. Detalhe em 05-team-work.
     width: 230
     position: { x: 620, y: 20 }
   - id: UC08

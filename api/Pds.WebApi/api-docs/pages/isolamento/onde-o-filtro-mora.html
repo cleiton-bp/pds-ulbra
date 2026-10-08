@@ -80,6 +80,15 @@ o relato, e é pelo relato que o filtro passa. É também esse filtro que faz o 
 assinar a leitura de um arquivo de projeto em que a pessoa não está: o relato de fora não volta,
 e nenhum link chega a ser gerado.</p>
 
+<p><strong>As tabelas do trabalho do time comparam coluna, como o relato.</strong>
+<code>card_links</code> e <code>notifications</code> repetem o <code>project_id</code> do card, e
+<code>sprints</code> tem o dele: o acesso compara a coluna, sem junção. O vínculo some também
+quando um dos dois cards foi apagado, e o aviso, quando o card dele foi. De quem é o aviso, cada
+leitura diz — o filtro guarda o projeto, e a pessoa vai na consulta.</p>
+
+<p><code>user_notification_sounds</code> é da pessoa, e não de projeto — o som que ela escolheu
+para cada tipo de aviso vale em todos —: o filtro só tira o apagado, e cada leitura diz de quem.</p>
+
 <p><code>events</code> também compara coluna, e só o projeto: evento não se apaga, então não há
 exclusão lógica para repetir. Todo evento gravado hoje nasce de um projeto; o que um dia ficar sem
 ele — o projeto some de verdade, e o evento fica — não aparece no painel. <code>accounts</code> e

@@ -29,8 +29,9 @@ Abre em **`http://localhost:5173`**, e precisa da API rodando em
 |---|---|
 | `VITE_API_URL` | Endereço da API. Padrão `http://localhost:5080` |
 | `VITE_GOOGLE_CLIENT_ID` | ID do cliente OAuth, do Google Cloud |
+| `VITE_LOADER_URL` | Opcional. De onde o carregador da ferramenta é servido, no trecho que o cliente cola no site. Padrão: a origem do painel, `/v1/pds.js` |
 
-Nenhuma das duas é segredo: o Vite injeta toda `VITE_*` no bundle, então quem
+Nenhuma delas é segredo: o Vite injeta toda `VITE_*` no bundle, então quem
 abre o devtools as lê. O segredo mora na API — chave de assinatura do JWT e
 string de conexão nunca chegam ao navegador.
 

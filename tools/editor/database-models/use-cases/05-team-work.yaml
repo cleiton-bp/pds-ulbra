@@ -1,7 +1,7 @@
 meta:
   title: O time trabalha o relato
   system: PDS — painel
-  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards — e que, como a lista e o card aberto, muda sozinho quando outra pessoa do time mexe. E as subtarefas e os vínculos entre cards, com o relato duplicado acompanhando o original. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards — e que, como a lista e o card aberto, muda sozinho quando outra pessoa do time mexe. E as subtarefas e os vínculos entre cards, com o relato duplicado acompanhando o original. E os filtros, as raias do quadro e as mudanças em lote, para muitos cards. E o backlog e as sprints, para o projeto que liga. E as menções e os avisos, no sino, com o som que cada pessoa escolhe. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
 actors:
   - name: Membro do time
     description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
