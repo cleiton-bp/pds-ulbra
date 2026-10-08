@@ -64,7 +64,7 @@ Feito esse mapeamento uma vez, o trajeto passa a andar sozinho: o registro se mo
 - filtros, busca e mudanças em lote;
 - backlog e sprints, para o projeto que trabalha assim, com a estimativa em pontos;
 - menções e avisos no sino, com o som que cada pessoa escolhe;
-- tudo em tempo real para o time inteiro, com convite por e-mail e papéis de administrador e membro.
+- a tela de Trabalho em tempo real para o time inteiro, com convite por e-mail e papéis de administrador e membro.
 
 O que o time faz do lado de dentro nunca vaza: comentário interno, responsável, título do time e estados internos ficam no painel, e o lado de fora vê só a etapa pública.
 

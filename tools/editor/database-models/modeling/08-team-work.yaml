@@ -678,7 +678,7 @@ entities:
       - name: type
         type: enum
         required: true
-        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois da moderação: report_published, gravado quando o relato é liberado para o público, e report_moderation_rejected, quando é recusado. Sentido novo — os do time, sem relato: project_invitation_sent, project_invitation_resent, project_invitation_revoked, project_invitation_accepted, project_member_role_changed e project_member_removed; e os do card: team_card_created, team_card_edited, card_archived, card_unarchived, card_title_changed, card_assignee_changed, card_priority_changed, card_labels_changed e card_due_date_changed. Nem o e-mail de quem foi convidado nem o texto do título vão no payload: esta tabela não se apaga"
+        note: "report_created | report_viewed | report_state_changed | report_internal_commented | report_public_commented | report_public_stage_changed | report_public_stage_unmapped | report_closed | report_confirmed | report_reopened | report_info_requested | report_replied | report_closure_cancelled, e os dois da moderação: report_published, gravado quando o relato é liberado para o público, e report_moderation_rejected, quando é recusado. Sentido novo — os do time, sem relato: project_invitation_sent, project_invitation_resent, project_invitation_revoked, project_invitation_accepted, project_member_role_changed e project_member_removed; e os do card: team_card_created, team_card_edited, card_archived, card_unarchived, card_title_changed, card_assignee_changed, card_priority_changed, card_labels_changed e card_due_date_changed. Nem o e-mail de quem foi convidado nem o texto do título vão no payload: esta tabela não se apaga; e card_linked, card_unlinked, card_sprint_changed e card_points_changed no card, sprint_started e sprint_closed no projeto."
       - name: source
         type: enum
         required: true
@@ -1546,7 +1546,7 @@ entities:
         note: preenchido quando o vínculo é desfeito
   - name: notifications
     label: Avisos do sino
-    description: "Um aviso para uma pessoa do time: alguém a mencionou num comentário interno, ou a escolheu como responsável por um card. Cada pessoa lê só os próprios, e só dos projetos em que ainda está. A menção avisa só no sino; a escolha como responsável também por e-mail, se a pessoa quiser. Interno."
+    description: "Um aviso para uma pessoa do time: alguém a mencionou num comentário interno, ou a escolheu como responsável por um card. Cada pessoa lê só os próprios, e só dos projetos em que ainda está. Os dois avisam só no sino do painel, com o som que a pessoa escolheu para o tipo; nenhum vai por e-mail."
     position: { x: 4450, y: 1500 }
     fields:
       - name: id
@@ -1598,7 +1598,7 @@ entities:
         note: exclusão lógica
   - name: sprints
     label: Sprints
-    description: "As sprints do projeto, com a sprint ligada no Ciclo: uma em andamento por vez — a que o quadro mostra —, as planejadas e as concluídas, que guardam o que terminou nelas. Interno."
+    description: "As sprints do projeto, com as sprints ligadas no Ciclo: uma em andamento por vez — a que o quadro mostra —, as planejadas e as concluídas, que guardam o que terminou nelas. Interno."
     position: { x: 4450, y: 2200 }
     fields:
       - name: id

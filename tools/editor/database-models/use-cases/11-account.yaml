@@ -95,7 +95,7 @@ useCases:
     preconditions: A pessoa está no painel.
     mainFlow:
       - A pessoa abre o Perfil, pelo menu dela ou por "Preferências de aviso", no sino.
-      - O painel mostra o nome, o e-mail e a conta — que vêm do Google, só para ler — e o som de cada tipo de aviso, com o volume.
+      - O painel mostra o nome, o e-mail e a foto — que vêm do Google, só para ler —, a conta, e o som de cada tipo de aviso, com o volume.
       - A pessoa escolhe um som para cada tipo, ouve antes, ajusta o volume e salva.
     alternativeFlows:
       - title: 3a. Sem som

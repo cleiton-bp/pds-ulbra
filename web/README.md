@@ -426,7 +426,8 @@ coluna manda a sprint em andamento ao `NewCardDialog`. O card aberto ganha Sprin
 `data/sprintService.ts`.
 
 **Raias.** No quadro, a escolha "Raias" (lembrada por projeto neste navegador, como a vista)
-agrupa por responsável ou por prioridade: `boardLanes` monta as raias do que já foi lido, e
+agrupa por responsável ou por prioridade: `boardLanes` monta as raias — todas as prioridades ativas,
+e as pessoas com card; a aposentada e quem saiu do time não recebem (`accepts`) —, e
 `boardCells` divide cada coluna em células (coluna × raia). O arraste passa a ser de célula em
 célula — `moveToCell` põe o card na ordem da coluna inteira, logo abaixo do de cima na célula —, e
 soltar em outra raia chama `setAssignee` ou `setPriority` depois do movimento (o card fica na raia
@@ -438,7 +439,10 @@ todas as raias. Sem raias, o quadro monta o mesmo de antes.
 marcados, a barra `BulkActions`: mover de coluna, responsável, prioridade, pôr ou tirar etiqueta e,
 com as sprints ligadas, a sprint. Card por card, pelas rotas de sempre, na ordem da lista; o que
 não mudou aparece num diálogo com o porquê. A coluna que encerra pede o desfecho uma vez
-(`CloseReportDialog` com `lote`). Trocar o filtro, a coluna, a vista ou o projeto desmarca tudo.
+(`CloseReportDialog` com `lote`); etiquetas são gravadas sobre o card lido na hora
+(`refreshReport`). A barra fica presa embaixo da tela, depois da tabela, e a seleção fica depois de
+cada mudança; o que não mudou aparece no `BulkFailures`, na tela. Trocar o filtro, a coluna, a vista
+ou o projeto desmarca tudo.
 
 **Menções, o sino e o som.** Na caixa "Entre o time", digitar "@" abre a lista do time
 (`MentionTextarea`, lida no primeiro "@"; setas, Enter ou Tab, e o Esc que fecha só a lista — ele é
@@ -450,7 +454,7 @@ ao voltar para a aba, a cada minuto com a aba à vista e, na tela de Trabalho, n
 `NotificationArrived` chega pelo tempo real (`announceNotificationArrival`); a resposta atrasada não
 passa por cima da de uma ação —, lê a lista ao abrir, leva ao card e marca como lido. **Quando o
 número sobe, toca o som** do tipo do aviso mais novo, no volume da pessoa (`playNotificationSound`,
-em `features/notifications/sounds.ts`: os sons são notas geradas com Web Audio, sem arquivo). As
+em `shared/lib/notificationSounds.ts`: os sons são notas geradas com Web Audio, sem arquivo). As
 preferências ficam no **Perfil** (`/profile`, `ProfileScreen`, no menu da pessoa e em "Preferências
 de aviso" no sino): um som para cada tipo de aviso, com "Ouvir", e o volume. Os dados em
 `data/notificationService.ts`.
@@ -572,7 +576,7 @@ vídeos de antes de o vídeo sair do produto continuam tocando.
 | a página não é renderizada no servidor (**Planejado**) | ela baixa **uns 86 kB comprimidos** de JavaScript, uns 60 deles o próprio React, para desenhar uma tela quase sem interação. A tela branca acabou — `tracking.html` desenha um esqueleto antes de qualquer script —, mas o peso continua |
 | o limite de envio em `public/reports` | é a rota que qualquer visitante de qualquer site alcança; hoje têm limitador o login e as duas rotas de envio de arquivo. **Planejado** |
 
-Fora do corte, de propósito: o plano de cobrança (**Continuidade**); sprints e relatórios
+Fora do corte, de propósito: o plano de cobrança (**Continuidade**); os relatórios
 (**Planejado**); a busca nos comentários e um índice de busca de texto (**Continuidade**); o tempo real com mais de uma instância da API e a página de
 acompanhamento ao vivo de quem relatou (**Continuidade**); a lista pública com imagens e a página pública
 de um relato aprovado (**Adiado**). E o `frame-ancestors` — a conferência de hoje mora

@@ -11,7 +11,7 @@ const TEXTOS: Record<'nunca-conectou' | 'caiu', { curto: string; explicacao: str
   'nunca-conectou': {
     curto: 'Sem atualização ao vivo',
     explicacao:
-      'As mudanças de outras pessoas só aparecem ao abrir de novo, até a conexão abrir. A tela continua tentando.',
+      'As mudanças de outras pessoas só aparecem ao recarregar a tela, até a conexão voltar. A tela continua tentando.',
   },
   caiu: {
     curto: 'Reconectando…',

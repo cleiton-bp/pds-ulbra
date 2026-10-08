@@ -1,7 +1,7 @@
 meta:
   title: Continuidade
   system: PDS
-  description: "Continuidade. O que o produto pode vir a ter depois do que está planejado, fora do escopo atual. Está mapeado para não se perder, e com menos decisão tomada: cada caso de uso diz o que já se sabe, e o resto está a decidir. As sprints, os relatórios e os duplicados aparecem marcados Planejado. O quadro arrastável e o tempo real do time já existem — ver 05-team-work."
+  description: "Continuidade. O que o produto pode vir a ter depois do que está planejado, fora do escopo atual. Está mapeado para não se perder, e com menos decisão tomada: cada caso de uso diz o que já se sabe, e o resto está a decidir. Os relatórios aparecem marcados Planejado. O quadro arrastável, o tempo real, as sprints e os duplicados já existem — ver 05-team-work."
 actors:
   - name: Dono do projeto
     description: Decide para onde os relatos vão, onde a mídia fica e qual plano o projeto usa.
@@ -41,13 +41,6 @@ useCases:
       - O membro deixa o quadro aberto, conectado a uma delas.
       - Outra pessoa do time, conectada a outra instância, move um card.
       - O card aparece no lugar novo do mesmo jeito.
-  - id: UC03
-    name: Organizar em sprints
-    description: Planejado. A ferramenta dá o mecanismo; montar a sprint e organizar os cards é decisão do time.
-    position: { x: 300, y: 305 }
-    mainFlow:
-      - O membro cria uma sprint.
-      - Escolhe os cards que entram nela.
   - id: UC04
     name: Ver relatórios do trabalho
     description: Planejado. Relatórios e gráficos do trabalho do time sobre os relatos.
@@ -77,13 +70,6 @@ useCases:
     mainFlow:
       - O dono conecta o armazenamento dele.
       - Os arquivos novos passam a ir direto para lá.
-  - id: UC08
-    name: Agrupar relatos duplicados
-    description: "Planejado. Duplicado não encerra: agrupa, e quem relatou acompanha o original."
-    position: { x: 289, y: 86 }
-    mainFlow:
-      - O membro marca o relato como duplicado de outro.
-      - Quem relatou passa a acompanhar o original.
   - id: UC09
     name: Votar num relato não priorizado
     description: Continuidade. Em projeto público, o que não será feito vira “não priorizado” e acumula voto de quem também quer.
@@ -108,9 +94,6 @@ links:
     to: UC02
     kind: association
   - from: Membro do time
-    to: UC03
-    kind: association
-  - from: Membro do time
     to: UC04
     kind: association
   - from: Relator
@@ -124,9 +107,6 @@ links:
     kind: association
   - from: Armazenamento do cliente
     to: UC07
-    kind: association
-  - from: Membro do time
-    to: UC08
     kind: association
   - from: Visitante do site
     to: UC09
