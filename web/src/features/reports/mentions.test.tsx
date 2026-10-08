@@ -116,6 +116,21 @@ describe('o campo com "@"', () => {
     fireEvent.change(campo, { target: { value: valor, selectionStart: valor.length } })
   }
 
+  it('no meio do texto, o cursor vai para depois da mencao na mesma hora — sem esperar o quadro seguinte', async () => {
+    render(<Campo aoMencionar={vi.fn()} />)
+    const campo = screen.getByRole('textbox', { name: 'Entre o time' }) as HTMLTextAreaElement
+    fireEvent.change(campo, { target: { value: 'Olha @bru, por favor', selectionStart: 9 } })
+    await screen.findByRole('listbox', { name: 'Pessoas do time' })
+    const quadro = vi.spyOn(window, 'requestAnimationFrame')
+    fireEvent.keyDown(campo, { key: 'Enter' })
+
+    expect(campo.value).toBe('Olha @Bruno Membro , por favor')
+    // Logo depois do Enter, antes de qualquer quadro: a proxima tecla cai no lugar certo.
+    expect(campo.selectionStart).toBe('Olha @Bruno Membro '.length)
+    expect(quadro).not.toHaveBeenCalled()
+    quadro.mockRestore()
+  })
+
   it('o "@" abre o time, sem quem escreve e sem acento; Enter escolhe', async () => {
     const aoMencionar = vi.fn()
     render(<Campo aoMencionar={aoMencionar} />)

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { TeamMemberViewModel } from '@/contracts'
 import { projectTeamService } from '@/data'
 import { PersonAvatar } from '@/features/reports/cardLook'
@@ -96,19 +96,27 @@ export function MentionTextarea({
     return () => window.removeEventListener('keydown', aoTeclar, true)
   }, [aberta])
 
+  // O cursor depois da mencao, posto **assim que o texto novo chega a caixa** — antes de
+  // a proxima tecla ser lida. Num quadro depois (como era), o que se digitava no
+  // intervalo ia para o fim, e o cursor voltava para tras dele: "@Ana gada.? Obri".
+  const cursorDepois = useRef<{ valor: string; posicao: number } | null>(null)
+  useLayoutEffect(() => {
+    const pendente = cursorDepois.current
+    if (!pendente || pendente.valor !== value) return
+    cursorDepois.current = null
+    campo.current?.focus()
+    campo.current?.setSelectionRange(pendente.posicao, pendente.posicao)
+  }, [value])
+
   function escolher(pessoa: TeamMemberViewModel) {
     if (!consulta) return
     const nome = pessoa.Name?.trim() || pessoa.Email || 'Alguém do time'
     const cursor = campo.current?.selectionStart ?? value.length
     const novo = `${value.slice(0, consulta.start)}@${nome} ${value.slice(cursor)}`
-    const depois = consulta.start + nome.length + 2
+    cursorDepois.current = { valor: novo, posicao: consulta.start + nome.length + 2 }
     onChange(novo)
     onMention({ name: nome, id: pessoa.UserPublicId })
     setConsulta(null)
-    requestAnimationFrame(() => {
-      campo.current?.focus()
-      campo.current?.setSelectionRange(depois, depois)
-    })
   }
 
   return (
