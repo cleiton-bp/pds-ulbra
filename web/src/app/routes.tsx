@@ -32,7 +32,7 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
  * `/projects/:publicId` sozinho decide a porta pelo papel: quem configura cai na
- * Instalação, quem e so membro cai nos Relatos. As secoes de Configuração ficam
+ * Instalacao, quem e so membro cai nos Relatos. As secoes de Configuracao ficam
  * atras de `RequireProjectAdministrator`, que manda o membro para os Relatos.
  *
  * `createBrowserRouter` e nao o modo simples porque dele vem o `useBlocker`, que

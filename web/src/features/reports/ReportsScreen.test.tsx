@@ -252,7 +252,7 @@ describe('ReportsScreen', () => {
       dublê.historico,
     ])
       mock.mockReset()
-    // O diálogo busca comentários e histórico; sem resposta eles caem no caminho
+    // O dialogo busca comentarios e historico; sem resposta eles caem no caminho
     // de falha e os testes olhariam uma tela meio quebrada.
     dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
     dublê.historico.mockResolvedValue([])
@@ -432,8 +432,8 @@ describe('ReportsScreen', () => {
   })
 
   it('para quem é só membro, a lista vazia não oferece instalar: quem instala é quem administra', async () => {
-    // O link levaria à Instalação, e a guarda devolveria o membro para cá — um
-    // clique que parece não fazer nada, na primeira tela dele.
+    // O link levaria a Instalacao, e a guarda devolveria o membro para ca — um
+    // clique que parece nao fazer nada, na primeira tela dele.
     papel.atual = 'Member'
     dublê.listar.mockResolvedValue({ reports: [], total: 0 })
 
@@ -524,7 +524,7 @@ describe('abrir um relato', () => {
       dublê.historico,
     ])
       mock.mockReset()
-    // O diálogo busca comentários e histórico; sem resposta eles caem no caminho
+    // O dialogo busca comentarios e historico; sem resposta eles caem no caminho
     // de falha e os testes olhariam uma tela meio quebrada.
     dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
     dublê.historico.mockResolvedValue([])
@@ -581,10 +581,10 @@ describe('abrir um relato', () => {
   })
 
   /**
-   * **O motivo e o print da reabertura chegam ao time pelo diálogo de verdade.** Um
-   * diálogo montado à mão no teste passaria com a ligação real quebrada: sem as
-   * reaberturas, o time não lê por que o relato voltou; sem os arquivos delas, o
-   * print some do painel inteiro, porque ele já não fica embaixo do relato.
+   * **O motivo e o print da reabertura chegam ao time pelo dialogo de verdade.** Um
+   * dialogo montado a mao no teste passaria com a ligacao real quebrada: sem as
+   * reaberturas, o time nao le por que o relato voltou; sem os arquivos delas, o
+   * print some do painel inteiro, porque ele ja nao fica embaixo do relato.
    */
   describe('as reaberturas no diálogo', () => {
     function arquivo(extra: Partial<PanelAttachmentViewModel>): PanelAttachmentViewModel {
@@ -735,8 +735,8 @@ describe('abrir um relato', () => {
     await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
     await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 12')
 
-    // Página 1 de novo: trocar de coluna é começar uma lista nova, e não
-    // acrescentar à que estava na tela.
+    // Pagina 1 de novo: trocar de coluna e comecar uma lista nova, e nao
+    // acrescentar a que estava na tela.
     await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 's-1', false))
   })
 
@@ -753,12 +753,12 @@ describe('abrir um relato', () => {
     const campo = await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
     fireEvent.pointerDown(campo, { button: 0, ctrlKey: false, pointerType: 'mouse' })
 
-    // Coluna ativa vazia fica: some do filtro no dia em que o último relato dela
-    // é movido, e quem olha acharia que ela deixou de existir.
+    // Coluna ativa vazia fica: some do filtro no dia em que o ultimo relato dela
+    // e movido, e quem olha acharia que ela deixou de existir.
     expect(await screen.findByRole('option', { name: 'Análise · 0' })).toBeTruthy()
-    // Aposentada e vazia não serve para nada.
+    // Aposentada e vazia nao serve para nada.
     expect(screen.queryByRole('option', { name: 'Parado (aposentada) · 0' })).toBeNull()
-    // Aposentada com relato fica: é o único caminho até esses relatos.
+    // Aposentada com relato fica: e o unico caminho ate esses relatos.
     expect(screen.getByRole('option', { name: 'Encerrado (aposentada) · 4' })).toBeTruthy()
   })
 
@@ -771,7 +771,7 @@ describe('abrir um relato', () => {
     await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
     await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Sem coluna · 3')
 
-    // A linha sem coluna não tem identificador: a rota espera uma palavra.
+    // A linha sem coluna nao tem identificador: a rota espera uma palavra.
     await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 'none', false))
   })
 
@@ -868,7 +868,7 @@ describe('abrir um relato', () => {
       expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-2' }),
     )
     // A contagem muda em duas colunas de uma vez; sem recontar, as contagens do filtro
-    // passariam a discordar da lista na frente de quem está olhando.
+    // passariam a discordar da lista na frente de quem esta olhando.
     await waitFor(() => expect(dublê.contar).toHaveBeenCalledTimes(2))
   })
 
@@ -949,7 +949,7 @@ describe('abrir um relato', () => {
 
     montar()
 
-    // Filtra em Análise, abre o relato de lá e manda ele para Pronto.
+    // Filtra em Analise, abre o relato de la e manda ele para Pronto.
     await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
     await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 1')
     fireEvent.click(await screen.findByRole('link', { name: /o botao some/ }))
@@ -959,13 +959,13 @@ describe('abrir um relato', () => {
 
     await waitFor(() => expect(dublê.mover).toHaveBeenCalled())
 
-    // Fecha antes de conferir: com o diálogo aberto, a Radix marca o resto da
-    // página como `aria-hidden` e a busca por `role` não enxerga a lista — a
-    // primeira versão deste teste passava por isso, e não pelo comportamento.
+    // Fecha antes de conferir: com o dialogo aberto, a Radix marca o resto da
+    // pagina como `aria-hidden` e a busca por `role` nao enxerga a lista — a
+    // primeira versao deste teste passava por isso, e nao pelo comportamento.
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
 
     // Deixar a linha ali mostraria, debaixo do nome de uma coluna, um relato
-    // que não está mais nela.
+    // que nao esta mais nela.
     await waitFor(() => expect(screen.queryByRole('link', { name: /o botao some/ })).toBeNull())
   })
 
@@ -1010,7 +1010,7 @@ describe('abrir um relato', () => {
 
     montar('p-1', '/p/p-1/r-1')
 
-    // São dois campos com nomes próprios, e não um com seletor de visibilidade.
+    // Sao dois campos com nomes proprios, e nao um com seletor de visibilidade.
     expect(await screen.findByRole('textbox', { name: 'Entre o time' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Para quem relatou' })).toBeTruthy()
     // Quem escreve ali precisa saber que o texto sai da empresa.
@@ -1031,8 +1031,8 @@ describe('abrir um relato', () => {
         Type: 'ReportStateChanged',
         AuthorName: 'Cleiton',
         // A coluna hoje se chama outra coisa, ou foi aposentada. O evento guardou
-        // este nome, e é ele que precisa aparecer — senão renomear reescreve o
-        // passado, dizendo que o relato esteve num estado que não existia.
+        // este nome, e e ele que precisa aparecer — senao renomear reescreve o
+        // passado, dizendo que o relato esteve num estado que nao existia.
         FromStateName: 'Testando',
         ToStateName: 'Pronto',
         OccurredAt: '2026-09-14T12:00:00.000Z',
@@ -1106,8 +1106,8 @@ describe('encerrar um relato', () => {
 
     expect(await screen.findByText(/Mover para Pronto encerra este relato/)).toBeTruthy()
     // **O ponto do teste.** Perguntar depois de mover deixaria o relato encerrado
-    // sem motivo enquanto o diálogo estivesse aberto — e encerrado sem motivo é
-    // justamente o que não pode existir.
+    // sem motivo enquanto o dialogo estivesse aberto — e encerrado sem motivo e
+    // justamente o que nao pode existir.
     expect(dublê.mover).not.toHaveBeenCalled()
   })
 
@@ -1156,15 +1156,15 @@ describe('encerrar um relato', () => {
     await waitFor(() =>
       expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', {
         StatePublicId: 's-2',
-        // O padrão é o final comum, e é o que a tela já mostra escolhido.
+        // O padrao e o final comum, e e o que a tela ja mostra escolhido.
         Outcome: 'Done',
-        // Aparado: o espaço no fim não é motivo, e a comparação do servidor com o
-        // tamanho máximo contaria ele.
+        // Aparado: o espaco no fim nao e motivo, e a comparacao do servidor com o
+        // tamanho maximo contaria ele.
         Reason: 'Corrigimos na versão desta semana.',
       }),
     )
 
-    // O diálogo sai da tela sozinho quando a gravação passa.
+    // O dialogo sai da tela sozinho quando a gravacao passa.
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Encerrar' })).toBeNull())
   })
 
@@ -1203,8 +1203,8 @@ describe('encerrar um relato', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
 
-    // Não há "mover sem encerrar" para esta coluna: encerrar sem motivo não
-    // existe, então mover sem motivo também não.
+    // Nao ha "mover sem encerrar" para esta coluna: encerrar sem motivo nao
+    // existe, entao mover sem motivo tambem nao.
     expect(dublê.mover).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByText(/encerra este relato/)).toBeNull())
   })
@@ -1220,8 +1220,8 @@ describe('encerrar um relato', () => {
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Revisão')
 
-    // É a última **ativa**, e mesmo assim move direto: quem decide é
-    // `ClosesReport`, e aqui ele é falso.
+    // E a ultima **ativa**, e mesmo assim move direto: quem decide e
+    // `ClosesReport`, e aqui ele e falso.
     await waitFor(() =>
       expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-3' }),
     )
@@ -1260,7 +1260,7 @@ describe('encerrar por botão', () => {
   })
 
   it('projeto que encerra por botão não pergunta nada ao mover', async () => {
-    // Nenhuma coluna encerra: é o que a API responde quando o gatilho é o botão.
+    // Nenhuma coluna encerra: e o que a API responde quando o gatilho e o botao.
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
     dublê.mover.mockResolvedValue(
       relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
@@ -1299,7 +1299,7 @@ describe('encerrar por botão', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Concluir relato' }))
 
-    // Sem coluna de destino: a frase fala do relato ficar onde está.
+    // Sem coluna de destino: a frase fala do relato ficar onde esta.
     expect(await screen.findByText(/continua na coluna em que está/)).toBeTruthy()
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Por que acabou' }), {
@@ -1313,7 +1313,7 @@ describe('encerrar por botão', () => {
         Reason: 'Corrigido.',
       }),
     )
-    // **O relato não sai do lugar.** É para isso que o botão existe.
+    // **O relato nao sai do lugar.** E para isso que o botao existe.
     expect(dublê.mover).not.toHaveBeenCalled()
 
     // E o que a API devolveu vira o bloco na tela, com quem encerrou.
@@ -1322,8 +1322,8 @@ describe('encerrar por botão', () => {
   })
 
   it('o relato já parado na coluna que encerra também ganha o botão', async () => {
-    // Encerra pela coluna, e o relato está nela — mover para onde ele já está não
-    // é movimento, então sem o botão ele não teria como ser encerrado nunca.
+    // Encerra pela coluna, e o relato esta nela — mover para onde ele ja esta nao
+    // e movimento, entao sem o botao ele nao teria como ser encerrado nunca.
     dublê.contar.mockResolvedValue([
       contagem('s-1', 'Análise', 1, true, true),
       contagem('s-2', 'Pronto', 0),
@@ -1343,8 +1343,8 @@ describe('encerrar por botão', () => {
     montar('p-1', '/p/p-1/r-1')
 
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
-    // Para esse, quem encerra é o movimento — e oferecer as duas portas faria a
-    // configuração não querer dizer nada.
+    // Para esse, quem encerra e o movimento — e oferecer as duas portas faria a
+    // configuracao nao querer dizer nada.
     expect(screen.queryByRole('button', { name: 'Concluir relato' })).toBeNull()
   })
 
@@ -1370,7 +1370,7 @@ describe('encerrar por botão', () => {
 
     expect(await screen.findByText('O comportamento é o esperado.')).toBeTruthy()
     expect(screen.getByText('Não será feito')).toBeTruthy()
-    // Uma linha por fechamento: encerrar duas vezes contaria a história errada.
+    // Uma linha por fechamento: encerrar duas vezes contaria a historia errada.
     expect(screen.queryByRole('button', { name: 'Concluir relato' })).toBeNull()
   })
 })
@@ -1416,8 +1416,8 @@ describe('a escolha de quem relatou sobre responder dúvidas', () => {
     // cima dele. Esperar o botao do dialogo e o que garante que ele ja desenhou.
     await screen.findByRole('button', { name: 'Fechar' })
 
-    // Poder perguntar é o caso comum. Uma etiqueta em todo relato para dizer que
-    // está tudo normal vira ruído que se aprende a não ler — e aí a etiqueta que
+    // Poder perguntar e o caso comum. Uma etiqueta em todo relato para dizer que
+    // esta tudo normal vira ruido que se aprende a nao ler — e ai a etiqueta que
     // importa passa despercebida junto.
     expect(screen.queryByText(/dúvidas/i)).toBeNull()
     expect(screen.queryByText(/Não foi perguntado/)).toBeNull()
@@ -1431,9 +1431,9 @@ describe('a escolha de quem relatou sobre responder dúvidas', () => {
   it('e o relato antigo diz que ninguém perguntou, e não que ele recusou', async () => {
     comEscolha(null)
 
-    // **O ponto do teste.** Os dois bloqueiam o pedido de informação do mesmo
-    // jeito, e por isso a tentação é mostrá-los iguais. Mas um é uma recusa e o
-    // outro é uma pergunta que nunca foi feita.
+    // **O ponto do teste.** Os dois bloqueiam o pedido de informacao do mesmo
+    // jeito, e por isso a tentacao e mostra-los iguais. Mas um e uma recusa e o
+    // outro e uma pergunta que nunca foi feita.
     expect(await screen.findByText('Não foi perguntado se responde')).toBeTruthy()
     expect(screen.queryByText('Não aceita responder dúvidas')).toBeNull()
   })
@@ -1482,14 +1482,14 @@ describe('a espera antes de quem relatou ver', () => {
   it('com espera pendente, diz até quando dá para desfazer', async () => {
     comVencimento('2026-09-19T00:30:00.000Z')
 
-    // **O ponto do teste.** A janela silenciosa é uma janela inútil: quem arrastou
-    // o card por engano não tem como saber que ainda dá tempo de corrigir.
+    // **O ponto do teste.** A janela silenciosa e uma janela inutil: quem arrastou
+    // o card por engano nao tem como saber que ainda da tempo de corrigir.
     expect(await screen.findByText(/Quem relatou vê às/)).toBeTruthy()
   })
 
   it('e o aviso acompanha a resposta do próprio movimento', async () => {
     // As colunas precisam estar respondidas **antes** de montar: a tela busca a
-    // contagem na montagem, e o seletor só existe quando ela chega.
+    // contagem na montagem, e o seletor so existe quando ela chega.
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
     dublê.mover.mockResolvedValue(
       relato('r-1', 'o botao some', {
@@ -1503,7 +1503,7 @@ describe('a espera antes de quem relatou ver', () => {
     await screen.findByRole('button', { name: 'Fechar' })
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
 
-    // Sai da resposta do movimento, e não de uma busca nova: buscar o detalhe de
+    // Sai da resposta do movimento, e nao de uma busca nova: buscar o detalhe de
     // novo **grava um evento de leitura**.
     expect(await screen.findByText(/Quem relatou vê às/)).toBeTruthy()
     expect(dublê.abrir).toHaveBeenCalledTimes(1)
@@ -1553,9 +1553,9 @@ describe('devolver o relato pedindo informação', () => {
   })
 
   it('e a de devolver some quando a API diz que não dá', async () => {
-    // Quem escreveu não aceitou responder dúvidas, o relato já está encerrado, já
-    // há um pedido aberto, ou o projeto desligou o recurso. A tela não precisa
-    // saber qual — ela lê a conclusão.
+    // Quem escreveu nao aceitou responder duvidas, o relato ja esta encerrado, ja
+    // ha um pedido aberto, ou o projeto desligou o recurso. A tela nao precisa
+    // saber qual — ela le a conclusao.
     aberto({ CanAskInfo: false })
 
     await screen.findByRole('button', { name: 'Concluir relato' })
@@ -1588,11 +1588,11 @@ describe('devolver o relato pedindo informação', () => {
         Body: 'Em qual navegador isso aconteceu?',
       }),
     )
-    // **O ponto do teste.** Devolver e encerrar são rotas diferentes porque são
-    // decisões diferentes.
+    // **O ponto do teste.** Devolver e encerrar sao rotas diferentes porque sao
+    // decisoes diferentes.
     expect(dublê.encerrar).not.toHaveBeenCalled()
 
-    // E a tela passa a mostrar que a bola está com quem relatou.
+    // E a tela passa a mostrar que a bola esta com quem relatou.
     expect(await screen.findByText('Esperando quem relatou')).toBeTruthy()
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Pedir informação' })).toBeNull(),
@@ -1609,8 +1609,8 @@ describe('devolver o relato pedindo informação', () => {
       },
     })
 
-    // Sem isto, alguém do time abre o relato dias depois, vê que está parado, e
-    // pergunta de novo — e quem está do outro lado recebe duas perguntas iguais.
+    // Sem isto, alguem do time abre o relato dias depois, ve que esta parado, e
+    // pergunta de novo — e quem esta do outro lado recebe duas perguntas iguais.
     expect(await screen.findByText('Esperando quem relatou')).toBeTruthy()
     expect(screen.getByText(/pedido por Cleiton/)).toBeTruthy()
     expect(screen.getByText(/ainda assim poderá ser reaberto/)).toBeTruthy()
@@ -2206,7 +2206,7 @@ describe('o tempo real', () => {
     dublê.mover.mockResolvedValue(
       relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
     )
-    // A primeira releitura demora, e foi lida antes do movimento: ainda em Análise.
+    // A primeira releitura demora, e foi lida antes do movimento: ainda em Analise.
     let soltarVelha: () => void = () => {}
     dublê.atualizar
       .mockImplementationOnce(

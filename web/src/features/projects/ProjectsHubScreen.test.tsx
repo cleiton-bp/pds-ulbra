@@ -15,8 +15,8 @@ import { useProjectsStore } from '@/features/projects/projectsStore'
  * contas ve os grupos, com "Seus projetos" primeiro.
  *
  * **O papel so aparece no projeto dos outros** — nos proprios a pessoa e sempre
- * dona. E **o link vai para o projeto, e nao para a Instalação**: quem decide a
- * porta e o papel, e o membro nao tem Instalação.
+ * dona. E **o link vai para o projeto, e nao para a Instalacao**: quem decide a
+ * porta e o papel, e o membro nao tem Instalacao.
  */
 const dublê = vi.hoisted(() => ({ listar: vi.fn<() => Promise<ProjectViewModel[]>>() }))
 

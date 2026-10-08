@@ -262,7 +262,7 @@ export function ProjectShell() {
             drawerOpen ? 'flex' : 'hidden lg:flex',
           )}
         >
-          {/* Quem e so membro nao ve a Configuração: ele trabalha nos relatos, e a
+          {/* Quem e so membro nao ve a Configuracao: ele trabalha nos relatos, e a
               API recusaria tudo o que ele tentasse mudar ali. Enquanto o projeto
               carrega, nada aparece — mostrar e depois sumir piscaria o menu. */}
           {project && canConfigure(project) && (
@@ -327,7 +327,7 @@ export function ProjectShell() {
 
 /**
  * Um item da lateral que leva a algum lugar. Os dois grupos usam o mesmo: a
- * diferenca entre "Configuração" e "Operação" e de assunto, e nao de aparencia.
+ * diferenca entre "Configuracao" e "Operacao" e de assunto, e nao de aparencia.
  */
 function SectionLink({
   section,

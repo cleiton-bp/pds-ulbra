@@ -382,14 +382,14 @@ function rotuloDaPrioridade(prioridade: { Name: string; IsActive: boolean }): st
 
 /**
  * O mesmo nome para a API: sem as bordas, os espacos de dentro juntados, e sem
- * diferenciar maiuscula. **O acento conta** — "pais" e "país" sao duas etiquetas.
+ * diferenciar maiuscula. **O acento conta** — a mesma palavra com e sem acento sao duas etiquetas.
  */
 function mesmoNome(a: string, b: string): boolean {
   const limpo = (texto: string) => texto.trim().replace(/\s+/g, ' ').toLowerCase()
   return limpo(a) === limpo(b)
 }
 
-/** Para procurar: sem maiuscula e sem acento, "pag" acha "Pagamento" e "pagaménto". */
+/** Para procurar: sem maiuscula e sem acento, "pag" acha "Pagamento" e tambem a escrita com acento. */
 function paraProcurar(texto: string): string {
   return texto
     .normalize('NFD')

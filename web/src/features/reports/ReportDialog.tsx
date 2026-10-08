@@ -176,9 +176,9 @@ export function ReportDialog({
   const [fechamento, setFechamento] = useState<ReportClosureViewModel | null>(null)
 
   /**
-   * O pedido de informação aberto, e se dá para abrir um.
+   * O pedido de informacao aberto, e se da para abrir um.
    *
-   * **Estado próprio, pelo mesmo motivo do fechamento**: pedir devolve o relato
+   * **Estado proprio, pelo mesmo motivo do fechamento**: pedir devolve o relato
    * atualizado, e `detalhe` continuaria com o valor de antes — a tela ofereceria
    * pedir de novo um segundo depois de ter pedido.
    */
@@ -273,7 +273,7 @@ export function ReportDialog({
           Reason: fechamento_.Reason,
           ClosedAt: new Date().toISOString(),
           ClosedByName: null,
-          // Quem relatou ainda não viu: acabou de encerrar.
+          // Quem relatou ainda nao viu: acabou de encerrar.
           ConfirmedAt: null,
           Satisfaction: null,
           SatisfactionDeclined: false,
@@ -333,10 +333,10 @@ export function ReportDialog({
   }
 
   /**
-   * Devolve o relato pedindo informação.
+   * Devolve o relato pedindo informacao.
    *
-   * **Não encerra nada**, e é essa a diferença que dá nome ao passo: quem precisa
-   * de contexto e quem recusa de fato tomaram decisões opostas, e chegando iguais
+   * **Nao encerra nada**, e e essa a diferenca que da nome ao passo: quem precisa
+   * de contexto e quem recusa de fato tomaram decisoes opostas, e chegando iguais
    * do outro lado a pessoa entende que acabou e para de responder.
    */
   async function pedirInformacao(body: string) {
@@ -652,21 +652,21 @@ export function ReportDialog({
                 {atual && <LadoDeFora etapa={atual.PublicStageLabel} />}
 
                 <div className="flex flex-wrap gap-1.5">
-                  {/* **Quem abre um relato para responder precisa saber se está
-                      falando em público.** A decisão se toma na Moderação; aqui é só
-                      o estado, porque descobrir depois de escrever é descobrir tarde.
+                  {/* **Quem abre um relato para responder precisa saber se esta
+                      falando em publico.** A decisao se toma na Moderacao; aqui e so
+                      o estado, porque descobrir depois de escrever e descobrir tarde.
 
-                      "Liberado" e não "público": o projeto também precisa estar num
-                      nível público, e esta tela não sabe disso. */}
+                      "Liberado" e nao "publico": o projeto tambem precisa estar num
+                      nivel publico, e esta tela nao sabe disso. */}
                   {detalhe?.ModerationState === 'Approved' && (
                     <span className="rounded-md border border-warn-border bg-warn-surface px-1.5 py-0.5 text-caption text-warn-fg">
                       Liberado para o público
                     </span>
                   )}
 
-                  {/* A escolha de quem relatou, **antes** de alguém tentar perguntar.
+                  {/* A escolha de quem relatou, **antes** de alguem tentar perguntar.
                       Descobrir depois — ao esbarrar numa recusa — faria a pessoa do
-                      time escrever a pergunta para só então saber que ela não vai
+                      time escrever a pergunta para so entao saber que ela nao vai
                       sair. */}
                   {atual && <AceitaDuvidas escolha={atual.AcceptsQuestions} />}
 
@@ -685,9 +685,9 @@ export function ReportDialog({
                       Concluir relato
                     </Button>
 
-                    {/* **Lado a lado, e é assim que tem de ser.** Devolver e encerrar
-                        são as duas saídas de um relato que não dá para tocar agora, e
-                        esconder uma delas atrás da outra é o que faz "não reproduzi"
+                    {/* **Lado a lado, e e assim que tem de ser.** Devolver e encerrar
+                        sao as duas saidas de um relato que nao da para tocar agora, e
+                        esconder uma delas atras da outra e o que faz "nao reproduzi"
                         chegar como recusa. */}
                     {podePedir && (
                       <Button size="sm" disabled={pedindo} onClick={() => setPerguntando(true)}>
@@ -871,8 +871,8 @@ export function ReportDialog({
           maisLeitores={atual?.DuplicateReporters ?? 0}
           encerrando={movendo}
           aoConfirmar={(outcome, reason) => {
-            // Um diálogo, duas rotas. Com coluna de destino é o movimento que
-            // encerra; sem ela, é o botão — e o relato não sai do lugar.
+            // Um dialogo, duas rotas. Com coluna de destino e o movimento que
+            // encerra; sem ela, e o botao — e o relato nao sai do lugar.
             if (encerrando.publicId === null) void encerrar(outcome, reason)
             else void mover(encerrando.publicId, { Outcome: outcome, Reason: reason })
           }}
@@ -884,14 +884,14 @@ export function ReportDialog({
 }
 
 /**
- * O relato está com quem o escreveu, e há um relógio correndo.
+ * O relato esta com quem o escreveu, e ha um relogio correndo.
  *
- * **É a informação que evita a segunda pergunta.** Sem ela, alguém do time abre o
- * relato dias depois, vê que está parado, e pergunta de novo — e quem está do outro
+ * **E a informacao que evita a segunda pergunta.** Sem ela, alguem do time abre o
+ * relato dias depois, ve que esta parado, e pergunta de novo — e quem esta do outro
  * lado recebe duas perguntas sobre a mesma coisa.
  *
- * Os dois prazos aparecem porque são fatos diferentes: um é quando a página passa a
- * avisar, o outro é quando o relato encerra sozinho.
+ * Os dois prazos aparecem porque sao fatos diferentes: um e quando a pagina passa a
+ * avisar, o outro e quando o relato encerra sozinho.
  */
 function Devolvido({ pedido }: { pedido: ReportInfoRequestViewModel }) {
   return (
@@ -914,16 +914,16 @@ function Devolvido({ pedido }: { pedido: ReportInfoRequestViewModel }) {
 /**
  * Como o relato terminou, do lado de dentro.
  *
- * **O motivo em corpo, o desfecho em etiqueta** — a mesma ordem da página pública,
- * e pelo mesmo motivo: "Não será feito" sozinho é a recusa sem explicação que este
- * produto existe para não repetir. Aqui ele aparece para o time reler o que foi
- * dito lá fora antes de responder qualquer coisa.
+ * **O motivo em corpo, o desfecho em etiqueta** — a mesma ordem da pagina publica,
+ * e pelo mesmo motivo: "Nao sera feito" sozinho e a recusa sem explicacao que este
+ * produto existe para nao repetir. Aqui ele aparece para o time reler o que foi
+ * dito la fora antes de responder qualquer coisa.
  *
- * **Quem encerrou aparece, e na página pública não.** Do lado de dentro, saber
- * quem decidiu é metade da conversa; do lado de fora, seria expor uma pessoa a
- * quem só quer saber do próprio problema.
+ * **Quem encerrou aparece, e na pagina publica nao.** Do lado de dentro, saber
+ * quem decidiu e metade da conversa; do lado de fora, seria expor uma pessoa a
+ * quem so quer saber do proprio problema.
  *
- * Nulo não vira frase: o autor falta quando foi o sistema que encerrou, e também
+ * Nulo nao vira frase: o autor falta quando foi o sistema que encerrou, e tambem
  * logo depois de encerrar pelo movimento, que devolve o resumo sem o nome. Escrever
  * "pelo sistema" nos dois casos estaria errado em um deles.
  */
@@ -953,20 +953,20 @@ function Encerramento({ fechamento }: { fechamento: ReportClosureViewModel }) {
 }
 
 /**
- * O que quem relatou respondeu — ou o silêncio dele.
+ * O que quem relatou respondeu — ou o silencio dele.
  *
- * **É a metade da metáfora que faltava do lado de dentro.** Até aqui o painel só
- * sabia o que o time tinha decidido; esta linha é o time descobrindo se a pessoa
- * concordou. Sem ela, "concluído" e "resolvido" continuariam sendo a mesma coisa
+ * **E a metade da metafora que faltava do lado de dentro.** Ate aqui o painel so
+ * sabia o que o time tinha decidido; esta linha e o time descobrindo se a pessoa
+ * concordou. Sem ela, "concluido" e "resolvido" continuariam sendo a mesma coisa
  * para quem olha de dentro.
  *
- * **Os três estados da nota aparecem diferentes**, e não é detalhe de tela: "deu
- * 4", "preferiu não responder" e "não respondeu" são fatos distintos, e mostrá-los
- * iguais aqui ensinaria a lê-los iguais no relatório depois. Juntar os dois últimos
- * daria uma média que parece precisa e não é.
+ * **Os tres estados da nota aparecem diferentes**, e nao e detalhe de tela: "deu
+ * 4", "preferiu nao responder" e "nao respondeu" sao fatos distintos, e mostra-los
+ * iguais aqui ensinaria a le-los iguais no relatorio depois. Juntar os dois ultimos
+ * daria uma media que parece precisa e nao e.
  *
- * **Esperando não é um erro.** A pessoa pode simplesmente não ter voltado ainda, e
- * dizer isso é mais honesto do que deixar a linha em branco.
+ * **Esperando nao e um erro.** A pessoa pode simplesmente nao ter voltado ainda, e
+ * dizer isso e mais honesto do que deixar a linha em branco.
  */
 function RespostaDoRelator({ fechamento }: { fechamento: ReportClosureViewModel }) {
   if (fechamento.ConfirmedAt === null) {
@@ -1010,15 +1010,15 @@ function contextLabel(key: string): string {
 }
 
 /**
- * A janela de desfazer, enquanto ela está aberta.
+ * A janela de desfazer, enquanto ela esta aberta.
  *
- * **Sem isto a espera não serve para nada.** Ela existe para quem moveu o card por
- * engano ter tempo de corrigir antes de a pessoa lá fora ver — e quem moveu por
- * engano só sabe que ainda dá tempo se a tela disser. Uma janela silenciosa é uma
- * janela que só funciona por sorte.
+ * **Sem isto a espera nao serve para nada.** Ela existe para quem moveu o card por
+ * engano ter tempo de corrigir antes de a pessoa la fora ver — e quem moveu por
+ * engano so sabe que ainda da tempo se a tela disser. Uma janela silenciosa e uma
+ * janela que so funciona por sorte.
  *
- * **Não há botão de desfazer, e não precisa.** Desfazer é mover de volta, que é o
- * gesto que a pessoa já ia fazer: o agendamento é reescrito a cada movimento, e o
+ * **Nao ha botao de desfazer, e nao precisa.** Desfazer e mover de volta, que e o
+ * gesto que a pessoa ja ia fazer: o agendamento e reescrito a cada movimento, e o
  * que estava a caminho se descarta sozinho ao chegar.
  */
 function Esperando({ vence }: { vence: string }) {
@@ -1030,16 +1030,16 @@ function Esperando({ vence }: { vence: string }) {
 }
 
 /**
- * Se dá para perguntar alguma coisa a quem relatou.
+ * Se da para perguntar alguma coisa a quem relatou.
  *
- * **São três estados, e a tela diz os três.** Aceitou, não aceitou, e — o que se
- * esquece — **não foi perguntado**: o relato que entrou antes de a pergunta
- * existir. Mostrar esse último como "não aceita responder" poria na boca da pessoa
- * uma resposta que ela nunca deu, e é o tipo de erro que ninguém vai conferir.
+ * **Sao tres estados, e a tela diz os tres.** Aceitou, nao aceitou, e — o que se
+ * esquece — **nao foi perguntado**: o relato que entrou antes de a pergunta
+ * existir. Mostrar esse ultimo como "nao aceita responder" poria na boca da pessoa
+ * uma resposta que ela nunca deu, e e o tipo de erro que ninguem vai conferir.
  *
- * **O sim não aparece**, e é decisão: poder perguntar é o caso comum, e uma
- * etiqueta em todo relato para dizer que está tudo normal vira ruído que se
- * aprende a não ler — e aí a etiqueta que importa passa despercebida junto.
+ * **O sim nao aparece**, e e decisao: poder perguntar e o caso comum, e uma
+ * etiqueta em todo relato para dizer que esta tudo normal vira ruido que se
+ * aprende a nao ler — e ai a etiqueta que importa passa despercebida junto.
  */
 function AceitaDuvidas({ escolha }: { escolha: boolean | null }) {
   if (escolha === true) return null
@@ -1052,13 +1052,13 @@ function AceitaDuvidas({ escolha }: { escolha: boolean | null }) {
 }
 
 /**
- * Onde quem relatou vê este relato.
+ * Onde quem relatou ve este relato.
  *
- * **Nulo não diz por quê** — pode ser coluna fora do mapa, projeto sem jornada, ou
- * relato que entrou antes de a jornada existir. A frase cobre os três, porque
+ * **Nulo nao diz por que** — pode ser coluna fora do mapa, projeto sem jornada, ou
+ * relato que entrou antes de a jornada existir. A frase cobre os tres, porque
  * distinguir exigiria um campo que ficaria desatualizado no primeiro movimento, e
- * aviso errado é pior que aviso nenhum. Quem precisa da diferença a encontra em
- * Etapas públicas, que lista os estados sem destino.
+ * aviso errado e pior que aviso nenhum. Quem precisa da diferenca a encontra em
+ * Etapas publicas, que lista os estados sem destino.
  */
 function LadoDeFora({ etapa }: { etapa: string | null }) {
   if (etapa === null) {

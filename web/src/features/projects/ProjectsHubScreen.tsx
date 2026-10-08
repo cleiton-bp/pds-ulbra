@@ -256,7 +256,7 @@ function ProjectRow({ project }: { project: ProjectViewModel }) {
             </span>
           )}
 
-          {/* A celula se rotula sozinha. "há 2 dias" solto no fim da linha nao
+          {/* A celula se rotula sozinha. "ha 2 dias" solto no fim da linha nao
               diz de que — e cabecalho de coluna para tres campos e mais estrutura
               do que esta lista precisa. */}
           <div className="text-detail text-fg-muted">

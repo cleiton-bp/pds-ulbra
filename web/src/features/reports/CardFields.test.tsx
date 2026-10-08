@@ -351,7 +351,7 @@ describe('os campos do card', () => {
       }),
     )
 
-    // O acento conta, como na API: "país" nao e "pais".
+    // O acento conta, como na API: a palavra com acento nao e a mesma sem ele.
     fireEvent.change(campo, { target: { value: 'país' } })
     expect(screen.getByRole('button', { name: 'Criar “país”' })).toBeTruthy()
     fireEvent.keyDown(campo, { key: 'Enter' })

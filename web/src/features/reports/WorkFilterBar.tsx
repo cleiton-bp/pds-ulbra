@@ -236,7 +236,7 @@ function MenuDeMarcar({
 }: {
   rotulo: string
   escolhidos: string[]
-  /** As que existem sempre, antes das do projeto: "Sem responsável", "Sem prioridade". */
+  /** As que existem sempre, antes das do projeto: "Sem responsavel", "Sem prioridade". */
   fixas?: Opcao[]
   /** Nulo enquanto le; "falhou" quando a leitura falhou. */
   opcoes: Opcao[] | 'falhou' | null

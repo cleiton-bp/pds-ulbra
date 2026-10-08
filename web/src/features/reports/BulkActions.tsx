@@ -235,7 +235,7 @@ export function BulkActions({
             </DropdownItem>
           </Acao>
 
-          {/* Pôr junta a etiqueta as que o card ja tem; tirar so oferece as que estao em
+          {/* Por junta a etiqueta as que o card ja tem; tirar so oferece as que estao em
               algum card da selecao. */}
           <Acao rotulo="Pôr etiqueta">
             {(etiquetas ?? []).length === 0 ? (

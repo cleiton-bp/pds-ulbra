@@ -139,9 +139,9 @@ describe('CycleSettingsScreen', () => {
     fireEvent.click(await screen.findByRole('radio', { name: /Por um botão de concluir/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
-    // **O ponto do teste.** Mandar só `ClosureTrigger` faria a API — que
-    // substitui, e não mescla — reescrever as outras com o que viesse do
-    // corpo, e o prazo que alguém configurou voltaria ao padrão sem aviso.
+    // **O ponto do teste.** Mandar so `ClosureTrigger` faria a API — que
+    // substitui, e nao mescla — reescrever as outras com o que viesse do
+    // corpo, e o prazo que alguem configurou voltaria ao padrao sem aviso.
     await waitFor(() =>
       expect(dublê.salvar).toHaveBeenCalledWith('p-1', { ...padroes, ClosureTrigger: 'Button' }),
     )
@@ -155,9 +155,9 @@ describe('CycleSettingsScreen', () => {
     fireEvent.click(await screen.findByRole('radio', { name: /Por um botão de concluir/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
-    // A base do "há mudança" passa a ser o que foi gravado, e não a leitura
-    // inicial: sem isso o botão continuaria aceso depois de salvar, e o segundo
-    // clique gravaria de novo o que já estava lá.
+    // A base do "ha mudanca" passa a ser o que foi gravado, e nao a leitura
+    // inicial: sem isso o botao continuaria aceso depois de salvar, e o segundo
+    // clique gravaria de novo o que ja estava la.
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(true),
     )
@@ -178,8 +178,8 @@ describe('CycleSettingsScreen', () => {
       target: { value: '30' },
     })
 
-    // A API recusa quando não há fila, e a tela precisa ter dito isso antes —
-    // senão a recusa chega como surpresa depois de a pessoa configurar.
+    // A API recusa quando nao ha fila, e a tela precisa ter dito isso antes —
+    // senao a recusa chega como surpresa depois de a pessoa configurar.
     expect(screen.getByText(/Depende de uma fila configurada/)).toBeTruthy()
   })
 
@@ -190,8 +190,8 @@ describe('CycleSettingsScreen', () => {
     fireEvent.change(espera, { target: { value: '15' } })
     fireEvent.change(espera, { target: { value: '' } })
 
-    // `NaN` no rascunho faria a comparação com o publicado dizer "há mudança"
-    // para sempre, e o botão nunca mais apagaria.
+    // `NaN` no rascunho faria a comparacao com o publicado dizer "ha mudanca"
+    // para sempre, e o botao nunca mais apagaria.
     expect((espera as HTMLInputElement).value).toBe('0')
     expect(screen.getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(true)
   })
@@ -214,7 +214,7 @@ describe('CycleSettingsScreen', () => {
   it('desligar a reabertura esconde o que só existe dentro dela', async () => {
     montar()
 
-    // Ligada por padrão: os dois campos dependentes estão na tela.
+    // Ligada por padrao: os dois campos dependentes estao na tela.
     expect(
       await screen.findByRole('combobox', { name: 'O relato reaberto volta para' }),
     ).toBeTruthy()
@@ -222,7 +222,7 @@ describe('CycleSettingsScreen', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /Deixar quem relatou reabrir/ }))
 
     // **Desligada, eles somem em vez de ficarem cinzas.** Um campo desabilitado
-    // ainda diz "isto vale para você"; aqui não vale nada, porque a pessoa nem
+    // ainda diz "isto vale para voce"; aqui nao vale nada, porque a pessoa nem
     // consegue reabrir.
     expect(screen.queryByRole('combobox', { name: 'O relato reaberto volta para' })).toBeNull()
     expect(
@@ -237,8 +237,8 @@ describe('CycleSettingsScreen', () => {
     fireEvent.pointerDown(destino, { button: 0, ctrlKey: false, pointerType: 'mouse' })
 
     expect(screen.getByRole('option', { name: 'Reaberto' })).toBeTruthy()
-    // Mandar o relato reaberto para uma coluna que ninguém olha seria perdê-lo de
-    // novo — que é o que a reabertura existe para evitar.
+    // Mandar o relato reaberto para uma coluna que ninguem olha seria perde-lo de
+    // novo — que e o que a reabertura existe para evitar.
     expect(screen.queryByRole('option', { name: 'Arquivo' })).toBeNull()
   })
 
@@ -267,7 +267,7 @@ describe('CycleSettingsScreen', () => {
 
     const dias = await screen.findByLabelText(/A última coluna mostra o que entrou nela/)
     expect((dias as HTMLInputElement).value).toBe('14')
-    // Zero na última coluna é "mostrar todos" — e não vira um, como nos prazos.
+    // Zero na ultima coluna e "mostrar todos" — e nao vira um, como nos prazos.
     fireEvent.change(dias, { target: { value: '0' } })
     expect((dias as HTMLInputElement).value).toBe('0')
     expect(screen.getByText(/Zero: mostra todos/)).toBeTruthy()
@@ -289,8 +289,8 @@ describe('CycleSettingsScreen', () => {
   it('o total dos dois prazos aparece somado, porque é ele que importa', async () => {
     montar()
 
-    // Sete e sete são dois números; catorze dias é a coisa que alguém precisa
-    // decidir. Fazer a conta de cabeça é onde o engano mora.
+    // Sete e sete sao dois numeros; catorze dias e a coisa que alguem precisa
+    // decidir. Fazer a conta de cabeca e onde o engano mora.
     expect(await screen.findByText(/No total, 14 dias/)).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('E encerrar mais'), { target: { value: '21' } })
@@ -323,12 +323,12 @@ describe('CycleSettingsScreen', () => {
 
     expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
     // Nada mudou: a falha foi ao consultar, e o projeto continua se comportando
-    // como estava. A frase precisa dizer isso, senão a pessoa reconfigura no medo.
+    // como estava. A frase precisa dizer isso, senao a pessoa reconfigura no medo.
     expect(screen.getByText(/continua se comportando como estava/)).toBeTruthy()
   })
 
-  // **A regra do código sozinho está escondida**, e não removida: confirmar,
-  // reabrir e responder só aceitam o token do link, e marcada ela mostrava botões
+  // **A regra do codigo sozinho esta escondida**, e nao removida: confirmar,
+  // reabrir e responder so aceitam o token do link, e marcada ela mostrava botoes
   // que a API recusava. Os dois testes pulados abaixo voltam junto com ela.
   it('a regra do código sozinho fica fora da tela enquanto as ações não aceitam o código', async () => {
     montar()
@@ -360,8 +360,8 @@ describe('CycleSettingsScreen', () => {
     })
     expect((marcador as HTMLInputElement).checked).toBe(false)
 
-    // Sem esta frase, alguém marca esperando um efeito que só existe num modo que
-    // ele talvez não tenha escolhido — e a configuração vira promessa quebrada.
+    // Sem esta frase, alguem marca esperando um efeito que so existe num modo que
+    // ele talvez nao tenha escolhido — e a configuracao vira promessa quebrada.
     expect(screen.getByText(/Só tem efeito quando o projeto usa código pessoal/i)).toBeTruthy()
   })
 

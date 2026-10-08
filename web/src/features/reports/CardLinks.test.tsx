@@ -17,7 +17,7 @@ import { ReportHistory } from '@/features/reports/ReportHistory'
  * O QUE ESTES TESTES TRAVAM: os vinculos do card aberto, e onde eles aparecem.
  *
  * - **Agrupados pelo tipo, vistos do card aberto**: "Bloqueado por", "Duplicado de"...
- * - **Desfazer manda o vinculo**, e quem abriu o card relê ele — o duplicado pode ter
+ * - **Desfazer manda o vinculo**, e quem abriu o card rele ele — o duplicado pode ter
  *   voltado do arquivo.
  * - **Vincular procura o card pela busca**, sem o proprio card nem os ja vinculados, e
  *   manda o tipo escolhido.

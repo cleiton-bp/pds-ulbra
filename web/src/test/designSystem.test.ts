@@ -49,7 +49,7 @@ const FORA_DO_DOCUMENTO = ['loader/main.ts', 'loader/areaPicker.ts', 'capture/pa
  */
 const NA_IMAGEM = ['editor/palette.ts']
 
-/** As 22 famílias da paleta padrao do Tailwind, que este produto nao usa. */
+/** As 22 familias da paleta padrao do Tailwind, que este produto nao usa. */
 const TAILWIND_PALETTE =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose'
 

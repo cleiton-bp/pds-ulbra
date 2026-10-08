@@ -935,7 +935,7 @@ function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => v
         Assim que alguém enviar pela ferramenta instalada no site, o relato aparece aqui; aberto,
         ele mostra o protocolo, a página de onde saiu e o que a pessoa escreveu. O time também cria
         os próprios cards.
-        {/* Quem e so membro nao instala nada: o link levaria a Instalação, e a
+        {/* Quem e so membro nao instala nada: o link levaria a Instalacao, e a
             guarda o devolveria para ca — um clique que parece nao fazer nada. */}
         {!installs && ' Quem administra o projeto instala a ferramenta no site.'}
       </p>

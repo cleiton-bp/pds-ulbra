@@ -16,15 +16,15 @@ import {
 import { ReportComments } from '@/features/reports/ReportComments'
 
 /**
- * O QUE ESTES TESTES TRAVAM: a menção no comentário entre o time.
+ * O QUE ESTES TESTES TRAVAM: a mencao no comentario entre o time.
  *
- * - **No campo, "@Nome"; no envio, a marca com quem é** — só da menção que ficou no
- *   texto, e sem pegar o começo de outro nome.
- * - **O "@" só abre a palavra**, e a busca acaba na quebra de linha.
+ * - **No campo, "@Nome"; no envio, a marca com quem e** — so da mencao que ficou no
+ *   texto, e sem pegar o comeco de outro nome.
+ * - **O "@" so abre a palavra**, e a busca acaba na quebra de linha.
  * - **A lista do "@"**: o time lido uma vez, sem quem escreve, sem acento; setas e
- *   Enter escolhem; Esc fecha só a lista — o card aberto continua aberto.
- * - **A leitura mostra "@Nome" destacado**, e não a marca.
- * - **Só a caixa de dentro menciona.**
+ *   Enter escolhem; Esc fecha so a lista — o card aberto continua aberto.
+ * - **A leitura mostra "@Nome" destacado**, e nao a marca.
+ * - **So a caixa de dentro menciona.**
  */
 const ANA = 'a1000000-0000-4000-8000-000000000001'
 const BRUNO = 'b1000000-0000-4000-8000-000000000002'

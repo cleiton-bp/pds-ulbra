@@ -14,11 +14,11 @@ import { cn } from '@/shared/lib/cn'
 const MAX_OPTIONS = 6
 
 /**
- * O campo do comentário entre o time, com o "@" que menciona alguém do time.
+ * O campo do comentario entre o time, com o "@" que menciona alguem do time.
  *
  * **Digitar "@" abre a lista do time**, filtrada pelo que vem depois (sem acento, pelo
- * começo do nome, de qualquer parte do nome ou do e-mail). Setas escolhem, Enter ou Tab
- * mencionam, Esc fecha só a lista — o card aberto continua aberto. O time é lido no
+ * comeco do nome, de qualquer parte do nome ou do e-mail). Setas escolhem, Enter ou Tab
+ * mencionam, Esc fecha so a lista — o card aberto continua aberto. O time e lido no
  * primeiro "@", uma vez.
  */
 export function MentionTextarea({
@@ -34,7 +34,7 @@ export function MentionTextarea({
   projectPublicId: string
   value: string
   onChange: (value: string) => void
-  /** Alguém foi escolhido na lista: quem monta o campo guarda para o envio. */
+  /** Alguem foi escolhido na lista: quem monta o campo guarda para o envio. */
   onMention: (mention: ChosenMention) => void
   ariaLabel: string
   disabled?: boolean
@@ -202,8 +202,8 @@ export function MentionTextarea({
 }
 
 /**
- * O texto de um comentário entre o time, com as menções destacadas: "@Ana Dona", e
- * não a marca que o texto guarda.
+ * O texto de um comentario entre o time, com as mencoes destacadas: "@Ana Dona", e
+ * nao a marca que o texto guarda.
  */
 export function CommentBody({ body }: { body: string }) {
   return (

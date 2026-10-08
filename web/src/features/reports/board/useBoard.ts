@@ -438,7 +438,7 @@ export function useBoard(
   )
 
   /**
-   * Outra pessoa mudou um card: relê a coluna em que ele esta **nesta tela** e a coluna
+   * Outra pessoa mudou um card: rele a coluna em que ele esta **nesta tela** e a coluna
    * em que ele esta **agora** (a do aviso) — uma so, quando sao a mesma; nenhuma de
    * destino, quando ele foi para o arquivo. Coluna que esta tela nao tem (nova, ou fora
    * do quadro) nao e lida aqui: a contagem relida traz a coluna nova, e ela entra pelo

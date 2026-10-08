@@ -377,7 +377,7 @@ public class ProjectInvitationService : IProjectInvitationService
         return await _unitOfWork.ProjectInvitations.ListPendingEmailWithoutSessionAsync(cancellationToken);
     }
 
-    // ─── Peças ────────────────────────────────────────────────────────────────
+    // ─── Pecas ────────────────────────────────────────────────────────────────
 
     /// <summary>
     /// Por que este servidor nao manda convite — ou nulo, quando manda. Sao tres

@@ -21,11 +21,11 @@ const ACOES: Record<NotificationViewModel['Kind'], string> = {
 }
 
 /**
- * O sino do topo: as menções e as vezes em que a pessoa foi escolhida como
- * responsável, de todos os projetos em que ela está.
+ * O sino do topo: as mencoes e as vezes em que a pessoa foi escolhida como
+ * responsavel, de todos os projetos em que ela esta.
  *
- * **A lista é lida ao abrir**, e o número, o tempo todo (`useUnreadCount`). Abrir um
- * aviso leva ao card e o marca como lido; "Marcar todos como lidos" zera o número.
+ * **A lista e lida ao abrir**, e o numero, o tempo todo (`useUnreadCount`). Abrir um
+ * aviso leva ao card e o marca como lido; "Marcar todos como lidos" zera o numero.
  */
 export function NotificationBell() {
   const navigate = useNavigate()
@@ -58,7 +58,7 @@ export function NotificationBell() {
         ),
       )
     } catch {
-      // O card abriu; o aviso continua como não lido, e a próxima leitura conta certo.
+      // O card abriu; o aviso continua como nao lido, e a proxima leitura conta certo.
     }
   }
 

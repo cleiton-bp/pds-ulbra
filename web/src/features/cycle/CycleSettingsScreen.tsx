@@ -32,16 +32,16 @@ import { cn } from '@/shared/lib/cn'
  */
 
 /**
- * **"O código sozinho também confirma e reabre" está escondida, e não removida.**
- * Marcada, ela liga os botões para quem chega pela lista pessoal — mas confirmar,
- * reabrir e responder só aceitam o token do link, e quem chega pelo código não o
- * tem: o botão aparecia e a API recusava. Volta quando essas três rotas aceitarem
- * o código. Até lá o valor salvo segue intacto no rascunho, como o das regras sem
+ * **"O codigo sozinho tambem confirma e reabre" esta escondida, e nao removida.**
+ * Marcada, ela liga os botoes para quem chega pela lista pessoal — mas confirmar,
+ * reabrir e responder so aceitam o token do link, e quem chega pelo codigo nao o
+ * tem: o botao aparecia e a API recusava. Volta quando essas tres rotas aceitarem
+ * o codigo. Ate la o valor salvo segue intacto no rascunho, como o das regras sem
  * tela.
  *
- * **Volta junto com `ActionsAcceptReporterCode`, no `ReportService` da API.** Até
- * lá a API ignora o valor salvo — ligar só esta constante desenharia um controle que
- * não muda nada.
+ * **Volta junto com `ActionsAcceptReporterCode`, no `ReportService` da API.** Ate
+ * la a API ignora o valor salvo — ligar so esta constante desenharia um controle que
+ * nao muda nada.
  */
 const MOSTRAR_REGRA_DO_CODIGO = false
 
@@ -60,8 +60,8 @@ export function CycleSettingsScreen() {
     ),
   )
 
-  // As colunas, para escolher o destino da reabertura. **Falhar aqui não impede
-  // configurar o resto**: só aquele campo fica indisponível, e a tela diz por quê.
+  // As colunas, para escolher o destino da reabertura. **Falhar aqui nao impede
+  // configurar o resto**: so aquele campo fica indisponivel, e a tela diz por que.
   const { data: colunas } = useAsyncResource(
     useCallback(() => projectStateService.listProjectStates(project.PublicId), [project.PublicId]),
   )
@@ -75,8 +75,8 @@ export function CycleSettingsScreen() {
     setDraft(saved)
   }, [saved])
 
-  // Compara so o que a tela mexe. Comparar todas diria "há mudança" para uma
-  // diferença que ninguém pode ter feito, porque não há controle para ela.
+  // Compara so o que a tela mexe. Comparar todas diria "ha mudanca" para uma
+  // diferenca que ninguem pode ter feito, porque nao ha controle para ela.
   const CAMPOS_NA_TELA = [
     'ClosureTrigger',
     'PublicDelayMinutes',
@@ -183,9 +183,9 @@ export function CycleSettingsScreen() {
             Esperar antes de mostrar
           </label>
           <div className="mb-1.5 flex items-center gap-2">
-            {/* Um `number` de verdade: o teclado do telefone abre numérico, as setas
-                funcionam, e o navegador já recusa letra. O `TextField` do painel é
-                de texto, e aqui o que se digita é um número de minutos. */}
+            {/* Um `number` de verdade: o teclado do telefone abre numerico, as setas
+                funcionam, e o navegador ja recusa letra. O `TextField` do painel e
+                de texto, e aqui o que se digita e um numero de minutos. */}
             <input
               id="espera"
               type="number"
@@ -195,9 +195,9 @@ export function CycleSettingsScreen() {
               onChange={(evento) =>
                 setDraft({
                   ...draft,
-                  // Campo vazio vira zero, e não `NaN`: apagar tudo para digitar
-                  // outro número é o gesto comum, e `NaN` quebraria a comparação
-                  // que decide se há algo a salvar.
+                  // Campo vazio vira zero, e nao `NaN`: apagar tudo para digitar
+                  // outro numero e o gesto comum, e `NaN` quebraria a comparacao
+                  // que decide se ha algo a salvar.
                   PublicDelayMinutes: Number.parseInt(evento.target.value, 10) || 0,
                 })
               }
@@ -428,9 +428,9 @@ export function CycleSettingsScreen() {
 
           {MOSTRAR_REGRA_DO_CODIGO && (
             <>
-              {/* O que ainda não está aqui, dito na tela em vez de descoberto depois.
-              Uma tela de configuração que cala sobre o que não configura faz a
-              pessoa procurar o controle que não existe. */}
+              {/* O que ainda nao esta aqui, dito na tela em vez de descoberto depois.
+              Uma tela de configuracao que cala sobre o que nao configura faz a
+              pessoa procurar o controle que nao existe. */}
               <h2 className="mt-8 mb-1 font-medium text-fg text-lead">Quem chega sem o link</h2>
               <p className="mb-4 text-detail text-fg-muted leading-relaxed">
                 No modo <strong className="font-medium text-fg">código pessoal</strong>, a pessoa
@@ -446,8 +446,8 @@ export function CycleSettingsScreen() {
                 aoTrocar={(marcado) => setDraft({ ...draft, TrackingCodeCanAct: marcado })}
               />
 
-              {/* Sem o modo, a regra não tem quando acontecer — e dizer isso evita que
-              alguém a marque esperando um efeito que não vem. */}
+              {/* Sem o modo, a regra nao tem quando acontecer — e dizer isso evita que
+              alguem a marque esperando um efeito que nao vem. */}
               <p className="mt-2.5 text-caption text-fg-muted leading-relaxed">
                 Só tem efeito quando o projeto usa código pessoal, na tela de{' '}
                 <strong className="font-medium text-fg">Identidade</strong>. Nos outros modos,
@@ -515,10 +515,10 @@ function Dias({
 }
 
 /**
- * Uma chave de liga-desliga com a explicação ao lado.
+ * Uma chave de liga-desliga com a explicacao ao lado.
  *
- * O título diz o que acontece **quando ligado**, e nunca o nome da coluna do
- * banco: quem lê a tela decide sobre o comportamento, e não sobre o campo.
+ * O titulo diz o que acontece **quando ligado**, e nunca o nome da coluna do
+ * banco: quem le a tela decide sobre o comportamento, e nao sobre o campo.
  */
 function Marcar({
   marcado,
@@ -550,9 +550,9 @@ function Marcar({
 /**
  * Uma das duas escolhas.
  *
- * É um `radio` de verdade, e não dois botões: o teclado anda entre as opções com
- * as setas, o leitor de tela anuncia "1 de 2", e o navegador já garante que só uma
- * fica marcada. Dois botões pareceriam iguais e não teriam nada disso.
+ * E um `radio` de verdade, e nao dois botoes: o teclado anda entre as opcoes com
+ * as setas, o leitor de tela anuncia "1 de 2", e o navegador ja garante que so uma
+ * fica marcada. Dois botoes pareceriam iguais e nao teriam nada disso.
  */
 function Escolha({
   valor,

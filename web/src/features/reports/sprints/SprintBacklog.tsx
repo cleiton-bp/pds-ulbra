@@ -66,9 +66,9 @@ type Listas = Record<string, string[]>
  * embaixo, cada um na ordem que o time arruma.
  *
  * **Arrastar** leva o card para outra lista ou para outro lugar na mesma — com o mouse,
- * com o toque (segurando um instante) ou com o teclado (espaço pega, setas, espaço
+ * com o toque (segurando um instante) ou com o teclado (espaco pega, setas, espaco
  * solta). **O menu de cada card** faz o mesmo sem arrastar: mover para uma sprint ou
- * para o backlog, o topo, o fim. O card abre pelo título.
+ * para o backlog, o topo, o fim. O card abre pelo titulo.
  */
 export function SprintBacklog({
   projectPublicId,
@@ -421,7 +421,7 @@ export function SprintBacklog({
   )
 }
 
-/** Uma lista: o cabeçalho da sprint (ou do backlog) e os cards dela. */
+/** Uma lista: o cabecalho da sprint (ou do backlog) e os cards dela. */
 function Secao({
   secao,
   sprint,
@@ -662,7 +662,7 @@ function ItemArrastavel({
   )
 }
 
-/** A linha de um card no backlog: tipo, número, título, coluna, pontos e responsável. */
+/** A linha de um card no backlog: tipo, numero, titulo, coluna, pontos e responsavel. */
 function Linha({
   card,
   colunas,

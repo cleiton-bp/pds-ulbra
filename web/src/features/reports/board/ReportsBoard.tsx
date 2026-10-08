@@ -64,7 +64,7 @@ interface Soltura {
   /** O lugar de antes na coluna de origem: e para onde o card volta se algo der errado. */
   indice: number
   para: string
-  /** O lugar na coluna de destino, para pô-lo de volta ali numa segunda tentativa. */
+  /** O lugar na coluna de destino, para po-lo de volta ali numa segunda tentativa. */
   indicePara: number
   /** O card logo acima, no lugar novo; nulo e o topo. */
   acima: string | null
