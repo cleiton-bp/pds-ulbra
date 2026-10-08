@@ -93,8 +93,7 @@ public partial class ReportService
                         throw new ArgumentException("Responsavel invalido: use me, none ou o identificador de alguem do time.");
 
                     time ??= await TeamOfAsync(project.AccountId, project.Id, cancellationToken);
-                    pessoas.Add(time.FirstOrDefault(pessoa => pessoa.PublicId == publicId)?.Id
-                                ?? throw new KeyNotFoundException("Pessoa nao encontrada no time deste projeto."));
+                    pessoas.Add(time.FirstOrDefault(pessoa => pessoa.PublicId == publicId)?.Id ?? FiltroQueSumiu);
                     break;
             }
         }
@@ -109,10 +108,11 @@ public partial class ReportService
             return [];
 
         var achadas = await _unitOfWork.ProjectLabels.ListByPublicIdsAsync(projectId, pedidas, cancellationToken);
+        var ids = achadas.Select(label => label.Id).ToList();
         if (achadas.Count != pedidas.Count)
-            throw new KeyNotFoundException("Etiqueta nao encontrada neste projeto.");
+            ids.Add(FiltroQueSumiu);
 
-        return achadas.Select(label => label.Id).ToList();
+        return ids;
     }
 
     private async Task<(IReadOnlyList<long> Prioridades, bool SemPrioridade)> ResolvePrioritiesAsync(long projectId, List<string>? valores, CancellationToken cancellationToken)
@@ -138,10 +138,19 @@ public partial class ReportService
         var doProjeto = await _unitOfWork.ProjectPriorities.ListByProjectAsync(projectId, cancellationToken);
         var achadas = doProjeto.Where(priority => ids.Contains(priority.PublicId)).Select(priority => priority.Id).ToList();
         if (achadas.Count != ids.Distinct().Count())
-            throw new KeyNotFoundException("Prioridade nao encontrada neste projeto.");
+            achadas.Add(FiltroQueSumiu);
 
         return (achadas, semPrioridade);
     }
+
+    /// <summary>
+    /// O valor que sumiu do filtro — a etiqueta apagada, a pessoa que saiu do time, a
+    /// prioridade apagada — vira um identificador que nenhum card tem: o filtro guardado
+    /// na aba de alguem continua lendo (o que nao casa, nao vem), em vez de derrubar a
+    /// tela inteira com 404 a cada releitura. O painel tira o valor do filtro quando ve
+    /// que ele sumiu.
+    /// </summary>
+    private const long FiltroQueSumiu = -1;
 
     private static (IReadOnlyList<ReportTypeEnum> Tipos, bool DoTime) ResolveTypes(List<string>? valores)
     {

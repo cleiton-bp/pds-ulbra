@@ -98,7 +98,7 @@ public class ReportsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relatos do projeto.</response>
     /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, `after` fora do quadro ou sem coluna, ou um filtro fora do formato (busca com mais de 200 caracteres, tipo ou prazo desconhecido).</response>
-    /// <response code="404">Projeto, estado, o card de `after`, a pessoa, a etiqueta ou a prioridade do filtro não existe no projeto, ou a pessoa não está no projeto.</response>
+    /// <response code="404">Projeto, estado ou o card de `after` não existe no projeto, ou a pessoa não está no projeto. A pessoa, a etiqueta ou a prioridade do filtro que sumiu não é erro: não casa com card nenhum.</response>
     /// <response code="409">O card de `after` já saiu da coluna: a tela lê a coluna de novo.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportSummaryViewModel>>), StatusCodes.Status200OK)]
@@ -158,7 +158,7 @@ public class ReportsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">A contagem de cada coluna.</response>
     /// <response code="400">Um filtro fora do formato.</response>
-    /// <response code="404">Projeto não existe, a pessoa, a etiqueta ou a prioridade do filtro não é do projeto, ou a pessoa não está no projeto.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto. A pessoa, a etiqueta ou a prioridade do filtro que sumiu não casa com card nenhum.</response>
     [HttpGet("counts")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ReportStateCountViewModel>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
