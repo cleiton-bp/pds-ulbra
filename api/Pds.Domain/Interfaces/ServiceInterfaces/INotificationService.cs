@@ -6,8 +6,12 @@ namespace Pds.Domain.Interfaces.ServiceInterfaces;
 /// <summary>Os avisos de quem esta na sessao, e o som de cada um.</summary>
 public interface INotificationService
 {
-    /// <summary>Os avisos mais recentes da pessoa, dos projetos em que ela esta, e quantos nao leu.</summary>
-    Task<NotificationListViewModel> ListAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Uma pagina dos avisos da pessoa, dos projetos em que ela esta, e quantos nao leu: so
+    /// os nao lidos, ou todos; do topo, ou depois do aviso <paramref name="before"/>. Se
+    /// ele sumiu, a pagina segue pela hora dele, <paramref name="beforeAt"/>.
+    /// </summary>
+    Task<NotificationListViewModel> ListAsync(bool unreadOnly, Guid? before, DateTimeOffset? beforeAt, CancellationToken cancellationToken = default);
 
     /// <summary>Quantos avisos a pessoa nao leu.</summary>
     Task<NotificationCountViewModel> CountUnreadAsync(CancellationToken cancellationToken = default);
