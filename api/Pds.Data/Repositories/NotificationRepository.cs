@@ -12,17 +12,36 @@ public class NotificationRepository : BaseRepository<Notification, DataContext>,
     {
     }
 
-    public async Task<IReadOnlyList<Notification>> ListForUserAsync(long userId, int take, CancellationToken cancellationToken = default)
-        => await Context.Notifications
+    public async Task<IReadOnlyList<Notification>> ListForUserAsync(
+        long userId,
+        bool unreadOnly,
+        (DateTime CreatedAt, long Id)? before,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = Context.Notifications
             .AsNoTracking()
             .Include(aviso => aviso.ActorUser)
             .Include(aviso => aviso.Project)
             .Include(aviso => aviso.Report)
-            .Where(aviso => aviso.UserId == userId)
+            .Include(aviso => aviso.ReportInternalComment)
+            .Where(aviso => aviso.UserId == userId);
+
+        if (unreadOnly)
+            consulta = consulta.Where(aviso => aviso.ReadAt == null);
+
+        // A pagina seguinte pela hora e pela chave do ultimo que a tela tem, e nao por
+        // deslocamento: o aviso novo que chega no topo, ou o que se le no meio, nao faz a
+        // pagina seguinte repetir nem pular ninguem.
+        if (before is var (hora, id))
+            consulta = consulta.Where(aviso => aviso.CreatedAt < hora || (aviso.CreatedAt == hora && aviso.Id < id));
+
+        return await consulta
             .OrderByDescending(aviso => aviso.CreatedAt)
             .ThenByDescending(aviso => aviso.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
+    }
 
     public Task<int> CountUnreadAsync(long userId, CancellationToken cancellationToken = default)
         => Context.Notifications.CountAsync(aviso => aviso.UserId == userId && aviso.ReadAt == null, cancellationToken);

@@ -4,6 +4,7 @@ using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
+using Pds.Service.Cards;
 
 namespace Pds.Service.Services;
 
@@ -19,8 +20,11 @@ namespace Pds.Service.Services;
 /// </summary>
 public class NotificationService : INotificationService
 {
-    /// <summary>Quantos avisos o sino mostra. Os mais antigos continuam contando como nao lidos.</summary>
+    /// <summary>Quantos avisos vem de uma vez. Os mais antigos chegam pela pagina seguinte.</summary>
     public const int MaxListed = 50;
+
+    /// <summary>Ate quantos caracteres do comentario o aviso da mencao mostra.</summary>
+    public const int MaxExcerptLength = 90;
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountContext _accountContext;
@@ -31,13 +35,35 @@ public class NotificationService : INotificationService
         _accountContext = accountContext;
     }
 
-    public async Task<NotificationListViewModel> ListAsync(CancellationToken cancellationToken = default)
+    public async Task<NotificationListViewModel> ListAsync(bool unreadOnly, Guid? before, DateTimeOffset? beforeAt, CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
-        var avisos = await _unitOfWork.Notifications.ListForUserAsync(userId, MaxListed, cancellationToken);
+
+        // O marco da pagina seguinte e um aviso da propria pessoa, lido pelo filtro de
+        // sempre: o de outra pessoa, ou de um projeto de que ela saiu, nao e achado.
+        (DateTime, long)? depois = null;
+        var marco = before is Guid marcoId
+            ? await _unitOfWork.Notifications.FindForUserAsync(userId, marcoId, cancellationToken)
+            : null;
+        if (marco is not null)
+            depois = (marco.CreatedAt, marco.Id);
+        // O marco sumiu — o comentario ou o card apagado, a mencao tirada numa correcao, o
+        // projeto de que a pessoa saiu —: a pagina segue pela hora que o painel mandou
+        // junto, sem ler o aviso que ja nao vale. A chave maxima traz tambem os da mesma
+        // hora, e o painel tira os que ja tem; a lista continua so a da pessoa, pelo filtro.
+        else if (beforeAt is { } hora)
+            depois = (hora.UtcDateTime, long.MaxValue);
+        else if (before is not null)
+            throw new KeyNotFoundException("Aviso nao encontrado.");
+
+        // Um a mais que a pagina: e ele que diz se ha mais antigos, sem contar todos.
+        var avisos = await _unitOfWork.Notifications.ListForUserAsync(userId, unreadOnly, depois, MaxListed + 1, cancellationToken);
         var naoLidos = await _unitOfWork.Notifications.CountUnreadAsync(userId, cancellationToken);
 
-        return new NotificationListViewModel(avisos.Select(Map).ToList(), naoLidos);
+        return new NotificationListViewModel(
+            avisos.Take(MaxListed).Select(Map).ToList(),
+            naoLidos,
+            avisos.Count > MaxListed);
     }
 
     public async Task<NotificationCountViewModel> CountUnreadAsync(CancellationToken cancellationToken = default)
@@ -130,7 +156,24 @@ public class NotificationService : INotificationService
             new CardParentViewModel(
                 aviso.Report.PublicId,
                 aviso.Report.Number,
-                Report.HeadlineOf(aviso.Report.Title, aviso.Report.ReporterTitle, aviso.Report.Text)));
+                Report.HeadlineOf(aviso.Report.Title, aviso.Report.ReporterTitle, aviso.Report.Text)),
+            aviso.ReportInternalComment is null
+                ? null
+                : new NotificationCommentViewModel(aviso.ReportInternalComment.PublicId, Excerpt(aviso.ReportInternalComment.Body)));
+
+    /// <summary>
+    /// O comeco do comentario, como a pessoa le: o pedido da mencao, sem precisar abrir o
+    /// card para triar. Cortado numa palavra inteira, com reticencias.
+    /// </summary>
+    private static string Excerpt(string corpo)
+    {
+        var texto = Mentions.ToPlainText(corpo);
+        if (texto.Length <= MaxExcerptLength)
+            return texto;
+
+        var corte = texto.LastIndexOf(' ', MaxExcerptLength);
+        return $"{texto[..(corte > MaxExcerptLength / 2 ? corte : MaxExcerptLength)].TrimEnd()}…";
+    }
 
     private static string? PersonNameOrNull(User pessoa)
         => !string.IsNullOrWhiteSpace(pessoa.Name) ? pessoa.Name.Trim()

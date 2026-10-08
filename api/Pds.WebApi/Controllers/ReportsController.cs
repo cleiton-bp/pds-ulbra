@@ -34,7 +34,7 @@ public class ReportsController : BaseController
         _reportService = reportService;
     }
 
-    /// <summary>Lista os relatos do projeto, do mais novo para o mais antigo.</summary>
+    /// <summary>Lista os relatos do projeto, do mais novo para o mais antigo — ou na ordem escolhida (`sort`).</summary>
     /// <remarks>
     /// **O texto vem inteiro.** Cortar aqui exigiria uma segunda rota só para ler o
     /// resto, e enquanto ela não existisse o time leria pela metade o que a pessoa
@@ -46,7 +46,7 @@ public class ReportsController : BaseController
     ///
     /// Página e tamanho fora da faixa são **corrigidos**, não recusados — pedir a
     /// página zero é engano de quem chama, e não motivo para a tela ficar sem
-    /// lista. O tamanho máximo é 100.
+    /// lista. O tamanho padrão é 50, e o máximo é 100.
     ///
     /// Lista vazia não é erro: é um projeto que ainda não recebeu nada.
     ///
@@ -86,18 +86,36 @@ public class ReportsController : BaseController
     /// B); filtros diferentes se cruzam (da Ana **e** vencido). O identificador que não
     /// é do projeto é recusado, como o de coluna. Vencido é o card com prazo antes de
     /// `today` que ainda não terminou.
+    ///
+    /// Também valem `open=true` (o "Em aberto": só o que não terminou — sai o relato
+    /// encerrado e o card na última coluna, pela regra do vencido), `subtasks=hide`
+    /// (só os cards de primeiro nível) e `column`, as colunas do filtro da lista: o
+    /// identificador ou `none`, repetível. **`column` não é `state`**: `state` continua
+    /// sendo o recorte de uma coluna só, o do quadro; a coluna que sumiu do projeto, em
+    /// `column`, não casa com card nenhum — como a etiqueta apagada.
+    ///
+    /// **`sort` é a ordem que a pessoa escolheu na tabela**: `number`, `state` (a ordem
+    /// das colunas), `assignee` (o nome), `priority` (a ordem do projeto), `due`,
+    /// `created` ou `updated` (a última mudança gravada no próprio card), com `dir`
+    /// `asc` (o padrão) ou `desc`. O vazio — sem prazo, sem prioridade, sem
+    /// responsável, sem coluna — fica **no fim nas duas direções**; o mais novo
+    /// desempata. Só na lista de sempre: com `order=board` ou `order=backlog`, `sort` é
+    /// recusado — a ordem ali é a que o time arrumou. Sem `sort`, a lista de sempre, do
+    /// mais novo para o mais antigo. Cada card traz `UpdatedAt`.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="page">Página, começando em 1.</param>
-    /// <param name="pageSize">Quantos relatos por página. Padrão 20, máximo 100.</param>
+    /// <param name="pageSize">Quantos relatos por página. Padrão 50, máximo 100.</param>
     /// <param name="state">Identificador da coluna, ou `none` para os que não têm lugar na fila. Ausente traz tudo.</param>
     /// <param name="archived">Verdadeiro traz só os arquivados.</param>
     /// <param name="order">`recent` (o padrão) ou `board`, a ordem do quadro.</param>
     /// <param name="after">Só com `order=board` e `state`: o card depois do qual a leitura continua — o "Mostrar mais" do quadro. Com ele, a página não vale.</param>
     /// <param name="filters">Os filtros da tela de Trabalho — ver acima.</param>
+    /// <param name="sort">A ordem escolhida na tabela: `number`, `state`, `assignee`, `priority`, `due`, `created` ou `updated`. Só sem `order`, ou com `recent`.</param>
+    /// <param name="dir">`asc` (o padrão) ou `desc`. Só junto de `sort`.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relatos do projeto.</response>
-    /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, `after` fora do quadro ou sem coluna, ou um filtro fora do formato (busca com mais de 200 caracteres, tipo ou prazo desconhecido).</response>
+    /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, `after` fora do quadro ou sem coluna, `sort` ou `dir` desconhecido, `sort` com `order=board` ou `order=backlog`, `dir` sem `sort`, ou um filtro fora do formato (busca com mais de 200 caracteres, tipo, prazo, coluna ou subtarefas desconhecido).</response>
     /// <response code="404">Projeto, estado ou o card de `after` não existe no projeto, ou a pessoa não está no projeto. A pessoa, a etiqueta ou a prioridade do filtro que sumiu não é erro: não casa com card nenhum.</response>
     /// <response code="409">O card de `after` já saiu da coluna: a tela lê a coluna de novo.</response>
     [HttpGet]
@@ -108,16 +126,18 @@ public class ReportsController : BaseController
         Guid publicId,
         CancellationToken cancellationToken,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 50,
         [FromQuery] string? state = null,
         [FromQuery] bool archived = false,
         [FromQuery] string? order = null,
         [FromQuery] Guid? after = null,
-        [FromQuery] ReportFilterDto? filters = null)
+        [FromQuery] ReportFilterDto? filters = null,
+        [FromQuery] string? sort = null,
+        [FromQuery] string? dir = null)
     {
         try
         {
-            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, archived, order, after, filters, cancellationToken);
+            var reports = await _reportService.ListAsync(publicId, page, pageSize, state, archived, order, after, filters, sort, dir, cancellationToken);
             return Success(reports.Items, total: reports.Total);
         }
         catch (Exception exception)
@@ -545,16 +565,24 @@ public class ReportsController : BaseController
     /// Markdown, opcional (até 10 000). Sem `StatePublicId`, nasce no primeiro estado
     /// ativo do projeto.
     ///
+    /// **Responsável e prioridade podem vir na própria criação** — `AssigneeUserPublicId`
+    /// e `PriorityPublicId`, opcionais —, pelas regras das rotas de campo
+    /// (`PUT …/assignee` e `PUT …/priority`), com as mesmas recusas: o responsável tem
+    /// de estar no time do projeto (400), e a prioridade tem de ser do projeto (404) e
+    /// ativa (409). O registro também é o mesmo: no histórico, depois de "criou", a
+    /// mudança de responsável e a de prioridade; e o aviso no sino da pessoa escolhida,
+    /// se não for quem cria. Tudo numa transação só: recusado um, o card não nasce.
+    ///
     /// **Com `ParentPublicId`, nasce como subtarefa** daquele card — um relato ou card
     /// do time do projeto, fora do arquivo, que não seja subtarefa: um nível só. Nasce
-    /// no primeiro estado ativo e sem responsável; mandar a coluna junto
-    /// é recusado.
+    /// no primeiro estado ativo, sem responsável e sem prioridade; mandar a coluna, o
+    /// responsável ou a prioridade junto é recusado (400).
     /// </remarks>
     /// <response code="200">O card criado.</response>
-    /// <response code="400">Sem título, título ou descrição longos demais, ou a coluna mandada com o pai.</response>
+    /// <response code="400">Sem título, título ou descrição longos demais, o responsável fora do time do projeto, ou a coluna, o responsável ou a prioridade mandados com o pai.</response>
     /// <response code="403">O projeto está arquivado.</response>
-    /// <response code="404">Projeto, estado ou o card pai não existe no projeto, ou a pessoa não está no projeto.</response>
-    /// <response code="409">O estado escolhido está aposentado, ou o pai está arquivado ou é subtarefa.</response>
+    /// <response code="404">Projeto, estado, sprint, prioridade ou o card pai não existe no projeto, ou a pessoa não está no projeto.</response>
+    /// <response code="409">O estado ou a prioridade escolhidos estão aposentados, a sprint já foi concluída ou o projeto não trabalha em sprints, ou o pai está arquivado ou é subtarefa.</response>
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
@@ -578,11 +606,18 @@ public class ReportsController : BaseController
     /// <remarks>
     /// Os dois inteiros. **Relato é recusado** (409): o texto dele é de quem
     /// relatou. Arquivado também: editar pede desarquivar antes.
+    ///
+    /// **`Base` é o texto de onde a edição partiu** — o título e a descrição que a
+    /// tela leu ao abrir o editor. Se o card já não tem esse texto, outra pessoa
+    /// salvou no meio, e a gravação é recusada com 409 em vez de apagar o que ela
+    /// escreveu; a tela lê a versão nova e a pessoa decide. É o texto, e não a data
+    /// de alteração do card: trocar a prioridade ou a coluna no meio não é conflito.
+    /// Sem `Base`, grava como sempre.
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
     /// <response code="400">Sem título, ou título ou descrição longos demais.</response>
     /// <response code="404">Card ou projeto não existe, ou a pessoa não está no projeto.</response>
-    /// <response code="409">É um relato, ou o card está arquivado.</response>
+    /// <response code="409">É um relato, o card está arquivado, ou outra pessoa salvou o título ou a descrição depois de `Base`.</response>
     [HttpPut("{reportPublicId:guid}")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
@@ -862,7 +897,7 @@ public class ReportsController : BaseController
     /// <remarks>
     /// Uma prioridade ativa do projeto. A aposentada continua no card que já a tinha, e
     /// não vai para outro (409). `PriorityPublicId` nulo é sem prioridade — como o card
-    /// nasce.
+    /// nasce, se não se escolhe uma ao criar.
     /// </remarks>
     /// <response code="200">O card como ficou.</response>
     /// <response code="404">Card, projeto ou prioridade não existe, ou a pessoa não está no projeto.</response>

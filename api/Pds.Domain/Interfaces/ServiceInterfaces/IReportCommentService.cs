@@ -24,6 +24,15 @@ public interface IReportCommentService
     /// <summary>Escreve um comentario que fica entre o time.</summary>
     Task<InternalCommentViewModel> AddInternalAsync(Guid projectPublicId, Guid reportPublicId, CreateInternalCommentDto dto, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Corrige um comentario interno. So quem o escreveu; as mencoes passam a ser as do
+    /// texto novo — quem entrou e avisado, e o aviso de quem saiu sai junto.
+    /// </summary>
+    Task<InternalCommentViewModel> EditInternalAsync(Guid projectPublicId, Guid reportPublicId, Guid commentPublicId, EditInternalCommentDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Apaga um comentario interno. So quem o escreveu; os avisos da mencao saem junto.</summary>
+    Task DeleteInternalAsync(Guid projectPublicId, Guid reportPublicId, Guid commentPublicId, CancellationToken cancellationToken = default);
+
     /// <summary>Escreve um comentario para quem relatou.</summary>
     Task<PublicCommentViewModel> AddPublicAsync(Guid projectPublicId, Guid reportPublicId, CreatePublicCommentDto dto, CancellationToken cancellationToken = default);
 }

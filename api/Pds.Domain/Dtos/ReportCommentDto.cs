@@ -10,6 +10,15 @@ public class CreateInternalCommentDto
 }
 
 /// <summary>
+/// A correcao de um comentario interno, por quem o escreveu. O comentario vem da rota.
+/// </summary>
+public class EditInternalCommentDto
+{
+    /// <summary>O texto novo, inteiro. As mencoes valem pelo texto novo.</summary>
+    public string? Body { get; set; }
+}
+
+/// <summary>
 /// Um comentario para quem relatou.
 ///
 /// <para>E um tipo proprio, e nao o mesmo com um campo de visibilidade: um campo

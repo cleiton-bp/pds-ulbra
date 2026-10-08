@@ -68,7 +68,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectState)
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
 
-    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, ReportCardFilter cards, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, ReportCardFilter cards, ReportListSort? sort = null, CancellationToken cancellationToken = default)
         // O filtro global ja isola por conta e esconde o que foi apagado; aqui so
         // resta escolher o projeto e o recorte. O Id no fim desempata os relatos do
         // mesmo instante, que sem isso trocariam de lugar entre uma pagina e a
@@ -105,6 +105,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         {
             ReportListOrder.Board => recorte.OrderBy(report => report.BoardRank).ThenBy(report => report.Id),
             ReportListOrder.Backlog => recorte.OrderBy(report => report.BacklogRank).ThenBy(report => report.Id),
+            _ when sort is not null => Ordenar(recorte, sort),
             _ => recorte.OrderByDescending(report => report.CreatedAt).ThenByDescending(report => report.Id),
         };
 
@@ -114,6 +115,39 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .AsSplitQuery()
             .ToListAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// A ordem que a pessoa escolheu na lista. <b>O vazio fica no fim nas duas
+    /// direcoes</b> — o card sem prazo no topo esconderia os que tem —, o mais novo
+    /// desempata, e o Id fecha a ordem total que a pagina por posicao precisa.
+    ///
+    /// <para>A prioridade vai pela ordem do projeto (a posicao: a de cima e a mais
+    /// urgente), e a coluna pela ordem do quadro. Tudo pela mesma consulta, dentro do
+    /// filtro de conta e projeto de sempre: as juncoes so leem o que o card ja aponta.</para>
+    /// </summary>
+    private static IOrderedQueryable<Report> Ordenar(IQueryable<Report> cards, ReportListSort sort)
+    {
+        var desc = sort.Descending;
+        var ordenada = sort.Field switch
+        {
+            ReportSortField.Number => desc ? cards.OrderByDescending(report => report.Number) : cards.OrderBy(report => report.Number),
+            ReportSortField.Created => desc ? cards.OrderByDescending(report => report.CreatedAt) : cards.OrderBy(report => report.CreatedAt),
+            ReportSortField.Updated => desc ? cards.OrderByDescending(report => report.UpdatedAt) : cards.OrderBy(report => report.UpdatedAt),
+            ReportSortField.Due => Por(cards.OrderBy(report => report.DueDate == null), report => report.DueDate, desc),
+            ReportSortField.Priority => Por(cards.OrderBy(report => report.PriorityId == null), report => report.Priority!.Position, desc),
+            ReportSortField.State => Por(cards.OrderBy(report => report.ProjectStateId == null), report => report.ProjectState!.Position, desc),
+            ReportSortField.Assignee => Por(cards.OrderBy(report => report.AssigneeUserId == null), report => report.AssigneeUser!.Name, desc),
+            _ => cards.OrderByDescending(report => report.CreatedAt),
+        };
+
+        return ordenada
+            .ThenByDescending(report => report.CreatedAt)
+            .ThenByDescending(report => report.Id);
+    }
+
+    /// <summary>O criterio, na direcao pedida, depois do que ja ordenava (o vazio no fim).</summary>
+    private static IOrderedQueryable<Report> Por<TChave>(IOrderedQueryable<Report> antes, Expression<Func<Report, TChave>> chave, bool desc)
+        => desc ? antes.ThenByDescending(chave) : antes.ThenBy(chave);
 
     public Task<int> CountByProjectAsync(long projectId, ReportStateFilter filter, bool archived, DateTime? enteredSince, ReportCardFilter cards, CancellationToken cancellationToken = default)
         => Filtrar(Context.Reports
@@ -151,12 +185,13 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
 
         // O encerramento que vale e o que ninguem reabriu, como na leitura de um so.
-        var encerrados = (await Context.ReportClosures
-                .Where(closure => reportIds.Contains(closure.ReportId) && closure.ReopenedAt == null)
-                .Select(closure => closure.ReportId)
-                .Distinct()
-                .ToListAsync(cancellationToken))
-            .ToHashSet();
+        // E, dele, se quem relatou ja confirmou: o confirmado nao reabre ao sair da coluna.
+        var valendo = await Context.ReportClosures
+            .Where(closure => reportIds.Contains(closure.ReportId) && closure.ReopenedAt == null)
+            .Select(closure => new { closure.ReportId, Confirmado = closure.ConfirmedAt != null })
+            .ToListAsync(cancellationToken);
+        var encerrados = valendo.Select(row => row.ReportId).ToHashSet();
+        var confirmados = valendo.Where(row => row.Confirmado).Select(row => row.ReportId).ToHashSet();
 
         // Pela mesma regra do filtro de vencidos, e nao por uma copia dela.
         var terminados = (await Context.Reports
@@ -272,7 +307,10 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 bloqueadoPor.GetValueOrDefault(id) ?? [],
                 originais.GetValueOrDefault(id),
                 leitores.GetValueOrDefault(id),
-                sprints.GetValueOrDefault(id)));
+                sprints.GetValueOrDefault(id))
+            {
+                ClosureConfirmed = confirmados.Contains(id),
+            });
     }
 
     public Task<List<Report>> ListSubtasksArchivedAtAsync(long parentId, DateTime? archivedAt, CancellationToken cancellationToken = default)
@@ -596,6 +634,27 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             cards = cards.Where(report =>
                 (report.Kind == CardKindEnum.Report && report.Type != null && tipos.Contains(report.Type.Value))
                 || (doTime && report.Kind == CardKindEnum.Team));
+        }
+
+        if (filtro.StateIds is { Count: > 0 } || filtro.WithoutState)
+        {
+            // As colunas da lista: basta estar numa delas — ou sem coluna, quando pedido.
+            var colunas = filtro.StateIds ?? [];
+            var semColuna = filtro.WithoutState;
+            cards = cards.Where(report =>
+                (report.ProjectStateId != null && colunas.Contains(report.ProjectStateId.Value))
+                || (semColuna && report.ProjectStateId == null));
+        }
+
+        if (filtro.WithoutSubtasks)
+            cards = cards.Where(report => report.ParentReportId == null);
+
+        if (filtro.OpenOnly)
+        {
+            // O "Em aberto": o que ainda nao terminou, pela mesma regra do vencido.
+            var terminado = Terminado();
+            var aberto = Expression.Lambda<Func<Report, bool>>(Expression.Not(terminado.Body), terminado.Parameters);
+            cards = cards.Where(aberto);
         }
 
         if (filtro.OverdueOn is DateOnly dia)

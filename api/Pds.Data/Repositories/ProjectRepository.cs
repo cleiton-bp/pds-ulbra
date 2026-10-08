@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Pds.ApiBase.Repositories;
 using Pds.Data.Context;
 using Pds.Domain.Entities;
+using Pds.Domain.Enums;
+using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 
 namespace Pds.Data.Repositories;
@@ -29,6 +31,33 @@ public class ProjectRepository : BaseRepository<Project, DataContext>, IProjectR
         => Context.Projects
             .Include(project => project.Account)
             .FirstOrDefaultAsync(project => project.PublicId == publicId, cancellationToken);
+
+    public async Task<IReadOnlyDictionary<long, ProjectActivity>> ActivityOfAsync(
+        IReadOnlyCollection<long> projectIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (projectIds.Count == 0)
+            return new Dictionary<long, ProjectActivity>();
+
+        // Um agrupamento so, com o filtro global valendo: o card apagado nao conta, e
+        // o arquivado conta — ele chegou e mexeu, so saiu da tela. O maximo
+        // condicional, e nao um `Where` dentro do grupo, porque e o que vira um
+        // `MAX(CASE ...)` so, e nao uma subconsulta por projeto.
+        var linhas = await Context.Reports
+            .Where(report => projectIds.Contains(report.ProjectId))
+            .GroupBy(report => report.ProjectId)
+            .Select(grupo => new
+            {
+                ProjectId = grupo.Key,
+                UltimoRelato = grupo.Max(report => report.Kind == CardKindEnum.Report ? (DateTime?)report.CreatedAt : null),
+                UltimoMovimento = grupo.Max(report => (DateTime?)report.UpdatedAt),
+            })
+            .ToListAsync(cancellationToken);
+
+        return linhas.ToDictionary(
+            linha => linha.ProjectId,
+            linha => new ProjectActivity(linha.ProjectId, linha.UltimoRelato, linha.UltimoMovimento));
+    }
 
     public Task<bool> NameExistsAsync(long accountId, string name, long? ignoreProjectId = null,
         CancellationToken cancellationToken = default)

@@ -128,7 +128,7 @@ public partial class ReportService
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(projectId, cancellationToken);
         return regras is { SprintsEnabled: true }
             ? regras
-            : throw new ConflictException("Este projeto nao trabalha em sprints. O administrador liga no Ciclo.");
+            : throw new ConflictException("Este projeto nao trabalha em sprints. O administrador liga em Sprints.");
     }
 
     /// <summary>O topo ou o fim da lista de destino, sem o card que se move. Lista vazia: o lugar que ele ja tem.</summary>

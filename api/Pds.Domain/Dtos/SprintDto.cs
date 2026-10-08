@@ -3,9 +3,10 @@ using Pds.Domain.Enums;
 namespace Pds.Domain.Dtos;
 
 /// <summary>
-/// O nome, o objetivo e as datas de uma sprint. Ao criar e ao iniciar, o que nao vier
-/// fica como esta (ou nasce com o padrao); ao editar, vai inteiro — o objetivo vazio
-/// apaga.
+/// O nome, o objetivo e as datas de uma sprint. Ao criar, o que nao vier nasce com o
+/// padrao; ao iniciar, o nome e o objetivo que nao vierem ficam como estao, e as datas
+/// que nao vierem sao hoje e a duracao do projeto; ao editar, vai inteiro — o objetivo
+/// vazio apaga.
 /// </summary>
 public class SaveSprintDto
 {
@@ -21,6 +22,12 @@ public class SaveSprintDto
 
     /// <summary>O ultimo dia — no primeiro, ou depois dele.</summary>
     public DateOnly? EndsOn { get; set; }
+
+    /// <summary>
+    /// O dia de hoje no relogio de quem pede: e dele que as datas de fabrica contam. Sem
+    /// ele, ou a mais de um dia do relogio do servidor, vale o dia em UTC.
+    /// </summary>
+    public DateOnly? Today { get; set; }
 }
 
 /// <summary>Para onde vai o que nao terminou quando a sprint fecha.</summary>
@@ -45,6 +52,13 @@ public class CloseSprintDto
 
     /// <summary>A sprint planejada de destino, quando <c>Destination</c> e <c>Sprint</c>.</summary>
     public Guid? SprintPublicId { get; set; }
+
+    /// <summary>
+    /// O dia de hoje no relogio de quem conclui: e dele que a sprint nova de
+    /// <c>NewSprint</c> comeca. Sem ele, ou a mais de um dia do relogio do servidor, vale
+    /// o dia em UTC.
+    /// </summary>
+    public DateOnly? Today { get; set; }
 }
 
 /// <summary>

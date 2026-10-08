@@ -1,5 +1,6 @@
 using Pds.ApiBase.Interfaces;
 using Pds.Domain.Entities;
+using Pds.Domain.Filters;
 
 namespace Pds.Domain.Interfaces.RepositoryInterfaces;
 
@@ -13,6 +14,17 @@ public interface IProjectRepository : IBaseRepository<Project>
 
     /// <summary>O projeto pelo identificador publico, com a conta dona carregada; nulo se a pessoa nao o enxerga.</summary>
     Task<Project?> GetWithAccountAsync(Guid publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O movimento de cada projeto pedido — o ultimo relato que chegou de fora e a
+    /// ultima mudanca em card —, numa consulta so para a lista inteira.
+    ///
+    /// <para><b>Projeto sem card nenhum nao vem</b>: a ausencia e a resposta, e quem
+    /// le trata como "nada ainda".</para>
+    /// </summary>
+    Task<IReadOnlyDictionary<long, ProjectActivity>> ActivityOfAsync(
+        IReadOnlyCollection<long> projectIds,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Ja existe projeto com este nome <b>nesta conta</b>? Ignora o proprio projeto

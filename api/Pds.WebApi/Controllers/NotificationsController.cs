@@ -29,21 +29,36 @@ public class NotificationsController : BaseController
         _notificationService = notificationService;
     }
 
-    /// <summary>Os avisos mais recentes.</summary>
+    /// <summary>Os avisos, de cinquenta em cinquenta.</summary>
     /// <remarks>
-    /// Os cinquenta mais recentes da pessoa, dos projetos em que ela está, do mais novo
-    /// para o mais antigo: `Mention` (alguém a mencionou num comentário interno) e
-    /// `Assignment` (alguém a escolheu como responsável por um card). `UnreadCount`
-    /// conta todos os não lidos, inclusive os que não vieram na lista.
+    /// Os avisos da pessoa, dos projetos em que ela está, do mais novo para o mais
+    /// antigo: `Mention` (alguém a mencionou num comentário interno, com o começo do
+    /// comentário em `Comment`) e `Assignment` (alguém a escolheu como responsável por um
+    /// card). `unread=true` traz só os não lidos. A página seguinte vem com `before`, o
+    /// identificador do último aviso da página anterior, e `beforeAt`, a hora dele (o
+    /// `CreatedAt`): se esse aviso sumiu — o comentário ou o card foi apagado, a menção
+    /// saiu numa correção, a pessoa saiu do projeto —, a página segue pela hora, e pode
+    /// repetir algum aviso da mesma hora, que o painel tira. `HasMore` diz se há mais
+    /// antigos. `UnreadCount` conta todos os não lidos, inclusive os que não vieram.
     /// </remarks>
-    /// <response code="200">Os avisos e quantos não foram lidos.</response>
+    /// <param name="unread">Só os não lidos.</param>
+    /// <param name="before">Os avisos depois deste — o último da página anterior.</param>
+    /// <param name="beforeAt">A hora do aviso de `before`, para seguir mesmo se ele sumiu.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <response code="200">Os avisos, se há mais antigos, e quantos não foram lidos.</response>
+    /// <response code="404">O aviso de `before` não é desta pessoa, ou não existe mais, e o pedido não trouxe `beforeAt`.</response>
     [HttpGet("notifications")]
     [ProducesResponseType(typeof(ApiResponse<NotificationListViewModel>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> List(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(
+        [FromQuery] bool unread = false,
+        [FromQuery] Guid? before = null,
+        [FromQuery] DateTimeOffset? beforeAt = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            return Success(await _notificationService.ListAsync(cancellationToken));
+            return Success(await _notificationService.ListAsync(unread, before, beforeAt, cancellationToken));
         }
         catch (Exception exception)
         {

@@ -16,6 +16,16 @@ public static partial class Mentions
             .Distinct()
             .ToList();
 
+    /// <summary>
+    /// O texto como a pessoa le: cada marca vira "@Nome", e os espacos e as quebras de
+    /// linha viram um espaco so. E o trecho que o aviso da mencao mostra no sino.
+    /// </summary>
+    public static string ToPlainText(string body)
+        => Espacos().Replace(Marca().Replace(body, achado => $"@{achado.Groups[1].Value}"), " ").Trim();
+
     [GeneratedRegex(@"@\[([^\[\]\r\n]{1,180})\]\(([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\)")]
     private static partial Regex Marca();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Espacos();
 }

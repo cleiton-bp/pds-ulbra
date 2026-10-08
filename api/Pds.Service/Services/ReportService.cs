@@ -29,8 +29,12 @@ public partial class ReportService : IReportService
     /// <summary>Teto de pares de contexto por relato, para o corpo da requisicao nao virar deposito.</summary>
     private const int MaxContextEntries = 30;
 
-    /// <summary>Quantos relatos a lista do painel traz quando ninguem pede outra coisa.</summary>
-    private const int DefaultPageSize = 20;
+    /// <summary>
+    /// Quantos relatos a lista do painel traz quando ninguem pede outra coisa. Cinquenta
+    /// e mais de duas telas de tabela: de vinte em vinte, passar o olho, ordenar e marcar
+    /// todos dependiam de clicar em "Carregar mais".
+    /// </summary>
+    private const int DefaultPageSize = 50;
 
     /// <summary>
     /// Teto por pagina. O texto do relato vai inteiro na lista, entao uma pagina de
@@ -964,10 +968,11 @@ public partial class ReportService : IReportService
             : new ReportInfoRequestViewModel(
                 request.AskedByUser?.Name, request.AskedAt, request.WarnAt, request.CloseAt);
 
-    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, CancellationToken cancellationToken = default)
+    public async Task<ReportPageViewModel> ListAsync(Guid projectPublicId, int page, int pageSize, string? state, bool archived = false, string? order = null, Guid? after = null, ReportFilterDto? filters = null, string? sort = null, string? dir = null, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
         var ordem = ResolveOrder(order);
+        var ordenacao = ResolveSort(sort, dir, ordem);
         var filter = await ResolveStateFilterAsync(project.Id, state, cancellationToken);
         var cards = await ResolveCardFilterAsync(project, filters, cancellationToken);
         var depois = after is Guid referencia
@@ -991,7 +996,7 @@ public partial class ReportService : IReportService
         if (skip >= total)
             return new ReportPageViewModel([], total);
 
-        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cards, cancellationToken);
+        var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cards, ordenacao, cancellationToken);
 
         var time = await TeamIdsForAsync(reports, cancellationToken);
         var faces = await _unitOfWork.Reports.CountFacesAsync(reports.Select(report => report.Id).ToList(), cancellationToken);
@@ -1083,67 +1088,98 @@ public partial class ReportService : IReportService
         // Com sprint ligada: o criado numa coluna do quadro entra na sprint que veio; a
         // subtarefa, na do pai; o resto, no backlog.
         var sprint = await ResolveCreateSprintAsync(project.Id, pai, dto.SprintPublicId, cancellationToken);
+        // O responsavel e a prioridade de quem ja os escolhe ao criar, pelas regras do
+        // campo: so quem esta no time agora, so prioridade ativa do projeto — com as
+        // mesmas recusas.
+        var responsavel = dto.AssigneeUserPublicId is Guid pessoa
+            ? await RequireAssigneeAsync(project.AccountId, project.Id, pessoa, cancellationToken)
+            : null;
+        var prioridade = dto.PriorityPublicId is Guid escolhida
+            ? await RequirePriorityAsync(project.Id, escolhida, null, cancellationToken)
+            : null;
         var autorId = _accountContext.UserId ?? throw new UnauthorizedAccessException("Sessao nao identificada.");
 
-        // Depois de tudo o que podia recusar: numero reservado para card recusado
-        // seria um buraco a toa.
-        var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, cancellationToken);
-
-        // No topo da coluna, como o relato que chega.
-        var topo = await _unitOfWork.Projects.NextTopRankAsync(project.Id, cancellationToken);
-
-        var card = new Report
+        // Tudo numa transacao so — o numero, o card, o "criou" e, quando vieram, o
+        // responsavel e a prioridade: ou o card nasce inteiro, ou nao nasce.
+        Guid? avisado = null;
+        var card = await _unitOfWork.InTransactionAsync(async ct =>
         {
-            Kind = CardKindEnum.Team,
-            Number = numero,
-            // No fim do backlog, como todo card novo.
-            BacklogRank = numero * Report.BoardRankGap,
-            AccountId = project.AccountId,
-            ProjectId = project.Id,
-            Title = titulo,
-            Description = descricao,
-            ProjectStateId = estado?.Id,
-            ProjectState = estado,
-            BoardRank = topo,
-            StateChangedAt = DateTime.UtcNow,
-            CreatedByUserId = autorId,
-            ParentReportId = pai?.Id,
-            SprintId = sprint?.Id,
-            // O banco so aceita card do time pendente: e o que o mantem fora da
-            // lista publica mesmo que alguem esqueca o filtro numa consulta.
-            ModerationState = ReportModerationStateEnum.Pending,
-        };
+            // Depois de tudo o que podia recusar: numero reservado para card recusado
+            // seria um buraco a toa.
+            var numero = await _unitOfWork.Projects.NextCardNumberAsync(project.Id, ct);
 
-        await _unitOfWork.Reports.AddAsync(card, cancellationToken);
+            // No topo da coluna, como o relato que chega.
+            var topo = await _unitOfWork.Projects.NextTopRankAsync(project.Id, ct);
 
-        // Na mesma gravacao do card, como o do relato. Sem titulo nem descricao: a
-        // tabela de eventos nao se apaga, e o texto e do card.
-        await _unitOfWork.Events.AddAsync(new Event
-        {
-            AccountId = project.AccountId,
-            ProjectId = project.Id,
-            Report = card,
-            UserId = autorId,
-            Type = EventTypeEnum.TeamCardCreated,
-            Source = EventSourceEnum.Panel,
-            Payload = JsonSerializer.Serialize(new
+            var novo = new Report
             {
-                number = numero,
-                state_id = estado?.PublicId,
-                state_name = estado?.Name,
-                description_length = descricao?.Length ?? 0,
-                parent_id = pai?.PublicId,
-                parent_number = pai?.Number,
-                sprint_id = sprint?.PublicId,
-            }),
-        }, cancellationToken);
+                Kind = CardKindEnum.Team,
+                Number = numero,
+                // No fim do backlog, como todo card novo.
+                BacklogRank = numero * Report.BoardRankGap,
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                Title = titulo,
+                Description = descricao,
+                ProjectStateId = estado?.Id,
+                ProjectState = estado,
+                BoardRank = topo,
+                StateChangedAt = DateTime.UtcNow,
+                CreatedByUserId = autorId,
+                ParentReportId = pai?.Id,
+                SprintId = sprint?.Id,
+                // O banco so aceita card do time pendente: e o que o mantem fora da
+                // lista publica mesmo que alguem esqueca o filtro numa consulta.
+                ModerationState = ReportModerationStateEnum.Pending,
+            };
 
-        await _unitOfWork.CommitAsync(cancellationToken);
+            await _unitOfWork.Reports.AddAsync(novo, ct);
+
+            // Na mesma gravacao do card, como o do relato. Sem titulo nem descricao: a
+            // tabela de eventos nao se apaga, e o texto e do card.
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = project.AccountId,
+                ProjectId = project.Id,
+                Report = novo,
+                UserId = autorId,
+                Type = EventTypeEnum.TeamCardCreated,
+                Source = EventSourceEnum.Panel,
+                Payload = JsonSerializer.Serialize(new
+                {
+                    number = numero,
+                    state_id = estado?.PublicId,
+                    state_name = estado?.Name,
+                    description_length = descricao?.Length ?? 0,
+                    parent_id = pai?.PublicId,
+                    parent_number = pai?.Number,
+                    sprint_id = sprint?.PublicId,
+                }),
+            }, ct);
+
+            await _unitOfWork.CommitAsync(ct);
+
+            // O responsavel e a prioridade escolhidos ao criar ficam como se escolhidos
+            // pelo campo logo depois, pelo mesmo codigo: o mesmo evento no historico,
+            // depois do "criou", e o mesmo aviso no sino. Por isso o card grava antes —
+            // o evento e o aviso apontam para ele.
+            if (responsavel is not null)
+                avisado = await AssignAsync(project, novo, responsavel, ct);
+            if (prioridade is not null)
+                await PrioritizeAsync(project, novo, prioridade, ct);
+            if (responsavel is not null || prioridade is not null)
+                await _unitOfWork.CommitAsync(ct);
+
+            return novo;
+        }, cancellationToken);
 
         card.CreatedByUser = await _unitOfWork.Users.GetByIdAsync(autorId, cancellationToken);
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
 
         await _notifier.CardChangedAsync(card.PublicId);
+
+        if (avisado is Guid avisada)
+            await _notifier.NotificationArrivedAsync(project.PublicId, avisada, NotificationKindEnum.Assignment);
 
         return Detail(card, null, null, canAskInfo: false, [], AllowsReportArchiving(regras),
             await TeamIdsForAsync([card], cancellationToken),
@@ -1154,51 +1190,71 @@ public partial class ReportService : IReportService
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
-        var card = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
-            ?? throw new KeyNotFoundException("Card nao encontrado.");
+        // **A conferencia do `Base` e a gravacao, sob a trava dos campos do card.** Sem
+        // ela, duas pessoas que partiram do mesmo texto conferiam ao mesmo tempo, as
+        // duas passavam, e a segunda gravava por cima da primeira — justamente o que o
+        // `Base` existe para impedir. Com ela, a segunda espera a primeira gravar, le o
+        // texto novo e recebe o 409. A mesma trava das rotas de campo: o titulo pela
+        // rota de titulo tambem espera.
+        var card = await _unitOfWork.InTransactionAsync(async ct =>
+        {
+            await _unitOfWork.Reports.LockCardFieldsAsync(project.Id, reportPublicId, ct);
 
-        // O texto do relato e de quem relatou, e o que ela escreveu fica como ela
-        // escreveu.
-        if (card.Kind != CardKindEnum.Team)
-            throw new ConflictException("O texto do relato e de quem relatou: o time nao o reescreve.");
+            var atual = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, ct)
+                ?? throw new KeyNotFoundException("Card nao encontrado.");
 
-        EnsureNotArchived(card, "edita-lo");
+            // O texto do relato e de quem relatou, e o que ela escreveu fica como ela
+            // escreveu.
+            if (atual.Kind != CardKindEnum.Team)
+                throw new ConflictException("O texto do relato e de quem relatou: o time nao o reescreve.");
 
-        var titulo = RequireTitle(dto.Title);
-        var descricao = NormalizeDescription(dto.Description);
+            EnsureNotArchived(atual, "edita-lo");
 
-        var mudou = new List<string>();
-        if (card.Title != titulo)
-            mudou.Add("title");
-        if (card.Description != descricao)
-            mudou.Add("description");
+            // **De onde a edicao partiu.** Outra pessoa salvou o titulo ou a descricao
+            // enquanto esta escrevia: gravar por cima apagaria o texto dela em silencio. O
+            // texto, e nao a data do card — a data muda com a prioridade, a coluna, a
+            // etiqueta, e isso nao se perde.
+            if (dto.Base is not null && !MesmoTexto(atual, dto.Base))
+                throw new ConflictException("Outra pessoa salvou este card enquanto voce editava. Leia a versao nova antes de salvar.");
+
+            var titulo = RequireTitle(dto.Title);
+            var descricao = NormalizeDescription(dto.Description);
+
+            var mudou = new List<string>();
+            if (atual.Title != titulo)
+                mudou.Add("title");
+            if (atual.Description != descricao)
+                mudou.Add("description");
+
+            // Gravar o mesmo texto nao e edicao: o historico ganharia uma linha que nao
+            // diz nada.
+            if (mudou.Count > 0)
+            {
+                atual.Title = titulo;
+                atual.Description = descricao;
+
+                await _unitOfWork.Events.AddAsync(new Event
+                {
+                    AccountId = project.AccountId,
+                    ProjectId = project.Id,
+                    ReportId = atual.Id,
+                    UserId = _accountContext.UserId,
+                    Type = EventTypeEnum.TeamCardEdited,
+                    Source = EventSourceEnum.Panel,
+                    Payload = JsonSerializer.Serialize(new
+                    {
+                        fields = mudou,
+                        description_length = descricao?.Length ?? 0,
+                    }),
+                }, ct);
+
+                await _unitOfWork.CommitAsync(ct);
+            }
+
+            return atual;
+        }, cancellationToken);
 
         var regras = await _unitOfWork.ProjectCycleSettings.GetByProjectAsync(project.Id, cancellationToken);
-
-        // Gravar o mesmo texto nao e edicao: o historico ganharia uma linha que nao
-        // diz nada.
-        if (mudou.Count > 0)
-        {
-            card.Title = titulo;
-            card.Description = descricao;
-
-            await _unitOfWork.Events.AddAsync(new Event
-            {
-                AccountId = project.AccountId,
-                ProjectId = project.Id,
-                ReportId = card.Id,
-                UserId = _accountContext.UserId,
-                Type = EventTypeEnum.TeamCardEdited,
-                Source = EventSourceEnum.Panel,
-                Payload = JsonSerializer.Serialize(new
-                {
-                    fields = mudou,
-                    description_length = descricao?.Length ?? 0,
-                }),
-            }, cancellationToken);
-
-            await _unitOfWork.CommitAsync(cancellationToken);
-        }
 
         await _notifier.CardChangedAsync(card.PublicId);
 
@@ -1210,7 +1266,8 @@ public partial class ReportService : IReportService
     /// <summary>
     /// O pai da subtarefa que vai nascer. Tem de ser do projeto, estar fora do arquivo e
     /// nao ser subtarefa — um nivel so: mais fundo, o pai deixa de mostrar o que falta.
-    /// Com pai, a coluna nao se escolhe: a subtarefa nasce na primeira.
+    /// Com pai, a coluna nao se escolhe — a subtarefa nasce na primeira —, nem o
+    /// responsavel nem a prioridade: ela nasce sem os dois.
     /// </summary>
     private async Task<Report?> ResolveParentAsync(long projectId, CreateTeamCardDto dto, CancellationToken cancellationToken)
     {
@@ -1219,6 +1276,14 @@ public partial class ReportService : IReportService
 
         if (dto.StatePublicId is not null)
             throw new ArgumentException("A subtarefa nasce na primeira coluna: nao escolha a coluna.");
+
+        // Sem responsavel, porque quem a pega e quem a faz; e sem prioridade, como sempre
+        // nasceu. Recusar, e nao ignorar: quem mandou saberia so depois que nao entrou.
+        if (dto.AssigneeUserPublicId is not null)
+            throw new ArgumentException("A subtarefa nasce sem responsavel: nao escolha o responsavel.");
+
+        if (dto.PriorityPublicId is not null)
+            throw new ArgumentException("A subtarefa nasce sem prioridade: nao escolha a prioridade.");
 
         var pai = await _unitOfWork.Reports.FindParentAsync(projectId, paiPublicId, cancellationToken)
                   ?? throw new KeyNotFoundException("O card pai nao foi encontrado neste projeto.");
@@ -1378,6 +1443,20 @@ public partial class ReportService : IReportService
             throw new ArgumentException($"A descricao pode ter ate {Report.MaxDescriptionLength} caracteres.");
 
         return descricao.Length == 0 ? null : descricao.Replace("\r\n", "\n");
+    }
+
+    /// <summary>
+    /// Se o card ainda tem o titulo e a descricao de onde a edicao partiu. A tela manda
+    /// o que leu da API, ja arrumado; o arrumar daqui e so o das bordas e da quebra de
+    /// linha, sem recusar o tamanho — quem conferiu o tamanho foi a gravacao anterior.
+    /// </summary>
+    private static bool MesmoTexto(Report card, TeamCardTextDto lido)
+    {
+        var titulo = (lido.Title ?? string.Empty).Trim();
+        var descricao = (lido.Description ?? string.Empty).Trim().Replace("\r\n", "\n");
+
+        return (card.Title ?? string.Empty) == titulo
+               && (card.Description ?? string.Empty) == descricao;
     }
 
     /// <summary>
@@ -2788,7 +2867,11 @@ public partial class ReportService : IReportService
         face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
         face.DuplicateReporters,
         face.Sprint is { } sprint ? new CardSprintViewModel(sprint.PublicId, sprint.Name, sprint.State) : null,
-        report.StoryPoints);
+        report.StoryPoints)
+    {
+        UpdatedAt = report.UpdatedAt,
+        ClosureConfirmed = face.ClosureConfirmed,
+    };
 
     /// <summary>
     /// As reaberturas como o painel as le, com sessao.
@@ -2913,7 +2996,11 @@ public partial class ReportService : IReportService
         face.DuplicateOf is { } original ? new CardParentViewModel(original.PublicId, original.Number, original.Headline) : null,
         face.DuplicateReporters,
         face.Sprint is { } sprint ? new CardSprintViewModel(sprint.PublicId, sprint.Name, sprint.State) : null,
-        report.StoryPoints);
+        report.StoryPoints)
+    {
+        UpdatedAt = report.UpdatedAt,
+        ClosureConfirmed = face.ClosureConfirmed,
+    };
 
     /// <summary>
     /// Arquivado se le e se comenta, e so. Mover, editar, encerrar e perguntar pedem

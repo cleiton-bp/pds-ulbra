@@ -43,10 +43,100 @@ public partial class ReportService
               ?? throw new KeyNotFoundException("Card nao encontrado neste projeto.")
             : null;
 
+        var (colunas, semColuna) = await ResolveColumnsAsync(project.Id, dto.Column, cancellationToken);
+
         return new ReportCardFilter(
             pessoas, semResponsavel, etiquetas, prioridades, semPrioridade, tipos, doTime,
             ResolveOverdue(dto.Due, dto.Today), ResolveSearch(dto.Q), pai,
-            await ResolveSprintScopeAsync(project.Id, dto.Sprint, cancellationToken));
+            await ResolveSprintScopeAsync(project.Id, dto.Sprint, cancellationToken),
+            OpenOnly: dto.Open == true,
+            WithoutSubtasks: ResolveSubtasks(dto.Subtasks),
+            StateIds: colunas,
+            WithoutState: semColuna);
+    }
+
+    /// <summary>
+    /// As colunas do filtro da lista. A coluna que sumiu vira o identificador que nenhum
+    /// card tem, como a etiqueta apagada: o filtro guardado na aba continua lendo.
+    /// </summary>
+    private async Task<(IReadOnlyList<long> Colunas, bool SemColuna)> ResolveColumnsAsync(long projectId, List<string>? valores, CancellationToken cancellationToken)
+    {
+        var pedidas = Distintos(valores);
+        if (pedidas.Count == 0)
+            return ([], false);
+
+        var semColuna = pedidas.Any(valor => valor.Equals(WithoutStateFilter, StringComparison.OrdinalIgnoreCase));
+        var ids = new List<Guid>();
+
+        foreach (var valor in pedidas.Where(valor => !valor.Equals(WithoutStateFilter, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (!Guid.TryParse(valor, out var publicId))
+                throw new ArgumentException($"Coluna invalida: use {WithoutStateFilter} ou o identificador da coluna.");
+            ids.Add(publicId);
+        }
+
+        if (ids.Count == 0)
+            return ([], semColuna);
+
+        // A aposentada entra: ela continua segurando os cards que ficaram nela.
+        var doProjeto = await _unitOfWork.ProjectStates.ListByProjectAsync(projectId, cancellationToken);
+        var achadas = doProjeto.Where(estado => ids.Contains(estado.PublicId)).Select(estado => estado.Id).ToList();
+        if (achadas.Count != ids.Distinct().Count())
+            achadas.Add(FiltroQueSumiu);
+
+        return (achadas, semColuna);
+    }
+
+    /// <summary>As subtarefas: <c>hide</c> as esconde. Sem valor, ficam.</summary>
+    private static bool ResolveSubtasks(string? subtasks)
+        => subtasks?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => false,
+            "hide" => true,
+            _ => throw new ArgumentException("Filtro de subtarefas desconhecido. Use hide."),
+        };
+
+    /// <summary>
+    /// A ordem que a pessoa escolheu na lista. <b>So na lista de sempre</b>: o quadro e
+    /// o backlog tem a ordem que o time arrumou, e misturar as duas faria o "Mostrar
+    /// mais" do quadro pular cards. Sem <c>sort</c>, nulo — a lista do mais novo para o
+    /// mais antigo, como sempre foi.
+    /// </summary>
+    private static ReportListSort? ResolveSort(string? sort, string? dir, ReportListOrder ordem)
+    {
+        var campo = sort?.Trim().ToLowerInvariant();
+        var direcao = dir?.Trim().ToLowerInvariant();
+
+        if (string.IsNullOrEmpty(campo))
+        {
+            if (!string.IsNullOrEmpty(direcao))
+                throw new ArgumentException("A direcao (dir) vai junto da ordenacao (sort).");
+            return null;
+        }
+
+        if (ordem != ReportListOrder.Recent)
+            throw new ArgumentException("A ordenacao (sort) so vale na lista de sempre, sem order=board nem order=backlog.");
+
+        var porCampo = campo switch
+        {
+            "number" => ReportSortField.Number,
+            "state" => ReportSortField.State,
+            "assignee" => ReportSortField.Assignee,
+            "priority" => ReportSortField.Priority,
+            "due" => ReportSortField.Due,
+            "created" => ReportSortField.Created,
+            "updated" => ReportSortField.Updated,
+            _ => throw new ArgumentException("Ordenacao desconhecida. Use number, state, assignee, priority, due, created ou updated."),
+        };
+
+        var decrescente = direcao switch
+        {
+            null or "" or "asc" => false,
+            "desc" => true,
+            _ => throw new ArgumentException("Direcao desconhecida. Use asc ou desc."),
+        };
+
+        return new ReportListSort(porCampo, decrescente);
     }
 
     /// <summary>O recorte das sprints. A sprint pedida tem de ser do projeto, como todo filtro.</summary>

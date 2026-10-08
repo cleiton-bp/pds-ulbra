@@ -2,6 +2,7 @@ using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
 using Pds.Domain.Exceptions;
+using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.Security;
@@ -14,17 +15,30 @@ namespace Pds.Service.Services;
 public class ProjectService : IProjectService
 {
     /// <summary>
-    /// O primeiro estado da fila de trabalho, criado junto com o projeto.
+    /// As colunas com que o projeto nasce, na ordem, e a etapa publica em que cada uma
+    /// entra.
     ///
-    /// <para>E uma area de triagem: onde o relato para para alguem olhar antes de
-    /// encaminhar. Existe porque cliente que encara tela em branco desiste — e
-    /// porque sem nenhum estado o relato entraria sem lugar na fila.</para>
+    /// <para><b>Tres, e nao uma.</b> Com uma coluna so o quadro nao anda: ela era a
+    /// entrada e o fim ao mesmo tempo, e o time precisava achar a configuracao antes
+    /// de mover o primeiro card. "A fazer, Fazendo, Feito" e o que quem chega de um
+    /// quadro simples espera no primeiro minuto — e a ultima e a que encerra, pela
+    /// regra de fabrica do ciclo (a ultima coluna ativa).</para>
     ///
-    /// <para>Este texto <b>tem acento de proposito</b>, diferente das mensagens do
-    /// sistema: nao e texto nosso, e o nome de uma coluna que o cliente ve na tela
-    /// e renomeia quando quiser.</para>
+    /// <para><b>Ja ligadas ao andamento publico.</b> Sem a ligacao, o relato andava
+    /// por dentro e quem relatou continuava lendo "Recebido", sem ninguem perceber.
+    /// A etapa vem pelo rotulo do conjunto de fabrica; se um dia ele mudar e o
+    /// rotulo sumir, a coluna so nasce sem ligacao — nada quebra.</para>
+    ///
+    /// <para>Os nomes <b>tem acento de proposito</b>, diferente das mensagens do
+    /// sistema: nao sao texto nosso, sao colunas que o cliente ve na tela e renomeia
+    /// quando quiser.</para>
     /// </summary>
-    private const string FactoryStateName = "Análise";
+    private static readonly IReadOnlyList<(string Name, string PublicStage)> FactoryStates =
+    [
+        ("A fazer", "Recebido"),
+        ("Fazendo", "Em desenvolvimento"),
+        ("Feito", "Concluído"),
+    ];
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountContext _accountContext;
@@ -64,8 +78,11 @@ public class ProjectService : IProjectService
         };
         await _unitOfWork.Projects.AddAsync(project, cancellationToken);
 
-        // O par de chaves nasce junto com o projeto: sem elas o projeto nao serve
-        // para nada, e obrigar a um segundo passo so cria a chance de esquecer.
+        // A chave publica nasce junto com o projeto: sem ela o site nao manda relato,
+        // e obrigar a um segundo passo so cria a chance de esquecer. A secreta nao:
+        // ela serve a um uso que pouca gente tem, e nasce sob pedido na tela de
+        // chaves — junto daqui, aparecia uma vez so para quem ainda nem sabia se
+        // precisava dela.
         var (publicValue, publicPrefix) = ProjectKeyGenerator.GeneratePublic();
         var publicKey = new ProjectKey
         {
@@ -75,36 +92,50 @@ public class ProjectService : IProjectService
             Prefix = publicPrefix,
         };
 
-        var (secretValue, secretPrefix, secretHash) = ProjectKeyGenerator.GenerateSecret();
-        var secretKey = new ProjectKey
-        {
-            Project = project,
-            Type = ProjectKeyTypeEnum.Secret,
-            Hash = secretHash,
-            Prefix = secretPrefix,
-        };
-
         await _unitOfWork.ProjectKeys.AddAsync(publicKey, cancellationToken);
-        await _unitOfWork.ProjectKeys.AddAsync(secretKey, cancellationToken);
 
-        // A fila de trabalho tambem nasce aqui, com uma coluna so. Nao gravamos
-        // junto uma escolha de onde cada tipo cai: sem escolha, o relato vai para o
-        // primeiro estado ativo, que e este. Assim o caminho "o cliente nao
-        // configurou" e o caminho comum, exercitado por todo projeto novo, em vez
-        // de um canto que so aparece anos depois.
-        await _unitOfWork.ProjectStates.AddAsync(new ProjectState
-        {
-            Project = project,
-            Name = FactoryStateName,
-            Position = 0,
-        }, cancellationToken);
-
-        // E a jornada publica nasce junto, com o conjunto padrao. Pelo mesmo motivo
-        // da fila: tela em branco nao se preenche, e cinco passos com frase
-        // explicativa em cada um e muito para inventar do zero. Tudo editavel,
-        // removivel e reordenavel depois — o padrao e ponto de partida, nao regra.
-        foreach (var stage in FactoryPublicStages.For(project))
+        // A jornada publica nasce junto, com o conjunto padrao: tela em branco nao se
+        // preenche, e cinco passos com frase explicativa em cada um e muito para
+        // inventar do zero. Tudo editavel, removivel e reordenavel depois — o padrao
+        // e ponto de partida, nao regra.
+        var etapas = FactoryPublicStages.For(project).ToList();
+        foreach (var stage in etapas)
             await _unitOfWork.ProjectPublicStages.AddAsync(stage, cancellationToken);
+
+        // E as colunas do quadro, ja ligadas a jornada (ver `FactoryStates`). Nao
+        // gravamos junto uma escolha de onde cada tipo cai: sem escolha, o relato vai
+        // para a primeira coluna ativa, que e "A fazer". Assim o caminho "o cliente
+        // nao configurou" e o caminho comum, exercitado por todo projeto novo.
+        var ligadas = 0;
+        for (var position = 0; position < FactoryStates.Count; position++)
+        {
+            var (nome, rotulo) = FactoryStates[position];
+            var coluna = new ProjectState
+            {
+                Project = project,
+                Name = nome,
+                Position = position,
+            };
+            await _unitOfWork.ProjectStates.AddAsync(coluna, cancellationToken);
+
+            var etapa = etapas.FirstOrDefault(stage => stage.Label == rotulo);
+            if (etapa is null)
+                continue;
+
+            // A versao 1 do mapa, como se alguem tivesse salvo a tela: e um mapa como
+            // qualquer outro, e a proxima gravacao vira a versao 2.
+            await _unitOfWork.ProjectStatusMappings.AddAsync(new ProjectStatusMapping
+            {
+                Project = project,
+                ProjectState = coluna,
+                ProjectPublicStage = etapa,
+                Version = 1,
+            }, cancellationToken);
+            ligadas++;
+        }
+
+        if (ligadas > 0)
+            project.MappingVersion = 1;
 
         // E as prioridades de fabrica, da menos para a mais urgente: o time prioriza
         // no primeiro dia sem abrir a Configuracao. O card continua nascendo sem
@@ -122,28 +153,33 @@ public class ProjectService : IProjectService
             }, cancellationToken);
         }
 
-        // Um unico commit: ou o projeto, as duas chaves, a fila, a jornada e as
-        // prioridades entram, ou nao entra nada.
+        // Um unico commit: ou o projeto, a chave, a jornada, as colunas com o mapa e
+        // as prioridades entram, ou nao entra nada.
         await _unitOfWork.CommitAsync(cancellationToken);
 
         // Quem cria e dono: o projeto nasceu na conta propria. A lista de acesso da
-        // requisicao foi montada antes dele existir, entao o papel sai daqui.
+        // requisicao foi montada antes dele existir, entao o papel sai daqui. E
+        // projeto recem-criado nao tem movimento nenhum.
         return new ProjectCreatedViewModel(
-            Map(project, new ProjectAccess(project.Id, project.PublicId, ProjectRoleEnum.Administrator, true)),
-            MapKey(publicKey),
-            new RevealedSecretKeyViewModel(secretKey.PublicId, secretValue, secretKey.Prefix, secretKey.CreatedAt));
+            Map(project, new ProjectAccess(project.Id, project.PublicId, ProjectRoleEnum.Administrator, true), null),
+            MapKey(publicKey));
     }
 
     public async Task<IReadOnlyList<ProjectViewModel>> ListAsync(CancellationToken cancellationToken = default)
     {
         var projects = await _unitOfWork.Projects.ListAsync(cancellationToken);
-        return projects.Select(project => Map(project, AccessTo(project))).ToList();
+        var movimento = await _unitOfWork.Projects.ActivityOfAsync(
+            projects.Select(project => project.Id).ToList(), cancellationToken);
+
+        return projects
+            .Select(project => Map(project, AccessTo(project), movimento.GetValueOrDefault(project.Id)))
+            .ToList();
     }
 
     public async Task<ProjectViewModel> GetAsync(Guid publicId, CancellationToken cancellationToken = default)
     {
         var project = await RequireProjectAsync(publicId, cancellationToken);
-        return Map(project, AccessTo(project));
+        return await MapWithActivityAsync(project, cancellationToken);
     }
 
     public async Task<ProjectViewModel> UpdateAsync(Guid publicId, UpdateProjectDto dto, CancellationToken cancellationToken = default)
@@ -171,7 +207,7 @@ public class ProjectService : IProjectService
         _unitOfWork.Projects.Update(project);
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        return Map(project, AccessTo(project));
+        return await MapWithActivityAsync(project, cancellationToken);
     }
 
     /// <summary>
@@ -195,7 +231,14 @@ public class ProjectService : IProjectService
         => _accountContext.FindProject(project.Id)
            ?? throw new InvalidOperationException("Projeto devolvido pelo filtro sem acesso na sessao.");
 
-    private static ProjectViewModel Map(Project project, ProjectAccess access) => new(
+    /// <summary>O projeto de uma rota so, com o movimento dele lido junto.</summary>
+    private async Task<ProjectViewModel> MapWithActivityAsync(Project project, CancellationToken cancellationToken)
+    {
+        var movimento = await _unitOfWork.Projects.ActivityOfAsync([project.Id], cancellationToken);
+        return Map(project, AccessTo(project), movimento.GetValueOrDefault(project.Id));
+    }
+
+    private static ProjectViewModel Map(Project project, ProjectAccess access, ProjectActivity? activity) => new(
         project.PublicId,
         project.Name,
         project.Status,
@@ -203,7 +246,9 @@ public class ProjectService : IProjectService
         project.UpdatedAt,
         new ProjectAccountViewModel(project.Account.PublicId, project.Account.Name),
         access.Role,
-        access.IsAccountOwner);
+        access.IsAccountOwner,
+        activity?.LastReportReceivedAt,
+        activity?.LastActivityAt);
 
     private static ProjectKeyViewModel MapKey(ProjectKey key) => new(
         key.PublicId,
