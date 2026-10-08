@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type RealtimeEvent, type RealtimeStatus, realtimeService } from '@/data'
-import { announceNotificationArrival } from '@/features/notifications/sounds'
 import type { SemAoVivo } from '@/features/reports/LiveStatus'
+import { announceNotificationArrival } from '@/shared/lib/notificationSounds'
 
 export type WorkListener = (evento: RealtimeEvent) => void
 

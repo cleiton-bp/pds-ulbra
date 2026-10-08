@@ -168,6 +168,11 @@ describe('regra de dependencia entre as pastas', () => {
       to: '@/features/auth/sessionStore',
       why: 'a saudacao "Ola, Cleiton" precisa de quem esta logado, e sessao e assunto de auth',
     },
+    {
+      from: 'features/profile/ProfileScreen.tsx',
+      to: '@/features/auth/sessionStore',
+      why: 'o perfil mostra o nome, o e-mail e a conta de quem esta logado, e sessao e assunto de auth',
+    },
   ]
 
   it('uma feature nao importa de outra, fora das excecoes escritas', () => {

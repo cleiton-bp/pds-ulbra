@@ -32,6 +32,13 @@ vi.mock('@/data', async (importOriginal) => {
   }
 })
 
+const chegada = vi.hoisted(() => ({ avisar: vi.fn() }))
+
+vi.mock('@/shared/lib/notificationSounds', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/shared/lib/notificationSounds')>()
+  return { ...real, announceNotificationArrival: chegada.avisar }
+})
+
 const ultima = () => conexoes.abertas.at(-1)
 
 describe('a conexao da tela de Trabalho', () => {
@@ -112,5 +119,22 @@ describe('a conexao da tela de Trabalho', () => {
 
     unmount()
     expect(ultima()?.parar).toHaveBeenCalled()
+  })
+})
+
+describe('o aviso para a pessoa', () => {
+  beforeEach(() => {
+    conexoes.abertas.length = 0
+    chegada.avisar.mockReset()
+  })
+
+  it('vai para o sino, e nao para a tela de Trabalho', () => {
+    const naTela = vi.fn()
+    renderHook(() => useWorkRealtime('p-1', naTela))
+    act(() => ultima()?.handlers.onEvent({ kind: 'notification' }))
+    expect(chegada.avisar).toHaveBeenCalledTimes(1)
+    expect(naTela).not.toHaveBeenCalled()
+    act(() => ultima()?.handlers.onEvent({ kind: 'project' }))
+    expect(naTela).toHaveBeenCalledWith({ kind: 'project' })
   })
 })

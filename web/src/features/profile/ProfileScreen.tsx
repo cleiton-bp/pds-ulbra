@@ -8,16 +8,16 @@ import {
 } from '@/contracts'
 import { describeError, notificationService } from '@/data'
 import { useSessionStore } from '@/features/auth/sessionStore'
-import {
-  NOTIFICATION_KIND_LABELS,
-  NOTIFICATION_SOUNDS,
-  playNotificationSound,
-} from '@/features/notifications/sounds'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import {
+  NOTIFICATION_KIND_LABELS,
+  NOTIFICATION_SOUNDS,
+  playNotificationSound,
+} from '@/shared/lib/notificationSounds'
 
 /**
  * O perfil da pessoa: quem ela e — o nome, o e-mail e a foto vem da conta Google, e a
@@ -35,7 +35,8 @@ export function ProfileScreen() {
   )
 
   return (
-    <div className="mx-auto max-w-170">
+    // A mesma moldura do hub: a casca da conta nao tem margem propria.
+    <div className="mx-auto max-w-170 px-5 py-7 lg:px-8 lg:pt-12">
       <h1 className="mb-6 font-semibold text-screen tracking-tight">Perfil</h1>
 
       <section aria-labelledby="perfil-voce" className="mb-8">
@@ -91,6 +92,9 @@ export function ProfileScreen() {
 }
 
 function SoundSettings({ inicial }: { inicial: NotificationSettingsViewModel }) {
+  // A base e o que esta gravado: o que veio do servidor, e depois o que se salvou. E
+  // contra ela que "Salvar" sabe se ha o que salvar.
+  const [base, setBase] = useState(inicial)
   const [volume, setVolume] = useState(inicial.Volume)
   const [sons, setSons] = useState(inicial.Sounds)
   const [salvando, setSalvando] = useState(false)
@@ -98,14 +102,15 @@ function SoundSettings({ inicial }: { inicial: NotificationSettingsViewModel }) 
 
   // A tela segue o que chegou do servidor quando ele muda (outra aba salvou).
   useEffect(() => {
+    setBase(inicial)
     setVolume(inicial.Volume)
     setSons(inicial.Sounds)
   }, [inicial])
 
   const mudou =
-    volume !== inicial.Volume ||
+    volume !== base.Volume ||
     sons.some(
-      (linha) => inicial.Sounds.find((antes) => antes.Kind === linha.Kind)?.Sound !== linha.Sound,
+      (linha) => base.Sounds.find((antes) => antes.Kind === linha.Kind)?.Sound !== linha.Sound,
     )
 
   const escolher = (tipo: NotificationKind, som: NotificationSound) =>
@@ -117,6 +122,7 @@ function SoundSettings({ inicial }: { inicial: NotificationSettingsViewModel }) 
     setSalvando(true)
     try {
       const salvas = await notificationService.saveSettings({ Volume: volume, Sounds: sons })
+      setBase(salvas)
       setVolume(salvas.Volume)
       setSons(salvas.Sounds)
       toast.done('Preferências salvas.')

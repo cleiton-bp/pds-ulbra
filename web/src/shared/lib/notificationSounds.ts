@@ -1,5 +1,9 @@
 import type { NotificationKind, NotificationSound } from '@/contracts'
 
+// Os sons dos avisos e o sinal de que um aviso chegou. Mora em `shared/` porque tres
+// partes usam: o sino toca, o Perfil deixa ouvir, e a tela de Trabalho, que tem a
+// conexao ao vivo, da o sinal.
+
 /** Os sons, na ordem em que aparecem para escolher. */
 export const NOTIFICATION_SOUNDS: { value: NotificationSound; label: string }[] = [
   { value: 'Ping', label: 'Plim' },

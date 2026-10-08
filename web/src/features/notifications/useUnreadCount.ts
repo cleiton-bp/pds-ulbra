@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { notificationService } from '@/data'
-import { onNotificationArrival, playNotificationSound } from '@/features/notifications/sounds'
+import { onNotificationArrival, playNotificationSound } from '@/shared/lib/notificationSounds'
 
 /** De quanto em quanto tempo o sino pergunta de novo, com a aba a vista. */
 export const UNREAD_POLL_MS = 60_000
@@ -76,18 +76,36 @@ export function useUnreadCount() {
   return { count, setCount, refresh }
 }
 
+/** Um som a cada tanto: o lote que escolhe a mesma pessoa em 30 cards toca uma vez. */
+export const SOUND_GAP_MS = 3_000
+
+/** O aviso mais velho que ainda toca: o que voltou a contar (quem voltou ao time) e antigo. */
+export const SOUND_MAX_AGE_MS = 5 * 60_000
+
+let ultimoSomEm = Number.NEGATIVE_INFINITY
+let ultimoTocado: string | null = null
+
 /**
  * Toca o som do aviso mais novo que a pessoa nao leu, com o volume dela. As
  * preferencias sao lidas na hora: quem acabou de mudar no Perfil ouve o som novo.
+ *
+ * **Uma vez por aviso, e so o recente**: um som a cada poucos segundos, so para o aviso
+ * que nao tocou ainda, e so se ele e de agora — o aviso velho que volta a contar nao toca.
  */
 async function tocarOMaisNovo() {
+  const agora = Date.now()
+  // O relogio que voltou (acerto da hora da maquina) nao segura o som para sempre.
+  if (agora >= ultimoSomEm && agora - ultimoSomEm < SOUND_GAP_MS) return
+  ultimoSomEm = agora
   try {
     const [lista, ajustes] = await Promise.all([
       notificationService.listNotifications(),
       notificationService.getSettings(),
     ])
     const novo = lista.Items.find((aviso) => aviso.ReadAt === null)
-    if (!novo) return
+    if (!novo || novo.PublicId === ultimoTocado) return
+    if (Date.now() - Date.parse(novo.CreatedAt) > SOUND_MAX_AGE_MS) return
+    ultimoTocado = novo.PublicId
     const som = ajustes.Sounds.find((linha) => linha.Kind === novo.Kind)?.Sound ?? 'None'
     playNotificationSound(som, ajustes.Volume)
   } catch {

@@ -113,7 +113,7 @@ export function NotificationBell() {
         <DropdownHeader>
           <div className="font-medium text-body text-fg">Avisos</div>
           <div className="mt-0.5 text-caption text-fg-muted">
-            Menções e cards de que você é responsável
+            Menções e cards que passaram para você
           </div>
         </DropdownHeader>
 
