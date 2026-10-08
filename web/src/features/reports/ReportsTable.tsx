@@ -1,4 +1,4 @@
-import { type MouseEvent, useRef } from 'react'
+import { type MouseEvent, useEffect, useRef } from 'react'
 import { Link, useHref, useNavigate } from 'react-router-dom'
 import type { ReportStateCountViewModel, ReportSummaryViewModel } from '@/contracts'
 import {
@@ -32,6 +32,9 @@ import { dueState } from '@/shared/lib/dueDate'
  * outra aba. O resto da linha tambem abre, por conveniencia de quem usa o mouse — o
  * teclado tem o link, uma parada por linha.
  *
+ * **Com `selecao`, cada linha ganha uma caixa** para as acoes em lote, e o cabecalho
+ * marca ou desmarca todas as linhas que estao na tela.
+ *
  * **Na tela estreita, as colunas de apoio saem**, da menos para a mais necessaria:
  * quando chegou, as etiquetas, o prazo e a prioridade, o responsavel — e, no celular,
  * a coluna vai para debaixo do titulo. O prazo vencido ou perto nunca some: sem a
@@ -44,6 +47,7 @@ export function ReportsTable({
   colunas,
   soonDays,
   destacados,
+  selecao,
 }: {
   reports: ReportSummaryViewModel[]
   /** As colunas do projeto, para o tom da coluna de cada card. */
@@ -51,16 +55,35 @@ export function ReportsTable({
   soonDays: number
   /** Os cards que outra pessoa acabou de mudar: a linha se acende por um instante. */
   destacados?: ReadonlySet<string>
+  /** As caixas das acoes em lote: quem esta marcado, e como marcar. */
+  selecao?: Selecao
 }) {
   const area = useRef<HTMLDivElement>(null)
   useKeepFocus(area)
+  const marcadas = selecao
+    ? reports.filter((report) => selecao.marcados.has(report.PublicId)).length
+    : 0
 
   return (
     // A linha com o foco que sai da lista por outra pessoa deixa o foco na vizinha, e
     // nao no comeco da pagina (ver `useKeepFocus`).
     <div ref={area} data-focus-group className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full border-collapse text-left text-detail">
-        <Cabecalho />
+        <Cabecalho
+          selecao={
+            selecao
+              ? {
+                  todas: marcadas === reports.length,
+                  algumas: marcadas > 0 && marcadas < reports.length,
+                  aoMarcar: (marcar) =>
+                    selecao.definir(
+                      reports.map((report) => report.PublicId),
+                      marcar,
+                    ),
+                }
+              : undefined
+          }
+        />
         <tbody>
           {reports.map((report) => (
             <Linha
@@ -69,6 +92,7 @@ export function ReportsTable({
               colunas={colunas}
               soonDays={soonDays}
               destacada={destacados?.has(report.PublicId) ?? false}
+              selecao={selecao}
             />
           ))}
         </tbody>
@@ -77,16 +101,24 @@ export function ReportsTable({
   )
 }
 
+/** Quem esta marcado na lista, e como marcar — uma linha, ou varias de uma vez. */
+export interface Selecao {
+  marcados: ReadonlySet<string>
+  definir: (ids: string[], marcar: boolean) => void
+}
+
 function Linha({
   report,
   colunas,
   soonDays,
   destacada,
+  selecao,
 }: {
   report: ReportSummaryViewModel
   colunas: ReportStateCountViewModel[] | null
   soonDays: number
   destacada: boolean
+  selecao?: Selecao
 }) {
   const navigate = useNavigate()
   const endereco = useHref(report.PublicId)
@@ -101,7 +133,7 @@ function Linha({
   // registra leitura). O segundo clique de um duplo clique tambem nao: o primeiro ja
   // abriu.
   const abrir = (evento: MouseEvent) => {
-    if ((evento.target as Element).closest('a, button')) return
+    if ((evento.target as Element).closest('a, button, input, label')) return
     if (evento.detail > 1 || window.getSelection()?.toString()) return
     // Com a tecla de outra aba, a linha faz o que o link faria.
     if (evento.metaKey || evento.ctrlKey || evento.shiftKey) {
@@ -113,7 +145,7 @@ function Linha({
 
   // O botao do meio, fora do link: outra aba, como no link.
   const meio = (evento: MouseEvent) => {
-    if (evento.button !== 1 || (evento.target as Element).closest('a, button')) return
+    if (evento.button !== 1 || (evento.target as Element).closest('a, button, input, label')) return
     window.open(endereco, '_blank', 'noopener')
   }
 
@@ -127,6 +159,17 @@ function Linha({
         destacada && 'bg-chip-blue-surface',
       )}
     >
+      {selecao && (
+        <td className="w-8 py-2 pl-3">
+          <input
+            type="checkbox"
+            aria-label={`Selecionar #${report.Number}`}
+            checked={selecao.marcados.has(report.PublicId)}
+            onChange={(evento) => selecao.definir([report.PublicId], evento.target.checked)}
+            className="size-4 cursor-pointer accent-accent"
+          />
+        </td>
+      )}
       {/* A faixa do destaque mora na primeira celula: o fundo sozinho quase nao se ve,
           e cor nunca vai sozinha. Some devagar; o resto da linha responde na hora. */}
       <td
@@ -235,11 +278,32 @@ function Linha({
 }
 
 /** Os nomes das colunas. O do tipo fica so para leitor de tela: o desenho ja diz. */
-function Cabecalho() {
+function Cabecalho({
+  selecao,
+}: {
+  selecao?: { todas: boolean; algumas: boolean; aoMarcar: (marcar: boolean) => void }
+}) {
   const th = 'px-2 py-2 font-medium'
+  // O "algumas" nao tem atributo no HTML: e uma propriedade da caixa.
+  const caixa = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (caixa.current) caixa.current.indeterminate = selecao?.algumas ?? false
+  }, [selecao?.algumas])
   return (
     <thead className="bg-surface-raised text-caption text-fg-muted">
       <tr className="border-border border-b">
+        {selecao && (
+          <th scope="col" className="w-8 py-2 pl-3 font-medium">
+            <input
+              ref={caixa}
+              type="checkbox"
+              aria-label="Selecionar todos os cards da lista"
+              checked={selecao.todas}
+              onChange={(evento) => selecao.aoMarcar(evento.target.checked)}
+              className="size-4 cursor-pointer accent-accent"
+            />
+          </th>
+        )}
         <th scope="col" className="w-9 py-2 pr-1 pl-3 font-medium">
           <span className="sr-only">Tipo</span>
         </th>

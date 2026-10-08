@@ -38,6 +38,7 @@ export function CloseReportDialog({
   aoCancelar,
   arquivando = false,
   maisLeitores = 0,
+  lote = 0,
 }: {
   /**
    * O nome da coluna de destino, ou **nulo** quando o encerramento vem do botao e
@@ -58,6 +59,11 @@ export function CloseReportDialog({
    * mais que vao ler o que se escreve aqui.
    */
   maisLeitores?: number
+  /**
+   * Quantos relatos abertos encerram juntos, no lote da lista: todos com o mesmo
+   * desfecho e o mesmo motivo. Zero (ou um) e o relato de sempre.
+   */
+  lote?: number
 }) {
   const [outcome, setOutcome] = useState<PublicOutcome>('Done')
   const [motivo, setMotivo] = useState('')
@@ -70,13 +76,21 @@ export function CloseReportDialog({
       onOpenChange={(aberto) => {
         if (!aberto && !encerrando) aoCancelar()
       }}
-      title={arquivando ? 'Arquivar o relato' : 'Encerrar o relato'}
-      description={
+      title={
         arquivando
-          ? 'Arquivar encerra este relato e o tira da tela de Trabalho. Quem escreveu lê o motivo na página de acompanhamento e pode reabrir — e reabrir traz o relato de volta — ou finalizar, dando a nota.'
-          : coluna === null
-            ? 'Este relato passa a constar como terminado, e continua na coluna em que está. Quem escreveu vai ler o motivo na página de acompanhamento.'
-            : `Mover para ${coluna} encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.`
+          ? 'Arquivar o relato'
+          : lote > 1
+            ? `Encerrar ${lote} relatos`
+            : 'Encerrar o relato'
+      }
+      description={
+        lote > 1
+          ? `Mover para ${coluna ?? 'a coluna'} encerra os ${lote} relatos abertos da seleção, todos com este desfecho e este motivo. Cada pessoa que relatou vai ler o motivo na página de acompanhamento.`
+          : arquivando
+            ? 'Arquivar encerra este relato e o tira da tela de Trabalho. Quem escreveu lê o motivo na página de acompanhamento e pode reabrir — e reabrir traz o relato de volta — ou finalizar, dando a nota.'
+            : coluna === null
+              ? 'Este relato passa a constar como terminado, e continua na coluna em que está. Quem escreveu vai ler o motivo na página de acompanhamento.'
+              : `Mover para ${coluna} encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.`
       }
       width="w-[min(32rem,calc(100vw-2rem))]"
       footer={
