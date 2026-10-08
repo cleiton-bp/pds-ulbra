@@ -93,6 +93,13 @@ public class ProjectMemberService : IProjectMemberService
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);
         var membro = await RequireMemberAsync(project, userPublicId, "O dono do projeto nao sai do time.", cancellationToken);
 
+        // **Sair e de qualquer um; tirar outra pessoa e de quem administra.** A rota
+        // aceita o membro por isso, e a conferencia do resto mora aqui: so aqui se
+        // sabe se quem pede e a propria pessoa da linha.
+        var saindo = membro.UserId == _accountContext.UserId;
+        if (!saindo && _accountContext.FindProject(project.Id)?.IsAdministrator != true)
+            throw new ForbiddenException("So administradores do projeto podem tirar alguem do time.");
+
         await _unitOfWork.ProjectMembers.SoftDeleteAsync(membro, cancellationToken);
 
         await AddEventAsync(project, EventTypeEnum.ProjectMemberRemoved, new

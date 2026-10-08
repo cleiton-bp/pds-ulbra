@@ -76,17 +76,20 @@ public class ProjectMembersController : BaseController
         }
     }
 
-    /// <summary>Tira alguém do time.</summary>
+    /// <summary>Tira alguém do time, ou a própria pessoa sai.</summary>
     /// <remarks>
+    /// **Sair é de qualquer pessoa do time**: indicando a si mesma, o membro também
+    /// sai. Tirar outra pessoa é só de quem administra.
+    ///
     /// O acesso acaba na requisição seguinte da pessoa. O que ela escreveu nos relatos
     /// continua com o nome dela. O dono não sai: responde 409.
     /// </remarks>
     /// <response code="200">A pessoa saiu do time.</response>
-    /// <response code="403">A pessoa está no projeto, mas não é administradora.</response>
+    /// <response code="403">Quem pede não administra o projeto, e indicou outra pessoa.</response>
     /// <response code="404">Projeto não existe, a pessoa não está nele, ou quem foi indicado não está no time.</response>
     /// <response code="409">Quem foi indicado é o dono do projeto.</response>
-    [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpDelete("{userPublicId:guid}")]
+    [MemberWrite("Sair do time e de qualquer pessoa dele; tirar outra pessoa continua so de quem administra, e isso o servico confere.")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
