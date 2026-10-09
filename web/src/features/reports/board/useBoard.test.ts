@@ -24,6 +24,9 @@ import { useBoard } from '@/features/reports/board/useBoard'
  * - **A mudanca do dialogo**: o card que trocou de coluna vai para o topo da nova (e
  *   onde a API o pos), o arquivado sai, e os totais acompanham.
  * - **O card novo entra no topo da coluna dele.**
+ * - **O card que outra pessoa mudou acende so depois de relida a coluna dele**, e com
+ *   o que aconteceu nesta tela (chegou, foi para outra coluna, so mudou, saiu) e a
+ *   coluna em que esta agora — para o anuncio dizer onde olhar.
  */
 const dublê = vi.hoisted(() => ({ listar: vi.fn() }))
 
@@ -73,6 +76,7 @@ function card(
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    ClosureConfirmed: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -82,6 +86,7 @@ function card(
     DuplicateReporters: 0,
     Sprint: null,
     StoryPoints: null,
+    UpdatedAt: '2026-10-03T12:00:00.000Z',
     ...extra,
   }
 }
@@ -475,9 +480,41 @@ describe('o que chega pelo tempo real', () => {
     await act(async () => {
       for (const responder of respostas) responder()
     })
-    await waitFor(() => expect(aoReler).toHaveBeenCalledWith([{ id: '1', numero: 41 }]))
+    // Vem com o que aconteceu nesta tela e a coluna em que ele esta agora.
+    await waitFor(() =>
+      expect(aoReler).toHaveBeenCalledWith([{ id: '1', numero: 41, coluna: 'b', como: 'foi' }]),
+    )
     expect(aoReler).toHaveBeenCalledTimes(1)
     expect(result.current.items).toEqual({ a: [], b: ['1', '4'] })
+  })
+
+  it('o que aconteceu com cada card do aviso: chegou, mudou ou saiu do quadro', async () => {
+    const aoReler = vi.fn()
+    dublê.listar.mockImplementation(async (_p: string, _pg: number, estado: string) =>
+      estado === 'a'
+        ? { reports: [card('1', 'a', { Number: 41 }), card('2', 'a', { Number: 42 })], total: 2 }
+        : { reports: [], total: 0 },
+    )
+    const { result } = renderHook(() => useBoard('p-1', COLUNAS, true, aoReler))
+    await waitFor(() => expect(result.current.items).toEqual({ a: ['1', '2'], b: [] }))
+
+    // O 41 so mudou (fica em a), o 42 foi para o arquivo, e o 43 nasceu em b.
+    dublê.listar.mockImplementation(async (_p: string, _pg: number, estado: string) =>
+      estado === 'a'
+        ? { reports: [card('1', 'a', { Number: 41 })], total: 1 }
+        : { reports: [card('3', 'b', { Number: 43 })], total: 1 },
+    )
+    act(() => {
+      result.current.remoteChange('1', 'a')
+      result.current.remoteChange('2', null)
+      result.current.remoteChange('3', 'b')
+    })
+    await waitFor(() => expect(aoReler).toHaveBeenCalledTimes(1))
+    expect(aoReler.mock.calls[0]?.[0]).toEqual([
+      { id: '1', numero: 41, coluna: 'a', como: 'mudou' },
+      { id: '2', numero: 42, coluna: undefined, como: 'saiu' },
+      { id: '3', numero: 43, coluna: 'b', como: 'chegou' },
+    ])
   })
 
   it('o filtro novo rele cada coluna aberta do comeco, com ele — sem esvaziar a tela', async () => {

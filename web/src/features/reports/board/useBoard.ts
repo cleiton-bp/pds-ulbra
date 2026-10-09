@@ -4,6 +4,7 @@ import type { ReportFilters } from '@/data'
 import { projectReportService } from '@/data'
 import { isPanelError } from '@/data/errors'
 import { type BoardColumn, type BoardItems, columnOf } from '@/features/reports/board/boardState'
+import type { RemoteChange } from '@/features/reports/LiveStatus'
 
 /** Quantos cards cada coluna mostra antes do "Mostrar mais". */
 export const BOARD_PAGE_SIZE = 50
@@ -61,9 +62,11 @@ export function useBoard(
   /**
    * Os cards que outra pessoa mudou, quando as colunas deles acabaram de ser relidas —
    * e nao quando o aviso chegou: a releitura pode esperar um arraste, e o destaque
-   * acenderia num lugar em que o card ainda nao esta.
+   * acenderia num lugar em que o card ainda nao esta. Cada um vem com o que aconteceu
+   * com ele nesta tela — chegou, foi para outra coluna, so mudou, saiu — e a coluna em
+   * que esta agora, para o anuncio dizer onde olhar.
    */
-  aoReler?: (mudados: { id: string; numero?: number }[]) => void,
+  aoReler?: (mudados: ({ id: string } & RemoteChange)[]) => void,
   /**
    * Os filtros da tela de Trabalho, e a chave deles. Cada coluna e lida com eles, e
    * a chave nova rele todas as colunas abertas.
@@ -82,6 +85,8 @@ export function useBoard(
   recorte.current = sprint
   const aoRelerAgora = useRef(aoReler)
   aoRelerAgora.current = aoReler
+  const colunasAgora = useRef(columns)
+  colunasAgora.current = columns
   const [items, setItemsState] = useState<BoardItems>({})
   const itemsRef = useRef<BoardItems>({})
   const [cards, setCards] = useState<Record<string, ReportSummaryViewModel>>({})
@@ -119,8 +124,11 @@ export function useBoard(
   // ─── O que chega pelo tempo real (as filas; quem as usa vem mais abaixo) ──
   /** As colunas a reler por causa de avisos, esperando a vez. */
   const pendentes = useRef(new Set<string>())
-  /** Os cards dos avisos, para acender quando a releitura chegar. */
-  const mudadosPorOutros = useRef(new Set<string>())
+  /**
+   * Os cards dos avisos, para acender quando a releitura chegar — cada um com a coluna
+   * em que estava nesta tela antes do primeiro aviso (nenhuma, se nao estava).
+   */
+  const mudadosPorOutros = useRef(new Map<string, string | undefined>())
   /** Quantos motivos ha para esperar: um arraste, um movimento gravando, o desfecho aberto. */
   const segurando = useRef(0)
   const juntando = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -420,8 +428,27 @@ export function useBoard(
     mudadosPorOutros.current.clear()
     if (aberto.current === null) return
     void Promise.all(lista.map((chave) => reloadColumn(chave))).then(() => {
-      if (mudados.length > 0)
-        aoRelerAgora.current?.(mudados.map((id) => ({ id, numero: cardsRef.current[id]?.Number })))
+      if (mudados.length === 0) return
+      // O que aconteceu e o que a tela mostra agora, depois de relida: o card que nao
+      // passa no filtro, ou foi para o arquivo, saiu do quadro.
+      aoRelerAgora.current?.(
+        mudados.map(([id, antes]): { id: string } & RemoteChange => {
+          const agora = columnOf(itemsRef.current, id)
+          return {
+            id,
+            numero: cardsRef.current[id]?.Number,
+            coluna: colunasAgora.current?.find((coluna) => coluna.key === agora)?.name,
+            como:
+              agora === undefined
+                ? 'saiu'
+                : antes === undefined
+                  ? 'chegou'
+                  : antes !== agora
+                    ? 'foi'
+                    : 'mudou',
+          }
+        }),
+      )
     })
   }, [reloadColumn])
 
@@ -449,7 +476,7 @@ export function useBoard(
       const daqui = columnOf(itemsRef.current, cardId)
       if (daqui) pendentes.current.add(daqui)
       if (destino) pendentes.current.add(destino)
-      mudadosPorOutros.current.add(cardId)
+      if (!mudadosPorOutros.current.has(cardId)) mudadosPorOutros.current.set(cardId, daqui)
       agendar()
     },
     [agendar],

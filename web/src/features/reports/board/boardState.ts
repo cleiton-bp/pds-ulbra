@@ -1,4 +1,4 @@
-import type { ProjectPriorityViewModel } from '@/contracts'
+import type { ProjectPriorityViewModel, TeamMemberViewModel } from '@/contracts'
 import {
   type ReportStateCountViewModel,
   type ReportSummaryViewModel,
@@ -120,6 +120,11 @@ export interface BoardLane {
    * do time aparecem — os cards delas estao la —, mas nao recebem: a API recusaria.
    */
   accepts: boolean
+  /**
+   * A pessoa do time sem card nenhum no quadro: a raia aparece compacta, no fim, para
+   * receber o card que vai passar a ela.
+   */
+  empty?: boolean
 }
 
 /** Separa a coluna da raia na chave da celula. Nao aparece em identificador nenhum. */
@@ -152,10 +157,14 @@ export function laneOfCard(
 /**
  * As raias que aparecem. **Por prioridade, todas as ativas do projeto**, da mais para a
  * menos urgente (a ordem do projeto, de tras para a frente), com card ou nao: soltar na
- * raia vazia e dar a prioridade. **Por responsavel, as pessoas com card**, em ordem
- * alfabetica — o time inteiro encheria o quadro de faixas vazias. A aposentada e quem
- * saiu do time aparecem se ainda tem card, sem receber. A raia "sem" vem por ultimo, e
- * sempre: e soltando nela que se tira o campo.
+ * raia vazia e dar a prioridade. **Por responsavel, o time inteiro**: as pessoas com
+ * card em ordem alfabetica, e depois, compactas, as sem card nenhum — e justamente a
+ * pessoa livre que deve receber, e sem raia nao havia onde soltar o card para ela. A
+ * aposentada e quem saiu do time aparecem se ainda tem card, sem receber. A raia "sem"
+ * vem por ultimo, e sempre: e soltando nela que se tira o campo.
+ *
+ * A raia sai do dado dos cards, e nao de onde a mao os poe: a pessoa sem card continua
+ * no fim enquanto o card esta a caminho dela, e o quadro nao pula no meio do arraste.
  */
 export function boardLanes(
   cards: Pick<ReportSummaryViewModel, 'Assignee' | 'Priority'>[],
@@ -163,6 +172,8 @@ export function boardLanes(
   prioridades:
     | Pick<ProjectPriorityViewModel, 'PublicId' | 'Position' | 'Name' | 'IsActive'>[]
     | null,
+  /** O time, para as raias de quem esta sem card. Nulo enquanto nao chegou. */
+  pessoas: Pick<TeamMemberViewModel, 'UserPublicId' | 'Name'>[] | null = null,
 ): BoardLane[] {
   const vistas = new Map<string, BoardLane>()
   if (por === 'priority')
@@ -204,6 +215,18 @@ export function boardLanes(
     }
     return a.name.localeCompare(b.name, 'pt-BR')
   })
+  if (por === 'assignee')
+    raias.push(
+      ...(pessoas ?? [])
+        .filter((pessoa) => !vistas.has(pessoa.UserPublicId))
+        .map((pessoa) => ({
+          key: pessoa.UserPublicId,
+          name: pessoa.Name || 'Pessoa sem nome',
+          accepts: true,
+          empty: true,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+    )
   raias.push({
     key: NO_LANE,
     name: por === 'assignee' ? 'Sem responsável' : 'Sem prioridade',

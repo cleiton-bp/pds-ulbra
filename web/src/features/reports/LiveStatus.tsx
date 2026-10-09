@@ -9,19 +9,26 @@ export type SemAoVivo = 'nunca-conectou' | 'caiu' | null
 
 const TEXTOS: Record<'nunca-conectou' | 'caiu', { curto: string; explicacao: string }> = {
   'nunca-conectou': {
-    curto: 'Sem atualização ao vivo',
+    curto: 'Sem atualização ao vivo — tentando conectar…',
     explicacao:
-      'As mudanças de outras pessoas só aparecem ao recarregar a tela, até a conexão voltar. A tela continua tentando.',
+      'As mudanças de outras pessoas só aparecem ao recarregar a tela, até a conexão voltar. O que você faz continua sendo salvo.',
   },
   caiu: {
-    curto: 'Reconectando…',
-    explicacao: 'As mudanças de outras pessoas aparecem quando a conexão voltar.',
+    curto: 'Sem atualização ao vivo — reconectando…',
+    explicacao:
+      'As mudanças de outras pessoas aparecem quando a conexão voltar. O que você faz continua sendo salvo.',
   },
 }
 
 /**
- * O selo da conexao, **preso ao pe da tela**: aparecer e sumir nao empurra nada — no
- * celular, um selo na barra quebrava a linha e o conteudo pulava debaixo do dedo.
+ * O selo da conexao, **no pe da area de conteudo, a esquerda, depois de tudo**: fica
+ * preso a vista enquanto a tela rola, sem cobrir card nenhum — no meio da tela, ele
+ * escondia um card do quadro. Aparecer so encurta o que vem antes dele, embaixo; nada
+ * pula debaixo do dedo — no celular, um selo na barra quebrava a linha e o conteudo
+ * pulava.
+ *
+ * O que ele quer dizer fica escrito: "sem atualizacao ao vivo" diz que o resto da tela
+ * pode estar velho, e a explicacao (na tela larga) que trabalhar continua valendo.
  *
  * A regiao fica sempre montada, e so o texto entra e sai: leitor de tela anuncia a
  * mudanca dentro de uma regiao viva que ja existia, e nao a regiao que nasce com o
@@ -32,14 +39,11 @@ export function LiveBadge({ estado }: { estado: SemAoVivo }) {
   const texto = estado ? TEXTOS[estado] : null
 
   return (
-    <div
-      role="status"
-      className="pointer-events-none fixed bottom-4 left-1/2 z-toast flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 justify-center"
-    >
+    <div role="status" className="pointer-events-none sticky bottom-0 z-toast flex-none">
       {texto && (
-        <span className="rounded-lg border border-warn-border bg-warn-surface px-3 py-1.5 text-detail text-warn-fg shadow-md">
+        <span className="mt-2 inline-block max-w-full rounded-lg border border-warn-border bg-warn-surface px-3 py-1.5 text-detail text-warn-fg shadow-md">
           {texto.curto}
-          <span className="sr-only"> {texto.explicacao}</span>
+          <span className="sr-only sm:not-sr-only"> {texto.explicacao}</span>
         </span>
       )}
     </div>
@@ -89,11 +93,48 @@ export function useAnnouncer() {
   return [anuncio, anunciar] as const
 }
 
-/** O que dizer dos cards que outra pessoa mudou, pelo numero de cada um quando se sabe. */
-export function describeRemoteChange(numeros: (number | undefined)[]): string {
-  if (numeros.length === 1)
-    return numeros[0] === undefined
-      ? 'Um card foi atualizado.'
-      : `O card #${numeros[0]} foi atualizado.`
-  return `${numeros.length} cards foram atualizados.`
+/** O que aconteceu, nesta tela, com o card que outra pessoa mudou. */
+export type RemoteHow = 'chegou' | 'foi' | 'mudou' | 'saiu'
+
+/**
+ * Um card que outra pessoa mudou: o numero, quando se sabe, e — no quadro — o que
+ * aconteceu com ele e a coluna em que esta agora.
+ */
+export interface RemoteChange {
+  numero?: number
+  coluna?: string
+  como?: RemoteHow
+}
+
+/** Quantos cards o anuncio ainda conta um por um. Mais que isso vira so o numero. */
+const UM_POR_UM = 3
+
+/**
+ * O que dizer dos cards que outra pessoa mudou. **No quadro, o que aconteceu e
+ * onde**: "atualizado" nao dizia se o card chegou, saiu ou mudou de coluna, e quem
+ * ouve teria de ir procurar. Sem isso — na lista —, so o numero de cada um.
+ */
+export function describeRemoteChange(
+  mudancas: ReadonlyArray<number | undefined | RemoteChange>,
+): string {
+  const lista = mudancas.map(
+    (item): RemoteChange => (typeof item === 'object' ? item : { numero: item }),
+  )
+  if (lista.every((item) => item.como === undefined)) {
+    if (lista.length === 1)
+      return lista[0]?.numero === undefined
+        ? 'Um card foi atualizado.'
+        : `O card #${lista[0].numero} foi atualizado.`
+    return `${lista.length} cards foram atualizados.`
+  }
+  if (lista.length > UM_POR_UM) return `${lista.length} cards mudaram no quadro.`
+  return lista.map(frase).join(' ')
+}
+
+function frase({ numero, coluna, como }: RemoteChange): string {
+  const card = numero === undefined ? 'Um card' : `O card #${numero}`
+  if (como === 'chegou' && coluna) return `${card} chegou em ${coluna}.`
+  if (como === 'foi' && coluna) return `${card} foi para ${coluna}.`
+  if (como === 'saiu') return `${card} saiu do quadro.`
+  return `${card} mudou.`
 }
