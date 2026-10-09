@@ -9,13 +9,19 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { StatusDot } from '@/shared/components/StatusDot'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
-import { canConfigure, groupByAccount, roleLabel } from '@/shared/lib/projectAccess'
+import { groupByAccount, roleLabel } from '@/shared/lib/projectAccess'
 
 /**
  * Criar a esquerda, sempre visivel; a lista a direita. Isso resolve o estado
  * vazio sem tela especial: **o convite ja esta na tela o tempo todo**, e a lista
  * vazia so precisa dizer que esta vazia — em voz alta o bastante para quem
- * acabou de entrar saber que nao quebrou nada.
+ * acabou de entrar saber que nao quebrou nada. **No celular a lista vem primeiro**,
+ * e criar vira um botao ao lado do titulo: o hub e a primeira tela de toda sessao,
+ * e quem abre o painel quer escolher onde trabalhar.
+ *
+ * **A linha fala do trabalho, e nao da instalacao.** Ja mostrou o identificador do
+ * projeto e "criado ha X"; agora diz quando foi o ultimo movimento. O
+ * identificador continua na tela Projeto, onde alguem precisa dele.
  *
  * Tres coisas aqui aparecem **so quando servem**, e nao o tempo todo: a busca (a
  * partir de cinco projetos), a contagem (so filtrando) e o "Limpar busca" (so
@@ -62,22 +68,21 @@ export function ProjectsHubScreen() {
   const groups = groupByAccount(rows)
   const firstName = (user?.Name ?? '').trim().split(/\s+/)[0]
 
-  // Quem so esta no time de projetos dos outros nao pega chave nem instala nada:
-  // a frase de quem configura nao serviria para ele.
-  const onlyWorks = projects.length > 0 && !projects.some(canConfigure)
-
   return (
     <div className="px-5 py-7 lg:px-8 lg:pt-12">
       <div className="mx-auto w-full max-w-260">
-        <div className="mb-7 lg:mb-10">
-          <h1 className="mb-1.5 font-semibold text-hero tracking-tight lg:text-hero-wide">
-            Olá{firstName ? `, ${firstName}` : ''}
-          </h1>
-          <p className="max-w-[56ch] text-fg-muted text-body">
-            {onlyWorks
-              ? 'Abra um projeto para trabalhar nos relatos dele.'
-              : 'Abra um projeto para pegar a chave dele e ver o passo a passo da integração.'}
-          </p>
+        <div className="mb-7 flex items-start justify-between gap-4 lg:mb-10">
+          <div className="min-w-0">
+            <h1 className="mb-1.5 font-semibold text-hero tracking-tight lg:text-hero-wide">
+              Olá{firstName ? `, ${firstName}` : ''}
+            </h1>
+            <p className="max-w-[56ch] text-fg-muted text-body">
+              Escolha um projeto para ver o trabalho do time.
+            </p>
+          </div>
+          <Button size="sm" className="flex-none lg:hidden" onClick={() => setCreating(true)}>
+            Criar projeto
+          </Button>
         </div>
 
         {leftProject && (
@@ -98,7 +103,7 @@ export function ProjectsHubScreen() {
             conteudo sem isso, e o identificador inteiro de um projeto esticava a
             pagina para o lado no celular. */}
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8">
-          <div className="rounded-xl border border-border bg-surface-raised p-5">
+          <div className="hidden rounded-xl border border-border bg-surface-raised p-5 lg:block">
             <h2 className="mb-1.5 font-semibold text-lead">Criar projeto</h2>
             <p className="mb-4 text-detail text-fg-muted leading-relaxed">
               Um projeto corresponde a um site ou sistema seu. Cada projeto tem a própria chave
@@ -136,7 +141,8 @@ export function ProjectsHubScreen() {
             {status === 'error' && (
               <div className="flex flex-wrap items-center gap-3.5 border-border border-t py-4.5">
                 <p className="text-fg-muted text-body">
-                  {error ?? 'Não deu para carregar seus projetos agora.'} Eles continuam salvos.
+                  Não deu para carregar seus projetos agora. Eles continuam salvos.
+                  {error && <span className="block text-detail">{error}</span>}
                 </p>
                 <Button size="sm" onClick={() => void load()}>
                   Tentar de novo
@@ -174,6 +180,10 @@ export function ProjectsHubScreen() {
                     <p className="mx-auto mt-1.5 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
                       Crie o primeiro para receber a chave pública dele e colar o script no seu
                       site.
+                    </p>
+                    <p className="mx-auto mt-3 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
+                      Foi convidado para um time? Abra o link do e-mail de convite usando a conta
+                      Google daquele endereço.
                     </p>
                   </>
                 ) : (
@@ -238,13 +248,6 @@ function ProjectRow({ project }: { project: ProjectViewModel }) {
           >
             {project.Name}
           </div>
-          {/* E o identificador do projeto na URL, e nao a chave do script — essa e
-              a `pk_...` da tela de integracao. Monoespacada para ser lida
-              caractere a caractere quando alguem precisa casar uma URL com a
-              linha certa. */}
-          <div className="mt-0.5 truncate font-mono text-detail text-fg-muted">
-            {project.PublicId}
-          </div>
         </div>
 
         <div className="flex flex-none items-center gap-2 sm:gap-3">
@@ -260,7 +263,11 @@ function ProjectRow({ project }: { project: ProjectViewModel }) {
               diz de que — e cabecalho de coluna para tres campos e mais estrutura
               do que esta lista precisa. */}
           <div className="text-detail text-fg-muted">
-            {active ? `criado ${formatRelative(project.CreatedAt)}` : 'arquivado'}
+            {!active
+              ? 'arquivado'
+              : project.LastActivityAt
+                ? `último movimento ${formatRelative(project.LastActivityAt)}`
+                : `criado ${formatRelative(project.CreatedAt)}`}
           </div>
         </div>
       </div>
@@ -284,16 +291,11 @@ function ProjectRow({ project }: { project: ProjectViewModel }) {
 function LoadingRows() {
   return (
     <div className="border-border border-t">
-      {[
-        { name: 'w-[38%]', id: 'w-[28%]' },
-        { name: 'w-[27%]', id: 'w-[34%]' },
-        { name: 'w-[44%]', id: 'w-[24%]' },
-      ].map((row) => (
-        <div key={row.name} className="flex items-center gap-3 border-border border-b px-1 py-4">
+      {['w-[38%]', 'w-[27%]', 'w-[44%]'].map((width) => (
+        <div key={width} className="flex items-center gap-3 border-border border-b px-1 py-4">
           <Skeleton className="size-2 rounded-full" />
           <div className="flex flex-1 flex-col gap-2">
-            <Skeleton className={cn('h-2.5', row.name)} />
-            <Skeleton className={cn('h-2', row.id)} />
+            <Skeleton className={cn('h-2.5', width)} />
           </div>
           <Skeleton className="h-2 w-16" />
         </div>

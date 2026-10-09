@@ -13,9 +13,11 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 /**
  * As etiquetas do projeto, para quem administra organizar.
  *
- * **Quem cria e o time, ao etiquetar um card** — esta tela nao e a porta de entrada
- * delas. Aqui se renomeia, se troca a cor e se apaga: a etiqueta que nasceu com um
- * nome torto, as duas que querem dizer a mesma coisa.
+ * **O time cria ao etiquetar um card, e daqui tambem se cria.** Sem a criacao aqui,
+ * nao dava para preparar o projeto antes de o time comecar; a criacao no card
+ * continua, que e o caminho de todo dia. Aqui tambem se renomeia, se troca a cor e
+ * se apaga: a etiqueta que nasceu com um nome torto, as duas que querem dizer a
+ * mesma coisa.
  *
  * **Apagar tira a etiqueta de todos os cards**, e a tela diz de quantos antes de
  * apagar. O historico de cada card continua contando com o nome que ela tinha.
@@ -43,6 +45,36 @@ export function LabelsScreen() {
   const [editError, setEditError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<ProjectLabelViewModel | null>(null)
+
+  const [name, setName] = useState('')
+  const [color, setColor] = useState<CardColor>('Gray')
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+
+  async function create() {
+    const value = name.trim()
+    if (value.length === 0 || creating) return
+
+    setCreating(true)
+    setCreateError(null)
+
+    try {
+      // A API devolve a que ja existe com o mesmo nome, sem criar outra: aqui ela so
+      // entra na lista se ainda nao estava.
+      const criada = await projectLabelService.addLabel(project.PublicId, {
+        Name: value,
+        Color: color,
+      })
+      setLabels((lista) =>
+        ordenar([...(lista ?? []).filter((item) => item.PublicId !== criada.PublicId), criada]),
+      )
+      setName('')
+    } catch (failure) {
+      setCreateError(describeError(failure))
+    } finally {
+      setCreating(false)
+    }
+  }
 
   async function saveEdit() {
     if (!editing || saving) return
@@ -84,8 +116,8 @@ export function LabelsScreen() {
     <div className="max-w-160">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Etiquetas</h1>
       <p className="mb-8 text-fg-muted text-body">
-        Quem cria as etiquetas é o time, ao etiquetar um card. Aqui você organiza: renomeia, troca a
-        cor ou apaga a que sobrou.
+        O time também cria etiquetas ao etiquetar um card. Aqui você prepara as do projeto,
+        renomeia, troca a cor ou apaga a que sobrou.
       </p>
 
       {failed && (
@@ -112,7 +144,8 @@ export function LabelsScreen() {
 
       {labels !== null && labels.length === 0 && (
         <p className="rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted leading-relaxed">
-          Ainda não há etiquetas. Elas aparecem aqui assim que alguém do time etiquetar um card.
+          Ainda não há etiquetas. Crie abaixo, ou elas aparecem aqui assim que alguém do time
+          etiquetar um card.
         </p>
       )}
 
@@ -191,6 +224,34 @@ export function LabelsScreen() {
             ),
           )}
         </ul>
+      )}
+
+      {labels !== null && (
+        <div className="mt-4 flex flex-col gap-3 rounded-lg border border-border border-dashed p-3">
+          <TextField
+            label="Nova etiqueta"
+            value={name}
+            onChange={(value) => {
+              setName(value)
+              if (createError) setCreateError(null)
+            }}
+            placeholder="Ex.: pagamentos"
+            error={createError}
+            maxLength={MAX_LABEL_NAME_LENGTH}
+            disabled={creating}
+            onSubmit={create}
+          />
+          <CardColorPicker label="Cor" value={color} onChange={setColor} disabled={creating} />
+          <div>
+            <Button
+              variant="primary"
+              disabled={name.trim().length === 0 || creating}
+              onClick={create}
+            >
+              Criar etiqueta
+            </Button>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog

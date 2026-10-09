@@ -18,6 +18,7 @@ import {
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
+import { UnsavedChangesBar } from '@/shared/components/UnsavedChangesBar'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
@@ -206,7 +207,7 @@ export function MediaScreen() {
       })
       setPublished(gravado)
       setDraft(gravado)
-      toast.done('Configuração de mídia salva.')
+      toast.done('Anexos salvos.')
     } catch (falha) {
       toast.error(describeError(falha))
     } finally {
@@ -216,10 +217,10 @@ export function MediaScreen() {
 
   return (
     <div className="max-w-170">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Mídia</h1>
+      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Anexos</h1>
       <p className="mb-6 text-body text-fg-muted leading-relaxed">
-        O que a pessoa pode mandar junto do relato, e até onde. O texto continua sendo obrigatório:
-        um print sozinho vira “adivinha o que está errado nesta tela”.
+        O que quem relata pode anexar, e quem vê. O texto continua sendo obrigatório: um print
+        sozinho vira “adivinha o que está errado nesta tela”.
       </p>
 
       {failed && (
@@ -358,27 +359,24 @@ export function MediaScreen() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              variant="primary"
-              disabled={!dirty || saving || impedido}
-              onClick={() => void salvar()}
-            >
-              {saving ? 'Salvando…' : 'Salvar'}
-            </Button>
-
-            {dirty && !saving && !impedido && (
-              <span className="text-caption text-fg-muted">Há mudança não salva.</span>
-            )}
-
-            {invalidCount > 0 && (
-              <span className="text-caption text-error-fg">
-                {invalidCount === 1
-                  ? 'Há um campo a corrigir.'
-                  : `Há ${invalidCount} campos a corrigir.`}
-              </span>
-            )}
-          </div>
+          <UnsavedChangesBar
+            dirty={dirty || invalidCount > 0}
+            saving={saving}
+            canSave={!impedido}
+            onSave={() => void salvar()}
+            // O campo com texto que nao serve continua dizendo isso depois de
+            // descartar: o texto mora nele, e a barra fica ate ele ser corrigido.
+            onDiscard={() => setDraft(published)}
+            note={
+              invalidCount > 0 ? (
+                <span className="text-error-fg">
+                  {invalidCount === 1
+                    ? 'Há um campo a corrigir.'
+                    : `Há ${invalidCount} campos a corrigir.`}
+                </span>
+              ) : undefined
+            }
+          />
         </section>
       )}
     </div>

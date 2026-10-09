@@ -80,6 +80,21 @@ function TeamSection({ projectPublicId, admin }: { projectPublicId: string; admi
 
   const [removing, setRemoving] = useState<TeamMemberViewModel | null>(null)
   const [changing, setChanging] = useState<string | null>(null)
+  /** Quem administra escolheu deixar de administrar: pergunta antes de valer. */
+  const [demoting, setDemoting] = useState<TeamMemberViewModel | null>(null)
+
+  /**
+   * Tirar o proprio papel de administrador **pergunta antes**. E raro, e sem volta
+   * para quem faz: a configuracao some na hora, e so outra pessoa que administra
+   * devolve o papel.
+   */
+  function pickRole(member: TeamMemberViewModel, role: ProjectRole) {
+    if (member.IsYou && member.Role === 'Administrator' && role === 'Member') {
+      setDemoting(member)
+      return
+    }
+    void changeRole(member, role)
+  }
 
   async function changeRole(member: TeamMemberViewModel, role: ProjectRole) {
     if (role === member.Role) return
@@ -174,26 +189,36 @@ function TeamSection({ projectPublicId, admin }: { projectPublicId: string; admi
                     ariaLabel={`Papel de ${member.Name ?? member.Email ?? 'quem está no time'}`}
                     value={member.Role}
                     disabled={changing === member.UserPublicId}
-                    onChange={(value) => void changeRole(member, value as ProjectRole)}
+                    onChange={(value) => pickRole(member, value as ProjectRole)}
                     options={ROLE_OPTIONS}
                   />
+                  {/* Na propria linha, a acao e sair, e o botao diz isso: "Remover"
+                      ao lado do proprio nome assustava. */}
                   <Button
                     size="sm"
                     variant="ghost"
                     aria-label={
                       member.IsYou
-                        ? 'Sair do time'
+                        ? undefined
                         : `Remover ${member.Name ?? member.Email ?? 'esta pessoa'} do time`
                     }
                     onClick={() => setRemoving(member)}
                   >
-                    Remover
+                    {member.IsYou ? 'Sair do time' : 'Remover'}
                   </Button>
                 </div>
               ) : (
-                <span className="flex-none rounded-md border border-border px-1.5 py-0.5 text-caption text-fg-muted">
-                  {member.IsAccountOwner ? 'Dono' : roleName(member.Role)}
-                </span>
+                <div className="flex flex-none items-center gap-1.5">
+                  <span className="flex-none rounded-md border border-border px-1.5 py-0.5 text-caption text-fg-muted">
+                    {member.IsAccountOwner ? 'Dono' : roleName(member.Role)}
+                  </span>
+                  {/* Quem e so membro tambem sai, pela propria linha. */}
+                  {member.IsYou && !member.IsAccountOwner && (
+                    <Button size="sm" variant="ghost" onClick={() => setRemoving(member)}>
+                      Sair do time
+                    </Button>
+                  )}
+                </div>
               )}
             </li>
           ))}
@@ -213,6 +238,18 @@ function TeamSection({ projectPublicId, admin }: { projectPublicId: string; admi
         }
         confirmLabel={removing?.IsYou ? 'Sair do time' : 'Remover do time'}
         onConfirm={() => (removing ? remove(removing) : undefined)}
+      />
+
+      <ConfirmDialog
+        open={demoting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDemoting(null)
+        }}
+        title="Deixar de administrar este projeto?"
+        description="Você perde na hora o acesso à configuração, e só quem administra pode devolver."
+        confirmLabel="Deixar de administrar"
+        tone="warn"
+        onConfirm={() => (demoting ? changeRole(demoting, 'Member') : undefined)}
       />
     </section>
   )

@@ -16,11 +16,14 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
  *
- * **Estado sem destino nao vira linha.** A ausencia e a resposta. Mandar uma linha
+ * Na tela, "estado" virou **coluna** e "jornada" virou **andamento** — os nomes do
+ * time. A regra e a mesma.
+ *
+ * **Coluna sem destino nao vira linha.** A ausencia e a resposta. Mandar uma linha
  * apontando para nada criaria duas formas de dizer a mesma coisa, e um dia elas
  * discordariam — a regra e do lado da API, mas quem monta o pedido e a tela.
  *
- * **Dois estados podem apontar para a mesma etapa.** E o caminho normal, e nao uma
+ * **Duas colunas podem apontar para a mesma etapa.** E o caminho normal, e nao uma
  * permissao: o dia em que alguem "corrigir" isto para um-para-um, a traducao perde
  * o sentido e vira renomear estado interno.
  *
@@ -91,6 +94,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 function montar() {
@@ -127,7 +132,7 @@ describe('StatusMappingSection', () => {
     for (const mock of Object.values(dublê)) mock.mockReset()
   })
 
-  it('deixa de fora do pedido o estado que não entra na jornada', async () => {
+  it('deixa de fora do pedido a coluna que não entra no andamento', async () => {
     dublê.ler.mockResolvedValue({
       Version: 3,
       Entries: [entrada('s-1', 'Análise', 'e-1'), entrada('s-2', 'Corrigindo', 'e-2')],
@@ -136,12 +141,12 @@ describe('StatusMappingSection', () => {
     dublê.salvar.mockResolvedValue({ Version: 4, Entries: [], UnmappedCount: 0 })
 
     montar()
-    await screen.findByRole('combobox', { name: 'Onde o estado Corrigindo entra na jornada' })
+    await screen.findByRole('combobox', { name: 'Onde a coluna Corrigindo entra no andamento' })
     await escolherNoSelect(
       screen,
       fireEvent,
-      'Onde o estado Corrigindo entra na jornada',
-      'Não entra na jornada',
+      'Onde a coluna Corrigindo entra no andamento',
+      'Não entra no andamento',
     )
     fireEvent.click(botaoSalvar())
 
@@ -150,7 +155,7 @@ describe('StatusMappingSection', () => {
     expect(pedidoGravado().Entries).toEqual([{ StatePublicId: 's-1', StagePublicId: 'e-1' }])
   })
 
-  it('deixa dois estados apontarem para a mesma etapa', async () => {
+  it('deixa duas colunas apontarem para a mesma etapa', async () => {
     dublê.ler.mockResolvedValue({
       Version: 1,
       Entries: [entrada('s-1', 'Análise', 'e-1'), entrada('s-2', 'Corrigindo', 'e-2')],
@@ -159,11 +164,11 @@ describe('StatusMappingSection', () => {
     dublê.salvar.mockResolvedValue({ Version: 2, Entries: [], UnmappedCount: 0 })
 
     montar()
-    await screen.findByRole('combobox', { name: 'Onde o estado Corrigindo entra na jornada' })
+    await screen.findByRole('combobox', { name: 'Onde a coluna Corrigindo entra no andamento' })
     await escolherNoSelect(
       screen,
       fireEvent,
-      'Onde o estado Corrigindo entra na jornada',
+      'Onde a coluna Corrigindo entra no andamento',
       'Recebido',
     )
     fireEvent.click(botaoSalvar())
@@ -183,13 +188,13 @@ describe('StatusMappingSection', () => {
     })
 
     montar()
-    await screen.findByRole('combobox', { name: 'Onde o estado Análise entra na jornada' })
+    await screen.findByRole('combobox', { name: 'Onde a coluna Análise entra no andamento' })
     expect(botaoSalvar().disabled).toBe(true)
 
     await escolherNoSelect(
       screen,
       fireEvent,
-      'Onde o estado Análise entra na jornada',
+      'Onde a coluna Análise entra no andamento',
       'Em correção',
     )
 
@@ -197,7 +202,7 @@ describe('StatusMappingSection', () => {
     expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
-  it('o aviso de estado sem jornada acompanha o que está escolhido, e não o que está gravado', async () => {
+  it('o aviso de coluna sem andamento acompanha o que está escolhido, e não o que está gravado', async () => {
     dublê.ler.mockResolvedValue({
       Version: 1,
       Entries: [entrada('s-1', 'Análise', 'e-1')],
@@ -205,16 +210,16 @@ describe('StatusMappingSection', () => {
     })
 
     montar()
-    await screen.findByRole('combobox', { name: 'Onde o estado Análise entra na jornada' })
-    expect(screen.queryByText(/ainda não entra na jornada/)).toBeNull()
+    await screen.findByRole('combobox', { name: 'Onde a coluna Análise entra no andamento' })
+    expect(screen.queryByText(/ainda não entra no andamento/)).toBeNull()
 
     await escolherNoSelect(
       screen,
       fireEvent,
-      'Onde o estado Análise entra na jornada',
-      'Não entra na jornada',
+      'Onde a coluna Análise entra no andamento',
+      'Não entra no andamento',
     )
 
-    expect(await screen.findByText(/ainda não entra na jornada/)).toBeTruthy()
+    expect(await screen.findByText(/ainda não entra no andamento/)).toBeTruthy()
   })
 })

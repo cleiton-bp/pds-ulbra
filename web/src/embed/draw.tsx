@@ -85,7 +85,7 @@ function DisabledNotice() {
   return (
     <div className="flex h-full items-center justify-center p-6 text-center">
       <p className="text-detail text-fg-muted leading-relaxed">
-        A ferramenta de relato está desligada para este projeto. Ligue de novo em Ferramenta, nas
+        A ferramenta de relato está desligada para este projeto. Ligue de novo em Botão no site, nas
         configurações do projeto.
       </p>
     </div>

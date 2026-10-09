@@ -10,6 +10,7 @@ import type {
   TeamMemberViewModel,
 } from '@/contracts'
 import { MembersScreen } from '@/features/projects/MembersScreen'
+import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
  * O que estes testes travam: o que cada papel ve, e que cada acao chama a rota
@@ -98,6 +99,8 @@ function projeto(papel: 'Administrator' | 'Member', dono = false): ProjectViewMo
     Account: { PublicId: 'conta-a', Name: 'Conta A' },
     Role: papel,
     IsAccountOwner: dono,
+    LastReportReceivedAt: null,
+    LastActivityAt: null,
   }
 }
 
@@ -155,6 +158,9 @@ function montar(project: ProjectViewModel) {
   return router
 }
 
+// O papel e uma caixa de escolha do produto, e o jsdom nao tem o que ela usa para abrir.
+instalarRemendosDoRadix()
+
 describe('MembersScreen', () => {
   afterEach(cleanup)
 
@@ -189,8 +195,12 @@ describe('MembersScreen', () => {
     expect(screen.getByText('Dono')).toBeTruthy()
     expect(screen.getAllByText('Administrador').length).toBe(1)
     expect(screen.queryByText('Convidar alguém')).toBeNull()
-    expect(screen.queryByRole('button', { name: /^Remover|^Sair do time/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Remover/ })).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
+    // Sair e da propria pessoa: o unico botao e o da linha dela.
+    const eu = screen.getByText('Bruno Membro').closest('li') as HTMLElement
+    expect(within(eu).getByRole('button', { name: 'Sair do time' })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Sair do time' })).toHaveLength(1)
     // A lista de convites nem e pedida: ela e so de quem administra.
     expect(estado.chamadas).not.toContain('listar convites')
   })
@@ -229,7 +239,8 @@ describe('MembersScreen', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Convidar' }))
 
-    await screen.findByText('Essa pessoa ja esta no time.')
+    // A API escreve sem acento; a tela acentua no caminho (`acentuar`).
+    await screen.findByText('Essa pessoa já está no time.')
   })
 
   it('reenviar e cancelar chamam as rotas do convite certo', async () => {
@@ -295,6 +306,46 @@ describe('MembersScreen', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Sair do time' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/projects'))
+  })
+
+  it('quem e so membro tambem sai do time pela propria linha, e vai para a lista de projetos', async () => {
+    estado.time[1] = { ...estado.time[1], IsYou: true } as TeamMemberViewModel
+    const router = montar(projeto('Member'))
+    const eu = (await screen.findByText('Bruno Membro')).closest('li') as HTMLElement
+
+    fireEvent.click(within(eu).getByRole('button', { name: 'Sair do time' }))
+    // Sair pede confirmacao: voltar depende de alguem que administra convidar de novo.
+    expect(await screen.findByText(/Você perde o acesso a este projeto agora/)).toBeTruthy()
+    expect(estado.chamadas).not.toContain('remover bruno')
+    fireEvent.click(screen.getByRole('button', { name: 'Sair do time' }))
+
+    await waitFor(() => expect(estado.chamadas).toContain('remover bruno'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects'))
+  })
+
+  it('deixar de administrar o projeto pergunta antes, e so a confirmacao muda o papel', async () => {
+    estado.time[2] = { ...estado.time[2], IsYou: true } as TeamMemberViewModel
+    montar(projeto('Administrator'))
+    await screen.findByText('Carla Admin')
+
+    await escolherNoSelect(screen, fireEvent, 'Papel de Carla Admin', 'Membro')
+
+    // Sem volta para quem faz: a configuracao some na hora.
+    expect(await screen.findByText('Deixar de administrar este projeto?')).toBeTruthy()
+    expect(estado.chamadas).not.toContain('papel carla Member')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Deixar de administrar' }))
+    await waitFor(() => expect(estado.chamadas).toContain('papel carla Member'))
+  })
+
+  it('rebaixar outra pessoa nao pergunta: o papel muda na hora', async () => {
+    montar(projeto('Administrator', true))
+    await screen.findByText('Carla Admin')
+
+    await escolherNoSelect(screen, fireEvent, 'Papel de Carla Admin', 'Membro')
+
+    await waitFor(() => expect(estado.chamadas).toContain('papel carla Member'))
+    expect(screen.queryByText('Deixar de administrar este projeto?')).toBeNull()
   })
 
   it('o convite novo mostra o e-mail saindo, e passa a "enviado" sozinho', async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import type { ProjectKeyViewModel, RevealedSecretKeyViewModel } from '@/contracts'
 import { projectKeyService } from '@/data'
 import { RegenerateSecretDialog } from '@/features/projectKeys/RegenerateSecretDialog'
@@ -14,11 +14,6 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime } from '@/shared/lib/datetime'
 
-/** O que a criacao de projeto manda junto na navegacao. */
-interface RevealState {
-  revealedSecret?: RevealedSecretKeyViewModel
-}
-
 /**
  * A explicacao de cada chave fica **ao lado dela**: quem integra le no
  * momento em que copia, que e quando a pergunta "posso deixar isso a vista?"
@@ -30,30 +25,17 @@ interface RevealState {
  * que as duas eram igualmente necessarias — e "fica no seu servidor", lido como
  * requisito, mandava procurar uma infraestrutura que muita gente nao tem. Agora
  * a publica e a tela, e a secreta fica recolhida atras de "Integracao avancada".
+ *
+ * **A secreta nasce sob pedido.** O projeto novo vem so com a publica: a secreta
+ * aparece uma vez so, e nascer junto do projeto obrigava quem acabou de cria-lo a
+ * decidir o que fazer com um valor que quase ninguem usa. Aqui, quem precisa gera.
  */
 export function ProjectKeysScreen() {
   const project = useCurrentProject()
-  const location = useLocation()
-  const navigate = useNavigate()
 
   const [regenerating, setRegenerating] = useState(false)
-
-  // Capturada uma vez e apagada do historico: sem isso o valor ficaria no
-  // `history.state` e voltaria a cada recarregamento, contradizendo o aviso de
-  // que ele nao aparece de novo.
-  const [revealed, setRevealed] = useState<RevealedSecretKeyViewModel | null>(
-    () => (location.state as RevealState | null)?.revealedSecret ?? null,
-  )
-
-  // Quem chega com a chave recem-criada precisa achar de onde ela veio: ela mora
-  // dentro da secao, e secao fechada esconderia o unico momento em que aparece.
-  const [advancedOpen, setAdvancedOpen] = useState(() => revealed !== null)
-
-  useEffect(() => {
-    if ((location.state as RevealState | null)?.revealedSecret) {
-      navigate(location.pathname, { replace: true, state: null })
-    }
-  }, [location.pathname, location.state, navigate])
+  const [revealed, setRevealed] = useState<RevealedSecretKeyViewModel | null>(null)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const {
     data: keys,
@@ -139,6 +121,7 @@ export function ProjectKeysScreen() {
 
       <RegenerateSecretDialog
         projectPublicId={project.PublicId}
+        replacing={secretKey !== undefined}
         open={regenerating}
         onOpenChange={setRegenerating}
         onRegenerated={(secret) => {
@@ -188,8 +171,8 @@ function AdvancedSection({
     })
   }, [])
 
-  // Chegou da criacao do projeto com a chave nova: ela mora aqui dentro, entao a
-  // tela precisa levar ate ela.
+  // A chave nova acabou de nascer: ela mora aqui dentro, entao a tela precisa
+  // levar ate ela.
   useEffect(() => {
     if (revealed) revealSection()
   }, [revealed, revealSection])
@@ -261,7 +244,10 @@ function AdvancedSection({
                 </span>
               </div>
             ) : (
-              <p className="mb-3.5 text-detail text-fg-muted">Nenhuma chave secreta ativa.</p>
+              <p className="mb-3.5 text-detail text-fg-muted">
+                Este projeto ainda não tem chave secreta. Gere uma só quando um sistema seu for
+                falar direto com a nossa API.
+              </p>
             )}
 
             <p className="mb-4 text-detail text-fg-muted leading-relaxed">
@@ -289,7 +275,9 @@ function AdvancedSection({
               Nenhuma rota da API aceita esta chave ainda.
             </p>
 
-            <Button onClick={onRegenerate}>Gerar nova chave</Button>
+            <Button onClick={onRegenerate}>
+              {secretKey ? 'Gerar nova chave' : 'Gerar chave secreta'}
+            </Button>
 
             {revoked.length > 0 && <RevokedKeysPanel keys={revoked} />}
           </div>

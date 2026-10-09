@@ -29,9 +29,10 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * corrigir, e fechar a caixa faria a pessoa digitar tudo de novo para ler a
  * mensagem.
  *
- * **O piso esconde o botao de remover.** E o unico lugar onde a regra do minimo
+ * **O piso trava o botao de apagar.** E o unico lugar onde a regra do minimo
  * aparece antes de o servidor dizer nao — sem ele, a pessoa clica, leva uma
- * recusa e nao entende por que.
+ * recusa e nao entende por que. O verbo e "Apagar", como nas Etiquetas: e o que
+ * acontece (antes era "Remover").
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<() => Promise<ProjectPublicStageViewModel[]>>(),
@@ -93,6 +94,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 function montar() {
@@ -230,7 +233,7 @@ describe('PublicStagesScreen', () => {
     expect(screen.getByRole('button', { name: 'Salvar' })).toBeTruthy()
   })
 
-  it('esconde o botão de remover quando a jornada está no mínimo', async () => {
+  it('trava o botão de apagar quando a jornada está no mínimo', async () => {
     dublê.listar.mockResolvedValue([
       etapa('e-1', 'Recebido', 0),
       etapa('e-2', 'Em análise', 1),
@@ -238,9 +241,10 @@ describe('PublicStagesScreen', () => {
     ])
 
     montar()
-    const remover = await screen.findAllByRole('button', { name: 'Remover' })
+    const remover = await screen.findAllByRole('button', { name: 'Apagar' })
 
     expect(remover).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: 'Remover' })).toBeNull()
     for (const botao of remover) expect((botao as HTMLButtonElement).disabled).toBe(true)
   })
 

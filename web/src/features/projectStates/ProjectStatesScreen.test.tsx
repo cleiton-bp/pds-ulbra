@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  CycleSettingsViewModel,
   ProjectInitialStateViewModel,
+  ProjectPublicStageViewModel,
   ProjectStateViewModel,
+  ProjectStatusMappingViewModel,
   ProjectViewModel,
+  ReportStateCountViewModel,
 } from '@/contracts'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
+import { useToastStore } from '@/shared/components/toastStore'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -24,9 +29,20 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * precisa devolver a lista para a ordem anterior, senao a tela mostra uma ordem
  * que o banco nao tem.
  *
- * **Aposentar nao e apagar.** A linha continua na lista depois de confirmar. Este
- * e o teste de honestidade: o dia em que alguem "limpar" a tela escondendo o
- * aposentado, o historico dos relatos que passaram por ele fica sem nome.
+ * **Desativar nao e apagar.** A linha continua na lista depois de confirmar,
+ * marcada "Desativada". Este e o teste de honestidade: o dia em que alguem "limpar"
+ * a tela escondendo a desativada, o historico dos relatos que passaram por ela fica
+ * sem nome. E a pergunta diz **quantos cards estao nela** — o tamanho do efeito.
+ *
+ * **Cada coluna diz o que quem relatou ve**, e trocar grava o mapa inteiro (cada
+ * gravacao e uma versao, o retrato do conjunto). A coluna nova nasce ligada a etapa
+ * da ultima coluna ativa de antes — sem isso, quem relatou continuava lendo
+ * "Recebido" com o relato ja na coluna nova, e ninguem percebia.
+ *
+ * **As regras do quadro moram aqui, e voltam inteiras.** Sao campos do registro do
+ * ciclo: o salvar daqui manda o que leu, com so os dois campos mudados — mandar so os
+ * visiveis apagaria o encerramento e as sprints. E nelas zero quer dizer alguma
+ * coisa ("mostra todos"), ao contrario dos prazos do Ciclo.
  *
  * **O nome que aparece e o que a API devolveu.** Ela junta os espacos repetidos;
  * reaproveitar o texto digitado deixaria "Em   analise" na tela ate recarregar. A
@@ -43,6 +59,12 @@ const dublê = vi.hoisted(() => ({
   reativar: vi.fn(),
   listarEntradas: vi.fn<() => Promise<ProjectInitialStateViewModel[]>>(),
   salvarEntrada: vi.fn(),
+  contar: vi.fn<() => Promise<ReportStateCountViewModel[]>>(),
+  etapas: vi.fn<() => Promise<ProjectPublicStageViewModel[]>>(),
+  lerMapa: vi.fn<() => Promise<ProjectStatusMappingViewModel>>(),
+  salvarMapa: vi.fn(),
+  lerRegras: vi.fn<() => Promise<CycleSettingsViewModel>>(),
+  salvarRegras: vi.fn(),
 }))
 
 vi.mock('@/data', async (importOriginal) => {
@@ -60,8 +82,92 @@ vi.mock('@/data', async (importOriginal) => {
       listInitialStates: dublê.listarEntradas,
       setInitialState: dublê.salvarEntrada,
     },
+    // A tela le tambem o que quem relatou ve em cada coluna, as regras do quadro e,
+    // ao perguntar se desativa, quantos cards a coluna tem. Sem dubles, essas
+    // leituras iam a rede de verdade e a tela ficava meio quebrada.
+    projectReportService: { ...real.projectReportService, listReportCounts: dublê.contar },
+    projectPublicStageService: {
+      ...real.projectPublicStageService,
+      listPublicStages: dublê.etapas,
+    },
+    projectStatusMappingService: {
+      getStatusMapping: dublê.lerMapa,
+      saveStatusMapping: dublê.salvarMapa,
+    },
+    projectCycleSettingsService: {
+      getCycleSettings: dublê.lerRegras,
+      saveCycleSettings: dublê.salvarRegras,
+    },
   }
 })
+
+function etapa(publicId: string, label: string, position: number): ProjectPublicStageViewModel {
+  return {
+    PublicId: publicId,
+    Label: label,
+    Description: `O que acontece em ${label}.`,
+    NextStep: null,
+    Position: position,
+    IsTerminal: false,
+    AllowsReturn: false,
+    AwaitsReporter: false,
+    Outcome: null,
+    CreatedAt: '2026-09-01T12:00:00.000Z',
+  }
+}
+
+const ETAPAS = [
+  etapa('e-1', 'Recebido', 0),
+  etapa('e-2', 'Em desenvolvimento', 1),
+  etapa('e-3', 'Concluído', 2),
+]
+
+/** O mapa, a partir de pares coluna → etapa. */
+function mapa(versao: number, pares: Array<[string, string]>): ProjectStatusMappingViewModel {
+  return {
+    Version: versao,
+    Entries: pares.map(([coluna, etapaId]) => ({
+      StatePublicId: coluna,
+      StateName: coluna,
+      StateIsActive: true,
+      StagePublicId: etapaId,
+      StageLabel: ETAPAS.find((item) => item.PublicId === etapaId)?.Label ?? null,
+    })),
+    UnmappedCount: 0,
+  }
+}
+
+function contagem(statePublicId: string, total: number): ReportStateCountViewModel {
+  return {
+    StatePublicId: statePublicId,
+    StateName: statePublicId,
+    IsActive: true,
+    ClosesReport: false,
+    Total: total,
+  }
+}
+
+/** As regras do ciclo de fabrica, com o que nao e desta tela fora do padrao. */
+const regras: CycleSettingsViewModel = {
+  ClosureTrigger: 'Button',
+  PublicDelayMinutes: 15,
+  AllowsReopen: true,
+  ReopenStatePublicId: null,
+  ReopenRequiresComment: true,
+  TrackingCodeCanAct: false,
+  SatisfactionEnabled: true,
+  SatisfactionStyle: 'Stars',
+  SatisfactionRequired: false,
+  InfoRequestEnabled: true,
+  InfoRequestWarnDays: 7,
+  InfoRequestCloseDays: 7,
+  AcceptsQuestionsDefault: true,
+  AllowsReportArchiving: false,
+  LastColumnVisibleDays: 14,
+  DueSoonDays: 2,
+  SprintsEnabled: true,
+  SprintLengthWeeks: 3,
+}
 
 function entrada(
   reportType: ProjectInitialStateViewModel['ReportType'],
@@ -94,6 +200,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 /**
@@ -126,9 +234,9 @@ function montar() {
   render(<RouterProvider router={router} />)
 }
 
-/** Os nomes na ordem em que estao desenhados. */
+/** Os nomes na ordem em que estao desenhados (com o selo "Desativada" colado). */
 const nomesNaTela = () =>
-  screen.getAllByRole('listitem').map((item) => item.textContent?.split('Renomear')[0]?.trim())
+  screen.getAllByRole('listitem').map((item) => item.textContent?.split('Editar')[0]?.trim())
 
 // A caixa de escolha do produto desenha a propria lista, e o jsdom nao tem o
 // que ela usa para abrir. Sem isto o teste falharia pelo ambiente, nao pelo codigo.
@@ -143,6 +251,11 @@ describe('ProjectStatesScreen', () => {
     // coisas: sem esta resposta o componente cai no caminho de falha, e os testes
     // passariam olhando uma tela meio quebrada.
     dublê.listarEntradas.mockResolvedValue([])
+    dublê.contar.mockResolvedValue([])
+    dublê.etapas.mockResolvedValue(ETAPAS)
+    dublê.lerMapa.mockResolvedValue(mapa(1, []))
+    dublê.lerRegras.mockResolvedValue(regras)
+    useToastStore.setState({ toasts: [] })
   })
 
   it('manda a fila inteira ao reordenar, com o aposentado dentro', async () => {
@@ -184,20 +297,47 @@ describe('ProjectStatesScreen', () => {
     await waitFor(() => expect(nomesNaTela()).toEqual(['Análise', 'Pronto']))
   })
 
-  it('aposentar mantém o estado na lista, marcado', async () => {
+  it('desativar mantém a coluna na lista, marcada', async () => {
     dublê.listar.mockResolvedValue([estado('s-1', 'Análise', 0), estado('s-2', 'Pronto', 1)])
     dublê.aposentar.mockResolvedValue(estado('s-2', 'Pronto', 1, false))
 
     montar()
-    fireEvent.click(await screen.findByRole('button', { name: 'Aposentar Pronto' }))
-    // O botao do dialogo e o unico chamado so "Aposentar": os da lista trazem o
-    // nome do estado junto.
-    fireEvent.click(await screen.findByRole('button', { name: 'Aposentar', hidden: true }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Desativar Pronto' }))
+    // O botao do dialogo e o unico chamado so "Desativar": os da lista trazem o
+    // nome da coluna junto.
+    fireEvent.click(await screen.findByRole('button', { name: 'Desativar', hidden: true }))
 
     await waitFor(() => expect(dublê.aposentar).toHaveBeenCalledWith('p-1', 's-2'))
     // Continua na lista, no lugar onde estava.
-    await waitFor(() => expect(nomesNaTela()).toEqual(['Análise', 'ProntoAposentado']))
+    await waitFor(() => expect(nomesNaTela()).toEqual(['Análise', 'ProntoDesativada']))
     expect(screen.getByRole('button', { name: 'Reativar Pronto' })).toBeTruthy()
+  })
+
+  it('a pergunta de desativar diz quantos cards estão na coluna', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Fazendo', 1)])
+    dublê.contar.mockResolvedValue([contagem('s-1', 2), contagem('s-2', 5)])
+
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: 'Desativar A fazer' }))
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(
+      await within(dialogo).findByText(/“A fazer” tem 2 cards\. Eles continuam nela/),
+    ).toBeTruthy()
+    // Perguntar nao desativa: so o botao do dialogo.
+    expect(dublê.aposentar).not.toHaveBeenCalled()
+  })
+
+  it('sem conseguir contar, a pergunta continua — só sem o número', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Fazendo', 1)])
+    dublê.contar.mockRejectedValue(new Error('rede'))
+
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: 'Desativar A fazer' }))
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(within(dialogo).getByText(/Ela sai do quadro e deixa de receber card novo/)).toBeTruthy()
+    expect(within(dialogo).getByRole('button', { name: 'Desativar' })).toBeTruthy()
   })
 
   it('mostra o nome que a API devolveu, e não o que foi digitado', async () => {
@@ -206,9 +346,9 @@ describe('ProjectStatesScreen', () => {
 
     montar()
 
-    const campo = await screen.findByRole('textbox', { name: 'Nome do estado' })
+    const campo = await screen.findByRole('textbox', { name: 'Nova coluna' })
     fireEvent.change(campo, { target: { value: '  Em   análise  ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Criar estado' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Criar coluna' }))
 
     // Comparado pelo `textContent` cru: `findByText` junta os espacos repetidos
     // antes de procurar, entao ele acharia o nome nao normalizado do mesmo jeito
@@ -333,7 +473,7 @@ describe('ProjectStatesScreen', () => {
     fireEvent.dragEnter(terceira)
 
     // A lista se reorganiza com o dedo em cima, e não só ao soltar.
-    await waitFor(() => expect(nomesNaTela()).toEqual(['ParadoAposentado', 'Pronto', 'Análise']))
+    await waitFor(() => expect(nomesNaTela()).toEqual(['ParadoDesativada', 'Pronto', 'Análise']))
     expect(dublê.reordenar).not.toHaveBeenCalled()
 
     fireEvent.drop(terceira)
@@ -357,5 +497,173 @@ describe('ProjectStatesScreen', () => {
     // Pegar e largar no mesmo lugar é desistir, e desistir não é uma gravação.
     await waitFor(() => expect(nomesNaTela()).toEqual(['Análise', 'Pronto']))
     expect(dublê.reordenar).not.toHaveBeenCalled()
+  })
+
+  it('cada coluna diz o que quem relatou vê, e trocar grava o mapa inteiro', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Feito', 1)])
+    dublê.lerMapa.mockResolvedValue(
+      mapa(1, [
+        ['s-1', 'e-1'],
+        ['s-2', 'e-3'],
+      ]),
+    )
+    dublê.salvarMapa.mockResolvedValue(
+      mapa(2, [
+        ['s-1', 'e-2'],
+        ['s-2', 'e-3'],
+      ]),
+    )
+
+    montar()
+    const escolha = await screen.findByRole('combobox', {
+      name: 'O que quem relatou vê com o relato em A fazer',
+    })
+    expect(escolha.textContent).toContain('Recebido')
+
+    await escolherNoSelect(
+      screen,
+      fireEvent,
+      'O que quem relatou vê com o relato em A fazer',
+      'Em desenvolvimento',
+    )
+
+    // Uma versao por escolha, com o conjunto inteiro — e nao so a linha que mudou.
+    await waitFor(() => expect(dublê.salvarMapa).toHaveBeenCalledTimes(1))
+    expect(dublê.salvarMapa.mock.calls[0]?.[1]).toEqual({
+      Entries: [
+        { StatePublicId: 's-2', StagePublicId: 'e-3' },
+        { StatePublicId: 's-1', StagePublicId: 'e-2' },
+      ],
+    })
+  })
+
+  it('"nada muda para quem relatou" tira a coluna do mapa, em vez de gravar uma ligação vazia', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Feito', 1)])
+    dublê.lerMapa.mockResolvedValue(
+      mapa(1, [
+        ['s-1', 'e-1'],
+        ['s-2', 'e-3'],
+      ]),
+    )
+    dublê.salvarMapa.mockResolvedValue(mapa(2, [['s-2', 'e-3']]))
+
+    montar()
+    await screen.findByRole('combobox', { name: 'O que quem relatou vê com o relato em A fazer' })
+    await escolherNoSelect(
+      screen,
+      fireEvent,
+      'O que quem relatou vê com o relato em A fazer',
+      'Nada muda para quem relatou',
+    )
+
+    await waitFor(() => expect(dublê.salvarMapa).toHaveBeenCalledTimes(1))
+    expect(dublê.salvarMapa.mock.calls[0]?.[1]).toEqual({
+      Entries: [{ StatePublicId: 's-2', StagePublicId: 'e-3' }],
+    })
+  })
+
+  it('a coluna nova nasce ligada à etapa da última coluna ativa de antes, e o aviso diz qual', async () => {
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'A fazer', 0),
+      estado('s-2', 'Feito', 1),
+      // Desativada no fim: nao conta como vizinha — nenhum relato novo entra nela.
+      estado('s-3', 'Arquivo', 2, false),
+    ])
+    dublê.lerMapa.mockResolvedValue(
+      mapa(1, [
+        ['s-1', 'e-1'],
+        ['s-2', 'e-3'],
+        ['s-3', 'e-2'],
+      ]),
+    )
+    dublê.criar.mockResolvedValue(estado('s-4', 'Revisão', 3))
+    dublê.salvarMapa.mockResolvedValue(
+      mapa(2, [
+        ['s-1', 'e-1'],
+        ['s-2', 'e-3'],
+        ['s-3', 'e-2'],
+        ['s-4', 'e-3'],
+      ]),
+    )
+
+    montar()
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Nova coluna' }), {
+      target: { value: 'Revisão' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar coluna' }))
+
+    await waitFor(() => expect(dublê.salvarMapa).toHaveBeenCalledTimes(1))
+    expect(dublê.salvarMapa.mock.calls[0]?.[1]).toEqual({
+      Entries: [
+        { StatePublicId: 's-1', StagePublicId: 'e-1' },
+        { StatePublicId: 's-2', StagePublicId: 'e-3' },
+        { StatePublicId: 's-3', StagePublicId: 'e-2' },
+        { StatePublicId: 's-4', StagePublicId: 'e-3' },
+      ],
+    })
+    await waitFor(() =>
+      expect(useToastStore.getState().toasts.map((item) => item.message)).toContain(
+        'Coluna criada. Nela, quem relatou vê “Concluído”.',
+      ),
+    )
+  })
+
+  it('as regras do quadro só mostram a barra com mudança, e voltam com o resto do ciclo intacto', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
+    dublê.salvarRegras.mockResolvedValue({ ...regras, LastColumnVisibleDays: 0, DueSoonDays: 5 })
+
+    montar()
+
+    const dias = await screen.findByLabelText(/A última coluna mostra o que entrou nela/)
+    expect((dias as HTMLInputElement).value).toBe('14')
+    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
+
+    // Zero na ultima coluna e "mostrar todos" — e nao vira um, como nos prazos.
+    fireEvent.change(dias, { target: { value: '0' } })
+    expect((dias as HTMLInputElement).value).toBe('0')
+    expect(screen.getByText(/Zero: mostra todos/)).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText(/O prazo fica em destaque faltando/), {
+      target: { value: '5' },
+    })
+    const barra = screen.getByRole('region', { name: 'Alterações não salvas' })
+    fireEvent.click(within(barra).getByRole('button', { name: 'Salvar' }))
+
+    // **O ponto do teste.** O registro e um so com o Ciclo e as Sprints: o pedido
+    // leva o que foi lido, com so os dois campos daqui mudados.
+    await waitFor(() =>
+      expect(dublê.salvarRegras).toHaveBeenCalledWith('p-1', {
+        ...regras,
+        LastColumnVisibleDays: 0,
+        DueSoonDays: 5,
+      }),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull(),
+    )
+  })
+
+  it('descartar as regras do quadro volta ao que está salvo, sem gravar', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
+
+    montar()
+    const destaque = await screen.findByLabelText(/O prazo fica em destaque faltando/)
+    fireEvent.change(destaque, { target: { value: '9' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
+
+    expect((destaque as HTMLInputElement).value).toBe('2')
+    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
+    expect(dublê.salvarRegras).not.toHaveBeenCalled()
+  })
+
+  it('sem as regras do ciclo, a seção do quadro some e as colunas continuam', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
+    dublê.lerRegras.mockRejectedValue(new Error('rede'))
+
+    montar()
+    expect(await screen.findByText('A fazer')).toBeTruthy()
+    expect(screen.queryByText('Como o quadro mostra o fim e os prazos')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Criar coluna' })).toBeTruthy()
   })
 })

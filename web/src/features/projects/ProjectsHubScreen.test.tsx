@@ -17,6 +17,11 @@ import { useProjectsStore } from '@/features/projects/projectsStore'
  * **O papel so aparece no projeto dos outros** — nos proprios a pessoa e sempre
  * dona. E **o link vai para o projeto, e nao para a Instalacao**: quem decide a
  * porta e o papel, e o membro nao tem Instalacao.
+ *
+ * **O hub fala do trabalho, e nao da instalacao**: a frase de cima e a mesma para
+ * todo mundo, a linha diz o ultimo movimento (ou quando nasceu, sem card) e o
+ * identificador do projeto saiu dela — continua na tela Projeto. A falha ao carregar
+ * diz que os projetos continuam salvos, com o motivo embaixo.
  */
 const dublê = vi.hoisted(() => ({ listar: vi.fn<() => Promise<ProjectViewModel[]>>() }))
 
@@ -44,6 +49,8 @@ function projeto(
     Account: { PublicId: conta.id, Name: conta.nome },
     Role: role,
     IsAccountOwner: dono,
+    LastReportReceivedAt: null,
+    LastActivityAt: null,
   }
 }
 
@@ -142,6 +149,71 @@ describe('ProjectsHubScreen', () => {
     dublê.listar.mockResolvedValue([projeto('p-ana', 'Loja Online', daAna, 'Member', false)])
     abrir()
 
-    expect(await screen.findByText('Abra um projeto para trabalhar nos relatos dele.')).toBeTruthy()
+    // A frase passou a ser uma so, a do trabalho — para quem administra tambem.
+    expect(await screen.findByText('Escolha um projeto para ver o trabalho do time.')).toBeTruthy()
+    expect(screen.queryByText(/pegar a chave|passo a passo da integração/)).toBeNull()
+  })
+
+  it('quem administra lê a mesma frase do trabalho', async () => {
+    dublê.listar.mockResolvedValue([
+      projeto('p-1', 'Sistema do Bruno', minha, 'Administrator', true),
+    ])
+    abrir()
+
+    expect(await screen.findByText('Escolha um projeto para ver o trabalho do time.')).toBeTruthy()
+    expect(screen.queryByText(/passo a passo da integração/)).toBeNull()
+  })
+
+  it('a linha diz o último movimento, e não mostra o identificador do projeto', async () => {
+    const hoje = new Date().toISOString()
+    dublê.listar.mockResolvedValue([
+      { ...projeto('p-1', 'Sistema do Bruno', minha, 'Administrator', true), LastActivityAt: hoje },
+    ])
+    abrir()
+
+    const linha = (await screen.findByText('Sistema do Bruno')).closest('a') as HTMLElement
+    expect(within(linha).getByText(/^último movimento /)).toBeTruthy()
+    expect(within(linha).queryByText(/^criado /)).toBeNull()
+    expect(linha.textContent).not.toContain('p-1')
+  })
+
+  it('sem nenhum card, a linha diz quando o projeto nasceu', async () => {
+    dublê.listar.mockResolvedValue([
+      projeto('p-1', 'Sistema do Bruno', minha, 'Administrator', true),
+    ])
+    abrir()
+
+    const linha = (await screen.findByText('Sistema do Bruno')).closest('a') as HTMLElement
+    expect(within(linha).getByText(/^criado /)).toBeTruthy()
+  })
+
+  it('criar projeto está nos dois lugares: o botão do celular e o quadro do computador', async () => {
+    dublê.listar.mockResolvedValue([])
+    abrir()
+
+    // O jsdom nao aplica `lg:hidden` nem `hidden lg:block`: os dois existem no
+    // documento, e cada tamanho de tela mostra um.
+    await screen.findByText('Nenhum projeto ainda')
+    expect(screen.getAllByRole('button', { name: 'Criar projeto' })).toHaveLength(2)
+    expect(screen.getByText(/Foi convidado para um time\?/)).toBeTruthy()
+  })
+
+  it('a falha ao carregar diz que os projetos continuam salvos, e oferece tentar de novo', async () => {
+    const { PanelError } = await import('@/data')
+    dublê.listar.mockRejectedValueOnce(new PanelError('Falha de rede ao contatar a API.', 0))
+    abrir()
+
+    expect(
+      await screen.findByText(/Não deu para carregar seus projetos agora. Eles continuam salvos./),
+    ).toBeTruthy()
+    // O motivo vem embaixo, ja no texto do painel — e nao "Falha de rede ao contatar a API".
+    expect(screen.getByText(/Sem conexão com o servidor agora/)).toBeTruthy()
+    expect(screen.queryByText(/contatar a API/)).toBeNull()
+
+    dublê.listar.mockResolvedValueOnce([
+      projeto('p-1', 'Sistema do Bruno', minha, 'Administrator', true),
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByText('Sistema do Bruno')).toBeTruthy()
   })
 })

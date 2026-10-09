@@ -12,10 +12,14 @@ import { LabelsScreen } from '@/features/labels/LabelsScreen'
  * - **A tela diz em quantos cards cada etiqueta esta** — e e isso que o dialogo de
  *   apagar repete, antes de apagar.
  * - **Renomear grava nome e cor juntos**, e a lista continua em ordem de nome.
+ * - **Daqui tambem se cria**, com nome e cor: sem isso nao dava para preparar o
+ *   projeto antes de o time comecar. Nome repetido devolve a que ja existe, e a
+ *   lista nao ganha uma linha dobrada.
  * - **Sem etiqueta nenhuma, a tela diz de onde elas vem**: do time, ao etiquetar.
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<() => Promise<ProjectLabelViewModel[]>>(),
+  criar: vi.fn(),
   mudar: vi.fn(),
   apagar: vi.fn(),
 }))
@@ -27,7 +31,7 @@ vi.mock('@/data', async (importOriginal) => {
     ...real,
     projectLabelService: {
       listLabels: dublê.listar,
-      addLabel: vi.fn(),
+      addLabel: dublê.criar,
       updateLabel: dublê.mudar,
       deleteLabel: dublê.apagar,
     },
@@ -59,6 +63,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 function montar() {
@@ -120,9 +126,9 @@ describe('a tela de Etiquetas', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), {
       target: { value: 'abacaxi' },
     })
-    fireEvent.click(
-      within(screen.getByRole('group', { name: 'Cor' })).getByRole('button', { name: 'Rosa' }),
-    )
+    // Dois grupos "Cor" na tela: o da linha em edicao, primeiro, e o de criar, no fim.
+    const corDaLinha = screen.getAllByRole('group', { name: 'Cor' })[0] as HTMLElement
+    fireEvent.click(within(corDaLinha).getByRole('button', { name: 'Rosa' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
@@ -131,6 +137,64 @@ describe('a tela de Etiquetas', () => {
     await screen.findByText('abacaxi')
     const nomes = screen.getAllByRole('listitem').map((linha) => linha.textContent ?? '')
     expect(nomes[0]).toContain('abacaxi')
+  })
+
+  it('criar manda o nome e a cor, e a nova entra na ordem de nome', async () => {
+    dublê.criar.mockResolvedValue(etiqueta('l-ace', 'acesso', 0, { Color: 'Red' }))
+    montar()
+    await screen.findByText('pagamento')
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nova etiqueta' }), {
+      target: { value: '  acesso ' },
+    })
+    const corNova = screen.getAllByRole('group', { name: 'Cor' }).at(-1) as HTMLElement
+    fireEvent.click(within(corNova).getByRole('button', { name: 'Vermelho' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Criar etiqueta' }))
+
+    await waitFor(() =>
+      expect(dublê.criar).toHaveBeenCalledWith('p-1', { Name: 'acesso', Color: 'Red' }),
+    )
+    await screen.findByText('acesso')
+    const nomes = screen.getAllByRole('listitem').map((linha) => linha.textContent ?? '')
+    expect(nomes[0]).toContain('acesso')
+    // O campo esvazia para a proxima.
+    expect((screen.getByRole('textbox', { name: 'Nova etiqueta' }) as HTMLInputElement).value).toBe(
+      '',
+    )
+  })
+
+  it('nome repetido devolve a que já existe, e a lista não ganha linha dobrada', async () => {
+    dublê.criar.mockResolvedValue(etiqueta('l-pag', 'pagamento', 3))
+    montar()
+    await screen.findByText('pagamento')
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nova etiqueta' }), {
+      target: { value: 'Pagamento' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar etiqueta' }))
+
+    await waitFor(() => expect(dublê.criar).toHaveBeenCalledTimes(1))
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('textbox', { name: 'Nova etiqueta' }) as HTMLInputElement).value,
+      ).toBe(''),
+    )
+    expect(screen.getAllByText('pagamento')).toHaveLength(1)
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+  })
+
+  it('a recusa ao criar fica no campo, com o texto acentuado', async () => {
+    const { PanelError } = await import('@/data')
+    dublê.criar.mockRejectedValue(new PanelError('O nome da etiqueta e obrigatorio.', 400))
+    montar()
+    await screen.findByText('pagamento')
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nova etiqueta' }), {
+      target: { value: 'x' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar etiqueta' }))
+
+    expect(await screen.findByText('O nome da etiqueta é obrigatório.')).toBeTruthy()
   })
 
   it('sem etiqueta nenhuma, a tela diz que elas nascem no card', async () => {

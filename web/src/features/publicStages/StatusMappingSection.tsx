@@ -9,7 +9,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 
 /**
- * De onde cada estado da fila entra na jornada publica.
+ * De onde cada coluna do quadro entra no andamento publico.
  *
  * **É a única tela do painel que tem botão de salvar**, e isso é de propósito. No
  * resto, cada ação grava sozinha; aqui cada gravação cria uma **versão** do mapa, e
@@ -21,8 +21,12 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
  * de granularidade que quem está de fora não precisa, e a tela diz isso em vez de
  * deixar a pessoa achar que deveria haver uma etapa por estado.
  *
- * **Não há digitação.** Os dois lados já existem: a fila veio da tela de Estados, a
- * jornada veio de cima. Escolher é tudo que há para fazer.
+ * **Não há digitação.** Os dois lados já existem: as colunas vieram da tela de
+ * Colunas, a jornada veio de cima. Escolher é tudo que há para fazer — e a tela de
+ * Colunas mostra e muda a mesma escolha, linha a linha.
+ *
+ * **O projeto novo já nasce ligado** (A fazer → Recebido, Fazendo → Em
+ * desenvolvimento, Feito → Concluído): é a versão 1 do mapa.
  */
 export function StatusMappingSection({ etapas }: { etapas: ProjectPublicStageViewModel[] }) {
   const { PublicId: publicId } = useCurrentProject()
@@ -92,10 +96,10 @@ export function StatusMappingSection({ etapas }: { etapas: ProjectPublicStageVie
 
   return (
     <section className="mt-10">
-      <h2 className="mb-1 font-semibold text-lead">De onde cada estado entra na jornada</h2>
+      <h2 className="mb-1 font-semibold text-lead">De onde cada coluna entra no andamento</h2>
       <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-        Ligue cada estado da sua fila a um passo da jornada acima.{' '}
-        <strong className="font-medium text-fg">Vários estados podem cair no mesmo passo</strong> —
+        Ligue cada coluna do quadro a um passo do andamento acima.{' '}
+        <strong className="font-medium text-fg">Várias colunas podem cair no mesmo passo</strong> —
         é o caminho normal, e não um jeito de economizar: "Corrigindo", "Em revisão" e "Aguardando
         publicação" são três coisas para a equipe e uma só para quem está esperando.
       </p>
@@ -125,8 +129,8 @@ export function StatusMappingSection({ etapas }: { etapas: ProjectPublicStageVie
 
       {mapa !== null && mapa.Entries.length === 0 && (
         <p className="rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted leading-relaxed">
-          Este projeto ainda não tem estados na fila de trabalho. Crie a fila na tela de Estados e
-          volte aqui para ligar cada um a um passo da jornada.
+          Este projeto ainda não tem colunas. Crie as colunas na tela de Colunas e volte aqui para
+          ligar cada uma a um passo do andamento.
         </p>
       )}
 
@@ -136,10 +140,10 @@ export function StatusMappingSection({ etapas }: { etapas: ProjectPublicStageVie
             <p className="mb-3 rounded-lg border border-border bg-surface-sunken px-3.5 py-2.5 text-detail text-fg-muted leading-relaxed">
               <strong className="font-medium text-fg">
                 {semMapeamento === 1
-                  ? 'Um estado ainda não entra na jornada.'
-                  : `${semMapeamento} estados ainda não entram na jornada.`}
+                  ? 'Uma coluna ainda não entra no andamento.'
+                  : `${semMapeamento} colunas ainda não entram no andamento.`}
               </strong>{' '}
-              O relato que estiver neles fica parado do lado de fora — não retrocede e não some, mas
+              O relato que estiver nelas fica parado do lado de fora — não retrocede e não some, mas
               quem acompanha deixa de ver movimento.
             </p>
           )}
@@ -153,11 +157,11 @@ export function StatusMappingSection({ etapas }: { etapas: ProjectPublicStageVie
                 <div className="min-w-0 flex-1">
                   <span className="text-body text-fg">{item.StateName}</span>
                   {!item.StateIsActive && (
-                    // O aposentado só chega aqui se ainda tiver mapeamento, e
-                    // continua configurável: os relatos que passaram por ele ainda
+                    // A desativada só chega aqui se ainda tiver mapeamento, e
+                    // continua configurável: os relatos que passaram por ela ainda
                     // precisam ser traduzidos.
                     <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-caption text-fg-muted">
-                      aposentado
+                      desativada
                     </span>
                   )}
                 </div>
@@ -167,7 +171,7 @@ export function StatusMappingSection({ etapas }: { etapas: ProjectPublicStageVie
                 <Select
                   className="min-w-0 max-w-56 flex-1"
                   size="sm"
-                  ariaLabel={`Onde o estado ${item.StateName} entra na jornada`}
+                  ariaLabel={`Onde a coluna ${item.StateName} entra no andamento`}
                   value={rascunho[item.StatePublicId] ?? ''}
                   disabled={salvando}
                   onChange={(valor) =>
@@ -176,7 +180,7 @@ export function StatusMappingSection({ etapas }: { etapas: ProjectPublicStageVie
                   options={[
                     // "Não entra" é uma escolha de verdade, e não a ausência de uma:
                     // sem ela, quem ligou uma vez não teria como desligar.
-                    { value: '', label: 'Não entra na jornada' },
+                    { value: '', label: 'Não entra no andamento' },
                     ...etapas.map((etapa) => ({ value: etapa.PublicId, label: etapa.Label })),
                   ]}
                 />

@@ -463,6 +463,33 @@ describe('o formulario', () => {
         .value,
     ).toBe('algo quebrou')
   })
+
+  // A frase da rede caida vem do painel (`describeError`), compartilhado com o lado
+  // de quem relata. Ela diz "nada se perdeu" — verdade aqui porque o texto fica na
+  // caixa — e nao fala a lingua do time: quem relata nao sabe o que e card ou coluna.
+  it('sem conexão ao enviar: diz o que conferir, que nada se perdeu, e o texto fica', async () => {
+    const { PanelError } = await import('@/data/publicIndex')
+    dublê.criar.mockRejectedValue(new PanelError('Falha de rede ao enviar o relato.', 0))
+
+    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} />)
+    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      target: { value: 'algo quebrou' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso.textContent).toContain(
+      'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+    )
+    expect(aviso.textContent).not.toMatch(/\b(card|cards|time|coluna|quadro|API)\b/i)
+    expect(
+      (screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }) as HTMLTextAreaElement)
+        .value,
+    ).toBe('algo quebrou')
+    expect((screen.getByRole('button', { name: 'Enviar' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    )
+  })
 })
 
 /**

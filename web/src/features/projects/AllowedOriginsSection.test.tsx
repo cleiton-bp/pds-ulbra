@@ -108,7 +108,8 @@ describe('AllowedOriginsSection', () => {
     fireEvent.change(campo(), { target: { value: 'loja.com' } })
     fireEvent.click(botaoAdicionar())
 
-    expect(await screen.findByText('Este dominio ja esta autorizado neste projeto.')).toBeTruthy()
+    // A API escreve sem acento (convencao da casa); a tela acentua no caminho.
+    expect(await screen.findByText('Este domínio já está autorizado neste projeto.')).toBeTruthy()
   })
 
   it('quando a lista não carrega, diz o que continua valendo e oferece tentar de novo', async () => {

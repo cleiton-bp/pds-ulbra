@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
+import { LeaveGuard } from '@/shared/components/UnsavedChangesBar'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 
 /**
@@ -83,13 +84,17 @@ export function ProjectSettingsScreen() {
 
   return (
     <div className="max-w-160">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Configurações</h1>
-      <p className="mb-8 text-fg-muted text-body">Ajustes deste projeto.</p>
+      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Projeto</h1>
+      <p className="mb-8 text-fg-muted text-body">Nome, endereços permitidos e arquivar.</p>
+
+      {/* O nome salva ao lado do campo, sem barra: so a pergunta ao sair com ele
+          mudado. */}
+      <LeaveGuard when={dirty && !saving} onSave={() => void save()} />
 
       <section className="mb-8">
         <h2 className="mb-1 font-semibold text-lead">Nome do projeto</h2>
         <p className="mb-3.5 text-detail text-fg-muted">
-          É o nome que você vê na lista de projetos e no seletor do console.
+          É o nome que aparece na lista de projetos e no seletor do topo.
         </p>
 
         <div className="mb-5 flex items-start gap-2">
@@ -114,9 +119,11 @@ export function ProjectSettingsScreen() {
         <div className="rounded-lg border border-border bg-surface-raised px-3.5 py-3">
           <div className="mb-1.5 text-detail text-fg-muted">Identificador do projeto</div>
           <code className="font-mono text-detail text-fg">{project.PublicId}</code>
+          {/* O script do site leva a chave publica, e nao este identificador: a
+              frase antiga ensinava errado o que importa para a instalacao. */}
           <p className="mt-2 text-detail text-fg-muted leading-normal">
-            Renomear o projeto não muda este identificador: ele já está no script instalado no seu
-            site, e trocá-lo pararia de receber relatos.
+            Este identificador aparece nos endereços do painel e não muda quando você renomeia o
+            projeto.
           </p>
         </div>
       </section>
