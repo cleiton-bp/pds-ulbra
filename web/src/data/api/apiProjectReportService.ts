@@ -34,6 +34,8 @@ export function appendReportFilters(
     query.set('due', 'overdue')
     query.set('today', diaLocal(today))
   }
+  if (filters.open) query.set('open', 'true')
+  if (filters.hideSubtasks) query.set('subtasks', 'hide')
   const busca = filters.search.trim()
   if (busca) query.set('q', busca)
 }
@@ -43,7 +45,8 @@ const diaLocal = (dia: Date) =>
 
 export const apiProjectReportService: ProjectReportService = {
   // O tamanho da pagina e decisao da API: so o quadro manda o dele, e a lista nunca —
-  // repeti-lo aqui criaria dois numeros para discordarem no dia em que um mudar.
+  // repeti-lo aqui criaria dois numeros para discordarem no dia em que um mudar. As
+  // colunas e a ordem sao so da lista: a contagem das colunas nao as recebe.
   listReports: async (publicId, page, state, archived, options) => {
     const query = new URLSearchParams({ page: String(page) })
     // So entra quando ha recorte: `state=` vazio na URL chegaria como string vazia
@@ -56,6 +59,11 @@ export const apiProjectReportService: ProjectReportService = {
     appendReportFilters(query, options?.filters)
     if (options?.parent) query.set('parent', options.parent)
     if (options?.sprint) query.set('sprint', options.sprint)
+    for (const coluna of options?.columns ?? []) query.append('column', coluna)
+    if (options?.sort) {
+      query.set('sort', options.sort.field)
+      query.set('dir', options.sort.dir)
+    }
 
     const { items, total } = await apiGetPage<ReportSummaryViewModel>(
       `/projects/${publicId}/reports?${query}`,
@@ -182,6 +190,17 @@ export const apiProjectReportService: ProjectReportService = {
     apiPost<InternalCommentViewModel>(
       `/projects/${publicId}/reports/${reportPublicId}/comments/internal`,
       request,
+    ),
+
+  editInternalComment: (publicId, reportPublicId, commentPublicId, request) =>
+    apiPut<InternalCommentViewModel>(
+      `/projects/${publicId}/reports/${reportPublicId}/comments/internal/${commentPublicId}`,
+      request,
+    ),
+
+  deleteInternalComment: (publicId, reportPublicId, commentPublicId) =>
+    apiDelete(
+      `/projects/${publicId}/reports/${reportPublicId}/comments/internal/${commentPublicId}`,
     ),
 
   addPublicComment: (publicId, reportPublicId, request) =>

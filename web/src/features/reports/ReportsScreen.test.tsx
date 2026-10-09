@@ -9,11 +9,20 @@ import type {
   ReportStateCountViewModel,
   ReportSummaryViewModel,
   ReportType,
+  TeamMemberViewModel,
 } from '@/contracts'
-import type { RealtimeEvent, RealtimeHandlers, ReportListOptions, ReportPage } from '@/data'
+import type {
+  RealtimeEvent,
+  RealtimeHandlers,
+  ReportListOptions,
+  ReportPage,
+  ReportSortField,
+} from '@/data'
+import { PanelError } from '@/data/errors'
 import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
 import { TooltipProvider } from '@/shared/components/Tooltip'
+import { useToastStore } from '@/shared/components/toastStore'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -35,6 +44,12 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  *
  * O quarto e de honestidade com quem usa: falhar ao carregar o contexto nao pode
  * esconder o texto do relato, que a lista ja tinha em maos.
+ *
+ * O bloco "a lista", no fim, trava a lista como ela ficou: a ordem pela API e
+ * lembrada a parte dos filtros, "Em aberto" e as subtarefas, a coluna lembrada e
+ * limpa, o lote que alcanca o resto da lista e se desfaz, o card criado que so entra
+ * pela frente na lista de sempre, os atalhos, o "Buscando…" e os arquivados — o
+ * cabecalho dele diz o porque de cada um.
  */
 const dublê = vi.hoisted(() => ({
   listar:
@@ -60,8 +75,18 @@ const dublê = vi.hoisted(() => ({
   pedir: vi.fn(),
   anexos: vi.fn(),
   atualizar: vi.fn(),
+  // O card novo: criar, e o "Levar para a Sprint 2" do aviso.
+  criar: vi.fn(),
+  porNaSprint: vi.fn(),
+  // O responsavel, pelo lote da lista — e de volta, pelo "Desfazer".
+  responsavel: vi.fn(),
   // As listas de escolha dos campos do card: so as etiquetas sao olhadas aqui.
   etiquetasDoProjeto: vi.fn(async () => []),
+  // O time e as prioridades do card novo, e as sprints com elas ligadas. O time e
+  // tambem o do lote: o teste do "Desfazer" poe a Ana nele.
+  time: vi.fn(async (): Promise<TeamMemberViewModel[]> => []),
+  prioridades: vi.fn(async () => []),
+  sprints: vi.fn(async () => []),
 }))
 
 /** A conexao em tempo real de mentira: guarda quem ouve, e o teste manda os avisos. */
@@ -95,6 +120,9 @@ vi.mock('@/data', async (importOriginal) => {
       askInfo: dublê.pedir,
       setPosition: dublê.lugar,
       refreshReport: dublê.atualizar,
+      createTeamCard: dublê.criar,
+      setSprint: dublê.porNaSprint,
+      setAssignee: dublê.responsavel,
       // Os vinculos do card aberto: nenhum, nestes testes.
       listLinks: vi.fn().mockResolvedValue([]),
     },
@@ -102,6 +130,9 @@ vi.mock('@/data', async (importOriginal) => {
     projectReportAttachmentService: { listAttachments: dublê.anexos },
     projectCycleSettingsService: { getCycleSettings: dublê.ciclo },
     projectLabelService: { listLabels: dublê.etiquetasDoProjeto },
+    projectTeamService: { listMembers: dublê.time },
+    projectPriorityService: { listPriorities: dublê.prioridades },
+    sprintService: { listSprints: dublê.sprints },
   }
 })
 
@@ -118,6 +149,8 @@ function projeto(publicId: string): ProjectViewModel {
     Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
     Role: papel.atual,
     IsAccountOwner: papel.atual === 'Administrator',
+    LastReportReceivedAt: null,
+    LastActivityAt: null,
   }
 }
 
@@ -155,6 +188,7 @@ function relato(
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    ClosureConfirmed: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -164,9 +198,18 @@ function relato(
     DuplicateReporters: 0,
     Sprint: null,
     StoryPoints: null,
+    UpdatedAt: '2026-10-03T12:00:00.000Z',
     ...extra,
   }
 }
+
+/**
+ * O relato sem titulo como a tela o escreve: o comeco do texto **entre aspas**, que e a
+ * fala de quem relatou (`headlineText`). E assim na linha da tabela, na frente do card
+ * do quadro e no titulo do card aberto — e o nome do link da linha leva as aspas junto,
+ * como o texto que se ve.
+ */
+const entreAspas = (texto: string) => `“${texto}”`
 
 /** Uma promessa que so resolve quando o teste mandar. */
 function emVoo<T>() {
@@ -236,6 +279,32 @@ function montar(publicId = 'p-1', endereco?: string) {
 // que ela usa para abrir. Sem isto o teste falharia pelo ambiente, nao pelo codigo.
 instalarRemendosDoRadix()
 
+// Os filtros, as colunas e a ordem da lista ficam lembrados na aba (`sessionStorage`), e
+// a vista e as raias neste navegador: sem limpar, passariam de um teste para o outro.
+beforeEach(() => {
+  window.sessionStorage.clear()
+  window.localStorage.clear()
+})
+
+/** Abre um menu da barra de filtros. O Radix abre no `pointerdown`, e nao no clique. */
+async function abrirMenu(nome: string | RegExp) {
+  fireEvent.pointerDown(await screen.findByRole('button', { name: nome }), {
+    button: 0,
+    ctrlKey: false,
+    pointerType: 'mouse',
+  })
+  return screen.findByRole('menu')
+}
+
+/**
+ * Fecha o menu aberto pelo Esc, como a pessoa faz. Aberto, ele esconde o resto da
+ * pagina do leitor de tela — e a busca por `role` nao enxergaria a lista atras.
+ */
+async function fecharMenu() {
+  fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+}
+
 describe('ReportsScreen', () => {
   afterEach(cleanup)
 
@@ -276,7 +345,9 @@ describe('ReportsScreen', () => {
 
     montar()
 
-    const linha = (await screen.findByRole('link', { name: 'o botao some' })).closest('tr')
+    const linha = (await screen.findByRole('link', { name: entreAspas('o botao some') })).closest(
+      'tr',
+    )
     if (!linha) throw new Error('a linha da tabela')
     expect(within(linha).getByText('Defeito')).toBeTruthy()
     expect(within(linha).getByText(`#${relato('r-1', '').Number}`)).toBeTruthy()
@@ -299,10 +370,14 @@ describe('ReportsScreen', () => {
 
     montar()
 
+    // Os que ordenam dizem, depois do nome, como ordenar ("Nº, ordenar por número"): o
+    // nome da coluna continua sendo o comeco.
     for (const nome of ['Nº', 'Título', 'Coluna', 'Responsável', 'Prioridade', 'Prazo'])
-      expect(await screen.findByRole('columnheader', { name: nome })).toBeTruthy()
+      expect(
+        await screen.findByRole('columnheader', { name: new RegExp(`^${nome}(,|$)`) }),
+      ).toBeTruthy()
 
-    const linha = screen.getByRole('link', { name: 'o botao some' }).closest('tr')
+    const linha = screen.getByRole('link', { name: entreAspas('o botao some') }).closest('tr')
     if (!linha) throw new Error('a linha da tabela')
     fireEvent.click(within(linha).getByText('Defeito'))
 
@@ -315,7 +390,9 @@ describe('ReportsScreen', () => {
     const outraAba = vi.spyOn(window, 'open').mockReturnValue(null)
 
     montar()
-    const linha = (await screen.findByRole('link', { name: 'o botao some' })).closest('tr')
+    const linha = (await screen.findByRole('link', { name: entreAspas('o botao some') })).closest(
+      'tr',
+    )
     if (!linha) throw new Error('a linha da tabela')
     const numero = within(linha).getByText(`#${relato('r-1', '').Number}`)
 
@@ -349,7 +426,7 @@ describe('ReportsScreen', () => {
     })
 
     montar()
-    await screen.findByRole('link', { name: 'vencido' })
+    await screen.findByRole('link', { name: entreAspas('vencido') })
 
     // Uma na celula do prazo, outra embaixo do titulo (que a tela larga esconde).
     expect(screen.getAllByText(/venceu ontem/)).toHaveLength(2)
@@ -363,7 +440,7 @@ describe('ReportsScreen', () => {
         relato('r-1', 'o botao some depois do frete', {
           Title: 'Pagamento recusado no celular',
           ReporterTitle: 'O botão sumiu',
-          // Aposentada depois de ir para o card: continua nele, marcada.
+          // Desativada depois de ir para o card: continua nele, marcada.
           Priority: { PublicId: 'p-alta', Name: 'Alta', Color: 'Orange', IsActive: false },
           Labels: [
             { PublicId: 'l-1', Name: 'pagamento', Color: 'Blue' },
@@ -385,11 +462,13 @@ describe('ReportsScreen', () => {
     // os dois estao no card aberto.
     expect(screen.queryByText('O botão sumiu')).toBeNull()
     expect(screen.queryByText('o botao some depois do frete')).toBeNull()
-    expect(screen.getByText('Alta (aposentada)')).toBeTruthy()
+    // A prioridade e quem esta com o card: na celula de cada um e, na area estreita,
+    // embaixo do titulo — o jsdom nao mede a largura, e as duas estao no documento.
+    expect(screen.getAllByText('Alta (desativada)')).toHaveLength(2)
+    expect(screen.getAllByText(/Bruno.*saiu do time/)).toHaveLength(2)
     // Uma etiqueta e o resto contado.
     expect(screen.getByText('pagamento')).toBeTruthy()
     expect(screen.getByText('+3')).toBeTruthy()
-    expect(screen.getByText(/Bruno.*saiu do time/)).toBeTruthy()
     // O cabecalho da coluna ja diz "Prazo": a data vem sem a palavra.
     expect(screen.getByText(/^16 de out\./)).toBeTruthy()
     expect(screen.queryByText(/Prazo 16/)).toBeNull()
@@ -407,7 +486,7 @@ describe('ReportsScreen', () => {
     montar()
 
     expect(await screen.findByText('Título de quem relatou')).toBeTruthy()
-    expect(screen.getByText('texto sem titulo nenhum')).toBeTruthy()
+    expect(screen.getByText(entreAspas('texto sem titulo nenhum'))).toBeTruthy()
   })
 
   it('tipo que esta tela nao conhece aparece com o proprio valor, em vez de sumir', async () => {
@@ -452,7 +531,7 @@ describe('ReportsScreen', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
 
-    expect(await screen.findByText('voltou')).toBeTruthy()
+    expect(await screen.findByText(entreAspas('voltou'))).toBeTruthy()
   })
 
   it('carregar mais soma a pagina seguinte sem repetir o que ja estava na tela', async () => {
@@ -467,9 +546,9 @@ describe('ReportsScreen', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Carregar mais' }))
 
-    expect(await screen.findByText('terceiro')).toBeTruthy()
-    expect(screen.getAllByText('segundo')).toHaveLength(1)
-    expect(screen.getByText('3 de 3')).toBeTruthy()
+    expect(await screen.findByText(entreAspas('terceiro'))).toBeTruthy()
+    expect(screen.getAllByText(entreAspas('segundo'))).toHaveLength(1)
+    expect(screen.getByText('3 de 3 cards')).toBeTruthy()
   })
 
   it('com tudo na tela, nao oferece carregar mais', async () => {
@@ -477,7 +556,7 @@ describe('ReportsScreen', () => {
 
     montar()
 
-    await screen.findByText('unico')
+    await screen.findByText(entreAspas('unico'))
     expect(screen.queryByRole('button', { name: 'Carregar mais' })).toBeNull()
   })
 
@@ -496,14 +575,14 @@ describe('ReportsScreen', () => {
     // A ordem e o teste inteiro: a resposta velha so pode chegar **depois** de a
     // nova ja estar na tela. Resolvida antes, ela seria sobrescrita pela seguinte
     // e o teste passaria mesmo sem a guarda que ele diz cobrir.
-    expect(await screen.findByText('do segundo projeto')).toBeTruthy()
+    expect(await screen.findByText(entreAspas('do segundo projeto'))).toBeTruthy()
 
     await act(async () => {
       primeira.resolver({ reports: [relato('r-1', 'do primeiro projeto')], total: 1 })
     })
 
-    expect(screen.queryByText('do primeiro projeto')).toBeNull()
-    expect(screen.getByText('do segundo projeto')).toBeTruthy()
+    expect(screen.queryByText(entreAspas('do primeiro projeto'))).toBeNull()
+    expect(screen.getByText(entreAspas('do segundo projeto'))).toBeTruthy()
   })
 })
 
@@ -546,10 +625,10 @@ describe('abrir um relato', () => {
 
     montar()
 
-    await screen.findByText('o botao some')
+    await screen.findByText(entreAspas('o botao some'))
     expect(dublê.abrir).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByText('o botao some'))
+    fireEvent.click(screen.getByText(entreAspas('o botao some')))
 
     await waitFor(() => expect(dublê.abrir).toHaveBeenCalledTimes(1))
     expect(dublê.abrir).toHaveBeenCalledWith('p-1', 'r-1')
@@ -561,7 +640,7 @@ describe('abrir um relato', () => {
 
     montar()
 
-    fireEvent.click(await screen.findByText('o botao some'))
+    fireEvent.click(await screen.findByText(entreAspas('o botao some')))
 
     // O dialogo ja esta de pe com o texto que a lista tinha, e nao vazio.
     const dialogo = await screen.findByRole('dialog')
@@ -574,7 +653,7 @@ describe('abrir um relato', () => {
 
     montar()
 
-    fireEvent.click(await screen.findByText('a conta esta errada'))
+    fireEvent.click(await screen.findByText(entreAspas('a conta esta errada')))
 
     expect(await screen.findByText(/O resto do contexto não carregou/)).toBeTruthy()
     expect(screen.getByRole('dialog').textContent).toContain('a conta esta errada')
@@ -635,7 +714,7 @@ describe('abrir um relato', () => {
       dublê.anexos.mockResolvedValue([arquivo({}), daReabertura])
 
       montar()
-      fireEvent.click(await screen.findByText('o botao some'))
+      fireEvent.click(await screen.findByText(entreAspas('o botao some')))
 
       const motivo = await screen.findByText('Voltou a travar.')
       const print = await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
@@ -653,7 +732,7 @@ describe('abrir um relato', () => {
       dublê.anexos.mockResolvedValue([daReabertura])
 
       montar()
-      fireEvent.click(await screen.findByText('o botao some'))
+      fireEvent.click(await screen.findByText(entreAspas('o botao some')))
 
       await screen.findByText(/O resto do contexto não carregou/)
       const print = await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
@@ -672,7 +751,7 @@ describe('abrir um relato', () => {
       ])
 
       montar()
-      fireEvent.click(await screen.findByText('o botao some'))
+      fireEvent.click(await screen.findByText(entreAspas('o botao some')))
 
       await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
       const nomes = Array.from(
@@ -693,9 +772,9 @@ describe('abrir um relato', () => {
 
     montar()
 
-    fireEvent.click(await screen.findByText('o botao some'))
+    fireEvent.click(await screen.findByText(entreAspas('o botao some')))
     fireEvent.click(await screen.findByRole('button', { name: 'Fechar' }))
-    fireEvent.click(screen.getByText('a conta esta errada'))
+    fireEvent.click(screen.getByText(entreAspas('a conta esta errada')))
 
     expect(await screen.findByText('Firefox do segundo')).toBeTruthy()
 
@@ -709,7 +788,7 @@ describe('abrir um relato', () => {
     expect(screen.getByText('Firefox do segundo')).toBeTruthy()
   })
 
-  it('"Todas as colunas" soma as colunas, e não chama a API de novo', async () => {
+  it('o menu "Coluna" conta cada coluna pela contagem, e não chama a API de novo', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'um')], total: 1 })
     dublê.contar.mockResolvedValue([
       contagem('s-1', 'Análise', 12),
@@ -718,29 +797,58 @@ describe('abrir um relato', () => {
     ])
 
     montar()
+    await screen.findByRole('link', { name: entreAspas('um') })
+    await abrirMenu('Coluna')
 
-    // 12 + 40 + 3, com um unico relato na tela: contar as linhas que vieram daria 1.
-    const campo = await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
-    await waitFor(() => expect(campo.textContent).toContain('Todas as colunas · 55'))
-    // E "Todas" e a ausencia de recorte, e nao um recorte chamado "todas".
+    // 12, 40 e 3, com um unico relato na tela: contar as linhas que vieram daria 1.
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 12' })).toBeTruthy()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Pronto · 40' })).toBeTruthy()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Sem coluna · 3' })).toBeTruthy()
+    // Abrir o menu nao conta de novo: o numero e o da contagem que a tela ja tem.
+    expect(dublê.contar).toHaveBeenCalledTimes(1)
+    // E nenhuma marcada e a ausencia de recorte, e nao um recorte com todas.
     expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, null, false)
   })
 
-  it('escolher uma coluna refaz a busca com o recorte', async () => {
+  it('marcar uma coluna refaz a busca com o recorte, e marcar outra soma as duas', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'um')], total: 1 })
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 12), contagem('s-2', 'Pronto', 40)])
 
     montar()
-
-    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
-    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 12')
+    await screen.findByRole('link', { name: entreAspas('um') })
+    await abrirMenu('Coluna')
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 12' }))
 
     // Pagina 1 de novo: trocar de coluna e comecar uma lista nova, e nao
-    // acrescentar a que estava na tela.
-    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 's-1', false))
+    // acrescentar a que estava na tela. (Com a coluna, os filtros vao junto, todos
+    // vazios — o que nao poe nada no endereco; o que importa aqui e a coluna.)
+    await waitFor(() =>
+      expect(dublê.listar).toHaveBeenLastCalledWith(
+        'p-1',
+        1,
+        null,
+        false,
+        expect.objectContaining({ columns: ['s-1'] }),
+      ),
+    )
+
+    // O menu fica aberto para marcar outra: dentro de um menu, ou.
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Pronto · 40' }))
+    await waitFor(() =>
+      expect(dublê.listar).toHaveBeenLastCalledWith(
+        'p-1',
+        1,
+        null,
+        false,
+        expect.objectContaining({ columns: ['s-1', 's-2'] }),
+      ),
+    )
+    await fecharMenu()
+    // O botao diz quais, e nao so quantas.
+    expect(screen.getByRole('button', { name: 'Coluna: Análise, Pronto' })).toBeTruthy()
   })
 
-  it('a coluna sem relato aparece, mas a aposentada vazia não', async () => {
+  it('a coluna sem relato aparece, mas a desativada vazia não', async () => {
     dublê.listar.mockResolvedValue({ reports: [], total: 0 })
     dublê.contar.mockResolvedValue([
       contagem('s-1', 'Análise', 0),
@@ -749,17 +857,18 @@ describe('abrir um relato', () => {
     ])
 
     montar()
-
-    const campo = await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
-    fireEvent.pointerDown(campo, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    await screen.findByText('Nada aqui ainda')
+    await abrirMenu('Coluna')
 
     // Coluna ativa vazia fica: some do filtro no dia em que o ultimo relato dela
     // e movido, e quem olha acharia que ela deixou de existir.
-    expect(await screen.findByRole('option', { name: 'Análise · 0' })).toBeTruthy()
-    // Aposentada e vazia nao serve para nada.
-    expect(screen.queryByRole('option', { name: 'Parado (aposentada) · 0' })).toBeNull()
-    // Aposentada com relato fica: e o unico caminho ate esses relatos.
-    expect(screen.getByRole('option', { name: 'Encerrado (aposentada) · 4' })).toBeTruthy()
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 0' })).toBeTruthy()
+    // Desativada e vazia nao serve para nada.
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Parado (desativada) · 0' })).toBeNull()
+    // Desativada com relato fica: e o unico caminho ate esses relatos.
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: 'Encerrado (desativada) · 4' }),
+    ).toBeTruthy()
   })
 
   it('os sem coluna viram o recorte "none"', async () => {
@@ -767,12 +876,20 @@ describe('abrir um relato', () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 2), contagem(null, null, 3)])
 
     montar()
-
-    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
-    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Sem coluna · 3')
+    await screen.findByText('Nada aqui ainda')
+    await abrirMenu('Coluna')
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Sem coluna · 3' }))
 
     // A linha sem coluna nao tem identificador: a rota espera uma palavra.
-    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 'none', false))
+    await waitFor(() =>
+      expect(dublê.listar).toHaveBeenLastCalledWith(
+        'p-1',
+        1,
+        null,
+        false,
+        expect.objectContaining({ columns: ['none'] }),
+      ),
+    )
   })
 
   it('coluna vazia não é o mesmo que projeto sem relato', async () => {
@@ -780,15 +897,22 @@ describe('abrir um relato', () => {
     dublê.listar.mockResolvedValue({ reports: [], total: 0 })
 
     montar()
-
-    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
-    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 0')
+    await screen.findByText('Nada aqui ainda')
+    await abrirMenu('Coluna')
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 0' }))
+    await fecharMenu()
 
     // O convite para instalar a ferramenta seria mentira duas vezes: sobre o que
     // existe, e sobre o que a pessoa precisa fazer.
     await waitFor(() => expect(screen.queryByText('Nada aqui ainda')).toBeNull())
     expect(screen.queryByRole('link', { name: /instalar/i })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Ver todos' })).toBeTruthy()
+    expect(screen.getByText(/Nenhum card em/).textContent).toContain(
+      'Nenhum card em Análise agora.',
+    )
+
+    // "Ver todos" desmarca a coluna, e a lista volta sem recorte.
+    fireEvent.click(screen.getByRole('button', { name: 'Ver todos' }))
+    await waitFor(() => expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, null, false))
   })
 
   it('o link aberto direto abre o relato que a lista não tem', async () => {
@@ -803,7 +927,7 @@ describe('abrir um relato', () => {
     montar('p-1', '/p/p-1/r-1')
 
     // Sem resumo na lista, o texto vem da resposta da abertura.
-    expect(await screen.findByText('o botao some')).toBeTruthy()
+    expect(await screen.findByText(entreAspas('o botao some'))).toBeTruthy()
     expect(dublê.abrir).toHaveBeenCalledWith('p-1', 'r-1')
   })
 
@@ -911,7 +1035,7 @@ describe('abrir um relato', () => {
     expect(dublê.abrir).toHaveBeenCalledTimes(1)
   })
 
-  it('diz que o relato ainda não aparece quando ele não está em etapa nenhuma', async () => {
+  it('diz que a coluna não muda o que quem relatou vê quando ele não está em etapa nenhuma', async () => {
     dublê.listar.mockResolvedValue({
       reports: [relato('r-1', 'o botao some', { PublicStageLabel: null })],
       total: 1,
@@ -929,8 +1053,9 @@ describe('abrir um relato', () => {
 
     // Uma frase so para os tres motivos possiveis: coluna fora do mapa, projeto
     // sem jornada, ou relato anterior a ela. Distinguir exigiria um campo que
-    // ficaria desatualizado no primeiro movimento.
-    expect(await screen.findByText('Ainda não aparece para quem relatou')).toBeTruthy()
+    // ficaria desatualizado no primeiro movimento. Fala da coluna, e nao do relato:
+    // "ainda nao aparece" dito de um relato encerrado parecia que ele tinha sumido.
+    expect(await screen.findByText(/Esta coluna não muda o que quem relatou vê\./)).toBeTruthy()
   })
 
   it('movido para fora do recorte, o relato sai da lista', async () => {
@@ -950,8 +1075,19 @@ describe('abrir um relato', () => {
     montar()
 
     // Filtra em Analise, abre o relato de la e manda ele para Pronto.
-    await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
-    await escolherNoSelect(screen, fireEvent, 'Filtrar por coluna', 'Análise · 1')
+    await screen.findByRole('link', { name: /o botao some/ })
+    await abrirMenu('Coluna')
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 1' }))
+    await fecharMenu()
+    await waitFor(() =>
+      expect(dublê.listar).toHaveBeenLastCalledWith(
+        'p-1',
+        1,
+        null,
+        false,
+        expect.objectContaining({ columns: ['s-1'] }),
+      ),
+    )
     fireEvent.click(await screen.findByRole('link', { name: /o botao some/ }))
 
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
@@ -1237,6 +1373,10 @@ describe('encerrar um relato', () => {
  * exatamente o contrato. O dia em que alguem trocar isso por "a ultima da lista"
  * quebra aqui.
  *
+ * **"Encerrar relato…" fica em qualquer coluna** enquanto o relato esta aberto. Fora
+ * da coluna que encerra, ele leva o relato ate ela, pelo mesmo dialogo do motivo; ja
+ * nela, ou no projeto que encerra por botao, encerra sem mover.
+ *
  * **O caso que se esquece e o do relato ja parado na coluna que encerra.** Mover
  * para onde ele ja esta nao e movimento, entao sem o botao esse relato nunca
  * poderia ser encerrado — e e o estado de todo relato que chegou la antes de a
@@ -1297,7 +1437,7 @@ describe('encerrar por botão', () => {
 
     montar('p-1', '/p/p-1/r-1')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Concluir relato' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Encerrar relato…' }))
 
     // Sem coluna de destino: a frase fala do relato ficar onde esta.
     expect(await screen.findByText(/continua na coluna em que está/)).toBeTruthy()
@@ -1331,21 +1471,42 @@ describe('encerrar por botão', () => {
 
     montar('p-1', '/p/p-1/r-1')
 
-    expect(await screen.findByRole('button', { name: 'Concluir relato' })).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Encerrar relato…' }))
+    // Ja esta nela: encerra sem mover.
+    expect(await screen.findByText(/continua na coluna em que está/)).toBeTruthy()
   })
 
-  it('o relato que está em outra coluna não ganha o botão', async () => {
+  it('o relato que está em outra coluna também ganha o botão, e encerrar o leva para a que encerra', async () => {
     dublê.contar.mockResolvedValue([
       contagem('s-1', 'Análise', 1),
       contagem('s-2', 'Pronto', 0, true, true),
     ])
+    dublê.mover.mockResolvedValue(
+      relato('r-1', 'o botao some', { StatePublicId: 's-2', StateName: 'Pronto' }),
+    )
 
     montar('p-1', '/p/p-1/r-1')
 
-    await screen.findByRole('combobox', { name: 'Mover para a coluna' })
-    // Para esse, quem encerra e o movimento — e oferecer as duas portas faria a
-    // configuracao nao querer dizer nada.
-    expect(screen.queryByRole('button', { name: 'Concluir relato' })).toBeNull()
+    // Antes, so a coluna que encerra tinha o botao — e, com mais de uma coluna, nao havia
+    // momento para encerrar da triagem. Quem encerra continua sendo o movimento: o mesmo
+    // dialogo do motivo, e o relato vai para a coluna que encerra.
+    fireEvent.click(await screen.findByRole('button', { name: 'Encerrar relato…' }))
+    expect(await screen.findByText(/Mover para Pronto encerra este relato/)).toBeTruthy()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Por que acabou' }), {
+      target: { value: 'Corrigido.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
+
+    await waitFor(() =>
+      expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', {
+        StatePublicId: 's-2',
+        Outcome: 'Done',
+        Reason: 'Corrigido.',
+      }),
+    )
+    // Uma porta so: o movimento leva o motivo, e a rota do botao nao e chamada junto.
+    expect(dublê.encerrar).not.toHaveBeenCalled()
   })
 
   it('relato já encerrado mostra o fim e não oferece encerrar de novo', async () => {
@@ -1371,7 +1532,7 @@ describe('encerrar por botão', () => {
     expect(await screen.findByText('O comportamento é o esperado.')).toBeTruthy()
     expect(screen.getByText('Não será feito')).toBeTruthy()
     // Uma linha por fechamento: encerrar duas vezes contaria a historia errada.
-    expect(screen.queryByRole('button', { name: 'Concluir relato' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Encerrar relato…' })).toBeNull()
   })
 })
 
@@ -1549,7 +1710,7 @@ describe('devolver o relato pedindo informação', () => {
     aberto({ CanAskInfo: true })
 
     expect(await screen.findByRole('button', { name: 'Pedir informação' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Concluir relato' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Encerrar relato…' })).toBeTruthy()
   })
 
   it('e a de devolver some quando a API diz que não dá', async () => {
@@ -1558,7 +1719,7 @@ describe('devolver o relato pedindo informação', () => {
     // saber qual — ela le a conclusao.
     aberto({ CanAskInfo: false })
 
-    await screen.findByRole('button', { name: 'Concluir relato' })
+    await screen.findByRole('button', { name: 'Encerrar relato…' })
     expect(screen.queryByRole('button', { name: 'Pedir informação' })).toBeNull()
   })
 
@@ -1665,7 +1826,7 @@ describe('o quadro', () => {
     await waitFor(() => expect(lista.getAttribute('aria-selected')).toBe('true'))
   })
 
-  it('"Criar" no pe de uma coluna abre o card novo ja nela', async () => {
+  it('"Criar" no alto de uma coluna abre o campo nela; "Mais detalhes" abre o card novo já nela, com o título', async () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 0), contagem('s-2', 'Pronto', 0)])
     porColuna({ 's-1': [], 's-2': [] })
     window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
@@ -1674,8 +1835,19 @@ describe('o quadro', () => {
     const pronto = await screen.findByRole('region', { name: 'Pronto' })
     fireEvent.click(within(pronto).getByRole('button', { name: 'Criar card em Pronto' }))
 
-    const campo = await screen.findByRole('combobox', { name: 'Coluna' })
-    expect(campo.textContent).toContain('Pronto')
+    // O campo abre ali mesmo, no alto da coluna, e nao no pe dela — o card nasce a vista.
+    const campo = within(pronto).getByRole('textbox', { name: 'Título do card novo em Pronto' })
+    expect(document.activeElement).toBe(campo)
+    fireEvent.change(campo, { target: { value: 'Revisar o frete' } })
+    fireEvent.click(within(pronto).getByRole('button', { name: 'Mais detalhes' }))
+
+    // O dialogo completo, na coluna de onde veio e com o que ja se escreveu.
+    const coluna = await screen.findByRole('combobox', { name: 'Coluna' })
+    expect(coluna.textContent).toContain('Pronto')
+    expect((screen.getByRole('textbox', { name: 'Título' }) as HTMLInputElement).value).toBe(
+      'Revisar o frete',
+    )
+    expect(dublê.criar).not.toHaveBeenCalled()
   })
 
   it('Quadro mostra uma coluna por estado, cada uma lida na ordem do quadro, e a vista fica lembrada no projeto', async () => {
@@ -1692,7 +1864,7 @@ describe('o quadro', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Quadro' }))
 
     const analise = await screen.findByRole('region', { name: 'Análise' })
-    expect(await within(analise).findByText('o botao some')).toBeTruthy()
+    expect(await within(analise).findByText(entreAspas('o botao some'))).toBeTruthy()
     expect(screen.getByRole('region', { name: 'Pronto' })).toBeTruthy()
     expect(dublê.listar).toHaveBeenCalledWith('p-1', 1, 's-1', false, {
       order: 'board',
@@ -1721,7 +1893,7 @@ describe('o quadro', () => {
     window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
 
     montar()
-    const link = (await screen.findByText('o botao some')).closest('a')
+    const link = (await screen.findByText(entreAspas('o botao some'))).closest('a')
     expect(link?.getAttribute('href')).toBe('/p/p-1/r-1')
     expect(dublê.abrir).not.toHaveBeenCalled()
 
@@ -1747,8 +1919,17 @@ describe('o quadro', () => {
     ).toBeTruthy()
 
     fireEvent.click(within(pronto).getByRole('button', { name: 'Ver na lista' }))
-    const campo = await screen.findByRole('combobox', { name: 'Filtrar por coluna' })
-    expect(campo.textContent).toContain('Pronto · 3')
+    // A lista abre so com essa coluna marcada — e o menu "Coluna" diz qual.
+    expect(await screen.findByRole('button', { name: 'Coluna: Pronto' })).toBeTruthy()
+    await waitFor(() =>
+      expect(dublê.listar).toHaveBeenLastCalledWith(
+        'p-1',
+        1,
+        null,
+        false,
+        expect.objectContaining({ columns: ['s-2'] }),
+      ),
+    )
     // O botao que levou ate la sumiu com o quadro: o foco vai para a aba da lista.
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Lista' }))
     expect(screen.getByRole('tab', { name: 'Lista' }).getAttribute('aria-selected')).toBe('true')
@@ -1773,17 +1954,18 @@ describe('o quadro', () => {
 
     falhar = false
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
-    expect(await screen.findByText('relato 49')).toBeTruthy()
+    expect(await screen.findByText(entreAspas('relato 49'))).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mostrar mais' }))
-    expect(await screen.findByText('o de numero 51')).toBeTruthy()
+    // O botao diz quantos faltam: so mais um.
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar mais 1' }))
+    expect(await screen.findByText(entreAspas('o de numero 51'))).toBeTruthy()
     // O que vem depois do ultimo card da tela, e nao a pagina seguinte.
     expect(dublê.listar).toHaveBeenLastCalledWith('p-1', 1, 's-1', false, {
       order: 'board',
       pageSize: 50,
       after: 'r-49',
     })
-    expect(screen.queryByRole('button', { name: 'Mostrar mais' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Mostrar mais/ })).toBeNull()
   })
 
   it('mover pelo dialogo nao tira o quadro da tela: o "Mostrar mais" fica, e nenhuma coluna e lida do zero', async () => {
@@ -1815,12 +1997,12 @@ describe('o quadro', () => {
     window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
 
     montar()
-    fireEvent.click(await screen.findByRole('button', { name: 'Mostrar mais' }))
-    expect(await screen.findByText('o de numero 51')).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Mostrar mais 1' }))
+    expect(await screen.findByText(entreAspas('o de numero 51'))).toBeTruthy()
     const analise = screen.getByRole('region', { name: 'Análise' })
     const leituras = dublê.listar.mock.calls.length
 
-    fireEvent.click(screen.getByText('relato 1').closest('a') as HTMLElement)
+    fireEvent.click(screen.getByText(entreAspas('relato 1')).closest('a') as HTMLElement)
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
     await waitFor(() => expect(dublê.contar).toHaveBeenCalledTimes(2))
@@ -1833,9 +2015,9 @@ describe('o quadro', () => {
       recontagem.resolver([contagem('s-1', 'Análise', 50), contagem('s-2', 'Pronto', 1)]),
     )
     const pronto = screen.getByRole('region', { name: 'Pronto', hidden: true })
-    await waitFor(() => expect(within(pronto).getByText('relato 1')).toBeTruthy())
+    await waitFor(() => expect(within(pronto).getByText(entreAspas('relato 1'))).toBeTruthy())
     expect(screen.getByRole('region', { name: 'Análise', hidden: true })).toBe(analise)
-    expect(screen.getByText('o de numero 51')).toBeTruthy()
+    expect(screen.getByText(entreAspas('o de numero 51'))).toBeTruthy()
     expect(dublê.listar.mock.calls.length).toBe(leituras)
   })
 
@@ -1874,7 +2056,7 @@ describe('o quadro', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     const analise = await screen.findByRole('region', { name: 'Análise' })
-    expect(await within(analise).findByText('o botao some')).toBeTruthy()
+    expect(await within(analise).findByText(entreAspas('o botao some'))).toBeTruthy()
   })
 
   it('com o quadro na tela, a lista nao e lida; voltando a ela, e lida de novo', async () => {
@@ -1891,7 +2073,39 @@ describe('o quadro', () => {
     await waitFor(() =>
       expect(dublê.listar.mock.calls.some((chamada) => chamada[4] === undefined)).toBe(true),
     )
-    expect(await screen.findByText('o botao some')).toBeTruthy()
+    expect(await screen.findByText(entreAspas('o botao some'))).toBeTruthy()
+  })
+
+  it('a dica de como arrastar e curta, fecha no ✕ e fica fechada neste navegador, em todo projeto', async () => {
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
+    porColuna({ 's-1': [relato('r-1', 'o botao some')] })
+    dublê.time.mockResolvedValue([])
+    window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+    window.localStorage.setItem('pds.web.trabalho.vista.p-2', 'quadro')
+
+    montar()
+    await screen.findByRole('region', { name: 'Análise' })
+    // Curta (Q-19): uma linha, com o toque e o teclado.
+    expect(
+      screen.getByText(
+        'Arraste para mover · no celular, segure · no teclado, as setas andam e espaço pega',
+      ),
+    ).toBeTruthy()
+    // Com raias, diz o que a raia troca.
+    await escolherNoSelect(screen, fireEvent, 'Raias do quadro', 'Raias por responsável')
+    expect(
+      await screen.findByText(/^Arraste para mover; outra raia troca o responsável · /),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Esconder a dica de como arrastar' }))
+    expect(screen.queryByText(/^Arraste para mover/)).toBeNull()
+
+    // Fechada, fica fechada neste navegador — tambem no outro projeto.
+    cleanup()
+    montar('p-2')
+    await screen.findByRole('region', { name: 'Análise' })
+    expect(screen.queryByText(/^Arraste para mover/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Esconder a dica de como arrastar' })).toBeNull()
   })
 })
 
@@ -1944,7 +2158,9 @@ describe('o tempo real', () => {
 
     montar()
     const pronto = await screen.findByRole('region', { name: 'Pronto' })
-    await within(screen.getByRole('region', { name: 'Análise' })).findByText('o botao some')
+    await within(screen.getByRole('region', { name: 'Análise' })).findByText(
+      entreAspas('o botao some'),
+    )
     const antes = {
       analise: leiturasDe('s-1'),
       pronto: leiturasDe('s-2'),
@@ -1966,14 +2182,15 @@ describe('o tempo real', () => {
     await waitFor(() =>
       expect(link.firstElementChild?.getAttribute('data-highlighted')).toBe('true'),
     )
-    expect(screen.getByText(/^O card #\d+ foi atualizado\.$/)).toBeTruthy()
+    // No quadro, o anuncio diz para onde o card foi — e nao so que mudou.
+    expect(screen.getByText(/^O card #\d+ foi para Pronto\.$/)).toBeTruthy()
   })
 
   it('na lista, o aviso rele as paginas da tela, e a linha que mudou se acende', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
 
     montar()
-    await screen.findByRole('link', { name: 'o botao some' })
+    await screen.findByRole('link', { name: entreAspas('o botao some') })
 
     dublê.listar.mockResolvedValue({
       reports: [relato('r-1', 'o botao some', { Title: 'Reescrito por outra pessoa' })],
@@ -1989,7 +2206,7 @@ describe('o tempo real', () => {
   it('avisos sem parar nao adiam a releitura da lista para sempre', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
     montar()
-    await screen.findByRole('link', { name: 'o botao some' })
+    await screen.findByRole('link', { name: entreAspas('o botao some') })
     const antes = dublê.listar.mock.calls.length
 
     // Um aviso a cada 150 ms, por 1,5 s: cada um chega antes de a espera acabar.
@@ -2012,7 +2229,7 @@ describe('o tempo real', () => {
       Contexts: [],
     })
     const router = montar()
-    await screen.findByRole('link', { name: 'o botao some' })
+    await screen.findByRole('link', { name: entreAspas('o botao some') })
 
     // Outra pessoa criou um card, que entra no topo e empurra a linha para baixo.
     dublê.listar.mockResolvedValue({
@@ -2020,7 +2237,7 @@ describe('o tempo real', () => {
       total: 2,
     })
     cardMudou('r-9', 's-1')
-    const novo = await screen.findByRole('link', { name: 'card novo de outra pessoa' })
+    const novo = await screen.findByRole('link', { name: entreAspas('card novo de outra pessoa') })
     await waitFor(() => expect(novo.closest('tr')?.getAttribute('data-highlighted')).toBe('true'))
 
     // O clique mirava na linha que estava ali: nao abre.
@@ -2029,7 +2246,7 @@ describe('o tempo real', () => {
     expect(router.state.location.pathname).not.toMatch(/r-9$/)
 
     await act(() => new Promise((pronto) => setTimeout(pronto, 650)))
-    fireEvent.click(screen.getByRole('link', { name: 'card novo de outra pessoa' }))
+    fireEvent.click(screen.getByRole('link', { name: entreAspas('card novo de outra pessoa') }))
     await waitFor(() => expect(router.state.location.pathname).toMatch(/r-9$/))
   })
 
@@ -2256,7 +2473,7 @@ describe('os filtros e a busca', () => {
 
   it('"Meus cards" le a lista e a contagem com o filtro, e desligar volta a tudo', async () => {
     montar()
-    await screen.findByRole('link', { name: 'o botao some' })
+    await screen.findByRole('link', { name: entreAspas('o botao some') })
     expect(ultimaLista()?.[4]).toBeUndefined()
 
     const meus = screen.getByRole('button', { name: 'Meus cards' })
@@ -2273,7 +2490,7 @@ describe('os filtros e a busca', () => {
 
   it('a busca vale depois que a pessoa para de digitar', async () => {
     montar()
-    await screen.findByRole('link', { name: 'o botao some' })
+    await screen.findByRole('link', { name: entreAspas('o botao some') })
     const leiturasAntes = dublê.listar.mock.calls.length
 
     const busca = screen.getByRole('searchbox', { name: 'Buscar cards' })
@@ -2287,7 +2504,7 @@ describe('os filtros e a busca', () => {
 
   it('nada passa nos filtros: a tela diz isso, e "Limpar filtros" volta a tudo', async () => {
     montar()
-    await screen.findByRole('link', { name: 'o botao some' })
+    await screen.findByRole('link', { name: entreAspas('o botao some') })
 
     dublê.listar.mockResolvedValue({ reports: [], total: 0 })
     fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
@@ -2299,7 +2516,7 @@ describe('os filtros e a busca', () => {
     const limpar = screen.getAllByRole('button', { name: /Limpar filtros/ })
     fireEvent.click(limpar[limpar.length - 1] as HTMLElement)
 
-    expect(await screen.findByRole('link', { name: 'o botao some' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: entreAspas('o botao some') })).toBeTruthy()
     expect(ultimaLista()?.[4]).toBeUndefined()
     expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
       'false',
@@ -2308,7 +2525,7 @@ describe('os filtros e a busca', () => {
 
   it('o filtro fica lembrado ao sair da tela e voltar', async () => {
     montar()
-    await screen.findByRole('link', { name: 'o botao some' })
+    await screen.findByRole('link', { name: entreAspas('o botao some') })
     fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
     await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true))
     cleanup()
@@ -2318,5 +2535,836 @@ describe('os filtros e a busca', () => {
     expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
       'true',
     )
+  })
+})
+
+/**
+ * A LISTA: A ORDEM, OS FILTROS, O LOTE, O CARD NOVO E OS ATALHOS.
+ *
+ * - **A ordem e da API, e lembrada a parte** (L-01). O cabecalho e o menu "Ordem" pedem
+ *   a lista com `sort`: ordenar no navegador ordenaria so a pagina que chegou. O
+ *   primeiro clique vai na direcao que responde a pergunta (o prazo mais perto, a
+ *   prioridade mais alta), o segundo inverte. A ordem fica na aba, por projeto, e o
+ *   "Limpar filtros" nao a desfaz — ordem nao e filtro, nao esconde card nenhum. "Mais
+ *   novos primeiro" e a de sempre, e nao fica guardada.
+ * - **"Em aberto" e as subtarefas** (L-02, L-25) valem na lista e na contagem; nos
+ *   arquivados, "Vencidos" e "Em aberto" so ficam se estiverem ligados.
+ * - **A coluna mora nos filtros** (L-07): lembrada, limpa, contada — e a que sai do
+ *   projeto sai do filtro sozinha, senao ficaria ligada sobre o que nao existe.
+ * - **O lote alcanca o que nao esta na tela** (L-04) **e se desfaz** (L-03): o resto da
+ *   lista e lido com os mesmos filtros; o "Desfazer" anda no rodape, e o card que nao
+ *   voltou aparece no dialogo, dito como "nao voltou".
+ * - **O card criado so entra pela frente na lista de sempre** (L-05): com filtro, coluna
+ *   ou ordem, quem decide se ele aparece, e onde, e a releitura.
+ * - **Os atalhos** (L-19) nao roubam a tecla de quem escreve, nem a de uma caixa de
+ *   escolha, de um menu ou de um dialogo aberto; da caixa de marcar da tabela, valem.
+ * - **"Buscando…"** (L-09): a lista velha nao se passa por resultado, e o lote nao muda
+ *   as linhas velhas.
+ * - **Os arquivados** (L-16) dizem como sair, e nao oferecem criar o que nao apareceria
+ *   ali.
+ *
+ * As sprints ficam desligadas: o recorte da sprint, o "Entra em" e o "Levar para a
+ * Sprint" tem testes proprios.
+ */
+describe('a lista', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    papel.atual = 'Administrator'
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listarComentarios.mockResolvedValue({ Internal: [], Public: [] })
+    dublê.historico.mockResolvedValue([])
+    dublê.anexos.mockResolvedValue([])
+    dublê.ciclo.mockResolvedValue({ LastColumnVisibleDays: 14, DueSoonDays: 2 })
+    dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 2), contagem('s-2', 'Pronto', 1)])
+    dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
+    aoVivo.estado.handlers = null
+    useToastStore.setState({ toasts: [] })
+  })
+
+  const ultimaLista = () => dublê.listar.mock.calls.at(-1)
+  const ultimaContagem = () => dublê.contar.mock.calls.at(-1)
+  /** Os avisos da tela, do mais velho para o mais novo: o `Toaster` nao esta montado. */
+  const avisos = () => useToastStore.getState().toasts
+  /**
+   * O botao do ultimo aviso, como o `Toaster` o roda. Entre chaves: o "Abrir" navega, e
+   * a promessa do `navigate` devolvida ao `act` o faria esperar um `await` que nao vem.
+   */
+  const clicarNoAviso = () =>
+    act(() => {
+      avisos().at(-1)?.action?.run()
+    })
+  /** A lista de sempre na tela, depois da primeira leitura. */
+  const listaNaTela = () => screen.findByRole('link', { name: entreAspas('o botao some') })
+  /** A releitura com o filtro novo chegou: o campo deixou de dizer "Buscando…". */
+  const releu = () => waitFor(() => expect(screen.queryByText('Buscando…')).toBeNull())
+
+  /** O botao de ordenar de um cabecalho: o nome comeca pelo da coluna ("Prazo, ordenar por prazo"). */
+  const ordenarPor = (rotulo: string) =>
+    screen.getByRole('button', { name: new RegExp(`^${rotulo},`) })
+  /** A celula do cabecalho, onde mora o `aria-sort`. */
+  const cabecalho = (rotulo: string) =>
+    screen.getByRole('columnheader', { name: new RegExp(`^${rotulo},`) })
+  const ordemGuardada = () =>
+    JSON.parse(window.sessionStorage.getItem('pds.web.trabalho.ordem.p-1') ?? 'null')
+
+  /** O card que o "Novo card" cria, como a API devolve: o resumo, e o card aberto. */
+  const resumoDoNovo = (extra: Partial<ReportSummaryViewModel> = {}) =>
+    relato('t-36', '', {
+      Kind: 'Team',
+      Number: 36,
+      Title: 'Revisar o frete',
+      TrackingCode: null,
+      Type: null,
+      Text: null,
+      Route: null,
+      Origin: null,
+      AcceptsQuestions: null,
+      CreatedAt: '2026-10-08T12:00:00.000Z',
+      ...extra,
+    })
+  const cardNovo = (extra: Partial<ReportSummaryViewModel> = {}) => ({
+    ...resumoDoNovo(extra),
+    Description: null,
+    CreatedByName: 'Ana',
+    CanArchive: true,
+    ArchiveCloses: false,
+    Closure: null,
+    InfoRequest: null,
+    CanAskInfo: false,
+    ModerationState: 'Pending',
+    Contexts: [],
+    Reopenings: [],
+  })
+
+  /** Cria um card pelo "Novo card" do topo, so com o titulo, e espera o dialogo fechar. */
+  async function criarCard() {
+    fireEvent.click(screen.getByRole('button', { name: 'Novo card' }))
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Título' }), {
+      target: { value: 'Revisar o frete' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar card' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Novo card' })).toBeNull())
+  }
+
+  describe('a ordem', () => {
+    it('o cabecalho pede a lista na ordem dele: o primeiro clique na direcao que responde a pergunta, o segundo inverte', async () => {
+      montar()
+      await listaNaTela()
+      // De saida, a ordem de sempre — o mais novo primeiro —, e o cabecalho "Criado" diz.
+      expect(cabecalho('Criado').getAttribute('aria-sort')).toBe('descending')
+      expect(ultimaLista()).toEqual(['p-1', 1, null, false])
+
+      // O prazo mais perto e a prioridade mais alta primeiro; o numero, a coluna (na
+      // ordem do quadro) e o responsavel, de cima para baixo.
+      const primeiros: [string, ReportSortField, 'asc' | 'desc'][] = [
+        ['Nº', 'number', 'asc'],
+        ['Coluna', 'state', 'asc'],
+        ['Responsável', 'assignee', 'asc'],
+        ['Prioridade', 'priority', 'desc'],
+        ['Prazo', 'due', 'asc'],
+      ]
+      const sentido = (dir: 'asc' | 'desc') => (dir === 'asc' ? 'ascending' : 'descending')
+      for (const [rotulo, campo, dir] of primeiros) {
+        fireEvent.click(ordenarPor(rotulo))
+        await waitFor(() => expect(ultimaLista()?.[4]?.sort).toEqual({ field: campo, dir }))
+        expect(cabecalho(rotulo).getAttribute('aria-sort')).toBe(sentido(dir))
+        // So o cabecalho da ordem que vale diz a ordem.
+        expect(cabecalho('Criado').getAttribute('aria-sort')).toBeNull()
+
+        const inversa = dir === 'asc' ? 'desc' : 'asc'
+        fireEvent.click(ordenarPor(rotulo))
+        await waitFor(() =>
+          expect(ultimaLista()?.[4]?.sort).toEqual({ field: campo, dir: inversa }),
+        )
+        expect(cabecalho(rotulo).getAttribute('aria-sort')).toBe(sentido(inversa))
+      }
+      // Cada ordem nova e uma lista nova, da primeira pagina: a API ordena tudo, e nao a
+      // pagina que ja estava na tela.
+      expect(dublê.listar.mock.calls.every((chamada) => chamada[1] === 1)).toBe(true)
+    })
+
+    it('"Criado" ja e a ordem de sempre: o clique inverte, e o seguinte volta a de sempre, sem nada guardado', async () => {
+      montar()
+      await listaNaTela()
+
+      fireEvent.click(ordenarPor('Criado'))
+      await waitFor(() =>
+        expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'created', dir: 'asc' }),
+      )
+      expect(cabecalho('Criado').getAttribute('aria-sort')).toBe('ascending')
+      expect(ordemGuardada()).toEqual({ field: 'created', dir: 'asc' })
+
+      // Voltar ao mais novo primeiro e voltar a lista de sempre: a leitura sem ordem
+      // nenhuma, e nada fica guardado.
+      fireEvent.click(ordenarPor('Criado'))
+      await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, false]))
+      expect(cabecalho('Criado').getAttribute('aria-sort')).toBe('descending')
+      expect(ordemGuardada()).toBeNull()
+    })
+
+    it('o menu "Ordem" da barra ordena tambem; por "Atualizado", a ultima coluna diz "Atualizado" e mostra a ultima mudanca', async () => {
+      dublê.listar.mockResolvedValue({
+        reports: [
+          relato('r-1', 'o botao some', {
+            CreatedAt: '2026-09-01T12:00:00.000Z',
+            UpdatedAt: '2026-10-03T12:00:00.000Z',
+          }),
+        ],
+        total: 1,
+      })
+      montar()
+      const quando = async () =>
+        (await listaNaTela()).closest('tr')?.querySelector('time')?.getAttribute('datetime')
+      expect(await quando()).toBe('2026-09-01T12:00:00.000Z')
+
+      // No celular os cabecalhos de prazo e prioridade saem: o menu e o caminho ali.
+      await abrirMenu('Ordem: Mais novos primeiro')
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Prazo mais perto' }))
+      await waitFor(() => expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'due', dir: 'asc' }))
+      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+      expect(cabecalho('Prazo').getAttribute('aria-sort')).toBe('ascending')
+      // O botao do menu diz a ordem que vale.
+      expect(screen.getByRole('button', { name: 'Ordem: Prazo mais perto' })).toBeTruthy()
+
+      await abrirMenu('Ordem: Prazo mais perto')
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Atualizados há pouco' }))
+      await waitFor(() =>
+        expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'updated', dir: 'desc' }),
+      )
+      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+      // A ultima coluna troca de nome e de data: ordenar pela ultima mudanca mostrando
+      // quando o card chegou nao deixaria conferir a ordem.
+      expect(cabecalho('Atualizado').getAttribute('aria-sort')).toBe('descending')
+      expect(screen.queryByRole('columnheader', { name: /^Criado/ })).toBeNull()
+      expect(await quando()).toBe('2026-10-03T12:00:00.000Z')
+
+      // "Mais novos primeiro" e a ordem de sempre: a leitura sem ordem, e nada guardado.
+      await abrirMenu('Ordem: Atualizados há pouco')
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Mais novos primeiro' }))
+      await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, false]))
+      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+      expect(ordemGuardada()).toBeNull()
+      expect(cabecalho('Criado').getAttribute('aria-sort')).toBe('descending')
+      expect(await quando()).toBe('2026-09-01T12:00:00.000Z')
+    })
+
+    it('a ordem fica lembrada na aba, por projeto: o "Limpar filtros" nao a desfaz, sair e voltar a traz, e numa aba nova e a de sempre', async () => {
+      const router = montar()
+      await listaNaTela()
+      fireEvent.click(ordenarPor('Prazo'))
+      await waitFor(() => expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'due', dir: 'asc' }))
+      // Guardada a parte dos filtros.
+      expect(ordemGuardada()).toEqual({ field: 'due', dir: 'asc' })
+      expect(window.sessionStorage.getItem('pds.web.trabalho.filtros.p-1')).toBeNull()
+      // Ordem nao e filtro: nao esconde card nenhum, e nao pede "Limpar filtros".
+      expect(screen.queryByRole('button', { name: /Limpar filtros/ })).toBeNull()
+
+      // O "Limpar filtros" desliga o filtro, e a ordem fica.
+      fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true))
+      fireEvent.click(screen.getByRole('button', { name: /Limpar filtros/ }))
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(false))
+      expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'due', dir: 'asc' })
+      expect(cabecalho('Prazo').getAttribute('aria-sort')).toBe('ascending')
+      expect(ordemGuardada()).toEqual({ field: 'due', dir: 'asc' })
+
+      // Outro projeto tem a ordem dele — aqui, a de sempre —, desde a primeira leitura.
+      await router.navigate('/p/p-2')
+      await waitFor(() => expect(ultimaLista()).toEqual(['p-2', 1, null, false]))
+      const doOutro = dublê.listar.mock.calls.filter(([projeto]) => projeto === 'p-2')
+      expect(doOutro.every((chamada) => chamada[4]?.sort === undefined)).toBe(true)
+      await router.navigate('/p/p-1')
+      await waitFor(() =>
+        expect(ultimaLista()).toEqual([
+          'p-1',
+          1,
+          null,
+          false,
+          expect.objectContaining({ sort: { field: 'due', dir: 'asc' } }),
+        ]),
+      )
+
+      // Sair da tela e voltar: a primeira leitura ja vem na ordem guardada.
+      cleanup()
+      dublê.listar.mockClear()
+      montar()
+      await listaNaTela()
+      expect(dublê.listar.mock.calls[0]?.[4]?.sort).toEqual({ field: 'due', dir: 'asc' })
+      expect(cabecalho('Prazo').getAttribute('aria-sort')).toBe('ascending')
+
+      // Numa aba nova, nada guardado: a ordem de sempre.
+      cleanup()
+      window.sessionStorage.clear()
+      dublê.listar.mockClear()
+      montar()
+      await listaNaTela()
+      expect(dublê.listar.mock.calls[0]).toEqual(['p-1', 1, null, false])
+      expect(cabecalho('Criado').getAttribute('aria-sort')).toBe('descending')
+    })
+  })
+
+  describe('"Em aberto", as subtarefas e os arquivados', () => {
+    it('"Em aberto" le a lista e a contagem so com o que nao terminou; desligar volta a tudo', async () => {
+      montar()
+      await listaNaTela()
+
+      const abertos = screen.getByRole('button', { name: 'Em aberto' })
+      expect(abertos.getAttribute('aria-pressed')).toBe('false')
+      fireEvent.click(abertos)
+
+      expect(abertos.getAttribute('aria-pressed')).toBe('true')
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.open).toBe(true))
+      // A contagem das colunas e a mesma pergunta: os numeros do menu "Coluna" batem.
+      await waitFor(() => expect(ultimaContagem()?.[1]?.open).toBe(true))
+
+      fireEvent.click(abertos)
+      await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, false]))
+      await waitFor(() => expect(ultimaContagem()?.[1]).toBeUndefined())
+    })
+
+    it('"Subtarefas" vem marcada no menu "Tipo"; desmarcar as esconde na lista e na contagem', async () => {
+      montar()
+      await listaNaTela()
+
+      await abrirMenu('Tipo')
+      const subtarefas = await screen.findByRole('menuitemcheckbox', { name: 'Subtarefas' })
+      expect(subtarefas.getAttribute('aria-checked')).toBe('true')
+      fireEvent.click(subtarefas)
+
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.hideSubtasks).toBe(true))
+      await waitFor(() => expect(ultimaContagem()?.[1]?.hideSubtasks).toBe(true))
+      expect(
+        screen.getByRole('menuitemcheckbox', { name: 'Subtarefas' }).getAttribute('aria-checked'),
+      ).toBe('false')
+      await fecharMenu()
+      // O botao diz o que ficou de fora — filtro ligado nao some da vista.
+      expect(screen.getByRole('button', { name: 'Tipo: sem subtarefas' })).toBeTruthy()
+    })
+
+    it('nos arquivados, "Vencidos" e "Em aberto" saem — a menos que estejam ligados, para dar para desligar', async () => {
+      montar()
+      await listaNaTela()
+      fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
+      await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, true]))
+      // O que ja saiu da tela de Trabalho nao vence nem esta "em aberto" ali.
+      expect(screen.queryByRole('button', { name: 'Vencidos' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Em aberto' })).toBeNull()
+
+      // Ligados antes de entrar, ficam: sem eles na barra, nao haveria como desliga-los.
+      fireEvent.click(screen.getByRole('button', { name: 'Sair dos arquivados' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Vencidos' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Em aberto' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
+      await waitFor(() => expect(ultimaLista()?.[3]).toBe(true))
+      expect(ultimaLista()?.[4]?.filters).toMatchObject({ overdue: true, open: true })
+      expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      )
+
+      // Desligado ali, sai.
+      fireEvent.click(screen.getByRole('button', { name: 'Em aberto' }))
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Em aberto' })).toBeNull())
+      expect(screen.getByRole('button', { name: 'Vencidos' })).toBeTruthy()
+    })
+
+    it('nos arquivados, o botao diz como sair, e nao ha "Novo card" nem o menu "Coluna"; a coluna marcada volta ao sair', async () => {
+      montar()
+      await listaNaTela()
+      await abrirMenu('Coluna')
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
+      await fecharMenu()
+      await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
+      // A lista dos arquivados, sem a coluna: a contagem das colunas e a da tela de
+      // Trabalho, e nao conta arquivado.
+      await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, true]))
+      expect(screen.getByRole('heading', { level: 1, name: 'Arquivados' })).toBeTruthy()
+      // O botao pressionado sozinho nao dizia como voltar.
+      const sair = screen.getByRole('button', { name: 'Sair dos arquivados' })
+      expect(sair.getAttribute('aria-pressed')).toBe('true')
+      // O card novo vai para o Trabalho, e nao apareceria aqui.
+      expect(screen.queryByRole('button', { name: 'Novo card' })).toBeNull()
+      // O menu "Coluna" sai (o cabecalho que ordena pela coluna fica: "Coluna, ordenar…").
+      expect(screen.queryByRole('button', { name: /^Coluna(:|$)/ })).toBeNull()
+      // A coluna nao vale ali, e nao conta como filtro ligado.
+      expect(screen.queryByRole('button', { name: /Limpar filtros/ })).toBeNull()
+
+      fireEvent.click(sair)
+      await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
+      expect(screen.getByRole('heading', { level: 1, name: 'Trabalho' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Novo card' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Coluna: Análise' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Arquivados' }).getAttribute('aria-pressed')).toBe(
+        'false',
+      )
+    })
+  })
+
+  describe('o menu "Coluna"', () => {
+    it('as colunas marcadas contam nos filtros ligados, ficam lembradas ao sair e voltar, e o "Limpar filtros" as limpa', async () => {
+      montar()
+      await listaNaTela()
+      await abrirMenu('Coluna')
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
+      await fecharMenu()
+      await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
+      // Conta como filtro ligado: no "Limpar filtros" e no "Filtros" do celular.
+      // (O leitor de tela ouve "Limpar filtros (1 ligado)"; o jsdom junta sem o espaco.)
+      expect(screen.getByRole('button', { name: /^Limpar filtros\s*\(1 ligado\)$/ })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Filtros · 1' })).toBeTruthy()
+
+      // Sair da tela e voltar: a coluna volta marcada, e a primeira leitura ja vem com ela.
+      cleanup()
+      dublê.listar.mockClear()
+      montar()
+      await listaNaTela()
+      expect(dublê.listar.mock.calls[0]?.[4]?.columns).toEqual(['s-1'])
+      expect(await screen.findByRole('button', { name: 'Coluna: Análise' })).toBeTruthy()
+
+      // "Limpar filtros" limpa a coluna tambem — e o que ficou guardado na aba.
+      fireEvent.click(screen.getByRole('button', { name: /Limpar filtros/ }))
+      await waitFor(() => expect(ultimaLista()).toEqual(['p-1', 1, null, false]))
+      expect(screen.getByRole('button', { name: 'Coluna' })).toBeTruthy()
+      expect(window.sessionStorage.getItem('pds.web.trabalho.filtros.p-1')).toBeNull()
+    })
+
+    it('a coluna que sai do projeto sai do filtro sozinha: ligada, ela ficaria sobre o que nao existe', async () => {
+      montar()
+      await listaNaTela()
+      await abrirMenu('Coluna')
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
+      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Pronto · 1' }))
+      await fecharMenu()
+      await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1', 's-2']))
+
+      // Outra pessoa apagou "Pronto": a configuracao mudou, e a contagem relida nao a tem.
+      dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 2)])
+      avisar({ kind: 'project' })
+
+      await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
+      expect(await screen.findByRole('button', { name: 'Coluna: Análise' })).toBeTruthy()
+      // O guardado na aba tambem: voltar a tela nao a traz de volta.
+      expect(
+        JSON.parse(window.sessionStorage.getItem('pds.web.trabalho.filtros.p-1') ?? '{}').columns,
+      ).toEqual(['s-1'])
+    })
+  })
+
+  describe('o lote na tela', () => {
+    const ANA: TeamMemberViewModel = {
+      UserPublicId: 'u-ana',
+      Name: 'Ana',
+      Email: null,
+      AvatarUrl: null,
+      Role: 'Member',
+      IsAccountOwner: false,
+      IsYou: false,
+      JoinedAt: null,
+    }
+
+    /** Marca a pagina e poe a Ana como responsavel pelo lote; espera a lista relida. */
+    async function porAAnaNaPagina() {
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar os cards desta página' }))
+      const lote = await screen.findByRole('region', { name: 'Ações em lote' })
+      fireEvent.pointerDown(within(lote).getByRole('button', { name: 'Responsável' }), {
+        button: 0,
+        ctrlKey: false,
+        pointerType: 'mouse',
+      })
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Ana' }))
+      await waitFor(() => expect(avisos().at(-1)?.message).toBe('Responsável: Ana — 2 cards.'))
+      // A primeira leitura e a do fim do lote: dai em diante, so o que o "Desfazer" pedir.
+      await waitFor(() => expect(dublê.listar).toHaveBeenCalledTimes(2))
+      return lote
+    }
+
+    it('com a pagina toda marcada e mais por vir, "Selecionar os N que passam nos filtros" le o resto com os filtros e marca tudo', async () => {
+      const paginas: Record<number, ReportSummaryViewModel[]> = {
+        1: [relato('r-1', 'um'), relato('r-2', 'dois')],
+        2: [relato('r-3', 'tres'), relato('r-4', 'quatro')],
+        3: [relato('r-5', 'cinco')],
+      }
+      dublê.listar.mockImplementation(async (_projeto, pagina) => ({
+        reports: paginas[pagina] ?? [],
+        total: 5,
+      }))
+      montar()
+      await screen.findByRole('link', { name: entreAspas('um') })
+      fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true))
+      await releu()
+
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar os cards desta página' }))
+      const lote = await screen.findByRole('region', { name: 'Ações em lote' })
+      // O lote sairia pela metade sem ninguem perceber: a barra diz, e oferece o resto.
+      expect(within(lote).getByText('2 selecionados nesta página.')).toBeTruthy()
+      const antes = dublê.listar.mock.calls.length
+      fireEvent.click(
+        within(lote).getByRole('button', { name: 'Selecionar os 5 que passam nos filtros' }),
+      )
+
+      await waitFor(() => expect(within(lote).getByText('5 selecionados')).toBeTruthy())
+      // Leu so as paginas que faltavam, e com os mesmos filtros: "os que passam nos filtros".
+      const lidas = dublê.listar.mock.calls.slice(antes)
+      expect(lidas.map((chamada) => chamada[1])).toEqual([2, 3])
+      expect(lidas.every((chamada) => chamada[4]?.filters?.overdue === true)).toBe(true)
+      // O que chegou esta na tela, e marcado.
+      const caixas = screen.getAllByRole('checkbox', { name: /^Selecionar #/ })
+      expect(caixas).toHaveLength(5)
+      expect(caixas.every((caixa) => (caixa as HTMLInputElement).checked)).toBe(true)
+      expect(screen.getByText('5 de 5 cards')).toBeTruthy()
+    })
+
+    it('"Desfazer" devolve card por card, com o andamento no rodape; no fim, o aviso e a lista relida', async () => {
+      dublê.listar.mockResolvedValue({
+        reports: [relato('r-1', 'um'), relato('r-2', 'dois')],
+        total: 2,
+      })
+      dublê.time.mockResolvedValue([ANA])
+      dublê.responsavel.mockResolvedValue({})
+      montar()
+      await screen.findByRole('link', { name: entreAspas('um') })
+      await porAAnaNaPagina()
+      expect(avisos().at(-1)?.action?.label).toBe('Desfazer')
+      const contagens = dublê.contar.mock.calls.length
+
+      // Cada volta fica no ar ate o teste mandar, como na rede.
+      const voltas: (() => void)[] = []
+      dublê.responsavel.mockImplementation(
+        () => new Promise((pronto) => voltas.push(() => pronto({}))),
+      )
+      // A volta rele o card: ele ainda esta com a Ana, como o lote deixou.
+      dublê.atualizar.mockImplementation(async () => ({
+        Assignee: { UserPublicId: ANA.UserPublicId },
+      }))
+      clicarNoAviso()
+
+      // O andamento fica no rodape da lista: a barra do lote pode ter saido da tela.
+      const andamento = await screen.findByText('Desfazendo 0 de 2…')
+      expect(andamento.closest('footer')).toBeTruthy()
+      expect(dublê.responsavel).toHaveBeenLastCalledWith('p-1', 'r-1', { UserPublicId: null })
+      await act(async () => voltas[0]?.())
+      expect(await screen.findByText('Desfazendo 1 de 2…')).toBeTruthy()
+      // Um de cada vez: o segundo so sai depois do primeiro.
+      expect(voltas).toHaveLength(2)
+      expect(dublê.responsavel).toHaveBeenLastCalledWith('p-1', 'r-2', { UserPublicId: null })
+      await act(async () => voltas[1]?.())
+
+      await waitFor(() =>
+        expect(avisos().at(-1)?.message).toBe('Desfeito: os 2 cards voltaram como estavam.'),
+      )
+      expect(screen.queryByText(/^Desfazendo/)).toBeNull()
+      // A lista e a contagem sao relidas: a tela mostra os cards como voltaram.
+      await waitFor(() => expect(dublê.listar).toHaveBeenCalledTimes(3))
+      await waitFor(() => expect(dublê.contar.mock.calls.length).toBeGreaterThan(contagens))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('o card que nao voltou no "Desfazer" aparece no dialogo "1 card não voltou", com o porque', async () => {
+      dublê.listar.mockResolvedValue({
+        reports: [relato('r-1', 'um'), relato('r-2', 'dois')],
+        total: 2,
+      })
+      dublê.time.mockResolvedValue([ANA])
+      dublê.responsavel.mockResolvedValue({})
+      montar()
+      await screen.findByRole('link', { name: entreAspas('um') })
+      await porAAnaNaPagina()
+
+      dublê.responsavel.mockReset()
+      dublê.responsavel
+        .mockResolvedValueOnce({})
+        .mockRejectedValueOnce(new PanelError('Card arquivado.', 409))
+      dublê.atualizar.mockImplementation(async () => ({
+        Assignee: { UserPublicId: ANA.UserPublicId },
+      }))
+      clicarNoAviso()
+
+      const dialogo = await screen.findByRole('dialog')
+      // **O ponto do teste.** Sao cards que nao *voltaram*: eles mudaram no lote, e o
+      // dialogo do lote ("nao mudou", "os outros mudaram") contaria o contrario.
+      expect(within(dialogo).getByText('1 card não voltou')).toBeTruthy()
+      expect(
+        within(dialogo).getByText('Os outros voltaram como estavam. Estes ficaram como estão:'),
+      ).toBeTruthy()
+      expect(within(dialogo).getByText('Card arquivado.')).toBeTruthy()
+      expect(within(dialogo).getByRole('link', { name: /dois/ })).toBeTruthy()
+      // Nem todos voltaram: nada de "Desfeito".
+      expect(avisos().at(-1)?.message).toBe('Responsável: Ana — 2 cards.')
+    })
+  })
+
+  describe('o card criado', () => {
+    it('na lista de sempre, entra no topo sem reler a lista; o aviso diz o numero, e "Abrir" abre o card', async () => {
+      dublê.criar.mockResolvedValue(cardNovo())
+      dublê.abrir.mockResolvedValue(cardNovo())
+      const router = montar()
+      await listaNaTela()
+      const leituras = dublê.listar.mock.calls.length
+
+      await criarCard()
+
+      await waitFor(() => expect(avisos().at(-1)?.message).toBe('#36 criado.'))
+      // O mais novo vai no topo da lista de sempre: nada a perguntar a API.
+      const linhas = screen.getAllByRole('row')
+      expect(
+        within(linhas[1] as HTMLElement).getByRole('link', { name: 'Revisar o frete' }),
+      ).toBeTruthy()
+      expect(screen.getByText('2 de 2 cards')).toBeTruthy()
+      expect(dublê.listar.mock.calls.length).toBe(leituras)
+
+      clicarNoAviso()
+      await waitFor(() => expect(router.state.location.pathname).toBe('/p/p-1/t-36'))
+    })
+
+    it('com um filtro ligado, a lista e relida: o card que nao passa nao entra, e o aviso diz por que', async () => {
+      dublê.criar.mockResolvedValue(cardNovo())
+      montar()
+      await listaNaTela()
+      fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true))
+      await releu()
+      const leituras = dublê.listar.mock.calls.length
+
+      await criarCard()
+
+      // Sem prazo, ele nao e "vencido": a API nao o devolve, e a tela nao o poe a forca.
+      await waitFor(() =>
+        expect(avisos().at(-1)?.message).toBe(
+          '#36 criado. Ele não aparece aqui porque os filtros estão ligados.',
+        ),
+      )
+      expect(avisos().at(-1)?.action?.label).toBe('Abrir')
+      expect(dublê.listar.mock.calls.length).toBe(leituras + 1)
+      expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true)
+      expect(screen.queryByRole('link', { name: 'Revisar o frete' })).toBeNull()
+      expect(screen.getByText('1 de 1 card')).toBeTruthy()
+    })
+
+    it('com a coluna marcada, a lista e relida: o card que passa aparece onde a API o pos, e o aviso e o simples', async () => {
+      dublê.criar.mockResolvedValue(cardNovo())
+      montar()
+      await listaNaTela()
+      await abrirMenu('Coluna')
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
+      await fecharMenu()
+      await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
+      await releu()
+
+      // A API o devolve depois do que ja estava: e ela quem sabe onde ele cai.
+      dublê.listar.mockResolvedValue({
+        reports: [relato('r-1', 'o botao some'), resumoDoNovo()],
+        total: 2,
+      })
+      await criarCard()
+
+      await waitFor(() => expect(avisos().at(-1)?.message).toBe('#36 criado.'))
+      expect(ultimaLista()?.[4]?.columns).toEqual(['s-1'])
+      const linhas = screen.getAllByRole('row')
+      expect(linhas).toHaveLength(3)
+      expect(
+        within(linhas[1] as HTMLElement).getByRole('link', { name: entreAspas('o botao some') }),
+      ).toBeTruthy()
+      expect(
+        within(linhas[2] as HTMLElement).getByRole('link', { name: 'Revisar o frete' }),
+      ).toBeTruthy()
+    })
+
+    it('so com outra ordem, o card que ficou mais abaixo nao e posto na conta de filtro nenhum', async () => {
+      dublê.criar.mockResolvedValue(cardNovo())
+      // Tres cards no projeto, um so na tela: o novo, sem prazo, vai para o fim da ordem
+      // por prazo — fora da pagina relida.
+      dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 3 })
+      montar()
+      await listaNaTela()
+      fireEvent.click(ordenarPor('Prazo'))
+      await waitFor(() => expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'due', dir: 'asc' }))
+      await releu()
+      // Nenhum filtro ligado: a ordem nao e filtro.
+      expect(screen.queryByRole('button', { name: /Limpar filtros/ })).toBeNull()
+
+      await criarCard()
+
+      // A lista e relida na ordem escolhida — e a API decide onde ele cai.
+      await waitFor(() => expect(avisos().at(-1)?.message).toMatch(/^#36 criado\./))
+      expect(ultimaLista()?.[4]?.sort).toEqual({ field: 'due', dir: 'asc' })
+      expect(avisos().at(-1)?.action?.label).toBe('Abrir')
+      // **O ponto do teste.** Dizer que "os filtros estao ligados" mandaria a pessoa
+      // procurar um filtro que nao existe: o card esta mais abaixo, pela ordem.
+      expect(avisos().at(-1)?.message).not.toContain('filtros')
+    })
+  })
+
+  describe('os atalhos', () => {
+    const busca = () => screen.getByRole('searchbox', { name: 'Buscar cards', hidden: true })
+
+    it('"/" leva a busca e "c" abre o "Novo card"', async () => {
+      montar()
+      await listaNaTela()
+
+      // A tecla e do atalho: o "/" nao vai parar dentro do campo.
+      expect(fireEvent.keyDown(document.body, { key: '/' })).toBe(false)
+      expect(document.activeElement).toBe(busca())
+
+      busca().blur()
+      fireEvent.keyDown(document.body, { key: 'c' })
+      expect(await screen.findByRole('dialog', { name: 'Novo card' })).toBeTruthy()
+    })
+
+    it('nao valem escrevendo num campo, com Ctrl, ⌘ ou Alt, nem com um menu aberto', async () => {
+      montar()
+      await listaNaTela()
+
+      // Escrevendo na busca, "c" e "/" sao letras dela.
+      busca().focus()
+      fireEvent.keyDown(busca(), { key: 'c' })
+      expect(fireEvent.keyDown(busca(), { key: '/' })).toBe(true)
+      busca().blur()
+
+      // Com Ctrl, ⌘ ou Alt, a tecla e de outro atalho — o do navegador, o do sistema.
+      for (const tecla of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {
+        fireEvent.keyDown(document.body, { key: 'c', ...tecla })
+        expect(fireEvent.keyDown(document.body, { key: '/', ...tecla })).toBe(true)
+      }
+      expect(document.activeElement).not.toBe(busca())
+
+      // Com um menu aberto, as letras sao dele (pular para o item).
+      await abrirMenu('Tipo')
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'c' })
+      fireEvent.keyDown(document.body, { key: '/' })
+      await fecharMenu()
+
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(document.activeElement).not.toBe(busca())
+    })
+
+    it('com um card aberto, as teclas sao do card: o "c" nao abre outro dialogo, e o "/" nao leva o foco para tras dele', async () => {
+      dublê.abrir.mockResolvedValue({
+        ...relato('r-1', 'o botao some'),
+        Closure: null,
+        InfoRequest: null,
+        CanAskInfo: false,
+        Contexts: [],
+      })
+      montar('p-1', '/p/p-1/r-1')
+      await screen.findByRole('button', { name: 'Fechar' })
+
+      fireEvent.keyDown(document.body, { key: 'c' })
+      fireEvent.keyDown(document.body, { key: '/' })
+
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      expect(screen.queryByRole('dialog', { name: 'Novo card' })).toBeNull()
+      expect(document.activeElement).not.toBe(busca())
+    })
+
+    it('nos arquivados, o "c" nao cria; o "/" continua levando a busca', async () => {
+      montar()
+      await listaNaTela()
+      fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
+      await screen.findByRole('button', { name: 'Sair dos arquivados' })
+
+      fireEvent.keyDown(document.body, { key: 'c' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      fireEvent.keyDown(document.body, { key: '/' })
+      expect(document.activeElement).toBe(busca())
+    })
+
+    it('com o foco numa caixa de marcar da tabela, os atalhos valem: caixa nao e campo de texto', async () => {
+      montar()
+      await listaNaTela()
+      const caixa = screen.getByRole('checkbox', { name: /^Selecionar #\d+: o botao some$/ })
+
+      // Quem marca cards pelo teclado (Tab e espaco) esta numa caixa: nao escreve nada
+      // nela, e o "/" e o "c" nao tem outro dono ali.
+      caixa.focus()
+      fireEvent.keyDown(caixa, { key: '/' })
+      expect(document.activeElement).toBe(busca())
+
+      caixa.focus()
+      fireEvent.keyDown(caixa, { key: 'c' })
+      expect(await screen.findByRole('dialog', { name: 'Novo card' })).toBeTruthy()
+    })
+
+    it('com o foco numa caixa de escolha, fechada ou aberta, a letra e dela: o "c" nao abre o "Novo card"', async () => {
+      window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
+      dublê.listar.mockImplementation(async (_p, _pagina, estado) =>
+        estado === 's-1'
+          ? { reports: [relato('r-1', 'o botao some')], total: 1 }
+          : { reports: [], total: 0 },
+      )
+      montar()
+      const raias = await screen.findByRole('combobox', { name: 'Raias do quadro' })
+
+      // Fechada, a letra pula para a opcao que comeca com ela.
+      raias.focus()
+      fireEvent.keyDown(raias, { key: 'c' })
+      expect(screen.queryByRole('dialog', { name: 'Novo card' })).toBeNull()
+
+      // Aberta, a lista de opcoes e quem ouve.
+      fireEvent.pointerDown(raias, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+      await screen.findByRole('listbox')
+      fireEvent.keyDown(document.body, { key: 'c' })
+      expect(screen.queryByRole('dialog', { name: 'Novo card' })).toBeNull()
+    })
+  })
+
+  describe('"Buscando…"', () => {
+    const area = () => screen.getByRole('table').closest('[data-focus-group]') as HTMLElement
+
+    it('relendo por um filtro novo, o campo diz "Buscando…", a tabela fica ocupada, e o lote nao abre menu ate a lista nova chegar', async () => {
+      montar()
+      await listaNaTela()
+      expect(area().getAttribute('aria-busy')).toBeNull()
+
+      const resposta = emVoo<ReportPage>()
+      dublê.listar.mockReturnValueOnce(resposta.promessa)
+      fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+
+      // A lista de antes fica, esmaecida e dita ocupada: sem isso, parecia o resultado.
+      expect(await screen.findByText('Buscando…')).toBeTruthy()
+      expect(area().getAttribute('aria-busy')).toBe('true')
+      expect(screen.getByRole('link', { name: entreAspas('o botao some') })).toBeTruthy()
+
+      // Quem marca uma linha velha nesse meio nao muda nada em lote: os menus esperam —
+      // sem desligar o botao, para o foco nao cair no comeco da pagina.
+      fireEvent.click(screen.getByRole('checkbox', { name: /^Selecionar #\d+: o botao some$/ }))
+      const lote = await screen.findByRole('region', { name: 'Ações em lote' })
+      const responsavel = within(lote).getByRole('button', { name: 'Responsável' })
+      expect(responsavel.getAttribute('aria-disabled')).toBe('true')
+      fireEvent.pointerDown(responsavel, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+      expect(screen.queryByRole('menu')).toBeNull()
+
+      await act(async () =>
+        resposta.resolver({ reports: [relato('r-1', 'o botao some')], total: 1 }),
+      )
+      expect(screen.queryByText('Buscando…')).toBeNull()
+      expect(area().getAttribute('aria-busy')).toBeNull()
+      expect(responsavel.getAttribute('aria-disabled')).toBeNull()
+      fireEvent.pointerDown(responsavel, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+      expect(await screen.findByRole('menu')).toBeTruthy()
+      await fecharMenu()
+    })
+
+    it('enquanto a pessoa digita, ja diz "Buscando…" — antes de a leitura sair', async () => {
+      montar()
+      await listaNaTela()
+      const leituras = dublê.listar.mock.calls.length
+
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar cards' }), {
+        target: { value: 'pagamento' },
+      })
+      // A busca espera a pessoa parar de digitar; a tela nao finge que a lista e o
+      // resultado enquanto isso.
+      expect(screen.getByText('Buscando…')).toBeTruthy()
+      expect(area().getAttribute('aria-busy')).toBe('true')
+      expect(dublê.listar.mock.calls.length).toBe(leituras)
+
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.search).toBe('pagamento'))
+      await releu()
+      expect(area().getAttribute('aria-busy')).toBeNull()
+    })
   })
 })

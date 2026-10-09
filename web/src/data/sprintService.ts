@@ -10,8 +10,12 @@ import type {
  * Ciclo; planejar e de qualquer pessoa do time.
  */
 export interface SprintService {
-  /** As que nao fecharam: a em andamento primeiro, depois as planejadas, com os numeros. */
-  listSprints(publicId: string): Promise<SprintViewModel[]>
+  /**
+   * As que nao fecharam: a em andamento primeiro, depois as planejadas, com os numeros.
+   * Com `closed`, tambem as concluidas, depois delas, da mais recente para a mais antiga
+   * — so o filtro de sprint da lista as pede.
+   */
+  listSprints(publicId: string, options?: { closed?: boolean }): Promise<SprintViewModel[]>
   /** Uma planejada nova, com o nome e as datas de fabrica quando nao vierem. */
   createSprint(publicId: string, request: SaveSprintRequest): Promise<SprintViewModel>
   /** Nome, objetivo e datas, inteiros. A fechada nao muda. */

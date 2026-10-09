@@ -16,12 +16,23 @@ export interface NotificationViewModel {
   Project: { PublicId: string; Name: string }
   /** O card: o numero e o titulo como a tela mostra. */
   Card: CardParentViewModel
+  /** O comentario da mencao, com o comeco do texto. Nulo na atribuicao. */
+  Comment: NotificationCommentViewModel | null
 }
 
-/** Os avisos mais recentes, e quantos nao foram lidos — inclusive os que nao vieram. */
+/** O comentario de uma mencao: o card abre rolado ate ele. */
+export interface NotificationCommentViewModel {
+  PublicId: string
+  /** O comeco do texto, numa linha, com as mencoes como "@Nome". */
+  Excerpt: string
+}
+
+/** Uma pagina dos avisos, e quantos nao foram lidos — inclusive os que nao vieram. */
 export interface NotificationListViewModel {
   Items: NotificationViewModel[]
   UnreadCount: number
+  /** Ha avisos mais antigos depois do ultimo desta pagina. */
+  HasMore: boolean
 }
 
 /** O numero do sino. */

@@ -317,6 +317,11 @@ export interface ReportSummaryViewModel {
    */
   Closed: boolean
   /**
+   * Se quem relatou ja confirmou o encerramento que vale. O confirmado nao reabre ao sair
+   * da coluna que encerra: o quadro e o lote so perguntam "Reabrir?" sem ele.
+   */
+  ClosureConfirmed: boolean
+  /**
    * Se o card ja terminou: o relato encerrado, ou o card na ultima coluna ativa (com
    * duas colunas ou mais). **Quem decide e a API**, pela mesma regra do filtro de
    * vencidos: o prazo do card que terminou nao fica vermelho nem amarelo.
@@ -344,6 +349,11 @@ export interface ReportSummaryViewModel {
   Sprint: CardSprintViewModel | null
   /** A estimativa em pontos, de 0 a 999 com meio ponto; nula e sem estimativa. */
   StoryPoints: number | null
+  /**
+   * A ultima mudanca gravada no proprio card: um campo, a coluna, o lugar no quadro.
+   * Comentario, anexo e etiqueta nao contam. E o "Atualizado" da lista, e uma das ordens dela.
+   */
+  UpdatedAt: string
 }
 
 /** A sprint de um card. */
@@ -799,6 +809,10 @@ export interface InternalCommentViewModel {
   AuthorName: string
   Body: string
   CreatedAt: string
+  /** Quando foi corrigido pela ultima vez; nulo se nunca foi. A tela marca "editado". */
+  EditedAt: string | null
+  /** Quem le escreveu este comentario: so ela corrige e apaga. */
+  IsYours: boolean
 }
 
 /** Um comentario escrito para quem relatou — ou por ele, respondendo. Ele le na pagina de acompanhamento. */
@@ -823,6 +837,11 @@ export interface ReportCommentsViewModel {
 }
 
 export interface CreateCommentRequest {
+  Body: string
+}
+
+/** O texto novo de um comentario interno, corrigido por quem o escreveu. */
+export interface EditCommentRequest {
   Body: string
 }
 
@@ -1059,6 +1078,17 @@ export interface CreateTeamCardRequest {
   ParentPublicId?: string
   /** A sprint em que nasce — o "Criar" de uma coluna do quadro, com sprint ligada. Ausente, o backlog. */
   SprintPublicId?: string
+  /**
+   * Quem fica com o card desde que nasce: so quem esta no time do projeto. O registro e o
+   * de escolher pelo campo — o evento no historico e o aviso no sino da pessoa, se nao
+   * for quem cria. Ausente, sem responsavel. A subtarefa nao leva (a API recusa).
+   */
+  AssigneeUserPublicId?: string
+  /**
+   * A prioridade com que nasce: uma ativa do projeto, com o evento de prioridade no
+   * historico. Ausente, sem prioridade. A subtarefa nao leva (a API recusa).
+   */
+  PriorityPublicId?: string
 }
 
 /** Por o card numa sprint (nulo e o backlog), e no lugar da lista: abaixo de um card, no topo ou no fim. */
@@ -1077,6 +1107,12 @@ export interface SetCardPointsRequest {
 export interface EditTeamCardRequest {
   Title: string
   Description: string | null
+  /**
+   * O titulo e a descricao de onde a edicao partiu. Se o card ja nao tem esse texto —
+   * outra pessoa salvou no meio —, a API recusa com 409, em vez de apagar o que ela
+   * escreveu. Sem ele, grava como sempre.
+   */
+  Base?: { Title: string; Description: string | null }
 }
 
 /**

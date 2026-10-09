@@ -89,6 +89,8 @@ export type {
   ReportFilterType,
   ReportListOptions,
   ReportPage,
+  ReportSort,
+  ReportSortField,
 } from '@/data/projectReportService'
 export { NO_REPORT_FILTERS } from '@/data/projectReportService'
 export type { ProjectService } from '@/data/projectService'

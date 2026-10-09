@@ -6,6 +6,7 @@ import type {
   CreateCardLinkRequest,
   CreateCommentRequest,
   CreateTeamCardRequest,
+  EditCommentRequest,
   EditTeamCardRequest,
   InternalCommentViewModel,
   ModerateReportRequest,
@@ -72,6 +73,10 @@ export interface ReportFilters {
   types: ReportFilterType[]
   /** So os vencidos: o prazo passou e o card nao terminou. */
   overdue: boolean
+  /** So o que nao terminou — o "Em aberto": sai o relato encerrado e o card na ultima coluna. */
+  open: boolean
+  /** Sem as subtarefas: so os cards de primeiro nivel. */
+  hideSubtasks: boolean
   /** A busca: titulo, texto, descricao, numero (`42` ou `#42`) e protocolo. */
   search: string
 }
@@ -83,7 +88,29 @@ export const NO_REPORT_FILTERS: ReportFilters = {
   priorities: [],
   types: [],
   overdue: false,
+  open: false,
+  hideSubtasks: false,
   search: '',
+}
+
+/** Por qual dado a tabela da lista se ordena. */
+export type ReportSortField =
+  | 'number'
+  | 'state'
+  | 'assignee'
+  | 'priority'
+  | 'due'
+  | 'created'
+  | 'updated'
+
+/**
+ * A ordem que a pessoa escolheu na tabela — feita pela API, porque a lista vem por
+ * paginas: ordenar no navegador ordenaria so o que ja chegou. O vazio (sem prazo, sem
+ * prioridade) fica no fim nas duas direcoes.
+ */
+export interface ReportSort {
+  field: ReportSortField
+  dir: 'asc' | 'desc'
 }
 
 export interface ReportListOptions {
@@ -100,12 +127,22 @@ export interface ReportListOptions {
    * uma sprint (os cards dela, sem as subtarefas).
    */
   sprint?: string
+  /**
+   * As colunas do filtro da lista — o identificador ou `WITHOUT_STATE_FILTER`; basta o
+   * card estar numa delas. **So da lista**: a contagem das colunas nao recebe, senao
+   * cada coluna desmarcada contaria zero no proprio menu.
+   */
+  columns?: string[]
+  /** A ordem escolhida na tabela. So na lista de sempre — nunca com `order`. */
+  sort?: ReportSort
 }
 
 /** Espelha o `ReportService` da API, do lado que exige sessao. */
 export interface ProjectReportService {
   /**
-   * Os relatos do projeto, do mais novo para o mais antigo. A pagina comeca em 1.
+   * Os relatos do projeto, do mais novo para o mais antigo — ou na ordem de
+   * `options.sort`, feita pela API. A pagina comeca em 1; de 50 em 50, se ninguem
+   * pedir outro tamanho.
    *
    * `state` recorta por coluna da fila: ausente traz tudo, um identificador traz
    * so aquela coluna, e `WITHOUT_STATE_FILTER` traz os que ainda nao tem lugar
@@ -125,7 +162,9 @@ export interface ProjectReportService {
 
   /**
    * Cria um card do time. Ganha o proximo numero do projeto, e nunca tem lado de
-   * fora. Devolve o card **aberto**, sem registrar leitura.
+   * fora. O responsavel e a prioridade, quando vem, gravam na propria criacao, numa
+   * transacao so: recusado um, o card nao nasce. Devolve o card **aberto**, sem
+   * registrar leitura.
    */
   createTeamCard(publicId: string, request: CreateTeamCardRequest): Promise<ReportDetailViewModel>
 
@@ -353,6 +392,25 @@ export interface ProjectReportService {
     reportPublicId: string,
     request: CreateCommentRequest,
   ): Promise<InternalCommentViewModel>
+
+  /**
+   * Corrige um comentario interno. So quem o escreveu (a API recusa as outras pessoas);
+   * as mencoes passam a ser as do texto novo. **So o interno**: o que foi para quem
+   * relatou ja saiu da empresa.
+   */
+  editInternalComment(
+    publicId: string,
+    reportPublicId: string,
+    commentPublicId: string,
+    request: EditCommentRequest,
+  ): Promise<InternalCommentViewModel>
+
+  /** Apaga um comentario interno, so de quem o escreveu. Os avisos da mencao saem junto. */
+  deleteInternalComment(
+    publicId: string,
+    reportPublicId: string,
+    commentPublicId: string,
+  ): Promise<void>
 
   /** Escreve um comentario para quem relatou. */
   addPublicComment(
