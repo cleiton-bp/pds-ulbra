@@ -141,6 +141,7 @@
  * empilhamento quebra em silencio.
  */
 :root {
+  --layer-sticky: 1;
   --layer-drawer-veil: 10;
   --layer-drawer: 20;
   --layer-veil: 40;
@@ -149,6 +150,16 @@
   --layer-tip: 70;
 }
 
+/**
+ * O que fica preso por cima de uma area que rola: o cabecalho das colunas nas raias
+ * do quadro, e o atalho para a coluna fora da tela. Acima dos cards — que sao
+ * posicionados, e pintariam por cima do cabecalho preso —, e abaixo da gaveta e do
+ * veu dela. Com numero solto (`z-10`, `z-20`) o quadro empatava com o veu e com a
+ * gaveta e, por vir depois no documento, pintava por cima dos dois.
+ */
+@utility z-sticky {
+  z-index: var(--layer-sticky);
+}
 /** Veu que escurece o conteudo atras da gaveta, em tela estreita. */
 @utility z-drawer-veil {
   z-index: var(--layer-drawer-veil);
@@ -214,8 +225,10 @@
   /* Campo de texto **nao** ganha halo em volta: com a borda que ele ja tem, o
      anel a 2px de distancia vira contorno duplo. Deslocado para dentro, o mesmo
      anel engrossa a borda do proprio campo — o foco continua visivel, e visivel
-     com a espessura que a WCAG pede, sem nada flutuando ao redor. */
-  input:focus-visible,
+     com a espessura que a WCAG pede, sem nada flutuando ao redor.
+     A caixa de marcar e o circulo de escolha ficam de fora: tem 16px, e o anel
+     por dentro deles sumia — so se via a caixa um pouco mais clara. */
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible,
   textarea:focus-visible,
   select:focus-visible {
     outline-offset: -2px;
@@ -414,6 +427,16 @@
     linear-gradient(to bottom, var(--border) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 0%, transparent 75%);
+}
+
+/**
+ * A borda direita de uma area que rola para os lados, esmaecendo: o que continua
+ * fora da vista some no fundo da tela, em vez de cortar seco. Um desenho de fundo,
+ * como a grade, e nao uma cor — e a cor dele e o `--surface` do tema, entao vale no
+ * claro e no escuro.
+ */
+@utility fade-right {
+  background-image: linear-gradient(to left, var(--surface), transparent);
 }
 
 @utility animate-slide-up {

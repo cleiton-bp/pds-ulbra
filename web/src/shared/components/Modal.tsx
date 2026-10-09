@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { type ReactNode, useLayoutEffect, useRef } from 'react'
+import { type ReactNode, useCallback, useLayoutEffect, useRef } from 'react'
+import { useToastStore } from '@/shared/components/toastStore'
 import { cn } from '@/shared/lib/cn'
 import { focusAnyway } from '@/shared/lib/focus'
 
@@ -36,6 +37,18 @@ interface ModalProps {
    * trocado enquanto o dialogo estava aberto. Sem isto, ou sem achar, o Radix decide.
    */
   fallbackFocus?: () => HTMLElement | null
+  /**
+   * O Esc, antes de fechar. Quem chama `preventDefault` segura o dialogo aberto — o
+   * card aberto usa para o Esc sair primeiro da edicao em que o foco esta.
+   */
+  onEscapeKeyDown?: (event: KeyboardEvent) => void
+  /**
+   * Falso, o clique fora nao fecha: o dialogo com texto escrito nao some por um
+   * clique que errou a caixa. O Esc e o botao de cancelar continuam fechando.
+   */
+  closeOnOutsideClick?: boolean
+  /** Botoes ao lado do X, no alto — os do card aberto: copiar o link, anterior e proximo. */
+  headerActions?: ReactNode
 }
 
 export function Modal({
@@ -49,9 +62,25 @@ export function Modal({
   closeButton = false,
   className,
   fallbackFocus,
+  onEscapeKeyDown,
+  closeOnOutsideClick = true,
+  headerActions,
 }: ModalProps) {
   const quemAbriu = useRef<HTMLElement | null>(null)
   const abertoEm = useRef(0)
+  const fechar = useRef<HTMLButtonElement>(null)
+
+  // Os avisos que nascem com o dialogo aberto vao para dentro dele — ver `Toaster`.
+  const addHost = useToastStore((state) => state.addHost)
+  const removeHost = useToastStore((state) => state.removeHost)
+  const hospedar = useCallback(
+    (caixa: HTMLDivElement | null) => {
+      if (!caixa) return
+      addHost(caixa)
+      return () => removeHost(caixa)
+    },
+    [addHost, removeHost],
+  )
 
   // Antes de o Radix mover o foco para dentro: o efeito dele roda depois deste.
   useLayoutEffect(() => {
@@ -69,6 +98,7 @@ export function Modal({
             `aria-describedby` sozinho: ele conta quantas descricoes foram
             montadas. Nao precisa da gambiarra de passar `undefined` a mao. */}
         <Dialog.Content
+          ref={hospedar}
           className={cn(
             '-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-dialog rounded-xl border border-border bg-surface-raised p-6',
             width,
@@ -96,8 +126,23 @@ export function Modal({
             evento.preventDefault()
             focusAnyway(reserva)
           }}
+          onOpenAutoFocus={(evento) => {
+            // Com botoes no alto, o primeiro da ordem seria um deles: o foco continua
+            // entrando no X, como nos outros dialogos grandes.
+            if (!headerActions || !fechar.current) return
+            evento.preventDefault()
+            fechar.current.focus()
+          }}
+          onEscapeKeyDown={onEscapeKeyDown}
           onPointerDownOutside={(evento) => {
+            if (!closeOnOutsideClick) evento.preventDefault()
             if (performance.now() - abertoEm.current < DUPLO_CLIQUE_MS) evento.preventDefault()
+          }}
+          onInteractOutside={(evento) => {
+            // O aviso de outro dialogo (o de confirmar, por cima deste) nao e "fora":
+            // fechar o aviso nunca fecha o card.
+            const alvo = evento.target
+            if (alvo instanceof Element && alvo.closest('[data-toasts]')) evento.preventDefault()
           }}
         >
           <div
@@ -110,8 +155,13 @@ export function Modal({
               {title}
             </Dialog.Title>
 
+            {headerActions && (
+              <div className="-mt-1 ml-auto flex flex-none items-center gap-1">{headerActions}</div>
+            )}
+
             {closeButton && (
               <Dialog.Close
+                ref={fechar}
                 aria-label="Fechar"
                 className="-mt-1 -mr-2 flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
               >
