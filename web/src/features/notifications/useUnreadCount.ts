@@ -98,8 +98,9 @@ async function tocarOMaisNovo() {
   if (agora >= ultimoSomEm && agora - ultimoSomEm < SOUND_GAP_MS) return
   ultimoSomEm = agora
   try {
+    // So os nao lidos: o mais novo deles e o primeiro, mesmo com muitos lidos depois.
     const [lista, ajustes] = await Promise.all([
-      notificationService.listNotifications(),
+      notificationService.listNotifications({ unreadOnly: true }),
       notificationService.getSettings(),
     ])
     const novo = lista.Items.find((aviso) => aviso.ReadAt === null)
