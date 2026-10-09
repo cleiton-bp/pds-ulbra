@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   MAX_CARD_TITLE_LENGTH,
   type ReportDetailViewModel,
   type ReportSummaryViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { useCardDraft, useDiscardQuestion } from '@/features/reports/cardDrafts'
+import { cardHeadline, headlineText } from '@/features/reports/cardLook'
 import { Button } from '@/shared/components/Button'
 import { TextField } from '@/shared/components/TextField'
 
@@ -16,8 +18,11 @@ import { TextField } from '@/shared/components/TextField'
  * e interno: reescrever e dar ao card um nome que o time reconhece, sem mexer no que
  * ela escreveu. Reescrito, a tela mostra o dela embaixo, e um clique volta a ele.
  *
- * Sem titulo nenhum, o card mostra o comeco do texto na lista — e aqui o texto
- * inteiro ja esta logo abaixo.
+ * **Sem titulo nenhum, a manchete e o comeco do texto**, entre aspas — o mesmo que a
+ * lista mostra.
+ * Antes era "Sem titulo", em cinza: o olho caia num rotulo vazio em vez do problema,
+ * e o card aberto nao se parecia com a linha em que se clicou. O "Dar um titulo"
+ * continua ao lado.
  */
 export function ReportTitle({
   projectPublicId,
@@ -38,6 +43,21 @@ export function ReportTitle({
 
   const titulo = card.Title ?? card.ReporterTitle
   const reescrito = card.Title !== null
+  // Entre aspas, como a lista: e a fala de quem relatou.
+  const manchete = headlineText(cardHeadline(card))
+
+  // O Esc com o foco na edicao sai dela, e o card fica; com o texto mudado, pergunta.
+  const mudou = editando && texto.trim() !== (titulo ?? '')
+  const perguntar = useDiscardQuestion()
+  const area = useRef<HTMLDivElement>(null)
+  const sair = () => {
+    setEditando(false)
+    setErro(null)
+  }
+  useCardDraft(
+    { sujo: mudou, cancelar: editando ? () => (mudou ? perguntar(sair) : sair()) : undefined },
+    area,
+  )
 
   async function gravar(novo: string | null) {
     if (salvando) return
@@ -57,7 +77,7 @@ export function ReportTitle({
 
   if (editando) {
     return (
-      <div className="flex flex-col gap-2">
+      <div ref={area} className="flex flex-col gap-2">
         <TextField
           label="Título do time"
           value={texto}
@@ -85,7 +105,7 @@ export function ReportTitle({
           >
             {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
-          <Button variant="quiet" size="sm" disabled={salvando} onClick={() => setEditando(false)}>
+          <Button variant="quiet" size="sm" disabled={salvando} onClick={sair}>
             Cancelar
           </Button>
         </div>
@@ -96,14 +116,8 @@ export function ReportTitle({
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
-        <h3
-          className={
-            titulo
-              ? 'break-words font-semibold text-fg text-lead'
-              : 'text-body text-fg-muted italic'
-          }
-        >
-          {titulo ?? 'Sem título'}
+        <h3 className="min-w-0 break-words font-semibold text-fg text-notice">
+          {titulo ?? manchete}
         </h3>
         {!arquivado && (
           <Button
@@ -143,4 +157,16 @@ export function ReportTitle({
       {erro && !editando && <p className="mt-1 text-caption text-error-fg">{erro}</p>}
     </div>
   )
+}
+
+/**
+ * Se o texto de quem relatou ja esta inteiro na manchete — o relato sem titulo, curto e
+ * numa linha so. Ai ele nao se repete logo abaixo; cortado, ou em mais de uma linha, o
+ * texto inteiro vem embaixo como sempre.
+ */
+export function textInHeadline(card: ReportSummaryViewModel): boolean {
+  const manchete = cardHeadline(card)
+  if (manchete.titled) return false
+  const texto = (card.Text ?? '').trim()
+  return !/\r|\n/.test(texto) && manchete.text === texto.replace(/\s+/g, ' ')
 }

@@ -93,6 +93,9 @@ export function CloseReportDialog({
               : `Mover para ${coluna} encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.`
       }
       width="w-[min(32rem,calc(100vw-2rem))]"
+      // Com texto escrito, o clique fora nao fecha: errar a caixa nao pode levar o
+      // texto junto. O Esc e o "Cancelar" continuam fechando.
+      closeOnOutsideClick={texto.length === 0}
       footer={
         <>
           <Button variant="quiet" disabled={encerrando} onClick={aoCancelar}>

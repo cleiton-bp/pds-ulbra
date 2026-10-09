@@ -42,6 +42,9 @@ export function AskInfoDialog({
       title="Pedir uma informação"
       description="O relato volta para quem escreveu, e não é encerrado. A pessoa lê e responde pela mesma página em que acompanha."
       width="w-[min(32rem,calc(100vw-2rem))]"
+      // Com texto escrito, o clique fora nao fecha: errar a caixa nao pode levar o
+      // texto junto. O Esc e o "Cancelar" continuam fechando.
+      closeOnOutsideClick={escrito.length === 0}
       footer={
         <>
           <Button variant="quiet" disabled={enviando} onClick={aoCancelar}>

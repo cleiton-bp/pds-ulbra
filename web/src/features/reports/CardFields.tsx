@@ -17,15 +17,33 @@ import {
   projectReportService,
   projectTeamService,
 } from '@/data'
+import { useCardDraft } from '@/features/reports/cardDrafts'
 import { formatPoints } from '@/features/reports/sprints/sprintLook'
 import { CardChip } from '@/shared/components/CardChip'
 import { Select } from '@/shared/components/Select'
 import { toast } from '@/shared/components/toastStore'
 import { cn } from '@/shared/lib/cn'
 import { formatDay } from '@/shared/lib/datetime'
+import { dueState, dueWords } from '@/shared/lib/dueDate'
 
 /** Uma lista de escolha: chegando, chegou, ou nao deu para ler. */
 type Lista<T> = T[] | null | 'falhou'
+
+/** Os campos que gravam: cada um diz "Salvando…" e a propria falha. */
+type Campo = 'responsavel' | 'prioridade' | 'etiquetas' | 'prazo' | 'sprint' | 'pontos'
+
+/** O campo na frase da falha: "Nao deu para mudar a prioridade." */
+const NOME_DO_CAMPO: Record<Campo, string> = {
+  responsavel: 'o responsável',
+  prioridade: 'a prioridade',
+  etiquetas: 'as etiquetas',
+  prazo: 'o prazo',
+  sprint: 'a sprint',
+  pontos: 'a estimativa',
+}
+
+/** O prazo perto, quando o projeto nao disse outro: o mesmo de fabrica da tela de Trabalho. */
+const PERTO_DE_FABRICA = 2
 
 /**
  * Os campos que o time da ao card: quem esta com ele, o quanto importa, as
@@ -45,11 +63,14 @@ export function CardFields({
   aoMudar,
   configuracao = 0,
   sprints = null,
+  soonDays = PERTO_DE_FABRICA,
 }: {
   projectPublicId: string
   reportPublicId: string
   card: ReportSummaryViewModel
   aoMudar: (card: ReportDetailViewModel) => void
+  /** A regra do prazo perto (Ciclo): o prazo vencido ou perto ganha o mesmo destaque da lista. */
+  soonDays?: number
   /**
    * As sprints que nao fecharam, com a sprint ligada — e ai o card mostra a sprint e
    * os pontos. Nulo sem sprints: os dois campos nem aparecem.
@@ -70,8 +91,10 @@ export function CardFields({
   const [time, setTime] = useState<Lista<TeamMemberViewModel>>(null)
   const [prioridades, setPrioridades] = useState<Lista<ProjectPriorityViewModel>>(null)
   const [etiquetas, setEtiquetas] = useState<Lista<ProjectLabelViewModel>>(null)
+  // Sobe no "Tentar de novo" das listas que nao carregaram.
+  const [releitura, setReleitura] = useState(0)
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `configuracao` e o gatilho de ler de novo.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `configuracao` e `releitura` sao os gatilhos de ler de novo.
   useEffect(() => {
     if (arquivado) return
     let vivo = true
@@ -94,7 +117,7 @@ export function CardFields({
     return () => {
       vivo = false
     }
-  }, [projectPublicId, arquivado, configuracao])
+  }, [projectPublicId, arquivado, configuracao, releitura])
 
   // **Uma mudanca de cada vez, na ordem em que a pessoa fez.** A seguinte espera a
   // resposta da anterior e parte do card que ela devolveu: duas etiquetas escolhidas
@@ -108,8 +131,34 @@ export function CardFields({
     atual.current = card
   }, [card])
 
-  /** Poe a mudanca na fila. Nulo, na vez dela, e "nada a fazer": ja e verdade. */
-  function salvar(acao: (card: ReportSummaryViewModel) => Promise<ReportDetailViewModel | null>) {
+  /**
+   * **O valor escolhido aparece na hora**, com "Salvando…" ao lado, enquanto a fila
+   * grava. Com a rede lenta, o campo mostrava o valor antigo por segundos, sem sinal
+   * nenhum — e a pessoa escolhia de novo, ou desistia. Se falhar, o campo volta ao que
+   * vale, e a falha diz qual campo foi, embaixo dele e no aviso.
+   */
+  const [mostrando, setMostrando] = useState<Partial<Record<Campo, string>>>({})
+  const [gravando, setGravando] = useState<Partial<Record<Campo, boolean>>>({})
+  const [falhas, setFalhas] = useState<Partial<Record<Campo, string>>>({})
+  // Quantas mudancas de cada campo estao na fila: o "Salvando…" sai com a ultima.
+  const naFila = useRef<Partial<Record<Campo, number>>>({})
+
+  /**
+   * Poe a mudanca na fila. Nulo, na vez dela, e "nada a fazer": ja e verdade. `campo`
+   * diz de quem e o "Salvando…" e a falha; `escolhido`, o valor que o campo mostra
+   * enquanto grava.
+   */
+  function salvar(
+    acao: (card: ReportSummaryViewModel) => Promise<ReportDetailViewModel | null>,
+    campo?: Campo,
+    escolhido?: string,
+  ) {
+    if (campo) {
+      naFila.current[campo] = (naFila.current[campo] ?? 0) + 1
+      setFalhas((antes) => ({ ...antes, [campo]: undefined }))
+      setGravando((antes) => ({ ...antes, [campo]: true }))
+      if (escolhido !== undefined) setMostrando((antes) => ({ ...antes, [campo]: escolhido }))
+    }
     fila.current = fila.current.then(async () => {
       try {
         const novo = await acao(atual.current)
@@ -117,10 +166,38 @@ export function CardFields({
         atual.current = novo
         aoMudar(novo)
       } catch (falha) {
-        toast.error(describeError(falha))
+        if (!campo) {
+          toast.error(describeError(falha))
+          return
+        }
+        setFalhas((antes) => ({
+          ...antes,
+          [campo]: `Não deu para mudar ${NOME_DO_CAMPO[campo]}. Tente de novo.`,
+        }))
+        toast.error(`Não deu para mudar ${NOME_DO_CAMPO[campo]}. ${describeError(falha)}`)
+      } finally {
+        // A ultima da fila deste campo terminou: o campo volta a ler o card.
+        if (campo) {
+          const resta = (naFila.current[campo] ?? 1) - 1
+          naFila.current[campo] = resta
+          if (resta === 0) {
+            setGravando((antes) => ({ ...antes, [campo]: false }))
+            setMostrando((antes) => ({ ...antes, [campo]: undefined }))
+          }
+        }
       }
     })
   }
+
+  /** O "Salvando…" do campo, ou a falha dele — embaixo do controle. */
+  const situacao = (campo: Campo) =>
+    gravando[campo] ? (
+      <span role="status" className="mt-1 block text-caption text-fg-muted">
+        Salvando…
+      </span>
+    ) : falhas[campo] ? (
+      <span className="mt-1 block text-caption text-error-fg">{falhas[campo]}</span>
+    ) : null
 
   const ids = (lista: { PublicId: string }[]) => lista.map((item) => item.PublicId)
 
@@ -128,18 +205,22 @@ export function CardFields({
     projectReportService.setLabels(projectPublicId, reportPublicId, { LabelPublicIds: ids })
 
   function porEtiqueta(publicId: string) {
-    salvar(async (c) =>
-      c.Labels.some((item) => item.PublicId === publicId)
-        ? null
-        : trocarEtiquetas([...ids(c.Labels), publicId]),
+    salvar(
+      async (c) =>
+        c.Labels.some((item) => item.PublicId === publicId)
+          ? null
+          : trocarEtiquetas([...ids(c.Labels), publicId]),
+      'etiquetas',
     )
   }
 
   function tirarEtiqueta(publicId: string) {
-    salvar(async (c) =>
-      c.Labels.some((item) => item.PublicId === publicId)
-        ? trocarEtiquetas(ids(c.Labels.filter((item) => item.PublicId !== publicId)))
-        : null,
+    salvar(
+      async (c) =>
+        c.Labels.some((item) => item.PublicId === publicId)
+          ? trocarEtiquetas(ids(c.Labels.filter((item) => item.PublicId !== publicId)))
+          : null,
+      'etiquetas',
     )
   }
 
@@ -158,7 +239,7 @@ export function CardFields({
       return c.Labels.some((item) => item.PublicId === etiqueta.PublicId)
         ? null
         : trocarEtiquetas([...ids(c.Labels), etiqueta.PublicId])
-    })
+    }, 'etiquetas')
   }
 
   const responsavel = card.Assignee
@@ -175,16 +256,19 @@ export function CardFields({
             <Select
               size="sm"
               ariaLabel="Responsável"
-              value={responsavel?.UserPublicId ?? ''}
+              value={mostrando.responsavel ?? responsavel?.UserPublicId ?? ''}
               disabled={time === null}
               openOnType
               onChange={(valor) =>
-                salvar(async (c) =>
-                  (c.Assignee?.UserPublicId ?? '') === valor
-                    ? null
-                    : projectReportService.setAssignee(projectPublicId, reportPublicId, {
-                        UserPublicId: valor === '' ? null : valor,
-                      }),
+                salvar(
+                  async (c) =>
+                    (c.Assignee?.UserPublicId ?? '') === valor
+                      ? null
+                      : projectReportService.setAssignee(projectPublicId, reportPublicId, {
+                          UserPublicId: valor === '' ? null : valor,
+                        }),
+                  'responsavel',
+                  valor,
                 )
               }
               options={[
@@ -208,6 +292,7 @@ export function CardFields({
               ]}
             />
           )}
+          {situacao('responsavel')}
         </dd>
 
         <dt className="text-detail text-fg-muted">Prioridade</dt>
@@ -222,15 +307,18 @@ export function CardFields({
             <Select
               size="sm"
               ariaLabel="Prioridade"
-              value={card.Priority?.PublicId ?? ''}
+              value={mostrando.prioridade ?? card.Priority?.PublicId ?? ''}
               openOnType
               onChange={(valor) =>
-                salvar(async (c) =>
-                  (c.Priority?.PublicId ?? '') === valor
-                    ? null
-                    : projectReportService.setPriority(projectPublicId, reportPublicId, {
-                        PriorityPublicId: valor === '' ? null : valor,
-                      }),
+                salvar(
+                  async (c) =>
+                    (c.Priority?.PublicId ?? '') === valor
+                      ? null
+                      : projectReportService.setPriority(projectPublicId, reportPublicId, {
+                          PriorityPublicId: valor === '' ? null : valor,
+                        }),
+                  'prioridade',
+                  valor,
                 )
               }
               options={[
@@ -245,6 +333,7 @@ export function CardFields({
               ]}
             />
           )}
+          {situacao('prioridade')}
         </dd>
 
         <dt className="self-start pt-1 text-detail text-fg-muted">Etiquetas</dt>
@@ -258,6 +347,7 @@ export function CardFields({
             aoTirar={tirarEtiqueta}
             aoCriar={criarEtiqueta}
           />
+          {situacao('etiquetas')}
         </dd>
 
         <dt className="text-detail text-fg-muted">Prazo</dt>
@@ -270,53 +360,84 @@ export function CardFields({
             <Prazo
               valor={card.DueDate}
               aoMudar={(data) =>
-                salvar(async (c) =>
-                  c.DueDate === data
-                    ? null
-                    : projectReportService.setDueDate(projectPublicId, reportPublicId, {
-                        DueDate: data,
-                      }),
+                salvar(
+                  async (c) =>
+                    c.DueDate === data
+                      ? null
+                      : projectReportService.setDueDate(projectPublicId, reportPublicId, {
+                          DueDate: data,
+                        }),
+                  'prazo',
                 )
               }
             />
           )}
+          {/* A data por extenso — o campo segue o idioma do navegador, e num navegador
+              em ingles mostrava mes/dia — e o mesmo destaque da lista e do quadro:
+              vencido em vermelho, perto em amarelo, sempre com as palavras. */}
+          {card.DueDate && !arquivado && (
+            <PrazoPorExtenso dia={card.DueDate} card={card} soonDays={soonDays} />
+          )}
+          {situacao('prazo')}
         </dd>
 
         {sprints && (
           <>
             <dt className="text-detail text-fg-muted">Sprint</dt>
             <dd className="min-w-0">
-              {arquivado || card.Parent ? (
+              {/* **O card que terminou numa sprint concluida fica nela**: e o registro de
+                  onde foi entregue, e a escolha — que so tem as abertas — o mostrava como
+                  backlog. So se le. O que voltou a andar depois sai dela pela escolha. */}
+              {arquivado || card.Parent || (card.Sprint?.State === 'Closed' && card.Finished) ? (
                 <span className={cn('text-body', card.Sprint ? 'text-fg' : 'text-fg-muted')}>
-                  {card.Sprint ? card.Sprint.Name : 'Backlog'}
+                  {card.Sprint ? nomeDaSprint(card.Sprint) : 'Backlog'}
                   {card.Parent && (
                     <span className="text-caption text-fg-muted"> · vai com o pai</span>
                   )}
                 </span>
               ) : (
+                // O estado da sprint escolhida vai embaixo, e nao no nome: "Sprint 2 (em
+                // andamento)" nao cabia no campo e saia cortado.
                 <Select
                   size="sm"
                   ariaLabel="Sprint"
-                  value={card.Sprint && card.Sprint.State !== 'Closed' ? card.Sprint.PublicId : ''}
+                  value={mostrando.sprint ?? card.Sprint?.PublicId ?? ''}
+                  hint={
+                    card.Sprint?.State === 'Active'
+                      ? 'Em andamento: está no quadro.'
+                      : card.Sprint?.State === 'Planned'
+                        ? 'Planejada.'
+                        : undefined
+                  }
                   onChange={(valor) =>
-                    salvar(async (c) =>
-                      (c.Sprint && c.Sprint.State !== 'Closed' ? c.Sprint.PublicId : '') === valor
-                        ? null
-                        : projectReportService.setSprint(projectPublicId, reportPublicId, {
-                            SprintPublicId: valor === '' ? null : valor,
-                          }),
+                    salvar(
+                      async (c) =>
+                        (c.Sprint?.PublicId ?? '') === valor
+                          ? null
+                          : projectReportService.setSprint(projectPublicId, reportPublicId, {
+                              SprintPublicId: valor === '' ? null : valor,
+                            }),
+                      'sprint',
+                      valor,
                     )
                   }
                   options={[
+                    ...(card.Sprint?.State === 'Closed'
+                      ? [{ value: card.Sprint.PublicId, label: nomeDaSprint(card.Sprint) }]
+                      : []),
                     { value: '', label: 'Backlog' },
+                    // Na lista, a em andamento se distingue; escolhida, o estado vai na dica.
                     ...sprints.map((sprint) => ({
                       value: sprint.PublicId,
                       label:
-                        sprint.State === 'Active' ? `${sprint.Name} (em andamento)` : sprint.Name,
+                        sprint.State === 'Active' && sprint.PublicId !== card.Sprint?.PublicId
+                          ? `${sprint.Name} · em andamento`
+                          : sprint.Name,
                     })),
                   ]}
                 />
               )}
+              {situacao('sprint')}
             </dd>
 
             {!card.Parent && (
@@ -338,16 +459,19 @@ export function CardFields({
                     <Pontos
                       valor={card.StoryPoints}
                       aoMudar={(pontos) =>
-                        salvar(async (c) =>
-                          c.StoryPoints === pontos
-                            ? null
-                            : projectReportService.setPoints(projectPublicId, reportPublicId, {
-                                Points: pontos,
-                              }),
+                        salvar(
+                          async (c) =>
+                            c.StoryPoints === pontos
+                              ? null
+                              : projectReportService.setPoints(projectPublicId, reportPublicId, {
+                                  Points: pontos,
+                                }),
+                          'pontos',
                         )
                       }
                     />
                   )}
+                  {situacao('pontos')}
                 </dd>
               </>
             )}
@@ -358,7 +482,14 @@ export function CardFields({
       {algoFalhou && (
         <p role="status" className="mt-3 text-caption text-fg-muted">
           Não deu para carregar tudo o que se escolhe aqui — o que não carregou fica só para
-          leitura. Feche e abra o card para tentar de novo.
+          leitura.{' '}
+          <button
+            type="button"
+            onClick={() => setReleitura((n) => n + 1)}
+            className="underline underline-offset-2 hover:text-fg"
+          >
+            Tentar de novo
+          </button>
         </p>
       )}
     </section>
@@ -377,7 +508,7 @@ function rotuloDoResponsavel(card: ReportSummaryViewModel): string | null {
 
 /** A aposentada continua no card que a tem, e aparece marcada onde estiver. */
 function rotuloDaPrioridade(prioridade: { Name: string; IsActive: boolean }): string {
-  return prioridade.IsActive ? prioridade.Name : `${prioridade.Name} (aposentada)`
+  return prioridade.IsActive ? prioridade.Name : `${prioridade.Name} (desativada)`
 }
 
 /**
@@ -400,10 +531,17 @@ function paraProcurar(texto: string): string {
 /**
  * As etiquetas do card e o campo de etiquetar.
  *
- * **Etiquetar e escrever.** O campo procura entre as etiquetas do projeto, e o nome
- * que nao existe vira etiqueta nova — qualquer pessoa do time cria. **Enter poe a
- * etiqueta com o nome escrito**, e a cria se ela nao existe; nunca uma parecida. As
- * parecidas aparecem embaixo, para escolher com um clique.
+ * **Etiquetar e escrever, e escolher na lista.** O campo procura entre as etiquetas do
+ * projeto (sem acento, pelo comeco ou por qualquer parte do nome), e as achadas vem
+ * numa lista que as setas percorrem, com a **primeira ja destacada**: **Enter poe a
+ * destacada**. "Criar “…”" fica por ultimo, e so e escolhido pelas setas, pelo clique
+ * — ou pelo Enter quando nao ha nenhuma parecida.
+ *
+ * Antes o Enter criava sempre a etiqueta com o nome escrito: "pag" e Enter viravam a
+ * etiqueta "pag" no projeto inteiro, e nao "pagamentos". Quem vem das ferramentas
+ * conhecidas digita o comeco e da Enter esperando a sugestao.
+ *
+ * O Esc com texto no campo limpa so o campo; o seguinte fecha o card.
  */
 function Etiquetas({
   card,
@@ -423,14 +561,21 @@ function Etiquetas({
   aoCriar: (nome: string) => void
 }) {
   const dicaId = useId()
+  const listaId = useId()
   const [texto, setTexto] = useState('')
+  const [ativo, setAtivo] = useState(0)
   const noCard = new Set(card.Labels.map((etiqueta) => etiqueta.PublicId))
   const busca = texto.trim()
   const chave = paraProcurar(busca)
 
+  // A de nome igual primeiro, depois as que comecam pelo que se escreveu, depois as que
+  // o tem no meio — e a primeira e a que o Enter poe.
+  const ordem = (nome: string) =>
+    mesmoNome(nome, busca) ? 0 : paraProcurar(nome).startsWith(chave) ? 1 : 2
   const sugestoes = (etiquetas ?? [])
     .filter((etiqueta) => !noCard.has(etiqueta.PublicId))
     .filter((etiqueta) => chave.length === 0 || paraProcurar(etiqueta.Name).includes(chave))
+    .sort((a, b) => ordem(a.Name) - ordem(b.Name) || a.Name.localeCompare(b.Name, 'pt-BR'))
     .slice(0, 6)
 
   // A de nome igual, pela regra da API. Criar so quando ela nao existe.
@@ -438,18 +583,45 @@ function Etiquetas({
   const podeCriar = busca.length > 0 && !igual
   const cheio = card.Labels.length >= MAX_LABELS_PER_CARD
 
+  // As escolhas da lista, na ordem das setas: as achadas, e o "Criar" por ultimo.
+  const opcoes: Array<{ chave: string; etiqueta?: ProjectLabelViewModel }> =
+    busca.length === 0
+      ? []
+      : [
+          ...sugestoes.map((etiqueta) => ({ chave: etiqueta.PublicId, etiqueta })),
+          ...(podeCriar ? [{ chave: 'criar' }] : []),
+        ]
+  const destacada = Math.min(ativo, Math.max(0, opcoes.length - 1))
+
+  const area = useRef<HTMLDivElement>(null)
+  useCardDraft(
+    {
+      sujo: false,
+      cancelar: texto.length > 0 ? () => setTexto('') : undefined,
+    },
+    area,
+  )
+
   function escolher(publicId: string) {
     aoPor(publicId)
     setTexto('')
+    setAtivo(0)
   }
 
   function criar() {
     aoCriar(busca)
     setTexto('')
+    setAtivo(0)
+  }
+
+  function escolherOpcao(opcao: { etiqueta?: ProjectLabelViewModel } | undefined) {
+    if (!opcao) return
+    if (opcao.etiqueta) escolher(opcao.etiqueta.PublicId)
+    else criar()
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={area} className="flex flex-col gap-2">
       {card.Labels.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5">
           {card.Labels.map((etiqueta) => (
@@ -476,49 +648,75 @@ function Etiquetas({
         <div>
           <input
             type="text"
+            role="combobox"
             value={texto}
             maxLength={MAX_LABEL_NAME_LENGTH}
             aria-label="Adicionar etiqueta"
             aria-describedby={dicaId}
+            aria-autocomplete="list"
+            aria-expanded={opcoes.length > 0}
+            aria-controls={opcoes.length > 0 ? listaId : undefined}
+            aria-activedescendant={
+              opcoes.length > 0 ? `${listaId}-${opcoes[destacada]?.chave}` : undefined
+            }
             placeholder="Adicionar etiqueta"
-            onChange={(evento) => setTexto(evento.target.value)}
+            onChange={(evento) => {
+              setTexto(evento.target.value)
+              setAtivo(0)
+            }}
             onKeyDown={(evento) => {
-              if (evento.key !== 'Enter' || busca.length === 0) return
-              evento.preventDefault()
-              if (igual) escolher(igual.PublicId)
-              else criar()
+              if (evento.key === 'ArrowDown' && opcoes.length > 0) {
+                evento.preventDefault()
+                setAtivo((destacada + 1) % opcoes.length)
+              } else if (evento.key === 'ArrowUp' && opcoes.length > 0) {
+                evento.preventDefault()
+                setAtivo((destacada - 1 + opcoes.length) % opcoes.length)
+              } else if (evento.key === 'Enter' && busca.length > 0) {
+                evento.preventDefault()
+                escolherOpcao(opcoes[destacada])
+              }
             }}
             className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
           />
-          <p id={dicaId} className="sr-only">
-            Enter põe no card a etiqueta com o nome escrito, e a cria se ela não existe.
-          </p>
+          {busca.length > 0 && (
+            <p id={dicaId} className="mt-1 text-caption text-fg-muted">
+              Enter põe a etiqueta destacada. Para uma nova, escolha Criar.
+            </p>
+          )}
 
-          {busca.length > 0 && (sugestoes.length > 0 || podeCriar) && (
-            <ul aria-label="Etiquetas para escolher" className="mt-1.5 flex flex-wrap gap-1.5">
-              {sugestoes.map((etiqueta) => (
-                <li key={etiqueta.PublicId}>
-                  <button
-                    type="button"
-                    onClick={() => escolher(etiqueta.PublicId)}
-                    className="rounded-full"
-                  >
-                    <CardChip color={etiqueta.Color}>{etiqueta.Name}</CardChip>
-                  </button>
-                </li>
+          {opcoes.length > 0 && (
+            <div
+              id={listaId}
+              role="listbox"
+              aria-label="Etiquetas para escolher"
+              className="mt-1.5 flex flex-wrap gap-1.5"
+            >
+              {opcoes.map((opcao, indice) => (
+                // O mouse escolhe sem tirar o foco do campo — o teclado escolhe pelo campo.
+                // biome-ignore lint/a11y/useKeyWithClickEvents: as teclas moram no campo (aria-activedescendant)
+                <div
+                  key={opcao.chave}
+                  id={`${listaId}-${opcao.chave}`}
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={indice === destacada}
+                  onMouseDown={(evento) => evento.preventDefault()}
+                  onClick={() => escolherOpcao(opcao)}
+                  className={cn(
+                    'cursor-pointer rounded-full',
+                    indice === destacada && 'outline-2 outline-fg outline-offset-1',
+                  )}
+                >
+                  {opcao.etiqueta ? (
+                    <CardChip color={opcao.etiqueta.Color}>{opcao.etiqueta.Name}</CardChip>
+                  ) : (
+                    <span className="block rounded-full border border-border border-dashed px-2 py-px text-caption text-fg hover:bg-surface-sunken">
+                      Criar “{busca}”
+                    </span>
+                  )}
+                </div>
               ))}
-              {podeCriar && (
-                <li>
-                  <button
-                    type="button"
-                    onClick={criar}
-                    className="rounded-full border border-border border-dashed px-2 py-px text-caption text-fg hover:bg-surface-sunken"
-                  >
-                    Criar “{busca}”
-                  </button>
-                </li>
-              )}
-            </ul>
+            </div>
           )}
         </div>
       )}
@@ -529,6 +727,42 @@ function Etiquetas({
         </p>
       )}
     </div>
+  )
+}
+
+/**
+ * O prazo por extenso, embaixo do campo, com o destaque da lista: "venceu ha 2 dias"
+ * em vermelho, "vence hoje" em amarelo. O card que ja terminou nao tem prazo a cumprir
+ * — fica so a data.
+ */
+function PrazoPorExtenso({
+  dia,
+  card,
+  soonDays,
+}: {
+  dia: string
+  card: ReportSummaryViewModel
+  soonDays: number
+}) {
+  const estado = card.Finished ? 'later' : dueState(dia, soonDays)
+  const palavras = card.Finished ? null : dueWords(dia, soonDays)
+
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-caption text-fg-muted">
+      <span className="tabular-nums">{formatDay(dia)}</span>
+      {palavras && (
+        <span
+          className={cn(
+            'rounded-md border px-1.5 py-px',
+            estado === 'overdue' && 'border-chip-red-border bg-chip-red-surface text-chip-red-fg',
+            estado === 'soon' &&
+              'border-chip-yellow-border bg-chip-yellow-surface text-chip-yellow-fg',
+          )}
+        >
+          {palavras}
+        </span>
+      )}
+    </span>
   )
 }
 
@@ -676,9 +910,9 @@ function Pontos({
     <input
       type="text"
       inputMode="decimal"
-      aria-label="Pontos"
+      aria-label={valor === null ? 'Pontos (sem estimativa)' : 'Pontos'}
       value={texto}
-      placeholder="Sem estimativa"
+      placeholder="—"
       onChange={(evento) => setTexto(evento.target.value)}
       onBlur={gravar}
       onKeyDown={(evento) => {
@@ -690,4 +924,9 @@ function Pontos({
       className="h-8 w-28 rounded-lg border border-border bg-surface px-2.5 text-body text-fg tabular-nums placeholder:text-fg-placeholder"
     />
   )
+}
+
+/** O nome da sprint do card, com "(concluída)" quando ela ja fechou. */
+function nomeDaSprint(sprint: { Name: string; State: string }): string {
+  return sprint.State === 'Closed' ? `${sprint.Name} (concluída)` : sprint.Name
 }

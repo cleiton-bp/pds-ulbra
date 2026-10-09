@@ -8,9 +8,12 @@ import type {
   ReportHistoryEntryViewModel,
   ReportSummaryViewModel,
 } from '@/contracts'
+import { PanelError } from '@/data'
 import { CardFields } from '@/features/reports/CardFields'
 import { ReportHistory } from '@/features/reports/ReportHistory'
-import { ReportTitle } from '@/features/reports/ReportTitle'
+import { ReportTitle, textInHeadline } from '@/features/reports/ReportTitle'
+import { Toaster } from '@/shared/components/Toaster'
+import { useToastStore } from '@/shared/components/toastStore'
 import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
@@ -23,8 +26,13 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  *   poe a de nome igual, e nunca uma parecida.
  * - **Uma mudanca de cada vez**, partindo da resposta da anterior — e sem desligar
  *   os campos, que tirava o foco de quem estava escolhendo.
+ * - **O valor escolhido aparece na hora, com "Salvando…"** embaixo, ate a resposta. A
+ *   falha volta o campo ao que vale e diz qual campo foi, embaixo dele e no aviso.
+ * - **A lista que nao carregou tenta de novo** ali mesmo, sem fechar o card.
  * - **O prazo digitado e rascunho** ate sair do campo: o navegador devolve uma data
  *   inteira a cada tecla, e nenhuma delas e pedido.
+ * - **O prazo vem por extenso** embaixo do campo, que segue o idioma do navegador, e com
+ *   o destaque da lista: vencido em vermelho, perto em amarelo, sempre com as palavras.
  * - **O titulo de quem relatou nunca some**: reescrito, ele aparece embaixo, e um
  *   clique volta a ele.
  *
@@ -88,6 +96,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    ClosureConfirmed: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -97,6 +106,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     DuplicateReporters: 0,
     Sprint: null,
     StoryPoints: null,
+    UpdatedAt: '2026-10-03T12:00:00.000Z',
     ...extra,
   }
 }
@@ -164,6 +174,25 @@ instalarRemendosDoRadix()
 function montar(resumo: ReportSummaryViewModel, aoMudar = vi.fn()) {
   render(<CardFields projectPublicId="p-1" reportPublicId="r-1" card={resumo} aoMudar={aoMudar} />)
   return aoMudar
+}
+
+/** O dia de hoje mais `dias`, como o prazo guarda: `aaaa-mm-dd`, no calendario de quem le. */
+function dia(dias: number): string {
+  const data = new Date()
+  data.setDate(data.getDate() + dias)
+  const dois = (n: number) => String(n).padStart(2, '0')
+  return `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}`
+}
+
+/** Uma resposta que so chega quando o teste mandar. */
+function aEsperar<T>() {
+  let soltar: (valor: T) => void = () => {}
+  let falhar: (erro: unknown) => void = () => {}
+  const promessa = new Promise<T>((ok, erro) => {
+    soltar = ok
+    falhar = erro
+  })
+  return { promessa, soltar, falhar }
 }
 
 describe('os campos do card', () => {
@@ -251,7 +280,7 @@ describe('os campos do card', () => {
     ).toBe('true')
   })
 
-  it('a prioridade oferece so as ativas — a aposentada do card fica, marcada', async () => {
+  it('a prioridade oferece so as ativas — a desativada do card fica, marcada', async () => {
     dublê.prioridade.mockResolvedValue(aberto(card()))
     montar(
       card({ Priority: { PublicId: 'p-alta', Name: 'Alta', Color: 'Orange', IsActive: false } }),
@@ -260,7 +289,7 @@ describe('os campos do card', () => {
     const campo = await screen.findByRole('combobox', { name: 'Prioridade' })
     fireEvent.pointerDown(campo, { button: 0, ctrlKey: false, pointerType: 'mouse' })
     const opcoes = screen.getAllByRole('option').map((opcao) => opcao.textContent)
-    expect(opcoes).toEqual(['Sem prioridade', 'Baixa', 'Alta (aposentada)'])
+    expect(opcoes).toEqual(['Sem prioridade', 'Baixa', 'Alta (desativada)'])
 
     fireEvent.click(screen.getByRole('option', { name: 'Sem prioridade' }))
     await waitFor(() =>
@@ -280,7 +309,7 @@ describe('os campos do card', () => {
     )
     dublê.etiquetas.mockResolvedValue([pagamento])
     const { rerender } = render(campos(0))
-    const campo = await screen.findByRole('textbox', { name: 'Adicionar etiqueta' })
+    const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })
     await waitFor(() => expect(dublê.etiquetas).toHaveBeenCalledTimes(1))
 
     // Outra pessoa criou "revenda".
@@ -289,7 +318,7 @@ describe('os campos do card', () => {
     await waitFor(() => expect(dublê.etiquetas).toHaveBeenCalledTimes(2))
     fireEvent.change(campo, { target: { value: 'rev' } })
     expect(
-      await within(screen.getByRole('list', { name: 'Etiquetas para escolher' })).findByText(
+      await within(screen.getByRole('listbox', { name: 'Etiquetas para escolher' })).findByText(
         'revenda',
       ),
     ).toBeTruthy()
@@ -305,9 +334,9 @@ describe('os campos do card', () => {
     ecoarEtiquetas()
     montar(card({ Labels: [noCard('l-cel')] }))
 
-    const campo = await screen.findByRole('textbox', { name: 'Adicionar etiqueta' })
+    const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })
     fireEvent.change(campo, { target: { value: 'PAG' } })
-    const sugestoes = screen.getByRole('list', { name: 'Etiquetas para escolher' })
+    const sugestoes = screen.getByRole('listbox', { name: 'Etiquetas para escolher' })
     fireEvent.click(within(sugestoes).getByText('pagamento'))
     await waitFor(() =>
       expect(dublê.etiquetasDoCard).toHaveBeenCalledWith('p-1', 'r-1', {
@@ -323,7 +352,48 @@ describe('os campos do card', () => {
     )
   })
 
-  it('Enter poe a etiqueta de nome igual, sem diferenciar maiuscula, e cria a que nao existe — nunca uma parecida', async () => {
+  it('Enter poe a destacada: a de nome igual primeiro, sem diferenciar maiuscula, depois a que comeca pelo escrito, depois a que o tem no meio', async () => {
+    const venda = { ...celular, PublicId: 'l-venda', Name: 'venda' }
+    const vendas = { ...celular, PublicId: 'l-vendas', Name: 'vendas' }
+    dublê.etiquetas.mockResolvedValue([pagamento, celular, revenda, pais, vendas, venda])
+    ecoarEtiquetas()
+    montar(card())
+
+    const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })
+
+    // A de nome igual vem antes, mesmo com outra maiuscula; "revenda", que so tem o
+    // escrito no meio, por ultimo. Com a de nome igual, nao ha o que criar.
+    fireEvent.change(campo, { target: { value: 'VENDA' } })
+    const lista = screen.getByRole('listbox', { name: 'Etiquetas para escolher' })
+    const opcoes = within(lista).getAllByRole('option')
+    expect(opcoes.map((opcao) => opcao.textContent)).toEqual(['venda', 'vendas', 'revenda'])
+    expect(opcoes.map((opcao) => opcao.getAttribute('aria-selected'))).toEqual([
+      'true',
+      'false',
+      'false',
+    ])
+    // O campo diz qual esta destacada, para o leitor de tela.
+    expect(campo.getAttribute('aria-activedescendant')).toBe(opcoes[0]?.id)
+    fireEvent.keyDown(campo, { key: 'Enter' })
+    await waitFor(() =>
+      expect(dublê.etiquetasDoCard).toHaveBeenCalledWith('p-1', 'r-1', {
+        LabelPublicIds: ['l-venda'],
+      }),
+    )
+    expect((campo as HTMLInputElement).value).toBe('')
+
+    // O comeco do nome: "pag" e Enter poe "pagamento" — e nao cria a etiqueta "pag".
+    fireEvent.change(campo, { target: { value: 'pag' } })
+    fireEvent.keyDown(campo, { key: 'Enter' })
+    await waitFor(() =>
+      expect(dublê.etiquetasDoCard).toHaveBeenLastCalledWith('p-1', 'r-1', {
+        LabelPublicIds: ['l-venda', 'l-pag'],
+      }),
+    )
+    expect(dublê.criarEtiqueta).not.toHaveBeenCalled()
+  })
+
+  it('criar so pelas setas, pelo clique, ou pelo Enter sem nenhuma parecida — e o acento conta, como na API', async () => {
     dublê.etiquetas.mockResolvedValue([pagamento, celular, revenda, pais])
     dublê.criarEtiqueta.mockImplementation(async (_p: string, corpo: { Name: string }) => ({
       PublicId: `l-${corpo.Name}`,
@@ -335,30 +405,58 @@ describe('os campos do card', () => {
     ecoarEtiquetas()
     montar(card())
 
-    const campo = await screen.findByRole('textbox', { name: 'Adicionar etiqueta' })
+    const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })
 
-    // "venda" esta dentro de "revenda", e nao e ela: Enter cria "venda".
+    // "venda" esta dentro de "revenda": ela vem destacada, e o "Criar" fica por ultimo.
+    // A seta desce ate ele, e ai o Enter cria.
     fireEvent.change(campo, { target: { value: 'venda' } })
+    expect(
+      screen.getByText('Enter põe a etiqueta destacada. Para uma nova, escolha Criar.').id,
+    ).toBe(campo.getAttribute('aria-describedby'))
+    expect(screen.getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'revenda',
+      'Criar “venda”',
+    ])
+    fireEvent.keyDown(campo, { key: 'ArrowDown' })
+    expect(
+      screen.getByRole('option', { name: 'Criar “venda”' }).getAttribute('aria-selected'),
+    ).toBe('true')
     fireEvent.keyDown(campo, { key: 'Enter' })
     await waitFor(() => expect(dublê.criarEtiqueta).toHaveBeenCalledWith('p-1', { Name: 'venda' }))
-
-    // O mesmo nome com outra maiuscula e a mesma etiqueta: entra, e nada se cria.
-    fireEvent.change(campo, { target: { value: 'PAGAMENTO' } })
-    fireEvent.keyDown(campo, { key: 'Enter' })
     await waitFor(() =>
       expect(dublê.etiquetasDoCard).toHaveBeenLastCalledWith('p-1', 'r-1', {
-        LabelPublicIds: ['l-venda', 'l-pag'],
+        LabelPublicIds: ['l-venda'],
       }),
     )
 
-    // O acento conta, como na API: a palavra com acento nao e a mesma sem ele.
+    // Sem nenhuma parecida, o "Criar" e a unica escolha, e o Enter cria.
+    fireEvent.change(campo, { target: { value: 'urgente' } })
+    expect(screen.getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'Criar “urgente”',
+    ])
+    fireEvent.keyDown(campo, { key: 'Enter' })
+    await waitFor(() =>
+      expect(dublê.criarEtiqueta).toHaveBeenLastCalledWith('p-1', { Name: 'urgente' }),
+    )
+
+    // A busca acha "pais" sem o acento, mas a palavra com acento e outra etiqueta: o
+    // "Criar" continua oferecido. A seta para cima da a volta ate ele.
     fireEvent.change(campo, { target: { value: 'país' } })
-    expect(screen.getByRole('button', { name: 'Criar “país”' })).toBeTruthy()
+    expect(screen.getAllByRole('option').map((opcao) => opcao.textContent)).toEqual([
+      'pais',
+      'Criar “país”',
+    ])
+    fireEvent.keyDown(campo, { key: 'ArrowUp' })
     fireEvent.keyDown(campo, { key: 'Enter' })
     await waitFor(() =>
       expect(dublê.criarEtiqueta).toHaveBeenLastCalledWith('p-1', { Name: 'país' }),
     )
-    expect(dublê.criarEtiqueta).toHaveBeenCalledTimes(2)
+    expect(dublê.criarEtiqueta).toHaveBeenCalledTimes(3)
+    await waitFor(() =>
+      expect(dublê.etiquetasDoCard).toHaveBeenLastCalledWith('p-1', 'r-1', {
+        LabelPublicIds: ['l-venda', 'l-urgente', 'l-país'],
+      }),
+    )
   })
 
   it('duas etiquetas em seguida entram as duas: a segunda espera e parte da resposta da primeira', async () => {
@@ -372,13 +470,13 @@ describe('os campos do card', () => {
     ecoarEtiquetas()
     const aoMudar = montar(card())
 
-    const campo = await screen.findByRole('textbox', { name: 'Adicionar etiqueta' })
+    const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })
     fireEvent.change(campo, { target: { value: 'novo1' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Criar “novo1”' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Criar “novo1”' }))
     // Escolhida enquanto a criacao ainda esta no ar.
     fireEvent.change(campo, { target: { value: 'cel' } })
     fireEvent.click(
-      within(screen.getByRole('list', { name: 'Etiquetas para escolher' })).getByText('celular'),
+      within(screen.getByRole('listbox', { name: 'Etiquetas para escolher' })).getByText('celular'),
     )
 
     await waitFor(() => expect(dublê.criarEtiqueta).toHaveBeenCalledTimes(1))
@@ -411,7 +509,7 @@ describe('os campos do card', () => {
       false,
     )
     expect(
-      screen.getByRole('textbox', { name: 'Adicionar etiqueta' }).hasAttribute('disabled'),
+      screen.getByRole('combobox', { name: 'Adicionar etiqueta' }).hasAttribute('disabled'),
     ).toBe(false)
     expect(screen.getByLabelText('Prazo').hasAttribute('disabled')).toBe(false)
   })
@@ -453,9 +551,9 @@ describe('os campos do card', () => {
     dublê.etiquetasDoCard.mockResolvedValue(aberto(card()))
     montar(card())
 
-    const campo = await screen.findByRole('textbox', { name: 'Adicionar etiqueta' })
+    const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })
     fireEvent.change(campo, { target: { value: 'urgente-cliente' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Criar “urgente-cliente”' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Criar “urgente-cliente”' }))
 
     await waitFor(() =>
       expect(dublê.criarEtiqueta).toHaveBeenCalledWith('p-1', { Name: 'urgente-cliente' }),
@@ -607,7 +705,130 @@ describe('os campos do card', () => {
     expect(dublê.membros).not.toHaveBeenCalled()
   })
 
-  it('arquivado, as marcas continuam: quem saiu do time e a prioridade aposentada', () => {
+  it('o valor escolhido aparece na hora, com "Salvando…" embaixo, ate a resposta chegar', async () => {
+    const prioridade = aEsperar<ReportDetailViewModel>()
+    dublê.prioridade.mockReturnValue(prioridade.promessa)
+    const aoMudar = montar(card())
+
+    await screen.findByRole('combobox', { name: 'Prioridade' })
+    await escolherNoSelect(screen, fireEvent, 'Prioridade', 'Baixa')
+    const campo = screen.getByRole('combobox', { name: 'Prioridade' })
+    expect(campo.textContent).toContain('Baixa')
+    const salvando = screen.getByText('Salvando…')
+    expect(campo.closest('dd')?.contains(salvando)).toBe(true)
+    expect(aoMudar).not.toHaveBeenCalled()
+
+    const resposta = aberto(
+      card({ Priority: { PublicId: 'p-baixa', Name: 'Baixa', Color: 'Blue', IsActive: true } }),
+    )
+    await act(async () => prioridade.soltar(resposta))
+    await waitFor(() => expect(screen.queryByText('Salvando…')).toBeNull())
+    expect(aoMudar).toHaveBeenCalledWith(resposta)
+  })
+
+  it('a falha volta o campo ao que vale, e diz qual campo foi — embaixo dele e no aviso', async () => {
+    dublê.responsavel.mockRejectedValue(
+      new PanelError('Esta pessoa nao esta no time do projeto.', 400),
+    )
+    // Os avisos de testes anteriores ainda estao na loja: este comeca sem nenhum.
+    useToastStore.setState({ toasts: [], hosts: [] })
+    render(<Toaster />)
+    const aoMudar = montar(card())
+
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Responsável' }).hasAttribute('disabled')).toBe(
+        false,
+      ),
+    )
+    await escolherNoSelect(screen, fireEvent, 'Responsável', 'Ana Dona')
+
+    expect(await screen.findByText('Não deu para mudar o responsável. Tente de novo.')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Responsável' }).textContent).toContain('Ninguém')
+    expect(screen.queryByText('Salvando…')).toBeNull()
+    // O aviso diz o campo e o motivo da API.
+    expect(screen.getByRole('alert').textContent).toMatch(
+      /^Não deu para mudar o responsável\. Esta pessoa não está no time/,
+    )
+    expect(aoMudar).not.toHaveBeenCalled()
+    useToastStore.setState({ toasts: [], hosts: [] })
+  })
+
+  it('o prazo e as etiquetas tambem dizem "Salvando…" enquanto gravam', async () => {
+    const prazo = aEsperar<ReportDetailViewModel>()
+    dublê.prazo.mockReturnValue(prazo.promessa)
+    const etiquetas = aEsperar<ReportDetailViewModel>()
+    dublê.etiquetasDoCard.mockReturnValue(etiquetas.promessa)
+    montar(card({ DueDate: '2026-03-15' }))
+
+    fireEvent.change(screen.getByLabelText('Prazo'), { target: { value: '2026-03-20' } })
+    const noPrazo = screen.getByLabelText('Prazo').closest('dd') as HTMLElement
+    expect(within(noPrazo).getByText('Salvando…')).toBeTruthy()
+
+    const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })
+    fireEvent.change(campo, { target: { value: 'pag' } })
+    fireEvent.keyDown(campo, { key: 'Enter' })
+    const nasEtiquetas = campo.closest('dd') as HTMLElement
+    expect(within(nasEtiquetas).getByText('Salvando…')).toBeTruthy()
+
+    await act(async () => prazo.soltar(aberto(card({ DueDate: '2026-03-20' }))))
+    await waitFor(() => expect(within(noPrazo).queryByText('Salvando…')).toBeNull())
+    await act(async () => etiquetas.soltar(aberto(card({ Labels: [noCard('l-pag')] }))))
+    await waitFor(() => expect(screen.queryByText('Salvando…')).toBeNull())
+  })
+
+  it('a lista que nao carregou tenta de novo ali mesmo: o campo volta a escolher', async () => {
+    dublê.membros.mockRejectedValueOnce(new Error('sem rede'))
+    montar(card())
+
+    expect(await screen.findByText(/Não deu para carregar tudo o que se escolhe aqui/)).toBeTruthy()
+    expect(screen.queryByRole('combobox', { name: 'Responsável' })).toBeNull()
+    expect(screen.queryByText(/Feche e abra o card/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByRole('combobox', { name: 'Responsável' })).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.queryByText(/Não deu para carregar tudo o que se escolhe aqui/)).toBeNull(),
+    )
+    expect(dublê.membros).toHaveBeenCalledTimes(2)
+  })
+
+  it('o prazo vem por extenso embaixo do campo, com o destaque da lista: vencido e de hoje', () => {
+    montar(card({ DueDate: '2026-10-15' }))
+    // Por extenso: o campo segue o idioma do navegador, e em ingles mostrava mes/dia.
+    expect(screen.getByText('15 de out. de 2026')).toBeTruthy()
+    cleanup()
+
+    montar(card({ DueDate: dia(-2) }))
+    const vencido = screen.getByText('venceu há 2 dias')
+    expect(vencido.className).toContain('text-chip-red-fg')
+    cleanup()
+
+    montar(card({ DueDate: dia(0) }))
+    expect(screen.getByText('vence hoje').className).toContain('text-chip-yellow-fg')
+    cleanup()
+
+    // Longe, so a data; o card que terminou nao tem prazo a cumprir.
+    montar(card({ DueDate: dia(10) }))
+    expect(screen.queryByText(/vence|venceu/)).toBeNull()
+    cleanup()
+    montar(card({ DueDate: dia(-2), Finished: true }))
+    expect(screen.queryByText(/vence|venceu/)).toBeNull()
+  })
+
+  it('o "perto" segue a regra do projeto', () => {
+    render(
+      <CardFields
+        projectPublicId="p-1"
+        reportPublicId="r-1"
+        card={card({ DueDate: dia(5) })}
+        aoMudar={vi.fn()}
+        soonDays={7}
+      />,
+    )
+    expect(screen.getByText('vence em 5 dias')).toBeTruthy()
+  })
+
+  it('arquivado, as marcas continuam: quem saiu do time e a prioridade desativada', () => {
     montar(
       card({
         ArchivedAt: '2026-10-02T13:00:00.000Z',
@@ -617,7 +838,7 @@ describe('os campos do card', () => {
     )
 
     expect(screen.getByText('Bruno (saiu do time)')).toBeTruthy()
-    expect(screen.getByText('Alta (aposentada)')).toBeTruthy()
+    expect(screen.getByText('Alta (desativada)')).toBeTruthy()
   })
 })
 
@@ -668,13 +889,23 @@ describe('o titulo do relato', () => {
     )
   })
 
-  it('sem titulo nenhum, a tela diz e oferece dar um', () => {
+  it('sem titulo nenhum, a manchete e o comeco do texto de quem relatou, entre aspas, e oferece dar um', () => {
     render(
       <ReportTitle projectPublicId="p-1" reportPublicId="r-1" card={card()} aoMudar={vi.fn()} />,
     )
 
-    expect(screen.getByRole('heading', { name: 'Sem título' })).toBeTruthy()
+    // Antes era "Sem titulo": o olho caia num rotulo vazio, e nao no problema.
+    expect(screen.getByRole('heading', { name: '“O botao de pagar nao responde.”' })).toBeTruthy()
+    expect(screen.queryByText('Sem título')).toBeNull()
     expect(screen.getByRole('button', { name: 'Dar um título' })).toBeTruthy()
+  })
+
+  it('o texto curto e numa linha so ja esta na manchete; cortado, com quebra ou com titulo, vem embaixo', () => {
+    expect(textInHeadline(card())).toBe(true)
+    expect(textInHeadline(card({ Text: 'O botao\nde pagar' }))).toBe(false)
+    expect(textInHeadline(card({ Text: 'palavra '.repeat(40) }))).toBe(false)
+    expect(textInHeadline(card({ ReporterTitle: 'O botão travou' }))).toBe(false)
+    expect(textInHeadline(card({ Title: 'Pagamento recusado' }))).toBe(false)
   })
 })
 

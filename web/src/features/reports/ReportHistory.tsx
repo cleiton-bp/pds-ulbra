@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReportEventType, ReportHistoryEntryViewModel } from '@/contracts'
 import { projectReportService } from '@/data'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -20,6 +20,13 @@ import { formatDateTime, formatDay, formatRelative } from '@/shared/lib/datetime
  * **O texto dos comentarios nao aparece aqui**, e nao e esquecimento: o evento
  * registra que houve comentario, nao o que foi dito. O texto mora na tabela dele,
  * que se consegue apagar — a de eventos, nao.
+ *
+ * **So o que e acao, e o mais novo primeiro.** Num card aberto todo dia, cada abertura
+ * virava uma linha "abriu", e cada movimento vinha com um "nao andou" logo abaixo: o
+ * historico era uma parede, com o que acabou de acontecer no fim. Agora a primeira
+ * abertura fica (e o tempo que o time levou para olhar), as outras se mostram a pedido;
+ * o "nao andou" vai na linha do movimento; e aparecem as dez mais recentes, com
+ * "Mostrar tudo".
  */
 export function ReportHistory({
   projectPublicId,
@@ -31,7 +38,7 @@ export function ReportHistory({
   /** Muda quando algo novo aconteceu, para a linha do tempo buscar de novo. */
   versao: number
 }) {
-  const { data, loading, failed, revalidate } = useAsyncResource(
+  const { data, loading, failed, reload, revalidate } = useAsyncResource(
     useCallback(
       () => projectReportService.listReportHistory(projectPublicId, reportPublicId),
       [projectPublicId, reportPublicId],
@@ -48,9 +55,20 @@ export function ReportHistory({
     revalidate()
   }, [versao, revalidate])
 
+  const [comAberturas, setComAberturas] = useState(false)
+  const [tudo, setTudo] = useState(false)
+  const linhas = useMemo(() => (data ? arrumar(data, comAberturas) : null), [data, comAberturas])
+  const aberturas = data ? data.filter((entrada) => entrada.Type === 'ReportViewed').length : 0
+  const vistas = linhas ? (tudo ? linhas : linhas.slice(0, MAIS_RECENTES)) : null
+
   return (
     <section className="border-border border-t pt-4">
-      <h3 className="mb-2.5 font-medium text-detail text-fg">O que já aconteceu</h3>
+      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h3 className="font-medium text-detail text-fg">O que já aconteceu</h3>
+        {linhas && linhas.length > 1 && (
+          <span className="text-caption text-fg-muted">Do mais recente para o mais antigo</span>
+        )}
+      </div>
 
       {loading && (
         <div className="flex flex-col gap-2">
@@ -61,18 +79,25 @@ export function ReportHistory({
 
       {failed && (
         <p className="text-caption text-fg-muted leading-normal">
-          O histórico não carregou. O relato acima está completo.
+          O histórico não carregou. O relato acima está completo.{' '}
+          <button
+            type="button"
+            onClick={reload}
+            className="underline underline-offset-2 hover:text-fg"
+          >
+            Tentar de novo
+          </button>
         </p>
       )}
 
-      {data && data.length > 0 && (
+      {vistas && vistas.length > 0 && (
         <ol className="flex flex-col gap-2">
-          {data.map((entrada) => (
+          {vistas.map(({ entrada, frase }) => (
             <li
               key={entrada.PublicId}
               className="flex flex-wrap items-baseline gap-x-2 text-detail"
             >
-              <span className="text-fg">{descrever(entrada)}</span>
+              <span className="text-fg">{frase}</span>
               {entrada.AuthorName && (
                 <span className="text-caption text-fg-muted">por {entrada.AuthorName}</span>
               )}
@@ -87,8 +112,84 @@ export function ReportHistory({
           ))}
         </ol>
       )}
+
+      {linhas && (linhas.length > MAIS_RECENTES || aberturas > 1) && (
+        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
+          {linhas.length > MAIS_RECENTES && (
+            <button
+              type="button"
+              onClick={() => setTudo((antes) => !antes)}
+              className="text-caption text-fg-muted underline underline-offset-2 hover:text-fg"
+            >
+              {tudo ? 'Mostrar só as mais recentes' : `Mostrar tudo (${linhas.length})`}
+            </button>
+          )}
+          {aberturas > 1 && (
+            <button
+              type="button"
+              onClick={() => setComAberturas((antes) => !antes)}
+              className="text-caption text-fg-muted underline underline-offset-2 hover:text-fg"
+            >
+              {comAberturas ? 'Esconder aberturas' : `Mostrar aberturas (${aberturas - 1})`}
+            </button>
+          )}
+        </div>
+      )}
     </section>
   )
+}
+
+/** Quantas linhas o historico mostra antes do "Mostrar tudo". */
+const MAIS_RECENTES = 10
+
+/** O "nao andou" de um movimento chega junto dele; mais longe que isto, e outro fato. */
+const MESMO_MOVIMENTO_MS = 10_000
+
+interface Linha {
+  entrada: ReportHistoryEntryViewModel
+  frase: string
+}
+
+/**
+ * As linhas que a tela mostra, da mais nova para a mais antiga.
+ *
+ * - **A primeira abertura fica**, como "Aberto pela primeira vez pelo time": e o fato
+ *   que conta (o tempo que o time levou para olhar). As outras so com `comAberturas`.
+ * - **O "nao andou" entra na linha do movimento** que o causou: "Movido de A para B ·
+ *   quem relatou continua vendo a mesma etapa". Sozinho (sem movimento perto), fica
+ *   como linha propria.
+ */
+function arrumar(entradas: ReportHistoryEntryViewModel[], comAberturas: boolean): Linha[] {
+  const linhas: Linha[] = []
+  let jaAbriu = false
+
+  for (const entrada of entradas) {
+    if (entrada.Type === 'ReportViewed') {
+      if (!jaAbriu) {
+        jaAbriu = true
+        linhas.push({ entrada, frase: 'Aberto pela primeira vez pelo time' })
+      } else if (comAberturas) linhas.push({ entrada, frase: 'Aberto de novo' })
+      continue
+    }
+
+    if (entrada.Type === 'ReportPublicStageUnmapped') {
+      const movimento = [...linhas]
+        .reverse()
+        .find((linha) => linha.entrada.Type === 'ReportStateChanged')
+      const perto =
+        movimento &&
+        Math.abs(Date.parse(entrada.OccurredAt) - Date.parse(movimento.entrada.OccurredAt)) <=
+          MESMO_MOVIMENTO_MS
+      if (movimento && perto && !movimento.frase.includes(' · ')) {
+        movimento.frase = `${movimento.frase} · quem relatou continua vendo a mesma etapa`
+        continue
+      }
+    }
+
+    linhas.push({ entrada, frase: descrever(entrada) })
+  }
+
+  return linhas.reverse()
 }
 
 const DESCRICOES: Record<ReportEventType, string> = {
@@ -103,7 +204,7 @@ const DESCRICOES: Record<ReportEventType, string> = {
   // aqui porque o historico nao o carrega: ele vive na carga do evento, e traze-lo
   // exigiria alargar a resposta para todas as linhas por causa de duas.
   ReportPublicStageChanged: 'Andou para quem relatou',
-  ReportPublicStageUnmapped: 'Não andou: coluna fora da jornada',
+  ReportPublicStageUnmapped: 'Quem relatou continua vendo a mesma etapa',
 
   // **Sem o desfecho e sem o motivo.** O evento carrega o desfecho na carga, e o
   // historico nao a traz — alargar a resposta de todas as linhas por causa de uma
