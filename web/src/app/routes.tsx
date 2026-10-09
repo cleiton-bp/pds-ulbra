@@ -4,7 +4,9 @@ import { InviteScreen } from '@/app/InviteScreen'
 import { ProjectShell } from '@/app/ProjectShell'
 import { ProjectHome, RequireProjectAdministrator } from '@/app/projectAccessRoutes'
 import { RequireSession } from '@/app/RequireSession'
+import { RouteErrorScreen } from '@/app/RouteErrorScreen'
 import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
+import { SprintSettingsScreen } from '@/features/cycle/SprintSettingsScreen'
 import { IdentityScreen } from '@/features/identity/IdentityScreen'
 import { LabelsScreen } from '@/features/labels/LabelsScreen'
 import { MediaScreen } from '@/features/media/MediaScreen'
@@ -28,12 +30,16 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  *   /projects .......................... hub, casca so com barra de cima
  *   /invite#t=... ...................... o convite do e-mail, na mesma casca
  *   /profile ........................... o perfil da pessoa e o som dos avisos, na mesma casca
- *   /projects/:publicId/{start,keys,tool,states,priorities,labels,public-stages,settings} .. console
+ *   /projects/:publicId/{start,keys,tool,states,priorities,labels,sprints,public-stages,cycle,identity,media,settings} .. console
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
- * `/projects/:publicId` sozinho decide a porta pelo papel: quem configura cai na
- * Instalacao, quem e so membro cai nos Relatos. As secoes de Configuracao ficam
- * atras de `RequireProjectAdministrator`, que manda o membro para os Relatos.
+ * `/projects/:publicId` sozinho decide a porta (`ProjectHome`): o Trabalho, e a
+ * Instalacao so para quem administra um projeto que ainda nao recebeu relato. As
+ * secoes de configuracao ficam atras de `RequireProjectAdministrator`, que manda o
+ * membro para o Trabalho.
+ *
+ * **Toda rota tem tela de erro** (`RouteErrorScreen`, na raiz): sem ela, uma tela
+ * que quebrava mostrava o rastro da pilha em ingles, sem botao nenhum.
  *
  * `createBrowserRouter` e nao o modo simples porque dele vem o `useBlocker`, que
  * avisa antes de sair da tela com a chave secreta na frente.
@@ -57,11 +63,15 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
 const naoEncontrada = {
   path: '*',
   lazy: async () => ({ Component: (await import('@/app/NotFoundScreen')).NotFoundScreen }),
+  // A tela vem sob demanda: depois de uma publicacao nova, o pedaco antigo pode nao
+  // existir mais, e a falha ao busca-lo tambem precisa de saida.
+  errorElement: <RouteErrorScreen />,
 }
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <RequireSession />,
+    errorElement: <RouteErrorScreen />,
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
       {
@@ -89,6 +99,7 @@ export const router = createBrowserRouter([
               { path: 'states', element: <ProjectStatesScreen /> },
               { path: 'priorities', element: <PrioritiesScreen /> },
               { path: 'labels', element: <LabelsScreen /> },
+              { path: 'sprints', element: <SprintSettingsScreen /> },
               { path: 'public-stages', element: <PublicStagesScreen /> },
               { path: 'cycle', element: <CycleSettingsScreen /> },
               { path: 'identity', element: <IdentityScreen /> },

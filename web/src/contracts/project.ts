@@ -1,6 +1,6 @@
 /** Espelho de `Pds.Domain/ViewModels/ProjectViewModels.cs`. */
 
-import type { ProjectKeyViewModel, RevealedSecretKeyViewModel } from '@/contracts/projectKey'
+import type { ProjectKeyViewModel } from '@/contracts/projectKey'
 
 /** `Archived` nao apaga nada: continua visivel, so para de aceitar coisa nova. */
 export type ProjectStatus = 'Active' | 'Archived'
@@ -30,13 +30,23 @@ export interface ProjectViewModel {
   Role: ProjectRole
   /** A pessoa da sessao e dona da conta deste projeto. */
   IsAccountOwner: boolean
+  /**
+   * Quando chegou o ultimo relato de fora, pela ferramenta. Nulo enquanto o site nao
+   * mandou nenhum — e o que decide a porta do projeto para quem administra. O card do
+   * time nao conta.
+   */
+  LastReportReceivedAt: string | null
+  /** Ultima mudanca em qualquer card do projeto. Nulo sem card nenhum. */
+  LastActivityAt: string | null
 }
 
-/** Unica resposta que carrega o valor da chave secreta — ela so existe aqui. */
+/**
+ * O projeto recem-criado, com a chave publica. **A secreta nao vem**: nasce sob
+ * pedido, na tela de chaves.
+ */
 export interface ProjectCreatedViewModel {
   Project: ProjectViewModel
   PublicKey: ProjectKeyViewModel
-  SecretKey: RevealedSecretKeyViewModel
 }
 
 /** Limite da coluna `name`. Fato do contrato, nao das telas. */

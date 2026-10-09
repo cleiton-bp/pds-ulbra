@@ -28,6 +28,8 @@ function projeto(
     Account: { PublicId: conta.id, Name: conta.nome },
     Role: role,
     IsAccountOwner: dono,
+    LastReportReceivedAt: null,
+    LastActivityAt: null,
   }
 }
 
