@@ -5,7 +5,7 @@ import type {
   SensitiveDataKind,
   SensitiveFindingViewModel,
 } from '@/contracts'
-import { describeError, projectReportService } from '@/data'
+import { describeError, projectIdentitySettingsService, projectReportService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
@@ -13,6 +13,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
+import { canConfigure } from '@/shared/lib/projectAccess'
 import { reporterTypeLabel } from '@/shared/lib/reportTypes'
 
 /**
@@ -29,13 +30,24 @@ import { reporterTypeLabel } from '@/shared/lib/reportTypes'
  * primeiras palavras.
  *
  * **Liberar não publica sozinho.** São duas condições, e nenhuma basta: o projeto
- * num nível público, e o relato liberado aqui. A tela diz isso quando o projeto é
- * privado, porque senão o botão prometeria o que não entrega.
+ * num nível público, e o relato liberado aqui. A tela diz isso no topo quando o
+ * projeto é privado, e a aba deixa de contar: com o número, a fila parecia uma
+ * tarefa que nunca acaba, e o time ia "limpá-la" por obrigação — ou desconfiar dela.
  */
 export function ModerationScreen() {
   const project = useCurrentProject()
   const [aba, setAba] = useState<ReportModerationState>('Pending')
   const [decidindo, setDecidindo] = useState<string | null>(null)
+
+  // Privado ou público vem de Quem relata. Falhando a leitura, a tela fica como era:
+  // sem a faixa, e com a contagem.
+  const { data: identidade } = useAsyncResource(
+    useCallback(
+      () => projectIdentitySettingsService.getIdentitySettings(project.PublicId),
+      [project.PublicId],
+    ),
+  )
+  const privado = identidade?.Visibility === 'Private'
 
   const {
     data: fila,
@@ -73,9 +85,17 @@ export function ModerationScreen() {
     <div className="max-w-190">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Moderação</h1>
       <p className="mb-6 text-body text-fg-muted leading-relaxed">
-        O que ainda não foi lido por ninguém do time. Nada aparece para o público antes de passar
-        por aqui — nem quando o projeto é público.
+        Relatos esperando a decisão de publicar. Nada aparece para o público sem passar por aqui.
       </p>
+
+      {privado && (
+        <p className="mb-5 rounded-lg border border-border bg-surface-raised px-3.5 py-2.5 text-detail text-fg-muted leading-relaxed">
+          <strong className="font-medium text-fg">Este projeto é privado:</strong> nada daqui
+          aparece para o público.
+          {canConfigure(project) &&
+            ' A fila só importa se você abrir os relatos ao público em Quem relata.'}
+        </p>
+      )}
 
       <div className="mb-5 flex items-center gap-2">
         {(['Pending', 'Approved', 'Rejected'] as const).map((estado) => (
@@ -91,7 +111,7 @@ export function ModerationScreen() {
             )}
           >
             {ABAS[estado]}
-            {estado === 'Pending' && fila !== null && fila.PendingTotal > 0 && (
+            {estado === 'Pending' && !privado && fila !== null && fila.PendingTotal > 0 && (
               <span className="ml-1.5 font-medium text-fg">{fila.PendingTotal}</span>
             )}
           </button>
@@ -302,7 +322,8 @@ const ABAS: Record<ReportModerationState, string> = {
  * comemoração: num projeto privado ela fica vazia porque ninguém precisou olhar.
  */
 const VAZIO: Record<ReportModerationState, string> = {
-  Pending: 'Nada esperando leitura. Todo relato que chegar aparece aqui antes de ir a público.',
+  Pending:
+    'Nada esperando a decisão de publicar. Todo relato que chegar aparece aqui antes de ir a público.',
   Approved:
     'Nenhum relato liberado ainda. Liberar só faz o relato aparecer se o projeto estiver num nível público.',
   Rejected: 'Nenhum relato foi marcado como não publicável.',

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type ReportSummaryViewModel, WITHOUT_STATE_FILTER } from '@/contracts'
-import type { ReportFilters } from '@/data'
+import type { ReportFilters, ReportListOptions } from '@/data'
 import { projectReportService } from '@/data'
 
 interface InboxState {
@@ -10,9 +10,23 @@ interface InboxState {
   total: number
   failed: boolean
   loadingMore: boolean
+  /**
+   * Relendo com outro filtro ou outra ordem, com a lista de antes ainda na tela: a
+   * tela a esmaece e diz "Buscando…" — sem isso, a lista velha parecia o resultado.
+   */
+  refreshing: boolean
 }
 
-const EMPTY: InboxState = { reports: null, total: 0, failed: false, loadingMore: false }
+const EMPTY: InboxState = {
+  reports: null,
+  total: 0,
+  failed: false,
+  loadingMore: false,
+  refreshing: false,
+}
+
+/** O que so a lista pede: as colunas marcadas, a sprint e a ordem escolhida. */
+export type InboxListOptions = Pick<ReportListOptions, 'columns' | 'sprint' | 'sort'>
 
 /**
  * A lista de relatos que cresce por partes, dentro de um recorte.
@@ -35,18 +49,33 @@ export function useReportInbox(
    */
   filters?: ReportFilters,
   filtersKey = '',
+  /**
+   * As colunas, a sprint e a ordem da lista. Entram na leitura pela referencia: a
+   * `filtersKey` de quem chama ja muda quando elas mudam.
+   */
+  listOptions?: InboxListOptions,
 ) {
   const [state, setState] = useState<InboxState>(EMPTY)
   const filtros = useRef(filters)
   filtros.current = filters
+  const extras = useRef(listOptions)
+  extras.current = listOptions
+  /** O estado de agora, para quem le tudo de uma vez somar ao que ja esta na tela. */
+  const agora = useRef(state)
+  agora.current = state
   /** A leitura com os filtros de agora — e sem o argumento, quando nao ha nenhum. */
   const ler = useCallback(
     (pagina: number) => {
       const atuais = filtros.current
-      return filtersKey && atuais
-        ? projectReportService.listReports(publicId, pagina, stateFilter, archived, {
-            filters: atuais,
-          })
+      const mais = extras.current
+      const opcoes: ReportListOptions = {
+        ...(filtersKey && atuais ? { filters: atuais } : {}),
+        ...(mais?.columns?.length ? { columns: mais.columns } : {}),
+        ...(mais?.sprint ? { sprint: mais.sprint } : {}),
+        ...(mais?.sort ? { sort: mais.sort } : {}),
+      }
+      return Object.keys(opcoes).length > 0
+        ? projectReportService.listReports(publicId, pagina, stateFilter, archived, opcoes)
         : projectReportService.listReports(publicId, pagina, stateFilter, archived)
     },
     [publicId, stateFilter, archived, filtersKey],
@@ -78,13 +107,20 @@ export function useReportInbox(
     const soOFiltro = recorteLido.current === recorte
     recorteLido.current = recorte
     if (!soOFiltro) setState(EMPTY)
+    else setState((current) => ({ ...current, refreshing: current.reports !== null }))
 
     try {
       const page = await ler(1)
       if (minha !== generation.current) return
 
       nextPage.current = 2
-      setState({ reports: page.reports, total: page.total, failed: false, loadingMore: false })
+      setState({
+        reports: page.reports,
+        total: page.total,
+        failed: false,
+        loadingMore: false,
+        refreshing: false,
+      })
     } catch {
       // A mensagem e da tela: este arquivo nao sabe o que ela vai dizer.
       if (minha !== generation.current) return
@@ -108,6 +144,7 @@ export function useReportInbox(
       mexidas.current += 1
 
       setState((current) => ({
+        ...current,
         reports: merge(current.reports ?? [], page.reports),
         // O total vem da resposta mais recente: relato novo entrando enquanto se
         // le muda o numero, e manter o antigo faria o botao sumir cedo demais.
@@ -171,14 +208,60 @@ export function useReportInbox(
     }
   }, [ler])
 
-  /** Se o card pertence a esta lista: a coluna do recorte, e o lado do arquivo. */
+  /**
+   * Le todas as paginas que faltam, e devolve a lista inteira — o "Selecionar os N que
+   * passam nos filtros" do lote. Nulo quando a lista mudou de recorte no meio do caminho.
+   */
+  const loadAll = useCallback(async (): Promise<ReportSummaryViewModel[] | null> => {
+    const minha = generation.current
+    setState((current) => ({ ...current, loadingMore: true }))
+    let novos: ReportSummaryViewModel[] = []
+    let total = agora.current.total
+    let ja = agora.current.reports?.length ?? 0
+
+    try {
+      while (ja + novos.length < total) {
+        const page = await ler(nextPage.current)
+        if (minha !== generation.current) return null
+        nextPage.current += 1
+        mexidas.current += 1
+        novos = merge(novos, page.reports)
+        total = page.total
+        if (page.reports.length === 0) break
+        ja = agora.current.reports?.length ?? 0
+      }
+    } catch (error) {
+      if (minha === generation.current) setState((current) => ({ ...current, loadingMore: false }))
+      throw error
+    }
+
+    const inteira = merge(agora.current.reports ?? [], novos)
+    setState((current) => ({
+      ...current,
+      reports: inteira,
+      total,
+      failed: false,
+      loadingMore: false,
+    }))
+    return inteira
+  }, [ler])
+
+  /**
+   * Se o card pertence a esta lista: a coluna do recorte — ou uma das colunas
+   * marcadas —, e o lado do arquivo.
+   */
   const fits = useCallback(
-    (report: ReportSummaryViewModel) =>
-      (report.ArchivedAt !== null) === archived &&
-      (!stateFilter ||
-        (stateFilter === WITHOUT_STATE_FILTER
-          ? report.StatePublicId === null
-          : report.StatePublicId === stateFilter)),
+    (report: ReportSummaryViewModel) => {
+      const colunas = extras.current?.columns ?? []
+      return (
+        (report.ArchivedAt !== null) === archived &&
+        (!stateFilter ||
+          (stateFilter === WITHOUT_STATE_FILTER
+            ? report.StatePublicId === null
+            : report.StatePublicId === stateFilter)) &&
+        (colunas.length === 0 || colunas.includes(report.StatePublicId ?? WITHOUT_STATE_FILTER))
+      )
+    },
     [stateFilter, archived],
   )
 
@@ -239,11 +322,13 @@ export function useReportInbox(
     loading: state.reports === null && !state.failed,
     failed: state.failed,
     loadingMore: state.loadingMore,
+    refreshing: state.refreshing,
     /** Ha mais para carregar do que ja esta na tela. */
     hasMore: state.reports !== null && state.reports.length < state.total,
     reload: () => void load(),
     refresh,
     loadMore,
+    loadAll,
     apply,
     prepend,
   }

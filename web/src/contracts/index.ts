@@ -142,6 +142,7 @@ export type {
   CreatedReportViewModel,
   CreateReportRequest,
   CreateTeamCardRequest,
+  EditCommentRequest,
   EditTeamCardRequest,
   InternalCommentViewModel,
   ModerateReportRequest,

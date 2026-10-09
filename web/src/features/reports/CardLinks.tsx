@@ -8,6 +8,7 @@ import {
   type ReportSummaryViewModel,
 } from '@/contracts'
 import { describeError, NO_REPORT_FILTERS, projectReportService } from '@/data'
+import { useCardDraft, useGuardedCardLink } from '@/features/reports/cardDrafts'
 import { cardHeadline, StatusLozenge, statusTone } from '@/features/reports/cardLook'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
@@ -33,13 +34,18 @@ const ESCOLHAS: Record<CardLinkRelation, string> = {
   DuplicateOf: 'é duplicado de',
   DuplicatedBy: 'tem como duplicado',
 }
+// "Relacionado a" primeiro: e o que nao tem consequencia. Comecar em "bloqueado por"
+// criava um bloqueio para quem buscava primeiro e clicava sem olhar o tipo.
 const ORDEM_DAS_ESCOLHAS: CardLinkRelation[] = [
+  'RelatesTo',
   'BlockedBy',
   'Blocks',
-  'RelatesTo',
   'DuplicateOf',
   'DuplicatedBy',
 ]
+
+/** Os dois tipos que levam um card para o arquivo — e por isso pedem confirmacao. */
+const DUPLICADO: ReadonlySet<CardLinkRelation> = new Set(['DuplicateOf', 'DuplicatedBy'])
 
 /** O que marcar como duplicado faz, dito antes de escolher o card. */
 const AVISO_DO_DUPLICADO: Partial<Record<CardLinkRelation, string>> = {
@@ -122,6 +128,9 @@ export function CardLinks({
     }
   }
 
+  // Com texto por salvar no card, ir ao card vinculado pergunta antes.
+  const guardar = useGuardedCardLink()
+
   const grupos = CARD_LINK_RELATIONS.map((tipo) => ({
     tipo,
     itens: (vinculos ?? []).filter((vinculo) => vinculo.Type === tipo),
@@ -155,6 +164,7 @@ export function CardLinks({
                 </span>
                 <Link
                   to={`../${vinculo.Card.PublicId}`}
+                  onClick={(evento) => guardar(evento, `../${vinculo.Card.PublicId}`)}
                   className={cn(
                     'min-w-0 flex-1 truncate text-detail underline-offset-2 hover:underline',
                     vinculo.Card.Finished ? 'text-fg-muted line-through' : 'text-fg',
@@ -223,6 +233,14 @@ export function CardLinks({
 /**
  * O "Vincular": o tipo, e o card pela busca — numero, titulo ou texto, a mesma busca
  * da tela de Trabalho. O card aberto e os ja vinculados ficam de fora.
+ *
+ * **O duplicado confirma antes.** E a unica escolha daqui com consequencia fora do
+ * time — o card vai para o arquivo, e quem relatou passa a acompanhar outro —, e ela
+ * tinha o mesmo peso de "relacionado a": um clique, ou o Enter com um resultado so.
+ * Agora escolher o card mostra a frase do que vai acontecer, com "Marcar como
+ * duplicado" e "Voltar"; o Enter de resultado unico nao vale para esses dois tipos.
+ *
+ * O Esc sai do formulario (ou da confirmacao, de volta a busca), e o card fica.
  */
 function LinkForm({
   projectPublicId,
@@ -236,11 +254,14 @@ function LinkForm({
   aoVincular: (lista: CardLinkViewModel[]) => void
 }) {
   const [aberto, setAberto] = useState(false)
-  const [tipo, setTipo] = useState<CardLinkRelation>('BlockedBy')
+  const [tipo, setTipo] = useState<CardLinkRelation>('RelatesTo')
   const [termo, setTermo] = useState('')
   const [achados, setAchados] = useState<ReportSummaryViewModel[] | null>(null)
   const [vinculando, setVinculando] = useState(false)
+  // O card escolhido para duplicado, enquanto a confirmacao esta na tela.
+  const [confirmando, setConfirmando] = useState<ReportSummaryViewModel | null>(null)
   const campo = useId()
+  const formulario = useRef<HTMLFormElement>(null)
 
   // A busca espera a pessoa parar de digitar, como a da tela de Trabalho.
   useEffect(() => {
@@ -284,7 +305,43 @@ function LinkForm({
   }, [aberto, idDoBotao])
   const fechar = () => {
     devolverFoco.current = true
+    setConfirmando(null)
     setAberto(false)
+  }
+
+  useCardDraft(
+    {
+      sujo: false,
+      cancelar: !aberto
+        ? undefined
+        : confirmando
+          ? () => setConfirmando(null)
+          : () => {
+              fechar()
+              setTermo('')
+            },
+    },
+    formulario,
+  )
+
+  // A confirmacao troca a lista pela frase: o foco vai para o botao dela, e volta ao
+  // campo da busca no "Voltar".
+  const idDaConfirmacao = useId()
+  const confirmouAntes = useRef(false)
+  useEffect(() => {
+    if (confirmando) {
+      confirmouAntes.current = true
+      document.getElementById(idDaConfirmacao)?.focus()
+    } else if (confirmouAntes.current) {
+      confirmouAntes.current = false
+      document.getElementById(campo)?.focus()
+    }
+  }, [confirmando, idDaConfirmacao, campo])
+
+  /** Escolher o card: o duplicado confirma antes; os outros vinculam na hora. */
+  function escolher(alvo: ReportSummaryViewModel) {
+    if (DUPLICADO.has(tipo)) setConfirmando(alvo)
+    else void vincular(alvo)
   }
 
   async function vincular(alvo: ReportSummaryViewModel) {
@@ -316,13 +373,56 @@ function LinkForm({
 
   const aviso = AVISO_DO_DUPLICADO[tipo]
 
+  if (confirmando) {
+    // Quem vai para o arquivo e quem fica: o duplicado de "e duplicado de" e este card;
+    // o de "tem como duplicado", o escolhido.
+    const duplicado = tipo === 'DuplicateOf' ? card : confirmando
+    const original = tipo === 'DuplicateOf' ? confirmando : card
+    return (
+      <form
+        ref={formulario}
+        onSubmit={(evento: FormEvent) => {
+          evento.preventDefault()
+          void vincular(confirmando)
+        }}
+        className="flex flex-col gap-2.5 rounded-lg border border-warn-border bg-warn-surface p-2.5"
+      >
+        <p className="text-detail text-warn-fg leading-normal">
+          #{duplicado.Number} vai para o arquivo como duplicado de #{original.Number}.
+          {duplicado.Kind !== 'Team' &&
+            ` Quem relatou passa a acompanhar o #${original.Number} e recebe o desfecho dele.`}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            id={idDaConfirmacao}
+            size="sm"
+            variant="primary"
+            type="submit"
+            disabled={vinculando}
+          >
+            {vinculando ? 'Marcando…' : 'Marcar como duplicado'}
+          </Button>
+          <Button
+            size="sm"
+            variant="quiet"
+            disabled={vinculando}
+            onClick={() => setConfirmando(null)}
+          >
+            Voltar
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
   return (
     <form
+      ref={formulario}
       onSubmit={(evento: FormEvent) => {
         evento.preventDefault()
-        // Enter com um card so na lista vincula ele.
+        // Enter com um card so na lista vincula ele — menos o duplicado, que confirma.
         const unico = opcoes.length === 1 ? opcoes[0] : undefined
-        if (unico) void vincular(unico)
+        if (unico && !DUPLICADO.has(tipo)) void vincular(unico)
       }}
       className="flex flex-col gap-2 rounded-lg border border-border p-2.5"
     >
@@ -358,7 +458,7 @@ function LinkForm({
             <li key={achado.PublicId}>
               <button
                 type="button"
-                onClick={() => void vincular(achado)}
+                onClick={() => escolher(achado)}
                 disabled={vinculando}
                 className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-surface-sunken disabled:opacity-60"
               >

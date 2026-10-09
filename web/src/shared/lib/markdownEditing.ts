@@ -126,6 +126,12 @@ function link(state: EditorState): EditorState {
 /**
  * Lista: marca cada linha tocada pela selecao — inteira, mesmo que a selecao comece
  * no meio dela. Se todas ja estao marcadas, tira.
+ *
+ * **Numa linha so, o cursor vai para o fim dela, sem selecionar nada.** Com o bloco
+ * selecionado, a primeira tecla trocava o marcador (ou a linha inteira) pelo que se
+ * digitava: o "- " sumia, e a lista comecada pelo botao virava texto corrido. So a
+ * selecao de varias linhas continua cobrindo o bloco — ai e ela que a pessoa vai
+ * mexer de novo.
  */
 function togglePrefix(
   state: EditorState,
@@ -143,10 +149,11 @@ function togglePrefix(
     ? lines.map((line) => line.replace(existing, ''))
     : lines.map((line, index) => prefixFor(index) + line.replace(existing, ''))
   const block = changed.join('\n')
+  const fim = lineStart + block.length
 
   return {
     value: value.slice(0, lineStart) + block + value.slice(lineEnd),
-    selectionStart: lineStart,
-    selectionEnd: lineStart + block.length,
+    selectionStart: lines.length > 1 ? lineStart : fim,
+    selectionEnd: fim,
   }
 }

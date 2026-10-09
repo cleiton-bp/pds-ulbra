@@ -131,7 +131,9 @@
      27 pontos de luminosidade, caindo entre o repouso e o desabilitado. */
   --accent-hover: var(--slate-12-hover);
   --nav-active: var(--slate-4);
-  --focus: var(--slate-8);
+  /* O degrau 10, e nao o 8: o indicador de foco pede 3:1 sobre a superficie (WCAG
+     2.2), e o 8 ficava perto de 1,9:1 — quem usa o teclado perdia onde estava. */
+  --focus: var(--slate-10);
 
   /* estado: ativo, feito, funcionando */
   --active: var(--grass-9);
@@ -268,7 +270,7 @@
   --accent-hover: var(--slate-12-hover);
   --warn-surface-hover: var(--amber-5);
   --nav-active: var(--slate-5);
-  --focus: var(--slate-8);
+  --focus: var(--slate-10);
 
   /* O unico que nao muda: "funcionando" precisa ser reconhecivel nos dois temas. */
   --active: var(--grass-9);

@@ -20,6 +20,9 @@ const MAX_OPTIONS = 6
  * comeco do nome, de qualquer parte do nome ou do e-mail). Setas escolhem, Enter ou Tab
  * mencionam, Esc fecha so a lista — o card aberto continua aberto. O time e lido no
  * primeiro "@", uma vez.
+ *
+ * **Ctrl+Enter (⌘+Enter no Mac) envia**, com `onSubmit`: quem escreve nao precisa ir ao
+ * botao.
  */
 export function MentionTextarea({
   projectPublicId,
@@ -30,6 +33,9 @@ export function MentionTextarea({
   disabled,
   maxLength,
   className,
+  onSubmit,
+  autoFocus = false,
+  describedBy,
 }: {
   projectPublicId: string
   value: string
@@ -40,6 +46,12 @@ export function MentionTextarea({
   disabled?: boolean
   maxLength?: number
   className?: string
+  /** Ctrl+Enter (⌘+Enter no Mac): envia sem ir ao botao. */
+  onSubmit?: () => void
+  /** O foco entra no campo ao abrir, com o cursor no fim — a correcao de um comentario. */
+  autoFocus?: boolean
+  /** A dica embaixo do campo, lida junto com ele. */
+  describedBy?: string
 }) {
   const campo = useRef<HTMLTextAreaElement>(null)
   const listaId = useId()
@@ -96,6 +108,14 @@ export function MentionTextarea({
     return () => window.removeEventListener('keydown', aoTeclar, true)
   }, [aberta])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: so ao abrir o campo.
+  useLayoutEffect(() => {
+    const caixa = campo.current
+    if (!autoFocus || !caixa) return
+    caixa.focus()
+    caixa.setSelectionRange(caixa.value.length, caixa.value.length)
+  }, [])
+
   // O cursor depois da mencao, posto **assim que o texto novo chega a caixa** — antes de
   // a proxima tecla ser lida. Num quadro depois (como era), o que se digitava no
   // intervalo ia para o fim, e o cursor voltava para tras dele: "@Ana gada.? Obri".
@@ -124,6 +144,7 @@ export function MentionTextarea({
       <textarea
         ref={campo}
         aria-label={ariaLabel}
+        aria-describedby={describedBy}
         aria-autocomplete="list"
         aria-controls={aberta ? listaId : undefined}
         aria-activedescendant={aberta ? `${listaId}-${ativo}` : undefined}
@@ -138,6 +159,12 @@ export function MentionTextarea({
             olhar(evento.currentTarget.value, evento.currentTarget.selectionStart)
         }}
         onKeyDown={(evento) => {
+          if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey) && onSubmit) {
+            evento.preventDefault()
+            setConsulta(null)
+            onSubmit()
+            return
+          }
           if (!aberta) return
           if (evento.key === 'ArrowDown') {
             evento.preventDefault()

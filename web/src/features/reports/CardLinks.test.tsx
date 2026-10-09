@@ -12,6 +12,9 @@ import { CardLinks } from '@/features/reports/CardLinks'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { BlockedMark } from '@/features/reports/cardLook'
 import { ReportHistory } from '@/features/reports/ReportHistory'
+import { Toaster } from '@/shared/components/Toaster'
+import { useToastStore } from '@/shared/components/toastStore'
+import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
  * O QUE ESTES TESTES TRAVAM: os vinculos do card aberto, e onde eles aparecem.
@@ -20,7 +23,12 @@ import { ReportHistory } from '@/features/reports/ReportHistory'
  * - **Desfazer manda o vinculo**, e quem abriu o card rele ele — o duplicado pode ter
  *   voltado do arquivo.
  * - **Vincular procura o card pela busca**, sem o proprio card nem os ja vinculados, e
- *   manda o tipo escolhido.
+ *   manda o tipo escolhido. O tipo comeca em "esta relacionado a", que nao tem
+ *   consequencia.
+ * - **O duplicado confirma antes**: escolher o card troca a lista pela frase do que vai
+ *   acontecer — quem vai para o arquivo, e quem relatou passando a acompanhar o outro —,
+ *   com "Marcar como duplicado" e "Voltar". O Enter de resultado unico vincula na hora
+ *   os outros tipos, e nunca o duplicado.
  * - **No card arquivado, so se le e se desfaz** — e o caminho de volta do duplicado.
  * - **O bloqueado diz por quem**, com a palavra para quem nao ve a cor.
  * - **O encerramento do original avisa quantas pessoas a mais vao ler o motivo.**
@@ -74,6 +82,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    ClosureConfirmed: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -83,6 +92,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     DuplicateReporters: 0,
     Sprint: null,
     StoryPoints: null,
+    UpdatedAt: '2026-10-03T12:00:00.000Z',
     ...extra,
   }
 }
@@ -111,17 +121,31 @@ function vinculo(
   }
 }
 
+instalarRemendosDoRadix()
+
 function montar(aberto: ReportSummaryViewModel, aoMudar = vi.fn()) {
   render(
     <MemoryRouter>
       <CardLinks projectPublicId="p-1" card={aberto} colunas={null} versao={0} aoMudar={aoMudar} />
+      <Toaster />
     </MemoryRouter>,
   )
   return aoMudar
 }
 
+/** Abre o "Vincular", escolhe o tipo e procura: devolve a lista do que achou. */
+async function procurar(tipo: string | null, busca: string) {
+  fireEvent.click(await screen.findByRole('button', { name: '+ Vincular' }))
+  if (tipo) await escolherNoSelect(screen, fireEvent, 'O card #10', tipo)
+  fireEvent.change(screen.getByLabelText('Card'), { target: { value: busca } })
+  return screen.findByRole('list', { name: 'Cards encontrados' })
+}
+
 describe('os vinculos do card aberto', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    useToastStore.setState({ toasts: [], hosts: [] })
+  })
   beforeEach(() => {
     for (const dublé of Object.values(dublê)) dublé.mockReset()
   })
@@ -179,6 +203,11 @@ describe('os vinculos do card aberto', () => {
     const aoMudar = montar(card())
 
     fireEvent.click(await screen.findByRole('button', { name: '+ Vincular' }))
+    // O tipo comeca em "esta relacionado a", que nao tem consequencia: o bloqueio se escolhe.
+    expect(screen.getByRole('combobox', { name: 'O card #10' }).textContent).toContain(
+      'está relacionado a',
+    )
+    await escolherNoSelect(screen, fireEvent, 'O card #10', 'é bloqueado por')
     fireEvent.change(screen.getByLabelText('Card'), { target: { value: 'safari' } })
 
     const achados = await screen.findByRole('list', { name: 'Cards encontrados' })
@@ -206,6 +235,125 @@ describe('os vinculos do card aberto', () => {
     )
     await waitFor(() => expect(aoMudar).toHaveBeenCalled())
     expect(await screen.findByText('Bloqueado por')).toBeTruthy()
+  })
+})
+
+describe('marcar como duplicado confirma antes', () => {
+  afterEach(() => {
+    cleanup()
+    useToastStore.setState({ toasts: [], hosts: [] })
+  })
+  beforeEach(() => {
+    for (const dublé of Object.values(dublê)) dublé.mockReset()
+    dublê.vinculos.mockResolvedValue([])
+  })
+
+  it('"e duplicado de": a frase diz quem vai para o arquivo; "Voltar" volta a busca, e "Marcar como duplicado" vincula', async () => {
+    dublê.listar.mockResolvedValue({
+      reports: [card({ PublicId: 'c-14', Number: 14, Title: 'Cupom não funciona' })],
+      total: 1,
+    })
+    dublê.vincular.mockResolvedValue([vinculo('v-9', 'DuplicateOf', 14, 'Cupom não funciona')])
+    // O card aberto e um relato: quem o escreveu passa a acompanhar o original.
+    const aoMudar = montar(card({ Kind: 'Report', Title: null, Text: 'O cupom nao entra.' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ Vincular' }))
+    await escolherNoSelect(screen, fireEvent, 'O card #10', 'é duplicado de')
+    // O que o tipo faz, dito antes de escolher o card.
+    expect(screen.getByText(/^Este card vai para o arquivo\./)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Card'), { target: { value: 'cupom' } })
+    const achados = await screen.findByRole('list', { name: 'Cards encontrados' })
+    fireEvent.click(within(achados).getByRole('button'))
+
+    expect(
+      screen.getByText(
+        '#10 vai para o arquivo como duplicado de #14. Quem relatou passa a acompanhar o #14 e recebe o desfecho dele.',
+      ),
+    ).toBeTruthy()
+    const marcar = screen.getByRole('button', { name: 'Marcar como duplicado' })
+    await waitFor(() => expect(document.activeElement).toBe(marcar))
+    expect(dublê.vincular).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    const busca = screen.getByLabelText('Card')
+    await waitFor(() => expect(document.activeElement).toBe(busca))
+    expect((busca as HTMLInputElement).value).toBe('cupom')
+    expect(dublê.vincular).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      within(await screen.findByRole('list', { name: 'Cards encontrados' })).getByRole('button'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar como duplicado' }))
+    await waitFor(() =>
+      expect(dublê.vincular).toHaveBeenCalledWith('p-1', 'aberto', {
+        Type: 'DuplicateOf',
+        TargetPublicId: 'c-14',
+      }),
+    )
+    await waitFor(() => expect(aoMudar).toHaveBeenCalled())
+    expect(await screen.findByText('Duplicado de')).toBeTruthy()
+  })
+
+  it('"tem como duplicado": o escolhido vai para o arquivo; o Enter com um resultado so nao marca', async () => {
+    dublê.listar.mockResolvedValue({
+      reports: [
+        card({
+          PublicId: 'c-15',
+          Number: 15,
+          Kind: 'Report',
+          Title: null,
+          Text: 'Cupom recusado no app',
+        }),
+      ],
+      total: 1,
+    })
+    montar(card())
+
+    await procurar('tem como duplicado', 'cupom')
+    fireEvent.submit(screen.getByLabelText('Card').closest('form') as HTMLFormElement)
+    expect(dublê.vincular).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Marcar como duplicado' })).toBeNull()
+
+    fireEvent.click(
+      within(screen.getByRole('list', { name: 'Cards encontrados' })).getByRole('button'),
+    )
+    expect(
+      screen.getByText(
+        '#15 vai para o arquivo como duplicado de #10. Quem relatou passa a acompanhar o #10 e recebe o desfecho dele.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('o duplicado do time vai para o arquivo sem a frase de quem relatou', async () => {
+    dublê.listar.mockResolvedValue({
+      reports: [card({ PublicId: 'c-16', Number: 16, Title: 'Rever o cupom' })],
+      total: 1,
+    })
+    montar(card())
+
+    const achados = await procurar('tem como duplicado', 'cupom')
+    fireEvent.click(within(achados).getByRole('button'))
+    expect(screen.getByText('#16 vai para o arquivo como duplicado de #10.')).toBeTruthy()
+    expect(screen.queryByText(/Quem relatou passa a acompanhar/)).toBeNull()
+  })
+
+  it('"esta relacionado a": o Enter com um resultado so vincula na hora, sem perguntar', async () => {
+    dublê.listar.mockResolvedValue({
+      reports: [card({ PublicId: 'c-12', Number: 12, Title: 'Rever o texto' })],
+      total: 1,
+    })
+    dublê.vincular.mockResolvedValue([vinculo('v-3', 'RelatesTo', 12, 'Rever o texto')])
+    montar(card())
+
+    await procurar(null, 'texto')
+    fireEvent.submit(screen.getByLabelText('Card').closest('form') as HTMLFormElement)
+    await waitFor(() =>
+      expect(dublê.vincular).toHaveBeenCalledWith('p-1', 'aberto', {
+        Type: 'RelatesTo',
+        TargetPublicId: 'c-12',
+      }),
+    )
+    expect(await screen.findByText('#10 está relacionado a #12.')).toBeTruthy()
   })
 })
 

@@ -21,7 +21,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
  * e Urgente, e o time renomeia, troca a cor, reordena ou cria outras. **O card nasce
  * sem prioridade** — escolher e decisao de alguem, e nao um padrao.
  *
- * **Aposentar, e nao apagar**: a prioridade continua nos cards que ja a tem e sai da
+ * **Desativar, e nao apagar**: a prioridade continua nos cards que ja a tem e sai da
  * lista de escolha. **Reordenar e otimista**, como nos estados: a seta move na hora,
  * e a lista volta se o servidor recusar.
  */
@@ -145,7 +145,7 @@ export function PrioritiesScreen() {
           ? await projectPriorityService.activatePriority(project.PublicId, priority.PublicId)
           : await projectPriorityService.deactivatePriority(project.PublicId, priority.PublicId),
       )
-      toast.done(active ? 'Prioridade de volta à lista.' : 'Prioridade aposentada.')
+      toast.done(active ? 'Prioridade de volta à lista.' : 'Prioridade desativada.')
     } catch (failure) {
       toast.error(describeError(failure))
     }
@@ -162,7 +162,7 @@ export function PrioritiesScreen() {
       <section>
         <h2 className="mb-1 font-semibold text-lead">Da menos para a mais urgente</h2>
         <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-          A ordem é a da lista de escolha no card. Aposentar tira a prioridade da lista sem mexer
+          A ordem é a da lista de escolha no card. Desativar tira a prioridade da lista sem mexer
           nos cards que já a têm.
         </p>
 
@@ -259,7 +259,7 @@ export function PrioritiesScreen() {
                   </span>
 
                   {!priority.IsActive && (
-                    <span className="flex-none text-caption text-fg-muted">Aposentada</span>
+                    <span className="flex-none text-caption text-fg-muted">Desativada</span>
                   )}
 
                   <Button
@@ -282,10 +282,10 @@ export function PrioritiesScreen() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      aria-label={`Aposentar ${priority.Name}`}
+                      aria-label={`Desativar ${priority.Name}`}
                       onClick={() => setRetiring(priority)}
                     >
-                      Aposentar
+                      Desativar
                     </Button>
                   ) : (
                     <Button
@@ -337,9 +337,9 @@ export function PrioritiesScreen() {
         onOpenChange={(open) => {
           if (!open) setRetiring(null)
         }}
-        title="Aposentar prioridade"
+        title="Desativar prioridade"
         description="Ela sai da lista de escolha, mas continua nos cards que já a têm — e no histórico deles. Dá para trazer de volta quando quiser."
-        confirmLabel="Aposentar"
+        confirmLabel="Desativar"
         onConfirm={() => (retiring ? setActive(retiring, false) : undefined)}
       />
     </div>

@@ -7,7 +7,14 @@ import { apiGet, apiPost, apiPut } from '@/data/api/httpClient'
 import type { NotificationService } from '@/data/notificationService'
 
 export const apiNotificationService: NotificationService = {
-  listNotifications: () => apiGet<NotificationListViewModel>('/me/notifications'),
+  listNotifications: (options) => {
+    const query = new URLSearchParams()
+    if (options?.unreadOnly) query.set('unread', 'true')
+    if (options?.before) query.set('before', options.before)
+    if (options?.beforeAt) query.set('beforeAt', options.beforeAt)
+    const texto = query.toString()
+    return apiGet<NotificationListViewModel>(`/me/notifications${texto ? `?${texto}` : ''}`)
+  },
 
   countUnread: () => apiGet<NotificationCountViewModel>('/me/notifications/unread-count'),
 

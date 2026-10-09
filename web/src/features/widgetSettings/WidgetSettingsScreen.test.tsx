@@ -56,6 +56,8 @@ function projeto(publicId: string): ProjectViewModel {
     Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
     Role: 'Administrator',
     IsAccountOwner: true,
+    LastReportReceivedAt: null,
+    LastActivityAt: null,
   }
 }
 

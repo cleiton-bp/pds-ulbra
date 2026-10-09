@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CycleSettingsViewModel, ProjectViewModel } from '@/contracts'
@@ -21,7 +21,12 @@ import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * nenhum estado de "vazio" que sugira que nada esta valendo.
  *
  * **O botao so age quando ha o que salvar.** Salvar o que ja esta salvo gravaria
- * uma linha nova de auditoria por clique e nao mudaria nada.
+ * uma linha nova de auditoria por clique e nao mudaria nada. Hoje o Salvar mora na
+ * barra de alteracoes nao salvas, presa no pe da tela: sem mudanca a barra nem
+ * aparece, e Descartar volta ao que esta salvo.
+ *
+ * **As regras do quadro e as sprints sairam desta tela** (para Colunas e Sprints),
+ * mas continuam no mesmo registro: o salvar daqui as devolve como vieram.
  */
 const dublê = vi.hoisted(() => ({
   ler: vi.fn<() => Promise<CycleSettingsViewModel>>(),
@@ -54,6 +59,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 /** Os padroes de fabrica, que e o que a API responde para quem nunca salvou nada. */
@@ -124,10 +131,26 @@ describe('CycleSettingsScreen', () => {
     montar()
     await screen.findByRole('radio', { name: /Ao cair na última coluna/ })
 
-    const salvar = screen.getByRole('button', { name: 'Salvar' })
-    expect(salvar.hasAttribute('disabled')).toBe(true)
+    // Nem aparece: a barra so existe com o que salvar. Um Salvar sempre a vista
+    // convidava a clicar sem nada para salvar.
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
+    expect(dublê.salvar).not.toHaveBeenCalled()
+  })
 
-    fireEvent.click(salvar)
+  it('mudar mostra a barra, e descartar volta ao que está salvo sem gravar', async () => {
+    montar()
+
+    fireEvent.click(await screen.findByRole('radio', { name: /Por um botão de concluir/ }))
+    const barra = screen.getByRole('region', { name: 'Alterações não salvas' })
+    expect(within(barra).getByText('Alterações não salvas.')).toBeTruthy()
+
+    fireEvent.click(within(barra).getByRole('button', { name: 'Descartar' }))
+
+    expect(
+      (screen.getByRole('radio', { name: /Ao cair na última coluna/ }) as HTMLInputElement).checked,
+    ).toBe(true)
+    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
     expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
@@ -156,11 +179,10 @@ describe('CycleSettingsScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     // A base do "ha mudanca" passa a ser o que foi gravado, e nao a leitura
-    // inicial: sem isso o botao continuaria aceso depois de salvar, e o segundo
+    // inicial: sem isso a barra continuaria na tela depois de salvar, e o segundo
     // clique gravaria de novo o que ja estava la.
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(true),
-    )
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull())
+    expect(dublê.salvar).toHaveBeenCalledTimes(1)
   })
 
   it('a espera zero diz que é o comportamento de hoje', async () => {
@@ -191,9 +213,9 @@ describe('CycleSettingsScreen', () => {
     fireEvent.change(espera, { target: { value: '' } })
 
     // `NaN` no rascunho faria a comparacao com o publicado dizer "ha mudanca"
-    // para sempre, e o botao nunca mais apagaria.
+    // para sempre, e a barra nunca mais sairia.
     expect((espera as HTMLInputElement).value).toBe('0')
-    expect(screen.getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
   })
 
   it('a espera viaja junto das outras regras', async () => {
@@ -260,29 +282,31 @@ describe('CycleSettingsScreen', () => {
     )
   })
 
-  it('as regras do quadro viajam junto, e nelas zero quer dizer alguma coisa', async () => {
-    dublê.salvar.mockResolvedValue({ ...padroes, LastColumnVisibleDays: 0, DueSoonDays: 5 })
+  it('as regras do quadro e as sprints moram noutras telas, e o salvar daqui as devolve como vieram', async () => {
+    // Fora do padrao de proposito: se a tela mandasse o padrao no lugar do que leu,
+    // o teste veria.
+    const lido = {
+      ...padroes,
+      LastColumnVisibleDays: 0,
+      DueSoonDays: 5,
+      SprintsEnabled: true,
+      SprintLengthWeeks: 3,
+    }
+    dublê.ler.mockResolvedValue(lido)
+    dublê.salvar.mockResolvedValue({ ...lido, ClosureTrigger: 'Button' })
 
     montar()
 
-    const dias = await screen.findByLabelText(/A última coluna mostra o que entrou nela/)
-    expect((dias as HTMLInputElement).value).toBe('14')
-    // Zero na ultima coluna e "mostrar todos" — e nao vira um, como nos prazos.
-    fireEvent.change(dias, { target: { value: '0' } })
-    expect((dias as HTMLInputElement).value).toBe('0')
-    expect(screen.getByText(/Zero: mostra todos/)).toBeTruthy()
+    fireEvent.click(await screen.findByRole('radio', { name: /Por um botão de concluir/ }))
+    // Os controles delas nao estao aqui (zero-quer-dizer-alguma-coisa e testado em
+    // Colunas; ligar as sprints, em Sprints).
+    expect(screen.queryByLabelText(/A última coluna mostra o que entrou nela/)).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: /Trabalhar em sprints/ })).toBeNull()
 
-    fireEvent.change(screen.getByLabelText(/O prazo fica em destaque faltando/), {
-      target: { value: '5' },
-    })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
-      expect(dublê.salvar).toHaveBeenCalledWith('p-1', {
-        ...padroes,
-        LastColumnVisibleDays: 0,
-        DueSoonDays: 5,
-      }),
+      expect(dublê.salvar).toHaveBeenCalledWith('p-1', { ...lido, ClosureTrigger: 'Button' }),
     )
   })
 

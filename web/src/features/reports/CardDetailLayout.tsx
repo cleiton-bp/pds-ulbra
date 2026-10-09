@@ -4,10 +4,17 @@ import { CardTypeIcon } from '@/features/reports/cardLook'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
-/** A largura e a altura do card aberto: largo no computador, a tela quase inteira no celular. */
+/**
+ * A largura e a altura do card aberto: largo no computador, a tela quase inteira no
+ * celular.
+ *
+ * **No computador a altura e fixa**, e nao a do conteudo: com a altura do conteudo, o
+ * card curto aparecia mais baixo, e o X, o status e os campos mudavam de lugar a cada
+ * card aberto — ir do pai para a subtarefa era procurar tudo de novo.
+ */
 export const CARD_DIALOG_WIDTH = 'w-[min(66rem,calc(100vw-2rem))]'
 export const CARD_DIALOG_CLASS =
-  'flex max-h-[calc(100dvh-2rem)] flex-col md:max-h-[min(54rem,calc(100dvh-4rem))]'
+  'flex max-h-[calc(100dvh-2rem)] flex-col md:h-[min(54rem,calc(100dvh-4rem))] md:max-h-none'
 
 /** A partir de onde o card aberto tem duas colunas — o `md` do Tailwind. */
 const DUAS_COLUNAS = '(min-width: 48rem)'
@@ -23,7 +30,10 @@ const DUAS_COLUNAS = '(min-width: 48rem)'
  * mouse e pelo Tab.
  *
  * **No celular e uma coluna so**, que rola inteira, na ordem em que se le: o card,
- * depois onde ele esta, depois a atividade. A ordem do documento e essa mesma — o
+ * depois onde ele esta, depois as subtarefas e os vinculos, depois a atividade. No
+ * celular o uso tipico e "ver em que pe esta e mudar a coluna ou o responsavel": por
+ * isso onde ele esta vem antes das subtarefas — com quatro delas, a coluna e o
+ * responsavel ficavam abaixo da primeira tela. A ordem do documento e essa mesma — o
  * leitor de tela e o Tab seguem o que se ve. Por isso a troca entre os dois desenhos
  * e feita aqui, e nao so com CSS: com CSS, uma das duas larguras teria a ordem do
  * documento diferente da vista. Cruzar a largura com a janela aberta remonta o
@@ -31,10 +41,13 @@ const DUAS_COLUNAS = '(min-width: 48rem)'
  */
 export function CardDetailLayout({
   cabeca,
+  depois,
   lado,
   atividade,
 }: {
   cabeca: ReactNode
+  /** As subtarefas e os vinculos: embaixo do card no computador, depois de onde ele esta no celular. */
+  depois?: ReactNode
   lado: ReactNode
   atividade: ReactNode
 }) {
@@ -45,6 +58,7 @@ export function CardDetailLayout({
       <div className="-mx-6 -mb-6 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_21rem] grid-rows-[minmax(0,1fr)] border-border border-t">
         <div className="flex min-h-0 min-w-0 flex-col gap-5 overflow-y-auto py-5 pr-8 pl-6">
           {cabeca}
+          {depois}
           {atividade}
         </div>
         <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-border border-l px-6 py-5">
@@ -58,6 +72,7 @@ export function CardDetailLayout({
       <div className="flex flex-col gap-6">
         <div className="flex min-w-0 flex-col gap-5">{cabeca}</div>
         <div className="flex min-w-0 flex-col gap-4">{lado}</div>
+        {depois && <div className="flex min-w-0 flex-col gap-5">{depois}</div>}
         <div className="flex min-w-0 flex-col gap-5">{atividade}</div>
       </div>
     </div>
@@ -67,9 +82,14 @@ export function CardDetailLayout({
 /**
  * O titulo do dialogo: o tipo (desenho e nome) e o numero do card — o mesmo par da
  * linha da lista e do pe do card no quadro.
+ *
+ * **Menor que o titulo do card**, logo abaixo: e a etiqueta de onde se esta, e o
+ * titulo e o assunto. O relato diz que **e de fora** — ha uma pessoa esperando do
+ * outro lado, e isso antes so se deduzia pelo protocolo e pela caixa amarela, la
+ * embaixo.
  */
 export function CardDialogTitle({ card }: { card: ReportSummaryViewModel | null }) {
-  if (card === null) return 'Card'
+  if (card === null) return <span className="text-detail text-fg-muted">Card</span>
 
   // A subtarefa e card do time, mas e assim que o time a chama.
   const tipo = card.Parent
@@ -81,13 +101,18 @@ export function CardDialogTitle({ card }: { card: ReportSummaryViewModel | null 
         : 'Relato'
 
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-detail text-fg-muted">
       {/* O nome do tipo ja vem escrito ao lado: o desenho fica so para os olhos. */}
       <span aria-hidden className="flex">
         <CardTypeIcon card={card} />
       </span>
-      <span>{tipo}</span>
-      <span className="font-medium font-mono text-detail text-fg-muted">#{card.Number}</span>
+      <span className="text-fg">{tipo}</span>
+      <span className="font-mono">#{card.Number}</span>
+      {card.Kind !== 'Team' && (
+        <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px font-normal text-caption text-warn-fg">
+          Relato de fora
+        </span>
+      )}
     </span>
   )
 }

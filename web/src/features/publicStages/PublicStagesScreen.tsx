@@ -22,9 +22,9 @@ import { PUBLIC_OUTCOMES, publicOutcomeLabel } from '@/shared/lib/publicOutcomes
 /**
  * A jornada que quem relatou acompanha.
  *
- * **Esta tela nao e a de Estados com outro titulo.** La estao as faixas em que o
- * time trabalha, com a granularidade que o time precisa. Aqui esta a historia que
- * a pessoa de fora le — e ela e mais curta de proposito. Varios estados de dentro
+ * **Esta tela nao e a de Colunas com outro titulo.** La estao as colunas em que o
+ * time trabalha, com a granularidade que o time precisa. Aqui esta o andamento que
+ * a pessoa de fora le — e ele e mais curto de proposito. Varias colunas de dentro
  * cabem numa etapa daqui, e e essa perda de detalhe que e o produto.
  *
  * **A tela e desenhada como uma linha do tempo numerada**, e nao como uma lista de
@@ -141,7 +141,7 @@ export function PublicStagesScreen() {
     try {
       await projectPublicStageService.removePublicStage(project.PublicId, etapa.PublicId)
       setEtapas((lista) => (lista ?? []).filter((item) => item.PublicId !== etapa.PublicId))
-      toast.done('Etapa removida da jornada.')
+      toast.done('Etapa apagada do andamento.')
     } catch (falha) {
       // A recusa mais provavel e a do piso, e a mensagem da API ja diz o motivo.
       toast.error(describeError(falha))
@@ -241,17 +241,15 @@ export function PublicStagesScreen() {
 
   return (
     <div className="max-w-160">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Etapas públicas</h1>
-      <p className="mb-8 text-body text-fg-muted">
-        O que quem relatou vê do andamento — e só isso.
-      </p>
+      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Andamento público</h1>
+      <p className="mb-8 text-body text-fg-muted">O que quem relatou vê do andamento, e só isso.</p>
 
       <section>
         <h2 className="mb-1 font-semibold text-lead">A jornada de quem está de fora</h2>
         <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-          Não é a sua fila de trabalho com outro nome.{' '}
+          Não são as colunas do quadro com outro nome.{' '}
           <strong className="font-medium text-fg">
-            Vários estados de dentro cabem numa etapa daqui
+            Várias colunas de dentro cabem numa etapa daqui
           </strong>{' '}
           — quem abriu o relato não precisa saber que existe revisão de código, precisa saber que o
           problema dele está sendo resolvido. Escreva cada passo com as palavras que essa pessoa
@@ -299,10 +297,10 @@ export function PublicStagesScreen() {
             <p className="mb-2 text-caption text-fg-muted">
               {total} de {MAX_PUBLIC_STAGES} etapas
               {cheia
-                ? ' · é o máximo. Acima disso a jornada volta a ser a sua lista de estados, só que com palavras mais bonitas.'
+                ? ' · é o máximo. Acima disso o andamento volta a ser a lista de colunas, só que com palavras mais bonitas.'
                 : noPiso
                   ? ` · ${MIN_PUBLIC_STAGES} é o mínimo. Com menos, a jornada não conta uma história: vira "chegou" e "acabou".`
-                  : ' · arraste pela alça à esquerda para mudar a ordem. Pelo teclado, use as setas que aparecem ao focar a etapa.'}
+                  : ' · arraste pela alça à esquerda para mudar a ordem, ou use as setas.'}
             </p>
 
             {abaixoDoPiso && (
@@ -348,10 +346,9 @@ export function PublicStagesScreen() {
                     />
                   ) : (
                     <div className="flex items-start gap-2 py-2.5 pr-2.5 pl-1.5">
-                      {/* A alca fica sempre visivel: e ela que conta que a etapa se
-                          move. As setas aparecem no mouse por cima ou no foco do
-                          teclado — `opacity-0` nao tira do foco nem do leitor de
-                          tela, e elas sao o unico jeito de reordenar sem mouse. */}
+                      {/* A alca e as setas ficam sempre visiveis, como em todas as
+                          listas da configuracao: a alca conta que a etapa se move, e as
+                          setas sao o jeito de reordenar sem mouse. */}
                       <button
                         type="button"
                         aria-hidden
@@ -373,7 +370,7 @@ export function PublicStagesScreen() {
                         </svg>
                       </button>
 
-                      <div className="mt-0.5 flex flex-none flex-col opacity-0 transition-opacity group-focus-within:opacity-100 hover:opacity-100 focus-within:opacity-100">
+                      <div className="mt-0.5 flex flex-none flex-col">
                         <MoveButton
                           direction="up"
                           label={`Mover ${etapa.Label} para cima`}
@@ -433,7 +430,7 @@ export function PublicStagesScreen() {
                           disabled={editando !== null || movendo || noPiso}
                           onClick={() => setRemovendo(etapa)}
                         >
-                          Remover
+                          Apagar
                         </Button>
                       </div>
                     </div>
@@ -477,9 +474,9 @@ export function PublicStagesScreen() {
         onOpenChange={(aberto) => {
           if (!aberto) setRemovendo(null)
         }}
-        title="Remover etapa"
-        description="Ela sai da jornada e deixa de aparecer para quem acompanha. Os relatos que já passaram por ela continuam legíveis: o histórico guarda o rótulo que valia na época."
-        confirmLabel="Remover"
+        title="Apagar etapa"
+        description="Ela sai do andamento e deixa de aparecer para quem acompanha. Os relatos que já passaram por ela continuam legíveis: o histórico guarda o rótulo que valia na época."
+        confirmLabel="Apagar"
         onConfirm={() => (removendo ? remover(removendo) : undefined)}
       />
     </div>
@@ -560,7 +557,7 @@ function FormularioEtapa({
         value={rascunho.Description}
         onChange={(Description) => mudar({ Description })}
         placeholder="Alguém da equipe está lendo o seu relato para entender o que aconteceu."
-        hint="Uma frase, escrita para a pessoa de fora. É o que separa esta tela da de Estados."
+        hint="Uma frase, escrita para a pessoa de fora. É o que separa esta tela da de Colunas."
         maxLength={MAX_PUBLIC_STAGE_SENTENCE_LENGTH}
         disabled={salvando}
         onSubmit={enviar}

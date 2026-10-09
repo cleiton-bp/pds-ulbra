@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useToastStore } from '@/shared/components/toastStore'
 import { cn } from '@/shared/lib/cn'
 
@@ -13,20 +14,37 @@ import { cn } from '@/shared/lib/cn'
  * olhando e ha boa chance de sumir sem ser lido. O `4.5rem` e o cabecalho de 56px
  * das tres cascas mais um respiro — colado no topo, o aviso cairia por cima do
  * menu da conta, que e justamente o canto onde ele aparece.
+ *
+ * **Com um dialogo aberto, o aviso mora dentro dele, embaixo a direita.** Fora, ele
+ * caia em cima do X e do status do card aberto, o clique nele contava como clique
+ * fora (e fechava o card com o que se escrevia), e o leitor de tela nao o lia — o
+ * dialogo esconde o resto da pagina. Dentro, nada disso: e parte do dialogo.
+ *
+ * O erro e `alert`, e nao `status`: a mudanca que nao foi feita precisa ser dita
+ * na hora, e nao depois do que o leitor estiver lendo.
  */
 export function Toaster() {
   const toasts = useToastStore((state) => state.toasts)
   const dismiss = useToastStore((state) => state.dismiss)
+  const host = useToastStore((state) => state.hosts.at(-1) ?? null)
 
-  return (
-    <div className="pointer-events-none fixed top-[4.5rem] right-5 z-toast flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2">
+  const regiao = (
+    <div
+      data-toasts
+      className={cn(
+        'pointer-events-none z-toast flex flex-col gap-2',
+        host
+          ? 'absolute right-4 bottom-4 w-[min(22rem,calc(100%-2rem))]'
+          : 'fixed top-[4.5rem] right-5 w-[min(22rem,calc(100vw-2rem))]',
+      )}
+    >
       {toasts.map((item) => {
         const danger = item.tone === 'danger'
 
         return (
           <div
             key={item.id}
-            role="status"
+            role={danger ? 'alert' : 'status'}
             className={cn(
               'pointer-events-auto flex items-start gap-3 rounded-xl border bg-surface-raised p-3.5',
               'shadow-lg dark:bg-surface-strong dark:shadow-none',
@@ -50,6 +68,20 @@ export function Toaster() {
               {item.message}
             </p>
 
+            {/* O botao do aviso ("Desfazer", "Abrir"): roda e fecha o aviso. */}
+            {item.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  dismiss(item.id)
+                  item.action?.run()
+                }}
+                className="shrink-0 font-medium text-detail text-fg underline underline-offset-2 hover:text-fg-muted"
+              >
+                {item.action.label}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => dismiss(item.id)}
@@ -63,4 +95,8 @@ export function Toaster() {
       })}
     </div>
   )
+
+  // O dialogo e `fixed` com `transform`: o `absolute` daqui de dentro se mede pela
+  // caixa dele, e nao pela janela.
+  return host ? createPortal(regiao, host) : regiao
 }

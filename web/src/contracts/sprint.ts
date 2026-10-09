@@ -21,12 +21,17 @@ export interface SprintViewModel {
   DonePoints: number
 }
 
-/** Nome, objetivo e datas. Ao criar e ao iniciar, o que nao vier fica como esta. */
+/**
+ * Nome, objetivo e datas. Ao criar, o que nao vier nasce com o padrao; ao iniciar, as
+ * datas que nao vierem sao hoje e a duracao do projeto.
+ */
 export interface SaveSprintRequest {
   Name?: string | null
   Goal?: string | null
   StartsOn?: string | null
   EndsOn?: string | null
+  /** O dia de hoje no relogio de quem pede (`aaaa-mm-dd`): as datas de fabrica contam dele. */
+  Today?: string | null
 }
 
 /** Para onde vai o que nao terminou: o backlog, uma sprint planejada, ou uma nova. */
@@ -36,6 +41,8 @@ export interface CloseSprintRequest {
   Destination: SprintCloseDestination
   /** A planejada de destino, quando `Destination` e `Sprint`. */
   SprintPublicId?: string | null
+  /** O dia de hoje no relogio de quem conclui: a sprint nova comeca dele. */
+  Today?: string | null
 }
 
 /** O que aconteceu ao fechar: a sprint fechada, quantos foram, e para qual sprint (nula no backlog). */

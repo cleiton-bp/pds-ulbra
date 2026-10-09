@@ -48,6 +48,10 @@ import { MediaScreen } from '@/features/media/MediaScreen'
  * que sai de alcance, ao desligar o anexo, volta ao valor salvo e nao prende o
  * Salvar. Com outra mudanca pendente, campo invalido segura o Salvar do mesmo
  * jeito: senao iria para a API um numero que nao esta na tela.
+ *
+ * **O Salvar mora na barra de alteracoes nao salvas**, presa no pe da tela, que so
+ * aparece com mudanca (ou com campo a corrigir) — sem mudanca nao ha Salvar. A frase
+ * ao lado e a da barra: "Alterações não salvas."
  */
 const dublê = vi.hoisted(() => ({
   ler: vi.fn<() => Promise<MediaSettingsViewModel>>(),
@@ -75,6 +79,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 const UM_MB = 1024 * 1024
@@ -144,6 +150,8 @@ function montar() {
 
 const anexo = () => screen.getByRole('checkbox', { name: /Aceitar anexo no relato/ })
 const salvar = () => screen.getByRole('button', { name: /Salvar/ })
+/** A barra (e o Salvar dela) so existe com o que salvar. */
+const semSalvar = () => screen.queryByRole('button', { name: /Salvar/ })
 const quantidadeImagem = () => screen.getAllByLabelText(/Quantos por envio/)[0] as HTMLInputElement
 const quantidadeArquivo = () => screen.getAllByLabelText(/Quantos por envio/)[1] as HTMLInputElement
 const tamanhoImagem = () => screen.getAllByLabelText(/Tamanho de cada um/)[0] as HTMLInputElement
@@ -215,7 +223,7 @@ describe('MediaScreen', () => {
 
     expect((anexo() as HTMLInputElement).checked).toBe(false)
     expect((anexo() as HTMLInputElement).disabled).toBe(true)
-    expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+    expect(semSalvar()).toBeNull()
 
     // Os limites que aparecem sao os salvos, e nao o padrao.
     expect(quantidadeImagem().value).toBe('2')
@@ -340,10 +348,26 @@ describe('MediaScreen', () => {
     montar()
 
     await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
-    expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+    expect(semSalvar()).toBeNull()
 
     fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
     expect((salvar() as HTMLButtonElement).disabled).toBe(false)
+
+    // Voltar ao valor salvo e nao ter mudanca: a barra sai.
+    fireEvent.change(quantidadeImagem(), { target: { value: '3' } })
+    expect(semSalvar()).toBeNull()
+  })
+
+  it('descartar volta ao que está salvo, sem gravar', async () => {
+    montar()
+
+    await screen.findByRole('checkbox', { name: /Aceitar anexo/ })
+    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
+
+    expect(quantidadeImagem().value).toBe('3')
+    expect(semSalvar()).toBeNull()
+    expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
   it('manda a configuração inteira, com os limites de cada tipo', async () => {
@@ -462,9 +486,9 @@ describe('MediaScreen', () => {
     const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
     expect(enviado.Kinds[0]?.MaxBytes).toBe(5.5 * UM_MB)
 
-    // Salvo, nao ha mais mudanca: o botao volta a esperar, e o campo continua
-    // dizendo o numero que foi gravado.
-    await waitFor(() => expect((salvar() as HTMLButtonElement).disabled).toBe(true))
+    // Salvo, nao ha mais mudanca: a barra sai, e o campo continua dizendo o
+    // numero que foi gravado.
+    await waitFor(() => expect(semSalvar()).toBeNull())
     expect(tamanhoImagem().value).toBe('5.5')
   })
 
@@ -508,7 +532,7 @@ describe('MediaScreen', () => {
     const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
     expect(enviado.Kinds[0]?.MaxBytes).toBe(5.25 * UM_MB)
 
-    await waitFor(() => expect((salvar() as HTMLButtonElement).disabled).toBe(true))
+    await waitFor(() => expect(semSalvar()).toBeNull())
     expect(tamanhoImagem().value).toBe('5.25')
   })
 
@@ -612,7 +636,7 @@ describe('MediaScreen', () => {
 
     expect((reabrir as HTMLInputElement).checked).toBe(false)
     expect((responder as HTMLInputElement).checked).toBe(true)
-    expect(screen.getByText('Há mudança não salva.')).toBeDefined()
+    expect(screen.getByText('Alterações não salvas.')).toBeDefined()
 
     fireEvent.click(salvar())
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
@@ -643,7 +667,7 @@ describe('MediaScreen', () => {
 
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(quantidadeImagem().value).toBe('3'))
-    expect((salvar() as HTMLButtonElement).disabled).toBe(true)
+    expect(semSalvar()).toBeNull()
   })
 
   describe('o arquivo', () => {

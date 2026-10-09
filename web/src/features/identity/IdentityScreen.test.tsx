@@ -20,7 +20,8 @@ import { IdentityScreen } from '@/features/identity/IdentityScreen'
  * nenhum estado de "vazio" que sugira que nada esta valendo.
  *
  * **O botao so age quando ha o que salvar**, e o que se manda e o modo escolhido —
- * nao o que veio do servidor.
+ * nao o que veio do servidor. O Salvar mora na barra de alteracoes nao salvas, que
+ * so aparece com mudanca.
  */
 const dublê = vi.hoisted(() => ({
   ler: vi.fn<() => Promise<IdentitySettingsViewModel>>(),
@@ -48,6 +49,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 /** O padrao de fabrica, que e o que a API responde para quem nunca salvou nada. */
@@ -137,8 +140,10 @@ describe('IdentityScreen', () => {
   it('não salva enquanto nada mudou', async () => {
     montar()
 
-    const salvar = await screen.findByRole('button', { name: 'Salvar' })
-    expect((salvar as HTMLButtonElement).disabled).toBe(true)
+    // Sem mudanca nao ha barra, e entao nem Salvar.
+    await screen.findByRole('radio', { name: /Protocolo/ })
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
   })
 
   it('manda o modo escolhido, e não o que veio do servidor', async () => {
@@ -198,11 +203,9 @@ describe('IdentityScreen', () => {
     fireEvent.click(await screen.findByRole('radio', { name: /Código pessoal/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
-    await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled).toBe(
-        true,
-      ),
-    )
+    // A barra sai: o que esta na tela e o que esta salvo.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull())
+    expect(dublê.salvar).toHaveBeenCalledTimes(1)
   })
 
   it('oferece os três níveis de visibilidade, e o padrão é o mais fechado', async () => {

@@ -23,6 +23,7 @@ export function MarkdownEditor({
   placeholder,
   disabled,
   rows = 6,
+  autoFocus = false,
 }: {
   label: string
   value: string
@@ -31,6 +32,8 @@ export function MarkdownEditor({
   placeholder?: string
   disabled?: boolean
   rows?: number
+  /** O foco entra no texto ao abrir, com o cursor no fim: quem clicou na descricao quer escrever nela. */
+  autoFocus?: boolean
 }) {
   const fieldId = useId()
   const [previewing, setPreviewing] = useState(false)
@@ -39,6 +42,14 @@ export function MarkdownEditor({
   // A selecao que a barra calculou, aplicada depois que o texto novo chega ao campo.
   // Antes disso o campo ainda tem o texto velho, e a selecao cairia no lugar errado.
   const pendingSelection = useRef<[number, number] | null>(null)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: so ao abrir o editor.
+  useLayoutEffect(() => {
+    const campo = textarea.current
+    if (!autoFocus || !campo) return
+    campo.focus()
+    campo.setSelectionRange(campo.value.length, campo.value.length)
+  }, [])
 
   useLayoutEffect(() => {
     const selection = pendingSelection.current

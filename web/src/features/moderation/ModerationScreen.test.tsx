@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  IdentitySettingsViewModel,
   ModerationItemViewModel,
   ModerationQueueViewModel,
   ProjectViewModel,
@@ -23,10 +24,16 @@ import { ModerationScreen } from '@/features/moderation/ModerationScreen'
  * pendente para sempre.
  *
  * **Liberar nao publica sozinho**, e a tela nao pode prometer que sim.
+ *
+ * **Em projeto privado a tela diz isso no topo, e a aba deixa de contar.** Com o
+ * numero, a fila parecia uma tarefa que nunca acaba, e o time ia "limpa-la" por
+ * obrigacao. A dica de onde abrir ao publico e so para quem administra — o membro
+ * nao tem a tela Quem relata. Sem conseguir ler se e privado, a tela fica como era.
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<() => Promise<ModerationQueueViewModel>>(),
   decidir: vi.fn(),
+  identidade: vi.fn<() => Promise<IdentitySettingsViewModel>>(),
 }))
 
 vi.mock('@/data', async (importOriginal) => {
@@ -38,8 +45,18 @@ vi.mock('@/data', async (importOriginal) => {
       listModeration: dublê.listar,
       moderateReport: dublê.decidir,
     },
+    // Privado ou publico vem de Quem relata. Sem o duble, a leitura ia a rede de
+    // verdade em todo teste, e a tela ficava sempre "como se fosse publico".
+    projectIdentitySettingsService: {
+      ...real.projectIdentitySettingsService,
+      getIdentitySettings: dublê.identidade,
+    },
   }
 })
+
+function identidade(visibility: IdentitySettingsViewModel['Visibility']) {
+  return { Mode: 'PersonalCode', Visibility: visibility, AsksForName: false } as const
+}
 
 const projeto: ProjectViewModel = {
   PublicId: 'p-1',
@@ -50,6 +67,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 /** A linha base da fila, sem o `!` que o `Items[0]` obrigaria em cada uso. */
@@ -75,12 +94,12 @@ function fila(mudanca: Partial<ModerationQueueViewModel> = {}): ModerationQueueV
   return { Items: [{ ...ITEM, Text: LONGO }], PendingTotal: 1, ...mudanca }
 }
 
-function montar() {
+function montar(project: ProjectViewModel = projeto) {
   const router = createMemoryRouter(
     [
       {
         path: '/',
-        element: <Outlet context={{ project: projeto }} />,
+        element: <Outlet context={{ project }} />,
         children: [{ index: true, element: <ModerationScreen /> }],
       },
     ],
@@ -96,6 +115,7 @@ describe('ModerationScreen', () => {
   beforeEach(() => {
     for (const mock of Object.values(dublê)) mock.mockReset()
     dublê.listar.mockResolvedValue(fila())
+    dublê.identidade.mockResolvedValue(identidade('PublicAnonymous'))
   })
 
   it('mostra o texto inteiro, e não um resumo', async () => {
@@ -291,5 +311,55 @@ describe('ModerationScreen', () => {
     // Coletar é uma coisa, publicar é outra — e quem modera precisa saber de qual
     // das duas se trata antes de liberar.
     expect(await screen.findByText(/pediu para o nome não aparecer/i)).toBeTruthy()
+  })
+})
+
+describe('ModerationScreen num projeto privado', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    for (const mock of Object.values(dublê)) mock.mockReset()
+    dublê.listar.mockResolvedValue(fila({ PendingTotal: 7 }))
+  })
+
+  const aba = () => screen.getByRole('button', { name: /^Esperando/ })
+
+  it('diz no topo que nada aparece para o público, e a aba não conta', async () => {
+    dublê.identidade.mockResolvedValue(identidade('Private'))
+    montar()
+
+    expect(await screen.findByText(/nada daqui\s+aparece para o público/)).toBeTruthy()
+    // Quem administra le onde abrir ao publico.
+    expect(
+      screen.getByText(/A fila só importa se você abrir os relatos ao público em Quem relata/),
+    ).toBeTruthy()
+    await screen.findByText(LONGO)
+    expect(aba().textContent).toBe('Esperando')
+  })
+
+  it('quem é só membro lê a faixa, sem a dica da tela que ele não tem', async () => {
+    dublê.identidade.mockResolvedValue(identidade('Private'))
+    montar({ ...projeto, Role: 'Member', IsAccountOwner: false })
+
+    expect(await screen.findByText(/nada daqui\s+aparece para o público/)).toBeTruthy()
+    expect(screen.queryByText(/em Quem relata/)).toBeNull()
+  })
+
+  it('num projeto público, sem faixa, e a aba diz quantos esperam', async () => {
+    dublê.identidade.mockResolvedValue(identidade('PublicAnonymous'))
+    montar()
+
+    await screen.findByText(LONGO)
+    await waitFor(() => expect(aba().textContent).toBe('Esperando7'))
+    expect(screen.queryByText(/Este projeto é privado/)).toBeNull()
+  })
+
+  it('sem conseguir ler se é privado, a tela fica como era: sem faixa, com o número', async () => {
+    dublê.identidade.mockRejectedValue(new Error('rede'))
+    montar()
+
+    await screen.findByText(LONGO)
+    await waitFor(() => expect(aba().textContent).toBe('Esperando7'))
+    expect(screen.queryByText(/Este projeto é privado/)).toBeNull()
   })
 })

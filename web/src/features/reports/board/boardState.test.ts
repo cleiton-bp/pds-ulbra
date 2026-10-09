@@ -22,6 +22,9 @@ import {
  * - **A ultima ativa** e a da regra dos dias — com uma coluna so, nenhuma, porque ai
  *   ela e a entrada da fila; a que encerra vem da contagem.
  * - Mover um card nao muda o quadro de entrada, e o card de cima do topo e nenhum.
+ * - **As raias por responsavel tem todo o time** (Q-09): quem tem card em ordem
+ *   alfabetica; quem nao tem, numa raia compacta (`empty`) no fim, antes de "Sem
+ *   responsavel" — sem repetir quem ja tem card, e sem a raia vazia pular para cima.
  */
 const linha = (extra: Partial<ReportStateCountViewModel>): ReportStateCountViewModel => ({
   StatePublicId: 's',
@@ -133,6 +136,43 @@ describe('as raias do quadro', () => {
       null,
     )
     expect(saiu[0]).toEqual({ key: 'u9', name: 'Zeca', accepts: false })
+  })
+
+  it('por responsavel, com o time: quem esta sem card ganha uma raia compacta no fim, antes de "Sem responsavel"', () => {
+    const time = [
+      { UserPublicId: 'u5', Name: 'Elisa Souza' },
+      { UserPublicId: 'u2', Name: 'Bruno' },
+      { UserPublicId: 'u4', Name: 'Carla' },
+      { UserPublicId: 'u6', Name: '' },
+    ]
+    const raias = boardLanes(
+      [
+        { Assignee: pessoa('u2', 'Bruno'), Priority: null },
+        { Assignee: pessoa('u7', 'Zeca'), Priority: null },
+        { Assignee: null, Priority: null },
+      ],
+      'assignee',
+      null,
+      time,
+    )
+    // Quem tem card primeiro, em ordem alfabetica (Zeca nao esta na lista do time e
+    // continua); depois as vazias, tambem em ordem; Bruno nao se repete.
+    expect(raias).toEqual([
+      { key: 'u2', name: 'Bruno', accepts: true },
+      { key: 'u7', name: 'Zeca', accepts: true },
+      { key: 'u4', name: 'Carla', accepts: true, empty: true },
+      { key: 'u5', name: 'Elisa Souza', accepts: true, empty: true },
+      { key: 'u6', name: 'Pessoa sem nome', accepts: true, empty: true },
+      { key: NO_LANE, name: 'Sem responsável', accepts: true },
+    ])
+    // Com o time ainda nao lido (ou falhando), so quem tem card.
+    expect(
+      boardLanes([{ Assignee: pessoa('u2', 'Bruno'), Priority: null }], 'assignee', null, null).map(
+        (raia) => raia.key,
+      ),
+    ).toEqual(['u2', NO_LANE])
+    // Por prioridade, o time nao conta.
+    expect(boardLanes([], 'priority', [], time).map((raia) => raia.key)).toEqual([NO_LANE])
   })
 
   it('por prioridade: todas as ativas do projeto, da mais para a menos urgente, com card ou nao; a aposentada com card aparece sem receber', () => {

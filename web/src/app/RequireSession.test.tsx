@@ -31,6 +31,8 @@ describe('RequireSession', () => {
           Account: { PublicId: 'c-1', Name: 'Conta de quem saiu' },
           Role: 'Administrator',
           IsAccountOwner: true,
+          LastReportReceivedAt: null,
+          LastActivityAt: null,
         },
       ],
     })

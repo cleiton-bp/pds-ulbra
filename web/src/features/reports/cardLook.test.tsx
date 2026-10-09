@@ -6,8 +6,10 @@ import type { ReportStateCountViewModel } from '@/contracts'
 import {
   CardTypeIcon,
   cardHeadline,
+  headlineText,
   initialsOf,
   MoreLabels,
+  ParentLine,
   PriorityIcon,
   statusTone,
 } from '@/features/reports/cardLook'
@@ -95,14 +97,14 @@ describe('o desenho do tipo e da prioridade', () => {
       expect(screen.getByText(nome)).toBeTruthy()
   })
 
-  it('a prioridade vem com o nome escrito, e a aposentada marcada', () => {
+  it('a prioridade vem com o nome escrito, e a desativada marcada', () => {
     render(
       <PriorityIcon
         priority={{ PublicId: 'p-1', Name: 'Alta', Color: 'Orange', IsActive: false }}
       />,
     )
 
-    expect(screen.getByText('Alta (aposentada)')).toBeTruthy()
+    expect(screen.getByText('Alta (desativada)')).toBeTruthy()
   })
 })
 
@@ -134,6 +136,11 @@ describe('o titulo da linha e da frente', () => {
       'o botao some',
     )
   })
+
+  it('na tela, o relato sem titulo vem entre aspas; o titulo de verdade, como esta', () => {
+    expect(headlineText({ text: 'O carrinho some', titled: false })).toBe('“O carrinho some”')
+    expect(headlineText({ text: 'Pagar no Safari', titled: true })).toBe('Pagar no Safari')
+  })
 })
 
 describe('as etiquetas que nao couberam', () => {
@@ -152,5 +159,28 @@ describe('as etiquetas que nao couberam', () => {
     const mais = screen.getByText('+2')
     expect(mais.getAttribute('title')).toBe('frete, celular')
     expect(mais.textContent).toBe('+2 etiquetas: frete, celular')
+  })
+})
+
+describe('o pai da subtarefa e o original do duplicado', () => {
+  afterEach(cleanup)
+  const original = { PublicId: 'c-6', Number: 6, Headline: 'Pagar no Safari' }
+
+  it('o original do duplicado vem com "Duplicado de" escrito; o pai da subtarefa, so para o leitor de tela', () => {
+    const { rerender } = render(<ParentLine parent={original} kind="duplicate" />)
+    // Com a seta da subtarefa, o duplicado se lia como subtarefa do original (L-17).
+    const duplicado = screen.getByText('Duplicado de')
+    expect(duplicado.className).not.toContain('sr-only')
+    expect(duplicado.closest('[title]')?.getAttribute('title')).toBe(
+      'Duplicado de #6 Pagar no Safari',
+    )
+
+    rerender(<ParentLine parent={original} />)
+    expect(screen.queryByText('Duplicado de')).toBeNull()
+    const subtarefa = screen.getByText(/^Subtarefa de/)
+    expect(subtarefa.className).toContain('sr-only')
+    expect(subtarefa.closest('[title]')?.getAttribute('title')).toBe(
+      'Subtarefa de #6 Pagar no Safari',
+    )
   })
 })

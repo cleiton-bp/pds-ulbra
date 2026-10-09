@@ -89,6 +89,8 @@ function projeto(publicId: string, name: string): ProjectViewModel {
     Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
     Role: 'Administrator',
     IsAccountOwner: true,
+    LastReportReceivedAt: null,
+    LastActivityAt: null,
   }
 }
 
@@ -109,6 +111,7 @@ function montar(publicId: string) {
         element: <ProjetoDaStore />,
         children: [{ index: true, element: <ProjectSettingsScreen /> }],
       },
+      { path: '/outra', element: <p>outra tela</p> },
     ],
     { initialEntries: [`/p/${publicId}`] },
   )
@@ -172,7 +175,49 @@ describe('ProjectSettingsScreen', () => {
 
     // Nome duplicado e 409 na API. O texto fica no campo porque ha o que corrigir,
     // e a correcao e ali — a regra esta escrita em `toastStore.ts`.
-    expect(await screen.findByText(/ja existe um projeto com este nome/i)).toBeTruthy()
+    // A API escreve "Ja existe"; a tela mostra acentuado (`acentuar`).
+    expect(await screen.findByText(/já existe um projeto com este nome/i)).toBeTruthy()
     expect(campo().getAttribute('aria-invalid')).toBe('true')
+  })
+
+  // A tela chama "Projeto" no menu, e o texto diz para que servem o nome e o
+  // identificador — a frase antiga dizia que o script do site levava o identificador,
+  // o que ensinava errado o que importa para a instalacao.
+  it('o título é o do menu, e os textos dizem onde o nome e o identificador aparecem', async () => {
+    montar('p-1')
+    await screen.findByDisplayValue('Loja Antiga')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Projeto' })).toBeTruthy()
+    expect(
+      screen.getByText('É o nome que aparece na lista de projetos e no seletor do topo.'),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Este identificador aparece nos endereços do painel e não muda quando você renomeia o projeto.',
+      ),
+    ).toBeTruthy()
+  })
+
+  // O nome salva ao lado do campo, sem a barra: so a pergunta ao sair com ele mudado.
+  it('sair com o nome mudado pergunta antes, e "Voltar e salvar" salva o nome', async () => {
+    const router = montar('p-1')
+    await screen.findByDisplayValue('Loja Antiga')
+
+    fireEvent.change(campo(), { target: { value: 'Loja Renomeada' } })
+    await act(async () => {
+      await router.navigate('/outra')
+    })
+
+    expect(await screen.findByRole('alertdialog', { name: 'Sair sem salvar?' })).toBeTruthy()
+    expect(router.state.location.pathname).toBe('/p/p-1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar e salvar' }))
+
+    await waitFor(() =>
+      expect(
+        useProjectsStore.getState().projects.find((item) => item.PublicId === 'p-1')?.Name,
+      ).toBe('Loja Renomeada'),
+    )
+    expect(router.state.location.pathname).toBe('/p/p-1')
   })
 })

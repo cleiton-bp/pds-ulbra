@@ -15,15 +15,16 @@ const HINT = 'Escolha um nome que você reconheça na lista, e dá para renomear
  *
  * A descricao **nao** repete o que e um projeto — o cartao que a pessoa acabou de
  * clicar ja disse isso. Ela avisa o que vem depois do botao, que e a unica coisa
- * que so este dialogo pode contar: a proxima tela mostra a chave secreta, e
- * mostra uma vez so.
+ * que so este dialogo pode contar.
  *
  * O nome repetido e conferido **duas vezes** de proposito: aqui contra a lista que
  * a tela ja tem, para a resposta ser imediata; e no servidor, que e quem decide —
  * duas abas criando o mesmo nome ao mesmo tempo so ele resolve.
  *
- * Ao confirmar vai **direto** para as chaves, com a secreta na frente: o valor so
- * existe nessa resposta, e tela no meio do caminho e chance de perde-lo.
+ * Ao confirmar vai para a **Instalacao**: e a proxima coisa a fazer — copiar a
+ * chave publica e colar o script. Ja foi para as chaves, com a secreta na frente e
+ * um aviso de perda ao sair; o primeiro minuto do projeto ia numa chave que quase
+ * ninguem usa. A secreta agora nasce sob pedido, na tela de chaves.
  */
 export function CreateProjectDialog({
   open,
@@ -74,11 +75,7 @@ export function CreateProjectDialog({
       onOpenChange(false)
       reset()
 
-      navigate(`/projects/${created.Project.PublicId}/keys`, {
-        // No estado da navegacao e nao na URL: URL vai para o historico, para o
-        // log do servidor e para o print da tela.
-        state: { revealedSecret: created.SecretKey },
-      })
+      navigate(`/projects/${created.Project.PublicId}/start`)
     } catch (failure) {
       setError(describeError(failure))
       setSaving(false)
@@ -93,7 +90,7 @@ export function CreateProjectDialog({
         onOpenChange(next)
       }}
       title="Novo projeto"
-      description="Ao criar, você vai direto para as chaves do projeto, e a secreta aparece uma única vez."
+      description="Ao criar, você vai para a instalação: copiar a chave pública e colar o script no site."
       footer={
         <>
           <Button variant="quiet" onClick={() => onOpenChange(false)} disabled={saving}>

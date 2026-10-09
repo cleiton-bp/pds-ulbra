@@ -49,6 +49,19 @@ export function cardHeadline(
   return { text: `${texto.slice(0, corte > TRECHO * 0.6 ? corte : TRECHO)}…`, titled: false }
 }
 
+/**
+ * O titulo como a tela o escreve. O relato sem titulo mostra o comeco do texto **entre
+ * aspas, na cor do titulo** — e a fala de quem relatou —, e nao apagado: em lista,
+ * cinza quer dizer inativo, e o relato e muitas vezes o mais urgente. O tipo ja diz
+ * que e relato; as aspas dizem de quem e a frase.
+ *
+ * So o texto da tela: o nome do link e o rotulo de leitor de tela ficam com
+ * `cardHeadline().text`, sem as aspas.
+ */
+export function headlineText(headline: { text: string; titled: boolean }): string {
+  return headline.titled ? headline.text : `“${headline.text}”`
+}
+
 interface TypeLook {
   label: string
   color: CardColor
@@ -148,7 +161,7 @@ export function MoreLabels({ labels }: { labels: CardLabelViewModel[] }) {
 
 /** O nome da prioridade como a tela escreve: a aposentada vem marcada. */
 export function priorityName(priority: CardPriorityViewModel) {
-  return priority.IsActive ? priority.Name : `${priority.Name} (aposentada)`
+  return priority.IsActive ? priority.Name : `${priority.Name} (desativada)`
 }
 
 /**
@@ -316,20 +329,25 @@ export function PersonAvatar({
  * O pai da subtarefa, numa linha: o numero e o titulo dele. **Texto, e nao link**: na
  * frente do card e na linha da tabela, o clique abre a propria subtarefa — e o pai
  * esta a um clique, dentro dela.
+ *
+ * **O original do duplicado tem outra cara**: dois quadrados sobrepostos e o "Duplicado
+ * de" escrito. Com a seta da subtarefa, o duplicado se lia como subtarefa do original.
  */
 export function ParentLine({
   parent,
-  prefix = 'Subtarefa de',
+  kind = 'subtask',
   className,
 }: {
   parent: CardParentViewModel
   /** O que o outro card e deste: o pai da subtarefa, ou o original do duplicado. */
-  prefix?: string
+  kind?: 'subtask' | 'duplicate'
   className?: string
 }) {
+  const duplicado = kind === 'duplicate'
+  const prefixo = duplicado ? 'Duplicado de' : 'Subtarefa de'
   return (
     <span
-      title={`${prefix} #${parent.Number} ${parent.Headline}`}
+      title={`${prefixo} #${parent.Number} ${parent.Headline}`}
       className={cn('flex min-w-0 items-center gap-1 text-caption text-fg-muted', className)}
     >
       <svg
@@ -342,9 +360,17 @@ export function ParentLine({
         strokeLinejoin="round"
         aria-hidden
       >
-        <path d="M3 2v4.5a1.5 1.5 0 0 0 1.5 1.5H10M7.5 5.5 10 8l-2.5 2.5" />
+        {duplicado ? (
+          <path d="M4 4.2V2.8A.8.8 0 0 1 4.8 2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H7.8M2.8 4.2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H2.8a.8.8 0 0 1-.8-.8V5a.8.8 0 0 1 .8-.8Z" />
+        ) : (
+          <path d="M3 2v4.5a1.5 1.5 0 0 0 1.5 1.5H10M7.5 5.5 10 8l-2.5 2.5" />
+        )}
       </svg>
-      <span className="sr-only">{prefix} </span>
+      {duplicado ? (
+        <span className="flex-none">{prefixo}</span>
+      ) : (
+        <span className="sr-only">{prefixo} </span>
+      )}
       <span className="flex-none font-mono">#{parent.Number}</span>{' '}
       <span className="min-w-0 truncate">{parent.Headline}</span>
     </span>

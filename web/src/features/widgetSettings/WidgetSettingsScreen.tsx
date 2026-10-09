@@ -14,6 +14,7 @@ import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
+import { UnsavedChangesBar } from '@/shared/components/UnsavedChangesBar'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
@@ -104,10 +105,10 @@ export function WidgetSettingsScreen() {
 
   return (
     <div className="max-w-170">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Ferramenta</h1>
+      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Botão no site</h1>
       <p className="mb-6 text-fg-muted text-body">
-        Como a ferramenta de relato aparece no seu site. O que você publicar aqui vale na próxima
-        visita, sem ninguém mexer no código.
+        Como o botão de relato aparece no seu site. O que você publicar aqui vale na próxima visita,
+        sem ninguém mexer no código.
       </p>
 
       {failed && (
@@ -279,20 +280,17 @@ export function WidgetSettingsScreen() {
 
           {/* A barra so existe quando ha o que publicar: um botao "Publicar"
               sempre aceso convida a clicar sem nada para salvar, e ensina que o
-              clique nao faz diferenca. */}
-          {dirty && (
-            <div className="sticky bottom-0 flex items-center gap-3 rounded-xl border border-border bg-surface-raised p-3.5">
-              <Button variant="primary" disabled={saving} onClick={() => void publish()}>
-                {saving ? 'Publicando…' : 'Publicar'}
-              </Button>
-              <Button variant="ghost" disabled={saving} onClick={() => setDraft(published)}>
-                Descartar
-              </Button>
-              <span className="text-detail text-fg-muted">
-                Ainda não está no seu site — publique para valer.
-              </span>
-            </div>
-          )}
+              clique nao faz diferenca. E sair com o que nao foi publicado
+              pergunta antes. */}
+          <UnsavedChangesBar
+            dirty={dirty}
+            saving={saving}
+            onSave={() => void publish()}
+            onDiscard={() => setDraft(published)}
+            saveLabel="Publicar"
+            savingLabel="Publicando…"
+            note="Ainda não está no seu site — publique para valer."
+          />
 
           <section className="rounded-xl border border-border bg-surface-raised p-5">
             <header className="mb-1 flex items-baseline justify-between gap-3">

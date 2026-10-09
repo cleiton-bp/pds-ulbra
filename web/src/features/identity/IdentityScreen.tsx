@@ -4,6 +4,7 @@ import { describeError, projectIdentitySettingsService } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
+import { UnsavedChangesBar } from '@/shared/components/UnsavedChangesBar'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
@@ -85,7 +86,7 @@ export function IdentityScreen() {
       })
       setPublished(gravado)
       setDraft(gravado)
-      toast.done('Identidade e visibilidade salvas.')
+      toast.done('Quem relata e quem vê: salvo.')
     } catch (falha) {
       toast.error(describeError(falha))
     } finally {
@@ -95,11 +96,11 @@ export function IdentityScreen() {
 
   return (
     <div className="max-w-170">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Identidade</h1>
+      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Quem relata</h1>
       <p className="mb-6 text-body text-fg-muted leading-relaxed">
-        Como a pessoa que abre um relato é reconhecida, e quem pode ver o que ela escreveu. A
-        primeira escolha decide a segunda: sem saber quem é, não existe “os meus relatos” nem como
-        ela escolher aparecer.
+        Como a pessoa que relata é reconhecida, e quem pode ver os relatos. A primeira escolha
+        decide a segunda: sem saber quem é, não existe “os meus relatos” nem como ela escolher
+        aparecer.
       </p>
 
       {failed && (
@@ -263,19 +264,18 @@ export function IdentityScreen() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              variant="primary"
-              disabled={!dirty || saving || conflito}
-              onClick={() => void salvar()}
-            >
-              {saving ? 'Salvando…' : 'Salvar'}
-            </Button>
-
-            {dirty && !saving && !conflito && (
-              <span className="text-caption text-fg-muted">Há mudança não salva.</span>
-            )}
-          </div>
+          <UnsavedChangesBar
+            dirty={dirty}
+            saving={saving}
+            canSave={!conflito}
+            onSave={() => void salvar()}
+            onDiscard={() => setDraft(published)}
+            note={
+              conflito
+                ? 'Escolha uma visibilidade que combine com o protocolo para salvar.'
+                : undefined
+            }
+          />
         </section>
       )}
     </div>

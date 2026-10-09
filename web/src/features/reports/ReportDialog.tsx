@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type {
+  PublicCommentViewModel,
   PublicOutcome,
   ReportClosureViewModel,
   ReportDetailViewModel,
@@ -23,6 +25,11 @@ import { CardLinks } from '@/features/reports/CardLinks'
 import { CardSubtasks, ParentLink } from '@/features/reports/CardSubtasks'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
+import {
+  CardDraftsProvider,
+  useCardDrafts,
+  useGuardedCardLink,
+} from '@/features/reports/cardDrafts'
 import { StatusLozenge, statusTone } from '@/features/reports/cardLook'
 import {
   LiveAnnouncer,
@@ -34,7 +41,7 @@ import { ReportAttachments, useReportAttachments } from '@/features/reports/Repo
 import { ReportComments, useReportComments } from '@/features/reports/ReportComments'
 import { ReportHistory } from '@/features/reports/ReportHistory'
 import { ReportReopenings } from '@/features/reports/ReportReopenings'
-import { ReportTitle } from '@/features/reports/ReportTitle'
+import { ReportTitle, textInHeadline } from '@/features/reports/ReportTitle'
 import { TeamCardBody } from '@/features/reports/TeamCardBody'
 import type { WorkListener } from '@/features/reports/useWorkRealtime'
 import { Button } from '@/shared/components/Button'
@@ -43,6 +50,7 @@ import { CopyButton } from '@/shared/components/CopyButton'
 import { Modal } from '@/shared/components/Modal'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
+import { copyText } from '@/shared/lib/clipboard'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
 
@@ -63,6 +71,11 @@ import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
  * nao existia: o link aberto direto, em que a lista ainda nao tem este relato —
  * porque esta na pagina cinco, ou porque o recorte escolhido nao o inclui. Ai o
  * `resumo` chega nulo e a tela inteira espera a resposta, em vez de so o contexto.
+ *
+ * **Nao perder o que se escreve.** Cada caixa do card registra o proprio rascunho
+ * (`cardDrafts`): o Esc sai primeiro da edicao em que o foco esta, e fechar o card —
+ * Esc, X, clique fora — com texto por salvar pergunta antes de descartar. Trocar de
+ * card (anterior, proximo, o pai, a subtarefa) pergunta do mesmo jeito.
  */
 export function ReportDialog({
   projectPublicId,
@@ -75,6 +88,11 @@ export function ReportDialog({
   semAoVivo = null,
   aoCriarSubtarefa,
   sprints = null,
+  podeConfigurar = false,
+  soonDays,
+  anterior = null,
+  proximo = null,
+  aoIrPara,
 }: {
   projectPublicId: string
   reportPublicId: string
@@ -93,14 +111,26 @@ export function ReportDialog({
   aoCriarSubtarefa?: (subtarefa: ReportDetailViewModel) => void
   /** As sprints que nao fecharam, com a sprint ligada: o card mostra a sprint e os pontos. */
   sprints?: SprintViewModel[] | null
+  /** Quem olha configura o projeto: o atalho para o Andamento publico aparece. */
+  podeConfigurar?: boolean
+  /** A regra do prazo perto (Ciclo), para o destaque do prazo. */
+  soonDays?: number
+  /** Os vizinhos na tela de onde o card foi aberto — a lista ou o quadro. */
+  anterior?: string | null
+  proximo?: string | null
+  /** Abre outro card no lugar deste (anterior e proximo). */
+  aoIrPara?: (reportPublicId: string) => void
 }) {
   const [detalhe, setDetalhe] = useState<ReportDetailViewModel | null>(null)
   const [failed, setFailed] = useState(false)
+  // Sobe no "Tentar de novo": a abertura que falhou e feita de novo.
+  const [tentativa, setTentativa] = useState(0)
 
   // Abrir outro relato antes de a resposta do primeiro chegar mostraria o
   // contexto de um debaixo do texto do outro.
   const generation = useRef(0)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `tentativa` e o gatilho do "Tentar de novo".
   useEffect(() => {
     const minha = ++generation.current
     setDetalhe(null)
@@ -119,7 +149,7 @@ export function ReportDialog({
       .catch(() => {
         if (minha === generation.current) setFailed(true)
       })
-  }, [projectPublicId, reportPublicId])
+  }, [projectPublicId, reportPublicId, tentativa])
 
   // O resumo da lista desenha na hora; quando o detalhe chega, ele vale por cima,
   // campo a campo — e a leitura mais nova. Os dois costumam dizer a mesma coisa, mas
@@ -151,6 +181,10 @@ export function ReportDialog({
   // resumo veio da lista, e ela so e avisada depois.
   const [movido, setMovido] = useState<ReportSummaryViewModel | null>(null)
   const [movendo, setMovendo] = useState(false)
+  // A coluna escolhida enquanto o movimento grava: o seletor ja mostra a escolha, com
+  // "Movendo…" ao lado. Com a rede lenta, o valor antigo parado na tela fazia a pessoa
+  // achar que a escolha nao tinha pegado.
+  const [destino, setDestino] = useState<string | null>(null)
 
   // Sobe a cada acao que vira evento. A linha do tempo le isto e busca de novo —
   // sem ele, mover ou comentar deixaria o historico mostrando o estado anterior
@@ -206,20 +240,38 @@ export function ReportDialog({
   const colunaQueEncerra = colunas?.find((item) => item.ClosesReport) ?? null
 
   /**
-   * Quando oferecer o botao de concluir.
+   * Quando oferecer "Encerrar relato…" e "Pedir informacao": **sempre que o relato
+   * estiver aberto**, em qualquer coluna.
    *
-   * Dois casos, e o segundo e o que costuma ser esquecido: o projeto que encerra
-   * **por botao**, e o projeto que encerra pela ultima coluna com o relato **ja
-   * parado nela** — ali mover para onde ele ja esta nao e movimento, e sem o botao
-   * esse relato nao teria como ser encerrado nunca.
+   * Antes os dois so apareciam com o relato ja parado na coluna que encerra — e, com
+   * mais de uma coluna, nao havia momento em que o "Pedir informacao" aparecesse: mover
+   * para a ultima obrigava a encerrar, e depois de encerrado nao se pede mais. Pedir
+   * informacao e o gesto da triagem, na primeira coluna.
+   *
+   * **Encerrar fora da coluna que encerra move para ela**, pelo mesmo dialogo do motivo
+   * (que ja diz "Mover para Concluido encerra este relato"); ja nela, ou no projeto que
+   * encerra por botao, encerra sem mover.
    *
    * So depois de o detalhe chegar: antes dele nao se sabe se o relato ja acabou, e
    * oferecer encerrar o que ja esta encerrado e pior do que demorar um instante.
    */
-  const ofereceBotao =
-    detalhe !== null &&
-    fechamento === null &&
-    (colunaQueEncerra === null || colunaQueEncerra.StatePublicId === atual?.StatePublicId)
+  const ofereceAcoes = detalhe !== null && fechamento === null
+
+  function pedirEncerramento() {
+    if (colunaQueEncerra?.StatePublicId && colunaQueEncerra.StatePublicId !== atual?.StatePublicId)
+      setEncerrando({
+        publicId: colunaQueEncerra.StatePublicId,
+        nome: colunaQueEncerra.StateName ?? 'esta coluna',
+      })
+    else setEncerrando({ publicId: null, nome: null })
+  }
+
+  /**
+   * O movimento que tira o relato encerrado da coluna que encerra, esperando a
+   * confirmacao. **Reabrir pergunta antes**: o encerramento ja foi dito a quem relatou,
+   * e um engano no seletor o desfazia em silencio.
+   */
+  const [reabrindo, setReabrindo] = useState<{ publicId: string; de: string } | null>(null)
 
   /**
    * O clique no seletor. **Nem todo destino move na hora**: a coluna que encerra
@@ -231,6 +283,22 @@ export function ReportDialog({
    * aposentadas junto, entao a ultima dela nao e a que encerra.
    */
   function escolher(statePublicId: string) {
+    if (statePublicId === atual?.StatePublicId) return
+
+    // Sair da coluna que encerra desfaz o encerramento que quem relatou ainda nao
+    // confirmou — isso pergunta antes. O confirmado nao se desfaz: o movimento e so
+    // movimento.
+    if (
+      fechamento !== null &&
+      fechamento.ConfirmedAt === null &&
+      colunaQueEncerra !== null &&
+      colunaQueEncerra.StatePublicId === atual?.StatePublicId &&
+      statePublicId !== colunaQueEncerra.StatePublicId
+    ) {
+      setReabrindo({ publicId: statePublicId, de: colunaQueEncerra.StateName ?? 'esta coluna' })
+      return
+    }
+
     // Ja encerrado so anda: a API nao encerra de novo, e pedir motivo aqui cobraria
     // uma decisao que ja foi tomada.
     if (colunaQueEncerra?.StatePublicId === statePublicId && fechamento === null) {
@@ -251,6 +319,7 @@ export function ReportDialog({
     if (movendo) return
 
     setMovendo(true)
+    setDestino(statePublicId)
 
     try {
       const salvo = await projectReportService.moveReport(projectPublicId, reportPublicId, {
@@ -282,18 +351,22 @@ export function ReportDialog({
       // confirmou: a API faz isso no mesmo movimento, e a tela acompanha. Chegar a
       // ela com o fechamento valendo nao desfaz nada, e no encerramento por botao
       // mover e so mover.
-      else if (colunaQueEncerra !== null && colunaQueEncerra.StatePublicId !== statePublicId)
-        setFechamento((anterior) => (anterior?.ConfirmedAt === null ? null : anterior))
+      else if (colunaQueEncerra !== null && colunaQueEncerra.StatePublicId !== statePublicId) {
+        if (fechamento?.ConfirmedAt === null)
+          toast.done(`#${salvo.Number} deixou de estar encerrado.`)
+        setFechamento((antes) => (antes?.ConfirmedAt === null ? null : antes))
+      }
     } catch (failure) {
-      // A coluna volta sozinha para a antiga, porque o seletor le `atual` e ele
-      // nao mudou. O aviso e o unico jeito de contar o que houve.
+      // A coluna volta sozinha para a antiga, porque o seletor le `atual` e o
+      // destino sai. O aviso diz o que nao foi feito.
       //
       // O dialogo do motivo **fica aberto** quando a falha veio dele: o texto que a
       // pessoa escreveu continua na tela para ela tentar de novo, em vez de sumir
       // junto com o erro.
-      toast.error(describeError(failure))
+      toast.error(`Não deu para mover o card. ${describeError(failure)}`)
     } finally {
       setMovendo(false)
+      setDestino(null)
     }
   }
 
@@ -355,6 +428,9 @@ export function ReportDialog({
       setPodePedir(aberto.CanAskInfo)
       setVersao((n) => n + 1)
       setPerguntando(false)
+      // A pergunta virou fala para quem relatou: a conversa e relida, e ela aparece na
+      // caixa e no bloco "Esperando quem relatou" sem fechar e abrir o card.
+      conversa.revalidate()
     } catch (falha) {
       toast.error(describeError(falha))
     } finally {
@@ -450,6 +526,13 @@ export function ReportDialog({
           .then(receber)
           .catch(() => {})
       }}
+      aoMoverSubtarefa={(subtarefa) => {
+        aoMudar(subtarefa)
+        projectReportService
+          .refreshReport(projectPublicId, reportPublicId)
+          .then(receber)
+          .catch(() => {})
+      }}
     />
   )
 
@@ -512,13 +595,85 @@ export function ReportDialog({
   const ehDoTime = report?.Kind === 'Team'
   const arquivado = atual?.ArchivedAt != null
 
+  // Os rascunhos do card: o Esc em camadas, e a pergunta antes de fechar ou de trocar
+  // de card com texto por salvar.
+  const rascunhos = useCardDrafts()
+  const irPara = (id: string | null) => {
+    if (id && aoIrPara) rascunhos.confirmarSaida(() => aoIrPara(id))
+  }
+
+  // J e K andam para o proximo e o anterior, com o foco fora de campo — e so com este
+  // dialogo no alto (nem a confirmacao nem uma lista aberta por cima).
+  const vizinhos = useRef({ anterior, proximo, irPara })
+  vizinhos.current = { anterior, proximo, irPara }
+  useEffect(() => {
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.defaultPrevented || evento.ctrlKey || evento.metaKey || evento.altKey) return
+      const tecla = evento.key.toLowerCase()
+      if (tecla !== 'j' && tecla !== 'k') return
+      const alvo = evento.target
+      if (
+        alvo instanceof HTMLElement &&
+        (alvo.isContentEditable ||
+          // O seletor que abre ao digitar (coluna, prioridade) fica com a letra.
+          alvo.closest('input, textarea, select, [role="listbox"], [role="combobox"]'))
+      )
+        return
+      if (document.querySelector('[role="alertdialog"], [role="listbox"], [role="menu"]')) return
+      if (document.querySelectorAll('[role="dialog"]').length > 1) return
+      const { anterior: antes, proximo: depois, irPara: ir } = vizinhos.current
+      const destinoDaTecla = tecla === 'j' ? depois : antes
+      if (!destinoDaTecla) return
+      evento.preventDefault()
+      ir(destinoDaTecla)
+    }
+    window.addEventListener('keydown', aoTeclar)
+    return () => window.removeEventListener('keydown', aoTeclar)
+  }, [])
+
+  // A pergunta que o pedido de informacao mandou: e a fala do time para quem relatou
+  // gravada junto do pedido.
+  const pergunta = pedido ? perguntaDoPedido(pedido, conversa.data?.Public ?? null) : null
+
+  const cabecalho = (
+    <>
+      <CopiarLink numero={report?.Number ?? null} />
+      {(anterior !== null || proximo !== null) && (
+        <>
+          <BotaoDoCabecalho
+            rotulo="Card anterior"
+            atalho="K"
+            disabled={anterior === null}
+            onClick={() => irPara(anterior)}
+          >
+            <path d="M7.5 2.5 4 6l3.5 3.5" />
+          </BotaoDoCabecalho>
+          <BotaoDoCabecalho
+            rotulo="Próximo card"
+            atalho="J"
+            disabled={proximo === null}
+            onClick={() => irPara(proximo)}
+          >
+            <path d="M4.5 2.5 8 6 4.5 9.5" />
+          </BotaoDoCabecalho>
+        </>
+      )}
+    </>
+  )
+
   return (
     <Modal
       open
       onOpenChange={(aberto) => {
-        if (!aberto) aoFechar()
+        // Esc, X e clique fora: com texto por salvar, pergunta antes.
+        if (!aberto) rascunhos.confirmarSaida(aoFechar)
+      }}
+      // O Esc com o foco numa edicao sai so dela; o seguinte fecha o card.
+      onEscapeKeyDown={(evento) => {
+        if (rascunhos.escNaEdicao()) evento.preventDefault()
       }}
       title={<CardDialogTitle card={report} />}
+      headerActions={cabecalho}
       closeButton
       width={CARD_DIALOG_WIDTH}
       className={CARD_DIALOG_CLASS}
@@ -530,357 +685,493 @@ export function ReportDialog({
         document.querySelector<HTMLElement>('[data-work-area]')
       }
     >
-      <LiveStatusText estado={semAoVivo} />
-      <LiveAnnouncer anuncio={anuncio} />
-      {/* Link aberto direto e que falhou: sem resumo nao ha o que mostrar, e
-          insistir num esqueleto eterno seria pior do que dizer o que houve. */}
-      {report === null && failed && (
-        <p className="text-body text-fg-muted leading-relaxed">
-          Não deu para abrir este relato. Ou ele não existe mais, ou a falha foi ao consultar — nada
-          se perdeu de um jeito nem do outro.
-        </p>
-      )}
+      <CardDraftsProvider value={rascunhos.api}>
+        <LiveStatusText estado={semAoVivo} />
+        <LiveAnnouncer anuncio={anuncio} />
+        {/* Link aberto direto e que falhou: sem resumo nao ha o que mostrar, e
+            insistir num esqueleto eterno seria pior do que dizer o que houve. */}
+        {report === null && failed && (
+          <div>
+            <p className="mb-3 text-body text-fg-muted leading-relaxed">
+              Não deu para abrir este card. Ele pode ter sido excluído, ou a conexão falhou.
+            </p>
+            <Button size="sm" onClick={() => setTentativa((n) => n + 1)}>
+              Tentar de novo
+            </Button>
+          </div>
+        )}
 
-      {report === null && !failed && (
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-3 w-40" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-5/6" />
-        </div>
-      )}
+        {report === null && !failed && (
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-5/6" />
+          </div>
+        )}
 
-      {report && atual && ehDoTime && (
-        <TeamCardBody
-          projectPublicId={projectPublicId}
-          reportPublicId={reportPublicId}
-          sprints={sprints}
-          card={atual}
-          detalhe={detalhe}
-          failed={failed}
-          colunas={colunas}
-          movendo={movendo}
-          conversa={conversa}
-          versao={versao}
-          aoMover={(statePublicId) => void mover(statePublicId)}
-          aoSalvo={receber}
-          aoComentar={() => setVersao((n) => n + 1)}
-          antes={atual.Parent ? <ParentLink parent={atual.Parent} /> : null}
-          depois={
-            <>
-              {atual.Parent ? null : subtarefas(atual)}
-              {vinculos(atual)}
-            </>
-          }
-        />
-      )}
+        {report && atual && ehDoTime && (
+          <TeamCardBody
+            projectPublicId={projectPublicId}
+            reportPublicId={reportPublicId}
+            sprints={sprints}
+            card={atual}
+            detalhe={detalhe}
+            failed={failed}
+            colunas={colunas}
+            movendo={movendo}
+            destino={destino}
+            conversa={conversa}
+            versao={versao}
+            configuracao={configuracao}
+            soonDays={soonDays}
+            aoMover={(statePublicId) => {
+              if (statePublicId !== atual.StatePublicId) void mover(statePublicId)
+            }}
+            aoSalvo={receber}
+            aoComentar={() => setVersao((n) => n + 1)}
+            aoTentarDeNovo={() => setTentativa((n) => n + 1)}
+            antes={atual.Parent ? <ParentLink parent={atual.Parent} /> : null}
+            depois={
+              <>
+                {atual.Parent ? null : subtarefas(atual)}
+                {vinculos(atual)}
+              </>
+            }
+          />
+        )}
 
-      {report && !ehDoTime && (
-        <CardDetailLayout
-          cabeca={
-            <>
-              {/* O titulo do time, e o de quem relatou, que nunca muda — e logo
-                  abaixo o texto dela, que continua sendo o que ela escreveu. */}
-              <ReportTitle
-                projectPublicId={projectPublicId}
-                reportPublicId={reportPublicId}
-                card={atual ?? report}
-                aoMudar={receber}
-              />
-
-              <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
-                {report.Text}
-              </p>
-
-              <ReportAttachments
-                anexos={anexos.daCriacao}
-                failed={anexos.failed}
-                onReload={anexos.reload}
-                onExpired={anexos.refresh}
-              />
-
-              {/* Antes do encerramento: as reaberturas ja aconteceram, e o fechamento
-                  que vale, quando ha um, e o fim mais recente. Vem do detalhe, que encerrar e pedir
-                  informacao tambem devolvem — por isso a lista nao some da tela
-                  depois dessas acoes. */}
-              <ReportReopenings
-                reaberturas={detalhe?.Reopenings ?? []}
-                anexosPorReabertura={anexos.porReabertura}
-                aoExpirar={anexos.refresh}
-              />
-
-              {pedido && <Devolvido pedido={pedido} />}
-
-              {fechamento && <Encerramento fechamento={fechamento} />}
-
-              {subtarefas(atual ?? report)}
-              {vinculos(atual ?? report)}
-            </>
-          }
-          lado={
-            <>
-              <div className="flex flex-col items-start gap-2">
-                {/* Onde ele esta na fila, e o controle que o move. Arquivado nao se
-                    move: o seletor da lugar a etiqueta, e mover pede desarquivar. */}
-                {arquivado ? (
-                  <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px text-caption text-warn-fg">
-                    Arquivado
-                  </span>
-                ) : colunas && colunas.length > 0 ? (
-                  <ColumnSelect
-                    colunas={colunas}
-                    atual={atual?.StatePublicId ?? null}
-                    disabled={movendo}
-                    tone={statusTone(atual?.StatePublicId ?? null, colunas)}
-                    aoEscolher={escolher}
-                  />
-                ) : (
-                  atual?.StateName && (
-                    <StatusLozenge
-                      name={atual.StateName}
-                      tone={statusTone(atual.StatePublicId, colunas)}
-                    />
-                  )
-                )}
-
-                {/* O outro lado. Fica junto do controle que move de proposito: e aqui
-                    que alguem decide, e a consequencia la fora precisa estar a vista
-                    no momento da decisao — nao numa tela que se abre depois.
-
-                    Vem de `atual`, que e a resposta do proprio movimento. Abrir o
-                    detalhe de novo **grava um evento de leitura**, e isso mediria
-                    cliques do time em vez de leituras. */}
-                {atual && <LadoDeFora etapa={atual.PublicStageLabel} />}
-
-                <div className="flex flex-wrap gap-1.5">
-                  {/* **Quem abre um relato para responder precisa saber se esta
-                      falando em publico.** A decisao se toma na Moderacao; aqui e so
-                      o estado, porque descobrir depois de escrever e descobrir tarde.
-
-                      "Liberado" e nao "publico": o projeto tambem precisa estar num
-                      nivel publico, e esta tela nao sabe disso. */}
-                  {detalhe?.ModerationState === 'Approved' && (
-                    <span className="rounded-md border border-warn-border bg-warn-surface px-1.5 py-0.5 text-caption text-warn-fg">
-                      Liberado para o público
-                    </span>
-                  )}
-
-                  {/* A escolha de quem relatou, **antes** de alguem tentar perguntar.
-                      Descobrir depois — ao esbarrar numa recusa — faria a pessoa do
-                      time escrever a pergunta para so entao saber que ela nao vai
-                      sair. */}
-                  {atual && <AceitaDuvidas escolha={atual.AcceptsQuestions} />}
-
-                  {atual?.PublicStageDueAt && <Esperando vence={atual.PublicStageDueAt} />}
-                </div>
-              </div>
-
-              {ofereceBotao && !arquivado && (
-                <div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      disabled={movendo}
-                      onClick={() => setEncerrando({ publicId: null, nome: null })}
-                    >
-                      Concluir relato
-                    </Button>
-
-                    {/* **Lado a lado, e e assim que tem de ser.** Devolver e encerrar
-                        sao as duas saidas de um relato que nao da para tocar agora, e
-                        esconder uma delas atras da outra e o que faz "nao reproduzi"
-                        chegar como recusa. */}
-                    {podePedir && (
-                      <Button size="sm" disabled={pedindo} onClick={() => setPerguntando(true)}>
-                        Pedir informação
-                      </Button>
-                    )}
-                  </div>
-                  <p className="mt-1.5 text-caption text-fg-muted leading-normal">
-                    Encerrar pede um motivo, e é ele que quem relatou lê. Pedir informação devolve o
-                    relato sem encerrar.
-                  </p>
-                </div>
-              )}
-
-              <DetailsBox>
-                <CardFields
+        {report && !ehDoTime && (
+          <CardDetailLayout
+            cabeca={
+              <>
+                {/* O titulo do time, e o de quem relatou, que nunca muda — e logo
+                    abaixo o texto dela, que continua sendo o que ela escreveu. Sem
+                    titulo, o comeco do texto e a manchete; curto e numa linha so, ele
+                    ja esta inteiro nela e nao se repete. */}
+                <ReportTitle
                   projectPublicId={projectPublicId}
                   reportPublicId={reportPublicId}
                   card={atual ?? report}
                   aoMudar={receber}
-                  configuracao={configuracao}
-                  sprints={sprints}
                 />
 
-                <dl className="flex flex-col gap-1.5 border-border border-t pt-3">
-                  {/* O protocolo e o de quem relatou (o numero, do time, esta no titulo
-                      do dialogo), e e o que se copia para responder. */}
-                  <DetailRow
-                    label="Protocolo"
-                    value={
-                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <code className="font-mono">{report.TrackingCode}</code>
-                        <CopyButton
-                          value={report.TrackingCode ?? ''}
-                          label="Copiar protocolo"
-                          size="sm"
-                        />
-                      </span>
-                    }
-                  />
-                  <DetailRow
-                    label="Criado"
-                    value={<span className="tabular-nums">{formatDateTime(report.CreatedAt)}</span>}
-                  />
-                </dl>
+                {!textInHeadline(atual ?? report) && (
+                  <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
+                    {report.Text}
+                  </p>
+                )}
 
-                <section className="border-border border-t pt-3">
-                  <h4 className="mb-2 font-medium text-caption text-fg-muted">Onde aconteceu</h4>
+                <ReportAttachments
+                  anexos={anexos.daCriacao}
+                  failed={anexos.failed}
+                  onReload={anexos.reload}
+                  onExpired={anexos.refresh}
+                />
 
-                  <dl className="flex flex-col gap-1.5">
-                    <DetailRow label="Página" value={report.Route} />
-                    <DetailRow label="Site" value={report.Origin} />
+                {/* Antes do encerramento: as reaberturas ja aconteceram, e o fechamento
+                    que vale, quando ha um, e o fim mais recente. Vem do detalhe, que encerrar e pedir
+                    informacao tambem devolvem — por isso a lista nao some da tela
+                    depois dessas acoes. */}
+                <ReportReopenings
+                  reaberturas={detalhe?.Reopenings ?? []}
+                  anexosPorReabertura={anexos.porReabertura}
+                  aoExpirar={anexos.refresh}
+                />
 
-                    {failed && (
-                      <p className="mt-1 text-caption text-fg-muted">
-                        O resto do contexto não carregou. O texto do relato é o que a pessoa
-                        escreveu, e está completo.
-                      </p>
-                    )}
+                {pedido && <Devolvido pedido={pedido} pergunta={pergunta} />}
 
-                    {!failed && contexts === null && (
-                      <>
-                        <Skeleton className="h-3 w-2/3" />
-                        <Skeleton className="h-3 w-1/2" />
-                      </>
-                    )}
-
-                    {contexts?.map((context) => (
-                      <DetailRow
-                        key={context.Key}
-                        label={contextLabel(context.Key)}
-                        value={context.Value}
+                {fechamento && <Encerramento fechamento={fechamento} />}
+              </>
+            }
+            depois={
+              <>
+                {subtarefas(atual ?? report)}
+                {vinculos(atual ?? report)}
+              </>
+            }
+            lado={
+              <>
+                <div className="flex flex-col items-start gap-2">
+                  {/* Onde ele esta na fila, e o controle que o move. Arquivado nao se
+                      move: o seletor da lugar a etiqueta, e mover pede desarquivar. */}
+                  {arquivado ? (
+                    <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px text-caption text-warn-fg">
+                      Arquivado
+                    </span>
+                  ) : colunas && colunas.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <ColumnSelect
+                        colunas={colunas}
+                        atual={destino ?? atual?.StatePublicId ?? null}
+                        disabled={movendo}
+                        tone={statusTone(destino ?? atual?.StatePublicId ?? null, colunas)}
+                        aoEscolher={escolher}
                       />
-                    ))}
+                      {destino !== null && (
+                        <span role="status" className="text-caption text-fg-muted">
+                          Movendo…
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    atual?.StateName && (
+                      <StatusLozenge
+                        name={atual.StateName}
+                        tone={statusTone(atual.StatePublicId, colunas)}
+                      />
+                    )
+                  )}
+
+                  {/* O outro lado. Fica junto do controle que move de proposito: e aqui
+                      que alguem decide, e a consequencia la fora precisa estar a vista
+                      no momento da decisao — nao numa tela que se abre depois.
+
+                      Vem de `atual`, que e a resposta do proprio movimento. Abrir o
+                      detalhe de novo **grava um evento de leitura**, e isso mediria
+                      cliques do time em vez de leituras. */}
+                  {atual && (
+                    <LadoDeFora
+                      etapa={atual.PublicStageLabel}
+                      fechamento={fechamento}
+                      projectPublicId={projectPublicId}
+                      podeConfigurar={podeConfigurar}
+                    />
+                  )}
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {/* **Quem abre um relato para responder precisa saber se esta
+                        falando em publico.** A decisao se toma na Moderacao; aqui e so
+                        o estado, porque descobrir depois de escrever e descobrir tarde.
+
+                        "Liberado" e nao "publico": o projeto tambem precisa estar num
+                        nivel publico, e esta tela nao sabe disso. */}
+                    {detalhe?.ModerationState === 'Approved' && (
+                      <span className="rounded-md border border-warn-border bg-warn-surface px-1.5 py-0.5 text-caption text-warn-fg">
+                        Liberado para o público
+                      </span>
+                    )}
+
+                    {/* A escolha de quem relatou, **antes** de alguem tentar perguntar.
+                        Descobrir depois — ao esbarrar numa recusa — faria a pessoa do
+                        time escrever a pergunta para so entao saber que ela nao vai
+                        sair. */}
+                    {atual && <AceitaDuvidas escolha={atual.AcceptsQuestions} />}
+
+                    {atual?.PublicStageDueAt && <Esperando vence={atual.PublicStageDueAt} />}
+                  </div>
+                </div>
+
+                {ofereceAcoes && !arquivado && (
+                  <div>
+                    <div className="flex flex-wrap gap-2">
+                      {/* As reticencias avisam que vem uma pergunta: o motivo. */}
+                      <Button size="sm" disabled={movendo} onClick={pedirEncerramento}>
+                        Encerrar relato…
+                      </Button>
+
+                      {/* **Lado a lado, e e assim que tem de ser.** Devolver e encerrar
+                          sao as duas saidas de um relato que nao da para tocar agora, e
+                          esconder uma delas atras da outra e o que faz "nao reproduzi"
+                          chegar como recusa. */}
+                      {podePedir && (
+                        <Button size="sm" disabled={pedindo} onClick={() => setPerguntando(true)}>
+                          Pedir informação
+                        </Button>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-caption text-fg-muted leading-normal">
+                      {podePedir
+                        ? 'Encerrar pede um motivo, e é ele que quem relatou lê. Pedir informação devolve o relato sem encerrar.'
+                        : 'Encerrar pede um motivo, e é ele que quem relatou lê.'}
+                    </p>
+                  </div>
+                )}
+
+                <DetailsBox>
+                  <CardFields
+                    projectPublicId={projectPublicId}
+                    reportPublicId={reportPublicId}
+                    card={atual ?? report}
+                    aoMudar={receber}
+                    configuracao={configuracao}
+                    sprints={sprints}
+                    soonDays={soonDays}
+                  />
+
+                  <dl className="flex flex-col gap-1.5 border-border border-t pt-3">
+                    {/* O protocolo e o de quem relatou (o numero, do time, esta no titulo
+                        do dialogo), e e o que se copia para responder. */}
+                    <DetailRow
+                      label="Protocolo"
+                      value={
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <code className="font-mono">{report.TrackingCode}</code>
+                          <CopyButton
+                            value={report.TrackingCode ?? ''}
+                            label="Copiar protocolo"
+                            size="sm"
+                          />
+                        </span>
+                      }
+                    />
+                    <DetailRow
+                      label="Criado"
+                      value={
+                        <span className="tabular-nums">{formatDateTime(report.CreatedAt)}</span>
+                      }
+                    />
                   </dl>
 
-                  {contexts?.length === 0 && !failed && (
-                    <p className="mt-1 text-caption text-fg-muted">
-                      A ferramenta não enviou mais nada além do endereço.
+                  <section className="border-border border-t pt-3">
+                    <h4 className="mb-2 font-medium text-caption text-fg-muted">Onde aconteceu</h4>
+
+                    <dl className="flex flex-col gap-1.5">
+                      <DetailRow label="Página" value={report.Route} />
+                      <DetailRow label="Site" value={report.Origin} />
+
+                      {failed && (
+                        <p className="mt-1 text-caption text-fg-muted">
+                          O resto do contexto não carregou. O texto do relato é o que a pessoa
+                          escreveu, e está completo.{' '}
+                          <button
+                            type="button"
+                            onClick={() => setTentativa((n) => n + 1)}
+                            className="underline underline-offset-2 hover:text-fg"
+                          >
+                            Tentar de novo
+                          </button>
+                        </p>
+                      )}
+
+                      {!failed && contexts === null && (
+                        <>
+                          <Skeleton className="h-3 w-2/3" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </>
+                      )}
+
+                      {contexts?.map((context) => (
+                        <DetailRow
+                          key={context.Key}
+                          label={contextLabel(context.Key)}
+                          value={context.Value}
+                        />
+                      ))}
+                    </dl>
+
+                    {contexts?.length === 0 && !failed && (
+                      <p className="mt-1 text-caption text-fg-muted">
+                        A ferramenta não enviou mais nada além do endereço.
+                      </p>
+                    )}
+                  </section>
+                </DetailsBox>
+
+                {/* Arquivar so aparece com a regra do ciclo ligada (`CanArchive`), e
+                    desarquivar sempre que estiver arquivado — inclusive com a regra
+                    desligada depois: o que saiu da tela nao pode ficar preso fora dela. */}
+                {(arquivado || detalhe?.CanArchive) && (
+                  <div>
+                    {arquivado ? (
+                      <Button
+                        size="sm"
+                        disabled={mexendoNoArquivo}
+                        onClick={() => void mudarArquivo(false)}
+                      >
+                        Desarquivar
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="quiet"
+                        disabled={mexendoNoArquivo}
+                        onClick={() =>
+                          setArquivando(fechamento === null ? 'encerra' : 'so-arquiva')
+                        }
+                      >
+                        Arquivar relato
+                      </Button>
+                    )}
+                    <p className="mt-1.5 text-caption text-fg-muted leading-normal">
+                      {arquivado
+                        ? atual?.DuplicateOf
+                          ? `Duplicado de #${atual.DuplicateOf.Number}: quem relatou acompanha o original. Desarquivar desfaz o vínculo, e o relato volta a andar sozinho.`
+                          : 'Arquivado: dá para ler e comentar entre o time. Para mover ou escrever a quem relatou, desarquive.'
+                        : fechamento === null
+                          ? 'Arquivar encerra o relato com um motivo, que quem relatou lê e a partir do qual pode reabrir ou finalizar.'
+                          : 'Quem relatou já recebeu o motivo do encerramento. Arquivar só tira o relato da tela de Trabalho.'}
                     </p>
-                  )}
-                </section>
-              </DetailsBox>
+                  </div>
+                )}
+              </>
+            }
+            atividade={
+              <>
+                <ReportComments
+                  projectPublicId={projectPublicId}
+                  reportPublicId={reportPublicId}
+                  conversa={conversa}
+                  aoComentar={() => setVersao((n) => n + 1)}
+                  anexosPorFala={anexos.porFala}
+                  aoExpirar={anexos.refresh}
+                  paraQuemRelatou={arquivado ? 'ler' : 'escrever'}
+                />
 
-              {/* Arquivar so aparece com a regra do ciclo ligada (`CanArchive`), e
-                  desarquivar sempre que estiver arquivado — inclusive com a regra
-                  desligada depois: o que saiu da tela nao pode ficar preso fora dela. */}
-              {(arquivado || detalhe?.CanArchive) && (
-                <div>
-                  {arquivado ? (
-                    <Button
-                      size="sm"
-                      disabled={mexendoNoArquivo}
-                      onClick={() => void mudarArquivo(false)}
-                    >
-                      Desarquivar
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="quiet"
-                      disabled={mexendoNoArquivo}
-                      onClick={() => setArquivando(fechamento === null ? 'encerra' : 'so-arquiva')}
-                    >
-                      Arquivar relato
-                    </Button>
-                  )}
-                  <p className="mt-1.5 text-caption text-fg-muted leading-normal">
-                    {arquivado
-                      ? atual?.DuplicateOf
-                        ? `Duplicado de #${atual.DuplicateOf.Number}: quem relatou acompanha o original. Desarquivar desfaz o vínculo, e o relato volta a andar sozinho.`
-                        : 'Arquivado: dá para ler e comentar entre o time. Para mover ou escrever a quem relatou, desarquive.'
-                      : fechamento === null
-                        ? 'Arquivar encerra o relato com um motivo, que quem relatou lê e a partir do qual pode reabrir ou finalizar.'
-                        : 'Quem relatou já recebeu o motivo do encerramento. Arquivar só tira o relato da tela de Trabalho.'}
-                  </p>
-                </div>
-              )}
-            </>
-          }
-          atividade={
-            <>
-              <ReportComments
-                projectPublicId={projectPublicId}
-                reportPublicId={reportPublicId}
-                conversa={conversa}
-                aoComentar={() => setVersao((n) => n + 1)}
-                anexosPorFala={anexos.porFala}
-                aoExpirar={anexos.refresh}
-                paraQuemRelatou={arquivado ? 'ler' : 'escrever'}
-              />
+                <ReportHistory
+                  projectPublicId={projectPublicId}
+                  reportPublicId={reportPublicId}
+                  versao={versao}
+                />
+              </>
+            }
+          />
+        )}
 
-              <ReportHistory
-                projectPublicId={projectPublicId}
-                reportPublicId={reportPublicId}
-                versao={versao}
-              />
-            </>
-          }
-        />
-      )}
+        {/* Fica **dentro** do dialogo do relato de proposito: fechar o relato fecha
+            os dois, e o dialogo do motivo nunca sobra sozinho na tela apontando para
+            um relato que nao esta mais aberto. */}
+        {perguntando && (
+          <AskInfoDialog
+            enviando={pedindo}
+            aoConfirmar={(body) => void pedirInformacao(body)}
+            aoCancelar={() => setPerguntando(false)}
+          />
+        )}
 
-      {/* Fica **dentro** do dialogo do relato de proposito: fechar o relato fecha
-          os dois, e o dialogo do motivo nunca sobra sozinho na tela apontando para
-          um relato que nao esta mais aberto. */}
-      {perguntando && (
-        <AskInfoDialog
-          enviando={pedindo}
-          aoConfirmar={(body) => void pedirInformacao(body)}
-          aoCancelar={() => setPerguntando(false)}
-        />
-      )}
+        {arquivando === 'encerra' && (
+          <CloseReportDialog
+            coluna={null}
+            arquivando
+            maisLeitores={atual?.DuplicateReporters ?? 0}
+            encerrando={mexendoNoArquivo}
+            aoConfirmar={(outcome, reason) =>
+              void mudarArquivo(true, { Outcome: outcome, Reason: reason })
+            }
+            aoCancelar={() => setArquivando(null)}
+          />
+        )}
 
-      {arquivando === 'encerra' && (
-        <CloseReportDialog
-          coluna={null}
-          arquivando
-          maisLeitores={atual?.DuplicateReporters ?? 0}
-          encerrando={mexendoNoArquivo}
-          aoConfirmar={(outcome, reason) =>
-            void mudarArquivo(true, { Outcome: outcome, Reason: reason })
-          }
-          aoCancelar={() => setArquivando(null)}
-        />
-      )}
-
-      <ConfirmDialog
-        open={arquivando === 'so-arquiva'}
-        onOpenChange={(aberto) => {
-          if (!aberto) setArquivando(null)
-        }}
-        title={report ? `Arquivar #${report.Number}` : 'Arquivar'}
-        description="O relato sai da tela de Trabalho. Quem relatou já recebeu o motivo do encerramento; se reabrir, ele volta sozinho."
-        confirmLabel="Arquivar"
-        onConfirm={() => mudarArquivo(true)}
-      />
-
-      {encerrando && (
-        <CloseReportDialog
-          coluna={encerrando.nome}
-          maisLeitores={atual?.DuplicateReporters ?? 0}
-          encerrando={movendo}
-          aoConfirmar={(outcome, reason) => {
-            // Um dialogo, duas rotas. Com coluna de destino e o movimento que
-            // encerra; sem ela, e o botao — e o relato nao sai do lugar.
-            if (encerrando.publicId === null) void encerrar(outcome, reason)
-            else void mover(encerrando.publicId, { Outcome: outcome, Reason: reason })
+        <ConfirmDialog
+          open={arquivando === 'so-arquiva'}
+          onOpenChange={(aberto) => {
+            if (!aberto) setArquivando(null)
           }}
-          aoCancelar={() => setEncerrando(null)}
+          title={report ? `Arquivar #${report.Number}` : 'Arquivar'}
+          description="O relato sai da tela de Trabalho. Quem relatou já recebeu o motivo do encerramento; se reabrir, ele volta sozinho."
+          confirmLabel="Arquivar"
+          onConfirm={() => mudarArquivo(true)}
         />
-      )}
+
+        {/* Tirar da coluna que encerra reabre o relato — e isso ja foi dito a quem
+            relatou. As mesmas palavras do quadro, que pergunta igual ao arrastar. */}
+        <ConfirmDialog
+          open={reabrindo !== null}
+          onOpenChange={(aberto) => {
+            if (!aberto) setReabrindo(null)
+          }}
+          title={report ? `Reabrir o relato #${report.Number}?` : 'Reabrir o relato?'}
+          description={`Tirar o #${report?.Number ?? ''} de ${reabrindo?.de ?? 'esta coluna'} reabre o relato: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.`}
+          confirmLabel="Reabrir e mover"
+          cancelLabel="Cancelar"
+          onConfirm={async () => {
+            const destinoDaReabertura = reabrindo?.publicId
+            setReabrindo(null)
+            if (destinoDaReabertura) await mover(destinoDaReabertura)
+          }}
+        />
+
+        {encerrando && (
+          <CloseReportDialog
+            coluna={encerrando.nome}
+            maisLeitores={atual?.DuplicateReporters ?? 0}
+            encerrando={movendo}
+            aoConfirmar={(outcome, reason) => {
+              // Um dialogo, duas rotas. Com coluna de destino e o movimento que
+              // encerra; sem ela, e o botao — e o relato nao sai do lugar.
+              if (encerrando.publicId === null) void encerrar(outcome, reason)
+              else void mover(encerrando.publicId, { Outcome: outcome, Reason: reason })
+            }}
+            aoCancelar={() => setEncerrando(null)}
+          />
+        )}
+
+        {rascunhos.dialogo}
+      </CardDraftsProvider>
     </Modal>
   )
+}
+
+/**
+ * "Copiar link": o endereco do card, para mandar a um colega — sem copiar a barra de
+ * endereco a mao. O aviso diz qual card foi copiado.
+ */
+function CopiarLink({ numero }: { numero: number | null }) {
+  return (
+    <BotaoDoCabecalho
+      rotulo="Copiar link"
+      onClick={async () => {
+        const copiou = await copyText(window.location.href)
+        if (copiou) toast.done(numero === null ? 'Link copiado.' : `Link do #${numero} copiado.`)
+        else toast.error('Não deu para copiar o link. Copie da barra de endereço.')
+      }}
+    >
+      <path d="M5 7a2.2 2.2 0 0 0 3.1 0l1.6-1.6a2.2 2.2 0 0 0-3.1-3.1L6 2.9M7 5a2.2 2.2 0 0 0-3.1 0L2.3 6.6a2.2 2.2 0 0 0 3.1 3.1L6 9.1" />
+    </BotaoDoCabecalho>
+  )
+}
+
+/** Um botao de icone do alto do card, com o nome escrito para quem nao ve o desenho. */
+function BotaoDoCabecalho({
+  rotulo,
+  atalho,
+  disabled = false,
+  onClick,
+  children,
+}: {
+  rotulo: string
+  atalho?: string
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={rotulo}
+      aria-keyshortcuts={atalho}
+      title={atalho ? `${rotulo} (${atalho})` : rotulo}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent"
+    >
+      <svg
+        viewBox="0 0 12 12"
+        className="size-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        {children}
+      </svg>
+    </button>
+  )
+}
+
+/**
+ * A pergunta que o pedido de informacao mandou. Ela e gravada como fala do time para
+ * quem relatou, no mesmo instante do pedido: e a primeira fala do time a partir dele.
+ */
+function perguntaDoPedido(
+  pedido: ReportInfoRequestViewModel,
+  falas: PublicCommentViewModel[] | null,
+): string | null {
+  if (!falas) return null
+  const desde = Date.parse(pedido.AskedAt) - 5_000
+  const fala = falas.find((item) => !item.FromReporter && Date.parse(item.CreatedAt) >= desde)
+  return fala?.Body ?? null
 }
 
 /**
@@ -893,7 +1184,14 @@ export function ReportDialog({
  * Os dois prazos aparecem porque sao fatos diferentes: um e quando a pagina passa a
  * avisar, o outro e quando o relato encerra sozinho.
  */
-function Devolvido({ pedido }: { pedido: ReportInfoRequestViewModel }) {
+function Devolvido({
+  pedido,
+  pergunta,
+}: {
+  pedido: ReportInfoRequestViewModel
+  /** O que foi perguntado — quem abre depois ve "esperando" e sabe o que. */
+  pergunta: string | null
+}) {
   return (
     <section className="rounded-xl border border-warn-border bg-warn-surface p-3.5">
       <div className="mb-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -902,6 +1200,12 @@ function Devolvido({ pedido }: { pedido: ReportInfoRequestViewModel }) {
           <span className="text-caption text-warn-fg">pedido por {pedido.AskedByName}</span>
         )}
       </div>
+
+      {pergunta && (
+        <p className="mb-1.5 whitespace-pre-wrap break-words text-detail text-warn-fg leading-relaxed">
+          <span className="font-medium">Pergunta:</span> {pergunta}
+        </p>
+      )}
 
       <p className="text-caption text-warn-fg leading-relaxed">
         A página avisa em {formatDateTime(pedido.WarnAt)}, e o relato encerra como “sem retorno” em{' '}
@@ -1052,17 +1356,60 @@ function AceitaDuvidas({ escolha }: { escolha: boolean | null }) {
 }
 
 /**
- * Onde quem relatou ve este relato.
+ * O que quem relatou ve agora.
  *
- * **Nulo nao diz por que** — pode ser coluna fora do mapa, projeto sem jornada, ou
- * relato que entrou antes de a jornada existir. A frase cobre os tres, porque
- * distinguir exigiria um campo que ficaria desatualizado no primeiro movimento, e
- * aviso errado e pior que aviso nenhum. Quem precisa da diferenca a encontra em
- * Etapas publicas, que lista os estados sem destino.
+ * **O encerramento vem primeiro**: encerrado, a pessoa le o desfecho e o motivo na
+ * pagina de acompanhamento — dizer "ainda nao aparece" ao lado do bloco "Encerrado"
+ * contradizia a tela e confundia quem decide se precisa responder.
+ *
+ * **Sem etapa, a frase diz o que a coluna faz**, e nao que o relato e invisivel: quem
+ * relatou acompanha o relato de qualquer jeito; o que nao muda e a etapa que ele ve.
+ * Nulo pode ser coluna fora do mapa, projeto sem andamento publico, ou relato que
+ * entrou antes dele — a frase cobre os tres. Quem configura ganha o atalho para o
+ * Andamento publico, onde se liga a coluna a uma etapa.
  */
-function LadoDeFora({ etapa }: { etapa: string | null }) {
+function LadoDeFora({
+  etapa,
+  fechamento,
+  projectPublicId,
+  podeConfigurar,
+}: {
+  etapa: string | null
+  fechamento: ReportClosureViewModel | null
+  projectPublicId: string
+  podeConfigurar: boolean
+}) {
+  // Sai do card: com texto por salvar, pergunta antes.
+  const guardar = useGuardedCardLink()
+  const andamento = `/projects/${projectPublicId}/public-stages`
+
+  if (fechamento) {
+    return (
+      <span className="text-caption text-fg-muted">
+        Quem relatou vê:{' '}
+        <span className="text-fg">Encerrado · {publicOutcomeLabel(fechamento.Outcome)}</span>
+      </span>
+    )
+  }
+
   if (etapa === null) {
-    return <span className="text-caption text-fg-muted">Ainda não aparece para quem relatou</span>
+    return (
+      <span className="text-caption text-fg-muted">
+        Esta coluna não muda o que quem relatou vê.
+        {podeConfigurar && (
+          <>
+            {' '}
+            <Link
+              to={andamento}
+              onClick={(evento) => guardar(evento, andamento)}
+              className="underline underline-offset-2 hover:text-fg"
+            >
+              Andamento público
+            </Link>
+          </>
+        )}
+      </span>
+    )
   }
 
   return (

@@ -3,19 +3,28 @@ import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { canConfigure } from '@/shared/lib/projectAccess'
 
 /**
- * A porta do projeto: quem configura cai na Instalação, quem e so membro cai nos
- * Relatos. Os links de fora (hub, seletor do topo) apontam para o projeto, e nao
- * para uma secao, justamente para esta decisao acontecer num lugar so.
+ * A porta do projeto: **o Trabalho, para todo mundo**. A excecao e quem administra
+ * um projeto cujo site **ainda nao mandou relato nenhum** — ai a Instalacao e a
+ * proxima coisa a fazer, e e por ela que se entra.
+ *
+ * Ja foi pelo papel: quem configurava caia sempre na Instalacao, inclusive num
+ * projeto com meses de relatos. Quem administra e quem mais abre o painel, e a tela
+ * que serve uma vez por projeto virava a capa dele.
+ *
+ * Os links de fora (o hub) apontam para o projeto, e nao para uma secao,
+ * justamente para esta decisao acontecer num lugar so. O seletor do topo mantem a
+ * tela em que se estava, e so cai aqui de fora de uma secao.
  */
 export function ProjectHome() {
   const { project } = useOutletContext<ProjectContext>()
-  return <Navigate to={canConfigure(project) ? 'start' : 'reports'} replace />
+  const instalar = canConfigure(project) && project.LastReportReceivedAt === null
+  return <Navigate to={instalar ? 'start' : 'reports'} replace />
 }
 
 /**
- * Envolve as secoes de Configuração. O menu ja nao mostra essas secoes para quem
+ * Envolve as secoes de configuracao. O menu ja nao mostra essas secoes para quem
  * e so membro; isto cobre o endereco digitado ou o link antigo, que levaria a uma
- * tela onde todo salvar responderia 403. O membro vai para os Relatos, que e onde
+ * tela onde todo salvar responderia 403. O membro vai para o Trabalho, que e onde
  * ele trabalha.
  *
  * Repassa o contexto do projeto adiante: sem isso, a tela de dentro perderia o

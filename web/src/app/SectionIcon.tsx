@@ -6,8 +6,12 @@ import { cn } from '@/shared/lib/cn'
  *
  * Menu so de texto obriga a **ler** para achar, e a lateral e onde se procura de
  * relance — a forma chega antes da palavra. Sao os mesmos 12x12 e o mesmo traco
- * do `LockIcon`, que ocupa esta coluna nas secoes bloqueadas: alinhados, os dois
- * grupos parecem a mesma lista com estados diferentes, e nao duas listas.
+ * do `LockIcon`: alinhados, os dois grupos da lateral parecem a mesma lista, e nao
+ * duas listas.
+ *
+ * **Dois itens nao podem ter o mesmo desenho.** "Quem relata" ja foi um contorno de
+ * pessoa, quase igual ao de Membros, e "Andamento público" tres pontos numa linha,
+ * que nao diziam nada: na lateral recolhida, o glifo e tudo o que se ve.
  */
 export function SectionIcon({
   section,
@@ -54,12 +58,24 @@ export function SectionIcon({
       )}
 
       {section === 'identity' && (
-        // Um contorno de pessoa, sem tracos no rosto. E o que a secao decide:
-        // existe alguem do outro lado, e o quanto dele aparece e a escolha que se
-        // faz aqui.
+        // Um cracha: o retrato e as linhas do nome. E o que a secao decide — como
+        // quem relata e reconhecido —, e nao se parece com as duas pessoas de
+        // Membros.
         <>
-          <circle cx="6" cy="4.2" r="2.2" />
-          <path d="M1.8 10.8a4.2 4.2 0 0 1 8.4 0" />
+          <rect x="1.2" y="2.4" width="9.6" height="7.2" rx="1.2" />
+          <circle cx="4.1" cy="5.2" r="1.1" />
+          <path d="M2.7 8.1c.3-.8.8-1.2 1.4-1.2s1.1.4 1.4 1.2" />
+          <path d="M7 5h2.2M7 7h1.6" />
+        </>
+      )}
+
+      {section === 'sprints' && (
+        // Uma caixa de tempo com a seta andando dentro: o trabalho que cabe num
+        // periodo curto.
+        <>
+          <rect x="1.2" y="2.4" width="9.6" height="7.2" rx="1.4" />
+          <path d="M3.4 6h4.6" />
+          <path d="M6.6 4.6 8 6 6.6 7.4" />
         </>
       )}
 
@@ -138,14 +154,12 @@ export function SectionIcon({
       )}
 
       {section === 'stages' && (
-        // Uma linha com tres marcos: e a linha do tempo que quem relatou ve, e
-        // nao as colunas de `states` — as duas telas se confundem, e os glifos
+        // Uma barra de andamento pela metade: e o quanto quem relatou ve do caminho,
+        // e nao as colunas de `states` — as duas telas se confundiam, e os glifos
         // sao a primeira coisa que as separa de relance.
         <>
-          <path d="M1.6 6h8.8" />
-          <circle cx="2.4" cy="6" r="1.1" />
-          <circle cx="6" cy="6" r="1.1" />
-          <circle cx="9.6" cy="6" r="1.1" />
+          <rect x="1.2" y="4.2" width="9.6" height="3.6" rx="1.8" />
+          <path d="M3 6h3" strokeWidth="1.8" />
         </>
       )}
 

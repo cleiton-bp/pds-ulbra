@@ -3,7 +3,10 @@ import { apiDelete, apiGet, apiPost, apiPut } from '@/data/api/httpClient'
 import type { SprintService } from '@/data/sprintService'
 
 export const apiSprintService: SprintService = {
-  listSprints: (publicId) => apiGet<SprintViewModel[]>(`/projects/${publicId}/sprints`),
+  listSprints: (publicId, options) =>
+    apiGet<SprintViewModel[]>(
+      `/projects/${publicId}/sprints${options?.closed ? '?closed=true' : ''}`,
+    ),
 
   createSprint: (publicId, request) =>
     apiPost<SprintViewModel>(`/projects/${publicId}/sprints`, request),

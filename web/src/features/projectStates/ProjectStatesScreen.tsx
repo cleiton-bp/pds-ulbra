@@ -1,32 +1,51 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
+  type CycleSettingsViewModel,
+  MAX_DUE_SOON_DAYS,
+  MAX_LAST_COLUMN_VISIBLE_DAYS,
   MAX_STATE_NAME_LENGTH,
   type ProjectInitialStateViewModel,
   type ProjectStateViewModel,
+  type ProjectStatusMappingViewModel,
 } from '@/contracts'
-import { describeError, projectStateService } from '@/data'
+import {
+  describeError,
+  projectCycleSettingsService,
+  projectPublicStageService,
+  projectReportService,
+  projectStateService,
+  projectStatusMappingService,
+} from '@/data'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { Select } from '@/shared/components/Select'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
+import { UnsavedChangesBar } from '@/shared/components/UnsavedChangesBar'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /**
- * A fila de trabalho do projeto.
+ * As colunas do quadro. Na API e no codigo elas sao "estados"; na tela, **colunas**,
+ * que e o nome que o time usa — a lista, o filtro e o quadro ja falavam assim.
  *
- * **Os nomes sao do cliente, e essa e a decisao que sustenta o resto.** Uma lista
- * fixa, escrita por nos, obrigaria todo time a descrever o processo dele com as
- * nossas palavras — e a traducao entre o que acontece por dentro e o que a pessoa
- * de fora acompanha viraria mapear os nossos nomes nos nossos nomes.
+ * **Os nomes sao do cliente, e essa e a decisao que sustenta o resto.** O projeto
+ * nasce com "A fazer", "Fazendo" e "Feito" para o quadro andar no primeiro minuto,
+ * e o time renomeia, reordena e cria as que ja usa. Uma lista fixa, escrita por nos,
+ * obrigaria todo time a descrever o processo dele com as nossas palavras.
  *
- * **Aposentar, e nao apagar.** Nao ha botao de remover em lugar nenhum desta
- * tela: relato antigo aponta para o estado, e um estado que some leva junto o
- * sentido de tudo que passou por ele. O texto do dialogo diz isso com todas as
- * letras, porque "aposentar" sozinho soa como um jeito educado de apagar.
+ * **Desativar, e nao apagar.** Nao ha botao de apagar em lugar nenhum desta tela:
+ * card antigo aponta para a coluna, e uma coluna que some leva junto o sentido de
+ * tudo que passou por ela. O dialogo diz isso com todas as letras — e quantos cards
+ * estao nela agora, que e o tamanho do efeito.
+ *
+ * **Cada coluna diz o que quem relatou ve** enquanto o relato esta nela. A ligacao
+ * morava so no fim da tela de Andamento publico: o time criava uma coluna, trabalhava
+ * normalmente, e quem relatou continuava lendo "Recebido" sem ninguem perceber. A
+ * coluna nova ja nasce ligada a etapa da coluna que vinha antes dela.
  *
  * **Reordenar e otimista.** A seta move a linha na hora e so depois grava: uma
  * seta que espera a resposta para mexer parece quebrada, e aqui o erro tem
@@ -65,6 +84,26 @@ export function ProjectStatesScreen() {
 
   const [moving, setMoving] = useState(false)
   const [retiring, setRetiring] = useState<ProjectStateViewModel | null>(null)
+  /** Quantos cards estao na coluna que vai ser desativada. Nulo enquanto conta. */
+  const [cardsNaColuna, setCardsNaColuna] = useState<number | null>(null)
+
+  /**
+   * Abre a pergunta de desativar ja contando os cards da coluna: e o tamanho do
+   * efeito, e sem ele quem administra decidia no escuro. A contagem falhando, a
+   * pergunta continua — so sem o numero.
+   */
+  function perguntarDesativar(state: ProjectStateViewModel) {
+    setRetiring(state)
+    setCardsNaColuna(null)
+    projectReportService
+      .listReportCounts(project.PublicId)
+      .then((contagens) =>
+        setCardsNaColuna(
+          contagens.find((coluna) => coluna.StatePublicId === state.PublicId)?.Total ?? 0,
+        ),
+      )
+      .catch(() => setCardsNaColuna(null))
+  }
 
   const { data: carregadas, reload: recarregarEntradas } = useAsyncResource(
     useCallback(() => projectStateService.listInitialStates(project.PublicId), [project.PublicId]),
@@ -83,6 +122,62 @@ export function ProjectStatesScreen() {
    */
   const padrao = states?.find((state) => state.IsActive) ?? null
 
+  // O que quem relatou ve em cada coluna: o mapa da tela de Andamento publico e as
+  // etapas dele. **Falhar aqui nao impede mexer nas colunas** — a linha so fica sem a
+  // escolha, e a tela de Andamento publico continua sendo o caminho.
+  const { data: etapas } = useAsyncResource(
+    useCallback(
+      () => projectPublicStageService.listPublicStages(project.PublicId),
+      [project.PublicId],
+    ),
+  )
+  const { data: mapaLido } = useAsyncResource(
+    useCallback(
+      () => projectStatusMappingService.getStatusMapping(project.PublicId),
+      [project.PublicId],
+    ),
+  )
+  const [mapa, setMapa] = useState<ProjectStatusMappingViewModel | null>(null)
+  useEffect(() => setMapa(mapaLido), [mapaLido])
+  const [ligando, setLigando] = useState<string | null>(null)
+
+  const etapaDe = (statePublicId: string) =>
+    mapa?.Entries.find((entry) => entry.StatePublicId === statePublicId)?.StagePublicId ?? null
+
+  /**
+   * Grava o mapa com uma coluna ligada a outra etapa (ou a nenhuma).
+   *
+   * **Manda o mapa inteiro**, como a tela de Andamento publico: cada gravacao e uma
+   * versao, e uma versao e o retrato do conjunto. Aqui cada escolha e uma decisao de
+   * verdade — uma versao por escolha, e nao por segundo.
+   */
+  async function ligar(statePublicId: string, stagePublicId: string | null): Promise<boolean> {
+    if (!mapa) return false
+    setLigando(statePublicId)
+
+    const outras = mapa.Entries.flatMap((entry) =>
+      entry.StatePublicId !== statePublicId && entry.StagePublicId !== null
+        ? [{ StatePublicId: entry.StatePublicId, StagePublicId: entry.StagePublicId }]
+        : [],
+    )
+
+    try {
+      setMapa(
+        await projectStatusMappingService.saveStatusMapping(project.PublicId, {
+          Entries: stagePublicId
+            ? [...outras, { StatePublicId: statePublicId, StagePublicId: stagePublicId }]
+            : outras,
+        }),
+      )
+      return true
+    } catch (failure) {
+      toast.error(describeError(failure))
+      return false
+    } finally {
+      setLigando(null)
+    }
+  }
+
   async function create() {
     const value = name.trim()
     if (value.length === 0 || creating) return
@@ -90,12 +185,23 @@ export function ProjectStatesScreen() {
     setCreating(true)
     setCreateError(null)
 
+    // A coluna nova entra no fim, e o que quem relatou ve nela comeca igual ao da
+    // ultima coluna ativa de antes: e a vizinha, e o mais perto do certo. A linha
+    // mostra a escolha, e trocar e ali mesmo.
+    const vizinha = [...(states ?? [])].reverse().find((state) => state.IsActive)
+    const etapaVizinha = vizinha ? etapaDe(vizinha.PublicId) : null
+
     try {
       const created = await projectStateService.addProjectState(project.PublicId, { Name: value })
       // Entra no fim porque foi onde a API o colocou. Inserir em outro lugar aqui
       // faria a tela discordar da posicao que acabou de ser gravada.
       setStates((list) => [...(list ?? []), created])
       setName('')
+
+      if (etapaVizinha && (await ligar(created.PublicId, etapaVizinha))) {
+        const rotulo = etapas?.find((etapa) => etapa.PublicId === etapaVizinha)?.Label
+        if (rotulo) toast.done(`Coluna criada. Nela, quem relatou vê “${rotulo}”.`)
+      }
     } catch (failure) {
       // Nome em branco, comprido demais ou repetido pertence ao campo: ha o que
       // corrigir, e a correcao e ali.
@@ -249,9 +355,9 @@ export function ProjectStatesScreen() {
       setStates((list) =>
         (list ?? []).map((item) => (item.PublicId === saved.PublicId ? saved : item)),
       )
-      toast.done(active ? 'Estado de volta à fila.' : 'Estado aposentado.')
+      toast.done(active ? 'Coluna de volta ao quadro.' : 'Coluna desativada.')
     } catch (failure) {
-      // A recusa mais provavel aqui e a de aposentar a entrada de um tipo, e a
+      // A recusa mais provavel aqui e a de desativar a entrada de um tipo, e a
       // mensagem da API ja diz o que fazer. Recarregar a lista de entradas junto
       // porque ela e o caminho da correcao, e pode ter mudado noutra aba.
       toast.error(describeError(failure))
@@ -261,27 +367,24 @@ export function ProjectStatesScreen() {
 
   return (
     <div className="max-w-160">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Estados</h1>
+      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Colunas do quadro</h1>
       <p className="mb-8 text-fg-muted text-body">
-        As etapas por onde o relato passa aqui dentro, com os nomes que a sua equipe usa.
+        As colunas do quadro, na ordem em que o trabalho anda. Valem para relatos e cards do time.
       </p>
 
       <section>
-        <h2 className="mb-1 font-semibold text-lead">A sua fila de trabalho</h2>
         <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-          Nós não escolhemos estas etapas por você: quem conhece o processo é quem trabalha nele.
-          Escreva os nomes que a equipe já usa no dia a dia —{' '}
-          <strong className="font-medium text-fg">
-            "Análise", "Corrigindo", "Testando", "Pronto"
-          </strong>{' '}
-          — e coloque na ordem em que o trabalho anda.
+          Projeto novo começa com{' '}
+          <strong className="font-medium text-fg">A fazer, Fazendo e Feito</strong>: renomeie,
+          reordene ou crie as que o time já usa. De fábrica, a última coluna ativa encerra o relato;
+          em Ciclo, dá para encerrar por um botão.
         </p>
 
         {failed && (
           <div className="rounded-xl border border-border bg-surface-raised p-5">
             <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
-              Não deu para carregar os estados deste projeto agora. A falha foi ao consultar: a sua
-              fila continua exatamente como estava.
+              Não deu para carregar as colunas deste projeto agora. A falha foi ao consultar: o
+              quadro continua exatamente como estava.
             </p>
             <Button onClick={reload}>Tentar de novo</Button>
           </div>
@@ -302,15 +405,14 @@ export function ProjectStatesScreen() {
 
         {states !== null && states.length === 0 && (
           <p className="mb-4 rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted leading-relaxed">
-            A sua fila ainda está vazia. O primeiro estado costuma ser o lugar onde o relato chega
-            para alguém olhar.
+            O quadro ainda não tem colunas. A primeira costuma ser onde o card chega para alguém
+            olhar.
           </p>
         )}
 
         {states !== null && states.length > 1 && (
           <p className="mb-2 text-caption text-fg-muted">
-            Arraste pela alça à esquerda para mudar a ordem. Pelo teclado, use as setas que aparecem
-            ao focar a linha.
+            Arraste pela alça à esquerda para mudar a ordem, ou use as setas.
           </p>
         )}
 
@@ -335,15 +437,14 @@ export function ProjectStatesScreen() {
                   void soltar()
                 }}
                 onDragEnd={() => void soltar()}
-                className={`group flex items-center gap-2 rounded-lg border bg-surface-raised py-2 pr-2 pl-1.5 ${
+                className={`group flex flex-wrap items-center gap-2 rounded-lg border bg-surface-raised py-2 pr-2 pl-1.5 ${
                   arrastando === state.PublicId ? 'border-accent opacity-60' : 'border-border'
                 }`}
               >
-                {/* A alca fica sempre visivel: e ela que conta que a linha se
-                    move. As setas aparecem no mouse por cima ou no foco do
-                    teclado — elas continuam alcancaveis por Tab, porque
-                    `opacity-0` nao tira do foco nem do leitor de tela, e sao o
-                    unico jeito de reordenar sem mouse. */}
+                {/* A alca e as setas ficam sempre visiveis, como em todas as listas
+                    da configuracao: a alca conta que a linha se move, e as setas sao
+                    o jeito de reordenar sem mouse. Escondidas ate o foco, ninguem
+                    descobria que existiam. */}
                 <button
                   type="button"
                   aria-hidden
@@ -365,7 +466,7 @@ export function ProjectStatesScreen() {
                   </svg>
                 </button>
 
-                <div className="flex flex-none flex-col opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                <div className="flex flex-none flex-col">
                   <MoveButton
                     direction="up"
                     label={`Mover ${state.Name} para cima`}
@@ -419,32 +520,32 @@ export function ProjectStatesScreen() {
                     </span>
 
                     {!state.IsActive && (
-                      <span className="flex-none text-caption text-fg-muted">Aposentado</span>
+                      <span className="flex-none text-caption text-fg-muted">Desativada</span>
                     )}
 
                     {/* O rotulo visivel e curto porque a linha e estreita, e o nome
-                        acessivel traz o estado junto: numa lista de oito linhas,
-                        oito botoes chamados "Renomear" nao localizam ninguem. */}
+                        acessivel traz a coluna junto: numa lista de oito linhas,
+                        oito botoes chamados "Editar" nao localizam ninguem. */}
                     <Button
                       size="sm"
                       variant="ghost"
-                      aria-label={`Renomear ${state.Name}`}
+                      aria-label={`Editar ${state.Name}`}
                       onClick={() => {
                         setRenameError(null)
                         setEditing({ publicId: state.PublicId, value: state.Name })
                       }}
                     >
-                      Renomear
+                      Editar
                     </Button>
 
                     {state.IsActive ? (
                       <Button
                         size="sm"
                         variant="ghost"
-                        aria-label={`Aposentar ${state.Name}`}
-                        onClick={() => setRetiring(state)}
+                        aria-label={`Desativar ${state.Name}`}
+                        onClick={() => perguntarDesativar(state)}
                       >
-                        Aposentar
+                        Desativar
                       </Button>
                     ) : (
                       <Button
@@ -458,22 +559,55 @@ export function ProjectStatesScreen() {
                     )}
                   </>
                 )}
+
+                {/* O que quem relatou ve enquanto o relato esta nesta coluna. A
+                    coluna desativada sem ligacao nao tem o que escolher: nenhum
+                    relato novo entra nela. */}
+                {mapa !== null &&
+                  etapas !== null &&
+                  (state.IsActive || etapaDe(state.PublicId)) && (
+                    <div className="flex basis-full items-center gap-2 pl-13 text-caption text-fg-muted">
+                      <span className="flex-none">Quem relatou vê:</span>
+                      <Select
+                        className="min-w-0 max-w-56 flex-1"
+                        size="sm"
+                        ariaLabel={`O que quem relatou vê com o relato em ${state.Name}`}
+                        value={etapaDe(state.PublicId) ?? ''}
+                        disabled={ligando !== null}
+                        onChange={(valor) => void ligar(state.PublicId, valor || null)}
+                        options={[
+                          { value: '', label: 'Nada muda para quem relatou' },
+                          ...etapas.map((etapa) => ({ value: etapa.PublicId, label: etapa.Label })),
+                        ]}
+                      />
+                    </div>
+                  )}
               </li>
             ))}
           </ul>
         )}
 
+        {mapa !== null && (
+          <p className="mb-4 text-caption text-fg-muted leading-relaxed">
+            As etapas que quem relatou acompanha, e o texto de cada uma, ficam em{' '}
+            <Link to="../public-stages" className="text-fg underline underline-offset-4">
+              Andamento público
+            </Link>
+            .
+          </p>
+        )}
+
         {states !== null && (
-          <div className="flex items-start gap-2">
+          <div className="flex items-end gap-2">
             <TextField
               className="min-w-0 flex-1"
-              ariaLabel="Nome do estado"
+              label="Nova coluna"
               value={name}
               onChange={(value) => {
                 setName(value)
                 if (createError) setCreateError(null)
               }}
-              placeholder="Corrigindo"
+              placeholder="Ex.: Em revisão"
               error={createError}
               maxLength={MAX_STATE_NAME_LENGTH}
               disabled={creating}
@@ -484,11 +618,13 @@ export function ProjectStatesScreen() {
               disabled={name.trim().length === 0 || creating}
               onClick={create}
             >
-              Criar estado
+              Criar coluna
             </Button>
           </div>
         )}
       </section>
+
+      <BoardRules projectPublicId={project.PublicId} />
 
       {states !== null && entradas !== null && (
         <section className="mt-10">
@@ -505,7 +641,7 @@ export function ProjectStatesScreen() {
 
           {states.length === 0 ? (
             <p className="rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted leading-relaxed">
-              Crie o primeiro estado acima e esta escolha aparece aqui.
+              Crie a primeira coluna acima e esta escolha aparece aqui.
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -539,8 +675,8 @@ export function ProjectStatesScreen() {
                           ? `Seguir a fila (hoje: ${padrao.Name})`
                           : 'Seguir a fila (nenhuma coluna ativa)',
                       },
-                      // Coluna aposentada nao e destino: mandar relato novo para
-                      // ela desfaria pela porta dos fundos o que aposentar decidiu.
+                      // Coluna desativada nao e destino: mandar relato novo para
+                      // ela desfaria pela porta dos fundos o que desativar decidiu.
                       // A ja escolhida fica, para a tela nao mostrar em branco.
                       ...states
                         .filter(
@@ -561,11 +697,161 @@ export function ProjectStatesScreen() {
         onOpenChange={(open) => {
           if (!open) setRetiring(null)
         }}
-        title="Aposentar estado"
-        description="Ele sai da fila e deixa de receber relato novo, mas não é apagado: o nome continua no histórico dos relatos que já passaram por ele. Dá para trazer de volta quando quiser."
-        confirmLabel="Aposentar"
+        title={retiring ? `Desativar “${retiring.Name}”` : 'Desativar coluna'}
+        description={
+          retiring && cardsNaColuna !== null && cardsNaColuna > 0
+            ? `“${retiring.Name}” tem ${cardsNaColuna === 1 ? '1 card' : `${cardsNaColuna} cards`}. ${cardsNaColuna === 1 ? 'Ele continua' : 'Eles continuam'} nela, numa coluna marcada como desativada, até alguém arrastá-${cardsNaColuna === 1 ? 'lo' : 'los'}. Cards novos não entram mais nela, e nada é apagado: dá para trazer a coluna de volta quando quiser.`
+            : 'Ela sai do quadro e deixa de receber card novo, mas não é apagada: o nome continua no histórico dos cards que já passaram por ela. Dá para trazer de volta quando quiser.'
+        }
+        confirmLabel="Desativar"
         onConfirm={() => (retiring ? setActive(retiring, false) : undefined)}
       />
+    </div>
+  )
+}
+
+/**
+ * Como o quadro mostra o fim e os prazos.
+ *
+ * **Mora aqui, perto das colunas**, e nao no Ciclo: as duas regras falam do quadro —
+ * quantos dias a ultima coluna mostra, e quando o prazo fica em destaque. Sao
+ * campos do mesmo registro das regras do ciclo, e o salvamento manda de volta o que
+ * veio, com so estes dois mudados: mandar so os visiveis apagaria os outros.
+ */
+function BoardRules({ projectPublicId }: { projectPublicId: string }) {
+  const { data: lidas } = useAsyncResource(
+    useCallback(
+      () => projectCycleSettingsService.getCycleSettings(projectPublicId),
+      [projectPublicId],
+    ),
+  )
+
+  const [salvas, setSalvas] = useState<CycleSettingsViewModel | null>(null)
+  const [dias, setDias] = useState(0)
+  const [destaque, setDestaque] = useState(0)
+  const [salvando, setSalvando] = useState(false)
+
+  const voltar = useCallback((regras: CycleSettingsViewModel | null) => {
+    setSalvas(regras)
+    if (!regras) return
+    setDias(regras.LastColumnVisibleDays)
+    setDestaque(regras.DueSoonDays)
+  }, [])
+
+  useEffect(() => voltar(lidas), [lidas, voltar])
+
+  // Sem as regras, a secao nao aparece: e um ajuste fino, e a falha nao pode tomar
+  // o lugar da lista de colunas.
+  if (!salvas) return null
+
+  const mudou = dias !== salvas.LastColumnVisibleDays || destaque !== salvas.DueSoonDays
+
+  async function salvar() {
+    if (!salvas || salvando) return
+    setSalvando(true)
+
+    try {
+      voltar(
+        await projectCycleSettingsService.saveCycleSettings(projectPublicId, {
+          ...salvas,
+          LastColumnVisibleDays: dias,
+          DueSoonDays: destaque,
+        }),
+      )
+      toast.done('Regras do quadro salvas.')
+    } catch (failure) {
+      toast.error(describeError(failure))
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  return (
+    <section className="mt-10">
+      <h2 className="mb-1 font-semibold text-lead">Como o quadro mostra o fim e os prazos</h2>
+      <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+        A última coluna só cresce — é onde o trabalho termina. Ela mostra só o que entrou nela há
+        pouco tempo; <strong className="font-medium text-fg">o resto continua na lista</strong> da
+        tela de Trabalho, e nada sai do projeto. Com uma coluna só, a regra não vale: ali ainda é a
+        entrada da fila.
+      </p>
+
+      <NumeroDeDias
+        id="ultima-coluna"
+        rotulo="A última coluna mostra o que entrou nela nos últimos"
+        maximo={MAX_LAST_COLUMN_VISIBLE_DAYS}
+        valor={dias}
+        aoTrocar={setDias}
+        explicacao={
+          dias === 0
+            ? 'Zero: mostra todos, por mais antigos que sejam.'
+            : 'O card que entrou nela antes disso sai do quadro e continua na lista.'
+        }
+      />
+
+      <NumeroDeDias
+        id="prazo-perto"
+        rotulo="O prazo fica em destaque faltando"
+        maximo={MAX_DUE_SOON_DAYS}
+        valor={destaque}
+        aoTrocar={setDestaque}
+        explicacao={
+          destaque === 0
+            ? 'Zero: só no próprio dia, em amarelo. O vencido aparece sempre, em vermelho.'
+            : 'Em amarelo, no quadro e na lista. O vencido aparece sempre, em vermelho.'
+        }
+      />
+
+      <UnsavedChangesBar
+        dirty={mudou}
+        saving={salvando}
+        onSave={() => void salvar()}
+        onDiscard={() => voltar(salvas)}
+      />
+    </section>
+  )
+}
+
+/**
+ * Um numero de dias, de zero ao teto. Um `number` de verdade: teclado numerico no
+ * telefone e letra recusada pelo navegador. Campo vazio vira zero, e nao `NaN`, que
+ * quebraria a conta de "ha mudanca".
+ */
+function NumeroDeDias({
+  id,
+  rotulo,
+  valor,
+  maximo,
+  explicacao,
+  aoTrocar,
+}: {
+  id: string
+  rotulo: string
+  valor: number
+  maximo: number
+  explicacao: string
+  aoTrocar: (valor: number) => void
+}) {
+  return (
+    <div className="mb-3">
+      <label htmlFor={id} className="mb-1.5 block text-detail text-fg-muted">
+        {rotulo}
+      </label>
+      <div className="mb-1 flex items-center gap-2">
+        <input
+          id={id}
+          type="number"
+          min={0}
+          max={maximo}
+          value={valor}
+          onChange={(evento) =>
+            aoTrocar(Math.max(0, Number.parseInt(evento.target.value, 10) || 0))
+          }
+          className="h-9 w-28 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg"
+        />
+        <span className="text-detail text-fg-muted">dias</span>
+      </div>
+      <p className="text-caption text-fg-muted leading-relaxed">{explicacao}</p>
     </div>
   )
 }

@@ -8,6 +8,7 @@ import type { TeamMemberViewModel } from '@/contracts'
 import { CommentBody, MentionTextarea } from '@/features/reports/MentionTextarea'
 import {
   type ChosenMention,
+  decodeMentions,
   encodeMentions,
   foldForSearch,
   mentionQuery,
@@ -20,9 +21,12 @@ import { ReportComments } from '@/features/reports/ReportComments'
  *
  * - **No campo, "@Nome"; no envio, a marca com quem e** — so da mencao que ficou no
  *   texto, e sem pegar o comeco de outro nome.
+ * - **Corrigir faz o caminho de volta**: a marca vira "@Nome" no campo, e reenviado o
+ *   texto volta a ser o mesmo — com a marca so de quem ficou.
  * - **O "@" so abre a palavra**, e a busca acaba na quebra de linha.
  * - **A lista do "@"**: o time lido uma vez, sem quem escreve, sem acento; setas e
  *   Enter escolhem; Esc fecha so a lista — o card aberto continua aberto.
+ * - **Ctrl+Enter (ou ⌘+Enter) envia**, mesmo com a lista aberta — e nao escolhe ninguem.
  * - **A leitura mostra "@Nome" destacado**, e nao a marca.
  * - **So a caixa de dentro menciona.**
  */
@@ -75,6 +79,22 @@ describe('as marcas da menção', () => {
     )
     expect(encodeMentions('ninguém aqui', escolhidos)).toBe('ninguém aqui')
     expect(encodeMentions('@João.', escolhidos)).toBe(`@[João](${JOAO}).`)
+  })
+
+  it('corrigir: a marca volta a "@Nome", e reenviado o texto e o mesmo', () => {
+    const corpo = `Oi @[Ana Dona](${ANA}) e @[Bruno Membro](${BRUNO}); @[Ana Dona](${ANA}) de novo.`
+    const { text, chosen } = decodeMentions(corpo)
+    expect(text).toBe('Oi @Ana Dona e @Bruno Membro; @Ana Dona de novo.')
+    // Cada pessoa uma vez so, como se tivesse sido escolhida na lista.
+    expect(chosen).toEqual([
+      { name: 'Ana Dona', id: ANA },
+      { name: 'Bruno Membro', id: BRUNO },
+    ])
+    expect(encodeMentions(text, chosen)).toBe(corpo)
+
+    // Quem saiu do texto na correcao nao e mencionado de novo.
+    expect(encodeMentions('Oi @Bruno Membro.', chosen)).toBe(`Oi @[Bruno Membro](${BRUNO}).`)
+    expect(decodeMentions('sem menção')).toEqual({ text: 'sem menção', chosen: [] })
   })
 
   it('o "@" só abre a palavra, e a busca acaba na quebra de linha', () => {
@@ -172,6 +192,40 @@ describe('o campo com "@"', () => {
     campo.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     expect(doDialogo).toHaveBeenCalledTimes(1)
     document.removeEventListener('keydown', doDialogo, true)
+  })
+
+  it('Ctrl+Enter envia, mesmo com a lista aberta — e não escolhe ninguém', async () => {
+    const enviar = vi.fn()
+    const aoMencionar = vi.fn()
+    function ComEnvio() {
+      const [texto, setTexto] = useState('')
+      return (
+        <MentionTextarea
+          projectPublicId="p-1"
+          ariaLabel="Entre o time"
+          value={texto}
+          onChange={setTexto}
+          onMention={aoMencionar}
+          onSubmit={() => enviar(texto)}
+        />
+      )
+    }
+    render(<ComEnvio />)
+    const campo = screen.getByRole('textbox', { name: 'Entre o time' }) as HTMLTextAreaElement
+
+    digitar(campo, 'Olha @bru')
+    await screen.findByRole('listbox', { name: 'Pessoas do time' })
+    fireEvent.keyDown(campo, { key: 'Enter', ctrlKey: true })
+
+    expect(enviar).toHaveBeenCalledWith('Olha @bru')
+    expect(aoMencionar).not.toHaveBeenCalled()
+    expect(campo.value).toBe('Olha @bru')
+    expect(screen.queryByRole('listbox')).toBeNull()
+
+    // O ⌘ do Mac vale o mesmo; o Enter sozinho e quebra de linha.
+    fireEvent.keyDown(campo, { key: 'Enter', metaKey: true })
+    fireEvent.keyDown(campo, { key: 'Enter' })
+    expect(enviar).toHaveBeenCalledTimes(2)
   })
 
   it('a leitura mostra "@Nome" destacado, e não a marca', () => {

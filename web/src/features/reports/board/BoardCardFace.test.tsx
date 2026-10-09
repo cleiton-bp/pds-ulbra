@@ -8,8 +8,10 @@ import { BoardCardFace } from '@/features/reports/board/BoardCardFace'
 /**
  * O QUE ESTES TESTES TRAVAM: a frente do card no quadro diz o bastante, e so isso.
  *
- * - O numero, o tipo e o titulo — o do time, senao o de quem relatou, senao o texto.
- * - A prioridade (a aposentada marcada) e ate tres etiquetas, com "+N".
+ * - O numero, o tipo e o titulo — o do time, senao o de quem relatou, senao o texto,
+ *   **entre aspas e na cor do titulo** (a fala de quem relatou, e nao cinza de inativo).
+ * - A prioridade (a desativada marcada) e ate tres etiquetas, com "+N".
+ * - Os pontos como "3 pts", e o leitor de tela ouvindo "3 pontos".
  * - **Os contadores so quando ha**, com o que contam escrito para leitor de tela.
  * - **Quem esta com o card pelas iniciais**, com o nome dito — e a marca de quem saiu.
  */
@@ -39,6 +41,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     CommentCount: 0,
     AttachmentCount: 0,
     Closed: false,
+    ClosureConfirmed: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -48,6 +51,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     DuplicateReporters: 0,
     Sprint: null,
     StoryPoints: null,
+    UpdatedAt: '2026-10-03T12:00:00.000Z',
     ...extra,
   }
 }
@@ -90,7 +94,20 @@ describe('a frente do card', () => {
     expect(screen.queryByText(/comentário/)).toBeNull()
   })
 
-  it('a prioridade aposentada marcada, tres etiquetas e o resto contado', () => {
+  it('o relato sem titulo nenhum: o comeco do texto entre aspas, na cor do titulo', () => {
+    render(<BoardCardFace card={card({ ReporterTitle: null })} soonDays={2} />)
+    const titulo = screen.getByText('“Depois de escolher o cartao, nada acontece.”')
+    expect(titulo.className).toContain('text-fg')
+    expect(titulo.className).not.toContain('text-fg-muted')
+  })
+
+  it('os pontos no selo: "3 pts" para quem ve, "3 pontos" para o leitor de tela', () => {
+    render(<BoardCardFace card={card({ StoryPoints: 3 })} soonDays={2} />)
+    expect(screen.getByText('3 pts')).toBeTruthy()
+    expect(screen.getByText('3 pontos')).toBeTruthy()
+  })
+
+  it('a prioridade desativada marcada, tres etiquetas e o resto contado', () => {
     render(
       <BoardCardFace
         card={card({
@@ -104,7 +121,7 @@ describe('a frente do card', () => {
         soonDays={2}
       />,
     )
-    expect(screen.getByText('Alta (aposentada)')).toBeTruthy()
+    expect(screen.getByText('Alta (desativada)')).toBeTruthy()
     expect(screen.getByText('c')).toBeTruthy()
     expect(screen.queryByText('d')).toBeNull()
     expect(screen.getByText('+2')).toBeTruthy()

@@ -9,11 +9,13 @@ import { PrioritiesScreen } from '@/features/priorities/PrioritiesScreen'
 /**
  * O QUE ESTES TESTES TRAVAM: a tela de Prioridades.
  *
- * - **A lista vem da menos para a mais urgente**, com as aposentadas no lugar delas.
+ * - **A lista vem da menos para a mais urgente**, com as desativadas no lugar delas.
  * - **Reordenar e otimista**: a seta move na hora e grava a lista inteira; a recusa
  *   devolve a ordem de antes.
  * - **Nome e cor se gravam juntos**, e criar pede os dois.
- * - **Aposentar pede confirmacao**: a prioridade fica nos cards que ja a tem.
+ * - **Desativar pede confirmacao**: a prioridade fica nos cards que ja a tem. O verbo
+ *   e o mesmo das Colunas ("Desativar"/"Reativar", selo "Desativada") — antes cada
+ *   lista tinha o seu.
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<() => Promise<ProjectPriorityViewModel[]>>(),
@@ -66,6 +68,8 @@ const projeto: ProjectViewModel = {
   Account: { PublicId: 'conta-1', Name: 'Conta de teste' },
   Role: 'Administrator',
   IsAccountOwner: true,
+  LastReportReceivedAt: null,
+  LastActivityAt: null,
 }
 
 function montar() {
@@ -102,7 +106,7 @@ describe('a tela de Prioridades', () => {
     dublê.listar.mockResolvedValue(fabrica())
   })
 
-  it('mostra a lista da menos para a mais urgente, e a aposentada marcada', async () => {
+  it('mostra a lista da menos para a mais urgente, e a desativada marcada', async () => {
     dublê.listar.mockResolvedValue([
       ...fabrica().slice(0, 3),
       prioridade('p-urgente', 'Urgente', 3, { IsActive: false }),
@@ -111,7 +115,8 @@ describe('a tela de Prioridades', () => {
 
     await screen.findByText('Baixa')
     expect(nomesNaTela()).toEqual(['Baixa', 'Média', 'Alta', 'Urgente'])
-    expect(screen.getByText('Aposentada')).toBeTruthy()
+    expect(screen.getByText('Desativada')).toBeTruthy()
+    expect(screen.queryByText('Aposentada')).toBeNull()
     expect(screen.getByRole('button', { name: 'Reativar Urgente' })).toBeTruthy()
   })
 
@@ -179,15 +184,16 @@ describe('a tela de Prioridades', () => {
     expect(await screen.findByText('Importante')).toBeTruthy()
   })
 
-  it('aposentar pede confirmacao, e so entao grava', async () => {
+  it('desativar pede confirmacao, e so entao grava', async () => {
     dublê.aposentar.mockResolvedValue(prioridade('p-alta', 'Alta', 2, { IsActive: false }))
     montar()
     await screen.findByText('Alta')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Aposentar Alta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Desativar Alta' }))
     expect(dublê.aposentar).not.toHaveBeenCalled()
     const dialogo = await screen.findByRole('alertdialog')
-    fireEvent.click(within(dialogo).getByRole('button', { name: 'Aposentar' }))
+    expect(within(dialogo).getByText(/continua nos cards que já a têm/)).toBeTruthy()
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Desativar' }))
 
     await waitFor(() => expect(dublê.aposentar).toHaveBeenCalledWith('p-1', 'p-alta'))
     expect(await screen.findByRole('button', { name: 'Reativar Alta' })).toBeTruthy()

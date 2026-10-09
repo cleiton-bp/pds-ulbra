@@ -8,6 +8,7 @@ import {
   type ReportSummaryViewModel,
 } from '@/contracts'
 import { describeError, projectReportService } from '@/data'
+import { useCardDraft, useGuardedCardLink } from '@/features/reports/cardDrafts'
 import { cardHeadline, PersonAvatar, StatusLozenge, statusTone } from '@/features/reports/cardLook'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -19,11 +20,14 @@ import { cn } from '@/shared/lib/cn'
  * O pai, no alto da subtarefa aberta: o numero e o titulo, com o link para abrir o pai.
  */
 export function ParentLink({ parent }: { parent: CardParentViewModel }) {
+  // Com texto por salvar no card, ir ao pai pergunta antes.
+  const guardar = useGuardedCardLink()
   return (
     <p className="mb-2 flex min-w-0 items-center gap-1.5 text-detail text-fg-muted">
       <span className="flex-none">Subtarefa de</span>
       <Link
         to={`../${parent.PublicId}`}
+        onClick={(evento) => guardar(evento, `../${parent.PublicId}`)}
         className="flex min-w-0 items-center gap-1 text-fg underline-offset-2 hover:underline"
       >
         <span className="flex-none font-mono">#{parent.Number}</span>{' '}
@@ -43,6 +47,13 @@ export function ParentLink({ parent }: { parent: CardParentViewModel }) {
  *
  * A lista e a de sempre, com `parent`, e e relida quando o card aberto muda (`versao`)
  * — inclusive pelo tempo real: a subtarefa que outra pessoa move avisa o pai.
+ *
+ * **O circulo marca.** Ele tinha cara de caixa de marcar e nao marcava: para dar uma
+ * subtarefa por feita era preciso abri-la, mudar a coluna e voltar ao pai. Agora o
+ * clique leva a subtarefa para a ultima coluna, e o segundo a devolve para a primeira.
+ * **Nao e checklist**: a subtarefa continua sendo um card que anda pelo quadro, e o
+ * circulo e so o atalho do movimento. Com uma coluna so nao ha onde terminar (a
+ * unica e a entrada da fila), e o circulo volta a ser so o sinal.
  */
 export function CardSubtasks({
   projectPublicId,
@@ -50,6 +61,7 @@ export function CardSubtasks({
   colunas,
   versao,
   aoCriar,
+  aoMoverSubtarefa,
 }: {
   projectPublicId: string
   card: ReportSummaryViewModel
@@ -58,6 +70,8 @@ export function CardSubtasks({
   versao: number
   /** A subtarefa nasceu: quem abriu o dialogo poe ela na tela e acerta o pai. */
   aoCriar: (subtarefa: ReportDetailViewModel) => void
+  /** Uma subtarefa foi marcada como feita, ou reaberta: a lista e o quadro se acertam, e o pai. */
+  aoMoverSubtarefa?: (subtarefa: ReportSummaryViewModel) => void
 }) {
   const arquivado = card.ArchivedAt !== null
   const temSubtarefas = card.SubtaskCount > 0
@@ -90,6 +104,42 @@ export function CardSubtasks({
 
   const [titulo, setTitulo] = useState('')
   const [criando, setCriando] = useState(false)
+
+  // O Esc com texto no campo limpa so o campo; o seguinte fecha o card.
+  const campo = useRef<HTMLFormElement>(null)
+  useCardDraft({ sujo: false, cancelar: titulo ? () => setTitulo('') : undefined }, campo)
+  const guardar = useGuardedCardLink()
+
+  // A primeira e a ultima coluna ativa: o circulo leva de uma a outra. Com uma so, nao
+  // ha onde terminar.
+  const ativas = (colunas ?? []).filter((coluna) => coluna.IsActive && coluna.StatePublicId)
+  const primeira = ativas.length > 1 ? ativas[0] : undefined
+  const ultima = ativas.length > 1 ? ativas[ativas.length - 1] : undefined
+  const [marcando, setMarcando] = useState<string | null>(null)
+
+  async function marcar(item: ReportSummaryViewModel) {
+    const destino = item.Finished ? primeira : ultima
+    if (!destino?.StatePublicId || marcando) return
+    setMarcando(item.PublicId)
+    try {
+      const salvo = await projectReportService.moveReport(projectPublicId, item.PublicId, {
+        StatePublicId: destino.StatePublicId,
+      })
+      toast.done(
+        item.Finished
+          ? `#${item.Number} voltou para ${destino.StateName ?? 'a primeira coluna'}.`
+          : `#${item.Number} marcada como feita.`,
+      )
+      revalidate()
+      aoMoverSubtarefa?.(salvo)
+    } catch (falha) {
+      toast.error(
+        `Não deu para ${item.Finished ? 'reabrir' : 'marcar como feita'} a #${item.Number}. ${describeError(falha)}`,
+      )
+    } finally {
+      setMarcando(null)
+    }
+  }
 
   async function criar(evento: FormEvent) {
     evento.preventDefault()
@@ -164,10 +214,26 @@ export function CardSubtasks({
         <ul className="mb-3 divide-y divide-border rounded-lg border border-border">
           {subtarefas.map((item) => (
             <li key={item.PublicId} className="flex min-w-0 items-center gap-2 px-2.5 py-2">
-              <Feita feita={item.Finished} />
+              {primeira && ultima && !arquivado && item.ArchivedAt === null ? (
+                <button
+                  type="button"
+                  onClick={() => void marcar(item)}
+                  disabled={marcando !== null}
+                  aria-label={
+                    item.Finished ? `Reabrir #${item.Number}` : `Marcar #${item.Number} como feita`
+                  }
+                  title={item.Finished ? 'Reabrir' : 'Marcar como feita'}
+                  className="flex flex-none rounded-full hover:opacity-80 disabled:opacity-50"
+                >
+                  <Feita feita={item.Finished} marcavel />
+                </button>
+              ) : (
+                <Feita feita={item.Finished} />
+              )}
               <span className="flex-none font-mono text-caption text-fg-muted">#{item.Number}</span>
               <Link
                 to={`../${item.PublicId}`}
+                onClick={(evento) => guardar(evento, `../${item.PublicId}`)}
                 className={cn(
                   'min-w-0 flex-1 truncate text-detail underline-offset-2 hover:underline',
                   item.Finished ? 'text-fg-muted line-through' : 'text-fg',
@@ -191,7 +257,7 @@ export function CardSubtasks({
       {arquivado ? (
         total === 0 && <p className="text-detail text-fg-muted">Sem subtarefas.</p>
       ) : (
-        <form onSubmit={(evento) => void criar(evento)} className="flex gap-2">
+        <form ref={campo} onSubmit={(evento) => void criar(evento)} className="flex gap-2">
           <label className="min-w-0 flex-1">
             <span className="sr-only">Criar subtarefa</span>
             <input
@@ -215,15 +281,20 @@ export function CardSubtasks({
   )
 }
 
-/** Se a subtarefa terminou: o visto, com a palavra para quem nao ve. */
-function Feita({ feita }: { feita: boolean }) {
+/**
+ * Se a subtarefa terminou: o visto, com a palavra para quem nao ve. Dentro do botao
+ * (`marcavel`), a palavra fica no nome do botao, e a borda passa a de controle.
+ */
+function Feita({ feita, marcavel = false }: { feita: boolean; marcavel?: boolean }) {
   return (
     <span
       className={cn(
         'flex size-4 flex-none items-center justify-center rounded-full border',
         feita
           ? 'border-chip-green-border bg-chip-green-surface text-chip-green-fg'
-          : 'border-border',
+          : marcavel
+            ? 'border-fg-muted'
+            : 'border-border',
       )}
     >
       {feita && (
@@ -238,7 +309,7 @@ function Feita({ feita }: { feita: boolean }) {
           <path d="M2.5 6.3 4.8 8.6 9.5 3.9" />
         </svg>
       )}
-      <span className="sr-only">{feita ? 'Feita' : 'Por fazer'}</span>
+      {!marcavel && <span className="sr-only">{feita ? 'Feita' : 'Por fazer'}</span>}
     </span>
   )
 }

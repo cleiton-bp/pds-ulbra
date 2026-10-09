@@ -3,6 +3,7 @@ import {
   BlockedMark,
   CardTypeIcon,
   cardHeadline,
+  headlineText,
   MoreLabels,
   ParentLine,
   PersonAvatar,
@@ -33,7 +34,7 @@ export function BoardCardFace({
   card: ReportSummaryViewModel
   /** A regra do projeto para o prazo ficar perto (Ciclo). */
   soonDays: number
-  /** O card que esta sendo arrastado: a copia que segue o ponteiro. */
+  /** O card que esta sendo arrastado: a copia que segue o ponteiro, um pouco maior — no celular, o sinal de que pegou. */
   lifted?: boolean
   /**
    * Outra pessoa acabou de muda-lo: uma faixa a esquerda e um fundo por um instante,
@@ -54,17 +55,13 @@ export function BoardCardFace({
         // A faixa e o fundo do destaque somem devagar; o resto responde na hora.
         'before:pointer-events-none before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-r-full before:bg-chip-blue-glyph before:opacity-0 before:transition-opacity before:duration-700',
         highlighted && 'bg-chip-blue-surface before:opacity-100',
-        lifted && 'rotate-2 shadow-lg ring-2 ring-accent',
+        lifted && 'rotate-2 scale-[1.03] shadow-lg ring-2 ring-accent',
       )}
     >
       {card.Parent && <ParentLine parent={card.Parent} className="mb-1" />}
-      <p
-        className={cn(
-          'line-clamp-3 break-words text-body leading-snug',
-          titulo.titled ? 'text-fg' : 'text-fg-muted',
-        )}
-      >
-        {titulo.text}
+      {/* O relato sem titulo entre aspas, na cor do titulo (ver `headlineText`). */}
+      <p className="line-clamp-3 break-words text-body text-fg leading-snug">
+        {headlineText(titulo)}
       </p>
 
       {visiveis.length > 0 && (

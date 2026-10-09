@@ -9,6 +9,7 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
+import { formatRelative } from '@/shared/lib/datetime'
 import { buildSnippet } from '@/shared/lib/loader'
 
 /**
@@ -24,6 +25,11 @@ import { buildSnippet } from '@/shared/lib/loader'
  * marcar; o visto verde competia com o cadeado por atencao e a lista virava
  * formulario. Ficou o que a lista precisa ser: o numero de cada passo, e o
  * cadeado no unico que nao da para fazer ainda.
+ *
+ * **Diz se ja esta funcionando.** Quem volta para conferir o script de um projeto que
+ * ja recebe relatos via a mesma tela de um projeto que nunca recebeu nada, e nao
+ * sabia se precisava fazer alguma coisa. O selo usa o ultimo relato que chegou de
+ * fora — o mesmo dado que decide se esta tela e a porta do projeto.
  */
 
 export function StartScreen() {
@@ -45,8 +51,23 @@ export function StartScreen() {
     <div className="max-w-170">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Instalação</h1>
       <p className="mb-6 text-fg-muted text-body">
-        Duas coisas para o seu site começar a mandar relatos para este projeto.
+        Três passos para o seu site começar a mandar relatos para este projeto.
       </p>
+
+      {project.LastReportReceivedAt && (
+        <p
+          role="status"
+          className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-surface-raised px-3.5 py-2.5 text-detail text-fg-muted"
+        >
+          <span>
+            <strong className="font-medium text-fg">Funcionando:</strong> o último relato chegou{' '}
+            {formatRelative(project.LastReportReceivedAt)}.
+          </span>
+          <Link to="../reports" className="font-medium text-fg underline underline-offset-4">
+            Ver em Trabalho
+          </Link>
+        </p>
+      )}
 
       {failed && (
         <div className="rounded-xl border border-border bg-surface-raised p-5">
@@ -98,7 +119,7 @@ export function StartScreen() {
               Por padrão ela abre em qualquer endereço que tenha esta chave. Quais endereços podem
               abri-la fica em{' '}
               <Link to="../settings" className="text-fg underline underline-offset-4">
-                Configurações
+                Projeto
               </Link>
               .
             </p>
@@ -141,8 +162,8 @@ export function StartScreen() {
  *
  * **A lista e a dos campos que existem de verdade.** Ela ja teve "Fonte", que
  * nunca foi campo nenhum, e um cadeado de "em breve" — as duas coisas eram
- * verdade enquanto a secao Ferramenta nao existia, e viraram promessa falsa no dia
- * em que ela entrou.
+ * verdade enquanto a secao do botao no site nao existia, e viraram promessa falsa
+ * no dia em que ela entrou.
  */
 const CUSTOMIZAVEL = ['Cor', 'Canto', 'Tema', 'Textos']
 
@@ -178,7 +199,7 @@ function WidgetPreview() {
         to="../tool"
         className="mt-2.5 inline-flex text-caption text-fg-muted underline-offset-4 hover:underline"
       >
-        Mudar em Ferramenta
+        Mudar em Botão no site
       </Link>
     </div>
   )

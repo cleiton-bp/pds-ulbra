@@ -50,6 +50,24 @@ export function encodeMentions(text: string, chosen: ChosenMention[]): string {
 }
 
 /**
+ * O caminho de volta de `encodeMentions`, para corrigir um comentario: o texto como a
+ * pessoa o escreveu ("@Ana Dona") e quem cada mencao e. Reenviado, cada "@Nome" que
+ * continuar no texto volta a ser a marca de quem era.
+ */
+export function decodeMentions(body: string): { text: string; chosen: ChosenMention[] } {
+  const chosen: ChosenMention[] = []
+  const text = splitMentions(body)
+    .map((pedaco) => {
+      if ('text' in pedaco) return pedaco.text
+      if (!chosen.some((pessoa) => pessoa.id === pedaco.id))
+        chosen.push({ name: pedaco.mention, id: pedaco.id })
+      return `@${pedaco.mention}`
+    })
+    .join('')
+  return { text, chosen }
+}
+
+/**
  * O "@" que esta sendo digitado antes do cursor: onde comeca e o que ja foi escrito
  * depois dele. Nulo quando nao ha — o "@" precisa abrir a palavra (comeco do texto ou
  * depois de espaco), e a busca acaba na quebra de linha ou depois de 40 letras.
