@@ -369,7 +369,11 @@ describe('anexar ao responder', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
 
     await screen.findByText('não enviado')
-    expect(screen.getByText(/que o projeto permite, que e 4/)).toBeDefined()
+    // O motivo e o da API, acentuado no caminho (a API escreve sem acento, por
+    // convencao da casa): quem relata le portugues certo, e nada do vocabulario do time.
+    expect(
+      screen.getByText('Esta resposta já tem o máximo de arquivos que o projeto permite, que é 4.'),
+    ).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
     // O envio terminou: o seletor volta para a proxima resposta.
     expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()

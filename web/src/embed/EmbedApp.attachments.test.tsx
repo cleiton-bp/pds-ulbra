@@ -619,7 +619,8 @@ describe('o envio', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
     await screen.findByText('não enviado')
-    expect(screen.getByText('Este projeto nao aceita anexo.')).toBeDefined()
+    // A API escreve sem acento (convencao da casa); o quadro acentua no caminho.
+    expect(screen.getByText('Este projeto não aceita anexo.')).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
     expect(screen.getByText(/seu texto está salvo/)).toBeDefined()
   })

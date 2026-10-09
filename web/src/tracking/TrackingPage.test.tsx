@@ -616,7 +616,16 @@ describe('a resposta de quem relatou', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sim, resolveu' }))
 
-    expect(await screen.findByText(/Falha de rede ao enviar a sua resposta/)).toBeTruthy()
+    // Rede caida nao repete a frase tecnica que veio da camada de dados: diz o que
+    // conferir, e que nada se perdeu — o que e verdade aqui, porque o botao continua
+    // na tela para tentar de novo.
+    expect(
+      await screen.findByText(
+        'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Falha de rede/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Sim, resolveu' })).toBeTruthy()
     // O que falhou foi a resposta dela, e não a página: o relato continua ali.
     expect(screen.getByText('7K2M-9QXP-4TRV')).toBeTruthy()
   })
@@ -743,6 +752,41 @@ describe('a conversa sobre o relato', () => {
     expect(await screen.findByText('No Chrome do celular.')).toBeTruthy()
     await waitFor(() =>
       expect(screen.queryByRole('textbox', { name: 'A sua resposta' })).toBeNull(),
+    )
+  })
+
+  // A frase da rede caida e a do painel (`describeError`), e diz "nada se perdeu".
+  // Aqui isso so e verdade porque o que ela escreveu continua na caixa: o dia em que
+  // a caixa limpar antes de a resposta ser gravada, a frase passa a mentir.
+  it('responder sem conexão diz que nada se perdeu, e o texto continua na caixa', async () => {
+    const { PanelError } = await import('@/data/publicIndex')
+    dublê.abrir.mockResolvedValue({
+      ...relato,
+      Conversation: [fala('m-1', false, 'Em qual navegador?')],
+      InfoRequest: {
+        AskedAt: '2026-09-18T12:00:00.000Z',
+        CloseAt: '2026-10-02T12:00:00.000Z',
+        IsWarning: false,
+      },
+      CanReply: true,
+    })
+    dublê.responder.mockRejectedValue(new PanelError('Falha de rede ao enviar a sua resposta.', 0))
+    abrirEm('/tracking.html?c=7K2M-9QXP-4TRV#t=tok-secreto')
+
+    render(<TrackingPage />)
+
+    const caixa = await screen.findByRole('textbox', { name: 'A sua resposta' })
+    fireEvent.change(caixa, { target: { value: 'No Chrome do celular.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Responder' }))
+
+    expect(
+      await screen.findByText(
+        'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+      ),
+    ).toBeTruthy()
+    expect((caixa as HTMLTextAreaElement).value).toBe('No Chrome do celular.')
+    expect((screen.getByRole('button', { name: 'Responder' }) as HTMLButtonElement).disabled).toBe(
+      false,
     )
   })
 
