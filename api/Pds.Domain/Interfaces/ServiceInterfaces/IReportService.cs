@@ -13,8 +13,15 @@ public interface IReportService
     ///
     /// <para>Devolve o protocolo e o token de acompanhamento — e o token sai daqui
     /// uma unica vez.</para>
+    ///
+    /// <para>Passa antes pelas camadas de limite (quem relata, IP, endereco, projeto),
+    /// que recusam com <see cref="Pds.Domain.Exceptions.TooManyRequestsException"/>. O
+    /// relato de um endereco fora da lista de autorizados entra retido.</para>
     /// </summary>
-    Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, CancellationToken cancellationToken = default);
+    /// <param name="dto">O relato.</param>
+    /// <param name="clientIp">O IP de quem pede, so para as contagens na memoria — nunca gravado.</param>
+    /// <param name="cancellationToken">Cancelamento da requisicao.</param>
+    Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, string? clientIp, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// O acompanhamento de um relato, aberto por quem o escreveu — <b>sem sessao</b>.
@@ -117,9 +124,13 @@ public interface IReportService
     /// logo depois daquele card, e a pagina deixa de valer.</para>
     ///
     /// <para><paramref name="filters"/> sao os filtros da tela de Trabalho —
-    /// responsavel, etiqueta, prioridade, tipo, vencidos, a busca, o "Em aberto", as
-    /// subtarefas e as colunas da lista. O identificador que nao e do projeto e
-    /// recusado, como o de coluna.</para>
+    /// responsavel, etiqueta, prioridade, tipo, vencidos, a busca, o "Em aberto" e as
+    /// colunas da lista. O identificador que nao e do projeto e recusado, como o de
+    /// coluna.</para>
+    ///
+    /// <para><b>A subtarefa nao vem</b>: ela mora dentro do pai, e so o filtro do pai a
+    /// traz. O responsavel e a busca acham o pai tambem pela subtarefa, e o card diz por
+    /// que (<c>SubtaskMatch</c>).</para>
     ///
     /// <para><paramref name="sort"/> e <paramref name="dir"/> sao a ordem que a pessoa
     /// escolheu na tabela — so na lista de sempre, e nunca com <c>board</c> ou

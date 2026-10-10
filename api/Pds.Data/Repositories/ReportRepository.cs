@@ -62,10 +62,15 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // painel passa a dizer "colocado em Analise" sobre um relato que estava em
         // outra coluna havia semanas — uma linha que descreve um caminho que ninguem
         // percorreu. Nao da erro em lugar nenhum: so mente.
+        //
+        // E o tipo vem junto porque a pagina diz o nome dele. Sem o filtro aqui, o
+        // tipo vem como esta, desativado ou nao — que e o certo: o relato continua
+        // sendo do tipo que a pessoa escolheu.
         => Context.Reports
             .IgnoreQueryFilters()
             .Include(report => report.Project)
             .Include(report => report.ProjectState)
+            .Include(report => report.ReportType)
             .FirstOrDefaultAsync(report => report.TrackingCode == trackingCode, cancellationToken);
 
     public async Task<IReadOnlyList<Report>> ListByProjectAsync(long projectId, ReportStateFilter filter, bool archived, ReportListOrder order, DateTime? enteredSince, BoardSpot? after, int skip, int take, ReportCardFilter cards, ReportListSort? sort = null, CancellationToken cancellationToken = default)
@@ -78,8 +83,8 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // a tela teria de buscar os estados a parte e cruzar a mao, e um relato
         // parado numa coluna aposentada ficaria sem nome nenhum.
         //
-        // Responsavel, prioridade e etiquetas vem junto pelo mesmo motivo: a linha do
-        // card os mostra.
+        // Responsavel, prioridade, tipo e etiquetas vem junto pelo mesmo motivo: a linha
+        // do card os mostra.
         //
         // Em consultas separadas, como no detalhe: com as etiquetas na mesma consulta,
         // cada card viria repetido uma vez por etiqueta, com o texto e a descricao
@@ -91,6 +96,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.ProjectPublicStage)
             .Include(report => report.AssigneeUser)
             .Include(report => report.Priority)
+            .Include(report => report.ReportType)
             .Include(report => report.Labels)
             .ThenInclude(link => link.ProjectLabel)
             .Where(report => report.ProjectId == projectId)
@@ -294,6 +300,15 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 .ToListAsync(cancellationToken))
             .ToDictionary(row => row.Id, row => new CardSprint(row.PublicId, row.Name, row.State));
 
+        // A origem bloqueada, pela mesma regra do filtro: a marca e o filtro nunca
+        // discordam sobre o mesmo card.
+        var deOrigemBloqueada = (await Context.Reports
+                .Where(report => reportIds.Contains(report.Id))
+                .Where(OrigemBloqueada())
+                .Select(report => report.Id)
+                .ToListAsync(cancellationToken))
+            .ToHashSet();
+
         return reportIds.Distinct().ToDictionary(
             id => id,
             id => new CardFace(
@@ -310,8 +325,252 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 sprints.GetValueOrDefault(id))
             {
                 ClosureConfirmed = confirmados.Contains(id),
+                BlockedOrigin = deOrigemBloqueada.Contains(id),
             });
     }
+
+    public async Task<IReadOnlyList<ReportOriginTally>> TallyOriginsAsync(long projectId, CancellationToken cancellationToken = default)
+        // Em minusculo, como a lista compara: o mesmo endereco escrito de dois jeitos
+        // seria duas linhas na tela e uma so para o bloqueio. Os arquivados entram — o
+        // relato que saiu da tela de Trabalho continua tendo vindo de la.
+        => await Context.Reports
+            .Where(report => report.ProjectId == projectId
+                             && report.Kind == CardKindEnum.Report
+                             && report.Origin != null)
+            .GroupBy(report => report.Origin!.ToLower())
+            .Select(group => new ReportOriginTally(
+                group.Key,
+                group.Count(),
+                group.Count(report => report.BlockedOriginKeptAt == null),
+                group.Max(report => report.CreatedAt)))
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<HeldOriginTally>> TallyHeldOriginsAsync(long projectId, CancellationToken cancellationToken = default)
+        // **Sem o filtro global**, que esconde o retido de toda leitura do painel, e com
+        // as condicoes dele reescritas a mao: o projeto, o nao apagado e o retido.
+        // Agrupa em minusculo, como a lista compara; o vazio vai com o nulo.
+        => (await Context.Reports
+                .IgnoreQueryFilters()
+                .Where(report => report.ProjectId == projectId
+                                 && report.DeletedAt == null
+                                 && report.HeldForOriginAt != null)
+                .GroupBy(report => report.Origin!.ToLower())
+                .Select(group => new { Origin = group.Key, Total = group.Count(), LastAt = group.Max(report => report.CreatedAt) })
+                .ToListAsync(cancellationToken))
+            .GroupBy(row => string.IsNullOrEmpty(row.Origin) ? null : row.Origin)
+            .Select(group => new HeldOriginTally(group.Key, group.Sum(row => row.Total), group.Max(row => row.LastAt)))
+            .ToList();
+
+    public Task<List<Report>> ListHeldAsync(long projectId, string? domain, bool includesSubdomains, CancellationToken cancellationToken = default)
+    {
+        // Sem o filtro global, pelo mesmo motivo da contagem. Rastreados: liberar grava
+        // neles, e apagar precisa dos ids.
+        var retidos = Context.Reports
+            .IgnoreQueryFilters()
+            .Where(report => report.ProjectId == projectId
+                             && report.DeletedAt == null
+                             && report.HeldForOriginAt != null);
+
+        retidos = domain is null
+            ? retidos.Where(report => report.Origin == null || report.Origin == "")
+            : retidos.Where(report => report.Origin!.ToLower() == domain
+                                      || (includesSubdomains && report.Origin!.ToLower().EndsWith("." + domain)));
+
+        return retidos
+            .OrderBy(report => report.CreatedAt)
+            .ThenBy(report => report.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<bool> AnyHeldFromOriginWithoutSessionAsync(long projectId, string? origin, CancellationToken cancellationToken = default)
+        // A entrada do relato nao tem sessao, e o retido nao passa pelo filtro de
+        // qualquer jeito: as condicoes vao a mao.
+        => string.IsNullOrEmpty(origin)
+            ? Context.Reports
+                .IgnoreQueryFilters()
+                .AnyAsync(report => report.ProjectId == projectId
+                                    && report.DeletedAt == null
+                                    && report.HeldForOriginAt != null
+                                    && (report.Origin == null || report.Origin == ""),
+                    cancellationToken)
+            : Context.Reports
+                .IgnoreQueryFilters()
+                .AnyAsync(report => report.ProjectId == projectId
+                                    && report.DeletedAt == null
+                                    && report.HeldForOriginAt != null
+                                    && report.Origin!.ToLower() == origin,
+                    cancellationToken);
+
+    public async Task<IReadOnlyDictionary<long, SubtaskMatch>> ListSubtaskMatchesAsync(IReadOnlyCollection<long> parentIds, ReportCardFilter filter, CancellationToken cancellationToken = default)
+    {
+        var pessoas = filter.AssigneeIds;
+        var busca = filter.Search;
+        if (parentIds.Count == 0 || filter.ParentId is not null || filter.IncludeSubtasks || (pessoas.Count == 0 && busca is null))
+            return new Dictionary<long, SubtaskMatch>();
+
+        // A mesma regra do filtro: a subtarefa que foi sozinha para o arquivo nao conta;
+        // no arquivo, as que foram com o pai contam.
+        var subtarefas = Context.Reports
+            .AsNoTracking()
+            .Where(sub => sub.ParentReportId != null
+                          && parentIds.Contains(sub.ParentReportId.Value)
+                          && (sub.ArchivedAt == null || sub.ParentReport!.ArchivedAt != null));
+
+        var deQuem = pessoas.Count == 0
+            ? []
+            : await subtarefas
+                .Where(sub => sub.AssigneeUserId != null && pessoas.Contains(sub.AssigneeUserId.Value))
+                .Select(sub => new
+                {
+                    Pai = sub.ParentReportId!.Value,
+                    Pessoa = sub.AssigneeUserId!.Value,
+                    sub.AssigneeUser!.PublicId,
+                    Nome = sub.AssigneeUser.Name ?? sub.AssigneeUser.Email ?? string.Empty,
+                })
+                .ToListAsync(cancellationToken);
+
+        var texto = busca?.Text;
+        var achados = texto is null
+            ? []
+            : (await subtarefas
+                    .Where(sub => SqlText.Translate(sub.Title, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
+                                  || SqlText.Translate(sub.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto))
+                    .Select(sub => sub.ParentReportId!.Value)
+                    .Distinct()
+                    .ToListAsync(cancellationToken))
+                .ToHashSet();
+
+        var porPai = deQuem.GroupBy(row => row.Pai).ToDictionary(
+            grupo => grupo.Key,
+            grupo => (IReadOnlyList<SubtaskAssigneeMatch>)grupo
+                .GroupBy(row => row.Pessoa)
+                .Select(dela => new SubtaskAssigneeMatch(dela.Key, dela.First().PublicId, dela.First().Nome, dela.Count()))
+                .OrderBy(match => match.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList());
+
+        return porPai.Keys.Union(achados).ToDictionary(
+            pai => pai,
+            pai => new SubtaskMatch(porPai.GetValueOrDefault(pai) ?? [], achados.Contains(pai)));
+    }
+
+    public Task<List<Report>> ListBlockedOriginMarkedAsync(long projectId, IReadOnlyCollection<Guid>? publicIds, long? blockedOriginId, CancellationToken cancellationToken = default)
+    {
+        // Rastreados: manter grava neles. E so os marcados — o card que nao veio de um
+        // endereco bloqueado, ou que o time ja manteve, fica de fora mesmo que tenha
+        // sido pedido.
+        var cards = Context.Reports
+            .Where(report => report.ProjectId == projectId)
+            .Where(OrigemBloqueada());
+
+        if (publicIds is not null)
+            cards = cards.Where(report => publicIds.Contains(report.PublicId));
+
+        if (blockedOriginId is long bloqueio)
+            cards = cards.Where(report => Context.ProjectBlockedOrigins.Any(blocked =>
+                blocked.Id == bloqueio
+                && (report.Origin!.ToLower() == blocked.Domain
+                    || (blocked.IncludesSubdomains && report.Origin!.ToLower().EndsWith("." + blocked.Domain)))));
+
+        return cards.OrderBy(report => report.Id).ToListAsync(cancellationToken);
+    }
+
+    public async Task<ReportPurge> PurgeAsync(long projectId, IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default)
+    {
+        // **Sem o filtro global em tudo daqui**, e com o projeto reescrito a mao: a
+        // linha apagada logicamente tambem segura a chave estrangeira. A subtarefa que
+        // alguem apagou, o vinculo desfeito, o anexo descartado — todos ainda apontam
+        // para o card, e o DELETE do card seria recusado por eles.
+        var niveis = new List<long[]>();
+        var todos = new HashSet<long>();
+        var fronteira = reportIds.Where(todos.Add).ToArray();
+
+        // O pai leva as subtarefas, em qualquer profundidade: subtarefa sem pai nao
+        // tem onde morar, e o banco nao deixaria o pai sair com ela pendurada.
+        while (fronteira.Length > 0)
+        {
+            niveis.Add(fronteira);
+            var pais = fronteira;
+            fronteira = (await Context.Reports
+                    .IgnoreQueryFilters()
+                    .Where(report => report.ProjectId == projectId
+                                     && report.ParentReportId != null
+                                     && pais.Contains(report.ParentReportId.Value))
+                    .Select(report => report.Id)
+                    .ToListAsync(cancellationToken))
+                .Where(todos.Add)
+                .ToArray();
+        }
+
+        var ids = todos.ToArray();
+        if (ids.Length == 0)
+            return new ReportPurge(0, []);
+
+        // Os arquivos saem depois, por quem chamou: o armazenamento nao entra na
+        // transacao, e apagar o arquivo antes da linha deixaria um anexo apontando
+        // para o nada se o banco falhasse no meio.
+        var arquivos = await Context.ReportAttachments
+            .IgnoreQueryFilters()
+            .Where(attachment => ids.Contains(attachment.ReportId))
+            .Select(attachment => new { attachment.ObjectKey, attachment.ThumbnailObjectKey })
+            .ToListAsync(cancellationToken);
+
+        // O que segura o card sem cascata no banco: o aviso do sino e o vinculo com outro
+        // card. O vinculo sai inteiro, dos dois lados — o outro card perde o vinculo, e
+        // nao o proprio card.
+        await Context.Notifications
+            .IgnoreQueryFilters()
+            .Where(notification => notification.ReportId != null && ids.Contains(notification.ReportId.Value))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await Context.CardLinks
+            .IgnoreQueryFilters()
+            .Where(link => ids.Contains(link.FromReportId) || ids.Contains(link.ToReportId))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        // O evento fica — e a contagem da pesquisa —, mas sem o caminho da pagina, que
+        // e o unico campo dele que pode carregar algo de alguem (uma rota com o nome
+        // da pessoa). O texto nunca foi para o evento. O card sai da linha sozinho: a
+        // chave estrangeira do evento zera quando o card e apagado.
+        await Context.Database.ExecuteSqlAsync(
+            $"UPDATE events SET payload = payload - 'route' WHERE report_id = ANY({ids}) AND payload IS NOT NULL",
+            cancellationToken);
+
+        // Das subtarefas mais fundas para o pai: o banco recusa apagar quem ainda tem
+        // filho. O resto — contexto, etiquetas, comentarios, encerramentos, pedidos de
+        // informacao e anexos — sai junto, pela cascata do banco.
+        for (var nivel = niveis.Count - 1; nivel >= 0; nivel--)
+        {
+            var estes = niveis[nivel];
+            await Context.Reports
+                .IgnoreQueryFilters()
+                .Where(report => report.ProjectId == projectId && estes.Contains(report.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        var chaves = arquivos
+            .SelectMany(arquivo => new[] { arquivo.ObjectKey, arquivo.ThumbnailObjectKey })
+            .OfType<string>()
+            .Where(chave => chave.Length > 0)
+            .Distinct()
+            .ToList();
+
+        return new ReportPurge(ids.Length, chaves);
+    }
+
+    /// <summary>
+    /// O relato marcado com a origem bloqueada: veio de um endereco que esta na lista
+    /// de bloqueados do projeto, e o time ainda nao decidiu mante-lo. **A mesma regra
+    /// da porta das rotas publicas** — exato, ou sufixo com o ponto na frente quando a
+    /// linha pede os subdominios —, sobre o endereco em minusculo.
+    /// </summary>
+    private Expression<Func<Report, bool>> OrigemBloqueada()
+        => report => report.Kind == CardKindEnum.Report
+                     && report.Origin != null
+                     && report.BlockedOriginKeptAt == null
+                     && Context.ProjectBlockedOrigins.Any(blocked =>
+                         blocked.ProjectId == report.ProjectId
+                         && (report.Origin.ToLower() == blocked.Domain
+                             || (blocked.IncludesSubdomains && report.Origin.ToLower().EndsWith("." + blocked.Domain))));
 
     public Task<List<Report>> ListSubtasksArchivedAtAsync(long parentId, DateTime? archivedAt, CancellationToken cancellationToken = default)
         // Rastreadas: quem chama muda o arquivo delas. O instante exato e o que separa
@@ -576,15 +835,23 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
     /// </summary>
     private IQueryable<Report> Filtrar(IQueryable<Report> cards, ReportCardFilter filtro)
     {
+        // A subtarefa mora dentro do pai: so a leitura das subtarefas de um card as traz.
+        // No banco, e nao na tela, para a pagina, o "Mostrar mais" e a contagem das
+        // colunas contarem o mesmo que se ve.
+        // A busca de quem vincula pede as subtarefas junto: o vinculo e com elas.
         if (filtro.ParentId is long pai)
             cards = cards.Where(report => report.ParentReportId == pai);
+        else if (!filtro.IncludeSubtasks)
+            cards = cards.Where(report => report.ParentReportId == null);
+
+        // Com as subtarefas na lista, o pai nao entra mais por elas: ela mesma vem.
+        var peloPai = !filtro.IncludeSubtasks;
 
         if (filtro.Sprint is { } sprint)
         {
             switch (sprint.Kind)
             {
                 case SprintScopeKind.Active:
-                    // Com as subtarefas: elas acompanham o pai, e estao no quadro.
                     cards = cards.Where(report => report.SprintId != null
                                                   && Context.Sprints.Any(item => item.Id == report.SprintId && item.State == SprintStateEnum.Active));
                     break;
@@ -594,22 +861,31 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                     // backlog de novo: a fechada nao recebe nem mostra nada.
                     // O pai que terminou com subtarefa aberta tambem fica: a subtarefa vai com
                     // ele, e sem ele ela nao teria lugar nenhum.
-                    cards = cards.Where(NoBacklog()).Where(report => report.ParentReportId == null).Where(AbertoOuComSubtarefaAberta());
+                    cards = cards.Where(NoBacklog()).Where(AbertoOuComSubtarefaAberta());
                     break;
                 default:
                     var id = sprint.SprintId;
-                    cards = cards.Where(report => report.SprintId == id && report.ParentReportId == null);
+                    cards = cards.Where(report => report.SprintId == id);
                     break;
             }
         }
 
         if (filtro.AssigneeIds.Count > 0 || filtro.WithoutAssignee)
         {
+            // O pai com uma subtarefa da pessoa tambem entra: e onde ela acha a subtarefa
+            // que e sua. O "sem responsavel" e so do proprio card — o pai sem ninguem com
+            // uma subtarefa sem ninguem nao diz nada a mais.
             var pessoas = filtro.AssigneeIds;
             var semNinguem = filtro.WithoutAssignee;
+            var porSubtarefa = pessoas.Count > 0 && peloPai;
             cards = cards.Where(report =>
                 (report.AssigneeUserId != null && pessoas.Contains(report.AssigneeUserId.Value))
-                || (semNinguem && report.AssigneeUserId == null));
+                || (semNinguem && report.AssigneeUserId == null)
+                || (porSubtarefa && Context.Reports.Any(sub =>
+                    sub.ParentReportId == report.Id
+                    && (sub.ArchivedAt == null || report.ArchivedAt != null)
+                    && sub.AssigneeUserId != null
+                    && pessoas.Contains(sub.AssigneeUserId.Value))));
         }
 
         if (filtro.LabelIds.Count > 0)
@@ -627,12 +903,12 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 || (semPrioridade && report.PriorityId == null));
         }
 
-        if (filtro.Types.Count > 0 || filtro.TeamCards)
+        if (filtro.TypeIds.Count > 0 || filtro.TeamCards)
         {
-            var tipos = filtro.Types;
+            var tipos = filtro.TypeIds;
             var doTime = filtro.TeamCards;
             cards = cards.Where(report =>
-                (report.Kind == CardKindEnum.Report && report.Type != null && tipos.Contains(report.Type.Value))
+                (report.Kind == CardKindEnum.Report && report.ReportTypeId != null && tipos.Contains(report.ReportTypeId.Value))
                 || (doTime && report.Kind == CardKindEnum.Team));
         }
 
@@ -646,8 +922,8 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 || (semColuna && report.ProjectStateId == null));
         }
 
-        if (filtro.WithoutSubtasks)
-            cards = cards.Where(report => report.ParentReportId == null);
+        if (filtro.BlockedOrigin)
+            cards = cards.Where(OrigemBloqueada());
 
         if (filtro.OpenOnly)
         {
@@ -669,6 +945,8 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         {
             // Sem acento e sem diferenciar maiuscula, pela mesma tabela do termo (ver
             // SearchText). O numero e o protocolo so entram quando o termo pode ser um.
+            // O pai tambem entra pelo titulo ou pela descricao de uma subtarefa: ela nao
+            // aparece sozinha, e sem isto a busca nunca a acharia.
             var texto = busca.Text;
             var numero = busca.Number;
             var codigo = busca.Code;
@@ -678,7 +956,12 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                 || SqlText.Translate(report.Title, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
                 || SqlText.Translate(report.ReporterTitle, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
                 || SqlText.Translate(report.Text, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
-                || SqlText.Translate(report.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto));
+                || SqlText.Translate(report.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
+                || (peloPai && Context.Reports.Any(sub =>
+                    sub.ParentReportId == report.Id
+                    && (sub.ArchivedAt == null || report.ArchivedAt != null)
+                    && (SqlText.Translate(sub.Title, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
+                        || SqlText.Translate(sub.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)))));
         }
 
         return cards;
@@ -771,6 +1054,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Include(report => report.CreatedByUser)
             .Include(report => report.AssigneeUser)
             .Include(report => report.Priority)
+            .Include(report => report.ReportType)
             .Include(report => report.Labels)
             .ThenInclude(link => link.ProjectLabel)
             .AsSplitQuery()
@@ -819,7 +1103,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
     public async Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default)
         // As condicoes do filtro global reescritas a mao, menos a do acesso. O
         // `Include` da etapa publica existe porque a lista mostra em que passo cada
-        // relato esta.
+        // relato esta; o do tipo, porque ela mostra o nome dele.
         //
         // **O `Take` nao e detalhe de desempenho.** A rota e publica e nao pede
         // credencial: sem teto, o custo da resposta cresceria com o uso de quem a
@@ -828,6 +1112,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         => await Context.Reports
             .IgnoreQueryFilters()
             .Include(report => report.ProjectPublicStage)
+            .Include(report => report.ReportType)
             .Where(report => report.ReporterCodeId == reporterCodeId
                              && report.DeletedAt == null
                              && report.Project.DeletedAt == null)
@@ -849,6 +1134,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                              && report.Kind == CardKindEnum.Report
                              && report.ModerationState == state)
             .Include(report => report.ModeratedByUser)
+            .Include(report => report.ReportType)
             .OrderBy(report => report.CreatedAt)
             .ThenBy(report => report.Id)
             .Take(limit)
@@ -869,13 +1155,18 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // Ordena por `moderated_at`, e nao por `created_at`: a lista publica conta o
         // que o time acabou de liberar, e relato antigo liberado hoje e novidade
         // para quem esta lendo.
+        //
+        // O retido tambem fica de fora, escrito aqui: ninguem o liberou, e ele nem
+        // apareceu ao time ainda.
         => await Context.Reports
             .IgnoreQueryFilters()
             .Include(report => report.ProjectPublicStage)
+            .Include(report => report.ReportType)
             .Where(report => report.ProjectId == projectId
                              && report.Kind == CardKindEnum.Report
                              && report.ModerationState == ReportModerationStateEnum.Approved
                              && report.DeletedAt == null
+                             && report.HeldForOriginAt == null
                              && report.Project.DeletedAt == null)
             .OrderByDescending(report => report.ModeratedAt)
             .ThenByDescending(report => report.Id)

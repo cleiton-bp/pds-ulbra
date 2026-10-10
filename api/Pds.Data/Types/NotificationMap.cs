@@ -13,14 +13,27 @@ public class NotificationMap : BaseEntityConfiguration<Notification>
         builder.ToTable("notifications", table =>
         {
             table.HasComment(
-                "Os avisos do sino do painel: a mencao num comentario interno e a escolha como responsavel. Cada pessoa le so os proprios, e so dos projetos em que ainda esta. Interno: nenhuma rota publica le esta tabela.");
+                "Os avisos do sino do painel: a mencao num comentario interno, a escolha como responsavel, o endereco novo que mandou relato e os envios pausados por excesso. Cada pessoa le so os proprios, e so dos projetos em que ainda esta. Interno: nenhuma rota publica le esta tabela.");
 
-            table.HasCheckConstraint("ck_notifications_kind", "kind IN ('mention', 'assignment')");
+            table.HasCheckConstraint(
+                "ck_notifications_kind",
+                "kind IN ('mention', 'assignment', 'origin_pending', 'reports_paused')");
 
-            // A mencao aponta o comentario; a atribuicao, nao.
             table.HasCheckConstraint(
                 "ck_notifications_comment",
                 "(kind = 'mention') = (report_internal_comment_id IS NOT NULL)");
+
+            // Os dois do card tem card; os dois do projeto nao tem — o relato retido nao
+            // aparece para o time, e a pausa nao e de relato nenhum.
+            table.HasCheckConstraint(
+                "ck_notifications_report",
+                "(kind IN ('mention', 'assignment')) = (report_id IS NOT NULL)");
+
+            // A pausa diz a camada e ate quando. O endereco novo diz qual no subject —
+            // nulo para o relato que nao disse de onde veio.
+            table.HasCheckConstraint(
+                "ck_notifications_paused",
+                "(kind = 'reports_paused') = (limit_scope IS NOT NULL AND paused_until IS NOT NULL)");
         });
 
         builder.Property(aviso => aviso.UserId)
@@ -35,8 +48,7 @@ public class NotificationMap : BaseEntityConfiguration<Notification>
 
         builder.Property(aviso => aviso.ReportId)
             .HasColumnName("report_id")
-            .IsRequired()
-            .HasComment("O card de que o aviso fala.");
+            .HasComment("O card de que o aviso fala. Nulo nos avisos do projeto (origin_pending, reports_paused).");
 
         builder.Property(aviso => aviso.ActorUserId)
             .HasColumnName("actor_user_id")
@@ -47,11 +59,26 @@ public class NotificationMap : BaseEntityConfiguration<Notification>
             .HasConversion(new SnakeCaseEnumConverter<NotificationKindEnum>())
             .HasMaxLength(20)
             .IsRequired()
-            .HasComment("mention | assignment. Os dois so no painel: no sino, com o som que a pessoa escolheu para o tipo.");
+            .HasComment("mention | assignment | origin_pending | reports_paused. Todos so no painel: no sino, com o som que a pessoa escolheu para o tipo. Os dois ultimos vao para quem administra o projeto.");
 
         builder.Property(aviso => aviso.ReportInternalCommentId)
             .HasColumnName("report_internal_comment_id")
             .HasComment("O comentario interno da mencao. Nulo na atribuicao.");
+
+        builder.Property(aviso => aviso.Subject)
+            .HasColumnName("subject")
+            .HasMaxLength(Notification.MaxSubjectLength)
+            .HasComment("O endereco de que o aviso do projeto fala: o que mandou relato sem estar autorizado, ou o pausado por excesso. Nunca um IP: a pausa por IP ou por pessoa diz so a camada.");
+
+        builder.Property(aviso => aviso.LimitScope)
+            .HasColumnName("limit_scope")
+            .HasConversion(new SnakeCaseEnumConverter<ReportLimitScopeEnum>())
+            .HasMaxLength(20)
+            .HasComment("reporter | ip | origin | project: a camada que pausou os envios. So no aviso reports_paused.");
+
+        builder.Property(aviso => aviso.PausedUntil)
+            .HasColumnName("paused_until")
+            .HasComment("Ate quando os envios ficam pausados, em UTC. So no aviso reports_paused.");
 
         builder.Property(aviso => aviso.ReadAt)
             .HasColumnName("read_at")

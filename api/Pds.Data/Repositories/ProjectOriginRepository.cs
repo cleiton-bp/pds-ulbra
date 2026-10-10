@@ -38,6 +38,10 @@ public class ProjectOriginRepository : BaseRepository<ProjectOrigin, DataContext
         => Context.ProjectOrigins
             .AnyAsync(origin => origin.ProjectId == projectId && origin.Domain == domain, cancellationToken);
 
+    public Task<ProjectOrigin?> FindByDomainAsync(long projectId, string domain, CancellationToken cancellationToken = default)
+        => Context.ProjectOrigins
+            .FirstOrDefaultAsync(origin => origin.ProjectId == projectId && origin.Domain == domain, cancellationToken);
+
     public Task<int> CountByProjectAsync(long projectId, CancellationToken cancellationToken = default)
         => Context.ProjectOrigins
             .CountAsync(origin => origin.ProjectId == projectId, cancellationToken);

@@ -16,15 +16,17 @@ public interface IUnitOfWork : IBaseUnitOfWork
     IProjectTeamSettingsRepository ProjectTeamSettings { get; }
     IProjectKeyRepository ProjectKeys { get; }
     IProjectOriginRepository ProjectOrigins { get; }
+    IProjectBlockedOriginRepository ProjectBlockedOrigins { get; }
     IProjectWidgetSettingsRepository ProjectWidgetSettings { get; }
     IProjectStateRepository ProjectStates { get; }
     IProjectPriorityRepository ProjectPriorities { get; }
     IProjectLabelRepository ProjectLabels { get; }
-    IProjectInitialStateRepository ProjectInitialStates { get; }
+    IProjectReportTypeRepository ProjectReportTypes { get; }
     IProjectPublicStageRepository ProjectPublicStages { get; }
     IProjectStatusMappingRepository ProjectStatusMappings { get; }
     IProjectCycleSettingsRepository ProjectCycleSettings { get; }
     IProjectIdentitySettingsRepository ProjectIdentitySettings { get; }
+    IProjectReportLimitsRepository ProjectReportLimits { get; }
     IProjectMediaSettingsRepository ProjectMediaSettings { get; }
     IReportAttachmentRepository ReportAttachments { get; }
     IReporterCodeRepository ReporterCodes { get; }

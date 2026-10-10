@@ -291,4 +291,24 @@ public enum EventTypeEnum
 
     /// <summary>Uma sprint foi fechada, com os numeros dela e o destino do que nao terminou. Do projeto, sem card.</summary>
     SprintClosed,
+
+    /// <summary>
+    /// O time apagou de vez relatos que vieram de um endereco bloqueado. Do projeto,
+    /// sem card — o card nao existe mais.
+    ///
+    /// <para><b>So numeros e enderecos no payload</b>: quantos relatos, quantas
+    /// subtarefas foram junto e de quais enderecos eles vieram. Nada de quem relatou:
+    /// apagar foi justamente tirar isso daqui, e esta tabela nao se apaga.</para>
+    /// </summary>
+    ReportsDeletedFromBlockedOrigin,
+
+    /// <summary>
+    /// Um projeto foi criado, com o modelo escolhido (<c>template</c>, em snake_case).
+    /// Do projeto, sem card.
+    ///
+    /// <para><b>So o modelo no payload</b>: o nome do projeto e de quem cria, e esta
+    /// tabela nao se apaga. Serve para saber quais jeitos de trabalhar as pessoas
+    /// escolhem quando comecam — o projeto nao guarda de qual modelo veio.</para>
+    /// </summary>
+    ProjectCreated,
 }

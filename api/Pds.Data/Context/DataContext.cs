@@ -48,17 +48,19 @@ public class DataContext : PdsBaseContext
     public DbSet<ProjectTeamSettings> ProjectTeamSettings { get; set; } = null!;
     public DbSet<ProjectKey> ProjectKeys { get; set; } = null!;
     public DbSet<ProjectOrigin> ProjectOrigins { get; set; } = null!;
+    public DbSet<ProjectBlockedOrigin> ProjectBlockedOrigins { get; set; } = null!;
     public DbSet<ProjectWidgetSettings> ProjectWidgetSettings { get; set; } = null!;
     public DbSet<ProjectState> ProjectStates { get; set; } = null!;
     public DbSet<ProjectPriority> ProjectPriorities { get; set; } = null!;
     public DbSet<ProjectLabel> ProjectLabels { get; set; } = null!;
-    public DbSet<ProjectInitialState> ProjectInitialStates { get; set; } = null!;
+    public DbSet<ProjectReportType> ProjectReportTypes { get; set; } = null!;
     public DbSet<ProjectPublicStage> ProjectPublicStages { get; set; } = null!;
     public DbSet<ProjectStatusMapping> ProjectStatusMappings { get; set; } = null!;
     public DbSet<ProjectCycleSettings> ProjectCycleSettings { get; set; } = null!;
     public DbSet<ProjectIdentitySettings> ProjectIdentitySettings { get; set; } = null!;
     public DbSet<ProjectMediaSettings> ProjectMediaSettings { get; set; } = null!;
     public DbSet<ProjectMediaKind> ProjectMediaKinds { get; set; } = null!;
+    public DbSet<ProjectReportLimits> ProjectReportLimits { get; set; } = null!;
     public DbSet<ReporterCode> ReporterCodes { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<ReportContext> ReportContexts { get; set; } = null!;
@@ -132,6 +134,15 @@ public class DataContext : PdsBaseContext
                                       && origin.Project.DeletedAt == null
                                       && CurrentProjectIds.Contains(origin.ProjectId));
 
+        // Endereco bloqueado: mesmo caminho do autorizado, e pelo mesmo motivo. Quem le
+        // isto **sem sessao** sao as rotas publicas da ferramenta e a entrada do relato,
+        // e la o acesso esta vazio — essas leituras desligam este filtro e reescrevem as
+        // condicoes a mao, como a lista de autorizados ja faz.
+        modelBuilder.Entity<ProjectBlockedOrigin>()
+            .HasQueryFilter(blocked => blocked.DeletedAt == null
+                                       && blocked.Project.DeletedAt == null
+                                       && CurrentProjectIds.Contains(blocked.ProjectId));
+
         // Configuracao da ferramenta: mesmo caminho do endereco autorizado. Quem le
         // isto **sem sessao** e o proprio quadro, e la o acesso esta vazio — por
         // isso a leitura publica desliga este filtro e reescreve as condicoes a mao,
@@ -160,14 +171,15 @@ public class DataContext : PdsBaseContext
                                      && label.Project.DeletedAt == null
                                      && CurrentProjectIds.Contains(label.ProjectId));
 
-        // Onde cada tipo entra: mesmo caminho do estado, e pelo mesmo motivo. Quem
-        // le isto **sem sessao** e a entrada do relato, e la o acesso esta vazio —
-        // por isso aquela leitura desliga este filtro e reescreve as condicoes a
-        // mao, como ja fazem a busca da chave publica e a do endereco autorizado.
-        modelBuilder.Entity<ProjectInitialState>()
-            .HasQueryFilter(initial => initial.DeletedAt == null
-                                       && initial.Project.DeletedAt == null
-                                       && CurrentProjectIds.Contains(initial.ProjectId));
+        // Tipo de relato: mesmo caminho da prioridade, e pelo mesmo motivo. Mas este
+        // tem leitor **sem sessao**: a propria ferramenta, que desenha os tipos, e a
+        // entrada do relato, que confere o escolhido — e la o acesso esta vazio. Essas
+        // leituras desligam este filtro e reescrevem as condicoes a mao, como ja fazem
+        // a busca da chave publica e a do endereco autorizado.
+        modelBuilder.Entity<ProjectReportType>()
+            .HasQueryFilter(type => type.DeletedAt == null
+                                    && type.Project.DeletedAt == null
+                                    && CurrentProjectIds.Contains(type.ProjectId));
 
         // Etapa publica: mesmo caminho do estado interno, e pelo mesmo motivo — ela
         // nao existe fora de um projeto. Quem vai ler isto **sem sessao** e a pagina
@@ -203,6 +215,14 @@ public class DataContext : PdsBaseContext
             .HasQueryFilter(settings => settings.DeletedAt == null
                                         && settings.Project.DeletedAt == null
                                         && CurrentProjectIds.Contains(settings.ProjectId));
+
+        // Limites de relato: mesmo caminho da identidade. Quem le isto **sem sessao** e a
+        // entrada do relato, e la o acesso esta vazio — aquela leitura desliga este
+        // filtro e reescreve as condicoes a mao.
+        modelBuilder.Entity<ProjectReportLimits>()
+            .HasQueryFilter(limits => limits.DeletedAt == null
+                                      && limits.Project.DeletedAt == null
+                                      && CurrentProjectIds.Contains(limits.ProjectId));
 
         // Configuracao de midia: mesmo caminho do endereco autorizado. Quem le isto
         // **sem sessao** e o proprio quadro, para saber se mostra o botao de anexar
@@ -245,8 +265,15 @@ public class DataContext : PdsBaseContext
         // Relato: aqui o filtro compara coluna, e nao navegacao. E a tabela que mais
         // cresce e a que o painel lista o tempo todo, entao o acesso olha o
         // project_id da propria linha, sem juncao em toda consulta.
+        //
+        // **O retido fica de fora aqui, e nao em cada consulta.** O relato que chegou de
+        // um endereco ainda nao autorizado nao aparece em lista, quadro, backlog,
+        // contagem, busca, moderacao nem aviso — e sao dezenas de leituras. Quem precisa
+        // dele (a contagem de "Aguardando liberacao", liberar e apagar) desliga o filtro
+        // e reescreve as condicoes a mao.
         modelBuilder.Entity<Report>()
             .HasQueryFilter(report => report.DeletedAt == null
+                                      && report.HeldForOriginAt == null
                                       && CurrentProjectIds.Contains(report.ProjectId));
 
         // Contexto: chega ao acesso pelo relato, como a chave chega pelo projeto.
@@ -276,9 +303,14 @@ public class DataContext : PdsBaseContext
         // Aviso do sino: o acesso pela coluna do projeto, como o vinculo. Quem sai do
         // time deixa de ver os avisos daquele projeto. De quem e o aviso, cada leitura
         // diz: o filtro guarda o projeto, e a pessoa vai na consulta.
+        //
+        // O aviso do projeto (endereco novo, envios pausados) nao tem card: ele vale sem
+        // a juncao. O do card continua sumindo junto com o card — a condicao dupla e o
+        // que segura isso tanto com o filtro do relato aplicado na navegacao quanto sem.
         modelBuilder.Entity<Notification>()
             .HasQueryFilter(aviso => aviso.DeletedAt == null
-                                     && aviso.Report.DeletedAt == null
+                                     && (aviso.ReportId == null
+                                         || (aviso.Report != null && aviso.Report.DeletedAt == null))
                                      && CurrentProjectIds.Contains(aviso.ProjectId));
 
         // O som de cada aviso e da pessoa, e nao de projeto: so a exclusao. Quem le diz

@@ -19,4 +19,11 @@ public interface IProjectMemberRepository : IBaseRepository<ProjectMember>
     /// convite ainda nao enxerga o projeto, e o filtro esconderia a propria linha.
     /// </summary>
     Task<bool> ExistsWithoutSessionAsync(long projectId, long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quem administra o projeto: as pessoas da conta dona (que administram todos os
+    /// projetos dela) e quem esta no time como administrador. <b>Sem sessao</b>: quem
+    /// pergunta e a entrada do relato, para avisar o time no sino.
+    /// </summary>
+    Task<IReadOnlyList<User>> ListAdministratorsWithoutSessionAsync(long projectId, long accountId, CancellationToken cancellationToken = default);
 }

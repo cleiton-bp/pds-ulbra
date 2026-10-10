@@ -30,11 +30,22 @@ public interface IProjectWidgetSettingsService
     /// o valor gravado: ele recusa relato novo com 403, e abrir um formulario que
     /// nao tem como enviar e pior do que nao abrir nenhum.</para>
     ///
-    /// <para><b>O endereco e recusa, e nao campo da resposta.</b> Pagina fora da
-    /// lista de enderecos autorizados do projeto recebe 403 — e nao a configuracao
-    /// com <c>IsEnabled</c> falso, que seria mentira: a ferramenta esta ligada, so
-    /// nao ali. Quem nao declara endereco passa, porque a lista existe para pegar
-    /// a chave usada no site errado, e o carregador sempre declara.</para>
+    /// <para><b>O endereco e recusa, e nao campo da resposta.</b> Pagina de um
+    /// endereco bloqueado no projeto recebe 403 — e nao a configuracao com
+    /// <c>IsEnabled</c> falso, que seria mentira: a ferramenta esta ligada, so nao ali.
+    /// O endereco fora da lista de autorizados abre: o relato dele e recebido e fica
+    /// retido ate o time decidir.</para>
     /// </summary>
     Task<WidgetSettingsViewModel> GetByPublicKeyAsync(string? key, string? origin, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// So o que o botao parado no site do cliente precisa, <b>sem sessao</b>: a
+    /// aparencia e se a ferramenta esta ligada. As mesmas recusas de
+    /// <see cref="GetByPublicKeyAsync"/>, na mesma ordem — chave que nao vale, 401;
+    /// endereco bloqueado, 403 —, e projeto arquivado volta desligado.
+    ///
+    /// <para>Le uma tabela so, e nao as quatro do formulario: o carregador chama esta
+    /// em toda visita, e a configuracao inteira so no clique.</para>
+    /// </summary>
+    Task<WidgetLauncherViewModel> GetLauncherByPublicKeyAsync(string? key, string? origin, CancellationToken cancellationToken = default);
 }

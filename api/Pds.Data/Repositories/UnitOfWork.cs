@@ -45,6 +45,11 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IProjectOriginRepository? _projectOrigins;
     public IProjectOriginRepository ProjectOrigins => _projectOrigins ??= new ProjectOriginRepository(_context);
 
+    private IProjectBlockedOriginRepository? _projectBlockedOrigins;
+
+    public IProjectBlockedOriginRepository ProjectBlockedOrigins
+        => _projectBlockedOrigins ??= new ProjectBlockedOriginRepository(_context);
+
     private IProjectWidgetSettingsRepository? _projectWidgetSettings;
 
     public IProjectWidgetSettingsRepository ProjectWidgetSettings
@@ -59,10 +64,10 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
     private IProjectLabelRepository? _projectLabels;
     public IProjectLabelRepository ProjectLabels => _projectLabels ??= new ProjectLabelRepository(_context);
 
-    private IProjectInitialStateRepository? _projectInitialStates;
+    private IProjectReportTypeRepository? _projectReportTypes;
 
-    public IProjectInitialStateRepository ProjectInitialStates
-        => _projectInitialStates ??= new ProjectInitialStateRepository(_context);
+    public IProjectReportTypeRepository ProjectReportTypes
+        => _projectReportTypes ??= new ProjectReportTypeRepository(_context);
 
     private IProjectPublicStageRepository? _projectPublicStages;
 
@@ -83,6 +88,11 @@ public class UnitOfWork : BaseUnitOfWork, IUnitOfWork
 
     public IProjectIdentitySettingsRepository ProjectIdentitySettings
         => _projectIdentitySettings ??= new ProjectIdentitySettingsRepository(_context);
+
+    private IProjectReportLimitsRepository? _projectReportLimits;
+
+    public IProjectReportLimitsRepository ProjectReportLimits
+        => _projectReportLimits ??= new ProjectReportLimitsRepository(_context);
 
     private IProjectMediaSettingsRepository? _projectMediaSettings;
 

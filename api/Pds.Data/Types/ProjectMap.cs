@@ -90,6 +90,11 @@ public class ProjectMap : BaseEntityConfiguration<Project>
             .HasForeignKey(origin => origin.ProjectId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(project => project.BlockedOrigins)
+            .WithOne(blocked => blocked.Project)
+            .HasForeignKey(blocked => blocked.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasMany(project => project.Members)
             .WithOne(member => member.Project)
             .HasForeignKey(member => member.ProjectId)

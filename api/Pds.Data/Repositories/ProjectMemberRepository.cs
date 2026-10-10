@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pds.ApiBase.Repositories;
 using Pds.Data.Context;
 using Pds.Domain.Entities;
+using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 
 namespace Pds.Data.Repositories;
@@ -51,4 +52,28 @@ public class ProjectMemberRepository : BaseRepository<ProjectMember, DataContext
                                 && member.DeletedAt == null
                                 && member.Project.DeletedAt == null,
                 cancellationToken);
+
+    public async Task<IReadOnlyList<User>> ListAdministratorsWithoutSessionAsync(long projectId, long accountId, CancellationToken cancellationToken = default)
+    {
+        // As condicoes do filtro global reescritas a mao, menos a do acesso: a mesma
+        // regra de quem administra que o middleware monta para a sessao — a conta dona
+        // administra todos os projetos dela, e o time soma quem foi feito administrador.
+        var donos = await Context.Users
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(user => user.AccountId == accountId && user.DeletedAt == null)
+            .ToListAsync(cancellationToken);
+
+        var doTime = await Context.ProjectMembers
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(member => member.ProjectId == projectId
+                             && member.Role == ProjectRoleEnum.Administrator
+                             && member.DeletedAt == null
+                             && member.User.DeletedAt == null)
+            .Select(member => member.User)
+            .ToListAsync(cancellationToken);
+
+        return donos.Concat(doTime).DistinctBy(user => user.Id).ToList();
+    }
 }

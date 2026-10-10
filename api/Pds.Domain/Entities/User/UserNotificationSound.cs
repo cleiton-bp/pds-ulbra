@@ -28,6 +28,8 @@ public static class NotificationSoundDefaults
     {
         NotificationKindEnum.Mention => NotificationSoundEnum.Ping,
         NotificationKindEnum.Assignment => NotificationSoundEnum.Bell,
+        NotificationKindEnum.OriginPending => NotificationSoundEnum.Chime,
+        NotificationKindEnum.ReportsPaused => NotificationSoundEnum.Drop,
         _ => NotificationSoundEnum.None,
     };
 }
