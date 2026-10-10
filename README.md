@@ -51,6 +51,8 @@ Cada empresa desenha as próprias etapas públicas e escolhe o texto que o relat
 
 Feito esse mapeamento uma vez, o trajeto passa a andar sozinho: o registro se move do lado de dentro e o relator vê a mudança do lado de fora.
 
+E ninguém começa de uma tela em branco: o projeto novo já nasce com três colunas — A fazer, Fazendo e Feito — ligadas a um trajeto de fábrica, e o time começa a trabalhar no primeiro minuto. As colunas, as etapas e a ligação entre elas se ajustam quando a empresa quiser.
+
 ---
 
 ## Os dois lados
@@ -59,9 +61,9 @@ Feito esse mapeamento uma vez, o trajeto passa a andar sozinho: o registro se mo
 
 **Do lado de dentro, a ferramenta de trabalho do time.** O painel onde os relatos chegam e viram cards, ao lado do trabalho que o próprio time cria:
 
-- lista e quadro, arrastando com mouse, toque ou teclado, e raias por responsável ou por prioridade;
+- lista e quadro: a tabela que ordena por prazo, prioridade ou responsável, e o quadro na altura da janela, arrastando com mouse, toque ou teclado, com raias por responsável ou por prioridade;
 - responsável, prioridade, etiquetas, prazo, subtarefas e vínculos entre cards — o relato duplicado acompanha o original até o desfecho;
-- filtros, busca e mudanças em lote;
+- filtros, busca e mudanças em lote, com desfazer;
 - backlog e sprints, para o projeto que trabalha assim, com a estimativa em pontos;
 - menções e avisos no sino, com o som que cada pessoa escolhe;
 - a tela de Trabalho em tempo real para o time inteiro, com convite por e-mail e papéis de administrador e membro.
