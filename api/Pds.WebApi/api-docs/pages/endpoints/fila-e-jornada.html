@@ -4,11 +4,11 @@
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states</code></td><td>A fila de trabalho do projeto, na ordem do cliente, com os aposentados dentro.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states</code></td><td>A fila de trabalho do projeto, na ordem do cliente, com os desativados dentro.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states</code></td><td><strong>Administrador.</strong> Cria um estado no fim da fila. Nome único no projeto, sem diferenciar maiúscula.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/order</code></td><td><strong>Administrador.</strong> Reordena a fila <strong>inteira</strong>, numa chamada só.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/{statePublicId}</code></td><td><strong>Administrador.</strong> Renomeia. O histórico não muda: o evento guarda o nome que valia na época.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td><strong>Administrador.</strong> Aposenta. <strong>Não existe remoção</strong> — relato antigo aponta para ele.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/deactivate</code></td><td><strong>Administrador.</strong> Desativa. <strong>Não existe remoção</strong> — relato antigo aponta para ele.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/states/{statePublicId}/activate</code></td><td><strong>Administrador.</strong> Traz de volta para a fila.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/states/initial</code></td><td>Onde cada tipo de relato cai ao entrar. Traz os três sempre, escolhidos ou não.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/states/initial</code></td><td><strong>Administrador.</strong> Escolhe o destino de um tipo. Nulo <strong>apaga</strong> a escolha e devolve ao padrão.</td></tr>
@@ -24,7 +24,37 @@
 </div>
 
 <p>Ler as duas listas e o mapa vale para qualquer papel — o trabalho nos relatos usa os três —, e
-mudá-los é de administrador.</p>
+mudá-los é de administrador. No painel, <code>/states</code> é a tela de <strong>Colunas</strong> e
+<code>/public-stages</code> a de <strong>Andamento público</strong>; o mapa aparece nas duas — em
+Colunas, cada linha diz o que quem relatou vê nela. As rotas guardam o nome do assunto: o estado é a
+coluna do quadro.</p>
+
+<div class="note why">
+  <strong>O projeto nasce com três colunas, já ligadas</strong>
+  <p><code>POST /projects</code> cria <strong>A fazer</strong>, <strong>Fazendo</strong> e
+  <strong>Feito</strong>, nessa ordem, e grava junto a versão 1 do mapa: A fazer → Recebido,
+  Fazendo → Em desenvolvimento, Feito → Concluído — etapas da jornada de fábrica, que nasce no mesmo
+  commit. Com uma coluna só, o quadro não andaria: ela seria a entrada e o fim ao mesmo tempo, e o
+  time precisaria achar a configuração antes de mover o primeiro card. E sem a ligação o relato
+  andaria por dentro enquanto quem relatou continuaria lendo "Recebido", sem ninguém perceber.</p>
+  <p>Pela regra de fábrica do ciclo, a última coluna ativa encerra o relato — num projeto novo,
+  <strong>Feito</strong>, que leva o relato a "Concluído". O relato novo cai em
+  <strong>A fazer</strong>, a primeira ativa, enquanto ninguém escolher outro destino em
+  <code>/states/initial</code>. O projeto que já existia continua com as colunas e o mapa que
+  tinha.</p>
+</div>
+
+<div class="note why">
+  <strong>A tela de Colunas grava o mapa inteiro a cada escolha</strong>
+  <p>Escolher, na linha de uma coluna, o que quem relatou vê nela manda <code>PUT
+  .../status-mappings</code> com o mapa inteiro — a escolha nova e todas as outras como estavam. É
+  uma versão por escolha, e cada escolha é uma decisão de verdade; pedido igual ao que vale não cria
+  versão.</p>
+  <p>A coluna criada pela API nasce fora do mapa. A tela, logo depois de criá-la, grava uma versão
+  nova ligando-a à mesma etapa da última coluna ativa de antes — a vizinha, que é o mais perto do
+  certo — e mostra a escolha na linha, para trocar ali mesmo. Quem chama a API sem a tela recebe a
+  coluna sem ligação, como sempre.</p>
+</div>
 
 <div class="note why">
   <strong>Por que o mapa se grava inteiro, e não uma ligação de cada vez</strong>
@@ -46,8 +76,8 @@ mudá-los é de administrador.</p>
   <p>Duas diferenças de comportamento saem daí. A fila de trabalho <strong>não tem teto</strong>
   e a jornada tem — entre três e sete, conferidos na gravação: quantas faixas o time usa é escolha
   de quem trabalha, mas uma história com quinze capítulos é o mesmo organograma interno com
-  palavras mais bonitas. E o estado interno só se <strong>aposenta</strong>, enquanto a etapa
-  pública se <strong>remove</strong>: o aposentado precisa continuar visível porque a tela do time
+  palavras mais bonitas. E o estado interno só se <strong>desativa</strong>, enquanto a etapa
+  pública se <strong>remove</strong>: o desativado precisa continuar visível porque a tela do time
   mostra a fila inteira; a etapa removida não tem esse papel, e o que passou por ela é contado
   pelos eventos, que guardam o rótulo que valia na época.</p>
 </div>

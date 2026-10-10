@@ -18,6 +18,30 @@
 <p>Ler vale para qualquer papel — o trabalho nos relatos usa a configuração —, e gravar é de
 administrador: o membro recebe 403 antes de o corpo ser lido.</p>
 
+<p>No painel, cada uma tem a sua tela, com o nome que o time procura — as rotas e as tabelas
+continuam com o nome do assunto:</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Rota</th><th>Tela</th></tr>
+  <tr><td><code>widget-settings</code></td><td><strong>Botão no site</strong></td></tr>
+  <tr><td><code>cycle-settings</code></td><td>Três telas: <strong>Ciclo</strong> — como um relato termina, o que quem relatou lê e quando ele pode reabrir —; <strong>Sprints</strong> — <code>SprintsEnabled</code> e <code>SprintLengthWeeks</code> —; e <strong>Colunas</strong>, na parte de como o quadro mostra o fim e os prazos — <code>LastColumnVisibleDays</code> e <code>DueSoonDays</code>.</td></tr>
+  <tr><td><code>identity-settings</code></td><td><strong>Quem relata</strong></td></tr>
+  <tr><td><code>media-settings</code></td><td><strong>Anexos</strong></td></tr>
+</table>
+</div>
+
+<div class="note warn">
+  <strong>Três telas, um registro só</strong>
+  <p>As regras do ciclo moram numa linha, e <code>PUT .../cycle-settings</code> grava a linha
+  inteira. Por isso cada uma das três telas lê o registro, muda só os campos dela e manda de volta
+  todos os outros como leu. Uma tela que mandasse só os seus campos seria recusada — cada regra é
+  exigida, com "Informe…" (400) — e, onde nulo é uma escolha, apagaria a das outras sem erro nenhum:
+  a coluna da reabertura voltaria em silêncio para a primeira ativa.</p>
+  <p>O preço é o mesmo da gravação inteira em toda configuração: dois administradores salvando ao
+  mesmo tempo, em duas dessas telas, sobrescrevem um ao outro, e o último vence.</p>
+</div>
+
 <p>Campos, tetos e recusas da mídia estão em <a href="#/endpoints/midia">Mídia: anexar e ler</a>.</p>
 
 <div class="note why">
