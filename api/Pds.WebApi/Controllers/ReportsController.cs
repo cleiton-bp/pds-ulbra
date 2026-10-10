@@ -65,7 +65,7 @@ public class ReportsController : BaseController
     ///
     /// **`order=board` é a ordem do quadro**: a que o time arrumou na coluna, de cima
     /// para baixo. Na **última coluna ativa**, ela traz só o que entrou ali nos dias
-    /// que o projeto escolheu no Ciclo (de fábrica 14; zero traz todos) — o `Total`
+    /// que o projeto escolheu em Colunas (de fábrica 14; zero traz todos) — o `Total`
     /// acompanha, e o resto continua na lista. Sem `order`, ou com `recent`, a lista
     /// de sempre: do mais recente para o mais antigo.
     ///
@@ -683,7 +683,7 @@ public class ReportsController : BaseController
 
     /// <summary>Põe o card numa sprint, ou no backlog, e no lugar da lista.</summary>
     /// <remarks>
-    /// Com as sprints ligadas no Ciclo (senão 409). `SprintPublicId` nulo é o backlog. O
+    /// Com as sprints ligadas (em Sprints; senão 409). `SprintPublicId` nulo é o backlog. O
     /// lugar: logo abaixo de `AfterPublicId`, na lista de destino; sem ele, o topo
     /// (`Top`) ou o fim. A mesma lista arruma a ordem — que é do time inteiro, como a do
     /// quadro. **A subtarefa vai com o pai** (mover a subtarefa é 409), e a sprint

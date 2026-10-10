@@ -377,7 +377,7 @@ public record ReportContextViewModel(string Key, string? Value);
 /// jornada, ou relato que entrou antes de a jornada existir. Distinguir os tres
 /// exigiria um campo a mais que ficaria <b>desatualizado no primeiro movimento</b>,
 /// porque esta resposta nao e buscada de novo — e aviso errado e pior que aviso
-/// nenhum. Onde a diferenca importa e na tela de Etapas publicas, que a mostra.</para>
+/// nenhum. Onde a diferenca importa e na tela de Andamento publico, que a mostra.</para>
 /// </param>
 /// <param name="AcceptsQuestions">
 /// Quem relatou aceita responder duvidas da equipe sobre este relato.

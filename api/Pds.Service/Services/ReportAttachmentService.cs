@@ -71,7 +71,7 @@ public class ReportAttachmentService : IReportAttachmentService
     /// permissao a cada catorze minutos manteria o envio aberto para sempre, e o
     /// arquivo de semanas depois entraria como se tivesse vindo com o texto. Uma hora
     /// e o prazo da confirmacao (<see cref="ConfirmWindow"/>): cabe o maior envio que
-    /// a tela de Midia permite numa conexao lenta.</para>
+    /// a tela de Anexos permite numa conexao lenta.</para>
     /// </summary>
     private static readonly TimeSpan SendingCeiling = TimeSpan.FromHours(1);
 
@@ -1110,7 +1110,7 @@ public class ReportAttachmentService : IReportAttachmentService
     }
 
     /// <summary>
-    /// O limite escrito como a tela de Midia o mostra: "2.5 MB", "512 KB".
+    /// O limite escrito como a tela de Anexos o mostra: "2.5 MB", "512 KB".
     ///
     /// <para><b>A mesma conta do formatBytes da web</b>, porque a pessoa le as duas
     /// frases lado a lado. A tela grava limites com uma casa decimal, e o MB inteiro
