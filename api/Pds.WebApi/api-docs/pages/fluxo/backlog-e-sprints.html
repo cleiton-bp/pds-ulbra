@@ -1,15 +1,19 @@
 <h2>Backlog e sprints</h2>
 
-<p>Para o time que trabalha em ciclos curtos. O administrador liga em <strong>Ciclo → Sprints</strong>
+<p>Para o time que trabalha em ciclos curtos. O administrador liga na tela <strong>Sprints</strong>
 ("Trabalhar em sprints"), com a duração com que cada sprint nasce — de 1 a 4 semanas, 2 de fábrica.
-Com as sprints ligadas:</p>
+Antes de salvar, a tela avisa o que muda: <em>"Hoje há 7 cards em trabalho no quadro. Com as sprints
+ligadas, eles vão para o Backlog, e o quadro fica vazio até a primeira sprint começar."</em> Depois
+de salvar, ela aponta o caminho, com "Ir para o Trabalho". Com as sprints ligadas:</p>
 
 <ul>
   <li>a tela de Trabalho ganha a aba <strong>Backlog</strong>;</li>
   <li>o <strong>quadro mostra só a sprint em andamento</strong>, com a barra dela em cima — o nome, as
   datas, quanto falta, os cards e os pontos feitos — e "Concluir sprint";</li>
   <li>o card ganha <strong>Sprint</strong> e <strong>Pontos</strong> nos detalhes, e os pontos aparecem
-  na frente dele no quadro.</li>
+  na frente dele no quadro ("3 pts");</li>
+  <li>a lista ganha a coluna <strong>Sprint</strong> e o filtro dela — ver <a
+  href="#/fluxo/filtros-e-busca">Filtros e busca</a>.</li>
 </ul>
 
 <p>Desligar não apaga nada: o quadro volta a mostrar tudo, e ao religar a sprint em andamento
@@ -20,37 +24,74 @@ continua. Planejar, iniciar, concluir e apagar sprint é de qualquer pessoa do t
 <p>A aba mostra a sprint em andamento, as planejadas e o backlog embaixo, cada um na ordem que o
 time arruma — a mesma ordem para todos. Arrastar leva o card para outra lista ou para outro lugar
 na mesma: com o mouse, com o toque (segurando um instante) ou com o teclado (espaço pega, as setas
-andam — inclusive para a lista de cima ou de baixo —, espaço solta). O menu de cada card faz o
-mesmo sem arrastar: mover para uma sprint ou para o backlog, o topo, o fim.</p>
+andam — inclusive para a lista de cima ou de baixo —, espaço solta). O menu ⋯ de cada card faz o
+mesmo sem arrastar: mover para uma sprint ou para o backlog, para o topo ou para o fim da lista.</p>
 
 <ul>
-  <li><strong>O card novo entra no backlog</strong>, no fim: o relato que chega e o "Novo card". O
-  "Criar" de uma coluna do quadro cria na sprint em andamento.</li>
+  <li><strong>Planejar sem abrir card por card.</strong> A linha mostra a prioridade e, quando está
+  perto ou vencido, o prazo; os pontos são um botão — "3 pts", ou "—" sem estimativa — que abre o
+  campo ali mesmo: Enter grava, Esc desiste, e a soma da sprint acompanha.</li>
+  <li><strong>Buscar.</strong> <em>Buscar no backlog: título ou #número</em> e <strong>Meus
+  cards</strong> escondem o que não bate sem mudar a ordem, e cada lista diz quantos passam.</li>
+  <li><strong>Mover pelo menu se desfaz.</strong> O aviso diz para onde o card foi — <em>"#27 foi
+  para a Sprint 2."</em> — com <strong>Desfazer</strong>, que o devolve à lista e ao lugar de onde
+  saiu; o foco vai para o card seguinte da lista em que a pessoa estava.</li>
+  <li><strong>Cada lista recolhe</strong>, e fica recolhida neste navegador: a sprint longa não
+  empurra o backlog para longe, e a lista recolhida ainda recebe o card arrastado.</li>
+  <li><strong>O card novo entra no backlog</strong>, no fim: o relato que chega e o "Novo card" — que
+  diz onde o card entra e deixa escolher outra lista (<em>Entra em</em>). O campo de criar de uma
+  coluna do quadro cria na sprint em andamento.</li>
   <li><strong>O backlog mostra o que não terminou</strong>: o card que terminou sem sprint fica na
   Lista.</li>
   <li><strong>A subtarefa acompanha o pai</strong>: não aparece sozinha nas listas, vai e volta com
   ele e não leva pontos.</li>
 </ul>
 
+<p>No primeiro uso, sem sprint nenhuma, o Backlog ensina o caminho — <em>"Comece criando uma
+sprint, leve para ela os cards desta semana (arrastando ou pelo menu ⋯ de cada card) e clique em
+Iniciar sprint."</em> — com <strong>Criar sprint</strong>. O quadro sem sprint em andamento esconde
+a busca, os filtros e as raias, explica onde estão os cards e oferece <strong>Iniciar a Sprint
+2</strong>, quando há uma planejada, e "Ir para o Backlog". Se a leitura das sprints falha, as duas
+abas dizem isso, com "Tentar de novo", em vez de ficarem carregando.</p>
+
 <h2>Uma sprint por vez</h2>
 
 <p><strong>Criar sprint</strong> cria uma planejada: a Sprint e o próximo número, começando logo
 depois da última que não foi concluída, com a duração padrão. Planejadas, quantas o time quiser.
-<strong>Iniciar</strong> abre o diálogo com o nome, o objetivo e as datas, e só vale sem outra em
-andamento. A planejada se edita e se apaga — os cards dela voltam para o backlog.</p>
+A planejada se edita e se apaga — os cards dela voltam para o fim do backlog.</p>
+
+<p><strong>Iniciar começa hoje.</strong> O diálogo vem com o nome, o objetivo e as datas já
+preenchidas — <em>Começa em</em> hoje, <em>Termina em</em> hoje mais a duração do projeto —, e
+embaixo lembra as datas de quando ela foi planejada, com <strong>Usar as datas planejadas</strong>.
+Mudar o primeiro dia leva o último junto, e datas fora de ordem desligam o botão. Só vale sem outra
+em andamento. As datas aparecem sem o ano quando é o deste: <em>8 – 21 de out.</em></p>
+
+<pre><code>POST /projects/2be49b28-.../sprints/{sprint}/start
+{ "Today": "2026-10-08" }</code></pre>
+
+<p><code>Today</code> é o dia no relógio de quem pede, e vai também ao criar e ao concluir: é dele
+que contam as datas que não vieram. Sem ele — ou a mais de um dia do relógio do servidor —, vale o
+dia em UTC; no fim da noite no Brasil, o UTC já é amanhã, e a sprint iniciada às 22h começaria no
+dia seguinte.</p>
 
 <h2>Concluir</h2>
 
-<p>"Concluir sprint" mostra quantos cards terminaram e quantos não, com os pontos, e pergunta para
-onde vai o que não terminou: <strong>o backlog, uma sprint planejada ou uma sprint nova</strong>. O
-que não terminou vai para o fim da lista escolhida, com as subtarefas; o que terminou fica na
-sprint concluída, que sai das listas.</p>
+<p>"Concluir sprint" mostra quantos cards terminaram e quantos não — <em>Ver os 7</em> lista quais
+—, com os pontos quando houve estimativa, e pergunta para onde vai o que não terminou: <strong>o
+backlog, uma sprint planejada ou uma sprint nova</strong>. Com uma planejada, ela já vem
+escolhida. O que não terminou vai para o fim da lista escolhida, com as subtarefas; o que terminou
+fica na sprint concluída, que sai das listas do Backlog e continua consultável pelo filtro de sprint
+da Lista. A sprint nova do concluir começa hoje, ou depois da última planejada.</p>
+
+<p>O aviso do fim diz para onde foram — <em>"7 cards foram para a Sprint 2."</em> — e traz
+<strong>Iniciar a Sprint 2</strong>, que abre o diálogo de iniciar já com hoje.</p>
 
 <h2>Os pontos</h2>
 
 <p>A estimativa é um número livre de 0 a 999, de meio em meio ponto — "2,5" é aceito. Cada sprint
 mostra a soma planejada e a feita (os cards que terminaram, pela mesma regra do prazo: relato
-encerrado, ou card na última coluna).</p>
+encerrado, ou card na última coluna). No card aberto, a sprint concluída de um card que terminou
+aparece só para ler — <em>Sprint 1 (concluída)</em>.</p>
 
 <h2>O histórico e o tempo real</h2>
 

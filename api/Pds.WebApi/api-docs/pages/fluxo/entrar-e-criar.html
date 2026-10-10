@@ -31,33 +31,74 @@ Authorization: Bearer &lt;AccessToken&gt;
 
 { "Name": "Loja Online" }</code></pre>
 
-<p>A resposta traz o projeto e as duas chaves — e é a <strong>única vez</strong> que o valor
-da chave secreta existe fora do servidor:</p>
+<p>A resposta traz o projeto e a chave pública:</p>
 
 <pre><code>{
   "Success": true,
-  "Message": "Projeto criado. Guarde a chave secreta: ela nao sera exibida de novo.",
+  "Message": "Projeto criado.",
   "Data": {
     "Project":   { "PublicId": "2be49b28-...", "Name": "Loja Online", "Status": "Active",
                    "Account": { "PublicId": "11111111-...", "Name": "Conta de Ana" },
-                   "Role": "Administrator", "IsAccountOwner": true },
-    "PublicKey": { "Type": "Public", "Value": "pk_1R0KtQwzLCVyS4RKh-8CqcHy" },
-    "SecretKey": { "Value": "sk_17QxAnh7pQ1raP8J1RtxgWOn0OL6Zx_S2voTo-8TJW4",
-                   "Prefix": "sk_17QxAnh7" }
+                   "Role": "Administrator", "IsAccountOwner": true,
+                   "LastReportReceivedAt": null, "LastActivityAt": null },
+    "PublicKey": { "Type": "Public", "Value": "pk_1R0KtQwzLCVyS4RKh-8CqcHy" }
   }
 }</code></pre>
 
+<p>O projeto nasce <strong>pronto para trabalhar</strong>, numa gravação só — ou tudo entra, ou
+nada entra:</p>
+
+<ul>
+  <li><strong>a chave pública</strong>, que vai no script do site;</li>
+  <li><strong>as colunas A fazer, Fazendo e Feito</strong>, nessa ordem. Feito, a última, é a que
+  encerra o relato, pela regra de fábrica do ciclo;</li>
+  <li><strong>o andamento público de fábrica, já ligado às colunas</strong>: A fazer → Recebido,
+  Fazendo → Em desenvolvimento, Feito → Concluído. É a versão 1 do mapa, como se alguém tivesse
+  salvo a tela — a próxima gravação vira a versão 2;</li>
+  <li><strong>as prioridades de fábrica</strong>: Baixa, Média, Alta e Urgente.</li>
+</ul>
+
 <div class="note why">
-  <strong>Por que as chaves nascem junto com o projeto</strong>
-  <p>Sem elas o projeto não serve para nada. Obrigar a um segundo passo só cria a chance de
-  esquecer e descobrir depois, na hora de integrar.</p>
+  <strong>Por que três colunas, e já ligadas</strong>
+  <p>Com uma coluna só, o quadro não anda: ela era a entrada e o fim ao mesmo tempo, e o time
+  precisava achar a configuração antes de mover o primeiro card. E sem o mapa o relato andava por
+  dentro enquanto quem relatou continuava lendo "Recebido", sem ninguém perceber. Tudo se renomeia,
+  reordena e religa depois — o padrão é ponto de partida, e não regra. Os projetos que já existiam
+  ficam como estavam.</p>
 </div>
 
-<p>Projeto, chave pública e chave secreta entram numa gravação só: ou tudo entra, ou nada
-entra. Não existe projeto sem chave.</p>
+<div class="note why">
+  <strong>Por que só a chave pública nasce junto</strong>
+  <p>Sem a pública o site não manda relato, e obrigar a um segundo passo só cria a chance de
+  esquecer. A secreta serve a uma integração que pouca gente tem: nascendo junto, ela aparecia uma
+  única vez para quem ainda nem sabia se precisava dela. Ela nasce <strong>sob pedido</strong>, na
+  tela de Chaves — ver <a href="#/fluxo/chave-e-arquivar">A chave secreta, arquivar</a>.</p>
+</div>
 
 <p>O projeto nasce na conta própria de quem cria, e quem cria é dono dele — por isso a resposta
-traz <code>Role: "Administrator"</code> e <code>IsAccountOwner: true</code>.</p>
+traz <code>Role: "Administrator"</code> e <code>IsAccountOwner: true</code>. O painel abre o
+projeto na <strong>Instalação</strong>, com os três passos para o site começar a mandar
+relatos.</p>
+
+<h2>Por onde se entra no projeto</h2>
+
+<p>Abrir um projeto pela lista leva <strong>ao Trabalho, para todos</strong> — é onde o time passa
+o dia. A exceção é quem administra um projeto cujo site <strong>ainda não mandou relato
+nenhum</strong>: aí a Instalação é a próxima coisa a fazer, e é por ela que se entra. Quem decide é
+<code>LastReportReceivedAt</code>, que a lista de projetos traz em cada um — o último relato que
+chegou pela ferramenta, nulo enquanto nada chegou; o card do time não conta.
+<code>LastActivityAt</code>, a última mudança em qualquer card, é o "último movimento" que a lista
+mostra.</p>
+
+<p>O <strong>seletor do topo mantém a tela</strong>: quem está em Colunas num projeto e troca para
+outro cai em Colunas do outro. Se a pessoa não administra o outro projeto, a tela de configuração
+vira o Trabalho; com um card aberto, a lista do outro projeto.</p>
+
+<p>A lateral do projeto começa pelo que se usa todo dia — <strong>Trabalho, Membros e
+Moderação</strong> — e embaixo, recolhível e só para quem administra, <strong>Configurar o
+projeto</strong>, em dois blocos: Colunas, Prioridades, Etiquetas e Sprints; e Instalação, Chaves,
+Botão no site, Andamento público, Ciclo, Quem relata, Anexos e Projeto. Os endereços das telas
+continuam os de antes.</p>
 
 <h2>Conferir as chaves</h2>
 
@@ -65,14 +106,14 @@ traz <code>Role: "Administrator"</code> e <code>IsAccountOwner: true</code>.</p>
 
 <pre><code>{
   "Data": [
-    { "Type": "Public", "Value": "pk_1R0Kt...", "Prefix": "pk_1R0KtQwz", "IsActive": true },
-    { "Type": "Secret", "Value": null,          "Prefix": "sk_17QxAnh7", "IsActive": true }
+    { "Type": "Public", "Value": "pk_1R0Kt...", "Prefix": "pk_1R0KtQwz", "IsActive": true }
   ],
-  "Total": 2
+  "Total": 1
 }</code></pre>
 
-<p>A secreta vem com <code>Value: null</code>. Não é a tela que esconde — o banco não tem o
-valor dela para devolver.</p>
+<p>O projeto novo tem só a pública. Depois de gerada, a secreta aparece na lista com
+<code>Value: null</code>: não é a tela que esconde — o banco não tem o valor dela para
+devolver.</p>
 
 <p>Ler as chaves é de administrador, e o dono sempre é. Quem é só membro recebe 403: as chaves
 são a credencial da integração, e o trabalho nos relatos não precisa delas.</p>

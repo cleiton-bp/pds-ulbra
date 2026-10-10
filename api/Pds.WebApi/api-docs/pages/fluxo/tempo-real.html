@@ -8,8 +8,11 @@ renomeada, a etiqueta nova, a etapa pública renomeada, quem entrou no time ou s
 
 <p>O card (ou a linha da lista) que mudou se acende por um instante, com uma faixa à esquerda,
 quando a releitura chega — e não antes, para não acender um lugar em que o card ainda não está.
-Quem usa leitor de tela ouve o mesmo, numa região que anuncia: <em>“O card #42 foi
-atualizado.”</em></p>
+Quem usa leitor de tela ouve o mesmo, numa região que anuncia — no quadro, o que aconteceu e onde:
+<em>“O card #97 chegou em A fazer.”</em>, <em>“O card #97 foi para Fazendo.”</em>, <em>“O card #97
+mudou.”</em> ou, arquivado ou fora do filtro, <em>“O card #97 saiu do quadro.”</em>. Até três
+mudanças juntas são ditas uma por uma; mais que isso, <em>“5 cards mudaram no quadro.”</em>. Na
+lista, <em>“O card #42 foi atualizado.”</em></p>
 
 <h2>O aviso não leva o card</h2>
 
@@ -37,14 +40,17 @@ para não tirar um card de debaixo do ponteiro.</p>
 tudo:</p>
 
 <ul>
-  <li>coluna ou prioridade criada, renomeada, reordenada, aposentada ou reativada;</li>
+  <li>coluna ou prioridade criada, renomeada, reordenada, desativada ou reativada;</li>
   <li>etiqueta criada, renomeada, recolorida ou apagada;</li>
-  <li>o Ciclo gravado;</li>
-  <li>etapa pública renomeada, ou o mapa das etapas gravado — o card aberto mostra a etapa;</li>
-  <li>alguém entrou no time pelo convite, ou saiu dele — a escolha de responsável muda.</li>
+  <li>as regras gravadas — em Ciclo, em Sprints ou nas regras do quadro de Colunas, que guardam o
+  mesmo registro;</li>
+  <li>etapa pública renomeada, ou o mapa gravado — em Andamento público ou no "Quem relatou vê" de
+  Colunas; o card aberto mostra a etapa;</li>
+  <li>alguém entrou no time pelo convite, ou saiu dele — a escolha de responsável muda;</li>
+  <li>sprint criada, editada, iniciada, concluída ou apagada.</li>
 </ul>
 
-<p>Gravar o que já estava — aposentar a coluna aposentada, reativar a ativa, criar a etiqueta que já
+<p>Gravar o que já estava — desativar a coluna desativada, reativar a ativa, criar a etiqueta que já
 existe, gravar o mapa igual — não avisa ninguém.</p>
 
 <div class="note">
@@ -67,7 +73,10 @@ como leitura</strong>:</p>
 de quanto o time demora para ver compara com a criação.</p>
 
 <p>O que a pessoa está escrevendo no card aberto — o comentário, o título, a descrição, o prazo no
-meio da digitação — não é apagado pela releitura. O comentário que ela acabou de mandar também
+meio da digitação — não é apagado pela releitura. Se outra pessoa salva a descrição que ela está
+editando, a versão nova não entra por cima: a tela avisa acima do editor quem salvou, e a pessoa
+escolhe entre usar a versão nova e manter a dela — ver <a href="#/fluxo/card-do-time">O card do
+time</a>. O comentário que ela acabou de mandar também
 não, e a conversa continua chegando depois dele; a fala nova que entra acima do campo não o tira
 da tela. E a releitura que saiu antes de uma ação da própria aba e chegou depois dela não passa por
 cima da ação: a tela lê de novo.</p>
@@ -133,9 +142,12 @@ descartado.</p>
 tentativa e outra; dali em diante, a cada 30, sem desistir. As esperas só voltam ao começo com a
 conexão de volta dentro do projeto: a que abre e não consegue entrar não fica tentando sem parar.</p>
 
-<p>Depois de alguns segundos fora, um selo preso ao pé da tela diz <strong>Reconectando…</strong> —
-ou <strong>Sem atualização ao vivo</strong>, quando a conexão ainda não abriu nenhuma vez —, sem
-empurrar nada da tela; com o card aberto, quem usa leitor de tela ouve o mesmo dentro dele. De
+<p>Depois de alguns segundos fora, um selo diz <strong>Sem atualização ao vivo —
+reconectando…</strong> — ou <strong>… — tentando conectar…</strong>, quando a conexão ainda não
+abriu nenhuma vez —, e, na tela larga, explica junto: <em>"O que você faz continua sendo
+salvo."</em>. Ele fica no fim da área de conteúdo, à esquerda, preso embaixo: no quadro, abaixo das
+colunas, sem cobrir card nenhum. Com o card aberto, quem usa leitor de tela ouve o mesmo dentro
+dele. De
 volta, a conexão entra de novo no projeto e a tela relê tudo, porque pode ter perdido avisos no
 meio. A primeira conexão que só abriu depois de falhar também relê: a tela já tinha lido, e o que
 mudou entre uma coisa e outra não veio por aviso nenhum.</p>

@@ -1,16 +1,33 @@
-<h2>Regenerar a chave secreta</h2>
+<h2>Gerar a chave secreta</h2>
+
+<p>O projeto nasce só com a chave pública. A secreta, para quem integra pelo servidor, nasce sob
+pedido: em Chaves → Integração avançada, <strong>Gerar chave secreta</strong>.</p>
 
 <pre><code>POST /projects/2be49b28-.../keys/secret</code></pre>
 
-<p>A anterior é revogada e uma nova nasce, com o valor devolvido uma vez. Listando de novo,
-aparecem as três linhas:</p>
+<pre><code>{
+  "Success": true,
+  "Message": "Chave secreta gerada. Ela não será exibida de novo.",
+  "Data": { "PublicId": "4d0e...", "Value": "sk_pAzFhfsQ...", "Prefix": "sk_pAzFhfsQ",
+            "CreatedAt": "2026-10-07T14:02:11Z" }
+}</code></pre>
+
+<p>É a <strong>única vez</strong> que o valor existe fora do servidor: o banco guarda só o hash,
+e nenhuma rota consegue revelá-lo de novo. A tela mostra a chave para copiar e avisa antes de a
+pessoa sair dali.</p>
+
+<h2>Trocar a chave secreta</h2>
+
+<p>Com uma secreta valendo, a mesma rota — <strong>Gerar nova chave</strong>, na tela — revoga a
+anterior e põe uma nova no lugar, com o valor devolvido uma vez. Listando de novo, aparecem as três
+linhas:</p>
 
 <div class="diagram">Secret  sk_pAzFhfsQ   ativa    (a nova)
 Public  pk_1R0KtQwz   ativa
 Secret  sk_17QxAnh7   revogada (fica como histórico)</div>
 
 <div class="note warn">
-  <strong>Regenerar quebra as integrações que usam a chave antiga</strong>
+  <strong>Trocar quebra as integrações que usam a chave antiga</strong>
   <p>É imediato e não tem desfazer. A anterior não é apagada porque o histórico de quando
   cada chave valeu é o que permite investigar um incidente depois.</p>
 </div>
@@ -21,4 +38,5 @@ Secret  sk_17QxAnh7   revogada (fica como histórico)</div>
 { "Status": "Archived" }</code></pre>
 
 <p>O que não vier no corpo fica como está. Arquivar não apaga nada: o projeto continua
-visível e consultável, só para de aceitar coisa nova.</p>
+visível e consultável, só para de aceitar coisa nova. Renomear e arquivar ficam na tela
+<strong>Projeto</strong>, junto dos endereços autorizados.</p>
