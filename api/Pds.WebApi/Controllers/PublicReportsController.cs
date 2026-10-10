@@ -23,13 +23,27 @@ namespace Pds.WebApi.Controllers;
 /// ausência do `[Authorize]`: no dia em que alguém definir uma política padrão de
 /// autorização para a API inteira, estas rotas precisam continuar abertas de
 /// propósito, e não por esquecimento.
+///
+/// **O corpo tem teto, aqui e não na API inteira.** Todas estas rotas recebem só JSON
+/// — os arquivos vão direto para o armazenamento, pelo endereço assinado —, e o maior
+/// corpo de verdade (o relato com a caixa e as quatro respostas cheias) fica perto de
+/// 30 KB. Sem o teto, o servidor aceitaria até o padrão do Kestrel (30 MB) de quem
+/// não tem sessão nenhuma. Passou, a resposta é 413 antes de o corpo ser lido.
 /// </summary>
 [AllowAnonymous]
 [Route("public/reports")]
+[RequestSizeLimit(MaxBodyBytes)]
 [Produces("application/json")]
 [Tags(SwaggerTags.PublicReports)]
 public class PublicReportsController : BaseController
 {
+    /// <summary>
+    /// O maior corpo aceito nestas rotas: 128 KB, quatro vezes o maior relato que a
+    /// ferramenta monta — a folga e para texto com muito acento ou simbolo, que ocupa
+    /// mais de um byte por letra.
+    /// </summary>
+    private const long MaxBodyBytes = 128 * 1024;
+
     private readonly IReportService _reportService;
     private readonly IReportAttachmentService _attachmentService;
     private readonly IProjectMediaSettingsService _mediaSettingsService;
@@ -54,6 +68,13 @@ public class PublicReportsController : BaseController
     /// O que vier depois do `?` ou do `#` na rota é descartado antes de gravar: é
     /// ali que costumam viajar token, documento e e-mail.
     ///
+    /// **O tipo diz o que vem no corpo.** `TypeId` é um dos tipos ativos que a leitura
+    /// da configuração da ferramenta entregou. `Answers` traz uma resposta para cada
+    /// pergunta do tipo, na ordem — a pulada vai em branco —, e `Text` é a caixa livre,
+    /// só no tipo que a mostra. Pelo menos uma resposta, ou a caixa, vem preenchida. O
+    /// relato guarda as perguntas como estavam no envio, junto das respostas, e o texto
+    /// inteiro com as respostas juntas.
+    ///
     /// **`AcceptsQuestions` é escolha de quem escreve, e não do projeto.** Quem
     /// relatou um defeito às pressas pode não querer virar parte da investigação, e
     /// prometer resposta a quem não vai responder deixa o relato pendurado
@@ -63,30 +84,50 @@ public class PublicReportsController : BaseController
     /// configurou — silenciar o relato porque uma versão antiga da ferramenta não
     /// mandou o campo seria punir quem escreveu por um descompasso que não é dele.
     ///
-    /// **A origem é conferida contra a lista do projeto, e continua não sendo
+    /// **A origem é conferida contra as listas do projeto, e continua não sendo
     /// prova.** A ferramenta abre num quadro do nosso domínio, então o endereço que
     /// chega aqui é informado pela própria página hospedeira — e quem informa é o
-    /// carregador, que é código nosso. Por isso a lista pega a chave copiada para
-    /// outro site, e não pega quem falar direto com esta rota. Projeto com a lista
-    /// vazia aceita qualquer endereço, e quem não declara endereço passa.
+    /// carregador, que é código nosso. Endereço **bloqueado** é recusado (403).
+    /// Endereço **fora da lista de autorizados** — inclusive com a lista vazia — ou
+    /// relato sem endereço é **recebido e retido**: a resposta é a mesma de sempre,
+    /// quem relatou acompanha como sempre, e o time só vê o relato depois de permitir o
+    /// endereço (`GET projects/{id}/origins/pending`). O endereço do próprio painel
+    /// nunca é retido.
+    ///
+    /// **Limites em camadas**, configuráveis por projeto (`projects/{id}/report-limits`):
+    /// quem relata (o código pessoal, no modo que o usa; senão o IP) 5 a cada 10 min, o
+    /// mesmo IP 20/h, o mesmo endereço 200/h, o projeto 300/h e 2000/dia, e 30 s entre
+    /// dois relatos da mesma pessoa ou IP. A recusa é **429**, com `Retry-After` e o
+    /// motivo em `Data.Reason`: `TooSoon` (cedo demais — esperar), `Challenge` (passou
+    /// de um limite — resolver `Data.Challenge` e mandar o mesmo corpo com
+    /// `ChallengeToken` e `ChallengeNonce`) ou `Paused` (o dobro de um limite — pausa
+    /// de 15 min, até `Data.ResumesAt`). O desafio: achar um `ChallengeNonce` (só
+    /// dígitos) tal que o SHA-256 de `Token + ChallengeNonce`, em UTF-8, comece com
+    /// `Difficulty` bits zero; o bilhete vale dois minutos e uma vez só.
     /// </remarks>
     /// <param name="dto">O relato, com a chave pública do projeto.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relato aberto. Guarde o token: ele não será exibido de novo.</response>
-    /// <response code="400">Texto em branco, longo demais, ou tipo não informado.</response>
+    /// <response code="400">Tipo não informado, desativado ou de outro projeto; respostas que não batem com as perguntas do tipo; caixa livre num tipo sem ela; nada preenchido; texto longo demais; ou código pessoal com mais de 32 caracteres.</response>
     /// <response code="401">Chave pública ausente, desconhecida ou revogada.</response>
-    /// <response code="403">O projeto está arquivado, ou o endereço declarado não está na lista dele.</response>
+    /// <response code="403">O projeto está arquivado, ou o endereço declarado está bloqueado nele.</response>
+    /// <response code="413">Corpo maior que 128 KB.</response>
+    /// <response code="429">Cedo demais depois do anterior, desafio a resolver, ou envios pausados — ver `Data.Reason`.</response>
     [HttpPost]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<CreatedReportViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<ReportRefusalViewModel>), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateReportDto dto, CancellationToken cancellationToken)
     {
         try
         {
-            var created = await _reportService.CreateAsync(dto, cancellationToken);
+            // O IP so para as contagens na memoria: nao vai para o banco. Ja corrigido
+            // pelo proxy listado em TRUSTED_PROXIES, quando ha um.
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var created = await _reportService.CreateAsync(dto, ip, cancellationToken);
             return Success(created, "Relato recebido.");
         }
         catch (Exception exception)

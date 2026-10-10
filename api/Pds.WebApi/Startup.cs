@@ -32,6 +32,11 @@ public class Startup
     /// <summary>Politica de CORS do painel.</summary>
     public const string PanelCorsPolicy = "panel";
 
+    /// <summary>
+    /// Politica de CORS da leitura do botao, a unica rota chamada da pagina do cliente.
+    /// </summary>
+    public const string PublicLauncherCorsPolicy = "public-launcher";
+
     public IConfiguration Configuration { get; }
 
     public Startup(IConfiguration configuration)
@@ -181,9 +186,10 @@ public class Startup
             // janela: a primeira assina espaco no balde, e a segunda le do balde — e
             // separar as duas daria a quem martela o dobro da cota.
             //
-            // So a trava minima em cima da rota cara. As outras defesas contra abuso —
-            // um desafio invisivel antes do envio, e avisar o cliente quando o limite
-            // dispara — ficam como Planejado.
+            // So a trava minima em cima da rota cara. O anexo so existe depois do relato,
+            // e o relato ja passa pelas camadas de limite por projeto, com o desafio
+            // invisivel e o aviso no sino (ver ReportLimiter) — o que chega aqui ja
+            // atravessou aquela porta.
             var mediaLimit = EnvironmentConstants.GetMediaUploadRateLimitPerMinute();
 
             options.AddPolicy(MediaUploadRateLimitPolicy, httpContext =>
@@ -200,15 +206,28 @@ public class Startup
         // So as origens configuradas falam com a API pelo navegador. A lista vazia
         // significa nenhuma origem liberada, e nao todas.
         var allowedOrigins = EnvironmentConstants.GetCorsAllowedOrigins();
-        services.AddCors(options => options.AddPolicy(PanelCorsPolicy, policy =>
+        services.AddCors(options =>
         {
-            if (allowedOrigins.Length == 0)
-                return;
+            options.AddPolicy(PanelCorsPolicy, policy =>
+            {
+                if (allowedOrigins.Length == 0)
+                    return;
 
-            policy.WithOrigins(allowedOrigins)
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        }));
+                policy.WithOrigins(allowedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
+
+            // A leitura do botao sai do carregador, **na pagina do cliente** — de
+            // qualquer site que tenha colado o script, e nao de uma lista que a API
+            // conheca. Por isso qualquer origem, mas so `GET` e sem credencial: a
+            // resposta e a aparencia publica do botao, e nenhum cookie viaja junto.
+            // Quem decide se a ferramenta abre naquele site continua sendo a lista de
+            // enderecos do projeto, conferida dentro da rota.
+            options.AddPolicy(PublicLauncherCorsPolicy, policy =>
+                policy.AllowAnyOrigin()
+                    .WithMethods("GET"));
+        });
 
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
@@ -263,6 +282,8 @@ public class Startup
         // este passo corrige. Sem proxy listado, nada muda — ver TrustedForwarding.
         if (TrustedForwarding() is { } encaminhamento)
             app.UseForwardedHeaders(encaminhamento);
+        else
+            app.Use(WarnUntrustedForwarding(app.ApplicationServices));
 
         // Documentacao do projeto servida na raiz, a partir da pasta api-docs.
         // Vem antes de tudo por ser conteudo estatico: nao precisa passar por
@@ -329,6 +350,36 @@ public class Startup
             endpoints.MapControllers();
             endpoints.MapPdsRealtime();
         });
+    }
+
+    /// <summary>1 depois do aviso de proxy sem lista: ele sai uma vez so por processo.</summary>
+    private static int _untrustedForwardingWarned;
+
+    /// <summary>
+    /// Avisa no log, uma vez, que chegou <c>X-Forwarded-For</c> sem <c>TRUSTED_PROXIES</c>.
+    ///
+    /// <para><b>E o sinal de proxy esquecido.</b> Atras de um, sem a lista, todo pedido
+    /// chega com o IP do proxy: os limites por IP e o intervalo entre dois relatos
+    /// passam a valer para o projeto inteiro, e a primeira pessoa que relata segura as
+    /// outras. O cabecalho em si continua ignorado — acreditar nele sem saber de quem
+    /// vem e o que a lista existe para evitar.</para>
+    /// </summary>
+    private static Func<HttpContext, RequestDelegate, Task> WarnUntrustedForwarding(IServiceProvider services)
+    {
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Pds.WebApi.Proxy");
+
+        return (context, next) =>
+        {
+            if (Volatile.Read(ref _untrustedForwardingWarned) == 0
+                && context.Request.Headers.ContainsKey(ForwardedHeadersDefaults.XForwardedForHeaderName)
+                && Interlocked.Exchange(ref _untrustedForwardingWarned, 1) == 0)
+            {
+                logger.LogWarning(
+                    "Chegou X-Forwarded-For e TRUSTED_PROXIES esta vazia: o cabecalho e ignorado, e todos os pedidos que passam pelo proxy contam como um IP so nos limites. Atras de um proxy, liste-o em TRUSTED_PROXIES.");
+            }
+
+            return next(context);
+        };
     }
 
     /// <summary>

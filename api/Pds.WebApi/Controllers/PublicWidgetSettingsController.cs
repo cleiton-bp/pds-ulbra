@@ -54,10 +54,17 @@ public class PublicWidgetSettingsController : BaseController
     /// "tudo que o quadro precisa para aparecer", e não "o conteúdo da tabela de
     /// configuração do quadro".
     ///
-    /// **Endereço fora da lista do projeto recebe 403, e não uma configuração
-    /// desligada.** A ferramenta está ligada, só não naquela página — e o quadro
-    /// trata as duas recusas do mesmo jeito, não desenhando nada. Projeto com a
-    /// lista vazia aceita qualquer endereço, e quem não declara endereço passa.
+    /// **`Types` são os tipos de relato ativos, na ordem do projeto** — cada um com as
+    /// perguntas curtas que o formulário faz, se a caixa livre aparece e o texto dentro
+    /// dela. `DefaultReportType` é o identificador de um deles: o pré-marcado, e o
+    /// enviado quando o seletor está escondido.
+    ///
+    /// **Endereço bloqueado recebe 403, e não uma configuração desligada.** A
+    /// ferramenta está ligada, só não naquela página — e o quadro trata as duas
+    /// recusas do mesmo jeito, não desenhando nada. O endereço **fora da lista de
+    /// autorizados abre** (inclusive com a lista vazia, e quem não declara endereço):
+    /// o relato dele é recebido e fica retido até o time permitir ou bloquear o
+    /// endereço — recusar aqui faria o endereço novo nunca aparecer para o time.
     /// </remarks>
     /// <param name="key">Chave pública do projeto, a mesma do `data-key` do script.</param>
     /// <param name="origin">
@@ -69,7 +76,7 @@ public class PublicWidgetSettingsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">A configuração, salva ou padrão.</response>
     /// <response code="401">Chave pública ausente, desconhecida ou revogada.</response>
-    /// <response code="403">O endereço declarado não está na lista do projeto.</response>
+    /// <response code="403">O endereço declarado está bloqueado no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<WidgetSettingsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]

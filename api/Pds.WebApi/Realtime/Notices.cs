@@ -9,12 +9,16 @@ namespace Pds.WebApi.Realtime;
 /// <param name="Archived">Se ele esta no arquivo agora (e, portanto, fora do quadro).</param>
 /// <param name="Origin">A conexao que fez a mudanca, quando veio do painel: aquela aba ja
 /// esta certa e ignora o proprio aviso. Nula quando veio de fora (quem relatou, a fila).</param>
+/// <param name="ParentPublicId">O pai, quando o card e subtarefa. Ela nao esta no quadro
+/// nem na lista — mora dentro do pai, que recebe aviso proprio —, e a tela de Trabalho so
+/// cuida do pai; o card aberto continua ouvindo a subtarefa.</param>
 public record CardChangedNotice(
     Guid ProjectPublicId,
     Guid ReportPublicId,
     Guid? StatePublicId,
     bool Archived,
-    string? Origin);
+    string? Origin,
+    Guid? ParentPublicId = null);
 
 /// <summary>A configuracao que a tela de Trabalho usa mudou: a tela rele tudo.</summary>
 public record ProjectChangedNotice(Guid ProjectPublicId, string? Origin);

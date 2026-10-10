@@ -46,12 +46,17 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.ProjectOrigins,
-                Description = "De onde a ferramenta pode abrir. A chave pública fica à vista no site do cliente; é esta lista que impede a cópia dela de funcionar em outro lugar.",
+                Description = "De onde a ferramenta pode abrir. A chave pública fica à vista no site do cliente; é esta lista que impede a cópia dela de funcionar em outro lugar. Ao lado dela, os endereços que já mandaram relatos e a lista de bloqueados, que recusa na hora mesmo com a de autorizados vazia.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ProjectReportTypes,
+                Description = "O que quem relata escolhe ao abrir a ferramenta, com as palavras do time. Nasce com três de fábrica (Defeito, Melhoria, Dúvida). Cada tipo diz como o formulário pergunta — até quatro perguntas curtas e/ou a caixa livre — e em que coluna o relato entra. Como a prioridade, não se apaga: desativa.",
             },
             new OpenApiTag
             {
                 Name = SwaggerTags.WidgetSettings,
-                Description = "Como a ferramenta aparece no site do cliente: se aparece, a cor, o canto, o tema e os textos.",
+                Description = "Como a ferramenta aparece no site do cliente: se aparece, a cor, o canto, o tema, os textos e o tipo pré-marcado. A resposta traz os tipos de relato ativos, que são o formulário dela.",
             },
             new OpenApiTag
             {
@@ -87,6 +92,11 @@ public class TagOrderDocumentFilter : IDocumentFilter
             {
                 Name = SwaggerTags.IdentitySettings,
                 Description = "Quem e quem, e quem pode ver: o modo de identificacao e os tres niveis de visibilidade, gravados juntos porque o primeiro decide o segundo.",
+            },
+            new OpenApiTag
+            {
+                Name = SwaggerTags.ReportLimits,
+                Description = "Quantos relatos o projeto aceita em pouco tempo: por quem relata, por IP, por endereco e pelo projeto, e o intervalo minimo entre dois. Passado o limite, o desafio invisivel; no dobro, a pausa de 15 minutos com aviso no sino.",
             },
             new OpenApiTag
             {
@@ -131,7 +141,7 @@ public class TagOrderDocumentFilter : IDocumentFilter
             new OpenApiTag
             {
                 Name = SwaggerTags.PublicWidgetSettings,
-                Description = "O que o próprio quadro lê para saber como se desenhar, apresentando a mesma chave pública.",
+                Description = "O que o próprio quadro lê para saber como se desenhar, apresentando a mesma chave pública — e, mais leve, só o que o carregador precisa para desenhar o botão na página do cliente.",
             },
             new OpenApiTag
             {

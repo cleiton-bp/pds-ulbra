@@ -61,7 +61,7 @@ public class PublicMediaSettingsController : BaseController
     /// <param name="cancellationToken"></param>
     /// <response code="200">O que a ferramenta pode oferecer.</response>
     /// <response code="401">Chave pública ausente, desconhecida ou revogada.</response>
-    /// <response code="403">O endereço declarado não está na lista do projeto.</response>
+    /// <response code="403">O endereço declarado está bloqueado no projeto.</response>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<PublicMediaSettingsViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]

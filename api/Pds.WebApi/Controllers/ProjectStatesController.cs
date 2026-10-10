@@ -27,6 +27,10 @@ namespace Pds.WebApi.Controllers;
 ///
 /// **Não há teto de quantos estados cabem.** Quantas faixas o trabalho tem é
 /// escolha de quem trabalha.
+///
+/// **A coluna em que cada tipo de relato entra mora no tipo**, em
+/// `projects/{publicId}/report-types` — e aposentar a coluna que é entrada de algum
+/// tipo é recusado até o tipo apontar para outra.
 /// </summary>
 [Authorize]
 [RequireAccount]
@@ -65,77 +69,6 @@ public class ProjectStatesController : BaseController
         {
             var states = await _projectStateService.ListAsync(publicId, cancellationToken);
             return Success(states, total: states.Count);
-        }
-        catch (Exception exception)
-        {
-            return HandleError(exception);
-        }
-    }
-
-    /// <summary>Mostra onde cada tipo de relato cai ao entrar.</summary>
-    /// <remarks>
-    /// Devolve **os três tipos sempre**, escolhidos ou não — a tela precisa mostrar
-    /// a pergunta inteira, e não só as respostas dadas.
-    ///
-    /// `StatePublicId` nulo quer dizer que o cliente nunca escolheu para aquele
-    /// tipo, e aí vale o padrão: **o primeiro estado ativo da fila**. Não é
-    /// configuração faltando, é configuração não feita — e o projeto funciona
-    /// igual.
-    /// </remarks>
-    /// <param name="publicId">Identificador público do projeto.</param>
-    /// <param name="cancellationToken"></param>
-    /// <response code="200">O destino de cada tipo.</response>
-    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
-    [HttpGet("initial")]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ProjectInitialStateViewModel>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ListInitial(Guid publicId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var initial = await _projectStateService.ListInitialAsync(publicId, cancellationToken);
-            return Success(initial, total: initial.Count);
-        }
-        catch (Exception exception)
-        {
-            return HandleError(exception);
-        }
-    }
-
-    /// <summary>Escolhe onde um tipo de relato passa a cair.</summary>
-    /// <remarks>
-    /// **Trocar o destino não mexe nos relatos que já entraram** — eles ficam onde
-    /// estão. A escolha vale para o próximo que chegar.
-    ///
-    /// `StatePublicId` nulo **apaga** a escolha e devolve o tipo ao padrão, em vez
-    /// de gravar uma escolha vazia. Assim "sem escolha" continua sendo um estado
-    /// possível do projeto, e não algo que só existe até alguém abrir a tela.
-    ///
-    /// Um estado aposentado é recusado: mandar relato novo para ele seria desfazer
-    /// pela porta dos fundos o que aposentar decidiu.
-    /// </remarks>
-    /// <param name="publicId">Identificador público do projeto.</param>
-    /// <param name="dto">O tipo e o estado de destino.</param>
-    /// <param name="cancellationToken"></param>
-    /// <response code="200">Destino salvo.</response>
-    /// <response code="400">Tipo de relato ausente ou desconhecido.</response>
-    /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
-    /// <response code="404">Projeto ou estado não existe, ou a pessoa não está no projeto.</response>
-    /// <response code="409">O estado escolhido está aposentado.</response>
-    [RequireProjectRole(ProjectRoleEnum.Administrator)]
-    [HttpPut("initial")]
-    [Consumes("application/json")]
-    [ProducesResponseType(typeof(ApiResponse<ProjectInitialStateViewModel>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> SetInitial(Guid publicId, [FromBody] SetInitialStateDto dto, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var initial = await _projectStateService.SetInitialAsync(publicId, dto, cancellationToken);
-            return Success(initial, "Destino salvo.");
         }
         catch (Exception exception)
         {
@@ -271,7 +204,8 @@ public class ProjectStatesController : BaseController
     ///
     /// **Mas aposentar a porta de entrada de um tipo é recusado**: o próximo relato
     /// daquele tipo cairia num estado aposentado, que é justamente o que aposentar
-    /// existe para impedir. Escolha outro destino antes.
+    /// existe para impedir. Troque a coluna do tipo antes, em Tipos de relato — os
+    /// desativados contam, porque reativá-los traria o problema de volta.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="statePublicId">Identificador público do estado.</param>
