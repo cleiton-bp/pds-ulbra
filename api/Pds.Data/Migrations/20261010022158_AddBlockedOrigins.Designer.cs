@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pds.Data.Context;
@@ -12,9 +13,11 @@ using Pds.Data.Context;
 namespace Pds.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20261010022158_AddBlockedOrigins")]
+    partial class AddBlockedOrigins
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -293,18 +296,7 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("kind")
-                        .HasComment("mention | assignment | origin_pending | reports_paused. Todos so no painel: no sino, com o som que a pessoa escolheu para o tipo. Os dois ultimos vao para quem administra o projeto.");
-
-                    b.Property<string>("LimitScope")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("limit_scope")
-                        .HasComment("reporter | ip | origin | project: a camada que pausou os envios. So no aviso reports_paused.");
-
-                    b.Property<DateTime?>("PausedUntil")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("paused_until")
-                        .HasComment("Ate quando os envios ficam pausados, em UTC. So no aviso reports_paused.");
+                        .HasComment("mention | assignment. Os dois so no painel: no sino, com o som que a pessoa escolheu para o tipo.");
 
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint")
@@ -321,21 +313,15 @@ namespace Pds.Data.Migrations
                         .HasColumnName("read_at")
                         .HasComment("Quando a pessoa abriu ou marcou como lido, em UTC. Nulo enquanto nao leu.");
 
-                    b.Property<long?>("ReportId")
+                    b.Property<long>("ReportId")
                         .HasColumnType("bigint")
                         .HasColumnName("report_id")
-                        .HasComment("O card de que o aviso fala. Nulo nos avisos do projeto (origin_pending, reports_paused).");
+                        .HasComment("O card de que o aviso fala.");
 
                     b.Property<long?>("ReportInternalCommentId")
                         .HasColumnType("bigint")
                         .HasColumnName("report_internal_comment_id")
                         .HasComment("O comentario interno da mencao. Nulo na atribuicao.");
-
-                    b.Property<string>("Subject")
-                        .HasMaxLength(260)
-                        .HasColumnType("character varying(260)")
-                        .HasColumnName("subject")
-                        .HasComment("O endereco de que o aviso do projeto fala: o que mandou relato sem estar autorizado, ou o pausado por excesso. Nunca um IP: a pausa por IP ou por pessoa diz so a camada.");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
@@ -378,15 +364,11 @@ namespace Pds.Data.Migrations
 
                     b.ToTable("notifications", null, t =>
                         {
-                            t.HasComment("Os avisos do sino do painel: a mencao num comentario interno, a escolha como responsavel, o endereco novo que mandou relato e os envios pausados por excesso. Cada pessoa le so os proprios, e so dos projetos em que ainda esta. Interno: nenhuma rota publica le esta tabela.");
+                            t.HasComment("Os avisos do sino do painel: a mencao num comentario interno e a escolha como responsavel. Cada pessoa le so os proprios, e so dos projetos em que ainda esta. Interno: nenhuma rota publica le esta tabela.");
 
                             t.HasCheckConstraint("ck_notifications_comment", "(kind = 'mention') = (report_internal_comment_id IS NOT NULL)");
 
-                            t.HasCheckConstraint("ck_notifications_kind", "kind IN ('mention', 'assignment', 'origin_pending', 'reports_paused')");
-
-                            t.HasCheckConstraint("ck_notifications_paused", "(kind = 'reports_paused') = (limit_scope IS NOT NULL AND paused_until IS NOT NULL)");
-
-                            t.HasCheckConstraint("ck_notifications_report", "(kind IN ('mention', 'assignment')) = (report_id IS NOT NULL)");
+                            t.HasCheckConstraint("ck_notifications_kind", "kind IN ('mention', 'assignment')");
                         });
                 });
 
@@ -1615,94 +1597,6 @@ namespace Pds.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Pds.Domain.Entities.ProjectReportLimits", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("Criacao do registro, em UTC.");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at")
-                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<int>("MinIntervalSeconds")
-                        .HasColumnType("integer")
-                        .HasColumnName("min_interval_seconds")
-                        .HasComment("Segundos minimos entre dois relatos da mesma pessoa ou do mesmo IP. Padrao 30; zero desliga. Antes disso a recusa e direta, sem desafio.");
-
-                    b.Property<int>("PerIpPerHour")
-                        .HasColumnType("integer")
-                        .HasColumnName("per_ip_per_hour")
-                        .HasComment("Relatos do mesmo IP por hora. Padrao 20.");
-
-                    b.Property<int>("PerOriginPerHour")
-                        .HasColumnType("integer")
-                        .HasColumnName("per_origin_per_hour")
-                        .HasComment("Relatos do mesmo endereco de origem por hora. Padrao 200. A origem e declarada pela pagina: por isso as camadas de IP e de projeto existem.");
-
-                    b.Property<int>("PerProjectPerDay")
-                        .HasColumnType("integer")
-                        .HasColumnName("per_project_per_day")
-                        .HasComment("Relatos do projeto inteiro nas ultimas 24 horas. Padrao 2000.");
-
-                    b.Property<int>("PerProjectPerHour")
-                        .HasColumnType("integer")
-                        .HasColumnName("per_project_per_hour")
-                        .HasComment("Relatos do projeto inteiro por hora. Padrao 300.");
-
-                    b.Property<int>("PerReporter")
-                        .HasColumnType("integer")
-                        .HasColumnName("per_reporter")
-                        .HasComment("Relatos da mesma pessoa a cada 10 minutos. Padrao 5. A pessoa e o codigo pessoal, no projeto que usa esse modo e quando ele vem; senao, o IP.");
-
-                    b.Property<long>("ProjectId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_id")
-                        .HasComment("Projeto dono da configuracao. Unico entre os nao apagados, e e o que faz o 1:1.");
-
-                    b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("Ultima alteracao, em UTC.");
-
-                    b.HasKey("Id")
-                        .HasName("pk_project_report_limits");
-
-                    b.HasIndex("DeletedAt")
-                        .HasDatabaseName("ix_project_report_limits_deleted_at");
-
-                    b.HasIndex("ProjectId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_project_report_limits_project_id")
-                        .HasFilter("deleted_at IS NULL");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_project_report_limits_public_id");
-
-                    b.ToTable("project_report_limits", null, t =>
-                        {
-                            t.HasComment("Quantos relatos o projeto aceita em pouco tempo, por camada: quem relata, IP, endereco de origem e o projeto inteiro, e o intervalo minimo entre dois. Uma linha por projeto, criada so quando alguem salva — os padroes e os tetos vivem no codigo. Nenhum IP e guardado: as contagens vivem na memoria do processo.");
-
-                            t.HasCheckConstraint("ck_project_report_limits_ranges", "per_reporter BETWEEN 1 AND 50 AND per_ip_per_hour BETWEEN 1 AND 200 AND per_origin_per_hour BETWEEN 1 AND 2000 AND per_project_per_hour BETWEEN 1 AND 3000 AND per_project_per_day BETWEEN 1 AND 20000 AND min_interval_seconds BETWEEN 0 AND 300");
-                        });
-                });
-
             modelBuilder.Entity("Pds.Domain.Entities.ProjectReportType", b =>
                 {
                     b.Property<long>("Id")
@@ -2373,11 +2267,6 @@ namespace Pds.Data.Migrations
                         .HasColumnName("due_date")
                         .HasComment("O prazo: so a data, sem hora. Nulo e sem prazo. Interno.");
 
-                    b.Property<DateTime?>("HeldForOriginAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("held_for_origin_at")
-                        .HasComment("Quando o relato chegou de um endereco fora da lista de autorizados e ficou retido. Nulo e aceito. Retido: quem relatou acompanha como sempre, e o time nao o ve em lugar nenhum alem de Aguardando liberacao. Autorizar o endereco zera; bloquear apaga o relato de vez.");
-
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2576,10 +2465,6 @@ namespace Pds.Data.Migrations
 
                     b.HasIndex("ProjectId", "CreatedAt")
                         .HasDatabaseName("ix_reports_project_id_created_at");
-
-                    b.HasIndex("ProjectId", "HeldForOriginAt")
-                        .HasDatabaseName("ix_reports_project_id_held_for_origin_at")
-                        .HasFilter("held_for_origin_at IS NOT NULL");
 
                     b.HasIndex("ProjectId", "ModerationState")
                         .HasDatabaseName("ix_reports_project_id_moderation_state");
@@ -3542,7 +3427,7 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("kind")
-                        .HasComment("mention | assignment | origin_pending | reports_paused: o tipo de aviso, como em notifications.kind.");
+                        .HasComment("mention | assignment: o tipo de aviso, como em notifications.kind.");
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uuid")
@@ -3585,7 +3470,7 @@ namespace Pds.Data.Migrations
                         {
                             t.HasComment("O som que cada pessoa escolheu para cada tipo de aviso do painel. Sem linha para um tipo, vale o de fabrica. Vale em todos os projetos da pessoa. Interno.");
 
-                            t.HasCheckConstraint("ck_user_notification_sounds_kind", "kind IN ('mention', 'assignment', 'origin_pending', 'reports_paused')");
+                            t.HasCheckConstraint("ck_user_notification_sounds_kind", "kind IN ('mention', 'assignment')");
 
                             t.HasCheckConstraint("ck_user_notification_sounds_sound", "sound IN ('none', 'bell', 'drop', 'ping', 'chime', 'bubble', 'soft')");
                         });
@@ -3675,6 +3560,7 @@ namespace Pds.Data.Migrations
                         .WithMany()
                         .HasForeignKey("ReportId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
                         .HasConstraintName("fk_notifications_reports_report_id");
 
                     b.HasOne("Pds.Domain.Entities.ReportInternalComment", "ReportInternalComment")
@@ -3895,18 +3781,6 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_project_public_stages_projects_project_id");
-
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("Pds.Domain.Entities.ProjectReportLimits", b =>
-                {
-                    b.HasOne("Pds.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_project_report_limits_projects_project_id");
 
                     b.Navigation("Project");
                 });
