@@ -12,9 +12,14 @@ namespace Pds.WebApi.Controllers;
 /// <summary>
 /// Como a ferramenta de relato aparece no site de um projeto.
 ///
-/// São onze campos: se a ferramenta aparece, a cor, o canto, o tema, os quatro
+/// São dez campos: se a ferramenta aparece, a cor, o canto, o tema, os três
 /// textos, o que o seletor de tipo faz e a pergunta do título. Tudo que muda a
 /// **aparência** dela mora aqui; o que muda para onde o relato vai mora nas chaves.
+///
+/// **Os tipos de relato não moram aqui, e vêm na resposta.** Cada tipo é do projeto
+/// e diz como o formulário pergunta — as perguntas curtas, a caixa livre e o texto
+/// dela —, e é configurado em `projects/{publicId}/report-types`. A resposta traz os
+/// ativos, na ordem (`Types`), porque eles são parte do que a ferramenta desenha.
 ///
 /// **Projeto sem configuração salva não é projeto sem configuração.** Ele usa os
 /// padrões, e é isso que esta rota devolve — por isso ela nunca responde 404 para
@@ -63,7 +68,7 @@ public class ProjectWidgetSettingsController : BaseController
 
     /// <summary>Substitui a configuração da ferramenta.</summary>
     /// <remarks>
-    /// **Substitui, e não altera campo a campo** — os onze campos vão sempre juntos.
+    /// **Substitui, e não altera campo a campo** — os dez campos vão sempre juntos.
     /// O motivo é a cor: `AccentColor: null` é um valor, e quer dizer "use o acento
     /// do produto". Num corpo parcial ele seria indistinguível de "não mexa na
     /// cor", e voltar ao padrão viraria impossível de pedir.
@@ -75,14 +80,19 @@ public class ProjectWidgetSettingsController : BaseController
     ///
     /// Desligar a ferramenta aqui **tira ela do site na próxima visita**, sem
     /// ninguém editar o HTML.
+    ///
+    /// `DefaultReportType` é o identificador público de um tipo **ativo** do projeto,
+    /// ou nulo — e nulo é o padrão: o primeiro tipo ativo, na ordem do projeto. O tipo
+    /// escolhido que for desativado depois também cai no primeiro ativo.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
-    /// <param name="dto">Os onze campos.</param>
+    /// <param name="dto">Os dez campos.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Configuração salva.</response>
     /// <response code="400">Campo ausente, texto em branco, longo demais, ou cor inválida.</response>
     /// <response code="403">A pessoa está no projeto, mas só administradores mudam isto.</response>
-    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="404">Projeto ou tipo pré-marcado não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="409">O tipo pré-marcado está desativado.</response>
     [RequireProjectRole(ProjectRoleEnum.Administrator)]
     [HttpPut]
     [Consumes("application/json")]
@@ -90,6 +100,7 @@ public class ProjectWidgetSettingsController : BaseController
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Replace(Guid publicId, [FromBody] WidgetSettingsDto dto, CancellationToken cancellationToken)
     {
         try

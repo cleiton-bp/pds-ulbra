@@ -33,6 +33,17 @@ public static partial class CardText
         return titulo;
     }
 
+    /// <summary>
+    /// Um texto curto numa linha, ou <b>nulo</b> quando veio em branco — sem conferir o
+    /// tamanho, que quem chama conhece: a pergunta de um tipo de relato, o texto da caixa
+    /// livre.
+    /// </summary>
+    public static string? Line(string? value)
+    {
+        var linha = Whitespace().Replace((value ?? string.Empty).Trim(), " ");
+        return linha.Length == 0 ? null : linha;
+    }
+
     /// <summary>O nome de uma prioridade ou etiqueta, numa linha e obrigatorio.</summary>
     /// <param name="value">O que veio.</param>
     /// <param name="maxLength">O teto do nome.</param>

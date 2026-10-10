@@ -92,7 +92,7 @@ public sealed class HubWorkNotifier : IWorkNotifier
 
             var origem = Origem();
             await MandarAoTimeAsync("card", reportPublicId, card.Project, "CardChanged",
-                new CardChangedNotice(card.Project, reportPublicId, card.State, card.ArchivedAt != null, origem), ct);
+                new CardChangedNotice(card.Project, reportPublicId, card.State, card.ArchivedAt != null, origem, card.Pai?.PublicId), ct);
 
             if (card.Pai is { } pai)
                 await MandarAoTimeAsync("card", pai.PublicId, card.Project, "CardChanged",

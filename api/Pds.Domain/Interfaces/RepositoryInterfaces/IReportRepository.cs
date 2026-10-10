@@ -71,6 +71,58 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<IReadOnlyDictionary<long, CardFace>> CountFacesAsync(IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Por que cada pai da pagina casou com o filtro pelas subtarefas: quantas sao de
+    /// cada pessoa do filtro de responsavel, e se a busca achou o termo numa delas. So
+    /// os pais com alguma; vazio sem esses dois filtros, e na leitura das subtarefas de
+    /// um card.
+    /// </summary>
+    Task<IReadOnlyDictionary<long, SubtaskMatch>> ListSubtaskMatchesAsync(IReadOnlyCollection<long> parentIds, ReportCardFilter filter, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos do projeto contados por endereco de origem, os arquivados inclusive.
+    /// So o relato tem origem: o card do time fica de fora.
+    /// </summary>
+    Task<IReadOnlyList<ReportOriginTally>> TallyOriginsAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos retidos do projeto, contados por endereco (o vazio junto com o nulo).
+    /// Atravessa o filtro global, que esconde o retido de todo o resto.
+    /// </summary>
+    Task<IReadOnlyList<HeldOriginTally>> TallyHeldOriginsAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os relatos retidos que vieram deste endereco, rastreados, do mais antigo para o
+    /// mais novo: exatamente ele, ou tambem os de baixo com
+    /// <paramref name="includesSubdomains"/>. <paramref name="domain"/> nulo traz os que
+    /// nao disseram de onde vieram.
+    /// </summary>
+    Task<List<Report>> ListHeldAsync(long projectId, string? domain, bool includesSubdomains, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ha relato retido deste endereco no projeto? E o que decide avisar o time de um
+    /// endereco novo uma vez so, e nao a cada relato dele. Sem sessao: quem pergunta e a
+    /// entrada do relato.
+    /// </summary>
+    Task<bool> AnyHeldFromOriginWithoutSessionAsync(long projectId, string? origin, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Os cards marcados com a origem bloqueada, rastreados: entre estes, se
+    /// <paramref name="publicIds"/> vier; senao, todos os do projeto que vieram de um
+    /// endereco coberto por <paramref name="blockedOriginId"/>.
+    /// </summary>
+    Task<List<Report>> ListBlockedOriginMarkedAsync(long projectId, IReadOnlyCollection<Guid>? publicIds, long? blockedOriginId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Apaga de vez estes cards e as subtarefas deles, com tudo que pendura neles: o
+    /// contexto, as respostas, as etiquetas, os comentarios, os encerramentos, os
+    /// pedidos de informacao, os anexos, os vinculos e os avisos do sino. Os eventos
+    /// ficam, sem o card e sem o caminho da pagina. <b>Chamar dentro de uma
+    /// transacao</b>: sao varios comandos, e pela metade sobraria um card sem metade
+    /// do que era dele.
+    /// </summary>
+    Task<ReportPurge> PurgeAsync(long projectId, IReadOnlyCollection<long> reportIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// As subtarefas de um card com este instante no arquivo — nulo traz as que estao
     /// fora dele —, rastreadas: e o que arquivar e desarquivar o pai levam junto.
     /// </summary>

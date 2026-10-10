@@ -35,7 +35,7 @@ public partial class ReportService
         var (pessoas, semResponsavel) = await ResolveAssigneesAsync(project, dto.Assignee, cancellationToken);
         var etiquetas = await ResolveLabelsAsync(project.Id, dto.Label, cancellationToken);
         var (prioridades, semPrioridade) = await ResolvePrioritiesAsync(project.Id, dto.Priority, cancellationToken);
-        var (tipos, doTime) = ResolveTypes(dto.Type);
+        var (tipos, doTime) = await ResolveTypesAsync(project.Id, dto.Type, cancellationToken);
 
         // As subtarefas de um card: o card tem de ser do projeto, como todo filtro.
         long? pai = dto.Parent is Guid paiPublicId
@@ -50,10 +50,20 @@ public partial class ReportService
             ResolveOverdue(dto.Due, dto.Today), ResolveSearch(dto.Q), pai,
             await ResolveSprintScopeAsync(project.Id, dto.Sprint, cancellationToken),
             OpenOnly: dto.Open == true,
-            WithoutSubtasks: ResolveSubtasks(dto.Subtasks),
             StateIds: colunas,
-            WithoutState: semColuna);
+            WithoutState: semColuna,
+            BlockedOrigin: ResolveOrigin(dto.Origin),
+            IncludeSubtasks: dto.IncludeSubtasks == true);
     }
+
+    /// <summary>O filtro de origem: so <c>blocked</c>, os relatos marcados com a origem bloqueada.</summary>
+    private static bool ResolveOrigin(string? origin)
+        => origin?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => false,
+            "blocked" => true,
+            _ => throw new ArgumentException("Filtro de origem desconhecido. Use blocked."),
+        };
 
     /// <summary>
     /// As colunas do filtro da lista. A coluna que sumiu vira o identificador que nenhum
@@ -86,15 +96,6 @@ public partial class ReportService
 
         return (achadas, semColuna);
     }
-
-    /// <summary>As subtarefas: <c>hide</c> as esconde. Sem valor, ficam.</summary>
-    private static bool ResolveSubtasks(string? subtasks)
-        => subtasks?.Trim().ToLowerInvariant() switch
-        {
-            null or "" => false,
-            "hide" => true,
-            _ => throw new ArgumentException("Filtro de subtarefas desconhecido. Use hide."),
-        };
 
     /// <summary>
     /// A ordem que a pessoa escolheu na lista. <b>So na lista de sempre</b>: o quadro e
@@ -242,33 +243,37 @@ public partial class ReportService
     /// </summary>
     private const long FiltroQueSumiu = -1;
 
-    private static (IReadOnlyList<ReportTypeEnum> Tipos, bool DoTime) ResolveTypes(List<string>? valores)
+    /// <summary>
+    /// Os tipos do filtro: os identificadores dos tipos do projeto e <c>team</c>, o card
+    /// do time. O tipo que sumiu vira o identificador que nenhum card tem, como a
+    /// prioridade: o filtro guardado na aba continua lendo.
+    /// </summary>
+    private async Task<(IReadOnlyList<long> Tipos, bool DoTime)> ResolveTypesAsync(long projectId, List<string>? valores, CancellationToken cancellationToken)
     {
-        var tipos = new List<ReportTypeEnum>();
-        var doTime = false;
+        var pedidos = Distintos(valores);
+        if (pedidos.Count == 0)
+            return ([], false);
 
-        foreach (var valor in Distintos(valores))
+        var doTime = pedidos.Any(valor => valor.Equals("team", StringComparison.OrdinalIgnoreCase));
+        var ids = new List<Guid>();
+
+        foreach (var valor in pedidos.Where(valor => !valor.Equals("team", StringComparison.OrdinalIgnoreCase)))
         {
-            switch (valor.ToLowerInvariant())
-            {
-                case "bug":
-                    tipos.Add(ReportTypeEnum.Bug);
-                    break;
-                case "improvement":
-                    tipos.Add(ReportTypeEnum.Improvement);
-                    break;
-                case "question":
-                    tipos.Add(ReportTypeEnum.Question);
-                    break;
-                case "team":
-                    doTime = true;
-                    break;
-                default:
-                    throw new ArgumentException("Tipo invalido: use bug, improvement, question ou team.");
-            }
+            if (!Guid.TryParse(valor, out var publicId))
+                throw new ArgumentException("Tipo invalido: use team ou o identificador do tipo de relato.");
+            ids.Add(publicId);
         }
 
-        return (tipos.Distinct().ToList(), doTime);
+        if (ids.Count == 0)
+            return ([], doTime);
+
+        // O desativado entra: ele continua nos relatos que ja o tinham.
+        var doProjeto = await _unitOfWork.ProjectReportTypes.ListByProjectAsync(projectId, cancellationToken);
+        var achados = doProjeto.Where(tipo => ids.Contains(tipo.PublicId)).Select(tipo => tipo.Id).ToList();
+        if (achados.Count != ids.Distinct().Count())
+            achados.Add(FiltroQueSumiu);
+
+        return (achados, doTime);
     }
 
     /// <summary>

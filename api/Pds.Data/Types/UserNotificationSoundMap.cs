@@ -15,7 +15,7 @@ public class UserNotificationSoundMap : BaseEntityConfiguration<UserNotification
             table.HasComment(
                 "O som que cada pessoa escolheu para cada tipo de aviso do painel. Sem linha para um tipo, vale o de fabrica. Vale em todos os projetos da pessoa. Interno.");
 
-            table.HasCheckConstraint("ck_user_notification_sounds_kind", "kind IN ('mention', 'assignment')");
+            table.HasCheckConstraint("ck_user_notification_sounds_kind", "kind IN ('mention', 'assignment', 'origin_pending', 'reports_paused')");
             table.HasCheckConstraint(
                 "ck_user_notification_sounds_sound",
                 "sound IN ('none', 'bell', 'drop', 'ping', 'chime', 'bubble', 'soft')");
@@ -31,7 +31,7 @@ public class UserNotificationSoundMap : BaseEntityConfiguration<UserNotification
             .HasConversion(new SnakeCaseEnumConverter<NotificationKindEnum>())
             .HasMaxLength(20)
             .IsRequired()
-            .HasComment("mention | assignment: o tipo de aviso, como em notifications.kind.");
+            .HasComment("mention | assignment | origin_pending | reports_paused: o tipo de aviso, como em notifications.kind.");
 
         builder.Property(som => som.Sound)
             .HasColumnName("sound")

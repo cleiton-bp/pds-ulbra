@@ -49,12 +49,24 @@ public class NotificationRepository : BaseRepository<Notification, DataContext>,
     public Task<Notification?> FindForUserAsync(long userId, Guid publicId, CancellationToken cancellationToken = default)
         => Context.Notifications.FirstOrDefaultAsync(aviso => aviso.UserId == userId && aviso.PublicId == publicId, cancellationToken);
 
-    public Task<int> MarkAllReadAsync(long userId, DateTime readAt, CancellationToken cancellationToken = default)
+    public async Task<int> MarkAllReadAsync(long userId, DateTime readAt, CancellationToken cancellationToken = default)
+    {
         // Pelo filtro global: o aviso de um projeto que a pessoa nao enxerga mais fica
         // como estava — se ela voltar ao time, ele volta como era.
-        => Context.Notifications
+        //
+        // Lidos e gravados pela unidade de trabalho, e nao por ExecuteUpdate: desde o
+        // aviso sem card, o filtro junta o relato de forma opcional, e o UPDATE em lote
+        // nao traduz essa juncao (dava 500). Quem chama confirma a gravacao.
+        var avisos = await Context.Notifications
             .Where(aviso => aviso.UserId == userId && aviso.ReadAt == null)
-            .ExecuteUpdateAsync(set => set
-                .SetProperty(aviso => aviso.ReadAt, readAt)
-                .SetProperty(aviso => aviso.UpdatedAt, readAt), cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        foreach (var aviso in avisos)
+        {
+            aviso.ReadAt = readAt;
+            aviso.UpdatedAt = readAt;
+        }
+
+        return avisos.Count;
+    }
 }

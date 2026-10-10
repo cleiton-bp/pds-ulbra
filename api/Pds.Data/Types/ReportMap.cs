@@ -36,17 +36,17 @@ public class ReportMap : BaseEntityConfiguration<Report>
             // A descricao e do card do time: o texto do relato e de quem relatou.
             table.HasCheckConstraint(
                 "ck_reports_report_fields",
-                "kind <> 'report' OR (tracking_code IS NOT NULL AND access_token_hash IS NOT NULL AND type IS NOT NULL AND text IS NOT NULL AND description IS NULL)");
+                "kind <> 'report' OR (tracking_code IS NOT NULL AND access_token_hash IS NOT NULL AND report_type_id IS NOT NULL AND text IS NOT NULL AND description IS NULL)");
 
             // **E o card do time nunca tem lado de fora.** Sem protocolo, token ou
             // codigo pessoal, nao ha porta publica que o encontre; sem etapa
             // publica nem espera, o motor nunca o mostra; e preso em "pendente", a
             // lista publica — que so le o liberado — nunca o le. A regra "nunca
             // aparece na parte publica" deixa de depender de cada consulta lembrar.
-            // E sem o titulo de quem relatou: nao ha quem relatou.
+            // E sem o titulo nem as respostas de quem relatou: nao ha quem relatou.
             table.HasCheckConstraint(
                 "ck_reports_team_fields",
-                "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL AND reporter_title IS NULL)");
+                "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND report_type_id IS NULL AND text IS NULL AND answers IS NULL AND reporter_title IS NULL)");
         });
 
         builder.Property(report => report.Kind)
@@ -198,16 +198,27 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasMaxLength(128)
             .HasComment("Hash do token do link de acompanhamento. O valor original so existe na URL entregue. Nulo no card do time.");
 
-        builder.Property(report => report.Type)
-            .HasColumnName("type")
-            .HasConversion(new SnakeCaseEnumConverter<ReportTypeEnum>())
-            .HasMaxLength(20)
-            .HasComment("bug | improvement | question. Lista fixa por enquanto. Nulo no card do time.");
+        builder.Property(report => report.ReportTypeId)
+            .HasColumnName("report_type_id")
+            .HasComment("O tipo que a pessoa escolheu, um dos do projeto (project_report_types). Obrigatorio no relato, nulo no card do time. O nome da epoca fica no evento da entrada.");
+
+        // Restrict pelo mesmo motivo da prioridade: tipo nao se apaga, se desativa. O
+        // indice vem do EF, e serve ao filtro de tipo da tela de Trabalho.
+        builder.HasOne(report => report.ReportType)
+            .WithMany()
+            .HasForeignKey(report => report.ReportTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(report => report.Text)
             .HasColumnName("text")
             .HasMaxLength(Report.MaxTextLength)
-            .HasComment("O relato como a pessoa escreveu. Nulo no card do time, que tem titulo e descricao.");
+            .HasComment("O relato inteiro em texto. Com perguntas, as respostas que nao vieram em branco (e a caixa livre no fim) juntas, separadas por linha em branco e sem as perguntas: a busca, o titulo que sai do comeco do texto e a varredura leem daqui. Nulo no card do time, que tem titulo e descricao.");
+
+        builder.Property(report => report.Answers)
+            .HasColumnName("answers")
+            .HasColumnType("jsonb")
+            .HasConversion(ReportAnswersConversion.Converter, ReportAnswersConversion.Comparer)
+            .HasComment("As respostas, na ordem: [{question, answer}], com a pergunta copiada como estava no envio (mudar a pergunta depois nao reescreve o relato); a caixa livre no fim, com question nulo. A pergunta pulada nao entra. Nulo quando o tipo so tinha a caixa, e no card do time.");
 
         builder.Property(report => report.Route)
             .HasColumnName("route")
@@ -218,6 +229,19 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasColumnName("origin")
             .HasMaxLength(260)
             .HasComment("Dominio informado pela pagina que embutiu a ferramenta. Indicio, nunca prova.");
+
+        builder.Property(report => report.BlockedOriginKeptAt)
+            .HasColumnName("blocked_origin_kept_at")
+            .HasComment("Quando o time decidiu manter o relato vindo de um endereco bloqueado. Nulo e ninguem decidiu: a marca de origem bloqueada sai da lista de bloqueados de agora, e nao desta coluna.");
+
+        builder.Property(report => report.HeldForOriginAt)
+            .HasColumnName("held_for_origin_at")
+            .HasComment("Quando o relato chegou de um endereco fora da lista de autorizados e ficou retido. Nulo e aceito. Retido: quem relatou acompanha como sempre, e o time nao o ve em lugar nenhum alem de Aguardando liberacao. Autorizar o endereco zera; bloquear apaga o relato de vez.");
+
+        // So os retidos, que sao poucos e de passagem: a contagem por endereco de
+        // "Aguardando liberacao" e a liberacao ou exclusao em lote leem por aqui.
+        builder.HasIndex(report => new { report.ProjectId, report.HeldForOriginAt })
+            .HasFilter("held_for_origin_at IS NOT NULL");
 
         builder.Property(report => report.ReporterCodeId)
             .HasColumnName("reporter_code_id")

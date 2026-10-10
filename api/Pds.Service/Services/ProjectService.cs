@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
@@ -7,6 +8,7 @@ using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.Security;
 using Pds.Domain.ViewModels;
+using Pds.Service.Projects;
 using Pds.Service.PublicStages;
 using Pds.Service.Security;
 
@@ -14,32 +16,6 @@ namespace Pds.Service.Services;
 
 public class ProjectService : IProjectService
 {
-    /// <summary>
-    /// As colunas com que o projeto nasce, na ordem, e a etapa publica em que cada uma
-    /// entra.
-    ///
-    /// <para><b>Tres, e nao uma.</b> Com uma coluna so o quadro nao anda: ela era a
-    /// entrada e o fim ao mesmo tempo, e o time precisava achar a configuracao antes
-    /// de mover o primeiro card. "A fazer, Fazendo, Feito" e o que quem chega de um
-    /// quadro simples espera no primeiro minuto — e a ultima e a que encerra, pela
-    /// regra de fabrica do ciclo (a ultima coluna ativa).</para>
-    ///
-    /// <para><b>Ja ligadas ao andamento publico.</b> Sem a ligacao, o relato andava
-    /// por dentro e quem relatou continuava lendo "Recebido", sem ninguem perceber.
-    /// A etapa vem pelo rotulo do conjunto de fabrica; se um dia ele mudar e o
-    /// rotulo sumir, a coluna so nasce sem ligacao — nada quebra.</para>
-    ///
-    /// <para>Os nomes <b>tem acento de proposito</b>, diferente das mensagens do
-    /// sistema: nao sao texto nosso, sao colunas que o cliente ve na tela e renomeia
-    /// quando quiser.</para>
-    /// </summary>
-    private static readonly IReadOnlyList<(string Name, string PublicStage)> FactoryStates =
-    [
-        ("A fazer", "Recebido"),
-        ("Fazendo", "Em desenvolvimento"),
-        ("Feito", "Concluído"),
-    ];
-
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountContext _accountContext;
 
@@ -62,6 +38,10 @@ public class ProjectService : IProjectService
 
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do projeto e obrigatorio.");
+
+        // Sem modelo, o quadro simples: quem so digita o nome recebe o projeto de
+        // sempre. O modelo so decide o que nasce junto — o resto da criacao e igual.
+        var modelo = ProjectTemplates.For(dto.Template ?? ProjectTemplateEnum.SimpleBoard);
 
         if (await _unitOfWork.Projects.NameExistsAsync(AccountId, name, cancellationToken: cancellationToken))
             throw new ConflictException("Ja existe um projeto com este nome na conta.");
@@ -94,22 +74,21 @@ public class ProjectService : IProjectService
 
         await _unitOfWork.ProjectKeys.AddAsync(publicKey, cancellationToken);
 
-        // A jornada publica nasce junto, com o conjunto padrao: tela em branco nao se
-        // preenche, e cinco passos com frase explicativa em cada um e muito para
-        // inventar do zero. Tudo editavel, removivel e reordenavel depois — o padrao
-        // e ponto de partida, nao regra.
-        var etapas = FactoryPublicStages.For(project).ToList();
+        // A jornada publica nasce junto, com a do modelo (no quadro simples, o conjunto
+        // padrao): tela em branco nao se preenche, e uma jornada inteira com frase
+        // explicativa em cada passo e muito para inventar do zero. Tudo editavel,
+        // removivel e reordenavel depois — o padrao e ponto de partida, nao regra.
+        var etapas = FactoryPublicStages.For(project, modelo.PublicStages).ToList();
         foreach (var stage in etapas)
             await _unitOfWork.ProjectPublicStages.AddAsync(stage, cancellationToken);
 
-        // E as colunas do quadro, ja ligadas a jornada (ver `FactoryStates`). Nao
-        // gravamos junto uma escolha de onde cada tipo cai: sem escolha, o relato vai
-        // para a primeira coluna ativa, que e "A fazer". Assim o caminho "o cliente
-        // nao configurou" e o caminho comum, exercitado por todo projeto novo.
+        // E as colunas do quadro, ja ligadas a jornada (ver `ProjectTemplates`). A
+        // ultima e a que encerra, pela regra de fabrica do ciclo.
+        var colunas = new Dictionary<string, ProjectState>();
         var ligadas = 0;
-        for (var position = 0; position < FactoryStates.Count; position++)
+        for (var position = 0; position < modelo.Columns.Count; position++)
         {
-            var (nome, rotulo) = FactoryStates[position];
+            var (nome, rotulo) = modelo.Columns[position];
             var coluna = new ProjectState
             {
                 Project = project,
@@ -117,6 +96,7 @@ public class ProjectService : IProjectService
                 Position = position,
             };
             await _unitOfWork.ProjectStates.AddAsync(coluna, cancellationToken);
+            colunas[nome] = coluna;
 
             var etapa = etapas.FirstOrDefault(stage => stage.Label == rotulo);
             if (etapa is null)
@@ -137,9 +117,9 @@ public class ProjectService : IProjectService
         if (ligadas > 0)
             project.MappingVersion = 1;
 
-        // E as prioridades de fabrica, da menos para a mais urgente: o time prioriza
-        // no primeiro dia sem abrir a Configuracao. O card continua nascendo sem
-        // prioridade — escolher e do time.
+        // E as prioridades de fabrica, da menos para a mais urgente, iguais em todo
+        // modelo: o time prioriza no primeiro dia sem abrir a Configuracao. O card
+        // continua nascendo sem prioridade — escolher e do time.
         for (var position = 0; position < PriorityDefaults.Factory.Count; position++)
         {
             var (nome, cor) = PriorityDefaults.Factory[position];
@@ -153,8 +133,52 @@ public class ProjectService : IProjectService
             }, cancellationToken);
         }
 
-        // Um unico commit: ou o projeto, a chave, a jornada, as colunas com o mapa e
-        // as prioridades entram, ou nao entra nada.
+        // E os tipos de relato do modelo, na ordem: o formulario ja pergunta certo no
+        // primeiro relato, sem ninguem abrir a Configuracao. Tipo sem coluna escolhida
+        // entra na primeira coluna ativa, como no quadro simples.
+        for (var position = 0; position < modelo.ReportTypes.Count; position++)
+        {
+            var (tipo, entrada) = modelo.ReportTypes[position];
+
+            await _unitOfWork.ProjectReportTypes.AddAsync(new ProjectReportType
+            {
+                Project = project,
+                Name = tipo.Name,
+                Icon = tipo.Icon,
+                Color = tipo.Color,
+                Questions = [.. tipo.Questions],
+                ShowsTextBox = tipo.ShowsTextBox,
+                TextBoxPrompt = tipo.TextBoxPrompt,
+                Position = position,
+                InitialState = entrada is null ? null : colunas[entrada],
+            }, cancellationToken);
+        }
+
+        // As regras do ciclo so ganham linha quando o modelo muda alguma delas — hoje,
+        // as sprints do Scrum. Sem linha, valem os padroes do codigo; com ela, todo o
+        // resto continua sendo o padrao, copiado aqui.
+        if (modelo.SprintsEnabled)
+            await _unitOfWork.ProjectCycleSettings.AddAsync(SprintCycleSettings(project), cancellationToken);
+
+        // E o registro da criacao, com o modelo escolhido: o projeto nao guarda de
+        // qual modelo veio, e a analise quer saber como as pessoas comecam. So o
+        // modelo — o nome do projeto e de quem cria, e esta tabela nao se apaga.
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = account.Id,
+            Project = project,
+            UserId = _accountContext.UserId,
+            Type = EventTypeEnum.ProjectCreated,
+            Source = EventSourceEnum.Panel,
+            Payload = JsonSerializer.Serialize(new
+            {
+                template = JsonNamingPolicy.SnakeCaseLower.ConvertName(modelo.Kind.ToString()),
+            }),
+        }, cancellationToken);
+
+        // Um unico commit: ou o projeto, a chave, a jornada, as colunas com o mapa,
+        // as prioridades, os tipos, as regras do ciclo e o evento entram, ou nao
+        // entra nada.
         await _unitOfWork.CommitAsync(cancellationToken);
 
         // Quem cria e dono: o projeto nasceu na conta propria. A lista de acesso da
@@ -164,6 +188,37 @@ public class ProjectService : IProjectService
             Map(project, new ProjectAccess(project.Id, project.PublicId, ProjectRoleEnum.Administrator, true), null),
             MapKey(publicKey));
     }
+
+    /// <summary>
+    /// As regras do ciclo de um projeto que nasce em sprints: tudo no padrao de
+    /// <see cref="CycleSettingsDefaults"/>, menos as sprints, ligadas.
+    ///
+    /// <para><b>Copia o padrao inteiro</b> porque a linha, depois de existir, e lida
+    /// campo a campo — e um campo esquecido aqui valeria zero ou falso, e nao o
+    /// padrao. A duracao e a de fabrica, duas semanas.</para>
+    /// </summary>
+    private static ProjectCycleSettings SprintCycleSettings(Project project) => new()
+    {
+        Project = project,
+        ClosureTrigger = CycleSettingsDefaults.ClosureTrigger,
+        PublicDelayMinutes = CycleSettingsDefaults.PublicDelayMinutes,
+        AllowsReopen = CycleSettingsDefaults.AllowsReopen,
+        ReopenStateId = CycleSettingsDefaults.ReopenStateId,
+        ReopenRequiresComment = CycleSettingsDefaults.ReopenRequiresComment,
+        TrackingCodeCanAct = CycleSettingsDefaults.TrackingCodeCanAct,
+        SatisfactionEnabled = CycleSettingsDefaults.SatisfactionEnabled,
+        SatisfactionStyle = CycleSettingsDefaults.SatisfactionStyle,
+        SatisfactionRequired = CycleSettingsDefaults.SatisfactionRequired,
+        InfoRequestEnabled = CycleSettingsDefaults.InfoRequestEnabled,
+        InfoRequestWarnDays = CycleSettingsDefaults.InfoRequestWarnDays,
+        InfoRequestCloseDays = CycleSettingsDefaults.InfoRequestCloseDays,
+        AcceptsQuestionsDefault = CycleSettingsDefaults.AcceptsQuestionsDefault,
+        AllowsReportArchiving = CycleSettingsDefaults.AllowsReportArchiving,
+        LastColumnVisibleDays = CycleSettingsDefaults.LastColumnVisibleDays,
+        DueSoonDays = CycleSettingsDefaults.DueSoonDays,
+        SprintsEnabled = true,
+        SprintLengthWeeks = CycleSettingsDefaults.SprintLengthWeeks,
+    };
 
     public async Task<IReadOnlyList<ProjectViewModel>> ListAsync(CancellationToken cancellationToken = default)
     {

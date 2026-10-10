@@ -136,7 +136,7 @@ public partial class ReportService
     /// <summary>
     /// Desfaz um vinculo, com o evento nos dois cards. <b>O duplicado volta do
     /// arquivo</b> — com as subtarefas que foram com ele —, a nao ser que seja
-    /// subtarefa de um pai arquivado: ali ele ficaria no quadro como filho de um card
+    /// subtarefa de um pai arquivado: ali ele voltaria ao trabalho dentro de um card
     /// que ninguem ve. Devolve os cards a avisar.
     /// </summary>
     private async Task<List<Guid>> UndoLinkAsync(Project project, CardLink vinculo, CancellationToken cancellationToken)

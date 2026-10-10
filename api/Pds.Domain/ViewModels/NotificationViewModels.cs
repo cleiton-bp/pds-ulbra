@@ -4,13 +4,16 @@ namespace Pds.Domain.ViewModels;
 
 /// <summary>Um aviso do sino.</summary>
 /// <param name="PublicId">O identificador do aviso — o que se manda para marcar como lido.</param>
-/// <param name="Kind">Mencao num comentario interno, ou escolha como responsavel.</param>
+/// <param name="Kind">Mencao num comentario interno, escolha como responsavel, endereco novo que mandou relato, ou envios pausados por excesso.</param>
 /// <param name="CreatedAt">Quando aconteceu, em UTC.</param>
 /// <param name="ReadAt">Quando a pessoa leu; nulo enquanto nao leu.</param>
 /// <param name="ActorName">Quem fez. Nulo quando a pessoa nao tem nome nem e-mail.</param>
 /// <param name="Project">O projeto do card.</param>
-/// <param name="Card">O card: o numero e o titulo como a tela mostra.</param>
+/// <param name="Card">O card: o numero e o titulo como a tela mostra. Nulo nos avisos do projeto (<c>OriginPending</c>, <c>ReportsPaused</c>).</param>
 /// <param name="Comment">O comentario da mencao, com o comeco do texto. Nulo na atribuicao, e na mencao cujo comentario saiu.</param>
+/// <param name="Subject">O endereco do aviso do projeto: o que mandou relato sem estar autorizado, ou o pausado. Nulo nos outros.</param>
+/// <param name="LimitScope">A camada que pausou os envios. So em <c>ReportsPaused</c>.</param>
+/// <param name="PausedUntil">Ate quando os envios ficam pausados, em UTC. So em <c>ReportsPaused</c>.</param>
 public record NotificationViewModel(
     Guid PublicId,
     NotificationKindEnum Kind,
@@ -18,8 +21,11 @@ public record NotificationViewModel(
     DateTime? ReadAt,
     string? ActorName,
     NotificationProjectViewModel Project,
-    CardParentViewModel Card,
-    NotificationCommentViewModel? Comment);
+    CardParentViewModel? Card,
+    NotificationCommentViewModel? Comment,
+    string? Subject,
+    ReportLimitScopeEnum? LimitScope,
+    DateTime? PausedUntil);
 
 /// <summary>O projeto de um aviso.</summary>
 public record NotificationProjectViewModel(Guid PublicId, string Name);

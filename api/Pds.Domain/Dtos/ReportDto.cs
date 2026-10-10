@@ -17,9 +17,13 @@ public class CreateReportDto
     /// <example>pk_ABC123</example>
     public string? Key { get; set; }
 
-    /// <summary>Defeito, melhoria ou duvida.</summary>
-    /// <example>Bug</example>
-    public ReportTypeEnum? Type { get; set; }
+    /// <summary>
+    /// O identificador publico do tipo que a pessoa escolheu — um dos tipos
+    /// <b>ativos</b> do projeto, como a leitura da configuracao da ferramenta os
+    /// entrega. Obrigatorio: com o seletor escondido, a ferramenta manda o
+    /// pre-marcado.
+    /// </summary>
+    public Guid? TypeId { get; set; }
 
     /// <summary>
     /// A resposta a "em poucas palavras, o que aconteceu?", numa linha. Opcional, a
@@ -29,7 +33,34 @@ public class CreateReportDto
     /// <example>O botão de pagar não responde no celular</example>
     public string? Title { get; set; }
 
-    /// <summary>O que a pessoa escreveu.</summary>
+    /// <summary>
+    /// As respostas as perguntas curtas do tipo, <b>na ordem delas e uma para cada</b>
+    /// — a pergunta pulada vai em branco. Cada uma ate 1000 caracteres.
+    ///
+    /// <para>Vazio ou ausente no tipo sem perguntas. Uma lista de outro tamanho e
+    /// recusada: e sinal de que as perguntas mudaram depois de a ferramenta abrir, e
+    /// casar a resposta com a pergunta errada seria pior do que pedir de novo.</para>
+    /// </summary>
+    public List<string?>? Answers { get; set; }
+
+    /// <summary>
+    /// As perguntas <b>como a ferramenta as mostrou</b>, na ordem. Quando vem, tem de ser
+    /// igual as de agora, letra por letra; senao o relato e recusado.
+    ///
+    /// <para><b>O tamanho da lista nao basta</b>: uma pergunta reescrita, ou duas
+    /// trocadas de lugar, deixam a quantidade igual — e a resposta seria guardada
+    /// embaixo de uma pergunta que a pessoa nao leu. Ausente, so o tamanho e conferido,
+    /// para quem fala direto com a rota.</para>
+    /// </summary>
+    public List<string>? Questions { get; set; }
+
+    /// <summary>
+    /// O que a pessoa escreveu na caixa livre. So no tipo que mostra a caixa: mandar
+    /// texto para um tipo sem ela e recusado. Ate 5000 caracteres sozinha, e ate 1000
+    /// junto de perguntas.
+    ///
+    /// <para>Pelo menos uma resposta, ou a caixa, tem de vir preenchida.</para>
+    /// </summary>
     /// <example>O botão de finalizar compra não responde no passo de pagamento.</example>
     public string? Text { get; set; }
 
@@ -58,6 +89,19 @@ public class CreateReportDto
     /// </summary>
     /// <example>true</example>
     public bool? AcceptsQuestions { get; set; }
+
+    /// <summary>
+    /// O bilhete do desafio, quando a entrada pediu um (429 com <c>Reason</c> =
+    /// <c>Challenge</c>). Ausente no relato comum.
+    /// </summary>
+    public string? ChallengeToken { get; set; }
+
+    /// <summary>
+    /// A resposta do desafio: o numero (so digitos) que faz o SHA-256 de
+    /// <c>ChallengeToken + ChallengeNonce</c> comecar com os bits zero pedidos.
+    /// </summary>
+    /// <example>183402</example>
+    public string? ChallengeNonce { get; set; }
 
     /// <summary>
     /// O código pessoal de quem já relatou antes neste projeto.

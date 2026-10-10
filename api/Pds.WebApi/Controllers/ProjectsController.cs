@@ -32,16 +32,33 @@ public class ProjectsController : BaseController
         _projectService = projectService;
     }
 
-    /// <summary>Cria o projeto, com a chave pública e o padrão de fábrica.</summary>
+    /// <summary>Cria o projeto, com a chave pública e o modelo escolhido.</summary>
     /// <remarks>
     /// Numa única gravação — ou entra tudo, ou não entra nada — o projeto nasce com:
     ///
     /// - a **chave pública**, que vai no script do site;
-    /// - as colunas **A fazer**, **Fazendo** e **Feito** (a última é a que encerra o
-    ///   relato, pela regra de fábrica do ciclo);
-    /// - o andamento público de fábrica, **já ligado às colunas**: A fazer → Recebido,
-    ///   Fazendo → Em desenvolvimento, Feito → Concluído (a versão 1 do mapa);
-    /// - as prioridades de fábrica.
+    /// - as **colunas** e o **andamento público** do modelo, já ligados (a versão 1
+    ///   do mapa); a última coluna é a que encerra o relato, pela regra de fábrica
+    ///   do ciclo;
+    /// - os **tipos de relato** do modelo, cada um com a coluna em que entra;
+    /// - as prioridades de fábrica (Baixa, Média, Alta, Urgente), em todo modelo.
+    ///
+    /// `Template` é opcional; sem ele vale `SimpleBoard`, o projeto de sempre:
+    ///
+    /// - `SimpleBoard`: A fazer → Recebido, Fazendo → Em desenvolvimento, Feito →
+    ///   Concluído; tipos Defeito, Melhoria e Dúvida, entrando na primeira coluna;
+    /// - `Support`: Novo → Recebido, Em atendimento → Em atendimento (pode voltar),
+    ///   Aguardando quem relatou → Esperando você (esperando quem relatou),
+    ///   Resolvido → Resolvido; tipos Problema, Dúvida e Pedido, entrando em Novo;
+    /// - `Kanban`: Backlog → Recebido, A fazer → Em análise, Fazendo → Em
+    ///   desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído; os
+    ///   tipos de fábrica, entrando no Backlog;
+    /// - `Scrum`: A fazer → Recebido, Fazendo → Em desenvolvimento, Em revisão → Em
+    ///   teste pela equipe, Feito → Concluído; os tipos de fábrica; sprints ligadas,
+    ///   de duas semanas, com pontos no card.
+    ///
+    /// O modelo só vale na criação: depois, cada coisa se muda na própria tela. A
+    /// escolha fica no evento `project_created`, sem o nome do projeto.
     ///
     /// **A chave secreta não nasce aqui.** Ela é gerada sob pedido, em
     /// `POST /projects/{publicId}/keys/secret`, e o valor aparece só
@@ -53,7 +70,7 @@ public class ProjectsController : BaseController
     /// O nome é único dentro da conta, sem diferenciar maiúscula.
     /// </remarks>
     /// <response code="200">Projeto criado, com a chave pública.</response>
-    /// <response code="400">Nome não informado.</response>
+    /// <response code="400">Nome não informado, ou modelo desconhecido.</response>
     /// <response code="409">Já existe projeto com este nome na conta.</response>
     [HttpPost]
     [Consumes("application/json")]

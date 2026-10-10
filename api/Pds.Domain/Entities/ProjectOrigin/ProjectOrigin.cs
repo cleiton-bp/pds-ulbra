@@ -1,16 +1,19 @@
 namespace Pds.Domain.Entities;
 
 /// <summary>
-/// Endereco autorizado a abrir a ferramenta de relato de um projeto.
+/// Endereco autorizado a mandar relatos direto para o Trabalho de um projeto.
 ///
 /// <para><b>Por que a lista precisa existir.</b> A chave publica viaja no HTML do
 /// site do cliente e qualquer visitante consegue le-la. Sozinha, ela nao diz de
 /// onde o relato saiu — diz apenas qual projeto ele procura. Sem esta lista, a
 /// chave copiada de um site funciona em qualquer outro.</para>
 ///
-/// <para><b>Lista vazia autoriza qualquer lugar.</b> Ela nao quer dizer "ninguem
-/// autorizado", e sim "ainda nao restringi" — do contrario, a conferencia teria
-/// apagado a ferramenta de toda instalacao no ar no dia em que entrou.</para>
+/// <para><b>Fora da lista, o relato e recebido e retido.</b> A ferramenta abre em
+/// qualquer endereco que nao esteja bloqueado; o relato de um endereco que a lista nao
+/// cobre — inclusive com a lista vazia — fica fora do Trabalho ate o time permitir o
+/// endereco (entrar aqui) ou bloquea-lo. Recusar em vez de reter faria o endereco novo
+/// nunca aparecer para o time; aceitar direto, como a lista vazia fazia antes, deixava
+/// o relato de quem copiou a chave entrar sem ninguem ter dito sim.</para>
 ///
 /// <para><b>O que ela pega, e o que ela nao pega.</b> A ferramenta abre num quadro
 /// servido pelo nosso proprio dominio, entao a origem que o navegador carimba e a

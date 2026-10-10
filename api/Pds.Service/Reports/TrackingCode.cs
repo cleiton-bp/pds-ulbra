@@ -35,6 +35,32 @@ public static class TrackingCode
         => symbols.Length is >= 4 and <= SymbolCount && symbols.All(Alphabet.Contains);
 
     /// <summary>
+    /// Quantos caracteres o codigo tem com os hifens: <c>H7QK-3M2X-P9WD</c>.
+    /// </summary>
+    public const int Length = SymbolCount + BlockCount - 1;
+
+    /// <summary>
+    /// Se o texto tem a forma de um codigo que saiu daqui — tres blocos de quatro do
+    /// alfabeto, separados por hifen, ja em maiusculas. Nao diz se o codigo existe:
+    /// so que ele poderia existir.
+    /// </summary>
+    public static bool IsWellFormed(string code)
+    {
+        if (code.Length != Length)
+            return false;
+
+        for (var position = 0; position < code.Length; position++)
+        {
+            var hifen = position % (BlockLength + 1) == BlockLength;
+
+            if (hifen ? code[position] != '-' : !Alphabet.Contains(code[position]))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Sorteia um protocolo novo. Nao consulta o banco: a conferencia de colisao e
     /// de quem grava, porque so ali existe transacao.
     ///

@@ -118,8 +118,9 @@ public class ProjectPublicStagesController : BaseController
 
     /// <summary>Preenche uma jornada vazia com o conjunto padrão.</summary>
     /// <remarks>
-    /// Projeto novo já nasce com o conjunto; esta rota é para o projeto criado antes
-    /// de a jornada existir.
+    /// Projeto novo já nasce com a jornada do modelo escolhido; esta rota é para o
+    /// projeto criado antes de a jornada existir. O conjunto é sempre o de fábrica,
+    /// mesmo em projeto criado do modelo Suporte: o projeto não guarda de qual modelo veio.
     ///
     /// **Só funciona com a jornada vazia.** Deixá-la somar ao que já existe faria
     /// dela um jeito de duplicar rótulo — o pedido não é "acrescente o padrão", é

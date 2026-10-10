@@ -79,8 +79,8 @@ public class ReportsController : BaseController
     ///
     /// **Os filtros da tela de Trabalho** valem aqui e na contagem das colunas, iguais:
     /// `assignee` (`me`, `none` ou o identificador de alguém do time), `label`,
-    /// `priority` (o identificador ou `none`), `type` (`bug`, `improvement`, `question`,
-    /// `team`), `due=overdue` com `today` (o dia de quem olha) e `q`, a busca — no
+    /// `priority` (o identificador ou `none`), `type` (o identificador de um tipo de
+    /// relato ou `team`), `due=overdue` com `today` (o dia de quem olha) e `q`, a busca — no
     /// título, no texto, na descrição, no número (`42` ou `#42`) e no protocolo, sem
     /// diferenciar maiúscula nem acento. Repetir um filtro soma (a etiqueta A **ou** a
     /// B); filtros diferentes se cruzam (da Ana **e** vencido). O identificador que não
@@ -88,11 +88,21 @@ public class ReportsController : BaseController
     /// `today` que ainda não terminou.
     ///
     /// Também valem `open=true` (o "Em aberto": só o que não terminou — sai o relato
-    /// encerrado e o card na última coluna, pela regra do vencido), `subtasks=hide`
-    /// (só os cards de primeiro nível) e `column`, as colunas do filtro da lista: o
-    /// identificador ou `none`, repetível. **`column` não é `state`**: `state` continua
-    /// sendo o recorte de uma coluna só, o do quadro; a coluna que sumiu do projeto, em
-    /// `column`, não casa com card nenhum — como a etiqueta apagada.
+    /// encerrado e o card na última coluna, pela regra do vencido) e `column`, as
+    /// colunas do filtro da lista: o identificador ou `none`, repetível. **`column` não
+    /// é `state`**: `state` continua sendo o recorte de uma coluna só, o do quadro; a
+    /// coluna que sumiu do projeto, em `column`, não casa com card nenhum — como a
+    /// etiqueta apagada. E `origin=blocked`: só os relatos marcados com a origem
+    /// bloqueada — vieram de um endereço que o projeto bloqueou, e o time ainda não
+    /// decidiu manter. Todo card da resposta diz isso em `BlockedOrigin`.
+    ///
+    /// **A subtarefa não vem** — nem na lista, nem no quadro, nem no backlog, nem nos
+    /// arquivados, nem na contagem: ela mora dentro do pai, e só `parent` (as
+    /// subtarefas daquele card, com `archived` valendo igual) a traz. Em troca, o pai
+    /// entra no filtro de responsável quando uma subtarefa é da pessoa, e na busca
+    /// quando o termo está no título ou na descrição de uma subtarefa — e diz por quê
+    /// em `SubtaskMatch`: `Assignees` (quantas de cada pessoa do filtro, com `IsMe`
+    /// para quem olha) e `Search`. Nulo quando nenhuma subtarefa casou.
     ///
     /// **`sort` é a ordem que a pessoa escolheu na tabela**: `number`, `state` (a ordem
     /// das colunas), `assignee` (o nome), `priority` (a ordem do projeto), `due`,
@@ -115,7 +125,7 @@ public class ReportsController : BaseController
     /// <param name="dir">`asc` (o padrão) ou `desc`. Só junto de `sort`.</param>
     /// <param name="cancellationToken"></param>
     /// <response code="200">Relatos do projeto.</response>
-    /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, `after` fora do quadro ou sem coluna, `sort` ou `dir` desconhecido, `sort` com `order=board` ou `order=backlog`, `dir` sem `sort`, ou um filtro fora do formato (busca com mais de 200 caracteres, tipo, prazo, coluna ou subtarefas desconhecido).</response>
+    /// <response code="400">Filtro de estado fora do formato, ordem desconhecida, `after` fora do quadro ou sem coluna, `sort` ou `dir` desconhecido, `sort` com `order=board` ou `order=backlog`, `dir` sem `sort`, ou um filtro fora do formato (busca com mais de 200 caracteres, tipo, prazo ou coluna desconhecido).</response>
     /// <response code="404">Projeto, estado ou o card de `after` não existe no projeto, ou a pessoa não está no projeto. A pessoa, a etiqueta ou a prioridade do filtro que sumiu não é erro: não casa com card nenhum.</response>
     /// <response code="409">O card de `after` já saiu da coluna: a tela lê a coluna de novo.</response>
     [HttpGet]

@@ -24,7 +24,7 @@ public interface INotificationRepository : IBaseRepository<Notification>
     /// <summary>Um aviso da pessoa, rastreado. Nulo quando nao e dela, ou o projeto saiu do alcance.</summary>
     Task<Notification?> FindForUserAsync(long userId, Guid publicId, CancellationToken cancellationToken = default);
 
-    /// <summary>Marca como lidos todos os avisos da pessoa que ela ainda enxerga. Devolve quantos.</summary>
+    /// <summary>Marca como lidos (rastreados, sem gravar) todos os avisos da pessoa que ela ainda enxerga. Devolve quantos; quem chama confirma.</summary>
     Task<int> MarkAllReadAsync(long userId, DateTime readAt, CancellationToken cancellationToken = default);
 
 }

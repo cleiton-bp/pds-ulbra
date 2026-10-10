@@ -293,7 +293,18 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("kind")
-                        .HasComment("mention | assignment. Os dois so no painel: no sino, com o som que a pessoa escolheu para o tipo.");
+                        .HasComment("mention | assignment | origin_pending | reports_paused. Todos so no painel: no sino, com o som que a pessoa escolheu para o tipo. Os dois ultimos vao para quem administra o projeto.");
+
+                    b.Property<string>("LimitScope")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("limit_scope")
+                        .HasComment("reporter | ip | origin | project: a camada que pausou os envios. So no aviso reports_paused.");
+
+                    b.Property<DateTime?>("PausedUntil")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("paused_until")
+                        .HasComment("Ate quando os envios ficam pausados, em UTC. So no aviso reports_paused.");
 
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint")
@@ -310,15 +321,21 @@ namespace Pds.Data.Migrations
                         .HasColumnName("read_at")
                         .HasComment("Quando a pessoa abriu ou marcou como lido, em UTC. Nulo enquanto nao leu.");
 
-                    b.Property<long>("ReportId")
+                    b.Property<long?>("ReportId")
                         .HasColumnType("bigint")
                         .HasColumnName("report_id")
-                        .HasComment("O card de que o aviso fala.");
+                        .HasComment("O card de que o aviso fala. Nulo nos avisos do projeto (origin_pending, reports_paused).");
 
                     b.Property<long?>("ReportInternalCommentId")
                         .HasColumnType("bigint")
                         .HasColumnName("report_internal_comment_id")
                         .HasComment("O comentario interno da mencao. Nulo na atribuicao.");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("subject")
+                        .HasComment("O endereco de que o aviso do projeto fala: o que mandou relato sem estar autorizado, ou o pausado por excesso. Nunca um IP: a pausa por IP ou por pessoa diz so a camada.");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
@@ -361,11 +378,15 @@ namespace Pds.Data.Migrations
 
                     b.ToTable("notifications", null, t =>
                         {
-                            t.HasComment("Os avisos do sino do painel: a mencao num comentario interno e a escolha como responsavel. Cada pessoa le so os proprios, e so dos projetos em que ainda esta. Interno: nenhuma rota publica le esta tabela.");
+                            t.HasComment("Os avisos do sino do painel: a mencao num comentario interno, a escolha como responsavel, o endereco novo que mandou relato e os envios pausados por excesso. Cada pessoa le so os proprios, e so dos projetos em que ainda esta. Interno: nenhuma rota publica le esta tabela.");
 
                             t.HasCheckConstraint("ck_notifications_comment", "(kind = 'mention') = (report_internal_comment_id IS NOT NULL)");
 
-                            t.HasCheckConstraint("ck_notifications_kind", "kind IN ('mention', 'assignment')");
+                            t.HasCheckConstraint("ck_notifications_kind", "kind IN ('mention', 'assignment', 'origin_pending', 'reports_paused')");
+
+                            t.HasCheckConstraint("ck_notifications_paused", "(kind = 'reports_paused') = (limit_scope IS NOT NULL AND paused_until IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_notifications_report", "(kind IN ('mention', 'assignment')) = (report_id IS NOT NULL)");
                         });
                 });
 
@@ -464,6 +485,84 @@ namespace Pds.Data.Migrations
                     b.ToTable("projects", null, t =>
                         {
                             t.HasComment("Projeto: a unidade que o cliente configura e a que identifica de onde veio cada relato.");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectBlockedOrigin", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("BlockedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("blocked_by_user_id")
+                        .HasComment("Quem bloqueou. Nulo quando a conta da pessoa foi esvaziada: o bloqueio continua valendo sem ela.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("domain")
+                        .HasComment("Dominio bloqueado, normalizado como na lista de autorizados: minusculo, sem esquema e sem barra final. A porta faz parte quando informada.");
+
+                    b.Property<bool>("IncludesSubdomains")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("includes_subdomains")
+                        .HasComment("Quando verdadeiro barra tambem app.site.com e loja.site.com. Desligado por padrao: barrar os vizinhos sem pedir pode tirar do ar um site do proprio cliente.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto que bloqueia este dominio.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_blocked_origins");
+
+                    b.HasIndex("BlockedByUserId")
+                        .HasDatabaseName("ix_project_blocked_origins_blocked_by_user_id");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_blocked_origins_deleted_at");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_blocked_origins_public_id");
+
+                    b.HasIndex("ProjectId", "Domain")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_blocked_origins_project_id_domain")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("project_blocked_origins", null, t =>
+                        {
+                            t.HasComment("Enderecos que o projeto bloqueou: a ferramenta nao abre la e o relato de la e recusado, mesmo com a lista de autorizados vazia. E a reacao a quem copiou a chave publica para outro site.");
                         });
                 });
 
@@ -696,77 +795,6 @@ namespace Pds.Data.Migrations
                     b.ToTable("project_identity_settings", null, t =>
                         {
                             t.HasComment("Como quem abre um relato e reconhecido neste projeto, e o que isso permite na visibilidade. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada.");
-                        });
-                });
-
-            modelBuilder.Entity("Pds.Domain.Entities.ProjectInitialState", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("Criacao do registro, em UTC.");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at")
-                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
-
-                    b.Property<long>("ProjectId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_id")
-                        .HasComment("Projeto a que esta escolha pertence.");
-
-                    b.Property<long>("ProjectStateId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_state_id")
-                        .HasComment("Estado onde o relato deste tipo cai. Do mesmo projeto, e ativo.");
-
-                    b.Property<Guid>("PublicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
-
-                    b.Property<string>("ReportType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("report_type")
-                        .HasComment("bug, improvement ou question. Unico por projeto entre os nao apagados.");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("Ultima alteracao, em UTC.");
-
-                    b.HasKey("Id")
-                        .HasName("pk_project_initial_states");
-
-                    b.HasIndex("DeletedAt")
-                        .HasDatabaseName("ix_project_initial_states_deleted_at");
-
-                    b.HasIndex("ProjectStateId")
-                        .HasDatabaseName("ix_project_initial_states_project_state_id");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_project_initial_states_public_id");
-
-                    b.HasIndex("ProjectId", "ReportType")
-                        .IsUnique()
-                        .HasDatabaseName("ux_project_initial_states_project_id_report_type")
-                        .HasFilter("deleted_at IS NULL");
-
-                    b.ToTable("project_initial_states", null, t =>
-                        {
-                            t.HasComment("Onde um relato cai ao entrar, por tipo. E tabela em vez de colunas em projects para tipo novo nao pedir migracao, e a linha so nasce quando o cliente escolhe: sem linha, vale o primeiro estado ativo da fila.");
                         });
                 });
 
@@ -1587,6 +1615,215 @@ namespace Pds.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectReportLimits", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<int>("MinIntervalSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_interval_seconds")
+                        .HasComment("Segundos minimos entre dois relatos da mesma pessoa ou do mesmo IP. Padrao 30; zero desliga. Antes disso a recusa e direta, sem desafio.");
+
+                    b.Property<int>("PerIpPerHour")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_ip_per_hour")
+                        .HasComment("Relatos do mesmo IP por hora. Padrao 20.");
+
+                    b.Property<int>("PerOriginPerHour")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_origin_per_hour")
+                        .HasComment("Relatos do mesmo endereco de origem por hora. Padrao 200. A origem e declarada pela pagina: por isso as camadas de IP e de projeto existem.");
+
+                    b.Property<int>("PerProjectPerDay")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_project_per_day")
+                        .HasComment("Relatos do projeto inteiro nas ultimas 24 horas. Padrao 2000.");
+
+                    b.Property<int>("PerProjectPerHour")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_project_per_hour")
+                        .HasComment("Relatos do projeto inteiro por hora. Padrao 300.");
+
+                    b.Property<int>("PerReporter")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_reporter")
+                        .HasComment("Relatos da mesma pessoa a cada 10 minutos. Padrao 5. A pessoa e o codigo pessoal, no projeto que usa esse modo e quando ele vem; senao, o IP.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono da configuracao. Unico entre os nao apagados, e e o que faz o 1:1.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_report_limits");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_report_limits_deleted_at");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_report_limits_project_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_report_limits_public_id");
+
+                    b.ToTable("project_report_limits", null, t =>
+                        {
+                            t.HasComment("Quantos relatos o projeto aceita em pouco tempo, por camada: quem relata, IP, endereco de origem e o projeto inteiro, e o intervalo minimo entre dois. Uma linha por projeto, criada so quando alguem salva — os padroes e os tetos vivem no codigo. Nenhum IP e guardado: as contagens vivem na memoria do processo.");
+
+                            t.HasCheckConstraint("ck_project_report_limits_ranges", "per_reporter BETWEEN 1 AND 50 AND per_ip_per_hour BETWEEN 1 AND 200 AND per_origin_per_hour BETWEEN 1 AND 2000 AND per_project_per_hour BETWEEN 1 AND 3000 AND per_project_per_day BETWEEN 1 AND 20000 AND min_interval_seconds BETWEEN 0 AND 300");
+                        });
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectReportType", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasComment("Chave interna, sequencial. Nunca sai da aplicacao.");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("color")
+                        .HasComment("gray | blue | green | yellow | orange | red | purple | pink. A paleta fixa das prioridades e etiquetas; a cor aparece so no painel.");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("Criacao do registro, em UTC.");
+
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deactivated_at")
+                        .HasComment("Nulo enquanto o tipo e oferecido; preenchido para desativa-lo sem apagar, porque relato antigo continua apontando para ele. Ao menos um tipo fica ativo, e no maximo dez.");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at")
+                        .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("icon")
+                        .HasComment("bug | improvement | question | idea | praise | other. O desenho, de uma lista fixa: aparece no botao da ferramenta e no card.");
+
+                    b.Property<long?>("InitialStateId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("initial_state_id")
+                        .HasComment("A coluna em que o relato deste tipo entra. Nulo e o padrao: a primeira coluna ativa da fila. Do mesmo projeto, e ativa: aposentar a coluna que e entrada de algum tipo e recusado.");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name")
+                        .HasComment("Nome dado pelo time. Renomear nao reescreve o passado: o evento da entrada do relato guarda o nome que valia na epoca.");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position")
+                        .HasComment("Ordem na tela e na ferramenta, escolhida pelo time.");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id")
+                        .HasComment("Projeto dono do tipo.");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
+
+                    b.PrimitiveCollection<List<string>>("Questions")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("questions")
+                        .HasComment("As perguntas curtas que o formulario faz, na ordem: de 0 a 4, cada uma ate 120 caracteres, sem repetir. Mudar nao reescreve os relatos, que guardam as perguntas do envio em reports.answers.");
+
+                    b.Property<bool>("ShowsTextBox")
+                        .HasColumnType("boolean")
+                        .HasColumnName("shows_text_box")
+                        .HasComment("A caixa livre aparece no formulario. Sem perguntas, tem de aparecer.");
+
+                    b.Property<string>("TextBoxPrompt")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("text_box_prompt")
+                        .HasComment("O texto cinza dentro da caixa livre. Obrigatorio quando ela aparece; guardado com ela escondida, para voltar igual.");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("Ultima alteracao, em UTC.");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_report_types");
+
+                    b.HasIndex("DeletedAt")
+                        .HasDatabaseName("ix_project_report_types_deleted_at");
+
+                    b.HasIndex("InitialStateId")
+                        .HasDatabaseName("ix_project_report_types_initial_state_id");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_project_report_types_project_id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_report_types_public_id");
+
+                    b.HasIndex("ProjectId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_report_types_project_id_name")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("project_report_types", null, t =>
+                        {
+                            t.HasComment("Os tipos de relato de cada projeto, com os nomes que o time deu. Nasce com tres de fabrica (Defeito, Melhoria, Duvida); o administrador renomeia, troca a cor e o desenho, reordena, cria outros ou desativa, como faz com as prioridades. Cada tipo diz como o formulario pergunta (perguntas curtas e/ou a caixa livre) e em que coluna o relato entra.");
+
+                            t.HasCheckConstraint("ck_project_report_types_asks_something", "shows_text_box OR cardinality(questions) > 0");
+
+                            t.HasCheckConstraint("ck_project_report_types_questions", "cardinality(questions) <= 4");
+
+                            t.HasCheckConstraint("ck_project_report_types_text_box_prompt", "NOT shows_text_box OR text_box_prompt IS NOT NULL");
+                        });
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectState", b =>
                 {
                     b.Property<long>("Id")
@@ -1827,17 +2064,21 @@ namespace Pds.Data.Migrations
                         .HasColumnName("created_at")
                         .HasComment("Criacao do registro, em UTC.");
 
-                    b.Property<string>("DefaultReportType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("default_report_type")
-                        .HasComment("bug | improvement | question. Vem pre-marcado, e e o tipo gravado quando o seletor esta escondido.");
+                    b.Property<long?>("DefaultReportTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("default_report_type_id")
+                        .HasComment("O tipo de relato que vem pre-marcado, e o gravado quando o seletor esta escondido. Nulo e o padrao: o primeiro tipo ativo do projeto. O escolhido que for desativado tambem cai no primeiro ativo, na leitura.");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at")
                         .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
+
+                    b.PrimitiveCollection<List<string>>("HiddenPaths")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("hidden_paths")
+                        .HasComment("As paginas do site onde o botao nao aparece, ate 20: caminho exato (/checkout) ou comeco terminado em * (/login/*, que vale para /login e o que vem embaixo). Sem ? nem #.");
 
                     b.Property<bool>("IsEnabled")
                         .ValueGeneratedOnAdd()
@@ -1846,6 +2087,18 @@ namespace Pds.Data.Migrations
                         .HasColumnName("is_enabled")
                         .HasComment("Desliga a ferramenta no site inteiro sem ninguem editar o HTML do cliente.");
 
+                    b.Property<string>("LauncherIcon")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("launcher_icon")
+                        .HasComment("none | chat | bug | lightbulb | question | megaphone | star. O desenho dentro do botao; none e so o texto.");
+
+                    b.Property<bool>("LauncherIconOnly")
+                        .HasColumnType("boolean")
+                        .HasColumnName("launcher_icon_only")
+                        .HasComment("O botao mostra so o icone; o texto vira a dica e o nome para o leitor de tela. Exige um icone.");
+
                     b.Property<string>("LauncherLabel")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -1853,19 +2106,68 @@ namespace Pds.Data.Migrations
                         .HasColumnName("launcher_label")
                         .HasComment("O texto dentro do gatilho, o botao que fica parado na pagina.");
 
-                    b.Property<string>("Placeholder")
+                    b.Property<bool>("LauncherShadow")
+                        .HasColumnType("boolean")
+                        .HasColumnName("launcher_shadow")
+                        .HasComment("Uma sombra embaixo do botao parado na pagina.");
+
+                    b.Property<string>("LauncherShape")
                         .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)")
-                        .HasColumnName("placeholder")
-                        .HasComment("O texto cinza da caixa vazia. E ele que faz a pergunta certa.");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("launcher_shape")
+                        .HasComment("pill | rounded | square. O arredondamento do botao; com so o icone, a pilula vira circulo.");
+
+                    b.Property<string>("LauncherSize")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("launcher_size")
+                        .HasComment("small | medium | large. O tamanho do botao; medium e o de sempre.");
+
+                    b.Property<string>("LauncherTextColor")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("launcher_text_color")
+                        .HasComment("A cor do texto e do icone sobre o botao, em #rrggbb. Nulo e automatico: a de maior contraste com a cor do botao.");
+
+                    b.Property<string>("MobileMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("mobile_mode")
+                        .HasComment("same | icon_only | hidden. Como o botao fica numa janela estreita (celular).");
+
+                    b.Property<string>("MoreDetailsLabel")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("more_details_label")
+                        .HasComment("O nome da caixa livre quando ela vem depois das perguntas do tipo. Sem variaveis.");
+
+                    b.Property<string>("NameQuestion")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("name_question")
+                        .HasComment("A pergunta do nome, quando o projeto pergunta. Sem variaveis.");
+
+                    b.Property<int>("OffsetX")
+                        .HasColumnType("integer")
+                        .HasColumnName("offset_x")
+                        .HasComment("A distancia do canto ate o botao, na horizontal, em pixels (0 a 200). Vale tambem para o quadro aberto, ate onde a janela deixar.");
+
+                    b.Property<int>("OffsetY")
+                        .HasColumnType("integer")
+                        .HasColumnName("offset_y")
+                        .HasComment("A distancia do canto ate o botao, na vertical, em pixels (0 a 200).");
 
                     b.Property<string>("Position")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("position")
-                        .HasComment("bottom_right | bottom_left. De que canto inferior a ferramenta sai.");
+                        .HasComment("bottom_right | bottom_left | top_right | top_left. De que canto a ferramenta sai; nos de cima, o quadro abre para baixo.");
 
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint")
@@ -1877,12 +2179,33 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
 
+                    b.Property<string>("PublicNotice")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("public_notice")
+                        .HasComment("O aviso de que o relato pode virar publico, antes de a pessoa escrever. A frase sobre o nome vem depois e nao e configuravel: depende da visibilidade. Sem variaveis.");
+
                     b.Property<string>("ReportTitleMode")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("report_title_mode")
                         .HasComment("optional | required | hidden. Como a ferramenta pergunta o titulo (\"em poucas palavras, o que aconteceu?\"). Obrigatoria, a API recusa o relato sem ele.");
+
+                    b.Property<string>("ReportTitlePlaceholder")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("report_title_placeholder")
+                        .HasComment("O exemplo cinza dentro da linha do titulo. Sem variaveis.");
+
+                    b.Property<string>("ReportTitleQuestion")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("report_title_question")
+                        .HasComment("A pergunta do titulo, acima da linha curta. Sem variaveis.");
 
                     b.Property<bool>("ShowsTypeField")
                         .ValueGeneratedOnAdd()
@@ -1891,12 +2214,19 @@ namespace Pds.Data.Migrations
                         .HasColumnName("shows_type_field")
                         .HasComment("Mostra ou esconde o seletor de tipo no formulario.");
 
+                    b.Property<string>("SubmitLabel")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("submit_label")
+                        .HasComment("O texto do botao que envia o relato. Sem variaveis.");
+
                     b.Property<string>("SuccessMessage")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("success_message")
-                        .HasComment("A frase acima do protocolo, na confirmacao.");
+                        .HasComment("A frase acima do protocolo, na confirmacao. Aceita {{primeiroNome}}, {{protocolo}}, {{tipo}} e {{projeto}}, com o padrao depois da barra ({{primeiroNome|pessoa}}); a ferramenta troca depois de enviar.");
 
                     b.Property<string>("Theme")
                         .IsRequired()
@@ -1912,6 +2242,20 @@ namespace Pds.Data.Migrations
                         .HasColumnName("title")
                         .HasComment("O titulo dentro do quadro. Nunca o nome do projeto, que e nome interno.");
 
+                    b.Property<string>("TrackingIntro")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("tracking_intro")
+                        .HasComment("A frase do topo da pagina de acompanhamento. Aceita as variaveis da confirmacao e {{etapa}}; a pagina troca na leitura.");
+
+                    b.Property<string>("TypeFieldLabel")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("type_field_label")
+                        .HasComment("O nome do seletor de tipo. Sem variaveis.");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at")
@@ -1919,6 +2263,9 @@ namespace Pds.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_project_widget_settings");
+
+                    b.HasIndex("DefaultReportTypeId")
+                        .HasDatabaseName("ix_project_widget_settings_default_report_type_id");
 
                     b.HasIndex("DeletedAt")
                         .HasDatabaseName("ix_project_widget_settings_deleted_at");
@@ -1935,6 +2282,12 @@ namespace Pds.Data.Migrations
                     b.ToTable("project_widget_settings", null, t =>
                         {
                             t.HasComment("Como a ferramenta de relato aparece no site de um projeto. Uma linha por projeto, criada so quando alguem salva: os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada.");
+
+                            t.HasCheckConstraint("ck_project_widget_settings_hidden_paths", "cardinality(hidden_paths) <= 20");
+
+                            t.HasCheckConstraint("ck_project_widget_settings_icon_only", "launcher_icon <> 'none' OR (NOT launcher_icon_only AND mobile_mode <> 'icon_only')");
+
+                            t.HasCheckConstraint("ck_project_widget_settings_offsets", "offset_x BETWEEN 0 AND 200 AND offset_y BETWEEN 0 AND 200");
                         });
                 });
 
@@ -1964,6 +2317,11 @@ namespace Pds.Data.Migrations
                         .HasColumnName("account_id")
                         .HasComment("Conta dona do relato, repetido de proposito em vez de chegar pelo projeto.");
 
+                    b.Property<string>("Answers")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("answers")
+                        .HasComment("As respostas, na ordem: [{question, answer}], com a pergunta copiada como estava no envio (mudar a pergunta depois nao reescreve o relato); a caixa livre no fim, com question nulo. A pergunta pulada nao entra. Nulo quando o tipo so tinha a caixa, e no card do time.");
+
                     b.Property<DateTime?>("ArchivedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("archived_at")
@@ -1978,6 +2336,11 @@ namespace Pds.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("backlog_rank")
                         .HasComment("O lugar do card no backlog e nas listas das sprints; o menor fica em cima. Nasce com o numero do card vezes a folga: o novo entra no fim. Interno.");
+
+                    b.Property<DateTime?>("BlockedOriginKeptAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("blocked_origin_kept_at")
+                        .HasComment("Quando o time decidiu manter o relato vindo de um endereco bloqueado. Nulo e ninguem decidiu: a marca de origem bloqueada sai da lista de bloqueados de agora, e nao desta coluna.");
 
                     b.Property<long>("BoardRank")
                         .HasColumnType("bigint")
@@ -2009,6 +2372,11 @@ namespace Pds.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("due_date")
                         .HasComment("O prazo: so a data, sem hora. Nulo e sem prazo. Interno.");
+
+                    b.Property<DateTime?>("HeldForOriginAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("held_for_origin_at")
+                        .HasComment("Quando o relato chegou de um endereco fora da lista de autorizados e ficou retido. Nulo e aceito. Retido: quem relatou acompanha como sempre, e o time nao o ve em lugar nenhum alem de Aguardando liberacao. Autorizar o endereco zera; bloquear apaga o relato de vez.");
 
                     b.Property<string>("Kind")
                         .IsRequired()
@@ -2080,6 +2448,11 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_stage_due_at")
                         .HasComment("Quando a ultima mudanca de etapa publica passa a valer para quem relatou. Preenchida e a janela para desfazer; nula e o estado normal. E ela que sobrevive, e nao a mensagem na fila.");
 
+                    b.Property<long?>("ReportTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("report_type_id")
+                        .HasComment("O tipo que a pessoa escolheu, um dos do projeto (project_report_types). Obrigatorio no relato, nulo no card do time. O nome da epoca fica no evento da entrada.");
+
                     b.Property<long?>("ReporterCodeId")
                         .HasColumnType("bigint")
                         .HasColumnName("reporter_code_id")
@@ -2128,7 +2501,7 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(5000)
                         .HasColumnType("character varying(5000)")
                         .HasColumnName("text")
-                        .HasComment("O relato como a pessoa escreveu. Nulo no card do time, que tem titulo e descricao.");
+                        .HasComment("O relato inteiro em texto. Com perguntas, as respostas que nao vieram em branco (e a caixa livre no fim) juntas, separadas por linha em branco e sem as perguntas: a busca, o titulo que sai do comeco do texto e a varredura leem daqui. Nulo no card do time, que tem titulo e descricao.");
 
                     b.Property<string>("Title")
                         .HasMaxLength(200)
@@ -2141,12 +2514,6 @@ namespace Pds.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("tracking_code")
                         .HasComment("O protocolo que a pessoa le e repete. Alfabeto sem 0, O, 1 e I; colisao tratada na geracao. Nulo no card do time, que nao tem lado de fora.");
-
-                    b.Property<string>("Type")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("type")
-                        .HasComment("bug | improvement | question. Lista fixa por enquanto. Nulo no card do time.");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
@@ -2191,6 +2558,9 @@ namespace Pds.Data.Migrations
                         .HasDatabaseName("ix_reports_public_stage_due_at")
                         .HasFilter("public_stage_due_at IS NOT NULL");
 
+                    b.HasIndex("ReportTypeId")
+                        .HasDatabaseName("ix_reports_report_type_id");
+
                     b.HasIndex("ReporterCodeId")
                         .HasDatabaseName("ix_reports_reporter_code_id");
 
@@ -2206,6 +2576,10 @@ namespace Pds.Data.Migrations
 
                     b.HasIndex("ProjectId", "CreatedAt")
                         .HasDatabaseName("ix_reports_project_id_created_at");
+
+                    b.HasIndex("ProjectId", "HeldForOriginAt")
+                        .HasDatabaseName("ix_reports_project_id_held_for_origin_at")
+                        .HasFilter("held_for_origin_at IS NOT NULL");
 
                     b.HasIndex("ProjectId", "ModerationState")
                         .HasDatabaseName("ix_reports_project_id_moderation_state");
@@ -2232,11 +2606,11 @@ namespace Pds.Data.Migrations
 
                             t.HasCheckConstraint("ck_reports_parent_team", "parent_report_id IS NULL OR kind = 'team'");
 
-                            t.HasCheckConstraint("ck_reports_report_fields", "kind <> 'report' OR (tracking_code IS NOT NULL AND access_token_hash IS NOT NULL AND type IS NOT NULL AND text IS NOT NULL AND description IS NULL)");
+                            t.HasCheckConstraint("ck_reports_report_fields", "kind <> 'report' OR (tracking_code IS NOT NULL AND access_token_hash IS NOT NULL AND report_type_id IS NOT NULL AND text IS NOT NULL AND description IS NULL)");
 
                             t.HasCheckConstraint("ck_reports_story_points", "story_points IS NULL OR (story_points >= 0 AND story_points <= 999 AND story_points * 2 = trunc(story_points * 2))");
 
-                            t.HasCheckConstraint("ck_reports_team_fields", "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND type IS NULL AND text IS NULL AND reporter_title IS NULL)");
+                            t.HasCheckConstraint("ck_reports_team_fields", "kind <> 'team' OR (title IS NOT NULL AND tracking_code IS NULL AND access_token_hash IS NULL AND reporter_code_id IS NULL AND project_public_stage_id IS NULL AND public_stage_due_at IS NULL AND moderation_state = 'pending' AND report_type_id IS NULL AND text IS NULL AND answers IS NULL AND reporter_title IS NULL)");
                         });
                 });
 
@@ -3168,7 +3542,7 @@ namespace Pds.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("kind")
-                        .HasComment("mention | assignment: o tipo de aviso, como em notifications.kind.");
+                        .HasComment("mention | assignment | origin_pending | reports_paused: o tipo de aviso, como em notifications.kind.");
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uuid")
@@ -3211,7 +3585,7 @@ namespace Pds.Data.Migrations
                         {
                             t.HasComment("O som que cada pessoa escolheu para cada tipo de aviso do painel. Sem linha para um tipo, vale o de fabrica. Vale em todos os projetos da pessoa. Interno.");
 
-                            t.HasCheckConstraint("ck_user_notification_sounds_kind", "kind IN ('mention', 'assignment')");
+                            t.HasCheckConstraint("ck_user_notification_sounds_kind", "kind IN ('mention', 'assignment', 'origin_pending', 'reports_paused')");
 
                             t.HasCheckConstraint("ck_user_notification_sounds_sound", "sound IN ('none', 'bell', 'drop', 'ping', 'chime', 'bubble', 'soft')");
                         });
@@ -3301,7 +3675,6 @@ namespace Pds.Data.Migrations
                         .WithMany()
                         .HasForeignKey("ReportId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_notifications_reports_report_id");
 
                     b.HasOne("Pds.Domain.Entities.ReportInternalComment", "ReportInternalComment")
@@ -3340,6 +3713,26 @@ namespace Pds.Data.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectBlockedOrigin", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.User", "BlockedByUser")
+                        .WithMany()
+                        .HasForeignKey("BlockedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_project_blocked_origins_users_blocked_by_user_id");
+
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany("BlockedOrigins")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_blocked_origins_projects_project_id");
+
+                    b.Navigation("BlockedByUser");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectCycleSettings", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
@@ -3370,27 +3763,6 @@ namespace Pds.Data.Migrations
                         .HasConstraintName("fk_project_identity_settings_projects_project_id");
 
                     b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("Pds.Domain.Entities.ProjectInitialState", b =>
-                {
-                    b.HasOne("Pds.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_project_initial_states_projects_project_id");
-
-                    b.HasOne("Pds.Domain.Entities.ProjectState", "ProjectState")
-                        .WithMany()
-                        .HasForeignKey("ProjectStateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_project_initial_states_project_states_project_state_id");
-
-                    b.Navigation("Project");
-
-                    b.Navigation("ProjectState");
                 });
 
             modelBuilder.Entity("Pds.Domain.Entities.ProjectInvitation", b =>
@@ -3527,6 +3899,38 @@ namespace Pds.Data.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectReportLimits", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_report_limits_projects_project_id");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Pds.Domain.Entities.ProjectReportType", b =>
+                {
+                    b.HasOne("Pds.Domain.Entities.ProjectState", "InitialState")
+                        .WithMany()
+                        .HasForeignKey("InitialStateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_report_types_project_states_initial_state_id");
+
+                    b.HasOne("Pds.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_report_types_projects_project_id");
+
+                    b.Navigation("InitialState");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pds.Domain.Entities.ProjectState", b =>
                 {
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
@@ -3583,6 +3987,12 @@ namespace Pds.Data.Migrations
 
             modelBuilder.Entity("Pds.Domain.Entities.ProjectWidgetSettings", b =>
                 {
+                    b.HasOne("Pds.Domain.Entities.ProjectReportType", null)
+                        .WithMany()
+                        .HasForeignKey("DefaultReportTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_widget_settings_default_report_type_id");
+
                     b.HasOne("Pds.Domain.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -3651,6 +4061,12 @@ namespace Pds.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_reports_project_states_project_state_id");
 
+                    b.HasOne("Pds.Domain.Entities.ProjectReportType", "ReportType")
+                        .WithMany()
+                        .HasForeignKey("ReportTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reports_project_report_types_report_type_id");
+
                     b.HasOne("Pds.Domain.Entities.ReporterCode", "ReporterCode")
                         .WithMany("Reports")
                         .HasForeignKey("ReporterCodeId")
@@ -3680,6 +4096,8 @@ namespace Pds.Data.Migrations
                     b.Navigation("ProjectPublicStage");
 
                     b.Navigation("ProjectState");
+
+                    b.Navigation("ReportType");
 
                     b.Navigation("ReporterCode");
 
@@ -3886,6 +4304,8 @@ namespace Pds.Data.Migrations
 
             modelBuilder.Entity("Pds.Domain.Entities.Project", b =>
                 {
+                    b.Navigation("BlockedOrigins");
+
                     b.Navigation("Invitations");
 
                     b.Navigation("Keys");

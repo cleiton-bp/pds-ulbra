@@ -43,8 +43,15 @@ public record CreatedReportViewModel(
 /// </summary>
 /// <param name="PublicId">Identificador do relato para as rotas do painel.</param>
 /// <param name="TrackingCode">O protocolo, que a pessoa que relatou tambem tem. Nulo no card do time.</param>
-/// <param name="Type">Defeito, melhoria ou duvida. Nulo no card do time.</param>
-/// <param name="Text">O relato como foi escrito. Nulo no card do time, que tem titulo e descricao.</param>
+/// <param name="Type">
+/// O tipo do relato, com o nome, a cor e o desenho de agora — e marcado quando foi
+/// desativado. Nulo no card do time.
+/// </param>
+/// <param name="Text">
+/// O relato inteiro em texto. Com perguntas, sao as respostas juntas, sem as
+/// perguntas — o card aberto as mostra lado a lado (<c>Answers</c>). Nulo no card do
+/// time, que tem titulo e descricao.
+/// </param>
 /// <param name="Route">O caminho da pagina de onde saiu, sem query e sem fragmento.</param>
 /// <param name="Origin">O dominio informado pela pagina hospedeira. Indicio, nunca prova.</param>
 /// <param name="StatePublicId">Onde o relato esta na fila; <b>nulo</b> quando o projeto nao tinha coluna ativa na hora em que ele chegou.</param>
@@ -135,7 +142,7 @@ public record ReportSummaryViewModel(
     string? Title,
     string? ReporterTitle,
     string? TrackingCode,
-    ReportTypeEnum? Type,
+    CardReportTypeViewModel? Type,
     string? Text,
     string? Route,
     string? Origin,
@@ -176,7 +183,34 @@ public record ReportSummaryViewModel(
     /// quando ele ainda nao foi confirmado.
     /// </summary>
     public bool ClosureConfirmed { get; init; }
+
+    /// <summary>
+    /// "Origem bloqueada": o relato veio de um endereco que o projeto bloqueou, e o
+    /// time ainda nao decidiu mante-lo. Sai da lista de bloqueados de agora —
+    /// desbloquear o endereco tira a marca, e manter o card tambem.
+    /// </summary>
+    public bool BlockedOrigin { get; init; }
+
+    /// <summary>
+    /// O que as subtarefas deste card tem a ver com o filtro: de quem do filtro de
+    /// responsavel elas sao, e se a busca achou o termo nelas. A subtarefa nao aparece
+    /// sozinha na tela de Trabalho — o pai entra no lugar dela, com a marca ("1 subtarefa
+    /// sua", "na subtarefa"). Nulo quando nenhuma subtarefa casou, ou sem esses filtros.
+    /// </summary>
+    public SubtaskMatchViewModel? SubtaskMatch { get; init; }
 }
+
+/// <summary>Por que o pai entrou no filtro pelas subtarefas. Ver <see cref="ReportSummaryViewModel.SubtaskMatch"/>.</summary>
+/// <param name="Assignees">Quantas subtarefas de cada pessoa do filtro de responsavel; vazia sem esse filtro.</param>
+/// <param name="Search">Se a busca achou o termo no titulo ou na descricao de uma subtarefa.</param>
+public record SubtaskMatchViewModel(IReadOnlyList<SubtaskAssigneeMatchViewModel> Assignees, bool Search);
+
+/// <summary>As subtarefas de uma pessoa do filtro, dentro do pai.</summary>
+/// <param name="UserPublicId">A pessoa.</param>
+/// <param name="Name">O nome, ou o e-mail de quem nao tem nome — como o responsavel do card.</param>
+/// <param name="IsMe">Se e quem esta olhando: a marca diz "sua", e nao o nome.</param>
+/// <param name="Count">Quantas subtarefas do pai sao dela.</param>
+public record SubtaskAssigneeMatchViewModel(Guid UserPublicId, string Name, bool IsMe, int Count);
 
 /// <summary>A sprint do card: nula e o backlog.</summary>
 /// <param name="PublicId">O identificador da sprint.</param>
@@ -219,6 +253,33 @@ public record CardPriorityViewModel(
     string Name,
     CardColorEnum Color,
     bool IsActive);
+
+/// <summary>
+/// O tipo de um relato, com o nome, a cor e o desenho de agora.
+///
+/// <para><b>Renomear muda o que o card mostra</b>, como na prioridade: o card diz o
+/// que o relato e hoje. O nome da epoca fica no evento da entrada.</para>
+/// </summary>
+/// <param name="PublicId">O tipo.</param>
+/// <param name="Name">O nome.</param>
+/// <param name="Color">A cor, da paleta fixa.</param>
+/// <param name="Icon">O desenho, da lista fixa.</param>
+/// <param name="IsActive">Falso quando foi desativado: continua no relato, marcado, e nao e mais oferecido.</param>
+public record CardReportTypeViewModel(
+    Guid PublicId,
+    string Name,
+    CardColorEnum Color,
+    ReportTypeIconEnum Icon,
+    bool IsActive);
+
+/// <summary>
+/// Uma resposta de quem relatou, com a pergunta como ela estava no envio.
+/// </summary>
+/// <param name="Question">A pergunta, copiada no envio; <b>nula</b> na caixa livre, que vem no fim.</param>
+/// <param name="Answer">O que a pessoa escreveu. A pergunta que ela pulou nao vem.</param>
+public record ReportAnswerViewModel(
+    string? Question,
+    string Answer);
 
 /// <summary>Uma etiqueta de um card.</summary>
 /// <param name="PublicId">A etiqueta.</param>
@@ -358,8 +419,16 @@ public record ReportContextViewModel(string Key, string? Value);
 /// </summary>
 /// <param name="PublicId">Identificador do relato.</param>
 /// <param name="TrackingCode">O protocolo, que a pessoa que relatou tambem tem. Nulo no card do time.</param>
-/// <param name="Type">Defeito, melhoria ou duvida. Nulo no card do time.</param>
-/// <param name="Text">O relato como foi escrito. Nulo no card do time, que tem titulo e descricao.</param>
+/// <param name="Type">O tipo do relato, com o nome, a cor e o desenho de agora. Nulo no card do time.</param>
+/// <param name="Text">
+/// O relato inteiro em texto. Com perguntas, sao as respostas juntas, sem as
+/// perguntas. Nulo no card do time, que tem titulo e descricao.
+/// </param>
+/// <param name="Answers">
+/// As respostas, cada uma com a pergunta como estava no envio, na ordem; a caixa
+/// livre no fim, sem pergunta. <b>Nula</b> quando o tipo nao tinha pergunta nenhuma
+/// no envio — ai o relato e o <c>Text</c> —, e no card do time.
+/// </param>
 /// <param name="Route">O caminho da pagina de onde saiu, sem query e sem fragmento.</param>
 /// <param name="Origin">O dominio informado pela pagina hospedeira. Indicio, nunca prova.</param>
 /// <param name="StatePublicId">Onde o relato esta na fila; <b>nulo</b> quando o projeto nao tinha coluna ativa quando ele chegou.</param>
@@ -491,8 +560,9 @@ public record ReportDetailViewModel(
     bool CanArchive,
     bool ArchiveCloses,
     string? TrackingCode,
-    ReportTypeEnum? Type,
+    CardReportTypeViewModel? Type,
     string? Text,
+    IReadOnlyList<ReportAnswerViewModel>? Answers,
     string? Route,
     string? Origin,
     Guid? StatePublicId,
@@ -529,6 +599,9 @@ public record ReportDetailViewModel(
 
     /// <summary>Se quem relatou ja confirmou o encerramento que vale — ver o resumo do card.</summary>
     public bool ClosureConfirmed { get; init; }
+
+    /// <summary>"Origem bloqueada" — ver o resumo do card.</summary>
+    public bool BlockedOrigin { get; init; }
 }
 
 
@@ -545,7 +618,7 @@ public record ReportDetailViewModel(
 /// tanto quanto todos os links somados.</para>
 /// </summary>
 /// <param name="TrackingCode">O protocolo, que a pessoa reconhece.</param>
-/// <param name="Type">Defeito, melhoria ou duvida.</param>
+/// <param name="TypeName">O nome do tipo que ela escolheu, como o projeto o chama agora.</param>
 /// <param name="Title">O titulo que ela escreveu, ou nulo quando nao respondeu. Nunca o do time.</param>
 /// <param name="Excerpt">O comeco do que ela escreveu, para distinguir um do outro.</param>
 /// <param name="StageLabel">Em que passo da jornada ele esta, com as palavras do cliente. Nulo quando o projeto nao tem jornada.</param>
@@ -553,7 +626,7 @@ public record ReportDetailViewModel(
 /// <param name="CreatedAt">Quando entrou, em UTC.</param>
 public record ReporterCodeReportViewModel(
     string TrackingCode,
-    ReportTypeEnum Type,
+    string TypeName,
     string? Title,
     string Excerpt,
     string? StageLabel,
@@ -790,12 +863,20 @@ public record PublicReopeningViewModel(
 /// invisivel, e e essa a regra.</para>
 /// </summary>
 /// <param name="TrackingCode">O protocolo, o mesmo que a pessoa anotou.</param>
-/// <param name="Type">Defeito, melhoria ou duvida, como ela escolheu.</param>
+/// <param name="TypeName">
+/// O nome do tipo que ela escolheu, como o projeto o chama agora. So o nome: a cor e
+/// o desenho sao do painel e da ferramenta, e a pagina nao os desenha.
+/// </param>
 /// <param name="Title">
 /// O titulo que ela escreveu, ou nulo quando nao respondeu. <b>Nunca o do time</b>: o
 /// titulo reescrito no painel e interno, e quem relatou ve so o que escreveu.
 /// </param>
-/// <param name="Text">O que ela escreveu, inteiro.</param>
+/// <param name="Text">O que ela escreveu, inteiro. Com perguntas, as respostas juntas, sem as perguntas.</param>
+/// <param name="Answers">
+/// As respostas dela, cada uma com a pergunta como estava no envio; a caixa livre no
+/// fim, sem pergunta. <b>Nula</b> quando o tipo nao tinha pergunta nenhuma — ai o
+/// relato e o <c>Text</c>.
+/// </param>
 /// <param name="CreatedAt">Quando o relato entrou.</param>
 /// <param name="Journey">
 /// A jornada do projeto, na ordem, com o que ja foi percorrido marcado. <b>Vazia</b>
@@ -835,18 +916,35 @@ public record PublicReopeningViewModel(
 /// fechamento reaberto sai de <c>Closure</c>, e com ele saia a unica coisa que a
 /// pessoa tinha escrito ao dizer que nao resolveu.</para>
 /// </param>
+/// <param name="TrackingIntro">
+/// A frase do topo da pagina, escrita pelo projeto na tela da ferramenta, com as
+/// variaveis como foram escritas — quem troca e a pagina, que tem a etapa e o resto.
+/// </param>
+/// <param name="ReporterFirstName">
+/// A primeira palavra do nome que ela deu, para a variavel <c>{{primeiroNome}}</c>.
+/// Nulo quando o projeto nao perguntou ou ela nao respondeu. So o primeiro nome: e o
+/// que a frase usa, e o resto nao precisa viajar.
+/// </param>
+/// <param name="ProjectName">
+/// O nome do projeto, para <c>{{projeto}}</c>. <b>Nulo quando a frase nao usa a
+/// variavel</b>: o nome e interno, e so sai quando o proprio projeto o escreveu.
+/// </param>
 public record PublicReportViewModel(
     string TrackingCode,
-    ReportTypeEnum Type,
+    string TypeName,
     string? Title,
     string Text,
+    IReadOnlyList<ReportAnswerViewModel>? Answers,
     DateTime CreatedAt,
     IReadOnlyList<PublicStageViewModel> Journey,
     PublicClosureViewModel? Closure,
     IReadOnlyList<PublicMessageViewModel> Conversation,
     PublicInfoRequestViewModel? InfoRequest,
     bool CanReply,
-    IReadOnlyList<PublicReopeningViewModel> Reopenings);
+    IReadOnlyList<PublicReopeningViewModel> Reopenings,
+    string TrackingIntro,
+    string? ReporterFirstName,
+    string? ProjectName);
 
 /// <summary>
 /// Um trecho que a varredura reconheceu como dado sensivel.
@@ -880,8 +978,8 @@ public record SensitiveFindingViewModel(
 /// </summary>
 /// <param name="PublicId">Identificador do relato para as rotas do painel.</param>
 /// <param name="TrackingCode">O protocolo, para cruzar com o resto do painel.</param>
-/// <param name="Type">Defeito, melhoria ou duvida.</param>
-/// <param name="Text">O relato como foi escrito.</param>
+/// <param name="Type">O tipo do relato, com o nome, a cor e o desenho de agora.</param>
+/// <param name="Text">O relato inteiro em texto — com perguntas, as respostas juntas. E nele que a varredura procura.</param>
 /// <param name="ReporterName">
 /// Como a pessoa se identificou, ou <b>nulo</b> quando nao deu nome.
 ///
@@ -912,7 +1010,7 @@ public record SensitiveFindingViewModel(
 public record ModerationItemViewModel(
     Guid PublicId,
     string TrackingCode,
-    ReportTypeEnum Type,
+    CardReportTypeViewModel Type,
     string Text,
     string? ReporterName,
     bool ReporterNameIsPublic,
@@ -948,8 +1046,8 @@ public record ModerationQueueViewModel(
 /// <para><b>O texto vem inteiro, e e o mesmo que foi liberado.</b> Cortar aqui
 /// faria o que alguem aprovou e o que o mundo le serem coisas diferentes.</para>
 /// </summary>
-/// <param name="Type">Defeito, melhoria ou duvida.</param>
-/// <param name="Text">O relato como foi escrito, e como foi liberado.</param>
+/// <param name="TypeName">O nome do tipo, como o projeto o chama agora.</param>
+/// <param name="Text">O relato como foi escrito, e como foi liberado. Com perguntas, as respostas juntas.</param>
 /// <param name="StageLabel">Em que passo da jornada ele esta, ou <b>nulo</b> quando nao aparece em nenhum.</param>
 /// <param name="IsClosed">Ja acabou, na leitura de quem esta de fora.</param>
 /// <param name="ReporterName">
@@ -961,7 +1059,7 @@ public record ModerationQueueViewModel(
 /// </param>
 /// <param name="PublishedAt">Quando foi liberado, em UTC. E a data que a lista ordena — e nao a da criacao.</param>
 public record PublishedReportViewModel(
-    ReportTypeEnum Type,
+    string TypeName,
     string Text,
     string? StageLabel,
     bool IsClosed,
@@ -982,3 +1080,30 @@ public record PublishedReportViewModel(
 public record PublishedReportsViewModel(
     IReadOnlyList<PublishedReportViewModel> Reports,
     bool HasMore);
+
+/// <summary>
+/// O corpo da recusa por excesso na entrada do relato (429), em <c>Data</c>.
+/// </summary>
+/// <param name="Reason">
+/// <c>TooSoon</c> (cedo demais depois do anterior: esperar), <c>Challenge</c> (passou de
+/// um limite: resolver o desafio e mandar de novo) ou <c>Paused</c> (chegou ao dobro: os
+/// envios estao pausados ate <paramref name="ResumesAt"/>).
+/// </param>
+/// <param name="RetryAfterSeconds">Em quantos segundos vale tentar de novo. O mesmo do cabecalho <c>Retry-After</c>.</param>
+/// <param name="ResumesAt">Quando a pausa acaba, em UTC. So em <c>Paused</c>.</param>
+/// <param name="Challenge">O desafio a resolver. So em <c>Challenge</c>.</param>
+public record ReportRefusalViewModel(
+    Pds.Domain.Enums.ReportRefusalReasonEnum Reason,
+    int RetryAfterSeconds,
+    DateTime? ResumesAt,
+    ReportChallengeViewModel? Challenge);
+
+/// <summary>
+/// O desafio invisivel: achar um <c>ChallengeNonce</c> (so digitos) tal que o SHA-256 de
+/// <c>Token + ChallengeNonce</c>, em UTF-8, comece com <paramref name="Difficulty"/> bits
+/// zero. O relato volta igual, com <c>ChallengeToken</c> e <c>ChallengeNonce</c>.
+/// </summary>
+/// <param name="Token">O bilhete assinado. Vale uma vez, para este projeto e para quem o pediu.</param>
+/// <param name="Difficulty">Quantos bits zero o hash precisa ter no comeco.</param>
+/// <param name="ExpiresAt">Quando o bilhete vence, em UTC — dois minutos depois de emitido.</param>
+public record ReportChallengeViewModel(string Token, int Difficulty, DateTime ExpiresAt);

@@ -74,6 +74,10 @@ public class Project : PdsBaseEntity
     [SoftDeleteDependent(RemoveType.Cascade)]
     public List<ProjectOrigin> Origins { get; set; } = [];
 
+    /// <summary>Enderecos que o projeto bloqueou: a ferramenta nao abre la, e o relato de la e recusado.</summary>
+    [SoftDeleteDependent(RemoveType.Cascade)]
+    public List<ProjectBlockedOrigin> BlockedOrigins { get; set; } = [];
+
     /// <summary>
     /// Quem do time entrou neste projeto, com o papel de cada um. O dono da conta
     /// nao aparece aqui: ele manda pelo <see cref="AccountId"/>.

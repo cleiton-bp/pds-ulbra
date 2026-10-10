@@ -18,10 +18,9 @@ public record StatusMappingEntryViewModel(
 /// <summary>
 /// O mapa que vale agora.
 ///
-/// <para><b>Traz todo estado, mapeado ou nao</b>, pelo mesmo motivo que a escolha
-/// de entrada traz os tres tipos: a tela precisa mostrar a pergunta inteira, e nao
-/// so as respostas dadas. Estado sem etapa e o caso que importa ver — e nele que o
-/// relato para de andar do lado de fora.</para>
+/// <para><b>Traz todo estado, mapeado ou nao</b>: a tela precisa mostrar a pergunta
+/// inteira, e nao so as respostas dadas. Estado sem etapa e o caso que importa ver —
+/// e nele que o relato para de andar do lado de fora.</para>
 /// </summary>
 /// <param name="Version">A versao que vale agora. Zero enquanto nada foi ligado.</param>
 /// <param name="Entries">Um por estado do projeto, na ordem da fila.</param>

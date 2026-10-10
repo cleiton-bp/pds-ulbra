@@ -14,6 +14,14 @@ public class CreateProjectDto
     /// </summary>
     /// <example>Loja Online</example>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Como o time trabalha: o modelo com que o projeto nasce. Opcional — sem ele,
+    /// <c>SimpleBoard</c>, o quadro de sempre. So vale na criacao; depois cada coisa
+    /// se muda na propria tela.
+    /// </summary>
+    /// <example>Support</example>
+    public ProjectTemplateEnum? Template { get; set; }
 }
 
 /// <summary>

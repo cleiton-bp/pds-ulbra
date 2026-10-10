@@ -301,14 +301,37 @@ public class Report : PdsBaseEntity
     /// </summary>
     public string? AccessTokenHash { get; set; }
 
-    /// <summary>Defeito, melhoria ou duvida. Nulo no card do time.</summary>
-    public ReportTypeEnum? Type { get; set; }
+    /// <summary>
+    /// O tipo que a pessoa escolheu, um dos do projeto. Nulo no card do time.
+    ///
+    /// <para><b>Aponta, e nao copia</b>: renomear o tipo muda o que o card mostra, como
+    /// renomear a prioridade. O nome da epoca fica no evento da entrada.</para>
+    /// </summary>
+    public long? ReportTypeId { get; set; }
+    public ProjectReportType? ReportType { get; set; }
 
     /// <summary>
-    /// O relato como a pessoa escreveu, com tamanho limitado no servidor. Nulo no
-    /// card do time, que tem titulo e descricao.
+    /// O relato inteiro em texto, com tamanho limitado no servidor. Nulo no card do
+    /// time, que tem titulo e descricao.
+    ///
+    /// <para><b>Com perguntas, sao as respostas juntas</b> — as que nao vieram em
+    /// branco, e a caixa livre no fim —, separadas por uma linha em branco e
+    /// <b>sem as perguntas</b>. Assim tudo o que le o texto continua certo sem
+    /// saber de pergunta nenhuma: a busca, o comeco do texto que vira titulo, o trecho
+    /// da lista publica, a varredura de dado sensivel. Quem mostra o relato usa
+    /// <see cref="Answers"/> quando ha.</para>
     /// </summary>
     public string? Text { get; set; }
+
+    /// <summary>
+    /// As respostas, com as perguntas como estavam no envio, na ordem; a caixa livre
+    /// no fim, sem pergunta. Ver <see cref="ReportAnswer"/>.
+    ///
+    /// <para><b>Nula quando o tipo nao tinha pergunta nenhuma</b> no envio — so a
+    /// caixa —, que e o relato de sempre: o texto ja e o relato inteiro, e repeti-lo
+    /// aqui seria uma segunda copia para divergir. Nula tambem no card do time.</para>
+    /// </summary>
+    public List<ReportAnswer>? Answers { get; set; }
 
     /// <summary>
     /// So o caminho da pagina de onde o relato foi aberto. A parte depois do
@@ -318,11 +341,44 @@ public class Report : PdsBaseEntity
     public string? Route { get; set; }
 
     /// <summary>
-    /// Dominio da pagina que embutiu a ferramenta, informado por ela mesma.
-    /// Guardado como veio, inclusive fora da lista de autorizados: e indicio para
-    /// investigar depois, nunca prova de origem.
+    /// Dominio da pagina que embutiu a ferramenta, informado por ela mesma, na forma
+    /// em que as listas de enderecos comparam (minusculo, sem esquema e sem caminho).
+    /// Guardado inclusive fora da lista de autorizados: e indicio para investigar
+    /// depois, e e por ele que a tela de Dominios conta quem mandou relatos — nunca
+    /// prova de origem.
     /// </summary>
     public string? Origin { get; set; }
+
+    /// <summary>
+    /// Quando o time decidiu ficar com este relato, mesmo vindo de um endereco que o
+    /// projeto bloqueou. Nulo e "ninguem decidiu".
+    ///
+    /// <para><b>A marca "origem bloqueada" nao e coluna, e e de proposito.</b> Ela sai
+    /// de comparar <see cref="Origin"/> com a lista de bloqueados de agora: bloquear
+    /// marca na hora todos os relatos que ja vieram de la, e desbloquear desmarca,
+    /// sem reescrever linha nenhuma. O que precisa ser guardado e so a decisao do
+    /// time — manter —, que e o que esta coluna e. A outra decisao, apagar, nao deixa
+    /// linha para guardar nada.</para>
+    /// </summary>
+    public DateTime? BlockedOriginKeptAt { get; set; }
+
+    /// <summary>
+    /// Quando o relato chegou de um endereco que o projeto ainda nao autorizou, e ficou
+    /// retido esperando o time decidir. Nulo e o relato aceito — o normal.
+    ///
+    /// <para><b>Retido e recebido, mas fora do Trabalho.</b> Quem relatou tem protocolo,
+    /// acompanhamento e etapa publica como sempre, e nao percebe nada; o time nao ve o
+    /// relato em lista, quadro, backlog, contagem, busca ou aviso — so a contagem por
+    /// endereco em "Aguardando liberacao". O filtro global esconde, e nao cada consulta:
+    /// se dependesse de cada uma lembrar, um dia uma esqueceria e o relato de um site
+    /// estranho apareceria no quadro.</para>
+    ///
+    /// <para><b>So na entrada.</b> Autorizar o endereco limpa a coluna dos relatos dele
+    /// (eles entram no topo do quadro, como novos); bloquear apaga de vez os retidos,
+    /// que nunca foram aceitos. Tirar o endereco da lista depois nao retem o que ja
+    /// entrou.</para>
+    /// </summary>
+    public DateTime? HeldForOriginAt { get; set; }
 
     /// <summary>
     /// Quem relatou aceita responder duvidas da equipe sobre este relato.
@@ -436,10 +492,16 @@ public class Report : PdsBaseEntity
     /// relato, e o banco nao deixa o card do time ter protocolo. Um card do time
     /// chegando aqui e defeito de quem chamou — e falhar alto e melhor do que
     /// devolver um relato em branco para alguem de fora.</para>
+    ///
+    /// <para><b>O tipo precisa ter vindo junto na consulta.</b> O relato sempre tem
+    /// tipo, e o banco garante; sem ele carregado aqui, e a consulta que esqueceu de
+    /// trazer — e a mesma regra: falhar alto.</para>
     /// </summary>
-    public (string TrackingCode, ReportTypeEnum Type, string Text) ReporterFields()
-        => Kind == CardKindEnum.Report && TrackingCode is not null && Type is not null && Text is not null
-            ? (TrackingCode, Type.Value, Text)
+    public (string TrackingCode, ProjectReportType Type, string Text) ReporterFields()
+        => Kind == CardKindEnum.Report && TrackingCode is not null && Text is not null
+            ? (TrackingCode,
+               ReportType ?? throw new InvalidOperationException("O tipo do relato nao veio junto na consulta."),
+               Text)
             : throw new InvalidOperationException("O card do time nao tem lado de fora.");
 
     /// <summary>O que veio junto com o relato, em pares de chave e valor.</summary>

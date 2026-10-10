@@ -22,13 +22,20 @@ namespace Pds.Service.PublicStages;
 /// </summary>
 public static class FactoryPublicStages
 {
-    /// <summary>Uma etapa do conjunto padrao, antes de virar linha no banco.</summary>
+    /// <summary>
+    /// Uma etapa do conjunto padrao, antes de virar linha no banco.
+    ///
+    /// <para>As duas marcas do fim vem desligadas: o conjunto padrao nao usa nenhuma, e
+    /// so os modelos que precisam delas (o de atendimento) as ligam.</para>
+    /// </summary>
     public readonly record struct Definition(
         string Label,
         string Description,
         string? NextStep,
         bool IsTerminal,
-        PublicOutcomeEnum? Outcome);
+        PublicOutcomeEnum? Outcome,
+        bool AllowsReturn = false,
+        bool AwaitsReporter = false);
 
     /// <summary>
     /// As cinco etapas, na ordem.
@@ -81,7 +88,14 @@ public static class FactoryPublicStages
     /// ele ainda nao tem chave.
     /// </param>
     public static IEnumerable<ProjectPublicStage> For(Project project)
-        => All.Select((definition, position) => new ProjectPublicStage
+        => For(project, All);
+
+    /// <summary>
+    /// Monta as linhas de uma jornada qualquer, ja com a posicao — a de um modelo de
+    /// projeto, que nao precisa ser a padrao.
+    /// </summary>
+    public static IEnumerable<ProjectPublicStage> For(Project project, IReadOnlyList<Definition> definitions)
+        => definitions.Select((definition, position) => new ProjectPublicStage
         {
             Project = project,
             Label = definition.Label,
@@ -89,6 +103,8 @@ public static class FactoryPublicStages
             NextStep = definition.NextStep,
             Position = position,
             IsTerminal = definition.IsTerminal,
+            AllowsReturn = definition.AllowsReturn,
+            AwaitsReporter = definition.AwaitsReporter,
             Outcome = definition.Outcome,
         });
 }

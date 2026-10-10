@@ -31,11 +31,20 @@ public abstract class BaseController : ControllerBase
     protected IActionResult HandleError(Exception exception)
     {
         if (exception is not (ArgumentException or UnauthorizedAccessException or ForbiddenException
-            or KeyNotFoundException or ConflictException))
+            or KeyNotFoundException or ConflictException or TooManyRequestsException))
         {
             var logger = HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
                 .CreateLogger(GetType());
             logger.LogError(exception, "Falha nao tratada em {Path}", HttpContext.Request.Path);
+        }
+
+        // O excesso leva o "quando tentar de novo" no cabecalho, como o HTTP pede, e o
+        // que fazer no corpo — o desafio, ou ate quando a pausa vai.
+        if (exception is TooManyRequestsException excesso)
+        {
+            Response.Headers.RetryAfter = Math.Max(1, excesso.RetryAfterSeconds).ToString();
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                new ApiResponse<object>(Success: false, Message: excesso.Message, Data: excesso.Payload));
         }
 
         return exception switch

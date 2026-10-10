@@ -26,17 +26,67 @@ public static class WidgetSettingsDefaults
     public const WidgetPositionEnum Position = WidgetPositionEnum.BottomRight;
     public const WidgetThemeEnum Theme = WidgetThemeEnum.Auto;
 
+    /// <summary>
+    /// A aparencia do botao, toda com o valor que ele tinha antes de ela ser
+    /// configuravel: 20 pixels do canto, so o texto, medio, pilula, sem sombra, igual no
+    /// celular. O projeto que nunca mexeu continua com o botao de sempre.
+    /// </summary>
+    public const int OffsetX = 20;
+
+    public const int OffsetY = 20;
+    public const WidgetLauncherIconEnum LauncherIcon = WidgetLauncherIconEnum.None;
+    public const bool LauncherIconOnly = false;
+    public const WidgetLauncherSizeEnum LauncherSize = WidgetLauncherSizeEnum.Medium;
+    public const WidgetLauncherShapeEnum LauncherShape = WidgetLauncherShapeEnum.Pill;
+
+    /// <summary>Nulo e automatico: a cor sai da luminancia da cor do botao.</summary>
+    public const string? LauncherTextColor = null;
+
+    public const bool LauncherShadow = false;
+    public const WidgetMobileModeEnum MobileMode = WidgetMobileModeEnum.Same;
+
+    /// <summary>
+    /// Nenhuma pagina esconde o botao. Lista nao cabe em <c>const</c>; e nova a cada
+    /// leitura, para ninguem alterar o padrao de todo mundo por engano.
+    /// </summary>
+    public static IReadOnlyList<string> HiddenPaths => [];
+
     public const string LauncherLabel = "Relatar";
     public const string Title = "Conte o que aconteceu";
-
-    public const string Placeholder =
-        "Descreva o que você viu, e onde. Se puder, diga o que esperava que acontecesse.";
 
     public const string SuccessMessage =
         "Recebemos. Anote o protocolo — é com ele que você acompanha.";
 
+    /// <summary>O texto do botao que envia o relato.</summary>
+    public const string SubmitLabel = "Enviar";
+
+    /// <summary>A pergunta do titulo, acima da linha curta.</summary>
+    public const string ReportTitleQuestion = "Em poucas palavras, o que aconteceu?";
+
+    /// <summary>O exemplo cinza dentro da linha do titulo.</summary>
+    public const string ReportTitlePlaceholder = "O botão de pagar não responde";
+
+    /// <summary>O nome do seletor de tipo.</summary>
+    public const string TypeFieldLabel = "O que é";
+
+    /// <summary>O nome da caixa livre quando ela vem depois das perguntas do tipo.</summary>
+    public const string MoreDetailsLabel = "Mais detalhes";
+
+    /// <summary>A pergunta do nome, quando o projeto pergunta.</summary>
+    public const string NameQuestion = "Como podemos te chamar";
+
+    /// <summary>
+    /// O aviso de que o relato pode virar publico. A frase sobre o nome, que vem
+    /// depois, nao e configuravel: ela depende do nivel de visibilidade, e um texto
+    /// livre ali poderia prometer o contrario do que o projeto faz.
+    /// </summary>
+    public const string PublicNotice =
+        "Este relato pode virar público. Alguém da equipe lê antes; se for liberado, qualquer pessoa poderá ler o que você escrever aqui.";
+
+    /// <summary>A frase do topo da pagina de acompanhamento, embaixo de "Seu relato".</summary>
+    public const string TrackingIntro = "Este é o registro do que você enviou.";
+
     public const bool ShowsTypeField = true;
-    public const ReportTypeEnum DefaultReportType = ReportTypeEnum.Bug;
 
     /// <summary>
     /// A pergunta do titulo aparece, e nao obriga: o titulo ajuda o time a reconhecer
