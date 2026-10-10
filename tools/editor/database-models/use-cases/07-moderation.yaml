@@ -23,6 +23,9 @@ useCases:
       - Libera o relato, ou recusa.
       - O sistema grava a decisão, com quem decidiu e quando.
     alternativeFlows:
+      - title: 1a. O projeto é privado
+        steps:
+          - A tela diz no topo que nada dali aparece para o público, e a fila não conta; ela só importa quando o projeto abre os relatos ao público, em Quem relata.
       - title: 2a. Há mais de 50 pendentes
         steps:
           - A fila mostra os 50 mais antigos e diz de quantos. Decidindo os de cima, os de baixo sobem.

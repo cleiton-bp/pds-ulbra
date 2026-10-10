@@ -344,7 +344,7 @@ entities:
         note: a ordem na tela, escolhida pelo cliente, e é coluna em vez de ordem alfabética porque fila de trabalho tem sequência
       - name: deactivated_at
         type: datetime
-        note: nulo enquanto o estado aceita card novo, preenchido para aposentá-lo sem apagar, porque card antigo continua apontando para ele e o histórico precisa continuar legível
+        note: nulo enquanto o estado aceita card novo, preenchido para desativá-lo sem apagar, porque card antigo continua apontando para ele e o histórico precisa continuar legível
       - name: created_at
         type: datetime
         note: quando o estado foi criado, em UTC
@@ -436,7 +436,7 @@ entities:
       - name: priority_id
         type: long
         fk: true
-        note: coluna nova — a prioridade do projeto que o time escolheu. Nula é sem prioridade, e é como o card nasce
+        note: coluna nova — a prioridade do projeto que o time escolheu. Nula é sem prioridade, e é como o card nasce — a não ser que quem cria o card do time já escolha uma (a subtarefa, nunca)
       - name: due_date
         type: date
         note: coluna nova — o prazo, só a data, sem hora. Nulo é sem prazo
@@ -599,16 +599,16 @@ entities:
       - name: body
         type: text
         required: true
-        note: o texto como o time escreveu, e ele nunca sai desta tabela — nem para o payload do evento
+        note: o texto como o time escreveu — só quem escreveu corrige —, e ele nunca sai desta tabela — nem para o payload do evento
       - name: created_at
         type: datetime
         note: quando foi escrito, em UTC
       - name: updated_at
         type: datetime
-        note: última alteração, em UTC
+        note: última alteração, em UTC; depois da criação, é a correção de quem escreveu, e a tela marca o comentário como editado
       - name: deleted_at
         type: datetime
-        note: nulo enquanto o comentário vale, preenchido no lugar de apagar
+        note: nulo enquanto o comentário vale, preenchido quando quem escreveu o apaga, no lugar de apagar
   - name: report_public_comments
     label: Comentário público
     description: O que o time escolhe dizer a quem relatou, e o que quem relatou responde. Quem relatou lê na página de acompanhamento, pelo link ou pelo código pessoal; a resposta dele pode trazer arquivos.
@@ -750,7 +750,7 @@ entities:
         note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto a etapa vale, preenchido no lugar de apagar, e aqui existe remoção de verdade diferente do estado interno, que só se aposenta
+        note: nulo enquanto a etapa vale, preenchido no lugar de apagar, e aqui existe remoção de verdade diferente do estado interno, que só se desativa
   - name: project_status_mappings
     label: Mapeamento de estados
     description: "Liga N estados internos a 1 etapa pública, nunca o contrário — um estado apontando para duas etapas deixaria sem resposta a única pergunta que esta tabela responde, que é onde o relato está agora. Versionada: alterar grava o conjunto inteiro de novo, um número acima, porque reescrever o mapa apagaria o sentido de tudo que já aconteceu."
@@ -994,11 +994,11 @@ entities:
       - name: sprints_enabled
         type: bool
         required: true
-        note: coluna nova — o time trabalha em sprints; desligado de fábrica. Ligado, a tela de Trabalho ganha o Backlog, e o quadro mostra só a sprint em andamento. Desligar não apaga nada
+        note: coluna nova — o time trabalha em sprints; desligado de fábrica, e ligado na tela Sprints. Ligado, a tela de Trabalho ganha o Backlog, e o quadro mostra só a sprint em andamento. Desligar não apaga nada
       - name: sprint_length_weeks
         type: int
         required: true
-        note: coluna nova — com quantas semanas a sprint nasce, de 1 a 4; de fábrica 2. A sprint planejada pode ter outras datas
+        note: coluna nova — com quantas semanas a sprint nasce, de 1 a 4; de fábrica 2. A sprint planejada pode ter outras datas; ao iniciar, ela começa no dia em que é iniciada e dura isto
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
@@ -1396,7 +1396,7 @@ entities:
         note: preenchido no lugar de apagar
   - name: project_priorities
     label: Prioridades do projeto
-    description: "Existe porque cada time mede urgência com as próprias palavras, como faz com os estados. Todo projeto nasce com quatro — Baixa, Média, Alta e Urgente —, e o administrador renomeia, troca a cor, reordena ou cria outras. Prioridade não se apaga, se aposenta: continua no card que já a tinha e sai da lista de escolha."
+    description: "Existe porque cada time mede urgência com as próprias palavras, como faz com os estados. Todo projeto nasce com quatro — Baixa, Média, Alta e Urgente —, e o administrador renomeia, troca a cor, reordena ou cria outras. Prioridade não se apaga, se desativa: continua no card que já a tinha e sai da lista de escolha."
     position: { x: 3950, y: 300 }
     fields:
       - name: id
@@ -1426,7 +1426,7 @@ entities:
         note: a ordem, da menos para a mais urgente
       - name: deactivated_at
         type: datetime
-        note: nulo enquanto a prioridade pode ser escolhida, preenchido para aposentá-la
+        note: nulo enquanto a prioridade pode ser escolhida, preenchido para desativá-la
       - name: created_at
         type: datetime
         note: quando a prioridade foi criada, em UTC
@@ -1595,10 +1595,10 @@ entities:
         note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: exclusão lógica
+        note: exclusão lógica — o aviso da menção sai quando o comentário é apagado, ou corrigido sem ela
   - name: sprints
     label: Sprints
-    description: "As sprints do projeto, com as sprints ligadas no Ciclo: uma em andamento por vez — a que o quadro mostra —, as planejadas e as concluídas, que guardam o que terminou nelas. Interno."
+    description: "As sprints do projeto, com as sprints ligadas (na tela Sprints; o interruptor mora nas regras do ciclo): uma em andamento por vez — a que o quadro mostra —, as planejadas e as concluídas, que guardam o que terminou nelas. Interno."
     position: { x: 4450, y: 2200 }
     fields:
       - name: id
@@ -1717,7 +1717,7 @@ relations:
     to: project_keys
     toField: project_id
     kind: one-to-many
-    note: Um projeto tem uma chave pública e uma secreta válidas por vez, mais o histórico das revogadas.
+    note: Um projeto tem uma chave pública válida — que nasce com ele — e, quando a integração pede, uma secreta válida por vez, mais o histórico das revogadas. A secreta não nasce com o projeto.
   - from: projects
     fromField: id
     to: project_origins
@@ -1741,7 +1741,7 @@ relations:
     to: project_initial_states
     toField: project_id
     kind: one-to-many
-    note: São no máximo três linhas por projeto, uma por tipo de relato, e elas nascem preenchidas apontando para a área de análise porque cliente que encara tela em branco desiste.
+    note: São no máximo três linhas por projeto, uma por tipo de relato, e o projeto nasce sem nenhuma — sem escolha, o relato entra na primeira coluna ativa, que no projeto novo é A fazer. É o que mantém "não configurei" como um estado possível do projeto.
   - from: project_states
     fromField: id
     to: project_initial_states
@@ -2059,7 +2059,7 @@ relations:
     to: reports
     toField: priority_id
     kind: one-to-many
-    note: Restrict, como o estado — prioridade não se apaga, se aposenta, porque card antigo aponta para ela.
+    note: Restrict, como o estado — prioridade não se apaga, se desativa, porque card antigo aponta para ela.
   - from: projects
     fromField: id
     to: project_labels
@@ -2193,9 +2193,9 @@ notes:
     width: 380
     inherited: true
   - text: |-
-      Aqui se remove, nos estados internos só se aposenta
+      Aqui se remove, nos estados internos só se desativa
 
-      Não é descuido. O estado interno aposentado precisa continuar visível porque a tela do time mostra a fila inteira; a etapa pública removida não tem esse papel — o que já passou por ela é contado pelos eventos, que guardam o rótulo que valia na época. A remoção é lógica, então a linha continua no banco.
+      Não é descuido. O estado interno desativado precisa continuar visível porque a tela do time mostra a fila inteira; a etapa pública removida não tem esse papel — o que já passou por ela é contado pelos eventos, que guardam o rótulo que valia na época. A remoção é lógica, então a linha continua no banco.
     anchor: project_public_stages
     anchorField: deleted_at
     position: { x: 240, y: 2700 }

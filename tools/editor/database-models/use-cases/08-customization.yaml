@@ -15,17 +15,17 @@ actors:
 useCases:
   - id: UC01
     name: Começar por um modelo de configuração
-    description: Planejado. Em vez de uma tela em branco, o projeto novo nasce de um modelo que já traz estados internos, etapas públicas, o mapa entre eles e os tipos de relato.
+    description: Planejado. Em vez do padrão único de fábrica — A fazer, Fazendo e Feito —, o projeto novo nasce de um modelo escolhido, que já traz as colunas, o andamento público, o mapa entre eles e os tipos de relato.
     position: { x: 302, y: -289 }
     preconditions: O dono está criando um projeto.
     mainFlow:
       - Ao criar o projeto, o dono escolhe um modelo.
-      - O sistema cria os estados, as etapas públicas, o mapa e os tipos de relato daquele modelo.
+      - O sistema cria as colunas, o andamento público, o mapa e os tipos de relato daquele modelo.
       - Tudo continua editável depois, nas telas de sempre.
     alternativeFlows:
       - title: 1a. O dono não escolhe modelo nenhum
         steps:
-          - O projeto nasce com o padrão de fábrica de hoje.
+          - O projeto nasce com o padrão de fábrica de hoje — as três colunas, já ligadas ao andamento público.
     postconditions: O projeto anda sem ninguém abrir as telas de regras.
   - id: UC02
     name: Definir os tipos de relato
@@ -35,9 +35,9 @@ useCases:
     mainFlow:
       - O dono abre Tipos de relato.
       - Cria, renomeia ou tira de uso os tipos.
-      - Para cada tipo, escolhe em qual estado interno ele entra.
+      - Para cada tipo, escolhe em qual coluna ele entra.
       - Salva.
-    postconditions: A ferramenta oferece os tipos do projeto, e cada relato novo entra no estado do seu tipo.
+    postconditions: A ferramenta oferece os tipos do projeto, e cada relato novo entra na coluna do seu tipo.
   - id: UC03
     name: Definir o que cada tipo pergunta
     description: Planejado. Campos curtos e opcionais por tipo — o que você tentou, o que aconteceu, o que esperava —, para guiar o texto sem obrigar. Defeito e melhoria pedem perguntas diferentes.
@@ -82,12 +82,12 @@ useCases:
     postconditions: "O relato chega com o contexto ligado, mascarado: token e dado de cliente não passam."
   - id: UC07
     name: Escolher como a ferramenta abre
-    description: Planejado. Pelo botão do PDS, como hoje, ou por um botão ou tela do próprio site — e aí a ferramenta só é baixada quando alguém pede.
+    description: Planejado. Pelo botão da ferramenta, como hoje, ou por um botão ou tela do próprio site — e aí a ferramenta só é baixada quando alguém pede.
     position: { x: 266, y: 236 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Ferramenta.
-      - "Escolhe quem abre a ferramenta: o botão do PDS ou o próprio site."
+      - O dono abre Botão no site.
+      - "Escolhe quem abre a ferramenta: o botão dela ou o próprio site."
       - Se for o site, copia o trecho que liga o botão dele à ferramenta.
       - Salva.
     postconditions: Quem só visita o site e nunca pede não baixa a ferramenta.

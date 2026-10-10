@@ -1,7 +1,7 @@
 meta:
   title: A conta
   system: PDS — painel
-  description: "Chamar quem trabalha junto — por projeto, como administrador ou como membro —, cuidar de quem está no time, escolher como cada um é avisado, e sair de vez, excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. O convite, o time e o perfil já existem; a exclusão é Planejado."
+  description: "Chamar quem trabalha junto — por projeto, como administrador ou como membro —, cuidar de quem está no time, sair dele, escolher como cada um é avisado, e sair de vez, excluindo a conta com prazo de arrependimento, ou apagando os dados na hora. O convite, o time e o perfil já existem; a exclusão é Planejado."
 actors:
   - name: Dono do projeto
     description: Quem criou a conta; manda em todos os projetos dela, e é administrador de cada um.
@@ -46,9 +46,9 @@ useCases:
       - Vencido, cancelado ou trocado por um reenvio, o link não vale, e a página diz a quem pedir um novo.
   - id: UC06
     name: Cuidar do time
-    description: Ver quem está no projeto, mudar o papel de alguém ou tirar alguém do time. Todo o time vê a lista; mudar é do administrador.
+    description: Ver quem está no projeto, mudar o papel de alguém ou tirar alguém do time. Todo o time vê a lista e pode sair dele; mudar os outros é do administrador.
     position: { x: 530, y: 40 }
-    preconditions: Quem muda é administrador do projeto.
+    preconditions: Mudar o papel ou tirar outra pessoa é de quem administra; sair do time é de qualquer pessoa dele.
     mainFlow:
       - O administrador abre Membros no projeto.
       - Muda o papel de alguém, ou tira a pessoa do time, confirmando.
@@ -57,6 +57,12 @@ useCases:
       - title: 2a. A pessoa tirada do time está com a tela de Trabalho aberta
         steps:
           - A tela fecha na hora e volta para a lista de projetos, que diz de qual projeto ela saiu. Na tela dos outros, o nome dela sai da escolha de responsável.
+      - title: 2b. O administrador deixa de administrar
+        steps:
+          - Rebaixar a si mesmo pergunta antes — ele perde na hora a configuração, e só quem administra pode devolver.
+      - title: 2c. Alguém sai do time por conta própria
+        steps:
+          - Na própria linha, "Sair do time" pede confirmação e leva a pessoa de volta à lista de projetos. Vale para o membro também; tirar outra pessoa continua sendo do administrador.
     postconditions: O dono não muda de papel nem sai do time — manda em todos os projetos da conta. O que quem saiu escreveu nos relatos continua com o nome dela.
   - id: UC03
     name: Excluir a conta
@@ -96,11 +102,15 @@ useCases:
     mainFlow:
       - A pessoa abre o Perfil, pelo menu dela ou por "Preferências de aviso", no sino.
       - O painel mostra o nome, o e-mail e a foto — que vêm do Google, só para ler —, a conta, e o som de cada tipo de aviso, com o volume.
-      - A pessoa escolhe um som para cada tipo, ouve antes, ajusta o volume e salva.
+      - A pessoa escolhe um som para cada tipo — ele toca e fica salvo na hora, sem botão de salvar — e ajusta o volume, que toca no volume novo e grava ao soltar.
+      - Volta à tela de onde veio, pelo "Voltar" do alto.
     alternativeFlows:
       - title: 3a. Sem som
         steps:
           - O aviso daquele tipo chega só no sino.
+      - title: 3c. A gravação falha
+        steps:
+          - O Perfil diz que não salvou, com "Tentar de novo".
       - title: 3b. Nunca escolheu
         steps:
           - Vale o de fábrica — Plim na menção, Sino na escolha como responsável —, no volume 70.
@@ -118,7 +128,7 @@ links:
   - from: Membro do time
     to: UC06
     kind: association
-    note: só vê a lista
+    note: vê a lista, e sai do time
   - from: Dono do projeto
     to: Administrador do projeto
     kind: generalization
@@ -139,7 +149,7 @@ links:
     to: UC02
     kind: association
 notes:
-  - text: "O convite é por projeto, e não pela conta inteira. O papel é administrador — configura o projeto e decide quem entra — ou membro — trabalha nos relatos, e não vê a Configuração. O convite vai só por e-mail, e só vale aceito com o Google do mesmo endereço, confirmado. O link nunca é guardado: o banco tem só o hash dele. A mesma pessoa pode estar em projetos de várias contas."
+  - text: "O convite é por projeto, e não pela conta inteira. O papel é administrador — configura o projeto e decide quem entra — ou membro — trabalha nos relatos, e não vê Configurar o projeto. O convite vai só por e-mail, e só vale aceito com o Google do mesmo endereço, confirmado. O link nunca é guardado: o banco tem só o hash dele. A mesma pessoa pode estar em projetos de várias contas."
     anchor: UC01
     position: { x: 500, y: -185 }
   - text: "O prazo de 24 horas está decidido; a proposta é de 7 a 30 dias, porque quem exclui numa sexta e percebe na segunda perde tudo. A decidir também: se a ferramenta continua aceitando relato durante o prazo."

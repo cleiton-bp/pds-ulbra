@@ -1,44 +1,52 @@
 meta:
   title: Regras do projeto
   system: PDS — painel
-  description: "O que o dono decide sobre o comportamento do projeto. Tudo tem padrão de fábrica: projeto novo anda sem ninguém abrir estas telas. Aqui está o lado da configuração; o lado de quem usa está nos diagramas 04 a 07."
+  description: "O que o dono decide sobre o comportamento do projeto, nas telas de Configurar o projeto. Tudo tem padrão de fábrica: projeto novo anda sem ninguém abrir estas telas — já nasce com as colunas A fazer, Fazendo e Feito, ligadas ao andamento público. Aqui está o lado da configuração; o lado de quem usa está nos diagramas 04 a 07."
 actors:
   - name: Dono do projeto
     description: Quem criou o projeto. É quem decide como a fila, a jornada pública e o ciclo se comportam.
     position: { x: -180, y: 318 }
 useCases:
   - id: UC01
-    name: Definir os estados internos
-    description: As colunas da fila do time, com os nomes que o time usa. São do cliente, e não do PDS — é isso que dá trabalho ao motor de tradução.
+    name: Definir as colunas do quadro
+    description: "Os estados internos: as colunas do quadro, com os nomes que o time usa. São do cliente, e não do PDS — é isso que dá trabalho ao motor de tradução. O projeto nasce com A fazer, Fazendo e Feito."
     width: 250
     position: { x: 260, y: 0 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Estados.
-      - Cria os estados que o time usa, cada um com um nome.
-      - Põe os estados na ordem da fila.
-      - Escolhe em qual estado entra cada tipo de relato — defeito, melhoria ou dúvida.
-      - Renomeia ou aposenta o que não serve mais.
+      - O dono abre Colunas, que já vem com A fazer, Fazendo e Feito.
+      - Renomeia as que existem, ou cria as colunas que o time usa, cada uma com um nome.
+      - Põe as colunas na ordem do quadro, arrastando ou pelas setas. A última ativa é a que encerra o relato, de fábrica.
+      - Em cada coluna, escolhe o que quem relatou vê quando o card está nela — uma etapa do andamento público.
+      - Escolhe em qual coluna entra cada tipo de relato — defeito, melhoria ou dúvida.
+      - Desativa o que não serve mais.
+      - Ajusta como o quadro mostra o fim e os prazos — quantos dias a última coluna mostra, e com quantos dias de antecedência o prazo do card fica em destaque — e salva.
     alternativeFlows:
-      - title: 5a. O estado aposentado ainda tem relatos
+      - title: 2a. A coluna nova
         steps:
-          - "Ele sai da fila, mas não some: os relatos antigos continuam apontando para ele, e o histórico continua legível."
-      - title: 5b. O estado é a entrada de algum tipo de relato
+          - Ela nasce ligada à etapa da última coluna ativa de antes, e o painel diz qual — para não ficar fora do andamento sem ninguém perceber.
+      - title: 6a. A coluna desativada ainda tem cards
         steps:
-          - O painel não aposenta, e pede para escolher outro destino para aquele tipo antes.
-      - title: 5c. O dono reativa um estado aposentado
+          - "O painel diz quantos cards ficam nela antes de desativar. Ela sai do quadro para os cards novos, mas não some: os cards continuam nela até alguém arrastá-los, e o histórico continua legível."
+      - title: 6b. A coluna é a entrada de algum tipo de relato
         steps:
-          - O estado volta para a fila com o mesmo nome, e volta a poder receber relatos.
-    postconditions: Todo relato novo cai no estado de entrada do tipo dele — sem escolha, no primeiro estado ativo.
+          - O painel não desativa, e pede para escolher outro destino para aquele tipo antes.
+      - title: 6c. O dono reativa uma coluna desativada
+        steps:
+          - A coluna volta para o quadro com o mesmo nome, e volta a poder receber cards.
+      - title: 7a. O dono sai da tela sem salvar as regras do quadro
+        steps:
+          - O painel pergunta antes de sair, e "Voltar e salvar" salva.
+    postconditions: "Todo relato novo cai na coluna de entrada do tipo dele — sem escolha, na primeira coluna ativa. No quadro, a última coluna mostra 14 dias, e o prazo fica em destaque faltando 2 — com uma coluna só, ela é a entrada da fila e mostra tudo; zero mostra todos, e o resto continua na lista."
   - id: UC02
-    name: Desenhar as etapas públicas
-    description: "A jornada que quem relatou vê: de 3 a 7 etapas, cada uma com um rótulo curto e uma frase para quem está esperando."
+    name: Desenhar o andamento público
+    description: "A jornada que quem relatou vê, em etapas públicas: de 3 a 7, cada uma com um rótulo curto e uma frase para quem está esperando."
     width: 250
     position: { x: 260, y: 125 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - "O dono abre Etapas públicas, que já vem com a jornada de fábrica: Recebido, Em análise, Em desenvolvimento, Em teste pela equipe e Concluído."
-      - Acrescenta, remove, reordena ou reescreve as etapas.
+      - "O dono abre Andamento público, que já vem com a jornada de fábrica: Recebido, Em análise, Em desenvolvimento, Em teste pela equipe e Concluído."
+      - Acrescenta, apaga, reordena ou reescreve as etapas.
       - Em cada etapa, escreve o rótulo, a frase que explica e, se quiser, o que vem depois.
       - Marca as etapas terminais, cada uma com o desfecho que representa, e as que permitem retorno.
       - Salva.
@@ -48,24 +56,27 @@ useCases:
           - O sistema não deixa. Menos que isso não conta uma história; mais que isso cria etapa decorativa, que nunca anda e faz a linha do tempo mentir.
     postconditions: A página de acompanhamento passa a mostrar a jornada nova.
   - id: UC03
-    name: Ligar os estados às etapas
-    description: "O mapa: vários estados internos caem numa mesma etapa pública, porque o time precisa de um detalhe que quem relatou não precisa."
+    name: Ligar as colunas às etapas
+    description: "O mapa: várias colunas caem numa mesma etapa pública, porque o time precisa de um detalhe que quem relatou não precisa. O projeto novo já nasce com ele: A fazer em Recebido, Fazendo em Em desenvolvimento, Feito em Concluído."
     width: 250
     position: { x: 260, y: 250 }
-    preconditions: Existem estados internos (UC01) e etapas públicas (UC02).
+    preconditions: Existem colunas (UC01) e etapas públicas (UC02).
     mainFlow:
-      - Na tela das etapas, o dono vê a lista dos estados internos, sem digitar nada.
-      - Escolhe, para cada estado, a etapa pública em que ele cai.
-      - Salva.
+      - Em Andamento público, o dono vê a lista das colunas, sem digitar nada.
+      - Escolhe, para cada coluna, a etapa pública em que ela cai.
+      - Salva o mapeamento.
       - O sistema grava uma versão nova do mapa.
     alternativeFlows:
-      - title: 2a. Um estado fica sem etapa
+      - title: 1a. Pela tela de Colunas
         steps:
-          - O relato que entra nesse estado fica na etapa em que estava, o evento é gravado como não mapeado, e o dono é avisado. Nada vaza e nada quebra.
+          - Cada coluna diz o que quem relatou vê nela, e escolher ali grava o mapa inteiro — uma versão nova por escolha.
+      - title: 2a. Uma coluna fica sem etapa
+        steps:
+          - O relato que entra nessa coluna fica na etapa em que estava, o evento é gravado como não mapeado, e o dono é avisado. Nada vaza e nada quebra.
     postconditions: Daqui em diante, mover o relato por dentro move a etapa por fora. O mapa antigo continua valendo para o que já aconteceu.
   - id: UC04
     name: Definir as regras do ciclo
-    description: "Como o relato termina: o gesto que encerra, a espera antes de quem relatou ver, a reabertura, a nota, o pedido de informação e se o time arquiva relato. E duas regras do quadro: quantos dias a última coluna mostra, e quando o prazo fica em destaque."
+    description: "Como o relato termina: o gesto que encerra, a espera antes de quem relatou ver, a reabertura, a nota, o pedido de informação e se o time arquiva relato. As regras do quadro ficam em Colunas (UC01), e as sprints, em Sprints (UC10)."
     width: 250
     position: { x: 260, y: 375 }
     preconditions: O dono está no painel, dentro do projeto.
@@ -76,15 +87,16 @@ useCases:
       - Decide se quem relatou pode reabrir, para qual coluna o relato volta, e se reabrir pede um comentário.
       - Decide se existe nota ao confirmar, como ela aparece — estrelas ou número — e se é obrigatória.
       - Decide se o time pode pedir informação, e os dois prazos — o do aviso e o do encerramento.
-      - Escolhe se a caixa “aceito responder dúvidas” já vem marcada na ferramenta.
       - Decide se o time pode arquivar relato — arquivar um relato aberto encerra junto, com o motivo que quem relatou lê.
-      - Escolhe quantos dias a última coluna do quadro mostra — com uma coluna só, ela é a entrada da fila e mostra tudo; zero mostra todos, e o resto continua na lista — e com quantos dias de antecedência o prazo do card fica em destaque.
-      - Salva.
+      - Salva — o botão aparece só com mudança.
     alternativeFlows:
       - title: 3a. Não há agendador disponível
         steps:
           - O sistema recusa a espera maior que zero e diz por quê.
-    postconditions: "Projeto que nunca abriu esta tela anda com os padrões de fábrica: encerra na última coluna, sem espera, reabre com comentário, nota em estrelas opcional, pedido de informação com 7 + 7 dias e relato sem arquivar; no quadro, a última coluna mostra 14 dias, e o prazo fica em destaque faltando 2."
+      - title: 8a. O dono sai da tela sem salvar
+        steps:
+          - O painel pergunta antes de sair; "Voltar e salvar" salva, e "Sair sem salvar" descarta.
+    postconditions: "Projeto que nunca abriu esta tela anda com os padrões de fábrica: encerra na última coluna, sem espera, reabre com comentário, nota em estrelas opcional, pedido de informação com 7 + 7 dias, relato sem arquivar, e a caixa “aceito responder dúvidas” já marcada na ferramenta — regra que a API guarda e a tela ainda não mostra."
   - id: UC05
     name: Escolher identidade e visibilidade
     description: "Como quem relata é reconhecido, e quem pode ler os relatos. As duas perguntas se amarram: sem identidade não existe “o meu relato”."
@@ -92,7 +104,7 @@ useCases:
     position: { x: 260, y: 500 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Identidade.
+      - O dono abre Quem relata.
       - Escolhe o modo — protocolo, que é o padrão; código pessoal; ou identidade herdada, que pode ser escolhida mas ainda não é lida — adiada, ver 04-reporting.
       - Escolhe a visibilidade — privado, que é o padrão; público anônimo; ou público identificado.
       - Decide se a ferramenta pergunta o nome de quem relata — sempre opcional para quem escreve.
@@ -103,13 +115,13 @@ useCases:
           - "O sistema recusa o par e diz a saída: escolher o código pessoal, ou publicar como anônimo. Nada é gravado."
     postconditions: Trocar de modo não quebra relato antigo. Escolher público não publica nada sozinho — ver 07-moderation.
   - id: UC06
-    name: Configurar a mídia
+    name: Configurar os anexos
     description: "O que a ferramenta coleta além do texto: imagens, arquivos e a captura de uma área da página — e em que momentos dá para anexar."
     width: 250
     position: { x: 260, y: 625 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Mídia.
+      - O dono abre Anexos.
       - Liga ou desliga o anexo.
       - Para imagem, escolhe quantas cabem em cada envio e o tamanho máximo de cada uma.
       - Para arquivo — desligado de fábrica —, escolhe quantos, o tamanho máximo, e quais formatos do catálogo aceita — PDF, texto e log, planilha, documento, JSON. Zip não é aceito: pode trazer qualquer coisa dentro.
@@ -133,7 +145,7 @@ useCases:
     position: { x: 260, y: 750 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Mídia.
+      - O dono abre Anexos.
       - Escolhe por quanto tempo os arquivos ficam guardados.
       - Salva.
     postconditions: Quando o prazo de um arquivo vence, o agendador o apaga — ver 05-team-work.
@@ -147,23 +159,45 @@ useCases:
       - O dono abre Prioridades.
       - Renomeia ou troca a cor de uma prioridade, ou cria outra.
       - Põe as prioridades na ordem, da menos para a mais urgente.
-      - Aposenta a que não serve mais.
+      - Desativa a que não serve mais.
     alternativeFlows:
-      - title: 4a. A prioridade aposentada está em cards
+      - title: 4a. A prioridade desativada está em cards
         steps:
-          - Ela continua neles, marcada, e sai da lista de escolha.
+          - Ela continua neles, marcada, e sai da lista de escolha. Reativar a devolve.
     postconditions: O time escolhe a prioridade do card entre as que estão ativas — e o card nasce sem nenhuma.
   - id: UC09
     name: Organizar as etiquetas
-    description: As etiquetas nascem no card, criadas pelo time. Aqui o dono arruma depois.
+    description: As etiquetas nascem no card, criadas pelo time. Aqui o dono arruma depois — e também cria.
     width: 250
     position: { x: 260, y: 1000 }
-    preconditions: O dono está no painel, dentro do projeto, e o time já criou etiquetas.
+    preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
       - O dono abre Etiquetas, e vê em quantos cards cada uma está.
+      - Cria uma etiqueta, com a cor.
       - Renomeia ou troca a cor de uma etiqueta.
       - Apaga a que sobrou, depois de ver de quantos cards ela sai.
+    alternativeFlows:
+      - title: 2a. O nome já existe
+        steps:
+          - O sistema devolve a etiqueta que já existe, em vez de criar outra igual.
     postconditions: A etiqueta apagada sai de todos os cards, e o histórico de cada um continua com o nome dela.
+  - id: UC10
+    name: Ligar as sprints
+    description: Para o time que trabalha em ciclos curtos. Desligadas de fábrica; ligadas, o Trabalho ganha o Backlog e o quadro mostra só a sprint em andamento — ver 05-team-work.
+    width: 250
+    position: { x: 260, y: 1125 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Sprints.
+      - Marca "Trabalhar em sprints".
+      - O painel avisa quantos cards em trabalho vão para o Backlog, e que o quadro fica vazio até a primeira sprint começar.
+      - Escolhe com quantas semanas cada sprint nasce — de 1 a 4; 2 de fábrica.
+      - Salva, e o painel aponta o caminho até o Backlog.
+    alternativeFlows:
+      - title: 2a. O dono desliga
+        steps:
+          - Nada é apagado. O quadro volta a mostrar tudo, e religar devolve a sprint em andamento como estava.
+    postconditions: Cada sprint nasce com a duração escolhida, e começa no dia em que for iniciada.
 links:
   - from: Dono do projeto
     to: UC01
@@ -192,8 +226,11 @@ links:
   - from: Dono do projeto
     to: UC09
     kind: association
+  - from: Dono do projeto
+    to: UC10
+    kind: association
 notes:
-  - text: "De cima para baixo é a ordem em que faz sentido configurar: sem estados e etapas não há o que ligar, e o ciclo usa os dois. Mas nada aqui é obrigatório."
+  - text: "De cima para baixo é a ordem em que faz sentido configurar: sem colunas e etapas não há o que ligar, e o ciclo usa os dois. Mas nada aqui é obrigatório: o projeto novo já nasce com as três colunas, o andamento e o mapa entre eles."
     position: { x: 590, y: 10 }
   - text: O motor não anda para trás sozinho. Regressão interna não vira regressão pública, a não ser para uma etapa que permite retorno — e o retrocesso continua gravado por dentro.
     anchor: UC03
