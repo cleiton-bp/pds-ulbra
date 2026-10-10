@@ -129,6 +129,26 @@ public static partial class OriginDomain
         return value.TrimEnd('.');
     }
 
+    /// <summary>
+    /// Uma linha de lista — autorizados ou bloqueados — vale para o endereco
+    /// declarado? Comparacao exata, ou sufixo quando a linha pede os subdominios.
+    ///
+    /// <para><b>Uma regra so para as duas listas.</b> Se a autorizacao e o bloqueio
+    /// comparassem de jeitos diferentes, o mesmo endereco poderia estar "na lista"
+    /// para uma e "fora" para a outra — e a tela mostraria o contrario do que a API
+    /// faz.</para>
+    ///
+    /// <para>O ponto na frente do sufixo nao e enfeite: sem ele, <c>site.com</c> com
+    /// subdominios valeria tambem para <c>meu-site.com</c>, que e de outra
+    /// pessoa.</para>
+    /// </summary>
+    /// <param name="domain">O dominio da linha, ja normalizado.</param>
+    /// <param name="subdomains">A linha vale tambem para o que estiver abaixo dele.</param>
+    /// <param name="declared">O endereco declarado, ja em <see cref="ForComparison"/>.</param>
+    public static bool Covers(string domain, bool subdomains, string declared)
+        => string.Equals(domain, declared, StringComparison.Ordinal)
+           || (subdomains && declared.EndsWith($".{domain}", StringComparison.Ordinal));
+
     [GeneratedRegex(@"^[a-z][a-z0-9+.-]*://|^//")]
     private static partial Regex SchemePrefix();
 

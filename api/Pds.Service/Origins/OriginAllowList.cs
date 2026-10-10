@@ -4,7 +4,8 @@ namespace Pds.Service.Origins;
 
 /// <summary>
 /// A lista de enderecos autorizados de um projeto, respondendo a unica pergunta
-/// que se faz a ela: <b>esta pagina pode abrir a ferramenta deste projeto?</b>
+/// que se faz a ela: <b>o relato desta pagina entra direto no Trabalho?</b> O que ela
+/// nao cobre e recebido e fica retido ate o time decidir.
 ///
 /// <para><b>O que ela pega, e o que ela nao pega.</b> O endereco chega declarado
 /// pela propria pagina hospedeira — e quem declara e o carregador, que e codigo
@@ -14,7 +15,8 @@ namespace Pds.Service.Origins;
 ///
 /// <para>Ou seja: <b>isto e grade de protecao, e nao muro.</b> Ela pega o acidente,
 /// que e o caso comum — a chave da producao numa pagina de teste, a chave de um
-/// cliente no site de outro. O muro e o <c>frame-ancestors</c>, que precisa de um
+/// cliente no site de outro. Por isso existem tambem os limites por IP e por projeto
+/// na entrada do relato: eles nao dependem do que a pagina declara. O muro e o <c>frame-ancestors</c>, que precisa de um
 /// servidor servindo o documento do quadro para montar o cabecalho por projeto, e
 /// chega quando houver dominio proprio. Enquanto isso, o que esta escrito aqui e o
 /// que de fato acontece.</para>
@@ -28,32 +30,26 @@ public static class OriginAllowList
     public static bool Declares(string? origin) => OriginDomain.ForComparison(origin).Length > 0;
 
     /// <summary>
-    /// Duas regras que parecem frouxas e sao deliberadas:
+    /// Alguma linha da lista vale para este endereco? <b>Lista vazia nao cobre nada</b>,
+    /// e o endereco nao declarado tambem nao: o relato de um endereco que a lista nao
+    /// cobre e recebido, mas fica retido ate o time permitir ou bloquear o endereco
+    /// (ver <see cref="OriginGate"/>).
     ///
-    /// <para><b>Lista vazia autoriza qualquer lugar.</b> Nao e "nada autorizado":
-    /// e "ainda nao restringi". Todo projeto que existe hoje tem a lista vazia, e
-    /// a leitura estrita apagaria a ferramenta em toda instalacao no ar de uma vez
-    /// — sem erro na tela de ninguem, porque o quadro que nao pode abrir nao
-    /// aparece. E exigir um dominio cadastrado antes do primeiro relato
-    /// transformaria uma instalacao de dois passos em tres, com o terceiro
-    /// falhando calado.</para>
-    ///
-    /// <para><b>Quem nao declara endereco passa.</b> Recusar o silencio nao ganha
-    /// nada — quem quer burlar declara um endereco valido, nao omite — e custa
-    /// caro: o relato de teste do painel abre o quadro sem pagina hospedeira e nao
-    /// declara nada, e passaria a ser recusado no minuto em que a pessoa
-    /// autorizasse o proprio site. So <b>o endereco declarado e fora da lista</b> e
-    /// recusado.</para>
+    /// <para>Antes, a lista vazia autorizava qualquer lugar — "ainda nao restringi".
+    /// Isso deixava o relato de um site que copiou a chave entrar no Trabalho sem
+    /// ninguem ter dito sim. Reter, em vez de recusar, mantem a instalacao em dois
+    /// passos: o primeiro relato chega, e o sino pergunta se o endereco e do
+    /// cliente.</para>
     /// </summary>
-    public static bool Allows(IReadOnlyList<ProjectOrigin> origins, string? declared)
+    public static bool Covers(IReadOnlyList<ProjectOrigin> origins, string? declared)
     {
         if (origins.Count == 0)
-            return true;
+            return false;
 
         var value = OriginDomain.ForComparison(declared);
 
         if (value.Length == 0)
-            return true;
+            return false;
 
         return origins.Any(origin => Matches(origin, value));
     }
@@ -71,6 +67,5 @@ public static class OriginAllowList
     /// outra pessoa.</para>
     /// </summary>
     private static bool Matches(ProjectOrigin origin, string declared)
-        => string.Equals(origin.Domain, declared, StringComparison.Ordinal)
-           || (origin.AllowsSubdomains && declared.EndsWith($".{origin.Domain}", StringComparison.Ordinal));
+        => OriginDomain.Covers(origin.Domain, origin.AllowsSubdomains, declared);
 }

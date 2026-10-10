@@ -132,15 +132,10 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
 
         var project = found.Project;
 
-        // Endereco declarado fora da lista do projeto: a ferramenta nao abre ali, e
-        // portanto nao ha anexo nenhum a descrever.
-        if (OriginAllowList.Declares(origin))
-        {
-            var origins = await _unitOfWork.ProjectOrigins.ListByProjectWithoutSessionAsync(project.Id, cancellationToken);
-
-            if (!OriginAllowList.Allows(origins, origin))
-                throw new ForbiddenException("Este endereco nao esta autorizado a abrir a ferramenta deste projeto.");
-        }
+        // O endereco bloqueado: a ferramenta nao abre ali, e portanto nao ha anexo
+        // nenhum a descrever. A mesma porta da configuracao do quadro — o endereco fora
+        // da lista de autorizados abre, e o relato dele fica retido.
+        await OriginGate.EnsureNotBlockedAsync(_unitOfWork, project.Id, origin, cancellationToken);
 
         return ToPublic(MediaSettingsDefaults.Resolve(
             await _unitOfWork.ProjectMediaSettings.FindByProjectWithoutSessionAsync(project.Id, cancellationToken)));

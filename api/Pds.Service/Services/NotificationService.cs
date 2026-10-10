@@ -88,7 +88,9 @@ public class NotificationService : INotificationService
     public async Task<NotificationCountViewModel> MarkAllReadAsync(CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
-        await _unitOfWork.Notifications.MarkAllReadAsync(userId, DateTime.UtcNow, cancellationToken);
+        if (await _unitOfWork.Notifications.MarkAllReadAsync(userId, DateTime.UtcNow, cancellationToken) > 0)
+            await _unitOfWork.CommitAsync(cancellationToken);
+
         return await CountUnreadAsync(cancellationToken);
     }
 
@@ -153,13 +155,18 @@ public class NotificationService : INotificationService
             aviso.ReadAt,
             aviso.ActorUser is null ? null : PersonNameOrNull(aviso.ActorUser),
             new NotificationProjectViewModel(aviso.Project.PublicId, aviso.Project.Name),
-            new CardParentViewModel(
-                aviso.Report.PublicId,
-                aviso.Report.Number,
-                Report.HeadlineOf(aviso.Report.Title, aviso.Report.ReporterTitle, aviso.Report.Text)),
+            aviso.Report is null
+                ? null
+                : new CardParentViewModel(
+                    aviso.Report.PublicId,
+                    aviso.Report.Number,
+                    Report.HeadlineOf(aviso.Report.Title, aviso.Report.ReporterTitle, aviso.Report.Text)),
             aviso.ReportInternalComment is null
                 ? null
-                : new NotificationCommentViewModel(aviso.ReportInternalComment.PublicId, Excerpt(aviso.ReportInternalComment.Body)));
+                : new NotificationCommentViewModel(aviso.ReportInternalComment.PublicId, Excerpt(aviso.ReportInternalComment.Body)),
+            aviso.Subject,
+            aviso.LimitScope,
+            aviso.PausedUntil);
 
     /// <summary>
     /// O comeco do comentario, como a pessoa le: o pedido da mencao, sem precisar abrir o
