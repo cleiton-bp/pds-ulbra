@@ -1,5 +1,7 @@
 <h2>project_widget_settings</h2>
 
+<p>A aparência da ferramenta no site do cliente. No painel, é a tela <strong>Botão no site</strong>.</p>
+
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Único entre os não apagados. É o que faz o 1:1.</td></tr>
@@ -54,6 +56,12 @@
 
 <h2>project_cycle_settings</h2>
 
+<p>As regras do ciclo, numa linha por projeto, que <strong>três telas</strong> do painel mostram:
+<strong>Ciclo</strong> — como um relato termina, o que quem relatou lê e quando ele pode reabrir —,
+<strong>Sprints</strong> (<code>sprints_enabled</code> e <code>sprint_length_weeks</code>) e
+<strong>Colunas</strong>, na parte de como o quadro mostra o fim e os prazos
+(<code>last_column_visible_days</code> e <code>due_soon_days</code>).</p>
+
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
@@ -79,11 +87,20 @@
 
 <div class="note why">
   <strong>A linha só nasce quando alguém salva</strong>
-  <p>Os dezesseis padrões vivem no código, em <code>CycleSettingsDefaults</code>. Projeto sem linha
+  <p>Os dezoito padrões vivem no código, em <code>CycleSettingsDefaults</code>. Projeto sem linha
   aqui é projeto que nunca precisou mudar nada — e lê exatamente o mesmo comportamento de quem
   salvou os padrões. É o mesmo molde de <code>project_widget_settings</code>.</p>
   <p>O ganho é que acrescentar uma regra nova não exige tocar em nenhuma linha existente: ela
   nasce com valor de fábrica para todo mundo, inclusive para quem já salvou.</p>
+</div>
+
+<div class="note warn">
+  <strong>Três telas, uma linha só</strong>
+  <p>A gravação substitui a linha inteira, como em <code>project_widget_settings</code>. Por isso
+  cada tela lê a linha, muda só os campos dela e manda de volta os outros como leu: a tela de Sprints
+  não pode apagar a espera que o Ciclo gravou, nem o Ciclo os dias da última coluna. A divisão em
+  três telas é de quem usa — achar a regra onde se procura por ela —, e não do banco: a linha, a rota
+  e os padrões continuam um só.</p>
 </div>
 
 <div class="note why">
@@ -107,6 +124,9 @@
 </div>
 
 <h2>project_identity_settings</h2>
+
+<p>Como quem relata é identificado, e quem vê os relatos. No painel, é a tela <strong>Quem
+relata</strong>.</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>

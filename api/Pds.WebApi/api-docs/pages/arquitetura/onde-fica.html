@@ -12,6 +12,10 @@
   <tr><td>Nome de tabela, coluna, índice</td><td><code>Pds.Data/Types/*Map.cs</code></td></tr>
   <tr><td>Login e criação de conta</td><td><code>Pds.Service/Services/AuthService.cs</code></td></tr>
   <tr><td>Geração e conferência de chave</td><td><code>Pds.Service/Security/ProjectKeyGenerator.cs</code></td></tr>
+  <tr><td><strong>O projeto novo</strong>: a chave pública, as colunas A fazer, Fazendo e Feito já ligadas ao andamento público, e as prioridades — sem a chave secreta</td><td><code>Pds.Service/Services/ProjectService.cs</code>, <code>CreateAsync</code> e <code>FactoryStates</code></td></tr>
+  <tr><td>A jornada de fábrica, de onde vem a etapa de cada coluna nova</td><td><code>Pds.Service/PublicStages/FactoryPublicStages.cs</code></td></tr>
+  <tr><td>Gerar a chave secreta sob pedido, ou trocar a que vale</td><td><code>Pds.Service/Services/ProjectKeyService.cs</code>, <code>RegenerateSecretAsync</code></td></tr>
+  <tr><td>O movimento do projeto: o último relato de fora e a última mudança em card, numa consulta só</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>ActivityOfAsync</code>, e <code>Pds.Domain/Filters/ProjectActivity.cs</code></td></tr>
   <tr><td>Quem é a pessoa da requisição, e que projetos ela enxerga</td><td><code>Pds.WebApi/Authorization/AccountMiddleware.cs</code></td></tr>
   <tr><td>O papel que cada rota exige, e o 403</td><td><code>Pds.WebApi/Authorization/RequireProjectRoleAttribute.cs</code></td></tr>
   <tr><td>A subida que recusa rota de projeto sem papel, ou de escrita sem administrador</td><td><code>Pds.WebApi/Authorization/ProjectRoleCoverage.cs</code></td></tr>
@@ -35,7 +39,7 @@
   <tr><td>Tetos do sistema por envio e por tamanho</td><td><code>Pds.Domain/Entities/ProjectMediaSettings/ProjectMediaKind.cs</code></td></tr>
   <tr><td><strong>O catálogo de arquivos</strong>: formatos, extensões, tipo gravado, conferência dos bytes</td><td><code>Pds.Domain/Entities/ReportAttachment/FileFormats.cs</code></td></tr>
   <tr><td>A conferência dos bytes da imagem</td><td><code>Pds.Domain/Entities/ReportAttachment/MediaSignatures.cs</code></td></tr>
-  <tr><td>A tela de Mídia, e a recusa sem armazenamento</td><td><code>Pds.Service/Services/ProjectMediaSettingsService.cs</code>, <code>ReplaceAsync</code></td></tr>
+  <tr><td>A tela de Anexos, e a recusa sem armazenamento</td><td><code>Pds.Service/Services/ProjectMediaSettingsService.cs</code>, <code>ReplaceAsync</code></td></tr>
   <tr><td><strong>Pedir a permissão de envio</strong>: link, regra, prazo e cota</td><td><code>Pds.Service/Services/ReportAttachmentService.cs</code>, <code>RequestUploadAsync</code></td></tr>
   <tr><td><strong>Confirmar</strong>: bytes, cota com trava, cópia para o nome final</td><td><code>Pds.Service/Services/ReportAttachmentService.cs</code>, <code>ConfirmAsync</code></td></tr>
   <tr><td>Ler os anexos: painel, link e código pessoal</td><td><code>Pds.Service/Services/ReportAttachmentService.cs</code>, <code>ListForPanelAsync</code>, <code>ListForTrackingAsync</code> e <code>ListForReporterCodeAsync</code></td></tr>
@@ -50,7 +54,7 @@
   <tr><td>As opções da seção <code>Smtp</code>, e os padrões</td><td><code>Pds.Email/SmtpOptions.cs</code></td></tr>
   <tr><td>Ligar o e-mail na subida, ou não, e o que é configuração pela metade</td><td><code>Pds.Email/EmailRegistration.cs</code> e <code>UnavailableEmailSender.cs</code></td></tr>
   <tr><td>O que conta como endereço: um só, com domínio</td><td><code>Pds.Email/EmailAddresses.cs</code></td></tr>
-  <tr><td>O time: listar, mudar o papel, tirar do time</td><td><code>Pds.Service/Services/ProjectMemberService.cs</code></td></tr>
+  <tr><td>O time: listar, mudar o papel, tirar do time — e sair, que é de qualquer um</td><td><code>Pds.Service/Services/ProjectMemberService.cs</code>, <code>RemoveAsync</code></td></tr>
   <tr><td><strong>O convite</strong>: convidar, reenviar, cancelar, abrir pelo link e aceitar</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code></td></tr>
   <tr><td>Montar e mandar o e-mail do convite, e a recuperação da subida</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code>, <code>SendEmailAsync</code> e <code>RecoverEmailsAsync</code></td></tr>
   <tr><td>Sortear o link do convite, e o hash dele</td><td><code>Pds.Service/Security/InvitationToken.cs</code></td></tr>
@@ -60,6 +64,13 @@
   <tr><td>O prazo do convite, e o padrão de fábrica</td><td><code>Pds.Domain/Entities/ProjectTeamSettings/ProjectTeamSettings.cs</code></td></tr>
   <tr><td>O endereço do painel no link, e o limite de convites por hora</td><td><code>Pds.Domain/Constants/EnvironmentConstants.cs</code>, <code>GetPanelUrl</code> e <code>GetInvitationEmailsPerHour</code></td></tr>
   <tr><td><strong>O card do time</strong>: criar, editar, arquivar e desarquivar</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateTeamCardAsync</code>, <code>EditTeamCardAsync</code> e <code>SetArchivedAsync</code></td></tr>
+  <tr><td>A edição que não apaga o que outra pessoa salvou (o <code>Base</code> e o 409)</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>EditTeamCardAsync</code> e <code>MesmoTexto</code></td></tr>
+  <tr><td><strong>Ordenar a lista</strong>: o campo, a direção e o vazio no fim</td><td><code>Pds.Domain/Filters/ReportListSort.cs</code>, <code>ReportService.Filters.cs</code> (<code>ResolveSort</code>) e <code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>Ordenar</code></td></tr>
+  <tr><td>Os filtros da lista: em aberto, sem subtarefas e as colunas</td><td><code>ReportService.Filters.cs</code>, <code>ResolveCardFilterAsync</code> e <code>ResolveColumnsAsync</code>, e <code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>Filtrar</code></td></tr>
+  <tr><td>Quantos cards a lista traz por página</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>DefaultPageSize</code></td></tr>
+  <tr><td>Corrigir e apagar o comentário interno, e acertar os avisos da menção</td><td><code>Pds.Service/Services/ReportCommentService.cs</code>, <code>EditInternalAsync</code>, <code>DeleteInternalAsync</code> e <code>AcertarMencoesAsync</code></td></tr>
+  <tr><td>O sino de página em página, só os não lidos, e o trecho da menção</td><td><code>Pds.Service/Services/NotificationService.cs</code>, <code>ListAsync</code> e <code>Excerpt</code>, e <code>Pds.Data/Repositories/NotificationRepository.cs</code>, <code>ListForUserAsync</code></td></tr>
+  <tr><td>O dia de hoje de quem pede, ao criar, iniciar e concluir sprint</td><td><code>Pds.Service/Services/SprintService.cs</code>, <code>TodayOf</code></td></tr>
   <tr><td>O que o card do time recusa, e o mover que não encerra nem anda lá fora</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>MoveAsync</code>, <code>CloseAsync</code> e <code>AskInfoAsync</code></td></tr>
   <tr><td>As travas que separam relato de card do time</td><td><code>Pds.Data/Types/ReportMap.cs</code></td></tr>
   <tr><td>Reservar o próximo número do card</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextCardNumberAsync</code></td></tr>

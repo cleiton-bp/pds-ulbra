@@ -1,6 +1,6 @@
 <h2>Sprints e backlog</h2>
 
-<p>O time que trabalha em ciclos curtos liga as sprints no Ciclo
+<p>O time que trabalha em ciclos curtos liga as sprints na tela Sprints
 (<code>project_cycle_settings.sprints_enabled</code>). As sprints moram em <code>sprints</code>; o
 card ganha a sprint em que está (<code>reports.sprint_id</code>, nula no backlog), a estimativa em
 pontos (<code>reports.story_points</code>) e o lugar no backlog (<code>reports.backlog_rank</code>).</p>
@@ -20,7 +20,7 @@ pontos (<code>reports.story_points</code>) e o lugar no backlog (<code>reports.b
   <tr><td><code>number</code></td><td>O número da sprint no projeto — o da "Sprint 3". Vem de <code>projects.last_sprint_number</code>, somado numa gravação só, como o número do card: duas sprints criadas ao mesmo tempo saem cada uma com o seu, e a apagada não devolve o número.</td></tr>
   <tr><td><code>name</code>, <code>goal</code></td><td>O nome (até 60) e o objetivo opcional (até 500).</td></tr>
   <tr><td><code>state</code></td><td><code>planned</code> | <code>active</code> | <code>closed</code>.</td></tr>
-  <tr><td><code>starts_on</code>, <code>ends_on</code></td><td>O primeiro e o último dia, só datas. Nascem com a duração padrão do projeto, e se ajustam.</td></tr>
+  <tr><td><code>starts_on</code>, <code>ends_on</code></td><td>O primeiro e o último dia, só datas. Nascem com a duração padrão do projeto, e se ajustam. <b>Iniciar sem datas reescreve as duas</b>: a sprint começa no dia de quem inicia e dura o padrão do projeto — as planejadas eram previsão. "Hoje" é o dia de quem pede (<code>Today</code>), e não o de Greenwich; sem ele, ou a mais de um dia do relógio do servidor, vale o dia em UTC.</td></tr>
   <tr><td><code>started_at</code>, <code>closed_at</code></td><td>Quando foi iniciada e concluída.</td></tr>
 </table>
 </div>
@@ -49,4 +49,6 @@ que iniciam ao mesmo tempo.</p>
   apontando para ela, que é a história do que aconteceu. Se um desses cards volta a andar — o
   relato que quem relatou reabriu —, ele conta como backlog de novo: a sprint concluída não recebe
   nem mostra nada.</p>
+  <p>A lista das sprints traz só as que andam; com <code>closed=true</code>, vêm também as
+  concluídas, da mais recente para a mais antiga — a história, para quem precisa escolher uma.</p>
 </div>

@@ -20,7 +20,7 @@ prazo</strong> — o responsável (<code>reports.assignee_user_id</code>), a pri
   <tr><td><code>name</code></td><td>O nome que o time deu. Até 40, único no projeto sem diferenciar maiúscula (conferido no serviço; o índice único é a rede embaixo).</td></tr>
   <tr><td><code>color</code></td><td><code>gray</code> | <code>blue</code> | <code>green</code> | <code>yellow</code> | <code>orange</code> | <code>red</code> | <code>purple</code> | <code>pink</code>. Paleta fixa.</td></tr>
   <tr><td><code>position</code></td><td>A ordem, da menos para a mais urgente. Não é única: reordenar reescreve a lista inteira.</td></tr>
-  <tr><td><code>deactivated_at</code></td><td>Nulo enquanto a prioridade pode ser escolhida. Preenchido, ela está <b>aposentada</b>.</td></tr>
+  <tr><td><code>deactivated_at</code></td><td>Nulo enquanto a prioridade pode ser escolhida. Preenchido, ela está <b>desativada</b>.</td></tr>
 </table>
 </div>
 
@@ -30,14 +30,15 @@ prazo</strong> — o responsável (<code>reports.assignee_user_id</code>), a pri
   <strong>Baixa, Média, Alta e Urgente</strong> (azul, amarelo, laranja, vermelho), e os projetos
   que já existiam as ganharam na migração. O administrador renomeia, troca a cor, reordena ou cria
   outras.</p>
-  <p><strong>O card nasce sem prioridade.</strong> Escolher é decisão de alguém do time; uma
-  prioridade de fábrica no card novo faria "Média" querer dizer "ninguém olhou ainda".</p>
+  <p><strong>O card nasce sem prioridade.</strong> Escolher é decisão de alguém do time — quem cria
+  o card do time pode tomá-la ali mesmo —; uma prioridade de fábrica no card novo faria "Média"
+  querer dizer "ninguém olhou ainda".</p>
 </div>
 
 <div class="note why">
-  <strong>Prioridade não se apaga, se aposenta</strong>
+  <strong>Prioridade não se apaga, se desativa</strong>
   <p>Como o estado: card antigo aponta para ela (<code>Restrict</code>), e o histórico precisa
-  continuar legível. Aposentada, ela continua no card que já a tinha e sai da lista de escolha — a
+  continuar legível. Desativada, ela continua no card que já a tinha e sai da lista de escolha — a
   API recusa pô-la num card novo.</p>
 </div>
 

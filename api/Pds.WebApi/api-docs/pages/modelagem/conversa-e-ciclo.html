@@ -21,6 +21,20 @@
   consegue limpar.</p>
 </div>
 
+<div class="note why">
+  <strong>O interno se corrige, e sem coluna nova</strong>
+  <p>Quem escreveu um comentário interno pode corrigir o texto e apagá-lo — só essa pessoa. A
+  correção reescreve <code>body</code>, e é o <code>updated_at</code> de sempre que diz que houve:
+  passando de um segundo depois de <code>created_at</code>, o comentário volta com
+  <code>EditedAt</code>, e a tela o marca como editado. O segundo de folga é para não marcar como
+  editado o que só foi gravado. Apagar é exclusão lógica, como o resto.</p>
+  <p><b>Nenhum evento novo.</b> O histórico registra que houve comentário, e não o que foi dito; a
+  correção fica no próprio comentário, e a linha "comentário entre o time" fica mesmo depois de
+  apagado — houve comentário.</p>
+  <p><b>O público não se corrige.</b> O que foi para quem relatou já saiu da empresa: a pessoa pode
+  ter lido, e trocar o texto depois seria reescrever uma conversa.</p>
+</div>
+
 <h2>report_closures</h2>
 
 <table>

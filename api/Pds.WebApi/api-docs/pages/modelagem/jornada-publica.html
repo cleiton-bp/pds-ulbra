@@ -36,9 +36,9 @@
 </div>
 
 <div class="note why">
-  <strong>Aqui se remove, e em <code>project_states</code> só se aposenta</strong>
-  <p>Não é descuido. O estado interno aposentado precisa continuar visível porque a tela do time
-  mostra a fila inteira, aposentados incluídos; a etapa pública removida não tem esse papel — o
+  <strong>Aqui se remove, e em <code>project_states</code> só se desativa</strong>
+  <p>Não é descuido. O estado interno desativado precisa continuar visível porque a tela do time
+  mostra a fila inteira, desativados incluídos; a etapa pública removida não tem esse papel — o
   que já passou por ela é contado pelos eventos, que guardam o rótulo que valia na época.</p>
   <p>A remoção é lógica: a linha continua no banco, com <code>deleted_at</code> preenchido.</p>
 </div>
@@ -109,7 +109,10 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   maior valor, essa versão seria invisível, e a anterior voltaria a valer sozinha — sem ninguém
   ter pedido.</p>
   <p>Por isso <code>projects.mapping_version</code>, com padrão zero. Zero quer dizer que o cliente
-  nunca ligou nada, e é o estado de todo projeto criado antes desta tabela.</p>
+  nunca ligou nada, e é o estado de todo projeto criado antes desta tabela. O projeto criado hoje
+  nasce na <strong>versão 1</strong>: as três colunas de fábrica já ligadas — A fazer → Recebido,
+  Fazendo → Em desenvolvimento, Feito → Concluído —, gravadas como se alguém tivesse salvo a tela. É
+  um mapa como qualquer outro, e a próxima gravação vira a versão 2.</p>
 </div>
 
 <div class="note why">
@@ -117,7 +120,9 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   <p>A ausência é a resposta, e não uma linha apontando para nada: duas formas de dizer a mesma
   coisa acabariam discordando. Estado novo nasce fora do mapa por consequência disso, que é o
   comportamento certo — o relato nele fica parado do lado de fora até alguém decidir onde ele
-  entra.</p>
+  entra. Quem decide, na tela de Colunas, é o painel: logo depois de criar a coluna, ele grava uma
+  versão nova do mapa ligando-a à etapa da última coluna ativa de antes, e mostra a escolha para
+  trocar ali mesmo. A tabela não muda por isso — é uma versão a mais, pela rota de sempre.</p>
   <p><code>Restrict</code> nos dois lados pela mesma razão que em <code>project_initial_states</code>:
   a regra mora no serviço — remover uma etapa que ainda recebe estado é recusado com
   <strong>409</strong> — e o banco é a rede embaixo dela.</p>

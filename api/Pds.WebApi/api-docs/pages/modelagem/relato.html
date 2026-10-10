@@ -59,7 +59,7 @@ relato porque ele veio primeiro.</p>
   <tr><td><code>archived_at</code></td><td>Quando o card saiu da tela de Trabalho. Nulo enquanto está nela. Arquivado se lê e se comenta; mover e editar pedem desarquivar.</td></tr>
   <tr><td><code>created_by_user_id</code></td><td>Quem do time criou o card. Nulo no relato: quem escreveu não tem usuário aqui. <code>Restrict</code>.</td></tr>
   <tr><td><code>assignee_user_id</code></td><td>Quem do time está com o card — um só. <b>Quem sai do time continua aqui</b>, como registro; o painel o marca como fora do time. <code>Restrict</code>. Interno.</td></tr>
-  <tr><td><code>priority_id</code></td><td>A prioridade do projeto que o time escolheu (<code>project_priorities</code>). <b>Nulo é sem prioridade</b>, e é como o card nasce. <code>Restrict</code>. Interno.</td></tr>
+  <tr><td><code>priority_id</code></td><td>A prioridade do projeto que o time escolheu (<code>project_priorities</code>). <b>Nulo é sem prioridade</b>, e é como o card nasce — a não ser que quem cria o card do time já escolha uma. <code>Restrict</code>. Interno.</td></tr>
   <tr><td><code>due_date</code></td><td>O prazo: <b>só a data</b>, sem hora — sem fuso para confundir. Nulo é sem prazo. Interno.</td></tr>
   <tr><td><code>project_state_id</code></td><td>Onde o relato está na fila. <b>Anulável</b>, e vai continuar: projeto sem estado nenhum não tem onde pô-lo, e recusar o relato por isso seria perder o que veio de fora por uma configuração que o cliente não fez.</td></tr>
   <tr><td><code>parent_report_id</code></td><td>O card de que este é <b>subtarefa</b>; nulo no card que não é. Só o card do time é subtarefa, e ninguém é pai de si mesmo — duas travas no banco; um nível só e o pai do mesmo projeto, o serviço confere. Ver <a href="#/fluxo/subtarefas">Subtarefas</a>.</td></tr>
@@ -95,6 +95,16 @@ relato porque ele veio primeiro.</p>
   portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado, e o card
   do time não tem nenhum dos três. Mesmo assim as consultas públicas e a fila de moderação levam
   <code>kind = report</code> escrito — duas cercas, e a do banco não esquece.</p>
+</div>
+
+<div class="note why">
+  <strong><code>updated_at</code> é o "Atualizado" do card</strong>
+  <p>A coluna que toda tabela repete ganhou leitor: é o <code>UpdatedAt</code> da lista e do
+  detalhe, e uma das ordens da lista. Ela muda com o que se grava no próprio card — um campo, a
+  coluna, o lugar no quadro, o arquivo —, e não com o comentário, o anexo nem a etiqueta, que moram em
+  tabela própria. Sem índice de propósito: com o volume de um projeto, ordenar por ela não pede
+  um; se um projeto passar de alguns milhares de cards, <code>(project_id, updated_at)</code> e
+  <code>(project_id, due_date)</code> são os primeiros candidatos.</p>
 </div>
 
 <div class="note why">
