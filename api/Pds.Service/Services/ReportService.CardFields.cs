@@ -382,6 +382,23 @@ public partial class ReportService
             ? new CardPriorityViewModel(prioridade.PublicId, prioridade.Name, prioridade.Color, prioridade.IsActive)
             : null;
 
+    /// <summary>
+    /// O tipo do card, com o nome, a cor e o desenho de agora. Nulo no card do time — e
+    /// no relato cuja consulta esqueceu de trazer o tipo, que a tela mostra sem ele em
+    /// vez de derrubar a lista inteira.
+    /// </summary>
+    private static CardReportTypeViewModel? TypeOf(Report report)
+        => report.ReportType is { } tipo ? CardTypeOf(tipo) : null;
+
+    private static CardReportTypeViewModel CardTypeOf(ProjectReportType tipo)
+        => new(tipo.PublicId, tipo.Name, tipo.Color, tipo.Icon, tipo.IsActive);
+
+    /// <summary>As respostas do relato, com as perguntas do envio. Nulas quando o tipo so tinha a caixa.</summary>
+    private static IReadOnlyList<ReportAnswerViewModel>? AnswersOf(Report report)
+        => report.Answers?
+            .Select(resposta => new ReportAnswerViewModel(resposta.Question, resposta.Answer))
+            .ToList();
+
     /// <summary>Em ordem de nome, como na lista de etiquetas do projeto.</summary>
     private static IReadOnlyList<CardLabelViewModel> LabelsOf(Report report)
         => ActiveLabels(report)

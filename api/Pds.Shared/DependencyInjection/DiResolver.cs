@@ -12,6 +12,7 @@ using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.Security;
 using Pds.Service.Security;
 using Pds.Service.Services;
+using Pds.Service.Limits;
 
 namespace Pds.Shared.DependencyInjection;
 
@@ -115,6 +116,7 @@ public static class DiResolver
         services.AddScoped<IProjectWidgetSettingsService, ProjectWidgetSettingsService>();
         services.AddScoped<IProjectStateService, ProjectStateService>();
         services.AddScoped<IProjectPriorityService, ProjectPriorityService>();
+        services.AddScoped<IProjectReportTypeService, ProjectReportTypeService>();
         services.AddScoped<IProjectLabelService, ProjectLabelService>();
         services.AddScoped<IProjectPublicStageService, ProjectPublicStageService>();
         services.AddScoped<IProjectStatusMappingService, ProjectStatusMappingService>();
@@ -126,6 +128,12 @@ public static class DiResolver
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<ISprintService, SprintService>();
         services.AddScoped<IReportService, ReportService>();
+
+        // As contagens dos limites de relato moram na memoria, e precisam ser as mesmas
+        // em toda requisicao: uma instancia para o processo inteiro.
+        services.AddSingleton<ReportLimiter>();
+        services.AddScoped<IProjectReportLimitsService, ProjectReportLimitsService>();
+        services.AddScoped<IBlockedOriginReportService, BlockedOriginReportService>();
         services.AddScoped<IProjectMemberService, ProjectMemberService>();
         services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
         services.AddScoped<IProjectTeamSettingsService, ProjectTeamSettingsService>();

@@ -8,10 +8,12 @@ using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Service.Cards;
+using Pds.Service.Limits;
 using Pds.Service.Origins;
 using Pds.Service.Reports;
 using Pds.Service.Scanning;
 using Pds.Service.Security;
+using Pds.Service.WidgetTexts;
 using Pds.Translation;
 
 namespace Pds.Service.Services;
@@ -28,6 +30,12 @@ public partial class ReportService : IReportService
 
     /// <summary>Teto de pares de contexto por relato, para o corpo da requisicao nao virar deposito.</summary>
     private const int MaxContextEntries = 30;
+
+    /// <summary>
+    /// O maior codigo pessoal aceito no corpo: o tamanho da coluna. Os sorteados tem
+    /// catorze; a folga e para espaco em volta, que e cortado.
+    /// </summary>
+    private const int ReporterCodeMaxLength = 32;
 
     /// <summary>
     /// Quantos relatos a lista do painel traz quando ninguem pede outra coisa. Cinquenta
@@ -142,16 +150,28 @@ public partial class ReportService : IReportService
     /// </summary>
     private readonly IWorkNotifier _notifier;
 
-    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext, IDelayedScheduler scheduler, IWorkNotifier notifier)
+    /// <summary>
+    /// As camadas de limite da entrada do relato, na memoria do processo. Uma instancia
+    /// para a API inteira: ver <see cref="ReportLimiter"/>.
+    /// </summary>
+    private readonly ReportLimiter _limiter;
+
+    public ReportService(IUnitOfWork unitOfWork, IAccountContext accountContext, IDelayedScheduler scheduler, IWorkNotifier notifier, ReportLimiter limiter)
     {
         _unitOfWork = unitOfWork;
         _accountContext = accountContext;
         _scheduler = scheduler;
         _notifier = notifier;
+        _limiter = limiter;
     }
 
-    public async Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, CancellationToken cancellationToken = default)
+    public async Task<CreatedReportViewModel> CreateAsync(CreateReportDto dto, string? clientIp, CancellationToken cancellationToken = default)
     {
+        // Antes de qualquer leitura: um codigo maior que a coluna nao e codigo de
+        // ninguem, e recusar pelo tamanho nao conta nada sobre os que existem.
+        if ((dto.ReporterCode?.Length ?? 0) > ReporterCodeMaxLength)
+            throw new ArgumentException($"O codigo pessoal pode ter ate {ReporterCodeMaxLength} caracteres.");
+
         var project = await RequireProjectAsync(dto.Key, cancellationToken);
 
         // Arquivar para de aceitar coisa nova sem perder o que ja entrou. E o motivo
@@ -159,31 +179,25 @@ public partial class ReportService : IReportService
         if (project.Status == ProjectStatusEnum.Archived)
             throw new ForbiddenException("Este projeto esta arquivado e nao aceita relatos novos.");
 
-        // A lista de enderecos autorizados, conferida aqui tambem e nao so na
-        // leitura da configuracao: la ela evita que o formulario abra onde nao
-        // devia, e aqui ela e o que de fato impede o relato de entrar. Sem esta,
-        // bastaria falar direto com a rota para a lista nao valer nada.
-        //
-        // So vai ao banco quando a pagina declarou de onde veio: sem endereco nao
-        // ha o que comparar com a lista.
-        if (OriginAllowList.Declares(dto.Origin))
-        {
-            var origins = await _unitOfWork.ProjectOrigins.ListByProjectWithoutSessionAsync(project.Id, cancellationToken);
+        // O endereco bloqueado, conferido aqui tambem e nao so na leitura da
+        // configuracao: la ele evita que o formulario abra, e aqui ele e o que de fato
+        // impede o relato de entrar. Sem esta, bastaria falar direto com a rota para a
+        // lista nao valer nada. A lista e lida a cada relato: o bloqueio vale na hora.
+        await OriginGate.EnsureNotBlockedAsync(_unitOfWork, project.Id, dto.Origin, cancellationToken);
 
-            if (!OriginAllowList.Allows(origins, dto.Origin))
-                throw new ForbiddenException("Este endereco nao esta autorizado a abrir relato neste projeto.");
-        }
-
-        if (dto.Type is null)
+        if (dto.TypeId is not Guid tipoPublicId)
             throw new ArgumentException("Informe o tipo do relato.");
 
-        var text = (dto.Text ?? string.Empty).Trim();
+        // O tipo e do projeto e esta ativo: a ferramenta so oferece esses. O desativado
+        // depois de ela abrir e o caso comum de chegar aqui, e a mensagem diz o que
+        // fazer em vez de so recusar. Sem sessao, como toda leitura desta entrada.
+        var tipo = await _unitOfWork.ProjectReportTypes
+            .FindByPublicIdWithoutSessionAsync(project.Id, tipoPublicId, cancellationToken);
 
-        if (text.Length == 0)
-            throw new ArgumentException("Escreva o relato.");
+        if (tipo is null || !tipo.IsActive)
+            throw new ArgumentException("Este tipo de relato nao esta mais disponivel. Escolha outro.");
 
-        if (text.Length > Report.MaxTextLength)
-            throw new ArgumentException($"O relato pode ter ate {Report.MaxTextLength} caracteres.");
+        var (text, answers) = ReportForm.Read(tipo, dto.Questions, dto.Answers, dto.Text);
 
         // O titulo e o que a pessoa respondeu a pergunta curta da ferramenta. A
         // pergunta escondida nao faz a API recusar quem mandar titulo assim mesmo:
@@ -195,9 +209,22 @@ public partial class ReportService : IReportService
         if (titulo is null && (ferramenta?.ReportTitleMode ?? WidgetSettingsDefaults.ReportTitleMode) == ReportTitleModeEnum.Required)
             throw new ArgumentException("Escreva o titulo: em poucas palavras, o que aconteceu.");
 
+        // Os limites, depois do que recusa o relato mal formado (que nao conta) e antes
+        // de qualquer gravacao: a pausa avisa o time numa gravacao propria, e nada do
+        // relato pode ir junto nela.
+        var (remetente, limites) = await CheckLimitsAsync(project, dto, clientIp, cancellationToken);
+
+        // Fora da lista de autorizados — ou sem dizer de onde veio —, o relato e
+        // recebido e fica retido. Quem relatou nao percebe nada; o time nao o ve ate
+        // permitir o endereco. O primeiro retido de um endereco avisa quem administra.
+        var agora = DateTime.UtcNow;
+        var retido = await OriginGate.IsHeldAsync(_unitOfWork, project.Id, dto.Origin, cancellationToken);
+        var avisarEndereco = retido
+            && !await _unitOfWork.Reports.AnyHeldFromOriginWithoutSessionAsync(project.Id, remetente.Origin, cancellationToken);
+
         var (token, tokenHash) = AccessToken.Generate();
 
-        var landingStateId = await ResolveLandingStateAsync(project.Id, dto.Type.Value, cancellationToken);
+        var landingStateId = await ResolveLandingStateAsync(project.Id, tipo, cancellationToken);
 
         // **Campo ausente vale o padrao do projeto, e nao o mais restritivo.** A
         // ferramenta sempre manda o que a pessoa marcou; quem omite e uma versao
@@ -232,11 +259,17 @@ public partial class ReportService : IReportService
             ReporterCode = codigoPessoal,
             TrackingCode = protocolo,
             AccessTokenHash = tokenHash,
-            Type = dto.Type.Value,
+            ReportTypeId = tipo.Id,
+            ReportType = tipo,
             ReporterTitle = titulo,
             Text = text,
+            Answers = answers,
             Route = SanitizeRoute(dto.Route),
-            Origin = Trim(dto.Origin, 260),
+            // Na forma em que as listas comparam — minusculo, sem esquema e sem caminho
+            // —, e nao como veio: e por este campo que a tela de Dominios conta quem
+            // mandou relatos, e que a marca de origem bloqueada se acende.
+            Origin = Trim(OriginDomain.ForComparison(dto.Origin), 260),
+            HeldForOriginAt = retido ? agora : null,
             ProjectStateId = landingStateId,
             BoardRank = topo,
             StateChangedAt = DateTime.UtcNow,
@@ -269,13 +302,18 @@ public partial class ReportService : IReportService
             Source = EventSourceEnum.Widget,
             Payload = JsonSerializer.Serialize(new
             {
-                type = dto.Type.Value.ToString().ToLowerInvariant(),
+                // O tipo como era na entrada: o identificador, que nao muda, e o nome da
+                // epoca — renomear o tipo depois nao reescreve o que chegou.
+                type_id = tipo.PublicId,
+                type_name = tipo.Name,
                 origin = report.Origin,
                 route = report.Route,
                 text_length = text.Length,
                 // O tamanho, e nao o titulo: e texto de uma pessoa, e esta tabela nao
                 // se apaga. Zero diz que ela nao respondeu.
                 title_length = titulo?.Length ?? 0,
+                // Retido por ter vindo de um endereco fora da lista de autorizados.
+                held = retido,
             }),
         }, cancellationToken);
 
@@ -297,12 +335,143 @@ public partial class ReportService : IReportService
             await ApplyPublicStageAsync(project, report, landing, EventSourceEnum.Widget, null, mapa, etapas, cancellationToken);
         }
 
+        // O aviso do endereco novo vai na mesma gravacao do relato: sem relato, nao ha o
+        // que avisar; e com o relato gravado sem o aviso, o time nunca saberia dele.
+        var avisados = avisarEndereco
+            ? await AddProjectNoticeAsync(project, NotificationKindEnum.OriginPending, NoticeSubject(remetente.Origin), null, null, cancellationToken)
+            : [];
+
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        await _notifier.CardChangedAsync(report.PublicId);
+        _limiter.Record(remetente, limites, agora);
+
+        // O retido nao aparece em tela nenhuma do time: avisar o Trabalho de um card
+        // novo faria a tela reler e nao achar nada.
+        if (!retido)
+            await _notifier.CardChangedAsync(report.PublicId);
+
+        foreach (var pessoa in avisados)
+            await _notifier.NotificationArrivedAsync(project.PublicId, pessoa, NotificationKindEnum.OriginPending);
 
         return new CreatedReportViewModel(protocolo, token, report.CreatedAt, codigoPessoal?.Code);
     }
+
+    /// <summary>
+    /// Confere as camadas de limite deste envio e recusa com 429 o que passou: cedo
+    /// demais (sem desafio), o desafio a resolver, ou a pausa — que, quando comeca,
+    /// avisa quem administra no sino.
+    ///
+    /// <para><b>Quem relata</b> e o codigo pessoal so no projeto que usa esse modo e
+    /// quando ele vem; senao, o IP. O codigo e escolhido por quem manda — trocar a cada
+    /// envio escapa da camada da pessoa, e e por isso que a do IP e a do projeto
+    /// existem.</para>
+    /// </summary>
+    private async Task<(ReportLimiter.Sender Remetente, ProjectReportLimits Limites)> CheckLimitsAsync(
+        Project project, CreateReportDto dto, string? clientIp, CancellationToken cancellationToken)
+    {
+        var limites = await _unitOfWork.ProjectReportLimits.FindByProjectWithoutSessionAsync(project.Id, cancellationToken)
+                      ?? new ProjectReportLimits { ProjectId = project.Id };
+
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+        var codigo = (identidade?.Mode ?? IdentitySettingsDefaults.Mode) == ReporterIdentityModeEnum.PersonalCode
+            ? (dto.ReporterCode ?? string.Empty).Trim().ToUpperInvariant()
+            : string.Empty;
+
+        // So o que tem a forma de um codigo vira chave da camada da pessoa. A chave fica
+        // na memoria por um dia: um texto qualquer, do tamanho que quem manda quiser,
+        // a cada envio, enchia a memoria do processo. O resto cai no IP, como quem nao
+        // mandou codigo nenhum.
+        if (!TrackingCode.IsWellFormed(codigo))
+            codigo = string.Empty;
+
+        var remetente = new ReportLimiter.Sender(
+            project.Id,
+            project.PublicId,
+            string.IsNullOrWhiteSpace(clientIp) ? "desconhecido" : clientIp,
+            codigo.Length > 0 ? codigo : null,
+            Trim(OriginDomain.ForComparison(dto.Origin), 260) ?? string.Empty);
+
+        var agora = DateTime.UtcNow;
+        var veredito = _limiter.Check(remetente, limites, dto.ChallengeToken, dto.ChallengeNonce, agora);
+
+        switch (veredito)
+        {
+            case ReportLimiter.Verdict.TooSoon cedo:
+                throw new TooManyRequestsException(
+                    "Espere alguns segundos antes de enviar outro relato.",
+                    cedo.RetryAfterSeconds,
+                    new ReportRefusalViewModel(ReportRefusalReasonEnum.TooSoon, cedo.RetryAfterSeconds, null, null));
+
+            case ReportLimiter.Verdict.Challenge desafio:
+                throw new TooManyRequestsException(
+                    "Muitos relatos em pouco tempo: confirme o envio para continuar.",
+                    1,
+                    new ReportRefusalViewModel(
+                        ReportRefusalReasonEnum.Challenge,
+                        1,
+                        null,
+                        new ReportChallengeViewModel(desafio.Issued.Token, desafio.Issued.Difficulty, desafio.Issued.ExpiresAt)));
+
+            case ReportLimiter.Verdict.Paused pausa:
+            {
+                var segundos = (int)Math.Ceiling((pausa.Until - agora).TotalSeconds);
+
+                if (pausa.Notify)
+                {
+                    var avisados = await AddProjectNoticeAsync(
+                        project, NotificationKindEnum.ReportsPaused, pausa.Subject, pausa.Scope, pausa.Until, cancellationToken);
+                    await _unitOfWork.CommitAsync(cancellationToken);
+
+                    foreach (var pessoa in avisados)
+                        await _notifier.NotificationArrivedAsync(project.PublicId, pessoa, NotificationKindEnum.ReportsPaused);
+                }
+
+                var minutos = Math.Max(1, (int)Math.Ceiling(segundos / 60.0));
+                throw new TooManyRequestsException(
+                    $"Recebemos relatos demais em pouco tempo, e novos envios estao pausados. Tente de novo em {minutos} {(minutos == 1 ? "minuto" : "minutos")}.",
+                    segundos,
+                    new ReportRefusalViewModel(ReportRefusalReasonEnum.Paused, segundos, pausa.Until, null));
+            }
+        }
+
+        return (remetente, limites);
+    }
+
+    /// <summary>
+    /// Um aviso do projeto — endereco novo, ou envios pausados — para cada pessoa que
+    /// administra. Sem card: o retido nao aparece para o time, e a pausa nao e de relato
+    /// nenhum. Devolve quem foi avisado, para o tempo real depois da gravacao.
+    /// </summary>
+    private async Task<IReadOnlyList<Guid>> AddProjectNoticeAsync(
+        Project project,
+        NotificationKindEnum kind,
+        string? subject,
+        ReportLimitScopeEnum? scope,
+        DateTime? pausedUntil,
+        CancellationToken cancellationToken)
+    {
+        var pessoas = await _unitOfWork.ProjectMembers
+            .ListAdministratorsWithoutSessionAsync(project.Id, project.AccountId, cancellationToken);
+
+        foreach (var pessoa in pessoas)
+        {
+            await _unitOfWork.Notifications.AddAsync(new Notification
+            {
+                UserId = pessoa.Id,
+                ProjectId = project.Id,
+                Kind = kind,
+                Subject = subject,
+                LimitScope = scope,
+                PausedUntil = pausedUntil,
+            }, cancellationToken);
+        }
+
+        return pessoas.Select(pessoa => pessoa.PublicId).ToList();
+    }
+
+    /// <summary>O endereco no aviso: nulo para o relato que nao disse de onde veio.</summary>
+    private static string? NoticeSubject(string origin) => origin.Length > 0 ? origin : null;
 
     /// <summary>
     /// O relato por tras de um link de acompanhamento, ou a recusa.
@@ -646,13 +815,22 @@ public partial class ReportService : IReportService
 
         var (protocolo, tipo, texto) = report.ReporterFields();
 
+        // A frase do topo da pagina e escrita na tela da ferramenta, e mora na
+        // configuracao dela. Sem sessao: quem le aqui e quem relatou.
+        var ferramenta = await _unitOfWork.ProjectWidgetSettings
+            .FindByProjectWithoutSessionAsync(report.ProjectId, cancellationToken);
+
+        var abertura = ferramenta?.TrackingIntro ?? WidgetSettingsDefaults.TrackingIntro;
+
         // O titulo que ela escreveu, e nunca o do time: o reescrito no painel e
-        // interno, e quem relatou ve so o que escreveu.
+        // interno, e quem relatou ve so o que escreveu. Do tipo, so o nome: a cor e o
+        // desenho sao do painel e da ferramenta.
         return new PublicReportViewModel(
             protocolo,
-            tipo,
+            tipo.Name,
             report.ReporterTitle,
             texto,
+            AnswersOf(report),
             report.CreatedAt,
             await BuildJourneyAsync(report, cancellationToken),
             publico,
@@ -669,7 +847,21 @@ public partial class ReportService : IReportService
             reaberturas
                 .Select(reabertura => new PublicReopeningViewModel(
                     reabertura.PublicId, reabertura.ReopenedAt!.Value, reabertura.ReopenComment))
-                .ToList());
+                .ToList(),
+            abertura,
+            FirstNameOf(report.ReporterName),
+            // O nome do projeto e interno: so sai quando o proprio projeto o escreveu.
+            WidgetText.Uses(abertura, WidgetText.Project) ? report.Project.Name : null);
+    }
+
+    /// <summary>
+    /// A primeira palavra do nome que a pessoa deu, ou nulo. E o que <c>{{primeiroNome}}</c>
+    /// usa: "Ana Paula Souza" vira "Ana".
+    /// </summary>
+    private static string? FirstNameOf(string? name)
+    {
+        var palavras = (name ?? string.Empty).Trim().Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries);
+        return palavras.Length == 0 ? null : palavras[0];
     }
 
     /// <summary>
@@ -999,12 +1191,33 @@ public partial class ReportService : IReportService
         var reports = await _unitOfWork.Reports.ListByProjectAsync(project.Id, filter, archived, ordem, desde, depois, (int)skip, size, cards, ordenacao, cancellationToken);
 
         var time = await TeamIdsForAsync(reports, cancellationToken);
-        var faces = await _unitOfWork.Reports.CountFacesAsync(reports.Select(report => report.Id).ToList(), cancellationToken);
+        var ids = reports.Select(report => report.Id).ToList();
+        var faces = await _unitOfWork.Reports.CountFacesAsync(ids, cancellationToken);
+        var marcas = await _unitOfWork.Reports.ListSubtaskMatchesAsync(ids, cards, cancellationToken);
 
         return new ReportPageViewModel(
-            reports.Select(report => Map(report, time, faces.GetValueOrDefault(report.Id, CardFace.Empty))).ToList(),
+            reports
+                .Select(report => Map(report, time, faces.GetValueOrDefault(report.Id, CardFace.Empty)) with
+                {
+                    SubtaskMatch = SubtaskMatchOf(marcas.GetValueOrDefault(report.Id)),
+                })
+                .ToList(),
             total);
     }
+
+    /// <summary>
+    /// A marca do pai que entrou pelas subtarefas. Quem olha vira "sua" na tela, e nao o
+    /// proprio nome.
+    /// </summary>
+    private SubtaskMatchViewModel? SubtaskMatchOf(SubtaskMatch? match)
+        => match is null
+            ? null
+            : new SubtaskMatchViewModel(
+                match.Assignees
+                    .Select(pessoa => new SubtaskAssigneeMatchViewModel(
+                        pessoa.UserPublicId, pessoa.Name, pessoa.UserId == _accountContext.UserId, pessoa.Count))
+                    .ToList(),
+                match.Search);
 
     /// <summary>
     /// O card depois do qual o "Mostrar mais" do quadro continua.
@@ -1336,8 +1549,8 @@ public partial class ReportService : IReportService
         if (arquivar && relato && !AllowsReportArchiving(regras))
             throw new ForbiddenException("Este projeto nao arquiva relato. O caminho do relato e encerrar com desfecho.");
 
-        // A subtarefa nao volta sozinha enquanto o pai esta arquivado: ficaria no quadro
-        // como filha de um card que ninguem ve.
+        // A subtarefa nao volta sozinha enquanto o pai esta arquivado: voltaria ao
+        // trabalho dentro de um card que ninguem ve.
         if (!arquivar && report.ParentReportId is long paiId
             && (await _unitOfWork.Reports.GetByIdAsync(paiId, cancellationToken))?.ArchivedAt is not null)
             throw new ConflictException("O card pai esta arquivado. Desarquive o pai, e as subtarefas que foram com ele voltam junto.");
@@ -2368,27 +2581,23 @@ public partial class ReportService : IReportService
     /// <summary>
     /// Em que ponto da fila o relato entra.
     ///
-    /// <para>Primeiro a escolha do cliente para aquele tipo; sem escolha, o
-    /// primeiro estado ativo da fila. <b>Sem estado nenhum devolve nulo</b>, e o
-    /// relato entra sem lugar — recusa-lo seria perder o que veio de fora por uma
-    /// configuracao que o cliente nao fez, e quem escreveu nao tem nada a ver com
-    /// isso.</para>
+    /// <para>Primeiro a coluna que o tipo escolheu; sem escolha, o primeiro estado
+    /// ativo da fila. <b>Sem estado nenhum devolve nulo</b>, e o relato entra sem
+    /// lugar — recusa-lo seria perder o que veio de fora por uma configuracao que o
+    /// cliente nao fez, e quem escreveu nao tem nada a ver com isso.</para>
     ///
-    /// <para>As duas consultas desligam o filtro global: aqui nao ha sessao, e a
-    /// lista de projetos acessiveis esta vazia. Sem isso a escolha do cliente voltaria vazia e todo
-    /// relato cairia no padrao, sem erro em lugar nenhum.</para>
+    /// <para>O tipo ja chegou lido sem sessao, e a busca do primeiro estado tambem
+    /// desliga o filtro global: aqui a lista de projetos acessiveis esta vazia, e sem
+    /// isso todo relato cairia sem lugar, sem erro em lugar nenhum.</para>
     ///
     /// <para>O estado escolhido nao precisa ser conferido de novo: aposentar um
     /// estado que e entrada de algum tipo e recusado, entao ele nao tem como estar
     /// aposentado aqui.</para>
     /// </summary>
-    private async Task<long?> ResolveLandingStateAsync(long projectId, ReportTypeEnum reportType, CancellationToken cancellationToken)
+    private async Task<long?> ResolveLandingStateAsync(long projectId, ProjectReportType reportType, CancellationToken cancellationToken)
     {
-        var chosen = await _unitOfWork.ProjectInitialStates
-            .FindByTypeWithoutSessionAsync(projectId, reportType, cancellationToken);
-
-        if (chosen is not null)
-            return chosen.ProjectStateId;
+        if (reportType.InitialStateId is long chosen)
+            return chosen;
 
         var first = await _unitOfWork.ProjectStates
             .FirstActiveWithoutSessionAsync(projectId, cancellationToken);
@@ -2529,7 +2738,7 @@ public partial class ReportService : IReportService
 
         return new PublishedReportsViewModel(
             [.. relatos.Select(relato => new PublishedReportViewModel(
-                relato.ReporterFields().Type,
+                relato.ReporterFields().Type.Name,
                 relato.ReporterFields().Text,
                 relato.ProjectPublicStage?.Label,
                 fechados.Contains(relato.Id),
@@ -2551,7 +2760,7 @@ public partial class ReportService : IReportService
         return new ModerationItemViewModel(
             report.PublicId,
             protocolo,
-            tipo,
+            CardTypeOf(tipo),
             texto,
             report.ReporterName,
             report.ReporterNameIsPublic,
@@ -2615,7 +2824,7 @@ public partial class ReportService : IReportService
             relatos
                 .Select(relato => new ReporterCodeReportViewModel(
                     relato.ReporterFields().TrackingCode,
-                    relato.ReporterFields().Type,
+                    relato.ReporterFields().Type.Name,
                     relato.ReporterTitle,
                     Excerpt(relato.ReporterFields().Text),
                     relato.ProjectPublicStage?.Label,
@@ -2831,8 +3040,9 @@ public partial class ReportService : IReportService
         // motivo a quem relatou.
         report.Kind == CardKindEnum.Report && closure is null,
         report.TrackingCode,
-        report.Type,
+        TypeOf(report),
         report.Text,
+        AnswersOf(report),
         report.Route,
         report.Origin,
         report.ProjectState?.PublicId,
@@ -2871,6 +3081,7 @@ public partial class ReportService : IReportService
     {
         UpdatedAt = report.UpdatedAt,
         ClosureConfirmed = face.ClosureConfirmed,
+        BlockedOrigin = face.BlockedOrigin,
     };
 
     /// <summary>
@@ -2970,7 +3181,7 @@ public partial class ReportService : IReportService
         report.Title,
         report.ReporterTitle,
         report.TrackingCode,
-        report.Type,
+        TypeOf(report),
         report.Text,
         report.Route,
         report.Origin,
@@ -3000,6 +3211,7 @@ public partial class ReportService : IReportService
     {
         UpdatedAt = report.UpdatedAt,
         ClosureConfirmed = face.ClosureConfirmed,
+        BlockedOrigin = face.BlockedOrigin,
     };
 
     /// <summary>
