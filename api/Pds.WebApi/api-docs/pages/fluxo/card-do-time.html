@@ -1,23 +1,43 @@
 <h2>Criar o card do time</h2>
 
-<p>Nem todo trabalho chega pela ferramenta. Na tela de Trabalho, "Novo card" cria um card do
-próprio time — título, descrição em Markdown e a coluna em que ele nasce. No quadro, "Criar", no pé
-de uma coluna, abre o mesmo formulário já com ela escolhida:</p>
+<p>Nem todo trabalho chega pela ferramenta. Na tela de Trabalho, <strong>Novo card</strong> (ou a
+tecla "c", fora de um campo) cria um card do próprio time: o título, a descrição em
+Markdown, a coluna em que ele nasce e, se quiser, <strong>o responsável e a prioridade</strong> —
+quem olha aparece primeiro na lista, com "(você)", e a prioridade mais urgente fica em cima. Tudo
+vai no mesmo pedido, e o card já nasce com eles:</p>
 
 <pre><code>POST /projects/2be49b28-.../reports
 Authorization: Bearer &lt;AccessToken&gt;
 
 { "Title": "Trocar o provedor de e-mail",
   "Description": "Hoje sai pelo **plano grátis**.\n\n- verificar o domínio",
-  "StatePublicId": "e12fef6c-..." }</code></pre>
+  "StatePublicId": "e12fef6c-...",
+  "AssigneeUserPublicId": "b1000000-...",
+  "PriorityPublicId": "7b2f..." }</code></pre>
 
 <pre><code>{
   "Success": true,
   "Message": "Card criado.",
   "Data": { "PublicId": "7a1c...", "Kind": "Team", "Number": 42,
             "Title": "Trocar o provedor de e-mail", "TrackingCode": null,
-            "CreatedByName": "Ana", "StateName": "Análise", ... }
+            "CreatedByName": "Ana", "StateName": "A fazer", ... }
 }</code></pre>
+
+<p>Os dois são opcionais, e passam pela mesma regra de escolher no card: o responsável, só quem
+está no time — com o evento no histórico e o aviso no sino da pessoa escolhida, se não for quem
+cria —; a prioridade, só entre as ativas. <strong>Enter no título
+cria</strong>; Ctrl+Enter (⌘+Enter no Mac) cria de qualquer campo, inclusive da descrição, onde o
+Enter sozinho quebra a linha.</p>
+
+<p>Com as <a href="#/fluxo/backlog-e-sprints">sprints ligadas</a>, o formulário diz onde o card
+entra — <strong>Entra em</strong>: o backlog, a sprint em andamento ou uma planejada
+(<code>SprintPublicId</code>). O "Novo card" do topo começa no backlog; o campo do topo de uma
+coluna do quadro cria na sprint em andamento — ver <a href="#/fluxo/o-quadro">O quadro</a>.</p>
+
+<p>O aviso do fim diz onde o card foi parar, com <strong>Abrir</strong>: "#42 criado.", "#42 criado
+no backlog." ou, com filtros ligados que ele não passa, "#42 criado. Ele não aparece aqui porque
+os filtros estão ligados." — a lista é relida, e quem decide se o card aparece é o filtro. Criado
+no backlog a partir do quadro, o aviso oferece levá-lo para a sprint em andamento.</p>
 
 <p>Ele ganha o próximo número do projeto — <strong>#42</strong> — da mesma sequência dos
 relatos: o relato que chegar depois pela ferramenta leva o #43. É o número que o time fala no
@@ -31,15 +51,28 @@ grupo e escreve no commit.</p>
 
 <h2>Trabalhar nele</h2>
 
-<p>O card do time anda pelos mesmos estados do relato, com o mesmo
+<p>O card do time anda pelas mesmas colunas do relato, com o mesmo
 <code>PUT .../state</code> e o mesmo evento. Duas diferenças: mover para a coluna que encerra
 <strong>não pede desfecho nem motivo</strong> — não há quem relatou para ler —, e a etapa pública
 nunca se mexe por ele.</p>
 
-<p>O título e a descrição se editam inteiros:</p>
+<p>No card aberto, <strong>Editar</strong> fica ao lado do título — e clicar no título ou na
+descrição também edita, com o cursor no fim do campo clicado. Os campos da direita continuam à vista
+durante a edição, e <strong>Descartar o texto</strong> desiste. O título e a descrição se gravam
+inteiros, com o texto de onde a edição partiu:</p>
 
 <pre><code>PUT /projects/2be49b28-.../reports/7a1c...
-{ "Title": "Trocar o provedor antes de sexta", "Description": "..." }</code></pre>
+{ "Title": "Trocar o provedor antes de sexta", "Description": "...",
+  "Base": { "Title": "Trocar o provedor de e-mail", "Description": "Hoje sai pelo ..." } }</code></pre>
+
+<p><strong>Duas pessoas editando a mesma descrição não se apagam.</strong> Se o card já não tem o
+texto de <code>Base</code>, outra pessoa salvou no meio, e a gravação é recusada com 409 em vez de
+escrever por cima. Quando a versão nova chega pelo <a href="#/fluxo/tempo-real">tempo real</a> com
+a edição aberta — ou o salvar recebe o 409 —, a tela avisa acima do editor: <em>"Bruno salvou uma
+nova versão enquanto você editava."</em>, com <strong>Usar a versão nova</strong> e
+<strong>Manter a minha</strong>, e o Salvar só volta depois da escolha. É o texto que se compara, e
+não a data de alteração do card: quem só trocou a prioridade no meio não fez nada que se perca.
+Sem <code>Base</code>, grava como sempre.</p>
 
 <p>O texto de um relato não passa por aqui (409): é de quem relatou, e fica como ela escreveu. O
 comentário interno serve aos dois; o comentário para quem relatou, o pedido de informação e o

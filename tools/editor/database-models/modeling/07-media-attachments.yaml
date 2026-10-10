@@ -320,7 +320,7 @@ entities:
         note: a ordem na tela, escolhida pelo cliente, e é coluna em vez de ordem alfabética porque fila de trabalho tem sequência
       - name: deactivated_at
         type: datetime
-        note: nulo enquanto o estado aceita card novo, preenchido para aposentá-lo sem apagar, porque card antigo continua apontando para ele e o histórico precisa continuar legível
+        note: nulo enquanto o estado aceita card novo, preenchido para desativá-lo sem apagar, porque card antigo continua apontando para ele e o histórico precisa continuar legível
       - name: created_at
         type: datetime
         note: quando o estado foi criado, em UTC
@@ -672,7 +672,7 @@ entities:
         note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto a etapa vale, preenchido no lugar de apagar, e aqui existe remoção de verdade diferente do estado interno, que só se aposenta
+        note: nulo enquanto a etapa vale, preenchido no lugar de apagar, e aqui existe remoção de verdade diferente do estado interno, que só se desativa
   - name: project_status_mappings
     label: Mapeamento de estados
     description: "Liga N estados internos a 1 etapa pública, nunca o contrário — um estado apontando para duas etapas deixaria sem resposta a única pergunta que esta tabela responde, que é onde o relato está agora. Versionada: alterar grava o conjunto inteiro de novo, um número acima, porque reescrever o mapa apagaria o sentido de tudo que já aconteceu."
@@ -1502,9 +1502,9 @@ notes:
     width: 380
     inherited: true
   - text: |-
-      Aqui se remove, nos estados internos só se aposenta
+      Aqui se remove, nos estados internos só se desativa
 
-      Não é descuido. O estado interno aposentado precisa continuar visível porque a tela do time mostra a fila inteira; a etapa pública removida não tem esse papel — o que já passou por ela é contado pelos eventos, que guardam o rótulo que valia na época. A remoção é lógica, então a linha continua no banco.
+      Não é descuido. O estado interno desativado precisa continuar visível porque a tela do time mostra a fila inteira; a etapa pública removida não tem esse papel — o que já passou por ela é contado pelos eventos, que guardam o rótulo que valia na época. A remoção é lógica, então a linha continua no banco.
     anchor: project_public_stages
     anchorField: deleted_at
     position: { x: 240, y: 2700 }

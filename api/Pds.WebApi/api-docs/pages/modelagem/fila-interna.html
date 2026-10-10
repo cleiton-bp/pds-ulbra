@@ -17,8 +17,19 @@
   as nossas palavras.</p>
 </div>
 
+<div class="note why">
+  <strong>Três de fábrica, e todas do time</strong>
+  <p>Todo projeto nasce com <strong>A fazer</strong>, <strong>Fazendo</strong> e
+  <strong>Feito</strong> (posições 0, 1 e 2), já ligadas à jornada pública. É o que quem chega de um
+  quadro simples espera no primeiro minuto, e é só ponto de partida: são linhas como outras
+  quaisquer, que o time renomeia, reordena e desativa. Com uma coluna só, ela seria a entrada e o
+  fim ao mesmo tempo, e o quadro não andaria antes de alguém achar a configuração.</p>
+  <p>Pela regra de fábrica do ciclo, a última coluna ativa é a que encerra — num projeto novo,
+  <strong>Feito</strong>. O projeto que já existia ficou com as colunas que tinha.</p>
+</div>
+
 <div class="note warn">
-  <strong>Estado não se apaga, se aposenta</strong>
+  <strong>Estado não se apaga, se desativa</strong>
   <p>Não existe rota de remoção. Relato antigo aponta para o estado, e um estado que some leva
   junto o sentido de tudo que passou por ele — o histórico ficaria com uma lacuna onde havia um
   nome.</p>
@@ -38,8 +49,8 @@
 
 <div class="note why">
   <strong>O nome repetido é barrado duas vezes, de jeitos diferentes</strong>
-  <p>O índice único do banco compara byte a byte, então ele pega <code>Análise</code> repetido e
-  deixa passar <code>análise</code> com a caixa trocada. A conferência que ignora caixa mora no
+  <p>O índice único do banco compara byte a byte, então ele pega <code>Fazendo</code> repetido e
+  deixa passar <code>fazendo</code> com a caixa trocada. A conferência que ignora caixa mora no
   serviço, e é ela a regra: duas colunas escritas igual e indistinguíveis na tela seriam um
   defeito, não uma customização.</p>
   <p>O índice é a rede embaixo, para duas gravações ao mesmo tempo não criarem a mesma coluna
@@ -65,7 +76,7 @@
 <div class="note why">
   <strong>A linha só nasce quando o cliente escolhe</strong>
   <p>Projeto sem linha nenhuma aqui não é projeto sem configuração: é projeto usando o padrão,
-  que é cair no primeiro estado ativo da fila. Mesmo desenho de
+  que é cair no primeiro estado ativo da fila — <strong>A fazer</strong>, num projeto novo. Mesmo desenho de
   <code>project_widget_settings</code>, e pelo mesmo motivo — assim o caminho "o cliente não
   configurou" é o caminho comum, exercitado por todo projeto novo, em vez de um canto que
   apodrece esperando o dia em que alguém o pisa.</p>
@@ -81,9 +92,9 @@
 </div>
 
 <div class="note warn">
-  <strong>Aposentar a porta de entrada é recusado</strong>
-  <p>Enquanto um tipo aponta para o estado, aposentá-lo devolve <strong>409</strong>: o próximo
-  relato daquele tipo cairia num estado aposentado, que é justamente o que aposentar existe para
+  <strong>Desativar a porta de entrada é recusado</strong>
+  <p>Enquanto um tipo aponta para o estado, desativá-lo devolve <strong>409</strong>: o próximo
+  relato daquele tipo cairia num estado desativado, que é justamente o que desativar existe para
   impedir. A chave estrangeira é <code>Restrict</code> — a regra mora no serviço, e o banco é a
   rede embaixo dela.</p>
 </div>

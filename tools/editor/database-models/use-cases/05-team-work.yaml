@@ -1,7 +1,7 @@
 meta:
   title: O time trabalha o relato
   system: PDS — painel
-  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre os estados e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards — e que, como a lista e o card aberto, muda sozinho quando outra pessoa do time mexe. E as subtarefas e os vínculos entre cards, com o relato duplicado acompanhando o original. E os filtros, as raias do quadro e as mudanças em lote, para muitos cards. E o backlog e as sprints, para o projeto que liga. E as menções e os avisos, no sino, com o som que cada pessoa escolhe. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
+  description: "O que o time faz com o relato que chegou: ler, comentar, pedir informação, mover entre as colunas e encerrar. E o trabalho que não veio de fora: o card do time, e arquivar. E o que o time dá a todo card: título, responsável, prioridade, etiquetas e prazo. E o quadro, onde o time arruma e arrasta os cards — e que, como a lista e o card aberto, muda sozinho quando outra pessoa do time mexe. E as subtarefas e os vínculos entre cards, com o relato duplicado acompanhando o original. E os filtros, as raias do quadro e as mudanças em lote, para muitos cards. E o backlog e as sprints, para o projeto que liga. E as menções e os avisos, no sino, com o som que cada pessoa escolhe. E o que o sistema faz sozinho em volta disso — levar a mudança para o lado de fora e encerrar o pedido sem resposta. A moderação está em 07-moderation."
 actors:
   - name: Membro do time
     description: Trabalha os relatos pelo painel, com a conta Google. O dono do projeto também é um membro do time.
@@ -17,22 +17,29 @@ actors:
 useCases:
   - id: UC01
     name: Ver o trabalho
-    description: A tela de Trabalho, com os relatos e os cards do time, em lista ou em quadro, a contagem por coluna e o filtro por estado — o que responde “o que ainda não tratei”. Os filtros e a busca estão no UC19.
+    description: A tela de Trabalho, com os relatos e os cards do time, em lista ou em quadro, a contagem por coluna, o filtro por coluna e a ordem que o membro escolhe — o que responde “o que ainda não tratei”. Os filtros e a busca estão no UC19.
     width: 220
     position: { x: 260, y: 0 }
     preconditions: O membro está no painel, dentro do projeto.
     mainFlow:
-      - O membro abre Trabalho.
-      - Vê os cards numa tabela, do mais recente para o mais antigo — o tipo, o número (#42), o título (o do time, senão o de quem relatou, senão o começo do texto), a coluna, quem está com ele, a prioridade, as etiquetas, o prazo e quando chegou. O protocolo e a página de onde o relato veio ficam no card aberto.
-      - Filtra por coluna, para ver só um estado.
-      - Escolhe um relato para abrir.
+      - O membro abre o projeto, que abre no Trabalho — para todos; quem administra entra pela Instalação só enquanto o site não mandou nenhum relato.
+      - Vê os cards numa tabela, do mais recente para o mais antigo — o tipo, o número (#42), o título (o do time, senão o de quem relatou, senão o começo do texto, entre aspas), a coluna, quem está com ele, a prioridade, as etiquetas, o prazo e quando chegou. O protocolo e a página de onde o relato veio ficam no card aberto.
+      - Ordena pelo cabeçalho — o prazo mais perto, a prioridade mais alta, o responsável, a coluna, o número, o mais novo ou o atualizado há pouco.
+      - Filtra por uma ou várias colunas, ou esconde o que terminou com "Em aberto".
+      - Escolhe um card para abrir.
     alternativeFlows:
       - title: 2a. Nenhum relato ainda
         steps:
           - A tela diz que a fila está vazia e aponta a Instalação.
+      - title: 2b. Muitos cards
+        steps:
+          - A lista vem de 50 em 50, a página seguinte chega sozinha perto do fim, e o cabeçalho da tabela fica preso ao rolar.
+      - title: 1a. O membro troca de projeto pelo seletor do topo
+        steps:
+          - Cai na mesma tela do outro projeto; a tela de configuração de um projeto que ele não administra vira o Trabalho.
       - title: 3a. O membro escolhe o quadro
         steps:
-          - Cada estado vira uma coluna, com os cards na ordem que o time arrumou — ver UC18. A escolha fica lembrada no navegador.
+          - Cada coluna do projeto vira uma coluna do quadro, com os cards na ordem que o time arrumou — ver UC18. O quadro ocupa a altura da janela, e cada coluna rola por dentro. A escolha fica lembrada no navegador.
           - A frente do card é um resumo — o título primeiro, até três etiquetas e o prazo; no pé, o tipo, o número, a prioridade, quantos comentários e anexos, e quem está com ele —, e o detalhe abre no clique.
           - A última coluna — quando há mais de uma — mostra só o que entrou nela nos últimos dias, e diz quantos ficaram na lista. "Mostrar mais" traz os seguintes de cada coluna.
   - id: UC02
@@ -51,6 +58,13 @@ useCases:
       - title: 1a. Outra pessoa do time mexe no relato enquanto ele está aberto
         steps:
           - A coluna, os campos, a conversa, os arquivos e o histórico se acertam sozinhos, sem recarregar e sem contar outra leitura. O que o membro está escrevendo continua onde estava.
+          - Se ela salva a descrição que o membro está editando, a tela avisa quem salvou, e ele escolhe entre usar a versão nova e manter a dele — nenhuma das duas some em silêncio.
+      - title: 1b. O membro passa ao card seguinte
+        steps:
+          - Card anterior e Próximo card — ou as teclas K e J — andam na ordem da tela de onde ele veio; Copiar link dá o endereço do card para mandar a um colega.
+      - title: 1c. O membro fecha o card com texto escrito
+        steps:
+          - O Esc sai primeiro da edição em que ele está; fechar com texto ainda não salvo pergunta antes de descartar.
   - id: UC03
     name: Comentar
     description: Por dentro, para o time; ou para fora, para quem relatou ler na página de acompanhamento. Os dois ficam separados de forma visível.
@@ -59,9 +73,16 @@ useCases:
     preconditions: O relato está aberto no painel.
     mainFlow:
       - O membro escolhe entre comentário interno e comentário público.
-      - Escreve e envia.
+      - Escreve e envia — pelo botão ou por Ctrl+Enter.
       - O comentário entra no relato, com quem escreveu e quando.
-    postconditions: O comentário público aparece na página de acompanhamento. O interno, nunca.
+    alternativeFlows:
+      - title: 2a. O comentário é para quem relatou
+        steps:
+          - O envio espera cinco segundos, com Desfazer, que devolve o texto ao campo. Fechar o card no meio envia na hora.
+      - title: 3a. O membro corrige ou apaga o próprio comentário interno
+        steps:
+          - Só quem escreveu corrige ou apaga. O corrigido fica marcado como editado, e as menções passam a ser as do texto novo; apagar pede confirmação, e o histórico continua dizendo que houve um comentário.
+    postconditions: O comentário público aparece na página de acompanhamento, e não se corrige depois — já saiu da empresa. O interno, nunca.
   - id: UC04
     name: Pedir uma informação
     description: Quando falta contexto, o time pergunta pelo próprio relato, dizendo o que falta — e a vez passa para quem relatou, com prazo.
@@ -69,10 +90,10 @@ useCases:
     position: { x: 260, y: 375 }
     preconditions: O projeto tem o pedido de informação ligado, e quem relatou aceitou responder dúvidas.
     mainFlow:
-      - No relato aberto, o membro escolhe pedir uma informação.
+      - No relato aberto, em qualquer coluna, o membro escolhe Pedir informação.
       - Escreve o que falta.
       - O sistema grava a pergunta como comentário público e marca que a vez é de quem relatou.
-      - O sistema calcula os dois prazos — o do aviso e o do encerramento.
+      - O sistema calcula os dois prazos — o do aviso e o do encerramento —, e a pergunta aparece no card na hora.
     alternativeFlows:
       - title: 1a. Quem relatou não aceitou responder dúvidas
         steps:
@@ -82,13 +103,13 @@ useCases:
           - A vez volta para o time, e o prazo para de correr.
     postconditions: A página de acompanhamento mostra a pergunta e deixa quem relatou responder.
   - id: UC05
-    name: Mover entre os estados
+    name: Mover entre as colunas
     description: Leva o relato de uma coluna a outra. Cada movimento vira um evento que não se apaga — é dele que saem o histórico, a linha do tempo pública e as métricas.
     width: 220
     position: { x: 260, y: 500 }
     preconditions: O relato está aberto no painel, ou à vista no quadro, e não está arquivado.
     mainFlow:
-      - O membro escolhe o estado de destino — no card aberto, ou soltando o card em outra coluna do quadro (UC18).
+      - O membro escolhe a coluna de destino — no card aberto, ou soltando o card em outra coluna do quadro (UC18).
       - O sistema grava o evento — de onde, para onde, quem e quando — e só depois atualiza o estado atual do relato.
       - O sistema leva a mudança para a etapa pública (UC09).
     alternativeFlows:
@@ -98,6 +119,9 @@ useCases:
       - title: 1b. O movimento foi um engano
         steps:
           - O membro move de volta. Dentro da espera do projeto, quem relatou nunca chega a ver o engano.
+      - title: 1c. O relato está encerrado, na coluna que encerra, e vai para outra
+        steps:
+          - O painel pergunta antes, porque mover reabre o relato — "Reabrir o relato?". Cancelar deixa o card onde estava; confirmar move e reabre.
   - id: UC06
     name: Encerrar com motivo
     description: Diz como terminou — foi feito, não será feito, sem retorno ou já existia — e por quê. O motivo é obrigatório, e é o que quem relatou lê.
@@ -105,18 +129,21 @@ useCases:
     position: { x: 260, y: 660 }
     preconditions: O relato está aberto no painel, ou é solto no quadro, e não está encerrado.
     mainFlow:
-      - O membro escolhe encerrar — pelo botão, ou movendo para a última coluna, conforme o projeto.
+      - O membro escolhe Encerrar relato, em qualquer coluna, ou move o relato para a última coluna, num projeto que encerra por coluna.
       - Escolhe o desfecho.
       - Escreve o motivo.
       - O sistema grava o encerramento.
       - Passada a espera do projeto, o encerramento aparece na página de acompanhamento.
     alternativeFlows:
+      - title: 1a. Encerrar fora da coluna que encerra, num projeto que encerra por coluna
+        steps:
+          - O diálogo avisa que o relato vai para a coluna que encerra, e o leva para ela ao confirmar.
       - title: 3a. O motivo fica em branco
         steps:
           - O sistema não encerra e pede o motivo.
       - title: 5a. O membro tira o relato da última coluna antes de quem relatou confirmar
         steps:
-          - O encerramento é cancelado, e o histórico registra o cancelamento — que não é uma reabertura.
+          - O painel pergunta antes. Confirmado, o encerramento é cancelado, e o histórico registra o cancelamento — que não é uma reabertura.
     postconditions: Quem relatou pode confirmar que resolveu, ou reabrir — ver 06-tracking.
   - id: UC07
     name: Ver os arquivos do relato
@@ -185,26 +212,35 @@ useCases:
       - Apaga o arquivo do armazenamento e registra.
   - id: UC11
     name: Criar o card do time
-    description: O trabalho que não veio de fora. Título, descrição em Markdown e a coluna em que nasce; ganha o número seguinte do projeto e nunca tem lado de fora.
+    description: O trabalho que não veio de fora. Título, descrição em Markdown, a coluna em que nasce e, se quiser, o responsável e a prioridade; ganha o número seguinte do projeto e nunca tem lado de fora.
     width: 220
     position: { x: 600, y: 0 }
     preconditions: O membro está na tela de Trabalho, e o projeto não está arquivado.
     mainFlow:
-      - O membro escolhe Novo card.
+      - O membro escolhe Novo card, ou aperta a tecla c fora de um campo.
       - Escreve o título e, se quiser, a descrição — a barra escreve as marcas, e Visualizar mostra como fica.
-      - Escolhe a coluna, ou fica com a primeira.
-      - O sistema dá o próximo número do projeto e grava o card.
+      - Escolhe a coluna, ou fica com a primeira; e, se quiser, o responsável e a prioridade.
+      - Cria — pelo botão, pelo Enter no título, ou por Ctrl+Enter de qualquer campo.
+      - O sistema dá o próximo número do projeto e grava o card, já com o responsável e a prioridade; o aviso diz onde ele foi parar, com Abrir.
     alternativeFlows:
       - title: 2a. O título fica em branco
         steps:
           - O painel não cria, e pede o título.
       - title: 1a. O membro cria pela coluna, no quadro
         steps:
-          - Escolhe Criar, no pé de uma coluna que recebe card, e o formulário abre com ela já escolhida.
-      - title: 4a. O card é movido para a última coluna
+          - Escolhe Criar, logo abaixo do cabeçalho de uma coluna que recebe card, e um campo abre ali.
+          - Escreve o título e dá Enter; o card nasce na coluna, logo abaixo do campo, e o campo continua aberto para o próximo. Esc fecha.
+          - Mais detalhes abre o formulário inteiro, já com a coluna e o título.
+      - title: 3a. As sprints estão ligadas
+        steps:
+          - O formulário diz onde o card entra — o backlog, de saída, ou uma sprint; o campo da coluna do quadro cria na sprint em andamento.
+      - title: 5a. Os filtros ligados não deixam o card aparecer
+        steps:
+          - A lista é relida, e o aviso diz que o card foi criado mas não aparece ali por causa dos filtros.
+      - title: 5b. O card é movido para a última coluna
         steps:
           - Não há desfecho nem motivo a pedir — ninguém de fora vai ler —, e a etapa pública não se mexe.
-    postconditions: O card aparece no topo da tela de Trabalho, e não aparece em lugar nenhum do lado de fora.
+    postconditions: O card aparece no topo da coluna dele, e não aparece em lugar nenhum do lado de fora. Quem foi escolhido como responsável é avisado no sino.
   - id: UC12
     name: Arquivar
     description: Tira o card da tela de Trabalho. O card do time sempre; o relato só com a regra do ciclo ligada, e o relato aberto encerra junto, com o motivo que quem relatou lê.
@@ -247,9 +283,12 @@ useCases:
     position: { x: 260, y: 1160 }
     preconditions: O card está aberto no painel, e não está arquivado.
     mainFlow:
-      - O membro escolhe alguém do time como responsável, ou ninguém.
+      - O membro escolhe alguém do time como responsável, ou ninguém. O campo mostra a escolha na hora, enquanto grava.
       - O sistema guarda e conta a mudança no histórico.
     alternativeFlows:
+      - title: 2a. A gravação falha
+        steps:
+          - O campo volta ao que vale e diz, embaixo dele, o que não deu.
       - title: 1a. O responsável saiu do time
         steps:
           - O card continua com ele, como registro, marcado como fora do time — e só alguém do time pode ser escolhido no lugar.
@@ -264,7 +303,7 @@ useCases:
       - O membro escolhe uma das prioridades do projeto, ou nenhuma.
       - O sistema guarda e conta a mudança no histórico, com o nome da prioridade.
     alternativeFlows:
-      - title: 1a. A prioridade do card foi aposentada
+      - title: 1a. A prioridade do card foi desativada
         steps:
           - Ela continua no card, marcada, e não é oferecida para outro.
     postconditions: A linha do card mostra a prioridade, na cor dela e com o nome escrito.
@@ -275,13 +314,13 @@ useCases:
     position: { x: 260, y: 1320 }
     preconditions: O card está aberto no painel, e não está arquivado.
     mainFlow:
-      - O membro escreve o nome de uma etiqueta.
-      - Escolhe uma das etiquetas do projeto que aparecem.
+      - O membro escreve o nome de uma etiqueta, ou o começo dele.
+      - As etiquetas do projeto que batem aparecem, com a primeira destacada — a de nome igual, depois a que começa igual —; as setas andam, e Enter põe a destacada.
       - O sistema põe a etiqueta no card e conta no histórico.
     alternativeFlows:
       - title: 2a. A etiqueta não existe
         steps:
-          - O membro escolhe criá-la, e ela entra no card já criada, com uma cor da paleta.
+          - O membro escolhe Criar, o último da lista — ou dá Enter, quando não há nenhuma parecida —, e ela entra no card já criada, com uma cor da paleta.
       - title: 2b. O membro tira uma etiqueta
         steps:
           - A etiqueta sai do card, e o histórico conta.
@@ -295,7 +334,7 @@ useCases:
     mainFlow:
       - O membro escolhe a data do prazo, ou tira o prazo.
       - O sistema guarda e conta a mudança no histórico.
-    postconditions: A linha do card e o quadro mostram o prazo com o destaque — vermelho quando venceu, amarelo quando está perto, sempre com as palavras.
+    postconditions: A linha do card, o quadro e o card aberto mostram o prazo com o destaque — vermelho quando venceu, amarelo quando está perto, sempre com as palavras; o card que terminou fica só com a data.
   - id: UC18
     name: Arrumar o quadro
     description: Muda o card de lugar no quadro, arrastando com o mouse, o toque ou o teclado — dentro da coluna, na ordem que o time inteiro vê, ou para outra coluna.
@@ -303,19 +342,25 @@ useCases:
     position: { x: 600, y: 1320 }
     preconditions: O membro está na tela de Trabalho, no quadro, e o card não está arquivado.
     mainFlow:
-      - O membro pega um card — o mouse depois de andar um pouco, o toque depois de segurar um instante, o teclado com espaço.
+      - O membro pega um card — o mouse depois de andar um pouco, o toque depois de segurar perto de meio segundo, o teclado com espaço, depois de chegar ao card pelas setas.
       - Solta o card entre dois outros, na mesma coluna.
       - O sistema guarda o lugar novo, e todo o time passa a ver o card ali.
     alternativeFlows:
       - title: 2a. O membro solta o card em outra coluna
         steps:
-          - O card muda de estado (UC05), já no lugar em que foi solto.
+          - O card muda de coluna (UC05), já no lugar em que foi solto.
       - title: 2b. É um relato aberto, solto na coluna que encerra
         steps:
           - O painel pede o desfecho e o motivo antes de mover — ver UC06. Desistir devolve o card ao lugar.
       - title: 2c. O card é solto fora das colunas que recebem
         steps:
-          - No cabeçalho da página, em "Sem coluna" ou na coluna aposentada ninguém solta card. O card volta ao lugar, e nada muda.
+          - No cabeçalho da página, em "Sem coluna" ou na coluna desativada ninguém solta card. O card volta ao lugar, e nada muda.
+      - title: 2e. É um relato encerrado, tirado da coluna que encerra
+        steps:
+          - O painel pergunta antes de reabrir. Cancelar, ou Esc, devolve o card ao lugar exato.
+      - title: 2f. O sistema recusa, ou a rede cai
+        steps:
+          - O card volta, e o aviso diz para onde — e, sem conexão, que basta arrastar de novo quando a internet voltar.
       - title: 2d. Outra pessoa do time muda o quadro enquanto ele está aberto
         steps:
           - O card movido, criado ou editado por ela aparece na tela sem recarregar, aceso por um instante — e, se o membro estiver arrastando, a tela espera ele soltar. O card com o foco que ela move leva o foco junto.
@@ -343,17 +388,20 @@ useCases:
       - title: 3b. O pai é arquivado
         steps:
           - As subtarefas vão junto para o arquivo; desarquivar o pai traz de volta as que foram com ele.
+      - title: 3c. O membro marca pelo círculo
+        steps:
+          - Na lista do pai, o círculo leva a subtarefa para a última coluna ativa; Reabrir a devolve para a primeira.
     postconditions: Mover a subtarefa nunca mexe na etapa pública — quem relatou só vê o relato andar quando o relato anda.
   - id: UC19
     name: Filtrar e buscar os cards
-    description: "Recorta a tela de Trabalho — na lista e no quadro, com os mesmos filtros — por responsável, etiqueta, prioridade, tipo e vencidos, e busca pelo título, pelo texto, pelo número ou pelo protocolo, sem diferenciar maiúscula nem acento."
+    description: "Recorta a tela de Trabalho — na lista e no quadro, com os mesmos filtros — por responsável, etiqueta, prioridade, tipo, vencidos e em aberto, e busca pelo título, pelo texto, pelo número ou pelo protocolo, sem diferenciar maiúscula nem acento. Na lista, também pela coluna e pela sprint."
     width: 220
     position: { x: 600, y: 1480 }
     preconditions: O membro está na tela de Trabalho.
     mainFlow:
-      - O membro digita na busca, ou liga um atalho — "Meus cards", "Vencidos" —, ou marca opções nos menus de responsável, etiqueta, prioridade e tipo.
-      - A lista e cada coluna do quadro passam a mostrar só os cards que passam nos filtros, e o total de cada coluna acompanha.
-      - O filtro ligado fica à vista no próprio controle, e "Limpar filtros" volta a tudo.
+      - O membro digita na busca, ou liga um atalho — "Meus cards", "Vencidos", "Em aberto" —, ou marca opções nos menus de responsável, etiqueta, prioridade e tipo; na lista, também de coluna e de sprint.
+      - A lista e cada coluna do quadro passam a mostrar só os cards que passam nos filtros, e o total de cada coluna acompanha — no quadro, quantos passam de quantos há.
+      - O filtro ligado diz no próprio controle qual valor está valendo, e "Limpar filtros" volta a tudo.
     alternativeFlows:
       - title: 1a. Nenhum card passa nos filtros
         steps:
@@ -361,7 +409,16 @@ useCases:
       - title: 1b. Vencidos
         steps:
           - Entram só os cards com prazo antes de hoje que ainda não terminaram — o relato encerrado e o card na última coluna não entram, e o prazo deles não fica vermelho.
-    postconditions: Os filtros ficam lembrados enquanto a aba estiver aberta, só naquele projeto.
+      - title: 1c. Em aberto
+        steps:
+          - Saem os que terminaram, pela mesma regra; fica o trabalho que falta.
+      - title: 1d. Sem as subtarefas
+        steps:
+          - No menu de tipo, desmarcar Subtarefas deixa só os cards de primeiro nível.
+      - title: 1e. A sprint concluída
+        steps:
+          - Escolhida no filtro de sprint da lista, mostra o que ela entregou.
+    postconditions: Os filtros ficam lembrados enquanto a aba estiver aberta, só naquele projeto. A ordem da tabela também, à parte — limpar os filtros não a desfaz.
   - id: UC21
     name: Vincular cards
     description: "Liga dois cards do projeto: um bloqueia o outro, os dois estão relacionados, ou um é duplicado do outro — e o relato duplicado passa a acompanhar o original até o desfecho."
@@ -375,6 +432,7 @@ useCases:
     alternativeFlows:
       - title: 1a. Duplicado de
         steps:
+          - O painel diz o que vai acontecer e pede confirmação antes de marcar.
           - O duplicado vai para o arquivo. Se é relato, quem o escreveu passa a ver a etapa do original, e quando o original encerra recebe o mesmo desfecho e o mesmo motivo.
           - Os duplicados do duplicado passam para o original.
       - title: 1b. O original volta
@@ -396,7 +454,7 @@ useCases:
     mainFlow:
       - O membro digita @ na caixa "Entre o time" e escolhe alguém na lista do time.
       - O sistema grava o comentário com a menção e põe um aviso no sino de quem foi mencionado.
-      - A pessoa vê o número no sino, abre o aviso e cai no card; o aviso fica lido.
+      - A pessoa vê o número no sino, abre o aviso — com o começo do comentário — e cai no card, rolado até a menção; o aviso fica lido.
     alternativeFlows:
       - title: 1a. Escolhido como responsável
         steps:
@@ -410,19 +468,25 @@ useCases:
       - title: 3a. A pessoa saiu do time
         steps:
           - Os avisos daquele projeto somem do sino dela.
+      - title: 3b. Muitos avisos
+        steps:
+          - O sino abre nos não lidos, junta os parecidos seguidos numa linha só, e traz os mais antigos até o fim.
+      - title: 2b. O comentário é corrigido ou apagado
+        steps:
+          - Quem entrou na correção é avisado, e o aviso de quem saiu some; apagado, os avisos dele saem do sino.
     postconditions: Os avisos ficam no painel, sem e-mail. Nada disso aparece para quem relatou — a caixa dele nem oferece a lista do @.
   - id: UC23
     name: Planejar e trabalhar em sprints
-    description: "Com as sprints ligadas no Ciclo, o time planeja no Backlog o que entra em cada sprint, estima em pontos, inicia uma — e o quadro passa a mostrar só ela — e, ao concluir, escolhe para onde vai o que não terminou."
+    description: "Com as sprints ligadas na tela Sprints, o time planeja no Backlog o que entra em cada sprint, estima em pontos, inicia uma — e o quadro passa a mostrar só ela — e, ao concluir, escolhe para onde vai o que não terminou."
     width: 220
     position: { x: 260, y: 1800 }
-    preconditions: O administrador ligou "Trabalhar em sprints" no Ciclo.
+    preconditions: O administrador ligou "Trabalhar em sprints" na tela Sprints — ver 03-project-rules.
     mainFlow:
       - O membro abre a aba Backlog e cria uma sprint; ela nasce planejada, com o próximo número e a duração padrão do projeto, logo depois da última.
-      - O membro leva cards do backlog para a sprint — arrastando, pelo teclado ou pelo menu do card — e estima cada um em pontos.
-      - O membro inicia a sprint, podendo acertar o nome, o objetivo e as datas; o quadro passa a mostrar só os cards dela, com a barra da sprint em cima.
+      - O membro leva cards do backlog para a sprint — arrastando, pelo teclado ou pelo menu do card, que avisa para onde o card foi e oferece Desfazer — e estima cada um em pontos ali mesmo, na linha, onde também vê a prioridade e o prazo.
+      - O membro inicia a sprint, que começa hoje e dura o padrão do projeto — podendo acertar o nome, o objetivo e as datas, ou voltar às planejadas; o quadro passa a mostrar só os cards dela, com a barra da sprint em cima.
       - O time trabalha no quadro; a barra mostra quantos cards e quantos pontos já terminaram, e quanto falta para o fim.
-      - O membro conclui a sprint e escolhe para onde vai o que não terminou.
+      - O membro conclui a sprint e escolhe para onde vai o que não terminou — a próxima planejada já vem escolhida.
     alternativeFlows:
       - title: 2a. Subtarefa
         steps:
@@ -436,6 +500,12 @@ useCases:
       - title: 5b. Apagar uma sprint planejada
         steps:
           - Os cards dela voltam para o fim do backlog, e o número não volta.
+      - title: 5c. Seguir para a próxima
+        steps:
+          - O aviso de concluída oferece iniciar a sprint que recebeu os cards, já começando hoje.
+      - title: 2b. Achar um card no backlog
+        steps:
+          - A busca, pelo título ou pelo número, e "Meus cards" escondem o que não bate, sem mudar a ordem.
       - title: 1a. As sprints são desligadas
         steps:
           - O Backlog sai da tela e o quadro volta a mostrar tudo; nada é apagado, e religar devolve como estava.
@@ -448,7 +518,7 @@ useCases:
     preconditions: O quadro está aberto.
     mainFlow:
       - O membro escolhe "Raias por responsável" (ou "por prioridade") na barra do quadro.
-      - O sistema mostra uma raia por pessoa com card, em ordem alfabética, e "Sem responsável" por último, com as colunas de sempre em cada uma.
+      - O sistema mostra uma raia por pessoa com card, em ordem alfabética, depois uma raia compacta para cada pessoa do time sem card, e "Sem responsável" por último, com as colunas de sempre em cada uma.
       - O membro arrasta um card para a raia de outra pessoa; o sistema passa o card para ela, e a pessoa é avisada no sino.
     alternativeFlows:
       - title: 3a. Na diagonal
@@ -463,12 +533,12 @@ useCases:
     postconditions: A escolha das raias fica lembrada neste navegador, por projeto. Cada pessoa do time vê o quadro como preferir.
   - id: UC25
     name: Mudar vários cards de uma vez
-    description: "Na lista, o membro marca vários cards e, de uma vez, os move de coluna, escolhe o responsável ou a prioridade, põe ou tira uma etiqueta, ou os leva para uma sprint."
+    description: "Na lista, o membro marca vários cards e, de uma vez, os move de coluna, escolhe o responsável ou a prioridade, adiciona ou remove uma etiqueta, ou os leva para uma sprint — e desfaz, se errou."
     width: 220
     position: { x: 260, y: 1960 }
     preconditions: A lista da tela de Trabalho está aberta.
     mainFlow:
-      - O membro marca os cards, um a um ou todos os da tela.
+      - O membro marca os cards — um a um, um trecho com Shift, os da página, ou todos os que passam nos filtros.
       - O sistema mostra a barra do lote com quantos estão marcados.
       - O membro escolhe a mudança; o sistema aplica card por card, com as regras de sempre, e diz quantos mudaram.
     alternativeFlows:
@@ -481,6 +551,9 @@ useCases:
       - title: 3c. Subtarefas para uma sprint
         steps:
           - Ficam de fora: a subtarefa vai com o pai.
+      - title: 3d. O membro desfaz
+        steps:
+          - Por dez segundos, o aviso oferece Desfazer, que devolve cada card ao valor de antes, card por card. O movido para a coluna que encerra não volta — ela já perguntou antes.
     postconditions: Trocar o filtro, a coluna, a vista ou o projeto desmarca tudo.
 links:
   - from: Membro do time
@@ -558,6 +631,7 @@ links:
   - from: UC05
     to: UC18
     kind: extend
+    note: quando o card é solto em outra coluna
   - from: Membro do time
     to: UC19
     kind: association
@@ -579,7 +653,6 @@ links:
   - from: Membro do time
     to: UC25
     kind: association
-    note: quando o card é solto em outra coluna
 notes:
   - text: "Comentário interno e comentário público são campos separados, e não uma marcação: o interno não tem caminho nenhum até a página pública."
     anchor: UC03

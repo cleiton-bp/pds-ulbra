@@ -306,7 +306,7 @@ entities:
         note: a ordem na tela, escolhida pelo cliente, e é coluna em vez de ordem alfabética porque fila de trabalho tem sequência
       - name: deactivated_at
         type: datetime
-        note: nulo enquanto o estado aceita card novo, preenchido para aposentá-lo sem apagar, porque card antigo continua apontando para ele e o histórico precisa continuar legível
+        note: nulo enquanto o estado aceita card novo, preenchido para desativá-lo sem apagar, porque card antigo continua apontando para ele e o histórico precisa continuar legível
       - name: created_at
         type: datetime
         note: quando o estado foi criado, em UTC

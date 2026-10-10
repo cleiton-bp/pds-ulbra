@@ -1,7 +1,7 @@
 <h2>O armazenamento</h2>
 
 <p><strong>Opcional.</strong> Só é necessário para <strong>anexar</strong>: imagens e arquivos no
-relato, na resposta ao time e na reabertura. Sem ele, todo o resto funciona, e a tela de Mídia
+relato, na resposta ao time e na reabertura. Sem ele, todo o resto funciona, e a tela de Anexos
 recusa ligar o anexo, dizendo por quê.</p>
 
 <pre><code>cd api
@@ -82,7 +82,7 @@ conhece (<code>MEDIA_STORAGE_PUBLIC_ENDPOINT</code>).</p>
 <ul>
   <li>a leitura de mídia da ferramenta e da página de quem relatou responde <strong>desligado</strong>,
   mesmo com o anexo ligado no projeto — o botão não aparece;</li>
-  <li>a tela de Mídia não salva nada, nem o anexo desligado: <code>PUT .../media-settings</code>
+  <li>a tela de Anexos não salva nada, nem o anexo desligado: <code>PUT .../media-settings</code>
   responde <strong>409</strong>. Gravar o desligado que a leitura mostra apagaria a escolha do
   projeto, que volta a valer quando houver armazenamento;</li>
   <li>pedir permissão e confirmar respondem <strong>409</strong>, e ler os arquivos de um relato que

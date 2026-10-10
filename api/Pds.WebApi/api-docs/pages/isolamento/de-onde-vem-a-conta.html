@@ -66,7 +66,7 @@ e decide quem entra — pode haver mais de um. <strong>Membro</strong> trabalha 
 configuração, sem mudá-la. O dono da conta é administrador em todos os projetos dela.</p>
 
 <p>A regra cabe numa linha — <strong>ler é de membro, e mudar a configuração é de
-administrador</strong> —, com quatro exceções:</p>
+administrador</strong> —, com seis exceções:</p>
 
 <ul>
   <li><strong>As chaves</strong> são só de administrador, inclusive para ler. São a credencial da
@@ -77,29 +77,36 @@ administrador</strong> —, com quatro exceções:</p>
   <li><strong>Tudo sob <code>/reports</code></strong> é de membro, inclusive o que grava — criar e
   editar o card do time, mover, arrumar a ordem do quadro, comentar, pedir informação, encerrar,
   arquivar, moderar e dar ao card título, responsável, prioridade, etiquetas e prazo. É o trabalho
-  do time, e não configuração.</li>
+  do time, e não configuração. Uma regra ali dentro não é de papel: o comentário interno só se
+  corrige e se apaga por quem o escreveu — 403 para os outros, inclusive quem administra.</li>
   <li><strong>Criar etiqueta</strong> também é de membro, embora more em <code>/labels</code>: o
   time cria a etiqueta ao etiquetar um card. Mudar e apagar etiqueta, e tudo que grava em
   <code>/priorities</code>, é de administrador.</li>
   <li><strong>As sprints</strong> também são de membro, embora morem em <code>/sprints</code>:
   planejar, iniciar, concluir e apagar sprint é trabalho do time, como mover card. Ligar as
-  sprints é configuração — está no Ciclo, e é de administrador.</li>
+  sprints é configuração — está na tela Sprints, gravada em <code>cycle-settings</code>, e é de
+  administrador.</li>
+  <li><strong>Sair do time</strong> é de qualquer pessoa do time, embora more em
+  <code>/members</code>: <code>DELETE .../members/{userPublicId}</code> com o próprio identificador.
+  Tirar <em>outra</em> pessoa continua de administrador — e quem confere é o serviço, porque só ali
+  se sabe se quem pede é a própria pessoa da linha: <code>So administradores do projeto podem tirar
+  alguem do time.</code> (403).</li>
 </ul>
 
-<p>Das oitenta e três rotas de projeto, quarenta e oito valem para qualquer papel, e trinta e cinco
-pedem administrador:</p>
+<p>Das oitenta e cinco rotas de projeto, cinquenta e uma valem para qualquer papel, e trinta e
+quatro pedem administrador:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Papel</th><th>Rotas</th></tr>
-  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público, os anexos, o pedido de informação, o encerramento e a moderação; e as sprints — criar, editar, iniciar, concluir e apagar.</td></tr>
-  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e regenerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar do time; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
+  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público — e corrigir e apagar o próprio interno —, os anexos, o pedido de informação, o encerramento e a moderação; as sprints — listar, criar, editar, iniciar, concluir e apagar —; e sair do time.</td></tr>
+  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e gerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar outra pessoa do time — conferido no serviço, na mesma rota de sair —; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
 </table>
 </div>
 
 <p>Cada rota declara o papel que exige, com <code>[RequireProjectRole]</code>. O controlador
 declara o mínimo — <code>Member</code> —, e a ação que muda configuração acrescenta
-<code>Administrator</code>; o das chaves declara <code>Administrator</code> direto, na classe.</p>
+<code>Administrator</code>; o das chaves e o dos convites declaram <code>Administrator</code> direto, na classe.</p>
 
 <pre><code>[RequireProjectRole(ProjectRoleEnum.Member)]
 [Route("projects/{publicId:guid}/origins")]
@@ -132,7 +139,7 @@ public class ProjectOriginsController : BaseController
   "não encontrado". O que o esquecimento abriria é a configuração para quem é só membro, e, se
   depender de lembrar, um dia alguém esquece.</p>
   <p><strong>A escrita de membro fora de <code>/reports</code> é declarada, e não esquecida.</strong>
-  Criar etiqueta e as escritas das sprints: cada ação leva <code>[MemberWrite]</code>, com o motivo escrito ao lado — e a
+  Criar etiqueta, sair do time e as escritas das sprints: cada ação leva <code>[MemberWrite]</code>, com o motivo escrito ao lado — e a
   regra aceita só a ação que declara, ela mesma, que é trabalho do time. Tirar a marca faz a API
   voltar a não subir.</p>
 </div>
@@ -150,7 +157,9 @@ E é também a resposta certa do ponto de vista de quem pergunta — dizer "exis
 
 <p><strong>O 403 fica para quem está no projeto e não tem o papel.</strong> O membro que tenta
 mudar a configuração, ou ler as chaves, recebe a mensagem <code>So administradores do projeto
-podem fazer isto.</code> Ali não há o que esconder: ele já enxerga o projeto. Sem sessão, a resposta continua
+podem fazer isto.</code> Ali não há o que esconder: ele já enxerga o projeto. As duas conferências
+que moram no serviço respondem do mesmo jeito — tirar outra pessoa do time sem administrar, e
+corrigir ou apagar o comentário interno de outra pessoa. Sem sessão, a resposta continua
 401.</p>
 
 <h2>Identidade fica de fora do filtro</h2>

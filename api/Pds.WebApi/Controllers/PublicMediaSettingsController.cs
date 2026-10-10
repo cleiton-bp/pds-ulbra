@@ -49,7 +49,7 @@ public class PublicMediaSettingsController : BaseController
 
     /// <summary>O que este projeto aceita receber junto do relato.</summary>
     /// <remarks>
-    /// Projeto que nunca abriu a tela de Mídia responde com os **padrões**, e não
+    /// Projeto que nunca abriu a tela de Anexos responde com os **padrões**, e não
     /// com uma resposta vazia: ele já se comporta desse jeito.
     ///
     /// **Os tipos de arquivo vêm junto de cada categoria** — é o que permite o

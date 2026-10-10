@@ -25,7 +25,7 @@ public record MediaKindLimitViewModel(
     IReadOnlyList<string> Formats);
 
 /// <summary>
-/// Um formato do catalogo, para a tela de Midia desenhar a lista de marcar.
+/// Um formato do catalogo, para a tela de Anexos desenhar a lista de marcar.
 ///
 /// <para><b>O catalogo vem da API, e nao da tela.</b> E a API que confere os bytes de
 /// cada formato; uma lista copiada na tela ficaria, um dia, oferecendo o que o envio

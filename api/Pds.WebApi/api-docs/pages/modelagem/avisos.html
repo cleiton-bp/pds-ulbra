@@ -30,12 +30,25 @@ com quem fez, o card e, na menção, o comentário. O som de cada tipo de aviso 
 aponta o comentário enquanto a atribuição não aponta (<code>ck_notifications_comment</code>). Todas as
 chaves com <code>Restrict</code>: nada disso se apaga de verdade. Dois índices servem o sino: os
 mais recentes de uma pessoa (<code>user_id, created_at</code>) e os não lidos dela (com
-<code>read_at IS NULL</code>).</p>
+<code>read_at IS NULL</code>). A página seguinte anda pelo mesmo caminho: começa depois da hora e da
+chave do último aviso que a tela tem, e não por deslocamento — o aviso que chega no topo, ou o que
+se lê no meio, não faz a página seguinte repetir nem pular ninguém.</p>
 
 <div class="note why">
   <strong>Por que a menção não guarda um texto, e sim o comentário</strong>
   <p>O aviso aponta o comentário em vez de copiar o que foi escrito: o texto continua num lugar só,
-  com o filtro de acesso dele.</p>
+  com o filtro de acesso dele. O trecho que o sino mostra (<code>Comment.Excerpt</code>, o começo do
+  comentário, com as menções como "@Nome", até uns 90 caracteres) é tirado do comentário na leitura
+  — o comentário corrigido muda o trecho sem mexer no aviso.</p>
+</div>
+
+<div class="note why">
+  <strong>Corrigir e apagar o comentário acerta os avisos</strong>
+  <p>Corrigido o comentário, as menções passam a ser as do texto novo: quem entrou ganha uma linha
+  aqui, e a linha de quem saiu ganha <code>deleted_at</code> — corrigir o "@" na pessoa errada é
+  isso. Apagado o comentário, as linhas da menção dele saem juntas, por exclusão lógica: o sino não
+  pode levar a um comentário que já não existe. Tirar um aviso não manda sinal ao vivo — o número do
+  sino acerta na leitura seguinte.</p>
 </div>
 
 <h2>user_notification_sounds</h2>

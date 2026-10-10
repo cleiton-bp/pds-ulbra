@@ -3,6 +3,16 @@
 <p>O banco guarda o hash e o prefixo. O valor completo existe uma única vez, na resposta que
 o criou.</p>
 
+<div class="note why">
+  <strong>A secreta não nasce com o projeto</strong>
+  <p>O projeto nasce só com a chave pública, que o site precisa para mandar relato. A secreta é
+  gerada sob pedido, por quem administra, na tela de Chaves —
+  <code>POST /projects/{publicId}/keys/secret</code> —, e é essa a resposta que traz o valor, uma
+  vez. Nascendo junto, ela apareceria uma vez só para quem acabou de criar o projeto e ainda nem
+  sabe se precisa dela: o caminho mais curto para um valor anotado em qualquer lugar, ou perdido. Uma
+  credencial que não existe não vaza.</p>
+</div>
+
 <table>
   <tr><th></th><th>Chave pública</th><th>Chave secreta</th></tr>
   <tr><td>Marca</td><td><code>pk_</code></td><td><code>sk_</code></td></tr>
@@ -47,7 +57,7 @@ que dá para anexar — entram todas por ela.</p>
 
 <div class="note todo">
   <strong>A chave secreta continua sem rota que a aceite</strong>
-  <p>Ela é gerada, guardada como hash e regenerável, e <strong>nenhuma rota autentica por ela</strong>.
+  <p>Ela é gerada sob pedido, guardada como hash e regenerável, e <strong>nenhuma rota autentica por ela</strong>.
   Quem chega hoje às rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
   em claro — a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
   <p>O uso previsto para ela é o servidor do cliente dizer quem está relatando — a identidade

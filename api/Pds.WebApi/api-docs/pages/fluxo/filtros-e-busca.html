@@ -2,41 +2,94 @@
 
 <p>A tela de Trabalho filtra e busca na lista e no quadro <strong>com os mesmos filtros</strong>: a
 lista mostra só o que passa neles, cada coluna do quadro também, e o total de cada coluna conta só
-os que passam. A barra fica acima da lista e do quadro:</p>
+os que passam. A barra fica logo abaixo das abas:</p>
 
 <ul>
   <li><strong>A busca</strong> — no título (o que o time deu e o de quem relatou), no texto, na
   descrição, no número (<code>42</code> ou <code>#42</code>) e no protocolo, com ou sem hífen. Sem
-  diferenciar maiúscula nem acento: "nao" acha "não". Ela espera a pessoa parar de digitar.</li>
-  <li><strong>Meus cards</strong> e <strong>Vencidos</strong>, os dois atalhos de um clique.</li>
+  diferenciar maiúscula nem acento: "nao" acha "não". Ela espera a pessoa parar de digitar, e
+  enquanto a lista nova não chega o campo diz <em>Buscando…</em> e a tabela esmaece. A tecla "/",
+  fora de um campo, põe o foco nela.</li>
+  <li><strong>Meus cards</strong>, <strong>Vencidos</strong> e <strong>Em aberto</strong>, os
+  atalhos de um clique. "Em aberto" esconde o que terminou — o relato encerrado e o card na última
+  coluna —, e é o jeito de ver só o trabalho que falta.</li>
   <li><strong>Responsável</strong> (qualquer pessoa do time, e "Sem responsável"),
-  <strong>Etiqueta</strong>, <strong>Prioridade</strong> (e "Sem prioridade") e
-  <strong>Tipo</strong> (defeito, melhoria, dúvida e o card do time), em menus de marcar.</li>
+  <strong>Etiqueta</strong>, <strong>Prioridade</strong> (da mais urgente para a menos, e "Sem
+  prioridade" por último) e <strong>Tipo</strong> (defeito, melhoria, dúvida, o card do time — e
+  <em>Subtarefas</em>, marcada de saída: desmarcar esconde as subtarefas, que de outro jeito tomam
+  a primeira tela), em menus de marcar.</li>
+  <li>Na lista, também <strong>Coluna</strong> — várias de uma vez, cada opção com quantos cards
+  tem ("Fazendo · 8") — e, com as sprints ligadas, <strong>Sprint</strong>: todas, o backlog, a em
+  andamento, as planejadas e, num grupo à parte, as concluídas, da mais recente para a mais antiga
+  — uma de cada vez. Escolher a sprint concluída é como se consulta o que ela entregou; o menu as
+  lê com <code>GET .../sprints?closed=true</code>.</li>
 </ul>
 
 <p><strong>Dentro de um filtro, ou; entre filtros, e.</strong> A etiqueta "pagamento" ou a
-"celular"; da Ana e vencido. O filtro ligado aparece no próprio controle — o atalho pressionado, o
-menu com quantos estão marcados — e em "Limpar filtros". Quando nada passa, a tela diz isso, com o
-"Limpar filtros" ao lado: os cards existem, e o vazio não é o do projeto.</p>
+"celular"; da Ana e vencido. O filtro ligado diz <strong>qual</strong> está valendo, no próprio
+controle — <em>Etiqueta: pagamentos</em>, <em>Prioridade: Alta</em>, <em>Responsável: você</em>,
+<em>Etiqueta: pagamentos +1</em> — e conta em "Limpar filtros". Quando nada passa, a tela diz isso
+com o que se procurou — <em>Nenhum card encontrado para “zzzz”.</em> —, com "Limpar filtros" ao lado
+(ou "Limpar a busca", quando só a busca está ligada): os cards existem, e o vazio não é o do
+projeto.</p>
 
-<h2>Vencido é o que ainda não terminou</h2>
+<p>No celular, a busca fica numa linha, e os atalhos e os menus abrem pelo botão
+<strong>Filtros</strong> — <em>Filtros · 2</em>, com dois ligados.</p>
+
+<h2>Vencido e em aberto: o que ainda não terminou</h2>
 
 <p>O card vencido é o que tem <strong>prazo antes de hoje e ainda não terminou</strong>. Terminou o
 relato com encerramento valendo, ou o card na <strong>última coluna ativa</strong> — com duas
 colunas ou mais; com uma só, ela é a entrada da fila, a mesma regra da última coluna do quadro. O
 card que terminou também não mostra o prazo em vermelho nem "venceu há": atrasado é o que ainda não
-acabou. Quem decide é a API, e o card diz em <code>Finished</code>.</p>
+acabou. "Em aberto" é a mesma regra, sem o prazo. Quem decide é a API, e o card diz em
+<code>Finished</code>.</p>
 
 <p>O "hoje" é o <strong>dia de quem olha</strong>, que a tela manda: no fim da noite no Brasil, o
 dia em UTC já é o seguinte, e o card que vence hoje apareceria como vencido.</p>
 
+<h2>A ordem da tabela</h2>
+
+<p>Na lista, os cabeçalhos <strong>Nº, Coluna, Responsável, Prioridade, Prazo e Criado</strong>
+ordenam. O primeiro clique vai na direção que responde a pergunta mais comum — o prazo mais perto,
+a prioridade mais alta, o mais novo —, e o segundo inverte. O menu <strong>Ordem</strong>, na barra,
+dá as mesmas escolhas também no celular, onde os cabeçalhos de prazo e prioridade saem:
+<em>Mais novos primeiro</em>, <em>Mais antigos primeiro</em>, <em>Atualizados há pouco</em>,
+<em>Prazo mais perto</em>, <em>Prioridade mais alta</em>, <em>Número</em>, <em>Coluna, na ordem do
+quadro</em> e <em>Responsável, de A a Z</em>. Ordenando pela atualização, a última coluna da tabela
+passa a ser "Atualizado".</p>
+
+<ul>
+  <li><strong>O vazio fica no fim nas duas direções</strong>: o card sem prazo, sem prioridade, sem
+  responsável ou sem coluna não sobe para o topo só porque a direção virou.</li>
+  <li>A prioridade segue a ordem do projeto, e a coluna, a ordem do quadro; o mais novo desempata.</li>
+  <li><strong>A ordem não é filtro</strong>: fica lembrada na aba, por projeto, à parte dos filtros,
+  e "Limpar filtros" não a desfaz.</li>
+</ul>
+
+<h2>A lista</h2>
+
+<p>A lista vem de cinquenta em cinquenta, e a página seguinte chega sozinha uma tela antes do fim;
+o botão continua lá, e o rodapé diz <em>50 de 134 cards</em>. O cabeçalho da tabela fica preso ao
+rolar, e as colunas da tabela saem conforme a largura da área de trabalho — a coluna, o
+responsável, a prioridade e o prazo são os últimos a sair. O relato encerrado leva o selo <em>Encerrado</em> ao lado da coluna, e
+o duplicado, no arquivo, diz <em>Duplicado de #N</em>.</p>
+
+<p><strong>Arquivados</strong> mostra o que saiu da tela; o botão vira <strong>Sair dos
+arquivados</strong>, e ali o "Novo card", "Vencidos" e "Em aberto" saem — o prazo do arquivado
+também perde o destaque. A coluna e a sprint da lista não valem nos arquivados.</p>
+
+<p>O card criado com filtros ligados <strong>só aparece se passar neles</strong>: a lista é relida,
+e o aviso diz quando ele ficou de fora — ver <a href="#/fluxo/card-do-time">O card do time</a>.</p>
+
 <h2>Na API</h2>
 
-<p>A lista e a contagem das colunas recebem os mesmos parâmetros. Repetir um parâmetro soma:</p>
+<p>A lista e a contagem das colunas recebem os mesmos filtros. Repetir um parâmetro soma:</p>
 
 <pre><code>GET /projects/2be49b28-.../reports?assignee=me&amp;label=7c1e...&amp;label=90af...&amp;due=overdue&amp;today=2026-10-03
 GET /projects/2be49b28-.../reports/counts?assignee=me&amp;label=7c1e...&amp;label=90af...&amp;due=overdue&amp;today=2026-10-03
-GET /projects/2be49b28-.../reports?q=nao+responde</code></pre>
+GET /projects/2be49b28-.../reports?q=nao+responde
+GET /projects/2be49b28-.../reports?open=true&amp;subtasks=hide&amp;column=e12fef6c-...&amp;column=c7d1...&amp;sort=due&amp;dir=asc</code></pre>
 
 <div class="table-scroll">
 <table>
@@ -46,17 +99,27 @@ GET /projects/2be49b28-.../reports?q=nao+responde</code></pre>
   <tr><td><code>priority</code></td><td>O identificador da prioridade, ou <code>none</code></td></tr>
   <tr><td><code>type</code></td><td><code>bug</code>, <code>improvement</code>, <code>question</code> ou <code>team</code> (o card do time)</td></tr>
   <tr><td><code>due</code> e <code>today</code></td><td><code>due=overdue</code>, com <code>today</code> no formato <code>aaaa-mm-dd</code>; sem <code>today</code>, vale o dia em UTC</td></tr>
+  <tr><td><code>open</code></td><td><code>true</code>: só o que não terminou — o "Em aberto"</td></tr>
+  <tr><td><code>subtasks</code></td><td><code>hide</code>: só os cards de primeiro nível</td></tr>
+  <tr><td><code>column</code></td><td>O identificador da coluna, ou <code>none</code> (sem coluna); basta o card estar numa delas. Não é o <code>state</code>, que continua sendo o recorte de uma coluna só, o do quadro</td></tr>
+  <tr><td><code>sprint</code></td><td><code>active</code>, <code>backlog</code> ou o identificador de uma sprint — a concluída também</td></tr>
   <tr><td><code>q</code></td><td>A busca, até 200 caracteres</td></tr>
+  <tr><td><code>sort</code> e <code>dir</code></td><td>Só na lista: <code>number</code>, <code>state</code>, <code>assignee</code>, <code>priority</code>, <code>due</code>, <code>created</code> ou <code>updated</code>, com <code>dir</code> <code>asc</code> (o padrão) ou <code>desc</code>. Sem <code>sort</code>, do mais novo para o mais antigo</td></tr>
 </table>
 </div>
 
-<p><strong>O valor que sumiu não casa com card nenhum</strong> — a etiqueta apagada, a prioridade
-apagada, a pessoa que saiu do time —, em vez de recusar a lista. O filtro fica guardado na aba de
-quem o escolheu: recusado, ele derrubaria a lista, o quadro e a contagem a cada releitura, até a
-pessoa achar "Limpar filtros". O painel tira o valor do filtro assim que vê que ele sumiu. O
-identificador que nunca foi do projeto tem o mesmo tratamento, e não diz se existe noutro. O
-formato errado — tipo ou prazo desconhecido, identificador que não é um, busca longa demais — é
-400.</p>
+<p>A página de saída tem cinquenta cards (<code>pageSize</code>, até cem), e cada card traz
+<code>UpdatedAt</code>, a última mudança gravada nele. <code>sort</code> não vale com
+<code>order=board</code> nem <code>order=backlog</code> — ali a ordem é a que o time arrumou —, e
+<code>dir</code> sem <code>sort</code> também é recusado (400).</p>
+
+<p><strong>O valor que sumiu não casa com card nenhum</strong> — a etiqueta apagada, a pessoa que saiu
+do time —, em vez de recusar a lista. O filtro fica
+guardado na aba de quem o escolheu: recusado, ele derrubaria a lista, o quadro e a contagem a cada
+releitura, até a pessoa achar "Limpar filtros". O painel tira o valor do filtro assim que vê que ele
+sumiu. O identificador que nunca foi do projeto tem o mesmo tratamento, e não diz se existe noutro.
+O formato errado — tipo, prazo, coluna ou ordem desconhecidos, identificador que não é um, busca
+longa demais — é 400.</p>
 
 <div class="note">
   <strong>O acento sai sem extensão no banco</strong>
@@ -68,14 +131,13 @@ formato errado — tipo ou prazo desconhecido, identificador que não é um, bus
 
 <h2>Na tela</h2>
 
-<p>Os filtros e a busca ficam <strong>lembrados na aba, por projeto</strong>: ir à Configuração e
-voltar, ou recarregar a página, os traz de volta; fechar a aba os apaga — um filtro esquecido de
-ontem faria a pessoa achar que cards sumiram. Trocar de filtro relê a lista e as colunas sem esvaziar
-a tela, e o tempo real relê com os filtros de agora.</p>
+<p>Os filtros, a coluna e a sprint da lista ficam <strong>lembrados na aba, por projeto</strong>: ir
+à configuração e voltar, ou recarregar a página, os traz de volta; fechar a aba os apaga — um filtro
+esquecido de ontem faria a pessoa achar que cards sumiram. Trocar de filtro relê a lista e as
+colunas sem esvaziar a tela, e o tempo real relê com os filtros de agora.</p>
 
 <div class="note warn">
   <strong>O que fica de fora</strong>
-  <p>A busca não olha os comentários. O card criado com um filtro ligado aparece mesmo que não passe
-  nele: é a resposta ao que a pessoa acabou de fazer. E a busca varre os cards do projeto, sem índice
-  próprio de texto — se o volume pedir, um índice de busca é <strong>Continuidade</strong>.</p>
+  <p>A busca não olha os comentários. E ela varre os cards do projeto, sem índice próprio de texto
+  — se o volume pedir, um índice de busca é <strong>Continuidade</strong>.</p>
 </div>

@@ -27,7 +27,7 @@ etiquetas e prazo próprios, e anda no quadro como qualquer card, com o pai indi
 { "Title": "Testar no Safari", "Description": null, "ParentPublicId": "9f3e..." }</code></pre>
 
 <p>O pai tem de ser do projeto (404), estar fora do arquivo e não ser subtarefa (409). Mandar a
-coluna junto é recusado (400). As subtarefas de um card são a lista de sempre, com
+coluna, o responsável ou a prioridade junto é recusado (400): a subtarefa nasce sem eles. As subtarefas de um card são a lista de sempre, com
 <code>parent</code>:</p>
 
 <pre><code>GET /projects/2be49b28-.../reports?parent=9f3e...&amp;pageSize=100</code></pre>
@@ -45,7 +45,17 @@ sozinha (409), e não nasce subtarefa nova: ficaria no quadro como filha de um c
 <h2>No card aberto e ao vivo</h2>
 
 <p>O card aberto tem a seção <strong>Subtarefas</strong>: o progresso, a lista na ordem em que
-nasceram — com a coluna, o responsável e o visto de quem terminou — e o campo de criar. A subtarefa
+nasceram — com a coluna, o responsável e o círculo de quem terminou — e o campo de criar. A subtarefa
 aberta se chama Subtarefa e mostra o pai, com o link para ele. A subtarefa criada entra no quadro e
-na lista na hora. Pelo tempo real, o aviso de uma subtarefa avisa o pai junto: o progresso dele
-mudou, e o pai aberto relê a lista.</p>
+na lista na hora — se passar nos filtros ligados. Pelo tempo real, o aviso de uma subtarefa avisa o
+pai junto: o progresso dele mudou, e o pai aberto relê a lista.</p>
+
+<p><strong>O círculo marca.</strong> Na lista do pai, o círculo de cada subtarefa é um botão:
+<em>Marcar #31 como feita</em> a leva para a última coluna ativa, e <em>Reabrir #31</em> a devolve
+para a primeira — o mesmo movimento de arrastar, com o aviso "#31 marcada como feita.", e o progresso
+do pai anda na hora. Não é checklist: a subtarefa continua um card que anda pelo quadro. Com uma
+coluna ativa só, não há onde terminar, e o círculo volta a ser só o sinal.</p>
+
+<p>Na lista e no quadro, o menu <strong>Tipo</strong> traz <em>Subtarefas</em>, marcada de saída:
+desmarcar esconde as subtarefas (<code>subtasks=hide</code>) e deixa só os cards de primeiro
+nível.</p>

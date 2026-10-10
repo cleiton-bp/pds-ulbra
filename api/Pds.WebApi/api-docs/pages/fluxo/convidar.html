@@ -108,4 +108,13 @@ banco.</p>
 
 <p>Na tela de Membros, Ana muda o papel de Bruno, ou o tira do time — o acesso dele acaba na
 requisição seguinte, e o que ele escreveu nos relatos continua com o nome dele. Bruno, como membro,
-vê a mesma lista, sem convidar, sem mudar papel e sem tirar ninguém.</p>
+vê a mesma lista, sem convidar, sem mudar papel e sem tirar ninguém — a não ser ele mesmo: na
+própria linha, <strong>Sair do time</strong> pede confirmação e o leva de volta à lista de
+projetos.</p>
+
+<pre><code>DELETE /projects/2be49b28-.../members/{membro}</code></pre>
+
+<p>A rota aceita qualquer pessoa do time quando a linha é a dela; tirar outra pessoa continua só de
+quem administra (403 para o membro), e o dono não sai do próprio projeto (409). Quem administra e
+se rebaixa a membro também confirma antes — "Deixar de administrar este projeto?" —, porque não
+consegue desfazer sozinho.</p>

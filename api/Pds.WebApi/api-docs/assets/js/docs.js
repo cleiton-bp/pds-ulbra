@@ -74,7 +74,7 @@
       { id: 'ciclo-fecha',        label: 'O ciclo fecha' },
       { id: 'pedido-e-espera',    label: 'Pedido de informação e a espera' },
       { id: 'codigo-e-moderacao', label: 'Código pessoal e moderação' },
-      { id: 'chave-e-arquivar',   label: 'Regenerar a chave, arquivar' },
+      { id: 'chave-e-arquivar',   label: 'A chave secreta, arquivar' },
     ] },
     { id: 'como-rodar', label: 'Como rodar', children: [
       { id: 'variaveis',          label: 'Variáveis de ambiente' },

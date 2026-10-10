@@ -5,13 +5,42 @@
   <tr><td><code>account_id</code></td><td>Conta dona. Quem é dono dela manda neste projeto sem linha em <code>project_members</code>; o resto do time chega por lá.</td></tr>
   <tr><td><code>name</code></td><td>Único dentro da conta, entre os não apagados.</td></tr>
   <tr><td><code>status</code></td><td><code>active</code> ou <code>archived</code>.</td></tr>
-  <tr><td><code>mapping_version</code></td><td>A versão do mapeamento que vale agora. Zero enquanto nada foi ligado — ver <code>project_status_mappings</code>.</td></tr>
+  <tr><td><code>mapping_version</code></td><td>A versão do mapeamento que vale agora. Zero enquanto nada foi ligado; o projeto novo já nasce com 1, o mapa das colunas de fábrica — ver <code>project_status_mappings</code>.</td></tr>
   <tr><td><code>last_card_number</code></td><td>O último número de card dado no projeto; o próximo leva este mais um. Somado e lido num comando só, que serializa quem cria ao mesmo tempo — ver <code>reports.number</code>.</td></tr>
   <tr><td><code>board_top_rank</code></td><td>O topo do quadro: o lugar do último card posto no topo de uma coluna — o que chega sem ser arrastado, ou o que foi solto no topo. <b>Só desce</b>, num comando só, no mesmo desenho do número do card (que sobe): o card que chega fica acima de tudo sem ninguém ler a coluna. Ver <code>reports.board_rank</code>.</td></tr>
 </table>
 
 <p>Arquivar não apaga nada: o projeto continua visível e consultável, só para de aceitar
 coisa nova.</p>
+
+<div class="note why">
+  <strong>O que nasce junto do projeto</strong>
+  <p>Num commit só: a linha do projeto, a chave pública em <code>project_keys</code>, as cinco
+  etapas da jornada de fábrica em <code>project_public_stages</code>, as colunas <strong>A
+  fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong> em <code>project_states</code>
+  (posições 0 a 2), três linhas em <code>project_status_mappings</code> na versão 1 — A fazer →
+  Recebido, Fazendo → Em desenvolvimento, Feito → Concluído — e as quatro prioridades de fábrica.
+  Ou entra tudo, ou nada.</p>
+  <p>Os nomes das colunas <strong>não são texto nosso</strong>, diferente das mensagens do
+  sistema: são colunas que o cliente vê na tela e renomeia quando quiser. A
+  etapa de cada uma é achada pelo rótulo do conjunto de fábrica; se um dia o rótulo mudar e não for
+  achado, a coluna nasce sem ligação — nada quebra.</p>
+  <p><strong>A chave secreta não nasce aqui.</strong> Ela é gerada sob pedido — ver
+  <code>project_keys</code>, logo abaixo.</p>
+</div>
+
+<div class="note why">
+  <strong>O movimento é lido, e não guardado</strong>
+  <p>O projeto devolve dois campos que não são colunas: <code>LastReportReceivedAt</code>, o
+  <code>created_at</code> mais recente entre os relatos de fora (<code>reports.kind = report</code>),
+  e <code>LastActivityAt</code>, o <code>updated_at</code> mais recente entre todos os cards. Os dois
+  saem de um agrupamento só sobre <code>reports</code>, para a lista inteira de projetos de uma vez —
+  um <code>MAX(CASE …)</code>, e não uma subconsulta por projeto —, com o filtro global valendo: o
+  card apagado não conta, e o arquivado conta.</p>
+  <p>Guardados em <code>projects</code>, seriam uma segunda cópia do que <code>reports</code> já diz,
+  atualizada em cada lugar que cria ou muda um card — e o lugar esquecido faria a cópia mentir sem
+  erro nenhum. Lidos, não pediram migração.</p>
+</div>
 
 <div class="note why">
   <strong>Por que o índice único ignora o que foi apagado</strong>
@@ -32,6 +61,14 @@ coisa nova.</p>
   <tr><td><code>revoked_at</code></td><td>Nulo enquanto vale.</td></tr>
   <tr><td><code>last_used_at</code></td><td>Ajuda a saber se dá para revogar sem quebrar nada.</td></tr>
 </table>
+
+<div class="note why">
+  <strong>A secreta só existe quando alguém a pede</strong>
+  <p>O projeto nasce com uma linha só aqui, a da chave pública: sem ela o site não manda relato, e
+  obrigar a um segundo passo só criaria a chance de esquecer. A secreta serve a um uso que pouca
+  gente tem, e nasce quando o administrador a gera — a primeira linha <code>secret</code> do projeto
+  vem daí. Gerar de novo revoga a que vale e cria outra, como sempre.</p>
+</div>
 
 <div class="note why">
   <strong>Por que é tabela separada, e não duas colunas em <code>projects</code></strong>

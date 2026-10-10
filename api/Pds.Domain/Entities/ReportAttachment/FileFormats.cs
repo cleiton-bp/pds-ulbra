@@ -22,7 +22,7 @@ public enum FileCheck
 /// <param name="Check">A conferencia dos bytes.</param>
 public sealed record FileFormatType(string Extension, string ContentType, FileCheck Check);
 
-/// <summary>Um formato que o dono marca na tela de Midia, com as extensoes dele.</summary>
+/// <summary>Um formato que o dono marca na tela de Anexos, com as extensoes dele.</summary>
 /// <param name="Key">O nome do formato no contrato e no banco.</param>
 /// <param name="IsDefault">Marcado de fabrica quando o dono liga a categoria.</param>
 /// <param name="Types">As extensoes do formato.</param>

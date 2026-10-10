@@ -64,22 +64,23 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 ## As telas
 
 ```
-/projects ........................ hub — saudação, criar projeto, busca, lista por conta
-/projects/:publicId .............. a porta — Instalação para quem configura, Relatos para o membro
-/projects/:publicId/start ........ console — Instalação, 3 passos
-/projects/:publicId/keys ......... console — chaves e integração
-/projects/:publicId/states ....... console — a fila de trabalho do time
-/projects/:publicId/priorities ... console — as prioridades do projeto
-/projects/:publicId/labels ....... console — organizar as etiquetas que o time criou
-/projects/:publicId/public-stages  console — a jornada que quem relatou acompanha
-/projects/:publicId/cycle ........ console — como o relato fecha e reabre
-/projects/:publicId/identity ..... console — quem relata e quem pode ver
-/projects/:publicId/media ........ console — o que dá para anexar
-/projects/:publicId/moderation ... console — o que vira público
-/projects/:publicId/members ...... console — o time, e os convites para quem administra
-/projects/:publicId/settings ..... console — nome, identificador, arquivar
-/projects/:publicId/reports ...... console — Trabalho: os relatos e os cards do time, em lista ou quadro
-/projects/:publicId/tool ......... console — como a ferramenta aparece no site
+/projects ........................ hub — saudação, criar projeto, busca, lista por conta, o último movimento de cada um
+/projects/:publicId .............. a porta — Trabalho para todos; Instalação para quem administra, enquanto o site não mandou relato
+/projects/:publicId/reports ...... console — Trabalho: os relatos e os cards do time, em lista, quadro e backlog
+/projects/:publicId/members ...... console — Membros: o time, sair dele, e os convites para quem administra
+/projects/:publicId/moderation ... console — Moderação: o que vira público
+/projects/:publicId/states ....... console — Colunas: as colunas do quadro, o que quem relatou vê em cada uma, e as regras do quadro
+/projects/:publicId/priorities ... console — Prioridades: as do projeto
+/projects/:publicId/labels ....... console — Etiquetas: criar e organizar
+/projects/:publicId/sprints ...... console — Sprints: ligar e a duração de cada uma
+/projects/:publicId/start ........ console — Instalação, 3 passos, e se já está funcionando
+/projects/:publicId/keys ......... console — Chaves: a pública e, sob pedido, a secreta
+/projects/:publicId/tool ......... console — Botão no site: como a ferramenta aparece no site
+/projects/:publicId/public-stages  console — Andamento público: a jornada que quem relatou acompanha
+/projects/:publicId/cycle ........ console — Ciclo: como o relato fecha e reabre
+/projects/:publicId/identity ..... console — Quem relata: como é reconhecido, e quem pode ver
+/projects/:publicId/media ........ console — Anexos: o que dá para anexar
+/projects/:publicId/settings ..... console — Projeto: nome, endereços autorizados, arquivar
 /invite#t=... .................... o link do e-mail do convite — abrir e aceitar
 /profile ......................... o perfil da pessoa e o som dos avisos
 ```
@@ -87,13 +88,35 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 Dois níveis, como um console de nuvem. **Não existe rota `/login`**: quem abre
 uma URL sem sessão vê a entrada naquele mesmo endereço e cai direto onde queria.
 
-**O papel decide a porta.** `/projects/:publicId` leva quem configura — o dono e o
-administrador — à **Instalação**, e quem é só membro ao **Trabalho**. O membro não vê
-o grupo **Configuração** no menu, e o endereço de uma seção dele, digitado ou num link
-antigo, o manda para o Trabalho. A regra mora na API, que recusa com 403 o que o
+**A porta é o Trabalho.** `/projects/:publicId` (`ProjectHome`) leva todo mundo ao
+**Trabalho**; quem administra vai à **Instalação** só enquanto o site não mandou relato
+nenhum — `LastReportReceivedAt` nulo, no projeto que a API devolve; o card do time não
+conta. **O seletor do topo mantém a tela**: de Colunas num projeto para Colunas no outro;
+a tela de configuração num projeto que a pessoa não administra vira o Trabalho, e o card
+aberto vira a lista do outro projeto.
+
+**A lateral** (`app/navigation.ts`) tem o trabalho em cima, sem rótulo — Trabalho, Membros,
+Moderação — e **Configurar o projeto** embaixo, recolhível (fechado no Trabalho, aberto
+numa tela de configuração), em dois blocos: Colunas, Prioridades, Etiquetas, Sprints ·
+Instalação, Chaves, Botão no site, Andamento público, Ciclo, Quem relata, Anexos, Projeto.
+Os nomes são os do time, e os endereços, os de antes — já foram copiados para conversas.
+No computador, "Recolher menu" deixa só os glifos; no celular, a gaveta rola, e o Esc a
+fecha. O primeiro Tab é "Pular para o conteúdo", e o título da aba diz a tela e o projeto.
+
+O membro não vê **Configurar o projeto**, e o endereço de uma seção dele, digitado ou num
+link antigo, o manda para o Trabalho. A regra mora na API, que recusa com 403 o que o
 membro tentar mudar; aqui só se decide o que mostrar. O hub e o seletor do topo agrupam
 os projetos pela conta dona quando há mais de uma — "Seus projetos" primeiro —, e no
 hub o projeto de outra conta mostra o papel da pessoa nele.
+
+**Sair de uma tela com mudança não salva pergunta.** Ciclo, Sprints, Botão no site, Quem
+relata, Anexos e as regras do quadro em Colunas mostram a barra `UnsavedChangesBar` —
+"Salvar · Descartar" (no Botão no site, "Publicar") — só com mudança, e ir para outra tela,
+voltar pelo navegador ou trocar de projeto pergunta "Sair sem salvar?"; o nome, em Projeto,
+também pergunta. A rota que quebra mostra
+`RouteErrorScreen`, com "Recarregar a página" e "Voltar aos projetos", em vez do rastro de
+pilha; e `describeError` diz a falha na língua do time — sem conexão, servidor fora — e
+acentua no caminho as mensagens da API, que vêm sem acento.
 
 ---
 
@@ -113,8 +136,9 @@ src/
 ├── capture/      o que redesenha a página como imagem (pds-captura.js, baixado no clique)
 ├── editor/       o editor da imagem: marcar e esconder antes de anexar (baixado ao abrir)
 ├── features/     um assunto por pasta: auth, projects, projectKeys, projectStates,
-│                 publicStages, cycle, identity, media, moderation, onboarding,
-│                 reports, widgetSettings
+│                 priorities, labels, publicStages, cycle (Ciclo e Sprints),
+│                 identity, media, moderation, onboarding, reports,
+│                 notifications, profile, widgetSettings
 ├── shared/       componentes, hooks e utilitários sem dono
 └── styles/       o sistema de cor, em duas camadas de token
 ```
@@ -193,7 +217,7 @@ mesmas imagens lado a lado. O que aparece é o arquivo, e não a miniatura, e el
 baixa quando chega perto da tela.
 
 **O arquivo que não é imagem — PDF, log, planilha; zip não — é categoria própria**, que o
-dono liga na tela de Mídia e da qual marca os formatos (o catálogo e a conferência dos
+dono liga na tela Anexos e da qual marca os formatos (o catálogo e a conferência dos
 bytes são da API). No quadro ele tem botão próprio e entra numa lista logo abaixo das
 imagens; é reconhecido pela extensão, e sobe com o tipo que a API dá a ela, e não com
 o que o navegador deduziu. Do lado de lá, é sempre baixado: o endereço assinado já
@@ -207,7 +231,7 @@ passa pelo nosso. Nenhuma resposta sai para `'*'`.
 pelo caminho em que ela falha: remover qualquer guarda reprova três testes.
 
 **A configuração vive em `contracts/widgetSettings.ts`** — onze campos que decidem
-textos, cores, tema, posição, quais tipos aparecem e como a pergunta do título é feita. A tela **Ferramenta** os
+textos, cores, tema, posição, quais tipos aparecem e como a pergunta do título é feita. A tela **Botão no site** os
 edita, a API os guarda, e o quadro os lê pela chave pública antes de desenhar
 qualquer coisa. Projeto que nunca salvou nada recebe os padrões de
 `embed/settings.ts`, na mesma forma — e quem lê não distingue os dois casos.
@@ -303,15 +327,18 @@ trava o número, e reprova token publicado sem consumidor.
 
 ## O que está aqui, e o que não está
 
-**Conta, projetos e chaves.** Entrar, criar projeto, listar, buscar, renomear,
-arquivar, ver as chaves, copiar o script de integração e regenerar a secreta. E a
+**Conta, projetos e chaves.** Entrar, criar projeto — que nasce com as colunas A fazer,
+Fazendo e Feito, já ligadas ao andamento público —, listar, buscar, renomear, arquivar, ver
+as chaves, copiar o script de integração, e gerar a secreta só quando a integração pede (e
+trocá-la depois). E a
 **lista de endereços autorizados**, conferida nas rotas públicas: vazia abre em
 qualquer lugar, e o primeiro endereço declarado liga a conferência.
 
 **O time, por projeto.** Cada projeto chega com a conta dona e o papel da pessoa nele:
 o dono e o administrador configuram; o membro trabalha nos relatos e não vê a
-Configuração. A tela de **Membros** é de todos: o membro vê o time; quem administra
-muda o papel, tira do time e convida por e-mail, e cada convite mostra onde está o
+configuração. A tela de **Membros** é de todos: o membro vê o time e pode sair dele; quem
+administra muda o papel — rebaixar a si mesmo pergunta antes —, tira do time e convida por
+e-mail, e cada convite mostra onde está o
 e-mail dele — na fila, enviado, ou que não saiu, com **Reenviar**. O link nunca
 aparece na tela: ele só existe no e-mail.
 
@@ -325,7 +352,7 @@ trocar de conta.
 **O relato entra.** Colar o script numa página qualquer, escrever, e o relato chegar
 na API com protocolo, rota e origem; o time lê na tela **Trabalho**, com o contexto de
 cada um e a visualização registrada como evento. A aparência e os textos da
-ferramenta saem de **Ferramenta**. A confirmação entrega um link, e `tracking.html`
+ferramenta saem de **Botão no site**. A confirmação entrega um link, e `tracking.html`
 mostra a quem relatou o próprio relato — o token viaja no fragmento do link, a parte
 que o navegador nunca envia a servidor nenhum.
 
@@ -340,8 +367,8 @@ aberto encerra junto, com o motivo que quem relatou lê. O filtro **Arquivados**
 o que saiu, para ler, comentar ou desarquivar.
 
 **O card diz quem, o quê, o quanto importa e para quando.** A ferramenta pergunta, antes
-do texto, "em poucas palavras, o que aconteceu?" — opcional, obrigatória ou escondida, na
-**Ferramenta** —, e a resposta vira o título do card. O time reescreve (`ReportTitle`), e o
+do texto, "em poucas palavras, o que aconteceu?" — opcional, obrigatória ou escondida, no
+**Botão no site** —, e a resposta vira o título do card. O time reescreve (`ReportTitle`), e o
 que a pessoa escreveu fica guardado: é o único título que volta para ela, no acompanhamento
 e em "meus relatos". No card aberto, `CardFields` dá o **responsável** (um só; quem sai do
 time continua marcado), a **prioridade** (as do projeto, de fábrica Baixa, Média, Alta e
@@ -349,33 +376,65 @@ Urgente — o card nasce sem), as **etiquetas** (escrever o nome que não existe
 etiqueta) e o **prazo** (só a data). A tabela da lista mostra cada um numa coluna própria — e,
 na tela estreita, as colunas de apoio saem antes do título. As cores
 de etiqueta e prioridade são a paleta de dado de `tokens.css`, com o par certo nos dois
-temas e o nome sempre escrito junto. **Prioridades** e **Etiquetas**, na Configuração, são
-de quem administra.
+temas e o nome sempre escrito junto. **Prioridades** e **Etiquetas**, em Configurar o
+projeto, são de quem administra.
+
+**Novo card** (ou a tecla "c") cria com título, descrição, coluna, responsável e prioridade
+— e, com as sprints ligadas, "Entra em" (`NewCardDialog`); Enter no título cria, e
+Ctrl+Enter cria de qualquer campo. O aviso diz onde o card foi parar, com "Abrir", e a lista
+com filtro é relida: só a API decide se o card novo passa neles.
+
+**O card aberto** (`ReportDialog`, `TeamCardBody`) tem altura fixa no computador, "Copiar
+link", "Card anterior" e "Próximo card" (K e J) na ordem da tela de onde se veio — a tela de
+Trabalho passa a `ordem` pelo contexto da rota —, e fecha voltando no histórico. Cada caixa
+registra o próprio rascunho (`cardDrafts.tsx`): o Esc sai por camadas, e fechar com texto
+escrito pergunta "Descartar o que você escreveu?". Os campos mostram o valor escolhido na
+hora, com "Salvando…", e voltam com o erro embaixo se falhar; os avisos nascem dentro do
+diálogo (`Modal` se registra como lugar deles). O card do time edita ao lado do título, e a
+edição manda `Base`: se outra pessoa salvou no meio — o 409, ou a versão nova chegando ao
+vivo —, a tela oferece "Usar a versão nova" e "Manter a minha". O comentário interno se
+corrige e se apaga por quem escreveu (`IsYours`, "· editado"); a resposta a quem relatou
+espera cinco segundos, com "Desfazer". "Encerrar relato…" e "Pedir informação" aparecem em
+qualquer coluna, e o histórico vem do mais recente.
 
 **O quadro.** A tela **Trabalho** tem duas vistas, em abas: a lista, uma tabela (`ReportsTable`),
 e o **quadro** — uma coluna por
-estado, cada uma com a própria leitura na ordem do quadro, cinquenta de cada vez, e "Mostrar
-mais" continuando depois do último card da tela (`after`), e não pela página seguinte —, e o
-navegador lembra a escolhida, por projeto. Cada vista lê só o que é dela: a lista não é lida com
+coluna do projeto, cada uma com a própria leitura na ordem do quadro, cinquenta de cada vez, e
+"Mostrar mais N" logo depois do último card, continuando dele (`after`), e não pela página
+seguinte —, e o navegador lembra a escolhida, por projeto. **O quadro ocupa a altura da
+janela**: cada coluna rola por dentro, com o cabeçalho preso, a barra de rolar para os lados
+fica no pé da tela, e a coluna escondida à direita ganha um botão com o nome dela ("Feito ›");
+no celular, uma fila de colunas acima do quadro leva a cada uma. Cada vista lê só o que é dela: a lista não é lida com
 o quadro na tela, e é lida de novo ao voltar. A frente do card é um resumo
 (`BoardCardFace`): o título primeiro, até três etiquetas e o prazo — vermelho quando venceu,
 amarelo quando está perto, sempre com as palavras (`DueChip`) — e, no pé, o tipo, o número, a
 prioridade com o nome, quantos comentários e anexos e quem está com ele — a foto do Google,
 senão as iniciais. As peças que a lista, o quadro e o card aberto desenham igual ficam em
-`cardLook.tsx`. "Criar", no pé de cada coluna que recebe card, abre o card novo já nela. O
+`cardLook.tsx` — o relato sem título, por exemplo, entre aspas e na cor do título
+(`headlineText`). "+ Criar", logo abaixo do cabeçalho de cada coluna que recebe card, abre ali
+um campo de uma linha: Enter cria na coluna (com as sprints ligadas, na sprint em andamento), o
+card nasce logo abaixo e acende, e o campo fica aberto para o próximo; "Mais detalhes" abre o
+`NewCardDialog` com a coluna e o título. Com filtro, o cabeçalho diz "1 de 8". O
 detalhe só abre no clique, no mesmo diálogo da lista, em duas colunas (`CardDetailLayout`): o
 card e a atividade à esquerda; a coluna, as ações e os detalhes à direita, cada lado com a
-própria rolagem — e, no celular, uma coluna só. Arrastar usa `@dnd-kit`: o mouse pega depois de andar uns pixels, o toque depois
-de segurar um instante (deslizar continua rolando), e o teclado com espaço, setas, espaço ou Enter
-para soltar, e Esc, anunciando cada passo ao leitor de tela. O alvo é o que está debaixo do
+própria rolagem — e, no celular, uma coluna só. Arrastar usa `@dnd-kit`: o mouse pega depois de
+andar uns pixels, o toque depois de segurar 450 ms (deslizar continua rolando; na borda, o quadro
+anda uma coluna por vez), e o teclado com espaço, setas, espaço ou Enter para soltar, e Esc,
+anunciando cada passo ao leitor de tela. **O quadro é uma parada só do Tab**: dentro dele as
+setas andam entre os cards, Home e End vão às pontas da coluna e Enter abre; no arraste, a seta
+para o lado leva à coluna vizinha na altura do card (`boardKeyboard`), e o próprio card, com
+contorno tracejado, marca o lugar. O alvo é o que está debaixo do
 ponteiro (`boardCollision`): a coluna inteira recebe, o cabeçalho também, e soltar fora das colunas
-que recebem devolve o card. A ordem é do time inteiro e mora na API; o que
+que recebem devolve o card; um movimento por quadro desenhado (`ReportsBoard.aoPassar`) impede
+o card de ir e voltar sem parar. A ordem é do time inteiro e mora na API; o que
 chega — relato novo, card novo, movido pelo seletor, reaberto — entra no topo. Soltar um
-relato aberto na coluna que encerra pede o desfecho antes de mover. A última coluna mostra
+relato aberto na coluna que encerra pede o desfecho antes de mover, e **tirar dela um relato
+encerrado pergunta antes de reabrir** ("Reabrir o relato #N?"); a falha devolve o card e diz
+para onde. A última coluna mostra
 só o que entrou nela nos últimos dias — com mais de uma coluna ativa: com uma só, ela é a entrada da
-fila —, e diz quantos ficaram na lista. "Sem coluna" e a
-coluna aposentada aparecem só enquanto seguram card, e não recebem nenhum. O código fica em
-`features/reports/board/`.
+fila —, e diz quantos ficaram na lista, com o caminho até eles. "Sem coluna" e a
+coluna desativada aparecem só enquanto seguram card, e não recebem nenhum. A dica do quadro tem
+✕, lembrado no navegador. O código fica em `features/reports/board/`.
 
 **O clique do soltar é barrado na janela.** A biblioteca engole, antes do React, o clique
 que o navegador dispara junto do soltar, mas não impede o link de ser seguido: segurar o
@@ -384,15 +443,27 @@ guarda, em `ReportsBoard`, fica na janela e vale do pegar até um instante depoi
 — menos no teclado, que não clica ao soltar, e onde o Enter logo depois continua abrindo o
 card.
 
-**Filtros e busca.** A barra acima da lista e do quadro (`WorkFilterBar`) tem a busca — título,
-texto, descrição, número (`42` ou `#42`) e protocolo, sem diferenciar maiúscula nem acento —, os
-atalhos "Meus cards" e "Vencidos" e os menus de marcar de responsável, etiqueta, prioridade e tipo.
-Dentro de um filtro vale ou; entre filtros, e. Os filtros (`useWorkFilters`) ficam lembrados na aba,
-por projeto (`sessionStorage`), e a busca espera 300 ms depois da última tecla; a chave deles entra
+**Filtros e busca.** A barra logo abaixo das abas (`WorkFilterBar`) tem a busca — título,
+texto, descrição, número (`42` ou `#42`) e protocolo, sem diferenciar maiúscula nem acento; "/"
+põe o foco nela —, os atalhos "Meus cards", "Vencidos" e "Em aberto" (`open=true`) e os menus de
+marcar de responsável, etiqueta, prioridade e tipo — este com "Subtarefas", que desmarcada as
+esconde (`subtasks=hide`). Na lista, também os menus "Coluna" (várias, com a contagem; `column`),
+"Sprint" (com as sprints ligadas, as concluídas inclusive) e "Ordem", e "Arquivados". O controle
+ligado diz o valor ("Etiqueta: pagamentos"); no celular, os filtros abrem pelo botão "Filtros".
+Dentro de um filtro vale ou; entre filtros, e. Os filtros, a coluna e a sprint
+(`useWorkFilters`) ficam lembrados na aba, por projeto (`sessionStorage`), e a busca espera 300 ms
+depois da última tecla, com "Buscando…" e a tabela esmaecida enquanto a lista nova não chega; a chave deles entra
 na leitura da lista, de cada coluna do quadro, da contagem das colunas e das releituras do tempo
 real, e trocar de filtro relê tudo **sem esvaziar** a tela. Vencido é o prazo passado no card que
 ainda não terminou — quem diz se terminou é a API, em `Finished` —, e o prazo do card que terminou
 fica sem vermelho e sem amarelo. Quando nada passa, a tela diz isso, com "Limpar filtros".
+
+**A tabela ordena.** Os cabeçalhos Nº, Coluna, Responsável, Prioridade, Prazo e Criado são
+botões (`aria-sort`), e o menu "Ordem" dá o mesmo no celular: a API ordena (`sort`, `dir`), com
+o vazio no fim nas duas direções, e a ordem fica lembrada na aba, à parte dos filtros. A lista vem
+de cinquenta em cinquenta, a página seguinte chega sozinha perto do fim, e o cabeçalho fica
+preso ao rolar. As colunas da tabela saem pela largura da área de trabalho (`@container`), e o
+foco da caixa de marcar é visível nos dois temas.
 
 **Subtarefas.** O card aberto tem a seção Subtarefas (`CardSubtasks`): o progresso, a lista na
 ordem em que nasceram — lida com `parent`, e só quando o contador da frente diz que há alguma — e o
@@ -413,50 +484,71 @@ arquivo, mostra o original (`ParentLine` com `prefix`). O diálogo de encerrar o
 quantas pessoas a mais vão ler o motivo (`DuplicateReporters`), e o histórico conta cada vínculo
 com o número do outro card.
 
-**Backlog e sprints.** Com `SprintsEnabled` no Ciclo, a tela de Trabalho ganha a aba Backlog
+**Backlog e sprints.** Com `SprintsEnabled` — ligado na tela **Sprints** (`SprintSettingsScreen`,
+que grava o mesmo registro do Ciclo só com os campos dela, e avisa quantos cards vão para o
+Backlog) —, a tela de Trabalho ganha a aba Backlog
 (`SprintBacklog`): a sprint em andamento, as planejadas e o backlog, cada um lido com
 `sprint=<id>|backlog` e `order=backlog`; arrastar entre e dentro das listas com `@dnd-kit/sortable`
 (mouse, toque segurando, teclado — `backlogKeyboardCoordinates` atravessa as listas, e o anúncio
-diz a lista e a posição), e o menu de cada card. O quadro lê só `sprint=active` (as colunas e a
-contagem), com a `SprintBar` e "Concluir sprint" (`CloseSprintDialog`, que pergunta o destino do
-que não terminou); sem sprint em andamento, `NoActiveSprint` leva ao backlog. O "Criar" de uma
-coluna manda a sprint em andamento ao `NewCardDialog`. O card aberto ganha Sprint e Pontos nos
+diz a lista e a posição), e o menu de cada card, cujo mover tem "Desfazer". A linha mostra a
+prioridade, o prazo perto ou vencido e os pontos, que se estimam ali mesmo; a busca e "Meus
+cards" escondem o que não bate sem mudar a ordem; cada lista recolhe. O quadro lê só
+`sprint=active` (as colunas e a contagem), com a `SprintBar` e "Concluir sprint"
+(`CloseSprintDialog`, que pergunta o destino do que não terminou, com a próxima planejada já
+escolhida, e oferece iniciá-la); sem sprint em andamento, `NoActiveSprint` esconde os filtros
+e as raias e leva ao backlog, ou a iniciar a planejada. Iniciar começa hoje (o dia de quem
+pede vai em `Today`), com "Usar as datas planejadas". O "Criar" de uma coluna cria na sprint
+em andamento, e o `NewCardDialog` tem "Entra em". O card aberto ganha Sprint e Pontos nos
 `CardFields` (sem pontos na subtarefa, que vai com o pai), e a frente do card mostra os pontos
 (`PointsChip`). As sprints chegam à rota do card pelo contexto. Os dados em
 `data/sprintService.ts`.
 
 **Raias.** No quadro, a escolha "Raias" (lembrada por projeto neste navegador, como a vista)
 agrupa por responsável ou por prioridade: `boardLanes` monta as raias — todas as prioridades ativas,
-e as pessoas com card; a aposentada e quem saiu do time não recebem (`accepts`) —, e
+e o time inteiro, lido de `projectTeamService` (quem não tem card ganha uma raia compacta no fim);
+a prioridade desativada e quem saiu do time não recebem (`accepts`) —, e
 `boardCells` divide cada coluna em células (coluna × raia). O arraste passa a ser de célula em
 célula — `moveToCell` põe o card na ordem da coluna inteira, logo abaixo do de cima na célula —, e
 soltar em outra raia chama `setAssignee` ou `setPriority` depois do movimento (o card fica na raia
 nova, `forcadas`, até a API responder). `boardKeyboardCoordinates` atravessa para a raia vizinha na
-ponta da célula. O cabeçalho das colunas fica em cima, e o "Mostrar mais" e o "Criar" embaixo de
-todas as raias. Sem raias, o quadro monta o mesmo de antes.
+ponta da célula. Enquanto o card está na mão, cada raia guarda a altura que tinha, e a célula
+debaixo do ponteiro ganha a conta (`boardCollision`). A fileira com o nome das colunas fica
+presa no alto, com o "Criar" de cada uma, e o "Mostrar mais" embaixo de todas as raias. Sem
+raias, o quadro monta o mesmo de antes.
 
-**Ações em lote.** A lista ganha uma caixa por linha (`ReportsTable` com `selecao`) e, com cards
-marcados, a barra `BulkActions`: mover de coluna, responsável, prioridade, pôr ou tirar etiqueta e,
-com as sprints ligadas, a sprint. Card por card, pelas rotas de sempre, na ordem da lista; o que
+**Ações em lote.** A lista ganha uma caixa por linha (`ReportsTable` com `selecao`; Shift marca
+um trecho) e, com cards marcados, a barra `BulkActions`: mover de coluna, responsável,
+prioridade, adicionar ou remover etiqueta e, com as sprints ligadas, a sprint. Com a página
+inteira marcada, "Selecionar os N que passam nos filtros" lê o resto da lista (`loadAll`). Card por card, pelas rotas de sempre, na ordem da lista; o que
 não mudou aparece num diálogo com o porquê. A coluna que encerra pede o desfecho uma vez
 (`CloseReportDialog` com `lote`); etiquetas são gravadas sobre o card lido na hora
 (`refreshReport`). A barra fica presa embaixo da tela, depois da tabela, e a seleção fica depois de
-cada mudança; o que não mudou aparece no `BulkFailures`, na tela. Trocar o filtro, a coluna, a vista
+cada mudança; o que não mudou aparece no `BulkFailures`, na tela. O aviso do fim tem
+"Desfazer" por dez segundos (`useBulkUndo`): cada card volta ao valor de antes pelas mesmas
+rotas — menos o movido para a coluna que encerra —, e só se, relido na hora, o campo ainda está
+como o lote deixou; o que mudou depois fica, e vai para o `BulkFailures`. Tirar relato encerrado
+(e não confirmado) da coluna que encerra pergunta antes, como o quadro ("Reabrir 2 relatos?"), e o
+reaberto fica fora do "Desfazer", com o aviso dizendo isso. Trocar o filtro, a coluna, a vista
 ou o projeto desmarca tudo.
 
 **Menções, o sino e o som.** Na caixa "Entre o time", digitar "@" abre a lista do time
 (`MentionTextarea`, lida no primeiro "@"; setas, Enter ou Tab, e o Esc que fecha só a lista — ele é
 ouvido na janela, antes do diálogo). No campo fica "@Nome"; no envio, `encodeMentions` troca o
 "@Nome" que ficou no texto pela marca `@[Nome](identificador)`, e a leitura mostra a menção
-destacada (`CommentBody`). A caixa de quem relatou não menciona. O sino (`NotificationBell`, no topo
+destacada (`CommentBody`). A caixa de quem relatou não menciona. Corrigir o comentário volta as
+marcas a "@Nome" (`decodeMentions`). O sino (`NotificationBell`, no topo
 do projeto e do hub) mostra o número de não lidos — `useUnreadCount` pergunta a cada troca de tela,
 ao voltar para a aba, a cada minuto com a aba à vista e, na tela de Trabalho, na hora em que o
 `NotificationArrived` chega pelo tempo real (`announceNotificationArrival`); a resposta atrasada não
-passa por cima da de uma ação —, lê a lista ao abrir, leva ao card e marca como lido. **Quando o
+passa por cima da de uma ação —, lê a lista ao abrir, em duas abas ("Não lidos (N)", a de
+saída, e "Todos"), com o trecho do comentário na menção, os avisos parecidos juntos numa linha
+e "Ver os mais antigos" (`before`) até o fim; abrir leva ao card, marca como lido e, na menção,
+rola até o comentário e o acende (`revealComment`, pelo `id="comentario-<id>"` de cada um). **Quando o
 número sobe, toca o som** do tipo do aviso mais novo, no volume da pessoa (`playNotificationSound`,
 em `shared/lib/notificationSounds.ts`: os sons são notas geradas com Web Audio, sem arquivo). As
 preferências ficam no **Perfil** (`/profile`, `ProfileScreen`, no menu da pessoa e em "Preferências
-de aviso" no sino): um som para cada tipo de aviso, com "Ouvir", e o volume. Os dados em
+de aviso" no sino): um som para cada tipo de aviso, com "Ouvir", e o volume — escolher já toca e
+grava, sem "Salvar" —, e "← Voltar" à tela de onde se veio. Os dados em
 `data/notificationService.ts`.
 
 **O tempo real.** Com a tela de Trabalho aberta, o que outra pessoa do time muda aparece sem
@@ -477,25 +569,30 @@ releituras no ar vale a última. Todo pedido da aba leva o id da conexão
 
 Na tela, o card que mudou se acende por dois segundos, com uma faixa à esquerda — quando a
 releitura chega, e não o aviso —, e uma região anunciada conta o mesmo a quem usa leitor de tela
-(`LiveStatus`). O card com o foco que outra pessoa move leva o foco junto, e o que sai da tela
+(`LiveStatus`) — no quadro, o que aconteceu e onde: "O card #97 foi para Fazendo.". O card com o
+foco que outra pessoa move leva o foco junto, e o que sai da tela
 deixa o foco no vizinho (`useKeepFocus`). O clique num card nos 0,6 segundo depois de uma
 mudança de outra pessoa entrar na tela não abre nada: a linha que estava ali pode ter descido. A
-queda que passa de três segundos mostra um selo preso ao pé da tela — "Reconectando…", ou "Sem
-atualização ao vivo" quando a conexão nunca abriu —, dito também dentro do card aberto. Quem
+queda que passa de três segundos mostra um selo no fim da área de conteúdo, sem cobrir card —
+"Sem atualização ao vivo — reconectando…", ou "… — tentando conectar…" quando a conexão nunca
+abriu —, dito também dentro do card aberto. Quem
 perde o acesso volta para a lista de projetos, que diz de qual projeto saiu.
 
-**O time trabalha o relato.** A tela **Estados** é onde o cliente cria a própria fila
-de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada um.
-Estado não se apaga — não há botão de remover em lugar nenhum —, porque relato antigo
-aponta para ele e o histórico precisa continuar legível. Projeto novo nasce com uma
-área de análise, e a mesma tela escolhe, por tipo, onde cada relato cai; a opção
-"primeira coluna da fila" **apaga** a escolha em vez de gravar uma vazia — é o que
-mantém "não configurei" como um estado possível do projeto.
+**O time trabalha o relato.** A tela **Colunas** é onde o cliente monta as colunas do
+quadro, com os nomes que a equipe usa, e reordena, renomeia, desativa e reativa cada uma —
+o diálogo de desativar conta os cards que ficam nela. Coluna não se apaga — não há botão de
+remover em lugar nenhum —, porque relato antigo aponta para ela e o histórico precisa
+continuar legível. Projeto novo nasce com **A fazer, Fazendo e Feito**; cada coluna diz o que
+**quem relatou vê** quando o card está nela, e escolher ali grava o mapa (a coluna nova nasce
+ligada à etapa da última de antes). A mesma tela escolhe, por tipo, onde cada relato cai — a
+opção "primeira coluna da fila" **apaga** a escolha em vez de gravar uma vazia, que é o que
+mantém "não configurei" como um estado possível do projeto — e guarda as regras do quadro:
+quantos dias a última coluna mostra e quando o prazo fica em destaque.
 
-A lista **filtra por coluna**, numa caixa de escolha na barra de ferramentas, com a
+A lista **filtra por coluna**, no menu "Coluna" da barra, várias de uma vez, com a
 contagem em cada opção. A contagem vem de uma chamada própria: contar as linhas da página
-daria um número errado assim que o projeto passasse de vinte relatos. Coluna vazia continua
-entre as opções — some só a aposentada que não segura mais nada.
+daria um número errado assim que o projeto passasse de cinquenta relatos. Coluna vazia continua
+entre as opções — some só a desativada que não segura mais nada.
 
 Cada relato tem **endereço próprio**: `/projects/:id/reports/:reportId`. Ele é rota
 **filha** da lista, e não uma tela no lugar dela — assim a lista fica montada atrás,
@@ -516,19 +613,20 @@ das próprias respostas. E cada relato tem uma **linha do tempo**, montada a par
 eventos, com os nomes de coluna que valiam na época de cada mudança.
 
 **A jornada pública.** O cliente desenha os passos que quem relatou vê, cada um com
-rótulo, a frase que explica e, se quiser, o que vem depois. **Não é a tela de Estados
-com outro título** — lá estão as faixas em que o time trabalha, aqui está a história
+rótulo, a frase que explica e, se quiser, o que vem depois — a tela **Andamento público**.
+**Não é a tela de Colunas com outro título** — lá estão as faixas em que o time trabalha, aqui está a história
 que a pessoa de fora lê, e ela é mais curta de propósito. Entre três e sete, com o
 motivo de cada limite escrito na tela; projeto novo nasce com o conjunto padrão e quem
 foi criado antes preenche com um clique. A etapa em que o relato termina carrega o
 **desfecho**, de uma lista curta e nossa — foi feito, não será feito, sem retorno, já
 existia.
 
-O cliente **liga as duas listas**: cada estado da fila aponta para um passo da
-jornada, escolhendo numa lista. Vários estados no mesmo passo é o caminho normal. O
+O cliente **liga as duas listas**: cada coluna do quadro aponta para um passo da
+jornada, escolhendo numa lista. Várias colunas no mesmo passo é o caminho normal. O
 mapa se grava **inteiro**, e cada gravação cria uma versão: alterar hoje não reescreve
 o passado, porque são as versões antigas que explicam por onde um relato de três meses
-atrás passou. É a única tela do painel com botão de salvar, e é por isso.
+atrás passou. Por isso, em Andamento público, o mapa se salva de uma vez, com botão; em
+Colunas, cada "Quem relatou vê" grava o mapa inteiro, uma versão por escolha.
 
 E o relato **anda sozinho do lado de fora**. O motor que decide isso vive num projeto
 da API que não referencia nada — é o que torna "ele não conhece banco nem HTTP" uma
@@ -552,17 +650,19 @@ fica no quadro, onde o carregador conhece a chave pública antes de abrir.
 relatou responde, confirma que resolveu — com nota, quando o projeto pede — ou reabre,
 dizendo por quê. A tela **Ciclo** decide as regras: para onde vai o relato reaberto,
 se reabrir pede motivo, os prazos do pedido e quanto o lado público espera antes de
-mudar, que é a janela para desfazer um movimento errado. E, para o quadro, quantos dias a
+mudar, que é a janela para desfazer um movimento errado. As regras do quadro — quantos dias a
 última coluna mostra quando há mais de uma (de fábrica 14; zero mostra tudo) e com quanta
-antecedência o prazo fica amarelo.
+antecedência o prazo fica amarelo — ficam em Colunas, e as das sprints, em Sprints; as três
+telas gravam o mesmo registro, cada uma só com os campos dela (`useCycleDraft`).
 
-**Identidade e visibilidade.** A tela **Identidade** escolhe como quem relata é
+**Identidade e visibilidade.** A tela **Quem relata** escolhe como quem relata é
 reconhecido — pelo protocolo, ou por um código pessoal que traz a lista "os meus
 relatos" na ferramenta — e se o projeto é privado, público anônimo ou público
 identificado. Público, todo relato passa pela **Moderação** antes de aparecer na
-vitrine, "o que já foi relatado", dentro da ferramenta.
+vitrine, "o que já foi relatado", dentro da ferramenta — e, em projeto privado, a Moderação diz
+no topo que nada dali vai a público.
 
-**Mídia.** A tela **Mídia** liga o anexo e as duas categorias — imagem e arquivo, cada
+**Anexos.** A tela **Anexos** liga o anexo e as duas categorias — imagem e arquivo, cada
 uma com quantidade e tamanho por envio; o arquivo com os formatos do catálogo —, a
 captura, e o anexo na resposta e na reabertura. Os arquivos aparecem no lugar de onde
 vieram — embaixo do relato, da resposta ou da reabertura —, no acompanhamento (pelo
@@ -598,14 +698,14 @@ API expõe `PublicId` e não tem coluna de slug. Adotar slug é mudança de banc
 **`data-key` no lugar de `data-chave`.** Campo público de integração vai em
 inglês, e esse atributo aparece no HTML de todo cliente.
 
-**As dicas dos itens bloqueados usam Radix Tooltip.** No design aparecem no
-`hover`; assim aparecem também no foco do teclado e são lidas por leitor de tela.
+**Addons e Uso não estão na lateral.** O design os mostrava bloqueados, com uma dica no
+`hover`; a lateral mostra só o que existe. As dicas que restam, as da lateral recolhida, usam
+Radix Tooltip: aparecem também no foco do teclado e são lidas por leitor de tela.
 
-**O progresso da Instalação fica no navegador.** Não é dado de domínio: é
-a lembrança de que este navegador já copiou a chave. O sinal de verdade — o
-primeiro relato ter chegado — passou a existir com a tela de relatos (hoje **Trabalho**), e o passo
-continua sem lê-lo: ler significa uma chamada a mais em toda visita à instalação,
-e a troca é decisão de produto, não conserto de texto.
+**A Instalação não marca passo como feito.** O design tinha um progresso guardado
+no navegador; a tela ficou com o número de cada passo, e diz se o site já está
+funcionando pelo sinal de verdade — o último relato que chegou, `LastReportReceivedAt`,
+que vem no projeto e é o mesmo dado que decide a porta.
 
 **A marca é "PDS", e não "Rastro".** O nome é provisório até sair o domínio, e
 vive em um arquivo só (`shared/components/Brand.tsx`).

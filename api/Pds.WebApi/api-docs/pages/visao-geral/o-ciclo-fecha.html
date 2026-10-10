@@ -35,9 +35,15 @@ que trouxe a <strong>fila</strong> para o sistema, e o desenho dela cabe numa fr
 carrega o relato, e nunca a decisão. Quem consome relê o estado atual, e daí saem desfazer sem
 cancelar, mensagem repetida sem dano e mensagem perdida sem perder o relato.</p>
 
-<p>Nada disso é fixo: as <strong>dezesseis regras do ciclo</strong> são configuração por projeto, com
+<p>Nada disso é fixo: as <strong>regras do ciclo</strong> são configuração por projeto, com
 padrão de fábrica em código. Se dá para reabrir e para onde, se a nota aparece e em que escala,
-quantos dias cada prazo tem — quem dita é o projeto.</p>
+quantos dias cada prazo tem — quem dita é o projeto. A tela <strong>Ciclo</strong> cuida de como o
+relato termina; o mesmo registro guarda as regras do quadro, que ficam em <strong>Colunas</strong>,
+e as das sprints, na tela <strong>Sprints</strong>, e cada tela grava só os campos dela.</p>
+
+<p>No painel, <strong>encerrar e pedir informação ficam à mão em qualquer coluna</strong>, enquanto
+o relato está aberto. E tirar da coluna que encerra um relato encerrado — o que o reabre, e tira o
+motivo da página de quem relatou — <strong>pergunta antes</strong>, pelo quadro e pelo card.</p>
 
 <p>Ficam duas ressalvas. <strong>Onde a fila roda em produção</strong> é <strong>Adiado</strong>:
 o Render não fornece broker, e sem fila a espera não liga — a tela de Ciclo recusa salvar uma

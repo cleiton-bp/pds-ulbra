@@ -12,16 +12,22 @@ próprio relato. O limite de envio em <code>POST /public/reports</code> é <stro
 hoje têm limitador o login e as duas rotas de envio de arquivo — e o convite, um teto por hora em
 cada projeto.</p>
 
-<p>O <strong>time trabalha o relato</strong> numa fila que é do cliente. Ele cria a própria
-fila de trabalho, com os nomes que a equipe usa, e reordena, renomeia e aposenta cada
-estado. <strong>E o relato entra nessa fila</strong>: projeto novo já nasce com uma área de
-análise, e o cliente escolhe por tipo onde cada relato cai — ou deixa no padrão, que é a
-primeira coluna.</p>
+<p>O <strong>time trabalha o relato</strong> numa fila que é do cliente: as colunas do quadro, com
+os nomes que a equipe usa, que ela reordena, renomeia e desativa. <strong>E o projeto nasce pronto
+para trabalhar</strong>: com as colunas A fazer, Fazendo e Feito — a última é a que encerra —, já
+ligadas ao andamento que quem relatou acompanha. O relato entra nessa fila, e o cliente escolhe por
+tipo onde cada relato cai — ou deixa no padrão, que é a primeira coluna.</p>
 
-<p>A lista de relatos <strong>filtra por coluna</strong>, e cada coluna vem com a sua contagem —
-é ela que responde "o que ainda não tratei", a pergunta que uma lista sem recorte não responde.
-A contagem vem de uma chamada própria: contar as linhas da página daria um número errado assim
-que o projeto passasse de vinte relatos.</p>
+<p>Todos entram no projeto pela tela de <strong>Trabalho</strong>; quem administra vê a Instalação
+primeiro só enquanto o site ainda não mandou nenhum relato. A lateral começa pelo trabalho, e a
+configuração vem embaixo, recolhível, com os nomes do time — Colunas, Andamento público, Botão no
+site, Quem relata, Anexos.</p>
+
+<p>A lista <strong>filtra por coluna</strong> — várias de uma vez —, e cada coluna vem com a sua
+contagem; "Em aberto" esconde o que terminou. É o que responde "o que ainda não tratei", a pergunta
+que uma lista sem recorte não responde. A contagem vem de uma chamada própria: contar as linhas da
+página daria um número errado assim que o projeto passasse de cinquenta relatos. E a tabela ordena
+pelo que a pessoa escolher — o prazo mais perto, a prioridade mais alta, o mais novo.</p>
 
 <p>Cada relato tem <strong>endereço próprio</strong>, então dá para mandar o link de um para um
 colega, abrir em outra aba e recarregar sem perdê-lo. Ele abre <em>sobre</em> a lista, que
@@ -34,7 +40,9 @@ do cache, na mesma transação. A fila deixou de ser uma foto.</p>
 
 <p>O time também <strong>comenta</strong>: o que fica entre a equipe e o que é escrito para
 quem relatou, em duas caixas distintas — e a separação é estrutural, com duas tabelas, e não um
-campo que alguém esquece de marcar. O comentário para quem relatou <strong>é lido na página de
+campo que alguém esquece de marcar. O comentário entre a equipe se corrige e se apaga, por quem o
+escreveu; o que vai para quem relatou espera alguns segundos antes de sair, com "Desfazer", e depois
+não volta. O comentário para quem relatou <strong>é lido na página de
 acompanhamento</strong>, junto das respostas dela, numa conversa só; o interno não tem caminho
 nenhum até lá.</p>
 

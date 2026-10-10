@@ -25,7 +25,7 @@ que sustenta a espera antes de quem relatou ver e a saída do e-mail, e o armaze
 dos anexos. Sem elas a API sobe inteira: sem a fila, a espera fica indisponível — a
 tela de Ciclo recusa ligá-la, dizendo por quê —, o pedido de informação não encerra
 sozinho no prazo, fica aberto até quem relatou responder ou o time agir, e o convite
-não sai; sem o armazenamento, o anexo fica desligado — a tela de Mídia recusa ligá-lo.
+não sai; sem o armazenamento, o anexo fica desligado — a tela de Anexos recusa ligá-lo.
 
 O e-mail não roda na sua máquina: sai por um servidor SMTP de verdade, o Brevo. Sem
 ele configurado, a API sobe inteira e só o envio de e-mail fica indisponível — e, com
@@ -146,7 +146,7 @@ ficou preso no meio de um envio e publica de novo o que continua pendente.
 ## O armazenamento
 
 Só é necessário para **anexar**: imagens e arquivos no relato, na resposta ao time
-e na reabertura. Sem ele, todo o resto funciona, e a tela de Mídia recusa ligar o
+e na reabertura. Sem ele, todo o resto funciona, e a tela de Anexos recusa ligar o
 anexo, dizendo por quê.
 
 ```bash

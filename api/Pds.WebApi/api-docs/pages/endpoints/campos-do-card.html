@@ -21,7 +21,7 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/title</code></td><td>O título do time num <strong>relato</strong>, numa linha, até 200. <code>Title</code> vazio, ou igual ao que quem relatou escreveu, <strong>volta ao dela</strong> — que nunca se perde. O card do time é recusado (409): lá o título se edita junto da descrição.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/assignee</code></td><td>Quem fica com o card: <code>UserPublicId</code> de alguém do time <strong>agora</strong> (o dono da conta conta), ou nulo para ninguém. Quem não está no time é recusado (400) — a não ser que já seja quem está com o card, que pode ser mandado de novo mesmo depois de sair.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/priority</code></td><td><code>PriorityPublicId</code> de uma prioridade ativa do projeto, ou nulo para sem prioridade. Aposentada é recusada (409) — a não ser que já seja a do card.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/priority</code></td><td><code>PriorityPublicId</code> de uma prioridade ativa do projeto, ou nulo para sem prioridade. Desativada é recusada (409) — a não ser que já seja a do card.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/labels</code></td><td><code>LabelPublicIds</code>: <strong>o conjunto inteiro</strong>, e não o que entra. A lista vazia tira todas; sem a lista, 400. Até dez, do projeto — uma que não existe aqui recusa a lista inteira (404).</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/due-date</code></td><td><code>DueDate</code> só com a data (<code>2026-10-16</code>), ou nulo para tirar. Passado é aceito; fora dos anos 2000 a 2100, 400.</td></tr>
 </table>
@@ -43,6 +43,19 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
 }</code></pre>
 
 <div class="note why">
+  <strong>O card do time pode nascer com responsável e prioridade</strong>
+  <p><code>POST /projects/{publicId}/reports</code> aceita <code>AssigneeUserPublicId</code> e
+  <code>PriorityPublicId</code>, opcionais, com as mesmas regras e os mesmos erros destas rotas — o
+  responsável só de quem está no time agora (400), a prioridade do projeto (404) e ativa (409) —, e
+  a mesma linha na história e o mesmo aviso no sino de escolher pelo campo. Quem cria o card já
+  com dono não precisa de mais dois pedidos, nem fica com um card criado sem o responsável porque o
+  segundo pedido falhou: com o responsável ou a prioridade recusados, o card não é criado. A
+  subtarefa continua nascendo sem responsável e sem prioridade: com <code>ParentPublicId</code>,
+  mandar um dos dois é 400. Ver
+  <a href="#/endpoints/relatos-no-painel">Relatos e cards, no painel</a>.</p>
+</div>
+
+<div class="note why">
   <strong>Quem sai do time continua no card</strong>
   <p>Tirar alguém do time não tira o nome dele dos cards: fica como registro, com
   <code>InTeam</code> falso, e a tela o marca até alguém trocar. A marca é lida na hora — se a pessoa
@@ -57,11 +70,11 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/priorities</code></td><td>Da menos para a mais urgente, com as aposentadas no lugar delas.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/priorities</code></td><td>Da menos para a mais urgente, com as desativadas no lugar delas.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/priorities</code></td><td><strong>Administrador.</strong> Cria, com <code>Name</code> (até 40, único sem diferenciar maiúscula) e <code>Color</code>, como a mais urgente.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../priorities/order</code></td><td><strong>Administrador.</strong> <code>Order</code>: todas, uma vez cada, inclusive as aposentadas.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../priorities/order</code></td><td><strong>Administrador.</strong> <code>Order</code>: todas, uma vez cada, inclusive as desativadas.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../priorities/{priorityPublicId}</code></td><td><strong>Administrador.</strong> Nome e cor juntos. O histórico continua com o nome da época.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>.../priorities/{priorityPublicId}/deactivate</code></td><td><strong>Administrador.</strong> Aposenta: fica nos cards que já a têm, e sai da lista de escolha.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../priorities/{priorityPublicId}/deactivate</code></td><td><strong>Administrador.</strong> Desativa: fica nos cards que já a têm, e sai da lista de escolha.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../priorities/{priorityPublicId}/activate</code></td><td><strong>Administrador.</strong> Reativa.</td></tr>
 </table>
 </div>
@@ -80,7 +93,7 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
 
 <div class="note warn">
   <strong>Criar etiqueta é a escrita de membro fora de <code>/reports</code></strong>
-  <p>Fora da Operação, toda rota que muda alguma coisa exige administrador, e a API não sobe se
+  <p>Fora de <code>/reports</code>, toda rota que muda alguma coisa exige administrador, e a API não sobe se
   alguma esquecer. Criar etiqueta é a exceção, e é declarada: a ação leva a marca de escrita de
   membro, com o motivo — etiquetar é trabalho do time, e não configuração. Sem a marca, a regra
   continua barrando a subida.</p>
@@ -89,7 +102,9 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
 <h3>Os campos na lista e no detalhe</h3>
 
 <p>A lista (<code>GET .../reports</code>) e o detalhe trazem <code>ReporterTitle</code>,
-<code>Assignee</code>, <code>Priority</code>, <code>Labels</code> e <code>DueDate</code> em todo card.
+<code>Assignee</code>, <code>Priority</code>, <code>Labels</code> e <code>DueDate</code> em todo card,
+e <code>UpdatedAt</code>, a última mudança gravada nele — as rotas de título, responsável,
+prioridade e prazo a movem; a de etiquetas não, porque a etiqueta mora em <code>report_labels</code>.
 O painel mostra o título do time, senão o de quem relatou, senão o começo do texto. A história
 (<code>.../history</code>) conta cada mudança: <code>From</code> e <code>To</code> nos campos de um valor
 (a prioridade com o nome da época; quem passou pelo card com o nome de agora, ou o e-mail de quem

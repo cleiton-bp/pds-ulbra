@@ -1,7 +1,7 @@
 meta:
   title: Pôr o projeto no ar
   system: PDS — painel
-  description: "Do primeiro acesso ao primeiro relato: o dono entra com Google, cria o projeto, pega as chaves e cola a ferramenta no site. As regras de comportamento do projeto estão em 03-project-rules."
+  description: "Do primeiro acesso ao primeiro relato: o dono entra com Google, cria o projeto — que já nasce pronto para trabalhar —, pega a chave pública e cola a ferramenta no site. As regras de comportamento do projeto estão em 03-project-rules."
 actors:
   - name: Dono do projeto
     description: Quem criou o projeto e responde por ele. Hoje é a única pessoa da conta.
@@ -26,7 +26,7 @@ useCases:
       - title: 2a. A pessoa desiste ou o Google recusa
         steps:
           - O painel continua na tela de entrada, sem criar nada.
-    postconditions: A pessoa está no painel e só enxerga os projetos da própria conta.
+    postconditions: A pessoa está no painel e enxerga os projetos da própria conta e os de outras contas em que está no time.
   - id: UC02
     name: Criar projeto
     description: Uma conta tem quantos projetos quiser — um por site ou por produto.
@@ -36,23 +36,23 @@ useCases:
     mainFlow:
       - Na lista de projetos, o dono escolhe criar um.
       - Dá um nome ao projeto.
-      - O sistema cria, de uma vez, o projeto, a chave pública, a chave secreta, a fila com um estado — “Análise” — e a jornada pública de fábrica.
-      - O painel mostra a chave secreta, pela única vez, e abre o projeto na Instalação.
+      - O sistema cria, de uma vez, o projeto, a chave pública, as colunas A fazer, Fazendo e Feito, a jornada pública de fábrica já ligada a elas — A fazer em Recebido, Fazendo em Em desenvolvimento, Feito em Concluído — e as prioridades de fábrica.
+      - O painel abre o projeto na Instalação, com os três passos para o site começar a mandar relatos.
     alternativeFlows:
       - title: 2a. O nome fica em branco
         steps:
           - O sistema recusa e pede o nome.
-    postconditions: O projeto já aceita relato do jeito que veio de fábrica — ninguém precisa abrir tela de configuração antes.
+    postconditions: O projeto já aceita relato e já anda no quadro do jeito que veio de fábrica — ninguém precisa abrir tela de configuração antes. A chave secreta não nasce aqui; só a pedido (UC08).
   - id: UC03
     name: Ver as chaves
-    description: A pública identifica o projeto e pode aparecer no código da página. A secreta aparece uma vez só, na hora em que nasce — o sistema guarda apenas o resumo dela.
+    description: A pública identifica o projeto e pode aparecer no código da página. A secreta, para quem integra pelo servidor, nasce só a pedido e aparece uma vez só, na hora em que nasce — o sistema guarda apenas o resumo dela.
     width: 230
     position: { x: 260, y: 240 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
       - O dono abre Chaves.
       - Vê a chave pública, com o botão de copiar, e o texto que explica para que serve cada uma.
-      - Da secreta, vê só o começo, para reconhecer qual é.
+      - Da secreta, se já foi gerada, vê só o começo, para reconhecer qual é.
   - id: UC04
     name: Instalar a ferramenta no site
     description: Copia o bloco do script, já com a chave pública, e cola na página. Nada é instalado no sistema do cliente.
@@ -60,7 +60,7 @@ useCases:
     position: { x: 260, y: 360 }
     preconditions: O projeto existe e não está arquivado.
     mainFlow:
-      - O dono abre Instalação.
+      - O dono abre Instalação — por onde o projeto abre para quem administra, enquanto o site não mandou nenhum relato.
       - Copia o bloco do script, que já leva a chave pública do projeto.
       - Cola o bloco nas páginas do site onde quer receber relatos.
       - O script cria a ferramenta dentro de um iframe do PDS, e o botão aparece na página.
@@ -68,7 +68,7 @@ useCases:
       - title: 4a. A página está fora dos domínios permitidos
         steps:
           - A ferramenta não abre ali — ver UC05.
-    postconditions: Quem visita a página já consegue relatar.
+    postconditions: Quem visita a página já consegue relatar. Depois do primeiro relato, a Instalação diz que o site está funcionando, e o projeto passa a abrir pelo Trabalho também para quem administra.
   - id: UC05
     name: Limitar onde a ferramenta abre
     description: A lista de domínios onde a ferramenta pode rodar, com a opção de valer também para os subdomínios.
@@ -76,48 +76,56 @@ useCases:
     position: { x: 260, y: 480 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Configurações.
+      - O dono abre Projeto.
       - Acrescenta um domínio e marca se ele vale para os subdomínios.
       - Remove o domínio que não usa mais.
     postconditions: A ferramenta só abre nos domínios da lista. Com a lista vazia, abre em qualquer endereço.
   - id: UC06
     name: Ajustar a ferramenta
-    description: "Como a ferramenta aparece no site: se aparece, o botão, o canto, a cor, o tema e os textos — com a prévia ao lado."
+    description: "Como a ferramenta aparece no site: se aparece, o botão, o canto, a cor, o tema e os textos — com a prévia ao lado. A tela é Botão no site."
     width: 230
     position: { x: 260, y: 600 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Ferramenta.
+      - O dono abre Botão no site.
       - Escolhe se ela aparece no site e se há um botão parado na página.
       - Escolhe o canto, a cor do botão e o tema.
       - Escreve o título do formulário, o texto da caixa vazia e a frase da confirmação.
       - Decide se quem relata escolhe o tipo — defeito, melhoria ou dúvida — ou se todo relato entra com um tipo só.
       - Escolhe como a ferramenta pergunta o título — "em poucas palavras, o que aconteceu?" —, opcional, obrigatória ou escondida.
-      - Confere na prévia e salva.
+      - Confere na prévia e publica.
+    alternativeFlows:
+      - title: 7a. O dono sai da tela sem publicar
+        steps:
+          - O painel pergunta antes de sair, e nada do que estava publicado muda.
     postconditions: A próxima vez que a ferramenta abrir no site, ela já vem do jeito novo, sem trocar o script.
   - id: UC07
     name: Renomear ou arquivar o projeto
-    description: Arquivar tira o projeto da lista principal e faz ele parar de aceitar relatos. Nada é apagado.
+    description: Arquivar faz o projeto parar de aceitar relatos; ele continua na lista, marcado como arquivado. Nada é apagado.
     width: 230
     position: { x: 260, y: 720 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Configurações.
+      - O dono abre Projeto.
       - Troca o nome, ou escolhe arquivar e confirma.
     alternativeFlows:
       - title: 2a. O projeto já está arquivado
         steps:
           - O dono desarquiva, e o projeto volta a aceitar relatos sem trocar o script do site.
   - id: UC08
-    name: Regenerar a chave secreta
-    description: Uma chave nova no lugar da antiga, que para de valer na hora.
+    name: Gerar a chave secreta
+    description: O projeto nasce sem ela. Gerar dá a primeira; gerar de novo põe uma nova no lugar da antiga, que para de valer na hora.
     width: 230
     position: { x: 600, y: 240 }
     mainFlow:
-      - O dono pede uma chave secreta nova e confirma.
-      - O sistema gera a nova e aposenta a anterior.
-      - O painel mostra a nova, pela única vez, para o dono copiar.
-    postconditions: A chave anterior não vale mais e aparece na lista das revogadas.
+      - Em Chaves, na integração avançada, o dono escolhe gerar a chave secreta e confirma.
+      - O sistema gera a chave.
+      - O painel mostra a chave, pela única vez, para o dono copiar, e avisa antes de ele sair da tela.
+    alternativeFlows:
+      - title: 2a. Já havia uma secreta
+        steps:
+          - O sistema revoga a anterior, que para de valer na hora, e a nova toma o lugar.
+    postconditions: A chave anterior, se havia, não vale mais e aparece na lista das revogadas.
   - id: UC09
     name: Fazer um relato de teste
     description: Abre a ferramenta de verdade, dentro do painel, com a mesma chave pública do site — se o relato chega, chegou pelo caminho inteiro.
@@ -127,7 +135,7 @@ useCases:
       - Na Instalação, o dono escolhe fazer um relato de teste.
       - O painel abre a ferramenta no mesmo iframe que o site usaria.
       - O dono envia um relato.
-      - O relato aparece em Relatos, como qualquer outro.
+      - O relato aparece em Trabalho, como qualquer outro, e a Instalação passa a dizer que o site está funcionando.
 links:
   - from: Dono do projeto
     to: UC01
@@ -156,7 +164,7 @@ links:
   - from: UC08
     to: UC03
     kind: extend
-    note: quando a secreta vazou ou se perdeu
+    note: quando a integração pede a secreta, ou a que existe vazou ou se perdeu
   - from: UC09
     to: UC04
     kind: extend

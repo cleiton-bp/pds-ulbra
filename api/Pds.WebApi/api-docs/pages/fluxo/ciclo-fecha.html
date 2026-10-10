@@ -10,6 +10,12 @@
 ele, a pessoa ficaria sabendo que acabou e não o que aconteceu, que é o problema que o produto
 existe para resolver.</p>
 
+<p>No card aberto, <strong>Encerrar relato…</strong> aparece em qualquer coluna enquanto o relato
+está aberto, ao lado de <strong>Pedir informação</strong>. Quando o projeto encerra pela última
+coluna, encerrar fora dela abre o mesmo diálogo do motivo — <em>"Mover para Feito encerra este
+relato."</em> — e, ao confirmar, leva o relato para ela; já nela, ou no gatilho por botão, encerra
+sem mover.</p>
+
 <div class="diagram">o time encerra  →  report_closures ganha uma linha, com motivo
       ↓
 quem relatou abre o link e le o desfecho
@@ -31,8 +37,12 @@ confirmed_at + nota             volta para a coluna configurada
   quem relatou em <code>public_at</code>. Dentro da janela, a página pública continua sem
   encerramento nenhum.</p>
   <p>E se o time <strong>sair da coluna que encerra</strong>, o encerramento é desfeito: apagado
-  logicamente, com um <code>report_closure_cancelled</code> no histórico. Vale só no gatilho por
-  última coluna — no gatilho por botão, mover o relato é só mover.</p>
+  logicamente, com um <code>report_closure_cancelled</code> no histórico. Por isso o painel
+  pergunta antes, pelo quadro, pelo card e pelo "Mover para" da lista — <em>"Reabrir o relato
+  #10?"</em>, com <strong>Reabrir e mover</strong> —, e o card aberto confirma depois: <em>"#10
+  deixou de estar encerrado."</em>. O encerramento que quem relatou já confirmou não se desfaz:
+  aí mover é só mover, sem pergunta. Vale só no gatilho por última coluna — no gatilho por botão,
+  mover o relato é só mover.</p>
   <p>E <strong>chegar à coluna que encerra com um encerramento já valendo</strong> — o do relato
   que o arquivo encerrou e o time desarquivou, ou o que quem relatou já confirmou — não encerra de
   novo: o relato só anda, sem desfecho nem motivo, e o encerramento que existe continua o mesmo.</p>

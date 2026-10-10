@@ -1,5 +1,5 @@
 <h2>Sessão, projeto e chaves</h2>
-<p class="lead">Entrar, criar o projeto, ver as chaves e autorizar os endereços onde a ferramenta abre.</p>
+<p class="lead">Entrar, o sino, criar o projeto, ver e gerar as chaves e autorizar os endereços onde a ferramenta abre.</p>
 
 <div class="table-scroll">
 <table>
@@ -7,19 +7,19 @@
   <tr><td><span class="verb post">POST</span></td><td><code>/auth/google</code></td><td>Entra com o Google. Primeiro acesso cria a conta própria e o usuário.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/auth/logout</code></td><td>Encerra a sessão.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/me</code></td><td>Usuário e a conta própria.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/me/notifications</code></td><td>O sino: os cinquenta avisos mais recentes da pessoa, dos projetos em que ela está — <code>Mention</code> (mencionada num comentário interno) e <code>Assignment</code> (escolhida como responsável) —, com quem fez, o card e o projeto, e <code>UnreadCount</code>, que conta todos os não lidos. Ver <a href="#/fluxo/mencoes-e-avisos">Menções e avisos</a>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/me/notifications</code></td><td>O sino, de cinquenta em cinquenta, do mais novo para o mais antigo: os avisos da pessoa, dos projetos em que ela está — <code>Mention</code> (mencionada num comentário interno, com o começo dele em <code>Comment</code>) e <code>Assignment</code> (escolhida como responsável) —, com quem fez, o card e o projeto. <code>unread=true</code> traz só os não lidos; <code>before</code>, o identificador do último aviso da página anterior, traz os mais antigos que ele, e <code>HasMore</code> diz se ainda há. <code>UnreadCount</code> conta todos os não lidos, inclusive os que não vieram. Junto vai <code>beforeAt</code>, a hora desse aviso: se ele sumiu — o comentário ou o card apagado, a menção tirada, a pessoa fora do projeto —, a página segue por ela, e o painel tira algum aviso repetido da mesma hora. Sem <code>beforeAt</code>, o <code>before</code> que não se acha — de outra pessoa, ou que sumiu — é 404. Ver <a href="#/fluxo/mencoes-e-avisos">Menções e avisos</a>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/me/notifications/unread-count</code></td><td>Só o número do sino: a pergunta barata que o painel repete.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/me/notifications/{notificationPublicId}/read</code></td><td>Marca um aviso como lido. Ler de novo não é erro. O aviso de outra pessoa, ou de um projeto de que ela saiu, é 404.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/me/notifications/read-all</code></td><td>Marca como lidos todos os avisos dos projetos em que a pessoa está.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/me/notification-settings</code></td><td>As preferências de aviso: <code>Volume</code> (0 a 100) e <code>Sounds</code>, o som de cada tipo de aviso (<code>Mention</code>, <code>Assignment</code>) — <code>None</code>, <code>Bell</code>, <code>Drop</code>, <code>Ping</code>, <code>Chime</code>, <code>Bubble</code> ou <code>Soft</code>. O tipo que a pessoa nunca escolheu vem com o de fábrica. Ver <a href="#/fluxo/mencoes-e-avisos">Menções e avisos</a>.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/me/notification-settings</code></td><td>Grava as preferências, inteiras: o volume e um som para cada tipo, todos os tipos, cada um uma vez (400 no que faltar, repetir ou não existir). Valem em todos os projetos da pessoa.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/realtime/ticket</code></td><td>O bilhete da conexão em tempo real: vale um minuto e só abre o hub (<code>/realtime/hub</code>). Ver <a href="#/fluxo/tempo-real">O tempo real</a>.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Os projetos que a pessoa enxerga, de todas as contas, cada um com a conta dona e o papel dela.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto e o par de chaves, sempre na conta própria.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto, com a conta dona e o papel.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Os projetos que a pessoa enxerga, de todas as contas, cada um com a conta dona, o papel dela e o movimento: <code>LastReportReceivedAt</code> e <code>LastActivityAt</code>.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto, sempre na conta própria, com a chave pública, as colunas <strong>A fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong> já ligadas ao andamento público, a jornada e as prioridades de fábrica. <strong>A chave secreta não nasce aqui</strong>, e a resposta não a traz.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto, com a conta dona, o papel e o movimento.</td></tr>
   <tr><td><span class="verb patch">PATCH</span></td><td><code>/projects/{publicId}</code></td><td><strong>Administrador.</strong> Renomeia, arquiva.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td><strong>Administrador.</strong> Chaves. A secreta só como prefixo.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td><strong>Administrador.</strong> Regenera a secreta e devolve <strong>uma vez</strong>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td><strong>Administrador.</strong> Chaves, as que valem e as revogadas. A secreta só como prefixo — e só depois de alguém gerá-la: o projeto novo tem só a pública.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td><strong>Administrador.</strong> Gera a secreta — o projeto nasce sem ela — ou uma nova no lugar da atual, que fica revogada, e devolve o valor <strong>uma vez</strong>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td><strong>Administrador.</strong> Autoriza um endereço. O domínio é normalizado antes de gravar.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td><strong>Administrador.</strong> Retira a autorização. Exclusão lógica.</td></tr>
@@ -38,6 +38,55 @@
   <code>IsAccountOwner</code> verdadeiro. É o que o painel usa para agrupar os projetos por conta e
   para esconder a configuração de quem é só membro. Já o <code>Account</code> de <code>/me</code> é
   a conta própria.</p>
+  <p>E cada projeto vem com o <strong>movimento</strong>, nas duas rotas que o leem:
+  <code>LastReportReceivedAt</code>, quando chegou o último relato de fora — nulo enquanto o site não
+  mandou nenhum; o card do time não conta —, e <code>LastActivityAt</code>, a última mudança gravada
+  em qualquer card — nulo sem card nenhum —, pelo mesmo critério de <code>UpdatedAt</code>: comentário,
+  anexo e etiqueta não contam. O arquivado conta: ele chegou e mexeu, só saiu da tela.
+  É com o primeiro que o painel decide a porta do projeto para quem administra — a Instalação só
+  enquanto nada chegou, e o Trabalho depois —, e com o segundo que a lista de projetos diz há quanto
+  tempo houve movimento.</p>
+</div>
+
+<div class="note why">
+  <strong>O que o projeto novo traz de fábrica</strong>
+  <p>Numa gravação só — ou entra tudo, ou nada —, <code>POST /projects</code> cria o projeto com:</p>
+  <ul>
+    <li>a <strong>chave pública</strong>, que vai no script do site;</li>
+    <li>a <strong>jornada</strong> de cinco etapas que quem relatou acompanha;</li>
+    <li>as colunas <strong>A fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong>, já
+    ligadas à jornada — A fazer → Recebido, Fazendo → Em desenvolvimento, Feito → Concluído —, na
+    versão 1 do mapa. Pela regra de fábrica do ciclo, a última coluna ativa é a que encerra o relato:
+    num projeto novo, <strong>Feito</strong>;</li>
+    <li>as quatro <strong>prioridades</strong> de fábrica. O card continua nascendo sem prioridade.</li>
+  </ul>
+  <p>Tudo isso é ponto de partida: renomear, reordenar, desativar e religar fica com o
+  administrador, pelas rotas de <a href="#/endpoints/fila-e-jornada">A fila e a jornada</a>. O
+  projeto que já existia continua como estava.</p>
+</div>
+
+<pre><code>POST /projects
+{ "Name": "Loja Online" }</code></pre>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Projeto criado.",
+  "Data": {
+    "Project": { "PublicId": "2be49b28-...", "Name": "Loja Online", "Status": "Active",
+                 "Role": "Administrator", "IsAccountOwner": true,
+                 "LastReportReceivedAt": null, "LastActivityAt": null, ... },
+    "PublicKey": { "PublicId": "5a1c...", "Type": "Public", "Value": "pk_...", ... }
+  }
+}</code></pre>
+
+<div class="note why">
+  <strong>A chave secreta nasce sob pedido</strong>
+  <p>Ela serve a um uso que pouca gente tem — o servidor do cliente falando com a API —, e o valor
+  aparece uma vez só. Nascer junto do projeto obrigaria quem acabou de criá-lo a decidir o que fazer
+  com um valor que nem sabe se precisa, e que não voltaria a ver. Por isso o projeto nasce sem ela,
+  e <code>POST /projects/{publicId}/keys/secret</code> a gera quando alguém pede — na tela de
+  Chaves. A mesma rota, com uma secreta valendo, revoga a atual e gera outra no lugar. Ver
+  <a href="#/seguranca/as-chaves">As chaves</a>.</p>
 </div>
 
 <div class="note why">

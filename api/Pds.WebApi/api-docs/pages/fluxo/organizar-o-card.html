@@ -8,7 +8,7 @@ resposta vai junto do relato:</p>
   "Title": "O botão de pagar não responde",
   "Text": "Depois de escolher o cartão, o botão fica cinza e nada acontece.", ... }</code></pre>
 
-<p>A pergunta é <strong>opcional</strong> de fábrica. Na tela Ferramenta, o dono a torna obrigatória
+<p>A pergunta é <strong>opcional</strong> de fábrica. Na tela Botão no site, o dono a torna obrigatória
 — e aí a API recusa o relato sem título (400) — ou a esconde, e o card mostra o começo do texto.
 O título que a pessoa escreveu fica em <code>reporter_title</code> e <strong>nunca muda</strong>.</p>
 
@@ -21,6 +21,10 @@ O título que a pessoa escreveu fica em <code>reporter_title</code> e <strong>nu
 — ou o mesmo título dela — volta ao dela. <strong>Quem relatou continua vendo só o que
 escreveu</strong>, no acompanhamento e em "meus relatos": o título do time não sai do painel.</p>
 
+<p>O relato que chegou sem título aparece, na lista, no quadro e no card aberto, com o começo do
+texto <strong>entre aspas e na cor do título</strong> — e não em cinza, que parecia desativado —,
+com "Dar um título" ao lado no card aberto.</p>
+
 <h2>Quem, o quanto, o quê, até quando</h2>
 
 <pre><code>PUT .../reports/9f3e.../assignee   { "UserPublicId": "b1000000-..." }
@@ -32,30 +36,81 @@ PUT .../reports/9f3e.../due-date   { "DueDate": "2026-10-16" }</code></pre>
 <p>Cada <code>PUT</code> devolve o card inteiro — a criação da etiqueta devolve a etiqueta —, e a
 linha do card na tela de Trabalho passa a mostrar a
 prioridade, as etiquetas, quem está com ele e o prazo. O card nasce sem nada disso: <strong>sem
-responsável e sem prioridade</strong> até alguém do time escolher.</p>
+responsável e sem prioridade</strong> até alguém do time escolher — no card aberto, ou já no
+"Novo card".</p>
+
+<p>No card aberto, <strong>o campo mostra o valor escolhido na hora</strong>, com "Salvando…"
+embaixo enquanto a API responde. Se a gravação falha, o campo volta ao que vale e diz, embaixo dele
+e no aviso, o que não deu — <em>"Não deu para mudar a prioridade. Tente de novo."</em>. O prazo
+aparece também por extenso ("15 de out. de 2026") e, no card que ainda não terminou, com o selo da
+lista: <em>venceu há 2 dias</em>, em vermelho, ou <em>vence hoje</em>, em amarelo.</p>
 
 <div class="note why">
   <strong>A etiqueta nasce no card</strong>
   <p>No painel, escrever o nome de uma etiqueta que não existe oferece criá-la — qualquer pessoa do
   time cria, e o nome que já existe devolve a que existe, mesmo com duas pessoas criando o mesmo
-  nome ao mesmo tempo. Enter põe a de nome igual, e nunca uma parecida. A tela Etiquetas, de quem
-  administra, é para organizar depois: renomear, trocar a cor, apagar a que sobrou.</p>
+  nome ao mesmo tempo. As etiquetas achadas aparecem numa lista, com a primeira destacada — a de
+  nome igual, depois a que começa igual, depois a que tem o texto no meio —: as setas andam, e
+  <strong>Enter põe a destacada</strong>, de modo que "pag" e Enter põe "pagamentos". "Criar “pag”"
+  fica por último, e só vai pelas setas, pelo clique, ou pelo Enter quando não há nenhuma parecida.
+  A tela Etiquetas, de quem administra, é para organizar depois — renomear, trocar a cor, apagar a
+  que sobrou —, e também cria, com a cor.</p>
 </div>
+
+<h2>O card aberto</h2>
+
+<p>O card abre por cima da tela de Trabalho, em duas colunas e com a altura fixa no computador — o
+X, a coluna e os campos ficam sempre no mesmo ponto, do card curto ao longo. No celular, uma coluna
+só, e a coluna, os botões e os campos vêm antes das subtarefas e dos vínculos.</p>
+
+<ul>
+  <li><strong>Copiar link</strong>, ao lado do X: o endereço do card, para mandar a um colega
+  ("Link do #13 copiado.").</li>
+  <li><strong>Card anterior</strong> e <strong>Próximo card</strong> — e as teclas
+  <strong>K</strong> e <strong>J</strong>, fora de um campo — andam na ordem da tela de onde se veio:
+  a lista como está, com os filtros e a ordem; o quadro, coluna por coluna. Andar troca o endereço no
+  lugar, e o voltar do navegador leva de volta à lista, e não a cada card visto.</li>
+  <li><strong>O Esc sai por camadas.</strong> Com o foco num título, numa descrição, num comentário
+  sendo corrigido, no campo de etiqueta, de subtarefa ou de vincular, o Esc sai só daquela edição; o
+  seguinte fecha o card.</li>
+  <li><strong>Fechar com texto escrito pergunta antes</strong> — pelo Esc, pelo X, pelo clique fora
+  ou indo para outro card: <em>"Descartar o que você escreveu?"</em>, com <strong>Continuar
+  escrevendo</strong>, que devolve o foco à caixa, e <strong>Descartar</strong>.</li>
+  <li><strong>Os avisos nascem dentro do card</strong>, embaixo à direita: clicar num aviso não
+  fecha o card, e o leitor de tela os lê.</li>
+  <li><strong>O histórico vem do mais recente</strong>, com as dez últimas linhas e "Mostrar tudo".
+  A primeira abertura pelo time aparece uma vez só, e as outras ficam atrás de "Mostrar aberturas";
+  o movimento que não mudou o que quem relatou vê diz isso na própria linha.</li>
+</ul>
 
 <h2>Vários cards de uma vez</h2>
 
-<p>Na lista da tela de Trabalho, cada linha tem uma caixa, e a do cabeçalho marca todas as que
-estão na tela. Com cards marcados, aparece a barra do lote, presa embaixo da tela: <strong>Mover para</strong> uma coluna,
-<strong>Responsável</strong>, <strong>Prioridade</strong>, <strong>Pôr etiqueta</strong> (as que o
-card já tem ficam), <strong>Tirar etiqueta</strong> e, com as sprints ligadas,
-<strong>Sprint</strong> — uma sprint aberta ou o backlog.</p>
+<p>Na lista da tela de Trabalho, cada linha tem uma caixa, e a do cabeçalho marca os cards da
+página. Shift+clique (ou Shift+Espaço) marca do último marcado até o atual, e a linha marcada ganha
+fundo. Com a página inteira marcada e mais cards por vir, a barra diz "50 selecionados nesta
+página." e oferece <strong>Selecionar os 134 que passam nos filtros</strong>, que lê o resto da lista
+e marca tudo. Com cards marcados, aparece a barra do lote, presa embaixo da tela:
+<strong>Mover para</strong> uma coluna, <strong>Responsável</strong>, <strong>Prioridade</strong>,
+<strong>Adicionar etiqueta</strong> (as que o card já tem ficam), <strong>Remover etiqueta</strong>
+e, com as sprints ligadas, <strong>Sprint</strong> — uma sprint aberta ou o backlog.</p>
 
 <ul>
   <li><strong>Card por card, pelas rotas de sempre</strong> — as mesmas regras e travas de mexer num
   card só. O card que já está como se pediu fica de fora; o recusado não desfaz os outros. No fim,
   uma mensagem diz o que mudou e em quantos cards, e um diálogo lista os que não mudaram, com o
-  porquê. <strong>A seleção fica</strong>: dá para pôr o responsável e depois a prioridade nos
-  mesmos cards.</li>
+  porquê, com o link para abrir cada um. <strong>A seleção fica</strong>: dá para pôr o
+  responsável e depois a prioridade nos mesmos cards.</li>
+  <li><strong>Desfazer</strong>, no aviso do fim, por dez segundos: cada card volta ao valor de
+  antes, card por card, pelas mesmas rotas — o responsável, a prioridade, a etiqueta (a contrária: a
+  que entrou sai, a que saiu volta), a coluna e a sprint. Antes de voltar, cada card é lido de novo:
+  só volta o campo que ainda está como o lote deixou — o que outra pessoa mudou nesses segundos
+  fica, e aparece no mesmo diálogo do que não voltou, com "Mudou depois do lote".
+  A coluna volta no topo da de antes, e a sprint no fim dela: o lugar exato não volta. Mover para a
+  coluna que encerra não se desfaz — ela já pergunta antes, e voltar reabriria os relatos.</li>
+  <li><strong>Tirar da coluna que encerra pergunta antes</strong>, como o quadro: com relato
+  encerrado na seleção (e ainda não confirmado por quem relatou), <em>"Reabrir 2 relatos?"</em>, com
+  <strong>Reabrir e mover</strong>. O relato reaberto fica fora do "Desfazer" — encerrar de novo
+  pede o desfecho —, e o aviso do fim diz isso.</li>
   <li><strong>Um de cada vez, na ordem da lista</strong>: a ordem em que chegam à sprint, ou ao topo
   da coluna, é a de quem marcou.</li>
   <li><strong>A coluna que encerra pergunta uma vez</strong>: os relatos abertos da seleção
