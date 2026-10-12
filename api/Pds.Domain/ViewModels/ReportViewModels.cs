@@ -992,6 +992,11 @@ public record SensitiveFindingViewModel(
 /// <param name="ModeratedAt">Quando alguem decidiu; nulo enquanto ninguem decidiu.</param>
 /// <param name="ModeratedByName">Quem decidiu; nulo enquanto ninguem decidiu, e tambem quando a conta foi esvaziada.</param>
 /// <param name="CreatedAt">Quando o relato entrou, em UTC.</param>
+/// <param name="PublicStageLabel">
+/// A etapa publica em que o relato esta agora, como a lista publica a mostraria; nula
+/// quando ele nao tem uma. E o que deixa a tela mostrar "na lista publica vai aparecer
+/// assim" sem adivinhar.
+/// </param>
 /// <param name="FindingsTruncated">
 /// A varredura parou no teto e ha mais trechos do que os que vieram.
 ///
@@ -1019,22 +1024,35 @@ public record ModerationItemViewModel(
     string? ModeratedByName,
     DateTime CreatedAt,
     IReadOnlyList<SensitiveFindingViewModel> Findings,
-    bool FindingsTruncated);
+    bool FindingsTruncated,
+    string? PublicStageLabel = null);
 
 /// <summary>
-/// A fila de moderacao de um projeto.
+/// A fila de moderacao de um projeto: uma pagina de uma aba.
 /// </summary>
-/// <param name="Items">Os relatos no estado pedido, do mais antigo para o mais novo.</param>
+/// <param name="Items">
+/// Os relatos da aba pedida. Em <c>Pending</c>, do mais antigo para o mais novo; em
+/// <c>Approved</c> e <c>Rejected</c>, da decisao mais recente para a mais antiga.
+/// </param>
 /// <param name="PendingTotal">
-/// Quantos ainda esperam decisao, <b>independente do recorte pedido</b>.
+/// Quantos ainda esperam decisao, <b>independente do recorte pedido</b> e dos filtros.
 ///
 /// <para>Viaja sempre porque e o numero que o painel mostra na lateral: sem ele,
 /// quem abrisse a aba dos ja decididos veria o contador sumir e concluiria que a
 /// fila esvaziou.</para>
 /// </param>
+/// <param name="Counts">Quantos ha em cada aba — com filtro ligado, quantos passam nele.</param>
+/// <param name="NextCursor">Onde continuar (o <c>after</c> da proxima pagina); nulo quando acabou.</param>
+/// <param name="HasMore">Ha mais depois desta pagina.</param>
 public record ModerationQueueViewModel(
     IReadOnlyList<ModerationItemViewModel> Items,
-    int PendingTotal);
+    int PendingTotal,
+    ModerationCountsViewModel Counts,
+    string? NextCursor,
+    bool HasMore);
+
+/// <summary>Quantos relatos ha em cada aba da moderacao.</summary>
+public record ModerationCountsViewModel(int Pending, int Approved, int Rejected);
 
 /// <summary>
 /// Um relato ja liberado, como qualquer pessoa o le.

@@ -206,34 +206,50 @@ public class ReportsController : BaseController
         }
     }
 
-    /// <summary>A fila de moderação do projeto.</summary>
+    /// <summary>A fila de moderação do projeto: uma página de uma aba.</summary>
     /// <remarks>
     /// **Todo relato nasce pendente, inclusive em projeto privado.** Não é excesso
     /// de zelo: se o relato de projeto privado nascesse liberado, o dia em que
     /// alguém marcasse o projeto como público publicaria o histórico inteiro de uma
     /// vez, sem ninguém ter lido nada.
     ///
-    /// **Do mais antigo para o mais novo**, ao contrário de toda outra lista do
-    /// painel. Fila que se lê de trás para frente deixa o primeiro que chegou
-    /// esperando para sempre.
+    /// **Duas ordens, uma por aba.** `Pending` é fila: do mais antigo para o mais
+    /// novo — fila que se lê de trás para frente deixa o primeiro que chegou
+    /// esperando para sempre. `Approved` e `Rejected` são histórico: da decisão mais
+    /// recente para a mais antiga, para quem acabou de liberar por engano achar o
+    /// relato no topo e tirá-lo do público.
     ///
-    /// O total de pendentes vem em toda resposta, **inclusive quando o recorte é
-    /// outro**: é o número que o painel mostra na lateral, e ele não pode sumir
-    /// porque alguém abriu a aba dos já decididos.
+    /// **Página por cursor.** Vêm `limit` relatos (25 sem pedir, até 50; fora da faixa
+    /// é corrigido) e, havendo mais, `NextCursor` — o `after` da próxima página, opaco,
+    /// que só vale na mesma aba. O cursor guarda o **valor** da ordem, e não um relato:
+    /// decidir os de cima não faz a próxima página pular nem repetir ninguém.
+    ///
+    /// **Filtros**: `q` (o texto, o título de quem relatou, o número e o protocolo, como
+    /// na busca do Trabalho), `type` (repetível), `from`/`to` (instantes ISO 8601 da
+    /// chegada: `from` inclusivo, `to` exclusivo) e `origin` (o domínio, ou `none`).
+    ///
+    /// **`Counts` traz as três abas numa consulta só** — com filtro, quantos passam nele.
+    /// `PendingTotal` viaja sempre, **sem filtro e em qualquer aba**: é o número que o
+    /// painel mostra na lateral, e ele não pode sumir porque alguém abriu a aba dos já
+    /// decididos ou buscou uma palavra.
+    ///
+    /// O relato retido pela origem não aparece aqui: ninguém do time o recebeu ainda.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
-    /// <param name="state">`Pending`, `Approved` ou `Rejected`. Padrão: `Pending`.</param>
+    /// <param name="query">A aba (`state`: `Pending`, `Approved` ou `Rejected`; padrão `Pending`), o cursor e os filtros.</param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">A fila, e quantos ainda esperam decisão.</response>
-    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    /// <response code="200">Uma página da aba, a contagem das abas e quantos ainda esperam decisão.</response>
+    /// <response code="400">Cursor fora do formato ou de outra aba, busca longa demais, ou `from` depois de `to`.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto. O tipo do filtro que sumiu não casa com relato nenhum.</response>
     [HttpGet("moderation")]
     [ProducesResponseType(typeof(ApiResponse<ModerationQueueViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Moderation(Guid publicId, [FromQuery] ReportModerationStateEnum state = ReportModerationStateEnum.Pending, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Moderation(Guid publicId, [FromQuery] ModerationQueryDto query, CancellationToken cancellationToken = default)
     {
         try
         {
-            var queue = await _reportService.ListModerationAsync(publicId, state, cancellationToken);
+            var queue = await _reportService.ListModerationAsync(publicId, query, cancellationToken);
             return Success(queue, total: queue.Items.Count);
         }
         catch (Exception exception)
@@ -258,6 +274,10 @@ public class ReportsController : BaseController
     /// **Decidir de novo é permitido; voltar para `Pending` não é.** Quem liberou
     /// por engano recusa, e quem recusou e mudou de ideia libera. O que não existe
     /// é desfazer para "ninguém olhou", porque alguém olhou.
+    ///
+    /// **`From` é o estado em que a tela viu o relato** (opcional). Se ele já não está
+    /// assim — outra pessoa decidiu no meio —, a resposta é 409 e nada muda: a segunda
+    /// decisão não grava por cima da primeira sem aviso.
     /// </remarks>
     /// <param name="publicId">Identificador público do projeto.</param>
     /// <param name="reportPublicId">Identificador público do relato.</param>
@@ -266,11 +286,13 @@ public class ReportsController : BaseController
     /// <response code="200">O relato, com a decisão gravada.</response>
     /// <response code="400">Decisão ausente, desconhecida, ou `Pending`.</response>
     /// <response code="404">Projeto ou relato não encontrado entre os que a pessoa enxerga.</response>
+    /// <response code="409">Com `From`: o relato já não está no estado que a tela viu — outra pessoa decidiu antes.</response>
     [HttpPut("{reportPublicId:guid}/moderation")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ModerationItemViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Moderate(Guid publicId, Guid reportPublicId, [FromBody] ModerateReportDto dto, CancellationToken cancellationToken)
     {
         try

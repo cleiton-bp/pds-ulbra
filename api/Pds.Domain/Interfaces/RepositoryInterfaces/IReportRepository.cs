@@ -252,16 +252,21 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<IReadOnlyList<Report>> ListByReporterCodeWithoutSessionAsync(long reporterCodeId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// A fila de moderacao de um projeto, num estado so.
+    /// Uma pagina da fila de moderacao de um projeto, numa aba so, com os filtros.
     ///
-    /// <para>Do <b>mais antigo para o mais novo</b>, ao contrario de toda outra
-    /// lista do painel: fila que se le de tras para frente deixa o primeiro que
-    /// chegou esperando para sempre.</para>
+    /// <para>Em <c>Pending</c>, do <b>mais antigo para o mais novo</b> (<c>created_at</c>,
+    /// <c>id</c>), ao contrario de toda outra lista do painel: fila que se le de tras para
+    /// frente deixa o primeiro que chegou esperando para sempre. Nas abas decididas, da
+    /// decisao mais recente para a mais antiga (<c>moderated_at</c>, <c>id</c>).</para>
     /// </summary>
-    Task<IReadOnlyList<Report>> ListByModerationStateAsync(long projectId, ReportModerationStateEnum state, int limit, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Report>> ListModerationPageAsync(long projectId, ModerationFilter filter, CancellationToken cancellationToken = default);
 
-    /// <summary>Quantos relatos do projeto estao neste estado de moderacao.</summary>
-    Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Quantos relatos ha em cada aba da moderacao, numa consulta agrupada. Com
+    /// <paramref name="filter"/>, so os que passam nos filtros dele (a aba e o cursor nao
+    /// contam).
+    /// </summary>
+    Task<ModerationCounts> CountModerationAsync(long projectId, ModerationFilter? filter = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Os relatos ja liberados de um projeto, para quem nao tem sessao nenhuma.

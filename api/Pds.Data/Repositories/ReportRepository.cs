@@ -1121,31 +1121,102 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<Report>> ListByModerationStateAsync(long projectId, ReportModerationStateEnum state, int limit, CancellationToken cancellationToken = default)
-        // O filtro global ja isola o acesso e esconde o apagado. A ordem e a unica
-        // do painel que vai do mais antigo para o mais novo: fila lida ao
-        // contrario deixa o primeiro que chegou esperando para sempre.
+    public async Task<IReadOnlyList<Report>> ListModerationPageAsync(long projectId, ModerationFilter filter, CancellationToken cancellationToken = default)
+    {
+        var cards = FiltrarModeracao(projectId, filter)
+            .Where(report => report.ModerationState == filter.State);
+
+        // A fila vai do mais antigo para o mais novo: lida ao contrario, o primeiro que
+        // chegou espera para sempre. O historico vai da decisao mais recente para a mais
+        // antiga: e da decisao de agora que alguem se arrepende, e com a ordem da fila
+        // ela ficava depois das cinquenta mais antigas, fora do alcance.
         //
-        // **So relato.** O card do time fica "pendente" para sempre — e o que o
-        // banco exige dele —, e sem esta condicao encheria a fila de quem modera
-        // com cards que nunca vao ser liberados.
-        => await Context.Reports
-            .Where(report => report.ProjectId == projectId
-                             && report.Kind == CardKindEnum.Report
-                             && report.ModerationState == state)
+        // A data da decisao cai na de chegada so por garantia: decidido sem data nao
+        // existe, e sem o "??" uma linha assim sumiria do cursor em vez de aparecer.
+        var fila = filter.State == ReportModerationStateEnum.Pending;
+
+        if (filter.After is { } depois)
+        {
+            var quando = depois.At;
+            var id = depois.Id;
+            cards = fila
+                ? cards.Where(report => report.CreatedAt > quando
+                                        || (report.CreatedAt == quando && report.Id > id))
+                : cards.Where(report => (report.ModeratedAt ?? report.CreatedAt) < quando
+                                        || ((report.ModeratedAt ?? report.CreatedAt) == quando && report.Id < id));
+        }
+
+        var ordenados = fila
+            ? cards.OrderBy(report => report.CreatedAt).ThenBy(report => report.Id)
+            : cards.OrderByDescending(report => report.ModeratedAt ?? report.CreatedAt).ThenByDescending(report => report.Id);
+
+        return await ordenados
             .Include(report => report.ModeratedByUser)
             .Include(report => report.ReportType)
-            .OrderBy(report => report.CreatedAt)
-            .ThenBy(report => report.Id)
-            .Take(limit)
+            .Include(report => report.ProjectPublicStage)
+            .Take(filter.Limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ModerationCounts> CountModerationAsync(long projectId, ModerationFilter? filter = null, CancellationToken cancellationToken = default)
+    {
+        // Uma consulta agrupada, e nao tres contagens: as abas mostram os tres numeros
+        // juntos, e tres leituras em momentos diferentes podiam somar um relato duas
+        // vezes enquanto alguem decidia.
+        var linhas = await FiltrarModeracao(projectId, filter)
+            .GroupBy(report => report.ModerationState)
+            .Select(grupo => new { Estado = grupo.Key, Total = grupo.Count() })
             .ToListAsync(cancellationToken);
 
-    public Task<int> CountByModerationStateAsync(long projectId, ReportModerationStateEnum state, CancellationToken cancellationToken = default)
-        => Context.Reports
-            .CountAsync(report => report.ProjectId == projectId
-                                  && report.Kind == CardKindEnum.Report
-                                  && report.ModerationState == state,
-                cancellationToken);
+        int De(ReportModerationStateEnum estado) => linhas.FirstOrDefault(linha => linha.Estado == estado)?.Total ?? 0;
+
+        return new ModerationCounts(
+            De(ReportModerationStateEnum.Pending),
+            De(ReportModerationStateEnum.Approved),
+            De(ReportModerationStateEnum.Rejected));
+    }
+
+    /// <summary>
+    /// Os relatos que a moderacao enxerga, com os filtros da tela. O filtro global ja
+    /// isola o acesso e esconde o apagado e o retido pela origem — este ninguem viu
+    /// ainda, e a fila nao pode oferecer liberar o que o time nem recebeu.
+    ///
+    /// <para><b>So relato.</b> O card do time fica "pendente" para sempre — e o que o
+    /// banco exige dele —, e sem esta condicao encheria a fila de quem modera com cards
+    /// que nunca vao ser liberados.</para>
+    /// </summary>
+    private IQueryable<Report> FiltrarModeracao(long projectId, ModerationFilter? filter)
+    {
+        var cards = Context.Reports
+            .Where(report => report.ProjectId == projectId && report.Kind == CardKindEnum.Report);
+
+        if (filter is null)
+            return cards;
+
+        // A busca e o tipo sao os da tela de Trabalho, pelas mesmas regras. Com as
+        // subtarefas: o relato que virou subtarefa de outro card continua precisando de
+        // decisao, e na fila ele aparece sozinho.
+        if (filter.Search is not null || filter.TypeIds.Count > 0)
+            cards = Filtrar(cards, ReportCardFilter.None with
+            {
+                TypeIds = filter.TypeIds,
+                Search = filter.Search,
+                IncludeSubtasks = true,
+            });
+
+        if (filter.From is DateTime de)
+            cards = cards.Where(report => report.CreatedAt >= de);
+
+        if (filter.To is DateTime ate)
+            cards = cards.Where(report => report.CreatedAt < ate);
+
+        if (filter.WithoutOrigin)
+            cards = cards.Where(report => report.Origin == null || report.Origin == "");
+        else if (filter.Origin is { } origem)
+            cards = cards.Where(report => report.Origin!.ToLower() == origem);
+
+        return cards;
+    }
 
     public async Task<IReadOnlyList<Report>> ListPublishedWithoutSessionAsync(long projectId, int limit, CancellationToken cancellationToken = default)
         // As condicoes do filtro global reescritas a mao, menos a do acesso — e a de

@@ -50,15 +50,6 @@ public partial class ReportService : IReportService
     /// </summary>
     private const int MaxPageSize = 100;
 
-    /// <summary>
-    /// Quantos relatos a fila de moderacao mostra por vez.
-    ///
-    /// <para><b>Nao ha paginacao, e e escolha.</b> A fila e para ser esvaziada, e
-    /// nao navegada: paginar convidaria a deixar a pagina dois para depois, que e
-    /// exatamente o relato que fica pendente para sempre. Quando passa disto, o que
-    /// falta e gente lendo, e nao pagina.</para>
-    /// </summary>
-    private const int ModerationPageSize = 50;
 
     /// <summary>
     /// A recusa da consulta publica, escrita uma vez. Ela fala do <b>link</b> e nao
@@ -2619,21 +2610,82 @@ public partial class ReportService : IReportService
         throw new UnauthorizedAccessException("Chave publica invalida.");
     }
 
-    public async Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ReportModerationStateEnum state, CancellationToken cancellationToken = default)
+    public async Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ModerationQueryDto query, CancellationToken cancellationToken = default)
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
-        var relatos = await _unitOfWork.Reports
-            .ListByModerationStateAsync(project.Id, state, ModerationPageSize, cancellationToken);
+        // Tamanho fora da faixa e corrigido, e nao recusado, como na lista do Trabalho:
+        // pedir zero e engano de quem chama, e nao motivo para a tela ficar sem fila.
+        var limite = Math.Clamp(query.Limit ?? Report.ModerationPageSize, 1, Report.MaxModerationPageSize);
 
-        // O total dos pendentes viaja sempre, e nao so quando o recorte e "pendente":
-        // e o numero da lateral do painel, e ele nao pode sumir porque alguem abriu
-        // a aba dos ja decididos.
-        var pendentes = await _unitOfWork.Reports
-            .CountByModerationStateAsync(project.Id, ReportModerationStateEnum.Pending, cancellationToken);
+        var (tipos, _) = await ResolveTypesAsync(project.Id, query.Type, cancellationToken);
+        var de = Utc(query.From);
+        var ate = Utc(query.To);
+        if (de is not null && ate is not null && de >= ate)
+            throw new ArgumentException("A data inicial vem antes da final.");
 
-        return new ModerationQueueViewModel([.. relatos.Select(ToModerationItem)], pendentes);
+        var origem = query.Origin?.Trim().ToLowerInvariant();
+        var semOrigem = origem == WithoutOriginFilter;
+
+        var filtro = new ModerationFilter(
+            query.State,
+            ModerationCursorText.Decode(query.After, query.State),
+            // Um a mais do que vai mostrar: e assim que se sabe que ha mais sem contar.
+            limite + 1,
+            ResolveSearch(query.Q),
+            tipos,
+            de,
+            ate,
+            semOrigem || string.IsNullOrEmpty(origem) ? null : origem,
+            semOrigem);
+
+        var encontrados = await _unitOfWork.Reports.ListModerationPageAsync(project.Id, filtro, cancellationToken);
+        var temMais = encontrados.Count > limite;
+        var relatos = temMais ? encontrados.Take(limite).ToList() : encontrados;
+
+        // As tres abas numa consulta so. Com filtro, o numero de cada aba e o do que passa
+        // nele — o "25 de N" da tela fala do que ela mostra. O total dos pendentes viaja
+        // sempre sem filtro: e o numero da lateral do painel, e ele nao pode mudar porque
+        // alguem buscou uma palavra.
+        var contagem = await _unitOfWork.Reports
+            .CountModerationAsync(project.Id, filtro.Filtered ? filtro : null, cancellationToken);
+        var pendentes = filtro.Filtered
+            ? (await _unitOfWork.Reports.CountModerationAsync(project.Id, null, cancellationToken)).Pending
+            : contagem.Pending;
+
+        var ultimo = relatos.Count > 0 ? relatos[^1] : null;
+        var proximo = temMais && ultimo is not null
+            ? ModerationCursorText.Encode(new ModerationCursor(
+                query.State,
+                query.State == ReportModerationStateEnum.Pending
+                    ? ultimo.CreatedAt
+                    : ultimo.ModeratedAt ?? ultimo.CreatedAt,
+                ultimo.Id))
+            : null;
+
+        return new ModerationQueueViewModel(
+            [.. relatos.Select(ToModerationItem)],
+            pendentes,
+            new ModerationCountsViewModel(contagem.Pending, contagem.Approved, contagem.Rejected),
+            proximo,
+            temMais);
     }
+
+    /// <summary>O filtro de origem para os relatos que chegaram sem dominio informado.</summary>
+    private const string WithoutOriginFilter = "none";
+
+    /// <summary>
+    /// A data que veio na URL, em UTC como as colunas. Com fuso, convertida; sem fuso,
+    /// lida como UTC — e o que a tela manda.
+    /// </summary>
+    private static DateTime? Utc(DateTime? valor)
+        => valor switch
+        {
+            null => null,
+            { Kind: DateTimeKind.Local } local => local.ToUniversalTime(),
+            { Kind: DateTimeKind.Unspecified } solto => DateTime.SpecifyKind(solto, DateTimeKind.Utc),
+            var utc => utc,
+        };
 
     public async Task<ModerationItemViewModel> ModerateAsync(Guid projectPublicId, Guid reportPublicId, ModerateReportDto dto, CancellationToken cancellationToken = default)
     {
@@ -2657,6 +2709,12 @@ public partial class ReportService : IReportService
             throw new KeyNotFoundException("Relato nao encontrado neste projeto.");
 
         var anterior = report.ModerationState;
+
+        // **A tela diz em que estado viu o relato**, e a decisao so vale sobre ele. Duas
+        // pessoas leem a mesma cabeca da fila: sem isto, a segunda gravava por cima da
+        // primeira sem aviso, e um "liberar" desfazia o "nao publicar" de quem leu antes.
+        if (dto.From is { } vista && vista != anterior)
+            throw new ConflictException("Outra pessoa ja decidiu este relato.");
 
         // O autor vem do banco pelo mesmo motivo do encerramento: a sessao guarda o
         // identificador e nao o nome, e a resposta desta acao precisa do nome. Sem
@@ -2773,7 +2831,9 @@ public partial class ReportService : IReportService
             // positivo virar um relato perdido, e perdido para quem escreveu.
             [.. achados.Select(achado => new SensitiveFindingViewModel(
                 achado.Kind, achado.Start, achado.Length, achado.Sample))],
-            achados.Count >= SensitiveDataScanner.MaxFindings);
+            achados.Count >= SensitiveDataScanner.MaxFindings,
+            // A etapa como a lista publica a mostraria: e o que a previa da tela usa.
+            report.ProjectPublicStage?.Label);
     }
 
     public async Task<ReporterCodeReportsViewModel> ListByReporterCodeAsync(ReporterCodeLookupDto dto, CancellationToken cancellationToken = default)
