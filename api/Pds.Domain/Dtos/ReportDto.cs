@@ -180,6 +180,64 @@ public class ModerateReportDto
     /// </summary>
     /// <example>Approved</example>
     public ReportModerationStateEnum? Decision { get; set; }
+
+    /// <summary>
+    /// O estado em que a tela viu o relato (opcional). Se ele ja nao esta assim, a
+    /// decisao e <b>recusada com 409</b>, e nada muda.
+    ///
+    /// <para><b>Duas pessoas leem a mesma cabeca da fila.</b> Sem isto, a segunda
+    /// decisao gravava por cima da primeira sem aviso — e "liberar" podia desfazer um
+    /// "nao publicar" que a outra pessoa tinha acabado de decidir lendo o mesmo texto.
+    /// Ausente, vale a regra de antes: decide sobre o que estiver la.</para>
+    /// </summary>
+    /// <example>Pending</example>
+    public ReportModerationStateEnum? From { get; set; }
+}
+
+/// <summary>
+/// A pagina da fila de moderacao pedida pelo painel: a aba, onde continuar e os filtros.
+/// </summary>
+public class ModerationQueryDto
+{
+    /// <summary><c>Pending</c> (padrao), <c>Approved</c> ou <c>Rejected</c>.</summary>
+    /// <example>Pending</example>
+    public ReportModerationStateEnum State { get; set; } = ReportModerationStateEnum.Pending;
+
+    /// <summary>
+    /// O <c>NextCursor</c> da pagina anterior, como veio. Ausente: a primeira pagina. E
+    /// opaco — e o cursor de uma aba nao vale na outra.
+    /// </summary>
+    public string? After { get; set; }
+
+    /// <summary>Quantos trazer: 25 sem pedir, ate 50. Fora da faixa e corrigido, e nao recusado.</summary>
+    /// <example>25</example>
+    public int? Limit { get; set; }
+
+    /// <summary>
+    /// A busca: no texto, no titulo de quem relatou, no numero (<c>42</c> ou <c>#42</c>) e no
+    /// protocolo, sem diferenciar acento nem maiuscula — a mesma da tela de Trabalho.
+    /// </summary>
+    public string? Q { get; set; }
+
+    /// <summary>Tipo: o identificador de um tipo de relato do projeto (os desativados tambem). Repetivel.</summary>
+    public List<string>? Type { get; set; }
+
+    /// <summary>
+    /// Chegou a partir deste instante (inclusivo), em ISO 8601. A tela manda o comeco do
+    /// dia de quem olha, e nao a data: no fim da noite no Brasil, o dia em UTC ja e o
+    /// seguinte.
+    /// </summary>
+    public DateTime? From { get; set; }
+
+    /// <summary>Chegou antes deste instante (exclusivo), em ISO 8601.</summary>
+    public DateTime? To { get; set; }
+
+    /// <summary>
+    /// O dominio de onde o relato veio, como a lista de dominios observados o mostra; ou
+    /// <c>none</c>, os que chegaram sem dominio informado.
+    /// </summary>
+    /// <example>loja.com.br</example>
+    public string? Origin { get; set; }
 }
 
 /// <summary>

@@ -59,6 +59,20 @@ public class Report : PdsBaseEntity
     public const int MaxPublishedListed = 20;
 
     /// <summary>
+    /// Quantos relatos a fila de moderacao devolve de uma vez, quando ninguem pede outro
+    /// numero.
+    ///
+    /// <para><b>Pequeno de proposito.</b> Cada linha vem com o texto inteiro e a
+    /// varredura de dado sensivel feita na hora: com cinquenta, a primeira tela pesava o
+    /// dobro e a varredura rodava sobre textos que ninguem ia ler antes de decidir os de
+    /// cima. O resto vem pelo cursor, sem pular nem repetir.</para>
+    /// </summary>
+    public const int ModerationPageSize = 25;
+
+    /// <summary>O maximo que se pode pedir da fila de moderacao de uma vez.</summary>
+    public const int MaxModerationPageSize = 50;
+
+    /// <summary>
     /// Teto do titulo: o do card do time, o que o time reescreve no relato e o que
     /// a pessoa responde na ferramenta. Um so, para o titulo que a pessoa escreveu
     /// sempre caber no lugar do que o time escreveria.

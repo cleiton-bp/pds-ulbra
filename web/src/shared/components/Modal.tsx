@@ -24,6 +24,11 @@ interface ModalProps {
   title: ReactNode
   /** Opcional: dialogo de um campo so nao precisa de paragrafo antes dele. */
   description?: string
+  /**
+   * O id do trecho que descreve o dialogo, quando a descricao tem desenho (negrito,
+   * codigo) e mora no corpo: o leitor de tela anuncia ele ao abrir, como a `description`.
+   */
+  describedBy?: string
   children?: ReactNode
   /** Os botoes do pe. Sem eles, o dialogo nao tem pe: fecha pelo X (`closeButton`) e, sempre, pelo Esc. */
   footer?: ReactNode
@@ -37,6 +42,11 @@ interface ModalProps {
    * trocado enquanto o dialogo estava aberto. Sem isto, ou sem achar, o Radix decide.
    */
   fallbackFocus?: () => HTMLElement | null
+  /**
+   * Onde o foco entra ao abrir, quando nao e o primeiro controle: o perfil aberto pelo
+   * sino comeca nos sons. Sem isto, ou sem achar, o Radix decide.
+   */
+  initialFocus?: () => HTMLElement | null
   /**
    * O Esc, antes de fechar. Quem chama `preventDefault` segura o dialogo aberto — o
    * card aberto usa para o Esc sair primeiro da edicao em que o foco esta.
@@ -56,12 +66,14 @@ export function Modal({
   onOpenChange,
   title,
   description,
+  describedBy,
   children,
   footer,
   width = 'w-[min(26.25rem,calc(100vw-2rem))]',
   closeButton = false,
   className,
   fallbackFocus,
+  initialFocus,
   onEscapeKeyDown,
   closeOnOutsideClick = true,
   headerActions,
@@ -127,6 +139,12 @@ export function Modal({
             focusAnyway(reserva)
           }}
           onOpenAutoFocus={(evento) => {
+            const inicial = initialFocus?.() ?? null
+            if (inicial) {
+              evento.preventDefault()
+              focusAnyway(inicial)
+              return
+            }
             // Com botoes no alto, o primeiro da ordem seria um deles: o foco continua
             // entrando no X, como nos outros dialogos grandes.
             if (!headerActions || !fechar.current) return
@@ -134,6 +152,7 @@ export function Modal({
             fechar.current.focus()
           }}
           onEscapeKeyDown={onEscapeKeyDown}
+          {...(describedBy && !description ? { 'aria-describedby': describedBy } : {})}
           onPointerDownOutside={(evento) => {
             if (!closeOnOutsideClick) evento.preventDefault()
             if (performance.now() - abertoEm.current < DUPLO_CLIQUE_MS) evento.preventDefault()

@@ -4,15 +4,6 @@ import type { SatisfactionStyle } from '@/contracts/cycleSettings'
 import type { PublicOutcome } from '@/contracts/projectPublicStage'
 
 /**
- * O que a pessoa esta relatando.
- *
- * Os valores sao os nomes do `ReportTypeEnum` em C#, e nao rotulos: a API
- * serializa enum como texto em PascalCase (`Pds.Shared/Json/PdsJsonOptions.cs`).
- * O que aparece na tela e outra coisa, e mora junto do formulario.
- */
-export type ReportType = 'Bug' | 'Improvement' | 'Question'
-
-/**
  * Um relato saindo da ferramenta embutida no site do cliente.
  *
  * Nao ha sessao nesta requisicao: quem diz de qual projeto o relato e, e so, a
@@ -21,14 +12,38 @@ export type ReportType = 'Bug' | 'Improvement' | 'Question'
 export interface CreateReportRequest {
   /** Chave publica do projeto, a mesma que esta no `data-key` do script. */
   Key: string
-  Type: ReportType
+  /**
+   * O tipo que a pessoa escolheu: o `PublicId` de um dos `Types` que a configuracao
+   * da ferramenta entregou. Com o seletor escondido, o pre-marcado.
+   */
+  TypeId: string
   /**
    * A resposta a "em poucas palavras, o que aconteceu?", numa linha. Nulo quando a
    * pessoa nao respondeu, ou quando a pergunta esta escondida. Vira o titulo do card
    * para o time, e e o unico titulo que volta para ela.
    */
   Title: string | null
-  Text: string
+  /**
+   * As respostas as perguntas do tipo, **uma para cada e na ordem delas** — a pulada
+   * vai em branco. Vazia no tipo sem perguntas.
+   *
+   * A API confere contra as perguntas de agora (ver `Questions`): se elas mudaram
+   * depois de a ferramenta abrir, a resposta casaria com a pergunta errada.
+   */
+  Answers: string[]
+  /**
+   * As perguntas **como o formulario as mostrou**, na ordem. A API compara letra por
+   * letra com as de agora: o tamanho sozinho nao pega a pergunta reescrita, nem duas
+   * trocadas de lugar, e a resposta iria parar embaixo de uma pergunta que a pessoa
+   * nao leu.
+   */
+  Questions: string[]
+  /**
+   * A caixa de texto livre. **Nulo no tipo sem caixa**: mandar texto para ele e
+   * recusado. Ate `MAX_REPORT_TEXT_LENGTH` sozinha, e ate `MAX_REPORT_ANSWER_LENGTH`
+   * junto de perguntas.
+   */
+  Text: string | null
   /**
    * Caminho da pagina de onde o relato foi aberto. A API descarta o que vier
    * depois do `?` ou do `#` antes de gravar, mas quem envia ja manda so o
@@ -72,6 +87,37 @@ export interface CreateReportRequest {
    * texto que qualquer um le.
    */
   ReporterNameIsPublic?: boolean
+
+  /**
+   * O bilhete do desafio, quando a entrada pediu um (429 com `Reason` = `Challenge`).
+   * Ausente no relato comum.
+   */
+  ChallengeToken?: string
+  /** A resposta do desafio: o numero que faz o SHA-256 de `ChallengeToken + ChallengeNonce` comecar com os bits zero pedidos. */
+  ChallengeNonce?: string
+}
+
+/**
+ * A recusa por excesso da entrada do relato (429), no `Data`: cedo demais depois do
+ * anterior (`TooSoon`), o desafio a resolver (`Challenge`) ou envios pausados (`Paused`).
+ */
+export interface ReportRefusalViewModel {
+  Reason: 'TooSoon' | 'Challenge' | 'Paused'
+  RetryAfterSeconds: number
+  /** Quando a pausa acaba. So em `Paused`. */
+  ResumesAt: string | null
+  /** O desafio. So em `Challenge`. */
+  Challenge: ReportChallengeViewModel | null
+}
+
+/**
+ * O desafio invisivel: achar um nonce (so digitos) tal que o SHA-256 de `Token + nonce`,
+ * em UTF-8, comece com `Difficulty` bits zero. Vale dois minutos e uma vez so.
+ */
+export interface ReportChallengeViewModel {
+  Token: string
+  Difficulty: number
+  ExpiresAt: string
 }
 
 /**
@@ -151,6 +197,48 @@ export const CARD_COLORS = [
   'Pink',
 ] as const
 export type CardColor = (typeof CARD_COLORS)[number]
+
+/**
+ * O desenho de um tipo de relato, espelho do `ReportTypeIconEnum` em C#.
+ *
+ * **Lista fixa, como a paleta.** O nome e a cor do tipo sao do time; o desenho sai
+ * daqui porque cada um precisa existir, legivel, no card do painel e no botao da
+ * ferramenta. Os desenhos moram em `shared/components/ReportTypeGlyph.tsx`.
+ */
+export const REPORT_TYPE_ICONS = [
+  'Bug',
+  'Improvement',
+  'Question',
+  'Idea',
+  'Praise',
+  'Other',
+] as const
+export type ReportTypeIcon = (typeof REPORT_TYPE_ICONS)[number]
+
+/**
+ * O tipo de um relato, com o nome, a cor e o desenho **de agora**: renomear o tipo
+ * muda o que o card mostra, como na prioridade. O nome da epoca fica no evento da
+ * entrada.
+ */
+export interface CardReportTypeViewModel {
+  PublicId: string
+  Name: string
+  Color: CardColor
+  Icon: ReportTypeIcon
+  /** Falso quando foi desativado: continua no relato, marcado, e nao e mais oferecido. */
+  IsActive: boolean
+}
+
+/**
+ * Uma resposta de quem relatou, com a pergunta **como ela estava no envio** — mudar a
+ * pergunta depois nao reescreve o relato.
+ */
+export interface ReportAnswerViewModel {
+  /** A pergunta; **nula** na caixa livre, que vem sempre no fim. */
+  Question: string | null
+  /** O que a pessoa escreveu. A pergunta pulada nao vem. */
+  Answer: string
+}
 
 /** Outro card citado por este: o pai da subtarefa, ou o original do duplicado. */
 export interface CardParentViewModel {
@@ -247,9 +335,13 @@ export interface ReportSummaryViewModel {
   ReporterTitle: string | null
   /** O protocolo, o mesmo que a pessoa que relatou anotou. Nulo no card do time. */
   TrackingCode: string | null
-  /** Nulo no card do time. */
-  Type: ReportType | null
-  /** O texto de quem relatou. Nulo no card do time. */
+  /** O tipo, com o nome, a cor e o desenho de agora. Nulo no card do time. */
+  Type: CardReportTypeViewModel | null
+  /**
+   * O relato inteiro em texto. Com perguntas, as respostas juntas, **sem as
+   * perguntas** — o card aberto as mostra lado a lado (`Answers`, no detalhe). Nulo no
+   * card do time.
+   */
   Text: string | null
   /** So o caminho da pagina: a API descarta query e fragmento antes de gravar. */
   Route: string | null
@@ -354,6 +446,64 @@ export interface ReportSummaryViewModel {
    * Comentario, anexo e etiqueta nao contam. E o "Atualizado" da lista, e uma das ordens dela.
    */
   UpdatedAt: string
+  /**
+   * "Origem bloqueada": o relato veio de um endereco que o projeto bloqueou, e o time
+   * ainda nao decidiu mante-lo. **Quem decide e a API**, pela lista de bloqueados de
+   * agora — desbloquear o endereco tira a marca, e manter o card tambem.
+   */
+  BlockedOrigin: boolean
+  /**
+   * O que as subtarefas deste card tem a ver com o filtro: a subtarefa nao aparece
+   * sozinha na tela de Trabalho, e o pai entra no lugar dela com a marca ("1 subtarefa
+   * sua", "na subtarefa"). So na lista e no quadro; nulo, ou ausente, quando nenhuma
+   * subtarefa casou.
+   */
+  SubtaskMatch?: SubtaskMatchViewModel | null
+}
+
+/** Por que o pai entrou no filtro pelas subtarefas. */
+export interface SubtaskMatchViewModel {
+  /** Quantas subtarefas de cada pessoa do filtro de responsavel; vazia sem esse filtro. */
+  Assignees: SubtaskAssigneeMatchViewModel[]
+  /** A busca achou o termo no titulo ou na descricao de uma subtarefa. */
+  Search: boolean
+}
+
+/** As subtarefas de uma pessoa do filtro, dentro do pai. */
+export interface SubtaskAssigneeMatchViewModel {
+  UserPublicId: string
+  /** O nome, ou o e-mail de quem nao tem nome. */
+  Name: string
+  /** E quem esta olhando: a marca diz "sua", e nao o nome. */
+  IsMe: boolean
+  Count: number
+}
+
+/**
+ * Quais cards de origem bloqueada um lote alcanca: os escolhidos na lista, ou todos os
+ * de um bloqueio — um dos dois. O card que nao esta marcado fica de fora.
+ */
+export interface BlockedOriginReportsRequest {
+  ReportIds?: string[]
+  BlockedOriginId?: string
+}
+
+/**
+ * O apagar de vez pede a confirmacao escrita: a palavra `apagar`, ou o endereco de onde
+ * todos os cards vieram. A API confere de novo.
+ */
+export interface DeleteBlockedOriginReportsRequest extends BlockedOriginReportsRequest {
+  Confirmation: string
+}
+
+/** O que o lote fez. Espelho de `BlockedOriginReportsResultViewModel`. */
+export interface BlockedOriginReportsResultViewModel {
+  /** Os cards marcados alcancados (no apagar, sem as subtarefas que foram junto). */
+  Affected: number
+  /** Dos escolhidos, os que ficaram de fora por nao estarem marcados. */
+  Skipped: number
+  /** No apagar, as subtarefas que foram com o pai. */
+  SubtasksDeleted: number
 }
 
 /** A sprint de um card. */
@@ -450,6 +600,12 @@ export interface AskInfoRequest {
 }
 
 export interface ReportDetailViewModel extends ReportSummaryViewModel {
+  /**
+   * As respostas, cada uma com a pergunta como estava no envio, na ordem; a caixa
+   * livre no fim, sem pergunta. **Nula** quando o tipo nao tinha pergunta nenhuma no
+   * envio — ai o relato e o `Text` —, e no card do time.
+   */
+  Answers: ReportAnswerViewModel[] | null
   /** A descricao do card do time, em Markdown; nula no relato. */
   Description: string | null
   /** Quem do time criou o card; nulo no relato. */
@@ -687,13 +843,24 @@ export interface PublicReopeningViewModel {
 
 export interface PublicReportViewModel {
   TrackingCode: string
-  Type: ReportType
+  /**
+   * O nome do tipo que ela escolheu, como o projeto o chama agora. So o nome: a cor e
+   * o desenho sao do painel e da ferramenta.
+   */
+  TypeName: string
   /**
    * O titulo que ela escreveu, ou nulo quando nao respondeu. **Nunca o do time**: o
    * titulo reescrito no painel e interno.
    */
   Title: string | null
+  /** O que ela escreveu, inteiro. Com perguntas, as respostas juntas, sem as perguntas. */
   Text: string
+  /**
+   * As respostas dela, cada uma com a pergunta como estava no envio; a caixa livre no
+   * fim, sem pergunta. **Nula** quando o tipo nao tinha pergunta nenhuma — ai o relato
+   * e o `Text`.
+   */
+  Answers: ReportAnswerViewModel[] | null
   CreatedAt: string
   /**
    * A jornada do projeto, na ordem. **Vazia** quando o projeto nao tem jornada
@@ -727,6 +894,15 @@ export interface PublicReportViewModel {
    * sumia da pagina junto com o fechamento reaberto.
    */
   Reopenings: PublicReopeningViewModel[]
+  /**
+   * A frase do topo da pagina, escrita pelo projeto, com as variaveis como foram
+   * escritas: a pagina troca com `renderWidgetText`.
+   */
+  TrackingIntro: string
+  /** A primeira palavra do nome que ela deu, ou nulo quando nao deu. */
+  ReporterFirstName: string | null
+  /** O nome do projeto, so quando a frase usa `{{projeto}}`: e nome interno. */
+  ProjectName: string | null
 }
 
 /** A resposta de quem relatou. Leva as mesmas credenciais da consulta. */
@@ -958,8 +1134,12 @@ export interface SensitiveFindingViewModel {
 export interface ModerationItemViewModel {
   PublicId: string
   TrackingCode: string
-  Type: ReportType
-  /** Inteiro: quem decide publicar precisa ler o que vai publicar. */
+  /** O tipo, com o nome, a cor e o desenho de agora. Nunca nulo: so relato passa por aqui. */
+  Type: CardReportTypeViewModel
+  /**
+   * Inteiro: quem decide publicar precisa ler o que vai publicar. Com perguntas, as
+   * respostas juntas — e e nele que a varredura procura.
+   */
   Text: string
   /** Aparece aqui mesmo quando a pessoa **nao** quis assinar. */
   ReporterName: string | null
@@ -977,19 +1157,56 @@ export interface ModerationItemViewModel {
    * a lista inteira.
    */
   FindingsTruncated: boolean
+  /**
+   * A etapa publica em que o relato esta agora, como a lista publica a mostraria; nula
+   * sem etapa. E o que deixa a previa "na lista publica vai aparecer assim" nao adivinhar.
+   */
+  PublicStageLabel?: string | null
 }
 
-/** A fila de moderacao de um projeto. */
-export interface ModerationQueueViewModel {
-  /** Do mais antigo para o mais novo: fila lida ao contrario nunca esvazia o comeco. */
-  Items: ModerationItemViewModel[]
-  /** Quantos esperam decisao, **independente do recorte pedido**. */
-  PendingTotal: number
+/** Quantos relatos ha em cada aba da moderacao. */
+export interface ModerationCountsViewModel {
+  Pending: number
+  Approved: number
+  Rejected: number
 }
+
+/** A fila de moderacao de um projeto: uma pagina de uma aba. */
+export interface ModerationQueueViewModel {
+  /**
+   * Em `Pending`, do mais antigo para o mais novo: fila lida ao contrario nunca esvazia o
+   * comeco. Nas abas decididas, da decisao mais recente para a mais antiga.
+   */
+  Items: ModerationItemViewModel[]
+  /** Quantos esperam decisao, **independente do recorte pedido e dos filtros**. */
+  PendingTotal: number
+  /** As tres abas numa consulta so; com filtro, quantos passam nele. */
+  Counts: ModerationCountsViewModel
+  /** O `after` da proxima pagina, opaco; nulo quando acabou. */
+  NextCursor: string | null
+  HasMore: boolean
+}
+
+/** Quantos a fila traz de uma vez sem pedir. Espelho de `Report.ModerationPageSize`. */
+export const MODERATION_PAGE_SIZE = 25
+
+/** O maximo que se pede da fila de uma vez. Espelho de `Report.MaxModerationPageSize`. */
+export const MAX_MODERATION_PAGE_SIZE = 50
+
+/**
+ * Quantos liberados a lista publica mostra. Espelho de `Report.MaxPublishedListed`: a
+ * moderacao avisa que o liberado mais antigo que isso sai da vitrine.
+ */
+export const MAX_PUBLISHED_LISTED = 20
 
 /** A decisao que o painel manda. `Pending` nao e aceito. */
 export interface ModerateReportRequest {
   Decision: Exclude<ReportModerationState, 'Pending'>
+  /**
+   * O estado em que a tela viu o relato. Se ele ja nao esta assim — outra pessoa decidiu
+   * no meio —, a API responde 409 e nada muda.
+   */
+  From?: ReportModerationState
 }
 
 /**
@@ -999,7 +1216,8 @@ export interface ModerateReportRequest {
  * voz alta, e e metade da credencial de quem relatou.
  */
 export interface PublishedReportViewModel {
-  Type: ReportType
+  /** O nome do tipo, como o projeto o chama agora. */
+  TypeName: string
   Text: string
   StageLabel: string | null
   IsClosed: boolean
@@ -1017,7 +1235,8 @@ export interface PublishedReportsViewModel {
 /** Um relato na lista pessoal de quem o escreveu. */
 export interface ReporterCodeReportViewModel {
   TrackingCode: string
-  Type: ReportType
+  /** O nome do tipo que ela escolheu, como o projeto o chama agora. */
+  TypeName: string
   /** O titulo que ela escreveu, ou nulo quando nao respondeu. Nunca o do time. */
   Title: string | null
   /** O comeco do texto, para distinguir um relato do outro sem abrir. */

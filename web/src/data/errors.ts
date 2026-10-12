@@ -6,10 +6,17 @@ export class PanelError extends Error {
   /** Codigo HTTP. 0 quando a falha foi de rede, antes da resposta. */
   readonly status: number
 
-  constructor(message: string, status: number) {
+  /**
+   * O `Data` da resposta de falha, quando a API manda um — hoje, so a recusa por excesso
+   * na entrada do relato (429), com o desafio a resolver ou ate quando esperar.
+   */
+  readonly data: unknown
+
+  constructor(message: string, status: number, data: unknown = null) {
     super(message)
     this.name = 'PanelError'
     this.status = status
+    this.data = data
   }
 }
 
@@ -89,31 +96,39 @@ function generica(acao?: string): string {
  */
 const PALAVRAS: Record<string, string> = {
   acao: 'ação',
+  alcanca: 'alcança',
   alguem: 'alguém',
   anonimo: 'anônimo',
   area: 'área',
   ate: 'até',
   botao: 'botão',
   codigo: 'código',
+  comeca: 'começa',
   comeco: 'começo',
   comentario: 'comentário',
   concluida: 'concluída',
   conexao: 'conexão',
   configuracao: 'configuração',
+  confirmacao: 'confirmação',
   conteudo: 'conteúdo',
   descricao: 'descrição',
   desfaca: 'desfaça',
   direcao: 'direção',
+  disponivel: 'disponível',
+  distancia: 'distância',
   dominio: 'domínio',
   dominios: 'domínios',
   duvidas: 'dúvidas',
   endereco: 'endereço',
   enderecos: 'endereços',
   entao: 'então',
+  espacos: 'espaços',
   estao: 'estão',
+  formulario: 'formulário',
   ha: 'há',
   historia: 'história',
   historico: 'histórico',
+  icone: 'ícone',
   informacao: 'informação',
   instalacao: 'instalação',
   invalida: 'inválida',
@@ -121,6 +136,7 @@ const PALAVRAS: Record<string, string> = {
   ja: 'já',
   maxima: 'máxima',
   maximo: 'máximo',
+  medio: 'médio',
   midia: 'mídia',
   minimo: 'mínimo',
   nao: 'não',
@@ -133,7 +149,9 @@ const PALAVRAS: Record<string, string> = {
   ordenacao: 'ordenação',
   padrao: 'padrão',
   pagina: 'página',
+  paginas: 'páginas',
   permissao: 'permissão',
+  pilula: 'pílula',
   posicao: 'posição',
   possivel: 'possível',
   // O prefixo: "pre-marcado" e "pré-marcado".
@@ -158,6 +176,8 @@ const PALAVRAS: Record<string, string> = {
   unico: 'único',
   usuario: 'usuário',
   valido: 'válido',
+  variaveis: 'variáveis',
+  variavel: 'variável',
   versao: 'versão',
   video: 'vídeo',
   vinculo: 'vínculo',
@@ -176,7 +196,7 @@ const PALAVRAS: Record<string, string> = {
 const VERBOS: Array<[RegExp, string]> = [
   // "esta" antes de estado ou lugar e verbo; antes de nome ("esta etapa") nao.
   [
-    /\besta (?=(?:arquivad|aposentad|encerrad|autorizad|configurad|vazi|fechad|em |no |na |sendo |acontecendo|mais ))/g,
+    /\besta (?=(?:arquivad|aposentad|encerrad|autorizad|bloquead|configurad|vazi|fechad|em |no |na |sendo |acontecendo|mais ))/g,
     'está ',
   ],
   [/\b([Nn]ão|[Jj]á|[Ss]ó|que|ela|ele|pessoa|convite|relato|tipo) e\b(?!-)/g, '$1 é'],

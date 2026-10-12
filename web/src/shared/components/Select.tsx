@@ -9,6 +9,8 @@ export interface SelectOption {
 }
 
 interface SelectProps {
+  /** O `id` do campo, quando alguem precisa apontar para ele (`tela#campo`). */
+  id?: string
   label?: string
   /** Nome para quem nao ve o rotulo, como no `TextField`. */
   ariaLabel?: string
@@ -51,6 +53,7 @@ interface SelectProps {
  * tem uma forma so.
  */
 export function Select({
+  id,
   label,
   ariaLabel,
   value,
@@ -64,7 +67,8 @@ export function Select({
   triggerClassName,
   openOnType = false,
 }: SelectProps) {
-  const fieldId = useId()
+  const generatedId = useId()
+  const fieldId = id ?? generatedId
   const [aberta, setAberta] = useState(false)
   const messageId = `${fieldId}-message`
 

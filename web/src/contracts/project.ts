@@ -52,8 +52,16 @@ export interface ProjectCreatedViewModel {
 /** Limite da coluna `name`. Fato do contrato, nao das telas. */
 export const MAX_PROJECT_NAME_LENGTH = 120
 
+/**
+ * Como o time trabalha: o modelo com que o projeto nasce (colunas, jornada publica
+ * ligada a elas, tipos de relato e, no Scrum, as sprints). So vale na criacao.
+ */
+export type ProjectTemplate = 'SimpleBoard' | 'Support' | 'Kanban' | 'Scrum'
+
 export interface CreateProjectRequest {
   Name: string
+  /** Sem ele, `SimpleBoard`: o projeto de sempre. */
+  Template?: ProjectTemplate
 }
 
 /** O que nao vier fica como esta. */

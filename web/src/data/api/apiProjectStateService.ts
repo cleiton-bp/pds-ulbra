@@ -1,4 +1,4 @@
-import type { ProjectInitialStateViewModel, ProjectStateViewModel } from '@/contracts'
+import type { ProjectStateViewModel } from '@/contracts'
 import { apiGet, apiPost, apiPut } from '@/data/api/httpClient'
 import type { ProjectStateService } from '@/data/projectStateService'
 
@@ -20,11 +20,4 @@ export const apiProjectStateService: ProjectStateService = {
 
   activateProjectState: (publicId, statePublicId) =>
     apiPost<ProjectStateViewModel>(`/projects/${publicId}/states/${statePublicId}/activate`),
-
-  // `initial` tambem nao e um GUID, entao segue a mesma regra de `order`.
-  listInitialStates: (publicId) =>
-    apiGet<ProjectInitialStateViewModel[]>(`/projects/${publicId}/states/initial`),
-
-  setInitialState: (publicId, request) =>
-    apiPut<ProjectInitialStateViewModel>(`/projects/${publicId}/states/initial`, request),
 }

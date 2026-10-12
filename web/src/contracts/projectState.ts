@@ -1,5 +1,3 @@
-import type { ReportType } from '@/contracts/report'
-
 /** Espelho de `Pds.Domain/ViewModels/ProjectStateViewModels.cs`. */
 
 /**
@@ -34,22 +32,4 @@ export interface RenameProjectStateRequest {
 /** Todos os estados do projeto, do primeiro ao ultimo, uma vez cada. */
 export interface ReorderProjectStatesRequest {
   Order: string[]
-}
-
-/**
- * Onde cada tipo de relato cai ao entrar.
- *
- * `StatePublicId` nulo quer dizer que o cliente **nunca escolheu** para aquele
- * tipo, e ai vale o padrao: o primeiro estado ativo da fila. Nao e configuracao
- * faltando — o projeto funciona igual.
- */
-export interface ProjectInitialStateViewModel {
-  ReportType: ReportType
-  StatePublicId: string | null
-}
-
-export interface SetInitialStateRequest {
-  ReportType: ReportType
-  /** Nulo **apaga** a escolha e devolve o tipo ao padrao. */
-  StatePublicId: string | null
 }

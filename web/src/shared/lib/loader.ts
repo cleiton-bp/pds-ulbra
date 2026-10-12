@@ -19,3 +19,20 @@ export function buildSnippet(publicKey: string): string {
   // todo cliente.
   return `<script\n  src="${LOADER_URL}"\n  data-key="${publicKey || 'pk_...'}"\n  defer></script>`
 }
+
+/**
+ * O mesmo script, **sem o nosso botao**: o cliente abre pelo dele. Com `data-button`
+ * em `none`, o carregador nao desenha nada e nao faz requisicao nenhuma ate alguem
+ * pedir para abrir.
+ */
+export function buildOwnTriggerSnippet(publicKey: string): string {
+  return `<script\n  src="${LOADER_URL}"\n  data-key="${publicKey || 'pk_...'}"\n  data-button="none"\n  defer></script>`
+}
+
+/** Os dois jeitos de abrir pelo botao do cliente: o atributo, ou a funcao. */
+export const OWN_TRIGGER_EXAMPLES = `<button type="button" data-pds-open>Relatar um problema</button>
+
+<script>
+  // Ou de qualquer lugar da sua aplicação:
+  Pds.open()
+</script>`

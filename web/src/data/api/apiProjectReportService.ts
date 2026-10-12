@@ -1,4 +1,5 @@
 import type {
+  BlockedOriginReportsResultViewModel,
   CardLinkViewModel,
   InternalCommentViewModel,
   ModerationItemViewModel,
@@ -11,7 +12,11 @@ import type {
   ReportSummaryViewModel,
 } from '@/contracts'
 import { apiDelete, apiGet, apiGetPage, apiPost, apiPut } from '@/data/api/httpClient'
-import type { ProjectReportService, ReportFilters } from '@/data/projectReportService'
+import type {
+  ModerationQuery,
+  ProjectReportService,
+  ReportFilters,
+} from '@/data/projectReportService'
 
 /**
  * Os filtros da tela de Trabalho na URL, iguais na lista e na contagem. So entra o
@@ -35,7 +40,7 @@ export function appendReportFilters(
     query.set('today', diaLocal(today))
   }
   if (filters.open) query.set('open', 'true')
-  if (filters.hideSubtasks) query.set('subtasks', 'hide')
+  if (filters.blockedOrigin) query.set('origin', 'blocked')
   const busca = filters.search.trim()
   if (busca) query.set('q', busca)
 }
@@ -58,6 +63,7 @@ export const apiProjectReportService: ProjectReportService = {
     if (options?.after) query.set('after', options.after)
     appendReportFilters(query, options?.filters)
     if (options?.parent) query.set('parent', options.parent)
+    if (options?.includeSubtasks) query.set('includeSubtasks', 'true')
     if (options?.sprint) query.set('sprint', options.sprint)
     for (const coluna of options?.columns ?? []) query.append('column', coluna)
     if (options?.sort) {
@@ -93,6 +99,18 @@ export const apiProjectReportService: ProjectReportService = {
   setPoints: (publicId, reportPublicId, request) =>
     apiPut<ReportDetailViewModel>(
       `/projects/${publicId}/reports/${reportPublicId}/points`,
+      request,
+    ),
+
+  keepBlockedOriginReports: (publicId, request) =>
+    apiPost<BlockedOriginReportsResultViewModel>(
+      `/projects/${publicId}/reports/blocked-origin/keep`,
+      request,
+    ),
+
+  deleteBlockedOriginReports: (publicId, request) =>
+    apiPost<BlockedOriginReportsResultViewModel>(
+      `/projects/${publicId}/reports/blocked-origin/delete`,
       request,
     ),
 
@@ -134,8 +152,22 @@ export const apiProjectReportService: ProjectReportService = {
       request,
     ),
 
-  listModeration: (publicId, state) =>
-    apiGet<ModerationQueueViewModel>(`/projects/${publicId}/reports/moderation?state=${state}`),
+  listModeration: (publicId, pedido) => {
+    const query = new URLSearchParams()
+    const filtro: ModerationQuery = typeof pedido === 'string' ? { state: pedido } : pedido
+    query.set('state', filtro.state)
+    // So entra o que esta ligado: filtro vazio na URL seria uma pergunta que ninguem fez.
+    if (filtro.after) query.set('after', filtro.after)
+    if (filtro.limit !== undefined) query.set('limit', String(filtro.limit))
+    if (filtro.q?.trim()) query.set('q', filtro.q.trim())
+    for (const tipo of filtro.types ?? []) query.append('type', tipo)
+    if (filtro.from) query.set('from', filtro.from)
+    if (filtro.to) query.set('to', filtro.to)
+    if (filtro.origin) query.set('origin', filtro.origin)
+    return apiGet<ModerationQueueViewModel>(
+      `/projects/${publicId}/reports/moderation?${query.toString()}`,
+    )
+  },
 
   moderateReport: (publicId, reportPublicId, request) =>
     apiPut<ModerationItemViewModel>(

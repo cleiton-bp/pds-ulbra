@@ -7,6 +7,8 @@ import { cn } from '@/shared/lib/cn'
  * de altura. `aria-describedby` amarra os dois ao campo.
  */
 interface TextFieldProps {
+  /** O `id` do campo, quando alguem precisa apontar para ele (`tela#campo`). */
+  id?: string
   label?: string
   /**
    * Nome do campo para quem nao ve o rotulo — leitor de tela e teste. Existe
@@ -30,6 +32,7 @@ interface TextFieldProps {
 }
 
 export function TextField({
+  id,
   label,
   ariaLabel,
   value,
@@ -43,7 +46,8 @@ export function TextField({
   onSubmit,
   className,
 }: TextFieldProps) {
-  const fieldId = useId()
+  const generatedId = useId()
+  const fieldId = id ?? generatedId
   const messageId = `${fieldId}-message`
 
   return (

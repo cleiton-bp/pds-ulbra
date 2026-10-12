@@ -212,8 +212,12 @@ public interface IReportService
     /// <para><b>Existe mesmo em projeto privado</b>, e responde igual. A fila e do
     /// relato, e nao da visibilidade: um projeto que hoje nao publica pode publicar
     /// amanha, e o que ja foi lido e decidido nao precisa ser lido de novo.</para>
+    ///
+    /// <para><b>Uma pagina por vez, pelo cursor.</b> A fila (<c>Pending</c>) vem do mais
+    /// antigo para o mais novo; o historico (<c>Approved</c>, <c>Rejected</c>), da decisao
+    /// mais recente para a mais antiga. Com a contagem de cada aba numa consulta so.</para>
     /// </summary>
-    Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ReportModerationStateEnum state, CancellationToken cancellationToken = default);
+    Task<ModerationQueueViewModel> ListModerationAsync(Guid projectPublicId, ModerationQueryDto query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Libera ou recusa um relato.
@@ -221,6 +225,9 @@ public interface IReportService
     /// <para><b>Decidir de novo e permitido, e voltar para pendente nao e.</b>
     /// Quem liberou por engano recusa; quem recusou e mudou de ideia libera. O que
     /// nao existe e desfazer para "ninguem olhou", porque alguem olhou.</para>
+    ///
+    /// <para>Com <c>From</c>, so decide se o relato ainda esta naquele estado; senao,
+    /// <see cref="Pds.Domain.Exceptions.ConflictException"/>.</para>
     /// </summary>
     Task<ModerationItemViewModel> ModerateAsync(Guid projectPublicId, Guid reportPublicId, ModerateReportDto dto, CancellationToken cancellationToken = default);
 

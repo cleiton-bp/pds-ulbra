@@ -1,4 +1,4 @@
-import type { WidgetSettingsViewModel } from '@/contracts'
+import type { SaveWidgetSettingsRequest, WidgetSettingsViewModel } from '@/contracts'
 
 /**
  * A configuracao da ferramenta, do lado do painel — o que exige sessao.
@@ -15,14 +15,15 @@ export interface ProjectWidgetSettingsService {
   getWidgetSettings(publicId: string): Promise<WidgetSettingsViewModel>
 
   /**
-   * Substitui a configuracao inteira, com os onze campos.
+   * Substitui a configuracao inteira, com os dez campos.
    *
    * Substitui, e nao altera campo a campo: `AccentColor` nulo e um valor — quer
    * dizer "use o acento do produto" —, e num corpo parcial ele seria
-   * indistinguivel de "nao mexa na cor".
+   * indistinguivel de "nao mexa na cor". O mesmo vale para `DefaultReportType` nulo,
+   * que e o primeiro tipo ativo.
    */
   saveWidgetSettings(
     publicId: string,
-    settings: WidgetSettingsViewModel,
+    request: SaveWidgetSettingsRequest,
   ): Promise<WidgetSettingsViewModel>
 }
