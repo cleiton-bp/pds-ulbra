@@ -19,6 +19,10 @@ export const NOTIFICATION_SOUNDS: { value: NotificationSound; label: string }[] 
 export const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
   Mention: 'Quando alguém me menciona',
   Assignment: 'Quando me escolhem como responsável',
+  // Os dois do projeto chegam so para quem administra; quem nao administra escolhe o som
+  // assim mesmo, e ele vale no dia em que passar a administrar.
+  OriginPending: 'Quando um domínio novo manda relato (quem administra)',
+  ReportsPaused: 'Quando os envios são pausados por excesso (quem administra)',
 }
 
 /** Uma nota de um som: a frequencia (e para onde ela desliza), quando entra e quanto dura. */

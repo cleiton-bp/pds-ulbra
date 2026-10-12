@@ -6,6 +6,6 @@ export const apiProjectWidgetSettingsService: ProjectWidgetSettingsService = {
   getWidgetSettings: (publicId) =>
     apiGet<WidgetSettingsViewModel>(`/projects/${publicId}/widget-settings`),
 
-  saveWidgetSettings: (publicId, settings) =>
-    apiPut<WidgetSettingsViewModel>(`/projects/${publicId}/widget-settings`, settings),
+  saveWidgetSettings: (publicId, request) =>
+    apiPut<WidgetSettingsViewModel>(`/projects/${publicId}/widget-settings`, request),
 }

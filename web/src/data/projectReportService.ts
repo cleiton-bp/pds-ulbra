@@ -1,11 +1,14 @@
 import type {
   ArchiveCardRequest,
   AskInfoRequest,
+  BlockedOriginReportsRequest,
+  BlockedOriginReportsResultViewModel,
   CardLinkViewModel,
   CloseReportRequest,
   CreateCardLinkRequest,
   CreateCommentRequest,
   CreateTeamCardRequest,
+  DeleteBlockedOriginReportsRequest,
   EditCommentRequest,
   EditTeamCardRequest,
   InternalCommentViewModel,
@@ -55,8 +58,14 @@ export interface ReportPage {
  * nas paginas — e a seguinte pularia um card, ou repetiria. O card de referencia
  * que ja saiu da coluna da 409, e a coluna e lida de novo.
  */
-/** Os tipos do filtro da tela de Trabalho: os tres de relato, e o card do time. */
-export type ReportFilterType = 'bug' | 'improvement' | 'question' | 'team'
+/**
+ * Um valor do filtro de tipo da tela de Trabalho: o `PublicId` de um tipo de relato
+ * do projeto (os desativados tambem), ou `TEAM_CARD_FILTER` — o card do time.
+ */
+export type ReportFilterType = string
+
+/** O valor do filtro de tipo que traz o card do time. Uma palavra, e nao um GUID. */
+export const TEAM_CARD_FILTER = 'team'
 
 /**
  * Os filtros da tela de Trabalho — os mesmos para a lista, para cada coluna do quadro
@@ -64,7 +73,10 @@ export type ReportFilterType = 'bug' | 'improvement' | 'question' | 'team'
  * etiqueta A ou a B, da Ana e vencido. Lista vazia e `false` sao "sem este filtro".
  */
 export interface ReportFilters {
-  /** Responsavel: `me`, `none` (sem responsavel) ou o identificador de alguem do time. */
+  /**
+   * Responsavel: `me`, `none` (sem responsavel) ou o identificador de alguem do time. O
+   * pai com uma subtarefa da pessoa tambem vem, com a marca (`SubtaskMatch`).
+   */
   assignees: string[]
   /** Etiquetas, pelo identificador: basta o card ter uma delas. */
   labels: string[]
@@ -75,9 +87,15 @@ export interface ReportFilters {
   overdue: boolean
   /** So o que nao terminou — o "Em aberto": sai o relato encerrado e o card na ultima coluna. */
   open: boolean
-  /** Sem as subtarefas: so os cards de primeiro nivel. */
-  hideSubtasks: boolean
-  /** A busca: titulo, texto, descricao, numero (`42` ou `#42`) e protocolo. */
+  /**
+   * So os relatos marcados com a origem bloqueada: vieram de um endereco que o
+   * projeto bloqueou, e o time ainda nao decidiu manter.
+   */
+  blockedOrigin: boolean
+  /**
+   * A busca: titulo, texto, descricao, numero (`42` ou `#42`) e protocolo. O pai tambem
+   * vem pelo titulo ou pela descricao de uma subtarefa, com a marca.
+   */
   search: string
 }
 
@@ -89,7 +107,7 @@ export const NO_REPORT_FILTERS: ReportFilters = {
   types: [],
   overdue: false,
   open: false,
-  hideSubtasks: false,
+  blockedOrigin: false,
   search: '',
 }
 
@@ -119,12 +137,19 @@ export interface ReportListOptions {
   after?: string
   /** Os filtros da tela de Trabalho. Sem eles, ou vazios, a lista inteira. */
   filters?: ReportFilters
-  /** So as subtarefas deste card. */
+  /**
+   * So as subtarefas deste card. Sem ele, nenhuma: a subtarefa mora dentro do pai, e a
+   * API a deixa de fora da lista, do quadro, do backlog e da contagem.
+   */
   parent?: string
   /**
-   * O recorte das sprints: `active` (a em andamento, com as subtarefas — o quadro),
-   * `backlog` (sem sprint, sem subtarefa e sem o que terminou) ou o identificador de
-   * uma sprint (os cards dela, sem as subtarefas).
+   * Tambem as subtarefas, cada uma como card — e o pai deixa de vir por elas. So a busca
+   * de quem vincula: o vinculo e com a subtarefa, e nao com o pai.
+   */
+  includeSubtasks?: boolean
+  /**
+   * O recorte das sprints: `active` (a em andamento — o quadro), `backlog` (sem sprint
+   * e sem o que terminou) ou o identificador de uma sprint (os cards dela).
    */
   sprint?: string
   /**
@@ -135,6 +160,29 @@ export interface ReportListOptions {
   columns?: string[]
   /** A ordem escolhida na tabela. So na lista de sempre — nunca com `order`. */
   sort?: ReportSort
+}
+
+/**
+ * A pagina da fila de moderacao que o painel pede: a aba, onde continuar e os filtros.
+ * Mora aqui, e nao nos contratos, pelo mesmo motivo de `ReportFilters`: e o pedido da
+ * tela, e vira a URL no servico.
+ */
+export interface ModerationQuery {
+  state: ReportModerationState
+  /** O `NextCursor` da pagina anterior, como veio. */
+  after?: string | null
+  /** 25 sem pedir, ate `MAX_MODERATION_PAGE_SIZE`. */
+  limit?: number
+  /** O texto, o titulo, o numero e o protocolo, como a busca do Trabalho. */
+  q?: string
+  /** Os identificadores dos tipos de relato. */
+  types?: string[]
+  /** Chegou a partir deste instante (ISO 8601, inclusivo). */
+  from?: string
+  /** Chegou antes deste instante (ISO 8601, exclusivo). */
+  to?: string
+  /** O dominio de onde veio, ou `none`. */
+  origin?: string
 }
 
 /** Espelha o `ReportService` da API, do lado que exige sessao. */
@@ -202,6 +250,24 @@ export interface ProjectReportService {
     request: SetCardPointsRequest,
   ): Promise<ReportDetailViewModel>
 
+  /**
+   * Mantem os cards de origem bloqueada: a marca sai. So de quem administra. Os que
+   * nao estao marcados ficam de fora, e a resposta conta quantos.
+   */
+  keepBlockedOriginReports(
+    publicId: string,
+    request: BlockedOriginReportsRequest,
+  ): Promise<BlockedOriginReportsResultViewModel>
+
+  /**
+   * Apaga de vez os cards de origem bloqueada, com as subtarefas e tudo que identifica
+   * quem relatou. **Sem volta**, e so de quem administra; pede a confirmacao escrita.
+   */
+  deleteBlockedOriginReports(
+    publicId: string,
+    request: DeleteBlockedOriginReportsRequest,
+  ): Promise<BlockedOriginReportsResultViewModel>
+
   /** Os vinculos do card, vistos dele, na ordem em que foram feitos. */
   listLinks(publicId: string, reportPublicId: string): Promise<CardLinkViewModel[]>
 
@@ -264,16 +330,20 @@ export interface ProjectReportService {
   ): Promise<ReportDetailViewModel>
 
   /**
-   * A fila de moderacao do projeto, num estado so.
+   * Uma pagina da fila de moderacao do projeto, numa aba so, com os filtros.
    *
-   * **Do mais antigo para o mais novo**, ao contrario de `listReports`. E fila:
-   * lida ao contrario, o primeiro que chegou espera para sempre.
+   * **`Pending` do mais antigo para o mais novo**, ao contrario de `listReports`. E
+   * fila: lida ao contrario, o primeiro que chegou espera para sempre. As abas decididas
+   * vem da decisao mais recente para a mais antiga. O resto vem pelo cursor (`after`).
    *
    * O total de pendentes vem em toda resposta, inclusive quando o recorte e
    * outro — e o numero que a lateral mostra, e ele nao pode sumir porque alguem
-   * abriu a aba dos ja decididos.
+   * abriu a aba dos ja decididos. `Counts` traz as tres abas.
    */
-  listModeration(publicId: string, state: ReportModerationState): Promise<ModerationQueueViewModel>
+  listModeration(
+    publicId: string,
+    query: ReportModerationState | ModerationQuery,
+  ): Promise<ModerationQueueViewModel>
 
   /**
    * Libera o relato para o publico, ou decide que ele nao vai.

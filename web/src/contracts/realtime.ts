@@ -19,6 +19,11 @@ export interface CardChangedNotice {
   Archived: boolean
   /** A conexao que fez a mudanca, quando veio do painel. A aba dela ignora o aviso. */
   Origin: string | null
+  /**
+   * O pai, quando o card e subtarefa. Ela mora dentro do pai, que recebe aviso
+   * proprio: o quadro e a lista a ignoram, e so o card aberto a ouve.
+   */
+  ParentPublicId?: string | null
 }
 
 /**

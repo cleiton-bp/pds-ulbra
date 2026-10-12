@@ -475,3 +475,106 @@
     transition: none;
   }
 }
+
+/**
+ * Barra de rolagem discreta: fina, sem trilho e **invisivel ate a pessoa passar o
+ * mouse ou focar dentro da area**. Feita para a lateral, onde a barra cinza de
+ * sempre, larga e com trilho, pesava mais do que a lista que ela rolava.
+ *
+ * Duas linguagens, porque os navegadores nao combinam: `scrollbar-width` e
+ * `scrollbar-color` valem no Firefox e no Chrome (que, com elas, ignora os
+ * pseudo-elementos); `::-webkit-scrollbar` vale no Safari. A barra continua ocupando
+ * o mesmo lugar escondida ou a vista — aparecer nao empurra a lista para o lado.
+ */
+@utility scrollbar-discreet {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease-out;
+
+  &:hover,
+  &:focus-within {
+    scrollbar-color: var(--border) transparent;
+  }
+
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+  }
+
+  &:hover::-webkit-scrollbar-thumb,
+  &:focus-within::-webkit-scrollbar-thumb {
+    background: var(--border);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--fg-muted);
+  }
+}
+
+/**
+ * Abrir e fechar um `<details>` com movimento: a altura anda de zero ao tamanho do
+ * conteudo e o conteudo esmaece junto, em 300 ms. Sem isso, o passo, o grupo ou o
+ * "Como funciona" pulavam abertos e empurravam a tela de uma vez.
+ *
+ * Feito so com CSS (`::details-content` e `interpolate-size`), e por isso continua um
+ * `<details>` de verdade: a busca da configuracao segue abrindo o grupo certo, e o
+ * acordeao (`name`) continua fechando o outro sozinho — os dois com o mesmo movimento.
+ * Navegador que ainda nao sabe animar so abre de uma vez, como antes; quem pede menos
+ * movimento no sistema tambem.
+ */
+@utility details-smooth {
+  interpolate-size: allow-keywords;
+
+  &::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    opacity: 0;
+    transition:
+      block-size 300ms ease-out,
+      opacity 250ms ease-out,
+      content-visibility 300ms allow-discrete;
+  }
+
+  &[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::details-content {
+      transition: none;
+    }
+  }
+}
+
+/**
+ * O painel de uma aba entra esmaecendo e subindo um pouco (180 ms), em vez de trocar
+ * de uma vez. A animacao roda quando o painel deixa de estar `hidden`.
+ */
+@keyframes painel-entra {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-panel-in {
+  animation: painel-entra 180ms ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}

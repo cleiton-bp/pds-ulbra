@@ -1,4 +1,9 @@
-import type { ProjectCreatedViewModel, ProjectViewModel, UpdateProjectRequest } from '@/contracts'
+import type {
+  ProjectCreatedViewModel,
+  ProjectTemplate,
+  ProjectViewModel,
+  UpdateProjectRequest,
+} from '@/contracts'
 
 /** Espelha o `ProjectService` da API. */
 export interface ProjectService {
@@ -8,10 +13,10 @@ export interface ProjectService {
   getProject(publicId: string): Promise<ProjectViewModel>
 
   /**
-   * Cria projeto e par de chaves numa unica gravacao — nao existe projeto sem
-   * chave. Unica operacao que devolve o valor da secreta.
+   * Cria o projeto com a chave publica e o que o modelo traz, numa unica gravacao.
+   * Sem modelo, o quadro simples.
    */
-  createProject(name: string): Promise<ProjectCreatedViewModel>
+  createProject(name: string, template?: ProjectTemplate): Promise<ProjectCreatedViewModel>
 
   /** Renomeia e/ou arquiva. O que nao vier fica como esta. */
   updateProject(publicId: string, patch: UpdateProjectRequest): Promise<ProjectViewModel>

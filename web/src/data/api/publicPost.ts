@@ -47,7 +47,12 @@ export async function postPublic<T>(
     .catch(() => null)
 
   if (!response.ok || envelope?.Success === false || !envelope?.Data) {
-    throw new PanelError(envelope?.Message ?? `Erro ${response.status}.`, response.status)
+    // O `Data` da falha vai junto: a recusa por excesso traz nele o desafio a resolver.
+    throw new PanelError(
+      envelope?.Message ?? `Erro ${response.status}.`,
+      response.status,
+      response.ok ? null : (envelope?.Data ?? null),
+    )
   }
 
   return envelope.Data

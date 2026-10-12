@@ -1,7 +1,20 @@
 import type { CardParentViewModel } from '@/contracts/report'
+import type { ReportLimitScope } from '@/contracts/reportLimits'
 
-/** O que aconteceu com a pessoa avisada: mencionada num comentario interno, ou escolhida como responsavel. */
-export type NotificationKind = 'Mention' | 'Assignment'
+/**
+ * O que aconteceu: mencionada num comentario interno, escolhida como responsavel, um
+ * endereco novo mandou relato (`OriginPending`) ou os envios foram pausados por excesso
+ * (`ReportsPaused`). Os dois ultimos sao do projeto, e vao para quem administra.
+ */
+export type NotificationKind = 'Mention' | 'Assignment' | 'OriginPending' | 'ReportsPaused'
+
+/** Todos os tipos, na ordem do Perfil. */
+export const NOTIFICATION_KINDS: readonly NotificationKind[] = [
+  'Mention',
+  'Assignment',
+  'OriginPending',
+  'ReportsPaused',
+]
 
 /** Um aviso do sino. */
 export interface NotificationViewModel {
@@ -14,10 +27,19 @@ export interface NotificationViewModel {
   /** Quem fez. Nulo quando a pessoa nao tem nome nem e-mail. */
   ActorName: string | null
   Project: { PublicId: string; Name: string }
-  /** O card: o numero e o titulo como a tela mostra. */
-  Card: CardParentViewModel
+  /** O card: o numero e o titulo como a tela mostra. Nulo nos avisos do projeto. */
+  Card: CardParentViewModel | null
   /** O comentario da mencao, com o comeco do texto. Nulo na atribuicao. */
   Comment: NotificationCommentViewModel | null
+  /**
+   * O endereco do aviso do projeto: o que mandou relato sem estar autorizado, ou o
+   * pausado. Nulo nos outros — e no relato que nao disse de onde veio.
+   */
+  Subject?: string | null
+  /** A camada que pausou os envios. So em `ReportsPaused`. */
+  LimitScope?: ReportLimitScope | null
+  /** Ate quando os envios ficam pausados. So em `ReportsPaused`. */
+  PausedUntil?: string | null
 }
 
 /** O comentario de uma mencao: o card abre rolado ate ele. */

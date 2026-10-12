@@ -12,8 +12,11 @@ export const apiProjectService: ProjectService = {
 
   getProject: (publicId) => apiGet<ProjectViewModel>(`/projects/${publicId}`),
 
-  createProject: (name) =>
-    apiPost<ProjectCreatedViewModel>('/projects', { Name: name } satisfies CreateProjectRequest),
+  createProject: (name, template) =>
+    apiPost<ProjectCreatedViewModel>('/projects', {
+      Name: name,
+      ...(template ? { Template: template } : {}),
+    } satisfies CreateProjectRequest),
 
   updateProject: (publicId, patch: UpdateProjectRequest) =>
     apiPatch<ProjectViewModel>(`/projects/${publicId}`, patch),
