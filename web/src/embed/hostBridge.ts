@@ -1,12 +1,17 @@
-import type { WidgetPosition } from '@/contracts'
+import { sanitizeRoute } from '@/embed/config'
+import { DEFAULT_OFFSET, type LauncherFrame, launcherRadius } from '@/embed/launcher'
 import {
   CAPTURE_CAPABILITY,
   type CaptureDoneMessage,
   FRAME_SIZE,
   type FrameMessage,
+  HOST_LAUNCHER,
   type InitMessage,
   isOurMessage,
+  isPreviewFormPart,
   MESSAGE_SOURCE,
+  type OpenMessage,
+  type PreviewMessage,
 } from '@/embed/protocol'
 
 /**
@@ -25,9 +30,13 @@ import {
  * vao. E por isso tambem que a resposta nunca sai para `event.origin`: sai sempre
  * para a origem guardada.
  *
- * O quadro **nao tenta descobrir sozinho** de quem e a pagina:
- * `location.ancestorOrigins` nao existe no Firefox e `document.referrer` some com
- * `Referrer-Policy`. A origem chega declarada, e e tratada como declaracao.
+ * **De quem e a pagina, o quadro pergunta ao navegador**, e nao a ela: primeiro
+ * `location.ancestorOrigins` (que nao existe no Firefox), depois a origem que o
+ * navegador carimbou no `init` — a mesma que esta ponte guarda. A que o carregador
+ * declara so vale sem as duas. Ver `configFromInit`.
+ *
+ * **O caminho da pagina acompanha cada abertura** (`OpenMessage.route`): o quadro vive
+ * enquanto o site troca de pagina sem recarregar, e o do `init` envelhece.
  */
 
 /** Como terminou uma captura pedida a pagina. Ver `CaptureDoneMessage`. */
@@ -41,13 +50,26 @@ export interface HostConnection {
   /** O que veio no `init`. Nulo enquanto ele nao chegou. */
   readonly init: InitMessage | null
   /**
-   * Guarda o canto e pede a pagina que o quadro **apareca**, recolhido.
+   * O caminho da pagina na ultima abertura (`OpenMessage.route`), ja sem `?` e `#`.
+   * **Indefinido** enquanto nenhuma abertura disse — ai vale o do `init`. Opcional: a
+   * previa do painel nao tem pagina.
+   */
+  readonly route?: string | null
+  /**
+   * Guarda como o botao e e onde ele fica — o tamanho do quadro recolhido, o canto, a
+   * distancia, os cantos e a sombra. Com o quadro ja a mostra, a pagina recebe na hora:
+   * e o que faz a previa do painel acompanhar o que se escolhe.
+   */
+  place(launcher: LauncherFrame): void
+  /**
+   * Pede a pagina que o quadro **apareca**, recolhido, com o ultimo `place`. Depois
+   * da primeira vez, so repete o tamanho de agora — nunca fecha o formulario aberto.
    *
    * Enquanto isto nao for chamado o `iframe` continua invisivel do lado de la —
    * e e por isso que a ferramenta desligada nao precisa de mensagem propria: ela
    * simplesmente nunca chama.
    */
-  show(position: WidgetPosition): void
+  show(): void
   /** Pede a pagina que o quadro passe a ocupar o tamanho aberto. */
   expand(): void
   /** Pede a pagina que o quadro volte a ser so o gatilho. */
@@ -68,8 +90,108 @@ export interface HostConnection {
    * @param maxBytes O teto de imagem do projeto, para o formato caber nele.
    */
   capture(maxBytes: number | null): Promise<CaptureOutcome>
+  /**
+   * O botao parado na pagina e da pagina, e nao do quadro — ver `InitMessage.launcher`.
+   * Verdadeiro, o quadro nasce no formulario, nunca desenha o proprio botao, e fechar
+   * vira `close`. **Opcional**: ausente e falso, o quadro de sempre.
+   */
+  readonly hostDrawsLauncher?: boolean
+  /** Diz a pagina que a pessoa fechou o formulario. So com `hostDrawsLauncher`. */
+  close?(): void
+  /** Diz a pagina que nao ha o que abrir aqui. So com `hostDrawsLauncher`. */
+  unavailable?(): void
+  /**
+   * Avisa a cada vez que a pagina pede para abrir (`OpenMessage`). Devolve como
+   * desinscrever.
+   */
+  onOpen?(listener: (options?: OpenOptions) => void): () => void
   /** Desliga o ouvinte. */
   stop(): void
+}
+
+/**
+ * O tamanho que o quadro pede a cada momento — recolhido, aberto ou com o editor — e o
+ * lugar dele. **Uma maquina so para a pagina do cliente e para a previa do painel**:
+ * as duas recebem as mesmas mensagens, e so muda para quem elas vao.
+ */
+function frameControls(reply: (message: FrameMessage) => void) {
+  // O botao de sempre ate o primeiro `place`. Nada sai antes de `show`, entao o valor
+  // so importa para quem nunca chamar `place` — o quadro antigo dos testes.
+  let launcher: LauncherFrame = {
+    ...FRAME_SIZE.collapsed,
+    position: 'BottomRight',
+    offsetX: DEFAULT_OFFSET,
+    offsetY: DEFAULT_OFFSET,
+    radius: launcherRadius('Pill').frame,
+    shadow: false,
+  }
+  let estado: 'hidden' | 'collapsed' | 'expanded' | 'editor' = 'hidden'
+
+  function send(): void {
+    if (estado === 'hidden') return
+
+    if (estado === 'collapsed') {
+      reply({ source: MESSAGE_SOURCE, type: 'resize', ...launcher })
+      return
+    }
+
+    // Aberto, o canto e a distancia sao os do botao: o formulario sai de onde ele esta.
+    const tamanho = estado === 'editor' ? FRAME_SIZE.editor : FRAME_SIZE.expanded
+    reply({
+      source: MESSAGE_SOURCE,
+      type: 'resize',
+      ...tamanho,
+      position: launcher.position,
+      offsetX: launcher.offsetX,
+      offsetY: launcher.offsetY,
+    })
+  }
+
+  return {
+    place: (proximo: LauncherFrame) => {
+      launcher = proximo
+      send()
+    },
+    show: () => {
+      if (estado === 'hidden') estado = 'collapsed'
+      send()
+    },
+    expand: () => {
+      estado = 'expanded'
+      send()
+    },
+    collapse: () => {
+      estado = 'collapsed'
+      send()
+    },
+    enlarge: () => {
+      estado = 'editor'
+      send()
+    },
+    close: () => reply({ source: MESSAGE_SOURCE, type: 'close' }),
+    unavailable: () => reply({ source: MESSAGE_SOURCE, type: 'unavailable' }),
+  }
+}
+
+/** Os que pediram aviso de abertura. Ver `HostConnection.onOpen`. */
+/** Como abrir: com o foco no formulario, ou sem tira-lo da pagina (a previa que abre sozinha). */
+export interface OpenOptions {
+  focus: boolean
+}
+
+function openListeners() {
+  const ouvintes = new Set<(options?: OpenOptions) => void>()
+  return {
+    notify: (options: OpenOptions = { focus: true }) => {
+      for (const ouvinte of ouvintes) ouvinte(options)
+    },
+    onOpen: (listener: (options?: OpenOptions) => void) => {
+      ouvintes.add(listener)
+      return () => {
+        ouvintes.delete(listener)
+      }
+    },
+  }
 }
 
 /** Ha pagina hospedeira? Fora de um quadro, `window.parent` e a propria janela. */
@@ -81,16 +203,18 @@ export function isEmbedded(): boolean {
  * Liga o ouvinte e avisa quando o `init` chegar. Chame **antes** de montar a
  * interface.
  */
-export function connectToHost(onInit: (message: InitMessage) => void): HostConnection {
+export function connectToHost(
+  onInit: (message: InitMessage, origin: string) => void,
+): HostConnection {
   let hostOrigin: string | null = null
   let init: InitMessage | null = null
-
-  // O canto so e conhecido depois que a configuracao chega. Ate la o valor nao e
-  // usado, porque nada e mandado antes de `show`.
-  let position: WidgetPosition = 'BottomRight'
+  /** O caminho que veio com a ultima abertura. Ver `HostConnection.route`. */
+  let rota: string | null | undefined
 
   /** A captura pedida e ainda sem resposta. */
   let pendente: { id: string; resolve: (resultado: CaptureOutcome) => void } | null = null
+
+  const aberturas = openListeners()
 
   function reply(message: FrameMessage): void {
     // Sem origem guardada nao ha para quem responder — e `'*'` nao e opcao.
@@ -130,6 +254,19 @@ export function connectToHost(onInit: (message: InitMessage) => void): HostConne
       return
     }
 
+    // O pedido de abrir vale o mesmo que a captura: so depois do `init`, e so da
+    // origem dele.
+    if (event.data.type === 'open') {
+      if (hostOrigin !== null && event.origin === hostOrigin) {
+        // O caminho passa pelo mesmo corte do `init`: quem confere e quem recebe. Fora
+        // de texto, fica o que ja havia — o carregador antigo nao manda nada.
+        const pedido = (event.data as Partial<OpenMessage>).route
+        if (typeof pedido === 'string' || pedido === null) rota = sanitizeRoute(pedido)
+        aberturas.notify()
+      }
+      return
+    }
+
     if (event.data.type !== 'init') return
     // 3. a origem: depois do primeiro `init`, so ela vale.
     if (hostOrigin !== null && event.origin !== hostOrigin) return
@@ -145,29 +282,29 @@ export function connectToHost(onInit: (message: InitMessage) => void): HostConne
 
     if (init) return
     init = message
-    onInit(message)
+    onInit(message, hostOrigin)
   }
 
   window.addEventListener('message', handle)
+
+  const controles = frameControls(reply)
 
   return {
     get init() {
       return init
     },
+    get route() {
+      return rota
+    },
     get canCapture() {
       const declarado = init?.capabilities
       return Array.isArray(declarado) && declarado.includes(CAPTURE_CAPABILITY)
     },
-    show: (chosen) => {
-      position = chosen
-      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.collapsed, position })
+    get hostDrawsLauncher() {
+      return init?.launcher === HOST_LAUNCHER
     },
-    expand: () =>
-      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.expanded, position }),
-    collapse: () =>
-      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.collapsed, position }),
-    enlarge: () =>
-      reply({ source: MESSAGE_SOURCE, type: 'resize', ...FRAME_SIZE.editor, position }),
+    onOpen: aberturas.onOpen,
+    ...controles,
     capture: (maxBytes) =>
       new Promise<CaptureOutcome>((resolve) => {
         if (!hostOrigin) {
@@ -180,6 +317,73 @@ export function connectToHost(onInit: (message: InitMessage) => void): HostConne
         pendente = { id, resolve }
         reply({ source: MESSAGE_SOURCE, type: 'capture', id, maxBytes })
       }),
+    stop: () => window.removeEventListener('message', handle),
+  }
+}
+
+/**
+ * O lado do quadro **na previa do painel** (`embed.html?preview`): recebe a
+ * configuracao ainda nao publicada e pede tamanho ao painel, que faz o papel do
+ * carregador numa pagina de mentira — inclusive desenhando o botao, com o mesmo codigo.
+ *
+ * **So a janela de cima, e so da mesma origem** — o painel e o quadro saem do mesmo
+ * endereco. Qualquer outra mensagem e ignorada: sem isso, qualquer site poderia
+ * enquadrar a previa e fazer o nosso endereco mostrar o texto que quisesse. As
+ * respostas tambem so saem para a propria origem.
+ *
+ * A previa nao captura, nao le nem grava nada: `canCapture` e falso, e o formulario
+ * recebe `preview` e nunca envia.
+ */
+export function connectToPreviewPanel(
+  onSettings: (message: PreviewMessage) => void,
+): HostConnection {
+  const origem = window.location.origin
+
+  function reply(message: FrameMessage): void {
+    window.parent.postMessage(message, origem)
+  }
+
+  const aberturas = openListeners()
+
+  function handle(event: MessageEvent): void {
+    if (event.source !== window.parent) return
+    if (event.origin !== origem) return
+    if (!isOurMessage(event.data)) return
+
+    // O painel desenha o botao com o mesmo codigo do carregador, e pede para abrir
+    // como ele pede.
+    if (event.data.type === 'open') {
+      aberturas.notify({ focus: (event.data as Partial<OpenMessage>).focus !== false })
+      return
+    }
+
+    if (event.data.type !== 'preview') return
+
+    const message = event.data as unknown as PreviewMessage
+    if (typeof message.settings !== 'object' || message.settings === null) return
+
+    // O contorno so passa se for uma das partes conhecidas: qualquer outro valor vira
+    // "nada a contornar", e nao chega ao desenho.
+    onSettings({
+      ...message,
+      highlight: isPreviewFormPart(message.highlight) ? message.highlight : null,
+    })
+  }
+
+  window.addEventListener('message', handle)
+
+  // O painel pode ter mandado antes de este ouvinte existir: avisar que chegou e o
+  // que o faz mandar de novo.
+  reply({ source: MESSAGE_SOURCE, type: 'preview-ready' })
+
+  return {
+    init: null,
+    canCapture: false,
+    // Como no site do cliente: o botao e do painel, que usa o desenho do carregador.
+    hostDrawsLauncher: true,
+    onOpen: aberturas.onOpen,
+    ...frameControls(reply),
+    capture: () => Promise.resolve({ outcome: 'unavailable' }),
     stop: () => window.removeEventListener('message', handle),
   }
 }

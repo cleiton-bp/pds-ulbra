@@ -31,6 +31,12 @@ export interface EmbedConfig {
    * sozinho, sem carregador — ai nao ha pagina hospedeira para medir.
    */
   viewport: string | null
+  /**
+   * A largura da janela da pagina, em numero — e ela que decide se o botao e o do
+   * celular. Nula sem pagina hospedeira, ou quando a pagina mandou um valor que nao e
+   * medida nenhuma.
+   */
+  viewportWidth?: number | null
 }
 
 /** Fica so o caminho: o que vem depois do `?` ou do `#` nao sobe. */
@@ -43,13 +49,18 @@ export function sanitizeRoute(value: string | null): string | null {
 /**
  * Fora de um quadro embutido — abrindo `embed.html` direto — vale o que estiver
  * na barra de endereco. E como o quadro se demonstra sozinho, sem carregador.
+ *
+ * **A origem, quando ha pagina em volta, e a que o navegador conhece.** O relato de
+ * teste do painel abre o quadro assim, num `iframe` do proprio painel: sem a origem do
+ * painel, o relato chegaria sem dizer de onde veio e ficaria retido — e o teste de quem
+ * esta configurando nao apareceria no Trabalho.
  */
 export function configFromLocation(search: string): EmbedConfig {
   const params = new URLSearchParams(search)
   return {
     key: params.get('k')?.trim() ?? '',
     route: sanitizeRoute(params.get('route')),
-    origin: params.get('origin')?.trim() || null,
+    origin: hostOfOrigin(ancestorOrigin()) ?? (params.get('origin')?.trim() || null),
     // Sem pagina hospedeira nao ha janela dela para medir, e a do proprio quadro
     // seria o tamanho do formulario — um numero que nao explica defeito nenhum.
     viewport: null,
@@ -75,17 +86,70 @@ function formatViewport(viewport: InitMessage['viewport']): string | null {
 }
 
 /**
+ * O endereco de uma origem (`https://loja.com:8443`) na forma de `location.host`
+ * (`loja.com:8443`), que e a forma das listas do projeto. Nulo para o que nao e
+ * origem — inclusive `null`, a origem opaca de um documento em `sandbox`.
+ */
+export function hostOfOrigin(origin: string | null | undefined): string | null {
+  if (!origin || origin === 'null') return null
+  try {
+    return new URL(origin).host || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A origem da pagina que contem o quadro, como **o navegador** a conhece. A pagina
+ * nao consegue mentir sobre ela: `location.ancestorOrigins` e preenchido pelo
+ * navegador, e nao pela pagina. Nulo onde ele nao existe (o Firefox).
+ */
+function ancestorOrigin(): string | null {
+  try {
+    const ancestrais = window.location.ancestorOrigins
+    return ancestrais && ancestrais.length > 0 ? ancestrais.item(0) : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Dentro de um quadro, a configuracao vem do `init` da pagina hospedeira. A rota
  * passa pelo mesmo corte de novo: a pagina ja mandou cortada, mas quem confere
  * dado que veio de fora e quem recebe.
+ *
+ * **A origem, do mais confiavel para o menos.** Primeiro `location.ancestorOrigins`,
+ * que o navegador preenche; depois `verifiedOrigin`, a origem que o navegador
+ * carimbou na propria mensagem `init` (`event.origin`) — tambem fora do alcance da
+ * pagina, e presente em todo navegador; so entao a que o carregador declarou. As tres
+ * dizem o mesmo quando o nosso carregador esta do outro lado; a diferenca aparece
+ * quando alguem tenta declarar outro endereco, e entao vale o do navegador.
+ *
+ * Isto fecha o caso do navegador. **Fora dele nada muda**: quem fala direto com a API
+ * declara o que quiser no corpo do relato.
  */
-export function configFromInit(message: InitMessage): EmbedConfig {
+export function configFromInit(message: InitMessage, verifiedOrigin?: string | null): EmbedConfig {
   return {
     key: message.key.trim(),
     route: sanitizeRoute(message.route),
-    origin: message.origin?.trim() || null,
+    origin:
+      hostOfOrigin(ancestorOrigin()) ??
+      hostOfOrigin(verifiedOrigin) ??
+      (message.origin?.trim() || null),
     viewport: formatViewport(message.viewport),
+    viewportWidth: formatViewport(message.viewport)
+      ? Math.round(message.viewport?.width ?? 0)
+      : null,
   }
+}
+
+/**
+ * O quadro abre como **previa do painel** — `embed.html?preview`. Ai a configuracao vem
+ * do painel, ainda nao publicada, e nada e enviado. So vale dentro de um quadro: aberto
+ * direto, nao ha painel do outro lado.
+ */
+export function isPreviewMode(search: string, embedded: boolean): boolean {
+  return embedded && new URLSearchParams(search).has('preview')
 }
 
 /**

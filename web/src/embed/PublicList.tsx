@@ -1,9 +1,8 @@
 import { useCallback } from 'react'
 import { reportService } from '@/data/publicIndex'
 import { Button } from '@/shared/components/Button'
+import { PublicReportCard } from '@/shared/components/PublicReportCard'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
-import { formatRelative } from '@/shared/lib/datetime'
-import { reporterTypeLabel } from '@/shared/lib/reportTypes'
 
 /**
  * "O que já foi relatado" — a vitrine, dentro do próprio quadro.
@@ -63,33 +62,19 @@ export function PublicList({ publicKey, onBack }: { publicKey: string; onBack: (
       {lista !== null && lista.Reports.length > 0 && (
         <ul className="flex flex-col gap-2.5">
           {lista.Reports.map((relato) => (
-            <li
+            <PublicReportCard
+              as="li"
               // Sem identificador nenhum na resposta, a chave é o conteúdo com a
               // data — e duas publicações no mesmo instante com o mesmo texto são
               // o mesmo relato para quem lê.
               key={`${relato.PublishedAt}-${relato.Text.slice(0, 40)}`}
-              className="rounded-lg border border-border bg-surface-raised p-3"
-            >
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <span className="text-caption text-fg-muted">
-                  {reporterTypeLabel(relato.Type)}
-                  {relato.ReporterName !== null && ` · ${relato.ReporterName}`}
-                </span>
-                <span className="flex-none text-caption text-fg-muted">
-                  {relato.IsClosed ? 'Encerrado' : (relato.StageLabel ?? 'Em andamento')}
-                </span>
-              </div>
-
-              {/* Inteiro e com as quebras originais: foi este texto que alguém
-                  leu e liberou, e mostrar outro seria publicar o que não passou. */}
-              <p className="mb-1.5 whitespace-pre-wrap text-detail text-fg leading-relaxed">
-                {relato.Text}
-              </p>
-
-              <time dateTime={relato.PublishedAt} className="text-caption text-fg-muted">
-                {formatRelative(relato.PublishedAt)}
-              </time>
-            </li>
+              typeName={relato.TypeName}
+              reporterName={relato.ReporterName}
+              stageLabel={relato.StageLabel}
+              isClosed={relato.IsClosed}
+              text={relato.Text}
+              publishedAt={relato.PublishedAt}
+            />
           ))}
         </ul>
       )}

@@ -1,7 +1,12 @@
 import { createRoot } from 'react-dom/client'
-import { configFromInit, configFromLocation, shouldWaitForHost } from '@/embed/config'
-import { draw } from '@/embed/draw'
-import { connectToHost, isEmbedded } from '@/embed/hostBridge'
+import {
+  configFromInit,
+  configFromLocation,
+  isPreviewMode,
+  shouldWaitForHost,
+} from '@/embed/config'
+import { draw, drawPreview } from '@/embed/draw'
+import { connectToHost, connectToPreviewPanel, isEmbedded } from '@/embed/hostBridge'
 import '@/styles/index.css'
 
 /**
@@ -26,9 +31,13 @@ if (container) {
 
   // A regra e `shouldWaitForHost`, e ela mora em `config.ts` para poder ser
   // testada: este arquivo roda no `import` e nao da para exercitar.
-  if (shouldWaitForHost(window.location.search, isEmbedded())) {
-    const host = connectToHost((message) => {
-      void draw(root, configFromInit(message), host)
+  if (isPreviewMode(window.location.search, isEmbedded())) {
+    // A previa do painel: a configuracao chega dele, a cada mudanca, e nada e enviado.
+    const panel = connectToPreviewPanel((message) => drawPreview(root, message, panel))
+  } else if (shouldWaitForHost(window.location.search, isEmbedded())) {
+    // A origem carimbada pelo navegador vai junto: ela vence a declarada.
+    const host = connectToHost((message, origin) => {
+      void draw(root, configFromInit(message, origin), host)
     })
   } else {
     // Chave na barra, ou nem pagina hospedeira: os dois casos desenham o
