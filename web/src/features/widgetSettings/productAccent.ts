@@ -14,14 +14,26 @@
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
 export function readProductAccent(): string | null {
+  // A ordem e a da camada 2 para a 1: `--accent` e o nome com significado, e e
+  // ele que muda quando o tema muda.
+  return readFirstToken(['--accent', '--ink-on-light'])
+}
+
+/**
+ * A cor do texto sobre o acento do produto — o ponto de partida de "escolher a cor do
+ * texto do botao", pelo mesmo motivo do acento: o seletor abre na cor que esta valendo.
+ */
+export function readProductAccentInk(): string | null {
+  return readFirstToken(['--accent-fg', '--ink-on-dark'])
+}
+
+function readFirstToken(tokens: string[]): string | null {
   if (typeof window === 'undefined') return null
 
   const styles = window.getComputedStyle?.(document.documentElement)
   if (!styles) return null
 
-  // A ordem e a da camada 2 para a 1: `--accent` e o nome com significado, e e
-  // ele que muda quando o tema muda.
-  for (const token of ['--accent', '--ink-on-light']) {
+  for (const token of tokens) {
     const value = styles.getPropertyValue(token).trim()
     if (HEX.test(value)) return expand(value)
   }
