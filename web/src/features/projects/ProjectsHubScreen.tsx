@@ -106,8 +106,8 @@ export function ProjectsHubScreen() {
           <div className="hidden rounded-xl border border-border bg-surface-raised p-5 lg:block">
             <h2 className="mb-1.5 font-semibold text-lead">Criar projeto</h2>
             <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-              Um projeto corresponde a um site ou sistema seu. Cada projeto tem a própria chave
-              pública.
+              Um projeto corresponde a um sistema seu, site ou aplicação. Cada projeto tem a própria
+              chave pública.
             </p>
             <Button variant="primary" block onClick={() => setCreating(true)}>
               Criar projeto
@@ -179,7 +179,7 @@ export function ProjectsHubScreen() {
                     <p className="font-medium text-body text-fg">Nenhum projeto ainda</p>
                     <p className="mx-auto mt-1.5 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
                       Crie o primeiro para receber a chave pública dele e colar o script no seu
-                      site.
+                      sistema.
                     </p>
                     <p className="mx-auto mt-3 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
                       Foi convidado para um time? Abra o link do e-mail de convite usando a conta

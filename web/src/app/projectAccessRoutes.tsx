@@ -4,8 +4,10 @@ import { canConfigure } from '@/shared/lib/projectAccess'
 
 /**
  * A porta do projeto: **o Trabalho, para todo mundo**. A excecao e quem administra
- * um projeto cujo site **ainda nao mandou relato nenhum** — ai a Instalacao e a
- * proxima coisa a fazer, e e por ela que se entra.
+ * um projeto cujo site **ainda nao mandou relato nenhum** — ai configurar e a
+ * proxima coisa a fazer, e se entra pela pagina central, com os primeiros passos no
+ * topo. Ja foi pela Instalacao: ela resolve o script, e o resto da primeira hora
+ * (autorizar o dominio, o botao, quem ve, o time) ficava sem lista.
  *
  * Ja foi pelo papel: quem configurava caia sempre na Instalacao, inclusive num
  * projeto com meses de relatos. Quem administra e quem mais abre o painel, e a tela
@@ -17,8 +19,8 @@ import { canConfigure } from '@/shared/lib/projectAccess'
  */
 export function ProjectHome() {
   const { project } = useOutletContext<ProjectContext>()
-  const instalar = canConfigure(project) && project.LastReportReceivedAt === null
-  return <Navigate to={instalar ? 'start' : 'reports'} replace />
+  const configurar = canConfigure(project) && project.LastReportReceivedAt === null
+  return <Navigate to={configurar ? 'configure' : 'reports'} replace />
 }
 
 /**

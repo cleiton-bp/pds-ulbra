@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AccountShell } from '@/app/AccountShell'
+import { ConfigureScreen } from '@/app/configure/ConfigureScreen'
 import { InviteScreen } from '@/app/InviteScreen'
+import { ProfileRoute } from '@/app/ProfileRoute'
 import { ProjectShell } from '@/app/ProjectShell'
 import { ProjectHome, RequireProjectAdministrator } from '@/app/projectAccessRoutes'
 import { RequireSession } from '@/app/RequireSession'
@@ -13,15 +15,17 @@ import { MediaScreen } from '@/features/media/MediaScreen'
 import { ModerationScreen } from '@/features/moderation/ModerationScreen'
 import { StartScreen } from '@/features/onboarding/StartScreen'
 import { PrioritiesScreen } from '@/features/priorities/PrioritiesScreen'
-import { ProfileScreen } from '@/features/profile/ProfileScreen'
 import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
 import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
+import { DomainsScreen } from '@/features/projects/DomainsScreen'
 import { MembersScreen } from '@/features/projects/MembersScreen'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { ProjectsHubScreen } from '@/features/projects/ProjectsHubScreen'
 import { PublicStagesScreen } from '@/features/publicStages/PublicStagesScreen'
 import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
 import { ReportsScreen } from '@/features/reports/ReportsScreen'
+import { ReportTypesScreen } from '@/features/reportTypes/ReportTypesScreen'
+import { FormTextsScreen } from '@/features/widgetSettings/FormTextsScreen'
 import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsScreen'
 
 /**
@@ -29,12 +33,13 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  *
  *   /projects .......................... hub, casca so com barra de cima
  *   /invite#t=... ...................... o convite do e-mail, na mesma casca
- *   /profile ........................... o perfil da pessoa e o som dos avisos, na mesma casca
- *   /projects/:publicId/{start,keys,tool,states,priorities,labels,sprints,public-stages,cycle,identity,media,settings} .. console
+ *   /profile ........................... o endereco antigo do perfil: abre o dialogo sobre o hub
+ *   /projects/:publicId/configure ............................. a pagina central da configuracao
+ *   /projects/:publicId/{start,keys,tool,domains,report-types,media,public-stages,cycle,identity,states,priorities,labels,sprints,settings} .. console
  *   /projects/:publicId/reports/:reportPublicId ............... o relato aberto, sobre a lista
  *
  * `/projects/:publicId` sozinho decide a porta (`ProjectHome`): o Trabalho, e a
- * Instalacao so para quem administra um projeto que ainda nao recebeu relato. As
+ * pagina central so para quem administra um projeto que ainda nao recebeu relato. As
  * secoes de configuracao ficam atras de `RequireProjectAdministrator`, que manda o
  * membro para o Trabalho.
  *
@@ -78,8 +83,9 @@ export const router = createBrowserRouter([
         element: <AccountShell />,
         children: [
           { path: 'projects', element: <ProjectsHubScreen /> },
-          // O perfil e da pessoa, e nao de um projeto: fora dele, como o hub.
-          { path: 'profile', element: <ProfileScreen /> },
+          // O perfil e um dialogo sobre a tela aberta (o menu da conta e o sino o abrem
+          // sem trocar o endereco). A rota fica para o link salvo: abre o dialogo e sai.
+          { path: 'profile', element: <ProfileRoute /> },
           // Fora do projeto de proposito: quem abre o convite ainda nao esta nele.
           // Dentro do `RequireSession`, a entrada com Google aparece neste mesmo
           // endereco — e o `#t=` sobrevive ao login.
@@ -94,8 +100,12 @@ export const router = createBrowserRouter([
           {
             element: <RequireProjectAdministrator />,
             children: [
+              { path: 'configure', element: <ConfigureScreen /> },
               { path: 'start', element: <StartScreen /> },
+              { path: 'domains', element: <DomainsScreen /> },
               { path: 'keys', element: <ProjectKeysScreen /> },
+              { path: 'report-types', element: <ReportTypesScreen /> },
+              { path: 'form-texts', element: <FormTextsScreen /> },
               { path: 'states', element: <ProjectStatesScreen /> },
               { path: 'priorities', element: <PrioritiesScreen /> },
               { path: 'labels', element: <LabelsScreen /> },

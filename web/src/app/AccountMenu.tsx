@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { selectThemeLabel, useThemeStore } from '@/app/themeStore'
 import { useSessionStore } from '@/features/auth/sessionStore'
@@ -8,12 +9,16 @@ import {
   DropdownMenu,
   DropdownSeparator,
 } from '@/shared/components/DropdownMenu'
+import { openProfile } from '@/shared/lib/profileDialogStore'
 
 /**
  * O cabecalho mostra a **conta propria** — a que nasceu no primeiro acesso, onde
  * nascem os projetos que a pessoa cria. Os projetos de outras contas em que ela
  * esta no time aparecem agrupados pela conta no hub e no seletor do topo, e nao
  * aqui: este menu e da pessoa, e nao do projeto aberto.
+ *
+ * **"Perfil" abre um dialogo, e nao uma pagina**: sobre a tela em que a pessoa esta, sem
+ * trocar o endereco — ajustar o som nao pode tirar ninguem do card que estava lendo.
  */
 export function AccountMenu() {
   const user = useSessionStore((state) => state.user)
@@ -21,6 +26,7 @@ export function AccountMenu() {
   const navigate = useNavigate()
   const themeLabel = useThemeStore(selectThemeLabel)
   const toggleTheme = useThemeStore((state) => state.toggle)
+  const gatilho = useRef<HTMLButtonElement>(null)
 
   /**
    * Sair volta para a raiz, e entrar sem sessao **nao** volta. Sao eventos
@@ -41,6 +47,7 @@ export function AccountMenu() {
     <DropdownMenu
       trigger={
         <button
+          ref={gatilho}
           type="button"
           aria-label="Conta"
           className="flex size-8 items-center justify-center rounded-full border border-border bg-surface-sunken font-semibold text-caption text-fg-muted transition-colors hover:bg-surface-strong hover:text-fg"
@@ -67,7 +74,9 @@ export function AccountMenu() {
       <DropdownSeparator />
 
       <DropdownGroup>
-        <DropdownItem onSelect={() => navigate('/profile')}>Perfil</DropdownItem>
+        <DropdownItem onSelect={() => openProfile({ returnFocusTo: gatilho.current })}>
+          Perfil
+        </DropdownItem>
         <DropdownItem onSelect={toggleTheme}>{themeLabel}</DropdownItem>
         <DropdownItem onSelect={() => void sair()}>Sair</DropdownItem>
       </DropdownGroup>

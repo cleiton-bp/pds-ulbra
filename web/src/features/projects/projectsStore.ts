@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import type { ProjectCreatedViewModel, ProjectViewModel, UpdateProjectRequest } from '@/contracts'
+import type {
+  ProjectCreatedViewModel,
+  ProjectTemplate,
+  ProjectViewModel,
+  UpdateProjectRequest,
+} from '@/contracts'
 import { describeError, projectService } from '@/data'
 
 /**
@@ -16,7 +21,7 @@ interface ProjectsState {
   load: () => Promise<void>
   /** Caminho de quem abre a URL do detalhe direto. Levanta `PanelError`. */
   loadOne: (publicId: string) => Promise<ProjectViewModel>
-  create: (name: string) => Promise<ProjectCreatedViewModel>
+  create: (name: string, template?: ProjectTemplate) => Promise<ProjectCreatedViewModel>
   update: (publicId: string, patch: UpdateProjectRequest) => Promise<ProjectViewModel>
   /**
    * Esquece tudo. Chamado quando a sessao acaba: no mesmo navegador, a pessoa
@@ -75,9 +80,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     return project
   },
 
-  async create(name) {
+  async create(name, template) {
     const started = generation
-    const created = await projectService.createProject(name)
+    const created = await projectService.createProject(name, template)
     if (started === generation) set({ projects: merge(get().projects, created.Project) })
     return created
   },
