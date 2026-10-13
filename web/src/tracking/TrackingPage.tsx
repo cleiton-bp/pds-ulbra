@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
-import type {
-  PublicAttachmentViewModel,
-  PublicReportViewModel,
-  PublicStageViewModel,
-} from '@/contracts'
+import type { PublicAttachmentViewModel, PublicReportViewModel } from '@/contracts'
 import { isPanelError, reportService } from '@/data/publicIndex'
 import { AttachmentProgress, resumoDoFim } from '@/embed/AttachmentPicker'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
+import { PublicJourney } from '@/shared/components/PublicJourney'
+import { ReportAnswers } from '@/shared/components/ReportAnswers'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { formatDateTime } from '@/shared/lib/datetime'
-import { reporterTypeLabel } from '@/shared/lib/reportTypes'
 import { readTrackingLink } from '@/shared/lib/tracking'
+import { renderWidgetText } from '@/shared/lib/widgetText'
 import { ClosurePanel } from '@/tracking/ClosurePanel'
 import { ConversationPanel } from '@/tracking/ConversationPanel'
 import { ReopenPanel } from '@/tracking/ReopenPanel'
@@ -234,7 +232,17 @@ function Relato({
   return (
     <>
       <h1 className="mb-1.5 font-semibold text-screen text-fg tracking-tight">Seu relato</h1>
-      <p className="mb-7 text-body text-fg-muted">Este é o registro do que você enviou.</p>
+      {/* A frase e do projeto, escrita na tela da ferramenta; as variaveis sao trocadas
+          aqui, que e onde a etapa e o resto existem. Texto puro. */}
+      <p className="mb-7 text-body text-fg-muted">
+        {renderWidgetText(relato.TrackingIntro, {
+          primeiroNome: relato.ReporterFirstName,
+          protocolo: relato.TrackingCode,
+          tipo: relato.TypeName,
+          projeto: relato.ProjectName,
+          etapa: relato.Journey.find((passo) => passo.IsCurrent)?.Label,
+        })}
+      </p>
 
       <section className="rounded-xl border border-border bg-surface-raised p-5">
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -249,7 +257,7 @@ function Relato({
 
         <dl className="mb-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-detail">
           <dt className="text-fg-muted">Tipo</dt>
-          <dd className="text-fg">{reporterTypeLabel(relato.Type)}</dd>
+          <dd className="text-fg">{relato.TypeName}</dd>
           <dt className="text-fg-muted">Recebido em</dt>
           <dd className="text-fg">{formatDateTime(relato.CreatedAt)}</dd>
         </dl>
@@ -260,11 +268,9 @@ function Relato({
         {relato.Title && (
           <p className="mb-1.5 break-words font-semibold text-fg text-lead">{relato.Title}</p>
         )}
-        {/* `whitespace-pre-wrap`: a pessoa escreveu em linhas, e juntar tudo num
-            paragrafo so muda o que ela disse. */}
-        <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
-          {relato.Text}
-        </p>
+        {/* Com perguntas, cada resposta embaixo da pergunta como ela estava quando a
+            pessoa enviou; sem perguntas, o texto como ela escreveu. */}
+        <ReportAnswers answers={relato.Answers} text={relato.Text} />
 
         {/* So os da criacao: os que vieram numa resposta aparecem na conversa,
             logo abaixo dela. */}
@@ -283,7 +289,11 @@ function Relato({
         aoAnexar={midia.recarregar}
       />
 
-      <Andamento jornada={relato.Journey} />
+      <PublicJourney
+        className="mt-5"
+        stages={relato.Journey.map((passo) => ({ ...passo, id: passo.Label }))}
+        currentId={relato.Journey.find((passo) => passo.IsCurrent)?.Label ?? null}
+      />
 
       {/* Antes do encerramento de propósito: as reaberturas já aconteceram, e o
           fechamento que está valendo, quando há um, é o fim mais recente. */}
@@ -351,154 +361,6 @@ function juntar(
   anexo: PublicAttachmentViewModel,
 ) {
   mapa.set(chave, [...(mapa.get(chave) ?? []), anexo])
-}
-
-/**
- * Por onde o relato passou, onde ele está, e o que vem depois.
- *
- * **Os três passos que a pessoa quer saber, em uma leitura.** Uma palavra dizendo
- * só onde ele está responderia um terço da pergunta e calaria o resto.
- *
- * **O que já passou vem das datas, e não da posição.** Um relato pode pular etapas,
- * e pintar como percorrido tudo que está antes contaria uma história que não
- * aconteceu. Passo sem data é passo por onde ele não passou — mesmo estando antes
- * do atual.
- *
- * **Jornada vazia é projeto sem jornada**, e a tela diz isso em vez de prometer
- * movimento que não vai acontecer.
- */
-function Andamento({ jornada }: { jornada: PublicStageViewModel[] }) {
-  if (jornada.length === 0) {
-    return (
-      <div className="mt-5 rounded-xl border border-border bg-surface-sunken px-5 py-4">
-        <p className="text-detail text-fg leading-relaxed">
-          Ainda não há andamento para mostrar. Quem cuida deste site já pode ver o seu relato.
-        </p>
-      </div>
-    )
-  }
-
-  const atual = jornada.find((passo) => passo.IsCurrent) ?? null
-
-  return (
-    <section className="mt-5 rounded-xl border border-border bg-surface-raised p-5">
-      <h2 className="mb-1 font-semibold text-fg text-lead">Andamento</h2>
-      {/* **A frase promete o que a página faz, e nada além.**
-
-          Ela dizia "esta página se atualiza sozinha conforme a equipe trabalha", e
-          isso era falso para quem deixasse a aba aberta: o relato é lido uma vez, na
-          montagem, sem intervalo, foco de aba ou socket — o que se renova sozinho são
-          só os endereços dos arquivos. Quem lesse a frase e esperasse ficaria
-          esperando para sempre.
-
-          E buscar de novo sozinho **não** é a correção: cada leitura grava um
-          evento `ReportViewed`, então uma página que se atualiza a cada minuto
-          encheria o histórico de leituras que ninguém fez. Avisar quando algo anda
-          é trabalho da notificação, e não desta página.
-
-          Então o que fica é o que é verdade: voltar aqui mostra onde o relato está,
-          e ninguém precisa ser cobrado para isso acontecer. */}
-      <p className="mb-5 text-detail text-fg-muted leading-relaxed">
-        {atual === null
-          ? 'O seu relato ainda não entrou nesta jornada. Ele está registrado e aguardando.'
-          : 'Sempre que você abrir esta página, ela mostra onde o seu relato está. Não é preciso avisar ninguém.'}
-      </p>
-
-      <ol className="flex flex-col">
-        {jornada.map((passo, index) => (
-          <li key={passo.Label} className="flex gap-3">
-            {/* A coluna do marcador e da linha. A linha para no penúltimo, senão
-                ela desce para fora do último passo e a jornada parece continuar. */}
-            <div className="flex flex-none flex-col items-center">
-              <Marcador passo={passo} />
-              {index < jornada.length - 1 && (
-                <div
-                  className={`w-px flex-1 ${passo.ReachedAt === null ? 'bg-border' : 'bg-fg-muted'}`}
-                />
-              )}
-            </div>
-
-            <div className={`min-w-0 flex-1 ${index < jornada.length - 1 ? 'pb-5' : ''}`}>
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                <span
-                  className={
-                    passo.IsCurrent ? 'font-medium text-body text-fg' : 'text-body text-fg-muted'
-                  }
-                >
-                  {passo.Label}
-                </span>
-                {passo.IsCurrent && (
-                  <span className="rounded-full border border-border px-2 py-px text-caption text-fg-muted">
-                    agora
-                  </span>
-                )}
-                {passo.ReachedAt !== null && (
-                  <span className="text-caption text-fg-muted tabular-nums">
-                    {formatDateTime(passo.ReachedAt)}
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-0.5 text-detail text-fg-muted leading-relaxed">
-                {passo.Description}
-              </p>
-
-              {/* "O que vem depois" só no passo atual: nos outros ele é ruído —
-                  no que já passou, o depois já aconteceu; no que não chegou, a
-                  frase do próprio passo já diz o que vai acontecer. */}
-              {passo.IsCurrent && passo.NextStep !== null && (
-                <p className="mt-1.5 text-caption text-fg-muted leading-relaxed">
-                  {passo.NextStep}
-                </p>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
-    </section>
-  )
-}
-
-/**
- * O ponto de cada passo: cheio no que já foi percorrido, anel no passo atual, vazio
- * no que ainda não chegou.
- *
- * **A forma carrega a informação junto com a cor**, porque cor sozinha não é lida
- * por quem não a distingue — e esta é a tela que qualquer pessoa abre do telefone.
- *
- * **E os três estados têm nome**, em vez de o ponto ser decorativo. Sem isso, quem
- * usa leitor de tela teria só a presença ou ausência da data para inferir o que já
- * aconteceu, o que é adivinhação e não leitura. São três palavras numa lista de
- * cinco itens: barato.
- */
-function Marcador({ passo }: { passo: PublicStageViewModel }) {
-  if (passo.IsCurrent) {
-    return (
-      <span
-        role="img"
-        aria-label="Passo atual"
-        className="mt-1 size-2.5 flex-none rounded-full border-2 border-fg bg-surface-raised"
-      />
-    )
-  }
-
-  if (passo.ReachedAt === null) {
-    return (
-      <span
-        role="img"
-        aria-label="Ainda não chegou aqui"
-        className="mt-1 size-2.5 flex-none rounded-full border border-border"
-      />
-    )
-  }
-
-  return (
-    <span
-      role="img"
-      aria-label="Já passou por aqui"
-      className="mt-1 size-2.5 flex-none rounded-full bg-fg-muted"
-    />
-  )
 }
 
 function Recusado() {

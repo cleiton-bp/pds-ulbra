@@ -1,4 +1,4 @@
-import type { WidgetSettingsViewModel } from '@/contracts'
+import type { WidgetReportTypeViewModel, WidgetSettingsViewModel } from '@/contracts'
 import { widgetSettingsService } from '@/data/publicIndex'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
@@ -37,4 +37,50 @@ export async function resolveWidgetSettings(
   } catch {
     return DEFAULT_WIDGET_SETTINGS
   }
+}
+
+/**
+ * O tipo de verdade que corresponde a um tipo de fabrica do quadro — ou por que nao
+ * deu para achar.
+ *
+ * **So existe porque a leitura pode falhar.** Sem ela, o quadro abre com os tipos de
+ * fabrica (`FALLBACK_REPORT_TYPES`), que nao tem identificador de verdade: cada
+ * projeto tem os seus. Antes, o tipo era uma palavra fixa e o envio funcionava assim
+ * mesmo; agora ele precisa do identificador, e mandar um inventado seria recusado — ou
+ * pior, cairia num tipo errado.
+ *
+ * Entao, na hora de enviar, o quadro **le de novo** e procura o tipo com o mesmo nome
+ * e as mesmas perguntas — o projeto que nunca mexeu nos tipos, que e o caso comum,
+ * acha. As respostas so casam com as perguntas se elas forem as mesmas, e por isso
+ * nome igual nao basta.
+ *
+ * - `{ found: id }`: achou, e o envio segue com ele;
+ * - `'failed'`: a leitura falhou de novo, ou foi recusada — tentar mais tarde;
+ * - `'changed'`: leu, e o projeto nao tem mais esse tipo como o quadro o desenhou.
+ */
+export async function findRealType(
+  key: string,
+  origin: string | null,
+  fallback: WidgetReportTypeViewModel,
+): Promise<{ found: string } | 'failed' | 'changed'> {
+  if (key.trim().length === 0) return 'failed'
+
+  let lida: WidgetSettingsViewModel | null
+  try {
+    lida = await widgetSettingsService.loadWidgetSettings(key, origin)
+  } catch {
+    return 'failed'
+  }
+  if (!lida) return 'failed'
+
+  const nome = fallback.Name.trim().toLowerCase()
+  const igual = lida.Types.find(
+    (tipo) =>
+      tipo.Name.trim().toLowerCase() === nome &&
+      tipo.ShowsTextBox === fallback.ShowsTextBox &&
+      tipo.Questions.length === fallback.Questions.length &&
+      tipo.Questions.every((pergunta, index) => pergunta === fallback.Questions[index]),
+  )
+
+  return igual ? { found: igual.PublicId } : 'changed'
 }

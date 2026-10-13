@@ -3,8 +3,11 @@ import type { Root } from 'react-dom/client'
 import type { EmbedConfig } from '@/embed/config'
 import { EmbedApp } from '@/embed/EmbedApp'
 import type { HostConnection } from '@/embed/hostBridge'
+import { launcherMode } from '@/embed/launcher'
+import type { PreviewMessage } from '@/embed/protocol'
 import { resolveMediaSettings } from '@/embed/resolveMediaSettings'
 import { resolveWidgetSettings } from '@/embed/resolveSettings'
+import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
 /**
  * Quanto o quadro espera pela leitura de midia **depois** de a configuracao chegar.
@@ -35,19 +38,38 @@ export async function draw(
 
   // Recusado: ou a chave nao vale, ou esta pagina nao esta na lista de enderecos
   // autorizados do projeto. Nao ha o que abrir, e o quadro nunca e revelado —
-  // entao o site fica como se o script nao estivesse la.
-  if (!settings) return
+  // entao o site fica como se o script nao estivesse la. Com o botao da pagina, ela
+  // estava mostrando "abrindo", e precisa saber que nao vai abrir.
+  if (!settings) {
+    if (host?.hostDrawsLauncher) host.unavailable?.()
+    return
+  }
 
   if (!settings.IsEnabled) {
     // Dentro de uma pagina, desligada quer dizer **sumir**: o quadro nunca e
     // revelado, e o site do cliente fica como se o script nao estivesse la.
-    if (host) return
+    if (host) {
+      if (host.hostDrawsLauncher) host.unavailable?.()
+      return
+    }
 
     // Aberto direto — e o que o painel faz no relato de teste —, sumir deixaria
     // um retangulo branco sem explicacao. Aqui a resposta e dizer o que houve.
     root.render(<DisabledNotice />)
     return
   }
+
+  // Uma das paginas em que o cliente esconde o botao, ou o celular com o botao
+  // escondido: o quadro nunca e revelado, como na ferramenta desligada. **So dentro de
+  // uma pagina** — aberto direto, nao ha pagina do cliente para esconder nada. **E so
+  // com o botao do quadro**: com o da pagina, quem esconde e o carregador, e o quadro
+  // so existe porque alguem pediu para abrir — pelo botao do proprio cliente, inclusive.
+  if (
+    host &&
+    !host.hostDrawsLauncher &&
+    launcherMode(settings, config.route, config.viewportWidth) === 'hidden'
+  )
+    return
 
   const media = await dentroDoPrazo(lendoMidia, MEDIA_GRACE_MS)
 
@@ -65,7 +87,47 @@ export async function draw(
     root.render(<EmbedApp settings={settings} config={config} host={host} media={media} />)
   })
 
-  host?.show(settings.Position)
+  // O tamanho e o lugar do botao ja foram ditos a pagina, de dentro do desenho
+  // (`place`, em `EmbedApp`): aqui so falta revelar. Com o botao da pagina, o quadro
+  // ja nasce no formulario — e e o carregador quem decide quando mostrar.
+  if (host?.hostDrawsLauncher) host.expand()
+  else host?.show()
+}
+
+/**
+ * A previa do painel: desenha com a configuracao que chegou, a cada mudanca, e revela
+ * o quadro na primeira. **Sem chave, sem pagina e sem leitura** — nada sai daqui.
+ *
+ * A configuracao vem por cima dos padroes: o painel e da mesma origem, mas um campo que
+ * faltasse nao pode derrubar a previa inteira.
+ */
+export function drawPreview(root: Root, message: PreviewMessage, host: HostConnection): void {
+  const { width, height } = message.viewport ?? { width: 0, height: 0 }
+  const medida = Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
+
+  const config: EmbedConfig = {
+    key: '',
+    route: null,
+    origin: null,
+    viewport: medida ? `${Math.round(width)}x${Math.round(height)}` : null,
+    viewportWidth: medida ? Math.round(width) : null,
+  }
+
+  flushSync(() => {
+    root.render(
+      <EmbedApp
+        settings={{ ...DEFAULT_WIDGET_SETTINGS, ...message.settings }}
+        config={config}
+        host={host}
+        media={message.media ?? null}
+        preview
+        highlight={message.highlight ?? null}
+      />,
+    )
+  })
+
+  if (host.hostDrawsLauncher) host.expand()
+  else host.show()
 }
 
 /** A leitura, ou `null` se ela nao chegar a tempo. */
@@ -85,8 +147,8 @@ function DisabledNotice() {
   return (
     <div className="flex h-full items-center justify-center p-6 text-center">
       <p className="text-detail text-fg-muted leading-relaxed">
-        A ferramenta de relato está desligada para este projeto. Ligue de novo em Botão no site, nas
-        configurações do projeto.
+        A ferramenta de relato está desligada para este projeto. Ligue de novo na tela do botão, em
+        Configurar o projeto.
       </p>
     </div>
   )

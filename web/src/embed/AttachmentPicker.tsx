@@ -6,6 +6,7 @@ import {
 } from '@/contracts'
 import type { Anexo } from '@/embed/attachments'
 import { acceptAttribute, extensionOf, hasRoom } from '@/embed/attachments'
+import { PREVIEW_OUTLINE } from '@/embed/previewOutline'
 import { cn } from '@/shared/lib/cn'
 import {
   DISPLAY_GRID_CLASS,
@@ -60,6 +61,7 @@ export function AttachmentPicker({
   onEdit,
   onResize,
   disabled = false,
+  highlighted = false,
 }: {
   media: PublicMediaSettingsViewModel
   anexos: Anexo[]
@@ -77,6 +79,11 @@ export function AttachmentPicker({
    * Um arquivo tirado agora subiria mesmo assim, e um posto agora nao subiria.
    */
   disabled?: boolean
+  /**
+   * So na previa do painel: a tela de Anexos esta mudando esta area, e ela ganha o
+   * contorno da previa (`CONTORNO_DA_PREVIA`, em `EmbedApp`). No site, sempre falso.
+   */
+  highlighted?: boolean
 }) {
   const raiz = useRef<HTMLDivElement>(null)
   const seletorDeImagem = useRef<HTMLInputElement>(null)
@@ -118,7 +125,11 @@ export function AttachmentPicker({
   }
 
   return (
-    <div ref={raiz} className="flex flex-col gap-2">
+    <div
+      ref={raiz}
+      data-preview-highlight={highlighted ? 'form-attachments' : undefined}
+      className={cn('flex flex-col gap-2', highlighted && PREVIEW_OUTLINE)}
+    >
       {/* Primeiro as imagens, e depois os botoes: e isso que as poe logo abaixo do
           texto, onde elas vao aparecer. */}
       {imagens.length > 0 && (

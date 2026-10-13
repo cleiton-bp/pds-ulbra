@@ -1,31 +1,76 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   type CreatedReportViewModel,
   MAX_CARD_TITLE_LENGTH,
+  MAX_REPORT_ANSWER_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
   MAX_REPORTER_NAME_LENGTH,
   type PublicMediaSettingsViewModel,
-  type ReportType,
+  type WidgetReportTypeViewModel,
   type WidgetSettingsViewModel,
 } from '@/contracts'
-import { describeError, reportService } from '@/data/publicIndex'
+import { describeError, reportService, widgetSettingsService } from '@/data/publicIndex'
 import { AttachmentEditor } from '@/embed/AttachmentEditor'
 import { ATTACH_BUTTON_CLASS, AttachmentPicker, AttachmentProgress } from '@/embed/AttachmentPicker'
 import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
 import { hasRoom } from '@/embed/attachments'
+import { challengeOf, solveChallenge } from '@/embed/challenge'
 import type { EmbedConfig } from '@/embed/config'
-import type { HostConnection } from '@/embed/hostBridge'
+import type { HostConnection, OpenOptions } from '@/embed/hostBridge'
+import { launcherFrame, launcherMode, launcherSize } from '@/embed/launcher'
 import { MyReports } from '@/embed/MyReports'
 import { PublicList } from '@/embed/PublicList'
+import { PREVIEW_OUTLINE } from '@/embed/previewOutline'
+import type { PreviewFormPart } from '@/embed/protocol'
 import { buildReportContext } from '@/embed/reportContext'
 import { readReporterCode, writeReporterCode } from '@/embed/reporterCodeStore'
+import { findRealType } from '@/embed/resolveSettings'
+import { isFallbackType } from '@/embed/settings'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
+import { LauncherIconSvg } from '@/shared/components/LauncherIcon'
+import { ReportTypeIconSvg } from '@/shared/components/ReportTypeGlyph'
+import { SentConfirmation } from '@/shared/components/SentConfirmation'
 import { cn } from '@/shared/lib/cn'
-import { REPORT_TYPES } from '@/shared/lib/reportTypes'
 import { buildTrackingLink } from '@/shared/lib/tracking'
+import { firstName } from '@/shared/lib/widgetText'
+
+/** Entre uma resposta e a seguinte, no texto que a API monta: e a mesma conta, feita antes. */
+const SEPARADOR = '\n\n'
+
+/** A contagem de um campo aparece perto do teto, e nao desde a primeira letra. */
+const PERTO_DO_TETO = 0.8
+
+/**
+ * As classes de cada tamanho do botao. **As margens e o espaco do icone precisam bater
+ * com `LAUNCHER_SIZES`**, em `launcher.ts`: e com eles que a largura do quadro e
+ * calculada. O medio e o botao de sempre (`h-10 px-4 text-body`).
+ */
+const TAMANHO_DO_BOTAO = {
+  Small: 'h-8 gap-1.5 px-3 text-detail',
+  Medium: 'h-10 gap-2 px-4 text-body',
+  Large: 'h-12 gap-2.5 px-5 text-dialog',
+} as const
+
+/** Os cantos do botao, por dentro do anel — ver `launcherRadius`. */
+const FORMATO_DO_BOTAO = {
+  Pill: 'rounded-full',
+  Rounded: 'rounded-lg',
+  Square: 'rounded-none',
+} as const
+
+/** Os tipos que o quadro oferece, e qual vem marcado. Relidos a cada vez que ele abre. */
+interface TiposDoQuadro {
+  Types: WidgetReportTypeViewModel[]
+  DefaultReportType: string | null
+}
+
+/** O tipo que vem marcado: o pre-marcado do projeto, senao o primeiro da lista. */
+function marcadoDe(tipos: TiposDoQuadro): string {
+  return tipos.DefaultReportType ?? tipos.Types[0]?.PublicId ?? ''
+}
 
 /**
  * O quadro do relato: o que a pessoa que visita o site do cliente enxerga.
@@ -48,14 +93,66 @@ interface EmbedAppProps {
    * nao mostra o botao, e o relato segue inteiro so com texto.
    */
   media?: PublicMediaSettingsViewModel | null
+  /**
+   * A previa do painel: a configuracao ainda nao publicada, numa pagina de mentira.
+   * **Nada e enviado** — o botao de enviar so avisa —, e as listas nao abrem: nao ha
+   * chave, e a previa nao le relato de ninguem.
+   */
+  preview?: boolean
+  /**
+   * A parte do formulario que a tela do painel esta mudando, contornada. **So vale com
+   * `preview`**: fora da previa, e ignorada — no site do cliente nada se contorna.
+   */
+  highlight?: PreviewFormPart | null
 }
 
-export function EmbedApp({ settings, config, host = null, media = null }: EmbedAppProps) {
-  const [type, setType] = useState<ReportType>(settings.DefaultReportType)
-  // Dentro de uma pagina, comeca recolhido: quem visita o site do cliente nao
-  // pediu um formulario no meio da tela.
-  const [open, setOpen] = useState(!host)
-  const [text, setText] = useState('')
+export function EmbedApp({
+  settings,
+  config,
+  host = null,
+  media = null,
+  preview = false,
+  highlight = null,
+}: EmbedAppProps) {
+  /**
+   * Os tipos e o pre-marcado. **Comecam da configuracao lida e sao relidos a cada
+   * abertura** (`expand`): o time pode mudar as perguntas com o quadro ja carregado na
+   * pagina de alguem, e a API recusa a resposta que nao casa mais com elas pedindo para
+   * fechar e abrir de novo — e isso so funciona se abrir de novo trouxer as novas.
+   */
+  const [tiposLidos, setTipos] = useState<TiposDoQuadro>(() => ({
+    Types: settings.Types,
+    DefaultReportType: settings.DefaultReportType,
+  }))
+  // Na previa, os tipos sao os do rascunho do painel, a cada mudanca: ela nao rele nada.
+  const tipos: TiposDoQuadro = preview
+    ? { Types: settings.Types, DefaultReportType: settings.DefaultReportType }
+    : tiposLidos
+  const [typeId, setTypeId] = useState(() => marcadoDe(settings))
+
+  // E o pre-marcado acompanha o "Tipo pré-marcado" do rascunho. So quando ele muda: outra
+  // mudanca qualquer na configuracao nao desfaz o tipo que se clicou na previa.
+  const marcadoNaPrevia = preview ? marcadoDe(settings) : null
+  useEffect(() => {
+    if (marcadoNaPrevia !== null) setTypeId(marcadoNaPrevia)
+  }, [marcadoNaPrevia])
+  /**
+   * O botao parado na pagina e do carregador, e nao daqui. Ai o quadro so existe porque
+   * alguem pediu para abrir: nasce no formulario, nunca desenha o proprio botao, e
+   * fechar so avisa a pagina — ver `InitMessage.launcher`.
+   */
+  const botaoDaPagina = host?.hostDrawsLauncher === true
+  // Dentro de uma pagina, e com o botao daqui, comeca recolhido: quem visita o site do
+  // cliente nao pediu um formulario no meio da tela.
+  const [open, setOpen] = useState(!host || botaoDaPagina)
+
+  /**
+   * O que a pessoa escreveu, **por tipo**: as respostas as perguntas, na ordem delas, e
+   * a caixa livre. Trocar de tipo no meio nao apaga nada — voltar ao tipo de antes
+   * devolve o que estava escrito nele. So vai o do tipo escolhido.
+   */
+  const [respostas, setRespostas] = useState<Record<string, string[]>>({})
+  const [caixas, setCaixas] = useState<Record<string, string>>({})
   // A resposta a "em poucas palavras, o que aconteceu?". Vira o titulo do card para
   // o time, e e o unico titulo que volta para quem relatou.
   const [title, setTitle] = useState('')
@@ -64,6 +161,9 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   // resposta a quem nao vai responder deixa o relato pendurado esperando.
   const [acceptsQuestions, setAcceptsQuestions] = useState(settings.AcceptsQuestionsDefault)
   const [sending, setSending] = useState(false)
+  // A entrada pediu o desafio invisivel e o quadro esta resolvendo: o botao diz
+  // "Conferindo…" em vez de "Enviando…", e nada mais muda na tela.
+  const [checking, setChecking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<CreatedReportViewModel | null>(null)
 
@@ -176,7 +276,65 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   }, [settings.Theme])
 
   const style = useMemo(() => accentStyle(settings), [settings])
-  const trimmed = text.trim()
+
+  /**
+   * Como o botao aparece aqui: com o texto, ou so o icone (escolhido, ou no celular).
+   * Escondido nao chega a ser desenhado — `draw` nem revela o quadro. Na previa nao ha
+   * pagina de verdade, entao as paginas escondidas nao entram; quem esconde o botao do
+   * celular na previa e o painel.
+   */
+  const soIcone =
+    launcherMode(settings, preview ? null : config.route, config.viewportWidth) === 'icon'
+
+  /** O texto do botao, para medir: a largura do quadro acompanha ele. */
+  const rotulo = useRef<HTMLSpanElement>(null)
+  const larguraDoRotulo = useRef(0)
+
+  // Mede o texto e diz a pagina o tamanho do botao — **antes** de ela revelar o quadro:
+  // `draw` desenha com `flushSync`, e este efeito roda dentro dele. Aberto, o texto nao
+  // esta na tela, e vale a ultima medida; a previa muda o canto mesmo assim.
+  useLayoutEffect(() => {
+    if (!host) return
+    if (!open && rotulo.current) larguraDoRotulo.current = rotulo.current.scrollWidth
+    host.place(launcherFrame(settings, soIcone ? 'icon' : 'full', larguraDoRotulo.current))
+  }, [host, settings, soIcone, open])
+
+  // O tipo escolhido e o formulario dele. Sem tipo nenhum o formulario nao tem o que
+  // perguntar — a API nunca deixa um projeto sem tipo ativo, e o quadro nao envia.
+  const tipo = tipos.Types.find((item) => item.PublicId === typeId) ?? tipos.Types[0] ?? null
+  const perguntas = tipo?.Questions ?? []
+  const respostasDoTipo = tipo ? (respostas[tipo.PublicId] ?? []) : []
+  const caixaDoTipo = tipo ? (caixas[tipo.PublicId] ?? '') : ''
+  const respostasAparadas = perguntas.map((_, index) => (respostasDoTipo[index] ?? '').trim())
+  const caixaAparada = tipo?.ShowsTextBox ? caixaDoTipo.trim() : ''
+  // A caixa sozinha e o relato inteiro; junto de perguntas, e mais uma resposta.
+  const tetoDaCaixa = perguntas.length > 0 ? MAX_REPORT_ANSWER_LENGTH : MAX_REPORT_TEXT_LENGTH
+  const partes = [
+    ...respostasAparadas.filter((resposta) => resposta.length > 0),
+    ...(caixaAparada ? [caixaAparada] : []),
+  ]
+  // Pelo menos uma resposta, ou a caixa: a API recusaria o vazio do mesmo jeito.
+  const temConteudo = partes.length > 0
+  // So acontece com tudo perto do maximo: as respostas juntas passam do teto do relato.
+  // A API recusaria; aqui a pessoa sabe antes de clicar.
+  const longoDemais = partes.join(SEPARADOR).length > MAX_REPORT_TEXT_LENGTH
+
+  function responder(index: number, valor: string) {
+    if (!tipo) return
+    const id = tipo.PublicId
+    setRespostas((atuais) => {
+      const lista = [...(atuais[id] ?? [])]
+      lista[index] = valor
+      return { ...atuais, [id]: lista }
+    })
+  }
+
+  function escreverNaCaixa(valor: string) {
+    if (!tipo) return
+    const id = tipo.PublicId
+    setCaixas((atuais) => ({ ...atuais, [id]: valor }))
+  }
+
   const perguntaTitulo = settings.ReportTitleMode !== 'Hidden'
   const tituloAparado = title.trim()
   // Obrigatoria, sem resposta nao envia — a API recusaria do mesmo jeito, e a
@@ -224,10 +382,24 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    // A previa nunca envia: o painel mostra como fica, e o relato de teste e outra tela.
+    if (preview) {
+      setError('Esta é só a prévia: nada foi enviado.')
+      return
+    }
     // Arquivo ainda entrando na lista nao subiria: o envio leva a lista como ela
     // esta. Ver `preparando` em useAttachmentDraft.
     // Nem com o editor aberto: a imagem que esta nele ainda nao e a que vai.
-    if (!trimmed || faltaTitulo || sending || draft.preparando || draft.edicao) return
+    if (
+      !tipo ||
+      !temConteudo ||
+      longoDemais ||
+      faltaTitulo ||
+      sending ||
+      draft.preparando ||
+      draft.edicao
+    )
+      return
 
     setSending(true)
     setError(null)
@@ -242,14 +414,44 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     const arquivos = [...draft.atual()]
 
     try {
-      const criado = await reportService.createReport({
+      // **O tipo de fabrica do quadro nao tem identificador de verdade**: ele so existe
+      // porque a leitura da configuracao falhou. Antes de enviar, o quadro le de novo e
+      // procura o tipo de verdade com o mesmo nome e as mesmas perguntas. Mandar um
+      // identificador inventado seria recusado — e o texto da pessoa fica onde esta.
+      let tipoId = tipo.PublicId
+      if (isFallbackType(tipoId)) {
+        const real = await findRealType(config.key, config.origin, tipo)
+        if (generation.current !== minha) return
+        if (real === 'failed') {
+          setError(
+            'Não deu para falar com o servidor agora, e o relato não saiu. O que você escreveu continua aqui: tente enviar de novo em instantes.',
+          )
+          return
+        }
+        if (real === 'changed') {
+          setError(
+            'Este formulário mudou desde que foi aberto, e o relato não saiu. Copie o que escreveu, feche e abra de novo para ver as perguntas de agora.',
+          )
+          return
+        }
+        tipoId = real.found
+      }
+
+      const pedido = {
         Key: config.key,
-        Type: type,
+        TypeId: tipoId,
         // Escondida, a pergunta nao foi feita: nada vai, nem o que ficou de uma
         // configuracao anterior.
         Title: perguntaTitulo && tituloAparado.length > 0 ? tituloAparado : null,
-        Text: trimmed,
-        Route: config.route,
+        // Uma resposta para cada pergunta, na ordem delas — a pulada vai em branco.
+        Answers: respostasAparadas,
+        // As perguntas que a pessoa leu: e com elas que a API confere que nada mudou.
+        Questions: perguntas,
+        // Nulo no tipo sem caixa: mandar texto para ele e recusado.
+        Text: caixaAparada.length > 0 ? caixaAparada : null,
+        // O caminho da ultima abertura, quando a pagina disse: o site pode ter trocado
+        // de pagina sem recarregar desde o `init`.
+        Route: host?.route !== undefined ? host.route : config.route,
         Origin: config.origin,
         AcceptsQuestions: acceptsQuestions,
         // Só vai quando o projeto pergunta: num projeto que não pergunta, mandar
@@ -262,7 +464,39 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
         // entao so vai quando ha um.
         ReporterCode: reporterCode.length > 0 ? reporterCode : undefined,
         Context: buildReportContext(config),
-      })
+      }
+
+      // **O desafio invisivel.** Passado um limite do projeto, a entrada responde 429 com
+      // um bilhete; o quadro resolve a conta (um ou dois segundos, "Conferindo…") e manda
+      // o mesmo relato de novo com a resposta. Duas voltas no maximo: uma terceira seria
+      // a API pedindo de novo sem parar, e ai a mensagem dela vai para a tela.
+      let criado: CreatedReportViewModel | null = null
+      let respostaDoDesafio: { ChallengeToken: string; ChallengeNonce: string } | null = null
+      for (let volta = 0; criado === null; volta++) {
+        try {
+          criado = await reportService.createReport({ ...pedido, ...respostaDoDesafio })
+        } catch (falha) {
+          const desafio = challengeOf(falha)
+          if (!desafio || volta >= 2) throw falha
+          if (generation.current !== minha) return
+          setChecking(true)
+          try {
+            const nonce = await solveChallenge(
+              desafio.Token,
+              desafio.Difficulty,
+              () => generation.current !== minha,
+            )
+            respostaDoDesafio = { ChallengeToken: desafio.Token, ChallengeNonce: nonce }
+          } catch {
+            // Passou do tempo, ou o quadro foi reiniciado no meio: a recusa original
+            // diz o que houve.
+            throw falha
+          } finally {
+            if (generation.current === minha) setChecking(false)
+          }
+          if (generation.current !== minha) return
+        }
+      }
 
       const credenciais = { trackingCode: criado.TrackingCode, token: criado.AccessToken }
 
@@ -314,11 +548,13 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
     generation.current += 1
 
     setCreated(null)
-    setText('')
+    setRespostas({})
+    setCaixas({})
     setTitle('')
     setError(null)
     setSending(false)
-    setType(settings.DefaultReportType)
+    setChecking(false)
+    setTypeId(marcadoDe(tipos))
     setAcceptsQuestions(settings.AcceptsQuestionsDefault)
     setReporterName('')
     setSigns(false)
@@ -329,30 +565,176 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
   function expand() {
     setOpen(true)
     host?.expand()
+    void relerTipos()
   }
 
+  /**
+   * Le os tipos de novo, ao abrir. **Falhar nao muda nada**: ficam os que ja estavam.
+   *
+   * O que a pessoa ja escreveu num tipo cujas perguntas mudaram sai — a resposta ficaria
+   * embaixo de outra pergunta. O tipo marcado que saiu da lista cai no pre-marcado novo.
+   */
+  async function relerTipos() {
+    if (config.key.trim().length === 0) return
+
+    let lida: WidgetSettingsViewModel | null
+    try {
+      lida = await widgetSettingsService.loadWidgetSettings(config.key, config.origin)
+    } catch {
+      return
+    }
+    if (!lida || lida.Types.length === 0) return
+
+    const novos: TiposDoQuadro = { Types: lida.Types, DefaultReportType: lida.DefaultReportType }
+    const mudou = (id: string) => {
+      const antes = tipos.Types.find((item) => item.PublicId === id)
+      const agora = novos.Types.find((item) => item.PublicId === id)
+      return (
+        !antes ||
+        !agora ||
+        antes.ShowsTextBox !== agora.ShowsTextBox ||
+        antes.Questions.join('\u0000') !== agora.Questions.join('\u0000')
+      )
+    }
+
+    setTipos(novos)
+    setRespostas((atuais) =>
+      Object.fromEntries(Object.entries(atuais).filter(([id]) => !mudou(id))),
+    )
+    setCaixas((atuais) => Object.fromEntries(Object.entries(atuais).filter(([id]) => !mudou(id))))
+    setTypeId((atual) =>
+      novos.Types.some((item) => item.PublicId === atual) ? atual : marcadoDe(novos),
+    )
+  }
+
+  /**
+   * Fecha o quadro. **O rascunho fica**: as respostas, a caixa, o titulo e os arquivos
+   * esperam a proxima abertura, como no `Pds.close()` da pagina — fechar sem querer, ou
+   * para olhar a pagina de novo antes de terminar, nao pode custar o que foi escrito.
+   * So o relato enviado limpa: fechar a confirmacao e o fim daquele relato, e a proxima
+   * abertura comeca outro.
+   */
   function collapse() {
+    const enviado = created !== null
+
+    if (botaoDaPagina) {
+      // O quadro continua no formulario, para a proxima abertura ser instantanea: quem
+      // esconde e a pagina, que guarda o quadro e mostra o botao dela.
+      if (enviado) reset()
+      setView('form')
+      host?.close?.()
+      return
+    }
+
     setOpen(false)
     host?.collapse()
-    // Limpa ao recolher, e nao ao abrir: assim quem reabre por engano nao perde
-    // nada, e quem volta depois encontra o formulario limpo.
-    reset()
+    if (enviado) reset()
   }
+
+  /**
+   * A pagina pediu para abrir (`OpenMessage`). **Em ref**, para o ouvinte inscrito uma
+   * vez so ver o estado de agora. Da segunda abertura em diante, le os tipos de novo —
+   * o que o botao de dentro fazia a cada clique — e repete o tamanho do formulario.
+   */
+  const formulario = useRef<HTMLFormElement>(null)
+  const abriuAntes = useRef(false)
+
+  /** A parte contornada: so na previa, e nunca no site do cliente. */
+  const realce = preview ? highlight : null
+  /** A marca da parte contornada: e por ela que o contorno se acha para entrar na vista. */
+  const marca = (parte: PreviewFormPart) => (realce === parte ? parte : undefined)
+  /** O contorno, so na parte contornada. Ver `PREVIEW_OUTLINE`. */
+  const contorno = (parte: PreviewFormPart) => (realce === parte ? PREVIEW_OUTLINE : undefined)
+
+  // A parte contornada fora da vista entra nela, rolando **so o formulario**: o
+  // `scrollIntoView` rolaria tambem a tela do painel, que e a janela de cima.
+  useEffect(() => {
+    const form = formulario.current
+    const parte = realce ? form?.querySelector<HTMLElement>('[data-preview-highlight]') : null
+    if (!form || !parte) return
+    const fora = form.getBoundingClientRect()
+    const dentro = parte.getBoundingClientRect()
+    const folga = 12
+    if (dentro.top < fora.top) form.scrollTop -= fora.top - dentro.top + folga
+    else if (dentro.bottom > fora.bottom) form.scrollTop += dentro.bottom - fora.bottom + folga
+  }, [realce])
+  const aoAbrir = useRef((_opcoes?: OpenOptions) => {})
+  aoAbrir.current = (opcoes) => {
+    if (abriuAntes.current) {
+      host?.expand()
+      void relerTipos()
+    }
+    abriuAntes.current = true
+    // A previa que abre sozinha nao puxa o foco da tela do painel.
+    if (opcoes?.focus === false) return
+    // O foco no primeiro campo de escrever: quem abriu pelo teclado continua nele.
+    const campo =
+      formulario.current?.querySelector<HTMLElement>(
+        'input:not([type="checkbox"]):not([type="hidden"]), textarea',
+      ) ?? formulario.current
+    campo?.focus()
+  }
+
+  useEffect(() => host?.onOpen?.((opcoes) => aoAbrir.current(opcoes)), [host])
+
+  /**
+   * Esc fecha, **so com o botao da pagina** — e o que devolve a pessoa ao site. Nao com
+   * um menu ou o editor da imagem abertos: ali o Esc e deles, e fechar tudo junto
+   * perderia a marcacao do print. Nem durante o envio ou o "Conferindo…": a pessoa
+   * esperava a confirmacao, e o Esc ali e quase sempre a tecla errada.
+   */
+  const fecharComEsc = useRef(() => {})
+  fecharComEsc.current = () => {
+    if (!draft.edicao && !capturando && !sending && !checking) collapse()
+  }
+
+  useEffect(() => {
+    if (!botaoDaPagina) return
+
+    function tecla(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      // O Esc da composicao (acento, teclado de outro idioma) e do metodo de entrada:
+      // ele cancela o caractere, e nao o relato.
+      if (event.isComposing) return
+      if (document.querySelector('[data-radix-popper-content-wrapper], [role="dialog"]')) return
+      fecharComEsc.current()
+    }
+
+    document.addEventListener('keydown', tecla)
+    return () => document.removeEventListener('keydown', tecla)
+  }, [botaoDaPagina])
 
   // Recolhido o documento inteiro e o gatilho: o `iframe` tem o tamanho dele, e
   // e por isso que o resto da pagina do cliente continua clicavel em volta.
+  // So acontece com o botao daqui — com o da pagina, o quadro nunca recolhe.
+  //
+  // So o icone, o texto nao some: vira a dica e o nome que o leitor de tela anuncia.
   if (!open) {
+    const icone = settings.LauncherIcon !== 'None' ? settings.LauncherIcon : null
+
     return (
       <div style={style} className="flex h-full items-center justify-center p-1">
         <button
           type="button"
           onClick={expand}
+          aria-label={soIcone ? settings.LauncherLabel : undefined}
+          title={soIcone ? settings.LauncherLabel : undefined}
           className={cn(
-            'h-10 w-full rounded-full bg-[var(--widget-accent)] px-4',
-            'font-medium text-[var(--widget-ink)] text-body',
+            'flex w-full items-center justify-center bg-[var(--widget-accent)]',
+            'font-medium text-[var(--widget-ink)]',
+            TAMANHO_DO_BOTAO[settings.LauncherSize] ?? TAMANHO_DO_BOTAO.Medium,
+            FORMATO_DO_BOTAO[settings.LauncherShape] ?? FORMATO_DO_BOTAO.Pill,
+            soIcone && 'px-0',
           )}
         >
-          {settings.LauncherLabel}
+          {icone && (
+            <LauncherIconSvg icon={icone} size={launcherSize(settings.LauncherSize).icon} />
+          )}
+          {!soIcone && (
+            <span ref={rotulo} className="truncate">
+              {settings.LauncherLabel}
+            </span>
+          )}
         </button>
       </div>
     )
@@ -394,14 +776,17 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       // codigo pessoal, a confirmacao passa da altura do quadro — e o que ficaria fora
       // seria o link que aparece uma vez so, e o "Fechar".
       <section style={style} className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
-        <div>
-          <p className="text-body text-fg leading-normal">{settings.SuccessMessage}</p>
-        </div>
-
-        <div className="rounded-lg border border-border bg-surface-raised p-4">
-          <p className="mb-1.5 text-detail text-fg-muted">Protocolo</p>
-          <p className="font-mono text-fg text-lead tracking-wide">{created.TrackingCode}</p>
-        </div>
+        {/* O texto e o protocolo: a mesma peca que as previas do painel mostram. */}
+        <SentConfirmation
+          message={settings.SuccessMessage}
+          values={{
+            primeiroNome: settings.AsksForName ? firstName(reporterName) : null,
+            protocolo: created.TrackingCode,
+            tipo: tipo?.Name,
+            projeto: settings.ProjectName,
+          }}
+          trackingCode={created.TrackingCode}
+        />
 
         <AttachmentProgress
           anexos={anexos}
@@ -494,6 +879,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
 
   return (
     <form
+      ref={formulario}
       style={style}
       onSubmit={submit}
       // No formulario inteiro, e nao so na caixa de texto: quem tirou o print cola
@@ -503,7 +889,10 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       // para o conteudo minimo, rola em vez de aparar.
       className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div
+        data-preview-highlight={marca('form-top')}
+        className={cn('flex items-start justify-between gap-3', contorno('form-top'))}
+      >
         <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
         {host && (
           <Button variant="ghost" size="sm" onClick={collapse} aria-label="Fechar">
@@ -518,7 +907,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       {settings.IdentityMode === 'PersonalCode' && (
         <button
           type="button"
-          onClick={() => setView('list')}
+          onClick={() => !preview && setView('list')}
           className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4"
         >
           Ver os meus relatos
@@ -528,7 +917,7 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       {ehPublico && (
         <button
           type="button"
-          onClick={() => setView('public')}
+          onClick={() => !preview && setView('public')}
           className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4"
         >
           Ver o que já foi relatado
@@ -540,32 +929,39 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
           escreveu. A frase diz o que acontece, e não o que a política permite. */}
       {ehPublico && (
         <p className="rounded-lg border border-border border-dashed bg-surface px-3 py-2 text-detail text-fg-muted leading-normal">
-          <strong className="font-medium text-fg">Este relato pode virar público.</strong> Alguém da
-          equipe lê antes; se for liberado, qualquer pessoa poderá ler o que você escrever aqui.
+          {/* O aviso e do projeto; a frase do nome, nao — ela depende do nivel, e um
+              texto livre ali poderia prometer o contrario do que acontece. */}
+          {settings.PublicNotice}
           {settings.Visibility === 'PublicIdentified'
             ? ' O seu nome só aparece se você marcar abaixo.'
             : ' O seu nome nunca aparece.'}
         </p>
       )}
 
-      {settings.ShowsTypeField && (
-        <fieldset className="flex flex-wrap gap-2">
-          <legend className="mb-1.5 text-detail text-fg-muted">O que é</legend>
+      {/* Os tipos que o projeto oferece, na ordem dele, cada um com o desenho e o nome.
+          Escondido o seletor, vai o pre-marcado. */}
+      {settings.ShowsTypeField && tipos.Types.length > 0 && (
+        <fieldset
+          data-preview-highlight={marca('form-type')}
+          className={cn('flex flex-wrap gap-2', contorno('form-type'))}
+        >
+          <legend className="mb-1.5 text-detail text-fg-muted">{settings.TypeFieldLabel}</legend>
 
-          {REPORT_TYPES.map((option) => (
+          {tipos.Types.map((option) => (
             <button
-              key={option.value}
+              key={option.PublicId}
               type="button"
-              aria-pressed={type === option.value}
-              onClick={() => setType(option.value)}
+              aria-pressed={tipo?.PublicId === option.PublicId}
+              onClick={() => setTypeId(option.PublicId)}
               className={cn(
-                'h-8 rounded-lg border px-3 text-detail transition-colors',
-                type === option.value
+                'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors',
+                tipo?.PublicId === option.PublicId
                   ? 'border-transparent bg-[var(--widget-accent)] text-[var(--widget-ink)]'
                   : 'border-border bg-surface text-fg hover:bg-surface-sunken',
               )}
             >
-              {option.label}
+              <ReportTypeIconSvg icon={option.Icon} />
+              {option.Name}
             </button>
           ))}
         </fieldset>
@@ -574,9 +970,12 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       {/* Antes do texto: e a pergunta curta, e quem responde ja pensou no que vai
           contar. Numa linha so — titulo nao e paragrafo. */}
       {perguntaTitulo && (
-        <label className="flex flex-col gap-1.5">
+        <label
+          data-preview-highlight={marca('form-title')}
+          className={cn('flex flex-col gap-1.5', contorno('form-title'))}
+        >
           <span className="text-detail text-fg-muted">
-            Em poucas palavras, o que aconteceu?
+            {settings.ReportTitleQuestion}
             {settings.ReportTitleMode === 'Optional' && ' (opcional)'}
           </span>
           <input
@@ -589,37 +988,111 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
             }}
             maxLength={MAX_CARD_TITLE_LENGTH}
             required={settings.ReportTitleMode === 'Required'}
-            placeholder="O botão de pagar não responde"
+            placeholder={settings.ReportTitlePlaceholder}
             className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder"
           />
         </label>
       )}
 
-      <textarea
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        placeholder={settings.Placeholder}
-        maxLength={MAX_REPORT_TEXT_LENGTH}
-        aria-label={settings.Title}
-        aria-invalid={error ? true : undefined}
-        className={cn(
-          // `min-h-0` e o que permite ENCOLHER: sem ele o textarea trava em
-          // `min-h-28` e empurra o botao para fora de um documento que nao
-          // rola. Em janela de 320px o carregador entrega 280px de quadro, e o
-          // "Enviar" ficava inalcancavel com o relato ja escrito.
-          //
-          // **Com imagem na lista, o piso volta.** As imagens ficam logo abaixo do
-          // texto, e passam da altura do quadro: sem piso, o texto encolheria ate
-          // sumir. Com ele, o formulario rola, e o "Enviar" continua alcancavel.
-          anexos.length > 0 ? 'min-h-24' : 'min-h-0',
-          'flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
-          'text-body text-fg leading-normal placeholder:text-fg-placeholder',
-          error ? 'border-error-border' : 'border-border',
-        )}
-      />
+      {tipo === null && (
+        <p className="text-detail text-fg-muted leading-normal">
+          Este formulário ainda não tem o que perguntar. Tente de novo mais tarde.
+        </p>
+      )}
+
+      {/* As perguntas do tipo, cada uma num campo pequeno. **Nenhuma e obrigatoria
+          sozinha**: quem relata responde o que sabe, e o envio pede so uma — ou a
+          caixa. `flex-none` porque o quadro rola: sem ele, o campo encolheria ate
+          sumir para caber na altura. A chave leva o tipo, e trocar de tipo troca os
+          campos. */}
+      {perguntas.length > 1 && (
+        <p className="-mb-2 text-caption text-fg-muted">Responda o que souber.</p>
+      )}
+      {tipo &&
+        perguntas.map((pergunta, index) => {
+          const valor = respostasDoTipo[index] ?? ''
+          return (
+            // A pergunta nao se repete dentro do tipo — a API recusa —, e e a chave.
+            <label key={`${tipo.PublicId}-${pergunta}`} className="flex flex-none flex-col gap-1.5">
+              <span className="flex items-baseline justify-between gap-2 text-detail text-fg-muted">
+                <span>{pergunta}</span>
+                {valor.length >= MAX_REPORT_ANSWER_LENGTH * PERTO_DO_TETO && (
+                  <span className="flex-none tabular-nums">
+                    {valor.length}/{MAX_REPORT_ANSWER_LENGTH}
+                  </span>
+                )}
+              </span>
+              <textarea
+                value={valor}
+                onChange={(event) => responder(index, event.target.value)}
+                maxLength={MAX_REPORT_ANSWER_LENGTH}
+                rows={2}
+                className={cn(
+                  'resize-none rounded-lg border border-border bg-surface-raised px-3 py-2',
+                  'text-body text-fg leading-normal placeholder:text-fg-placeholder',
+                )}
+              />
+            </label>
+          )
+        })}
+
+      {tipo?.ShowsTextBox && (
+        <div
+          data-preview-highlight={marca('form-box')}
+          className={cn(
+            contorno('form-box'),
+            'flex flex-1 flex-col gap-1.5',
+            // `min-h-0` e o que permite ENCOLHER: sem ele o textarea trava em
+            // `min-h-28` e empurra o botao para fora de um documento que nao
+            // rola. Em janela de 320px o carregador entrega 280px de quadro, e o
+            // "Enviar" ficava inalcancavel com o relato ja escrito.
+            //
+            // **Com imagem na lista, ou depois de perguntas, o piso volta.** O que
+            // vem antes e depois passa da altura do quadro: sem piso, a caixa
+            // encolheria ate sumir. Com ele, o formulario rola, e o "Enviar" continua
+            // alcancavel.
+            anexos.length > 0 || perguntas.length > 0 ? 'min-h-24' : 'min-h-0',
+          )}
+        >
+          {/* Depois de perguntas, a caixa ganha nome: sem ele, ela pareceria parte da
+              ultima. Sozinha, o texto dentro dela ja e a pergunta. */}
+          {perguntas.length > 0 && (
+            <span className="flex items-baseline justify-between gap-2 text-detail text-fg-muted">
+              <span id="pds-caixa-rotulo">
+                {settings.MoreDetailsLabel} <span className="text-fg-placeholder">(opcional)</span>
+              </span>
+              {caixaDoTipo.length >= tetoDaCaixa * PERTO_DO_TETO && (
+                <span className="flex-none tabular-nums">
+                  {caixaDoTipo.length}/{tetoDaCaixa}
+                </span>
+              )}
+            </span>
+          )}
+          <textarea
+            value={caixaDoTipo}
+            onChange={(event) => escreverNaCaixa(event.target.value)}
+            placeholder={tipo.TextBoxPrompt ?? ''}
+            maxLength={tetoDaCaixa}
+            aria-labelledby={perguntas.length > 0 ? 'pds-caixa-rotulo' : undefined}
+            aria-label={perguntas.length > 0 ? undefined : (tipo.TextBoxPrompt ?? settings.Title)}
+            aria-invalid={error ? true : undefined}
+            className={cn(
+              'min-h-0 flex-1 resize-none rounded-lg border bg-surface-raised px-3 py-2.5',
+              'text-body text-fg leading-normal placeholder:text-fg-placeholder',
+              error ? 'border-error-border' : 'border-border',
+            )}
+          />
+          {perguntas.length === 0 && caixaDoTipo.length >= tetoDaCaixa * PERTO_DO_TETO && (
+            <span className="self-end text-caption text-fg-muted tabular-nums">
+              {caixaDoTipo.length}/{tetoDaCaixa}
+            </span>
+          )}
+        </div>
+      )}
 
       {media && (
         <AttachmentPicker
+          highlighted={realce === 'form-attachments'}
           media={media}
           anexos={anexos}
           recusa={recusa}
@@ -676,9 +1149,12 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       </label>
 
       {settings.AsksForName && (
-        <div className="flex flex-col gap-2">
+        <div
+          data-preview-highlight={marca('form-name')}
+          className={cn('flex flex-col gap-2', contorno('form-name'))}
+        >
           <label htmlFor="pds-nome" className="text-detail text-fg-muted">
-            Como podemos te chamar <span className="text-fg-placeholder">(opcional)</span>
+            {settings.NameQuestion} <span className="text-fg-placeholder">(opcional)</span>
           </label>
           <input
             id="pds-nome"
@@ -712,6 +1188,12 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
         </div>
       )}
 
+      {longoDemais && (
+        <p className="text-detail text-error-fg leading-normal">
+          O relato inteiro passou de {MAX_REPORT_TEXT_LENGTH} caracteres. Encurte alguma resposta.
+        </p>
+      )}
+
       {error && (
         <p role="alert" className="text-detail text-error-fg leading-normal">
           {error}
@@ -731,16 +1213,20 @@ export function EmbedApp({ settings, config, host = null, media = null }: EmbedA
       */}
       <button
         type="submit"
-        disabled={!trimmed || faltaTitulo || sending || draft.preparando}
+        data-preview-highlight={marca('form-submit')}
+        disabled={
+          !tipo || !temConteudo || longoDemais || faltaTitulo || sending || draft.preparando
+        }
         className={cn(
           'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg',
           'border border-transparent font-medium text-body transition-opacity',
           'bg-[var(--widget-accent)] text-[var(--widget-ink)]',
           'enabled:hover:opacity-90',
           'disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-fg-disabled',
+          contorno('form-submit'),
         )}
       >
-        {sending ? 'Enviando…' : 'Enviar'}
+        {checking ? 'Conferindo…' : sending ? 'Enviando…' : settings.SubmitLabel}
       </button>
     </form>
   )

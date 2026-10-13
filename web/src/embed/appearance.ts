@@ -6,8 +6,10 @@ import type { WidgetSettingsViewModel, WidgetTheme } from '@/contracts'
  *
  * Duas regras moram aqui, e as duas existem porque a cor vem de fora:
  *
- * 1. **A cor do texto sobre o acento e derivada, nunca escolhida.** Quem escolhe
- *    amarelo nao deveria precisar perceber sozinho que o rotulo sumiu.
+ * 1. **A cor do texto sobre o acento e derivada, a menos que o cliente escolha.**
+ *    Quem escolhe amarelo nao deveria precisar perceber sozinho que o rotulo sumiu;
+ *    quem escolhe o branco da propria marca sabe o que quer, e o painel avisa quando
+ *    o contraste fica baixo.
  * 2. **A cor entra por variavel CSS, e nao por estilo de cor embutido.** Estilo
  *    embutido nao muda com o tema, e `designSystem.test.ts` reprova — a variavel
  *    atravessa a folha de estilo e continua sujeita a ela.
@@ -58,6 +60,15 @@ function contrast(a: number, b: number): number {
 }
 
 /**
+ * A razao de contraste entre duas cores `#rrggbb` — o painel avisa abaixo de 4,5:1, o
+ * minimo da WCAG para texto. Nulo quando uma das duas nao e cor.
+ */
+export function contrastRatio(a: string | null, b: string | null): number | null {
+  if (!isUsableAccent(a) || !isUsableAccent(b)) return null
+  return contrast(relativeLuminance(a.trim()), relativeLuminance(b.trim()))
+}
+
+/**
  * **Nao ha limiar.** Havia — um `0.45` escolhido no olho — e ele estava acima do
  * ponto em que as duas tintas empatam (L ~= 0,209), entao toda a faixa media
  * recebia tinta clara: um laranja de marca comum ficava em 2,3:1 quando a tinta
@@ -68,19 +79,38 @@ function contrast(a: number, b: number): number {
  * sozinho da conta, e acompanha qualquer mudanca nas tintas.
  */
 function inkFor(accentLuminance: number): string {
-  const comTintaEscura = contrast(accentLuminance, INK_ON_LIGHT_LUMINANCE)
-  const comTintaClara = contrast(accentLuminance, INK_ON_DARK_LUMINANCE)
-
-  return comTintaEscura >= comTintaClara
-    ? 'var(--widget-ink-on-light)'
-    : 'var(--widget-ink-on-dark)'
+  return escuraVence(accentLuminance) ? 'var(--widget-ink-on-light)' : 'var(--widget-ink-on-dark)'
 }
 
-export function accentStyle(settings: WidgetSettingsViewModel): CSSProperties {
+function escuraVence(accentLuminance: number): boolean {
+  const comTintaEscura = contrast(accentLuminance, INK_ON_LIGHT_LUMINANCE)
+  const comTintaClara = contrast(accentLuminance, INK_ON_DARK_LUMINANCE)
+  return comTintaEscura >= comTintaClara
+}
+
+/**
+ * A tinta escura e a de maior contraste sobre esta cor? **A mesma conta do quadro**,
+ * exposta para o carregador, que desenha o botao fora do nosso documento — la nao ha
+ * `var(--widget-ink-on-light)`, e ele escreve a cor de verdade. Nulo quando a cor nao e
+ * cor: quem chama usa o acento do produto, com a tinta dele.
+ */
+export function prefersDarkInk(color: string | null): boolean | null {
+  if (!isUsableAccent(color)) return null
+  return escuraVence(relativeLuminance(color.trim()))
+}
+
+export function accentStyle(
+  settings: Pick<WidgetSettingsViewModel, 'AccentColor' | 'LauncherTextColor'>,
+): CSSProperties {
+  // A cor do texto escolhida vence a calculada — sobre o acento do produto tambem.
+  const escolhida = isUsableAccent(settings.LauncherTextColor)
+    ? settings.LauncherTextColor.trim()
+    : null
+
   if (!isUsableAccent(settings.AccentColor)) {
     return {
       '--widget-accent': 'var(--accent)',
-      '--widget-ink': 'var(--accent-fg)',
+      '--widget-ink': escolhida ?? 'var(--accent-fg)',
     } as CSSProperties
   }
 
@@ -88,7 +118,7 @@ export function accentStyle(settings: WidgetSettingsViewModel): CSSProperties {
 
   return {
     '--widget-accent': accent,
-    '--widget-ink': inkFor(relativeLuminance(accent)),
+    '--widget-ink': escolhida ?? inkFor(relativeLuminance(accent)),
   } as CSSProperties
 }
 

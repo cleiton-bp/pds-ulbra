@@ -1,121 +1,148 @@
-import { useCallback, useEffect, useState } from 'react'
-import type {
-  ReportTitleMode,
-  ReportType,
-  WidgetPosition,
-  WidgetSettingsViewModel,
-  WidgetTheme,
-} from '@/contracts'
-import { WIDGET_TEXT_LIMITS } from '@/contracts'
-import { describeError, projectKeyService, projectWidgetSettingsService } from '@/data'
-import { readProductAccent } from '@/features/widgetSettings/productAccent'
-import { WidgetPreview } from '@/features/widgetSettings/WidgetPreview'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import type { WidgetSettingsViewModel } from '@/contracts'
+import {
+  AppearanceFields,
+  BUTTON_FIELDS,
+  BUTTON_GROUPS,
+  ColorSwatch,
+  describeAppearance,
+  describeHiddenPages,
+  describeMobile,
+  describePosition,
+  groupChanges,
+  HiddenPagesFields,
+  MobileFields,
+  PositionFields,
+  resetPatch,
+} from '@/features/widgetSettings/AppearanceSection'
+import { VisibilityPill } from '@/features/widgetSettings/ButtonGroup'
 import { Button } from '@/shared/components/Button'
+import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
+import { MovedAnchors } from '@/shared/components/MovedAnchors'
+import { PreviewSection } from '@/shared/components/PreviewSection'
+import { SettingsGroup } from '@/shared/components/SettingsGroup'
+import { SettingsHeader } from '@/shared/components/SettingsHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
-import { TextField } from '@/shared/components/TextField'
-import { toast } from '@/shared/components/toastStore'
-import { UnsavedChangesBar } from '@/shared/components/UnsavedChangesBar'
-import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import type { PreviewDevice, PreviewHighlight } from '@/shared/components/WidgetPreview'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { useWidgetSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { cn } from '@/shared/lib/cn'
 
 /**
- * A tela que decide como a ferramenta aparece no site do cliente.
+ * Os campos que moravam aqui e mudaram de tela pelo assunto: os textos, as perguntas e
+ * o tema do formulario para Formulário, e o que a pessoa le depois de enviar para Quem
+ * relata, junto de quem pode ver. O endereco antigo leva ao lugar novo.
+ */
+const MUDARAM_DE_TELA: Record<string, string> = {
+  tema: 'form-texts',
+  textos: 'form-texts',
+  'titulo-do-formulario': 'form-texts',
+  'botao-enviar': 'form-texts',
+  'texto-pergunta-titulo': 'form-texts',
+  'exemplo-do-titulo': 'form-texts',
+  'nome-do-seletor-de-tipo': 'form-texts',
+  'nome-da-caixa': 'form-texts',
+  'pergunta-do-nome': 'form-texts',
+  'escolher-tipo': 'form-texts',
+  'tipo-pre-marcado': 'form-texts',
+  'modo-do-titulo': 'form-texts',
+  confirmacao: 'identity',
+  'topo-do-acompanhamento': 'identity',
+  'aviso-publico': 'identity',
+}
+
+/**
+ * O botão: **o botao, e so ele** — se aparece, como e, onde fica.
  *
- * **Dez campos que ja existiam e ninguem editava.** Ate aqui eles viviam nos
- * padroes do codigo; esta tela e o que os torna escolha de quem usa o painel.
+ * **Um editor de duas colunas a partir de `lg`**: a esquerda, os assuntos num acordeao
+ * (Aparência, Posição, No celular, Páginas escondidas), cada titulo com uma amostra do
+ * que esta escolhido e o que mudou do padrao; a direita, a previa presa ao rolar. A
+ * previa no meio da coluna fazia quem mexia na distancia ou no celular rolar para cima
+ * e para baixo a cada mudanca. Abaixo de `lg`, uma coluna, com a previa no topo.
  *
- * Tres decisoes de desenho, e as tres sao sobre nao mentir:
+ * **Os controles vem antes da previa no codigo**, e a previa so e desenhada no topo
+ * (`order-first`): quem anda pelo Tab chega aos controles primeiro, e nao atravessa o
+ * quadro da previa para comecar.
  *
- * 1. **A previa e a ferramenta de verdade**, e mostra o que esta **salvo**. Ela
- *    nao acompanha o que esta sendo digitado, e a etiqueta dela diz isso enquanto
- *    houver mudanca por publicar.
- * 2. **"Padrao" e "cor escolhida" sao dois estados**, e nao um campo de cor com um
- *    valor inicial. O padrao acompanha o tema de quem visita; uma cor escolhida
- *    vale sempre. Se o seletor abrisse ja preenchido com a cor de hoje, escolher
- *    "a mesma cor" trocaria o comportamento sem ninguem perceber.
- * 3. **O tipo pre-marcado muda de nome** quando o seletor de tipo esta escondido:
- *    ali ele deixa de ser o que vem marcado e passa a ser o unico que vai existir.
+ * **O liga e desliga e uma pilula no cabecalho**: o estado do botao no seu sistema e a
+ * primeira coisa que a tela diz.
+ *
+ * **A previa e a ferramenta de verdade**, com o que ainda nao foi publicado; abrir "No
+ * celular" troca a previa para o celular — e o selo diz que trocou —, e fechar volta, a
+ * nao ser que a pessoa tenha escolhido o aparelho na propria previa. **Ela realca o
+ * assunto em foco**: as guias da distancia com a Posição aberta, o contorno do botao
+ * com o foco na Aparência.
+ *
+ * **Grava o registro inteiro com so os campos desta tela mudados** (`useSettingsDraft`):
+ * os textos salvos em outra tela nao voltam ao que estavam quando esta abriu.
  */
 export function WidgetSettingsScreen() {
   const project = useCurrentProject()
+  const { draft, change, loading, failed, reload, saving, dirty, changeCount, save, discard } =
+    useWidgetSettingsDraft(
+      project.PublicId,
+      BUTTON_FIELDS,
+      'Publicado. Quem abrir o seu sistema agora já vê assim.',
+    )
 
-  const {
-    data: saved,
-    loading,
-    failed,
-    reload,
-  } = useAsyncResource(
-    useCallback(
-      () => projectWidgetSettingsService.getWidgetSettings(project.PublicId),
-      [project.PublicId],
-    ),
-  )
+  const [aparelho, setAparelho] = useState<PreviewDevice>('computer')
+  /** O celular foi posto pela abertura de "No celular", e nao pela pessoa: fechar desfaz. */
+  const [trocouSozinho, setTrocouSozinho] = useState(false)
+  const [posicaoAberta, setPosicaoAberta] = useState(false)
+  const [naAparencia, setNaAparencia] = useState(false)
 
-  // A previa precisa da chave publica, que mora noutra rota. Falhar aqui nao
-  // impede configurar: so a previa fica de fora.
-  const { data: keys } = useAsyncResource(
-    useCallback(() => projectKeyService.listProjectKeys(project.PublicId), [project.PublicId]),
-  )
-  const publicKey = keys?.find((key) => key.Type === 'Public' && key.IsActive)?.Value ?? ''
-
-  const [draft, setDraft] = useState<WidgetSettingsViewModel | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [version, setVersion] = useState(0)
-
-  /**
-   * O que esta **publicado**, que nao e o mesmo que o que foi lido no inicio.
-   *
-   * Comparar o rascunho direto com a leitura da API parecia bastar e nao bastava:
-   * depois de publicar, a leitura continuava sendo a antiga, a barra nunca sumia e
-   * a previa seguia dizendo "mostrando o que esta publicado" sobre algo que ja
-   * estava publicado. Publicar move esta base; a leitura so a define no inicio e
-   * ao trocar de projeto.
-   */
-  const [published, setPublished] = useState<WidgetSettingsViewModel | null>(null)
-
-  useEffect(() => {
-    setPublished(saved)
-    setDraft(saved)
-  }, [saved])
-
-  const dirty = draft !== null && published !== null && !same(draft, published)
-
-  function change(patch: Partial<WidgetSettingsViewModel>) {
-    setDraft((current) => (current ? { ...current, ...patch } : current))
-  }
-
-  async function publish() {
-    if (!draft || saving) return
-
-    setSaving(true)
-    try {
-      const stored = await projectWidgetSettingsService.saveWidgetSettings(project.PublicId, draft)
-      setPublished(stored)
-      setDraft(stored)
-      // A previa so recarrega depois de publicar, porque e isso que ela mostra.
-      setVersion((current) => current + 1)
-      toast.done('Publicado. Quem abrir o seu site agora já vê assim.')
-    } catch (error) {
-      toast.error(describeError(error))
-    } finally {
-      setSaving(false)
+  function alternarCelular(aberto: boolean) {
+    if (aberto) {
+      if (aparelho === 'computer') {
+        setTrocouSozinho(true)
+        setAparelho('phone')
+      }
+      return
     }
+    if (trocouSozinho) setAparelho('computer')
+    setTrocouSozinho(false)
   }
+
+  function escolherAparelho(escolhido: PreviewDevice) {
+    setTrocouSozinho(false)
+    setAparelho(escolhido)
+  }
+
+  const realce: PreviewHighlight | null = posicaoAberta ? 'distance' : naAparencia ? 'button' : null
 
   return (
-    <div className="max-w-170">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Botão no site</h1>
-      <p className="mb-6 text-fg-muted text-body">
-        Como o botão de relato aparece no seu site. O que você publicar aqui vale na próxima visita,
-        sem ninguém mexer no código.
-      </p>
+    <div className="max-w-6xl">
+      <MovedAnchors moved={MUDARAM_DE_TELA} />
+
+      {/* O publicar mora no titulo, preso no topo ao rolar; sair com o que nao foi
+          publicado pergunta antes. */}
+      <SettingsHeader
+        title="O botão"
+        description="O botão que abre o formulário de relato no seu sistema: se aparece, como é e onde fica."
+        status={
+          draft && (
+            <VisibilityPill
+              id="mostrar-no-site"
+              enabled={draft.IsEnabled}
+              onChange={(IsEnabled) => change({ IsEnabled })}
+            />
+          )
+        }
+        ready={draft !== null}
+        dirty={dirty}
+        changeCount={changeCount}
+        saving={saving}
+        onSave={() => void save()}
+        onDiscard={discard}
+        publishes
+      />
 
       {failed && (
-        <div className="rounded-xl border border-border bg-surface-raised p-5">
+        <div className="max-w-170 rounded-xl border border-border bg-surface-raised p-5">
           <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
-            Não deu para carregar a configuração agora. A ferramenta no seu site não foi afetada:
-            ela continua com o que já estava publicado.
+            Não deu para carregar a configuração agora. O botão no seu sistema não foi afetado: ele
+            continua com o que já estava publicado.
           </p>
           <Button onClick={reload}>Tentar de novo</Button>
         </div>
@@ -124,343 +151,147 @@ export function WidgetSettingsScreen() {
       {loading && <LoadingForm />}
 
       {draft && (
-        <div className="flex flex-col gap-4">
-          <Section title="No seu site">
-            <Check
-              checked={draft.IsEnabled}
-              onChange={(IsEnabled) => change({ IsEnabled })}
-              label="Mostrar a ferramenta no meu site"
+        <>
+          {!draft.IsEnabled && (
+            <p className="mb-4 rounded-lg border border-warn-border bg-warn-surface px-3 py-2 text-detail text-warn-fg leading-relaxed">
+              Enquanto estiver desligado, ninguém no seu sistema consegue relatar nada. Desligar
+              tira o botão na próxima visita, sem editar o código; os relatos que já chegaram
+              continuam onde estão.
+            </p>
+          )}
+
+          {/* Os grupos a esquerda e a previa presa a direita (`EditorWithPreview`). */}
+          <EditorWithPreview
+            preview={
+              <PreviewSection
+                id="previa"
+                settings={draft}
+                dirty={dirty}
+                device={aparelho}
+                onDeviceChange={escolherAparelho}
+                note={trocouSozinho && aparelho === 'phone' ? 'Mostrando: celular' : null}
+                highlight={realce}
+                hint="Como fica no seu sistema. Clique no botão para abrir o formulário."
+              />
+            }
+          >
+            <ButtonGroups
+              draft={draft}
+              change={change}
+              onMobileToggle={alternarCelular}
+              onPositionToggle={setPosicaoAberta}
+              onAppearanceFocus={setNaAparencia}
             />
+
             <p className="mt-2 text-detail text-fg-muted leading-relaxed">
-              Desligar tira a ferramenta do site na próxima visita de cada pessoa, sem ninguém
-              editar o código. Os relatos que já chegaram continuam onde estão.
+              O que o formulário pergunta fica em{' '}
+              <Link to="../report-types" className="text-fg underline underline-offset-4">
+                Tipos de relato
+              </Link>
+              ; os textos e o tema dele, em{' '}
+              <Link to="../form-texts" className="text-fg underline underline-offset-4">
+                Formulário
+              </Link>
+              ; o que a pessoa lê depois de enviar, em{' '}
+              <Link to="../identity" className="text-fg underline underline-offset-4">
+                Quem relata
+              </Link>
+              .
             </p>
-
-            {!draft.IsEnabled && (
-              <p className="mt-3 rounded-lg border border-warn-border bg-warn-surface px-3 py-2 text-detail text-warn-fg leading-relaxed">
-                Enquanto estiver desligada, ninguém no seu site consegue relatar nada — nem quem já
-                estava com o formulário aberto.
-              </p>
-            )}
-          </Section>
-
-          <Section title="Aparência">
-            <Field label="Cor do botão">
-              <div className="flex flex-wrap items-center gap-2">
-                <Choice
-                  selected={draft.AccentColor === null}
-                  onSelect={() => change({ AccentColor: null })}
-                >
-                  Padrão
-                </Choice>
-                <Choice
-                  selected={draft.AccentColor !== null}
-                  disabled={draft.AccentColor === null && readProductAccent() === null}
-                  onSelect={() => change({ AccentColor: draft.AccentColor ?? readProductAccent() })}
-                >
-                  Escolher uma cor
-                </Choice>
-
-                {draft.AccentColor !== null && (
-                  <input
-                    type="color"
-                    aria-label="Cor do botão"
-                    value={draft.AccentColor}
-                    onChange={(event) => change({ AccentColor: event.target.value })}
-                    className="h-8 w-14 cursor-pointer rounded-lg border border-border bg-surface-raised p-1"
-                  />
-                )}
-              </div>
-            </Field>
-            <p className="mt-2 text-detail text-fg-muted leading-relaxed">
-              O padrão acompanha o tema de quem visita o seu site — escuro no claro, claro no
-              escuro. Uma cor escolhida vale nos dois. A cor do texto por cima não se escolhe: ela é
-              calculada para continuar legível sobre a que você escolher.
-            </p>
-
-            <Field label="Canto" className="mt-4">
-              <Options
-                value={draft.Position}
-                onChange={(Position) => change({ Position })}
-                options={[
-                  { value: 'BottomRight', label: 'Direita' },
-                  { value: 'BottomLeft', label: 'Esquerda' },
-                ]}
-              />
-            </Field>
-
-            <Field label="Tema" className="mt-4">
-              <Options
-                value={draft.Theme}
-                onChange={(Theme) => change({ Theme })}
-                options={[
-                  { value: 'Auto', label: 'Acompanha quem visita' },
-                  { value: 'Light', label: 'Claro' },
-                  { value: 'Dark', label: 'Escuro' },
-                ]}
-              />
-            </Field>
-          </Section>
-
-          <Section title="Textos">
-            <TextField
-              label="Botão parado na página"
-              value={draft.LauncherLabel}
-              onChange={(LauncherLabel) => change({ LauncherLabel })}
-              maxLength={WIDGET_TEXT_LIMITS.LauncherLabel}
-            />
-            <TextField
-              label="Título do formulário"
-              className="mt-4"
-              value={draft.Title}
-              onChange={(Title) => change({ Title })}
-              maxLength={WIDGET_TEXT_LIMITS.Title}
-            />
-            <TextField
-              label="Texto da caixa vazia"
-              className="mt-4"
-              value={draft.Placeholder}
-              onChange={(Placeholder) => change({ Placeholder })}
-              maxLength={WIDGET_TEXT_LIMITS.Placeholder}
-              hint="É esta frase que decide a qualidade do que chega: pedir o que a pessoa viu, onde, e o que esperava rende relato que dá para reproduzir."
-            />
-            <TextField
-              label="Confirmação, acima do protocolo"
-              className="mt-4"
-              value={draft.SuccessMessage}
-              onChange={(SuccessMessage) => change({ SuccessMessage })}
-              maxLength={WIDGET_TEXT_LIMITS.SuccessMessage}
-            />
-          </Section>
-
-          <Section title="O que a pessoa escolhe">
-            <Check
-              checked={draft.ShowsTypeField}
-              onChange={(ShowsTypeField) => change({ ShowsTypeField })}
-              label="Deixar a pessoa escolher o tipo do relato"
-            />
-
-            <Field
-              label={draft.ShowsTypeField ? 'Tipo pré-marcado' : 'Tipo de todos os relatos'}
-              className="mt-4"
-            >
-              <Options
-                value={draft.DefaultReportType}
-                onChange={(DefaultReportType) => change({ DefaultReportType })}
-                options={[
-                  { value: 'Bug', label: 'Defeito' },
-                  { value: 'Improvement', label: 'Melhoria' },
-                  { value: 'Question', label: 'Dúvida' },
-                ]}
-              />
-            </Field>
-
-            {!draft.ShowsTypeField && (
-              <p className="mt-2 text-detail text-fg-muted leading-relaxed">
-                Com o seletor escondido, tudo que chegar entra com este tipo — inclusive o que for
-                outra coisa.
-              </p>
-            )}
-
-            <Field label="Pergunta do título" className="mt-6">
-              <Options
-                value={draft.ReportTitleMode}
-                onChange={(ReportTitleMode) => change({ ReportTitleMode })}
-                options={[
-                  { value: 'Optional', label: 'Opcional' },
-                  { value: 'Required', label: 'Obrigatória' },
-                  { value: 'Hidden', label: 'Escondida' },
-                ]}
-              />
-            </Field>
-            <p className="mt-2 text-detail text-fg-muted leading-relaxed">
-              {TITULO_POR_MODO[draft.ReportTitleMode]}
-            </p>
-          </Section>
-
-          {/* A barra so existe quando ha o que publicar: um botao "Publicar"
-              sempre aceso convida a clicar sem nada para salvar, e ensina que o
-              clique nao faz diferenca. E sair com o que nao foi publicado
-              pergunta antes. */}
-          <UnsavedChangesBar
-            dirty={dirty}
-            saving={saving}
-            onSave={() => void publish()}
-            onDiscard={() => setDraft(published)}
-            saveLabel="Publicar"
-            savingLabel="Publicando…"
-            note="Ainda não está no seu site — publique para valer."
-          />
-
-          <section className="rounded-xl border border-border bg-surface-raised p-5">
-            <header className="mb-1 flex items-baseline justify-between gap-3">
-              <h2 className="font-semibold text-fg text-lead">Prévia</h2>
-              <span className="flex-none text-caption text-fg-muted">
-                {dirty ? 'mostrando o que está publicado' : 'igual ao seu site'}
-              </span>
-            </header>
-
-            <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-              É a ferramenta de verdade, aberta pela mesma chave que o seu site usa — e não um
-              desenho dela.{' '}
-              {dirty
-                ? 'Ela mostra o que está publicado, então as mudanças acima só aparecem aqui depois de publicar.'
-                : 'Enviar um relato por aqui grava de verdade.'}
-            </p>
-
-            <WidgetPreview publicKey={publicKey} version={version} />
-          </section>
-        </div>
+          </EditorWithPreview>
+        </>
       )}
     </div>
   )
 }
 
-/** Compara campo a campo: o objeto vem novo da API a cada leitura. */
-function same(a: WidgetSettingsViewModel, b: WidgetSettingsViewModel): boolean {
-  return (
-    a.IsEnabled === b.IsEnabled &&
-    a.AccentColor === b.AccentColor &&
-    a.Position === b.Position &&
-    a.Theme === b.Theme &&
-    a.LauncherLabel === b.LauncherLabel &&
-    a.Title === b.Title &&
-    a.Placeholder === b.Placeholder &&
-    a.SuccessMessage === b.SuccessMessage &&
-    a.ShowsTypeField === b.ShowsTypeField &&
-    a.DefaultReportType === b.DefaultReportType &&
-    a.ReportTitleMode === b.ReportTitleMode
-  )
-}
+/** O nome do acordeao desta tela: abrir um grupo fecha o outro. Ver `SettingsGroup`. */
+const ACORDEAO = 'botao'
 
 /**
- * O que cada modo da pergunta faz, dito para quem escolhe. A pergunta e sempre a
- * mesma — "Em poucas palavras, o que aconteceu?" —, e a resposta vira o titulo do
- * card: o time pode reescrever, e quem relatou continua vendo o que escreveu.
+ * Os quatro assuntos, no acordeao. A Aparência abre sozinha: e o que a pessoa ajusta na
+ * primeira hora.
  */
-const TITULO_POR_MODO: Record<ReportTitleMode, string> = {
-  Optional:
-    'A ferramenta pergunta “Em poucas palavras, o que aconteceu?”, e quem não responder envia assim mesmo. A resposta vira o título do card no Trabalho.',
-  Required:
-    'Ninguém envia sem responder. O time reconhece o card de cara, mas a pergunta a mais pode fazer alguém desistir no meio.',
-  Hidden:
-    'A ferramenta não pergunta. No Trabalho, o card mostra o começo do texto no lugar do título.',
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-border bg-surface-raised p-5">
-      <h2 className="mb-3.5 font-semibold text-fg text-lead">{title}</h2>
-      {children}
-    </section>
-  )
-}
-
-function Field({
-  label,
-  className,
-  children,
+function ButtonGroups({
+  draft,
+  change,
+  onMobileToggle,
+  onPositionToggle,
+  onAppearanceFocus,
 }: {
-  label: string
-  className?: string
-  children: React.ReactNode
+  draft: WidgetSettingsViewModel
+  change: (patch: Partial<WidgetSettingsViewModel>) => void
+  onMobileToggle: (open: boolean) => void
+  onPositionToggle: (open: boolean) => void
+  onAppearanceFocus: (inside: boolean) => void
 }) {
-  return (
-    <div className={className}>
-      {/* `div` e nao `label`: o controle aqui dentro e um grupo de botoes, e
-          rotulo que aponta para nada confunde leitor de tela. O nome do grupo vai
-          no `aria-label` dele. */}
-      <div className="mb-1.5 text-detail text-fg-muted">{label}</div>
-      {children}
-    </div>
-  )
-}
+  const { appearance, position, mobile, hiddenPages } = BUTTON_GROUPS
 
-/**
- * Um grupo de escolhas exclusivas. `aria-pressed` e nao `radio` porque sao botoes
- * de verdade, com a aparencia do resto do painel; o leitor de tela anuncia
- * "pressionado", que e o estado real.
- */
-function Options<T extends WidgetPosition | WidgetTheme | ReportType | ReportTitleMode>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T
-  onChange: (value: T) => void
-  options: Array<{ value: T; label: string }>
-}) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <Choice
-          key={option.value}
-          selected={value === option.value}
-          onSelect={() => onChange(option.value)}
-        >
-          {option.label}
-        </Choice>
-      ))}
-    </div>
-  )
-}
+    <>
+      <SettingsGroup
+        name={ACORDEAO}
+        id="aparencia"
+        title="Aparência"
+        value={
+          <>
+            <ColorSwatch
+              color={draft.AccentColor}
+              className="mr-1.5 size-2.5 rounded-sm align-baseline"
+            />
+            {describeAppearance(draft)}
+          </>
+        }
+        changes={groupChanges(draft, appearance)}
+        onReset={() => change(resetPatch(draft, appearance))}
+        onFocusWithin={onAppearanceFocus}
+        defaultOpen
+      >
+        <AppearanceFields draft={draft} change={change} />
+      </SettingsGroup>
 
-function Choice({
-  selected,
-  disabled,
-  onSelect,
-  children,
-}: {
-  selected: boolean
-  disabled?: boolean
-  onSelect: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      disabled={disabled}
-      onClick={onSelect}
-      className={cn(
-        'h-8 rounded-lg border px-3 text-detail transition-colors',
-        'disabled:cursor-not-allowed disabled:text-fg-disabled',
-        selected
-          ? 'border-transparent bg-accent font-medium text-accent-fg'
-          : 'border-border bg-surface text-fg enabled:hover:bg-surface-sunken',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
+      <SettingsGroup
+        name={ACORDEAO}
+        id="posicao"
+        title="Posição"
+        value={describePosition(draft)}
+        changes={groupChanges(draft, position)}
+        onReset={() => change(resetPatch(draft, position))}
+        onToggle={onPositionToggle}
+      >
+        <PositionFields draft={draft} change={change} />
+      </SettingsGroup>
 
-function Check({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  label: string
-}) {
-  return (
-    <label className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="size-3.5 flex-none accent-accent"
-      />
-      <span className="text-body text-fg">{label}</span>
-    </label>
+      <SettingsGroup
+        name={ACORDEAO}
+        id="celular"
+        title="No celular"
+        value={describeMobile(draft)}
+        changes={groupChanges(draft, mobile)}
+        onReset={() => change(resetPatch(draft, mobile))}
+        onToggle={onMobileToggle}
+      >
+        <MobileFields draft={draft} change={change} />
+      </SettingsGroup>
+
+      <SettingsGroup
+        name={ACORDEAO}
+        id="paginas"
+        title="Páginas escondidas"
+        value={describeHiddenPages(draft)}
+        changes={groupChanges(draft, hiddenPages)}
+        onReset={() => change(resetPatch(draft, hiddenPages))}
+      >
+        <HiddenPagesFields draft={draft} change={change} />
+      </SettingsGroup>
+    </>
   )
 }
 
 function LoadingForm() {
   return (
-    <div className="flex flex-col gap-4">
-      {['h-28', 'h-44', 'h-56'].map((height) => (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {['h-72', 'h-96'].map((height) => (
         <Skeleton key={height} className={cn('w-full rounded-xl', height)} />
       ))}
     </div>
