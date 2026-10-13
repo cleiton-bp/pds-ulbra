@@ -1,32 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  type CycleSettingsViewModel,
-  MAX_DUE_SOON_DAYS,
-  MAX_LAST_COLUMN_VISIBLE_DAYS,
   MAX_STATE_NAME_LENGTH,
-  type ProjectInitialStateViewModel,
   type ProjectStateViewModel,
   type ProjectStatusMappingViewModel,
 } from '@/contracts'
 import {
   describeError,
-  projectCycleSettingsService,
   projectPublicStageService,
   projectReportService,
+  projectReportTypeService,
   projectStateService,
   projectStatusMappingService,
 } from '@/data'
+import { BoardRules, CAMPOS_DO_QUADRO_CHAVES } from '@/features/projectStates/BoardRules'
+import { type StateDraft, StateEditor } from '@/features/projectStates/StateEditor'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
-import { Select } from '@/shared/components/Select'
+import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
+import { HowItWorks } from '@/shared/components/HowItWorks'
+import { LeaveGuard } from '@/shared/components/LeaveGuard'
+import { LiveBadge } from '@/shared/components/LiveBadge'
+import { MiniBoard, type MiniBoardColumn } from '@/shared/components/MiniBoard'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { SortableListItem } from '@/shared/components/SortableListItem'
 import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
-import { UnsavedChangesBar } from '@/shared/components/UnsavedChangesBar'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import { useClosingItem } from '@/shared/hooks/useClosingItem'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
-import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
+import { useListOrder } from '@/shared/hooks/useListOrder'
+import { useCycleSettingsDraft } from '@/shared/hooks/useSettingsDraft'
+import { CYCLE_DEFAULTS } from '@/shared/lib/factoryDefaults'
+
+/** O nome do acordeao desta tela: uma coluna aberta de cada vez. Ver `SortableListItem`. */
+const ACORDEAO = 'colunas'
 
 /**
  * As colunas do quadro. Na API e no codigo elas sao "estados"; na tela, **colunas**,
@@ -37,27 +45,39 @@ import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
  * e o time renomeia, reordena e cria as que ja usa. Uma lista fixa, escrita por nos,
  * obrigaria todo time a descrever o processo dele com as nossas palavras.
  *
+ * **Duas colunas, como Tipos de relato e Andamento público** (`EditorWithPreview`): a
+ * lista a esquerda, e a direita o quadro que ela forma, com o que quem relatou ve
+ * embaixo de cada coluna — a perda de detalhe entre as duas e de proposito, e so vendo
+ * lado a lado da para conferir.
+ *
+ * **Cada coluna e um item de acordeao** (`SortableListItem`): fechada, diz o que quem
+ * relatou ve e marca o que ela faz de diferente — a entrada de um tipo, a que encerra o
+ * relato, a desativada. Antes nada disso aparecia, e a recusa de desativar a entrada so
+ * chegava num aviso depois de tentar.
+ *
+ * **Nome e "Quem relatou ve" num Salvar so.** Eram dois jeitos de gravar na mesma linha
+ * (um com Salvar, outro na hora). O mapa e versionado — cada gravacao e um retrato do
+ * conjunto —, entao ele so e gravado quando a etapa mudou: renomear nao cria versao.
+ *
  * **Desativar, e nao apagar.** Nao ha botao de apagar em lugar nenhum desta tela:
  * card antigo aponta para a coluna, e uma coluna que some leva junto o sentido de
  * tudo que passou por ela. O dialogo diz isso com todas as letras — e quantos cards
- * estao nela agora, que e o tamanho do efeito.
+ * estao nela agora, que e o tamanho do efeito. A coluna que e entrada de um tipo nao
+ * se desativa, e a linha diz onde trocar em vez de oferecer um botao que so recusa.
  *
- * **Cada coluna diz o que quem relatou ve** enquanto o relato esta nela. A ligacao
- * morava so no fim da tela de Andamento publico: o time criava uma coluna, trabalhava
- * normalmente, e quem relatou continuava lendo "Recebido" sem ninguem perceber. A
- * coluna nova ja nasce ligada a etapa da coluna que vinha antes dela.
+ * **Reordenar, criar e desativar valem na hora** (`useListOrder`, otimista com
+ * desfazer), como diz o selo do titulo. A coluna nova ja nasce ligada a etapa da
+ * coluna que vinha antes dela.
  *
- * **Reordenar e otimista.** A seta move a linha na hora e so depois grava: uma
- * seta que espera a resposta para mexer parece quebrada, e aqui o erro tem
- * desfazer — a lista volta para a ordem anterior e o aviso explica.
- *
- * **A entrada de cada tipo tem um "padrao" de verdade na lista.** Escolher essa
- * opcao **apaga** a linha no banco em vez de gravar uma escolha vazia. E o que
- * mantem "o cliente nao configurou" como um estado possivel do projeto, e nao
- * algo que so existe enquanto ninguem abriu esta tela.
+ * **A coluna em que cada relato entra nao mora aqui.** Ela e do tipo de relato, na tela
+ * Tipos de relato; esta tela so marca e aponta para la.
  */
 export function ProjectStatesScreen() {
   const project = useCurrentProject()
+  const base = useId()
+  const idResumo = (publicId: string) => `${base}-resumo-${publicId}`
+  const idAtivo = (publicId: string) => `${base}-ativo-${publicId}`
+  const idEntrada = (publicId: string) => `${base}-entrada-${publicId}`
 
   const {
     data: loaded,
@@ -78,14 +98,286 @@ export function ProjectStatesScreen() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
-  const [editing, setEditing] = useState<{ publicId: string; value: string } | null>(null)
-  const [renameError, setRenameError] = useState<string | null>(null)
-  const [renaming, setRenaming] = useState(false)
+  /** A coluna aberta e o rascunho dela. */
+  const [aberto, setAberto] = useState<string | null>(null)
+  const [rascunho, setRascunho] = useState<StateDraft | null>(null)
+  const [erroNome, setErroNome] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+  /** A troca que espera a confirmacao: abrir outra coluna (`destino`), ou fechar (`null`). */
+  const [troca, setTroca] = useState<{ destino: string | null } | null>(null)
+  // A coluna que acabou de fechar continua desenhada ate o fim do movimento.
+  const { closing: fechando, markClosing } = useClosingItem<StateDraft>()
 
-  const [moving, setMoving] = useState(false)
   const [retiring, setRetiring] = useState<ProjectStateViewModel | null>(null)
   /** Quantos cards estao na coluna que vai ser desativada. Nulo enquanto conta. */
   const [cardsNaColuna, setCardsNaColuna] = useState<number | null>(null)
+
+  // Reordenar e otimista: a seta e o arrastar movem na hora, e a lista volta se o
+  // servidor recusar. Enquanto o Salvar de uma coluna grava, a ordem espera.
+  const ordem = useListOrder({
+    items: states,
+    setItems: setStates,
+    idOf: (state) => state.PublicId,
+    save: (Order) => projectStateService.reorderProjectStates(project.PublicId, { Order }),
+    busy: salvando,
+    focusFallback: idResumo,
+  })
+
+  // O que quem relatou ve em cada coluna: o mapa e as etapas do andamento. **Falhar aqui
+  // nao impede mexer nas colunas** — a coluna so fica sem a escolha, e o nome continua.
+  const { data: etapas, failed: etapasFalharam } = useAsyncResource(
+    useCallback(
+      () => projectPublicStageService.listPublicStages(project.PublicId),
+      [project.PublicId],
+    ),
+  )
+  const { data: mapaLido, failed: mapaFalhou } = useAsyncResource(
+    useCallback(
+      () => projectStatusMappingService.getStatusMapping(project.PublicId),
+      [project.PublicId],
+    ),
+  )
+  const [mapa, setMapa] = useState<ProjectStatusMappingViewModel | null>(null)
+  useEffect(() => setMapa(mapaLido), [mapaLido])
+
+  // Os tipos, para marcar a entrada de cada um. Falhando, as colunas so ficam sem a
+  // marca, e a recusa da API continua sendo o aviso.
+  const { data: tipos } = useAsyncResource(
+    useCallback(
+      () => projectReportTypeService.listReportTypes(project.PublicId),
+      [project.PublicId],
+    ),
+  )
+
+  // As regras do quadro (o grupo "Fim e prazos") e, do mesmo registro, quando o relato
+  // encerra — para marcar a coluna que encerra.
+  const regras = useCycleSettingsDraft(
+    project.PublicId,
+    CAMPOS_DO_QUADRO_CHAVES,
+    'Regras do quadro salvas.',
+  )
+
+  const etapaDe = (statePublicId: string) =>
+    mapa?.Entries.find((entry) => entry.StatePublicId === statePublicId)?.StagePublicId ?? null
+
+  const primeiraAtiva = states?.find((state) => state.IsActive) ?? null
+  const ultimaAtiva = states
+    ? ([...states].reverse().find((state) => state.IsActive) ?? null)
+    : null
+  const encerraNaUltima = regras.published?.ClosureTrigger === 'LastColumn'
+
+  /** Os tipos ativos cujo relato entra nesta coluna: a escolhida, ou a primeira ativa. */
+  const tiposQueEntram = (state: ProjectStateViewModel) =>
+    (tipos ?? [])
+      .filter(
+        (tipo) =>
+          tipo.IsActive &&
+          (tipo.InitialStatePublicId === state.PublicId ||
+            (tipo.InitialStatePublicId === null && primeiraAtiva?.PublicId === state.PublicId)),
+      )
+      .map((tipo) => tipo.Name)
+
+  /**
+   * Os tipos que impedem desativar: os que escolheram esta coluna, **os desativados
+   * tambem**, como na API — reativar um deles faria o relato cair numa coluna desativada.
+   * A primeira ativa nao entra aqui: sem ela, a entrada so passa para a seguinte.
+   */
+  const tiposQuePrendem = (state: ProjectStateViewModel) =>
+    (tipos ?? [])
+      .filter((tipo) => tipo.InitialStatePublicId === state.PublicId)
+      .map((tipo) => tipo.Name)
+
+  const encerra = (state: ProjectStateViewModel) =>
+    encerraNaUltima && ultimaAtiva?.PublicId === state.PublicId
+
+  const colunaAberta =
+    aberto !== null ? states?.find((state) => state.PublicId === aberto) : undefined
+
+  /** A etapa que a coluna mostra agora: a do rascunho, na aberta; senao, a do mapa. */
+  function etapaNaTela(state: ProjectStateViewModel): string | null {
+    if (aberto === state.PublicId && rascunho?.etapa !== undefined) return rascunho.etapa || null
+    return etapaDe(state.PublicId)
+  }
+
+  const mudouNome = (state: ProjectStateViewModel, draft: StateDraft) =>
+    draft.nome.trim() !== state.Name
+  const mudouEtapa = (state: ProjectStateViewModel, draft: StateDraft) =>
+    mapa !== null && draft.etapa !== undefined && draft.etapa !== (etapaDe(state.PublicId) ?? '')
+
+  const sujo =
+    colunaAberta !== undefined &&
+    rascunho !== null &&
+    (mudouNome(colunaAberta, rascunho) || mudouEtapa(colunaAberta, rascunho))
+  const podeSalvar = rascunho !== null && rascunho.nome.trim().length > 0
+
+  /** O foco vai para `id` depois do proximo desenho: o alvo so existe depois dele. */
+  function devolverFoco(id: string) {
+    requestAnimationFrame(() => document.getElementById(id)?.focus())
+  }
+
+  /** Abre `destino` (ou fecha tudo, com `null`) sem perguntar: quem pergunta e `pedirTroca`. */
+  function irPara(destino: string | null) {
+    if (aberto !== null && rascunho) markClosing(aberto, rascunho)
+    setErro(null)
+    setErroNome(null)
+    setAberto(destino)
+    const alvo = destino === null ? undefined : states?.find((s) => s.PublicId === destino)
+    setRascunho(alvo ? { nome: alvo.Name } : null)
+  }
+
+  /**
+   * Abrir outra coluna, ou fechar a aberta. **Com mudanca por salvar, pergunta antes**: o
+   * rascunho de uma coluna so vive enquanto ela esta aberta.
+   */
+  function pedirTroca(destino: string | null) {
+    if (destino === aberto) return
+    if (sujo) setTroca({ destino })
+    else irPara(destino)
+  }
+
+  function confirmarTroca() {
+    if (!troca) return
+    const { destino } = troca
+    const anterior = aberto
+    irPara(destino)
+    if (destino !== null) devolverFoco(idResumo(destino))
+    else if (anterior !== null) devolverFoco(idResumo(anterior))
+  }
+
+  /** Cancelar e desistir de proposito: fecha sem perguntar, e o foco volta ao resumo. */
+  function cancelar() {
+    const alvo = aberto
+    irPara(null)
+    if (alvo) devolverFoco(idResumo(alvo))
+  }
+
+  const trocarColuna = (salva: ProjectStateViewModel) =>
+    setStates((lista) =>
+      (lista ?? []).map((item) => (item.PublicId === salva.PublicId ? salva : item)),
+    )
+
+  /**
+   * O mapa com uma coluna ligada a outra etapa (ou a nenhuma).
+   *
+   * **Manda o mapa inteiro**, como a tela de Andamento publico: cada gravacao e uma
+   * versao, e uma versao e o retrato do conjunto.
+   */
+  function gravarMapa(statePublicId: string, stagePublicId: string | null) {
+    const outras = (mapa?.Entries ?? []).flatMap((entry) =>
+      entry.StatePublicId !== statePublicId && entry.StagePublicId !== null
+        ? [{ StatePublicId: entry.StatePublicId, StagePublicId: entry.StagePublicId }]
+        : [],
+    )
+    return projectStatusMappingService.saveStatusMapping(project.PublicId, {
+      Entries: stagePublicId
+        ? [...outras, { StatePublicId: statePublicId, StagePublicId: stagePublicId }]
+        : outras,
+    })
+  }
+
+  /**
+   * O Salvar da coluna aberta: renomeia se o nome mudou e grava o mapa se a etapa mudou —
+   * **so o que mudou**, porque cada gravacao do mapa e uma versao.
+   *
+   * O nome vai primeiro, e e o erro mais provavel (repetido, em branco): fica no campo.
+   * Se o nome gravou e o mapa nao, a mensagem diz o que ficou salvo, e o rascunho guarda
+   * a etapa — o proximo Salvar tenta so ela.
+   */
+  async function salvar() {
+    if (!colunaAberta || !rascunho || salvando || !podeSalvar) return
+
+    const coluna = colunaAberta
+    const draft = rascunho
+    const renomear = mudouNome(coluna, draft)
+    const religar = mudouEtapa(coluna, draft)
+
+    if (!renomear && !religar) {
+      irPara(null)
+      devolverFoco(idResumo(coluna.PublicId))
+      return
+    }
+
+    setSalvando(true)
+    setErro(null)
+    setErroNome(null)
+
+    let renomeou = false
+    try {
+      if (renomear) {
+        try {
+          const salva = await projectStateService.renameProjectState(
+            project.PublicId,
+            coluna.PublicId,
+            { Name: draft.nome.trim() },
+          )
+          trocarColuna(salva)
+          // O nome que fica e o que a API devolveu (ela junta os espacos repetidos).
+          setRascunho((atual) => (atual ? { ...atual, nome: salva.Name } : atual))
+          renomeou = true
+        } catch (failure) {
+          setErroNome(describeError(failure))
+          return
+        }
+      }
+
+      if (religar) {
+        try {
+          setMapa(await gravarMapa(coluna.PublicId, draft.etapa || null))
+        } catch (failure) {
+          setErro(
+            renomeou
+              ? `O nome foi salvo, mas o que quem relatou vê não foi. ${describeError(failure)} Salve de novo para tentar só essa parte.`
+              : describeError(failure),
+          )
+          return
+        }
+      }
+
+      toast.done('Coluna salva.')
+      irPara(null)
+      devolverFoco(idResumo(coluna.PublicId))
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function create() {
+    const value = name.trim()
+    if (value.length === 0 || creating) return
+
+    setCreating(true)
+    setCreateError(null)
+
+    // A coluna nova entra no fim, e o que quem relatou ve nela comeca igual ao da
+    // ultima coluna ativa de antes: e a vizinha, e o mais perto do certo. O resumo
+    // mostra a escolha, e trocar e abrindo a coluna.
+    const etapaVizinha = ultimaAtiva ? etapaDe(ultimaAtiva.PublicId) : null
+
+    try {
+      const created = await projectStateService.addProjectState(project.PublicId, { Name: value })
+      // Entra no fim porque foi onde a API o colocou. Inserir em outro lugar aqui
+      // faria a tela discordar da posicao que acabou de ser gravada.
+      setStates((list) => [...(list ?? []), created])
+      setName('')
+
+      if (etapaVizinha && mapa) {
+        try {
+          setMapa(await gravarMapa(created.PublicId, etapaVizinha))
+          const rotulo = etapas?.find((etapa) => etapa.PublicId === etapaVizinha)?.Label
+          if (rotulo) toast.done(`Coluna criada. Nela, quem relatou vê “${rotulo}”.`)
+        } catch (failure) {
+          toast.error(describeError(failure))
+        }
+      }
+    } catch (failure) {
+      // Nome em branco, comprido demais ou repetido pertence ao campo: ha o que
+      // corrigir, e a correcao e ali.
+      setCreateError(describeError(failure))
+    } finally {
+      setCreating(false)
+    }
+  }
 
   /**
    * Abre a pergunta de desativar ja contando os cards da coluna: e o tamanho do
@@ -105,592 +397,349 @@ export function ProjectStatesScreen() {
       .catch(() => setCardsNaColuna(null))
   }
 
-  const { data: carregadas, reload: recarregarEntradas } = useAsyncResource(
-    useCallback(() => projectStateService.listInitialStates(project.PublicId), [project.PublicId]),
-  )
-  const [entradas, setEntradas] = useState<ProjectInitialStateViewModel[] | null>(null)
-  useEffect(() => setEntradas(carregadas), [carregadas])
-  const [salvandoEntrada, setSalvandoEntrada] = useState<string | null>(null)
-
-  /**
-   * O destino de quem nao escolheu: a primeira coluna **ativa**, que e a mesma
-   * conta que a API faz ao receber o relato.
-   *
-   * O rotulo mostra o nome dela em vez de descrever a regra. "Primeira coluna da
-   * fila" vira mentira no dia em que alguem aposenta a primeira — o relato passa a
-   * cair na seguinte, e a tela continuaria dizendo a mesma frase.
-   */
-  const padrao = states?.find((state) => state.IsActive) ?? null
-
-  // O que quem relatou ve em cada coluna: o mapa da tela de Andamento publico e as
-  // etapas dele. **Falhar aqui nao impede mexer nas colunas** — a linha so fica sem a
-  // escolha, e a tela de Andamento publico continua sendo o caminho.
-  const { data: etapas } = useAsyncResource(
-    useCallback(
-      () => projectPublicStageService.listPublicStages(project.PublicId),
-      [project.PublicId],
-    ),
-  )
-  const { data: mapaLido } = useAsyncResource(
-    useCallback(
-      () => projectStatusMappingService.getStatusMapping(project.PublicId),
-      [project.PublicId],
-    ),
-  )
-  const [mapa, setMapa] = useState<ProjectStatusMappingViewModel | null>(null)
-  useEffect(() => setMapa(mapaLido), [mapaLido])
-  const [ligando, setLigando] = useState<string | null>(null)
-
-  const etapaDe = (statePublicId: string) =>
-    mapa?.Entries.find((entry) => entry.StatePublicId === statePublicId)?.StagePublicId ?? null
-
-  /**
-   * Grava o mapa com uma coluna ligada a outra etapa (ou a nenhuma).
-   *
-   * **Manda o mapa inteiro**, como a tela de Andamento publico: cada gravacao e uma
-   * versao, e uma versao e o retrato do conjunto. Aqui cada escolha e uma decisao de
-   * verdade — uma versao por escolha, e nao por segundo.
-   */
-  async function ligar(statePublicId: string, stagePublicId: string | null): Promise<boolean> {
-    if (!mapa) return false
-    setLigando(statePublicId)
-
-    const outras = mapa.Entries.flatMap((entry) =>
-      entry.StatePublicId !== statePublicId && entry.StagePublicId !== null
-        ? [{ StatePublicId: entry.StatePublicId, StagePublicId: entry.StagePublicId }]
-        : [],
-    )
-
-    try {
-      setMapa(
-        await projectStatusMappingService.saveStatusMapping(project.PublicId, {
-          Entries: stagePublicId
-            ? [...outras, { StatePublicId: statePublicId, StagePublicId: stagePublicId }]
-            : outras,
-        }),
-      )
-      return true
-    } catch (failure) {
-      toast.error(describeError(failure))
-      return false
-    } finally {
-      setLigando(null)
-    }
-  }
-
-  async function create() {
-    const value = name.trim()
-    if (value.length === 0 || creating) return
-
-    setCreating(true)
-    setCreateError(null)
-
-    // A coluna nova entra no fim, e o que quem relatou ve nela comeca igual ao da
-    // ultima coluna ativa de antes: e a vizinha, e o mais perto do certo. A linha
-    // mostra a escolha, e trocar e ali mesmo.
-    const vizinha = [...(states ?? [])].reverse().find((state) => state.IsActive)
-    const etapaVizinha = vizinha ? etapaDe(vizinha.PublicId) : null
-
-    try {
-      const created = await projectStateService.addProjectState(project.PublicId, { Name: value })
-      // Entra no fim porque foi onde a API o colocou. Inserir em outro lugar aqui
-      // faria a tela discordar da posicao que acabou de ser gravada.
-      setStates((list) => [...(list ?? []), created])
-      setName('')
-
-      if (etapaVizinha && (await ligar(created.PublicId, etapaVizinha))) {
-        const rotulo = etapas?.find((etapa) => etapa.PublicId === etapaVizinha)?.Label
-        if (rotulo) toast.done(`Coluna criada. Nela, quem relatou vê “${rotulo}”.`)
-      }
-    } catch (failure) {
-      // Nome em branco, comprido demais ou repetido pertence ao campo: ha o que
-      // corrigir, e a correcao e ali.
-      setCreateError(describeError(failure))
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  async function saveRename() {
-    if (!editing || renaming) return
-
-    const value = editing.value.trim()
-    if (value.length === 0) return
-
-    setRenaming(true)
-    setRenameError(null)
-
-    try {
-      const saved = await projectStateService.renameProjectState(
-        project.PublicId,
-        editing.publicId,
-        {
-          Name: value,
-        },
-      )
-      setStates((list) =>
-        (list ?? []).map((item) => (item.PublicId === saved.PublicId ? saved : item)),
-      )
-      setEditing(null)
-    } catch (failure) {
-      setRenameError(describeError(failure))
-    } finally {
-      setRenaming(false)
-    }
-  }
-
-  /**
-   * Grava a ordem nova, e devolve a anterior se o servidor recusar.
-   *
-   * E o mesmo caminho para a seta e para o arrastar: os dois so decidem **qual** e
-   * a ordem nova, e a gravacao, o otimismo e o desfazer moram aqui, uma vez so.
-   */
-  async function gravarOrdem(nova: ProjectStateViewModel[], anterior: ProjectStateViewModel[]) {
-    if (mesmaOrdem(nova, anterior)) return
-
-    setStates(nova)
-    setMoving(true)
-
-    try {
-      const saved = await projectStateService.reorderProjectStates(project.PublicId, {
-        Order: nova.map((state) => state.PublicId),
-      })
-      setStates(saved)
-    } catch (failure) {
-      // Volta para a ordem de antes. Deixar a lista no lugar novo mostraria uma
-      // ordem que o banco nao tem.
-      setStates(anterior)
-      toast.error(describeError(failure))
-    } finally {
-      setMoving(false)
-    }
-  }
-
-  async function move(index: number, delta: number) {
-    if (!states || moving) return
-
-    const target = index + delta
-    if (target < 0 || target >= states.length) return
-
-    await gravarOrdem(reordenar(states, index, target), states)
-  }
-
-  /**
-   * O arrastar.
-   *
-   * **A lista se reorganiza enquanto o dedo esta em cima**, e nao so ao soltar: e
-   * o que faz a acao parecer direta em vez de um formulario disfarcado. A gravacao
-   * acontece uma vez, ao soltar, com a ordem que ficou na tela.
-   *
-   * `ordemAntes` guarda como estava quando o arrasto comecou — e ela que volta se
-   * o servidor recusar, e nao a ordem de uma linha atras.
-   */
-  const ordemAntes = useRef<ProjectStateViewModel[] | null>(null)
-  const [arrastando, setArrastando] = useState<string | null>(null)
-
-  function comecarArrasto(publicId: string) {
-    if (!states) return
-    setArrastando(publicId)
-    ordemAntes.current = states
-  }
-
-  /**
-   * Clique na alca sem arrastar.
-   *
-   * Durante um arrasto o navegador nao dispara `mouseup` — dispara `dragend` —,
-   * entao chegar aqui significa que a pessoa so clicou. Sem isto a linha ficaria
-   * presa no estado de arrasto, arrastavel e apagada, ate alguem clicar de novo.
-   */
-  function cancelarArrasto() {
-    setArrastando(null)
-    ordemAntes.current = null
-  }
-
-  function arrastarSobre(indexAlvo: number) {
-    if (!states || arrastando === null) return
-
-    const atual = states.findIndex((state) => state.PublicId === arrastando)
-    if (atual === -1 || atual === indexAlvo) return
-
-    setStates(reordenar(states, atual, indexAlvo))
-  }
-
-  async function soltar() {
-    const anterior = ordemAntes.current
-    setArrastando(null)
-    ordemAntes.current = null
-
-    if (!states || anterior === null) return
-
-    await gravarOrdem(states, anterior)
-  }
-
-  async function escolherEntrada(
-    reportType: ProjectInitialStateViewModel['ReportType'],
-    statePublicId: string | null,
-  ) {
-    setSalvandoEntrada(reportType)
-
-    try {
-      const salva = await projectStateService.setInitialState(project.PublicId, {
-        ReportType: reportType,
-        StatePublicId: statePublicId,
-      })
-      setEntradas((lista) =>
-        (lista ?? []).map((item) => (item.ReportType === salva.ReportType ? salva : item)),
-      )
-    } catch (failure) {
-      toast.error(describeError(failure))
-    } finally {
-      setSalvandoEntrada(null)
-    }
-  }
-
   async function setActive(state: ProjectStateViewModel, active: boolean) {
     try {
       const saved = active
         ? await projectStateService.activateProjectState(project.PublicId, state.PublicId)
         : await projectStateService.deactivateProjectState(project.PublicId, state.PublicId)
 
-      setStates((list) =>
-        (list ?? []).map((item) => (item.PublicId === saved.PublicId ? saved : item)),
-      )
+      trocarColuna(saved)
       toast.done(active ? 'Coluna de volta ao quadro.' : 'Coluna desativada.')
+      // "Desativar" e "Reativar" sao o mesmo lugar do cabecalho: o foco fica nele.
+      devolverFoco(idAtivo(state.PublicId))
     } catch (failure) {
-      // A recusa mais provavel aqui e a de desativar a entrada de um tipo, e a
-      // mensagem da API ja diz o que fazer. Recarregar a lista de entradas junto
-      // porque ela e o caminho da correcao, e pode ter mudado noutra aba.
+      // O botao ja vem desabilitado na entrada de um tipo; a recusa aqui e a corrida
+      // (alguem escolheu a coluna num tipo enquanto esta tela estava aberta), e a
+      // mensagem da API diz o que fazer.
       toast.error(describeError(failure))
-      recarregarEntradas()
     }
   }
 
+  const etapasProntas = mapa !== null && etapas !== null ? etapas : null
+
+  /** O resumo do cabecalho: o que quem relatou ve, em palavras. */
+  function resumo(state: ProjectStateViewModel): string {
+    if (etapasProntas === null) return ''
+    const etapaId = etapaNaTela(state)
+    const rotulo = etapasProntas.find((etapa) => etapa.PublicId === etapaId)?.Label
+    return rotulo ? `Quem relatou vê: ${rotulo}` : 'Nada muda para quem relatou'
+  }
+
+  /** As marcas da coluna, e o caminho quando ela nao pode ser desativada. */
+  function marcas(state: ProjectStateViewModel): ReactNode {
+    const entram = tiposQueEntram(state)
+    const prendem = state.IsActive ? tiposQuePrendem(state) : []
+    const itens: ReactNode[] = []
+
+    if (entram.length > 0) {
+      itens.push(<Marca key="entrada">Entrada: {juntar(entram)}</Marca>)
+    }
+    if (encerra(state)) itens.push(<Marca key="encerra">Encerra o relato</Marca>)
+    if (!state.IsActive) itens.push(<Marca key="desativada">Desativada</Marca>)
+    if (prendem.length > 0) {
+      itens.push(
+        <p
+          key="porque"
+          id={idEntrada(state.PublicId)}
+          className="basis-full text-caption text-fg-muted leading-relaxed"
+        >
+          É a entrada de {juntar(prendem)} — troque em{' '}
+          <Link to="../report-types" className="text-fg underline underline-offset-4">
+            Tipos de relato
+          </Link>
+          .
+        </p>,
+      )
+    }
+
+    return itens.length > 0 ? itens : null
+  }
+
+  /** O editor da coluna aberta, ou o desenho dela fechando. */
+  function editor(state: ProjectStateViewModel) {
+    const comum = {
+      state,
+      currentStage: etapaDe(state.PublicId) ?? '',
+      stages: etapasProntas,
+      stagesFailed: etapasFalharam || mapaFalhou,
+    }
+    if (aberto === state.PublicId && rascunho) {
+      return (
+        <StateEditor
+          {...comum}
+          draft={rascunho}
+          onChange={(draft) => {
+            setRascunho(draft)
+            if (erroNome) setErroNome(null)
+          }}
+          saving={salvando}
+          nameError={erroNome}
+          error={erro}
+          autoFocus
+          onSave={() => void salvar()}
+          onCancel={cancelar}
+        />
+      )
+    }
+    if (fechando?.id === state.PublicId) {
+      // So o desenho, para o movimento de fechar: nada aqui responde.
+      return (
+        <div inert>
+          <StateEditor
+            {...comum}
+            draft={fechando.value}
+            onChange={() => {}}
+            saving={false}
+            nameError={null}
+            error={null}
+            onSave={() => {}}
+            onCancel={() => {}}
+          />
+        </div>
+      )
+    }
+    return null
+  }
+
+  // A previa: as colunas ativas na ordem, com a aberta como esta escrita agora.
+  const naPrevia: MiniBoardColumn[] = (states ?? [])
+    .filter((state) => state.IsActive)
+    .map((state) => {
+      const entram = tiposQueEntram(state)
+      const etapaId = etapaNaTela(state)
+      return {
+        id: state.PublicId,
+        name:
+          aberto === state.PublicId && rascunho ? rascunho.nome.trim() || state.Name : state.Name,
+        tags: [
+          ...(entram.length > 0 ? [`Entrada: ${juntar(entram)}`] : []),
+          ...(encerra(state) ? ['Encerra'] : []),
+        ],
+        publicStage:
+          etapasProntas === null
+            ? undefined
+            : (etapasProntas.find((etapa) => etapa.PublicId === etapaId)?.Label ?? null),
+      }
+    })
+
   return (
-    <div className="max-w-160">
-      <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Colunas do quadro</h1>
-      <p className="mb-8 text-fg-muted text-body">
-        As colunas do quadro, na ordem em que o trabalho anda. Valem para relatos e cards do time.
+    <div className="max-w-6xl">
+      <div className="mb-1.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="font-semibold text-screen tracking-tight">Colunas</h1>
+        {/* O selo diz como a lista grava: a ordem, criar e desativar valem na hora. */}
+        <LiveBadge />
+      </div>
+      <p className="mb-2 text-body text-fg-muted">
+        As colunas do quadro, na ordem em que o trabalho anda, e o que quem relatou vê em cada uma.
       </p>
 
-      <section>
-        <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-          Projeto novo começa com{' '}
-          <strong className="font-medium text-fg">A fazer, Fazendo e Feito</strong>: renomeie,
-          reordene ou crie as que o time já usa. De fábrica, a última coluna ativa encerra o relato;
-          em Ciclo, dá para encerrar por um botão.
+      <HowItWorks className="" bodyClassName="max-w-170">
+        <p>
+          Clique numa coluna para abrir — uma de cada vez. O nome e o que quem relatou vê valem no
+          Salvar dela; mudar a ordem (pela alça à esquerda ou pelas setas), criar e desativar valem
+          na hora.
         </p>
+        <p>
+          “Quem relatou vê” é a etapa do andamento enquanto o relato está na coluna, e a coluna nova
+          já nasce com a etapa da que vinha antes dela. As etapas, e o texto de cada uma, ficam em{' '}
+          <Link to="../public-stages" className="text-fg underline underline-offset-4">
+            Andamento público
+          </Link>
+          .
+        </p>
+        <p>
+          A coluna em que cada relato entra se escolhe no tipo dele, em{' '}
+          <Link to="../report-types" className="text-fg underline underline-offset-4">
+            Tipos de relato
+          </Link>
+          . Sem escolha, ele entra na primeira coluna ativa. A entrada de um tipo não se desativa:
+          troque a entrada lá antes.
+        </p>
+        <p>
+          De fábrica, a última coluna ativa encerra o relato; em{' '}
+          <Link to="../cycle#encerramento" className="text-fg underline underline-offset-4">
+            Ciclo
+          </Link>
+          , dá para encerrar por um botão.
+        </p>
+        <p>
+          Desativar não apaga: os cards continuam na coluna, e o nome fica no histórico. Dá para
+          trazer de volta quando quiser.
+        </p>
+      </HowItWorks>
 
-        {failed && (
-          <div className="rounded-xl border border-border bg-surface-raised p-5">
-            <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
-              Não deu para carregar as colunas deste projeto agora. A falha foi ao consultar: o
-              quadro continua exatamente como estava.
-            </p>
-            <Button onClick={reload}>Tentar de novo</Button>
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex flex-col gap-2">
-            {['w-32', 'w-40', 'w-28'].map((width) => (
-              <div
-                key={width}
-                className="flex h-12 items-center rounded-lg border border-border bg-surface-raised px-3.5"
-              >
-                <Skeleton className={`h-3 ${width}`} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {states !== null && states.length === 0 && (
-          <p className="mb-4 rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted leading-relaxed">
-            O quadro ainda não tem colunas. A primeira costuma ser onde o card chega para alguém
-            olhar.
-          </p>
-        )}
-
-        {states !== null && states.length > 1 && (
-          <p className="mb-2 text-caption text-fg-muted">
-            Arraste pela alça à esquerda para mudar a ordem, ou use as setas.
-          </p>
-        )}
-
-        {states !== null && states.length > 0 && (
-          <ul className="mb-4 flex flex-col gap-2">
-            {states.map((state, index) => (
-              <li
-                key={state.PublicId}
-                // `draggable` so liga quando a pessoa pega pela alca. Com a linha
-                // inteira arrastavel, selecionar o nome com o mouse viraria um
-                // arrasto e renomear ficaria desconfortavel.
-                draggable={arrastando === state.PublicId}
-                onDragStart={(event) => {
-                  event.dataTransfer.effectAllowed = 'move'
-                  // O Firefox ignora o arrasto sem dado nenhum no evento.
-                  event.dataTransfer.setData('text/plain', state.PublicId)
-                }}
-                onDragEnter={() => arrastarSobre(index)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  void soltar()
-                }}
-                onDragEnd={() => void soltar()}
-                className={`group flex flex-wrap items-center gap-2 rounded-lg border bg-surface-raised py-2 pr-2 pl-1.5 ${
-                  arrastando === state.PublicId ? 'border-accent opacity-60' : 'border-border'
-                }`}
-              >
-                {/* A alca e as setas ficam sempre visiveis, como em todas as listas
-                    da configuracao: a alca conta que a linha se move, e as setas sao
-                    o jeito de reordenar sem mouse. Escondidas ate o foco, ninguem
-                    descobria que existiam. */}
-                <button
-                  type="button"
-                  aria-hidden
-                  tabIndex={-1}
-                  onMouseDown={() => comecarArrasto(state.PublicId)}
-                  onTouchStart={() => comecarArrasto(state.PublicId)}
-                  onMouseUp={cancelarArrasto}
-                  onTouchEnd={cancelarArrasto}
-                  disabled={editing !== null || moving}
-                  className="flex size-6 flex-none cursor-grab items-center justify-center rounded text-fg-muted active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
-                >
-                  <svg viewBox="0 0 12 12" className="size-3" fill="currentColor" aria-hidden>
-                    <circle cx="4.5" cy="2.5" r="1" />
-                    <circle cx="7.5" cy="2.5" r="1" />
-                    <circle cx="4.5" cy="6" r="1" />
-                    <circle cx="7.5" cy="6" r="1" />
-                    <circle cx="4.5" cy="9.5" r="1" />
-                    <circle cx="7.5" cy="9.5" r="1" />
-                  </svg>
-                </button>
-
-                <div className="flex flex-none flex-col">
-                  <MoveButton
-                    direction="up"
-                    label={`Mover ${state.Name} para cima`}
-                    disabled={index === 0 || moving || editing !== null}
-                    onClick={() => move(index, -1)}
-                  />
-                  <MoveButton
-                    direction="down"
-                    label={`Mover ${state.Name} para baixo`}
-                    disabled={index === states.length - 1 || moving || editing !== null}
-                    onClick={() => move(index, 1)}
-                  />
-                </div>
-
-                {editing?.publicId === state.PublicId ? (
-                  <>
-                    <TextField
-                      className="min-w-0 flex-1"
-                      ariaLabel={`Novo nome para ${state.Name}`}
-                      value={editing.value}
-                      onChange={(value) => {
-                        setEditing({ publicId: state.PublicId, value })
-                        if (renameError) setRenameError(null)
-                      }}
-                      error={renameError}
-                      maxLength={MAX_STATE_NAME_LENGTH}
-                      disabled={renaming}
-                      autoFocus
-                      onSubmit={saveRename}
-                    />
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={editing.value.trim().length === 0 || renaming}
-                      onClick={saveRename}
-                    >
-                      Salvar
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
-                      Cancelar
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span
-                      className={`min-w-0 flex-1 truncate text-body ${
-                        state.IsActive ? 'text-fg' : 'text-fg-muted line-through'
-                      }`}
-                    >
-                      {state.Name}
-                    </span>
-
-                    {!state.IsActive && (
-                      <span className="flex-none text-caption text-fg-muted">Desativada</span>
-                    )}
-
-                    {/* O rotulo visivel e curto porque a linha e estreita, e o nome
-                        acessivel traz a coluna junto: numa lista de oito linhas,
-                        oito botoes chamados "Editar" nao localizam ninguem. */}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      aria-label={`Editar ${state.Name}`}
-                      onClick={() => {
-                        setRenameError(null)
-                        setEditing({ publicId: state.PublicId, value: state.Name })
-                      }}
-                    >
-                      Editar
-                    </Button>
-
-                    {state.IsActive ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Desativar ${state.Name}`}
-                        onClick={() => perguntarDesativar(state)}
-                      >
-                        Desativar
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Reativar ${state.Name}`}
-                        onClick={() => setActive(state, true)}
-                      >
-                        Reativar
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {/* O que quem relatou ve enquanto o relato esta nesta coluna. A
-                    coluna desativada sem ligacao nao tem o que escolher: nenhum
-                    relato novo entra nela. */}
-                {mapa !== null &&
-                  etapas !== null &&
-                  (state.IsActive || etapaDe(state.PublicId)) && (
-                    <div className="flex basis-full items-center gap-2 pl-13 text-caption text-fg-muted">
-                      <span className="flex-none">Quem relatou vê:</span>
-                      <Select
-                        className="min-w-0 max-w-56 flex-1"
-                        size="sm"
-                        ariaLabel={`O que quem relatou vê com o relato em ${state.Name}`}
-                        value={etapaDe(state.PublicId) ?? ''}
-                        disabled={ligando !== null}
-                        onChange={(valor) => void ligar(state.PublicId, valor || null)}
-                        options={[
-                          { value: '', label: 'Nada muda para quem relatou' },
-                          ...etapas.map((etapa) => ({ value: etapa.PublicId, label: etapa.Label })),
-                        ]}
-                      />
-                    </div>
-                  )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {mapa !== null && (
-          <p className="mb-4 text-caption text-fg-muted leading-relaxed">
-            As etapas que quem relatou acompanha, e o texto de cada uma, ficam em{' '}
-            <Link to="../public-stages" className="text-fg underline underline-offset-4">
-              Andamento público
-            </Link>
-            .
-          </p>
-        )}
-
-        {states !== null && (
-          <div className="flex items-end gap-2">
-            <TextField
-              className="min-w-0 flex-1"
-              label="Nova coluna"
-              value={name}
-              onChange={(value) => {
-                setName(value)
-                if (createError) setCreateError(null)
-              }}
-              placeholder="Ex.: Em revisão"
-              error={createError}
-              maxLength={MAX_STATE_NAME_LENGTH}
-              disabled={creating}
-              onSubmit={create}
-            />
-            <Button
-              variant="primary"
-              disabled={name.trim().length === 0 || creating}
-              onClick={create}
+      <EditorWithPreview
+        className="mt-6"
+        preview={
+          states !== null ? (
+            <section
+              id="previa"
+              className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
             >
-              Criar coluna
-            </Button>
-          </div>
-        )}
-      </section>
+              <header className="mb-1 flex items-baseline justify-between gap-3">
+                <h2 className="font-semibold text-fg text-lead">Prévia</h2>
+                <span className="flex-none text-caption text-fg-muted">
+                  {sujo ? 'ainda não salvo' : 'igual ao quadro'}
+                </span>
+              </header>
+              <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+                O quadro com as colunas ativas, na ordem, e embaixo de cada uma o que quem relatou
+                vê — com a coluna aberta como está escrita agora. O card é de exemplo.
+              </p>
+              {naPrevia.length > 0 ? (
+                <MiniBoard
+                  columns={naPrevia}
+                  card={{
+                    title: 'Erro ao finalizar a compra',
+                    due: {
+                      day: daquiA(2),
+                      soonDays: regras.draft?.DueSoonDays ?? CYCLE_DEFAULTS.DueSoonDays,
+                    },
+                  }}
+                />
+              ) : (
+                <p className="rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted">
+                  Sem colunas ativas, o quadro fica vazio.
+                </p>
+              )}
+            </section>
+          ) : loading ? (
+            <Skeleton className="h-72 w-full rounded-xl" />
+          ) : null
+        }
+      >
+        <section aria-labelledby={`${base}-titulo`}>
+          <h2 id={`${base}-titulo`} className="mb-2 font-semibold text-lead">
+            Na ordem do quadro
+          </h2>
 
-      <BoardRules projectPublicId={project.PublicId} />
+          {failed && (
+            <div className="rounded-xl border border-border bg-surface-raised p-5">
+              <p className="mb-3.5 text-body text-fg-muted leading-relaxed">
+                Não deu para carregar as colunas deste projeto agora. A falha foi ao consultar: o
+                quadro continua exatamente como estava.
+              </p>
+              <Button onClick={reload}>Tentar de novo</Button>
+            </div>
+          )}
 
-      {states !== null && entradas !== null && (
-        <section className="mt-10">
-          <h2 className="mb-1 font-semibold text-lead">Onde cada relato entra</h2>
-          <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-            Um defeito e uma dúvida não precisam começar no mesmo lugar. Escolha uma coluna fixa por
-            tipo, ou deixe seguindo a fila — aí o relato cai sempre na primeira coluna ativa, mesmo
-            que você reordene depois.{' '}
-            <strong className="font-medium text-fg">
-              Trocar aqui não mexe nos relatos que já entraram
-            </strong>
-            : vale para o próximo que chegar.
-          </p>
-
-          {states.length === 0 ? (
-            <p className="rounded-lg border border-border border-dashed px-3.5 py-5 text-center text-detail text-fg-muted leading-relaxed">
-              Crie a primeira coluna acima e esta escolha aparece aqui.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {entradas.map((entrada) => (
-                <li
-                  key={entrada.ReportType}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3.5 py-2"
+          {loading && (
+            <div className="flex flex-col gap-2">
+              {['w-32', 'w-40', 'w-28'].map((width) => (
+                <div
+                  key={width}
+                  className="flex h-16 items-center rounded-xl border border-border bg-surface-raised px-4"
                 >
-                  <span className="flex-1 text-body text-fg">
-                    {teamTypeLabel(entrada.ReportType)}
-                  </span>
-
-                  <Select
-                    className="min-w-0 max-w-56 flex-1"
-                    size="sm"
-                    ariaLabel={`Onde entra um relato do tipo ${teamTypeLabel(entrada.ReportType)}`}
-                    value={entrada.StatePublicId ?? ''}
-                    disabled={salvandoEntrada === entrada.ReportType}
-                    onChange={(valor) => escolherEntrada(entrada.ReportType, valor || null)}
-                    options={[
-                      // O padrao e uma opcao de verdade, e nao a ausencia de
-                      // escolha: escolhe-la apaga a linha no banco. Sem ela, quem
-                      // configurou uma vez nao teria como voltar atras.
-                      {
-                        value: '',
-                        // Diz o que a opcao **faz**, e nao so onde ela cai hoje.
-                        // "Padrão — Backlog" ao lado de "Backlog" parecia a mesma
-                        // coisa escrita duas vezes; a diferenca e que uma acompanha
-                        // a fila e a outra fixa aquela coluna.
-                        label: padrao
-                          ? `Seguir a fila (hoje: ${padrao.Name})`
-                          : 'Seguir a fila (nenhuma coluna ativa)',
-                      },
-                      // Coluna desativada nao e destino: mandar relato novo para
-                      // ela desfaria pela porta dos fundos o que desativar decidiu.
-                      // A ja escolhida fica, para a tela nao mostrar em branco.
-                      ...states
-                        .filter(
-                          (state) => state.IsActive || state.PublicId === entrada.StatePublicId,
-                        )
-                        .map((state) => ({ value: state.PublicId, label: state.Name })),
-                    ]}
-                  />
-                </li>
+                  <Skeleton className={`h-3 ${width}`} />
+                </div>
               ))}
+            </div>
+          )}
+
+          {states !== null && states.length === 0 && (
+            <p className="mb-4 rounded-xl border border-border border-dashed px-4 py-5 text-center text-detail text-fg-muted leading-relaxed">
+              O quadro ainda não tem colunas. A primeira costuma ser onde o card chega para alguém
+              olhar.
+            </p>
+          )}
+
+          {states !== null && states.length > 0 && (
+            // A ancora mora na lista, e nao num item: o Andamento público leva ate aqui, e um
+            // item controlado pela tela nao abre pelo endereco.
+            <ul id="colunas-no-andamento" className="mb-4 flex scroll-mt-6 flex-col gap-2">
+              {states.map((state, index) => {
+                const estaAberta = aberto === state.PublicId
+                const prendem = state.IsActive ? tiposQuePrendem(state) : []
+                return (
+                  <SortableListItem
+                    key={state.PublicId}
+                    accordion={ACORDEAO}
+                    summaryId={idResumo(state.PublicId)}
+                    open={estaAberta}
+                    onRequestToggle={() => pedirTroca(estaAberta ? null : state.PublicId)}
+                    name={
+                      <>
+                        {/* O resumo e o botao de abrir: quem ouve escuta "Editar A fazer",
+                            como no botao que existia antes. */}
+                        <span className="sr-only">Editar </span>
+                        <span>
+                          {estaAberta && rascunho ? rascunho.nome.trim() || state.Name : state.Name}
+                        </span>
+                      </>
+                    }
+                    summary={resumo(state)}
+                    inactive={!state.IsActive}
+                    unsaved={estaAberta && sujo}
+                    order={ordem.itemProps(index, state.Name)}
+                    tags={marcas(state)}
+                    bodyClassName="p-3.5"
+                    actions={
+                      state.IsActive ? (
+                        <Button
+                          id={idAtivo(state.PublicId)}
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Desativar ${state.Name}`}
+                          // A entrada de um tipo: o caminho esta escrito embaixo do nome,
+                          // em vez de um botao que so recusa.
+                          disabled={prendem.length > 0}
+                          aria-describedby={
+                            prendem.length > 0 ? idEntrada(state.PublicId) : undefined
+                          }
+                          onClick={() => perguntarDesativar(state)}
+                        >
+                          Desativar
+                        </Button>
+                      ) : (
+                        <Button
+                          id={idAtivo(state.PublicId)}
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Reativar ${state.Name}`}
+                          onClick={() => void setActive(state, true)}
+                        >
+                          Reativar
+                        </Button>
+                      )
+                    }
+                  >
+                    {editor(state)}
+                  </SortableListItem>
+                )
+              })}
             </ul>
           )}
+
+          {states !== null && (
+            <div className="flex items-end gap-2">
+              <TextField
+                id="nova-coluna"
+                className="min-w-0 flex-1"
+                label="Nova coluna"
+                value={name}
+                onChange={(value) => {
+                  setName(value)
+                  if (createError) setCreateError(null)
+                }}
+                placeholder="Ex.: Em revisão"
+                error={createError}
+                maxLength={MAX_STATE_NAME_LENGTH}
+                disabled={creating}
+                onSubmit={create}
+              />
+              <Button
+                variant="primary"
+                disabled={name.trim().length === 0 || creating}
+                onClick={create}
+              >
+                Criar coluna
+              </Button>
+            </div>
+          )}
         </section>
-      )}
+
+        <BoardRules regras={regras} />
+      </EditorWithPreview>
 
       <ConfirmDialog
         open={retiring !== null}
@@ -706,210 +755,56 @@ export function ProjectStatesScreen() {
         confirmLabel="Desativar"
         onConfirm={() => (retiring ? setActive(retiring, false) : undefined)}
       />
+
+      <ConfirmDialog
+        open={troca !== null}
+        onOpenChange={(open) => {
+          if (!open) setTroca(null)
+        }}
+        title={`Descartar o que mudou em “${colunaAberta?.Name ?? 'coluna'}”?`}
+        description="As mudanças desta coluna ainda não foram salvas e vão se perder. Para guardar, volte e clique em Salvar."
+        confirmLabel="Descartar"
+        cancelLabel="Continuar editando"
+        primary="cancel"
+        onConfirm={confirmarTroca}
+      />
+
+      {/* Uma pergunta so ao sair, para a coluna aberta e para as regras: o roteador
+          aceita um bloqueio de cada vez. */}
+      <LeaveGuard
+        when={sujo || regras.dirty}
+        onSave={
+          !sujo || podeSalvar
+            ? () => {
+                if (sujo) void salvar()
+                if (regras.dirty) void regras.save()
+              }
+            : undefined
+        }
+      />
     </div>
   )
 }
 
-/**
- * Como o quadro mostra o fim e os prazos.
- *
- * **Mora aqui, perto das colunas**, e nao no Ciclo: as duas regras falam do quadro —
- * quantos dias a ultima coluna mostra, e quando o prazo fica em destaque. Sao
- * campos do mesmo registro das regras do ciclo, e o salvamento manda de volta o que
- * veio, com so estes dois mudados: mandar so os visiveis apagaria os outros.
- */
-function BoardRules({ projectPublicId }: { projectPublicId: string }) {
-  const { data: lidas } = useAsyncResource(
-    useCallback(
-      () => projectCycleSettingsService.getCycleSettings(projectPublicId),
-      [projectPublicId],
-    ),
-  )
-
-  const [salvas, setSalvas] = useState<CycleSettingsViewModel | null>(null)
-  const [dias, setDias] = useState(0)
-  const [destaque, setDestaque] = useState(0)
-  const [salvando, setSalvando] = useState(false)
-
-  const voltar = useCallback((regras: CycleSettingsViewModel | null) => {
-    setSalvas(regras)
-    if (!regras) return
-    setDias(regras.LastColumnVisibleDays)
-    setDestaque(regras.DueSoonDays)
-  }, [])
-
-  useEffect(() => voltar(lidas), [lidas, voltar])
-
-  // Sem as regras, a secao nao aparece: e um ajuste fino, e a falha nao pode tomar
-  // o lugar da lista de colunas.
-  if (!salvas) return null
-
-  const mudou = dias !== salvas.LastColumnVisibleDays || destaque !== salvas.DueSoonDays
-
-  async function salvar() {
-    if (!salvas || salvando) return
-    setSalvando(true)
-
-    try {
-      voltar(
-        await projectCycleSettingsService.saveCycleSettings(projectPublicId, {
-          ...salvas,
-          LastColumnVisibleDays: dias,
-          DueSoonDays: destaque,
-        }),
-      )
-      toast.done('Regras do quadro salvas.')
-    } catch (failure) {
-      toast.error(describeError(failure))
-    } finally {
-      setSalvando(false)
-    }
-  }
-
+/** Uma marca da coluna, por extenso: "Entrada: Defeito", "Encerra o relato". */
+function Marca({ children }: { children: ReactNode }) {
   return (
-    <section className="mt-10">
-      <h2 className="mb-1 font-semibold text-lead">Como o quadro mostra o fim e os prazos</h2>
-      <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-        A última coluna só cresce — é onde o trabalho termina. Ela mostra só o que entrou nela há
-        pouco tempo; <strong className="font-medium text-fg">o resto continua na lista</strong> da
-        tela de Trabalho, e nada sai do projeto. Com uma coluna só, a regra não vale: ali ainda é a
-        entrada da fila.
-      </p>
-
-      <NumeroDeDias
-        id="ultima-coluna"
-        rotulo="A última coluna mostra o que entrou nela nos últimos"
-        maximo={MAX_LAST_COLUMN_VISIBLE_DAYS}
-        valor={dias}
-        aoTrocar={setDias}
-        explicacao={
-          dias === 0
-            ? 'Zero: mostra todos, por mais antigos que sejam.'
-            : 'O card que entrou nela antes disso sai do quadro e continua na lista.'
-        }
-      />
-
-      <NumeroDeDias
-        id="prazo-perto"
-        rotulo="O prazo fica em destaque faltando"
-        maximo={MAX_DUE_SOON_DAYS}
-        valor={destaque}
-        aoTrocar={setDestaque}
-        explicacao={
-          destaque === 0
-            ? 'Zero: só no próprio dia, em amarelo. O vencido aparece sempre, em vermelho.'
-            : 'Em amarelo, no quadro e na lista. O vencido aparece sempre, em vermelho.'
-        }
-      />
-
-      <UnsavedChangesBar
-        dirty={mudou}
-        saving={salvando}
-        onSave={() => void salvar()}
-        onDiscard={() => voltar(salvas)}
-      />
-    </section>
+    <span className="rounded border border-border px-1.5 py-0.5 text-caption text-fg-muted">
+      {children}
+    </span>
   )
 }
 
-/**
- * Um numero de dias, de zero ao teto. Um `number` de verdade: teclado numerico no
- * telefone e letra recusada pelo navegador. Campo vazio vira zero, e nao `NaN`, que
- * quebraria a conta de "ha mudanca".
- */
-function NumeroDeDias({
-  id,
-  rotulo,
-  valor,
-  maximo,
-  explicacao,
-  aoTrocar,
-}: {
-  id: string
-  rotulo: string
-  valor: number
-  maximo: number
-  explicacao: string
-  aoTrocar: (valor: number) => void
-}) {
-  return (
-    <div className="mb-3">
-      <label htmlFor={id} className="mb-1.5 block text-detail text-fg-muted">
-        {rotulo}
-      </label>
-      <div className="mb-1 flex items-center gap-2">
-        <input
-          id={id}
-          type="number"
-          min={0}
-          max={maximo}
-          value={valor}
-          onChange={(evento) =>
-            aoTrocar(Math.max(0, Number.parseInt(evento.target.value, 10) || 0))
-          }
-          className="h-9 w-28 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg"
-        />
-        <span className="text-detail text-fg-muted">dias</span>
-      </div>
-      <p className="text-caption text-fg-muted leading-relaxed">{explicacao}</p>
-    </div>
-  )
+/** "Defeito", "Defeito e Melhoria", "Defeito, Melhoria e Dúvida". */
+function juntar(nomes: string[]): string {
+  if (nomes.length <= 1) return nomes.join('')
+  return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`
 }
 
-/** Tira o item de uma posicao e o devolve em outra, sem alterar a lista original. */
-function reordenar(
-  lista: ProjectStateViewModel[],
-  de: number,
-  para: number,
-): ProjectStateViewModel[] {
-  const nova = [...lista]
-  const [item] = nova.splice(de, 1)
-  if (!item) return lista
-  nova.splice(para, 0, item)
-  return nova
-}
-
-/** Duas listas com os mesmos estados na mesma ordem. Evita gravar o que nao mudou. */
-function mesmaOrdem(a: ProjectStateViewModel[], b: ProjectStateViewModel[]): boolean {
-  return a.length === b.length && a.every((state, index) => state.PublicId === b[index]?.PublicId)
-}
-
-/**
- * A seta de mover. E um botao com nome proprio para leitor de tela — "Mover
- * Análise para cima" — porque o glifo sozinho se anuncia como "botao", e numa
- * lista de oito linhas iguais isso nao localiza ninguem.
- */
-function MoveButton({
-  direction,
-  label,
-  disabled,
-  onClick,
-}: {
-  direction: 'up' | 'down'
-  label: string
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-5 items-center justify-center rounded text-fg-muted enabled:hover:bg-surface-sunken enabled:hover:text-fg disabled:opacity-30"
-    >
-      <svg
-        viewBox="0 0 12 12"
-        className="size-3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d={direction === 'up' ? 'M3 7.2 6 4.2l3 3' : 'M3 4.8 6 7.8l3-3'} />
-      </svg>
-    </button>
-  )
+/** O dia daqui a `dias`, como o prazo do card o guarda (`2026-10-12`), no fuso de quem ve. */
+function daquiA(dias: number): string {
+  const dia = new Date()
+  dia.setDate(dia.getDate() + dias)
+  const mes = String(dia.getMonth() + 1).padStart(2, '0')
+  return `${dia.getFullYear()}-${mes}-${String(dia.getDate()).padStart(2, '0')}`
 }

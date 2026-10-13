@@ -1,4 +1,4 @@
-import type { ConsoleSection } from '@/app/navigation'
+import type { SectionKey } from '@/app/navigation'
 import { cn } from '@/shared/lib/cn'
 
 /**
@@ -13,13 +13,7 @@ import { cn } from '@/shared/lib/cn'
  * pessoa, quase igual ao de Membros, e "Andamento público" tres pontos numa linha,
  * que nao diziam nada: na lateral recolhida, o glifo e tudo o que se ve.
  */
-export function SectionIcon({
-  section,
-  className,
-}: {
-  section: ConsoleSection['key']
-  className?: string
-}) {
+export function SectionIcon({ section, className }: { section: SectionKey; className?: string }) {
   return (
     <svg
       viewBox="0 0 12 12"
@@ -118,6 +112,26 @@ export function SectionIcon({
         </>
       )}
 
+      {section === 'reportTypes' && (
+        // Duas opcoes de botao, uma marcada: e o que quem relata escolhe primeiro, e
+        // nao se parece com a barra de Andamento publico, que e uma so.
+        <>
+          <rect x="1.2" y="1.8" width="9.6" height="3.6" rx="1.8" />
+          <rect x="1.2" y="6.6" width="9.6" height="3.6" rx="1.8" />
+          <circle cx="3.2" cy="3.6" r="0.8" fill="currentColor" stroke="none" />
+        </>
+      )}
+
+      {section === 'formTexts' && (
+        // Um formulario: o titulo em cima e duas linhas de campo — os textos que valem
+        // para todo tipo de relato.
+        <>
+          <path d="M2 2.6h5.2" />
+          <rect x="1.6" y="4.6" width="8.8" height="2.2" rx="0.8" />
+          <rect x="1.6" y="8.2" width="5.6" height="2.2" rx="0.8" />
+        </>
+      )}
+
       {section === 'tool' && (
         // O canto de uma pagina com a pilula parada nele: e literalmente o que
         // esta secao decide.
@@ -160,6 +174,26 @@ export function SectionIcon({
         <>
           <rect x="1.2" y="4.2" width="9.6" height="3.6" rx="1.8" />
           <path d="M3 6h3" strokeWidth="1.8" />
+        </>
+      )}
+
+      {section === 'configure' && (
+        // Quatro quadros: a pagina central, com as areas lado a lado. Nao e a
+        // engrenagem pelo mesmo motivo do Projeto: a 12px ela vira borrao.
+        <>
+          <rect x="1.4" y="1.4" width="3.8" height="3.8" rx="0.8" />
+          <rect x="6.8" y="1.4" width="3.8" height="3.8" rx="0.8" />
+          <rect x="1.4" y="6.8" width="3.8" height="3.8" rx="0.8" />
+          <rect x="6.8" y="6.8" width="3.8" height="3.8" rx="0.8" />
+        </>
+      )}
+
+      {section === 'domains' && (
+        // Globo: os enderecos de onde os relatos vem.
+        <>
+          <circle cx="6" cy="6" r="4.6" />
+          <path d="M1.4 6h9.2" />
+          <path d="M6 1.4c1.3 1.3 1.9 2.8 1.9 4.6S7.3 9.3 6 10.6C4.7 9.3 4.1 7.8 4.1 6S4.7 2.7 6 1.4Z" />
         </>
       )}
 

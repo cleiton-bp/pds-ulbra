@@ -1,13 +1,21 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
 import type { ConsoleSection } from '@/app/navigation'
-import { CONFIG_SECTIONS, isConfigPath, sectionByPath, WORK_SECTIONS } from '@/app/navigation'
+import {
+  CONFIG_AREAS,
+  CONFIG_HOME,
+  isConfigPath,
+  isSectionActive,
+  sectionByPath,
+  WORK_SECTIONS,
+} from '@/app/navigation'
 import { SectionIcon } from '@/app/SectionIcon'
 import { ThemeButton } from '@/app/ThemeButton'
 import type { ProjectViewModel } from '@/contracts'
 import { isPanelError } from '@/data'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
+import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import { useProjectsStore } from '@/features/projects/projectsStore'
 import { Brand } from '@/shared/components/Brand'
 import { Button } from '@/shared/components/Button'
@@ -21,6 +29,7 @@ import {
 import { Skeleton } from '@/shared/components/Skeleton'
 import { Tooltip } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
+import { useScrollToHash } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure, groupByAccount } from '@/shared/lib/projectAccess'
 
@@ -62,6 +71,23 @@ export function ProjectShell() {
   const [failure, setFailure] = useState<ProjectFailure | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(lerRecolhida)
+  // **Recolher e abrir sao um movimento**, e nao um salto: a largura anda (300 ms) e
+  // os nomes esmaecem. `compacto` e o desenho so de glifos, que troca **depois** de a
+  // lateral fechar e **antes** de ela abrir — o glifo fica no mesmo lugar nos dois
+  // desenhos, e a troca nao aparece. `rotulosOcultos` esmaece os nomes enquanto a
+  // largura anda.
+  const [compacto, setCompacto] = useState(collapsed)
+  const [rotulosOcultos, setRotulosOcultos] = useState(false)
+  // O recuo das telas embaixo de cada area tambem anda: sem isso, ao fechar, o fio do
+  // recuo e os glifos recuados ficavam por cima da coluna dos glifos.
+  const [recuoRecolhido, setRecuoRecolhido] = useState(false)
+  const movimento = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(movimento.current), [])
+
+  // O `#` do endereco leva ao campo, em qualquer tela do projeto: a busca da
+  // configuracao, os primeiros passos e o sino apontam para `tela#campo`. Mora na
+  // casca, e nao em cada tela, para a tela nova ganhar isso sem lembrar de pedir.
+  useScrollToHash()
 
   const project = projects.find((item) => item.PublicId === publicId)
   const accountGroups = groupByAccount(projects)
@@ -160,6 +186,34 @@ export function ProjectShell() {
 
   function recolher(valor: boolean) {
     setCollapsed(valor)
+    window.clearTimeout(movimento.current)
+    if (semMovimento()) {
+      setCompacto(valor)
+      setRotulosOcultos(false)
+      setRecuoRecolhido(false)
+    } else if (valor) {
+      // Fechar: os nomes esmaecem, o recuo das areas desliza para a coluna dos glifos
+      // e a largura encolhe — tudo junto, em 300 ms. So no fim vira o desenho de glifos,
+      // que tem tudo no mesmo lugar.
+      setRotulosOcultos(true)
+      setRecuoRecolhido(true)
+      movimento.current = window.setTimeout(() => {
+        setCompacto(true)
+        setRotulosOcultos(false)
+        setRecuoRecolhido(false)
+      }, DURACAO_DA_LATERAL)
+    } else {
+      // Abrir: desenha com os nomes apagados e o recuo ainda na coluna dos glifos; no
+      // quadro seguinte o recuo desliza para o lugar e os nomes aparecem, enquanto a
+      // largura cresce.
+      setCompacto(false)
+      setRotulosOcultos(true)
+      setRecuoRecolhido(true)
+      movimento.current = window.setTimeout(() => {
+        setRecuoRecolhido(false)
+        movimento.current = window.setTimeout(() => setRotulosOcultos(false), 100)
+      }, 20)
+    }
     try {
       window.localStorage.setItem(LATERAL_RECOLHIDA, valor ? '1' : '0')
     } catch {
@@ -314,6 +368,8 @@ export function ProjectShell() {
         <ThemeButton />
         <NotificationBell />
         <AccountMenu />
+        {/* O perfil abre por cima, sem trocar o endereco: menu da conta e sino. */}
+        <ProfileDialog />
       </div>
     </header>
   )
@@ -349,7 +405,8 @@ export function ProjectShell() {
 
   const admin = project ? canConfigure(project) : false
   // Recolher so vale no computador: na gaveta do celular o nome sempre aparece.
-  const iconesSo = collapsed && !drawerOpen
+  const iconesSo = compacto && !drawerOpen
+  const estreita = collapsed && !drawerOpen
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-surface">
@@ -381,47 +438,68 @@ export function ProjectShell() {
           id="menu-do-projeto"
           aria-label="Seções do projeto"
           className={cn(
-            'flex flex-none flex-col gap-5 overflow-y-auto border-border border-r bg-surface-raised py-5',
+            // A lateral nao rola inteira: so a lista rola, e o recolher fica preso no pe.
+            'flex flex-none flex-col overflow-hidden border-border border-r bg-surface-raised',
+            'transition-[width] duration-300 ease-out motion-reduce:transition-none',
+            // Os nomes esmaecem enquanto a largura anda (ver `recolher`).
+            '[&_[data-rotulo]]:transition-opacity [&_[data-rotulo]]:duration-150',
+            rotulosOcultos && '[&_[data-rotulo]]:opacity-0',
+            recuoRecolhido &&
+              '[&_[data-recuo]]:ml-0 [&_[data-recuo]]:border-surface-raised [&_[data-recuo]]:pl-0',
             'absolute inset-y-0 left-0 z-drawer lg:static',
-            iconesSo ? 'w-60 px-3 lg:w-14 lg:px-2' : 'w-60 px-3',
+            // A margem dos lados mora dentro da lista e do pe, e nao aqui: na lateral,
+            // a barra de rolagem ficaria dentro da margem, por cima dos itens. Assim
+            // ela encosta na borda direita.
+            estreita ? 'w-60 lg:w-14' : 'w-60',
             drawerOpen ? 'flex' : 'hidden lg:flex',
           )}
         >
-          <div className="flex flex-col gap-0.5">
-            {WORK_SECTIONS.map((section) => (
-              <SectionLink
-                key={section.key}
-                section={section}
-                publicId={publicId}
-                iconOnly={iconesSo}
-                onNavigate={() => setDrawerOpen(false)}
-              />
-            ))}
-          </div>
+          <div
+            className={cn(
+              'scrollbar-discreet flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden py-5',
+              'px-3',
+            )}
+          >
+            <div className="flex flex-col gap-0.5">
+              {WORK_SECTIONS.map((section) => (
+                <SectionLink
+                  key={section.key}
+                  section={section}
+                  segment={segment}
+                  publicId={publicId}
+                  iconOnly={iconesSo}
+                  onNavigate={() => setDrawerOpen(false)}
+                />
+              ))}
+            </div>
 
-          {/* Quem e so membro nao ve a configuracao: ele trabalha nos relatos, e a
+            {/* Quem e so membro nao ve a configuracao: ele trabalha nos relatos, e a
               API recusaria tudo o que ele tentasse mudar ali. Enquanto o projeto
               carrega, um esqueleto no lugar dela — o trabalho, em cima, nao pula. */}
-          {!project ? (
-            <div className="flex flex-col gap-2 px-2.5" aria-hidden>
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-          ) : (
-            admin && (
-              <ConfigGroup
-                segment={segment}
-                publicId={publicId}
-                iconOnly={iconesSo}
-                onNavigate={() => setDrawerOpen(false)}
-              />
-            )
-          )}
+            {!project ? (
+              <div className="flex flex-col gap-2 px-2.5" aria-hidden>
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ) : (
+              admin && (
+                <ConfigNav
+                  segment={segment}
+                  publicId={publicId}
+                  iconOnly={iconesSo}
+                  onNavigate={() => setDrawerOpen(false)}
+                />
+              )
+            )}
+          </div>
 
-          {/* Recolher, no pe: quem passa o dia no quadro ganha a largura da
-              lateral. A escolha fica guardada neste navegador. */}
-          <div className="mt-auto hidden lg:block">
+          {/* Recolher, **preso no pe**: quem passa o dia no quadro ganha a largura da
+              lateral. Com o grupo da configuracao aberto, a lista passa da altura da
+              tela — e o botao, que rolava junto, sumia justo quando a lateral mais
+              ocupava espaco. Agora so a lista de cima rola. A escolha fica guardada
+              neste navegador. */}
+          <div className={cn('hidden flex-none border-border border-t py-2 lg:block', 'px-3')}>
             <SideButton
               iconOnly={iconesSo}
               label={collapsed ? 'Abrir o menu' : 'Recolher menu'}
@@ -446,14 +524,25 @@ export function ProjectShell() {
 }
 
 /**
- * "Configurar o projeto", recolhivel.
+ * "Configurar o projeto", **recolhivel, como sempre foi**: o grupo abre e fecha ali
+ * mesmo, na lateral, e mostra as telas pelas cinco areas. A pagina central (primeiros
+ * passos, busca e o resumo das areas) e o primeiro item dele, "Visao geral" — e nao o
+ * unico caminho: um item so, que levava para outra pagina, fez a configuracao parecer
+ * escondida para quem ja sabia onde cada tela estava.
  *
  * **Abre sozinho quando a tela aberta e de configuracao**, e nao fecha sozinho: quem
- * abriu o grupo estando no Trabalho quis ver as telas, e elas ficam. Abre fechado
- * no Trabalho — e o que o time faz todo dia, e o grupo empurrava a lista para
- * baixo.
+ * abriu o grupo estando no Trabalho quis ver as telas, e elas ficam. Abre fechado no
+ * Trabalho — e o que o time faz todo dia, e o grupo empurrava a lista para baixo.
+ *
+ * **Abrir e fechar e um movimento, e nao um salto**: a altura anda de zero ao tamanho
+ * do grupo em 300 ms (`grid-template-rows` de `0fr` a `1fr`, que anima sem medir a
+ * altura). Fechado, o grupo fica `inert` — fora do Tab e do leitor de tela, como se
+ * nao estivesse ali. Quem pede menos movimento no sistema nao ve a animacao.
+ *
+ * Recolhida, a lateral mostra so os glifos: o nome de cada area vira um traco entre
+ * os grupos, e continua no `aria-label` do grupo para o leitor de tela.
  */
-function ConfigGroup({
+function ConfigNav({
   segment,
   publicId,
   iconOnly,
@@ -473,129 +562,208 @@ function ConfigGroup({
     if (naConfiguracao) setOpen(true)
   }
 
+  const botao = (
+    <button
+      type="button"
+      onClick={() => setOpen((atual) => !atual)}
+      aria-expanded={open}
+      aria-controls="configurar-o-projeto"
+      aria-label={iconOnly ? 'Configurar o projeto' : undefined}
+      className={cn(
+        'flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
+      )}
+    >
+      <span className="flex size-3.5 flex-none items-center justify-center">
+        <span
+          className={cn(
+            'flex transition-transform duration-300 ease-out motion-reduce:transition-none',
+            open && 'rotate-90',
+          )}
+        >
+          <Seta direcao="direita" />
+        </span>
+      </span>
+      {!iconOnly && (
+        <span data-rotulo className="min-w-0 flex-1 truncate">
+          Configurar o projeto
+        </span>
+      )}
+    </button>
+  )
+
   return (
     <div>
-      <SideButton
-        iconOnly={iconOnly}
-        label="Configurar o projeto"
-        onClick={() => setOpen((atual) => !atual)}
-        expanded={open}
-        controls="configurar-o-projeto"
-        muted
-        icon={<Seta direcao={open ? 'baixo' : 'direita'} />}
-      />
+      {iconOnly ? <Tooltip content="Configurar o projeto">{botao}</Tooltip> : botao}
 
-      {open && (
-        <div id="configurar-o-projeto" className="mt-1 flex flex-col gap-3">
-          {CONFIG_SECTIONS.map((bloco) => (
-            <div key={bloco[0]?.key} className="flex flex-col gap-0.5">
-              {bloco.map((section) => (
-                <SectionLink
-                  key={section.key}
-                  section={section}
-                  publicId={publicId}
-                  iconOnly={iconOnly}
-                  onNavigate={onNavigate}
-                />
-              ))}
-            </div>
-          ))}
+      <div
+        id="configurar-o-projeto"
+        inert={!open}
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
+          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="mt-1 flex flex-col gap-3">
+            <SectionLink
+              section={{ ...CONFIG_HOME, label: 'Visão geral' }}
+              segment={segment}
+              publicId={publicId}
+              iconOnly={iconOnly}
+              onNavigate={onNavigate}
+            />
+            {CONFIG_AREAS.map((area) => (
+              // biome-ignore lint/a11y/useSemanticElements: um grupo de links, e nao um formulario: `fieldset` diria a quem usa leitor de tela que ha campos ali
+              <div
+                key={area.key}
+                role="group"
+                aria-label={area.label}
+                className="flex flex-col gap-0.5"
+              >
+                {/* **O nome da area e titulo, e nao item**: caixa alta, letra menor e
+                    espacada, e as telas embaixo dele recuadas com um fio a esquerda.
+                    No mesmo tom e tamanho dos itens, o nome parecia mais um link que
+                    nao abria nada. */}
+                {iconOnly ? (
+                  // Mesma altura do titulo, com o traco no meio: trocar um pelo outro
+                  // nao sobe nem desce os glifos de baixo.
+                  <div
+                    aria-hidden
+                    className="relative px-2.5 pt-1 pb-1 text-caption uppercase tracking-wider"
+                  >
+                    <span className="invisible">·</span>
+                    <span className="absolute inset-x-1 top-1/2 h-px bg-border" />
+                  </div>
+                ) : (
+                  <div
+                    aria-hidden
+                    data-rotulo
+                    className="truncate px-2.5 pt-1 pb-1 font-semibold text-caption text-fg-muted uppercase tracking-wider"
+                  >
+                    {area.label}
+                  </div>
+                )}
+                <div
+                  data-recuo
+                  className={cn(
+                    'flex flex-col gap-0.5',
+                    !iconOnly &&
+                      'ml-3.5 border-border border-l pl-1.5 transition-[margin,padding] duration-300 ease-out motion-reduce:transition-none',
+                  )}
+                >
+                  {/* Membros ja esta no topo, para todos: repetido aqui, a lateral teria
+                      dois itens iguais. Na pagina central ele continua na area. */}
+                  {area.sections
+                    .filter((section) => !WORK_SECTIONS.some((item) => item.key === section.key))
+                    .map((section) => (
+                      <SectionLink
+                        key={section.key}
+                        section={section}
+                        segment={segment}
+                        publicId={publicId}
+                        iconOnly={iconOnly}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
 /**
- * Um item da lateral que leva a algum lugar. Os dois grupos usam o mesmo: a
- * diferenca entre eles e de assunto, e nao de aparencia.
+ * Um item da lateral que leva a algum lugar. Os grupos usam o mesmo: a diferenca
+ * entre eles e de assunto, e nao de aparencia.
+ *
+ * Marca a tela aberta pelo segmento, e nao pelo `NavLink`: a Instalacao fica marcada
+ * tambem em Chaves, que se abre por ela e nao tem item proprio.
  *
  * Recolhida, a lateral mostra so o glifo, e o nome vai para a dica e para o leitor
  * de tela.
  */
 function SectionLink({
   section,
+  segment,
   publicId,
   iconOnly,
   onNavigate,
 }: {
   section: ConsoleSection
+  segment: string
   publicId: string
   iconOnly: boolean
   onNavigate: () => void
 }) {
+  const ativo = isSectionActive(section, segment)
+
   const link = (
-    <NavLink
+    <Link
       to={`/projects/${publicId}/${section.path}`}
       onClick={onNavigate}
+      aria-current={ativo ? 'page' : undefined}
       aria-label={iconOnly ? section.label : undefined}
-      className={({ isActive }) =>
-        cn(
-          'flex h-[34px] flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
-          iconOnly && 'justify-center px-0',
-          isActive ? 'bg-nav-active font-medium text-fg' : 'text-fg hover:bg-surface-sunken',
-        )
-      }
-    >
-      {({ isActive }) => (
-        <>
-          {/* Apagado quando nao e a secao aberta: com todos no mesmo tom, os
-              glifos disputam a atencao com o que esta aberto. */}
-          <SectionIcon
-            section={section.key}
-            className={cn('size-3.5', isActive ? 'text-fg' : 'text-fg-muted')}
-          />
-          {!iconOnly && section.label}
-        </>
+      className={cn(
+        'flex h-[34px] flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
+
+        ativo ? 'bg-nav-active font-medium text-fg' : 'text-fg hover:bg-surface-sunken',
       )}
-    </NavLink>
+    >
+      {/* Apagado quando nao e a secao aberta: com todos no mesmo tom, os glifos
+          disputam a atencao com o que esta aberto. */}
+      <SectionIcon
+        section={section.key}
+        className={cn('size-3.5', ativo ? 'text-fg' : 'text-fg-muted')}
+      />
+      {!iconOnly && (
+        <span data-rotulo className="min-w-0 truncate">
+          {section.label}
+        </span>
+      )}
+    </Link>
   )
 
   return iconOnly ? <Tooltip content={section.label}>{link}</Tooltip> : link
 }
 
-/** Um botao da lateral que nao navega: abrir o grupo, recolher a lateral. */
+/** Um botao da lateral que nao navega: recolher a lateral. */
 function SideButton({
   iconOnly,
   label,
   onClick,
   icon,
-  expanded,
-  controls,
-  muted = false,
 }: {
   iconOnly: boolean
   label: string
   onClick: () => void
   icon: ReactNode
-  expanded?: boolean
-  controls?: string
-  muted?: boolean
 }) {
   const button = (
     <button
       type="button"
       onClick={onClick}
-      aria-expanded={expanded}
-      aria-controls={controls}
       aria-label={iconOnly ? label : undefined}
       className={cn(
-        'flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left transition-colors hover:bg-surface-sunken',
-        iconOnly && 'justify-center px-0',
-        muted ? 'text-caption text-fg-muted hover:text-fg' : 'text-detail text-fg-muted',
+        'flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">{icon}</span>
-      {!iconOnly && <span className="min-w-0 flex-1">{label}</span>}
+      {!iconOnly && (
+        <span data-rotulo className="min-w-0 flex-1 truncate">
+          {label}
+        </span>
+      )}
     </button>
   )
 
   return iconOnly ? <Tooltip content={label}>{button}</Tooltip> : button
 }
 
-function Seta({ direcao }: { direcao: 'baixo' | 'direita' | 'esquerda' }) {
+function Seta({ direcao }: { direcao: 'direita' | 'esquerda' }) {
   const caminho = {
-    baixo: 'm3 4.5 3 3 3-3',
     direita: 'm4.5 3 3 3-3 3',
     esquerda: 'm7.5 3-3 3 3 3',
   }[direcao]
@@ -657,5 +825,19 @@ function LoadingSection() {
       <Skeleton className="mt-6 h-32 w-full" />
       <Skeleton className="h-32 w-full" />
     </div>
+  )
+}
+
+/** Quanto a lateral leva para abrir ou fechar — o mesmo `duration-300` da largura. */
+const DURACAO_DA_LATERAL = 300
+
+/**
+ * Quem pediu menos movimento no sistema ve a lateral trocar de uma vez. Sem
+ * `matchMedia` (fora do navegador), tambem.
+ */
+function semMovimento(): boolean {
+  return (
+    typeof window.matchMedia !== 'function' ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
 }
