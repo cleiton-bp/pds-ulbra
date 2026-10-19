@@ -1,89 +1,21 @@
-import { useCallback, useEffect, useState } from 'react'
 import type { CycleSettingsViewModel } from '@/contracts'
 import { MAX_INFO_REQUEST_DAYS } from '@/contracts'
-import { describeError, projectCycleSettingsService } from '@/data'
-import { toast } from '@/shared/components/toastStore'
-import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import { NumberField } from '@/shared/components/NumberField'
+import { useCycleSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 
 /**
- * As regras do ciclo, lidas e salvas por **uma tela de cada vez**.
- *
- * Elas moram num registro so na API, e o salvamento substitui todas de uma vez —
- * mas aparecem em telas diferentes: o encerramento no Ciclo, as sprints em Sprints,
- * e as regras do quadro em Colunas. Cada tela manda de volta **o que recebeu**, com
- * so os campos dela mudados: uma tela que mandasse so os campos visiveis apagaria
- * os das outras. E por isso que `published` nunca e descartado — ele e a base de
- * tudo que nao esta na tela.
- *
- * `campos` e o que a tela mexe, e e so isso que conta para "ha mudanca": comparar
- * todos diria "ha mudanca" para uma diferenca que ninguem pode ter feito ali.
+ * As regras do ciclo, lidas e salvas por **uma tela de cada vez**: o encerramento no
+ * Ciclo, as sprints em Sprints e o fim e os prazos do quadro em Colunas. O registro e
+ * um so na API, e `useCycleSettingsDraft` manda de volta o que esta salvo agora com so
+ * os campos da tela mudados — ver `useSettingsDraft`.
  */
 export function useCycleDraft(
   projectPublicId: string,
   campos: readonly (keyof CycleSettingsViewModel)[],
   mensagemSalvo: string,
 ) {
-  const {
-    data: saved,
-    loading,
-    failed,
-    reload,
-  } = useAsyncResource(
-    useCallback(
-      () => projectCycleSettingsService.getCycleSettings(projectPublicId),
-      [projectPublicId],
-    ),
-  )
-
-  const [draft, setDraft] = useState<CycleSettingsViewModel | null>(null)
-  const [published, setPublished] = useState<CycleSettingsViewModel | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    setPublished(saved)
-    setDraft(saved)
-  }, [saved])
-
-  const dirty =
-    draft !== null &&
-    published !== null &&
-    campos.some((campo) => draft[campo] !== published[campo])
-
-  async function salvar(): Promise<CycleSettingsViewModel | null> {
-    if (!draft || !published || saving) return null
-
-    setSaving(true)
-
-    try {
-      // A base e o que esta salvo, e por cima so os campos desta tela.
-      const pedido = { ...published }
-      for (const campo of campos) Object.assign(pedido, { [campo]: draft[campo] })
-
-      const gravado = await projectCycleSettingsService.saveCycleSettings(projectPublicId, pedido)
-      setPublished(gravado)
-      setDraft(gravado)
-      toast.done(mensagemSalvo)
-      return gravado
-    } catch (falha) {
-      toast.error(describeError(falha))
-      return null
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return {
-    draft,
-    setDraft,
-    published,
-    loading,
-    failed,
-    reload,
-    saving,
-    dirty,
-    salvar,
-    descartar: () => setDraft(published),
-  }
+  const rascunho = useCycleSettingsDraft(projectPublicId, campos, mensagemSalvo)
+  return { ...rascunho, salvar: rascunho.save, descartar: rascunho.discard }
 }
 
 /**
@@ -116,20 +48,18 @@ export function Dias({
         {rotulo}
       </label>
       <div className="mb-1 flex items-center gap-2">
-        <input
+        <NumberField
           id={id}
-          type="number"
           min={minimo}
           max={maximo}
           value={valor}
           // Campo vazio vira o minimo, e nao `NaN`: apagar tudo para digitar outro
           // numero e o gesto comum, e `NaN` quebraria a comparacao que decide se ha o
           // que salvar. E abaixo do minimo tambem — nos prazos, zero nao e um prazo.
-          onChange={(evento) => {
-            const numero = Number.parseInt(evento.target.value, 10)
+          onChange={(texto) => {
+            const numero = Number.parseInt(texto, 10)
             aoTrocar(Number.isNaN(numero) ? minimo : Math.max(minimo, numero))
           }}
-          className="h-9 w-28 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg"
         />
         <span className="text-detail text-fg-muted">dias</span>
       </div>
@@ -145,18 +75,21 @@ export function Dias({
  * banco: quem le a tela decide sobre o comportamento, e nao sobre o campo.
  */
 export function Marcar({
+  id,
   marcado,
   titulo,
   explicacao,
   aoTrocar,
 }: {
+  /** A ancora da caixa: a busca da configuracao leva ate ela. */
+  id?: string
   marcado: boolean
   titulo: string
   explicacao: string
   aoTrocar: (marcado: boolean) => void
 }) {
   return (
-    <label className="flex cursor-pointer gap-2.5">
+    <label id={id} className="flex scroll-mt-6 cursor-pointer gap-2.5">
       <input
         type="checkbox"
         checked={marcado}

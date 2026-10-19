@@ -1,5 +1,6 @@
 /**
- * As cores que O botão oferece num clique, para o botao e para o texto dele.
+ * As cores que a configuracao oferece num clique: a do botao e a do texto dele, em O
+ * botão, e o fundo do formulario, em Formulário.
  *
  * **Sao dado, e nao tema.** A cor vai gravada na configuracao e pinta o botao no
  * sistema do cliente, igual nos dois temas: um token que mudasse com o tema do painel
@@ -32,6 +33,22 @@ export const BUTTON_COLORS: readonly PaletteColor[] = [
 /** As cores do texto: as duas tintas que o painel ja usa sobre cor de cliente. */
 export const TEXT_COLORS: readonly PaletteColor[] = [
   { name: 'Branco', value: '#ffffff' },
+  { name: 'Grafite', value: '#1c2024' },
+]
+
+/**
+ * Os fundos do formulario: claros, que quase todo site aceita, e dois escuros. **Os
+ * degraus 3 e 12 da paleta**, e nao os 9 do botao: fundo saturado cansa quem le um
+ * formulario inteiro, e o texto por cima sai da conta, nao da amostra.
+ */
+export const FORM_BACKGROUNDS: readonly PaletteColor[] = [
+  { name: 'Cinza-claro', value: '#f0f0f3' },
+  { name: 'Azul-claro', value: '#e6f4fe' },
+  { name: 'Verde-claro', value: '#e9f6e9' },
+  { name: 'Amarelo-claro', value: '#fff7c2' },
+  { name: 'Pêssego', value: '#ffefd6' },
+  { name: 'Rosa-claro', value: '#fee9f5' },
+  { name: 'Azul-marinho', value: '#113264' },
   { name: 'Grafite', value: '#1c2024' },
 ]
 

@@ -333,6 +333,7 @@ export function readLauncherAppearance(data: unknown): WidgetLauncherViewModel |
     AccentColor: cor(lido.AccentColor),
     Position: umDe(lido.Position, LAUNCHER_POSITIONS, 'BottomRight'),
     Theme: umDe<WidgetTheme>(lido.Theme, ['Auto', 'Light', 'Dark'], 'Auto'),
+    FormBackgroundColor: cor(lido.FormBackgroundColor),
     OffsetX: numero(lido.OffsetX),
     OffsetY: numero(lido.OffsetY),
     LauncherIcon: umDe(lido.LauncherIcon, ICONES, 'None'),

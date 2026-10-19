@@ -2,15 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   NO_REPORT_FILTERS,
   type ReportFilters,
-  type ReportFilterType,
   type ReportSort,
   type ReportSortField,
+  TEAM_CARD_FILTER,
 } from '@/data'
 
 /** Quanto a busca espera depois da ultima tecla: uma leitura por palavra, e nao por letra. */
 export const SEARCH_DELAY_MS = 300
 
-const TIPOS: ReportFilterType[] = ['bug', 'improvement', 'question', 'team']
+/**
+ * Um valor que o filtro de tipo aceita: o identificador de um tipo do projeto, ou o
+ * card do time. **Os nomes antigos (`bug`, `improvement`, `question`) caem aqui**: a
+ * aba que guardou o filtro antes de os tipos serem do projeto nao manda para a API um
+ * valor que ela recusa. O tipo que nao existe mais sai depois, quando o menu le a lista.
+ */
+const ehTipo = (valor: string) =>
+  valor === TEAM_CARD_FILTER ||
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor)
 
 const chave = (projeto: string) => `pds.web.trabalho.filtros.${projeto}`
 const chaveDaOrdem = (projeto: string) => `pds.web.trabalho.ordem.${projeto}`
@@ -74,12 +82,10 @@ function lerGuardados(projeto: string): { filtros: ReportFilters; lista: ListFil
         assignees: textos(valor.assignees),
         labels: textos(valor.labels),
         priorities: textos(valor.priorities),
-        types: textos(valor.types).filter((tipo): tipo is ReportFilterType =>
-          TIPOS.includes(tipo as ReportFilterType),
-        ),
+        types: textos(valor.types).filter(ehTipo),
         overdue: valor.overdue === true,
         open: valor.open === true,
-        hideSubtasks: valor.hideSubtasks === true,
+        blockedOrigin: valor.blockedOrigin === true,
         search: typeof valor.search === 'string' ? valor.search : '',
       },
       lista: {
@@ -99,6 +105,24 @@ function guardar(projeto: string, filtros: ReportFilters, lista: ListFilters) {
     else window.sessionStorage.setItem(chave(projeto), JSON.stringify({ ...filtros, ...lista }))
   } catch {
     // Sem armazenamento (aba privada, bloqueio): os filtros so nao ficam lembrados.
+  }
+}
+
+/**
+ * Abre a tela de Trabalho, na proxima vez, so com os cards marcados com a origem
+ * bloqueada — o "Revisar na lista" da tela de Dominios. **Pelo mesmo lugar em que os
+ * filtros ja sao lembrados**: a tela de Trabalho le dali ao abrir, e nao ha outro
+ * caminho para mudar o filtro de uma tela que ainda nao esta montada. Os outros
+ * filtros saem: a pessoa vai revisar os marcados, e um filtro esquecido esconderia
+ * metade deles.
+ */
+export function rememberBlockedOriginFilter(projeto: string): void {
+  guardar(projeto, { ...NO_REPORT_FILTERS, blockedOrigin: true }, NO_LIST_FILTERS)
+  // E na lista, que e onde mora o lote: a mesma chave da vista lembrada da tela.
+  try {
+    window.localStorage.setItem(`pds.web.trabalho.vista.${projeto}`, 'lista')
+  } catch {
+    // Sem onde guardar, a tela abre na vista de sempre — o filtro vale nela tambem.
   }
 }
 
@@ -134,7 +158,7 @@ export function countActiveFilters(filtros: ReportFilters): number {
     (filtros.types.length > 0 ? 1 : 0) +
     (filtros.overdue ? 1 : 0) +
     (filtros.open ? 1 : 0) +
-    (filtros.hideSubtasks ? 1 : 0) +
+    (filtros.blockedOrigin ? 1 : 0) +
     (filtros.search.trim() ? 1 : 0)
   )
 }

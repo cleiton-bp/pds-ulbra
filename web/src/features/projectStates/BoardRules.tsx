@@ -4,6 +4,7 @@ import {
   MAX_LAST_COLUMN_VISIBLE_DAYS,
 } from '@/contracts'
 import { Button } from '@/shared/components/Button'
+import { NumberField } from '@/shared/components/NumberField'
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
 import type { useCycleSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { CYCLE_DEFAULTS, changedFromDefaults, defaultsOf } from '@/shared/lib/factoryDefaults'
@@ -137,16 +138,13 @@ function NumeroDeDias({
         {rotulo}
       </label>
       <div className="mb-1 flex items-center gap-2">
-        <input
+        <NumberField
           id={id}
-          type="number"
           min={0}
           max={maximo}
           value={valor}
-          onChange={(evento) =>
-            aoTrocar(Math.max(0, Number.parseInt(evento.target.value, 10) || 0))
-          }
-          className="h-9 w-28 scroll-mt-6 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg"
+          onChange={(texto) => aoTrocar(Math.max(0, Number.parseInt(texto, 10) || 0))}
+          className="scroll-mt-6"
         />
         <span className="text-detail text-fg-muted">dias</span>
       </div>

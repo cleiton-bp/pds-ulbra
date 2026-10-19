@@ -343,8 +343,32 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
     return true
   }
 
+  /**
+   * O fundo da tela de "abrindo": o do formulario, para ela ser o comeco dele. **No
+   * painel, e nao no elemento**: o tema do elemento e o do botao, que fica na pagina do
+   * cliente e segue o tema escolhido — o fundo do formulario nao manda nele.
+   */
+  function pintarPainel(): void {
+    const fundo = aparencia?.FormBackgroundColor ?? null
+    const propriedades = ['--superficie', '--texto', '--texto-suave', '--borda']
+    if (!isUsableAccent(fundo)) {
+      for (const propriedade of propriedades) painel.style.removeProperty(propriedade)
+      return
+    }
+    const cor = fundo.trim()
+    const comTexto = (parte: number) => `color-mix(in srgb, var(--texto) ${parte}%, ${cor})`
+    painel.style.setProperty('--superficie', cor)
+    painel.style.setProperty(
+      '--texto',
+      prefersDarkInk(cor) ? 'var(--tinta-escura)' : 'var(--tinta-clara)',
+    )
+    painel.style.setProperty('--texto-suave', comTexto(72))
+    painel.style.setProperty('--borda', comTexto(20))
+  }
+
   /** A tela de "abrindo", ou a de erro, no canto do botao — ou no de fabrica, sem ele. */
   function desenharPainel(ocupado: boolean, mensagem: string): void {
+    pintarPainel()
     anel.hidden = true
     painel.hidden = false
     painel.setAttribute('aria-busy', ocupado ? 'true' : 'false')

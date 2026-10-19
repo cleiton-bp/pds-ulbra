@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import type { ReportTitleMode, WidgetSettingsViewModel, WidgetTheme } from '@/contracts'
 import { WIDGET_TEXT_LIMITS } from '@/contracts'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
+import { FORM_BACKGROUNDS, paletteColor } from '@/features/widgetSettings/buttonPalette'
+import { ColorChoice } from '@/features/widgetSettings/ColorChoice'
 import { Button } from '@/shared/components/Button'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
 import { PreviewSection } from '@/shared/components/PreviewSection'
@@ -31,6 +33,7 @@ const GRUPOS = {
   top: [
     ['Title', 'Título'],
     ['Theme', 'Tema'],
+    ['FormBackgroundColor', 'Fundo'],
   ],
   type: [
     ['ShowsTypeField', 'Deixar escolher'],
@@ -221,7 +224,7 @@ export function FormTextsScreen() {
             name={ACORDEAO}
             id="topo-do-formulario"
             title="Topo"
-            value={`${TEMAS[draft.Theme]} · “${draft.Title.trim()}”`}
+            value={`${describeLook(draft)} · “${draft.Title.trim()}”`}
             changes={changedFromDefaults(draft, DEFAULT_WIDGET_SETTINGS, GRUPOS.top)}
             onReset={() => ferramenta.change(defaultsOf(DEFAULT_WIDGET_SETTINGS, GRUPOS.top))}
             defaultOpen
@@ -355,8 +358,18 @@ function describeTitle(draft: WidgetSettingsViewModel): string {
   return `${MODOS[draft.ReportTitleMode]} · “${draft.ReportTitleQuestion.trim()}”`
 }
 
-/** O topo: o titulo grande e o tema claro ou escuro. */
+/** O tema, ou o fundo escolhido — que, escolhido, e quem decide o tema. */
+function describeLook(draft: WidgetSettingsViewModel): string {
+  if (draft.FormBackgroundColor === null) return TEMAS[draft.Theme]
+  const nome = paletteColor(FORM_BACKGROUNDS, draft.FormBackgroundColor)?.name
+  return nome ? `Fundo ${nome.toLowerCase()}` : 'Fundo próprio'
+}
+
+/** O topo: o titulo grande, o tema claro ou escuro e o fundo. */
 function TopFields({ draft, change }: { draft: WidgetSettingsViewModel; change: Change }) {
+  // Com fundo escolhido, o claro ou escuro sai da cor dele: o tema nao muda o formulario,
+  // e a escolha fica desligada, com o motivo embaixo.
+  const comFundo = draft.FormBackgroundColor !== null
   return (
     <div className="flex flex-col gap-5">
       {/* `#textos` era a secao do titulo e do enviar: o endereco antigo cai no titulo,
@@ -383,15 +396,33 @@ function TopFields({ draft, change }: { draft: WidgetSettingsViewModel; change: 
               value: tema,
               label: TEMAS[tema],
               drawing: <MiniFormulario tema={tema} />,
+              disabled: comFundo,
             }))}
           />
         </Field>
         <Hint>
-          {draft.Theme === 'Auto'
-            ? 'Segue o claro ou escuro do aparelho de quem relata.'
-            : 'Fica assim para todo mundo, qualquer que seja o aparelho.'}
+          {comFundo
+            ? 'Com um fundo escolhido, o formulário fica claro ou escuro conforme a cor dele. Para escolher o tema, volte o fundo para “Do tema”.'
+            : draft.Theme === 'Auto'
+              ? 'Segue o claro ou escuro do aparelho de quem relata.'
+              : 'Fica assim para todo mundo, qualquer que seja o aparelho.'}
         </Hint>
       </div>
+
+      <ColorChoice
+        id="fundo-do-formulario"
+        label="Fundo do formulário"
+        value={draft.FormBackgroundColor}
+        onChange={(FormBackgroundColor) => change({ FormBackgroundColor })}
+        colors={FORM_BACKGROUNDS}
+        automatic={{
+          label: 'Do tema',
+          note: 'Padrão: o fundo do tema, claro ou escuro.',
+          swatch: <FundoDoTema />,
+        }}
+        startOther={() => FORM_BACKGROUNDS[0]?.value ?? ''}
+        otherNote="O texto, as bordas e os campos se ajustam à cor para continuar legíveis."
+      />
     </div>
   )
 }
@@ -564,6 +595,19 @@ function MiniFormulario({ tema }: { tema: WidgetTheme }) {
     <span aria-hidden className="flex h-12 w-16 overflow-hidden rounded-md border border-border">
       {tema !== 'Dark' && <Folha escura={false} />}
       {tema !== 'Light' && <Folha escura />}
+    </span>
+  )
+}
+
+/** A amostra do fundo do tema: meio clara, meio escura, como o "Automático". */
+function FundoDoTema() {
+  return (
+    <span
+      aria-hidden
+      className="flex size-4 flex-none overflow-hidden rounded-full border border-border"
+    >
+      <span className="flex-1 bg-[var(--widget-ink-on-dark)]" />
+      <span className="flex-1 bg-[var(--widget-ink-on-light)]" />
     </span>
   )
 }

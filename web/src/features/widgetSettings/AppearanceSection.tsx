@@ -1,4 +1,4 @@
-import { type CSSProperties, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import type {
   WidgetLauncherIcon,
   WidgetLauncherShape,
@@ -8,16 +8,11 @@ import type {
   WidgetSettingsViewModel,
 } from '@/contracts'
 import { WIDGET_APPEARANCE_LIMITS, WIDGET_TEXT_LIMITS } from '@/contracts'
-import { contrastRatio, isUsableAccent } from '@/embed/appearance'
+import { contrastRatio } from '@/embed/appearance'
 import { NARROW_VIEWPORT } from '@/embed/launcher'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
-import {
-  BUTTON_COLORS,
-  type PaletteColor,
-  paletteColor,
-  parseHexColor,
-  TEXT_COLORS,
-} from '@/features/widgetSettings/buttonPalette'
+import { BUTTON_COLORS, paletteColor, TEXT_COLORS } from '@/features/widgetSettings/buttonPalette'
+import { ColorChoice } from '@/features/widgetSettings/ColorChoice'
 import { HiddenPagesEditor } from '@/features/widgetSettings/HiddenPagesEditor'
 import { readProductAccent, readProductAccentInk } from '@/features/widgetSettings/productAccent'
 import { Button } from '@/shared/components/Button'
@@ -26,7 +21,8 @@ import {
   LAUNCHER_ICONS,
   LauncherIconSvg,
 } from '@/shared/components/LauncherIcon'
-import { Field, Hint, RadioGroup, type RadioOption } from '@/shared/components/SettingsControls'
+import { NumberField } from '@/shared/components/NumberField'
+import { Field, Hint, RadioGroup } from '@/shared/components/SettingsControls'
 import { TextField } from '@/shared/components/TextField'
 import { cn } from '@/shared/lib/cn'
 import { changedFromDefaults, defaultsOf } from '@/shared/lib/factoryDefaults'
@@ -172,26 +168,6 @@ export function describeHiddenPages(draft: WidgetSettingsViewModel): string {
       ? caminhos.join(', ')
       : `${caminhos.slice(0, 2).join(', ')} e mais ${caminhos.length - 2}`
   return `Escondido em ${caminhos.length === 1 ? '1 página' : `${caminhos.length} páginas`}: ${nomes}`
-}
-
-/**
- * A amostra de uma cor: a do cliente pela variavel `--amostra`, e a padrao pelo acento
- * do produto, que acompanha o tema. **Variavel, e nao cor em estilo embutido**: a cor do
- * cliente e dado, e a folha de estilo continua mandando no resto.
- */
-export function ColorSwatch({ color, className }: { color: string | null; className?: string }) {
-  const usavel = isUsableAccent(color)
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        'inline-block flex-none rounded-full border border-border',
-        usavel ? 'bg-[var(--amostra)]' : 'bg-accent',
-        className,
-      )}
-      style={usavel ? ({ '--amostra': color.trim() } as CSSProperties) : undefined}
-    />
-  )
 }
 
 /**
@@ -417,215 +393,6 @@ function TextColorField({ draft, change }: { draft: WidgetSettingsViewModel; cha
           <Button size="sm" variant="quiet" onClick={() => change({ LauncherTextColor: null })}>
             Usar automático
           </Button>
-        </p>
-      )}
-    </div>
-  )
-}
-
-const PADRAO = 'padrao'
-const OUTRA = 'outra'
-
-/**
- * Uma cor num clique: a automatica, as amostras da paleta e "Outra…", que abre o
- * seletor do navegador e o campo do codigo. **Nada desligado sem motivo**: "Outra…"
- * comeca na cor que esta valendo, ou na primeira amostra quando nao da para ler.
- *
- * A linha embaixo diz o que esta escolhido, pelo nome — a amostra sozinha nao diz.
- */
-function ColorChoice({
-  id,
-  label,
-  value,
-  onChange,
-  colors,
-  automatic,
-  startOther,
-  otherNote,
-}: {
-  /** A ancora do campo: a busca leva ate ele. */
-  id: string
-  label: string
-  value: string | null
-  onChange: (value: string | null) => void
-  colors: readonly PaletteColor[]
-  automatic: { label: string; note: string }
-  /** De onde "Outra…" comeca sem cor escolhida: a que esta valendo agora. */
-  startOther: () => string
-  /** A dica com uma cor escolhida. */
-  otherNote?: string
-}) {
-  /** A pessoa pediu "Outra…": fica marcada, mesmo que a cor caia numa amostra. */
-  const [querOutra, setQuerOutra] = useState(false)
-  const naLista = paletteColor(colors, value)
-  const marcada = value === null ? PADRAO : querOutra || !naLista ? OUTRA : naLista.value
-  const nomeMinusculo = label.toLowerCase()
-
-  const options: RadioOption<string>[] = [
-    {
-      value: PADRAO,
-      label: automatic.label,
-      hideLabel: true,
-      drawing: (
-        <span className="flex h-6 items-center gap-1.5 px-1 text-detail">
-          <ColorSwatch color={null} className="size-4" />
-          {automatic.label}
-        </span>
-      ),
-      className: 'min-w-0 p-1',
-    },
-    ...colors.map((cor) => ({
-      value: cor.value,
-      label: cor.name,
-      hideLabel: true,
-      drawing: <ColorSwatch color={cor.value} className="size-6" />,
-      className: 'min-w-0 p-1',
-    })),
-    {
-      value: OUTRA,
-      label: 'Outra…',
-      hideLabel: true,
-      drawing: (
-        <span className="flex h-6 items-center gap-1.5 px-1 text-detail">
-          <span
-            aria-hidden
-            className="flex size-4 items-center justify-center rounded-full border border-fg-muted border-dashed text-fg-muted"
-          >
-            +
-          </span>
-          Outra…
-        </span>
-      ),
-      className: 'min-w-0 p-1',
-    },
-  ]
-
-  function escolher(escolha: string) {
-    if (escolha === PADRAO) {
-      setQuerOutra(false)
-      onChange(null)
-      return
-    }
-    if (escolha === OUTRA) {
-      setQuerOutra(true)
-      if (value === null) onChange(startOther())
-      return
-    }
-    setQuerOutra(false)
-    onChange(escolha)
-  }
-
-  const nota =
-    value === null
-      ? automatic.note
-      : marcada === OUTRA
-        ? otherNote
-        : [naLista?.name, otherNote].filter(Boolean).join('. ')
-
-  return (
-    <Field id={id} label={label}>
-      <RadioGroup<string>
-        label={label}
-        value={marcada}
-        onChange={escolher}
-        options={options}
-        className="items-center"
-      />
-
-      {marcada === OUTRA && value !== null && (
-        <div className="mt-3 flex flex-wrap items-start gap-2">
-          <input
-            type="color"
-            aria-label={`Outra ${nomeMinusculo}`}
-            value={parseHexColor(value) ?? value}
-            onChange={(event) => onChange(event.target.value)}
-            className="h-8 w-14 cursor-pointer rounded-lg border border-border bg-surface-raised p-1"
-          />
-          <HexField
-            label={`Código da ${nomeMinusculo}`}
-            value={value}
-            onChange={(cor) => onChange(cor)}
-          />
-        </div>
-      )}
-
-      {nota && <Hint>{nota}</Hint>}
-    </Field>
-  )
-}
-
-/**
- * O codigo da cor, para quem tem o da marca anotado. A cerquilha fica fora do campo; a
- * cor muda quando os seis digitos estao certos, e o erro so aparece ao sair do campo —
- * quem esta no meio da digitacao nao precisa ouvir que ainda nao terminou.
- */
-function HexField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  const digitos = (cor: string) => (parseHexColor(cor) ?? '').replace(/^#/, '')
-  const [texto, setTexto] = useState(() => digitos(value))
-  const [visto, setVisto] = useState(value)
-  const [saiu, setSaiu] = useState(false)
-  const erroId = useId()
-
-  // A cor mudou por fora (o seletor do navegador, uma amostra): o campo acompanha.
-  if (visto !== value) {
-    setVisto(value)
-    setTexto(digitos(value))
-  }
-
-  const erro = saiu && parseHexColor(texto) === null ? 'Use 6 dígitos, de 0 a 9 e de A a F.' : null
-
-  return (
-    <div>
-      <div
-        className={cn(
-          'flex h-8 items-center rounded-lg border bg-surface-raised pl-2',
-          erro ? 'border-error-border' : 'border-border',
-        )}
-      >
-        <span aria-hidden className="text-body text-fg-muted">
-          #
-        </span>
-        <input
-          type="text"
-          aria-label={label}
-          aria-invalid={erro ? true : undefined}
-          aria-describedby={erro ? erroId : undefined}
-          value={texto}
-          maxLength={7}
-          spellCheck={false}
-          autoComplete="off"
-          onChange={(event) => {
-            const novo = event.target.value.replace(/^#/, '')
-            setTexto(novo)
-            setSaiu(false)
-            const cor = parseHexColor(novo)
-            if (cor && novo.length === 6) {
-              setVisto(cor)
-              onChange(cor)
-            }
-          }}
-          onBlur={() => {
-            setSaiu(true)
-            const cor = parseHexColor(texto)
-            if (cor && cor !== value) {
-              setVisto(cor)
-              onChange(cor)
-            }
-          }}
-          className="h-full w-20 rounded-r-lg bg-transparent px-1 font-mono text-body text-fg"
-        />
-      </div>
-      {erro && (
-        <p id={erroId} className="mt-1 text-detail text-error-fg">
-          {erro}
         </p>
       )}
     </div>
@@ -915,23 +682,21 @@ function Distance({
           className="min-w-32 flex-1 accent-accent"
         />
         <span className="flex items-center gap-1.5 text-detail text-fg-muted">
-          <input
-            type="number"
+          <NumberField
+            size="sm"
+            width="w-11"
             inputMode="numeric"
-            aria-label={`${label}, em pixels`}
+            ariaLabel={`${label}, em pixels`}
             min={MinOffset}
             max={MaxOffset}
             step={1}
             value={value}
-            onChange={(event) => {
+            onChange={(texto) => {
               // O campo apagado vale zero: a distancia nunca fica sem numero, e a gravacao
               // nunca recebe um que a API recusaria.
-              const numero = Number.isFinite(event.target.valueAsNumber)
-                ? Math.round(event.target.valueAsNumber)
-                : MinOffset
-              aplicar(numero)
+              const numero = Number.parseFloat(texto)
+              aplicar(Number.isFinite(numero) ? Math.round(numero) : MinOffset)
             }}
-            className="h-8 w-18 rounded-lg border border-border bg-surface-raised px-2 text-body text-fg"
           />
           px
         </span>
