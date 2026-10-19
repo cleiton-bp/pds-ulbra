@@ -2,6 +2,8 @@ import type {
   ConfirmReportRequest,
   CreatedReportViewModel,
   CreateReportRequest,
+  IdentityLookupRequest,
+  OpenByIdentityRequest,
   OpenByReporterCodeRequest,
   OpenReportTrackingRequest,
   PublicReportViewModel,
@@ -86,4 +88,15 @@ export interface ReportService {
    * da poder sobre ele — confirmar, reabrir e responder so aceitam o token.
    */
   openByReporterCode(request: OpenByReporterCodeRequest): Promise<PublicReportViewModel>
+
+  /**
+   * Os relatos da pessoa que o site identificou, pelo cracha no lugar do codigo.
+   *
+   * **A mesma regra do codigo**: cracha que nao confere e projeto fora do modo
+   * respondem lista vazia, e nao uma recusa.
+   */
+  listByIdentity(request: IdentityLookupRequest): Promise<ReporterCodeReportsViewModel>
+
+  /** Abre um relato da lista pela identidade do site. Le, e nao age, como pelo codigo. */
+  openByIdentity(request: OpenByIdentityRequest): Promise<PublicReportViewModel>
 }

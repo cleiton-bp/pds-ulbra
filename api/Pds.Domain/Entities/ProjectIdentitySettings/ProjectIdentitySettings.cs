@@ -67,4 +67,42 @@ public class ProjectIdentitySettings : PdsBaseEntity
     /// e por isso que a tela diz as duas coisas juntas.</para>
     /// </remarks>
     public bool AsksForName { get; set; }
+
+    /// <summary>
+    /// A chave publica do sistema do cliente (ECDSA P-256, SPKI em base64), no modo
+    /// <see cref="ReporterIdentityModeEnum.InheritedIdentity"/>: o servidor dele assina
+    /// quem e a pessoa com a chave privada, e nos so conferimos.
+    ///
+    /// <para><b>Obrigatoria no modo herdado, e guardada nos outros.</b> Trocar de modo
+    /// nao apaga a chave: quem volta ao modo herdado nao cola tudo de novo. Nunca e
+    /// segredo — e publica por definicao —, e trocar por outra invalida na hora todo
+    /// token que a anterior assinou.</para>
+    /// </summary>
+    public string? IdentityPublicKey { get; set; }
+
+    /// <summary>
+    /// O sal com que o <c>sub</c> do token vira o hash guardado em
+    /// <see cref="ReporterCode.SubjectHash"/>. Nasce junto com a primeira chave e nao muda:
+    /// mudar faria toda pessoa virar outra, e a lista dela sumiria.
+    /// </summary>
+    public string? IdentitySubjectSalt { get; set; }
+
+    /// <summary>
+    /// Por quantos minutos, no maximo, um token do sistema do cliente pode valer. Token
+    /// que vale por mais tempo e recusado: um token de horas e um token de login
+    /// disfarcado. Entre <see cref="MinIdentityTokenMinutes"/> e <see cref="MaxIdentityTokenMinutes"/>.
+    /// </summary>
+    public int IdentityTokenMaxMinutes { get; set; } = IdentitySettingsDefaults.IdentityTokenMaxMinutes;
+
+    /// <summary>
+    /// No modo herdado, o relato sem token (pessoa deslogada no site) ou com token que nao
+    /// confere: ligado, recusa e pede para entrar no sistema; desligado (fabrica), aceita
+    /// como protocolo, sem identidade — relato perdido e pior que relato sem lista.
+    /// </summary>
+    public bool IdentityRequired { get; set; }
+
+    public const int MinIdentityTokenMinutes = 1;
+    public const int MaxIdentityTokenMinutes = 60;
+    /// <summary>O SPKI de uma chave P-256 em base64 tem 124 caracteres; a folga e para o PEM colado antes de limpar.</summary>
+    public const int MaxIdentityPublicKeyLength = 512;
 }

@@ -69,6 +69,12 @@ export interface InitMessage {
    * guardado no navegador de alguem, nao manda o campo e continua funcionando.
    */
   launcher?: typeof HOST_LAUNCHER
+  /**
+   * O cracha da pessoa, assinado pelo servidor do cliente — o `data-identity` do
+   * script, so no projeto que herda a identidade. Nulo sem o atributo. **Opcional**: o
+   * carregador antigo nao manda.
+   */
+  identity?: string | null
 }
 
 /** O carregador sabe capturar uma area da pagina. Ver `InitMessage.capabilities`. */
@@ -99,6 +105,11 @@ export interface OpenMessage {
    * **Opcional**: ausente, o foco vai ao formulario, como sempre.
    */
   focus?: boolean
+  /**
+   * O cracha **de agora**: o site pode ter renovado a sessao, e a pessoa pode ter
+   * entrado ou saido sem recarregar. Nulo e "sem cracha"; ausente, fica o que ja havia.
+   */
+  identity?: string | null
 }
 
 /**

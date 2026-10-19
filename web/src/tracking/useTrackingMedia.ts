@@ -3,17 +3,18 @@ import type { PublicAttachmentViewModel, PublicMediaSettingsViewModel } from '@/
 import { publicMediaService } from '@/data/publicIndex'
 import { onlyUploadable } from '@/embed/attachments'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import type { PersonalEntry } from '@/shared/lib/tracking'
 
 /**
  * Os arquivos do relato e o que da para anexar na resposta e na reabertura.
  *
- * **Os arquivos se leem pelas duas portas; anexar, so pela do link.** Quem abriu
- * pelo codigo pessoal ve os prints que mandou — ao relatar, ao responder e ao
- * reabrir —, e nao ve onde anexar: responder e reabrir pedem o link, e o que da para
- * anexar so importa a quem age.
+ * **Os arquivos se leem pelas tres portas; anexar, so pela do link.** Quem abriu
+ * pelo codigo pessoal ou pela identidade do site ve os prints que mandou — ao
+ * relatar, ao responder e ao reabrir —, e nao ve onde anexar: responder e reabrir
+ * pedem o link, e o que da para anexar so importa a quem age.
  *
- * @param pessoal A chave e o codigo de quem abriu pela lista pessoal. Nulo quando a
- *   pagina veio pelo link.
+ * @param pessoal A chave e o codigo, ou a chave e o cracha, de quem abriu pela lista
+ *   pessoal. Nulo quando a pagina veio pelo link.
  *
  * **A configuracao que falha vira "nao da para anexar"**, pelo mesmo motivo do
  * quadro: sem saber os limites, o botao prometeria o que o envio recusaria. A
@@ -22,11 +23,12 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 export function useTrackingMedia(
   code: string,
   token: string,
-  pessoal: { key: string; reporterCode: string } | null = null,
+  pessoal: PersonalEntry | null = null,
 ) {
   const temToken = token.length > 0
   const chave = pessoal?.key ?? ''
-  const codigoPessoal = pessoal?.reporterCode ?? ''
+  const codigoPessoal = pessoal && 'reporterCode' in pessoal ? pessoal.reporterCode : ''
+  const cracha = pessoal && 'identityToken' in pessoal ? pessoal.identityToken : ''
 
   const anexos = useAsyncResource(
     useCallback((): Promise<PublicAttachmentViewModel[]> => {
@@ -39,8 +41,15 @@ export function useTrackingMedia(
           TrackingCode: code,
         })
 
+      if (chave.length > 0 && cracha.length > 0)
+        return publicMediaService.listAttachmentsByIdentity({
+          Key: chave,
+          IdentityToken: cracha,
+          TrackingCode: code,
+        })
+
       return Promise.resolve([])
-    }, [code, token, temToken, chave, codigoPessoal]),
+    }, [code, token, temToken, chave, codigoPessoal, cracha]),
   )
 
   const configuracao = useAsyncResource(

@@ -23,6 +23,15 @@ public class ReporterCodeRepository : BaseRepository<ReporterCode, DataContext>,
                                             && entrada.Project.DeletedAt == null,
                 cancellationToken);
 
+    public Task<ReporterCode?> FindBySubjectHashWithoutSessionAsync(long projectId, string subjectHash, CancellationToken cancellationToken = default)
+        => Context.ReporterCodes
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(entrada => entrada.ProjectId == projectId
+                                            && entrada.SubjectHash == subjectHash
+                                            && entrada.DeletedAt == null
+                                            && entrada.Project.DeletedAt == null,
+                cancellationToken);
+
     public Task<bool> ExistsAsync(long projectId, string code, CancellationToken cancellationToken = default)
         // Inclui o apagado logicamente, ao contrario da consulta acima. Reaproveitar
         // um codigo que ja foi de alguem faria a lista de uma pessoa aparecer para

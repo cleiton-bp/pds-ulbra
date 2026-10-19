@@ -218,6 +218,12 @@ export interface WidgetSettingsViewModel {
   Visibility: ReportVisibility
   /** A ferramenta pergunta o nome. Opcional sempre, e interno por padrao. */
   AsksForName: boolean
+  /**
+   * So no modo que herda a identidade: sem o cracha do site, o relato e recusado — e a
+   * ferramenta pede para entrar no sistema **antes** de a pessoa escrever. Falso nos
+   * outros modos e de fabrica: o relato sem cracha entra como protocolo.
+   */
+  IdentityRequired: boolean
 }
 
 /**

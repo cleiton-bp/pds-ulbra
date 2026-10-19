@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   type CreatedReportViewModel,
   MAX_CARD_TITLE_LENGTH,
@@ -17,6 +17,7 @@ import { hasRoom } from '@/embed/attachments'
 import { challengeOf, solveChallenge } from '@/embed/challenge'
 import type { EmbedConfig } from '@/embed/config'
 import type { HostConnection, OpenOptions } from '@/embed/hostBridge'
+import { nameFromIdentityToken } from '@/embed/identityToken'
 import { launcherFrame, launcherMode, launcherSize } from '@/embed/launcher'
 import { MyReports } from '@/embed/MyReports'
 import { PublicList } from '@/embed/PublicList'
@@ -129,6 +130,8 @@ export function EmbedApp({
     ? { Types: settings.Types, DefaultReportType: settings.DefaultReportType }
     : tiposLidos
   const [typeId, setTypeId] = useState(() => marcadoDe(settings))
+  /** A raiz dos ids dos campos das perguntas: um rotulo com `htmlFor` por pergunta. */
+  const ids = useId()
 
   // E o pre-marcado acompanha o "Tipo pré-marcado" do rascunho. So quando ele muda: outra
   // mudanca qualquer na configuracao nao desfaz o tipo que se clicou na previa.
@@ -178,6 +181,15 @@ export function EmbedApp({
     settings.IdentityMode === 'PersonalCode' ? (readReporterCode(config.key) ?? '') : '',
   )
 
+  /** O projeto herda a identidade do site: quem diz quem e a pessoa e o cracha da pagina. */
+  const herdada = settings.IdentityMode === 'InheritedIdentity'
+  /**
+   * O cracha que a pagina entregou — o do `init`, e depois o de cada abertura: o site
+   * pode renovar a sessao, e a pessoa pode entrar ou sair sem recarregar. So no modo
+   * que herda a identidade; nulo sem pagina (a previa, o relato de teste) e sem cracha.
+   */
+  const [cracha, setCracha] = useState(() => (herdada ? (host?.identity ?? null) : null))
+
   /**
    * Qual das duas telas o quadro mostra.
    *
@@ -203,8 +215,26 @@ export function EmbedApp({
    */
   const ehPublico = settings.Visibility !== 'Private'
 
-  const [reporterName, setReporterName] = useState('')
+  // No modo que herda a identidade, o cracha pode trazer o nome: o campo ja vem
+  // preenchido com ele — e e sugestao, que a pessoa apaga ou troca.
+  const [reporterName, setReporterName] = useState(() => nameFromIdentityToken(cracha) ?? '')
   const [signs, setSigns] = useState(false)
+
+  /** O nome que o cracha sugeriu por ultimo: a proxima sugestao so troca o que ainda e dele. */
+  const sugestao = useRef(reporterName)
+
+  /** A cada abertura, o cracha de agora — e o nome dele, se o campo ainda nao e da pessoa. */
+  function acompanharCracha() {
+    if (!herdada || !host) return
+    const atual = host.identity ?? null
+    setCracha(atual)
+
+    const nova = nameFromIdentityToken(atual) ?? ''
+    const anterior = sugestao.current
+    if (nova === anterior) return
+    sugestao.current = nova
+    setReporterName((campo) => (campo.trim().length === 0 || campo === anterior ? nova : campo))
+  }
 
   /**
    * Conta quantas vezes o quadro foi reiniciado.
@@ -463,6 +493,9 @@ export function EmbedApp({
         // codigo novo. Num projeto de outro modo, mandar codigo seria recusado,
         // entao so vai quando ha um.
         ReporterCode: reporterCode.length > 0 ? reporterCode : undefined,
+        // O cracha do site, so no projeto que herda a identidade — e o de agora, que a
+        // pagina pode ter renovado desde a abertura. Sem pagina nao ha cracha.
+        IdentityToken: herdada && host ? (host.identity ?? undefined) : undefined,
         Context: buildReportContext(config),
       }
 
@@ -665,6 +698,7 @@ export function EmbedApp({
       void relerTipos()
     }
     abriuAntes.current = true
+    acompanharCracha()
     // A previa que abre sozinha nao puxa o foco da tela do painel.
     if (opcoes?.focus === false) return
     // O foco no primeiro campo de escrever: quem abriu pelo teclado continua nele.
@@ -757,11 +791,18 @@ export function EmbedApp({
       <div style={style} className="h-full">
         <MyReports
           publicKey={config.key}
-          code={reporterCode}
-          onCodeChange={(codigo) => {
-            setReporterCode(codigo)
-            writeReporterCode(config.key, codigo)
-          }}
+          credencial={
+            herdada
+              ? { tipo: 'identidade', token: cracha ?? '' }
+              : {
+                  tipo: 'codigo',
+                  code: reporterCode,
+                  onCodeChange: (codigo) => {
+                    setReporterCode(codigo)
+                    writeReporterCode(config.key, codigo)
+                  },
+                }
+          }
           onBack={() => setView('form')}
         />
       </div>
@@ -861,6 +902,22 @@ export function EmbedApp({
           </p>
         </div>
 
+        {/* **So no modo que herda a identidade, e nos dois sentidos.** Reconhecida, a
+            pessoa sabe onde reencontrar o relato sem guardar nada; nao reconhecida,
+            precisa saber, antes de fechar, que o link e a unica volta. */}
+        {created.Identified === true && (
+          <p className="text-caption text-fg-muted leading-normal">
+            Este relato ficou ligado a você: ele aparece em “Ver os meus relatos” sempre que você
+            estiver na sua conta neste site.
+          </p>
+        )}
+        {created.Identified === false && (
+          <p className="text-caption text-fg-muted leading-normal">
+            Não deu para reconhecer você pelo site, e este relato não ficou ligado à sua conta: o
+            link acima é a única forma de voltar a ele.
+          </p>
+        )}
+
         <div className="mt-auto flex flex-wrap items-center gap-2">
           <CopyButton value={created.TrackingCode} label="Copiar protocolo" size="sm" />
           {/* O caminho de volta ao formulario, sem passar por fechar e reabrir. */}
@@ -873,6 +930,26 @@ export function EmbedApp({
             </Button>
           )}
         </div>
+      </section>
+    )
+  }
+
+  // **Sem o cracha num projeto que o exige, nao ha formulario.** Avisar depois do texto
+  // pronto seria avisar tarde. Na previa o aviso nao aparece: ela mostra o formulario.
+  if (herdada && settings.IdentityRequired && cracha === null && !preview) {
+    return (
+      <section style={style} className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
+          {host && (
+            <Button variant="ghost" size="sm" onClick={collapse} aria-label="Fechar">
+              Fechar
+            </Button>
+          )}
+        </div>
+        <p className="text-detail text-fg-muted leading-relaxed">
+          Para relatar aqui, entre na sua conta neste site e abra o formulário de novo.
+        </p>
       </section>
     )
   }
@@ -901,10 +978,11 @@ export function EmbedApp({
         )}
       </div>
 
-      {/* **So neste modo, e nao so quando ha codigo guardado.** Quem trocou de
-          navegador nao tem nada guardado e e justamente quem mais precisa da
-          entrada — a lista pede o codigo ali dentro. */}
-      {settings.IdentityMode === 'PersonalCode' && (
+      {/* **No modo do codigo, sempre — e nao so quando ha codigo guardado.** Quem trocou
+          de navegador nao tem nada guardado e e justamente quem mais precisa da entrada:
+          a lista pede o codigo ali dentro. **No modo que herda a identidade, so com o
+          cracha**: sem ele nao ha de quem listar. A previa mostra a entrada nos dois. */}
+      {(settings.IdentityMode === 'PersonalCode' || (herdada && (preview || cracha !== null))) && (
         <button
           type="button"
           onClick={() => !preview && setView('list')}
@@ -970,15 +1048,18 @@ export function EmbedApp({
       {/* Antes do texto: e a pergunta curta, e quem responde ja pensou no que vai
           contar. Numa linha so — titulo nao e paragrafo. */}
       {perguntaTitulo && (
-        <label
+        // Rotulo por `htmlFor`, como nas perguntas: envolvendo o campo, o texto digitado
+        // entraria no nome acessivel dele.
+        <div
           data-preview-highlight={marca('form-title')}
           className={cn('flex flex-col gap-1.5', contorno('form-title'))}
         >
-          <span className="text-detail text-fg-muted">
+          <label htmlFor={`${ids}-titulo`} className="text-detail text-fg-muted">
             {settings.ReportTitleQuestion}
             {settings.ReportTitleMode === 'Optional' && ' (opcional)'}
-          </span>
+          </label>
           <input
+            id={`${ids}-titulo`}
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -991,7 +1072,7 @@ export function EmbedApp({
             placeholder={settings.ReportTitlePlaceholder}
             className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder"
           />
-        </label>
+        </div>
       )}
 
       {tipo === null && (
@@ -1013,9 +1094,12 @@ export function EmbedApp({
           const valor = respostasDoTipo[index] ?? ''
           return (
             // A pergunta nao se repete dentro do tipo — a API recusa —, e e a chave.
-            <label key={`${tipo.PublicId}-${pergunta}`} className="flex flex-none flex-col gap-1.5">
+            // **Rotulo por `htmlFor`, e nao envolvendo a caixa**: com a caixa dentro do
+            // rotulo, o nome acessivel dela passa a incluir o proprio texto digitado
+            // ("O que aconteceu? rascunho…"), e o leitor de tela le a resposta como nome.
+            <div key={`${tipo.PublicId}-${pergunta}`} className="flex flex-none flex-col gap-1.5">
               <span className="flex items-baseline justify-between gap-2 text-detail text-fg-muted">
-                <span>{pergunta}</span>
+                <label htmlFor={`${ids}-pergunta-${index}`}>{pergunta}</label>
                 {valor.length >= MAX_REPORT_ANSWER_LENGTH * PERTO_DO_TETO && (
                   <span className="flex-none tabular-nums">
                     {valor.length}/{MAX_REPORT_ANSWER_LENGTH}
@@ -1023,6 +1107,7 @@ export function EmbedApp({
                 )}
               </span>
               <textarea
+                id={`${ids}-pergunta-${index}`}
                 value={valor}
                 onChange={(event) => responder(index, event.target.value)}
                 maxLength={MAX_REPORT_ANSWER_LENGTH}
@@ -1032,7 +1117,7 @@ export function EmbedApp({
                   'text-body text-fg leading-normal placeholder:text-fg-placeholder',
                 )}
               />
-            </label>
+            </div>
           )
         })}
 

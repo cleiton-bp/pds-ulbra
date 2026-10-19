@@ -22,4 +22,7 @@ public interface IReporterCodeRepository : IBaseRepository<ReporterCode>
     /// colisao com nova tentativa — nunca para responder a alguem.
     /// </summary>
     Task<bool> ExistsAsync(long projectId, string code, CancellationToken cancellationToken = default);
+
+    /// <summary>A linha da pessoa do sistema do cliente, pelo hash do sujeito; so as vivas, como a busca por codigo.</summary>
+    Task<ReporterCode?> FindBySubjectHashWithoutSessionAsync(long projectId, string subjectHash, CancellationToken cancellationToken = default);
 }

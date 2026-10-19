@@ -76,6 +76,15 @@ export interface CreateReportRequest {
    * Em projeto que nao usa este modo, mandar um codigo e recusado.
    */
   ReporterCode?: string
+  /**
+   * O cracha da pessoa, assinado pelo servidor do cliente — so no projeto que herda a
+   * identidade, e so quando a pagina o entregou (`data-identity` no script).
+   *
+   * **Fora desse modo e ignorado**, e nao recusado como o codigo: a pagina pode ter
+   * ficado com o atributo depois de o projeto trocar de modo. Cracha que nao confere
+   * vale como "sem cracha", e o projeto decide se recusa ou aceita como protocolo.
+   */
+  IdentityToken?: string
 
   /** Como a pessoa quer ser chamada. So vai quando o projeto pergunta. */
   ReporterName?: string
@@ -143,6 +152,13 @@ export interface CreatedReportViewModel {
    * Devolver sempre e o que faz a tela mostrar o codigo que **de fato** vale.
    */
   ReporterCode: string | null
+  /**
+   * So no projeto que herda a identidade: a pessoa foi reconhecida pelo cracha
+   * (`true`), ou o relato entrou sem identidade (`false`) — sem cracha, ou com um que
+   * nao conferiu. **Nulo nos outros modos.** E o que faz a confirmacao dizer se o
+   * relato ficou ligado a pessoa ou se o link e a unica volta.
+   */
+  Identified: boolean | null
 }
 
 /** Limite da coluna `text`, declarado em `Report.MaxTextLength`. */
@@ -1283,6 +1299,27 @@ export interface ReporterCodeLookupRequest {
 export interface OpenByReporterCodeRequest {
   Key: string
   Code: string
+  TrackingCode: string
+}
+
+/**
+ * A consulta da lista pessoal pela identidade do site, no lugar do codigo.
+ *
+ * O cracha diz quem e a pessoa, e a resposta e a mesma da consulta pelo codigo —
+ * inclusive o vazio para o cracha que nao confere e para o projeto fora do modo.
+ */
+export interface IdentityLookupRequest {
+  Key: string
+  IdentityToken: string
+}
+
+/**
+ * A leitura de um relato pela identidade do site. Le, e nao age, como pelo codigo: o
+ * link continua sendo o que da poder sobre o relato.
+ */
+export interface OpenByIdentityRequest {
+  Key: string
+  IdentityToken: string
   TrackingCode: string
 }
 

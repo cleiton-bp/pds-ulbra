@@ -42,4 +42,10 @@ public static class IdentitySettingsDefaults
     /// quem configura — e de quem relata, que nem chegou a ser perguntada.</para>
     /// </summary>
     public const bool AsksForName = false;
+    /// <summary>Sem chave: o modo herdado so passa a valer quando o cliente cola a dele.</summary>
+    public const string? IdentityPublicKey = null;
+    /// <summary>Quinze minutos: o bastante para abrir o formulario e escrever, e curto demais para servir de login.</summary>
+    public const int IdentityTokenMaxMinutes = 15;
+    /// <summary>Sem token, o relato entra como protocolo: relato perdido e pior que relato sem lista.</summary>
+    public const bool IdentityRequired = false;
 }

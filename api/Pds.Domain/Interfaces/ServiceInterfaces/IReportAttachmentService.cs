@@ -45,6 +45,9 @@ public interface IReportAttachmentService
         OpenByReporterCodeDto dto,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Os arquivos do relato pela identidade do sistema do cliente: a mesma lista, pela porta da identidade.</summary>
+    Task<List<PublicAttachmentViewModel>> ListForIdentityAsync(OpenByIdentityDto dto, CancellationToken cancellationToken = default);
+
     /// <summary>Confere os bytes que chegaram e prende o anexo ao relato.</summary>
     Task<ConfirmedAttachmentViewModel> ConfirmAsync(
         ConfirmAttachmentDto dto,

@@ -156,6 +156,16 @@ public class ProjectWidgetSettings : PdsBaseEntity
     /// <summary>Claro, escuro, ou o que o sistema de quem visita disser.</summary>
     public WidgetThemeEnum Theme { get; set; } = WidgetThemeEnum.Auto;
 
+    /// <summary>
+    /// O fundo do formulario aberto e da tela de "abrindo", em <c>#rrggbb</c>.
+    ///
+    /// <para><b>Nulo e o fundo do tema</b>, e e o padrao: claro ou escuro, conforme
+    /// <see cref="Theme"/>. Com uma cor, <b>e ela que decide o tema</b>: o texto, as bordas
+    /// e os campos saem da luminancia dela, a tinta de maior contraste — um fundo escuro
+    /// com o texto do tema claro seria um formulario que ninguem le.</para>
+    /// </summary>
+    public string? FormBackgroundColor { get; set; }
+
     /// <summary>O texto dentro do gatilho, o botao que fica parado na pagina.</summary>
     public string LauncherLabel { get; set; } = string.Empty;
 

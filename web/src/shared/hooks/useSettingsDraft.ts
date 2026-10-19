@@ -196,6 +196,9 @@ export function useIdentitySettingsDraft(
         Mode: whole.Mode,
         Visibility: whole.Visibility,
         AsksForName: whole.AsksForName,
+        IdentityPublicKey: whole.IdentityPublicKey,
+        IdentityTokenMaxMinutes: whole.IdentityTokenMaxMinutes,
+        IdentityRequired: whole.IdentityRequired,
       }),
     [projectPublicId],
   )

@@ -29,6 +29,10 @@ namespace Pds.Domain.ViewModels;
 /// <param name="LauncherShape">Pilula, arredondado ou quadrado.</param>
 /// <param name="LauncherTextColor">A cor do texto sobre o botao em <c>#rrggbb</c>. Nulo e automatico.</param>
 /// <param name="LauncherShadow">Sombra embaixo do botao.</param>
+/// <param name="FormBackgroundColor">
+/// O fundo do formulario aberto em <c>#rrggbb</c>. Nulo e o fundo do tema; com uma cor, o
+/// texto e as bordas saem dela.
+/// </param>
 /// <param name="MobileMode">Como o botao fica numa janela estreita: igual, so o icone ou escondido.</param>
 /// <param name="HiddenPaths">
 /// As paginas onde o botao nao aparece. <b>Sai para o site do cliente</b> porque e a
@@ -120,6 +124,13 @@ namespace Pds.Domain.ViewModels;
 /// aparece junto quando o projeto tambem esta em publico identificado: sem os dois,
 /// nao ha onde o nome apareceria.</para>
 /// </param>
+/// <param name="IdentityRequired">
+/// So no modo que herda a identidade: o relato sem o cracha do site e recusado.
+///
+/// <para><b>A ferramenta le para avisar antes de a pessoa escrever</b> — "entre no
+/// seu sistema para relatar" depois do texto pronto seria avisar tarde. Falso nos
+/// outros modos, e falso de fabrica: o relato sem cracha entra como protocolo.</para>
+/// </param>
 public record WidgetSettingsViewModel(
     bool IsEnabled,
     string? AccentColor,
@@ -133,6 +144,7 @@ public record WidgetSettingsViewModel(
     WidgetLauncherShapeEnum LauncherShape,
     string? LauncherTextColor,
     bool LauncherShadow,
+    string? FormBackgroundColor,
     WidgetMobileModeEnum MobileMode,
     IReadOnlyList<string> HiddenPaths,
     string LauncherLabel,
@@ -154,7 +166,8 @@ public record WidgetSettingsViewModel(
     bool AcceptsQuestionsDefault,
     ReporterIdentityModeEnum IdentityMode,
     ReportVisibilityEnum Visibility,
-    bool AsksForName);
+    bool AsksForName,
+    bool IdentityRequired);
 
 /// <summary>
 /// Um tipo de relato como a ferramenta o desenha: o botao e o formulario dele.
@@ -206,6 +219,10 @@ public record WidgetReportTypeViewModel(
 /// <param name="LauncherShape">Pilula, arredondado ou quadrado.</param>
 /// <param name="LauncherTextColor">A cor do texto sobre o botao. Nulo e automatico.</param>
 /// <param name="LauncherShadow">Sombra embaixo do botao.</param>
+/// <param name="FormBackgroundColor">
+/// O fundo da tela de "abrindo", que o carregador desenha antes do formulario chegar. Nulo
+/// e o fundo do tema.
+/// </param>
 /// <param name="MobileMode">Como o botao fica numa janela estreita.</param>
 /// <param name="HiddenPaths">As paginas onde o botao nao aparece.</param>
 /// <param name="LauncherLabel">O texto do botao.</param>
@@ -222,6 +239,7 @@ public record WidgetLauncherViewModel(
     WidgetLauncherShapeEnum LauncherShape,
     string? LauncherTextColor,
     bool LauncherShadow,
+    string? FormBackgroundColor,
     WidgetMobileModeEnum MobileMode,
     IReadOnlyList<string> HiddenPaths,
     string LauncherLabel);

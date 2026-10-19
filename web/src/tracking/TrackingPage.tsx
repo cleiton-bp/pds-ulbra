@@ -9,7 +9,7 @@ import { PublicJourney } from '@/shared/components/PublicJourney'
 import { ReportAnswers } from '@/shared/components/ReportAnswers'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { formatDateTime } from '@/shared/lib/datetime'
-import { readTrackingLink } from '@/shared/lib/tracking'
+import { type PersonalEntry, readTrackingLink } from '@/shared/lib/tracking'
 import { renderWidgetText } from '@/shared/lib/widgetText'
 import { ClosurePanel } from '@/tracking/ClosurePanel'
 import { ConversationPanel } from '@/tracking/ConversationPanel'
@@ -46,14 +46,15 @@ type Estado =
   // O protocolo e o token viajam junto do relato de proposito: confirmar e reabrir
   // precisam deles, e reler o endereco de dentro do bloco criaria uma segunda fonte
   // para a mesma verdade — que passariam a discordar no dia em que a pagina navegar.
-  // `pessoal` e a chave e o codigo de quem abriu pela lista pessoal: e com eles que
-  // a pagina le os arquivos, ja que ali nao ha token. Nulo quando veio pelo link.
+  // `pessoal` e a chave e o codigo — ou a chave e o cracha do site — de quem abriu
+  // pela lista pessoal: e com eles que a pagina le os arquivos, ja que ali nao ha
+  // token. Nulo quando veio pelo link.
   | {
       tipo: 'aberto'
       relato: PublicReportViewModel
       code: string
       token: string
-      pessoal: { key: string; reporterCode: string } | null
+      pessoal: PersonalEntry | null
     }
   | { tipo: 'recusado' }
   | { tipo: 'falhou' }
@@ -62,23 +63,24 @@ export function TrackingPage() {
   const [estado, setEstado] = useState<Estado>({ tipo: 'carregando' })
 
   const abrir = useCallback(async () => {
-    const { code, token, key, reporterCode } = readTrackingLink(
+    const { code, token, key, reporterCode, identityToken } = readTrackingLink(
       window.location.search,
       window.location.hash,
     )
 
-    // **Duas credenciais levam a esta pagina, e elas nao valem o mesmo.** O token
+    // **Tres credenciais levam a esta pagina, e elas nao valem o mesmo.** O token
     // veio no link que a pessoa recebeu ao relatar, e da poder sobre o relato. O
-    // codigo pessoal veio da lista dela e prova que o relato e dela — mas confirmar,
-    // reabrir e responder so aceitam o token do link, e a API ignora
-    // TrackingCodeCanAct ate elas aceitarem o codigo. Quem decide isso e a API;
-    // aqui so muda por onde se pergunta.
+    // codigo pessoal, ou o cracha do site, veio da lista dela e prova que o relato e
+    // dela — mas confirmar, reabrir e responder so aceitam o token do link, e a API
+    // ignora TrackingCodeCanAct ate elas aceitarem os outros. Quem decide isso e a
+    // API; aqui so muda por onde se pergunta.
     const peloToken = token.length > 0
     const peloCodigo = key.length > 0 && reporterCode.length > 0
+    const pelaIdentidade = key.length > 0 && identityToken.length > 0
 
     // Link pela metade nao vai a rede: a resposta seria a mesma recusa, e pedir
     // ao servidor para confirmar o que ja se sabe atrasa a tela sem ganhar nada.
-    if (code.length === 0 || (!peloToken && !peloCodigo)) {
+    if (code.length === 0 || (!peloToken && !peloCodigo && !pelaIdentidade)) {
       setEstado({ tipo: 'recusado' })
       return
     }
@@ -86,21 +88,27 @@ export function TrackingPage() {
     setEstado({ tipo: 'carregando' })
 
     try {
+      const pessoal: PersonalEntry | null = peloToken
+        ? null
+        : peloCodigo
+          ? { key, reporterCode }
+          : { key, identityToken }
+
       const relato = peloToken
         ? await reportService.openReportTracking({ TrackingCode: code, Token: token })
-        : await reportService.openByReporterCode({
-            Key: key,
-            Code: reporterCode,
-            TrackingCode: code,
-          })
+        : peloCodigo
+          ? await reportService.openByReporterCode({
+              Key: key,
+              Code: reporterCode,
+              TrackingCode: code,
+            })
+          : await reportService.openByIdentity({
+              Key: key,
+              IdentityToken: identityToken,
+              TrackingCode: code,
+            })
 
-      setEstado({
-        tipo: 'aberto',
-        relato,
-        code,
-        token,
-        pessoal: peloToken ? null : { key, reporterCode },
-      })
+      setEstado({ tipo: 'aberto', relato, code, token, pessoal })
     } catch (falha) {
       setEstado({ tipo: isPanelError(falha) && falha.status === 404 ? 'recusado' : 'falhou' })
     }
@@ -138,11 +146,11 @@ function Relato({
   relato: PublicReportViewModel
   code: string
   token: string
-  pessoal: { key: string; reporterCode: string } | null
+  pessoal: PersonalEntry | null
   aoResponder: (relato: PublicReportViewModel) => void
 }) {
   // Os arquivos pela porta por onde a pagina entrou: o token do link, ou a chave e
-  // o codigo da lista pessoal. Anexar, so pelo link.
+  // o codigo (ou o cracha) da lista pessoal. Anexar, so pelo link.
   const midia = useTrackingMedia(code, token, pessoal)
   const credenciais = { trackingCode: code, token }
 

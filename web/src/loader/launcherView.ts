@@ -67,7 +67,9 @@ const STYLE = `
     background: transparent;
     border-radius: var(--raio-anel, 999px);
   }
-  .com-sombra { box-shadow: 0 4px 14px var(--sombra); }
+  /* No botao, e nao no anel: o anel e o espaco reservado, mais alto que o botao, e a
+     sombra nele desenhava uma segunda pilula atras, com a pagina aparecendo entre as duas. */
+  .botao.com-sombra { box-shadow: 0 4px 14px var(--sombra); }
   .botao {
     box-sizing: border-box; width: 100%; height: var(--altura, 40px); margin: 0;
     display: flex; align-items: center; justify-content: center; gap: var(--vao, 8px);
@@ -239,6 +241,15 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
   let aparencia: WidgetLauncherViewModel | null = null
   let rota: string | null = null
   let modo: LauncherViewMode = 'hidden'
+  /**
+   * O que esta dentro do botao agora (forma, icone, rotulo, tamanho). **Os filhos so sao
+   * trocados quando isto muda.** Reconstrui-los a cada desenho tirava de baixo do mouse o
+   * `<span>` em que o `mousedown` aconteceu: o foco que o `mousedown` da ao botao dispara
+   * a intencao, a intencao confere a rota, a rota redesenha — e o Chrome nao dispara o
+   * `click` quando o no do `mousedown` saiu do documento antes do `mouseup`. O primeiro
+   * clique no botao nao abria nada.
+   */
+  let composicao = ''
   let pararTema: () => void = () => {}
 
   function tema(): void {
@@ -275,12 +286,16 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
     const medidas = launcherSize(a.LauncherSize)
     const cantos = launcherRadius(a.LauncherShape)
 
-    botao.replaceChildren()
-    if (a.LauncherIcon !== 'None')
-      botao.appendChild(createLauncherIcon(doc, a.LauncherIcon, medidas.icon))
-    if (!soIcone) {
-      rotulo.textContent = a.LauncherLabel
-      botao.appendChild(rotulo)
+    const proximaComposicao = `${forma}|${a.LauncherIcon}|${a.LauncherLabel}|${a.LauncherSize}`
+    if (proximaComposicao !== composicao) {
+      composicao = proximaComposicao
+      botao.replaceChildren()
+      if (a.LauncherIcon !== 'None')
+        botao.appendChild(createLauncherIcon(doc, a.LauncherIcon, medidas.icon))
+      if (!soIcone) {
+        rotulo.textContent = a.LauncherLabel
+        botao.appendChild(rotulo)
+      }
     }
     // O nome sempre: so o icone, o texto vira o nome e a dica — como no quadro.
     botao.setAttribute('aria-label', a.LauncherLabel)
@@ -310,7 +325,7 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
     host.style.setProperty('--vao', `${medidas.gap}px`)
     host.style.setProperty('--fonte', `${FONTE[a.LauncherSize] ?? FONTE.Medium}px`)
     host.style.setProperty('--raio-botao', `${cantos.button}px`)
-    anel.classList.toggle('com-sombra', a.LauncherShadow)
+    botao.classList.toggle('com-sombra', a.LauncherShadow)
 
     painel.hidden = true
     anel.hidden = false
@@ -387,6 +402,9 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
       redesenhar()
     },
     setRoute(proxima) {
+      // A mesma rota nao redesenha nada: a intencao de abrir (foco, mouse em cima)
+      // confere a rota a cada vez, e redesenhar no meio de um clique o perdia.
+      if (proxima === rota) return
       rota = proxima
       if (modo === 'button') render()
     },
