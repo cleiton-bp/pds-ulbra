@@ -57,6 +57,7 @@ export type WidgetLauncherViewModel = Pick<
   | 'AccentColor'
   | 'Position'
   | 'Theme'
+  | 'FormBackgroundColor'
   | 'OffsetX'
   | 'OffsetY'
   | 'LauncherIcon'
@@ -96,6 +97,14 @@ export interface WidgetSettingsViewModel {
 
   Position: WidgetPosition
   Theme: WidgetTheme
+
+  /**
+   * O fundo do formulario aberto e da tela de "abrindo", em `#rrggbb`. **Nulo e o fundo
+   * do tema**, claro ou escuro. Com uma cor, e ela que decide o tema do formulario: o
+   * texto, as bordas e os campos saem da luminancia dela (`formSurfaceStyle`), e
+   * `Theme` so continua valendo para o botao parado na pagina.
+   */
+  FormBackgroundColor: string | null
 
   /** A distancia do canto ate o botao, na horizontal, em pixels (0 a 200). */
   OffsetX: number
@@ -252,9 +261,9 @@ export interface WidgetReportTypeViewModel {
 /**
  * A configuracao como o painel a grava: todos os campos, sempre juntos.
  *
- * **Substitui, e nao altera campo a campo** — `AccentColor`, `LauncherTextColor` e
- * `DefaultReportType` nulos sao valores (o acento do produto, a cor do texto
- * automatica, o primeiro tipo ativo), e num corpo parcial
+ * **Substitui, e nao altera campo a campo** — `AccentColor`, `LauncherTextColor`,
+ * `FormBackgroundColor` e `DefaultReportType` nulos sao valores (o acento do produto, a
+ * cor do texto automatica, o fundo do tema, o primeiro tipo ativo), e num corpo parcial
  * seriam indistinguiveis de "nao mexa". Os tipos nao vao: sao configurados na tela
  * Tipos de relato.
  */
@@ -263,6 +272,7 @@ export interface SaveWidgetSettingsRequest {
   AccentColor: string | null
   Position: WidgetPosition
   Theme: WidgetTheme
+  FormBackgroundColor: string | null
   OffsetX: number
   OffsetY: number
   LauncherIcon: WidgetLauncherIcon

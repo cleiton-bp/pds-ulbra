@@ -12,7 +12,13 @@ import {
 import { describeError, reportService, widgetSettingsService } from '@/data/publicIndex'
 import { AttachmentEditor } from '@/embed/AttachmentEditor'
 import { ATTACH_BUTTON_CLASS, AttachmentPicker, AttachmentProgress } from '@/embed/AttachmentPicker'
-import { accentStyle, resolveTheme, watchSystemTheme } from '@/embed/appearance'
+import {
+  accentStyle,
+  formSurfaceStyle,
+  formTheme,
+  isUsableAccent,
+  watchSystemTheme,
+} from '@/embed/appearance'
 import { hasRoom } from '@/embed/attachments'
 import { challengeOf, solveChallenge } from '@/embed/challenge'
 import type { EmbedConfig } from '@/embed/config'
@@ -296,16 +302,21 @@ export function EmbedApp({
   }, [capturando, editando])
 
   // O tema fixado pelo cliente vale sempre; `Auto` acompanha o sistema de quem
-  // visita, inclusive se ele mudar com o quadro ja aberto.
+  // visita, inclusive se ele mudar com o quadro ja aberto. **Com fundo proprio, quem
+  // decide e o fundo**, e nao ha sistema para ouvir: a cor nao muda com ele.
   useEffect(() => {
     const apply = (resolved: 'light' | 'dark') =>
       document.documentElement.setAttribute('data-theme', resolved)
 
-    apply(resolveTheme(settings.Theme))
+    apply(formTheme(settings.Theme, settings.FormBackgroundColor))
+    if (isUsableAccent(settings.FormBackgroundColor)) return
     return watchSystemTheme(settings.Theme, apply)
-  }, [settings.Theme])
+  }, [settings.Theme, settings.FormBackgroundColor])
 
-  const style = useMemo(() => accentStyle(settings), [settings])
+  const style = useMemo(
+    () => ({ ...accentStyle(settings), ...formSurfaceStyle(settings.FormBackgroundColor) }),
+    [settings],
+  )
 
   /**
    * Como o botao aparece aqui: com o texto, ou so o icone (escolhido, ou no celular).

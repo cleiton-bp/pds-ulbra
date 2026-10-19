@@ -71,6 +71,8 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   AccentColor: null,
   Position: 'BottomRight',
   Theme: 'Auto',
+  // Nulo e o fundo do tema: claro ou escuro, conforme o tema.
+  FormBackgroundColor: null,
   // A aparencia do botao, toda com o valor de antes de ela ser configuravel.
   OffsetX: 20,
   OffsetY: 20,

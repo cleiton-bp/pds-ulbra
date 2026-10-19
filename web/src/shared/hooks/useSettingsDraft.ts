@@ -125,6 +125,7 @@ export function widgetSettingsRequest(
     AccentColor: settings.AccentColor,
     Position: settings.Position,
     Theme: settings.Theme,
+    FormBackgroundColor: settings.FormBackgroundColor,
     OffsetX: settings.OffsetX,
     OffsetY: settings.OffsetY,
     LauncherIcon: settings.LauncherIcon,

@@ -5,7 +5,6 @@ import {
   AppearanceFields,
   BUTTON_FIELDS,
   BUTTON_GROUPS,
-  ColorSwatch,
   describeAppearance,
   describeHiddenPages,
   describeMobile,
@@ -17,6 +16,7 @@ import {
   resetPatch,
 } from '@/features/widgetSettings/AppearanceSection'
 import { VisibilityPill } from '@/features/widgetSettings/ButtonGroup'
+import { ColorSwatch } from '@/features/widgetSettings/ColorChoice'
 import { Button } from '@/shared/components/Button'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
 import { MovedAnchors } from '@/shared/components/MovedAnchors'

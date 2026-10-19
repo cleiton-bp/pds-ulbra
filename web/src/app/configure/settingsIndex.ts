@@ -364,6 +364,20 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     level: 'basic',
   },
   {
+    label: 'Fundo do formulário',
+    synonyms: [
+      'cor de fundo',
+      'cor do formulário',
+      'background',
+      'cor da marca',
+      'hexadecimal',
+      'código da cor',
+    ],
+    section: 'formTexts',
+    anchor: 'fundo-do-formulario',
+    level: 'basic',
+  },
+  {
     label: 'Título do formulário',
     synonyms: ['cabeçalho', 'título'],
     section: 'formTexts',

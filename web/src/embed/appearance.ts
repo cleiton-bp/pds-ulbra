@@ -123,6 +123,42 @@ export function accentStyle(
 }
 
 /**
+ * O tema do formulario: o escolhido, ou — com fundo proprio — o que a cor do fundo pede.
+ * **O fundo vence o tema**: fundo escuro com o texto do tema claro seria um formulario
+ * que ninguem le. E a mesma conta da tinta sobre o acento: ganha a de maior contraste.
+ */
+export function formTheme(theme: WidgetTheme, background: string | null): 'light' | 'dark' {
+  if (!isUsableAccent(background)) return resolveTheme(theme)
+  return escuraVence(relativeLuminance(background.trim())) ? 'light' : 'dark'
+}
+
+/**
+ * As superficies do formulario sobre o fundo do cliente. **So o fundo vem de fora**: o
+ * resto sai dele misturado com o texto do tema que `formTheme` escolheu, em degraus
+ * parecidos com os da paleta — o campo um pouco mais fundo que a folha, a borda
+ * visivel, o texto apagado ainda legivel. Sem fundo usavel, nada muda: valem os tokens.
+ *
+ * A mistura e feita pelo navegador (`color-mix`), e nao aqui: o texto do tema e um
+ * token, e so o navegador sabe o valor dele.
+ */
+export function formSurfaceStyle(background: string | null): CSSProperties {
+  if (!isUsableAccent(background)) return {}
+  const fundo = background.trim()
+  const comTexto = (parte: number) => `color-mix(in srgb, var(--fg) ${parte}%, ${fundo})`
+
+  return {
+    '--surface': fundo,
+    '--surface-raised': comTexto(4),
+    '--surface-sunken': comTexto(7),
+    '--surface-strong': comTexto(11),
+    '--border': comTexto(20),
+    '--fg-muted': comTexto(72),
+    '--fg-placeholder': comTexto(55),
+    '--fg-disabled': comTexto(38),
+  } as CSSProperties
+}
+
+/**
  * `Auto` **nao** da para resolver deixando o atributo de fora: `tokens.css` so
  * tem bloco escuro para `[data-theme="dark"]`, e nao responde a
  * `prefers-color-scheme` sozinho. Sem esta conta, `Auto` seria sempre claro.
