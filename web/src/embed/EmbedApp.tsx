@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   type CreatedReportViewModel,
   MAX_CARD_TITLE_LENGTH,
@@ -130,6 +130,8 @@ export function EmbedApp({
     ? { Types: settings.Types, DefaultReportType: settings.DefaultReportType }
     : tiposLidos
   const [typeId, setTypeId] = useState(() => marcadoDe(settings))
+  /** A raiz dos ids dos campos das perguntas: um rotulo com `htmlFor` por pergunta. */
+  const ids = useId()
 
   // E o pre-marcado acompanha o "Tipo pré-marcado" do rascunho. So quando ele muda: outra
   // mudanca qualquer na configuracao nao desfaz o tipo que se clicou na previa.
@@ -1046,15 +1048,18 @@ export function EmbedApp({
       {/* Antes do texto: e a pergunta curta, e quem responde ja pensou no que vai
           contar. Numa linha so — titulo nao e paragrafo. */}
       {perguntaTitulo && (
-        <label
+        // Rotulo por `htmlFor`, como nas perguntas: envolvendo o campo, o texto digitado
+        // entraria no nome acessivel dele.
+        <div
           data-preview-highlight={marca('form-title')}
           className={cn('flex flex-col gap-1.5', contorno('form-title'))}
         >
-          <span className="text-detail text-fg-muted">
+          <label htmlFor={`${ids}-titulo`} className="text-detail text-fg-muted">
             {settings.ReportTitleQuestion}
             {settings.ReportTitleMode === 'Optional' && ' (opcional)'}
-          </span>
+          </label>
           <input
+            id={`${ids}-titulo`}
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -1067,7 +1072,7 @@ export function EmbedApp({
             placeholder={settings.ReportTitlePlaceholder}
             className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder"
           />
-        </label>
+        </div>
       )}
 
       {tipo === null && (
@@ -1089,9 +1094,12 @@ export function EmbedApp({
           const valor = respostasDoTipo[index] ?? ''
           return (
             // A pergunta nao se repete dentro do tipo — a API recusa —, e e a chave.
-            <label key={`${tipo.PublicId}-${pergunta}`} className="flex flex-none flex-col gap-1.5">
+            // **Rotulo por `htmlFor`, e nao envolvendo a caixa**: com a caixa dentro do
+            // rotulo, o nome acessivel dela passa a incluir o proprio texto digitado
+            // ("O que aconteceu? rascunho…"), e o leitor de tela le a resposta como nome.
+            <div key={`${tipo.PublicId}-${pergunta}`} className="flex flex-none flex-col gap-1.5">
               <span className="flex items-baseline justify-between gap-2 text-detail text-fg-muted">
-                <span>{pergunta}</span>
+                <label htmlFor={`${ids}-pergunta-${index}`}>{pergunta}</label>
                 {valor.length >= MAX_REPORT_ANSWER_LENGTH * PERTO_DO_TETO && (
                   <span className="flex-none tabular-nums">
                     {valor.length}/{MAX_REPORT_ANSWER_LENGTH}
@@ -1099,6 +1107,7 @@ export function EmbedApp({
                 )}
               </span>
               <textarea
+                id={`${ids}-pergunta-${index}`}
                 value={valor}
                 onChange={(event) => responder(index, event.target.value)}
                 maxLength={MAX_REPORT_ANSWER_LENGTH}
@@ -1108,7 +1117,7 @@ export function EmbedApp({
                   'text-body text-fg leading-normal placeholder:text-fg-placeholder',
                 )}
               />
-            </label>
+            </div>
           )
         })}
 

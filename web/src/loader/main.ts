@@ -553,8 +553,12 @@ async function drawButton(leitura: Promise<WidgetLauncherViewModel | null>): Pro
  * documento, e passivo: o elemento continua sendo do cliente, com o comportamento dele.
  */
 function onDeclarativeClick(event: Event): void {
-  const alvo = event.target
-  if (alvo instanceof Element && alvo.closest('[data-pds-open]')) open()
+  // **O caminho inteiro do clique, e nao so o alvo.** Um clique dentro de um shadow root
+  // (Web Components, Lit, Stencil) chega ao documento com o alvo trocado pelo elemento
+  // hospedeiro, e `closest` a partir dele nunca achava o botao do cliente. O
+  // `composedPath` atravessa as sombras abertas; as fechadas ficam de fora, como devem.
+  const caminho = event.composedPath()
+  if (caminho.some((no) => no instanceof Element && no.hasAttribute('data-pds-open'))) open()
 }
 
 /**
