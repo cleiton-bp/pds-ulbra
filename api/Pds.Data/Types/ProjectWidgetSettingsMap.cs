@@ -102,6 +102,11 @@ public class ProjectWidgetSettingsMap : BaseEntityConfiguration<ProjectWidgetSet
             .HasMaxLength(ProjectWidgetSettings.MaxAccentColorLength)
             .HasComment("A cor do texto e do icone sobre o botao, em #rrggbb. Nulo e automatico: a de maior contraste com a cor do botao.");
 
+        builder.Property(settings => settings.FormBackgroundColor)
+            .HasColumnName("form_background_color")
+            .HasMaxLength(ProjectWidgetSettings.MaxAccentColorLength)
+            .HasComment("O fundo do formulario aberto e da tela de abrindo, em #rrggbb. Nulo e o fundo do tema; com uma cor, o texto e as bordas saem da luminancia dela.");
+
         builder.Property(settings => settings.LauncherShadow)
             .HasColumnName("launcher_shadow")
             .IsRequired()

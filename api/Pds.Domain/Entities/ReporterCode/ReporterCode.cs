@@ -14,6 +14,12 @@ namespace Pds.Domain.Entities;
 /// <para><b>Nao ha nada de pessoa aqui, e e o ponto.</b> Sem nome, sem contato, sem
 /// dispositivo: e um identificador sorteado e nada mais. O que o liga a alguem e a
 /// propria pessoa ter guardado o papel.</para>
+///
+/// <para><b>A mesma linha serve a identidade do sistema do cliente.</b> Nesse modo a
+/// pessoa nao guarda papel nenhum: o que a liga a linha e o hash do identificador que
+/// o sistema dela apresentou, em <see cref="SubjectHash"/>. O codigo continua
+/// sorteado e nunca e mostrado — existe para a linha ter o formato de sempre, e para
+/// a lista, a porta de leitura e o limitador funcionarem pelo mesmo vinculo.</para>
 /// </summary>
 public class ReporterCode : PdsBaseEntity
 {
@@ -61,6 +67,13 @@ public class ReporterCode : PdsBaseEntity
     /// antigo continua na mao de alguem.</para>
     /// </summary>
     public string Code { get; set; } = string.Empty;
+
+    /// <summary>
+    /// O hash do <c>sub</c> do token do sistema do cliente, com o sal do projeto —
+    /// preenchido so no modo de identidade herdada. Unico dentro do projeto. Nao se
+    /// desfaz: quem abre o banco nao descobre quem a pessoa e no sistema do cliente.
+    /// </summary>
+    public string? SubjectHash { get; set; }
 
     /// <summary>Os relatos ligados a este codigo.</summary>
     public ICollection<Report> Reports { get; set; } = [];

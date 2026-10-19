@@ -748,6 +748,32 @@ namespace Pds.Data.Migrations
                         .HasColumnName("deleted_at")
                         .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
 
+                    b.Property<string>("IdentityPublicKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("identity_public_key")
+                        .HasComment("A chave publica do sistema do cliente (ECDSA P-256, SPKI em base64), no modo inherited_identity: o servidor dele assina quem e a pessoa, e a API so confere. Guardada tambem nos outros modos, para a volta. E publica — nunca segredo.");
+
+                    b.Property<bool>("IdentityRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("identity_required")
+                        .HasComment("No modo inherited_identity: true recusa o relato sem token (ou com token que nao confere) e pede para entrar no sistema; false (fabrica) aceita como protocolo, sem identidade.");
+
+                    b.Property<string>("IdentitySubjectSalt")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("identity_subject_salt")
+                        .HasComment("O sal com que o sub do token vira o subject_hash de reporter_codes. Nasce com a primeira chave e nao muda: mudar faria toda pessoa virar outra.");
+
+                    b.Property<int>("IdentityTokenMaxMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(15)
+                        .HasColumnName("identity_token_max_minutes")
+                        .HasComment("Por quantos minutos, no maximo, um token do sistema do cliente pode valer (1 a 60; fabrica 15). Token de vida maior e recusado: seria um token de login disfarcado.");
+
                     b.Property<string>("Mode")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2074,6 +2100,12 @@ namespace Pds.Data.Migrations
                         .HasColumnName("deleted_at")
                         .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
 
+                    b.Property<string>("FormBackgroundColor")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("form_background_color")
+                        .HasComment("O fundo do formulario aberto e da tela de abrindo, em #rrggbb. Nulo e o fundo do tema; com uma cor, o texto e as bordas saem da luminancia dela.");
+
                     b.PrimitiveCollection<List<string>>("HiddenPaths")
                         .IsRequired()
                         .HasColumnType("text[]")
@@ -3277,6 +3309,12 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
 
+                    b.Property<string>("SubjectHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("subject_hash")
+                        .HasComment("No modo de identidade herdada, o SHA-256 (hex) do sal do projeto e do sub do token: a pessoa do sistema do cliente, sem dizer quem ela e. Nulo no modo de codigo pessoal.");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at")
@@ -3297,9 +3335,14 @@ namespace Pds.Data.Migrations
                         .HasDatabaseName("ux_reporter_codes_project_id_code")
                         .HasFilter("deleted_at IS NULL");
 
+                    b.HasIndex("ProjectId", "SubjectHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_reporter_codes_project_id_subject_hash")
+                        .HasFilter("deleted_at IS NULL AND subject_hash IS NOT NULL");
+
                     b.ToTable("reporter_codes", null, t =>
                         {
-                            t.HasComment("O codigo que quem relata guarda para reencontrar os proprios relatos, no modo sem login. Tabela e nao coluna: o codigo vale para varios relatos, entao a unicidade precisa de uma linha propria. Nao guarda nada de pessoa — e um identificador sorteado e nada mais.");
+                            t.HasComment("O codigo que quem relata guarda para reencontrar os proprios relatos, no modo sem login — e, no modo de identidade herdada, a linha da pessoa que o sistema do cliente identificou, pelo hash do sujeito. Tabela e nao coluna: o vinculo vale para varios relatos, entao a unicidade precisa de uma linha propria. Nao guarda nada de pessoa alem de um hash que nao se desfaz.");
                         });
                 });
 

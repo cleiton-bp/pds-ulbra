@@ -43,6 +43,9 @@ public static class WidgetSettingsDefaults
     public const string? LauncherTextColor = null;
 
     public const bool LauncherShadow = false;
+
+    /// <summary>Nulo e o fundo do tema: claro ou escuro, conforme o tema escolhido.</summary>
+    public const string? FormBackgroundColor = null;
     public const WidgetMobileModeEnum MobileMode = WidgetMobileModeEnum.Same;
 
     /// <summary>

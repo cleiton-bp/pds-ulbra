@@ -40,6 +40,28 @@ public class ProjectIdentitySettingsMap : BaseEntityConfiguration<ProjectIdentit
             .IsRequired()
             .HasComment("A ferramenta pergunta o nome de quem relata. Desligado de fabrica: coletar dado pessoal precisa ser um ato de quem configura. Perguntar nao e publicar — o nome so sai la fora com visibility = public_identified E o relato assinado pela propria pessoa.");
 
+        builder.Property(settings => settings.IdentityPublicKey)
+            .HasColumnName("identity_public_key")
+            .HasMaxLength(ProjectIdentitySettings.MaxIdentityPublicKeyLength)
+            .HasComment("A chave publica do sistema do cliente (ECDSA P-256, SPKI em base64), no modo inherited_identity: o servidor dele assina quem e a pessoa, e a API so confere. Guardada tambem nos outros modos, para a volta. E publica — nunca segredo.");
+
+        builder.Property(settings => settings.IdentitySubjectSalt)
+            .HasColumnName("identity_subject_salt")
+            .HasMaxLength(64)
+            .HasComment("O sal com que o sub do token vira o subject_hash de reporter_codes. Nasce com a primeira chave e nao muda: mudar faria toda pessoa virar outra.");
+
+        builder.Property(settings => settings.IdentityTokenMaxMinutes)
+            .HasColumnName("identity_token_max_minutes")
+            .IsRequired()
+            .HasDefaultValue(IdentitySettingsDefaults.IdentityTokenMaxMinutes)
+            .HasComment("Por quantos minutos, no maximo, um token do sistema do cliente pode valer (1 a 60; fabrica 15). Token de vida maior e recusado: seria um token de login disfarcado.");
+
+        builder.Property(settings => settings.IdentityRequired)
+            .HasColumnName("identity_required")
+            .IsRequired()
+            .HasDefaultValue(IdentitySettingsDefaults.IdentityRequired)
+            .HasComment("No modo inherited_identity: true recusa o relato sem token (ou com token que nao confere) e pede para entrar no sistema; false (fabrica) aceita como protocolo, sem identidade.");
+
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.
         builder.HasIndex(settings => settings.ProjectId)
