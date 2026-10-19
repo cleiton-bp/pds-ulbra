@@ -8,8 +8,8 @@ namespace Pds.Service.Limits;
 /// As camadas de limite da entrada de relatos, contadas na memoria do processo.
 ///
 /// <para><b>Quatro camadas, da mais estreita para a mais larga</b>: quem relata (o
-/// codigo pessoal, no projeto que usa esse modo; senao, o IP), o IP, o endereco de
-/// origem e o projeto (na hora e no dia). Cada uma tem o seu limite em
+/// codigo pessoal ou a pessoa do sistema do cliente, no projeto que usa um desses
+/// modos; senao, o IP), o IP, o endereco de origem e o projeto (na hora e no dia). Cada uma tem o seu limite em
 /// <see cref="ProjectReportLimits"/>. Passado o limite, o relato so entra com o
 /// desafio resolvido (<see cref="ReportChallenge"/>); no dobro, a camada pausa por
 /// quinze minutos. Antes de tudo, o intervalo minimo entre dois relatos da mesma
@@ -66,7 +66,8 @@ public sealed class ReportLimiter
     /// <param name="Ip">O IP de quem pede, como a conexao (ou o proxy listado) diz.</param>
     /// <param name="ReporterCode">O codigo pessoal, quando o projeto usa esse modo e ele veio.</param>
     /// <param name="Origin">O endereco de origem, ja na forma das listas; vazio sem endereco.</param>
-    public readonly record struct Sender(long ProjectId, Guid ProjectPublicId, string Ip, string? ReporterCode, string Origin);
+    /// <param name="SubjectHash">A pessoa do sistema do cliente, no projeto que usa a identidade herdada e quando o token conferiu.</param>
+    public readonly record struct Sender(long ProjectId, Guid ProjectPublicId, string Ip, string? ReporterCode, string Origin, string? SubjectHash = null);
 
     /// <summary>O que fazer com o relato.</summary>
     public abstract record Verdict
@@ -191,13 +192,16 @@ public sealed class ReportLimiter
     }
 
     /// <summary>
-    /// A pessoa: o codigo pessoal quando ha um, senao o IP. Com o IP, as camadas de
-    /// pessoa e de IP leem a mesma lista com janelas e limites diferentes.
+    /// A pessoa: o codigo pessoal quando ha um, ou a pessoa do sistema do cliente,
+    /// senao o IP. Com o IP, as camadas de pessoa e de IP leem a mesma lista com
+    /// janelas e limites diferentes.
     /// </summary>
     private static string ReporterKey(Sender sender)
-        => string.IsNullOrEmpty(sender.ReporterCode)
-            ? IpKey(sender)
-            : $"rep:{sender.ProjectId}:{sender.ReporterCode}";
+        => !string.IsNullOrEmpty(sender.ReporterCode)
+            ? $"rep:{sender.ProjectId}:{sender.ReporterCode}"
+            : !string.IsNullOrEmpty(sender.SubjectHash)
+                ? $"sub:{sender.ProjectId}:{sender.SubjectHash}"
+                : IpKey(sender);
 
     private static string IpKey(Sender sender) => $"ip:{sender.ProjectId}:{sender.Ip}";
 

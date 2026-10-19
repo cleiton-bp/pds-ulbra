@@ -318,6 +318,76 @@ public class PublicReportsController : BaseController
         }
     }
 
+    /// <summary>A lista pessoal, pela identidade do sistema do cliente.</summary>
+    /// <remarks>
+    /// **O espelho de `by-code`, com o token no lugar do código.** No modo em que o
+    /// projeto herda a identidade, o servidor do cliente assina quem é a pessoa (um JWT
+    /// ES256 dedicado, com `aud` igual à chave pública do projeto e validade curta), e a
+    /// lista é a dela — sem ela guardar código nenhum.
+    ///
+    /// **Projeto que não usa o modo, token que não confere e pessoa que nunca relatou
+    /// respondem vazio**, e não uma recusa: a rota não é oráculo da configuração nem de
+    /// ninguém, pelo mesmo motivo da lista pelo código. O teto e o "há mais" são os dela.
+    ///
+    /// **Não grava visualização**, como a lista pelo código.
+    /// </remarks>
+    /// <param name="dto">A chave pública do projeto e o token.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">A lista, possivelmente vazia.</response>
+    /// <response code="401">Chave pública inválida.</response>
+    [HttpPost("by-identity")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<ReporterCodeReportsViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ByIdentity([FromBody] IdentityLookupDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var relatos = await _reportService.ListByIdentityAsync(dto, cancellationToken);
+            return Success(relatos);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Abre um relato da lista pessoal, pela identidade do sistema do cliente.</summary>
+    /// <remarks>
+    /// **Lê, e não age.** A identidade prova que o relato é dela; o link é que dá poder
+    /// sobre ele — confirmar, reabrir e responder chegam desligados, como pelo código. Os
+    /// arquivos do relato se leem pela mesma porta, em `by-identity/attachments`.
+    ///
+    /// **Uma recusa só, para todos os enganos.** Token em branco ou que não confere,
+    /// projeto que não usa o modo, protocolo que não existe e protocolo de outra pessoa
+    /// recebem a mesma mensagem.
+    ///
+    /// **Grava a visualização**, com `by: inherited_identity` na carga — é o que
+    /// distingue, na contagem, quem voltou pela lista de quem voltou pelo link.
+    /// </remarks>
+    /// <param name="dto">A chave pública, o token e o protocolo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">O relato, como quem o escreveu o vê.</response>
+    /// <response code="401">Chave pública inválida.</response>
+    /// <response code="404">Token ou protocolo não conferem.</response>
+    [HttpPost("by-identity/open")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<PublicReportViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> OpenByIdentity([FromBody] OpenByIdentityDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _reportService.OpenByIdentityAsync(dto, cancellationToken);
+            return Success(report);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
     /// <summary>Quem relatou diz que resolveu.</summary>
     /// <remarks>
     /// **É a metade que faltava da metáfora.** "Concluído" é o time dizendo que
@@ -710,6 +780,40 @@ public class PublicReportsController : BaseController
         try
         {
             var anexos = await _attachmentService.ListForReporterCodeAsync(dto, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(anexos, total: anexos.Count);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Os arquivos do relato, para quem voltou pela identidade do sistema do cliente.</summary>
+    /// <remarks>
+    /// A mesma lista de `by-code/attachments`, pela porta da identidade: lê, não age, uma
+    /// recusa só para todos os enganos, sem gravar visualização, e com
+    /// `Cache-Control: no-store`.
+    /// </remarks>
+    /// <param name="dto">A chave pública, o token e o protocolo.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">Os anexos confirmados, na ordem em que quem relatou montou cada envio.</response>
+    /// <response code="401">Chave pública inválida.</response>
+    /// <response code="404">Token ou protocolo não conferem.</response>
+    /// <response code="409">Não há armazenamento configurado nesta instalação.</response>
+    [HttpPost("by-identity/attachments")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<List<PublicAttachmentViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ByIdentityAttachments(
+        [FromBody] OpenByIdentityDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var anexos = await _attachmentService.ListForIdentityAsync(dto, cancellationToken);
             Response.Headers.CacheControl = "no-store";
             return Success(anexos, total: anexos.Count);
         }

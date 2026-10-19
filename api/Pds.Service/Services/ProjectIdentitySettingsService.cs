@@ -4,6 +4,7 @@ using Pds.Domain.Enums;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
+using Pds.Service.Security;
 
 namespace Pds.Service.Services;
 
@@ -51,6 +52,25 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
 
         RequireIdentityForIdentifiedVisibility(mode, visibility);
 
+        // A chave do sistema do cliente: limpa (PEM ou base64 numa linha) e conferida
+        // como ECDSA P-256 sempre que vier — e exigida no modo herdado, que sem ela
+        // nao confere token nenhum. Fora do modo ela fica guardada: trocar de modo e
+        // voltar nao pode obrigar a colar a chave de novo.
+        var chave = InheritedIdentity.NormalizePublicKey(dto.IdentityPublicKey);
+        if (chave is not null && chave.Length > ProjectIdentitySettings.MaxIdentityPublicKeyLength)
+            throw new ArgumentException("A chave publica e grande demais.");
+        if (mode == ReporterIdentityModeEnum.InheritedIdentity && chave is null)
+            throw new ArgumentException("Informe a chave publica do seu sistema.");
+        if (chave is not null)
+            InheritedIdentity.ImportPublicKey(chave).Dispose();
+
+        var tetoDoToken = dto.IdentityTokenMaxMinutes ?? IdentitySettingsDefaults.IdentityTokenMaxMinutes;
+        if (tetoDoToken is < ProjectIdentitySettings.MinIdentityTokenMinutes or > ProjectIdentitySettings.MaxIdentityTokenMinutes)
+            throw new ArgumentException(
+                $"A validade do token precisa ficar entre {ProjectIdentitySettings.MinIdentityTokenMinutes} e {ProjectIdentitySettings.MaxIdentityTokenMinutes} minutos.");
+
+        var identidadeObrigatoria = dto.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired;
+
         var settings = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
 
         var novo = settings is null;
@@ -59,6 +79,14 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
         settings.Mode = mode;
         settings.Visibility = visibility;
         settings.AsksForName = asksForName;
+        settings.IdentityPublicKey = chave;
+        settings.IdentityTokenMaxMinutes = tetoDoToken;
+        settings.IdentityRequired = identidadeObrigatoria;
+
+        // O sal nasce com a primeira chave e nunca muda: trocar o sal faria toda
+        // pessoa virar outra, e a lista dela sumiria.
+        if (chave is not null && settings.IdentitySubjectSalt is null)
+            settings.IdentitySubjectSalt = InheritedIdentity.NewSalt();
 
         if (novo)
             await _unitOfWork.ProjectIdentitySettings.AddAsync(settings, cancellationToken);
@@ -77,7 +105,10 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
         => new(
             settings?.Mode ?? IdentitySettingsDefaults.Mode,
             settings?.Visibility ?? IdentitySettingsDefaults.Visibility,
-            settings?.AsksForName ?? IdentitySettingsDefaults.AsksForName);
+            settings?.AsksForName ?? IdentitySettingsDefaults.AsksForName,
+            settings?.IdentityPublicKey,
+            settings?.IdentityTokenMaxMinutes ?? IdentitySettingsDefaults.IdentityTokenMaxMinutes,
+            settings?.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired);
 
     /// <summary>
     /// Confere o par, e nao cada campo sozinho.
@@ -89,14 +120,14 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
     /// mostrar uma identidade que deixou de existir.</para>
     ///
     /// <para>A recusa <b>diz a saida</b>, e nao so o erro: quem quer publicar sem
-    /// identificar tem o anonimo, e quem quer identificar tem o codigo
-    /// pessoal.</para>
+    /// identificar tem o anonimo, e quem quer identificar tem o codigo pessoal ou a
+    /// identidade do proprio sistema.</para>
     /// </summary>
     private static void RequireIdentityForIdentifiedVisibility(ReporterIdentityModeEnum mode, ReportVisibilityEnum visibility)
     {
         if (visibility == ReportVisibilityEnum.PublicIdentified && mode == ReporterIdentityModeEnum.Protocol)
             throw new ArgumentException(
-                "Publico identificado exige um projeto que identifique quem relata. Escolha o codigo pessoal, ou publique como anonimo.");
+                "Publico identificado exige um projeto que identifique quem relata. Escolha o codigo pessoal ou a identidade do seu sistema, ou publique como anonimo.");
     }
 
     /// <summary>

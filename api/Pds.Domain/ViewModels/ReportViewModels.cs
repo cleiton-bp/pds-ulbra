@@ -24,11 +24,17 @@ namespace Pds.Domain.ViewModels;
 /// sempre é o que faz a tela mostrar o código que <b>de fato</b> vale, em vez do
 /// que ela achava que valia.</para>
 /// </param>
+/// <param name="Identified">
+/// Só no modo de identidade herdada: verdadeiro quando o token do sistema do cliente
+/// conferiu e o relato entrou na lista da pessoa; falso quando não havia token, ou ele
+/// não conferiu, e o projeto aceitou o relato como protocolo. Nulo nos outros modos.
+/// </param>
 public record CreatedReportViewModel(
     string TrackingCode,
     string AccessToken,
     DateTime CreatedAt,
-    string? ReporterCode);
+    string? ReporterCode,
+    bool? Identified = null);
 
 /// <summary>
 /// Um relato na lista do painel.

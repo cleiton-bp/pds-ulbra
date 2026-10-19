@@ -32,4 +32,20 @@ public class IdentitySettingsDto
     /// <summary>A ferramenta pergunta o nome de quem relata.</summary>
     /// <example>false</example>
     public bool? AsksForName { get; set; }
+
+    /// <summary>
+    /// A chave publica do sistema do cliente, ECDSA P-256, em SPKI base64 ou PEM. Exigida
+    /// no modo InheritedIdentity; nos outros, guardada para a volta. O token que ela
+    /// confere tem de ser dedicado — nunca o token de login do usuario no sistema do cliente.
+    /// </summary>
+    /// <example>MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...</example>
+    public string? IdentityPublicKey { get; set; }
+
+    /// <summary>Por quantos minutos, no maximo, um token pode valer: de 1 a 60. Ausente, 15.</summary>
+    /// <example>15</example>
+    public int? IdentityTokenMaxMinutes { get; set; }
+
+    /// <summary>No modo herdado, recusar o relato sem token (ou com token que nao confere) em vez de aceita-lo como protocolo. Ausente, falso.</summary>
+    /// <example>false</example>
+    public bool? IdentityRequired { get; set; }
 }

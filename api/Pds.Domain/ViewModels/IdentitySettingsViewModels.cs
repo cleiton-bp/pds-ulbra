@@ -13,7 +13,13 @@ namespace Pds.Domain.ViewModels;
 /// <param name="Mode">Protocolo, codigo pessoal ou identidade herdada.</param>
 /// <param name="Visibility">Privado, publico anonimo ou publico identificado.</param>
 /// <param name="AsksForName">A ferramenta pergunta o nome de quem relata. Perguntar nao e publicar.</param>
+/// <param name="IdentityPublicKey">A chave publica do sistema do cliente (SPKI base64), ou nula. Publica: pode voltar inteira.</param>
+/// <param name="IdentityTokenMaxMinutes">Teto de validade do token do sistema do cliente, em minutos.</param>
+/// <param name="IdentityRequired">No modo herdado, o relato sem token e recusado (true) ou entra como protocolo (false).</param>
 public record IdentitySettingsViewModel(
     ReporterIdentityModeEnum Mode,
     ReportVisibilityEnum Visibility,
-    bool AsksForName);
+    bool AsksForName,
+    string? IdentityPublicKey,
+    int IdentityTokenMaxMinutes,
+    bool IdentityRequired);

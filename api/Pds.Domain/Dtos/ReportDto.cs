@@ -120,6 +120,13 @@ public class CreateReportDto
     public string? ReporterCode { get; set; }
 
     /// <summary>
+    /// O token do sistema do cliente, no modo de identidade herdada: JWT ES256 dedicado,
+    /// assinado pela chave privada dele, com `aud` igual à chave pública do projeto e
+    /// validade curta. Fora desse modo é ignorado — vem da página, e não da pessoa.
+    /// </summary>
+    public string? IdentityToken { get; set; }
+
+    /// <summary>
     /// Como a pessoa quer ser chamada. <b>Opcional em toda configuracao.</b>
     ///
     /// <para>Guardado como <b>interno</b>: o time ve, o lado de fora nao. Para
@@ -458,6 +465,39 @@ public class ReporterCodeLookupDto
     /// <summary>O código que a pessoa guardou.</summary>
     /// <example>H7QK-3M2X-P9WD</example>
     public string? Code { get; set; }
+}
+
+/// <summary>
+/// A consulta da lista pessoal, pela identidade do sistema do cliente.
+///
+/// <para><b>`POST` pelo mesmo motivo da consulta pelo código:</b> o token identifica a
+/// pessoa, e em query string entraria em log, histórico e `Referer`.</para>
+/// </summary>
+public class IdentityLookupDto
+{
+    /// <summary>A chave pública do projeto — e a audiência do token.</summary>
+    /// <example>pk_1R0KtQwz</example>
+    public string? Key { get; set; }
+    /// <summary>O token assinado pelo sistema do cliente, que diz quem é a pessoa.</summary>
+    public string? IdentityToken { get; set; }
+}
+
+/// <summary>
+/// A leitura de **um** relato pela identidade do sistema do cliente, em vez do link.
+///
+/// <para><b>A identidade prova que o relato é dela; o link é que dá poder sobre ele.</b>
+/// A mesma regra do código pessoal: esta rota lê, e as ações vêm desligadas.</para>
+/// </summary>
+public class OpenByIdentityDto
+{
+    /// <summary>A chave pública do projeto — e a audiência do token.</summary>
+    /// <example>pk_1R0KtQwz</example>
+    public string? Key { get; set; }
+    /// <summary>O token assinado pelo sistema do cliente.</summary>
+    public string? IdentityToken { get; set; }
+    /// <summary>O protocolo do relato a abrir, que veio da lista.</summary>
+    /// <example>7K2M-9QXP-4TRV</example>
+    public string? TrackingCode { get; set; }
 }
 
 /// <summary>

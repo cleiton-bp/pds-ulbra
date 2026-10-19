@@ -19,8 +19,9 @@ namespace Pds.Domain.Dtos;
 /// campo que a tela esquecesse de mandar chegaria como <c>false</c> em silencio, e a
 /// ferramenta de alguem se desligaria sozinha. Anulavel e o que permite ao servico
 /// ver a falta e recusar. As excecoes sao <see cref="AccentColor"/>,
-/// <see cref="LauncherTextColor"/> e <see cref="DefaultReportType"/>, em que nulo e
-/// valor: o acento do produto, a cor do texto automatica, e o primeiro tipo ativo.</para>
+/// <see cref="LauncherTextColor"/>, <see cref="FormBackgroundColor"/> e
+/// <see cref="DefaultReportType"/>, em que nulo e valor: o acento do produto, a cor do
+/// texto automatica, o fundo do tema, e o primeiro tipo ativo.</para>
 /// </summary>
 public class WidgetSettingsDto
 {
@@ -68,6 +69,14 @@ public class WidgetSettingsDto
 
     /// <example>false</example>
     public bool? LauncherShadow { get; set; }
+
+    /// <summary>
+    /// O fundo do formulario aberto, em <c>#rrggbb</c>. Nulo e o fundo do tema — e, como
+    /// <see cref="AccentColor"/>, nulo e valor. Com uma cor, o texto e as bordas saem
+    /// dela, e o tema deixa de valer no formulario.
+    /// </summary>
+    /// <example>#fff8e6</example>
+    public string? FormBackgroundColor { get; set; }
 
     /// <summary>Como o botao fica no celular. <c>IconOnly</c> exige um icone.</summary>
     /// <example>Same</example>

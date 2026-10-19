@@ -162,6 +162,8 @@ public partial class ReportService : IReportService
         // ninguem, e recusar pelo tamanho nao conta nada sobre os que existem.
         if ((dto.ReporterCode?.Length ?? 0) > ReporterCodeMaxLength)
             throw new ArgumentException($"O codigo pessoal pode ter ate {ReporterCodeMaxLength} caracteres.");
+        if ((dto.IdentityToken?.Length ?? 0) > InheritedIdentity.MaxTokenLength)
+            throw new ArgumentException("O token de identidade e grande demais.");
 
         var project = await RequireProjectAsync(dto.Key, cancellationToken);
 
@@ -203,7 +205,15 @@ public partial class ReportService : IReportService
         // Os limites, depois do que recusa o relato mal formado (que nao conta) e antes
         // de qualquer gravacao: a pausa avisa o time numa gravacao propria, e nada do
         // relato pode ir junto nela.
-        var (remetente, limites) = await CheckLimitsAsync(project, dto, clientIp, cancellationToken);
+        // A identidade do sistema do cliente, conferida antes dos limites: a pessoa
+        // reconhecida e a chave da camada "a mesma pessoa". So confere — a linha dela
+        // no banco nasce depois, com o relato aceito, porque a pausa grava um aviso
+        // proprio e levaria junto o que estivesse pendente.
+        var identidade = await _unitOfWork.ProjectIdentitySettings
+            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
+        var herdada = await VerifyInheritedIdentityAsync(identidade, dto.Key, dto.IdentityToken);
+
+        var (remetente, limites) = await CheckLimitsAsync(project, dto, clientIp, identidade, herdada.Hash, cancellationToken);
 
         // Fora da lista de autorizados — ou sem dizer de onde veio —, o relato e
         // recebido e fica retido. Quem relatou nao percebe nada; o time nao o ve ate
@@ -228,7 +238,8 @@ public partial class ReportService : IReportService
                             ?? regras?.AcceptsQuestionsDefault
                             ?? CycleSettingsDefaults.AcceptsQuestionsDefault;
 
-        var codigoPessoal = await ResolveReporterCodeAsync(project.Id, dto.ReporterCode, cancellationToken);
+        var codigoPessoal = await ResolveReporterCodeAsync(project.Id, identidade, dto.ReporterCode, cancellationToken);
+        var pessoaDoSistema = await ResolveInheritedPersonAsync(project.Id, herdada.Hash, cancellationToken);
 
         // O numero vem depois de tudo o que podia recusar o relato: reservado para um
         // relato recusado, ele seria um buraco a toa na sequencia do time.
@@ -247,7 +258,9 @@ public partial class ReportService : IReportService
             BacklogRank = numero * Report.BoardRankGap,
             AccountId = project.AccountId,
             ProjectId = project.Id,
-            ReporterCode = codigoPessoal,
+            // A mesma coluna para os dois modos que identificam: o codigo que a
+            // pessoa guarda, ou a linha da pessoa do sistema do cliente.
+            ReporterCode = codigoPessoal ?? pessoaDoSistema,
             TrackingCode = protocolo,
             AccessTokenHash = tokenHash,
             ReportTypeId = tipo.Id,
@@ -305,6 +318,9 @@ public partial class ReportService : IReportService
                 title_length = titulo?.Length ?? 0,
                 // Retido por ter vindo de um endereco fora da lista de autorizados.
                 held = retido,
+                // Como a pessoa entrou — pelo codigo, pelo sistema do cliente ou sem
+                // nada —, e nunca quem ela e. E o que a pesquisa compara.
+                identity = codigoPessoal is not null ? "code" : pessoaDoSistema is not null ? "site" : "none",
             }),
         }, cancellationToken);
 
@@ -344,7 +360,72 @@ public partial class ReportService : IReportService
         foreach (var pessoa in avisados)
             await _notifier.NotificationArrivedAsync(project.PublicId, pessoa, NotificationKindEnum.OriginPending);
 
-        return new CreatedReportViewModel(protocolo, token, report.CreatedAt, codigoPessoal?.Code);
+        return new CreatedReportViewModel(protocolo, token, report.CreatedAt, codigoPessoal?.Code, herdada.Identified);
+    }
+
+    /// <summary>
+    /// O que o token do sistema do cliente diz sobre este envio, no modo herdado: o
+    /// hash da pessoa, e se ela foi reconhecida.
+    ///
+    /// <para><b>Fora do modo, o token e ignorado</b> — e nao recusado como o codigo
+    /// pessoal e. O codigo e digitado pela pessoa; o token vem da pagina do cliente,
+    /// que pode ter ficado com o atributo depois de o projeto trocar de modo, e recusar
+    /// derrubaria todo relato daquele site por uma configuracao antiga.</para>
+    ///
+    /// <para><b>Token que nao confere vale como "sem token"</b>, e a configuracao do
+    /// projeto decide: aceitar o relato como protocolo (fabrica), ou recusar e pedir
+    /// para entrar no sistema. A recusa nao diz o que falhou no token — so se ele veio
+    /// ou nao.</para>
+    /// </summary>
+    private static async Task<(string? Hash, bool? Identified)> VerifyInheritedIdentityAsync(
+        ProjectIdentitySettings? identidade, string? key, string? token)
+    {
+        if (identidade is null || identidade.Mode != ReporterIdentityModeEnum.InheritedIdentity)
+            return (null, null);
+
+        var claims = await InheritedIdentity.VerifyAsync(token, identidade, key, DateTime.UtcNow);
+        if (claims is not null)
+            return (InheritedIdentity.SubjectHash(identidade, claims.Value.Subject), true);
+
+        if (identidade.IdentityRequired)
+            throw new UnauthorizedAccessException(string.IsNullOrWhiteSpace(token)
+                ? "Entre na sua conta para relatar."
+                : "Identidade nao reconhecida. Recarregue a pagina e tente de novo.");
+
+        return (null, false);
+    }
+
+    /// <summary>
+    /// A linha da pessoa do sistema do cliente neste projeto: a que ja existe pelo
+    /// hash, ou uma nova no primeiro relato. O codigo da linha e sorteado como no modo
+    /// pessoal e nunca e mostrado — a pessoa volta pelo token, e nao por ele.
+    /// </summary>
+    private async Task<ReporterCode?> ResolveInheritedPersonAsync(long projectId, string? subjectHash, CancellationToken cancellationToken)
+    {
+        if (subjectHash is null)
+            return null;
+
+        var existente = await _unitOfWork.ReporterCodes
+            .FindBySubjectHashWithoutSessionAsync(projectId, subjectHash, cancellationToken);
+
+        if (existente is not null)
+            return existente;
+
+        for (var tentativa = 0; tentativa < TrackingCodeAttempts; tentativa++)
+        {
+            var candidato = TrackingCode.Generate();
+
+            if (await _unitOfWork.ReporterCodes.ExistsAsync(projectId, candidato, cancellationToken))
+                continue;
+
+            var nova = new ReporterCode { ProjectId = projectId, Code = candidato, SubjectHash = subjectHash };
+            await _unitOfWork.ReporterCodes.AddAsync(nova, cancellationToken);
+
+            return nova;
+        }
+
+        throw new InvalidOperationException(
+            $"Nao foi possivel gerar um codigo pessoal unico em {TrackingCodeAttempts} tentativas.");
     }
 
     /// <summary>
@@ -353,18 +434,17 @@ public partial class ReportService : IReportService
     /// avisa quem administra no sino.
     ///
     /// <para><b>Quem relata</b> e o codigo pessoal so no projeto que usa esse modo e
-    /// quando ele vem; senao, o IP. O codigo e escolhido por quem manda — trocar a cada
-    /// envio escapa da camada da pessoa, e e por isso que a do IP e a do projeto
-    /// existem.</para>
+    /// quando ele vem, ou a pessoa do sistema do cliente quando o token conferiu;
+    /// senao, o IP. O codigo e escolhido por quem manda — trocar a cada envio escapa da
+    /// camada da pessoa, e e por isso que a do IP e a do projeto existem.</para>
     /// </summary>
     private async Task<(ReportLimiter.Sender Remetente, ProjectReportLimits Limites)> CheckLimitsAsync(
-        Project project, CreateReportDto dto, string? clientIp, CancellationToken cancellationToken)
+        Project project, CreateReportDto dto, string? clientIp, ProjectIdentitySettings? identidade, string? subjectHash,
+        CancellationToken cancellationToken)
     {
         var limites = await _unitOfWork.ProjectReportLimits.FindByProjectWithoutSessionAsync(project.Id, cancellationToken)
                       ?? new ProjectReportLimits { ProjectId = project.Id };
 
-        var identidade = await _unitOfWork.ProjectIdentitySettings
-            .FindByProjectWithoutSessionAsync(project.Id, cancellationToken);
         var codigo = (identidade?.Mode ?? IdentitySettingsDefaults.Mode) == ReporterIdentityModeEnum.PersonalCode
             ? (dto.ReporterCode ?? string.Empty).Trim().ToUpperInvariant()
             : string.Empty;
@@ -381,7 +461,8 @@ public partial class ReportService : IReportService
             project.PublicId,
             string.IsNullOrWhiteSpace(clientIp) ? "desconhecido" : clientIp,
             codigo.Length > 0 ? codigo : null,
-            Trim(OriginDomain.ForComparison(dto.Origin), 260) ?? string.Empty);
+            Trim(OriginDomain.ForComparison(dto.Origin), 260) ?? string.Empty,
+            subjectHash);
 
         var agora = DateTime.UtcNow;
         var veredito = _limiter.Check(remetente, limites, dto.ChallengeToken, dto.ChallengeNonce, agora);
@@ -2862,6 +2943,26 @@ public partial class ReportService : IReportService
         if (codigo is null)
             return vazia;
 
+        return await ListForPersonAsync(codigo, cancellationToken);
+    }
+
+    public async Task<ReporterCodeReportsViewModel> ListByIdentityAsync(IdentityLookupDto dto, CancellationToken cancellationToken = default)
+    {
+        var vazia = new ReporterCodeReportsViewModel([], false);
+        var project = await RequireProjectAsync(dto.Key, cancellationToken);
+
+        // Projeto fora do modo, token que nao confere e pessoa que nunca relatou aqui
+        // respondem igual: vazio. A rota nao e oraculo da configuracao nem de ninguem
+        // — a mesma regra da lista pelo codigo.
+        var pessoa = await InheritedIdentityGate.TryResolveAsync(
+            _unitOfWork, project.Id, (dto.Key ?? string.Empty).Trim(), dto.IdentityToken, cancellationToken);
+
+        return pessoa is null ? vazia : await ListForPersonAsync(pessoa, cancellationToken);
+    }
+
+    /// <summary>A lista de uma pessoa — pelo codigo ou pela identidade, o mesmo miolo.</summary>
+    private async Task<ReporterCodeReportsViewModel> ListForPersonAsync(ReporterCode codigo, CancellationToken cancellationToken)
+    {
         // **Pede um a mais do que mostra.** E assim que da para dizer "ha mais" sem
         // contar quantos — e contar entregaria a quem sonda o tamanho da lista
         // alheia, que e informacao sobre outra pessoa.
@@ -2929,6 +3030,31 @@ public partial class ReportService : IReportService
         return await BuildPublicAsync(report, podeAgir, cancellationToken);
     }
 
+    public async Task<PublicReportViewModel> OpenByIdentityAsync(OpenByIdentityDto dto, CancellationToken cancellationToken = default)
+    {
+        // A mesma porta da leitura dos arquivos pela identidade: chave, token e
+        // protocolo, com uma recusa so. Ver InheritedIdentityGate.
+        var report = await InheritedIdentityGate.RequireAsync(
+            _unitOfWork, dto.Key, dto.IdentityToken, dto.TrackingCode, cancellationToken);
+
+        await _unitOfWork.Events.AddAsync(new Event
+        {
+            AccountId = report.AccountId,
+            ProjectId = report.ProjectId,
+            ReportId = report.Id,
+            Type = EventTypeEnum.ReportViewed,
+            Source = EventSourceEnum.PublicPage,
+            // Por onde entrou: a lista da identidade, e nao a do codigo nem o link.
+            Payload = JsonSerializer.Serialize(new { by = "inherited_identity" }),
+        }, cancellationToken);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        // Le, e nao age: a identidade prova que o relato e dela, e o link e que da
+        // poder sobre ele — a mesma regra do codigo pessoal.
+        return await BuildPublicAsync(report, podeAgir: false, cancellationToken);
+    }
+
     /// <summary>
     /// O comeco do relato, para a pessoa distinguir um do outro na lista.
     ///
@@ -2961,11 +3087,9 @@ public partial class ReportService : IReportService
     /// nao pode ter. A pessoa recebe um codigo novo na confirmacao e ve que mudou —
     /// que e a mesma coisa que aconteceria se ela nunca tivesse tido um.</para>
     /// </summary>
-    private async Task<ReporterCode?> ResolveReporterCodeAsync(long projectId, string? apresentado, CancellationToken cancellationToken)
+    private async Task<ReporterCode?> ResolveReporterCodeAsync(
+        long projectId, ProjectIdentitySettings? identidade, string? apresentado, CancellationToken cancellationToken)
     {
-        var identidade = await _unitOfWork.ProjectIdentitySettings
-            .FindByProjectWithoutSessionAsync(projectId, cancellationToken);
-
         var modo = identidade?.Mode ?? IdentitySettingsDefaults.Mode;
         var digitado = (apresentado ?? string.Empty).Trim().ToUpperInvariant();
 

@@ -44,6 +44,9 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         settings.AccentColor = NormalizeColor(dto.AccentColor, "A cor precisa estar no formato #rrggbb.");
         settings.Position = Defined(dto.Position, "Informe a posicao da ferramenta.", "Escolha um dos quatro cantos para a ferramenta.");
         settings.Theme = Required(dto.Theme, "Informe o tema da ferramenta.");
+        // Qualquer cor passa: o texto do formulario sai da luminancia do fundo, e nao ha
+        // combinacao ilegivel para recusar.
+        settings.FormBackgroundColor = NormalizeColor(dto.FormBackgroundColor, "A cor do fundo do formulario precisa estar no formato #rrggbb.");
         ApplyAppearance(settings, dto);
         // Variavel so depois de enviar: na confirmacao e no topo do acompanhamento. Nos
         // outros textos ela nunca teria valor, e apareceria com as chaves no site.
@@ -155,6 +158,7 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
             settings?.LauncherShape ?? WidgetSettingsDefaults.LauncherShape,
             settings is null ? WidgetSettingsDefaults.LauncherTextColor : settings.LauncherTextColor,
             settings?.LauncherShadow ?? WidgetSettingsDefaults.LauncherShadow,
+            settings is null ? WidgetSettingsDefaults.FormBackgroundColor : settings.FormBackgroundColor,
             settings?.MobileMode ?? WidgetSettingsDefaults.MobileMode,
             settings?.HiddenPaths ?? WidgetSettingsDefaults.HiddenPaths,
             settings?.LauncherLabel ?? WidgetSettingsDefaults.LauncherLabel);
@@ -254,6 +258,7 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
             settings?.LauncherShape ?? WidgetSettingsDefaults.LauncherShape,
             settings is null ? WidgetSettingsDefaults.LauncherTextColor : settings.LauncherTextColor,
             settings?.LauncherShadow ?? WidgetSettingsDefaults.LauncherShadow,
+            settings is null ? WidgetSettingsDefaults.FormBackgroundColor : settings.FormBackgroundColor,
             settings?.MobileMode ?? WidgetSettingsDefaults.MobileMode,
             settings?.HiddenPaths ?? WidgetSettingsDefaults.HiddenPaths,
             settings?.LauncherLabel ?? WidgetSettingsDefaults.LauncherLabel,
@@ -285,7 +290,10 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
             cycle?.AcceptsQuestionsDefault ?? CycleSettingsDefaults.AcceptsQuestionsDefault,
             identity?.Mode ?? IdentitySettingsDefaults.Mode,
             identity?.Visibility ?? IdentitySettingsDefaults.Visibility,
-            identity?.AsksForName ?? IdentitySettingsDefaults.AsksForName);
+            identity?.AsksForName ?? IdentitySettingsDefaults.AsksForName,
+            // So vale no modo herdado; fora dele a ferramenta nem le.
+            (identity?.Mode ?? IdentitySettingsDefaults.Mode) == ReporterIdentityModeEnum.InheritedIdentity
+                && (identity?.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired));
     }
 
     /// <summary>

@@ -707,9 +707,21 @@ public class ReportAttachmentService : IReportAttachmentService
         return await ListarParaQuemRelatouAsync(report, cancellationToken);
     }
 
+    public async Task<List<PublicAttachmentViewModel>> ListForIdentityAsync(
+        OpenByIdentityDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        // A porta da abertura pela identidade do sistema do cliente, com a mesma
+        // recusa unica. So le: ver InheritedIdentityGate.
+        var report = await InheritedIdentityGate.RequireAsync(
+            _unitOfWork, dto.Key, dto.IdentityToken, dto.TrackingCode, cancellationToken);
+
+        return await ListarParaQuemRelatouAsync(report, cancellationToken);
+    }
+
     /// <summary>
-    /// Os arquivos confirmados do relato, como quem o escreveu os ve — pelo link ou
-    /// pelo codigo, a mesma lista.
+    /// Os arquivos confirmados do relato, como quem o escreveu os ve — pelo link, pelo
+    /// codigo ou pela identidade, a mesma lista.
     /// </summary>
     private async Task<List<PublicAttachmentViewModel>> ListarParaQuemRelatouAsync(
         Report report,

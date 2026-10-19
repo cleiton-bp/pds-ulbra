@@ -71,6 +71,16 @@ public interface IReportService
     Task<PublicReportViewModel> OpenByReporterCodeAsync(OpenByReporterCodeDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// A lista pessoal pela identidade do sistema do cliente: o espelho de
+    /// <see cref="ListByReporterCodeAsync"/> com o token no lugar do codigo. Projeto que
+    /// nao usa o modo, token que nao confere e pessoa que nunca relatou respondem vazio.
+    /// </summary>
+    Task<ReporterCodeReportsViewModel> ListByIdentityAsync(IdentityLookupDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Um relato pela identidade do sistema do cliente: le, e nao age. Uma recusa so para todos os enganos.</summary>
+    Task<PublicReportViewModel> OpenByIdentityAsync(OpenByIdentityDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Quem relatou diz que resolveu — <b>sem sessao</b>, pelo link.
     ///
     /// <para><b>E a metade que faltava da metafora.</b> "Concluido" e o time
