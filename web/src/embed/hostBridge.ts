@@ -1,4 +1,5 @@
 import { sanitizeRoute } from '@/embed/config'
+import { sanitizeIdentity } from '@/embed/identityToken'
 import { DEFAULT_OFFSET, type LauncherFrame, launcherRadius } from '@/embed/launcher'
 import {
   CAPTURE_CAPABILITY,
@@ -55,6 +56,13 @@ export interface HostConnection {
    * previa do painel nao tem pagina.
    */
   readonly route?: string | null
+  /**
+   * O cracha da pessoa, assinado pelo servidor do cliente — o `data-identity` do
+   * script, so no projeto que herda a identidade. O da ultima abertura
+   * (`OpenMessage.identity`), ou o do `init` enquanto nenhuma abertura disse. Nulo
+   * sem cracha. Opcional: a previa do painel nao tem pagina.
+   */
+  readonly identity?: string | null
   /**
    * Guarda como o botao e e onde ele fica — o tamanho do quadro recolhido, o canto, a
    * distancia, os cantos e a sombra. Com o quadro ja a mostra, a pagina recebe na hora:
@@ -210,6 +218,8 @@ export function connectToHost(
   let init: InitMessage | null = null
   /** O caminho que veio com a ultima abertura. Ver `HostConnection.route`. */
   let rota: string | null | undefined
+  /** O cracha que veio com a ultima abertura. Ver `HostConnection.identity`. */
+  let cracha: string | null | undefined
 
   /** A captura pedida e ainda sem resposta. */
   let pendente: { id: string; resolve: (resultado: CaptureOutcome) => void } | null = null
@@ -262,6 +272,11 @@ export function connectToHost(
         // de texto, fica o que ja havia — o carregador antigo nao manda nada.
         const pedido = (event.data as Partial<OpenMessage>).route
         if (typeof pedido === 'string' || pedido === null) rota = sanitizeRoute(pedido)
+        // O cracha tambem: o site pode ter renovado a sessao, e a pessoa pode ter
+        // entrado ou saido sem recarregar. Ausente, fica o que ja havia.
+        const apresentado = (event.data as Partial<OpenMessage>).identity
+        if (typeof apresentado === 'string' || apresentado === null)
+          cracha = sanitizeIdentity(apresentado)
         aberturas.notify()
       }
       return
@@ -295,6 +310,9 @@ export function connectToHost(
     },
     get route() {
       return rota
+    },
+    get identity() {
+      return cracha !== undefined ? cracha : sanitizeIdentity(init?.identity)
     },
     get canCapture() {
       const declarado = init?.capabilities

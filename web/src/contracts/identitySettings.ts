@@ -35,6 +35,21 @@ export interface IdentitySettingsViewModel {
   Visibility: ReportVisibility
   /** A ferramenta pergunta o nome. **Perguntar nao e publicar.** */
   AsksForName: boolean
+  /**
+   * A chave publica do sistema do cliente (ECDSA P-256, SPKI em base64), com que a API
+   * confere o cracha no modo que herda a identidade. **Guardada nos outros modos
+   * tambem**: trocar de modo e voltar nao obriga a colar de novo. Nula enquanto
+   * ninguem colou.
+   */
+  IdentityPublicKey: string | null
+  /** Por quantos minutos, no maximo, um cracha pode valer: 1 a 60, e 15 de fabrica. */
+  IdentityTokenMaxMinutes: number
+  /**
+   * No modo que herda a identidade: o relato sem cracha (ou com cracha que nao confere)
+   * e recusado, e a ferramenta pede para entrar no sistema. Falso de fabrica: entra
+   * como protocolo.
+   */
+  IdentityRequired: boolean
 }
 
 /**
@@ -49,4 +64,12 @@ export interface SaveIdentitySettingsRequest {
   Mode: ReporterIdentityMode
   Visibility: ReportVisibility
   AsksForName: boolean
+  /**
+   * A chave como foi colada: PEM (`-----BEGIN PUBLIC KEY-----`) ou base64 numa linha —
+   * a API limpa e confere. **Obrigatoria no modo que herda a identidade**; nos outros
+   * vai como esta, para ficar guardada.
+   */
+  IdentityPublicKey: string | null
+  IdentityTokenMaxMinutes: number
+  IdentityRequired: boolean
 }

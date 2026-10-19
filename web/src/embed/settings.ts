@@ -123,4 +123,7 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   // escreveria sem saber.
   Visibility: 'Private',
   AsksForName: false,
+  // **Tambem de `IdentitySettingsDefaults.cs`.** So vale no modo que herda a
+  // identidade; com a API fora do ar, nao se recusa relato de ninguem.
+  IdentityRequired: false,
 }

@@ -75,6 +75,17 @@ const captureSrc = script ? new URL('pds-captura.js', script.src).href : ''
 const ownTrigger = script?.dataset.button?.trim().toLowerCase() === 'none'
 
 /**
+ * O cracha da pessoa, assinado pelo servidor do cliente: `data-identity` no proprio
+ * script, so no projeto que herda a identidade. **Lido a cada abertura**, e nao uma
+ * vez: o site pode trocar o atributo quando a sessao dele renova, e a pessoa pode
+ * entrar ou sair sem recarregar a pagina. O teto e o da API.
+ */
+function identity(): string | null {
+  const valor = script?.dataset.identity?.trim() ?? ''
+  return valor.length > 0 && valor.length <= 4096 ? valor : null
+}
+
+/**
  * A API, a mesma que o quadro usa: as duas saem do mesmo build. Sem barra no fim — o
  * caminho da rota ja comeca com uma.
  */
@@ -302,6 +313,7 @@ function ensureFrame(): HTMLIFrameElement {
       capabilities: [CAPTURE_CAPABILITY],
       // O botao e daqui: o quadro nasce no formulario e avisa quando fechar.
       launcher: HOST_LAUNCHER,
+      identity: identity(),
     }
     novo.contentWindow?.postMessage(init, origin)
   }
@@ -364,7 +376,13 @@ function reveal(): void {
   // os tipos de novo.
   // Com o caminho de agora: o site pode ter trocado de pagina sem recarregar desde o
   // `init`, e o relato tem de dizer a pagina em que a pessoa esta.
-  const aberto: OpenMessage = { source: MESSAGE_SOURCE, type: 'open', route: currentRoute() }
+  // E com o cracha de agora, pelo mesmo motivo.
+  const aberto: OpenMessage = {
+    source: MESSAGE_SOURCE,
+    type: 'open',
+    route: currentRoute(),
+    identity: identity(),
+  }
   frame.contentWindow?.postMessage(aberto, origin)
 }
 

@@ -42,15 +42,42 @@ export function buildReporterCodeLink(
   return `${environment.trackingUrl}?c=${code}&k=${key}#p=${encodeURIComponent(reporterCode)}`
 }
 
+/**
+ * O link da lista pessoal no projeto que herda a identidade: o cracha do site no lugar
+ * do codigo, **no fragmento pelo mesmo motivo** — ele identifica a pessoa, e o que vem
+ * depois do `#` nunca chega ao servidor. Vale enquanto o cracha valer: o link e para
+ * abrir agora, e nao para guardar.
+ */
+export function buildIdentityLink(
+  trackingCode: string,
+  publicKey: string,
+  identityToken: string,
+): string {
+  const code = encodeURIComponent(trackingCode)
+  const key = encodeURIComponent(publicKey)
+
+  return `${environment.trackingUrl}?c=${code}&k=${key}#i=${encodeURIComponent(identityToken)}`
+}
+
 /** O que o link carrega, vazio quando ele chegou pela metade. */
 export interface TrackingLink {
   code: string
   token: string
   /** A chave publica, so no link que veio da lista pessoal. */
   key: string
-  /** O codigo pessoal, so no link que veio da lista pessoal. */
+  /** O codigo pessoal, so no link que veio da lista pessoal pelo codigo. */
   reporterCode: string
+  /** O cracha do site, so no link que veio da lista pessoal pela identidade. */
+  identityToken: string
 }
+
+/**
+ * Por onde a pagina entrou sem o token do link: a chave e o codigo pessoal, ou a chave
+ * e o cracha do site. Nos dois casos ela le e nao age — agir continua pedindo o token.
+ */
+export type PersonalEntry =
+  | { key: string; reporterCode: string }
+  | { key: string; identityToken: string }
 
 /**
  * Le o link da barra de endereco.
@@ -68,5 +95,6 @@ export function readTrackingLink(search: string, hash: string): TrackingLink {
     token: fragment.get('t')?.trim() ?? '',
     key: query.get('k')?.trim() ?? '',
     reporterCode: fragment.get('p')?.trim() ?? '',
+    identityToken: fragment.get('i')?.trim() ?? '',
   }
 }

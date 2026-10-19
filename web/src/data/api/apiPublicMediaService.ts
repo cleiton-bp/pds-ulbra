@@ -115,6 +115,13 @@ export const apiPublicMediaService: PublicMediaService = {
       'Falha de rede ao buscar os arquivos do relato.',
     ),
 
+  listAttachmentsByIdentity: (request) =>
+    postPublic<PublicAttachmentViewModel[]>(
+      '/public/reports/by-identity/attachments',
+      request,
+      'Falha de rede ao buscar os arquivos do relato.',
+    ),
+
   loadTrackingMediaSettings: (trackingCode, token) =>
     postPublic<PublicMediaSettingsViewModel>(
       '/public/reports/tracking/media-settings',

@@ -36,6 +36,18 @@ export const CYCLE_DEFAULTS: CycleSettingsViewModel = {
   SprintLengthWeeks: 2,
 }
 
+/**
+ * A identidade herdada, como sai de `IdentitySettingsDefaults.cs`: a validade maxima do
+ * cracha e se ele e exigido. O modo e a visibilidade ja moram em `DEFAULT_WIDGET_SETTINGS`.
+ */
+export const IDENTITY_DEFAULTS = {
+  IdentityTokenMaxMinutes: 15,
+  IdentityRequired: false,
+} as const
+
+/** Os limites da validade, de `ProjectIdentitySettings.cs`: a API recusa fora deles. */
+export const IDENTITY_TOKEN_MINUTES = { min: 1, max: 60 } as const
+
 const MB = 1024 * 1024
 
 /**

@@ -202,6 +202,8 @@ const VERBOS: Array<[RegExp, string]> = [
   [/\b([Nn]ão|[Jj]á|[Ss]ó|que|ela|ele|pessoa|convite|relato|tipo) e\b(?!-)/g, '$1 é'],
   [/\bestado e (?=a entrada)/g, 'estado é '],
   [/\be (?=obrigat)/g, 'é '],
+  // "A chave publica e grande demais", "O token de identidade e grande demais".
+  [/\be (?=grande demais)/g, 'é '],
   // No comeco da frase, "E o que..." e ": e nela que..." sao sempre o verbo.
   [/(^|[.:] )e\b(?!-)/g, '$1é'],
   [/(^|\. )E\b(?!-)/g, '$1É'],

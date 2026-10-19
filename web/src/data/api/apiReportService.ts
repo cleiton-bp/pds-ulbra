@@ -88,4 +88,19 @@ export const apiReportService: ReportService = {
       request,
       'Falha de rede ao abrir o relato.',
     ),
+
+  // `POST` pelo mesmo motivo do codigo: o cracha identifica a pessoa, e nao vai em URL.
+  listByIdentity: (request) =>
+    post<ReporterCodeReportsViewModel>(
+      '/public/reports/by-identity',
+      request,
+      'Falha de rede ao buscar os seus relatos.',
+    ),
+
+  openByIdentity: (request) =>
+    post<PublicReportViewModel>(
+      '/public/reports/by-identity/open',
+      request,
+      'Falha de rede ao abrir o relato.',
+    ),
 }

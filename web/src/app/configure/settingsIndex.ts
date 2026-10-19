@@ -588,6 +588,29 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     anchor: 'visibilidade',
     level: 'basic',
   },
+  // So aparecem com a identidade do sistema escolhida: a busca leva ao grupo, e o grupo
+  // mostra o modo que destrava cada uma.
+  {
+    label: 'Chave pública do seu sistema',
+    synonyms: ['chave', 'identidade', 'sso', 'login', 'crachá', 'token', 'assinatura', 'jwt'],
+    section: 'identity',
+    anchor: 'chave-publica',
+    level: 'advanced',
+  },
+  {
+    label: 'Validade máxima do crachá',
+    synonyms: ['validade', 'minutos', 'expira', 'token', 'crachá', 'identidade'],
+    section: 'identity',
+    anchor: 'validade-do-cracha',
+    level: 'advanced',
+  },
+  {
+    label: 'Exigir o crachá para relatar',
+    synonyms: ['sem crachá', 'sem login', 'recusar', 'obrigatório', 'entrar na conta'],
+    section: 'identity',
+    anchor: 'sem-cracha',
+    level: 'advanced',
+  },
 
   // O quadro — Colunas
   {

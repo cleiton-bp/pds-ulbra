@@ -16,12 +16,19 @@ export function HowItWorks({
   children,
   className = 'mb-4',
   bodyClassName,
+  label = 'Como funciona',
 }: {
   children: ReactNode
   /** O respiro em volta. No fim de um grupo (Ciclo) nao ha nada embaixo para afastar. */
   className?: string
   /** A largura do texto, quando ele corre a pagina inteira (Andamento público). */
   bodyClassName?: string
+  /**
+   * O que a linha fechada diz. "Como funciona" quase sempre — e outra coisa quando ha
+   * dois no mesmo grupo, como o guia do cracha em Quem relata: dois "Como funciona"
+   * seguidos nao dizem qual e qual.
+   */
+  label?: string
 }) {
   return (
     <details className={cn('details-smooth group', className)}>
@@ -38,7 +45,7 @@ export function HowItWorks({
         >
           <path d="m4.5 2.5 3.5 3.5-3.5 3.5" />
         </svg>
-        Como funciona
+        {label}
       </summary>
       <div
         className={cn(

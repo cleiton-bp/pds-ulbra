@@ -2,6 +2,7 @@ import type {
   AttachmentUploadTicketViewModel,
   ConfirmAttachmentRequest,
   ConfirmedAttachmentViewModel,
+  OpenByIdentityRequest,
   OpenByReporterCodeRequest,
   PublicAttachmentViewModel,
   PublicMediaSettingsViewModel,
@@ -55,6 +56,9 @@ export interface PublicMediaService {
   listAttachmentsByReporterCode(
     request: OpenByReporterCodeRequest,
   ): Promise<PublicAttachmentViewModel[]>
+
+  /** Os mesmos arquivos, pela identidade do site: a chave, o cracha e o protocolo. So le. */
+  listAttachmentsByIdentity(request: OpenByIdentityRequest): Promise<PublicAttachmentViewModel[]>
 
   /**
    * O que da para anexar, **pela porta do link**. A pagina de acompanhamento nao
