@@ -283,11 +283,17 @@ export function useReportInbox(
         if (current.reports === null) return current
 
         // Arquivar tambem tira da lista — e desarquivar tira da lista dos arquivados.
+        //
+        // A marca "subtarefa sua" so vem na leitura da lista: o card devolvido por uma
+        // mudanca chega sem ela, e troca-lo inteiro apagava a marca de um pai que
+        // continua no recorte pelas subtarefas.
         return fits(report)
           ? {
               ...current,
               reports: current.reports.map((item) =>
-                item.PublicId === report.PublicId ? report : item,
+                item.PublicId === report.PublicId
+                  ? { ...report, SubtaskMatch: report.SubtaskMatch ?? item.SubtaskMatch ?? null }
+                  : item,
               ),
             }
           : {

@@ -4,14 +4,16 @@ import type { ReportStateCountViewModel, ReportSummaryViewModel } from '@/contra
 import type { ReportSort, ReportSortField } from '@/data'
 import {
   BlockedMark,
+  BlockedOriginMark,
   CardTypeIcon,
   cardHeadline,
+  DuplicateLine,
   headlineText,
   MoreLabels,
-  ParentLine,
   PersonAvatar,
   PriorityIcon,
   StatusLozenge,
+  SubtaskMatchMark,
   SubtaskProgress,
   statusTone,
 } from '@/features/reports/cardLook'
@@ -36,6 +38,26 @@ const COM_PRIORIDADE_E_PRAZO = 'hidden @min-[52rem]:table-cell'
 const COM_ETIQUETAS = 'hidden @min-[60rem]:table-cell'
 const COM_SPRINT = 'hidden @min-[68rem]:table-cell'
 const COM_DATA = 'hidden @min-[74rem]:table-cell'
+
+/**
+ * A coluna do dado por que a pessoa ordenou **nunca sai pela largura**: ordenar pelo
+ * prazo e nao ver o prazo deixava a ordem sem explicacao. So a ordem escolhida: a de
+ * sempre (o mais novo primeiro) nao segura a data na area estreita, onde o titulo vem
+ * antes. O que ficou na tela sai de debaixo do titulo — senao apareceria duas vezes.
+ */
+function largura(
+  classe: string,
+  campo: ReportSortField | readonly ReportSortField[],
+  fixa: ReportSortField | null,
+): string {
+  const campos: readonly ReportSortField[] = typeof campo === 'string' ? [campo] : campo
+  return fixa !== null && campos.includes(fixa) ? 'table-cell' : classe
+}
+
+/** O que vem embaixo do titulo na area estreita: some quando a coluna dele ficou. */
+function debaixo(classe: string, campo: ReportSortField, fixa: ReportSortField | null): string {
+  return fixa === campo ? 'hidden' : classe
+}
 
 /** A direcao de cada ordem, dita por extenso para quem nao ve a seta. */
 const SENTIDO: Record<ReportSortField, Record<ReportSort['dir'], string>> = {
@@ -90,6 +112,7 @@ export function ReportsTable({
   aoOrdenar,
   comSprint = false,
   buscando = false,
+  troca,
 }: {
   reports: ReportSummaryViewModel[]
   /** As colunas do projeto, para o tom da coluna de cada card. */
@@ -105,6 +128,11 @@ export function ReportsTable({
   aoOrdenar?: (campo: ReportSortField) => void
   /** Com as sprints ligadas: a coluna da sprint de cada card. */
   comSprint?: boolean
+  /**
+   * Muda quando o recorte muda (filtro, ordem, coluna, sprint): as linhas nascem de
+   * novo e esmaecem juntas. Nao muda quando so chega mais uma pagina.
+   */
+  troca?: string
   /**
    * Relendo com outro filtro ou outra ordem: a tabela de antes esmaece, e diz que esta
    * ocupada — sem isso, a lista velha parecia o resultado.
@@ -138,6 +166,8 @@ export function ReportsTable({
   }
 
   const vigente = ordem ?? ORDEM_DE_SEMPRE
+  // A coluna que fica na tela, qualquer que seja a largura: a da ordem escolhida.
+  const fixa = ordem?.field ?? null
 
   return (
     // A linha com o foco que sai da lista por outra pessoa deixa o foco na vizinha, e
@@ -160,6 +190,7 @@ export function ReportsTable({
             ordem={vigente}
             aoOrdenar={aoOrdenar}
             comSprint={comSprint}
+            fixa={fixa}
             selecao={
               selecao
                 ? {
@@ -174,7 +205,8 @@ export function ReportsTable({
                 : undefined
             }
           />
-          <tbody>
+          {/* A chave troca com o recorte: as linhas nascem de novo, esmaecendo juntas. */}
+          <tbody key={troca}>
             {reports.map((report) => (
               <Linha
                 key={report.PublicId}
@@ -186,6 +218,7 @@ export function ReportsTable({
                 aoMarcar={selecao ? marcarLinha : undefined}
                 comSprint={comSprint}
                 data={vigente.field === 'updated' ? 'updated' : 'created'}
+                fixa={fixa}
               />
             ))}
           </tbody>
@@ -210,6 +243,7 @@ function Linha({
   aoMarcar,
   comSprint,
   data,
+  fixa,
 }: {
   report: ReportSummaryViewModel
   colunas: ReportStateCountViewModel[] | null
@@ -221,6 +255,8 @@ function Linha({
   comSprint: boolean
   /** Que data a ultima coluna mostra: quando chegou, ou a ultima mudanca. */
   data: 'created' | 'updated'
+  /** O dado da ordem escolhida: a coluna dele nao sai pela largura. */
+  fixa: ReportSortField | null
 }) {
   const navigate = useNavigate()
   const endereco = useHref(report.PublicId)
@@ -264,7 +300,7 @@ function Linha({
       data-highlighted={destacada || undefined}
       data-selected={marcada || undefined}
       className={cn(
-        'cursor-pointer border-border border-b transition-colors last:border-b-0 hover:bg-surface-raised',
+        'animate-fade-in cursor-pointer border-border border-b transition-colors duration-150 last:border-b-0 hover:bg-surface-raised',
         marcada && 'bg-accent/8',
         destacada && 'bg-chip-blue-surface',
       )}
@@ -329,48 +365,55 @@ function Linha({
         {/* O que perdeu a coluna propria na area estreita vem embaixo do titulo: a
             coluna do card, quem esta com ele, a prioridade e o prazo vencido ou perto. */}
         <span className="flex flex-wrap items-center gap-x-1.5">
-          {report.Parent && <ParentLine parent={report.Parent} className="mt-0.5 max-w-full" />}
           {report.DuplicateOf && (
-            <ParentLine
-              parent={report.DuplicateOf}
-              kind="duplicate"
-              className="mt-0.5 max-w-full"
-            />
+            <DuplicateLine original={report.DuplicateOf} className="mt-0.5 max-w-full" />
           )}
           <BlockedMark card={report} className="mt-1" />
+          <BlockedOriginMark card={report} className="mt-1" />
+          <SubtaskMatchMark card={report} className="mt-1" />
           {report.SubtaskCount > 0 && (
             <span className="mt-0.5 text-caption">
               <SubtaskProgress card={report} />
             </span>
           )}
           {report.StateName && (
-            <span className="mt-1 flex @min-[34rem]:hidden">
+            <span className={cn('mt-1 flex', debaixo('@min-[34rem]:hidden', 'state', fixa))}>
               <StatusLozenge name={report.StateName} tone={tom} />
             </span>
           )}
           {report.Closed && (
-            <span className="mt-1 flex @min-[34rem]:hidden">
+            <span className={cn('mt-1 flex', debaixo('@min-[34rem]:hidden', 'state', fixa))}>
               <Encerrado />
             </span>
           )}
           {report.Assignee && (
-            <span className="mt-1 flex @min-[44rem]:hidden">
+            <span className={cn('mt-1 flex', debaixo('@min-[44rem]:hidden', 'assignee', fixa))}>
               <PersonAvatar pessoa={report.Assignee} />
             </span>
           )}
           {report.Priority && (
-            <span className="mt-1 flex text-caption text-fg @min-[52rem]:hidden">
+            <span
+              className={cn(
+                'mt-1 flex text-caption text-fg',
+                debaixo('@min-[52rem]:hidden', 'priority', fixa),
+              )}
+            >
               <PriorityIcon priority={report.Priority} />
             </span>
           )}
           {prazoUrgente && report.DueDate && (
-            <span className="mt-1 text-caption text-fg-muted @min-[52rem]:hidden">
+            <span
+              className={cn(
+                'mt-1 text-caption text-fg-muted',
+                debaixo('@min-[52rem]:hidden', 'due', fixa),
+              )}
+            >
               <DueChip day={report.DueDate} soonDays={soonDays} compact finished={terminou} />
             </span>
           )}
         </span>
       </td>
-      <td className={cn('whitespace-nowrap px-2 py-2', COM_COLUNA)}>
+      <td className={cn('whitespace-nowrap px-2 py-2', largura(COM_COLUNA, 'state', fixa))}>
         <span className="flex items-center gap-1.5">
           {report.StateName ? (
             <StatusLozenge name={report.StateName} tone={tom} className="max-w-32" />
@@ -380,7 +423,7 @@ function Linha({
           {report.Closed && <Encerrado />}
         </span>
       </td>
-      <td className={cn('whitespace-nowrap px-2 py-2', COM_RESPONSAVEL)}>
+      <td className={cn('whitespace-nowrap px-2 py-2', largura(COM_RESPONSAVEL, 'assignee', fixa))}>
         {report.Assignee ? (
           <span className="flex items-center gap-2">
             <PersonAvatar pessoa={report.Assignee} />
@@ -392,13 +435,23 @@ function Linha({
           <span className="text-fg-muted">Sem responsável</span>
         )}
       </td>
-      <td className={cn('whitespace-nowrap px-2 py-2 text-fg', COM_PRIORIDADE_E_PRAZO)}>
+      <td
+        className={cn(
+          'whitespace-nowrap px-2 py-2 text-fg',
+          largura(COM_PRIORIDADE_E_PRAZO, 'priority', fixa),
+        )}
+      >
         {report.Priority ? <PriorityIcon priority={report.Priority} /> : null}
       </td>
       <td className={cn('whitespace-nowrap px-2 py-2', COM_ETIQUETAS)}>
         <Etiquetas report={report} />
       </td>
-      <td className={cn('whitespace-nowrap px-2 py-2 text-fg-muted', COM_PRIORIDADE_E_PRAZO)}>
+      <td
+        className={cn(
+          'whitespace-nowrap px-2 py-2 text-fg-muted',
+          largura(COM_PRIORIDADE_E_PRAZO, 'due', fixa),
+        )}
+      >
         {report.DueDate ? (
           <DueChip day={report.DueDate} soonDays={soonDays} compact bare finished={terminou} />
         ) : null}
@@ -414,7 +467,12 @@ function Linha({
           )}
         </td>
       )}
-      <td className={cn('whitespace-nowrap py-2 pr-3 pl-2 text-fg-muted', COM_DATA)}>
+      <td
+        className={cn(
+          'whitespace-nowrap py-2 pr-3 pl-2 text-fg-muted',
+          largura(COM_DATA, ['created', 'updated'], fixa),
+        )}
+      >
         {/* O relativo responde "isto e recente?"; a data exata fica no `title`, para
             quem precisa dela. */}
         <time dateTime={quando} title={formatDateTime(quando)}>
@@ -462,11 +520,14 @@ function Cabecalho({
   ordem,
   aoOrdenar,
   comSprint,
+  fixa,
 }: {
   selecao?: { todas: boolean; algumas: boolean; aoMarcar: (marcar: boolean) => void }
   ordem: ReportSort
   aoOrdenar?: (campo: ReportSortField) => void
   comSprint: boolean
+  /** O dado da ordem escolhida: a coluna dele nao sai pela largura. */
+  fixa: ReportSortField | null
 }) {
   const th = 'px-2 py-2 font-medium'
   // O "algumas" nao tem atributo no HTML: e uma propriedade da caixa.
@@ -488,7 +549,13 @@ function Cabecalho({
   return (
     // Preso no alto ao rolar, na area larga: "Prazo" e "Prioridade" vazios, e a caixa de
     // marcar todos, perdiam a referencia depois de dez linhas.
-    <thead className="@min-[64rem]:sticky @min-[64rem]:top-0 bg-surface-raised text-caption text-fg-muted">
+    //
+    // **`-top-10`, e nao `top-0`**: o navegador mede o "grudar" a partir de dentro do
+    // respiro de cima da area que rola (`lg:pt-10`, 40 px), e com `top-0` o cabecalho
+    // grudava 40 px abaixo do topo, com as linhas passando no vao acima dele. A area
+    // larga (64rem de tabela) so existe com a janela `lg`, que e quando o respiro e 40.
+    // `z-sticky` mantem o cabecalho por cima das linhas que passam por baixo.
+    <thead className="@min-[64rem]:sticky @min-[64rem]:-top-10 @min-[64rem]:z-sticky bg-surface-raised text-caption text-fg-muted">
       <tr className="border-border border-b">
         {selecao && (
           <th scope="col" className="w-8 py-2 pl-3 font-medium">
@@ -509,21 +576,33 @@ function Cabecalho({
         <th scope="col" className={th}>
           Título
         </th>
-        {ordenavel('state', 'Coluna', cn(th, COM_COLUNA))}
-        {ordenavel('assignee', 'Responsável', cn(th, COM_RESPONSAVEL))}
-        {ordenavel('priority', 'Prioridade', cn(th, COM_PRIORIDADE_E_PRAZO))}
+        {ordenavel('state', 'Coluna', cn(th, largura(COM_COLUNA, 'state', fixa)))}
+        {ordenavel('assignee', 'Responsável', cn(th, largura(COM_RESPONSAVEL, 'assignee', fixa)))}
+        {ordenavel(
+          'priority',
+          'Prioridade',
+          cn(th, largura(COM_PRIORIDADE_E_PRAZO, 'priority', fixa)),
+        )}
         <th scope="col" className={cn(th, COM_ETIQUETAS)}>
           Etiquetas
         </th>
-        {ordenavel('due', 'Prazo', cn(th, COM_PRIORIDADE_E_PRAZO))}
+        {ordenavel('due', 'Prazo', cn(th, largura(COM_PRIORIDADE_E_PRAZO, 'due', fixa)))}
         {comSprint && (
           <th scope="col" className={cn(th, COM_SPRINT)}>
             Sprint
           </th>
         )}
         {ordem.field === 'updated'
-          ? ordenavel('updated', 'Atualizado', cn('py-2 pr-3 pl-2 font-medium', COM_DATA))
-          : ordenavel('created', 'Criado', cn('py-2 pr-3 pl-2 font-medium', COM_DATA))}
+          ? ordenavel(
+              'updated',
+              'Atualizado',
+              cn('py-2 pr-3 pl-2 font-medium', largura(COM_DATA, 'updated', fixa)),
+            )
+          : ordenavel(
+              'created',
+              'Criado',
+              cn('py-2 pr-3 pl-2 font-medium', largura(COM_DATA, 'created', fixa)),
+            )}
       </tr>
     </thead>
   )
@@ -563,7 +642,7 @@ function Ordenavel({
         {rotulo}
         <svg
           viewBox="0 0 12 12"
-          className={cn('size-3 flex-none', !ativa && 'opacity-40')}
+          className={cn('size-3 flex-none transition-opacity duration-150', !ativa && 'opacity-40')}
           fill="none"
           stroke="currentColor"
           strokeWidth="1.6"
