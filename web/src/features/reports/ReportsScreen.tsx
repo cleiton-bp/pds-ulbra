@@ -897,6 +897,7 @@ export function ReportsScreen() {
                       )
                   }}
                   bloqueado={buscando}
+                  podeAdministrar={canConfigure(project)}
                   aoTerminar={(resultado) => {
                     // A selecao fica: da para fazer outra mudanca nos mesmos cards.
                     if (resultado.falhas.length > 0) setFalhasDoLote(resultado)
