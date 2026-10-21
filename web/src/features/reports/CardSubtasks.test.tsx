@@ -17,6 +17,7 @@ import { useToastStore } from '@/shared/components/toastStore'
  *   terminaram, pela regra do `Finished`.
  * - **Criar manda o pai**, e quem abriu o card fica sabendo para por a nova na tela.
  * - **Sem subtarefa, nem pergunta**: o contador da frente do card ja diz que nao ha.
+ *   As arquivadas, que o contador nao conta, sao lidas sempre, e ficam embaixo.
  * - **No card arquivado, so se le.**
  * - **O circulo marca**: leva a subtarefa para a ultima coluna ativa, e o da feita a
  *   devolve para a primeira — com o aviso, a lista relida e o pai avisado. Com uma
@@ -65,6 +66,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -102,12 +104,28 @@ function montar(
         colunas={colunas}
         versao={0}
         aoCriar={aoCriar}
-        aoMoverSubtarefa={aoMoverSubtarefa}
+        aoMudarSubtarefa={aoMoverSubtarefa}
       />
       <Toaster />
     </MemoryRouter>,
   )
   return aoCriar
+}
+
+/**
+ * As subtarefas chegam em duas leituras: as de fora do arquivo e as arquivadas (o
+ * quarto argumento de `listReports`). Cada uma devolve so as suas.
+ */
+function subtarefas(
+  ativas: ReportSummaryViewModel[],
+  arquivadas: ReportSummaryViewModel[] = [],
+): void {
+  dublê.listar.mockImplementation(
+    async (_projeto: string, _pagina: number, _busca: unknown, arquivado: boolean) => {
+      const reports = arquivado ? arquivadas : ativas
+      return { reports, total: reports.length }
+    },
+  )
 }
 
 /** A fila do time: tres ativas e uma desativada no fim, que nao e onde se termina. */
@@ -130,14 +148,11 @@ describe('as subtarefas do card aberto', () => {
   })
 
   it('vem na ordem em que nasceram, com o progresso das que terminaram', async () => {
-    dublê.listar.mockResolvedValue({
-      reports: [
-        filha(14, 'Testar no Safari', true),
-        filha(12, 'Trocar o botão'),
-        filha(13, 'Rever o texto'),
-      ],
-      total: 3,
-    })
+    subtarefas([
+      filha(14, 'Testar no Safari', true),
+      filha(12, 'Trocar o botão'),
+      filha(13, 'Rever o texto'),
+    ])
     montar(card({ SubtaskCount: 3, SubtasksDone: 1 }))
 
     const lista = await screen.findByRole('list')
@@ -153,12 +168,38 @@ describe('as subtarefas do card aberto', () => {
       pageSize: 100,
       parent: 'pai',
     })
+    // As arquivadas sao lidas a parte, e sem nenhuma nao aparece a segunda lista.
+    expect(dublê.listar).toHaveBeenCalledWith('p-1', 1, null, true, {
+      pageSize: 100,
+      parent: 'pai',
+    })
+    expect(screen.queryByText(/arquivada/)).toBeNull()
+  })
+
+  it('as arquivadas ficam embaixo, a parte, e contam so para si', async () => {
+    const arquivada = { ...filha(11, 'Plano antigo'), ArchivedAt: '2026-10-03T12:00:00.000Z' }
+    subtarefas([filha(12, 'Trocar o botão')], [arquivada])
+    montar(card({ SubtaskCount: 1 }))
+
+    const [ativas, guardadas] = await screen.findAllByRole('list')
+    expect(within(ativas as HTMLElement).getByText('Trocar o botão')).toBeTruthy()
+    expect(within(guardadas as HTMLElement).getByText('Plano antigo')).toBeTruthy()
+    expect(screen.getByText('1 arquivada')).toBeTruthy()
+    // O progresso e o das de fora do arquivo.
+    expect(screen.getByText('0 de 1 feita')).toBeTruthy()
   })
 
   it('sem subtarefa, nem pergunta; criar manda o pai, e avisa quem abriu o card', async () => {
     dublê.criar.mockResolvedValue({ ...filha(15, 'Escrever o teste'), Description: null })
+    subtarefas([])
     const aoCriar = montar(card())
-    expect(dublê.listar).not.toHaveBeenCalled()
+    // O contador da frente ja diz que nao ha nenhuma fora do arquivo: so as arquivadas,
+    // que o contador nao conta, sao lidas.
+    await waitFor(() => expect(dublê.listar).toHaveBeenCalledTimes(1))
+    expect(dublê.listar).toHaveBeenCalledWith('p-1', 1, null, true, {
+      pageSize: 100,
+      parent: 'pai',
+    })
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Criar subtarefa' }), {
       target: { value: '  Escrever o teste ' },
@@ -182,17 +223,14 @@ describe('as subtarefas do card aberto', () => {
   })
 
   it('no card arquivado, so se le: sem o campo de criar', async () => {
-    dublê.listar.mockResolvedValue({ reports: [filha(12, 'Trocar o botão')], total: 1 })
+    subtarefas([filha(12, 'Trocar o botão')])
     montar(card({ ArchivedAt: '2026-10-03T12:00:00.000Z', SubtaskCount: 1 }))
     await screen.findByText('Trocar o botão')
     expect(screen.queryByRole('textbox', { name: 'Criar subtarefa' })).toBeNull()
   })
 
   it('o circulo marca: leva para a ultima coluna ativa, avisa, rele a lista e avisa o pai', async () => {
-    dublê.listar.mockResolvedValue({
-      reports: [filha(12, 'Trocar o botão'), filha(14, 'Testar no Safari', true)],
-      total: 2,
-    })
+    subtarefas([filha(12, 'Trocar o botão'), filha(14, 'Testar no Safari', true)])
     const movida = { ...filha(12, 'Trocar o botão', true), StatePublicId: 's-3' }
     dublê.mover.mockResolvedValue(movida)
     const aoMoverSubtarefa = vi.fn()
@@ -204,14 +242,12 @@ describe('as subtarefas do card aberto', () => {
     )
     expect(await screen.findByText('#12 marcada como feita.')).toBeTruthy()
     await waitFor(() => expect(aoMoverSubtarefa).toHaveBeenCalledWith(movida))
-    expect(dublê.listar).toHaveBeenCalledTimes(2)
+    // Duas leituras ao abrir (as de fora do arquivo e as arquivadas), e as duas de novo.
+    expect(dublê.listar).toHaveBeenCalledTimes(4)
   })
 
   it('o circulo da feita reabre: volta para a primeira coluna', async () => {
-    dublê.listar.mockResolvedValue({
-      reports: [filha(14, 'Testar no Safari', true)],
-      total: 1,
-    })
+    subtarefas([filha(14, 'Testar no Safari', true)])
     dublê.mover.mockResolvedValue(filha(14, 'Testar no Safari'))
     montar(card({ SubtaskCount: 1, SubtasksDone: 1 }), vi.fn(), colunas)
 
@@ -223,7 +259,7 @@ describe('as subtarefas do card aberto', () => {
   })
 
   it('marcar que falha diz o que nao foi feito, e o circulo volta a responder', async () => {
-    dublê.listar.mockResolvedValue({ reports: [filha(12, 'Trocar o botão')], total: 1 })
+    subtarefas([filha(12, 'Trocar o botão')])
     dublê.mover.mockRejectedValue(new PanelError('Esta coluna foi desativada.', 409))
     const aoMoverSubtarefa = vi.fn()
     montar(card({ SubtaskCount: 1 }), vi.fn(), colunas, aoMoverSubtarefa)
@@ -238,10 +274,7 @@ describe('as subtarefas do card aberto', () => {
   })
 
   it('com uma coluna ativa so, nao ha onde terminar: o circulo e so o sinal', async () => {
-    dublê.listar.mockResolvedValue({
-      reports: [filha(12, 'Trocar o botão'), filha(14, 'Testar no Safari', true)],
-      total: 2,
-    })
+    subtarefas([filha(12, 'Trocar o botão'), filha(14, 'Testar no Safari', true)])
     montar(card({ SubtaskCount: 2, SubtasksDone: 1 }), vi.fn(), [
       colunas[0] as ReportStateCountViewModel,
       colunas[3] as ReportStateCountViewModel,
@@ -256,14 +289,14 @@ describe('as subtarefas do card aberto', () => {
 
   it('no pai arquivado, e na subtarefa arquivada, o circulo nao marca', async () => {
     const arquivada = { ...filha(13, 'Rever o texto'), ArchivedAt: '2026-10-03T12:00:00.000Z' }
-    dublê.listar.mockResolvedValue({ reports: [filha(12, 'Trocar o botão'), arquivada], total: 2 })
-    montar(card({ SubtaskCount: 2 }), vi.fn(), colunas)
+    subtarefas([filha(12, 'Trocar o botão')], [arquivada])
+    montar(card({ SubtaskCount: 1 }), vi.fn(), colunas)
 
     expect(await screen.findByRole('button', { name: 'Marcar #12 como feita' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Marcar #13 como feita' })).toBeNull()
     cleanup()
 
-    montar(card({ SubtaskCount: 2, ArchivedAt: '2026-10-03T12:00:00.000Z' }), vi.fn(), colunas)
+    montar(card({ SubtaskCount: 1, ArchivedAt: '2026-10-03T12:00:00.000Z' }), vi.fn(), colunas)
     await screen.findByText('Trocar o botão')
     expect(screen.queryByRole('button', { name: /^Marcar #/ })).toBeNull()
   })
@@ -277,7 +310,20 @@ describe('as subtarefas do card aberto', () => {
     expect(screen.getByText('Card do time')).toBeTruthy()
     expect(screen.queryByText('Relato de fora')).toBeNull()
     cleanup()
-    render(<CardDialogTitle card={card({ Kind: 'Report', Type: 'Bug' })} />)
+    render(
+      <CardDialogTitle
+        card={card({
+          Kind: 'Report',
+          Type: {
+            PublicId: 'tipo-defeito',
+            Name: 'Defeito',
+            Color: 'Red',
+            Icon: 'Bug',
+            IsActive: true,
+          },
+        })}
+      />,
+    )
     expect(screen.getByText('Relato de fora')).toBeTruthy()
   })
 

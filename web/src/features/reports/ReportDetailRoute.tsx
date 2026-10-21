@@ -7,7 +7,6 @@ import {
   useParams,
 } from 'react-router-dom'
 import type {
-  ReportDetailViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
   SprintViewModel,
@@ -23,14 +22,16 @@ export interface ReportListContext {
   reports: ReportSummaryViewModel[] | null
   /** As colunas da fila, na ordem, vindas da contagem que a lista ja carregou. */
   colunas: ReportStateCountViewModel[] | null
-  /** Avisa a lista de que este card mudou — de coluna, de texto ou de arquivo. */
-  aoMudar: (report: ReportSummaryViewModel) => void
+  /**
+   * Avisa a lista de que este card mudou — de coluna, de texto ou de arquivo. `subtarefa`
+   * diz que a mudanca foi numa subtarefa dele: com filtro de responsavel ou busca, so a
+   * lista relida sabe se o pai continua no recorte.
+   */
+  aoMudar: (report: ReportSummaryViewModel, origem?: { subtarefa: boolean }) => void
   /** Ouve os avisos do tempo real da tela, para o card aberto se atualizar sozinho. */
   assinarAvisos?: (ouvinte: WorkListener) => () => void
   /** Por que a tela esta sem atualizacao ao vivo, quando esta. */
   semAoVivo?: SemAoVivo
-  /** Uma subtarefa nasceu no card aberto: a lista e o quadro a poem na tela. */
-  aoCriarSubtarefa?: (subtarefa: ReportDetailViewModel) => void
   /** As sprints que nao fecharam, com a sprint ligada; nulo sem sprints. */
   sprints?: SprintViewModel[] | null
   /**
@@ -72,7 +73,6 @@ export function ReportDetailRoute() {
     aoMudar,
     assinarAvisos,
     semAoVivo,
-    aoCriarSubtarefa,
     sprints,
     ordem,
     podeConfigurar,
@@ -131,7 +131,6 @@ export function ReportDetailRoute() {
       aoMudar={aoMudar}
       assinarAvisos={assinarAvisos}
       semAoVivo={semAoVivo ?? null}
-      aoCriarSubtarefa={aoCriarSubtarefa}
       sprints={sprints ?? null}
       podeConfigurar={podeConfigurar ?? false}
       soonDays={soonDays}

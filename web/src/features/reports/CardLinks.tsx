@@ -276,6 +276,9 @@ function LinkForm({
         .listReports(projectPublicId, 1, null, false, {
           pageSize: 8,
           filters: { ...NO_REPORT_FILTERS, search: busca },
+          // A subtarefa tambem se vincula, e e ela que a busca pelo titulo dela acha — e
+          // nao o pai, que viria pela marca de "subtarefa sua".
+          includeSubtasks: true,
         })
         .then((pagina) => {
           if (valendo) setAchados(pagina.reports)
