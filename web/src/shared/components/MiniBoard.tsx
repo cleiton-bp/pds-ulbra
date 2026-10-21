@@ -22,11 +22,16 @@ export interface MiniBoardColumn {
  *
  * A faixa embaixo e o motivo da previa: a coluna e do time, e a etapa e o que a pessoa
  * de fora le — ver as duas lado a lado mostra a perda de detalhe que e de proposito.
+ *
+ * A tela de entrada usa o mesmo quadro na maquete do produto, com `otherCards` para ele
+ * parecer um quadro em uso e `columnClassName` para as colunas repartirem a largura.
  */
 export function MiniBoard({
   columns,
   card,
   cardColumnId,
+  otherCards,
+  columnClassName,
   className,
 }: {
   columns: MiniBoardColumn[]
@@ -34,6 +39,13 @@ export function MiniBoard({
   card?: MiniCardProps
   /** Em que coluna o card aparece. Sem ela, na primeira. */
   cardColumnId?: string | null
+  /**
+   * O que ja estava em cada coluna, pelo id dela. O card de exemplo fica em cima
+   * deles: o que chega vai ao topo, como no quadro de verdade.
+   */
+  otherCards?: Readonly<Partial<Record<string, readonly MiniCardProps[]>>>
+  /** Troca a largura fixa de cada coluna — a maquete da entrada as reparte na moldura. */
+  columnClassName?: string
   className?: string
 }) {
   const colunaDoCard = cardColumnId ?? columns[0]?.id ?? null
@@ -43,7 +55,10 @@ export function MiniBoard({
       {columns.map((coluna) => (
         <li
           key={coluna.id}
-          className="flex w-36 flex-none flex-col rounded-lg border border-transparent bg-surface-sunken dark:border-border"
+          className={cn(
+            'flex w-36 flex-none flex-col rounded-lg border border-transparent bg-surface-sunken dark:border-border',
+            columnClassName,
+          )}
         >
           <header className="flex flex-wrap items-center gap-1 px-2 pt-2 pb-1.5">
             <h3
@@ -64,6 +79,9 @@ export function MiniBoard({
 
           <div className="flex min-h-14 flex-1 flex-col gap-2 px-2 pb-2">
             {card && coluna.id === colunaDoCard && <MiniCard {...card} />}
+            {otherCards?.[coluna.id]?.map((outro) => (
+              <MiniCard key={outro.title} {...outro} />
+            ))}
           </div>
 
           {coluna.publicStage !== undefined && (

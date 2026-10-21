@@ -417,6 +417,51 @@
   animation: halo 3.2s ease-in-out infinite;
 }
 
+/* ---------------------------------------------------------------------------
+ * O BOTAO DE TEMA
+ *
+ * A noite chega com estrelas que piscam e somem; o dia, com um clarao que nasce no
+ * sol e se dissolve. `both` guarda o fim — apagado — para o que terminou nao voltar
+ * a aparecer; quem desenha remove os elementos logo depois.
+ * ------------------------------------------------------------------------- */
+@keyframes twinkle {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-30deg);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.15) rotate(0deg);
+  }
+  65% {
+    opacity: 0.9;
+    transform: scale(0.85) rotate(10deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(25deg);
+  }
+}
+
+@keyframes flare {
+  from {
+    opacity: 0.7;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@utility animate-twinkle {
+  animation: twinkle 900ms ease-out both;
+}
+
+@utility animate-flare {
+  animation: flare 650ms ease-out both;
+}
+
 /**
  * A grade do fundo da chamada. Some nas bordas por mascara, senao vira papel
  * quadriculado; o `--border` do tema deixa ela quase invisivel, que e a ideia.
@@ -457,6 +502,13 @@
   .animate-travel,
   .animate-halo {
     animation: none;
+  }
+
+  /* Estrela e clarao sao passageiros: sem o movimento, nao existem. */
+  .animate-twinkle,
+  .animate-flare {
+    animation: none;
+    opacity: 0;
   }
 
   /* `animate-pop` guarda o estado final com `both` — desligar sem devolver a

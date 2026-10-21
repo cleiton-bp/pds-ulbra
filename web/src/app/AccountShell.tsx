@@ -1,10 +1,10 @@
 import { useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
-import { ThemeButton } from '@/app/ThemeButton'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import { Brand } from '@/shared/components/Brand'
+import { ThemeButton } from '@/shared/components/ThemeButton'
 
 /** O titulo da aba de cada tela de fora do projeto. */
 const TITULOS: Record<string, string> = {

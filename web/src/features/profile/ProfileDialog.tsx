@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   MAX_NOTIFICATION_VOLUME,
   MIN_NOTIFICATION_VOLUME,
@@ -11,6 +10,7 @@ import {
 import { describeError, notificationService } from '@/data'
 import { useSessionStore } from '@/features/auth/sessionStore'
 import { Button } from '@/shared/components/Button'
+import { Modal } from '@/shared/components/Modal'
 import { Select } from '@/shared/components/Select'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
@@ -19,57 +19,94 @@ import {
   NOTIFICATION_SOUNDS,
   playNotificationSound,
 } from '@/shared/lib/notificationSounds'
+import { PROFILE_SOUNDS_SECTION, useProfileDialogStore } from '@/shared/lib/profileDialogStore'
 
 /** Quanto o volume espera depois do ultimo movimento para gravar: uma gravacao por ajuste. */
 const VOLUME_MS = 400
 
 /**
+ * Centralizado no computador; no celular, a tela inteira — a caixa estreita no meio
+ * deixava as escolhas de som espremidas, e o corpo rola sozinho, com o titulo e o X
+ * sempre a vista.
+ */
+const CAIXA =
+  'flex max-h-[calc(100dvh-2rem)] flex-col max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 max-sm:p-5'
+
+/**
  * O perfil da pessoa: quem ela e — o nome, o e-mail e a foto vem da conta Google, e a
  * conta propria nasceu no primeiro acesso — e como ela e avisada.
+ *
+ * **E um dialogo, e nao uma pagina**: abre sobre a tela em que a pessoa esta, pelo menu
+ * da conta ou pelo "Preferências de aviso" do sino, sem trocar o endereco — fechar (X,
+ * Esc ou clique fora) deixa a pessoa onde estava, com o foco no botao que abriu. Quem
+ * abre e o `profileDialogStore`; este componente fica montado nas duas cascas.
  *
  * **Os avisos ficam no painel**: o sino, e um som para cada tipo de aviso, com o volume.
  * Cada tipo tem o seu som — a mencao com um, a escolha como responsavel com outro. **Escolher
  * toca e grava**: escolher um som e experimentar, e o "Ouvir" depois de cada escolha e o
  * "Salvar" no fim dobravam os cliques — e sair sem salvar perdia a escolha. Vale em todos
  * os projetos, e em qualquer computador: fica guardado na pessoa.
- *
- * **Nao e um beco**: no topo, "Voltar" leva a tela de onde a pessoa veio — ou aos projetos,
- * quando ela chegou direto.
  */
-export function ProfileScreen() {
+export function ProfileDialog() {
+  const open = useProfileDialogStore((state) => state.open)
+  const closeProfile = useProfileDialogStore((state) => state.closeProfile)
+  const corpo = useRef<HTMLDivElement>(null)
+
+  /**
+   * A secao pedida ao abrir — os sons, vindo do sino —, rolada para o topo do corpo e com
+   * o foco no titulo dela: quem chegou pelo teclado continua dali, e o leitor de tela
+   * anuncia onde esta. Sem secao, ou sem achar, o foco vai para o X, como nos outros.
+   */
+  function secaoPedida(): HTMLElement | null {
+    const id = useProfileDialogStore.getState().section
+    if (!id) return null
+    const alvo = document.getElementById(id)
+    if (!alvo || !corpo.current?.contains(alvo)) return null
+    alvo.scrollIntoView?.({ block: 'start' })
+    const titulo = /^H[1-6]$/.test(alvo.tagName) ? alvo : alvo.querySelector<HTMLElement>('h2, h3')
+    if (!titulo) return alvo
+    // O `tabindex` fica: o menu que abriu devolve o foco ao botao dele um instante depois,
+    // e o dialogo o traz de volta para o ultimo focado — que precisa continuar focavel.
+    if (!titulo.hasAttribute('tabindex')) titulo.tabIndex = -1
+    return titulo
+  }
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={(aberto) => {
+        if (!aberto) closeProfile()
+      }}
+      title="Perfil"
+      description="Os sons e o volume ficam salvos assim que você escolhe — não há botão de salvar."
+      closeButton
+      width="w-[min(36rem,calc(100vw-2rem))]"
+      className={CAIXA}
+      initialFocus={secaoPedida}
+      // O menu que abriu ja fechou: o foco volta ao botao dele, se ainda esta na tela.
+      fallbackFocus={() => {
+        const botao = useProfileDialogStore.getState().returnFocusTo
+        return botao?.isConnected ? botao : null
+      }}
+    >
+      <div
+        ref={corpo}
+        className="-mx-6 max-sm:-mx-5 min-h-0 flex-1 overflow-y-auto px-6 max-sm:px-5"
+      >
+        <ProfileContent />
+      </div>
+    </Modal>
+  )
+}
+
+function ProfileContent() {
   const user = useSessionStore((state) => state.user)
-  const location = useLocation()
-  const navigate = useNavigate()
   const { data, failed, reload } = useAsyncResource(
     useCallback(() => notificationService.getSettings(), []),
   )
-  // A primeira entrada do historico desta aba tem a chave "default": chegou direto, e nao
-  // ha tela do painel para onde voltar.
-  const veioDoPainel = location.key !== 'default'
 
   return (
-    // A mesma moldura do hub: a casca da conta nao tem margem propria.
-    <div className="mx-auto max-w-170 px-5 py-7 lg:px-8 lg:pt-12">
-      <div className="mb-3">
-        {veioDoPainel ? (
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline"
-          >
-            <span aria-hidden>←</span> Voltar
-          </button>
-        ) : (
-          <Link
-            to="/projects"
-            className="inline-flex items-center gap-1 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline"
-          >
-            <span aria-hidden>←</span> Projetos
-          </Link>
-        )}
-      </div>
-      <h1 className="mb-6 font-semibold text-screen tracking-tight">Perfil</h1>
-
+    <>
       <section aria-labelledby="perfil-voce" className="mb-8">
         <h2 id="perfil-voce" className="mb-3 font-semibold text-body text-fg">
           Você
@@ -97,14 +134,14 @@ export function ProfileScreen() {
         </p>
       </section>
 
-      <section aria-labelledby="perfil-avisos">
+      <section id={PROFILE_SOUNDS_SECTION} aria-labelledby="perfil-avisos" className="pb-1">
         <h2 id="perfil-avisos" className="mb-1 font-semibold text-body text-fg">
           Avisos
         </h2>
         <p className="mb-4 text-detail text-fg-muted leading-relaxed">
           Os avisos aparecem no sino, no topo de todas as telas, e tocam o som escolhido: na tela de
           Trabalho, na hora; nas outras telas, em até um minuto. Escolha o som de cada tipo e o
-          volume — ao escolher, você ouve, e fica salvo. Vale em todos os projetos.
+          volume — ao escolher, você ouve. Vale em todos os projetos.
         </p>
         {data ? (
           <SoundSettings inicial={data} />
@@ -119,7 +156,7 @@ export function ProfileScreen() {
           <Skeleton className="h-56 w-full" />
         )}
       </section>
-    </div>
+    </>
   )
 }
 
@@ -132,7 +169,7 @@ function SoundSettings({ inicial }: { inicial: NotificationSettingsViewModel }) 
   const [erro, setErro] = useState<string | null>(null)
   const idVolume = useId()
 
-  // A tela segue o que chegou do servidor quando ele muda (outra aba salvou).
+  // O perfil segue o que chegou do servidor quando ele muda (outra aba salvou).
   useEffect(() => {
     setVolume(inicial.Volume)
     setSons(inicial.Sounds)
@@ -140,7 +177,7 @@ function SoundSettings({ inicial }: { inicial: NotificationSettingsViewModel }) 
 
   /** A gravacao mais nova: a resposta de uma mais velha, chegando depois, nao diz nada. */
   const vez = useRef(0)
-  /** O volume esperando a pessoa soltar o controle — gravado ao sair da tela, se faltar. */
+  /** O volume esperando a pessoa soltar o controle — gravado ao fechar o perfil, se faltar. */
   const pendente = useRef<{
     timer: ReturnType<typeof setTimeout>
     pedido: SaveNotificationSettingsRequest
@@ -165,7 +202,7 @@ function SoundSettings({ inicial }: { inicial: NotificationSettingsViewModel }) 
     }
   }, [])
 
-  // Saiu da tela com o volume esperando: grava assim mesmo — a escolha nao se perde.
+  // Fechou o perfil com o volume esperando: grava assim mesmo — a escolha nao se perde.
   useEffect(
     () => () => {
       if (pendente.current) {
@@ -209,7 +246,7 @@ function SoundSettings({ inicial }: { inicial: NotificationSettingsViewModel }) 
               value={linha.Sound}
               onChange={(valor) => escolher(linha.Kind, valor as NotificationSound)}
               options={NOTIFICATION_SOUNDS}
-              className="min-w-60 flex-1"
+              className="min-w-0 flex-1 sm:min-w-60"
             />
             <Button
               disabled={linha.Sound === 'None' || volume === 0}

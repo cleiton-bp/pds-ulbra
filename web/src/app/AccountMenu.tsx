@@ -1,6 +1,5 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { selectThemeLabel, useThemeStore } from '@/app/themeStore'
 import { useSessionStore } from '@/features/auth/sessionStore'
 import {
   DropdownGroup,
@@ -10,6 +9,7 @@ import {
   DropdownSeparator,
 } from '@/shared/components/DropdownMenu'
 import { openProfile } from '@/shared/lib/profileDialogStore'
+import { selectThemeLabel, useThemeStore } from '@/shared/lib/themeStore'
 
 /**
  * O cabecalho mostra a **conta propria** — a que nasceu no primeiro acesso, onde

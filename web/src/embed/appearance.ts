@@ -163,7 +163,7 @@ export function formSurfaceStyle(background: string | null): CSSProperties {
  * tem bloco escuro para `[data-theme="dark"]`, e nao responde a
  * `prefers-color-scheme` sozinho. Sem esta conta, `Auto` seria sempre claro.
  *
- * E a mesma precedencia do painel (`app/themeStore.ts`), menos a parte guardada:
+ * E a mesma precedencia do painel (`shared/lib/themeStore.ts`), menos a parte guardada:
  * aqui nao ha escolha de quem visita para lembrar — quem escolhe e o cliente, na
  * configuracao do projeto dele.
  */

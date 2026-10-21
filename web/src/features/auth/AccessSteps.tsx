@@ -24,8 +24,9 @@ const PASSOS = [
     Miniatura: ContaCriada,
   },
   {
-    title: 'Use o painel',
-    detail: 'Crie um projeto, copie a chave, cole o script no site e acompanhe os relatos.',
+    title: 'Crie o projeto e cole a linha',
+    detail:
+      'O projeto nasce pronto do modelo de como o time trabalha. Cole a linha no seu site e os relatos chegam no quadro.',
     Miniatura: QuadroPronto,
   },
 ]

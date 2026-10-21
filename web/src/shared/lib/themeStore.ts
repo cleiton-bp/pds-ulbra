@@ -4,6 +4,9 @@ import { create } from 'zustand'
  * Escreve `data-theme` na raiz e mais nada: nenhum componente sabe qual tema esta
  * ativo, porque quem muda sao as variaveis de `styles/tokens.css`. A escolha
  * guardada vence a do sistema.
+ *
+ * Em `shared` porque a tela de entrada tambem troca o tema, e tela puxando de `app/`
+ * inverte a direcao da camada — o mesmo motivo da marca (`Brand`).
  */
 type Theme = 'light' | 'dark'
 

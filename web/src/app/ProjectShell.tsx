@@ -11,7 +11,6 @@ import {
   WORK_SECTIONS,
 } from '@/app/navigation'
 import { SectionIcon } from '@/app/SectionIcon'
-import { ThemeButton } from '@/app/ThemeButton'
 import type { ProjectViewModel } from '@/contracts'
 import { isPanelError } from '@/data'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
@@ -27,6 +26,7 @@ import {
   DropdownSeparator,
 } from '@/shared/components/DropdownMenu'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { ThemeButton } from '@/shared/components/ThemeButton'
 import { Tooltip } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { useScrollToHash } from '@/shared/hooks/useScrollToHash'

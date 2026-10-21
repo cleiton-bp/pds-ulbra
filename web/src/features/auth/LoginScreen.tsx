@@ -7,6 +7,7 @@ import { ProductShowcase } from '@/features/auth/ProductShowcase'
 import { useSessionStore } from '@/features/auth/sessionStore'
 import { Brand } from '@/shared/components/Brand'
 import { Reveal } from '@/shared/components/Reveal'
+import { ThemeButton } from '@/shared/components/ThemeButton'
 import { cn } from '@/shared/lib/cn'
 
 /**
@@ -17,7 +18,8 @@ import { cn } from '@/shared/lib/cn'
  * colega mandou — quem cai aqui quase nunca sabe o que e o PDS.
  *
  * **Um alvo de clique so, repetido tres vezes.** "Continuar com o Google" no
- * cabecalho, na chamada e no fecho; nada mais na pagina e botao. Nao ha campo de
+ * cabecalho, na chamada e no fecho; fora ele, so o tema e os passos da maquete sao
+ * botao. Nao ha campo de
  * e-mail, senha ou cadastro porque nao ha o que preencher: a API tem
  * `POST /auth/google` e mais nada, e o primeiro acesso cria conta e usuario no
  * mesmo movimento.
@@ -87,11 +89,17 @@ export function LoginScreen() {
         <div className="mx-auto flex h-14 max-w-280 items-center gap-6 px-5 lg:px-8">
           <Brand />
 
-          {/* A politica do Google exige o botao desenhado pela biblioteca dele.
-              Some abaixo de `sm`: sai de la com largura propria, em pixel, e ao
-              lado da marca estoura a linha num telefone estreito. A chamada fica
-              visivel sem rolar, e cobre o caso. */}
-          <div ref={noTopo} className="ml-auto hidden [color-scheme:light] sm:block" />
+          <div className="ml-auto flex items-center gap-3">
+            {/* Sempre a vista, tambem no telefone: aqui nao ha menu da conta para
+                guardar o tema, como ha dentro do painel. */}
+            <ThemeButton alwaysVisible />
+
+            {/* A politica do Google exige o botao desenhado pela biblioteca dele.
+                Some abaixo de `sm`: sai de la com largura propria, em pixel, e ao
+                lado da marca estoura a linha num telefone estreito. A chamada fica
+                visivel sem rolar, e cobre o caso. */}
+            <div ref={noTopo} className="hidden [color-scheme:light] sm:block" />
+          </div>
         </div>
       </header>
 
@@ -118,12 +126,13 @@ export function LoginScreen() {
             </span>
 
             <h1 className="mx-auto mt-6 max-w-[20ch] font-semibold text-fg text-hero tracking-tight md:text-hero-wide lg:text-display">
-              O relato do seu usuário, com o contexto técnico junto
+              Um protocolo para quem relata, um quadro para quem resolve
             </h1>
 
             <p className="mx-auto mt-5 max-w-[56ch] text-fg-muted text-lead leading-relaxed">
-              Quando algo quebra no seu site, quem está lá relata na hora com navegador, tela e
-              erros do console já anexados, e acompanha o andamento como quem acompanha uma entrega.
+              A ferramenta entra no seu site com uma linha. O relato vira um card no quadro do time,
+              e cada coluna que ele atravessa é uma etapa que quem relatou acompanha do lado de
+              fora, como acompanha uma entrega.
             </p>
 
             <Entrada
