@@ -54,14 +54,15 @@ export function ProjectKeysScreen() {
     <div className="max-w-170">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Chaves</h1>
       <p className="mb-6 text-fg-muted text-body">
-        A chave pública identifica este projeto no seu site, e é a única que quase todo projeto usa.
+        A chave pública identifica este projeto no seu sistema, e é a única que quase todo projeto
+        usa.
       </p>
 
       {failed && (
         <div className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
             Não deu para carregar as chaves deste projeto agora. Elas continuam valendo, e o script
-            instalado no seu site não foi afetado.
+            instalado no seu sistema não foi afetado.
           </p>
           <Button onClick={reloadKeys}>Tentar de novo</Button>
         </div>
@@ -71,10 +72,15 @@ export function ProjectKeysScreen() {
 
       {keys !== null && (
         <>
-          <article className="rounded-xl border border-border bg-surface-raised p-5">
+          <article
+            id="chave-publica"
+            className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
+          >
             <header className="mb-3.5 flex items-baseline justify-between gap-3">
               <h2 className="font-semibold text-fg text-lead">Chave pública</h2>
-              <span className="flex-none text-detail text-fg-muted">vai no código do site</span>
+              <span className="flex-none text-detail text-fg-muted">
+                vai no código do seu sistema
+              </span>
             </header>
 
             <div className="mb-3.5">
@@ -91,9 +97,9 @@ export function ProjectKeysScreen() {
               Esta chave serve para uma coisa só: enviar um relato para este projeto. Com ela
               ninguém consegue ler os relatos que você recebeu, ver dados da sua conta ou alterar
               qualquer coisa.
-              <br />É por isso que ela pode ficar à vista no código do site, onde qualquer visitante
-              pode lê-la. Se alguém copiar a sua chave pública, o máximo que consegue fazer é mandar
-              um relato para você.
+              <br />É por isso que ela pode ficar à vista no código do seu sistema, onde qualquer
+              visitante pode lê-la. Se alguém copiar a sua chave pública, o máximo que consegue
+              fazer é mandar um relato para você.
             </p>
 
             {/* A pergunta que vem depois de copiar e "colar onde?", e a resposta
@@ -102,7 +108,7 @@ export function ProjectKeysScreen() {
               to="../start"
               className="mt-4 inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
             >
-              Ver onde colar no site
+              Ver onde colar no seu sistema
               <Chevron />
             </Link>
           </article>
@@ -180,7 +186,8 @@ function AdvancedSection({
   return (
     <section
       ref={section}
-      className="mt-4 scroll-mb-6 overflow-hidden rounded-xl border border-border bg-surface-raised"
+      id="integracao"
+      className="mt-4 scroll-mt-6 scroll-mb-6 overflow-hidden rounded-xl border border-border bg-surface-raised"
     >
       <button
         type="button"
@@ -228,7 +235,7 @@ function AdvancedSection({
           <div className="border-border border-t px-5 py-4.5">
             <header className="mb-3 flex items-baseline justify-between gap-3">
               <h3 className="font-semibold text-fg text-body">Chave secreta</h3>
-              <span className="flex-none text-detail text-fg-muted">nunca vai no site</span>
+              <span className="flex-none text-detail text-fg-muted">nunca vai no navegador</span>
             </header>
 
             {revealed ? (
@@ -253,7 +260,8 @@ function AdvancedSection({
             <p className="mb-4 text-detail text-fg-muted leading-relaxed">
               Ela autentica chamadas feitas de fora do navegador, como um servidor ou um aplicativo
               seu falando direto com a nossa API. Como essas chamadas leem e alteram relatos, a
-              chave não pode entrar no código do site, onde qualquer visitante conseguiria lê-la.
+              chave não pode entrar no código que roda no navegador, onde qualquer visitante
+              conseguiria lê-la.
               <br />
               Guardamos só uma impressão digital do valor e nunca o valor em si, por isso mostramos
               apenas o começo dela e nem nós conseguimos recuperar o resto. Perdeu a sua? Gere outra

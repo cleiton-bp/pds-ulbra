@@ -11,9 +11,9 @@ import {
   WORK_SECTIONS,
 } from '@/app/navigation'
 import { SectionIcon } from '@/app/SectionIcon'
-import { ThemeButton } from '@/app/ThemeButton'
 import type { ProjectViewModel } from '@/contracts'
 import { isPanelError } from '@/data'
+import { useSessionStore } from '@/features/auth/sessionStore'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import { useProjectsStore } from '@/features/projects/projectsStore'
@@ -27,11 +27,13 @@ import {
   DropdownSeparator,
 } from '@/shared/components/DropdownMenu'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { ThemeButton } from '@/shared/components/ThemeButton'
 import { Tooltip } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { useScrollToHash } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure, groupByAccount } from '@/shared/lib/projectAccess'
+import { rememberProjectOpened } from '@/shared/lib/recentProjects'
 
 /**
  * Nao e um booleano `notFound`: "nao encontrado" e "nao deu para saber" pedem
@@ -91,6 +93,14 @@ export function ProjectShell() {
 
   const project = projects.find((item) => item.PublicId === publicId)
   const accountGroups = groupByAccount(projects)
+
+  // O "Abertos recentemente" do hub: so o projeto que a pessoa enxerga entra, e so
+  // quando ele chega — o endereco digitado errado nao vira um recente.
+  const userId = useSessionStore((state) => state.user?.PublicId)
+  const abertoAgora = project?.PublicId
+  useEffect(() => {
+    if (userId && abertoAgora) rememberProjectOpened(userId, abertoAgora)
+  }, [userId, abertoAgora])
 
   // `/projects/:id/<secao>/...`: a secao aberta, e se ela e o card aberto.
   const [, , , segment = '', resto] = location.pathname.split('/')
@@ -516,7 +526,16 @@ export function ProjectShell() {
         >
           {/* Tipado nas duas pontas: sem `satisfies` aqui, campo novo no contexto
               compila de um lado e chega `undefined` do outro. */}
-          {project ? <Outlet context={{ project } satisfies ProjectContext} /> : <LoadingSection />}
+          {/* A chave e a secao (trabalho, membros, moderacao...), e nao o endereco inteiro:
+              abrir um card muda o endereco sem trocar de tela, e nao pode esmaecer a lista.
+              `h-full` porque o quadro mede a altura a partir daqui. */}
+          <div key={segment} className="h-full animate-panel-in">
+            {project ? (
+              <Outlet context={{ project } satisfies ProjectContext} />
+            ) : (
+              <LoadingSection />
+            )}
+          </div>
         </main>
       </div>
     </div>

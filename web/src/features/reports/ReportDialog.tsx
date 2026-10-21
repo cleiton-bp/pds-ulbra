@@ -30,7 +30,7 @@ import {
   useCardDrafts,
   useGuardedCardLink,
 } from '@/features/reports/cardDrafts'
-import { StatusLozenge, statusTone } from '@/features/reports/cardLook'
+import { BlockedOriginMark, StatusLozenge, statusTone } from '@/features/reports/cardLook'
 import {
   LiveAnnouncer,
   LiveStatusText,
@@ -48,6 +48,7 @@ import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { Modal } from '@/shared/components/Modal'
+import { ReportAnswers } from '@/shared/components/ReportAnswers'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { copyText } from '@/shared/lib/clipboard'
@@ -86,7 +87,6 @@ export function ReportDialog({
   aoFechar,
   assinarAvisos,
   semAoVivo = null,
-  aoCriarSubtarefa,
   sprints = null,
   podeConfigurar = false,
   soonDays,
@@ -100,15 +100,16 @@ export function ReportDialog({
   resumo: ReportSummaryViewModel | null
   /** As colunas da fila, para onde este relato pode ir. */
   colunas: ReportStateCountViewModel[] | null
-  /** O card mudou — de coluna, de texto ou de arquivo. A lista se acerta com isto. */
-  aoMudar: (report: ReportSummaryViewModel) => void
+  /**
+   * O card mudou — de coluna, de texto ou de arquivo. A lista se acerta com isto.
+   * `subtarefa`: a mudanca foi numa subtarefa dele (ver `ReportDetailRoute`).
+   */
+  aoMudar: (report: ReportSummaryViewModel, origem?: { subtarefa: boolean }) => void
   aoFechar: () => void
   /** Os avisos do tempo real da tela de Trabalho: outra pessoa mexeu neste card. */
   assinarAvisos?: (ouvinte: WorkListener) => () => void
   /** Por que a tela esta sem atualizacao ao vivo, quando esta — dito tambem aqui dentro. */
   semAoVivo?: SemAoVivo
-  /** Uma subtarefa nasceu neste card: a lista e o quadro a poem na tela. */
-  aoCriarSubtarefa?: (subtarefa: ReportDetailViewModel) => void
   /** As sprints que nao fecharam, com a sprint ligada: o card mostra a sprint e os pontos. */
   sprints?: SprintViewModel[] | null
   /** Quem olha configura o projeto: o atalho para o Andamento publico aparece. */
@@ -510,29 +511,24 @@ export function ReportDialog({
   }, [assinarAvisos, reportPublicId])
 
   /**
-   * As subtarefas do card aberto. A que nasce entra na tela de Trabalho, e o pai e
-   * relido sem gravar leitura — o progresso dele mudou, na frente do card tambem.
+   * As subtarefas do card aberto. Elas moram aqui dentro, e nao na tela de Trabalho: o
+   * que muda nelas so rele o pai, sem gravar leitura — o progresso dele mudou, na frente
+   * do card tambem.
    */
+  const reler = (porSubtarefa = false) => {
+    projectReportService
+      .refreshReport(projectPublicId, reportPublicId)
+      .then((aberto) => receber(aberto, porSubtarefa))
+      .catch(() => {})
+  }
   const subtarefas = (card: ReportSummaryViewModel) => (
     <CardSubtasks
       projectPublicId={projectPublicId}
       card={card}
       colunas={colunas}
       versao={versao}
-      aoCriar={(nova) => {
-        aoCriarSubtarefa?.(nova)
-        projectReportService
-          .refreshReport(projectPublicId, reportPublicId)
-          .then(receber)
-          .catch(() => {})
-      }}
-      aoMoverSubtarefa={(subtarefa) => {
-        aoMudar(subtarefa)
-        projectReportService
-          .refreshReport(projectPublicId, reportPublicId)
-          .then(receber)
-          .catch(() => {})
-      }}
+      aoCriar={() => reler(true)}
+      aoMudarSubtarefa={() => reler(true)}
     />
   )
 
@@ -556,14 +552,14 @@ export function ReportDialog({
   )
 
   /** A resposta de uma acao que devolve o card aberto: tudo na tela passa a ela. */
-  function receber(aberto: ReportDetailViewModel) {
+  function receber(aberto: ReportDetailViewModel, porSubtarefa = false) {
     acoes.current += 1
     setDetalhe(aberto)
     setFechamento(aberto.Closure)
     setPedido(aberto.InfoRequest)
     setPodePedir(aberto.CanAskInfo)
     setMovido(aberto)
-    aoMudar(aberto)
+    aoMudar(aberto, porSubtarefa ? { subtarefa: true } : undefined)
     setVersao((n) => n + 1)
   }
 
@@ -637,6 +633,7 @@ export function ReportDialog({
 
   const cabecalho = (
     <>
+      {report && <IrAoComentario />}
       <CopiarLink numero={report?.Number ?? null} />
       {(anterior !== null || proximo !== null) && (
         <>
@@ -755,10 +752,17 @@ export function ReportDialog({
                   aoMudar={receber}
                 />
 
-                {!textInHeadline(atual ?? report) && (
-                  <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
-                    {report.Text}
-                  </p>
+                {/* Com perguntas, cada resposta embaixo da pergunta que a pediu — e as
+                    respostas so vem no detalhe. Ate ele chegar, e no tipo sem
+                    perguntas, o texto de sempre. */}
+                {detalhe?.Answers ? (
+                  <ReportAnswers answers={detalhe.Answers} text={report.Text ?? ''} />
+                ) : (
+                  !textInHeadline(atual ?? report) && (
+                    <p className="whitespace-pre-wrap break-words text-body text-fg leading-relaxed">
+                      {report.Text}
+                    </p>
+                  )
                 )}
 
                 <ReportAttachments
@@ -927,7 +931,10 @@ export function ReportDialog({
 
                     <dl className="flex flex-col gap-1.5">
                       <DetailRow label="Página" value={report.Route} />
-                      <DetailRow label="Site" value={report.Origin} />
+                      <DetailRow label="Sistema" value={report.Origin} />
+                      {/* A marca no lugar de onde ela vem: o site e o que foi bloqueado.
+                          A decisao — manter ou apagar — e da lista, em lote. */}
+                      <BlockedOriginMark card={report} className="self-start" />
 
                       {failed && (
                         <p className="mt-1 text-caption text-fg-muted">
@@ -1098,6 +1105,44 @@ export function ReportDialog({
         {rascunhos.dialogo}
       </CardDraftsProvider>
     </Modal>
+  )
+}
+
+/**
+ * "Comentar", no alto do card: leva ao campo do time e poe o foco nele. No card com
+ * texto longo, subtarefas e historico, o campo ficava duas rolagens abaixo — e
+ * comentar e o que mais se faz num card aberto. O campo e o "Entre o time": e o que
+ * todo card tem, do relato ao card do time e ao arquivado.
+ */
+function IrAoComentario() {
+  return (
+    <button
+      type="button"
+      onClick={(evento) => {
+        const dialogo = evento.currentTarget.closest('[role="dialog"]')
+        const campo = dialogo?.querySelector<HTMLTextAreaElement>(
+          'textarea[aria-label="Entre o time"]',
+        )
+        if (!campo) return
+        campo.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+        campo.focus({ preventScroll: true })
+      }}
+      className="flex h-8 flex-none items-center gap-1.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+    >
+      <svg
+        viewBox="0 0 12 12"
+        className="size-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M2 2.5h8v5.5H5.5L3 10V8H2z" />
+      </svg>
+      Comentar
+    </button>
   )
 }
 

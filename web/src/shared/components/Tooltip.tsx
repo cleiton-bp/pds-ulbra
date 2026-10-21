@@ -13,7 +13,7 @@ export function Tooltip({ content, children }: { content: string; children: Reac
         <RadixTooltip.Content
           side="right"
           sideOffset={8}
-          className="z-tip w-54 rounded-lg border border-border bg-surface px-2.5 py-2 text-detail text-fg-muted leading-snug"
+          className="z-tip w-54 origin-(--radix-tooltip-content-transform-origin) rounded-lg border border-border bg-surface px-2.5 py-2 text-detail text-fg-muted leading-snug data-[state=closed]:animate-menu-out data-[state=delayed-open]:animate-menu-in data-[state=instant-open]:animate-menu-in"
         >
           {content}
         </RadixTooltip.Content>

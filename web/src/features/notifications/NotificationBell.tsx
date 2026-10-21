@@ -15,11 +15,53 @@ import {
 import { toast } from '@/shared/components/toastStore'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
+import { openProfile, PROFILE_SOUNDS_SECTION } from '@/shared/lib/profileDialogStore'
 
-/** O que aconteceu, na frase do aviso. */
-const ACOES: Record<NotificationViewModel['Kind'], string> = {
+/** O que aconteceu, na frase do aviso de card. */
+const ACOES: Record<'Mention' | 'Assignment', string> = {
   Mention: 'mencionou você em',
   Assignment: 'escolheu você como responsável por',
+}
+
+/**
+ * A frase do aviso do projeto — endereco novo ou envios pausados —, que nao tem card nem
+ * quem fez. A pausa diz a camada, e nunca um IP: a API nao guarda nenhum.
+ */
+function fraseDoProjeto(aviso: NotificationViewModel): string {
+  if (aviso.Kind === 'OriginPending') {
+    return aviso.Subject
+      ? `${aviso.Subject} mandou um relato: permitir ou bloquear?`
+      : 'Chegou um relato sem dizer de que domínio veio: liberar ou apagar?'
+  }
+  const minutos = aviso.PausedUntil
+    ? Math.max(
+        1,
+        Math.round((Date.parse(aviso.PausedUntil) - Date.parse(aviso.CreatedAt)) / 60_000),
+      )
+    : 15
+  const pausa = `novos envios pausados por ${minutos} min`
+  switch (aviso.LimitScope) {
+    case 'Origin':
+      return aviso.Subject
+        ? `Muitos relatos vindos de ${aviso.Subject}: ${pausa}`
+        : `Muitos relatos sem domínio de origem: ${pausa}`
+    case 'Reporter':
+      return `Muitos relatos de uma mesma pessoa: ${pausa}`
+    case 'Ip':
+      return `Muitos relatos de uma mesma conexão: ${pausa}`
+    default:
+      return `Muitos relatos neste projeto: ${pausa}`
+  }
+}
+
+/**
+ * Onde o aviso do projeto leva: os domínios esperando decisão, ou os limites — que
+ * moram no "Mais opções" de Domínios, aberto sozinho pela rolagem ate o `#`.
+ */
+function destinoDoProjeto(aviso: NotificationViewModel): string {
+  return aviso.Kind === 'OriginPending'
+    ? `/projects/${aviso.Project.PublicId}/domains#dominios`
+    : `/projects/${aviso.Project.PublicId}/domains#limites`
 }
 
 /** Avisos do mesmo tipo, da mesma pessoa e do mesmo projeto, dentro deste tempo, viram um. */
@@ -48,7 +90,10 @@ function agrupar(avisos: NotificationViewModel[]): Linha[] {
     let fim = i + 1
     while (fim < avisos.length) {
       const proximo = avisos[fim] as NotificationViewModel
+      // O aviso do projeto nao junta: cada um fala de um dominio, ou de uma pausa.
       const igual =
+        primeiro.Card !== null &&
+        proximo.Card !== null &&
         proximo.Kind === primeiro.Kind &&
         proximo.ActorName === primeiro.ActorName &&
         proximo.Project.PublicId === primeiro.Project.PublicId &&
@@ -68,7 +113,9 @@ function agrupar(avisos: NotificationViewModel[]): Linha[] {
 
 /**
  * O sino do topo: as mencoes e as vezes em que a pessoa foi escolhida como
- * responsavel, de todos os projetos em que ela esta.
+ * responsavel, de todos os projetos em que ela esta — e, para quem administra, os
+ * avisos do projeto: um dominio novo mandou relato, ou os envios foram pausados por
+ * excesso. Esses levam a tela onde se decide, e nao a um card.
  *
  * **A lista e lida ao abrir**, e o numero, o tempo todo (`useUnreadCount`). **"Nao lidos"
  * e o padrao**, e "Todos" mostra tambem os lidos; cada um vem de cinquenta em cinquenta,
@@ -87,6 +134,7 @@ export function NotificationBell() {
   const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set())
   const vez = useRef(0)
   const desistir = useRef<(() => void) | null>(null)
+  const gatilho = useRef<HTMLButtonElement>(null)
 
   useEffect(() => () => desistir.current?.(), [])
 
@@ -134,7 +182,11 @@ export function NotificationBell() {
   }
 
   async function abrirAviso(aviso: NotificationViewModel) {
-    navigate(`/projects/${aviso.Project.PublicId}/reports/${aviso.Card.PublicId}`)
+    navigate(
+      aviso.Card
+        ? `/projects/${aviso.Project.PublicId}/reports/${aviso.Card.PublicId}`
+        : destinoDoProjeto(aviso),
+    )
     desistir.current?.()
     desistir.current = aviso.Comment ? revealComment(aviso.Comment.PublicId) : null
     if (aviso.ReadAt) return
@@ -174,6 +226,7 @@ export function NotificationBell() {
       }}
       trigger={
         <button
+          ref={gatilho}
           type="button"
           aria-label={rotulo}
           className="relative flex size-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
@@ -232,7 +285,7 @@ export function NotificationBell() {
           </Menu.RadioGroup>
         </div>
         <div className="mt-0.5 text-caption text-fg-muted">
-          Menções e cards que passaram para você
+          Menções, cards que passaram para você e avisos do projeto
         </div>
       </DropdownHeader>
 
@@ -303,7 +356,13 @@ export function NotificationBell() {
             Marcar todos como lidos
           </DropdownItem>
         )}
-        <DropdownItem quiet onSelect={() => navigate('/profile')}>
+        {/* O perfil abre por cima da tela, ja nos sons, e o foco volta ao sino ao fechar. */}
+        <DropdownItem
+          quiet
+          onSelect={() =>
+            openProfile({ section: PROFILE_SOUNDS_SECTION, returnFocusTo: gatilho.current })
+          }
+        >
           Preferências de aviso
         </DropdownItem>
       </DropdownGroup>
@@ -358,8 +417,14 @@ function Aviso({ aviso }: { aviso: NotificationViewModel }) {
             lido ? 'text-fg-muted' : 'font-semibold text-fg',
           )}
         >
-          {aviso.ActorName ?? 'Alguém do time'} {ACOES[aviso.Kind]}{' '}
-          <span className="font-mono">#{aviso.Card.Number}</span> {aviso.Card.Headline}
+          {aviso.Card && (aviso.Kind === 'Mention' || aviso.Kind === 'Assignment') ? (
+            <>
+              {aviso.ActorName ?? 'Alguém do time'} {ACOES[aviso.Kind]}{' '}
+              <span className="font-mono">#{aviso.Card.Number}</span> {aviso.Card.Headline}
+            </>
+          ) : (
+            fraseDoProjeto(aviso)
+          )}
         </span>
         {aviso.Comment && (
           <span className="mt-0.5 block truncate text-caption text-fg-muted italic">
@@ -386,7 +451,7 @@ function Grupo({
 }) {
   const primeiro = avisos[0] as NotificationViewModel
   const lido = avisos.every((aviso) => aviso.ReadAt !== null)
-  const cards = new Set(avisos.map((aviso) => aviso.Card.PublicId)).size
+  const cards = new Set(avisos.map((aviso) => aviso.Card?.PublicId)).size
   const frase =
     primeiro.Kind === 'Assignment'
       ? `escolheu você como responsável por ${cards} cards`

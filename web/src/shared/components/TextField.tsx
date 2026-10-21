@@ -75,7 +75,7 @@ export function TextField({
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? messageId : undefined}
         className={cn(
-          'h-9 w-full rounded-lg border bg-surface-raised px-3 text-fg text-body',
+          'h-9 w-full rounded-lg border bg-surface-raised px-3 text-fg text-body transition-colors duration-150',
           'placeholder:text-fg-placeholder disabled:opacity-60',
           error ? 'border-error-border' : 'border-border',
         )}

@@ -9,12 +9,17 @@ import {
 import { describeError, projectReportService, sprintService } from '@/data'
 import { cardHeadline } from '@/features/reports/cardLook'
 import { Button } from '@/shared/components/Button'
+import { formatPoints, pointsText } from '@/shared/components/cardFace'
 import { Modal } from '@/shared/components/Modal'
 import { Select } from '@/shared/components/Select'
 import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { formatDay } from '@/shared/lib/datetime'
+
+// Os pontos tambem vao para a frente do card das previas: moram em `shared`, e saem daqui
+// para quem ja importava de `sprintLook` nao mudar.
+export { formatPoints, pointsText } from '@/shared/components/cardFace'
 
 /**
  * As sprints que nao foram concluidas, lidas so com as sprints ligadas. A em andamento e a que o
@@ -78,16 +83,6 @@ export function useSprintsForFilter(
 
   if (!enabled) return null
   return data ?? (failed ? abertas : null)
-}
-
-/** Os pontos como o time le: "2,5", sem o ".0". */
-export function formatPoints(pontos: number): string {
-  return pontos.toLocaleString('pt-BR')
-}
-
-/** "1 ponto", "2,5 pontos". */
-export function pointsText(pontos: number): string {
-  return `${formatPoints(pontos)} ${pontos === 1 ? 'ponto' : 'pontos'}`
 }
 
 /** "4 cards e 13 pontos" — ou so "4 cards", quando ninguem estimou. */

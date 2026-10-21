@@ -417,6 +417,170 @@
   animation: halo 3.2s ease-in-out infinite;
 }
 
+/* ---------------------------------------------------------------------------
+ * DIALOGO E VEU
+ *
+ * O veu esmaece e a caixa cresce de 96% ao tamanho enquanto aparece; ao fechar, o
+ * caminho de volta, mais curto — sair demora menos que chegar. `scale`, e nao
+ * `transform`: a caixa ja usa `translate` para se centralizar, e no Tailwind 4 sao
+ * propriedades separadas que nao se atropelam. O Radix segura o elemento na arvore
+ * ate a animacao de saida acabar; sem animacao (movimento reduzido), solta na hora.
+ * ------------------------------------------------------------------------- */
+@keyframes veil-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes veil-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@utility animate-veil-in {
+  animation: veil-in 200ms ease-out both;
+}
+
+@utility animate-veil-out {
+  animation: veil-out 160ms ease-in both;
+}
+
+@utility animate-dialog-in {
+  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@utility animate-dialog-out {
+  animation: dialog-out 150ms ease-in both;
+}
+
+/* ---------------------------------------------------------------------------
+ * MENU, SELETOR E DICA
+ *
+ * O que abre por cima de um gatilho nasce dele: cresce de 96% a partir do ponto em que
+ * esta preso (`transform-origin` que o Radix calcula) e esmaece ao sair, mais rapido
+ * do que entrou. O mesmo para o menu suspenso, o seletor, os menus da barra de filtros
+ * e a dica. `fade-in` e so o esmaecer, para linhas de tabela — transformar uma `<tr>`
+ * nao e seguro em todo navegador.
+ * ------------------------------------------------------------------------- */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+    translate: 0 -2px;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes menu-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility animate-menu-in {
+  animation: menu-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@utility animate-menu-out {
+  animation: menu-out 100ms ease-in both;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 200ms ease-out both;
+}
+
+/* ---------------------------------------------------------------------------
+ * O BOTAO DE TEMA
+ *
+ * A noite chega com estrelas que piscam e somem; o dia, com um clarao que nasce no
+ * sol e se dissolve. `both` guarda o fim — apagado — para o que terminou nao voltar
+ * a aparecer; quem desenha remove os elementos logo depois.
+ * ------------------------------------------------------------------------- */
+@keyframes twinkle {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-30deg);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.15) rotate(0deg);
+  }
+  65% {
+    opacity: 0.9;
+    transform: scale(0.85) rotate(10deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(25deg);
+  }
+}
+
+@keyframes flare {
+  from {
+    opacity: 0.7;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@utility animate-twinkle {
+  animation: twinkle 900ms ease-out both;
+}
+
+@utility animate-flare {
+  animation: flare 650ms ease-out both;
+}
+
 /**
  * A grade do fundo da chamada. Some nas bordas por mascara, senao vira papel
  * quadriculado; o `--border` do tema deixa ela quase invisivel, que e a ideia.
@@ -427,6 +591,22 @@
     linear-gradient(to bottom, var(--border) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 0%, transparent 75%);
+}
+
+/**
+ * O `number` sem o contador do navegador: o `NumberField` desenha os botoes de menos e
+ * mais do lado de fora, do tamanho de um clique. Duas linguagens, porque os navegadores
+ * nao combinam: `appearance: textfield` vale no Firefox, e os pseudo-elementos no
+ * Chrome e no Safari.
+ */
+@utility input-number-plain {
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
 }
 
 /**
@@ -456,6 +636,24 @@
   .animate-slide-up,
   .animate-travel,
   .animate-halo {
+    animation: none;
+  }
+
+  /* Estrela e clarao sao passageiros: sem o movimento, nao existem. */
+  .animate-twinkle,
+  .animate-flare {
+    animation: none;
+    opacity: 0;
+  }
+
+  /* O dialogo aparece e some de uma vez; o Radix solta o elemento na hora. */
+  .animate-veil-in,
+  .animate-veil-out,
+  .animate-dialog-in,
+  .animate-dialog-out,
+  .animate-menu-in,
+  .animate-menu-out,
+  .animate-fade-in {
     animation: none;
   }
 

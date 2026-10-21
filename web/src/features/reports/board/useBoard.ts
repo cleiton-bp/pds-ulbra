@@ -381,7 +381,7 @@ export function useBoard(
         return
       }
 
-      setCards((atual) => ({ ...atual, [id]: { ...atual[id], ...card } }))
+      setCards((atual) => ({ ...atual, [id]: comMarca(atual[id], card) }))
 
       const destino = card.StatePublicId ?? WITHOUT_STATE_FILTER
       if (destino !== onde) {
@@ -402,7 +402,7 @@ export function useBoard(
    * lugar ja esta certo na tela.
    */
   const update = useCallback((card: ReportSummaryViewModel) => {
-    setCards((atual) => ({ ...atual, [card.PublicId]: { ...atual[card.PublicId], ...card } }))
+    setCards((atual) => ({ ...atual, [card.PublicId]: comMarca(atual[card.PublicId], card) }))
   }, [])
 
   /** O card que acabou de nascer: no topo da coluna dele, como a API o pos. */
@@ -525,3 +525,15 @@ export function useBoard(
 }
 
 export type Board = ReturnType<typeof useBoard>
+
+/**
+ * O card novo por cima do que estava, **mantendo a marca "subtarefa sua"**: ela so vem
+ * na leitura do quadro, e a resposta de mover ou editar chega sem ela — o pai continua
+ * no recorte pelas subtarefas, e a marca sumia ate a proxima leitura.
+ */
+function comMarca(
+  antes: ReportSummaryViewModel | undefined,
+  card: ReportSummaryViewModel,
+): ReportSummaryViewModel {
+  return { ...antes, ...card, SubtaskMatch: card.SubtaskMatch ?? antes?.SubtaskMatch ?? null }
+}

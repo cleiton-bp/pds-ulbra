@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import type { ReportSummaryViewModel } from '@/contracts'
 import { CardTypeIcon } from '@/features/reports/cardLook'
+import { reportTypeName } from '@/shared/components/ReportTypeGlyph'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
-import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
 
 /**
  * A largura e a altura do card aberto: largo no computador, a tela quase inteira no
@@ -97,7 +97,7 @@ export function CardDialogTitle({ card }: { card: ReportSummaryViewModel | null 
     : card.Kind === 'Team'
       ? 'Card do time'
       : card.Type
-        ? teamTypeLabel(card.Type)
+        ? reportTypeName(card.Type)
         : 'Relato'
 
   return (
@@ -130,7 +130,7 @@ export function DetailsBox({ children }: { children: ReactNode }) {
 }
 
 /**
- * Uma linha dos detalhes. Sai da tela quando nao ha valor: "Site: —" ocupa a mesma
+ * Uma linha dos detalhes. Sai da tela quando nao ha valor: "Sistema: —" ocupa a mesma
  * altura de um dado para nao dizer nada.
  */
 export function DetailRow({ label, value }: { label: string; value: ReactNode }) {

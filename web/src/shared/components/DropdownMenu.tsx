@@ -29,6 +29,7 @@ export function DropdownMenu({
           sideOffset={6}
           className={cn(
             'z-dialog overflow-hidden rounded-xl border border-border bg-surface-raised',
+            'origin-(--radix-dropdown-menu-content-transform-origin) data-[state=closed]:animate-menu-out data-[state=open]:animate-menu-in',
             width,
           )}
         >
