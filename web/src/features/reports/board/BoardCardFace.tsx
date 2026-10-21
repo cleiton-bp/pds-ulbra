@@ -1,17 +1,14 @@
 import type { ReportSummaryViewModel } from '@/contracts'
 import {
   BlockedMark,
+  BlockedOriginMark,
   CardTypeIcon,
   cardHeadline,
   headlineText,
-  MoreLabels,
-  ParentLine,
-  PersonAvatar,
-  PriorityIcon,
+  SubtaskMatchMark,
   SubtaskProgress,
 } from '@/features/reports/cardLook'
-import { PointsChip } from '@/features/reports/sprints/SprintBacklog'
-import { CardChip } from '@/shared/components/CardChip'
+import { CardLabels, PersonAvatar, PointsChip, PriorityIcon } from '@/shared/components/cardFace'
 import { DueChip } from '@/shared/components/DueChip'
 import { cn } from '@/shared/lib/cn'
 
@@ -44,8 +41,6 @@ export function BoardCardFace({
   highlighted?: boolean
 }) {
   const titulo = cardHeadline(card)
-  const visiveis = card.Labels.slice(0, 3)
-  const restantes = card.Labels.length - visiveis.length
 
   return (
     <div
@@ -58,24 +53,17 @@ export function BoardCardFace({
         lifted && 'rotate-2 scale-[1.03] shadow-lg ring-2 ring-accent',
       )}
     >
-      {card.Parent && <ParentLine parent={card.Parent} className="mb-1" />}
       {/* O relato sem titulo entre aspas, na cor do titulo (ver `headlineText`). */}
       <p className="line-clamp-3 break-words text-body text-fg leading-snug">
         {headlineText(titulo)}
       </p>
 
-      {visiveis.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          {visiveis.map((etiqueta) => (
-            <CardChip key={etiqueta.PublicId} color={etiqueta.Color}>
-              {etiqueta.Name}
-            </CardChip>
-          ))}
-          {restantes > 0 && <MoreLabels labels={card.Labels.slice(visiveis.length)} />}
-        </div>
-      )}
+      {/* A mesma linha do card de exemplo das previas (`MiniCard`): a previa e fiel. */}
+      <CardLabels labels={card.Labels} className="mt-2" />
 
       <BlockedMark card={card} className="mt-2" />
+      <BlockedOriginMark card={card} className="mt-2" />
+      <SubtaskMatchMark card={card} className="mt-2" />
 
       {card.DueDate && (
         <div className="mt-2 text-caption text-fg-muted">

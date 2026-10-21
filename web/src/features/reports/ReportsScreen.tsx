@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import {
   type ReportDetailViewModel,
   type ReportStateCountViewModel,
@@ -23,6 +23,7 @@ import {
   projectReportService,
   projectTeamService,
 } from '@/data'
+import { useSessionStore } from '@/features/auth/sessionStore'
 import { BulkActions, BulkFailures, type Falha, useBulkUndo } from '@/features/reports/BulkActions'
 import { boardColumns, type LaneBy } from '@/features/reports/board/boardState'
 import { BoardSkeleton, ReportsBoard } from '@/features/reports/board/ReportsBoard'
@@ -36,6 +37,7 @@ import {
 } from '@/features/reports/LiveStatus'
 import { NewCardDialog } from '@/features/reports/NewCardDialog'
 import { ReportsTable, ReportsTableSkeleton } from '@/features/reports/ReportsTable'
+import { SavedViews } from '@/features/reports/SavedViews'
 import { SprintBacklog } from '@/features/reports/sprints/SprintBacklog'
 import {
   CloseSprintDialog,
@@ -46,12 +48,20 @@ import {
   useSprints,
   useSprintsForFilter,
 } from '@/features/reports/sprints/sprintLook'
+import { useFiltersInAddress } from '@/features/reports/useFiltersInAddress'
 import { useReportInbox } from '@/features/reports/useReportInbox'
 import { useWorkFilters } from '@/features/reports/useWorkFilters'
 import { useWorkRealtime } from '@/features/reports/useWorkRealtime'
-import { WorkFilterBar } from '@/features/reports/WorkFilterBar'
+import {
+  ACTIVE_FILTER_CLASS,
+  FilterBarEnd,
+  HELP_IN_BAR,
+  WorkFilterBar,
+} from '@/features/reports/WorkFilterBar'
 import { Button } from '@/shared/components/Button'
+import { HowItWorks } from '@/shared/components/HowItWorks'
 import { Select } from '@/shared/components/Select'
+import { ShortcutsButton, ShortcutsDialog } from '@/shared/components/ShortcutsDialog'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
@@ -62,7 +72,6 @@ import { canConfigure } from '@/shared/lib/projectAccess'
 type Vista = 'lista' | 'quadro' | 'backlog'
 const VISTAS: readonly Vista[] = ['lista', 'quadro', 'backlog']
 const AGRUPAMENTOS: readonly LaneBy[] = ['none', 'assignee', 'priority']
-const DICA_DO_QUADRO = ['mostrar', 'fechada'] as const
 
 /**
  * Faltando ate quantos dias o prazo fica em destaque enquanto a regra do projeto
@@ -82,9 +91,14 @@ const DESTAQUE_DE_FABRICA = 2
  * clicar — a linha e a frente do quadro sao um resumo.
  *
  * **Abaixo das abas, a barra de filtros**: a busca, os atalhos e os menus, que valem
- * na lista e no quadro; na lista, tambem a coluna, a sprint, a ordem e os arquivados.
- * No quadro, a barra de ferramentas embaixo dela tem o lembrete de como arrastar, as
- * raias e os arquivados. "/" vai a busca e "c" abre o "Novo card".
+ * na lista e no quadro; na lista, tambem a coluna, a sprint e a ordem. **Uma faixa so
+ * antes do conteudo**: as raias do quadro e os arquivados moram no fim da barra — os
+ * arquivados no mesmo lugar nas tres vistas —, e o como arrastar fica no "Como
+ * funciona" dela. Os filtros vao para o endereco, e o link reproduz a vista; ao lado
+ * das abas, as vistas salvas de quem olha.
+ *
+ * **Os atalhos estao a vista**: o "/" dentro da busca, e o "?" abre a lista deles. "/"
+ * vai a busca (tambem a do backlog), "c" abre o "Novo card" e Esc desmarca o lote.
  *
  * **A tela usa a largura toda.** A tabela e o quadro sao feitos para comparar card
  * com card, e uma faixa estreita cortaria colunas que cabem.
@@ -123,12 +137,11 @@ export function ReportsScreen() {
     AGRUPAMENTOS,
     'none',
   )
-  // A dica de como arrastar, ate a pessoa fechar — neste navegador, em todo projeto.
-  const [dicaDoQuadro, setDicaDoQuadro] = useEscolhaLembrada(
-    'pds.web.trabalho.dica-do-quadro',
-    DICA_DO_QUADRO,
-    'mostrar',
-  )
+  /** A lista dos atalhos, aberta pelo "?". */
+  const [vendoAtalhos, setVendoAtalhos] = useState(false)
+  // As vistas salvas sao de quem olha: a chave leva a pessoa, e duas no mesmo
+  // navegador nao veem as da outra.
+  const pessoa = useSessionStore((estado) => estado.user?.PublicId ?? 'anonimo')
 
   // Trocar de projeto sai dos arquivados. O recorte por coluna mora nos filtros, que
   // sao lidos por projeto (`useWorkFilters`): a coluna de um projeto nunca vai ao outro.
@@ -200,8 +213,13 @@ export function ReportsScreen() {
     sprints.sprints,
   )
 
-  // Os filtros da tela — os mesmos na lista, no quadro e na contagem das colunas.
-  const filtros = useWorkFilters(project.PublicId)
+  // Os filtros da tela — os mesmos na lista, no quadro e na contagem das colunas. O
+  // endereco vence o lembrado na aba: o link com os filtros mostra a vista de quem o
+  // mandou. Com o card aberto, o endereco e o do card, e nao se escreve nele.
+  const location = useLocation()
+  const filtros = useWorkFilters(project.PublicId, location.search)
+  const cardAberto = useOutlet() !== null
+  useFiltersInAddress(filtros.view, filtros.applyView, !cardAberto)
   const comFiltro = filtros.key !== ''
   // O que so a lista recorta — as colunas e a sprint —, lembrado com os filtros. Nos
   // arquivados nao vale: a contagem das colunas e a da tela de Trabalho.
@@ -433,7 +451,10 @@ export function ReportsScreen() {
   const aoVivo = useWorkRealtime(project.PublicId, (evento) => {
     switch (evento.kind) {
       case 'card': {
-        const { ReportPublicId, StatePublicId, Archived } = evento.notice
+        const { ReportPublicId, StatePublicId, Archived, ParentPublicId } = evento.notice
+        // A subtarefa mora dentro do pai, e nao no quadro nem na lista: o pai tem aviso
+        // proprio, e e ele que se rele. O card aberto continua ouvindo a subtarefa.
+        if (ParentPublicId) break
         board.remoteChange(
           ReportPublicId,
           Archived ? null : (StatePublicId ?? WITHOUT_STATE_FILTER),
@@ -474,7 +495,45 @@ export function ReportsScreen() {
    * O card que mudou no dialogo, nas duas vistas: a lista troca a linha, e o quadro
    * troca os dados — e muda o card de coluna, quando foi o caso.
    */
-  const aoMudar = (mudou: ReportSummaryViewModel | ReportDetailViewModel) => {
+  const aoMudar = (
+    mudou: ReportSummaryViewModel | ReportDetailViewModel,
+    origem?: { subtarefa: boolean },
+  ) => {
+    // Com filtro de responsavel ou busca, o pai entra no recorte tambem pelas
+    // subtarefas — e so a API sabe se ele continua nele depois de uma subtarefa mudar
+    // de responsavel ou de titulo. Ai a lista e o quadro sao relidos, e nao so trocados.
+    const recortePorSubtarefa =
+      filtros.applied.assignees.length > 0 || filtros.applied.search.trim() !== ''
+    const reler = () => {
+      juntarLista()
+      board.reloadAll()
+      renovarContagens()
+    }
+
+    // A subtarefa aberta mudou: ela nao esta na lista nem no quadro — quem muda e a
+    // frente do pai (o progresso), relido sem gravar leitura.
+    if (mudou.Parent) {
+      // O progresso da subtarefa conta no backlog do pai ("0/1").
+      if (sprintsLigadas) mexeuNoBacklog()
+      if (recortePorSubtarefa) {
+        reler()
+        return
+      }
+      projectReportService
+        .refreshReport(project.PublicId, mudou.Parent.PublicId)
+        .then((pai) => {
+          // So o pai que esta na lista: o de fora do recorte nao tem linha a trocar.
+          if (reports?.some((item) => item.PublicId === pai.PublicId)) apply(pai)
+          board.apply(pai)
+        })
+        .catch(() => {})
+      return
+    }
+    if (origem?.subtarefa && recortePorSubtarefa) {
+      reler()
+      if (sprintsLigadas) mexeuNoBacklog()
+      return
+    }
     apply(mudou)
     board.apply(mudou)
     // Com a sprint ligada, o card que saiu da sprint em andamento sai do quadro: a
@@ -561,13 +620,39 @@ export function ReportsScreen() {
 
   const painel = useId()
 
-  // Os atalhos da lista e do quadro: "/" vai a busca e "c" abre o "Novo card". Nao valem
+  // ─── A contagem nas abas ──────────────────────────────────────────────────
+  // So com o que a tela ja leu: nenhuma leitura a mais para um numero na aba. A lista
+  // diz o total dela quando esta na tela; fora dela, a soma das colunas — que e a mesma
+  // conta, com os mesmos filtros —, enquanto a lista nao recorta coluna nem sprint e a
+  // contagem nao e a da sprint do quadro. O backlog diz o que a ultima leitura dele
+  // trouxe, sem a busca dele.
+  const [contagemDoBacklog, setContagemDoBacklog] = useState<{
+    projeto: string
+    total: number
+  } | null>(null)
+  const somaDasColunas =
+    contagens && !sprintDoQuadro ? contagens.reduce((soma, linha) => soma + linha.Total, 0) : null
+  const contagemDaLista =
+    !quadro && !backlog
+      ? reports
+        ? total
+        : null
+      : colunasDaLista.length === 0 && sprintDaLista === null
+        ? somaDasColunas
+        : null
+  const contagemNasAbas: Partial<Record<Vista, number | null>> = {
+    lista: contagemDaLista,
+    backlog: contagemDoBacklog?.projeto === project.PublicId ? contagemDoBacklog.total : null,
+  }
+
+  // Os atalhos da tela: "/" vai a busca — a da barra, ou a do backlog, que tem o mesmo
+  // id —, "c" abre o "Novo card", "?" mostra os atalhos e Esc desmarca o lote. Nao valem
   // com o foco num campo de texto ou numa caixa de escolha (a letra escolhe a opcao), com
   // um dialogo, menu ou lista de opcoes aberta, nem com Ctrl, ⌘ ou Alt — a tecla e de
   // quem esta escrevendo, ou de outro atalho. A caixa de marcar da tabela nao e campo de
   // texto: quem marca cards pelo teclado usa os atalhos dali.
-  const atalhos = useRef({ arquivados, buscaVisivel: !backlog && !quadroSemSprint })
-  atalhos.current = { arquivados, buscaVisivel: !backlog && !quadroSemSprint }
+  const atalhos = useRef({ arquivados, marcados: marcados.size })
+  atalhos.current = { arquivados, marcados: marcados.size }
   useEffect(() => {
     const aoTeclar = (evento: globalThis.KeyboardEvent) => {
       if (evento.defaultPrevented || evento.ctrlKey || evento.metaKey || evento.altKey) return
@@ -584,7 +669,8 @@ export function ReportsScreen() {
         )
       )
         return
-      if (evento.key === '/' && atalhos.current.buscaVisivel) {
+      if (evento.key === '/') {
+        // Sem a busca na tela (o quadro sem sprint), a tecla nao e de ninguem.
         const busca = document.getElementById(`${painel}-busca`)
         if (!busca) return
         evento.preventDefault()
@@ -592,6 +678,14 @@ export function ReportsScreen() {
       } else if ((evento.key === 'c' || evento.key === 'C') && !atalhos.current.arquivados) {
         evento.preventDefault()
         setCriando({})
+      } else if (evento.key === '?') {
+        evento.preventDefault()
+        setVendoAtalhos(true)
+      } else if (evento.key === 'Escape' && atalhos.current.marcados > 0) {
+        // O lote marcado sai pelo Esc, como a selecao de qualquer lista; com um dialogo
+        // ou menu aberto (conferido acima), o Esc e dele.
+        evento.preventDefault()
+        setMarcados(new Set())
       }
     }
     document.addEventListener('keydown', aoTeclar)
@@ -642,6 +736,26 @@ export function ReportsScreen() {
           }}
           soonDays={destaque}
           sprintWeeks={ciclo?.SprintLengthWeeks}
+          searchInputId={`${painel}-busca`}
+          aoContarBacklog={(total) => setContagemDoBacklog({ projeto: project.PublicId, total })}
+          // O fim da linha da busca do backlog: o como arrastar e os arquivados, no
+          // mesmo lugar da barra da lista e do quadro.
+          barra={
+            <>
+              <HowItWorks className={HELP_IN_BAR}>
+                <p>
+                  Arraste os cards entre o backlog e as sprints, ou use o menu de cada card. No
+                  teclado, espaço pega, as setas escolhem o lugar e espaço solta.
+                </p>
+              </HowItWorks>
+              <FilterBarEnd>
+                <BotaoArquivados
+                  arquivados={arquivados}
+                  aoAlternar={() => setArquivados((valor) => !valor)}
+                />
+              </FilterBarEnd>
+            </>
+          }
         />
       ) : quadro && modoSprint && sprints.sprints !== null && sprints.ativa === null ? (
         <NoActiveSprint
@@ -751,6 +865,15 @@ export function ReportsScreen() {
                 aoOrdenar={filtros.sortBy}
                 comSprint={sprintsLigadas}
                 buscando={buscando}
+                // Muda quando o filtro, a ordem, a coluna ou a sprint mudam — e nao quando
+                // chega mais uma pagina: so a troca de recorte esmaece as linhas.
+                troca={JSON.stringify([
+                  filtros.applied,
+                  filtros.sort,
+                  colunasDaLista,
+                  sprintDaLista,
+                  arquivados,
+                ])}
               />
 
               {/* Depois da tabela, presa embaixo da tela: marcar nao empurra as linhas. */}
@@ -774,6 +897,7 @@ export function ReportsScreen() {
                       )
                   }}
                   bloqueado={buscando}
+                  podeAdministrar={canConfigure(project)}
                   aoTerminar={(resultado) => {
                     // A selecao fica: da para fazer outra mudanca nos mesmos cards.
                     if (resultado.falhas.length > 0) setFalhasDoLote(resultado)
@@ -841,12 +965,21 @@ export function ReportsScreen() {
         <h1 id={`${painel}-titulo`} className="font-semibold text-screen tracking-tight">
           {arquivados ? 'Arquivados' : 'Trabalho'}
         </h1>
-        {/* Nos arquivados nao: o card novo vai para o Trabalho, e nao apareceria aqui. */}
-        {!arquivados && (
-          <Button variant="primary" onClick={() => setCriando({})} title="Atalho: c">
-            Novo card
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Os atalhos a vista: quem nao sabe que existem nao aperta o "?". */}
+          <ShortcutsButton onClick={() => setVendoAtalhos(true)} />
+          {/* Nos arquivados nao: o card novo vai para o Trabalho, e nao apareceria aqui. */}
+          {!arquivados && (
+            <Button
+              variant="primary"
+              onClick={() => setCriando({})}
+              title="Atalho: c"
+              aria-keyshortcuts="c"
+            >
+              Novo card
+            </Button>
+          )}
+        </div>
       </div>
 
       {arquivados ? (
@@ -854,12 +987,24 @@ export function ReportsScreen() {
           Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.
         </p>
       ) : (
-        <Abas
-          vista={vistaEfetiva}
-          painel={painel}
-          aoEscolher={setVista}
-          comBacklog={sprintsLigadas}
-        />
+        // As abas e, ao lado, as vistas salvas: a escolha de como ver, e a de o que ver.
+        <div className="flex min-w-0 items-end gap-4 border-border border-b">
+          <Abas
+            vista={vistaEfetiva}
+            painel={painel}
+            aoEscolher={setVista}
+            comBacklog={sprintsLigadas}
+            contagens={contagemNasAbas}
+          />
+          {!backlog && (
+            <SavedViews
+              projectPublicId={project.PublicId}
+              pessoa={pessoa}
+              atual={filtros.view}
+              aoAplicar={filtros.applyView}
+            />
+          )}
+        </div>
       )}
 
       {/* O backlog tem a ordem do time, e nao recorte: os filtros sao da lista e do quadro.
@@ -895,56 +1040,25 @@ export function ReportsScreen() {
           arquivados={arquivados}
           buscando={buscando}
           searchInputId={`${painel}-busca`}
-        >
-          {!quadro && (
-            <BotaoArquivados
-              arquivados={arquivados}
-              aoAlternar={() => setArquivados((valor) => !valor)}
-            />
+          origemBloqueada={(quadro ? Object.values(board.cards) : (reports ?? [])).some(
+            (card) => card.BlockedOrigin,
           )}
-        </WorkFilterBar>
-      )}
-
-      {/* A barra de ferramentas do quadro e do backlog: como arrastar — no celular, o
-          segurar antes nao se adivinha —, as raias e os arquivados. Na lista, o que
-          havia aqui foi para a barra de filtros. */}
-      <div
-        hidden={!quadro && !backlog}
-        className="my-4 flex flex-wrap items-center justify-between gap-2"
-      >
-        {quadro && !quadroSemSprint ? (
-          // Curta, e some no "✕": ajuda no primeiro dia e vira ruido depois — e a altura
-          // e o que mais falta no quadro. Fechada fica neste navegador.
-          dicaDoQuadro === 'mostrar' ? (
-            <p className="flex items-center gap-1.5 text-caption text-fg-muted">
-              <span>
-                {agrupar === 'none'
-                  ? 'Arraste para mover'
-                  : `Arraste para mover; outra raia troca ${agrupar === 'assignee' ? 'o responsável' : 'a prioridade'}`}
-                {' · no celular, segure · no teclado, as setas andam e espaço pega'}
-              </span>
-              <button
-                type="button"
-                onClick={() => setDicaDoQuadro('fechada')}
-                aria-label="Esconder a dica de como arrastar"
-                className="flex size-6 flex-none items-center justify-center rounded-md hover:bg-surface-sunken hover:text-fg"
-              >
-                <span aria-hidden>✕</span>
-              </button>
-            </p>
-          ) : (
-            <span />
-          )
-        ) : backlog ? (
-          <p className="text-caption text-fg-muted">
-            Arraste os cards entre o backlog e as sprints, ou use o menu de cada card.
-          </p>
-        ) : (
-          <span />
-        )}
-
-        <div className="flex flex-none items-center gap-2">
-          {quadro && !quadroSemSprint && (
+          // O como arrastar do quadro, recolhido na propria barra: no primeiro dia ele
+          // ajuda, e depois so ocupava a altura que mais falta no quadro.
+          comoFunciona={
+            quadro ? (
+              <HowItWorks className={HELP_IN_BAR}>
+                <p>
+                  {agrupar === 'none'
+                    ? 'Arraste para mover'
+                    : `Arraste para mover; outra raia troca ${agrupar === 'assignee' ? 'o responsável' : 'a prioridade'}`}
+                  {' · no celular, segure · no teclado, as setas andam e espaço pega'}
+                </p>
+              </HowItWorks>
+            ) : undefined
+          }
+        >
+          {quadro && (
             <Select
               ariaLabel="Raias do quadro"
               size="sm"
@@ -961,8 +1075,21 @@ export function ReportsScreen() {
             arquivados={arquivados}
             aoAlternar={() => setArquivados((valor) => !valor)}
           />
+        </WorkFilterBar>
+      )}
+
+      {/* O quadro sem sprint em andamento nao tem barra de filtros: os arquivados ficam
+          no mesmo lugar, numa faixa so com eles. O backlog os poe no fim da busca dele. */}
+      {(quadroSemSprint || (backlog && sprintsFalharam)) && (
+        <div className="my-3 flex">
+          <FilterBarEnd>
+            <BotaoArquivados
+              arquivados={arquivados}
+              aoAlternar={() => setArquivados((valor) => !valor)}
+            />
+          </FilterBarEnd>
         </div>
-      </div>
+      )}
 
       {/* Nos arquivados nao ha abas: o conteudo e uma regiao com o nome do titulo. */}
       {arquivados ? (
@@ -974,13 +1101,16 @@ export function ReportsScreen() {
           {conteudo}
         </section>
       ) : (
+        // A chave troca com a vista: o painel novo entra esmaecendo, em vez de a lista
+        // virar quadro de uma vez.
         <div
+          key={vistaEfetiva}
           id={painel}
           role="tabpanel"
           aria-labelledby={`${painel}-${vistaEfetiva}`}
           data-work-area
           onClickCapture={guardaDoClique}
-          className={cn(quadro && 'flex min-h-0 flex-1 flex-col')}
+          className={cn('animate-panel-in', quadro && 'flex min-h-0 flex-1 flex-col')}
         >
           {conteudo}
         </div>
@@ -1007,13 +1137,7 @@ export function ReportsScreen() {
             : reports?.map((report) => report.PublicId),
           podeConfigurar: canConfigure(project),
           soonDays: destaque,
-          // A subtarefa nasce como o card novo: no topo da lista e da coluna dela.
           sprints: sprintsLigadas ? (sprints.sprints ?? []) : null,
-          aoCriarSubtarefa: (subtarefa: ReportDetailViewModel) => {
-            void entrarNaLista(subtarefa)
-            board.insert(subtarefa)
-            renovarContagens()
-          },
         }}
       />
 
@@ -1059,6 +1183,8 @@ export function ReportsScreen() {
           aoCancelar={() => setIniciando(null)}
         />
       )}
+
+      <ShortcutsDialog open={vendoAtalhos} onOpenChange={setVendoAtalhos} atalhos={ATALHOS} />
 
       {/* So quando a conexao fica fora de verdade (alguns segundos): a queda curta
           volta sozinha, e um selo que pisca a cada uma ensina a nao olhar para ele. */}
@@ -1144,12 +1270,16 @@ function useEscolhaLembrada<T extends string>(chave: string, validas: readonly T
  *
  * As setas trocam de aba e levam o foco junto, como em toda lista de abas; a aba
  * escolhida e a unica parada do Tab.
+ *
+ * **Cada aba diz quantos cards tem** ("Lista 42", "Backlog 17"), em algarismos de
+ * largura igual: o numero muda sem a aba vizinha danca. Sem o numero ainda, so o nome.
  */
 function Abas({
   vista,
   painel,
   aoEscolher,
   comBacklog,
+  contagens = {},
 }: {
   vista: Vista
   /** O id do painel que as abas controlam. */
@@ -1157,6 +1287,8 @@ function Abas({
   aoEscolher: (vista: Vista) => void
   /** Com a sprint ligada, a terceira aba. */
   comBacklog: boolean
+  /** Quantos cards cada aba tem; sem a aba, ou nulo, ainda nao se sabe. */
+  contagens?: Partial<Record<Vista, number | null>>
 }) {
   const opcoes: Vista[] = comBacklog ? ['lista', 'quadro', 'backlog'] : ['lista', 'quadro']
   const botoes = useRef<Partial<Record<Vista, HTMLButtonElement | null>>>({})
@@ -1180,7 +1312,7 @@ function Abas({
   }
 
   return (
-    <div role="tablist" aria-label="Vista" className="flex gap-5 border-border border-b">
+    <div role="tablist" aria-label="Vista" className="flex flex-none gap-5">
       {opcoes.map((opcao) => (
         <button
           key={opcao}
@@ -1196,13 +1328,16 @@ function Abas({
           onClick={() => aoEscolher(opcao)}
           onKeyDown={(evento) => teclas(evento, opcao)}
           className={cn(
-            '-mb-px flex h-9 items-center border-b-2 px-0.5 font-medium text-body transition-colors',
+            '-mb-px flex h-9 items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
             vista === opcao
               ? 'border-accent text-fg'
               : 'border-transparent text-fg-muted hover:text-fg',
           )}
         >
           {opcao === 'lista' ? 'Lista' : opcao === 'quadro' ? 'Quadro' : 'Backlog'}
+          {typeof contagens[opcao] === 'number' && (
+            <span className="font-normal text-fg-muted tabular-nums">{contagens[opcao]}</span>
+          )}
         </button>
       ))}
     </div>
@@ -1285,6 +1420,24 @@ function ColunaVazia({ nome, aoVerTodos }: { nome: string | null; aoVerTodos: ()
   )
 }
 
+/** Os atalhos da tela de Trabalho e do card aberto, na ordem em que se usam. */
+const ATALHOS: { teclas: string[]; oQue: string }[] = [
+  { teclas: ['/'], oQue: 'Vai para a busca (também a do backlog)' },
+  { teclas: ['c'], oQue: 'Abre o “Novo card”' },
+  { teclas: ['J', 'K'], oQue: 'No card aberto, o próximo e o anterior' },
+  {
+    teclas: ['Espaço', '← ↑ → ↓'],
+    oQue: 'No quadro e no backlog, espaço pega o card, as setas o levam e espaço solta',
+  },
+  { teclas: ['Shift', 'clique'], oQue: 'Na lista, marca do último marcado até ali' },
+  { teclas: ['Esc'], oQue: 'Desmarca o lote; com um card ou menu aberto, fecha' },
+  { teclas: ['?'], oQue: 'Mostra esta lista' },
+]
+
+/**
+ * "Atalhos": o que o teclado faz na tela, numa lista so. O "?" abre, e o botao do alto
+ * tambem — quem nao sabe que ha atalhos nao aperta o "?".
+ */
 /**
  * A chave dos arquivados: "Arquivados" fora deles, e "Sair dos arquivados" dentro — o
  * botao pressionado sozinho nao dizia como voltar.
@@ -1304,7 +1457,7 @@ function BotaoArquivados({
       className={cn(
         'flex h-8 flex-none items-center rounded-lg border px-3 text-detail transition-colors',
         arquivados
-          ? 'border-accent bg-accent text-accent-fg'
+          ? ACTIVE_FILTER_CLASS
           : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
       )}
     >
@@ -1356,12 +1509,12 @@ function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => v
     <div className="rounded-xl border border-border border-dashed bg-surface-raised p-6">
       <h2 className="mb-1.5 font-semibold text-fg text-lead">Nada aqui ainda</h2>
       <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-        Assim que alguém enviar pela ferramenta instalada no site, o relato aparece aqui; aberto,
-        ele mostra o protocolo, a página de onde saiu e o que a pessoa escreveu. O time também cria
-        os próprios cards.
+        Assim que alguém enviar pela ferramenta instalada no seu sistema, o relato aparece aqui;
+        aberto, ele mostra o protocolo, a página de onde saiu e o que a pessoa escreveu. O time
+        também cria os próprios cards.
         {/* Quem e so membro nao instala nada: o link levaria a Instalacao, e a
             guarda o devolveria para ca — um clique que parece nao fazer nada. */}
-        {!installs && ' Quem administra o projeto instala a ferramenta no site.'}
+        {!installs && ' Quem administra o projeto instala a ferramenta no sistema.'}
       </p>
       <div className="flex flex-wrap items-center gap-4">
         <Button onClick={aoCriar}>Criar um card</Button>
@@ -1370,7 +1523,7 @@ function EmptyState({ installs, aoCriar }: { installs: boolean; aoCriar: () => v
             to="../start"
             className="inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
           >
-            Ver como instalar no seu site
+            Ver como instalar no seu sistema
           </Link>
         )}
       </div>

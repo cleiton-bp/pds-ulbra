@@ -13,6 +13,7 @@ import {
   projectReportService,
   projectTeamService,
 } from '@/data'
+import { BlockedOriginActions } from '@/features/reports/BlockedOriginActions'
 import { CloseReportDialog } from '@/features/reports/CloseReportDialog'
 import { cardHeadline, headlineText } from '@/features/reports/cardLook'
 import { Button } from '@/shared/components/Button'
@@ -108,6 +109,7 @@ export function BulkActions({
   comFiltro = false,
   aoSelecionarTodos,
   bloqueado = false,
+  podeAdministrar = false,
   aoTerminar,
   aoDesfazer,
   aoLimpar,
@@ -130,6 +132,11 @@ export function BulkActions({
   aoSelecionarTodos?: () => Promise<void>
   /** A lista esta sendo relida: as acoes esperam o resultado novo. */
   bloqueado?: boolean
+  /**
+   * Quem olha administra o projeto: com card de origem bloqueada na selecao, aparecem
+   * "Manter" e "Apagar de vez". O membro nao ve — a API recusaria.
+   */
+  podeAdministrar?: boolean
   /** O lote terminou: a tela rele o que mudou e mostra o que nao mudou. */
   aoTerminar: (resultado: LoteFeito) => void
   /** O "Desfazer" do aviso. Sem ele, o aviso nao oferece. */
@@ -351,7 +358,7 @@ export function BulkActions({
     // acoes rolam para o lado, e a barra nao cobre as linhas.
     <section
       aria-label="Ações em lote"
-      className="sticky bottom-3 mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
+      className="sticky bottom-3 mt-3 flex animate-slide-up flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
     >
       <span className="mr-1 font-medium text-detail text-fg tabular-nums">
         {soAPagina ? `${contagem} nesta página.` : contagem}
@@ -590,7 +597,6 @@ export function BulkActions({
           </Acao>
         )}
 
-        {/* A subtarefa vai com o pai: fica de fora, e a lista do que nao mudou diz isso. */}
         {sprints !== null && (
           <Acao rotulo="Sprint" desligada={parado}>
             {[{ PublicId: null, Name: 'Backlog' }, ...sprints].map((sprint) => (
@@ -617,9 +623,6 @@ export function BulkActions({
                         ),
                       }
                     },
-                    cards
-                      .filter((card) => card.Parent !== null)
-                      .map((card) => ({ card, motivo: 'A subtarefa vai com o card pai.' })),
                   )
                 }
               >
@@ -629,6 +632,15 @@ export function BulkActions({
           </Acao>
         )}
       </div>
+
+      {podeAdministrar && (
+        <BlockedOriginActions
+          projectPublicId={projectPublicId}
+          cards={cards}
+          desligado={rodando || parado}
+          aoTerminar={() => aoTerminar({ mudaram: 0, falhas: [], voltas: [] })}
+        />
+      )}
 
       {/* O andamento ao lado dos botoes, que ficam: o foco continua onde estava. */}
       <span role="status" className="text-detail text-fg-muted tabular-nums">

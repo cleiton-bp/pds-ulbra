@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   MAX_STORY_POINTS,
@@ -31,19 +31,21 @@ import {
   PersonAvatar,
   PriorityIcon,
   StatusLozenge,
+  SubtaskMatchMark,
   statusTone,
 } from '@/features/reports/cardLook'
 import { backlogKeyboardCoordinates } from '@/features/reports/sprints/backlogKeyboard'
 import {
   CloseSprintDialog,
-  formatPoints,
   pointsText,
   SprintDialog,
   sprintDates,
   todayIso,
 } from '@/features/reports/sprints/sprintLook'
+import { ACTIVE_FILTER_CLASS, SearchShortcutHint } from '@/features/reports/WorkFilterBar'
 import { Button } from '@/shared/components/Button'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
+import { PointsChip, pointsShort } from '@/shared/components/cardFace'
 import {
   DropdownGroup,
   DropdownItem,
@@ -98,8 +100,8 @@ function lerRecolhidas(projeto: string): ReadonlySet<string> {
  *
  * **Planejar sem abrir card**: a linha mostra a prioridade e o prazo perto ou vencido, e
  * os pontos se estimam ali mesmo. **A busca** (titulo, texto, #numero) e "Meus cards"
- * escondem o que nao bate, sem mudar a ordem. Cada lista se recolhe, e fica recolhida
- * neste navegador.
+ * escondem o que nao bate, sem mudar a ordem — e acham o pai tambem pela subtarefa.
+ * Cada lista se recolhe, e fica recolhida neste navegador.
  */
 export function SprintBacklog({
   projectPublicId,
@@ -109,6 +111,9 @@ export function SprintBacklog({
   aoMudou,
   soonDays,
   sprintWeeks,
+  searchInputId,
+  aoContarBacklog,
+  barra,
 }: {
   projectPublicId: string
   /** As sprints que nao foram concluidas; nula enquanto carrega. */
@@ -122,6 +127,18 @@ export function SprintBacklog({
   soonDays: number
   /** A duracao com que as sprints nascem, em semanas: o dialogo de iniciar conta dela. */
   sprintWeeks?: number
+  /** O id do campo de busca: o "/" da tela o alcanca por ele, como o da barra de filtros. */
+  searchInputId?: string
+  /**
+   * Quantos cards o backlog tem, a cada leitura sem a busca: a aba "Backlog" diz o
+   * numero sem uma leitura so para isso.
+   */
+  aoContarBacklog?: (total: number) => void
+  /**
+   * O fim da linha da busca: o "Como funciona" e os arquivados, que a tela poe no mesmo
+   * lugar da barra da lista e do quadro. Aparece tambem enquanto o backlog carrega.
+   */
+  barra?: ReactNode
 }) {
   const secoes = [...(sprints ?? []).map((sprint) => sprint.PublicId), BACKLOG]
   const chaveDasSecoes = secoes.join(',')
@@ -135,6 +152,8 @@ export function SprintBacklog({
   const [falhou, setFalhou] = useState(false)
   const leitura = useRef(0)
   const segurando = useRef(false)
+  const contar = useRef(aoContarBacklog)
+  contar.current = aoContarBacklog
 
   // ─── A busca ───────────────────────────────────────────────────────────────
   const [busca, setBusca] = useState('')
@@ -183,6 +202,9 @@ export function SprintBacklog({
       setTotais(novosTotais)
       setLidos(novosLidos)
       setFalhou(false)
+      // So a leitura sem a busca e o tamanho do backlog: com ela, e o que bateu.
+      const doBacklog = novosTotais[BACKLOG]
+      if (!filters && doBacklog !== undefined) contar.current?.(doBacklog)
     } catch {
       if (minha === leitura.current) setFalhou(true)
     }
@@ -433,6 +455,7 @@ export function SprintBacklog({
   if (sprints === null || (listas === null && !falhou)) {
     return (
       <div className="flex flex-col gap-3">
+        {barra && <div className="mb-1 flex flex-wrap items-center gap-2">{barra}</div>}
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -441,12 +464,15 @@ export function SprintBacklog({
 
   if (falhou && listas === null) {
     return (
-      <div className="max-w-170 rounded-xl border border-border bg-surface-raised p-5">
-        <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
-          Não deu para carregar o backlog agora. Nada se perdeu: a falha foi ao consultar.
-        </p>
-        <Button onClick={() => void ler()}>Tentar de novo</Button>
-      </div>
+      <>
+        {barra && <div className="mb-4 flex flex-wrap items-center gap-2">{barra}</div>}
+        <div className="max-w-170 rounded-xl border border-border bg-surface-raised p-5">
+          <p className="mb-3.5 text-fg-muted text-body leading-relaxed">
+            Não deu para carregar o backlog agora. Nada se perdeu: a falha foi ao consultar.
+          </p>
+          <Button onClick={() => void ler()}>Tentar de novo</Button>
+        </div>
+      </>
     )
   }
 
@@ -459,6 +485,8 @@ export function SprintBacklog({
   return (
     <>
       <BuscaDoBacklog
+        id={searchInputId}
+        barra={barra}
         busca={busca}
         aoBuscar={setBusca}
         meus={meus}
@@ -617,12 +645,18 @@ export function SprintBacklog({
  * bate e nao muda a ordem** — a ordem e o plano do time.
  */
 function BuscaDoBacklog({
+  id,
+  barra,
   busca,
   aoBuscar,
   meus,
   aoAlternarMeus,
   aoLimpar,
 }: {
+  /** O id do campo, para o "/" da tela. */
+  id?: string
+  /** O fim da linha: o "Como funciona" e os arquivados. */
+  barra?: ReactNode
   busca: string
   aoBuscar: (texto: string) => void
   meus: boolean
@@ -646,13 +680,17 @@ function BuscaDoBacklog({
           <path d="m10.5 10.5 3 3" />
         </svg>
         <input
+          id={id}
           type="search"
           value={busca}
           onChange={(evento) => aoBuscar(evento.target.value)}
           placeholder="Buscar no backlog: título ou #número"
+          title={id ? 'Busca no título, no texto e no #número — atalho: /' : undefined}
+          aria-keyshortcuts={id ? '/' : undefined}
           maxLength={200}
-          className="h-8 w-full rounded-lg border border-border bg-surface-raised pr-2.5 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
+          className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-9 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
         />
+        <SearchShortcutHint visible={!!id && busca === ''} />
       </label>
       <button
         type="button"
@@ -661,7 +699,7 @@ function BuscaDoBacklog({
         className={cn(
           'flex h-8 flex-none items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors',
           meus
-            ? 'border-accent bg-accent text-accent-fg'
+            ? ACTIVE_FILTER_CLASS
             : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
         )}
       >
@@ -676,6 +714,7 @@ function BuscaDoBacklog({
           Limpar busca
         </button>
       )}
+      {barra}
     </search>
   )
 }
@@ -958,7 +997,7 @@ function ItemArrastavel({
             </svg>
           </button>
         }
-        pontos={card.Parent ? undefined : <PontosNaLinha card={card} aoGravar={aoEstimar} />}
+        pontos={<PontosNaLinha card={card} aoGravar={aoEstimar} />}
         menu={
           <DropdownMenu
             trigger={
@@ -1043,6 +1082,8 @@ function Linha({
       >
         {headlineText(titulo)}
       </Link>
+      {/* A busca e o "Meus cards" tambem acham o pai pela subtarefa: a marca diz isso. */}
+      <SubtaskMatchMark card={card} className="hidden max-w-40 flex-none sm:inline-flex" />
       {card.Priority && (
         <span className="flex min-w-0 max-w-28 flex-none text-caption text-fg-muted max-sm:[&_.truncate]:sr-only">
           <PriorityIcon priority={card.Priority} />
@@ -1072,25 +1113,6 @@ function Linha({
       {card.Assignee && <PersonAvatar pessoa={card.Assignee} />}
       {menu}
     </div>
-  )
-}
-
-/** "3 pts", "1 pt": o numero com o que ele e — sozinho, ao lado do de comentarios, parecia contador. */
-function pontosCurtos(pontos: number): string {
-  return `${formatPoints(pontos)} ${pontos === 1 ? 'pt' : 'pts'}`
-}
-
-/** Os pontos do card, num selo; sem estimativa, nada. */
-export function PointsChip({ points }: { points: number | null }) {
-  if (points === null) return null
-  return (
-    <span
-      title={pointsText(points)}
-      className="flex h-5 min-w-5 flex-none items-center justify-center whitespace-nowrap rounded-full bg-surface-sunken px-1.5 font-medium text-caption text-fg tabular-nums"
-    >
-      <span aria-hidden>{pontosCurtos(points)}</span>
-      <span className="sr-only">{pointsText(points)}</span>
-    </span>
   )
 }
 
@@ -1214,7 +1236,7 @@ function PontosNaLinha({
       title={card.StoryPoints === null ? 'Estimar' : 'Mudar a estimativa'}
       className="flex h-6 min-w-6 flex-none items-center justify-center whitespace-nowrap rounded-full bg-surface-sunken px-1.5 font-medium text-caption text-fg tabular-nums hover:ring-1 hover:ring-border pointer-coarse:h-10 pointer-coarse:min-w-10"
     >
-      <span aria-hidden>{card.StoryPoints === null ? '—' : pontosCurtos(card.StoryPoints)}</span>
+      <span aria-hidden>{card.StoryPoints === null ? '—' : pointsShort(card.StoryPoints)}</span>
       <span className="sr-only">
         {card.StoryPoints === null
           ? `Estimar #${card.Number}: sem estimativa`

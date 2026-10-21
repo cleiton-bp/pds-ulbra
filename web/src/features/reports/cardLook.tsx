@@ -1,16 +1,23 @@
-import { type ReactNode, useState } from 'react'
+import type { ReactNode } from 'react'
 import type {
-  CardAssigneeViewModel,
   CardColor,
-  CardLabelViewModel,
   CardParentViewModel,
-  CardPriorityViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
 } from '@/contracts'
-import { CARD_COLOR_CLASSES, CARD_COLOR_GLYPH } from '@/shared/components/CardChip'
+import { CARD_COLOR_CLASSES } from '@/shared/components/CardChip'
+import { ReportTypeGlyph, reportTypeName } from '@/shared/components/ReportTypeGlyph'
 import { cn } from '@/shared/lib/cn'
-import { teamTypeLabel } from '@/shared/lib/teamReportTypes'
+
+// As pecas que as previas da configuracao tambem desenham moram em `shared`; daqui
+// continuam saindo, para quem ja importava de `cardLook` nao mudar.
+export {
+  initialsOf,
+  MoreLabels,
+  PersonAvatar,
+  PriorityIcon,
+  priorityName,
+} from '@/shared/components/cardFace'
 
 /**
  * As pecas que a lista, o quadro e o card aberto desenham igual: o tipo, a
@@ -69,46 +76,22 @@ interface TypeLook {
 }
 
 /**
- * Um desenho por tipo, cada um com forma propria: o defeito e um ponto, a melhoria
- * uma seta para cima, a duvida uma interrogacao, e o card do time tres linhas de uma
- * tarefa — e nao um visto, que no quadro ja quer dizer a coluna que encerra.
+ * O desenho do tipo: **a cor e o desenho que o time escolheu** para aquele tipo de
+ * relato, na tela Tipos de relato — os desenhos moram em `ReportTypeGlyph`. O card do
+ * time tem o seu, fixo: tres linhas de uma tarefa, e nao um visto, que no quadro ja
+ * quer dizer a coluna que encerra.
  */
 function typeLook(card: Pick<ReportSummaryViewModel, 'Kind' | 'Type'>): TypeLook {
   if (card.Kind === 'Team')
     return { label: 'Do time', color: 'Blue', glyph: <path d="M3.6 4h4.8M3.6 6h4.8M3.6 8h3" /> }
 
-  switch (card.Type) {
-    case 'Bug':
-      return {
-        label: teamTypeLabel('Bug'),
-        color: 'Red',
-        glyph: <circle cx="6" cy="6" r="2.2" fill="currentColor" stroke="none" />,
-      }
-    case 'Improvement':
-      return {
-        label: teamTypeLabel('Improvement'),
-        color: 'Green',
-        glyph: <path d="M6 8.8V3.4M3.8 5.6 6 3.4l2.2 2.2" />,
-      }
-    case 'Question':
-      return {
-        label: teamTypeLabel('Question'),
-        color: 'Purple',
-        glyph: (
-          <>
-            <path d="M4.5 4.7a1.6 1.6 0 1 1 2.2 1.4c-.5.2-.7.6-.7 1.1" />
-            <circle cx="6" cy="8.9" r=".55" fill="currentColor" stroke="none" />
-          </>
-        ),
-      }
-    default:
-      // Tipo que esta versao ainda nao conhece: aparece com o proprio nome, num
-      // desenho neutro, em vez de sumir.
-      return {
-        label: card.Type ? teamTypeLabel(card.Type) : 'Relato',
-        color: 'Gray',
-        glyph: <circle cx="6" cy="6" r="2" />,
-      }
+  // Relato sem tipo nao deveria existir; se chegar, aparece neutro, em vez de sumir.
+  if (!card.Type) return { label: 'Relato', color: 'Gray', glyph: <circle cx="6" cy="6" r="2" /> }
+
+  return {
+    label: reportTypeName(card.Type),
+    color: card.Type.Color,
+    glyph: <ReportTypeGlyph icon={card.Type.Icon} />,
   }
 }
 
@@ -137,58 +120,6 @@ export function CardTypeIcon({ card }: { card: Pick<ReportSummaryViewModel, 'Kin
         {glyph}
       </svg>
       <span className="sr-only">{label}</span>
-    </span>
-  )
-}
-
-/**
- * As etiquetas que nao couberam, contadas: "+2". Quais sao vai no `title` e, para quem
- * usa leitor de tela, por extenso — o numero sozinho nao diz do que e.
- */
-export function MoreLabels({ labels }: { labels: CardLabelViewModel[] }) {
-  const nomes = labels.map((etiqueta) => etiqueta.Name).join(', ')
-
-  return (
-    <span title={nomes} className="text-caption text-fg-muted">
-      +{labels.length}
-      <span className="sr-only">
-        {labels.length === 1 ? ' etiqueta: ' : ' etiquetas: '}
-        {nomes}
-      </span>
-    </span>
-  )
-}
-
-/** O nome da prioridade como a tela escreve: a aposentada vem marcada. */
-export function priorityName(priority: CardPriorityViewModel) {
-  return priority.IsActive ? priority.Name : `${priority.Name} (desativada)`
-}
-
-/**
- * A prioridade: o desenho na cor que o time escolheu, e o nome ao lado.
- *
- * **Um desenho so para todas.** As prioridades sao do projeto — o time renomeia,
- * reordena e cria outras —, entao uma seta para cima ou para baixo afirmaria um nivel
- * que a tela nao sabe. Quem diz qual e qual e o nome.
- */
-export function PriorityIcon({ priority }: { priority: CardPriorityViewModel }) {
-  const nome = priorityName(priority)
-
-  return (
-    <span title={`Prioridade ${nome}`} className="inline-flex min-w-0 items-center gap-1">
-      <svg
-        viewBox="0 0 12 12"
-        className={cn('size-3.5 flex-none', CARD_COLOR_GLYPH[priority.Color])}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        aria-hidden
-      >
-        <path d="M2.6 9.6V7.8M6 9.6V5.2M9.4 9.6V2.6" />
-      </svg>
-      <span className="sr-only">Prioridade </span>
-      <span className="min-w-0 truncate">{nome}</span>
     </span>
   )
 }
@@ -263,91 +194,20 @@ export function StatusLozenge({
 }
 
 /**
- * As iniciais de um nome: a primeira letra do primeiro e do ultimo pedaco **que
- * comeca com letra ou numero** — "Ana Souza (teste)" e AS, e nao A( nem At. Sem nome no Google,
- * a API manda o e-mail, e a inicial e a do comeco dele.
+ * O original do duplicado, numa linha: dois quadrados sobrepostos, o "Duplicado de", o
+ * numero e o titulo dele. **Texto, e nao link**: na linha da tabela, o clique abre o
+ * proprio duplicado — e o original esta a um clique, dentro dele.
  */
-export function initialsOf(nome: string): string {
-  const letra = (pedaco: string) => pedaco.match(/^[\p{L}\p{N}]/u)?.[0] ?? ''
-  if (nome.includes('@')) return letra(nome) || '?'
-
-  const pedacos = nome.split(/\s+/).map(letra).filter(Boolean)
-  const primeira = pedacos[0] ?? '?'
-  const ultima = pedacos.length > 1 ? (pedacos.at(-1) ?? '') : ''
-  return `${primeira}${ultima}`
-}
-
-/**
- * Quem esta com o card: a foto do Google, senao as iniciais. Quem saiu do time
- * aparece apagado, com a borda tracejada e a marca dita.
- *
- * A foto que nao carrega (link vencido, rede) cai nas iniciais, em vez de deixar um
- * circulo vazio — e a falha e da foto, e nao do lugar: trocar de pessoa tenta a foto
- * da nova.
- */
-export function PersonAvatar({
-  pessoa,
-  size = 'sm',
-}: {
-  pessoa: CardAssigneeViewModel
-  size?: 'sm' | 'md'
-}) {
-  const [falhou, setFalhou] = useState<string | null>(null)
-  const nome = pessoa.Name || 'Sem nome'
-  const descricao = pessoa.InTeam ? `Com ${nome}` : `Com ${nome} (saiu do time)`
-  const foto = pessoa.AvatarUrl && pessoa.AvatarUrl !== falhou ? pessoa.AvatarUrl : null
-
-  return (
-    <span
-      title={descricao}
-      className={cn(
-        'flex flex-none items-center justify-center overflow-hidden rounded-full border border-border bg-surface-sunken font-medium text-caption text-fg',
-        size === 'sm' ? 'size-6' : 'size-7',
-        !pessoa.InTeam && 'border-dashed text-fg-muted opacity-70',
-      )}
-    >
-      {foto ? (
-        <img
-          src={foto}
-          alt=""
-          className="size-full"
-          referrerPolicy="no-referrer"
-          onError={() => setFalhou(foto)}
-        />
-      ) : (
-        // A caixa alta e so das iniciais: no nome escondido, o leitor de tela soletraria.
-        <span aria-hidden className="uppercase">
-          {initialsOf(nome)}
-        </span>
-      )}
-      <span className="sr-only">{descricao}</span>
-    </span>
-  )
-}
-
-/**
- * O pai da subtarefa, numa linha: o numero e o titulo dele. **Texto, e nao link**: na
- * frente do card e na linha da tabela, o clique abre a propria subtarefa — e o pai
- * esta a um clique, dentro dela.
- *
- * **O original do duplicado tem outra cara**: dois quadrados sobrepostos e o "Duplicado
- * de" escrito. Com a seta da subtarefa, o duplicado se lia como subtarefa do original.
- */
-export function ParentLine({
-  parent,
-  kind = 'subtask',
+export function DuplicateLine({
+  original,
   className,
 }: {
-  parent: CardParentViewModel
-  /** O que o outro card e deste: o pai da subtarefa, ou o original do duplicado. */
-  kind?: 'subtask' | 'duplicate'
+  original: CardParentViewModel
   className?: string
 }) {
-  const duplicado = kind === 'duplicate'
-  const prefixo = duplicado ? 'Duplicado de' : 'Subtarefa de'
   return (
     <span
-      title={`${prefixo} #${parent.Number} ${parent.Headline}`}
+      title={`Duplicado de #${original.Number} ${original.Headline}`}
       className={cn('flex min-w-0 items-center gap-1 text-caption text-fg-muted', className)}
     >
       <svg
@@ -360,19 +220,60 @@ export function ParentLine({
         strokeLinejoin="round"
         aria-hidden
       >
-        {duplicado ? (
-          <path d="M4 4.2V2.8A.8.8 0 0 1 4.8 2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H7.8M2.8 4.2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H2.8a.8.8 0 0 1-.8-.8V5a.8.8 0 0 1 .8-.8Z" />
-        ) : (
-          <path d="M3 2v4.5a1.5 1.5 0 0 0 1.5 1.5H10M7.5 5.5 10 8l-2.5 2.5" />
-        )}
+        <path d="M4 4.2V2.8A.8.8 0 0 1 4.8 2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H7.8M2.8 4.2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H2.8a.8.8 0 0 1-.8-.8V5a.8.8 0 0 1 .8-.8Z" />
       </svg>
-      {duplicado ? (
-        <span className="flex-none">{prefixo}</span>
-      ) : (
-        <span className="sr-only">{prefixo} </span>
+      <span className="flex-none">Duplicado de</span>
+      <span className="flex-none font-mono">#{original.Number}</span>{' '}
+      <span className="min-w-0 truncate">{original.Headline}</span>
+    </span>
+  )
+}
+
+/**
+ * Por que o pai esta aqui: a subtarefa nao aparece sozinha na tela de Trabalho, e o
+ * filtro de responsavel e a busca trazem o pai no lugar dela. "1 subtarefa sua", "2
+ * subtarefas de Ana", "na subtarefa" — quem procura sabe que o que busca esta dentro.
+ * Sem filtro, ou sem subtarefa que case, nada.
+ */
+export function SubtaskMatchMark({
+  card,
+  className,
+}: {
+  card: Pick<ReportSummaryViewModel, 'SubtaskMatch'>
+  className?: string
+}) {
+  const marca = card.SubtaskMatch
+  if (!marca) return null
+  const partes = marca.Assignees.map((pessoa) => {
+    const quantas = pessoa.Count === 1 ? '1 subtarefa' : `${pessoa.Count} subtarefas`
+    if (pessoa.IsMe) return `${quantas} ${pessoa.Count === 1 ? 'sua' : 'suas'}`
+    // So o primeiro nome: a marca e curta, e o nome inteiro fica no responsavel dela.
+    return `${quantas} de ${pessoa.Name.split(' ')[0] || pessoa.Name}`
+  })
+  if (marca.Search) partes.push('na subtarefa')
+  if (partes.length === 0) return null
+  const texto = partes.join(' · ')
+  return (
+    <span
+      title={`Achado pela subtarefa: ${texto}`}
+      className={cn(
+        'inline-flex max-w-full items-center gap-1 rounded-full border border-chip-blue-border bg-chip-blue-surface px-1.5 py-px text-caption text-chip-blue-fg',
+        className,
       )}
-      <span className="flex-none font-mono">#{parent.Number}</span>{' '}
-      <span className="min-w-0 truncate">{parent.Headline}</span>
+    >
+      <svg
+        viewBox="0 0 12 12"
+        className="size-3 flex-none"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M3 2v4.5a1.5 1.5 0 0 0 1.5 1.5H10M7.5 5.5 10 8l-2.5 2.5" />
+      </svg>
+      <span className="truncate">{texto}</span>
     </span>
   )
 }
@@ -456,6 +357,49 @@ export function BlockedMark({
         <path d="M3 9 9 3" />
       </svg>
       <span className="truncate">Bloqueado por {lista}</span>
+    </span>
+  )
+}
+
+/**
+ * "Origem bloqueada": o relato veio de um endereco que o projeto bloqueou, e o time
+ * ainda nao decidiu se fica com ele. **So marca** — o card anda como qualquer outro, e
+ * a decisao (manter ou apagar de vez) e de quem administra, pelo lote da lista ou pela
+ * tela de Dominios. Laranja, com a palavra, para quem nao ve a cor.
+ */
+export function BlockedOriginMark({
+  card,
+  className,
+}: {
+  card: Pick<ReportSummaryViewModel, 'BlockedOrigin' | 'Origin'>
+  className?: string
+}) {
+  if (!card.BlockedOrigin) return null
+  return (
+    <span
+      title={
+        card.Origin
+          ? `Veio de ${card.Origin}, um domínio que o projeto bloqueou`
+          : 'Veio de um domínio que o projeto bloqueou'
+      }
+      className={cn(
+        'inline-flex max-w-full items-center gap-1 rounded-full border border-chip-orange-border bg-chip-orange-surface px-1.5 py-px text-caption text-chip-orange-fg',
+        className,
+      )}
+    >
+      <svg
+        viewBox="0 0 12 12"
+        className="size-3 flex-none"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        aria-hidden
+      >
+        <circle cx="6" cy="6" r="4.25" />
+        <path d="M3.5 6h5" />
+      </svg>
+      <span className="truncate">Origem bloqueada</span>
     </span>
   )
 }

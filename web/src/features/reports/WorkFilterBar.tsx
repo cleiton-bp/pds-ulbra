@@ -8,22 +8,20 @@ import {
 import {
   projectLabelService,
   projectPriorityService,
+  projectReportTypeService,
   projectTeamService,
   type ReportFilters,
-  type ReportFilterType,
   type ReportSort,
   type ReportSortField,
+  TEAM_CARD_FILTER,
 } from '@/data'
 import type { ListFilters } from '@/features/reports/useWorkFilters'
+import { reportTypeName } from '@/shared/components/ReportTypeGlyph'
+import { SearchShortcutHint } from '@/shared/components/SearchShortcutHint'
 import { cn } from '@/shared/lib/cn'
 
-/** Os tipos como o time os chama, e o card do time. */
-const TIPOS: { value: ReportFilterType; label: string }[] = [
-  { value: 'bug', label: 'Defeito' },
-  { value: 'improvement', label: 'Melhoria' },
-  { value: 'question', label: 'Dúvida' },
-  { value: 'team', label: 'Card do time' },
-]
+/** O card do time, no fim do menu de tipo: ele nao e um tipo de relato do projeto. */
+const CARD_DO_TIME: Opcao[] = [{ value: TEAM_CARD_FILTER, label: 'Card do time' }]
 
 /** As ordens do menu "Ordem": cada dado na direcao que responde a pergunta mais comum. */
 const ORDENS: { sort: ReportSort; label: string }[] = [
@@ -100,8 +98,9 @@ export interface ListControls {
 
 /**
  * Os filtros da tela de Trabalho: a busca, os atalhos ("Meus cards", "Vencidos" e "Em
- * aberto") e os menus de marcar — responsavel, etiqueta, prioridade e tipo (com as
- * subtarefas). Valem para a lista e para o quadro. **Dentro de um menu, ou; entre
+ * aberto") e os menus de marcar — responsavel, etiqueta, prioridade e tipo. Valem para
+ * a lista e para o quadro. A subtarefa nao aparece sozinha: o responsavel e a busca
+ * trazem o pai dela, com a marca ("1 subtarefa sua", "na subtarefa"). **Dentro de um menu, ou; entre
  * filtros, e.** Na lista, tambem a coluna, a sprint e a ordem (`lista`).
  *
  * O filtro ligado aparece no proprio controle — o atalho pressionado, o menu **com o
@@ -110,6 +109,15 @@ export interface ListControls {
  *
  * **No celular, a busca e um botao "Filtros"**: os atalhos e os menus ocupavam meia
  * tela antes do primeiro card, e abrem so quando a pessoa pede.
+ *
+ * **Na tela larga, a vista tem o que mais se usa**: a busca, os atalhos, o responsavel
+ * e a etiqueta. Prioridade, tipo, coluna e sprint esperam no "Mais filtros · n" — o
+ * mesmo jeito do "Filtros" do celular —, e o que estiver ligado fica a vista mesmo com
+ * ele fechado. A ordem e os arquivados ficam a direita, depois de um traco: mudam o
+ * que se ve, mas nao sao filtro.
+ *
+ * **Cada menu ligado tem o seu "×"** (e o "Limpar" no pe do menu): tirar um filtro nao
+ * pede limpar todos.
  */
 export function WorkFilterBar({
   projectPublicId,
@@ -121,7 +129,9 @@ export function WorkFilterBar({
   arquivados = false,
   buscando = false,
   searchInputId,
+  origemBloqueada = false,
   children,
+  comoFunciona,
 }: {
   projectPublicId: string
   filters: ReportFilters
@@ -137,10 +147,23 @@ export function WorkFilterBar({
   buscando?: boolean
   /** O id do campo de busca — o atalho "/" da tela o alcanca por ele. */
   searchInputId?: string
-  /** O que vem no fim da linha: o botao dos arquivados, na lista. */
+  /**
+   * Ha card marcado com a origem bloqueada na tela: o atalho "Origem bloqueada"
+   * aparece. Ligado, ele fica ate alguem desligar — mesmo sem card marcado, para o
+   * filtro nunca sumir da vista enquanto esconde cards.
+   */
+  origemBloqueada?: boolean
+  /** O que vem no fim da linha, depois da ordem: as raias do quadro e os arquivados. */
   children?: ReactNode
+  /**
+   * A ajuda recolhida ("Como funciona"), na mesma linha: aberta, desce para baixo da
+   * barra inteira (`HELP_IN_BAR`), e o quadro continua com uma faixa so antes das colunas.
+   */
+  comoFunciona?: ReactNode
 }) {
   const [aberta, setAberta] = useState(false)
+  /** "Mais filtros", na tela larga: a prioridade, o tipo, a coluna e a sprint. */
+  const [mais, setMais] = useState(false)
 
   const alternar = <K extends 'assignees' | 'labels' | 'priorities' | 'types'>(
     campo: K,
@@ -189,6 +212,20 @@ export function WorkFilterBar({
     ),
   )
 
+  // Os tipos de relato do projeto: os ativos primeiro, na ordem da ferramenta, e os
+  // desativados depois, marcados. **O desativado continua no menu**, ao contrario da
+  // prioridade: ele sai da ferramenta, mas os relatos que ja o tem continuam no quadro,
+  // e achar todos eles e justamente a pergunta de quem filtra.
+  const [tipos, lerTipos] = useOpcoesAoAbrir(
+    useCallback(async () => {
+      const lista = await projectReportTypeService.listReportTypes(projectPublicId)
+      return [
+        ...lista.filter((tipo) => tipo.IsActive),
+        ...lista.filter((tipo) => !tipo.IsActive),
+      ].map((tipo) => ({ value: tipo.PublicId, label: reportTypeName(tipo) }))
+    }, [projectPublicId]),
+  )
+
   // **O valor que sumiu sai do filtro** — a etiqueta apagada, a pessoa que saiu do
   // time, a prioridade apagada. O filtro fica guardado na aba; sem isto, ele continuaria
   // ligado sobre algo que nao existe, e o menu nem o mostraria para desmarcar. As listas
@@ -197,6 +234,7 @@ export function WorkFilterBar({
   const temPessoa = filters.assignees.some((valor) => valor !== 'me' && valor !== 'none')
   const temEtiqueta = filters.labels.length > 0
   const temPrioridade = filters.priorities.some((valor) => valor !== 'none')
+  const temTipo = filters.types.some((valor) => valor !== TEAM_CARD_FILTER)
   useEffect(() => {
     if (temPessoa) lerPessoas()
   }, [temPessoa, lerPessoas])
@@ -207,6 +245,9 @@ export function WorkFilterBar({
     if (temPrioridade) lerPrioridades()
   }, [temPrioridade, lerPrioridades])
   useEffect(() => {
+    if (temTipo) lerTipos()
+  }, [temTipo, lerTipos])
+  useEffect(() => {
     const existe = (lista: Opcao[] | 'falhou' | null, valor: string) =>
       !Array.isArray(lista) ||
       valor === 'me' ||
@@ -215,13 +256,17 @@ export function WorkFilterBar({
     const assignees = filters.assignees.filter((valor) => existe(pessoas, valor))
     const labels = filters.labels.filter((valor) => existe(etiquetas, valor))
     const priorities = filters.priorities.filter((valor) => existe(prioridades, valor))
+    const types = filters.types.filter(
+      (valor) => valor === TEAM_CARD_FILTER || existe(tipos, valor),
+    )
     if (
       assignees.length !== filters.assignees.length ||
       labels.length !== filters.labels.length ||
-      priorities.length !== filters.priorities.length
+      priorities.length !== filters.priorities.length ||
+      types.length !== filters.types.length
     )
-      onChange({ ...filters, assignees, labels, priorities })
-  }, [pessoas, etiquetas, prioridades, filters, onChange])
+      onChange({ ...filters, assignees, labels, priorities, types })
+  }, [pessoas, etiquetas, prioridades, tipos, filters, onChange])
 
   // O mesmo para a coluna e a sprint da lista: a coluna apagada, a sprint apagada (a
   // concluida continua no filtro). A sprint que sumiu derrubaria a lista inteira (a API
@@ -282,6 +327,22 @@ export function WorkFilterBar({
   // No celular, quantos estao ligados fora da busca: e o que o botao "Filtros" diz.
   const ligadosForaDaBusca = active - (filters.search.trim() ? 1 : 0)
 
+  // Os que moram no "Mais filtros", e quantos deles estao ligados.
+  const comColuna = !!lista && !arquivados
+  const comSprint = !!lista?.sprints && !arquivados
+  const colunaLigada = comColuna && (lista?.filters.columns.length ?? 0) > 0
+  const sprintLigada = comSprint && !!lista?.filters.sprint
+  const ligadosEmMais =
+    (filters.priorities.length > 0 ? 1 : 0) +
+    (filters.types.length > 0 ? 1 : 0) +
+    (colunaLigada ? 1 : 0) +
+    (sprintLigada ? 1 : 0)
+  // No celular, tudo abre pelo "Filtros"; na tela larga, o que esta a vista fica sempre.
+  const aVista = aberta ? 'contents' : 'hidden sm:contents'
+  // O de "Mais filtros" aparece com ele aberto — ou ligado: filtro ligado nao some da vista.
+  const emMais = (ligado: boolean) =>
+    cn(aberta ? 'contents' : 'hidden', mais || ligado ? 'sm:contents' : 'sm:hidden')
+
   return (
     <search className="mt-3 mb-3 flex flex-wrap items-center gap-2" aria-label="Filtrar cards">
       <label className="relative flex min-w-0 flex-[1_1_12rem] sm:max-w-80">
@@ -319,9 +380,11 @@ export function WorkFilterBar({
           onChange={(evento) => onChange({ ...filters, search: evento.target.value })}
           placeholder="Título, texto, #número ou protocolo"
           title="Busca no título, no texto, no #número e no protocolo — atalho: /"
+          aria-keyshortcuts={searchInputId ? '/' : undefined}
           maxLength={200}
-          className="h-8 w-full rounded-lg border border-border bg-surface-raised pr-20 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
+          className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-20 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
         />
+        <SearchShortcutHint visible={!!searchInputId && !buscando && filters.search === ''} />
         {/* "Buscando…" dentro do campo, e nao num aviso: e onde a pessoa esta olhando. */}
         <span
           role="status"
@@ -331,7 +394,7 @@ export function WorkFilterBar({
         </span>
       </label>
 
-      {/* No celular, os filtros abrem por aqui. Na tela larga, ficam todos na linha. */}
+      {/* No celular, os filtros abrem por aqui. Na tela larga, os mais usados ficam na linha. */}
       <button
         type="button"
         aria-expanded={aberta}
@@ -345,7 +408,7 @@ export function WorkFilterBar({
         {ligadosForaDaBusca > 0 ? `Filtros · ${ligadosForaDaBusca}` : 'Filtros'}
       </button>
 
-      <div className={cn(aberta ? 'contents' : 'hidden sm:contents')}>
+      <div className={aVista}>
         <Atalho
           pressionado={filters.assignees.includes('me')}
           aoAlternar={() => alternar('assignees', 'me')}
@@ -370,8 +433,55 @@ export function WorkFilterBar({
           </Atalho>
         )}
 
-        {/* Nos arquivados, nao: a contagem das colunas e a da tela de Trabalho. */}
-        {lista && !arquivados && (
+        {(origemBloqueada || filters.blockedOrigin) && (
+          <Atalho
+            pressionado={filters.blockedOrigin}
+            aoAlternar={() => onChange({ ...filters, blockedOrigin: !filters.blockedOrigin })}
+            title="Só os relatos que vieram de um domínio bloqueado e ninguém decidiu manter"
+          >
+            Origem bloqueada
+          </Atalho>
+        )}
+
+        <MenuDeMarcar
+          rotulo="Responsável"
+          escolhidos={filters.assignees}
+          fixas={[{ value: 'none', label: 'Sem responsável' }]}
+          conhecidas={{ me: 'você' }}
+          opcoes={pessoas}
+          aoAbrir={lerPessoas}
+          aoAlternar={(valor) => alternar('assignees', valor)}
+          aoLimpar={() => onChange({ ...filters, assignees: [] })}
+        />
+        <MenuDeMarcar
+          rotulo="Etiqueta"
+          escolhidos={filters.labels}
+          opcoes={etiquetas}
+          aoAbrir={lerEtiquetas}
+          aoAlternar={(valor) => alternar('labels', valor)}
+          aoLimpar={() => onChange({ ...filters, labels: [] })}
+          vazio="O projeto ainda não tem etiquetas."
+        />
+
+        {/* So na tela larga: no celular, o "Filtros" ja abriu tudo. */}
+        <button
+          type="button"
+          aria-expanded={mais}
+          onClick={() => setMais((valor) => !valor)}
+          className={cn(
+            CONTROLE,
+            'hidden sm:flex',
+            ligadosEmMais > 0 ? CONTROLE_LIGADO : CONTROLE_DESLIGADO,
+          )}
+        >
+          {ligadosEmMais > 0 ? `Mais filtros · ${ligadosEmMais}` : 'Mais filtros'}
+          <Seta />
+        </button>
+      </div>
+
+      {/* Nos arquivados, nao: a contagem das colunas e a da tela de Trabalho. */}
+      {lista && comColuna && (
+        <div className={emMais(colunaLigada)}>
           <MenuDeMarcar
             rotulo="Coluna"
             escolhidos={lista.filters.columns}
@@ -387,27 +497,13 @@ export function WorkFilterBar({
                   : [...lista.filters.columns, valor],
               })
             }
+            aoLimpar={() => lista.onChange({ ...lista.filters, columns: [] })}
             falha="Não deu para carregar as colunas agora."
             aoTentarDeNovo={lista.aoRecarregarColunas}
           />
-        )}
-        <MenuDeMarcar
-          rotulo="Responsável"
-          escolhidos={filters.assignees}
-          fixas={[{ value: 'none', label: 'Sem responsável' }]}
-          conhecidas={{ me: 'você' }}
-          opcoes={pessoas}
-          aoAbrir={lerPessoas}
-          aoAlternar={(valor) => alternar('assignees', valor)}
-        />
-        <MenuDeMarcar
-          rotulo="Etiqueta"
-          escolhidos={filters.labels}
-          opcoes={etiquetas}
-          aoAbrir={lerEtiquetas}
-          aoAlternar={(valor) => alternar('labels', valor)}
-          vazio="O projeto ainda não tem etiquetas."
-        />
+        </div>
+      )}
+      <div className={emMais(filters.priorities.length > 0)}>
         <MenuDeMarcar
           rotulo="Prioridade"
           escolhidos={filters.priorities}
@@ -415,30 +511,29 @@ export function WorkFilterBar({
           opcoes={prioridades}
           aoAbrir={lerPrioridades}
           aoAlternar={(valor) => alternar('priorities', valor)}
+          aoLimpar={() => onChange({ ...filters, priorities: [] })}
         />
+      </div>
+      <div className={emMais(filters.types.length > 0)}>
         <MenuDeMarcar
           rotulo="Tipo"
           escolhidos={filters.types}
-          opcoes={TIPOS}
-          aoAlternar={(valor) => alternar('types', valor as ReportFilterType)}
-          // As subtarefas ficam marcadas de saida: desmarcar as esconde, e a lista volta
-          // a mostrar so os cards de primeiro nivel.
-          extra={{
-            label: 'Subtarefas',
-            marcada: !filters.hideSubtasks,
-            aoAlternar: () => onChange({ ...filters, hideSubtasks: !filters.hideSubtasks }),
-            resumo: 'sem subtarefas',
-          }}
+          fixasNoFim={CARD_DO_TIME}
+          opcoes={tipos}
+          aoAbrir={lerTipos}
+          aoAlternar={(valor) => alternar('types', valor)}
+          aoLimpar={() => onChange({ ...filters, types: [] })}
         />
-        {lista?.sprints && !arquivados && (
+      </div>
+      {lista?.sprints && comSprint && (
+        <div className={emMais(sprintLigada)}>
           <MenuDeSprint
             sprints={lista.sprints}
             escolhida={lista.filters.sprint}
             aoEscolher={(sprint) => lista.onChange({ ...lista.filters, sprint })}
           />
-        )}
-        {lista && <MenuDeOrdem ordem={lista.ordem} aoOrdenar={lista.aoOrdenar} />}
-      </div>
+        </div>
+      )}
 
       {active > 0 && (
         <button
@@ -451,14 +546,54 @@ export function WorkFilterBar({
         </button>
       )}
 
-      {children && <div className="ml-auto flex flex-none items-center gap-2">{children}</div>}
+      {comoFunciona}
+
+      {(lista || children) && (
+        <FilterBarEnd>
+          {lista && (
+            <div className={aVista}>
+              <MenuDeOrdem ordem={lista.ordem} aoOrdenar={lista.aoOrdenar} />
+            </div>
+          )}
+          {children}
+        </FilterBarEnd>
+      )}
     </search>
   )
 }
 
+/**
+ * O fim da barra, a direita e depois de um traco: o que muda o que se ve sem ser filtro
+ * — a ordem, as raias, os arquivados. **O mesmo lugar na lista, no quadro e no
+ * backlog**: quem procura os arquivados nao procura em cada vista.
+ */
+export function FilterBarEnd({ children }: { children: ReactNode }) {
+  return (
+    <div className="ml-auto flex flex-none items-center gap-2 sm:border-border sm:border-l sm:pl-3">
+      {children}
+    </div>
+  )
+}
+
+/**
+ * As classes do "Como funciona" dentro da barra: fechado, e mais um item da linha;
+ * aberto, desce para uma linha propria embaixo de tudo — a explicacao nao espreme os
+ * filtros.
+ */
+export const HELP_IN_BAR = 'flex-none open:order-last open:basis-full'
+
+/** A dica do atalho "/" mora nos componentes compartilhados: o hub de projetos tambem a usa. */
+export { SearchShortcutHint }
+
 const CONTROLE =
-  'flex h-8 flex-none items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors'
-const CONTROLE_LIGADO = 'border-accent bg-accent text-accent-fg'
+  'flex h-8 flex-none animate-fade-in items-center gap-1.5 rounded-lg border px-3 text-detail transition-all duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100'
+/**
+ * O filtro ligado com um realce suave — o tom do destaque por tras, e a borda dele —, e
+ * nao com a cor do botao principal: cinco filtros ligados pareciam cinco botoes de
+ * "Salvar", e o "Novo card" perdia o lugar de acao principal da tela.
+ */
+export const ACTIVE_FILTER_CLASS = 'border-accent bg-accent/8 text-fg hover:bg-accent/12'
+const CONTROLE_LIGADO = ACTIVE_FILTER_CLASS
 const CONTROLE_DESLIGADO =
   'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg'
 
@@ -512,23 +647,26 @@ function Marca({ marcada, redonda = false }: { marcada: boolean; redonda?: boole
     <span
       aria-hidden
       className={cn(
-        'flex size-4 flex-none items-center justify-center border',
+        'flex size-4 flex-none items-center justify-center border transition-colors duration-150',
         redonda ? 'rounded-full' : 'rounded',
         marcada ? 'border-accent bg-accent text-accent-fg' : 'border-border',
       )}
     >
-      {marcada && (
-        <svg
-          aria-hidden
-          viewBox="0 0 12 12"
-          className="size-3"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path d="M2.5 6.3 4.8 8.6 9.5 3.9" />
-        </svg>
-      )}
+      {/* O visto fica sempre no lugar e cresce ao marcar: trocar o `svg` inteiro
+          faria a marca pular de vazia para cheia. */}
+      <svg
+        aria-hidden
+        viewBox="0 0 12 12"
+        className={cn(
+          'size-3 transition-transform duration-150 ease-out motion-reduce:transition-none',
+          marcada ? 'scale-100' : 'scale-0',
+        )}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path d="M2.5 6.3 4.8 8.6 9.5 3.9" />
+      </svg>
     </span>
   )
 }
@@ -536,7 +674,7 @@ function Marca({ marcada, redonda = false }: { marcada: boolean; redonda?: boole
 const ITEM =
   'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body text-fg outline-none data-[highlighted]:bg-surface-sunken'
 const MOLDURA =
-  'z-dialog max-h-80 w-64 overflow-y-auto rounded-xl border border-border bg-surface-raised p-1.5'
+  'z-dialog max-h-80 w-64 origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto rounded-xl border border-border bg-surface-raised p-1.5 data-[state=closed]:animate-menu-out data-[state=open]:animate-menu-in'
 
 /**
  * Um menu de marcar: escolher um nao fecha o menu, para marcar outro em seguida. O
@@ -556,7 +694,7 @@ function MenuDeMarcar({
   vazio,
   falha = 'Não deu para carregar as opções agora.',
   aoTentarDeNovo,
-  extra,
+  aoLimpar,
 }: {
   rotulo: string
   escolhidos: string[]
@@ -574,8 +712,8 @@ function MenuDeMarcar({
   falha?: string
   /** O "Tentar de novo" dentro do menu, quando a leitura falhou. */
   aoTentarDeNovo?: () => void
-  /** Uma caixa a mais, depois de uma linha: as subtarefas, no menu do tipo. */
-  extra?: { label: string; marcada: boolean; aoAlternar: () => void; resumo: string }
+  /** Desmarca todos deste menu: o "×" ao lado e o "Limpar" no pe. */
+  aoLimpar: () => void
 }) {
   const todas = [...fixas, ...(Array.isArray(opcoes) ? opcoes : []), ...fixasNoFim]
   const nomeDe = (valor: string) => {
@@ -583,8 +721,7 @@ function MenuDeMarcar({
     return achada ? (achada.curto ?? achada.label) : conhecidas[valor]
   }
   const nomes = escolhidos.map(nomeDe)
-  const comExtra = extra !== undefined && !extra.marcada
-  const partes = [...nomes, ...(comExtra ? [extra.resumo] : [])]
+  const partes = nomes
   const ligado = partes.length > 0
   const conhecidosTodos = nomes.every((nome) => nome !== undefined)
 
@@ -596,92 +733,131 @@ function MenuDeMarcar({
   const inteiro = conhecidosTodos ? partes.join(', ') : ''
 
   return (
-    <Menu.Root onOpenChange={(aberto) => aberto && aoAbrir?.()}>
-      <Menu.Trigger
-        className={cn(CONTROLE, ligado ? CONTROLE_LIGADO : CONTROLE_DESLIGADO)}
-        title={inteiro ? `${rotulo}: ${inteiro}` : undefined}
-        aria-label={
-          !ligado
-            ? rotulo
-            : inteiro
-              ? `${rotulo}: ${inteiro}`
-              : `${rotulo}, ${partes.length} ${partes.length === 1 ? 'escolhido' : 'escolhidos'}`
-        }
-      >
-        {resumo ? (
-          <span className="max-w-48 truncate">
-            {rotulo}: {resumo}
-          </span>
-        ) : (
-          <>
-            {rotulo}
-            {ligado && <span className="tabular-nums">· {partes.length}</span>}
-          </>
-        )}
-        <Seta />
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Content align="start" sideOffset={6} className={MOLDURA}>
-          {todas.map((opcao) => (
-            <Menu.CheckboxItem
-              key={opcao.value}
-              checked={escolhidos.includes(opcao.value)}
-              onSelect={(evento) => evento.preventDefault()}
-              onCheckedChange={() => aoAlternar(opcao.value)}
-              className={ITEM}
-            >
-              <Marca marcada={escolhidos.includes(opcao.value)} />
-              <span className="min-w-0 truncate">{opcao.label}</span>
-            </Menu.CheckboxItem>
-          ))}
-          {opcoes === null && aoAbrir && (
-            <p className="px-2.5 py-2 text-detail text-fg-muted">Carregando…</p>
+    <ComTirar rotulo={rotulo} ligado={ligado} aoTirar={aoLimpar}>
+      <Menu.Root onOpenChange={(aberto) => aberto && aoAbrir?.()}>
+        <Menu.Trigger
+          className={cn(
+            CONTROLE,
+            ligado ? cn(CONTROLE_LIGADO, 'rounded-r-none') : CONTROLE_DESLIGADO,
           )}
-          {opcoes === 'falhou' && (
-            <div className="px-2.5 py-2 text-detail text-fg-muted">
-              {falha}
-              {aoTentarDeNovo && (
-                <Menu.Item
-                  onSelect={(evento) => {
-                    evento.preventDefault()
-                    aoTentarDeNovo()
-                  }}
-                  className="mt-1 cursor-pointer rounded font-medium text-fg underline outline-none data-[highlighted]:bg-surface-sunken"
-                >
-                  Tentar de novo
-                </Menu.Item>
-              )}
-            </div>
-          )}
-          {Array.isArray(opcoes) &&
-            opcoes.length === 0 &&
-            fixas.length === 0 &&
-            fixasNoFim.length === 0 &&
-            vazio && <p className="px-2.5 py-2 text-detail text-fg-muted">{vazio}</p>}
-          {extra && (
+          title={inteiro ? `${rotulo}: ${inteiro}` : undefined}
+          aria-label={
+            !ligado
+              ? rotulo
+              : inteiro
+                ? `${rotulo}: ${inteiro}`
+                : `${rotulo}, ${partes.length} ${partes.length === 1 ? 'escolhido' : 'escolhidos'}`
+          }
+        >
+          {resumo ? (
+            <span className="max-w-48 truncate">
+              {rotulo}: {resumo}
+            </span>
+          ) : (
             <>
-              <Menu.Separator className="my-1 h-px bg-border" />
-              <Menu.CheckboxItem
-                checked={extra.marcada}
-                onSelect={(evento) => evento.preventDefault()}
-                onCheckedChange={extra.aoAlternar}
-                className={ITEM}
-              >
-                <Marca marcada={extra.marcada} />
-                <span className="min-w-0 truncate">{extra.label}</span>
-              </Menu.CheckboxItem>
+              {rotulo}
+              {ligado && <span className="tabular-nums">· {partes.length}</span>}
             </>
           )}
-        </Menu.Content>
-      </Menu.Portal>
-    </Menu.Root>
+          <Seta />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Content align="start" sideOffset={6} className={MOLDURA}>
+            {todas.map((opcao) => (
+              <Menu.CheckboxItem
+                key={opcao.value}
+                checked={escolhidos.includes(opcao.value)}
+                onSelect={(evento) => evento.preventDefault()}
+                onCheckedChange={() => aoAlternar(opcao.value)}
+                className={ITEM}
+              >
+                <Marca marcada={escolhidos.includes(opcao.value)} />
+                <span className="min-w-0 truncate">{opcao.label}</span>
+              </Menu.CheckboxItem>
+            ))}
+            {opcoes === null && aoAbrir && (
+              <p className="px-2.5 py-2 text-detail text-fg-muted">Carregando…</p>
+            )}
+            {opcoes === 'falhou' && (
+              <div className="px-2.5 py-2 text-detail text-fg-muted">
+                {falha}
+                {aoTentarDeNovo && (
+                  <Menu.Item
+                    onSelect={(evento) => {
+                      evento.preventDefault()
+                      aoTentarDeNovo()
+                    }}
+                    className="mt-1 cursor-pointer rounded font-medium text-fg underline outline-none data-[highlighted]:bg-surface-sunken"
+                  >
+                    Tentar de novo
+                  </Menu.Item>
+                )}
+              </div>
+            )}
+            {Array.isArray(opcoes) &&
+              opcoes.length === 0 &&
+              fixas.length === 0 &&
+              fixasNoFim.length === 0 &&
+              vazio && <p className="px-2.5 py-2 text-detail text-fg-muted">{vazio}</p>}
+            {ligado && <LimparNoMenu aoLimpar={aoLimpar} />}
+          </Menu.Content>
+        </Menu.Portal>
+      </Menu.Root>
+    </ComTirar>
+  )
+}
+
+/**
+ * O "×" colado ao gatilho do menu ligado: tira so aquele filtro, sem abrir o menu e sem
+ * levar os outros junto, como o "Limpar filtros" faz.
+ */
+function ComTirar({
+  rotulo,
+  ligado,
+  aoTirar,
+  children,
+}: {
+  rotulo: string
+  ligado: boolean
+  aoTirar: () => void
+  children: ReactNode
+}) {
+  // A mesma moldura ligado ou nao: trocar o embrulho remontaria o menu, e marcar o
+  // primeiro valor o fecharia — dentro de um menu se marca mais de um.
+  return (
+    <span className="flex flex-none">
+      {children}
+      {ligado && (
+        <button
+          type="button"
+          aria-label={`Tirar o filtro ${rotulo}`}
+          title={`Tirar o filtro ${rotulo}`}
+          onClick={aoTirar}
+          className={cn(CONTROLE, CONTROLE_LIGADO, 'rounded-l-none border-l-0 px-2')}
+        >
+          <span aria-hidden>×</span>
+        </button>
+      )}
+    </span>
+  )
+}
+
+/** O "Limpar" no pe do menu ligado: desmarca tudo dele, e o menu fecha. */
+function LimparNoMenu({ aoLimpar }: { aoLimpar: () => void }) {
+  return (
+    <>
+      <Menu.Separator className="my-1 h-px bg-border" />
+      <Menu.Item onSelect={aoLimpar} className={cn(ITEM, 'text-detail text-fg-muted')}>
+        Limpar
+      </Menu.Item>
+    </>
   )
 }
 
 /**
  * A sprint, na lista com as sprints ligadas: uma so de cada vez — o backlog, a em
  * andamento, uma planejada ou uma concluida. E o recorte das listas do Backlog: a
- * sprint sem as subtarefas (vao com o pai), e o backlog sem o que terminou.
+ * sprint, e o backlog sem o que terminou.
  *
  * **As concluidas vem num grupo proprio**, depois das abertas, da mais recente para a
  * mais antiga: o que o time entregou numa sprint que ja fechou continua a um clique.
@@ -715,52 +891,58 @@ function MenuDeSprint({
   const nome = escolhida ? (atual?.curto ?? atual?.label ?? '') : ''
 
   return (
-    <Menu.Root>
-      <Menu.Trigger
-        className={cn(CONTROLE, escolhida ? CONTROLE_LIGADO : CONTROLE_DESLIGADO)}
-        aria-label={nome ? `Sprint: ${nome}` : 'Sprint'}
-        title={nome ? `Sprint: ${nome}` : undefined}
-      >
-        <span className="max-w-48 truncate">{nome ? `Sprint: ${cabe(nome)}` : 'Sprint'}</span>
-        <Seta />
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Content align="start" sideOffset={6} className={MOLDURA}>
-          <Menu.RadioGroup
-            value={escolhida ?? ''}
-            onValueChange={(valor) => aoEscolher(valor === '' ? null : valor)}
-          >
-            {opcoes.map((opcao) => (
-              <Menu.RadioItem key={opcao.value} value={opcao.value} className={ITEM}>
-                <Marca marcada={(escolhida ?? '') === opcao.value} redonda />
-                <span className="min-w-0 truncate">{opcao.label}</span>
-              </Menu.RadioItem>
-            ))}
-            {concluidas.length > 0 && (
-              <>
-                <Menu.Separator className="my-1 h-px bg-border" />
-                {/* O nome e rotulo do grupo, e nao item: o leitor de tela o anuncia
+    <ComTirar rotulo="Sprint" ligado={!!escolhida} aoTirar={() => aoEscolher(null)}>
+      <Menu.Root>
+        <Menu.Trigger
+          className={cn(
+            CONTROLE,
+            escolhida ? cn(CONTROLE_LIGADO, 'rounded-r-none') : CONTROLE_DESLIGADO,
+          )}
+          aria-label={nome ? `Sprint: ${nome}` : 'Sprint'}
+          title={nome ? `Sprint: ${nome}` : undefined}
+        >
+          <span className="max-w-48 truncate">{nome ? `Sprint: ${cabe(nome)}` : 'Sprint'}</span>
+          <Seta />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Content align="start" sideOffset={6} className={MOLDURA}>
+            <Menu.RadioGroup
+              value={escolhida ?? ''}
+              onValueChange={(valor) => aoEscolher(valor === '' ? null : valor)}
+            >
+              {opcoes.map((opcao) => (
+                <Menu.RadioItem key={opcao.value} value={opcao.value} className={ITEM}>
+                  <Marca marcada={(escolhida ?? '') === opcao.value} redonda />
+                  <span className="min-w-0 truncate">{opcao.label}</span>
+                </Menu.RadioItem>
+              ))}
+              {concluidas.length > 0 && (
+                <>
+                  <Menu.Separator className="my-1 h-px bg-border" />
+                  {/* O nome e rotulo do grupo, e nao item: o leitor de tela o anuncia
                     ao entrar nele, e as setas pulam o rotulo. */}
-                <Menu.Group aria-labelledby={rotuloDasConcluidas}>
-                  <Menu.Label
-                    id={rotuloDasConcluidas}
-                    className="px-2.5 pt-1 pb-1 text-caption text-fg-muted"
-                  >
-                    Concluídas
-                  </Menu.Label>
-                  {concluidas.map((opcao) => (
-                    <Menu.RadioItem key={opcao.value} value={opcao.value} className={ITEM}>
-                      <Marca marcada={escolhida === opcao.value} redonda />
-                      <span className="min-w-0 truncate">{opcao.label}</span>
-                    </Menu.RadioItem>
-                  ))}
-                </Menu.Group>
-              </>
-            )}
-          </Menu.RadioGroup>
-        </Menu.Content>
-      </Menu.Portal>
-    </Menu.Root>
+                  <Menu.Group aria-labelledby={rotuloDasConcluidas}>
+                    <Menu.Label
+                      id={rotuloDasConcluidas}
+                      className="px-2.5 pt-1 pb-1 text-caption text-fg-muted"
+                    >
+                      Concluídas
+                    </Menu.Label>
+                    {concluidas.map((opcao) => (
+                      <Menu.RadioItem key={opcao.value} value={opcao.value} className={ITEM}>
+                        <Marca marcada={escolhida === opcao.value} redonda />
+                        <span className="min-w-0 truncate">{opcao.label}</span>
+                      </Menu.RadioItem>
+                    ))}
+                  </Menu.Group>
+                </>
+              )}
+            </Menu.RadioGroup>
+            {escolhida && <LimparNoMenu aoLimpar={() => aoEscolher(null)} />}
+          </Menu.Content>
+        </Menu.Portal>
+      </Menu.Root>
+    </ComTirar>
   )
 }
 

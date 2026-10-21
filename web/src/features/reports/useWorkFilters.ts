@@ -169,6 +169,142 @@ export function countListFilters(lista: ListFilters): number {
 }
 
 /**
+ * O que a tela de Trabalho mostra, junto: os filtros, os so da lista e a ordem. E o que
+ * vai para o endereco e o que uma vista salva guarda.
+ */
+export interface WorkView {
+  filters: ReportFilters
+  list: ListFilters
+  sort: ReportSort | null
+}
+
+/**
+ * Os nomes no endereco, em portugues como a tela: o link que alguem cola no chat
+ * (`?responsavel=me&vencidos=1`) diz o que mostra antes de abrir.
+ */
+const NO_ENDERECO = {
+  busca: 'q',
+  responsavel: 'responsavel',
+  etiqueta: 'etiqueta',
+  prioridade: 'prioridade',
+  tipo: 'tipo',
+  vencidos: 'vencidos',
+  abertos: 'em-aberto',
+  bloqueada: 'origem-bloqueada',
+  coluna: 'coluna',
+  sprint: 'sprint',
+  ordem: 'ordem',
+} as const
+const PARAMETROS: readonly string[] = Object.values(NO_ENDERECO)
+
+/** A busca nao passa do que o campo aceita: o endereco tambem e de quem o escreve. */
+const BUSCA_MAX = 200
+
+/**
+ * A vista que o endereco descreve, conferida como o que vem guardado: o endereco e de
+ * quem o escreve, e um valor estranho nao vira filtro. Nula quando o endereco nao fala
+ * de filtro nenhum — ai vale o que a aba lembrou.
+ */
+export function workViewFromQuery(search: string): WorkView | null {
+  const params = new URLSearchParams(search)
+  if (!PARAMETROS.some((nome) => params.has(nome))) return null
+  const varios = (nome: string) =>
+    [...new Set(params.getAll(nome).filter((valor) => valor.trim() !== ''))].slice(0, 50)
+  const ligado = (nome: string) => {
+    const valor = params.get(nome)
+    return valor !== null && valor !== '0' && valor !== 'false'
+  }
+  const [campo, dir] = (params.get(NO_ENDERECO.ordem) ?? '').split('.')
+  const ordenado = CAMPOS.find((item) => item === campo)
+  return {
+    filters: {
+      assignees: varios(NO_ENDERECO.responsavel),
+      labels: varios(NO_ENDERECO.etiqueta),
+      priorities: varios(NO_ENDERECO.prioridade),
+      types: varios(NO_ENDERECO.tipo).filter(ehTipo),
+      overdue: ligado(NO_ENDERECO.vencidos),
+      open: ligado(NO_ENDERECO.abertos),
+      blockedOrigin: ligado(NO_ENDERECO.bloqueada),
+      search: (params.get(NO_ENDERECO.busca) ?? '').slice(0, BUSCA_MAX),
+    },
+    list: {
+      columns: varios(NO_ENDERECO.coluna),
+      sprint: params.get(NO_ENDERECO.sprint) || null,
+    },
+    // O "mais novo primeiro" e a ordem de sempre: no endereco, e a falta do parametro.
+    sort:
+      ordenado && (dir === 'asc' || dir === 'desc') && !(ordenado === 'created' && dir === 'desc')
+        ? { field: ordenado, dir }
+        : null,
+  }
+}
+
+/**
+ * O endereco com a vista: os parametros dos filtros trocados, e os outros (de quem
+ * mais usar o endereco) intactos. O que esta desligado sai — o endereco da tela sem
+ * filtro e o de sempre. Devolve com o `?`, ou vazio.
+ */
+export function workViewToQuery(vista: WorkView, search = ''): string {
+  const params = new URLSearchParams(search)
+  for (const nome of PARAMETROS) params.delete(nome)
+  const { filters: f, list: l, sort } = vista
+  const busca = f.search.trim()
+  if (busca) params.set(NO_ENDERECO.busca, busca)
+  for (const valor of f.assignees) params.append(NO_ENDERECO.responsavel, valor)
+  for (const valor of f.labels) params.append(NO_ENDERECO.etiqueta, valor)
+  for (const valor of f.priorities) params.append(NO_ENDERECO.prioridade, valor)
+  for (const valor of f.types) params.append(NO_ENDERECO.tipo, valor)
+  if (f.overdue) params.set(NO_ENDERECO.vencidos, '1')
+  if (f.open) params.set(NO_ENDERECO.abertos, '1')
+  if (f.blockedOrigin) params.set(NO_ENDERECO.bloqueada, '1')
+  for (const valor of l.columns) params.append(NO_ENDERECO.coluna, valor)
+  if (l.sprint) params.set(NO_ENDERECO.sprint, l.sprint)
+  if (sort && !(sort.field === 'created' && sort.dir === 'desc'))
+    params.set(NO_ENDERECO.ordem, `${sort.field}.${sort.dir}`)
+  const texto = params.toString()
+  return texto ? `?${texto}` : ''
+}
+
+/**
+ * Duas vistas iguais no que mostram: a ordem em que os valores foram marcados nao
+ * conta — "etiqueta a e b" e "b e a" sao a mesma lista.
+ */
+export function sameWorkView(a: WorkView, b: WorkView): boolean {
+  const ordenada = (vista: WorkView): WorkView => ({
+    filters: {
+      ...vista.filters,
+      assignees: [...vista.filters.assignees].sort(),
+      labels: [...vista.filters.labels].sort(),
+      priorities: [...vista.filters.priorities].sort(),
+      types: [...vista.filters.types].sort(),
+    },
+    list: { ...vista.list, columns: [...vista.list.columns].sort() },
+    sort: vista.sort,
+  })
+  return workViewToQuery(ordenada(a)) === workViewToQuery(ordenada(b))
+}
+
+/**
+ * Como a tela abre: **o endereco vence** — o link que alguem mandou mostra o que essa
+ * pessoa via —, e o que ele traz passa a ser o lembrado na aba. Sem filtro no
+ * endereco, vale o que a aba lembrou.
+ */
+function lerInicio(projeto: string, endereco?: string) {
+  const doEndereco = endereco ? workViewFromQuery(endereco) : null
+  if (doEndereco) {
+    guardar(projeto, doEndereco.filters, doEndereco.list)
+    guardarOrdem(projeto, doEndereco.sort)
+    return {
+      projeto,
+      filtros: doEndereco.filters,
+      lista: doEndereco.list,
+      ordem: doEndereco.sort,
+    }
+  }
+  return { projeto, ...lerGuardados(projeto), ordem: lerOrdem(projeto) }
+}
+
+/**
  * Os filtros da tela de Trabalho de um projeto, e a ordem da tabela.
  *
  * **Lembrados na aba, por projeto** (`sessionStorage`): sobrevivem a ir a
@@ -182,25 +318,18 @@ export function countListFilters(lista: ListFilters): number {
  * vale muda, e e o que as leituras do quadro e da contagem olham — **vazia quando nada
  * do que vale esta ligado**: a busca que ainda espera a pessoa parar de digitar nao e
  * filtro ainda. `listKey` e a da lista: a mesma, mais as colunas, a sprint e a ordem.
+ *
+ * **O endereco vence o lembrado** (`endereco`, o `?` da pagina ao abrir): o link com
+ * os filtros reproduz a vista de quem o mandou. A aba continua lembrando, para quem
+ * volta a tela por um link sem filtro — ver `useFiltersInAddress`.
  */
-export function useWorkFilters(projectPublicId: string) {
-  const [estado, setEstado] = useState(() => ({
-    projeto: projectPublicId,
-    ...lerGuardados(projectPublicId),
-    ordem: lerOrdem(projectPublicId),
-  }))
+export function useWorkFilters(projectPublicId: string, endereco?: string) {
+  const [estado, setEstado] = useState(() => lerInicio(projectPublicId, endereco))
   const [busca, setBusca] = useState(estado.filtros.search)
 
   // Trocar de projeto le os filtros dele — a busca junto, sem esperar —, antes de
   // qualquer leitura com os do outro. A coluna de um projeto nao existe no outro.
-  const atual =
-    estado.projeto === projectPublicId
-      ? estado
-      : {
-          projeto: projectPublicId,
-          ...lerGuardados(projectPublicId),
-          ordem: lerOrdem(projectPublicId),
-        }
+  const atual = estado.projeto === projectPublicId ? estado : lerInicio(projectPublicId, endereco)
   if (estado.projeto !== projectPublicId) {
     setEstado(atual)
     setBusca(atual.filtros.search)
@@ -271,7 +400,23 @@ export function useWorkFilters(projectPublicId: string) {
     setBusca('')
   }, [])
 
+  /**
+   * Troca tudo de uma vez — os filtros, os so da lista e a ordem: o link colado, o
+   * voltar do navegador, a vista salva. A busca vale na hora, sem esperar: ninguem
+   * esta digitando.
+   */
+  const applyView = useCallback((vista: WorkView) => {
+    setEstado((antes) => {
+      guardar(antes.projeto, vista.filters, vista.list)
+      guardarOrdem(antes.projeto, vista.sort)
+      return { ...antes, filtros: vista.filters, lista: vista.list, ordem: vista.sort }
+    })
+    setBusca(vista.filters.search)
+  }, [])
+
   const applied = useMemo<ReportFilters>(() => ({ ...filters, search: busca }), [filters, busca])
+  /** O que vale agora, junto — a busca que ja virou leitura: e o que vai para o endereco. */
+  const view = useMemo<WorkView>(() => ({ filters: applied, list, sort }), [applied, list, sort])
   const key = useMemo(
     () =>
       countActiveFilters(applied) === 0
@@ -317,5 +462,7 @@ export function useWorkFilters(projectPublicId: string) {
     setFilters,
     setList,
     clear,
+    view,
+    applyView,
   }
 }

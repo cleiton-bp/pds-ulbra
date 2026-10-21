@@ -6,10 +6,10 @@ import type { ReportStateCountViewModel } from '@/contracts'
 import {
   CardTypeIcon,
   cardHeadline,
+  DuplicateLine,
   headlineText,
   initialsOf,
   MoreLabels,
-  ParentLine,
   PriorityIcon,
   statusTone,
 } from '@/features/reports/cardLook'
@@ -87,9 +87,42 @@ describe('o desenho do tipo e da prioridade', () => {
     render(
       <>
         <CardTypeIcon card={{ Kind: 'Team', Type: null }} />
-        <CardTypeIcon card={{ Kind: 'Report', Type: 'Bug' }} />
-        <CardTypeIcon card={{ Kind: 'Report', Type: 'Improvement' }} />
-        <CardTypeIcon card={{ Kind: 'Report', Type: 'Question' }} />
+        <CardTypeIcon
+          card={{
+            Kind: 'Report',
+            Type: {
+              PublicId: 'tipo-defeito',
+              Name: 'Defeito',
+              Color: 'Red',
+              Icon: 'Bug',
+              IsActive: true,
+            },
+          }}
+        />
+        <CardTypeIcon
+          card={{
+            Kind: 'Report',
+            Type: {
+              PublicId: 't-2',
+              Name: 'Melhoria',
+              Color: 'Green',
+              Icon: 'Improvement',
+              IsActive: true,
+            },
+          }}
+        />
+        <CardTypeIcon
+          card={{
+            Kind: 'Report',
+            Type: {
+              PublicId: 't-3',
+              Name: 'Dúvida',
+              Color: 'Purple',
+              Icon: 'Question',
+              IsActive: true,
+            },
+          }}
+        />
       </>,
     )
 
@@ -162,25 +195,17 @@ describe('as etiquetas que nao couberam', () => {
   })
 })
 
-describe('o pai da subtarefa e o original do duplicado', () => {
+describe('o original do duplicado', () => {
   afterEach(cleanup)
   const original = { PublicId: 'c-6', Number: 6, Headline: 'Pagar no Safari' }
 
-  it('o original do duplicado vem com "Duplicado de" escrito; o pai da subtarefa, so para o leitor de tela', () => {
-    const { rerender } = render(<ParentLine parent={original} kind="duplicate" />)
+  it('vem com "Duplicado de" escrito, o numero e o titulo', () => {
+    render(<DuplicateLine original={original} />)
     // Com a seta da subtarefa, o duplicado se lia como subtarefa do original (L-17).
     const duplicado = screen.getByText('Duplicado de')
     expect(duplicado.className).not.toContain('sr-only')
     expect(duplicado.closest('[title]')?.getAttribute('title')).toBe(
       'Duplicado de #6 Pagar no Safari',
-    )
-
-    rerender(<ParentLine parent={original} />)
-    expect(screen.queryByText('Duplicado de')).toBeNull()
-    const subtarefa = screen.getByText(/^Subtarefa de/)
-    expect(subtarefa.className).toContain('sr-only')
-    expect(subtarefa.closest('[title]')?.getAttribute('title')).toBe(
-      'Subtarefa de #6 Pagar no Safari',
     )
   })
 })
