@@ -13,6 +13,7 @@ import {
 import { SectionIcon } from '@/app/SectionIcon'
 import type { ProjectViewModel } from '@/contracts'
 import { isPanelError } from '@/data'
+import { useSessionStore } from '@/features/auth/sessionStore'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import { useProjectsStore } from '@/features/projects/projectsStore'
@@ -32,6 +33,7 @@ import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { useScrollToHash } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure, groupByAccount } from '@/shared/lib/projectAccess'
+import { rememberProjectOpened } from '@/shared/lib/recentProjects'
 
 /**
  * Nao e um booleano `notFound`: "nao encontrado" e "nao deu para saber" pedem
@@ -91,6 +93,14 @@ export function ProjectShell() {
 
   const project = projects.find((item) => item.PublicId === publicId)
   const accountGroups = groupByAccount(projects)
+
+  // O "Abertos recentemente" do hub: so o projeto que a pessoa enxerga entra, e so
+  // quando ele chega — o endereco digitado errado nao vira um recente.
+  const userId = useSessionStore((state) => state.user?.PublicId)
+  const abertoAgora = project?.PublicId
+  useEffect(() => {
+    if (userId && abertoAgora) rememberProjectOpened(userId, abertoAgora)
+  }, [userId, abertoAgora])
 
   // `/projects/:id/<secao>/...`: a secao aberta, e se ela e o card aberto.
   const [, , , segment = '', resto] = location.pathname.split('/')
