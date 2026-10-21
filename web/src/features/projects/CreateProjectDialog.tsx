@@ -8,43 +8,47 @@ import { Modal } from '@/shared/components/Modal'
 import { TextField } from '@/shared/components/TextField'
 import { cn } from '@/shared/lib/cn'
 
-const HINT = 'Escolha um nome que você reconheça na lista, e dá para renomear depois.'
-
-/**
- * Os modelos, na ordem da escolha. As colunas aparecem escritas porque sao o que a
- * pessoa reconhece do jeito de trabalhar do time — "Kanban" sozinho diz pouco a quem
- * nunca usou, e "Backlog · A fazer · Fazendo" diz o bastante. Espelho dos modelos de
- * `Pds.Service/Projects/ProjectTemplates.cs`.
- */
-const TEMPLATES: ReadonlyArray<{
+interface Template {
   value: ProjectTemplate
   name: string
-  line: string
   columns: readonly string[]
-}> = [
-  {
-    value: 'SimpleBoard',
-    name: 'Quadro simples',
-    line: 'O quadro de sempre, para começar sem pensar em configuração.',
-    columns: ['A fazer', 'Fazendo', 'Feito'],
-  },
+  sprints: boolean
+}
+
+/** O projeto de sempre: e o que vem marcado, e o que vale se a escolha se perder. */
+const QUADRO_SIMPLES: Template = {
+  value: 'SimpleBoard',
+  name: 'Quadro simples',
+  columns: ['A fazer', 'Fazendo', 'Feito'],
+  sprints: false,
+}
+
+/**
+ * Os modelos, na ordem da escolha. So as colunas aparecem escritas: sao o que a pessoa
+ * reconhece do jeito de trabalhar do time — "Kanban" sozinho diz pouco a quem nunca
+ * usou, e "Backlog · A fazer · Fazendo" diz o bastante. A jornada publica e os tipos de
+ * relato que cada modelo traz ficam para as telas do projeto, onde se ajustam. Espelho
+ * dos modelos de `Pds.Service/Projects/ProjectTemplates.cs`.
+ */
+const TEMPLATES: readonly Template[] = [
+  QUADRO_SIMPLES,
   {
     value: 'Support',
     name: 'Suporte',
-    line: 'Atendimento: Problema, Dúvida e Pedido, e a vez de quem relatou responder.',
     columns: ['Novo', 'Em atendimento', 'Aguardando quem relatou', 'Resolvido'],
+    sprints: false,
   },
   {
     value: 'Kanban',
     name: 'Kanban',
-    line: 'Fluxo contínuo, com uma fila de entrada e revisão antes de terminar.',
     columns: ['Backlog', 'A fazer', 'Fazendo', 'Em revisão', 'Feito'],
+    sprints: false,
   },
   {
     value: 'Scrum',
     name: 'Scrum',
-    line: 'Sprints de duas semanas, com pontos no card e revisão antes de terminar.',
     columns: ['A fazer', 'Fazendo', 'Em revisão', 'Feito'],
+    sprints: true,
   },
 ]
 
@@ -53,22 +57,26 @@ const TEMPLATES: ReadonlyArray<{
  * ligada a elas e os tipos de relato prontos. O resto da configuracao mora nas telas
  * do projeto, e cada uma ja funciona com os padroes.
  *
- * O **quadro simples vem marcado**: quem so digita o nome e confirma recebe o projeto
- * de sempre. O modelo so vale aqui — depois, cada coisa se muda na propria tela, e o
- * aviso embaixo da escolha diz isso para ninguem travar nela.
+ * **Pouco a vista, de proposito.** Ja foi quatro cartoes com tres linhas cada, um
+ * paragrafo de abertura, uma dica e um aviso; depois um seletor com uma previa em
+ * caixa. Agora e uma lista: cada modelo e uma linha com o nome e as colunas embaixo,
+ * e nada mais — nem caixa dentro de caixa, nem frase de apoio. O que o modelo traz
+ * alem das colunas (a jornada publica, os tipos de relato) a pessoa ve no projeto,
+ * nas telas em que isso se ajusta.
  *
- * A descricao **nao** repete o que e um projeto — o cartao que a pessoa acabou de
- * clicar ja disse isso. Ela avisa o que vem depois do botao, que e a unica coisa
- * que so este dialogo pode contar.
+ * O **quadro simples vem marcado**: quem so digita o nome e confirma recebe o projeto
+ * de sempre. O modelo so vale aqui — depois, cada coisa se muda na propria tela, e a
+ * linha embaixo da previa diz isso para ninguem travar na escolha.
  *
  * O nome repetido e conferido **duas vezes** de proposito: aqui contra a lista que
  * a tela ja tem, para a resposta ser imediata; e no servidor, que e quem decide —
  * duas abas criando o mesmo nome ao mesmo tempo so ele resolve.
  *
  * Ao confirmar vai para a **Instalacao**: e a proxima coisa a fazer — copiar a
- * chave publica e colar o script. Ja foi para as chaves, com a secreta na frente e
- * um aviso de perda ao sair; o primeiro minuto do projeto ia numa chave que quase
- * ninguem usa. A secreta agora nasce sob pedido, na tela de chaves.
+ * chave publica e colar o script. A linha ao lado dos botoes avisa. Ja foi para as
+ * chaves, com a secreta na frente e um aviso de perda ao sair; o primeiro minuto do
+ * projeto ia numa chave que quase ninguem usa. A secreta agora nasce sob pedido, na
+ * tela de chaves.
  */
 export function CreateProjectDialog({
   open,
@@ -140,11 +148,14 @@ export function CreateProjectDialog({
         onOpenChange(next)
       }}
       title="Novo projeto"
-      width="w-[min(34rem,calc(100vw-2rem))]"
+      width="w-[min(30rem,calc(100vw-2rem))]"
       className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
-      description="Ao criar, você vai para a instalação: copiar a chave pública e colar o script no seu sistema."
       footer={
         <>
+          {/* Onde o botao leva, dito ao lado dele e nao num paragrafo de abertura. */}
+          <p className="basis-full self-center text-caption text-fg-muted sm:mr-auto sm:basis-auto">
+            Em seguida, a instalação.
+          </p>
           <Button
             variant="quiet"
             onClick={() => {
@@ -171,7 +182,6 @@ export function CreateProjectDialog({
           if (error) setError(null)
         }}
         placeholder="Ex.: Loja Ativa"
-        hint={HINT}
         error={error}
         maxLength={MAX_PROJECT_NAME_LENGTH}
         autoFocus
@@ -180,9 +190,12 @@ export function CreateProjectDialog({
       />
 
       <fieldset className="mt-5" disabled={saving}>
-        <legend className="mb-2.5 font-medium text-detail text-fg">Como o time trabalha</legend>
+        <legend className="mb-1 block text-detail text-fg-muted">Como o time trabalha</legend>
 
-        <div className="grid gap-2">
+        {/* O radio de verdade fica escondido dentro da linha, que e o rotulo: o teclado
+            anda pelas setas como em qualquer grupo de radios, e o anel de foco vai para
+            a linha inteira (`has-[:focus-visible]`). */}
+        <div className="-mx-2 flex flex-col">
           {TEMPLATES.map((option) => {
             const marcado = option.value === template
             const nome = `${ids}-${option.value}-nome`
@@ -192,9 +205,10 @@ export function CreateProjectDialog({
               <label
                 key={option.value}
                 className={cn(
-                  'flex gap-3 rounded-xl border p-3',
-                  saving ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-                  marcado ? 'border-accent bg-surface' : 'border-border',
+                  'flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors duration-150 motion-reduce:transition-none',
+                  'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-fg-muted',
+                  saving ? 'cursor-not-allowed' : 'cursor-pointer',
+                  marcado ? 'bg-surface-sunken' : 'hover:bg-surface',
                 )}
               >
                 <input
@@ -205,18 +219,26 @@ export function CreateProjectDialog({
                   onChange={() => setTemplate(option.value)}
                   aria-labelledby={nome}
                   aria-describedby={detalhe}
-                  className="mt-0.5 flex-none accent-accent"
+                  className="sr-only"
                 />
-                <span className="min-w-0">
-                  <span id={nome} className="mb-0.5 block font-medium text-detail text-fg">
+                <Marcador marcado={marcado} />
+                <span className="min-w-0 flex-1">
+                  <span
+                    id={nome}
+                    className={cn(
+                      'block text-body transition-colors duration-150',
+                      marcado ? 'font-medium text-fg' : 'text-fg',
+                    )}
+                  >
                     {option.name}
                   </span>
-                  <span id={detalhe} className="block text-caption text-fg-muted leading-relaxed">
-                    {option.line}{' '}
-                    <span className="block">
-                      <strong className="font-medium text-fg">Colunas:</strong>{' '}
-                      {option.columns.join(' · ')}
-                    </span>
+                  <span
+                    id={detalhe}
+                    className="mt-0.5 block text-caption text-fg-muted leading-relaxed"
+                  >
+                    <span className="sr-only">Colunas: </span>
+                    {option.columns.join(' · ')}
+                    {option.sprints && ' · sprints de duas semanas'}
                   </span>
                 </span>
               </label>
@@ -224,10 +246,31 @@ export function CreateProjectDialog({
           })}
         </div>
 
-        <p className="mt-2 text-caption text-fg-muted leading-relaxed">
-          Tudo isso se muda depois, cada coisa na própria tela.
-        </p>
+        <p className="mt-2 px-0 text-caption text-fg-muted">Tudo se ajusta depois.</p>
       </fieldset>
     </Modal>
+  )
+}
+
+/**
+ * O circulo do radio, desenhado aqui para acompanhar o resto do painel: o anel escurece
+ * e o ponto cresce no marcado, em vez de o controle do navegador trocar de uma vez.
+ */
+function Marcador({ marcado }: { marcado: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'mt-0.5 flex size-4 flex-none items-center justify-center rounded-full border transition-colors duration-150',
+        marcado ? 'border-fg' : 'border-fg-disabled',
+      )}
+    >
+      <span
+        className={cn(
+          'size-2 rounded-full bg-fg transition-transform duration-150 ease-out motion-reduce:transition-none',
+          marcado ? 'scale-100' : 'scale-0',
+        )}
+      />
+    </span>
   )
 }
