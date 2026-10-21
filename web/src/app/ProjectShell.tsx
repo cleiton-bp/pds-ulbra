@@ -526,7 +526,16 @@ export function ProjectShell() {
         >
           {/* Tipado nas duas pontas: sem `satisfies` aqui, campo novo no contexto
               compila de um lado e chega `undefined` do outro. */}
-          {project ? <Outlet context={{ project } satisfies ProjectContext} /> : <LoadingSection />}
+          {/* A chave e a secao (trabalho, membros, moderacao...), e nao o endereco inteiro:
+              abrir um card muda o endereco sem trocar de tela, e nao pode esmaecer a lista.
+              `h-full` porque o quadro mede a altura a partir daqui. */}
+          <div key={segment} className="h-full animate-panel-in">
+            {project ? (
+              <Outlet context={{ project } satisfies ProjectContext} />
+            ) : (
+              <LoadingSection />
+            )}
+          </div>
         </main>
       </div>
     </div>

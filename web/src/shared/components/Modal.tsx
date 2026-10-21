@@ -105,14 +105,14 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-veil bg-overlay" />
+        <Dialog.Overlay className="fixed inset-0 z-veil bg-overlay data-[state=closed]:animate-veil-out data-[state=open]:animate-veil-in" />
         {/* Sem `Dialog.Description` o Radix desta versao ja omite o
             `aria-describedby` sozinho: ele conta quantas descricoes foram
             montadas. Nao precisa da gambiarra de passar `undefined` a mao. */}
         <Dialog.Content
           ref={hospedar}
           className={cn(
-            '-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-dialog rounded-xl border border-border bg-surface-raised p-6',
+            '-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-dialog rounded-xl border border-border bg-surface-raised p-6 data-[state=closed]:animate-dialog-out data-[state=open]:animate-dialog-in',
             width,
             className,
           )}
@@ -207,7 +207,9 @@ export function Modal({
 
           {children}
 
-          {footer !== undefined && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
+          {footer !== undefined && (
+            <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

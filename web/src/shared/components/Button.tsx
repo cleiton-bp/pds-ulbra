@@ -28,6 +28,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * Todo hover e `enabled:hover:`: `:hover` casa com botao desabilitado, e sem o
  * `enabled:` "Salvar" trocava de cor sob o mouse convidando para um clique que
  * nao ia acontecer.
+ *
+ * **O clique encolhe o botao um fio** (`enabled:active:`), e a cor nunca troca de
+ * uma vez: um botao que nao responde ao toque parece parado, mesmo funcionando.
+ * Com movimento reduzido, nem o encolher nem a transicao.
  */
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
@@ -57,7 +61,7 @@ export function Button({
     <button
       type="button"
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-lg border transition-colors',
+        'inline-flex shrink-0 items-center justify-center rounded-lg border transition-all duration-150 ease-out enabled:active:scale-[0.97] motion-reduce:transition-none motion-reduce:enabled:active:scale-100',
         'disabled:cursor-not-allowed disabled:text-fg-disabled',
         VARIANTS[variant],
         SIZES[size],

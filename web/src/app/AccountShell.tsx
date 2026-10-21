@@ -45,7 +45,10 @@ export function AccountShell() {
       </header>
 
       <main className="flex-1">
-        <Outlet />
+        {/* A tela nova entra esmaecendo ao trocar de endereco. */}
+        <div key={pathname} className="animate-panel-in">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

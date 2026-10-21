@@ -418,6 +418,125 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * DIALOGO E VEU
+ *
+ * O veu esmaece e a caixa cresce de 96% ao tamanho enquanto aparece; ao fechar, o
+ * caminho de volta, mais curto — sair demora menos que chegar. `scale`, e nao
+ * `transform`: a caixa ja usa `translate` para se centralizar, e no Tailwind 4 sao
+ * propriedades separadas que nao se atropelam. O Radix segura o elemento na arvore
+ * ate a animacao de saida acabar; sem animacao (movimento reduzido), solta na hora.
+ * ------------------------------------------------------------------------- */
+@keyframes veil-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes veil-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@utility animate-veil-in {
+  animation: veil-in 200ms ease-out both;
+}
+
+@utility animate-veil-out {
+  animation: veil-out 160ms ease-in both;
+}
+
+@utility animate-dialog-in {
+  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@utility animate-dialog-out {
+  animation: dialog-out 150ms ease-in both;
+}
+
+/* ---------------------------------------------------------------------------
+ * MENU, SELETOR E DICA
+ *
+ * O que abre por cima de um gatilho nasce dele: cresce de 96% a partir do ponto em que
+ * esta preso (`transform-origin` que o Radix calcula) e esmaece ao sair, mais rapido
+ * do que entrou. O mesmo para o menu suspenso, o seletor, os menus da barra de filtros
+ * e a dica. `fade-in` e so o esmaecer, para linhas de tabela — transformar uma `<tr>`
+ * nao e seguro em todo navegador.
+ * ------------------------------------------------------------------------- */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+    translate: 0 -2px;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes menu-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility animate-menu-in {
+  animation: menu-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@utility animate-menu-out {
+  animation: menu-out 100ms ease-in both;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 200ms ease-out both;
+}
+
+/* ---------------------------------------------------------------------------
  * O BOTAO DE TEMA
  *
  * A noite chega com estrelas que piscam e somem; o dia, com um clarao que nasce no
@@ -475,6 +594,22 @@
 }
 
 /**
+ * O `number` sem o contador do navegador: o `NumberField` desenha os botoes de menos e
+ * mais do lado de fora, do tamanho de um clique. Duas linguagens, porque os navegadores
+ * nao combinam: `appearance: textfield` vale no Firefox, e os pseudo-elementos no
+ * Chrome e no Safari.
+ */
+@utility input-number-plain {
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+}
+
+/**
  * A borda direita de uma area que rola para os lados, esmaecendo: o que continua
  * fora da vista some no fundo da tela, em vez de cortar seco. Um desenho de fundo,
  * como a grade, e nao uma cor — e a cor dele e o `--surface` do tema, entao vale no
@@ -509,6 +644,17 @@
   .animate-flare {
     animation: none;
     opacity: 0;
+  }
+
+  /* O dialogo aparece e some de uma vez; o Radix solta o elemento na hora. */
+  .animate-veil-in,
+  .animate-veil-out,
+  .animate-dialog-in,
+  .animate-dialog-out,
+  .animate-menu-in,
+  .animate-menu-out,
+  .animate-fade-in {
+    animation: none;
   }
 
   /* `animate-pop` guarda o estado final com `both` — desligar sem devolver a

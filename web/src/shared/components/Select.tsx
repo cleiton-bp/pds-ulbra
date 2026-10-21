@@ -147,6 +147,7 @@ export function Select({
             sideOffset={4}
             className={cn(
               'z-dialog overflow-hidden rounded-xl border border-border bg-surface-raised',
+              'origin-(--radix-select-content-transform-origin) data-[state=closed]:animate-menu-out data-[state=open]:animate-menu-in',
               // A lista acompanha a largura do campo. Sem isto ela sai mais estreita
               // e desalinhada, e a escolha passa a parecer um menu solto por cima da
               // tela em vez da continuacao daquele campo.
