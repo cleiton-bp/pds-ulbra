@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   configFromInit,
   configFromLocation,
   sanitizeRoute,
   shouldWaitForHost,
 } from '@/embed/config'
-import { MESSAGE_SOURCE } from '@/embed/protocol'
+import { type InitMessage, MESSAGE_SOURCE } from '@/embed/protocol'
 
 /**
  * A rota e o unico campo do relato que costuma carregar dado de quem esta
@@ -88,6 +88,47 @@ describe('de onde o quadro tira a configuracao', () => {
       origin: 'loja.exemplo.com',
       // Arredondado: a largura vem fracionada em tela com zoom.
       viewport: '1280x800',
+      // A largura sozinha, para a regra do celular.
+      viewportWidth: 1280,
+    })
+  })
+
+  describe('a origem, do mais confiavel para o menos', () => {
+    const init: InitMessage = {
+      source: MESSAGE_SOURCE,
+      type: 'init',
+      key: 'pk_DEMO',
+      route: '/',
+      origin: 'dita.pela.pagina',
+      viewport: null,
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('sem mais nada, vale o que a pagina disse', () => {
+      expect(configFromInit(init).origin).toBe('dita.pela.pagina')
+    })
+
+    it('a origem que o navegador conferiu na mensagem vence a que a pagina disse', () => {
+      expect(configFromInit(init, 'https://loja.exemplo.com:8443').origin).toBe(
+        'loja.exemplo.com:8443',
+      )
+    })
+
+    it('`ancestorOrigins`, preenchido pelo navegador, vence as duas', () => {
+      vi.stubGlobal('window', {
+        location: {
+          ancestorOrigins: { length: 1, item: () => 'https://de.verdade.com' },
+        },
+      })
+
+      expect(configFromInit(init, 'https://loja.exemplo.com').origin).toBe('de.verdade.com')
+    })
+
+    it('origem opaca ("null") nao conta como origem', () => {
+      expect(configFromInit(init, 'null').origin).toBe('dita.pela.pagina')
     })
   })
 })

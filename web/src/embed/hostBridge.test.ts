@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { connectToHost } from '@/embed/hostBridge'
+import type { LauncherFrame } from '@/embed/launcher'
 import { FRAME_SIZE, MESSAGE_SOURCE } from '@/embed/protocol'
 
 /**
@@ -34,6 +35,17 @@ function chega(dados: unknown, origem: string, fonte: unknown = window.parent): 
   window.dispatchEvent(
     new MessageEvent('message', { data: dados, origin: origem, source: fonte as Window }),
   )
+}
+
+/** O botao recolhido no canto de baixo a esquerda, com tudo fora do padrao. */
+const botao: LauncherFrame = {
+  width: 200,
+  height: 48,
+  position: 'BottomLeft',
+  offsetX: 32,
+  offsetY: 12,
+  radius: 12,
+  shadow: true,
 }
 
 const init = {
@@ -193,16 +205,15 @@ describe('a ponte com a pagina hospedeira', () => {
     chega(init, 'https://loja.exemplo.com')
     enviados.length = 0
 
-    ligacao.show('BottomLeft')
+    // Guardar o lugar do botao nao revela nada: so o show revela.
+    ligacao.place(botao)
+    expect(enviados).toEqual([])
+
+    ligacao.show()
 
     expect(enviados).toEqual([
       {
-        mensagem: {
-          source: MESSAGE_SOURCE,
-          type: 'resize',
-          ...FRAME_SIZE.collapsed,
-          position: 'BottomLeft',
-        },
+        mensagem: { source: MESSAGE_SOURCE, type: 'resize', ...botao },
         alvo: 'https://loja.exemplo.com',
       },
     ])
@@ -214,18 +225,42 @@ describe('a ponte com a pagina hospedeira', () => {
     const ligacao = connectToHost(vi.fn())
 
     chega(init, 'https://loja.exemplo.com')
-    ligacao.show('BottomLeft')
+    ligacao.place(botao)
+    ligacao.show()
     enviados.length = 0
 
     ligacao.expand()
     ligacao.collapse()
 
-    // O canto viaja em toda mensagem: sem isso, o quadro abriria de um lado e
-    // fecharia do outro, porque a pagina nao guarda estado nenhum.
-    expect(enviados.map((enviado) => (enviado.mensagem as { position: string }).position)).toEqual([
-      'BottomLeft',
-      'BottomLeft',
+    // O canto e a distancia viajam em toda mensagem: sem isso, o quadro abriria de
+    // um lado e fecharia do outro, porque a pagina nao guarda estado nenhum.
+    const lugares = enviados.map((enviado) => {
+      const { position, offsetX, offsetY } = enviado.mensagem as typeof botao
+      return { position, offsetX, offsetY }
+    })
+    expect(lugares).toEqual([
+      { position: 'BottomLeft', offsetX: 32, offsetY: 12 },
+      { position: 'BottomLeft', offsetX: 32, offsetY: 12 },
     ])
+    // Aberto, o tamanho e o do formulario; fechado, o do botao de novo.
+    expect(enviados[0]?.mensagem).toMatchObject(FRAME_SIZE.expanded)
+    expect(enviados[1]?.mensagem).toEqual({ source: MESSAGE_SOURCE, type: 'resize', ...botao })
+    ligacao.stop()
+  })
+
+  it('show com o formulario aberto repete o tamanho de agora, e nao o fecha', () => {
+    fingirPagina()
+    const ligacao = connectToHost(vi.fn())
+
+    chega(init, 'https://loja.exemplo.com')
+    ligacao.place(botao)
+    ligacao.show()
+    ligacao.expand()
+    enviados.length = 0
+
+    ligacao.show()
+
+    expect(enviados[0]?.mensagem).toMatchObject(FRAME_SIZE.expanded)
     ligacao.stop()
   })
 
