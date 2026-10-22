@@ -80,7 +80,8 @@ const fechamento: PublicClosureViewModel = {
 
 const encerrado: PublicReportViewModel = {
   TrackingCode: '7K2M-9QXP-4TRV',
-  Type: 'Bug',
+  TypeName: 'Defeito',
+  Answers: null,
   Title: null,
   Text: 'O botão de finalizar compra não responde.',
   CreatedAt: '2026-09-12T13:24:00.000Z',
@@ -90,6 +91,9 @@ const encerrado: PublicReportViewModel = {
   InfoRequest: null,
   CanReply: false,
   Reopenings: [],
+  TrackingIntro: 'Este é o registro do que você enviou.',
+  ReporterFirstName: null,
+  ProjectName: null,
 }
 
 /** O que a API devolve ao reabrir: sem fechamento, e com o motivo na lista. */

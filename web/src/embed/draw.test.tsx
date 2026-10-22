@@ -62,6 +62,7 @@ function pagina() {
     expand: vi.fn(),
     collapse: vi.fn(),
     enlarge: vi.fn(),
+    place: vi.fn(),
     canCapture: false,
     capture: vi.fn(),
     stop: vi.fn(),
@@ -97,7 +98,24 @@ describe('desenhar e revelar o quadro', () => {
 
     await draw(root, config, host)
 
-    expect(host.show).toHaveBeenCalledExactlyOnceWith('BottomLeft')
+    // O canto vai antes, de dentro do desenho (`place`); o `show` so revela.
+    expect(host.show).toHaveBeenCalledExactlyOnceWith()
+    const lugar = host.place.mock.lastCall?.[0] as { position: string } | undefined
+    expect(lugar?.position).toBe('BottomLeft')
+    expect(host.place.mock.invocationCallOrder.at(-1) ?? Infinity).toBeLessThan(
+      host.show.mock.invocationCallOrder[0] ?? 0,
+    )
+  })
+
+  it('com o botao da propria pagina, o quadro ja nasce aberto e nao se mostra sozinho', async () => {
+    dublê.widget.mockResolvedValue(DEFAULT_WIDGET_SETTINGS)
+    const host = { ...pagina(), hostDrawsLauncher: true }
+
+    await draw(root, config, host)
+
+    // Quem decide quando mostrar e o carregador: o quadro so pede o tamanho aberto.
+    expect(host.expand).toHaveBeenCalledOnce()
+    expect(host.show).not.toHaveBeenCalled()
   })
 
   it('o quadro ja esta desenhado quando pede para aparecer — nada de caixa vazia', async () => {

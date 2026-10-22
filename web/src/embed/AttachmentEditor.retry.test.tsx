@@ -46,6 +46,7 @@ describe('tentar de novo', () => {
       expand: vi.fn(),
       collapse: vi.fn(),
       enlarge: vi.fn(),
+      place: vi.fn(),
       canCapture: true,
       capture: vi.fn<(maxBytes: number | null) => Promise<CaptureOutcome>>(),
       stop: vi.fn(),
