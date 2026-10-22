@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider, useParams } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProjectViewModel, UpdateProjectRequest } from '@/contracts'
 import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
 import { useProjectsStore } from '@/features/projects/projectsStore'
+import { useToastStore } from '@/shared/components/toastStore'
 
 /**
  * O QUE ESTES TESTES PEGAM, E O QUE NAO PEGAM — teste que parece cobrir mais do
@@ -27,6 +28,11 @@ import { useProjectsStore } from '@/features/projects/projectsStore'
  */
 const estado = vi.hoisted(() => ({ projetos: [] as ProjectViewModel[] }))
 
+// O Copiar passa pelo `copyText`, que no jsdom nao tem area de transferencia: o
+// dublê responde que copiou e guarda o que recebeu.
+const copiar = vi.hoisted(() => vi.fn(async (_texto: string) => true))
+vi.mock('@/shared/lib/clipboard', () => ({ copyText: copiar }))
+
 vi.mock('@/data', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/data')>()
 
@@ -40,6 +46,10 @@ vi.mock('@/data', async (importOriginal) => {
       removeProjectOrigin: async () => {
         throw new Error('removeProjectOrigin nao e usado nestes testes')
       },
+      // A area de Dominios le as tres listas ao abrir: vazias, ela so desenha.
+      listObservedOrigins: async () => [],
+      listBlockedOrigins: async () => [],
+      listPendingOrigins: async () => [],
     },
     projectService: {
       listProjects: async () => estado.projetos,
@@ -124,6 +134,29 @@ const campo = () => screen.getByRole('textbox', { name: 'Nome do projeto' })
 const botaoSalvar = () => screen.getByRole('button', { name: /^Salv/ }) as HTMLButtonElement
 
 describe('ProjectSettingsScreen', () => {
+  // Os dominios ganharam tela propria. O link antigo — o sino mandou `settings#dominios`
+  // por um tempo — cai no mesmo lugar da tela nova, com o mesmo `#`.
+  it('o link antigo dos domínios leva à tela Domínios, no mesmo lugar', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/p/:publicId',
+          element: <ProjetoDaStore />,
+          children: [
+            { path: 'settings', element: <ProjectSettingsScreen /> },
+            { path: 'domains', element: <p>tela de domínios</p> },
+          ],
+        },
+      ],
+      { initialEntries: ['/p/p-1/settings#dominios'] },
+    )
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByText('tela de domínios')).toBeTruthy()
+    expect(router.state.location.pathname).toBe('/p/p-1/domains')
+    expect(router.state.location.hash).toBe('#dominios')
+  })
+
   // Sem `globals: true` no Vitest, a limpeza automatica da Testing Library nao
   // roda: a tela do teste anterior fica montada, assinada na store, e volta a
   // aparecer na busca do proximo.
@@ -136,11 +169,14 @@ describe('ProjectSettingsScreen', () => {
     await useProjectsStore.getState().load()
   })
 
-  it('renomeia e confirma com "Salvo"', async () => {
+  it('renomeia pelo Salvar do título, que desliga quando o nome está salvo', async () => {
     montar('p-1')
     await screen.findByDisplayValue('Loja Antiga')
+    expect(screen.getByText('Tudo salvo')).toBeTruthy()
+    expect((botaoSalvar() as HTMLButtonElement).disabled).toBe(true)
 
     fireEvent.change(campo(), { target: { value: 'Loja Renomeada' } })
+    expect(screen.getByText('1 mudança não salva')).toBeTruthy()
     fireEvent.click(botaoSalvar())
 
     await waitFor(() =>
@@ -149,9 +185,13 @@ describe('ProjectSettingsScreen', () => {
       ).toBe('Loja Renomeada'),
     )
 
-    // A acao so esta pronta quando ela **avisa** que deu certo: o nome certo na
-    // store nao e o suficiente, porque quem renomeia nao ve a store.
-    await waitFor(() => expect(botaoSalvar().textContent).toBe('Salvo'))
+    // A acao so esta pronta quando ela **avisa** que deu certo: o titulo volta a
+    // "Tudo salvo", e o aviso diz que o nome foi salvo.
+    await waitFor(() => expect(screen.getByText('Tudo salvo')).toBeTruthy())
+    expect((botaoSalvar() as HTMLButtonElement).disabled).toBe(true)
+    expect(useToastStore.getState().toasts.map((aviso) => aviso.message)).toContain(
+      'Nome do projeto salvo.',
+    )
   })
 
   it('troca o campo quando o projeto muda **sem desmontar a tela**', async () => {
@@ -188,17 +228,112 @@ describe('ProjectSettingsScreen', () => {
     await screen.findByDisplayValue('Loja Antiga')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Projeto' })).toBeTruthy()
-    expect(
-      screen.getByText('É o nome que aparece na lista de projetos e no seletor do topo.'),
-    ).toBeTruthy()
+    expect(screen.getByText('Aparece na lista de projetos e no seletor do topo.')).toBeTruthy()
     expect(
       screen.getByText(
-        'Este identificador aparece nos endereços do painel e não muda quando você renomeia o projeto.',
+        'Aparece nos endereços do painel e não muda quando você renomeia o projeto.',
       ),
     ).toBeTruthy()
+    // Nada recolhido: o "Mais opções" saiu desta tela.
+    expect(document.querySelector('details')).toBeNull()
   })
 
-  // O nome salva ao lado do campo, sem a barra: so a pergunta ao sair com ele mudado.
+  // O estado vem ao lado do titulo, e o arquivado traz a faixa com o Desarquivar,
+  // sem obrigar a rolar ate o fim da tela.
+  it('a pílula diz Ativo; arquivado, diz Arquivado e a faixa desarquiva', async () => {
+    estado.projetos = [{ ...projeto('p-1', 'Loja Antiga'), Status: 'Archived' }]
+    await useProjectsStore.getState().load()
+    montar('p-1')
+    await screen.findByDisplayValue('Loja Antiga')
+
+    expect(screen.getByText('Arquivado')).toBeTruthy()
+    const faixa = screen.getByText('Este projeto está arquivado e não aceita relatos novos.')
+    expect(faixa).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Desarquivar' }))
+
+    await waitFor(() => expect(screen.getByText('Ativo')).toBeTruthy())
+    expect(screen.queryByText('Este projeto está arquivado e não aceita relatos novos.')).toBeNull()
+    expect(
+      useProjectsStore.getState().projects.find((item) => item.PublicId === 'p-1')?.Status,
+    ).toBe('Active')
+    expect(useToastStore.getState().toasts.map((aviso) => aviso.message)).toContain(
+      'Projeto reativado.',
+    )
+  })
+
+  it('"Sobre o projeto" mostra a conta, o papel, a criação, e copia o identificador', async () => {
+    estado.projetos = [{ ...projeto('p-1', 'Loja Antiga'), IsAccountOwner: false, Role: 'Member' }]
+    await useProjectsStore.getState().load()
+    montar('p-1')
+    await screen.findByDisplayValue('Loja Antiga')
+
+    const sobre = screen.getByRole('region', { name: 'Sobre o projeto' })
+    expect(within(sobre).getByText('Conta de teste')).toBeTruthy()
+    expect(within(sobre).getByText('Membro')).toBeTruthy()
+    expect(within(sobre).getByText('Criado em')).toBeTruthy()
+    expect(within(sobre).getByText('p-1')).toBeTruthy()
+
+    fireEvent.click(within(sobre).getByRole('button', { name: 'Copiar' }))
+    await waitFor(() => expect(within(sobre).getByText('Copiado')).toBeTruthy())
+    expect(copiar).toHaveBeenCalledWith('p-1')
+  })
+
+  it('a dona da conta aparece como dona', async () => {
+    montar('p-1')
+    await screen.findByDisplayValue('Loja Antiga')
+
+    const sobre = screen.getByRole('region', { name: 'Sobre o projeto' })
+    expect(within(sobre).getByText('Dono')).toBeTruthy()
+  })
+
+  it('a prévia do topo acompanha o rascunho do nome', async () => {
+    montar('p-1')
+    await screen.findByDisplayValue('Loja Antiga')
+
+    const previa = screen.getByRole('figure', { name: 'Aparece assim no topo:' })
+    expect(within(previa).getByText('Loja Antiga')).toBeTruthy()
+
+    fireEvent.change(campo(), { target: { value: 'Loja Renomeada' } })
+    expect(within(previa).getByText('Loja Renomeada')).toBeTruthy()
+    expect(within(previa).queryByText('Loja Antiga')).toBeNull()
+  })
+
+  // Arquivar saiu do recolhido: a secao fica a vista no fim, e o botao pede confirmacao.
+  it('arquivar está à vista, sem abrir nada, e pede confirmação', async () => {
+    montar('p-1')
+    await screen.findByDisplayValue('Loja Antiga')
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Arquivar projeto' })).toBeTruthy()
+    const botao = screen.getByRole('button', { name: 'Arquivar projeto' })
+    expect(botao.closest('details')).toBeNull()
+
+    fireEvent.click(botao)
+    expect(await screen.findByRole('alertdialog', { name: 'Arquivar Loja Antiga' })).toBeTruthy()
+  })
+
+  // O link antigo do recolhido continua valendo: fica nesta tela e cai no arquivar.
+  it('o link antigo `#mais-opcoes` fica na tela e aponta para o arquivar', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/p/:publicId',
+          element: <ProjetoDaStore />,
+          children: [{ path: 'settings', element: <ProjectSettingsScreen /> }],
+        },
+      ],
+      { initialEntries: ['/p/p-1/settings#mais-opcoes'] },
+    )
+    render(<RouterProvider router={router} />)
+    await screen.findByDisplayValue('Loja Antiga')
+
+    expect(router.state.location.pathname).toBe('/p/p-1/settings')
+    const ancora = document.getElementById('mais-opcoes') as HTMLElement
+    expect(ancora).toBeTruthy()
+    expect(within(ancora).getByRole('button', { name: 'Arquivar projeto' })).toBeTruthy()
+  })
+
+  // Sair com o nome mudado pergunta antes, e voltar tambem salva.
   it('sair com o nome mudado pergunta antes, e "Voltar e salvar" salva o nome', async () => {
     const router = montar('p-1')
     await screen.findByDisplayValue('Loja Antiga')
