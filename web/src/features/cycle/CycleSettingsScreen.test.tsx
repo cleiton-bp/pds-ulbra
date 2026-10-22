@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CycleSettingsViewModel, ProjectViewModel } from '@/contracts'
@@ -21,9 +21,9 @@ import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * nenhum estado de "vazio" que sugira que nada esta valendo.
  *
  * **O botao so age quando ha o que salvar.** Salvar o que ja esta salvo gravaria
- * uma linha nova de auditoria por clique e nao mudaria nada. Hoje o Salvar mora na
- * barra de alteracoes nao salvas, presa no pe da tela: sem mudanca a barra nem
- * aparece, e Descartar volta ao que esta salvo.
+ * uma linha nova de auditoria por clique e nao mudaria nada. Hoje o Salvar mora no
+ * titulo, preso no topo ao rolar: sem mudanca ele fica desligado, com "Tudo salvo" ao
+ * lado, e Descartar volta ao que esta salvo.
  *
  * **As regras do quadro e as sprints sairam desta tela** (para Colunas e Sprints),
  * mas continuam no mesmo registro: o salvar daqui as devolve como vieram.
@@ -104,6 +104,16 @@ function montar() {
 // ela usa para abrir. Sem isto o teste falharia pelo ambiente, nao pelo codigo.
 instalarRemendosDoRadix()
 
+/** O resumo do grupo fechado: o `<summary>` tem o titulo, o valor e o "Mudou". */
+const resumo = (id: string) => document.getElementById(id)?.textContent ?? ''
+
+/** O grupo inteiro em volta do `<summary>`, com o "Voltar ao padrão" dele. */
+const grupo = (id: string) => document.getElementById(id)?.closest('section') as HTMLElement
+
+/** O Salvar mora no titulo, sempre a vista: liga so com o que salvar. */
+const salvarLigado = () =>
+  !(screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled
+
 describe('CycleSettingsScreen', () => {
   afterEach(cleanup)
 
@@ -131,26 +141,27 @@ describe('CycleSettingsScreen', () => {
     montar()
     await screen.findByRole('radio', { name: /Ao cair na última coluna/ })
 
-    // Nem aparece: a barra so existe com o que salvar. Um Salvar sempre a vista
-    // convidava a clicar sem nada para salvar.
-    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
-    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
+    // Fica a vista, desligado: um Salvar aceso convidava a clicar sem nada para salvar.
+    expect(screen.getByText('Tudo salvo')).toBeTruthy()
+    expect(salvarLigado()).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
     expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
-  it('mudar mostra a barra, e descartar volta ao que está salvo sem gravar', async () => {
+  it('mudar liga o Salvar com a conta, e descartar volta ao que está salvo sem gravar', async () => {
     montar()
 
     fireEvent.click(await screen.findByRole('radio', { name: /Por um botão de concluir/ }))
-    const barra = screen.getByRole('region', { name: 'Alterações não salvas' })
-    expect(within(barra).getByText('Alterações não salvas.')).toBeTruthy()
+    expect(screen.getByText('1 mudança não salva')).toBeTruthy()
+    expect(salvarLigado()).toBe(true)
 
-    fireEvent.click(within(barra).getByRole('button', { name: 'Descartar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
 
     expect(
       (screen.getByRole('radio', { name: /Ao cair na última coluna/ }) as HTMLInputElement).checked,
     ).toBe(true)
-    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
+    expect(screen.getByText('Tudo salvo')).toBeTruthy()
+    expect(salvarLigado()).toBe(false)
     expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
@@ -179,9 +190,9 @@ describe('CycleSettingsScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     // A base do "ha mudanca" passa a ser o que foi gravado, e nao a leitura
-    // inicial: sem isso a barra continuaria na tela depois de salvar, e o segundo
+    // inicial: sem isso o Salvar continuaria ligado depois de salvar, e o segundo
     // clique gravaria de novo o que ja estava la.
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull())
+    await waitFor(() => expect(salvarLigado()).toBe(false))
     expect(dublê.salvar).toHaveBeenCalledTimes(1)
   })
 
@@ -213,9 +224,9 @@ describe('CycleSettingsScreen', () => {
     fireEvent.change(espera, { target: { value: '' } })
 
     // `NaN` no rascunho faria a comparacao com o publicado dizer "ha mudanca"
-    // para sempre, e a barra nunca mais sairia.
+    // para sempre, e o Salvar nunca mais desligaria.
     expect((espera as HTMLInputElement).value).toBe('0')
-    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+    expect(salvarLigado()).toBe(false)
   })
 
   it('a espera viaja junto das outras regras', async () => {
@@ -308,6 +319,174 @@ describe('CycleSettingsScreen', () => {
     await waitFor(() =>
       expect(dublê.salvar).toHaveBeenCalledWith('p-1', { ...lido, ClosureTrigger: 'Button' }),
     )
+  })
+
+  it('cada grupo, fechado, diz o que está escolhido em palavras', async () => {
+    montar()
+    await screen.findByRole('radio', { name: /Ao cair na última coluna/ })
+
+    expect(resumo('encerramento')).toContain('Na última coluna')
+    expect(resumo('grupo-reabertura')).toContain('Pode · volta para a primeira coluna')
+    expect(resumo('grupo-pedido-de-informacao')).toContain('7 + 7 dias')
+    expect(resumo('grupo-espera')).toContain('Na hora')
+    expect(resumo('grupo-nota')).toContain('Estrelas · opcional')
+    expect(resumo('grupo-arquivar')).toContain('Não permitido')
+    // No padrao, nenhum grupo diz "Mudou": seria ruido em todos.
+    expect(document.body.textContent).not.toContain('Mudou:')
+    // O "Mais opções" acabou: a espera, a nota e o arquivar tem grupo proprio.
+    expect(screen.queryByText('Mais opções')).toBeNull()
+  })
+
+  it('o resumo acompanha o rascunho, com o nome da coluna da reabertura', async () => {
+    dublê.ler.mockResolvedValue({
+      ...padroes,
+      ClosureTrigger: 'Button',
+      ReopenStatePublicId: 's-2',
+      InfoRequestCloseDays: 21,
+      PublicDelayMinutes: 30,
+      SatisfactionRequired: true,
+      AllowsReportArchiving: true,
+    })
+    montar()
+
+    await waitFor(() => expect(resumo('grupo-reabertura')).toContain('Pode · volta para Reaberto'))
+    expect(resumo('encerramento')).toContain('Por um botão')
+    expect(resumo('grupo-pedido-de-informacao')).toContain('7 + 21 dias')
+    expect(resumo('grupo-espera')).toContain('Espera 30 minutos')
+    expect(resumo('grupo-nota')).toContain('Estrelas · obrigatória')
+    expect(resumo('grupo-arquivar')).toContain('Permitido')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Deixar quem relatou reabrir/ }))
+    expect(resumo('grupo-reabertura')).toContain('Não pode')
+  })
+
+  it('"Voltar ao padrão" de um grupo volta só os campos dele, e o salvar manda o registro inteiro', async () => {
+    // Fora do padrao em tres grupos, e nas regras de Sprints e Colunas: o rascunho e o
+    // mesmo, e o "Voltar ao padrão" daqui nao pode encostar nelas.
+    const lido = {
+      ...padroes,
+      PublicDelayMinutes: 10,
+      AllowsReportArchiving: true,
+      AllowsReopen: false,
+      LastColumnVisibleDays: 0,
+      SprintsEnabled: true,
+    }
+    dublê.ler.mockResolvedValue(lido)
+    dublê.salvar.mockResolvedValue({ ...lido, PublicDelayMinutes: 0 })
+    montar()
+
+    await screen.findByRole('radio', { name: /Ao cair na última coluna/ })
+    expect(resumo('grupo-espera')).toContain('Mudou: Espera antes de mostrar')
+    expect(resumo('grupo-arquivar')).toContain('Mudou: Arquivar relato')
+    expect(resumo('grupo-reabertura')).toContain('Mudou: Deixar reabrir')
+    expect(resumo('encerramento')).not.toContain('Mudou')
+
+    fireEvent.click(within(grupo('grupo-espera')).getByRole('button', { name: 'Voltar ao padrão' }))
+
+    expect((document.getElementById('espera') as HTMLInputElement).value).toBe('0')
+    expect(resumo('grupo-espera')).not.toContain('Mudou')
+    // Os outros grupos continuam como estavam.
+    expect(resumo('grupo-arquivar')).toContain('Mudou: Arquivar relato')
+    expect(
+      (screen.getByRole('checkbox', { name: /Deixar quem relatou reabrir/ }) as HTMLInputElement)
+        .checked,
+    ).toBe(false)
+    // Fica no rascunho: e o Salvar do titulo que grava.
+    expect(dublê.salvar).not.toHaveBeenCalled()
+    expect(salvarLigado()).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() =>
+      expect(dublê.salvar).toHaveBeenCalledWith('p-1', { ...lido, PublicDelayMinutes: 0 }),
+    )
+  })
+
+  it('o caminho do relato sai do rascunho, e não do salvo', async () => {
+    dublê.ler.mockResolvedValue({ ...padroes, ReopenStatePublicId: 's-2' })
+    montar()
+
+    const caminho = await screen.findByRole('region', { name: 'Caminho do relato' })
+    await waitFor(() => expect(caminho.textContent).toContain('e volta para Reaberto'))
+    expect(caminho.textContent).toContain('Ao mover para a última coluna')
+    expect(caminho.textContent).toContain('Quem relatou vê na hora')
+    expect(caminho.textContent).toContain('Confirma e dá uma nota em estrelas, se quiser.')
+    expect(caminho.textContent).toContain('Aviso em 7 dias')
+    expect(caminho.textContent).toContain('Encerra 7 dias depois')
+    expect(caminho.textContent).toContain('igual ao salvo')
+
+    fireEvent.click(screen.getByRole('radio', { name: /Por um botão de concluir/ }))
+    fireEvent.change(screen.getByLabelText('Esperar antes de mostrar'), {
+      target: { value: '30' },
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Deixar quem relatou reabrir/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Pedir uma nota ao confirmar/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Deixar o time devolver o relato/ }))
+
+    expect(caminho.textContent).toContain('Pelo botão de concluir')
+    expect(caminho.textContent).toContain('Espera 30 minutos')
+    expect(caminho.textContent).toContain('Não pode reabrir: o relato fica encerrado.')
+    expect(caminho.textContent).toContain('Confirma, sem nota.')
+    expect(caminho.textContent).toContain('Desligado: o time não devolve relato')
+    expect(caminho.textContent).toContain('ainda não salvo')
+    // E texto em lista, e nao so desenho: o leitor de tela le os passos em ordem.
+    expect(within(caminho).getAllByRole('listitem').length).toBeGreaterThan(3)
+  })
+
+  it('o grupo em foco contorna, no caminho, a parte que ele muda', async () => {
+    montar()
+
+    const reabrir = await screen.findByRole('checkbox', { name: /Deixar quem relatou reabrir/ })
+    act(() => reabrir.focus())
+
+    const caminho = screen.getByRole('region', { name: 'Caminho do relato' })
+    const contornados = caminho.querySelectorAll('[data-highlighted]')
+    expect(contornados).toHaveLength(1)
+    expect(contornados[0]?.textContent).toContain('Não resolveu')
+
+    act(() => (screen.getByLabelText('Esperar antes de mostrar') as HTMLInputElement).focus())
+    expect(caminho.querySelector('[data-highlighted]')?.textContent).toContain('Quem relatou vê')
+  })
+
+  it('sem as colunas, o "volta para" diz por que e oferece tentar de novo', async () => {
+    dublê.ler.mockResolvedValue({ ...padroes, ReopenStatePublicId: 's-2' })
+    dublê.colunas.mockRejectedValueOnce(new Error('rede'))
+    montar()
+
+    expect(await screen.findByText(/Não deu para carregar as colunas/)).toBeTruthy()
+    const destino = screen.getByRole('combobox', { name: 'O relato reaberto volta para' })
+    // A escolha salva continua com nome, e a caixa nao deixa trocar o que nao se ve.
+    expect(destino.textContent).toContain('A coluna já escolhida')
+    expect((destino as HTMLButtonElement).disabled).toBe(true)
+    // O resto da tela segue configuravel.
+    expect(screen.getByRole('checkbox', { name: /Pedir uma nota ao confirmar/ })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+
+    await waitFor(() => expect(destino.textContent).toContain('Reaberto'))
+    expect(dublê.colunas).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText(/Não deu para carregar as colunas/)).toBeNull()
+  })
+
+  it('as âncoras da busca continuam na tela, e a antiga do "Mais opções" cai na espera', async () => {
+    montar()
+    await screen.findByRole('radio', { name: /Ao cair na última coluna/ })
+
+    for (const id of [
+      'encerramento',
+      'espera',
+      'reabrir',
+      'contar-ao-reabrir',
+      'nota',
+      'pedir-informacao',
+      'aviso',
+      'encerrar',
+      'arquivar-relato',
+    ]) {
+      expect(document.getElementById(id), id).toBeTruthy()
+    }
+    expect(
+      document.getElementById('mais-opcoes')?.contains(document.getElementById('espera')),
+    ).toBe(true)
   })
 
   it('o total dos dois prazos aparece somado, porque é ele que importa', async () => {

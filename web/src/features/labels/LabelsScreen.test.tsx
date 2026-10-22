@@ -12,9 +12,11 @@ import { LabelsScreen } from '@/features/labels/LabelsScreen'
  * - **A tela diz em quantos cards cada etiqueta esta** — e e isso que o dialogo de
  *   apagar repete, antes de apagar.
  * - **Renomear grava nome e cor juntos**, e a lista continua em ordem de nome.
- * - **Daqui tambem se cria**, com nome e cor: sem isso nao dava para preparar o
- *   projeto antes de o time comecar. Nome repetido devolve a que ja existe, e a
- *   lista nao ganha uma linha dobrada.
+ * - **Daqui tambem se cria**, numa linha: nome, o botao da cor (a paleta so abre quando
+ *   se pede) e Criar. Nome repetido devolve a que ja existe — a tela diz "já existia" e
+ *   marca a linha dela, sem linha dobrada.
+ * - **A previa e o card**: ate tres etiquetas e "+N", com a aberta primeiro, como esta
+ *   escrita agora.
  * - **Sem etiqueta nenhuma, a tela diz de onde elas vem**: do time, ao etiquetar.
  */
 const dublê = vi.hoisted(() => ({
@@ -81,6 +83,20 @@ function montar() {
   render(<RouterProvider router={router} />)
 }
 
+/** A lista da esquerda: a previa tambem desenha as etiquetas, e nao conta. */
+const lista = () => screen.getByRole('list', { name: 'Etiquetas do projeto' })
+
+/** A previa da direita, com o card de exemplo. */
+const previa = () => screen.getByRole('region', { name: 'Como aparece no card' })
+
+/** Abre a paleta da nova etiqueta e escolhe `cor`. */
+function escolherCor(cor: string) {
+  fireEvent.click(screen.getByRole('button', { name: /^Cor da nova etiqueta/ }))
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Cor' })).getByRole('button', { name: cor }),
+  )
+}
+
 describe('a tela de Etiquetas', () => {
   afterEach(cleanup)
 
@@ -96,7 +112,8 @@ describe('a tela de Etiquetas', () => {
   it('cada etiqueta vem com em quantos cards esta', async () => {
     montar()
 
-    expect(await screen.findByText('pagamento')).toBeTruthy()
+    await screen.findByRole('button', { name: 'Editar pagamento' })
+    expect(within(lista()).getByText('pagamento')).toBeTruthy()
     expect(screen.getByText('3 cards')).toBeTruthy()
     expect(screen.getByText('1 card')).toBeTruthy()
     expect(screen.getByText('em nenhum card')).toBeTruthy()
@@ -105,7 +122,7 @@ describe('a tela de Etiquetas', () => {
   it('apagar diz de quantos cards ela sai, e so entao apaga', async () => {
     dublê.apagar.mockResolvedValue(undefined)
     montar()
-    await screen.findByText('pagamento')
+    await screen.findByRole('button', { name: 'Apagar pagamento' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Apagar pagamento' }))
     const dialogo = await screen.findByRole('alertdialog')
@@ -114,59 +131,68 @@ describe('a tela de Etiquetas', () => {
 
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Apagar' }))
     await waitFor(() => expect(dublê.apagar).toHaveBeenCalledWith('p-1', 'l-pag'))
-    await waitFor(() => expect(screen.queryByText('pagamento')).toBeNull())
+    await waitFor(() => expect(within(lista()).queryByText('pagamento')).toBeNull())
   })
 
   it('renomear grava nome e cor, e a lista continua em ordem de nome', async () => {
     dublê.mudar.mockResolvedValue(etiqueta('l-pag', 'abacaxi', 3, { Color: 'Pink' }))
     montar()
-    await screen.findByText('pagamento')
+    await screen.findByRole('button', { name: 'Editar pagamento' })
+    // A paleta de criar fica fechada: o unico grupo "Cor" e o da linha aberta.
+    expect(screen.queryByRole('group', { name: 'Cor' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Editar pagamento' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), {
       target: { value: 'abacaxi' },
     })
-    // Dois grupos "Cor" na tela: o da linha em edicao, primeiro, e o de criar, no fim.
-    const corDaLinha = screen.getAllByRole('group', { name: 'Cor' })[0] as HTMLElement
-    fireEvent.click(within(corDaLinha).getByRole('button', { name: 'Rosa' }))
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Cor' })).getByRole('button', { name: 'Rosa' }),
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
       expect(dublê.mudar).toHaveBeenCalledWith('p-1', 'l-pag', { Name: 'abacaxi', Color: 'Pink' }),
     )
-    await screen.findByText('abacaxi')
-    const nomes = screen.getAllByRole('listitem').map((linha) => linha.textContent ?? '')
+    await screen.findByRole('button', { name: 'Editar abacaxi' })
+    const nomes = within(lista())
+      .getAllByRole('listitem')
+      .map((linha) => linha.textContent ?? '')
     expect(nomes[0]).toContain('abacaxi')
   })
 
   it('criar manda o nome e a cor, e a nova entra na ordem de nome', async () => {
     dublê.criar.mockResolvedValue(etiqueta('l-ace', 'acesso', 0, { Color: 'Red' }))
     montar()
-    await screen.findByText('pagamento')
+    await screen.findByRole('button', { name: 'Editar pagamento' })
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Nova etiqueta' }), {
       target: { value: '  acesso ' },
     })
-    const corNova = screen.getAllByRole('group', { name: 'Cor' }).at(-1) as HTMLElement
-    fireEvent.click(within(corNova).getByRole('button', { name: 'Vermelho' }))
+    escolherCor('Vermelho')
+    // Escolher fecha a paleta, e o botao passa a dizer a cor.
+    expect(screen.queryByRole('group', { name: 'Cor' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Cor da nova etiqueta: Vermelho' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Criar etiqueta' }))
 
     await waitFor(() =>
       expect(dublê.criar).toHaveBeenCalledWith('p-1', { Name: 'acesso', Color: 'Red' }),
     )
-    await screen.findByText('acesso')
-    const nomes = screen.getAllByRole('listitem').map((linha) => linha.textContent ?? '')
-    expect(nomes[0]).toContain('acesso')
+    await screen.findByRole('button', { name: 'Editar acesso' })
+    const linhas = within(lista()).getAllByRole('listitem')
+    expect(linhas[0]?.textContent).toContain('acesso')
+    // A nova fica marcada: em ordem de nome, ela pode entrar longe do campo.
+    expect(linhas[0]?.hasAttribute('data-marcada')).toBe(true)
+    expect(screen.queryByText(/já existia/)).toBeNull()
     // O campo esvazia para a proxima.
     expect((screen.getByRole('textbox', { name: 'Nova etiqueta' }) as HTMLInputElement).value).toBe(
       '',
     )
   })
 
-  it('nome repetido devolve a que já existe, e a lista não ganha linha dobrada', async () => {
+  it('nome repetido diz que já existia e marca a que estava, sem linha dobrada', async () => {
     dublê.criar.mockResolvedValue(etiqueta('l-pag', 'pagamento', 3))
     montar()
-    await screen.findByText('pagamento')
+    await screen.findByRole('button', { name: 'Editar pagamento' })
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Nova etiqueta' }), {
       target: { value: 'Pagamento' },
@@ -174,20 +200,55 @@ describe('a tela de Etiquetas', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Criar etiqueta' }))
 
     await waitFor(() => expect(dublê.criar).toHaveBeenCalledTimes(1))
-    await waitFor(() =>
-      expect(
-        (screen.getByRole('textbox', { name: 'Nova etiqueta' }) as HTMLInputElement).value,
-      ).toBe(''),
+    expect(await screen.findByRole('status')).toHaveProperty(
+      'textContent',
+      expect.stringMatching(/“pagamento” já existia/),
     )
-    expect(screen.getAllByText('pagamento')).toHaveLength(1)
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    const linhas = within(lista()).getAllByRole('listitem')
+    expect(linhas).toHaveLength(3)
+    expect(within(lista()).getAllByText('pagamento')).toHaveLength(1)
+    const marcadas = linhas.filter((linha) => linha.hasAttribute('data-marcada'))
+    expect(marcadas).toHaveLength(1)
+    expect(marcadas[0]?.textContent).toContain('pagamento')
+
+    // Escrever de novo tira a marca e o aviso.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nova etiqueta' }), {
+      target: { value: 'x' },
+    })
+    expect(screen.queryByText(/já existia/)).toBeNull()
+  })
+
+  it('a prévia mostra até 3 etiquetas e "+N", com a aberta primeiro como está escrita', async () => {
+    dublê.listar.mockResolvedValue([
+      etiqueta('l-cel', 'celular', 1, { Color: 'Green' }),
+      etiqueta('l-pag', 'pagamento', 3),
+      etiqueta('l-ui', 'tela', 0, { Color: 'Purple' }),
+      etiqueta('l-ux', 'uso', 2, { Color: 'Pink' }),
+    ])
+    montar()
+    await screen.findByRole('button', { name: 'Editar uso' })
+
+    expect(within(previa()).getByText(/O card mostra só 3 etiquetas/)).toBeTruthy()
+    expect(within(previa()).getByText('+1')).toBeTruthy()
+    expect(within(previa()).queryByText('uso')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar uso' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), {
+      target: { value: 'usabilidade' },
+    })
+
+    // A aberta vem primeiro, com o nome do rascunho, e quem sobra vira "+1".
+    expect(within(previa()).getByText('usabilidade')).toBeTruthy()
+    expect(within(previa()).getByText('+1')).toBeTruthy()
+    expect(within(previa()).getByText('ainda não salvo')).toBeTruthy()
+    expect(dublê.mudar).not.toHaveBeenCalled()
   })
 
   it('a recusa ao criar fica no campo, com o texto acentuado', async () => {
     const { PanelError } = await import('@/data')
     dublê.criar.mockRejectedValue(new PanelError('O nome da etiqueta e obrigatorio.', 400))
     montar()
-    await screen.findByText('pagamento')
+    await screen.findByRole('button', { name: 'Editar pagamento' })
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Nova etiqueta' }), {
       target: { value: 'x' },

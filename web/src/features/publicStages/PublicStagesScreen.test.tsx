@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -10,7 +10,7 @@ import type {
 } from '@/contracts'
 import { PanelError } from '@/data'
 import { PublicStagesScreen } from '@/features/publicStages/PublicStagesScreen'
-import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
+import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -33,6 +33,11 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * aparece antes de o servidor dizer nao — sem ele, a pessoa clica, leva uma
  * recusa e nao entende por que. O verbo e "Apagar", como nas Etiquetas: e o que
  * acontece (antes era "Remover").
+ *
+ * **Fechada, a etapa diz o que e em palavras**, e avisa com o caminho o que falta: a
+ * etapa em que nenhuma coluna cai leva a Colunas, e a jornada sem fim diz "Sem etapa
+ * final". **A previa e a linha do tempo de verdade**, com o rascunho da etapa aberta e
+ * o "agora" onde a pessoa escolheu. E trocar de etapa com mudanca pergunta antes.
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<() => Promise<ProjectPublicStageViewModel[]>>(),
@@ -122,10 +127,166 @@ describe('PublicStagesScreen', () => {
 
   beforeEach(() => {
     for (const mock of Object.values(dublê)) mock.mockReset()
-    // A tela busca as duas coisas. Sem esta resposta a seção de mapeamento cai no
-    // caminho de falha, e os testes passariam olhando uma tela meio quebrada — foi
-    // exatamente assim que a primeira versão deste arquivo passou.
+    // A tela le o mapa so para mostrar, em cada etapa, as colunas que caem nela.
     dublê.mapa.mockResolvedValue({ Version: 0, Entries: [], UnmappedCount: 0 })
+  })
+
+  it('cada etapa diz as colunas que caem nela, e a ligação se escolhe só em Colunas', async () => {
+    dublê.listar.mockResolvedValue([etapa('e-1', 'Recebido', 0), etapa('e-2', 'Resolvido', 1)])
+    dublê.mapa.mockResolvedValue({
+      Version: 3,
+      UnmappedCount: 0,
+      Entries: [
+        {
+          StatePublicId: 's-1',
+          StateName: 'A fazer',
+          StateIsActive: true,
+          StagePublicId: 'e-1',
+          StageLabel: 'Recebido',
+        },
+        {
+          StatePublicId: 's-2',
+          StateName: 'Triagem',
+          StateIsActive: true,
+          StagePublicId: 'e-1',
+          StageLabel: 'Recebido',
+        },
+      ],
+    })
+    montar()
+
+    expect(await screen.findByText('Colunas: A fazer, Triagem')).toBeTruthy()
+    // A etapa sem coluna avisa, e o aviso leva a ligacao, que mora em Colunas.
+    const semColuna = screen.getByText(/Nenhuma coluna cai aqui/)
+    expect(
+      within(semColuna).getByRole('link', { name: 'Ligar em Colunas' }).getAttribute('href'),
+    ).toBe('/states#colunas-no-andamento')
+    // Uma so: a etapa que tem coluna nao avisa.
+    expect(screen.getAllByText(/Nenhuma coluna cai aqui/)).toHaveLength(1)
+    // Nenhuma escolha de coluna aqui: um lugar so, e o link leva a ele.
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Salvar mapeamento' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Colunas' }).getAttribute('href')).toBe(
+      '/states#colunas-no-andamento',
+    )
+    // A tela so le a ligacao.
+    expect(dublê.mapa).toHaveBeenCalledWith('p-1')
+  })
+
+  it('fechada, cada etapa diz o que é em palavras', async () => {
+    dublê.listar.mockResolvedValue([
+      etapa('e-1', 'Recebido', 0),
+      etapa('e-2', 'Aguardando você', 1, { AwaitsReporter: true }),
+      etapa('e-3', 'Concluído', 2, { IsTerminal: true, Outcome: 'Done', AllowsReturn: true }),
+    ])
+    dublê.mapa.mockResolvedValue({
+      Version: 1,
+      UnmappedCount: 0,
+      Entries: [
+        {
+          StatePublicId: 's-1',
+          StateName: 'Feito',
+          StateIsActive: true,
+          StagePublicId: 'e-3',
+          StageLabel: 'Concluído',
+        },
+        {
+          StatePublicId: 's-2',
+          StateName: 'Arquivado',
+          StateIsActive: true,
+          StagePublicId: 'e-3',
+          StageLabel: 'Concluído',
+        },
+      ],
+    })
+    montar()
+
+    expect(
+      await screen.findByText('Termina · Foi feito · Pode voltar · Colunas: Feito, Arquivado'),
+    ).toBeTruthy()
+    expect(screen.getByText('Espera quem relatou')).toBeTruthy()
+    // Sem marca e sem coluna, a frase da etapa: o cabecalho nunca fica so com o nome.
+    expect(within(lista()).getByText('O que acontece em Recebido.')).toBeTruthy()
+    // Com etapa final, nada de aviso de que ela falta.
+    expect(screen.queryByText('Sem etapa final')).toBeNull()
+  })
+
+  it('avisa quando nenhuma etapa termina a jornada', async () => {
+    dublê.listar.mockResolvedValue([
+      etapa('e-1', 'Recebido', 0),
+      etapa('e-2', 'Em análise', 1),
+      etapa('e-3', 'Pronto', 2),
+    ])
+    montar()
+
+    expect(await screen.findByText('Sem etapa final')).toBeTruthy()
+  })
+
+  it('o título diz que cada mudança vale na hora', async () => {
+    dublê.listar.mockResolvedValue([etapa('e-1', 'Recebido', 0)])
+    montar()
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Andamento público' })).toBeTruthy()
+    expect(screen.getByText('Cada mudança vale na hora')).toBeTruthy()
+    expect(screen.getByText('Como funciona')).toBeTruthy()
+  })
+
+  it('a prévia é a linha do tempo, com o rascunho da etapa aberta e o "agora" escolhido', async () => {
+    dublê.listar.mockResolvedValue([
+      etapa('e-1', 'Recebido', 0),
+      etapa('e-2', 'Em análise', 1),
+      etapa('e-3', 'Pronto', 2),
+    ])
+    montar()
+    await screen.findAllByText('Recebido')
+
+    // Sem nada aberto, o relato esta na primeira etapa.
+    expect(naPrevia('Recebido').getAttribute('aria-pressed')).toBe('true')
+
+    // Abrir uma etapa leva o "agora" ate ela, e o que se escreve aparece antes de salvar.
+    abrir('Em análise')
+    expect(naPrevia('Em análise').getAttribute('aria-pressed')).toBe('true')
+    escrever('Como esta etapa se chama', 'Lendo o seu relato')
+    escrever('O que vem depois (opcional)', 'A equipe decide o que fazer.')
+
+    const previa = document.getElementById('previa') as HTMLElement
+    expect(within(previa).getByText('Lendo o seu relato')).toBeTruthy()
+    expect(within(previa).getByText('A equipe decide o que fazer.')).toBeTruthy()
+    expect(within(previa).getByText('ainda não salvo')).toBeTruthy()
+    expect(within(previa).getAllByLabelText('Já passou por aqui')).toHaveLength(1)
+
+    // Clicar numa etapa da previa poe o relato nela.
+    fireEvent.click(naPrevia('Pronto'))
+    expect(naPrevia('Pronto').getAttribute('aria-pressed')).toBe('true')
+    expect(within(previa).getAllByLabelText('Já passou por aqui')).toHaveLength(2)
+    expect(dublê.salvar).not.toHaveBeenCalled()
+  })
+
+  it('com mudança, abrir outra etapa pergunta antes', async () => {
+    dublê.listar.mockResolvedValue([
+      etapa('e-1', 'Recebido', 0),
+      etapa('e-2', 'Em análise', 1),
+      etapa('e-3', 'Pronto', 2),
+    ])
+    montar()
+    await screen.findAllByText('Recebido')
+
+    abrir('Recebido')
+    escrever('Como esta etapa se chama', 'Chegou')
+    abrir('Em análise')
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(dialogo.textContent).toContain('Descartar o que mudou em “Recebido”?')
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Continuar editando' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(campo('Como esta etapa se chama').value).toBe('Chegou')
+
+    abrir('Em análise')
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Descartar' }),
+    )
+    await waitFor(() => expect(campo('Como esta etapa se chama').value).toBe('Em análise'))
+    expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
   it('manda a jornada inteira ao reordenar', async () => {
@@ -172,7 +333,8 @@ describe('PublicStagesScreen', () => {
     ])
 
     montar()
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Editar' }))[2] as HTMLElement)
+    await screen.findAllByText('Recebido')
+    abrir('Pronto')
 
     // Antes de marcar, a etapa esta completa e da para salvar.
     expect(botaoSalvar().disabled).toBe(false)
@@ -182,7 +344,8 @@ describe('PublicStagesScreen', () => {
     expect(botaoSalvar().disabled).toBe(true)
     expect(dublê.salvar).not.toHaveBeenCalled()
 
-    await escolherNoSelect(screen, fireEvent, 'Como o relato termina aqui', 'Não será feito')
+    // O desfecho e escolhido em pecas com desenho, e nao numa lista que abre.
+    fireEvent.click(screen.getByRole('radio', { name: 'Não será feito' }))
 
     expect(botaoSalvar().disabled).toBe(false)
   })
@@ -201,7 +364,8 @@ describe('PublicStagesScreen', () => {
     )
 
     montar()
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Editar' }))[2] as HTMLElement)
+    await screen.findAllByText('Recebido')
+    abrir('Concluído')
     fireEvent.click(screen.getByRole('checkbox', { name: 'O relato termina nesta etapa' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
@@ -224,7 +388,8 @@ describe('PublicStagesScreen', () => {
     )
 
     montar()
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Editar' }))[0] as HTMLElement)
+    await screen.findAllByText('Recebido')
+    abrir('Recebido')
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
@@ -241,7 +406,7 @@ describe('PublicStagesScreen', () => {
     ])
 
     montar()
-    const remover = await screen.findAllByRole('button', { name: 'Apagar' })
+    const remover = await screen.findAllByRole('button', { name: /^Apagar / })
 
     expect(remover).toHaveLength(3)
     expect(screen.queryByRole('button', { name: 'Remover' })).toBeNull()
@@ -270,7 +435,7 @@ describe('PublicStagesScreen', () => {
     ])
 
     montar()
-    await screen.findByText('Recebido')
+    await screen.findAllByText('Recebido')
 
     expect(screen.queryByText(/já está sendo mostrada a quem relata/)).toBeNull()
   })
@@ -295,13 +460,31 @@ describe('PublicStagesScreen', () => {
 /** O botao de salvar do formulario aberto. */
 const botaoSalvar = () => screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement
 
-/**
- * Os rotulos da jornada, na ordem em que estao desenhados.
- *
- * Olha so dentro do `ol`: a secao de mapeamento desenha um `ul` logo abaixo, e
- * `getAllByRole('listitem')` traria as duas listas misturadas.
- */
+/** A lista das etapas — a previa desenha outra lista com os mesmos rotulos. */
+const lista = () => screen.getByRole('list', { name: 'Etapas do andamento' })
+
+/** Clica no cabecalho de uma etapa da lista: abre ou fecha o item. */
+function abrir(rotulo: string) {
+  const alvo = within(lista())
+    .getAllByText(rotulo)
+    .find((elemento) => elemento.closest('summary'))
+  fireEvent.click(alvo as HTMLElement)
+}
+
+const campo = (nome: string) => screen.getByRole('textbox', { name: nome }) as HTMLInputElement
+
+function escrever(nome: string, valor: string) {
+  fireEvent.change(campo(nome), { target: { value: valor } })
+}
+
+/** A etapa na previa: o botao que poe o relato nela. */
+const naPrevia = (rotulo: string) =>
+  within(document.getElementById('previa') as HTMLElement).getByRole('button', {
+    name: `Ver o relato em ${rotulo}`,
+  })
+
+/** Os rotulos da jornada, na ordem em que estao desenhados na lista (e nao na previa). */
 const rotulosNaTela = () =>
-  Array.from(document.querySelectorAll('ol > li')).map(
-    (item) => item.querySelector('span.font-medium')?.textContent ?? '',
+  Array.from(lista().querySelectorAll(':scope > li summary span.font-medium')).map(
+    (item) => item.textContent ?? '',
   )
