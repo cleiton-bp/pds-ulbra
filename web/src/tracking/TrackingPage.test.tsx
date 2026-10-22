@@ -66,7 +66,8 @@ vi.mock('@/data/publicIndex', async (importOriginal) => {
 
 const relato: PublicReportViewModel = {
   TrackingCode: '7K2M-9QXP-4TRV',
-  Type: 'Bug',
+  TypeName: 'Defeito',
+  Answers: null,
   Title: null,
   Text: 'O botão de finalizar compra não responde.\nTentei duas vezes.',
   CreatedAt: '2026-09-12T13:24:00.000Z',
@@ -81,6 +82,9 @@ const relato: PublicReportViewModel = {
   CanReply: false,
   // Nunca reaberto. A reabertura tem bloco proprio, e testes proprios.
   Reopenings: [],
+  TrackingIntro: 'Este é o registro do que você enviou.',
+  ReporterFirstName: null,
+  ProjectName: null,
 }
 
 function passo(
