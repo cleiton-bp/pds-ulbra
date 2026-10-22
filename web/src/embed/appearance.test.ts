@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { WidgetSettingsViewModel } from '@/contracts'
-import { accentStyle, isUsableAccent, resolveTheme } from '@/embed/appearance'
+import {
+  accentStyle,
+  formSurfaceStyle,
+  formTheme,
+  isUsableAccent,
+  resolveTheme,
+} from '@/embed/appearance'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
 /**
@@ -105,5 +111,37 @@ describe('o tema do quadro', () => {
   it('Auto sem matchMedia cai no claro, e nao quebra', () => {
     // Ambiente sem DOM: `Auto` nao pode lancar, senao o quadro nao monta.
     expect(resolveTheme('Auto')).toBe('light')
+  })
+})
+
+/**
+ * O fundo do formulario tambem vem do cliente, e o texto por cima dele e derivado: o
+ * fundo escuro com o texto do tema claro seria um formulario que ninguem le.
+ */
+describe('o fundo do formulario', () => {
+  it('sem fundo, vale o tema escolhido', () => {
+    expect(formTheme('Dark', null)).toBe('dark')
+    expect(formTheme('Light', null)).toBe('light')
+    expect(formSurfaceStyle(null)).toEqual({})
+  })
+
+  it('o fundo vence o tema: escuro com o tema claro fica escuro', () => {
+    expect(formTheme('Light', '#113264')).toBe('dark')
+  })
+
+  it('o fundo vence o tema: claro com o tema escuro fica claro', () => {
+    expect(formTheme('Dark', '#e6f4fe')).toBe('light')
+  })
+
+  it('cor invalida nao muda nada: valem o tema e os tokens', () => {
+    expect(formTheme('Dark', 'azul')).toBe('dark')
+    expect(formSurfaceStyle('azul')).toEqual({})
+  })
+
+  it('a folha e o fundo; campos, bordas e texto apagado saem dele com o texto', () => {
+    const estilo = formSurfaceStyle(' #113264 ') as Record<string, string>
+    expect(estilo['--surface']).toBe('#113264')
+    for (const token of ['--surface-raised', '--border', '--fg-muted', '--fg-placeholder'])
+      expect(estilo[token]).toMatch(/^color-mix\(in srgb, var\(--fg\) \d+%, #113264\)$/)
   })
 })
