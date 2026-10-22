@@ -5,8 +5,8 @@ import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   CycleSettingsViewModel,
-  ProjectInitialStateViewModel,
   ProjectPublicStageViewModel,
+  ProjectReportTypeViewModel,
   ProjectStateViewModel,
   ProjectStatusMappingViewModel,
   ProjectViewModel,
@@ -34,15 +34,23 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * a tela escondendo a desativada, o historico dos relatos que passaram por ela fica
  * sem nome. E a pergunta diz **quantos cards estao nela** — o tamanho do efeito.
  *
- * **Cada coluna diz o que quem relatou ve**, e trocar grava o mapa inteiro (cada
- * gravacao e uma versao, o retrato do conjunto). A coluna nova nasce ligada a etapa
- * da ultima coluna ativa de antes — sem isso, quem relatou continuava lendo
- * "Recebido" com o relato ja na coluna nova, e ninguem percebia.
+ * **Cada coluna diz o que quem relatou ve**, e o Salvar da coluna grava o mapa
+ * inteiro (cada gravacao e uma versao, o retrato do conjunto) — **so quando a etapa
+ * mudou**: renomear nao pode criar versao. A coluna nova nasce ligada a etapa da
+ * ultima coluna ativa de antes — sem isso, quem relatou continuava lendo "Recebido"
+ * com o relato ja na coluna nova, e ninguem percebia.
+ *
+ * **As marcas dizem o que a coluna faz**: a entrada de um tipo (a escolhida, ou a
+ * primeira ativa para quem nao escolheu), a que encerra o relato pela regra do Ciclo, a
+ * desativada. E a entrada de um tipo nao oferece Desativar: o caminho vem escrito.
  *
  * **As regras do quadro moram aqui, e voltam inteiras.** Sao campos do registro do
  * ciclo: o salvar daqui manda o que leu, com so os dois campos mudados — mandar so os
  * visiveis apagaria o encerramento e as sprints. E nelas zero quer dizer alguma
  * coisa ("mostra todos"), ao contrario dos prazos do Ciclo.
+ *
+ * **A previa e o rascunho**: o quadro de exemplo mostra o nome e a etapa da coluna
+ * aberta como estao escritos, antes do Salvar.
  *
  * **O nome que aparece e o que a API devolveu.** Ela junta os espacos repetidos;
  * reaproveitar o texto digitado deixaria "Em   analise" na tela ate recarregar. A
@@ -57,14 +65,13 @@ const dublê = vi.hoisted(() => ({
   reordenar: vi.fn(),
   aposentar: vi.fn(),
   reativar: vi.fn(),
-  listarEntradas: vi.fn<() => Promise<ProjectInitialStateViewModel[]>>(),
-  salvarEntrada: vi.fn(),
   contar: vi.fn<() => Promise<ReportStateCountViewModel[]>>(),
   etapas: vi.fn<() => Promise<ProjectPublicStageViewModel[]>>(),
   lerMapa: vi.fn<() => Promise<ProjectStatusMappingViewModel>>(),
   salvarMapa: vi.fn(),
   lerRegras: vi.fn<() => Promise<CycleSettingsViewModel>>(),
   salvarRegras: vi.fn(),
+  tipos: vi.fn<() => Promise<ProjectReportTypeViewModel[]>>(),
 }))
 
 vi.mock('@/data', async (importOriginal) => {
@@ -79,8 +86,6 @@ vi.mock('@/data', async (importOriginal) => {
       reorderProjectStates: dublê.reordenar,
       deactivateProjectState: dublê.aposentar,
       activateProjectState: dublê.reativar,
-      listInitialStates: dublê.listarEntradas,
-      setInitialState: dublê.salvarEntrada,
     },
     // A tela le tambem o que quem relatou ve em cada coluna, as regras do quadro e,
     // ao perguntar se desativa, quantos cards a coluna tem. Sem dubles, essas
@@ -94,6 +99,7 @@ vi.mock('@/data', async (importOriginal) => {
       getStatusMapping: dublê.lerMapa,
       saveStatusMapping: dublê.salvarMapa,
     },
+    projectReportTypeService: { ...real.projectReportTypeService, listReportTypes: dublê.tipos },
     projectCycleSettingsService: {
       getCycleSettings: dublê.lerRegras,
       saveCycleSettings: dublê.salvarRegras,
@@ -169,13 +175,6 @@ const regras: CycleSettingsViewModel = {
   SprintLengthWeeks: 3,
 }
 
-function entrada(
-  reportType: ProjectInitialStateViewModel['ReportType'],
-  statePublicId: string | null = null,
-): ProjectInitialStateViewModel {
-  return { ReportType: reportType, StatePublicId: statePublicId }
-}
-
 function estado(
   publicId: string,
   name: string,
@@ -234,9 +233,55 @@ function montar() {
   render(<RouterProvider router={router} />)
 }
 
-/** Os nomes na ordem em que estao desenhados (com o selo "Desativada" colado). */
+function tipo(
+  publicId: string,
+  name: string,
+  initialState: string | null,
+  isActive = true,
+): ProjectReportTypeViewModel {
+  return {
+    PublicId: publicId,
+    Name: name,
+    Color: 'Gray',
+    Icon: 'Other',
+    Position: 0,
+    IsActive: isActive,
+    Questions: [],
+    ShowsTextBox: true,
+    TextBoxPrompt: null,
+    InitialStatePublicId: initialState,
+    CreatedAt: '2026-10-01T12:00:00.000Z',
+  }
+}
+
+/** Os itens da lista de colunas — e nao os do quadro de exemplo, ao lado. */
+const itens = () =>
+  within(document.getElementById('colunas-no-andamento') as HTMLElement).getAllByRole('listitem')
+
+/**
+ * Os nomes na ordem em que estao desenhados. O `textContent` cru do nome, sem o
+ * "Editar " que so o leitor de tela ouve.
+ */
 const nomesNaTela = () =>
-  screen.getAllByRole('listitem').map((item) => item.textContent?.split('Editar')[0]?.trim())
+  itens().map((item) => item.querySelector('summary .sr-only')?.nextElementSibling?.textContent)
+
+/** O item da coluna, pelo nome que ele mostra. */
+const item = (nome: string) => {
+  const achado = itens().find(
+    (li) => li.querySelector('summary .sr-only')?.nextElementSibling?.textContent === nome,
+  )
+  if (!achado) throw new Error(`sem a coluna ${nome}`)
+  return achado
+}
+
+/** Abre (ou fecha) a coluna pelo cabecalho, como a pessoa faz. */
+const abrir = (nome: string) => fireEvent.click(item(nome).querySelector('summary') as HTMLElement)
+
+/** O quadro de exemplo, a direita. */
+const quadro = () => screen.getByRole('list', { name: 'Quadro de exemplo' })
+
+/** O grupo "Fim e prazos no quadro". */
+const grupoDasRegras = () => screen.getByRole('region', { name: 'Fim e prazos no quadro' })
 
 // A caixa de escolha do produto desenha a propria lista, e o jsdom nao tem o
 // que ela usa para abrir. Sem isto o teste falharia pelo ambiente, nao pelo codigo.
@@ -247,14 +292,11 @@ describe('ProjectStatesScreen', () => {
 
   beforeEach(() => {
     for (const mock of Object.values(dublê)) mock.mockReset()
-    // Os testes da fila nao falam da secao de entrada, mas a tela busca as duas
-    // coisas: sem esta resposta o componente cai no caminho de falha, e os testes
-    // passariam olhando uma tela meio quebrada.
-    dublê.listarEntradas.mockResolvedValue([])
     dublê.contar.mockResolvedValue([])
     dublê.etapas.mockResolvedValue(ETAPAS)
     dublê.lerMapa.mockResolvedValue(mapa(1, []))
     dublê.lerRegras.mockResolvedValue(regras)
+    dublê.tipos.mockResolvedValue([])
     useToastStore.setState({ toasts: [] })
   })
 
@@ -308,8 +350,9 @@ describe('ProjectStatesScreen', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Desativar', hidden: true }))
 
     await waitFor(() => expect(dublê.aposentar).toHaveBeenCalledWith('p-1', 's-2'))
-    // Continua na lista, no lugar onde estava.
-    await waitFor(() => expect(nomesNaTela()).toEqual(['Análise', 'ProntoDesativada']))
+    // Continua na lista, no lugar onde estava, com a marca.
+    await waitFor(() => expect(within(item('Pronto')).getByText('Desativada')).toBeTruthy())
+    expect(nomesNaTela()).toEqual(['Análise', 'Pronto'])
     expect(screen.getByRole('button', { name: 'Reativar Pronto' })).toBeTruthy()
   })
 
@@ -356,91 +399,6 @@ describe('ProjectStatesScreen', () => {
     await waitFor(() => expect(nomesNaTela()).toEqual(['Em análise']))
   })
 
-  it('a opção padrão apaga a escolha em vez de gravar uma vazia', async () => {
-    dublê.listar.mockResolvedValue([estado('s-1', 'Análise', 0), estado('s-2', 'Pronto', 1)])
-    dublê.listarEntradas.mockResolvedValue([
-      entrada('Bug', 's-2'),
-      entrada('Improvement'),
-      entrada('Question'),
-    ])
-    dublê.salvarEntrada.mockResolvedValue(entrada('Bug'))
-
-    montar()
-
-    // O gatilho mostra o que está escolhido; a lista é nossa, não do sistema.
-    const gatilho = await screen.findByRole('combobox', {
-      name: 'Onde entra um relato do tipo Defeito',
-    })
-    expect(gatilho.textContent).toContain('Pronto')
-
-    await escolherNoSelect(
-      screen,
-      fireEvent,
-      'Onde entra um relato do tipo Defeito',
-      /^Seguir a fila/,
-    )
-
-    // Nulo, e nao string vazia: e o que apaga a linha no banco e devolve o tipo
-    // ao padrão. Mandar '' gravaria uma escolha que aponta para lugar nenhum.
-    await waitFor(() =>
-      expect(dublê.salvarEntrada).toHaveBeenCalledWith('p-1', {
-        ReportType: 'Bug',
-        StatePublicId: null,
-      }),
-    )
-  })
-
-  it('não oferece estado aposentado como entrada, a não ser o já escolhido', async () => {
-    dublê.listar.mockResolvedValue([
-      estado('s-1', 'Análise', 0),
-      estado('s-2', 'Parado', 1, false),
-      estado('s-3', 'Pronto', 2),
-    ])
-    dublê.listarEntradas.mockResolvedValue([
-      entrada('Bug'),
-      entrada('Improvement'),
-      entrada('Question'),
-    ])
-
-    montar()
-
-    const gatilho = await screen.findByRole('combobox', {
-      name: 'Onde entra um relato do tipo Defeito',
-    })
-    fireEvent.pointerDown(gatilho, { button: 0, ctrlKey: false, pointerType: 'mouse' })
-
-    const opcoes = screen.getAllByRole('option').map((o) => o.textContent)
-
-    // "Parado" está aposentado: mandar relato novo para ele desfaria pela porta
-    // dos fundos o que aposentar decidiu.
-    expect(opcoes).toEqual(['Seguir a fila (hoje: Análise)', 'Análise', 'Pronto'])
-  })
-
-  it('o padrão mostra a primeira coluna ativa, e não a primeira da lista', async () => {
-    // "Análise" está aposentada: quem não escolheu cai em "Corrigindo", e é esse
-    // nome que precisa aparecer. Dizer "primeira coluna da fila" seria uma frase
-    // que vira mentira no dia em que alguém aposenta a primeira.
-    dublê.listar.mockResolvedValue([
-      estado('s-1', 'Análise', 0, false),
-      estado('s-2', 'Corrigindo', 1),
-      estado('s-3', 'Pronto', 2),
-    ])
-    dublê.listarEntradas.mockResolvedValue([
-      entrada('Bug'),
-      entrada('Improvement'),
-      entrada('Question'),
-    ])
-
-    montar()
-
-    const gatilho = await screen.findByRole('combobox', {
-      name: 'Onde entra um relato do tipo Defeito',
-    })
-    fireEvent.pointerDown(gatilho, { button: 0, ctrlKey: false, pointerType: 'mouse' })
-
-    expect(screen.getAllByRole('option')[0]?.textContent).toBe('Seguir a fila (hoje: Corrigindo)')
-  })
-
   it('arrastar reordena na tela e grava a fila inteira uma vez só', async () => {
     dublê.listar.mockResolvedValue([
       estado('s-1', 'Análise', 0),
@@ -460,9 +418,9 @@ describe('ProjectStatesScreen', () => {
     })
 
     montar()
-    await screen.findByText('Análise')
+    await screen.findByRole('button', { name: 'Mover Análise para baixo' })
 
-    const linhas = screen.getAllByRole('listitem')
+    const linhas = itens()
     const primeira = linhas[0] as HTMLElement
     const terceira = linhas[2] as HTMLElement
 
@@ -473,7 +431,7 @@ describe('ProjectStatesScreen', () => {
     fireEvent.dragEnter(terceira)
 
     // A lista se reorganiza com o dedo em cima, e não só ao soltar.
-    await waitFor(() => expect(nomesNaTela()).toEqual(['ParadoDesativada', 'Pronto', 'Análise']))
+    await waitFor(() => expect(nomesNaTela()).toEqual(['Parado', 'Pronto', 'Análise']))
     expect(dublê.reordenar).not.toHaveBeenCalled()
 
     fireEvent.drop(terceira)
@@ -487,9 +445,9 @@ describe('ProjectStatesScreen', () => {
     dublê.listar.mockResolvedValue([estado('s-1', 'Análise', 0), estado('s-2', 'Pronto', 1)])
 
     montar()
-    await screen.findByText('Análise')
+    await screen.findByRole('button', { name: 'Mover Análise para baixo' })
 
-    const primeira = screen.getAllByRole('listitem')[0] as HTMLElement
+    const primeira = itens()[0] as HTMLElement
     fireEvent.mouseDown(primeira.querySelector('button') as HTMLElement)
     comecarArrasto(primeira)
     fireEvent.drop(primeira)
@@ -499,7 +457,7 @@ describe('ProjectStatesScreen', () => {
     expect(dublê.reordenar).not.toHaveBeenCalled()
   })
 
-  it('cada coluna diz o que quem relatou vê, e trocar grava o mapa inteiro', async () => {
+  it('cada coluna diz o que quem relatou vê, e o Salvar grava o mapa inteiro', async () => {
     dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Feito', 1)])
     dublê.lerMapa.mockResolvedValue(
       mapa(1, [
@@ -515,7 +473,11 @@ describe('ProjectStatesScreen', () => {
     )
 
     montar()
-    const escolha = await screen.findByRole('combobox', {
+    // Fechada, a coluna ja diz o que quem relatou ve.
+    await waitFor(() => expect(item('A fazer').textContent).toContain('Quem relatou vê: Recebido'))
+
+    abrir('A fazer')
+    const escolha = screen.getByRole('combobox', {
       name: 'O que quem relatou vê com o relato em A fazer',
     })
     expect(escolha.textContent).toContain('Recebido')
@@ -526,8 +488,11 @@ describe('ProjectStatesScreen', () => {
       'O que quem relatou vê com o relato em A fazer',
       'Em desenvolvimento',
     )
+    // Escolher nao grava: e o Salvar da coluna.
+    expect(dublê.salvarMapa).not.toHaveBeenCalled()
+    fireEvent.click(within(item('A fazer')).getByRole('button', { name: 'Salvar' }))
 
-    // Uma versao por escolha, com o conjunto inteiro — e nao so a linha que mudou.
+    // Uma versao por decisao, com o conjunto inteiro — e nao so a linha que mudou.
     await waitFor(() => expect(dublê.salvarMapa).toHaveBeenCalledTimes(1))
     expect(dublê.salvarMapa.mock.calls[0]?.[1]).toEqual({
       Entries: [
@@ -535,6 +500,11 @@ describe('ProjectStatesScreen', () => {
         { StatePublicId: 's-1', StagePublicId: 'e-2' },
       ],
     })
+    // O nome nao mudou: nada de renomear.
+    expect(dublê.renomear).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(item('A fazer').textContent).toContain('Quem relatou vê: Em desenvolvimento'),
+    )
   })
 
   it('"nada muda para quem relatou" tira a coluna do mapa, em vez de gravar uma ligação vazia', async () => {
@@ -548,18 +518,220 @@ describe('ProjectStatesScreen', () => {
     dublê.salvarMapa.mockResolvedValue(mapa(2, [['s-2', 'e-3']]))
 
     montar()
-    await screen.findByRole('combobox', { name: 'O que quem relatou vê com o relato em A fazer' })
+    await waitFor(() => expect(item('A fazer').textContent).toContain('Recebido'))
+    abrir('A fazer')
     await escolherNoSelect(
       screen,
       fireEvent,
       'O que quem relatou vê com o relato em A fazer',
       'Nada muda para quem relatou',
     )
+    fireEvent.click(within(item('A fazer')).getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => expect(dublê.salvarMapa).toHaveBeenCalledTimes(1))
     expect(dublê.salvarMapa.mock.calls[0]?.[1]).toEqual({
       Entries: [{ StatePublicId: 's-2', StagePublicId: 'e-3' }],
     })
+  })
+
+  it('renomear sem mexer na etapa não grava o mapa: renomear não cria versão', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Feito', 1)])
+    dublê.lerMapa.mockResolvedValue(mapa(1, [['s-1', 'e-1']]))
+    dublê.renomear.mockResolvedValue(estado('s-1', 'Triagem', 0))
+
+    montar()
+    await waitFor(() => expect(item('A fazer').textContent).toContain('Recebido'))
+    abrir('A fazer')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Novo nome para A fazer' }), {
+      target: { value: 'Triagem' },
+    })
+    fireEvent.click(within(item('Triagem')).getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() =>
+      expect(dublê.renomear).toHaveBeenCalledWith('p-1', 's-1', { Name: 'Triagem' }),
+    )
+    // Fechou ao salvar, com o nome novo.
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: /Novo nome/ })).toBeNull())
+    expect(nomesNaTela()).toEqual(['Triagem', 'Feito'])
+    expect(dublê.salvarMapa).not.toHaveBeenCalled()
+  })
+
+  it('o nome salvo e o mapa recusado: a mensagem diz o que ficou, e o próximo Salvar tenta só o mapa', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
+    dublê.lerMapa.mockResolvedValue(mapa(1, [['s-1', 'e-1']]))
+    dublê.renomear.mockResolvedValue(estado('s-1', 'Triagem', 0))
+    dublê.salvarMapa
+      .mockRejectedValueOnce(new Error('sem rede'))
+      .mockResolvedValueOnce(mapa(2, [['s-1', 'e-2']]))
+
+    montar()
+    await waitFor(() => expect(item('A fazer').textContent).toContain('Recebido'))
+    abrir('A fazer')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Novo nome para A fazer' }), {
+      target: { value: 'Triagem' },
+    })
+    await escolherNoSelect(
+      screen,
+      fireEvent,
+      'O que quem relatou vê com o relato em A fazer',
+      'Em desenvolvimento',
+    )
+    fireEvent.click(within(item('Triagem')).getByRole('button', { name: 'Salvar' }))
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(
+      /O nome foi salvo, mas o que quem relatou vê não foi/,
+    )
+    // Continua aberta, com a etapa escolhida guardada.
+    expect(dublê.renomear).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(within(item('Triagem')).getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(dublê.salvarMapa).toHaveBeenCalledTimes(2))
+    // O nome ja estava salvo: nao renomeia de novo.
+    expect(dublê.renomear).toHaveBeenCalledTimes(1)
+  })
+
+  it('trocar de coluna com mudança por salvar pergunta antes', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Feito', 1)])
+
+    montar()
+    await screen.findByRole('button', { name: 'Mover A fazer para baixo' })
+    abrir('A fazer')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Novo nome para A fazer' }), {
+      target: { value: 'Triagem' },
+    })
+    abrir('Feito')
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(within(dialogo).getByText('Descartar o que mudou em “A fazer”?')).toBeTruthy()
+    // Ainda aberta, com o que foi escrito (atras do dialogo, por isso `hidden`).
+    expect(
+      (
+        screen.getByRole('textbox', {
+          name: 'Novo nome para A fazer',
+          hidden: true,
+        }) as HTMLInputElement
+      ).value,
+    ).toBe('Triagem')
+    expect(dublê.renomear).not.toHaveBeenCalled()
+  })
+
+  it('a prévia mostra a coluna aberta como está escrita, antes do Salvar', async () => {
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'A fazer', 0),
+      estado('s-2', 'Feito', 1),
+      estado('s-3', 'Arquivo', 2, false),
+    ])
+    dublê.lerMapa.mockResolvedValue(
+      mapa(1, [
+        ['s-1', 'e-1'],
+        ['s-2', 'e-3'],
+      ]),
+    )
+
+    montar()
+    await waitFor(() => expect(quadro().textContent).toContain('Quem relatou vê: Recebido'))
+    // So as ativas, na ordem, e o card de exemplo na primeira.
+    const colunas = () =>
+      within(quadro())
+        .getAllByRole('heading')
+        .map((titulo) => titulo.textContent)
+    expect(colunas()).toEqual(['A fazer', 'Feito'])
+
+    abrir('A fazer')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Novo nome para A fazer' }), {
+      target: { value: 'Triagem' },
+    })
+    await escolherNoSelect(
+      screen,
+      fireEvent,
+      'O que quem relatou vê com o relato em A fazer',
+      'Em desenvolvimento',
+    )
+
+    expect(colunas()).toEqual(['Triagem', 'Feito'])
+    const primeira = within(quadro()).getAllByRole('listitem')[0] as HTMLElement
+    expect(primeira.textContent).toContain('Quem relatou vê: Em desenvolvimento')
+    expect(screen.getByText('ainda não salvo')).toBeTruthy()
+    expect(dublê.salvarMapa).not.toHaveBeenCalled()
+    expect(dublê.renomear).not.toHaveBeenCalled()
+  })
+
+  it('marca a entrada de cada tipo, a coluna que encerra o relato e a desativada', async () => {
+    dublê.listar.mockResolvedValue([
+      estado('s-1', 'A fazer', 0),
+      estado('s-2', 'Fazendo', 1),
+      estado('s-3', 'Feito', 2),
+      estado('s-4', 'Arquivo', 3, false),
+    ])
+    dublê.tipos.mockResolvedValue([
+      // Sem escolha: entra na primeira coluna ativa.
+      tipo('t-1', 'Defeito', null),
+      tipo('t-2', 'Melhoria', 's-2'),
+      tipo('t-3', 'Dúvida', 's-2'),
+      // Desativado: nao entra em lugar nenhum agora, e nao marca.
+      tipo('t-4', 'Antigo', 's-1', false),
+    ])
+    dublê.lerRegras.mockResolvedValue({ ...regras, ClosureTrigger: 'LastColumn' })
+
+    montar()
+    await waitFor(() => expect(within(item('A fazer')).getByText('Entrada: Defeito')).toBeTruthy())
+    expect(within(item('Fazendo')).getByText('Entrada: Melhoria e Dúvida')).toBeTruthy()
+    // A ultima ATIVA encerra: a desativada depois dela nao conta.
+    expect(within(item('Feito')).getByText('Encerra o relato')).toBeTruthy()
+    expect(within(item('Arquivo')).getByText('Desativada')).toBeTruthy()
+    expect(within(item('Arquivo')).queryByText('Encerra o relato')).toBeNull()
+    // O desativado nao marca a entrada (nao entra relato dele), mas ainda prende a coluna.
+    expect(within(item('A fazer')).queryByText(/Entrada:.*Antigo/)).toBeNull()
+
+    // No quadro de exemplo, as mesmas marcas.
+    expect(within(quadro()).getByText('Encerra')).toBeTruthy()
+    expect(within(quadro()).getByText('Entrada: Melhoria e Dúvida')).toBeTruthy()
+  })
+
+  it('com o encerramento por botão, nenhuma coluna encerra o relato', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Feito', 1)])
+    // `regras` encerra por botao.
+
+    montar()
+    await screen.findByRole('button', { name: 'Desativar Feito' })
+    await waitFor(() => expect(dublê.lerRegras).toHaveBeenCalled())
+    expect(screen.queryByText('Encerra o relato')).toBeNull()
+  })
+
+  it('a entrada de um tipo não oferece Desativar, e diz onde trocar', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Fazendo', 1)])
+    dublê.tipos.mockResolvedValue([
+      tipo('t-1', 'Defeito', null),
+      // Desativado tambem prende, como na API: reativa-lo traria o problema de volta.
+      tipo('t-2', 'Antigo', 's-2', false),
+    ])
+
+    montar()
+    const desativar = await screen.findByRole('button', { name: 'Desativar Fazendo' })
+    await waitFor(() => expect((desativar as HTMLButtonElement).disabled).toBe(true))
+    const porque = within(item('Fazendo')).getByText(/É a entrada de Antigo/)
+    expect(porque.textContent).toContain('troque em Tipos de relato')
+    expect(within(porque).getByRole('link', { name: 'Tipos de relato' })).toBeTruthy()
+    expect(desativar.getAttribute('aria-describedby')).toBe(porque.id)
+
+    // A primeira ativa, entrada de quem nao escolheu, desativa: a entrada so passa adiante.
+    expect(
+      (screen.getByRole('button', { name: 'Desativar A fazer' }) as HTMLButtonElement).disabled,
+    ).toBe(false)
+  })
+
+  it('a recusa da API ao desativar (a corrida) ainda vira aviso', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Fazendo', 1)])
+    dublê.aposentar.mockRejectedValue(new Error('Esta coluna é a entrada de um tipo.'))
+
+    montar()
+    fireEvent.click(await screen.findByRole('button', { name: 'Desativar Fazendo' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Desativar', hidden: true }))
+
+    await waitFor(() =>
+      expect(useToastStore.getState().toasts.some((aviso) => aviso.tone === 'danger')).toBe(true),
+    )
+    expect(within(item('Fazendo')).queryByText('Desativada')).toBeNull()
   })
 
   it('a coluna nova nasce ligada à etapa da última coluna ativa de antes, e o aviso diz qual', async () => {
@@ -587,7 +759,8 @@ describe('ProjectStatesScreen', () => {
     )
 
     montar()
-    fireEvent.change(await screen.findByRole('textbox', { name: 'Nova coluna' }), {
+    await waitFor(() => expect(item('A fazer').textContent).toContain('Recebido'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nova coluna' }), {
       target: { value: 'Revisão' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Criar coluna' }))
@@ -608,29 +781,39 @@ describe('ProjectStatesScreen', () => {
     )
   })
 
-  it('as regras do quadro só mostram a barra com mudança, e voltam com o resto do ciclo intacto', async () => {
+  it('as regras do quadro gravam no Salvar do grupo, e voltam com o resto do ciclo intacto', async () => {
     dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
     dublê.salvarRegras.mockResolvedValue({ ...regras, LastColumnVisibleDays: 0, DueSoonDays: 5 })
 
     montar()
 
-    const dias = await screen.findByLabelText(/A última coluna mostra o que entrou nela/)
+    // Fechado, o grupo diz o valor; sem mudanca do padrao, nada de "Mudou".
+    const grupo = await waitFor(grupoDasRegras)
+    const resumo = () => grupo.querySelector('summary')?.textContent ?? ''
+    expect(resumo()).toContain('Última coluna: 14 dias · Prazo: 2 dias')
+    expect(resumo()).not.toContain('Mudou')
+    // O endereco antigo do "Mais opções" continua levando ate aqui.
+    expect(document.getElementById('mais-opcoes')?.contains(grupo)).toBe(true)
+    // Sem "Alterar": os campos ja estao no grupo.
+    expect(screen.queryByRole('button', { name: 'Alterar' })).toBeNull()
+
+    const dias = within(grupo).getByLabelText(/A última coluna mostra o que entrou nela/)
     expect((dias as HTMLInputElement).value).toBe('14')
-    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
+    expect(dias.id).toBe('ultima-coluna')
 
     // Zero na ultima coluna e "mostrar todos" — e nao vira um, como nos prazos.
     fireEvent.change(dias, { target: { value: '0' } })
     expect((dias as HTMLInputElement).value).toBe('0')
-    expect(screen.getByText(/Zero: mostra todos/)).toBeTruthy()
+    expect(within(grupo).getByText(/Zero: mostra todos/)).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText(/O prazo fica em destaque faltando/), {
-      target: { value: '5' },
-    })
-    const barra = screen.getByRole('region', { name: 'Alterações não salvas' })
-    fireEvent.click(within(barra).getByRole('button', { name: 'Salvar' }))
+    const prazo = within(grupo).getByLabelText(/O prazo fica em destaque faltando/)
+    expect(prazo.id).toBe('prazo-perto')
+    fireEvent.change(prazo, { target: { value: '5' } })
+    expect(resumo()).toContain('não salvo')
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Salvar' }))
 
     // **O ponto do teste.** O registro e um so com o Ciclo e as Sprints: o pedido
-    // leva o que foi lido, com so os dois campos daqui mudados.
+    // leva o que esta salvo agora, com so os dois campos daqui mudados.
     await waitFor(() =>
       expect(dublê.salvarRegras).toHaveBeenCalledWith('p-1', {
         ...regras,
@@ -638,32 +821,63 @@ describe('ProjectStatesScreen', () => {
         DueSoonDays: 5,
       }),
     )
-    await waitFor(() =>
-      expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull(),
-    )
+    // Gravou: o resumo diz o valor e o que saiu do padrao.
+    await waitFor(() => expect(resumo()).not.toContain('não salvo'))
+    expect(resumo()).toContain('Última coluna: todos · Prazo: 5 dias')
+    expect(resumo()).toContain('Mudou: Dias da última coluna, Destaque do prazo')
   })
 
-  it('descartar as regras do quadro volta ao que está salvo, sem gravar', async () => {
+  it('cancelar as regras do quadro volta ao que está salvo, sem gravar', async () => {
     dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
 
     montar()
-    const destaque = await screen.findByLabelText(/O prazo fica em destaque faltando/)
+    const grupo = await waitFor(grupoDasRegras)
+    const destaque = within(grupo).getByLabelText(/O prazo fica em destaque faltando/)
     fireEvent.change(destaque, { target: { value: '9' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Cancelar' }))
 
     expect((destaque as HTMLInputElement).value).toBe('2')
-    expect(screen.queryByRole('region', { name: 'Alterações não salvas' })).toBeNull()
+    expect(grupo.querySelector('summary')?.textContent).toContain('Prazo: 2 dias')
     expect(dublê.salvarRegras).not.toHaveBeenCalled()
   })
 
-  it('sem as regras do ciclo, a seção do quadro some e as colunas continuam', async () => {
+  it('"Voltar ao padrão" põe os de fábrica no grupo, e é o Salvar que grava', async () => {
+    dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
+    dublê.lerRegras.mockResolvedValue({ ...regras, LastColumnVisibleDays: 30 })
+    dublê.salvarRegras.mockImplementation(
+      async (_id: string, pedido: CycleSettingsViewModel) => pedido,
+    )
+
+    montar()
+    const grupo = await waitFor(grupoDasRegras)
+    expect(grupo.querySelector('summary')?.textContent).toContain('Mudou: Dias da última coluna')
+
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Voltar ao padrão' }))
+    expect((within(grupo).getByLabelText(/A última coluna mostra/) as HTMLInputElement).value).toBe(
+      '14',
+    )
+    // O grupo abre, para o Salvar estar a vista.
+    expect(grupo.querySelector('details')?.open).toBe(true)
+    expect(dublê.salvarRegras).not.toHaveBeenCalled()
+
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Salvar' }))
+    await waitFor(() =>
+      expect(dublê.salvarRegras).toHaveBeenCalledWith('p-1', {
+        ...regras,
+        LastColumnVisibleDays: 14,
+      }),
+    )
+  })
+
+  it('sem as regras do ciclo, o grupo do quadro some e as colunas continuam', async () => {
     dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0)])
     dublê.lerRegras.mockRejectedValue(new Error('rede'))
 
     montar()
-    expect(await screen.findByText('A fazer')).toBeTruthy()
-    expect(screen.queryByText('Como o quadro mostra o fim e os prazos')).toBeNull()
+    await screen.findByRole('button', { name: 'Desativar A fazer' })
+    await waitFor(() => expect(dublê.lerRegras).toHaveBeenCalled())
+    expect(document.getElementById('fim-e-prazos')).toBeNull()
     expect(screen.getByRole('button', { name: 'Criar coluna' })).toBeTruthy()
   })
 })
