@@ -15,8 +15,10 @@ import { AllowedOriginsSection } from '@/features/projects/AllowedOriginsSection
  * ate alguem recarregar.
  *
  * Os dois ultimos sao de honestidade, e sao os mais faceis de quebrar sem querer.
- * A tela diz que restringe porque a lista e conferida nas tres rotas publicas que a
- * ferramenta usa ao abrir e ao enviar; dizer o contrario e que seria mentira.
+ * A lista nao abre nem fecha a ferramenta: ela separa o relato que entra direto no
+ * Trabalho do que espera em "Aguardando liberacao". Com a lista vazia, todo endereco
+ * novo espera — dizer que ela "abre em qualquer endereco" seria a frase de antes, e
+ * deixou de ser verdade.
  *
  * O que continua sendo mentira, e por isso tem asserticao negativa: **muro.** Quem
  * declara o endereco e o carregador, que e codigo nosso — a lista pega a chave
@@ -51,7 +53,7 @@ function origem(publicId: string, domain: string, subdominios = false): ProjectO
   }
 }
 
-const campo = () => screen.getByRole('textbox', { name: 'Endereço do seu site' })
+const campo = () => screen.getByRole('textbox', { name: 'Endereço do seu sistema' })
 const botaoAdicionar = () => screen.getByRole('button', { name: 'Adicionar domínio' })
 
 describe('AllowedOriginsSection', () => {
@@ -120,10 +122,10 @@ describe('AllowedOriginsSection', () => {
     expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
     expect(screen.getByText(/continua exatamente como estava/)).toBeTruthy()
     // Sem a lista, nao ha o que adicionar: o campo nao aparece prometendo gravar.
-    expect(screen.queryByRole('textbox', { name: 'Endereço do seu site' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Endereço do seu sistema' })).toBeNull()
   })
 
-  it('com a lista vazia, diz que abre em qualquer endereço — e não que restringe', async () => {
+  it('com a lista vazia, diz que o primeiro relato de cada endereço espera — e não que abre em qualquer um', async () => {
     dublê.listar.mockResolvedValue([])
 
     const { container } = render(<AllowedOriginsSection projectPublicId="p-1" />)
@@ -131,23 +133,49 @@ describe('AllowedOriginsSection', () => {
 
     const texto = container.textContent ?? ''
 
-    // Lista vazia nao restringe nada, e e o estado de todo projeto que existe
-    // hoje: a tela precisa dizer o que **esta** acontecendo, e nao o que a lista
-    // faria se tivesse alguma linha.
-    expect(texto).toMatch(/abre em qualquer endereço/)
-    // E precisa dizer o que muda no primeiro endereco, porque a consequencia
-    // ultrapassa a linha que a pessoa esta adicionando: os outros sites param.
-    expect(texto).toMatch(/primeiro endereço/)
+    // Lista vazia e o estado de todo projeto novo: a tela precisa dizer o que **esta**
+    // acontecendo — o relato de endereco novo chega e espera a decisao.
+    expect(texto).toMatch(/primeiro relato de cada endereço pede a sua decisão/)
+    expect(texto).toMatch(/Aguardando liberação/)
+    // A frase de quando a lista vazia deixava tudo entrar.
+    expect(texto).not.toMatch(/abre em qualquer endereço/)
 
     // As duas frases da espera, que eram verdade e deixaram de ser.
     expect(texto).not.toMatch(/ainda não vale|ainda não é conferida|não está no ar/)
 
-    // A ressalva sobre o que a conferencia nao pega nao aparece aqui: nao ha
-    // conferencia ligada para ressalvar.
-    expect(texto).not.toMatch(/caso comum/)
+    // A conferencia vale sempre, entao a ressalva sobre o que ela nao pega tambem.
+    expect(texto).toMatch(/caso comum/)
   })
 
-  it('com a lista cheia, diz que restringe sem prometer impossibilidade', async () => {
+  it('o vazio diz o que fazer: o primeiro relato espera, e o teste local é localhost:3000', async () => {
+    dublê.listar.mockResolvedValue([])
+
+    render(<AllowedOriginsSection projectPublicId="p-1" />)
+
+    const vazio = await screen.findByText(/Nenhum endereço autorizado ainda/)
+    expect(vazio.textContent).toMatch(/pede a sua decisão, em “Aguardando liberação”/)
+    expect(vazio.textContent).toMatch(/localhost:3000/)
+    // O campo continua logo abaixo: o vazio explica, e nao substitui o convite.
+    expect(campo()).toBeTruthy()
+  })
+
+  it('a explicação longa fica recolhida em "Como funciona", e aponta os limites na aba Proteção', async () => {
+    dublê.listar.mockResolvedValue([origem('o-1', 'loja.exemplo.com')])
+
+    const { container } = render(<AllowedOriginsSection projectPublicId="p-1" />)
+    expect(await screen.findByText('loja.exemplo.com')).toBeTruthy()
+
+    const ajuda = container.querySelector('details')
+    expect(ajuda?.open).toBe(false)
+    expect(ajuda?.querySelector('summary')?.textContent).toBe('Como funciona')
+    expect(ajuda?.textContent).toMatch(/caso comum/)
+    expect(ajuda?.textContent).toMatch(/na aba Proteção/)
+    expect(ajuda?.textContent).not.toMatch(/Mais opções/)
+    // Fechada, a ajuda nao conta como lista vazia: sem o texto do vazio.
+    expect(container.textContent).not.toMatch(/Nenhum endereço autorizado ainda/)
+  })
+
+  it('com a lista cheia, diz o que a lista faz sem prometer impossibilidade', async () => {
     dublê.listar.mockResolvedValue([origem('o-1', 'loja.exemplo.com')])
 
     const { container } = render(<AllowedOriginsSection projectPublicId="p-1" />)
@@ -155,13 +183,16 @@ describe('AllowedOriginsSection', () => {
 
     const texto = container.textContent ?? ''
 
-    expect(texto).toMatch(/só abre nos endereços desta lista/)
+    expect(texto).toMatch(/entra direto no Trabalho/)
+    expect(texto).toMatch(/Aguardando liberação/)
+    // Tirar um endereco da lista nao mexe no que ja entrou.
+    expect(texto).toMatch(/vale para o próximo relato/)
+    expect(texto).not.toMatch(/primeiro relato de cada endereço/)
     // A ressalva anda junto com a promessa. Sem ela, a tela venderia como muro
     // uma conferencia que qualquer um contorna falando direto com a API.
     expect(texto).toMatch(/caso comum/)
 
-    // Palavras que prometeriam o que o `frame-ancestors` vai dar, e que esta
-    // conferencia nao da.
+    // Palavras que prometeriam o que esta conferencia nao da.
     expect(texto).not.toMatch(/impede|impossível|garante|ninguém mais/i)
   })
 })
