@@ -2,11 +2,30 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PublicMediaSettingsViewModel } from '@/contracts'
+import type { PublicMediaSettingsViewModel, WidgetSettingsViewModel } from '@/contracts'
 import type { Anexo } from '@/embed/attachments'
 import { EmbedApp } from '@/embed/EmbedApp'
 import type { CaptureOutcome } from '@/embed/hostBridge'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
+
+/**
+ * O formulario destes testes: os tipos de fabrica como a API os manda, com
+ * identificador de verdade, e a Melhoria pre-marcada — a caixa livre sozinha, que e
+ * onde se cola o print. Os tipos de `DEFAULT_WIDGET_SETTINGS` sao os de reserva do
+ * quadro: enviar com eles le a configuracao de novo para achar o de verdade, e estes
+ * testes sao sobre o anexo, nao sobre isso.
+ */
+const TIPOS = DEFAULT_WIDGET_SETTINGS.Types.map((tipo, indice) => ({
+  ...tipo,
+  PublicId: `tipo-${indice}`,
+}))
+const SETTINGS: WidgetSettingsViewModel = {
+  ...DEFAULT_WIDGET_SETTINGS,
+  Types: TIPOS,
+  DefaultReportType: 'tipo-1',
+}
+/** O nome da caixa livre da Melhoria: o texto dentro dela. */
+const CAIXA = TIPOS[1]?.TextBoxPrompt ?? ''
 
 /**
  * O QUE ESTES TESTES TRAVAM.
@@ -71,6 +90,7 @@ function pagina() {
     expand: vi.fn(),
     collapse: vi.fn(),
     enlarge: vi.fn(),
+    place: vi.fn(),
     canCapture: true,
     capture: vi.fn<(maxBytes: number | null) => Promise<CaptureOutcome>>(),
     stop: vi.fn(),
@@ -78,7 +98,7 @@ function pagina() {
 }
 
 function montar(host = pagina()) {
-  render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={host} media={media} />)
+  render(<EmbedApp settings={SETTINGS} config={config} host={host} media={media} />)
   fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
   return host
 }
@@ -114,6 +134,7 @@ beforeEach(() => {
     AccessToken: 'tok-secreto',
     CreatedAt: '2026-09-23T12:00:00.000Z',
     ReporterCode: null,
+    Identified: null,
   })
 })
 
@@ -230,7 +251,7 @@ describe('toda imagem da lista abre no editor', () => {
   it('a colada tambem abre', async () => {
     montar()
     const formulario = screen
-      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .getByRole('textbox', { name: CAIXA })
       .closest('form') as HTMLFormElement
     fireEvent.paste(formulario, {
       clipboardData: { files: [imagem('colada.png')], getData: () => '' },
@@ -281,7 +302,7 @@ describe('toda imagem da lista abre no editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Concluir com marcas' }))
     await screen.findByRole('button', { name: 'Remover marcada-senha.png' })
 
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o login trava' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -341,7 +362,7 @@ describe('toda imagem da lista abre no editor', () => {
     escolher(imagem('erro.png'))
     await screen.findByRole('button', { name: 'Editar erro.png' })
 
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o login trava' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -380,7 +401,7 @@ describe('toda imagem da lista abre no editor', () => {
     dublê.miniatura.mockImplementationOnce(() => new Promise(() => {}))
 
     fireEvent.click(screen.getByRole('button', { name: 'Concluir com marcas' }))
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o login trava' },
     })
 
@@ -404,16 +425,14 @@ describe('toda imagem da lista abre no editor', () => {
 
   it('com o editor aberto, o relato nao sai', async () => {
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o login trava' },
     })
     escolher(imagem('senha.png'))
     await editar('senha.png')
 
     fireEvent.submit(
-      screen
-        .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
-        .closest('form') as HTMLFormElement,
+      screen.getByRole('textbox', { name: CAIXA }).closest('form') as HTMLFormElement,
     )
     await act(async () => {})
 

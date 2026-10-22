@@ -2,10 +2,33 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { CreatedReportViewModel, PublicMediaSettingsViewModel } from '@/contracts'
+import type {
+  CreatedReportViewModel,
+  PublicMediaSettingsViewModel,
+  WidgetSettingsViewModel,
+} from '@/contracts'
 import { PanelError } from '@/data/errors'
 import { EmbedApp } from '@/embed/EmbedApp'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
+
+/**
+ * O formulario destes testes: os tipos de fabrica como a API os manda, com
+ * identificador de verdade, e a Melhoria pre-marcada — a caixa livre sozinha, que e
+ * onde se cola o print. Os tipos de `DEFAULT_WIDGET_SETTINGS` sao os de reserva do
+ * quadro: enviar com eles le a configuracao de novo para achar o de verdade, e estes
+ * testes sao sobre o anexo, nao sobre isso.
+ */
+const TIPOS = DEFAULT_WIDGET_SETTINGS.Types.map((tipo, indice) => ({
+  ...tipo,
+  PublicId: `tipo-${indice}`,
+}))
+const SETTINGS: WidgetSettingsViewModel = {
+  ...DEFAULT_WIDGET_SETTINGS,
+  Types: TIPOS,
+  DefaultReportType: 'tipo-1',
+}
+/** O nome da caixa livre da Melhoria: o texto dentro dela. */
+const CAIXA = TIPOS[1]?.TextBoxPrompt ?? ''
 
 /**
  * O QUE ESTES TESTES TRAVAM.
@@ -61,6 +84,7 @@ const criado: CreatedReportViewModel = {
   AccessToken: 'tok-secreto',
   CreatedAt: '2026-09-23T12:00:00.000Z',
   ReporterCode: null,
+  Identified: null,
 }
 
 const print = () => new File([new Uint8Array(100)], 'erro.png', { type: 'image/png' })
@@ -72,9 +96,7 @@ function escolher(arquivo: File) {
 }
 
 function montar(comMidia = true) {
-  render(
-    <EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} media={comMidia ? media : null} />,
-  )
+  render(<EmbedApp settings={SETTINGS} config={config} media={comMidia ? media : null} />)
 }
 
 afterEach(() => {
@@ -121,7 +143,7 @@ describe('o anexo no formulario', () => {
   it('colar um print anexa', async () => {
     montar()
     const formulario = screen
-      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .getByRole('textbox', { name: CAIXA })
       .closest('form') as HTMLFormElement
 
     // Um print de verdade traz so a imagem: texto nenhum.
@@ -139,7 +161,7 @@ describe('o anexo no formulario', () => {
   ])('colar arquivo copiado com %s como texto continua anexando', async (_, texto) => {
     montar()
     const formulario = screen
-      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .getByRole('textbox', { name: CAIXA })
       .closest('form') as HTMLFormElement
 
     const colagem = fireEvent.paste(formulario, {
@@ -161,7 +183,7 @@ describe('o anexo no formulario', () => {
   ])('colar arquivo de nome acentuado, com %s, continua anexando', async (_, nome, texto) => {
     montar()
     const formulario = screen
-      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .getByRole('textbox', { name: CAIXA })
       .closest('form') as HTMLFormElement
     const arquivo = new File([new Uint8Array(100)], nome, { type: 'image/png' })
 
@@ -184,7 +206,7 @@ describe('o anexo no formulario', () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(new File([png], 'erro.jpg', { type: 'image/jpeg' }))
@@ -208,7 +230,7 @@ describe('o anexo no formulario', () => {
   // engoliria o texto que a pessoa quis colar.
   it('colar texto de planilha, que traz uma imagem junto, continua sendo colar texto', async () => {
     montar()
-    const caixa = screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+    const caixa = screen.getByRole('textbox', { name: CAIXA })
 
     const colagem = fireEvent.paste(caixa, {
       clipboardData: {
@@ -244,7 +266,7 @@ describe('o arquivo que nao e imagem, no formulario', () => {
     ],
   }
   const montarComArquivo = () =>
-    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} media={comArquivo} />)
+    render(<EmbedApp settings={SETTINGS} config={config} media={comArquivo} />)
   const escolherArquivo = (arquivo: File) =>
     fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
       target: { files: [arquivo] },
@@ -271,7 +293,7 @@ describe('o arquivo que nao e imagem, no formulario', () => {
     dublê.criar.mockResolvedValue(criado)
     dublê.enviar.mockResolvedValue(undefined)
     montarComArquivo()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
 
@@ -291,7 +313,7 @@ describe('o arquivo que nao e imagem, no formulario', () => {
   it('colar um PDF anexa como arquivo', async () => {
     montarComArquivo()
     const formulario = screen
-      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .getByRole('textbox', { name: CAIXA })
       .closest('form') as HTMLFormElement
     const pdf = new File([new Uint8Array(100)], 'fatura.pdf', { type: 'application/pdf' })
 
@@ -323,7 +345,7 @@ describe('o arquivo que nao e imagem, no formulario', () => {
   it('so com arquivo aceito: sem botao de imagem, sem captura e sem "cole um print"', () => {
     render(
       <EmbedApp
-        settings={DEFAULT_WIDGET_SETTINGS}
+        settings={SETTINGS}
         config={config}
         media={{ ...comArquivo, Kinds: comArquivo.Kinds.filter((kind) => kind.Kind === 'File') }}
       />,
@@ -361,7 +383,7 @@ describe('a imagem no relato que a pessoa monta', () => {
     escolher(print())
 
     const lista = await screen.findByRole('list', { name: 'Imagens a enviar' })
-    const texto = screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+    const texto = screen.getByRole('textbox', { name: CAIXA })
     const anexar = screen.getByRole('button', { name: 'Anexar imagem' })
     expect(texto.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(lista.compareDocumentPosition(anexar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -377,7 +399,7 @@ describe('a imagem no relato que a pessoa monta', () => {
     dublê.criar.mockResolvedValue(criado)
     dublê.enviar.mockResolvedValue(undefined)
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -405,7 +427,7 @@ describe('a imagem no relato que a pessoa monta', () => {
   it('durante o envio, o tamanho fica travado', async () => {
     dublê.criar.mockReturnValue(new Promise(() => {}))
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -422,20 +444,18 @@ describe('a imagem no relato que a pessoa monta', () => {
   // ele, o formulario rola.
   it('com imagem na lista, o texto guarda uma altura minima', async () => {
     montar()
-    expect(
-      screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }).className,
-    ).toContain('min-h-0')
+    // O piso mora no bloco da caixa, e nao nela: depois de perguntas o bloco tambem
+    // leva o nome da caixa, e os dois precisam ficar juntos.
+    const bloco = () => screen.getByRole('textbox', { name: CAIXA }).parentElement
+    expect(bloco()?.className).toContain('min-h-0')
 
     escolher(print())
     await screen.findByRole('list', { name: 'Imagens a enviar' })
 
-    expect(
-      screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }).className,
-    ).toContain('min-h-24')
-    expect(
-      screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }).closest('form')
-        ?.className,
-    ).toContain('overflow-y-auto')
+    expect(bloco()?.className).toContain('min-h-24')
+    expect(screen.getByRole('textbox', { name: CAIXA }).closest('form')?.className).toContain(
+      'overflow-y-auto',
+    )
   })
 })
 
@@ -451,7 +471,7 @@ describe('o envio', () => {
     })
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -472,7 +492,7 @@ describe('o envio', () => {
     dublê.enviar.mockReturnValue(new Promise(() => {}))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -487,7 +507,7 @@ describe('o envio', () => {
     dublê.enviar.mockRejectedValue(new Error('rede'))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -519,7 +539,7 @@ describe('o envio', () => {
       .mockResolvedValueOnce(undefined)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -538,7 +558,7 @@ describe('o envio', () => {
     dublê.enviar.mockRejectedValueOnce(new Error('rede')).mockResolvedValueOnce(undefined)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -560,7 +580,7 @@ describe('o envio', () => {
     )
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -588,7 +608,7 @@ describe('o envio', () => {
 
     try {
       montar()
-      fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+      fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
         target: { value: 'o pagamento falhou' },
       })
       escolher(print())
@@ -611,7 +631,7 @@ describe('o envio', () => {
     dublê.enviar.mockRejectedValue(new PanelError('Este projeto nao aceita anexo.', 409))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -640,9 +660,9 @@ describe('o envio', () => {
 
     montar()
     const formulario = screen
-      .getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title })
+      .getByRole('textbox', { name: CAIXA })
       .closest('form') as HTMLFormElement
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(print())
@@ -671,7 +691,7 @@ describe('o envio', () => {
     dublê.criar.mockResolvedValue(criado)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -684,7 +704,7 @@ describe('o envio', () => {
     dublê.criar.mockResolvedValue(criado)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
@@ -711,6 +731,7 @@ describe('a fila de arquivos', () => {
     expand: vi.fn(),
     collapse: vi.fn(),
     enlarge: vi.fn(),
+    place: vi.fn(),
     canCapture: false,
     capture: vi.fn(),
     stop: vi.fn(),
@@ -747,7 +768,7 @@ describe('a fila de arquivos', () => {
       .mockResolvedValue(undefined)
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(nomeado('primeiro.png'))
@@ -760,10 +781,7 @@ describe('a fila de arquivos', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Relatar outra coisa' }))
 
     // O formulario novo esta limpo...
-    expect(
-      (screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }) as HTMLTextAreaElement)
-        .value,
-    ).toBe('')
+    expect((screen.getByRole('textbox', { name: CAIXA }) as HTMLTextAreaElement).value).toBe('')
     expect(screen.queryByText('segundo.png')).toBeNull()
 
     // ...e o segundo arquivo do relato anterior sobe mesmo assim.
@@ -777,11 +795,10 @@ describe('a fila de arquivos', () => {
     expect(screen.queryByText('segundo.png')).toBeNull()
   })
 
-  it('arquivo escolhido antes de fechar o quadro não aparece no formulário reaberto', async () => {
+  it('arquivo escolhido antes de fechar o quadro continua no formulário reaberto', async () => {
+    // Fechar guarda o rascunho, com os arquivos: so o relato enviado limpa.
     const prontos = segurarMiniatura()
-    render(
-      <EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} media={media} />,
-    )
+    render(<EmbedApp settings={SETTINGS} config={config} host={pagina} media={media} />)
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
 
     escolher(nomeado('antigo.png'))
@@ -791,14 +808,14 @@ describe('a fila de arquivos', () => {
     await act(async () => prontos[0]?.({ width: 0, height: 0, close: () => {} }))
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
 
-    expect(screen.queryByRole('button', { name: 'Remover antigo.png' })).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Remover antigo.png' })).toBeDefined()
   })
 
   it('duas escolhas ao mesmo tempo não passam juntas do limite', async () => {
     const prontos = segurarMiniatura()
     render(
       <EmbedApp
-        settings={DEFAULT_WIDGET_SETTINGS}
+        settings={SETTINGS}
         config={config}
         media={{ ...media, Kinds: media.Kinds.map((kind) => ({ ...kind, MaxCount: 1 })) }}
       />,
@@ -827,11 +844,9 @@ describe('a fila de arquivos', () => {
     dublê.enviar.mockResolvedValue(undefined)
     window.localStorage.clear()
 
-    render(
-      <EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={pagina} media={media} />,
-    )
+    render(<EmbedApp settings={SETTINGS} config={config} host={pagina} media={media} />)
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(nomeado('erro.png'))
@@ -850,9 +865,10 @@ describe('a fila de arquivos', () => {
     })
     expect(JSON.stringify(window.localStorage)).toContain('H7QK-3M2X-P9WD')
 
-    // O quadro reaberto e o formulario de quem ainda nao relatou.
+    // O quadro reaberto mostra o protocolo do relato que entrou: fechar no meio do
+    // envio nao pode esconder o unico caminho de acompanhar.
     fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
-    expect(screen.queryByText('7K2M-9QXP-4TRV')).toBeNull()
+    expect(screen.getByText('7K2M-9QXP-4TRV')).toBeDefined()
   })
 
   it('arquivo que falha pode ser deixado de lado', async () => {
@@ -860,7 +876,7 @@ describe('a fila de arquivos', () => {
     dublê.enviar.mockRejectedValue(new Error('rede'))
 
     montar()
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o pagamento falhou' },
     })
     escolher(nomeado('erro.png'))

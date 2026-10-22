@@ -2,10 +2,29 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { PublicMediaSettingsViewModel } from '@/contracts'
+import type { PublicMediaSettingsViewModel, WidgetSettingsViewModel } from '@/contracts'
 import { EmbedApp } from '@/embed/EmbedApp'
 import type { CaptureOutcome } from '@/embed/hostBridge'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
+
+/**
+ * O formulario destes testes: os tipos de fabrica como a API os manda, com
+ * identificador de verdade, e a Melhoria pre-marcada — a caixa livre sozinha, que e
+ * onde se cola o print. Os tipos de `DEFAULT_WIDGET_SETTINGS` sao os de reserva do
+ * quadro: enviar com eles le a configuracao de novo para achar o de verdade, e estes
+ * testes sao sobre o anexo, nao sobre isso.
+ */
+const TIPOS = DEFAULT_WIDGET_SETTINGS.Types.map((tipo, indice) => ({
+  ...tipo,
+  PublicId: `tipo-${indice}`,
+}))
+const SETTINGS: WidgetSettingsViewModel = {
+  ...DEFAULT_WIDGET_SETTINGS,
+  Types: TIPOS,
+  DefaultReportType: 'tipo-1',
+}
+/** O nome da caixa livre da Melhoria: o texto dentro dela. */
+const CAIXA = TIPOS[1]?.TextBoxPrompt ?? ''
 
 /**
  * O QUE ESTES TESTES TRAVAM.
@@ -46,6 +65,7 @@ function pagina(canCapture = true) {
     expand: vi.fn(),
     collapse: vi.fn(),
     enlarge: vi.fn(),
+    place: vi.fn(),
     canCapture,
     capture: vi.fn<(maxBytes: number | null) => Promise<CaptureOutcome>>(),
     stop: vi.fn(),
@@ -71,7 +91,7 @@ function media(mudanca: Partial<PublicMediaSettingsViewModel> = {}): PublicMedia
 }
 
 function montar(host = pagina(), m: PublicMediaSettingsViewModel = media()) {
-  render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} host={host} media={m} />)
+  render(<EmbedApp settings={SETTINGS} config={config} host={host} media={m} />)
   // Dentro de uma pagina o quadro nasce recolhido.
   fireEvent.click(screen.getByRole('button', { name: 'Relatar' }))
   return host
@@ -132,7 +152,7 @@ describe('onde o botao aparece', () => {
   })
 
   it('aberto direto, sem pagina em volta: nao ha o que capturar', () => {
-    render(<EmbedApp settings={DEFAULT_WIDGET_SETTINGS} config={config} media={media()} />)
+    render(<EmbedApp settings={SETTINGS} config={config} media={media()} />)
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
   })
@@ -177,7 +197,7 @@ describe('a captura', () => {
     const host = pagina()
     host.capture.mockResolvedValue({ outcome: 'file', file: captura() })
     montar(host)
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o botão sumiu' },
     })
 
@@ -185,10 +205,9 @@ describe('a captura', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Concluir sem marcas' }))
 
     await screen.findByRole('button', { name: 'Remover captura.webp' })
-    expect(
-      (screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }) as HTMLTextAreaElement)
-        .value,
-    ).toBe('o botão sumiu')
+    expect((screen.getByRole('textbox', { name: CAIXA }) as HTMLTextAreaElement).value).toBe(
+      'o botão sumiu',
+    )
   })
 
   it('enquanto a pagina captura, o botao fica desligado', async () => {
@@ -291,12 +310,13 @@ describe('a captura', () => {
       AccessToken: 'tok-secreto',
       CreatedAt: '2026-09-23T12:00:00.000Z',
       ReporterCode: null,
+      Identified: null,
     })
     const host = pagina()
     const terminar = segurar(host)
     montar(host)
 
-    fireEvent.change(screen.getByRole('textbox', { name: DEFAULT_WIDGET_SETTINGS.Title }), {
+    fireEvent.change(screen.getByRole('textbox', { name: CAIXA }), {
       target: { value: 'o botão sumiu' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
