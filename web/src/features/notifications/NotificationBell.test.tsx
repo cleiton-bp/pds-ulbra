@@ -9,6 +9,7 @@ import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { UNREAD_POLL_MS } from '@/features/notifications/useUnreadCount'
 import { useToastStore } from '@/shared/components/toastStore'
 import { announceNotificationArrival } from '@/shared/lib/notificationSounds'
+import { PROFILE_SOUNDS_SECTION, useProfileDialogStore } from '@/shared/lib/profileDialogStore'
 import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
 
 instalarRemendosDoRadix()
@@ -32,7 +33,8 @@ instalarRemendosDoRadix()
  * - **O numero que sobe toca o som** do tipo do aviso mais novo, no volume da pessoa — e o
  *   primeiro numero da tela nao toca. O mais novo e procurado so entre os nao lidos.
  * - **O aviso que chega pelo tempo real** faz o sino perguntar na hora.
- * - **"Preferencias de aviso" leva ao Perfil.**
+ * - **"Preferencias de aviso" abre o Perfil nos sons**, sobre a tela, sem trocar o
+ *   endereco, e com o sino como o lugar para onde o foco volta.
  */
 const dublê = vi.hoisted(() => ({
   contar: vi.fn(),
@@ -226,13 +228,20 @@ describe('o som e o tempo real do sino', () => {
     expect(dublê.listar).toHaveBeenCalledWith({ unreadOnly: true })
   })
 
-  it('"Preferências de aviso" leva ao Perfil', async () => {
+  it('"Preferências de aviso" abre o Perfil nos sons, sem trocar o endereço', async () => {
     dublê.contar.mockResolvedValue({ UnreadCount: 0 })
     dublê.listar.mockResolvedValue({ Items: [], UnreadCount: 0 })
+    useProfileDialogStore.setState({ open: false, section: null, returnFocusTo: null })
     montar()
-    abrirMenu(await screen.findByRole('button', { name: /^Avisos/ }))
+    const sino = await screen.findByRole('button', { name: /^Avisos/ })
+    abrirMenu(sino)
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Preferências de aviso' }))
-    await waitFor(() => expect(screen.getByTestId('onde').textContent).toBe('/profile'))
+
+    await waitFor(() => expect(useProfileDialogStore.getState().open).toBe(true))
+    expect(useProfileDialogStore.getState().section).toBe(PROFILE_SOUNDS_SECTION)
+    expect(useProfileDialogStore.getState().returnFocusTo).toBe(sino)
+    expect(screen.getByTestId('onde').textContent).toBe('/projects/p-1')
+    useProfileDialogStore.setState({ open: false, section: null, returnFocusTo: null })
   })
 
   it('o aviso velho que volta a contar nao toca', async () => {
