@@ -23,7 +23,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     Title: null,
     ReporterTitle: 'O botão travou',
     TrackingCode: 'ABCD-EFGH',
-    Type: 'Bug',
+    Type: { PublicId: 'tipo-defeito', Name: 'Defeito', Color: 'Red', Icon: 'Bug', IsActive: true },
     Text: 'Depois de escolher o cartao, nada acontece.',
     Route: '/checkout',
     Origin: null,
@@ -42,6 +42,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -59,16 +60,17 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
 describe('a frente do card', () => {
   afterEach(cleanup)
 
-  it('a subtarefa mostra o pai; o pai mostra o progresso, verde so com todas feitas', () => {
+  it('o pai mostra o progresso, verde so com todas feitas; a face nao tem mais a linha do pai', () => {
+    // A subtarefa so aparece dentro do pai, e o quadro nao a recebe: a linha
+    // "Subtarefa de" saiu da face, mesmo que um card chegue com o pai preenchido.
     render(
       <BoardCardFace
         card={card({ Parent: { PublicId: 'p-9', Number: 7, Headline: 'Pagar no Safari' } })}
         soonDays={2}
       />,
     )
-    expect(screen.getByText('#7')).toBeTruthy()
-    expect(screen.getByText('Pagar no Safari')).toBeTruthy()
-    expect(screen.getByText('Subtarefa de', { exact: false })).toBeTruthy()
+    expect(screen.queryByText('Subtarefa de', { exact: false })).toBeNull()
+    expect(screen.queryByText('Pagar no Safari')).toBeNull()
     cleanup()
 
     render(<BoardCardFace card={card({ SubtaskCount: 5, SubtasksDone: 2 })} soonDays={2} />)

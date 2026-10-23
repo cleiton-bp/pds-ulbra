@@ -272,6 +272,7 @@ function cardDoTime(
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -290,6 +291,7 @@ function aberto(resumo: ReportSummaryViewModel): ReportDetailViewModel {
   return {
     ...resumo,
     Description: null,
+    Answers: null,
     CreatedByName: 'Ana',
     CanArchive: true,
     ArchiveCloses: false,
@@ -660,12 +662,12 @@ describe('o filtro "Sprint" da Lista', () => {
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
     await semDialogo()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Backlog' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Backlog/ }))
     expect(await screen.findByRole('list', { name: 'Cards do backlog' })).toBeTruthy()
     expect(leiturasComConcluidas()).toBe(0)
 
     // Na Lista, sim, uma vez ao entrar: e para o filtro.
-    fireEvent.click(screen.getByRole('tab', { name: 'Lista' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Lista/ }))
     await listaPronta()
     expect(leiturasComConcluidas()).toBe(1)
     // As outras leituras foram sem o parametro.
@@ -712,14 +714,14 @@ describe('o filtro "Sprint" da Lista', () => {
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sprint 2 (em andamento)' }))
     expect(await screen.findByRole('button', { name: 'Sprint: Sprint 2' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Quadro' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Quadro/ }))
     const barra = await screen.findByRole('region', { name: 'Sprint em andamento: Sprint 2' })
     fireEvent.click(within(barra).getByRole('button', { name: 'Concluir sprint' }))
     const dialogo = await screen.findByRole('dialog', { name: 'Concluir Sprint 2' })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Concluir sprint' }))
     await semDialogo()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Lista' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Lista/ }))
     expect(await screen.findByRole('button', { name: 'Sprint: Sprint 2' })).toBeTruthy()
     const menu = await abrirMenu('Sprint: Sprint 2')
     const concluidas = within(menu).getByRole('group', { name: 'Concluídas' })
@@ -882,12 +884,40 @@ describe('as sprints no quadro e no Backlog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ir para o Backlog' }))
     await waitFor(() =>
-      expect(screen.getByRole('tab', { name: 'Backlog' }).getAttribute('aria-selected')).toBe(
+      expect(screen.getByRole('tab', { name: /^Backlog/ }).getAttribute('aria-selected')).toBe(
         'true',
       ),
     )
     expect(await screen.findByRole('list', { name: 'Cards do backlog' })).toBeTruthy()
     expect(window.localStorage.getItem('pds.web.trabalho.vista.p-1')).toBe('backlog')
+  })
+
+  it('no Backlog, o "/" vai a busca dele, a aba diz quantos cards ele tem, e os arquivados ficam no fim da linha da busca', async () => {
+    dublê.listar.mockImplementation(async (_projeto, _pagina, _estado, _arquivados, opcoes) => {
+      if (opcoes?.order === 'backlog')
+        return opcoes.sprint === 'backlog'
+          ? { reports: [cardDoTime('t-9', 'Revisar o frete')], total: 17 }
+          : { reports: [], total: 0 }
+      return { reports: [NA_SPRINT], total: 1 }
+    })
+    montar('backlog')
+    await screen.findByRole('list', { name: 'Cards do backlog' })
+
+    // A aba conta o backlog com o que a leitura dele ja trouxe.
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /^Backlog/ }).textContent).toBe('Backlog17'),
+    )
+
+    const busca = screen.getByRole('searchbox', { name: 'Buscar no backlog' })
+    expect(busca.getAttribute('aria-keyshortcuts')).toBe('/')
+    fireEvent.keyDown(document.body, { key: '/' })
+    expect(document.activeElement).toBe(busca)
+
+    // Os arquivados no mesmo lugar da lista e do quadro: o fim da linha da busca, e o
+    // como arrastar no "Como funciona" dela.
+    const linha = busca.closest('search') as HTMLElement
+    expect(within(linha).getByRole('button', { name: 'Arquivados' })).toBeTruthy()
+    expect(within(linha).getByText('Como funciona')).toBeTruthy()
   })
 
   it('as sprints que nao carregaram: o quadro diz, sem carregar para sempre, e "Tentar de novo" rele', async () => {
