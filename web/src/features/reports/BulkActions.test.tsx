@@ -103,6 +103,7 @@ function card(id: string, extra: Partial<ReportSummaryViewModel> = {}): ReportSu
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -356,12 +357,11 @@ describe('as acoes em lote', () => {
     expect(avisos().at(-1)?.message).toBe('Etiqueta bug removida de 1 card (1 já estava assim).')
   })
 
-  it('a prioridade vem da mais urgente; a sprint so com as sprints ligadas, e a subtarefa fica de fora', async () => {
+  it('a prioridade vem da mais urgente; a sprint so com as sprints ligadas, e vale para cada card', async () => {
     dublê.sprint.mockResolvedValue({})
-    const { aoTerminar } = montar(
-      [card('c1'), card('c2', { Parent: { PublicId: 'c1', Number: 1, Headline: 'Pai' } })],
-      true,
-    )
+    // A subtarefa nao chega a lista — so aparece dentro do pai —, entao a selecao so
+    // tem cards de primeiro nivel, e todos recebem a sprint.
+    const { aoTerminar } = montar([card('c1'), card('c2')], true)
     await abrir('Prioridade')
     const itens = within(await screen.findByRole('menu')).getAllByRole('menuitem')
     expect(itens.map((item) => item.textContent)).toEqual(['Urgente', 'Baixa', 'Sem prioridade'])
@@ -370,9 +370,10 @@ describe('as acoes em lote', () => {
     await abrir('Sprint')
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Sprint 1' }))
     await waitFor(() => expect(aoTerminar).toHaveBeenCalled())
-    expect(aoTerminar.mock.calls[0]?.[0].falhas[0].motivo).toBe('A subtarefa vai com o card pai.')
-    expect(dublê.sprint).toHaveBeenCalledTimes(1)
+    expect(aoTerminar.mock.calls[0]?.[0].falhas).toEqual([])
+    expect(dublê.sprint).toHaveBeenCalledTimes(2)
     expect(dublê.sprint).toHaveBeenCalledWith('p-1', 'c1', { SprintPublicId: 'sp-1' })
+    expect(dublê.sprint).toHaveBeenCalledWith('p-1', 'c2', { SprintPublicId: 'sp-1' })
   })
 
   it('o dialogo do que nao mudou: com o porque, o link de cada card, e sem dizer que os outros mudaram quando nenhum mudou', () => {
