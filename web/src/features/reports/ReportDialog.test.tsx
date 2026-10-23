@@ -108,7 +108,7 @@ function relato(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewM
     Title: null,
     ReporterTitle: null,
     TrackingCode: 'ABCD-EFGH',
-    Type: 'Bug',
+    Type: { PublicId: 'tipo-defeito', Name: 'Defeito', Color: 'Red', Icon: 'Bug', IsActive: true },
     Text: 'O botao de pagar nao responde.',
     Route: '/checkout',
     Origin: null,
@@ -127,6 +127,7 @@ function relato(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewM
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -148,6 +149,7 @@ function aberto(
   return {
     ...resumo,
     Description: null,
+    Answers: null,
     CreatedByName: null,
     CanArchive: false,
     ArchiveCloses: true,
@@ -213,6 +215,9 @@ beforeEach(() => {
   dublê.comentarios.mockResolvedValue({ Internal: [], Public: [] })
   dublê.historico.mockResolvedValue([])
   dublê.vinculos.mockResolvedValue([])
+  // As subtarefas arquivadas sao lidas sempre, mesmo sem subtarefa nenhuma: sem
+  // resposta, a secao cairia no "Tentar de novo" dela.
+  dublê.listar.mockResolvedValue({ reports: [], total: 0 })
   dublê.anexos.mockResolvedValue([])
   dublê.membros.mockResolvedValue([])
   dublê.prioridades.mockResolvedValue([
@@ -898,5 +903,17 @@ describe('o card que nao abre, e o relato sem titulo', () => {
     expect(coluna.compareDocumentPosition(vinculos) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
+  })
+})
+
+describe('"Comentar" no alto do card', () => {
+  it('leva ao campo do time e poe o foco nele, sem rolar o resto do card a mao', async () => {
+    montar()
+    await detalheNaTela()
+    const campo = await screen.findByRole('textbox', { name: 'Entre o time' })
+    expect(document.activeElement).not.toBe(campo)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Comentar' }))
+    expect(document.activeElement).toBe(campo)
   })
 })

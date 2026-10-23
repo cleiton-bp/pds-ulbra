@@ -8,7 +8,7 @@ import type {
   ProjectViewModel,
   ReportStateCountViewModel,
   ReportSummaryViewModel,
-  ReportType,
+  ReportTypeIcon,
   TeamMemberViewModel,
 } from '@/contracts'
 import type {
@@ -167,7 +167,7 @@ function relato(
     Title: null,
     ReporterTitle: null,
     TrackingCode: `COD-${publicId.toUpperCase()}`,
-    Type: 'Bug',
+    Type: { PublicId: 'tipo-defeito', Name: 'Defeito', Color: 'Red', Icon: 'Bug', IsActive: true },
     Text: text,
     Route: '/checkout',
     Origin: 'loja.exemplo.com',
@@ -189,6 +189,7 @@ function relato(
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -242,6 +243,16 @@ function contagem(
     ClosesReport: closesReport,
     Total: total,
   }
+}
+
+/**
+ * As leituras da lista e do quadro. O card aberto le as subtarefas dele pela mesma
+ * rota, com `parent` — e essas nao sao a tela buscando de novo.
+ */
+function leiturasDaTela(): number {
+  return dublê.listar.mock.calls.filter(
+    (chamada) => !(chamada[4] as { parent?: string } | undefined)?.parent,
+  ).length
 }
 
 function montar(publicId = 'p-1', endereco?: string) {
@@ -449,7 +460,9 @@ describe('ReportsScreen', () => {
             { PublicId: 'l-4', Name: 'urgente', Color: 'Red' },
           ],
           Assignee: { UserPublicId: 'u-1', Name: 'Bruno', AvatarUrl: null, InTeam: false },
-          DueDate: '2026-10-16',
+          // Longe de proposito: perto de vencer, o prazo tambem aparece embaixo do
+          // titulo, e a data fixa viraria a de amanha num dia qualquer.
+          DueDate: '2099-10-16',
         }),
       ],
       total: 1,
@@ -492,7 +505,17 @@ describe('ReportsScreen', () => {
   it('tipo que esta tela nao conhece aparece com o proprio valor, em vez de sumir', async () => {
     dublê.listar.mockResolvedValue({
       // O elenco existe para simular a API ganhando um tipo antes do painel.
-      reports: [relato('r-1', 'algo', { Type: 'Praise' as ReportType })],
+      reports: [
+        relato('r-1', 'algo', {
+          Type: {
+            PublicId: 't-novo',
+            Name: 'Praise',
+            Color: 'Pink',
+            Icon: 'Sparkle' as ReportTypeIcon,
+            IsActive: true,
+          },
+        }),
+      ],
       total: 1,
     })
 
@@ -520,7 +543,9 @@ describe('ReportsScreen', () => {
 
     expect(await screen.findByText('Nada aqui ainda')).toBeTruthy()
     expect(screen.queryByRole('link', { name: /instalar/ })).toBeNull()
-    expect(screen.getByText(/Quem administra o projeto instala a ferramenta no site/)).toBeTruthy()
+    expect(
+      screen.getByText(/Quem administra o projeto instala a ferramenta no sistema/),
+    ).toBeTruthy()
   })
 
   it('falha deixa tentar de novo, e a segunda tentativa pinta a lista', async () => {
@@ -946,7 +971,7 @@ describe('abrir um relato', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/p/p-1'))
     // A lista fica montada atras: fechar nao e recarregar. Uma busca por montagem.
-    expect(dublê.listar).toHaveBeenCalledTimes(1)
+    expect(leiturasDaTela()).toBe(1)
   })
 
   it('digitar no seletor de coluna fechado abre a lista, e nao move o card pela primeira letra', async () => {
@@ -1810,12 +1835,12 @@ describe('o quadro', () => {
     porColuna({ 's-1': [] })
 
     montar()
-    const lista = await screen.findByRole('tab', { name: 'Lista' })
+    const lista = await screen.findByRole('tab', { name: /^Lista/ })
     expect(lista.getAttribute('aria-selected')).toBe('true')
 
     fireEvent.keyDown(lista, { key: 'ArrowRight' })
 
-    const quadro = screen.getByRole('tab', { name: 'Quadro' })
+    const quadro = screen.getByRole('tab', { name: /^Quadro/ })
     await waitFor(() => expect(quadro.getAttribute('aria-selected')).toBe('true'))
     expect(document.activeElement).toBe(quadro)
     expect(lista.getAttribute('tabindex')).toBe('-1')
@@ -1861,7 +1886,7 @@ describe('o quadro', () => {
     })
 
     montar()
-    fireEvent.click(await screen.findByRole('tab', { name: 'Quadro' }))
+    fireEvent.click(await screen.findByRole('tab', { name: /^Quadro/ }))
 
     const analise = await screen.findByRole('region', { name: 'Análise' })
     expect(await within(analise).findByText(entreAspas('o botao some'))).toBeTruthy()
@@ -1877,7 +1902,7 @@ describe('o quadro', () => {
     cleanup()
     montar()
     expect(await screen.findByRole('region', { name: 'Pronto' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Quadro' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: /^Quadro/ }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('o card do quadro e um link para ele: o detalhe abre so no clique, e so ai a leitura conta', async () => {
@@ -1931,8 +1956,8 @@ describe('o quadro', () => {
       ),
     )
     // O botao que levou ate la sumiu com o quadro: o foco vai para a aba da lista.
-    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Lista' }))
-    expect(screen.getByRole('tab', { name: 'Lista' }).getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /^Lista/ }))
+    expect(screen.getByRole('tab', { name: /^Lista/ }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('a coluna que nao carregou diz, e tenta de novo; a coluna cheia mostra mais', async () => {
@@ -2000,7 +2025,7 @@ describe('o quadro', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Mostrar mais 1' }))
     expect(await screen.findByText(entreAspas('o de numero 51'))).toBeTruthy()
     const analise = screen.getByRole('region', { name: 'Análise' })
-    const leituras = dublê.listar.mock.calls.length
+    const leituras = leiturasDaTela()
 
     fireEvent.click(screen.getByText(entreAspas('relato 1')).closest('a') as HTMLElement)
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
@@ -2018,7 +2043,7 @@ describe('o quadro', () => {
     await waitFor(() => expect(within(pronto).getByText(entreAspas('relato 1'))).toBeTruthy())
     expect(screen.getByRole('region', { name: 'Análise', hidden: true })).toBe(analise)
     expect(screen.getByText(entreAspas('o de numero 51'))).toBeTruthy()
-    expect(dublê.listar.mock.calls.length).toBe(leituras)
+    expect(leiturasDaTela()).toBe(leituras)
   })
 
   it('trocar de projeto com o quadro aberto nao pede ao projeto novo as colunas do anterior', async () => {
@@ -2069,42 +2094,41 @@ describe('o quadro', () => {
     // So as leituras do quadro: a ordem dele em cada chamada.
     expect(dublê.listar.mock.calls.every((chamada) => chamada[4]?.order === 'board')).toBe(true)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Lista' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Lista/ }))
     await waitFor(() =>
       expect(dublê.listar.mock.calls.some((chamada) => chamada[4] === undefined)).toBe(true),
     )
     expect(await screen.findByText(entreAspas('o botao some'))).toBeTruthy()
   })
 
-  it('a dica de como arrastar e curta, fecha no ✕ e fica fechada neste navegador, em todo projeto', async () => {
+  it('uma faixa so antes das colunas: as raias e os arquivados na barra de filtros, e o como arrastar no "Como funciona" dela', async () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1)])
     porColuna({ 's-1': [relato('r-1', 'o botao some')] })
     dublê.time.mockResolvedValue([])
     window.localStorage.setItem('pds.web.trabalho.vista.p-1', 'quadro')
-    window.localStorage.setItem('pds.web.trabalho.vista.p-2', 'quadro')
 
     montar()
     await screen.findByRole('region', { name: 'Análise' })
-    // Curta (Q-19): uma linha, com o toque e o teclado.
+    const barra = screen
+      .getByRole('searchbox', { name: 'Buscar cards' })
+      .closest('search') as HTMLElement
+    // As raias e os arquivados moram no fim da barra — o mesmo lugar da lista.
+    expect(within(barra).getByRole('combobox', { name: 'Raias do quadro' })).toBeTruthy()
+    expect(within(barra).getByRole('button', { name: 'Arquivados' })).toBeTruthy()
+    // O como arrastar e curto (Q-19) e mora recolhido no "Como funciona" da barra.
+    const ajuda = within(barra).getByText('Como funciona').closest('details') as HTMLDetailsElement
+    expect(ajuda.open).toBe(false)
     expect(
-      screen.getByText(
+      within(ajuda).getByText(
         'Arraste para mover · no celular, segure · no teclado, as setas andam e espaço pega',
       ),
     ).toBeTruthy()
     // Com raias, diz o que a raia troca.
     await escolherNoSelect(screen, fireEvent, 'Raias do quadro', 'Raias por responsável')
     expect(
-      await screen.findByText(/^Arraste para mover; outra raia troca o responsável · /),
+      await within(ajuda).findByText(/^Arraste para mover; outra raia troca o responsável · /),
     ).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Esconder a dica de como arrastar' }))
-    expect(screen.queryByText(/^Arraste para mover/)).toBeNull()
-
-    // Fechada, fica fechada neste navegador — tambem no outro projeto.
-    cleanup()
-    montar('p-2')
-    await screen.findByRole('region', { name: 'Análise' })
-    expect(screen.queryByText(/^Arraste para mover/)).toBeNull()
+    // Nao ha mais a segunda faixa com o ✕ da dica.
     expect(screen.queryByRole('button', { name: 'Esconder a dica de como arrastar' })).toBeNull()
   })
 })
@@ -2253,7 +2277,7 @@ describe('o tempo real', () => {
   it('a configuracao mudou: a contagem e as regras do quadro sao relidas', async () => {
     dublê.listar.mockResolvedValue({ reports: [], total: 0 })
     montar()
-    await screen.findByRole('tab', { name: 'Lista' })
+    await screen.findByRole('tab', { name: /^Lista/ })
     await waitFor(() => expect(dublê.ciclo).toHaveBeenCalledTimes(1))
     const contagens = dublê.contar.mock.calls.length
 
@@ -2266,7 +2290,7 @@ describe('o tempo real', () => {
   it('quem saiu do time sai da tela, para os projetos', async () => {
     dublê.listar.mockResolvedValue({ reports: [], total: 0 })
     const router = montar()
-    await screen.findByRole('tab', { name: 'Lista' })
+    await screen.findByRole('tab', { name: /^Lista/ })
 
     avisar({ kind: 'access-lost' })
 
@@ -2823,25 +2847,6 @@ describe('a lista', () => {
       await waitFor(() => expect(ultimaContagem()?.[1]).toBeUndefined())
     })
 
-    it('"Subtarefas" vem marcada no menu "Tipo"; desmarcar as esconde na lista e na contagem', async () => {
-      montar()
-      await listaNaTela()
-
-      await abrirMenu('Tipo')
-      const subtarefas = await screen.findByRole('menuitemcheckbox', { name: 'Subtarefas' })
-      expect(subtarefas.getAttribute('aria-checked')).toBe('true')
-      fireEvent.click(subtarefas)
-
-      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.hideSubtasks).toBe(true))
-      await waitFor(() => expect(ultimaContagem()?.[1]?.hideSubtasks).toBe(true))
-      expect(
-        screen.getByRole('menuitemcheckbox', { name: 'Subtarefas' }).getAttribute('aria-checked'),
-      ).toBe('false')
-      await fecharMenu()
-      // O botao diz o que ficou de fora — filtro ligado nao some da vista.
-      expect(screen.getByRole('button', { name: 'Tipo: sem subtarefas' })).toBeTruthy()
-    })
-
     it('nos arquivados, "Vencidos" e "Em aberto" saem — a menos que estejam ligados, para dar para desligar', async () => {
       montar()
       await listaNaTela()
@@ -3365,6 +3370,157 @@ describe('a lista', () => {
       await waitFor(() => expect(ultimaLista()?.[4]?.filters?.search).toBe('pagamento'))
       await releu()
       expect(area().getAttribute('aria-busy')).toBeNull()
+    })
+  })
+
+  /**
+   * O ENDERECO, AS VISTAS SALVAS, AS ABAS E OS ATALHOS.
+   *
+   * - **Os filtros vao para o endereco** (trocando a entrada, sem empilhar "voltar"), e
+   *   o link com eles vence o lembrado na aba. O card aberto tem o endereco dele.
+   * - **"Salvar vista"** guarda os filtros com um nome, por pessoa; a pilula aplica de
+   *   uma vez e o "×" apaga.
+   * - **As abas dizem quantos cards tem**, com o que a tela ja leu.
+   * - **"?" abre os atalhos**, e o Esc desmarca o lote quando nada esta aberto.
+   */
+  describe('o endereco, as vistas salvas, as abas e os atalhos', () => {
+    it('os filtros vao para o endereco sem empilhar historico, e o link com eles vence o lembrado na aba', async () => {
+      window.sessionStorage.setItem(
+        'pds.web.trabalho.filtros.p-1',
+        JSON.stringify({ labels: ['l-velha'] }),
+      )
+      const router = montar('p-1', '/p/p-1?responsavel=me&vencidos=1')
+      await listaNaTela()
+      expect(ultimaLista()?.[4]?.filters).toEqual(
+        expect.objectContaining({ assignees: ['me'], overdue: true, labels: [] }),
+      )
+      expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Em aberto' }))
+      await waitFor(() =>
+        expect(router.state.location.search).toBe('?responsavel=me&vencidos=1&em-aberto=1'),
+      )
+      expect(router.state.historyAction).toBe('REPLACE')
+
+      // O "×" tira so o responsavel — do filtro e do endereco.
+      fireEvent.click(screen.getByRole('button', { name: 'Tirar o filtro Responsável' }))
+      await waitFor(() => expect(router.state.location.search).toBe('?vencidos=1&em-aberto=1'))
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.assignees).toEqual([]))
+
+      // Limpar tudo volta ao endereco de sempre.
+      fireEvent.click(screen.getByRole('button', { name: /Limpar filtros/ }))
+      await waitFor(() => expect(router.state.location.search).toBe(''))
+    })
+
+    it('o card aberto tem o endereco dele, e fechar volta a lista com os filtros no endereco', async () => {
+      dublê.abrir.mockResolvedValue({
+        ...relato('r-1', 'o botao some'),
+        Closure: null,
+        InfoRequest: null,
+        CanAskInfo: false,
+        Contexts: [],
+      })
+      const router = montar('p-1', '/p/p-1?vencidos=1')
+      fireEvent.click(await listaNaTela())
+      await screen.findByRole('dialog')
+      expect(router.state.location.pathname).toBe('/p/p-1/r-1')
+      expect(router.state.location.search).toBe('')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+      await waitFor(() => expect(router.state.location.pathname).toBe('/p/p-1'))
+      expect(router.state.location.search).toBe('?vencidos=1')
+      expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      )
+    })
+
+    it('"Salvar vista" guarda os filtros com um nome, a pilula aplica de uma vez e o "×" apaga', async () => {
+      montar()
+      await listaNaTela()
+      // Sem filtro, nao ha o que salvar: a tela de sempre ja e a de sempre.
+      expect(screen.queryByRole('button', { name: /Salvar vista/ })).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Vencidos' }))
+      fireEvent.click(await screen.findByRole('button', { name: /Salvar vista/ }))
+      const nome = screen.getByRole('textbox', { name: 'Nome da vista' })
+      await waitFor(() => expect(document.activeElement).toBe(nome))
+      fireEvent.change(nome, { target: { value: 'Atrasados' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+      const pilula = await screen.findByRole('button', { name: 'Atrasados' })
+      expect(pilula.getAttribute('aria-pressed')).toBe('true')
+      // Ja salva, nao pede salvar de novo.
+      expect(screen.queryByRole('button', { name: /Salvar vista/ })).toBeNull()
+      // Por pessoa e por projeto, neste navegador.
+      expect(window.localStorage.getItem('pds.web.trabalho.vistas-salvas.anonimo.p-1')).toContain(
+        'Atrasados',
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /Limpar filtros/ }))
+      await waitFor(() => expect(pilula.getAttribute('aria-pressed')).toBe('false'))
+      fireEvent.click(pilula)
+      await waitFor(() => expect(ultimaLista()?.[4]?.filters?.overdue).toBe(true))
+      expect(screen.getByRole('button', { name: 'Vencidos' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Apagar a vista Atrasados' }))
+      expect(screen.queryByRole('button', { name: 'Atrasados' })).toBeNull()
+      expect(window.localStorage.getItem('pds.web.trabalho.vistas-salvas.anonimo.p-1')).toBeNull()
+    })
+
+    it('as abas dizem quantos cards tem, com o que a tela ja leu', async () => {
+      dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 42 })
+      montar()
+      await listaNaTela()
+      const lista = screen.getByRole('tab', { name: /^Lista/ })
+      await waitFor(() => expect(lista.textContent).toBe('Lista42'))
+      expect(lista.querySelector('.tabular-nums')?.textContent).toBe('42')
+
+      // Fora da lista, a soma das colunas: a mesma conta, sem leitura a mais.
+      fireEvent.click(screen.getByRole('tab', { name: /^Quadro/ }))
+      await waitFor(() => expect(lista.textContent).toBe('Lista3'))
+    })
+
+    it('"?" abre os atalhos — e o botao do alto tambem —, com todos eles', async () => {
+      montar()
+      await listaNaTela()
+      fireEvent.keyDown(document.body, { key: '?' })
+      const dialogo = await screen.findByRole('dialog', { name: 'Atalhos' })
+      for (const tecla of ['/', 'c', 'J', 'K', 'Espaço', 'Shift', 'Esc', '?'])
+        expect(within(dialogo).getByText(tecla, { selector: 'kbd' })).toBeTruthy()
+
+      fireEvent.keyDown(dialogo, { key: 'Escape' })
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+      fireEvent.click(screen.getByRole('button', { name: 'Atalhos do teclado' }))
+      expect(await screen.findByRole('dialog', { name: 'Atalhos' })).toBeTruthy()
+    })
+
+    it('Esc desmarca o lote; com um dialogo aberto, o Esc e dele, e o lote fica', async () => {
+      montar()
+      await listaNaTela()
+      const caixa = screen.getByRole('checkbox', {
+        name: /^Selecionar #\d+: o botao some$/,
+      }) as HTMLInputElement
+      fireEvent.click(caixa)
+      await screen.findByRole('region', { name: 'Ações em lote' })
+
+      // Com os atalhos abertos, o Esc fecha so eles.
+      fireEvent.keyDown(document.body, { key: '?' })
+      const dialogo = await screen.findByRole('dialog', { name: 'Atalhos' })
+      fireEvent.keyDown(dialogo, { key: 'Escape' })
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(caixa.checked).toBe(true)
+
+      caixa.focus()
+      fireEvent.keyDown(caixa, { key: 'Escape' })
+      await waitFor(() =>
+        expect(screen.queryByRole('region', { name: 'Ações em lote' })).toBeNull(),
+      )
+      expect(caixa.checked).toBe(false)
     })
   })
 })

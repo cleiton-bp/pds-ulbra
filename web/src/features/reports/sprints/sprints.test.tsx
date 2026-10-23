@@ -154,6 +154,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -1067,18 +1068,12 @@ describe('o backlog por dentro', () => {
     )
   })
 
-  it('sair do campo grava o que vale e desiste do que nao vale; vazio tira a estimativa; a subtarefa so mostra', async () => {
+  it('sair do campo grava o que vale e desiste do que nao vale; vazio tira a estimativa; cada linha estima', async () => {
     backlogDeMentira({
       's-1': [],
       backlog: [
         card({ PublicId: 'c-2', Number: 11, Title: 'Rever o texto', StoryPoints: 3 }),
-        card({
-          PublicId: 'c-6',
-          Number: 15,
-          Title: 'Parte do texto',
-          StoryPoints: 1,
-          Parent: { PublicId: 'c-2', Number: 11, Headline: 'Rever o texto' },
-        }),
+        card({ PublicId: 'c-6', Number: 15, Title: 'Parte do texto', StoryPoints: 1 }),
       ],
     })
     dublê.pontos.mockImplementation(async (_p, id, pedido) => ({
@@ -1105,11 +1100,12 @@ describe('o backlog por dentro', () => {
     await waitFor(() => expect(dublê.pontos).toHaveBeenCalledWith('p-1', 'c-2', { Points: null }))
     expect(await screen.findByRole('button', { name: 'Estimar #11: sem estimativa' })).toBeTruthy()
 
-    // A subtarefa vai com o pai: o selo so mostra, "1 pt" para quem ve e "1 ponto" para o leitor de tela.
-    const subtarefa = linhaDe('Parte do texto')
-    expect(within(subtarefa).getByText('1 pt')).toBeTruthy()
-    expect(within(subtarefa).getByText('1 ponto')).toBeTruthy()
-    expect(within(subtarefa).queryByRole('button', { name: /^Estima/ })).toBeNull()
+    // A subtarefa nao chega ao backlog — so aparece dentro do pai —, entao toda linha
+    // e de card de primeiro nivel, e toda linha estima.
+    const outra = linhaDe('Parte do texto')
+    expect(
+      within(outra).getByRole('button', { name: 'Estimativa de #15: 1 ponto. Mudar' }),
+    ).toBeTruthy()
   })
 
   it('a busca vai a API em cada lista, na ordem do backlog; "Meus cards" e "Limpar busca"', async () => {

@@ -342,3 +342,25 @@ describe('a lista pelos filtros, colunas, sprint e ordem', () => {
     expect(result.current.loadingMore).toBe(false)
   })
 })
+
+describe('a mudanca de um card na lista', () => {
+  beforeEach(() => {
+    dublê.listar.mockReset()
+  })
+
+  it('a resposta de uma mudanca chega sem a marca "subtarefa sua", e a marca fica', async () => {
+    const marca = { Assignees: [], Search: true }
+    dublê.listar.mockResolvedValueOnce({
+      reports: [{ ...card('1'), SubtaskMatch: marca }],
+      total: 1,
+    })
+    const { result } = renderHook(() => useReportInbox('p-1'))
+    await waitFor(() => expect(result.current.reports).toHaveLength(1))
+
+    // O card devolvido pelo detalhe ou pelo mover: sem a marca, que so a lista calcula.
+    act(() => result.current.apply({ ...card('1'), Title: 'Renomeado', SubtaskMatch: null }))
+
+    expect(result.current.reports?.[0]?.Title).toBe('Renomeado')
+    expect(result.current.reports?.[0]?.SubtaskMatch).toEqual(marca)
+  })
+})

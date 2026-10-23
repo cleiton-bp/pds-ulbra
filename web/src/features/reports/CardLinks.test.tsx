@@ -83,6 +83,7 @@ function card(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryViewMod
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,

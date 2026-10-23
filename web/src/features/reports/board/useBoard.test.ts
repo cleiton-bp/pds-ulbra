@@ -77,6 +77,7 @@ function card(
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -284,6 +285,19 @@ describe('o quadro carregado coluna por coluna', () => {
     act(() => result.current.update(card('2', 'a', { CommentCount: 3 })))
     expect(result.current.items.a).toEqual(['2'])
     expect(result.current.cards['2']?.CommentCount).toBe(3)
+  })
+
+  it('a marca "subtarefa sua" so vem da leitura do quadro: mover e editar nao a apagam', async () => {
+    const { result } = await montado()
+    const marca = { Assignees: [], Search: true }
+    act(() => result.current.update({ ...card('2', 'a'), SubtaskMatch: marca }))
+
+    act(() => result.current.apply({ ...card('2', 'b'), SubtaskMatch: null }))
+    expect(result.current.cards['2']?.SubtaskMatch).toEqual(marca)
+
+    act(() => result.current.update({ ...card('2', 'b', { CommentCount: 1 }), SubtaskMatch: null }))
+    expect(result.current.cards['2']?.SubtaskMatch).toEqual(marca)
+    expect(result.current.cards['2']?.CommentCount).toBe(1)
   })
 
   it('o card novo entra no topo da coluna dele', async () => {

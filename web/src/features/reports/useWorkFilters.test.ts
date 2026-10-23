@@ -2,8 +2,17 @@
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { NO_REPORT_FILTERS } from '@/data'
-import { FIRST_SORT_DIR, SEARCH_DELAY_MS, useWorkFilters } from '@/features/reports/useWorkFilters'
+import { NO_REPORT_FILTERS, TEAM_CARD_FILTER } from '@/data'
+import {
+  FIRST_SORT_DIR,
+  NO_LIST_FILTERS,
+  SEARCH_DELAY_MS,
+  sameWorkView,
+  useWorkFilters,
+  type WorkView,
+  workViewFromQuery,
+  workViewToQuery,
+} from '@/features/reports/useWorkFilters'
 
 /**
  * O QUE ESTES TESTES TRAVAM: os filtros da tela de Trabalho.
@@ -88,12 +97,19 @@ describe('os filtros da tela de Trabalho', () => {
   })
 
   it('o que veio guardado estranho nao vira filtro', () => {
+    const TIPO = '0f8c2a5e-3b1d-4c6e-9a7f-1e2d3c4b5a69'
     window.sessionStorage.setItem(
       'pds.web.trabalho.filtros.p-1',
-      JSON.stringify({ types: ['bug', 'inventado'], overdue: 'sim', labels: [1, 'l-1'] }),
+      JSON.stringify({
+        // Os nomes de antes de os tipos serem do projeto caem: a API os recusaria.
+        // Fica o identificador de um tipo, e o card do time.
+        types: ['bug', 'improvement', 'inventado', TIPO, TEAM_CARD_FILTER],
+        overdue: 'sim',
+        labels: [1, 'l-1'],
+      }),
     )
     const { result } = renderHook(() => useWorkFilters('p-1'))
-    expect(result.current.filters.types).toEqual(['bug'])
+    expect(result.current.filters.types).toEqual([TIPO, TEAM_CARD_FILTER])
     expect(result.current.filters.overdue).toBe(false)
     expect(result.current.filters.labels).toEqual(['l-1'])
 
@@ -109,16 +125,15 @@ describe('o que so a lista recorta, e a ordem', () => {
 
   const guardado = (chave: string) => JSON.parse(window.sessionStorage.getItem(chave) ?? 'null')
 
-  it('"Em aberto", as subtarefas, as colunas e a sprint ficam lembrados e voltam; so os da lista ficam fora do quadro', () => {
+  it('"Em aberto", as colunas e a sprint ficam lembrados e voltam; so os da lista ficam fora do quadro', () => {
     const { result, unmount } = renderHook(() => useWorkFilters('p-1'))
-    act(() => result.current.setFilters({ ...NO_REPORT_FILTERS, open: true, hideSubtasks: true }))
+    act(() => result.current.setFilters({ ...NO_REPORT_FILTERS, open: true }))
     act(() => result.current.setList({ columns: ['s-1', 'none'], sprint: 'sp-2' }))
-    // Quatro ligados na lista; o quadro so tem dois deles.
-    expect(result.current.active).toBe(4)
-    expect(result.current.activeShared).toBe(2)
+    // Tres ligados na lista; o quadro so tem um deles.
+    expect(result.current.active).toBe(3)
+    expect(result.current.activeShared).toBe(1)
     expect(guardado('pds.web.trabalho.filtros.p-1')).toMatchObject({
       open: true,
-      hideSubtasks: true,
       columns: ['s-1', 'none'],
       sprint: 'sp-2',
     })
@@ -126,9 +141,8 @@ describe('o que so a lista recorta, e a ordem', () => {
 
     const volta = renderHook(() => useWorkFilters('p-1'))
     expect(volta.result.current.filters.open).toBe(true)
-    expect(volta.result.current.filters.hideSubtasks).toBe(true)
     expect(volta.result.current.list).toEqual({ columns: ['s-1', 'none'], sprint: 'sp-2' })
-    expect(volta.result.current.active).toBe(4)
+    expect(volta.result.current.active).toBe(3)
 
     // So a coluna tambem fica guardada: e filtro, mesmo sem nenhum dos outros.
     const outro = renderHook(() => useWorkFilters('p-2'))
@@ -145,7 +159,7 @@ describe('o que so a lista recorta, e a ordem', () => {
     const { result } = renderHook(() => useWorkFilters('p-1'))
     expect(result.current.list).toEqual({ columns: ['s-1'], sprint: null })
     expect(result.current.filters.open).toBe(false)
-    expect(result.current.filters.hideSubtasks).toBe(false)
+    expect(result.current.filters).not.toHaveProperty('hideSubtasks')
 
     // A sprint vazia e "sem sprint", e a lista que nao e lista e "nenhuma coluna".
     window.sessionStorage.setItem(
@@ -299,5 +313,102 @@ describe('o que so a lista recorta, e a ordem', () => {
     expect(result.current.listKey).not.toBe('')
     act(() => result.current.setSort(null))
     expect(result.current.listKey).toBe('')
+  })
+})
+
+/**
+ * O QUE ESTES TESTES TRAVAM: os filtros no endereco.
+ *
+ * - **Ida e volta**: a vista vira `?responsavel=me&vencidos=1…` e volta a mesma; o que
+ *   esta desligado nao vai, e os outros parametros do endereco ficam.
+ * - **O endereco vence o lembrado** ao abrir, e passa a ser o lembrado; sem filtro no
+ *   endereco, vale a aba.
+ * - **O valor estranho nao vira filtro**, como no que vem guardado.
+ * - **`applyView` troca tudo de uma vez**, a busca sem esperar.
+ */
+describe('os filtros no endereco', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear()
+  })
+
+  const cheia: WorkView = {
+    filters: {
+      ...NO_REPORT_FILTERS,
+      assignees: ['me', 'u-2'],
+      labels: ['l-1'],
+      priorities: ['none'],
+      types: [TEAM_CARD_FILTER],
+      overdue: true,
+      open: true,
+      blockedOrigin: true,
+      search: 'frete grátis',
+    },
+    list: { columns: ['s-1'], sprint: 'backlog' },
+    sort: { field: 'due', dir: 'asc' },
+  }
+
+  it('vao e voltam iguais, sem o que esta desligado, e sem mexer nos outros parametros', () => {
+    const consulta = workViewToQuery(cheia, '?outro=1')
+    expect(consulta).toContain('outro=1')
+    expect(consulta).toContain('responsavel=me&responsavel=u-2')
+    expect(consulta).toContain('vencidos=1')
+    expect(consulta).toContain('ordem=due.asc')
+    expect(workViewFromQuery(consulta)).toEqual(cheia)
+
+    // A tela de sempre nao tem endereco de filtro; o "mais novo primeiro" tambem nao.
+    const vazia: WorkView = {
+      filters: NO_REPORT_FILTERS,
+      list: NO_LIST_FILTERS,
+      sort: { field: 'created', dir: 'desc' },
+    }
+    expect(workViewToQuery(vazia)).toBe('')
+    expect(workViewToQuery(vazia, '?outro=1&vencidos=1')).toBe('?outro=1')
+    expect(workViewFromQuery('?outro=1')).toBeNull()
+  })
+
+  it('o valor estranho do endereco nao vira filtro nem ordem', () => {
+    const lida = workViewFromQuery('?tipo=bug&ordem=altura.asc&responsavel=&vencidos=0')
+    expect(lida?.filters.types).toEqual([])
+    expect(lida?.filters.assignees).toEqual([])
+    expect(lida?.filters.overdue).toBe(false)
+    expect(lida?.sort).toBeNull()
+  })
+
+  it('a ordem em que os valores foram marcados nao e outra vista', () => {
+    const outra: WorkView = {
+      ...cheia,
+      filters: { ...cheia.filters, assignees: ['u-2', 'me'] },
+    }
+    expect(sameWorkView(cheia, outra)).toBe(true)
+    expect(sameWorkView(cheia, { ...cheia, sort: null })).toBe(false)
+  })
+
+  it('o endereco vence o lembrado na aba ao abrir, e passa a ser o lembrado', () => {
+    const lembrado = renderHook(() => useWorkFilters('p-1'))
+    act(() => lembrado.result.current.setFilters({ ...NO_REPORT_FILTERS, labels: ['l-velha'] }))
+    lembrado.unmount()
+
+    const { result, unmount } = renderHook(() =>
+      useWorkFilters('p-1', '?responsavel=me&vencidos=1&q=frete'),
+    )
+    expect(result.current.filters.labels).toEqual([])
+    expect(result.current.filters.assignees).toEqual(['me'])
+    expect(result.current.filters.overdue).toBe(true)
+    // A busca do link vale na hora: ninguem esta digitando.
+    expect(result.current.applied.search).toBe('frete')
+    unmount()
+
+    // Sem filtro no endereco, a aba lembra o que o link trouxe.
+    const volta = renderHook(() => useWorkFilters('p-1', '?outro=1'))
+    expect(volta.result.current.filters.assignees).toEqual(['me'])
+  })
+
+  it('applyView troca os filtros, os da lista e a ordem de uma vez, a busca sem esperar', () => {
+    const { result } = renderHook(() => useWorkFilters('p-1'))
+    act(() => result.current.applyView(cheia))
+    expect(result.current.applied.search).toBe('frete grátis')
+    expect(result.current.list).toEqual(cheia.list)
+    expect(result.current.sort).toEqual(cheia.sort)
+    expect(sameWorkView(result.current.view, cheia)).toBe(true)
   })
 })

@@ -102,6 +102,7 @@ function cardDoTime(extra: Partial<ReportSummaryViewModel> = {}): ReportSummaryV
     AttachmentCount: 0,
     Closed: false,
     ClosureConfirmed: false,
+    BlockedOrigin: false,
     Finished: false,
     Parent: null,
     SubtaskCount: 0,
@@ -123,6 +124,7 @@ function aberto(
   return {
     ...resumo,
     Description,
+    Answers: null,
     CreatedByName: 'Ana Dona',
     CanArchive: true,
     ArchiveCloses: false,
