@@ -10,13 +10,17 @@ import { instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
  *
  * **A lateral e lida de cima para baixo todo dia.** O Trabalho fica no topo, com
- * Membros e Moderacao; a configuracao vem depois, num grupo recolhivel — "Configurar
- * o projeto" —, fechado no Trabalho e aberto sozinho numa tela de configuracao, e que
- * nao fecha sozinho. Ja foi o contrario: onze telas de configuracao antes do
- * Trabalho, e no celular pequeno o Trabalho ficava fora da gaveta. Os nomes sao os do
- * time (Colunas, Andamento publico, Botao no site, Quem relata, Anexos, Projeto), e
- * os enderecos continuam os de antes — ja foram copiados para conversas. Addons e Uso
- * sairam da lateral.
+ * Membros e Moderacao; a configuracao vem depois, **num grupo recolhivel** —
+ * "Configurar o projeto", um botao que abre e fecha ali mesmo. Dentro, a Visao geral
+ * (a pagina central) e as cinco areas (O seu sistema, O formulário, O acompanhamento, O
+ * quadro, O time), cada uma com o nome em cima das telas; Membros nao se repete em O
+ * time, porque ja esta no topo. O grupo abre fechado no Trabalho, abre sozinho numa
+ * tela de configuracao e nao fecha sozinho. Fechado, continua no DOM, mas `inert`.
+ * Ja foram treze itens em dois blocos
+ * sem rotulo, e antes onze telas antes do Trabalho. Os nomes sao os do time (Colunas,
+ * Andamento publico, O botão, Quem relata, Anexos, Domínios, Projeto), e os
+ * enderecos continuam os de antes — ja foram copiados para conversas. Chaves, Addons
+ * e Uso sairam da lateral; Chaves continua com endereco, e se abre pela Instalacao.
  *
  * Quem e so membro nao ve a configuracao — decidido assim: escondida, e nao
  * travada nem so de leitura. A API recusa o que ele tentasse mudar; mostrar as
@@ -134,21 +138,42 @@ const nomesNoMenu = () =>
   within(menu())
     .getAllByRole('link')
     .map((link) => link.textContent)
-const grupo = () => within(menu()).getByRole('button', { name: 'Configurar o projeto' })
+const nomesEm = (onde: HTMLElement) =>
+  within(onde)
+    .getAllByRole('link')
+    .map((link) => link.textContent)
+const botaoConfigurar = () => within(menu()).getByRole('button', { name: 'Configurar o projeto' })
+/** O grupo que o botao abre; fechado, continua no DOM, mas `inert`. */
+const grupoConfigurar = () => document.getElementById('configurar-o-projeto') as HTMLElement
+const aberto = () => ({
+  botao: botaoConfigurar().getAttribute('aria-expanded'),
+  inerte: grupoConfigurar().hasAttribute('inert'),
+})
+const FECHADO = { botao: 'false', inerte: true }
+const ABERTO = { botao: 'true', inerte: false }
+const areas = () =>
+  within(menu())
+    .queryAllByRole('group')
+    .map((grupo) => grupo.getAttribute('aria-label'))
 
 const TRABALHO = ['Trabalho', 'Membros', 'Moderação']
-const CONFIGURACAO = [
+/** As cinco areas, no grupo Configurar o projeto. */
+const AREAS = ['O seu sistema', 'O formulário', 'O acompanhamento', 'O quadro', 'O time']
+/** Sem Membros: ja esta no topo, e repetido em O time seriam dois itens iguais. */
+const TELAS_DAS_AREAS = [
+  'Instalação',
+  'O botão',
+  'Domínios',
+  'Tipos de relato',
+  'Formulário',
+  'Anexos',
+  'Andamento público',
+  'Ciclo',
+  'Quem relata',
   'Colunas',
   'Prioridades',
   'Etiquetas',
   'Sprints',
-  'Instalação',
-  'Chaves',
-  'Botão no site',
-  'Andamento público',
-  'Ciclo',
-  'Quem relata',
-  'Anexos',
   'Projeto',
 ]
 
@@ -170,47 +195,73 @@ describe('ProjectShell — o menu', () => {
 
     expect(await screen.findByText('tela de relatos')).toBeTruthy()
     await waitFor(() => expect(nomesNoMenu()).toEqual(TRABALHO))
-    expect(within(menu()).queryByRole('button', { name: 'Configurar o projeto' })).toBeNull()
+    expect(within(menu()).queryByRole('link', { name: 'Configurar o projeto' })).toBeNull()
     expect(screen.queryByRole('link', { name: /Instalação/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Chaves/ })).toBeNull()
   })
 
-  it('para quem administra, o trabalho vem em cima e a configuração embaixo, fechada', async () => {
+  it('para quem administra, no Trabalho o grupo Configurar o projeto começa fechado', async () => {
     abrir('/projects/p-1/reports', [projeto('Administrator', false)])
 
     expect(await screen.findByText('tela de relatos')).toBeTruthy()
-    // Fechada no Trabalho: e o que o time faz todo dia, e o grupo empurrava a lista.
-    expect(
-      (await screen.findByRole('button', { name: 'Configurar o projeto' })).getAttribute(
-        'aria-expanded',
-      ),
-    ).toBe('false')
-    expect(nomesNoMenu()).toEqual(TRABALHO)
-
-    fireEvent.click(grupo())
-
-    expect(grupo().getAttribute('aria-expanded')).toBe('true')
-    // Primeiro o que se ajusta depois de comecar (o quadro), depois o que se ajusta
-    // uma vez (o site e quem relata), e o projeto em si por ultimo.
-    expect(nomesNoMenu()).toEqual([...TRABALHO, ...CONFIGURACAO])
+    const botao = await within(menu()).findByRole('button', { name: 'Configurar o projeto' })
+    expect(botao.getAttribute('aria-controls')).toBe('configurar-o-projeto')
+    // Fechado, o grupo continua no DOM, mas fora do Tab e do leitor de tela.
+    expect(aberto()).toEqual(FECHADO)
+    expect(nomesNoMenu().slice(0, TRABALHO.length)).toEqual(TRABALHO)
     // O quadro e a segunda vista da tela de Trabalho, e nao uma secao no menu.
     expect(within(menu()).queryByText('Quadro')).toBeNull()
   })
 
+  it('clicar em Configurar o projeto abre a Visão geral e as cinco áreas, e clicar de novo fecha', async () => {
+    const { router } = abrir('/projects/p-1/reports', [projeto('Administrator', false)])
+    await screen.findByText('tela de relatos')
+
+    fireEvent.click(await within(menu()).findByRole('button', { name: 'Configurar o projeto' }))
+
+    expect(aberto()).toEqual(ABERTO)
+    // Abrir o grupo nao navega: a pessoa continua no Trabalho.
+    expect(router.state.location.pathname).toBe('/projects/p-1/reports')
+    const grupo = grupoConfigurar()
+    expect(nomesEm(grupo)).toEqual(['Visão geral', ...TELAS_DAS_AREAS])
+    expect(within(grupo).getByRole('link', { name: 'Visão geral' }).getAttribute('href')).toBe(
+      '/projects/p-1/configure',
+    )
+    expect(areas()).toEqual(AREAS)
+
+    const site = within(grupo).getByRole('group', { name: 'O seu sistema' })
+    expect(nomesEm(site)).toEqual(['Instalação', 'O botão', 'Domínios'])
+    // O nome da area esta a vista, em cima das telas dela.
+    expect(within(site).getByText('O seu sistema')).toBeTruthy()
+    // Membros fica so no topo: em O time, so o Projeto.
+    expect(nomesEm(within(grupo).getByRole('group', { name: 'O time' }))).toEqual(['Projeto'])
+    expect(within(menu()).getAllByRole('link', { name: 'Membros' })).toHaveLength(1)
+
+    fireEvent.click(botaoConfigurar())
+
+    expect(aberto()).toEqual(FECHADO)
+  })
+
   it('os nomes são os do time, e os endereços continuam os de antes', async () => {
-    abrir('/projects/p-1/reports', [projeto('Administrator', true)])
-    fireEvent.click(await screen.findByRole('button', { name: 'Configurar o projeto' }))
+    abrir('/projects/p-1/configure', [projeto('Administrator', true)])
+    await screen.findByText('outra tela')
 
     const endereco = (nome: string) =>
-      within(menu()).getByRole('link', { name: nome }).getAttribute('href')
+      within(menu()).getAllByRole('link', { name: nome })[0]?.getAttribute('href')
     expect(endereco('Trabalho')).toBe('/projects/p-1/reports')
+    expect(endereco('Instalação')).toBe('/projects/p-1/start')
+    expect(endereco('Domínios')).toBe('/projects/p-1/domains')
     expect(endereco('Colunas')).toBe('/projects/p-1/states')
     expect(endereco('Sprints')).toBe('/projects/p-1/sprints')
-    expect(endereco('Botão no site')).toBe('/projects/p-1/tool')
+    expect(endereco('Tipos de relato')).toBe('/projects/p-1/report-types')
+    expect(endereco('O botão')).toBe('/projects/p-1/tool')
     expect(endereco('Andamento público')).toBe('/projects/p-1/public-stages')
     expect(endereco('Quem relata')).toBe('/projects/p-1/identity')
     expect(endereco('Anexos')).toBe('/projects/p-1/media')
     expect(endereco('Projeto')).toBe('/projects/p-1/settings')
+
+    // Chaves saiu da lateral: e a parte avancada da Instalacao, e se abre por ela.
+    expect(within(menu()).queryByRole('link', { name: 'Chaves' })).toBeNull()
 
     // Os nomes de quem construiu sairam, e Addons e Uso sairam da lateral.
     for (const antigo of [
@@ -231,38 +282,54 @@ describe('ProjectShell — o menu', () => {
     abrir('/projects/p-1/states', [projeto('Administrator', false)])
 
     expect(await screen.findByText('outra tela')).toBeTruthy()
-    expect(
-      (await screen.findByRole('button', { name: 'Configurar o projeto' })).getAttribute(
-        'aria-expanded',
-      ),
-    ).toBe('true')
+    await within(menu()).findByRole('button', { name: 'Configurar o projeto' })
+    expect(aberto()).toEqual(ABERTO)
     expect(within(menu()).getByRole('link', { name: 'Colunas' }).getAttribute('aria-current')).toBe(
       'page',
     )
+    expect(
+      within(menu()).getByRole('link', { name: 'Visão geral' }).getAttribute('aria-current'),
+    ).toBeNull()
   })
 
-  it('o grupo não fecha sozinho: voltar ao Trabalho deixa as telas à vista', async () => {
+  it('em Chaves, que não tem item próprio, a Instalação fica marcada', async () => {
+    abrir('/projects/p-1/keys', [projeto('Administrator', false)])
+
+    expect(await screen.findByText('outra tela')).toBeTruthy()
+    await waitFor(() =>
+      expect(
+        within(menu()).getByRole('link', { name: 'Instalação' }).getAttribute('aria-current'),
+      ).toBe('page'),
+    )
+  })
+
+  it('voltar ao Trabalho não fecha o grupo, e a Visão geral leva à página central', async () => {
     const { router } = abrir('/projects/p-1/states', [projeto('Administrator', false)])
-    await screen.findByRole('button', { name: 'Configurar o projeto' })
+    await screen.findByText('outra tela')
+    await within(menu()).findByRole('button', { name: 'Configurar o projeto' })
+    expect(aberto()).toEqual(ABERTO)
 
     fireEvent.click(within(menu()).getByRole('link', { name: 'Trabalho' }))
-
     await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-1/reports'))
-    expect(grupo().getAttribute('aria-expanded')).toBe('true')
-    expect(within(menu()).getByRole('link', { name: 'Colunas' })).toBeTruthy()
+    // Quem estava nas telas quis ve-las: o grupo nao fecha sozinho.
+    expect(aberto()).toEqual(ABERTO)
+
+    fireEvent.click(within(menu()).getByRole('link', { name: 'Visão geral' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-1/configure'))
+    expect(
+      within(menu()).getByRole('link', { name: 'Visão geral' }).getAttribute('aria-current'),
+    ).toBe('page')
+    expect(aberto()).toEqual(ABERTO)
   })
 
   it('chegar a uma tela de configuração por fora do menu também abre o grupo', async () => {
     const { router } = abrir('/projects/p-1/reports', [projeto('Administrator', false)])
-    expect(
-      (await screen.findByRole('button', { name: 'Configurar o projeto' })).getAttribute(
-        'aria-expanded',
-      ),
-    ).toBe('false')
+    await within(menu()).findByRole('button', { name: 'Configurar o projeto' })
+    expect(aberto()).toEqual(FECHADO)
 
     await act(() => router.navigate('/projects/p-1/cycle'))
 
-    expect(grupo().getAttribute('aria-expanded')).toBe('true')
+    expect(aberto()).toEqual(ABERTO)
     expect(within(menu()).getByRole('link', { name: 'Ciclo' }).getAttribute('aria-current')).toBe(
       'page',
     )
@@ -388,9 +455,18 @@ describe('a gaveta, a lateral e o título da aba', () => {
 
     fireEvent.click(within(menu()).getByRole('button', { name: 'Recolher menu' }))
 
-    const trabalho = within(menu()).getByRole('link', { name: 'Trabalho' })
-    expect(trabalho.textContent).toBe('')
-    expect(within(menu()).getByRole('button', { name: 'Configurar o projeto' })).toBeTruthy()
+    // Fechar e um movimento: os nomes esmaecem e so no fim a lateral vira glifos.
+    await waitFor(() =>
+      expect(within(menu()).getByRole('link', { name: 'Trabalho' }).textContent).toBe(''),
+    )
+    // O botao do grupo fica so com a seta; o nome vai para o leitor de tela e a dica.
+    expect(botaoConfigurar().textContent).toBe('')
+    expect(botaoConfigurar().getAttribute('aria-label')).toBe('Configurar o projeto')
+    fireEvent.click(botaoConfigurar())
+    expect(aberto()).toEqual(ABERTO)
+    for (const nome of ['Visão geral', 'Colunas', 'Projeto']) {
+      expect(within(grupoConfigurar()).getByRole('link', { name: nome }).textContent).toBe('')
+    }
     expect(window.localStorage.getItem('pds.web.lateral.recolhida')).toBe('1')
 
     // Outra visita, no mesmo navegador: a lateral ja abre recolhida.
@@ -402,6 +478,20 @@ describe('a gaveta, a lateral e o título da aba', () => {
     expect(window.localStorage.getItem('pds.web.lateral.recolhida')).toBe('0')
   })
 
+  it('recolhida, dentro da configuração, cada área continua com nome para o leitor de tela', async () => {
+    window.localStorage.setItem('pds.web.lateral.recolhida', '1')
+    abrir('/projects/p-1/tool', [projeto('Administrator', false)])
+    await screen.findByText('outra tela')
+
+    await waitFor(() => expect(areas()).toEqual(AREAS))
+    const site = within(menu()).getByRole('group', { name: 'O seu sistema' })
+    // So os glifos a vista: o nome da area vira um traco, e o da tela, a dica.
+    expect(within(site).queryByText('O seu sistema')).toBeNull()
+    const botao = within(site).getByRole('link', { name: 'O botão' })
+    expect(botao.textContent).toBe('')
+    expect(botao.getAttribute('aria-current')).toBe('page')
+  })
+
   it('o título da aba diz a tela e o projeto, sem nome de produto', async () => {
     const { router } = abrir('/projects/p-1/reports', [projeto('Administrator', false)])
     await waitFor(() => expect(document.title).toBe('Trabalho · Loja Online'))
@@ -411,6 +501,13 @@ describe('a gaveta, a lateral e o título da aba', () => {
 
     await act(() => router.navigate('/projects/p-1/public-stages'))
     await waitFor(() => expect(document.title).toBe('Andamento público · Loja Online'))
+
+    await act(() => router.navigate('/projects/p-1/configure'))
+    await waitFor(() => expect(document.title).toBe('Configurar o projeto · Loja Online'))
+
+    // Chaves nao tem item na lateral, e a aba continua dizendo onde a pessoa esta.
+    await act(() => router.navigate('/projects/p-1/keys'))
+    await waitFor(() => expect(document.title).toBe('Chaves · Loja Online'))
   })
 
   // O card aberto escreve o proprio titulo; a casca nao pode passar por cima.
@@ -441,7 +538,7 @@ describe('carregando e falhando', () => {
     abrir()
 
     expect(nomesNoMenu()).toEqual(TRABALHO)
-    expect(within(menu()).queryByRole('button', { name: 'Configurar o projeto' })).toBeNull()
+    expect(within(menu()).queryByRole('link', { name: 'Configurar o projeto' })).toBeNull()
   })
 
   it('projeto em que a pessoa não está: fala de time, e não de conta', async () => {
