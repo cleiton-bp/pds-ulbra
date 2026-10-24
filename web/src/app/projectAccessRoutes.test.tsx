@@ -11,11 +11,11 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
  *
  * A porta do projeto e **o Trabalho, para todo mundo**. A excecao e quem administra
- * um projeto cujo site ainda nao mandou relato nenhum: ai a Instalacao e a proxima
- * coisa a fazer, e e por ela que se entra. Ja foi pelo papel — quem configurava caia
- * sempre na Instalacao, inclusive num projeto com meses de relatos, e a tela que
- * serve uma vez virava a capa do projeto. O membro nunca entra na Instalacao: ela
- * mostraria as chaves que a API nao deixa ele ler.
+ * um projeto cujo site ainda nao mandou relato nenhum: ai configurar e a proxima
+ * coisa a fazer, e se entra pela pagina central, com os primeiros passos no topo. Ja
+ * foi pelo papel — quem configurava caia sempre na Instalacao, inclusive num projeto
+ * com meses de relatos, e a tela que serve uma vez virava a capa do projeto. O membro
+ * nunca entra na configuracao: a API recusaria tudo o que ele tentasse mudar ali.
  *
  * A guarda da Configuração cobre o endereco digitado: o menu ja esconde as
  * secoes, mas o link antigo ainda chega. E ela precisa **repassar o projeto**
@@ -54,13 +54,13 @@ function TelaDeConfiguracao() {
 }
 
 /**
- * `guarda: false` tira a guarda da frente da Instalação: e assim que a porta e
+ * `guarda: false` tira a guarda da frente da configuracao: e assim que a porta e
  * provada sozinha. Com a guarda, uma porta que mandasse todo mundo para a
- * Instalação passaria despercebida — a guarda devolveria o membro aos Relatos.
+ * configuracao passaria despercebida — a guarda devolveria o membro aos Relatos.
  */
 function abrir(project: ProjectViewModel, endereco: string, { guarda = true } = {}) {
   const configuracao = [
-    { path: 'start', element: <p>Instalação</p> },
+    { path: 'configure', element: <p>Configurar o projeto</p> },
     { path: 'states', element: <TelaDeConfiguracao /> },
   ]
   const router = createMemoryRouter(
@@ -86,15 +86,17 @@ function abrir(project: ProjectViewModel, endereco: string, { guarda = true } = 
 describe('ProjectHome', () => {
   afterEach(cleanup)
 
-  it('administrador de projeto que ainda não recebeu relato entra na Instalação', async () => {
+  // A pagina central, e nao a Instalacao: ela abre com os primeiros passos, e o script
+  // e so o primeiro deles.
+  it('administrador de projeto que ainda não recebeu relato entra em Configurar o projeto', async () => {
     const router = abrir(projeto('Administrator'), '/projects/p-1', { guarda: false })
-    expect(await screen.findByText('Instalação')).toBeTruthy()
-    expect(router.state.location.pathname).toBe('/projects/p-1/start')
+    expect(await screen.findByText('Configurar o projeto')).toBeTruthy()
+    expect(router.state.location.pathname).toBe('/projects/p-1/configure')
   })
 
   it('a dona também, enquanto o site não mandou nada', async () => {
     abrir(projeto('Administrator', true), '/projects/p-1', { guarda: false })
-    expect(await screen.findByText('Instalação')).toBeTruthy()
+    expect(await screen.findByText('Configurar o projeto')).toBeTruthy()
   })
 
   it('depois do primeiro relato, quem administra entra no Trabalho', async () => {
@@ -113,7 +115,7 @@ describe('ProjectHome', () => {
     expect(router.state.location.pathname).toBe('/projects/p-1/reports')
   })
 
-  // A Instalacao e de quem configura: mesmo num projeto sem relato, o membro nao
+  // A configuracao e de quem administra: mesmo num projeto sem relato, o membro nao
   // teria o que fazer nela.
   it('membro entra no Trabalho, com ou sem relato', async () => {
     const semRelato = abrir(projeto('Member'), '/projects/p-1', { guarda: false })

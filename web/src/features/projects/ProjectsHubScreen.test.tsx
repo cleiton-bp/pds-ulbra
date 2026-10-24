@@ -127,7 +127,7 @@ describe('ProjectsHubScreen', () => {
     ])
     abrir()
 
-    fireEvent.change(await screen.findByRole('textbox', { name: 'Buscar projeto' }), {
+    fireEvent.change(await screen.findByRole('searchbox', { name: 'Buscar projeto' }), {
       target: { value: 'bruno' },
     })
 

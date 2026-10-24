@@ -12,6 +12,8 @@ import { LoginScreen } from '@/features/auth/LoginScreen'
  */
 vi.mock('@/features/auth/ProductShowcase', () => ({ ProductShowcase: () => null }))
 vi.mock('@/features/auth/AccessSteps', () => ({ AccessSteps: () => null }))
+// O botao de tema le a preferencia do sistema ao carregar, e o jsdom nao tem matchMedia.
+vi.mock('@/shared/components/ThemeButton', () => ({ ThemeButton: () => null }))
 vi.mock('@/shared/components/Reveal', () => ({
   Reveal: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
