@@ -29,6 +29,20 @@ describe('describeError', () => {
     ).toBe('Este projeto está arquivado e não aceita relatos novos.')
   })
 
+  it('"esta bloqueado" e o verbo, e o curinga da mensagem passa como veio', () => {
+    expect(
+      describeError(new PanelError('Este dominio ja esta bloqueado neste projeto.', 409)),
+    ).toBe('Este domínio já está bloqueado neste projeto.')
+    expect(
+      describeError(
+        new PanelError(
+          'O bloqueio de *.loja.com cobre este dominio. Desbloqueie *.loja.com antes de permitir.',
+          409,
+        ),
+      ),
+    ).toBe('O bloqueio de *.loja.com cobre este domínio. Desbloqueie *.loja.com antes de permitir.')
+  })
+
   it('os outros códigos também', () => {
     expect(describeError(new PanelError('Ja existe um projeto com este nome na conta.', 409))).toBe(
       'Já existe um projeto com este nome na conta.',
