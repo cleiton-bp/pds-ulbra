@@ -37,9 +37,15 @@ const COLOR_AUTHORITY = ['styles/tokens.css', 'styles/index.css']
  *
  * O mesmo vale para a camada de marcar a area da captura, que o carregador desenha
  * na pagina do cliente, e para a captura, que desenha a pagina dele — as duas com
- * auditoria propria.
+ * auditoria propria —, e para o botao que o carregador desenha na pagina do cliente,
+ * com a paleta declarada uma vez no topo de `launcherView.ts`.
  */
-const FORA_DO_DOCUMENTO = ['loader/main.ts', 'loader/areaPicker.ts', 'capture/pageCapture.ts']
+const FORA_DO_DOCUMENTO = [
+  'loader/main.ts',
+  'loader/areaPicker.ts',
+  'loader/launcherView.ts',
+  'capture/pageCapture.ts',
+]
 
 /**
  * A terceira excecao: as cores que o editor pinta **na imagem**. A seta vermelha sai
@@ -48,6 +54,14 @@ const FORA_DO_DOCUMENTO = ['loader/main.ts', 'loader/areaPicker.ts', 'capture/pa
  * continua nos tokens; so esta lista escreve cor, e a auditoria abaixo a confere.
  */
 const NA_IMAGEM = ['editor/palette.ts']
+
+/**
+ * A quarta excecao: as amostras de cor de O botão. A cor escolhida e **dado do
+ * cliente**, gravada na configuracao e igual nos dois temas — um token que mudasse com
+ * o tema do painel gravaria outra cor conforme a hora. A auditoria abaixo confere que
+ * cada amostra e um primitivo do tema claro de `tokens.css`: dado, mas da paleta.
+ */
+const AMOSTRAS_DO_BOTAO = ['features/widgetSettings/buttonPalette.ts']
 
 /** As 22 familias da paleta padrao do Tailwind, que este produto nao usa. */
 const TAILWIND_PALETTE =
@@ -132,6 +146,7 @@ describe('valores de cor fora do sistema de tokens', () => {
         if (COLOR_AUTHORITY.includes(relativePath)) continue
         if (FORA_DO_DOCUMENTO.includes(relativePath)) continue
         if (NA_IMAGEM.includes(relativePath)) continue
+        if (AMOSTRAS_DO_BOTAO.includes(relativePath)) continue
 
         const lines = readFileSync(file, 'utf8').split('\n')
 
@@ -423,6 +438,19 @@ describe('as cores da captura na pagina do cliente', () => {
   // tem fundo — que e o que o navegador mostra nesse caso.
   it('a captura so conhece o transparente e o branco de reserva', () => {
     expect(cores('capture/pageCapture.ts')).toEqual(['rgba(0, 0, 0, 0)', '#ffffff'])
+  })
+
+  // Cada amostra do botao e um primitivo do tema claro: cor de dado, mas da paleta.
+  it('as amostras de O botão sao primitivos do tema claro de tokens.css', () => {
+    const css = readFileSync(join(SOURCE_ROOT, 'styles/tokens.css'), 'utf8')
+    const claro = css.slice(0, css.indexOf(':root[data-theme="dark"]'))
+    const primitivos = new Set(
+      [...claro.matchAll(/--[\w-]+:\s*(#[0-9a-f]{6});/gi)].map((match) => match[1]?.toLowerCase()),
+    )
+    const amostras = cores(AMOSTRAS_DO_BOTAO[0] ?? '')
+
+    expect(amostras.length).toBeGreaterThan(0)
+    expect(amostras.filter((cor) => !primitivos.has(cor.toLowerCase()))).toEqual([])
   })
 
   // O preto e o branco puros sao o contorno e a tarja; as seis cores de marcar sao as

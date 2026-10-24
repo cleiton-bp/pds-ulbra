@@ -169,9 +169,24 @@ describe('regra de dependencia entre as pastas', () => {
       why: 'a saudacao "Ola, Cleiton" precisa de quem esta logado, e sessao e assunto de auth',
     },
     {
-      from: 'features/profile/ProfileScreen.tsx',
+      from: 'features/profile/ProfileDialog.tsx',
       to: '@/features/auth/sessionStore',
       why: 'o perfil mostra o nome, o e-mail e a conta de quem esta logado, e sessao e assunto de auth',
+    },
+    {
+      from: 'features/reports/ReportsScreen.tsx',
+      to: '@/features/auth/sessionStore',
+      why: 'as vistas salvas do Trabalho sao de quem esta logado — duas pessoas no mesmo navegador nao veem as da outra —, e sessao e assunto de auth',
+    },
+    {
+      from: 'features/projects/DomainsSection.tsx',
+      to: '@/features/reports/DeleteBlockedOriginDialog',
+      why: 'apagar os relatos de um endereco bloqueado e a mesma confirmacao no quadro e em Dominios, e o que ela apaga sao cards do Trabalho',
+    },
+    {
+      from: 'features/projects/DomainsSection.tsx',
+      to: '@/features/reports/useWorkFilters',
+      why: 'o "Revisar na lista" so muda o filtro do Trabalho pelo lugar em que a tela de Trabalho lembra os filtros, e ela ainda nao esta montada',
     },
   ]
 
@@ -250,14 +265,19 @@ describe('regra de dependencia entre as pastas', () => {
    * reprovar (conferido de proposito).
    */
   it('o carregador so leva o protocolo e as pecas da captura — nem por tabela', () => {
-    // O protocolo com o quadro; as duas pecas da captura, que sao dele mesmo; e o
+    // O protocolo com o quadro; as duas pecas da captura, que sao dele mesmo; o botao
+    // que ele desenha, com as contas, os desenhos e a cor que o quadro tambem usa; e o
     // combinado com o arquivo da captura — um tipo e o nome global, e nada que pese.
     const PERMITIDO = new Set(
       [
         'loader/main.ts',
         'loader/areaPicker.ts',
         'loader/captureFlow.ts',
+        'loader/launcherView.ts',
         'embed/protocol.ts',
+        'embed/launcher.ts',
+        'embed/launcherIcons.ts',
+        'embed/appearance.ts',
         'capture/area.ts',
       ].map((arquivo) => join(SOURCE_ROOT, arquivo)),
     )

@@ -10,8 +10,8 @@ import { NO_REPORT_FILTERS, type ReportSortField } from '@/data/projectReportSer
  * - **So entra o que esta ligado** — sem filtro, a URL fica como sempre foi.
  * - **Repetir o filtro soma**: um parametro por valor.
  * - **O vencido leva o dia de quem olha**, e nao o do servidor.
- * - **"Em aberto" e as subtarefas escondidas** vao como `open=true` e `subtasks=hide`
- *   (L-02, L-25), na lista e na contagem.
+ * - **"Em aberto"** vai como `open=true` (L-02), na lista e na contagem; nao ha mais
+ *   filtro de subtarefas — elas moram dentro do pai.
  * - **So a lista leva as colunas e a ordem**: `column` repetido, inclusive `none` (L-07),
  *   e `sort`/`dir` com os nomes que a API aceita (L-01). A contagem nunca os leva —
  *   cada coluna desmarcada contaria zero no proprio menu. O tamanho da pagina da lista
@@ -50,7 +50,7 @@ describe('os filtros na URL', () => {
         types: ['bug', 'team'],
         overdue: true,
         open: false,
-        hideSubtasks: false,
+        blockedOrigin: false,
         search: '  #42 ',
       },
       // 23h30 do dia 3 no horario local: o dia que vale e o 3, mesmo que em UTC ja seja 4.
@@ -86,21 +86,20 @@ describe('a lista e a contagem na URL', () => {
     return { rota, query: new URLSearchParams(busca), caminho }
   }
 
-  it('"Em aberto" e as subtarefas escondidas entram como open=true e subtasks=hide; desligados, nao entram', () => {
+  it('"Em aberto" entra como open=true; desligado, nao entra — e nao ha mais filtro de subtarefas', () => {
     const ligados = new URLSearchParams()
-    appendReportFilters(ligados, { ...NO_REPORT_FILTERS, open: true, hideSubtasks: true })
+    appendReportFilters(ligados, { ...NO_REPORT_FILTERS, open: true })
     expect(ligados.get('open')).toBe('true')
-    expect(ligados.get('subtasks')).toBe('hide')
+    expect(ligados.has('subtasks')).toBe(false)
 
     const desligados = new URLSearchParams()
-    appendReportFilters(desligados, { ...NO_REPORT_FILTERS, open: false, hideSubtasks: false })
+    appendReportFilters(desligados, { ...NO_REPORT_FILTERS, open: false })
     expect(desligados.has('open')).toBe(false)
-    expect(desligados.has('subtasks')).toBe(false)
   })
 
   it('a lista leva as colunas repetidas (inclusive "none"), a ordem em sort e dir, e os filtros — sem o tamanho da pagina', async () => {
     await apiProjectReportService.listReports('p-1', 2, null, false, {
-      filters: { ...NO_REPORT_FILTERS, open: true, hideSubtasks: true },
+      filters: { ...NO_REPORT_FILTERS, open: true },
       columns: ['s-1', 'none'],
       sort: { field: 'due', dir: 'asc' },
     })
@@ -113,7 +112,6 @@ describe('a lista e a contagem na URL', () => {
     expect(query.get('sort')).toBe('due')
     expect(query.get('dir')).toBe('asc')
     expect(query.get('open')).toBe('true')
-    expect(query.get('subtasks')).toBe('hide')
     // O recorte de uma coluna so e o do quadro, e o tamanho da pagina e da API.
     expect(query.has('state')).toBe(false)
     expect(query.has('pageSize')).toBe(false)
@@ -148,13 +146,12 @@ describe('a lista e a contagem na URL', () => {
   it('a contagem leva os filtros e a sprint, e nunca colunas nem ordem', async () => {
     await apiProjectReportService.listReportCounts(
       'p-1',
-      { ...NO_REPORT_FILTERS, open: true, hideSubtasks: true },
+      { ...NO_REPORT_FILTERS, open: true },
       'active',
     )
     const { rota, query } = pedido(http.ler)
     expect(rota).toBe('/projects/p-1/reports/counts')
     expect(query.get('open')).toBe('true')
-    expect(query.get('subtasks')).toBe('hide')
     expect(query.get('sprint')).toBe('active')
     for (const parametro of ['column', 'sort', 'dir', 'page'])
       expect(query.has(parametro)).toBe(false)

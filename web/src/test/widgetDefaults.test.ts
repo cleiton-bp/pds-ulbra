@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
+import { DEFAULT_WIDGET_SETTINGS, isFallbackType } from '@/embed/settings'
 
 /**
  * OS PADROES DA FERRAMENTA EXISTEM EM DUAS LINGUAGENS, E PRECISAM CONTINUAR IGUAIS
@@ -65,6 +65,7 @@ const DA_IDENTIDADE = [
   ['IdentityMode', 'Mode'],
   ['Visibility', 'Visibility'],
   ['AsksForName', 'AsksForName'],
+  ['IdentityRequired', 'IdentityRequired'],
 ] as const
 
 /**
@@ -74,20 +75,70 @@ const DA_IDENTIDADE = [
 function parseDefaults(source: string): Record<string, unknown> {
   const found: Record<string, unknown> = {}
 
-  for (const match of source.matchAll(/public const \S+\?? (\w+)\s*=\s*([^;]+);/g)) {
+  // O texto entre aspas vem inteiro: o aviso de relato publico tem ponto e virgula.
+  for (const match of source.matchAll(/public const \S+\?? (\w+)\s*=\s*("[^"]*"|[^;]+);/g)) {
     const name = match[1] ?? ''
     const raw = (match[2] ?? '').trim()
 
     found[name] = readValue(raw)
   }
 
+  // Lista nao cabe em `const`: sai como `public static IReadOnlyList<string> X => [];`.
+  // So a lista vazia e lida — uma lista com itens aqui teria de ser lida de verdade,
+  // e o teste reprova ate alguem ensinar como.
+  for (const match of source.matchAll(
+    /public static IReadOnlyList<\w+> (\w+)\s*=>\s*\[([^\]]*)\];/g,
+  )) {
+    const name = match[1] ?? ''
+    const itens = (match[2] ?? '').trim()
+
+    found[name] = itens === '' ? [] : `lista com itens: ${itens}`
+  }
+
   return found
 }
+
+/**
+ * **O quarto arquivo: os tipos de fabrica.** Com a leitura falhando, o formulario
+ * ainda pergunta com eles — e e pelas perguntas e textos que o tipo de verdade e
+ * reconhecido na hora de enviar. Le cada `new("Nome", Icone, Cor, [perguntas],
+ * ShowsTextBox: x, TextBoxPrompt: y)` na ordem do arquivo.
+ */
+const CSHARP_TIPOS = fileURLToPath(
+  new URL(
+    '../../../api/Pds.Domain/Entities/ProjectReportType/ReportTypeDefaults.cs',
+    import.meta.url,
+  ),
+)
+
+function parseReportTypes(source: string) {
+  const padrao =
+    /new\("([^"]+)",\s*ReportTypeIconEnum\.(\w+),\s*CardColorEnum\.\w+,\s*\[([^\]]*)\],\s*ShowsTextBox:\s*(true|false),\s*TextBoxPrompt:\s*(null|"[^"]*")\)/g
+
+  return [...source.matchAll(padrao)].map((match) => ({
+    Name: match[1],
+    Icon: match[2],
+    Questions: [...(match[3] ?? '').matchAll(/"([^"]*)"/g)].map((pergunta) => pergunta[1]),
+    ShowsTextBox: match[4] === 'true',
+    TextBoxPrompt: readValue(match[5] ?? ''),
+  }))
+}
+
+/**
+ * Os campos que nao sao padrao de nada: vem do projeto. `ProjectName` so sai quando
+ * algum texto usa `{{projeto}}` — e nenhum texto de fabrica usa, entao a API tambem
+ * manda nulo. `DefaultReportType` nulo e "o primeiro da lista". `Types` tem o arquivo
+ * proprio, acima.
+ */
+const DO_PROJETO = ['ProjectName', 'DefaultReportType', 'Types'] as const
 
 function readValue(raw: string): unknown {
   if (raw === 'true') return true
   if (raw === 'false') return false
   if (raw === 'null') return null
+
+  // Numero: a distancia do botao ao canto. Sem isto o 20 do C# viraria o texto '20'.
+  if (/^-?\d+$/.test(raw)) return Number(raw)
 
   // Texto: pode estar quebrado em varias linhas, mas e sempre um literal so.
   if (raw.startsWith('"')) return raw.slice(1, raw.lastIndexOf('"'))
@@ -109,7 +160,33 @@ describe('os padroes da ferramenta, dos dois lados', () => {
   for (const [aqui, la] of DA_IDENTIDADE) csharp[aqui] = daIdentidade[la]
 
   it('os tres arquivos C# ainda cobrem os campos do quadro — se pararam, o resto deste teste nao vale', () => {
-    expect(Object.keys(csharp).sort()).toEqual(Object.keys(DEFAULT_WIDGET_SETTINGS).sort())
+    expect([...Object.keys(csharp), ...DO_PROJETO].sort()).toEqual(
+      Object.keys(DEFAULT_WIDGET_SETTINGS).sort(),
+    )
+  })
+
+  it('os tipos de fabrica sao os mesmos no C# e no TypeScript, na mesma ordem', () => {
+    const tipos = parseReportTypes(readFileSync(CSHARP_TIPOS, 'utf8'))
+
+    // Sem isto, mudar a forma do `new(...)` faria o teste comparar lista vazia com
+    // lista vazia — e o quadro nunca tem lista vazia.
+    expect(tipos.length).toBeGreaterThan(0)
+    expect(DEFAULT_WIDGET_SETTINGS.Types.map(({ PublicId: _, ...resto }) => resto)).toEqual(tipos)
+  })
+
+  it('os tipos de fabrica do quadro se dizem de fabrica, e a API nunca os aceitaria', () => {
+    for (const tipo of DEFAULT_WIDGET_SETTINGS.Types) {
+      expect(isFallbackType(tipo.PublicId)).toBe(true)
+    }
+  })
+
+  it('o nome do projeto e o pre-marcado sao nulos, como a API manda sem nada configurado', () => {
+    const textos = Object.values(DEFAULT_WIDGET_SETTINGS).filter((v) => typeof v === 'string')
+
+    // Nulo so vale porque nenhum texto de fabrica pede o nome do projeto.
+    expect(textos.some((texto) => texto.includes('{{projeto}}'))).toBe(false)
+    expect(DEFAULT_WIDGET_SETTINGS.ProjectName).toBeNull()
+    expect(DEFAULT_WIDGET_SETTINGS.DefaultReportType).toBeNull()
   })
 
   it('o campo do ciclo foi mesmo encontrado, e nao virou `undefined` em silencio', () => {
@@ -121,6 +198,8 @@ describe('os padroes da ferramenta, dos dois lados', () => {
   })
 
   for (const [campo, valor] of Object.entries(DEFAULT_WIDGET_SETTINGS)) {
+    if ((DO_PROJETO as readonly string[]).includes(campo)) continue
+
     it(`${campo} e o mesmo no C# e no TypeScript`, () => {
       expect(csharp[campo]).toEqual(valor)
     })
