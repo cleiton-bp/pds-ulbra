@@ -87,11 +87,7 @@ describe('CreateProjectDialog', () => {
   it('diz antes do botão para onde a pessoa vai', () => {
     montar()
 
-    expect(
-      screen.getByText(
-        'Ao criar, você vai para a instalação: copiar a chave pública e colar o script no site.',
-      ),
-    ).toBeTruthy()
+    expect(screen.getByText('Em seguida, a instalação.')).toBeTruthy()
   })
 
   it('criar leva à Instalação do projeto novo, e não às chaves', async () => {
