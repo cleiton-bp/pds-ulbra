@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   CARD_COLORS,
+  MAX_ACTIVE_REPORT_TYPES,
+  MAX_BLOCKED_ORIGINS,
   MAX_CARD_TITLE_LENGTH,
   MAX_CLOSURE_REASON_LENGTH,
   MAX_COMMENT_LENGTH,
@@ -11,12 +13,29 @@ import {
   MAX_LABEL_NAME_LENGTH,
   MAX_LABELS_PER_CARD,
   MAX_LAST_COLUMN_VISIBLE_DAYS,
+  MAX_MODERATION_PAGE_SIZE,
   MAX_PRIORITY_NAME_LENGTH,
   MAX_PUBLIC_DELAY_MINUTES,
+  MAX_PUBLISHED_LISTED,
   MAX_REOPEN_COMMENT_LENGTH,
+  MAX_REPORT_ANSWER_LENGTH,
   MAX_REPORT_TEXT_LENGTH,
+  MAX_REPORT_TYPE_NAME_LENGTH,
+  MAX_REPORT_TYPE_QUESTION_LENGTH,
+  MAX_REPORT_TYPE_QUESTIONS,
   MAX_REPORTER_NAME_LENGTH,
+  MAX_TEXT_BOX_PROMPT_LENGTH,
+  MODERATION_PAGE_SIZE,
+  type ObservedOriginStatus,
+  type ProjectTemplate,
+  REPORT_TYPE_ICONS,
+  WIDGET_APPEARANCE_LIMITS,
+  WIDGET_TEXT_LIMITS,
+  type WidgetLauncherIcon,
+  type WidgetLauncherShape,
+  type WidgetMobileMode,
 } from '@/contracts'
+import { LAUNCHER_POSITIONS, LAUNCHER_SIZES, MAX_OFFSET } from '@/embed/launcher'
 
 /**
  * OS LIMITES E OS ENUMS EXISTEM EM DUAS LINGUAGENS, E PRECISAM CONTINUAR IGUAIS
@@ -76,6 +95,9 @@ const RELATO = csharp('Pds.Domain/Entities/Report/Report.cs')
 const COMENTARIO = csharp('Pds.Domain/Entities/ReportComment/ReportPublicComment.cs')
 const PRIORIDADE = csharp('Pds.Domain/Entities/ProjectPriority/ProjectPriority.cs')
 const ETIQUETA = csharp('Pds.Domain/Entities/ProjectLabel/ProjectLabel.cs')
+const TIPO = csharp('Pds.Domain/Entities/ProjectReportType/ProjectReportType.cs')
+const FERRAMENTA = csharp('Pds.Domain/Entities/ProjectWidgetSettings/ProjectWidgetSettings.cs')
+const BLOQUEADO = csharp('Pds.Domain/Entities/ProjectBlockedOrigin/ProjectBlockedOrigin.cs')
 
 const LIMITES: ReadonlyArray<[string, string, number]> = [
   ['ReportClosure.MaxReasonLength', CLOSURE, MAX_CLOSURE_REASON_LENGTH],
@@ -89,8 +111,32 @@ const LIMITES: ReadonlyArray<[string, string, number]> = [
   ['ReportPublicComment.MaxBodyLength', COMENTARIO, MAX_COMMENT_LENGTH],
   ['Report.MaxTitleLength', RELATO, MAX_CARD_TITLE_LENGTH],
   ['Report.MaxLabelsPerCard', RELATO, MAX_LABELS_PER_CARD],
+  ['Report.ModerationPageSize', RELATO, MODERATION_PAGE_SIZE],
+  ['Report.MaxModerationPageSize', RELATO, MAX_MODERATION_PAGE_SIZE],
+  ['Report.MaxPublishedListed', RELATO, MAX_PUBLISHED_LISTED],
   ['ProjectPriority.MaxNameLength', PRIORIDADE, MAX_PRIORITY_NAME_LENGTH],
   ['ProjectLabel.MaxNameLength', ETIQUETA, MAX_LABEL_NAME_LENGTH],
+  ['ProjectReportType.MaxNameLength', TIPO, MAX_REPORT_TYPE_NAME_LENGTH],
+  ['ProjectReportType.MaxActive', TIPO, MAX_ACTIVE_REPORT_TYPES],
+  ['ProjectReportType.MaxQuestions', TIPO, MAX_REPORT_TYPE_QUESTIONS],
+  ['ProjectReportType.MaxQuestionLength', TIPO, MAX_REPORT_TYPE_QUESTION_LENGTH],
+  ['ProjectReportType.MaxTextBoxPromptLength', TIPO, MAX_TEXT_BOX_PROMPT_LENGTH],
+  ['ProjectReportType.MaxAnswerLength', TIPO, MAX_REPORT_ANSWER_LENGTH],
+  // Os textos da ferramenta: `LauncherLabel` -> `MaxLauncherLabelLength`.
+  ...Object.entries(WIDGET_TEXT_LIMITS).map(([campo, limite]): [string, string, number] => [
+    `ProjectWidgetSettings.Max${campo}Length`,
+    FERRAMENTA,
+    limite,
+  ]),
+  ['ProjectWidgetSettings.MinOffset', FERRAMENTA, WIDGET_APPEARANCE_LIMITS.MinOffset],
+  ['ProjectWidgetSettings.MaxOffset', FERRAMENTA, WIDGET_APPEARANCE_LIMITS.MaxOffset],
+  ['ProjectWidgetSettings.MaxHiddenPaths', FERRAMENTA, WIDGET_APPEARANCE_LIMITS.MaxHiddenPaths],
+  [
+    'ProjectWidgetSettings.MaxHiddenPathLength',
+    FERRAMENTA,
+    WIDGET_APPEARANCE_LIMITS.MaxHiddenPathLength,
+  ],
+  ['ProjectBlockedOrigin.MaxPerProject', BLOQUEADO, MAX_BLOCKED_ORIGINS],
 ]
 
 describe('os limites de tamanho, dos dois lados', () => {
@@ -111,11 +157,58 @@ describe('os limites de tamanho, dos dois lados', () => {
   }
 })
 
+describe('o teto da distancia do canto, na copia do carregador', () => {
+  it('MAX_OFFSET vale o mesmo que ProjectWidgetSettings.MaxOffset', () => {
+    // O carregador tem a copia dele do teto, porque nao importa os contratos do painel.
+    expect(constante(FERRAMENTA, 'MaxOffset')).toBe(MAX_OFFSET)
+  })
+})
+
+/**
+ * As unioes que nao tem lista em tempo de execucao. O `Record<Uniao, true>` e a lista:
+ * o `tsc` reprova se faltar ou sobrar um valor da uniao, e este teste compara as chaves
+ * com o C#. As duas pontas ficam guardadas.
+ */
+const DESENHOS_DO_BOTAO: Record<WidgetLauncherIcon, true> = {
+  None: true,
+  Chat: true,
+  Bug: true,
+  Lightbulb: true,
+  Question: true,
+  Megaphone: true,
+  Star: true,
+}
+const FORMATOS_DO_BOTAO: Record<WidgetLauncherShape, true> = {
+  Pill: true,
+  Rounded: true,
+  Square: true,
+}
+const CELULAR: Record<WidgetMobileMode, true> = { Same: true, IconOnly: true, Hidden: true }
+const MODELOS: Record<ProjectTemplate, true> = {
+  SimpleBoard: true,
+  Support: true,
+  Kanban: true,
+  Scrum: true,
+}
+const DOMINIO_OBSERVADO: Record<ObservedOriginStatus, true> = {
+  Unlisted: true,
+  Allowed: true,
+  Blocked: true,
+}
+
 const ENUMS: ReadonlyArray<[string, readonly string[]]> = [
   ['ClosureTriggerEnum', ['LastColumn', 'Button']],
   ['SatisfactionStyleEnum', ['Stars', 'Number']],
   ['PublicOutcomeEnum', ['Done', 'WontDo', 'NoAnswer', 'Duplicate']],
-  ['ReportTypeEnum', ['Bug', 'Improvement', 'Question']],
+  // O tipo virou tabela do projeto; o que continua lista fixa e o desenho dele.
+  ['ReportTypeIconEnum', REPORT_TYPE_ICONS],
+  ['WidgetPositionEnum', LAUNCHER_POSITIONS],
+  ['WidgetLauncherSizeEnum', Object.keys(LAUNCHER_SIZES)],
+  ['WidgetLauncherIconEnum', Object.keys(DESENHOS_DO_BOTAO)],
+  ['WidgetLauncherShapeEnum', Object.keys(FORMATOS_DO_BOTAO)],
+  ['WidgetMobileModeEnum', Object.keys(CELULAR)],
+  ['ProjectTemplateEnum', Object.keys(MODELOS)],
+  ['ObservedOriginStatusEnum', Object.keys(DOMINIO_OBSERVADO)],
   ['ReporterIdentityModeEnum', ['Protocol', 'PersonalCode', 'InheritedIdentity']],
   ['ReportVisibilityEnum', ['Private', 'PublicAnonymous', 'PublicIdentified']],
   ['ReportModerationStateEnum', ['Pending', 'Approved', 'Rejected']],

@@ -32,7 +32,9 @@ const CSHARP = fileURLToPath(
  * Interessam os que passam pela rota de historico de um card: os do relato
  * (`Report...`) e os do card em si (`TeamCard...` e `Card...`, que valem para o
  * relato tambem). Os do time e do convite (`Project...`) nao tem card, nao passam
- * por ela e nao precisam de frase.
+ * por ela e nao precisam de frase. Pelo mesmo motivo ficam de fora os `Reports...`,
+ * no plural: falam de varios relatos de uma vez, sao do projeto e nao tem card (o de
+ * apagar os relatos de um endereco bloqueado e justamente o card que deixou de existir).
  */
 function parseMembers(source: string): string[] {
   const body = source
@@ -45,7 +47,7 @@ function parseMembers(source: string): string[] {
   return inside
     .split(',')
     .map((member) => member.trim())
-    .filter((member) => /^(Report|TeamCard|Card)/.test(member))
+    .filter((member) => /^(Report(?!s)|TeamCard|Card)/.test(member))
 }
 
 describe('os tipos de evento, dos dois lados', () => {
