@@ -1,5 +1,5 @@
 <h2>Mídia: anexar e ler</h2>
-<p class="lead">Nove rotas: seis sem sessão, para a ferramenta e para quem relatou, e três no painel. O
+<p class="lead">Dez rotas: sete sem sessão, para a ferramenta e para quem relatou, e três no painel. O
 arquivo nunca passa pela API — ela autoriza, assina, confere e prende o anexo ao relato.</p>
 
 <div class="table-scroll">
@@ -10,6 +10,7 @@ arquivo nunca passa pela API — ela autoriza, assina, confere e prende o anexo 
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/attachments/confirm</code></td><td>Protocolo e token</td><td>Confirma que o arquivo chegou, e prende o anexo ao relato. <strong>Com limitador.</strong></td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/attachments</code></td><td>Protocolo e token</td><td>Os arquivos do relato, para quem relatou.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-code/attachments</code></td><td>Chave, código pessoal e protocolo</td><td>A mesma lista, pela porta do código. Lê, e não age.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/by-identity/attachments</code></td><td>Chave, crachá do sistema do cliente e protocolo</td><td>A mesma lista, pela porta da identidade. Lê, e não age.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/public/reports/tracking/media-settings</code></td><td>Protocolo e token</td><td>O que dá para anexar ao responder e ao reabrir.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>Sessão</td><td>A configuração de mídia do projeto, salva ou padrão.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>Sessão</td><td><strong>Administrador.</strong> Substitui a configuração inteira.</td></tr>
@@ -181,11 +182,12 @@ mesma forma, montada pela mesma função:</p>
   print.</p>
 </div>
 
-<h3><code>POST /public/reports/tracking/attachments</code> e <code>POST /public/reports/by-code/attachments</code></h3>
+<h3><code>POST /public/reports/tracking/attachments</code>, <code>POST /public/reports/by-code/attachments</code> e <code>POST /public/reports/by-identity/attachments</code></h3>
 
 <p>A primeira pelo link (<code>TrackingCode</code>, <code>Token</code>); a segunda pelo código
-pessoal (<code>Key</code>, <code>Code</code>, <code>TrackingCode</code>). A mesma lista, em
-<code>Data</code>, com <code>Total</code>:</p>
+pessoal (<code>Key</code>, <code>Code</code>, <code>TrackingCode</code>); a terceira pelo crachá do
+sistema do cliente (<code>Key</code>, <code>IdentityToken</code>, <code>TrackingCode</code>). A mesma
+lista, em <code>Data</code>, com <code>Total</code>:</p>
 
 <table>
   <tr><th>Campo</th><th>Observação</th></tr>
@@ -200,8 +202,8 @@ pessoal (<code>Key</code>, <code>Code</code>, <code>TrackingCode</code>). A mesm
 <table>
   <tr><th>Status</th><th>Quando</th></tr>
   <tr><td><code>200</code></td><td>Os anexos confirmados, na ordem em que quem relatou montou cada envio.</td></tr>
-  <tr><td><code>401</code></td><td>Só pelo código: chave pública inválida.</td></tr>
-  <tr><td><code>404</code></td><td>O link, ou o código com o protocolo, não abre nenhum relato — sempre a mesma mensagem.</td></tr>
+  <tr><td><code>401</code></td><td>Só pelo código e pelo crachá: chave pública inválida.</td></tr>
+  <tr><td><code>404</code></td><td>O link, o código com o protocolo ou o crachá com o protocolo não abre nenhum relato — sempre a mesma mensagem.</td></tr>
   <tr><td><code>409</code></td><td>Não há armazenamento configurado nesta instalação, e o relato tem anexo. Relato sem anexo responde 200, com a lista vazia.</td></tr>
 </table>
 
@@ -210,8 +212,8 @@ pessoal (<code>Key</code>, <code>Code</code>, <code>TrackingCode</code>). A mesm
   <p>A resposta pública é outro tipo, e não o do painel com um campo a menos. Com um tipo só, o
   campo acrescentado amanhã ao do painel sairia aqui sem ninguém decidir — e vazamento por
   serialização não dá erro em teste nenhum. O nome original nem existe neste tipo.</p>
-  <p><code>by-code/attachments</code> lê e não age, e <b>não grava visualização</b>: quem grava é
-  a abertura do relato, que vem antes.</p>
+  <p><code>by-code/attachments</code> e <code>by-identity/attachments</code> leem e não agem, e
+  <b>não gravam visualização</b>: quem grava é a abertura do relato, que vem antes.</p>
 </div>
 
 <h3><code>GET /projects/{publicId}/reports/{reportPublicId}/attachments</code></h3>
@@ -232,12 +234,12 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
 <div class="note why">
   <strong>O endereço nasce depois da autorização, e morre em minutos</strong>
   <p>Uma assinatura é uma autorização em forma de texto: gerar antes de conferir seria entregar a
-  chave e perguntar depois. Nas três listas, a porta — sessão, link ou código — vem primeiro, e só
+  chave e perguntar depois. Nas quatro listas, a porta — sessão, link, código ou crachá — vem primeiro, e só
   então os endereços são assinados. Nenhum está guardado em lugar nenhum; pedir de novo gera
   outros. Valem <code>MEDIA_STORAGE_READ_URL_MINUTES</code> (5 de fábrica), e o vídeo antigo
   <code>MEDIA_STORAGE_PLAYBACK_URL_MINUTES</code> (15): ele é lido em pedaços enquanto toca, e
   pausar não pode quebrar a reprodução.</p>
-  <p>As três listas e <code>tracking/media-settings</code> saem com
+  <p>As quatro listas e <code>tracking/media-settings</code> saem com
   <code>Cache-Control: no-store</code>. Guardados num proxy, os endereços continuariam valendo até
   vencer.</p>
   <p>Sem armazenamento, a lista de um relato que tem anexo responde 409, e não vazia: vazia, o

@@ -1,15 +1,17 @@
 <h2>Configurações do projeto</h2>
-<p class="lead">Aparência da ferramenta, regras do ciclo, identidade e visibilidade, e mídia. Todas se gravam inteiras.</p>
+<p class="lead">Aparência da ferramenta, regras do ciclo, identidade e visibilidade, limites de relato e mídia. Todas se gravam inteiras.</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>. Os onze campos vão sempre juntos — entre eles <code>ReportTitleMode</code> (<code>Optional</code>, <code>Required</code> ou <code>Hidden</code>), como a ferramenta pergunta o título.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td>Como a ferramenta aparece no site. Sem linha salva, devolve os padrões. Traz junto os tipos de relato ativos (<code>Types</code>), que são o formulário dela. <code>DefaultReportType</code> vem <strong>como foi escolhido</strong>: nulo quando ninguém escolheu, ou quando o escolhido foi desativado — o "primeiro da lista". A rota pública, ao contrário, já o resolve para o primeiro ativo.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/widget-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>. Todos os campos vão sempre juntos — os onze textos e a aparência do botão inclusive, todos obrigatórios (ver "Os textos da ferramenta" e "A aparência do botão", abaixo) —, entre eles <code>ReportTitleMode</code> (<code>Optional</code>, <code>Required</code> ou <code>Hidden</code>), como a ferramenta pergunta o título, e <code>DefaultReportType</code>, o tipo pré-marcado: o identificador de um tipo de relato <strong>ativo</strong> do projeto (de outro projeto, 404; desativado, 409), ou nulo — o primeiro ativo.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td>Como o ciclo fecha neste projeto. Sem linha salva, devolve os padrões.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/cycle-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>. As dezoito regras vão sempre juntas — entre elas as do quadro: <code>LastColumnVisibleDays</code>, quantos dias a última coluna mostra quando há mais de uma (zero mostra todos), <code>DueSoonDays</code>, faltando até quantos dias o prazo fica em destaque (zero: só no dia), <code>SprintsEnabled</code>, se o time trabalha em sprints (o backlog, o quadro só com a sprint em andamento e os pontos), e <code>SprintLengthWeeks</code>, a duração com que cada sprint nasce, de 1 a 4 semanas. Ver <a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td>Como quem relata é identificado, e quem pode ver os relatos. Sem linha salva, devolve os padrões — nunca 404 para um projeto que existe.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>. Os três campos vão juntos porque o modo <strong>decide</strong> qual visibilidade é aceita.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td>Como quem relata é identificado, e quem pode ver os relatos: <code>Mode</code> (<code>Protocol</code>, <code>PersonalCode</code> ou <code>InheritedIdentity</code>), <code>Visibility</code>, <code>AsksForName</code>, <code>IdentityPublicKey</code> (a chave pública do sistema do cliente, ou nula — é pública, e volta inteira), <code>IdentityTokenMaxMinutes</code> (a validade máxima do crachá, de 1 a 60; 15 de fábrica) e <code>IdentityRequired</code> (falso de fábrica). O sal da identidade nunca sai. Sem linha salva, devolve os padrões — nunca 404 para um projeto que existe.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/identity-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong>: <code>Mode</code>, <code>Visibility</code>, <code>AsksForName</code>, <code>IdentityPublicKey</code> (SPKI em base64 ou o PEM colado — a API normaliza), <code>IdentityTokenMaxMinutes</code> e <code>IdentityRequired</code> (os três da identidade, ausentes, valem nulo, 15 e falso). Vão juntos porque o modo <strong>decide</strong> o que é aceito: público identificado pede o código pessoal ou a identidade do sistema, e o modo herdado pede a chave. Recusas, 400: modo herdado sem chave — <code>Informe a chave publica do seu sistema.</code>; chave que não é P-256 — <code>A chave publica precisa ser ECDSA P-256, no formato SPKI em base64 ou PEM.</code>; chave acima de 512 — <code>A chave publica e grande demais.</code>; validade fora de 1–60 — <code>A validade do token precisa ficar entre 1 e 60 minutos.</code>. A chave fica guardada ao trocar de modo: voltar não obriga a colar de novo.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/report-limits</code></td><td>Quantos relatos o projeto aceita em pouco tempo: <code>Values</code> (os que valem — os salvos, ou os de fábrica), <code>Defaults</code>, <code>Ceilings</code> (o teto do sistema, dez vezes o de fábrica) e <code>PauseMinutes</code>. Os seis valores: <code>PerReporter</code> (a mesma pessoa a cada 10 min, 5), <code>PerIpPerHour</code> (20), <code>PerOriginPerHour</code> (200), <code>PerProjectPerHour</code> (300), <code>PerProjectPerDay</code> (2000) e <code>MinIntervalSeconds</code> (30). Ver "Os limites da entrada do relato", abaixo.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/report-limits</code></td><td><strong>Administrador.</strong> Substitui os seis valores, <strong>todos obrigatórios</strong>: de 1 ao teto, e o intervalo de 0 (desligado) ao teto; o limite por dia não pode ser menor que o por hora (400). Vale no próximo relato.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/media-settings</code></td><td>O que o projeto aceita receber junto do relato, com o limite de cada tipo e o catálogo de formatos. Sem linha salva, devolve os padrões. Diz também se há armazenamento nesta instalação.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/media-settings</code></td><td><strong>Administrador.</strong> Substitui a configuração <strong>inteira</strong> — as quatro chaves e os limites de cada tipo. Tipo que o pedido não manda <strong>fica como está</strong>. Sem armazenamento, 409.</td></tr>
 </table>
@@ -24,25 +26,124 @@ continuam com o nome do assunto:</p>
 <div class="table-scroll">
 <table>
   <tr><th>Rota</th><th>Tela</th></tr>
-  <tr><td><code>widget-settings</code></td><td><strong>Botão no site</strong></td></tr>
-  <tr><td><code>cycle-settings</code></td><td>Três telas: <strong>Ciclo</strong> — como um relato termina, o que quem relatou lê e quando ele pode reabrir —; <strong>Sprints</strong> — <code>SprintsEnabled</code> e <code>SprintLengthWeeks</code> —; e <strong>Colunas</strong>, na parte de como o quadro mostra o fim e os prazos — <code>LastColumnVisibleDays</code> e <code>DueSoonDays</code>.</td></tr>
-  <tr><td><code>identity-settings</code></td><td><strong>Quem relata</strong></td></tr>
+  <tr><td><code>widget-settings</code></td><td>Três telas, pelo assunto: <strong>O botão</strong> — ligar, a aparência do botão e as páginas escondidas —; <strong>Formulário</strong> — o título, o enviar, a pergunta do título, o seletor de tipo, a pergunta do nome e o tema (claro, escuro ou automático) —; e <strong>Quem relata</strong> — a confirmação, o topo do acompanhamento e o aviso de relato público.</td></tr>
+  <tr><td><code>cycle-settings</code></td><td>Três telas: <strong>Ciclo</strong> — como um relato termina, quando quem relatou pode reabrir e quando o time pede mais informação —; <strong>Sprints</strong> — <code>SprintsEnabled</code> e <code>SprintLengthWeeks</code> —; e <strong>Colunas</strong>, no grupo "Fim e prazos no quadro", como o quadro mostra o fim e os prazos — <code>LastColumnVisibleDays</code> e <code>DueSoonDays</code>.</td></tr>
+  <tr><td><code>identity-settings</code></td><td>Duas telas: <strong>Quem relata</strong> — <code>Mode</code> e <code>Visibility</code>, e, no modo que herda a identidade, a chave pública do sistema do cliente (<code>IdentityPublicKey</code>), a validade máxima do crachá (<code>IdentityTokenMaxMinutes</code>) e "exigir o crachá" (<code>IdentityRequired</code>) — e <strong>Formulário</strong> — <code>AsksForName</code>, junto do texto da pergunta.</td></tr>
+  <tr><td><code>report-limits</code></td><td><strong>Domínios</strong>, na aba Proteção, que grava como um item da lista</td></tr>
   <tr><td><code>media-settings</code></td><td><strong>Anexos</strong></td></tr>
 </table>
 </div>
 
 <div class="note warn">
-  <strong>Três telas, um registro só</strong>
+  <strong>Várias telas, um registro só</strong>
   <p>As regras do ciclo moram numa linha, e <code>PUT .../cycle-settings</code> grava a linha
-  inteira. Por isso cada uma das três telas lê o registro, muda só os campos dela e manda de volta
-  todos os outros como leu. Uma tela que mandasse só os seus campos seria recusada — cada regra é
+  inteira — e o mesmo vale para a ferramenta e para quem relata. Por isso cada tela, antes de
+  gravar, lê o registro de novo, muda só os campos dela e manda de volta todos os outros como estão
+  agora. Uma tela que mandasse só os seus campos seria recusada — cada regra é
   exigida, com "Informe…" (400) — e, onde nulo é uma escolha, apagaria a das outras sem erro nenhum:
   a coluna da reabertura voltaria em silêncio para a primeira ativa.</p>
-  <p>O preço é o mesmo da gravação inteira em toda configuração: dois administradores salvando ao
-  mesmo tempo, em duas dessas telas, sobrescrevem um ao outro, e o último vence.</p>
+  <p>Ler de novo antes de gravar faz uma tela aberta há uma hora não desfazer o que outra salvou
+  nesse meio tempo. Se os campos da própria tela mudaram lá, o painel não grava e avisa. O que
+  sobra é o preço da gravação inteira: dois pedidos no mesmo instante, e o último vence.</p>
 </div>
 
 <p>Campos, tetos e recusas da mídia estão em <a href="#/endpoints/midia">Mídia: anexar e ler</a>.</p>
+
+<div class="note why">
+  <strong>O texto da caixa e os tipos não moram na configuração da ferramenta</strong>
+  <p>Cada tipo de relato é do projeto e diz como o formulário pergunta — as perguntas curtas, a
+  caixa livre e o texto dentro dela —, e é configurado na tela <strong>Tipos de relato</strong>, em
+  <code>/projects/{publicId}/report-types</code>: a pergunta certa para um defeito não é a certa
+  para uma dúvida. Aqui fica só o que vale para o quadro inteiro, e o tipo que vem pré-marcado —
+  que, com o seletor escondido, é o que todo relato leva. A leitura devolve os tipos ativos junto,
+  porque eles são parte do que a ferramenta desenha. Ver
+  <a href="#/endpoints/tipos-de-relato">Tipos de relato</a>.</p>
+  <p>O tipo pré-marcado que for desativado depois não quebra nada: a leitura cai no primeiro ativo,
+  e a ferramenta nunca pré-marca o que não oferece. Gravar um desativado, sim, é recusado.</p>
+</div>
+
+<h3>Os textos da ferramenta</h3>
+
+<p>Cada texto que o quadro mostra é do projeto, com o de fábrica igual ao que aparecia antes.
+No painel, cada texto mora na tela do seu assunto — o do botão em O botão, os do formulário
+em Formulário, os de depois do envio em Quem relata —, cada assunto num grupo que diz, fechado, o que está escolhido e o que mudou do padrão:</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Campo</th><th>Teto</th><th>Onde aparece</th></tr>
+  <tr><td><code>LauncherLabel</code></td><td>40</td><td>O botão parado na página.</td></tr>
+  <tr><td><code>Title</code></td><td>60</td><td>O título dentro do quadro.</td></tr>
+  <tr><td><code>SubmitLabel</code></td><td>30</td><td>O botão que envia.</td></tr>
+  <tr><td><code>SuccessMessage</code></td><td>200</td><td>A confirmação, acima do protocolo. <strong>Aceita variáveis.</strong></td></tr>
+  <tr><td><code>TrackingIntro</code></td><td>300</td><td>O topo da página de acompanhamento. <strong>Aceita variáveis</strong>, e a etapa.</td></tr>
+  <tr><td><code>ReportTitleQuestion</code></td><td>80</td><td>A pergunta do título.</td></tr>
+  <tr><td><code>ReportTitlePlaceholder</code></td><td>80</td><td>O exemplo cinza dentro dela.</td></tr>
+  <tr><td><code>TypeFieldLabel</code></td><td>40</td><td>O nome do seletor de tipo.</td></tr>
+  <tr><td><code>MoreDetailsLabel</code></td><td>40</td><td>O nome da caixa livre depois das perguntas.</td></tr>
+  <tr><td><code>NameQuestion</code></td><td>80</td><td>A pergunta do nome.</td></tr>
+  <tr><td><code>PublicNotice</code></td><td>300</td><td>O aviso de que o relato pode virar público. A frase sobre o nome vem depois, fixa.</td></tr>
+</table>
+</div>
+
+<p>As variáveis são um conjunto fixo: <code>{{primeiroNome}}</code> — a primeira palavra do nome
+que a pessoa deu —, <code>{{protocolo}}</code>, <code>{{tipo}}</code>, <code>{{projeto}}</code> e,
+só em <code>TrackingIntro</code>, <code>{{etapa}}</code>. <code>{{primeiroNome|pessoa}}</code> diz
+o que entra quando não há valor; sem isso, o primeiro nome vira "você". A gravação devolve 400
+com variável num texto que não a aceita, com nome que não existe, com <code>{{etapa}}</code> na
+confirmação, ou com chave sem fechar. As respostas trazem o texto como foi escrito: quem troca é a
+tela que o mostra, depois do envio, e mostra como texto puro.</p>
+
+<h3>A aparência do botão</h3>
+
+<p>O botão parado no site do cliente é do projeto, com o de fábrica igual ao de sempre. Na tela,
+em grupos — Aparência, Posição, No celular e Páginas escondidas —, com a aparência inteira à
+vista. Todos vão em toda gravação. <strong>Quem desenha o botão é o carregador</strong>, a
+partir de <code>GET /public/widget-launcher</code>, que devolve só estes campos — ver
+<a href="#/endpoints/rotas-publicas">Rotas públicas</a>; a prévia da tela usa o mesmo desenho.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Campo</th><th>Valores</th><th>Fábrica</th></tr>
+  <tr><td><code>Position</code></td><td><code>BottomRight</code>, <code>BottomLeft</code>, <code>TopRight</code>, <code>TopLeft</code></td><td><code>BottomRight</code></td></tr>
+  <tr><td><code>OffsetX</code>, <code>OffsetY</code></td><td>A distância do canto, de 0 a 200 pixels</td><td>20 e 20</td></tr>
+  <tr><td><code>LauncherIcon</code></td><td><code>None</code>, <code>Chat</code>, <code>Bug</code>, <code>Lightbulb</code>, <code>Question</code>, <code>Megaphone</code>, <code>Star</code></td><td><code>None</code></td></tr>
+  <tr><td><code>LauncherIconOnly</code></td><td>Só o ícone; o texto vira a dica e o nome para o leitor de tela</td><td><code>false</code></td></tr>
+  <tr><td><code>LauncherSize</code></td><td><code>Small</code>, <code>Medium</code>, <code>Large</code></td><td><code>Medium</code></td></tr>
+  <tr><td><code>LauncherShape</code></td><td><code>Pill</code>, <code>Rounded</code>, <code>Square</code></td><td><code>Pill</code></td></tr>
+  <tr><td><code>LauncherTextColor</code></td><td><code>#rrggbb</code>, ou nulo — automática</td><td>nulo</td></tr>
+  <tr><td><code>LauncherShadow</code></td><td>Sombra embaixo do botão</td><td><code>false</code></td></tr>
+  <tr><td><code>FormBackgroundColor</code></td><td><code>#rrggbb</code>, ou nulo — o fundo do tema. Pinta o formulário aberto e a tela de "abrindo"; com uma cor, o texto, as bordas e os campos saem dela, e o tema deixa de valer no formulário</td><td>nulo</td></tr>
+  <tr><td><code>MobileMode</code></td><td><code>Same</code>, <code>IconOnly</code>, <code>Hidden</code> — numa janela com menos de 640 pixels</td><td><code>Same</code></td></tr>
+  <tr><td><code>HiddenPaths</code></td><td>As páginas onde o botão não aparece, até 20</td><td><code>[]</code></td></tr>
+</table>
+</div>
+
+<p>A gravação devolve 400 para valor fora da lista, distância fora de 0 a 200, cor fora de
+<code>#rrggbb</code>, e <strong>botão só de ícone sem ícone</strong> — <code>LauncherIconOnly</code>
+ou <code>MobileMode: IconOnly</code> com <code>LauncherIcon: None</code>. A API não escolhe um ícone
+pelo cliente: gravaria uma aparência que ninguém viu na prévia; quem escolhe o balão, ao marcar
+"só o ícone", é a tela.</p>
+
+<p>Cada item de <code>HiddenPaths</code> é um caminho exato (<code>/checkout</code>) ou um começo
+terminado em <code>*</code> (<code>/login/*</code> vale para <code>/login</code> e o que vem embaixo;
+<code>/ajuda*</code>, para tudo que começa assim). Começa com <code>/</code>, tem até 200
+caracteres, sem <code>?</code>, <code>#</code> nem espaço, e o <code>*</code> só no fim — fora disso,
+400 com o caminho na mensagem. Linhas vazias e repetidas saem. A lista vazia é um valor; ausente, é
+recusada como os outros campos.</p>
+
+<div class="note why">
+  <strong>A cor do texto escolhida vale mesmo com pouco contraste</strong>
+  <p>A marca do cliente pode pedir o branco que a conta não escolheria. O painel mostra a razão de
+  contraste e avisa abaixo de 4,5:1, o mínimo da WCAG para texto — e deixa publicar. Nula, a cor
+  continua a de maior contraste com a do botão, calculada pela ferramenta.</p>
+</div>
+
+<div class="note why">
+  <strong>O nome do projeto só sai quando o texto o usa</strong>
+  <p>O nome do projeto é interno. <code>ProjectName</code> vem preenchido no painel sempre, e em
+  <code>GET /public/widget-settings</code> só quando <code>SuccessMessage</code> usa
+  <code>{{projeto}}</code> — senão, nulo. É o cliente quem decide mostrá-lo, ao escrevê-lo.</p>
+</div>
 
 <div class="note why">
   <strong>Projeto arquivado esconde a ferramenta</strong>
@@ -73,4 +174,23 @@ continuam com o nome do assunto:</p>
   <p>A recusa vale <strong>também para o desligado</strong>. Quem lê, muda um limite e devolve a
   configuração inteira gravaria o desligado por cima da escolha do projeto, e ela não voltaria a
   valer no dia em que houver armazenamento.</p>
+</div>
+
+<div class="note why">
+  <strong>Os limites da entrada do relato</strong>
+  <p><code>POST /public/reports</code> passa por quatro camadas, da mais estreita para a mais larga:
+  <strong>quem relata</strong> (o código pessoal, no projeto que usa esse modo e quando ele vem; a
+  pessoa do sistema do cliente, no projeto que herda a identidade e quando o crachá conferiu;
+  senão, o IP), <strong>o mesmo IP</strong>, <strong>o mesmo domínio de origem</strong> e
+  <strong>o projeto inteiro</strong>, na hora e no dia. Antes delas, o <strong>intervalo
+  mínimo</strong> entre dois relatos da mesma pessoa ou do mesmo IP, recusado sem desafio
+  (<code>Espere alguns segundos antes de enviar outro relato.</code>).</p>
+  <p><strong>Passado um limite, o desafio invisível</strong>: a recusa é 429 com um bilhete, e a
+  ferramenta resolve a conta sozinha ("Conferindo…") e manda de novo. <strong>No dobro, a
+  pausa</strong> de 15 minutos para aquela camada, com o aviso <code>ReportsPaused</code> no sino de
+  quem administra — um por pausa. O formato das recusas está em
+  <a href="#/endpoints/rotas-publicas">Rotas públicas</a>.</p>
+  <p><strong>As contagens moram na memória do processo</strong>, e nenhum IP vai para o banco. A
+  conta é certa enquanto a API roda numa instância só; reiniciar zera as contagens e as pausas.
+  Conta o relato aceito, e não a tentativa recusada.</p>
 </div>
