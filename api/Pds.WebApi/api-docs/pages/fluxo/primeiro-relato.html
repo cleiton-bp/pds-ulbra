@@ -7,38 +7,67 @@ fica no HTML dele:</p>
 
 <p>O que acontece daí em diante não passa por sessão nenhuma:</p>
 
-<div class="diagram">o script cria um iframe apontando para o NOSSO domínio — <b>invisível</b>
+<div class="diagram">GET /public/widget-launcher  →  este endereço pode abrir? como é o botão?   (em cache por 5 min)
+      ↓
+o script desenha o botão num único elemento da página, com sombra fechada — <b>ainda sem iframe</b>
+      ↓
+a pessoa passa o mouse, foca ou toca no botão: o iframe é criado, <b>invisível</b>
       ↓
 a página manda a chave, a rota e a origem por postMessage
       ↓
-GET /public/widget-settings  →  este endereço pode abrir? como o cliente quer o quadro?
+GET /public/widget-settings  →  como o cliente quer o formulário?
+                                 e que tipos ele oferece, cada um com as suas perguntas?
 GET /public/media-settings   →  e o que ele aceita anexar?          (as duas saem juntas)
       ↓
 chegou a configuração: a de mídia tem até <b>3 s</b> a mais, e depois o quadro segue sem ela
       ↓
-o quadro pede para aparecer, e só então o gatilho surge no canto
+a pessoa clica: se o quadro ainda não respondeu, o script mostra "abrindo" no canto;
+quando ele responde, o formulário aparece já aberto, no canto do botão
       ↓
-quem preenche o formulário está dentro do iframe, na nossa origem
+quem preenche o formulário está dentro do iframe, na nossa origem:
+o tipo escolhido desenha as perguntas dele e/ou a caixa livre
       ↓
 POST /public/reports  →  confere o endereço de novo, protocolo + token
       ↓
-com arquivos na lista, eles sobem em seguida, um de cada vez, com o protocolo e o token</div>
+com arquivos na lista, eles sobem em seguida, um de cada vez, com o protocolo e o token
+      ↓
+fechar (o botão do formulário ou Esc) esconde o quadro e devolve o botão — e o foco a ele</div>
 
 <p>O formulário nunca toca a página do cliente, e a página do cliente nunca toca o
 formulário: são origens diferentes, e a única coisa que atravessa é o que as duas pontas
 conferiram.</p>
 
 <div class="note why">
+  <strong>Por que nada pesado sai antes do clique</strong>
+  <p>O formulário arrasta o framework inteiro, e quase todo visitante do site do cliente nunca
+  clica. Antes, todo visitante baixava o quadro ao abrir a página; agora o script lê só a
+  aparência do botão — uma resposta pequena, guardada cinco minutos pelo navegador — e desenha o
+  botão ele mesmo. O quadro vem quando alguém mostra que vai clicar, e o clique parece
+  instantâneo. Os números estão no README do painel.</p>
+  <p>Chave recusada, endereço fora da lista, ferramenta desligada ou projeto arquivado: nenhum
+  botão. <strong>Rede fora também</strong> — sem a resposta, o script não adivinha um botão que
+  poderia aparecer onde o projeto não quer.</p>
+</div>
+
+<div class="note why">
   <strong>Por que o quadro nasce invisível</strong>
   <p>O pedido para aparecer é a <em>mesma</em> mensagem que informa tamanho e canto, e o quadro
-  só a manda depois de ler a configuração. Uma regra resolve quatro coisas: ele aparece já no
-  canto certo em vez de pular de lado; a ferramenta desligada simplesmente nunca pede e nunca
-  aparece; o rótulo do cliente não pisca, porque nada é desenhado com os padrões para ser
-  trocado na frente de quem já estava lendo; e um quadro que não carregou some, em vez de deixar
-  uma pílula vazia parada no site.</p>
-  <p>O preço é uma ida à rede antes do gatilho aparecer. Se essa leitura falhar, valem os
-  padrões e a ferramenta abre assim mesmo — "não consegui saber" não pode virar "não apareço",
-  porque é justamente quando algo quebrou que alguém precisa avisar.</p>
+  só a manda depois de ler a configuração. Ele aparece já no canto certo, com o formulário
+  pronto, em vez de pular de lado ou mostrar os padrões trocando na frente de quem já estava
+  lendo; e a ferramenta que não abre diz isso ao script, que tira o "abrindo" e avisa.</p>
+  <p>Se a leitura da configuração falhar, valem os padrões e o formulário abre assim mesmo —
+  "não consegui saber" não pode virar "não abro", porque é justamente quando algo quebrou que
+  alguém precisa avisar.</p>
+</div>
+
+<div class="note why">
+  <strong>O cliente pode abrir pelo próprio botão</strong>
+  <p>Com <code>data-button="none"</code> no script, nada é desenhado e <strong>nenhuma
+  requisição sai até alguém pedir</strong>. O sistema do cliente abre pela própria tela, com
+  <code>Pds.open()</code> (e fecha com <code>Pds.close()</code>), ou por qualquer elemento
+  marcado com <code>data-pds-open</code>. Chamar <code>Pds.open()</code> antes de o script
+  terminar de carregar fica na fila. O objeto <code>Pds</code> é definido uma vez e congelado:
+  duas cópias do script na mesma página não abrem dois quadros.</p>
 </div>
 
 <div class="note why">
@@ -56,7 +85,8 @@ conferiram.</p>
 
 <div class="note why">
   <strong>O texto não espera os arquivos</strong>
-  <p><code>POST /public/reports</code> leva só o texto. O protocolo aparece na hora, e os arquivos
+  <p><code>POST /public/reports</code> leva só o que foi escrito — o tipo, as respostas e a caixa.
+  O protocolo aparece na hora, e os arquivos
   sobem depois, usando o protocolo e o token que a criação acabou de devolver — é o relato
   existir que dá a alguém o direito de pedir espaço no armazenamento. Fazer a pessoa esperar os
   arquivos para ver o protocolo seria esconder justamente a parte que não pode se perder. A
@@ -72,10 +102,13 @@ conferiram.</p>
 
 <div class="note warn">
   <strong>A origem é conferida, e continua não sendo prova</strong>
-  <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta, e é
-  comparado com a lista de <code>project_origins</code> nas três rotas que a ferramenta usa: a
-  configuração, a de mídia e o envio do relato. Projeto com a
-  lista vazia aceita qualquer endereço, e quem não declara endereço passa.</p>
+  <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta. O
+  domínio <strong>bloqueado</strong> é recusado (403) nas quatro rotas que a ferramenta usa: a
+  aparência do botão, a configuração, a de mídia e o envio do relato. O que não está na lista de
+  <code>project_origins</code> — inclusive com ela vazia — e o relato que não diz de onde veio são
+  <strong>recebidos e retidos</strong>: quem relatou recebe o protocolo e acompanha como sempre, e o
+  time só vê o relato depois de permitir o domínio, avisado no sino. O domínio do próprio painel
+  nunca é retido — é o relato de teste.</p>
   <p>Como quem declara é o carregador, que é código nosso, a chave copiada para outro site é
   pega — e é para isso que a lista serve. Quem chamar a API sem passar pela ferramenta declara o
   que quiser: <strong>grade de proteção, não muro.</strong> O muro é o

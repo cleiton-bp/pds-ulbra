@@ -10,6 +10,12 @@ para cada uma:</p>
   <li><strong>Alguém a escolhe como responsável</strong> por um card.</li>
 </ul>
 
+<p>E, para quem administra o projeto, dois avisos do <strong>projeto</strong>, sem card: <strong>um
+domínio novo mandou relato</strong> — "loja.com mandou um relato: permitir ou bloquear?", uma vez por
+domínio enquanto houver relato retido dele, levando a "Aguardando liberação" — e <strong>os envios
+foram pausados</strong> por excesso — "Muitos relatos vindos de loja.com: novos envios pausados por
+15 min", uma vez por pausa, levando aos limites. Cada um tem o seu som, como os outros.</p>
+
 <p><strong>Os avisos ficam no painel.</strong> Nenhum deles manda e-mail: o único e-mail do
 produto é o convite para o time.</p>
 
@@ -103,7 +109,9 @@ GET  /me/notification-settings
 PUT  /me/notification-settings
 { "Volume": 70,
   "Sounds": [ { "Kind": "Mention", "Sound": "Ping" },
-              { "Kind": "Assignment", "Sound": "Bell" } ] }</code></pre>
+              { "Kind": "Assignment", "Sound": "Bell" },
+              { "Kind": "OriginPending", "Sound": "Chime" },
+              { "Kind": "ReportsPaused", "Sound": "Drop" } ] }</code></pre>
 
 <p>Todas da pessoa da sessão, e não de um projeto. A lista vem do mais novo para o mais antigo, de
 cinquenta em cinquenta: <code>unread=true</code> traz só os não lidos, e <code>before</code> — o

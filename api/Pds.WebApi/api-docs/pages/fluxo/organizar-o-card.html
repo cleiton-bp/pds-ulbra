@@ -1,14 +1,15 @@
 <h2>A pessoa dá o título</h2>
 
-<p>A ferramenta pergunta, antes do texto: <strong>"Em poucas palavras, o que aconteceu?"</strong>. A
-resposta vai junto do relato:</p>
+<p>A ferramenta pergunta, antes das perguntas do tipo: <strong>"Em poucas palavras, o que
+aconteceu?"</strong>. A resposta vai junto do relato:</p>
 
 <pre><code>POST /public/reports
-{ "Key": "pk_ABC123", "Type": "Bug",
+{ "Key": "pk_ABC123", "TypeId": "3f9a...",
   "Title": "O botão de pagar não responde",
-  "Text": "Depois de escolher o cartão, o botão fica cinza e nada acontece.", ... }</code></pre>
+  "Answers": [ "Pagar com o cartão.",
+               "Depois de escolher o cartão, o botão fica cinza e nada acontece.", "" ], ... }</code></pre>
 
-<p>A pergunta é <strong>opcional</strong> de fábrica. Na tela Botão no site, o dono a torna obrigatória
+<p>A pergunta é <strong>opcional</strong> de fábrica. Na tela Formulário, o dono a torna obrigatória
 — e aí a API recusa o relato sem título (400) — ou a esconde, e o card mostra o começo do texto.
 O título que a pessoa escreveu fica em <code>reporter_title</code> e <strong>nunca muda</strong>.</p>
 
@@ -116,8 +117,8 @@ e, com as sprints ligadas, <strong>Sprint</strong> — uma sprint aberta ou o ba
   <li><strong>A coluna que encerra pergunta uma vez</strong>: os relatos abertos da seleção
   encerram todos com o mesmo desfecho e o mesmo motivo, e cada pessoa que relatou lê o mesmo
   texto.</li>
-  <li><strong>A subtarefa não vai sozinha para a sprint</strong>: ela vai com o pai, e fica na lista
-  do que não mudou.</li>
+  <li><strong>A subtarefa não entra no lote</strong>: ela mora dentro do pai e não aparece na lista
+  nem no quadro — vai com o pai para a sprint e para o arquivo.</li>
   <li><strong>Pôr ou tirar etiqueta lê o card na hora</strong>: a etiqueta que outra pessoa pôs no
   meio do lote fica.</li>
   <li>Trocar o filtro, a coluna, a vista ou o projeto desmarca tudo: ninguém muda em lote o que não

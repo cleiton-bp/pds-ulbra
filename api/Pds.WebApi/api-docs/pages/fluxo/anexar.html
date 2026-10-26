@@ -103,9 +103,10 @@ quanto tempo a mídia aceita fica guardada, e apagá-la quando vencer, é
 
 <h2>Ler de volta</h2>
 
-<div class="diagram">a página de quem relatou  →  POST /public/reports/tracking/attachments   { TrackingCode, Token }
-pelo código pessoal     →  POST /public/reports/by-code/attachments    { Key, Code, TrackingCode }
-o painel                →  GET  /projects/{id}/reports/{id}/attachments   (com sessão)
+<div class="diagram">a página de quem relatou    →  POST /public/reports/tracking/attachments      { TrackingCode, Token }
+pelo código pessoal         →  POST /public/reports/by-code/attachments       { Key, Code, TrackingCode }
+pela identidade do sistema  →  POST /public/reports/by-identity/attachments   { Key, IdentityToken, TrackingCode }
+o painel                    →  GET  /projects/{id}/reports/{id}/attachments   (com sessão)
       ↓
 a porta aceita  →  <b>só então</b> assina: um link por arquivo e um por miniatura, de 5 minutos
                    (o de um vídeo antigo, que é lido em pedaços enquanto toca, 15)
@@ -144,4 +145,5 @@ reabertura, e não o texto dela. As duas bandeiras juntas são 400: um arquivo v
 só.</p>
 
 <p>Na leitura, cada arquivo volta ao lugar de onde veio — embaixo do relato, da resposta ou da
-reabertura. Quem volta pelo código pessoal vê os mesmos arquivos, e não anexa: ler não é agir.</p>
+reabertura. Quem volta pelo código pessoal, ou pela identidade do seu sistema, vê os mesmos
+arquivos, e não anexa: ler não é agir.</p>

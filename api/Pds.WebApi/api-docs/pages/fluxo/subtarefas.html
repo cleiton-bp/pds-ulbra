@@ -2,9 +2,10 @@
 
 <p>O time quebra um card em partes menores: a <strong>subtarefa</strong> é um card do time filho de
 outro card — de um relato ou de outro card do time. Ela tem coluna, responsável, prioridade,
-etiquetas e prazo próprios, e anda no quadro como qualquer card, com o pai indicado na frente
-(<em>↳ #42 Título do pai</em>). O pai mostra o progresso: quantas subtarefas terminaram, de quantas
-(<em>2/5</em>).</p>
+etiquetas e prazo próprios, e <strong>mora dentro do pai</strong>: não aparece no quadro, na lista,
+no backlog, nas sprints nem nos arquivados. O pai mostra o progresso na frente: quantas subtarefas
+terminaram, de quantas (<em>2/5</em>). O quadro mostra o trabalho; a subtarefa fica onde o time a
+procura — no card de que ela é parte.</p>
 
 <ul>
   <li><strong>Um nível só</strong>: subtarefa não tem subtarefa. Mais fundo, o pai deixaria de
@@ -27,35 +28,68 @@ etiquetas e prazo próprios, e anda no quadro como qualquer card, com o pai indi
 { "Title": "Testar no Safari", "Description": null, "ParentPublicId": "9f3e..." }</code></pre>
 
 <p>O pai tem de ser do projeto (404), estar fora do arquivo e não ser subtarefa (409). Mandar a
-coluna, o responsável ou a prioridade junto é recusado (400): a subtarefa nasce sem eles. As subtarefas de um card são a lista de sempre, com
-<code>parent</code>:</p>
+coluna, o responsável ou a prioridade junto é recusado (400): a subtarefa nasce sem eles.</p>
 
-<pre><code>GET /projects/2be49b28-.../reports?parent=9f3e...&amp;pageSize=100</code></pre>
+<p><strong>A lista de sempre deixa a subtarefa de fora</strong> — a página, o "Mostrar mais" do
+quadro, a contagem das colunas e a linha "Sem coluna" contam só os cards de primeiro nível, no
+banco, e não na tela. As subtarefas de um card vêm só com <code>parent</code>, as do arquivo com
+<code>archived=true</code>:</p>
+
+<pre><code>GET /projects/2be49b28-.../reports?parent=9f3e...&amp;pageSize=100
+GET /projects/2be49b28-.../reports?parent=9f3e...&amp;archived=true&amp;pageSize=100</code></pre>
 
 <p>Todo card traz, na frente: <code>Parent</code> (o identificador, o número e o título do pai, na
-subtarefa), <code>SubtaskCount</code> e <code>SubtasksDone</code> (no pai).</p>
+subtarefa aberta), <code>SubtaskCount</code> e <code>SubtasksDone</code> (no pai).</p>
+
+<h2>Achar a subtarefa que é sua</h2>
+
+<p>A subtarefa não aparece sozinha, e o filtro traz o pai no lugar dela:</p>
+
+<ul>
+  <li><strong>"Meus cards" e o filtro de responsável</strong> (<code>assignee</code>, com
+  <code>me</code> ou uma pessoa do time): o pai entra também quando uma subtarefa é da pessoa.
+  <code>none</code> continua sendo só do próprio card.</li>
+  <li><strong>A busca</strong> (<code>q</code>): o pai entra também quando o termo está no título ou
+  na descrição de uma subtarefa — sem acento e sem diferenciar maiúscula, como no resto.</li>
+</ul>
+
+<p>Conta a subtarefa fora do arquivo; nos arquivados, as que foram com o pai. O pai diz por que veio
+em <code>SubtaskMatch</code> — nulo quando nenhuma subtarefa casou:</p>
+
+<pre><code>"SubtaskMatch": {
+  "Assignees": [ { "UserPublicId": "4c1a...", "Name": "Ana Souza", "IsMe": true, "Count": 1 } ],
+  "Search": false
+}</code></pre>
+
+<p>Na lista, no quadro e no backlog, a marca na frente do pai lê <em>1 subtarefa sua</em>,
+<em>2 subtarefas suas</em>, <em>1 subtarefa de Ana</em> (filtrando outra pessoa) ou <em>na
+subtarefa</em> (a busca).</p>
 
 <h2>O arquivo</h2>
 
 <p><strong>Arquivar o pai leva as subtarefas junto</strong>, com o mesmo instante em
 <code>archived_at</code>; desarquivar o pai traz de volta só as que têm esse instante — a subtarefa
 que já estava no arquivo antes fica lá. Enquanto o pai está no arquivo, a subtarefa não sai dele
-sozinha (409), e não nasce subtarefa nova: ficaria no quadro como filha de um card que ninguém vê.</p>
+sozinha (409), e não nasce subtarefa nova: voltaria ao trabalho dentro de um card que ninguém vê. A
+subtarefa arquivada sozinha aparece no pai, embaixo das outras, e é de lá que se abre para
+desarquivar.</p>
 
 <h2>No card aberto e ao vivo</h2>
 
-<p>O card aberto tem a seção <strong>Subtarefas</strong>: o progresso, a lista na ordem em que
-nasceram — com a coluna, o responsável e o círculo de quem terminou — e o campo de criar. A subtarefa
-aberta se chama Subtarefa e mostra o pai, com o link para ele. A subtarefa criada entra no quadro e
-na lista na hora — se passar nos filtros ligados. Pelo tempo real, o aviso de uma subtarefa avisa o
-pai junto: o progresso dele mudou, e o pai aberto relê a lista.</p>
+<p>O card aberto tem a seção <strong>Subtarefas</strong>, que é onde o time trabalha nelas: o
+progresso, a lista na ordem em que nasceram — com a coluna, o responsável e o círculo de quem
+terminou —, as arquivadas embaixo e o campo de criar. <strong>O responsável se escolhe na
+linha</strong>: o avatar (ou o lugar vazio) abre <em>Ninguém</em> e quem está no time, como no campo
+do card. O título abre a subtarefa, que se chama Subtarefa, mostra o pai com o link para ele e tem
+tudo o que um card tem — coluna, comentários, anexos.</p>
 
 <p><strong>O círculo marca.</strong> Na lista do pai, o círculo de cada subtarefa é um botão:
 <em>Marcar #31 como feita</em> a leva para a última coluna ativa, e <em>Reabrir #31</em> a devolve
-para a primeira — o mesmo movimento de arrastar, com o aviso "#31 marcada como feita.", e o progresso
-do pai anda na hora. Não é checklist: a subtarefa continua um card que anda pelo quadro. Com uma
-coluna ativa só, não há onde terminar, e o círculo volta a ser só o sinal.</p>
+para a primeira — o mesmo movimento da coluna, com o aviso "#31 marcada como feita.", e o progresso
+do pai anda na hora. Com uma coluna ativa só, não há onde terminar, e o círculo volta a ser só o
+sinal.</p>
 
-<p>Na lista e no quadro, o menu <strong>Tipo</strong> traz <em>Subtarefas</em>, marcada de saída:
-desmarcar esconde as subtarefas (<code>subtasks=hide</code>) e deixa só os cards de primeiro
-nível.</p>
+<p><strong>Pelo tempo real</strong>, o aviso de uma subtarefa avisa o pai junto, e traz
+<code>ParentPublicId</code>: o quadro e a lista ignoram a subtarefa e releem o pai — o progresso
+dele mudou —, e o card aberto (o pai, ou a própria subtarefa) se atualiza. A subtarefa nunca entra no
+quadro.</p>

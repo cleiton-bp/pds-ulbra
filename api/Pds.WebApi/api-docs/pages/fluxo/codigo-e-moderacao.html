@@ -39,16 +39,62 @@ dos arquivos.</p>
 <p><strong>Ler os arquivos não grava visualização.</strong> Quem grava é a abertura do relato, que
 vem antes; ler os arquivos dele não é outra leitura do relato.</p>
 
+<h2>Quem relatou volta pela identidade do seu sistema</h2>
+
+<p>No modo <strong>identidade do seu sistema</strong>, a pessoa não guarda código nenhum: quem diz
+quem ela é é o site do cliente. O servidor dele assina um crachá — um JWT ES256 dedicado, com
+<code>sub</code>, <code>aud</code> igual à chave pública do projeto e validade curta — e o põe em
+<code>data-identity</code>, no <code>&lt;script&gt;</code> do carregador; o carregador o lê a cada
+abertura, e o quadro o manda no envio, no corpo de <code>POST /public/reports</code>. A linha dela em
+<code>reporter_codes</code> nasce no primeiro relato, com o hash do <code>sub</code> e um código
+sorteado que ninguém vê; a confirmação diz se o relato ficou ligado a ela
+(<code>Identified</code>).</p>
+
+<div class="diagram">o site poe o cracha em data-identity; o carregador o le a cada abertura e o quadro o manda
+      ↓
+POST /public/reports/by-identity  { Key, IdentityToken }
+      ↓
+cracha que nao confere, pessoa que nunca relatou aqui, ou projeto fora do modo  →  lista vazia, e nao 404
+      ↓
+devolve ate 50 relatos, sem o token de nenhum — sem campo de codigo: a lista carrega sozinha
+      ↓
+a pessoa escolhe um  →  POST /public/reports/by-identity/open  { Key, IdentityToken, TrackingCode }
+      ↓
+grava "visualizado" com by: inherited_identity  →  a mesma visao publica do link, com as acoes desligadas
+      ↓
+POST /public/reports/by-identity/attachments  { Key, IdentityToken, TrackingCode }  →  os arquivos, so para ler</div>
+
+<p><strong>As três rotas são o espelho das do código, com o crachá no lugar dele.</strong> A lista
+responde vazia para o crachá que não confere, para a pessoa que nunca relatou aqui e para o projeto
+fora do modo — dizer qual dos três falhou contaria a configuração do cliente, ou algo sobre outra
+pessoa. Abrir e ler os arquivos têm uma recusa só, a mesma de <code>by-code/open</code>: crachá em
+branco ou que não confere, projeto fora do modo, protocolo que não existe e protocolo de outra pessoa
+recebem a mesma mensagem.</p>
+
+<p><strong>O crachá lê, e não age.</strong> Ele prova que o relato é dela; o link é que dá poder
+sobre ele — confirmar, reabrir, responder e anexar continuam pedindo o token. Ver a lista não grava
+visualização; abrir um relato grava, com <code>by: inherited_identity</code> na carga; ler os
+arquivos não grava de novo. "Abrir" leva à página de acompanhamento com o crachá no fragmento do
+endereço (<code>#i=</code>), que o navegador nunca envia a servidor nenhum — e lá os arquivos vêm de
+<code>by-identity/attachments</code>.</p>
+
+<p>Sem crachá, o projeto decide: de fábrica o relato entra como protocolo, sem identidade, e a
+confirmação avisa que o link é a única forma de voltar; com "exigir o crachá" ligado, o quadro pede
+para entrar na conta antes de a pessoa escrever, e o envio sem crachá é recusado (401). O que a API
+confere no crachá está em <a href="#/endpoints/rotas-publicas">Rotas públicas</a>.</p>
+
 <h2>O time libera um relato para o público</h2>
 
 <p>Com o projeto num nível público, o que a ferramenta mostra a qualquer visitante é <strong>só o
 que passou pela fila</strong>. Todo relato nasce pendente:</p>
 
-<div class="diagram">GET /projects/{id}/reports/moderation  →  os pendentes, do mais antigo para o mais novo
+<div class="diagram">GET /projects/{id}/reports/moderation  →  25 pendentes, do mais antigo para o mais novo, e o cursor
       ↓
 cada linha traz o texto inteiro e o que a varredura achou, com a amostra mascarada
       ↓
-PUT .../reports/{id}/moderation  { Decision: Approved | Rejected }
+PUT .../reports/{id}/moderation  { Decision: Approved | Rejected, From: Pending }
+      ↓
+outra pessoa decidiu antes?  →  409, e nada muda
       ↓
 grava report_published ou report_moderation_rejected, com quem decidiu
       ↓
@@ -74,7 +120,14 @@ GET /public/reports/published?key=...  →  os liberados, sem protocolo, sem ide
 privado: nada daqui aparece para o público."</em> —, e a aba Esperando não conta: a fila só importa
 quando o projeto abre os relatos ao público, na tela Quem relata.</p>
 
-<p>A fila é para esvaziar, não para navegar: os <strong>50 mais antigos</strong> primeiro, e a tela
-diz quantos faltam. Decidir os de cima faz os de baixo subirem. E a varredura <strong>não fura a
-ordem</strong> — dar prioridade ao que ela marcou seria deixar o detector decidir a fila, que é a
-mesma autoridade que ele não tem para bloquear.</p>
+<p>A tela é uma caixa de entrada: a lista compacta para achar, o relato inteiro ao lado para ler e
+decidir, com o teclado (J/K andam, L libera, N não publica, X seleciona) e a decisão em lote. A fila
+vem <strong>25 por vez, dos mais antigos</strong>, e o resto pelo cursor; as abas contam quantos há
+em cada uma. Decidir tira o relato da lista ali mesmo, sem reler a fila. E a varredura <strong>não
+fura a ordem</strong> — dar prioridade ao que ela marcou seria deixar o detector decidir a fila, que
+é a mesma autoridade que ele não tem para bloquear.</p>
+
+<p><strong>Liberados e Não publicáveis são histórico</strong>, e vêm da decisão mais recente para a
+mais antiga: quem liberou por engano acha o relato no topo e o tira do público. A tela ouve os
+avisos de card do tempo real só para recontar as abas, e diz "N novos — mostrar" em vez de mudar a
+lista debaixo de quem está lendo.</p>

@@ -9,15 +9,20 @@ os que passam. A barra fica logo abaixo das abas:</p>
   descrição, no número (<code>42</code> ou <code>#42</code>) e no protocolo, com ou sem hífen. Sem
   diferenciar maiúscula nem acento: "nao" acha "não". Ela espera a pessoa parar de digitar, e
   enquanto a lista nova não chega o campo diz <em>Buscando…</em> e a tabela esmaece. A tecla "/",
-  fora de um campo, põe o foco nela.</li>
+  fora de um campo, põe o foco nela. O termo no título ou na descrição de uma
+  <a href="#/fluxo/subtarefas">subtarefa</a> traz o pai, com a marca <em>na subtarefa</em>.</li>
   <li><strong>Meus cards</strong>, <strong>Vencidos</strong> e <strong>Em aberto</strong>, os
   atalhos de um clique. "Em aberto" esconde o que terminou — o relato encerrado e o card na última
-  coluna —, e é o jeito de ver só o trabalho que falta.</li>
+  coluna —, e é o jeito de ver só o trabalho que falta. <strong>Origem bloqueada</strong> aparece
+  quando há card marcado na tela (ou quando o filtro está ligado): só os relatos que vieram de um
+  domínio bloqueado e que ninguém decidiu manter.</li>
   <li><strong>Responsável</strong> (qualquer pessoa do time, e "Sem responsável"),
   <strong>Etiqueta</strong>, <strong>Prioridade</strong> (da mais urgente para a menos, e "Sem
-  prioridade" por último) e <strong>Tipo</strong> (defeito, melhoria, dúvida, o card do time — e
-  <em>Subtarefas</em>, marcada de saída: desmarcar esconde as subtarefas, que de outro jeito tomam
-  a primeira tela), em menus de marcar.</li>
+  prioridade" por último) e <strong>Tipo</strong> (os tipos de relato do projeto e o card do time),
+  em menus de marcar. <strong>A subtarefa não aparece sozinha</strong>: "Meus cards" e o responsável
+  trazem o pai de quem tem uma subtarefa, com a marca <em>1 subtarefa sua</em> (ou <em>de Ana</em>,
+  filtrando outra pessoa) — ver <code>SubtaskMatch</code> em
+  <a href="#/fluxo/subtarefas">Subtarefas</a>.</li>
   <li>Na lista, também <strong>Coluna</strong> — várias de uma vez, cada opção com quantos cards
   tem ("Fazendo · 8") — e, com as sprints ligadas, <strong>Sprint</strong>: todas, o backlog, a em
   andamento, as planejadas e, num grupo à parte, as concluídas, da mais recente para a mais antiga
@@ -89,21 +94,21 @@ e o aviso diz quando ele ficou de fora — ver <a href="#/fluxo/card-do-time">O 
 <pre><code>GET /projects/2be49b28-.../reports?assignee=me&amp;label=7c1e...&amp;label=90af...&amp;due=overdue&amp;today=2026-10-03
 GET /projects/2be49b28-.../reports/counts?assignee=me&amp;label=7c1e...&amp;label=90af...&amp;due=overdue&amp;today=2026-10-03
 GET /projects/2be49b28-.../reports?q=nao+responde
-GET /projects/2be49b28-.../reports?open=true&amp;subtasks=hide&amp;column=e12fef6c-...&amp;column=c7d1...&amp;sort=due&amp;dir=asc</code></pre>
+GET /projects/2be49b28-.../reports?open=true&amp;column=e12fef6c-...&amp;column=c7d1...&amp;sort=due&amp;dir=asc</code></pre>
 
 <div class="table-scroll">
 <table>
   <tr><th>Parâmetro</th><th>Valores</th></tr>
-  <tr><td><code>assignee</code></td><td><code>me</code>, <code>none</code> (sem responsável) ou o identificador de alguém do time</td></tr>
+  <tr><td><code>assignee</code></td><td><code>me</code>, <code>none</code> (sem responsável) ou o identificador de alguém do time. Com uma pessoa, o pai com uma subtarefa dela também vem</td></tr>
   <tr><td><code>label</code></td><td>O identificador da etiqueta; basta o card ter uma delas</td></tr>
   <tr><td><code>priority</code></td><td>O identificador da prioridade, ou <code>none</code></td></tr>
-  <tr><td><code>type</code></td><td><code>bug</code>, <code>improvement</code>, <code>question</code> ou <code>team</code> (o card do time)</td></tr>
+  <tr><td><code>type</code></td><td>O identificador de um tipo de relato do projeto — o desativado também, porque continua nos relatos que o têm —, ou <code>team</code> (o card do time)</td></tr>
   <tr><td><code>due</code> e <code>today</code></td><td><code>due=overdue</code>, com <code>today</code> no formato <code>aaaa-mm-dd</code>; sem <code>today</code>, vale o dia em UTC</td></tr>
   <tr><td><code>open</code></td><td><code>true</code>: só o que não terminou — o "Em aberto"</td></tr>
-  <tr><td><code>subtasks</code></td><td><code>hide</code>: só os cards de primeiro nível</td></tr>
+  <tr><td><code>origin</code></td><td><code>blocked</code>: só os relatos marcados com a origem bloqueada — a mesma regra do <code>BlockedOrigin</code> de cada card</td></tr>
   <tr><td><code>column</code></td><td>O identificador da coluna, ou <code>none</code> (sem coluna); basta o card estar numa delas. Não é o <code>state</code>, que continua sendo o recorte de uma coluna só, o do quadro</td></tr>
   <tr><td><code>sprint</code></td><td><code>active</code>, <code>backlog</code> ou o identificador de uma sprint — a concluída também</td></tr>
-  <tr><td><code>q</code></td><td>A busca, até 200 caracteres</td></tr>
+  <tr><td><code>q</code></td><td>A busca, até 200 caracteres. O pai também vem pelo título ou pela descrição de uma subtarefa</td></tr>
   <tr><td><code>sort</code> e <code>dir</code></td><td>Só na lista: <code>number</code>, <code>state</code>, <code>assignee</code>, <code>priority</code>, <code>due</code>, <code>created</code> ou <code>updated</code>, com <code>dir</code> <code>asc</code> (o padrão) ou <code>desc</code>. Sem <code>sort</code>, do mais novo para o mais antigo</td></tr>
 </table>
 </div>
@@ -114,12 +119,12 @@ GET /projects/2be49b28-.../reports?open=true&amp;subtasks=hide&amp;column=e12fef
 <code>dir</code> sem <code>sort</code> também é recusado (400).</p>
 
 <p><strong>O valor que sumiu não casa com card nenhum</strong> — a etiqueta apagada, a pessoa que saiu
-do time —, em vez de recusar a lista. O filtro fica
+do time, o tipo que não é mais do projeto —, em vez de recusar a lista. O filtro fica
 guardado na aba de quem o escolheu: recusado, ele derrubaria a lista, o quadro e a contagem a cada
 releitura, até a pessoa achar "Limpar filtros". O painel tira o valor do filtro assim que vê que ele
 sumiu. O identificador que nunca foi do projeto tem o mesmo tratamento, e não diz se existe noutro.
-O formato errado — tipo, prazo, coluna ou ordem desconhecidos, identificador que não é um, busca
-longa demais — é 400.</p>
+O formato errado — prazo, coluna ou ordem desconhecidos, tipo que não é <code>team</code> nem um
+identificador, identificador que não é um, busca longa demais — é 400.</p>
 
 <div class="note">
   <strong>O acento sai sem extensão no banco</strong>
