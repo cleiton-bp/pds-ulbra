@@ -1,43 +1,42 @@
 meta:
   title: Regras do projeto
   system: PDS — painel
-  description: "O que o dono decide sobre o comportamento do projeto, nas telas de Configurar o projeto. Tudo tem padrão de fábrica: projeto novo anda sem ninguém abrir estas telas — já nasce com as colunas A fazer, Fazendo e Feito, ligadas ao andamento público. Aqui está o lado da configuração; o lado de quem usa está nos diagramas 04 a 07."
+  description: "O que o dono decide sobre o comportamento do projeto, nas telas de Configurar o projeto. Tudo tem padrão de fábrica: projeto novo anda sem ninguém abrir estas telas — já nasce com as colunas, ligadas ao andamento público, e os tipos de relato do modelo escolhido na criação; no Quadro simples, A fazer, Fazendo e Feito, e Defeito, Melhoria e Dúvida. Aqui está o lado da configuração; o lado de quem usa está nos diagramas 04 a 07."
 actors:
   - name: Dono do projeto
-    description: Quem criou o projeto. É quem decide como a fila, a jornada pública e o ciclo se comportam.
+    description: Quem criou o projeto. É quem decide como a fila, a jornada pública, o ciclo e o formulário de quem relata se comportam.
     position: { x: -180, y: 318 }
 useCases:
   - id: UC01
     name: Definir as colunas do quadro
-    description: "Os estados internos: as colunas do quadro, com os nomes que o time usa. São do cliente, e não do PDS — é isso que dá trabalho ao motor de tradução. O projeto nasce com A fazer, Fazendo e Feito."
+    description: "Os estados internos: as colunas do quadro, com os nomes que o time usa. São do cliente, e não do PDS — é isso que dá trabalho ao motor de tradução. O projeto nasce com as do modelo escolhido — no Quadro simples, A fazer, Fazendo e Feito."
     width: 250
     position: { x: 260, y: 0 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Colunas, que já vem com A fazer, Fazendo e Feito.
+      - O dono abre Colunas, que já vem com as do modelo escolhido na criação.
       - Renomeia as que existem, ou cria as colunas que o time usa, cada uma com um nome.
       - Põe as colunas na ordem do quadro, arrastando ou pelas setas. A última ativa é a que encerra o relato, de fábrica.
       - Em cada coluna, escolhe o que quem relatou vê quando o card está nela — uma etapa do andamento público.
-      - Escolhe em qual coluna entra cada tipo de relato — defeito, melhoria ou dúvida.
       - Desativa o que não serve mais.
       - Ajusta como o quadro mostra o fim e os prazos — quantos dias a última coluna mostra, e com quantos dias de antecedência o prazo do card fica em destaque — e salva.
     alternativeFlows:
       - title: 2a. A coluna nova
         steps:
           - Ela nasce ligada à etapa da última coluna ativa de antes, e o painel diz qual — para não ficar fora do andamento sem ninguém perceber.
-      - title: 6a. A coluna desativada ainda tem cards
+      - title: 5a. A coluna desativada ainda tem cards
         steps:
           - "O painel diz quantos cards ficam nela antes de desativar. Ela sai do quadro para os cards novos, mas não some: os cards continuam nela até alguém arrastá-los, e o histórico continua legível."
-      - title: 6b. A coluna é a entrada de algum tipo de relato
+      - title: 5b. A coluna é a entrada de algum tipo de relato
         steps:
-          - O painel não desativa, e pede para escolher outro destino para aquele tipo antes.
-      - title: 6c. O dono reativa uma coluna desativada
+          - O painel não desativa, e pede para trocar antes a coluna daquele tipo, em Tipos de relato (UC11). Vale também para o tipo desativado, que, reativado, traria o problema de volta.
+      - title: 5c. O dono reativa uma coluna desativada
         steps:
           - A coluna volta para o quadro com o mesmo nome, e volta a poder receber cards.
-      - title: 7a. O dono sai da tela sem salvar as regras do quadro
+      - title: 6a. O dono sai da tela sem salvar as regras do quadro
         steps:
           - O painel pergunta antes de sair, e "Voltar e salvar" salva.
-    postconditions: "Todo relato novo cai na coluna de entrada do tipo dele — sem escolha, na primeira coluna ativa. No quadro, a última coluna mostra 14 dias, e o prazo fica em destaque faltando 2 — com uma coluna só, ela é a entrada da fila e mostra tudo; zero mostra todos, e o resto continua na lista."
+    postconditions: "Todo relato novo cai na coluna que o tipo dele escolheu, em Tipos de relato (UC11) — sem escolha, na primeira coluna ativa. No quadro, a última coluna mostra 14 dias, e o prazo fica em destaque faltando 2 — com uma coluna só, ela é a entrada da fila e mostra tudo; zero mostra todos, e o resto continua na lista."
   - id: UC02
     name: Desenhar o andamento público
     description: "A jornada que quem relatou vê, em etapas públicas: de 3 a 7, cada uma com um rótulo curto e uma frase para quem está esperando."
@@ -45,31 +44,34 @@ useCases:
     position: { x: 260, y: 125 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - "O dono abre Andamento público, que já vem com a jornada de fábrica: Recebido, Em análise, Em desenvolvimento, Em teste pela equipe e Concluído."
+      - "O dono abre Andamento público, que já vem com a jornada do modelo escolhido ao criar o projeto — a de fábrica: Recebido, Em análise, Em desenvolvimento, Em teste pela equipe e Concluído; no Suporte: Recebido, Em atendimento, Esperando você e Resolvido."
       - Acrescenta, apaga, reordena ou reescreve as etapas.
       - Em cada etapa, escreve o rótulo, a frase que explica e, se quiser, o que vem depois.
       - Marca as etapas terminais, cada uma com o desfecho que representa, e as que permitem retorno.
       - Salva.
     alternativeFlows:
+      - title: 1a. A jornada está vazia
+        steps:
+          - Só acontece no projeto criado antes de a jornada existir, já que a remoção para em três etapas. A tela oferece Usar o conjunto padrão, que preenche com a jornada de fábrica — sempre ela, e não a de um modelo, porque o projeto não guarda de qual modelo veio.
       - title: 2a. Passar de 7 etapas, ou ficar com menos de 3
         steps:
           - O sistema não deixa. Menos que isso não conta uma história; mais que isso cria etapa decorativa, que nunca anda e faz a linha do tempo mentir.
     postconditions: A página de acompanhamento passa a mostrar a jornada nova.
   - id: UC03
     name: Ligar as colunas às etapas
-    description: "O mapa: várias colunas caem numa mesma etapa pública, porque o time precisa de um detalhe que quem relatou não precisa. O projeto novo já nasce com ele: A fazer em Recebido, Fazendo em Em desenvolvimento, Feito em Concluído."
+    description: "O mapa: várias colunas caem numa mesma etapa pública, porque o time precisa de um detalhe que quem relatou não precisa. O projeto novo já nasce com ele, o do modelo escolhido — no Quadro simples, A fazer em Recebido, Fazendo em Em desenvolvimento, Feito em Concluído."
     width: 250
     position: { x: 260, y: 250 }
     preconditions: Existem colunas (UC01) e etapas públicas (UC02).
     mainFlow:
-      - Em Andamento público, o dono vê a lista das colunas, sem digitar nada.
-      - Escolhe, para cada coluna, a etapa pública em que ela cai.
-      - Salva o mapeamento.
+      - Em Colunas, o dono vê, em cada coluna, o que quem relatou vê quando o card está nela.
+      - Escolhe, para cada coluna, a etapa pública em que ela cai — é só ali que a ligação se escolhe.
+      - Cada escolha grava o mapa inteiro.
       - O sistema grava uma versão nova do mapa.
     alternativeFlows:
-      - title: 1a. Pela tela de Colunas
+      - title: 1a. Pelo Andamento público
         steps:
-          - Cada coluna diz o que quem relatou vê nela, e escolher ali grava o mapa inteiro — uma versão nova por escolha.
+          - A tela só lê o mapa — diz, em cada etapa, de quais colunas ela anda —, avisa a etapa em que nenhuma coluna cai, que nunca seria alcançada, e leva a Colunas para ligar.
       - title: 2a. Uma coluna fica sem etapa
         steps:
           - O relato que entra nessa coluna fica na etapa em que estava, o evento é gravado como não mapeado, e o dono é avisado. Nada vaza e nada quebra.
@@ -88,7 +90,7 @@ useCases:
       - Decide se existe nota ao confirmar, como ela aparece — estrelas ou número — e se é obrigatória.
       - Decide se o time pode pedir informação, e os dois prazos — o do aviso e o do encerramento.
       - Decide se o time pode arquivar relato — arquivar um relato aberto encerra junto, com o motivo que quem relatou lê.
-      - Salva — o botão aparece só com mudança.
+      - Salva — sem mudança, o botão fica desligado.
     alternativeFlows:
       - title: 3a. Não há agendador disponível
         steps:
@@ -105,9 +107,9 @@ useCases:
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
       - O dono abre Quem relata.
-      - Escolhe o modo — protocolo, que é o padrão; código pessoal; ou identidade herdada, que pode ser escolhida mas ainda não é lida — adiada, ver 04-reporting.
+      - Escolhe o modo — protocolo, que é o padrão; código pessoal; ou identidade do sistema do cliente, que pede a chave pública dele e tem a validade do crachá e a escolha "sem crachá" — ver 04-reporting.
       - Escolhe a visibilidade — privado, que é o padrão; público anônimo; ou público identificado.
-      - Decide se a ferramenta pergunta o nome de quem relata — sempre opcional para quem escreve.
+      - Em Formulário, decide se a ferramenta pergunta o nome de quem relata — sempre opcional para quem escreve.
       - Salva.
     alternativeFlows:
       - title: 3a. Público identificado sem identidade
@@ -124,7 +126,7 @@ useCases:
       - O dono abre Anexos.
       - Liga ou desliga o anexo.
       - Para imagem, escolhe quantas cabem em cada envio e o tamanho máximo de cada uma.
-      - Para arquivo — desligado de fábrica —, escolhe quantos, o tamanho máximo, e quais formatos do catálogo aceita — PDF, texto e log, planilha, documento, JSON. Zip não é aceito: pode trazer qualquer coisa dentro.
+      - "Para arquivo — desligado de fábrica —, escolhe quantos, o tamanho máximo, e quais formatos do catálogo aceita — PDF, texto e log, planilha, documento, JSON. Zip não é aceito: pode trazer qualquer coisa dentro."
       - Decide se aparece o botão de capturar uma área da página, e se dá para anexar respondendo ao time e ao reabrir.
       - Salva.
     alternativeFlows:
@@ -198,6 +200,63 @@ useCases:
         steps:
           - Nada é apagado. O quadro volta a mostrar tudo, e religar devolve a sprint em andamento como estava.
     postconditions: Cada sprint nasce com a duração escolhida, e começa no dia em que for iniciada.
+  - id: UC11
+    name: Definir os tipos de relato
+    description: "Os tipos que quem relata escolhe na ferramenta, com os nomes do time — são do projeto, como as prioridades. Cada tipo diz como o formulário pergunta — perguntas curtas, a caixa livre, ou as duas — e em que coluna o relato entra. O projeto nasce com Defeito, Melhoria e Dúvida."
+    width: 250
+    position: { x: 260, y: 1250 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Tipos de relato, que já vem com Defeito, Melhoria e Dúvida.
+      - Cria um tipo em "Novo tipo de relato", ou abre um que existe pelo "Editar".
+      - Dá o nome, e escolhe a cor e o desenho.
+      - Escreve até quatro perguntas curtas — acrescenta, tira e põe na ordem —, e/ou liga a caixa livre, com o texto que aparece dentro dela.
+      - Escolhe a coluna em que o relato daquele tipo entra, ou deixa a primeira coluna ativa, que é o padrão.
+      - Salva o tipo.
+      - Põe os tipos na ordem do formulário, arrastando ou pelas setas — a ordem vale na hora. O primeiro ativo é o que vem marcado na ferramenta, a menos que a tela Formulário escolha outro.
+      - Desativa o tipo que não serve mais.
+    alternativeFlows:
+      - title: 2a. O projeto já tem dez tipos ativos
+        steps:
+          - O sistema não cria outro, nem reativa um desativado, e diz para desativar um antes. Mais que isso, os botões do formulário deixam de ser escolha e viram lista para ler.
+      - title: 3a. O dono renomeia o tipo, ou muda as perguntas
+        steps:
+          - Os relatos que já entraram não mudam. Cada um guarda as perguntas como estavam no envio, e o registro da entrada guarda o nome da época; o card mostra o nome de agora.
+      - title: 6a. O nome já existe no projeto
+        steps:
+          - O sistema recusa, sem diferenciar maiúscula, e o tipo não é salvo.
+      - title: 6b. O tipo não pede nada
+        steps:
+          - Sem pergunta e sem caixa, o sistema recusa — o formulário não teria onde a pessoa escrever. A caixa ligada também pede o texto de dentro.
+      - title: 8a. É o último tipo ativo
+        steps:
+          - O sistema não desativa, porque a ferramenta precisa de ao menos um, e diz para criar ou reativar outro antes.
+      - title: 8b. O tipo desativado está em relatos
+        steps:
+          - Ele continua neles, marcado, e no filtro de tipo do Trabalho; sai da ferramenta. Reativar o devolve.
+    postconditions: "A ferramenta oferece os tipos ativos, na ordem, e cada um pergunta do seu jeito; o relato novo entra na coluna do seu tipo. Projeto que nunca abriu esta tela anda com os três de fábrica: Defeito, com três perguntas — o que tentou fazer, o que aconteceu, o que esperava —, e Melhoria e Dúvida, com a caixa livre."
+  - id: UC12
+    name: Ajustar os limites de relato
+    description: "Quantos relatos o projeto aceita em pouco tempo, por camada — a mesma pessoa, a mesma conexão (IP), o mesmo domínio e o projeto inteiro, na hora e no dia — e o intervalo mínimo entre dois. Fica em Domínios, na aba Proteção."
+    width: 250
+    position: { x: 260, y: 1540 }
+    preconditions: O dono está no painel, dentro do projeto.
+    mainFlow:
+      - O dono abre Domínios, na aba Proteção, que já vem com os limites de fábrica — 5 por pessoa a cada 10 minutos, 20 por IP por hora, 200 por domínio por hora, 300 por hora e 2000 por dia no projeto, e 30 segundos entre dois relatos.
+      - Lê o que acontece quando um limite é alcançado — a ferramenta confere sozinha, em um ou dois segundos; no dobro, os envios pausam por 15 minutos e o sino avisa.
+      - Muda os números que quer, vendo o de fábrica e o teto de cada um.
+      - Salva os limites, ou volta aos de fábrica.
+    alternativeFlows:
+      - title: 3a. Um número passa do teto do sistema
+        steps:
+          - O campo para no teto — dez vezes o de fábrica —, e o sistema recusa o que passar. Afrouxar é escolha do projeto; desligar a proteção, não.
+      - title: 3b. O limite do dia fica menor que o da hora
+        steps:
+          - O painel não salva, e diz que o do dia precisa ser pelo menos o da hora.
+      - title: 4a. Os envios de uma camada pausam
+        steps:
+          - 'O sino avisa quem administra, uma vez por pausa — "Muitos relatos vindos de loja.com: novos envios pausados por 15 min" —, e o aviso leva a esta seção.'
+    postconditions: "Vale no próximo relato. Quem relata dentro dos limites não percebe nada; passado um, vê \"Conferindo…\" por um ou dois segundos; no dobro, a ferramenta diz quando tentar de novo. As contagens ficam na memória do servidor, e nenhum IP é guardado."
 links:
   - from: Dono do projeto
     to: UC01
@@ -229,6 +288,12 @@ links:
   - from: Dono do projeto
     to: UC10
     kind: association
+  - from: Dono do projeto
+    to: UC11
+    kind: association
+  - from: Dono do projeto
+    to: UC12
+    kind: association
 notes:
   - text: "De cima para baixo é a ordem em que faz sentido configurar: sem colunas e etapas não há o que ligar, e o ciclo usa os dois. Mas nada aqui é obrigatório: o projeto novo já nasce com as três colunas, o andamento e o mapa entre eles."
     position: { x: 590, y: 10 }
@@ -241,3 +306,9 @@ notes:
   - text: "A decidir, junto com a retenção: o prazo, o teto e a cobrança. Por enquanto, nada é apagado por prazo — apagar um print no meio de um relato aberto seria a falha mais constrangedora possível."
     anchor: UC07
     position: { x: 590, y: 760 }
+  - text: "Uma caixa só, em branco, produz “não funciona”. Três perguntas curtas — o que tentou, o que aconteceu, o que esperava — produzem um relato que dá para reproduzir. Por isso a pergunta é do tipo: a certa para um defeito não é a certa para uma dúvida."
+    anchor: UC11
+    position: { x: 590, y: 1250 }
+  - text: "O limite por pessoa sozinho não segura: no modo protocolo não há quem identificar, e o código pessoal se troca à vontade. O que segura de verdade é o IP e o projeto — e o domínio, que a página declara, vem junto e não no lugar deles."
+    anchor: UC12
+    position: { x: 590, y: 1540 }

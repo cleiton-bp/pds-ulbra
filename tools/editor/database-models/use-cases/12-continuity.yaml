@@ -41,6 +41,13 @@ useCases:
       - O membro deixa o quadro aberto, conectado a uma delas.
       - Outra pessoa do time, conectada a outra instância, move um card.
       - O card aparece no lugar novo do mesmo jeito.
+  - id: UC11
+    name: Agrupar cards em épicos e automatizar o quadro
+    description: "Continuidade. O épico junta cards de um mesmo objetivo acima das subtarefas, com o progresso somado; a automação simples faz sozinha o que o time repete — mover, atribuir, etiquetar — quando algo acontece no card. A decidir: o que dispara e o que a regra pode fazer."
+    position: { x: 300, y: 300 }
+    mainFlow:
+      - O membro cria um épico e põe nele os cards do mesmo objetivo.
+      - Acompanha, no épico, quanto já foi feito.
   - id: UC04
     name: Ver relatórios do trabalho
     description: Planejado. Relatórios e gráficos do trabalho do time sobre os relatos.
@@ -57,7 +64,7 @@ useCases:
       - Envia junto do relato.
   - id: UC06
     name: Escolher um plano
-    description: Continuidade. Versão gratuita e versões pagas, com os limites como eixo — quantidade e tamanho de mídia, tempo de guarda. Por enquanto, tudo é gratuito.
+    description: Continuidade. Versão gratuita e versões pagas, com os limites como eixo — relatos por hora e por dia, quantidade e tamanho de mídia, tempo de guarda —, depois de validar com usuários reais. Por enquanto, tudo é gratuito, e cada projeto ajusta os próprios limites até um teto do sistema.
     position: { x: 289, y: -55 }
     mainFlow:
       - O dono compara os planos.
@@ -92,6 +99,9 @@ links:
     kind: association
   - from: Membro do time
     to: UC02
+    kind: association
+  - from: Membro do time
+    to: UC11
     kind: association
   - from: Membro do time
     to: UC04

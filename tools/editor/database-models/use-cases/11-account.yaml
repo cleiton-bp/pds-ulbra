@@ -28,8 +28,12 @@ useCases:
       - O sistema grava o convite e põe o e-mail na fila, sem esperar o envio.
       - O e-mail sai com o link, e a tela passa a mostrar "enviado".
     alternativeFlows:
-      - Se o e-mail não sai, a tela mostra que não saiu, o motivo vai para o log, e o administrador reenvia.
-      - Se o endereço já tem convite aberto, convidar de novo reenvia o mesmo, com prazo novo e o papel novo.
+      - title: 4a. O e-mail não sai
+        steps:
+          - A tela mostra que não saiu, o motivo vai para o log, e o administrador reenvia.
+      - title: 2a. O endereço já tem convite aberto
+        steps:
+          - Convidar de novo reenvia o mesmo, com prazo novo e o papel novo.
     postconditions: O convite fica aberto até a pessoa aceitar, até vencer — 7 dias, ajustável no projeto — ou até ser cancelado. Reenviar troca o link, e o anterior deixa de valer.
   - id: UC02
     name: Aceitar o convite
@@ -42,8 +46,12 @@ useCases:
       - Vê o projeto, quem convidou e o papel, e aceita.
       - Passa a ver o projeto no painel, agrupado pela conta dona.
     alternativeFlows:
-      - Com outra conta Google, a página mostra só uma pista do endereço convidado, e nada do projeto, e oferece trocar de conta.
-      - Vencido, cancelado ou trocado por um reenvio, o link não vale, e a página diz a quem pedir um novo.
+      - title: 2a. A pessoa entra com outra conta Google
+        steps:
+          - A página mostra só uma pista do endereço convidado, e nada do projeto, e oferece trocar de conta.
+      - title: 1a. O link venceu, foi cancelado ou trocado por um reenvio
+        steps:
+          - O link não vale, e a página diz a quem pedir um novo.
   - id: UC06
     name: Cuidar do time
     description: Ver quem está no projeto, mudar o papel de alguém ou tirar alguém do time. Todo o time vê a lista e pode sair dele; mudar os outros é do administrador.
