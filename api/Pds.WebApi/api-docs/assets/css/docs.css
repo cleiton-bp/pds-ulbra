@@ -167,7 +167,7 @@ li { margin-bottom: 5px; }
   font-size: 14.5px;
 }
 .note p:last-child { margin-bottom: 0; }
-.note strong:first-child { display: block; margin-bottom: 4px; }
+.note > strong:first-child { display: block; margin-bottom: 4px; }
 .note.why { border-left-color: var(--accent); }
 .note.warn { border-left-color: var(--warn); }
 .note.todo { border-left-color: var(--text-soft); color: var(--text-soft); }

@@ -16,8 +16,8 @@ variáveis reais do ambiente — que têm precedência sobre o arquivo quando as
 <div class="table-scroll">
 <table>
   <tr><th>Variável</th><th>Para quê</th></tr>
-  <tr><td><code>DB_CONNECTION_STRING</code></td><td>Conexão com o PostgreSQL.</td></tr>
-  <tr><td><code>JWT_SIGNING_KEY</code></td><td>Assinatura do token. <code>openssl rand -base64 48</code>.</td></tr>
+  <tr><td><code>DB_CONNECTION_STRING</code></td><td>Conexão com o PostgreSQL. A API acrescenta três ajustes, e <b>o que a variável disser vence</b>: o JIT do Postgres desligado; as consultas que se repetem preparadas (<code>Max Auto Prepare</code>, padrão 100 — <code>0</code> desliga, para um pooler em modo transação que não as aceite); e no máximo 20 conexões por instância (<code>Maximum Pool Size</code>). A conta de cada ambiente: instâncias × conexões, mais uma folga para a migração e o acesso manual, cabe no limite do plano do banco.</td></tr>
+  <tr><td><code>JWT_SIGNING_KEY</code></td><td>Assinatura do token. <code>openssl rand -base64 48</code>. Dela também sai, derivada, a chave que assina o bilhete do desafio dos limites de relato — trocá-la invalida os desafios em andamento, que a ferramenta pede de novo.</td></tr>
   <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token. Padrão <code>pds</code> e <code>pds.panel</code> — só quando a variável falta: estas duas, em branco, valem vazias. O bilhete do tempo real usa o mesmo destinatário com <code>.realtime</code> no fim (<code>pds.panel.realtime</code>).</td></tr>
   <tr><td><code>JWT_EXPIRATION_HOURS</code></td><td>Validade da sessão. Padrão 8.</td></tr>
   <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>ID do cliente OAuth. Ver abaixo.</td></tr>
@@ -34,7 +34,7 @@ variáveis reais do ambiente — que têm precedência sobre o arquivo quando as
   <tr><td><code>Smtp__Host</code>, <code>Smtp__Port</code>, <code>Smtp__Security</code>, <code>Smtp__FromAddress</code>…</td><td><b>Opcionais, e juntas.</b> O servidor de e-mail, lido como a seção <code>Smtp</code> — os dois sublinhados são o separador de seção do .NET —, e só das variáveis de ambiente. Sem nenhuma das quatro essenciais (<code>Smtp__Host</code>, <code>Smtp__FromAddress</code>, <code>Smtp__Username</code>, <code>Smtp__Password</code>) o e-mail fica indisponível; com parte delas, ou com senha sem TLS, a subida recusa, dizendo tudo o que falta. As chaves e os padrões estão em <a href="#/como-rodar/o-email">O e-mail</a>.</td></tr>
   <tr><td><code>PANEL_URL</code></td><td><b>Opcional.</b> O endereço do painel, que vai no link do convite: <code>http://localhost:5173</code> no desenvolvimento. Sem ela, a API sobe e não manda convite. Valor que não é um endereço <code>http</code> ou <code>https</code> completo, ou que traz <code>?</code> ou <code>#</code>, derruba a subida.</td></tr>
   <tr><td><code>INVITATION_EMAILS_PER_HOUR</code></td><td>Quantos convites cada projeto manda por hora, os novos e os reenviados somados. Padrão 20. O servidor de e-mail tem cota por dia, e sem teto um administrador — ou uma sessão roubada — gastaria a de todos em minutos.</td></tr>
-  <tr><td><code>TRUSTED_PROXIES</code></td><td>Os proxies cujo <code>X-Forwarded-For</code> vale, separados por vírgula: endereço (<code>10.0.0.5</code>) ou rede (<code>10.0.0.0/8</code>). Vazio, o cabeçalho é ignorado e o IP é o da conexão. Valor que não é endereço nem rede derruba a subida.</td></tr>
+  <tr><td><code>TRUSTED_PROXIES</code></td><td>Os proxies cujo <code>X-Forwarded-For</code> vale, separados por vírgula: endereço (<code>10.0.0.5</code>) ou rede (<code>10.0.0.0/8</code>). Vazio, o cabeçalho é ignorado e o IP é o da conexão. <strong>Atrás de um proxy é obrigatória</strong>: sem ela, todo pedido chega com o IP do proxy, e os limites por IP e os 30 s entre dois relatos passam a valer para o projeto inteiro. A API escreve um aviso no log, uma vez, quando chega <code>X-Forwarded-For</code> com a lista vazia. Valor que não é endereço nem rede derruba a subida.</td></tr>
 </table>
 </div>
 
@@ -80,8 +80,12 @@ pedido.</p>
   <p><code>CORS_ALLOWED_ORIGINS</code> tem nome de painel, mas a política é aplicada ao
   pipeline inteiro — inclusive às rotas <code>public/</code>. Quem chama aquelas rotas é a
   ferramenta de relato, servida da mesma origem do painel; servir o painel em outra porta faz
-  o envio do formulário falhar com "Falha de rede", sem erro nenhum do lado do servidor. Dar
-  política própria às rotas públicas é <strong>Planejado</strong>.</p>
+  o envio do formulário falhar com "Falha de rede", sem erro nenhum do lado do servidor. A
+  exceção é <code>GET /public/widget-launcher</code>, a única chamada da página do cliente, que
+  tem política própria: qualquer origem, só <code>GET</code>, sem credencial. Dar política própria
+  às outras rotas públicas é <strong>Planejado</strong>.</p>
+  <p>As origens desta lista, e a do <code>PANEL_URL</code>, são também o domínio do painel: o
+  relato de teste mandado de lá nunca fica retido esperando liberação.</p>
 </div>
 
 <div class="note warn">
