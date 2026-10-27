@@ -1,0 +1,133 @@
+<h2>Os tipos de relato</h2>
+<p class="lead">O que quem relata escolhe ao abrir a ferramenta, com as palavras do time — e, em cada tipo, como o formulário pergunta e em que coluna o relato entra.</p>
+
+<p>Os tipos são <strong>do projeto, como as prioridades</strong>. Todo projeto nasce com três de
+fábrica — <strong>Defeito</strong>, <strong>Melhoria</strong> e <strong>Dúvida</strong> —, e o
+administrador renomeia, troca a cor e o desenho, reordena, cria outros ou desativa. O membro lê: é
+da lista que sai o filtro de tipo da tela de Trabalho. No painel, é a tela <strong>Tipos de
+relato</strong>, a primeira da área O formulário, com a prévia do formulário.</p>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/report-types</code></td><td>Na ordem da ferramenta, com os desativados no lugar deles — é a mesma lista que a reordenação reescreve. <code>IsActive</code> separa um do outro; <code>InitialStatePublicId</code> nulo é a primeira coluna ativa.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/report-types</code></td><td><strong>Administrador.</strong> Cria, no fim da lista e ativo — e por isso conta no teto de dez ativos (409).</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../report-types/order</code></td><td><strong>Administrador.</strong> <code>Order</code>: todos, uma vez cada, inclusive os desativados — a lista que não bate é 400. O primeiro ativo é o pré-marcado da ferramenta quando ninguém escolheu outro.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../report-types/{typePublicId}</code></td><td><strong>Administrador.</strong> O tipo inteiro, de uma vez: nome, cor, desenho, perguntas, caixa e coluna. O que já chegou não muda.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../report-types/{typePublicId}/deactivate</code></td><td><strong>Administrador.</strong> Desativa: fica nos relatos que já o têm, marcado, e sai da ferramenta e do pré-marcado. Desativar o desativado não é erro. <strong>O último ativo não se desativa</strong> (409).</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>.../report-types/{typePublicId}/activate</code></td><td><strong>Administrador.</strong> Reativa, de volta à ferramenta. Com dez ativos, 409.</td></tr>
+</table>
+</div>
+
+<pre><code>POST /projects/2be49b28-.../report-types
+{ "Name": "Elogio", "Color": "Pink", "Icon": "Praise",
+  "Questions": [],
+  "ShowsTextBox": true, "TextBoxPrompt": "O que funcionou bem para você?",
+  "InitialStatePublicId": null }</code></pre>
+
+<pre><code>{
+  "Success": true,
+  "Message": "Tipo de relato criado.",
+  "Data": { "PublicId": "e7c1...", "Name": "Elogio", "Color": "Pink", "Icon": "Praise",
+            "Position": 3, "IsActive": true, "Questions": [],
+            "ShowsTextBox": true, "TextBoxPrompt": "O que funcionou bem para você?",
+            "InitialStatePublicId": null, "CreatedAt": "..." }
+}</code></pre>
+
+<div class="table-scroll">
+<table>
+  <tr><th>Campo</th><th>Regra</th></tr>
+  <tr><td><code>Name</code></td><td>Uma linha, até 40. Único no projeto sem diferenciar maiúscula, desativados inclusive (409) — por isso reativar nunca colide.</td></tr>
+  <tr><td><code>Color</code></td><td>A paleta fixa das prioridades e etiquetas: <code>Gray</code>, <code>Blue</code>, <code>Green</code>, <code>Yellow</code>, <code>Orange</code>, <code>Red</code>, <code>Purple</code>, <code>Pink</code>. Aparece só no painel.</td></tr>
+  <tr><td><code>Icon</code></td><td>O desenho, de uma lista fixa: <code>Bug</code>, <code>Improvement</code>, <code>Question</code>, <code>Idea</code>, <code>Praise</code>, <code>Other</code>. Aparece no botão da ferramenta e no card.</td></tr>
+  <tr><td><code>Questions</code></td><td>As perguntas curtas do formulário, na ordem: de zero a quatro, cada uma até 120, sem repetir. A que vem em branco é descartada; ausente é nenhuma.</td></tr>
+  <tr><td><code>ShowsTextBox</code></td><td>A caixa livre aparece, depois das perguntas. Obrigatório — e, sem pergunta nenhuma, tem de ser verdadeiro (400).</td></tr>
+  <tr><td><code>TextBoxPrompt</code></td><td>O texto cinza dentro da caixa, até 160. Obrigatório com a caixa ligada; com ela desligada, é guardado para voltar igual quando ela for ligada de novo, e não sai para a ferramenta.</td></tr>
+  <tr><td><code>InitialStatePublicId</code></td><td>A coluna em que o relato deste tipo entra — do projeto (404) e ativa (409) —, ou nulo: a primeira coluna ativa da fila.</td></tr>
+</table>
+</div>
+
+<p>Nome, cor, desenho e <code>ShowsTextBox</code> são exigidos (400): o campo anulável, aqui, não
+quer dizer "opcional" — é o que deixa a API ver a falta e recusar, em vez de gravar um
+<code>false</code> que ninguém escolheu. A gravação <strong>substitui</strong>, e não altera campo a
+campo, pelo mesmo motivo da configuração da ferramenta: <code>InitialStatePublicId</code> nulo é um
+valor — a primeira coluna ativa —, e num corpo parcial seria indistinguível de "não mexa na
+coluna".</p>
+
+<div class="note why">
+  <strong>O tipo diz como o formulário pergunta</strong>
+  <p>Uma caixa só, em branco, produz "não funciona". Três perguntas curtas — o que tentou, o que
+  aconteceu, o que esperava — produzem um relato que dá para reproduzir. Por isso cada tipo escolhe
+  as próprias perguntas, a caixa livre com a pergunta certa dentro, ou os dois — <strong>e nunca
+  nada</strong>: um tipo sem pergunta e sem caixa é recusado (400), e o banco tem a mesma regra
+  (<code>ck_project_report_types_asks_something</code>).</p>
+  <p>De fábrica, <strong>Defeito</strong> pergunta <em>"O que você tentou fazer?"</em>, <em>"O que
+  aconteceu?"</em> e <em>"O que você esperava que acontecesse?"</em>, sem caixa: é o relato que o
+  time precisa reproduzir. <strong>Melhoria</strong> e <strong>Dúvida</strong> são texto corrido de
+  quem escreve, e têm só a caixa — <em>"O que você gostaria que mudasse, e por quê?"</em> e
+  <em>"Qual é a sua dúvida?"</em>. Quem nunca abrir a tela recebe relatos com esses três.</p>
+  <p>Até quatro perguntas porque quatro respostas curtas ainda cabem no quadro sem rolar; uma
+  quinta vira questionário. O que quem relata manda de volta está em
+  <a href="#/endpoints/rotas-publicas">Rotas públicas</a>.</p>
+</div>
+
+<div class="note warn">
+  <strong>Tipo não se apaga, se desativa — e fica sempre ao menos um</strong>
+  <p>Como a prioridade: relato antigo aponta para o tipo, e o card precisa continuar dizendo o que
+  ele é. Desativado, o tipo continua nos relatos que o têm — o card o mostra com
+  <code>IsActive</code> falso —, sai da ferramenta, e o pré-marcado que era ele cai no primeiro
+  ativo. O filtro de tipo da tela de Trabalho continua aceitando o desativado.</p>
+  <p><strong>O último ativo não se desativa</strong> (409): a ferramenta ficaria sem tipo para
+  oferecer, e o relato sem como entrar — e quem descobriria seria quem relata, no site do cliente.
+  <strong>E cabem dez ativos</strong>: os tipos viram botões lado a lado num quadro de 360 pixels, e
+  passar disso deixa de ser escolha e vira lista para ler. Criar o décimo primeiro, ou reativar com
+  dez ativos, é 409, com a saída na mensagem: desative um antes.</p>
+</div>
+
+<div class="note why">
+  <strong>Mudar o tipo não reescreve o que já chegou</strong>
+  <p><strong>Renomear muda o que o card mostra</strong>, como na prioridade: o card diz o que o
+  relato é hoje. O que ele era quando chegou fica no evento da entrada, que guarda o identificador
+  do tipo e o nome da época (<code>type_id</code> e <code>type_name</code>).</p>
+  <p><strong>Mudar as perguntas não mexe nos relatos que já chegaram</strong>: cada um guarda as
+  perguntas como estavam no envio, junto das respostas. E <strong>trocar a coluna</strong> vale
+  para o próximo relato — os que entraram ficam onde estão.</p>
+</div>
+
+<div class="note why">
+  <strong>A coluna de entrada mora no tipo</strong>
+  <p>Cada tipo escolhe em que coluna o relato dele entra, ou fica no padrão — a primeira coluna
+  ativa, que num projeto novo é <strong>A fazer</strong>. Os três de fábrica não escolhem: o caminho
+  "ninguém configurou" é o caminho comum, exercitado por todo projeto novo.</p>
+  <p><strong>Aposentar a coluna que é entrada de algum tipo é recusado</strong> (409) até o tipo
+  apontar para outra — e os desativados contam, porque reativá-los traria o problema de volta. A
+  regra mora no serviço, e a chave estrangeira <code>Restrict</code> é a rede embaixo dela. Ver
+  <a href="#/endpoints/fila-e-jornada">A fila e a jornada</a>.</p>
+  <p>Os projetos que já existiam ganharam os três de fábrica na migração, com cada relato apontando
+  para o seu e a coluna que o projeto tinha escolhido para cada tipo passando para o tipo.</p>
+</div>
+
+<h3>Onde os tipos aparecem</h3>
+
+<ul>
+  <li><strong>Na ferramenta</strong>: <code>GET /public/widget-settings</code> traz os ativos, na
+  ordem, em <code>Types</code> — cada um com as perguntas, a caixa e o texto dela, e <strong>sem a
+  cor</strong>: a ferramenta se pinta com o acento do cliente, e uma cor por botão brigaria com ele.
+  <code>DefaultReportType</code> é o identificador de um deles. Ver
+  <a href="#/endpoints/rotas-publicas">Rotas públicas</a>.</li>
+  <li><strong>No relato que chega</strong>: <code>POST /public/reports</code> manda
+  <code>TypeId</code>, uma resposta por pergunta (<code>Answers</code>) e a caixa
+  (<code>Text</code>).</li>
+  <li><strong>No card</strong>: <code>Type</code> é um objeto — <code>PublicId</code>,
+  <code>Name</code>, <code>Color</code>, <code>Icon</code> e <code>IsActive</code> —, nulo no card do
+  time; o card aberto traz também <code>Answers</code>. Ver
+  <a href="#/endpoints/relatos-no-painel">Relatos e cards, no painel</a>.</li>
+  <li><strong>No filtro</strong>: <code>type=</code> aceita o identificador de um tipo, desativado
+  inclusive, ou <code>team</code>. Ver <a href="#/fluxo/filtros-e-busca">Filtros e busca</a>.</li>
+  <li><strong>Do lado de fora</strong>: o acompanhamento, a lista pessoal e a lista pública trazem
+  só o nome (<code>TypeName</code>), como o projeto o chama agora.</li>
+</ul>
+
+<p>Criar, gravar, reordenar, desativar e reativar avisam o tempo real do projeto, como as
+prioridades: a tela de Trabalho dos outros lê de novo o filtro de tipo e o desenho de cada card.
+Ver <a href="#/fluxo/tempo-real">O tempo real</a>.</p>

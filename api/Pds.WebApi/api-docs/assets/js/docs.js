@@ -49,6 +49,7 @@
       { id: 'o-time',            label: 'O time e o convite' },
       { id: 'fila-e-jornada',    label: 'A fila e a jornada' },
       { id: 'configuracoes',     label: 'Configurações do projeto' },
+      { id: 'tipos-de-relato',   label: 'Tipos de relato' },
       { id: 'relatos-no-painel', label: 'Relatos e cards, no painel' },
       { id: 'campos-do-card',    label: 'Campos do card, prioridades e etiquetas' },
       { id: 'sprints',           label: 'Sprints' },

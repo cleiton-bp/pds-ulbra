@@ -1,25 +1,29 @@
-<h2>As cinquenta e duas consultas que atravessam o filtro</h2>
+<h2>As cinquenta e nove consultas que atravessam o filtro</h2>
 
-<p>São exatamente cinquenta e duas em todo o sistema, todas propositais, e <strong>trinta e uma
+<p>São exatamente cinquenta e nove em todo o sistema, todas propositais, e <strong>trinta e sete
 têm a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão a lista de projetos
 da requisição é vazia — o filtro que protege o painel devolveria vazio para o próprio dono.
-Quarenta e seis moram em repositório, cada uma num método, e nenhuma em serviço; duas são as
-leituras que montam o acesso, no <code>AccountMiddleware</code>; e quatro são as do aviso em tempo
+Cinquenta e seis moram em repositório, cada uma num método, e nenhuma em serviço; uma é a
+leitura que monta o acesso, no <code>AccountMiddleware</code>; e duas são as do aviso em tempo
 real, no <code>HubWorkNotifier</code>. Nove vêm do consumidor da fila, onde nunca houve requisição.
-Cinco atravessam com sessão — três no painel, duas no convite. E três servem os três caminhos ao
+Oito atravessam com sessão — seis no painel, duas no convite. E três servem os três caminhos ao
 mesmo tempo — a página de acompanhamento, a fila e o painel —: as dos vínculos e a das subtarefas
 que voltam do arquivo. As do aviso estão no fim da página.</p>
 
 <p>A contagem é por <strong>método público</strong> de repositório, porque é o método que alguém
 chama — e, no middleware e no aviso, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são
-quarenta e nove: as duas do middleware, as quatro do aviso e quarenta e três em repositório, das quais duas moram em auxiliares
+sessenta e três: as quatro do aviso e cinquenta e nove em repositório — o middleware não chama nenhuma: monta o acesso num SQL escrito à mão, que não passa pelo filtro —, das quais duas moram em auxiliares
 privados — <code>Confirmados</code>, em <code>ReportAttachmentRepository</code>, e
 <code>Reabertos</code>, em <code>ReportClosureRepository</code> —, uma em cada, e os dois servem
-cinco métodos públicos entre eles. O auxiliar existe para as condições reescritas à mão morarem
+cinco métodos públicos entre eles; cinco num método só, o que apaga de vez
+(<code>Reports.PurgeAsync</code>, nas seis do painel); e duas em cada um de outros dois —
+<code>Reports.AnyHeldFromOriginWithoutSessionAsync</code>, uma por ramo (com e sem endereço), e
+<code>ProjectMembers.ListAdministratorsWithoutSessionAsync</code>, os donos da conta e o time. O auxiliar existe para as condições reescritas à mão morarem
 num lugar só; contar as chamadas esconderia quantas portas passam por ele.</p>
 
-<p>As seis do código pessoal e das listas públicas vêm de três lugares. Duas leem o código pessoal
-(<code>ReporterCodes.FindByCodeWithoutSessionAsync</code> e <code>ReporterCodes.ExistsAsync</code>), duas
+<p>As sete do código pessoal, da identidade herdada e das listas públicas vêm de três lugares. Três leem quem relata:
+o código pessoal (<code>ReporterCodes.FindByCodeWithoutSessionAsync</code> e <code>ReporterCodes.ExistsAsync</code>) e a pessoa do
+sistema do cliente, pelo hash do crachá (<code>ReporterCodes.FindBySubjectHashWithoutSessionAsync</code>); duas
 montam listas que a ferramenta mostra sem ninguém logado
 (<code>Reports.ListByReporterCodeWithoutSessionAsync</code> e
 <code>Reports.ListPublishedWithoutSessionAsync</code>), e duas servem essas listas:
@@ -93,7 +97,7 @@ fim da página —, e vale ler o porquê.</p>
   <code>ReportInfoRequests.ListOverdueWithoutSessionAsync</code> são chamadas pelo consumidor da
   fila. Ali não há sessão a perder, porque <strong>nunca houve requisição</strong>: o que acordou
   o código foi um prazo vencendo.</p>
-  <p>A diferença importa na hora de julgar o risco. Trinta e uma das outras são atravessadas por
+  <p>A diferença importa na hora de julgar o risco. Trinta e cinco das outras são atravessadas por
   quem apresenta uma credencial — a chave pública, o protocolo e o token, ou o código pessoal —,
   e o que protege a resposta é a credencial, não o filtro. Estas três não devolvem nada a ninguém: o resultado vai
   para dentro da própria aplicação, que grava e não responde. <strong>Não há resposta HTTP em que
@@ -110,14 +114,27 @@ funcionaria hoje e seria o vazamento de amanhã — bastaria alguém acrescentar
 e esquecer de atualizar o filtro para comentário interno sair para quem não é do time, sem erro
 em lugar nenhum. Com o recorte na consulta, tipo novo nasce invisível para fora.</p>
 
-<p>Quatro delas atendem o momento em que o relato <strong>entra</strong>. Duas decidem onde ele
-cai na fila: a escolha do cliente para aquele tipo, e o primeiro estado ativo como padrão. As
-outras duas decidem em que passo da jornada ele aparece para quem o escreveu — o mapa da versão
-que vale, e a jornada do projeto.</p>
+<p>Quatro delas atendem o momento em que o relato <strong>entra</strong>. Duas decidem que tipo
+ele é e onde cai na fila: o tipo escolhido
+(<code>ProjectReportTypes.FindByPublicIdWithoutSessionAsync</code>) — que tem de ser do projeto e
+estar ativo, e traz a coluna de entrada dele —, e o primeiro estado ativo como padrão. As outras
+duas decidem em que passo da jornada ele aparece para quem o escreveu — o mapa da versão que vale,
+e a jornada do projeto.</p>
 
-<p>Se qualquer uma respeitasse o filtro, a consulta voltaria vazia e o efeito seria mudo: o
-relato cairia no estado padrão e não apareceria em jornada nenhuma, como se o cliente não
-tivesse configurado nada. Sem erro em lugar nenhum.</p>
+<p>Mais três servem os limites e a retenção, na mesma entrada:
+<code>ProjectReportLimits.FindByProjectWithoutSessionAsync</code> — os limites de relato do
+projeto, sem os quais valeriam os de fábrica mesmo para quem mudou —,
+<code>Reports.AnyHeldFromOriginWithoutSessionAsync</code> — se já há relato retido daquele
+endereço, que é o que faz o sino avisar uma vez por endereço novo, e não a cada relato — e
+<code>ProjectMembers.ListAdministratorsWithoutSessionAsync</code> — quem administra o projeto, para
+o aviso do endereço novo e o da pausa por excesso. Esta última repete a regra que o
+<code>AccountMiddleware</code> usa para montar o acesso: a conta dona administra todos os projetos
+dela, e o time soma quem foi feito administrador.</p>
+
+<p>Se qualquer uma respeitasse o filtro, a consulta voltaria vazia, sem erro que apontasse a
+causa: o tipo escolhido seria recusado como se tivesse sido desativado, e com ele todo relato; e as
+outras três fariam o relato cair no estado padrão e não aparecer em jornada nenhuma, como se o
+cliente não tivesse configurado nada.</p>
 
 <p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
 momento o projeto ainda não é conhecido, e é justamente a chave pública que vai revelá-lo. Com o
@@ -167,11 +184,23 @@ apresenta só a chave pública:</p>
         s.DeletedAt == null &amp;&amp;                  o.DeletedAt == null &amp;&amp;
         s.Project.DeletedAt == null);           o.Project.DeletedAt == null)</code></pre>
 
-<p>As duas repetem à mão as condições que o filtro dava — e a da lista de endereços tem uma
-consequência que as outras não têm: <strong>se ela voltasse vazia, autorizaria tudo.</strong>
-Lista vazia significa "este projeto não restringe endereço", então esquecer o
-<code>IgnoreQueryFilters</code> aqui não fecharia a porta, e sim abriria — a conferência passaria
-a autorizar justamente quem ela existe para barrar, sem erro em lugar nenhum.</p>
+<p>Junto da configuração vêm os <strong>tipos de relato</strong> do projeto — os botões e as
+perguntas do formulário —, lidos sem sessão pelo mesmo motivo
+(<code>ProjectReportTypes.ListByProjectWithoutSessionAsync</code>): com o filtro, a lista voltaria
+vazia e o quadro abriria sem ter o que perguntar. A ordem é a mesma da lista do painel, com o
+mesmo desempate, porque a ferramenta e o painel precisam concordar sobre qual é o primeiro — é ele
+o pré-marcado quando ninguém escolheu outro.</p>
+
+<p>Ao lado da lista de autorizados vem a de <strong>bloqueados</strong>
+(<code>ProjectBlockedOrigins.ListByProjectWithoutSessionAsync</code>), lida pelas mesmas rotas e
+antes dela, com as mesmas condições reescritas à mão. Com o filtro, ela voltaria vazia — e a lista
+de bloqueados vazia deixa passar justamente quem foi bloqueado, sem erro em lugar nenhum.</p>
+
+<p>As três repetem à mão as condições que o filtro dava — e a da lista de endereços tem uma
+consequência que as outras não têm: <strong>se ela voltasse vazia, todo relato ficaria
+retido</strong> — inclusive o do site que o cliente autorizou —, porque fora da lista o relato
+espera liberação. Esquecer o <code>IgnoreQueryFilters</code> aqui não daria erro em lugar nenhum:
+o Trabalho só pararia de receber relatos, e o sino perguntaria pelo próprio site do cliente.</p>
 
 <p><strong>A quinta</strong> busca o relato pelo protocolo, para a página pública de
 acompanhamento:</p>
@@ -225,40 +254,41 @@ mensagem da fila sobre um relato que existe — e partem de um card já resolvid
 procura pelo que alguém de fora escolheu. As condições do filtro vêm reescritas à mão, menos a do
 acesso: a exclusão lógica do vínculo e dos cards.</p>
 
-<h3>As três do painel</h3>
+<h3>As seis do painel</h3>
 
-<p>Três atravessam o filtro <strong>com sessão</strong>, e não por falta dela: há duas perguntas
-que a lista de projetos da requisição não sabe responder — qual é a própria lista, e se um nome
-já existe na conta inteira.</p>
+<p>Seis atravessam o filtro <strong>com sessão</strong>, e não por falta dela: há quatro perguntas
+que o filtro não deixa responder — qual é a própria lista de projetos, se um nome já existe na
+conta inteira, o que ainda segura um card que vai ser apagado de vez, e quais relatos estão
+retidos, que o próprio filtro esconde de todo o resto do painel —, e uma gravação que vai pelos
+identificadores que o filtro já escolheu.</p>
 
-<p><strong>As duas que montam o acesso</strong> moram no <code>AccountMiddleware</code>, e não em
-repositório. O filtro depende justamente da lista que elas montam: enquanto ela está vazia, ele
-não devolveria nada. A primeira traz os projetos da conta própria, em que a pessoa é dona; a
-segunda, as linhas dela em <code>project_members</code>, fora da conta própria — se a dona também
-tiver linha no time de um projeto dela, vale o acesso de dona.</p>
+<p><strong>A primeira monta o acesso</strong>, no <code>AccountMiddleware</code>, e não em
+repositório. O filtro depende justamente da lista que ela monta: enquanto ela está vazia, ele
+não devolveria nada. É uma leitura só, escrita à mão — e SQL escrito à mão não passa pelo filtro:
+a pessoa, os projetos da conta própria, em que ela é dona, e as linhas dela em
+<code>project_members</code>, fora da conta própria. Se a dona também tiver linha no time de um
+projeto dela, vale o acesso de dona.</p>
 
-<pre><code>dataContext.Projects
-    .TagWith(AccessQueryTag)
-    .IgnoreQueryFilters()
-    .Where(project =&gt;
-        project.DeletedAt == null &amp;&amp;
-        project.AccountId == accountId)
+<pre><code>WITH pessoa AS (
+    SELECT u.id, u.account_id, a.public_id AS account_public_id
+    FROM users AS u
+    JOIN accounts AS a ON a.id = u.account_id AND a.deleted_at IS NULL
+    WHERE u.public_id = @uid AND u.deleted_at IS NULL
+)
+SELECT ... FROM pessoa
+LEFT JOIN projects AS p ON p.account_id = pessoa.account_id AND p.deleted_at IS NULL
+UNION ALL
+SELECT ... FROM pessoa
+JOIN project_members AS m ON m.user_id = pessoa.id AND m.deleted_at IS NULL
+JOIN projects AS p ON p.id = m.project_id AND p.deleted_at IS NULL AND p.account_id &lt;&gt; pessoa.account_id
+JOIN accounts AS dona ON dona.id = p.account_id AND dona.deleted_at IS NULL</code></pre>
 
-dataContext.ProjectMembers
-    .TagWith(AccessQueryTag)
-    .IgnoreQueryFilters()
-    .Where(member =&gt;
-        member.DeletedAt == null &amp;&amp;
-        member.UserId == userId &amp;&amp;
-        member.Project.DeletedAt == null &amp;&amp;
-        member.Project.Account.DeletedAt == null &amp;&amp;
-        member.Project.AccountId != accountId)</code></pre>
-
-<p>As duas reescrevem à mão a exclusão lógica — a segunda, da linha, do projeto e da conta dona:
+<p>Ela reescreve à mão a exclusão lógica — da pessoa, da conta, do projeto e da linha do time:
 conta apagada leva os projetos junto, e conferir ali não depende de a exclusão ter
-cascateado.</p>
+cascateado. A pessoa vem antes, numa parte só, e as duas listas partem dela: o banco procura a
+pessoa uma vez, e a lista do time começa pelas linhas dela.</p>
 
-<p><strong>A terceira é a conferência de nome repetido</strong>, em
+<p><strong>A segunda é a conferência de nome repetido</strong>, em
 <code>Projects.NameExistsAsync</code>. O nome é único na conta inteira, e quem está no time de um
 projeto de outra conta não enxerga os projetos vizinhos: com o filtro ligado, o nome repetido
 passaria pela conferência e só pararia no índice único do banco, como erro não previsto — e só
@@ -272,9 +302,33 @@ projeto, ao renomear — e a consulta reescreve à mão a exclusão lógica.</p>
   quem já administra um projeto daquela conta — renomear é de administrador.</p>
 </div>
 
-<p>As três levam uma marca no SQL, pelo <code>TagWith</code>:
-<code>-- montagem do acesso da requisicao</code> nas duas do middleware, e
-<code>-- conferencia de nome repetido na conta</code> na terceira. No log, é o que as separa das
+<p><strong>A terceira é o apagar de vez</strong> dos cards de origem bloqueada, em
+<code>Reports.PurgeAsync</code> — um método, cinco chamadas: as subtarefas, os anexos (para os
+arquivos saírem do armazenamento depois), os avisos do sino, os vínculos e, por fim, os próprios
+cards. Aqui o filtro esconderia <strong>o que ainda segura a chave estrangeira</strong>: a subtarefa
+apagada logicamente, o vínculo desfeito, o anexo descartado continuam apontando para o card, e o
+<code>DELETE</code> seria recusado por eles. O projeto vem escrito à mão em cada uma, e só roda
+depois de o serviço achar os cards marcados <strong>com</strong> o filtro ligado — nada ali procura
+pelo que alguém de fora escolheu.</p>
+
+<p><strong>A quarta e a quinta são os relatos retidos</strong> — os que chegaram de um endereço
+fora da lista de autorizados. O filtro do relato os esconde (<code>held_for_origin_at IS
+NULL</code>), e é isso que os tira de lista, quadro, contagem, busca e aviso sem cada consulta
+lembrar. Quem precisa deles atravessa: <code>Reports.TallyHeldOriginsAsync</code> conta por endereço
+para "Aguardando liberação", e <code>Reports.ListHeldAsync</code> traz os de um endereço para liberar
+(permitir o endereço) ou apagar de vez (bloqueá-lo). As duas reescrevem à mão o projeto, a exclusão
+lógica e a retenção, e só rodam depois de o serviço achar o projeto <strong>com</strong> o filtro
+ligado.</p>
+
+<p><strong>A sexta é marcar todos os avisos como lidos</strong>, em
+<code>Notifications.MarkAllReadAsync</code>. A leitura é pelo filtro: o aviso de um projeto que a
+pessoa não enxerga mais fica como estava. A gravação vai num <code>UPDATE</code> só, pelos
+identificadores que essa leitura escolheu — e é ela que atravessa, porque o aviso sem card junta o
+relato de forma opcional, e o <code>UPDATE</code> em lote não traduz essa junção.</p>
+
+<p>As duas primeiras levam uma marca no SQL, pelo <code>TagWith</code>:
+<code>-- montagem do acesso da requisicao</code> na do middleware, e
+<code>-- conferencia de nome repetido na conta</code> na segunda. No log, é o que as separa das
 leituras de painel que nunca deveriam desligar o filtro.</p>
 
 <h3>As oito do convite</h3>
@@ -331,25 +385,23 @@ projeto, a dele também — e levam marca no SQL: <code>-- envio do e-mail do co
 seis da fila, <code>-- convite aberto pelo link</code> e <code>-- conferencia de quem aceita um
 convite</code> nas duas do link.</p>
 
-<h3>As quatro do aviso em tempo real</h3>
+<h3>As duas do aviso em tempo real</h3>
 
 <p>O aviso de que algo mudou na tela de Trabalho sai de qualquer lugar que muda um card — e nem
 sempre há sessão: <strong>quem relatou responde sem sessão, e a fila também muda cards</strong>. Com
 a sessão, também não serviria: o aviso vai para o time do projeto, e não para quem fez a mudança,
-cuja lista de projetos não responde quem mais está ali. Por isso as quatro leituras moram no
+cuja lista de projetos não responde quem mais está ali. Por isso as duas leituras moram no
 <code>HubWorkNotifier</code>, e não em repositório:</p>
 
 <ul>
   <li><strong>O card</strong>: de qual projeto ele é, em qual coluna está e se foi para o arquivo —
   com o card e o projeto não apagados.</li>
-  <li><strong>O projeto</strong>: o identificador interno e a conta dona — com o projeto e a conta
-  não apagados.</li>
-  <li><strong>Os donos da conta</strong>: os usuários da conta, não apagados.</li>
-  <li><strong>O time</strong>: as linhas de <code>project_members</code> do projeto, com a linha e o
-  usuário não apagados.</li>
+  <li><strong>O time</strong>: numa consulta só, que parte do projeto — com o projeto e a conta não
+  apagados —, os donos da conta e as linhas de <code>project_members</code>, juntos (<code>UNION</code>),
+  com a linha e o usuário não apagados. É lida uma vez por pedido, no primeiro aviso dele.</li>
 </ul>
 
-<p>As quatro reescrevem à mão a exclusão lógica e levam a marca <code>-- aviso em tempo real</code>
+<p>As duas reescrevem à mão a exclusão lógica e levam a marca <code>-- aviso em tempo real</code>
 no SQL. Nenhuma devolve dado do card: o que sai delas são identificadores — o do card, o da coluna,
 os das pessoas —, e o aviso leva só os do card e da coluna. Ver <a href="#/fluxo/tempo-real">O tempo
 real</a>.</p>

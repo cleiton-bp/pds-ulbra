@@ -1,16 +1,39 @@
 <h2>Identidade e visibilidade</h2>
 <p class="lead">Como quem relata é reconhecido, quem pode ver os relatos, e a fila de moderação por onde todo relato passa.</p>
 
-<p>O projeto escolhe <strong>como quem relata é reconhecido</strong>: por protocolo, que é o
-comportamento de sempre, ou por um <strong>código pessoal</strong> que o sistema sorteia e a
-pessoa guarda — digitado num navegador qualquer, ele reencontra tudo que ela já relatou, sem login
-nenhum. A identidade herdada do sistema do cliente existe na configuração e é
-<strong>Adiado</strong>: nada a lê, e a tela diz isso.</p>
+<p>O projeto escolhe <strong>como quem relata é reconhecido</strong>, entre três modos. Por
+protocolo, que é o comportamento de sempre. Por um <strong>código pessoal</strong> que o sistema
+sorteia e a pessoa guarda — digitado num navegador qualquer, ele reencontra tudo que ela já relatou,
+sem login nenhum. Ou pela <strong>identidade do sistema do cliente</strong>: a pessoa já entrou na
+conta do site onde a ferramenta está, e é o servidor dele que diz quem ela é — ela não digita nem
+guarda nada.</p>
+
+<p>Nesse modo, o servidor do cliente assina um <strong>crachá</strong> — um JWT ES256 dedicado,
+nunca o token de login — e o coloca no atributo <code>data-identity</code> do script do carregador,
+ao lado de <code>data-key</code>; quem não está na conta fica sem o atributo. A API confere a
+assinatura com a <strong>chave pública ECDSA P-256</strong> que o cliente cola na tela Quem relata,
+e <strong>nunca chama o sistema dele</strong>: a chave privada não sai do servidor do cliente, e um
+vazamento do nosso banco não deixa forjar identidade nenhuma, nem por nós. O crachá vale para um
+projeto só — o <code>aud</code> é a chave pública — e por pouco tempo, até a validade máxima que o
+projeto define, 15 minutos de fábrica: um crachá que vale por horas seria um token de login
+disfarçado.</p>
+
+<p>Da pessoa, guarda-se <strong>só um hash</strong> do <code>sub</code>, com um sal próprio do
+projeto, na mesma tabela <code>reporter_codes</code> do código pessoal, numa linha que nasce no
+primeiro relato dela — a lista dela funciona igual, e quem abre o banco não descobre quem ela é no
+sistema do cliente. O projeto também decide o que fazer com o relato <strong>sem crachá</strong>:
+de fábrica ele entra como protocolo, sem identidade, e a resposta diz isso; com a exigência ligada,
+é recusado, e a ferramenta pede para entrar na conta antes de a pessoa escrever. Fora do modo, o
+crachá é <strong>ignorado</strong>, e não recusado como o código pessoal é: o código é digitado
+pela pessoa, mas o atributo pode ter ficado na página depois de o projeto trocar de modo, e
+recusá-lo derrubaria todo relato daquele site por uma configuração antiga.</p>
 
 <p>É essa escolha que decide o que a <strong>visibilidade</strong> pode ser: privado, público
-anônimo ou público identificado — e o último só onde existe identidade, porque sem ela não há nome
-nenhum a mostrar. Os dois campos vivem na mesma tela — <strong>Quem relata</strong> — e são
-gravados juntos, para a tela não oferecer uma combinação que a regra não permite.</p>
+anônimo ou público identificado — e o último só onde existe identidade, pelo código pessoal ou
+pelo sistema do cliente, porque sem ela não há nome nenhum a mostrar. Os dois campos vivem na
+mesma tela — <strong>Quem relata</strong> — e são gravados juntos, para a tela não oferecer uma
+combinação que a regra não permite. Perguntar o nome fica em <strong>Formulário</strong>, junto do
+texto da pergunta.</p>
 
 <p><strong>Gravar público não publica nada.</strong> Todo relato nasce pendente — inclusive em
 projeto privado — e só aparece na lista pública depois de alguém do time liberar. É isso que faz
@@ -33,10 +56,9 @@ não na gravação: melhorar um padrão amanhã reavalia o que ainda espera deci
 <strong>três travas</strong> abertas ao mesmo tempo: o projeto pergunta o nome, está em público
 identificado, e a pessoa escolheu assinar aquele relato.</p>
 
-<p>Pelo código pessoal, quem relatou <strong>lê e não age</strong>: abre o relato e vê o que mandou,
-inclusive os arquivos, mas confirmar, reabrir, responder e anexar continuam pedindo o link. O código
-prova que o relato é dela; o link é que dá poder sobre ele. Por isso
+<p>Pelo código pessoal e pelo crachá, quem relatou <strong>lê e não age</strong>: abre o relato e vê
+o que mandou, inclusive os arquivos, mas confirmar, reabrir, responder e anexar continuam pedindo o
+link. O código ou o crachá prova que o relato é dela; o link é que dá poder sobre ele. Por isso
 <code>tracking_code_can_act</code> — se quem chega pelo código também age — fica gravado,
 <strong>escondido na tela de Ciclo</strong>, e a API o ignora enquanto essas ações aceitarem só o
-link. Fazê-las
-aceitar o código é <strong>Adiado</strong>.</p>
+link. Fazê-las aceitar o código ou o crachá é <strong>Adiado</strong>.</p>

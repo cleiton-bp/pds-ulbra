@@ -29,7 +29,12 @@ contas em que a pessoa estiver vêm na lista de projetos, cada um com a sua.</p>
 <pre><code>POST /projects
 Authorization: Bearer &lt;AccessToken&gt;
 
-{ "Name": "Loja Online" }</code></pre>
+{ "Name": "Loja Online", "Template": "SimpleBoard" }</code></pre>
+
+<p>O painel pede o nome e <strong>como o time trabalha</strong>: quatro modelos, cada um com as
+colunas escritas, e o <strong>Quadro simples</strong> já marcado — quem só digita o nome e confirma
+recebe o projeto de sempre. <code>Template</code> é opcional, e sem ele vale
+<code>SimpleBoard</code>.</p>
 
 <p>A resposta traz o projeto e a chave pública:</p>
 
@@ -50,21 +55,39 @@ nada entra:</p>
 
 <ul>
   <li><strong>a chave pública</strong>, que vai no script do site;</li>
-  <li><strong>as colunas A fazer, Fazendo e Feito</strong>, nessa ordem. Feito, a última, é a que
-  encerra o relato, pela regra de fábrica do ciclo;</li>
-  <li><strong>o andamento público de fábrica, já ligado às colunas</strong>: A fazer → Recebido,
-  Fazendo → Em desenvolvimento, Feito → Concluído. É a versão 1 do mapa, como se alguém tivesse
-  salvo a tela — a próxima gravação vira a versão 2;</li>
-  <li><strong>as prioridades de fábrica</strong>: Baixa, Média, Alta e Urgente.</li>
+  <li><strong>as colunas do modelo</strong>, na ordem. A última é a que encerra o relato, pela regra
+  de fábrica do ciclo;</li>
+  <li><strong>o andamento público do modelo, já ligado às colunas</strong>. É a versão 1 do mapa,
+  como se alguém tivesse salvo a tela — a próxima gravação vira a versão 2;</li>
+  <li><strong>os tipos de relato do modelo</strong>, cada um com a coluna em que entra;</li>
+  <li><strong>as prioridades de fábrica</strong>, em todo modelo: Baixa, Média, Alta e Urgente.</li>
 </ul>
 
+<div class="table-scroll">
+<table>
+  <tr><th>Modelo</th><th>O que traz</th></tr>
+  <tr><td><strong>Quadro simples</strong><br><code>SimpleBoard</code></td><td>A fazer → Recebido, Fazendo → Em desenvolvimento, Feito → Concluído, com a jornada de fábrica de cinco etapas. Os tipos de fábrica: Defeito, que pergunta o que a pessoa tentou fazer, o que aconteceu e o que esperava; Melhoria e Dúvida, cada um com a caixa livre e a pergunta certa dentro. Nenhum escolhe coluna: o relato entra em A fazer, a primeira ativa.</td></tr>
+  <tr><td><strong>Suporte</strong><br><code>Support</code></td><td>Novo → Recebido, Em atendimento → Em atendimento, Aguardando quem relatou → Esperando você, Resolvido → Resolvido. A jornada é de atendimento: Em atendimento aceita que a jornada volte para ela — o card volta da espera quando quem relatou responde, e sem a marca a volta seria uma regressão —, Esperando você é a vez de quem relatou, e Resolvido é o fim, com o desfecho "foi feito". Tipos Problema (três perguntas), Dúvida e Pedido (caixa livre), todos entrando em Novo.</td></tr>
+  <tr><td><strong>Kanban</strong><br><code>Kanban</code></td><td>Backlog → Recebido, A fazer → Em análise, Fazendo → Em desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído: a jornada de fábrica, uma etapa por coluna. Os tipos de fábrica, entrando no Backlog.</td></tr>
+  <tr><td><strong>Scrum</strong><br><code>Scrum</code></td><td>A fazer → Recebido, Fazendo → Em desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído. Os tipos de fábrica. <strong>Sprints ligadas</strong>, de duas semanas, com pontos no card — o relato entra no backlog e espera o time puxá-lo para uma sprint (ver <a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>).</td></tr>
+</table>
+</div>
+
 <div class="note why">
-  <strong>Por que três colunas, e já ligadas</strong>
+  <strong>Por que as colunas já nascem ligadas</strong>
   <p>Com uma coluna só, o quadro não anda: ela era a entrada e o fim ao mesmo tempo, e o time
   precisava achar a configuração antes de mover o primeiro card. E sem o mapa o relato andava por
   dentro enquanto quem relatou continuava lendo "Recebido", sem ninguém perceber. Tudo se renomeia,
-  reordena e religa depois — o padrão é ponto de partida, e não regra. Os projetos que já existiam
+  reordena e religa depois — o modelo é ponto de partida, e não regra. Os projetos que já existiam
   ficam como estavam.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que o modelo só vale na criação</strong>
+  <p>Aplicar um modelo a um projeto que já tem cards teria de decidir o que fazer com cada um deles,
+  e com o mapa da época. Depois de criado, cada coisa se muda na própria tela, e o projeto não
+  guarda de qual modelo veio — a escolha fica só no evento <code>project_created</code>, para a
+  análise, sem o nome do projeto.</p>
 </div>
 
 <div class="note why">
@@ -84,7 +107,8 @@ relatos.</p>
 
 <p>Abrir um projeto pela lista leva <strong>ao Trabalho, para todos</strong> — é onde o time passa
 o dia. A exceção é quem administra um projeto cujo site <strong>ainda não mandou relato
-nenhum</strong>: aí a Instalação é a próxima coisa a fazer, e é por ela que se entra. Quem decide é
+nenhum</strong>: aí configurar é a próxima coisa a fazer, e se entra pela página central de
+Configurar o projeto, com os primeiros passos no topo. Quem decide é
 <code>LastReportReceivedAt</code>, que a lista de projetos traz em cada um — o último relato que
 chegou pela ferramenta, nulo enquanto nada chegou; o card do time não conta.
 <code>LastActivityAt</code>, a última mudança em qualquer card, é o "último movimento" que a lista
@@ -95,10 +119,16 @@ outro cai em Colunas do outro. Se a pessoa não administra o outro projeto, a te
 vira o Trabalho; com um card aberto, a lista do outro projeto.</p>
 
 <p>A lateral do projeto começa pelo que se usa todo dia — <strong>Trabalho, Membros e
-Moderação</strong> — e embaixo, recolhível e só para quem administra, <strong>Configurar o
-projeto</strong>, em dois blocos: Colunas, Prioridades, Etiquetas e Sprints; e Instalação, Chaves,
-Botão no site, Andamento público, Ciclo, Quem relata, Anexos e Projeto. Os endereços das telas
-continuam os de antes.</p>
+Moderação</strong> — e embaixo, só para quem administra, <strong>Configurar o projeto</strong>: um
+item só, que leva a uma página central com os primeiros passos (script colado, domínio autorizado,
+relato de teste, o botão com a cara do site, o time convidado), a busca por qualquer opção e as
+cinco áreas. Dentro da configuração, as áreas aparecem na lateral: <strong>O seu sistema</strong>
+(Instalação, O botão, Domínios), <strong>O formulário</strong> (Tipos de relato, Textos do
+formulário, Anexos), <strong>O acompanhamento</strong> (Andamento público, Ciclo, Quem relata),
+<strong>O quadro</strong> (Colunas, Prioridades, Etiquetas, Sprints) e <strong>O time</strong>
+(Membros, Projeto). Cada tela organiza os assuntos em grupos que dizem, fechados, o que está
+escolhido e o que já mudou do padrão. Os endereços das telas continuam os de antes, e o de um campo
+que mudou de tela leva à tela nova.</p>
 
 <h2>Conferir as chaves</h2>
 

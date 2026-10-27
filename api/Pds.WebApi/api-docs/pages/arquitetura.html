@@ -84,7 +84,7 @@ permitiria reaproveitá-lo noutro sistema sem levar o nosso domínio junto. E
 <div class="note warn">
   <strong><code>Pds.Email</code> referencia só <code>Pds.Domain</code></strong>
   <p>A mesma forma do <code>Pds.Storage</code>, agora com o e-mail: de projeto, só o domínio; de
-  pacote, o <code>MailKit</code> e as abstrações de registro, de log e de opções. O que faz é
+  pacote, o <code>MailKit</code> e as abstrações de registro, de log, de configuração e de opções. O que faz é
   implementar <code>IEmailSender</code>, que mora no domínio: montar a mensagem e entregá-la ao
   servidor SMTP. Quem decide quem recebe o quê é <code>Pds.Service</code>, e ele conhece só a
   interface — trocar de provedor é trocar configuração.</p>

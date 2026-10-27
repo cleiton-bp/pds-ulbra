@@ -1,7 +1,8 @@
 <h2>Os avisos do sino</h2>
 
 <p>O que avisa uma pessoa do time mora em <code>notifications</code>: uma linha por pessoa avisada,
-com quem fez, o card e, na menção, o comentário. O som de cada tipo de aviso mora em
+com quem fez, o card e, na menção, o comentário — ou, nos dois avisos do projeto, o domínio e a
+pausa. O som de cada tipo de aviso mora em
 <code>user_notification_sounds</code>, e o volume na própria pessoa, em
 <code>users.notification_volume</code>.</p>
 
@@ -18,16 +19,21 @@ com quem fez, o card e, na menção, o comentário. O som de cada tipo de aviso 
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>user_id</code></td><td>Quem recebe o aviso.</td></tr>
   <tr><td><code>project_id</code></td><td>O projeto do card, repetido para o filtro de acesso não precisar de junção.</td></tr>
-  <tr><td><code>report_id</code></td><td>O card de que o aviso fala.</td></tr>
+  <tr><td><code>report_id</code></td><td>O card de que o aviso fala. <b>Nulo nos avisos do projeto</b> — o relato retido não aparece para o time, e a pausa não é de relato nenhum.</td></tr>
   <tr><td><code>actor_user_id</code></td><td>Quem fez: quem mencionou, ou quem escolheu o responsável.</td></tr>
-  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code>. Os dois só no painel: no sino, com o som que a pessoa escolheu para o tipo.</td></tr>
+  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code> | <code>origin_pending</code> | <code>reports_paused</code>. Todos só no painel: no sino, com o som que a pessoa escolheu para o tipo. Os dois últimos vão para quem administra: um domínio fora da lista mandou relato (um por domínio enquanto houver retido dele), e uma camada de limite pausou os envios (um por pausa).</td></tr>
   <tr><td><code>report_internal_comment_id</code></td><td>O comentário interno da menção. Nulo na atribuição.</td></tr>
   <tr><td><code>read_at</code></td><td>Quando a pessoa abriu ou marcou como lido. Nulo enquanto não leu.</td></tr>
+  <tr><td><code>subject</code></td><td>O domínio do aviso do projeto: o que mandou relato sem estar autorizado (nulo quando o relato não disse de onde veio), ou o pausado. <b>Nunca um IP</b>: a pausa por IP ou por pessoa diz só a camada.</td></tr>
+  <tr><td><code>limit_scope</code></td><td><code>reporter</code> | <code>ip</code> | <code>origin</code> | <code>project</code>: a camada que pausou. Só em <code>reports_paused</code>.</td></tr>
+  <tr><td><code>paused_until</code></td><td>Até quando os envios ficam pausados. Só em <code>reports_paused</code>.</td></tr>
 </table>
 </div>
 
-<p>As travas do banco: o tipo fica na lista (<code>ck_notifications_kind</code>), e a menção
-aponta o comentário enquanto a atribuição não aponta (<code>ck_notifications_comment</code>). Todas as
+<p>As travas do banco: o tipo fica na lista (<code>ck_notifications_kind</code>), a menção
+aponta o comentário enquanto a atribuição não aponta (<code>ck_notifications_comment</code>), os dois
+do card têm card e os dois do projeto não têm (<code>ck_notifications_report</code>), e só a pausa tem
+camada e prazo (<code>ck_notifications_paused</code>). Todas as
 chaves com <code>Restrict</code>: nada disso se apaga de verdade. Dois índices servem o sino: os
 mais recentes de uma pessoa (<code>user_id, created_at</code>) e os não lidos dela (com
 <code>read_at IS NULL</code>). A página seguinte anda pelo mesmo caminho: começa depois da hora e da
@@ -61,7 +67,7 @@ responsável —: a tabela só guarda o que alguém escolheu.</p>
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>user_id</code></td><td>A pessoa.</td></tr>
-  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code>: o tipo de aviso, como em <code>notifications.kind</code>.</td></tr>
+  <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code> | <code>origin_pending</code> | <code>reports_paused</code>: o tipo de aviso, como em <code>notifications.kind</code>. De fábrica: plim, sino, campainha e gota.</td></tr>
   <tr><td><code>sound</code></td><td><code>none</code> | <code>bell</code> | <code>drop</code> | <code>ping</code> | <code>chime</code> | <code>bubble</code> | <code>soft</code>. O som é gerado no navegador; <code>none</code> é só o sino.</td></tr>
 </table>
 </div>

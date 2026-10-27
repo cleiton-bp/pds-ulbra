@@ -32,7 +32,9 @@
   <p>O piso vale na <strong>remoção</strong> e o teto na <strong>criação</strong>: a jornada
   precisa poder sair do zero uma etapa por vez até chegar ao mínimo. Projeto criado antes desta
   tabela existir tem jornada vazia, e <code>POST /public-stages/factory</code> é o que preenche
-  — só enquanto ela estiver vazia, senão a rota viraria um jeito de duplicar rótulo.</p>
+  — só enquanto ela estiver vazia, senão a rota viraria um jeito de duplicar rótulo. Ela preenche
+  sempre com o conjunto de fábrica, e não com o do modelo de configuração: o projeto não guarda de
+  qual modelo veio.</p>
 </div>
 
 <div class="note why">
@@ -123,7 +125,7 @@ sem resposta a única pergunta que esta tabela responde — onde este relato est
   entra. Quem decide, na tela de Colunas, é o painel: logo depois de criar a coluna, ele grava uma
   versão nova do mapa ligando-a à etapa da última coluna ativa de antes, e mostra a escolha para
   trocar ali mesmo. A tabela não muda por isso — é uma versão a mais, pela rota de sempre.</p>
-  <p><code>Restrict</code> nos dois lados pela mesma razão que em <code>project_initial_states</code>:
+  <p><code>Restrict</code> nos dois lados pela mesma razão que em <code>project_report_types.initial_state_id</code>:
   a regra mora no serviço — remover uma etapa que ainda recebe estado é recusado com
   <strong>409</strong> — e o banco é a rede embaixo dela.</p>
 </div>

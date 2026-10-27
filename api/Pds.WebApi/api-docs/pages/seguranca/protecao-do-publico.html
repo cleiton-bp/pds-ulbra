@@ -30,7 +30,8 @@ cópia do dado.</p>
 <div class="note warn">
   <strong>O que ela não vê</strong>
   <p>Nome plausível, número de pedido sem dígito verificador, e nada do que vem anexado: ela lê
-  o texto, e só ele — a imagem e o arquivo não passam por varredura nenhuma. A varredura é a
+  o texto, e só ele — a imagem e o arquivo não passam por varredura nenhuma. As respostas às
+  perguntas do tipo, sim: o texto do relato é montado delas, e é ele que a varredura lê. A varredura é a
   segunda linha; a primeira é a fila, que mostra o texto inteiro justamente porque o detector
   deixa passar de propósito.</p>
   <p>Hoje isso não chega ao público, porque os anexos não saem da conversa entre quem relatou e o
@@ -39,14 +40,17 @@ cópia do dado.</p>
 
 <h2>Sem oráculo nas rotas públicas</h2>
 
-<p>Quatro rotas respondem sem sessão e sem credencial além da chave pública — que está no
-HTML do cliente. A regra que atravessa as quatro: <strong>a resposta nunca diz o que existe</strong>.</p>
+<p>Sete rotas respondem sem sessão e sem credencial além da chave pública — que está no
+HTML do cliente. A regra que atravessa as sete: <strong>a resposta nunca diz o que existe</strong>.</p>
 
 <table>
   <tr><th>Rota</th><th>Engano</th><th>Resposta</th></tr>
   <tr><td><code>by-code</code></td><td>código desconhecido, ou projeto que não usa o modo</td><td>lista vazia, e não 404</td></tr>
   <tr><td><code>by-code/open</code></td><td>código em branco, inexistente, protocolo inexistente ou de outra pessoa, e projeto que não usa o modo</td><td>uma recusa só, com a mesma mensagem</td></tr>
   <tr><td><code>by-code/attachments</code></td><td>os mesmos de <code>by-code/open</code>, e projeto que não usa o modo</td><td>a mesma recusa única — e nenhum link assinado antes de ela passar</td></tr>
+  <tr><td><code>by-identity</code></td><td>crachá que não confere, pessoa que nunca relatou aqui, ou projeto que não usa o modo</td><td>lista vazia, e não 404</td></tr>
+  <tr><td><code>by-identity/open</code></td><td>crachá em branco ou que não confere, protocolo inexistente ou de outra pessoa, e projeto que não usa o modo</td><td>uma recusa só, a mesma mensagem de <code>by-code/open</code></td></tr>
+  <tr><td><code>by-identity/attachments</code></td><td>os mesmos de <code>by-identity/open</code></td><td>a mesma recusa única — e nenhum link assinado antes de ela passar</td></tr>
   <tr><td><code>published</code></td><td>projeto privado</td><td>lista vazia, e não uma recusa</td></tr>
 </table>
 
@@ -54,7 +58,10 @@ HTML do cliente. A regra que atravessa as quatro: <strong>a resposta nunca diz o
 códigos até a resposta mudar é como se enumera código alheio, e "aqui não publica" contaria a
 configuração do cliente a qualquer um com a chave. Por isso o código pessoal é sorteado pelo
 sistema, nunca escolhido, e a lista pessoal tem <strong>teto</strong> de 50 em vez de paginação —
-paginar daria a quem sonda um jeito de medir o tamanho da lista alheia.</p>
+paginar daria a quem sonda um jeito de medir o tamanho da lista alheia. O crachá do sistema do
+cliente segue a mesma regra: a lista pela identidade responde vazia, com o mesmo teto, e abrir tem a
+mesma recusa única — e da pessoa fica só um hash do identificador, com um sal do projeto, que não se
+desfaz.</p>
 
 <h2>O que é do time não sai</h2>
 
@@ -64,8 +71,13 @@ de dentro. Nenhuma resposta pública os leva: as respostas de fora são montadas
 nenhuma lista esses campos.</p>
 
 <p><strong>O único título que sai é o que a própria pessoa escreveu</strong>, e só para ela: no
-acompanhamento e na lista pessoal por código. A lista pública, que outros visitantes leem, continua
+acompanhamento e na lista pessoal, por código ou pela identidade do seu sistema. A lista pública, que outros visitantes leem, continua
 sem título nenhum — só o texto que a moderação liberou.</p>
+
+<p>Do tipo do relato sai <strong>só o nome</strong>, como o projeto o chama agora: a cor e o desenho
+são do painel e da ferramenta. E as respostas às perguntas do tipo voltam só para quem as escreveu,
+no acompanhamento, cada uma com a pergunta do envio; a lista pública mostra o texto liberado, que
+já é o relato inteiro — as respostas juntas, sem as perguntas.</p>
 
 <div class="note warn">
   <strong>O card do time nem tem por onde sair</strong>

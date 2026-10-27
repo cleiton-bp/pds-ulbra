@@ -24,7 +24,9 @@ POST /public/reports/tracking/media-settings →  o que da para anexar ao respon
 origem, contexto técnico e o nome que o cliente dá ao projeto por dentro ficam de fora. Se ele
 herdasse do outro, cada campo novo do painel — comentário interno, responsável, estado bruto —
 passaria a sair aqui sem ninguém decidir isso, e vazamento por herança não dá erro em teste
-nenhum. A lista de arquivos segue a mesma regra, num tipo próprio: o nome que o arquivo tinha na
+nenhum. Do tipo, vem só o nome (<code>TypeName</code>), como o projeto o chama agora; e, quando o
+tipo tinha perguntas, as respostas dela com as perguntas como estavam no envio
+(<code>Answers</code>), para a página mostrar cada resposta embaixo da pergunta que a pediu. A lista de arquivos segue a mesma regra, num tipo próprio: o nome que o arquivo tinha na
 máquina de quem relatou nem existe nela.</p>
 
 <p><strong>As duas leituras de mídia passam pela mesma porta do relato</strong> — protocolo e token,
@@ -63,7 +65,7 @@ escreveu.</p>
   <strong>O que falta aqui</strong>
   <p>O limite de envio nas rotas que qualquer visitante de qualquer site alcança. Hoje têm
   limitador o login e as duas rotas de envio de mídia — pedir a permissão e confirmar —;
-  <code>public/reports</code>, <code>tracking</code>, <code>by-code</code> e
+  <code>public/reports</code>, <code>tracking</code>, <code>by-code</code>, <code>by-identity</code> e
   <code>published</code> não têm. Limitá-las é <strong>Planejado</strong>.</p>
   <p>E a página que consome esta rota é uma aplicação React: o navegador baixa
   <strong>uns 86 kB de JavaScript comprimido</strong> — uns 60 deles são o próprio React —, mais a

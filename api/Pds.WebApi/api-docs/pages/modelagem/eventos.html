@@ -3,10 +3,10 @@
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>user_id</code></td><td>Quem do time fez. <b>Nulo</b> quando a ação veio de fora — o relato nasce de um desconhecido, que não tem usuário aqui — e nos eventos gravados antes desta coluna existir.</td></tr>
-  <tr><td><code>account_id</code></td><td>Anulável. Continua apontando para a conta depois de anonimizada.</td></tr>
-  <tr><td><code>project_id</code></td><td>Anulável. O projeto some de verdade e o evento fica.</td></tr>
+  <tr><td><code>account_id</code></td><td>Anulável, e só o número: sem chave estrangeira (ver abaixo). Continua apontando para a conta depois de anonimizada.</td></tr>
+  <tr><td><code>project_id</code></td><td>Anulável, e só o número: sem chave estrangeira (ver abaixo). Nada apaga a linha do projeto — a exclusão é lógica —, e o evento fica com o número dele.</td></tr>
   <tr><td><code>report_id</code></td><td>Anulável. Nem todo evento nasce de um relato.</td></tr>
-  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code> | <code>report_state_changed</code> | <code>report_internal_commented</code> | <code>report_public_commented</code> | <code>report_public_stage_changed</code> | <code>report_public_stage_unmapped</code> | <code>report_closed</code> | <code>report_confirmed</code> | <code>report_reopened</code> | <code>report_info_requested</code> | <code>report_replied</code> | <code>report_closure_cancelled</code> | <code>report_published</code> | <code>report_moderation_rejected</code>; e os do time: <code>project_invitation_sent</code> | <code>project_invitation_resent</code> | <code>project_invitation_revoked</code> | <code>project_invitation_accepted</code> | <code>project_member_role_changed</code> | <code>project_member_removed</code>; e os do card: <code>team_card_created</code> | <code>team_card_edited</code> | <code>card_archived</code> | <code>card_unarchived</code> | <code>card_title_changed</code> | <code>card_assignee_changed</code> | <code>card_priority_changed</code> | <code>card_labels_changed</code> | <code>card_due_date_changed</code> | <code>card_linked</code> | <code>card_unlinked</code> | <code>card_sprint_changed</code> | <code>card_points_changed</code>; e os das sprints, do projeto e sem card: <code>sprint_started</code> | <code>sprint_closed</code>. A lista cresce.</td></tr>
+  <tr><td><code>type</code></td><td><code>report_created</code> | <code>report_viewed</code> | <code>report_state_changed</code> | <code>report_internal_commented</code> | <code>report_public_commented</code> | <code>report_public_stage_changed</code> | <code>report_public_stage_unmapped</code> | <code>report_closed</code> | <code>report_confirmed</code> | <code>report_reopened</code> | <code>report_info_requested</code> | <code>report_replied</code> | <code>report_closure_cancelled</code> | <code>report_published</code> | <code>report_moderation_rejected</code>; e os do time: <code>project_invitation_sent</code> | <code>project_invitation_resent</code> | <code>project_invitation_revoked</code> | <code>project_invitation_accepted</code> | <code>project_member_role_changed</code> | <code>project_member_removed</code>; e os do card: <code>team_card_created</code> | <code>team_card_edited</code> | <code>card_archived</code> | <code>card_unarchived</code> | <code>card_title_changed</code> | <code>card_assignee_changed</code> | <code>card_priority_changed</code> | <code>card_labels_changed</code> | <code>card_due_date_changed</code> | <code>card_linked</code> | <code>card_unlinked</code> | <code>card_sprint_changed</code> | <code>card_points_changed</code>; e os das sprints, do projeto e sem card: <code>sprint_started</code> | <code>sprint_closed</code> | <code>reports_deleted_from_blocked_origin</code> | <code>project_created</code> (com o modelo escolhido em <code>template</code>, e sem o nome do projeto). A lista cresce.</td></tr>
   <tr><td><code>source</code></td><td><code>widget</code> | <code>panel</code> | <code>api</code> | <code>public_page</code> | <code>system</code>.</td></tr>
   <tr><td><code>payload</code></td><td><code>jsonb</code>. O resto do evento, para tipo novo entrar sem migração.</td></tr>
   <tr><td><code>occurred_at</code></td><td>Quando aconteceu. <strong>É esta a data que a análise usa.</strong></td></tr>
@@ -50,6 +50,19 @@
 </div>
 
 <div class="note why">
+  <strong>A entrada do relato guarda o tipo da época, e não o texto</strong>
+  <p><code>report_created</code> leva o identificador público do tipo (<code>type_id</code>) e o
+  nome que ele tinha quando o relato chegou (<code>type_name</code>): renomear o tipo depois muda o
+  que o card mostra, e não o que chegou — e o identificador continua juntando o mesmo tipo através
+  dos nomes. Leva também a origem e a rota declaradas, e os tamanhos do texto e do título
+  (<code>text_length</code> e <code>title_length</code>, zero quando a pessoa não deu título) —
+  nunca o texto, nem as respostas: a tabela não se apaga, e o relato é de quem escreveu.</p>
+  <p>Os eventos gravados antes de o tipo ser do projeto continuam com <code>type</code>, o valor
+  antigo da lista fixa (<code>bug</code>, <code>improvement</code>, <code>question</code>): evento
+  não se reescreve, e quem lê a tabela trata as duas formas.</p>
+</div>
+
+<div class="note why">
   <strong>Os eventos do card não guardam o texto dele</strong>
   <p>Criar e editar o card do time viram evento com o número, a coluna e o tamanho da descrição
   — e nunca o título nem a descrição: a tabela não se apaga, e o texto é do card. Mover o card do
@@ -75,7 +88,11 @@
   os nomes das sprints da época (nulo é o backlog) e, quando não foi a mão, o porquê — a sprint
   concluída, a apagada, a subtarefa que foi com o pai; <code>card_points_changed</code>, as duas
   estimativas. <code>sprint_closed</code> guarda os números de quando a sprint fechou — cards, os
-  que terminaram, pontos planejados e feitos — e o destino do que não terminou.</p>
+  que terminaram, pontos planejados e feitos — e o destino do que não terminou.
+  <code>reports_deleted_from_blocked_origin</code> é do projeto, sem card — o card não existe mais —, e
+  guarda só números e domínios: quantos relatos, quantas subtarefas foram junto e de quais domínios
+  eles vieram. Os eventos dos cards apagados ficam, sem o card (<code>report_id</code> nulo) e sem o
+  caminho da página no payload: a contagem continua, sem dado de ninguém.</p>
   <p>Cada um só nasce quando o campo muda de verdade: pedir o que já é verdade não vira linha. E
   mudar o card de lugar dentro da coluna do quadro <strong>não é evento</strong>: arrumar não muda o
   card, e uma linha por arrumação enterraria o que aconteceu de verdade.</p>
@@ -101,9 +118,31 @@
   que marcar. É a única do sistema que não herda das quatro colunas padrão, e a única cuja
   configuração não passa por <code>BaseEntityConfiguration</code>.</p>
   <p>Um evento apagado é um dado de pesquisa perdido, e a análise passaria a mentir sem
-  ninguém perceber. Por isso as <strong>quatro</strong> chaves estrangeiras — conta, projeto,
-  relato e autor — usam <code>SET NULL</code> e não cascata: o evento sobrevive ao que o
-  originou, e sobrevive também a quem o causou.</p>
+  ninguém perceber. Por isso as <strong>quatro</strong> ligações — conta, projeto, relato e
+  autor — anulam em vez de arrastar o evento junto: o evento sobrevive ao que o originou, e
+  sobrevive também a quem o causou. Relato e autor são chaves estrangeiras com
+  <code>SET NULL</code>; conta e projeto guardam só o número.</p>
+</div>
+
+<div class="note why">
+  <strong>Por que conta e projeto não têm chave estrangeira</strong>
+  <p>Quase toda gravação do time grava um evento, e a chave estrangeira, para conferir, trava a
+  linha da conta e a do projeto (<code>FOR KEY SHARE</code>). Com o time trabalhando junto,
+  essas duas linhas estão sempre travadas por alguém, e o Postgres, para guardar várias travas
+  na mesma linha, cria um <em>multixact</em>. Eles se acumulam até o <code>VACUUM</code> e, em
+  excesso, deixam o banco lento: com 60 pessoas gravando sem parar e sem <code>VACUUM</code> no
+  meio, a coluna do quadro chegou a 4,5 s e a vazão caiu de cerca de 500 para 47 pedidos por
+  segundo, sem nenhum erro.</p>
+  <p>Sem as duas chaves, a mesma carga ficou em cerca de 670 pedidos por segundo do começo ao
+  fim, e um time em que cada pessoa grava com a sua sessão cria mais de 90% menos multixacts:
+  comentar deixou de criar, e o que sobra vem de mover de coluna, que trava a linha da coluna
+  de destino. As de relato e de autor ficam: cada uma trava a linha de um card ou de uma
+  pessoa, que não é disputada pelo time inteiro.</p>
+  <p>Quem garante o número é o código, que só grava a conta e o projeto do próprio pedido, e o
+  identificador nunca é reaproveitado. Nada no sistema apaga a linha de uma conta ou de um
+  projeto; no dia em que apagar, zera o número nos eventos junto, como a chave fazia. Os
+  índices continuam: <code>(account_id, occurred_at)</code> e
+  <code>(project_id, occurred_at)</code> são as duas consultas da pesquisa.</p>
 </div>
 
 <div class="note why">

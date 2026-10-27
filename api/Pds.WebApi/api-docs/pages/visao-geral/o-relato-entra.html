@@ -8,20 +8,30 @@ projeto por convite: o administrador convida por e-mail, e a pessoa aceita entra
 do mesmo endereço. Sobre ela, <strong>o
 relato entra</strong>, e o caminho funciona nas duas direções: dá para colar o script numa página
 qualquer, ver o relato chegar, lê-lo na lista do painel — e quem relatou volta pelo link e vê o
-próprio relato. O limite de envio em <code>POST /public/reports</code> é <strong>Planejado</strong>:
-hoje têm limitador o login e as duas rotas de envio de arquivo — e o convite, um teto por hora em
-cada projeto.</p>
+próprio relato. O envio em <code>POST /public/reports</code> passa pelos limites de cada projeto —
+por quem relata, IP, domínio e projeto —, com um desafio invisível antes da pausa; o login e as
+duas rotas de envio de arquivo têm limitador próprio — e o convite, um teto por hora em cada
+projeto.</p>
 
 <p>O <strong>time trabalha o relato</strong> numa fila que é do cliente: as colunas do quadro, com
 os nomes que a equipe usa, que ela reordena, renomeia e desativa. <strong>E o projeto nasce pronto
 para trabalhar</strong>: com as colunas A fazer, Fazendo e Feito — a última é a que encerra —, já
-ligadas ao andamento que quem relatou acompanha. O relato entra nessa fila, e o cliente escolhe por
-tipo onde cada relato cai — ou deixa no padrão, que é a primeira coluna.</p>
+ligadas ao andamento que quem relatou acompanha. O relato entra nessa fila, e cada tipo de relato
+escolhe a coluna em que entra — ou deixa no padrão, que é a primeira coluna.</p>
 
-<p>Todos entram no projeto pela tela de <strong>Trabalho</strong>; quem administra vê a Instalação
-primeiro só enquanto o site ainda não mandou nenhum relato. A lateral começa pelo trabalho, e a
-configuração vem embaixo, recolhível, com os nomes do time — Colunas, Andamento público, Botão no
-site, Quem relata, Anexos.</p>
+<p><strong>Os tipos de relato também são do projeto</strong>, como as prioridades: ele nasce com
+Defeito, Melhoria e Dúvida, e o time renomeia, troca a cor e o desenho, cria outros ou desativa. E
+cada tipo diz <strong>como o formulário pergunta</strong>. Uma caixa só, em branco, produz "não
+funciona"; o Defeito de fábrica pergunta o que a pessoa tentou fazer, o que aconteceu e o que ela
+esperava — um relato que dá para reproduzir —, e a Melhoria e a Dúvida trazem a caixa livre com a
+pergunta certa dentro. O card aberto mostra cada resposta embaixo da pergunta que a pediu, como ela
+estava no envio.</p>
+
+<p>Todos entram no projeto pela tela de <strong>Trabalho</strong>; quem administra entra pela
+configuração, com os primeiros passos no topo, só enquanto o sistema do cliente ainda não mandou nenhum relato. A lateral começa pelo trabalho, e a
+configuração vem embaixo, num item só: uma página central com os primeiros passos, a busca e cinco
+áreas pelo assunto — O seu sistema, O formulário, O acompanhamento, O quadro e O time —, com os nomes do
+time em cada tela.</p>
 
 <p>A lista <strong>filtra por coluna</strong> — várias de uma vez —, e cada coluna vem com a sua
 contagem; "Em aberto" esconde o que terminou. É o que responde "o que ainda não tratei", a pergunta

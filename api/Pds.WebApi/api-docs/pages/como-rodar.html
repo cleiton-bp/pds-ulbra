@@ -55,6 +55,22 @@ e-mail</a>.</p>
   <code>docs.js</code>) e são servidos com <code>no-cache</code>.</p>
 </div>
 
+<h2>As sondas de saúde</h2>
+
+<p>Para quem hospeda a API — o Kubernetes, ou qualquer plataforma que pergunte se ela está de
+pé —, duas rotas sem sessão, fora do Swagger:</p>
+
+<ul>
+  <li><code>GET /health/live</code> — <strong>vida</strong>: o processo responde. Nunca olha o
+  banco: com o banco fora, reiniciar a API não o traz de volta.</li>
+  <li><code>GET /health/ready</code> — <strong>prontidão</strong>: 503 enquanto a API aquece (o
+  modelo do EF e as primeiras conexões com o banco, menos de meio segundo) e enquanto o banco não
+  responde; 200 depois. É ela que mantém o tráfego longe da API recém-subida, ainda fria.</li>
+</ul>
+
+<p>Com o banco fora no arranque, a API fica viva e não pronta, e tenta de novo sozinha, com espera
+crescente (até 30 s): não entra em laço de reinício por causa do banco.</p>
+
 <h2>Login com Google</h2>
 
 <p>O <code>GOOGLE_CLIENT_ID</code> sai do console do Google Cloud, em <em>APIs e serviços →

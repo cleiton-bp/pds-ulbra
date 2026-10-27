@@ -6,6 +6,20 @@ nasceu no painel. Cada um vem com <code>Kind</code> (<code>Report</code> ou <cod
 número curto do projeto (<code>Number</code>, o #42). A rota tem o nome do relato porque ele veio
 primeiro.</p>
 
+<p>O relato traz também <code>Type</code>, o tipo que a pessoa escolheu — um objeto com
+<code>PublicId</code>, <code>Name</code>, <code>Color</code>, <code>Icon</code> e
+<code>IsActive</code>, com o nome, a cor e o desenho de agora, e <code>IsActive</code> falso quando
+o tipo foi desativado —; no card do time, <code>Type</code> é nulo. <code>Text</code> é o relato
+inteiro em texto, e o card aberto traz, além dele, <code>Answers</code>: cada resposta com a
+pergunta como estava no envio, na ordem, e a caixa livre no fim, com <code>Question</code> nulo.
+<code>Answers</code> é nula quando o tipo só tinha a caixa — aí o relato é o <code>Text</code> — e
+no card do time. Ver <a href="#/endpoints/tipos-de-relato">Tipos de relato</a>.</p>
+
+<pre><code>"Type": { "PublicId": "3f9a...", "Name": "Defeito", "Color": "Red", "Icon": "Bug", "IsActive": true },
+"Text": "Pagar com cartão, no celular.\n\nO botão fica cinza e nada acontece.",
+"Answers": [ { "Question": "O que você tentou fazer?", "Answer": "Pagar com cartão, no celular." },
+             { "Question": "O que aconteceu?", "Answer": "O botão fica cinza e nada acontece." } ]</code></pre>
+
 <p>Todo card, na lista e aberto, traz também o que o time deu a ele — <code>Assignee</code>,
 <code>Priority</code>, <code>Labels</code>, <code>DueDate</code> — e os dois títulos: o do time
 (<code>Title</code>) e o que quem relatou escreveu (<code>ReporterTitle</code>). As rotas que mudam
@@ -15,7 +29,8 @@ internos e com quem relatou), <code>AttachmentCount</code> (os anexos confirmado
 <code>Closed</code> (se o relato já tem um encerramento valendo) e <code>Finished</code> (se o card
 já terminou: relato encerrado, ou card na última coluna). As
 <a href="#/fluxo/subtarefas">subtarefas</a> trazem <code>Parent</code>, <code>SubtaskCount</code> e
-<code>SubtasksDone</code>; os <a href="#/fluxo/vinculos">vínculos</a>, <code>BlockedBy</code> (os
+<code>SubtasksDone</code>, e o pai achado pela subtarefa no filtro de responsável ou na busca traz
+<code>SubtaskMatch</code>; os <a href="#/fluxo/vinculos">vínculos</a>, <code>BlockedBy</code> (os
 números de quem bloqueia e não terminou), <code>DuplicateOf</code> (o original do duplicado) e
 <code>DuplicateReporters</code> (quantos relatos duplicados ainda esperam o desfecho). Com as
 <a href="#/fluxo/backlog-e-sprints">sprints</a>, <code>Sprint</code> (nula é o backlog) e
@@ -28,7 +43,7 @@ uma das ordens dela.</p>
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo — ou na ordem escolhida, com <code>sort</code> e <code>dir</code> (ver abaixo). Paginada: <strong>50 por página</strong> quando ninguém pede outro tamanho, até 100. Aceita <code>state</code> para recortar por coluna da fila, ou <code>none</code> para os sem coluna. O arquivado não vem; <code>archived=true</code> troca a lista pelos arquivados. <code>order=board</code> traz a coluna <strong>na ordem do quadro</strong> — e, na última coluna ativa, quando há mais de uma, só o que entrou nela nos últimos dias (<code>LastColumnVisibleDays</code>, de fábrica 14; zero traz todos), com o <code>Total</code> acompanhando. Com <code>order=board</code> e <code>state</code>, <code>after</code> é o "Mostrar mais" do quadro: os que vêm logo depois daquele card, e a página não vale; o card que já saiu da coluna, 409. Os filtros da tela de Trabalho — <code>assignee</code>, <code>label</code>, <code>priority</code>, <code>type</code>, <code>due=overdue</code> com <code>today</code>, a busca <code>q</code>, <code>open=true</code> (o "Em aberto"), <code>subtasks=hide</code> e <code>column</code>, repetível — ver <a href="#/fluxo/filtros-e-busca">Filtros e busca</a> e a nota abaixo. Com <code>parent</code>, só as subtarefas daquele card.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports</code></td><td>Os relatos do projeto, do mais novo para o mais antigo — ou na ordem escolhida, com <code>sort</code> e <code>dir</code> (ver abaixo). Paginada: <strong>50 por página</strong> quando ninguém pede outro tamanho, até 100. Aceita <code>state</code> para recortar por coluna da fila, ou <code>none</code> para os sem coluna. O arquivado não vem; <code>archived=true</code> troca a lista pelos arquivados. <code>order=board</code> traz a coluna <strong>na ordem do quadro</strong> — e, na última coluna ativa, quando há mais de uma, só o que entrou nela nos últimos dias (<code>LastColumnVisibleDays</code>, de fábrica 14; zero traz todos), com o <code>Total</code> acompanhando. Com <code>order=board</code> e <code>state</code>, <code>after</code> é o "Mostrar mais" do quadro: os que vêm logo depois daquele card, e a página não vale; o card que já saiu da coluna, 409. Os filtros da tela de Trabalho — <code>assignee</code>, <code>label</code>, <code>priority</code>, <code>type</code>, <code>due=overdue</code> com <code>today</code>, a busca <code>q</code>, <code>open=true</code> (o "Em aberto"), <code>origin=blocked</code> (só os marcados com a origem bloqueada) e <code>column</code>, repetível — ver <a href="#/fluxo/filtros-e-busca">Filtros e busca</a> e a nota abaixo. <strong>A subtarefa não vem</strong> — nem na lista, nem no quadro, nem na contagem: só com <code>parent</code>, as subtarefas daquele card (com <code>archived</code> valendo igual). <code>includeSubtasks=true</code> traz as subtarefas junto, como cards próprios, e o pai deixa de entrar pelo responsável ou pela busca nelas — é a busca de quem vincula cards.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/reports</code></td><td>Cria um <strong>card do time</strong>: título (obrigatório, uma linha, até 200), descrição em Markdown (até 10 000) e a coluna em que nasce — sem ela, a primeira ativa. Com as sprints ligadas, <code>SprintPublicId</code> é a sprint em que ele nasce; sem ela, o backlog. E, se quiser, já com <strong>responsável</strong> (<code>AssigneeUserPublicId</code>) e <strong>prioridade</strong> (<code>PriorityPublicId</code>), com as regras e os erros das rotas de campo: o responsável só de quem está no time (400), a prioridade do projeto (404) e ativa (409) — e a mesma linha na história e o mesmo aviso no sino de escolher pelo campo. Ganha o próximo número do projeto. Projeto arquivado recusa (403). Com <code>ParentPublicId</code>, nasce como <strong>subtarefa</strong> daquele card, na primeira coluna, na sprint do pai, sem responsável e sem prioridade — mandar a coluna, o responsável ou a prioridade junto é recusado (400); ver <a href="#/fluxo/subtarefas">Subtarefas</a>.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}</code></td><td>Grava o título e a descrição do card do time, inteiros. <strong>Relato é recusado</strong> (409): o texto dele é de quem relatou. <code>Base</code> leva o título e a descrição <strong>de onde a edição partiu</strong>; se o card já não tem esse texto, outra pessoa salvou no meio, e a gravação é recusada com 409 — ver a nota abaixo. Sem <code>Base</code>, grava como sempre.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/archive</code></td><td>Arquiva (<code>Archived: true</code>) ou desarquiva. O relato só com a regra do ciclo ligada (senão 403), e o relato aberto <strong>encerra junto</strong>: pede <code>Outcome</code> e <code>Reason</code>, que quem relatou lê. Pedir o que já é verdade — a segunda aba, com ou sem motivo — devolve o card como está. Arquivar o pai leva as subtarefas, e desarquivar traz de volta as que foram com ele.</td></tr>
@@ -36,10 +51,10 @@ uma das ordens dela.</p>
   <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/links</code></td><td>Vincula o card a outro do projeto (<code>Type</code> e <code>TargetPublicId</code>). <strong>Um vínculo por par</strong>, os dois fora do arquivo (409). <strong>Marcar como duplicado leva o duplicado para o arquivo</strong>, e o relato duplicado acompanha o original — a etapa e o desfecho; relato só é duplicado de relato, e o original não pode ser duplicado (409). Ver <a href="#/fluxo/vinculos">Vínculos e duplicados</a>.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>.../reports/{reportPublicId}/links/{linkPublicId}</code></td><td>Desfaz o vínculo, pelos dois cards e mesmo no arquivo. <strong>O duplicado volta ao quadro</strong>, com as subtarefas que foram com ele.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/counts</code></td><td>Quantos relatos há em cada coluna, incluindo as vazias. Pergunta separada da lista de propósito. Com os mesmos filtros da lista, conta só o que passa neles.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a visualização</strong> — menos com <code>?refresh=true</code>, a releitura do card que já está aberto quando outra pessoa mexe nele (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está, as respostas com as perguntas do envio (<code>Answers</code>) e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a primeira visualização do time</strong> — as aberturas seguintes não gravam, e a releitura com <code>?refresh=true</code>, do card que já está aberto quando outra pessoa mexe nele, nunca grava (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/state</code></td><td>Move o relato de coluna. <strong>Grava o evento antes do cache</strong>, na mesma transação. <code>AfterPublicId</code> é o lugar na coluna nova: o card logo acima — sem ele, o topo, que é onde o card chega pelo seletor. O card de referência que já não está na coluna de destino recusa o pedido (409), e o próprio card como referência, 400. Para a coluna em que o card já está, nada muda — arrumar é a rota de baixo.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/position</code></td><td>Muda o card de lugar <strong>na própria coluna</strong>: <code>AfterPublicId</code> é o card logo acima, nulo é o topo. <strong>Não grava evento</strong> nem linha na história — arrumar a coluna não muda o card. Arquivado, o próprio card que outra pessoa acabou de mover, ou referência que já saiu da coluna ou foi arquivada, 409. O card não fica abaixo dele mesmo (400).</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/history</code></td><td>Tudo que aconteceu com o relato, montado a partir dos eventos. <strong>Não grava.</strong></td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/history</code></td><td>Tudo que aconteceu com o relato, montado a partir dos eventos. <strong>Não grava.</strong> Das leituras do time vem só a primeira; as de quem relatou vêm todas. As duas têm o mesmo tipo, e é <code>Source</code> que as separa: <code>Panel</code> é o time, <code>PublicPage</code> é quem relatou.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/comments</code></td><td>Os comentários, em <strong>duas listas separadas</strong>. Cada interno traz <code>EditedAt</code> — quando foi corrigido pela última vez, ou nulo — e <code>IsYours</code>, se quem pergunta é quem escreveu.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../comments/internal</code></td><td>Escreve o que fica entre o time. Este texto não sai da tabela dele.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../comments/internal/{commentPublicId}</code></td><td>Corrige um comentário interno, com o texto novo inteiro (<code>Body</code>). <strong>Só quem escreveu</strong> — 403 para as outras pessoas, inclusive quem administra. As menções passam a ser as do texto novo. Volta com <code>EditedAt</code>.</td></tr>
@@ -48,9 +63,28 @@ uma das ordens dela.</p>
   <tr><td><span class="verb get">GET</span></td><td><code>.../reports/{reportPublicId}/attachments</code></td><td>Os arquivos confirmados, com endereço de leitura assinado na hora e o nome original — que só o painel vê. <strong>Não grava visualização.</strong> Ver <a href="#/endpoints/midia">Mídia: anexar e ler</a>.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/closure</code></td><td>Encerra o relato com um desfecho e um <strong>motivo obrigatório</strong>. O motivo é visível para quem relatou.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../reports/{reportPublicId}/info-request</code></td><td>Devolve o relato pedindo informação, em vez de encerrar. Recusada se quem relatou não aceitou responder dúvidas.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/moderation</code></td><td>A fila do que espera decisão, <strong>do mais antigo para o mais novo</strong>. Aceita <code>state</code> para rever o que já foi liberado ou recusado.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/moderation</code></td><td>Libera o relato para o público, ou decide que ele não vai. Voltar para <code>pending</code> é <strong>recusado</strong>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/moderation</code></td><td>Uma página de uma aba da moderação, cada relato com o tipo (<code>Type</code>, como na lista), o texto inteiro, os achados da varredura e a etapa pública de agora (<code>PublicStageLabel</code>, para a prévia). <code>state</code> escolhe a aba: <code>Pending</code> é fila, <strong>do mais antigo para o mais novo</strong>; <code>Approved</code> e <code>Rejected</code> são histórico, <strong>da decisão mais recente para a mais antiga</strong>. Vêm <code>limit</code> relatos (25 sem pedir, até 50; fora da faixa é corrigido) e, havendo mais, <code>NextCursor</code> e <code>HasMore</code> — o <code>after</code> da próxima página, opaco, com o <strong>valor</strong> da ordem: decidir os de cima não faz a próxima página pular ninguém. Cursor estragado ou de outra aba, 400. Filtros: <code>q</code> (texto, título, número e protocolo, como a busca do Trabalho), <code>type</code> (repetível), <code>from</code>/<code>to</code> (instantes da chegada; <code>from</code> depois de <code>to</code>, 400) e <code>origin</code> (o domínio, ou <code>none</code>). <code>Counts</code> traz as três abas numa consulta só — com filtro, quantos passam nele —, e <code>PendingTotal</code>, sempre sem filtro, o número da lateral. O retido pela origem não aparece.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/moderation</code></td><td>Libera o relato para o público, ou decide que ele não vai. Voltar para <code>pending</code> é <strong>recusado</strong>. Com <code>From</code> — o estado em que a tela viu o relato —, a decisão só vale se ele ainda está assim; senão, <strong>409</strong> ("Outra pessoa já decidiu este relato.") e nada muda: duas pessoas lendo a mesma cabeça da fila não gravam uma por cima da outra.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/reports/blocked-origin/keep</code></td><td><strong>Administrador.</strong> Mantém os cards de origem bloqueada: a marca sai, e eles seguem como qualquer outro. Os escolhidos (<code>ReportIds</code>, até 500) ou todos os de um bloqueio (<code>BlockedOriginId</code>) — um dos dois (400). O card que não está marcado fica de fora, e <code>Skipped</code> conta quantos. Manter vale para sempre: bloquear de novo não marca outra vez.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/reports/blocked-origin/delete</code></td><td><strong>Administrador.</strong> <strong>Apaga de vez</strong> os cards de origem bloqueada — os mesmos dois jeitos de escolher — com as subtarefas e tudo que identifica quem relatou; ver a nota abaixo. Pede <code>Confirmation</code>: a palavra <code>apagar</code>, ou o domínio de onde todos vieram (400 sem ela). Devolve <code>Affected</code>, <code>SubtasksDeleted</code> e <code>Skipped</code>.</td></tr>
 </table>
+</div>
+
+<div class="note warn">
+  <strong>Os cards de origem bloqueada: marcados, e o time decide</strong>
+  <p>Todo card da lista, do quadro e do card aberto traz <code>BlockedOrigin</code>: o relato veio
+  de um domínio que o projeto bloqueou (<code>origin</code> igual a uma linha de
+  <code>project_blocked_origins</code>, ou abaixo dela quando a linha pede os subdomínios), e
+  ninguém decidiu mantê-lo. A marca sai da lista de bloqueados de agora — desbloquear desmarca —,
+  e nada é apagado sozinho: o domínio pode ter sido bloqueado por engano.</p>
+  <p><strong>Apagar de vez é exclusão real, e não linha marcada.</strong> Sai o card e tudo que
+  identifica quem relatou: texto, respostas, títulos, nome, contexto, comentários, encerramentos,
+  pedidos de informação, etiquetas, anexos — a linha e o arquivo guardado —, avisos do sino e
+  vínculos com outros cards. As subtarefas vão junto. Ficam os eventos, sem o card e sem o caminho
+  da página, para a contagem continuar existindo, e um evento do projeto,
+  <code>reports_deleted_from_blocked_origin</code>, com quantos e de quais domínios. O link de
+  acompanhamento de quem relatou passa a responder 404. Tudo numa transação; o arquivo sai do
+  armazenamento depois, e a falha ali não desfaz a exclusão.</p>
 </div>
 
 <p>Todas valem para qualquer papel no projeto, inclusive as que gravam: criar e editar card,
@@ -75,14 +109,14 @@ apagar é de quem o escreveu.</p>
   é a de sempre, do mais novo para o mais antigo.</p>
 </div>
 
-<pre><code>GET /projects/2be49b28-.../reports?sort=due&amp;dir=asc&amp;open=true&amp;subtasks=hide
+<pre><code>GET /projects/2be49b28-.../reports?sort=due&amp;dir=asc&amp;open=true
     &amp;column=7d3e...&amp;column=none&amp;page=1</code></pre>
 
 <div class="note why">
-  <strong>Os filtros da lista: em aberto, sem subtarefas e por coluna</strong>
+  <strong>Os filtros da lista: em aberto e por coluna</strong>
   <p><code>open=true</code> deixa só o que não terminou: sai o relato encerrado e o card na última
-  coluna, pela mesma regra do vencido. <code>subtasks=hide</code> deixa só os cards de primeiro
-  nível. Os dois valem também no quadro e na contagem.</p>
+  coluna, pela mesma regra do vencido. Vale também no quadro e na contagem. A subtarefa nunca vem
+  sozinha: ela mora dentro do pai.</p>
   <p><code>column</code> é o filtro de colunas da lista: o identificador da coluna, ou
   <code>none</code> para o card sem coluna, repetível — basta o card estar numa delas. <strong>Não é
   <code>state</code></strong>, que continua sendo o recorte de uma coluna só, o do quadro. A coluna
@@ -202,19 +236,18 @@ apagar é de quem o escreveu.</p>
 </div>
 
 <div class="note why">
-  <strong>Uma consulta que grava, de propósito</strong>
+  <strong>Uma consulta que grava, de propósito — e só na primeira vez</strong>
   <p><code>GET /projects/{publicId}/reports/{reportPublicId}</code> registra um evento de
-  visualização a cada abertura — a releitura com <code>?refresh=true</code>, do card já aberto
-  quando outra pessoa mexe nele, não registra. O intervalo entre ele e a criação do relato é o tempo que o
-  time levou para ir olhar — metade da pergunta de pesquisa, e um dado que não é reconstituível
-  depois.</p>
+  visualização na <b>primeira abertura do relato pelo time</b>. O intervalo entre ele e a
+  criação do relato é o tempo que o time levou para ir olhar — metade da pergunta de pesquisa,
+  e um dado que não é reconstituível depois. As aberturas seguintes não gravam, e a releitura
+  com <code>?refresh=true</code>, do card já aberto quando outra pessoa mexe nele, nunca grava.</p>
   <p>A consequência vale para quem for consumir a API: <b>ela não deve ser chamada para
-  adiantar dado que ninguém pediu</b>. Uma tela que abrisse os relatos sozinha inventaria
-  leituras que não aconteceram. A <b>lista</b> não registra nada, e é ela que serve para
-  varrer.</p>
-  <p><b>O relato tem endereço próprio no painel</b>, o que multiplica as chamadas
-  legítimas: recarregar a página abre de novo, e um link colado num grupo gera uma abertura por
-  pessoa que clicar. Isso não é ruído a corrigir — é o que de fato aconteceu. Mas a análise
-  precisa saber: <b>o tempo de resposta do time é a primeira visualização</b>, e não a média
-  delas.</p>
+  adiantar dado que ninguém pediu</b>. Uma tela que abrisse os relatos sozinha inventaria a
+  primeira leitura de relatos que ninguém olhou. A <b>lista</b> não registra nada, e é ela que
+  serve para varrer.</p>
+  <p><b>Por que só a primeira:</b> o tempo de resposta do time é a primeira visualização, e não
+  a média delas — e gravar cada abertura fazia a tabela de eventos, que não se apaga, e o
+  histórico do card crescerem a cada clique. As voltas de quem relatou, pela página de
+  acompanhamento, continuam todas gravadas: elas são outra medida da pesquisa.</p>
 </div>

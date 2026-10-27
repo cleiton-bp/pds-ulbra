@@ -60,15 +60,20 @@ que dá para anexar — entram todas por ela.</p>
   <p>Ela é gerada sob pedido, guardada como hash e regenerável, e <strong>nenhuma rota autentica por ela</strong>.
   Quem chega hoje às rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
   em claro — a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
-  <p>O uso previsto para ela é o servidor do cliente dizer quem está relatando — a identidade
-  herdada do site —, e ele é <strong>Adiado</strong>: a assinatura pedia HMAC com a chave secreta,
-  e o banco guarda só o hash dela.</p>
+  <p>O servidor do cliente dizer quem está relatando — a identidade herdada do site — existe, e
+  <strong>não depende da secreta</strong>: o cliente gera um par de chaves próprio, ECDSA P-256,
+  cola a pública na tela Quem relata e assina o crachá com a privada; a API só confere a
+  assinatura. Assinar com HMAC e a chave secreta era inviável — o banco guarda só o hash dela —, e
+  o par assimétrico seria a escolha mesmo que o HMAC fosse possível: a chave privada nunca sai do
+  servidor do cliente, e um vazamento do nosso banco entrega uma chave pública, com a qual ninguém
+  forja identidade — nem nós. Ela fica em claro no banco, como a nossa: é pública.</p>
 </div>
 
-<p>Nas sete rotas que apresentam a chave pública — a configuração da ferramenta, a de mídia, o
-envio do relato, a lista pública e as três do código pessoal —, chave ausente, desconhecida,
-revogada ou secreta recebem <strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta
-chave existe mas foi revogada" contaria a quem tenta que ele acertou metade.</p>
+<p>Nas onze rotas que apresentam a chave pública — a aparência do botão, a configuração da
+ferramenta, a de mídia, o envio do relato, a lista pública, as três do código pessoal e as três da
+identidade do sistema do cliente —, chave ausente, desconhecida, revogada ou secreta recebem
+<strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta chave existe mas foi
+revogada" contaria a quem tenta que ele acertou metade.</p>
 
 <h2>Regenerar não sobrescreve</h2>
 

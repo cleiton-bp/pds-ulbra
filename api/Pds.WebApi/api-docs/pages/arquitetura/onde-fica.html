@@ -12,7 +12,8 @@
   <tr><td>Nome de tabela, coluna, índice</td><td><code>Pds.Data/Types/*Map.cs</code></td></tr>
   <tr><td>Login e criação de conta</td><td><code>Pds.Service/Services/AuthService.cs</code></td></tr>
   <tr><td>Geração e conferência de chave</td><td><code>Pds.Service/Security/ProjectKeyGenerator.cs</code></td></tr>
-  <tr><td><strong>O projeto novo</strong>: a chave pública, as colunas A fazer, Fazendo e Feito já ligadas ao andamento público, e as prioridades — sem a chave secreta</td><td><code>Pds.Service/Services/ProjectService.cs</code>, <code>CreateAsync</code> e <code>FactoryStates</code></td></tr>
+  <tr><td><strong>O projeto novo</strong>: a chave pública, as colunas do modelo já ligadas ao andamento público, as prioridades, os tipos de relato, as sprints do Scrum e o evento da criação — sem a chave secreta</td><td><code>Pds.Service/Services/ProjectService.cs</code>, <code>CreateAsync</code></td></tr>
+  <tr><td><strong>Os modelos de projeto</strong> — Quadro simples, Suporte, Kanban e Scrum —, como dado: colunas, jornada, tipos de relato e sprints</td><td><code>Pds.Service/Projects/ProjectTemplates.cs</code>, <code>Pds.Domain/Enums/ProjectTemplateEnum.cs</code></td></tr>
   <tr><td>A jornada de fábrica, de onde vem a etapa de cada coluna nova</td><td><code>Pds.Service/PublicStages/FactoryPublicStages.cs</code></td></tr>
   <tr><td>Gerar a chave secreta sob pedido, ou trocar a que vale</td><td><code>Pds.Service/Services/ProjectKeyService.cs</code>, <code>RegenerateSecretAsync</code></td></tr>
   <tr><td>O movimento do projeto: o último relato de fora e a última mudança em card, numa consulta só</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>ActivityOfAsync</code>, e <code>Pds.Domain/Filters/ProjectActivity.cs</code></td></tr>
@@ -66,7 +67,7 @@
   <tr><td><strong>O card do time</strong>: criar, editar, arquivar e desarquivar</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateTeamCardAsync</code>, <code>EditTeamCardAsync</code> e <code>SetArchivedAsync</code></td></tr>
   <tr><td>A edição que não apaga o que outra pessoa salvou (o <code>Base</code> e o 409)</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>EditTeamCardAsync</code> e <code>MesmoTexto</code></td></tr>
   <tr><td><strong>Ordenar a lista</strong>: o campo, a direção e o vazio no fim</td><td><code>Pds.Domain/Filters/ReportListSort.cs</code>, <code>ReportService.Filters.cs</code> (<code>ResolveSort</code>) e <code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>Ordenar</code></td></tr>
-  <tr><td>Os filtros da lista: em aberto, sem subtarefas e as colunas</td><td><code>ReportService.Filters.cs</code>, <code>ResolveCardFilterAsync</code> e <code>ResolveColumnsAsync</code>, e <code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>Filtrar</code></td></tr>
+  <tr><td>Os filtros da lista: em aberto e as colunas; a subtarefa fora da lista, e o pai achado por ela (<code>ListSubtaskMatchesAsync</code>)</td><td><code>ReportService.Filters.cs</code>, <code>ResolveCardFilterAsync</code> e <code>ResolveColumnsAsync</code>, e <code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>Filtrar</code></td></tr>
   <tr><td>Quantos cards a lista traz por página</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>DefaultPageSize</code></td></tr>
   <tr><td>Corrigir e apagar o comentário interno, e acertar os avisos da menção</td><td><code>Pds.Service/Services/ReportCommentService.cs</code>, <code>EditInternalAsync</code>, <code>DeleteInternalAsync</code> e <code>AcertarMencoesAsync</code></td></tr>
   <tr><td>O sino de página em página, só os não lidos, e o trecho da menção</td><td><code>Pds.Service/Services/NotificationService.cs</code>, <code>ListAsync</code> e <code>Excerpt</code>, e <code>Pds.Data/Repositories/NotificationRepository.cs</code>, <code>ListForUserAsync</code></td></tr>
@@ -80,12 +81,16 @@
   <tr><td>O título que a pessoa escreve, e a pergunta obrigatória</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateAsync</code></td></tr>
   <tr><td>Arrumar título e nome (uma linha, sem espaço repetido)</td><td><code>Pds.Service/Cards/CardText.cs</code></td></tr>
   <tr><td>As prioridades do projeto, e as quatro de fábrica</td><td><code>Pds.Service/Services/ProjectPriorityService.cs</code>, <code>Pds.Domain/Entities/ProjectPriority/PriorityDefaults.cs</code></td></tr>
+  <tr><td><strong>Os tipos de relato do projeto</strong>: criar, gravar, reordenar, desativar e o teto de dez ativos — e os três de fábrica</td><td><code>Pds.Service/Services/ProjectReportTypeService.cs</code>, <code>Pds.Domain/Entities/ProjectReportType/ReportTypeDefaults.cs</code></td></tr>
+  <tr><td>O relato pelas perguntas do tipo: as respostas conferidas contra as perguntas, e o texto montado</td><td><code>Pds.Service/Reports/ReportForm.cs</code></td></tr>
+  <tr><td>As respostas gravadas em JSON, com a pergunta do envio</td><td><code>Pds.Data/Configurations/ReportAnswersConversion.cs</code> e <code>Pds.Domain/Entities/Report/ReportAnswer.cs</code></td></tr>
+  <tr><td>A coluna em que o relato entra: a do tipo, senão a primeira ativa</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveLandingStateAsync</code></td></tr>
   <tr><td>As etiquetas do projeto: criar (ou devolver a que existe), organizar, apagar</td><td><code>Pds.Service/Services/ProjectLabelService.cs</code></td></tr>
   <tr><td>A escrita de membro fora de <code>/reports</code>, declarada</td><td><code>Pds.WebApi/Authorization/MemberWriteAttribute.cs</code> e <code>ProjectRoleCoverage.cs</code></td></tr>
   <tr><td>O que cada mudança de campo conta na história</td><td><code>Pds.Service/Cards/CardChange.cs</code></td></tr>
   <tr><td><strong>A ordem do quadro</strong>: o lugar ao soltar, o topo de quem chega, e arrumar sem evento</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>SaveInPlaceAsync</code>, <code>RankBelowAsync</code> e <code>SetPositionAsync</code></td></tr>
   <tr><td>O topo do quadro, que só desce</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextTopRankAsync</code></td></tr>
-  <tr><td>A trava da ordem, a renumeração da coluna e os números da frente do card</td><td><code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>LockBoardAsync</code>, <code>RenumberColumnAsync</code> e <code>CountFacesAsync</code></td></tr>
+  <tr><td>A trava da ordem, a renumeração da coluna e os números da frente do card</td><td><code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>LockBoardColumnAsync</code> (a coluna), <code>LockBoardAsync</code>, <code>RenumberColumnAsync</code> e <code>CountFacesAsync</code></td></tr>
   <tr><td>A última coluna do quadro, que só mostra o recente — e não vale com uma coluna só</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>LastColumnWindowAsync</code></td></tr>
   <tr><td>O "Mostrar mais" do quadro, depois do último card da tela</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveAfterAsync</code></td></tr>
   <tr><td>O reaberto, e o desarquivado pela resposta de quem relatou, voltando ao topo</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>PutOnTopAsync</code></td></tr>
