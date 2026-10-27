@@ -30,12 +30,12 @@ pessoa em cada projeto, com o papel. A linha nasce de um convite aceito — ver
 <a href="#/fluxo/convidar">Convidar alguém para o time</a>. A mesma pessoa pode estar em projetos de
 várias contas, e a lista da requisição junta todos.</p>
 
-<p>São duas leituras a cada requisição autenticada: os projetos da conta própria, e as linhas da
-pessoa no time, fora da conta própria. <strong>O dono vence</strong>: se ele também tiver linha no
+<p>É uma leitura só a cada requisição autenticada, escrita à mão: a pessoa, os projetos da conta
+própria, e as linhas dela no time, fora da conta própria. <strong>O dono vence</strong>: se ele também tiver linha no
 time de um projeto da conta dele, vale o acesso de dono, e a linha não rebaixa quem manda na conta.
 A lista vai para <code>IAccountContext</code> — <code>Projects</code>, <code>ProjectIds</code> e
-<code>FindProject</code> —, e dali para o filtro global e para o papel que cada rota exige. As duas
-leituras atravessam o filtro de propósito, porque é ele que depende da lista: ver
+<code>FindProject</code> —, e dali para o filtro global e para o papel que cada rota exige. A leitura
+atravessa o filtro de propósito, porque é ele que depende da lista: ver
 <a href="#/isolamento/consultas-que-atravessam">as consultas que atravessam o filtro</a>.</p>
 
 <div class="note why">
@@ -44,7 +44,7 @@ leituras atravessam o filtro de propósito, porque é ele que depende da lista: 
   time que ganha <code>deleted_at</code> — a pessoa saiu do projeto — deixa de valer na requisição
   seguinte, sem esperar o token vencer. O usuário fica, e o que ele escreveu nos relatos continua
   com o nome dele.</p>
-  <p>O preço são duas leituras pequenas por requisição autenticada, as duas por índice.</p>
+  <p>O preço é uma leitura pequena por requisição autenticada, por índice.</p>
 </div>
 
 <div class="note warn">
@@ -81,7 +81,7 @@ administrador</strong> —, com seis exceções:</p>
   corrige e se apaga por quem o escreveu — 403 para os outros, inclusive quem administra.</li>
   <li><strong>Criar etiqueta</strong> também é de membro, embora more em <code>/labels</code>: o
   time cria a etiqueta ao etiquetar um card. Mudar e apagar etiqueta, e tudo que grava em
-  <code>/priorities</code>, é de administrador.</li>
+  <code>/priorities</code> e em <code>/report-types</code>, é de administrador.</li>
   <li><strong>As sprints</strong> também são de membro, embora morem em <code>/sprints</code>:
   planejar, iniciar, concluir e apagar sprint é trabalho do time, como mover card. Ligar as
   sprints é configuração — está na tela Sprints, gravada em <code>cycle-settings</code>, e é de
@@ -93,14 +93,14 @@ administrador</strong> —, com seis exceções:</p>
   alguem do time.</code> (403).</li>
 </ul>
 
-<p>Das oitenta e cinco rotas de projeto, cinquenta e uma valem para qualquer papel, e trinta e
-quatro pedem administrador:</p>
+<p>Das cem rotas de projeto, cinquenta e cinco valem para qualquer papel, e quarenta e cinco
+pedem administrador:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Papel</th><th>Rotas</th></tr>
-  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços, os estados e onde cada tipo entra, a jornada, o mapa e as cinco configurações, a do time inclusive —, a lista do time, as prioridades e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code>: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público — e corrigir e apagar o próprio interno —, os anexos, o pedido de informação, o encerramento e a moderação; as sprints — listar, criar, editar, iniciar, concluir e apagar —; e sair do time.</td></tr>
-  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e gerar as chaves; autorizar e retirar endereço; gravar a ferramenta, o ciclo, a identidade, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar outra pessoa do time — conferido no serviço, na mesma rota de sair —; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
+  <tr><td>Membro</td><td>As leituras da configuração — o projeto, os endereços (os autorizados, os bloqueados, os que mandaram relatos e os que esperam liberação), os estados, a jornada, o mapa e as seis configurações, a do time e os limites de relato inclusive —, a lista do time, as prioridades, os tipos de relato e as etiquetas, criar etiqueta, e tudo sob <code>/reports</code> — menos as duas decisões sobre os cards de origem bloqueada —: a lista, a contagem, o detalhe, o histórico, criar e editar o card do time, arquivar, mover de estado, arrumar a ordem do quadro, os campos do card (título, responsável, prioridade, etiquetas e prazo), os vínculos entre cards, a sprint e os pontos do card, os comentários interno e público — e corrigir e apagar o próprio interno —, os anexos, o pedido de informação, o encerramento e a moderação; as sprints — listar, criar, editar, iniciar, concluir e apagar —; e sair do time.</td></tr>
+  <tr><td>Administrador</td><td>Além do que o membro faz: o <code>PATCH</code> do projeto; ler e gerar as chaves; autorizar e retirar endereço; bloquear e desbloquear domínio; liberar e apagar de vez os relatos retidos; manter e apagar de vez os cards de origem bloqueada; gravar a ferramenta, o ciclo, a identidade, os limites de relato, a mídia, o time e o mapa; tudo que grava em <code>/states</code>, <code>/priorities</code>, <code>/report-types</code> e <code>/public-stages</code>; mudar e apagar etiqueta; mudar o papel de alguém e tirar outra pessoa do time — conferido no serviço, na mesma rota de sair —; e os convites — listar, convidar, reenviar e cancelar.</td></tr>
 </table>
 </div>
 

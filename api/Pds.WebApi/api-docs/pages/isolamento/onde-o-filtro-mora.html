@@ -31,8 +31,9 @@ própria linha. Só a exclusão lógica do projeto passa pela navegação. O gan
 informação em duas tabelas podendo divergir.</p>
 
 <p><code>project_members</code>, <code>project_invitations</code>, <code>project_origins</code>,
+<code>project_blocked_origins</code>,
 <code>project_states</code>, <code>project_priorities</code>, <code>project_labels</code>,
-<code>project_initial_states</code>,
+<code>project_report_types</code>,
 <code>project_public_stages</code>, <code>project_status_mappings</code>,
 <code>project_widget_settings</code>, <code>project_cycle_settings</code>,
 <code>project_identity_settings</code>, <code>project_media_settings</code>,
@@ -60,7 +61,15 @@ exclusão lógica dos três degraus:</p>
 <pre><code>modelBuilder.Entity&lt;Report&gt;()
     .HasQueryFilter(report =&gt;
         report.DeletedAt == null &amp;&amp;
+        report.HeldForOriginAt == null &amp;&amp;
         CurrentProjectIds.Contains(report.ProjectId));</code></pre>
+
+<p><strong>O relato retido também fica de fora aqui.</strong> O que chegou de um endereço fora da
+lista de autorizados (<code>held_for_origin_at</code> preenchido) não aparece em lista, quadro,
+backlog, contagem, busca, moderação nem aviso do painel — são dezenas de leituras, e nenhuma
+precisa lembrar. Só "Aguardando liberação", liberar e apagar o enxergam, atravessando o filtro
+(ver <a href="#/isolamento/consultas-que-atravessam">As consultas que atravessam o filtro</a>).
+Quem relatou continua acompanhando: as rotas públicas não passam por este filtro.</p>
 
 <p><code>reports</code> é a exceção ao desenho acima: não navega até o projeto para nada. É a
 tabela que mais cresce e a que o painel lista o tempo todo, então o acesso é comparação de
@@ -83,14 +92,16 @@ e nenhum link chega a ser gerado.</p>
 <p><strong>As tabelas do trabalho do time comparam coluna, como o relato.</strong>
 <code>card_links</code> e <code>notifications</code> repetem o <code>project_id</code> do card, e
 <code>sprints</code> tem o dele: o acesso compara a coluna, sem junção. O vínculo some também
-quando um dos dois cards foi apagado, e o aviso, quando o card dele foi. De quem é o aviso, cada
-leitura diz — o filtro guarda o projeto, e a pessoa vai na consulta.</p>
+quando um dos dois cards foi apagado, e o aviso, quando o card dele foi. O aviso do projeto — um
+endereço novo mandou relato, os envios foram pausados — não tem card, e vale sem ele. De quem é o
+aviso, cada leitura diz — o filtro guarda o projeto, e a pessoa vai na consulta.</p>
 
 <p><code>user_notification_sounds</code> é da pessoa, e não de projeto — o som que ela escolheu
 para cada tipo de aviso vale em todos —: o filtro só tira o apagado, e cada leitura diz de quem.</p>
 
 <p><code>events</code> também compara coluna, e só o projeto: evento não se apaga, então não há
 exclusão lógica para repetir. Todo evento gravado hoje nasce de um projeto; o que um dia ficar sem
-ele — o projeto some de verdade, e o evento fica — não aparece no painel. <code>accounts</code> e
+ele — no dia em que a exclusão da conta, <strong>Planejado</strong>, apagar o projeto de verdade — não
+aparece no painel. Hoje nada apaga a linha de um projeto. <code>accounts</code> e
 <code>users</code> ficam de fora do filtro — ver <a href="#/isolamento/de-onde-vem-a-conta">De
 onde vem o acesso</a>.</p>
