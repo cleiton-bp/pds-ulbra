@@ -64,37 +64,17 @@
   tem é escolha de quem trabalha.</p>
 </div>
 
-<h2>project_initial_states</h2>
-
-<table>
-  <tr><th>Coluna</th><th>Observação</th></tr>
-  <tr><td><code>project_id</code></td><td>Projeto a que esta escolha pertence.</td></tr>
-  <tr><td><code>report_type</code></td><td><code>bug</code> | <code>improvement</code> | <code>question</code>. Único por projeto entre os não apagados.</td></tr>
-  <tr><td><code>project_state_id</code></td><td>Onde um relato daquele tipo cai. Do mesmo projeto, e ativo.</td></tr>
-</table>
-
-<div class="note why">
-  <strong>A linha só nasce quando o cliente escolhe</strong>
-  <p>Projeto sem linha nenhuma aqui não é projeto sem configuração: é projeto usando o padrão,
-  que é cair no primeiro estado ativo da fila — <strong>A fazer</strong>, num projeto novo. Mesmo desenho de
-  <code>project_widget_settings</code>, e pelo mesmo motivo — assim o caminho "o cliente não
-  configurou" é o caminho comum, exercitado por todo projeto novo, em vez de um canto que
-  apodrece esperando o dia em que alguém o pisa.</p>
-  <p>Escolher "primeira coluna da fila" na tela <strong>apaga</strong> a linha em vez de gravar
-  uma escolha vazia. Sem isso, quem configurou uma vez nunca mais voltaria ao padrão.</p>
-</div>
-
-<div class="note why">
-  <strong>Por que tabela, e não três colunas em <code>projects</code></strong>
-  <p>O time que quer tudo no mesmo lugar aponta os três tipos para o mesmo estado; o que separa
-  defeito de melhoria aponta cada um para o seu. Como coluna, um tipo novo pediria migração na
-  tabela central; como linha, é um registro a mais.</p>
-</div>
-
 <div class="note warn">
-  <strong>Desativar a porta de entrada é recusado</strong>
-  <p>Enquanto um tipo aponta para o estado, desativá-lo devolve <strong>409</strong>: o próximo
-  relato daquele tipo cairia num estado desativado, que é justamente o que desativar existe para
-  impedir. A chave estrangeira é <code>Restrict</code> — a regra mora no serviço, e o banco é a
-  rede embaixo dela.</p>
+  <strong>A coluna de entrada não se desativa</strong>
+  <p>Cada tipo de relato escolhe a coluna em que o relato dele entra
+  (<code>project_report_types.initial_state_id</code>), e nulo é o padrão: a primeira coluna ativa
+  da fila — <strong>A fazer</strong>, num projeto novo. Ver <a href="#/modelagem/relato">O
+  relato</a>.</p>
+  <p>Enquanto um tipo aponta para a coluna, desativá-la devolve <strong>409</strong>: o próximo
+  relato daquele tipo cairia numa coluna desativada, que é justamente o que desativar existe para
+  impedir. Os tipos desativados contam — reativar um deles traria o problema de volta. A chave
+  estrangeira é <code>Restrict</code>: a regra mora no serviço, e o banco é a rede embaixo dela.</p>
+  <p>A escolha morava numa tabela própria, <code>project_initial_states</code>, uma linha por tipo
+  fixo. Com o tipo sendo do projeto, ela virou um campo dele: a migração copiou cada escolha para o
+  tipo correspondente e apagou a tabela.</p>
 </div>

@@ -1,22 +1,78 @@
 <h2>project_widget_settings</h2>
 
-<p>A aparência da ferramenta no site do cliente. No painel, é a tela <strong>Botão no site</strong>.</p>
+<p>A aparência e os textos da ferramenta no site do cliente. No painel, três telas a editam, cada
+uma com os campos do seu assunto: <strong>O botão</strong> (o botão em si), <strong>Textos do
+formulário</strong> (os textos e as perguntas fixas) e <strong>Quem relata</strong> (a
+confirmação, o topo do acompanhamento e o aviso de relato público).</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Único entre os não apagados. É o que faz o 1:1.</td></tr>
   <tr><td><code>is_enabled</code></td><td>Tira a ferramenta do site sem ninguém editar o HTML do cliente.</td></tr>
   <tr><td><code>accent_color</code></td><td><code>#rrggbb</code> minúsculo. <b>Nulo é um valor</b>: quer dizer o acento do produto.</td></tr>
-  <tr><td><code>position</code></td><td><code>bottom_right</code> | <code>bottom_left</code>.</td></tr>
+  <tr><td><code>position</code></td><td><code>bottom_right</code> | <code>bottom_left</code> | <code>top_right</code> | <code>top_left</code>. Nos de cima, o quadro abre para baixo.</td></tr>
   <tr><td><code>theme</code></td><td><code>auto</code> | <code>light</code> | <code>dark</code>. <code>auto</code> segue quem visita o site, não quem o configurou.</td></tr>
+  <tr><td><code>offset_x</code>, <code>offset_y</code></td><td>A distância do canto até o botão, em pixels, de 0 a 200 (<em>check</em>). Fábrica: 20 e 20. Vale também para o quadro aberto, até onde a janela deixar.</td></tr>
+  <tr><td><code>launcher_icon</code></td><td><code>none</code> | <code>chat</code> | <code>bug</code> | <code>lightbulb</code> | <code>question</code> | <code>megaphone</code> | <code>star</code>. O desenho dentro do botão. Fábrica: <code>none</code>, só o texto.</td></tr>
+  <tr><td><code>launcher_icon_only</code></td><td>Só o ícone, sem o texto: o botão fica redondo, e o texto vira a dica e o nome para o leitor de tela. <b>Exige um ícone</b>.</td></tr>
+  <tr><td><code>launcher_size</code></td><td><code>small</code> | <code>medium</code> | <code>large</code>. Fábrica: <code>medium</code>, o tamanho de sempre.</td></tr>
+  <tr><td><code>launcher_shape</code></td><td><code>pill</code> | <code>rounded</code> | <code>square</code>. Fábrica: <code>pill</code>; com só o ícone, círculo.</td></tr>
+  <tr><td><code>launcher_text_color</code></td><td><code>#rrggbb</code> minúsculo. <b>Nulo é automático</b>: a cor de maior contraste com a do botão, como sempre foi. Escolhida, vale mesmo com pouco contraste — o painel avisa.</td></tr>
+  <tr><td><code>launcher_shadow</code></td><td>Sombra embaixo do botão parado na página. Fábrica: sem.</td></tr>
+  <tr><td><code>mobile_mode</code></td><td><code>same</code> | <code>icon_only</code> | <code>hidden</code>. Como o botão fica numa janela com menos de 640 pixels de largura. <code>icon_only</code> também exige um ícone.</td></tr>
+  <tr><td><code>hidden_paths</code></td><td><code>text[]</code>, até 20 (<em>check</em>): as páginas onde o botão não aparece — caminho exato (<code>/checkout</code>) ou começo terminado em <code>*</code> (<code>/login/*</code>, que vale para <code>/login</code> e o que vem embaixo). Cada uma começa com <code>/</code>, até 200 caracteres, sem <code>?</code> nem <code>#</code>.</td></tr>
   <tr><td><code>launcher_label</code></td><td>O texto do botão parado na página. 40.</td></tr>
   <tr><td><code>title</code></td><td>O título dentro do quadro. 60.</td></tr>
-  <tr><td><code>placeholder</code></td><td>O texto da caixa vazia — é ele que faz a pergunta certa. 160.</td></tr>
-  <tr><td><code>success_message</code></td><td>A frase acima do protocolo. 200.</td></tr>
+  <tr><td><code>success_message</code></td><td>A frase acima do protocolo. 200. <b>Aceita variáveis</b>: <code>{{primeiroNome}}</code>, <code>{{protocolo}}</code>, <code>{{tipo}}</code> e <code>{{projeto}}</code>.</td></tr>
+  <tr><td><code>submit_label</code></td><td>O botão que envia. 30. Fábrica: "Enviar".</td></tr>
+  <tr><td><code>report_title_question</code></td><td>A pergunta do título. 80. Fábrica: "Em poucas palavras, o que aconteceu?".</td></tr>
+  <tr><td><code>report_title_placeholder</code></td><td>O exemplo cinza dentro dela. 80. Fábrica: "O botão de pagar não responde".</td></tr>
+  <tr><td><code>type_field_label</code></td><td>O nome do seletor de tipo. 40. Fábrica: "O que é".</td></tr>
+  <tr><td><code>more_details_label</code></td><td>O nome da caixa livre quando ela vem depois das perguntas. 40. Fábrica: "Mais detalhes".</td></tr>
+  <tr><td><code>name_question</code></td><td>A pergunta do nome, quando o projeto pergunta. 80. Fábrica: "Como podemos te chamar".</td></tr>
+  <tr><td><code>public_notice</code></td><td>O aviso de que o relato pode virar público. 300. A frase sobre o nome, depois dele, não se edita: depende da visibilidade.</td></tr>
+  <tr><td><code>tracking_intro</code></td><td>A frase do topo da página de acompanhamento. 300. Fábrica: "Este é o registro do que você enviou.". <b>Aceita as variáveis da confirmação e <code>{{etapa}}</code></b>.</td></tr>
   <tr><td><code>shows_type_field</code></td><td>Mostra ou esconde o seletor de tipo.</td></tr>
-  <tr><td><code>default_report_type</code></td><td>Vem pré-marcado, e é o tipo gravado quando o seletor não aparece.</td></tr>
+  <tr><td><code>default_report_type_id</code></td><td>O tipo de relato que vem pré-marcado (<code>project_report_types</code>), e o gravado quando o seletor não aparece. <b>Nulo é o padrão</b>: o primeiro tipo ativo do projeto. O escolhido que for desativado também cai no primeiro ativo, na leitura. <code>Restrict</code>.</td></tr>
   <tr><td><code>report_title_mode</code></td><td><code>optional</code> | <code>required</code> | <code>hidden</code>. Como a ferramenta pergunta "em poucas palavras, o que aconteceu?" — a resposta vira o título do card. Opcional de fábrica; obrigatória, a API recusa o relato sem ela.</td></tr>
 </table>
+
+<div class="note why">
+  <strong>A aparência do botão é do projeto, e a de fábrica é a de sempre</strong>
+  <p>Cada coluna da aparência nasceu com o valor que o botão tinha antes de ela existir — 20 pixels
+  do canto, só o texto, médio, pílula, sem sombra, igual no celular, nenhuma página escondida —, e
+  o padrão saiu do banco logo depois de preencher as linhas que já existiam: os padrões moram uma
+  vez, no código.</p>
+  <p>Duas travas ficam no banco, além do serviço: a distância entre 0 e 200, e o botão só de ícone
+  (no computador ou só no celular) com um ícone escolhido — <code>ck_project_widget_settings_icon_only</code>.
+  Botão vazio no canto do site não diz o que faz.</p>
+  <p>As páginas escondidas são comparadas pela ferramenta, no navegador, com o caminho da página —
+  sem diferença de maiúscula nem da barra do fim. O banco só guarda a lista conferida.</p>
+</div>
+
+<div class="note why">
+  <strong>O texto da caixa saiu daqui, e foi para cada tipo</strong>
+  <p>O texto cinza dentro da caixa livre era um só para o projeto inteiro, e a pergunta certa para
+  um defeito não é a certa para uma dúvida. Ele passou a ser de cada tipo de relato
+  (<code>project_report_types.text_box_prompt</code>), junto das perguntas curtas, e a coluna
+  <code>placeholder</code> saiu. A migração levou o texto que o projeto tinha mudado para os tipos
+  que mostram a caixa; o de fábrica deu lugar ao texto de cada tipo.</p>
+  <p>O tipo pré-marcado deixou de ser um valor fixo e passou a apontar para um dos tipos do
+  projeto. Nulo, ou desativado depois, é o primeiro ativo — a ferramenta nunca pré-marca o que não
+  oferece. E <code>Restrict</code> como na prioridade: tipo não se apaga, se desativa.</p>
+</div>
+
+<div class="note why">
+  <strong>Todos os textos da ferramenta são do projeto, e variável só depois de enviar</strong>
+  <p>Os oito textos novos eram fixos no quadro; a migração os criou com o texto de fábrica — o
+  mesmo que aparecia —, e quem já tinha salvo continua vendo o que via. Todos são obrigatórios e
+  vão inteiros em toda gravação.</p>
+  <p>Variável só funciona onde o dado existe: na confirmação e no topo do acompanhamento.
+  <code>{{nome}}</code> ou <code>{{nome|padrão}}</code>, com o padrão escrito no próprio texto; sem
+  ele, <code>{{primeiroNome}}</code> vira "você" — os outros sempre têm valor. Variável em outro
+  texto, nome desconhecido ou <code>{{etapa}}</code> na confirmação: 400 na gravação. A troca é da
+  tela que mostra o texto, e o resultado é texto puro. O banco guarda o texto como foi escrito.</p>
+</div>
 
 <div class="note why">
   <strong>A linha só nasce quando alguém salva</strong>
@@ -33,7 +89,7 @@
   <strong>Por que coluna, se <code>report_contexts</code> é chave e valor</strong>
   <p>São perguntas diferentes. O que se captura junto de um relato ainda vai crescer, e cada
   captura nova como coluna seria uma migração na tabela que mais cresce. Aqui a lista é fechada
-  e acordada: onze campos, cada um com um tipo e um limite. Como coluna, cada um se explica no
+  e acordada: cada campo com um tipo e um limite. Como coluna, cada um se explica no
   próprio banco e o tipo errado não entra.</p>
 </div>
 
@@ -50,8 +106,9 @@
 <div class="note why">
   <strong>Nenhuma coluna tem valor padrão no banco</strong>
   <p>Os padrões moram uma vez, no código, e a tabela só recebe linha por uma gravação que
-  escreve os onze campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
-  decisão, e nada manteria as duas iguais.</p>
+  escreve todos os campos. Um <code>DEFAULT</code> na coluna seria uma segunda declaração da mesma
+  decisão, e nada manteria as duas iguais. A migração dos textos usa um só para preencher as
+  linhas que já existiam, e o tira em seguida.</p>
 </div>
 
 <h2>project_cycle_settings</h2>
@@ -131,9 +188,13 @@ relata</strong>.</p>
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
-  <tr><td><code>mode</code></td><td><code>protocol</code> | <code>personal_code</code> | <code>inherited_identity</code>. Excludentes. O terceiro existe na configuração e <b>nada o lê</b>: é <b>Adiado</b>, e a tela diz isso.</td></tr>
+  <tr><td><code>mode</code></td><td><code>protocol</code> | <code>personal_code</code> | <code>inherited_identity</code>. Excludentes: cada um responde de um jeito à pergunta "quem é você". No terceiro — no painel, <strong>Identidade do seu sistema</strong> —, o servidor do cliente assina quem é a pessoa num token dedicado, o <b>crachá</b>, e a API confere a assinatura com a chave pública abaixo, sem nunca chamar o sistema dele. Trocar de modo não reescreve o passado: o relato que entrou sob outro modo continua abrindo pelo link.</td></tr>
   <tr><td><code>visibility</code></td><td><code>private</code> | <code>public_anonymous</code> | <code>public_identified</code>. Padrão <code>private</code>.</td></tr>
   <tr><td><code>asks_for_name</code></td><td>Se a ferramenta pergunta o nome de quem relata. <b>Desligado de fábrica.</b></td></tr>
+  <tr><td><code>identity_public_key</code></td><td>A chave pública do sistema do cliente: ECDSA P-256, SPKI em base64 numa linha (a tela aceita o PEM colado, e a API o limpa antes de guardar). Até 512 — o SPKI de uma chave P-256 em base64 tem 124 caracteres; a folga é para o PEM colado. Nula enquanto ninguém colou uma, e <b>obrigatória no modo herdado</b>: sem ela, a API não confere crachá nenhum. <b>Guardada também nos outros modos</b>, para a volta não obrigar a colar de novo. É pública — nunca segredo —, e por isso sai inteira na leitura.</td></tr>
+  <tr><td><code>identity_subject_salt</code></td><td>32 bytes sorteados, em base64; até 64. É com ele que o <code>sub</code> do crachá vira o <code>reporter_codes.subject_hash</code>. <b>Nasce com a primeira chave e não muda</b>: trocá-lo faria toda pessoa virar outra, e a lista dela sumiria. <b>Nunca sai na leitura</b> — é o único campo da linha que a rota não devolve.</td></tr>
+  <tr><td><code>identity_token_max_minutes</code></td><td>Por quantos minutos, no máximo, um crachá pode valer: de 1 a 60, <b>15 de fábrica</b>, e não nula. Crachá de vida maior é recusado: seria um token de login disfarçado. Quinze minutos bastam para abrir o formulário e escrever, e são curtos demais para servir de login.</td></tr>
+  <tr><td><code>identity_required</code></td><td>Só no modo herdado. Ligada, o relato sem crachá — ou com crachá que não confere — é recusado, e a pessoa é mandada entrar na conta; <b>desligada de fábrica</b>, o relato entra como protocolo, sem identidade: relato perdido é pior que relato sem lista. Não nula.</td></tr>
 </table>
 
 <div class="note why">
@@ -162,7 +223,51 @@ relata</strong>.</p>
   vivem em <code>IdentitySettingsDefaults</code>, no código — e não como valor padrão de coluna,
   pelo mesmo motivo das outras configurações: mudar de ideia deixaria as linhas antigas com o
   valor velho e as novas com o novo, e nenhuma delas saberia disso.</p>
+  <p>Os padrões do modo herdado — sem chave, quinze minutos, crachá não exigido — vivem no mesmo
+  lugar. As duas colunas que não aceitam nulo têm o mesmo valor também como padrão da coluna
+  (<code>DEFAULT 15</code> e <code>DEFAULT false</code>): foi o que preencheu as linhas que já
+  existiam quando elas nasceram.</p>
   <p>Começar identificando seria começar coletando dado pessoal de quem nunca foi perguntado.
   Coletar precisa ser um <strong>ato</strong> de quem configura, e não o que acontece por
   omissão.</p>
+</div>
+
+<div class="note why">
+  <strong>Só a chave pública fica aqui, e da pessoa só um hash</strong>
+  <p>Assimétrica de propósito. A chave secreta do projeto é guardada só como hash, então assinar
+  o crachá com HMAC era inviável; com a chave pública do sistema do cliente, a API confere a
+  assinatura sem chamar o sistema dele, e um vazamento do nosso banco não permite forjar
+  identidade nenhuma — nem por nós. Trocar a chave por outra invalida na hora todo crachá que a
+  anterior assinou.</p>
+  <p>Da pessoa, o banco fica com o SHA-256 do sal e do <code>sub</code>: mesma pessoa, mesmo
+  projeto, mesmo hash; outro projeto, outro sal, outro hash. Quem abre o banco não descobre quem
+  ela é no sistema do cliente, e o sal nunca sai na leitura.</p>
+</div>
+
+<h2>project_report_limits</h2>
+
+<p>Quantos relatos o projeto aceita em pouco tempo. No painel, são os <strong>Limites de
+relatos</strong>, na aba Proteção da tela <strong>Domínios</strong>. Uma linha por projeto, só quando alguém salva: sem ela, valem
+os de fábrica de <code>ReportLimitsDefaults</code>.</p>
+
+<table>
+  <tr><th>Coluna</th><th>Observação</th></tr>
+  <tr><td><code>project_id</code></td><td>Projeto dono. Único entre os não apagados — é o que faz o 1:1.</td></tr>
+  <tr><td><code>per_reporter</code></td><td>Relatos da mesma pessoa a cada 10 minutos. Padrão 5, teto 50. A pessoa é o código pessoal, no projeto que usa esse modo e quando ele vem; senão, o IP.</td></tr>
+  <tr><td><code>per_ip_per_hour</code></td><td>Relatos do mesmo IP por hora. Padrão 20, teto 200.</td></tr>
+  <tr><td><code>per_origin_per_hour</code></td><td>Relatos do mesmo domínio de origem por hora. Padrão 200, teto 2000.</td></tr>
+  <tr><td><code>per_project_per_hour</code></td><td>Relatos do projeto inteiro por hora. Padrão 300, teto 3000.</td></tr>
+  <tr><td><code>per_project_per_day</code></td><td>Relatos do projeto inteiro nas últimas 24 horas. Padrão 2000, teto 20000; nunca menor que o da hora.</td></tr>
+  <tr><td><code>min_interval_seconds</code></td><td>Segundos entre dois relatos da mesma pessoa ou do mesmo IP. Padrão 30, teto 300; zero desliga.</td></tr>
+</table>
+
+<div class="note why">
+  <strong>A tabela guarda os números, e nunca as contagens</strong>
+  <p>Contar por IP exigiria guardar IP, e o sistema não guarda IP em tabela nenhuma. As contagens
+  moram na memória do processo — certas com uma instância da API, zeradas quando ela reinicia —, e
+  esta tabela só diz o tamanho de cada janela. Passado um limite, o relato só entra com o desafio
+  invisível resolvido; no dobro, a camada pausa por 15 minutos e quem administra é avisado no sino.</p>
+  <p>O <strong>teto do sistema</strong> é dez vezes o de fábrica, e a <code>CHECK</code>
+  <code>ck_project_report_limits_ranges</code> repete a faixa: afrouxar é escolha do projeto, mas
+  um número enorme desligaria a proteção, e quem paga a enxurrada é o banco de todos.</p>
 </div>
