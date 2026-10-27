@@ -21,7 +21,7 @@ actors:
 useCases:
   - id: UC01
     name: Relatar um problema
-    description: "Pela ferramenta, na página onde o problema apareceu: descreve, anexa imagens — capturadas de uma área da página e marcadas no editor — ou arquivos, se o projeto aceitar, e recebe o protocolo e o link de acompanhamento. Detalhe em 04-reporting."
+    description: "Pela ferramenta, na página onde o problema apareceu: escolhe o tipo, responde ao que ele pergunta, anexa imagens — capturadas de uma área da página e marcadas no editor — ou arquivos, se o projeto aceitar, e recebe o protocolo e o link de acompanhamento. Detalhe em 04-reporting."
     width: 230
     position: { x: 250, y: 20 }
   - id: UC02
@@ -71,12 +71,12 @@ useCases:
     position: { x: 620, y: 380 }
   - id: UC11
     name: Pôr o projeto no ar
-    description: Cria o projeto — que já nasce com as colunas A fazer, Fazendo e Feito, ligadas ao andamento público —, pega a chave pública e cola a ferramenta no site. Detalhe em 02-project-setup.
+    description: Cria o projeto — que já nasce do modelo de como o time trabalha (Quadro simples, Suporte, Kanban ou Scrum), com as colunas ligadas ao andamento público —, pega a chave pública, cola a ferramenta no site e decide de quais domínios os relatos entram — os que chegam de um domínio novo esperam a liberação. Detalhe em 02-project-setup.
     width: 230
     position: { x: 620, y: 520 }
   - id: UC12
     name: Definir as regras do projeto
-    description: As colunas do quadro, o andamento público e o mapa entre eles, as prioridades, as etiquetas e as sprints, o ciclo, quem relata e os anexos. Detalhe em 03-project-rules.
+    description: As colunas do quadro, o andamento público e o mapa entre eles, as prioridades, as etiquetas e as sprints, o ciclo, quem relata — com os limites de relato — e os anexos, e os tipos de relato — o que cada um pergunta e em que coluna entra. Detalhe em 03-project-rules.
     width: 230
     position: { x: 620, y: 640 }
   - id: UC13
@@ -86,7 +86,7 @@ useCases:
     position: { x: 250, y: 760 }
   - id: UC14
     name: Personalizar o projeto
-    description: Planejado. Tipos de relato e o que cada um pergunta, textos com variáveis, capturas automáticas e como a ferramenta abre no site. Detalhe em 08-customization.
+    description: Modelos de configuração ao criar o projeto, textos com variáveis e como a ferramenta abre no site — pelo botão dela ou pelo do site, baixando só quando alguém pede; e, Planejado, capturas automáticas. Detalhe em 08-customization.
     width: 230
     position: { x: 620, y: 760 }
   - id: UC15

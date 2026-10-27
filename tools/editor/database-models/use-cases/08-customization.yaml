@@ -1,73 +1,42 @@
 meta:
   title: Customização
   system: PDS — painel e ferramenta
-  description: "Planejado. O que deixa dois projetos com cara, textos e jornadas diferentes: os tipos de relato e o que cada um pergunta, os textos com variáveis, o que o relato captura sozinho e como a ferramenta abre no site. Tudo nasce com padrão de fábrica — projeto que não mexe continua funcionando como hoje."
+  description: "O que deixa dois projetos com cara, textos e jornadas diferentes: os modelos de configuração, os textos com variáveis, o que o relato captura sozinho e como a ferramenta abre no site. Tudo nasce com padrão de fábrica — projeto que não mexe continua funcionando como hoje. Os tipos de relato e o que cada um pergunta já funcionam: estão em 03-project-rules e 04-reporting. Os modelos de configuração (UC01), os textos com variáveis (UC05) e a abertura pelo site (UC07 e UC08) também já funcionam; o que ainda é Planejado está marcado em cada caso de uso."
 actors:
   - name: Dono do projeto
     description: Quem decide como o projeto se comporta — e, aqui, também como ele se apresenta para quem relata.
     position: { x: 67, y: -140 }
-  - name: Relator
-    description: Quem relata, agora respondendo às perguntas do tipo que escolheu.
-    position: { x: 103, y: 309 }
   - name: Visitante do site
-    description: Qualquer pessoa na página do cliente. Com a abertura pelo site, só baixa a ferramenta quem pedir.
+    description: Qualquer pessoa na página do cliente. Só baixa a ferramenta quem pedir para abrir — pelo botão dela ou pelo do site.
     position: { x: 99, y: 485 }
 useCases:
   - id: UC01
     name: Começar por um modelo de configuração
-    description: Planejado. Em vez do padrão único de fábrica — A fazer, Fazendo e Feito —, o projeto novo nasce de um modelo escolhido, que já traz as colunas, o andamento público, o mapa entre eles e os tipos de relato.
+    description: Em vez de um padrão único de fábrica, o projeto novo nasce do modelo que diz como o time trabalha — Quadro simples, Suporte, Kanban ou Scrum —, que já traz as colunas, o andamento público, o mapa entre eles e os tipos de relato; no Scrum, também as sprints.
     position: { x: 302, y: -289 }
-    preconditions: O dono está criando um projeto.
+    preconditions: O dono está criando um projeto (02-project-setup, UC02).
     mainFlow:
-      - Ao criar o projeto, o dono escolhe um modelo.
-      - O sistema cria as colunas, o andamento público, o mapa e os tipos de relato daquele modelo.
+      - Ao criar o projeto, depois do nome, o dono escolhe como o time trabalha — cada modelo com uma linha e as colunas escritas.
+      - "O sistema cria as colunas, o andamento público, o mapa e os tipos de relato daquele modelo: Suporte traz a etapa em que a vez é de quem relatou e os tipos Problema, Dúvida e Pedido; Kanban, o Backlog como entrada e a revisão antes do Feito; Scrum, a revisão e as sprints de duas semanas, com pontos."
       - Tudo continua editável depois, nas telas de sempre.
     alternativeFlows:
-      - title: 1a. O dono não escolhe modelo nenhum
+      - title: 1a. O dono não mexe na escolha
         steps:
-          - O projeto nasce com o padrão de fábrica de hoje — as três colunas, já ligadas ao andamento público.
-    postconditions: O projeto anda sem ninguém abrir as telas de regras.
-  - id: UC02
-    name: Definir os tipos de relato
-    description: Planejado. Os tipos passam a ser do cliente — problema, melhoria ou como ele quiser chamar —, e não mais os três fixos de hoje.
-    position: { x: 335, y: -180 }
-    preconditions: O dono está no painel, dentro do projeto.
-    mainFlow:
-      - O dono abre Tipos de relato.
-      - Cria, renomeia ou tira de uso os tipos.
-      - Para cada tipo, escolhe em qual coluna ele entra.
-      - Salva.
-    postconditions: A ferramenta oferece os tipos do projeto, e cada relato novo entra na coluna do seu tipo.
-  - id: UC03
-    name: Definir o que cada tipo pergunta
-    description: Planejado. Campos curtos e opcionais por tipo — o que você tentou, o que aconteceu, o que esperava —, para guiar o texto sem obrigar. Defeito e melhoria pedem perguntas diferentes.
-    position: { x: 320, y: -81 }
-    preconditions: O projeto tem tipos de relato.
-    mainFlow:
-      - O dono escolhe um tipo.
-      - Liga os campos que aquele tipo pergunta e escreve a ajuda de cada um.
-      - Salva.
-    postconditions: O formulário da ferramenta muda conforme o tipo escolhido. A descrição livre continua lá, e continua obrigatória.
-  - id: UC04
-    name: Relatar pelas perguntas do tipo
-    description: "Planejado. O lado de quem relata do UC03: escolhe o tipo, e o formulário faz as perguntas certas."
-    position: { x: 333, y: 381 }
-    preconditions: O projeto tem campos para o tipo escolhido.
-    mainFlow:
-      - O relator escolhe o tipo.
-      - A ferramenta mostra os campos daquele tipo, todos opcionais, junto da descrição.
-      - O relator preenche o que souber e envia.
-    postconditions: O time lê cada resposta separada, junto da descrição.
+          - O projeto nasce do Quadro simples, que vem marcado — o padrão de fábrica de sempre, com as três colunas já ligadas ao andamento público e os tipos Defeito, Melhoria e Dúvida.
+      - title: 1b. O projeto já existe
+        steps:
+          - Não há como aplicar um modelo depois. Cada coisa se muda na própria tela — colunas, etapas públicas, tipos de relato, sprints.
+    postconditions: O projeto anda do jeito que o time trabalha sem ninguém abrir as telas de regras. O modelo escolhido fica registrado no evento da criação, para a análise, e o projeto não guarda de qual modelo veio.
   - id: UC05
     name: Personalizar os textos
-    description: Planejado. Os textos que quem relata lê, com variáveis para soar humano — “Olá, {{primeiroNome}}”, “Seu relato {{protocolo}} está em {{etapa}}”.
+    description: "Todos os textos que quem relata lê são do projeto, com o de fábrica igual ao de antes. A confirmação e o topo do acompanhamento aceitam variáveis para soar humano — “Olá, {{primeiroNome}}”, “Seu relato {{protocolo}} está em {{etapa}}”."
     position: { x: 313, y: 138 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Textos.
-      - Escolhe um texto e reescreve, usando as variáveis da lista.
-      - Confere o que entra no lugar de cada variável quando ela não existe — sem login, não há nome.
-      - Confere na prévia e salva.
+      - O dono abre Formulário, para os textos do formulário, ou Quem relata, para a confirmação e o topo do acompanhamento.
+      - Escolhe um texto e reescreve; na confirmação e no topo do acompanhamento, põe as variáveis com um clique, onde está o cursor.
+      - Confere na prévia, com valores de exemplo, e na linha "sem nome" o que entra quando a variável não tem valor — o padrão escrito depois da barra, ou o de fábrica.
+      - Publica. Variável fora desses dois textos, ou que não existe, é recusada com o motivo.
     postconditions: A ferramenta e a página de acompanhamento mostram os textos do projeto, e o valor de cada variável aparece sempre como texto — nunca como código.
   - id: UC06
     name: Escolher o que o relato captura sozinho
@@ -82,32 +51,42 @@ useCases:
     postconditions: "O relato chega com o contexto ligado, mascarado: token e dado de cliente não passam."
   - id: UC07
     name: Escolher como a ferramenta abre
-    description: Planejado. Pelo botão da ferramenta, como hoje, ou por um botão ou tela do próprio site — e aí a ferramenta só é baixada quando alguém pede.
+    description: Pelo botão da ferramenta, que o carregador desenha com a aparência do projeto, ou por um botão ou tela do próprio site. Nos dois, a ferramenta só é baixada quando alguém pede para abrir.
     position: { x: 266, y: 236 }
     preconditions: O dono está no painel, dentro do projeto.
     mainFlow:
-      - O dono abre Botão no site.
-      - "Escolhe quem abre a ferramenta: o botão dela ou o próprio site."
-      - Se for o site, copia o trecho que liga o botão dele à ferramenta.
-      - Salva.
-    postconditions: Quem só visita o site e nunca pede não baixa a ferramenta.
+      - O dono abre Instalação.
+      - Copia o trecho de sempre — o botão da ferramenta aparece no canto, com a aparência escolhida em O botão.
+      - Cola no site.
+    alternativeFlows:
+      - title: 7a. O site já tem um botão
+        steps:
+          - "Em Usar o seu próprio botão, o dono copia o trecho com data-button=\"none\": o botão da ferramenta não aparece, e nada dela é baixado até alguém pedir."
+          - Liga o botão do site com o atributo data-pds-open, ou abre de qualquer tela com Pds.open().
+      - title: 7b. Algumas páginas não devem ter o botão
+        steps:
+          - Em O botão, nas páginas escondidas, o dono lista as páginas onde o botão não aparece — o caminho exato ou o começo terminado em *. Vale também quando o site troca de página sem recarregar.
+    postconditions: Quem só visita o site e nunca pede não baixa a ferramenta — só o carregador e a aparência do botão, ou, com o botão do site, só o carregador.
   - id: UC08
     name: Abrir a ferramenta pelo site
-    description: Planejado. O visitante usa o botão ou a tela do próprio site, e só então a ferramenta carrega.
+    description: O visitante usa o botão da ferramenta, ou o botão ou a tela do próprio site, e só então a ferramenta carrega.
     position: { x: 401, y: 512 }
-    preconditions: O projeto abre a ferramenta pelo site.
+    preconditions: A ferramenta está instalada no site, e o domínio não está bloqueado.
     mainFlow:
-      - O visitante clica no botão do site, ou abre a tela que chama a ferramenta.
-      - A ferramenta mostra que está carregando e abre.
+      - O visitante clica no botão — o da ferramenta ou o do site.
+      - O botão mostra “Abrindo…” enquanto a ferramenta carrega — com o botão da ferramenta, o carregamento já começa quando o mouse passa por cima.
+      - A ferramenta abre direto no formulário, e o relato leva a página em que o visitante está.
+    alternativeFlows:
+      - title: 8a. A ferramenta não carrega
+        steps:
+          - Passado o tempo de espera, o botão diz que não deu para abrir, e o visitante tenta de novo.
+      - title: 8b. O domínio foi bloqueado
+        steps:
+          - O botão ainda pode aparecer por alguns minutos, mas abrir e enviar são recusados na hora.
+    postconditions: O visitante relata sem o site ter pago pela ferramenta nas visitas em que ninguém pediu.
 links:
   - from: Dono do projeto
     to: UC01
-    kind: association
-  - from: Dono do projeto
-    to: UC02
-    kind: association
-  - from: Dono do projeto
-    to: UC03
     kind: association
   - from: Dono do projeto
     to: UC05
@@ -118,24 +97,21 @@ links:
   - from: Dono do projeto
     to: UC07
     kind: association
-  - from: Relator
-    to: UC04
-    kind: association
   - from: Visitante do site
     to: UC08
     kind: association
 notes:
-  - text: "Os modelos — suporte simples, kanban, scrum — são proposta. O que está decidido é o princípio: tudo customizável, com padrão pronto, para ninguém encarar uma tela em branco."
+  - text: "Os modelos — Quadro simples, Suporte, Kanban e Scrum — nascem de um princípio: tudo customizável, com padrão pronto, para ninguém encarar uma tela em branco."
     anchor: UC01
     position: { x: 798, y: -280 }
-  - text: "A decidir: as três condições das variáveis — um valor padrão para cada uma, uma lista fixa e sempre escapada, e preferir o primeiro nome ao nome completo."
+  - text: "As três condições das variáveis: um padrão para cada uma — escrito no próprio texto, {{primeiroNome|pessoa}}, ou o de fábrica, que nunca quebra a frase —, uma lista fixa sempre mostrada como texto, e o primeiro nome no lugar do nome completo."
     anchor: UC05
     position: { x: 810, y: 144 }
   - text: "A decidir: a ferramenta roda num iframe de outro domínio e não enxerga o console nem as requisições do site. Quem pode capturar é o carregador, que roda na página do cliente."
     anchor: UC06
     position: { x: 813, y: -44 }
-  - text: "A decidir: quem desenha o botão. Se for o cliente, nada é baixado até o clique; se for o carregador, ele precisa ler a configuração a partir da página do cliente."
+  - text: "Quem desenha o botão é o carregador, isolado do site, lendo só a aparência do projeto (pequena, em cache de 5 minutos); a ferramenta inteira vem no clique. Com o botão do site, nem a aparência é lida."
     anchor: UC07
     position: { x: 775, y: 333 }
-  - text: "A robustez também está planejada, e não é ação de ninguém — por isso não vira caso de uso: o limite de envio por visitante — que depende de a API ler o IP de quem chama —, o bloqueio no navegador de onde a ferramenta pode abrir, e o carregador servido com versão imutável e conferência de integridade."
+  - text: "A robustez não é ação de ninguém — por isso não vira caso de uso. Já existe: os limites de relato por pessoa, IP, domínio e projeto, com o desafio invisível e a pausa, configuráveis em Domínios. Ficam planejados o bloqueio no navegador de onde a ferramenta pode abrir, e o carregador servido com versão imutável e conferência de integridade."
     position: { x: 731, y: -530 }

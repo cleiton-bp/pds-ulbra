@@ -1,7 +1,7 @@
 meta:
   title: O relato entra
   system: PDS — ferramenta de relato
-  description: "O que quem relata faz dentro da ferramenta, na página onde o problema apareceu: escrever, anexar imagens e arquivos, capturar uma área da página, marcar a imagem e reencontrar os próprios relatos. O que acontece depois de enviar está em 05-team-work e 06-tracking."
+  description: "O que quem relata faz dentro da ferramenta, na página onde o problema apareceu: escolher o tipo e responder ao que ele pergunta, anexar imagens e arquivos, capturar uma área da página, marcar a imagem e reencontrar os próprios relatos. O que acontece depois de enviar está em 05-team-work e 06-tracking."
 actors:
   - name: Relator
     description: Quem encontrou o problema. Está fora da empresa, não tem conta e não instala nada.
@@ -12,23 +12,23 @@ actors:
     position: { x: 950, y: 151 }
   - name: Sistema do cliente
     kind: system
-    description: O servidor do site do cliente. Na identidade herdada, é ele que diz quem é a pessoa, assinando com a chave secreta.
+    description: O servidor do site do cliente. Na identidade herdada, é ele que diz quem é a pessoa, assinando o crachá com a chave privada dele — o projeto guarda só a pública.
     position: { x: 950, y: 640 }
 useCases:
   - id: UC01
     name: Abrir relato
-    description: Quem encontrou o problema descreve o que aconteceu e recebe um protocolo e um link para acompanhar.
+    description: Quem encontrou o problema escolhe o tipo, responde ao que ele pergunta e recebe um protocolo e um link para acompanhar.
     width: 220
     position: { x: 260, y: 140 }
-    preconditions: A ferramenta está no site, o projeto não está arquivado, e a página está num domínio que o projeto permite — ou a lista de domínios está vazia.
+    preconditions: A ferramenta está no site, o projeto não está arquivado, e a página não está num domínio que o projeto bloqueou.
     mainFlow:
       - O relator abre a ferramenta pelo botão, na página onde encontrou o problema.
-      - Escolhe o tipo — defeito, melhoria ou dúvida —, quando o projeto deixa escolher.
+      - Escolhe o tipo, entre os do projeto, quando o projeto deixa escolher; senão, o relato entra com o tipo pré-marcado.
       - Responde, em poucas palavras, o que aconteceu — a resposta vira o título do card para o time, e é o título que o relator vê depois.
-      - Descreve o que aconteceu.
+      - Responde às perguntas do tipo — cada uma num campo de uma linha, todas opcionais — e/ou escreve na caixa livre, que traz dentro o texto do tipo.
       - Marca se aceita responder dúvidas do time; a caixa já vem como o projeto definiu.
       - Envia o relato.
-      - O sistema grava o relato com a rota da página — só o caminho, sem a parte depois do “?” —, no estado de entrada do tipo dele, e pendente de moderação.
+      - O sistema grava o relato, com as respostas e as perguntas como estavam, o texto inteiro e a rota da página — só o caminho, sem a parte depois do “?” —, na coluna de entrada do tipo dele, ou na primeira coluna ativa, e pendente de moderação.
       - A ferramenta mostra o protocolo e o link de acompanhamento.
     alternativeFlows:
       - title: 1a. O projeto é público
@@ -42,15 +42,29 @@ useCases:
         steps:
           - A ferramenta não pergunta; no painel, o card mostra o começo do texto no lugar do título.
           - Segue no passo 4.
-      - title: 4a. A descrição fica em branco
+      - title: 4a. Nada preenchido
         steps:
-          - A ferramenta não envia e pede a descrição.
+          - Sem nenhuma resposta e sem texto na caixa, a ferramenta não envia, e pede ao menos uma resposta — ou o texto. A pergunta pulada não vai para o relato.
           - O relator volta ao passo 4.
+      - title: 6a. O tipo mudou ou foi desativado depois de a ferramenta abrir
+        steps:
+          - O sistema recusa o relato, e nada é gravado. A ferramenta diz o que fazer — fechar e abrir de novo, quando as perguntas do tipo mudaram; escolher outro tipo, quando ele foi desativado —, porque casar cada resposta com a pergunta errada estragaria o relato sem ninguém ver.
+      - title: 6b. O relator passou de um limite do projeto
+        steps:
+          - A ferramenta mostra “Conferindo…” por um ou dois segundos — o navegador resolve uma conta que o sistema pede — e envia sozinha. Nada muda para quem relata além da espera.
+      - title: 6c. O relator mandou outro relato há poucos segundos, ou passou do dobro de um limite
+        steps:
+          - O sistema recusa, e nada é gravado. A ferramenta diz quanto esperar — alguns segundos, no intervalo mínimo; o fim da pausa, no dobro — e mantém o que foi escrito.
+          - No dobro, quem administra o projeto recebe um aviso no sino, uma vez por pausa.
+      - title: 7b. A página está num domínio que o projeto ainda não autorizou
+        steps:
+          - O sistema recebe o relato do mesmo jeito — o relator ganha o protocolo e o link de acompanhamento —, mas o retém fora do Trabalho, em “Aguardando liberação”, até o time permitir o domínio (02-project-setup, UC05).
+          - Se o time bloquear o domínio, o relato retido é apagado de vez, e o link de acompanhamento deixa de abrir.
       - title: 7a. O projeto identifica por código pessoal
         steps:
           - O sistema liga o relato ao código guardado neste navegador — ou sorteia um código novo, se não houver nenhum.
           - A confirmação mostra o código, para o relator guardar.
-    postconditions: O relato está no painel do time, e quem relatou já o vê na primeira etapa pública.
+    postconditions: O relato está no painel do time — quando o tipo pergunta, com cada resposta debaixo da sua pergunta; vindo de um domínio ainda não autorizado, em “Aguardando liberação” —, e quem relatou já o vê na primeira etapa pública.
   - id: UC02
     name: Anexar imagens e arquivos
     description: Escolhe imagens — ou cola um print — e, quando o projeto aceita, arquivos. A imagem fica logo abaixo do texto, no tamanho que o relator escolhe; o arquivo, numa lista embaixo dela. Dá para remover antes de enviar.
@@ -153,20 +167,36 @@ useCases:
           - A lista vem vazia, igual à de um código sem relato — o sistema nunca diz se um código existe.
   - id: UC07
     name: Relatar já identificado pelo site
-    description: "Adiado. Quando o site do cliente tem login, a identidade vem de lá: quem relata não digita nome nem guarda código, e vê os próprios relatos na lista."
+    description: "Quando o site do cliente tem login, a identidade vem de lá: o servidor dele assina um crachá curto e o põe no script da ferramenta, e quem relata não digita código nenhum — e vê os próprios relatos na lista, sem guardar nada."
     width: 230
     position: { x: 260, y: 620 }
-    preconditions: O projeto usa identidade herdada, e a pessoa está logada no site do cliente.
+    preconditions: O projeto usa a identidade do sistema do cliente, com a chave pública dele colada em Quem relata, e a pessoa está na conta no site — o servidor do cliente pôs o crachá no script da ferramenta.
     mainFlow:
-      - O relator abre a ferramenta no site do cliente.
-      - O sistema do cliente entrega a identidade da pessoa, assinada.
-      - O PDS confere a assinatura e liga o relato a essa identidade.
-      - O relator relata como sempre.
+      - Ao montar a página, o servidor do cliente assina quem é a pessoa num crachá curto — dedicado a relatar, com validade de poucos minutos (até o teto do projeto, 15 de fábrica) e nunca o login dela — e o coloca no script da ferramenta, ao lado da chave do projeto.
+      - O relator abre a ferramenta. O carregador lê o crachá da página a cada abertura e o entrega ao quadro, sem passá-lo pela URL.
+      - O relator relata como em UC01, sem digitar código nenhum; quando o projeto pergunta o nome, o campo já vem com o nome que o crachá sugere, e a pessoa troca se quiser.
+      - A ferramenta envia o crachá junto do relato. O sistema confere a assinatura com a chave pública do projeto — sem chamar o sistema do cliente — e liga o relato à pessoa; a linha dela nasce no primeiro relato, e dela fica só um hash.
+      - A confirmação diz que o relato ficou ligado à pessoa, e que ele aparece em “Ver os meus relatos” sempre que ela estiver na conta neste site.
+      - "“Ver os meus relatos” aparece sem pedir código, e a lista carrega sozinha, com o teto e o “há mais” de UC05."
+      - O relator escolhe um, e a página de acompanhamento abre numa janela nova, com o crachá no fragmento do endereço — que o navegador não manda ao servidor. Pela lista ela só lê, o relato e o que veio anexado; confirmar, reabrir, responder e anexar continuam pedindo o link do relato.
     alternativeFlows:
-      - title: 3a. A assinatura não confere
+      - title: 1a. A pessoa não está na conta, e o projeto não exige o crachá
         steps:
-          - A identidade é recusada. Aceitar um identificador vindo do navegador deixaria qualquer pessoa se passar por outra e ver relatos alheios.
-    postconditions: "Com identidade, existe “o meu relato”: a lista pessoal mostra os relatos dessa pessoa."
+          - O script fica sem o crachá, e o relato entra como protocolo, sem identidade. A confirmação avisa que não deu para reconhecer a pessoa pelo site e que o link é a única forma de voltar; “Ver os meus relatos” não aparece.
+      - title: 1b. A pessoa não está na conta, e o projeto exige o crachá
+        steps:
+          - Antes de a pessoa escrever, no lugar do formulário, a ferramenta pede para entrar na conta neste site e abrir o formulário de novo. Direto na rota, o sistema recusa o relato — “Entre na sua conta para relatar.” — e nada é gravado.
+      - title: 4a. O crachá venceu ou não confere
+        steps:
+          - Assinatura errada, crachá vencido ou de outro projeto, validade maior que a que o projeto permite — o sistema não reconhece a pessoa, e nunca diz qual foi o engano.
+          - Sem a exigência, o relato entra como protocolo, como em 1a. Com ela, o sistema recusa — “Identidade nao reconhecida. Recarregue a pagina e tente de novo.” — e nada é gravado.
+      - title: 4b. O projeto não usa a identidade do sistema do cliente
+        steps:
+          - "O crachá é ignorado, e não recusado como o código pessoal é: o atributo pode ter ficado na página depois de o projeto trocar de modo, e recusar derrubaria todo relato daquele site por uma configuração antiga. O relato entra como o modo do projeto manda."
+      - title: 6a. O crachá não confere na lista
+        steps:
+          - A lista vem vazia, igual à de quem nunca relatou — o sistema nunca diz se o projeto usa o modo nem se a pessoa existe.
+    postconditions: "O relato está ligado à pessoa do site, e o sistema guarda dela só um hash — nem nome, nem e-mail, nem o identificador do sistema do cliente. Com identidade, existe “o meu relato”: a lista pessoal mostra os relatos dessa pessoa, sem ela guardar nada."
 links:
   - from: Relator
     to: UC01
@@ -214,6 +244,6 @@ notes:
   - text: Perder o código custa a lista, não os relatos — cada um continua alcançável pelo próprio link.
     anchor: UC06
     position: { x: 950, y: 470 }
-  - text: "Adiado por decisão: a assinatura pedia HMAC com a chave secreta, e o banco guarda só o hash dela. A saída é assimétrica, e o desenho dela já está feito. A decidir: o que guardar da identidade — id, nome, e-mail."
+  - text: "Assimétrica de propósito: o cliente guarda a chave privada, e o projeto só a pública — a API confere a assinatura, nunca chama o sistema dele, e um vazamento do nosso banco não permite forjar identidade nenhuma. Assinar com a chave secreta do projeto era inviável, porque o banco guarda só o hash dela. Da pessoa fica só o hash do identificador, com um sal do projeto: nem nome, nem e-mail."
     anchor: UC07
     position: { x: 438, y: 784 }

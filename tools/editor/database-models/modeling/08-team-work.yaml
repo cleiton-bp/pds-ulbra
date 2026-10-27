@@ -424,7 +424,7 @@ entities:
         note: coluna nova — a descrição do card do time, em Markdown, desenhada pelo painel sem HTML. Sempre nula no relato, cujo texto é de quem relatou
       - name: archived_at
         type: datetime
-        note: coluna nova — quando o card saiu da tela de Trabalho; arquivado se le e se comenta, e mover ou editar pedem desarquivar
+        note: coluna nova — quando o card saiu da tela de Trabalho; arquivado se lê e se comenta, e mover ou editar pedem desarquivar
       - name: created_by_user_id
         type: long
         fk: true
@@ -502,32 +502,32 @@ entities:
         note: domínio da página que embutiu o widget, declarado por ela e conferido contra a lista do projeto
       - name: accepts_questions
         type: bool
-        note: 'quem relatou marcou se aceita responder dúvidas da equipe; desmarcado, o time nao consegue abrir pedido de informacao neste relato, e a tela diz o motivo. Anulável, e nulo é um terceiro estado: o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada — gravá-lo como "não aceita" seria pôr na boca da pessoa uma resposta que ela nunca deu'
+        note: 'quem relatou marcou se aceita responder dúvidas da equipe; desmarcado, o time não consegue abrir pedido de informação neste relato, e a tela diz o motivo. Anulável, e nulo é um terceiro estado: o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada — gravá-lo como "não aceita" seria pôr na boca da pessoa uma resposta que ela nunca deu'
       - name: public_stage_due_at
         type: datetime
-        note: a partir de quando a mudanca de etapa publica vale para quem relatou; e a janela em que o time ainda pode desfazer, e nula quando nao ha espera configurada
+        note: a partir de quando a mudança de etapa pública vale para quem relatou; é a janela em que o time ainda pode desfazer, e nula quando não há espera configurada
       - name: reporter_code_id
         type: long
         fk: true
-        note: o codigo pessoal de quem escreveu, quando o projeto usa esse modo. Nula no modo protocolo e em todo relato anterior ao modo existir, e esses continuam valendo pelo link de sempre
+        note: o código pessoal de quem escreveu, quando o projeto usa esse modo. Nula no modo protocolo e em todo relato anterior ao modo existir, e esses continuam valendo pelo link de sempre
       - name: reporter_name
         type: text
-        note: "como a pessoa quis ser chamada, quando o projeto pergunta e ela quis dizer. Nula e o normal, e o valor nasce interno: o time ve, o lado de fora nao"
+        note: "como a pessoa quis ser chamada, quando o projeto pergunta e ela quis dizer. Nula é o normal, e o valor nasce interno: o time vê, o lado de fora não"
       - name: reporter_name_is_public
         type: bool
         required: true
-        note: a pessoa escolheu assinar este relato. Falso por padrao, e ausente e nao, porque o que esta em jogo e o nome dela ao lado de um texto que qualquer um le — escolha que nao se herda de configuracao nenhuma
+        note: a pessoa escolheu assinar este relato. Falso por padrão, e ausente é não, porque o que está em jogo é o nome dela ao lado de um texto que qualquer um lê — escolha que não se herda de configuração nenhuma
       - name: moderation_state
         type: enum
         required: true
-        note: pending | approved | rejected. Todo relato nasce pending, inclusive em projeto privado, e e isso que faz marcar o projeto como publico depois nao publicar o historico inteiro de uma vez
+        note: pending | approved | rejected. Todo relato nasce pending, inclusive em projeto privado, e é isso que faz marcar o projeto como público depois não publicar o histórico inteiro de uma vez
       - name: moderated_at
         type: datetime
-        note: quando alguem do time decidiu; nula enquanto ninguem decidiu
+        note: quando alguém do time decidiu; nula enquanto ninguém decidiu
       - name: moderated_by_user_id
         type: long
         fk: true
-        note: quem do time decidiu; nula enquanto ninguem decidiu, e tambem quando a conta de quem decidiu foi esvaziada. Nunca sai em rota publica
+        note: quem do time decidiu; nula enquanto ninguém decidiu, e também quando a conta de quem decidiu foi esvaziada. Nunca sai em rota pública
       - name: created_at
         type: datetime
         note: quando o relato entrou, em UTC
@@ -795,7 +795,7 @@ entities:
         note: nulo enquanto a ligação vale, preenchido no lugar de apagar
   - name: report_info_requests
     label: Pedidos de informação
-    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela propria, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
+    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela própria, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
     inherited: true
     position: { x: 1889, y: 1695 }
     fields:
@@ -846,7 +846,7 @@ entities:
         note: exclusão lógica; nulo enquanto o registro vale
   - name: report_closures
     label: Encerramentos
-    description: "O encerramento de um relato e a resposta de quem o escreveu, numa linha so. Nao e comentario: acontece uma vez por fechamento, carrega um desfecho e tem resposta. Reabrir e fechar de novo cria uma linha nova, e e dai que saem as metricas — quantos precisaram fechar duas vezes, qual a nota media, quantos encerramentos o relator recusou."
+    description: "O encerramento de um relato e a resposta de quem o escreveu, numa linha só. Não é comentário: acontece uma vez por fechamento, carrega um desfecho e tem resposta. Reabrir e fechar de novo cria uma linha nova, e é daí que saem as métricas — quantos precisaram fechar duas vezes, qual a nota média, quantos encerramentos o relator recusou."
     inherited: true
     position: { x: 1560, y: 1980 }
     fields:
@@ -870,11 +870,11 @@ entities:
       - name: reason
         type: text
         required: true
-        note: o motivo, escrito pelo time e lido por quem relatou; encerrar sem ele e impossivel, e nao desencorajado
+        note: o motivo, escrito pelo time e lido por quem relatou; encerrar sem ele é impossível, e não desencorajado
       - name: closed_by_user_id
         type: long
         fk: true
-        note: quem do time encerrou; nulo quando foi o proprio sistema, no fim do prazo do pedido de informacao
+        note: quem do time encerrou; nulo quando foi o próprio sistema, no fim do prazo do pedido de informação
       - name: closed_at
         type: datetime
         required: true
@@ -885,26 +885,26 @@ entities:
         note: "quando este fechamento passa a valer para quem relatou; igual a closed_at quando não há espera configurada, e adiante dele durante a janela de desfazer. Coluna própria, e não conta feita na leitura: calculá-la a partir da espera do projeto faria mexer na configuração reescrever o passado de um fechamento que já aconteceu — o mesmo motivo de warn_at e close_at serem gravados"
       - name: confirmed_at
         type: datetime
-        note: quando quem relatou disse que resolveu; nulo enquanto ele nao respondeu
+        note: quando quem relatou disse que resolveu; nulo enquanto ele não respondeu
       - name: satisfaction
         type: int
-        note: a nota de 1 a 5; nula quando ele nao respondeu e tambem quando recusou responder
+        note: a nota de 1 a 5; nula quando ele não respondeu e também quando recusou responder
       - name: satisfaction_declined
         type: bool
         required: true
-        note: marcado quando ele escolheu "prefiro nao responder"; e o que separa recusa de ausencia, e as duas contam diferente
+        note: marcado quando ele escolheu "prefiro não responder"; é o que separa recusa de ausência, e as duas contam diferente
       - name: reopened_at
         type: datetime
         note: quando ele reabriu em vez de confirmar
       - name: reopen_comment
         type: text
-        note: por que ele reabriu, quando o projeto pede o comentario; fica ao lado do motivo do time, que e o par que a metrica le junto
+        note: por que ele reabriu, quando o projeto pede o comentário; fica ao lado do motivo do time, que é o par que a métrica lê junto
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
         note: nulo enquanto o encerramento vale, preenchido no lugar de apagar
@@ -926,15 +926,15 @@ entities:
         type: long
         fk: true
         required: true
-        note: projeto dono da configuracao, unico entre os nao apagados, e e o que faz o 1:1
+        note: projeto dono da configuração, único entre os não apagados, e é o que faz o 1:1
       - name: closure_trigger
         type: enum
         required: true
-        note: last_column | button — se o relato encerra ao cair na ultima coluna ou por um botao proprio
+        note: last_column | button — se o relato encerra ao cair na última coluna ou por um botão próprio
       - name: public_delay_minutes
         type: int
         required: true
-        note: quanto o lado publico espera antes de mudar; zero muda o lado publico na mesma hora, e acima de zero e o que da a janela para desfazer um movimento errado
+        note: quanto o lado público espera antes de mudar; zero muda o lado público na mesma hora, e acima de zero é o que dá a janela para desfazer um movimento errado
       - name: allows_reopen
         type: bool
         required: true
@@ -950,7 +950,7 @@ entities:
       - name: tracking_code_can_act
         type: bool
         required: true
-        note: "se o codigo pessoal sozinho confirma e reabre, ou se essas acoes exigem o link; ler e inofensivo, reabrir mexe na fila do time. Gravado e, por enquanto, ignorado: confirmar, reabrir e responder so aceitam o link"
+        note: "se o código pessoal sozinho confirma e reabre, ou se essas ações exigem o link; ler é inofensivo, reabrir mexe na fila do time. Gravado e, por enquanto, ignorado: confirmar, reabrir e responder só aceitam o link"
       - name: satisfaction_enabled
         type: bool
         required: true
@@ -962,23 +962,23 @@ entities:
       - name: satisfaction_required
         type: bool
         required: true
-        note: se confirmar exige responder; mesmo exigindo, "prefiro nao responder" continua existindo, fora da escala
+        note: se confirmar exige responder; mesmo exigindo, "prefiro não responder" continua existindo, fora da escala
       - name: info_request_enabled
         type: bool
         required: true
-        note: se o time pode devolver o relato pedindo informacao em vez de encerrar
+        note: se o time pode devolver o relato pedindo informação em vez de encerrar
       - name: info_request_warn_days
         type: int
         required: true
-        note: dias sem resposta ate avisar quem relatou de que o relato vai encerrar
+        note: dias sem resposta até avisar quem relatou de que o relato vai encerrar
       - name: info_request_close_days
         type: int
         required: true
-        note: dias depois do aviso ate encerrar como sem retorno; encerrado assim continua reabrivel
+        note: dias depois do aviso até encerrar como sem retorno; encerrado assim continua reabrível
       - name: accepts_questions_default
         type: bool
         required: true
-        note: como a opcao de aceitar duvidas vem marcada no formulario; a escolha final e de quem relata, nao do projeto
+        note: como a opção de aceitar dúvidas vem marcada no formulário; a escolha final é de quem relata, não do projeto
       - name: allows_report_archiving
         type: bool
         required: true
@@ -1004,13 +1004,13 @@ entities:
         note: quando o registro foi criado, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto a configuracao vale, preenchida no lugar de apagar
+        note: nulo enquanto a configuração vale, preenchida no lugar de apagar
   - name: project_identity_settings
     label: Identidade e visibilidade
-    description: "Como quem abre um relato e reconhecido neste projeto, e o que isso permite na visibilidade. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada. Os dois assuntos moram juntos de proposito: o modo de identificacao decide o que a visibilidade pode ser."
+    description: "Como quem abre um relato é reconhecido neste projeto, e o que isso permite na visibilidade. Uma linha por projeto, criada só quando alguém salva — os padrões vivem no código, e projeto sem linha é projeto que nunca precisou mudar nada. Os dois assuntos moram juntos de propósito: o modo de identificação decide o que a visibilidade pode ser."
     inherited: true
     position: { x: 2950, y: 300 }
     fields:
@@ -1026,31 +1026,31 @@ entities:
         type: long
         fk: true
         required: true
-        note: projeto dono da configuracao, unico entre os nao apagados, e e o que faz o 1:1
+        note: projeto dono da configuração, único entre os não apagados, e é o que faz o 1:1
       - name: mode
         type: enum
         required: true
-        note: protocol | personal_code | inherited_identity — excludentes, porque cada um responde de um jeito diferente a pergunta "quem e voce". Trocar de modo nao reescreve o passado
+        note: protocol | personal_code | inherited_identity — excludentes, porque cada um responde de um jeito diferente à pergunta "quem é você". Trocar de modo não reescreve o passado
       - name: visibility
         type: enum
         required: true
-        note: private | public_anonymous | public_identified — o padrao e private, e public_identified so vale onde o modo identifica, porque sem identidade nao ha nome nenhum a mostrar
+        note: private | public_anonymous | public_identified — o padrão é private, e public_identified só vale onde o modo identifica, porque sem identidade não há nome nenhum a mostrar
       - name: asks_for_name
         type: bool
         required: true
-        note: se a ferramenta pergunta o nome de quem relata; desligado de fabrica, porque coletar dado pessoal precisa ser um ato de quem configura, e nao o que acontece por omissao
+        note: se a ferramenta pergunta o nome de quem relata; desligado de fábrica, porque coletar dado pessoal precisa ser um ato de quem configura, e não o que acontece por omissão
       - name: created_at
         type: datetime
-        note: quando a configuracao foi salva a primeira vez, em UTC
+        note: quando a configuração foi salva a primeira vez, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto a configuracao vale, preenchido no lugar de apagar
+        note: nulo enquanto a configuração vale, preenchido no lugar de apagar
   - name: reporter_codes
-    label: Codigo pessoal
-    description: "O codigo que quem relata guarda para reencontrar os proprios relatos, no modo sem login. E tabela, e nao coluna em reports: o mesmo codigo vale para varios relatos, entao a unicidade dentro do projeto precisa de uma linha propria — como coluna repetida, o banco nao teria como exigi-la. Nao guarda nada de pessoa: sem nome, sem contato, sem dispositivo, e um identificador sorteado e nada mais."
+    label: Código pessoal
+    description: "O código que quem relata guarda para reencontrar os próprios relatos, no modo sem login. É tabela, e não coluna em reports: o mesmo código vale para vários relatos, então a unicidade dentro do projeto precisa de uma linha própria — como coluna repetida, o banco não teria como exigi-la. Não guarda nada de pessoa: sem nome, sem contato, sem dispositivo, é um identificador sorteado e nada mais."
     inherited: true
     position: { x: 2950, y: 800 }
     fields:
@@ -1066,24 +1066,24 @@ entities:
         type: long
         fk: true
         required: true
-        note: projeto onde este codigo vale; ele nao atravessa projetos
+        note: projeto onde este código vale; ele não atravessa projetos
       - name: code
         type: text
         required: true
         unique: true
-        note: o codigo no formato do protocolo, sorteado inteiro pelo sistema, unico dentro do projeto entre os nao apagados; codigo apresentado de fora nunca e consultado para dizer se existe, porque qualquer diferenca entre livre e ocupado vira enumeracao
+        note: o código no formato do protocolo, sorteado inteiro pelo sistema, único dentro do projeto entre os não apagados; código apresentado de fora nunca é consultado para dizer se existe, porque qualquer diferença entre livre e ocupado vira enumeração
       - name: created_at
         type: datetime
-        note: quando o codigo foi sorteado, em UTC
+        note: quando o código foi sorteado, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto o codigo vale, preenchido no lugar de apagar
+        note: nulo enquanto o código vale, preenchido no lugar de apagar
   - name: project_media_settings
     label: Mídia
-    description: "O que este projeto aceita receber junto do relato. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada. Nao guarda limite de tipo nenhum: isso mora na tabela ao lado, uma linha por tipo."
+    description: "O que este projeto aceita receber junto do relato. Uma linha por projeto, criada só quando alguém salva — os padrões vivem no código, e projeto sem linha é projeto que nunca precisou mudar nada. Não guarda limite de tipo nenhum: isso mora na tabela ao lado, uma linha por tipo."
     inherited: true
     position: { x: 2950, y: 1300 }
     fields:
@@ -1099,38 +1099,38 @@ entities:
         type: long
         fk: true
         required: true
-        note: projeto dono da configuracao, unico entre os nao apagados, e e o que faz o 1:1
+        note: projeto dono da configuração, único entre os não apagados, e é o que faz o 1:1
       - name: is_enabled
         type: bool
         required: true
-        note: "se o quadro mostra anexo; desligado, nada mais nesta linha vale — nem tipo ligado, nem limite: o botao nao aparece e o servidor recusa assinar permissao. Sem armazenamento configurado nao liga"
+        note: "se o quadro mostra anexo; desligado, nada mais nesta linha vale — nem tipo ligado, nem limite: o botão não aparece e o servidor recusa assinar permissão. Sem armazenamento configurado não liga"
       - name: allows_screen_capture
         type: bool
         required: true
-        note: se o botao de capturar aparece; ele captura uma area da pagina do cliente, pelo carregador, sem o navegador perguntar nada. Some sozinho onde a pagina nao deixa, e anexar continua
+        note: se o botão de capturar aparece; ele captura uma área da página do cliente, pelo carregador, sem o navegador perguntar nada. Some sozinho onde a página não deixa, e anexar continua
       - name: allows_on_info_request
         type: bool
         required: true
-        note: se da para anexar respondendo a um pedido de informacao do time, que e onde o print mais serve
+        note: se dá para anexar respondendo a um pedido de informação do time, que é onde o print mais serve
       - name: allows_on_reopen
         type: bool
         required: true
-        note: "se da para anexar ao reabrir um relato encerrado — o print do que ainda esta acontecendo. Chave propria, e nao a da resposta: atender ao pedido do time e dizer que o problema voltou sao perguntas diferentes"
+        note: "se dá para anexar ao reabrir um relato encerrado — o print do que ainda está acontecendo. Chave própria, e não a da resposta: atender ao pedido do time e dizer que o problema voltou são perguntas diferentes"
       - name: max_files_per_report
         type: int
-        note: "sem uso: era o total de arquivos por envio, somando todos os tipos, e saiu quando cada categoria passou a ter quantidade e tamanho proprios. Fica com o valor antigo; configuracao salva depois grava nulo"
+        note: "sem uso: era o total de arquivos por envio, somando todos os tipos, e saiu quando cada categoria passou a ter quantidade e tamanho próprios. Fica com o valor antigo; configuração salva depois grava nulo"
       - name: created_at
         type: datetime
-        note: quando a configuracao foi salva a primeira vez, em UTC
+        note: quando a configuração foi salva a primeira vez, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto a configuracao vale, preenchido no lugar de apagar
+        note: nulo enquanto a configuração vale, preenchido no lugar de apagar
   - name: project_media_kinds
     label: Limites por tipo
-    description: Um tipo de midia por linha, com os limites dele. E a tabela que existe para acrescentar audio um dia ser dado, e nao mudanca de estrutura — com uma coluna por tipo, cada tipo novo custaria migracao, e o banco teria colunas vazias de tipo que aquele projeto nunca liga.
+    description: Um tipo de mídia por linha, com os limites dele. É a tabela que existe para acrescentar áudio um dia ser dado, e não mudança de estrutura — com uma coluna por tipo, cada tipo novo custaria migração, e o banco teria colunas vazias de tipo que aquele projeto nunca liga.
     inherited: true
     position: { x: 2950, y: 1800 }
     fields:
@@ -1146,41 +1146,41 @@ entities:
         type: long
         fk: true
         required: true
-        note: configuracao dona da linha; pendura na configuracao, e nao no projeto, porque sem ela estes limites nao querem dizer nada
+        note: configuração dona da linha; pendura na configuração, e não no projeto, porque sem ela estes limites não querem dizer nada
       - name: kind
         type: enum
         required: true
-        note: "image | file | video (este, so das linhas antigas: o produto nao oferece mais) — unico por configuracao entre os nao apagados. A lista cresce com o produto, e acrescentar um valor nao mexe em coluna nenhuma"
+        note: "image | file | video (este, só das linhas antigas: o produto não oferece mais) — único por configuração entre os não apagados. A lista cresce com o produto, e acrescentar um valor não mexe em coluna nenhuma"
       - name: is_enabled
         type: bool
         required: true
-        note: se este tipo e aceito; desligar deixa os limites gravados, para religar nao apagar o que ja foi pensado
+        note: se este tipo é aceito; desligar deixa os limites gravados, para religar não apagar o que já foi pensado
       - name: max_count
         type: int
         required: true
-        note: "quantos arquivos deste tipo cabem em cada envio — a criacao do relato, cada resposta, cada reabertura. Teto do sistema: 10"
+        note: "quantos arquivos deste tipo cabem em cada envio — a criação do relato, cada resposta, cada reabertura. Teto do sistema: 10"
       - name: max_bytes
         type: long
         required: true
-        note: "teto de tamanho de cada arquivo, em bytes; e ele que viaja dentro da assinatura do envio, e quem recusa o que passa e o proprio armazenamento. Teto do sistema: 10 MB na imagem, 25 MB no arquivo"
+        note: "teto de tamanho de cada arquivo, em bytes; é ele que viaja dentro da assinatura do envio, e quem recusa o que passa é o próprio armazenamento. Teto do sistema: 10 MB na imagem, 25 MB no arquivo"
       - name: max_duration_seconds
         type: int
-        note: duracao maxima, so das linhas antigas de video; nula na imagem e no arquivo
+        note: duração máxima, só das linhas antigas de vídeo; nula na imagem e no arquivo
       - name: formats
         type: text[]
-        note: os formatos aceitos, pelo nome no catalogo fechado do sistema (pdf, text, spreadsheet, document, json), reconhecidos pela extensao do arquivo; o zip saiu do catalogo e, gravado, e ignorado. So do arquivo; nulo nas outras categorias, que tem os tipos fixos
+        note: os formatos aceitos, pelo nome no catálogo fechado do sistema (pdf, text, spreadsheet, document, json), reconhecidos pela extensão do arquivo; o zip saiu do catálogo e, gravado, é ignorado. Só do arquivo; nulo nas outras categorias, que têm os tipos fixos
       - name: created_at
         type: datetime
         note: quando o limite foi salvo a primeira vez, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
         note: nulo enquanto o limite vale, preenchido no lugar de apagar
   - name: report_attachments
     label: Anexos
-    description: "O registro de um arquivo que veio com o relato. O arquivo em si nao esta aqui e nunca estara: o que a linha guarda e o nome dele no armazenamento, o bastante para pedir uma permissao de leitura quando alguem que pode ver aparecer."
+    description: "O registro de um arquivo que veio com o relato. O arquivo em si não está aqui e nunca estará: o que a linha guarda é o nome dele no armazenamento, o bastante para pedir uma permissão de leitura quando alguém que pode ver aparecer."
     inherited: true
     position: { x: 2409, y: 1250 }
     fields:
@@ -1196,65 +1196,65 @@ entities:
         type: long
         fk: true
         required: true
-        note: relato a que o anexo pertence; obrigatorio mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto so
+        note: relato a que o anexo pertence; obrigatório mesmo quando o anexo veio numa resposta, para achar o relato ser sempre um salto só
       - name: public_comment_id
         type: long
         fk: true
-        note: preenchido quando o anexo veio junto de uma resposta ao pedido de informacao; nulo na criacao e na reabertura
+        note: preenchido quando o anexo veio junto de uma resposta ao pedido de informação; nulo na criação e na reabertura
       - name: reopened_closure_id
         type: long
         fk: true
-        note: "preenchido quando o anexo veio junto de uma reabertura: o fechamento que quem relatou reabriu; nulo na criacao e na resposta. Nunca junto de public_comment_id — um arquivo vai com um envio so, e o banco trava isso"
+        note: "preenchido quando o anexo veio junto de uma reabertura: o fechamento que quem relatou reabriu; nulo na criação e na resposta. Nunca junto de public_comment_id — um arquivo vai com um envio só, e o banco trava isso"
       - name: kind
         type: enum
         required: true
-        note: image | file | video (este, so dos anexos antigos) — a mesma lista dos limites, porque e ela que diz qual limite se aplica
+        note: image | file | video (este, só dos anexos antigos) — a mesma lista dos limites, porque é ela que diz qual limite se aplica
       - name: status
         type: enum
         required: true
-        note: "pending | confirmed. Nasce pending quando a permissao e assinada, e so vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que fica pending e permissao nao usada: nao aparece nem conta no limite, e o arquivo, se chegou, fica na pasta de envio, que o armazenamento esvazia sozinho"
+        note: "pending | confirmed. Nasce pending quando a permissão é assinada, e só vira confirmed quando a nossa API confere os bytes e prende o anexo ao relato. O que fica pending é permissão não usada: não aparece nem conta no limite, e o arquivo, se chegou, fica na pasta de envio, que o armazenamento esvazia sozinho"
       - name: object_key
         type: text
         required: true
         unique: true
-        note: o nome do arquivo no armazenamento; nunca um endereco, porque endereco assinado guardado vira link permanente com outro nome
+        note: o nome do arquivo no armazenamento; nunca um endereço, porque endereço assinado guardado vira link permanente com outro nome
       - name: thumbnail_object_key
         type: text
-        note: a miniatura da imagem, gerada no proprio navegador antes do envio — WebP, ou JPEG onde o navegador nao codifica WebP; o tipo entra na assinatura e a confirmacao confere os bytes. O arquivo nao tem; no video antigo, e o quadro de capa
+        note: a miniatura da imagem, gerada no próprio navegador antes do envio — WebP, ou JPEG onde o navegador não codifica WebP; o tipo entra na assinatura e a confirmação confere os bytes. O arquivo não tem; no vídeo antigo, é o quadro de capa
       - name: content_type
         type: text
         required: true
-        note: o tipo declarado, que entrou na assinatura do envio; garante o rotulo, e nao o conteudo — conferir os bytes e trabalho da confirmacao. Na imagem, png, jpeg ou webp; no arquivo, o tipo do catalogo pela extensao, e nao o que o navegador disse
+        note: o tipo declarado, que entrou na assinatura do envio; garante o rótulo, e não o conteúdo — conferir os bytes é trabalho da confirmação. Na imagem, png, jpeg ou webp; no arquivo, o tipo do catálogo pela extensão, e não o que o navegador disse
       - name: size_bytes
         type: long
         required: true
-        note: tamanho do que o armazenamento aceitou, lido na confirmacao e nao no que o navegador disse
+        note: tamanho do que o armazenamento aceitou, lido na confirmação e não no que o navegador disse
       - name: duration_seconds
         type: int
-        note: duracao, so dos videos antigos
+        note: duração, só dos vídeos antigos
       - name: original_name
         type: text
-        note: o nome que o arquivo tinha na maquina de quem relata, sem caractere de controle ou de direcao, e cortado no meio para a extensao ficar; guardado para o time, e nunca mostrado do lado de fora, porque nome de arquivo conta coisa que a imagem nao conta
+        note: o nome que o arquivo tinha na máquina de quem relata, sem caractere de controle ou de direção, e cortado no meio para a extensão ficar; guardado para o time, e nunca mostrado do lado de fora, porque nome de arquivo conta coisa que a imagem não conta
       - name: confirmed_at
         type: datetime
         note: quando a nossa API prendeu o anexo ao relato; nulo enquanto pendente
       - name: display_size
         type: enum
         required: true
-        note: "small | medium | large | full — em que tamanho a imagem aparece logo abaixo do texto: um terco da linha, meia, tres quartos ou a linha inteira. Fracao da largura, e nao pixels, para o relato montado caber igual em qualquer tela. Escolha de quem relata; sem escolha, full"
+        note: "small | medium | large | full — em que tamanho a imagem aparece logo abaixo do texto: um terço da linha, meia, três quartos ou a linha inteira. Fração da largura, e não pixels, para o relato montado caber igual em qualquer tela. Escolha de quem relata; sem escolha, full"
       - name: display_order
         type: int
         required: true
-        note: "a posicao no envio, a partir de zero, dentro da categoria (0 a 9): a ordem em que a pessoa montou. Guardada, e nao deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros; a hora so desempata"
+        note: "a posição no envio, a partir de zero, dentro da categoria (0 a 9): a ordem em que a pessoa montou. Guardada, e não deduzida da hora de chegada — o arquivo tentado de novo chega depois dos outros; a hora só desempata"
       - name: created_at
         type: datetime
-        note: quando a permissao de envio foi assinada, em UTC
+        note: quando a permissão de envio foi assinada, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto o anexo vale, preenchido no lugar de apagar. So o recusado e apagado — a linha logicamente, e o arquivo de verdade, porque nunca chegou a ser anexo; o que virou anexo nunca sai, e a retencao e Adiada
+        note: nulo enquanto o anexo vale, preenchido no lugar de apagar. Só o recusado é apagado — a linha logicamente, e o arquivo de verdade, porque nunca chegou a ser anexo; o que virou anexo nunca sai, e a retenção é Adiada
   - name: project_members
     label: Time do projeto
     description: "Existe porque o time entra por projeto, e não pela conta: quem atende dois clientes entra no projeto de cada um, e uma conta com clientes diferentes separa quem trabalha em qual projeto. O dono da conta não tem linha aqui — manda em todos os projetos dela pelo users.account_id, e por isso nunca perde o acesso porque alguém removeu a linha errada."
@@ -1861,79 +1861,79 @@ relations:
     to: report_closures
     toField: report_id
     kind: one-to-many
-    note: "Um relato pode ser encerrado mais de uma vez, porque entre um encerramento e outro ele pode ter sido reaberto. Guardar so o ultimo apagaria a historia que a metrica quer contar: quantas vezes o time achou que tinha acabado antes de acabar de verdade."
+    note: "Um relato pode ser encerrado mais de uma vez, porque entre um encerramento e outro ele pode ter sido reaberto. Guardar só o último apagaria a história que a métrica quer contar: quantas vezes o time achou que tinha acabado antes de acabar de verdade."
   - from: users
     fromField: id
     to: report_closures
     toField: closed_by_user_id
     kind: one-to-many
-    note: Quem do time encerrou. Fica nulo quando quem encerrou foi o proprio sistema, no fim do prazo do pedido de informacao — e essa diferenca importa, porque encerramento automatico e o unico que ninguem leu antes de acontecer.
+    note: Quem do time encerrou. Fica nulo quando quem encerrou foi o próprio sistema, no fim do prazo do pedido de informação — e essa diferença importa, porque encerramento automático é o único que ninguém leu antes de acontecer.
   - from: projects
     fromField: id
     to: project_cycle_settings
     toField: project_id
     kind: one-to-one
-    note: Um projeto tem no maximo uma configuracao de ciclo, e projeto sem linha responde com os padroes — que moram em C#, e nao como valor padrao de coluna, para existirem num lugar so. Mesmo desenho da configuracao da ferramenta.
+    note: Um projeto tem no máximo uma configuração de ciclo, e projeto sem linha responde com os padrões — que moram em C#, e não como valor padrão de coluna, para existirem num lugar só. Mesmo desenho da configuração da ferramenta.
   - from: project_states
     fromField: id
     to: project_cycle_settings
     toField: reopen_state_id
     kind: one-to-many
-    note: A coluna para onde o relato reaberto volta. E escolha do cliente, e a sugestao escrita na tela e apontar para uma coluna diferente da de entrada, para o time separar o que voltou do que chegou agora.
+    note: A coluna para onde o relato reaberto volta. É escolha do cliente, e a sugestão escrita na tela é apontar para uma coluna diferente da de entrada, para o time separar o que voltou do que chegou agora.
   - from: projects
     fromField: id
     to: project_identity_settings
     toField: project_id
     kind: one-to-one
-    note: Um projeto tem no maximo uma configuracao de identidade, e projeto sem linha responde com os padroes — que moram em C#, e nao como valor padrao de coluna. Mesmo desenho da configuracao da ferramenta e das regras do ciclo.
+    note: Um projeto tem no máximo uma configuração de identidade, e projeto sem linha responde com os padrões — que moram em C#, e não como valor padrão de coluna. Mesmo desenho da configuração da ferramenta e das regras do ciclo.
   - from: projects
     fromField: id
     to: reporter_codes
     toField: project_id
     kind: one-to-many
-    note: O codigo nao atravessa projetos, e isso e proposital — o mesmo texto em dois projetos sao duas pessoas diferentes, e aceitar um codigo de fora transformaria o codigo numa credencial universal que ninguem escolheu criar.
+    note: O código não atravessa projetos, e isso é proposital — o mesmo texto em dois projetos são duas pessoas diferentes, e aceitar um código de fora transformaria o código numa credencial universal que ninguém escolheu criar.
   - from: reporter_codes
     fromField: id
     to: reports
     toField: reporter_code_id
     kind: one-to-many
-    note: "E o que junta os relatos da mesma pessoa sem login nenhum. A ligacao e opcional, e precisa ser: relato do modo protocolo, e relato anterior ao modo existir, nao tem codigo nenhum e continua abrindo pelo link de sempre."
+    note: "É o que junta os relatos da mesma pessoa sem login nenhum. A ligação é opcional, e precisa ser: relato do modo protocolo, e relato anterior ao modo existir, não têm código nenhum e continuam abrindo pelo link de sempre."
   - from: users
     fromField: id
     to: reports
     toField: moderated_by_user_id
     kind: one-to-many
-    note: "Quem do time decidiu se o relato vira publico. Ao contrario de closed_by_user_id, aqui ninguem decide sozinho: nao existe moderacao automatica, e a coluna so fica nula enquanto ninguem olhou."
+    note: "Quem do time decidiu se o relato vira público. Ao contrário de closed_by_user_id, aqui ninguém decide sozinho: não existe moderação automática, e a coluna só fica nula enquanto ninguém olhou."
   - from: projects
     fromField: id
     to: project_media_settings
     toField: project_id
     kind: one-to-one
-    note: Uma configuracao por projeto, criada so quando alguem salva. Projeto sem linha le os padroes do codigo, e se comporta igual a quem salvou os padroes.
+    note: Uma configuração por projeto, criada só quando alguém salva. Projeto sem linha lê os padrões do código, e se comporta igual a quem salvou os padrões.
   - from: project_media_settings
     fromField: id
     to: project_media_kinds
     toField: project_media_settings_id
     kind: one-to-many
-    note: Um tipo de midia por linha. E o que permite acrescentar audio sem migracao, e o que deixa cada tipo ter limites proprios sem inventar coluna para cada combinacao.
+    note: Um tipo de mídia por linha. É o que permite acrescentar áudio sem migração, e o que deixa cada tipo ter limites próprios sem inventar coluna para cada combinação.
   - from: reports
     fromField: id
     to: report_attachments
     toField: report_id
     kind: one-to-many
-    note: "O relato carrega os anexos de tres envios: a criacao, cada resposta ao pedido de informacao e cada reabertura. O limite vale em cada envio e por categoria — imagem e arquivo, cada um com quantidade e tamanho. O teto e do projeto, dentro do teto do sistema, porque quem paga a conta de guardar escolhe quanto quer guardar."
+    note: "O relato carrega os anexos de três envios: a criação, cada resposta ao pedido de informação e cada reabertura. O limite vale em cada envio e por categoria — imagem e arquivo, cada um com quantidade e tamanho. O teto é do projeto, dentro do teto do sistema, porque quem paga a conta de guardar escolhe quanto quer guardar."
   - from: report_public_comments
     fromField: id
     to: report_attachments
     toField: public_comment_id
     kind: one-to-many
-    note: O anexo que veio numa resposta ao pedido de informacao aponta tambem para o comentario. Continua apontando para o relato, entao achar o dono nunca depende de passar por aqui.
+    note: O anexo que veio numa resposta ao pedido de informação aponta também para o comentário. Continua apontando para o relato, então achar o dono nunca depende de passar por aqui.
   - from: report_closures
     fromField: id
     to: report_attachments
     toField: reopened_closure_id
     kind: one-to-many
-    note: "O anexo que veio numa reabertura aponta para o fechamento que quem relatou reabriu — e nao para um comentario: reabrir nao escreve na conversa, e o motivo pode ficar em branco. Com a coluna, a cota da reabertura e um filtro, e a tela sabe onde mostrar o arquivo sem adivinhar pela data."
+    note: "O anexo que veio numa reabertura aponta para o fechamento que quem relatou reabriu — e não para um comentário: reabrir não escreve na conversa, e o motivo pode ficar em branco. Com a coluna, a cota da reabertura é um filtro, e a tela sabe onde mostrar o arquivo sem adivinhar pela data."
   - from: projects
     fromField: id
     to: project_members
@@ -2220,45 +2220,45 @@ notes:
     width: 400
     inherited: true
   - text: |-
-      Encerramento nao e comentario
+      Encerramento não é comentário
 
       Ele acontece uma vez por fechamento, carrega um dos quatro desfechos e tem resposta de quem relatou. Comentario e conversa: muitos por relato, sem desfecho e sem consequencia.
 
-      Se morasse na tabela de comentarios, a pergunta "quantos fecharam como nao sera feito, e o relator aceitou?" viraria "procure o comentario que por acaso e um encerramento" — o sinalizador dentro da tabela que este projeto ja recusou duas vezes.
+      Se morasse na tabela de comentários, a pergunta "quantos fecharam como não será feito, e o relator aceitou?" viraria "procure o comentário que por acaso é um encerramento" — o sinalizador dentro da tabela que este projeto já recusou duas vezes.
     anchor: report_closures
     position: { x: 1097, y: 2309 }
     width: 400
     inherited: true
   - text: |-
-      Recusar opinar nao e ausencia de opiniao
+      Recusar opinar não é ausência de opinião
 
-      Sao tres estados, e nao dois: respondeu de 1 a 5, recusou clicando em "prefiro nao responder", ou nunca respondeu.
+      São três estados, e não dois: respondeu de 1 a 5, recusou clicando em "prefiro não responder", ou nunca respondeu.
 
-      Por isso a nota e anulavel e existe a marca de recusa ao lado. Guardar so "nota nula" juntaria os dois ultimos, e um e escolha enquanto o outro e ausencia — a metrica pareceria precisa sem ser.
+      Por isso a nota é anulável e existe a marca de recusa ao lado. Guardar só "nota nula" juntaria os dois últimos, e um é escolha enquanto o outro é ausência — a métrica pareceria precisa sem ser.
 
-      Na tela vale a mesma separacao: a recusa fica fora da escala, nunca como sexta estrela ou zero, senao ela vira a nota mais baixa para quem le depressa.
+      Na tela vale a mesma separação: a recusa fica fora da escala, nunca como sexta estrela ou zero, senão ela vira a nota mais baixa para quem lê depressa.
     anchor: report_closures
     anchorField: satisfaction_declined
     position: { x: 1838, y: 2563 }
     width: 400
     inherited: true
   - text: |-
-      A espera e o que torna o desfazer possivel
+      A espera é o que torna o desfazer possível
 
-      O time move as 14h com espera de 30 minutos, e a pagina publica so muda as 14h30. Se alguem moveu sem querer, ha janela para voltar atras antes de a pessoa la fora ver.
+      O time move às 14h com espera de 30 minutos, e a página pública só muda às 14h30. Se alguém moveu sem querer, há janela para voltar atrás antes de a pessoa lá fora ver.
 
-      Sem espera, a jornada publica anda na mesma transacao do movimento interno. Com espera, o movimento interno grava na hora e o lado publico e agendado.
+      Sem espera, a jornada pública anda na mesma transação do movimento interno. Com espera, o movimento interno grava na hora e o lado público é agendado.
     anchor: reports
     anchorField: public_stage_due_at
     position: { x: 1926, y: 980 }
     width: 380
     inherited: true
   - text: |-
-      O projeto dita as regras, e o padrao ja funciona
+      O projeto dita as regras, e o padrão já funciona
 
-      Quase tudo do ciclo e configuracao, e nao regra fixa. Mas projeto novo precisa andar sem ninguem abrir esta tela: os padroes vivem no codigo, e a linha so nasce quando alguem salva.
+      Quase tudo do ciclo é configuração, e não regra fixa. Mas projeto novo precisa andar sem ninguém abrir esta tela: os padrões vivem no código, e a linha só nasce quando alguém salva.
 
-      E a mesma escolha da jornada publica — o cliente desenha, e o conjunto de fabrica existe para ninguem encarar tela em branco.
+      É a mesma escolha da jornada pública — o cliente desenha, e o conjunto de fábrica existe para ninguém encarar tela em branco.
     anchor: project_cycle_settings
     position: { x: 2559, y: 2239 }
     width: 400
@@ -2266,9 +2266,9 @@ notes:
   - text: |-
       A escolha de responder e de quem relata
 
-      Nao e configuracao do projeto: o projeto so decide como a opcao vem marcada. Quem relatou um defeito as pressas pode nao querer virar parte da investigacao.
+      Não é configuração do projeto: o projeto só decide como a opção vem marcada. Quem relatou um defeito às pressas pode não querer virar parte da investigação.
 
-      Desmarcado, o time nao consegue abrir pedido de informacao naquele relato — e encerrar por falta de resposta nao se aplica a quem nunca aceitou responder.
+      Desmarcado, o time não consegue abrir pedido de informação naquele relato — e encerrar por falta de resposta não se aplica a quem nunca aceitou responder.
     anchor: reports
     anchorField: accepts_questions
     position: { x: 595, y: 1424 }
@@ -2277,19 +2277,19 @@ notes:
   - text: |-
       Identidade e visibilidade na mesma tabela
 
-      Parecem dois assuntos vizinhos e nao sao: o modo de identificacao decide o que a visibilidade pode ser. Sem identidade nao existe "o meu relato", entao nao existe "so os meus" para escolher, e publico identificado nao tem nome nenhum a mostrar.
+      Parecem dois assuntos vizinhos e não são: o modo de identificação decide o que a visibilidade pode ser. Sem identidade não existe "o meu relato", então não existe "só os meus" para escolher, e público identificado não tem nome nenhum a mostrar.
 
-      Em duas tabelas a regra teria de ser conferida lendo as duas, e a tela ofereceria uma combinacao que a regra nao permite — o erro apareceria so na hora de salvar.
+      Em duas tabelas a regra teria de ser conferida lendo as duas, e a tela ofereceria uma combinação que a regra não permite — o erro apareceria só na hora de salvar.
     anchor: project_identity_settings
     position: { x: 3400, y: 300 }
     width: 400
     inherited: true
   - text: |-
-      Gravar publico ainda nao publica nada
+      Gravar público ainda não publica nada
 
-      Marcar o projeto como publico nao torna relato nenhum visivel: a lista publica so devolve o que passou pela fila de moderacao.
+      Marcar o projeto como público não torna relato nenhum visível: a lista pública só devolve o que passou pela fila de moderação.
 
-      A ordem e deliberada. Se o campo sozinho publicasse, mudar esta configuracao jogaria na rua todo o texto livre ja escrito — e texto livre e onde aparece documento, numero de pedido e print com dado de terceiro.
+      A ordem é deliberada. Se o campo sozinho publicasse, mudar esta configuração jogaria na rua todo o texto livre já escrito — e texto livre é onde aparece documento, número de pedido e print com dado de terceiro.
     anchor: project_identity_settings
     anchorField: visibility
     position: { x: 3400, y: 640 }
@@ -2298,33 +2298,33 @@ notes:
   - text: |-
       Todo relato nasce pending, inclusive em projeto privado
 
-      Tenta-se economizar: projeto privado nao publica, logo nao precisaria de fila. E e exatamente ai que mora o acidente — no dia em que alguem marca o projeto como publico, o backlog inteiro passaria a estar aprovado por nunca ter sido perguntado.
+      Tenta-se economizar: projeto privado não publica, logo não precisaria de fila. E é exatamente aí que mora o acidente — no dia em que alguém marca o projeto como público, o backlog inteiro passaria a estar aprovado por nunca ter sido perguntado.
 
-      Nascer pending custa uma coluna e evita uma publicacao em massa que ninguem autorizou.
+      Nascer pending custa uma coluna e evita uma publicação em massa que ninguém autorizou.
     anchor: reports
     anchorField: moderation_state
     position: { x: 1780, y: 760 }
     width: 400
     inherited: true
   - text: |-
-      Perguntar o nome nao e publicar o nome
+      Perguntar o nome não é publicar o nome
 
-      Sao tres travas em serie, e todas precisam estar abertas: o projeto pergunta o nome, o projeto esta em publico identificado, e a pessoa marcou que quer assinar aquele relato.
+      São três travas em série, e todas precisam estar abertas: o projeto pergunta o nome, o projeto está em público identificado, e a pessoa marcou que quer assinar aquele relato.
 
-      Qualquer uma fechada, o nome fica interno — o time ve, o lado de fora nao. E por isso que "anonimo com campo de nome" nao existe aqui: o modo se chama sem login, porque coletar nome ja e tratar dado pessoal.
+      Qualquer uma fechada, o nome fica interno — o time vê, o lado de fora não. É por isso que "anônimo com campo de nome" não existe aqui: o modo se chama sem login, porque coletar nome já é tratar dado pessoal.
     anchor: reports
     anchorField: reporter_name
     position: { x: 1780, y: 1120 }
     width: 400
     inherited: true
   - text: |-
-      Nunca se pergunta se um codigo existe
+      Nunca se pergunta se um código existe
 
-      Sugerir outro codigo so quando o primeiro esta ocupado e dizer que ele esta ocupado, e qualquer diferenca entre livre e ocupado vira uma forma de enumerar o codigo alheio.
+      Sugerir outro código só quando o primeiro está ocupado é dizer que ele está ocupado, e qualquer diferença entre livre e ocupado vira uma forma de enumerar o código alheio.
 
-      Por isso o codigo e sorteado inteiro, nunca escolhido, e codigo desconhecido na rota publica nao e recusado: vira um codigo novo.
+      Por isso o código é sorteado inteiro, nunca escolhido, e código desconhecido na rota pública não é recusado: vira um código novo.
 
-      Na geracao existe uma consulta, e ela nao conta nada: o candidato e sorteado por nos, e a colisao e conferida antes de gravar. A diferenca que importa e quem escolheu o valor consultado.
+      Na geração existe uma consulta, e ela não conta nada: o candidato é sorteado por nós, e a colisão é conferida antes de gravar. A diferença que importa é quem escolheu o valor consultado.
     anchor: reporter_codes
     anchorField: code
     position: { x: 3400, y: 1000 }

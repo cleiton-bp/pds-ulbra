@@ -24,24 +24,24 @@ No que ainda não foi construído, a especificação diz só o que está decidid
 | Arquivo | Cobre |
 |---|---|
 | `01-overview.yaml` | a visão geral: os cinco atores e os dezoito casos de uso principais |
-| `02-project-setup.yaml` | o dono põe o projeto no ar — entrar com Google, criar o projeto (que já nasce com as colunas A fazer, Fazendo e Feito, ligadas ao andamento público), as chaves (a secreta, só a pedido), instalar a ferramenta no site, os domínios, a aparência no Botão no site, arquivar |
-| `03-project-rules.yaml` | o dono define as regras, nas telas de Configurar o projeto — as colunas (com as regras do quadro), o andamento público e o mapa entre eles, o ciclo, quem relata e os anexos, liga as sprints, e organiza as prioridades e as etiquetas; por quanto tempo a mídia fica é adiado |
-| `04-reporting.yaml` | o relator na ferramenta — abrir relato, anexar imagens e arquivos, capturar uma área da página e marcar a imagem, informar o nome, ver e reencontrar os próprios relatos; relatar já identificado pelo site é adiado |
-| `05-team-work.yaml` | o time no painel — ler, comentar (e corrigir o que escreveu), pedir informação, mover, encerrar, criar o card do time e arquivar, dar ao card título, responsável, prioridade, etiquetas e prazo, arrumar o quadro, arrastando com mouse, toque ou teclado, filtrar e ordenar, subtarefas e vínculos, menções e avisos, sprints, raias e o lote — e o que o sistema faz sozinho em volta disso; apagar a mídia vencida é adiado |
+| `02-project-setup.yaml` | o dono põe o projeto no ar — entrar com Google, criar o projeto (que já nasce do modelo escolhido — Quadro simples, Suporte, Kanban ou Scrum —, com as colunas ligadas ao andamento público), as chaves (a secreta, só a pedido), instalar a ferramenta no site, os domínios — os autorizados, os bloqueados e os que esperam liberação —, a aparência em O botão, arquivar |
+| `03-project-rules.yaml` | o dono define as regras, nas telas de Configurar o projeto — as colunas (com as regras do quadro), o andamento público e o mapa entre eles, o ciclo, quem relata (com os limites de relato) e os anexos, liga as sprints, organiza as prioridades e as etiquetas, e define os tipos de relato — o que cada um pergunta e em que coluna entra; por quanto tempo a mídia fica é adiado |
+| `04-reporting.yaml` | o relator na ferramenta — abrir relato, escolhendo o tipo e respondendo ao que ele pergunta, anexar imagens e arquivos, capturar uma área da página e marcar a imagem, informar o nome, ver e reencontrar os próprios relatos — e o que acontece passado um limite, ou vindo de um domínio ainda não autorizado; e relatar já identificado pelo site, sem digitar código nenhum, com a lista dos próprios relatos sem guardar nada |
+| `05-team-work.yaml` | o time no painel — ler, comentar (e corrigir o que escreveu), pedir informação, mover, encerrar, criar o card do time e arquivar, dar ao card título, responsável, prioridade, etiquetas e prazo, arrumar o quadro, arrastando com mouse, toque ou teclado, filtrar e ordenar, subtarefas e vínculos, menções e avisos, sprints, raias e o lote, com manter ou apagar de vez os cards de origem bloqueada — e o que o sistema faz sozinho em volta disso; apagar a mídia vencida é adiado |
 | `06-tracking.yaml` | o relator na página de acompanhamento — acompanhar, responder ao time e reabrir, anexando nos dois, confirmar com nota |
 | `07-moderation.yaml` | o que vira público — moderar, apontar dado sensível, tirar do público, a lista pública; a lista com imagens é adiada |
-| `08-customization.yaml` | **Planejado.** Tipos de relato e o que cada um pergunta, textos com variáveis, capturas automáticas e como a ferramenta abre no site |
+| `08-customization.yaml` | Modelos de configuração ao criar o projeto, textos com variáveis e como a ferramenta abre no site — pelo botão dela ou pelo do site, baixando só quando alguém pede; e, **Planejado**, capturas automáticas |
 | `09-research.yaml` | **Planejado.** As métricas do projeto e a resposta à pergunta de pesquisa |
 | `10-communication.yaml` | **Planejado.** Os avisos por e-mail — etapa que mudou, pedido de informação, código perdido — e o contato que os torna possíveis |
 | `11-account.yaml` | Convidar para o projeto, como administrador ou membro, aceitar pelo link do e-mail, cuidar do time e sair dele, e escolher como cada um é avisado; e, **Planejado**, excluir a conta com prazo de arrependimento e apagar os dados |
-| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto, estimativa e o quadro ao vivo com a API em mais de uma instância — e, já marcado **Planejado**, os relatórios |
+| `12-continuity.yaml` | **Continuidade.** Ferramenta do time, áudio e voz, planos, armazenamento do cliente, voto, estimativa, épicos e automações do quadro, e o quadro ao vivo com a API em mais de uma instância — e, já marcado **Planejado**, os relatórios |
 | `example.yaml` | ponto de partida para conhecer o editor: os quatro tipos de ligação e a especificação completa de um caso de uso |
 
 ## Os atores
 
 | Ator | Quem é | Onde aparece |
 |---|---|---|
-| **Relator** | quem encontrou o problema e relatou; não tem conta, volta pelo link | 01, 04, 06, 08, 10, 12 |
+| **Relator** | quem encontrou o problema e relatou; não tem conta, volta pelo link | 01, 04, 06, 10, 12 |
 | **Visitante do site** | qualquer pessoa na página do cliente; o relator é um tipo de visitante | 01, 07, 08, 12 |
 | **Membro do time** | trabalha os relatos pelo painel, com a conta Google | 01, 05, 07, 11, 12 |
 | **Dono do projeto** | põe o projeto no ar e decide como ele se comporta; é administrador de todos os projetos da conta | 01, 02, 03, 08 a 12 |
@@ -59,7 +59,7 @@ O papel no projeto já existe: o administrador configura e decide quem entra, o 
 
 ## O que não vira caso de uso
 
-Nem tudo o que está planejado é ação de alguém. A robustez — limite de envio por visitante, bloqueio no navegador de onde a ferramenta pode abrir, carregador com versão imutável — e as regras que valem para tudo, como o isolamento entre contas, estão nas notas dos diagramas e no planejamento, e não numa elipse.
+Nem tudo é ação de alguém. A robustez — os limites de envio de relato, com o desafio invisível e a pausa, que já existem (o dono só os ajusta, em `03-project-rules`), e, **Planejado**, o bloqueio no navegador de onde a ferramenta pode abrir e o carregador com versão imutável — e as regras que valem para tudo, como o isolamento entre contas, estão nas notas dos diagramas e no planejamento, e não numa elipse.
 
 ## Convenções
 
