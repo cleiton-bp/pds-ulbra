@@ -411,10 +411,10 @@ entities:
         note: domínio da página que embutiu o widget, declarado por ela e conferido contra a lista do projeto
       - name: accepts_questions
         type: bool
-        note: 'coluna nova — quem relatou marcou se aceita responder dúvidas da equipe; desmarcado, o time nao consegue abrir pedido de informacao neste relato, e a tela diz o motivo. Anulável, e nulo é um terceiro estado: o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada — gravá-lo como "não aceita" seria pôr na boca da pessoa uma resposta que ela nunca deu'
+        note: 'coluna nova — quem relatou marcou se aceita responder dúvidas da equipe; desmarcado, o time não consegue abrir pedido de informação neste relato, e a tela diz o motivo. Anulável, e nulo é um terceiro estado: o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada — gravá-lo como "não aceita" seria pôr na boca da pessoa uma resposta que ela nunca deu'
       - name: public_stage_due_at
         type: datetime
-        note: coluna nova — a partir de quando a mudanca de etapa publica vale para quem relatou; e a janela em que o time ainda pode desfazer, e nula quando nao ha espera configurada
+        note: coluna nova — a partir de quando a mudança de etapa pública vale para quem relatou; é a janela em que o time ainda pode desfazer, e nula quando não há espera configurada
       - name: created_at
         type: datetime
         note: quando o relato entrou, em UTC
@@ -678,7 +678,7 @@ entities:
         note: nulo enquanto a ligação vale, preenchido no lugar de apagar
   - name: report_info_requests
     label: Pedidos de informação
-    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela propria, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
+    description: 'Quando o time devolve o relato pedindo contexto, em vez de encerrar. Tabela própria, e existe pelo mesmo motivo de report_closures: acontece mais de uma vez por relato, espera resposta de quem está do outro lado, e tem prazo próprio. "Não reproduzi" e "não vamos fazer" chegando iguais ao relator fazem ele entender que acabou e parar de responder — e o relato morre por ruído, que é o problema que o produto existe para resolver.'
     position: { x: 1889, y: 1695 }
     fields:
       - name: id
@@ -728,7 +728,7 @@ entities:
         note: exclusão lógica; nulo enquanto o registro vale
   - name: report_closures
     label: Encerramentos
-    description: "O encerramento de um relato e a resposta de quem o escreveu, numa linha so. Nao e comentario: acontece uma vez por fechamento, carrega um desfecho e tem resposta. Reabrir e fechar de novo cria uma linha nova, e e dai que saem as metricas — quantos precisaram fechar duas vezes, qual a nota media, quantos encerramentos o relator recusou."
+    description: "O encerramento de um relato e a resposta de quem o escreveu, numa linha só. Não é comentário: acontece uma vez por fechamento, carrega um desfecho e tem resposta. Reabrir e fechar de novo cria uma linha nova, e é daí que saem as métricas — quantos precisaram fechar duas vezes, qual a nota média, quantos encerramentos o relator recusou."
     position: { x: 1560, y: 1980 }
     fields:
       - name: id
@@ -751,11 +751,11 @@ entities:
       - name: reason
         type: text
         required: true
-        note: o motivo, escrito pelo time e lido por quem relatou; encerrar sem ele e impossivel, e nao desencorajado
+        note: o motivo, escrito pelo time e lido por quem relatou; encerrar sem ele é impossível, e não desencorajado
       - name: closed_by_user_id
         type: long
         fk: true
-        note: quem do time encerrou; nulo quando foi o proprio sistema, no fim do prazo do pedido de informacao
+        note: quem do time encerrou; nulo quando foi o próprio sistema, no fim do prazo do pedido de informação
       - name: closed_at
         type: datetime
         required: true
@@ -766,32 +766,32 @@ entities:
         note: "quando este fechamento passa a valer para quem relatou; igual a closed_at quando não há espera configurada, e adiante dele durante a janela de desfazer. Coluna própria, e não conta feita na leitura: calculá-la a partir da espera do projeto faria mexer na configuração reescrever o passado de um fechamento que já aconteceu — o mesmo motivo de warn_at e close_at serem gravados"
       - name: confirmed_at
         type: datetime
-        note: quando quem relatou disse que resolveu; nulo enquanto ele nao respondeu
+        note: quando quem relatou disse que resolveu; nulo enquanto ele não respondeu
       - name: satisfaction
         type: int
-        note: a nota de 1 a 5; nula quando ele nao respondeu e tambem quando recusou responder
+        note: a nota de 1 a 5; nula quando ele não respondeu e também quando recusou responder
       - name: satisfaction_declined
         type: bool
         required: true
-        note: marcado quando ele escolheu "prefiro nao responder"; e o que separa recusa de ausencia, e as duas contam diferente
+        note: marcado quando ele escolheu "prefiro não responder"; é o que separa recusa de ausência, e as duas contam diferente
       - name: reopened_at
         type: datetime
         note: quando ele reabriu em vez de confirmar
       - name: reopen_comment
         type: text
-        note: por que ele reabriu, quando o projeto pede o comentario; fica ao lado do motivo do time, que e o par que a metrica le junto
+        note: por que ele reabriu, quando o projeto pede o comentário; fica ao lado do motivo do time, que é o par que a métrica lê junto
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
         note: nulo enquanto o encerramento vale, preenchido no lugar de apagar
   - name: project_cycle_settings
     label: Regras do ciclo
-    description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se da para reabrir e como, e o que a pessoa responde no fim. Uma linha por projeto, criada so quando alguem salva — os padroes vivem no codigo, e projeto sem linha e projeto que nunca precisou mudar nada."
+    description: "Como o ciclo fecha neste projeto: quando encerra, quanto espera antes de quem relatou ver, se dá para reabrir e como, e o que a pessoa responde no fim. Uma linha por projeto, criada só quando alguém salva — os padrões vivem no código, e projeto sem linha é projeto que nunca precisou mudar nada."
     position: { x: 2220, y: 1980 }
     fields:
       - name: id
@@ -806,15 +806,15 @@ entities:
         type: long
         fk: true
         required: true
-        note: projeto dono da configuracao, unico entre os nao apagados, e e o que faz o 1:1
+        note: projeto dono da configuração, único entre os não apagados, e é o que faz o 1:1
       - name: closure_trigger
         type: enum
         required: true
-        note: last_column | button — se o relato encerra ao cair na ultima coluna ou por um botao proprio
+        note: last_column | button — se o relato encerra ao cair na última coluna ou por um botão próprio
       - name: public_delay_minutes
         type: int
         required: true
-        note: quanto o lado publico espera antes de mudar; zero muda o lado publico na mesma hora, e acima de zero e o que da a janela para desfazer um movimento errado
+        note: quanto o lado público espera antes de mudar; zero muda o lado público na mesma hora, e acima de zero é o que dá a janela para desfazer um movimento errado
       - name: allows_reopen
         type: bool
         required: true
@@ -830,7 +830,7 @@ entities:
       - name: tracking_code_can_act
         type: bool
         required: true
-        note: se o protocolo sozinho confirma e reabre, ou se essas duas acoes exigem o link; ler e inofensivo, reabrir mexe na fila do time
+        note: se o protocolo sozinho confirma e reabre, ou se essas duas ações exigem o link; ler é inofensivo, reabrir mexe na fila do time
       - name: satisfaction_enabled
         type: bool
         required: true
@@ -842,32 +842,32 @@ entities:
       - name: satisfaction_required
         type: bool
         required: true
-        note: se confirmar exige responder; mesmo exigindo, "prefiro nao responder" continua existindo, fora da escala
+        note: se confirmar exige responder; mesmo exigindo, "prefiro não responder" continua existindo, fora da escala
       - name: info_request_enabled
         type: bool
         required: true
-        note: se o time pode devolver o relato pedindo informacao em vez de encerrar
+        note: se o time pode devolver o relato pedindo informação em vez de encerrar
       - name: info_request_warn_days
         type: int
         required: true
-        note: dias sem resposta ate avisar quem relatou de que o relato vai encerrar
+        note: dias sem resposta até avisar quem relatou de que o relato vai encerrar
       - name: info_request_close_days
         type: int
         required: true
-        note: dias depois do aviso ate encerrar como sem retorno; encerrado assim continua reabrivel
+        note: dias depois do aviso até encerrar como sem retorno; encerrado assim continua reabrível
       - name: accepts_questions_default
         type: bool
         required: true
-        note: como a opcao de aceitar duvidas vem marcada no formulario; a escolha final e de quem relata, nao do projeto
+        note: como a opção de aceitar dúvidas vem marcada no formulário; a escolha final é de quem relata, não do projeto
       - name: created_at
         type: datetime
         note: quando o registro foi criado, em UTC
       - name: updated_at
         type: datetime
-        note: ultima alteracao, em UTC
+        note: última alteração, em UTC
       - name: deleted_at
         type: datetime
-        note: nulo enquanto a configuracao vale, preenchida no lugar de apagar
+        note: nulo enquanto a configuração vale, preenchida no lugar de apagar
 relations:
   - from: reports
     fromField: id
@@ -1036,25 +1036,25 @@ relations:
     to: report_closures
     toField: report_id
     kind: one-to-many
-    note: "Um relato pode ser encerrado mais de uma vez, porque entre um encerramento e outro ele pode ter sido reaberto. Guardar so o ultimo apagaria a historia que a metrica quer contar: quantas vezes o time achou que tinha acabado antes de acabar de verdade."
+    note: "Um relato pode ser encerrado mais de uma vez, porque entre um encerramento e outro ele pode ter sido reaberto. Guardar só o último apagaria a história que a métrica quer contar: quantas vezes o time achou que tinha acabado antes de acabar de verdade."
   - from: users
     fromField: id
     to: report_closures
     toField: closed_by_user_id
     kind: one-to-many
-    note: Quem do time encerrou. Fica nulo quando quem encerrou foi o proprio sistema, no fim do prazo do pedido de informacao — e essa diferenca importa, porque encerramento automatico e o unico que ninguem leu antes de acontecer.
+    note: Quem do time encerrou. Fica nulo quando quem encerrou foi o próprio sistema, no fim do prazo do pedido de informação — e essa diferença importa, porque encerramento automático é o único que ninguém leu antes de acontecer.
   - from: projects
     fromField: id
     to: project_cycle_settings
     toField: project_id
     kind: one-to-one
-    note: Um projeto tem no maximo uma configuracao de ciclo, e projeto sem linha responde com os padroes — que moram em C#, e nao como valor padrao de coluna, para existirem num lugar so. Mesmo desenho da configuracao da ferramenta.
+    note: Um projeto tem no máximo uma configuração de ciclo, e projeto sem linha responde com os padrões — que moram em C#, e não como valor padrão de coluna, para existirem num lugar só. Mesmo desenho da configuração da ferramenta.
   - from: project_states
     fromField: id
     to: project_cycle_settings
     toField: reopen_state_id
     kind: one-to-many
-    note: A coluna para onde o relato reaberto volta. E escolha do cliente, e a sugestao escrita na tela e apontar para uma coluna diferente da de entrada, para o time separar o que voltou do que chegou agora.
+    note: A coluna para onde o relato reaberto volta. É escolha do cliente, e a sugestão escrita na tela é apontar para uma coluna diferente da de entrada, para o time separar o que voltou do que chegou agora.
 notes:
   - text: |-
       Toda tabela repete as colunas padrão
@@ -1189,51 +1189,51 @@ notes:
     width: 400
     inherited: true
   - text: |-
-      Encerramento nao e comentario
+      Encerramento não é comentário
 
       Ele acontece uma vez por fechamento, carrega um dos quatro desfechos e tem resposta de quem relatou. Comentario e conversa: muitos por relato, sem desfecho e sem consequencia.
 
-      Se morasse na tabela de comentarios, a pergunta "quantos fecharam como nao sera feito, e o relator aceitou?" viraria "procure o comentario que por acaso e um encerramento" — o sinalizador dentro da tabela que este projeto ja recusou duas vezes.
+      Se morasse na tabela de comentários, a pergunta "quantos fecharam como não será feito, e o relator aceitou?" viraria "procure o comentário que por acaso é um encerramento" — o sinalizador dentro da tabela que este projeto já recusou duas vezes.
     anchor: report_closures
     position: { x: 1097, y: 2309 }
     width: 400
   - text: |-
-      Recusar opinar nao e ausencia de opiniao
+      Recusar opinar não é ausência de opinião
 
-      Sao tres estados, e nao dois: respondeu de 1 a 5, recusou clicando em "prefiro nao responder", ou nunca respondeu.
+      São três estados, e não dois: respondeu de 1 a 5, recusou clicando em "prefiro não responder", ou nunca respondeu.
 
-      Por isso a nota e anulavel e existe a marca de recusa ao lado. Guardar so "nota nula" juntaria os dois ultimos, e um e escolha enquanto o outro e ausencia — a metrica pareceria precisa sem ser.
+      Por isso a nota é anulável e existe a marca de recusa ao lado. Guardar só "nota nula" juntaria os dois últimos, e um é escolha enquanto o outro é ausência — a métrica pareceria precisa sem ser.
 
-      Na tela vale a mesma separacao: a recusa fica fora da escala, nunca como sexta estrela ou zero, senao ela vira a nota mais baixa para quem le depressa.
+      Na tela vale a mesma separação: a recusa fica fora da escala, nunca como sexta estrela ou zero, senão ela vira a nota mais baixa para quem lê depressa.
     anchor: report_closures
     anchorField: satisfaction_declined
     position: { x: 1838, y: 2513 }
     width: 400
   - text: |-
-      A espera e o que torna o desfazer possivel
+      A espera é o que torna o desfazer possível
 
-      O time move as 14h com espera de 30 minutos, e a pagina publica so muda as 14h30. Se alguem moveu sem querer, ha janela para voltar atras antes de a pessoa la fora ver.
+      O time move às 14h com espera de 30 minutos, e a página pública só muda às 14h30. Se alguém moveu sem querer, há janela para voltar atrás antes de a pessoa lá fora ver.
 
-      Sem espera, a jornada publica anda na mesma transacao do movimento interno. Com espera, o movimento interno grava na hora e o lado publico e agendado.
+      Sem espera, a jornada pública anda na mesma transação do movimento interno. Com espera, o movimento interno grava na hora e o lado público é agendado.
     anchor: reports
     anchorField: public_stage_due_at
     position: { x: 1926, y: 980 }
     width: 380
   - text: |-
-      O projeto dita as regras, e o padrao ja funciona
+      O projeto dita as regras, e o padrão já funciona
 
-      Quase tudo do ciclo e configuracao, e nao regra fixa. Mas projeto novo precisa andar sem ninguem abrir esta tela: os padroes vivem no codigo, e a linha so nasce quando alguem salva.
+      Quase tudo do ciclo é configuração, e não regra fixa. Mas projeto novo precisa andar sem ninguém abrir esta tela: os padrões vivem no código, e a linha só nasce quando alguém salva.
 
-      E a mesma escolha da jornada publica — o cliente desenha, e o conjunto de fabrica existe para ninguem encarar tela em branco.
+      É a mesma escolha da jornada pública — o cliente desenha, e o conjunto de fábrica existe para ninguém encarar tela em branco.
     anchor: project_cycle_settings
     position: { x: 2559, y: 2239 }
     width: 400
   - text: |-
       A escolha de responder e de quem relata
 
-      Nao e configuracao do projeto: o projeto so decide como a opcao vem marcada. Quem relatou um defeito as pressas pode nao querer virar parte da investigacao.
+      Não é configuração do projeto: o projeto só decide como a opção vem marcada. Quem relatou um defeito às pressas pode não querer virar parte da investigação.
 
-      Desmarcado, o time nao consegue abrir pedido de informacao naquele relato — e encerrar por falta de resposta nao se aplica a quem nunca aceitou responder.
+      Desmarcado, o time não consegue abrir pedido de informação naquele relato — e encerrar por falta de resposta não se aplica a quem nunca aceitou responder.
     anchor: reports
     anchorField: accepts_questions
     position: { x: 595, y: 1424 }

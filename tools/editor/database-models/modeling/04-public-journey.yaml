@@ -130,7 +130,7 @@ entities:
       - name: mapping_version
         type: int
         required: true
-        note: a versão do mapeamento que vale agora, zero enquanto o cliente nunca ligou nada, e mora aqui em vez de ser o maior valor da tabela de mapeamento porque desfazer todos os mapeamentos grava uma versão sem nenhuma linha
+        note: coluna nova — a versão do mapeamento que vale agora, zero enquanto o cliente nunca ligou nada, e mora aqui em vez de ser o maior valor da tabela de mapeamento porque desfazer todos os mapeamentos grava uma versão sem nenhuma linha
       - name: deleted_at
         type: datetime
         note: nulo enquanto o projeto vale, preenchido no lugar de apagar
@@ -381,11 +381,11 @@ entities:
       - name: project_state_id
         type: long
         fk: true
-        note: coluna nova — onde o card está agora, e é cache, porque a verdade é a sequência de eventos e esta coluna existe só para a lista filtrar e contar sem reconstruir o histórico a cada consulta
+        note: onde o card está agora, e é cache, porque a verdade é a sequência de eventos e esta coluna existe só para a lista filtrar e contar sem reconstruir o histórico a cada consulta
       - name: project_public_stage_id
         type: long
         fk: true
-        note: em que passo da jornada quem relatou vê este relato, nulo enquanto ele não aparece em nenhum, e é cache como o anterior porque a verdade é a sequência de eventos
+        note: coluna nova — em que passo da jornada quem relatou vê este relato, nulo enquanto ele não aparece em nenhum, e é cache como o anterior porque a verdade é a sequência de eventos
       - name: tracking_code
         type: text
         required: true
@@ -552,7 +552,7 @@ entities:
       - name: user_id
         type: long
         fk: true
-        note: coluna nova — quem agiu, quando a ação partiu de alguém do time, e nula no evento que nasce de fora, como o relato criado pelo widget ou a visualização feita por quem relatou
+        note: quem agiu, quando a ação partiu de alguém do time, e nula no evento que nasce de fora, como o relato criado pelo widget ou a visualização feita por quem relatou
       - name: type
         type: enum
         required: true
