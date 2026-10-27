@@ -54,7 +54,7 @@ uma das ordens dela.</p>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}</code></td><td>Abre um relato, com o contexto, a coluna em que ele está, as respostas com as perguntas do envio (<code>Answers</code>) e as reaberturas, cada uma com o motivo de quem relatou. <strong>Registra a primeira visualização do time</strong> — as aberturas seguintes não gravam, e a releitura com <code>?refresh=true</code>, do card que já está aberto quando outra pessoa mexe nele, nunca grava (ver <a href="#/fluxo/tempo-real">O tempo real</a>).</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/state</code></td><td>Move o relato de coluna. <strong>Grava o evento antes do cache</strong>, na mesma transação. <code>AfterPublicId</code> é o lugar na coluna nova: o card logo acima — sem ele, o topo, que é onde o card chega pelo seletor. O card de referência que já não está na coluna de destino recusa o pedido (409), e o próprio card como referência, 400. Para a coluna em que o card já está, nada muda — arrumar é a rota de baixo.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/position</code></td><td>Muda o card de lugar <strong>na própria coluna</strong>: <code>AfterPublicId</code> é o card logo acima, nulo é o topo. <strong>Não grava evento</strong> nem linha na história — arrumar a coluna não muda o card. Arquivado, o próprio card que outra pessoa acabou de mover, ou referência que já saiu da coluna ou foi arquivada, 409. O card não fica abaixo dele mesmo (400).</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/history</code></td><td>Tudo que aconteceu com o relato, montado a partir dos eventos. <strong>Não grava.</strong></td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/history</code></td><td>Tudo que aconteceu com o relato, montado a partir dos eventos. <strong>Não grava.</strong> Das leituras do time vem só a primeira; as de quem relatou vêm todas. As duas têm o mesmo tipo, e é <code>Source</code> que as separa: <code>Panel</code> é o time, <code>PublicPage</code> é quem relatou.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/reports/{reportPublicId}/comments</code></td><td>Os comentários, em <strong>duas listas separadas</strong>. Cada interno traz <code>EditedAt</code> — quando foi corrigido pela última vez, ou nulo — e <code>IsYours</code>, se quem pergunta é quem escreveu.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>.../comments/internal</code></td><td>Escreve o que fica entre o time. Este texto não sai da tabela dele.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../comments/internal/{commentPublicId}</code></td><td>Corrige um comentário interno, com o texto novo inteiro (<code>Body</code>). <strong>Só quem escreveu</strong> — 403 para as outras pessoas, inclusive quem administra. As menções passam a ser as do texto novo. Volta com <code>EditedAt</code>.</td></tr>
@@ -236,19 +236,18 @@ apagar é de quem o escreveu.</p>
 </div>
 
 <div class="note why">
-  <strong>Uma consulta que grava, de propósito</strong>
+  <strong>Uma consulta que grava, de propósito — e só na primeira vez</strong>
   <p><code>GET /projects/{publicId}/reports/{reportPublicId}</code> registra um evento de
-  visualização a cada abertura — a releitura com <code>?refresh=true</code>, do card já aberto
-  quando outra pessoa mexe nele, não registra. O intervalo entre ele e a criação do relato é o tempo que o
-  time levou para ir olhar — metade da pergunta de pesquisa, e um dado que não é reconstituível
-  depois.</p>
+  visualização na <b>primeira abertura do relato pelo time</b>. O intervalo entre ele e a
+  criação do relato é o tempo que o time levou para ir olhar — metade da pergunta de pesquisa,
+  e um dado que não é reconstituível depois. As aberturas seguintes não gravam, e a releitura
+  com <code>?refresh=true</code>, do card já aberto quando outra pessoa mexe nele, nunca grava.</p>
   <p>A consequência vale para quem for consumir a API: <b>ela não deve ser chamada para
-  adiantar dado que ninguém pediu</b>. Uma tela que abrisse os relatos sozinha inventaria
-  leituras que não aconteceram. A <b>lista</b> não registra nada, e é ela que serve para
-  varrer.</p>
-  <p><b>O relato tem endereço próprio no painel</b>, o que multiplica as chamadas
-  legítimas: recarregar a página abre de novo, e um link colado num grupo gera uma abertura por
-  pessoa que clicar. Isso não é ruído a corrigir — é o que de fato aconteceu. Mas a análise
-  precisa saber: <b>o tempo de resposta do time é a primeira visualização</b>, e não a média
-  delas.</p>
+  adiantar dado que ninguém pediu</b>. Uma tela que abrisse os relatos sozinha inventaria a
+  primeira leitura de relatos que ninguém olhou. A <b>lista</b> não registra nada, e é ela que
+  serve para varrer.</p>
+  <p><b>Por que só a primeira:</b> o tempo de resposta do time é a primeira visualização, e não
+  a média delas — e gravar cada abertura fazia a tabela de eventos, que não se apaga, e o
+  histórico do card crescerem a cada clique. As voltas de quem relatou, pela página de
+  acompanhamento, continuam todas gravadas: elas são outra medida da pesquisa.</p>
 </div>
