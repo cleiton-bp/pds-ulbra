@@ -2359,10 +2359,10 @@ public partial class ReportService : IReportService
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
-        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
+        var reportId = await _unitOfWork.Reports.FindIdAsync(project.Id, reportPublicId, cancellationToken)
             ?? throw new KeyNotFoundException("Relato nao encontrado.");
 
-        var events = await _unitOfWork.Events.ListByReportAsync(report.Id, cancellationToken);
+        var events = await _unitOfWork.Events.ListByReportAsync(reportId, cancellationToken);
         var mudancas = events.Select(CardChange.Read).ToList();
 
         // Quem passou pelo card aparece com o nome de agora, numa consulta so: o evento

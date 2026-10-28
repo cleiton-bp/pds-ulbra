@@ -26,10 +26,10 @@ public partial class ReportService
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
-        var card = await _unitOfWork.Reports.FindParentAsync(project.Id, reportPublicId, cancellationToken)
-                   ?? throw new KeyNotFoundException("Card nao encontrado.");
+        var cardId = await _unitOfWork.Reports.FindIdAsync(project.Id, reportPublicId, cancellationToken)
+                     ?? throw new KeyNotFoundException("Card nao encontrado.");
 
-        return await LinksOfAsync(card.Id, cancellationToken);
+        return await LinksOfAsync(cardId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<CardLinkViewModel>> LinkAsync(Guid projectPublicId, Guid reportPublicId, CreateCardLinkDto dto, CancellationToken cancellationToken = default)
@@ -116,11 +116,11 @@ public partial class ReportService
     {
         var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
 
-        var card = await _unitOfWork.Reports.FindParentAsync(project.Id, reportPublicId, cancellationToken)
-                   ?? throw new KeyNotFoundException("Card nao encontrado.");
+        var cardId = await _unitOfWork.Reports.FindIdAsync(project.Id, reportPublicId, cancellationToken)
+                     ?? throw new KeyNotFoundException("Card nao encontrado.");
 
         // Desfazer vale sempre, mesmo com o duplicado no arquivo: e o caminho de volta dele.
-        var vinculo = await _unitOfWork.CardLinks.FindByPublicIdAsync(card.Id, linkPublicId, cancellationToken)
+        var vinculo = await _unitOfWork.CardLinks.FindByPublicIdAsync(cardId, linkPublicId, cancellationToken)
                       ?? throw new KeyNotFoundException("Vinculo nao encontrado neste card.");
 
         var avisar = await UndoLinkAsync(project, vinculo, cancellationToken);
@@ -130,7 +130,7 @@ public partial class ReportService
         foreach (var publicId in avisar)
             await _notifier.CardChangedAsync(publicId);
 
-        return await LinksOfAsync(card.Id, cancellationToken);
+        return await LinksOfAsync(cardId, cancellationToken);
     }
 
     /// <summary>

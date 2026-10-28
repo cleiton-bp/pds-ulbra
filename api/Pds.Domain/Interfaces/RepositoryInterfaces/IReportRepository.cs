@@ -155,6 +155,13 @@ public interface IReportRepository : IBaseRepository<Report>
     /// <summary>Os numeros de cada sprint: cards, os que terminaram, e os pontos.</summary>
     Task<IReadOnlyDictionary<long, SprintStats>> CountSprintsAsync(IReadOnlyCollection<long> sprintIds, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// So o Id do card, para quem so precisa saber que ele existe no projeto — o historico,
+    /// os comentarios, os anexos, os vinculos. Nulo quando nao e do projeto. Ler o card
+    /// inteiro para isso era trazer o texto, as etiquetas e o contexto para nada.
+    /// </summary>
+    Task<long?> FindIdAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
+
     /// <summary>O card que vai ser pai de uma subtarefa, sem rastreio. Nulo quando nao e do projeto.</summary>
     Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default);
 

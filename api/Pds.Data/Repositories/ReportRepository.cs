@@ -663,6 +663,14 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
                     .ToListAsync(cancellationToken))
                 .ToHashSet();
 
+    public Task<long?> FindIdAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+        // Pelo filtro global, como as outras leituras: o card de outro projeto, ou apagado,
+        // nao existe aqui.
+        => Context.Reports
+            .Where(report => report.ProjectId == projectId && report.PublicId == publicId)
+            .Select(report => (long?)report.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default)
         // Pelo filtro global: o card de outro projeto, ou apagado, nao existe aqui.
         => Context.Reports
