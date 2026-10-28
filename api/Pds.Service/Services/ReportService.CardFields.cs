@@ -3,6 +3,7 @@ using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
 using Pds.Domain.Exceptions;
+using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
 using Pds.Service.Cards;
@@ -339,8 +340,8 @@ public partial class ReportService
     /// O time do projeto agora: quem e dono da conta e quem tem linha no time. E a
     /// mesma conta da tela Membros.
     /// </summary>
-    private Task<IReadOnlyList<User>> TeamOfAsync(long accountId, long projectId, CancellationToken cancellationToken)
-        => Team.OfProjectAsync(_unitOfWork, accountId, projectId, cancellationToken);
+    private Task<IReadOnlyList<TeamPerson>> TeamOfAsync(long accountId, long projectId, CancellationToken cancellationToken)
+        => _unitOfWork.ProjectMembers.ListTeamAsync(projectId, accountId, cancellationToken);
 
     /// <summary>
     /// Quem esta no time, para marcar o responsavel que saiu. So vai ao banco quando

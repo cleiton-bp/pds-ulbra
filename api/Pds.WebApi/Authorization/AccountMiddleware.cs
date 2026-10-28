@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Pds.Data.Configurations;
 using Pds.Data.Context;
 using Pds.Domain.Enums;
 using Pds.Domain.Security;
@@ -20,8 +21,8 @@ namespace Pds.WebApi.Authorization;
 /// <para><b>O que a pessoa enxerga e lido do banco a cada requisicao</b>, e nao
 /// guardado no token: os projetos da conta propria, como dona, e os de outras
 /// contas em que entrou pelo time, com o papel. Por isso quem sai de um projeto
-/// perde o acesso na requisicao seguinte, sem esperar o token vencer. Sao duas
-/// consultas pequenas por requisicao autenticada, ambas por indice.</para>
+/// perde o acesso na requisicao seguinte, sem esperar o token vencer. E uma consulta
+/// so por requisicao autenticada, por indice (ver <see cref="LoadAccessAsync"/>).</para>
 ///
 /// <para>Requisicao anonima (login, documentacao, rotas publicas) segue com o
 /// contexto vazio, e o filtro global nao devolve nada.</para>
@@ -29,13 +30,16 @@ namespace Pds.WebApi.Authorization;
 public class AccountMiddleware
 {
     /// <summary>
-    /// Marca no SQL do log as duas leituras que montam o acesso. As leituras de
-    /// painel que desligam o filtro de proposito sao estas duas, a conferencia de
-    /// nome repetido (<see cref="Pds.Data.Repositories.ProjectRepository.NameCheckQueryTag"/>)
-    /// e as do aviso em tempo real (<c>HubWorkNotifier.QueryTag</c>), todas marcadas —
-    /// e com a marca da para separa-las das que nunca deveriam desligar.
+    /// Marca no SQL do log a leitura que monta o acesso. As leituras de painel que
+    /// desligam o filtro de proposito sao esta, a conferencia de nome repetido
+    /// (<see cref="Pds.Data.Repositories.ProjectRepository.NameCheckQueryTag"/>) e as do
+    /// aviso em tempo real (<c>HubWorkNotifier.QueryTag</c>), todas marcadas — e com a
+    /// marca da para separa-las das que nunca deveriam desligar.
     /// </summary>
     public const string AccessQueryTag = "montagem do acesso da requisicao";
+
+    /// <summary>O papel como o banco o guarda, pelo mesmo conversor do mapeamento do time.</summary>
+    private static readonly SnakeCaseEnumConverter<ProjectRoleEnum> PapelNoBanco = new();
 
     private readonly RequestDelegate _next;
 
@@ -49,28 +53,17 @@ public class AccountMiddleware
         if (context.User.Identity?.IsAuthenticated == true &&
             Guid.TryParse(context.User.FindFirst(TokenService.UserClaim)?.Value, out var userPublicId))
         {
-            var identity = await dataContext.Users
-                .AsNoTracking()
-                .Where(user => user.PublicId == userPublicId)
-                .Select(user => new
-                {
-                    user.Id,
-                    user.PublicId,
-                    user.AccountId,
-                    AccountPublicId = user.Account.PublicId,
-                })
-                .FirstOrDefaultAsync(context.RequestAborted);
+            var acesso = await LoadAccessAsync(dataContext, userPublicId, context.RequestAborted);
 
             // Usuario apagado depois do token emitido cai aqui: o token continua
             // com assinatura valida, mas a sessao deixa de existir.
-            if (identity is not null)
+            if (acesso is not null)
             {
-                accountContext.UserId = identity.Id;
-                accountContext.UserPublicId = identity.PublicId;
-                accountContext.AccountId = identity.AccountId;
-                accountContext.AccountPublicId = identity.AccountPublicId;
-                accountContext.SetProjects(await LoadProjectsAsync(dataContext, identity.Id, identity.AccountId,
-                    context.RequestAborted));
+                accountContext.UserId = acesso.UserId;
+                accountContext.UserPublicId = userPublicId;
+                accountContext.AccountId = acesso.AccountId;
+                accountContext.AccountPublicId = acesso.AccountPublicId;
+                accountContext.SetProjects(acesso.Projects);
             }
         }
 
@@ -78,44 +71,73 @@ public class AccountMiddleware
     }
 
     /// <summary>
-    /// Os projetos que a pessoa enxerga, com o papel em cada um.
+    /// Quem e a pessoa do token e os projetos que ela enxerga, com o papel em cada um —
+    /// numa ida so ao banco. Nulo quando a pessoa, ou a conta dela, nao existe mais.
     ///
-    /// <para>As duas leituras desligam o filtro global e reescrevem as condicoes a
-    /// mao: o filtro depende justamente da lista que esta sendo montada aqui, e
-    /// enquanto ela esta vazia ele nao devolveria nada.</para>
+    /// <para><b>SQL escrito a mao, e sem o filtro global</b>: o filtro depende justamente
+    /// da lista que esta sendo montada aqui, e enquanto ela esta vazia ele nao devolveria
+    /// nada — por isso cada exclusao logica esta escrita na propria condicao. Eram tres
+    /// consultas (a pessoa, os projetos da conta, os do time): juntas, sao duas idas a
+    /// menos em toda requisicao.</para>
     ///
-    /// <para><b>O dono vence.</b> Se a pessoa for dona da conta e tambem tiver
-    /// linha no time do mesmo projeto, vale o acesso de dona — a linha nao rebaixa
-    /// quem manda na conta.</para>
+    /// <para><b>O dono vence.</b> Se a pessoa for dona da conta e tambem tiver linha no
+    /// time do mesmo projeto, vale o acesso de dona — a linha nao rebaixa quem manda na
+    /// conta.</para>
     ///
     /// <para>O hub do tempo real usa a mesma leitura ao entrar num projeto: a regra de
     /// quem enxerga o que fica num lugar so.</para>
     /// </summary>
-    internal static async Task<List<ProjectAccess>> LoadProjectsAsync(
-        DataContext dataContext, long userId, long accountId, CancellationToken cancellationToken)
+    internal static async Task<RequestAccess?> LoadAccessAsync(
+        DataContext dataContext, Guid userPublicId, CancellationToken cancellationToken)
     {
-        var owned = await dataContext.Projects
+        // A pessoa vem antes, numa parte so, e as duas listas partem dela: assim o banco
+        // procura a pessoa uma vez, e a lista do time comeca pelas linhas dela — e nao por
+        // todos os projetos, que era o que ele escolhia sem saber de quem se tratava.
+        var linhas = await dataContext.Database
+            .SqlQuery<LinhaDoAcesso>($"""
+                WITH pessoa AS (
+                    SELECT u.id, u.account_id, a.public_id AS account_public_id
+                    FROM users AS u
+                    JOIN accounts AS a ON a.id = u.account_id AND a.deleted_at IS NULL
+                    WHERE u.public_id = {userPublicId} AND u.deleted_at IS NULL
+                )
+                -- Os da conta propria, como dona. Pela juncao de fora, a pessoa vem mesmo sem projeto.
+                SELECT pessoa.id AS "UserId", pessoa.account_id AS "AccountId", pessoa.account_public_id AS "AccountPublicId",
+                       p.id AS "ProjectId", p.public_id AS "ProjectPublicId", NULL::text AS "Role"
+                FROM pessoa
+                LEFT JOIN projects AS p ON p.account_id = pessoa.account_id AND p.deleted_at IS NULL
+                UNION ALL
+                -- Os de outras contas, pelo time, com o papel. Conta apagada leva os projetos
+                -- junto; conferir aqui nao depende de a exclusao ter cascateado.
+                SELECT pessoa.id, pessoa.account_id, pessoa.account_public_id, p.id, p.public_id, m.role
+                FROM pessoa
+                JOIN project_members AS m ON m.user_id = pessoa.id AND m.deleted_at IS NULL
+                JOIN projects AS p ON p.id = m.project_id AND p.deleted_at IS NULL AND p.account_id <> pessoa.account_id
+                JOIN accounts AS dona ON dona.id = p.account_id AND dona.deleted_at IS NULL
+                """)
             .TagWith(AccessQueryTag)
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Where(project => project.DeletedAt == null && project.AccountId == accountId)
-            .Select(project => new ProjectAccess(project.Id, project.PublicId, ProjectRoleEnum.Administrator, true))
             .ToListAsync(cancellationToken);
 
-        var joined = await dataContext.ProjectMembers
-            .TagWith(AccessQueryTag)
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Where(member => member.DeletedAt == null
-                             && member.UserId == userId
-                             && member.Project.DeletedAt == null
-                             // Conta apagada leva os projetos junto; conferir aqui nao
-                             // depende de a exclusao ter cascateado.
-                             && member.Project.Account.DeletedAt == null
-                             && member.Project.AccountId != accountId)
-            .Select(member => new ProjectAccess(member.ProjectId, member.Project.PublicId, member.Role, false))
-            .ToListAsync(cancellationToken);
+        if (linhas.Count == 0)
+            return null;
 
-        return owned.Concat(joined).ToList();
+        var projetos = linhas
+            .Where(linha => linha.ProjectId is not null)
+            .Select(linha => linha.Role is null
+                ? new ProjectAccess(linha.ProjectId!.Value, linha.ProjectPublicId!.Value, ProjectRoleEnum.Administrator, true)
+                : new ProjectAccess(linha.ProjectId!.Value, linha.ProjectPublicId!.Value,
+                    (ProjectRoleEnum)PapelNoBanco.ConvertFromProvider(linha.Role)!, false))
+            .ToList();
+
+        var pessoa = linhas[0];
+        return new RequestAccess(pessoa.UserId, pessoa.AccountId, pessoa.AccountPublicId, projetos);
     }
+
+    /// <summary>Uma linha da leitura do acesso: a pessoa e, quando ha, um projeto que ela enxerga. Sem papel e de dona.</summary>
+    private sealed record LinhaDoAcesso(
+        long UserId, long AccountId, Guid AccountPublicId, long? ProjectId, Guid? ProjectPublicId, string? Role);
 }
+
+/// <summary>A pessoa da requisicao, pelas chaves internas, e os projetos que ela enxerga.</summary>
+internal sealed record RequestAccess(
+    long UserId, long AccountId, Guid AccountPublicId, IReadOnlyList<ProjectAccess> Projects);

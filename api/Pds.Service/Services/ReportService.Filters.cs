@@ -167,7 +167,7 @@ public partial class ReportService
 
         var pessoas = new List<long>();
         var semResponsavel = false;
-        IReadOnlyList<User>? time = null;
+        IReadOnlyList<TeamPerson>? time = null;
 
         foreach (var valor in pedidos)
         {

@@ -326,11 +326,16 @@ public class ProjectOriginService : IProjectOriginService
     private async Task<int> ReleaseAsync(Project project, string? domain, bool includesSubdomains, CancellationToken cancellationToken)
     {
         var retidos = await _unitOfWork.Reports.ListHeldAsync(project.Id, domain, includesSubdomains, cancellationToken);
+        if (retidos.Count == 0)
+            return 0;
 
-        foreach (var relato in retidos)
+        // Os lugares do topo de uma vez, e nao um pedido por relato: o mais alto fica com
+        // o ultimo da fila — o mais novo —, e cada um dos de antes logo abaixo do seguinte.
+        var topo = await _unitOfWork.Projects.ReserveTopRanksAsync(project.Id, retidos.Count, cancellationToken);
+        for (var i = 0; i < retidos.Count; i++)
         {
-            relato.HeldForOriginAt = null;
-            relato.BoardRank = await _unitOfWork.Projects.NextTopRankAsync(project.Id, cancellationToken);
+            retidos[i].HeldForOriginAt = null;
+            retidos[i].BoardRank = topo + (retidos.Count - 1 - i) * Report.BoardRankGap;
         }
 
         return retidos.Count;

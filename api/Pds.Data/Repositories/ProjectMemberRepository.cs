@@ -3,6 +3,7 @@ using Pds.ApiBase.Repositories;
 using Pds.Data.Context;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
+using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 
 namespace Pds.Data.Repositories;
@@ -27,6 +28,23 @@ public class ProjectMemberRepository : BaseRepository<ProjectMember, DataContext
             .OrderBy(member => member.CreatedAt)
             .ThenBy(member => member.Id)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<TeamPerson>> ListTeamAsync(long projectId, long accountId, CancellationToken cancellationToken = default)
+    {
+        // Pelos filtros de sempre: a pessoa apagada sai dos dois lados, e a linha do time
+        // so vale no projeto que a sessao enxerga.
+        var donos = Context.Users
+            .Where(user => user.AccountId == accountId)
+            .Select(user => new { user.Id, user.PublicId });
+
+        var doTime = Context.ProjectMembers
+            .Where(member => member.ProjectId == projectId)
+            .Select(member => new { member.User.Id, member.User.PublicId });
+
+        return await donos.Union(doTime)
+            .Select(pessoa => new TeamPerson(pessoa.Id, pessoa.PublicId))
+            .ToListAsync(cancellationToken);
+    }
 
     public Task<ProjectMember?> GetByProjectAndUserAsync(long projectId, long userId, CancellationToken cancellationToken = default)
         => Context.ProjectMembers

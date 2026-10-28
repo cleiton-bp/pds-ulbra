@@ -74,4 +74,12 @@ public interface IProjectRepository : IBaseRepository<Project>
     /// logado.</para>
     /// </summary>
     Task<long> NextTopRankAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// <paramref name="count"/> lugares no topo de uma vez, na mesma gravacao so — para
+    /// quem poe muitos cards no topo juntos. Devolve o mais alto; os outros vem logo
+    /// abaixo dele, de folga em folga, e sao os mesmos que <see cref="NextTopRankAsync"/>
+    /// daria pedido a pedido.
+    /// </summary>
+    Task<long> ReserveTopRanksAsync(long projectId, int count, CancellationToken cancellationToken = default);
 }

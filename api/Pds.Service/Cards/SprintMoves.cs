@@ -25,6 +25,24 @@ public static class SprintMoves
         long? userId,
         string? because,
         CancellationToken cancellationToken)
+        => card.SprintId == destino?.Id
+            ? []
+            : await MoveAsync(unitOfWork, project, card, await unitOfWork.Reports.ListSubtasksAsync(card.Id, cancellationToken),
+                destino, userId, because, cancellationToken);
+
+    /// <summary>
+    /// O mesmo, com as subtarefas ja lidas: quem move muitos cards (fechar ou apagar a
+    /// sprint) le as de todos numa consulta so, em vez de uma por card.
+    /// </summary>
+    public static async Task<List<Report>> MoveAsync(
+        IUnitOfWork unitOfWork,
+        Project project,
+        Report card,
+        IReadOnlyList<Report> subtarefas,
+        Sprint? destino,
+        long? userId,
+        string? because,
+        CancellationToken cancellationToken)
     {
         if (card.SprintId == destino?.Id)
             return [];
@@ -37,7 +55,6 @@ public static class SprintMoves
         card.SprintId = destino?.Id;
         card.Sprint = destino;
 
-        var subtarefas = await unitOfWork.Reports.ListSubtasksAsync(card.Id, cancellationToken);
         foreach (var subtarefa in subtarefas.Where(subtarefa => subtarefa.SprintId != destino?.Id))
         {
             await AddEventAsync(unitOfWork, project, subtarefa, origem, destino, userId, because ?? "with_parent", cancellationToken);
@@ -45,7 +62,7 @@ public static class SprintMoves
             subtarefa.Sprint = destino;
         }
 
-        return subtarefas;
+        return [.. subtarefas];
     }
 
     private static Task AddEventAsync(

@@ -2005,24 +2005,25 @@ public partial class ReportService : IReportService
         EnsureNotArchived(report, "muda-lo de lugar no quadro");
 
         // Sem evento, de proposito: ver a interface. Na mesma coluna em que esta —
-        // trocar de coluna e mover, e mover tem a sua rota. Com a ordem travada, o card
-        // e relido: outra pessoa pode te-lo movido ou arquivado depois da leitura de
-        // cima, e o lugar seria contado numa coluna em que ele ja nao esta.
-        await _unitOfWork.InTransactionAsync(async ct =>
-        {
-            await _unitOfWork.Reports.LockBoardAsync(project.Id, ct);
+        // trocar de coluna e mover, e mover tem a sua rota.
+        //
+        // **O lugar so e gravado se o card continua ali** (PlaceInColumnAsync): outra
+        // pessoa pode te-lo movido ou arquivado depois da leitura de cima, e o lugar
+        // seria contado numa coluna em que ele ja nao esta. Assim nao e preciso travar a
+        // coluna de onde ele pode estar saindo — so a que tem os vizinhos lidos, quando
+        // ele vai para o meio. O topo nao trava nada: vem do contador do projeto.
+        var gravou = dto.AfterPublicId is Guid acima
+            ? await _unitOfWork.InTransactionAsync(async ct =>
+            {
+                await _unitOfWork.Reports.LockBoardColumnAsync(project.Id, report.ProjectStateId, ct);
+                var lugar = await RankBelowAsync(project.Id, report.ProjectStateId, acima, report.Id, ct);
+                return await _unitOfWork.Reports.PlaceInColumnAsync(report.Id, report.ProjectStateId, lugar, ct);
+            }, cancellationToken)
+            : await _unitOfWork.Reports.PlaceInColumnAsync(report.Id, report.ProjectStateId,
+                await _unitOfWork.Projects.NextTopRankAsync(project.Id, cancellationToken), cancellationToken);
 
-            var aqui = await _unitOfWork.Reports.FindBoardSpotAsync(project.Id, report.PublicId, ct)
-                       ?? throw new KeyNotFoundException("Card nao encontrado.");
-            if (aqui.StateId != report.ProjectStateId || aqui.Archived)
-                throw new ConflictException("O card mudou de coluna ou saiu do quadro. Atualize o quadro e solte de novo.");
-
-            report.BoardRank = dto.AfterPublicId is Guid acima
-                ? await RankBelowAsync(project.Id, report.ProjectStateId, acima, report.Id, ct)
-                : await _unitOfWork.Projects.NextTopRankAsync(project.Id, ct);
-            await _unitOfWork.CommitAsync(ct);
-            return true;
-        }, cancellationToken);
+        if (!gravou)
+            throw new ConflictException("O card mudou de coluna ou saiu do quadro. Atualize o quadro e solte de novo.");
 
         await _notifier.CardChangedAsync(report.PublicId);
 
@@ -2034,8 +2035,10 @@ public partial class ReportService : IReportService
     /// <paramref name="afterPublicId"/>, ou no topo.
     ///
     /// <para><b>O topo nao trava nada</b>: vem do contador do projeto, que ja fica
-    /// acima de tudo. <b>Entre dois trava a ordem do quadro</b>, porque precisa ler
-    /// os vizinhos — e a leitura, a conta e a gravacao vao juntas.</para>
+    /// acima de tudo. <b>Entre dois trava a coluna de destino</b>, porque precisa ler os
+    /// vizinhos — e a leitura, a conta e a gravacao vao juntas. A coluna de onde o card
+    /// sai fica livre: quem o arrasta la no mesmo instante ve, ao gravar, que ele saiu
+    /// (ver <c>SetPositionAsync</c>).</para>
     /// </summary>
     private async Task SaveInPlaceAsync(long projectId, Report report, long? stateId, Guid? afterPublicId, CancellationToken cancellationToken)
     {
@@ -2048,7 +2051,7 @@ public partial class ReportService : IReportService
 
         await _unitOfWork.InTransactionAsync(async ct =>
         {
-            await _unitOfWork.Reports.LockBoardAsync(projectId, ct);
+            await _unitOfWork.Reports.LockBoardColumnAsync(projectId, stateId, ct);
             report.BoardRank = await RankBelowAsync(projectId, stateId, acima, report.Id, ct);
             await _unitOfWork.CommitAsync(ct);
             return true;

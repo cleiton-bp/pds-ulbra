@@ -1,5 +1,6 @@
 using Pds.ApiBase.Interfaces;
 using Pds.Domain.Entities;
+using Pds.Domain.Filters;
 
 namespace Pds.Domain.Interfaces.RepositoryInterfaces;
 
@@ -7,6 +8,14 @@ public interface IProjectMemberRepository : IBaseRepository<ProjectMember>
 {
     /// <summary>Quem esta no time do projeto, com a pessoa de cada linha.</summary>
     Task<IReadOnlyList<ProjectMember>> ListByProjectAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quem esta no time do projeto agora: quem e dono da conta e quem entrou por
+    /// convite — a mesma conta da tela Membros. Numa consulta so, e so com as chaves de
+    /// cada pessoa: e quem pode ser responsavel e quem pode ser mencionado. Sem ordem:
+    /// quem usa procura alguem ou confere se esta.
+    /// </summary>
+    Task<IReadOnlyList<TeamPerson>> ListTeamAsync(long projectId, long accountId, CancellationToken cancellationToken = default);
 
     /// <summary>A linha de uma pessoa no projeto, para mudar o papel ou tirar do time.</summary>
     Task<ProjectMember?> GetByProjectAndUserAsync(long projectId, long userId, CancellationToken cancellationToken = default);

@@ -10,10 +10,12 @@ namespace Pds.WebApi.Realtime;
 /// Manda os avisos pelo hub. Ver <see cref="IWorkNotifier"/> para o porque de cada
 /// regra; aqui fica o como.
 ///
-/// <para><b>O time e lido a cada aviso.</b> Os donos da conta do projeto e quem tem
-/// linha no time, agora — e o aviso vai so para os grupos dessas pessoas. Tres
-/// consultas pequenas, por indice, depois do <c>commit</c> (quatro no aviso de card,
-/// que antes descobre de qual projeto ele e).</para>
+/// <para><b>O time e lido uma vez por pedido</b>, no primeiro aviso dele. Os donos da
+/// conta do projeto e quem tem linha no time, agora — e o aviso vai so para os grupos
+/// dessas pessoas. Uma consulta, por indice, depois do <c>commit</c> (mais uma no aviso
+/// de card, que antes descobre de qual projeto ele e). O notificador vive o tempo de um
+/// pedido, ou de uma mensagem da fila, e dentro dele o time nao muda: quem tira ou poe
+/// alguem no time grava antes de avisar. O pedido seguinte le de novo.</para>
 ///
 /// <para><b>O envio sai do caminho do pedido.</b> As leituras do time acontecem no
 /// pedido de quem mudou (o banco e o dele), com prazo; o envio vai a parte, tambem com
@@ -47,6 +49,12 @@ public sealed class HubWorkNotifier : IWorkNotifier
 
     private readonly IHubContext<WorkHub> _hub;
     private readonly DataContext _dataContext;
+
+    /// <summary>
+    /// Os grupos do time de cada projeto avisado neste pedido. Um card que muda com o pai,
+    /// ou varios cards de uma vez, liam o mesmo time de novo a cada aviso.
+    /// </summary>
+    private readonly Dictionary<Guid, IReadOnlyList<string>> _gruposDoTime = [];
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<HubWorkNotifier> _logger;
 
@@ -147,41 +155,36 @@ public sealed class HubWorkNotifier : IWorkNotifier
         });
     }
 
-    /// <summary>Os grupos de quem esta no time do projeto agora: os donos da conta e o time.</summary>
+    /// <summary>
+    /// Os grupos de quem esta no time do projeto agora: os donos da conta e o time — numa
+    /// consulta so, que parte do projeto, e uma vez por pedido (ver <see cref="_gruposDoTime"/>).
+    /// </summary>
     private async Task<IReadOnlyList<string>> GruposDoTimeAsync(Guid projectPublicId, CancellationToken ct)
     {
-        var projeto = await _dataContext.Projects
-            .TagWith(QueryTag)
+        if (_gruposDoTime.TryGetValue(projectPublicId, out var lidos))
+            return lidos;
+
+        var projeto = _dataContext.Projects
             .IgnoreQueryFilters()
-            .AsNoTracking()
             .Where(project => project.PublicId == projectPublicId
                               && project.DeletedAt == null
-                              && project.Account.DeletedAt == null)
-            .Select(project => new { project.Id, project.AccountId })
-            .FirstOrDefaultAsync(ct);
+                              && project.Account.DeletedAt == null);
 
-        if (projeto is null)
-            return [];
+        var donos = from project in projeto
+                    join user in _dataContext.Users.IgnoreQueryFilters() on project.AccountId equals user.AccountId
+                    where user.DeletedAt == null
+                    select user.PublicId;
 
-        var donos = await _dataContext.Users
-            .TagWith(QueryTag)
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Where(user => user.AccountId == projeto.AccountId && user.DeletedAt == null)
-            .Select(user => user.PublicId)
-            .ToListAsync(ct);
+        var time = from project in projeto
+                   join member in _dataContext.ProjectMembers.IgnoreQueryFilters() on project.Id equals member.ProjectId
+                   where member.DeletedAt == null && member.User.DeletedAt == null
+                   select member.User.PublicId;
 
-        var membros = await _dataContext.ProjectMembers
-            .TagWith(QueryTag)
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Where(member => member.ProjectId == projeto.Id
-                             && member.DeletedAt == null
-                             && member.User.DeletedAt == null)
-            .Select(member => member.User.PublicId)
-            .ToListAsync(ct);
+        var pessoas = await donos.Union(time).TagWith(QueryTag).ToListAsync(ct);
 
-        return donos.Concat(membros).Distinct().Select(pessoa => WorkGroups.Of(projectPublicId, pessoa)).ToList();
+        var grupos = pessoas.Select(pessoa => WorkGroups.Of(projectPublicId, pessoa)).ToList();
+        _gruposDoTime[projectPublicId] = grupos;
+        return grupos;
     }
 
     /// <summary>
