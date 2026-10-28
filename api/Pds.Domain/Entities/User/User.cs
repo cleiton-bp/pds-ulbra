@@ -47,6 +47,14 @@ public class User : PdsBaseEntity
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
+    /// A partir de quando as sessoes valem, em UTC. "Sair" grava o momento aqui, e todo
+    /// token emitido antes (com <c>iat</c> anterior a este instante) deixa de valer — e
+    /// como dizer "as sessoes de antes de agora acabaram". Nulo: nunca houve "sair", e
+    /// todos os tokens valem ate expirar. Encerra em todos os aparelhos de uma vez.
+    /// </summary>
+    public DateTime? SessionsRevokedAt { get; set; }
+
+    /// <summary>
     /// O volume do som dos avisos no painel, de 0 a 100. O som de cada tipo de aviso fica
     /// em <see cref="NotificationSounds"/>.
     /// </summary>

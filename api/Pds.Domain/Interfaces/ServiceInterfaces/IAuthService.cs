@@ -17,4 +17,10 @@ public interface IAuthService
 
     /// <summary>O bilhete da conexao em tempo real, para a pessoa da sessao.</summary>
     Task<RealtimeTicketViewModel> IssueRealtimeTicketAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Encerra a sessao no servidor: marca o momento na pessoa, e todo token emitido antes
+    /// deixa de valer. Encerra em todos os aparelhos de uma vez.
+    /// </summary>
+    Task LogoutAsync(CancellationToken cancellationToken = default);
 }

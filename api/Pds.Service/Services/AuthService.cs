@@ -73,6 +73,17 @@ public class AuthService : IAuthService
         return new RealtimeTicketViewModel(ticket, expiresAt);
     }
 
+    public async Task LogoutAsync(CancellationToken cancellationToken = default)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+
+        // Marca agora: os tokens emitidos antes (com iat anterior) deixam de valer no
+        // middleware. Um segundo depois, um login novo ja traz iat posterior e vale.
+        user.SessionsRevokedAt = DateTime.UtcNow;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CommitAsync(cancellationToken);
+    }
+
     /// <summary>A pessoa da sessao, com a conta propria dela.</summary>
     private async Task<User> CurrentUserAsync(CancellationToken cancellationToken)
     {

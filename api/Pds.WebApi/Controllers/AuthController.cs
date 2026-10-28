@@ -59,17 +59,20 @@ public class AuthController : BaseController
 
     /// <summary>Encerra a sessão.</summary>
     /// <remarks>
-    /// Responde 200 e nada mais. O token é autocontido: quem o tem continua podendo
-    /// usá-lo até expirar, e não há como invalidá-lo daqui sem manter uma lista de
-    /// tokens revogados.
+    /// Encerra no servidor: marca o momento na pessoa, e todo token emitido antes deixa de
+    /// valer (o `iat` do token fica anterior à marca). Vale para **todos os aparelhos** —
+    /// sair num encerra em todos. O painel também descarta o token que tem.
     ///
-    /// Quem descarta o token é o painel. A rota existe para haver um lugar único de
-    /// "sair", e para ser onde a lista de revogados entra no dia em que derrubar
-    /// sessão de verdade virar requisito.
+    /// O token de um aparelho que não chamou "sair" para de funcionar na requisição
+    /// seguinte, com 401; para voltar, basta entrar de novo.
     /// </remarks>
-    /// <response code="200">Sessão encerrada do lado do painel.</response>
+    /// <response code="200">Sessão encerrada.</response>
     [HttpPost("logout")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-    public IActionResult Logout() => Success<object?>(null, "Sessão encerrada.");
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    {
+        await _authService.LogoutAsync(cancellationToken);
+        return Success<object?>(null, "Sessão encerrada.");
+    }
 }
