@@ -2,6 +2,7 @@ using Pds.Domain.Dtos;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
 using Pds.Domain.Exceptions;
+using Pds.Domain.Filters;
 using Pds.Domain.Interfaces.RepositoryInterfaces;
 using Pds.Domain.Interfaces.ServiceInterfaces;
 using Pds.Domain.ViewModels;
@@ -169,9 +170,9 @@ public class ReportCommentService : IReportCommentService
     private async Task<IReadOnlyList<Guid>> AcertarMencoesAsync(Report report, ReportInternalComment comment, long autorId, CancellationToken cancellationToken)
     {
         var mencionados = Mentions.Read(comment.Body);
-        IReadOnlyList<User> time = mencionados.Count == 0
+        IReadOnlyList<TeamPerson> time = mencionados.Count == 0
             ? []
-            : await Team.OfProjectAsync(_unitOfWork, report.AccountId, report.ProjectId, cancellationToken);
+            : await _unitOfWork.ProjectMembers.ListTeamAsync(report.ProjectId, report.AccountId, cancellationToken);
         var agora = time
             .Where(pessoa => mencionados.Contains(pessoa.PublicId) && pessoa.Id != autorId)
             .ToList();
@@ -277,7 +278,7 @@ public class ReportCommentService : IReportCommentService
         if (mencionados.Count == 0)
             return [];
 
-        var time = await Team.OfProjectAsync(_unitOfWork, report.AccountId, report.ProjectId, cancellationToken);
+        var time = await _unitOfWork.ProjectMembers.ListTeamAsync(report.ProjectId, report.AccountId, cancellationToken);
         var avisados = new List<Guid>();
 
         foreach (var pessoa in time.Where(pessoa => mencionados.Contains(pessoa.PublicId) && pessoa.Id != autorId))

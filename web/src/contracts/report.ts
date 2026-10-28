@@ -1092,6 +1092,15 @@ export const REPORT_EVENT_TYPES = [
 export type ReportEventType = (typeof REPORT_EVENT_TYPES)[number]
 
 /**
+ * De onde partiu, nos nomes do `EventSourceEnum` em C# — array, como os tipos, para
+ * `eventSources.test.ts` conferir contra o C#. No historico e o que separa a leitura de
+ * quem relatou (`PublicPage`) da do time (`Panel`), que tem o mesmo tipo.
+ */
+export const REPORT_EVENT_SOURCES = ['Widget', 'Panel', 'Api', 'PublicPage', 'System'] as const
+
+export type ReportEventSource = (typeof REPORT_EVENT_SOURCES)[number]
+
+/**
  * Uma linha do historico.
  *
  * Os nomes das colunas sao **os que valiam na epoca**, guardados no evento —
@@ -1100,6 +1109,8 @@ export type ReportEventType = (typeof REPORT_EVENT_TYPES)[number]
 export interface ReportHistoryEntryViewModel {
   PublicId: string
   Type: ReportEventType
+  /** De onde partiu: separa a leitura de quem relatou da do time. */
+  Source: ReportEventSource
   AuthorName: string | null
   FromStateName: string | null
   ToStateName: string | null

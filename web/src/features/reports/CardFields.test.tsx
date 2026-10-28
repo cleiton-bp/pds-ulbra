@@ -919,6 +919,7 @@ describe('a historia dos campos', () => {
     const linha = (extra: Partial<ReportHistoryEntryViewModel>): ReportHistoryEntryViewModel => ({
       PublicId: `e-${++contador}`,
       Type: 'CardTitleChanged',
+      Source: 'Panel',
       AuthorName: 'Ana Dona',
       FromStateName: null,
       ToStateName: null,

@@ -51,22 +51,25 @@ public class NotificationRepository : BaseRepository<Notification, DataContext>,
 
     public async Task<int> MarkAllReadAsync(long userId, DateTime readAt, CancellationToken cancellationToken = default)
     {
-        // Pelo filtro global: o aviso de um projeto que a pessoa nao enxerga mais fica
-        // como estava — se ela voltar ao time, ele volta como era.
-        //
-        // Lidos e gravados pela unidade de trabalho, e nao por ExecuteUpdate: desde o
-        // aviso sem card, o filtro junta o relato de forma opcional, e o UPDATE em lote
-        // nao traduz essa juncao (dava 500). Quem chama confirma a gravacao.
-        var avisos = await Context.Notifications
+        // Os avisos pelo filtro global: o aviso de um projeto que a pessoa nao enxerga mais
+        // fica como estava — se ela voltar ao time, ele volta como era.
+        var ids = await Context.Notifications
             .Where(aviso => aviso.UserId == userId && aviso.ReadAt == null)
+            .Select(aviso => aviso.Id)
             .ToListAsync(cancellationToken);
 
-        foreach (var aviso in avisos)
-        {
-            aviso.ReadAt = readAt;
-            aviso.UpdatedAt = readAt;
-        }
+        if (ids.Count == 0)
+            return 0;
 
-        return avisos.Count;
+        // A gravacao numa so, pelos ids ja filtrados acima — e por isso sem o filtro aqui:
+        // desde o aviso sem card, ele junta o relato de forma opcional, e o UPDATE em lote
+        // nao traduz essa juncao (dava 500). So o que continua sem leitura: o aviso lido em
+        // outra aba no meio fica com a hora dele.
+        return await Context.Notifications
+            .IgnoreQueryFilters()
+            .Where(aviso => ids.Contains(aviso.Id) && aviso.ReadAt == null)
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(aviso => aviso.ReadAt, readAt)
+                .SetProperty(aviso => aviso.UpdatedAt, readAt), cancellationToken);
     }
 }

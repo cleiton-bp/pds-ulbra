@@ -16,6 +16,7 @@ using Pds.Workers;
 using Pds.Shared.Json;
 using Pds.WebApi.Authorization;
 using Pds.WebApi.Controllers;
+using Pds.WebApi.Health;
 using Pds.WebApi.Realtime;
 using Pds.WebApi.Swagger;
 
@@ -115,6 +116,11 @@ public class Startup
 
         // O tempo real da tela de Trabalho: o hub e os avisos depois de cada mudanca.
         services.AddPdsRealtime();
+
+        // O aquecimento da API recem-subida, e a sonda de prontidao que espera por ele: a
+        // mesma instancia nos dois lugares (ver WarmUp).
+        services.AddSingleton<WarmUp>();
+        services.AddHostedService(provider => provider.GetRequiredService<WarmUp>());
 
         // A fila, **se** houver fila. Sem RABBITMQ_URL a aplicacao sobe inteira, mas
         // a espera antes de quem relatou ver fica indisponivel — a configuracao do

@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -88,7 +89,7 @@ public static class DiResolver
     {
         services.AddDbContext<DataContext>(options =>
             options.UseNpgsql(
-                WithoutJit(EnvironmentConstants.GetDatabaseConnectionString()),
+                WithPoolLimit(WithAutoPrepare(WithoutJit(EnvironmentConstants.GetDatabaseConnectionString()))),
                 npgsql =>
                 {
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "public");
@@ -110,6 +111,67 @@ public static class DiResolver
         var conexao = new NpgsqlConnectionStringBuilder(connectionString);
         conexao.Options = $"{conexao.Options} -c jit=off".Trim();
         return conexao.ConnectionString;
+    }
+
+    /// <summary>Quantas consultas preparadas cada conexao guarda: as das telas do dia a dia cabem com folga.</summary>
+    private const int ConsultasPreparadas = 100;
+
+    /// <summary>
+    /// A conexao com a preparacao automatica das consultas. Sem ela, o Postgres planeja cada
+    /// consulta de novo a cada pedido — a da frente do card gastava mais tempo planejando do
+    /// que rodando. Preparada, a consulta que se repete na mesma conexao, e quase todas se
+    /// repetem (sao as mesmas telas), ja chega planejada; a que sai de uso da lugar a outra.
+    ///
+    /// <para><b>O que a string de conexao disser vence.</b> Num pooler que nao aceita consulta
+    /// preparada — PgBouncer em modo transacao antes da 1.21, ou sem
+    /// <c>max_prepared_statements</c> —, <c>Max Auto Prepare=0</c> na variavel desliga, sem
+    /// mudar codigo.</para>
+    /// </summary>
+    private static string WithAutoPrepare(string connectionString)
+    {
+        if (Says(connectionString, "Max Auto Prepare", "MaxAutoPrepare"))
+            return connectionString;
+
+        var conexao = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            MaxAutoPrepare = ConsultasPreparadas,
+            // Preparada ja na segunda vez: na primeira ela ainda pode ser so de passagem.
+            AutoPrepareMinUsages = 2,
+        };
+        return conexao.ConnectionString;
+    }
+
+    /// <summary>Quantas conexoes cada instancia da API abre no maximo com o banco.</summary>
+    private const int ConexoesPorInstancia = 20;
+
+    /// <summary>
+    /// A conexao com um teto de conexoes por instancia. O padrao do Npgsql, 100, e o limite
+    /// inteiro de um Postgres comum: duas instancias — duas replicas, ou a velha e a nova
+    /// durante um deploy — passavam dele, e a segunda recebia "too many clients" em quase
+    /// todo pedido. Com 60 pessoas ao mesmo tempo, 20 conexoes atenderam o mesmo que 60 — o
+    /// pedido que nao acha conexao livre espera a vez —, com menos memoria no banco e cauda
+    /// menor.
+    ///
+    /// <para><b>A conta de cada ambiente:</b> instancias × este numero, mais uma folga para a
+    /// migracao e o acesso manual, cabe no limite do plano do banco. Para mudar,
+    /// <c>Maximum Pool Size</c> na variavel — o que ela disser vence.</para>
+    /// </summary>
+    private static string WithPoolLimit(string connectionString)
+    {
+        if (Says(connectionString, "Maximum Pool Size", "MaxPoolSize"))
+            return connectionString;
+
+        return new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = ConexoesPorInstancia }.ConnectionString;
+    }
+
+    /// <summary>
+    /// Se a string de conexao ja diz a opcao, em qualquer das grafias que o Npgsql aceita. O
+    /// construtor do proprio Npgsql nao serve para isso: ele diz que tem toda opcao que conhece.
+    /// </summary>
+    private static bool Says(string connectionString, params string[] grafias)
+    {
+        var dita = new DbConnectionStringBuilder { ConnectionString = connectionString };
+        return grafias.Any(dita.ContainsKey);
     }
 
     private static void RegisterServices(this IServiceCollection services)

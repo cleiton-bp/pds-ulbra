@@ -160,26 +160,32 @@ public class ProjectService : IProjectService
         if (modelo.SprintsEnabled)
             await _unitOfWork.ProjectCycleSettings.AddAsync(SprintCycleSettings(project), cancellationToken);
 
-        // E o registro da criacao, com o modelo escolhido: o projeto nao guarda de
-        // qual modelo veio, e a analise quer saber como as pessoas comecam. So o
-        // modelo — o nome do projeto e de quem cria, e esta tabela nao se apaga.
-        await _unitOfWork.Events.AddAsync(new Event
-        {
-            AccountId = account.Id,
-            Project = project,
-            UserId = _accountContext.UserId,
-            Type = EventTypeEnum.ProjectCreated,
-            Source = EventSourceEnum.Panel,
-            Payload = JsonSerializer.Serialize(new
-            {
-                template = JsonNamingPolicy.SnakeCaseLower.ConvertName(modelo.Kind.ToString()),
-            }),
-        }, cancellationToken);
-
-        // Um unico commit: ou o projeto, a chave, a jornada, as colunas com o mapa,
+        // Uma transacao so: ou o projeto, a chave, a jornada, as colunas com o mapa,
         // as prioridades, os tipos, as regras do ciclo e o evento entram, ou nao
-        // entra nada.
-        await _unitOfWork.CommitAsync(cancellationToken);
+        // entra nada. Sao duas gravacoes porque o evento guarda so o numero do
+        // projeto, sem chave estrangeira (ver Event), e o numero nasce na primeira.
+        await _unitOfWork.InTransactionAsync(async ct =>
+        {
+            await _unitOfWork.CommitAsync(ct);
+
+            // E o registro da criacao, com o modelo escolhido: o projeto nao guarda de
+            // qual modelo veio, e a analise quer saber como as pessoas comecam. So o
+            // modelo — o nome do projeto e de quem cria, e esta tabela nao se apaga.
+            await _unitOfWork.Events.AddAsync(new Event
+            {
+                AccountId = account.Id,
+                ProjectId = project.Id,
+                UserId = _accountContext.UserId,
+                Type = EventTypeEnum.ProjectCreated,
+                Source = EventSourceEnum.Panel,
+                Payload = JsonSerializer.Serialize(new
+                {
+                    template = JsonNamingPolicy.SnakeCaseLower.ConvertName(modelo.Kind.ToString()),
+                }),
+            }, ct);
+
+            return await _unitOfWork.CommitAsync(ct);
+        }, cancellationToken);
 
         // Quem cria e dono: o projeto nasceu na conta propria. A lista de acesso da
         // requisicao foi montada antes dele existir, entao o papel sai daqui. E

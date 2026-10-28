@@ -149,6 +149,9 @@ public interface IReportRepository : IBaseRepository<Report>
     /// <summary>Todas as subtarefas de um card, rastreadas — elas acompanham a sprint do pai.</summary>
     Task<List<Report>> ListSubtasksAsync(long parentId, CancellationToken cancellationToken = default);
 
+    /// <summary>As subtarefas de varios cards numa consulta so, rastreadas — para quem move muitos de uma vez.</summary>
+    Task<List<Report>> ListSubtasksAsync(IReadOnlyCollection<long> parentIds, CancellationToken cancellationToken = default);
+
     /// <summary>Os cards de uma sprint, sem as subtarefas e sem o arquivo, rastreados, na ordem dela.</summary>
     Task<List<Report>> ListSprintCardsAsync(long sprintId, CancellationToken cancellationToken = default);
 
@@ -169,18 +172,37 @@ public interface IReportRepository : IBaseRepository<Report>
     Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Trava a ordem do quadro do projeto ate a transacao atual terminar.
-    ///
-    /// <para><b>E ela que deixa por um card entre dois sem errar o lugar.</b> Quem
-    /// solta le os vizinhos e escolhe um numero no meio — e, sem folga, renumera a
-    /// coluna. Dois soltando juntos leriam os mesmos vizinhos, ou um leria a coluna
-    /// no meio da renumeracao do outro.</para>
+    /// Trava o projeto inteiro ate a transacao atual terminar: a ordem do backlog, as
+    /// sprints e as conferencias dos vinculos. As colunas do quadro tem a trava delas
+    /// (<see cref="LockBoardColumnAsync"/>).
     ///
     /// <para>So vale dentro de uma transacao (<c>InTransactionAsync</c>), como as
-    /// outras travas. O card que chega pelo topo nao passa por ela: o topo vem do
-    /// contador do projeto.</para>
+    /// outras travas.</para>
     /// </summary>
     Task LockBoardAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Trava a ordem de uma coluna do quadro ate a transacao atual terminar — e so dela:
+    /// quem arruma uma coluna nao espera quem arruma outra. Nula e a falta de coluna, uma
+    /// por projeto.
+    ///
+    /// <para><b>E ela que deixa por um card entre dois sem errar o lugar.</b> Quem solta
+    /// le os vizinhos e escolhe um numero no meio — e, sem folga, renumera a coluna. Dois
+    /// soltando juntos na mesma coluna leriam os mesmos vizinhos, ou um leria a coluna no
+    /// meio da renumeracao do outro.</para>
+    ///
+    /// <para>So vale dentro de uma transacao (<c>InTransactionAsync</c>). O topo nao passa
+    /// por ela: vem do contador do projeto, que ja fica acima de tudo.</para>
+    /// </summary>
+    Task LockBoardColumnAsync(long projectId, long? stateId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Poe o card no lugar pedido da coluna — <b>so se ele continua nela, e no quadro</b>.
+    /// Falso quando outra pessoa o moveu ou arquivou no meio: ai nada muda, e quem
+    /// arrastava solta de novo. E o que deixa arrastar sem travar a coluna de onde o card
+    /// pode estar saindo.
+    /// </summary>
+    Task<bool> PlaceInColumnAsync(long reportId, long? stateId, long rank, CancellationToken cancellationToken = default);
 
     /// <summary>Onde um card do projeto esta no quadro, sem carrega-lo. Nulo se ele nao existe aqui.</summary>
     Task<BoardSpot?> FindBoardSpotAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);

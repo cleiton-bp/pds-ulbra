@@ -115,7 +115,10 @@ public class ProjectRepository : BaseRepository<Project, DataContext>, IProjectR
             : throw new InvalidOperationException("Projeto nao encontrado ao numerar o card.");
     }
 
-    public async Task<long> NextTopRankAsync(long projectId, CancellationToken cancellationToken = default)
+    public Task<long> NextTopRankAsync(long projectId, CancellationToken cancellationToken = default)
+        => ReserveTopRanksAsync(projectId, 1, cancellationToken);
+
+    public async Task<long> ReserveTopRanksAsync(long projectId, int count, CancellationToken cancellationToken = default)
     {
         // O mesmo desenho do numero: "desca e devolva o valor novo" num comando so, e
         // escrito a mao porque o LINQ nao o escreve — e porque o relato que chega
@@ -125,7 +128,7 @@ public class ProjectRepository : BaseRepository<Project, DataContext>, IProjectR
             .SqlQuery<long>($"""
                 -- topo do quadro
                 UPDATE projects
-                SET board_top_rank = board_top_rank - {Report.BoardRankGap}
+                SET board_top_rank = board_top_rank - {count * Report.BoardRankGap}
                 WHERE id = {projectId}
                 RETURNING board_top_rank AS "Value"
                 """)

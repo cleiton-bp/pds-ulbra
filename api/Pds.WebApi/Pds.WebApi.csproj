@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Publicada para uma plataforma (o Dockerfile), sai pre-compilada: o codigo da API e
+         dos pacotes ja vai em codigo de maquina, e o primeiro pedido de cada rota nao
+         espera a compilacao. No build do dia a dia, sem plataforma, nada muda. -->
+    <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>

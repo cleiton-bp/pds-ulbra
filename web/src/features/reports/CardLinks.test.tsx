@@ -395,6 +395,7 @@ describe('onde os vinculos aparecem', () => {
     ): ReportHistoryEntryViewModel => ({
       PublicId,
       Type,
+      Source: 'Panel',
       AuthorName: 'Ana',
       FromStateName: null,
       ToStateName: null,

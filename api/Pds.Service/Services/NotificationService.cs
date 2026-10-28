@@ -88,8 +88,7 @@ public class NotificationService : INotificationService
     public async Task<NotificationCountViewModel> MarkAllReadAsync(CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
-        if (await _unitOfWork.Notifications.MarkAllReadAsync(userId, DateTime.UtcNow, cancellationToken) > 0)
-            await _unitOfWork.CommitAsync(cancellationToken);
+        await _unitOfWork.Notifications.MarkAllReadAsync(userId, DateTime.UtcNow, cancellationToken);
 
         return await CountUnreadAsync(cancellationToken);
     }

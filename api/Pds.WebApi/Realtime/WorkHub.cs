@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using Pds.Data.Context;
 using Pds.Domain.Security;
 using Pds.Service.Services;
@@ -43,19 +42,9 @@ public class WorkHub : Hub
         if (!Guid.TryParse(Context.User?.FindFirst(TokenService.UserClaim)?.Value, out var pessoa))
             return false;
 
-        var identidade = await _dataContext.Users
-            .AsNoTracking()
-            .Where(user => user.PublicId == pessoa)
-            .Select(user => new { user.Id, user.AccountId })
-            .FirstOrDefaultAsync(Context.ConnectionAborted);
+        var acesso = await AccountMiddleware.LoadAccessAsync(_dataContext, pessoa, Context.ConnectionAborted);
 
-        if (identidade is null)
-            return false;
-
-        var projetos = await AccountMiddleware.LoadProjectsAsync(
-            _dataContext, identidade.Id, identidade.AccountId, Context.ConnectionAborted);
-
-        if (projetos.All(projeto => projeto.ProjectPublicId != projectPublicId))
+        if (acesso is null || acesso.Projects.All(projeto => projeto.ProjectPublicId != projectPublicId))
             return false;
 
         var grupo = WorkGroups.Of(projectPublicId, pessoa);

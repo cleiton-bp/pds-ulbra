@@ -16,6 +16,11 @@ namespace Pds.Domain.ViewModels;
 /// </summary>
 /// <param name="PublicId">Identificador do evento.</param>
 /// <param name="Type">O que aconteceu.</param>
+/// <param name="Source">
+/// De onde partiu. E o que separa a leitura de quem relatou, pela pagina de
+/// acompanhamento (<c>PublicPage</c>), da leitura do time (<c>Panel</c>): as duas tem o
+/// mesmo tipo.
+/// </param>
 /// <param name="AuthorName">Quem fez. <b>Nulo</b> quando veio de fora — o relato nasce de um desconhecido — ou nos eventos anteriores a esta informacao existir.</param>
 /// <param name="FromStateName">A coluna de onde saiu, so na mudanca de estado. Nulo quando o relato ainda nao tinha coluna.</param>
 /// <param name="ToStateName">A coluna para onde foi, so na mudanca de estado.</param>
@@ -36,6 +41,7 @@ namespace Pds.Domain.ViewModels;
 public record ReportHistoryEntryViewModel(
     Guid PublicId,
     EventTypeEnum Type,
+    EventSourceEnum Source,
     string? AuthorName,
     string? FromStateName,
     string? ToStateName,

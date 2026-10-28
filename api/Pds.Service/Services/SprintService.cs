@@ -147,7 +147,6 @@ public class SprintService : ISprintService
         if (!Enum.IsDefined(destinoTipo))
             throw new ArgumentException("Destino desconhecido. Use Backlog, Sprint ou NewSprint.");
 
-        var movidos = new List<Report>();
         Sprint? destino = null;
         SprintStats numeros = SprintStats.Empty;
 
@@ -180,27 +179,19 @@ public class SprintService : ISprintService
             // Os numeros de quando fechou — antes de o que nao terminou sair dela.
             numeros = (await _unitOfWork.Reports.CountSprintsAsync([alvo.Id], ct)).GetValueOrDefault(alvo.Id, SprintStats.Empty);
 
+            // Os cards, as subtarefas deles e quem ja terminou: tres consultas para a sprint
+            // inteira, e nao tres por card.
             var cards = await _unitOfWork.Reports.ListSprintCardsAsync(alvo.Id, ct);
-            var terminados = await _unitOfWork.Reports.ListFinishedAsync(cards.Select(card => card.Id).ToList(), ct);
+            var subtarefasDe = await SubtasksOfAsync(cards, ct);
+            var terminados = await _unitOfWork.Reports.ListFinishedAsync(
+                [.. cards.Select(card => card.Id), .. subtarefasDe.SelectMany(grupo => grupo).Select(sub => sub.Id)], ct);
 
             // **O pai terminado com subtarefa aberta tambem vai**: a subtarefa acompanha o
             // pai, e ficar na concluida a tiraria do quadro e do backlog, sem como move-la.
-            var aMover = new List<Report>();
-            foreach (var card in cards)
-            {
-                if (!terminados.Contains(card.Id))
-                {
-                    aMover.Add(card);
-                    continue;
-                }
-
-                var subtarefas = await _unitOfWork.Reports.ListSubtasksAsync(card.Id, ct);
-                if (subtarefas.Count == 0)
-                    continue;
-                var feitas = await _unitOfWork.Reports.ListFinishedAsync(subtarefas.Select(sub => sub.Id).ToList(), ct);
-                if (subtarefas.Any(sub => !feitas.Contains(sub.Id)))
-                    aMover.Add(card);
-            }
+            var aMover = cards
+                .Where(card => !terminados.Contains(card.Id)
+                               || subtarefasDe[card.Id].Any(sub => !terminados.Contains(sub.Id)))
+                .ToList();
 
             // No fim da lista de destino, na ordem em que estavam.
             var fim = await _unitOfWork.Reports.FindBacklogEdgeRankAsync(project.Id, destino?.Id, top: false, exceptId: 0, ct) ?? 0;
@@ -208,9 +199,7 @@ public class SprintService : ISprintService
             {
                 fim = Report.BacklogAfter(fim, project.LastCardNumber);
                 card.BacklogRank = fim;
-                var foram = await SprintMoves.MoveAsync(_unitOfWork, project, card, destino, _accountContext.UserId, "sprint_closed", ct);
-                movidos.Add(card);
-                movidos.AddRange(foram);
+                await SprintMoves.MoveAsync(_unitOfWork, project, card, [.. subtarefasDe[card.Id]], destino, _accountContext.UserId, "sprint_closed", ct);
             }
 
             alvo.State = SprintStateEnum.Closed;
@@ -233,8 +222,9 @@ public class SprintService : ISprintService
             return alvo;
         }, cancellationToken);
 
-        foreach (var card in movidos)
-            await _notifier.CardChangedAsync(card.PublicId);
+        // Um aviso so, e nao um por card: o de projeto ja faz toda tela aberta reler o
+        // quadro, o backlog e o card aberto. Um por card eram milhares de mensagens para
+        // cada pessoa do time, e quatro consultas cada.
         await _notifier.ProjectChangedAsync(project.PublicId);
 
         var naoTerminaram = numeros.Cards - numeros.DoneCards;
@@ -247,7 +237,6 @@ public class SprintService : ISprintService
     public async Task DeleteAsync(Guid projectPublicId, Guid sprintPublicId, CancellationToken cancellationToken = default)
     {
         var project = await RequireProjectAsync(projectPublicId, cancellationToken);
-        var movidos = new List<Report>();
 
         await _unitOfWork.InTransactionAsync(async ct =>
         {
@@ -261,32 +250,36 @@ public class SprintService : ISprintService
                     ? "A sprint em andamento nao se apaga: ela se conclui."
                     : "A sprint concluida nao se apaga: ela e a historia do que aconteceu.");
 
+            var cards = await _unitOfWork.Reports.ListSprintCardsAsync(alvo.Id, ct);
+            // O arquivado que estava nela tambem sai: a sprint deixa de existir.
+            var arquivados = await _unitOfWork.Reports.ListArchivedSprintCardsAsync(alvo.Id, ct);
+            var subtarefasDe = await SubtasksOfAsync([.. cards, .. arquivados], ct);
+
             // Os cards voltam para o fim do backlog, na ordem em que estavam.
             var fim = await _unitOfWork.Reports.FindBacklogEdgeRankAsync(project.Id, null, top: false, exceptId: 0, ct) ?? 0;
-            foreach (var card in await _unitOfWork.Reports.ListSprintCardsAsync(alvo.Id, ct))
+            foreach (var card in cards)
             {
                 fim = Report.BacklogAfter(fim, project.LastCardNumber);
                 card.BacklogRank = fim;
-                movidos.Add(card);
-                movidos.AddRange(await SprintMoves.MoveAsync(_unitOfWork, project, card, null, _accountContext.UserId, "sprint_deleted", ct));
+                await SprintMoves.MoveAsync(_unitOfWork, project, card, [.. subtarefasDe[card.Id]], null, _accountContext.UserId, "sprint_deleted", ct);
             }
 
-            // O arquivado que estava nela tambem sai: a sprint deixa de existir.
-            foreach (var arquivado in await _unitOfWork.Reports.ListArchivedSprintCardsAsync(alvo.Id, ct))
-            {
-                movidos.Add(arquivado);
-                movidos.AddRange(await SprintMoves.MoveAsync(_unitOfWork, project, arquivado, null, _accountContext.UserId, "sprint_deleted", ct));
-            }
+            foreach (var arquivado in arquivados)
+                await SprintMoves.MoveAsync(_unitOfWork, project, arquivado, [.. subtarefasDe[arquivado.Id]], null, _accountContext.UserId, "sprint_deleted", ct);
 
             await _unitOfWork.Sprints.SoftDeleteAsync(alvo, ct);
             await _unitOfWork.CommitAsync(ct);
             return true;
         }, cancellationToken);
 
-        foreach (var card in movidos)
-            await _notifier.CardChangedAsync(card.PublicId);
+        // Um aviso so, como no fechamento: o de projeto faz toda tela aberta reler.
         await _notifier.ProjectChangedAsync(project.PublicId);
     }
+
+    /// <summary>As subtarefas de cada card, lidas numa consulta so.</summary>
+    private async Task<ILookup<long, Report>> SubtasksOfAsync(IReadOnlyCollection<Report> cards, CancellationToken cancellationToken)
+        => (await _unitOfWork.Reports.ListSubtasksAsync(cards.Select(card => card.Id).ToList(), cancellationToken))
+            .ToLookup(sub => sub.ParentReportId!.Value);
 
     /// <summary>
     /// Uma sprint planejada nova: o proximo numero, o nome de fabrica, e as datas logo

@@ -20,6 +20,8 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
 
     /// <summary>O espaco da trava da ordem do quadro, uma por projeto. Ver o anterior.</summary>
     private const int BoardLockSpace = 7004;
+    private const int BoardColumnLockSpace = 7006;
+    private const int BoardNoColumnLockSpace = 7007;
 
     public ReportRepository(DataContext context) : base(context)
     {
@@ -636,6 +638,29 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             cancellationToken);
     }
 
+    public async Task LockBoardColumnAsync(long projectId, long? stateId, CancellationToken cancellationToken = default)
+    {
+        if (Context.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A trava da ordem do quadro so vale dentro de uma transacao.");
+
+        // A coluna e unica no banco inteiro; a falta de coluna e uma por projeto.
+        var (espaco, chave) = stateId is long coluna
+            ? (BoardColumnLockSpace, unchecked((int)coluna))
+            : (BoardNoColumnLockSpace, unchecked((int)projectId));
+
+        await Context.Database.ExecuteSqlAsync(
+            $"SELECT pg_advisory_xact_lock({espaco}, {chave})",
+            cancellationToken);
+    }
+
+    public async Task<bool> PlaceInColumnAsync(long reportId, long? stateId, long rank, CancellationToken cancellationToken = default)
+        // Uma gravacao so, com a condicao junto: se o card saiu da coluna, ou do quadro,
+        // nada muda — e o banco confere isso depois de esperar quem estiver gravando o
+        // mesmo card.
+        => await Context.Reports
+            .Where(report => report.Id == reportId && report.ProjectStateId == stateId && report.ArchivedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(report => report.BoardRank, rank), cancellationToken) == 1;
+
     public Task<BoardSpot?> FindBoardSpotAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
         // Pelo filtro global, como toda leitura com sessao: o card de outro projeto,
         // ou que ja foi apagado, nao existe aqui.
@@ -758,6 +783,11 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // Rastreadas: quem chama leva as subtarefas para a sprint do pai.
         => Context.Reports
             .Where(report => report.ParentReportId == parentId)
+            .ToListAsync(cancellationToken);
+
+    public Task<List<Report>> ListSubtasksAsync(IReadOnlyCollection<long> parentIds, CancellationToken cancellationToken = default)
+        => Context.Reports
+            .Where(report => report.ParentReportId != null && parentIds.Contains(report.ParentReportId.Value))
             .ToListAsync(cancellationToken);
 
     public Task<List<Report>> ListSprintCardsAsync(long sprintId, CancellationToken cancellationToken = default)

@@ -23,8 +23,15 @@ public interface IEventRepository
     /// <para>Nao ha paginacao, e e uma decisao: o historico de um relato e curto
     /// por natureza, e quebra-lo em paginas esconderia o comeco da conversa
     /// justamente de quem abriu para entender o caso.</para>
+    ///
+    /// <para><b>Das leituras do time, so a primeira</b> — a unica que o painel grava hoje.
+    /// As de depois, de quando cada abertura gravava, continuam na tabela, que nao se
+    /// apaga, mas nao viajam a cada card aberto. As de quem relatou vem todas.</para>
     /// </summary>
     Task<IReadOnlyList<Event>> ListByReportAsync(long reportId, CancellationToken cancellationToken = default);
+
+    /// <summary>Se o time ja abriu o relato pelo painel alguma vez.</summary>
+    Task<bool> AnyPanelViewAsync(long reportId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// So os eventos de mudanca de etapa publica de um relato, para quem chega

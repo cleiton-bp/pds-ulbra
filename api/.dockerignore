@@ -1,0 +1,6 @@
+# O que nao entra na imagem: o que o build gera — a imagem compila do zero, e o obj/ de
+# outra maquina confunde o restore — e o .env.local, que tem as credenciais de
+# desenvolvimento: nenhuma imagem pode leva-las. O compose o monta na hora de subir.
+**/bin/
+**/obj/
+**/Environment/.env.local
