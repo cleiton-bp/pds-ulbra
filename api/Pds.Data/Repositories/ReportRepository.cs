@@ -79,26 +79,12 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         // mesmo instante, que sem isso trocariam de lugar entre uma pagina e a
         // seguinte.
         //
-        // O estado vem por Include porque a lista mostra o nome da coluna: sem ele,
-        // a tela teria de buscar os estados a parte e cruzar a mao, e um relato
-        // parado numa coluna aposentada ficaria sem nome nenhum.
-        //
-        // Responsavel, prioridade, tipo e etiquetas vem junto pelo mesmo motivo: a linha
-        // do card os mostra.
-        //
-        // Em consultas separadas, como no detalhe: com as etiquetas na mesma consulta,
-        // cada card viria repetido uma vez por etiqueta, com o texto e a descricao
-        // inteiros a cada repeticao. A ordem e unica (o Id desempata), e e ela que faz
-        // as consultas separadas concordarem sobre qual e a pagina.
+        // Cada card vem so com o que a linha dele mostra (ver CardDaLista), e as
+        // etiquetas em consulta separada: na mesma consulta, cada card viria repetido
+        // uma vez por etiqueta. A ordem e unica (o Id desempata), e e ela que faz as
+        // consultas separadas concordarem sobre qual e a pagina.
     {
         var recorte = Filtrar(Context.Reports
-            .Include(report => report.ProjectState)
-            .Include(report => report.ProjectPublicStage)
-            .Include(report => report.AssigneeUser)
-            .Include(report => report.Priority)
-            .Include(report => report.ReportType)
-            .Include(report => report.Labels)
-            .ThenInclude(link => link.ProjectLabel)
             .Where(report => report.ProjectId == projectId)
             .Where(Recorte(filter))
             .Where(Arquivados(archived))
@@ -118,9 +104,90 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         return await ordenada
             .Skip(skip)
             .Take(take)
+            .Select(CardDaLista)
             .AsSplitQuery()
             .ToListAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// O card da lista com o que o resumo dele mostra, e nada alem: os campos da linha e,
+    /// do que ele aponta, o nome, a cor e o id publico — e nao as linhas inteiras.
+    ///
+    /// <para><b>E um card de leitura</b>, montado aqui e nao rastreado: a descricao, as
+    /// respostas, o token e os lugares no quadro ficam no banco. Por isso nao serve para
+    /// gravar nem para o detalhe, que leem o card inteiro. Campo novo no resumo do card
+    /// entra aqui tambem.</para>
+    /// </summary>
+    private static readonly Expression<Func<Report, Report>> CardDaLista = report => new Report
+    {
+        Id = report.Id,
+        PublicId = report.PublicId,
+        AccountId = report.AccountId,
+        ProjectId = report.ProjectId,
+        Kind = report.Kind,
+        Number = report.Number,
+        Title = report.Title,
+        ReporterTitle = report.ReporterTitle,
+        TrackingCode = report.TrackingCode,
+        Text = report.Text,
+        Route = report.Route,
+        Origin = report.Origin,
+        AcceptsQuestions = report.AcceptsQuestions,
+        PublicStageDueAt = report.PublicStageDueAt,
+        ArchivedAt = report.ArchivedAt,
+        CreatedAt = report.CreatedAt,
+        UpdatedAt = report.UpdatedAt,
+        DueDate = report.DueDate,
+        StoryPoints = report.StoryPoints,
+        AssigneeUserId = report.AssigneeUserId,
+        ProjectState = report.ProjectState == null
+            ? null
+            : new ProjectState { PublicId = report.ProjectState.PublicId, Name = report.ProjectState.Name },
+        ProjectPublicStage = report.ProjectPublicStage == null
+            ? null
+            : new ProjectPublicStage { Label = report.ProjectPublicStage.Label },
+        AssigneeUser = report.AssigneeUser == null
+            ? null
+            : new User
+            {
+                Id = report.AssigneeUser.Id,
+                PublicId = report.AssigneeUser.PublicId,
+                Name = report.AssigneeUser.Name,
+                Email = report.AssigneeUser.Email,
+                AvatarUrl = report.AssigneeUser.AvatarUrl,
+            },
+        Priority = report.Priority == null
+            ? null
+            : new ProjectPriority
+            {
+                PublicId = report.Priority.PublicId,
+                Name = report.Priority.Name,
+                Color = report.Priority.Color,
+                DeactivatedAt = report.Priority.DeactivatedAt,
+            },
+        ReportType = report.ReportType == null
+            ? null
+            : new ProjectReportType
+            {
+                PublicId = report.ReportType.PublicId,
+                Name = report.ReportType.Name,
+                Color = report.ReportType.Color,
+                Icon = report.ReportType.Icon,
+                DeactivatedAt = report.ReportType.DeactivatedAt,
+            },
+        Labels = report.Labels
+            .Where(link => link.DeletedAt == null && link.ProjectLabel.DeletedAt == null)
+            .Select(link => new ReportLabel
+            {
+                ProjectLabel = new ProjectLabel
+                {
+                    PublicId = link.ProjectLabel.PublicId,
+                    Name = link.ProjectLabel.Name,
+                    Color = link.ProjectLabel.Color,
+                },
+            })
+            .ToList(),
+    };
 
     /// <summary>
     /// A ordem que a pessoa escolheu na lista. <b>O vazio fica no fim nas duas
