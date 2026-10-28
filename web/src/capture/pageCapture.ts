@@ -9,6 +9,22 @@ import { canvasToImageFile } from '@/capture/imageFile'
 export const EXCLUDED_FROM_CAPTURE = ['iframe[data-pds]', '[data-pds-captura]']
 
 /**
+ * O que a captura esconde por privacidade (LGPD): **todo campo de senha**, e o que o site do
+ * cliente marcar — um CPF, um cartao, o que ele souber que e sensivel. O site marca com o
+ * atributo `data-pds-no-capture` ou a classe `pds-no-capture`, no campo ou num trecho inteiro.
+ *
+ * Diferente de <see cref="EXCLUDED_FROM_CAPTURE"/>, que sao os nossos elementos (saem de vez):
+ * aqui o modo e "esconder" (`visibility:hidden`), que deixa o lugar na pagina — o print nao
+ * desloca o resto, so nao mostra o conteudo sensivel.
+ */
+export const SENSITIVE_SELECTOR = 'input[type="password"], [data-pds-no-capture], .pds-no-capture'
+
+/** Se o elemento e sensivel, ou esta dentro de um trecho marcado como sensivel. */
+export function isSensitive(el: Element): boolean {
+  return el.closest(SENSITIVE_SELECTOR) !== null
+}
+
+/**
  * A densidade maxima do print. **Duas vezes, e nao a da tela.** Duas e o que deixa
  * o texto nitido num monitor comum ampliado; tres, de alguns celulares, dobraria o
  * arquivo sem ninguem ler melhor.
@@ -54,6 +70,10 @@ export async function capturePage(area: CaptureArea, maxBytes: number | null): P
     exclude: EXCLUDED_FROM_CAPTURE,
     // Removidos, e nao escondidos: sao fixos, e tira-los nao muda nada em volta.
     excludeMode: 'remove',
+    // Os campos sensiveis saem escondidos, nao removidos: o lugar fica, e o resto da pagina
+    // nao desloca. A senha e o que o site marcou (ver SENSITIVE_SELECTOR) nunca aparecem no print.
+    filter: (el) => !isSensitive(el),
+    filterMode: 'hide',
     backgroundColor: pageBackground(),
     dpr: Math.min(window.devicePixelRatio || 1, MAX_SCALE),
     embedFonts: true,
