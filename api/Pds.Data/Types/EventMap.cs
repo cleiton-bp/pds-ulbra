@@ -91,24 +91,18 @@ public class EventMap : IEntityTypeConfiguration<Event>
         // visibilidade reduz o contato repetido.
         builder.HasIndex(entity => entity.ReportId);
 
-        // As tres ligacoes anulam em vez de arrastar a linha junto: o evento
+        // Conta e projeto ficam sem chave estrangeira: cada evento gravado travaria a
+        // linha da conta e a do projeto para conferir, e com o time inteiro gravando
+        // essas duas linhas viravam multixacts sem parar. Ver Event.
+
+        // As duas ligacoes anulam em vez de arrastar a linha junto: o evento
         // sobrevive ao que o originou, e essa e a razao de a tabela existir.
-        builder.HasOne(entity => entity.Account)
-            .WithMany()
-            .HasForeignKey(entity => entity.AccountId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(entity => entity.Project)
-            .WithMany()
-            .HasForeignKey(entity => entity.ProjectId)
-            .OnDelete(DeleteBehavior.SetNull);
-
         builder.HasOne(entity => entity.Report)
             .WithMany()
             .HasForeignKey(entity => entity.ReportId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // SetNull como as outras tres: a conta excluida esvazia o usuario, e o
+        // SetNull como a do relato: a conta excluida esvazia o usuario, e o
         // evento continua contando que a mudanca aconteceu. Perder o autor e o
         // preco da exclusao; perder o evento seria perder o dado da pesquisa.
         builder.HasOne(entity => entity.User)

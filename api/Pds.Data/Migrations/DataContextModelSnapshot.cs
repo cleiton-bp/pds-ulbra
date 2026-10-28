@@ -3673,18 +3673,6 @@ namespace Pds.Data.Migrations
 
             modelBuilder.Entity("Pds.Domain.Entities.Event", b =>
                 {
-                    b.HasOne("Pds.Domain.Entities.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_events_accounts_account_id");
-
-                    b.HasOne("Pds.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_events_projects_project_id");
-
                     b.HasOne("Pds.Domain.Entities.Report", "Report")
                         .WithMany()
                         .HasForeignKey("ReportId")
@@ -3696,10 +3684,6 @@ namespace Pds.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_events_users_user_id");
-
-                    b.Navigation("Account");
-
-                    b.Navigation("Project");
 
                     b.Navigation("Report");
 

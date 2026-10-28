@@ -346,8 +346,9 @@ public class DataContext : PdsBaseContext
                                        && CurrentProjectIds.Contains(request.Report.ProjectId));
 
         // Evento: so o acesso pelo projeto, porque nao existe evento apagado. Todo
-        // evento gravado hoje nasce de um projeto; o que ficar sem projeto (a conta
-        // excluida apaga o projeto e o evento fica) nao aparece no painel. Sem
+        // evento gravado hoje nasce de um projeto; o que um dia ficar sem projeto (quando
+        // a exclusao da conta, Planejado, apagar o projeto de verdade) nao aparece no
+        // painel. Hoje nada apaga a linha de um projeto. Sem
         // sessao a lista e vazia — o padrao continua sendo nao ver nada.
         modelBuilder.Entity<Event>()
             .HasQueryFilter(entity => entity.ProjectId != null && CurrentProjectIds.Contains(entity.ProjectId.Value));
