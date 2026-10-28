@@ -9,8 +9,11 @@ import { ReportHistory } from '@/features/reports/ReportHistory'
  * O QUE ESTES TESTES TRAVAM: a linha do tempo do card aberto, so com o que e acao.
  *
  * - **O mais recente primeiro**, e a tela diz a ordem.
- * - **A primeira abertura fica**, como "Aberto pela primeira vez pelo time" — e o tempo
- *   que o time levou para olhar. As outras so a pedido, em "Mostrar aberturas (N)".
+ * - **Do time, so a primeira abertura**, como "Aberto pela primeira vez pelo time" — e o
+ *   tempo que o time levou para olhar.
+ * - **A leitura de quem relatou tem frase propria**, e nunca passa pela do time, mesmo
+ *   vindo antes: a primeira vez que abriu o acompanhamento, e as voltas so a pedido, em
+ *   "Mostrar as voltas de quem relatou (N)".
  * - **O "nao andou" entra na linha do movimento** que o causou: "· quem relatou continua
  *   vendo a mesma etapa". Longe de um movimento, ele fica como linha propria.
  * - **As 10 mais recentes**, com "Mostrar tudo (N)".
@@ -34,6 +37,7 @@ function linha(
   return {
     PublicId: `h-${contador}`,
     Type,
+    Source: 'Panel',
     AuthorName: 'Ana Dona',
     FromStateName: null,
     ToStateName: null,
@@ -66,41 +70,55 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('o historico do card aberto', () => {
-  it('o mais recente primeiro; a primeira abertura fica, e as outras so a pedido', async () => {
+  it('o mais recente primeiro; quem relatou nao vira o time, e as voltas dela so a pedido', async () => {
+    const quemRelatou = { AuthorName: null, Source: 'PublicPage' } as const
     dublê.historico.mockResolvedValue([
-      linha('ReportCreated', 0, { AuthorName: null }),
-      linha('ReportViewed', 5),
-      linha('ReportViewed', 6, { AuthorName: 'Bruno Membro' }),
+      linha('ReportCreated', 0, { AuthorName: null, Source: 'Widget' }),
+      // Quem relatou abre o acompanhamento antes de o time abrir o card.
+      linha('ReportViewed', 1, quemRelatou),
+      linha('ReportViewed', 5, { AuthorName: null }),
       linha('ReportStateChanged', 7, { FromStateName: 'A fazer', ToStateName: 'Fazendo' }),
-      linha('ReportViewed', 8),
+      linha('ReportViewed', 8, quemRelatou),
+      linha('ReportViewed', 9, quemRelatou),
     ])
     montar()
 
     expect(await frases()).toEqual([
       'Movido de A fazer para Fazendo',
       'Aberto pela primeira vez pelo time',
+      'Quem relatou abriu o acompanhamento',
       'Relato recebido',
     ])
     expect(screen.getByText('Do mais recente para o mais antigo')).toBeTruthy()
     expect(screen.queryByText('Alguém do time abriu')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mostrar aberturas (2)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar as voltas de quem relatou (2)' }))
     expect(await frases()).toEqual([
-      'Aberto de novo',
+      'Quem relatou voltou ao acompanhamento',
+      'Quem relatou voltou ao acompanhamento',
       'Movido de A fazer para Fazendo',
-      'Aberto de novo',
+      'Aberto pela primeira vez pelo time',
+      'Quem relatou abriu o acompanhamento',
+      'Relato recebido',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Esconder as voltas de quem relatou' }))
+    expect(await frases()).toHaveLength(4)
+  })
+
+  it('do time, uma abertura so — mesmo duas pessoas abrindo juntas —, e sem voltas a mostrar', async () => {
+    dublê.historico.mockResolvedValue([
+      linha('ReportCreated', 0),
+      linha('ReportViewed', 1),
+      linha('ReportViewed', 1),
+      linha('ReportViewed', 2, { AuthorName: null, Source: 'PublicPage' }),
+    ])
+    montar()
+    expect(await frases()).toEqual([
+      'Quem relatou abriu o acompanhamento',
       'Aberto pela primeira vez pelo time',
       'Relato recebido',
     ])
-    fireEvent.click(screen.getByRole('button', { name: 'Esconder aberturas' }))
-    expect(await frases()).toHaveLength(3)
-  })
-
-  it('aberto uma vez so, nao ha aberturas a mostrar', async () => {
-    dublê.historico.mockResolvedValue([linha('ReportCreated', 0), linha('ReportViewed', 1)])
-    montar()
-    expect(await frases()).toEqual(['Aberto pela primeira vez pelo time', 'Relato recebido'])
-    expect(screen.queryByRole('button', { name: /Mostrar aberturas/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /voltas de quem relatou/ })).toBeNull()
   })
 
   it('o "nao andou" vai na linha do movimento; longe de um movimento, fica sozinho', async () => {

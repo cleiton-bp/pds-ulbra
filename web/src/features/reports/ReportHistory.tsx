@@ -23,10 +23,10 @@ import { formatDateTime, formatDay, formatRelative } from '@/shared/lib/datetime
  *
  * **So o que e acao, e o mais novo primeiro.** Num card aberto todo dia, cada abertura
  * virava uma linha "abriu", e cada movimento vinha com um "nao andou" logo abaixo: o
- * historico era uma parede, com o que acabou de acontecer no fim. Agora a primeira
- * abertura fica (e o tempo que o time levou para olhar), as outras se mostram a pedido;
- * o "nao andou" vai na linha do movimento; e aparecem as dez mais recentes, com
- * "Mostrar tudo".
+ * historico era uma parede, com o que acabou de acontecer no fim. Agora o time so tem a
+ * primeira abertura (e o tempo que levou para olhar, e a unica que a API grava); quem
+ * relatou tem a primeira vez que abriu o acompanhamento, e as voltas a pedido; o "nao
+ * andou" vai na linha do movimento; e aparecem as dez mais recentes, com "Mostrar tudo".
  */
 export function ReportHistory({
   projectPublicId,
@@ -55,10 +55,10 @@ export function ReportHistory({
     revalidate()
   }, [versao, revalidate])
 
-  const [comAberturas, setComAberturas] = useState(false)
+  const [comVoltas, setComVoltas] = useState(false)
   const [tudo, setTudo] = useState(false)
-  const linhas = useMemo(() => (data ? arrumar(data, comAberturas) : null), [data, comAberturas])
-  const aberturas = data ? data.filter((entrada) => entrada.Type === 'ReportViewed').length : 0
+  const linhas = useMemo(() => (data ? arrumar(data, comVoltas) : null), [data, comVoltas])
+  const aberturasDeQuemRelatou = data ? data.filter(deQuemRelatou).length : 0
   const vistas = linhas ? (tudo ? linhas : linhas.slice(0, MAIS_RECENTES)) : null
 
   return (
@@ -113,7 +113,7 @@ export function ReportHistory({
         </ol>
       )}
 
-      {linhas && (linhas.length > MAIS_RECENTES || aberturas > 1) && (
+      {linhas && (linhas.length > MAIS_RECENTES || aberturasDeQuemRelatou > 1) && (
         <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
           {linhas.length > MAIS_RECENTES && (
             <button
@@ -124,13 +124,15 @@ export function ReportHistory({
               {tudo ? 'Mostrar só as mais recentes' : `Mostrar tudo (${linhas.length})`}
             </button>
           )}
-          {aberturas > 1 && (
+          {aberturasDeQuemRelatou > 1 && (
             <button
               type="button"
-              onClick={() => setComAberturas((antes) => !antes)}
+              onClick={() => setComVoltas((antes) => !antes)}
               className="text-caption text-fg-muted underline underline-offset-2 hover:text-fg"
             >
-              {comAberturas ? 'Esconder aberturas' : `Mostrar aberturas (${aberturas - 1})`}
+              {comVoltas
+                ? 'Esconder as voltas de quem relatou'
+                : `Mostrar as voltas de quem relatou (${aberturasDeQuemRelatou - 1})`}
             </button>
           )}
         </div>
@@ -150,25 +152,40 @@ interface Linha {
   frase: string
 }
 
+/** A leitura de quem relatou, pela pagina de acompanhamento: o mesmo tipo da do time. */
+const deQuemRelatou = (entrada: ReportHistoryEntryViewModel) =>
+  entrada.Type === 'ReportViewed' && entrada.Source === 'PublicPage'
+
 /**
  * As linhas que a tela mostra, da mais nova para a mais antiga.
  *
- * - **A primeira abertura fica**, como "Aberto pela primeira vez pelo time": e o fato
- *   que conta (o tempo que o time levou para olhar). As outras so com `comAberturas`.
+ * - **Do time, so a primeira abertura**, como "Aberto pela primeira vez pelo time": e o
+ *   fato que conta (o tempo que o time levou para olhar).
+ * - **De quem relatou, a primeira vez que abriu o acompanhamento**, numa frase so dela —
+ *   e nao como se fosse o time. As voltas so com `comVoltas`.
  * - **O "nao andou" entra na linha do movimento** que o causou: "Movido de A para B ·
  *   quem relatou continua vendo a mesma etapa". Sozinho (sem movimento perto), fica
  *   como linha propria.
  */
-function arrumar(entradas: ReportHistoryEntryViewModel[], comAberturas: boolean): Linha[] {
+function arrumar(entradas: ReportHistoryEntryViewModel[], comVoltas: boolean): Linha[] {
   const linhas: Linha[] = []
-  let jaAbriu = false
+  let oTimeAbriu = false
+  let quemRelatouAbriu = false
 
   for (const entrada of entradas) {
+    if (deQuemRelatou(entrada)) {
+      if (!quemRelatouAbriu) {
+        quemRelatouAbriu = true
+        linhas.push({ entrada, frase: 'Quem relatou abriu o acompanhamento' })
+      } else if (comVoltas) linhas.push({ entrada, frase: 'Quem relatou voltou ao acompanhamento' })
+      continue
+    }
     if (entrada.Type === 'ReportViewed') {
-      if (!jaAbriu) {
-        jaAbriu = true
+      // A API manda so a primeira; duas so se duas pessoas abriram juntas o relato novo.
+      if (!oTimeAbriu) {
+        oTimeAbriu = true
         linhas.push({ entrada, frase: 'Aberto pela primeira vez pelo time' })
-      } else if (comAberturas) linhas.push({ entrada, frase: 'Aberto de novo' })
+      }
       continue
     }
 

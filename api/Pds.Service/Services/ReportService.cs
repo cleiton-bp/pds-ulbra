@@ -2388,6 +2388,7 @@ public partial class ReportService : IReportService
             return new ReportHistoryEntryViewModel(
                 entity.PublicId,
                 entity.Type,
+                entity.Source,
                 entity.User?.Name,
                 de,
                 para,
@@ -3166,7 +3167,14 @@ public partial class ReportService : IReportService
         //
         // **E so ao abrir.** A releitura do card que ja esta aberto, por causa de um
         // aviso em tempo real, nao e alguem indo olhar: a leitura ja foi contada.
-        if (report.Kind == CardKindEnum.Report && recordView)
+        //
+        // **E so a primeira.** E o que a pesquisa mede — o tempo ate o time olhar —, e
+        // gravar cada abertura fazia esta tabela, que nao se apaga, e o historico do card
+        // crescerem a cada clique: num card aberto todo dia, eram milhares de linhas de
+        // "abriu" viajando a cada abertura. Duas pessoas abrindo juntas o relato novo
+        // podem gravar duas — a primeira continua sendo a primeira.
+        if (report.Kind == CardKindEnum.Report && recordView
+            && !await _unitOfWork.Events.AnyPanelViewAsync(report.Id, cancellationToken))
         {
             await _unitOfWork.Events.AddAsync(new Event
             {

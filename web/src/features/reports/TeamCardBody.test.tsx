@@ -141,6 +141,7 @@ function edicao(AuthorName: string): ReportHistoryEntryViewModel {
   return {
     PublicId: `h-${AuthorName}`,
     Type: 'TeamCardEdited',
+    Source: 'Panel',
     AuthorName,
     FromStateName: null,
     ToStateName: null,

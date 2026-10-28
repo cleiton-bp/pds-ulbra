@@ -22,18 +22,40 @@ public class EventRepository : IEventRepository
     }
 
     public async Task<IReadOnlyList<Event>> ListByReportAsync(long reportId, CancellationToken cancellationToken = default)
+    {
+        var leiturasDoTime = LeiturasDoTime(reportId);
+
         // O autor vem junto: o historico mostra quem fez, e buscar usuario por
         // usuario depois seria uma consulta por linha da tela.
         //
         // Ordena por OccurredAt, e nao por CreatedAt: as duas divergem quando houve
         // retentativa, e usar a errada desloca o evento para o momento em que o
         // sistema se recuperou, e nao para aquele em que a coisa aconteceu.
-        => await _context.Events
+        //
+        // Das leituras do time, so a primeira: ver a interface.
+        return await _context.Events
             .Include(entity => entity.User)
             .Where(entity => entity.ReportId == reportId)
+            .Where(entity => entity.Type != EventTypeEnum.ReportViewed
+                             || entity.Source != EventSourceEnum.Panel
+                             || entity.Id == leiturasDoTime
+                                 .OrderBy(leitura => leitura.OccurredAt)
+                                 .ThenBy(leitura => leitura.Id)
+                                 .Select(leitura => leitura.Id)
+                                 .FirstOrDefault())
             .OrderBy(entity => entity.OccurredAt)
             .ThenBy(entity => entity.Id)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<bool> AnyPanelViewAsync(long reportId, CancellationToken cancellationToken = default)
+        => LeiturasDoTime(reportId).AnyAsync(cancellationToken);
+
+    /// <summary>As aberturas do relato pelo painel — as do time, e nao as de quem relatou.</summary>
+    private IQueryable<Event> LeiturasDoTime(long reportId)
+        => _context.Events.Where(leitura => leitura.ReportId == reportId
+                                            && leitura.Type == EventTypeEnum.ReportViewed
+                                            && leitura.Source == EventSourceEnum.Panel);
 
     public async Task<IReadOnlyList<Event>> ListPublicStageChangesWithoutSessionAsync(long reportId, CancellationToken cancellationToken = default)
         // O tipo esta na **consulta**, e nao num filtro depois: o que nao for

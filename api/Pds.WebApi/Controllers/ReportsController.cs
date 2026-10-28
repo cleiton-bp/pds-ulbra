@@ -322,6 +322,10 @@ public class ReportsController : BaseController
     /// evento por abertura do histórico encheria o próprio histórico de linhas sobre
     /// alguém ter olhado o histórico.
     ///
+    /// **Das leituras do time, vem só a primeira**; as de quem relatou, pela página de
+    /// acompanhamento, vêm todas. As duas têm o mesmo tipo, e é `Source` que as separa:
+    /// `Panel` é o time, `PublicPage` é quem relatou.
+    ///
     /// Sem paginação, e é decisão: o histórico de um relato é curto por natureza, e
     /// quebrá-lo em páginas esconderia o começo da conversa de quem abriu justamente
     /// para entender o caso.
@@ -548,14 +552,15 @@ public class ReportsController : BaseController
 
     /// <summary>Abre um relato, com o contexto que veio junto.</summary>
     /// <remarks>
-    /// **Esta consulta grava.** Abrir um relato registra um evento de visualização
-    /// com origem no painel, e o intervalo entre ele e a criação é o tempo que o
-    /// time levou para ir olhar — metade da pergunta que este trabalho investiga.
+    /// **Esta consulta grava — na primeira vez.** A primeira abertura do relato pelo
+    /// time registra um evento de visualização com origem no painel, e o intervalo entre
+    /// ele e a criação é o tempo que o time levou para ir olhar — metade da pergunta que
+    /// este trabalho investiga. As aberturas seguintes não gravam.
     ///
-    /// Por isso ela **não deve ser chamada para adiantar dado que ninguém pediu**:
-    /// cada abertura vira uma linha, e uma lista que abrisse os relatos sozinha
-    /// inventaria leituras que não aconteceram. A exceção é `refresh=true`, a releitura
-    /// do card já aberto quando outra pessoa mexe nele: essa não grava.
+    /// Por isso ela **não deve ser chamada para adiantar dado que ninguém pediu**: uma
+    /// lista que abrisse os relatos sozinha inventaria a primeira leitura de relatos que
+    /// ninguém olhou. A releitura com `refresh=true`, do card já aberto quando outra
+    /// pessoa mexe nele, nunca grava.
     ///
     /// O contexto sai em ordem de chave. Ele vem do navegador de quem relatou, e
     /// não de quem digitou: serve para reproduzir o problema, nunca para
@@ -569,7 +574,7 @@ public class ReportsController : BaseController
     /// e esta não registra outra. Abrir é sempre sem ele.
     /// </param>
     /// <param name="cancellationToken"></param>
-    /// <response code="200">O relato, com o contexto. A visualização foi registrada — menos com <c>refresh</c>.</response>
+    /// <response code="200">O relato, com o contexto. A primeira visualização do time fica registrada — nunca com <c>refresh</c>.</response>
     /// <response code="404">Relato ou projeto não existe, ou a pessoa não está no projeto.</response>
     [HttpGet("{reportPublicId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<ReportDetailViewModel>), StatusCodes.Status200OK)]
