@@ -44,8 +44,14 @@ services:
       RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASS:-pds}"
     ports:
       # 5672 e o protocolo; 15672 e a tela de administracao, para olhar a fila.
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_UI_PORT:-15672}:15672"
+      #
+      # **So em 127.0.0.1, e nao na rede toda** — como o minio abaixo, e pela mesma
+      # razao. A senha padrao (pds/pds, acima) esta no repositorio, que e publico:
+      # publicada em todas as interfaces, qualquer um na mesma rede entraria na tela
+      # e leria, apagaria ou injetaria mensagens. A API no compose nao passa por
+      # aqui — fala com `rabbitmq:5672`, pela rede interna.
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672"
     volumes:
       - pds-rabbitmq-data:/var/lib/rabbitmq
     healthcheck:

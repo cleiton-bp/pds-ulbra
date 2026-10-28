@@ -19,4 +19,9 @@ EXPOSE 8080
 
 COPY --from=build /app/publish .
 
+# Sem privilegio: a imagem base ja traz o usuario `app` (APP_UID=1654). Rodar como ele, e
+# nao como root, reduz o estrago se a API for comprometida. A porta 8080 e alta, entao nao
+# precisa de root para abrir; o `/app` so e lido. O $APP_UID vem da imagem.
+USER $APP_UID
+
 ENTRYPOINT ["dotnet", "Pds.WebApi.dll"]
