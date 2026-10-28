@@ -1,9 +1,12 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Pds.Data.Configurations;
 using Pds.Data.Context;
 using Pds.Domain.Enums;
 using Pds.Domain.Security;
 using Pds.Service.Services;
+using Pds.Shared.Json;
+using Pds.Shared.Models;
 
 namespace Pds.WebApi.Authorization;
 
@@ -59,6 +62,15 @@ public class AccountMiddleware
             // com assinatura valida, mas a sessao deixa de existir.
             if (acesso is not null)
             {
+                // Sessao encerrada: "sair" marcou um instante, e este token foi emitido antes
+                // dele. Responde 401 para o painel mandar entrar de novo, em vez de seguir
+                // com uma sessao que a pessoa encerrou.
+                if (SessionWasRevoked(context.User, acesso.SessionsRevokedAt))
+                {
+                    await WriteSessionEndedAsync(context);
+                    return;
+                }
+
                 accountContext.UserId = acesso.UserId;
                 accountContext.UserPublicId = userPublicId;
                 accountContext.AccountId = acesso.AccountId;
@@ -96,20 +108,21 @@ public class AccountMiddleware
         var linhas = await dataContext.Database
             .SqlQuery<LinhaDoAcesso>($"""
                 WITH pessoa AS (
-                    SELECT u.id, u.account_id, a.public_id AS account_public_id
+                    SELECT u.id, u.account_id, a.public_id AS account_public_id, u.sessions_revoked_at
                     FROM users AS u
                     JOIN accounts AS a ON a.id = u.account_id AND a.deleted_at IS NULL
                     WHERE u.public_id = {userPublicId} AND u.deleted_at IS NULL
                 )
                 -- Os da conta propria, como dona. Pela juncao de fora, a pessoa vem mesmo sem projeto.
                 SELECT pessoa.id AS "UserId", pessoa.account_id AS "AccountId", pessoa.account_public_id AS "AccountPublicId",
-                       p.id AS "ProjectId", p.public_id AS "ProjectPublicId", NULL::text AS "Role"
+                       p.id AS "ProjectId", p.public_id AS "ProjectPublicId", NULL::text AS "Role",
+                       pessoa.sessions_revoked_at AS "SessionsRevokedAt"
                 FROM pessoa
                 LEFT JOIN projects AS p ON p.account_id = pessoa.account_id AND p.deleted_at IS NULL
                 UNION ALL
                 -- Os de outras contas, pelo time, com o papel. Conta apagada leva os projetos
                 -- junto; conferir aqui nao depende de a exclusao ter cascateado.
-                SELECT pessoa.id, pessoa.account_id, pessoa.account_public_id, p.id, p.public_id, m.role
+                SELECT pessoa.id, pessoa.account_id, pessoa.account_public_id, p.id, p.public_id, m.role, pessoa.sessions_revoked_at
                 FROM pessoa
                 JOIN project_members AS m ON m.user_id = pessoa.id AND m.deleted_at IS NULL
                 JOIN projects AS p ON p.id = m.project_id AND p.deleted_at IS NULL AND p.account_id <> pessoa.account_id
@@ -130,14 +143,41 @@ public class AccountMiddleware
             .ToList();
 
         var pessoa = linhas[0];
-        return new RequestAccess(pessoa.UserId, pessoa.AccountId, pessoa.AccountPublicId, projetos);
+        return new RequestAccess(pessoa.UserId, pessoa.AccountId, pessoa.AccountPublicId, projetos, pessoa.SessionsRevokedAt);
+    }
+
+    /// <summary>
+    /// Se o token foi emitido antes de a pessoa sair (ver <see cref="User.SessionsRevokedAt"/>).
+    /// Compara o <c>iat</c> do token (em segundos) com o instante do "sair". Sem "sair", nunca
+    /// e revogado; com "sair" e sem <c>iat</c> (token antigo, de antes desta mudanca), fecha a
+    /// porta — melhor pedir para entrar de novo do que deixar passar.
+    /// </summary>
+    private static bool SessionWasRevoked(System.Security.Claims.ClaimsPrincipal user, DateTime? revokedAt)
+    {
+        if (revokedAt is null)
+            return false;
+
+        var iat = user.FindFirst("iat")?.Value;
+        if (!long.TryParse(iat, out var emitidoEm))
+            return true;
+
+        return emitidoEm < new DateTimeOffset(DateTime.SpecifyKind(revokedAt.Value, DateTimeKind.Utc)).ToUnixTimeSeconds();
+    }
+
+    /// <summary>O 401 de sessao encerrada, no mesmo envelope das demais respostas.</summary>
+    private static async Task WriteSessionEndedAsync(HttpContext context)
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        context.Response.ContentType = "application/json; charset=utf-8";
+        var body = new ApiResponse<object>(Success: false, Message: "Sessao encerrada. Entre de novo.", Data: null);
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body, PdsJsonOptions.Create()), context.RequestAborted);
     }
 
     /// <summary>Uma linha da leitura do acesso: a pessoa e, quando ha, um projeto que ela enxerga. Sem papel e de dona.</summary>
     private sealed record LinhaDoAcesso(
-        long UserId, long AccountId, Guid AccountPublicId, long? ProjectId, Guid? ProjectPublicId, string? Role);
+        long UserId, long AccountId, Guid AccountPublicId, long? ProjectId, Guid? ProjectPublicId, string? Role, DateTime? SessionsRevokedAt);
 }
 
 /// <summary>A pessoa da requisicao, pelas chaves internas, e os projetos que ela enxerga.</summary>
 internal sealed record RequestAccess(
-    long UserId, long AccountId, Guid AccountPublicId, IReadOnlyList<ProjectAccess> Projects);
+    long UserId, long AccountId, Guid AccountPublicId, IReadOnlyList<ProjectAccess> Projects, DateTime? SessionsRevokedAt);

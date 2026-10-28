@@ -82,6 +82,32 @@ describe('o desenho da area', () => {
     expect(opcoes.excludeMode).toBe('remove')
   })
 
+  it('esconde a senha e o que o site marcou (LGPD): filtro em modo "hide"', async () => {
+    desenhar()
+
+    await capturePage('viewport', null)
+
+    const opcoes = dublê.snapdom.mock.calls[0]?.[1]
+    expect(opcoes.filterMode).toBe('hide')
+
+    // O filtro devolve false (esconde) para a senha e para o que o site marcou, e true para o resto.
+    const senha = document.createElement('input')
+    senha.type = 'password'
+    const marcadoPorAtributo = document.createElement('div')
+    marcadoPorAtributo.setAttribute('data-pds-no-capture', '')
+    const dentroDoMarcado = document.createElement('span')
+    marcadoPorAtributo.appendChild(dentroDoMarcado)
+    const marcadoPorClasse = document.createElement('div')
+    marcadoPorClasse.className = 'pds-no-capture'
+    const comum = document.createElement('p')
+
+    expect(opcoes.filter(senha)).toBe(false)
+    expect(opcoes.filter(marcadoPorAtributo)).toBe(false)
+    expect(opcoes.filter(dentroDoMarcado)).toBe(false)
+    expect(opcoes.filter(marcadoPorClasse)).toBe(false)
+    expect(opcoes.filter(comum)).toBe(true)
+  })
+
   it.each([
     [1, 1],
     [2, 2],

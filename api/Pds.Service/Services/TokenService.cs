@@ -47,6 +47,11 @@ public class TokenService : ITokenService
             [
                 new Claim(JwtRegisteredClaimNames.Sub, user.PublicId.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                // O "iat" (emitido em), em segundos: este construtor nao o poe sozinho, e e por
+                // ele que "sair" invalida os tokens de antes (ver User.SessionsRevokedAt).
+                new Claim(JwtRegisteredClaimNames.Iat,
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ClaimValueTypes.Integer64),
                 new Claim(UserClaim, user.PublicId.ToString()),
                 new Claim(AccountClaim, user.Account.PublicId.ToString()),
             ],

@@ -291,6 +291,28 @@ public class Startup
         else
             app.Use(WarnUntrustedForwarding(app.ApplicationServices));
 
+        // Cabecalhos de seguranca em toda resposta, inclusive na documentacao estatica
+        // abaixo: o navegador deixa de adivinhar o tipo do conteudo (nosniff), a pagina
+        // nao pode ser embutida por outro site (anti-clickjacking, que e o que protege
+        // quem administra de um clique forjado), o endereco nao vaza no Referer, e
+        // camera, microfone e localizacao ficam desligados. Em producao, atras do TLS,
+        // tambem o HSTS. A CSP de script e estilo fica para um passo proprio: a pagina
+        // tem um script embutido (a escolha do tema antes de pintar) e estilos
+        // embutidos, que uma CSP estrita bloquearia sem um ajuste a parte.
+        var emProducao = !env.IsDevelopment();
+        app.Use(async (context, next) =>
+        {
+            var headers = context.Response.Headers;
+            headers["X-Content-Type-Options"] = "nosniff";
+            headers["X-Frame-Options"] = "DENY";
+            headers["Content-Security-Policy"] = "frame-ancestors 'none'";
+            headers["Referrer-Policy"] = "no-referrer";
+            headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), browsing-topics=()";
+            if (emProducao)
+                headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+            await next();
+        });
+
         // Documentacao do projeto servida na raiz, a partir da pasta api-docs.
         // Vem antes de tudo por ser conteudo estatico: nao precisa passar por
         // autenticacao nem por limite de requisicao.

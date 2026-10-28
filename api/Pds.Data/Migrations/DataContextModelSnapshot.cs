@@ -3536,6 +3536,11 @@ namespace Pds.Data.Migrations
                         .HasColumnName("public_id")
                         .HasComment("Identificador publico, GUID aleatorio. E o que aparece em URL e API.");
 
+                    b.Property<DateTime?>("SessionsRevokedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("sessions_revoked_at")
+                        .HasComment("A partir de quando as sessoes valem, em UTC. 'Sair' grava aqui e invalida os tokens anteriores.");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at")

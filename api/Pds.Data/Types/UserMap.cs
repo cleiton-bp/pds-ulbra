@@ -54,6 +54,10 @@ public class UserMap : BaseEntityConfiguration<User>
             .HasColumnName("last_login_at")
             .HasComment("Ultimo acesso, em UTC.");
 
+        builder.Property(user => user.SessionsRevokedAt)
+            .HasColumnName("sessions_revoked_at")
+            .HasComment("A partir de quando as sessoes valem, em UTC. 'Sair' grava aqui e invalida os tokens anteriores.");
+
         // O padrao do banco vem da migracao, para quem ja existia; quem nasce agora nasce
         // com o da entidade.
         builder.Property(user => user.NotificationVolume)

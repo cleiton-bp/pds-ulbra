@@ -920,6 +920,44 @@ describe('as sprints no quadro e no Backlog', () => {
     expect(within(linha).getByText('Como funciona')).toBeTruthy()
   })
 
+  it('aberta no Backlog, a tela espera o ciclo: nao le a Lista, e le cada lista do Backlog uma vez so', async () => {
+    // O ciclo demora a chegar, como numa rede de verdade. Era nesse intervalo que a tela
+    // caia na Lista (e a lia) e lia as listas do Backlog duas vezes.
+    let entregarCiclo = () => {}
+    dublê.ciclo.mockImplementation(
+      () =>
+        new Promise((resolver) => {
+          entregarCiclo = () =>
+            resolver({
+              LastColumnVisibleDays: 14,
+              DueSoonDays: 2,
+              SprintsEnabled: true,
+              SprintLengthWeeks: 2,
+            })
+        }),
+    )
+    montar('backlog')
+
+    // Enquanto ele nao chega, a aba Backlog ja esta marcada, e nada da Lista e lido.
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /^Backlog/ }).getAttribute('aria-selected')).toBe(
+        'true',
+      ),
+    )
+    expect(leiturasDaLista()).toHaveLength(0)
+
+    await act(async () => entregarCiclo())
+    await screen.findByRole('list', { name: 'Cards do backlog' })
+
+    const doBacklog = dublê.listar.mock.calls.filter((chamada) => chamada[4]?.order === 'backlog')
+    expect(doBacklog.map((chamada) => chamada[4]?.sprint).sort()).toEqual([
+      'backlog',
+      'sp-2',
+      'sp-3',
+    ])
+    expect(leiturasDaLista()).toHaveLength(0)
+  })
+
   it('as sprints que nao carregaram: o quadro diz, sem carregar para sempre, e "Tentar de novo" rele', async () => {
     let falhar = true
     dublê.listarSprints.mockImplementation(async () => {

@@ -1,0 +1,24 @@
+# Cabecalhos de seguranca do painel e do carregador na CDN (Cloudflare Pages / Netlify leem
+# este arquivo; o Vite o copia de public/ para dist/). A API tem os seus proprios, postos pela
+# aplicacao. Ver V2 em local/vulnerabilidades-do-sistema.md.
+#
+# A CSP aqui so trata frame-ancestors (quem pode embutir): isso fecha o clickjacking sem risco
+# de quebrar a tela. A CSP de script e estilo (default-src, script-src) fica para um passo
+# proprio, porque a pagina tem um script embutido (o tema) e estilos embutidos, que uma CSP
+# estrita bloquearia sem hash ou nonce.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: frame-ancestors 'none'
+
+# O quadro roda DENTRO dos sites dos clientes: ele precisa poder ser embutido por qualquer
+# origem. So ele — o resto do painel nao pode. O carregador (v1/) entra por <script>, nao por
+# quadro, mas fica livre pelo mesmo motivo de nao haver o que embutir nele.
+/embed.html
+  Content-Security-Policy: frame-ancestors *
+
+/v1/*
+  Content-Security-Policy: frame-ancestors *

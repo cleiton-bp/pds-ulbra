@@ -36,10 +36,20 @@ const ESPERA_MAXIMA_MS = 30_000
 export const esperaDaTentativa = (tentativa: number) => ESPERAS_MS[tentativa] ?? ESPERA_MAXIMA_MS
 
 /**
+ * Por quanto tempo o bilhete pedido serve a outro pedido da biblioteca: o bastante para
+ * a negociacao e a abertura do WebSocket, que vem logo depois, e bem menos que o minuto
+ * que ele vale. Contado pelo relogio desta aba, que so anda para a frente — a hora do
+ * servidor e a do computador podem nao bater.
+ */
+export const REUSO_DO_BILHETE_MS = 10_000
+
+/**
  * Abre a conexao em tempo real da tela de Trabalho de um projeto.
  *
  * **Cada abertura pede um bilhete** (`POST /realtime/ticket`, com a sessao de sempre):
- * e ele, e nao o token da sessao, que vai no endereco da conexao. Reconectar pede outro.
+ * e ele, e nao o token da sessao, que vai no endereco da conexao. A biblioteca o pede
+ * duas vezes a cada abertura — para negociar e, logo depois, para abrir o WebSocket — e
+ * as duas levam o mesmo. Reconectar pede outro.
  *
  * **O eco da propria aba e ignorado**: o id desta conexao vai em todo pedido da aba
  * (`X-Realtime-Connection`), e o aviso que ele causar volta com ele.
@@ -64,6 +74,19 @@ function connectWork(projectPublicId: string, handlers: RealtimeHandlers): Realt
   const sairDoCabecalho = () => {
     clearRealtimeConnectionId(cabecalho)
     cabecalho = null
+  }
+
+  /** O bilhete da abertura em curso, e quando foi pedido. Ver `REUSO_DO_BILHETE_MS`. */
+  let bilhete: { valor: string; pedidoEm: number } | null = null
+  async function pedirBilhete(): Promise<string> {
+    if (bilhete !== null && performance.now() - bilhete.pedidoEm < REUSO_DO_BILHETE_MS) {
+      return bilhete.valor
+    }
+    // A hora de antes do pedido: o bilhete nasceu depois dela, e nunca e mais velho.
+    const pedidoEm = performance.now()
+    const { Ticket } = await apiPost<RealtimeTicketViewModel>('/realtime/ticket')
+    bilhete = { valor: Ticket, pedidoEm }
+    return Ticket
   }
 
   const doProjeto = (aviso: { ProjectPublicId: string }) =>
@@ -91,8 +114,7 @@ function connectWork(projectPublicId: string, handlers: RealtimeHandlers): Realt
     const { HubConnectionBuilder, LogLevel } = await signalR()
     const nova = new HubConnectionBuilder()
       .withUrl(`${environment.apiUrl}/realtime/hub`, {
-        accessTokenFactory: async () =>
-          (await apiPost<RealtimeTicketViewModel>('/realtime/ticket')).Ticket,
+        accessTokenFactory: pedirBilhete,
         // A sessao vai no bilhete, e nao em cookie: pedir credencial faria o navegador
         // exigir um CORS que a API, de proposito, nao da.
         withCredentials: false,
