@@ -6,7 +6,8 @@ import type { RealtimeEvent, RealtimeHandlers, RealtimeStatus } from '@/data/rea
 /**
  * O QUE ESTES TESTES TRAVAM: a conexao em tempo real da tela de Trabalho.
  *
- * - **O bilhete, e nao a sessao, abre a conexao** — e cada abertura pede um.
+ * - **O bilhete, e nao a sessao, abre a conexao** — e cada abertura pede um so, embora
+ *   a biblioteca o peca duas vezes (negociar e abrir o WebSocket).
  * - **O eco da propria aba e ignorado**, e o aviso de outro projeto tambem.
  * - **Fora do time, nada chega** — e a tela fica sabendo.
  * - **Caiu, volta sozinha, para sempre**; ao voltar, entra de novo no projeto e manda
@@ -114,7 +115,9 @@ vi.mock('@/data/api/httpClient', () => ({
   clearRealtimeConnectionId: http.tirarDaAba,
 }))
 
-const { apiRealtimeService, esperaDaTentativa } = await import('@/data/api/apiRealtimeService')
+const { apiRealtimeService, esperaDaTentativa, REUSO_DO_BILHETE_MS } = await import(
+  '@/data/api/apiRealtimeService'
+)
 
 function ouvir() {
   const eventos: RealtimeEvent[] = []
@@ -162,6 +165,22 @@ describe('a conexao em tempo real', () => {
     expect(sinal.criadas[0]?.invoke).toHaveBeenCalledWith('Watch', 'p-1')
     expect(http.cabecalho).toBe('esta-aba')
     expect(estados).toEqual(['connecting', 'live'])
+  })
+
+  it('a negociacao e o WebSocket da mesma abertura levam o mesmo bilhete; a abertura seguinte pede outro', async () => {
+    const { handlers } = ouvir()
+    apiRealtimeService.connectWork('p-1', handlers)
+    await vi.runAllTimersAsync()
+
+    // A biblioteca pede duas vezes ao abrir: para negociar e para abrir o WebSocket.
+    expect(await sinal.bilhete?.()).toBe('bilhete-de-um-minuto')
+    expect(await sinal.bilhete?.()).toBe('bilhete-de-um-minuto')
+    expect(http.pedido).toHaveBeenCalledTimes(1)
+
+    // A reconexao vem depois: o bilhete daquela abertura ja nao serve.
+    await vi.advanceTimersByTimeAsync(REUSO_DO_BILHETE_MS)
+    await sinal.bilhete?.()
+    expect(http.pedido).toHaveBeenCalledTimes(2)
   })
 
   it('ignora o eco da propria aba e o aviso de outro projeto', async () => {

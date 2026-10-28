@@ -1,32 +1,65 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import type { ComponentType } from 'react'
+import { createBrowserRouter, matchRoutes, Navigate } from 'react-router-dom'
 import { AccountShell } from '@/app/AccountShell'
-import { ConfigureScreen } from '@/app/configure/ConfigureScreen'
-import { InviteScreen } from '@/app/InviteScreen'
-import { ProfileRoute } from '@/app/ProfileRoute'
 import { ProjectShell } from '@/app/ProjectShell'
 import { ProjectHome, RequireProjectAdministrator } from '@/app/projectAccessRoutes'
 import { RequireSession } from '@/app/RequireSession'
 import { RouteErrorScreen } from '@/app/RouteErrorScreen'
-import { CycleSettingsScreen } from '@/features/cycle/CycleSettingsScreen'
-import { SprintSettingsScreen } from '@/features/cycle/SprintSettingsScreen'
-import { IdentityScreen } from '@/features/identity/IdentityScreen'
-import { LabelsScreen } from '@/features/labels/LabelsScreen'
-import { MediaScreen } from '@/features/media/MediaScreen'
-import { ModerationScreen } from '@/features/moderation/ModerationScreen'
-import { StartScreen } from '@/features/onboarding/StartScreen'
-import { PrioritiesScreen } from '@/features/priorities/PrioritiesScreen'
-import { ProjectKeysScreen } from '@/features/projectKeys/ProjectKeysScreen'
-import { ProjectStatesScreen } from '@/features/projectStates/ProjectStatesScreen'
-import { DomainsScreen } from '@/features/projects/DomainsScreen'
-import { MembersScreen } from '@/features/projects/MembersScreen'
-import { ProjectSettingsScreen } from '@/features/projects/ProjectSettingsScreen'
-import { ProjectsHubScreen } from '@/features/projects/ProjectsHubScreen'
-import { PublicStagesScreen } from '@/features/publicStages/PublicStagesScreen'
-import { ReportDetailRoute } from '@/features/reports/ReportDetailRoute'
-import { ReportsScreen } from '@/features/reports/ReportsScreen'
-import { ReportTypesScreen } from '@/features/reportTypes/ReportTypesScreen'
-import { FormTextsScreen } from '@/features/widgetSettings/FormTextsScreen'
-import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsScreen'
+
+/**
+ * A tela da rota **num pedaco proprio do pacote**, buscado quando a rota abre: quem abre
+ * o quadro nao baixa antes a configuracao inteira, nem quem configura baixa o quadro.
+ * As cascas, a sessao e o roteador ficam no pacote de entrada.
+ *
+ * O roteador busca o pedaco da rota pedida ja na partida e, numa troca de tela, antes de
+ * trocar: a tela de antes fica ate a nova chegar. Depois de uma publicacao nova o pedaco
+ * antigo pode nao existir mais — a falha cai na tela de erro da raiz, que oferece
+ * recarregar.
+ *
+ * `seguinte` e a tela que costuma vir depois desta — do hub, o Trabalho; do Trabalho, o
+ * card aberto —: assim que esta chega, aquela e buscada com folga, e o clique nao espera.
+ */
+function sobDemanda<M extends Record<K, ComponentType>, K extends keyof M>(
+  carregar: () => Promise<M>,
+  tela: K,
+  seguinte?: () => Promise<unknown>,
+) {
+  return async () => {
+    const modulo = await carregar()
+    if (seguinte) quandoFolgar(() => void seguinte().catch(() => {}))
+    return { Component: modulo[tela] }
+  }
+}
+
+/** Quando o navegador estiver folgado — ou, no que nao diz, logo depois. */
+function quandoFolgar(fazer: () => void) {
+  if ('requestIdleCallback' in window) requestIdleCallback(fazer, { timeout: 2_000 })
+  else setTimeout(fazer, 200)
+}
+
+const carregarTrabalho = () => import('@/features/reports/ReportsScreen')
+const carregarCard = () => import('@/features/reports/ReportDetailRoute')
+
+/**
+ * **A intencao de abrir ja busca a tela**: o ponteiro sobre um link do painel, o dedo
+ * encostando nele ou o foco do teclado busca o pedaco da tela de destino. Quando o clique
+ * chega, ele ja esta aqui ou a caminho — e nada e baixado para uma tela que ninguem
+ * abre, nem disputa a rede com a tela aberta.
+ */
+export function aquecerPelosLinks() {
+  const aquecer = (evento: Event) => {
+    const link = evento.target instanceof Element ? evento.target.closest('a[href]') : null
+    if (!(link instanceof HTMLAnchorElement) || link.origin !== window.location.origin) return
+
+    for (const { route } of matchRoutes(router.routes, link.pathname) ?? []) {
+      // A que o roteador ja carregou nao tem mais `lazy`; a que falhar aqui e buscada de
+      // novo quando a rota abrir.
+      if (typeof route.lazy === 'function') void Promise.resolve(route.lazy()).catch(() => {})
+    }
+  }
+  document.addEventListener('pointerover', aquecer, { passive: true })
+  document.addEventListener('focusin', aquecer)
+}
 
 /**
  * Dois niveis: fora do projeto nao ha o que navegar, dentro dele vai haver muito.
@@ -62,8 +95,8 @@ import { WidgetSettingsScreen } from '@/features/widgetSettings/WidgetSettingsSc
  * para ter as duas coisas — a casca precisa de sessao para se preencher, e a
  * exigencia e cair aqui mesmo sem ela.
  *
- * Unica rota carregada sob demanda: e a que quase toda sessao nunca abre, e as
- * ilustracoes dela nao tem por que entrar no pacote inicial.
+ * Sob demanda como as telas: e a que quase toda sessao nunca abre, e as ilustracoes
+ * dela nao tem por que entrar no pacote de entrada.
  */
 const naoEncontrada = {
   path: '*',
@@ -77,19 +110,29 @@ export const router = createBrowserRouter([
     path: '/',
     element: <RequireSession />,
     errorElement: <RouteErrorScreen />,
+    // Enquanto o pedaco da primeira tela chega: a mesma pagina vazia de quando a
+    // sessao ainda nao respondeu.
+    hydrateFallbackElement: <div className="min-h-dvh bg-surface" />,
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
       {
         element: <AccountShell />,
         children: [
-          { path: 'projects', element: <ProjectsHubScreen /> },
+          {
+            path: 'projects',
+            lazy: sobDemanda(
+              () => import('@/features/projects/ProjectsHubScreen'),
+              'ProjectsHubScreen',
+              carregarTrabalho,
+            ),
+          },
           // O perfil e um dialogo sobre a tela aberta (o menu da conta e o sino o abrem
           // sem trocar o endereco). A rota fica para o link salvo: abre o dialogo e sai.
-          { path: 'profile', element: <ProfileRoute /> },
+          { path: 'profile', lazy: sobDemanda(() => import('@/app/ProfileRoute'), 'ProfileRoute') },
           // Fora do projeto de proposito: quem abre o convite ainda nao esta nele.
           // Dentro do `RequireSession`, a entrada com Google aparece neste mesmo
           // endereco — e o `#t=` sobrevive ao login.
-          { path: 'invite', element: <InviteScreen /> },
+          { path: 'invite', lazy: sobDemanda(() => import('@/app/InviteScreen'), 'InviteScreen') },
         ],
       },
       {
@@ -100,35 +143,133 @@ export const router = createBrowserRouter([
           {
             element: <RequireProjectAdministrator />,
             children: [
-              { path: 'configure', element: <ConfigureScreen /> },
-              { path: 'start', element: <StartScreen /> },
-              { path: 'domains', element: <DomainsScreen /> },
-              { path: 'keys', element: <ProjectKeysScreen /> },
-              { path: 'report-types', element: <ReportTypesScreen /> },
-              { path: 'form-texts', element: <FormTextsScreen /> },
-              { path: 'states', element: <ProjectStatesScreen /> },
-              { path: 'priorities', element: <PrioritiesScreen /> },
-              { path: 'labels', element: <LabelsScreen /> },
-              { path: 'sprints', element: <SprintSettingsScreen /> },
-              { path: 'public-stages', element: <PublicStagesScreen /> },
-              { path: 'cycle', element: <CycleSettingsScreen /> },
-              { path: 'identity', element: <IdentityScreen /> },
-              { path: 'media', element: <MediaScreen /> },
-              { path: 'settings', element: <ProjectSettingsScreen /> },
-              { path: 'tool', element: <WidgetSettingsScreen /> },
+              {
+                path: 'configure',
+                lazy: sobDemanda(
+                  () => import('@/app/configure/ConfigureScreen'),
+                  'ConfigureScreen',
+                ),
+              },
+              {
+                path: 'start',
+                lazy: sobDemanda(() => import('@/features/onboarding/StartScreen'), 'StartScreen'),
+              },
+              {
+                path: 'domains',
+                lazy: sobDemanda(
+                  () => import('@/features/projects/DomainsScreen'),
+                  'DomainsScreen',
+                ),
+              },
+              {
+                path: 'keys',
+                lazy: sobDemanda(
+                  () => import('@/features/projectKeys/ProjectKeysScreen'),
+                  'ProjectKeysScreen',
+                ),
+              },
+              {
+                path: 'report-types',
+                lazy: sobDemanda(
+                  () => import('@/features/reportTypes/ReportTypesScreen'),
+                  'ReportTypesScreen',
+                ),
+              },
+              {
+                path: 'form-texts',
+                lazy: sobDemanda(
+                  () => import('@/features/widgetSettings/FormTextsScreen'),
+                  'FormTextsScreen',
+                ),
+              },
+              {
+                path: 'states',
+                lazy: sobDemanda(
+                  () => import('@/features/projectStates/ProjectStatesScreen'),
+                  'ProjectStatesScreen',
+                ),
+              },
+              {
+                path: 'priorities',
+                lazy: sobDemanda(
+                  () => import('@/features/priorities/PrioritiesScreen'),
+                  'PrioritiesScreen',
+                ),
+              },
+              {
+                path: 'labels',
+                lazy: sobDemanda(() => import('@/features/labels/LabelsScreen'), 'LabelsScreen'),
+              },
+              {
+                path: 'sprints',
+                lazy: sobDemanda(
+                  () => import('@/features/cycle/SprintSettingsScreen'),
+                  'SprintSettingsScreen',
+                ),
+              },
+              {
+                path: 'public-stages',
+                lazy: sobDemanda(
+                  () => import('@/features/publicStages/PublicStagesScreen'),
+                  'PublicStagesScreen',
+                ),
+              },
+              {
+                path: 'cycle',
+                lazy: sobDemanda(
+                  () => import('@/features/cycle/CycleSettingsScreen'),
+                  'CycleSettingsScreen',
+                ),
+              },
+              {
+                path: 'identity',
+                lazy: sobDemanda(
+                  () => import('@/features/identity/IdentityScreen'),
+                  'IdentityScreen',
+                ),
+              },
+              {
+                path: 'media',
+                lazy: sobDemanda(() => import('@/features/media/MediaScreen'), 'MediaScreen'),
+              },
+              {
+                path: 'settings',
+                lazy: sobDemanda(
+                  () => import('@/features/projects/ProjectSettingsScreen'),
+                  'ProjectSettingsScreen',
+                ),
+              },
+              {
+                path: 'tool',
+                lazy: sobDemanda(
+                  () => import('@/features/widgetSettings/WidgetSettingsScreen'),
+                  'WidgetSettingsScreen',
+                ),
+              },
             ],
           },
-          { path: 'moderation', element: <ModerationScreen /> },
+          {
+            path: 'moderation',
+            lazy: sobDemanda(
+              () => import('@/features/moderation/ModerationScreen'),
+              'ModerationScreen',
+            ),
+          },
           // Fora da guarda: todo o time abre, e quem e so membro le. O que muda o
           // time aparece so para quem administra.
-          { path: 'members', element: <MembersScreen /> },
+          {
+            path: 'members',
+            lazy: sobDemanda(() => import('@/features/projects/MembersScreen'), 'MembersScreen'),
+          },
           {
             // O relato aberto e filho da lista: a lista continua montada atras,
             // com o recorte e a rolagem onde estavam, e o dialogo ganha endereco
             // proprio — da para mandar o link de um relato para um colega.
             path: 'reports',
-            element: <ReportsScreen />,
-            children: [{ path: ':reportPublicId', element: <ReportDetailRoute /> }],
+            lazy: sobDemanda(carregarTrabalho, 'ReportsScreen', carregarCard),
+            children: [
+              { path: ':reportPublicId', lazy: sobDemanda(carregarCard, 'ReportDetailRoute') },
+            ],
           },
         ],
       },

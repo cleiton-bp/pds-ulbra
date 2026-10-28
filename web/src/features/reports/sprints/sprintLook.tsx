@@ -24,11 +24,14 @@ export { formatPoints, pointsText } from '@/shared/components/cardFace'
 /**
  * As sprints que nao foram concluidas, lidas so com as sprints ligadas. A em andamento e a que o
  * quadro mostra.
+ *
+ * **Desligadas, a lista e nula, e nao vazia.** Vazia diria "lida, e sem sprint": o backlog
+ * leria as listas dele na hora e de novo quando as sprints chegassem.
  */
 export function useSprints(projectPublicId: string, enabled: boolean) {
   const { data, failed, reload, revalidate } = useAsyncResource(
     useCallback(
-      async () => (enabled ? await sprintService.listSprints(projectPublicId) : []),
+      async () => (enabled ? await sprintService.listSprints(projectPublicId) : null),
       [projectPublicId, enabled],
     ),
   )

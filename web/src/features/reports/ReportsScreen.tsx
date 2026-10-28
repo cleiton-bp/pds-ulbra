@@ -154,7 +154,11 @@ export function ReportsScreen() {
   // As regras do Ciclo que a tela usa: quando o prazo fica perto, e quantos dias a
   // ultima coluna do quadro mostra. Falhando, o destaque fica no padrao de fabrica e
   // o quadro so nao diz quantos ficaram na lista — a API aplica a regra do mesmo jeito.
-  const { data: ciclo, revalidate: renovarCiclo } = useAsyncResource(
+  const {
+    data: ciclo,
+    failed: cicloFalhou,
+    revalidate: renovarCiclo,
+  } = useAsyncResource(
     useCallback(
       () => projectCycleSettingsService.getCycleSettings(project.PublicId),
       [project.PublicId],
@@ -163,9 +167,12 @@ export function ReportsScreen() {
   const destaque = ciclo?.DueSoonDays ?? DESTAQUE_DE_FABRICA
 
   // Com a sprint ligada: a aba Backlog existe, e o quadro mostra so a sprint em
-  // andamento. A vista lembrada "backlog" de quando estava ligada volta a ser a lista.
+  // andamento. A vista lembrada "backlog" de quando estava ligada volta a ser a lista —
+  // **so depois de o ciclo dizer que ela esta desligada** (ou de ele falhar): enquanto
+  // ele chega, cair na lista e voltar ao backlog lia uma lista que ninguem via.
   const sprintsLigadas = ciclo?.SprintsEnabled === true
-  const vistaEfetiva: Vista = vista === 'backlog' && !sprintsLigadas ? 'lista' : vista
+  const sprintsDesligadas = ciclo ? !ciclo.SprintsEnabled : cicloFalhou
+  const vistaEfetiva: Vista = vista === 'backlog' && sprintsDesligadas ? 'lista' : vista
   const sprints = useSprints(project.PublicId, sprintsLigadas)
   const [concluindo, setConcluindo] = useState(false)
   /** A sprint que se inicia daqui — pelo quadro vazio, ou pelo aviso de concluida. */
@@ -200,6 +207,11 @@ export function ReportsScreen() {
   const backlog = vistaEfetiva === 'backlog' && !arquivados
   const modoSprint = sprintsLigadas && quadro
   const sprintDoQuadro = modoSprint ? 'active' : undefined
+  // A contagem do quadro depende de a sprint estar ligada — ele mostra so a sprint em
+  // andamento —, e por isso espera o ciclo dizer (ou falhar): lida antes, saia sem a
+  // sprint e de novo com ela, e o quadro arriscava ler as colunas das duas. Nas outras
+  // vistas a sprint nao entra na contagem, e ela sai logo.
+  const contagemSabeASprint = !quadro || ciclo !== null || cicloFalhou
   // A lista das sprints nao veio: o backlog e o quadro dizem, em vez de carregar para sempre.
   const sprintsFalharam = sprintsLigadas && sprints.failed && (backlog || modoSprint)
   // O quadro sem sprint em andamento nao tem o que filtrar nem arrastar: a barra sai.
@@ -336,21 +348,26 @@ export function ReportsScreen() {
     data: contagensLidas,
     failed: contagensFalharam,
     reload: recarregarContagens,
-    revalidate: renovarContagens,
+    revalidate: renovarContagemDasColunas,
   } = useAsyncResource(
     useCallback(
-      async () => ({
-        projeto: project.PublicId,
-        linhas:
-          filtrosDaContagem.current.ligado || filtrosDaContagem.current.sprint
-            ? await projectReportService.listReportCounts(
-                project.PublicId,
-                filtrosDaContagem.current.ligado ? filtrosDaContagem.current.aplicados : undefined,
-                filtrosDaContagem.current.sprint,
-              )
-            : await projectReportService.listReportCounts(project.PublicId),
-      }),
-      [project.PublicId],
+      async () =>
+        contagemSabeASprint
+          ? {
+              projeto: project.PublicId,
+              linhas:
+                filtrosDaContagem.current.ligado || filtrosDaContagem.current.sprint
+                  ? await projectReportService.listReportCounts(
+                      project.PublicId,
+                      filtrosDaContagem.current.ligado
+                        ? filtrosDaContagem.current.aplicados
+                        : undefined,
+                      filtrosDaContagem.current.sprint,
+                    )
+                  : await projectReportService.listReportCounts(project.PublicId),
+            }
+          : null,
+      [project.PublicId, contagemSabeASprint],
     ),
   )
   // A contagem de outro projeto nao serve: na troca, ela ainda e a do anterior por
@@ -359,12 +376,13 @@ export function ReportsScreen() {
 
   const colunasDoQuadro = useMemo(() => (contagens ? boardColumns(contagens) : null), [contagens])
   // Com filtro, o quadro diz "2 de 10": a contagem sem os filtros (com o recorte da
-  // sprint), relida a cada vez que a dos filtros e relida.
+  // sprint), relida junto da dos filtros a cada mudanca — e nao quando so o filtro
+  // muda, que nao mexe nela.
   const comFiltroNoQuadro = quadro && comFiltro
   const { data: semFiltroLidas, revalidate: renovarSemFiltro } = useAsyncResource(
     useCallback(
       async () =>
-        comFiltroNoQuadro
+        comFiltroNoQuadro && contagemSabeASprint
           ? {
               projeto: project.PublicId,
               linhas: await projectReportService.listReportCounts(
@@ -374,13 +392,17 @@ export function ReportsScreen() {
               ),
             }
           : null,
-      [project.PublicId, comFiltroNoQuadro, sprintDoQuadro],
+      [project.PublicId, comFiltroNoQuadro, sprintDoQuadro, contagemSabeASprint],
     ),
   )
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a contagem relida e o gatilho de reler a sem filtro.
-  useEffect(() => {
+  /**
+   * Depois de uma mudanca — um card movido, o aviso de outra pessoa —: a contagem das
+   * colunas relida sem sair da tela e, com filtro no quadro, a sem filtro junto.
+   */
+  const renovarContagens = useCallback(() => {
+    renovarContagemDasColunas()
     if (comFiltroNoQuadro) renovarSemFiltro()
-  }, [contagensLidas])
+  }, [renovarContagemDasColunas, renovarSemFiltro, comFiltroNoQuadro])
   const semFiltroDoQuadro = useMemo(
     () =>
       semFiltroLidas?.projeto === project.PublicId
@@ -420,14 +442,24 @@ export function ReportsScreen() {
     sprintDoQuadro,
   )
 
-  // O filtro mudou: a contagem das colunas e relida, sem tirar o quadro da tela.
+  // O filtro mudou: a contagem das colunas e relida, sem tirar o quadro da tela. Antes
+  // de a contagem sair (o quadro esperando o ciclo), nao ha o que reler: a primeira
+  // leitura ja vai com a chave de agora.
   const chaveDaContagem = chaveDoQuadro
-  const contagemLida = useRef(chaveDaContagem)
+  const contagemLida = useRef<string | null>(null)
   useEffect(() => {
+    if (!contagemSabeASprint) {
+      contagemLida.current = null
+      return
+    }
+    if (contagemLida.current === null) {
+      contagemLida.current = chaveDaContagem
+      return
+    }
     if (contagemLida.current === chaveDaContagem) return
     contagemLida.current = chaveDaContagem
-    renovarContagens()
-  }, [chaveDaContagem, renovarContagens])
+    renovarContagemDasColunas()
+  }, [chaveDaContagem, contagemSabeASprint, renovarContagemDasColunas])
 
   // ─── O tempo real ──────────────────────────────────────────────────────────
   // O que outra pessoa muda chega como aviso, so com os identificadores, e cada parte
@@ -436,6 +468,12 @@ export function ReportsScreen() {
   // releitura so.
   const navigate = useNavigate()
   const juntarContagens = useJuntar(renovarContagens)
+  // As sprints tambem: fechar uma sprint manda um aviso por card, e cada um relia a
+  // lista de sprints — mil avisos eram mil pedidos.
+  const juntarSprints = useJuntar(() => {
+    sprints.revalidate()
+    mexeuNoBacklog()
+  })
   /** Os cards dos avisos que a lista ainda vai reler, para acender quando ela chegar. */
   const acenderNaLista = useRef(new Set<string>())
   const juntarLista = useJuntar(() => {
@@ -462,10 +500,7 @@ export function ReportsScreen() {
         if (!quadro) acenderNaLista.current.add(ReportPublicId)
         juntarLista()
         juntarContagens()
-        if (sprintsLigadas) {
-          sprints.revalidate()
-          mexeuNoBacklog()
-        }
+        if (sprintsLigadas) juntarSprints()
         break
       }
       case 'project':
@@ -993,7 +1028,8 @@ export function ReportsScreen() {
             vista={vistaEfetiva}
             painel={painel}
             aoEscolher={setVista}
-            comBacklog={sprintsLigadas}
+            // Tambem enquanto o ciclo chega, com o backlog lembrado: a aba ja aparece marcada.
+            comBacklog={sprintsLigadas || vistaEfetiva === 'backlog'}
             contagens={contagemNasAbas}
           />
           {!backlog && (
