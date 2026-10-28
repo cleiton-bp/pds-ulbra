@@ -39,10 +39,10 @@ public class ReportCommentService : IReportCommentService
 
     public async Task<ReportCommentsViewModel> ListAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken = default)
     {
-        var report = await RequireReportAsync(projectPublicId, reportPublicId, cancellationToken);
+        var reportId = await RequireReportIdAsync(projectPublicId, reportPublicId, cancellationToken);
 
-        var internos = await _unitOfWork.ReportInternalComments.ListByReportAsync(report.Id, cancellationToken);
-        var publicos = await _unitOfWork.ReportPublicComments.ListByReportAsync(report.Id, cancellationToken);
+        var internos = await _unitOfWork.ReportInternalComments.ListByReportAsync(reportId, cancellationToken);
+        var publicos = await _unitOfWork.ReportPublicComments.ListByReportAsync(reportId, cancellationToken);
         var eu = _accountContext.UserId;
 
         return new ReportCommentsViewModel(
@@ -335,10 +335,26 @@ public class ReportCommentService : IReportCommentService
 
     private async Task<Report> RequireReportAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken)
     {
+        var projectId = await RequireProjectIdAsync(projectPublicId, cancellationToken);
+
+        return await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(projectId, reportPublicId, cancellationToken)
+               ?? throw new KeyNotFoundException("Relato nao encontrado.");
+    }
+
+    /// <summary>So o Id do relato, para quem so le o que e dele: a lista de comentarios.</summary>
+    private async Task<long> RequireReportIdAsync(Guid projectPublicId, Guid reportPublicId, CancellationToken cancellationToken)
+    {
+        var projectId = await RequireProjectIdAsync(projectPublicId, cancellationToken);
+
+        return await _unitOfWork.Reports.FindIdAsync(projectId, reportPublicId, cancellationToken)
+               ?? throw new KeyNotFoundException("Relato nao encontrado.");
+    }
+
+    private async Task<long> RequireProjectIdAsync(Guid projectPublicId, CancellationToken cancellationToken)
+    {
         var project = await _unitOfWork.Projects.GetByPublicIdAsync(projectPublicId, cancellationToken)
                       ?? throw new KeyNotFoundException("Projeto nao encontrado.");
 
-        return await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(project.Id, reportPublicId, cancellationToken)
-               ?? throw new KeyNotFoundException("Relato nao encontrado.");
+        return project.Id;
     }
 }

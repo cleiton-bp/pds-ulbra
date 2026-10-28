@@ -651,11 +651,10 @@ public class ReportAttachmentService : IReportAttachmentService
         var project = await _unitOfWork.Projects.GetByPublicIdAsync(projectPublicId, cancellationToken)
                       ?? throw new KeyNotFoundException("Projeto nao encontrado.");
 
-        var report = await _unitOfWork.Reports.GetByPublicIdWithContextsAsync(
-                         project.Id, reportPublicId, cancellationToken)
-                     ?? throw new KeyNotFoundException("Relato nao encontrado.");
+        var reportId = await _unitOfWork.Reports.FindIdAsync(project.Id, reportPublicId, cancellationToken)
+                       ?? throw new KeyNotFoundException("Relato nao encontrado.");
 
-        var anexos = await _unitOfWork.ReportAttachments.ListConfirmedAsync(report.Id, cancellationToken);
+        var anexos = await _unitOfWork.ReportAttachments.ListConfirmedAsync(reportId, cancellationToken);
         var lista = new List<PanelAttachmentViewModel>(anexos.Count);
 
         foreach (var anexo in anexos)

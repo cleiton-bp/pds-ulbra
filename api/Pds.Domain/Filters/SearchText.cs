@@ -8,6 +8,10 @@ namespace Pds.Domain.Filters;
 /// <c>translate</c> do Postgres, e aqui, no termo digitado. Uma tabela so, e nao a
 /// decomposicao do Unicode de um lado e outra coisa do outro: a letra que um lado
 /// tirasse e o outro nao faria a busca deixar de achar sem aviso.</para>
+///
+/// <para><b>No banco, a tabela vive na coluna gerada da busca</b>
+/// (<c>Report.SearchableText</c>), que guarda o card ja dobrado. Mudar uma letra aqui
+/// muda a coluna: rodar a migracao que o EF gera para refaze-la.</para>
 /// </summary>
 public static class SearchText
 {

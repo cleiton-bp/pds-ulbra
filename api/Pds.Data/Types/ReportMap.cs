@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pds.Data.Configurations;
 using Pds.Domain.Entities;
 using Pds.Domain.Enums;
+using Pds.Domain.Filters;
 
 namespace Pds.Data.Types;
 
@@ -213,6 +214,18 @@ public class ReportMap : BaseEntityConfiguration<Report>
             .HasColumnName("text")
             .HasMaxLength(Report.MaxTextLength)
             .HasComment("O relato inteiro em texto. Com perguntas, as respostas que nao vieram em branco (e a caixa livre no fim) juntas, separadas por linha em branco e sem as perguntas: a busca, o titulo que sai do comeco do texto e a varredura leem daqui. Nulo no card do time, que tem titulo e descricao.");
+
+        // As partes separadas por um caractere que ninguem digita (chr(1)): o termo nao acha
+        // um pedaco do fim de uma colado ao comeco da outra. A tabela de letras e a da busca:
+        // mudar uma letra la muda esta coluna, e o EF gera a migracao que a refaz.
+        builder.Property(report => report.SearchableText)
+            .HasColumnName("searchable_text")
+            .HasComputedColumnSql(
+                "lower(translate(coalesce(title, '') || chr(1) || coalesce(reporter_title, '') || chr(1) || "
+                + "coalesce(text, '') || chr(1) || coalesce(description, ''), "
+                + $"'{SearchText.Accented}', '{SearchText.Plain}'))",
+                stored: true)
+            .HasComment("O card como a busca o compara: titulo, titulo de quem relatou, texto e descricao, sem acento e em minusculas. Coluna gerada pelo banco a cada gravacao; a aplicacao nunca escreve nela.");
 
         builder.Property(report => report.Answers)
             .HasColumnName("answers")

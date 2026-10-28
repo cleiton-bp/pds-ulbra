@@ -39,7 +39,7 @@ public partial class ReportService
 
         // As subtarefas de um card: o card tem de ser do projeto, como todo filtro.
         long? pai = dto.Parent is Guid paiPublicId
-            ? (await _unitOfWork.Reports.FindParentAsync(project.Id, paiPublicId, cancellationToken))?.Id
+            ? await _unitOfWork.Reports.FindIdAsync(project.Id, paiPublicId, cancellationToken)
               ?? throw new KeyNotFoundException("Card nao encontrado neste projeto.")
             : null;
 

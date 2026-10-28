@@ -338,6 +338,16 @@ public class Report : PdsBaseEntity
     public string? Text { get; set; }
 
     /// <summary>
+    /// O card como a busca o compara: o titulo, o titulo de quem relatou, o texto e a
+    /// descricao juntos, sem acento e em minusculas (ver <see cref="Filters.SearchText"/>).
+    ///
+    /// <para><b>Calculado pelo banco</b>, a cada gravacao: e uma coluna gerada, e a
+    /// aplicacao nunca escreve nela. Existe para a busca so comparar, em vez de refazer a
+    /// conta de cada card a cada busca.</para>
+    /// </summary>
+    public string? SearchableText { get; private set; }
+
+    /// <summary>
     /// As respostas, com as perguntas como estavam no envio, na ordem; a caixa livre
     /// no fim, sem pergunta. Ver <see cref="ReportAnswer"/>.
     ///

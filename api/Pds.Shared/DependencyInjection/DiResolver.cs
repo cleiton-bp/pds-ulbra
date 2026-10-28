@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using Pds.ApiBase.Extensions;
 using Pds.Data.Context;
 using Pds.Data.Repositories;
@@ -87,7 +88,7 @@ public static class DiResolver
     {
         services.AddDbContext<DataContext>(options =>
             options.UseNpgsql(
-                EnvironmentConstants.GetDatabaseConnectionString(),
+                WithoutJit(EnvironmentConstants.GetDatabaseConnectionString()),
                 npgsql =>
                 {
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "public");
@@ -96,6 +97,19 @@ public static class DiResolver
 
         services.AddApiBase();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+    }
+
+    /// <summary>
+    /// A conexao com o JIT do Postgres desligado. O JIT compila a consulta antes de roda-la
+    /// e compensa em relatorio longo; aqui, onde tudo e consulta curta, so atrasa — o
+    /// backlog passava meio segundo compilando o que roda em 15 ms. Vai na conexao, e nao
+    /// na configuracao do banco, para valer em qualquer provedor sem ninguem lembrar.
+    /// </summary>
+    private static string WithoutJit(string connectionString)
+    {
+        var conexao = new NpgsqlConnectionStringBuilder(connectionString);
+        conexao.Options = $"{conexao.Options} -c jit=off".Trim();
+        return conexao.ConnectionString;
     }
 
     private static void RegisterServices(this IServiceCollection services)
