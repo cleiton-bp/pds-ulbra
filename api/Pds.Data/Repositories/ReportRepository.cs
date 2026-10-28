@@ -1003,16 +1003,35 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
     }
 
     private Expression<Func<Report, bool>> Terminado()
-        => report =>
+    {
+        var ultimasColunas = UltimasColunas();
+        return report =>
             Context.ReportClosures.Any(closure => closure.ReportId == report.Id && closure.ReopenedAt == null)
-            || (report.ProjectStateId != null
-                && Context.ProjectStates.Count(state => state.ProjectId == report.ProjectId && state.DeactivatedAt == null) >= 2
-                && report.ProjectStateId == Context.ProjectStates
-                    .Where(state => state.ProjectId == report.ProjectId && state.DeactivatedAt == null)
-                    .OrderByDescending(state => state.Position)
-                    .ThenByDescending(state => state.Id)
-                    .Select(state => (long?)state.Id)
-                    .FirstOrDefault());
+            || (report.ProjectStateId != null && ultimasColunas.Contains(report.ProjectStateId.Value));
+    }
+
+    /// <summary>
+    /// A ultima coluna ativa de cada projeto que tem duas ou mais — a que termina o card.
+    ///
+    /// <para><b>Uma subconsulta que nao depende do card</b>, de proposito: o banco a
+    /// calcula uma vez por consulta. Perguntada card a card, dentro do <c>WHERE</c>, ela
+    /// rodava uma vez por linha, e o backlog de 10 mil cards levava segundos.</para>
+    /// </summary>
+    private IQueryable<long> UltimasColunas()
+        => Context.ProjectStates
+            .Where(state => state.DeactivatedAt == null
+                            // Ninguem depois dela no projeto: nem posicao maior, nem a mesma com Id maior.
+                            && !Context.ProjectStates.Any(depois =>
+                                depois.ProjectId == state.ProjectId
+                                && depois.DeactivatedAt == null
+                                && (depois.Position > state.Position
+                                    || (depois.Position == state.Position && depois.Id > state.Id)))
+                            // E pelo menos outra ativa: com uma coluna so, nada termina por ela.
+                            && Context.ProjectStates.Any(outra =>
+                                outra.ProjectId == state.ProjectId
+                                && outra.DeactivatedAt == null
+                                && outra.Id != state.Id))
+            .Select(state => state.Id);
 
     /// <summary>
     /// A tela de Trabalho mostra os que estao nela; o filtro "Arquivados", so os que
