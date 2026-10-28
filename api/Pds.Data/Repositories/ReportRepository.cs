@@ -446,8 +446,7 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         var achados = texto is null
             ? []
             : (await subtarefas
-                    .Where(sub => SqlText.Translate(sub.Title, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
-                                  || SqlText.Translate(sub.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto))
+                    .Where(sub => sub.SearchableText!.Contains(texto))
                     .Select(sub => sub.ParentReportId!.Value)
                     .Distinct()
                     .ToListAsync(cancellationToken))
@@ -968,21 +967,22 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             // SearchText). O numero e o protocolo so entram quando o termo pode ser um.
             // O pai tambem entra pelo titulo ou pela descricao de uma subtarefa: ela nao
             // aparece sozinha, e sem isto a busca nunca a acharia.
+            //
+            // **No texto ja dobrado pelo banco** (SearchableText, a coluna gerada): a busca so
+            // compara, e nao refaz o translate e o lower de cada card a cada busca — era isso
+            // que lia o texto do projeto inteiro de novo. Na subtarefa, a mesma coluna e o
+            // titulo e a descricao: o card do time nao tem texto nem titulo de quem relatou.
             var texto = busca.Text;
             var numero = busca.Number;
             var codigo = busca.Code;
             cards = cards.Where(report =>
                 (numero != null && report.Number == numero)
                 || (codigo != null && report.TrackingCode != null && report.TrackingCode.Replace("-", "").Contains(codigo))
-                || SqlText.Translate(report.Title, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
-                || SqlText.Translate(report.ReporterTitle, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
-                || SqlText.Translate(report.Text, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
-                || SqlText.Translate(report.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
+                || report.SearchableText!.Contains(texto)
                 || (peloPai && Context.Reports.Any(sub =>
                     sub.ParentReportId == report.Id
                     && (sub.ArchivedAt == null || report.ArchivedAt != null)
-                    && (SqlText.Translate(sub.Title, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)
-                        || SqlText.Translate(sub.Description, SearchText.Accented, SearchText.Plain)!.ToLower().Contains(texto)))));
+                    && sub.SearchableText!.Contains(texto))));
         }
 
         return cards;

@@ -2513,6 +2513,13 @@ namespace Pds.Data.Migrations
                         .HasColumnName("route")
                         .HasComment("So o caminho da pagina, sem query e sem fragmento: e na query que viaja dado sensivel.");
 
+                    b.Property<string>("SearchableText")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("text")
+                        .HasColumnName("searchable_text")
+                        .HasComputedColumnSql("lower(translate(coalesce(title, '') || chr(1) || coalesce(reporter_title, '') || chr(1) || coalesce(text, '') || chr(1) || coalesce(description, ''), 'áàâãäåéèêëíìîïóòôõöúùûüçñýÿÁÀÂÃÄÅÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑÝ', 'aaaaaaeeeeiiiiooooouuuucnyyAAAAAAEEEEIIIIOOOOOUUUUCNY'))", true)
+                        .HasComment("O card como a busca o compara: titulo, titulo de quem relatou, texto e descricao, sem acento e em minusculas. Coluna gerada pelo banco a cada gravacao; a aplicacao nunca escreve nela.");
+
                     b.Property<long?>("SprintId")
                         .HasColumnType("bigint")
                         .HasColumnName("sprint_id")
