@@ -235,165 +235,111 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
         if (reportIds.Count == 0)
             return new Dictionary<long, CardFace>();
 
-        // Os dois tipos de comentario, juntos na frente do card: para quem olha o
-        // quadro, conversa e conversa — a de dentro e a com quem relatou.
-        var internos = await Context.ReportInternalComments
-            .Where(comment => reportIds.Contains(comment.ReportId))
-            .GroupBy(comment => comment.ReportId)
-            .Select(group => new { group.Key, Total = group.Count() })
-            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
+        // As regras do "terminou" e da origem bloqueada, como consultas: entram nas de
+        // baixo como subconsultas, e nao como copias delas. **Sempre perguntadas pelo Id do
+        // card** (Any com o Id): perguntadas soltas, o banco as calculava para o projeto
+        // inteiro antes de olhar a pagina.
+        var terminados = Context.Reports.Where(Terminado());
+        var deOrigemBloqueada = Context.Reports.Where(OrigemBloqueada());
 
-        var publicos = await Context.ReportPublicComments
-            .Where(comment => reportIds.Contains(comment.ReportId))
-            .GroupBy(comment => comment.ReportId)
-            .Select(group => new { group.Key, Total = group.Count() })
-            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
-
-        // So o confirmado: o pendente ainda pode nao chegar, e o descartado nunca vale.
-        var anexos = await Context.ReportAttachments
-            .Where(attachment => reportIds.Contains(attachment.ReportId)
-                                 && attachment.Status == AttachmentStatusEnum.Confirmed)
-            .GroupBy(attachment => attachment.ReportId)
-            .Select(group => new { group.Key, Total = group.Count() })
-            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
-
-        // O encerramento que vale e o que ninguem reabriu, como na leitura de um so.
-        // E, dele, se quem relatou ja confirmou: o confirmado nao reabre ao sair da coluna.
-        var valendo = await Context.ReportClosures
-            .Where(closure => reportIds.Contains(closure.ReportId) && closure.ReopenedAt == null)
-            .Select(closure => new { closure.ReportId, Confirmado = closure.ConfirmedAt != null })
-            .ToListAsync(cancellationToken);
-        var encerrados = valendo.Select(row => row.ReportId).ToHashSet();
-        var confirmados = valendo.Where(row => row.Confirmado).Select(row => row.ReportId).ToHashSet();
-
-        // Pela mesma regra do filtro de vencidos, e nao por uma copia dela.
-        var terminados = (await Context.Reports
-                .Where(report => reportIds.Contains(report.Id))
-                .Where(Terminado())
-                .Select(report => report.Id)
-                .ToListAsync(cancellationToken))
-            .ToHashSet();
-
-        // O pai de quem e subtarefa: o numero e o titulo, para a frente dela.
-        var pais = (await Context.Reports
-                .Where(report => reportIds.Contains(report.Id) && report.ParentReportId != null)
-                .Select(report => new
-                {
-                    report.Id,
-                    Pai = report.ParentReport!.PublicId,
-                    report.ParentReport.Number,
-                    report.ParentReport.Title,
-                    report.ParentReport.ReporterTitle,
-                    report.ParentReport.Text,
-                })
-                .ToListAsync(cancellationToken))
-            .ToDictionary(
-                row => row.Id,
-                row => new CardParent(row.Pai, row.Number, Report.HeadlineOf(row.Title, row.ReporterTitle, row.Text)));
-
-        // O progresso de quem e pai: as subtarefas fora do arquivo, e as que terminaram
-        // — pela mesma regra do "terminou".
-        var subtarefas = await Context.Reports
-            .Where(report => report.ParentReportId != null
-                             && reportIds.Contains(report.ParentReportId.Value)
-                             && report.ArchivedAt == null)
-            .GroupBy(report => report.ParentReportId!.Value)
-            .Select(group => new { group.Key, Total = group.Count() })
-            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
-        var feitas = subtarefas.Count == 0
-            ? new Dictionary<long, int>()
-            : await Context.Reports
-                .Where(report => report.ParentReportId != null
-                                 && reportIds.Contains(report.ParentReportId.Value)
-                                 && report.ArchivedAt == null)
-                .Where(Terminado())
-                .GroupBy(report => report.ParentReportId!.Value)
-                .Select(group => new { group.Key, Total = group.Count() })
-                .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
+        // **Uma linha por card, numa consulta so**: cada numero da frente e uma
+        // subconsulta pelo indice da propria tabela. Eram doze idas ao banco por pagina.
+        var linhas = await Context.Reports
+            .Where(report => reportIds.Contains(report.Id))
+            .Select(report => new
+            {
+                report.Id,
+                // Os dois tipos de comentario, juntos na frente do card: para quem olha o
+                // quadro, conversa e conversa — a de dentro e a com quem relatou.
+                Comentarios = Context.ReportInternalComments.Count(comment => comment.ReportId == report.Id)
+                              + Context.ReportPublicComments.Count(comment => comment.ReportId == report.Id),
+                // So o confirmado: o pendente ainda pode nao chegar, e o descartado nunca vale.
+                Anexos = Context.ReportAttachments.Count(attachment => attachment.ReportId == report.Id
+                                                                       && attachment.Status == AttachmentStatusEnum.Confirmed),
+                // O encerramento que vale e o que ninguem reabriu, como na leitura de um so.
+                // E, dele, se quem relatou ja confirmou: o confirmado nao reabre ao sair da coluna.
+                Encerrado = Context.ReportClosures.Any(closure => closure.ReportId == report.Id && closure.ReopenedAt == null),
+                Confirmado = Context.ReportClosures.Any(closure => closure.ReportId == report.Id
+                                                                   && closure.ReopenedAt == null
+                                                                   && closure.ConfirmedAt != null),
+                // Pela mesma regra do filtro de vencidos, e nao por uma copia dela.
+                Terminado = terminados.Any(terminado => terminado.Id == report.Id),
+                // O pai de quem e subtarefa: o numero e o titulo, para a frente dela.
+                Pai = report.ParentReport == null
+                    ? null
+                    : new
+                    {
+                        report.ParentReport.PublicId,
+                        report.ParentReport.Number,
+                        report.ParentReport.Title,
+                        report.ParentReport.ReporterTitle,
+                        report.ParentReport.Text,
+                    },
+                // O progresso de quem e pai: as subtarefas fora do arquivo, e as que terminaram
+                // — pela mesma regra do "terminou".
+                Subtarefas = Context.Reports.Count(sub => sub.ParentReportId == report.Id && sub.ArchivedAt == null),
+                Feitas = terminados.Count(sub => sub.ParentReportId == report.Id && sub.ArchivedAt == null),
+                // O original de quem e duplicado, como o pai de quem e subtarefa.
+                Original = Context.CardLinks
+                    .Where(link => link.Type == CardLinkTypeEnum.DuplicateOf && link.FromReportId == report.Id)
+                    .Select(link => new
+                    {
+                        link.ToReport.PublicId,
+                        link.ToReport.Number,
+                        link.ToReport.Title,
+                        link.ToReport.ReporterTitle,
+                        link.ToReport.Text,
+                    })
+                    .FirstOrDefault(),
+                // Quantas pessoas a mais leem o desfecho: os relatos duplicados sem encerramento valendo.
+                Leitores = Context.CardLinks.Count(link =>
+                    link.Type == CardLinkTypeEnum.DuplicateOf
+                    && link.ToReportId == report.Id
+                    && link.FromReport.Kind == CardKindEnum.Report
+                    && !Context.ReportClosures.Any(closure => closure.ReportId == link.FromReportId && closure.ReopenedAt == null)),
+                // A sprint de quem tem uma: o nome e o estado, para a frente e para o backlog.
+                Sprint = report.Sprint == null ? null : new { report.Sprint.PublicId, report.Sprint.Name, report.Sprint.State },
+                // A origem bloqueada, pela mesma regra do filtro: a marca e o filtro nunca
+                // discordam sobre o mesmo card.
+                OrigemBloqueada = deOrigemBloqueada.Any(bloqueado => bloqueado.Id == report.Id),
+            })
+            .ToDictionaryAsync(linha => linha.Id, cancellationToken);
 
         // Quem bloqueia: o que ainda nao terminou e continua no trabalho. O que terminou,
-        // ou saiu para o arquivo, deixa de bloquear — pela mesma regra do "terminou".
-        var bloqueios = await Context.CardLinks
-            .Where(link => link.Type == CardLinkTypeEnum.Blocks
-                           && reportIds.Contains(link.ToReportId)
-                           && link.FromReport.ArchivedAt == null)
-            .Select(link => new { link.ToReportId, link.FromReportId, link.FromReport.Number })
-            .ToListAsync(cancellationToken);
-        var bloqueadores = bloqueios.Select(row => row.FromReportId).Distinct().ToList();
-        var bloqueadoresTerminados = bloqueadores.Count == 0
-            ? []
-            : (await Context.Reports
-                    .Where(report => bloqueadores.Contains(report.Id))
-                    .Where(Terminado())
-                    .Select(report => report.Id)
-                    .ToListAsync(cancellationToken))
-                .ToHashSet();
-        var bloqueadoPor = bloqueios
-            .Where(row => !bloqueadoresTerminados.Contains(row.FromReportId))
+        // ou saiu para o arquivo, deixa de bloquear — pela mesma regra do "terminou". E uma
+        // lista por card, e por isso a consulta a parte.
+        var bloqueadoPor = (await Context.CardLinks
+                .Where(link => link.Type == CardLinkTypeEnum.Blocks
+                               && reportIds.Contains(link.ToReportId)
+                               && link.FromReport.ArchivedAt == null
+                               && !terminados.Any(terminado => terminado.Id == link.FromReportId))
+                .Select(link => new { link.ToReportId, link.FromReport.Number })
+                .ToListAsync(cancellationToken))
             .GroupBy(row => row.ToReportId)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<int>)group.Select(row => row.Number).Order().ToList());
 
-        // O original de quem e duplicado, como o pai de quem e subtarefa.
-        var originais = (await Context.CardLinks
-                .Where(link => link.Type == CardLinkTypeEnum.DuplicateOf && reportIds.Contains(link.FromReportId))
-                .Select(link => new
-                {
-                    link.FromReportId,
-                    Original = link.ToReport.PublicId,
-                    link.ToReport.Number,
-                    link.ToReport.Title,
-                    link.ToReport.ReporterTitle,
-                    link.ToReport.Text,
-                })
-                .ToListAsync(cancellationToken))
-            .ToDictionary(
-                row => row.FromReportId,
-                row => new CardParent(row.Original, row.Number, Report.HeadlineOf(row.Title, row.ReporterTitle, row.Text)));
-
-        // Quantas pessoas a mais leem o desfecho: os relatos duplicados sem encerramento valendo.
-        var leitores = await Context.CardLinks
-            .Where(link => link.Type == CardLinkTypeEnum.DuplicateOf
-                           && reportIds.Contains(link.ToReportId)
-                           && link.FromReport.Kind == CardKindEnum.Report
-                           && !Context.ReportClosures.Any(closure => closure.ReportId == link.FromReportId && closure.ReopenedAt == null))
-            .GroupBy(link => link.ToReportId)
-            .Select(group => new { group.Key, Total = group.Count() })
-            .ToDictionaryAsync(row => row.Key, row => row.Total, cancellationToken);
-
-        // A sprint de quem tem uma: o nome e o estado, para a frente e para o backlog.
-        var sprints = (await Context.Reports
-                .Where(report => reportIds.Contains(report.Id) && report.SprintId != null)
-                .Select(report => new { report.Id, report.Sprint!.PublicId, report.Sprint.Name, report.Sprint.State })
-                .ToListAsync(cancellationToken))
-            .ToDictionary(row => row.Id, row => new CardSprint(row.PublicId, row.Name, row.State));
-
-        // A origem bloqueada, pela mesma regra do filtro: a marca e o filtro nunca
-        // discordam sobre o mesmo card.
-        var deOrigemBloqueada = (await Context.Reports
-                .Where(report => reportIds.Contains(report.Id))
-                .Where(OrigemBloqueada())
-                .Select(report => report.Id)
-                .ToListAsync(cancellationToken))
-            .ToHashSet();
-
         return reportIds.Distinct().ToDictionary(
             id => id,
-            id => new CardFace(
-                internos.GetValueOrDefault(id) + publicos.GetValueOrDefault(id),
-                anexos.GetValueOrDefault(id),
-                encerrados.Contains(id),
-                terminados.Contains(id),
-                pais.GetValueOrDefault(id),
-                subtarefas.GetValueOrDefault(id),
-                feitas.GetValueOrDefault(id),
-                bloqueadoPor.GetValueOrDefault(id) ?? [],
-                originais.GetValueOrDefault(id),
-                leitores.GetValueOrDefault(id),
-                sprints.GetValueOrDefault(id))
-            {
-                ClosureConfirmed = confirmados.Contains(id),
-                BlockedOrigin = deOrigemBloqueada.Contains(id),
-            });
+            id => linhas.GetValueOrDefault(id) is not { } linha
+                ? CardFace.Empty
+                : new CardFace(
+                    linha.Comentarios,
+                    linha.Anexos,
+                    linha.Encerrado,
+                    linha.Terminado,
+                    linha.Pai is { } pai ? new CardParent(pai.PublicId, pai.Number, Report.HeadlineOf(pai.Title, pai.ReporterTitle, pai.Text)) : null,
+                    linha.Subtarefas,
+                    linha.Feitas,
+                    bloqueadoPor.GetValueOrDefault(id) ?? [],
+                    linha.Original is { } original
+                        ? new CardParent(original.PublicId, original.Number, Report.HeadlineOf(original.Title, original.ReporterTitle, original.Text))
+                        : null,
+                    linha.Leitores,
+                    linha.Sprint is { } sprint ? new CardSprint(sprint.PublicId, sprint.Name, sprint.State) : null)
+                {
+                    ClosureConfirmed = linha.Confirmado,
+                    BlockedOrigin = linha.OrigemBloqueada,
+                });
     }
 
     public async Task<IReadOnlyList<ReportOriginTally>> TallyOriginsAsync(long projectId, CancellationToken cancellationToken = default)

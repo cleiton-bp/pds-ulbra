@@ -41,6 +41,9 @@ public interface IReportRepository : IBaseRepository<Report>
     /// Uma pagina dos relatos de um projeto: do mais novo para o mais antigo, ou na
     /// ordem do quadro.
     ///
+    /// <para><b>Cards de leitura, so com o que o resumo do card mostra</b>, e nao
+    /// rastreados: nao servem para gravar nem para o detalhe.</para>
+    ///
     /// <para>As duas ordens tem dois criterios de proposito. Paginacao por posicao
     /// supoe ordem total, e <c>created_at</c> sozinho nao da isso: dois relatos
     /// gravados no mesmo instante podem trocar de lugar entre uma pagina e a
