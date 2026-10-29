@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react'
 import type { ComponentType, LazyExoticComponent } from 'react'
 import { environmentById, type EnvironmentId } from '../shared/environments'
+import { ConfirmHost } from '../shared/Confirm'
 import { NavigationProvider, useNavigation } from '../shared/navigation'
+import { TooltipHost } from '../shared/Tooltips'
 import Home from './Home'
 
 /**
@@ -15,13 +17,13 @@ const EDITORS: Record<EnvironmentId, LazyExoticComponent<ComponentType>> = {
 
 /**
  * Qual tela mostrar, pelo endereco. Cada editor monta do zero ao entrar e desmonta
- * ao sair — o estado de um nunca vaza para o outro.
+ * ao sair: o estado de um nunca vaza para o outro.
  */
 function Screen() {
   const { route } = useNavigation()
 
   useEffect(() => {
-    document.title = route.env ? `${environmentById(route.env).title} — PDS` : 'Modelagem e casos de uso — PDS'
+    document.title = route.env ? `${environmentById(route.env).title} (PDS)` : 'Modelagem e casos de uso (PDS)'
   }, [route.env])
 
   if (!route.env) return <Home />
@@ -37,6 +39,9 @@ export default function Shell() {
   return (
     <NavigationProvider>
       <Screen />
+      {/* Uma vez so, por cima de tudo: as dicas e a confirmacao de apagar. */}
+      <TooltipHost />
+      <ConfirmHost />
     </NavigationProvider>
   )
 }

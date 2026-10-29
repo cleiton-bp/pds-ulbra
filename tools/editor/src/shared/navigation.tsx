@@ -9,14 +9,14 @@ import { isEnvironmentId, type EnvironmentId } from './environments'
  * a modelagem de mídia aberta. Assim recarregar a pagina volta ao mesmo lugar, o voltar
  * do navegador sai do editor, e da para guardar o link de um arquivo.
  *
- * Toda saida de um editor passa pelo guarda dele — pelos botoes da tela e tambem
+ * Toda saida de um editor passa pelo guarda dele: pelos botoes da tela e tambem
  * pelo voltar do navegador ou por um link colado. Se o guarda recusar (ha edicao
  * que nao da para gravar agora), a tela fica onde esta e o editor diz por que.
  */
 
 export type Route = { env: EnvironmentId | null; file: string | null }
 
-/** O que a pessoa foi fazer ao entrar no ambiente — hoje, so "criar um arquivo". */
+/** O que a pessoa foi fazer ao entrar no ambiente: hoje, so "criar um arquivo". */
 export type Intent = 'new-file'
 
 export function parseHash(hash: string): Route {
@@ -33,7 +33,7 @@ export function parseHash(hash: string): Route {
 export const routeHash = ({ env, file }: Route): string =>
   !env ? '#/' : file ? `#/${env}/${encodeURIComponent(file)}` : `#/${env}`
 
-/** Pergunta de quem esta saindo: "da para sair agora?" — ver `useLeaveGuard`. */
+/** Pergunta de quem esta saindo: "da para sair agora?" (ver `useLeaveGuard`). */
 type LeaveGuard = () => Promise<boolean>
 
 type Navigation = {
@@ -43,8 +43,11 @@ type Navigation = {
   /** Troca o arquivo no endereco sem criar entrada no historico do navegador. */
   replaceFile: (file: string | null) => void
   setLeaveGuard: (guard: LeaveGuard | null) => void
-  /** Le e apaga a intencao da ultima ida — so quem entrou no ambiente a usa. */
-  takeIntent: () => Intent | null
+  /**
+   * Se a ultima ida foi para isso, responde que sim e apaga: cada tela pergunta
+   * pela sua, e uma nao consome a da outra.
+   */
+  takeIntent: (kind: Intent) => boolean
 }
 
 const Context = createContext<Navigation | null>(null)
@@ -55,7 +58,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const [route, setRouteState] = useState<Route>(() => parseHash(window.location.hash))
   const routeRef = useRef(route)
   const guardRef = useRef<LeaveGuard | null>(null)
-  /** Endereco que o `go` ja liberou pelo guarda — a mudanca que ele causa nao pergunta de novo. */
+  /** Endereco que o `go` ja liberou pelo guarda: a mudanca que ele causa nao pergunta de novo. */
   const approvedRef = useRef<string | null>(null)
   const intentRef = useRef<Intent | null>(null)
 
@@ -114,10 +117,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     guardRef.current = guard
   }, [])
 
-  const takeIntent = useCallback((): Intent | null => {
-    const intent = intentRef.current
+  const takeIntent = useCallback((kind: Intent): boolean => {
+    if (intentRef.current !== kind) return false
     intentRef.current = null
-    return intent
+    return true
   }, [])
 
   // Alt+0 volta ao inicio de qualquer editor. `code`, e nao `key`: no Mac, Alt+0 digita "º".

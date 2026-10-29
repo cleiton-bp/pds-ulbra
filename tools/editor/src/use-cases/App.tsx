@@ -111,7 +111,6 @@ export default function App() {
         env={ENV}
         files={workspace.files}
         current={current}
-        dir={workspace.dir}
         placeholder="novo arquivo (nome em inglês)…"
         onOpen={(name) => openFile(name)}
         onCreate={workspace.create}

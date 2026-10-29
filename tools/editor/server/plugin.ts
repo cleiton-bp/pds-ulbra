@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createFile, deleteFile, fail, listFiles, readFile, writeFile, type ApiError } from './files'
 
 /**
- * API de arquivos servida pelo proprio Vite — um comando so, uma porta so, para os
+ * API de arquivos servida pelo proprio Vite: um comando so, uma porta so, para os
  * dois ambientes. Cada um fala com a sua pasta:
  *
  *   GET    /api/<pasta>/files
@@ -21,7 +21,7 @@ function send(res: ServerResponse, status: number, body: unknown): void {
 
 /**
  * Le o corpo inteiro e so entao decodifica. Decodificar pedaco por pedaco partiria
- * um "ç" que caisse entre dois pacotes da rede — e o arquivo seria gravado com "�"
+ * um "ç" que caisse entre dois pacotes da rede, e o arquivo seria gravado com "�"
  * no lugar, sem erro nenhum.
  *
  * Corpo grande demais para de ser guardado, mas continua sendo lido ate o fim: so
@@ -48,7 +48,7 @@ function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   })
 }
 
-// localhost, qualquer subdominio dele (pds.localhost), 127.0.0.1 e [::1] — todos
+// localhost, qualquer subdominio dele (pds.localhost), 127.0.0.1 e [::1]; todos
 // apontam para esta maquina.
 const LOCAL_HOST = /^(([a-z0-9-]+\.)*localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i
 
@@ -56,11 +56,11 @@ const LOCAL_HOST = /^(([a-z0-9-]+\.)*localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i
  * A API grava arquivo no disco, entao so atende quem esta nesta maquina, pela
  * propria pagina do editor. Ela roda antes das protecoes do Vite (ver `configureServer`),
  * e por isso confere sozinha:
- * - `Host` local — um site de fora que aponte o proprio dominio para 127.0.0.1
+ * - `Host` local: um site de fora que aponte o proprio dominio para 127.0.0.1
  *   (DNS rebinding) chega com o dominio dele no cabecalho;
- * - `Origin`, quando vem, tambem local — pagina de outro site nao manda pedido
+ * - `Origin`, quando vem, tambem local: pagina de outro site nao manda pedido
  *   em nome desta;
- * - corpo em JSON — formulario de outro site so consegue mandar texto simples,
+ * - corpo em JSON: formulario de outro site so consegue mandar texto simples,
  *   e JSON exige a pergunta previa do navegador, que esta API nunca libera.
  */
 function refuse(req: IncomingMessage): { status: number; body: unknown } | null {
@@ -68,7 +68,7 @@ function refuse(req: IncomingMessage): { status: number; body: unknown } | null 
   if (!LOCAL_HOST.test(host)) {
     return { status: 403, body: { error: 'a API de arquivos só atende localhost' } }
   }
-  // A origem tem de ser a propria pagina do editor — mesmo host e mesma porta. Outro
+  // A origem tem de ser a propria pagina do editor, mesmo host e mesma porta. Outro
   // servidor local, em outra porta, e outro site.
   const origin = req.headers.origin
   if (origin && origin.replace(/^https?:\/\//, '').toLowerCase() !== host.toLowerCase()) {

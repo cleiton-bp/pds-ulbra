@@ -1,6 +1,6 @@
 /**
  * Quando um arquivo foi mexido, do jeito que se fala: "hoje", "ontem", "há 3 dias",
- * e dali para tras a data. Conta dias do calendario, e nao blocos de 24 horas — o
+ * e dali para tras a data. Conta dias do calendario, e nao blocos de 24 horas: o
  * arquivo desta manha e de hoje, mesmo visto a noite.
  */
 export function whenLabel(mtime: number, now: number = Date.now()): string {

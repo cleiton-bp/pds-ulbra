@@ -18,6 +18,8 @@ let hasYamlComments
 let parseHash
 let routeHash
 let files
+let fitSides
+let boardRoom
 
 before(async () => {
   server = await createServer({
@@ -29,6 +31,7 @@ before(async () => {
   ;({ hasYamlComments } = await server.ssrLoadModule('/src/shared/yamlComments.ts'))
   ;({ parseHash, routeHash } = await server.ssrLoadModule('/src/shared/navigation.tsx'))
   files = await server.ssrLoadModule('/server/files.ts')
+  ;({ fitSides, boardRoom } = await server.ssrLoadModule('/src/shared/useResizable.ts'))
 })
 
 after(async () => { await server?.close() })
@@ -48,7 +51,7 @@ describe('comentário no arquivo', () => {
     assert.equal(hasYamlComments('meta:\n  description: cor #fff\n'), true)
   })
 
-  it('yaml quebrado responde que não — esse caso é barrado pelo erro de sintaxe', () => {
+  it('yaml quebrado responde que não, porque esse caso é barrado pelo erro de sintaxe', () => {
     assert.equal(hasYamlComments('meta:\n  title: [sem fechar # x\n'), false)
   })
 })
@@ -98,7 +101,7 @@ describe('quando o arquivo foi mexido', () => {
   let whenLabel
   before(async () => { ({ whenLabel } = await server.ssrLoadModule('/src/shared/dates.ts')) })
 
-  // 24 de setembro de 2026, 20h — a noite, quando o erro dos blocos de 24h aparecia.
+  // 24 de setembro de 2026, 20h: a noite, quando o erro dos blocos de 24h aparecia.
   const now = new Date(2026, 8, 24, 20, 0).getTime()
   const at = (day, hour) => new Date(2026, 8, day, hour, 0).getTime()
 
@@ -118,5 +121,32 @@ describe('quando o arquivo foi mexido', () => {
 describe('endereço malformado', () => {
   it('um % sem par não quebra a tela: abre o ambiente sem arquivo', () => {
     assert.deepEqual(parseHash('#/modeling/%E0%A4%A'), { env: 'modeling', file: null })
+  })
+})
+
+describe('largura das laterais', () => {
+  it('o desenho guarda 40% da janela, e nunca menos de 520px', () => {
+    assert.equal(boardRoom(1440), 576)
+    assert.equal(boardRoom(1024), 520)
+  })
+
+  it('cabendo, cada lateral fica com a largura escolhida', () => {
+    assert.deepEqual(fitSides([{ width: 264, min: 200 }, { width: 380, min: 300 }], 864), [264, 380])
+  })
+
+  it('sem caber, cada uma cede na proporção do que tem acima do mínimo', () => {
+    // 440 + 640 em 768: sobram 312 a tirar; 240 e 340 acima dos mínimos.
+    const [files, panel] = fitSides([{ width: 440, min: 200 }, { width: 640, min: 300 }], 768)
+    assert.equal(files + panel, 768)
+    assert.ok(files >= 200 && panel >= 300)
+    assert.equal(files, 311)
+  })
+
+  it('nenhuma passa abaixo do mínimo, mesmo sem lugar para as duas', () => {
+    assert.deepEqual(fitSides([{ width: 440, min: 200 }, { width: 640, min: 300 }], 400), [200, 300])
+  })
+
+  it('a faixa fechada não cede', () => {
+    assert.deepEqual(fitSides([{ width: 44, min: 44 }, { width: 640, min: 300 }], 500), [44, 456])
   })
 })

@@ -3,7 +3,7 @@ import type { FileEntry } from './types'
 
 /**
  * Cliente da API de arquivos. Cada ambiente fala com a pasta dele:
- * `/api/modeling/...` ou `/api/use-cases/...` — e cada uma le a sua pasta em `database-models/`.
+ * `/api/modeling/...` ou `/api/use-cases/...`, e cada uma le a sua pasta em `database-models/`.
  *
  * Erro HTTP vira Error com `status` e o corpo da resposta.
  */
@@ -40,7 +40,7 @@ export const readFile = (collection: Collection, name: string): Promise<LoadedFi
   fetch(fileUrl(collection, name)).then((res) => parse(res))
 
 /**
- * `baseMtime` undefined sobrescreve sem checar — so na escolha explicita da pessoa,
+ * `baseMtime` undefined sobrescreve sem checar, so na escolha explicita da pessoa,
  * e e tambem o que recria um arquivo que sumiu do disco.
  */
 export const saveFile = (
@@ -52,7 +52,7 @@ export const saveFile = (
 
 /**
  * A ultima tentativa de gravar, quando a aba esta fechando. `keepalive` deixa o
- * pedido terminar depois de a pagina ir embora — nao ha resposta para ler, e se
+ * pedido terminar depois de a pagina ir embora, nao ha resposta para ler, e se
  * nao der (arquivo grande demais para o navegador, servidor fora do ar), nada
  * quebra: a confirmacao de saida do navegador ja avisou.
  */
@@ -64,7 +64,7 @@ export function saveFileOnExit(collection: Collection, name: string, content: st
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, content, baseMtime }),
     }).catch(() => undefined)
-  } catch { /* corpo acima do limite do keepalive — sobra a confirmacao do navegador */ }
+  } catch { /* corpo acima do limite do keepalive: sobra a confirmacao do navegador */ }
 }
 
 export const createFile = (collection: Collection, name: string, content: string): Promise<SavedFile> =>

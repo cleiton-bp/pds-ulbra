@@ -24,7 +24,7 @@ function rememberFile(env: EnvironmentId, name: string | null): void {
   try {
     if (name) window.localStorage.setItem(lastKey(env), name)
     else window.localStorage.removeItem(lastKey(env))
-  } catch { /* armazenamento bloqueado — segue sem lembrar */ }
+  } catch { /* armazenamento bloqueado: segue sem lembrar */ }
 }
 
 export function useEditorSession(env: EnvironmentId) {
@@ -33,7 +33,7 @@ export function useEditorSession(env: EnvironmentId) {
   const [initial] = useState(() => ({
     file: route.file ?? lastFile(env),
     // Arquivo pedido pelo endereco que nao existe merece aviso; o "ultimo usado"
-    // que sumiu, nao — so nao abre.
+    // que sumiu nao merece: so nao abre.
     fromAddress: Boolean(route.file),
   }))
 
