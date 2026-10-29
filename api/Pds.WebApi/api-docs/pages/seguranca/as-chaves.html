@@ -6,8 +6,8 @@ o criou.</p>
 <div class="note why">
   <strong>A secreta não nasce com o projeto</strong>
   <p>O projeto nasce só com a chave pública, que o site precisa para mandar relato. A secreta é
-  gerada sob pedido, por quem administra, na tela de Chaves —
-  <code>POST /projects/{publicId}/keys/secret</code> —, e é essa a resposta que traz o valor, uma
+  gerada sob pedido, por quem administra, na tela de Chaves
+  (<code>POST /projects/{publicId}/keys/secret</code>), e é essa a resposta que traz o valor, uma
   vez. Nascendo junto, ela apareceria uma vez só para quem acabou de criar o projeto e ainda nem
   sabe se precisa dela: o caminho mais curto para um valor anotado em qualquer lugar, ou perdido. Uma
   credencial que não existe não vaza.</p>
@@ -24,7 +24,7 @@ o criou.</p>
 <div class="note why">
   <strong>Por que a pública fica em claro</strong>
   <p>Ela identifica o projeto no navegador, não autentica ninguém. Precisa ser lida por
-  qualquer um que abra a página do cliente — guardá-la como hash não protegeria nada e
+  qualquer um que abra a página do cliente: guardá-la como hash não protegeria nada e
   quebraria o uso.</p>
 </div>
 
@@ -51,40 +51,40 @@ descobrir o valor caractere a caractere.</p>
 <p>Quem chama a comparação é a porta das rotas públicas de um relato
 (<code>TrackedReportGate</code>): o token do link é sorteado e guardado com <em>a mesma função de
 hash</em> da chave secreta, e conferi-lo é a única coisa que separa o relato de quem o escreveu de
-qualquer pessoa com o protocolo na mão. As oito rotas que chegam a um relato pelo link — abrir,
+qualquer pessoa com o protocolo na mão. As oito rotas que chegam a um relato pelo link (abrir,
 confirmar, reabrir, responder, pedir permissão de anexo, confirmar o anexo, ler os arquivos e ler o
-que dá para anexar — entram todas por ela.</p>
+que dá para anexar) entram todas por ela.</p>
 
 <div class="note todo">
   <strong>A chave secreta continua sem rota que a aceite</strong>
   <p>Ela é gerada sob pedido, guardada como hash e regenerável, e <strong>nenhuma rota autentica por ela</strong>.
   Quem chega hoje às rotas públicas apresenta a chave <strong>pública</strong>, que o banco guarda
-  em claro — a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
-  <p>O servidor do cliente dizer quem está relatando — a identidade herdada do site — existe, e
+  em claro: a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
+  <p>O servidor do cliente dizer quem está relatando (a identidade herdada do site) existe, e
   <strong>não depende da secreta</strong>: o cliente gera um par de chaves próprio, ECDSA P-256,
   cola a pública na tela Quem relata e assina o crachá com a privada; a API só confere a
-  assinatura. Assinar com HMAC e a chave secreta era inviável — o banco guarda só o hash dela —, e
+  assinatura. Assinar com HMAC e a chave secreta era inviável (o banco guarda só o hash dela), e
   o par assimétrico seria a escolha mesmo que o HMAC fosse possível: a chave privada nunca sai do
   servidor do cliente, e um vazamento do nosso banco entrega uma chave pública, com a qual ninguém
-  forja identidade — nem nós. Ela fica em claro no banco, como a nossa: é pública.</p>
+  forja identidade, nem nós. Ela fica em claro no banco, como a nossa: é pública.</p>
 </div>
 
-<p>Nas onze rotas que apresentam a chave pública — a aparência do botão, a configuração da
+<p>Nas onze rotas que apresentam a chave pública (a aparência do botão, a configuração da
 ferramenta, a de mídia, o envio do relato, a lista pública, as três do código pessoal e as três da
-identidade do sistema do cliente —, chave ausente, desconhecida, revogada ou secreta recebem
-<strong>a mesma</strong> recusa, com a mesma mensagem — responder "esta chave existe mas foi
+identidade do sistema do cliente), chave ausente, desconhecida, revogada ou secreta recebem
+<strong>a mesma</strong> recusa, com a mesma mensagem: responder "esta chave existe mas foi
 revogada" contaria a quem tenta que ele acertou metade.</p>
 
 <h2>Regenerar não sobrescreve</h2>
 
 <p>Revogar preenche <code>revoked_at</code> e cria uma linha nova. A anterior fica como
-histórico, com a data em que deixou de valer — é o que permite responder "esta chave estava
+histórico, com a data em que deixou de valer: é o que permite responder "esta chave estava
 ativa quando o acesso aconteceu?" depois de um incidente.</p>
 
 <h2>O link do convite</h2>
 
 <p>É a outra credencial que o sistema sorteia, e segue o desenho da chave secreta: 256 bits
-aleatórios, e o banco guarda só o SHA-256. O que muda é onde ele mora — <strong>só no
+aleatórios, e o banco guarda só o SHA-256. O que muda é onde ele mora, <strong>só no
 e-mail</strong>.</p>
 
 <ul>
@@ -94,17 +94,17 @@ e-mail</strong>.</p>
   a servidor nenhum ao abrir a página. Do painel para a API ele vai no corpo de um
   <code>POST</code>, e não na URL.</li>
   <li><strong>Reenviar sorteia outro</strong>, e o hash do anterior é trocado; cancelar marca o
-  convite como cancelado. Nos dois casos, o link anterior responde "não vale mais" — igual a um link
+  convite como cancelado. Nos dois casos, o link anterior responde "não vale mais": igual a um link
   que nunca existiu.</li>
   <li><strong>Sozinho, não basta.</strong> Aceitar exige a sessão da conta Google do endereço
   convidado, com o e-mail confirmado pelo Google. Com a conta errada, a resposta não traz nada do
-  projeto — só a primeira letra e o domínio do endereço.</li>
+  projeto, só a primeira letra e o domínio do endereço.</li>
 </ul>
 
 <div class="note why">
   <strong>Busca pelo hash, e não comparação em tempo constante</strong>
   <p>O convite é achado por uma consulta pelo hash, como a chave pública é achada pelo valor. O
-  tempo dessa consulta poderia, no máximo, contar algo sobre o hash — e conhecer o hash de 256 bits
+  tempo dessa consulta poderia, no máximo, contar algo sobre o hash, e conhecer o hash de 256 bits
   sorteados não leva ao link. A comparação em tempo constante protege o token do relato porque ali
   o relato é achado pelo protocolo, e o token é conferido depois, contra o valor guardado.</p>
 </div>

@@ -1,5 +1,5 @@
 /* Ajustes de cor no Swagger para ele conversar com a documentação do projeto.
-   Injetado pelo Startup.cs, depois do CSS do próprio Swagger — por isso as regras
+   Injetado pelo Startup.cs, depois do CSS do próprio Swagger: por isso as regras
    valem sem precisar de !important. */
 
 :root {
@@ -20,7 +20,7 @@
   padding: 2px 6px;
 }
 
-/* Links dentro das descrições — inclusive o que leva de volta à documentação. */
+/* Links dentro das descrições, inclusive o que leva de volta à documentação. */
 .swagger-ui .info a,
 .swagger-ui .markdown a,
 .swagger-ui .renderedMarkdown a {
@@ -35,7 +35,7 @@
 }
 
 /* Tipo das propriedades, dentro de um schema expandido. O padrão é um azul-violeta
-   (#55a) que só aparece depois de abrir um modelo — roxo escondido continua sendo
+   (#55a) que só aparece depois de abrir um modelo: roxo escondido continua sendo
    roxo. Aqui vira o cinza quente da documentação: continua distinguindo o tipo do
    nome do campo, sem puxar a atenção. */
 .swagger-ui .prop-type,

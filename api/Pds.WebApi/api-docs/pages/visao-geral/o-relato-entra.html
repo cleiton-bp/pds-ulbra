@@ -2,42 +2,42 @@
 <p class="lead">Conta, projeto e chaves; o relato entrando pela ferramenta; e o time trabalhando o relato numa fila que o cliente desenha.</p>
 
 <p>A <strong>base</strong> é a de todo produto com conta: login com Google, projeto, chave
-pública e secreta, e o isolamento por projeto — cada pessoa enxerga só os projetos em que está,
+pública e secreta, e o isolamento por projeto; cada pessoa enxerga só os projetos em que está,
 como administradora, que configura, ou como membro, que trabalha nos relatos. Alguém entra num
 projeto por convite: o administrador convida por e-mail, e a pessoa aceita entrando com o Google
 do mesmo endereço. Sobre ela, <strong>o
 relato entra</strong>, e o caminho funciona nas duas direções: dá para colar o script numa página
-qualquer, ver o relato chegar, lê-lo na lista do painel — e quem relatou volta pelo link e vê o
-próprio relato. O envio em <code>POST /public/reports</code> passa pelos limites de cada projeto —
-por quem relata, IP, domínio e projeto —, com um desafio invisível antes da pausa; o login e as
-duas rotas de envio de arquivo têm limitador próprio — e o convite, um teto por hora em cada
+qualquer, ver o relato chegar, lê-lo na lista do painel, e quem relatou volta pelo link e vê o
+próprio relato. O envio em <code>POST /public/reports</code> passa pelos limites de cada projeto
+(por quem relata, IP, domínio e projeto), com um desafio invisível antes da pausa; o login e as
+duas rotas de envio de arquivo têm limitador próprio, e o convite, um teto por hora em cada
 projeto.</p>
 
 <p>O <strong>time trabalha o relato</strong> numa fila que é do cliente: as colunas do quadro, com
 os nomes que a equipe usa, que ela reordena, renomeia e desativa. <strong>E o projeto nasce pronto
-para trabalhar</strong>: com as colunas A fazer, Fazendo e Feito — a última é a que encerra —, já
+para trabalhar</strong>: com as colunas A fazer, Fazendo e Feito (a última é a que encerra), já
 ligadas ao andamento que quem relatou acompanha. O relato entra nessa fila, e cada tipo de relato
-escolhe a coluna em que entra — ou deixa no padrão, que é a primeira coluna.</p>
+escolhe a coluna em que entra, ou deixa no padrão, que é a primeira coluna.</p>
 
 <p><strong>Os tipos de relato também são do projeto</strong>, como as prioridades: ele nasce com
 Defeito, Melhoria e Dúvida, e o time renomeia, troca a cor e o desenho, cria outros ou desativa. E
 cada tipo diz <strong>como o formulário pergunta</strong>. Uma caixa só, em branco, produz "não
 funciona"; o Defeito de fábrica pergunta o que a pessoa tentou fazer, o que aconteceu e o que ela
-esperava — um relato que dá para reproduzir —, e a Melhoria e a Dúvida trazem a caixa livre com a
+esperava (um relato que dá para reproduzir), e a Melhoria e a Dúvida trazem a caixa livre com a
 pergunta certa dentro. O card aberto mostra cada resposta embaixo da pergunta que a pediu, como ela
 estava no envio.</p>
 
 <p>Todos entram no projeto pela tela de <strong>Trabalho</strong>; quem administra entra pela
 configuração, com os primeiros passos no topo, só enquanto o sistema do cliente ainda não mandou nenhum relato. A lateral começa pelo trabalho, e a
 configuração vem embaixo, num item só: uma página central com os primeiros passos, a busca e cinco
-áreas pelo assunto — O seu sistema, O formulário, O acompanhamento, O quadro e O time —, com os nomes do
+áreas pelo assunto (O seu sistema, O formulário, O acompanhamento, O quadro e O time), com os nomes do
 time em cada tela.</p>
 
-<p>A lista <strong>filtra por coluna</strong> — várias de uma vez —, e cada coluna vem com a sua
+<p>A lista <strong>filtra por coluna</strong> (várias de uma vez), e cada coluna vem com a sua
 contagem; "Em aberto" esconde o que terminou. É o que responde "o que ainda não tratei", a pergunta
 que uma lista sem recorte não responde. A contagem vem de uma chamada própria: contar as linhas da
 página daria um número errado assim que o projeto passasse de cinquenta relatos. E a tabela ordena
-pelo que a pessoa escolher — o prazo mais perto, a prioridade mais alta, o mais novo.</p>
+pelo que a pessoa escolher: o prazo mais perto, a prioridade mais alta, o mais novo.</p>
 
 <p>Cada relato tem <strong>endereço próprio</strong>, então dá para mandar o link de um para um
 colega, abrir em outra aba e recarregar sem perdê-lo. Ele abre <em>sobre</em> a lista, que
@@ -45,11 +45,11 @@ continua montada atrás com o recorte e a rolagem onde estavam.</p>
 
 <p>E o time <strong>move o relato de coluna</strong>, pela tela do relato aberto ou arrastando o card no
 quadro. Cada mudança
-grava um evento imutável com de onde, para onde, quem e quando — e o evento entra <em>antes</em>
+grava um evento imutável com de onde, para onde, quem e quando, e o evento entra <em>antes</em>
 do cache, na mesma transação. A fila deixou de ser uma foto.</p>
 
 <p>O time também <strong>comenta</strong>: o que fica entre a equipe e o que é escrito para
-quem relatou, em duas caixas distintas — e a separação é estrutural, com duas tabelas, e não um
+quem relatou, em duas caixas distintas, e a separação é estrutural, com duas tabelas, e não um
 campo que alguém esquece de marcar. O comentário entre a equipe se corrige e se apaga, por quem o
 escreveu; o que vai para quem relatou espera alguns segundos antes de sair, com "Desfazer", e depois
 não volta. O comentário para quem relatou <strong>é lido na página de

@@ -3,7 +3,7 @@
 //
 // O script e injetado pelo Swashbuckle (ver Startup.cs). A pagina do Swagger e
 // montada em JavaScript depois do carregamento, entao a barra ainda nao existe
-// quando este arquivo roda — dai a espera abaixo.
+// quando este arquivo roda: dai a espera abaixo.
 (function () {
   const LABEL = '← Documentação do projeto';
   const TARGET = '/#/visao-geral';

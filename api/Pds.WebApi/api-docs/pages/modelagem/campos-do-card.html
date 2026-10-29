@@ -1,14 +1,14 @@
 <h2>O que o time dá ao card</h2>
 
 <p>Além da coluna, o card ganha <strong>quem está com ele, o quanto importa, as etiquetas e o
-prazo</strong> — o responsável (<code>reports.assignee_user_id</code>), a prioridade
+prazo</strong>: o responsável (<code>reports.assignee_user_id</code>), a prioridade
 (<code>reports.priority_id</code>), as etiquetas (<code>report_labels</code>) e o prazo
 (<code>reports.due_date</code>). O relato e o card do time ganham os mesmos campos.</p>
 
 <div class="note warn">
   <strong>Tudo isto é interno</strong>
   <p>Nenhuma rota pública lê estas tabelas nem estas colunas. Quem relatou continua vendo o que
-  escreveu — inclusive o próprio título — e nada do que o time deu ao card.</p>
+  escreveu (inclusive o próprio título) e nada do que o time deu ao card.</p>
 </div>
 
 <h2>project_priorities</h2>
@@ -30,20 +30,20 @@ prazo</strong> — o responsável (<code>reports.assignee_user_id</code>), a pri
   <strong>Baixa, Média, Alta e Urgente</strong> (azul, amarelo, laranja, vermelho), e os projetos
   que já existiam as ganharam na migração. O administrador renomeia, troca a cor, reordena ou cria
   outras.</p>
-  <p><strong>O card nasce sem prioridade.</strong> Escolher é decisão de alguém do time — quem cria
-  o card do time pode tomá-la ali mesmo —; uma prioridade de fábrica no card novo faria "Média"
+  <p><strong>O card nasce sem prioridade.</strong> Escolher é decisão de alguém do time (quem cria
+  o card do time pode tomá-la ali mesmo); uma prioridade de fábrica no card novo faria "Média"
   querer dizer "ninguém olhou ainda".</p>
 </div>
 
 <div class="note why">
   <strong>Prioridade não se apaga, se desativa</strong>
   <p>Como o estado: card antigo aponta para ela (<code>Restrict</code>), e o histórico precisa
-  continuar legível. Desativada, ela continua no card que já a tinha e sai da lista de escolha — a
+  continuar legível. Desativada, ela continua no card que já a tinha e sai da lista de escolha: a
   API recusa pô-la num card novo.</p>
 </div>
 
-<p><code>project_report_types</code> segue o mesmo desenho — do projeto, com os de fábrica, a
-mesma paleta, desativar em vez de apagar —, mas não é o time que dá o tipo ao card: é quem relata
+<p><code>project_report_types</code> segue o mesmo desenho (do projeto, com os de fábrica, a
+mesma paleta, desativar em vez de apagar), mas não é o time que dá o tipo ao card: é quem relata
 que escolhe. Está em <a href="#/modelagem/relato">O relato</a>.</p>
 
 <h2>project_labels</h2>
@@ -52,7 +52,7 @@ que escolhe. Está em <a href="#/modelagem/relato">O relato</a>.</p>
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Projeto dono da etiqueta.</td></tr>
-  <tr><td><code>name</code></td><td>O nome. Até 30 — etiqueta é palavra, e não frase. Único no projeto sem diferenciar maiúscula.</td></tr>
+  <tr><td><code>name</code></td><td>O nome. Até 30: etiqueta é palavra, e não frase. Único no projeto sem diferenciar maiúscula.</td></tr>
   <tr><td><code>color</code></td><td>A mesma paleta fixa da prioridade. Sem cor escolhida, a menos usada no projeto.</td></tr>
 </table>
 </div>
@@ -60,7 +60,7 @@ que escolhe. Está em <a href="#/modelagem/relato">O relato</a>.</p>
 <div class="note why">
   <strong>Quem cria é o time, ao etiquetar</strong>
   <p>Faltar a etiqueta certa não vira pedido ao administrador: qualquer pessoa do time cria a
-  etiqueta no próprio card, e o nome que já existe devolve a que existe. O administrador organiza —
+  etiqueta no próprio card, e o nome que já existe devolve a que existe. O administrador organiza:
   renomeia, troca a cor, apaga.</p>
   <p><strong>Apagar tira a etiqueta de todos os cards</strong>, na mesma gravação: a etiqueta e as
   ligações dela são apagadas logicamente, e cada card que a tinha ganha um evento com a saída dela,
@@ -85,7 +85,7 @@ de uma vez: a que sai é apagada logicamente, e pode voltar depois numa linha no
 
 <p>As três tabelas passam pelo filtro global, como o estado e o contexto: a prioridade e a etiqueta
 pelo projeto da linha, e a ligação pelo relato. A ligação some também quando a etiqueta foi
-apagada, e a leitura da etiqueta pela ligação, que é obrigatória, carrega o mesmo filtro — três
+apagada, e a leitura da etiqueta pela ligação, que é obrigatória, carrega o mesmo filtro: três
 cercas para a etiqueta apagada nunca aparecer num card.</p>
 
 <h2>A paleta</h2>

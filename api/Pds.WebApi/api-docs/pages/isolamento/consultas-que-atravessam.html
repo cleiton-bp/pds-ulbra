@@ -2,21 +2,21 @@
 
 <p>São exatamente cinquenta e nove em todo o sistema, todas propositais, e <strong>trinta e sete
 têm a mesma causa</strong>: as rotas públicas chegam sem sessão, e sem sessão a lista de projetos
-da requisição é vazia — o filtro que protege o painel devolveria vazio para o próprio dono.
+da requisição é vazia; o filtro que protege o painel devolveria vazio para o próprio dono.
 Cinquenta e seis moram em repositório, cada uma num método, e nenhuma em serviço; uma é a
 leitura que monta o acesso, no <code>AccountMiddleware</code>; e duas são as do aviso em tempo
 real, no <code>HubWorkNotifier</code>. Nove vêm do consumidor da fila, onde nunca houve requisição.
-Oito atravessam com sessão — seis no painel, duas no convite. E três servem os três caminhos ao
-mesmo tempo — a página de acompanhamento, a fila e o painel —: as dos vínculos e a das subtarefas
+Oito atravessam com sessão: seis no painel, duas no convite. E três servem os três caminhos ao
+mesmo tempo (a página de acompanhamento, a fila e o painel): as dos vínculos e a das subtarefas
 que voltam do arquivo. As do aviso estão no fim da página.</p>
 
 <p>A contagem é por <strong>método público</strong> de repositório, porque é o método que alguém
-chama — e, no middleware e no aviso, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são
-sessenta e três: as quatro do aviso e cinquenta e nove em repositório — o middleware não chama nenhuma: monta o acesso num SQL escrito à mão, que não passa pelo filtro —, das quais duas moram em auxiliares
-privados — <code>Confirmados</code>, em <code>ReportAttachmentRepository</code>, e
-<code>Reabertos</code>, em <code>ReportClosureRepository</code> —, uma em cada, e os dois servem
+chama, e, no middleware e no aviso, por leitura. As chamadas a <code>IgnoreQueryFilters()</code> são
+sessenta e três: as quatro do aviso e cinquenta e nove em repositório. O middleware não chama nenhuma, porque monta o acesso num SQL escrito à mão, que não passa pelo filtro. Das cinquenta e nove, duas moram em auxiliares
+privados (<code>Confirmados</code>, em <code>ReportAttachmentRepository</code>, e
+<code>Reabertos</code>, em <code>ReportClosureRepository</code>), uma em cada, e os dois servem
 cinco métodos públicos entre eles; cinco num método só, o que apaga de vez
-(<code>Reports.PurgeAsync</code>, nas seis do painel); e duas em cada um de outros dois —
+(<code>Reports.PurgeAsync</code>, nas seis do painel); e duas em cada um de outros dois:
 <code>Reports.AnyHeldFromOriginWithoutSessionAsync</code>, uma por ramo (com e sem endereço), e
 <code>ProjectMembers.ListAdministratorsWithoutSessionAsync</code>, os donos da conta e o time. O auxiliar existe para as condições reescritas à mão morarem
 num lugar só; contar as chamadas esconderia quantas portas passam por ele.</p>
@@ -36,37 +36,37 @@ que evita uma ida ao banco por linha da lista pessoal.</p>
 
 <p><strong>Quem anexa é quem relatou, e quem relatou não tem sessão.</strong> A causa é a mesma das
 outras, e o desenho também: as condições do filtro reescritas à mão, menos a do acesso, e cada
-consulta chamada só depois de a porta aceitar — o link (protocolo e token), o código pessoal ou a
+consulta chamada só depois de a porta aceitar; o link (protocolo e token), o código pessoal ou a
 chave pública.</p>
 
 <ul>
-  <li><code>ProjectMediaSettings.FindByProjectWithoutSessionAsync</code> — a regra de mídia do
+  <li><code>ProjectMediaSettings.FindByProjectWithoutSessionAsync</code>: a regra de mídia do
   projeto, que a ferramenta lê pela chave, a página de quem relatou lê pelo link, e cada pedido de
   permissão e cada confirmação leem de novo. <code>IgnoreQueryFilters</code> vale para a consulta
-  inteira, então o filtro dos limites de cada categoria cai junto — e o <code>Include</code> repete
+  inteira, então o filtro dos limites de cada categoria cai junto, e o <code>Include</code> repete
   a condição deles, ou traria o limite apagado.</li>
-  <li><code>ReportAttachments.CountConfirmedWithoutSessionAsync</code> — a cota: quantos
+  <li><code>ReportAttachments.CountConfirmedWithoutSessionAsync</code>: a cota: quantos
   confirmados daquele tipo há naquele envio.</li>
-  <li><code>ReportAttachments.HasActivitySinceWithoutSessionAsync</code> — se o envio continua
+  <li><code>ReportAttachments.HasActivitySinceWithoutSessionAsync</code>, se o envio continua
   chegando. <strong>Não</strong> reescreve <code>DeletedAt == null</code>, de propósito: o arquivo
   recusado também é o envio andando.</li>
-  <li><code>ReportAttachments.FindPendingWithoutSessionAsync</code> — o anexo pendente que está
+  <li><code>ReportAttachments.FindPendingWithoutSessionAsync</code>: o anexo pendente que está
   sendo confirmado, e só daquele relato.</li>
-  <li><code>ReportAttachments.FindConfirmedWithoutSessionAsync</code> — a resposta a quem confirma
+  <li><code>ReportAttachments.FindConfirmedWithoutSessionAsync</code>: a resposta a quem confirma
   de novo o que já entrou.</li>
-  <li><code>ReportAttachments.ListConfirmedWithoutSessionAsync</code> — os arquivos, para quem
+  <li><code>ReportAttachments.ListConfirmedWithoutSessionAsync</code>: os arquivos, para quem
   relatou, pelo link ou pelo código.</li>
-  <li><code>ReportAttachments.IsObjectKeyInUseWithoutSessionAsync</code> — ver a nota abaixo.</li>
+  <li><code>ReportAttachments.IsObjectKeyInUseWithoutSessionAsync</code> (ver a nota abaixo).</li>
   <li><code>ReportPublicComments.FindLatestFromReporterWithoutSessionAsync</code> e
-  <code>ReportClosures.FindLatestReopenedWithoutSessionAsync</code> — a resposta e a reabertura que
+  <code>ReportClosures.FindLatestReopenedWithoutSessionAsync</code>: a resposta e a reabertura que
   acabaram de acontecer. O navegador nunca diz a qual delas o arquivo pertence; o servidor acha a
   mais recente de quem relatou.</li>
-  <li><code>ReportClosures.ListReopenedWithoutSessionAsync</code> — as reaberturas com o motivo,
+  <li><code>ReportClosures.ListReopenedWithoutSessionAsync</code>: as reaberturas com o motivo,
   que a página de quem relatou mostra de volta.</li>
 </ul>
 
-<p>No painel, a mesma leitura de arquivos é outro método —
-<code>ReportAttachments.ListConfirmedAsync</code> —, com o filtro ligado: é ele que faz o painel
+<p>No painel, a mesma leitura de arquivos é outro método
+(<code>ReportAttachments.ListConfirmedAsync</code>), com o filtro ligado: é ele que faz o painel
 nunca assinar a leitura de um arquivo de projeto em que a pessoa não está.</p>
 
 <div class="note why">
@@ -75,20 +75,20 @@ nunca assinar a leitura de um arquivo de projeto em que a pessoa não está.</p>
   <code>ReportAttachments.IsObjectKeyInUseWithoutSessionAsync</code> não atendem uma pergunta
   vinda de fora. As duas primeiras são a geração do protocolo e do código pessoal conferindo
   colisão de um candidato que o <strong>sistema sorteou</strong>, antes de gravar. A terceira é a
-  confirmação de um anexo que falhou no meio — a aba fechada, a resposta do banco perdida —
+  confirmação de um anexo que falhou no meio (a aba fechada, a resposta do banco perdida)
   perguntando se algum anexo já aponta para o nome final que ela mesma sorteou segundos antes: se
   aponta, a gravação entrou e aquelas cópias são o anexo; se não, elas saem do balde.</p>
   <p>É por isso que elas podem responder sim ou não sem virar oráculo: a resposta não fala do
   código nem do arquivo de pessoa nenhuma, porque ninguém de fora escolheu o valor consultado. A
-  busca por um código <em>apresentado</em> é a outra, e essa nunca diz se existe — a rota devolve
+  busca por um código <em>apresentado</em> é a outra, e essa nunca diz se existe: a rota devolve
   lista vazia.</p>
   <p>E a do código pessoal inclui o apagado logicamente, ao contrário da busca por código
   apresentado: reaproveitar um código que já foi de alguém faria a lista de uma pessoa aparecer
   para outra.</p>
 </div>
 
-<p><strong>Três não vêm de requisição nenhuma</strong> — como as seis do e-mail do convite, no
-fim da página —, e vale ler o porquê.</p>
+<p><strong>Três não vêm de requisição nenhuma</strong> (como as seis do e-mail do convite, no
+fim da página), e vale ler o porquê.</p>
 
 <div class="note warn">
   <strong>Três não vêm de requisição nenhuma</strong>
@@ -98,11 +98,11 @@ fim da página —, e vale ler o porquê.</p>
   fila. Ali não há sessão a perder, porque <strong>nunca houve requisição</strong>: o que acordou
   o código foi um prazo vencendo.</p>
   <p>A diferença importa na hora de julgar o risco. Trinta e cinco das outras são atravessadas por
-  quem apresenta uma credencial — a chave pública, o protocolo e o token, ou o código pessoal —,
+  quem apresenta uma credencial (a chave pública, o protocolo e o token, ou o código pessoal),
   e o que protege a resposta é a credencial, não o filtro. Estas três não devolvem nada a ninguém: o resultado vai
   para dentro da própria aplicação, que grava e não responde. <strong>Não há resposta HTTP em que
   vazar.</strong></p>
-  <p>As duas de varredura devolvem <code>public_id</code> e mais nada — nem texto de relato, nem
+  <p>As duas de varredura devolvem <code>public_id</code> e mais nada, nem texto de relato, nem
   nome de projeto. Devolver a entidade inteira funcionaria igual e poria a fila carregando dado
   de cliente que ela não tem motivo para ver.</p>
 </div>
@@ -110,23 +110,23 @@ fim da página —, e vale ler o porquê.</p>
 <p>Uma delas monta o <strong>andamento</strong> da página pública, e tem uma
 particularidade que vale ler: o tipo de evento está na <strong>consulta</strong>, e não num
 filtro aplicado depois. Uma leitura genérica "eventos do relato", filtrada na saída,
-funcionaria hoje e seria o vazamento de amanhã — bastaria alguém acrescentar um tipo de evento
+funcionaria hoje e seria o vazamento de amanhã: bastaria alguém acrescentar um tipo de evento
 e esquecer de atualizar o filtro para comentário interno sair para quem não é do time, sem erro
 em lugar nenhum. Com o recorte na consulta, tipo novo nasce invisível para fora.</p>
 
 <p>Quatro delas atendem o momento em que o relato <strong>entra</strong>. Duas decidem que tipo
 ele é e onde cai na fila: o tipo escolhido
-(<code>ProjectReportTypes.FindByPublicIdWithoutSessionAsync</code>) — que tem de ser do projeto e
-estar ativo, e traz a coluna de entrada dele —, e o primeiro estado ativo como padrão. As outras
-duas decidem em que passo da jornada ele aparece para quem o escreveu — o mapa da versão que vale,
+(<code>ProjectReportTypes.FindByPublicIdWithoutSessionAsync</code>) (que tem de ser do projeto e
+estar ativo, e traz a coluna de entrada dele), e o primeiro estado ativo como padrão. As outras
+duas decidem em que passo da jornada ele aparece para quem o escreveu: o mapa da versão que vale,
 e a jornada do projeto.</p>
 
 <p>Mais três servem os limites e a retenção, na mesma entrada:
-<code>ProjectReportLimits.FindByProjectWithoutSessionAsync</code> — os limites de relato do
-projeto, sem os quais valeriam os de fábrica mesmo para quem mudou —,
-<code>Reports.AnyHeldFromOriginWithoutSessionAsync</code> — se já há relato retido daquele
-endereço, que é o que faz o sino avisar uma vez por endereço novo, e não a cada relato — e
-<code>ProjectMembers.ListAdministratorsWithoutSessionAsync</code> — quem administra o projeto, para
+<code>ProjectReportLimits.FindByProjectWithoutSessionAsync</code>, os limites de relato do
+projeto, sem os quais valeriam os de fábrica mesmo para quem mudou;
+<code>Reports.AnyHeldFromOriginWithoutSessionAsync</code>, se já há relato retido daquele
+endereço, que é o que faz o sino avisar uma vez por endereço novo, e não a cada relato; e
+<code>ProjectMembers.ListAdministratorsWithoutSessionAsync</code>, quem administra o projeto, para
 o aviso do endereço novo e o da pausa por excesso. Esta última repete a regra que o
 <code>AccountMiddleware</code> usa para montar o acesso: a conta dona administra todos os projetos
 dela, e o time soma quem foi feito administrador.</p>
@@ -138,7 +138,7 @@ cliente não tivesse configurado nada.</p>
 
 <p><strong>A primeira</strong> resolve o projeto pela chave. A rota pública de relato chega <strong>sem sessão</strong>: nesse
 momento o projeto ainda não é conhecido, e é justamente a chave pública que vai revelá-lo. Com o
-filtro ligado, a consulta nunca acharia nada — sem sessão, a lista de projetos é vazia.</p>
+filtro ligado, a consulta nunca acharia nada, sem sessão, a lista de projetos é vazia.</p>
 
 <pre><code>Context.ProjectKeys
     .IgnoreQueryFilters()
@@ -153,12 +153,12 @@ filtro ligado, a consulta nunca acharia nada — sem sessão, a lista de projeto
 <div class="note warn">
   <strong><code>IgnoreQueryFilters</code> desliga os dois filtros, não só o do acesso</strong>
   <p>Junto com o isolamento cai também a exclusão lógica. Por isso as duas condições que o
-  filtro garantia estão reescritas à mão logo ali — <code>DeletedAt == null</code> na chave e
+  filtro garantia estão reescritas à mão logo ali: <code>DeletedAt == null</code> na chave e
   no projeto. Retirar qualquer uma faz chave revogada ou projeto apagado voltarem a aceitar
   relato, e nada acusa: compila, responde 200 e grava.</p>
   <p>É por isso que ela mora em <code>ProjectKeyRepository</code>, escrita uma vez, e não
   espalhada pelos serviços. Exceção que se aponta com o dedo é exceção; exceção espalhada vira
-  o novo padrão — e é o mesmo motivo de as três seguintes serem um método cada, com
+  o novo padrão, e é o mesmo motivo de as três seguintes serem um método cada, com
   <code>WithoutSession</code> no nome quando é disso que se trata.</p>
 </div>
 
@@ -170,7 +170,7 @@ filtro ligado, a consulta nunca acharia nada — sem sessão, a lista de projeto
 
 <p>Aqui a pergunta vale para o sistema inteiro, e não para a conta: quem digita um protocolo
 não sabe de qual projeto o relato é, então dois relatos de contas diferentes com o mesmo
-código levariam a pessoa ao lugar errado. Ela também inclui o que foi apagado — a linha some
+código levariam a pessoa ao lugar errado. Ela também inclui o que foi apagado: a linha some
 da lista, mas o papel com o protocolo continua na mão de alguém.</p>
 
 <p><strong>A terceira</strong> lê a configuração da ferramenta, e <strong>a quarta</strong> lê
@@ -184,21 +184,21 @@ apresenta só a chave pública:</p>
         s.DeletedAt == null &amp;&amp;                  o.DeletedAt == null &amp;&amp;
         s.Project.DeletedAt == null);           o.Project.DeletedAt == null)</code></pre>
 
-<p>Junto da configuração vêm os <strong>tipos de relato</strong> do projeto — os botões e as
-perguntas do formulário —, lidos sem sessão pelo mesmo motivo
+<p>Junto da configuração vêm os <strong>tipos de relato</strong> do projeto (os botões e as
+perguntas do formulário), lidos sem sessão pelo mesmo motivo
 (<code>ProjectReportTypes.ListByProjectWithoutSessionAsync</code>): com o filtro, a lista voltaria
 vazia e o quadro abriria sem ter o que perguntar. A ordem é a mesma da lista do painel, com o
-mesmo desempate, porque a ferramenta e o painel precisam concordar sobre qual é o primeiro — é ele
+mesmo desempate, porque a ferramenta e o painel precisam concordar sobre qual é o primeiro: é ele
 o pré-marcado quando ninguém escolheu outro.</p>
 
 <p>Ao lado da lista de autorizados vem a de <strong>bloqueados</strong>
 (<code>ProjectBlockedOrigins.ListByProjectWithoutSessionAsync</code>), lida pelas mesmas rotas e
-antes dela, com as mesmas condições reescritas à mão. Com o filtro, ela voltaria vazia — e a lista
+antes dela, com as mesmas condições reescritas à mão. Com o filtro, ela voltaria vazia, e a lista
 de bloqueados vazia deixa passar justamente quem foi bloqueado, sem erro em lugar nenhum.</p>
 
-<p>As três repetem à mão as condições que o filtro dava — e a da lista de endereços tem uma
+<p>As três repetem à mão as condições que o filtro dava, e a da lista de endereços tem uma
 consequência que as outras não têm: <strong>se ela voltasse vazia, todo relato ficaria
-retido</strong> — inclusive o do site que o cliente autorizou —, porque fora da lista o relato
+retido</strong>, inclusive o do site que o cliente autorizou, porque fora da lista o relato
 espera liberação. Esquecer o <code>IgnoreQueryFilters</code> aqui não daria erro em lugar nenhum:
 o Trabalho só pararia de receber relatos, e o sino perguntaria pelo próprio site do cliente.</p>
 
@@ -209,13 +209,13 @@ acompanhamento:</p>
     .IgnoreQueryFilters()
     .FirstOrDefaultAsync(report =&gt; report.TrackingCode == trackingCode);</code></pre>
 
-<p>É uma das poucas que não reescrevem <code>DeletedAt == null</code> — como a conferência de
-protocolo repetido, duas seções acima —, e a que devolve <strong>conteúdo</strong>. Aquela responde um sim/não; esta entrega um relato a quem apresenta um
+<p>É uma das poucas que não reescrevem <code>DeletedAt == null</code> (como a conferência de
+protocolo repetido, duas seções acima), e a que devolve <strong>conteúdo</strong>. Aquela responde um sim/não; esta entrega um relato a quem apresenta um
 token.</p>
 
 <p>É deliberado: o link continua na mão de quem escreveu o relato depois de a linha sair da lista
 do painel, e responder "este relato nunca existiu" a quem o escreveu seria mentira. O que protege
-a resposta não é o filtro — é o token, conferido em tempo constante no serviço.</p>
+a resposta não é o filtro: é o token, conferido em tempo constante no serviço.</p>
 
 <div class="note why">
   <strong>Atravessar o filtro para ler não é atravessar para gravar</strong>
@@ -223,8 +223,8 @@ a resposta não é o filtro — é o token, conferido em tempo constante no serv
   normalmente: o <code>project_id</code> e o <code>account_id</code> da linha nova vêm do projeto
   que a chave resolveu, e não da sessão que não existe.</p>
   <p>O efeito é que o relato entra sem sessão e, a partir daí, só quem está no projeto o
-  enxerga. Foi conferido de dois jeitos: pela resposta — a dona, a administradora e o membro do
-  projeto veem o relato; sem sessão, ou de fora do projeto, nada volta — e pelo SQL que a API
+  enxerga. Foi conferido de dois jeitos: pela resposta (a dona, a administradora e o membro do
+  projeto veem o relato; sem sessão, ou de fora do projeto, nada volta) e pelo SQL que a API
   gera, em que toda leitura do painel sobre tabela de dado sai com o parâmetro do acesso
   (<code>project_id = ANY (...)</code>).</p>
   <p>O efeito é que o relato entra sem sessão e, a partir daí, só quem enxerga o projeto o vê: o
@@ -233,38 +233,38 @@ a resposta não é o filtro — é o token, conferido em tempo constante no serv
 
 <h3>As três dos vínculos e do arquivo</h3>
 
-<p>A mesma ação chega por três caminhos — o painel, a fila e a página de quem relatou —, e a
+<p>A mesma ação chega por três caminhos (o painel, a fila e a página de quem relatou), e a
 consulta que ela faz não pode depender de qual: sem sessão, o filtro devolveria vazio, e o
 duplicado deixaria de acompanhar o original justamente quando quem relatou reabre.</p>
 
 <ul>
-  <li><code>CardLinks.ListDuplicateReportsWithoutSessionAsync</code> — os relatos duplicados de um
+  <li><code>CardLinks.ListDuplicateReportsWithoutSessionAsync</code>: os relatos duplicados de um
   original. A etapa pública do original anda pelo painel, pela fila (a espera que venceu) e pela
   página de acompanhamento (quem relatou reabre), e o encerramento dele chega ou sai pelo painel e
   pela reabertura: em todos, os duplicados vão junto.</li>
-  <li><code>CardLinks.FindOriginalLinkWithoutSessionAsync</code> — o original de um duplicado.
+  <li><code>CardLinks.FindOriginalLinkWithoutSessionAsync</code>: o original de um duplicado.
   Quem relatou o duplicado reabre ou responde pela página, e o vínculo vira “relacionado a”; no
   painel, desarquivar o duplicado desfaz o vínculo.</li>
-  <li><code>Reports.ListSubtasksArchivedAtAsync</code> — as subtarefas que foram para o arquivo com
+  <li><code>Reports.ListSubtasksArchivedAtAsync</code>: as subtarefas que foram para o arquivo com
   o card, e voltam com ele: pelo painel, ou pela página, quando quem relatou reabre ou responde.</li>
 </ul>
 
-<p>As três só rodam depois de a porta aceitar — a sessão no projeto, o link de quem relatou ou a
-mensagem da fila sobre um relato que existe — e partem de um card já resolvido por ela: nenhuma
+<p>As três só rodam depois de a porta aceitar (a sessão no projeto, o link de quem relatou ou a
+mensagem da fila sobre um relato que existe) e partem de um card já resolvido por ela: nenhuma
 procura pelo que alguém de fora escolheu. As condições do filtro vêm reescritas à mão, menos a do
 acesso: a exclusão lógica do vínculo e dos cards.</p>
 
 <h3>As seis do painel</h3>
 
 <p>Seis atravessam o filtro <strong>com sessão</strong>, e não por falta dela: há quatro perguntas
-que o filtro não deixa responder — qual é a própria lista de projetos, se um nome já existe na
+que o filtro não deixa responder (qual é a própria lista de projetos, se um nome já existe na
 conta inteira, o que ainda segura um card que vai ser apagado de vez, e quais relatos estão
-retidos, que o próprio filtro esconde de todo o resto do painel —, e uma gravação que vai pelos
+retidos, que o próprio filtro esconde de todo o resto do painel), e uma gravação que vai pelos
 identificadores que o filtro já escolheu.</p>
 
 <p><strong>A primeira monta o acesso</strong>, no <code>AccountMiddleware</code>, e não em
 repositório. O filtro depende justamente da lista que ela monta: enquanto ela está vazia, ele
-não devolveria nada. É uma leitura só, escrita à mão — e SQL escrito à mão não passa pelo filtro:
+não devolveria nada. É uma leitura só, escrita à mão, e SQL escrito à mão não passa pelo filtro:
 a pessoa, os projetos da conta própria, em que ela é dona, e as linhas dela em
 <code>project_members</code>, fora da conta própria. Se a dona também tiver linha no time de um
 projeto dela, vale o acesso de dona.</p>
@@ -283,7 +283,7 @@ JOIN project_members AS m ON m.user_id = pessoa.id AND m.deleted_at IS NULL
 JOIN projects AS p ON p.id = m.project_id AND p.deleted_at IS NULL AND p.account_id &lt;&gt; pessoa.account_id
 JOIN accounts AS dona ON dona.id = p.account_id AND dona.deleted_at IS NULL</code></pre>
 
-<p>Ela reescreve à mão a exclusão lógica — da pessoa, da conta, do projeto e da linha do time:
+<p>Ela reescreve à mão a exclusão lógica: da pessoa, da conta, do projeto e da linha do time:
 conta apagada leva os projetos junto, e conferir ali não depende de a exclusão ter
 cascateado. A pessoa vem antes, numa parte só, e as duas listas partem dela: o banco procura a
 pessoa uma vez, e a lista do time começa pelas linhas dela.</p>
@@ -291,27 +291,27 @@ pessoa uma vez, e a lista do time começa pelas linhas dela.</p>
 <p><strong>A segunda é a conferência de nome repetido</strong>, em
 <code>Projects.NameExistsAsync</code>. O nome é único na conta inteira, e quem está no time de um
 projeto de outra conta não enxerga os projetos vizinhos: com o filtro ligado, o nome repetido
-passaria pela conferência e só pararia no índice único do banco, como erro não previsto — e só
-quando a grafia fosse idêntica. Por isso a conta vem explícita — a própria, ao criar; a do
-projeto, ao renomear — e a consulta reescreve à mão a exclusão lógica.</p>
+passaria pela conferência e só pararia no índice único do banco, como erro não previsto, e só
+quando a grafia fosse idêntica. Por isso a conta vem explícita (a própria, ao criar; a do
+projeto, ao renomear) e a consulta reescreve à mão a exclusão lógica.</p>
 
 <div class="note warn">
   <strong>A conferência de nome responde por projetos que a pessoa não enxerga</strong>
   <p>É uma troca aceita: quem administra um projeto de outra conta, ao renomear, descobre pelo
   409 que a conta já tem um projeto com aquele nome, mesmo sem estar nele. É só o nome, e só para
-  quem já administra um projeto daquela conta — renomear é de administrador.</p>
+  quem já administra um projeto daquela conta: renomear é de administrador.</p>
 </div>
 
 <p><strong>A terceira é o apagar de vez</strong> dos cards de origem bloqueada, em
-<code>Reports.PurgeAsync</code> — um método, cinco chamadas: as subtarefas, os anexos (para os
+<code>Reports.PurgeAsync</code>: um método, cinco chamadas: as subtarefas, os anexos (para os
 arquivos saírem do armazenamento depois), os avisos do sino, os vínculos e, por fim, os próprios
 cards. Aqui o filtro esconderia <strong>o que ainda segura a chave estrangeira</strong>: a subtarefa
 apagada logicamente, o vínculo desfeito, o anexo descartado continuam apontando para o card, e o
 <code>DELETE</code> seria recusado por eles. O projeto vem escrito à mão em cada uma, e só roda
-depois de o serviço achar os cards marcados <strong>com</strong> o filtro ligado — nada ali procura
+depois de o serviço achar os cards marcados <strong>com</strong> o filtro ligado: nada ali procura
 pelo que alguém de fora escolheu.</p>
 
-<p><strong>A quarta e a quinta são os relatos retidos</strong> — os que chegaram de um endereço
+<p><strong>A quarta e a quinta são os relatos retidos</strong>: os que chegaram de um endereço
 fora da lista de autorizados. O filtro do relato os esconde (<code>held_for_origin_at IS
 NULL</code>), e é isso que os tira de lista, quadro, contagem, busca e aviso sem cada consulta
 lembrar. Quem precisa deles atravessa: <code>Reports.TallyHeldOriginsAsync</code> conta por endereço
@@ -323,7 +323,7 @@ ligado.</p>
 <p><strong>A sexta é marcar todos os avisos como lidos</strong>, em
 <code>Notifications.MarkAllReadAsync</code>. A leitura é pelo filtro: o aviso de um projeto que a
 pessoa não enxerga mais fica como estava. A gravação vai num <code>UPDATE</code> só, pelos
-identificadores que essa leitura escolheu — e é ela que atravessa, porque o aviso sem card junta o
+identificadores que essa leitura escolheu, e é ela que atravessa, porque o aviso sem card junta o
 relato de forma opcional, e o <code>UPDATE</code> em lote não traduz essa junção.</p>
 
 <p>As duas primeiras levam uma marca no SQL, pelo <code>TagWith</code>:
@@ -335,12 +335,12 @@ leituras de painel que nunca deveriam desligar o filtro.</p>
 
 <p>O convite atravessa o filtro por dois motivos, e nenhum deles é a rota pública.</p>
 
-<p><strong>Seis são do consumidor da fila</strong> que monta e manda o e-mail, e que — como o das
-esperas — não tem sessão nenhuma. <code>ProjectInvitations.GetForEmailWithoutSessionAsync</code> lê
+<p><strong>Seis são do consumidor da fila</strong> que monta e manda o e-mail, e que (como o das
+esperas) não tem sessão nenhuma. <code>ProjectInvitations.GetForEmailWithoutSessionAsync</code> lê
 o convite que a mensagem aponta, sem rastreio; <code>TryClaimForSendingWithoutSessionAsync</code>
 reserva o envio e grava o hash do link; <code>FinishSendingWithoutSessionAsync</code> fecha o envio
 como enviado ou não saiu; e <code>FailPendingWithoutSessionAsync</code> marca como não saiu o que nem
-chegou a ser reservado — vencido, ou sem e-mail no servidor. Uma vez por subida, <code>FailStuckSendingWithoutSessionAsync</code> marca como falho o que
+chegou a ser reservado: vencido, ou sem e-mail no servidor. Uma vez por subida, <code>FailStuckSendingWithoutSessionAsync</code> marca como falho o que
 ficou preso no meio de um envio, e <code>ListPendingEmailWithoutSessionAsync</code> lista o que
 ainda não saiu, para publicar de novo. As duas de varredura devolvem a contagem ou o identificador,
 e nada do convite.</p>
@@ -353,7 +353,7 @@ o aceite não criar uma segunda linha.</p>
 
 <div class="note warn">
   <strong>A reserva é uma gravação condicional, e não ler e depois gravar</strong>
-  <p>Na subida, a varredura publica de novo o que estava pendente — e a mensagem original pode
+  <p>Na subida, a varredura publica de novo o que estava pendente, e a mensagem original pode
   continuar na fila. Se o consumidor lesse "pendente" e depois gravasse "enviando", as duas
   entregas passariam pela leitura antes de qualquer uma gravar, e a pessoa receberia dois e-mails
   com links diferentes, um deles já sem valer. A reserva é um <code>UPDATE</code> só, com
@@ -364,7 +364,7 @@ o aceite não criar uma segunda linha.</p>
   link vai na mesma gravação.</p>
   <p><strong>O fim do envio também é condicional</strong>: "enviado" só é gravado se a linha continua
   "enviando", com o hash deste envio. Um reenvio no meio do envio põe o convite de novo na fila, sem
-  hash; sem a condição, o "enviado" do envio antigo cobriria o pedido novo, que desistiria — e o
+  hash; sem a condição, o "enviado" do envio antigo cobriria o pedido novo, que desistiria, e o
   único e-mail que saiu teria um link que não abre nada. Com um consumidor só, o status já basta; o
   hash cobre duas instâncias da API, em que o pedido novo pode reservar antes de o antigo
   terminar.</p>
@@ -375,44 +375,44 @@ o aceite não criar uma segunda linha.</p>
 <div class="note why">
   <strong>O que protege a resposta do link é o link, e mais o Google</strong>
   <p>O link tem 256 bits sorteados, e o banco guarda só o hash: achar o convite pelo hash não
-  ajuda quem não tem o link. E ter o link não basta — o aceite confere que o Google de quem está
+  ajuda quem não tem o link. E ter o link não basta: o aceite confere que o Google de quem está
   logado é o do endereço convidado, e que o Google confirmou esse endereço. Com a conta errada, a
   resposta traz só uma pista do endereço, e nada do projeto.</p>
 </div>
 
-<p>As oito reescrevem à mão a exclusão lógica do convite ou da linha do time — e as que chegam ao
-projeto, a dele também — e levam marca no SQL: <code>-- envio do e-mail do convite</code> nas
+<p>As oito reescrevem à mão a exclusão lógica do convite ou da linha do time (e as que chegam ao
+projeto, a dele também) e levam marca no SQL: <code>-- envio do e-mail do convite</code> nas
 seis da fila, <code>-- convite aberto pelo link</code> e <code>-- conferencia de quem aceita um
 convite</code> nas duas do link.</p>
 
 <h3>As duas do aviso em tempo real</h3>
 
-<p>O aviso de que algo mudou na tela de Trabalho sai de qualquer lugar que muda um card — e nem
+<p>O aviso de que algo mudou na tela de Trabalho sai de qualquer lugar que muda um card, e nem
 sempre há sessão: <strong>quem relatou responde sem sessão, e a fila também muda cards</strong>. Com
 a sessão, também não serviria: o aviso vai para o time do projeto, e não para quem fez a mudança,
 cuja lista de projetos não responde quem mais está ali. Por isso as duas leituras moram no
 <code>HubWorkNotifier</code>, e não em repositório:</p>
 
 <ul>
-  <li><strong>O card</strong>: de qual projeto ele é, em qual coluna está e se foi para o arquivo —
+  <li><strong>O card</strong>: de qual projeto ele é, em qual coluna está e se foi para o arquivo;
   com o card e o projeto não apagados.</li>
-  <li><strong>O time</strong>: numa consulta só, que parte do projeto — com o projeto e a conta não
-  apagados —, os donos da conta e as linhas de <code>project_members</code>, juntos (<code>UNION</code>),
+  <li><strong>O time</strong>: numa consulta só, que parte do projeto (com o projeto e a conta não
+  apagados), os donos da conta e as linhas de <code>project_members</code>, juntos (<code>UNION</code>),
   com a linha e o usuário não apagados. É lida uma vez por pedido, no primeiro aviso dele.</li>
 </ul>
 
 <p>As duas reescrevem à mão a exclusão lógica e levam a marca <code>-- aviso em tempo real</code>
-no SQL. Nenhuma devolve dado do card: o que sai delas são identificadores — o do card, o da coluna,
-os das pessoas —, e o aviso leva só os do card e da coluna. Ver <a href="#/fluxo/tempo-real">O tempo
+no SQL. Nenhuma devolve dado do card: o que sai delas são identificadores (o do card, o da coluna,
+os das pessoas), e o aviso leva só os do card e da coluna. Ver <a href="#/fluxo/tempo-real">O tempo
 real</a>.</p>
 
 <div class="note why">
-  <strong>O número do card e a ordem do quadro não são consultas que atravessam — são <code>UPDATE</code> escritos à mão</strong>
+  <strong>O número do card e a ordem do quadro não são consultas que atravessam: são <code>UPDATE</code> escritos à mão</strong>
   <p>Reservar o próximo número soma e lê o contador do projeto num comando só
   (<code>UPDATE projects ... RETURNING</code>), marcado no SQL com <code>-- numero do card</code>. SQL
   escrito à mão não passa pelo filtro global, e é isso que o relato precisa: ele chega pela
-  ferramenta, sem sessão, e também ganha número. O projeto já veio resolvido — pela chave pública, ou
-  pela rota do painel, que só abre para quem está nele —, e o comando não devolve nada além do
+  ferramenta, sem sessão, e também ganha número. O projeto já veio resolvido (pela chave pública, ou
+  pela rota do painel, que só abre para quem está nele), e o comando não devolve nada além do
   número.</p>
   <p>O topo do quadro é o mesmo desenho, contando para baixo (<code>-- topo do quadro</code>): o
   relato que chega pela ferramenta também entra no topo da coluna. E renumerar a coluna quando a

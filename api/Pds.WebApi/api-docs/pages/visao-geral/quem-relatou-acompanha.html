@@ -3,14 +3,14 @@
 
 <p>Quem relatou acompanha pela <strong>jornada pública</strong>. O cliente desenha os passos
 que essa pessoa vê: rótulo, a frase que explica cada um e, se quiser, o que
-vem depois. <strong>Não é a fila de trabalho com outro nome</strong> — várias colunas de dentro
+vem depois. <strong>Não é a fila de trabalho com outro nome</strong>: várias colunas de dentro
 cabem numa etapa daqui, e é essa perda de detalhe que é o produto.</p>
 
 <p>Ela tem teto e piso, entre três e sete, e o motivo de cada um está escrito na tela: abaixo de
 três não se conta uma história, acima de sete volta a ser o organograma interno com palavras mais
-bonitas. Projeto novo já nasce com a jornada do modelo escolhido ao criar — a de fábrica, ou a do
-Suporte, com a etapa em que a vez é de quem relatou —, e quem foi criado antes de a jornada existir
-preenche com um clique, sempre com o conjunto de fábrica — tela em branco não se preenche sozinha. No painel, a tela se chama <strong>Andamento
+bonitas. Projeto novo já nasce com a jornada do modelo escolhido ao criar (a de fábrica, ou a do
+Suporte, com a etapa em que a vez é de quem relatou), e quem foi criado antes de a jornada existir
+preenche com um clique, sempre com o conjunto de fábrica, porque tela em branco não se preenche sozinha. No painel, a tela se chama <strong>Andamento
 público</strong>.</p>
 
 <p>A etapa em que o relato termina carrega o <strong>desfecho</strong>, de uma lista curta e
@@ -19,35 +19,35 @@ nossa: foi feito, não será feito, sem retorno, já existia. Sem os três últi
 chega.</p>
 
 <p>E as duas listas <strong>já estão ligadas</strong>: o cliente aponta cada coluna do quadro para
-um passo da jornada, sem digitar nada — os dois lados já existem, escolher é tudo que há para
+um passo da jornada, sem digitar nada; os dois lados já existem, escolher é tudo que há para
 fazer. Várias colunas no mesmo passo é o caminho normal, e não um jeito de economizar. O projeto
 novo já nasce com o mapa: A fazer → Recebido, Fazendo → Em desenvolvimento, Feito → Concluído. E a
 tela de <strong>Colunas</strong> mostra, em cada coluna, o que quem relatou vê quando o card está
-nela — escolher ali grava o mapa também —, e a coluna nova nasce ligada à etapa da última coluna de
+nela (escolher ali grava o mapa também), e a coluna nova nasce ligada à etapa da última coluna de
 antes, para não ficar fora do mapa sem ninguém perceber.</p>
 
 <p>O mapa se grava <strong>inteiro</strong>, e cada gravação cria uma versão. Alterar hoje não
 reescreve o passado: são as versões antigas que explicam por onde um relato de três meses atrás
 passou. Sem isso, reorganizar a jornada mudaria em silêncio o que já aconteceu, e não haveria como
-perceber depois — o dado necessário para perceber seria justamente o apagado.</p>
+perceber depois: o dado necessário para perceber seria justamente o apagado.</p>
 
 <p>Coluna sem mapeamento não é erro, e a tela conta quantas são: é nelas que o relato pararia de
 andar do lado de fora.</p>
 
 <p>E o <strong>motor que traduz</strong> está no ar. Ele mora num projeto que não referencia
-nada — nem o domínio, nem o acesso a dados —, e isso não é arrumação: é o que torna "o motor não
+nada (nem o domínio, nem o acesso a dados), e isso não é arrumação: é o que torna "o motor não
 conhece banco nem HTTP" uma coisa que o compilador recusa, em vez de uma promessa escrita num
 comentário.</p>
 
 <p>Ele decide entre quatro coisas: <strong>avançar</strong>, <strong>ficar na mesma etapa</strong>
-— o caso mais comum, e o produto funcionando —, <strong>segurar uma regressão</strong> e
+(o caso mais comum, e o produto funcionando), <strong>segurar uma regressão</strong> e
 <strong>marcar como não mapeado</strong>. A regressão pública é segurada por decisão de produto:
 ver o relato desandar destrói a confiança de quem acompanha, e a volta continua gravada como
 evento interno. Só etapa marcada como "pode voltar" retrocede.</p>
 
 <p>Ele roda em dois momentos, e o segundo é o que se esquece: quando o time <strong>move</strong>
 o relato, e quando ele <strong>entra</strong>. Traduzir só no movimento deixaria invisível o
-relato que chega e nunca é movido — justamente no momento em que quem escreveu mais quer
+relato que chega e nunca é movido: justamente no momento em que quem escreveu mais quer
 olhar.</p>
 
 <p>Cada tradução que muda alguma coisa vira evento, com os rótulos da época e a
@@ -55,7 +55,7 @@ olhar.</p>
 move o relato: quem decide precisa ver, na hora, o que o movimento causa lá fora.</p>
 
 <p>E a <strong>página de acompanhamento mostra o andamento</strong>. Ela desenha a jornada
-inteira, com o passo em que o relato está, as datas por onde ele passou e o que vem depois — e
+inteira, com o passo em que o relato está, as datas por onde ele passou e o que vem depois, e
 a jornada avança sozinha conforme a equipe move o card do lado de dentro, sem ninguém avisar
 nada manualmente. Projeto que não configurou jornada devolve a lista vazia, e aí a página volta
 a dizer que não há andamento, em vez de prometer.</p>
@@ -70,12 +70,12 @@ leituras que ninguém fez. Avisar quando algo anda é papel do aviso por e-mail,
 <p>O que sai nessa resposta é montado <strong>campo a campo</strong>, e nenhuma entidade é
 serializada nela. É a única resposta do sistema que vai para alguém de fora do time do cliente:
 com serialização, a coluna acrescentada amanhã a uma tabela interna apareceria ali sem ninguém
-decidir — e vazamento por serialização não dá erro em teste nenhum.</p>
+decidir, e vazamento por serialização não dá erro em teste nenhum.</p>
 
 <p>No painel, arrastar um card no <strong>quadro</strong> é o mesmo movimento do seletor de coluna: a
 etapa pública anda pela mesma espera. Ficam três ressalvas. O motor <strong>não tem teste</strong> do lado C#, e o teste de vazamento não foi
 escrito: os dois esperam o projeto de testes da API, e são <strong>Planejado</strong>. E a página
 pública <strong>não é renderizada no servidor</strong>, também <strong>Planejado</strong>: ela é
 uma aplicação React que baixa cerca de 86 kB de JavaScript comprimido, uns 60 deles o próprio
-React, para desenhar uma tela quase sem interação. O sintoma foi tratado — um esqueleto escrito no
-próprio HTML aparece antes de qualquer script, e não há tela branca —, mas o peso continua lá.</p>
+React, para desenhar uma tela quase sem interação. O sintoma foi tratado (um esqueleto escrito no
+próprio HTML aparece antes de qualquer script, e não há tela branca), mas o peso continua lá.</p>

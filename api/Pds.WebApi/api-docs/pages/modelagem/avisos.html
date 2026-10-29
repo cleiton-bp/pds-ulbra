@@ -1,7 +1,7 @@
 <h2>Os avisos do sino</h2>
 
 <p>O que avisa uma pessoa do time mora em <code>notifications</code>: uma linha por pessoa avisada,
-com quem fez, o card e, na menção, o comentário — ou, nos dois avisos do projeto, o domínio e a
+com quem fez, o card e, na menção, o comentário, ou, nos dois avisos do projeto, o domínio e a
 pausa. O som de cada tipo de aviso mora em
 <code>user_notification_sounds</code>, e o volume na própria pessoa, em
 <code>users.notification_volume</code>.</p>
@@ -19,7 +19,7 @@ pausa. O som de cada tipo de aviso mora em
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>user_id</code></td><td>Quem recebe o aviso.</td></tr>
   <tr><td><code>project_id</code></td><td>O projeto do card, repetido para o filtro de acesso não precisar de junção.</td></tr>
-  <tr><td><code>report_id</code></td><td>O card de que o aviso fala. <b>Nulo nos avisos do projeto</b> — o relato retido não aparece para o time, e a pausa não é de relato nenhum.</td></tr>
+  <tr><td><code>report_id</code></td><td>O card de que o aviso fala. <b>Nulo nos avisos do projeto</b>: o relato retido não aparece para o time, e a pausa não é de relato nenhum.</td></tr>
   <tr><td><code>actor_user_id</code></td><td>Quem fez: quem mencionou, ou quem escolheu o responsável.</td></tr>
   <tr><td><code>kind</code></td><td><code>mention</code> | <code>assignment</code> | <code>origin_pending</code> | <code>reports_paused</code>. Todos só no painel: no sino, com o som que a pessoa escolheu para o tipo. Os dois últimos vão para quem administra: um domínio fora da lista mandou relato (um por domínio enquanto houver retido dele), e uma camada de limite pausou os envios (um por pausa).</td></tr>
   <tr><td><code>report_internal_comment_id</code></td><td>O comentário interno da menção. Nulo na atribuição.</td></tr>
@@ -37,31 +37,31 @@ camada e prazo (<code>ck_notifications_paused</code>). Todas as
 chaves com <code>Restrict</code>: nada disso se apaga de verdade. Dois índices servem o sino: os
 mais recentes de uma pessoa (<code>user_id, created_at</code>) e os não lidos dela (com
 <code>read_at IS NULL</code>). A página seguinte anda pelo mesmo caminho: começa depois da hora e da
-chave do último aviso que a tela tem, e não por deslocamento — o aviso que chega no topo, ou o que
+chave do último aviso que a tela tem, e não por deslocamento; o aviso que chega no topo, ou o que
 se lê no meio, não faz a página seguinte repetir nem pular ninguém.</p>
 
 <div class="note why">
   <strong>Por que a menção não guarda um texto, e sim o comentário</strong>
   <p>O aviso aponta o comentário em vez de copiar o que foi escrito: o texto continua num lugar só,
   com o filtro de acesso dele. O trecho que o sino mostra (<code>Comment.Excerpt</code>, o começo do
-  comentário, com as menções como "@Nome", até uns 90 caracteres) é tirado do comentário na leitura
-  — o comentário corrigido muda o trecho sem mexer no aviso.</p>
+  comentário, com as menções como "@Nome", até uns 90 caracteres) é tirado do comentário na leitura:
+  o comentário corrigido muda o trecho sem mexer no aviso.</p>
 </div>
 
 <div class="note why">
   <strong>Corrigir e apagar o comentário acerta os avisos</strong>
   <p>Corrigido o comentário, as menções passam a ser as do texto novo: quem entrou ganha uma linha
-  aqui, e a linha de quem saiu ganha <code>deleted_at</code> — corrigir o "@" na pessoa errada é
+  aqui, e a linha de quem saiu ganha <code>deleted_at</code>; corrigir o "@" na pessoa errada é
   isso. Apagado o comentário, as linhas da menção dele saem juntas, por exclusão lógica: o sino não
-  pode levar a um comentário que já não existe. Tirar um aviso não manda sinal ao vivo — o número do
+  pode levar a um comentário que já não existe. Tirar um aviso não manda sinal ao vivo: o número do
   sino acerta na leitura seguinte.</p>
 </div>
 
 <h2>user_notification_sounds</h2>
 
 <p>O som que cada pessoa escolheu para cada tipo de aviso. <strong>Sem linha para um tipo, vale o de
-fábrica</strong> — Plim (<code>ping</code>) na menção, Sino (<code>bell</code>) na escolha como
-responsável —: a tabela só guarda o que alguém escolheu.</p>
+fábrica</strong> (Plim (<code>ping</code>) na menção, Sino (<code>bell</code>) na escolha como
+responsável): a tabela só guarda o que alguém escolheu.</p>
 
 <div class="table-scroll">
 <table>
@@ -80,7 +80,7 @@ cada leitura diz de quem.</p>
 
 <div class="note why">
   <strong>Por que uma tabela, e não uma coluna por tipo</strong>
-  <p>Um tipo de aviso novo — o prazo chegando, o card que a pessoa acompanha — entra como um valor a
+  <p>Um tipo de aviso novo (o prazo chegando, o card que a pessoa acompanha) entra como um valor a
   mais em <code>kind</code>, com o som de fábrica dele, sem coluna nova em <code>users</code>.</p>
 </div>
 
@@ -93,4 +93,4 @@ também para quem já existia quando a coluna nasceu. Vale em todos os projetos 
 
 <p>A tabela passa pelo filtro global pela coluna do projeto, e some com o card apagado. De quem é o
 aviso, cada leitura diz: o filtro guarda o projeto, e a pessoa vai na consulta. Quem sai do time
-deixa de ver os avisos daquele projeto — e, se voltar, eles voltam como estavam.</p>
+deixa de ver os avisos daquele projeto, e, se voltar, eles voltam como estavam.</p>

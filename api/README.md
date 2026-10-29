@@ -66,11 +66,11 @@ Em produção, vêm das variáveis reais do ambiente.
 | Variável | Obrigatória | Para quê |
 |---|---|---|
 | `DB_CONNECTION_STRING` | sim | Conexão com o PostgreSQL. **Precisa pedir** |
-| `JWT_SIGNING_KEY` | sim | Assinatura do token de sessão. **Esta você mesmo gera** |
+| `JWT_SIGNING_KEY` | sim | Assinatura do token de sessão — e, derivada dela, a do desafio dos limites de relato. **Esta você mesmo gera** |
 | `GOOGLE_CLIENT_ID` | no login | ID do cliente OAuth. **Precisa pedir** |
 | `JWT_ISSUER` / `JWT_AUDIENCE` | não | Emissor e destinatário. Padrão `pds` e `pds.panel` |
 | `JWT_EXPIRATION_HOURS` | não | Validade da sessão. Padrão 8 |
-| `CORS_ALLOWED_ORIGINS` | não | Origens do painel, separadas por vírgula |
+| `CORS_ALLOWED_ORIGINS` | não | Origens do painel, separadas por vírgula. O relato de teste mandado delas nunca fica retido esperando liberação |
 | `RABBITMQ_URL` | não | A fila da espera, dos prazos do pedido e da saída do e-mail. Ausente, a espera fica indisponível, o pedido não encerra sozinho e o convite não sai |
 | `MEDIA_STORAGE_ENDPOINT` / `_ACCESS_KEY` / `_SECRET_KEY` / `_BUCKET` | não | O armazenamento dos anexos. **As quatro, ou nenhuma**: ausentes, o anexo fica desligado; metade delas derruba a subida, dizendo qual falta |
 | `MEDIA_STORAGE_PUBLIC_ENDPOINT` | não | O endereço com que o navegador alcança o armazenamento, e com que se assina. Padrão: o `MEDIA_STORAGE_ENDPOINT` |
@@ -81,7 +81,7 @@ Em produção, vêm das variáveis reais do ambiente.
 | `MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE` | não | Pedidos e confirmações de envio por IP, por minuto. Padrão 20 |
 | `PANEL_URL` | não | O endereço do painel, que vai no link do convite — `http://localhost:5173` no desenvolvimento. Ausente, o convite não sai; sem `http`/`https`, ou com `?` ou `#`, a subida recusa |
 | `INVITATION_EMAILS_PER_HOUR` | não | Convites por projeto por hora, os novos e os reenviados somados. Padrão 20 |
-| `TRUSTED_PROXIES` | não | Proxies cujo `X-Forwarded-For` vale — endereço ou rede. Vazio, o IP é o da conexão. Valor inválido derruba a subida |
+| `TRUSTED_PROXIES` | atrás de proxy, sim | Proxies cujo `X-Forwarded-For` vale — endereço ou rede. Vazio, o IP é o da conexão. **Atrás de um proxy é obrigatória**: sem ela todos chegam com o IP do proxy, e os limites por IP e os 30 s entre relatos valem para o projeto inteiro — a API avisa no log, uma vez, ao ver `X-Forwarded-For` com a lista vazia. Valor inválido derruba a subida |
 | `Smtp__Host`, `Smtp__Port`, `Smtp__Security`, `Smtp__FromAddress`… | não | O envio de e-mail, lido como a seção `Smtp`, só das variáveis de ambiente (os dois sublinhados são o separador de seção do .NET). Sem nenhuma das quatro essenciais (`Host`, `FromAddress`, `Username`, `Password`), o e-mail fica indisponível; com parte delas, ou senha sem TLS, a subida recusa dizendo tudo o que falta. Ver [O e-mail](#o-e-mail) |
 
 Número zero ou negativo nas de minutos e nas de limite vale o padrão.

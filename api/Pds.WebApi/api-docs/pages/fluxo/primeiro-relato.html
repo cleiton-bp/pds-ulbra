@@ -9,7 +9,7 @@ fica no HTML dele:</p>
 
 <div class="diagram">GET /public/widget-launcher  →  este endereço pode abrir? como é o botão?   (em cache por 5 min)
       ↓
-o script desenha o botão num único elemento da página, com sombra fechada — <b>ainda sem iframe</b>
+o script desenha o botão num único elemento da página, com sombra fechada: <b>ainda sem iframe</b>
       ↓
 a pessoa passa o mouse, foca ou toca no botão: o iframe é criado, <b>invisível</b>
       ↓
@@ -31,7 +31,7 @@ POST /public/reports  →  confere o endereço de novo, protocolo + token
       ↓
 com arquivos na lista, eles sobem em seguida, um de cada vez, com o protocolo e o token
       ↓
-fechar (o botão do formulário ou Esc) esconde o quadro e devolve o botão — e o foco a ele</div>
+fechar (o botão do formulário ou Esc) esconde o quadro e devolve o botão: e o foco a ele</div>
 
 <p>O formulário nunca toca a página do cliente, e a página do cliente nunca toca o
 formulário: são origens diferentes, e a única coisa que atravessa é o que as duas pontas
@@ -41,11 +41,11 @@ conferiram.</p>
   <strong>Por que nada pesado sai antes do clique</strong>
   <p>O formulário arrasta o framework inteiro, e quase todo visitante do site do cliente nunca
   clica. Antes, todo visitante baixava o quadro ao abrir a página; agora o script lê só a
-  aparência do botão — uma resposta pequena, guardada cinco minutos pelo navegador — e desenha o
+  aparência do botão (uma resposta pequena, guardada cinco minutos pelo navegador) e desenha o
   botão ele mesmo. O quadro vem quando alguém mostra que vai clicar, e o clique parece
   instantâneo. Os números estão no README do painel.</p>
   <p>Chave recusada, endereço fora da lista, ferramenta desligada ou projeto arquivado: nenhum
-  botão. <strong>Rede fora também</strong> — sem a resposta, o script não adivinha um botão que
+  botão. <strong>Rede fora também</strong>, sem a resposta, o script não adivinha um botão que
   poderia aparecer onde o projeto não quer.</p>
 </div>
 
@@ -55,7 +55,7 @@ conferiram.</p>
   só a manda depois de ler a configuração. Ele aparece já no canto certo, com o formulário
   pronto, em vez de pular de lado ou mostrar os padrões trocando na frente de quem já estava
   lendo; e a ferramenta que não abre diz isso ao script, que tira o "abrindo" e avisa.</p>
-  <p>Se a leitura da configuração falhar, valem os padrões e o formulário abre assim mesmo —
+  <p>Se a leitura da configuração falhar, valem os padrões e o formulário abre assim mesmo,
   "não consegui saber" não pode virar "não abro", porque é justamente quando algo quebrou que
   alguém precisa avisar.</p>
 </div>
@@ -72,22 +72,22 @@ conferiram.</p>
 
 <div class="note why">
   <strong>A leitura de mídia tem prazo, e a falha dela vira "sem anexo"</strong>
-  <p>São duas perguntas diferentes — como o quadro se parece, e o que ele aceita receber —, e
+  <p>São duas perguntas diferentes (como o quadro se parece, e o que ele aceita receber), e
   por isso duas rotas. Elas saem juntas e costumam chegar juntas; passar de três segundos depois
   da configuração já é a leitura de mídia presa. Sem prazo, ela prendia o quadro inteiro: ele
   nunca aparecia, nem para quem só queria escrever. Com o prazo, o quadro abre sem o botão de
   anexar, e a resposta que chega depois fica de fora. Chave recusada não espera a mídia.</p>
   <p>A falha aqui vai para o lado oposto ao da configuração. Lá, os padrões ainda desenham um
   formulário que funciona; aqui desenhariam um botão com limites chutados, e o envio falharia
-  depois de a pessoa ter escolhido o arquivo — o pior momento para descobrir. Sem anexo, o relato
+  depois de a pessoa ter escolhido o arquivo: o pior momento para descobrir. Sem anexo, o relato
   continua inteiro: o texto é a parte que importa.</p>
 </div>
 
 <div class="note why">
   <strong>O texto não espera os arquivos</strong>
-  <p><code>POST /public/reports</code> leva só o que foi escrito — o tipo, as respostas e a caixa.
+  <p><code>POST /public/reports</code> leva só o que foi escrito: o tipo, as respostas e a caixa.
   O protocolo aparece na hora, e os arquivos
-  sobem depois, usando o protocolo e o token que a criação acabou de devolver — é o relato
+  sobem depois, usando o protocolo e o token que a criação acabou de devolver: é o relato
   existir que dá a alguém o direito de pedir espaço no armazenamento. Fazer a pessoa esperar os
   arquivos para ver o protocolo seria esconder justamente a parte que não pode se perder. A
   sequência inteira está em <a href="#/fluxo/anexar">Imagens e arquivos no relato</a>.</p>
@@ -95,7 +95,7 @@ conferiram.</p>
 
 <div class="note why">
   <strong>Por que o relato carrega a chave no corpo, e não um cabeçalho</strong>
-  <p>Não há credencial nesta requisição — a chave pública não autentica ninguém, ela só diz
+  <p>Não há credencial nesta requisição: a chave pública não autentica ninguém, ela só diz
   para qual projeto o relato vai. Tratá-la como cabeçalho de autorização convidaria o próximo
   leitor a achar que ela protege alguma coisa.</p>
 </div>
@@ -105,14 +105,14 @@ conferiram.</p>
   <p>O campo <code>Origin</code> é declarado pela própria página que embutiu a ferramenta. O
   domínio <strong>bloqueado</strong> é recusado (403) nas quatro rotas que a ferramenta usa: a
   aparência do botão, a configuração, a de mídia e o envio do relato. O que não está na lista de
-  <code>project_origins</code> — inclusive com ela vazia — e o relato que não diz de onde veio são
+  <code>project_origins</code> (inclusive com ela vazia) e o relato que não diz de onde veio são
   <strong>recebidos e retidos</strong>: quem relatou recebe o protocolo e acompanha como sempre, e o
   time só vê o relato depois de permitir o domínio, avisado no sino. O domínio do próprio painel
-  nunca é retido — é o relato de teste.</p>
+  nunca é retido: é o relato de teste.</p>
   <p>Como quem declara é o carregador, que é código nosso, a chave copiada para outro site é
-  pega — e é para isso que a lista serve. Quem chamar a API sem passar pela ferramenta declara o
+  pega, e é para isso que a lista serve. Quem chamar a API sem passar pela ferramenta declara o
   que quiser: <strong>grade de proteção, não muro.</strong> O muro é o
   <code>frame-ancestors</code> montado da mesma lista, que impede o quadro de abrir fora dela e
-  precisa de um servidor servindo o documento do quadro — <strong>Planejado</strong>, junto do
+  precisa de um servidor servindo o documento do quadro; <strong>Planejado</strong>, junto do
   domínio próprio.</p>
 </div>

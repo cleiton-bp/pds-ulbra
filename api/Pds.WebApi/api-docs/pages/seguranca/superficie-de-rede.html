@@ -3,19 +3,19 @@
 <div class="table-scroll">
 <table>
   <tr><th>Proteção</th><th>Como está</th></tr>
-  <tr><td>CORS</td><td>Só as origens configuradas. Lista vazia libera nenhuma. <strong>A exceção é <code>GET /public/widget-launcher</code></strong>, a única rota chamada da página do cliente: qualquer origem, só <code>GET</code>, sem credencial — a resposta é a aparência pública do botão, e quem decide se a ferramenta abre ali continua sendo a lista de bloqueados do projeto.</td></tr>
-  <tr><td>De onde vem o relato</td><td>Duas listas por projeto, lidas do banco a cada pedido — sem cache, então bloquear vale no próximo relato: a de <strong>bloqueados</strong>, que recusa (403) nas rotas da ferramenta, e a de <strong>autorizados</strong>, cujo relato entra direto no Trabalho. <strong>Fora das duas, o relato é recebido e retido</strong> — quem relatou acompanha como sempre, e o time só o vê depois de permitir o domínio, avisado no sino; a lista de autorizados começa vazia, então todo domínio novo passa por essa pergunta. O domínio do próprio painel nunca é retido. O endereço conferido vem do navegador sempre que dá: em <code>GET /public/widget-launcher</code>, o cabeçalho <code>Origin</code>, que a página não troca; no quadro, <code>location.ancestorOrigins</code> ou a origem carimbada na mensagem de abertura. <strong>Fora do navegador o endereço continua declarado</strong> — quem chama a API direto (curl, um robô) escreve o que quiser no corpo, e escapa da retenção declarando um domínio autorizado —, e por isso o domínio vem junto dos limites por IP e por projeto, e não no lugar deles.</td></tr>
+  <tr><td>CORS</td><td>Só as origens configuradas. Lista vazia libera nenhuma. <strong>A exceção é <code>GET /public/widget-launcher</code></strong>, a única rota chamada da página do cliente: qualquer origem, só <code>GET</code>, sem credencial; a resposta é a aparência pública do botão, e quem decide se a ferramenta abre ali continua sendo a lista de bloqueados do projeto.</td></tr>
+  <tr><td>De onde vem o relato</td><td>Duas listas por projeto, lidas do banco a cada pedido, sem cache, então bloquear vale no próximo relato: a de <strong>bloqueados</strong>, que recusa (403) nas rotas da ferramenta, e a de <strong>autorizados</strong>, cujo relato entra direto no Trabalho. <strong>Fora das duas, o relato é recebido e retido</strong>: quem relatou acompanha como sempre, e o time só o vê depois de permitir o domínio, avisado no sino; a lista de autorizados começa vazia, então todo domínio novo passa por essa pergunta. O domínio do próprio painel nunca é retido. O endereço conferido vem do navegador sempre que dá: em <code>GET /public/widget-launcher</code>, o cabeçalho <code>Origin</code>, que a página não troca; no quadro, <code>location.ancestorOrigins</code> ou a origem carimbada na mensagem de abertura. <strong>Fora do navegador o endereço continua declarado</strong> (quem chama a API direto (curl, um robô) escreve o que quiser no corpo, e escapa da retenção declarando um domínio autorizado), e por isso o domínio vem junto dos limites por IP e por projeto, e não no lugar deles.</td></tr>
   <tr><td>O que entra na página do cliente</td><td>O script, e <strong>um</strong> elemento, <code>&lt;pds-launcher&gt;</code>, com o botão e a tela de "abrindo" dentro de uma sombra fechada: nenhum estilo global, nenhum outro nó. O quadro (um <code>iframe</code> de outra origem) só entra quando alguém pede para abrir. Nem o carregador nem o quadro leem o DOM, os cookies ou o armazenamento da página; a leitura do botão sai sem credencial.</td></tr>
   <tr><td>CORS antes do limitador</td><td>A recusa por excesso sai do limitador sem passar pelo que vem depois. Com o CORS antes dele, o 429 leva os cabeçalhos e a tela lê "muitas tentativas"; sem eles, o navegador esconderia a resposta e a tela veria "falha de rede".</td></tr>
   <tr><td>Limite de requisições</td><td>20/min por IP no login. 20/min por IP no pedido de permissão e na confirmação de envio de mídia, somados na mesma janela (<code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code>). As outras rotas públicas de leitura não têm.</td></tr>
-  <tr><td>Entrada do relato</td><td>Camadas por projeto, configuráveis até um teto do sistema (dez vezes o de fábrica): a mesma pessoa 5 a cada 10 min (o código pessoal, no modo que o usa, ou a pessoa que o crachá do sistema do cliente identificou, no modo que herda a identidade; senão o IP), o mesmo IP 20/h, o mesmo domínio 200/h, o projeto 300/h e 2000/dia, e 30 s entre dois relatos da mesma pessoa ou do mesmo IP. Passado um limite, o <strong>desafio invisível</strong> — uma conta de prova de trabalho (SHA-256 com 18 bits zero) que a ferramenta resolve em um ou dois segundos, com bilhete assinado, de dois minutos e uso único; no dobro, <strong>pausa de 15 minutos</strong> e aviso no sino de quem administra. As contagens moram na memória do processo — <strong>nenhum IP vai para o banco</strong> —, e por isso valem para uma instância só e recomeçam quando a API reinicia. O código pessoal só conta como a pessoa quando tem a forma de um código (três blocos de quatro, como o protocolo); outro valor cai no IP, e o maior que a coluna é recusado (400) antes de qualquer leitura — senão cada envio com um texto novo e comprido criaria uma chave na memória. As rotas <code>/public/reports</code> aceitam corpo de até 128 KB (413 acima): são só JSON, e os arquivos vão direto para o balde.</td></tr>
+  <tr><td>Entrada do relato</td><td>Camadas por projeto, configuráveis até um teto do sistema (dez vezes o de fábrica): a mesma pessoa 5 a cada 10 min (o código pessoal, no modo que o usa, ou a pessoa que o crachá do sistema do cliente identificou, no modo que herda a identidade; senão o IP), o mesmo IP 20/h, o mesmo domínio 200/h, o projeto 300/h e 2000/dia, e 30 s entre dois relatos da mesma pessoa ou do mesmo IP. Passado um limite, o <strong>desafio invisível</strong>: uma conta de prova de trabalho (SHA-256 com 18 bits zero) que a ferramenta resolve em um ou dois segundos, com bilhete assinado, de dois minutos e uso único; no dobro, <strong>pausa de 15 minutos</strong> e aviso no sino de quem administra. As contagens moram na memória do processo (<strong>nenhum IP vai para o banco</strong>), e por isso valem para uma instância só e recomeçam quando a API reinicia. O código pessoal só conta como a pessoa quando tem a forma de um código (três blocos de quatro, como o protocolo); outro valor cai no IP, e o maior que a coluna é recusado (400) antes de qualquer leitura, senão cada envio com um texto novo e comprido criaria uma chave na memória. As rotas <code>/public/reports</code> aceitam corpo de até 128 KB (413 acima): são só JSON, e os arquivos vão direto para o balde.</td></tr>
   <tr><td>Convites por hora</td><td>Por projeto, os novos e os reenviados somados (<code>INVITATION_EMAILS_PER_HOUR</code>, padrão 20). É a única rota do painel que manda e-mail para fora, e o servidor de e-mail tem cota por dia.</td></tr>
   <tr><td>IP de quem pede</td><td>O da conexão. Atrás de um proxy, só o listado em <code>TRUSTED_PROXIES</code> tem o <code>X-Forwarded-For</code> acreditado, e só um salto; lista vazia ignora o cabeçalho, e valor inválido derruba a subida. <strong>Atrás de um proxy, a lista é obrigatória</strong>: sem ela, todos chegam com o IP do proxy, e os limites por IP e o intervalo de 30 s passam a valer para o projeto inteiro. A API avisa no log, uma vez, quando chega <code>X-Forwarded-For</code> com a lista vazia.</td></tr>
-  <tr><td>Tempo real</td><td>O hub (<code>/realtime/hub</code>) abre só com o bilhete de um minuto (<code>POST /realtime/ticket</code>), de destinatário próprio: nenhuma rota REST o aceita, e o hub não aceita o token da sessão — que assim nunca vai no endereço. Só quem está no projeto entra, e o time é conferido de novo a cada aviso. O aviso leva só identificadores.</td></tr>
+  <tr><td>Tempo real</td><td>O hub (<code>/realtime/hub</code>) abre só com o bilhete de um minuto (<code>POST /realtime/ticket</code>), de destinatário próprio: nenhuma rota REST o aceita, e o hub não aceita o token da sessão, que assim nunca vai no endereço. Só quem está no projeto entra, e o time é conferido de novo a cada aviso. O aviso leva só identificadores.</td></tr>
   <tr><td>HTTPS</td><td>Redirecionamento obrigatório fora de desenvolvimento.</td></tr>
   <tr><td>Conexão com o banco</td><td>SSL obrigatório.</td></tr>
   <tr><td>Balde</td><td>Privado: nenhum acesso anônimo. De fora, nada se lê nem se grava nele sem uma assinatura que a API gerou, e ela vale minutos.</td></tr>
-  <tr><td>Respostas com links assinados</td><td><code>Cache-Control: no-store</code> — a lista de arquivos do painel e as da página de quem relatou.</td></tr>
+  <tr><td>Respostas com links assinados</td><td><code>Cache-Control: no-store</code>: a lista de arquivos do painel e as da página de quem relatou.</td></tr>
   <tr><td>Armazenamento local</td><td>O MinIO do <code>docker compose</code> só escuta em <code>127.0.0.1</code>: a senha padrão está no repositório.</td></tr>
   <tr><td>Mensagem de erro</td><td>Erro não previsto responde texto genérico; detalhe só no log.</td></tr>
 </table>
@@ -25,7 +25,7 @@
   <strong>O limite de mídia soma o pedido e a confirmação</strong>
   <p>A primeira assina espaço no balde, e a segunda lê do balde; separar as duas daria a quem
   martela o dobro da cota. E o limite de arquivos do projeto não cobre o caso sozinho: ele conta só
-  o que foi confirmado — de propósito, para permissão pedida e não usada não ocupar vaga —, então
+  o que foi confirmado (de propósito, para permissão pedida e não usada não ocupar vaga), então
   sem esta trava quem tem um protocolo pediria permissões em série sem confirmar nenhuma.</p>
 </div>
 
@@ -33,7 +33,7 @@
   <strong>Risco aceito: o domínio do painel nunca é retido</strong>
   <p>O endereço do painel é público, e quem chama a API fora do navegador pode declará-lo no corpo
   para escapar da retenção. Não é uma brecha nova: fora do navegador qualquer origem declarada se
-  forja — inclusive o domínio público do próprio cliente, que está na lista de autorizados. A
+  forja, inclusive o domínio público do próprio cliente, que está na lista de autorizados. A
   retenção protege contra a ferramenta colada em outros sites, onde é o navegador quem informa o
   endereço; quem chama a rota direto esbarra nos limites por IP e por projeto e nos bloqueios, que
   não dependem do que ele declara.</p>
@@ -42,17 +42,17 @@
 <div class="note todo">
   <strong>Pendências conhecidas</strong>
   <ul>
-    <li>Rotina de exclusão e anonimização de conta, com os arquivos do balde junto — <strong>Planejado</strong>.</li>
-    <li>Teste automatizado do isolamento por projeto e dos papéis — <strong>Planejado</strong>.</li>
-    <li>Invalidar sessão antes de o token expirar — <strong>Continuidade</strong>.</li>
-    <li>Limite nas rotas públicas de leitura — <code>tracking</code>, <code>by-code</code>,
-    <code>by-identity</code>, <code>published</code> —, que qualquer visitante de qualquer site alcança — <strong>Planejado</strong>.
+    <li>Rotina de exclusão e anonimização de conta, com os arquivos do balde junto: <strong>Planejado</strong>.</li>
+    <li>Teste automatizado do isolamento por projeto e dos papéis: <strong>Planejado</strong>.</li>
+    <li>Invalidar sessão antes de o token expirar: <strong>Continuidade</strong>.</li>
+    <li>Limite nas rotas públicas de leitura (<code>tracking</code>, <code>by-code</code>,
+    <code>by-identity</code>, <code>published</code>), que qualquer visitante de qualquer site alcança: <strong>Planejado</strong>.
     A entrada do relato já tem as camadas e o desafio.</li>
     <li>As contagens dos limites de relato num armazenamento compartilhado, para mais de uma
-    instância da API — <strong>Continuidade</strong>.</li>
-    <li>Política de CORS própria das demais rotas públicas — a do botão já tem a dela —
+    instância da API: <strong>Continuidade</strong>.</li>
+    <li>Política de CORS própria das demais rotas públicas (a do botão já tem a dela)
     <strong>Planejado</strong>.</li>
-    <li>A regra de CORS do balde em produção, que precisa deixar o quadro enviar — <strong>Adiado</strong>,
+    <li>A regra de CORS do balde em produção, que precisa deixar o quadro enviar: <strong>Adiado</strong>,
     junto da escolha do provedor.</li>
   </ul>
 </div>

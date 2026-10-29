@@ -2,12 +2,12 @@
 
 <p>Nenhum segredo fica no código. Em desenvolvimento vem do
 <code>Environment/.env.local</code>, que não vai para o repositório; em produção, das
-variáveis reais do ambiente — que têm precedência sobre o arquivo quando as duas existem.</p>
+variáveis reais do ambiente, que têm precedência sobre o arquivo quando as duas existem.</p>
 
 <div class="note warn">
   <strong>Peça o <code>.env.local</code>, não monte o seu</strong>
   <p>O banco é compartilhado pelo grupo e a aplicação no Google está registrada uma vez só:
-  valor inventado não faz a API subir. Peça a quem já roda o projeto, por canal privado —
+  valor inventado não faz a API subir. Peça a quem já roda o projeto, por canal privado,
   nunca por commit ou grupo.</p>
   <p>O <code>JWT_SIGNING_KEY</code> é a exceção: cada ambiente emite e valida os próprios
   tokens, então essa você mesmo gera.</p>
@@ -16,24 +16,24 @@ variáveis reais do ambiente — que têm precedência sobre o arquivo quando as
 <div class="table-scroll">
 <table>
   <tr><th>Variável</th><th>Para quê</th></tr>
-  <tr><td><code>DB_CONNECTION_STRING</code></td><td>Conexão com o PostgreSQL. A API acrescenta três ajustes, e <b>o que a variável disser vence</b>: o JIT do Postgres desligado; as consultas que se repetem preparadas (<code>Max Auto Prepare</code>, padrão 100 — <code>0</code> desliga, para um pooler em modo transação que não as aceite); e no máximo 20 conexões por instância (<code>Maximum Pool Size</code>). A conta de cada ambiente: instâncias × conexões, mais uma folga para a migração e o acesso manual, cabe no limite do plano do banco.</td></tr>
-  <tr><td><code>JWT_SIGNING_KEY</code></td><td>Assinatura do token. <code>openssl rand -base64 48</code>. Dela também sai, derivada, a chave que assina o bilhete do desafio dos limites de relato — trocá-la invalida os desafios em andamento, que a ferramenta pede de novo.</td></tr>
-  <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token. Padrão <code>pds</code> e <code>pds.panel</code> — só quando a variável falta: estas duas, em branco, valem vazias. O bilhete do tempo real usa o mesmo destinatário com <code>.realtime</code> no fim (<code>pds.panel.realtime</code>).</td></tr>
+  <tr><td><code>DB_CONNECTION_STRING</code></td><td>Conexão com o PostgreSQL. A API acrescenta três ajustes, e <b>o que a variável disser vence</b>: o JIT do Postgres desligado; as consultas que se repetem preparadas (<code>Max Auto Prepare</code>, padrão 100; <code>0</code> desliga, para um pooler em modo transação que não as aceite); e no máximo 20 conexões por instância (<code>Maximum Pool Size</code>). A conta de cada ambiente: instâncias × conexões, mais uma folga para a migração e o acesso manual, cabe no limite do plano do banco.</td></tr>
+  <tr><td><code>JWT_SIGNING_KEY</code></td><td>Assinatura do token. <code>openssl rand -base64 48</code>. Dela também sai, derivada, a chave que assina o bilhete do desafio dos limites de relato: trocá-la invalida os desafios em andamento, que a ferramenta pede de novo.</td></tr>
+  <tr><td><code>JWT_ISSUER</code> / <code>JWT_AUDIENCE</code></td><td>Emissor e destinatário do token. Padrão <code>pds</code> e <code>pds.panel</code>, só quando a variável falta: estas duas, em branco, valem vazias. O bilhete do tempo real usa o mesmo destinatário com <code>.realtime</code> no fim (<code>pds.panel.realtime</code>).</td></tr>
   <tr><td><code>JWT_EXPIRATION_HOURS</code></td><td>Validade da sessão. Padrão 8.</td></tr>
   <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>ID do cliente OAuth. Ver abaixo.</td></tr>
-  <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula. <b>E também do quadro de relato</b> — veja o aviso abaixo.</td></tr>
-  <tr><td><code>RABBITMQ_URL</code></td><td><b>Opcional.</b> <code>amqp://usuario:senha@host:5672/</code>. A fila da espera antes de quem relatou ver, do prazo do pedido de informação e da saída do e-mail. Sem ela a API sobe inteira: a espera fica indisponível, o prazo do pedido não encerra nada sozinho — o pedido fica aberto até quem relatou responder ou o time agir —, e o convite não sai.</td></tr>
-  <tr><td><code>MEDIA_STORAGE_ENDPOINT</code> / <code>_ACCESS_KEY</code> / <code>_SECRET_KEY</code> / <code>_BUCKET</code></td><td><b>Opcionais, e juntas.</b> O armazenamento dos anexos: endereço, chaves e balde. <b>As quatro, ou nenhuma</b> — ausentes, o anexo fica desligado; metade delas derruba a subida, dizendo qual falta.</td></tr>
+  <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>Origens do painel, separadas por vírgula. <b>E também do quadro de relato</b>: veja o aviso abaixo.</td></tr>
+  <tr><td><code>RABBITMQ_URL</code></td><td><b>Opcional.</b> <code>amqp://usuario:senha@host:5672/</code>. A fila da espera antes de quem relatou ver, do prazo do pedido de informação e da saída do e-mail. Sem ela a API sobe inteira: a espera fica indisponível, o prazo do pedido não encerra nada sozinho (o pedido fica aberto até quem relatou responder ou o time agir), e o convite não sai.</td></tr>
+  <tr><td><code>MEDIA_STORAGE_ENDPOINT</code> / <code>_ACCESS_KEY</code> / <code>_SECRET_KEY</code> / <code>_BUCKET</code></td><td><b>Opcionais, e juntas.</b> O armazenamento dos anexos: endereço, chaves e balde. <b>As quatro, ou nenhuma</b>: ausentes, o anexo fica desligado; metade delas derruba a subida, dizendo qual falta.</td></tr>
   <tr><td><code>MEDIA_STORAGE_PUBLIC_ENDPOINT</code></td><td>O endereço com que o <b>navegador</b> alcança o armazenamento, e o único com que se assina. Padrão: o <code>MEDIA_STORAGE_ENDPOINT</code>.</td></tr>
   <tr><td><code>MEDIA_STORAGE_REGION</code></td><td>A região declarada na assinatura. Padrão <code>us-east-1</code>.</td></tr>
   <tr><td><code>MEDIA_STORAGE_FORCE_PATH_STYLE</code></td><td>O balde no caminho (<code>host/balde/arquivo</code>), e não no host. Padrão <code>true</code>, que é como o MinIO espera.</td></tr>
-  <tr><td><code>MEDIA_STORAGE_UPLOAD_URL_MINUTES</code></td><td>Validade da permissão de envio — o tempo de o envio começar, e não de terminar. Padrão 2.</td></tr>
+  <tr><td><code>MEDIA_STORAGE_UPLOAD_URL_MINUTES</code></td><td>Validade da permissão de envio: o tempo de o envio começar, e não de terminar. Padrão 2.</td></tr>
   <tr><td><code>MEDIA_STORAGE_READ_URL_MINUTES</code></td><td>Validade do link de leitura. Padrão 5.</td></tr>
   <tr><td><code>MEDIA_STORAGE_PLAYBACK_URL_MINUTES</code></td><td>Validade do link de um vídeo antigo, que é lido em pedaços enquanto toca. Padrão 15.</td></tr>
   <tr><td><code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code></td><td>Pedidos e confirmações de envio por IP, por minuto, somados na mesma janela. Padrão 20.</td></tr>
-  <tr><td><code>Smtp__Host</code>, <code>Smtp__Port</code>, <code>Smtp__Security</code>, <code>Smtp__FromAddress</code>…</td><td><b>Opcionais, e juntas.</b> O servidor de e-mail, lido como a seção <code>Smtp</code> — os dois sublinhados são o separador de seção do .NET —, e só das variáveis de ambiente. Sem nenhuma das quatro essenciais (<code>Smtp__Host</code>, <code>Smtp__FromAddress</code>, <code>Smtp__Username</code>, <code>Smtp__Password</code>) o e-mail fica indisponível; com parte delas, ou com senha sem TLS, a subida recusa, dizendo tudo o que falta. As chaves e os padrões estão em <a href="#/como-rodar/o-email">O e-mail</a>.</td></tr>
+  <tr><td><code>Smtp__Host</code>, <code>Smtp__Port</code>, <code>Smtp__Security</code>, <code>Smtp__FromAddress</code>…</td><td><b>Opcionais, e juntas.</b> O servidor de e-mail, lido como a seção <code>Smtp</code> (os dois sublinhados são o separador de seção do .NET), e só das variáveis de ambiente. Sem nenhuma das quatro essenciais (<code>Smtp__Host</code>, <code>Smtp__FromAddress</code>, <code>Smtp__Username</code>, <code>Smtp__Password</code>) o e-mail fica indisponível; com parte delas, ou com senha sem TLS, a subida recusa, dizendo tudo o que falta. As chaves e os padrões estão em <a href="#/como-rodar/o-email">O e-mail</a>.</td></tr>
   <tr><td><code>PANEL_URL</code></td><td><b>Opcional.</b> O endereço do painel, que vai no link do convite: <code>http://localhost:5173</code> no desenvolvimento. Sem ela, a API sobe e não manda convite. Valor que não é um endereço <code>http</code> ou <code>https</code> completo, ou que traz <code>?</code> ou <code>#</code>, derruba a subida.</td></tr>
-  <tr><td><code>INVITATION_EMAILS_PER_HOUR</code></td><td>Quantos convites cada projeto manda por hora, os novos e os reenviados somados. Padrão 20. O servidor de e-mail tem cota por dia, e sem teto um administrador — ou uma sessão roubada — gastaria a de todos em minutos.</td></tr>
+  <tr><td><code>INVITATION_EMAILS_PER_HOUR</code></td><td>Quantos convites cada projeto manda por hora, os novos e os reenviados somados. Padrão 20. O servidor de e-mail tem cota por dia, e sem teto um administrador (ou uma sessão roubada) gastaria a de todos em minutos.</td></tr>
   <tr><td><code>TRUSTED_PROXIES</code></td><td>Os proxies cujo <code>X-Forwarded-For</code> vale, separados por vírgula: endereço (<code>10.0.0.5</code>) ou rede (<code>10.0.0.0/8</code>). Vazio, o cabeçalho é ignorado e o IP é o da conexão. <strong>Atrás de um proxy é obrigatória</strong>: sem ela, todo pedido chega com o IP do proxy, e os limites por IP e os 30 s entre dois relatos passam a valer para o projeto inteiro. A API escreve um aviso no log, uma vez, quando chega <code>X-Forwarded-For</code> com a lista vazia. Valor que não é endereço nem rede derruba a subida.</td></tr>
 </table>
 </div>
@@ -51,7 +51,7 @@ pedido.</p>
 <div class="note warn">
   <strong>Nem todas falham na hora de subir</strong>
   <p><code>DB_CONNECTION_STRING</code> e <code>JWT_SIGNING_KEY</code> são lidas ao montar as
-  dependências, então faltando qualquer uma a API não sobe — e o motivo aparece no console.
+  dependências, então faltando qualquer uma a API não sobe, e o motivo aparece no console.
   Também derrubam a subida o armazenamento ou o e-mail configurados pela metade, e um
   <code>PANEL_URL</code> ou um <code>TRUSTED_PROXIES</code> inválidos: não configurar é uma decisão, e esquecer a chave, o
   remetente ou escrever o proxy errado é um engano que ficaria escondido como "mídia
@@ -59,7 +59,7 @@ pedido.</p>
   <p><code>GOOGLE_CLIENT_ID</code> só é lida no primeiro login. Isso é proposital: permite
   rodar a API e abrir esta documentação enquanto o cadastro no Google Cloud não sai. O preço
   é que, sem ele, <code>POST /auth/google</code> responde <strong>500</strong> com a
-  mensagem genérica — o motivo real fica no log do servidor.</p>
+  mensagem genérica: o motivo real fica no log do servidor.</p>
 </div>
 
 <div class="note warn">
@@ -72,13 +72,13 @@ pedido.</p>
   balde do armazenamento vêm do próprio compose, e as linhas do <code>.env.local</code> não valem:
   ver <a href="#/como-rodar/a-fila">A fila</a> e <a href="#/como-rodar/armazenamento">O
   armazenamento</a>. O e-mail é o contrário: o servidor é de fora, e vem do mesmo
-  <code>.env.local</code> — ver <a href="#/como-rodar/o-email">O e-mail</a>.</p>
+  <code>.env.local</code> (ver <a href="#/como-rodar/o-email">O e-mail</a>).</p>
 </div>
 
 <div class="note warn">
   <strong>O nome da variável mente sobre o alcance dela</strong>
   <p><code>CORS_ALLOWED_ORIGINS</code> tem nome de painel, mas a política é aplicada ao
-  pipeline inteiro — inclusive às rotas <code>public/</code>. Quem chama aquelas rotas é a
+  pipeline inteiro, inclusive às rotas <code>public/</code>. Quem chama aquelas rotas é a
   ferramenta de relato, servida da mesma origem do painel; servir o painel em outra porta faz
   o envio do formulário falhar com "Falha de rede", sem erro nenhum do lado do servidor. A
   exceção é <code>GET /public/widget-launcher</code>, a única chamada da página do cliente, que

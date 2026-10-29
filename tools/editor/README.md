@@ -1,6 +1,6 @@
 # Editor de modelagem e casos de uso
 
-Uma ferramenta só, com dois ambientes, para documentar o desenho do PDS sem montar diagrama à mão:
+Uma ferramenta só, com dois ambientes, para documentar o desenho do Relato Fácil sem montar diagrama à mão:
 
 | Ambiente | O que responde | Arquivos |
 |---|---|---|
@@ -170,7 +170,7 @@ Com **realçar quem faz o quê** ligado, escolher um ator apaga o que ele não a
 ```yaml
 meta:
   title: Exemplo, relator e time
-  system: PDS
+  system: Relato Fácil
   description: …
 
 actors:

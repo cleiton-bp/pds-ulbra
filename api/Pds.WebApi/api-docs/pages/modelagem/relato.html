@@ -1,15 +1,14 @@
 <h2>reporter_codes</h2>
 
 <p>O vínculo entre uma pessoa e os relatos dela, sem nada de pessoa. Nasceu para o <strong>código
-pessoal</strong> — o que quem relata guarda para reencontrar os próprios relatos, no modo sem login
-— e serve também à <strong>identidade herdada</strong>: nesse modo, a linha é a pessoa que o
+pessoal</strong> (o que quem relata guarda para reencontrar os próprios relatos, no modo sem login) e serve também à <strong>identidade herdada</strong>: nesse modo, a linha é a pessoa que o
 sistema do cliente identificou num token assinado por ele, o <strong>crachá</strong>, e o que a
 reconhece é o hash do sujeito.</p>
 
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Projeto onde este código vale. Ele <b>não atravessa projetos</b>.</td></tr>
-  <tr><td><code>code</code></td><td>No formato do protocolo — <code>H7QK-3M2X-P9WD</code> —, sorteado inteiro pelo sistema. Único dentro do projeto, entre os não apagados. No modo herdado é sorteado do mesmo jeito e <b>nunca é mostrado</b>: a pessoa volta pelo crachá, e não por ele.</td></tr>
+  <tr><td><code>code</code></td><td>No formato do protocolo (<code>H7QK-3M2X-P9WD</code>), sorteado inteiro pelo sistema. Único dentro do projeto, entre os não apagados. No modo herdado é sorteado do mesmo jeito e <b>nunca é mostrado</b>: a pessoa volta pelo crachá, e não por ele.</td></tr>
   <tr><td><code>subject_hash</code></td><td>No modo herdado, o SHA-256, em hexadecimal, do sal do projeto (<code>project_identity_settings.identity_subject_salt</code>) e do <code>sub</code> do crachá: a pessoa do sistema do cliente, <b>sem dizer quem ela é</b>. 64 caracteres. <b>Nulo no modo do código pessoal.</b> A mesma pessoa é uma linha só por projeto: índice único <code>ux_reporter_codes_project_id_subject_hash</code> (<code>project_id, subject_hash</code>), filtrado por <code>deleted_at IS NULL AND subject_hash IS NOT NULL</code>.</td></tr>
 </table>
 
@@ -18,13 +17,13 @@ reconhece é o hash do sujeito.</p>
   <p>O código é de uma pessoa e vale para <strong>vários</strong> relatos. Como coluna repetida,
   "único dentro do projeto" não teria como ser dito ao banco, porque a mesma pessoa repete o valor
   de propósito. Aqui a unicidade é uma linha, e o relato aponta para ela.</p>
-  <p>E não há nada de pessoa nesta tabela — sem nome, sem contato, sem dispositivo — além de um
+  <p>E não há nada de pessoa nesta tabela (sem nome, sem contato, sem dispositivo) além de um
   hash que não se desfaz. No código pessoal, é um identificador sorteado e nada mais; o que o liga
   a alguém é a própria pessoa ter guardado o papel.</p>
   <p><strong>A mesma linha serve à identidade herdada.</strong> Nesse modo a pessoa não guarda
   papel nenhum: o que a liga à linha é o hash do identificador que o sistema dela apresentou, em
-  <code>subject_hash</code>. A linha nasce no <strong>primeiro relato</strong> dela — depois dos
-  limites, com o relato aceito —, e as portas de leitura não criam nada: quem nunca relatou aqui
+  <code>subject_hash</code>. A linha nasce no <strong>primeiro relato</strong> dela (depois dos
+  limites, com o relato aceito), e as portas de leitura não criam nada: quem nunca relatou aqui
   recebe a lista vazia. O código continua sorteado e nunca é mostrado; existe para a linha ter o
   formato de sempre, e para a lista e a porta de leitura funcionarem pelo mesmo vínculo do código
   pessoal.</p>
@@ -37,11 +36,11 @@ reconhece é o hash do sujeito.</p>
   <p>Por isso o código é sorteado inteiro, nunca escolhido, e código desconhecido na rota pública
   não é recusado: vira um código novo.</p>
   <p><strong>Na geração existe uma consulta, e ela não conta nada.</strong> O candidato é sorteado
-  por nós, e a colisão é conferida antes de gravar — mesmo desenho do protocolo. A diferença que
+  por nós, e a colisão é conferida antes de gravar, mesmo desenho do protocolo. A diferença que
   importa é <em>quem escolheu o valor consultado</em>: lá é o sistema, e a resposta não fala do
   código de ninguém; aqui seria alguém de fora, e a resposta falaria.</p>
   <p>Essa conferência inclui o <strong>apagado logicamente</strong>, ao contrário da busca por
-  código apresentado — reaproveitar um código que já foi de alguém faria a lista de uma pessoa
+  código apresentado: reaproveitar um código que já foi de alguém faria a lista de uma pessoa
   aparecer para outra.</p>
 </div>
 
@@ -49,17 +48,17 @@ reconhece é o hash do sujeito.</p>
   <strong>A lista pessoal tem teto, e o teto não é paginação</strong>
   <p>São <code>MaxListedReports = 50</code>. Há teto porque a rota é pública e não pede credencial
   nenhuma: sem ele, um código usado em centenas de relatos devolveria centenas, num quadro de 360
-  por 520 e numa rota sem limite de tentativas — limitá-la é <b>Planejado</b>.</p>
+  por 520 e numa rota sem limite de tentativas; limitá-la é <b>Planejado</b>.</p>
   <p>Paginar daria a quem sonda um jeito de <strong>medir o tamanho da lista alheia</strong>; o
   teto responde sempre igual. Quem passar dele vê o aviso de que há mais, e chega no que falta
-  pelo link de cada relato — que é a credencial que sempre valeu.</p>
+  pelo link de cada relato, que é a credencial que sempre valeu.</p>
   <p>A lista pela identidade herdada é a mesma resposta, com o crachá no lugar do código: o mesmo
   teto, e o mesmo limite de tentativas <b>Planejado</b>.</p>
 </div>
 
 <h2>project_report_types</h2>
 
-<p>Os tipos de relato de cada projeto — o que quem relata escolhe ao abrir a ferramenta, com as
+<p>Os tipos de relato de cada projeto: o que quem relata escolhe ao abrir a ferramenta, com as
 palavras do time. No painel, é a tela <strong>Tipos de relato</strong>.</p>
 
 <div class="table-scroll">
@@ -73,7 +72,7 @@ palavras do time. No painel, é a tela <strong>Tipos de relato</strong>.</p>
   <tr><td><code>deactivated_at</code></td><td>Nulo enquanto o tipo é oferecido. Preenchido, ele está <b>desativado</b>: continua nos relatos que o têm e sai da ferramenta.</td></tr>
   <tr><td><code>questions</code></td><td><code>text[]</code>. As perguntas curtas que o formulário faz, na ordem: de 0 a 4, cada uma até 120, sem repetir. Mudar não reescreve os relatos, que guardam as perguntas do envio em <code>reports.answers</code>.</td></tr>
   <tr><td><code>shows_text_box</code></td><td>A caixa livre aparece no formulário, depois das perguntas. Sem perguntas, tem de aparecer.</td></tr>
-  <tr><td><code>text_box_prompt</code></td><td>O texto cinza dentro da caixa livre — é ele que faz a pergunta certa. 160. Obrigatório quando a caixa aparece; guardado com ela escondida, para voltar igual.</td></tr>
+  <tr><td><code>text_box_prompt</code></td><td>O texto cinza dentro da caixa livre: é ele que faz a pergunta certa. 160. Obrigatório quando a caixa aparece; guardado com ela escondida, para voltar igual.</td></tr>
   <tr><td><code>initial_state_id</code></td><td>A coluna em que o relato deste tipo entra. <b>Nulo é o padrão</b>: a primeira coluna ativa da fila. Do mesmo projeto, e ativa; aposentar a coluna que é entrada de algum tipo é recusado. <code>Restrict</code>.</td></tr>
 </table>
 </div>
@@ -83,7 +82,7 @@ palavras do time. No painel, é a tela <strong>Tipos de relato</strong>.</p>
   <p>Cada time separa o que chega de fora com as próprias palavras, como faz com as prioridades.
   Todo projeto nasce com <strong>Defeito</strong> (<code>bug</code>, vermelho),
   <strong>Melhoria</strong> (<code>improvement</code>, verde) e <strong>Dúvida</strong>
-  (<code>question</code>, roxo), e os projetos que já existiam os ganharam na migração — com cada
+  (<code>question</code>, roxo), e os projetos que já existiam os ganharam na migração: com cada
   relato apontando para o seu, a coluna de entrada que o projeto tinha escolhido para cada tipo, o
   tipo pré-marcado da ferramenta e, quando o projeto tinha mudado o texto da caixa, esse texto nos
   tipos que mostram a caixa.</p>
@@ -94,26 +93,26 @@ palavras do time. No painel, é a tela <strong>Tipos de relato</strong>.</p>
 
 <div class="note why">
   <strong>O tipo diz como o formulário pergunta, e nunca deixa de pedir</strong>
-  <p>Uma caixa só, em branco, produz "não funciona"; três perguntas curtas — o que tentou, o que
-  aconteceu, o que esperava — produzem um relato que dá para reproduzir. É o Defeito de fábrica,
+  <p>Uma caixa só, em branco, produz "não funciona"; três perguntas curtas (o que tentou, o que
+  aconteceu, o que esperava) produzem um relato que dá para reproduzir. É o Defeito de fábrica,
   sem caixa. Melhoria e Dúvida são texto corrido, com a caixa e a pergunta certa dentro.</p>
   <p>As perguntas são uma lista de texto na própria linha, e não uma tabela: são lidas sempre
   inteiras e na ordem, junto do tipo, e nunca uma a uma. Três travas (<code>CHECK</code>) ficam no
-  banco: o tipo pede alguma coisa — a caixa ou ao menos uma pergunta
-  (<code>ck_project_report_types_asks_something</code>) —, a caixa que aparece tem o texto dela
+  banco: o tipo pede alguma coisa (a caixa ou ao menos uma pergunta
+  (<code>ck_project_report_types_asks_something</code>)), a caixa que aparece tem o texto dela
   (<code>ck_project_report_types_text_box_prompt</code>), e as perguntas não passam de quatro
   (<code>ck_project_report_types_questions</code>). O tamanho de cada pergunta e a repetição, o
   serviço confere.</p>
 </div>
 
 <div class="note warn">
-  <strong>Tipo não se apaga, se desativa — e ao menos um fica ativo</strong>
+  <strong>Tipo não se apaga, se desativa, e ao menos um fica ativo</strong>
   <p>Relato antigo aponta para o tipo (<code>Restrict</code>), e o card precisa continuar dizendo o
   que ele é. Desativado, o tipo sai da ferramenta e da escolha, e fica no relato que já o tinha,
   marcado. <code>deleted_at</code> vem da base de toda tabela, e nada escreve nele: o par de criar,
   aqui, é <code>deactivated_at</code>.</p>
-  <p>O serviço guarda as duas pontas: <strong>ao menos um ativo</strong> — sem tipo, a ferramenta
-  não teria o que oferecer, e o relato não teria como entrar — e <strong>no máximo dez</strong>,
+  <p>O serviço guarda as duas pontas: <strong>ao menos um ativo</strong> (sem tipo, a ferramenta
+  não teria o que oferecer, e o relato não teria como entrar) e <strong>no máximo dez</strong>,
   porque os tipos viram botões lado a lado num quadro de 360 pixels.</p>
 </div>
 
@@ -128,37 +127,37 @@ relato porque ele veio primeiro.</p>
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>kind</code></td><td><code>report</code> | <code>team</code>. De onde o card veio: de fora, pela ferramenta, ou do time, no painel.</td></tr>
-  <tr><td><code>number</code></td><td>O número curto do card no projeto — o #42 que o time fala e escreve. <b>Interno</b>: nenhuma rota pública o devolve. Único por projeto, inclusive entre os apagados.</td></tr>
-  <tr><td><code>title</code></td><td>O título do time, uma linha, até 200. Obrigatório no card do time; no relato, é o que o time reescreveu — <b>nulo até alguém reescrever</b>, e aí o painel mostra o de quem relatou. <b>Interno</b>: nenhuma rota pública o devolve.</td></tr>
+  <tr><td><code>number</code></td><td>O número curto do card no projeto: o #42 que o time fala e escreve. <b>Interno</b>: nenhuma rota pública o devolve. Único por projeto, inclusive entre os apagados.</td></tr>
+  <tr><td><code>title</code></td><td>O título do time, uma linha, até 200. Obrigatório no card do time; no relato, é o que o time reescreveu: <b>nulo até alguém reescrever</b>, e aí o painel mostra o de quem relatou. <b>Interno</b>: nenhuma rota pública o devolve.</td></tr>
   <tr><td><code>reporter_title</code></td><td>O título que a pessoa escreveu na ferramenta, respondendo "em poucas palavras, o que aconteceu?". <b>Nunca muda</b>, e é o único título que volta para ela. Nulo quando ela não respondeu, e sempre no card do time.</td></tr>
   <tr><td><code>description</code></td><td>A descrição do card do time, em Markdown, até 10 000. <b>Sempre nula no relato</b>: o texto dele é de quem relatou, e o time não o reescreve.</td></tr>
   <tr><td><code>archived_at</code></td><td>Quando o card saiu da tela de Trabalho. Nulo enquanto está nela. Arquivado se lê e se comenta; mover e editar pedem desarquivar.</td></tr>
   <tr><td><code>created_by_user_id</code></td><td>Quem do time criou o card. Nulo no relato: quem escreveu não tem usuário aqui. <code>Restrict</code>.</td></tr>
-  <tr><td><code>assignee_user_id</code></td><td>Quem do time está com o card — um só. <b>Quem sai do time continua aqui</b>, como registro; o painel o marca como fora do time. <code>Restrict</code>. Interno.</td></tr>
-  <tr><td><code>priority_id</code></td><td>A prioridade do projeto que o time escolheu (<code>project_priorities</code>). <b>Nulo é sem prioridade</b>, e é como o card nasce — a não ser que quem cria o card do time já escolha uma. <code>Restrict</code>. Interno.</td></tr>
-  <tr><td><code>due_date</code></td><td>O prazo: <b>só a data</b>, sem hora — sem fuso para confundir. Nulo é sem prazo. Interno.</td></tr>
+  <tr><td><code>assignee_user_id</code></td><td>Quem do time está com o card: um só. <b>Quem sai do time continua aqui</b>, como registro; o painel o marca como fora do time. <code>Restrict</code>. Interno.</td></tr>
+  <tr><td><code>priority_id</code></td><td>A prioridade do projeto que o time escolheu (<code>project_priorities</code>). <b>Nulo é sem prioridade</b>, e é como o card nasce: a não ser que quem cria o card do time já escolha uma. <code>Restrict</code>. Interno.</td></tr>
+  <tr><td><code>due_date</code></td><td>O prazo: <b>só a data</b>, sem hora, sem fuso para confundir. Nulo é sem prazo. Interno.</td></tr>
   <tr><td><code>project_state_id</code></td><td>Onde o relato está na fila. <b>Anulável</b>, e vai continuar: projeto sem estado nenhum não tem onde pô-lo, e recusar o relato por isso seria perder o que veio de fora por uma configuração que o cliente não fez.</td></tr>
-  <tr><td><code>parent_report_id</code></td><td>O card de que este é <b>subtarefa</b>; nulo no card que não é. Só o card do time é subtarefa, e ninguém é pai de si mesmo — duas travas no banco; um nível só e o pai do mesmo projeto, o serviço confere. Ver <a href="#/fluxo/subtarefas">Subtarefas</a>.</td></tr>
-  <tr><td><code>board_rank</code></td><td>O lugar do card na coluna do quadro: o menor fica em cima. Só se compara dentro da mesma coluna, e tem folga entre vizinhos — pôr um card entre dois escolhe um número no meio.</td></tr>
-  <tr><td><code>state_changed_at</code></td><td>Quando o card entrou na coluna em que está, ou voltou a ela — reaberto, ou tirado do arquivo pela resposta de quem relatou. É o que a última coluna do quadro usa para mostrar só o que entrou nela há pouco.</td></tr>
+  <tr><td><code>parent_report_id</code></td><td>O card de que este é <b>subtarefa</b>; nulo no card que não é. Só o card do time é subtarefa, e ninguém é pai de si mesmo: duas travas no banco; um nível só e o pai do mesmo projeto, o serviço confere. Ver <a href="#/fluxo/subtarefas">Subtarefas</a>.</td></tr>
+  <tr><td><code>board_rank</code></td><td>O lugar do card na coluna do quadro: o menor fica em cima. Só se compara dentro da mesma coluna, e tem folga entre vizinhos: pôr um card entre dois escolhe um número no meio.</td></tr>
+  <tr><td><code>state_changed_at</code></td><td>Quando o card entrou na coluna em que está, ou voltou a ela: reaberto, ou tirado do arquivo pela resposta de quem relatou. É o que a última coluna do quadro usa para mostrar só o que entrou nela há pouco.</td></tr>
   <tr><td><code>project_public_stage_id</code></td><td>Em que passo da jornada quem relatou vê este relato. Nulo enquanto ele não aparece em nenhum. <b>Cache</b>, como o anterior: a verdade é a sequência de eventos.</td></tr>
-  <tr><td><code>account_id</code></td><td>Conta dona. Repetido de propósito — ver a nota abaixo.</td></tr>
+  <tr><td><code>account_id</code></td><td>Conta dona. Repetido de propósito (ver a nota abaixo).</td></tr>
   <tr><td><code>project_id</code></td><td>Projeto, resolvido pela chave pública da requisição.</td></tr>
   <tr><td><code>tracking_code</code></td><td>O protocolo que a pessoa lê. Único no sistema inteiro. Nulo no card do time.</td></tr>
   <tr><td><code>access_token_hash</code></td><td>Hash do token do link. O valor original só existe na URL entregue, e é conferido em tempo constante na consulta pública. Nulo no card do time.</td></tr>
   <tr><td><code>report_type_id</code></td><td>O tipo que a pessoa escolheu, um dos do projeto (<code>project_report_types</code>). Obrigatório no relato, nulo no card do time. <b>Aponta, e não copia</b>: renomear o tipo muda o que o card mostra, e o nome da época fica no evento da entrada. <code>Restrict</code>.</td></tr>
-  <tr><td><code>text</code></td><td>O relato inteiro em texto, até 5000 caracteres. <b>Com perguntas, são as respostas juntas</b> — as que não vieram em branco, e a caixa livre no fim —, separadas por linha em branco e sem as perguntas. Nulo no card do time, que tem título e descrição.</td></tr>
-  <tr><td><code>answers</code></td><td><code>jsonb</code>. As respostas, na ordem — <code>[{"question", "answer"}]</code> —, com a pergunta <b>copiada</b> como estava no envio; a caixa livre no fim, com <code>question</code> nulo. A pergunta pulada não entra. Nulo quando o tipo só tinha a caixa, e no card do time.</td></tr>
-  <tr><td><code>searchable_text</code></td><td>O card como a busca o compara: o título do time, o de quem relatou, o texto e a descrição juntos, <b>sem acento e em minúsculas</b>, separados por um caractere que ninguém digita — o termo não acha o fim de um colado ao começo do outro. <b>Coluna gerada pelo banco</b>, a cada gravação: a aplicação nunca escreve nela, e a busca só compara, em vez de refazer a conta de cada card a cada busca.</td></tr>
+  <tr><td><code>text</code></td><td>O relato inteiro em texto, até 5000 caracteres. <b>Com perguntas, são as respostas juntas</b> (as que não vieram em branco, e a caixa livre no fim), separadas por linha em branco e sem as perguntas. Nulo no card do time, que tem título e descrição.</td></tr>
+  <tr><td><code>answers</code></td><td><code>jsonb</code>. As respostas, na ordem (<code>[{"question", "answer"}]</code>), com a pergunta <b>copiada</b> como estava no envio; a caixa livre no fim, com <code>question</code> nulo. A pergunta pulada não entra. Nulo quando o tipo só tinha a caixa, e no card do time.</td></tr>
+  <tr><td><code>searchable_text</code></td><td>O card como a busca o compara: o título do time, o de quem relatou, o texto e a descrição juntos, <b>sem acento e em minúsculas</b>, separados por um caractere que ninguém digita; o termo não acha o fim de um colado ao começo do outro. <b>Coluna gerada pelo banco</b>, a cada gravação: a aplicação nunca escreve nela, e a busca só compara, em vez de refazer a conta de cada card a cada busca.</td></tr>
   <tr><td><code>route</code></td><td>Só o caminho da página. Sem query e sem fragmento.</td></tr>
   <tr><td><code>origin</code></td><td>Domínio da página que embutiu a ferramenta, na forma em que as listas de domínios comparam: minúsculo, sem esquema e sem caminho. É por ele que a tela de Domínios conta quem mandou relatos, e que a marca de origem bloqueada se acende. Indício, nunca prova.</td></tr>
-  <tr><td><code>held_for_origin_at</code></td><td>Quando o relato chegou de um domínio fora da lista de autorizados — ou sem dizer de onde veio — e ficou <b>retido</b>; nulo é o relato aceito. O filtro global esconde o retido de tudo o que o time vê; quem relatou acompanha como sempre. Permitir o domínio zera a coluna e põe o relato no topo do quadro; bloquear o apaga de vez. Só na entrada: tirar o domínio da lista depois não retém o que já entrou. Índice parcial (<code>project_id, held_for_origin_at</code>, só os retidos) para "Aguardando liberação".</td></tr>
-  <tr><td><code>blocked_origin_kept_at</code></td><td>Quando o time decidiu <b>manter</b> o relato vindo de um domínio bloqueado; nulo é "ninguém decidiu". <b>A marca "origem bloqueada" não é coluna</b>: ela sai de comparar <code>origin</code> com <code>project_blocked_origins</code> de agora — bloquear marca na hora todos os que já vieram de lá, e desbloquear desmarca, sem reescrever linha nenhuma. O que se guarda é só a decisão de manter; a outra, apagar de vez, não deixa linha.</td></tr>
-  <tr><td><code>accepts_questions</code></td><td>Quem relatou aceita responder dúvidas da equipe. <b>Três estados</b>: sim, não, e <b>nulo</b> — o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada. Sem <code>true</code>, não se abre pedido de informação.</td></tr>
-  <tr><td><code>public_stage_due_at</code></td><td>Quando o último movimento passa a valer lá fora, ou nulo quando não há espera pendente. <b>É o agendamento durável</b> — a fila só carrega um lembrete, e é esta coluna que decide.</td></tr>
-  <tr><td><code>reporter_code_id</code></td><td>O código pessoal de quem escreveu, quando o projeto usa esse modo. <b>Nulo</b> no modo protocolo e em todo relato anterior ao modo existir — e esses continuam abrindo pelo link de sempre.</td></tr>
+  <tr><td><code>held_for_origin_at</code></td><td>Quando o relato chegou de um domínio fora da lista de autorizados (ou sem dizer de onde veio) e ficou <b>retido</b>; nulo é o relato aceito. O filtro global esconde o retido de tudo o que o time vê; quem relatou acompanha como sempre. Permitir o domínio zera a coluna e põe o relato no topo do quadro; bloquear o apaga de vez. Só na entrada: tirar o domínio da lista depois não retém o que já entrou. Índice parcial (<code>project_id, held_for_origin_at</code>, só os retidos) para "Aguardando liberação".</td></tr>
+  <tr><td><code>blocked_origin_kept_at</code></td><td>Quando o time decidiu <b>manter</b> o relato vindo de um domínio bloqueado; nulo é "ninguém decidiu". <b>A marca "origem bloqueada" não é coluna</b>: ela sai de comparar <code>origin</code> com <code>project_blocked_origins</code> de agora; bloquear marca na hora todos os que já vieram de lá, e desbloquear desmarca, sem reescrever linha nenhuma. O que se guarda é só a decisão de manter; a outra, apagar de vez, não deixa linha.</td></tr>
+  <tr><td><code>accepts_questions</code></td><td>Quem relatou aceita responder dúvidas da equipe. <b>Três estados</b>: sim, não, e <b>nulo</b>; o relato que entrou antes de a pergunta existir, a quem ninguém perguntou nada. Sem <code>true</code>, não se abre pedido de informação.</td></tr>
+  <tr><td><code>public_stage_due_at</code></td><td>Quando o último movimento passa a valer lá fora, ou nulo quando não há espera pendente. <b>É o agendamento durável</b>: a fila só carrega um lembrete, e é esta coluna que decide.</td></tr>
+  <tr><td><code>reporter_code_id</code></td><td>O código pessoal de quem escreveu, quando o projeto usa esse modo. <b>Nulo</b> no modo protocolo e em todo relato anterior ao modo existir, e esses continuam abrindo pelo link de sempre.</td></tr>
   <tr><td><code>reporter_name</code></td><td>Como a pessoa quis ser chamada, quando o projeto pergunta e ela quis dizer. Nulo é o normal, e o valor nasce <b>interno</b>: o time vê, o lado de fora não.</td></tr>
-  <tr><td><code>reporter_name_is_public</code></td><td>A pessoa escolheu <b>assinar</b> este relato. Falso por padrão, e <b>ausente é não</b> — esta escolha não se herda de configuração nenhuma.</td></tr>
+  <tr><td><code>reporter_name_is_public</code></td><td>A pessoa escolheu <b>assinar</b> este relato. Falso por padrão, e <b>ausente é não</b>: esta escolha não se herda de configuração nenhuma.</td></tr>
   <tr><td><code>moderation_state</code></td><td><code>pending</code> | <code>approved</code> | <code>rejected</code>. Todo relato nasce <b>pending</b>, inclusive em projeto privado.</td></tr>
   <tr><td><code>moderated_at</code></td><td>Quando alguém do time decidiu. Nulo enquanto ninguém decidiu.</td></tr>
   <tr><td><code>moderated_by_user_id</code></td><td>Quem do time decidiu. Nulo enquanto ninguém decidiu, e também quando a conta de quem decidiu foi esvaziada. <b>Nunca sai em rota pública.</b></td></tr>
@@ -166,22 +165,22 @@ relato porque ele veio primeiro.</p>
 </div>
 
 <div class="note warn">
-  <strong>O card do time nunca tem lado de fora — e quem garante é o banco</strong>
+  <strong>O card do time nunca tem lado de fora, e quem garante é o banco</strong>
   <p>Duas travas (<code>CHECK</code>) separam os dois tipos de card. O relato continua obrigado a
   ter protocolo, token, tipo (<code>report_type_id</code>) e texto, e nunca tem descrição. O card do
   time tem título e <strong>não pode ter</strong> protocolo, token, código pessoal, etapa pública,
-  espera agendada, tipo, respostas nem título de quem relatou — e só fica em moderação
+  espera agendada, tipo, respostas nem título de quem relatou, e só fica em moderação
   <code>pending</code>.</p>
   <p>É o que faz "nunca aparece na parte pública" deixar de depender de cada consulta lembrar: as
   portas públicas acham relato pelo protocolo, pelo código pessoal ou por estar liberado, e o card
   do time não tem nenhum dos três. Mesmo assim as consultas públicas e a fila de moderação levam
-  <code>kind = report</code> escrito — duas cercas, e a do banco não esquece.</p>
+  <code>kind = report</code> escrito: duas cercas, e a do banco não esquece.</p>
 </div>
 
 <div class="note why">
   <strong>A pergunta vem copiada, e o texto continua sendo o relato inteiro</strong>
   <p>O time muda as perguntas do tipo quando quiser, e o relato de ontem precisa continuar dizendo
-  o que foi perguntado ontem — a resposta "no celular" só faz sentido ao lado da pergunta que a
+  o que foi perguntado ontem: a resposta "no celular" só faz sentido ao lado da pergunta que a
   pediu. Por isso <code>answers</code> guarda a pergunta como texto, e não aponta para ela.</p>
   <p>As respostas são uma lista em <code>jsonb</code>, e não uma tabela: só existem junto do
   relato, são lidas sempre inteiras e na ordem, e nunca consultadas uma a uma. Uma tabela pediria
@@ -189,20 +188,20 @@ relato porque ele veio primeiro.</p>
   <code>snake_case</code>, como a carga dos eventos.</p>
   <p>E <code>text</code> continua sendo o relato inteiro, montado das respostas. Assim tudo o que
   lê o texto continua certo sem saber de pergunta nenhuma: a busca, o começo do texto que vira
-  título, o trecho da lista pública, a varredura de dado sensível. Quem <em>mostra</em> o relato —
-  o card aberto, o acompanhamento — usa <code>answers</code> quando há. Quando o tipo só tinha a
+  título, o trecho da lista pública, a varredura de dado sensível. Quem <em>mostra</em> o relato
+  (o card aberto, o acompanhamento) usa <code>answers</code> quando há. Quando o tipo só tinha a
   caixa, <code>answers</code> fica nulo: o texto já é o relato inteiro, e repeti-lo ali seria uma
   segunda cópia para divergir.</p>
   <p>Cada resposta vai até 1000 caracteres; a caixa, até 5000 sozinha e até 1000 junto de
-  perguntas. O texto montado continua até 5000 — passar disso só acontece com tudo no máximo, e a
+  perguntas. O texto montado continua até 5000: passar disso só acontece com tudo no máximo, e a
   API recusa em vez de cortar o fim do que a pessoa escreveu.</p>
 </div>
 
 <div class="note why">
   <strong><code>updated_at</code> é o "Atualizado" do card</strong>
   <p>A coluna que toda tabela repete ganhou leitor: é o <code>UpdatedAt</code> da lista e do
-  detalhe, e uma das ordens da lista. Ela muda com o que se grava no próprio card — um campo, a
-  coluna, o lugar no quadro, o arquivo —, e não com o comentário, o anexo nem a etiqueta, que moram em
+  detalhe, e uma das ordens da lista. Ela muda com o que se grava no próprio card (um campo, a
+  coluna, o lugar no quadro, o arquivo), e não com o comentário, o anexo nem a etiqueta, que moram em
   tabela própria. Sem índice de propósito: com o volume de um projeto, ordenar por ela não pede
   um; se um projeto passar de alguns milhares de cards, <code>(project_id, updated_at)</code> e
   <code>(project_id, due_date)</code> são os primeiros candidatos.</p>
@@ -211,8 +210,8 @@ relato porque ele veio primeiro.</p>
 <div class="note why">
   <strong>O número vem de um contador, e não do maior número da tabela</strong>
   <p><code>projects.last_card_number</code> é somado e lido no mesmo comando
-  (<code>UPDATE ... RETURNING</code>). Dois cards criados no mesmo instante — um relato chegando
-  pela ferramenta e um card do time no painel — esperam um pelo outro na linha do projeto, e cada um
+  (<code>UPDATE ... RETURNING</code>). Dois cards criados no mesmo instante (um relato chegando
+  pela ferramenta e um card do time no painel) esperam um pelo outro na linha do projeto, e cada um
   sai com o seu. Lendo o maior número e somando um, os dois tentariam o mesmo.</p>
   <p><strong>Pode pular, nunca repete.</strong> Um card que falha depois de reservar o número deixa
   o buraco; o índice único por projeto, sem filtro de apagado, garante que #42 nunca quer dizer
@@ -222,17 +221,17 @@ relato porque ele veio primeiro.</p>
 
 <div class="note why">
   <strong>A ordem do quadro: folga entre vizinhos, e o topo por um contador</strong>
-  <p><code>board_rank</code> é um inteiro com folga — 2<sup>20</sup> — entre um card e o vizinho.
+  <p><code>board_rank</code> é um inteiro com folga (2<sup>20</sup>) entre um card e o vizinho.
   Soltar um card entre dois escolhe o número do meio, sem mexer em mais nenhum; quando a folga
   acaba, a coluna inteira ganha a folga de novo, na ordem em que está, numa gravação só. Pôr entre
-  dois trava a ordem da coluna de destino — e só dela —, porque precisa ler os vizinhos: quem arruma uma
+  dois trava a ordem da coluna de destino (e só dela), porque precisa ler os vizinhos: quem arruma uma
   coluna não espera quem arruma outra. A trava do projeto inteiro ficou para o backlog, as sprints e os vínculos.</p>
-  <p><strong>O que chega fica no topo</strong> — o relato novo, o card do time novo, o movido pelo
+  <p><strong>O que chega fica no topo</strong> (o relato novo, o card do time novo, o movido pelo
   seletor, o reaberto (mude de coluna ou não), o que quem relatou tira do arquivo ao responder, e o
-  card solto no topo — com o lugar de <code>projects.board_top_rank</code>, que só desce: fica acima
+  card solto no topo) com o lugar de <code>projects.board_top_rank</code>, que só desce: fica acima
   de tudo sem ler a coluna, e a criação do relato não espera ninguém arrumando o quadro.</p>
-  <p>Na migração, cada coluna começou com a ordem que a lista já tinha — do mais recente para o mais
-  antigo —, e a hora de entrada veio do último movimento do card (do time, ou da reabertura), senão
+  <p>Na migração, cada coluna começou com a ordem que a lista já tinha (do mais recente para o mais
+  antigo), e a hora de entrada veio do último movimento do card (do time, ou da reabertura), senão
   da criação.</p>
 </div>
 
@@ -240,7 +239,7 @@ relato porque ele veio primeiro.</p>
   <strong>Arquivar o relato encerra junto</strong>
   <p>Arquivar tira o card da tela de Trabalho. O card do time arquiva sempre; o relato só com a
   regra do ciclo ligada, e o relato <strong>aberto</strong> é encerrado junto, com desfecho e
-  motivo — quem relatou lê pelo link e pode reabrir ou finalizar. Reabrir, ou responder a uma
+  motivo: quem relatou lê pelo link e pode reabrir ou finalizar. Reabrir, ou responder a uma
   pergunta que ainda estava aberta, traz o relato de volta sozinho: ninguém escreve para um relato
   que ninguém vê.</p>
 </div>
@@ -249,10 +248,10 @@ relato porque ele veio primeiro.</p>
   <strong>Por que esta tabela repete <code>account_id</code></strong>
   <p><code>project_keys</code> e <code>project_origins</code> chegam à conta pela navegação, e
   aqui o desenho é o contrário de propósito: esta é a tabela que mais cresce, e saber de qual
-  conta é o relato não pode custar uma junção. O filtro de acesso não usa esta coluna — ele
+  conta é o relato não pode custar uma junção. O filtro de acesso não usa esta coluna: ele
   compara o <code>project_id</code>, que também é coluna daqui, e continua sem junção.</p>
   <p>O preço é a mesma informação em dois lugares podendo divergir. É aceitável porque o
-  <code>account_id</code> do relato nunca muda depois de gravado — ele nasce do projeto e
+  <code>account_id</code> do relato nunca muda depois de gravado: ele nasce do projeto e
   morre com ele.</p>
 </div>
 
@@ -262,7 +261,7 @@ relato porque ele veio primeiro.</p>
   <code>O</code>, <code>1</code> e <code>I</code>, feito para ser lido em voz alta e digitado.
   Justamente por isso ele é adivinhável, e não abre nada sozinho.</p>
   <p>O token <strong>abre</strong>: 32 bytes sorteados, entregues uma única vez na URL de
-  acompanhamento. O banco fica só com o hash — se o painel conseguisse mostrá-lo de novo, um
+  acompanhamento. O banco fica só com o hash, se o painel conseguisse mostrá-lo de novo, um
   vazamento do banco abriria o relato de todo mundo.</p>
   <p>Na URL ele viaja <strong>depois do <code>#</code></strong>, e o protocolo antes. É a mesma
   distinção, aplicada ao endereço: o fragmento nunca é enviado a servidor nenhum, então o token
@@ -277,17 +276,17 @@ relato porque ele veio primeiro.</p>
   em <code>public_identified</code>, e a pessoa ter marcado que quer assinar
   (<code>reporter_name_is_public</code>).</p>
   <p>Qualquer uma fechada, o nome fica interno. É por isso que "anônimo com campo de nome" não
-  existe aqui: coletar nome já é tratar dado pessoal, e o modo se chama <strong>sem login</strong>
-  — chamá-lo de anônimo derrubaria a justificativa de LGPD junto com o nome.</p>
+  existe aqui: coletar nome já é tratar dado pessoal, e o modo se chama <strong>sem login</strong>;
+  chamá-lo de anônimo derrubaria a justificativa de LGPD junto com o nome.</p>
   <p>E as três são independentes de propósito. Perguntar é uma decisão de quem configura, publicar
-  é outra decisão de quem configura, e assinar é decisão de quem escreve — nenhuma das três pode
+  é outra decisão de quem configura, e assinar é decisão de quem escreve: nenhuma das três pode
   ser inferida das outras duas.</p>
 </div>
 
 <div class="note warn">
   <strong>Todo relato nasce <code>pending</code>, inclusive em projeto privado</strong>
   <p>Parece desperdício: projeto privado não publica, logo não precisaria de fila. É exatamente
-  aí que mora o acidente — no dia em que alguém marcar o projeto como público, o backlog inteiro
+  aí que mora o acidente: no dia em que alguém marcar o projeto como público, o backlog inteiro
   passaria a estar aprovado por <strong>nunca ter sido perguntado</strong>.</p>
   <p>Nascer pendente custa uma coluna e evita uma publicação em massa que ninguém autorizou. E
   liberar também não basta sozinho: são duas condições, o projeto num nível público <em>e</em> o
@@ -297,7 +296,7 @@ relato porque ele veio primeiro.</p>
 <div class="note warn">
   <strong>A query string não entra</strong>
   <p><code>?token=</code>, <code>?cpf=</code> e <code>?email=</code> são comuns em rota. O que
-  vier depois do <code>?</code> ou do <code>#</code> é descartado antes de gravar — guardar
+  vier depois do <code>?</code> ou do <code>#</code> é descartado antes de gravar: guardar
   isso seria começar o produto vazando dado de quem relatou.</p>
 </div>
 

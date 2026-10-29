@@ -15,7 +15,7 @@ import { cn } from '@/shared/lib/cn'
  *
  * Nao e um formulario: e a porta de entrada do produto. O `RequireSession`
  * mostra esta tela em **qualquer** endereco do painel, inclusive num link que um
- * colega mandou — quem cai aqui quase nunca sabe o que e o PDS.
+ * colega mandou — quem cai aqui quase nunca sabe o que e o Relato Facil.
  *
  * **Um alvo de clique so, repetido tres vezes.** "Continuar com o Google" no
  * cabecalho, na chamada e no fecho; fora ele, so o tema e os passos da maquete sao

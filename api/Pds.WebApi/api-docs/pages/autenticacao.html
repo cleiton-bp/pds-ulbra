@@ -2,7 +2,7 @@
 <p class="lead">Login com Google, sessão por token. Não existe senha no sistema.</p>
 
 <p>Quem entra no painel se identifica pelo Google. A API não guarda senha, não tem
-recuperação de senha e não confirma e-mail — três telas e três superfícies de ataque que
+recuperação de senha e não confirma e-mail: três telas e três superfícies de ataque que
 simplesmente não existem.</p>
 
 <h2>O caminho do login</h2>
@@ -28,7 +28,7 @@ emitiu. Não há <em>client secret</em> aqui: a API só confere, nunca pede.</p>
   <p>Assinatura, emissor, validade e <strong>destinatário</strong>. O destinatário é o ponto
   que mais se esquece: sem exigir que o token tenha sido emitido para o nosso
   <code>GOOGLE_CLIENT_ID</code>, qualquer token válido do Google, emitido para qualquer
-  outro site, seria aceito — e entrar viraria questão de ter um token, não de ser a pessoa.</p>
+  outro site, seria aceito, e entrar viraria questão de ter um token, não de ser a pessoa.</p>
 </div>
 
 <h2>Não existe cadastro</h2>
@@ -39,7 +39,7 @@ e um estado a menos para o sistema: não existe "conta criada mas sem ninguém d
 <p>A busca é sempre pelo <code>google_subject</code>, nunca pelo e-mail. O motivo está na
 <a href="#/modelagem/conta-e-usuario">modelagem de <code>users</code></a>.</p>
 
-<p>A cada login, o nome, a foto e o e-mail são copiados do token de novo — e, junto com o e-mail,
+<p>A cada login, o nome, a foto e o e-mail são copiados do token de novo, e, junto com o e-mail,
 se o Google o confirmou (<code>email_verified</code>). A API não confirma e-mail; ela guarda o que
 o Google diz. O convite depende disso: ele é aceito pelo endereço, e endereço que o Google não
 confirmou não prova que a pessoa é dona dele.</p>
@@ -64,7 +64,7 @@ confirmou não prova que a pessoa é dona dele.</p>
   <strong><code>sub</code> e <code>jti</code> são emitidos, e nada os lê</strong>
   <p>Os dois são claims padrão do JWT, e estão ali para quem for depurar o token com uma
   ferramenta de fora encontrar o que espera encontrar. O <code>sub</code> repete o
-  <code>uid</code> — o mesmo GUID público, nunca o <code>id</code> interno.</p>
+  <code>uid</code>: o mesmo GUID público, nunca o <code>id</code> interno.</p>
   <p>O <code>jti</code> é um identificador sorteado por emissão. Ele não serve para nada hoje, e
   existe para o dia em que derrubar sessão antes da expiração virar requisito: é por ele que uma
   lista de revogados identificaria <em>qual</em> token cair.</p>
@@ -82,7 +82,7 @@ confirmou não prova que a pessoa é dona dele.</p>
 <div class="note warn">
   <strong>O <code>acc</code> não é confiado pelo servidor</strong>
   <p>A conta própria vem sempre da linha do usuário no banco, resolvida pelo
-  middleware — nunca do claim. Hoje ninguém lê o <code>acc</code>: nem a API nem o painel,
+  middleware, nunca do claim. Hoje ninguém lê o <code>acc</code>: nem a API nem o painel,
   que pergunta a <code>/me</code>. Quem for mexer aqui não deve passar a confiar nele.</p>
   <p>Nem os projetos nem o papel viajam no token: o middleware os lê do banco a cada requisição,
   e por isso quem sai do time de um projeto perde o acesso na requisição seguinte, sem esperar o
@@ -95,8 +95,8 @@ confirmou não prova que a pessoa é dona dele.</p>
 cabeçalho numa conexão WebSocket, e o token iria no endereço, que fica em log. Ela leva um
 <strong>bilhete</strong>, pedido com a sessão em <code>POST /realtime/ticket</code>: o mesmo formato e a
 mesma assinatura, com <strong>um minuto</strong> de validade e outro destinatário (o da sessão com
-<code>.realtime</code> no fim). Um esquema de autenticação próprio, que só o hub usa, aceita o bilhete
-— e só lê o endereço no caminho do hub; as rotas REST recusam o bilhete, e o hub recusa a sessão.
+<code>.realtime</code> no fim). Um esquema de autenticação próprio, que só o hub usa, aceita o bilhete,
+e só lê o endereço no caminho do hub; as rotas REST recusam o bilhete, e o hub recusa a sessão.
 Ver <a href="#/fluxo/tempo-real">O tempo real</a>.</p>
 
 <h2>Sem tolerância de relógio</h2>
@@ -124,7 +124,7 @@ revogados.</p>
 token; isso apenas evita que alguém fique martelando a rota.</p>
 
 <p>Atrás de um proxy, o IP que conta é o que <code>TRUSTED_PROXIES</code> deixa valer. Com a lista
-vazia — o padrão —, o <code>X-Forwarded-For</code> é ignorado e o IP é o de quem abriu a conexão;
+vazia (o padrão), o <code>X-Forwarded-For</code> é ignorado e o IP é o de quem abriu a conexão;
 com ela preenchida, só o proxy listado é acreditado, e só um salto. Aceitar o cabeçalho de
 qualquer um daria a quem martela a rota um IP novo a cada pedido, e o limite deixaria de
 limitar.</p>

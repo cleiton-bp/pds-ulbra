@@ -162,7 +162,7 @@ export default function Home() {
       <div className="home__inner">
         <header className="home__head">
           <h1>Modelagem e casos de uso</h1>
-          <p>O desenho do PDS em arquivos <code>.yaml</code>, os mesmos que o VSCode abre.</p>
+          <p>O desenho do Relato Fácil em arquivos <code>.yaml</code>, os mesmos que o VSCode abre.</p>
         </header>
 
         {failure && (

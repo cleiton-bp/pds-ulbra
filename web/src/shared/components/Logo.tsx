@@ -14,7 +14,7 @@ export function Logo({ className }: { className?: string }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       role="img"
-      aria-label="PDS"
+      aria-label="Relato Fácil"
     >
       <path d="M42 12 H434 A30 30 0 0 1 464 42 V130 A30 30 0 0 0 464 190 V325 A30 30 0 0 1 434 355 H85 L12 390 V42 A30 30 0 0 1 42 12 Z" />
       <path d="M80 102 H305" />

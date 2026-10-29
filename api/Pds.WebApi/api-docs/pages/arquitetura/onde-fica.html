@@ -12,8 +12,8 @@
   <tr><td>Nome de tabela, coluna, índice</td><td><code>Pds.Data/Types/*Map.cs</code></td></tr>
   <tr><td>Login e criação de conta</td><td><code>Pds.Service/Services/AuthService.cs</code></td></tr>
   <tr><td>Geração e conferência de chave</td><td><code>Pds.Service/Security/ProjectKeyGenerator.cs</code></td></tr>
-  <tr><td><strong>O projeto novo</strong>: a chave pública, as colunas do modelo já ligadas ao andamento público, as prioridades, os tipos de relato, as sprints do Scrum e o evento da criação — sem a chave secreta</td><td><code>Pds.Service/Services/ProjectService.cs</code>, <code>CreateAsync</code></td></tr>
-  <tr><td><strong>Os modelos de projeto</strong> — Quadro simples, Suporte, Kanban e Scrum —, como dado: colunas, jornada, tipos de relato e sprints</td><td><code>Pds.Service/Projects/ProjectTemplates.cs</code>, <code>Pds.Domain/Enums/ProjectTemplateEnum.cs</code></td></tr>
+  <tr><td><strong>O projeto novo</strong>: a chave pública, as colunas do modelo já ligadas ao andamento público, as prioridades, os tipos de relato, as sprints do Scrum e o evento da criação, sem a chave secreta</td><td><code>Pds.Service/Services/ProjectService.cs</code>, <code>CreateAsync</code></td></tr>
+  <tr><td><strong>Os modelos de projeto</strong> (Quadro simples, Suporte, Kanban e Scrum), como dado: colunas, jornada, tipos de relato e sprints</td><td><code>Pds.Service/Projects/ProjectTemplates.cs</code>, <code>Pds.Domain/Enums/ProjectTemplateEnum.cs</code></td></tr>
   <tr><td>A jornada de fábrica, de onde vem a etapa de cada coluna nova</td><td><code>Pds.Service/PublicStages/FactoryPublicStages.cs</code></td></tr>
   <tr><td>Gerar a chave secreta sob pedido, ou trocar a que vale</td><td><code>Pds.Service/Services/ProjectKeyService.cs</code>, <code>RegenerateSecretAsync</code></td></tr>
   <tr><td>O movimento do projeto: o último relato de fora e a última mudança em card, numa consulta só</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>ActivityOfAsync</code>, e <code>Pds.Domain/Filters/ProjectActivity.cs</code></td></tr>
@@ -55,7 +55,7 @@
   <tr><td>As opções da seção <code>Smtp</code>, e os padrões</td><td><code>Pds.Email/SmtpOptions.cs</code></td></tr>
   <tr><td>Ligar o e-mail na subida, ou não, e o que é configuração pela metade</td><td><code>Pds.Email/EmailRegistration.cs</code> e <code>UnavailableEmailSender.cs</code></td></tr>
   <tr><td>O que conta como endereço: um só, com domínio</td><td><code>Pds.Email/EmailAddresses.cs</code></td></tr>
-  <tr><td>O time: listar, mudar o papel, tirar do time — e sair, que é de qualquer um</td><td><code>Pds.Service/Services/ProjectMemberService.cs</code>, <code>RemoveAsync</code></td></tr>
+  <tr><td>O time: listar, mudar o papel, tirar do time, e sair, que é de qualquer um</td><td><code>Pds.Service/Services/ProjectMemberService.cs</code>, <code>RemoveAsync</code></td></tr>
   <tr><td><strong>O convite</strong>: convidar, reenviar, cancelar, abrir pelo link e aceitar</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code></td></tr>
   <tr><td>Montar e mandar o e-mail do convite, e a recuperação da subida</td><td><code>Pds.Service/Services/ProjectInvitationService.cs</code>, <code>SendEmailAsync</code> e <code>RecoverEmailsAsync</code></td></tr>
   <tr><td>Sortear o link do convite, e o hash dele</td><td><code>Pds.Service/Security/InvitationToken.cs</code></td></tr>
@@ -81,7 +81,7 @@
   <tr><td>O título que a pessoa escreve, e a pergunta obrigatória</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>CreateAsync</code></td></tr>
   <tr><td>Arrumar título e nome (uma linha, sem espaço repetido)</td><td><code>Pds.Service/Cards/CardText.cs</code></td></tr>
   <tr><td>As prioridades do projeto, e as quatro de fábrica</td><td><code>Pds.Service/Services/ProjectPriorityService.cs</code>, <code>Pds.Domain/Entities/ProjectPriority/PriorityDefaults.cs</code></td></tr>
-  <tr><td><strong>Os tipos de relato do projeto</strong>: criar, gravar, reordenar, desativar e o teto de dez ativos — e os três de fábrica</td><td><code>Pds.Service/Services/ProjectReportTypeService.cs</code>, <code>Pds.Domain/Entities/ProjectReportType/ReportTypeDefaults.cs</code></td></tr>
+  <tr><td><strong>Os tipos de relato do projeto</strong>: criar, gravar, reordenar, desativar e o teto de dez ativos, e os três de fábrica</td><td><code>Pds.Service/Services/ProjectReportTypeService.cs</code>, <code>Pds.Domain/Entities/ProjectReportType/ReportTypeDefaults.cs</code></td></tr>
   <tr><td>O relato pelas perguntas do tipo: as respostas conferidas contra as perguntas, e o texto montado</td><td><code>Pds.Service/Reports/ReportForm.cs</code></td></tr>
   <tr><td>As respostas gravadas em JSON, com a pergunta do envio</td><td><code>Pds.Data/Configurations/ReportAnswersConversion.cs</code> e <code>Pds.Domain/Entities/Report/ReportAnswer.cs</code></td></tr>
   <tr><td>A coluna em que o relato entra: a do tipo, senão a primeira ativa</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveLandingStateAsync</code></td></tr>
@@ -91,12 +91,12 @@
   <tr><td><strong>A ordem do quadro</strong>: o lugar ao soltar, o topo de quem chega, e arrumar sem evento</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>SaveInPlaceAsync</code>, <code>RankBelowAsync</code> e <code>SetPositionAsync</code></td></tr>
   <tr><td>O topo do quadro, que só desce</td><td><code>Pds.Data/Repositories/ProjectRepository.cs</code>, <code>NextTopRankAsync</code></td></tr>
   <tr><td>A trava da ordem, a renumeração da coluna e os números da frente do card</td><td><code>Pds.Data/Repositories/ReportRepository.cs</code>, <code>LockBoardColumnAsync</code> (a coluna), <code>LockBoardAsync</code>, <code>RenumberColumnAsync</code> e <code>CountFacesAsync</code></td></tr>
-  <tr><td>A última coluna do quadro, que só mostra o recente — e não vale com uma coluna só</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>LastColumnWindowAsync</code></td></tr>
+  <tr><td>A última coluna do quadro, que só mostra o recente, e não vale com uma coluna só</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>LastColumnWindowAsync</code></td></tr>
   <tr><td>O "Mostrar mais" do quadro, depois do último card da tela</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>ResolveAfterAsync</code></td></tr>
   <tr><td>O reaberto, e o desarquivado pela resposta de quem relatou, voltando ao topo</td><td><code>Pds.Service/Services/ReportService.cs</code>, <code>PutOnTopAsync</code></td></tr>
   <tr><td>O tempo real: o hub e quem entra num projeto</td><td><code>Pds.WebApi/Realtime/WorkHub.cs</code></td></tr>
   <tr><td>Quem recebe cada aviso (o time de agora), a marca da aba que fez, o aviso que nunca derruba a ação e o envio fora do caminho do pedido, com prazo</td><td><code>Pds.WebApi/Realtime/HubWorkNotifier.cs</code></td></tr>
-  <tr><td>Onde cada mudança avisa — sempre depois de gravar</td><td>As chamadas a <code>IWorkNotifier</code> nos serviços (<code>Pds.Domain/Interfaces/ServiceInterfaces/IWorkNotifier.cs</code>)</td></tr>
+  <tr><td>Onde cada mudança avisa: sempre depois de gravar</td><td>As chamadas a <code>IWorkNotifier</code> nos serviços (<code>Pds.Domain/Interfaces/ServiceInterfaces/IWorkNotifier.cs</code>)</td></tr>
   <tr><td>O bilhete da conexão: a validade e o esquema que só o hub usa</td><td><code>Pds.Domain/Security/RealtimeTicket.cs</code> e <code>Pds.Shared/DependencyInjection/DiResolver.cs</code></td></tr>
 </table>
 </div>

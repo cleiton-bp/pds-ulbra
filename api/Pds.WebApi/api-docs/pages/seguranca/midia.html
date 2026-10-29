@@ -1,7 +1,7 @@
 <h2>Nada é assinado antes de a porta aceitar</h2>
 
 <p>Pedir permissão de envio é a única rota pública que gasta dinheiro: cada formulário assinado é
-espaço no balde. Por isso a ordem é fixa — primeiro a porta do link (protocolo e token, conferido
+espaço no balde. Por isso a ordem é fixa: primeiro a porta do link (protocolo e token, conferido
 em tempo constante), depois se há armazenamento, o pedido bem formado, a regra do projeto, se o
 envio está aberto, o formato, o tamanho e, por último, se há vaga. <strong>Só então</strong> um nome é sorteado e um formulário é
 assinado.</p>
@@ -17,14 +17,14 @@ pessoal lê e não anexa: anexar pede o token do link, como confirmar, reabrir e
 <h2>O formulário assinado</h2>
 
 <p>A permissão é um <strong>formulário</strong>, e não um endereço solto. Um endereço assinado para
-gravar diz o que gravar e onde, mas não diz de que tamanho — quem o obtivesse gravaria um arquivo de
+gravar diz o que gravar e onde, mas não diz de que tamanho: quem o obtivesse gravaria um arquivo de
 qualquer tamanho por ele. O formulário leva as regras dentro da assinatura, e o armazenamento recusa
 o que não cabe antes de gravar:</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Condição</th><th>O que garante</th></tr>
-  <tr><td><code>Content-Type</code> exato</td><td>O objeto é gravado com o tipo que a API decidiu — o da imagem, ou o que o catálogo dá à extensão do arquivo, e nunca o que o navegador disse. Vai como campo e como condição: só como campo, seria uma sugestão que o navegador reescreve.</td></tr>
+  <tr><td><code>Content-Type</code> exato</td><td>O objeto é gravado com o tipo que a API decidiu: o da imagem, ou o que o catálogo dá à extensão do arquivo, e nunca o que o navegador disse. Vai como campo e como condição: só como campo, seria uma sugestão que o navegador reescreve.</td></tr>
   <tr><td>Tamanho de 1 byte até o teto</td><td>O teto é o limite do projeto para a categoria, e não o tamanho que o navegador declarou. Arquivo vazio não passa. A miniatura tem o seu, de 256 KB.</td></tr>
   <tr><td><code>Content-Disposition: attachment</code></td><td>No arquivo que não é imagem: o objeto nasce marcado para baixar, e a cópia para o nome final leva a marca junto.</td></tr>
   <tr><td>Validade</td><td>2 minutos para o envio começar (<code>MEDIA_STORAGE_UPLOAD_URL_MINUTES</code>). Vazou, tem prazo.</td></tr>
@@ -44,8 +44,8 @@ o que não cabe antes de gravar:</p>
 
 <p>A assinatura garante o <strong>rótulo</strong>, e nada mais: quem obteve a permissão pode ter
 posto bytes de qualquer coisa num objeto marcado como imagem. A confirmação lê do armazenamento o
-tamanho, o tipo gravado, o ETag e o <strong>primeiro 1 KB</strong> — a faixa só é lida se o conteúdo
-ainda for o dos metadados, para não juntar o tamanho de um arquivo com o começo de outro — e
+tamanho, o tipo gravado, o ETag e o <strong>primeiro 1 KB</strong> (a faixa só é lida se o conteúdo
+ainda for o dos metadados, para não juntar o tamanho de um arquivo com o começo de outro) e
 confere:</p>
 
 <ul>
@@ -61,19 +61,19 @@ confere:</p>
   assinatura, e o produto não quer depender de todo provedor aplicá-la: um que não aplicasse
   gravaria uma imagem como página, servida como página.</li>
   <li><strong>A miniatura</strong>, do mesmo jeito: WebP ou JPEG, pelos bytes. A que não confere é
-  apagada, e o anexo fica sem ela — ela é o que mais gente vê, e aceitá-la sem olhar abriria pelos
+  apagada, e o anexo fica sem ela: ela é o que mais gente vê, e aceitá-la sem olhar abriria pelos
   fundos a porta que o arquivo tem fechada.</li>
 </ul>
 
 <p>O tamanho gravado é o que o armazenamento contou, e não o que o navegador disse. O catálogo é
-fechado de propósito: executável, página HTML, SVG e planilha com macro ficam fora — não há relato
+fechado de propósito: executável, página HTML, SVG e planilha com macro ficam fora, não há relato
 que precise deles, e há ataque que precisa.</p>
 
 <div class="note warn">
   <strong>Conferir e depois copiar, com o mesmo ETag</strong>
   <p>A permissão de envio continua valendo alguns minutos depois de usada, e reenviá-la trocaria
   o conteúdo de um nome já conferido. Por isso o arquivo aceito é copiado, dentro do próprio
-  armazenamento, de <code>uploads/</code> para <code>media/</code> — que nenhuma permissão alcança —,
+  armazenamento, de <code>uploads/</code> para <code>media/</code> (que nenhuma permissão alcança),
   e a cópia exige o ETag lido na conferência. Trocado entre a leitura e a cópia, o armazenamento
   recusa copiar, e o anexo é recusado junto: o que entraria não seria o que foi conferido.</p>
 </div>
@@ -84,23 +84,23 @@ que precise deles, e há ataque que precisa.</p>
   primeira confirmação enxergam a mesma vaga. A confirmação conta de novo dentro de uma transação,
   com uma trava consultiva do PostgreSQL por relato: duas confirmações ao mesmo tempo esperam uma
   pela outra, e a que chega com o envio cheio é recusada. A trava é consultiva, e não na linha do
-  relato, para não segurar quem só quer mexer nele — o time movendo o card, a pessoa respondendo.</p>
+  relato, para não segurar quem só quer mexer nele: o time movendo o card, a pessoa respondendo.</p>
   <p>A regra do projeto também é conferida de novo ali: o administrador que desligou a mídia, um tipo ou
-  um formato, ou baixou o tamanho, depois de a permissão sair, espera que nada mais entre — e uma
+  um formato, ou baixou o tamanho, depois de a permissão sair, espera que nada mais entre, e uma
   permissão assinada um minuto antes não vale mais do que a decisão dele.</p>
 </div>
 
 <p><strong>O que não confere sai do balde, apagado de verdade.</strong> A recusa é gravada
 primeiro, e o arquivo sai depois, fora da trava; se apagar falhar, o que sobra em
 <code>uploads/</code> vence em um dia pela regra do balde. Também saem a cópia de envio de um anexo
-aceito, que já mora no nome final, e as cópias finais de uma confirmação que falhou no meio — menos
+aceito, que já mora no nome final, e as cópias finais de uma confirmação que falhou no meio, menos
 quando o banco diz que um anexo já aponta para elas. O arquivo aceito nunca sai: por quanto tempo ele fica guardado
 é <strong>Adiado</strong>.</p>
 
 <h2>A leitura</h2>
 
 <ul>
-  <li><strong>Links assinados de minutos</strong> — 5 para arquivo e miniatura; 15 para os vídeos
+  <li><strong>Links assinados de minutos</strong>: 5 para arquivo e miniatura; 15 para os vídeos
   de antes de o vídeo sair do produto, que são lidos em pedaços enquanto tocam. Gerados a cada
   leitura, depois da autorização, e <strong>nunca guardados</strong>: vazou, vence.</li>
   <li><strong>Sem cache</strong>: as três listas saem com <code>Cache-Control: no-store</code>. O
@@ -113,15 +113,15 @@ quando o banco diz que um anexo já aponta para elas. O arquivo aceito nunca sai
 <div class="note warn">
   <strong>O arquivo que não é imagem só baixa</strong>
   <p>O link dele sai com <code>application/octet-stream</code> e <code>Content-Disposition:
-  attachment</code> na própria assinatura — trocá-los na barra invalida o endereço. O navegador
+  attachment</code> na própria assinatura: trocá-los na barra invalida o endereço. O navegador
   salva, e nunca abre na página: o que há dentro não roda em lugar nenhum, nem do lado de quem
   relatou, nem do lado do time.</p>
   <p><strong>O nome também é tratado.</strong> Fora do painel, o arquivo baixa como
   <code>anexo.&lt;extensão&gt;</code>: o nome original nunca sai para o lado de fora. No painel,
-  baixa com o nome que a pessoa deu — sem caracteres de controle nem os invisíveis de direção, que
+  baixa com o nome que a pessoa deu, sem caracteres de controle nem os invisíveis de direção, que
   fazem <code>fatura</code> + <code>U+202E</code> + <code>fdp.txt</code> aparecer como <code>faturatxt.pdf</code> na janela de salvar; cortado no meio, e
   nunca na extensão; e <strong>sempre terminando numa extensão do catálogo</strong>, a do tipo
-  conferido. O cabeçalho leva o nome duas vezes — em ASCII e em UTF-8 codificado —, e nenhum
+  conferido. O cabeçalho leva o nome duas vezes (em ASCII e em UTF-8 codificado), e nenhum
   caractere dele consegue sair de dentro do valor.</p>
   <p>E o painel avisa, junto da lista: "Os arquivos vêm de quem relatou: abra só o que você
   esperava receber."</p>
@@ -130,13 +130,13 @@ quando o banco diz que um anexo já aponta para elas. O arquivo aceito nunca sai
 <h2>O limite por minuto</h2>
 
 <p>Pedir permissão e confirmar somam na mesma janela: 20 por minuto por IP, de padrão
-(<code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code>). Com os limites de fábrica — três imagens e dois
-arquivos por envio —, vinte cobrem com folga quem anexa tudo e tenta de novo os que falharam, e
-param quem tenta encher o balde. Projeto que sobe os limites para perto do teto — dez de cada
-categoria — precisa subir a variável junto: cada arquivo gasta dois pedidos. Atrás de
-um proxy, o IP é o que <code>TRUSTED_PROXIES</code> deixa valer — ver
-<a href="#/seguranca/superficie-de-rede">Superfície de rede</a>. Camadas acima deste limite no envio de
-arquivo — como o desafio invisível que a entrada do relato já tem — são <strong>Planejado</strong>.</p>
+(<code>MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE</code>). Com os limites de fábrica (três imagens e dois
+arquivos por envio), vinte cobrem com folga quem anexa tudo e tenta de novo os que falharam, e
+param quem tenta encher o balde. Projeto que sobe os limites para perto do teto (dez de cada
+categoria) precisa subir a variável junto: cada arquivo gasta dois pedidos. Atrás de
+um proxy, o IP é o que <code>TRUSTED_PROXIES</code> deixa valer (ver
+<a href="#/seguranca/superficie-de-rede">Superfície de rede</a>). Camadas acima deste limite no envio de
+arquivo (como o desafio invisível que a entrada do relato já tem) são <strong>Planejado</strong>.</p>
 
 <div class="note todo">
   <strong>O que continua por conta de quem abre</strong>
@@ -145,13 +145,13 @@ arquivo — como o desafio invisível que a entrada do relato já tem — são <
   <strong>macro em ODF</strong>, <strong>JavaScript em PDF</strong> e <strong>vínculo externo em
   OOXML</strong>. A defesa contra eles é a de cima: o download forçado, que impede o arquivo de
   rodar na página, e o aviso no painel.</p>
-  <p><strong>O <code>.zip</code> não é aceito.</strong> Ele pode trazer qualquer coisa dentro — um
-  programa, inclusive —, e abri-lo desempacota o que houver. Saiu do catálogo: o widget não o
+  <p><strong>O <code>.zip</code> não é aceito.</strong> Ele pode trazer qualquer coisa dentro (um
+  programa, inclusive), e abri-lo desempacota o que houver. Saiu do catálogo: o widget não o
   oferece, e a API recusa no pedido de envio, na confirmação e ao salvar a configuração. Os que já
   estavam guardados continuam baixando.</p>
   <p><strong>O <code>.xlsx</code> e o <code>.docx</code> também são zip por dentro</strong>, e a
   conferência deles é essa mesma marca: um zip renomeado para <code>.xlsx</code> passa. Eles ficam
-  porque são o formato de um documento, e não uma caixa de arquivos — o download sai sempre com a
+  porque são o formato de um documento, e não uma caixa de arquivos: o download sai sempre com a
   extensão do catálogo, e abrir leva ao programa da planilha ou do texto, que recusa o que não é
   dele, e não ao que desempacota. Pelo mesmo motivo, um arquivo colado no fim de outro passa em
   qualquer formato: a conferência vê o começo.</p>
@@ -163,7 +163,7 @@ arquivo — como o desafio invisível que a entrada do relato já tem — são <
   <strong>A captura de tela não mostra o que é sensível</strong>
   <p>Quando quem relata captura a tela pela ferramenta, a imagem é desenhada a partir da própria
   página do cliente. <strong>Todo campo de senha fica de fora</strong> por padrão. E o site do
-  cliente pode marcar qualquer elemento — um CPF, um cartão, um trecho inteiro — para nunca entrar
+  cliente pode marcar qualquer elemento (um CPF, um cartão, um trecho inteiro) para nunca entrar
   no print: basta o atributo <code>data-pds-no-capture</code> ou a classe <code>pds-no-capture</code>
   no elemento (ou no bloco que o contém). O marcado sai <strong>escondido</strong>, não removido: o
   lugar fica na página, e o resto não se desloca. Quem relata continua podendo esconder mais coisas

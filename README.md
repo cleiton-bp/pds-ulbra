@@ -1,6 +1,6 @@
-# PDS
+# Relato Fácil
 
-> Nome provisório. O nome definitivo virá junto com o domínio.
+> Domínio: `relatofacil.com`.
 
 Uma camada pública de acompanhamento: quem relata um problema recebe um protocolo e consegue ver em que etapa do processo o relato está, do mesmo jeito que acompanha uma entrega de delivery. As etapas são definidas por cada empresa que opera o sistema.
 
@@ -51,13 +51,13 @@ Cada empresa desenha as próprias etapas públicas e escolhe o texto que o relat
 
 Feito esse mapeamento uma vez, o trajeto passa a andar sozinho: o registro se move do lado de dentro e o relator vê a mudança do lado de fora.
 
-E ninguém começa de uma tela em branco: o projeto novo já nasce com três colunas — A fazer, Fazendo e Feito — ligadas a um trajeto de fábrica, e o time começa a trabalhar no primeiro minuto. As colunas, as etapas e a ligação entre elas se ajustam quando a empresa quiser.
+E ninguém começa de uma tela em branco: o projeto novo nasce do modelo de como o time trabalha — Quadro simples (A fazer, Fazendo e Feito), Suporte, Kanban ou Scrum —, com as colunas ligadas a um trajeto pronto e os tipos de relato do modelo, e o time começa a trabalhar no primeiro minuto. As colunas, as etapas e a ligação entre elas se ajustam quando a empresa quiser.
 
 ---
 
 ## Os dois lados
 
-**Do lado de fora, a camada pública.** O relato entra pela ferramenta colada no site, na página onde o problema apareceu — sem conta e sem download, com imagens capturadas e marcadas ali mesmo. Quem relatou acompanha pelo link: a linha do tempo, o pedido de informação do time, e no fim a confirmação ou a reabertura.
+**Do lado de fora, a camada pública.** O relato entra pela ferramenta colada no site, na página onde o problema apareceu — sem conta e sem download, respondendo às perguntas curtas do tipo que a pessoa escolheu, com imagens capturadas e marcadas ali mesmo. Os tipos e as perguntas são de cada projeto, assim como o botão, os textos e a aparência da ferramenta — e ela só é baixada quando alguém pede para abrir, pelo botão dela ou por um botão do próprio site. Quem relatou acompanha pelo link: a linha do tempo, o pedido de informação do time, e no fim a confirmação ou a reabertura.
 
 **Do lado de dentro, a ferramenta de trabalho do time.** O painel onde os relatos chegam e viram cards, ao lado do trabalho que o próprio time cria:
 
@@ -78,10 +78,11 @@ O núcleo é um **motor de tradução de estados**: mapear a máquina de estados
 
 - isolamento por projeto em toda consulta, no banco, com papéis por projeto;
 - relatos iguais ligados ao original, cada pessoa recebendo o mesmo desfecho;
-- identidade sem senha, pelo protocolo e pelo código pessoal;
+- identidade sem senha: pelo protocolo, pelo código pessoal ou pela identidade do sistema do cliente — um crachá que o servidor dele assina e que a API confere com a chave pública do projeto, sem chamar sistema nenhum;
 - tempo real para o time, avisando só quem está no projeto;
 - filas para o que não pode prender a requisição — o e-mail do convite e as esperas da jornada;
 - mídia enviada direto ao armazenamento, por formulário assinado;
+- a entrada protegida sem atrapalhar quem relata: domínios autorizados e bloqueados, o relato de um domínio novo retido até o time liberar, e limites em camadas — por pessoa, IP, domínio e projeto —, com um desafio invisível antes da pausa;
 - redação do que nunca pode aparecer no lado público.
 
 ---
@@ -91,7 +92,8 @@ O núcleo é um **motor de tradução de estados**: mapear a máquina de estados
 O que o produto pode vir a ter, fora do escopo atual:
 
 - **conectores com as ferramentas de gestão que o time já usa**, para quem prefere continuar nelas: sincronização nos dois sentidos, com webhook idempotente, retentativa e resolução de conflito;
-- previsão de quando o relato anda, por percentil histórico, em vez de promessa.
+- previsão de quando o relato anda, por percentil histórico, em vez de promessa;
+- planos, com uma versão gratuita e os limites de cada plano, depois de validar com usuários reais.
 
 O que existe, o que está planejado e o que ficou para depois está em [o que existe](api/Pds.WebApi/api-docs/pages/visao-geral/o-que-existe.html), na documentação da API.
 

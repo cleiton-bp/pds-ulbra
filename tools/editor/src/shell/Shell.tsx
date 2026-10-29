@@ -23,7 +23,7 @@ function Screen() {
   const { route } = useNavigation()
 
   useEffect(() => {
-    document.title = route.env ? `${environmentById(route.env).title} (PDS)` : 'Modelagem e casos de uso (PDS)'
+    document.title = route.env ? `${environmentById(route.env).title} (Relato Fácil)` : 'Modelagem e casos de uso (Relato Fácil)'
   }, [route.env])
 
   if (!route.env) return <Home />
