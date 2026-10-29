@@ -13,6 +13,7 @@ import type { AttachmentDraft } from '@/embed/useAttachmentDraft'
 import { Button } from '@/shared/components/Button'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
+import { StarRating, StarRatingValue } from '@/tracking/StarRating'
 
 /**
  * Como o relato terminou — e a vez de quem o escreveu.
@@ -118,7 +119,9 @@ export function ClosurePanel({
         {fechamento.Reason}
       </p>
 
-      {fechamento.ConfirmedAt && <JaRespondeu fechamento={fechamento} />}
+      {fechamento.ConfirmedAt && (
+        <JaRespondeu fechamento={fechamento} estrelas={acoes.SatisfactionStyle === 'Stars'} />
+      )}
 
       {modo === 'parado' && (acoes.CanConfirm || acoes.CanReopen) && (
         <div className="mt-5 border-border border-t pt-4">
@@ -169,35 +172,47 @@ export function ClosurePanel({
           <fieldset className="mb-3 border-0 p-0">
             <legend className="sr-only">Nota de 1 a 5</legend>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              {SATISFACTION_SCALE.map((valor) => (
-                <label
-                  key={valor}
-                  className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border text-body ${
-                    nota === valor
-                      ? 'border-accent bg-surface-sunken text-fg'
-                      : 'border-border text-fg-muted'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="nota"
-                    value={valor}
-                    checked={nota === valor}
-                    onChange={() => {
-                      setNota(valor)
-                      // Escolher a nota desmarca a recusa: a API recusa os dois
-                      // juntos, e deixar a tela mandar isso seria falhar depois de
-                      // a pessoa já ter respondido.
-                      setRecusou(false)
-                    }}
-                    className="sr-only"
-                    aria-label={`Nota ${valor}`}
-                  />
-                  <span aria-hidden>{acoes.SatisfactionStyle === 'Stars' ? '★' : valor}</span>
-                </label>
-              ))}
-            </div>
+            {acoes.SatisfactionStyle === 'Stars' ? (
+              <StarRating
+                value={nota}
+                onChange={(valor) => {
+                  setNota(valor)
+                  // Ver a nota da escala em numeros, logo abaixo: escolher desmarca a recusa.
+                  setRecusou(false)
+                }}
+                disabled={enviando}
+              />
+            ) : (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {SATISFACTION_SCALE.map((valor) => (
+                  <label
+                    key={valor}
+                    className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border text-body ${
+                      nota === valor
+                        ? 'border-accent bg-surface-sunken text-fg'
+                        : 'border-border text-fg-muted'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="nota"
+                      value={valor}
+                      checked={nota === valor}
+                      onChange={() => {
+                        setNota(valor)
+                        // Escolher a nota desmarca a recusa: a API recusa os dois
+                        // juntos, e deixar a tela mandar isso seria falhar depois de
+                        // a pessoa já ter respondido.
+                        setRecusou(false)
+                      }}
+                      className="sr-only"
+                      aria-label={`Nota ${valor}`}
+                    />
+                    <span aria-hidden>{valor}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </fieldset>
 
           {/* **Fora da escala, e não o sexto botão dela.** Dentro, a recusa viraria
@@ -349,18 +364,32 @@ export function ClosurePanel({
  * responder" e "não respondeu" são fatos distintos, e mostrá-los iguais aqui
  * ensinaria a lê-los iguais no relatório depois.
  */
-function JaRespondeu({ fechamento }: { fechamento: PublicClosureViewModel }) {
+function JaRespondeu({
+  fechamento,
+  estrelas,
+}: {
+  fechamento: PublicClosureViewModel
+  estrelas: boolean
+}) {
   return (
     <div className="mt-4 rounded-lg border border-border bg-surface-sunken px-3.5 py-3">
       <p className="text-detail text-fg leading-relaxed">
         Você confirmou que isso resolveu.{' '}
-        {fechamento.Satisfaction !== null && (
+        {fechamento.Satisfaction !== null && !estrelas && (
           <span className="text-fg-muted">Sua nota: {fechamento.Satisfaction} de 5.</span>
         )}
         {fechamento.SatisfactionDeclined && (
           <span className="text-fg-muted">Você preferiu não dar uma nota.</span>
         )}
       </p>
+      {/* Em estrelas, a nota ganha linha propria: as estrelas e o "4 de 5" juntos, e nao as
+          estrelas soltas no fim da frase de cima. */}
+      {fechamento.Satisfaction !== null && estrelas && (
+        <p className="mt-1.5 flex items-center gap-2 text-detail text-fg-muted">
+          <StarRatingValue value={fechamento.Satisfaction} />
+          <span>Sua nota: {fechamento.Satisfaction} de 5.</span>
+        </p>
+      )}
     </div>
   )
 }

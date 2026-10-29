@@ -268,8 +268,7 @@ function AdvancedSection({
               e troque onde a antiga estiver.
             </p>
 
-            {/* Mesmo cadeado do menu lateral e do terceiro passo da instalacao: no
-                painel inteiro ele quer dizer "existe, ainda nao da para usar".
+            {/* O cadeado quer dizer "existe, ainda nao da para usar".
 
                 A frase dizia que as rotas chegavam "junto com o recebimento de
                 relatos", e o recebimento entrou sem elas: nenhuma rota aceita a
