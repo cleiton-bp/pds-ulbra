@@ -167,7 +167,7 @@
       group.classList.toggle('open', group.dataset.section === page.section.id);
     });
 
-    document.title = `${pageName(page)} (PDS)`;
+    document.title = `${pageName(page)} (Relato Fácil)`;
 
     try {
       const response = await fetch(page.file, { cache: 'reload' });

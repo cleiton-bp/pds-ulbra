@@ -791,18 +791,18 @@ function ComoGerarOCracha({
 }) {
   const aud = chaveDoProjeto || 'pk_…'
   const chaves =
-    'openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out pds-privada.pem\nopenssl ec -in pds-privada.pem -pubout -out pds-publica.pem'
+    'openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out relatofacil-privada.pem\nopenssl ec -in relatofacil-privada.pem -pubout -out relatofacil-publica.pem'
   const claims = `{\n  "sub": "<o id do usuário no seu sistema>",\n  "name": "Ana",\n  "aud": "${aud}",\n  "exp": <agora + até ${validade} min>\n}`
   const script = `<script\n  src="${LOADER_URL}"\n  data-key="${aud}"\n  data-identity="<o crachá que o seu servidor gerou>"\n  defer></script>`
-  const js = `import { importPKCS8, SignJWT } from 'jose'\n\nconst privada = await importPKCS8(process.env.PDS_PRIVATE_KEY, 'ES256')\n\nexport function crachaDeRelato(usuario) {\n  return new SignJWT({ name: usuario.nome })\n    .setProtectedHeader({ alg: 'ES256' })\n    .setSubject(String(usuario.id))\n    .setAudience('${aud}')\n    .setIssuedAt()\n    .setExpirationTime('${validade}m')\n    .sign(privada)\n}`
-  const cs = `using System.IdentityModel.Tokens.Jwt;\nusing System.Security.Claims;\nusing System.Security.Cryptography;\nusing Microsoft.IdentityModel.Tokens;\n\n// A chave privada importada UMA vez, ao subir, e nunca descartada: a biblioteca\n// guarda um provedor de assinatura por chave, e dispor o ECDsa quebraria a segunda chamada.\nstatic readonly ECDsa Chave = ImportarChave(File.ReadAllText("pds-privada.pem"));\n\nstatic ECDsa ImportarChave(string pem)\n{\n    var ecdsa = ECDsa.Create();\n    ecdsa.ImportFromPem(pem);\n    return ecdsa;\n}\n\nstatic string CrachaDeRelato(string usuarioId, string? nome)\n{\n    var claims = new List<Claim> { new("sub", usuarioId) };\n    if (nome is not null) claims.Add(new("name", nome));\n\n    var token = new JwtSecurityToken(\n        audience: "${aud}",\n        claims: claims,\n        expires: DateTime.UtcNow.AddMinutes(${validade}),\n        signingCredentials: new SigningCredentials(\n            new ECDsaSecurityKey(Chave), SecurityAlgorithms.EcdsaSha256));\n\n    return new JwtSecurityTokenHandler().WriteToken(token);\n}`
+  const js = `import { importPKCS8, SignJWT } from 'jose'\n\nconst privada = await importPKCS8(process.env.RELATOFACIL_PRIVATE_KEY, 'ES256')\n\nexport function crachaDeRelato(usuario) {\n  return new SignJWT({ name: usuario.nome })\n    .setProtectedHeader({ alg: 'ES256' })\n    .setSubject(String(usuario.id))\n    .setAudience('${aud}')\n    .setIssuedAt()\n    .setExpirationTime('${validade}m')\n    .sign(privada)\n}`
+  const cs = `using System.IdentityModel.Tokens.Jwt;\nusing System.Security.Claims;\nusing System.Security.Cryptography;\nusing Microsoft.IdentityModel.Tokens;\n\n// A chave privada importada UMA vez, ao subir, e nunca descartada: a biblioteca\n// guarda um provedor de assinatura por chave, e dispor o ECDsa quebraria a segunda chamada.\nstatic readonly ECDsa Chave = ImportarChave(File.ReadAllText("relatofacil-privada.pem"));\n\nstatic ECDsa ImportarChave(string pem)\n{\n    var ecdsa = ECDsa.Create();\n    ecdsa.ImportFromPem(pem);\n    return ecdsa;\n}\n\nstatic string CrachaDeRelato(string usuarioId, string? nome)\n{\n    var claims = new List<Claim> { new("sub", usuarioId) };\n    if (nome is not null) claims.Add(new("name", nome));\n\n    var token = new JwtSecurityToken(\n        audience: "${aud}",\n        claims: claims,\n        expires: DateTime.UtcNow.AddMinutes(${validade}),\n        signingCredentials: new SigningCredentials(\n            new ECDsaSecurityKey(Chave), SecurityAlgorithms.EcdsaSha256));\n\n    return new JwtSecurityTokenHandler().WriteToken(token);\n}`
 
   return (
     <HowItWorks className="mt-1" label="Como gerar o crachá">
       <p>
         <strong className="font-medium text-fg">1. Gere um par de chaves</strong> no seu servidor e
-        cole aqui só a pública (<code className="font-mono text-fg">pds-publica.pem</code>). A
-        privada sai em PKCS#8, que é o formato que os exemplos abaixo leem:
+        cole aqui só a pública (<code className="font-mono text-fg">relatofacil-publica.pem</code>).
+        A privada sai em PKCS#8, que é o formato que os exemplos abaixo leem:
       </p>
       <Bloco texto={chaves} />
       <p>

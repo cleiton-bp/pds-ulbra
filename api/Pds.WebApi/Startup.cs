@@ -240,7 +240,7 @@ public class Startup
         {
             options.SwaggerDoc("v1", new OpenApiInfo
             {
-                Title = "PDS API",
+                Title = "API do Relato Fácil",
                 Version = "v1",
                 Description = ApiDescription,
             });
@@ -339,8 +339,8 @@ public class Startup
             app.UseSwagger();
             app.UseSwaggerUI(options =>
             {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "PDS v1");
-                options.DocumentTitle = "PDS · Swagger";
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Relato Fácil v1");
+                options.DocumentTitle = "Swagger do Relato Fácil";
                 options.DisplayRequestDuration();
 
                 // Alinha as cores do Swagger com as da documentacao do projeto: o

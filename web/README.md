@@ -1,4 +1,4 @@
-# Painel — PDS
+# Painel do Relato Fácil
 
 Frontend da plataforma. React 19, TypeScript, Vite, Tailwind 4.
 
@@ -905,7 +905,7 @@ relato que chegou do sistema do cliente, o endereço autorizado e o relato de te
 diz se o sistema já está funcionando pelo último relato que chegou, `LastReportReceivedAt`,
 que vem no projeto e é o mesmo dado que decide a porta.
 
-**A marca é "PDS", e não "Rastro".** O nome é provisório até sair o domínio, e
+**A marca é "Relato Fácil"**, o mesmo nome do domínio `relatofacil.com`, e
 vive em um arquivo só (`shared/components/Brand.tsx`).
 
 **A chave pública tem o formato da API** (`pk_` + base64), e não o `pk_live_…`

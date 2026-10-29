@@ -1,6 +1,6 @@
-# PDS
+# Relato Fácil
 
-> Nome provisório. O nome definitivo virá junto com o domínio.
+> Domínio: `relatofacil.com`.
 
 Uma camada pública de acompanhamento: quem relata um problema recebe um protocolo e consegue ver em que etapa do processo o relato está, do mesmo jeito que acompanha uma entrega de delivery. As etapas são definidas por cada empresa que opera o sistema.
 
