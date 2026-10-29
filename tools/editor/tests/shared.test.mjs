@@ -20,6 +20,8 @@ let routeHash
 let files
 let fitSides
 let boardRoom
+let explain
+let steps
 
 before(async () => {
   server = await createServer({
@@ -32,6 +34,8 @@ before(async () => {
   ;({ parseHash, routeHash } = await server.ssrLoadModule('/src/shared/navigation.tsx'))
   files = await server.ssrLoadModule('/server/files.ts')
   ;({ fitSides, boardRoom } = await server.ssrLoadModule('/src/shared/useResizable.ts'))
+  explain = await server.ssrLoadModule('/src/tour/explain.ts')
+  steps = await server.ssrLoadModule('/src/tour/steps.ts')
 })
 
 after(async () => { await server?.close() })
@@ -150,3 +154,44 @@ describe('largura das laterais', () => {
     assert.deepEqual(fitSides([{ width: 44, min: 44 }, { width: 640, min: 300 }], 500), [44, 456])
   })
 })
+
+describe('tour', () => {
+  it('o assunto do arquivo é a primeira frase, até os dois-pontos', () => {
+    assert.equal(explain.gist('Quem do time entra em cada projeto, e com que papel. O resto é detalhe.'), 'Quem do time entra em cada projeto, e com que papel.')
+    assert.equal(explain.gist('O projeto passa a ver de onde vêm os relatos: a lista fica no projeto.'), 'O projeto passa a ver de onde vêm os relatos.')
+    assert.equal(explain.gist('Conta e projeto, que vêm antes,: o resto depois.'), 'Conta e projeto, que vêm antes.')
+    assert.equal(explain.gist('Limites por projeto; as contagens ficam na memória.'), 'Limites por projeto.')
+    assert.equal(explain.gist('Uma lista fixa — defeito e dúvida — passa a ser do projeto.'), 'Uma lista fixa passa a ser do projeto.')
+    assert.equal(explain.gist('Chamar quem trabalha junto — por projeto —, cuidar do time.'), 'Chamar quem trabalha junto, cuidar do time.')
+    assert.equal(explain.gist(''), '')
+  })
+
+  it('lista nomes curta, e conta o que passou do limite', () => {
+    assert.equal(explain.names(['reports']), 'reports')
+    assert.equal(explain.names(['a', 'b']), 'a e b')
+    assert.equal(explain.names(['a', 'b', 'c']), 'a, b e c')
+    assert.equal(explain.names(['a', 'b', 'c', 'd', 'e']), 'a, b, c e mais 2')
+  })
+
+  it('o roteiro de cada arquivo deixa fora o que não vale nele', () => {
+    const all = steps.stepsFor(steps.MODELING_TOUR, { comparing: true, 'has-changes': true })
+    const first = steps.stepsFor(steps.MODELING_TOUR, {})
+    assert.equal(all.length, steps.MODELING_TOUR.length)
+    assert.ok(first.every((step) => !step.when))
+    assert.ok(first.length < all.length)
+    // Casos de uso sem os passos escritos ficam sem o "Por dentro".
+    const written = steps.stepsFor(steps.USE_CASES_TOUR, { 'has-flow': true })
+    const planned = steps.stepsFor(steps.USE_CASES_TOUR, {})
+    assert.equal(written.length, planned.length + 1)
+  })
+
+  it('os textos do roteiro são curtos, numa frase só, sem travessão nem ponto no meio', () => {
+    for (const step of [...steps.MODELING_TOUR, ...steps.USE_CASES_TOUR]) {
+      assert.ok(step.title.split(' ').length <= 3, `título longo: ${step.title}`)
+      assert.ok(step.text.split(' ').length <= 14, `texto longo: ${step.text}`)
+      assert.doesNotMatch(`${step.title} ${step.text}`, /[—–·]|\s-\s/, `travessão ou ponto no meio: ${step.text}`)
+      assert.doesNotMatch(step.text, /[.!?]\s+\S/, `duas frases: ${step.text}`)
+    }
+  })
+})
+

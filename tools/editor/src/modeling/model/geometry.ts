@@ -5,7 +5,7 @@ import type { Entity, Note, Position, Side } from '../types'
  *
  * Esta escolha nao vai para o arquivo. Se fosse gravada, arrastar uma tabela para o
  * outro lado da tela deixaria a linha saindo pela direita para chegar numa caixa que
- * agora esta a esquerda — dando a volta por fora. Recalcular a cada render custa nada
+ * agora esta a esquerda: dando a volta por fora. Recalcular a cada render custa nada
  * e mantem o desenho legivel sozinho.
  */
 
@@ -35,7 +35,7 @@ export const boxCenter = (box: Entity | Note): Position =>
 
 /**
  * Escolhe o par de lados que da o caminho mais curto entre dois centros.
- * Horizontal ganha nos empates porque tabela e mais larga que alta — sair pela
+ * Horizontal ganha nos empates porque tabela e mais larga que alta: sair pela
  * lateral cruza menos conteudo do que sair por cima.
  */
 export function pickSides(

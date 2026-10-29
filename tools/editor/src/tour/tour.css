@@ -1,0 +1,270 @@
+/*
+ * O tour do editor (ver `Tour.tsx`): a tela escurece, a parte da vez fica acesa, e
+ * o cartao fala dela. O destaque e o cartao deslizam de um passo para o outro no
+ * mesmo ritmo do resto da tela (`--medium`), e o texto troca num fade curto.
+ */
+
+.tour-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  animation: fade-in var(--medium) var(--ease);
+}
+
+.tour-guide.is-leaving { animation: fade-out var(--fast) var(--ease) forwards; pointer-events: none; }
+
+/* Por baixo de tudo do tour: segura o clique e a roda, para nada mudar atras dele. */
+.tour-guide__blocker { position: absolute; inset: 0; }
+
+/* O recorte aceso. A sombra enorme e o escuro da tela; o recorte e o que sobra. */
+.tour-guide__spot {
+  position: absolute;
+  border-radius: 10px;
+  box-shadow: 0 0 0 200vmax rgba(6, 8, 12, 0.6);
+  outline: 2px solid rgba(91, 157, 255, 0.55);
+  pointer-events: none;
+  transition:
+    left var(--medium) var(--ease),
+    top var(--medium) var(--ease),
+    width var(--medium) var(--ease),
+    height var(--medium) var(--ease),
+    outline-color var(--fast) var(--ease);
+}
+
+.tour-guide__spot.is-empty { outline-color: transparent; }
+
+.tour-guide__card {
+  position: absolute;
+  padding: 16px 16px 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  transition: left var(--medium) var(--ease), top var(--medium) var(--ease);
+}
+
+.tour-guide__body { animation: fade-in var(--medium) var(--ease); }
+
+.tour-guide__count { margin: 0 0 6px; font-size: 11.5px; color: var(--text-faint); }
+
+.tour-guide__title { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--text); }
+
+.tour-guide__text { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--text-dim); }
+
+.tour-guide__progress {
+  height: 3px;
+  margin: 14px 0 12px;
+  border-radius: 3px;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.tour-guide__progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--medium) var(--ease);
+}
+
+.tour-guide__actions { display: flex; align-items: center; gap: 8px; }
+
+.tour-guide__spacer { flex: 1; }
+
+/* ---- a explicacao no painel ----------------------------------------------- */
+/* O painel da direita durante o tour (ver `ModelingGuide`, `UseCasesGuide`): pouco
+   texto, em pedacos que se leem de relance, cada um com o sinal que a tela usa. */
+.tour-explain { animation: fade-in var(--medium) var(--ease); }
+
+.tour-explain__kicker {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tour-explain__title { margin: 0 0 6px; font-size: 18px; font-weight: 600; color: var(--text); }
+
+.tour-explain__lead,
+.tour-explain__text { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); }
+
+/* O assunto do arquivo cabe em tres linhas; o resto e detalhe. */
+.tour-explain__lead { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.tour-explain__section { margin-top: 22px; }
+
+.tour-explain__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+
+.tour-explain__item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.tour-explain__sign { display: flex; justify-content: center; align-items: center; min-height: 21px; color: var(--text-dim); }
+
+.tour-explain__dot { width: 10px; height: 10px; border-radius: 50%; }
+
+.tour-explain__dot--new { background: var(--new); }
+
+.tour-explain__dot--changed { background: var(--changed); }
+
+.tour-explain__dot--removed { background: var(--removed); }
+
+.tour-explain__dot--note { background: var(--note); border-radius: 2px; }
+
+.tour-explain__names { display: block; margin-top: 2px; font-size: 12px; color: var(--text-dim); overflow-wrap: anywhere; }
+
+.tour-explain__mono { font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+
+.tour-explain__small { margin: 10px 0 0; font-size: 12px; color: var(--text-faint); }
+
+.tour-explain__glyph { flex: none; }
+
+.tour-explain code { font-size: 12px; overflow-wrap: anywhere; }
+
+/* A tabela de exemplo, no desenho da caixa do canvas, em miniatura. */
+.tour-table {
+  margin-top: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  overflow: hidden;
+  font-size: 12.5px;
+}
+
+.tour-table__head { display: grid; gap: 1px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--bg-hover); }
+
+.tour-table__name { font-family: var(--mono); font-weight: 600; overflow-wrap: anywhere; }
+
+.tour-table__label { font-size: 12px; color: var(--text-dim); }
+
+.tour-table__row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 10px;
+}
+
+.tour-table__row + .tour-table__row { border-top: 1px solid var(--line); }
+
+.tour-table__col { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tour-table__type { display: inline-flex; gap: 4px; align-items: center; font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); }
+
+.tour-table__more { padding: 5px 10px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--text-faint); }
+
+/* Ao lado do nome, o quanto ele faz: "faz 7 casos". */
+.tour-explain__aside { display: block; font-size: 12px; color: var(--text-faint); }
+
+/* O pedaco do desenho dos casos de uso: o ator, a linha, a elipse e, embaixo, o
+   «include» ou «extend» preso a ela; no traco do canvas, em miniatura. */
+.tour-scene {
+  display: grid;
+  grid-template-columns: 72px 18px minmax(0, 1fr);
+  align-items: center;
+  margin-top: 12px;
+  padding: 16px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  color: var(--text-dim);
+}
+
+.tour-scene__actor { display: grid; justify-items: center; gap: 4px; font-size: 11.5px; line-height: 1.3; text-align: center; color: var(--text); }
+
+.tour-scene__wire { height: 1.4px; background: currentColor; }
+
+.tour-scene__case {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding: 12px 16px;
+  border: 1.4px solid currentColor;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--text);
+}
+
+.tour-scene__case b { margin-right: 3px; font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--text-dim); }
+
+.tour-scene__link,
+.tour-scene__case--sub { grid-column: 3; }
+
+.tour-scene__link { display: flex; justify-content: center; align-items: center; gap: 6px; }
+
+.tour-scene__link code { font-size: 11px; color: var(--text-dim); }
+
+/* Um caso de uso por dentro: cada parte com o nome de conversa em cima. */
+.tour-case {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.tour-case__name { margin: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+
+.tour-case__name b { margin-right: 4px; font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+
+.tour-case__who { margin: -8px 0 0; font-size: 12px; color: var(--text-dim); }
+
+.tour-case__part { display: grid; gap: 4px; }
+
+.tour-case__label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+
+/* Cada parte em ate tres linhas: o caso inteiro abre no painel, com um clique. */
+.tour-case__text,
+.tour-case__step {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tour-case__text,
+.tour-case__steps { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text); }
+
+.tour-case__steps { display: grid; gap: 4px; padding-left: 18px; }
+
+.tour-case__steps li::marker { color: var(--text-faint); font-size: 12px; }
+
+/* ---- a pergunta do inicio ------------------------------------------------- */
+/* O mesmo dialogo da confirmacao (ver `Confirm`), com a cor do tour no lugar da de
+   apagar, e a caixinha de nao perguntar mais embaixo do texto. */
+.welcome__icon { background: var(--accent-soft); color: var(--accent); }
+
+.welcome__never {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  justify-self: start;
+}
+
+.welcome__never input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+
+.welcome__never:hover { color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-guide,
+  .tour-guide *,
+  .tour-explain { animation: none !important; transition: none !important; }
+}

@@ -1,186 +1,126 @@
-import { useEffect, useRef, useState } from 'react'
-import HomeButton from '../../shared/HomeButton'
+import Icon from '../../shared/Icon'
+import {
+  DropMenu, EditToggle, IconButton, MenuChoice, HomeButton, SaveBadge, Segmented,
+} from '../../shared/ToolbarParts'
+import { tourTarget } from '../../tour/targets'
 import type { SaveStatus } from '../../shared/useWorkspace'
+import type { ModelView, NotesMode } from './canvas/Board'
 
 type ToolbarProps = {
   title: string
+  /** A linha de baixo do titulo: com quem o arquivo esta sendo comparado. */
+  subtitle: string
   status: SaveStatus
   canEdit: boolean
-  showFiles: boolean
-  showPanel: boolean
-  showNotes: boolean
-  hideInherited: boolean
-  focusNotes: boolean
-  focusNew: boolean
-  /** Quantas notas o arquivo tem, para o menu dizer o tamanho do que mexe. */
+  view: ModelView
+  /** Sem arquivo-base nao ha o que recolher: "Mudanças" fica desligado. */
+  canCompare: boolean
+  notesMode: NotesMode
   noteCount: number
-  /** Quantas delas vieram da modelagem anterior. */
-  inheritedCount: number
-  /** Tabelas no arquivo, e quantas delas esta modelagem acrescenta. */
-  entityCount: number
-  newEntityCount: number
-  onToggleFiles: () => void
-  onTogglePanel: () => void
-  onToggleNotes: () => void
-  onToggleInherited: () => void
-  onToggleFocus: () => void
-  onToggleFocusNew: () => void
+  editing: boolean
+  onView: (view: ModelView) => void
+  onNotesMode: (mode: NotesMode) => void
+  onToggleEditing: () => void
+  onSearch: () => void
   onAddEntity: () => void
   onAddNote: () => void
+  /** Abre o tour do editor (ver `tour/`). */
+  onTour: () => void
 }
 
-// O estado vem em ingles do `useWorkspace`; a traducao para a tela e aqui.
-const STATUS_LABEL: Record<SaveStatus, string> = {
-  empty: '',
-  saved: 'gravado',
-  unsaved: 'não gravado',
-  saving: 'gravando…',
-  error: 'erro',
-  conflict: 'conflito',
+const NOTES_TITLE: Record<NotesMode, string> = {
+  markers: 'notas resumidas',
+  boxes: 'notas inteiras',
+  hidden: 'notas ocultas',
 }
 
 export default function Toolbar({
-  title, status, canEdit, showFiles, showPanel,
-  showNotes, hideInherited, focusNotes, focusNew,
-  noteCount, inheritedCount, entityCount, newEntityCount,
-  onToggleFiles, onTogglePanel, onToggleNotes, onToggleInherited, onToggleFocus,
-  onToggleFocusNew, onAddEntity, onAddNote,
+  title, subtitle, status, canEdit, view, canCompare, notesMode, noteCount,
+  editing, onView, onNotesMode, onToggleEditing, onSearch,
+  onAddEntity, onAddNote, onTour,
 }: ToolbarProps) {
-  const [openMenu, setOpenMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  // Quantas notas o canvas está mostrando agora, contando os dois filtros.
-  const onScreen = !showNotes ? 0 : hideInherited ? noteCount - inheritedCount : noteCount
-
-  // Menu aberto fecha com clique fora ou Escape — só enquanto está aberto, para não
-  // deixar dois ouvintes no documento a vida inteira.
-  useEffect(() => {
-    if (!openMenu) return
-    const onDown = (event: MouseEvent): void => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpenMenu(false)
-    }
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setOpenMenu(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [openMenu])
-
   return (
     <header className="toolbar">
-      {/* Voltar e abrir a lista andam juntos: sao o caminho de volta, nao acoes do arquivo. */}
-      <div className="toolbar__nav">
-        <HomeButton />
-        <button
-          className={`icon-btn${showFiles ? ' is-on' : ''}`}
-          title={showFiles ? 'esconder a lista de arquivos' : 'mostrar a lista de arquivos'}
-          aria-pressed={showFiles}
-          onClick={onToggleFiles}
-        >
-          ☰
-        </button>
-      </div>
+      <HomeButton />
 
-      <h2 className="toolbar__title">{title}</h2>
+      <div className="toolbar__heading">
+        <h2 className="toolbar__title" title={title}>{title}</h2>
+        {subtitle && <span className="toolbar__sub">{subtitle}</span>}
+      </div>
 
       <div className="toolbar__actions">
         {canEdit && (
           <>
-            <button className="btn" onClick={onAddEntity}>+ entidade</button>
-            <button className="btn" onClick={onAddNote}>+ nota</button>
-            {/* Divide o que cria do que muda a vista: sem a barra, o terceiro botão
-                parece mais uma coisa para adicionar. */}
+            <Segmented<ModelView>
+              label="o que o desenho mostra"
+              tour="view"
+              value={canCompare ? view : 'all'}
+              onChange={onView}
+              options={[
+                {
+                  value: 'changes',
+                  label: 'Mudanças',
+                  title: canCompare
+                    ? 'recolhe as tabelas que não mudaram e mostra só as notas novas'
+                    : 'sem arquivo anterior para comparar, escolha um no painel',
+                  disabled: !canCompare,
+                },
+                { value: 'all', label: 'Tudo', title: 'todas as tabelas inteiras e todas as notas' },
+              ]}
+            />
+
+            <DropMenu
+              label={<><Icon name="note" /><span className="menu__label">Notas</span></>}
+              ariaLabel="Notas"
+              title={`como as notas aparecem no desenho (agora, ${NOTES_TITLE[notesMode]})`}
+              active={notesMode !== 'markers'}
+            >
+              <header className="menu__head">
+                <span>notas no desenho</span>
+                <em>{noteCount} no arquivo</em>
+              </header>
+              <MenuChoice
+                name="notas"
+                checked={notesMode === 'markers'}
+                label="Resumidas"
+                hint="a nota de uma tabela vira o marcador no cabeçalho dela, e o texto inteiro abre no painel, sem nada por cima das tabelas"
+                onChange={() => onNotesMode('markers')}
+              />
+              <MenuChoice
+                name="notas"
+                checked={notesMode === 'boxes'}
+                label="Inteiras"
+                hint="cada nota em caixa, do tamanho e no lugar gravados no arquivo"
+                onChange={() => onNotesMode('boxes')}
+              />
+              <MenuChoice
+                name="notas"
+                checked={notesMode === 'hidden'}
+                label="Ocultas"
+                hint="só as tabelas e as ligações (Alt+3)"
+                onChange={() => onNotesMode('hidden')}
+              />
+            </DropMenu>
+
+            <button {...tourTarget('search')} className="btn" aria-label="Buscar" title="buscar uma tabela pelo nome (Ctrl+K)" onClick={onSearch}>
+              <Icon name="search" />
+              <span className="btn__label">Buscar</span>
+              <kbd>⌘K</kbd>
+            </button>
+
             <span className="toolbar__sep" aria-hidden="true" />
-            <div className="menu" ref={menuRef}>
-              <button
-                className={`btn${showNotes ? '' : ' is-off'}`}
-                aria-haspopup="true"
-                aria-expanded={openMenu}
-                title="o que aparece no canvas: notas e realce das tabelas novas"
-                onClick={() => setOpenMenu((open) => !open)}
-              >
-                o que aparece ▾
-              </button>
 
-              {openMenu && (
-                <div className="menu__pop">
-                  <header className="menu__head">
-                    <span>notas</span>
-                    <em>{onScreen} de {noteCount} na tela</em>
-                  </header>
-
-                  <label className="menu__item">
-                    <input type="checkbox" checked={showNotes} onChange={onToggleNotes} />
-                    <span>
-                      mostrar as notas
-                      <small>desmarcado, fica só a modelagem · Alt+3</small>
-                    </span>
-                  </label>
-
-                  {/* A linha marca a hierarquia: acima o liga/desliga, abaixo o que
-                      refina, e refinar sem as notas na tela não faz sentido. */}
-                  <hr className="menu__rule" />
-
-                  <label className={`menu__item${showNotes ? '' : ' is-off'}`}>
-                    <input
-                      type="checkbox"
-                      checked={hideInherited}
-                      disabled={!showNotes}
-                      onChange={onToggleInherited}
-                    />
-                    <span>
-                      só as desta modelagem
-                      <small>
-                        esconde as {inheritedCount} que vieram do arquivo anterior
-                      </small>
-                    </span>
-                  </label>
-
-                  <label className={`menu__item${showNotes ? '' : ' is-off'}`}>
-                    <input
-                      type="checkbox"
-                      checked={focusNotes}
-                      disabled={!showNotes}
-                      onChange={onToggleFocus}
-                    />
-                    <span>
-                      realçar as da tabela escolhida
-                      <small>as notas dela acendem e as outras apagam</small>
-                    </span>
-                  </label>
-
-                  <header className="menu__head menu__head--sec">
-                    <span>tabelas</span>
-                    <em>{newEntityCount} novas de {entityCount}</em>
-                  </header>
-
-                  <label className="menu__item">
-                    <input type="checkbox" checked={focusNew} onChange={onToggleFocusNew} />
-                    <span>
-                      realçar as tabelas novas
-                      <small>as que vieram de antes apagam, sem sumir</small>
-                    </span>
-                  </label>
-                </div>
-              )}
-            </div>
+            {editing && (
+              <>
+                <button className="btn" aria-label="Nova tabela" title="nova tabela, no meio da tela" onClick={onAddEntity}><Icon name="plus" /><span className="btn__label">Tabela</span></button>
+                <button className="btn" aria-label="Nova nota" title="nova nota, no meio da tela" onClick={onAddNote}><Icon name="plus" /><span className="btn__label">Nota</span></button>
+              </>
+            )}
+            <EditToggle editing={editing} onToggle={onToggleEditing} />
           </>
         )}
-        {status !== 'empty' && (
-          <span className={`status status--${status}`}>{STATUS_LABEL[status]}</span>
-        )}
-        <button
-          className={`icon-btn${showPanel ? ' is-on' : ''}`}
-          title={showPanel ? 'esconder o painel' : 'mostrar o painel'}
-          aria-pressed={showPanel}
-          onClick={onTogglePanel}
-        >
-          ▤
-        </button>
+        <SaveBadge status={status} />
+        {canEdit && <IconButton icon="help" label="tour: conheça o editor em um minuto" tour="help" onClick={onTour} />}
       </div>
     </header>
   )
