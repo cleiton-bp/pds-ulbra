@@ -153,7 +153,12 @@ export function StartScreen() {
             id="script"
             number={1}
             title="Colar o script no seu sistema"
-            pending="Ainda não chegou relato do seu sistema"
+            // Relato retido conta como chegado: o que falta e liberar o endereco (passo 2).
+            pending={
+              status.pending?.length
+                ? 'Chegou relato, e ele espera a liberação do endereço'
+                : 'Ainda não chegou relato do seu sistema'
+            }
             done={done.script}
             open={aberto === 'script'}
             // Sem a guarda, copiar o bloco sem chave "dava certo" e nao servia para nada.

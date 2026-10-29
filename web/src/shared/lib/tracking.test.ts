@@ -5,7 +5,12 @@
 // As asserticoes sao sobre a forma do endereco, e nao sobre a origem dele.
 
 import { describe, expect, it } from 'vitest'
-import { buildReporterCodeLink, buildTrackingLink, readTrackingLink } from '@/shared/lib/tracking'
+import {
+  buildIdentityLink,
+  buildReporterCodeLink,
+  buildTrackingLink,
+  readTrackingLink,
+} from '@/shared/lib/tracking'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -44,14 +49,20 @@ describe('o link de acompanhamento', () => {
     const [busca, fragmento] = link.split('#')
 
     expect(readTrackingLink(busca?.slice(busca.indexOf('?')) ?? '', `#${fragmento ?? ''}`)).toEqual(
-      { code: '7K2M-9QXP-4TRV', token: 'tok-ABC_123', key: '', reporterCode: '' },
+      {
+        code: '7K2M-9QXP-4TRV',
+        token: 'tok-ABC_123',
+        key: '',
+        reporterCode: '',
+        identityToken: '',
+      },
     )
   })
 
   it('link pela metade volta vazio, e nao pela metade', () => {
     // Cada um destes chega de verdade: o endereco copiado sem o fim, o link
     // colado num aplicativo que corta o fragmento, e a pagina aberta na mao.
-    const vazio = { code: '', token: '', key: '', reporterCode: '' }
+    const vazio = { code: '', token: '', key: '', reporterCode: '', identityToken: '' }
 
     expect(readTrackingLink('?c=7K2M', '')).toEqual({ ...vazio, code: '7K2M' })
     expect(readTrackingLink('', '#t=tok')).toEqual({ ...vazio, token: 'tok' })
@@ -87,6 +98,26 @@ describe('o link de acompanhamento', () => {
         token: '',
         key: 'pk_1R0KtQwz',
         reporterCode: 'H7QK-3M2X-P9WD',
+        identityToken: '',
+      },
+    )
+  })
+
+  it('o link da identidade leva o crachá no fragmento, e é lido de volta inteiro', () => {
+    const cracha = 'eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ1LTQyIn0.assinatura'
+    const link = buildIdentityLink('7K2M-9QXP-4TRV', 'pk_1R0KtQwz', cracha)
+    const [busca, fragmento] = link.split('#')
+
+    // O crachá identifica a pessoa, como o código: nunca antes do `#`.
+    expect(busca).not.toContain('eyJ')
+
+    expect(readTrackingLink(busca?.slice(busca.indexOf('?')) ?? '', `#${fragmento ?? ''}`)).toEqual(
+      {
+        code: '7K2M-9QXP-4TRV',
+        token: '',
+        key: 'pk_1R0KtQwz',
+        reporterCode: '',
+        identityToken: cracha,
       },
     )
   })

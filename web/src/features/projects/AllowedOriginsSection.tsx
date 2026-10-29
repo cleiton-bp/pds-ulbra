@@ -139,7 +139,7 @@ export function AllowedOriginsSection({
         </p>
         <p>
           O relato que não diz de onde veio também espera em “Aguardando liberação”. Remover um
-          endereço não retém o que já entrou: vale para o próximo relato.
+          endereço não mexe no que já entrou: vale para o próximo relato.
         </p>
         <p>
           A conferência pega a chave pública colada no sistema errado, que é o caso comum. Quem

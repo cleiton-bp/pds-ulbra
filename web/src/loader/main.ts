@@ -52,7 +52,7 @@ import { createLauncherView, type LauncherView } from '@/loader/launcherView'
  * o script de dentro rodar. Reenviar resolve sem depender de quem dispara
  * primeiro.
  *
- * **Toda mensagem recebida passa por tres conferencias.** A terceira,
+ * **Toda mensagem recebida passa por tres conferencias.** A segunda,
  * `event.source === iframe.contentWindow`, e a que impede outro quadro da mesma
  * origem de se passar pelo nosso — e a que costuma faltar.
  */

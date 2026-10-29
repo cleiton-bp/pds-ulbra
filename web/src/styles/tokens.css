@@ -59,6 +59,8 @@
   /* Degrau 4 do Radix: "fundo de componente em hover". */
   --amber-4: #ffee9c;
   --amber-7: #e9c162;
+  /* Degrau 9: a cor solida, a de mais croma. So a estrela da nota usa. */
+  --amber-9: #ffc53d;
   --amber-11: #ab6400;
 
   --red-7: #f3aeaf;
@@ -147,6 +149,13 @@
   --warn-border: var(--amber-7);
   --warn-fg: var(--amber-11);
 
+  /* a nota de quem relatou, em estrelas. **Nao e `warn`**: a estrela acesa nao avisa
+     nada, e diz quanto. O contorno no degrau 11 da a estrela os 3:1 de grafico contra o
+     fundo; a apagada e so o contorno, no cinza de texto secundario. */
+  --rating-fill: var(--amber-9);
+  --rating-edge: var(--amber-11);
+  --rating-empty: var(--slate-10);
+
   /* estado: entrada invalida */
   --error-border: var(--red-7);
   --error-fg: var(--red-11);
@@ -228,6 +237,7 @@
      ponto de luminosidade, invisivel como hover. */
   --amber-5: #4d3111;
   --amber-7: #714f19;
+  --amber-9: #ffc53d;
   --amber-11: #ffca16;
 
   --red-7: #8c333a;

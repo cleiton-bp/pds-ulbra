@@ -31,6 +31,10 @@
   --color-warn-border: var(--warn-border);
   --color-warn-fg: var(--warn-fg);
 
+  --color-rating-fill: var(--rating-fill);
+  --color-rating-edge: var(--rating-edge);
+  --color-rating-empty: var(--rating-empty);
+
   --color-error-border: var(--error-border);
   --color-error-fg: var(--error-fg);
 
