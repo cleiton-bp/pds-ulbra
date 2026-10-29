@@ -14,8 +14,8 @@ desfazer engano e para manter integridade referencial.</p>
 
 <div class="note todo">
   <strong>Nenhuma rota apaga projeto ou conta</strong>
-  <p>A máquina existe — <code>BaseRepository.SoftDeleteAsync</code> preenche a data e
-  propaga aos filhos marcados com <code>[SoftDeleteDependent]</code> — e é usada no que é
+  <p>A máquina existe (<code>BaseRepository.SoftDeleteAsync</code> preenche a data e
+  propaga aos filhos marcados com <code>[SoftDeleteDependent]</code>) e é usada no que é
   miúdo: tirar um endereço autorizado ou bloqueado ou uma etapa pública, desfazer um encerramento,
   descartar um anexo recusado. A propagação, que só existe em projeto, relato e conta, ainda não tem
   chamador. Projeto se arquiva, não se apaga, e apagar de vez depende de decidir o que fazer
@@ -26,18 +26,18 @@ desfazer engano e para manter integridade referencial.</p>
 
 <p>Só os relatos que o time recusa como de outro site são apagados de verdade, e por três
 caminhos, todos de quem administra: <code>POST .../reports/blocked-origin/delete</code>, para os
-que vieram de um domínio bloqueado — a escolha do time diante de quem copiou a chave pública para
-outro site —; bloquear um domínio, que apaga junto, na mesma transação, os relatos dele que
+que vieram de um domínio bloqueado (a escolha do time diante de quem copiou a chave pública para
+outro site); bloquear um domínio, que apaga junto, na mesma transação, os relatos dele que
 aguardavam liberação; e <code>POST .../origins/pending/delete</code>, que nega os retidos de um
 endereço. Nela, <strong>apagar é <code>DELETE</code></strong>,
-e não <code>deleted_at</code>: sai o card e tudo que identifica quem relatou — texto, respostas,
+e não <code>deleted_at</code>: sai o card e tudo que identifica quem relatou (texto, respostas,
 títulos, nome, contexto, comentários, encerramentos, pedidos de informação, etiquetas, anexos (a
-linha e o arquivo no balde), avisos do sino e vínculos —, com as subtarefas junto. Fica o que não é
+linha e o arquivo no balde), avisos do sino e vínculos), com as subtarefas junto. Fica o que não é
 dado de ninguém: os eventos, sem o card e sem o caminho da página, e um evento do projeto com
 quantos e de quais domínios. O link de acompanhamento passa a responder 404.</p>
 
-<p>Por não ter volta, ela pede a confirmação escrita — a palavra <code>apagar</code>, ou o domínio
-de onde todos os cards vieram — na tela e de novo na API, e o painel oferece antes o
+<p>Por não ter volta, ela pede a confirmação escrita (a palavra <code>apagar</code>, ou o domínio
+de onde todos os cards vieram) na tela e de novo na API, e o painel oferece antes o
 <strong>manter</strong>, que só tira a marca: o domínio pode ter sido bloqueado por engano.</p>
 
 <div class="note warn">
@@ -46,7 +46,7 @@ de onde todos os cards vieram — na tela e de novo na API, e o painel oferece a
   <code>purge_at</code> e <code>anonymized_at</code> em <code>accounts</code> existem para
   isso, mas <strong>a rotina ainda não foi implementada</strong>.</p>
   <p>E a mídia aceita só sai do balde com o card de origem bloqueada apagado de vez. Fora dele, o
-  que se apaga fisicamente é só o que não virou anexo — o arquivo recusado, a cópia de envio que sobra da confirmação, a miniatura que não passa
+  que se apaga fisicamente é só o que não virou anexo: o arquivo recusado, a cópia de envio que sobra da confirmação, a miniatura que não passa
   na conferência. Por quanto tempo a mídia fica guardada, e apagá-la quando vencer, é
   <strong>Adiado</strong>.</p>
 </div>
@@ -54,7 +54,7 @@ de onde todos os cards vieram — na tela e de novo na API, e o painel oferece a
 <h3>O que a anonimização precisará fazer</h3>
 
 <p>Não basta limpar <code>users</code>. O nome da conta e o nome do projeto identificam
-igual, e o que vem pendurado neles — domínios autorizados, os próprios relatos, os prints —
+igual, e o que vem pendurado neles (domínios autorizados, os próprios relatos, os prints)
 identifica ainda mais. A rotina é <strong>Planejado</strong>.</p>
 
 <ul>
@@ -63,7 +63,7 @@ identifica ainda mais. A rotina é <strong>Planejado</strong>.</p>
   <li><code>accounts</code>: sai o nome; a linha fica como âncora do histórico.</li>
   <li>Projeto, chaves e relatos: apagados de verdade.</li>
   <li>Os arquivos no balde: apagados de verdade também. Apagar a linha do anexo e deixar o
-  objeto seria guardar o print — e um print mostra a tela de alguém, às vezes com o nome, o
+  objeto seria guardar o print, e um print mostra a tela de alguém, às vezes com o nome, o
   e-mail ou o pedido dele.</li>
   <li>Sobram contagem e tempo, que não identificam ninguém e são o que a pesquisa precisa.</li>
 </ul>

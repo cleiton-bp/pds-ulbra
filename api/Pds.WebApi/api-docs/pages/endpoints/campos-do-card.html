@@ -1,5 +1,5 @@
 <h2>Os campos do card, as prioridades e as etiquetas</h2>
-<p class="lead">O título que o time dá ao relato, o responsável, a prioridade, as etiquetas e o prazo — e as duas listas do projeto por trás deles.</p>
+<p class="lead">O título que o time dá ao relato, o responsável, a prioridade, as etiquetas e o prazo, e as duas listas do projeto por trás deles.</p>
 
 <p>Todo card ganha os mesmos campos, relato ou card do time. <strong>Uma rota por campo</strong>:
 cada uma grava só o que mudou, gera um evento só quando mudou e devolve o card <strong>aberto</strong>
@@ -10,7 +10,7 @@ desarquivar.</p>
 <p><strong>Dois pedidos ao mesmo card contam um depois do outro.</strong> O segundo espera o
 primeiro gravar e parte do que ele deixou: dois conjuntos de etiquetas mandados juntos não viram a
 soma dos dois, e a mesma mudança mandada por duas abas grava um evento só. A espera é só entre
-mudanças de campo do mesmo card — mover, comentar e responder não esperam por ela.</p>
+mudanças de campo do mesmo card: mover, comentar e responder não esperam por ela.</p>
 
 <h3>Os campos do card</h3>
 
@@ -19,10 +19,10 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/title</code></td><td>O título do time num <strong>relato</strong>, numa linha, até 200. <code>Title</code> vazio, ou igual ao que quem relatou escreveu, <strong>volta ao dela</strong> — que nunca se perde. O card do time é recusado (409): lá o título se edita junto da descrição.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/assignee</code></td><td>Quem fica com o card: <code>UserPublicId</code> de alguém do time <strong>agora</strong> (o dono da conta conta), ou nulo para ninguém. Quem não está no time é recusado (400) — a não ser que já seja quem está com o card, que pode ser mandado de novo mesmo depois de sair.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/priority</code></td><td><code>PriorityPublicId</code> de uma prioridade ativa do projeto, ou nulo para sem prioridade. Desativada é recusada (409) — a não ser que já seja a do card.</td></tr>
-  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/labels</code></td><td><code>LabelPublicIds</code>: <strong>o conjunto inteiro</strong>, e não o que entra. A lista vazia tira todas; sem a lista, 400. Até dez, do projeto — uma que não existe aqui recusa a lista inteira (404).</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/title</code></td><td>O título do time num <strong>relato</strong>, numa linha, até 200. <code>Title</code> vazio, ou igual ao que quem relatou escreveu, <strong>volta ao dela</strong>, que nunca se perde. O card do time é recusado (409): lá o título se edita junto da descrição.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/assignee</code></td><td>Quem fica com o card: <code>UserPublicId</code> de alguém do time <strong>agora</strong> (o dono da conta conta), ou nulo para ninguém. Quem não está no time é recusado (400): a não ser que já seja quem está com o card, que pode ser mandado de novo mesmo depois de sair.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/priority</code></td><td><code>PriorityPublicId</code> de uma prioridade ativa do projeto, ou nulo para sem prioridade. Desativada é recusada (409): a não ser que já seja a do card.</td></tr>
+  <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/labels</code></td><td><code>LabelPublicIds</code>: <strong>o conjunto inteiro</strong>, e não o que entra. A lista vazia tira todas; sem a lista, 400. Até dez, do projeto: uma que não existe aqui recusa a lista inteira (404).</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../reports/{reportPublicId}/due-date</code></td><td><code>DueDate</code> só com a data (<code>2026-10-16</code>), ou nulo para tirar. Passado é aceito; fora dos anos 2000 a 2100, 400.</td></tr>
 </table>
 </div>
@@ -45,8 +45,8 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
 <div class="note why">
   <strong>O card do time pode nascer com responsável e prioridade</strong>
   <p><code>POST /projects/{publicId}/reports</code> aceita <code>AssigneeUserPublicId</code> e
-  <code>PriorityPublicId</code>, opcionais, com as mesmas regras e os mesmos erros destas rotas — o
-  responsável só de quem está no time agora (400), a prioridade do projeto (404) e ativa (409) —, e
+  <code>PriorityPublicId</code>, opcionais, com as mesmas regras e os mesmos erros destas rotas (o
+  responsável só de quem está no time agora (400), a prioridade do projeto (404) e ativa (409)), e
   a mesma linha na história e o mesmo aviso no sino de escolher pelo campo. Quem cria o card já
   com dono não precisa de mais dois pedidos, nem fica com um card criado sem o responsável porque o
   segundo pedido falhou: com o responsável ou a prioridade recusados, o card não é criado. A
@@ -58,15 +58,15 @@ mudanças de campo do mesmo card — mover, comentar e responder não esperam po
 <div class="note why">
   <strong>Quem sai do time continua no card</strong>
   <p>Tirar alguém do time não tira o nome dele dos cards: fica como registro, com
-  <code>InTeam</code> falso, e a tela o marca até alguém trocar. A marca é lida na hora — se a pessoa
+  <code>InTeam</code> falso, e a tela o marca até alguém trocar. A marca é lida na hora, se a pessoa
   voltar ao time, ela some sozinha. Só quem está no time agora pode ser escolhido. Quem não tem nome
   no Google aparece pelo e-mail, como na lista do time.</p>
 </div>
 
 <h3>As prioridades</h3>
 
-<p>O membro lê — é da lista que ele escolhe a do card. Mudar é do administrador. Os tipos de
-relato seguem o mesmo desenho — do projeto, reordenados inteiros, desativados em vez de apagados —,
+<p>O membro lê: é da lista que ele escolhe a do card. Mudar é do administrador. Os tipos de
+relato seguem o mesmo desenho (do projeto, reordenados inteiros, desativados em vez de apagados),
 com o jeito de perguntar de cada um: ver <a href="#/endpoints/tipos-de-relato">Tipos de
 relato</a>.</p>
 
@@ -87,8 +87,8 @@ relato</a>.</p>
 <div class="table-scroll">
 <table>
   <tr><th>Método</th><th>Rota</th><th>O que faz</th></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/labels</code></td><td>Em ordem de nome, cada uma com <code>CardCount</code> — em quantos cards está, arquivados inclusive.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/labels</code></td><td>Cria, com <code>Name</code> (até 30) e, se quiser, <code>Color</code> — sem ela, a menos usada. <strong>O nome que já existe devolve a etiqueta que existe</strong>, sem diferenciar maiúscula — o acento conta —, e a mensagem diz qual dos dois aconteceu. Duas criações do mesmo nome ao mesmo tempo dão numa etiqueta só.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/labels</code></td><td>Em ordem de nome, cada uma com <code>CardCount</code>: em quantos cards está, arquivados inclusive.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/labels</code></td><td>Cria, com <code>Name</code> (até 30) e, se quiser, <code>Color</code>, sem ela, a menos usada. <strong>O nome que já existe devolve a etiqueta que existe</strong>, sem diferenciar maiúscula (o acento conta), e a mensagem diz qual dos dois aconteceu. Duas criações do mesmo nome ao mesmo tempo dão numa etiqueta só.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>.../labels/{labelPublicId}</code></td><td><strong>Administrador.</strong> Nome e cor juntos. Vale em todos os cards que a têm.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>.../labels/{labelPublicId}</code></td><td><strong>Administrador.</strong> Apaga, e a tira de todos os cards: cada um ganha, na história, a saída dela, em nome de quem apagou. O que a história já contava continua com o nome dela.</td></tr>
 </table>
@@ -98,7 +98,7 @@ relato</a>.</p>
   <strong>Criar etiqueta é a escrita de membro fora de <code>/reports</code></strong>
   <p>Fora de <code>/reports</code>, toda rota que muda alguma coisa exige administrador, e a API não sobe se
   alguma esquecer. Criar etiqueta é a exceção, e é declarada: a ação leva a marca de escrita de
-  membro, com o motivo — etiquetar é trabalho do time, e não configuração. Sem a marca, a regra
+  membro, com o motivo; etiquetar é trabalho do time, e não configuração. Sem a marca, a regra
   continua barrando a subida.</p>
 </div>
 
@@ -106,11 +106,11 @@ relato</a>.</p>
 
 <p>A lista (<code>GET .../reports</code>) e o detalhe trazem <code>ReporterTitle</code>,
 <code>Assignee</code>, <code>Priority</code>, <code>Labels</code> e <code>DueDate</code> em todo card,
-e <code>UpdatedAt</code>, a última mudança gravada nele — as rotas de título, responsável,
+e <code>UpdatedAt</code>, a última mudança gravada nele: as rotas de título, responsável,
 prioridade e prazo a movem; a de etiquetas não, porque a etiqueta mora em <code>report_labels</code>.
 O painel mostra o título do time, senão o de quem relatou, senão o começo do texto. A história
 (<code>.../history</code>) conta cada mudança: <code>From</code> e <code>To</code> nos campos de um valor
 (a prioridade com o nome da época; quem passou pelo card com o nome de agora, ou o e-mail de quem
 não tem nome; o prazo em <code>aaaa-mm-dd</code>), <code>Added</code> e <code>Removed</code> nas
 etiquetas, e <code>TitleRestored</code> na mudança de título. Na mudança de responsável,
-<code>To</code> nulo quer dizer ninguém — nunca alguém sem nome.</p>
+<code>To</code> nulo quer dizer ninguém, nunca alguém sem nome.</p>

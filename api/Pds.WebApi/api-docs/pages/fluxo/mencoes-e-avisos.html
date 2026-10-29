@@ -1,20 +1,20 @@
 <h2>Menções e avisos</h2>
 
 <p>Ninguém precisa ficar olhando o quadro para saber que é com ele. Duas coisas avisam uma pessoa
-do time, no <strong>sino</strong> do topo do painel — e com o <strong>som</strong> que ela escolheu
+do time, no <strong>sino</strong> do topo do painel, e com o <strong>som</strong> que ela escolheu
 para cada uma:</p>
 
 <ul>
-  <li><strong>Alguém a menciona</strong> num comentário entre o time — <em>"@Ana, consegue
+  <li><strong>Alguém a menciona</strong> num comentário entre o time: <em>"@Ana, consegue
   olhar?"</em>.</li>
   <li><strong>Alguém a escolhe como responsável</strong> por um card.</li>
 </ul>
 
 <p>E, para quem administra o projeto, dois avisos do <strong>projeto</strong>, sem card: <strong>um
-domínio novo mandou relato</strong> — "loja.com mandou um relato: permitir ou bloquear?", uma vez por
-domínio enquanto houver relato retido dele, levando a "Aguardando liberação" — e <strong>os envios
-foram pausados</strong> por excesso — "Muitos relatos vindos de loja.com: novos envios pausados por
-15 min", uma vez por pausa, levando aos limites. Cada um tem o seu som, como os outros.</p>
+domínio novo mandou relato</strong> ("loja.com mandou um relato: permitir ou bloquear?", uma vez por
+domínio enquanto houver relato retido dele, levando a "Aguardando liberação") e <strong>os envios
+foram pausados</strong> por excesso ("Muitos relatos vindos de loja.com: novos envios pausados por
+15 min", uma vez por pausa, levando aos limites). Cada um tem o seu som, como os outros.</p>
 
 <p><strong>Os avisos ficam no painel.</strong> Nenhum deles manda e-mail: o único e-mail do
 produto é o convite para o time.</p>
@@ -25,9 +25,9 @@ responsável, não gera aviso.</p>
 <h2>A menção</h2>
 
 <p>Na caixa <em>Entre o time</em> do card aberto, digitar <strong>@</strong> abre a lista do time,
-filtrada pelo que vem depois — sem acento, pelo começo do nome ou do e-mail. As setas escolhem,
+filtrada pelo que vem depois, sem acento, pelo começo do nome ou do e-mail. As setas escolhem,
 Enter ou Tab mencionam, e Esc fecha só a lista. No campo fica <em>@Ana Dona</em>; o comentário
-gravado leva a marca <code>@[Ana Dona](identificador)</code>, que diz quem é — o nome muda, a
+gravado leva a marca <code>@[Ana Dona](identificador)</code>, que diz quem é: o nome muda, a
 pessoa não. Na leitura, a menção aparece destacada.</p>
 
 <ul>
@@ -39,31 +39,31 @@ pessoa não. Na leitura, a menção aparece destacada.</p>
 
 <p>Ctrl+Enter (⌘+Enter no Mac) envia, nas duas caixas. <strong>O comentário entre o time se
 corrige</strong>: quem escreveu tem <strong>Editar</strong> e <strong>Apagar</strong> no próprio
-comentário — mais ninguém, nem quem administra; é a palavra de alguém, com o nome dela em cima. A
+comentário; mais ninguém, nem quem administra; é a palavra de alguém, com o nome dela em cima. A
 correção volta as menções a "@Nome" no campo e, ao salvar, <strong>as menções passam a ser as do
-texto novo</strong>: quem entrou é avisado, e o aviso de quem saiu some do sino dele — corrigir o @
-na pessoa errada é isso. O comentário corrigido leva a marca <em>· editado</em>. Apagar pede
+texto novo</strong>: quem entrou é avisado, e o aviso de quem saiu some do sino dele; corrigir o @
+na pessoa errada é isso. O comentário corrigido leva a marca <em>editado</em>. Apagar pede
 confirmação, tira o comentário da conversa e os avisos das menções dele; o histórico continua
 dizendo que houve um comentário, e nunca o que foi dito.</p>
 
 <p><strong>A resposta a quem relatou espera cinco segundos</strong> antes de sair: <em>"Enviando
 para quem relatou… Desfazer"</em>. Desfazer devolve o texto ao campo, e fechar o card no meio envia
-na hora — quem clicou decidiu enviar. Ela não se corrige depois: já saiu da empresa.</p>
+na hora: quem clicou decidiu enviar. Ela não se corrige depois: já saiu da empresa.</p>
 
 <h2>O sino</h2>
 
 <p>O número de não lidos fica no sino, com a palavra para quem não vê o número. Abrir o sino mostra
 os avisos de todos os projetos em que a pessoa está, em duas abas: <strong>Não lidos (N)</strong>,
 a que abre, e <strong>Todos</strong>. Cada aviso diz quem fez, o que fez, o número e o título do
-card, o projeto e quando — e, na menção, <strong>o começo do comentário</strong>, entre aspas. O não
+card, o projeto e quando, e, na menção, <strong>o começo do comentário</strong>, entre aspas. O não
 lido vem em negrito, além do ponto.</p>
 
 <ul>
   <li><strong>Abrir uma menção leva até ela</strong>: o card abre, a conversa rola até o comentário,
   o foco vai para ele, e ele se acende por um instante. O aviso fica lido.</li>
   <li><strong>Os parecidos se juntam</strong>: três ou mais seguidos do mesmo tipo, da mesma pessoa e
-  do mesmo projeto, em até dez minutos, viram uma linha — <em>"Bruno escolheu você como responsável
-  por 7 cards"</em>, <em>"mencionou você 3 vezes"</em> —, e <strong>Ver</strong> abre os sete ali
+  do mesmo projeto, em até dez minutos, viram uma linha (<em>"Bruno escolheu você como responsável
+  por 7 cards"</em>, <em>"mencionou você 3 vezes"</em>), e <strong>Ver</strong> abre os sete ali
   mesmo.</li>
   <li><strong>Nenhum fica fora de alcance</strong>: a lista vem de cinquenta em cinquenta, e
   <strong>Ver os mais antigos</strong> (na aba dos não lidos, <em>Ver os não lidos mais
@@ -74,19 +74,19 @@ lido vem em negrito, além do ponto.</p>
 
 <p><strong>Na tela de Trabalho, na hora.</strong> O aviso novo manda, pelo
 <a href="#/fluxo/tempo-real">tempo real</a>, um <code>NotificationArrived</code> só para a pessoa
-avisada, e o sino pergunta o número na mesma hora. Nas outras telas — a conexão ao vivo só existe
-na de Trabalho —, o sino pergunta ao abrir o painel, a cada troca de tela, ao voltar para a aba e a
+avisada, e o sino pergunta o número na mesma hora. Nas outras telas (a conexão ao vivo só existe
+na de Trabalho), o sino pergunta ao abrir o painel, a cada troca de tela, ao voltar para a aba e a
 cada minuto com a aba à vista. <strong>Quem sai do time deixa de ver</strong> os avisos daquele
 projeto.</p>
 
 <h2>O som</h2>
 
-<p>Quando o número sobe, o painel toca o som do tipo do aviso não lido mais novo — o da menção, ou
-o da escolha como responsável —, no volume da pessoa. Cada pessoa escolhe no <strong>Perfil</strong>
+<p>Quando o número sobe, o painel toca o som do tipo do aviso não lido mais novo (o da menção, ou
+o da escolha como responsável), no volume da pessoa. Cada pessoa escolhe no <strong>Perfil</strong>
 (no menu dela, ou em <em>Preferências de aviso</em>, no sino): um som para cada tipo, entre Plim,
-Sino, Campainha, Gota, Bolha e Suave — ou <em>Sem som</em> —, e o volume, de 0 a 100.
+Sino, Campainha, Gota, Bolha e Suave (ou <em>Sem som</em>), e o volume, de 0 a 100.
 <strong>Escolher já grava</strong>, sem botão de salvar: o som escolhido toca e fica salvo, e soltar
-o volume toca o som no volume novo e grava — um "Salvo." discreto confirma, e a falha oferece
+o volume toca o som no volume novo e grava; um "Salvo." discreto confirma, e a falha oferece
 "Tentar de novo". "Ouvir" continua ao lado de cada tipo. O Perfil tem o caminho de volta no alto:
 <strong>← Voltar</strong>, à tela de onde a pessoa veio, ou <strong>← Projetos</strong>, quando ela
 entrou direto.</p>
@@ -96,7 +96,7 @@ entrou direto.</p>
 escolha como responsável toca Sino, e o volume é 70.</p>
 
 <p>Os sons são gerados no navegador, sem arquivo de áudio. O navegador só deixa tocar depois de a
-pessoa ter mexido na página — um clique, uma tecla —: o aviso que chega antes disso aparece só no
+pessoa ter mexido na página (um clique, uma tecla): o aviso que chega antes disso aparece só no
 sino.</p>
 
 <h2>As rotas</h2>
@@ -114,13 +114,13 @@ PUT  /me/notification-settings
               { "Kind": "ReportsPaused", "Sound": "Drop" } ] }</code></pre>
 
 <p>Todas da pessoa da sessão, e não de um projeto. A lista vem do mais novo para o mais antigo, de
-cinquenta em cinquenta: <code>unread=true</code> traz só os não lidos, e <code>before</code> — o
-último aviso que a tela tem — pede os seguintes, por hora e não por posição, para o aviso novo no
+cinquenta em cinquenta: <code>unread=true</code> traz só os não lidos, e <code>before</code> (o
+último aviso que a tela tem) pede os seguintes, por hora e não por posição, para o aviso novo no
 topo não repetir nem pular ninguém. <code>HasMore</code> diz se há mais, e a menção traz
 <code>Comment</code>, com o identificador do comentário e o começo dele (<code>Excerpt</code>). O
 aviso de outra pessoa não existe para quem pergunta (404), e também o de um projeto de que ela
 saiu. Como <code>before</code>, o painel manda junto <code>beforeAt</code>, a hora daquele aviso: se
-ele sumiu nesse meio-tempo — o comentário apagado, a menção tirada, a pessoa fora do projeto —, a
+ele sumiu nesse meio-tempo (o comentário apagado, a menção tirada, a pessoa fora do projeto), a
 página segue por ela, só com os avisos da própria pessoa, em vez de "Ver os mais antigos" dar 404
 até fechar o sino. Pela hora, pode vir de novo algum aviso da mesma hora, e o painel o tira.</p>
 

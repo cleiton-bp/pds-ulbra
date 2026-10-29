@@ -5,12 +5,12 @@ convenção do ASP.NET Core; o nome foi trocado para dizer o que ela guarda, e a
 apontada em <code>Program.cs</code>.</p>
 
 <ul>
-  <li><code>index.html</code> — a casca: menu lateral e área de conteúdo.</li>
-  <li><code>assets/js/docs.js</code> — o roteador. A lista <code>ROUTES</code> define o menu.</li>
-  <li><code>assets/css/docs.css</code> — o estilo.</li>
-  <li><code>pages/&lt;seção&gt;.html</code> — a abertura de cada seção, e
-  <code>pages/&lt;seção&gt;/&lt;passo&gt;.html</code> — cada passo dela.</li>
-  <li><code>assets/js/swagger-back.js</code> — o botão de volta que aparece na barra do
+  <li><code>index.html</code>: a casca: menu lateral e área de conteúdo.</li>
+  <li><code>assets/js/docs.js</code>: o roteador. A lista <code>ROUTES</code> define o menu.</li>
+  <li><code>assets/css/docs.css</code>: o estilo.</li>
+  <li><code>pages/&lt;seção&gt;.html</code> (a abertura de cada seção, e
+  <code>pages/&lt;seção&gt;/&lt;passo&gt;.html</code>) cada passo dela.</li>
+  <li><code>assets/js/swagger-back.js</code>: o botão de volta que aparece na barra do
   Swagger. É injetado na página dele pelo <code>Startup.cs</code>, e fecha o caminho de ida
   e volta entre os dois.</li>
 </ul>
@@ -34,7 +34,7 @@ rodapé.</p>
 </div>
 
 <p>Cada página é só um fragmento de HTML, sem <code>&lt;head&gt;</code> nem
-<code>&lt;body&gt;</code> — o primeiro <code>&lt;h2&gt;</code> vira o título e o
+<code>&lt;body&gt;</code>: o primeiro <code>&lt;h2&gt;</code> vira o título e o
 <code>&lt;p class="lead"&gt;</code> seguinte, o subtítulo. Para os blocos destacados existem
 três estilos: <code>note why</code> para o porquê de uma decisão, <code>note warn</code> para
 armadilha, e <code>note todo</code> para o que ainda falta.</p>

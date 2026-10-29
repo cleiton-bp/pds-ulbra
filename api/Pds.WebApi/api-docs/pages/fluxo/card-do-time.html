@@ -2,7 +2,7 @@
 
 <p>Nem todo trabalho chega pela ferramenta. Na tela de Trabalho, <strong>Novo card</strong> (ou a
 tecla "c", fora de um campo) cria um card do próprio time: o título, a descrição em
-Markdown, a coluna em que ele nasce e, se quiser, <strong>o responsável e a prioridade</strong> —
+Markdown, a coluna em que ele nasce e, se quiser, <strong>o responsável e a prioridade</strong>;
 quem olha aparece primeiro na lista, com "(você)", e a prioridade mais urgente fica em cima. Tudo
 vai no mesmo pedido, e o card já nasce com eles:</p>
 
@@ -24,39 +24,39 @@ Authorization: Bearer &lt;AccessToken&gt;
 }</code></pre>
 
 <p>Os dois são opcionais, e passam pela mesma regra de escolher no card: o responsável, só quem
-está no time — com o evento no histórico e o aviso no sino da pessoa escolhida, se não for quem
-cria —; a prioridade, só entre as ativas. <strong>Enter no título
+está no time (com o evento no histórico e o aviso no sino da pessoa escolhida, se não for quem
+cria); a prioridade, só entre as ativas. <strong>Enter no título
 cria</strong>; Ctrl+Enter (⌘+Enter no Mac) cria de qualquer campo, inclusive da descrição, onde o
 Enter sozinho quebra a linha.</p>
 
 <p>Com as <a href="#/fluxo/backlog-e-sprints">sprints ligadas</a>, o formulário diz onde o card
-entra — <strong>Entra em</strong>: o backlog, a sprint em andamento ou uma planejada
+entra: <strong>Entra em</strong>: o backlog, a sprint em andamento ou uma planejada
 (<code>SprintPublicId</code>). O "Novo card" do topo começa no backlog; o campo do topo de uma
-coluna do quadro cria na sprint em andamento — ver <a href="#/fluxo/o-quadro">O quadro</a>.</p>
+coluna do quadro cria na sprint em andamento (ver <a href="#/fluxo/o-quadro">O quadro</a>).</p>
 
 <p>O aviso do fim diz onde o card foi parar, com <strong>Abrir</strong>: "#42 criado.", "#42 criado
 no backlog." ou, com filtros ligados que ele não passa, "#42 criado. Ele não aparece aqui porque
-os filtros estão ligados." — a lista é relida, e quem decide se o card aparece é o filtro. Criado
+os filtros estão ligados.": a lista é relida, e quem decide se o card aparece é o filtro. Criado
 no backlog a partir do quadro, o aviso oferece levá-lo para a sprint em andamento.</p>
 
-<p>Ele ganha o próximo número do projeto — <strong>#42</strong> — da mesma sequência dos
+<p>Ele ganha o próximo número do projeto (<strong>#42</strong>) da mesma sequência dos
 relatos: o relato que chegar depois pela ferramenta leva o #43. É o número que o time fala no
 grupo e escreve no commit.</p>
 
 <div class="note warn">
   <strong>O card do time não tem lado de fora</strong>
   <p>Sem protocolo, sem link de acompanhamento, sem código pessoal, sem etapa pública e sem
-  moderação — e o banco recusa a linha que tente ter. Nenhuma porta pública chega a ele.</p>
+  moderação, e o banco recusa a linha que tente ter. Nenhuma porta pública chega a ele.</p>
 </div>
 
 <h2>Trabalhar nele</h2>
 
 <p>O card do time anda pelas mesmas colunas do relato, com o mesmo
 <code>PUT .../state</code> e o mesmo evento. Duas diferenças: mover para a coluna que encerra
-<strong>não pede desfecho nem motivo</strong> — não há quem relatou para ler —, e a etapa pública
+<strong>não pede desfecho nem motivo</strong> (não há quem relatou para ler), e a etapa pública
 nunca se mexe por ele.</p>
 
-<p>No card aberto, <strong>Editar</strong> fica ao lado do título — e clicar no título ou na
+<p>No card aberto, <strong>Editar</strong> fica ao lado do título, e clicar no título ou na
 descrição também edita, com o cursor no fim do campo clicado. Os campos da direita continuam à vista
 durante a edição, e <strong>Descartar o texto</strong> desiste. O título e a descrição se gravam
 inteiros, com o texto de onde a edição partiu:</p>
@@ -68,7 +68,7 @@ inteiros, com o texto de onde a edição partiu:</p>
 <p><strong>Duas pessoas editando a mesma descrição não se apagam.</strong> Se o card já não tem o
 texto de <code>Base</code>, outra pessoa salvou no meio, e a gravação é recusada com 409 em vez de
 escrever por cima. Quando a versão nova chega pelo <a href="#/fluxo/tempo-real">tempo real</a> com
-a edição aberta — ou o salvar recebe o 409 —, a tela avisa acima do editor: <em>"Bruno salvou uma
+a edição aberta (ou o salvar recebe o 409), a tela avisa acima do editor: <em>"Bruno salvou uma
 nova versão enquanto você editava."</em>, com <strong>Usar a versão nova</strong> e
 <strong>Manter a minha</strong>, e o Salvar só volta depois da escolha. É o texto que se compara, e
 não a data de alteração do card: quem só trocou a prioridade no meio não fez nada que se perca.
@@ -80,7 +80,7 @@ encerramento são só do relato.</p>
 
 <div class="note why">
   <strong>A descrição é Markdown, e o painel a desenha sem HTML</strong>
-  <p>Negrito, itálico, código, listas, títulos, citação e links — a barra do editor escreve as
+  <p>Negrito, itálico, código, listas, títulos, citação e links: a barra do editor escreve as
   marcas, e a aba "Visualizar" mostra exatamente o que o card vai mostrar. O texto vira elementos
   na tela, nunca HTML: um <code>&lt;script&gt;</code> escrito na descrição aparece como texto. Link
   só com <code>http</code>, <code>https</code> ou <code>mailto</code>, e imagem não carrega.</p>
@@ -93,12 +93,12 @@ encerramento são só do relato.</p>
 
 <p>O card sai da tela de Trabalho e da contagem das colunas, e passa a aparecer em
 "Arquivados" (<code>GET .../reports?archived=true</code>). Arquivado se lê e se comenta;
-mover e editar pedem desarquivar antes — <code>{ "Archived": false }</code>.</p>
+mover e editar pedem desarquivar antes: <code>{ "Archived": false }</code>.</p>
 
 <h2>Arquivar um relato</h2>
 
 <p>O caminho do relato é encerrar com desfecho. Arquivar relato existe só com a regra do ciclo
-ligada — "Deixar o time arquivar relato", na tela de Ciclo —, e <strong>arquivar o relato aberto
+ligada ("Deixar o time arquivar relato", na tela de Ciclo), e <strong>arquivar o relato aberto
 encerra junto</strong>:</p>
 
 <pre><code>PUT /projects/2be49b28-.../reports/9f3e.../archive
@@ -106,7 +106,7 @@ encerra junto</strong>:</p>
   "Reason": "Esta mudança não vai entrar no produto. Obrigado por escrever." }</code></pre>
 
 <p>Quem relatou abre o link e lê o motivo, como em qualquer encerramento. Dali, pode
-<strong>finalizar</strong> — confirmando, com a nota — ou <strong>reabrir</strong>. Reabrir traz o
+<strong>finalizar</strong> (confirmando, com a nota) ou <strong>reabrir</strong>. Reabrir traz o
 relato de volta para a tela de Trabalho sozinho: no histórico, "Desarquivou" aparece sem o nome de
 ninguém do time, junto de "Quem relatou reabriu". O relato já encerrado arquiva sem pedir nada: o
 motivo já foi.</p>
@@ -114,6 +114,6 @@ motivo já foi.</p>
 <div class="note why">
   <strong>Arquivar nunca deixa quem relatou sem retorno</strong>
   <p>Tirar um relato da tela do time sem dizer nada à pessoa seria exatamente o silêncio que o
-  produto existe para acabar. Por isso o relato aberto só sai da tela com um motivo — e se a pessoa
+  produto existe para acabar. Por isso o relato aberto só sai da tela com um motivo, e se a pessoa
   escrever de novo, reabrindo ou respondendo a uma pergunta que ainda estava aberta, ele volta.</p>
 </div>

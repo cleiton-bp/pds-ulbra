@@ -3,11 +3,11 @@
 
 <p>É o <strong>ciclo que fecha</strong> que faz o produto responder à queixa do README.
 <strong>Todo encerramento exige um motivo, e o motivo é visível</strong>: sem essa regra, a
-pessoa ficaria sabendo que acabou e não o que aconteceu — que é exatamente o problema de
+pessoa ficaria sabendo que acabou e não o que aconteceu, que é exatamente o problema de
 origem.</p>
 
 <p>E "concluído" não é o fim. Quem relatou <strong>confirma</strong> que resolveu, ou
-<strong>reabre</strong> dizendo que não — e reabrir não é regredir: quem pediu a volta foi a
+<strong>reabre</strong> dizendo que não, e reabrir não é regredir: quem pediu a volta foi a
 própria pessoa, então o relato volta para a coluna que o projeto configurou, sem o freio que
 segura o vaivém interno. Ao confirmar, ela dá uma nota, e <strong>recusar opinar é registrado
 como recusa</strong>, e não como silêncio: juntar os dois daria uma métrica que parece precisa e
@@ -16,40 +16,40 @@ não é.</p>
 <p>O que ela escreve ao reabrir aparece <strong>dos dois lados</strong>, no painel e na página
 de acompanhamento: é a única coisa que a pessoa disse ao avisar que não resolveu, e quem pega o
 relato de volta precisa dela. E a reabertura pode levar imagens e arquivos, como a resposta ao
-time — ver <a href="#/visao-geral/imagens-e-arquivos">imagens e arquivos no relato</a>.</p>
+time (ver <a href="#/visao-geral/imagens-e-arquivos">imagens e arquivos no relato</a>).</p>
 
 <p>O time também pode <strong>devolver o relato pedindo informação</strong>, em vez de encerrar.
-É a diferença entre "não reproduzi" e "não vamos fazer" — chegando iguais, fazem quem relatou
+É a diferença entre "não reproduzi" e "não vamos fazer": chegando iguais, fazem quem relatou
 entender que acabou e parar de responder. O pedido tem prazo: passado o primeiro, a página avisa;
-passado o segundo, o relato encerra como <strong>sem retorno</strong> — e encerrado assim
+passado o segundo, o relato encerra como <strong>sem retorno</strong>, e encerrado assim
 continua reabrível, porque o produto existe justamente para quem foi esquecido.</p>
 
 <p>A conversa acontece pelo próprio relato, numa <strong>lista só com os dois lados em
 ordem</strong>, e sem nome de ninguém do time. E quem relata escolhe, no formulário, se
-<strong>aceita responder dúvidas</strong> — sem esse sim, o time não abre pedido nenhum, e a tela
+<strong>aceita responder dúvidas</strong>, sem esse sim, o time não abre pedido nenhum, e a tela
 diz por quê.</p>
 
 <p>Entre o movimento de dentro e o que quem relatou vê pode haver uma <strong>espera</strong>
 configurável: é a janela para desfazer um movimento errado antes de ele virar notícia. Ela é o
-que trouxe a <strong>fila</strong> para o sistema, e o desenho dela cabe numa frase — a mensagem
+que trouxe a <strong>fila</strong> para o sistema, e o desenho dela cabe numa frase: a mensagem
 carrega o relato, e nunca a decisão. Quem consome relê o estado atual, e daí saem desfazer sem
 cancelar, mensagem repetida sem dano e mensagem perdida sem perder o relato.</p>
 
 <p>Nada disso é fixo: as <strong>regras do ciclo</strong> são configuração por projeto, com
 padrão de fábrica em código. Se dá para reabrir e para onde, se a nota aparece e em que escala,
-quantos dias cada prazo tem — quem dita é o projeto. A tela <strong>Ciclo</strong> cuida de como o
+quantos dias cada prazo tem: quem dita é o projeto. A tela <strong>Ciclo</strong> cuida de como o
 relato termina; o mesmo registro guarda as regras do quadro, que ficam em <strong>Colunas</strong>,
 e as das sprints, na tela <strong>Sprints</strong>, e cada tela grava só os campos dela.</p>
 
 <p>No painel, <strong>encerrar e pedir informação ficam à mão em qualquer coluna</strong>, enquanto
-o relato está aberto. E tirar da coluna que encerra um relato encerrado — o que o reabre, e tira o
-motivo da página de quem relatou — <strong>pergunta antes</strong>, pelo quadro e pelo card.</p>
+o relato está aberto. E tirar da coluna que encerra um relato encerrado (o que o reabre, e tira o
+motivo da página de quem relatou) <strong>pergunta antes</strong>, pelo quadro e pelo card.</p>
 
 <p>Ficam duas ressalvas. <strong>Onde a fila roda em produção</strong> é <strong>Adiado</strong>:
-o Render não fornece broker, e sem fila a espera não liga — a tela de Ciclo recusa salvar uma
-espera maior que zero, dizendo o motivo — e o prazo do pedido <strong>nunca encerra o relato
+o Render não fornece broker, e sem fila a espera não liga (a tela de Ciclo recusa salvar uma
+espera maior que zero, dizendo o motivo) e o prazo do pedido <strong>nunca encerra o relato
 sozinho</strong>: quem aplica o vencimento é o consumidor da fila, e sem fila ele não existe.</p>
 
-<p>E <code>tracking_code_can_act</code> — se quem chega pelo código pessoal também confirma e
-reabre — fica gravado, <strong>escondido na tela de Ciclo</strong>, e a API o ignora: confirmar,
+<p>E <code>tracking_code_can_act</code> (se quem chega pelo código pessoal também confirma e
+reabre) fica gravado, <strong>escondido na tela de Ciclo</strong>, e a API o ignora: confirmar,
 reabrir e responder aceitam só o link. Fazer essas três ações aceitarem o código é <strong>Adiado</strong>.</p>

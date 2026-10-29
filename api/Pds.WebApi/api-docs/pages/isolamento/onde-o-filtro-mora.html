@@ -11,11 +11,11 @@
 requisição. Toda leitura de projeto já nasce restrita, venha de onde vier.</p>
 
 <p><code>CurrentProjectIds</code> são as chaves internas dos projetos que a pessoa da requisição
-enxerga — os da conta própria e os do time —, e a lista chega pronta do middleware. Por isso o filtro é
+enxerga (os da conta própria e os do time), e a lista chega pronta do middleware. Por isso o filtro é
 comparação de coluna, sem junção com <code>project_members</code>, e a lista vai ao PostgreSQL
 como um parâmetro só, um vetor: a comparação vira <code>= ANY(...)</code>. Sem sessão, a lista é
-vazia, e vazia não enxerga nada — ver <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o
-acesso</a>.</p>
+vazia, e vazia não enxerga nada (ver <a href="#/isolamento/de-onde-vem-a-conta">De onde vem o
+acesso</a>).</p>
 
 <h3>As chaves comparam a própria coluna</h3>
 
@@ -26,7 +26,7 @@ acesso</a>.</p>
         CurrentProjectIds.Contains(key.ProjectId));</code></pre>
 
 <p>A tabela <code>project_keys</code> não repete <code>account_id</code>, porque a chave não
-existe fora de um projeto — e o acesso, que é por projeto, compara o <code>project_id</code> da
+existe fora de um projeto, e o acesso, que é por projeto, compara o <code>project_id</code> da
 própria linha. Só a exclusão lógica do projeto passa pela navegação. O ganho é não ter a mesma
 informação em duas tabelas podendo divergir.</p>
 
@@ -39,13 +39,13 @@ informação em duas tabelas podendo divergir.</p>
 <code>project_identity_settings</code>, <code>project_media_settings</code>,
 <code>project_team_settings</code> e <code>reporter_codes</code> seguem exatamente o mesmo desenho, pelo mesmo motivo, e
 por isso cada uma tem um filtro próprio idêntico. Vale reparar no detalhe que engana: o filtro escrito no
-<code>DataContext</code> <strong>substitui</strong> o de exclusão lógica herdado, não soma —
+<code>DataContext</code> <strong>substitui</strong> o de exclusão lógica herdado, não soma;
 quem esquecer de repetir <code>DeletedAt == null</code> ali perde o apagado sem nenhum erro
 de compilação.</p>
 
 <p><code>project_media_kinds</code> chega ao projeto por <strong>dois saltos</strong>: o limite de
 cada categoria pendura na configuração de mídia, e a configuração no projeto. É o preço de o limite
-não pendurar direto no projeto — e vale a pena, porque sem a configuração esses números não querem
+não pendurar direto no projeto, e vale a pena, porque sem a configuração esses números não querem
 dizer nada. O acesso compara o <code>project_id</code> da configuração, e o filtro repete a
 exclusão lógica dos três degraus:</p>
 
@@ -66,7 +66,7 @@ exclusão lógica dos três degraus:</p>
 
 <p><strong>O relato retido também fica de fora aqui.</strong> O que chegou de um endereço fora da
 lista de autorizados (<code>held_for_origin_at</code> preenchido) não aparece em lista, quadro,
-backlog, contagem, busca, moderação nem aviso do painel — são dezenas de leituras, e nenhuma
+backlog, contagem, busca, moderação nem aviso do painel: são dezenas de leituras, e nenhuma
 precisa lembrar. Só "Aguardando liberação", liberar e apagar o enxergam, atravessando o filtro
 (ver <a href="#/isolamento/consultas-que-atravessam">As consultas que atravessam o filtro</a>).
 Quem relatou continua acompanhando: as rotas públicas não passam por este filtro.</p>
@@ -74,7 +74,7 @@ Quem relatou continua acompanhando: as rotas públicas não passam por este filt
 <p><code>reports</code> é a exceção ao desenho acima: não navega até o projeto para nada. É a
 tabela que mais cresce e a que o painel lista o tempo todo, então o acesso é comparação de
 coluna, sem junção em toda consulta. Ela também repete <code>account_id</code>, copiado do
-projeto, para saber de qual conta é o relato sem junção — mas não é mais por ele que o isolamento
+projeto, para saber de qual conta é o relato sem junção, mas não é mais por ele que o isolamento
 compara.</p>
 
 <p>O que pendura no relato volta ao padrão e chega ao projeto por ele: <code>report_contexts</code>,
@@ -84,7 +84,7 @@ compara.</p>
 que a ligação tenha ficado para trás.</p>
 
 <p><strong>O anexo chega pelo relato, e não pelo lugar onde veio.</strong> Um arquivo pode ter
-vindo com uma resposta ou com uma reabertura, e a linha aponta para elas — mas quem é dono dele é
+vindo com uma resposta ou com uma reabertura, e a linha aponta para elas, mas quem é dono dele é
 o relato, e é pelo relato que o filtro passa. É também esse filtro que faz o painel nunca
 assinar a leitura de um arquivo de projeto em que a pessoa não está: o relato de fora não volta,
 e nenhum link chega a ser gerado.</p>
@@ -92,16 +92,16 @@ e nenhum link chega a ser gerado.</p>
 <p><strong>As tabelas do trabalho do time comparam coluna, como o relato.</strong>
 <code>card_links</code> e <code>notifications</code> repetem o <code>project_id</code> do card, e
 <code>sprints</code> tem o dele: o acesso compara a coluna, sem junção. O vínculo some também
-quando um dos dois cards foi apagado, e o aviso, quando o card dele foi. O aviso do projeto — um
-endereço novo mandou relato, os envios foram pausados — não tem card, e vale sem ele. De quem é o
-aviso, cada leitura diz — o filtro guarda o projeto, e a pessoa vai na consulta.</p>
+quando um dos dois cards foi apagado, e o aviso, quando o card dele foi. O aviso do projeto (um
+endereço novo mandou relato, os envios foram pausados) não tem card, e vale sem ele. De quem é o
+aviso, cada leitura diz: o filtro guarda o projeto, e a pessoa vai na consulta.</p>
 
-<p><code>user_notification_sounds</code> é da pessoa, e não de projeto — o som que ela escolheu
-para cada tipo de aviso vale em todos —: o filtro só tira o apagado, e cada leitura diz de quem.</p>
+<p><code>user_notification_sounds</code> é da pessoa, e não de projeto (o som que ela escolheu
+para cada tipo de aviso vale em todos): o filtro só tira o apagado, e cada leitura diz de quem.</p>
 
 <p><code>events</code> também compara coluna, e só o projeto: evento não se apaga, então não há
 exclusão lógica para repetir. Todo evento gravado hoje nasce de um projeto; o que um dia ficar sem
-ele — no dia em que a exclusão da conta, <strong>Planejado</strong>, apagar o projeto de verdade — não
+ele (no dia em que a exclusão da conta, <strong>Planejado</strong>, apagar o projeto de verdade) não
 aparece no painel. Hoje nada apaga a linha de um projeto. <code>accounts</code> e
-<code>users</code> ficam de fora do filtro — ver <a href="#/isolamento/de-onde-vem-a-conta">De
-onde vem o acesso</a>.</p>
+<code>users</code> ficam de fora do filtro (ver <a href="#/isolamento/de-onde-vem-a-conta">De
+onde vem o acesso</a>).</p>

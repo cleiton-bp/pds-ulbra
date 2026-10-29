@@ -55,20 +55,20 @@
                    │
                    └───1:N──  <b>events</b></div>
 
-<p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto —
-não na conta — porque chave não existe fora de um projeto. O endereço autorizado pendura no
+<p>A conta é a raiz de tudo. Usuário e projeto penduram nela, e a chave pendura no projeto
+(não na conta) porque chave não existe fora de um projeto. O endereço autorizado pendura no
 mesmo lugar, pelo mesmo motivo. E quem está no time também: <code>project_members</code> liga a
-pessoa ao projeto, e não à conta, porque a entrada é por projeto — e o convite, que é a porta
+pessoa ao projeto, e não à conta, porque a entrada é por projeto, e o convite, que é a porta
 dessa entrada, pendura no mesmo lugar.</p>
 
 <p>O desenho acima é simplificado em seis pontos, e os seis são deliberados:
 <code>reports</code> aponta <em>também</em> para <code>projects</code>, e não só para a
-conta; <code>events</code> aponta para as três — conta, projeto e relato —, todas
+conta; <code>events</code> aponta para as três (conta, projeto e relato), todas
 anuláveis; <code>reports</code> aparece duas vezes, porque além de pendurar na conta ele
 <em>pode</em> pendurar num <code>reporter_codes</code>, que é opcional e vive dentro do
 projeto; <code>report_attachments</code> pendura sempre no relato, mas <em>pode</em>
 apontar também para uma resposta (<code>report_public_comments</code>) ou para uma
-reabertura (<code>report_closures</code>) — nunca para as duas —; e <code>users</code> aparece
+reabertura (<code>report_closures</code>), nunca para as duas; e <code>users</code> aparece
 duas vezes, porque além de pendurar na conta própria ele entra, por
 <code>project_members</code>, no time de projetos de qualquer conta; e
 <code>project_labels</code> aparece duas vezes, porque a etiqueta pendura no projeto e chega a cada
@@ -104,15 +104,15 @@ logo abaixo.</p>
 <div class="steps-index">
   <a href="#/modelagem/conta-e-usuario"><strong>Conta, usuário e time</strong><span>A dona dos dados, quem entra no painel, e quem está em cada projeto, com que papel.</span></a>
   <a href="#/modelagem/projeto-e-chaves"><strong>Projeto, chaves e endereços</strong><span>O que o cliente cria, o que nasce junto e o que autoriza a ferramenta a abrir.</span></a>
-  <a href="#/modelagem/configuracoes"><strong>Configurações do projeto</strong><span>Aparência, ciclo, identidade e visibilidade, limites de relato — uma linha por projeto, só quando alguém salva.</span></a>
-  <a href="#/modelagem/fila-interna"><strong>A fila interna</strong><span>As colunas que o time usa — três de fábrica —, e por que a coluna de entrada de um tipo não se aposenta.</span></a>
+  <a href="#/modelagem/configuracoes"><strong>Configurações do projeto</strong><span>Aparência, ciclo, identidade e visibilidade, limites de relato: uma linha por projeto, só quando alguém salva.</span></a>
+  <a href="#/modelagem/fila-interna"><strong>A fila interna</strong><span>As colunas que o time usa (três de fábrica), e por que a coluna de entrada de um tipo não se aposenta.</span></a>
   <a href="#/modelagem/jornada-publica"><strong>A jornada pública</strong><span>Os passos que quem relatou vê, e o mapa versionado que leva até eles.</span></a>
   <a href="#/modelagem/relato"><strong>O relato</strong><span>Os tipos de relato e o que cada um pergunta, a tabela que mais cresce, o contexto que vem junto e o código de quem escreveu.</span></a>
-  <a href="#/modelagem/campos-do-card"><strong>O que o time dá ao card</strong><span>Responsável, prioridade, etiquetas e prazo — as prioridades e as etiquetas do projeto, e a paleta.</span></a>
-  <a href="#/modelagem/vinculos"><strong>Vínculos entre cards</strong><span>Duplicado de, bloqueia e relacionado a, um por par de cards — e o que o duplicado grava no próprio relato para quem relatou acompanhar o original.</span></a>
+  <a href="#/modelagem/campos-do-card"><strong>O que o time dá ao card</strong><span>Responsável, prioridade, etiquetas e prazo: as prioridades e as etiquetas do projeto, e a paleta.</span></a>
+  <a href="#/modelagem/vinculos"><strong>Vínculos entre cards</strong><span>Duplicado de, bloqueia e relacionado a, um por par de cards, e o que o duplicado grava no próprio relato para quem relatou acompanhar o original.</span></a>
   <a href="#/modelagem/avisos"><strong>Os avisos do sino</strong><span>A menção e a escolha como responsável, de uma pessoa só, e o som de cada tipo de aviso, com o volume, na própria pessoa.</span></a>
   <a href="#/modelagem/sprints"><strong>Sprints e backlog</strong><span>As sprints do projeto, uma em andamento por vez, e o que o card ganha com elas: a sprint, os pontos e o lugar no backlog.</span></a>
   <a href="#/modelagem/conversa-e-ciclo"><strong>Conversa e ciclo</strong><span>Os dois comentários em tabelas separadas, o encerramento e o pedido de informação.</span></a>
-  <a href="#/modelagem/midia"><strong>Mídia</strong><span>O que o projeto aceita, o limite de cada tipo numa linha própria, e o registro de cada arquivo — que nunca mora no banco.</span></a>
-  <a href="#/modelagem/eventos"><strong>Eventos</strong><span>A única tabela que só cresce — e as convenções de nome do banco inteiro.</span></a>
+  <a href="#/modelagem/midia"><strong>Mídia</strong><span>O que o projeto aceita, o limite de cada tipo numa linha própria, e o registro de cada arquivo, que nunca mora no banco.</span></a>
+  <a href="#/modelagem/eventos"><strong>Eventos</strong><span>A única tabela que só cresce, e as convenções de nome do banco inteiro.</span></a>
 </div>

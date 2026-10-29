@@ -7,61 +7,61 @@
   <tr><td><span class="verb post">POST</span></td><td><code>/auth/google</code></td><td>Entra com o Google. Primeiro acesso cria a conta própria e o usuário.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/auth/logout</code></td><td>Encerra a sessão.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/me</code></td><td>Usuário e a conta própria.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/me/notifications</code></td><td>O sino, de cinquenta em cinquenta, do mais novo para o mais antigo: os avisos da pessoa, dos projetos em que ela está — <code>Mention</code> (mencionada num comentário interno, com o começo dele em <code>Comment</code>) e <code>Assignment</code> (escolhida como responsável) —, com quem fez, o card e o projeto; e, para quem administra, os dois avisos do projeto, sem card (<code>Card</code> nulo): <code>OriginPending</code> (um domínio fora da lista mandou relato, que ficou retido — o domínio em <code>Subject</code>, nulo quando o relato não disse de onde veio; um por domínio enquanto houver retido dele) e <code>ReportsPaused</code> (relatos demais: uma camada foi pausada — <code>LimitScope</code> <code>Reporter</code>, <code>Ip</code>, <code>Origin</code> ou <code>Project</code>, o domínio em <code>Subject</code> quando é ele, e <code>PausedUntil</code>; um por pausa, nunca com IP). <code>unread=true</code> traz só os não lidos; <code>before</code>, o identificador do último aviso da página anterior, traz os mais antigos que ele, e <code>HasMore</code> diz se ainda há. <code>UnreadCount</code> conta todos os não lidos, inclusive os que não vieram. Junto vai <code>beforeAt</code>, a hora desse aviso: se ele sumiu — o comentário ou o card apagado, a menção tirada, a pessoa fora do projeto —, a página segue por ela, e o painel tira algum aviso repetido da mesma hora. Sem <code>beforeAt</code>, o <code>before</code> que não se acha — de outra pessoa, ou que sumiu — é 404. Ver <a href="#/fluxo/mencoes-e-avisos">Menções e avisos</a>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/me/notifications</code></td><td>O sino, de cinquenta em cinquenta, do mais novo para o mais antigo: os avisos da pessoa, dos projetos em que ela está, que são <code>Mention</code> (mencionada num comentário interno, com o começo dele em <code>Comment</code>) e <code>Assignment</code> (escolhida como responsável), com quem fez, o card e o projeto; e, para quem administra, os dois avisos do projeto, sem card (<code>Card</code> nulo): <code>OriginPending</code> (um domínio fora da lista mandou relato, que ficou retido, com o domínio em <code>Subject</code>, nulo quando o relato não disse de onde veio; um por domínio enquanto houver retido dele) e <code>ReportsPaused</code> (relatos demais: uma camada foi pausada, com <code>LimitScope</code> <code>Reporter</code>, <code>Ip</code>, <code>Origin</code> ou <code>Project</code>, o domínio em <code>Subject</code> quando é ele, e <code>PausedUntil</code>; um por pausa, nunca com IP). <code>unread=true</code> traz só os não lidos; <code>before</code>, o identificador do último aviso da página anterior, traz os mais antigos que ele, e <code>HasMore</code> diz se ainda há. <code>UnreadCount</code> conta todos os não lidos, inclusive os que não vieram. Junto vai <code>beforeAt</code>, a hora desse aviso: se ele sumiu (o comentário ou o card apagado, a menção tirada, a pessoa fora do projeto), a página segue por ela, e o painel tira algum aviso repetido da mesma hora. Sem <code>beforeAt</code>, o <code>before</code> que não se acha (de outra pessoa, ou que sumiu) é 404. Ver <a href="#/fluxo/mencoes-e-avisos">Menções e avisos</a>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/me/notifications/unread-count</code></td><td>Só o número do sino: a pergunta barata que o painel repete.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/me/notifications/{notificationPublicId}/read</code></td><td>Marca um aviso como lido. Ler de novo não é erro. O aviso de outra pessoa, ou de um projeto de que ela saiu, é 404.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/me/notifications/read-all</code></td><td>Marca como lidos todos os avisos dos projetos em que a pessoa está.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/me/notification-settings</code></td><td>As preferências de aviso: <code>Volume</code> (0 a 100) e <code>Sounds</code>, o som de cada tipo de aviso (<code>Mention</code>, <code>Assignment</code>, <code>OriginPending</code>, <code>ReportsPaused</code>) — <code>None</code>, <code>Bell</code>, <code>Drop</code>, <code>Ping</code>, <code>Chime</code>, <code>Bubble</code> ou <code>Soft</code>. O tipo que a pessoa nunca escolheu vem com o de fábrica. Ver <a href="#/fluxo/mencoes-e-avisos">Menções e avisos</a>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/me/notification-settings</code></td><td>As preferências de aviso: <code>Volume</code> (0 a 100) e <code>Sounds</code>, o som de cada tipo de aviso (<code>Mention</code>, <code>Assignment</code>, <code>OriginPending</code>, <code>ReportsPaused</code>); <code>None</code>, <code>Bell</code>, <code>Drop</code>, <code>Ping</code>, <code>Chime</code>, <code>Bubble</code> ou <code>Soft</code>. O tipo que a pessoa nunca escolheu vem com o de fábrica. Ver <a href="#/fluxo/mencoes-e-avisos">Menções e avisos</a>.</td></tr>
   <tr><td><span class="verb put">PUT</span></td><td><code>/me/notification-settings</code></td><td>Grava as preferências, inteiras: o volume e um som para cada tipo, todos os tipos, cada um uma vez (400 no que faltar, repetir ou não existir). Valem em todos os projetos da pessoa.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/realtime/ticket</code></td><td>O bilhete da conexão em tempo real: vale um minuto e só abre o hub (<code>/realtime/hub</code>). Ver <a href="#/fluxo/tempo-real">O tempo real</a>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects</code></td><td>Os projetos que a pessoa enxerga, de todas as contas, cada um com a conta dona, o papel dela e o movimento: <code>LastReportReceivedAt</code> e <code>LastActivityAt</code>.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto, sempre na conta própria, com a chave pública e o que o <strong>modelo</strong> traz (<code>Template</code>, opcional: <code>SimpleBoard</code>, <code>Support</code>, <code>Kanban</code> ou <code>Scrum</code>) — as colunas já ligadas ao andamento público, a jornada, os tipos de relato e, no Scrum, as sprints —, mais as prioridades de fábrica. Sem modelo, o quadro simples: <strong>A fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong>. Modelo desconhecido, 400. <strong>A chave secreta não nasce aqui</strong>, e a resposta não a traz.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects</code></td><td>Cria o projeto, sempre na conta própria, com a chave pública e o que o <strong>modelo</strong> traz (<code>Template</code>, opcional: <code>SimpleBoard</code>, <code>Support</code>, <code>Kanban</code> ou <code>Scrum</code>) (as colunas já ligadas ao andamento público, a jornada, os tipos de relato e, no Scrum, as sprints), mais as prioridades de fábrica. Sem modelo, o quadro simples: <strong>A fazer</strong>, <strong>Fazendo</strong> e <strong>Feito</strong>. Modelo desconhecido, 400. <strong>A chave secreta não nasce aqui</strong>, e a resposta não a traz.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}</code></td><td>Detalhe do projeto, com a conta dona, o papel e o movimento.</td></tr>
   <tr><td><span class="verb patch">PATCH</span></td><td><code>/projects/{publicId}</code></td><td><strong>Administrador.</strong> Renomeia, arquiva.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td><strong>Administrador.</strong> Chaves, as que valem e as revogadas. A secreta só como prefixo — e só depois de alguém gerá-la: o projeto novo tem só a pública.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td><strong>Administrador.</strong> Gera a secreta — o projeto nasce sem ela — ou uma nova no lugar da atual, que fica revogada, e devolve o valor <strong>uma vez</strong>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/keys</code></td><td><strong>Administrador.</strong> Chaves, as que valem e as revogadas. A secreta só como prefixo, e só depois de alguém gerá-la: o projeto novo tem só a pública.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/keys/secret</code></td><td><strong>Administrador.</strong> Gera a secreta (o projeto nasce sem ela) ou uma nova no lugar da atual, que fica revogada, e devolve o valor <strong>uma vez</strong>.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins</code></td><td>Endereços autorizados, em ordem alfabética.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins</code></td><td><strong>Administrador.</strong> Autoriza um endereço. O domínio é normalizado antes de gravar. Os relatos retidos que ele passa a cobrir entram no Trabalho, no topo do quadro. Autorizar o domínio bloqueado desbloqueia ele; o coberto pelo bloqueio de <strong>outra</strong> linha com subdomínios (<code>app.loja.com</code> com <code>*.loja.com</code> bloqueado) é recusado (409), com o bloqueio a desfazer antes.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/{originPublicId}</code></td><td><strong>Administrador.</strong> Retira a autorização. Exclusão lógica.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins/observed</code></td><td>Os domínios que já mandaram relatos, contados pelo <code>origin</code> de cada relato (os arquivados inclusive): <code>ReportCount</code>, <code>LastReportAt</code> e <code>Status</code> — <code>Allowed</code>, <code>Blocked</code> ou <code>Unlisted</code>. Bloqueado, traz também <code>MarkedCount</code> (os relatos dele marcados com a origem bloqueada) e <code>BlockedOriginId</code>. Do mais recente para o mais antigo, até cem.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins/observed</code></td><td>Os domínios que já mandaram relatos, contados pelo <code>origin</code> de cada relato (os arquivados inclusive): <code>ReportCount</code>, <code>LastReportAt</code> e <code>Status</code>; <code>Allowed</code>, <code>Blocked</code> ou <code>Unlisted</code>. Bloqueado, traz também <code>MarkedCount</code> (os relatos dele marcados com a origem bloqueada) e <code>BlockedOriginId</code>. Do mais recente para o mais antigo, até cem.</td></tr>
   <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins/blocked</code></td><td>Os domínios bloqueados, do mais novo para o mais antigo, com quem bloqueou e <code>MarkedCount</code>.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins/blocked</code></td><td><strong>Administrador.</strong> Bloqueia um domínio, normalizado como na lista de autorizados; <code>IncludesSubdomains</code> (ou <code>*.</code> na frente) barra também os subdomínios — sem isso, só o exato. <strong>Vale na hora</strong>, e o mesmo domínio sai da lista de autorizados. Os relatos retidos dele são <strong>apagados de vez</strong>, na mesma transação. Até cem por projeto (409); o já bloqueado, 409.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins/blocked</code></td><td><strong>Administrador.</strong> Bloqueia um domínio, normalizado como na lista de autorizados; <code>IncludesSubdomains</code> (ou <code>*.</code> na frente) barra também os subdomínios, sem isso, só o exato. <strong>Vale na hora</strong>, e o mesmo domínio sai da lista de autorizados. Os relatos retidos dele são <strong>apagados de vez</strong>, na mesma transação. Até cem por projeto (409); o já bloqueado, 409.</td></tr>
   <tr><td><span class="verb delete">DELETE</span></td><td><code>/projects/{publicId}/origins/blocked/{blockedPublicId}</code></td><td><strong>Administrador.</strong> Desbloqueia. Os relatos de lá perdem a marca de origem bloqueada; fora da lista de autorizados, o próximo de lá fica retido.</td></tr>
-  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins/pending</code></td><td>"Aguardando liberação": os relatos <strong>retidos</strong> — que chegaram de um domínio fora da lista de autorizados, ou sem dizer de onde vieram (<code>Domain</code> nulo) —, contados por domínio: <code>ReportCount</code> e <code>LastReportAt</code>, do mais recente para o mais antigo. Permitir é <code>POST origins</code>; bloquear, <code>POST origins/blocked</code>.</td></tr>
+  <tr><td><span class="verb get">GET</span></td><td><code>/projects/{publicId}/origins/pending</code></td><td>"Aguardando liberação": os relatos <strong>retidos</strong> (que chegaram de um domínio fora da lista de autorizados, ou sem dizer de onde vieram (<code>Domain</code> nulo)), contados por domínio: <code>ReportCount</code> e <code>LastReportAt</code>, do mais recente para o mais antigo. Permitir é <code>POST origins</code>; bloquear, <code>POST origins/blocked</code>.</td></tr>
   <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins/pending/release</code></td><td><strong>Administrador.</strong> Libera os retidos de um domínio exato (<code>Domain</code>), ou os sem domínio (<code>Domain</code> nulo), <strong>sem mexer nas listas</strong>: eles entram no topo do quadro, e o próximo relato de lá fica retido de novo. Devolve <code>Reports</code>, quantos.</td></tr>
-  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins/pending/delete</code></td><td><strong>Administrador.</strong> Apaga de vez os retidos de um domínio exato, ou os sem domínio, com os anexos — como a exclusão dos cards de origem bloqueada. Não tem volta; quem relatou passa a receber 404 no acompanhamento.</td></tr>
+  <tr><td><span class="verb post">POST</span></td><td><code>/projects/{publicId}/origins/pending/delete</code></td><td><strong>Administrador.</strong> Apaga de vez os retidos de um domínio exato, ou os sem domínio, com os anexos, como a exclusão dos cards de origem bloqueada. Não tem volta; quem relatou passa a receber 404 no acompanhamento.</td></tr>
 </table>
 </div>
 
 <div class="note why">
   <strong>Projeto novo nasce na conta própria, e a lista junta todas</strong>
   <p><code>POST /projects</code> cria o projeto sempre na conta própria de quem chama, e quem cria
-  é dono dele. Estar no time de projetos de outra conta não deixa criar projeto lá — nenhuma rota
+  é dono dele. Estar no time de projetos de outra conta não deixa criar projeto lá: nenhuma rota
   aceita conta por parâmetro.</p>
   <p><code>GET /projects</code> devolve todo projeto que a pessoa enxerga, de todas as contas. Cada
-  um vem com <code>Account</code> — a conta dona, só <code>PublicId</code> e <code>Name</code> —,
+  um vem com <code>Account</code> (a conta dona, só <code>PublicId</code> e <code>Name</code>),
   <code>Role</code> (<code>Administrator</code> ou <code>Member</code>) e
   <code>IsAccountOwner</code>; o dono vem sempre como <code>Administrator</code>, com
   <code>IsAccountOwner</code> verdadeiro. É o que o painel usa para agrupar os projetos por conta e
   para esconder a configuração de quem é só membro. Já o <code>Account</code> de <code>/me</code> é
   a conta própria.</p>
   <p>E cada projeto vem com o <strong>movimento</strong>, nas duas rotas que o leem:
-  <code>LastReportReceivedAt</code>, quando chegou o último relato de fora — nulo enquanto o site não
-  mandou nenhum; o card do time não conta —, e <code>LastActivityAt</code>, a última mudança gravada
-  em qualquer card — nulo sem card nenhum —, pelo mesmo critério de <code>UpdatedAt</code>: comentário,
+  <code>LastReportReceivedAt</code>, quando chegou o último relato de fora (nulo enquanto o site não
+  mandou nenhum, e o card do time não conta), e <code>LastActivityAt</code>, a última mudança gravada
+  em qualquer card (nulo sem card nenhum), pelo mesmo critério de <code>UpdatedAt</code>: comentário,
   anexo e etiqueta não contam. O arquivado conta: ele chegou e mexeu, só saiu da tela.
-  É com o primeiro que o painel decide a porta do projeto para quem administra — a Instalação só
-  enquanto nada chegou, e o Trabalho depois —, e com o segundo que a lista de projetos diz há quanto
+  É com o primeiro que o painel decide a porta do projeto para quem administra (a Instalação só
+  enquanto nada chegou, e o Trabalho depois), e com o segundo que a lista de projetos diz há quanto
   tempo houve movimento.</p>
 </div>
 
 <div class="note why">
   <strong>O que o projeto novo traz de fábrica</strong>
-  <p>Numa gravação só — ou entra tudo, ou nada —, <code>POST /projects</code> cria o projeto com:</p>
+  <p>Numa gravação só (ou entra tudo, ou nada), <code>POST /projects</code> cria o projeto com:</p>
   <ul>
     <li>a <strong>chave pública</strong>, que vai no script do site;</li>
     <li>a <strong>jornada</strong> que quem relatou acompanha e as <strong>colunas</strong> do
-    quadro, já ligadas a ela na versão 1 do mapa — as duas do modelo escolhido. Pela regra de fábrica
+    quadro, já ligadas a ela na versão 1 do mapa: as duas do modelo escolhido. Pela regra de fábrica
     do ciclo, a última coluna ativa é a que encerra o relato;</li>
     <li>os <strong>tipos de relato</strong> do modelo, cada um com a coluna em que entra (sem coluna,
     a primeira ativa);</li>
@@ -80,16 +80,16 @@
 <h3>Os modelos</h3>
 
 <p><code>Template</code> diz como o time trabalha. É opcional, e sem ele vale
-<code>SimpleBoard</code> — quem só manda o nome recebe o projeto de sempre, igual ao de antes dos
+<code>SimpleBoard</code>: quem só manda o nome recebe o projeto de sempre, igual ao de antes dos
 modelos. A seta diz a etapa pública em que cada coluna entra.</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Modelo</th><th>Colunas → etapas públicas</th><th>Tipos de relato (coluna em que entram)</th><th>Ciclo</th></tr>
-  <tr><td><code>SimpleBoard</code><br>Quadro simples</td><td>A fazer → Recebido · Fazendo → Em desenvolvimento · Feito → Concluído. A jornada de fábrica, de cinco etapas; Em análise e Em teste pela equipe ficam sem coluna.</td><td>Defeito, com as três perguntas da reprodução; Melhoria e Dúvida, com a caixa livre. Nenhum escolhe coluna: entram na primeira ativa.</td><td>O de fábrica, sem sprints.</td></tr>
-  <tr><td><code>Support</code><br>Suporte</td><td>Novo → Recebido · Em atendimento → Em atendimento · Aguardando quem relatou → Esperando você · Resolvido → Resolvido. Jornada própria, de quatro etapas: <strong>Em atendimento</strong> aceita que a jornada volte para ela (o card volta da espera quando quem relatou responde), <strong>Esperando você</strong> é a que espera quem relatou, e <strong>Resolvido</strong> é a terminal, com o desfecho "foi feito".</td><td>Problema, com três perguntas; Dúvida e Pedido, com a caixa livre. Os três entram em <strong>Novo</strong>.</td><td>O de fábrica, sem sprints.</td></tr>
-  <tr><td><code>Kanban</code></td><td>Backlog → Recebido · A fazer → Em análise · Fazendo → Em desenvolvimento · Em revisão → Em teste pela equipe · Feito → Concluído. A jornada de fábrica, uma etapa por coluna.</td><td>Os três de fábrica, entrando no <strong>Backlog</strong>.</td><td>O de fábrica, sem sprints.</td></tr>
-  <tr><td><code>Scrum</code></td><td>A fazer → Recebido · Fazendo → Em desenvolvimento · Em revisão → Em teste pela equipe · Feito → Concluído. A jornada de fábrica; Em análise fica sem coluna.</td><td>Os três de fábrica, sem coluna escolhida.</td><td><strong>Sprints ligadas</strong>, de duas semanas, com pontos no card. É o único modelo que grava a configuração do ciclo na criação; o resto dela fica no padrão.</td></tr>
+  <tr><td><code>SimpleBoard</code><br>Quadro simples</td><td>A fazer → Recebido, Fazendo → Em desenvolvimento, Feito → Concluído. A jornada de fábrica, de cinco etapas; Em análise e Em teste pela equipe ficam sem coluna.</td><td>Defeito, com as três perguntas da reprodução; Melhoria e Dúvida, com a caixa livre. Nenhum escolhe coluna: entram na primeira ativa.</td><td>O de fábrica, sem sprints.</td></tr>
+  <tr><td><code>Support</code><br>Suporte</td><td>Novo → Recebido, Em atendimento → Em atendimento, Aguardando quem relatou → Esperando você, Resolvido → Resolvido. Jornada própria, de quatro etapas: <strong>Em atendimento</strong> aceita que a jornada volte para ela (o card volta da espera quando quem relatou responde), <strong>Esperando você</strong> é a que espera quem relatou, e <strong>Resolvido</strong> é a terminal, com o desfecho "foi feito".</td><td>Problema, com três perguntas; Dúvida e Pedido, com a caixa livre. Os três entram em <strong>Novo</strong>.</td><td>O de fábrica, sem sprints.</td></tr>
+  <tr><td><code>Kanban</code></td><td>Backlog → Recebido, A fazer → Em análise, Fazendo → Em desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído. A jornada de fábrica, uma etapa por coluna.</td><td>Os três de fábrica, entrando no <strong>Backlog</strong>.</td><td>O de fábrica, sem sprints.</td></tr>
+  <tr><td><code>Scrum</code></td><td>A fazer → Recebido, Fazendo → Em desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído. A jornada de fábrica; Em análise fica sem coluna.</td><td>Os três de fábrica, sem coluna escolhida.</td><td><strong>Sprints ligadas</strong>, de duas semanas, com pontos no card. É o único modelo que grava a configuração do ciclo na criação; o resto dela fica no padrão.</td></tr>
 </table>
 </div>
 
@@ -99,7 +99,7 @@ modelos. A seta diz a etapa pública em que cada coluna entra.</p>
   um modelo a um projeto que já tem cards teria de decidir o que fazer com cada um deles. A escolha
   fica registrada só no evento <code>project_created</code>, com o modelo em
   <code>template</code> (<code>simple_board</code>, <code>support</code>, <code>kanban</code>,
-  <code>scrum</code>) — sem o nome do projeto, porque a tabela de eventos não se apaga.</p>
+  <code>scrum</code>), sem o nome do projeto, porque a tabela de eventos não se apaga.</p>
 </div>
 
 <pre><code>POST /projects
@@ -118,10 +118,10 @@ modelos. A seta diz a etapa pública em que cada coluna entra.</p>
 
 <div class="note why">
   <strong>A chave secreta nasce sob pedido</strong>
-  <p>Ela serve a um uso que pouca gente tem — o servidor do cliente falando com a API —, e o valor
+  <p>Ela serve a um uso que pouca gente tem (o servidor do cliente falando com a API), e o valor
   aparece uma vez só. Nascer junto do projeto obrigaria quem acabou de criá-lo a decidir o que fazer
   com um valor que nem sabe se precisa, e que não voltaria a ver. Por isso o projeto nasce sem ela,
-  e <code>POST /projects/{publicId}/keys/secret</code> a gera quando alguém pede — na tela de
+  e <code>POST /projects/{publicId}/keys/secret</code> a gera quando alguém pede: na tela de
   Chaves. A mesma rota, com uma secreta valendo, revoga a atual e gera outra no lugar. Ver
   <a href="#/seguranca/as-chaves">As chaves</a>.</p>
 </div>
@@ -131,20 +131,20 @@ modelos. A seta diz a etapa pública em que cada coluna entra.</p>
   <p><code>POST /public/reports</code> leva a chave pública no corpo;
   <code>GET /public/widget-settings</code> e <code>GET /public/media-settings</code> levam na URL. Não é descuido, e a diferença não é de
   segurança: a chave é pública nos dois casos, e está à vista no HTML do site do cliente.</p>
-  <p>O que o carregador evita é outra coisa — pôr a chave no <code>src</code> do quadro, que
+  <p>O que o carregador evita é outra coisa: pôr a chave no <code>src</code> do quadro, que
   ficaria no documento <em>do cliente</em>, no histórico de quem visita e no <code>Referer</code>
   que sai de lá. Esta chamada sai do nosso próprio documento para a nossa própria API, e essa URL
   não aparece na página de ninguém. Em troca, a resposta pode ganhar cache no dia em que o volume
-  pedir — coisa que um <code>POST</code> fecharia.</p>
+  pedir: coisa que um <code>POST</code> fecharia.</p>
 </div>
 
 <div class="note why">
   <strong>Fora da lista de autorizados, o relato fica retido</strong>
   <p>A lista de autorizados <strong>não recusa</strong>: ela decide se o relato entra direto no
-  Trabalho. O de um domínio que ela não cobre — inclusive com a lista vazia — e o que não diz de
+  Trabalho. O de um domínio que ela não cobre (inclusive com a lista vazia) e o que não diz de
   onde veio são <strong>recebidos e retidos</strong> em <code>POST /public/reports</code>
   (<code>reports.held_for_origin_at</code>). Quem relatou recebe protocolo e acompanha como sempre;
-  o time não vê o relato em lugar nenhum até decidir, em <code>origins/pending</code> — e o sino de
+  o time não vê o relato em lugar nenhum até decidir, em <code>origins/pending</code>, e o sino de
   quem administra avisa uma vez por domínio novo. O domínio do próprio painel (<code>PANEL_URL</code>
   e as origens do CORS) nunca é retido: é o time testando.</p>
   <p>Por isso <code>GET /public/widget-settings</code>, <code>GET /public/widget-launcher</code> e
@@ -158,7 +158,7 @@ modelos. A seta diz a etapa pública em que cada coluna entra.</p>
 <div class="note why">
   <strong>A lista de bloqueados vale antes, e sozinha</strong>
   <p>As rotas da ferramenta conferem os <strong>bloqueados</strong>: o domínio bloqueado recebe
-  403 (<code>Este endereco foi bloqueado neste projeto.</code>) — na configuração do quadro, na
+  403 (<code>Este endereco foi bloqueado neste projeto.</code>); na configuração do quadro, na
   aparência do botão, na de anexos e na entrada do relato. É a reação a um domínio que apareceu em
   <code>origins/pending</code> ou <code>origins/observed</code> e não é do cliente. As duas listas nunca se contradizem: bloquear tira o domínio da de autorizados, e
   autorizar tira da de bloqueados. Autorizar um subdomínio que o bloqueio de outra linha cobre
@@ -168,16 +168,16 @@ modelos. A seta diz a etapa pública em que cada coluna entra.</p>
   <p><strong>Vale na hora, sem cache:</strong> as duas listas são lidas do banco a cada pedido. O
   botão desenhado pelo carregador pode continuar à vista até cinco minutos, o tempo que o navegador
   guarda a aparência; abrir o quadro e enviar já são recusados.</p>
-  <p>Os relatos retidos de lá saem de vez na hora — nunca foram aceitos. Os que já tinham entrado
-  ficam marcados com a origem bloqueada, e o time decide em lote — ver
-  <a href="#/endpoints/relatos-no-painel">Relatos e cards, no painel</a>.</p>
+  <p>Os relatos retidos de lá saem de vez na hora, nunca foram aceitos. Os que já tinham entrado
+  ficam marcados com a origem bloqueada, e o time decide em lote (ver
+  <a href="#/endpoints/relatos-no-painel">Relatos e cards, no painel</a>).</p>
 </div>
 
 <div class="note warn">
   <strong>Isto é grade de proteção, e não muro</strong>
   <p>O endereço é declarado pela própria página. Como quem o declara é o carregador, que é código
-  nosso, a chave pública copiada para outro site <em>é</em> pega — e é esse o caso comum. Quem
-  chamar a API sem passar pela ferramenta declara o que quiser, ou não declara nada — e é por
+  nosso, a chave pública copiada para outro site <em>é</em> pega, e é esse o caso comum. Quem
+  chamar a API sem passar pela ferramenta declara o que quiser, ou não declara nada, e é por
   isso que a entrada do relato tem também limites por IP e pelo projeto inteiro, que não dependem
   do que a página declara (ver <a href="#/endpoints/configuracoes">Configurações do projeto</a>).</p>
   <p>Onde dá, o endereço vem do navegador e não da página: em <code>GET /public/widget-launcher</code>,
@@ -192,7 +192,7 @@ modelos. A seta diz a etapa pública em que cada coluna entra.</p>
 
 <div class="note warn">
   <strong>Não existe rota de exclusão de projeto</strong>
-  <p>Arquivar cobre o caso real — parar de aceitar coisa nova sem perder o histórico. Apagar
+  <p>Arquivar cobre o caso real: parar de aceitar coisa nova sem perder o histórico. Apagar
   projeto envolve decidir o que fazer com os relatos, os arquivos guardados e os eventos que
   apontam para ele, e arquivar resolve o caso sem apagar nenhum deles.</p>
 </div>

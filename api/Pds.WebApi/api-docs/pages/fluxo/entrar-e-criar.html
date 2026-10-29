@@ -21,7 +21,7 @@
 }</code></pre>
 
 <p>Se for o primeiro acesso, a conta própria e o usuário nasceram nesta chamada. Não há tela de
-cadastro. O <code>Account</code> da resposta é sempre a conta própria — os projetos de outras
+cadastro. O <code>Account</code> da resposta é sempre a conta própria: os projetos de outras
 contas em que a pessoa estiver vêm na lista de projetos, cada um com a sua.</p>
 
 <h2>Criar o projeto</h2>
@@ -32,7 +32,7 @@ Authorization: Bearer &lt;AccessToken&gt;
 { "Name": "Loja Online", "Template": "SimpleBoard" }</code></pre>
 
 <p>O painel pede o nome e <strong>como o time trabalha</strong>: quatro modelos, cada um com as
-colunas escritas, e o <strong>Quadro simples</strong> já marcado — quem só digita o nome e confirma
+colunas escritas, e o <strong>Quadro simples</strong> já marcado; quem só digita o nome e confirma
 recebe o projeto de sempre. <code>Template</code> é opcional, e sem ele vale
 <code>SimpleBoard</code>.</p>
 
@@ -50,7 +50,7 @@ recebe o projeto de sempre. <code>Template</code> é opcional, e sem ele vale
   }
 }</code></pre>
 
-<p>O projeto nasce <strong>pronto para trabalhar</strong>, numa gravação só — ou tudo entra, ou
+<p>O projeto nasce <strong>pronto para trabalhar</strong>, numa gravação só, ou tudo entra, ou
 nada entra:</p>
 
 <ul>
@@ -58,7 +58,7 @@ nada entra:</p>
   <li><strong>as colunas do modelo</strong>, na ordem. A última é a que encerra o relato, pela regra
   de fábrica do ciclo;</li>
   <li><strong>o andamento público do modelo, já ligado às colunas</strong>. É a versão 1 do mapa,
-  como se alguém tivesse salvo a tela — a próxima gravação vira a versão 2;</li>
+  como se alguém tivesse salvo a tela: a próxima gravação vira a versão 2;</li>
   <li><strong>os tipos de relato do modelo</strong>, cada um com a coluna em que entra;</li>
   <li><strong>as prioridades de fábrica</strong>, em todo modelo: Baixa, Média, Alta e Urgente.</li>
 </ul>
@@ -67,9 +67,9 @@ nada entra:</p>
 <table>
   <tr><th>Modelo</th><th>O que traz</th></tr>
   <tr><td><strong>Quadro simples</strong><br><code>SimpleBoard</code></td><td>A fazer → Recebido, Fazendo → Em desenvolvimento, Feito → Concluído, com a jornada de fábrica de cinco etapas. Os tipos de fábrica: Defeito, que pergunta o que a pessoa tentou fazer, o que aconteceu e o que esperava; Melhoria e Dúvida, cada um com a caixa livre e a pergunta certa dentro. Nenhum escolhe coluna: o relato entra em A fazer, a primeira ativa.</td></tr>
-  <tr><td><strong>Suporte</strong><br><code>Support</code></td><td>Novo → Recebido, Em atendimento → Em atendimento, Aguardando quem relatou → Esperando você, Resolvido → Resolvido. A jornada é de atendimento: Em atendimento aceita que a jornada volte para ela — o card volta da espera quando quem relatou responde, e sem a marca a volta seria uma regressão —, Esperando você é a vez de quem relatou, e Resolvido é o fim, com o desfecho "foi feito". Tipos Problema (três perguntas), Dúvida e Pedido (caixa livre), todos entrando em Novo.</td></tr>
+  <tr><td><strong>Suporte</strong><br><code>Support</code></td><td>Novo → Recebido, Em atendimento → Em atendimento, Aguardando quem relatou → Esperando você, Resolvido → Resolvido. A jornada é de atendimento: Em atendimento aceita que a jornada volte para ela (o card volta da espera quando quem relatou responde, e sem a marca a volta seria uma regressão), Esperando você é a vez de quem relatou, e Resolvido é o fim, com o desfecho "foi feito". Tipos Problema (três perguntas), Dúvida e Pedido (caixa livre), todos entrando em Novo.</td></tr>
   <tr><td><strong>Kanban</strong><br><code>Kanban</code></td><td>Backlog → Recebido, A fazer → Em análise, Fazendo → Em desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído: a jornada de fábrica, uma etapa por coluna. Os tipos de fábrica, entrando no Backlog.</td></tr>
-  <tr><td><strong>Scrum</strong><br><code>Scrum</code></td><td>A fazer → Recebido, Fazendo → Em desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído. Os tipos de fábrica. <strong>Sprints ligadas</strong>, de duas semanas, com pontos no card — o relato entra no backlog e espera o time puxá-lo para uma sprint (ver <a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>).</td></tr>
+  <tr><td><strong>Scrum</strong><br><code>Scrum</code></td><td>A fazer → Recebido, Fazendo → Em desenvolvimento, Em revisão → Em teste pela equipe, Feito → Concluído. Os tipos de fábrica. <strong>Sprints ligadas</strong>, de duas semanas, com pontos no card: o relato entra no backlog e espera o time puxá-lo para uma sprint (ver <a href="#/fluxo/backlog-e-sprints">Backlog e sprints</a>).</td></tr>
 </table>
 </div>
 
@@ -78,7 +78,7 @@ nada entra:</p>
   <p>Com uma coluna só, o quadro não anda: ela era a entrada e o fim ao mesmo tempo, e o time
   precisava achar a configuração antes de mover o primeiro card. E sem o mapa o relato andava por
   dentro enquanto quem relatou continuava lendo "Recebido", sem ninguém perceber. Tudo se renomeia,
-  reordena e religa depois — o modelo é ponto de partida, e não regra. Os projetos que já existiam
+  reordena e religa depois: o modelo é ponto de partida, e não regra. Os projetos que já existiam
   ficam como estavam.</p>
 </div>
 
@@ -86,7 +86,7 @@ nada entra:</p>
   <strong>Por que o modelo só vale na criação</strong>
   <p>Aplicar um modelo a um projeto que já tem cards teria de decidir o que fazer com cada um deles,
   e com o mapa da época. Depois de criado, cada coisa se muda na própria tela, e o projeto não
-  guarda de qual modelo veio — a escolha fica só no evento <code>project_created</code>, para a
+  guarda de qual modelo veio: a escolha fica só no evento <code>project_created</code>, para a
   análise, sem o nome do projeto.</p>
 </div>
 
@@ -95,21 +95,21 @@ nada entra:</p>
   <p>Sem a pública o site não manda relato, e obrigar a um segundo passo só cria a chance de
   esquecer. A secreta serve a uma integração que pouca gente tem: nascendo junto, ela aparecia uma
   única vez para quem ainda nem sabia se precisava dela. Ela nasce <strong>sob pedido</strong>, na
-  tela de Chaves — ver <a href="#/fluxo/chave-e-arquivar">A chave secreta, arquivar</a>.</p>
+  tela de Chaves (ver <a href="#/fluxo/chave-e-arquivar">A chave secreta, arquivar</a>).</p>
 </div>
 
-<p>O projeto nasce na conta própria de quem cria, e quem cria é dono dele — por isso a resposta
+<p>O projeto nasce na conta própria de quem cria, e quem cria é dono dele: por isso a resposta
 traz <code>Role: "Administrator"</code> e <code>IsAccountOwner: true</code>. O painel abre o
 projeto na <strong>Instalação</strong>, com os três passos para o site começar a mandar
 relatos.</p>
 
 <h2>Por onde se entra no projeto</h2>
 
-<p>Abrir um projeto pela lista leva <strong>ao Trabalho, para todos</strong> — é onde o time passa
+<p>Abrir um projeto pela lista leva <strong>ao Trabalho, para todos</strong>: é onde o time passa
 o dia. A exceção é quem administra um projeto cujo site <strong>ainda não mandou relato
 nenhum</strong>: aí configurar é a próxima coisa a fazer, e se entra pela página central de
 Configurar o projeto, com os primeiros passos no topo. Quem decide é
-<code>LastReportReceivedAt</code>, que a lista de projetos traz em cada um — o último relato que
+<code>LastReportReceivedAt</code>, que a lista de projetos traz em cada um: o último relato que
 chegou pela ferramenta, nulo enquanto nada chegou; o card do time não conta.
 <code>LastActivityAt</code>, a última mudança em qualquer card, é o "último movimento" que a lista
 mostra.</p>
@@ -118,8 +118,8 @@ mostra.</p>
 outro cai em Colunas do outro. Se a pessoa não administra o outro projeto, a tela de configuração
 vira o Trabalho; com um card aberto, a lista do outro projeto.</p>
 
-<p>A lateral do projeto começa pelo que se usa todo dia — <strong>Trabalho, Membros e
-Moderação</strong> — e embaixo, só para quem administra, <strong>Configurar o projeto</strong>: um
+<p>A lateral do projeto começa pelo que se usa todo dia (<strong>Trabalho, Membros e
+Moderação</strong>) e embaixo, só para quem administra, <strong>Configurar o projeto</strong>: um
 item só, que leva a uma página central com os primeiros passos (script colado, domínio autorizado,
 relato de teste, o botão com a cara do site, o time convidado), a busca por qualquer opção e as
 cinco áreas. Dentro da configuração, as áreas aparecem na lateral: <strong>O seu sistema</strong>
@@ -142,7 +142,7 @@ que mudou de tela leva à tela nova.</p>
 }</code></pre>
 
 <p>O projeto novo tem só a pública. Depois de gerada, a secreta aparece na lista com
-<code>Value: null</code>: não é a tela que esconde — o banco não tem o valor dela para
+<code>Value: null</code>: não é a tela que esconde; o banco não tem o valor dela para
 devolver.</p>
 
 <p>Ler as chaves é de administrador, e o dono sempre é. Quem é só membro recebe 403: as chaves

@@ -18,7 +18,7 @@ pessoa sair dali.</p>
 
 <h2>Trocar a chave secreta</h2>
 
-<p>Com uma secreta valendo, a mesma rota — <strong>Gerar nova chave</strong>, na tela — revoga a
+<p>Com uma secreta valendo, a mesma rota (<strong>Gerar nova chave</strong>, na tela) revoga a
 anterior e põe uma nova no lugar, com o valor devolvido uma vez. Listando de novo, aparecem as três
 linhas:</p>
 
@@ -45,7 +45,7 @@ visível e consultável, só para de aceitar coisa nova. Renomear e arquivar fic
 
 <p>A tela <strong>Domínios</strong>, na área O seu sistema, começa pelo que espera decisão:
 <em>Aguardando liberação</em>, os relatos que chegaram de um domínio que ainda não está entre os
-autorizados — com quantos e o mais novo quando. Quem relatou não percebeu nada (tem protocolo e
+autorizados; com quantos e o mais novo quando. Quem relatou não percebeu nada (tem protocolo e
 acompanha como sempre); o time não vê esses relatos em lugar nenhum até decidir. O sino avisa
 quem administra uma vez por domínio novo: <em>"loja.com mandou um relato: permitir ou
 bloquear?"</em>, e o aviso leva até aqui.</p>
@@ -54,17 +54,17 @@ bloquear?"</em>, e o aviso leva até aqui.</p>
 POST /projects/2be49b28-.../origins          { "Domain": "loja.com", "AllowsSubdomains": false }</code></pre>
 
 <p><strong>Permitir</strong> põe o domínio na lista de autorizados, e os relatos retidos dele entram
-no topo do quadro, como relatos novos. <strong>Bloquear</strong> os apaga de vez — nunca foram
+no topo do quadro, como relatos novos. <strong>Bloquear</strong> os apaga de vez, nunca foram
 aceitos. O relato que chegou sem dizer de que domínio veio tem a linha dele, com
 <strong>Liberar</strong> e <strong>Apagar de vez</strong> só para ele
 (<code>origins/pending/release</code> e <code>/delete</code>). O relato de teste do próprio painel
 nunca espera.</p>
 
 <p>Depois vem o que já aconteceu: <em>Domínios que mandaram relatos</em>, com quantos, o último
-quando e a situação de cada um — autorizado, bloqueado, ou fora da lista (o próximo relato de lá
+quando e a situação de cada um; autorizado, bloqueado, ou fora da lista (o próximo relato de lá
 espera liberação). Quem vê ali um domínio que não é seu clica em <strong>Bloquear</strong>, e
-confirma. O domínio coberto pelo bloqueio de outra linha — <code>app.loja.com</code>, com
-<code>*.loja.com</code> bloqueado — não tem <strong>Permitir</strong>: autorizar não mudaria nada
+confirma. O domínio coberto pelo bloqueio de outra linha (<code>app.loja.com</code>, com
+<code>*.loja.com</code> bloqueado) não tem <strong>Permitir</strong>: autorizar não mudaria nada
 (a API recusa com 409), e o botão passa a ser <strong>Desbloquear *.loja.com</strong>, que
 confirma antes, como na lista de bloqueados.</p>
 
@@ -75,12 +75,12 @@ confirma antes, como na lista de bloqueados.</p>
 saem de vez, e os cards que já tinham entrado ficam marcados com <strong>Origem
 bloqueada</strong>, na lista, no quadro e no card aberto, e em <em>Bloqueados</em> a linha diz
 quantos: <strong>Revisar na lista</strong> abre a tela de Trabalho só com eles;
-<strong>Manter</strong> tira a marca de todos; <strong>Apagar de vez</strong> pergunta antes —
+<strong>Manter</strong> tira a marca de todos; <strong>Apagar de vez</strong> pergunta antes;
 diz quantos, diz que não tem volta e só libera depois de escrever o domínio ou "apagar". Na lista,
 a mesma decisão vale para os cards marcados da seleção, na barra do lote.</p>
 
 <p>A lista de autorizados fica na mesma área, e aceita <code>localhost:3000</code> (a porta faz
 parte) e <code>*.loja.com</code> para os subdomínios. Ela começa vazia: todo domínio novo passa
 uma vez por "Aguardando liberação". <strong>Permitir</strong> um bloqueado tira o bloqueio e
-autoriza; para só tirar o bloqueio, há <strong>Desbloquear</strong> — e o próximo relato de lá
+autoriza; para só tirar o bloqueio, há <strong>Desbloquear</strong>, e o próximo relato de lá
 espera liberação.</p>

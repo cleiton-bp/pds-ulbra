@@ -1,6 +1,6 @@
 // Roteador da documentacao. Cada secao e uma rota (#/secao) e cada passo de uma
 // secao e uma rota abaixo dela (#/secao/passo). O conteudo vem de um arquivo em
-// /pages — a secao em pages/secao.html, o passo em pages/secao/passo.html —, para
+// /pages (a secao em pages/secao.html, o passo em pages/secao/passo.html), para
 // que cada pagina seja editada isoladamente sem mexer no resto do site.
 (function () {
   // A ordem aqui e a ordem do menu e a do anterior/proximo no rodape. Uma secao
@@ -167,7 +167,7 @@
       group.classList.toggle('open', group.dataset.section === page.section.id);
     });
 
-    document.title = `PDS · ${pageName(page).replace(' › ', ' · ')}`;
+    document.title = `${pageName(page)} (PDS)`;
 
     try {
       const response = await fetch(page.file, { cache: 'reload' });

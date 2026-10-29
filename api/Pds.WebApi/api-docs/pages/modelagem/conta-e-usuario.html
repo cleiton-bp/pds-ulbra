@@ -1,6 +1,6 @@
 <h2>accounts</h2>
 
-<p>A dona dos dados. Todo projeto pertence a uma, e o que pende dele junto — mas quem enxerga o
+<p>A dona dos dados. Todo projeto pertence a uma, e o que pende dele junto, mas quem enxerga o
 quê é decidido por projeto: o dono da conta enxerga todos os projetos dela, e o time só os projetos
 em que entrou.</p>
 
@@ -60,7 +60,7 @@ em que entrou.</p>
   <tr><td><code>role</code></td><td><code>member</code> | <code>administrator</code>. Membro trabalha nos relatos e lê a configuração, sem mudá-la; administrador configura o projeto e decide quem entra. Uma trava no banco (<code>CHECK</code>) só aceita os dois.</td></tr>
 </table>
 
-<p>Único por <code>(project_id, user_id)</code> entre os que não foram apagados — o mesmo filtro
+<p>Único por <code>(project_id, user_id)</code> entre os que não foram apagados: o mesmo filtro
 <code>deleted_at IS NULL</code> que <code>projects</code> usa no nome, e pelo mesmo motivo: sem ele,
 quem saiu e voltou esbarraria numa linha que ninguém mais enxerga. E <code>user_id</code> tem
 índice próprio, porque "em que projetos esta pessoa entrou" é a pergunta que o acesso faz a cada
@@ -89,23 +89,23 @@ requisição.</p>
 
 <div class="note why">
   <strong>A linha nasce do convite aceito, e só dele</strong>
-  <p>A única rota que cria linha aqui é a de aceitar o convite — a tabela seguinte. Mudar o papel e
+  <p>A única rota que cria linha aqui é a de aceitar o convite: a tabela seguinte. Mudar o papel e
   tirar outra pessoa do time são do administrador; <strong>sair é de qualquer um</strong>, apagando a
   própria linha. O dono não muda de papel nem sai: não tem linha para mudar.</p>
 </div>
 
 <h2>project_invitations</h2>
 
-<p>O convite para o time: para qual endereço, com que papel, até quando — e onde está o e-mail
+<p>O convite para o time: para qual endereço, com que papel, até quando, e onde está o e-mail
 dele.</p>
 
 <div class="table-scroll">
 <table>
   <tr><th>Coluna</th><th>Observação</th></tr>
   <tr><td><code>project_id</code></td><td>Projeto do convite. <code>Cascade</code>: o convite não existe sem o projeto.</td></tr>
-  <tr><td><code>email</code></td><td>O endereço convidado, em minúsculas. Até 320 caracteres. Só um endereço — sem nome junto, sem lista.</td></tr>
+  <tr><td><code>email</code></td><td>O endereço convidado, em minúsculas. Até 320 caracteres. Só um endereço, sem nome junto, sem lista.</td></tr>
   <tr><td><code>role</code></td><td>O papel que a pessoa terá ao aceitar: <code>member</code> | <code>administrator</code>, com a mesma trava no banco de <code>project_members</code>.</td></tr>
-  <tr><td><code>invited_by_user_id</code></td><td>Quem convidou — ou quem reenviou por último: é o nome que o e-mail mostra. <code>Restrict</code>.</td></tr>
+  <tr><td><code>invited_by_user_id</code></td><td>Quem convidou, ou quem reenviou por último: é o nome que o e-mail mostra. <code>Restrict</code>.</td></tr>
   <tr><td><code>token_hash</code></td><td>SHA-256 do link que foi no e-mail. <b>Nulo até o e-mail sair</b>, e de novo a cada reenvio. Único entre os preenchidos.</td></tr>
   <tr><td><code>expires_at</code></td><td>Até quando o link vale. Calculado ao convidar e a cada reenvio, com o prazo do projeto.</td></tr>
   <tr><td><code>accepted_at</code> / <code>accepted_by_user_id</code></td><td>Quando e quem aceitou. <code>Restrict</code> na pessoa.</td></tr>
@@ -116,7 +116,7 @@ dele.</p>
 </table>
 </div>
 
-<p>Único por <code>(project_id, email)</code> entre os <strong>abertos</strong> — nem aceitos, nem
+<p>Único por <code>(project_id, email)</code> entre os <strong>abertos</strong>, nem aceitos, nem
 cancelados, nem apagados: convidar de novo o mesmo endereço reenvia o convite que já existe, em vez
 de empilhar links que valeriam ao mesmo tempo. E um índice parcial sobre os que estão
 <code>pending</code> ou <code>sending</code> serve a varredura da subida, que procura justamente
@@ -124,7 +124,7 @@ esses.</p>
 
 <div class="note warn">
   <strong>O link nunca é guardado</strong>
-  <p>Só o hash. Quem lê o banco — um backup, um log de consulta — não tem com o que entrar. E o
+  <p>Só o hash. Quem lê o banco (um backup, um log de consulta) não tem com o que entrar. E o
   link nasce no consumidor da fila, na hora do envio: não viaja pela fila, não volta em resposta
   nenhuma e não aparece em tela, nem para quem convidou. Reenviar sorteia outro, e o anterior deixa
   de valer.</p>
@@ -138,7 +138,7 @@ esses.</p>
   <strong>Do e-mail, só o estado</strong>
   <p>O texto do e-mail não é guardado: ele se monta do convite, a qualquer hora. Guardar seria
   repetir o endereço e o link num segundo lugar. O que a tela de Membros precisa saber é onde o
-  e-mail está — na fila, entregue ou não saiu —, e é isso que <code>email_status</code> diz.</p>
+  e-mail está (na fila, entregue ou não saiu), e é isso que <code>email_status</code> diz.</p>
 </div>
 
 <div class="note warn">
