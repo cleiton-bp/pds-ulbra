@@ -6,7 +6,7 @@ import Handles from './Handles'
 import type { NoteFlowNode } from './nodeTypes'
 
 /**
- * Caixa de texto livre — a explicacao que nao cabe no desenho.
+ * Caixa de texto livre: a explicacao que nao cabe no desenho.
  *
  * Os pontos das laterais servem para puxar a ligacao ate o ator ou o caso de uso
  * que o texto explica; ela vira o campo `anchor` da nota no arquivo.
@@ -47,7 +47,7 @@ function NoteNode({ data, selected }: NodeProps<NoteFlowNode>) {
         <div className="nodrag" onClick={() => edit('note', note.uid)}>
           {note.text
             ? <p className="note-node__text">{note.text}</p>
-            : <p className="note-node__empty">nota vazia — clique para escrever</p>}
+            : <p className="note-node__empty">nota vazia, clique para escrever</p>}
         </div>
       )}
     </div>

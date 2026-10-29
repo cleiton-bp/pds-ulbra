@@ -1,154 +1,113 @@
-import { useEffect, useRef, useState } from 'react'
-import HomeButton from '../../shared/HomeButton'
+import Icon from '../../shared/Icon'
+import { DropMenu, EditToggle, HomeButton, IconButton, SaveBadge } from '../../shared/ToolbarParts'
+import { tourTarget } from '../../tour/targets'
 import type { SaveStatus } from '../../shared/useWorkspace'
 
 type ToolbarProps = {
   title: string
+  /** A linha de baixo do titulo: o nome do arquivo. */
+  subtitle: string
   status: SaveStatus
   canEdit: boolean
-  showFiles: boolean
-  showPanel: boolean
   showNotes: boolean
   showBoundary: boolean
   focus: boolean
   /** Quantas notas o arquivo tem, para o menu dizer o tamanho do que mexe. */
   noteCount: number
-  onToggleFiles: () => void
-  onTogglePanel: () => void
+  editing: boolean
   onToggleNotes: () => void
   onToggleBoundary: () => void
   onToggleFocus: () => void
+  onToggleEditing: () => void
+  onSearch: () => void
   onAddActor: () => void
   onAddUseCase: () => void
   onAddNote: () => void
-}
-
-// O estado vem em ingles do `useWorkspace`; a traducao para a tela e aqui.
-const STATUS_LABEL: Record<SaveStatus, string> = {
-  empty: '',
-  saved: 'gravado',
-  unsaved: 'não gravado',
-  saving: 'gravando…',
-  error: 'erro',
-  conflict: 'conflito',
+  /** Abre o tour do editor (ver `tour/`). */
+  onTour: () => void
 }
 
 export default function Toolbar({
-  title, status, canEdit, showFiles, showPanel, showNotes, showBoundary, focus, noteCount,
-  onToggleFiles, onTogglePanel, onToggleNotes, onToggleBoundary, onToggleFocus,
-  onAddActor, onAddUseCase, onAddNote,
+  title, subtitle, status, canEdit, showNotes, showBoundary, focus, noteCount,
+  editing, onToggleNotes, onToggleBoundary, onToggleFocus,
+  onToggleEditing, onSearch, onAddActor, onAddUseCase, onAddNote, onTour,
 }: ToolbarProps) {
-  const [openMenu, setOpenMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  // Menu aberto fecha com clique fora ou Escape — so enquanto esta aberto, para nao
-  // deixar dois ouvintes no documento a vida inteira.
-  useEffect(() => {
-    if (!openMenu) return
-    const onDown = (event: MouseEvent): void => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpenMenu(false)
-    }
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setOpenMenu(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [openMenu])
-
   return (
     <header className="toolbar">
-      {/* Voltar e abrir a lista andam juntos: sao o caminho de volta, nao acoes do arquivo. */}
-      <div className="toolbar__nav">
-        <HomeButton />
-        <button
-          className={`icon-btn${showFiles ? ' is-on' : ''}`}
-          title={showFiles ? 'esconder a lista de arquivos' : 'mostrar a lista de arquivos'}
-          aria-pressed={showFiles}
-          onClick={onToggleFiles}
-        >
-          ☰
-        </button>
-      </div>
+      <HomeButton />
 
-      <h2 className="toolbar__title">{title}</h2>
+      <div className="toolbar__heading">
+        <h2 className="toolbar__title" title={title}>{title}</h2>
+        {subtitle && <span className="toolbar__sub">{subtitle}</span>}
+      </div>
 
       <div className="toolbar__actions">
         {canEdit && (
           <>
-            <button className="btn" onClick={onAddActor}>+ ator</button>
-            <button className="btn" onClick={onAddUseCase}>+ caso de uso</button>
-            <button className="btn" onClick={onAddNote}>+ nota</button>
-            {/* Divide o que cria do que muda a vista: sem a barra, o menu parece
-                mais uma coisa para adicionar. */}
+            <DropMenu
+              label={<><Icon name="eye" /><span className="btn__label">Ver</span></>}
+              ariaLabel="Ver"
+              tour="see"
+              title="o que aparece no desenho: notas, fronteira e realce"
+              active={focus || !showNotes || !showBoundary}
+            >
+              <header className="menu__head">
+                <span>notas</span>
+                <em>{showNotes ? noteCount : 0} de {noteCount} na tela</em>
+              </header>
+
+              <label className="menu__item">
+                <input type="checkbox" checked={showNotes} onChange={onToggleNotes} />
+                <span>
+                  Mostrar as notas
+                  <small>desmarcado, fica só o diagrama (Alt+3)</small>
+                </span>
+              </label>
+
+              <header className="menu__head menu__head--sec">
+                <span>diagrama</span>
+              </header>
+
+              <label className="menu__item">
+                <input type="checkbox" checked={showBoundary} onChange={onToggleBoundary} />
+                <span>
+                  Mostrar a fronteira do sistema
+                  <small>o retângulo em volta dos casos de uso, com o nome do sistema</small>
+                </span>
+              </label>
+
+              <label className="menu__item">
+                <input type="checkbox" checked={focus} onChange={onToggleFocus} />
+                <span>
+                  Realçar quem faz o quê
+                  <small>
+                    escolha um ator e acende o que ele realiza; escolha um caso de uso e acende quem
+                    o realiza (Alt+4)
+                  </small>
+                </span>
+              </label>
+            </DropMenu>
+
+            <button {...tourTarget('search')} className="btn" aria-label="Buscar" title="buscar ator ou caso de uso (Ctrl+K)" onClick={onSearch}>
+              <Icon name="search" />
+              <span className="btn__label">Buscar</span>
+              <kbd>⌘K</kbd>
+            </button>
+
             <span className="toolbar__sep" aria-hidden="true" />
-            <div className="menu" ref={menuRef}>
-              <button
-                className={`btn${focus ? ' is-on' : ''}`}
-                aria-haspopup="true"
-                aria-expanded={openMenu}
-                title="o que aparece no canvas: notas, fronteira e realce"
-                onClick={() => setOpenMenu((open) => !open)}
-              >
-                o que aparece ▾
-              </button>
 
-              {openMenu && (
-                <div className="menu__pop">
-                  <header className="menu__head">
-                    <span>notas</span>
-                    <em>{showNotes ? noteCount : 0} de {noteCount} na tela</em>
-                  </header>
-
-                  <label className="menu__item">
-                    <input type="checkbox" checked={showNotes} onChange={onToggleNotes} />
-                    <span>
-                      mostrar as notas
-                      <small>desmarcado, fica só o diagrama · Alt+3</small>
-                    </span>
-                  </label>
-
-                  <header className="menu__head menu__head--sec">
-                    <span>diagrama</span>
-                  </header>
-
-                  <label className="menu__item">
-                    <input type="checkbox" checked={showBoundary} onChange={onToggleBoundary} />
-                    <span>
-                      mostrar a fronteira do sistema
-                      <small>o retângulo em volta dos casos de uso, com o nome do sistema</small>
-                    </span>
-                  </label>
-
-                  <label className="menu__item">
-                    <input type="checkbox" checked={focus} onChange={onToggleFocus} />
-                    <span>
-                      realçar quem faz o quê
-                      <small>
-                        escolha um ator e acende o que ele realiza; escolha um caso de uso e
-                        acende quem o realiza · Alt+4
-                      </small>
-                    </span>
-                  </label>
-                </div>
-              )}
-            </div>
+            {editing && (
+              <>
+                <button className="btn" aria-label="Novo ator" title="novo ator, no meio da tela" onClick={onAddActor}><Icon name="plus" /><span className="btn__label">Ator</span></button>
+                <button className="btn" aria-label="Novo caso de uso" title="novo caso de uso, no meio da tela" onClick={onAddUseCase}><Icon name="plus" /><span className="btn__label">Caso de uso</span></button>
+                <button className="btn" aria-label="Nova nota" title="nova nota, no meio da tela" onClick={onAddNote}><Icon name="plus" /><span className="btn__label">Nota</span></button>
+              </>
+            )}
+            <EditToggle editing={editing} onToggle={onToggleEditing} />
           </>
         )}
-        {status !== 'empty' && (
-          <span className={`status status--${status}`}>{STATUS_LABEL[status]}</span>
-        )}
-        <button
-          className={`icon-btn${showPanel ? ' is-on' : ''}`}
-          title={showPanel ? 'esconder o painel' : 'mostrar o painel'}
-          aria-pressed={showPanel}
-          onClick={onTogglePanel}
-        >
-          ▤
-        </button>
+        <SaveBadge status={status} />
+        {canEdit && <IconButton icon="help" label="tour: conheça o editor em um minuto" tour="help" onClick={onTour} />}
       </div>
     </header>
   )

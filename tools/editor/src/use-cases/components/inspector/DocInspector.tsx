@@ -12,7 +12,7 @@ type DocInspectorProps = {
  * O que aparece quando nada esta selecionado: dados do arquivo, o resumo de quem
  * faz o que, e os avisos.
  *
- * O resumo e a leitura do diagrama em texto — a mesma resposta que o desenho da,
+ * O resumo e a leitura do diagrama em texto: a mesma resposta que o desenho da,
  * sem precisar seguir linha por linha.
  */
 export default function DocInspector({ doc, actions, onSelect }: DocInspectorProps) {
@@ -26,7 +26,7 @@ export default function DocInspector({ doc, actions, onSelect }: DocInspectorPro
         <span>Título</span>
         <input
           value={doc.meta.title}
-          placeholder="Relato — do envio ao acompanhamento"
+          placeholder="Relato, do envio ao acompanhamento"
           onChange={(event) => actions.setMeta({ title: event.target.value })}
         />
       </label>
@@ -51,7 +51,7 @@ export default function DocInspector({ doc, actions, onSelect }: DocInspectorPro
       </label>
 
       <p className="panel__counts">
-        {doc.actors.length} ator(es) · {doc.useCases.length} caso(s) de uso · {doc.links.length} ligação(ões) · {doc.notes.length} nota(s)
+        {doc.actors.length} ator(es), {doc.useCases.length} caso(s) de uso, {doc.links.length} ligação(ões) e {doc.notes.length} nota(s)
       </p>
 
       {doc.warnings.length > 0 && (
@@ -100,7 +100,7 @@ export default function DocInspector({ doc, actions, onSelect }: DocInspectorPro
       <div className="panel__tip">
         <p>Clique num elemento para editar; clique duplo edita o nome ali mesmo.</p>
         <p>Puxe da borda de um elemento até outro para ligar os dois.</p>
-        <p>O arquivo grava sozinho — <kbd>⌘S</kbd> força na hora.</p>
+        <p>O arquivo grava sozinho, e <kbd>⌘S</kbd> força na hora.</p>
       </div>
     </>
   )

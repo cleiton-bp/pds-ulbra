@@ -1,3 +1,5 @@
+import { confirmDelete } from '../../../shared/Confirm'
+import Icon from '../../../shared/Icon'
 import { performerViaLabel, performersOf } from '../../model/analysis'
 import { USE_CASE_MAX_WIDTH, USE_CASE_MIN_WIDTH } from '../../model/constants'
 import type { DiagramActions } from '../../hooks/useDiagramActions'
@@ -12,8 +14,8 @@ type UseCaseInspectorProps = {
 }
 
 /**
- * Passos em textarea, um por linha. O estado guarda a lista como foi digitada —
- * inclusive a linha vazia do Enter que acabou de ser apertado —, e so a gravacao
+ * Passos em textarea, um por linha. O estado guarda a lista como foi digitada
+ * (inclusive a linha vazia do Enter que acabou de ser apertado), e so a gravacao
  * descarta passo em branco. Filtrar aqui engoliria o Enter antes da proxima letra.
  */
 const toLines = (steps: string[]): string => steps.join('\n')
@@ -27,8 +29,9 @@ export default function UseCaseInspector({ doc, useCase, actions, onSelect }: Us
     <>
       <header className="panel__head">
         <span className="panel__kind">caso de uso</span>
-        <button className="panel__delete" onClick={() => actions.deleteUseCase(useCase.uid)}>
-          apagar
+        <button className="panel__delete" onClick={() => void confirmDelete({ title: 'Apagar este caso de uso?', confirmLabel: 'Apagar caso de uso' }).then((ok) => ok && actions.deleteUseCase(useCase.uid))}>
+          <Icon name="trash" size={14} />
+          <span>Apagar caso de uso</span>
         </button>
       </header>
 
@@ -69,7 +72,7 @@ export default function UseCaseInspector({ doc, useCase, actions, onSelect }: Us
 
       {performers.length === 0 ? (
         <p className="panel__hint">
-          Nenhum ator chega aqui. Puxe da borda de um boneco até esta elipse, ou inclua este
+          Nenhum ator chega aqui: puxe da borda de um boneco até esta elipse, ou inclua este
           caso de uso num que algum ator já realiza.
         </p>
       ) : (
@@ -130,7 +133,7 @@ export default function UseCaseInspector({ doc, useCase, actions, onSelect }: Us
               <div className="flow__line">
                 <input
                   value={flow.title}
-                  placeholder="quando — ex.: 2a. a descrição fica em branco"
+                  placeholder="quando acontece, com o número do passo (por exemplo, 2a)"
                   onChange={(event) =>
                     actions.updateAlternativeFlow(useCase.uid, flow.uid, { title: event.target.value })}
                 />

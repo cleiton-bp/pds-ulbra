@@ -56,7 +56,7 @@ export const SIDES: readonly Side[] = ['left', 'right', 'top', 'bottom']
 
 /**
  * Pontos de conexao. Servem so para puxar uma linha nova: a linha desenhada nao
- * sai deles, e sim do centro, parando na borda — ver `DiagramEdge`.
+ * sai deles, e sim do centro, parando na borda; ver `DiagramEdge`.
  */
 export const handleId = (side: Side): string => `box:${side}`
 

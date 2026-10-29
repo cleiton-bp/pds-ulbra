@@ -46,13 +46,13 @@ export type DiagramActions = {
 type Params = {
   update: (fn: (doc: UseCaseDoc) => UseCaseDoc) => void
   setSelection: Dispatch<SetStateAction<Selection>>
-  /** O meio do que esta visivel — o elemento novo nasce ali, e nao fora da tela. */
+  /** O meio do que esta visivel: o elemento novo nasce ali, e nao fora da tela. */
   visibleCenter: () => Position
   /** O tamanho que o canvas mediu de cada elemento. */
   sizesRef: MutableRefObject<MeasuredSizes>
 }
 
-/** A caixa de um elemento novo centrado em `center` — de onde a busca por lugar livre parte. */
+/** A caixa de um elemento novo centrado em `center`: de onde a busca por lugar livre parte. */
 const around = (center: Position, width: number, height: number): Bounds => ({
   x: Math.round(center.x - width / 2),
   y: Math.round(center.y - height / 2),

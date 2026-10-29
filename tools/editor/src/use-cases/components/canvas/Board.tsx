@@ -3,7 +3,6 @@ import type { MutableRefObject } from 'react'
 import {
   Background,
   ConnectionMode,
-  Controls,
   MiniMap,
   ReactFlow,
   useReactFlow,
@@ -13,6 +12,7 @@ import {
   type Viewport,
 } from '@xyflow/react'
 
+import ZoomBar from '../../../shared/ZoomBar'
 import type { DiagramActions } from '../../hooks/useDiagramActions'
 import { focusOf } from '../../model/analysis'
 import { systemBounds } from '../../model/geometry'
@@ -33,7 +33,7 @@ const NODE_TYPES = { actor: ActorNode, useCase: UseCaseNode, note: NoteNode, bou
 const EDGE_TYPES = { uml: DiagramEdge }
 
 // A linha desenhada nao sai dos pontos de conexao (ver `DiagramEdge`), mas o React
-// Flow so desenha uma aresta cujas pontas existem — estes dois existem em todo no.
+// Flow so desenha uma aresta cujas pontas existem: estes dois existem em todo no.
 const EDGE_HANDLES = { sourceHandle: handleId('right'), targetHandle: handleId('left') }
 
 /**
@@ -56,12 +56,28 @@ function RefitOnChange({ signal }: { signal: string }) {
   return null
 }
 
+/** Pedido de "leve ate" da busca: muda o `seq` a cada busca, mesmo para o mesmo elemento. */
+export type FocusRequest = { nodeId: string; seq: number } | null
+
+/** Leva o desenho ate o elemento pedido, no tamanho de leitura. */
+function FocusOn({ request }: { request: FocusRequest }) {
+  const { fitView } = useReactFlow()
+  useEffect(() => {
+    if (!request) return
+    const timer = setTimeout(() => {
+      void fitView({ nodes: [{ id: request.nodeId }], padding: 1.2, maxZoom: 1.2, duration: 380 })
+    }, 40)
+    return () => clearTimeout(timer)
+  }, [request?.seq])
+  return null
+}
+
 /** O tamanho medido de cada no, pelo id do no no React Flow. */
 export type MeasuredSizes = Record<string, { width: number; height: number }>
 
 type BoardProps = {
   doc: UseCaseDoc
-  /** Com `false`, as notas e as setas delas somem do canvas — ver `App`. */
+  /** Com `false`, as notas e as setas delas somem do canvas: ver `App`. */
   showNotes: boolean
   /** O retangulo do sistema em volta dos casos de uso. */
   showBoundary: boolean
@@ -70,22 +86,26 @@ type BoardProps = {
   selection: Selection
   onSelect: (selection: Selection) => void
   actions: DiagramActions
-  /** Onde o canvas deixa as medidas para quem cria elemento novo — ver `useDiagramActions`. */
+  /** Onde o canvas deixa as medidas para quem cria elemento novo: ver `useDiagramActions`. */
   sizesRef: MutableRefObject<MeasuredSizes>
+  /** "Leitura": nada se arrasta, se liga ou se edita no canvas. */
+  locked: boolean
+  focusRequest: FocusRequest
   onViewportChange: (viewport: Viewport) => void
 }
 
 export default function Board({
-  doc, showNotes, showBoundary, focus, selection, onSelect, actions, sizesRef, onViewportChange,
+  doc, showNotes, showBoundary, focus, selection, onSelect, actions, sizesRef, locked, focusRequest,
+  onViewportChange,
 }: BoardProps) {
   // Qual elemento esta com o texto aberto no canvas. Mora aqui, e nao no documento,
-  // porque e estado de tela — nao deve ir para o arquivo nem sujar o autosave.
+  // porque e estado de tela, nao deve ir para o arquivo nem sujar o autosave.
   const [editing, setEditing] = useState<Editing>(null)
 
   /**
    * O tamanho que o React Flow mediu de cada no, devolvido a ele em cada no.
    *
-   * Os nos sao refeitos a partir do documento a cada mudanca — a cada quadro de um
+   * Os nos sao refeitos a partir do documento a cada mudanca: a cada quadro de um
    * arrasto. O React Flow so guarda a medida que vem no proprio objeto do no; sem
    * devolve-la, todo no volta a "nao medido" a cada quadro: a linha, que depende
    * da medida, some e reaparece, e o arrasto reclama de no nao inicializado.
@@ -93,12 +113,16 @@ export default function Board({
   const [measured, setMeasured] = useState<MeasuredSizes>({})
   sizesRef.current = measured
 
+  // Voltar a "Leitura" fecha o texto que estava aberto.
+  useEffect(() => { if (locked) setEditing(null) }, [locked])
+
   const editingContext = useMemo(() => ({
     actions,
     editing,
-    edit: (kind: NodeKind, uid: string) => setEditing({ kind, uid }),
+    // Em "Leitura" o clique duplo nao abre o nome para edicao.
+    edit: (kind: NodeKind, uid: string) => { if (!locked) setEditing({ kind, uid }) },
     stopEditing: () => setEditing(null),
-  }), [actions, editing])
+  }), [actions, editing, locked])
 
   /** O `id` do no no React Flow para um ator ou caso de uso; vazio se nao existe. */
   const nodeOf = useCallback((uid: string): string => {
@@ -125,7 +149,7 @@ export default function Board({
       selectable: false,
       connectable: false,
       focusable: false,
-      // Atras das linhas e dos elementos — ver o comentario do `BoundaryNode`.
+      // Atras das linhas e dos elementos: ver o comentario do `BoundaryNode`.
       zIndex: -1,
     }] : []
 
@@ -217,6 +241,7 @@ export default function Board({
       })
     }
 
+    if (locked) return
     for (const change of changes) {
       if (change.type !== 'position' || !change.position) continue
       const { kind, uid } = parseNodeId(change.id)
@@ -224,13 +249,14 @@ export default function Board({
       else if (kind === 'useCase') actions.updateUseCase(uid, { position: change.position })
       else if (kind === 'note') actions.updateNote(uid, { position: change.position })
     }
-  }, [actions])
+  }, [actions, locked])
 
   /**
    * Entre dois elementos vira ligacao, com o tipo tirado das pontas; entre uma nota
    * e um elemento vira a seta da nota. Nota com nota nao liga nada.
    */
   const link = useCallback((sourceId: string, targetId: string) => {
+    if (locked) return
     const source = parseNodeId(sourceId)
     const target = parseNodeId(targetId)
     if (!source.kind || !target.kind || source.uid === target.uid) return
@@ -246,14 +272,14 @@ export default function Board({
     // A seta da nota pode ter sido puxada nos dois sentidos; o resultado e o mesmo.
     const [note, other] = source.kind === 'note' ? [source, target] : [target, source]
     if (other.kind !== 'note') actions.anchorNote(note.uid, other.uid)
-  }, [actions, doc])
+  }, [actions, doc, locked])
 
   const onConnect = useCallback((connection: Connection) => {
     link(connection.source ?? '', connection.target ?? '')
   }, [link])
 
   /**
-   * Soltar a linha em qualquer ponto do elemento tambem liga — nao so em cima de um
+   * Soltar a linha em qualquer ponto do elemento tambem liga, nao so em cima de um
    * dos pontinhos da borda, que sao pequenos e somem ate o mouse chegar. Quando a
    * linha caiu num ponto de verdade, quem ligou foi o `onConnect`, e aqui nao faz nada.
    */
@@ -282,35 +308,39 @@ export default function Board({
           if (!kind) return
           // Escolher outro elemento fecha o texto que estava aberto no anterior. Na
           // forma de funcao, para nao desfazer o `edit` que o proprio clique acabou de
-          // pedir — o clique no texto da nota abre a edicao e sobe ate aqui.
+          // pedir: o clique no texto da nota abre a edicao e sobe ate aqui.
           setEditing((current) => (current && current.uid !== uid ? null : current))
           onSelect({ type: kind, uid })
         }}
         onEdgeClick={(_, edge) => {
           const { kind, uid } = parseEdgeId(edge.id)
-          // Clicar na seta seleciona a nota dona dela — a seta nao e elemento proprio.
+          // Clicar na seta seleciona a nota dona dela: a seta nao e elemento proprio.
           if (kind === 'link') onSelect({ type: 'link', uid })
           else if (kind === 'anchor') onSelect({ type: 'note', uid })
         }}
         onPaneClick={() => { onSelect(null); setEditing(null) }}
         onMove={(_, viewport) => onViewportChange(viewport)}
         connectionMode={ConnectionMode.Loose}
+        nodesDraggable={!locked}
+        nodesConnectable={!locked}
         // Clique duplo abre o nome para edicao; nao pode tambem dar zoom.
         zoomOnDoubleClick={false}
         // Apagar e sempre pelo painel: a tecla Delete removeria o no sem passar pelo documento.
         deleteKeyCode={null}
         fitView
-        fitViewOptions={{ padding: 0.12 }}
-        minZoom={0.2}
-        maxZoom={2}
+        fitViewOptions={{ padding: 0.12, maxZoom: 1 }}
+        minZoom={0.15}
+        maxZoom={2.5}
+        proOptions={{ hideAttribution: true }}
       >
         <RefitOnChange signal={`${showNotes}|${showBoundary}`} />
-        <Background gap={18} size={1} />
-        <Controls showInteractive={false} />
+        <FocusOn request={focusRequest} />
+        <Background gap={20} size={1} />
+        <ZoomBar />
         {/* O tamanho vai pelo `style`: e dele que o minimapa tira o tamanho do desenho.
             So no CSS, a caixa encolhe e o desenho de dentro vaza. */}
         <MiniMap
-          style={{ width: 132, height: 92 }}
+          style={{ width: 150, height: 100 }}
           pannable
           zoomable
           nodeColor={(node) => (node.type === 'boundary' ? 'transparent' : 'var(--line-strong)')}

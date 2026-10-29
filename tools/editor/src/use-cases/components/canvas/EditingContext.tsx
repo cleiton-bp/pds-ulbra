@@ -3,7 +3,7 @@ import type { DiagramActions } from '../../hooks/useDiagramActions'
 import type { NodeKind } from './nodeTypes'
 
 /**
- * Os elementos do canvas precisam editar o modelo direto, sem passar pelo painel —
+ * Os elementos do canvas precisam editar o modelo direto, sem passar pelo painel,
  * senao fechar o painel deixaria a tela sem como escrever um nome.
  *
  * Vai por contexto e nao pelo `data` do no: o React Flow recria o objeto de dados a
@@ -31,6 +31,6 @@ export function useCanvasEditing(): CanvasEditing {
   return value
 }
 
-/** Enter confirma e Escape fecha — nos dois casos a edicao termina. */
+/** Enter confirma e Escape fecha: nos dois casos a edicao termina. */
 export const closesOn = (key: string, shift: boolean): boolean =>
   key === 'Escape' || (key === 'Enter' && !shift)

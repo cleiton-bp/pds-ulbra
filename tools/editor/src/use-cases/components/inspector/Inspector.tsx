@@ -1,3 +1,4 @@
+import Icon from '../../../shared/Icon'
 import type { DiagramActions } from '../../hooks/useDiagramActions'
 import type { Selection, UseCaseDoc } from '../../types'
 import ActorInspector from './ActorInspector'
@@ -10,11 +11,13 @@ type InspectorProps = {
   doc: UseCaseDoc
   selection: Selection
   actions: DiagramActions
+  /** "Leitura": os campos ficam para ler, e os botoes de mudar somem. */
+  locked: boolean
   onSelect: (selection: Selection) => void
 }
 
 /** Decide qual editor mostrar conforme o que esta selecionado no canvas. */
-export default function Inspector({ doc, selection, actions, onSelect }: InspectorProps) {
+export default function Inspector({ doc, selection, actions, locked, onSelect }: InspectorProps) {
   const actor = selection?.type === 'actor' ? doc.actors.find((a) => a.uid === selection.uid) : undefined
   const useCase = selection?.type === 'useCase' ? doc.useCases.find((u) => u.uid === selection.uid) : undefined
   const link = selection?.type === 'link' ? doc.links.find((l) => l.uid === selection.uid) : undefined
@@ -23,7 +26,13 @@ export default function Inspector({ doc, selection, actions, onSelect }: Inspect
   return (
     // A chave troca o painel inteiro quando muda o que esta escolhido: a rolagem
     // volta para o topo, e nenhum campo aberto de um elemento sobra no outro.
-    <section className="panel" key={selection ? `${selection.type}:${selection.uid}` : 'doc'}>
+    <section className={`panel${locked ? ' is-locked' : ''}`} key={selection ? `${selection.type}:${selection.uid}` : 'doc'}>
+      {locked && selection && (
+        <p className="panel__locked panel__locked--top">
+          <Icon name="lock" size={14} />
+          <span>Em leitura: para editar, clique em <strong>Leitura</strong> na barra de cima (Alt+E).</span>
+        </p>
+      )}
       {actor ? <ActorInspector doc={doc} actor={actor} actions={actions} onSelect={onSelect} />
         : useCase ? <UseCaseInspector doc={doc} useCase={useCase} actions={actions} onSelect={onSelect} />
         : link ? <LinkInspector doc={doc} link={link} actions={actions} />

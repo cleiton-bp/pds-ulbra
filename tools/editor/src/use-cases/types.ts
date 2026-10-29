@@ -11,7 +11,7 @@ import type { ParseResult as SharedParseResult } from '../shared/types'
 export type Position = { x: number; y: number }
 
 /**
- * Chaves que o arquivo tem e o editor nao conhece — um campo escrito a mao, um
+ * Chaves que o arquivo tem e o editor nao conhece: um campo escrito a mao, um
  * nome digitado errado. Ficam guardadas e sao gravadas de volta como estavam:
  * gravar pelo editor nunca apaga o que ele nao entende.
  */
@@ -23,7 +23,7 @@ export type ActorKind = 'person' | 'system'
 /** Quem usa o sistema. `uid` so existe em memoria, nunca vai para o arquivo. */
 export type Actor = {
   uid: string
-  /** Nome no desenho, em portugues — e o que as ligacoes citam no arquivo. */
+  /** Nome no desenho, em portugues. E o que as ligacoes citam no arquivo. */
   name: string
   kind: ActorKind
   description: string
@@ -42,13 +42,13 @@ export type AlternativeFlow = {
 /** Uma acao que o sistema oferece a algum ator. */
 export type UseCase = {
   uid: string
-  /** Codigo curto e estavel, como "UC01" — e o que as ligacoes citam no arquivo. */
+  /** Codigo curto e estavel, como "UC01". E o que as ligacoes citam no arquivo. */
   id: string
   /** A acao, com verbo no infinitivo: "Abrir relato". */
   name: string
   description: string
   position: Position
-  /** Largura da elipse. A altura e a mesma para todas — ver `model/geometry`. */
+  /** Largura da elipse. A altura e a mesma para todas: ver `model/geometry`. */
   width: number
   preconditions: string
   postconditions: string
@@ -64,22 +64,22 @@ export type LinkKind = 'association' | 'include' | 'extend' | 'generalization'
  * Ponta de uma ligacao, ou o alvo da seta de uma nota.
  *
  * Em memoria aponta pelo `uid`, e o nome so e escrito na hora de gravar. Assim
- * renomear um ator nao precisa sair corrigindo ligacao por ligacao — e digitar um
+ * renomear um ator nao precisa sair corrigindo ligacao por ligacao, e digitar um
  * nome que passa, letra a letra, pelo nome de outro ator ("Admin" a caminho de
  * "Administrador") nao rouba as ligacoes dele no meio do caminho.
  *
  * `missing` guarda o texto de uma referencia que o arquivo cita mas que nao existe:
  * vira aviso e continua sendo gravada, nunca some em silencio. Ela continua sendo
- * texto — resolvido pelo nome a cada leitura, sem se prender a ninguem (ver
+ * texto: resolvido pelo nome a cada leitura, sem se prender a ninguem (ver
  * `targetOf` em `model/refs`).
  */
 export type Ref = { uid: string } | { missing: string }
 
 /**
  * Liga dois elementos. O sentido importa em tres dos quatro tipos:
- * - include — `from` sempre executa `to` junto;
- * - extend — `from` acrescenta algo a `to`, sob uma condicao;
- * - generalization — `from` e um caso particular de `to` (o filho aponta o pai).
+ * - include: `from` sempre executa `to` junto;
+ * - extend: `from` acrescenta algo a `to`, sob uma condicao;
+ * - generalization: `from` e um caso particular de `to` (o filho aponta o pai).
  *
  * Na associacao o sentido nao carrega significado, e o editor grava o ator em `from`.
  */
@@ -94,7 +94,7 @@ export type Link = {
    * para o arquivo ate alguem escolher outro tipo no painel. Vazio no resto.
    */
   unknownKind: string
-  /** Observacao livre — na extensao, e a condicao em que ela acontece. */
+  /** Observacao livre: na extensao, e a condicao em que ela acontece. */
   note: string
   extra: Extra
 }
@@ -127,15 +127,15 @@ export type UseCaseDoc = {
   useCases: UseCase[]
   links: Link[]
   notes: Note[]
-  /** Chaves desconhecidas no topo do arquivo — ver `Extra`. */
+  /** Chaves desconhecidas no topo do arquivo: ver `Extra`. */
   extra: Extra
   /**
-   * Itens de uma lista que nao tem o formato de nada que o editor conhece — uma
+   * Itens de uma lista que nao tem o formato de nada que o editor conhece: uma
    * ligacao escrita como texto solto, `"Relator -> UC01"`. Nao aparecem no desenho,
    * mas voltam para o arquivo no fim da lista em que estavam.
    */
   stray: Partial<Record<Section, unknown[]>>
-  /** Problemas que nao impedem a edicao — ex.: ligacao citando algo que nao existe. */
+  /** Problemas que nao impedem a edicao, como uma ligacao citando algo que nao existe. */
   warnings: string[]
 }
 

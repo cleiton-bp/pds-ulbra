@@ -6,7 +6,7 @@ import { closesOn, useCanvasEditing } from './EditingContext'
 import Handles from './Handles'
 import type { ActorFlowNode } from './nodeTypes'
 
-/** O boneco da UML, no tamanho exato da caixa do ator — ver `ACTOR_SIZE`. */
+/** O boneco da UML, no tamanho exato da caixa do ator: ver `ACTOR_SIZE`. */
 function StickFigure() {
   const { width, height } = ACTOR_SIZE.person
   return (

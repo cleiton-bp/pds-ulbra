@@ -7,7 +7,7 @@ import type { UmlEdgeData, UmlFlowEdge } from './nodeTypes'
 /**
  * A linha da UML: reta, de centro a centro, parando na borda de cada ponta.
  *
- * Nao usa a posicao dos pontos de conexao — eles servem so para puxar a linha. O
+ * Nao usa a posicao dos pontos de conexao: eles servem so para puxar a linha. O
  * ponto de parada sai do tamanho medido de cada no (`useInternalNode`) e da forma
  * dele: elipse para caso de uso, retangulo para o resto.
  *
@@ -15,7 +15,7 @@ import type { UmlEdgeData, UmlFlowEdge } from './nodeTypes'
  * - associacao: linha cheia, sem seta;
  * - inclusao e extensao: tracejada, seta aberta, com «include» ou «extend» no meio;
  * - generalizacao: linha cheia, triangulo vazado no mais geral;
- * - seta da nota: tracejada fina, sem ponta — e anotacao, nao relacao.
+ * - seta da nota: tracejada fina, sem ponta, porque e anotacao, e nao relacao.
  */
 
 function boxOf(node: InternalNode): Box | null {
@@ -29,7 +29,7 @@ function boxOf(node: InternalNode): Box | null {
   }
 }
 
-/** Qual ponta desenhar — as definicoes estao em `EdgeMarkers`. */
+/** Qual ponta desenhar: as definicoes estao em `EdgeMarkers`. */
 function markerFor(kind: UmlEdgeData['kind'], selected: boolean): string | undefined {
   const state = selected ? '-selected' : ''
   if (kind === 'include' || kind === 'extend') return `url(#uml-arrow${state})`
@@ -69,7 +69,7 @@ export default memo(DiagramEdge)
 /**
  * As pontas de seta, definidas uma vez para o canvas inteiro. Uma versao por cor:
  * o conteudo de um `<marker>` herda o estilo de onde foi definido, e nao da linha
- * que o usa — por isso a linha escolhida precisa de uma ponta propria.
+ * que o usa; por isso a linha escolhida precisa de uma ponta propria.
  */
 export function EdgeMarkers() {
   return (

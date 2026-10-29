@@ -1,3 +1,5 @@
+import { confirmDelete } from '../../../shared/Confirm'
+import Icon from '../../../shared/Icon'
 import { capabilitiesOf, viaLabel } from '../../model/analysis'
 import { ACTOR_KINDS } from '../../model/constants'
 import type { DiagramActions } from '../../hooks/useDiagramActions'
@@ -13,15 +15,16 @@ type ActorInspectorProps = {
 
 export default function ActorInspector({ doc, actor, actions, onSelect }: ActorInspectorProps) {
   const capabilities = capabilitiesOf(doc, actor.uid)
-  // Sistema externo participa do caso de uso, nao o realiza — ver `performVerb`.
+  // Sistema externo participa do caso de uso, nao o realiza: ver `performVerb`.
   const isSystem = actor.kind === 'system'
 
   return (
     <>
       <header className="panel__head">
         <span className="panel__kind">ator</span>
-        <button className="panel__delete" onClick={() => actions.deleteActor(actor.uid)}>
-          apagar
+        <button className="panel__delete" onClick={() => void confirmDelete({ title: 'Apagar este ator?', confirmLabel: 'Apagar ator' }).then((ok) => ok && actions.deleteActor(actor.uid))}>
+          <Icon name="trash" size={14} />
+          <span>Apagar ator</span>
         </button>
       </header>
 
@@ -67,8 +70,8 @@ export default function ActorInspector({ doc, actor, actions, onSelect }: ActorI
 
       {capabilities.length === 0 ? (
         <p className="panel__hint">
-          Nada ainda. Puxe da borda do {isSystem ? 'sistema' : 'boneco'} até uma elipse para
-          ligá-lo àquele caso de uso — ou até outro ator, para dizer que ele é um tipo daquele.
+          Nada ainda: puxe da borda do {isSystem ? 'sistema' : 'boneco'} até uma elipse para
+          ligá-lo àquele caso de uso, ou até outro ator para dizer que ele é um tipo daquele.
         </p>
       ) : (
         <ul className="related">

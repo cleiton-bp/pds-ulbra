@@ -6,7 +6,7 @@ import { bound, elementType, missingText, refText, refUid, targetOf, type Elemen
 import { collectWarnings } from './warnings'
 
 /**
- * Transformacoes puras sobre o documento. Nenhuma toca em React ou em rede —
+ * Transformacoes puras sobre o documento. Nenhuma toca em React ou em rede:
  * recebem um doc e devolvem outro, o que as torna faceis de conferir e testar.
  *
  * Renomear nao aparece aqui como operacao propria, e isso e de proposito: as
@@ -37,7 +37,7 @@ export function addActor(doc: UseCaseDoc, uid: string, position: Position): UseC
 
 /**
  * Escolher o tipo do ator no painel descarta o tipo desconhecido que o arquivo
- * trazia guardado (ver `Extra`) — senao ele voltaria para o arquivo por cima da escolha.
+ * trazia guardado (ver `Extra`), senao ele voltaria para o arquivo por cima da escolha.
  */
 export const updateActor = (doc: UseCaseDoc, uid: string, patch: Partial<Actor>): UseCaseDoc => ({
   ...doc,
@@ -68,7 +68,7 @@ export const deleteActor = (doc: UseCaseDoc, uid: string): UseCaseDoc =>
 // ---- casos de uso ------------------------------------------------------------
 
 /**
- * O proximo codigo livre, UC01, UC02… — sempre depois do maior que existe, para
+ * O proximo codigo livre, UC01, UC02…: sempre depois do maior que existe, para
  * um codigo apagado nao voltar como outro caso de uso. `taken` inclui tambem o que
  * as ligacoes citam sem existir: reaproveitar esse codigo ligaria a elipse nova a
  * uma ligacao antiga sem ninguem pedir.
@@ -84,11 +84,11 @@ export function nextFreeId(taken: Iterable<string>): string {
     highest = Math.max(highest, Number(match[1]))
     digits = Math.max(digits, match[1].length)
   }
-  // Sem nenhum codigo ainda, dois digitos — UC01 — que e o costume.
+  // Sem nenhum codigo ainda, dois digitos (UC01), que e o costume.
   return `UC${String(highest + 1).padStart(digits || 2, '0')}`
 }
 
-/** O que as ligacoes e notas citam sem existir — ver `nextFreeId`. */
+/** O que as ligacoes e notas citam sem existir: ver `nextFreeId`. */
 export const citedButMissing = (doc: UseCaseDoc): string[] => [
   ...doc.links.flatMap((l) => [missingText(l.from), missingText(l.to)]),
   ...doc.notes.map((n) => missingText(n.anchor)),
@@ -173,7 +173,7 @@ export const deleteNote = (doc: UseCaseDoc, uid: string): UseCaseDoc => ({
 // ---- ligacoes ------------------------------------------------------------------
 
 /**
- * O tipo que faz sentido entre duas pontas — o que o canvas escolhe ao puxar uma
+ * O tipo que faz sentido entre duas pontas: o que o canvas escolhe ao puxar uma
  * linha, antes de a pessoa dizer outra coisa no painel.
  * Ator com ator so pode ser generalizacao; ator com caso de uso, associacao; e
  * entre dois casos de uso a inclusao e a mais comum das tres possiveis.
@@ -195,7 +195,7 @@ export function kindFits(kind: LinkKind, from: ElementType | null, to: ElementTy
   }
 }
 
-/** Associacao grava o ator em `from` — o arquivo le "Relator → UC01", nunca o contrario. */
+/** Associacao grava o ator em `from`: o arquivo le "Relator → UC01", nunca o contrario. */
 function orient(doc: UseCaseDoc, link: Link): Link {
   if (link.kind !== 'association') return link
   const fromType = elementType(doc, targetOf(doc, link.from))
@@ -208,7 +208,7 @@ const sameEnds = (doc: UseCaseDoc, link: Link, from: string, to: string): boolea
 
 /**
  * Liga dois elementos. Ignora ligacao de um elemento com ele mesmo e repeticao
- * exata — as duas so gerariam linha inutil no canvas. Sem `kind`, escolhe pelo
+ * exata: as duas so gerariam linha inutil no canvas. Sem `kind`, escolhe pelo
  * tipo das pontas (ver `inferLinkKind`).
  */
 export function addLink(
@@ -247,7 +247,7 @@ export type LinkPatch = Partial<Pick<Link, 'from' | 'to' | 'kind' | 'note'>>
 
 /**
  * Troca uma ponta, o tipo ou a observacao. Trocar a ponta por um elemento com o
- * qual o tipo atual nao combina reescolhe o tipo — levar a ponta de uma inclusao
+ * qual o tipo atual nao combina reescolhe o tipo: levar a ponta de uma inclusao
  * para um ator so pode virar associacao. Qualquer tipo escolhido aqui substitui o
  * tipo desconhecido que o arquivo trazia (ver `Link.unknownKind`).
  */
@@ -269,7 +269,7 @@ export function updateLink(doc: UseCaseDoc, uid: string, patch: LinkPatch): UseC
   }
 }
 
-/** Inverte o sentido. Na associacao nao muda nada — o ator continua em `from`. */
+/** Inverte o sentido. Na associacao nao muda nada: o ator continua em `from`. */
 export const reverseLink = (doc: UseCaseDoc, uid: string): UseCaseDoc => ({
   ...doc,
   links: doc.links.map((l) => (l.uid === uid ? orient(doc, { ...l, from: l.to, to: l.from }) : l)),
@@ -283,8 +283,8 @@ export const deleteLink = (doc: UseCaseDoc, uid: string): UseCaseDoc => ({
 // ---- o que deriva do resto -----------------------------------------------------
 
 /**
- * Recalcula o que deriva do resto — hoje, os avisos.
- * Roda na abertura do arquivo e depois de cada edicao — uma regra so para os dois.
+ * Recalcula o que deriva do resto: hoje, os avisos.
+ * Roda na abertura do arquivo e depois de cada edicao: uma regra so para os dois.
  */
 export const refresh = (doc: UseCaseDoc): UseCaseDoc => ({ ...doc, warnings: collectWarnings(doc) })
 
@@ -296,7 +296,7 @@ export const refresh = (doc: UseCaseDoc): UseCaseDoc => ({ ...doc, warnings: col
  * Cada leitura gera `uid` novos, e a selecao da tela aponta por `uid`: sem isto,
  * toda gravacao feita por fora (VSCode, IA) derrubaria o que estava escolhido e o
  * painel voltaria para o arquivo no meio da leitura. Quem continua no arquivo
- * recupera o `uid` antigo — ator pelo nome, caso de uso pelo codigo, ligacao pelas
+ * recupera o `uid` antigo: ator pelo nome, caso de uso pelo codigo, ligacao pelas
  * pontas e pelo tipo, nota e fluxo pela posicao na lista. Quem mudou de nome e
  * tratado como novo, que e o que ele e para quem le o arquivo.
  */

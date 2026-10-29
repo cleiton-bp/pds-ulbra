@@ -1,5 +1,5 @@
 /*
- * Editor de casos de uso — o que so ele usa. Tudo aqui vale apenas dentro de
+ * Editor de casos de uso: o que so ele usa. Tudo aqui vale apenas dentro de
  * `.app--use-cases`: a modelagem usa os mesmos nomes de classe (`.handle-box`,
  * `.note-node`, `.chip`) com outro desenho. O que os dois dividem mora em
  * `shared/base.css`.
@@ -245,7 +245,7 @@
 
   .related__text { flex: 1; min-width: 0; }
 
-  /* O motivo — "herda de…", "incluído por…" — vai numa linha própria, embaixo. */
+  /* O motivo ("herda de…", "incluído por…") vai numa linha própria, embaixo. */
   .related small { flex-basis: 100%; font-size: 10.5px; color: var(--text-dim); }
 
   .who { margin-bottom: 10px; }
@@ -297,17 +297,17 @@
 
   /* `scale`, e não `transform`: o React Flow centraliza o ponto na borda com
      `transform: translate(…)`, e trocar o transform no hover faria o ponto pular de
-     debaixo do mouse — o clique cairia no fundo do canvas. */
+     debaixo do mouse; o clique cairia no fundo do canvas. */
   .handle-box:hover { background: var(--accent); scale: 1.3; }
 
-  /* Enquanto uma linha está sendo puxada, mostra todos os alvos possíveis — senão
+  /* Enquanto uma linha está sendo puxada, mostra todos os alvos possíveis, senão
      seria preciso adivinhar onde soltar. */
   .react-flow:has(.react-flow__connectionline) .handle-box { opacity: 1; }
 
   /* O ponto de chegada fica verde quando a linha pode ser solta nele. */
   .react-flow__handle.connectingto.valid { background: var(--ok); opacity: 1; }
 
-  /* As linhas da UML — ver `DiagramEdge` para o que cada tipo desenha. */
+  /* As linhas da UML: ver `DiagramEdge` para o que cada tipo desenha. */
   .react-flow__edge-path.uml-edge { stroke: var(--stroke); stroke-width: 1.5; }
 
   .uml-edge--include,

@@ -32,7 +32,7 @@ function withExtra(out: Plain, extra: Extra): Plain {
   return out
 }
 
-/** Passo em branco e so a linha vazia que sobrou da digitacao — nao e passo. */
+/** Passo em branco e so a linha vazia que sobrou da digitacao, nao e passo. */
 const cleanSteps = (steps: string[]): string[] =>
   steps.map((step) => step.trim()).filter(Boolean)
 
@@ -76,7 +76,7 @@ function cleanUseCase(useCase: UseCase): Plain {
 }
 
 function cleanLink(doc: UseCaseDoc, link: Link): Plain {
-  // Tipo que o editor nao reconheceu volta como estava escrito — ver `Link.unknownKind`.
+  // Tipo que o editor nao reconheceu volta como estava escrito: ver `Link.unknownKind`.
   const out: Plain = { from: refText(doc, link.from), to: refText(doc, link.to), kind: link.unknownKind || link.kind }
   if (link.note) out.note = link.note
   return withExtra(out, link.extra)
@@ -122,6 +122,6 @@ export function serializeDoc(doc: UseCaseDoc): string {
     },
   })
 
-  // lineWidth 0 desliga a quebra automatica — descricao longa nao vira diff de 5 linhas.
+  // lineWidth 0 desliga a quebra automatica: descricao longa nao vira diff de 5 linhas.
   return ydoc.toString({ lineWidth: 0 })
 }

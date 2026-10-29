@@ -2,7 +2,7 @@ import { elementLabel, targetOf } from '../../model/refs'
 import type { Ref, UseCaseDoc } from '../../types'
 
 /**
- * Escolhe um ator ou caso de uso — a ponta de uma ligacao, ou o alvo da seta de
+ * Escolhe um ator ou caso de uso: a ponta de uma ligacao, ou o alvo da seta de
  * uma nota. Referencia que o arquivo cita sem existir aparece como opcao marcada,
  * para a pessoa ver o que estava escrito antes de trocar.
  */
@@ -32,7 +32,7 @@ export default function ElementPicker({ label, doc, value, onChange, allowNone =
           if (event.target.value !== BROKEN) onChange(event.target.value)
         }}
       >
-        {(allowNone || !current) && <option value="">{allowNone ? '— nenhum' : '— escolha'}</option>}
+        {(allowNone || !current) && <option value="">{allowNone ? 'nenhum' : 'escolha um'}</option>}
         {brokenText && <option value={BROKEN}>"{brokenText}" (não existe)</option>}
         {doc.actors.length > 0 && (
           <optgroup label="Atores">

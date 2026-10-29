@@ -1,3 +1,5 @@
+import { confirmDelete } from '../../../shared/Confirm'
+import Icon from '../../../shared/Icon'
 import { bound } from '../../model/refs'
 import type { DiagramActions } from '../../hooks/useDiagramActions'
 import type { Note, UseCaseDoc } from '../../types'
@@ -14,8 +16,9 @@ export default function NoteInspector({ doc, note, actions }: NoteInspectorProps
     <>
       <header className="panel__head">
         <span className="panel__kind">nota</span>
-        <button className="panel__delete" onClick={() => actions.deleteNote(note.uid)}>
-          apagar
+        <button className="panel__delete" onClick={() => void confirmDelete({ title: 'Apagar esta nota?', confirmLabel: 'Apagar nota' }).then((ok) => ok && actions.deleteNote(note.uid))}>
+          <Icon name="trash" size={14} />
+          <span>Apagar nota</span>
         </button>
       </header>
 

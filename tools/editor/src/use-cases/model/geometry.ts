@@ -4,7 +4,7 @@ import type { Actor, ActorKind, Note, Position, UseCase } from '../types'
  * Medidas e cruzamentos do desenho.
  *
  * Num diagrama de casos de uso as ligacoes sao retas: apontam de centro a centro e
- * param na borda — do boneco, da elipse, da caixa. O ponto de parada e calculado
+ * param na borda (do boneco, da elipse, da caixa). O ponto de parada e calculado
  * aqui, e nada disso vai para o arquivo: arrastar um elemento refaz o desenho
  * sozinho.
  */
@@ -20,7 +20,7 @@ export const USE_CASE_HEIGHT = 84
 
 /**
  * O tamanho do desenho do ator. No boneco, o no cresce para baixo com o nome, mas
- * nao para os lados — ver `ActorNode`. A linha usa o tamanho medido do no, entao
+ * nao para os lados: ver `ActorNode`. A linha usa o tamanho medido do no, entao
  * aqui so importa para o boneco e para centralizar um ator novo.
  */
 export const ACTOR_SIZE: Record<ActorKind, { width: number; height: number }> = {
@@ -44,7 +44,7 @@ export const centerOf = (box: Bounds): Position => ({
  * Onde a reta que sai do centro de `box` em direcao a `toward` cruza a borda.
  *
  * Na elipse o raio muda com o angulo, e a conta sai da equacao dela: o ponto
- * `centro + t·(dx, dy)` esta na borda quando (t·dx/a)² + (t·dy/b)² = 1. No
+ * `centro + t*(dx, dy)` esta na borda quando (t*dx/a)² + (t*dy/b)² = 1. No
  * retangulo, anda ate bater no primeiro lado.
  */
 export function borderPoint(box: Box, toward: Position): Position {
@@ -80,7 +80,7 @@ export const BOUNDARY_TITLE = 30
  *
  * Calculada, e nao desenhada a mao: mover uma elipse para fora nunca deixa um
  * caso de uso do lado de fora do sistema por esquecimento. Os atores ficam de
- * fora do calculo — pela UML, eles estao sempre fora da fronteira.
+ * fora do calculo: pela UML, eles estao sempre fora da fronteira.
  */
 export function systemBounds(useCases: readonly UseCase[]): Bounds | null {
   if (useCases.length === 0) return null
@@ -96,12 +96,12 @@ export function systemBounds(useCases: readonly UseCase[]): Bounds | null {
  * O lugar livre mais perto de onde o elemento novo queria nascer.
  *
  * Sem isto, tres cliques em "+ caso de uso" empilhariam tres elipses no mesmo
- * lugar — e uma elipse nascida em cima de um boneco o esconde por inteiro. Compara
+ * lugar, e uma elipse nascida em cima de um boneco o esconde por inteiro. Compara
  * caixas, e nao cantos: o boneco e a elipse centrados no mesmo ponto tem cantos
  * diferentes e se cobrem do mesmo jeito.
  *
  * Procura em volta, do mais perto para o mais longe, numa grade de passos de
- * `STEP`. Se nada couber no raio de busca, fica onde queria — melhor em cima de
+ * `STEP`. Se nada couber no raio de busca, fica onde queria: melhor em cima de
  * algo do que longe da tela.
  */
 export function freeSpot(wanted: Bounds, taken: readonly Bounds[]): Position {
@@ -133,7 +133,7 @@ export const ACTOR_NAME_HEIGHT = 36
 /** Altura de uma nota curta. A de verdade depende do texto; aqui basta nao encostar. */
 export const NOTE_HEIGHT = 80
 
-/** Largura do nome embaixo do boneco — mais larga que o boneco, e centrada nele. */
+/** Largura do nome embaixo do boneco: mais larga que o boneco, e centrada nele. */
 export const ACTOR_NAME_WIDTH = 150
 
 type Size = { width: number; height: number }

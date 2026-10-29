@@ -2,17 +2,17 @@ import type { Actor, Link, Selection, UseCase, UseCaseDoc } from '../types'
 import { elementType, findElement, refLabel, targetOf } from './refs'
 
 /**
- * Quem faz o que — a pergunta que um diagrama de casos de uso existe para responder.
+ * Quem faz o que: a pergunta que um diagrama de casos de uso existe para responder.
  *
  * Um ator realiza:
  * 1. o que esta ligado a ele;
- * 2. o que esta ligado aos atores de quem ele e um tipo (generalizacao) — o
+ * 2. o que esta ligado aos atores de quem ele e um tipo (generalizacao): o
  *    administrador que e um tipo de membro do time faz tudo o que o membro faz;
  * 3. tudo o que os dois itens acima arrastam junto: o que e incluido, o que
  *    estende, e as variacoes especializadas.
  *
  * Calculado aqui, uma vez, e lido pelo painel, pelo realce do canvas e pelos avisos.
- * Toda busca guarda o que ja visitou, entao ligacao circular nao trava nada — ela
+ * Toda busca guarda o que ja visitou, entao ligacao circular nao trava nada: ela
  * so vira aviso.
  */
 
@@ -74,7 +74,7 @@ function carried(doc: UseCaseDoc, link: Link, useCaseUid: string): string {
   return ''
 }
 
-/** Os casos de uso que `useCaseUid` arrasta junto, por qualquer ligacao — ver `carried`. */
+/** Os casos de uso que `useCaseUid` arrasta junto, por qualquer ligacao: ver `carried`. */
 export const carriedFrom = (doc: UseCaseDoc, useCaseUid: string): string[] =>
   doc.links.map((link) => carried(doc, link, useCaseUid)).filter(Boolean)
 
@@ -124,7 +124,7 @@ export function reachedUseCases(doc: UseCaseDoc): Set<string> {
   return reached
 }
 
-/** Atores que sao pai de outro numa generalizacao — o "Usuario" que so agrupa. */
+/** Atores que sao pai de outro numa generalizacao: o "Usuario" que so agrupa. */
 export function parentActors(doc: UseCaseDoc): Set<string> {
   const parents = new Set<string>()
   for (const link of doc.links) {
@@ -142,8 +142,8 @@ const nameOf = (doc: UseCaseDoc, uid: string): string => {
 }
 
 /**
- * Por que o ator chega no caso de uso, dito do ponto de vista do CASO DE USO — e
- * o que aparece ao lado dele na lista do que o ator faz: "UC07 · incluído por UC05".
+ * Por que o ator chega no caso de uso, dito do ponto de vista do CASO DE USO. E
+ * o que aparece ao lado dele na lista do que o ator faz: "UC07, incluído por UC05".
  */
 export function viaLabel(doc: UseCaseDoc, via: Via, from: string): string {
   const name = nameOf(doc, from)
@@ -158,7 +158,7 @@ export function viaLabel(doc: UseCaseDoc, via: Via, from: string): string {
 
 /**
  * O mesmo motivo do ponto de vista do ATOR, para a lista de quem realiza um caso
- * de uso: "Membro do time · ao fazer UC05". Reusar o texto de cima ali diria que o
+ * de uso: "Membro do time, ao fazer UC05". Reusar o texto de cima ali diria que o
  * ator foi "incluído por UC05", que e uma relacao que nao existe.
  */
 export function performerViaLabel(doc: UseCaseDoc, via: Via, from: string): string {
@@ -179,7 +179,7 @@ export const performVerb = (actor: Actor | undefined): string =>
  *
  * Ator escolhido: ele, os atores de quem ele herda e tudo o que ele realiza.
  * Caso de uso escolhido: ele, quem o realiza e os casos de uso ligados a ele.
- * Qualquer outra escolha — ou nenhuma — nao realca nada.
+ * Qualquer outra escolha (ou nenhuma) nao realca nada.
  */
 export function focusOf(doc: UseCaseDoc, selection: Selection): Set<string> | null {
   if (selection?.type === 'actor') {
@@ -211,7 +211,7 @@ export function focusOf(doc: UseCaseDoc, selection: Selection): Set<string> | nu
   return null
 }
 
-/** A ligacao lida como frase: "Relator realiza UC01 — Abrir relato". */
+/** A ligacao lida como frase: "Relator realiza UC01 Abrir relato". */
 export function linkSentence(doc: UseCaseDoc, link: Link): string {
   const from = refLabel(doc, link.from)
   const to = refLabel(doc, link.to)
@@ -225,7 +225,7 @@ export function linkSentence(doc: UseCaseDoc, link: Link): string {
       const toIsActor = toElement?.type === 'actor'
       if (!fromIsActor && toIsActor) return `${to} ${performVerb(toElement.actor)} ${from}`
       if (fromIsActor && !toIsActor) return `${from} ${performVerb(fromElement.actor)} ${to}`
-      return `${from} — ${to}`
+      return `${from} ligado a ${to}`
     }
     case 'include': return `${from} inclui ${to}`
     case 'extend': return `${from} estende ${to}`
