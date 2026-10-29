@@ -116,9 +116,9 @@
 
 .env-card__arrow { grid-column: 2; grid-row: 1 / span 2; font-size: 16px; color: var(--accent); }
 
-.env-card__new { flex: none; align-self: stretch; }
+.env-card__new { flex: none; align-self: stretch; height: auto; }
 
-/* A lista inteira, com o título de cada arquivo — "Mídia", e não só "07-media-attachments". */
+/* A lista inteira, com o título de cada arquivo: "Mídia", e não só "07-media-attachments". */
 .env-card__files {
   flex: 1;
   display: flex;

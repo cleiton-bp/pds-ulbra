@@ -5,7 +5,7 @@ import type { BoundaryFlowNode } from './nodeTypes'
 /**
  * A fronteira do sistema: o retangulo com o nome dele em cima.
  *
- * Nao se arrasta nem se escolhe — acompanha os casos de uso sozinha (ver
+ * Nao se arrasta nem se escolhe: acompanha os casos de uso sozinha (ver
  * `systemBounds`). Fica atras de tudo e deixa o clique passar, entao clicar dentro
  * dela e o mesmo que clicar no fundo do canvas.
  */

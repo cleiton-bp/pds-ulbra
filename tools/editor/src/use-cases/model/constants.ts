@@ -3,7 +3,7 @@ import type { ActorKind, LinkKind } from '../types'
 /**
  * Os quatro tipos de ligacao e o que cada um quer dizer.
  *
- * `keyword` e o que a UML escreve sobre a linha — vazio e linha sem rotulo. As
+ * `keyword` e o que a UML escreve sobre a linha: vazio e linha sem rotulo. As
  * palavras-chave ficam no original porque e assim que aparecem em qualquer livro
  * ou material de aula; o resto da tela fala portugues.
  */
@@ -17,25 +17,25 @@ export const LINK_KINDS: ReadonlyArray<{
     value: 'association',
     label: 'associação',
     keyword: '',
-    hint: 'O ator realiza o caso de uso. A linha não tem seta: o sentido não carrega significado.',
+    hint: 'O ator realiza o caso de uso, numa linha sem seta, porque aqui o sentido não importa.',
   },
   {
     value: 'include',
     label: 'inclusão',
     keyword: '«include»',
-    hint: 'Toda vez que o de origem acontece, o de destino acontece junto — é um pedaço obrigatório dele, separado para não se repetir em vários casos de uso.',
+    hint: 'Toda vez que o de origem acontece, o de destino acontece junto, como um pedaço obrigatório dele separado para não se repetir em vários casos de uso.',
   },
   {
     value: 'extend',
     label: 'extensão',
     keyword: '«extend»',
-    hint: 'O de origem acrescenta algo ao de destino, e só numa certa condição. A seta aponta para o caso de uso que é estendido.',
+    hint: 'O de origem acrescenta algo ao de destino só numa certa condição, com a seta apontando para o caso de uso estendido.',
   },
   {
     value: 'generalization',
     label: 'generalização',
     keyword: '',
-    hint: 'O de origem é um caso particular do de destino e herda tudo o que ele faz. O triângulo fica no mais geral.',
+    hint: 'O de origem é um caso particular do de destino e herda tudo o que ele faz, com o triângulo no mais geral.',
   },
 ]
 

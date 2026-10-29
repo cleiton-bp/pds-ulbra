@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
 
 /**
- * Acesso ao disco. Cada ambiente tem a sua pasta, e tudo fica restrito a ela —
+ * Acesso ao disco. Cada ambiente tem a sua pasta, e tudo fica restrito a ela:
  * ver `resolveSafe`.
  */
 
@@ -12,7 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(here, '..')
 
 /**
- * As pastas de conteudo, pelo nome que a API usa na rota — todas dentro de `database-models/`,
+ * As pastas de conteudo, pelo nome que a API usa na rota: todas dentro de `database-models/`,
  * uma por ambiente. Nome de fora desta lista nao abre pasta nenhuma: e a lista, e
  * nao o pedido, que decide onde se grava.
  */
@@ -60,7 +60,7 @@ async function mtimeIfExists(full: string): Promise<number | null> {
   }
 }
 
-/** `title` e o `meta.title` de dentro do arquivo — o que a tela mostra no lugar do nome. */
+/** `title` e o `meta.title` de dentro do arquivo: o que a tela mostra no lugar do nome. */
 export type FileEntry = { name: string; mtime: number; size: number; title: string }
 
 /**
@@ -127,11 +127,11 @@ export async function readFile(collection: string, name: unknown): Promise<{ nam
 /**
  * Grava so se o arquivo no disco ainda estiver na versao que o editor abriu.
  * Se alguem mexeu no meio do caminho, devolve 409 e o navegador mostra a faixa de
- * conflito — em vez de apagar em silencio o trabalho do outro. Se o arquivo sumiu,
+ * conflito: em vez de apagar em silencio o trabalho do outro. Se o arquivo sumiu,
  * devolve 404 e o navegador pergunta o que fazer.
  *
  * `baseMtime` ausente significa "grava mesmo assim", usado quando a pessoa escolhe
- * explicitamente manter a versao da tela — inclusive recriando um arquivo que
+ * explicitamente manter a versao da tela, inclusive recriando um arquivo que
  * sumiu do disco.
  */
 export async function writeFile(
@@ -166,7 +166,7 @@ export async function createFile(collection: string, name: unknown, content: str
   const full = resolveSafe(dir, name)
   await fs.mkdir(dir, { recursive: true })
   try {
-    // flag wx falha se ja existir — evita zerar um arquivo por engano.
+    // flag wx falha se ja existir: evita zerar um arquivo por engano.
     await fs.writeFile(full, content, { encoding: 'utf8', flag: 'wx' })
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'EEXIST') {

@@ -1,5 +1,5 @@
 /**
- * Testes da camada de modelo — a parte onde um erro custa conteudo perdido.
+ * Testes da camada de modelo: a parte onde um erro custa conteudo perdido.
  *
  * Roda com `npm test`. Carrega os modulos TypeScript pelo proprio Vite
  * (`ssrLoadModule`), entao nao precisa de compilador nem de dependencia extra.
@@ -19,6 +19,7 @@ let serializeDoc
 let emptyDoc
 let ops
 let geometry
+let diff
 
 before(async () => {
   server = await createServer({
@@ -31,6 +32,7 @@ before(async () => {
   ;({ serializeDoc } = await server.ssrLoadModule('/src/modeling/model/serialize.ts'))
   ops = await server.ssrLoadModule('/src/modeling/model/operations.ts')
   geometry = await server.ssrLoadModule('/src/modeling/model/geometry.ts')
+  diff = await server.ssrLoadModule('/src/modeling/model/diff.ts')
 })
 
 after(async () => { await server?.close() })
@@ -288,7 +290,7 @@ describe('onde a linha gruda', () => {
     const abaixo = geometry.pickSides({ x: 0, y: 0 }, { x: 10, y: 400 })
     assert.deepEqual(abaixo, { source: 'bottom', target: 'top' })
 
-    // Preso a uma linha da tabela, só lateral — cima e baixo não caberiam nos 21px.
+    // Preso a uma linha da tabela, só lateral: cima e baixo não caberiam nos 21px.
     const naLinha = geometry.pickSides({ x: 0, y: 0 }, { x: 10, y: 400 }, true)
     assert.deepEqual(naLinha, { source: 'right', target: 'left' })
   })
@@ -315,7 +317,7 @@ describe('seta da nota', () => {
   })
 
   it('apagar a entidade solta a seta mas preserva o texto da nota', () => {
-    // O texto continua valendo mesmo sem a caixa que ele explicava — apagar junto
+    // O texto continua valendo mesmo sem a caixa que ele explicava: apagar junto
     // seria perder conteúdo escrito à mão por causa de uma exclusão de tabela.
     const { doc } = parseDoc(SAMPLE)
     const account = doc.entities.find((e) => e.name === 'Account')
@@ -395,5 +397,95 @@ describe('tabela herdada', () => {
     const { doc } = parseDoc('entities:\n  - name: A\n    inherited: true\n')
     const renamed = ops.renameEntity(doc, doc.entities[0].uid, 'B')
     assert.equal(renamed.entities[0].inherited, true)
+  })
+})
+
+describe('o que um arquivo muda em relacao ao anterior', () => {
+  const BASE = `
+entities:
+  - name: reports
+    description: o relato.
+    fields:
+      - { name: id, type: long, pk: true }
+      - { name: origin, type: text, note: de onde veio }
+      - { name: legacy, type: text }
+  - name: projects
+    fields:
+      - { name: id, type: long, pk: true }
+relations:
+  - { from: projects, to: reports, kind: one-to-many }
+notes:
+  - text: nota antiga
+    anchor: reports
+`
+  const NEXT = `
+entities:
+  - name: reports
+    description: o relato.
+    fields:
+      - { name: id, type: long, pk: true }
+      - { name: origin, type: text, note: de onde veio, já normalizado }
+      - { name: held_at, type: datetime }
+  - name: projects
+    fields:
+      - { name: id, type: long, pk: true }
+  - name: limits
+    fields:
+      - { name: id, type: long, pk: true }
+relations:
+  - { from: projects, to: reports, kind: one-to-many }
+  - { from: projects, to: limits, kind: one-to-one }
+notes:
+  - text: nota antiga
+    anchor: reports
+  - text: nota nova
+    anchor: limits
+`
+  const changes = () => diff.diffDocs('base.yaml', parseDoc(BASE).doc, parseDoc(NEXT).doc)
+
+  it('tabela que a base nao tinha e nova; a que so manteve tudo e igual', () => {
+    const result = changes()
+    assert.equal(result.entities.get('limits').kind, 'new')
+    assert.equal(result.entities.get('projects').kind, 'same')
+  })
+
+  it('coluna nova ou removida deixa a tabela alterada, e a removida aparece a parte', () => {
+    const reports = changes().entities.get('reports')
+    assert.equal(reports.kind, 'changed')
+    assert.equal(reports.fields.get('held_at').kind, 'new')
+    assert.deepEqual(reports.removedFields.map((field) => field.name), ['legacy'])
+  })
+
+  it('observacao reescrita e so texto, e nao conta como mudanca de estrutura', () => {
+    const doc = parseDoc(BASE).doc
+    const reworded = parseDoc(BASE.replace('de onde veio', 'de onde o relato veio')).doc
+    const result = diff.diffDocs('base.yaml', doc, reworded)
+    assert.equal(result.entities.get('reports').kind, 'text')
+    assert.equal(result.entities.get('reports').fields.get('origin').kind, 'text')
+  })
+
+  it('tipo e bandeira mudados dizem o que mudou', () => {
+    const doc = parseDoc(BASE).doc
+    const typed = parseDoc(BASE.replace('{ name: origin, type: text, note: de onde veio }', '{ name: origin, type: guid, required: true, note: de onde veio }')).doc
+    const origin = diff.diffDocs('base.yaml', doc, typed).entities.get('reports').fields.get('origin')
+    assert.equal(origin.kind, 'changed')
+    assert.deepEqual(origin.details, ['tipo text → guid', 'agora obrigatório'])
+  })
+
+  it('ligacao e nota novas se reconhecem pelas pontas e pelo texto', () => {
+    const result = changes()
+    assert.equal(result.newRelations.size, 1)
+    assert.deepEqual([...result.newNotes], ['nota nova'])
+    assert.equal(result.counts.newEntities, 1)
+    assert.equal(result.counts.newFields, 1)
+    assert.equal(result.counts.removedFields, 1)
+  })
+
+  it('o anterior e o numero de antes na sequencia; arquivo sem numero nao tem anterior', () => {
+    const files = ['example.yaml', '02-b.yaml', '01-a.yaml', '10-c.yaml']
+    assert.equal(diff.previousFile(files, '02-b.yaml'), '01-a.yaml')
+    assert.equal(diff.previousFile(files, '10-c.yaml'), '02-b.yaml')
+    assert.equal(diff.previousFile(files, '01-a.yaml'), null)
+    assert.equal(diff.previousFile(files, 'example.yaml'), null)
   })
 })

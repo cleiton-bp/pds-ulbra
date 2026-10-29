@@ -11,7 +11,7 @@ import type { UseCaseFlowNode } from './nodeTypes'
  *
  * O tamanho vem do modelo, e nao do texto: e o mesmo numero que a fronteira do
  * sistema usa para se desenhar em volta. Nome que nao cabe em tres linhas e
- * cortado — o inteiro aparece ao parar o mouse, e alargar a elipse fica no painel.
+ * cortado: o inteiro aparece ao parar o mouse, e alargar a elipse fica no painel.
  */
 function UseCaseNode({ data, selected }: NodeProps<UseCaseFlowNode>) {
   const { useCase, dim } = data

@@ -8,9 +8,9 @@ import { elementKey, elementType, findElement, refText, targetOf } from './refs'
  * Os avisos do painel. Nenhum impede a edicao e nenhum apaga nada: referencia
  * quebrada vira aviso, nunca exclusao silenciosa.
  *
- * Vem em duas levas. Primeiro o que deixa o arquivo ambiguo ou quebrado — nome
+ * Vem em duas levas. Primeiro o que deixa o arquivo ambiguo ou quebrado: nome
  * repetido, ligacao para quem nao existe, tipo que nao combina com as pontas.
- * Depois o que o desenho diz e provavelmente nao queria dizer — caso de uso que
+ * Depois o que o desenho diz e provavelmente nao queria dizer: caso de uso que
  * nenhum ator alcanca, ator que nao faz nada.
  */
 export function collectWarnings(doc: UseCaseDoc): string[] {
@@ -29,7 +29,7 @@ export function collectWarnings(doc: UseCaseDoc): string[] {
   return [...new Set(warnings)]
 }
 
-/** Nome do elemento como o arquivo o cita — curto, para caber na frase do aviso. */
+/** Nome do elemento como o arquivo o cita: curto, para caber na frase do aviso. */
 const keyOf = (doc: UseCaseDoc, uid: string): string => {
   const element = findElement(doc, uid)
   return element ? elementKey(element) || '?' : '?'
@@ -44,16 +44,16 @@ function namingWarnings(doc: UseCaseDoc): string[] {
   for (const key of keys.filter(Boolean)) count.set(key, (count.get(key) ?? 0) + 1)
   for (const [key, times] of count) {
     if (times > 1) {
-      warnings.push(`"${key}" identifica mais de um elemento — no arquivo, as ligações para ele ficam ambíguas`)
+      warnings.push(`"${key}" identifica mais de um elemento, e as ligações para ele ficam ambíguas no arquivo`)
     }
   }
 
   for (const actor of doc.actors) {
-    if (!actor.name.trim()) warnings.push('um ator está sem nome — nenhuma ligação consegue citá-lo no arquivo')
+    if (!actor.name.trim()) warnings.push('um ator está sem nome, e nenhuma ligação consegue citá-lo no arquivo')
   }
   for (const useCase of doc.useCases) {
     if (!useCase.id.trim()) {
-      warnings.push(`o caso de uso "${useCase.name || 'sem nome'}" está sem código — nenhuma ligação consegue citá-lo no arquivo`)
+      warnings.push(`o caso de uso "${useCase.name || 'sem nome'}" está sem código, e nenhuma ligação consegue citá-lo no arquivo`)
     }
   }
 
@@ -65,27 +65,27 @@ const pairOf = (doc: UseCaseDoc, link: Link): string =>
 
 /**
  * Chave que o editor nao conhece fica no arquivo (ver `Extra`), mas quase sempre e
- * nome digitado errado — `descripton`, `usecases` — e o conteudo dela nao aparece
+ * nome digitado errado (`descripton`, `usecases`) e o conteudo dela nao aparece
  * na tela. O aviso e o que faz alguem perceber.
  */
 function extraWarnings(doc: UseCaseDoc): string[] {
   const warnings: string[] = []
   const report = (extra: Extra, where: string): void => {
     for (const key of Object.keys(extra)) {
-      warnings.push(`a chave "${key}" ${where} não faz parte do formato — fica no arquivo, mas o editor não a usa`)
+      warnings.push(`a chave "${key}" ${where} não faz parte do formato: fica no arquivo, mas o editor não a usa`)
     }
   }
 
   const { meta, ...topLevel } = doc.extra
   if (meta !== undefined) {
-    warnings.push('"meta" não está no formato (title, system, description) — fica no arquivo como estava, mas o editor não o usa')
+    warnings.push('"meta" não está no formato (title, system, description): fica no arquivo como estava, mas o editor não o usa')
   }
   report(topLevel, 'no topo do arquivo')
   report(doc.meta.extra, 'em meta')
   for (const actor of doc.actors) {
     const { kind, ...rest } = actor.extra
     if (kind !== undefined) {
-      warnings.push(`o ator ${actor.name || 'sem nome'} tem o tipo "${String(kind)}", que o editor não conhece — aparece como pessoa`)
+      warnings.push(`o ator ${actor.name || 'sem nome'} tem o tipo "${String(kind)}", que o editor não conhece, e por isso aparece como pessoa`)
     }
     report(rest, `no ator ${actor.name || 'sem nome'}`)
   }
@@ -105,7 +105,7 @@ function extraWarnings(doc: UseCaseDoc): string[] {
   }
   for (const [section, items] of Object.entries(doc.stray) as Array<[Section, unknown[]]>) {
     if (!items?.length) continue
-    warnings.push(`${items.length} ${items.length === 1 ? 'item' : 'itens'} de ${SECTION_LABEL[section]} sem o formato ${SHAPE[section]} — ${items.length === 1 ? 'fica' : 'ficam'} no arquivo como estava, mas não aparece no desenho`)
+    warnings.push(`${items.length} ${items.length === 1 ? 'item' : 'itens'} de ${SECTION_LABEL[section]} sem o formato ${SHAPE[section]}: ${items.length === 1 ? 'fica no arquivo como estava, mas não aparece' : 'ficam no arquivo como estavam, mas não aparecem'} no desenho`)
   }
 
   return warnings
@@ -134,23 +134,23 @@ function linkWarnings(doc: UseCaseDoc, link: Link): string[] {
   if (from === to) return [`${keyOf(doc, from)} está ligado a si mesmo`]
 
   if (link.unknownKind) {
-    return [`a ligação ${pair} tem o tipo "${link.unknownKind}", que o editor não conhece — aparece como ${linkKind(link.kind).label} até alguém escolher o tipo no painel`]
+    return [`a ligação ${pair} tem o tipo "${link.unknownKind}", que o editor não conhece, e aparece como ${linkKind(link.kind).label} até alguém escolher o tipo no painel`]
   }
 
   switch (link.kind) {
     case 'association':
       return fromType === toType
-        ? [`associação liga ator a caso de uso — ${pair} liga dois ${fromType === 'actor' ? 'atores' : 'casos de uso'}`]
+        ? [`associação liga ator a caso de uso, mas ${pair} liga dois ${fromType === 'actor' ? 'atores' : 'casos de uso'}`]
         : []
     case 'include':
     case 'extend':
       return fromType === 'useCase' && toType === 'useCase'
         ? []
-        : [`${linkKind(link.kind).keyword} liga dois casos de uso — ${pair} tem um ator na ponta`]
+        : [`${linkKind(link.kind).keyword} liga dois casos de uso, mas ${pair} tem um ator na ponta`]
     case 'generalization':
       return fromType === toType
         ? []
-        : [`generalização liga dois atores ou dois casos de uso — ${pair} mistura os dois`]
+        : [`generalização liga dois atores ou dois casos de uso, mas ${pair} mistura os dois`]
   }
 }
 
@@ -187,14 +187,14 @@ function boundaryWarnings(doc: UseCaseDoc): string[] {
     const x = actor.position.x + size.width / 2
     const y = actor.position.y + size.height / 2
     const inside = x > bounds.x && x < bounds.x + bounds.width && y > bounds.y && y < bounds.y + bounds.height
-    return inside ? [`${actor.name || 'um ator sem nome'} está dentro da fronteira do sistema — ator fica do lado de fora`] : []
+    return inside ? [`${actor.name || 'um ator sem nome'} está dentro da fronteira do sistema, e ator fica do lado de fora`] : []
   })
 }
 
 /**
  * Inclusao em circulo (UC01 inclui UC02 que inclui UC01) nunca termina, e
  * generalizacao em circulo faz cada um ser um tipo do outro. Nenhuma das duas
- * trava o editor — as buscas guardam o que ja visitaram —, mas o desenho fica
+ * trava o editor (as buscas guardam o que ja visitaram), mas o desenho fica
  * dizendo algo impossivel.
  */
 function cycleWarnings(doc: UseCaseDoc, kind: Extract<LinkKind, 'include' | 'generalization'>): string[] {
@@ -262,8 +262,8 @@ function coverageWarnings(doc: UseCaseDoc): string[] {
   const parents = parentActors(doc)
 
   // O mesmo vale para o caso de uso geral que so existe pelas variacoes: "Pagar",
-  // com os atores ligados a "Pagar com Pix" e "Pagar com cartao". Sobe a cadeia — e
-  // o que o geral inclui ou o que o estende tambem e alcancado por quem paga.
+  // com os atores ligados a "Pagar com Pix" e "Pagar com cartao". Sobe a cadeia: o
+  // que o geral inclui ou o que o estende tambem e alcancado por quem paga.
   let grew = true
   while (grew) {
     grew = false
@@ -285,7 +285,7 @@ function coverageWarnings(doc: UseCaseDoc): string[] {
   return [
     ...doc.useCases
       .filter((useCase) => !reached.has(useCase.uid))
-      .map((useCase) => `${useCase.id || useCase.name || 'caso de uso sem nome'} — nenhum ator chega a este caso de uso`),
+      .map((useCase) => `${useCase.id || useCase.name || 'caso de uso sem nome'}: nenhum ator chega a este caso de uso`),
     ...idle
       .filter((uid) => !parents.has(uid))
       .map((uid) => {

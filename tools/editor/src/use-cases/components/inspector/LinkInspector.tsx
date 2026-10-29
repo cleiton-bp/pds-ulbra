@@ -1,3 +1,5 @@
+import { confirmDelete } from '../../../shared/Confirm'
+import Icon from '../../../shared/Icon'
 import { linkSentence } from '../../model/analysis'
 import { LINK_KINDS, linkKind } from '../../model/constants'
 import { kindFits } from '../../model/operations'
@@ -6,7 +8,7 @@ import type { DiagramActions } from '../../hooks/useDiagramActions'
 import type { Link, LinkKind, UseCaseDoc } from '../../types'
 import ElementPicker from './ElementPicker'
 
-/** Valor da opcao que representa o tipo desconhecido no `select` — nao e um tipo de verdade. */
+/** Valor da opcao que representa o tipo desconhecido no `select`, nao e um tipo de verdade. */
 const UNKNOWN = '__unknown__'
 
 type LinkInspectorProps = {
@@ -24,8 +26,9 @@ export default function LinkInspector({ doc, link, actions }: LinkInspectorProps
     <>
       <header className="panel__head">
         <span className="panel__kind">ligação</span>
-        <button className="panel__delete" onClick={() => actions.deleteLink(link.uid)}>
-          apagar
+        <button className="panel__delete" onClick={() => void confirmDelete({ title: 'Apagar esta ligação?', confirmLabel: 'Apagar ligação' }).then((ok) => ok && actions.deleteLink(link.uid))}>
+          <Icon name="trash" size={14} />
+          <span>Apagar ligação</span>
         </button>
       </header>
 
@@ -48,7 +51,7 @@ export default function LinkInspector({ doc, link, actions }: LinkInspectorProps
           }}
         >
           {/* O tipo escrito no arquivo que o editor nao conhece aparece como esta, e
-              escolher qualquer outro — inclusive o que as pontas sugerem — o troca. */}
+              escolher qualquer outro (inclusive o que as pontas sugerem) o troca. */}
           {link.unknownKind && <option value={UNKNOWN}>"{link.unknownKind}" (desconhecido)</option>}
           {LINK_KINDS.map((option) => (
             // O tipo que nao combina com as pontas fica visivel, mas nao escolhivel:

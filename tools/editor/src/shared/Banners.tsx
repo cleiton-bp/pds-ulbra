@@ -4,7 +4,7 @@ type BannersProps = {
   saveError: string
   /** O arquivo tem comentarios que a gravacao apagaria. */
   comments: boolean
-  /** O arquivo aberto sumiu do disco — apagado ou renomeado por fora. */
+  /** O arquivo aberto sumiu do disco: apagado ou renomeado por fora. */
   missing: boolean
   onReload: () => void
   onForceSave: () => void
@@ -30,8 +30,8 @@ export default function Banners({
       {missing && (
         <div className="banner banner--warn">
           <span>
-            Este arquivo sumiu do disco — foi apagado ou renomeado fora do editor. O que está na
-            tela ainda não se perdeu.
+            Este arquivo sumiu do disco (foi apagado ou renomeado fora do editor), mas o que está
+            na tela ainda não se perdeu.
           </span>
           <button className="btn" onClick={onRecreate}>gravar de novo com o que está na tela</button>
           <button className="btn btn--danger" onClick={onClose}>fechar</button>
@@ -40,7 +40,7 @@ export default function Banners({
 
       {conflict && !missing && (
         <div className="banner banner--warn">
-          <span>O arquivo mudou no disco enquanto você editava. Escolha qual versão fica.</span>
+          <span>O arquivo mudou no disco enquanto você editava, então escolha qual versão fica.</span>
           <button className="btn" onClick={onReload}>recarregar do disco</button>
           <button className="btn btn--danger" onClick={onForceSave}>manter o que está na tela</button>
         </div>
@@ -49,8 +49,8 @@ export default function Banners({
       {comments && !parseError && (
         <div className="banner banner--warn">
           <span>
-            O arquivo tem comentários (<code>#</code>), e o editor não sabe guardá-los: a gravação
-            está parada para não apagá-los. Passe o que eles dizem para uma nota ou uma descrição.
+            O arquivo tem comentários (<code>#</code>) que o editor não sabe guardar, então a
+            gravação fica parada até você passar o que eles dizem para uma nota ou uma descrição.
           </span>
           <button className="btn btn--danger" onClick={onDropComments}>gravar sem os comentários</button>
         </div>
@@ -59,8 +59,8 @@ export default function Banners({
       {parseError && (
         <div className="banner banner--error">
           <span>
-            Erro de sintaxe no YAML: {parseError} — corrija no editor de texto. A edição
-            está bloqueada para não gravar por cima do conteúdo.
+            Erro de sintaxe no YAML ({parseError}): corrija no editor de texto, porque a edição
+            fica bloqueada para não gravar por cima do conteúdo.
           </span>
         </div>
       )}

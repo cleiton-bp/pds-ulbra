@@ -1,5 +1,5 @@
 /**
- * Testes da camada de modelo — a parte onde um erro custa conteudo perdido.
+ * Testes da camada de modelo: a parte onde um erro custa conteudo perdido.
  *
  * Roda com `npm test`. Carrega os modulos TypeScript pelo proprio Vite
  * (`ssrLoadModule`), entao nao precisa de compilador nem de dependencia extra.
@@ -58,7 +58,7 @@ const doneBy = (doc, name) => analysis.capabilitiesOf(doc, actor(doc, name).uid)
 
 const SAMPLE = `
 meta:
-  title: Relato — do envio ao acompanhamento
+  title: Relato, do envio ao acompanhamento
   system: PDS
 actors:
   - name: Relator
@@ -126,7 +126,7 @@ notes:
 describe('leitura', () => {
   it('lê atores, casos de uso, ligações e notas', () => {
     const doc = open(SAMPLE)
-    assert.equal(doc.meta.title, 'Relato — do envio ao acompanhamento')
+    assert.equal(doc.meta.title, 'Relato, do envio ao acompanhamento')
     assert.equal(doc.meta.system, 'PDS')
     assert.deepEqual(doc.actors.map((a) => a.name), ['Relator', 'Membro do time', 'Administrador'])
     assert.deepEqual(doc.useCases.map((u) => u.id), ['UC01', 'UC02', 'UC03', 'UC04', 'UC05'])
@@ -405,12 +405,12 @@ describe('ligações', () => {
   it('lê cada ligação como frase', () => {
     const doc = open(SAMPLE)
     assert.deepEqual(doc.links.map((l) => analysis.linkSentence(doc, l)), [
-      'Relator realiza UC01 — Abrir relato',
-      'UC02 — Anexar print estende UC01 — Abrir relato',
-      'Membro do time realiza UC03 — Mover relato',
-      'UC03 — Mover relato inclui UC04 — Entrar com Google',
+      'Relator realiza UC01 Abrir relato',
+      'UC02 Anexar print estende UC01 Abrir relato',
+      'Membro do time realiza UC03 Mover relato',
+      'UC03 Mover relato inclui UC04 Entrar com Google',
       'Administrador é um tipo de Membro do time',
-      'Administrador realiza UC05 — Configurar etapas',
+      'Administrador realiza UC05 Configurar etapas',
     ])
   })
 })
@@ -523,10 +523,10 @@ links:
   - { from: A, to: UC02, kind: generalization }
   - { from: UC01, to: UC02, kind: association }
 `)
-    assert.ok(warnings.includes('associação liga ator a caso de uso — A → B liga dois atores'))
-    assert.ok(warnings.includes('«include» liga dois casos de uso — A → UC01 tem um ator na ponta'))
-    assert.ok(warnings.includes('generalização liga dois atores ou dois casos de uso — A → UC02 mistura os dois'))
-    assert.ok(warnings.includes('associação liga ator a caso de uso — UC01 → UC02 liga dois casos de uso'))
+    assert.ok(warnings.includes('associação liga ator a caso de uso, mas A → B liga dois atores'))
+    assert.ok(warnings.includes('«include» liga dois casos de uso, mas A → UC01 tem um ator na ponta'))
+    assert.ok(warnings.includes('generalização liga dois atores ou dois casos de uso, mas A → UC02 mistura os dois'))
+    assert.ok(warnings.includes('associação liga ator a caso de uso, mas UC01 → UC02 liga dois casos de uso'))
   })
 
   it('aponta inclusão e generalização em círculo, uma vez cada', () => {
@@ -549,7 +549,7 @@ links:
 
   it('aponta caso de uso que nenhum ator alcança e ator que não faz nada', () => {
     const warnings = warn('actors: [Relator]\nuseCases: [{ id: UC01 }]\n')
-    assert.ok(warnings.includes('UC01 — nenhum ator chega a este caso de uso'))
+    assert.ok(warnings.includes('UC01: nenhum ator chega a este caso de uso'))
     assert.ok(warnings.includes('Relator não realiza nenhum caso de uso'))
   })
 
@@ -638,7 +638,7 @@ describe('desenho', () => {
   })
 
   it('caixas centradas no mesmo ponto contam como em cima uma da outra', () => {
-    // O boneco e a elipse centrados juntos tem cantos diferentes — e se cobrem.
+    // O boneco e a elipse centrados juntos tem cantos diferentes, e se cobrem.
     const ellipse = { x: 305, y: 358, width: 190, height: 84 }
     const actor = { x: 378, y: 364, width: 44, height: 108 }
     const spot = geometry.freeSpot(ellipse, [actor])
@@ -702,8 +702,8 @@ version: 2
       assert.ok(saved.includes(line), `sumiu ao gravar: ${line}\n${saved}`)
     }
     assert.deepEqual(strip(open(saved)), strip(doc))
-    assert.ok(doc.warnings.includes('a chave "priority" em UC01 não faz parte do formato — fica no arquivo, mas o editor não a usa'))
-    assert.ok(doc.warnings.includes('a chave "version" no topo do arquivo não faz parte do formato — fica no arquivo, mas o editor não a usa'))
+    assert.ok(doc.warnings.includes('a chave "priority" em UC01 não faz parte do formato: fica no arquivo, mas o editor não a usa'))
+    assert.ok(doc.warnings.includes('a chave "version" no topo do arquivo não faz parte do formato: fica no arquivo, mas o editor não a usa'))
   })
 
   it('o que foi editado na tela ganha da chave guardada', () => {
@@ -786,7 +786,7 @@ links:
   - { from: Relator, to: UC01, kind: association }
   - { from: Relator, to: UC02, kind: association }
 `)
-    assert.deepEqual(warnings, ['Relator está dentro da fronteira do sistema — ator fica do lado de fora'])
+    assert.deepEqual(warnings, ['Relator está dentro da fronteira do sistema, e ator fica do lado de fora'])
   })
 
   it('sistema externo participa, e não realiza', () => {
@@ -798,7 +798,7 @@ useCases: [{ id: UC01, name: Pagar }]
 links:
   - { from: Banco, to: UC01, kind: association }
 `)
-    assert.equal(analysis.linkSentence(doc, doc.links[0]), 'Banco participa de UC01 — Pagar')
+    assert.equal(analysis.linkSentence(doc, doc.links[0]), 'Banco participa de UC01 Pagar')
     assert.ok(doc.warnings.includes('Parado não participa de nenhum caso de uso'))
   })
 
@@ -844,7 +844,7 @@ describe('o que o editor não entende volta para o arquivo', () => {
     return { once, again: serializeDoc(open(once)) }
   }
 
-  it('seção com um item só, sem ser lista, vira lista de um — e não some', () => {
+  it('seção com um item só, sem ser lista, vira lista de um e não some', () => {
     const doc = open(`
 actors: Relator
 useCases:

@@ -14,7 +14,7 @@ export const RELATION_KINDS: ReadonlyArray<{ value: RelationKind; label: string 
   { value: 'many-to-many', label: 'N:N' },
 ]
 
-/** Sugestoes do autocomplete de tipo. Nao e uma lista fechada — da para escrever outro. */
+/** Sugestoes do autocomplete de tipo. Nao e uma lista fechada: da para escrever outro. */
 export const COMMON_TYPES = [
   'int', 'bigint', 'guid', 'text', 'varchar', 'bool',
   'decimal', 'datetime', 'date', 'enum', 'json',

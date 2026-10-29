@@ -40,7 +40,7 @@ function EnvironmentIcon({ id }: { id: EnvironmentId }) {
 
 const shortName = (name: string): string => name.replace(/\.yaml$/, '')
 
-/** Ordem de leitura: pelo número na frente do nome — `9-…` antes de `10-…` —, e o exemplo no fim. */
+/** Ordem de leitura: pelo número na frente do nome (`9-…` antes de `10-…`), e o exemplo no fim. */
 function byReadingOrder(a: FileEntry, b: FileEntry): number {
   const example = (file: FileEntry): number => (file.name.startsWith('example') ? 1 : 0)
   return example(a) - example(b) || a.name.localeCompare(b.name, 'pt-BR', { numeric: true })
@@ -95,7 +95,7 @@ function EnvironmentCard({ env, files }: CardProps) {
         </div>
 
         {files === undefined && <p className="env-card__note">lendo…</p>}
-        {files === null && <p className="env-card__note">—</p>}
+        {files === null && <p className="env-card__note">lista indisponível</p>}
         {files?.length === 0 && (
           <p className="env-card__note">
             Nenhum arquivo ainda. <button className="link" onClick={startNew}>criar o primeiro</button>
@@ -144,7 +144,7 @@ export default function Home() {
     return () => { alive = false }
   }, [attempt])
 
-  // 1 e 2 entram no ambiente — menos quando se esta digitando em algum campo.
+  // 1 e 2 entram no ambiente, menos quando se esta digitando em algum campo.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.altKey || event.metaKey || event.ctrlKey) return
@@ -162,13 +162,13 @@ export default function Home() {
       <div className="home__inner">
         <header className="home__head">
           <h1>Modelagem e casos de uso</h1>
-          <p>O desenho do PDS, em arquivos <code>.yaml</code> — o editor e o VSCode mexem nos mesmos arquivos.</p>
+          <p>O desenho do PDS em arquivos <code>.yaml</code>, os mesmos que o VSCode abre.</p>
         </header>
 
         {failure && (
           <div className="home__alert" role="alert">
             <span>
-              Não deu para ler os arquivos ({failure}). O <code>npm run dev</code> ainda está rodando?
+              Não deu para ler os arquivos ({failure}), então confira se o <code>npm run dev</code> ainda está rodando.
             </span>
             <button className="btn" onClick={() => setAttempt((count) => count + 1)}>tentar de novo</button>
           </div>
@@ -183,7 +183,7 @@ export default function Home() {
         <footer className="home__keys">
           <span><kbd>1</kbd> <kbd>2</kbd> entram no ambiente</span>
           <span><kbd>Alt</kbd>+<kbd>0</kbd> volta para cá de qualquer lugar</span>
-          <span><kbd>⌘</kbd>+<kbd>S</kbd> grava na hora — mas tudo grava sozinho</span>
+          <span><kbd>⌘</kbd>+<kbd>S</kbd> grava na hora, mas tudo grava sozinho</span>
         </footer>
       </div>
     </div>

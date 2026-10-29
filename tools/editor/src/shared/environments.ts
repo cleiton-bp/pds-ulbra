@@ -7,7 +7,7 @@
  */
 
 /**
- * A pasta de conteudo, dentro de `database-models/` — e o nome que a API usa na rota:
+ * A pasta de conteudo, dentro de `database-models/`, e o nome que a API usa na rota:
  * `/api/<collection>/...`.
  */
 export type Collection = 'modeling' | 'use-cases'
@@ -20,7 +20,7 @@ export type Environment = {
   collection: Collection
   /** O nome na tela: titulo da aba do navegador, cartao do inicio, aba do editor. */
   title: string
-  /** O que o ambiente responde, numa frase — aparece no cartao do inicio. */
+  /** O que o ambiente responde, numa frase: aparece no cartao do inicio. */
   summary: string
   /** Tecla que abre o ambiente a partir do inicio. */
   key: string
@@ -31,7 +31,7 @@ export const ENVIRONMENTS: readonly Environment[] = [
     id: 'modeling',
     collection: 'modeling',
     title: 'Modelagem',
-    summary: 'As tabelas, os campos e as relações do banco — uma modelagem por etapa.',
+    summary: 'As tabelas, os campos e as relações do banco, uma modelagem por assunto.',
     key: '1',
   },
   {

@@ -12,13 +12,13 @@ import { elementType, resolveRef, targetOf } from './refs'
  * Le o arquivo .yaml para o estado do editor.
  *
  * Tudo aqui e defensivo de proposito: o arquivo pode ter sido escrito a mao ou por
- * uma IA, entao campo faltando vira valor padrao em vez de quebrar a tela — e o
+ * uma IA, entao campo faltando vira valor padrao em vez de quebrar a tela, e o
  * que o editor nao entende fica guardado para voltar ao arquivo. Gravar pelo
  * editor nunca apaga o que ele nao entende.
  *
  * O arquivo e lido de tres jeitos ao mesmo tempo, cada um para o que faz melhor:
  * - o texto de cada campo vem da leitura "failsafe", em que tudo e texto como
- *   estava escrito — senao `id: 1.10` viraria o numero 1.1 e `name: 007` viraria 7;
+ *   estava escrito, senao `id: 1.10` viraria o numero 1.1 e `name: 007` viraria 7;
  * - numero (posicao, largura) vem da leitura normal, que conhece o tipo;
  * - chave desconhecida vem do no do yaml, e nao do valor convertido: e o no que
  *   devolve `1.10`, `True` e numero grande ao arquivo exatamente como estavam.
@@ -49,7 +49,7 @@ export const KNOWN_KEYS = {
 } as const
 
 /**
- * Os nomes com que um tipo de ligacao costuma ser escrito a mao — em ingles, no
+ * Os nomes com que um tipo de ligacao costuma ser escrito a mao: em ingles, no
  * plural, em portugues, com ou sem acento. Tudo cai no valor que o editor grava.
  * `Map`, e nao objeto: `kind: constructor` nao pode achar nada herdado de Object.
  */
@@ -67,7 +67,7 @@ const plain = (word: string): string =>
 
 export const linkKindFrom = (word: string): LinkKind | null => KIND_ALIASES.get(plain(word)) ?? null
 
-/** Os passos de leitura que dependem do documento — seguir um `*apelido` precisa dele. */
+/** Os passos de leitura que dependem do documento: seguir um `*apelido` precisa dele. */
 function reader(document: YAML.Document) {
   const resolve = (node: unknown): unknown => (YAML.isAlias(node) ? node.resolve(document) : node)
 
@@ -81,8 +81,8 @@ function reader(document: YAML.Document) {
   }
 
   /**
-   * Os itens de uma lista. Um item solto no lugar da lista — `links:` com um mapa
-   * so, `notes: um texto` — vira lista de um: e o que a pessoa quis dizer, e o
+   * Os itens de uma lista. Um item solto no lugar da lista (`links:` com um mapa
+   * so, `notes: um texto`) vira lista de um: e o que a pessoa quis dizer, e o
    * conteudo nao some. Item vazio (`-` sem nada) nao e item.
    */
   const items = (value: Value): Value[] => {
@@ -95,7 +95,7 @@ function reader(document: YAML.Document) {
       .filter((item) => !isEmpty(item))
   }
 
-  /** As chaves do mapa que o editor nao conhece, com o no do yaml — ver `Extra`. */
+  /** As chaves do mapa que o editor nao conhece, com o no do yaml: ver `Extra`. */
   const extras = (owner: Value, known: readonly string[]): Extra => {
     const extra: Extra = {}
     const map = resolve(owner.node)
@@ -135,11 +135,11 @@ function number(value: Value, fallback: number): number {
 
 /**
  * Lista de passos. Aceita a lista do yaml ou um bloco de texto com um passo por
- * linha — o jeito mais natural de escrever um fluxo a mao. Um passo e uma linha:
+ * linha: o jeito mais natural de escrever um fluxo a mao. Um passo e uma linha:
  * quebra de linha dentro de um item vira espaco, senao o painel, que edita um
  * passo por linha, partiria o passo em dois na primeira tecla.
  *
- * `- O relator: abre o widget` e um engano comum — o yaml le um mapa, por causa
+ * `- O relator: abre o widget` e um engano comum; o yaml le um mapa, por causa
  * dos dois-pontos. Volta a ser o passo que a pessoa escreveu.
  */
 function steps(r: Reader, value: Value): string[] {
@@ -261,7 +261,7 @@ function parseNote(r: Reader, value: Value, index: number, elements: Elements): 
 
 /**
  * Caso de uso sem codigo ganha o proximo livre, porque sem codigo nenhuma ligacao
- * consegue cita-lo. Fica de fora tudo o que o arquivo ja usa ou cita — dar a um
+ * consegue cita-lo. Fica de fora tudo o que o arquivo ja usa ou cita: dar a um
  * caso de uso novo o codigo que uma ligacao orfa citava ligaria os dois sem
  * ninguem pedir.
  */
@@ -278,7 +278,7 @@ function fillMissingIds(useCases: UseCase[], cited: string[]): UseCase[] {
 export function parseDoc(source: string): ParseResult {
   const content = source ?? ''
   // `schema` explicito nas duas leituras: um `%YAML 1.1` no topo nao faz uma delas
-  // ler `y:` como booleano e a outra nao — as duas arvores precisam ter o mesmo formato.
+  // ler `y:` como booleano e a outra nao; as duas arvores precisam ter o mesmo formato.
   const core = YAML.parseDocument(content, { schema: 'core', intAsBigInt: true })
   const firstError = core.errors[0]
   if (firstError) return { ok: false, error: firstError.message }
@@ -330,7 +330,7 @@ export function parseDoc(source: string): ParseResult {
   // `meta` que nao e mapa fica guardado como estava, em vez de virar meta vazio.
   if (!isEmpty(meta) && !isRecord(meta.core)) extra.meta = r.raw(meta)
 
-  // Os avisos saem do mesmo lugar que usamos depois de cada edicao — uma regra so.
+  // Os avisos saem do mesmo lugar que usamos depois de cada edicao: uma regra so.
   const doc: UseCaseDoc = refresh({
     meta: {
       title: text(r, r.field(meta, 'title')),

@@ -109,7 +109,7 @@ export function parseDoc(text: string): ParseResult {
   const relations = asArray(record.relations).map(parseRelation)
   const notes = asArray(record.notes).map(parseNote)
 
-  // Os avisos saem do mesmo lugar que usamos depois de cada edicao — uma regra so.
+  // Os avisos saem do mesmo lugar que usamos depois de cada edicao: uma regra so.
   const doc: ModelDoc = withWarnings({
     meta: { title: asString(meta.title), description: asString(meta.description) },
     entities,

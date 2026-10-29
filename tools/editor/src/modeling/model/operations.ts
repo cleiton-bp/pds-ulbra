@@ -2,7 +2,7 @@ import type { Entity, Field, ModelDoc, Note, Relation } from '../types'
 import { newUid, NOTE_DEFAULT_WIDTH } from './constants'
 
 /**
- * Transformacoes puras sobre o documento. Nenhuma toca em React ou em rede —
+ * Transformacoes puras sobre o documento. Nenhuma toca em React ou em rede:
  * recebem um doc e devolvem outro, o que as torna faceis de conferir e testar.
  */
 
@@ -43,7 +43,7 @@ export const updateEntity = (doc: ModelDoc, uid: string, patch: Partial<Entity>)
 
 /**
  * Renomear leva junto as relacoes e as setas de nota que citavam o nome antigo.
- * Sem isso, renomear uma entidade quebraria toda linha ligada a ela — o preco de
+ * Sem isso, renomear uma entidade quebraria toda linha ligada a ela: o preco de
  * referenciar por nome em vez de por id.
  */
 export function renameEntity(doc: ModelDoc, uid: string, nextName: string): ModelDoc {
@@ -89,7 +89,7 @@ export const addField = (doc: ModelDoc, entityUid: string): ModelDoc =>
 /**
  * Troca o nome de um campo em toda linha que grudava nele.
  * Sem isto, renomear `account_id` largaria a relação apontando para um campo que
- * nao existe mais — e a linha pularia de volta para a borda da caixa sem aviso.
+ * nao existe mais, e a linha pularia de volta para a borda da caixa sem aviso.
  */
 function renameFieldRefs(
   doc: ModelDoc,
@@ -129,7 +129,7 @@ export function updateField(
   return renamed ? renameFieldRefs(updated, entity.name, field.name, patch.name ?? '') : updated
 }
 
-/** Apagar o campo solta as linhas que grudavam nele — elas voltam para a borda da caixa. */
+/** Apagar o campo solta as linhas que grudavam nele: elas voltam para a borda da caixa. */
 export function deleteField(doc: ModelDoc, entityUid: string, fieldUid: string): ModelDoc {
   const entity = doc.entities.find((e) => e.uid === entityUid)
   const field = entity?.fields.find((f) => f.uid === fieldUid)
@@ -171,7 +171,7 @@ export const deleteNote = (doc: ModelDoc, uid: string): ModelDoc => ({
 })
 
 /**
- * Ignora auto-relacao e par repetido — os dois so gerariam linha inutil no canvas.
+ * Ignora auto-relacao e par repetido: os dois so gerariam linha inutil no canvas.
  * `fromField`/`toField` chegam preenchidos quando a linha foi puxada de uma linha
  * da tabela, e vazios quando foi puxada da borda da caixa.
  */
@@ -203,7 +203,7 @@ export const deleteRelation = (doc: ModelDoc, uid: string): ModelDoc => ({
 
 /**
  * Recalcula os avisos: referencia orfa vira aviso, nunca exclusao silenciosa.
- * Roda na abertura do arquivo e depois de cada edicao — uma regra so para os dois.
+ * Roda na abertura do arquivo e depois de cada edicao: uma regra so para os dois.
  */
 export function withWarnings(doc: ModelDoc): ModelDoc {
   const fieldsOf = new Map(doc.entities.map((e) => [e.name, new Set(e.fields.map((f) => f.name))]))

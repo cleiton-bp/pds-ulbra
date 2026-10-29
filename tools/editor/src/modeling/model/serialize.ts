@@ -76,6 +76,6 @@ export function serializeDoc(doc: ModelDoc): string {
     },
   })
 
-  // lineWidth 0 desliga a quebra automatica — descricao longa nao vira diff de 5 linhas.
+  // lineWidth 0 desliga a quebra automatica: descricao longa nao vira diff de 5 linhas.
   return ydoc.toString({ lineWidth: 0 })
 }

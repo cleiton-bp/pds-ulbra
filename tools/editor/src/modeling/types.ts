@@ -24,7 +24,7 @@ export type Position = { x: number; y: number }
 
 export type Entity = {
   uid: string
-  /** Nome no codigo, em ingles — e o que as relacoes referenciam. */
+  /** Nome no codigo, em ingles. E o que as relacoes referenciam. */
   name: string
   /** Nome no dominio, em portugues. Opcional. */
   label: string
@@ -42,11 +42,11 @@ export type Entity = {
 }
 
 /**
- * Liga duas entidades pelo `name`, nao por id — mantem o arquivo legivel.
+ * Liga duas entidades pelo `name`, nao por id: mantem o arquivo legivel.
  *
  * `fromField` e `toField` sao opcionais: com eles a linha gruda na altura daquele
  * campo (como no DBeaver, FK apontando para PK); sem eles, gruda na caixa inteira.
- * O lado em que a linha encosta nunca e gravado — e recalculado pela posicao das
+ * O lado em que a linha encosta nunca e gravado: e recalculado pela posicao das
  * caixas, senao arrastar uma tabela deixaria a linha entrando pelo lado errado.
  */
 export type Relation = {
@@ -92,7 +92,7 @@ export type ModelDoc = {
   entities: Entity[]
   relations: Relation[]
   notes: Note[]
-  /** Problemas que nao impedem a edicao — ex.: relacao apontando para entidade que sumiu. */
+  /** Problemas que nao impedem a edicao, como uma relacao apontando para entidade que sumiu. */
   warnings: string[]
 }
 

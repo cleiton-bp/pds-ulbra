@@ -34,7 +34,7 @@ export type ModelActions = {
 type Params = {
   update: (fn: (doc: ModelDoc) => ModelDoc) => void
   setSelection: Dispatch<SetStateAction<Selection>>
-  /** Onde colocar uma caixa nova — no meio do que está visível, nao fora da tela. */
+  /** Onde colocar uma caixa nova: no meio do que está visível, nao fora da tela. */
   nextPosition: () => Position
 }
 

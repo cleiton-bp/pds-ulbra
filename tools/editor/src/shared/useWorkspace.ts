@@ -12,18 +12,18 @@ import { hasYamlComments } from './yamlComments'
  *
  * As decisoes que moram aqui:
  *
- * 1. Autosave com espera — grava 800ms depois da ultima mexida, para digitar um nome
+ * 1. Autosave com espera: grava 800ms depois da ultima mexida, para digitar um nome
  *    nao virar vinte gravacoes. Uma gravacao por vez: o que chega no meio espera e
  *    roda em seguida, e so aparece "gravado" se nada mudou durante a ida ao disco.
- * 2. Deteccao de mudanca externa — o arquivo tambem e editado por fora (VSCode, IA).
+ * 2. Deteccao de mudanca externa: o arquivo tambem e editado por fora (VSCode, IA).
  *    A cada 3s comparamos o mtime do disco com o da abertura. Sem alteracao local o
  *    editor recarrega sozinho; com alteracao local ele para e pergunta, porque
  *    escolher sozinho significaria apagar o trabalho de alguem.
- * 3. Nada e gravado quando gravar apagaria algo — nem pelo autosave, nem pelo ⌘S:
+ * 3. Nada e gravado quando gravar apagaria algo, nem pelo autosave, nem pelo ⌘S:
  *    conflito sem escolha feita, yaml quebrado (a tela mostra um documento vazio),
  *    arquivo com comentarios que o editor nao sabe guardar, e arquivo que sumiu do
  *    disco. Em todos, uma faixa diz o que houve e oferece a saida.
- * 4. Edicao nao se perde no caminho — trocar de arquivo, sair do editor ou fechar a
+ * 4. Edicao nao se perde no caminho: trocar de arquivo, sair do editor ou fechar a
  *    aba grava antes, ou para e avisa quando nao da para gravar.
  */
 
@@ -32,7 +32,7 @@ export type DocFormat<Doc> = {
   parse: (text: string) => ParseResult<Doc>
   serialize: (doc: Doc) => string
   empty: (title: string) => Doc
-  /** Recalcula o que deriva do resto — os avisos. Roda depois de cada edicao. */
+  /** Recalcula o que deriva do resto: os avisos. Roda depois de cada edicao. */
   refresh: (doc: Doc) => Doc
   /** Releitura do mesmo arquivo: mantem os `uid`, para a selecao da tela sobreviver. */
   carry?: (previous: Doc, next: Doc) => Doc
@@ -45,11 +45,11 @@ const POLL_MS = 3000
 export type SaveStatus = 'empty' | 'saved' | 'unsaved' | 'saving' | 'error' | 'conflict'
 
 type Options = {
-  /** Arquivo para abrir assim que a lista chegar — o do endereco ou o ultimo usado. */
+  /** Arquivo para abrir assim que a lista chegar: o do endereco ou o ultimo usado. */
   initialFile?: string | null
   /** O arquivo inicial veio do endereco: se ele nao existir, vale um aviso. */
   initialFromAddress?: boolean
-  /** Avisa quem esta em volta que um arquivo abriu — para o endereco e o "ultimo usado". */
+  /** Avisa quem esta em volta que um arquivo abriu, para o endereco e o "ultimo usado". */
   onOpened?: (name: string | null) => void
 }
 
@@ -89,7 +89,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
   const revisionRef = useRef(0)
   /** A gravacao em curso, para quem precisa esperar por ela (troca de arquivo, apagar). */
   const runningRef = useRef<Promise<boolean> | null>(null)
-  /** Pediram outra gravacao enquanto uma estava em curso — ela roda assim que a primeira termina. */
+  /** Pediram outra gravacao enquanto uma estava em curso: ela roda assim que a primeira termina. */
   const pendingRef = useRef(false)
 
   const onOpenedRef = useRef(options.onOpened)
@@ -165,7 +165,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
 
   /**
    * Garante que nada da tela ficou sem gravar: espera a gravacao em curso e grava o
-   * que sobrou. Tres voltas bastam — o que chega depois disso e alguem digitando
+   * que sobrou. Tres voltas bastam: o que chega depois disso e alguem digitando
    * sem parar, e quem pediu a troca espera. Devolve `false` quando nao deu.
    */
   const flush = useCallback(async (): Promise<boolean> => {
@@ -178,13 +178,13 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
   }, [save, dirtyRef, currentRef])
 
   /**
-   * Abre um arquivo. Antes, grava o que o arquivo atual tinha pendente — e, se nao
+   * Abre um arquivo. Antes, grava o que o arquivo atual tinha pendente, e, se nao
    * conseguir, fica onde esta e diz por que. `discard` pula essa gravacao: e o
    * "recarregar do disco" do conflito, que existe justamente para descartar.
    */
   const open = useCallback(async (name: string, { discard = false }: { discard?: boolean } = {}): Promise<boolean> => {
     if (!discard && !(await flush())) {
-      setSaveError('Este arquivo tem edição que ainda não foi gravada — resolva o aviso acima antes de abrir outro.')
+      setSaveError('Este arquivo tem edição que ainda não foi gravada, então resolva o aviso acima antes de abrir outro.')
       return false
     }
     // Mesmo descartando, espera a gravacao em curso: ela ainda vai escrever o mtime.
@@ -196,7 +196,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
     } catch (err) {
       const httpError = err as HttpError
       setSaveError(httpError.status === 404
-        ? `O arquivo ${name} não existe mais nesta pasta — escolha outro na lista.`
+        ? `O arquivo ${name} não existe mais nesta pasta: escolha outro na lista.`
         : httpError.message)
       return false
     }
@@ -230,11 +230,11 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
   /** Toda edicao passa por aqui: recalcula os avisos e liga o autosave. */
   /**
    * O guarda de saida do editor: grava o que falta e, se nao der, diz por que a
-   * tela nao saiu — senao o botao de inicio pareceria simplesmente nao funcionar.
+   * tela nao saiu, senao o botao de inicio pareceria simplesmente nao funcionar.
    */
   const leave = useCallback(async (): Promise<boolean> => {
     const ok = await flush()
-    if (!ok) setSaveError('Há edição que ainda não foi gravada — resolva o aviso acima antes de sair.')
+    if (!ok) setSaveError('Há edição que ainda não foi gravada, então resolva o aviso acima antes de sair.')
     return ok
   }, [flush])
 
@@ -271,7 +271,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
         }
         // Tira do endereco o arquivo que nao existe, para recarregar nao repetir o erro.
         onOpenedRef.current?.(null)
-        if (initialFromAddress) setSaveError(`O arquivo ${initialFile} não existe mais nesta pasta — escolha outro na lista.`)
+        if (initialFromAddress) setSaveError(`O arquivo ${initialFile} não existe mais nesta pasta: escolha outro na lista.`)
       })
       .catch((err: Error) => setSaveError(err.message))
     // So na montagem: trocar de arquivo depois disso e com o `open`.
@@ -299,7 +299,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
             return
           }
           // Voltou (um `git checkout`, a IA regravando): deixa de estar sumido, e o
-          // que houver de diferente segue o caminho normal — recarrega ou vira conflito.
+          // que houver de diferente segue o caminho normal: recarrega ou vira conflito.
           if (missingRef.current) setMissing(false)
           if (Math.abs(mine.mtime - baseMtimeRef.current) <= 1) return
           if (dirtyRef.current) setConflict(true)
@@ -356,7 +356,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
     await open(name)
   }, [collection, format, refreshFiles, open])
 
-  /** Apagar o arquivo aberto descarta o que nao foi gravado — a pessoa confirmou antes. */
+  /** Apagar o arquivo aberto descarta o que nao foi gravado: a pessoa confirmou antes. */
   const remove = useCallback(async (name: string): Promise<void> => {
     const isCurrent = name === currentRef.current
     if (isCurrent) {
@@ -373,7 +373,7 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
   }, [collection, refreshFiles, open, close, currentRef, setDirty])
 
   /**
-   * O arquivo sumiu do disco e a pessoa quer de volta o que esta na tela. Cria —
+   * O arquivo sumiu do disco e a pessoa quer de volta o que esta na tela. Cria,
    * nunca sobrescreve: se nesse meio-tempo o arquivo voltou por outro caminho, vira
    * conflito, e a pessoa escolhe qual versao fica.
    */
