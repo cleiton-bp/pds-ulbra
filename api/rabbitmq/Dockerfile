@@ -11,8 +11,11 @@ FROM rabbitmq:3.13-management
 
 ARG PLUGIN_VERSION=3.13.0
 
+# O sistema da imagem atualizado antes de tudo: a 3.13 saiu do suporte e a base dela ficou
+# para tras, com OpenSSL e GnuPG que ja tem correcao publicada (em 30/10, cinco falhas altas).
 RUN set -eux; \
     apt-get update; \
+    apt-get upgrade -y --no-install-recommends; \
     apt-get install -y --no-install-recommends curl ca-certificates; \
     curl -fsSL -o /opt/rabbitmq/plugins/rabbitmq_delayed_message_exchange.ez \
       "https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v${PLUGIN_VERSION}/rabbitmq_delayed_message_exchange-${PLUGIN_VERSION}.ez"; \

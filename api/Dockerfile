@@ -14,7 +14,9 @@ RUN dotnet publish "Pds.WebApi/Pds.WebApi.csproj" -c Release --os linux-musl -a 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 WORKDIR /app
 
-ENV ASPNETCORE_URLS=http://+:8080
+# A porta pelo nome que a imagem base usa: o ASPNETCORE_URLS sobrescrevia o HTTP_PORTS
+# dela e a API avisava disso a cada subida (achado 3 do ensaio local do deploy).
+ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 
 COPY --from=build /app/publish .
