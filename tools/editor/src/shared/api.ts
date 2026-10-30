@@ -1,5 +1,6 @@
 import type { Collection } from './environments'
 import type { FileEntry } from './types'
+import { SOMENTE_LEITURA } from './readOnly'
 
 /**
  * Cliente da API de arquivos. Cada ambiente fala com a pasta dele:
@@ -22,8 +23,12 @@ async function parse<T>(res: Response): Promise<T> {
 const fileUrl = (collection: Collection, name?: string): string =>
   `/api/${collection}/file${name === undefined ? '' : `?name=${encodeURIComponent(name)}`}`
 
+/** Publicado so para leitura, nenhuma gravacao sai do navegador: ver `readOnly.ts`. */
+const readOnlyRefusal = <T>(): Promise<T> =>
+  Promise.reject(Object.assign(new Error('somente leitura'), { status: 403, body: {} }) as HttpError)
+
 const send = <T>(collection: Collection, method: string, payload: unknown): Promise<T> =>
-  fetch(fileUrl(collection), {
+  SOMENTE_LEITURA ? readOnlyRefusal<T>() : fetch(fileUrl(collection), {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -57,6 +62,7 @@ export const saveFile = (
  * quebra: a confirmacao de saida do navegador ja avisou.
  */
 export function saveFileOnExit(collection: Collection, name: string, content: string, baseMtime: number): void {
+  if (SOMENTE_LEITURA) return
   try {
     void fetch(fileUrl(collection), {
       method: 'PUT',
@@ -71,4 +77,4 @@ export const createFile = (collection: Collection, name: string, content: string
   send(collection, 'POST', { name, content })
 
 export const deleteFile = (collection: Collection, name: string): Promise<{ name: string }> =>
-  fetch(fileUrl(collection, name), { method: 'DELETE' }).then((res) => parse(res))
+  SOMENTE_LEITURA ? readOnlyRefusal() : fetch(fileUrl(collection, name), { method: 'DELETE' }).then((res) => parse(res))

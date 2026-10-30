@@ -6,6 +6,7 @@ import { ENVIRONMENTS, type Environment } from './environments'
 import Icon from './Icon'
 import { CollapseButton } from './Layout'
 import { useNavigation } from './navigation'
+import { SOMENTE_LEITURA } from './readOnly'
 import type { FileEntry } from './types'
 
 /** Transforma "08 Robustness" em "08-robustness.yaml". */
@@ -133,20 +134,22 @@ export default function FileSidebar({
                 <span className="file-row__number" aria-hidden="true">{number ?? base.charAt(0).toUpperCase()}</span>
                 <span className="file-row__title">{file.title || base}</span>
               </button>
-              <button
-                className="file-row__delete"
-                title={`apagar ${file.name}`}
-                aria-label={`apagar ${file.name}`}
-                onClick={() => void remove(file.name)}
-              >
-                <Icon name="trash" size={14} />
-              </button>
+              {!SOMENTE_LEITURA && (
+                <button
+                  className="file-row__delete"
+                  title={`apagar ${file.name}`}
+                  aria-label={`apagar ${file.name}`}
+                  onClick={() => void remove(file.name)}
+                >
+                  <Icon name="trash" size={14} />
+                </button>
+              )}
             </div>
           )
         })}
       </nav>
 
-      {creating ? (
+      {SOMENTE_LEITURA ? null : creating ? (
         <form className="sidebar__new" onSubmit={(event) => void submit(event)}>
           <label className="sidebar__new-label" htmlFor={`novo-${env.id}`}>{placeholder}</label>
           <div className="sidebar__new-line">

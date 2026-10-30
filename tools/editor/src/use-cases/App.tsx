@@ -22,6 +22,7 @@ import Inspector from './components/inspector/Inspector'
 import { USE_CASE_FORMAT } from './format'
 import { useDiagramActions, type DiagramActions } from './hooks/useDiagramActions'
 import type { Position, Selection } from './types'
+import { SOMENTE_LEITURA } from '../shared/readOnly'
 
 const ENV = environmentById('use-cases')
 
@@ -53,7 +54,9 @@ export default function App() {
   const [focus, toggleFocus] = useStickyToggle('use-cases:focus', false)
   // Abre em leitura, como a modelagem: entender nao pode correr o risco de mexer no
   // arquivo, que grava sozinho.
-  const [editing, toggleEditing] = useStickyToggle('use-cases:editing', false)
+  const [editingChosen, toggleEditing] = useStickyToggle('use-cases:editing', false)
+  // Publicado so para leitura, a escolha guardada nao vale: ver `readOnly.ts`.
+  const editing = editingChosen && !SOMENTE_LEITURA
   const locked = !editing
 
   const [searching, setSearching] = useState(false)

@@ -1,4 +1,5 @@
 import type { TourTarget } from './targets'
+import { SOMENTE_LEITURA } from '../shared/readOnly'
 
 /**
  * O roteiro do tour de cada ambiente: o que acende, o que diz e como a tela precisa
@@ -42,7 +43,8 @@ export function stepsFor<Stage>(
   steps: TourStep<Stage>[],
   facts: Partial<Record<TourCondition, boolean>>,
 ): TourStep<Stage>[] {
-  return steps.filter((step) => !step.when || Boolean(facts[step.when]))
+  // Publicado so para leitura, o botao de editar nao existe: o passo dele sai.
+  return steps.filter((step) => (!step.when || Boolean(facts[step.when])) && !(SOMENTE_LEITURA && step.target === 'edit'))
 }
 
 /**

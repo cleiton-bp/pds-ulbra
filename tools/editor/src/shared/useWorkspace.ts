@@ -5,6 +5,7 @@ import type { HttpError } from './api'
 import type { Collection } from './environments'
 import type { FileEntry, ParseResult } from './types'
 import { hasYamlComments } from './yamlComments'
+import { SOMENTE_LEITURA } from './readOnly'
 
 /**
  * O estado de um editor: a lista de arquivos, o documento aberto e a gravacao.
@@ -109,6 +110,8 @@ export function useWorkspace<Doc>(collection: Collection, format: DocFormat<Doc>
    * meio, ela para, e nunca grava o mtime de um arquivo na conta do outro.
    */
   const save = useCallback(({ force = false }: { force?: boolean } = {}): Promise<boolean> => {
+    // Publicado so para leitura, nao ha o que gravar: ver `readOnly.ts`.
+    if (SOMENTE_LEITURA) return Promise.resolve(true)
     if (runningRef.current) {
       pendingRef.current = true
       return runningRef.current
