@@ -81,6 +81,7 @@ Em produção, vêm das variáveis reais do ambiente.
 | `MEDIA_UPLOAD_RATE_LIMIT_PER_MINUTE` | não | Pedidos e confirmações de envio por IP, por minuto. Padrão 20 |
 | `PANEL_URL` | não | O endereço do painel, que vai no link do convite — `http://localhost:5173` no desenvolvimento. Ausente, o convite não sai; sem `http`/`https`, ou com `?` ou `#`, a subida recusa |
 | `INVITATION_EMAILS_PER_HOUR` | não | Convites por projeto por hora, os novos e os reenviados somados. Padrão 20 |
+| `INVITATION_EMAILS_PER_ACCOUNT_PER_HOUR` | não | Convites por conta por hora, somando todos os projetos dela. Padrão 40 |
 | `TRUSTED_PROXIES` | atrás de proxy, sim | Proxies cujo `X-Forwarded-For` vale — endereço ou rede. Vazio, o IP é o da conexão. **Atrás de um proxy é obrigatória**: sem ela todos chegam com o IP do proxy, e os limites por IP e os 30 s entre relatos valem para o projeto inteiro — a API avisa no log, uma vez, ao ver `X-Forwarded-For` com a lista vazia. Valor inválido derruba a subida |
 | `Smtp__Host`, `Smtp__Port`, `Smtp__Security`, `Smtp__FromAddress`… | não | O envio de e-mail, lido como a seção `Smtp`, só das variáveis de ambiente (os dois sublinhados são o separador de seção do .NET). Sem nenhuma das quatro essenciais (`Host`, `FromAddress`, `Username`, `Password`), o e-mail fica indisponível; com parte delas, ou senha sem TLS, a subida recusa dizendo tudo o que falta. Ver [O e-mail](#o-e-mail) |
 

@@ -95,8 +95,9 @@ reenviado.</p>
   <strong>Os 409 do convite</strong>
   <p>Convidar responde 409 quando quem foi convidado já está no time ou é o dono; quando o
   servidor não manda convite; e quando o projeto chegou ao limite da hora
-  (<code>INVITATION_EMAILS_PER_HOUR</code>, padrão 20, os novos e os reenviados somados). Reenviar
-  conta no mesmo limite. Cancelar não devolve a vaga: o e-mail já saiu.</p>
+  (<code>INVITATION_EMAILS_PER_HOUR</code>, padrão 20, os novos e os reenviados somados), ou a conta
+  chegou ao dela (<code>INVITATION_EMAILS_PER_ACCOUNT_PER_HOUR</code>, padrão 40, somando os projetos). Reenviar
+  conta nos mesmos limites. Cancelar não devolve a vaga: o e-mail já saiu.</p>
 </div>
 
 <h3>O convite, do lado de quem aceita</h3>

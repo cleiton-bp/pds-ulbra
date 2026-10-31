@@ -189,6 +189,15 @@ public static class EnvironmentConstants
     /// </summary>
     public static int GetInvitationEmailsPerHour() => PositiveInt("INVITATION_EMAILS_PER_HOUR", 20);
 
+    /// <summary>
+    /// Quantos e-mails de convite uma conta pede por hora, somando todos os projetos dela.
+    /// Padrao: 40.
+    ///
+    /// <para>O teto por projeto sozinho nao bastava: qualquer conta cria quantos projetos
+    /// quiser, e cada projeto novo trazia mais 20 convites por hora pelo nosso remetente.</para>
+    /// </summary>
+    public static int GetInvitationEmailsPerAccountPerHour() => PositiveInt("INVITATION_EMAILS_PER_ACCOUNT_PER_HOUR", 40);
+
     /// <summary>Origens autorizadas no CORS do painel, separadas por virgula.</summary>
     public static string[] GetCorsAllowedOrigins()
         => (Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS") ?? string.Empty)

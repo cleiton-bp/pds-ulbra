@@ -82,4 +82,18 @@ public class EventRepository : IEventRepository
                                  || entity.Type == EventTypeEnum.ProjectInvitationResent)
                              && entity.OccurredAt >= since)
             .CountAsync(cancellationToken);
+
+    public Task<int> CountAccountInvitationEmailsSinceAsync(long accountId, DateTime since, CancellationToken cancellationToken = default)
+        // A mesma contagem, pela conta: quem cria projeto novo nao ganha cota nova.
+        // IgnoreQueryFilters desliga o filtro de acesso, que somaria so os projetos de quem
+        // pede: um administrador vindo de outra conta enxerga so os dele, e o teto da conta
+        // nao valeria. A conta vem de um projeto que a rota ja autorizou e esta reescrita a
+        // mao logo abaixo; o que sai daqui e so um numero.
+        => _context.Events
+            .IgnoreQueryFilters()
+            .Where(entity => entity.AccountId == accountId
+                             && (entity.Type == EventTypeEnum.ProjectInvitationSent
+                                 || entity.Type == EventTypeEnum.ProjectInvitationResent)
+                             && entity.OccurredAt >= since)
+            .CountAsync(cancellationToken);
 }

@@ -44,43 +44,48 @@ public class EmailWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        IChannel channel;
-
-        try
+        // Broker fora do ar na subida: a API continua de pe, e o consumidor espera a fila
+        // voltar. O que ficou pendente no banco sai logo depois, no RecoverAsync.
+        // A montagem inteira entra na tentativa: falhar no meio dela tambem tenta de novo.
+        await _connection.OpenChannelWithRetryAsync(nameof(EmailWorker), async (channel, cancellationToken) =>
         {
-            channel = await _connection.OpenChannelAsync(stoppingToken);
-        }
-        catch (Exception erro) when (erro is not OperationCanceledException)
-        {
-            // Broker fora do ar na subida: a API continua de pe, e o que ficar
-            // pendente no banco sai na proxima subida.
-            _logger.LogError("Fila de e-mail indisponivel na subida: {Erro}.", erro.GetType().Name);
-            return;
-        }
+            // Um por vez: e-mail e pouco, e um de cada vez mantem um so envio aberto
+            // contra o servidor SMTP.
+            await channel.BasicQosAsync(0, 1, global: false, cancellationToken: cancellationToken);
 
-        // Um por vez: e-mail e pouco, e um de cada vez mantem um so envio aberto
-        // contra o servidor SMTP.
-        await channel.BasicQosAsync(0, 1, global: false, cancellationToken: stoppingToken);
+            var consumer = new AsyncEventingBasicConsumer(channel);
+            consumer.ReceivedAsync += async (_, entrega) =>
+            {
+                var pedido = HandleAsync(channel, entrega, stoppingToken);
+                _current = pedido;
+                await pedido;
+            };
 
-        var consumer = new AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += async (_, entrega) =>
-        {
-            var pedido = HandleAsync(channel, entrega, stoppingToken);
-            _current = pedido;
-            await pedido;
-        };
-
-        await channel.BasicConsumeAsync(
-            queue: EmailQueueNames.Queue,
-            autoAck: false,
-            consumer: consumer,
-            cancellationToken: stoppingToken);
+            await channel.BasicConsumeAsync(
+                queue: EmailQueueNames.Queue,
+                autoAck: false,
+                consumer: consumer,
+                cancellationToken: cancellationToken);
+        }, stoppingToken);
 
         _logger.LogInformation("Escutando {Queue}.", EmailQueueNames.Queue);
 
         await RecoverAsync(stoppingToken);
 
-        await Task.Delay(Timeout.Infinite, stoppingToken).ContinueWith(_ => { }, CancellationToken.None);
+        // De tempos em tempos, o que ficou para tras sai de novo: o convite que a fila
+        // recusou enquanto estava fora (com a API ja de pe, a reconexao do cliente nao
+        // chama a recuperacao) e o pendente que nao chegou a ela. Publicar duas vezes nao
+        // manda dois e-mails: o envio reserva o convite antes.
+        using var relogio = new PeriodicTimer(RecoverInterval);
+        try
+        {
+            while (await relogio.WaitForNextTickAsync(stoppingToken))
+                await RecoverAsync(stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Desligando.
+        }
 
         // Descendo: o envio em curso ja recebeu o cancelamento e esta gravando "nao
         // saiu". Sem esperar, a aplicacao sairia antes — e o convite ficaria
@@ -155,10 +160,14 @@ public class EmailWorker : BackgroundService
         }
     }
 
+    /// <summary>De quanto em quanto tempo a recuperacao roda depois da subida.</summary>
+    private static readonly TimeSpan RecoverInterval = TimeSpan.FromMinutes(2);
+
     /// <summary>
-    /// Uma vez por subida: marca como falho o que ficou preso no meio do envio e
-    /// publica de novo o que ainda estava na fila — a fila e do broker, e o que
-    /// importa esta no banco. Publicar, e nao mandar daqui, mantem um envio por vez.
+    /// Na abertura do consumidor e a cada <see cref="RecoverInterval"/>: marca como falho
+    /// o que ficou preso no meio do envio, devolve para pendente o que a fila recusou e
+    /// publica de novo o que esta pendente. A fila e do broker, e o que importa esta no
+    /// banco. Publicar, e nao mandar daqui, mantem um envio por vez.
     /// </summary>
     private async Task RecoverAsync(CancellationToken cancellationToken)
     {
@@ -171,17 +180,18 @@ public class EmailWorker : BackgroundService
             if (pendentes.Count == 0)
                 return;
 
-            _logger.LogWarning("{Count} e-mail(s) de convite pendentes na subida. Publicando de novo.", pendentes.Count);
+            _logger.LogWarning("{Count} e-mail(s) de convite pendentes. Publicando de novo.", pendentes.Count);
 
             var fila = escopo.ServiceProvider.GetRequiredService<IEmailQueue>();
 
             foreach (var publicId in pendentes)
                 await fila.EnqueueAsync(EmailJobKind.Invitation, publicId, cancellationToken);
         }
-        catch (Exception erro) when (erro is not OperationCanceledException)
+        catch (Exception erro) when (!cancellationToken.IsCancellationRequested)
         {
             // Falhar a recuperacao nao impede o consumidor de escutar: o que vier de
-            // agora em diante continua saindo.
+            // agora em diante continua saindo. O prazo de resposta do broker estourado
+            // tambem cai aqui, e nao derruba a API.
             _logger.LogError(erro, "Falha ao recuperar os e-mails pendentes.");
         }
     }

@@ -374,6 +374,13 @@ public class ProjectInvitationService : IProjectInvitationService
         if (presos > 0)
             _logger.LogWarning("{Count} e-mail(s) de convite presos no meio do envio marcados como falha.", presos);
 
+        // O que a fila recusou enquanto estava fora volta a pendente e sai junto.
+        var devolvidos = await _unitOfWork.ProjectInvitations.ResetQueueFailedWithoutSessionAsync(
+            QueueError, DateTime.UtcNow, cancellationToken);
+
+        if (devolvidos > 0)
+            _logger.LogWarning("{Count} e-mail(s) de convite recusados pela fila voltaram para ser enviados.", devolvidos);
+
         return await _unitOfWork.ProjectInvitations.ListPendingEmailWithoutSessionAsync(cancellationToken);
     }
 
@@ -413,6 +420,15 @@ public class ProjectInvitationService : IProjectInvitationService
         if (naUltimaHora >= limite)
             throw new ConflictException(
                 $"Este projeto ja mandou {limite} convites na ultima hora. Tente de novo mais tarde.");
+
+        // E pela conta: criar outro projeto nao abre outra cota de convites.
+        var limiteDaConta = EnvironmentConstants.GetInvitationEmailsPerAccountPerHour();
+        var daContaNaUltimaHora = await _unitOfWork.Events.CountAccountInvitationEmailsSinceAsync(
+            project.AccountId, DateTime.UtcNow.AddHours(-1), cancellationToken);
+
+        if (daContaNaUltimaHora >= limiteDaConta)
+            throw new ConflictException(
+                $"Esta conta ja mandou {limiteDaConta} convites na ultima hora. Tente de novo mais tarde.");
     }
 
     /// <summary>
@@ -445,8 +461,10 @@ public class ProjectInvitationService : IProjectInvitationService
         {
             await _emailQueue.EnqueueAsync(EmailJobKind.Invitation, convite.PublicId, cancellationToken);
         }
-        catch (Exception erro) when (erro is not OperationCanceledException)
+        catch (Exception erro) when (!cancellationToken.IsCancellationRequested)
         {
+            // Inclui o prazo de resposta da fila estourado (TaskCanceledException), que nao e
+            // desistencia de quem clicou: o convite fica "nao saiu" e o worker o manda depois.
             _logger.LogError(
                 "Convite {Invitation} gravado, mas a fila recusou o e-mail: {Erro}.", convite.PublicId, erro.GetType().Name);
 
