@@ -166,7 +166,7 @@ describe('regra de dependencia entre as pastas', () => {
     {
       from: 'features/projects/ProjectsHubScreen.tsx',
       to: '@/features/auth/sessionStore',
-      why: 'a saudacao "Ola, Cleiton" precisa de quem esta logado, e sessao e assunto de auth',
+      why: 'a saudacao "Ola, Caio" precisa de quem esta logado, e sessao e assunto de auth',
     },
     {
       from: 'features/profile/ProfileDialog.tsx',

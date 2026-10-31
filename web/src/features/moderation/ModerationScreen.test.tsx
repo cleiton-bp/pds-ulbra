@@ -222,14 +222,14 @@ describe('ModerationScreen', () => {
             Text: LONGO,
             State: 'Approved',
             ModeratedAt: '2026-09-21T13:00:00.000Z',
-            ModeratedByName: 'Cleiton',
+            ModeratedByName: 'Caio',
           },
         ],
       }),
     )
     montar()
 
-    await screen.findByText(/Liberado por Cleiton/i)
+    await screen.findByText(/Liberado por Caio/i)
 
     // A saida e "tirar do publico", e nao "voltar para a fila": alguem ja leu, e
     // a fila nao deve cobrar de novo o que foi lido.

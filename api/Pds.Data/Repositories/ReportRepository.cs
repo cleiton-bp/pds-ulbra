@@ -618,6 +618,16 @@ public class ReportRepository : BaseRepository<Report, DataContext>, IReportRepo
             .Select(report => (long?)report.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<long?> FindIdIncludingDeletedAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default)
+        // IgnoreQueryFilters desliga o isolamento por projeto e o de exclusao logica. O
+        // apagado entra de proposito; o projeto esta reescrito a mao logo abaixo, e
+        // retira-lo faria o cursor de uma conta achar o card de outra.
+        => Context.Reports
+            .IgnoreQueryFilters()
+            .Where(report => report.ProjectId == projectId && report.PublicId == publicId)
+            .Select(report => (long?)report.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default)
         // Pelo filtro global: o card de outro projeto, ou apagado, nao existe aqui.
         => Context.Reports

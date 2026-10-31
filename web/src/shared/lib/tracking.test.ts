@@ -76,7 +76,7 @@ describe('o link de acompanhamento', () => {
   })
 
   it('o link da lista leva a chave na busca e o código no fragmento', () => {
-    const link = buildReporterCodeLink('7K2M-9QXP-4TRV', 'pk_1R0KtQwz', 'H7QK-3M2X-P9WD')
+    const link = buildReporterCodeLink('7K2M-9QXP-4TRV', 'pk_EXEMPLO1', 'H7QK-3M2X-P9WD')
     const [busca, fragmento] = link.split('#')
 
     // **O código não pode estar antes do `#`.** Ali ele entraria no log de acesso
@@ -85,18 +85,18 @@ describe('o link de acompanhamento', () => {
     expect(fragmento).toContain('H7QK-3M2X-P9WD')
 
     // A chave pública pode ficar à vista: ela já é pública por definição.
-    expect(busca).toContain('k=pk_1R0KtQwz')
+    expect(busca).toContain('k=pk_EXEMPLO1')
   })
 
   it('o link da lista é lido de volta inteiro', () => {
-    const link = buildReporterCodeLink('7K2M-9QXP-4TRV', 'pk_1R0KtQwz', 'H7QK-3M2X-P9WD')
+    const link = buildReporterCodeLink('7K2M-9QXP-4TRV', 'pk_EXEMPLO1', 'H7QK-3M2X-P9WD')
     const [busca, fragmento] = link.split('#')
 
     expect(readTrackingLink(busca?.slice(busca.indexOf('?')) ?? '', `#${fragmento ?? ''}`)).toEqual(
       {
         code: '7K2M-9QXP-4TRV',
         token: '',
-        key: 'pk_1R0KtQwz',
+        key: 'pk_EXEMPLO1',
         reporterCode: 'H7QK-3M2X-P9WD',
         identityToken: '',
       },
@@ -105,7 +105,7 @@ describe('o link de acompanhamento', () => {
 
   it('o link da identidade leva o crachá no fragmento, e é lido de volta inteiro', () => {
     const cracha = 'eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ1LTQyIn0.assinatura'
-    const link = buildIdentityLink('7K2M-9QXP-4TRV', 'pk_1R0KtQwz', cracha)
+    const link = buildIdentityLink('7K2M-9QXP-4TRV', 'pk_EXEMPLO1', cracha)
     const [busca, fragmento] = link.split('#')
 
     // O crachá identifica a pessoa, como o código: nunca antes do `#`.
@@ -115,7 +115,7 @@ describe('o link de acompanhamento', () => {
       {
         code: '7K2M-9QXP-4TRV',
         token: '',
-        key: 'pk_1R0KtQwz',
+        key: 'pk_EXEMPLO1',
         reporterCode: '',
         identityToken: cracha,
       },

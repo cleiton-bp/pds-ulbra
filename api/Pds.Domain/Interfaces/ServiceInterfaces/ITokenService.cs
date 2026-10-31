@@ -13,7 +13,8 @@ public interface ITokenService
 
     /// <summary>
     /// Emite o bilhete do tempo real: um minuto, destinatario proprio, so abre a
-    /// conexao do hub. Ver <see cref="Pds.Domain.Security.RealtimeTicket"/>.
+    /// conexao do hub, e leva ate quando vale a sessao que o pediu (o <c>exp</c> dela).
+    /// Ver <see cref="Pds.Domain.Security.RealtimeTicket"/>.
     /// </summary>
-    (string Ticket, DateTime ExpiresAt) IssueRealtimeTicket(User user);
+    (string Ticket, DateTime ExpiresAt) IssueRealtimeTicket(User user, long sessionIssuedAt, long sessionExpiresAt);
 }

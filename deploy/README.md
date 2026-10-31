@@ -4,7 +4,7 @@ Tudo o que sobe para a máquina, em contêineres, orquestrado pelo Docker Swarm 
 a borda com HTTPS, o painel, a API, o editor de modelagem, o banco, a fila, a mídia e as
 cópias de segurança. Fora da máquina fica só a CDN, que serve o que roda nos sites dos clientes.
 
-A máquina: Hostinger KVM 2 (2 vCPU, 8 GB, 100 GB NVMe), em São Paulo, com Ubuntu 24.04 LTS.
+A máquina: Hostinger KVM 2 (2 vCPU, 8 GB, 100 GB NVMe), em São Paulo, com Ubuntu 26.04 LTS.
 
 ## O que vai para onde
 
@@ -64,7 +64,6 @@ segurança.
    | A | `api` | `<ip>` |
    | A | `midia` | `<ip>` |
    | A | `editor` | `<ip>` |
-   | CNAME | `quadro` | `<projeto>.pages.dev` (passo 4) |
 
    O certificado só sai depois que esses nomes apontarem para a máquina.
 
@@ -75,8 +74,8 @@ segurança.
    mesmo DNS da Hostinger) e crie uma chave SMTP. O usuário e a chave vão para `SMTP_USUARIO`
    e `SMTP_SENHA`.
 
-4. **Cloudflare Pages**: crie um projeto (por exemplo, `relatofacil-quadro`) e, em "Custom
-   domains", acrescente `quadro.relatofacil.com`. O Pages mostra o CNAME do passo 1.
+4. **Cloudflare Pages**: crie um projeto (por exemplo, `relatofacil-quadro`). O domínio do
+   quadro fica para depois do primeiro deploy, logo abaixo.
 
 ## As variáveis
 
@@ -92,6 +91,10 @@ quais faltam.
 
 Guarde uma cópia do `.env.producao` num gerenciador de senhas do time, nunca no git nem num
 documento compartilhado em texto aberto.
+
+**A documentação da API e o Swagger não ficam no ar:** abrem só no desenvolvimento. Em produção, a
+raiz da API responde 404, e o `implantar.sh` confere isso. Variável nova no modelo se resolve
+rodando o `gerar-segredos.sh` de novo: ele acrescenta o que faltar sem mexer no resto.
 
 ## Primeiro deploy
 
@@ -123,19 +126,25 @@ Depois, o pacote da CDN:
 
 ```bash
 deploy/scripts/montar-quadro.sh
-npx wrangler pages deploy deploy/saida/quadro --project-name relatofacil-quadro
+npx wrangler@4.151.1 pages deploy deploy/saida/quadro --project-name relatofacil-quadro
 ```
 
 O pacote sai da mesma imagem do painel que está no ar, então o quadro e o painel são sempre a
 mesma montagem. Sem o `wrangler`, dá para subir a pasta `deploy/saida/quadro` pelo painel do
-Cloudflare.
+Cloudflare. O `wrangler` vai com a versão fixa: trocar de versão é uma escolha, e não algo que
+muda sozinho entre um deploy e outro.
+
+**Na primeira vez, o domínio do quadro, nesta ordem:** com o pacote já no Pages, acrescente
+`quadro.relatofacil.com` em "Custom domains" e só então crie na Hostinger o CNAME `quadro`, com
+o destino exatamente como o Pages mostrar. Na ordem contrária, o nome fica apontando para um
+projeto que ainda não existe.
 
 ## Atualizar
 
 ```bash
 cd relatofacil && git pull
 deploy/scripts/implantar.sh
-deploy/scripts/montar-quadro.sh && npx wrangler pages deploy deploy/saida/quadro --project-name relatofacil-quadro
+deploy/scripts/montar-quadro.sh && npx wrangler@4.151.1 pages deploy deploy/saida/quadro --project-name relatofacil-quadro
 ```
 
 Cada imagem leva a etiqueta do próprio conteúdo, então só reinicia o serviço que mudou. A API
@@ -246,8 +255,7 @@ máquina inteira cai.
 
 ## O que fica para depois
 
-- **Duas réplicas da API**: os avisos em tempo real e os limites por IP precisam de mudanças
-  antes (seção 8 do estudo de hospedagem).
-- **CSP de script e estilo** no painel e no quadro: hoje só a de quem pode embutir.
+- **Duas réplicas da API**: antes, os avisos em tempo real precisam de um backplane (Redis), e
+  os limites por IP, que hoje contam na memória de cada processo, de um contador compartilhado.
 - **Montar as imagens fora da máquina** (GitHub Actions e um registro), quando o deploy por
   `git pull` ficar lento.

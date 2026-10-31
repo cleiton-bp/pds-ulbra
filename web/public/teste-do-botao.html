@@ -39,18 +39,6 @@
       <div class="bar" style="width: 70%"></div>
       <div class="card"></div>
     </main>
-    <script>
-      ;(function () {
-        var chave = new URLSearchParams(location.search).get('k') || ''
-        if (!/^pk_[A-Za-z0-9_-]{8,80}$/.test(chave)) {
-          document.querySelector('.aviso').textContent = 'Chave pública inválida para o teste.'
-          return
-        }
-        var script = document.createElement('script')
-        script.src = '/v1/pds.js'
-        script.dataset.key = chave
-        document.body.appendChild(script)
-      })()
-    </script>
+    <script src="/teste-do-botao.js"></script>
   </body>
 </html>

@@ -64,6 +64,12 @@ services:
 
   painel:
     image: relatofacil/painel:${TAG_PAINEL:?}
+    # As origens que a politica de conteudo (CSP) do painel libera (deploy/painel/painel.caddy).
+    environment:
+      API_URL: ${API_URL:?}
+      API_WSS_URL: ${API_WSS_URL:?}
+      MIDIA_URL: ${MIDIA_URL:?}
+      QUADRO_URL: ${QUADRO_URL:?}
     volumes:
       # Os pedacos das versoes anteriores, para quem esta com o painel aberto num deploy.
       - painel-pedacos:/srv/pedacos
@@ -96,7 +102,8 @@ services:
           memory: 128M
 
   # A API, com os workers e o tempo real dentro. Uma replica: com duas, os avisos em tempo
-  # real e os limites por IP precisam de mudancas (secao 8 do estudo de hospedagem). No
+  # real precisariam de um backplane (Redis), e os limites por IP, que contam na memoria de
+  # cada processo, dariam o dobro da cota a cada IP. No
   # deploy, por alguns segundos, a nova e a antiga rodam juntas, cada uma com ate 20
   # conexoes no banco.
   api:
@@ -104,12 +111,18 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Logging__Console__FormatterName: json
+      # Cada comando SQL saia no registro como informacao, centenas de linhas por hora. Erro
+      # e aviso do banco continuam aparecendo.
+      Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
+      # A sessao e por JWT e nada aqui usa o Data Protection do ASP.NET: os avisos de chave
+      # guardada so dentro do conteiner nao dizem respeito a nada que roda.
+      Logging__LogLevel__Microsoft.AspNetCore.DataProtection: Error
       DB_CONNECTION_STRING: Host=banco;Port=5432;Database=relatofacil;Username=relatofacil;Password=${BANCO_SENHA:?}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?}
       JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?}
       JWT_EXPIRATION_HOURS: "8"
       # As duas origens que falam com a API: o painel e o quadro (na CDN). Separadas de
-      # proposito (V3): um XSS no quadro nao alcanca a sessao do painel.
+      # proposito: um XSS no quadro nao alcanca a sessao do painel.
       CORS_ALLOWED_ORIGINS: ${PAINEL_URL},${QUADRO_URL}
       PANEL_URL: ${PAINEL_URL}
       # So a rede da borda e de confianca: o IP de quem chama sai do X-Forwarded-For dela.
@@ -131,6 +144,7 @@ services:
     networks:
       - borda
       - dados
+      - midia
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health/ready"]
       interval: 10s
@@ -152,6 +166,9 @@ networks:
   dados:
     external: true
     name: relatofacil-dados
+  midia:
+    external: true
+    name: relatofacil-midia
 
 volumes:
   borda-dados:

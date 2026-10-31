@@ -10,12 +10,16 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), browsing-topics=()"
-		# O painel guarda a sessao do time: nenhum outro site pode embuti-lo (clickjacking).
-		Content-Security-Policy "frame-ancestors 'none'"
+		# A politica de conteudo: script so daqui e do login do Google; conexao so com a API, a
+		# midia e o login; imagem daqui, da midia e do avatar do Google. O painel guarda a sessao
+		# do time, entao nenhum outro site pode embuti-lo (clickjacking). O estilo embutido fica
+		# liberado porque os dialogos injetam um <style> para travar a rolagem; o script, nao.
+		# Os enderecos vem do ambiente do servico (stack-app.yml).
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com {$MIDIA_URL}; connect-src 'self' {$API_URL} {$API_WSS_URL} {$MIDIA_URL} https://accounts.google.com/gsi/; frame-src {$QUADRO_URL} https://accounts.google.com/gsi/; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		-Server
 	}
 
-	# O que e do quadro mora na CDN, numa origem propria (V3): o carregador, o quadro, a pagina
+	# O que e do quadro mora na CDN, numa origem propria: o carregador, o quadro, a pagina
 	# de acompanhamento e a pagina de teste do botao. Servidos daqui, dividiriam a origem com a
 	# sessao do time.
 	@doQuadro path /embed.html /tracking.html /v1/* /teste-do-botao.html /_headers

@@ -6,7 +6,7 @@
 #   deploy/scripts/voltar.sh api        # so um
 #
 # O banco nao volta: a migracao do deploy fica. Por isso toda migracao precisa aceitar a
-# versao anterior da API (secao 8, item 3, do estudo de hospedagem).
+# versao anterior da API: renomear ou apagar coluna vira dois deploys.
 set -euo pipefail
 servicos=("$@")
 [ ${#servicos[@]} -eq 0 ] && servicos=(api painel editor)

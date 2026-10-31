@@ -21,6 +21,10 @@ public static class RealtimeRegistration
         services.AddHttpContextAccessor();
         services.AddScoped<IWorkNotifier, HubWorkNotifier>();
 
+        // As conexoes abertas, e quem fecha as de sessao vencida ou encerrada.
+        services.AddSingleton<RealtimeConnections>();
+        services.AddHostedService<RealtimeSessionSweeper>();
+
         return services;
     }
 

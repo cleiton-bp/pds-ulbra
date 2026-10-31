@@ -1140,7 +1140,7 @@ describe('abrir um relato', () => {
     })
     dublê.comentarInterno.mockResolvedValue({
       PublicId: 'c-1',
-      AuthorName: 'Cleiton',
+      AuthorName: 'Caio',
       Body: 'suspeito do cache',
       CreatedAt: '2026-09-14T12:00:00.000Z',
     })
@@ -1190,7 +1190,7 @@ describe('abrir um relato', () => {
       {
         PublicId: 'e-1',
         Type: 'ReportStateChanged',
-        AuthorName: 'Cleiton',
+        AuthorName: 'Caio',
         // A coluna hoje se chama outra coisa, ou foi aposentada. O evento guardou
         // este nome, e e ele que precisa aparecer — senao renomear reescreve o
         // passado, dizendo que o relato esteve num estado que nao existia.
@@ -1450,7 +1450,7 @@ describe('encerrar por botão', () => {
         Outcome: 'Done',
         Reason: 'Corrigido.',
         ClosedAt: '2026-09-20T10:00:00.000Z',
-        ClosedByName: 'Cleiton',
+        ClosedByName: 'Caio',
         ConfirmedAt: null,
         Satisfaction: null,
         SatisfactionDeclined: false,
@@ -1483,7 +1483,7 @@ describe('encerrar por botão', () => {
 
     // E o que a API devolveu vira o bloco na tela, com quem encerrou.
     expect(await screen.findByText('Encerrado')).toBeTruthy()
-    expect(screen.getByText('por Cleiton')).toBeTruthy()
+    expect(screen.getByText('por Caio')).toBeTruthy()
   })
 
   it('o relato já parado na coluna que encerra também ganha o botão', async () => {
@@ -1542,7 +1542,7 @@ describe('encerrar por botão', () => {
         Outcome: 'WontDo',
         Reason: 'O comportamento é o esperado.',
         ClosedAt: '2026-09-20T10:00:00.000Z',
-        ClosedByName: 'Cleiton',
+        ClosedByName: 'Caio',
         ConfirmedAt: null,
         Satisfaction: null,
         SatisfactionDeclined: false,
@@ -1755,7 +1755,7 @@ describe('devolver o relato pedindo informação', () => {
       Closure: null,
       CanAskInfo: false,
       InfoRequest: {
-        AskedByName: 'Cleiton',
+        AskedByName: 'Caio',
         AskedAt: '2026-09-19T00:00:00.000Z',
         WarnAt: '2026-09-26T00:00:00.000Z',
         CloseAt: '2026-10-03T00:00:00.000Z',
@@ -1788,7 +1788,7 @@ describe('devolver o relato pedindo informação', () => {
   it('o relato já devolvido mostra os dois prazos, e que dá para reabrir', async () => {
     aberto({
       InfoRequest: {
-        AskedByName: 'Cleiton',
+        AskedByName: 'Caio',
         AskedAt: '2026-09-19T00:00:00.000Z',
         WarnAt: '2026-09-26T00:00:00.000Z',
         CloseAt: '2026-10-03T00:00:00.000Z',
@@ -1798,7 +1798,7 @@ describe('devolver o relato pedindo informação', () => {
     // Sem isto, alguem do time abre o relato dias depois, ve que esta parado, e
     // pergunta de novo — e quem esta do outro lado recebe duas perguntas iguais.
     expect(await screen.findByText('Esperando quem relatou')).toBeTruthy()
-    expect(screen.getByText(/pedido por Cleiton/)).toBeTruthy()
+    expect(screen.getByText(/pedido por Caio/)).toBeTruthy()
     expect(screen.getByText(/ainda assim poderá ser reaberto/)).toBeTruthy()
   })
 })

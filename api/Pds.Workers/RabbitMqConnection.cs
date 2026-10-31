@@ -49,6 +49,70 @@ public sealed class RabbitMqConnection : IAsyncDisposable
         return channel;
     }
 
+    /// <summary>
+    /// Um canal novo, ja montado para consumir, tentando de novo ate o broker responder. E o
+    /// que os consumidores usam na subida.
+    ///
+    /// <para><b>A recuperacao automatica do cliente so vale depois da primeira
+    /// conexao.</b> Com o broker fora na subida, a primeira tentativa falhava e nada
+    /// mais tentava: um consumidor derrubava a API e o outro ficava parado ate a
+    /// proxima reinicializacao. Aqui o intervalo dobra a cada falha, de 2 s ate 1 min,
+    /// e cada tentativa fica no registro.</para>
+    ///
+    /// <para><b>Qualquer erro tenta de novo, menos o desligamento.</b> O cliente lanca
+    /// <c>TaskCanceledException</c> quando uma resposta do broker passa do prazo, mesmo com a
+    /// API de pe; tratada como desligamento, ela derrubava a API. A montagem do consumidor
+    /// (<paramref name="prepare"/>) entra na tentativa, e o canal que falhou no meio e
+    /// descartado. Cada tentativa tem prazo: um broker que aceita a conexao e nunca responde
+    /// deixava a primeira pendurada para sempre.</para>
+    /// </summary>
+    public async Task<IChannel> OpenChannelWithRetryAsync(
+        string consumer, Func<IChannel, CancellationToken, Task> prepare, CancellationToken cancellationToken)
+    {
+        var espera = TimeSpan.FromSeconds(2);
+
+        for (var tentativa = 1; ; tentativa++)
+        {
+            IChannel? channel = null;
+            try
+            {
+                using var prazo = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                prazo.CancelAfter(AttemptTimeout);
+                channel = await OpenChannelAsync(prazo.Token);
+                await prepare(channel, prazo.Token);
+                return channel;
+            }
+            catch (Exception erro) when (!cancellationToken.IsCancellationRequested)
+            {
+                if (channel is not null)
+                    await DiscardAsync(channel);
+
+                _logger.LogWarning(
+                    "Fila indisponivel para {Consumer} (tentativa {Tentativa}): {Erro}. Nova tentativa em {Espera} s.",
+                    consumer, tentativa, erro.GetType().Name, (int)espera.TotalSeconds);
+
+                await Task.Delay(espera, cancellationToken);
+                espera = TimeSpan.FromSeconds(Math.Min(espera.TotalSeconds * 2, 60));
+            }
+        }
+    }
+
+    /// <summary>Quanto uma tentativa de abrir e montar o canal pode levar.</summary>
+    private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>Fecha o canal que falhou no meio da montagem, sem deixar o erro dele subir.</summary>
+    private static async Task DiscardAsync(IChannel channel)
+    {
+        try
+        {
+            await channel.DisposeAsync();
+        }
+        catch (Exception)
+        {
+            // O canal ja estava quebrado: o que importa e a proxima tentativa.
+        }
+    }
+
     private async Task<IConnection> EnsureConnectionAsync(CancellationToken cancellationToken)
     {
         if (_connection is { IsOpen: true })

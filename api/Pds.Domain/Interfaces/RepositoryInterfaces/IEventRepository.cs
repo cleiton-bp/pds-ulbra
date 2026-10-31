@@ -59,4 +59,10 @@ public interface IEventRepository
     /// conta e o administrador, na propria sessao.
     /// </summary>
     Task<int> CountInvitationEmailsSinceAsync(long projectId, DateTime since, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quantos e-mails de convite a conta pediu desde um momento, somando todos os projetos
+    /// dela. E a contagem do limite por conta, ao lado do limite por projeto.
+    /// </summary>
+    Task<int> CountAccountInvitationEmailsSinceAsync(long accountId, DateTime since, CancellationToken cancellationToken = default);
 }

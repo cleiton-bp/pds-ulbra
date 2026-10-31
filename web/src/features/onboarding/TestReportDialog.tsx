@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { environment } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { Choice } from '@/shared/components/SettingsControls'
@@ -18,8 +19,9 @@ import { Choice } from '@/shared/components/SettingsControls'
  * inteiro. Antes, o formulario abria direto numa janela estreita, sem o botao — nao
  * era como a pessoa ve no sistema dela.
  *
- * A pagina mora na origem do painel: o relato do teste entra direto no Trabalho, sem
- * esperar liberacao, como o teste sempre entrou.
+ * A pagina mora na origem do quadro, ao lado do carregador (`environment.testPageUrl`).
+ * O relato do teste continua entrando direto no Trabalho, sem esperar liberacao: a origem
+ * do quadro esta entre os enderecos do proprio sistema, que a retencao nao segura.
  *
  * **Quem abre e quem chama**: o botao mora no titulo do passo, que e um `<summary>`, e
  * o dialogo fica fora dele — e quem chama tambem sabe quando ele fecha, para conferir
@@ -67,7 +69,7 @@ export function TestReportDialog({ publicKey, open, onOpenChange }: TestReportDi
           <iframe
             key={`${publicKey}-${aparelho}`}
             title="Ferramenta de relato"
-            src={`/teste-do-botao.html?k=${encodeURIComponent(publicKey)}`}
+            src={`${environment.testPageUrl}?k=${encodeURIComponent(publicKey)}`}
             className={
               aparelho === 'phone'
                 ? 'h-[min(42rem,calc(100dvh-16rem))] w-[375px] max-w-full rounded-2xl border border-border bg-surface'

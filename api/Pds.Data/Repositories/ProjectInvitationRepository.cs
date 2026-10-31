@@ -160,6 +160,25 @@ public class ProjectInvitationRepository : BaseRepository<ProjectInvitation, Dat
             .Select(invitation => invitation.PublicId)
             .ToListAsync(cancellationToken);
 
+    public Task<int> ResetQueueFailedWithoutSessionAsync(string queueError, DateTime now, CancellationToken cancellationToken = default)
+        // A fila recusou enquanto estava fora: o e-mail nunca chegou a ser tentado, entao
+        // volta a pendente e sai pelo caminho de sempre. Falha do servidor de e-mail nao entra.
+        => Context.ProjectInvitations
+            .TagWith(EmailQueryTag)
+            .IgnoreQueryFilters()
+            .Where(invitation => invitation.EmailStatus == InvitationEmailStatusEnum.Failed
+                                 && invitation.EmailError == queueError
+                                 && invitation.ExpiresAt > now
+                                 && invitation.AcceptedAt == null
+                                 && invitation.RevokedAt == null
+                                 && invitation.DeletedAt == null
+                                 && invitation.Project.DeletedAt == null)
+            .ExecuteUpdateAsync(set => set
+                    .SetProperty(invitation => invitation.EmailStatus, InvitationEmailStatusEnum.Pending)
+                    .SetProperty(invitation => invitation.EmailError, (string?)null)
+                    .SetProperty(invitation => invitation.UpdatedAt, now),
+                cancellationToken);
+
     public Task<int> FailStuckSendingWithoutSessionAsync(DateTime attemptedBefore, string error, CancellationToken cancellationToken = default)
         // Preso em "enviando" desde antes da subida: o processo caiu no meio. Nao da
         // para saber se o servidor chegou a aceitar — e marcar falha e o lado

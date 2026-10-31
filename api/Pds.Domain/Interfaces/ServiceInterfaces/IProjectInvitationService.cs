@@ -37,8 +37,9 @@ public interface IProjectInvitationService
     Task SendEmailAsync(Guid invitationPublicId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Na subida: marca como falho o que ficou preso no meio do envio, e devolve o
-    /// que ainda esta na fila para ser publicado de novo.
+    /// Na subida e depois de tempos em tempos: marca como falho o que ficou preso no meio
+    /// do envio, devolve a pendente o que a fila recusou enquanto estava fora, e devolve o
+    /// que ainda esta pendente para ser publicado de novo.
     /// </summary>
     Task<IReadOnlyList<Guid>> RecoverEmailsAsync(CancellationToken cancellationToken = default);
 }

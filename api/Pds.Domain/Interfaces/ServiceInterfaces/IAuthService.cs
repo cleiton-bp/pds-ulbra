@@ -15,8 +15,12 @@ public interface IAuthService
     /// <summary>Usuario da sessao atual, com a conta propria dele.</summary>
     Task<MeViewModel> GetCurrentAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>O bilhete da conexao em tempo real, para a pessoa da sessao.</summary>
-    Task<RealtimeTicketViewModel> IssueRealtimeTicketAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// O bilhete da conexao em tempo real, para a pessoa da sessao. Leva quando a sessao foi
+    /// emitida e ate quando vale (o <c>iat</c> e o <c>exp</c> dela, em segundos): a conexao
+    /// fecha quando ela vence ou quando a pessoa sai.
+    /// </summary>
+    Task<RealtimeTicketViewModel> IssueRealtimeTicketAsync(long sessionIssuedAt, long sessionExpiresAt, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Encerra a sessao no servidor: marca o momento na pessoa, e todo token emitido antes

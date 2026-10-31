@@ -45,21 +45,24 @@ public class DelayedCheckWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var channel = await _connection.OpenChannelAsync(stoppingToken);
+        // Com o broker fora na subida, espera ele voltar em vez de derrubar a API. A
+        // montagem inteira entra na tentativa: falhar no meio dela tambem tenta de novo.
+        await _connection.OpenChannelWithRetryAsync(nameof(DelayedCheckWorker), async (channel, cancellationToken) =>
+        {
+            // Um por vez. Nao ha ganho em paralelizar o que chega a cada movimento de
+            // card, e o teto evita que um pico de vencimentos abra dezenas de
+            // transacoes ao mesmo tempo contra o banco.
+            await channel.BasicQosAsync(0, 1, global: false, cancellationToken: cancellationToken);
 
-        // Um por vez. Nao ha ganho em paralelizar o que chega a cada movimento de
-        // card, e o teto evita que um pico de vencimentos abra dezenas de
-        // transacoes ao mesmo tempo contra o banco.
-        await channel.BasicQosAsync(0, 1, global: false, cancellationToken: stoppingToken);
+            var consumer = new AsyncEventingBasicConsumer(channel);
+            consumer.ReceivedAsync += async (_, entrega) => await HandleAsync(channel, entrega, stoppingToken);
 
-        var consumer = new AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += async (_, entrega) => await HandleAsync(channel, entrega, stoppingToken);
-
-        await channel.BasicConsumeAsync(
-            queue: DelayedCheckQueue.Queue,
-            autoAck: false,
-            consumer: consumer,
-            cancellationToken: stoppingToken);
+            await channel.BasicConsumeAsync(
+                queue: DelayedCheckQueue.Queue,
+                autoAck: false,
+                consumer: consumer,
+                cancellationToken: cancellationToken);
+        }, stoppingToken);
 
         _logger.LogInformation("Escutando {Queue}.", DelayedCheckQueue.Queue);
 

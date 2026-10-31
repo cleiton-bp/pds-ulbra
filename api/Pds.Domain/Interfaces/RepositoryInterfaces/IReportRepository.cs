@@ -168,6 +168,13 @@ public interface IReportRepository : IBaseRepository<Report>
     /// </summary>
     Task<long?> FindIdAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// O Id do card pelo identificador publico, mesmo apagado. E o desempate do cursor da
+    /// moderacao: o relato da ultima linha pode ser apagado entre uma pagina e outra, e o
+    /// lugar dele na ordem continua o mesmo. Nulo quando nao e do projeto.
+    /// </summary>
+    Task<long?> FindIdIncludingDeletedAsync(long projectId, Guid publicId, CancellationToken cancellationToken = default);
+
     /// <summary>O card que vai ser pai de uma subtarefa, sem rastreio. Nulo quando nao e do projeto.</summary>
     Task<Report?> FindParentAsync(long projectId, Guid parentPublicId, CancellationToken cancellationToken = default);
 

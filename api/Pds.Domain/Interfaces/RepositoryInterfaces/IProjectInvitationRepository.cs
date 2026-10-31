@@ -52,6 +52,13 @@ public interface IProjectInvitationRepository : IBaseRepository<ProjectInvitatio
     Task<IReadOnlyList<Guid>> ListPendingEmailWithoutSessionAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Devolve a pendente o convite aberto e no prazo cujo e-mail nao saiu porque a fila
+    /// estava fora (o motivo <paramref name="queueError"/>). Os que falharam por outro motivo
+    /// ficam como estao. Devolve quantos voltaram.
+    /// </summary>
+    Task<int> ResetQueueFailedWithoutSessionAsync(string queueError, DateTime now, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Os que ficaram presos no meio do envio desde antes de um momento — uma queda
     /// no meio — passam a falha, e a tela oferece reenviar.
     /// </summary>

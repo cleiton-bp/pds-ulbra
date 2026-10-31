@@ -119,6 +119,7 @@ const PALAVRAS: Record<string, string> = {
   dominio: 'domínio',
   dominios: 'domínios',
   duvidas: 'dúvidas',
+  emissao: 'emissão',
   endereco: 'endereço',
   enderecos: 'endereços',
   entao: 'então',

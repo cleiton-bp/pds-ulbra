@@ -90,8 +90,10 @@ public static class InheritedIdentity
             if (lidos != bytes.Length)
                 throw new ArgumentException(Recusa);
 
+            // As duas condicoes, cada uma recusando sozinha: a curva nomeada P-256 e o tamanho
+            // dela. Com um "e" no lugar do "ou", passava qualquer curva de 256 bits.
             var curva = ecdsa.ExportParameters(false).Curve;
-            if (curva.Oid?.Value != P256Oid && ecdsa.KeySize != 256)
+            if (curva.Oid?.Value != P256Oid || ecdsa.KeySize != 256)
                 throw new ArgumentException(Recusa);
         }
         catch (Exception excecao) when (excecao is CryptographicException or ArgumentException)
