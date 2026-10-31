@@ -15,7 +15,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 WORKDIR /app
 
 # A porta pelo nome que a imagem base usa: o ASPNETCORE_URLS sobrescrevia o HTTP_PORTS
-# dela e a API avisava disso a cada subida (achado 3 do ensaio local do deploy).
+# dela e a API avisava disso a cada subida.
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 
