@@ -1,0 +1,1 @@
+{"Rules":[{"ID":"expira-envios","Status":"Enabled","Filter":{"Prefix":"uploads/"},"Expiration":{"Days":1}}]}

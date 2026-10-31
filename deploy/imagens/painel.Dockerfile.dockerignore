@@ -1,0 +1,9 @@
+*
+!web
+!deploy/painel
+web/node_modules
+web/dist
+web/.env.local
+web/.env.*.local
+web/coverage
+**/.DS_Store

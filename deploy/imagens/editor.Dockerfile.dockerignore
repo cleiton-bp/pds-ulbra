@@ -1,0 +1,6 @@
+*
+!tools/editor
+!deploy/editor
+tools/editor/node_modules
+tools/editor/dist
+**/.DS_Store
