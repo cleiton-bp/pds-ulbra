@@ -171,7 +171,9 @@ services:
     volumes:
       - ./Pds.WebApi/Environment/.env.local:/app/Environment/.env.local:ro
     ports:
-      - "${API_PORT:-5080}:8080"
+      # So em 127.0.0.1, como a fila e o MinIO acima: em desenvolvimento a API mostra o
+      # Swagger e a pagina de excecao, e na rede da faculdade isso ficaria aberto a todos.
+      - "127.0.0.1:${API_PORT:-5080}:8080"
     depends_on:
       rabbitmq:
         condition: service_healthy
