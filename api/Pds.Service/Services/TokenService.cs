@@ -31,12 +31,18 @@ public class TokenService : ITokenService
 
     /// <summary>
     /// O mesmo formato e a mesma assinatura do token da sessao, com outro destinatario
-    /// e um minuto de vida: quem o valida e um esquema que so o hub usa.
+    /// e um minuto de vida: quem o valida e um esquema que so o hub usa. Leva tambem quando
+    /// a sessao que o pediu foi emitida e ate quando ela vale: e por eles que a conexao
+    /// fecha quando a sessao acaba.
     /// </summary>
-    public (string Ticket, DateTime ExpiresAt) IssueRealtimeTicket(User user)
-        => Write(user, EnvironmentConstants.GetRealtimeAudience(), DateTime.UtcNow.Add(RealtimeTicket.Lifetime));
+    public (string Ticket, DateTime ExpiresAt) IssueRealtimeTicket(User user, long sessionIssuedAt, long sessionExpiresAt)
+        => Write(user, EnvironmentConstants.GetRealtimeAudience(), DateTime.UtcNow.Add(RealtimeTicket.Lifetime),
+            new Claim(RealtimeTicket.SessionIssuedClaim,
+                sessionIssuedAt.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64),
+            new Claim(RealtimeTicket.SessionExpiresClaim,
+                sessionExpiresAt.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64));
 
-    private static (string, DateTime) Write(User user, string audience, DateTime expiresAt)
+    private static (string, DateTime) Write(User user, string audience, DateTime expiresAt, params Claim[] extra)
     {
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(EnvironmentConstants.GetJwtSigningKey()));
 
@@ -54,6 +60,7 @@ public class TokenService : ITokenService
                     ClaimValueTypes.Integer64),
                 new Claim(UserClaim, user.PublicId.ToString()),
                 new Claim(AccountClaim, user.Account.PublicId.ToString()),
+                .. extra,
             ],
             expires: expiresAt,
             signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));

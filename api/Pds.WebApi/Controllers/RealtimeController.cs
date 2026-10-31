@@ -41,7 +41,13 @@ public class RealtimeController : BaseController
     {
         try
         {
-            return Success(await _authService.IssueRealtimeTicketAsync(cancellationToken));
+            // Quando a sessao que pede foi emitida e ate quando vale: a conexao aberta com o
+            // bilhete fecha quando ela vence ou quando a pessoa sai.
+            if (!long.TryParse(User.FindFirst("iat")?.Value, out var sessaoEmitida)
+                || !long.TryParse(User.FindFirst("exp")?.Value, out var sessaoVence))
+                throw new UnauthorizedAccessException("Sessao sem emissao ou vencimento.");
+
+            return Success(await _authService.IssueRealtimeTicketAsync(sessaoEmitida, sessaoVence, cancellationToken));
         }
         catch (Exception exception)
         {

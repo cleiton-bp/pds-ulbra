@@ -24,10 +24,40 @@ public class WorkHub : Hub
     private const string GrupoAtual = "grupo";
 
     private readonly DataContext _dataContext;
+    private readonly RealtimeConnections _conexoes;
 
-    public WorkHub(DataContext dataContext)
+    public WorkHub(DataContext dataContext, RealtimeConnections conexoes)
     {
         _dataContext = dataContext;
+        _conexoes = conexoes;
+    }
+
+    /// <summary>
+    /// Guarda a conexao com o que e preciso para fecha-la quando a sessao acabar
+    /// (<see cref="RealtimeSessionSweeper"/>). Bilhete sem esses dados (emitido antes desta
+    /// regra), ou de sessao ja vencida, fecha na hora: o painel pede outro, e o pedido diz se
+    /// a sessao ainda vale.
+    /// </summary>
+    public override async Task OnConnectedAsync()
+    {
+        var usuario = Context.User;
+        if (!Guid.TryParse(usuario?.FindFirst(TokenService.UserClaim)?.Value, out var pessoa)
+            || !long.TryParse(usuario?.FindFirst(RealtimeTicket.SessionIssuedClaim)?.Value, out var sessaoEmitida)
+            || !long.TryParse(usuario?.FindFirst(RealtimeTicket.SessionExpiresClaim)?.Value, out var sessaoVence)
+            || RealtimeConnections.Expired(sessaoVence, DateTimeOffset.UtcNow.ToUnixTimeSeconds()))
+        {
+            Context.Abort();
+            return;
+        }
+
+        _conexoes.Add(new RealtimeConnections.Open(Context, pessoa, sessaoEmitida, sessaoVence));
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        _conexoes.Remove(Context.ConnectionId);
+        await base.OnDisconnectedAsync(exception);
     }
 
     /// <summary>
@@ -47,10 +77,30 @@ public class WorkHub : Hub
         if (acesso is null || acesso.Projects.All(projeto => projeto.ProjectPublicId != projectPublicId))
             return false;
 
+        // A mesma regra da varredura, na entrada: sem isto, um bilhete emitido no mesmo
+        // segundo do "sair" reabria a conexao e voltava a receber ate a proxima volta.
+        if (SessionEnded(acesso.SessionsRevokedAt))
+        {
+            Context.Abort();
+            return false;
+        }
+
         var grupo = WorkGroups.Of(projectPublicId, pessoa);
         await Groups.AddToGroupAsync(Context.ConnectionId, grupo, Context.ConnectionAborted);
         Context.Items[GrupoAtual] = grupo;
         return true;
+    }
+
+    /// <summary>Se a sessao que pediu o bilhete venceu, ou se a pessoa saiu depois de ela ser emitida.</summary>
+    private bool SessionEnded(DateTime? saiuEm)
+    {
+        var usuario = Context.User;
+        if (!long.TryParse(usuario?.FindFirst(RealtimeTicket.SessionIssuedClaim)?.Value, out var sessaoEmitida)
+            || !long.TryParse(usuario?.FindFirst(RealtimeTicket.SessionExpiresClaim)?.Value, out var sessaoVence))
+            return true;
+
+        return RealtimeConnections.Expired(sessaoVence, DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+               || RealtimeConnections.Revoked(sessaoEmitida, saiuEm);
     }
 
     /// <summary>Deixa de receber os avisos do projeto que estava acompanhando.</summary>

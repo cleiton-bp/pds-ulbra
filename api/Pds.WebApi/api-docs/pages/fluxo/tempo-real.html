@@ -126,8 +126,10 @@ Authorization: Bearer &lt;AccessToken&gt;</code></pre>
   <p>O navegador não manda cabeçalho na conexão WebSocket, e o token vai no endereço
   (<code>/realtime/hub?access_token=...</code>), que fica gravado em log de servidor e de proxy. Por
   isso vai o bilhete: vale um minuto, tem destinatário próprio e só abre o hub. Nenhuma rota REST o
-  aceita, e o hub não aceita o token da sessão. Vencido o minuto, a conexão aberta continua: quem
-  decide se a pessoa ainda recebe é o time do projeto, conferido a cada aviso.</p>
+  aceita, e o hub não aceita o token da sessão. Vencido o minuto, a conexão aberta continua enquanto
+  valer a sessão que pediu o bilhete: ele leva até quando ela vale, e a API fecha a conexão em até
+  meio minuto depois de a sessão vencer ou de a pessoa sair. Quem decide se a pessoa recebe cada
+  aviso continua sendo o time do projeto, conferido a cada um.</p>
 </div>
 
 <p><strong>Só quem está no projeto entra.</strong> Entrar (<code>Watch</code>) confere o acesso com

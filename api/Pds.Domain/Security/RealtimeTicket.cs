@@ -11,8 +11,10 @@ namespace Pds.Domain.Security;
 ///
 /// <para><b>O bilhete so abre a conexao.</b> Tem destinatario proprio, e e aceito so
 /// pelo esquema de autenticacao do hub: nenhuma rota REST o aceita, e o hub nao aceita
-/// o token da sessao. Vencido o minuto, a conexao aberta continua — quem decide se a
-/// pessoa ainda recebe e o time do projeto, conferido a cada aviso.</para>
+/// o token da sessao. Vencido o minuto, a conexao aberta continua enquanto valer a sessao
+/// que pediu o bilhete: ele leva ate quando ela vale (<see cref="SessionExpiresClaim"/>),
+/// e a conexao fecha em ate meio minuto depois de a sessao vencer ou de a pessoa sair. O
+/// time do projeto continua conferido a cada aviso.</para>
 /// </summary>
 public static class RealtimeTicket
 {
@@ -24,4 +26,18 @@ public static class RealtimeTicket
 
     /// <summary>Quanto o bilhete vale: o bastante para abrir a conexao.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Ate quando vale a sessao que pediu o bilhete, em segundos (como o <c>exp</c>): e ate
+    /// quando a conexao aberta com ele pode durar.
+    /// </summary>
+    public const string SessionExpiresClaim = "sexp";
+
+    /// <summary>
+    /// Quando a sessao que pediu o bilhete foi emitida, em segundos (o <c>iat</c> dela). E
+    /// esse, e nao o do bilhete, que se compara com o "sair", pela mesma regra das rotas
+    /// REST: o bilhete costuma nascer no mesmo segundo em que a pessoa sai, e ai a conta
+    /// do bilhete nunca dava "antes".
+    /// </summary>
+    public const string SessionIssuedClaim = "siat";
 }
