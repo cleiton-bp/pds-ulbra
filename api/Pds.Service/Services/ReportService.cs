@@ -2712,9 +2712,22 @@ public partial class ReportService : IReportService
         var origem = query.Origin?.Trim().ToLowerInvariant();
         var semOrigem = origem == WithoutOriginFilter;
 
+        // O cursor traz o identificador publico da ultima linha, e o desempate da consulta e
+        // o Id. Decidido ou apagado depois de lido, o relato continua no mesmo lugar da ordem.
+        // Apagado de vez (o "apagar" dos retidos remove a linha), ele nao da mais o Id: segue
+        // so pelo valor, com o desempate que pega todas as linhas do mesmo instante. Alguma
+        // pode repetir, e a tela ja tira repetidos pelo identificador publico.
+        ModerationCursor? depois = null;
+        if (ModerationCursorText.Decode(query.After, query.State) is { } lido)
+        {
+            var id = await _unitOfWork.Reports.FindIdIncludingDeletedAsync(project.Id, lido.PublicId, cancellationToken)
+                     ?? (lido.State == ReportModerationStateEnum.Pending ? 0L : long.MaxValue);
+            depois = new ModerationCursor(lido.State, lido.At, id);
+        }
+
         var filtro = new ModerationFilter(
             query.State,
-            ModerationCursorText.Decode(query.After, query.State),
+            depois,
             // Um a mais do que vai mostrar: e assim que se sabe que ha mais sem contar.
             limite + 1,
             ResolveSearch(query.Q),
@@ -2740,12 +2753,12 @@ public partial class ReportService : IReportService
 
         var ultimo = relatos.Count > 0 ? relatos[^1] : null;
         var proximo = temMais && ultimo is not null
-            ? ModerationCursorText.Encode(new ModerationCursor(
+            ? ModerationCursorText.Encode(
                 query.State,
                 query.State == ReportModerationStateEnum.Pending
                     ? ultimo.CreatedAt
                     : ultimo.ModeratedAt ?? ultimo.CreatedAt,
-                ultimo.Id))
+                ultimo.PublicId)
             : null;
 
         return new ModerationQueueViewModel(

@@ -47,7 +47,7 @@ public sealed record ModerationFilter(
 /// </summary>
 /// <param name="State">A aba de onde veio: o cursor de uma aba nao vale na outra.</param>
 /// <param name="At">O <c>created_at</c> (fila) ou o <c>moderated_at</c> (historico) da ultima linha.</param>
-/// <param name="Id">O desempate da ultima linha.</param>
+/// <param name="Id">O desempate da ultima linha: o Id, achado pelo identificador publico que viaja no cursor. O Id nunca sai da API.</param>
 public sealed record ModerationCursor(ReportModerationStateEnum State, DateTime At, long Id);
 
 /// <summary>Quantos relatos ha em cada aba da moderacao.</summary>
