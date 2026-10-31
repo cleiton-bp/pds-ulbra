@@ -18,6 +18,10 @@ set -a
 # shellcheck disable=SC1090
 . "$ENV_ARQ"
 set +a
+# O endereco do tempo real (WebSocket) e o da API com o esquema trocado: a politica de
+# conteudo do painel libera os dois.
+API_WSS_URL=${API_URL/#https:/wss:}
+export API_WSS_URL=${API_WSS_URL/#http:/ws:}
 
 # Antes de qualquer coisa: todo nome do modelo (deploy/env.producao.exemplo) com valor. Os
 # valores nao estao no repositorio, que e publico; faltando algum, para aqui e diz qual.
@@ -49,7 +53,11 @@ montar() {
   local nome=$1; shift
   local id extra=()
   [ "${ATUALIZAR_BASES:-}" = 1 ] && extra=(--pull --no-cache)
-  id=$(docker build -q "${extra[@]}" "$@") || falha "a imagem $nome nao montou (rode de novo sem -q para ver o erro: docker build $*)"
+  # Sem os atestados do BuildKit (proveniencia e SBOM): no armazenamento do containerd, que
+  # o Docker novo liga por padrao, eles levam o horario da montagem, e o id mudava a cada
+  # subida mesmo sem mudanca nenhuma, reiniciando tudo. As imagens nao saem da maquina,
+  # entao os atestados nao serviriam a ninguem aqui.
+  id=$(docker build -q --provenance=false --sbom=false "${extra[@]}" "$@") || falha "a imagem $nome nao montou (rode de novo sem -q para ver o erro: docker build $*)"
   id=${id#sha256:}
   docker tag "$id" "relatofacil/$nome:${id:0:12}"
   echo "${id:0:12}"
@@ -62,12 +70,36 @@ montar() {
 esperar_saudavel() {
   local servico=$1 limite=${2:-180} inicio=$SECONDS imagem
   imagem=$(docker service inspect "$servico" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'); imagem=${imagem%@*}
-  until ! docker service ps "$servico" -f desired-state=running --format '{{.Image}}' | sed 's/@.*//' | grep -qv -x -F "$imagem" \
-        && [ -n "$(docker ps -q -f "name=${servico}\." -f "ancestor=$imagem" -f health=healthy | head -1)" ]; do
+  until tarefa_em_dia_saudavel "$servico" "$imagem"; do
     (( SECONDS - inicio > limite )) && falha "$servico nao ficou saudavel em ${limite}s (docker service ps $servico --no-trunc)"
     sleep 3
   done
   echo "$servico: saudavel em $imagem"
+}
+
+# Os campos da especificacao que um deploy muda: imagem, ambiente, comando, redes, volumes,
+# limites, sonda, hostname, segredos, configs, rotulos, usuario e o ForceUpdate. Conferir so
+# a imagem aceitava, numa troca de rede ou de ambiente, o conteiner antigo ainda saudavel, e
+# o passo seguinte falava com quem estava para sair. A especificacao inteira nao serve: o
+# Swarm guarda a do servico com valores padrao que a da tarefa omite, e o horario de
+# atualizacao muda a cada deploy, mesmo sem mudanca. Pelo mesmo motivo ficam de fora a
+# politica de reinicio e o tempo de parada: sem declarar, o servico mostra o padrao e a
+# tarefa vem vazia, e a espera nunca acabaria.
+CAMPOS_DA_TAREFA='{{.ContainerSpec.Image}}|{{json .ContainerSpec.Env}}|{{json .ContainerSpec.Command}}|{{json .ContainerSpec.Args}}|{{range .Networks}}{{.Target}} {{end}}|{{json .ContainerSpec.Mounts}}|{{json .Resources}}|{{json .ContainerSpec.Healthcheck}}|{{.ContainerSpec.Hostname}}|{{json .ContainerSpec.Secrets}}|{{json .ContainerSpec.Configs}}|{{json .ContainerSpec.Labels}}|{{.ContainerSpec.User}}|{{.ForceUpdate}}'
+
+# Uma tarefa rodando com a especificacao de agora, e o conteiner dela na imagem e saudavel.
+tarefa_em_dia_saudavel() {
+  local servico=$1 imagem=$2 alvo t estado conteiner
+  alvo=$(docker service inspect "$servico" --format "{{with .Spec.TaskTemplate}}$CAMPOS_DA_TAREFA{{end}}")
+  for t in $(docker service ps "$servico" -q -f desired-state=running); do
+    [ "$(docker inspect "$t" --format "{{with .Spec}}$CAMPOS_DA_TAREFA{{end}}" 2>/dev/null)" = "$alvo" ] || continue
+    read -r estado conteiner <<<"$(docker inspect "$t" --format '{{.Status.State}} {{.Status.ContainerStatus.ContainerID}}' 2>/dev/null)"
+    [ "$estado" = running ] && [ -n "$conteiner" ] || continue
+    case "$(docker inspect "$conteiner" --format '{{.Config.Image}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null)" in
+      "$imagem"*" healthy") return 0 ;;
+    esac
+  done
+  return 1
 }
 
 passo "1. Imagens"
@@ -86,13 +118,38 @@ printf '%s\n' "api $TAG_API" "migracao $TAG_MIGRACAO" "fila $TAG_FILA" "painel $
   "editor $TAG_EDITOR" "borda $TAG_BORDA" "copias $TAG_COPIAS"
 
 passo "2. Redes"
-# Faixas fixas: a API confia so na da borda (TRUSTED_PROXIES no stack-app.yml).
-docker network inspect relatofacil-borda >/dev/null 2>&1 \
-  || docker network create --driver overlay --attachable --subnet 10.77.1.0/24 relatofacil-borda
-docker network inspect relatofacil-dados >/dev/null 2>&1 \
-  || docker network create --driver overlay --attachable --internal --subnet 10.77.2.0/24 relatofacil-dados
+# Cria cada rede, ou confere a que ja existe: uma criada antes com outra faixa, ou sem ser
+# interna, ficaria como estava sem nada acusar. A API confia so na faixa da borda
+# (TRUSTED_PROXIES no stack-app.yml), e os dados e a midia nao tem saida.
+rede() {
+  local nome=$1 faixa=$2 interna=$3 esperado atual
+  esperado="overlay $interna true $faixa"
+  if ! docker network inspect "$nome" >/dev/null 2>&1; then
+    if [ "$interna" = true ]; then
+      docker network create --driver overlay --attachable --internal --subnet "$faixa" "$nome" >/dev/null
+    else
+      docker network create --driver overlay --attachable --subnet "$faixa" "$nome" >/dev/null
+    fi
+  fi
+  atual=$(docker network inspect "$nome" --format '{{.Driver}} {{.Internal}} {{.Attachable}} {{range .IPAM.Config}}{{.Subnet}}{{end}}')
+  [ "$atual" = "$esperado" ] \
+    || falha "a rede $nome existe com outra configuracao ($atual, e nao $esperado): pare as pilhas, remova a rede e rode de novo"
+  echo "$nome: $faixa$([ "$interna" = true ] && echo ', interna')"
+}
+rede relatofacil-borda 10.77.1.0/24 false
+rede relatofacil-dados 10.77.2.0/24 true
+# A midia numa rede propria, so com a API e as copias: ela atende o publico pela borda, e
+# uma falha nela nao alcanca o banco nem a fila, que ficam so na rede de dados.
+rede relatofacil-midia 10.77.3.0/24 true
 
 passo "3. Dados"
+# Antes de trocar a versao da fila: a 4.x so sobe em cima dos dados de uma versao anterior com
+# todas as feature flags estaveis ligadas. Ligar e idempotente, e sem fila de pe nao ha o que ligar.
+fila=$(docker ps -q -f name=relatofacil-dados_fila -f health=healthy | head -1)
+if [ -n "$fila" ]; then
+  docker exec "$fila" rabbitmqctl -q enable_feature_flag all >/dev/null \
+    || falha "nao consegui ligar as feature flags da fila (docker exec $fila rabbitmqctl list_feature_flags)"
+fi
 docker stack deploy --resolve-image never -c "$RAIZ/deploy/stack-dados.yml" relatofacil-dados
 esperar_saudavel relatofacil-dados_banco
 esperar_saudavel relatofacil-dados_fila 240
@@ -118,7 +175,7 @@ passo "5. Balde e usuarios da midia"
 # Com o administrador do MinIO, e so aqui: o balde privado, os envios nao confirmados
 # (uploads/) sumindo em 1 dia, e um usuario para a API e outro para as copias, cada um com o
 # minimo (deploy/midia/). Idempotente.
-docker run --rm --network relatofacil-dados -v "$RAIZ/deploy/midia:/midia:ro" \
+docker run --rm --network relatofacil-midia -v "$RAIZ/deploy/midia:/midia:ro" \
   -e "ADMIN_USUARIO=$MIDIA_ADMIN_USUARIO" -e "ADMIN_SENHA=$MIDIA_ADMIN_SENHA" \
   -e "API_USUARIO=$MIDIA_API_USUARIO" -e "API_SENHA=$MIDIA_API_SENHA" \
   -e "COPIAS_USUARIO=$MIDIA_COPIAS_USUARIO" -e "COPIAS_SENHA=$MIDIA_COPIAS_SENHA" \
@@ -140,7 +197,8 @@ docker run --rm --network relatofacil-dados -v "$RAIZ/deploy/midia:/midia:ro" \
 
 passo "6. Migracao"
 # Antes da API nova: ela so sobe com o banco ja no formato dela. A migracao precisa aceitar
-# a versao anterior rodando junto por alguns segundos (secao 8, item 3, do estudo).
+# a versao anterior rodando junto por alguns segundos: renomear ou apagar coluna vira dois
+# deploys (acrescenta, migra os dados e so no seguinte remove).
 docker run --rm --network relatofacil-dados \
   -e "DB_CONNECTION_STRING=Host=banco;Port=5432;Database=relatofacil;Username=relatofacil;Password=$BANCO_SENHA" \
   "relatofacil/migracao:$TAG_MIGRACAO"
@@ -218,6 +276,7 @@ conferir "$API_URL/health/ready"
 conferir "$PAINEL_URL/"
 conferir "$EDITOR_URL/api/modeling/files"
 conferir "$PAINEL_URL/embed.html" 404
+conferir "$API_URL/" 404
 
 passo "Pronto"
 docker service ls --filter label=com.docker.stack.namespace=relatofacil --format '{{.Name}}  {{.Replicas}}  {{.Image}}'

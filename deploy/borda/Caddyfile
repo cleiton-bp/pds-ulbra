@@ -2,7 +2,7 @@
 # enderecos vem do deploy/.env.producao, pelo stack-app.yml.
 {
 	admin off
-	# O Let's Encrypt avisa este e-mail se um certificado nao renovar.
+	# O contato da conta do certificado no Let's Encrypt, que nao manda mais aviso de vencimento.
 	email {$ACME_EMAIL}
 }
 
@@ -11,9 +11,18 @@
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 }
 
+# Quem chama nao precisa saber qual servidor responde nem por onde a resposta passou.
+(discreto) {
+	header {
+		-Server
+		-Via
+	}
+}
+
 # O painel do time.
 {$PAINEL_URL} {
 	import hsts
+	import discreto
 	reverse_proxy painel:80
 }
 
@@ -21,29 +30,33 @@
 # inclusive, a API poe sozinha. O IP de quem chama segue no X-Forwarded-For, e a API so le
 # dele porque a rede da borda esta no TRUSTED_PROXIES.
 {$API_URL} {
+	import discreto
 	encode zstd gzip
-	reverse_proxy api:8080 {
-		# Quem chama nao precisa saber qual servidor responde.
-		header_down -Server
-	}
+	reverse_proxy api:8080
 }
 
 # A midia: o navegador envia e le aqui, com a permissao assinada que a API entrega.
 {$MIDIA_URL} {
 	import hsts
-	reverse_proxy midia:9000 {
-		header_down -Server
-	}
+	import discreto
+	# O que o MinIO serve em /minio/ (administracao, chaves, metricas e as rotas internas)
+	# nao tem o que fazer aqui fora: o implantar.sh prepara tudo pela rede interna. Fechado
+	# na borda, nem chega ao MinIO quem tentar adivinhar a senha do administrador.
+	@interno path /minio/*
+	respond @interno 404
+	reverse_proxy midia:9000
 }
 
 # O editor de modelagem, so leitura.
 {$EDITOR_URL} {
 	import hsts
+	import discreto
 	reverse_proxy editor:80
 }
 
 # O dominio puro e o www levam ao painel.
 {$RAIZ_ENDERECO} {
 	import hsts
+	import discreto
 	redir {$PAINEL_URL}{uri}
 }

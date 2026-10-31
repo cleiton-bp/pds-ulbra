@@ -45,7 +45,11 @@ PermitRootLogin prohibit-password
 EOF
 # Recarrega se o servico estiver de pe; se nao (entrada por soquete), reinicia.
 sshd -t && { systemctl reload ssh 2>/dev/null || systemctl restart ssh; }
-echo "entrada por senha: $(sshd -T | awk '/^passwordauthentication/ {print $2}')"
+# Confere o que vale de fato: um arquivo lido antes do nosso ganharia dele sem nada acusar.
+senha=$(sshd -T | awk '/^passwordauthentication/ {print $2}')
+teclado=$(sshd -T | awk '/^kbdinteractiveauthentication/ {print $2}')
+echo "entrada por senha: $senha (teclado interativo: $teclado)"
+[ "$senha" = no ] && [ "$teclado" = no ] || { echo "o SSH ainda aceita senha: confira /etc/ssh/sshd_config e /etc/ssh/sshd_config.d"; exit 1; }
 
 echo "== 4. Firewall"
 ufw default deny incoming

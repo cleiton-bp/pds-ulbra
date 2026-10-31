@@ -87,7 +87,7 @@ services:
   # Os anexos. Na rede da borda tambem: o navegador envia e le por midia.<dominio>.
   midia:
     image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
-    command: ["server", "/data", "--console-address", ":9001"]
+    command: ["server", "/data"]
     # O administrador do MinIO so prepara o balde e os usuarios (implantar.sh). A API e as
     # copias tem usuarios proprios, cada um com o minimo (deploy/midia/).
     environment:
@@ -95,10 +95,14 @@ services:
       MINIO_ROOT_PASSWORD: ${MIDIA_ADMIN_SENHA:?}
       # Quem envia e le anexos direto do navegador: o quadro (na CDN) e o painel.
       MINIO_API_CORS_ALLOW_ORIGIN: ${QUADRO_URL:?},${PAINEL_URL:?}
+      # Sem o console: ninguem administra a midia pelo navegador.
+      MINIO_BROWSER: "off"
     volumes:
       - midia-dados:/data
+    # Fora da rede de dados: o banco e a fila nao ficam ao alcance de uma falha na midia, que
+    # e o outro servico aberto ao publico alem da API.
     networks:
-      - dados
+      - midia
       - borda
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
@@ -131,6 +135,7 @@ services:
       - copias:/copias
     networks:
       - dados
+      - midia
     deploy:
       <<: *sempre
       resources:
@@ -141,6 +146,9 @@ networks:
   dados:
     external: true
     name: relatofacil-dados
+  midia:
+    external: true
+    name: relatofacil-midia
   borda:
     external: true
     name: relatofacil-borda
