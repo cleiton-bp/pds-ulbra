@@ -1,12 +1,15 @@
 # Os cabecalhos do quadro na CDN (Cloudflare Pages le este arquivo da raiz do pacote).
 # Tudo aqui roda dentro dos sites dos clientes, entao pode ser embutido por qualquer origem.
+# E um modelo: o montar-quadro.sh troca __API_URL__ e __MIDIA_URL__ pelos enderecos do
+# .env.producao. A politica de conteudo deixa script so daqui, e conexao so com a API e a
+# midia; o estilo embutido fica liberado pelo mesmo motivo do painel.
 
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy: frame-ancestors *
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: __MIDIA_URL__; connect-src 'self' __API_URL__ __MIDIA_URL__; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors *
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
@@ -18,4 +21,7 @@
   Cache-Control: no-cache
 
 /tracking.html
+  Cache-Control: no-cache
+
+/teste-do-botao.html
   Cache-Control: no-cache

@@ -21,8 +21,8 @@ export const environment = {
   /** Nulo significa "sem Google configurado", e a tela de entrada avisa. */
   googleClientId: readText(import.meta.env.VITE_GOOGLE_CLIENT_ID) || null,
   /**
-   * De onde o carregador e servido. Hoje e a propria origem do painel, que e
-   * quem publica `/v1/pds.js`; quando houver dominio proprio, muda aqui.
+   * De onde o carregador e servido: em producao, a CDN do quadro (`VITE_LOADER_URL`);
+   * sem ela, a propria origem do painel, como no desenvolvimento.
    *
    * O caminho ja nasce com versao porque ele vai estar colado no HTML de todo
    * cliente — e aquela linha e a coisa mais cara de mudar depois.
@@ -38,6 +38,13 @@ export const environment = {
    * abre.
    */
   embedUrl: `${new URL(loaderUrl).origin}/embed.html`,
+
+  /**
+   * A pagina de mentira do sistema do cliente, onde o relato de teste e feito: ao lado
+   * do carregador, na origem do quadro. Na do painel, o carregador dividiria a origem
+   * com a sessao do time, e por isso o painel nem serve esta pagina.
+   */
+  testPageUrl: `${new URL(loaderUrl).origin}/teste-do-botao.html`,
 
   /**
    * A pagina publica de acompanhamento, derivada da mesma origem — ela e o

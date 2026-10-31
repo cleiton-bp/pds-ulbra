@@ -16,20 +16,7 @@
 
       Chave e precedência são as mesmas do `themeStore.ts`, e precisam continuar iguais.
     -->
-    <script>
-      try {
-        var stored = localStorage.getItem('pds.web.theme.v1')
-        var theme =
-          stored === 'light' || stored === 'dark'
-            ? stored
-            : matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark'
-              : 'light'
-        document.documentElement.setAttribute('data-theme', theme)
-      } catch (e) {
-        // Armazenamento bloqueado: cai no claro, e o bundle corrige em seguida.
-      }
-    </script>
+    <script src="/tema.js"></script>
 
     <!-- `preconnect` reduz a espera do primeiro texto. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
