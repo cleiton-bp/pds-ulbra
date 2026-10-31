@@ -9,6 +9,7 @@ using Pds.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using Pds.Domain.Constants;
+using Pds.Domain.Text;
 using Pds.Shared.DependencyInjection;
 using Pds.Email;
 using Pds.Storage;
@@ -313,25 +314,32 @@ public class Startup
             await next();
         });
 
-        // Documentacao do projeto servida na raiz, a partir da pasta api-docs.
-        // Vem antes de tudo por ser conteudo estatico: nao precisa passar por
-        // autenticacao nem por limite de requisicao.
-        app.UseDefaultFiles();
-        app.UseStaticFiles(new StaticFileOptions
+        // Caractere de controle na URL nao chega a rota nenhuma (ver RejectControlCharactersInQuery).
+        app.Use(RejectControlCharactersInQuery);
+
+        // Documentacao do projeto servida na raiz, a partir da pasta api-docs, so em
+        // desenvolvimento, como o Swagger: em producao ela mostraria a qualquer um o desenho
+        // do sistema (rotas, isolamento, regras de seguranca), e a raiz responde 404. Vem
+        // antes de tudo por ser conteudo estatico: nao passa por autenticacao nem por limite.
+        if (env.IsDevelopment())
         {
-            OnPrepareResponse = context =>
+            app.UseDefaultFiles();
+            app.UseStaticFiles(new StaticFileOptions
             {
-                // Sem Cache-Control explicito, o navegador decide sozinho por quanto
-                // tempo guarda o arquivo — e passa a mostrar documentacao velha depois
-                // de uma edicao. Pior: em localhost varios projetos dividem a mesma
-                // origem, entao um asset de outro projeto no mesmo caminho pode ser
-                // reaproveitado no lugar do nosso.
-                //
-                // no-cache nao proibe guardar, obriga a perguntar antes de usar: com
-                // o ETag, arquivo sem mudanca volta como 304 e nao paga download.
-                context.Context.Response.Headers.CacheControl = "no-cache, must-revalidate";
-            }
-        });
+                OnPrepareResponse = context =>
+                {
+                    // Sem Cache-Control explicito, o navegador decide sozinho por quanto
+                    // tempo guarda o arquivo, e passa a mostrar documentacao velha depois
+                    // de uma edicao. Pior: em localhost varios projetos dividem a mesma
+                    // origem, entao um asset de outro projeto no mesmo caminho pode ser
+                    // reaproveitado no lugar do nosso.
+                    //
+                    // no-cache nao proibe guardar, obriga a perguntar antes de usar: com
+                    // o ETag, arquivo sem mudanca volta como 304 e nao paga download.
+                    context.Context.Response.Headers.CacheControl = "no-cache, must-revalidate";
+                }
+            });
+        }
 
         if (env.IsDevelopment())
         {
@@ -353,8 +361,11 @@ public class Startup
                 options.InjectJavascript("/assets/js/swagger-back.js");
             });
         }
-        else
+        else if (TrustedForwarding() is null)
         {
+            // Atras da borda, e ela quem forca o HTTPS: a API so recebe HTTP da rede
+            // interna, inclusive a checagem de saude, e sem a porta do HTTPS este passo
+            // so avisava, a cada subida, que nao sabia para onde mandar.
             app.UseHttpsRedirection();
         }
 
@@ -378,6 +389,26 @@ public class Startup
             endpoints.MapControllers();
             endpoints.MapPdsRealtime();
         });
+    }
+
+    /// <summary>
+    /// Recusa com 400 o pedido com caractere de controle na URL, como o byte nulo. Os textos
+    /// da URL vao ao banco como parametro, e o PostgreSQL recusa o 0x00 com erro 500. O JSON
+    /// ja chega limpo, pelo ControlCharacterStringConverter.
+    /// </summary>
+    private static async Task RejectControlCharactersInQuery(HttpContext context, RequestDelegate next)
+    {
+        if (context.Request.Query.Any(par => ControlCharacters.Has(par.Key)
+                                             || par.Value.Any(valor => valor is not null && ControlCharacters.Has(valor))))
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json; charset=utf-8";
+            var corpo = new ApiResponse<object>(Success: false, Message: "Endereco com caractere invalido.", Data: null);
+            await context.Response.WriteAsync(JsonSerializer.Serialize(corpo, PdsJsonOptions.Create()), context.RequestAborted);
+            return;
+        }
+
+        await next(context);
     }
 
     /// <summary>1 depois do aviso de proxy sem lista: ele sai uma vez so por processo.</summary>

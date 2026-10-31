@@ -29,6 +29,8 @@ public static class PdsJsonOptions
         // Enum como texto: um "1" no JSON nao diz nada a quem le a resposta.
         options.Converters.Add(new JsonStringEnumConverter(namingPolicy: null));
         options.Converters.Add(new UtcDateTimeJsonConverter());
+        // Texto sem caractere de controle: o byte nulo derrubava a gravacao no banco.
+        options.Converters.Add(new ControlCharacterStringConverter());
     }
 
     /// <summary>Opcoes prontas, para uso fora do pipeline do ASP.NET.</summary>
