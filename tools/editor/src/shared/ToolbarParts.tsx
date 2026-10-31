@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { type TourTarget, tourTarget } from '../tour/targets'
 import Icon, { type IconName } from './Icon'
 import { useNavigation } from './navigation'
+import { SOMENTE_LEITURA } from './readOnly'
 import type { SaveStatus } from './useWorkspace'
 
 /**
@@ -63,6 +64,7 @@ export function SaveBadge({ status }: { status: SaveStatus }) {
  * grava sozinho.
  */
 export function EditToggle({ editing, onToggle }: { editing: boolean; onToggle: () => void }) {
+  if (SOMENTE_LEITURA) return null
   return (
     <button
       {...tourTarget('edit')}

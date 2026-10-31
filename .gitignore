@@ -4,3 +4,7 @@ web/docs/
 
 # Lixo que o Finder cria em qualquer pasta aberta
 .DS_Store
+
+# As senhas de cada ambiente do deploy e o pacote montado da CDN
+deploy/.env.*
+deploy/saida/

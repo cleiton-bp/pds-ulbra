@@ -1,0 +1,152 @@
+# A pilha dos dados: o que guarda estado. Muda pouco, e nunca roda duas copias ao mesmo tempo
+# (stop-first): dois PostgreSQL no mesmo volume corrompem o banco.
+#
+# Nao suba na mao: o implantar.sh carrega as variaveis do .env e sobe esta pilha antes da
+# aplicacao (stack-app.yml). As redes sao criadas por ele, com faixas fixas.
+#
+# Nada aqui tem porta aberta: so a borda fala com a internet.
+version: "3.9"
+
+x-sempre: &sempre
+  restart_policy:
+    condition: any
+    delay: 5s
+  update_config:
+    order: stop-first
+    failure_action: rollback
+
+services:
+  banco:
+    image: postgres:17.11-alpine
+    # Para 8 GB divididos com o resto da pilha. Ver deploy/README.md, "A maquina".
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - max_connections=100
+    # O superusuario (postgres) e so para manutencao. A API, a migracao e as copias entram com
+    # o usuario da aplicacao (relatofacil), comum e dono do banco, que o implantar.sh cria:
+    # se um dia houver injecao de SQL, ele nao executa comando no conteiner nem sai do banco.
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${BANCO_ADMIN_SENHA:?}
+      POSTGRES_DB: relatofacil
+    volumes:
+      - banco-dados:/var/lib/postgresql/data
+      # O /dev/shm padrao (64 MB) e pouco para consultas em paralelo.
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: 268435456
+    networks:
+      - dados
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "relatofacil"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 60s
+    deploy:
+      <<: *sempre
+      resources:
+        limits:
+          memory: 2G
+
+  # A fila, com o plugin de mensagem atrasada (imagem propria, api/rabbitmq/Dockerfile). O
+  # nome do host fixo e o que faz o RabbitMQ achar os proprios dados depois de reiniciar.
+  fila:
+    image: relatofacil/fila:${TAG_FILA:?}
+    hostname: fila
+    environment:
+      RABBITMQ_DEFAULT_USER: ${FILA_USUARIO:?}
+      RABBITMQ_DEFAULT_PASS: ${FILA_SENHA:?}
+    volumes:
+      - fila-dados:/var/lib/rabbitmq
+    networks:
+      - dados
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      <<: *sempre
+      resources:
+        limits:
+          memory: 768M
+
+  # Os anexos. Na rede da borda tambem: o navegador envia e le por midia.<dominio>.
+  midia:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    # O administrador do MinIO so prepara o balde e os usuarios (implantar.sh). A API e as
+    # copias tem usuarios proprios, cada um com o minimo (deploy/midia/).
+    environment:
+      MINIO_ROOT_USER: ${MIDIA_ADMIN_USUARIO:?}
+      MINIO_ROOT_PASSWORD: ${MIDIA_ADMIN_SENHA:?}
+      # Quem envia e le anexos direto do navegador: o quadro (na CDN) e o painel.
+      MINIO_API_CORS_ALLOW_ORIGIN: ${QUADRO_URL:?},${PAINEL_URL:?}
+    volumes:
+      - midia-dados:/data
+    networks:
+      - dados
+      - borda
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      <<: *sempre
+      resources:
+        limits:
+          memory: 512M
+
+  # A copia diaria do banco e dos anexos, num volume proprio (deploy/copias/).
+  copias:
+    image: relatofacil/copias:${TAG_COPIAS:?}
+    environment:
+      # 06:00 em UTC sao 3h em Brasilia: a hora de menos uso.
+      TZ: UTC
+      HORA: "06:00"
+      MANTER: "14"
+      PGHOST: banco
+      PGUSER: relatofacil
+      PGPASSWORD: ${BANCO_SENHA:?}
+      PGDATABASE: relatofacil
+      MIDIA_USUARIO: ${MIDIA_COPIAS_USUARIO:?}
+      MIDIA_SENHA: ${MIDIA_COPIAS_SENHA:?}
+      MIDIA_BALDE: relatofacil-midia
+    volumes:
+      - copias:/copias
+    networks:
+      - dados
+    deploy:
+      <<: *sempre
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  dados:
+    external: true
+    name: relatofacil-dados
+  borda:
+    external: true
+    name: relatofacil-borda
+
+volumes:
+  banco-dados:
+  fila-dados:
+  midia-dados:
+  copias:

@@ -1,0 +1,159 @@
+# A pilha da aplicacao: a borda, o painel, o editor e a API. E o que muda a cada deploy.
+#
+# Nao suba na mao: o implantar.sh monta as imagens, roda a migracao e so entao sobe esta
+# pilha, com as variaveis do .env. Cada imagem tem a etiqueta do proprio conteudo (TAG_API,
+# TAG_PAINEL...): um deploy so troca o servico cuja imagem mudou de verdade.
+#
+# O que o Swarm da aqui, e o compose nao dava: conteiner que falha a sonda e trocado sozinho
+# (a API travada volta), e a versao nova sobe ao lado da antiga e so a substitui depois de
+# responder (start-first); se nao responder, volta sozinha para a anterior.
+version: "3.9"
+
+x-sem-parar: &sem-parar
+  restart_policy:
+    condition: any
+    delay: 5s
+  update_config:
+    order: start-first
+    failure_action: rollback
+    monitor: 30s
+  rollback_config:
+    order: start-first
+
+services:
+  # O unico servico com porta aberta. Porta no modo host, e nao pela malha do Swarm: assim a
+  # borda ve o IP de verdade de quem chama, e os limites por IP da API valem por pessoa.
+  # Por isso a troca e stop-first: duas bordas nao abrem a mesma porta.
+  borda:
+    image: relatofacil/borda:${TAG_BORDA:?}
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?}
+      PAINEL_URL: ${PAINEL_URL:?}
+      API_URL: ${API_URL:?}
+      MIDIA_URL: ${MIDIA_URL:?}
+      EDITOR_URL: ${EDITOR_URL:?}
+      RAIZ_ENDERECO: ${RAIZ_ENDERECO:?}
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: udp
+        mode: host
+    volumes:
+      - borda-dados:/data
+      - borda-config:/config
+    networks:
+      - borda
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        order: stop-first
+        failure_action: rollback
+      resources:
+        limits:
+          memory: 256M
+
+  painel:
+    image: relatofacil/painel:${TAG_PAINEL:?}
+    volumes:
+      # Os pedacos das versoes anteriores, para quem esta com o painel aberto num deploy.
+      - painel-pedacos:/srv/pedacos
+    networks:
+      - borda
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      <<: *sem-parar
+      resources:
+        limits:
+          memory: 128M
+
+  editor:
+    image: relatofacil/editor:${TAG_EDITOR:?}
+    networks:
+      - borda
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/api/modeling/files"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      <<: *sem-parar
+      resources:
+        limits:
+          memory: 128M
+
+  # A API, com os workers e o tempo real dentro. Uma replica: com duas, os avisos em tempo
+  # real e os limites por IP precisam de mudancas (secao 8 do estudo de hospedagem). No
+  # deploy, por alguns segundos, a nova e a antiga rodam juntas, cada uma com ate 20
+  # conexoes no banco.
+  api:
+    image: relatofacil/api:${TAG_API:?}
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Logging__Console__FormatterName: json
+      DB_CONNECTION_STRING: Host=banco;Port=5432;Database=relatofacil;Username=relatofacil;Password=${BANCO_SENHA:?}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?}
+      JWT_EXPIRATION_HOURS: "8"
+      # As duas origens que falam com a API: o painel e o quadro (na CDN). Separadas de
+      # proposito (V3): um XSS no quadro nao alcanca a sessao do painel.
+      CORS_ALLOWED_ORIGINS: ${PAINEL_URL},${QUADRO_URL}
+      PANEL_URL: ${PAINEL_URL}
+      # So a rede da borda e de confianca: o IP de quem chama sai do X-Forwarded-For dela.
+      TRUSTED_PROXIES: 10.77.1.0/24
+      RABBITMQ_URL: amqp://${FILA_USUARIO:?}:${FILA_SENHA:?}@fila:5672/
+      MEDIA_STORAGE_ENDPOINT: http://midia:9000
+      MEDIA_STORAGE_PUBLIC_ENDPOINT: ${MIDIA_URL}
+      # O usuario da API no MinIO, so com ler, gravar e apagar no balde (deploy/midia/).
+      MEDIA_STORAGE_ACCESS_KEY: ${MIDIA_API_USUARIO:?}
+      MEDIA_STORAGE_SECRET_KEY: ${MIDIA_API_SENHA:?}
+      MEDIA_STORAGE_BUCKET: relatofacil-midia
+      Smtp__Host: ${SMTP_HOST:?}
+      Smtp__Port: ${SMTP_PORT:?}
+      Smtp__Security: ${SMTP_SEGURANCA:?}
+      Smtp__Username: ${SMTP_USUARIO:-}
+      Smtp__Password: ${SMTP_SENHA:-}
+      Smtp__FromAddress: ${SMTP_REMETENTE:?}
+      Smtp__FromName: ${SMTP_NOME:?}
+    networks:
+      - borda
+      - dados
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
+    deploy:
+      <<: *sem-parar
+      replicas: 1
+      resources:
+        limits:
+          memory: 1G
+
+networks:
+  borda:
+    external: true
+    name: relatofacil-borda
+  dados:
+    external: true
+    name: relatofacil-dados
+
+volumes:
+  borda-dados:
+  borda-config:
+  painel-pedacos:

@@ -5,6 +5,7 @@ import { ENVIRONMENTS, type Environment, type EnvironmentId } from '../shared/en
 import { useNavigation } from '../shared/navigation'
 import { lastFile } from '../shared/session'
 import type { FileEntry } from '../shared/types'
+import { SOMENTE_LEITURA } from '../shared/readOnly'
 
 /**
  * A porta de entrada. Responde, sem clique nenhum, as tres perguntas de quem chega:
@@ -85,7 +86,7 @@ function EnvironmentCard({ env, files }: CardProps) {
           )}
           <span className="env-card__arrow" aria-hidden="true">→</span>
         </button>
-        <button className="btn env-card__new" onClick={startNew}>+ {newLabel}</button>
+        {!SOMENTE_LEITURA && <button className="btn env-card__new" onClick={startNew}>+ {newLabel}</button>}
       </div>
 
       <div className="env-card__files">
@@ -98,7 +99,7 @@ function EnvironmentCard({ env, files }: CardProps) {
         {files === null && <p className="env-card__note">lista indisponível</p>}
         {files?.length === 0 && (
           <p className="env-card__note">
-            Nenhum arquivo ainda. <button className="link" onClick={startNew}>criar o primeiro</button>
+            Nenhum arquivo ainda.{!SOMENTE_LEITURA && <> <button className="link" onClick={startNew}>criar o primeiro</button></>}
           </p>
         )}
 

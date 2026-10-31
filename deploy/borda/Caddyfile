@@ -1,0 +1,49 @@
+# A borda: termina o HTTPS e entrega cada endereco ao servico dele, na rede interna. Os
+# enderecos vem do deploy/.env.producao, pelo stack-app.yml.
+{
+	admin off
+	# O Let's Encrypt avisa este e-mail se um certificado nao renovar.
+	email {$ACME_EMAIL}
+}
+
+# O navegador passa a so usar HTTPS nestes enderecos por um ano.
+(hsts) {
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+# O painel do time.
+{$PAINEL_URL} {
+	import hsts
+	reverse_proxy painel:80
+}
+
+# A API, o tempo real (WebSocket) e a documentacao da API. Os cabecalhos de seguranca, o HSTS
+# inclusive, a API poe sozinha. O IP de quem chama segue no X-Forwarded-For, e a API so le
+# dele porque a rede da borda esta no TRUSTED_PROXIES.
+{$API_URL} {
+	encode zstd gzip
+	reverse_proxy api:8080 {
+		# Quem chama nao precisa saber qual servidor responde.
+		header_down -Server
+	}
+}
+
+# A midia: o navegador envia e le aqui, com a permissao assinada que a API entrega.
+{$MIDIA_URL} {
+	import hsts
+	reverse_proxy midia:9000 {
+		header_down -Server
+	}
+}
+
+# O editor de modelagem, so leitura.
+{$EDITOR_URL} {
+	import hsts
+	reverse_proxy editor:80
+}
+
+# O dominio puro e o www levam ao painel.
+{$RAIZ_ENDERECO} {
+	import hsts
+	redir {$PAINEL_URL}{uri}
+}

@@ -24,6 +24,7 @@ import { useChanges } from './hooks/useChanges'
 import { useModelActions } from './hooks/useModelActions'
 import { COMMON_TYPES } from './model/constants'
 import type { Position, Selection } from './types'
+import { SOMENTE_LEITURA } from '../shared/readOnly'
 
 const ENV = environmentById('modeling')
 
@@ -50,7 +51,9 @@ export default function App() {
   const [notesMode, setNotesMode] = useStickyChoice('modeling:notes-mode', NOTE_MODES, 'markers')
   // Abre em leitura: entender o arquivo nao pode correr o risco de mexer nele, que
   // grava sozinho. Editar e uma escolha, e fica lembrada.
-  const [editing, toggleEditing] = useStickyToggle('modeling:editing', false)
+  const [editingChosen, toggleEditing] = useStickyToggle('modeling:editing', false)
+  // Publicado so para leitura, a escolha guardada nao vale: ver `readOnly.ts`.
+  const editing = editingChosen && !SOMENTE_LEITURA
   const locked = !editing
 
   const [searching, setSearching] = useState(false)

@@ -30,6 +30,12 @@ public abstract class BaseController : ControllerBase
     /// </summary>
     protected IActionResult HandleError(Exception exception)
     {
+        // Quem chamou desistiu no meio (fechou a pagina, navegou para outra): nao e falha
+        // do servidor, e ninguem vai ler a resposta. Fica fora do log de erros, que no ar e
+        // o que se vigia. O 499 e o codigo de costume para "o cliente fechou o pedido".
+        if (exception is OperationCanceledException && HttpContext.RequestAborted.IsCancellationRequested)
+            return StatusCode(499);
+
         if (exception is not (ArgumentException or UnauthorizedAccessException or ForbiddenException
             or KeyNotFoundException or ConflictException or TooManyRequestsException))
         {
