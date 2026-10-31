@@ -144,11 +144,17 @@ rede relatofacil-midia 10.77.3.0/24 true
 
 passo "3. Dados"
 # Antes de trocar a versao da fila: a 4.x so sobe em cima dos dados de uma versao anterior com
-# todas as feature flags estaveis ligadas. Ligar e idempotente, e sem fila de pe nao ha o que ligar.
+# todas as feature flags estaveis ligadas. So numa fila 3.x: na 4.x o "all" liga tambem o
+# khepri_db, que troca o armazenamento interno sem volta e para o complemento das mensagens
+# atrasadas. Sem fila de pe nao ha o que ligar.
 fila=$(docker ps -q -f name=relatofacil-dados_fila -f health=healthy | head -1)
 if [ -n "$fila" ]; then
-  docker exec "$fila" rabbitmqctl -q enable_feature_flag all >/dev/null \
-    || falha "nao consegui ligar as feature flags da fila (docker exec $fila rabbitmqctl list_feature_flags)"
+  versao=$(docker exec "$fila" rabbitmq-diagnostics -q server_version) \
+    || falha "nao consegui ler a versao da fila (docker exec $fila rabbitmq-diagnostics server_version)"
+  if [[ "$versao" == 3.* ]]; then
+    docker exec "$fila" rabbitmqctl -q enable_feature_flag all >/dev/null \
+      || falha "nao consegui ligar as feature flags da fila (docker exec $fila rabbitmqctl list_feature_flags)"
+  fi
 fi
 docker stack deploy --resolve-image never -c "$RAIZ/deploy/stack-dados.yml" relatofacil-dados
 esperar_saudavel relatofacil-dados_banco
