@@ -459,7 +459,7 @@ public class CloseReportDto
 public class ReporterCodeLookupDto
 {
     /// <summary>A chave pública do projeto, que diz onde o código vale.</summary>
-    /// <example>pk_1R0KtQwz</example>
+    /// <example>pk_EXEMPLO1</example>
     public string? Key { get; set; }
 
     /// <summary>O código que a pessoa guardou.</summary>
@@ -476,7 +476,7 @@ public class ReporterCodeLookupDto
 public class IdentityLookupDto
 {
     /// <summary>A chave pública do projeto — e a audiência do token.</summary>
-    /// <example>pk_1R0KtQwz</example>
+    /// <example>pk_EXEMPLO1</example>
     public string? Key { get; set; }
     /// <summary>O token assinado pelo sistema do cliente, que diz quem é a pessoa.</summary>
     public string? IdentityToken { get; set; }
@@ -491,7 +491,7 @@ public class IdentityLookupDto
 public class OpenByIdentityDto
 {
     /// <summary>A chave pública do projeto — e a audiência do token.</summary>
-    /// <example>pk_1R0KtQwz</example>
+    /// <example>pk_EXEMPLO1</example>
     public string? Key { get; set; }
     /// <summary>O token assinado pelo sistema do cliente.</summary>
     public string? IdentityToken { get; set; }
@@ -511,7 +511,7 @@ public class OpenByIdentityDto
 public class OpenByReporterCodeDto
 {
     /// <summary>A chave pública do projeto.</summary>
-    /// <example>pk_1R0KtQwz</example>
+    /// <example>pk_EXEMPLO1</example>
     public string? Key { get; set; }
 
     /// <summary>O código pessoal.</summary>
