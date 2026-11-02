@@ -26,6 +26,7 @@ import { SettingsHeader } from '@/shared/components/SettingsHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
 import type { PreviewDevice, PreviewHighlight } from '@/shared/components/WidgetPreview'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { useScriptInstalled } from '@/shared/hooks/useScriptInstalled'
 import { useWidgetSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { cn } from '@/shared/lib/cn'
 
@@ -79,6 +80,7 @@ const MUDARAM_DE_TELA: Record<string, string> = {
  */
 export function WidgetSettingsScreen() {
   const project = useCurrentProject()
+  const sistemaManda = useScriptInstalled(project)
   const { draft, change, loading, failed, reload, saving, dirty, changeCount, save, discard } =
     useWidgetSettingsDraft(
       project.PublicId,
@@ -125,6 +127,7 @@ export function WidgetSettingsScreen() {
             <VisibilityPill
               id="mostrar-no-site"
               enabled={draft.IsEnabled}
+              waitingScript={sistemaManda === false}
               onChange={(IsEnabled) => change({ IsEnabled })}
             />
           )
@@ -152,6 +155,19 @@ export function WidgetSettingsScreen() {
 
       {draft && (
         <>
+          {/* Quem gostou do botao de fabrica tambem decide: publicar como esta marca o
+              passo dos primeiros passos, que antes so contava quando algo mudava. */}
+          {!draft.Published && !dirty && (
+            <div className="mb-4 flex animate-fade-in flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border bg-surface-raised px-4 py-2.5">
+              <p className="text-detail text-fg-muted">
+                Se o botão de fábrica já serve, é só mantê-lo como está.
+              </p>
+              <Button size="sm" disabled={saving} onClick={() => void save()}>
+                Manter este botão
+              </Button>
+            </div>
+          )}
+
           {!draft.IsEnabled && (
             <p className="mb-4 rounded-lg border border-warn-border bg-warn-surface px-3 py-2 text-detail text-warn-fg leading-relaxed">
               Enquanto estiver desligado, ninguém no seu sistema consegue relatar nada. Desligar
@@ -190,11 +206,11 @@ export function WidgetSettingsScreen() {
               </Link>
               ; os textos e o tema dele, em{' '}
               <Link to="../form-texts" className="text-fg underline underline-offset-4">
-                Formulário
+                Textos e tema
               </Link>
               ; o que a pessoa lê depois de enviar, em{' '}
               <Link to="../identity" className="text-fg underline underline-offset-4">
-                Quem relata
+                Privacidade
               </Link>
               .
             </p>

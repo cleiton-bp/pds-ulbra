@@ -158,18 +158,18 @@ const areas = () =>
 
 const TRABALHO = ['Trabalho', 'Membros', 'Moderação']
 /** As cinco areas, no grupo Configurar o projeto. */
-const AREAS = ['O seu sistema', 'O formulário', 'O acompanhamento', 'O quadro', 'O time']
+const AREAS = ['O seu sistema', 'O formulário', 'Depois de enviar', 'O quadro', 'O time']
 /** Sem Membros: ja esta no topo, e repetido em O time seriam dois itens iguais. */
 const TELAS_DAS_AREAS = [
   'Instalação',
   'O botão',
   'Domínios',
   'Tipos de relato',
-  'Formulário',
+  'Textos e tema',
   'Anexos',
   'Andamento público',
-  'Ciclo',
-  'Quem relata',
+  'Encerramento',
+  'Privacidade',
   'Colunas',
   'Prioridades',
   'Etiquetas',
@@ -189,7 +189,7 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
-describe('ProjectShell — o menu', () => {
+describe('ProjectShell, o menu', () => {
   it('para quem é só membro, o menu tem o trabalho e não tem a configuração', async () => {
     abrir('/projects/p-1/reports', [projeto('Member', false)])
 
@@ -256,7 +256,7 @@ describe('ProjectShell — o menu', () => {
     expect(endereco('Tipos de relato')).toBe('/projects/p-1/report-types')
     expect(endereco('O botão')).toBe('/projects/p-1/tool')
     expect(endereco('Andamento público')).toBe('/projects/p-1/public-stages')
-    expect(endereco('Quem relata')).toBe('/projects/p-1/identity')
+    expect(endereco('Privacidade')).toBe('/projects/p-1/identity')
     expect(endereco('Anexos')).toBe('/projects/p-1/media')
     expect(endereco('Projeto')).toBe('/projects/p-1/settings')
 
@@ -330,9 +330,9 @@ describe('ProjectShell — o menu', () => {
     await act(() => router.navigate('/projects/p-1/cycle'))
 
     expect(aberto()).toEqual(ABERTO)
-    expect(within(menu()).getByRole('link', { name: 'Ciclo' }).getAttribute('aria-current')).toBe(
-      'page',
-    )
+    expect(
+      within(menu()).getByRole('link', { name: 'Encerramento' }).getAttribute('aria-current'),
+    ).toBe('page')
   })
 })
 
@@ -494,20 +494,20 @@ describe('a gaveta, a lateral e o título da aba', () => {
 
   it('o título da aba diz a tela e o projeto, sem nome de produto', async () => {
     const { router } = abrir('/projects/p-1/reports', [projeto('Administrator', false)])
-    await waitFor(() => expect(document.title).toBe('Trabalho · Loja Online'))
+    await waitFor(() => expect(document.title).toBe('Trabalho (Loja Online)'))
 
     await act(() => router.navigate('/projects/p-1/states'))
-    await waitFor(() => expect(document.title).toBe('Colunas · Loja Online'))
+    await waitFor(() => expect(document.title).toBe('Colunas (Loja Online)'))
 
     await act(() => router.navigate('/projects/p-1/public-stages'))
-    await waitFor(() => expect(document.title).toBe('Andamento público · Loja Online'))
+    await waitFor(() => expect(document.title).toBe('Andamento público (Loja Online)'))
 
     await act(() => router.navigate('/projects/p-1/configure'))
-    await waitFor(() => expect(document.title).toBe('Configurar o projeto · Loja Online'))
+    await waitFor(() => expect(document.title).toBe('Configurar o projeto (Loja Online)'))
 
     // Chaves nao tem item na lateral, e a aba continua dizendo onde a pessoa esta.
     await act(() => router.navigate('/projects/p-1/keys'))
-    await waitFor(() => expect(document.title).toBe('Chaves · Loja Online'))
+    await waitFor(() => expect(document.title).toBe('Chaves (Loja Online)'))
   })
 
   // O card aberto escreve o proprio titulo; a casca nao pode passar por cima.

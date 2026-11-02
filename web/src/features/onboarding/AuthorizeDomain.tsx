@@ -64,6 +64,7 @@ export function AuthorizeDomain({
         <TextField
           className="min-w-0 flex-1"
           ariaLabel="Domínio do seu sistema"
+          type="url"
           value={domain}
           onChange={(value) => {
             setDomain(value)

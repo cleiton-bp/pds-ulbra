@@ -187,15 +187,16 @@ describe('ProjectsHubScreen', () => {
     expect(within(linha).getByText(/^criado /)).toBeTruthy()
   })
 
-  it('criar projeto está nos dois lugares: o botão do celular e o quadro do computador', async () => {
+  it('a conta nova tem um foco só: a frase, o botão de criar e o caminho do convite', async () => {
     dublê.listar.mockResolvedValue([])
     abrir()
 
-    // O jsdom nao aplica `lg:hidden` nem `hidden lg:block`: os dois existem no
-    // documento, e cada tamanho de tela mostra um.
-    await screen.findByText('Nenhum projeto ainda')
-    expect(screen.getAllByRole('button', { name: 'Criar projeto' })).toHaveLength(2)
-    expect(screen.getByText(/Foi convidado para um time\?/)).toBeTruthy()
+    await screen.findByText(
+      'Crie o seu primeiro projeto para começar a receber relatos do seu sistema.',
+    )
+    // Um botao so, em qualquer tamanho de tela: o cartao ao lado da lista vazia dividia a atencao.
+    expect(screen.getAllByRole('button', { name: 'Criar projeto' })).toHaveLength(1)
+    expect(screen.getByText(/Recebeu um convite para um time\?/)).toBeTruthy()
   })
 
   it('a falha ao carregar diz que os projetos continuam salvos, e oferece tentar de novo', async () => {

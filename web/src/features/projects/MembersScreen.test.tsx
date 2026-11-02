@@ -218,7 +218,7 @@ describe('MembersScreen', () => {
     expect(screen.queryByText('Convidar alguém')).toBeNull()
     // Sem convites para ver, nao ha abas: so o time, com a contagem no titulo.
     expect(screen.queryByRole('tablist')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Time · 3' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Time 3' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^Remover/ })).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
     // Sair e da propria pessoa: o unico botao e o da linha dela.
@@ -509,7 +509,7 @@ describe('MembersScreen', () => {
 
     expect(
       screen.getByText(
-        'Administrador configura, convida e muda papéis; Membro trabalha nos cards.',
+        'Administrador configura, convida e muda papéis, e Membro trabalha nos cards e decide o que vai a público.',
       ),
     ).toBeTruthy()
     const detalhes = screen.getByText('Como funciona').closest('details') as HTMLDetailsElement
@@ -540,11 +540,11 @@ describe('MembersScreen', () => {
     montar(projeto('Administrator', true))
     await screen.findByText('Bruno Membro')
 
-    const time = await screen.findByRole('tab', { name: 'Time · 3' })
+    const time = await screen.findByRole('tab', { name: 'Time 3' })
     expect(time.getAttribute('aria-selected')).toBe('true')
     // Um nao saiu e outro venceu: a aba acende, e diz isso tambem por escrito.
     const convites = await screen.findByRole('tab', {
-      name: 'Convites · 3, algum precisa de atenção',
+      name: 'Convites 3, algum precisa de atenção',
     })
     expect(convites.getAttribute('aria-selected')).toBe('false')
     // A aba fechada ja leu os convites: o envio e acompanhado com o Time na frente.
@@ -566,7 +566,7 @@ describe('MembersScreen', () => {
     }
     montar(projeto('Administrator', true))
 
-    expect(await screen.findByRole('tab', { name: 'Convites · 1' })).toBeTruthy()
+    expect(await screen.findByRole('tab', { name: 'Convites 1' })).toBeTruthy()
   })
 
   it('a busca da configuracao leva direto a aba de Convites', async () => {
@@ -631,7 +631,7 @@ describe('MembersScreen', () => {
     montar(projeto('Administrator', true))
 
     const bruno = (await screen.findByText('Bruno Membro')).closest('li') as HTMLElement
-    expect(within(bruno).getByText('bruno@exemplo.com · entrou há 3 meses')).toBeTruthy()
+    expect(within(bruno).getByText('bruno@exemplo.com, entrou há 3 meses')).toBeTruthy()
     // O dono nao tem data de entrada: a linha dele fica so com o e-mail.
     const dona = screen.getByText('Ana Dona').closest('li') as HTMLElement
     expect(within(dona).queryByText(/entrou/)).toBeNull()
@@ -711,7 +711,7 @@ describe('MembersScreen', () => {
     ]
     montar(projeto('Administrator', true))
     await screen.findByText('José Lima')
-    expect(await screen.findByRole('tab', { name: 'Time · 10' })).toBeTruthy()
+    expect(await screen.findByRole('tab', { name: 'Time 10' })).toBeTruthy()
 
     const busca = screen.getByRole('textbox', { name: 'Buscar no time' })
     fireEvent.change(busca, { target: { value: 'jose' } })

@@ -160,7 +160,7 @@ export function DomainsSection({
       rotulo: 'Bloqueados',
       contagem: bloqueados.data
         ? marcados > 0
-          ? `${bloqueados.data.length} · ${marcados === 1 ? '1 card' : `${marcados} cards`}`
+          ? `${bloqueados.data.length}, ${marcados === 1 ? '1 card' : `${marcados} cards`}`
           : String(bloqueados.data.length)
         : null,
     },
@@ -441,7 +441,7 @@ export function DomainsSection({
         }}
         tone="warn"
         title="Apagar de vez os relatos sem domínio?"
-        description={`${apagandoSemDominio?.ReportCount === 1 ? 'O relato que chegou' : `Os ${apagandoSemDominio?.ReportCount ?? 0} relatos que chegaram`} sem dizer de que domínio veio saem de vez, com os anexos — o time nunca os viu. Quem relatou perde o acompanhamento. Não tem volta.`}
+        description={`${apagandoSemDominio?.ReportCount === 1 ? 'O relato que chegou' : `Os ${apagandoSemDominio?.ReportCount ?? 0} relatos que chegaram`} sem dizer de que domínio veio saem de vez, com os anexos, o time nunca os viu. Quem relatou perde o acompanhamento. Não tem volta.`}
         confirmLabel="Apagar de vez"
         onConfirm={() => apagarSemDominio()}
       />
@@ -594,13 +594,14 @@ function Guias({
           onClick={() => aoEscolher(item.chave)}
           onKeyDown={(evento) => teclas(evento, item.chave)}
           className={cn(
-            '-mb-px flex h-9 flex-none items-center whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
+            '-mb-px flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
             aba === item.chave
               ? 'border-accent text-fg'
               : 'border-transparent text-fg-muted hover:text-fg',
           )}
         >
           {item.rotulo}
+          {item.contagem !== null && ' '}
           {item.contagem !== null && (
             <span
               className={cn(
@@ -608,7 +609,7 @@ function Guias({
                 item.destaque ? 'text-chip-orange-fg' : 'font-normal text-fg-muted',
               )}
             >
-              {` (${item.contagem})`}
+              {item.contagem}
             </span>
           )}
         </button>
@@ -726,8 +727,8 @@ function PendingOrigins({
       {retidos !== null && retidos.length === 0 && (
         <p className="rounded-lg border border-border border-dashed px-3.5 py-3 text-detail text-fg-muted leading-relaxed">
           Nenhum relato esperando. Quando um domínio fora dos autorizados mandar relato, ele aparece
-          aqui e o sino avisa — autorize o domínio do seu site em “Autorizados” para os relatos de
-          lá entrarem direto.
+          aqui e o sino avisa, então autorize o domínio do seu site em “Autorizados” para os relatos
+          de lá entrarem direto.
         </p>
       )}
 
@@ -749,7 +750,7 @@ function PendingOrigins({
                     <span className="block text-detail text-fg">Sem domínio informado</span>
                   )}
                   <span className="text-caption text-fg-muted">
-                    {linha.ReportCount === 1 ? '1 relato' : `${linha.ReportCount} relatos`} · o
+                    {linha.ReportCount === 1 ? '1 relato' : `${linha.ReportCount} relatos`}, o
                     último{' '}
                     <time dateTime={linha.LastReportAt} title={formatDateTime(linha.LastReportAt)}>
                       {formatRelative(linha.LastReportAt)}
@@ -1036,7 +1037,7 @@ function Situacao({ origem }: { origem: ObservedOriginViewModel }) {
       <span className="text-chip-red-fg">
         Bloqueado
         {origem.MarkedCount > 0 &&
-          ` · ${origem.MarkedCount === 1 ? '1 card marcado' : `${origem.MarkedCount} cards marcados`}`}
+          `, ${origem.MarkedCount === 1 ? '1 card marcado' : `${origem.MarkedCount} cards marcados`}`}
       </span>
     )
   if (origem.Status === 'Allowed') return <span className="text-fg">Autorizado</span>
@@ -1224,7 +1225,7 @@ function BlockedOrigins({
               className="mt-0.5 size-3.5 flex-none accent-accent"
             />
             <span className="text-detail text-fg-muted leading-normal">
-              Incluir os subdomínios — sem isso, só o endereço exato é bloqueado.
+              Incluir os subdomínios, porque sem isso só o endereço exato é bloqueado.
             </span>
           </label>
         </div>

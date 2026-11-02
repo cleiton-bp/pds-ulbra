@@ -1,12 +1,14 @@
 import { Navigate, Outlet, useOutletContext } from 'react-router-dom'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
+import { useScriptInstalled } from '@/shared/hooks/useScriptInstalled'
 import { canConfigure } from '@/shared/lib/projectAccess'
 
 /**
  * A porta do projeto: **o Trabalho, para todo mundo**. A excecao e quem administra
- * um projeto cujo site **ainda nao mandou relato nenhum** — ai configurar e a
+ * um projeto cujo sistema **ainda nao mandou relato nenhum**: ai configurar e a
  * proxima coisa a fazer, e se entra pela pagina central, com os primeiros passos no
- * topo. Ja foi pela Instalacao: ela resolve o script, e o resto da primeira hora
+ * topo. O relato de teste nao conta, porque ele sai do painel e nao prova que o sistema
+ * tem o script (era o que trocava a porta pelo Trabalho com 4 de 5 passos por fazer). Ja foi pela Instalacao: ela resolve o script, e o resto da primeira hora
  * (autorizar o dominio, o botao, quem ve, o time) ficava sem lista.
  *
  * Ja foi pelo papel: quem configurava caia sempre na Instalacao, inclusive num
@@ -19,8 +21,15 @@ import { canConfigure } from '@/shared/lib/projectAccess'
  */
 export function ProjectHome() {
   const { project } = useOutletContext<ProjectContext>()
-  const configurar = canConfigure(project) && project.LastReportReceivedAt === null
-  return <Navigate to={configurar ? 'configure' : 'reports'} replace />
+  const administra = canConfigure(project)
+  // O relato de teste nao abre a porta do Trabalho: ele prova o botao, e nao o sistema.
+  // Ate o sistema mandar relato, quem administra continua entrando pelos primeiros passos.
+  const sistemaManda = useScriptInstalled(project, administra)
+  if (!administra) return <Navigate to="reports" replace />
+  // Um instante, enquanto a lista de enderecos chega: decidir antes mandaria para o lugar
+  // errado e trocaria de tela na frente da pessoa.
+  if (sistemaManda === null) return null
+  return <Navigate to={sistemaManda ? 'reports' : 'configure'} replace />
 }
 
 /**

@@ -36,8 +36,10 @@ const COM_COLUNA = 'hidden @min-[34rem]:table-cell'
 const COM_RESPONSAVEL = 'hidden @min-[44rem]:table-cell'
 const COM_PRIORIDADE_E_PRAZO = 'hidden @min-[52rem]:table-cell'
 const COM_ETIQUETAS = 'hidden @min-[60rem]:table-cell'
-const COM_SPRINT = 'hidden @min-[68rem]:table-cell'
-const COM_DATA = 'hidden @min-[74rem]:table-cell'
+// A sprint e a data so entram com folga: a 1440 px a sprint cortava pela metade e o titulo,
+// que e o que se le primeiro, ficava com umas vinte letras.
+const COM_SPRINT = 'hidden @min-[76rem]:table-cell'
+const COM_DATA = 'hidden @min-[84rem]:table-cell'
 
 /**
  * A coluna do dado por que a pessoa ordenou **nunca sai pela largura**: ordenar pelo
@@ -300,7 +302,7 @@ function Linha({
       data-highlighted={destacada || undefined}
       data-selected={marcada || undefined}
       className={cn(
-        'animate-fade-in cursor-pointer border-border border-b transition-colors duration-150 last:border-b-0 hover:bg-surface-raised',
+        'animate-fade-in cursor-pointer border-border border-b transition-colors duration-150 last:border-b-0 hover:bg-surface-sunken',
         marcada && 'bg-accent/8',
         destacada && 'bg-chip-blue-surface',
       )}
@@ -346,10 +348,10 @@ function Linha({
       >
         <CardTypeIcon card={report} />
       </td>
-      <td className="whitespace-nowrap px-2 py-2 font-medium font-mono text-fg-muted">
+      <td className="whitespace-nowrap px-2 py-2 font-medium text-fg-muted tabular-nums">
         #{report.Number}
       </td>
-      <td className="w-full min-w-40 max-w-0 px-2 py-2 @min-[34rem]:min-w-48 @min-[74rem]:min-w-56">
+      <td className="w-full min-w-40 max-w-0 px-2 py-2 @min-[34rem]:min-w-48 @min-[64rem]:min-w-80">
         {/* Link, e nao botao: e o que faz o card ter endereco proprio, abrir em outra
             aba e sobreviver a um recarregamento da pagina. No celular, duas linhas. */}
         <Link

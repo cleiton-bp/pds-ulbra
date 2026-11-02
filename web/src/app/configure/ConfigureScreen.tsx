@@ -5,10 +5,10 @@ import {
   computeFirstSteps,
   type FirstStep,
   heldDomain,
+  isTestOrigin,
   loadConfigureOverview,
   type OptionalStep,
   POSITION_SUMMARY,
-  panelHost,
   VISIBILITY_SUMMARY,
   visibilityStep,
 } from '@/app/configure/overview'
@@ -23,12 +23,17 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import type { ScrollToHashState } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
+import { scriptInstalled } from '@/shared/lib/installSignals'
 
 /** A escolha de ver todos os passos ou so o proximo, por projeto. Conveniencia de quem olha. */
 const PASSOS_VISTOS = 'pds.web.primeirosPassos.'
 
 /** Os links da pagina levam ao campo e o acendem, como a busca. */
 const REALCE: ScrollToHashState = { realce: true }
+
+/** O passo que espera o sistema: o script copiado, e o primeiro relato ainda nao chegou. */
+const ESPERA =
+  'O script foi copiado, e o passo se marca sozinho quando chegar o primeiro relato do seu sistema.'
 
 /**
  * "Configurar o projeto": a pagina central da configuracao.
@@ -163,7 +168,13 @@ function FirstSteps({
 }) {
   const steps = computeFirstSteps(project, overview)
   const feitos = steps.filter((step) => step.done === true)
-  const proximo = steps.find((step) => step.done !== true) ?? null
+  // O proximo e o primeiro que da para fazer agora: o que espera outra pessoa (o script
+  // copiado, esperando o primeiro relato) so volta a ser o proximo quando nao sobra outro.
+  const proximo =
+    steps.find((step) => step.done !== true && !step.waiting) ??
+    steps.find((step) => step.done !== true) ??
+    null
+  const esperando = steps.filter((step) => step.waiting && step !== proximo)
   const completo = proximo === null
 
   const chave = PASSOS_VISTOS + project.PublicId
@@ -215,20 +226,7 @@ function FirstSteps({
           {feitos.length} de {steps.length}
         </span>
       </header>
-      <div
-        role="progressbar"
-        aria-label="Primeiros passos feitos"
-        aria-valuemin={0}
-        aria-valuemax={steps.length}
-        aria-valuenow={feitos.length}
-        aria-valuetext={`${feitos.length} de ${steps.length}`}
-        className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken"
-      >
-        <div
-          className="h-full rounded-full bg-accent transition-[width]"
-          style={{ width: `${(feitos.length / steps.length) * 100}%` }}
-        />
-      </div>
+      <Trilho steps={steps} proximo={proximo} feitos={feitos.length} />
 
       {todos ? (
         <>
@@ -250,8 +248,23 @@ function FirstSteps({
           <NextStep step={proximo} projectPublicId={project.PublicId}>
             {proximo.key === 'domain' ? authorize : null}
           </NextStep>
+          {esperando.length > 0 && (
+            <p className="mt-3 flex items-center gap-2 text-detail text-fg-muted">
+              <WaitingMark />
+              {ESPERA}
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-            {feitos.length > 0 ? <DoneLine steps={feitos} /> : <span />}
+            {/* Os feitos ja aparecem no trilho, com o nome embaixo de cada no; a lista fica
+                para o leitor de tela, que nao le o desenho. */}
+            {feitos.length > 0 ? (
+              <ul aria-label="Passos feitos" className="sr-only">
+                {feitos.map((step) => (
+                  <li key={step.key}>{step.short}</li>
+                ))}
+              </ul>
+            ) : null}
+            <span />
             {alternar}
           </div>
         </>
@@ -289,7 +302,7 @@ function NextStep({
       <h3 className="mt-0.5 font-medium text-body text-fg">{step.title}</h3>
       <p className="mt-0.5 text-detail text-fg-muted leading-relaxed">
         {step.done === null ? 'Não deu para conferir agora. ' : ''}
-        {step.why}
+        {step.waiting ? ESPERA : step.why}
       </p>
       {children ?? (
         <Link
@@ -301,24 +314,6 @@ function NextStep({
         </Link>
       )}
     </div>
-  )
-}
-
-/** Os passos feitos numa linha so: confirmam o caminho sem disputar com o proximo. */
-function DoneLine({ steps }: { steps: FirstStep[] }) {
-  return (
-    <ul
-      aria-label="Passos feitos"
-      className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1"
-    >
-      {steps.map((step, index) => (
-        <li key={step.key} className="flex items-center gap-1.5 text-detail text-fg-muted">
-          {index > 0 && <span aria-hidden>·</span>}
-          <CheckGlyph className="size-3 text-fg" />
-          {step.short}
-        </li>
-      ))}
-    </ul>
   )
 }
 
@@ -338,7 +333,7 @@ function StepRow({
         step.done ? 'border-transparent bg-surface' : 'border-border bg-surface',
       )}
     >
-      <StepMark done={step.done} />
+      {step.waiting ? <WaitingMark className="mt-0.5 size-5" /> : <StepMark done={step.done} />}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
           <div className="min-w-0">
@@ -350,7 +345,7 @@ function StepRow({
             </p>
             <p className="text-caption text-fg-muted leading-relaxed">
               {step.done === null ? 'Não deu para conferir agora. ' : ''}
-              {step.why}
+              {step.waiting ? ESPERA : step.why}
             </p>
           </div>
           <StepAction to={`/projects/${projectPublicId}/${step.to}`} quiet={step.done === true}>
@@ -429,6 +424,89 @@ function StepMark({ done }: { done: boolean | null }) {
   )
 }
 
+/**
+ * **O trilho dos primeiros passos**, tirado do desenho do logo: uma linha com um no por
+ * passo, e o nome de cada um embaixo. Feito e um disco de tinta, o proximo e um anel, o
+ * que espera outra pessoa e tracejado, e o que falta e um anel apagado. E o unico enfeite
+ * da pagina, e ele diz o caminho inteiro e onde a pessoa esta nele. A barra de progresso
+ * cinza que ele substitui dizia so quanto faltava.
+ */
+function Trilho({
+  steps,
+  proximo,
+  feitos,
+}: {
+  steps: FirstStep[]
+  proximo: FirstStep | null
+  feitos: number
+}) {
+  return (
+    <ol
+      role="progressbar"
+      aria-label="Primeiros passos feitos"
+      aria-valuemin={0}
+      aria-valuemax={steps.length}
+      aria-valuenow={feitos}
+      aria-valuetext={`${feitos} de ${steps.length}`}
+      className="mt-4 grid"
+      style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+    >
+      {steps.map((step, indice) => {
+        const feito = step.done === true
+        const atual = step === proximo
+        return (
+          <li key={step.key} aria-hidden className="relative flex flex-col items-center">
+            {/* A linha ate o proximo no: cheia so entre dois passos feitos. Os passos se
+                fazem fora de ordem, e a linha cheia depois de um feito parecia dizer que o
+                seguinte tambem estava. */}
+            {indice < steps.length - 1 && (
+              <span
+                className={cn(
+                  'absolute top-[5px] left-1/2 h-0.5 w-full transition-colors duration-500 motion-reduce:transition-none',
+                  feito && steps[indice + 1]?.done === true ? 'bg-accent' : 'bg-border',
+                )}
+              />
+            )}
+            <span
+              className={cn(
+                'relative size-3 flex-none rounded-full transition-colors duration-500 motion-reduce:transition-none',
+                feito
+                  ? 'bg-accent'
+                  : atual
+                    ? 'border-2 border-accent bg-surface-raised'
+                    : step.waiting
+                      ? 'border border-fg-muted border-dashed bg-surface-raised'
+                      : 'border border-border-control bg-surface-raised',
+              )}
+            />
+            <span
+              className={cn(
+                'mt-2 px-1 text-center text-caption leading-tight',
+                atual ? 'font-medium text-fg' : feito ? 'text-fg' : 'text-fg-muted',
+              )}
+            >
+              {step.short}
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/** A marca do passo que espera: tracejada, como o que ainda nao aconteceu, mas sem cobrar. */
+function WaitingMark({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'size-3.5 flex-none rounded-full border border-fg-muted border-dashed',
+        className,
+      )}
+    />
+  )
+}
+
 function CheckGlyph({ className }: { className?: string }) {
   return (
     <svg
@@ -476,6 +554,10 @@ function summaryOf(
 ): string | null {
   switch (section.key) {
     case 'start':
+      // O relato de teste tambem acende o ultimo relato: sem relato do sistema, dizer
+      // "Último relato há 2 minutos" afirmava uma instalacao que nao existe.
+      if (project.LastReportReceivedAt && observed !== null && !scriptInstalled(project, observed))
+        return 'Só o relato de teste até agora'
       return project.LastReportReceivedAt
         ? `Último relato ${formatRelative(project.LastReportReceivedAt)}`
         : 'Nenhum relato ainda'
@@ -485,9 +567,8 @@ function summaryOf(
       return `“${widget.LauncherLabel}”, ${POSITION_SUMMARY[widget.Position]}`
     case 'domains': {
       if (!origins) return null
-      const host = panelHost()
       const esperando =
-        observed?.filter((origem) => origem.Status === 'Unlisted' && origem.Domain !== host)
+        observed?.filter((origem) => origem.Status === 'Unlisted' && !isTestOrigin(origem.Domain))
           .length ?? 0
       const autorizados =
         origins.length === 0
@@ -495,7 +576,7 @@ function summaryOf(
           : origins.length === 1
             ? '1 autorizado'
             : `${origins.length} autorizados`
-      return esperando > 0 ? `${autorizados} · ${esperando} esperando` : autorizados
+      return esperando > 0 ? `${autorizados}, ${esperando} esperando` : autorizados
     }
     case 'reportTypes':
       if (!widget) return null
@@ -508,7 +589,7 @@ function summaryOf(
       if (!members) return null
       const pessoas = members.length === 1 ? '1 pessoa' : `${members.length} pessoas`
       if (!invitations || invitations.length === 0) return pessoas
-      return `${pessoas} · ${invitations.length === 1 ? '1 convite' : `${invitations.length} convites`}`
+      return `${pessoas}, ${invitations.length === 1 ? '1 convite' : `${invitations.length} convites`}`
     }
     case 'settings':
       return project.Status === 'Archived' ? 'Arquivado' : 'Ativo'

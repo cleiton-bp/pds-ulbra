@@ -371,7 +371,7 @@ describe('ProjectStatesScreen', () => {
     expect(dublê.aposentar).not.toHaveBeenCalled()
   })
 
-  it('sem conseguir contar, a pergunta continua — só sem o número', async () => {
+  it('sem conseguir contar, a pergunta continua, só sem o número', async () => {
     dublê.listar.mockResolvedValue([estado('s-1', 'A fazer', 0), estado('s-2', 'Fazendo', 1)])
     dublê.contar.mockRejectedValue(new Error('rede'))
 
@@ -790,7 +790,7 @@ describe('ProjectStatesScreen', () => {
     // Fechado, o grupo diz o valor; sem mudanca do padrao, nada de "Mudou".
     const grupo = await waitFor(grupoDasRegras)
     const resumo = () => grupo.querySelector('summary')?.textContent ?? ''
-    expect(resumo()).toContain('Última coluna: 14 dias · Prazo: 2 dias')
+    expect(resumo()).toContain('Última coluna: 14 dias, prazo: 2 dias')
     expect(resumo()).not.toContain('Mudou')
     // O endereco antigo do "Mais opções" continua levando ate aqui.
     expect(document.getElementById('mais-opcoes')?.contains(grupo)).toBe(true)
@@ -823,7 +823,7 @@ describe('ProjectStatesScreen', () => {
     )
     // Gravou: o resumo diz o valor e o que saiu do padrao.
     await waitFor(() => expect(resumo()).not.toContain('não salvo'))
-    expect(resumo()).toContain('Última coluna: todos · Prazo: 5 dias')
+    expect(resumo()).toContain('Última coluna: todos, prazo: 5 dias')
     expect(resumo()).toContain('Mudou: Dias da última coluna, Destaque do prazo')
   })
 
@@ -838,7 +838,7 @@ describe('ProjectStatesScreen', () => {
     fireEvent.click(within(grupo).getByRole('button', { name: 'Cancelar' }))
 
     expect((destaque as HTMLInputElement).value).toBe('2')
-    expect(grupo.querySelector('summary')?.textContent).toContain('Prazo: 2 dias')
+    expect(grupo.querySelector('summary')?.textContent).toContain('prazo: 2 dias')
     expect(dublê.salvarRegras).not.toHaveBeenCalled()
   })
 

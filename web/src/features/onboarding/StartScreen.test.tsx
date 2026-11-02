@@ -124,11 +124,23 @@ function montar(project: ProjectViewModel) {
   return router
 }
 
-/** O `<details>` do passo: a ancora mora no `<summary>` dele. */
-const passo = (id: string) => document.getElementById(id)?.closest('details') as HTMLDetailsElement
+/**
+ * O passo pela ancora: ela mora no botao do titulo, que diz em `aria-expanded` se o passo
+ * esta aberto; a secao em volta guarda o estado e o botao do passo, fora do titulo.
+ */
+const passo = (id: string) => {
+  const botao = document.getElementById(id) as HTMLButtonElement
+  return {
+    open: botao.getAttribute('aria-expanded') === 'true',
+    secao: botao.closest('section') as HTMLElement,
+  }
+}
 
 const abertos = () =>
   ['script', 'autorizar-endereco', 'relato-de-teste'].filter((id) => passo(id).open)
+
+/** O cabecalho do passo: o titulo, o estado escrito e o botao do passo. */
+const cabecalho = (id: string) => passo(id).secao.firstElementChild as HTMLElement
 
 const pronta = () => screen.findByRole('heading', { name: 'Colar o script no seu sistema' })
 
@@ -169,8 +181,8 @@ describe('StartScreen', () => {
 
     for (const id of ['copiar-chave', 'script', 'relato-de-teste', 'proprio-botao', 'mais-opcoes'])
       expect(document.getElementById(id), id).not.toBeNull()
-    // A ancora do passo fica dentro do `<details>`: e assim que a busca o abre.
-    expect(document.getElementById('script')?.tagName).toBe('SUMMARY')
+    // A ancora do passo e o botao do titulo: o link da busca abre o passo dela.
+    expect(document.getElementById('script')?.tagName).toBe('BUTTON')
   })
 
   it('sem nada feito, abre o primeiro passo e diz o que falta', async () => {
@@ -179,13 +191,9 @@ describe('StartScreen', () => {
 
     expect(abertos()).toEqual(['script'])
     // Cada passo diz o que ainda nao aconteceu, e nao so "falta".
-    expect(document.getElementById('script')?.textContent).toContain(
-      'Ainda não chegou relato do seu sistema',
-    )
-    expect(document.getElementById('autorizar-endereco')?.textContent).toContain(
-      'Nenhum endereço autorizado',
-    )
-    expect(document.getElementById('relato-de-teste')?.textContent).toContain('Ainda não testado')
+    expect(cabecalho('script').textContent).toContain('Ainda sem relato do seu sistema')
+    expect(cabecalho('autorizar-endereco').textContent).toContain('Nenhum endereço autorizado')
+    expect(cabecalho('relato-de-teste').textContent).toContain('Ainda não testado')
   })
 
   it('o passo aberto segue os dados: com o script colado, abre o do endereço', async () => {
@@ -194,15 +202,17 @@ describe('StartScreen', () => {
     await pronta()
 
     await waitFor(() => expect(abertos()).toEqual(['autorizar-endereco']))
-    expect(document.getElementById('script')?.textContent).toContain('Feito')
+    expect(cabecalho('script').textContent).toContain('Feito')
   })
 
-  it('com o script e o endereço, abre o teste — o relato do painel não conta como script', async () => {
+  it('com o script e o endereço, o teste já conta; o relato do painel não conta como script', async () => {
     dublê.observados.mockResolvedValue([observado('loja.exemplo.com')])
     dublê.autorizados.mockResolvedValue([autorizado('loja.exemplo.com')])
     montar(projeto('2026-10-09T12:00:00.000Z'))
     await pronta()
-    await waitFor(() => expect(abertos()).toEqual(['relato-de-teste']))
+    // O sistema ja manda relato: o teste nao tem o que provar, e nenhum passo fica aberto.
+    await waitFor(() => expect(cabecalho('relato-de-teste').textContent).toContain('Feito'))
+    expect(abertos()).toEqual([])
 
     cleanup()
     // So o relato de teste chegou: o script continua faltando.
@@ -210,7 +220,7 @@ describe('StartScreen', () => {
     montar(projeto('2026-10-09T12:00:00.000Z'))
     await pronta()
     await waitFor(() => expect(abertos()).toEqual(['script']))
-    expect(document.getElementById('relato-de-teste')?.textContent).toContain('Feito')
+    expect(cabecalho('relato-de-teste').textContent).toContain('Feito')
   })
 
   it('sem relato de fora ainda, não diz que está funcionando', async () => {
@@ -227,10 +237,10 @@ describe('StartScreen', () => {
     await pronta()
 
     const selo = await screen.findByRole('status')
-    expect(selo.textContent).toMatch(/^Funcionando · último relato há 5 minutos/)
+    expect(selo.textContent).toMatch(/^Funcionando, último relato há 5 minutos/)
     expect(abertos()).toEqual([])
     for (const id of ['script', 'autorizar-endereco', 'relato-de-teste'])
-      expect(document.getElementById(id)?.textContent).toContain('Feito')
+      expect(cabecalho(id).textContent).toContain('Feito')
 
     fireEvent.click(within(selo).getByRole('link', { name: 'Ver em Trabalho' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-1/reports'))
@@ -242,8 +252,8 @@ describe('StartScreen', () => {
     await pronta()
     await waitFor(() => expect(passo('script').open).toBe(false))
 
-    const titulo = document.getElementById('script') as HTMLElement
-    fireEvent.click(within(titulo).getByRole('button', { name: 'Copiar bloco' }))
+    const titulo = passo('script').secao
+    fireEvent.click(within(titulo).getByRole('button', { name: 'Copiar script' }))
 
     await waitFor(() => expect(dublê.copiar).toHaveBeenCalledTimes(1))
     expect(dublê.copiar.mock.calls[0]?.[0]).toContain('pk_live_loja123')
@@ -260,8 +270,8 @@ describe('StartScreen', () => {
     montar(projeto('2026-10-09T12:00:00.000Z'))
     await pronta()
 
-    const endereco = passo('autorizar-endereco')
-    expect(await within(endereco).findByText('2 autorizados · 1 aguardando')).toBeTruthy()
+    const endereco = passo('autorizar-endereco').secao
+    expect(await within(endereco).findByText('2 autorizados, 1 aguardando')).toBeTruthy()
     expect(
       within(endereco).getByRole('link', { name: 'Abrir Domínios' }).getAttribute('href'),
     ).toBe('/projects/p-1/domains#autorizados')
@@ -290,7 +300,7 @@ describe('StartScreen', () => {
     montar(projeto(null))
     await pronta()
 
-    const titulo = document.getElementById('relato-de-teste') as HTMLElement
+    const titulo = passo('relato-de-teste').secao
     fireEvent.click(within(titulo).getByRole('button', { name: 'Abrir teste' }))
 
     const dialogo = await screen.findByRole('dialog')
@@ -300,44 +310,64 @@ describe('StartScreen', () => {
     expect(passo('relato-de-teste').open).toBe(false)
   })
 
-  it('o Avançado separa o seu próprio botão e a chave secreta', async () => {
+  it('três passos e nada mais com cara de passo: o próprio botão mora no passo 1, e a chave secreta sai para Chaves', async () => {
     montar(projeto(null))
     await pronta()
 
-    const avancado = document.getElementById('mais-opcoes') as HTMLDetailsElement
-    expect(avancado.open).toBe(false)
-    expect(avancado.querySelector('summary')?.textContent).toContain('Avançado')
+    // So os tres passos tem caixa de passo: o "Avançado", que parecia um quarto, saiu.
+    expect(screen.queryByText('Avançado')).toBeNull()
+    expect(document.querySelectorAll('section[aria-labelledby$="-titulo"]')).toHaveLength(3)
 
+    // O proprio botao e outro jeito de fazer o passo 1: mora nele, recolhido.
+    const programa = document.getElementById('mais-opcoes') as HTMLDetailsElement
+    expect(programa.open).toBe(false)
+    expect(programa.querySelector('summary')?.textContent).toContain('Para quem programa')
+    expect(passo('script').secao.contains(programa)).toBe(true)
     const proprio = document.getElementById('proprio-botao') as HTMLElement
+    expect(programa.contains(proprio)).toBe(true)
     expect(within(proprio).getByRole('heading', { name: 'Seu próprio botão' })).toBeTruthy()
     expect(proprio.textContent).toContain('data-button="none"')
-    expect(proprio.textContent).toContain('Pds.open()')
-    expect(proprio.textContent).toContain('data-pds-open')
+    expect(proprio.textContent).toContain('RelatoFacil.open()')
+    expect(proprio.textContent).toContain('data-relatofacil-open')
 
+    // A chave secreta e outra tarefa: a linha diz que ela fica em Chaves, e o link diz para onde leva.
     const secreta = document.getElementById('chave-secreta') as HTMLElement
-    expect(within(secreta).getByRole('heading', { name: 'Chave secreta' })).toBeTruthy()
-    // As chaves sairam da lateral: a parte avancada da instalacao se abre daqui.
-    expect(
-      within(secreta)
-        .getByRole('link', { name: 'Chaves e integração avançada' })
-        .getAttribute('href'),
-    ).toBe('/projects/p-1/keys')
+    expect(passo('script').secao.contains(secreta)).toBe(false)
+    expect(secreta.textContent).toContain('a chave secreta fica em Chaves')
+    expect(within(secreta).getByRole('link', { name: 'Abrir Chaves' }).getAttribute('href')).toBe(
+      '/projects/p-1/keys',
+    )
   })
 
-  it('as etiquetas da prévia levam aos campos de O botão', async () => {
+  it('o recado para quem cuida do sistema leva o script e onde colar, e conta como o script entregue', async () => {
     montar(projeto(null))
     await pronta()
 
-    const etiquetas = screen.getByRole('list', { name: 'Ajustar em O botão' })
-    const destino = (nome: string) =>
-      within(etiquetas).getByRole('link', { name: nome }).getAttribute('href')
-    expect(destino('Cor')).toBe('/projects/p-1/tool#cor-do-botao')
-    expect(destino('Canto')).toBe('/projects/p-1/tool#canto')
-    expect(destino('Ícone')).toBe('/projects/p-1/tool#icone')
-    expect(destino('Páginas')).toBe('/projects/p-1/tool#paginas-escondidas')
-    expect(screen.getByRole('link', { name: 'Ajustar o botão' }).getAttribute('href')).toBe(
-      '/projects/p-1/tool',
+    fireEvent.click(
+      within(passo('script').secao).getByRole('button', {
+        name: 'Copiar instruções para quem cuida dele',
+      }),
     )
+
+    await waitFor(() => expect(dublê.copiar).toHaveBeenCalledTimes(1))
+    const recado = dublê.copiar.mock.calls[0]?.[0] ?? ''
+    expect(recado).toContain('pk_live_loja123')
+    expect(recado).toContain('antes do fechamento do </body>')
+    expect(recado).toContain('Me diga o endereço do sistema')
+    await waitFor(() =>
+      expect(cabecalho('script').textContent).toContain('Esperando o primeiro relato'),
+    )
+  })
+
+  it('a prévia tem um link só, que diz que leva para O botão', async () => {
+    montar(projeto(null))
+    await pronta()
+
+    // As sete etiquetas (Cor, Canto, Icone...) pareciam marcadores e trocavam de tela sem avisar.
+    expect(screen.queryByRole('list', { name: 'Ajustar em O botão' })).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'Mudar a aparência em O botão' }).getAttribute('href'),
+    ).toBe('/projects/p-1/tool')
     expect(screen.queryByText(/Ferramenta\b|Configurações/)).toBeNull()
   })
 })

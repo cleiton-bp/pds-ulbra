@@ -685,7 +685,7 @@ function BuscaDoBacklog({
           value={busca}
           onChange={(evento) => aoBuscar(evento.target.value)}
           placeholder="Buscar no backlog: título ou #número"
-          title={id ? 'Busca no título, no texto e no #número — atalho: /' : undefined}
+          title={id ? 'Busca no título, no texto e no #número (atalho: /)' : undefined}
           aria-keyshortcuts={id ? '/' : undefined}
           maxLength={200}
           className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-9 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
@@ -827,7 +827,7 @@ function Secao({
                 <span className="font-normal text-detail text-fg-muted">
                   {' '}
                   {sprintDates(sprint)}
-                  {sprint.State === 'Active' ? ' · em andamento' : ' · planejada'}
+                  {sprint.State === 'Active' ? ', em andamento' : ', planejada'}
                 </span>
               )}
             </h3>
@@ -838,7 +838,7 @@ function Secao({
           <span className="text-caption text-fg-muted tabular-nums">
             {buscando
               ? `${total} na busca`
-              : `${total} ${total === 1 ? 'card' : 'cards'} · ${pointsText(pontos)}`}
+              : `${total} ${total === 1 ? 'card' : 'cards'}, ${pointsText(pontos)}`}
           </span>
           {sprint === null ? (
             comCriarSprint && (
@@ -1072,7 +1072,7 @@ function Linha({
     <div className="flex min-w-0 items-center gap-2 px-3 py-2">
       {alca}
       <CardTypeIcon card={card} />
-      <span className="flex-none font-mono text-caption text-fg-muted">#{card.Number}</span>
+      <span className="flex-none tabular-nums text-caption text-fg-muted">#{card.Number}</span>
       <Link
         to={card.PublicId}
         className={cn(
@@ -1236,7 +1236,7 @@ function PontosNaLinha({
       title={card.StoryPoints === null ? 'Estimar' : 'Mudar a estimativa'}
       className="flex h-6 min-w-6 flex-none items-center justify-center whitespace-nowrap rounded-full bg-surface-sunken px-1.5 font-medium text-caption text-fg tabular-nums hover:ring-1 hover:ring-border pointer-coarse:h-10 pointer-coarse:min-w-10"
     >
-      <span aria-hidden>{card.StoryPoints === null ? '—' : pointsShort(card.StoryPoints)}</span>
+      <span aria-hidden>{card.StoryPoints === null ? '?' : pointsShort(card.StoryPoints)}</span>
       <span className="sr-only">
         {card.StoryPoints === null
           ? `Estimar #${card.Number}: sem estimativa`

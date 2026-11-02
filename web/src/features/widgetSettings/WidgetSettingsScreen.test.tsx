@@ -248,11 +248,11 @@ describe('WidgetSettingsScreen', () => {
     await esperarCampoBotao()
 
     expect(resumoDo('aparencia')).toContain(
-      `cor padrão · “${DEFAULT_WIDGET_SETTINGS.LauncherLabel}” · sem ícone · médio · pílula`,
+      `cor padrão, “${DEFAULT_WIDGET_SETTINGS.LauncherLabel}”, sem ícone, médio, pílula`,
     )
     // No padrao, o titulo nao repete "No padrão" em todo grupo.
     expect(resumoDo('aparencia')).not.toContain('Mudou')
-    expect(resumoDo('posicao')).toContain('Embaixo, à direita · 20 px da borda')
+    expect(resumoDo('posicao')).toContain('Embaixo, à direita, 20 px da borda')
     expect(resumoDo('celular')).toContain('Igual ao computador')
     expect(resumoDo('paginas')).toContain('Aparece em todas as páginas')
 
@@ -389,7 +389,7 @@ describe('WidgetSettingsScreen', () => {
     expect(screen.queryByRole('checkbox', { name: /escolher o tipo/ })).toBeNull()
     expect(screen.queryByText(/Confirmação, acima do protocolo/)).toBeNull()
     expect(screen.queryByRole('radiogroup', { name: 'Tema do formulário' })).toBeNull()
-    expect(screen.getByRole('link', { name: 'Formulário' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'Textos e tema' }).getAttribute('href')).toBe(
       '/p/p-1/form-texts',
     )
   })
@@ -414,7 +414,7 @@ describe('WidgetSettingsScreen', () => {
     montar()
     await esperarCampoBotao()
 
-    expect(screen.getByText('Visível no seu sistema')).toBeTruthy()
+    expect(screen.getByText('Ligado, esperando o script')).toBeTruthy()
     const desligar = screen.getByRole('button', { name: 'Desligar o botão no seu sistema' })
     // A busca da configuracao leva a `tool#mostrar-no-site`: o foco cai no controle.
     expect(desligar.id).toBe('mostrar-no-site')
@@ -427,7 +427,7 @@ describe('WidgetSettingsScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ligar o botão no seu sistema' }))
 
-    expect(screen.getByText('Visível no seu sistema')).toBeTruthy()
+    expect(screen.getByText('Ligado, esperando o script')).toBeTruthy()
     expect(screen.queryByText(/ninguém no seu sistema consegue relatar/)).toBeNull()
     expect(publicarLigado()).toBe(false)
   })

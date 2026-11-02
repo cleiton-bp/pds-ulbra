@@ -46,7 +46,7 @@ export function BoardCardFace({
     <div
       data-highlighted={highlighted || undefined}
       className={cn(
-        'relative rounded-lg border border-border bg-surface p-3 text-left shadow-xs transition-colors hover:bg-surface-raised',
+        'relative rounded-lg border border-border bg-surface-lifted p-3 text-left shadow-xs transition-colors hover:border-border-control',
         // A faixa e o fundo do destaque somem devagar; o resto responde na hora.
         'before:pointer-events-none before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-r-full before:bg-chip-blue-glyph before:opacity-0 before:transition-opacity before:duration-700',
         highlighted && 'bg-chip-blue-surface before:opacity-100',
@@ -76,7 +76,7 @@ export function BoardCardFace({
           <span className="inline-flex items-center gap-1.5">
             <CardTypeIcon card={card} />
             {/* O numero e como o time fala do card — no grupo, no commit, em voz alta. */}
-            <span className="font-medium font-mono text-fg-muted">#{card.Number}</span>
+            <span className="font-medium tabular-nums text-fg-muted">#{card.Number}</span>
           </span>
           {card.Priority && <PriorityIcon priority={card.Priority} />}
           <SubtaskProgress card={card} />

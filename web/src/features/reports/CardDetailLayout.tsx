@@ -3,6 +3,7 @@ import type { ReportSummaryViewModel } from '@/contracts'
 import { CardTypeIcon } from '@/features/reports/cardLook'
 import { reportTypeName } from '@/shared/components/ReportTypeGlyph'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
+import { isTestOrigin } from '@/shared/lib/installSignals'
 
 /**
  * A largura e a altura do card aberto: largo no computador, a tela quase inteira no
@@ -107,12 +108,19 @@ export function CardDialogTitle({ card }: { card: ReportSummaryViewModel | null 
         <CardTypeIcon card={card} />
       </span>
       <span className="text-fg">{tipo}</span>
-      <span className="font-mono">#{card.Number}</span>
-      {card.Kind !== 'Team' && (
-        <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px font-normal text-caption text-warn-fg">
-          Relato de fora
-        </span>
-      )}
+      <span className="tabular-nums">#{card.Number}</span>
+      {/* O relato de teste sai da pagina de teste, e nao de quem usa o sistema: chamar de
+          "Relato de fora" fazia o teste se passar por um relato de verdade. */}
+      {card.Kind !== 'Team' &&
+        (isTestOrigin(card.Origin) ? (
+          <span className="rounded-full border border-border bg-surface-sunken px-2 py-px font-normal text-caption text-fg-muted">
+            Relato de teste
+          </span>
+        ) : (
+          <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px font-normal text-caption text-warn-fg">
+            Relato de fora
+          </span>
+        ))}
     </span>
   )
 }

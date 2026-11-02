@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import {
+  type ProjectViewModel,
   type ReportDetailViewModel,
   type ReportStateCountViewModel,
   type ReportSummaryViewModel,
@@ -65,6 +66,7 @@ import { ShortcutsButton, ShortcutsDialog } from '@/shared/components/ShortcutsD
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { useScriptInstalled } from '@/shared/hooks/useScriptInstalled'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
 
@@ -617,7 +619,7 @@ export function ReportsScreen() {
     const ativa = sprints.ativa
     if (quadro && !noQuadro) {
       toast.done(
-        `#${card.Number} criado${onde} — não aparece no quadro da sprint.`,
+        `#${card.Number} criado${onde}, e não aparece no quadro da sprint.`,
         ativa
           ? { action: { label: `Levar para a ${ativa.Name}`, run: () => levarParaASprint(card) } }
           : { action: abrir },
@@ -813,7 +815,11 @@ export function ReportsScreen() {
         ) : (
           <>
             {modoSprint && sprints.ativa && (
-              <SprintBar sprint={sprints.ativa} aoConcluir={() => setConcluindo(true)} />
+              <SprintBar
+                sprint={sprints.ativa}
+                aoConcluir={() => setConcluindo(true)}
+                aoIrAoBacklog={() => setVista('backlog')}
+              />
             )}
             <ReportsBoard
               projectPublicId={project.PublicId}
@@ -1017,6 +1023,14 @@ export function ReportsScreen() {
         </div>
       </div>
 
+      {!arquivados && (
+        <p className="-mt-1 mb-4 max-w-[68ch] text-detail text-fg-muted">
+          Os relatos de quem usa o seu sistema e os cards que o time cria, num lugar só.
+        </p>
+      )}
+
+      {!arquivados && <SistemaAindaSemRelato project={project} />}
+
       {arquivados ? (
         <p className="mb-4 text-detail text-fg-muted">
           Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.
@@ -1088,7 +1102,7 @@ export function ReportsScreen() {
                   {agrupar === 'none'
                     ? 'Arraste para mover'
                     : `Arraste para mover; outra raia troca ${agrupar === 'assignee' ? 'o responsável' : 'a prioridade'}`}
-                  {' · no celular, segure · no teclado, as setas andam e espaço pega'}
+                  {', no celular segure, e no teclado as setas andam e o espaço pega'}
                 </p>
               </HowItWorks>
             ) : undefined
@@ -1643,4 +1657,28 @@ function useJuntar(fazer: () => void) {
       atual.current()
     }, ms)
   }, [])
+}
+
+/**
+ * Para quem administra, enquanto o sistema nao manda relato (o de teste nao conta): uma
+ * linha fina no topo do Trabalho com o caminho de volta aos primeiros passos. Some sozinha
+ * quando o primeiro relato do sistema chega, pelo mesmo sinal da Instalacao.
+ */
+function SistemaAindaSemRelato({ project }: { project: ProjectViewModel }) {
+  const administra = canConfigure(project)
+  const sistemaManda = useScriptInstalled(project, administra)
+  if (!administra || sistemaManda !== false) return null
+  return (
+    <div className="mb-4 flex animate-fade-in flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border bg-surface-raised px-4 py-2.5">
+      <p className="text-detail text-fg-muted">
+        Seu sistema ainda não mandou nenhum relato, e os primeiros passos mostram o que falta.
+      </p>
+      <Link
+        to={`/projects/${project.PublicId}/configure`}
+        className="flex-none font-medium text-detail text-fg underline-offset-4 transition-colors hover:underline"
+      >
+        Ver os primeiros passos
+      </Link>
+    </div>
+  )
 }

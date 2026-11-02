@@ -52,6 +52,27 @@ export function ProjectKeysScreen() {
 
   return (
     <div className="max-w-170">
+      {/* Chaves nao tem item na lateral: abre pela Instalacao, e a lateral continua marcando
+          a Instalacao. O caminho de volta, em cima do titulo, diz que esta e outra tela, e
+          por onde se volta. */}
+      <Link
+        to="../start"
+        className="mb-3 inline-flex items-center gap-1 text-detail text-fg-muted transition-colors hover:text-fg"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          aria-hidden
+          className="size-3"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M10 3.5 5.5 8l4.5 4.5" />
+        </svg>
+        Voltar para a Instalação
+      </Link>
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Chaves</h1>
       <p className="mb-6 text-fg-muted text-body">
         A chave pública identifica este projeto no seu sistema, e é a única que quase todo projeto
@@ -84,11 +105,12 @@ export function ProjectKeysScreen() {
             </header>
 
             <div className="mb-3.5">
+              {/* A vista: a tela diz que ela pode ficar a vista, e escondida contradizia. */}
               {publicKey?.Value ? (
-                <MaskedValue value={publicKey.Value} />
+                <MaskedValue value={publicKey.Value} revealed />
               ) : (
                 <code className="flex h-10 items-center rounded-lg border border-border bg-surface px-3.5 font-mono text-body text-fg-muted">
-                  —
+                  sem chave ativa
                 </code>
               )}
             </div>

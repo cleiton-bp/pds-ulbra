@@ -51,7 +51,7 @@ describe('o tom da coluna', () => {
     expect(statusTone('fazendo', null)).toBe('todo')
   })
 
-  it('com uma coluna ativa so, nada e feito — nem a unica, que tambem encerra', () => {
+  it('com uma coluna ativa so, nada e feito, nem a unica, que tambem encerra', () => {
     // E o projeto que acabou de nascer: a "Analise" de fabrica e a coluna que encerra.
     const nascendo = [coluna(null), coluna('analise', true, true), coluna('velha', false)]
     expect(statusTone('analise', nascendo)).toBe('todo')
@@ -72,7 +72,7 @@ describe('as iniciais', () => {
   it('o pedaco sem letra nao vira inicial', () => {
     // Era "A(": a ultima palavra comecava por um parentese.
     expect(initialsOf('Ana Souza (teste)')).toBe('AS')
-    expect(initialsOf('Carla — Financeiro')).toBe('CF')
+    expect(initialsOf('Carla, Financeiro')).toBe('CF')
   })
 
   it('sem nome, a inicial do e-mail', () => {
@@ -153,7 +153,7 @@ describe('o titulo da linha e da frente', () => {
     })
   })
 
-  it('sem titulo, o comeco do texto — e nao o texto inteiro, que viraria o nome do link', () => {
+  it('sem titulo, o comeco do texto, e nao o texto inteiro, que viraria o nome do link', () => {
     const longo = `${'palavra '.repeat(150)}fim`
     const { text, titled } = cardHeadline({ Title: null, ReporterTitle: null, Text: longo })
 
@@ -165,8 +165,9 @@ describe('o titulo da linha e da frente', () => {
   })
 
   it('o texto curto vem inteiro, sem as quebras de linha', () => {
+    // Com perguntas, as respostas chegam separadas por uma linha em branco: a manchete e a primeira.
     expect(cardHeadline({ Title: null, ReporterTitle: null, Text: 'o botao\n\nsome' }).text).toBe(
-      'o botao some',
+      'o botao',
     )
   })
 

@@ -231,7 +231,7 @@ export function BulkActions({
 
   /** "Responsavel: Ana — 2 cards". */
   const contados = (descricao: string) => (mudaram: number) =>
-    `${descricao} — ${mudaram === 1 ? '1 card' : `${mudaram} cards`}`
+    `${descricao} (${mudaram === 1 ? '1 card' : `${mudaram} cards`})`
 
   /**
    * As etiquetas sao gravadas inteiras: o card e lido na hora, e a mudanca vale sobre o
@@ -813,7 +813,7 @@ export function BulkFailures({
               onClick={aoFechar}
               className="text-fg underline-offset-2 hover:underline"
             >
-              <span className="font-medium font-mono text-fg-muted">#{card.Number}</span>{' '}
+              <span className="font-medium tabular-nums text-fg-muted">#{card.Number}</span>{' '}
               {headlineText(cardHeadline(card))}
             </Link>
             <span className="block text-fg-muted">{motivo}</span>

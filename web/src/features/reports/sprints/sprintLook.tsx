@@ -145,13 +145,13 @@ export function sprintDates(
 ): string {
   const a = parseDay(sprint.StartsOn)
   const b = parseDay(sprint.EndsOn)
-  if (!a || !b) return `${formatDay(sprint.StartsOn)} – ${formatDay(sprint.EndsOn)}`
+  if (!a || !b) return `${formatDay(sprint.StartsOn)} a ${formatDay(sprint.EndsOn)}`
   const mes = (dia: { ano: number; mes: number }) =>
     mesCurto.format(new Date(dia.ano, dia.mes - 1, 1))
   const ano = (dia: { ano: number }) => (dia.ano === hoje.getFullYear() ? '' : ` de ${dia.ano}`)
-  if (a.ano === b.ano && a.mes === b.mes) return `${a.dia} – ${b.dia} de ${mes(b)}${ano(b)}`
-  if (a.ano === b.ano) return `${a.dia} de ${mes(a)} – ${b.dia} de ${mes(b)}${ano(b)}`
-  return `${a.dia} de ${mes(a)}${ano(a)} – ${b.dia} de ${mes(b)}${ano(b)}`
+  if (a.ano === b.ano && a.mes === b.mes) return `${a.dia} a ${b.dia} de ${mes(b)}${ano(b)}`
+  if (a.ano === b.ano) return `${a.dia} de ${mes(a)} a ${b.dia} de ${mes(b)}${ano(b)}`
+  return `${a.dia} de ${mes(a)}${ano(a)} a ${b.dia} de ${mes(b)}${ano(b)}`
 }
 
 /** Quantos dias faltam ate o ultimo dia — negativo quando ja passou. Pelo dia de quem olha. */
@@ -181,9 +181,15 @@ export function timeLeftText(endsOn: string): string {
 export function SprintBar({
   sprint,
   aoConcluir,
+  aoIrAoBacklog,
 }: {
   sprint: SprintViewModel
   aoConcluir: () => void
+  /**
+   * O quadro com sprint mostra so a sprint: sem dizer isso, 1 card na tela de um projeto
+   * com 24 parecia que o resto tinha sumido.
+   */
+  aoIrAoBacklog?: () => void
 }) {
   const passou = daysLeft(sprint.EndsOn) < 0
   return (
@@ -195,19 +201,32 @@ export function SprintBar({
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="font-semibold text-body text-fg">{sprint.Name}</span>
           <span className="text-detail text-fg-muted">
-            {sprintDates(sprint)} ·{' '}
+            {sprintDates(sprint)},{' '}
             <span className={passou ? 'text-chip-red-fg' : undefined}>
               {timeLeftText(sprint.EndsOn)}
             </span>
           </span>
         </p>
         {sprint.Goal && <p className="mt-0.5 text-detail text-fg-muted">{sprint.Goal}</p>}
+        {aoIrAoBacklog && (
+          <p className="mt-0.5 text-detail text-fg-muted">
+            O quadro mostra só esta sprint, e os outros cards estão no{' '}
+            <button
+              type="button"
+              onClick={aoIrAoBacklog}
+              className="text-fg underline underline-offset-4 transition-colors hover:text-fg-muted"
+            >
+              Backlog
+            </button>
+            .
+          </p>
+        )}
       </div>
       <div className="flex flex-none items-center gap-3">
         <span className="text-detail text-fg-muted tabular-nums">
           {sprint.DoneCards} de {sprint.Cards} {sprint.Cards === 1 ? 'card' : 'cards'}
           {sprint.Points > 0 &&
-            ` · ${formatPoints(sprint.DonePoints)} de ${pointsText(sprint.Points)}`}
+            `, ${formatPoints(sprint.DonePoints)} de ${pointsText(sprint.Points)}`}
         </span>
         <Button size="sm" onClick={aoConcluir}>
           Concluir sprint
@@ -538,7 +557,7 @@ export function CloseSprintDialog({
 
   // Sem estimativa, sem a conta dos pontos; sem nada terminado, sem dizer onde fica.
   const pontos =
-    sprint.Points > 0 ? ` — ${formatPoints(sprint.DonePoints)} de ${pointsText(sprint.Points)}` : ''
+    sprint.Points > 0 ? `, ${formatPoints(sprint.DonePoints)} de ${pointsText(sprint.Points)}` : ''
   const fica = sprint.DoneCards > 0 ? ' O que terminou fica na sprint concluída.' : ''
 
   return (
@@ -607,7 +626,7 @@ export function CloseSprintDialog({
                       key={card.PublicId}
                       className="flex items-baseline gap-2 border-border border-b px-2.5 py-1.5 text-detail last:border-b-0"
                     >
-                      <span className="flex-none font-mono text-caption text-fg-muted">
+                      <span className="flex-none text-caption text-fg-muted tabular-nums">
                         #{card.Number}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-fg">

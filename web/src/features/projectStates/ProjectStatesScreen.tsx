@@ -443,7 +443,7 @@ export function ProjectStatesScreen() {
           id={idEntrada(state.PublicId)}
           className="basis-full text-caption text-fg-muted leading-relaxed"
         >
-          É a entrada de {juntar(prendem)} — troque em{' '}
+          É a entrada de {juntar(prendem)}, então troque em{' '}
           <Link to="../report-types" className="text-fg underline underline-offset-4">
             Tipos de relato
           </Link>
@@ -535,7 +535,7 @@ export function ProjectStatesScreen() {
 
       <HowItWorks className="" bodyClassName="max-w-170">
         <p>
-          Clique numa coluna para abrir — uma de cada vez. O nome e o que quem relatou vê valem no
+          Clique numa coluna para abrir, uma de cada vez. O nome e o que quem relatou vê valem no
           Salvar dela; mudar a ordem (pela alça à esquerda ou pelas setas), criar e desativar valem
           na hora.
         </p>
@@ -558,7 +558,7 @@ export function ProjectStatesScreen() {
         <p>
           De fábrica, a última coluna ativa encerra o relato; em{' '}
           <Link to="../cycle#encerramento" className="text-fg underline underline-offset-4">
-            Ciclo
+            Encerramento
           </Link>
           , dá para encerrar por um botão.
         </p>
@@ -584,7 +584,7 @@ export function ProjectStatesScreen() {
               </header>
               <p className="mb-4 text-detail text-fg-muted leading-relaxed">
                 O quadro com as colunas ativas, na ordem, e embaixo de cada uma o que quem relatou
-                vê — com a coluna aberta como está escrita agora. O card é de exemplo.
+                vê, com a coluna aberta como está escrita agora. O card é de exemplo.
               </p>
               {naPrevia.length > 0 ? (
                 <MiniBoard

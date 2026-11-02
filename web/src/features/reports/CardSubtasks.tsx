@@ -32,7 +32,7 @@ export function ParentLink({ parent }: { parent: CardParentViewModel }) {
         onClick={(evento) => guardar(evento, `../${parent.PublicId}`)}
         className="flex min-w-0 items-center gap-1 text-fg underline-offset-2 hover:underline"
       >
-        <span className="flex-none font-mono">#{parent.Number}</span>{' '}
+        <span className="flex-none tabular-nums">#{parent.Number}</span>{' '}
         <span className="min-w-0 truncate">{parent.Headline}</span>
       </Link>
     </p>
@@ -237,7 +237,7 @@ export function CardSubtasks({
         ) : (
           <Feita feita={item.Finished} />
         )}
-        <span className="flex-none font-mono text-caption text-fg-muted">#{item.Number}</span>
+        <span className="flex-none tabular-nums text-caption text-fg-muted">#{item.Number}</span>
         <Link
           to={`../${item.PublicId}`}
           onClick={(evento) => guardar(evento, `../${item.PublicId}`)}
@@ -428,7 +428,7 @@ function EscolherResponsavel({
               <span className="min-w-0 truncate">
                 {pessoa.Name ?? pessoa.Email ?? 'Sem nome'}
                 {pessoa.UserPublicId === atual?.UserPublicId && (
-                  <span className="text-fg-muted"> · com a subtarefa</span>
+                  <span className="text-fg-muted">, com a subtarefa</span>
                 )}
               </span>
             </DropdownItem>

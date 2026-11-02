@@ -93,7 +93,7 @@ describe('DomainsScreen', () => {
     montar('/p/domains')
     await screen.findByText('novo.com')
     expect(selecionada('Aguardando')).toBe(true)
-    expect(aba('Aguardando').textContent).toBe('Aguardando (1)')
+    expect(aba('Aguardando').textContent).toBe('Aguardando 1')
   })
 
   it('o aviso do sino (#limites) abre na aba Proteção, com os limites visiveis', async () => {
@@ -109,7 +109,7 @@ describe('DomainsScreen', () => {
     expect(await screen.findByText('1 mudança: Por pessoa a cada 10 min')).toBeTruthy()
   })
 
-  it('cada limite da busca, e o antigo #mais-opcoes, levam a Proteção — tambem com a tela aberta', async () => {
+  it('cada limite da busca, e o antigo #mais-opcoes, levam a Proteção, tambem com a tela aberta', async () => {
     const router = montar('/p/domains#limite-por-ip')
     expect(selecionada('Proteção')).toBe(true)
     await waitFor(() =>
