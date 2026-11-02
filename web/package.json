@@ -13,7 +13,7 @@
     "format": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:loader": "vite build --config vite.loader.config.ts && vite build --config vite.capture.config.ts"
+    "build:loader": "vite build --config vite.loader.config.ts && vite build --config vite.capture.config.ts && cp public/v1/relatofacil.js public/v1/pds.js && cp public/v1/relatofacil-captura.js public/v1/pds-captura.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

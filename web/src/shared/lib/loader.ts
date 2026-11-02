@@ -7,7 +7,7 @@ import { environment } from '@/data/environment'
  * mesmo uma linha so, e a de instalacao, ja com a chave do projeto no lugar.
  *
  * O endereco **deixou de ser texto fixo**: ele sai de `VITE_LOADER_URL`, e o
- * padrao e a origem do proprio painel, que e quem publica `/v1/pds.js`. Antes
+ * padrao e a origem do proprio painel, que e quem publica `/v1/relatofacil.js`. Antes
  * disto apontava para um dominio de terceiro que nem resolve, e ninguem ia
  * descobrir ate colar o trecho num site de verdade.
  */
@@ -30,9 +30,9 @@ export function buildOwnTriggerSnippet(publicKey: string): string {
 }
 
 /** Os dois jeitos de abrir pelo botao do cliente: o atributo, ou a funcao. */
-export const OWN_TRIGGER_EXAMPLES = `<button type="button" data-pds-open>Relatar um problema</button>
+export const OWN_TRIGGER_EXAMPLES = `<button type="button" data-relatofacil-open>Relatar um problema</button>
 
 <script>
   // Ou de qualquer lugar da sua aplicação:
-  Pds.open()
+  RelatoFacil.open()
 </script>`

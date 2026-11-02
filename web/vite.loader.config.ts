@@ -23,16 +23,18 @@ export default defineConfig({
   },
   build: {
     // Dentro de `public/` para o build principal copiar junto, e a URL final
-    // ficar `/v1/pds.js` tanto no `vite dev` quanto no `dist`.
+    // ficar `/v1/relatofacil.js` tanto no `vite dev` quanto no `dist`.
     outDir: 'public/v1',
     emptyOutDir: false,
     // O caminho colado no HTML do cliente e a coisa mais cara de mudar depois:
     // ja nasce com versao, para a troca nunca exigir mexer no site de ninguem.
+    // O nome segue o dominio do produto; o `build:loader` copia o arquivo para
+    // `pds.js`, o endereco antigo, para o site que ja o colou continuar funcionando.
     lib: {
       entry: fileURLToPath(new URL('./src/loader/main.ts', import.meta.url)),
       formats: ['iife'],
-      name: 'PdsLoader',
-      fileName: () => 'pds.js',
+      name: 'RelatoFacilLoader',
+      fileName: () => 'relatofacil.js',
     },
   },
 })

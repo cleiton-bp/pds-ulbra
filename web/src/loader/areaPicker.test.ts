@@ -26,7 +26,7 @@ afterEach(() => {
 
 function abrir(): { picker: AreaPicker; sombra: ShadowRoot; camada: HTMLElement } {
   aberto = openAreaPicker()
-  const host = document.querySelector('[data-pds-captura]') as HTMLElement
+  const host = document.querySelector('[data-relatofacil-captura]') as HTMLElement
   const sombra = host.shadowRoot as ShadowRoot
   return { picker: aberto, sombra, camada: sombra.querySelector('.camada') as HTMLElement }
 }
@@ -48,7 +48,7 @@ describe('a camada de marcar a area', () => {
   it('entra na pagina marcada para ficar fora do print, com as tres saidas', () => {
     const { sombra } = abrir()
 
-    expect(document.querySelectorAll('[data-pds-captura]')).toHaveLength(1)
+    expect(document.querySelectorAll('[data-relatofacil-captura]')).toHaveLength(1)
     expect(sombra.textContent).toContain('Arraste para marcar o que quer mostrar.')
     expect(botao(sombra, 'Tela inteira')).toBeDefined()
     expect(botao(sombra, 'Cancelar')).toBeDefined()
@@ -127,7 +127,7 @@ describe('a camada de marcar a area', () => {
     expect(sombra.activeElement).toBe(botao(sombra, 'Cancelar'))
 
     picker.close()
-    expect(document.querySelector('[data-pds-captura]')).toBeNull()
+    expect(document.querySelector('[data-relatofacil-captura]')).toBeNull()
   })
 
   // Uma pagina pesada ou uma rede parada nao podem prender a pessoa debaixo do veu.
