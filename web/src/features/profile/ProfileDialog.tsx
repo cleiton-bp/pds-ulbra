@@ -78,7 +78,7 @@ export function ProfileDialog() {
         if (!aberto) closeProfile()
       }}
       title="Perfil"
-      description="Os sons e o volume ficam salvos assim que você escolhe — não há botão de salvar."
+      description="Os sons e o volume ficam salvos assim que você escolhe, sem botão de salvar."
       closeButton
       width="w-[min(36rem,calc(100vw-2rem))]"
       className={CAIXA}
@@ -122,11 +122,11 @@ function ProfileContent() {
           ) : null}
           <dl className="min-w-0 text-detail">
             <dt className="sr-only">Nome</dt>
-            <dd className="truncate font-medium text-body text-fg">{user?.Name ?? '—'}</dd>
+            <dd className="truncate font-medium text-body text-fg">{user?.Name ?? 'Sem nome'}</dd>
             <dt className="sr-only">E-mail</dt>
-            <dd className="truncate text-fg-muted">{user?.Email ?? '—'}</dd>
+            <dd className="truncate text-fg-muted">{user?.Email ?? 'sem e-mail'}</dd>
             <dt className="mt-2 inline text-fg-muted">Sua conta: </dt>
-            <dd className="inline text-fg">{user?.Account.Name ?? '—'}</dd>
+            <dd className="inline text-fg">{user?.Account.Name ?? 'Sem nome'}</dd>
           </dl>
         </div>
         <p className="mt-2 text-caption text-fg-muted">
@@ -141,7 +141,7 @@ function ProfileContent() {
         <p className="mb-4 text-detail text-fg-muted leading-relaxed">
           Os avisos aparecem no sino, no topo de todas as telas, e tocam o som escolhido: na tela de
           Trabalho, na hora; nas outras telas, em até um minuto. Escolha o som de cada tipo e o
-          volume — ao escolher, você ouve. Vale em todos os projetos.
+          volume, e ao escolher você ouve. Vale em todos os projetos.
         </p>
         {data ? (
           <SoundSettings inicial={data} />

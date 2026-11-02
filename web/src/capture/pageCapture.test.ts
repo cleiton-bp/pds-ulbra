@@ -78,7 +78,12 @@ describe('o desenho da area', () => {
 
     const opcoes = dublê.snapdom.mock.calls[0]?.[1]
     expect(opcoes.exclude).toEqual(EXCLUDED_FROM_CAPTURE)
-    expect(EXCLUDED_FROM_CAPTURE).toEqual(['iframe[data-pds]', '[data-pds-captura]'])
+    expect(EXCLUDED_FROM_CAPTURE).toEqual([
+      'iframe[data-relatofacil]',
+      '[data-relatofacil-captura]',
+      'iframe[data-pds]',
+      '[data-pds-captura]',
+    ])
     expect(opcoes.excludeMode).toBe('remove')
   })
 
@@ -94,17 +99,24 @@ describe('o desenho da area', () => {
     const senha = document.createElement('input')
     senha.type = 'password'
     const marcadoPorAtributo = document.createElement('div')
-    marcadoPorAtributo.setAttribute('data-pds-no-capture', '')
+    marcadoPorAtributo.setAttribute('data-relatofacil-no-capture', '')
     const dentroDoMarcado = document.createElement('span')
     marcadoPorAtributo.appendChild(dentroDoMarcado)
     const marcadoPorClasse = document.createElement('div')
-    marcadoPorClasse.className = 'pds-no-capture'
+    marcadoPorClasse.className = 'relatofacil-no-capture'
+    // Os nomes antigos continuam escondendo: o site que ja os usa nao passa a vazar o campo.
+    const antigoPorAtributo = document.createElement('div')
+    antigoPorAtributo.setAttribute('data-pds-no-capture', '')
+    const antigoPorClasse = document.createElement('div')
+    antigoPorClasse.className = 'pds-no-capture'
     const comum = document.createElement('p')
 
     expect(opcoes.filter(senha)).toBe(false)
     expect(opcoes.filter(marcadoPorAtributo)).toBe(false)
     expect(opcoes.filter(dentroDoMarcado)).toBe(false)
     expect(opcoes.filter(marcadoPorClasse)).toBe(false)
+    expect(opcoes.filter(antigoPorAtributo)).toBe(false)
+    expect(opcoes.filter(antigoPorClasse)).toBe(false)
     expect(opcoes.filter(comum)).toBe(true)
   })
 

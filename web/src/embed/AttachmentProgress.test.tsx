@@ -96,7 +96,7 @@ describe('os arquivos que não foram', () => {
 
     expect(
       screen.getByText(
-        'O relato foi enviado e o seu texto está salvo. Só o arquivo não foi junto — Falha de rede ao enviar o arquivo.',
+        'O relato foi enviado e o seu texto está salvo. Só o arquivo não foi junto: Falha de rede ao enviar o arquivo.',
       ),
     ).toBeDefined()
     expect(linha('video.png').textContent).toContain('Esse formato de arquivo nao e aceito.')

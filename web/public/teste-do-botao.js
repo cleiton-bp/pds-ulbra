@@ -8,7 +8,7 @@
     return
   }
   var script = document.createElement('script')
-  script.src = '/v1/pds.js'
+  script.src = '/v1/relatofacil.js'
   script.dataset.key = chave
   document.body.appendChild(script)
 })()

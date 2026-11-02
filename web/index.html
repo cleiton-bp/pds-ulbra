@@ -6,8 +6,16 @@
     <title>Painel do Relato Fácil</title>
     <meta name="description" content="Painel do Relato Fácil: seus projetos, chaves e integração." />
 
-    <!-- SVG: troca de cor conforme o tema do navegador (ver o <style> dentro). -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!--
+      O ícone da aba. O SVG troca de cor conforme o tema do navegador (ver o <style>
+      dentro) e vem por último, porque no empate vale o último; o ICO, com sizes, fica
+      para quem não lê SVG. O apple-touch-icon é o da tela inicial do celular.
+      Nome exclusivo no SVG: o navegador guarda o ícone pelo endereço, e um
+      favicon.svg em outra porta igual a esta mostrava o ícone de outro projeto.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/marca.svg" type="image/svg+xml" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!--
       O tema é escrito ANTES de qualquer pintura. `themeStore.ts` só resolve depois

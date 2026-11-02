@@ -57,7 +57,8 @@ function RolesHint() {
   return (
     <>
       <p className="mb-2 text-detail text-fg-muted leading-relaxed">
-        Administrador configura, convida e muda papéis; Membro trabalha nos cards.
+        Administrador configura, convida e muda papéis, e Membro trabalha nos cards e decide o que
+        vai a público.
       </p>
       <HowItWorks className="mb-6">
         <p>
@@ -69,8 +70,9 @@ function RolesHint() {
           convida, muda o papel de quem está no time e remove pessoas.
         </p>
         <p>
-          <strong className="font-medium text-fg">Membro</strong> trabalha nos cards e vê quem está
-          no time. Para configurar ou convidar, precisa ser administrador.
+          <strong className="font-medium text-fg">Membro</strong> trabalha nos cards, decide na
+          Moderação o que vai a público e vê quem está no time. Para configurar ou convidar, precisa
+          ser administrador.
         </p>
         <p>
           O convite vai por e-mail, e só vale para a conta Google do mesmo endereço: o link
@@ -253,7 +255,7 @@ function Tabs({
                   item.attention ? 'text-chip-orange-fg' : 'font-normal text-fg-muted',
                 )}
               >
-                {`· ${item.count}`}
+                {item.count}
               </span>
             )}
             {/* A cor nao fala sozinha: o ponto e a frase escondida dizem o mesmo. */}

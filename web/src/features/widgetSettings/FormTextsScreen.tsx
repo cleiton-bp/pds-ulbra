@@ -160,7 +160,7 @@ export function FormTextsScreen() {
   return (
     <div className="max-w-6xl">
       <SettingsHeader
-        title="Formulário"
+        title="Textos e tema"
         description={
           <>
             O que o formulário diz e pergunta para todo tipo de relato, parte por parte, na ordem em
@@ -224,7 +224,7 @@ export function FormTextsScreen() {
             name={ACORDEAO}
             id="topo-do-formulario"
             title="Topo"
-            value={`${describeLook(draft)} · “${draft.Title.trim()}”`}
+            value={`${describeLook(draft)}, “${draft.Title.trim()}”`}
             changes={changedFromDefaults(draft, DEFAULT_WIDGET_SETTINGS, GRUPOS.top)}
             onReset={() => ferramenta.change(defaultsOf(DEFAULT_WIDGET_SETTINGS, GRUPOS.top))}
             defaultOpen
@@ -347,15 +347,15 @@ function describeType(draft: WidgetSettingsViewModel): string {
   const marcado =
     draft.Types.find((tipo) => tipo.PublicId === draft.DefaultReportType) ?? draft.Types[0]
   if (draft.ShowsTypeField) {
-    return marcado ? `A pessoa escolhe · marcado: ${marcado.Name}` : 'A pessoa escolhe'
+    return marcado ? `A pessoa escolhe, com ${marcado.Name} marcado` : 'A pessoa escolhe'
   }
-  return marcado ? `Sem seletor · tudo entra como ${marcado.Name}` : 'Sem seletor'
+  return marcado ? `Sem seletor, e tudo entra como ${marcado.Name}` : 'Sem seletor'
 }
 
 /** "Opcional · “Em poucas palavras…”", ou so "Escondido", que nao tem pergunta. */
 function describeTitle(draft: WidgetSettingsViewModel): string {
   if (draft.ReportTitleMode === 'Hidden') return MODOS.Hidden
-  return `${MODOS[draft.ReportTitleMode]} · “${draft.ReportTitleQuestion.trim()}”`
+  return `${MODOS[draft.ReportTitleMode]}, “${draft.ReportTitleQuestion.trim()}”`
 }
 
 /** O tema, ou o fundo escolhido — que, escolhido, e quem decide o tema. */

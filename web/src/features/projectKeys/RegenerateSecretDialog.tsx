@@ -42,7 +42,7 @@ export function RegenerateSecretDialog({
       title={replacing ? 'Gerar nova chave secreta' : 'Gerar chave secreta'}
       description={
         replacing
-          ? 'A chave de hoje para de funcionar no momento em que a nova nasce. Se algum servidor seu já usa a chave atual, ele vai responder com erro até receber a nova — a troca costuma levar um minuto: copie a chave nova e substitua onde a antiga estiver. O valor completo aparece uma única vez, logo depois de gerar.'
+          ? 'A chave de hoje para de funcionar no momento em que a nova nasce. Se algum servidor seu já usa a chave atual, ele vai responder com erro até receber a nova, a troca costuma levar um minuto: copie a chave nova e substitua onde a antiga estiver. O valor completo aparece uma única vez, logo depois de gerar.'
           : 'O valor completo aparece uma única vez, logo depois de gerar: copie e guarde no servidor que vai usá-la. Se perder, dá para gerar outra.'
       }
       confirmLabel={replacing ? 'Gerar nova chave' : 'Gerar chave'}

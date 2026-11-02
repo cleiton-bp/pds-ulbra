@@ -105,7 +105,7 @@ describe('o historico do card aberto', () => {
     expect(await frases()).toHaveLength(4)
   })
 
-  it('do time, uma abertura so — mesmo duas pessoas abrindo juntas —, e sem voltas a mostrar', async () => {
+  it('do time, uma abertura so, mesmo duas pessoas abrindo juntas —, e sem voltas a mostrar', async () => {
     dublê.historico.mockResolvedValue([
       linha('ReportCreated', 0),
       linha('ReportViewed', 1),
@@ -131,7 +131,7 @@ describe('o historico do card aberto', () => {
 
     expect(await frases()).toEqual([
       'Quem relatou continua vendo a mesma etapa',
-      'Movido de Análise para Fazendo · quem relatou continua vendo a mesma etapa',
+      'Movido de Análise para Fazendo, e quem relatou continua vendo a mesma etapa',
     ])
     expect(screen.queryByText(/jornada/)).toBeNull()
   })

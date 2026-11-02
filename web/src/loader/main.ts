@@ -23,7 +23,11 @@ import { createLauncherView, type LauncherView } from '@/loader/launcherView'
 /**
  * O CARREGADOR — a unica linha que o cliente cola no site dele.
  *
- * <script src="https://.../v1/pds.js" data-key="pk_..." defer></script>
+ * <script src="https://.../v1/relatofacil.js" data-key="pk_..." defer></script>
+ *
+ * O nome segue o dominio do produto. O `v1/pds.js` continua publicado como copia, para o
+ * site que colou o endereco antigo, e os nomes antigos de abrir e de esconder da captura
+ * (`Pds.open()`, `data-pds-open`, `data-pds-no-capture`) continuam valendo.
  *
  * **Nada pesado ate alguem pedir.** O carregador le so a aparencia do botao (uma
  * resposta pequena, guardada cinco minutos pelo navegador) e desenha o botao ele mesmo,
@@ -33,7 +37,7 @@ import { createLauncherView, type LauncherView } from '@/loader/launcherView'
  * instantaneo. Ate o quadro responder, o carregador mostra a tela de "abrindo".
  *
  * **O cliente pode dispensar o nosso botao** (`data-button="none"`) e abrir pelo dele:
- * `Pds.open()`, ou qualquer elemento com `data-pds-open`. Ai nao sai requisicao
+ * `RelatoFacil.open()`, ou qualquer elemento com `data-relatofacil-open`. Ai nao sai requisicao
  * nenhuma ate alguem pedir.
  *
  * **A excecao e a captura**, e so quando a pessoa pede: codigo dentro de um quadro
@@ -66,7 +70,13 @@ const key = script?.dataset.key?.trim() ?? ''
 const origin = script ? new URL(script.src, window.location.href).origin : ''
 
 /** O arquivo da captura mora ao lado deste, na mesma versao. */
-const captureSrc = script ? new URL('pds-captura.js', script.src).href : ''
+const captureSrc = script ? new URL('relatofacil-captura.js', script.src).href : ''
+
+/** Os nomes de abrir pelo botao do cliente: o do dominio e o antigo, que continua valendo. */
+const ABRIR = ['data-relatofacil-open', 'data-pds-open']
+
+/** A funcao de abrir fica nos dois nomes, o novo primeiro. */
+const GLOBAIS = ['RelatoFacil', 'Pds'] as const
 
 /**
  * O cliente dispensou o nosso botao e abre pelo dele. **Ai nada sai daqui ate alguem
@@ -260,7 +270,7 @@ function ensureFrame(): HTMLIFrameElement {
 
   const novo = document.createElement('iframe')
   novo.src = `${origin}/embed.html`
-  novo.setAttribute('data-pds', '')
+  novo.setAttribute('data-relatofacil', '')
   novo.title = 'Relato'
   // `allow-scripts` e `allow-same-origin` sao o minimo para o quadro rodar e
   // falar com a nossa API. Sem `allow-top-navigation`: um quadro nunca deve
@@ -392,7 +402,7 @@ function preload(): void {
   ensureFrame()
 }
 
-/** Abre: pelo nosso botao, por `Pds.open()` ou por `data-pds-open`. */
+/** Abre: pelo nosso botao, por `RelatoFacil.open()` ou por `data-relatofacil-open`. */
 function open(): void {
   if (!pronto) {
     abrirQuandoPronto = true
@@ -544,12 +554,13 @@ async function drawButton(leitura: Promise<WidgetLauncherViewModel | null>): Pro
   if (!lida?.IsEnabled) return
   aparencia = lida
   ensureView().setAppearance(lida)
-  // Aberto antes de a leitura chegar (`Pds.open()`), o botao espera o fechar.
+  // Aberto antes de a leitura chegar (`RelatoFacil.open()`), o botao espera o fechar.
   if (estado === 'closed' && view?.mode !== 'error') showButton()
 }
 
 /**
- * Abre pelo clique em qualquer elemento com `data-pds-open` — **um ouvinte so**, no
+ * Abre pelo clique em qualquer elemento com `data-relatofacil-open` (ou o antigo
+ * `data-pds-open`), com **um ouvinte so**, no
  * documento, e passivo: o elemento continua sendo do cliente, com o comportamento dele.
  */
 function onDeclarativeClick(event: Event): void {
@@ -558,21 +569,22 @@ function onDeclarativeClick(event: Event): void {
   // hospedeiro, e `closest` a partir dele nunca achava o botao do cliente. O
   // `composedPath` atravessa as sombras abertas; as fechadas ficam de fora, como devem.
   const caminho = event.composedPath()
-  if (caminho.some((no) => no instanceof Element && no.hasAttribute('data-pds-open'))) open()
+  if (caminho.some((no) => no instanceof Element && ABRIR.some((nome) => no.hasAttribute(nome))))
+    open()
 }
 
 /**
- * `window.Pds`, **uma vez e congelado**: duas copias do script na mesma pagina nao
- * abrem dois quadros, e script nenhum da pagina troca o `open` por outra coisa.
+ * `window.RelatoFacil`, **uma vez e congelado**: duas copias do script na mesma pagina nao
+ * abrem dois quadros, e script nenhum da pagina troca o `open` por outra coisa. O
+ * `window.Pds` e o mesmo objeto, com o nome antigo, para o site que ja chama por ele.
  */
 function start(): void {
-  if ('Pds' in window) return
+  if (GLOBAIS.some((nome) => nome in window)) return
 
-  Object.defineProperty(window, 'Pds', {
-    value: Object.freeze({ open: () => open(), close: () => close() }),
-    writable: false,
-    configurable: false,
-  })
+  const api = Object.freeze({ open: () => open(), close: () => close() })
+  for (const nome of GLOBAIS) {
+    Object.defineProperty(window, nome, { value: api, writable: false, configurable: false })
+  }
 
   document.addEventListener('click', onDeclarativeClick, { passive: true })
 

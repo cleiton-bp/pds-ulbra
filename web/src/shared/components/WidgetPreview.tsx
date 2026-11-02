@@ -372,7 +372,7 @@ export function WidgetPreview({
 
       {escondido && (
         <p className="mb-3 text-detail text-fg-muted">
-          No celular, o botão não aparece — é o que está escolhido em “No celular”.
+          No celular, o botão não aparece, porque é o que está escolhido em “No celular”.
         </p>
       )}
       {!settings.IsEnabled && (

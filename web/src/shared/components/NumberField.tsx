@@ -83,7 +83,7 @@ export function NumberField({
       className={cn(
         'inline-flex items-stretch overflow-hidden rounded-lg border bg-surface-raised transition-colors duration-150',
         size === 'md' ? 'h-9' : 'h-8',
-        invalid ? 'border-error-border' : 'border-border',
+        invalid ? 'border-error-border' : 'border-border-control',
         disabled && 'opacity-60',
         className,
       )}

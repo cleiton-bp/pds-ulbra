@@ -1,5 +1,5 @@
-import { type MouseEvent, type ReactNode, useCallback, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type {
   HeldOriginViewModel,
   ObservedOriginViewModel,
@@ -15,14 +15,21 @@ import { TestReportDialog } from '@/features/onboarding/TestReportDialog'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { LauncherIconSvg } from '@/shared/components/LauncherIcon'
-import { MoreOptions } from '@/shared/components/MoreOptions'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import type { ScrollToHashState } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
-import { domainAuthorized, scriptInstalled, testReportSent } from '@/shared/lib/installSignals'
+import {
+  domainAuthorized,
+  isTestOrigin,
+  markScriptCopied,
+  scriptCopied,
+  scriptInstalled,
+  testReportSent,
+} from '@/shared/lib/installSignals'
 import { buildOwnTriggerSnippet, buildSnippet, OWN_TRIGGER_EXAMPLES } from '@/shared/lib/loader'
 
 /**
@@ -51,8 +58,15 @@ import { buildOwnTriggerSnippet, buildSnippet, OWN_TRIGGER_EXAMPLES } from '@/sh
  * precisa fazer nada.
  */
 
-/** O nome do acordeao: com o mesmo `name`, o navegador deixa um passo aberto so. */
-const ACORDEAO = 'instalacao'
+/** Os pontos da tela que a busca e os links alcancam, e o passo em que cada um mora. */
+const PASSO_DA_ANCORA: Record<string, InstallStepKey> = {
+  script: 'script',
+  'copiar-chave': 'script',
+  'proprio-botao': 'script',
+  'mais-opcoes': 'script',
+  'autorizar-endereco': 'domain',
+  'relato-de-teste': 'test',
+}
 
 /** Os links da previa levam ao campo e o acendem, como a busca. */
 const REALCE: ScrollToHashState = { realce: true }
@@ -93,10 +107,13 @@ function stepsDone(
   project: ProjectViewModel,
   { origins, observed }: InstallStatus,
 ): Record<InstallStepKey, boolean | null> {
+  const script = scriptInstalled(project, observed)
   return {
-    script: scriptInstalled(project, observed),
+    script,
     domain: domainAuthorized(origins),
-    test: testReportSent(observed),
+    // Com o sistema mandando relato, o teste ja nao tem o que provar (os mesmos sinais da
+    // pagina central).
+    test: script ? true : testReportSent(observed),
   }
 }
 
@@ -119,9 +136,48 @@ export function StartScreen() {
   const publicKey = keys?.find((key) => key.Type === 'Public' && key.IsActive)?.Value ?? ''
   const snippet = buildSnippet(publicKey)
 
+  const [copiado, setCopiado] = useState(() => scriptCopied(project.PublicId))
+  // Copiar o script ou o recado para quem cuida do sistema: o passo sai das maos de quem
+  // administra, e o guia segue para o proximo enquanto o primeiro relato nao chega.
+  const marcarCopiado = useCallback(() => {
+    markScriptCopied(project.PublicId)
+    setCopiado(true)
+  }, [project.PublicId])
   const done = status ? stepsDone(project, status) : null
-  // O primeiro que falta abre; com tudo feito, nenhum — quem volta ve so os titulos.
-  const aberto = done ? (ORDEM.find((key) => done[key] !== true) ?? null) : null
+  // O primeiro que falta abre; com tudo feito, nenhum, e quem volta ve so os titulos. O
+  // script copiado espera o primeiro relato do sistema, e o passo seguinte abre no lugar.
+  const aberto = done
+    ? (ORDEM.find((key) => done[key] !== true && !(key === 'script' && copiado)) ??
+      ORDEM.find((key) => done[key] !== true) ??
+      null)
+    : null
+  // O passo aberto: o que a tela calcula, ate a pessoa abrir ou fechar um a mao. Um link
+  // para dentro de um passo (a busca leva a `start#copiar-chave`) abre o passo dele.
+  const location = useLocation()
+  const [escolhido, setEscolhido] = useState<InstallStepKey | null | undefined>(
+    () => PASSO_DA_ANCORA[location.hash.slice(1)],
+  )
+  useEffect(() => {
+    const passo = PASSO_DA_ANCORA[location.hash.slice(1)]
+    if (passo) setEscolhido(passo)
+  }, [location.hash])
+  // Quando o calculo muda (copiou o bloco, autorizou o dominio), a tela volta a decidir.
+  const abertoAntes = useRef(aberto)
+  useEffect(() => {
+    if (abertoAntes.current !== null && abertoAntes.current !== aberto) setEscolhido(undefined)
+    abertoAntes.current = aberto
+  }, [aberto])
+  const passoAberto = escolhido !== undefined ? escolhido : aberto
+  const alternar = (passo: InstallStepKey) => setEscolhido(passoAberto === passo ? null : passo)
+
+  const navigate = useNavigate()
+  const avisarChegada = useCallback(() => {
+    revalidateStatus()
+    toast.done('Seu relato de teste chegou no Trabalho.', {
+      action: { label: 'Ver o relato', run: () => navigate('../reports') },
+    })
+  }, [revalidateStatus, navigate])
+  useAvisoDoTeste(project.PublicId, testOpen, avisarChegada)
   const funcionando = done !== null && aberto === null
 
   return (
@@ -156,38 +212,53 @@ export function StartScreen() {
             // Relato retido conta como chegado: o que falta e liberar o endereco (passo 2).
             pending={
               status.pending?.length
-                ? 'Chegou relato, e ele espera a liberação do endereço'
-                : 'Ainda não chegou relato do seu sistema'
+                ? 'Chegou relato, esperando a liberação'
+                : copiado
+                  ? 'Esperando o primeiro relato'
+                  : 'Ainda sem relato do seu sistema'
             }
             done={done.script}
-            open={aberto === 'script'}
-            // Sem a guarda, copiar o bloco sem chave "dava certo" e nao servia para nada.
+            open={passoAberto === 'script'}
+            onToggle={() => alternar('script')}
+            // Sem a guarda, copiar o script sem chave "dava certo" e nao servia para nada.
             action={
-              publicKey ? <CopyButton value={snippet} label="Copiar bloco" size="sm" /> : null
+              publicKey ? (
+                <CopyButton
+                  value={snippet}
+                  label="Copiar script"
+                  size="sm"
+                  onCopied={marcarCopiado}
+                />
+              ) : null
             }
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem]">
               <div className="min-w-0">
                 <p className="mb-3 text-detail text-fg-muted leading-relaxed">
-                  Antes do fechamento do &lt;/body&gt;, em todas as páginas. A chave já vem
-                  preenchida.
+                  Cole antes do fechamento do &lt;/body&gt;, em todas as páginas do seu sistema.
                 </p>
                 <pre className="m-0 whitespace-pre-wrap break-all rounded-lg border border-border bg-surface px-4 py-3.5 font-mono text-detail text-fg leading-relaxed">
                   {snippet}
                 </pre>
 
-                {/* O antigo primeiro passo: a chave ja vai no bloco, e sozinha ela so
-                    serve a quem monta o script a mao. */}
-                <div id="copiar-chave" className="mt-3 flex scroll-mt-6 items-center gap-2">
-                  <span className="flex-none text-detail text-fg-muted">Chave pública</span>
-                  <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg">
-                    {publicKey || '—'}
-                  </code>
-                  {publicKey && <CopyButton value={publicKey} size="sm" />}
-                </div>
-                <p className="mt-1.5 text-caption text-fg-muted">
-                  Pode ficar visível no código: ela só aceita o envio de relatos — não lê nada.
-                </p>
+                {/* Quem administra o projeto muitas vezes nao e quem mexe no codigo: o recado
+                    pronto leva o script, onde colar e o que vem depois, para mandar a quem
+                    cuida do sistema. Copiar o recado tambem conta como o script entregue. */}
+                {publicKey && (
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span className="text-detail text-fg-muted">
+                      Não é você quem mexe no código do sistema?
+                    </span>
+                    <CopyButton
+                      value={buildHandoffText(snippet)}
+                      label="Copiar instruções para quem cuida dele"
+                      size="sm"
+                      onCopied={marcarCopiado}
+                    />
+                  </div>
+                )}
+
+                <ForWhoCodes publicKey={publicKey} />
               </div>
 
               <WidgetPreview projectId={project.PublicId} />
@@ -200,7 +271,8 @@ export function StartScreen() {
             title="Autorizar o endereço do seu sistema"
             pending="Nenhum endereço autorizado"
             done={done.domain}
-            open={aberto === 'domain'}
+            open={passoAberto === 'domain'}
+            onToggle={() => alternar('domain')}
           >
             <p className="text-detail text-fg-muted leading-relaxed">
               O primeiro relato de um endereço novo espera a sua liberação; o autorizado entra
@@ -227,7 +299,7 @@ export function StartScreen() {
             <HowItWorks>
               A ferramenta abre em qualquer endereço que tenha a chave. Os relatos de um endereço
               novo ficam em “Aguardando liberação”, em Domínios, até você permitir ou bloquear o
-              endereço — o relato de teste daqui do painel entra direto.
+              endereço, e o relato de teste daqui do painel entra direto.
             </HowItWorks>
           </Step>
 
@@ -237,7 +309,8 @@ export function StartScreen() {
             title="Fazer um relato de teste"
             pending="Ainda não testado"
             done={done.test}
-            open={aberto === 'test'}
+            open={passoAberto === 'test'}
+            onToggle={() => alternar('test')}
             action={
               <Button size="sm" disabled={!publicKey} onClick={() => setTestOpen(true)}>
                 Abrir teste
@@ -259,27 +332,38 @@ export function StartScreen() {
             </Link>
           </Step>
 
-          {/* O caminho de quem ja tem um botao e a chave secreta sao a parte avancada da
-              instalacao: o padrao continua sendo colar e funcionar. */}
-          <MoreOptions
-            id="mais-opcoes"
-            className="details-smooth mt-2"
-            title="Avançado"
-            summary="Seu próprio botão · chave secreta"
+          {/* **Tres passos, e nada mais com cara de passo.** O "Avançado" ja foi uma quarta
+              caixa igual as dos passos, e quem chegava perguntava se precisava fazer aquilo
+              tambem. O proprio botao foi para dentro do passo 1, que e o que ele substitui; a
+              chave secreta e outra tarefa (integrar pela API) e mora em Chaves, entao aqui fica
+              so a saida, dizendo para onde leva. */}
+          <p
+            id="chave-secreta"
+            className="mt-2 flex scroll-mt-6 flex-wrap items-center gap-x-3 gap-y-1 text-detail text-fg-muted"
           >
-            <OwnTrigger publicKey={publicKey} />
+            <span>
+              Para integrar um sistema seu direto pela API, sem o botão, a chave secreta fica em
+              Chaves.
+            </span>
+            <Link
+              to="../keys"
+              className="inline-flex items-center gap-1 font-medium text-fg transition-colors hover:text-fg-muted"
+            >
+              Abrir Chaves
+              <Chevron className="size-2.5" />
+            </Link>
+          </p>
 
-            <section id="chave-secreta" className="mt-5 scroll-mt-6 border-border border-t pt-4">
-              <h3 className="mb-1 font-medium text-body text-fg">Chave secreta</h3>
-              <p className="text-detail text-fg-muted leading-relaxed">
-                Para um sistema seu falar direto com a nossa API, sem a ferramenta. Ela fica em{' '}
-                <Link to="../keys" className="text-fg underline underline-offset-4">
-                  Chaves e integração avançada
-                </Link>
-                .
-              </p>
-            </section>
-          </MoreOptions>
+          {/* Daqui a pessoa volta ao roteiro: a Instalacao e o detalhe dos tres primeiros
+              passos, e os outros dois moram na pagina central. */}
+          {!funcionando && (
+            <Link
+              to="../configure"
+              className="mt-1 self-start text-detail text-fg underline underline-offset-4 transition-colors hover:text-fg-muted"
+            >
+              Voltar aos primeiros passos
+            </Link>
+          )}
         </div>
       )}
 
@@ -308,7 +392,7 @@ function WorkingBadge({ lastReportAt }: { lastReportAt: string | null }) {
       <DoneGlyph />
       <span>
         <strong className="font-medium text-fg">Funcionando</strong>
-        {lastReportAt && ` · último relato ${formatRelative(lastReportAt)}`}
+        {lastReportAt && `, último relato ${formatRelative(lastReportAt)}`}
       </span>
       <Link to="../reports" className="font-medium text-fg underline underline-offset-4">
         Ver em Trabalho
@@ -331,16 +415,51 @@ function OriginCounts({ status }: { status: InstallStatus }) {
   }
   if (partes.length === 0) return null
 
-  return <span className="font-medium text-fg">{partes.join(' · ')}</span>
+  return <span className="font-medium text-fg">{partes.join(', ')}</span>
 }
 
 /**
- * Um passo do acordeao. O `id` fica no `<summary>`, dentro do `<details>`: a busca leva
- * a `start#script`, e `useScrollToHash` abre o `<details>` em volta do alvo antes de
- * rolar.
+ * Enquanto o teste esta aberto, confere a cada poucos segundos se o relato chegou. A
+ * pergunta de quem acabou de enviar e "chegou?", e a resposta vem com o caminho ate ele.
+ * Conta os relatos do endereco do teste: so um a mais e o que acabou de sair.
+ */
+function useAvisoDoTeste(projectPublicId: string, aberto: boolean, aoChegar: () => void) {
+  const aoChegarAgora = useRef(aoChegar)
+  aoChegarAgora.current = aoChegar
+
+  useEffect(() => {
+    if (!aberto) return
+    let antes: number | null = null
+    let vivo = true
+    const conferir = async () => {
+      const lista = await projectOriginService
+        .listObservedOrigins(projectPublicId)
+        .catch(() => null)
+      if (!vivo || lista === null) return
+      // A pagina de teste mora na origem do quadro, e os testes antigos sairam do painel.
+      const total = lista
+        .filter((origem) => isTestOrigin(origem.Domain))
+        .reduce((soma, origem) => soma + origem.ReportCount, 0)
+      if (antes !== null && total > antes) aoChegarAgora.current()
+      antes = total
+    }
+    void conferir()
+    const timer = window.setInterval(() => void conferir(), 4000)
+    return () => {
+      vivo = false
+      window.clearInterval(timer)
+    }
+  }, [projectPublicId, aberto])
+}
+
+/**
+ * Um passo da Instalacao: **o titulo e o botao de abrir, dentro do cabecalho**, e o estado
+ * e o botao do passo numa segunda linha, fora dele. Ja foi um `<summary>` com tudo numa
+ * linha so: no celular o titulo virava uma palavra por linha, com o estado por cima, e o
+ * leitor de tela ouvia um botao dentro de outro.
  *
- * `open` so diz como o passo comeca — e muda quando os dados mudam (autorizou o
- * dominio, o passo seguinte abre). Abrir e fechar a mao e com o navegador.
+ * Abre um passo por vez (quem decide e a tela), e o conteudo entra e sai deslizando, sem
+ * movimento para quem pediu menos movimento.
  */
 function Step({
   id,
@@ -349,54 +468,77 @@ function Step({
   pending,
   done,
   open,
+  onToggle,
   action,
   children,
 }: {
   id: string
   number: number
   title: string
-  /** O que ainda nao aconteceu, em palavras — "falta" sozinho nao dizia o que faltava. */
+  /** O que ainda nao aconteceu, em palavras: "falta", sozinho, nao dizia o que faltava. */
   pending: string
   done: boolean | null
   open: boolean
-  /** O botao do passo, no titulo: funciona com o passo fechado. */
+  onToggle: () => void
+  /** O botao do passo, ao lado do estado: funciona com o passo fechado. */
   action?: ReactNode
   children: ReactNode
 }) {
+  const conteudo = `${id}-conteudo`
   return (
-    <details
-      name={ACORDEAO}
-      open={open}
-      className="details-smooth group/passo rounded-xl border border-border bg-surface-raised"
+    <section
+      aria-labelledby={`${id}-titulo`}
+      className="rounded-xl border border-border bg-surface-raised"
     >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: o `<summary>` ja e interativo (foco e teclado do navegador); o clique so impede o botao de dentro de alternar o passo */}
-      <summary
-        id={id}
-        onClick={soOBotaoAge}
-        className="flex scroll-mt-6 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 px-5 py-4 [&::-webkit-details-marker]:hidden"
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-4">
+        <h2 className="flex min-w-0 flex-[1_1_16rem]">
+          <button
+            id={id}
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            aria-controls={conteudo}
+            className="flex min-w-0 flex-1 scroll-mt-6 items-center gap-2.5 text-left font-semibold text-fg text-lead"
+          >
+            <Chevron
+              className={cn(
+                'size-3 flex-none text-fg-muted transition-transform duration-300 ease-out motion-reduce:transition-none',
+                open && 'rotate-90',
+              )}
+            />
+            <span
+              aria-hidden
+              className="flex size-5 flex-none items-center justify-center rounded-full border border-border font-normal text-caption text-fg-muted"
+            >
+              {number}
+            </span>
+            <span id={`${id}-titulo`} className="min-w-0">
+              {title}
+            </span>
+          </button>
+        </h2>
+        {(done !== null || action) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {done !== null && <StepState done={done} pending={pending} />}
+            {action}
+          </div>
+        )}
+      </div>
+
+      <div
+        id={conteudo}
+        inert={!open}
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
+          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+        )}
       >
-        <span className="flex min-w-0 flex-1 items-center gap-2.5">
-          <Chevron className="size-3 flex-none text-fg-muted transition-transform duration-300 ease-out group-open/passo:rotate-90 motion-reduce:transition-none" />
-          <span className="flex size-5 flex-none items-center justify-center rounded-full border border-border text-caption text-fg-muted">
-            {number}
-          </span>
-          <h2 className="min-w-0 font-semibold text-fg text-lead">{title}</h2>
-        </span>
-        {done !== null && <StepState done={done} pending={pending} />}
-        {action}
-      </summary>
-
-      <div className="border-border border-t px-5 pt-4 pb-5">{children}</div>
-    </details>
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-border border-t px-5 pt-4 pb-5">{children}</div>
+        </div>
+      </div>
+    </section>
   )
-}
-
-/**
- * O clique no botao do titulo e so dele: sem isto, copiar o bloco tambem abriria ou
- * fecharia o passo. O teclado no botao chega aqui como clique, e vale o mesmo.
- */
-function soOBotaoAge(event: MouseEvent<HTMLElement>) {
-  if (event.target instanceof Element && event.target.closest('button')) event.preventDefault()
 }
 
 /**
@@ -474,10 +616,66 @@ function DoneGlyph() {
 /**
  * O caminho de quem ja tem um botao, ou quer abrir de uma tela da propria aplicacao.
  *
- * **Fica no Avançado, e curto**: o padrao continua sendo colar e funcionar. Quem
+ * **Fica dentro do passo 1, recolhido, e curto**: o padrao continua sendo colar e funcionar. Quem
  * dispensa o nosso botao ganha uma pagina que nao baixa nada da ferramenta ate alguem
  * pedir — e e isso que a frase diz, porque e o motivo de escolher.
  */
+/**
+ * O que so quem programa usa, recolhido dentro do passo 1: a chave publica sozinha (ela ja
+ * vai no script, e sozinha so serve a quem monta o script a mao) e o jeito de abrir pelo
+ * proprio botao. Antes isso morava num "Avançado" com cara de quarto passo, junto da chave
+ * secreta, que e outra tarefa.
+ */
+function ForWhoCodes({ publicKey }: { publicKey: string }) {
+  return (
+    // `#mais-opcoes` era o "Avançado": o endereco antigo abre esta parte, que guarda o que ele tinha do passo 1.
+    <details
+      id="mais-opcoes"
+      className="details-smooth group/programa mt-4 scroll-mt-6 border-border border-t pt-3"
+    >
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-detail text-fg-muted transition-colors hover:text-fg [&::-webkit-details-marker]:hidden">
+        <Chevron className="size-2.5 transition-transform duration-300 ease-out group-open/programa:rotate-90 motion-reduce:transition-none" />
+        Para quem programa: a chave pública e o seu próprio botão
+      </summary>
+      <div className="mt-3 flex flex-col gap-5">
+        <div id="copiar-chave" className="scroll-mt-6">
+          <div className="flex items-center gap-2">
+            <span className="flex-none text-detail text-fg-muted">Chave pública</span>
+            <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg">
+              {publicKey || 'sem chave ainda'}
+            </code>
+            {publicKey && <CopyButton value={publicKey} size="sm" />}
+          </div>
+          <p className="mt-1.5 text-caption text-fg-muted">
+            Ela já vai no script e pode ficar visível no código, porque só aceita o envio de
+            relatos.
+          </p>
+        </div>
+        <OwnTrigger publicKey={publicKey} />
+      </div>
+    </details>
+  )
+}
+
+/**
+ * O recado pronto para quem cuida do sistema: o script, onde colar e o que vem depois. Vai
+ * por e-mail ou mensagem, entao pode ter varias frases; sem o nome do produto, que mora so
+ * na marca.
+ */
+function buildHandoffText(snippet: string): string {
+  return [
+    'Para ligar o botão de relato no nosso sistema:',
+    '',
+    '1. Cole este código antes do fechamento do </body>, em todas as páginas:',
+    '',
+    snippet,
+    '',
+    '2. Me diga o endereço do sistema (por exemplo, loja.com.br), para eu autorizar no painel.',
+    '',
+    'Depois, abra o sistema e mande um relato pelo botão para conferir.',
+  ].join('\n')
+}
+
 function OwnTrigger({ publicKey }: { publicKey: string }) {
   const script = buildOwnTriggerSnippet(publicKey)
 
@@ -487,11 +685,12 @@ function OwnTrigger({ publicKey }: { publicKey: string }) {
       <p className="mb-3 text-detail text-fg-muted leading-relaxed">
         Com <code className="font-mono text-fg">data-button="none"</code>, o nosso botão não aparece
         e nada da ferramenta é baixado até alguém pedir para abrir. Abra pelo seu botão, com o
-        atributo <code className="font-mono text-fg">data-pds-open</code>, ou de qualquer tela, com{' '}
-        <code className="font-mono text-fg">Pds.open()</code>.
+        atributo <code className="font-mono text-fg">data-relatofacil-open</code>, ou de qualquer
+        tela, com <code className="font-mono text-fg">RelatoFacil.open()</code>.
       </p>
       <div className="flex flex-col gap-2.5">
-        <SnippetBlock code={script} label="Copiar script" />
+        {/* Nome proprio: no mesmo passo ja ha o "Copiar script" do titulo, que e outro script. */}
+        <SnippetBlock code={script} label="Copiar script do próprio botão" />
         <SnippetBlock code={OWN_TRIGGER_EXAMPLES} label="Copiar exemplo" />
       </div>
     </section>
@@ -510,22 +709,6 @@ function SnippetBlock({ code, label }: { code: string; label: string }) {
     </div>
   )
 }
-
-/**
- * O que da para ajustar no botao, cada um com o caminho para o proprio campo em O botão.
- *
- * **Etiqueta que parece clicavel e clica.** Antes elas eram tracejadas e mudas — quem
- * clicava em "Cor" nao ia a lugar nenhum. A lista e a dos campos que existem de verdade.
- */
-const CUSTOMIZAVEL: Array<{ label: string; anchor: string }> = [
-  { label: 'Cor', anchor: 'cor-do-botao' },
-  { label: 'Canto', anchor: 'canto' },
-  { label: 'Ícone', anchor: 'icone' },
-  { label: 'Texto', anchor: 'texto-do-botao' },
-  { label: 'Tamanho e formato', anchor: 'tamanho' },
-  { label: 'Tema', anchor: 'tema' },
-  { label: 'Páginas', anchor: 'paginas-escondidas' },
-]
 
 /** O canto do desenho, em classes: o desenho e pequeno, e a distancia escolhida nao cabe nele. */
 const CANTO: Record<WidgetPosition, string> = {
@@ -581,25 +764,14 @@ function WidgetPreview({ projectId }: { projectId: string }) {
         </span>
       </div>
 
-      <ul aria-label="Ajustar em O botão" className="mt-3 flex flex-wrap gap-1.5">
-        {CUSTOMIZAVEL.map((item) => (
-          <li key={item.anchor}>
-            <Link
-              to={`../tool#${item.anchor}`}
-              state={REALCE}
-              className="inline-flex rounded-md border border-border px-2 py-0.5 text-caption text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
-            >
-              {item.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-
+      {/* Um link so, com o destino escrito: as sete etiquetas (Cor, Canto, Icone...)
+          pareciam marcadores, e cada uma trocava de tela sem avisar. */}
       <Link
         to="../tool"
-        className="mt-2.5 inline-flex text-caption text-fg-muted underline-offset-4 hover:underline"
+        className="mt-3 inline-flex items-center gap-1 font-medium text-caption text-fg transition-colors hover:text-fg-muted"
       >
-        Ajustar o botão
+        Mudar a aparência em O botão
+        <Chevron className="size-2.5" />
       </Link>
     </div>
   )

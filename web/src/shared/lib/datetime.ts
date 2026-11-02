@@ -30,7 +30,7 @@ function parse(isoDate: string | null | undefined): Date | null {
 
 export function formatDate(isoDate: string | null | undefined): string {
   const parsed = parse(isoDate)
-  return parsed ? dateFormatter.format(parsed) : '—'
+  return parsed ? dateFormatter.format(parsed) : 'sem data'
 }
 
 /**
@@ -41,13 +41,13 @@ export function formatDate(isoDate: string | null | undefined): string {
  */
 export function formatDay(day: string | null | undefined): string {
   const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '')
-  if (!partes) return '—'
+  if (!partes) return 'sem data'
   return dateFormatter.format(new Date(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3])))
 }
 
 export function formatDateTime(isoDate: string | null | undefined): string {
   const parsed = parse(isoDate)
-  return parsed ? dateTimeFormatter.format(parsed) : '—'
+  return parsed ? dateTimeFormatter.format(parsed) : 'sem data'
 }
 
 const UNITS: Array<{ limitSeconds: number; divisor: number; unit: Intl.RelativeTimeFormatUnit }> = [
@@ -65,7 +65,7 @@ export function formatRelative(
   reference: Date = new Date(),
 ): string {
   const parsed = parse(isoDate)
-  if (!parsed) return '—'
+  if (!parsed) return 'sem data'
 
   const differenceSeconds = (parsed.getTime() - reference.getTime()) / 1000
   const magnitude = Math.abs(differenceSeconds)

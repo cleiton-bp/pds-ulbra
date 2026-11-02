@@ -77,11 +77,13 @@ export function ShortcutsButton({
       aria-keyshortcuts="?"
       title="Atalhos do teclado (?)"
       className={cn(
-        'hidden flex-none items-center justify-center rounded-lg border border-border font-mono text-detail text-fg-muted transition-all duration-150 ease-out hover:bg-surface-sunken hover:text-fg active:scale-[0.97] motion-reduce:transition-none sm:flex',
-        size === 'md' ? 'size-9' : 'size-8',
+        'hidden flex-none items-center justify-center rounded-lg border border-border px-3 text-detail text-fg-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-surface-sunken hover:text-fg active:scale-[0.97] motion-reduce:transition-none sm:flex',
+        size === 'md' ? 'h-9' : 'h-8',
       )}
     >
-      ?
+      {/* A palavra, e nao o "?": ao lado do "Novo card", o ponto de interrogacao parecia
+          ajuda, e abria uma lista de teclas. */}
+      Atalhos
     </button>
   )
 }

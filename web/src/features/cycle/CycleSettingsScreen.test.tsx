@@ -326,10 +326,10 @@ describe('CycleSettingsScreen', () => {
     await screen.findByRole('radio', { name: /Ao cair na última coluna/ })
 
     expect(resumo('encerramento')).toContain('Na última coluna')
-    expect(resumo('grupo-reabertura')).toContain('Pode · volta para a primeira coluna')
+    expect(resumo('grupo-reabertura')).toContain('Pode reabrir, e volta para a primeira coluna')
     expect(resumo('grupo-pedido-de-informacao')).toContain('7 + 7 dias')
     expect(resumo('grupo-espera')).toContain('Na hora')
-    expect(resumo('grupo-nota')).toContain('Estrelas · opcional')
+    expect(resumo('grupo-nota')).toContain('Estrelas, opcional')
     expect(resumo('grupo-arquivar')).toContain('Não permitido')
     // No padrao, nenhum grupo diz "Mudou": seria ruido em todos.
     expect(document.body.textContent).not.toContain('Mudou:')
@@ -349,11 +349,13 @@ describe('CycleSettingsScreen', () => {
     })
     montar()
 
-    await waitFor(() => expect(resumo('grupo-reabertura')).toContain('Pode · volta para Reaberto'))
+    await waitFor(() =>
+      expect(resumo('grupo-reabertura')).toContain('Pode reabrir, e volta para Reaberto'),
+    )
     expect(resumo('encerramento')).toContain('Por um botão')
     expect(resumo('grupo-pedido-de-informacao')).toContain('7 + 21 dias')
     expect(resumo('grupo-espera')).toContain('Espera 30 minutos')
-    expect(resumo('grupo-nota')).toContain('Estrelas · obrigatória')
+    expect(resumo('grupo-nota')).toContain('Estrelas, obrigatória')
     expect(resumo('grupo-arquivar')).toContain('Permitido')
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Deixar quem relatou reabrir/ }))

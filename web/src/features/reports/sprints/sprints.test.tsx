@@ -214,7 +214,7 @@ describe('o prazo e a barra da sprint', () => {
     expect(aoConcluir).toHaveBeenCalled()
   })
 
-  it('concluir manda o destino escolhido — uma planejada que nao e a de padrao — e o dia de quem conclui', async () => {
+  it('concluir manda o destino escolhido, uma planejada que nao e a de padrao, e o dia de quem conclui', async () => {
     // 23h30 do dia 10 no relogio de quem usa: em UTC ja e o dia 11 (S-15).
     hojeE(new Date(2026, 9, 10, 23, 30))
     dublê.fecharSprint.mockResolvedValue({
@@ -320,7 +320,7 @@ describe('o backlog', () => {
     ).toBeTruthy()
   })
 
-  it('o menu do card leva para outra lista, no fim — e para o topo da propria', async () => {
+  it('o menu do card leva para outra lista, no fim, e para o topo da propria', async () => {
     dublê.planejar.mockResolvedValue(
       card({ PublicId: 'c-2', Sprint: { PublicId: 's-2', Name: 'Sprint 2', State: 'Planned' } }),
     )
@@ -417,7 +417,7 @@ describe('a sprint e os pontos no card aberto', () => {
     })
     // Na lista aberta, a em andamento se distingue pelo "· em andamento" (S-19): entre
     // parenteses, o nome nao cabia no campo e saia cortado.
-    fireEvent.click(await screen.findByRole('option', { name: 'Sprint 1 · em andamento' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Sprint 1, em andamento' }))
     await waitFor(() =>
       expect(dublê.planejar).toHaveBeenCalledWith('p-1', 'c-1', { SprintPublicId: 's-1' }),
     )
@@ -450,7 +450,7 @@ describe('a sprint e os pontos no card aberto', () => {
     expect(screen.queryByRole('textbox', { name: /^Pontos/ })).toBeNull()
   })
 
-  it('o card que terminou numa sprint concluida fica nela, so para ler — e nao vira "Backlog"', () => {
+  it('o card que terminou numa sprint concluida fica nela, so para ler, e nao vira "Backlog"', () => {
     const concluida = { PublicId: 's-0', Name: 'Sprint 0', State: 'Closed' as const }
     render(
       <CardFields
@@ -483,7 +483,7 @@ describe('a sprint e os pontos no card aberto', () => {
     apertar(campo)
     expect(
       (await screen.findAllByRole('option')).map((opcao) => opcao.textContent?.trim()),
-    ).toEqual(['Sprint 0 (concluída)', 'Backlog', 'Sprint 1 · em andamento'])
+    ).toEqual(['Sprint 0 (concluída)', 'Backlog', 'Sprint 1, em andamento'])
     fireEvent.click(screen.getByRole('option', { name: 'Backlog' }))
     await waitFor(() =>
       expect(dublê.planejar).toHaveBeenCalledWith('p-1', 'c-1', { SprintPublicId: null }),
@@ -558,16 +558,16 @@ describe('as datas da sprint', () => {
   it('sem repetir o mes nem o ano: o ano so aparece quando nao e o de agora', () => {
     const hoje = new Date(2026, 9, 8)
     expect(sprintDates({ StartsOn: '2026-10-08', EndsOn: '2026-10-21' }, hoje)).toBe(
-      '8 – 21 de out.',
+      '8 a 21 de out.',
     )
     expect(sprintDates({ StartsOn: '2026-10-22', EndsOn: '2026-11-04' }, hoje)).toBe(
-      '22 de out. – 4 de nov.',
+      '22 de out. a 4 de nov.',
     )
     expect(sprintDates({ StartsOn: '2026-12-28', EndsOn: '2027-01-10' }, hoje)).toBe(
-      '28 de dez. – 10 de jan. de 2027',
+      '28 de dez. a 10 de jan. de 2027',
     )
     expect(sprintDates({ StartsOn: '2025-10-06', EndsOn: '2025-10-19' }, hoje)).toBe(
-      '6 – 19 de out. de 2025',
+      '6 a 19 de out. de 2025',
     )
   })
 
@@ -581,7 +581,7 @@ describe('as datas da sprint', () => {
     )
     expect(
       screen.getByRole('region', { name: 'Sprint em andamento: Sprint 1' }).textContent,
-    ).toContain('8 – 21 de out. · faltam 13 dias')
+    ).toContain('8 a 21 de out., faltam 13 dias')
   })
 })
 
@@ -646,7 +646,7 @@ describe('iniciar uma sprint', () => {
     expect(comeca.value).toBe('2026-10-08')
     expect(termina.value).toBe('2026-10-21')
     expect(
-      within(dialogo).getByText('Começa hoje. Planejada para 22 de out. – 4 de nov.'),
+      within(dialogo).getByText('Começa hoje. Planejada para 22 de out. a 4 de nov.'),
     ).toBeTruthy()
 
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Usar as datas planejadas' }))
@@ -673,7 +673,7 @@ describe('iniciar uma sprint', () => {
     fireEvent.change(comeca, { target: { value: '2026-10-12' } })
     expect(termina.value).toBe('2026-10-25')
     // Nao comeca mais hoje: a frase so lembra o planejado.
-    expect(within(dialogo).getByText('Planejada para 22 de out. – 4 de nov.')).toBeTruthy()
+    expect(within(dialogo).getByText('Planejada para 22 de out. a 4 de nov.')).toBeTruthy()
 
     // O fim escolhido a mao fica.
     fireEvent.change(termina, { target: { value: '2026-10-30' } })
@@ -704,14 +704,14 @@ describe('iniciar uma sprint', () => {
     })
     // As datas terminam no ponto do mes ("4 de nov.") ou no ano: "nov.." era o defeito.
     expect(
-      within(dialogo).getByText('Começa hoje. Planejada para 22 de dez. – 4 de jan. de 2027.'),
+      within(dialogo).getByText('Começa hoje. Planejada para 22 de dez. a 4 de jan. de 2027.'),
     ).toBeTruthy()
   })
 
   it('editar mantem as datas da sprint e grava com o dia de quem edita; a falha fica no dialogo', async () => {
     dublê.editarSprint
       .mockRejectedValueOnce(new PanelError('Sprint em andamento.', 409))
-      .mockResolvedValue({ ...planejada, Name: 'Sprint 2 — checkout' })
+      .mockResolvedValue({ ...planejada, Name: 'Sprint 2, checkout' })
     const { aoSalvar, dialogo, comeca, termina } = abrir({ mode: 'edit' })
     expect(screen.getByRole('dialog', { name: 'Editar Sprint 2' })).toBe(dialogo)
     expect(comeca.value).toBe('2026-10-22')
@@ -719,7 +719,7 @@ describe('iniciar uma sprint', () => {
     expect(within(dialogo).queryByRole('button', { name: 'Usar as datas planejadas' })).toBeNull()
 
     fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Nome' }), {
-      target: { value: 'Sprint 2 — checkout' },
+      target: { value: 'Sprint 2, checkout' },
     })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Salvar' }))
     expect(await within(dialogo).findByText('Sprint em andamento.')).toBeTruthy()
@@ -728,7 +728,7 @@ describe('iniciar uma sprint', () => {
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Salvar' }))
     await waitFor(() => expect(aoSalvar).toHaveBeenCalled())
     expect(dublê.editarSprint).toHaveBeenLastCalledWith('p-1', 's-2', {
-      Name: 'Sprint 2 — checkout',
+      Name: 'Sprint 2, checkout',
       Goal: '',
       StartsOn: '2026-10-22',
       EndsOn: '2026-11-04',
@@ -787,7 +787,7 @@ describe('concluir uma sprint', () => {
     expect(aoIniciar).toHaveBeenCalledWith(segunda)
   })
 
-  it('sem planejada, vai para o backlog — e o aviso nao oferece iniciar o que nao existe', async () => {
+  it('sem planejada, vai para o backlog, e o aviso nao oferece iniciar o que nao existe', async () => {
     dublê.fecharSprint.mockResolvedValue({
       Sprint: sprint({ State: 'Closed' }),
       Moved: 1,
@@ -840,12 +840,12 @@ describe('concluir uma sprint', () => {
     concluir(sprint(), [])
     expect(
       screen.getByText(
-        '1 de 4 cards terminaram — 2,5 de 13 pontos. O que terminou fica na sprint concluída.',
+        '1 de 4 cards terminaram, 2,5 de 13 pontos. O que terminou fica na sprint concluída.',
       ),
     ).toBeTruthy()
     cleanup()
     concluir(sprint({ DoneCards: 0, DonePoints: 0 }), [])
-    expect(screen.getByText('0 de 4 cards terminaram — 0 de 13 pontos.')).toBeTruthy()
+    expect(screen.getByText('0 de 4 cards terminaram, 0 de 13 pontos.')).toBeTruthy()
     cleanup()
     // Tudo terminou: nao ha o que mandar para lugar nenhum.
     concluir(sprint({ DoneCards: 4 }), [segunda])
@@ -1267,7 +1267,7 @@ describe('o backlog por dentro', () => {
     expect(useToastStore.getState().toasts).toEqual([])
   })
 
-  it('cada lista se recolhe, e continua recolhida neste navegador — so neste projeto', async () => {
+  it('cada lista se recolhe, e continua recolhida neste navegador, so neste projeto', async () => {
     backlogDeMentira({
       's-1': [],
       backlog: [card({ PublicId: 'c-2', Number: 11, Title: 'Rever o texto' })],

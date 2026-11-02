@@ -202,7 +202,7 @@ describe('PublicStagesScreen', () => {
     montar()
 
     expect(
-      await screen.findByText('Termina · Foi feito · Pode voltar · Colunas: Feito, Arquivado'),
+      await screen.findByText('Termina, Foi feito, Pode voltar, Colunas: Feito, Arquivado'),
     ).toBeTruthy()
     expect(screen.getByText('Espera quem relatou')).toBeTruthy()
     // Sem marca e sem coluna, a frase da etapa: o cabecalho nunca fica so com o nome.

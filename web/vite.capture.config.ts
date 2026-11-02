@@ -30,7 +30,7 @@ export default defineConfig({
       entry: fileURLToPath(new URL('./src/capture/main.ts', import.meta.url)),
       formats: ['iife'],
       name: CAPTURE_GLOBAL,
-      fileName: () => 'pds-captura.js',
+      fileName: () => 'relatofacil-captura.js',
     },
   },
 })

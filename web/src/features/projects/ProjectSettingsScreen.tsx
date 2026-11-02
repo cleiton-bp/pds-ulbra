@@ -193,7 +193,7 @@ export function ProjectSettingsScreen() {
           </figcaption>
           <span className="flex h-8 min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-2.5 font-medium text-body text-fg">
             <span className="min-w-0 text-left max-sm:line-clamp-2 max-sm:text-caption max-sm:leading-tight sm:max-w-40 sm:truncate">
-              {name.trim() || '—'}
+              {name.trim() || 'sem nome'}
             </span>
             <span aria-hidden className="flex-none text-caption text-fg-muted">
               ▾

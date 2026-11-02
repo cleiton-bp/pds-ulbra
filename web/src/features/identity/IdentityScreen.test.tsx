@@ -331,7 +331,7 @@ describe('IdentityScreen', () => {
     expect(visibilidade.getByText(/inclusive quem nunca relatou nada/)).toBeTruthy()
   })
 
-  it('no modo protocolo, público identificado não dá para escolher — e a peça diz por quê', async () => {
+  it('no modo protocolo, público identificado não dá para escolher, e a peça diz por quê', async () => {
     montar()
 
     const identificado = await screen.findByRole('radio', { name: /Público identificado/ })
@@ -417,10 +417,10 @@ describe('IdentityScreen', () => {
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    expect(resumoDo('reconhecimento')).toContain('Protocolo · ninguém é identificado')
-    expect(resumoDo('visibilidade')).toContain('Privado · só quem relatou e o time')
+    expect(resumoDo('reconhecimento')).toContain('Protocolo (ninguém é identificado)')
+    expect(resumoDo('visibilidade')).toContain('Privado (só quem relatou e o time)')
     // Os textos, com as variaveis trocadas pelos valores de exemplo.
-    expect(resumoDo('depois-de-enviar')).toContain('Recebemos. Anote o protocolo')
+    expect(resumoDo('depois-de-enviar')).toContain('Recebemos o seu relato')
     expect(resumoDo('texto-do-acompanhamento')).toContain('Este é o registro do que você enviou.')
     // Sem mudanca, nada de "Mudou".
     expect(resumoDo('reconhecimento')).not.toContain('Mudou')
@@ -488,9 +488,8 @@ describe('IdentityScreen', () => {
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    // O Reconhecimento abre sozinho e nao tem onde aparecer: a previa fica na confirmacao.
-    expect(abaEscolhida()).toBe('No sistema')
-    expect(screen.getByText('K7P2-9XQ4')).toBeTruthy()
+    // A Visibilidade vem primeiro e aberta: a previa abre no formulario, onde ela aparece.
+    expect(abaEscolhida()).toBe('Formulário')
 
     detalhesDo('texto-do-acompanhamento').open = true
     await waitFor(() => expect(abaEscolhida()).toBe('Acompanhamento'))

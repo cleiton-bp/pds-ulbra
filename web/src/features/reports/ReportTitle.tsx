@@ -92,7 +92,7 @@ export function ReportTitle({
           error={erro}
           hint={
             card.ReporterTitle
-              ? `Quem relatou escreveu “${card.ReporterTitle}” — e continua vendo só isso.`
+              ? `Quem relatou escreveu “${card.ReporterTitle}”, e continua vendo só isso.`
               : 'Quem relatou não vê este título.'
           }
         />

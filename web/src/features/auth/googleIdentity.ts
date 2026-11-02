@@ -31,6 +31,7 @@ interface GoogleAccountsId {
       size?: 'small' | 'medium' | 'large'
       text?: 'signin_with' | 'signup_with' | 'continue_with'
       shape?: 'rectangular' | 'pill'
+      logo_alignment?: 'left' | 'center'
       locale?: string
       width?: number
     },
@@ -103,6 +104,19 @@ let initializedFor: string | null = null
 let notifyCredential: ((idToken: string) => void) | null = null
 
 /**
+ * O que a tela pode escolher no botao oficial. So o que o Google documenta: a cor vem de
+ * tres temas dele, e nao da nossa paleta.
+ */
+export interface GoogleButtonOptions {
+  size?: 'medium' | 'large'
+  fit?: boolean
+  theme?: 'outline' | 'filled_black'
+  shape?: 'rectangular' | 'pill'
+  /** Largura certa, em pixel (de 200 a 400): quem desenha a espera precisa saber o tamanho. */
+  width?: number
+}
+
+/**
  * Desenha o botao oficial do Google dentro do elemento e avisa quando o token
  * chega. Pode ser chamada para mais de um elemento — a tela de entrada desenha um
  * no cabecalho e outro na chamada principal, e os dois avisam o mesmo destinatario.
@@ -111,7 +125,7 @@ export async function renderGoogleButton(
   container: HTMLElement,
   clientId: string,
   onCredential: (idToken: string) => void,
-  options: { size?: 'medium' | 'large'; fit?: boolean } = {},
+  options: GoogleButtonOptions = {},
 ): Promise<void> {
   const api = await loadGoogleIdentity()
   notifyCredential = onCredential
@@ -136,16 +150,21 @@ export async function renderGoogleButton(
 
   api.renderButton(container, {
     type: 'standard',
-    theme: 'outline',
+    theme: options.theme ?? 'outline',
     size: options.size ?? 'large',
     text: 'continue_with',
-    shape: 'rectangular',
+    shape: options.shape ?? 'rectangular',
+    logo_alignment: 'left',
     locale: 'pt-BR',
     // O Google so aceita largura em numero, e o maximo dele e 400. Com `fit`, medir
     // o container faz o botao ocupar a coluna em vez de encolher no canto dela, e em
     // tela estreita ele nao passa da margem. Sem `fit` ele sai do tamanho do texto,
     // que e o que serve num cabecalho.
-    ...(options.fit ? { width: Math.min(400, Math.round(container.clientWidth) || 320) } : {}),
+    ...(options.width
+      ? { width: Math.min(400, Math.max(200, options.width)) }
+      : options.fit
+        ? { width: Math.min(400, Math.round(container.clientWidth) || 320) }
+        : {}),
   })
 }
 

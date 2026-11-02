@@ -130,7 +130,9 @@ export function CreateProjectDialog({
       onOpenChange(false)
       reset()
 
-      navigate(`/projects/${created.Project.PublicId}/start`)
+      // Para os primeiros passos, e nao para a Instalacao: e a mesma pagina que a raiz do
+      // projeto abre, com os cinco passos, e a Instalacao e o detalhe dos tres primeiros.
+      navigate(`/projects/${created.Project.PublicId}/configure`)
     } catch (failure) {
       setError(describeError(failure))
       setSaving(false)
@@ -154,7 +156,7 @@ export function CreateProjectDialog({
         <>
           {/* Onde o botao leva, dito ao lado dele e nao num paragrafo de abertura. */}
           <p className="basis-full self-center text-caption text-fg-muted sm:mr-auto sm:basis-auto">
-            Em seguida, a instalação.
+            Em seguida, os primeiros passos.
           </p>
           <Button
             variant="quiet"
@@ -237,8 +239,8 @@ export function CreateProjectDialog({
                     className="mt-0.5 block text-caption text-fg-muted leading-relaxed"
                   >
                     <span className="sr-only">Colunas: </span>
-                    {option.columns.join(' · ')}
-                    {option.sprints && ' · sprints de duas semanas'}
+                    {listar(option.columns)}
+                    {option.sprints && ', com sprints de duas semanas'}
                   </span>
                 </span>
               </label>
@@ -262,7 +264,7 @@ function Marcador({ marcado }: { marcado: boolean }) {
       aria-hidden="true"
       className={cn(
         'mt-0.5 flex size-4 flex-none items-center justify-center rounded-full border transition-colors duration-150',
-        marcado ? 'border-fg' : 'border-fg-disabled',
+        marcado ? 'border-fg' : 'border-border-control',
       )}
     >
       <span
@@ -273,4 +275,13 @@ function Marcador({ marcado }: { marcado: boolean }) {
       />
     </span>
   )
+}
+
+/**
+ * As colunas como se escreve uma lista: "A fazer, Fazendo e Feito". O ponto no meio
+ * separava o nome das colunas como etiqueta, e a sprint do Scrum lia como uma quinta coluna.
+ */
+function listar(itens: readonly string[]): string {
+  if (itens.length < 2) return itens[0] ?? ''
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`
 }

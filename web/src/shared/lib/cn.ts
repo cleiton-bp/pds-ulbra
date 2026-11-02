@@ -23,6 +23,7 @@ const FONT_SIZE_NAMES = [
   'hero',
   'hero-wide',
   'display',
+  'headline',
 ]
 
 const COLOR_NAMES = [
@@ -30,7 +31,9 @@ const COLOR_NAMES = [
   'surface-raised',
   'surface-sunken',
   'surface-strong',
+  'surface-lifted',
   'border',
+  'border-control',
   'fg',
   'fg-muted',
   'fg-disabled',
@@ -52,6 +55,12 @@ const COLOR_NAMES = [
   'error-fg',
   'muted-dot',
   'overlay',
+  'landing-mat',
+  'landing-mat-strong',
+  'landing-mat-fg',
+  'landing-done',
+  'landing-store',
+  'landing-store-fg',
   'chip-gray-surface',
   'chip-gray-border',
   'chip-gray-fg',

@@ -275,7 +275,7 @@ describe('as saidas do relato aberto', () => {
       expect(screen.queryByRole('button', { name: 'Encerrar relato…' })).toBeNull(),
     )
     expect(screen.getByRole('heading', { name: 'Encerrado' })).toBeTruthy()
-    expect(screen.getByText('Encerrado · Foi feito')).toBeTruthy()
+    expect(screen.getByText('Encerrado: Foi feito')).toBeTruthy()
     expect(screen.queryByText('Esta coluna não muda o que quem relatou vê.')).toBeNull()
   })
 
@@ -433,7 +433,7 @@ describe('tirar da coluna que encerra', () => {
     montar({ resumo: noFeito })
 
     await screen.findByRole('heading', { name: 'Encerrado' })
-    expect(screen.getByText('Encerrado · Foi feito')).toBeTruthy()
+    expect(screen.getByText('Encerrado: Foi feito')).toBeTruthy()
 
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Fazendo')
     const pergunta = await screen.findByRole('alertdialog', { name: 'Reabrir o relato #12?' })
@@ -501,7 +501,7 @@ describe('tirar da coluna que encerra', () => {
 })
 
 describe('o que quem relatou ve', () => {
-  it('sem etapa, a coluna nao muda nada — e quem configura ganha o atalho para o Andamento publico', async () => {
+  it('sem etapa, a coluna nao muda nada, e quem configura ganha o atalho para o Andamento publico', async () => {
     montar({ podeConfigurar: true })
     await detalheNaTela()
     expect(screen.getByText(/Esta coluna não muda o que quem relatou vê\./)).toBeTruthy()

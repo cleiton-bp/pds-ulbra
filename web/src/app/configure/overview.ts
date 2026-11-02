@@ -12,7 +12,9 @@ import { projectOriginService, projectTeamService, projectWidgetSettingsService 
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 import {
   domainAuthorized,
+  isTestOrigin,
   panelHost,
+  scriptCopied,
   scriptInstalled,
   testReportSent,
 } from '@/shared/lib/installSignals'
@@ -86,14 +88,19 @@ export interface FirstStep {
   /** Uma linha: por que vale fazer. */
   why: string
   done: boolean | null
+  /**
+   * O passo saiu das maos de quem administra e espera outra coisa acontecer: o script
+   * copiado, esperando o primeiro relato do sistema. O guia passa ao proximo enquanto isso.
+   */
+  waiting: boolean
   /** `tela#campo`, relativo ao projeto. */
   to: string
   /** O texto do botao que leva ate la. */
   action: string
 }
 
-/** O endereco do painel mora com os sinais, em `installSignals`; sai daqui tambem. */
-export { panelHost }
+/** O endereco do painel e o da pagina de teste moram com os sinais, em `installSignals`. */
+export { isTestOrigin, panelHost }
 
 /**
  * Os passos, conferidos pelos dados — **nenhum e uma caixa que a pessoa marca**. Uma
@@ -101,11 +108,11 @@ export { panelHost }
  * dizendo a verdade. Os tres da instalacao vem de `installSignals`, os mesmos que a
  * tela de Instalação usa.
  *
- * - **Script colado**: um relato chegou de um endereco que nao e o painel. So o
+ * - **Script colado**: um relato chegou de um endereco que nao e o da pagina de teste. So o
  *   `LastReportReceivedAt` nao bastaria — o relato de teste tambem o acende, e ele
  *   nao prova que o sistema tem o script. Sem a lista, vale o `LastReportReceivedAt`.
  * - **Domínio autorizado**: a lista de autorizados tem alguem.
- * - **Relato de teste**: um relato chegou com o endereco do painel.
+ * - **Relato de teste**: um relato chegou do endereco da pagina de teste.
  * - **Botão escolhido**: cor, canto, texto ou icone diferem do padrao de fabrica.
  * - **Time convidado**: mais de uma pessoa, ou um convite aberto.
  *
@@ -115,11 +122,11 @@ export { panelHost }
 export function computeFirstSteps(
   project: ProjectViewModel,
   overview: ConfigureOverview,
-  host: string = panelHost(),
+  ehTeste: (domain: string) => boolean = isTestOrigin,
 ): FirstStep[] {
   const { origins, observed, widget, members, invitations } = overview
 
-  const scriptDone = scriptInstalled(project, observed, host)
+  const scriptDone = scriptInstalled(project, observed, ehTeste)
 
   let teamDone: boolean | null = null
   if (members !== null && members.length > 1) teamDone = true
@@ -132,6 +139,7 @@ export function computeFirstSteps(
       title: 'Colar o script no seu sistema',
       why: 'É ele que põe o botão de relato no seu sistema (site ou aplicação).',
       done: scriptDone,
+      waiting: scriptDone !== true && scriptCopied(project.PublicId),
       to: 'start#script',
       action: 'Ver o script',
     },
@@ -141,6 +149,7 @@ export function computeFirstSteps(
       title: 'Autorizar o endereço do seu sistema',
       why: 'Sem isso, o relato que chega do seu sistema fica retido até você liberar.',
       done: domainAuthorized(origins),
+      waiting: false,
       to: 'domains#autorizados',
       action: 'Abrir Domínios',
     },
@@ -149,7 +158,10 @@ export function computeFirstSteps(
       short: 'Relato de teste',
       title: 'Enviar um relato de teste',
       why: 'Confere o caminho inteiro: o relato sai da ferramenta e aparece no Trabalho.',
-      done: testReportSent(observed, host),
+      // Com o sistema mandando relato, o teste ja nao tem o que provar: o caminho inteiro
+      // funciona. O teste continua a um clique na Instalacao.
+      done: scriptDone ? true : testReportSent(observed, ehTeste),
+      waiting: false,
       to: 'start#relato-de-teste',
       action: 'Fazer o teste',
     },
@@ -158,7 +170,9 @@ export function computeFirstSteps(
       short: 'Botão',
       title: 'Escolher a cor e o texto do botão',
       why: 'Com a cara do seu sistema, as pessoas reconhecem o botão e clicam.',
-      done: widget === null ? null : buttonCustomized(widget),
+      // Publicar o padrao como estava tambem conta: e a escolha de manter o botao.
+      done: widget === null ? null : widget.Published || buttonCustomized(widget),
+      waiting: false,
       to: 'tool#cor-do-botao',
       action: 'Ajustar o botão',
     },
@@ -168,6 +182,7 @@ export function computeFirstSteps(
       title: 'Convidar o time',
       why: 'Relato que ninguém vê não anda: chame quem vai tratar os relatos.',
       done: teamDone,
+      waiting: false,
       to: 'members#convidar',
       action: 'Convidar',
     },
@@ -195,7 +210,7 @@ export function visibilityStep({ widget }: ConfigureOverview): OptionalStep {
       ? `Hoje: ${VISIBILITY_SUMMARY[widget.Visibility].toLowerCase()}.`
       : 'Só o time, ou público, com ou sem o nome de quem relatou.',
     to: 'identity#visibilidade',
-    action: 'Abrir Quem relata',
+    action: 'Abrir Privacidade',
   }
 }
 
@@ -210,15 +225,15 @@ function buttonCustomized(widget: WidgetSettingsViewModel): boolean {
 }
 
 /**
- * O dominio que mandou relato e esta esperando: o primeiro fora das duas listas. O do
- * painel nunca fica retido, e nao entra.
+ * O dominio que mandou relato e esta esperando: o primeiro fora das duas listas. O da
+ * pagina de teste nunca fica retido, e nao entra.
  */
 export function heldDomain(
   overview: ConfigureOverview,
-  host: string = panelHost(),
+  ehTeste: (domain: string) => boolean = isTestOrigin,
 ): ObservedOriginViewModel | null {
   return (
-    overview.observed?.find((origem) => origem.Status === 'Unlisted' && origem.Domain !== host) ??
+    overview.observed?.find((origem) => origem.Status === 'Unlisted' && !ehTeste(origem.Domain)) ??
     null
   )
 }

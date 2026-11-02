@@ -7,6 +7,7 @@ import type {
 } from '@/contracts'
 import { CARD_COLOR_CLASSES } from '@/shared/components/CardChip'
 import { ReportTypeGlyph, reportTypeName } from '@/shared/components/ReportTypeGlyph'
+import { type StatusTone, TONE_DOT } from '@/shared/components/statusTone'
 import { cn } from '@/shared/lib/cn'
 
 // As pecas que as previas da configuracao tambem desenham moram em `shared`; daqui
@@ -48,7 +49,10 @@ export function cardHeadline(
   const titulo = cardTitle(card)
   if (titulo) return { text: titulo, titled: true }
 
-  const texto = (card.Text ?? '').replace(/\s+/g, ' ').trim()
+  // Com perguntas, o texto junta as respostas separadas por uma linha em branco: a
+  // manchete fica com a primeira resposta, e nao com todas emendadas numa frase so.
+  const primeira = (card.Text ?? '').split(/\n\s*\n/).find((parte) => parte.trim()) ?? ''
+  const texto = primeira.replace(/\s+/g, ' ').trim()
   if (texto.length <= TRECHO) return { text: texto, titled: false }
 
   // Corta no fim de uma palavra, quando ha uma perto do limite.
@@ -103,13 +107,13 @@ export function CardTypeIcon({ card }: { card: Pick<ReportSummaryViewModel, 'Kin
     <span
       title={label}
       className={cn(
-        'inline-flex size-4 flex-none items-center justify-center rounded-sm border',
+        'inline-flex size-[18px] flex-none items-center justify-center rounded-sm border',
         CARD_COLOR_CLASSES[color],
       )}
     >
       <svg
         viewBox="0 0 12 12"
-        className="size-3"
+        className="size-3.5"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"
@@ -124,8 +128,7 @@ export function CardTypeIcon({ card }: { card: Pick<ReportSummaryViewModel, 'Kin
   )
 }
 
-/** O tom da coluna: por fazer, fazendo ou feito. */
-export type StatusTone = 'todo' | 'doing' | 'done'
+export type { StatusTone }
 
 const TONE_CLASSES: Record<StatusTone, string> = {
   todo: CARD_COLOR_CLASSES.Gray,
@@ -167,8 +170,10 @@ export function statusTone(
 }
 
 /**
- * A coluna do card, como selo: o nome em caixa alta, na cor do tom. O nome que nao
- * cabe e cortado, e vai inteiro no `title` — a coluna tem o nome que o time quis.
+ * A coluna do card: **um ponto na cor do tom e o nome como o time escreveu**, sem caixa
+ * e sem caixa alta. O selo com borda e letra maiuscula fazia toda linha gritar, e
+ * disputava com o titulo, que e o que se le primeiro. O nome que nao cabe e cortado, e vai
+ * inteiro no `title`.
  */
 export function StatusLozenge({
   name,
@@ -182,12 +187,9 @@ export function StatusLozenge({
   return (
     <span
       title={name}
-      className={cn(
-        'inline-flex max-w-full items-center rounded-sm border px-1.5 py-px font-semibold text-caption uppercase tracking-wide',
-        TONE_CLASSES[tone],
-        className,
-      )}
+      className={cn('inline-flex max-w-full items-center gap-1.5 text-detail text-fg', className)}
     >
+      <span aria-hidden className={cn('size-2 flex-none rounded-full', TONE_DOT[tone])} />
       <span className="truncate">{name}</span>
     </span>
   )
@@ -223,7 +225,7 @@ export function DuplicateLine({
         <path d="M4 4.2V2.8A.8.8 0 0 1 4.8 2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H7.8M2.8 4.2h4.4a.8.8 0 0 1 .8.8v4.4a.8.8 0 0 1-.8.8H2.8a.8.8 0 0 1-.8-.8V5a.8.8 0 0 1 .8-.8Z" />
       </svg>
       <span className="flex-none">Duplicado de</span>
-      <span className="flex-none font-mono">#{original.Number}</span>{' '}
+      <span className="flex-none tabular-nums">#{original.Number}</span>{' '}
       <span className="min-w-0 truncate">{original.Headline}</span>
     </span>
   )
@@ -252,7 +254,7 @@ export function SubtaskMatchMark({
   })
   if (marca.Search) partes.push('na subtarefa')
   if (partes.length === 0) return null
-  const texto = partes.join(' · ')
+  const texto = partes.join(', ')
   return (
     <span
       title={`Achado pela subtarefa: ${texto}`}

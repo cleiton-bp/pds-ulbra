@@ -103,7 +103,7 @@ const resumoDo = (id: string) => grupo(id).querySelector('summary')?.textContent
 const voltarAoPadrao = (id: string) =>
   within(secao(id)).getByRole('button', { name: 'Voltar ao padrão' })
 
-describe('MediaScreen — grupos e prévia', () => {
+describe('MediaScreen, grupos e prévia', () => {
   afterEach(cleanup)
 
   beforeEach(() => {
@@ -116,9 +116,9 @@ describe('MediaScreen — grupos e prévia', () => {
     montar()
     await carregada()
 
-    expect(resumoDo('grupo-imagem')).toBe('ImagemAceita · até 3 de 5 MB · captura ligada')
+    expect(resumoDo('grupo-imagem')).toBe('ImagemAceita até 3 de 5 MB, captura ligada')
     expect(resumoDo('grupo-arquivo')).toBe('ArquivoDesligado')
-    expect(resumoDo('quando-anexar')).toBe('Quando anexarNo relato · ao responder · ao reabrir')
+    expect(resumoDo('quando-anexar')).toBe('Quando anexarNo relato, ao responder, ao reabrir')
     for (const id of ['grupo-imagem', 'grupo-arquivo', 'quando-anexar']) {
       expect(resumoDo(id)).not.toContain('Mudou')
       expect(within(secao(id)).queryByRole('button', { name: 'Voltar ao padrão' })).toBeNull()
@@ -129,9 +129,9 @@ describe('MediaScreen — grupos e prévia', () => {
     fireEvent.click(caixa('Deixar capturar a tela'))
     fireEvent.click(caixa('Ao responder o time'))
 
-    expect(resumoDo('grupo-arquivo')).toContain('PDF, Texto e log · até 2 de 10 MB')
+    expect(resumoDo('grupo-arquivo')).toContain('PDF, Texto e log, até 2 de 10 MB')
     expect(resumoDo('grupo-imagem')).toContain('captura desligada')
-    expect(resumoDo('quando-anexar')).toContain('No relato · ao reabrir')
+    expect(resumoDo('quando-anexar')).toContain('No relato, ao reabrir')
     expect(resumoDo('quando-anexar')).not.toContain('ao responder')
   })
 

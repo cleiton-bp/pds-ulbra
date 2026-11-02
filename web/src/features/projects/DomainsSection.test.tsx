@@ -196,7 +196,7 @@ describe('DomainsSection', () => {
       ).toEqual(['Bloquear'])
 
       const copia = await linhaObservada('copia.com')
-      expect(within(copia).getByText('Bloqueado · 2 cards marcados')).toBeTruthy()
+      expect(within(copia).getByText('Bloqueado, 2 cards marcados')).toBeTruthy()
       expect(
         within(copia)
           .getAllByRole('button')
@@ -412,7 +412,7 @@ describe('DomainsSection', () => {
       ).toEqual(['Permitir', 'Bloquear'])
 
       const semDominio = await itemDaLista('Sem domínio informado')
-      expect(within(semDominio).getByText(/^1 relato /)).toBeTruthy()
+      expect(within(semDominio).getByText(/^1 relato, /)).toBeTruthy()
       expect(
         within(semDominio)
           .getAllByRole('button')
@@ -543,7 +543,7 @@ describe('DomainsSection', () => {
       fireEvent.change(campo, { target: { value: ' outro.com ' } })
       fireEvent.click(
         screen.getByRole('checkbox', {
-          name: 'Incluir os subdomínios — sem isso, só o endereço exato é bloqueado.',
+          name: 'Incluir os subdomínios, porque sem isso só o endereço exato é bloqueado.',
         }),
       )
       fireEvent.click(botao)
@@ -699,9 +699,9 @@ describe('DomainsSection', () => {
       // Sem os limites, nao ha a aba Proteção.
       await waitFor(() =>
         expect(nomesDasAbas()).toEqual([
-          'Aguardando (0)',
-          'Autorizados (0)',
-          'Bloqueados (0)',
+          'Aguardando 0',
+          'Autorizados 0',
+          'Bloqueados 0',
           'Histórico',
         ]),
       )
@@ -733,7 +733,7 @@ describe('DomainsSection', () => {
       dublê.pendentes.mockResolvedValue([])
       fireEvent.click(within(item).getByRole('button', { name: 'Permitir novo.com' }))
 
-      await waitFor(() => expect(aba('Aguardando').textContent).toBe('Aguardando (0)'))
+      await waitFor(() => expect(aba('Aguardando').textContent).toBe('Aguardando 0'))
       // A decisao foi tomada ao chegar: a aba nao foge de quem estava nela.
       expect(selecionada('Aguardando')).toBe(true)
     })
@@ -783,9 +783,9 @@ describe('DomainsSection', () => {
       montar()
       await waitFor(() =>
         expect(nomesDasAbas()).toEqual([
-          'Aguardando (1)',
-          'Autorizados (0)',
-          'Bloqueados (0)',
+          'Aguardando 1',
+          'Autorizados 0',
+          'Bloqueados 0',
           'Histórico',
         ]),
       )
@@ -798,9 +798,9 @@ describe('DomainsSection', () => {
       )
       await waitFor(() =>
         expect(nomesDasAbas()).toEqual([
-          'Aguardando (0)',
-          'Autorizados (1)',
-          'Bloqueados (0)',
+          'Aguardando 0',
+          'Autorizados 1',
+          'Bloqueados 0',
           'Histórico',
         ]),
       )
@@ -818,9 +818,9 @@ describe('DomainsSection', () => {
       )
       await waitFor(() =>
         expect(nomesDasAbas()).toEqual([
-          'Aguardando (0)',
-          'Autorizados (0)',
-          'Bloqueados (1 · 3 cards)',
+          'Aguardando 0',
+          'Autorizados 0',
+          'Bloqueados 1, 3 cards',
           'Histórico',
         ]),
       )

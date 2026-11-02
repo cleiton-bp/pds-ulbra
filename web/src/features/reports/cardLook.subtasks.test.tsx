@@ -89,7 +89,7 @@ describe('SubtaskMatchMark', () => {
 
   it('para os outros, diz quantas e o primeiro nome', () => {
     marca({ Assignees: [pessoa('Ana Paula Souza', 2), pessoa('Bruno', 1)], Search: false })
-    expect(screen.getByText('2 subtarefas de Ana · 1 subtarefa de Bruno')).toBeTruthy()
+    expect(screen.getByText('2 subtarefas de Ana, 1 subtarefa de Bruno')).toBeTruthy()
   })
 
   it('a busca que casou na subtarefa diz "na subtarefa", depois das pessoas', () => {
@@ -98,10 +98,10 @@ describe('SubtaskMatchMark', () => {
     cleanup()
 
     marca({ Assignees: [pessoa('Eu', 1, true)], Search: true })
-    const texto = screen.getByText('1 subtarefa sua · na subtarefa')
+    const texto = screen.getByText('1 subtarefa sua, na subtarefa')
     // A dica explica o porque inteiro.
     expect(texto.parentElement?.getAttribute('title')).toBe(
-      'Achado pela subtarefa: 1 subtarefa sua · na subtarefa',
+      'Achado pela subtarefa: 1 subtarefa sua, na subtarefa',
     )
   })
 
@@ -136,13 +136,13 @@ describe('a marca na lista e no quadro', () => {
     const pai = screen.getByRole('link', { name: 'Pagamento no Safari' }).closest('tr')
     const outro = screen.getByRole('link', { name: 'Outro card' }).closest('tr')
     if (!pai || !outro) throw new Error('as linhas da tabela')
-    expect(within(pai).getByText('2 subtarefas de Ana · na subtarefa')).toBeTruthy()
+    expect(within(pai).getByText('2 subtarefas de Ana, na subtarefa')).toBeTruthy()
     expect(within(outro).queryByText(/subtarefas? de|na subtarefa/)).toBeNull()
   })
 
   it('a frente do card do pai no quadro diz por que ele entrou', () => {
     render(<BoardCardFace card={card({ SubtaskMatch: achado })} soonDays={2} />)
-    expect(screen.getByText('2 subtarefas de Ana · na subtarefa')).toBeTruthy()
+    expect(screen.getByText('2 subtarefas de Ana, na subtarefa')).toBeTruthy()
     cleanup()
 
     render(<BoardCardFace card={card()} soonDays={2} />)

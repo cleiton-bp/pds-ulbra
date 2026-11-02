@@ -185,7 +185,7 @@ function mbEmTexto(bytes: number): string {
 function resumoDaImagem(draft: MediaSettingsViewModel, imagem: ShownKind): string {
   if (!imagem.IsEnabled) return 'Desligado'
   const captura = draft.AllowsScreenCapture ? 'captura ligada' : 'captura desligada'
-  return `Aceita · até ${imagem.MaxCount} de ${mbEmTexto(imagem.MaxBytes)} MB · ${captura}`
+  return `Aceita até ${imagem.MaxCount} de ${mbEmTexto(imagem.MaxBytes)} MB, ${captura}`
 }
 
 /**
@@ -209,7 +209,7 @@ function resumoDoArquivo(draft: MediaSettingsViewModel, arquivo: ShownKind): Rea
     nomes.length > 3
       ? `${nomes.slice(0, 3).join(', ')} e mais ${nomes.length - 3}`
       : nomes.join(', ')
-  return `${lista} · até ${arquivo.MaxCount} de ${mbEmTexto(arquivo.MaxBytes)} MB`
+  return `${lista}, até ${arquivo.MaxCount} de ${mbEmTexto(arquivo.MaxBytes)} MB`
 }
 
 /** "No relato · ao responder · ao reabrir": o relato sempre, os outros se ligados. */
@@ -220,7 +220,7 @@ function resumoDoQuando(draft: MediaSettingsViewModel): string {
     draft.AllowsOnReopen && 'ao reabrir',
   ]
     .filter(Boolean)
-    .join(' · ')
+    .join(', ')
 }
 
 /**
@@ -486,7 +486,7 @@ export function MediaScreen() {
     if (!corrigir) return valor
     return (
       <>
-        <span className="font-medium text-error-fg">corrigir</span> · {valor}
+        <span className="font-medium text-error-fg">corrigir</span>: {valor}
       </>
     )
   }
@@ -606,7 +606,7 @@ export function MediaScreen() {
                       <summary className="cursor-pointer text-detail text-fg">Saiba mais</summary>
                       <p className="mt-1 text-detail text-fg-muted leading-relaxed">
                         Funciona em qualquer navegador, inclusive no iPhone, sem o navegador pedir
-                        permissão. O que a página não deixa ler — imagem ou conteúdo de outro site —
+                        permissão. O que a página não deixa ler (imagem ou conteúdo de outro site)
                         sai em branco no print. Nada é capturado sem a pessoa marcar, e a captura
                         não esconde nada sozinha.
                       </p>

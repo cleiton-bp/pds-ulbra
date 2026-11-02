@@ -62,7 +62,7 @@ que dá para anexar) entram todas por ela.</p>
   em claro: a conferência dela é uma consulta pelo valor, e não uma comparação de hash.</p>
   <p>O servidor do cliente dizer quem está relatando (a identidade herdada do site) existe, e
   <strong>não depende da secreta</strong>: o cliente gera um par de chaves próprio, ECDSA P-256,
-  cola a pública na tela Quem relata e assina o crachá com a privada; a API só confere a
+  cola a pública na tela Privacidade e assina o crachá com a privada; a API só confere a
   assinatura. Assinar com HMAC e a chave secreta era inviável (o banco guarda só o hash dela), e
   o par assimétrico seria a escolha mesmo que o HMAC fosse possível: a chave privada nunca sai do
   servidor do cliente, e um vazamento do nosso banco entrega uma chave pública, com a qual ninguém

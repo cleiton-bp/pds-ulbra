@@ -382,8 +382,8 @@ function Recusado() {
         o último caractere.
       </p>
       <p className="text-detail text-fg-muted leading-relaxed">
-        Se você tem só o protocolo, ele não abre esta página — o protocolo serve para você dizer de
-        qual relato está falando, e quem abre é o link.
+        Se você tem só o protocolo, ele não abre esta página, porque o protocolo serve para você
+        dizer de qual relato está falando, e quem abre é o link.
       </p>
     </>
   )

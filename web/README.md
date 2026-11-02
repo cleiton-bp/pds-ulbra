@@ -29,7 +29,7 @@ Abre em **`http://localhost:5173`**, e precisa da API rodando em
 |---|---|
 | `VITE_API_URL` | Endereço da API. Padrão `http://localhost:5080` |
 | `VITE_GOOGLE_CLIENT_ID` | ID do cliente OAuth, do Google Cloud |
-| `VITE_LOADER_URL` | Opcional. De onde o carregador da ferramenta é servido, no trecho que o cliente cola no sistema dele. Padrão: a origem do painel, `/v1/pds.js` |
+| `VITE_LOADER_URL` | Opcional. De onde o carregador da ferramenta é servido, no trecho que o cliente cola no sistema dele. Padrão: a origem do painel, `/v1/relatofacil.js` |
 
 Nenhuma delas é segredo: o Vite injeta toda `VITE_*` no bundle, então quem
 abre o devtools as lê. O segredo mora na API — chave de assinatura do JWT e
@@ -57,7 +57,7 @@ Três coisas travam quem liga pela primeira vez, e todas dão erro silencioso:
 | `npm run lint` | Biome: linter e formatador |
 | `npm run format` | Aplica as correções do Biome |
 | `npm run build` | Checa os tipos, gera o carregador e depois `dist/` |
-| `npm run build:loader` | Só o carregador e o arquivo da captura, em `public/v1/pds.js` e `public/v1/pds-captura.js` |
+| `npm run build:loader` | Só o carregador e o arquivo da captura, em `public/v1/relatofacil.js` e `public/v1/relatofacil-captura.js` |
 
 ---
 
@@ -172,7 +172,7 @@ src/
 ├── embed/        a ferramenta de relato: o que roda no site do cliente
 ├── tracking/     a página pública: onde quem relatou vê o próprio relato
 ├── loader/       o <script> que o cliente cola; roda no documento DELE
-├── capture/      o que redesenha a página como imagem (pds-captura.js, baixado no clique)
+├── capture/      o que redesenha a página como imagem (relatofacil-captura.js, baixado no clique)
 ├── editor/       o editor da imagem: marcar e esconder antes de anexar (baixado ao abrir)
 ├── features/     um assunto por pasta: auth, projects, projectKeys, projectStates,
 │                 priorities, labels, reportTypes, publicStages, cycle (Ciclo e Sprints),
@@ -215,7 +215,7 @@ acidente:
 ```
    site do cliente          nosso domínio              nossa API
    ──────────────────       ────────────────────       ─────────────────
-   <script src=...>    →    /v1/pds.js  ─────────────→ GET /public/widget-launcher
+   <script src=...>    →    /v1/relatofacil.js  ─────────────→ GET /public/widget-launcher
         │                        │                     a aparência do botão
         │  desenha o botão;      │                     POST /public/reports
         │  no clique, o iframe   │                            ↑
@@ -247,10 +247,12 @@ fora: nenhum botão. As páginas escondidas são conferidas a cada navegação (
 API, `popstate`, `hashchange`) sem mexer no `history` da página.
 
 **O cliente pode usar o próprio botão.** Com `data-button="none"` no script, nada é
-desenhado e **nenhuma requisição sai até alguém pedir**. Abre por `Pds.open()` (e
-fecha por `Pds.close()`; o objeto é congelado e definido uma vez, e chamar antes de o
-carregador terminar fica na fila) ou por qualquer elemento com `data-pds-open`, com um
-ouvinte só no documento.
+desenhado e **nenhuma requisição sai até alguém pedir**. Abre por `RelatoFacil.open()` (e
+fecha por `RelatoFacil.close()`; o objeto é congelado e definido uma vez, e chamar antes de o
+carregador terminar fica na fila) ou por qualquer elemento com `data-relatofacil-open`, com um
+ouvinte só no documento. Os nomes antigos (`/v1/pds.js`, `Pds`, `data-pds-open` e
+`data-pds-no-capture`) continuam valendo para o site que já os usa; o `build:loader` publica
+o `pds.js` como cópia do `relatofacil.js`.
 
 **O crachá da pessoa também vem pelo script, e só por ele.** No projeto que herda a
 identidade do sistema do cliente, o servidor dele assina quem está na conta num token curto
@@ -265,8 +267,8 @@ e o atributo acima de 4096 caracteres, o teto da API, é tratado como ausente.
 
 | | Antes | Agora |
 |---|---|---|
-| Toda visita, sem clique | `pds.js` (~3,5 kB) **e** o quadro inteiro (~108 kB: ~95 kB de JS, ~13 kB de CSS) | `pds.js` (8,8 kB) e a aparência do botão (menos de 1 kB, em cache por 5 min) |
-| Com `data-button="none"` | o mesmo | `pds.js` (8,8 kB) e mais nada |
+| Toda visita, sem clique | `relatofacil.js` (~3,5 kB) **e** o quadro inteiro (~108 kB: ~95 kB de JS, ~13 kB de CSS) | `relatofacil.js` (8,8 kB) e a aparência do botão (menos de 1 kB, em cache por 5 min) |
+| Com `data-button="none"` | o mesmo | `relatofacil.js` (8,8 kB) e mais nada |
 | No primeiro clique | — | o quadro: `embed.html` (0,6 kB), JS (~95 kB, ~62 deles o React) e CSS (~13 kB) |
 
 O carregador cresceu (o botão, os ícones e a tela de "abrindo" moram nele agora), e a
@@ -275,7 +277,7 @@ visita que não clica deixou de baixar cerca de 108 kB.
 **A exceção é a captura, e só quando a pessoa pede.** Código dentro de um quadro
 de outra origem não alcança a página, então quem captura é o carregador: ele
 esconde o quadro, desenha a camada de marcar a área (numa sombra, com estilo
-próprio) e baixa `pds-captura.js` — a biblioteca que redesenha a página como
+próprio) e baixa `relatofacil-captura.js` — a biblioteca que redesenha a página como
 imagem (`@zumer/snapdom`), com uns 50 kB comprimidos — só nesse clique. A imagem
 volta para o quadro pela mesma conversa e abre no editor; concluída, entra na lista
 como um arquivo escolhido. Ver `src/loader/captureFlow.ts` e `src/capture/`.
@@ -375,7 +377,7 @@ Precisa de três coisas no ar, em portas fixas:
 # 1. a API
 cd api/Pds.WebApi && dotnet run          # :5080
 
-# 2. o painel, que também serve /v1/pds.js e /embed.html
+# 2. o painel, que também serve /v1/relatofacil.js e /embed.html
 cd web && npm run build && npx vite preview --port 5173
 
 # 3. uma página de teste, em OUTRA origem
@@ -393,7 +395,7 @@ desligado.
 O `index.html` da loja precisa só da linha:
 
 ```html
-<script src="http://localhost:5173/v1/pds.js" data-key="pk_..." defer></script>
+<script src="http://localhost:5173/v1/relatofacil.js" data-key="pk_..." defer></script>
 ```
 
 Dois tropeços que custam tempo:

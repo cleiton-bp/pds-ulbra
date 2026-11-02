@@ -27,4 +27,4 @@ export interface CaptureModule {
  * cliente como `<script>` comum — um modulo pediria CORS do servidor dos
  * arquivos —, e um script comum so tem o `window` para entregar o que traz.
  */
-export const CAPTURE_GLOBAL = 'PdsCaptura'
+export const CAPTURE_GLOBAL = 'RelatoFacilCaptura'

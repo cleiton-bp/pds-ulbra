@@ -197,8 +197,8 @@ function arrumar(entradas: ReportHistoryEntryViewModel[], comVoltas: boolean): L
         movimento &&
         Math.abs(Date.parse(entrada.OccurredAt) - Date.parse(movimento.entrada.OccurredAt)) <=
           MESMO_MOVIMENTO_MS
-      if (movimento && perto && !movimento.frase.includes(' · ')) {
-        movimento.frase = `${movimento.frase} · quem relatou continua vendo a mesma etapa`
+      if (movimento && perto && !movimento.frase.includes(', e quem relatou')) {
+        movimento.frase = `${movimento.frase}, e quem relatou continua vendo a mesma etapa`
         continue
       }
     }

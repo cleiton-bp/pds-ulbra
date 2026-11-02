@@ -87,11 +87,11 @@ grava o evento publico    sai em silencio: nada foi cancelado</div>
   <p><strong>Onde a fila roda em produção: Adiado.</strong> O Render não fornece broker. Até haver
   um (e até se confirmar que o plano escolhido permite o
   <code>rabbitmq_delayed_message_exchange</code>), a espera fica indisponível lá, e a tela de
-  Ciclo recusa ligá-la dizendo o motivo. O pedido de informação continua funcionando, mas o prazo
+  Encerramento recusa ligá-la dizendo o motivo. O pedido de informação continua funcionando, mas o prazo
   dele não encerra nada sozinho (sem fila não há consumidor, nem a varredura de
   <code>close_at</code> na subida), e o pedido fica aberto até quem relatou responder ou o time
   agir.</p>
-  <p><code>tracking_code_can_act</code> está gravado, <strong>fica escondido na tela de Ciclo</strong> e a API o
+  <p><code>tracking_code_can_act</code> está gravado, <strong>fica escondido na tela de Encerramento</strong> e a API o
   ignora. Ele decide se quem chega pelo código pessoal também confirma e reabre, e depende de
   confirmar, reabrir e responder aceitarem o código no lugar do token: oferecer o controle antes
   disso seria oferecer um botão que não muda nada. Fazer as três aceitarem o código é

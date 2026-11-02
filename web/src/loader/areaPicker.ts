@@ -125,7 +125,7 @@ function criar(doc: Document, tag: string, classe: string, texto = ''): HTMLElem
 }
 
 /**
- * Abre a camada. Mora num elemento marcado com `data-pds-captura`, que e o que o
+ * Abre a camada. Mora num elemento marcado com `data-relatofacil-captura`, que e o que o
  * print deixa de fora.
  *
  * **Montada elemento a elemento, e nao por `innerHTML`**: pagina com Trusted Types
@@ -135,7 +135,7 @@ export function openAreaPicker(doc: Document = document): AreaPicker {
   const janela = doc.defaultView as Window
 
   const host = doc.createElement('div')
-  host.setAttribute('data-pds-captura', '')
+  host.setAttribute('data-relatofacil-captura', '')
   host.style.position = 'fixed'
   host.style.inset = '0'
   host.style.zIndex = '2147483647'

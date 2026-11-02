@@ -162,8 +162,13 @@ export function NewCardDialog({
       width="w-[min(38rem,calc(100vw-2rem))]"
       footer={
         <>
-          <span className="mr-auto hidden text-caption text-fg-muted sm:inline">
-            Enter no título cria · Ctrl+Enter (⌘+Enter no Mac) cria de qualquer campo
+          {/* Curta, para caber ao lado dos botoes: a frase longa empurrava o "Criar card"
+              para a linha de baixo, abaixo do "Cancelar". O jeito do Mac fica na dica. */}
+          <span
+            title="No Mac, ⌘+Enter. No título, só o Enter já cria."
+            className="mr-auto hidden text-caption text-fg-muted sm:inline"
+          >
+            Ctrl+Enter cria de qualquer campo
           </span>
           <Button variant="quiet" disabled={criando} onClick={aoCancelar}>
             Cancelar

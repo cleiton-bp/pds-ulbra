@@ -292,7 +292,7 @@ describe('as acoes em lote', () => {
     // O reaberto nao entra na volta, e o aviso diz isso em vez de prometer.
     const aviso = avisos().at(-1)
     expect(aviso?.message).toBe(
-      'Mover para Análise — 3 cards. O relato reaberto fica fora do "Desfazer": encerrar de novo pede o desfecho.',
+      'Mover para Análise (3 cards). O relato reaberto fica fora do "Desfazer": encerrar de novo pede o desfecho.',
     )
     expect(aviso?.action?.label).toBe('Desfazer')
     const lote: LoteFeito = aoTerminar.mock.calls[0]?.[0]
@@ -320,12 +320,12 @@ describe('as acoes em lote', () => {
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Reabrir e mover' }))
     await waitFor(() => expect(aoTerminar).toHaveBeenCalled())
     expect(avisos().at(-1)?.message).toBe(
-      'Mover para Análise — 2 cards. Os 2 relatos foram reabertos: encerrar de novo pede o desfecho.',
+      'Mover para Análise (2 cards). Os 2 relatos foram reabertos: encerrar de novo pede o desfecho.',
     )
     expect(avisos().at(-1)?.action).toBeUndefined()
   })
 
-  it('por etiqueta: sobre o que o card tem agora — a etiqueta que outra pessoa pos fica; tirar so oferece as da selecao', async () => {
+  it('por etiqueta: sobre o que o card tem agora, a etiqueta que outra pessoa pos fica; tirar so oferece as da selecao', async () => {
     dublê.etiquetas.mockResolvedValue({})
     const bug = { PublicId: 'l-bug', Name: 'bug', Color: 'Red' as const }
     const ux = { PublicId: 'l-ux', Name: 'ux', Color: 'Blue' as const }
@@ -437,7 +437,7 @@ describe('as acoes em lote', () => {
     expect(itens.map((item) => item.textContent)).toEqual(['Bia (você)', 'Ana', 'Sem responsável'])
     fireEvent.click(itens[1] as HTMLElement)
     await waitFor(() => expect(aoTerminar).toHaveBeenCalled())
-    expect(avisos().at(-1)?.message).toBe('Responsável: Ana — 2 cards (1 já estava assim).')
+    expect(avisos().at(-1)?.message).toBe('Responsável: Ana (2 cards) (1 já estava assim).')
   })
 
   it('"Desfazer" no aviso: entrega a tela o lote, com a volta de cada card que mudou', async () => {
@@ -452,7 +452,7 @@ describe('as acoes em lote', () => {
     await waitFor(() => expect(aoTerminar).toHaveBeenCalled())
 
     const aviso = avisos().at(-1)
-    expect(aviso?.message).toBe('Responsável: Ana — 2 cards.')
+    expect(aviso?.message).toBe('Responsável: Ana (2 cards).')
     expect(aviso?.action?.label).toBe('Desfazer')
     act(() => aviso?.action?.run())
     const lote: LoteFeito = aoDesfazer.mock.calls[0]?.[0]
@@ -532,7 +532,7 @@ describe('as acoes em lote', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Feito' }))
     await waitFor(() => expect(aoTerminar).toHaveBeenCalled())
     expect(aoTerminar.mock.calls[0]?.[0].voltas).toEqual([])
-    expect(avisos().at(-1)?.message).toBe('Mover para Feito — 2 cards.')
+    expect(avisos().at(-1)?.message).toBe('Mover para Feito (2 cards).')
     expect(avisos().at(-1)?.action).toBeUndefined()
   })
 
@@ -595,7 +595,7 @@ describe('as acoes em lote', () => {
     expect(aoRecarregarColunas).toHaveBeenCalled()
   })
 
-  it('a volta da etiqueta e a contraria — tira a que adicionou, poe de volta a que removeu —, sobre o que o card tem agora', async () => {
+  it('a volta da etiqueta e a contraria, tira a que adicionou, poe de volta a que removeu —, sobre o que o card tem agora', async () => {
     const bug = { PublicId: 'l-bug', Name: 'bug', Color: 'Red' as const }
     const ux = { PublicId: 'l-ux', Name: 'ux', Color: 'Blue' as const }
     dublê.etiquetas.mockResolvedValue({})
@@ -641,7 +641,7 @@ describe('as acoes em lote', () => {
     await waitFor(() => expect(aoTerminar).toHaveBeenCalled())
     expect(dublê.mover).toHaveBeenCalledWith('p-1', 'c1', { StatePublicId: 's-1' })
     expect(aoTerminar.mock.calls[0]?.[0].voltas).toEqual([])
-    expect(avisos().at(-1)?.message).toBe('Mover para Análise — 1 card.')
+    expect(avisos().at(-1)?.message).toBe('Mover para Análise (1 card).')
     expect(avisos().at(-1)?.action).toBeUndefined()
   })
 
@@ -655,7 +655,7 @@ describe('as acoes em lote', () => {
 
     await waitFor(() => expect(avisos().at(-1)?.tone).toBe('danger'))
     expect(avisos().at(-1)?.message).toBe(
-      'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+      'Sem conexão com o servidor agora. Confira a internet e tente de novo, porque nada se perdeu.',
     )
     // Nada fica preso em "Carregando…": o botao volta, e os menus abrem de novo.
     expect(screen.getByRole('button', { name: 'Selecionar todos os 34' })).toBeTruthy()

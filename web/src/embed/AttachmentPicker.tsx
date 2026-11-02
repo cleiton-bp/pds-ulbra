@@ -138,7 +138,7 @@ export function AttachmentPicker({
             <li
               key={anexo.id}
               className={cn('flex min-w-0 flex-col gap-1', displaySizeClass(anexo.displaySize))}
-              title={`${anexo.file.name} — ${formatBytes(anexo.file.size)}`}
+              title={`${anexo.file.name} (${formatBytes(anexo.file.size)})`}
             >
               <div className="relative">
                 <div className="overflow-hidden rounded-lg border border-border bg-surface-sunken">
@@ -479,7 +479,7 @@ export function AttachmentProgress({
 
       {falha ? (
         <p className="mt-2 text-caption text-fg-muted leading-normal">
-          {savedNote} Só o arquivo não foi junto — {falha.error ?? 'tente de novo.'}
+          {savedNote} Só o arquivo não foi junto: {falha.error ?? 'tente de novo.'}
         </p>
       ) : (
         recusados > 0 && (

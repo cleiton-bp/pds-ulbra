@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { JSDOM } from 'jsdom'
 import { describe, expect, it } from 'vitest'
 import { Button, type ButtonVariant } from '@/shared/components/Button'
 import { cn, colorNames, fontSizeNames } from '@/shared/lib/cn'
@@ -138,7 +139,7 @@ function listFiles(directory: string): string[] {
 
 describe('valores de cor fora do sistema de tokens', () => {
   for (const rule of FORBIDDEN) {
-    it(`nenhum arquivo escreve ${rule.label} — ${rule.instead}`, () => {
+    it(`nenhum arquivo escreve ${rule.label}, ${rule.instead}`, () => {
       const violations: string[] = []
 
       for (const file of listFiles(SOURCE_ROOT)) {
@@ -154,7 +155,7 @@ describe('valores de cor fora do sistema de tokens', () => {
           // Regex global sobrevive entre chamadas: sem zerar, `lastIndex` pula ocorrencia.
           rule.pattern.lastIndex = 0
           const found = line.match(rule.pattern)
-          if (found) violations.push(`${relativePath}:${index + 1} — ${found.join(', ')}`)
+          if (found) violations.push(`${relativePath}:${index + 1}, ${found.join(', ')}`)
         })
       }
 
@@ -212,8 +213,8 @@ describe('valores de cor fora do sistema de tokens', () => {
 describe('nome de cor que nao existe no sistema', () => {
   /** Utilitarios do Tailwind que nao sao cor, e que este projeto usa. */
   const NAO_E_COR: Record<string, readonly string[]> = {
-    text: ['left', 'center', 'right', 'ellipsis', 'transparent'],
-    bg: ['transparent', 'grid'],
+    text: ['left', 'center', 'right', 'ellipsis', 'transparent', 'balance'],
+    bg: ['transparent'],
     border: [
       'transparent',
       'dashed',
@@ -254,7 +255,7 @@ describe('nome de cor que nao existe no sistema', () => {
             new RegExp(`\\b${prefixo}-([a-z]+(?:-[a-z]+)*)\\b`, 'g'),
           )) {
             if (nome === undefined || permitidos.has(nome)) continue
-            violations.push(`${relativePath}:${index + 1} — ${prefixo}-${nome}`)
+            violations.push(`${relativePath}:${index + 1}, ${prefixo}-${nome}`)
           }
         })
       }
@@ -333,6 +334,16 @@ const PARES: Array<{ fg: string; bg: string; onde: string; minimo: number }> = [
   { fg: 'chip-red-fg', bg: 'chip-red-surface', onde: 'etiqueta red', minimo: 4.5 },
   { fg: 'chip-purple-fg', bg: 'chip-purple-surface', onde: 'etiqueta purple', minimo: 4.5 },
   { fg: 'chip-pink-fg', bg: 'chip-pink-surface', onde: 'etiqueta pink', minimo: 4.5 },
+  // A pagina de entrada: a mesa da maquete (e do fecho) e a loja de exemplo.
+  { fg: 'fg', bg: 'landing-mat', onde: 'titulo sobre a mesa', minimo: 4.5 },
+  { fg: 'fg-muted', bg: 'landing-mat', onde: 'dica sobre a mesa', minimo: 4.5 },
+  { fg: 'landing-mat-fg', bg: 'landing-mat', onde: 'botao de experimentar', minimo: 4.5 },
+  { fg: 'landing-mat-fg', bg: 'landing-mat-strong', onde: 'experimentar no hover', minimo: 4.5 },
+  { fg: 'fg-muted', bg: 'landing-mat-strong', onde: 'seletor do celular', minimo: 4.5 },
+  { fg: 'landing-done', bg: 'landing-mat', onde: 'passo feito sobre a mesa', minimo: 3 },
+  { fg: 'landing-store-fg', bg: 'landing-store', onde: 'botao da loja de exemplo', minimo: 4.5 },
+  { fg: 'landing-store', bg: 'surface-raised', onde: 'botao da loja contra a janela', minimo: 3 },
+  { fg: 'landing-store', bg: 'surface-lifted', onde: 'botao da loja no formulario', minimo: 3 },
 ]
 
 describe('contraste dos pares de cor', () => {
@@ -353,13 +364,48 @@ describe('contraste dos pares de cor', () => {
 })
 
 /**
- * O favicon e carregado como **documento proprio**, sem acesso ao CSS da
- * aplicacao: os dois valores precisam estar escritos dentro dele. E a unica
+ * O favicon (`public/marca.svg`) e carregado como **documento proprio**, sem acesso
+ * ao CSS da aplicacao: os dois valores precisam estar escritos dentro dele. E a unica
  * excecao do projeto — e por isso ela e **conferida**, nao isenta. Antes deste
  * teste a marca da aba estava em duas cores que nao existem na paleta.
  */
 describe('a marca na aba do navegador', () => {
-  const favicon = readFileSync(join(SOURCE_ROOT, '..', 'public', 'favicon.svg'), 'utf8')
+  const PUBLICO = join(SOURCE_ROOT, '..', 'public')
+  const favicon = readFileSync(join(PUBLICO, 'marca.svg'), 'utf8')
+
+  /**
+   * **Cada icone que a pagina declara existe de verdade.** Sem o arquivo, o servidor
+   * do painel responde a pagina inteira no lugar do icone, com 200, e a aba fica sem
+   * marca sem nenhum erro aparecer.
+   */
+  it('os icones declarados no index.html existem em public', () => {
+    const pagina = readFileSync(join(SOURCE_ROOT, '..', 'index.html'), 'utf8')
+    const declarados = [
+      ...pagina.matchAll(/<link\s+rel="(?:icon|apple-touch-icon)"[^>]*\shref="\/([^"]+)"/g),
+    ].map((achado) => achado[1] ?? '')
+
+    expect(declarados).toEqual(['favicon.ico', 'marca.svg', 'apple-touch-icon.png'])
+    for (const arquivo of declarados)
+      expect(statSync(join(PUBLICO, arquivo)).size, `${arquivo} vazio`).toBeGreaterThan(0)
+  })
+
+  /**
+   * **A aba e o cabecalho desenham a mesma marca.** O desenho existe em duas copias
+   * feitas a mao, o `Logo` em JSX e o SVG da aba; se uma mudar sozinha, o produto
+   * passa a ter duas marcas.
+   */
+  it('o icone da aba tem os mesmos caminhos do Logo do cabecalho', () => {
+    const logo = readFileSync(join(SOURCE_ROOT, 'shared', 'components', 'Logo.tsx'), 'utf8')
+    const desenho = (texto: string) => ({
+      caminhos: [...texto.matchAll(/\sd="([^"]+)"/g)].map((achado) => achado[1]),
+      pontos: [...texto.matchAll(/<circle[^>]*\scx="(\d+)"[^>]*\scy="(\d+)"[^>]*\sr="(\d+)"/g)].map(
+        (achado) => `${achado[1]} ${achado[2]} ${achado[3]}`,
+      ),
+    })
+
+    expect(desenho(favicon).caminhos.length).toBeGreaterThan(0)
+    expect(desenho(favicon)).toEqual(desenho(logo))
+  })
 
   /** O que o SVG pinta em cada tema: fora do `@media`, e dentro dele. */
   function coresDoFavicon(dark: boolean): string[] {
@@ -367,6 +413,21 @@ describe('a marca na aba do navegador', () => {
     const trecho = dark ? favicon.slice(inicioDark) : favicon.slice(0, inicioDark)
     return [...new Set([...trecho.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase()))]
   }
+
+  /**
+   * **O navegador le o icone como XML, e XML nao perdoa.** Um comentario que citava
+   * o nome de uma variavel do CSS, com os dois hifens dela, deixou o arquivo invalido:
+   * o navegador recusava o icone inteiro sem avisar, e a aba ficava sem a marca. Os
+   * testes de cor acima leem o arquivo como texto, e por isso passavam.
+   */
+  it('a marca da aba e um XML que o navegador aceita', () => {
+    const { DOMParser } = new JSDOM('').window
+    const documento = new DOMParser().parseFromString(favicon, 'image/svg+xml')
+    const erro = documento.getElementsByTagName('parsererror')[0]
+
+    expect(erro?.textContent ?? null, 'o SVG do icone nao e um XML valido').toBeNull()
+    expect(documento.documentElement.nodeName).toBe('svg')
+  })
 
   for (const tema of ['claro', 'escuro'] as const) {
     it(`${tema}: a marca da aba usa a mesma cor da marca do cabecalho`, () => {
@@ -493,6 +554,7 @@ const HOVERS: Array<{ repouso: string; hover: string; onde: string }> = [
   { repouso: 'accent', hover: 'accent-hover', onde: 'botao primario' },
   { repouso: 'warn-surface', hover: 'warn-surface-hover', onde: 'botao de gerar chave' },
   { repouso: 'surface', hover: 'surface-sunken', onde: 'botao secundario' },
+  { repouso: 'landing-mat', hover: 'landing-mat-strong', onde: 'botao de experimentar' },
 ]
 
 describe('o passo do hover', () => {

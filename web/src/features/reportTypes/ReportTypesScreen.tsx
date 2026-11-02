@@ -352,7 +352,7 @@ export function ReportTypesScreen() {
               settings={naPrevia}
               dirty={sujo}
               startOpen
-              hint="O formulário com os tipos ativos, na ordem da lista, aberto no tipo que você está mudando — como está escrito agora."
+              hint="O formulário com os tipos ativos, na ordem da lista, aberto no tipo que você está mudando, como está escrito agora."
             />
           ) : loading ? (
             <Skeleton className="h-96 w-full rounded-xl" />
@@ -374,7 +374,7 @@ export function ReportTypesScreen() {
 
           <HowItWorks>
             <p>
-              O primeiro tipo ativo vem marcado quando o formulário abre — a menos que você escolha
+              O primeiro tipo ativo vem marcado quando o formulário abre, a menos que você escolha
               outro em{' '}
               <Link
                 to="../form-texts#tipo-pre-marcado"
@@ -527,7 +527,7 @@ export function ReportTypesScreen() {
           if (!open) setRetiring(null)
         }}
         title={retiring ? `Desativar “${retiring.Name}”` : 'Desativar tipo de relato'}
-        description="Ele sai do formulário, mas continua nos relatos que já o têm — marcado como desativado — e no filtro de tipo do Trabalho. Dá para trazer de volta quando quiser."
+        description="Ele sai do formulário, mas continua nos relatos que já o têm (marcado como desativado) e no filtro de tipo do Trabalho. Dá para trazer de volta quando quiser."
         confirmLabel="Desativar"
         onConfirm={() => (retiring ? setActive(retiring, false) : undefined)}
       />

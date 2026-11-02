@@ -87,7 +87,7 @@ export function CloseReportDialog({
         lote > 1
           ? `Mover para ${coluna ?? 'a coluna'} encerra os ${lote} relatos abertos da seleção, todos com este desfecho e este motivo. Cada pessoa que relatou vai ler o motivo na página de acompanhamento.`
           : arquivando
-            ? 'Arquivar encerra este relato e o tira da tela de Trabalho. Quem escreveu lê o motivo na página de acompanhamento e pode reabrir — e reabrir traz o relato de volta — ou finalizar, dando a nota.'
+            ? 'Arquivar encerra este relato e o tira da tela de Trabalho. Quem escreveu lê o motivo na página de acompanhamento e pode reabrir, e reabrir traz o relato de volta, ou finalizar, dando a nota.'
             : coluna === null
               ? 'Este relato passa a constar como terminado, e continua na coluna em que está. Quem escreveu vai ler o motivo na página de acompanhamento.'
               : `Mover para ${coluna} encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.`
@@ -154,8 +154,8 @@ export function CloseReportDialog({
       />
 
       <p className="mt-1.5 text-caption text-fg-muted leading-normal">
-        Este texto sai do painel. Não escreva aqui o que é da equipe — para isso existe o comentário
-        interno.
+        Este texto sai do painel. Não escreva aqui o que é da equipe, porque para isso existe o
+        comentário interno.
       </p>
     </Modal>
   )

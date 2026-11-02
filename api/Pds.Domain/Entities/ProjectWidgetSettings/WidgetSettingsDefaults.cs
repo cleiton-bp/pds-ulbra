@@ -58,7 +58,7 @@ public static class WidgetSettingsDefaults
     public const string Title = "Conte o que aconteceu";
 
     public const string SuccessMessage =
-        "Recebemos. Anote o protocolo — é com ele que você acompanha.";
+        "Recebemos o seu relato, e você acompanha o andamento pelo link abaixo.";
 
     /// <summary>O texto do botao que envia o relato.</summary>
     public const string SubmitLabel = "Enviar";
@@ -90,6 +90,12 @@ public static class WidgetSettingsDefaults
     public const string TrackingIntro = "Este é o registro do que você enviou.";
 
     public const bool ShowsTypeField = true;
+
+    /// <summary>
+    /// De fabrica, o botao ainda nao foi publicado: o registro so nasce no primeiro
+    /// Publicar. O painel le para marcar o passo do botao de quem manteve o padrao.
+    /// </summary>
+    public const bool Published = false;
 
     /// <summary>
     /// A pergunta do titulo aparece, e nao obriga: o titulo ajuda o time a reconhecer

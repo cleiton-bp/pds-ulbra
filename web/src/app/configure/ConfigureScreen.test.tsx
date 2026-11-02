@@ -180,7 +180,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('Configurar o projeto — a ordem da página', () => {
+describe('Configurar o projeto, a ordem da página', () => {
   it('o título, a busca logo embaixo, os primeiros passos e tudo o que dá para ajustar', async () => {
     montar()
 
@@ -198,7 +198,7 @@ describe('Configurar o projeto — a ordem da página', () => {
   })
 })
 
-describe('Configurar o projeto — os primeiros passos', () => {
+describe('Configurar o projeto, os primeiros passos', () => {
   it('projeto novo: 0 de 5, e só o próximo passo aberto, com o porquê e a ação', async () => {
     montar()
 
@@ -232,11 +232,12 @@ describe('Configurar o projeto — os primeiros passos', () => {
     dublê.botao.mockResolvedValue({ ...DEFAULT_WIDGET_SETTINGS, Position: 'TopLeft' })
     montar()
 
-    await waitFor(() => expect(within(passos()).getByText('3 de 5')).toBeTruthy())
-    expect(barra().getAttribute('aria-valuenow')).toBe('3')
-    expect(feitos()).toEqual(['Script colado', 'Domínio autorizado', 'Botão'])
-    expect(proximo()).toBe('Enviar um relato de teste')
-    expect(destino('Fazer o teste')).toBe('/projects/p-1/start#relato-de-teste')
+    // Com o sistema mandando relato, o teste ja nao tem o que provar e conta como feito.
+    await waitFor(() => expect(within(passos()).getByText('4 de 5')).toBeTruthy())
+    expect(barra().getAttribute('aria-valuenow')).toBe('4')
+    expect(feitos()).toEqual(['Script colado', 'Domínio autorizado', 'Relato de teste', 'Botão'])
+    expect(proximo()).toBe('Convidar o time')
+    expect(destino('Convidar')).toBe('/projects/p-1/members#convidar')
   })
 
   it('o relato de teste não conta como script colado: só o do site', async () => {
@@ -295,7 +296,7 @@ describe('Configurar o projeto — os primeiros passos', () => {
 
     // Quem pode ver: opcional, com o valor de hoje, e fora do "n de 5".
     expect(within(passos()).getByText('Hoje: só o time vê os relatos.')).toBeTruthy()
-    expect(destino('Abrir Quem relata')).toBe('/projects/p-1/identity#visibilidade')
+    expect(destino('Abrir Privacidade')).toBe('/projects/p-1/identity#visibilidade')
     expect(within(passos()).getByText('0 de 5')).toBeTruthy()
     expect(barra().getAttribute('aria-valuemax')).toBe('5')
     expect(window.localStorage.getItem('pds.web.primeirosPassos.p-1')).toBe('aberto')
@@ -344,7 +345,8 @@ describe('Configurar o projeto — os primeiros passos', () => {
     dublê.autorizar.mockResolvedValue(autorizado('loja.com'))
     montar()
 
-    await waitFor(() => expect(within(passos()).getByText('1 de 5')).toBeTruthy())
+    // O script e o teste: o relato que chegou do sistema prova os dois.
+    await waitFor(() => expect(within(passos()).getByText('2 de 5')).toBeTruthy())
     expect(proximo()).toBe('Autorizar o endereço do seu sistema')
     expect(within(passos()).getByText(/mandou relato e está esperando/)).toBeTruthy()
     expect(within(passos()).getByRole('textbox', { name: 'Domínio do seu sistema' })).toBeTruthy()
@@ -359,9 +361,9 @@ describe('Configurar o projeto — os primeiros passos', () => {
         AllowsSubdomains: false,
       }),
     )
-    await waitFor(() => expect(within(passos()).getByText('2 de 5')).toBeTruthy())
-    expect(feitos()).toEqual(['Script colado', 'Domínio autorizado'])
-    expect(proximo()).toBe('Enviar um relato de teste')
+    await waitFor(() => expect(within(passos()).getByText('3 de 5')).toBeTruthy())
+    expect(feitos()).toEqual(['Script colado', 'Domínio autorizado', 'Relato de teste'])
+    expect(proximo()).toBe('Escolher a cor e o texto do botão')
     expect(within(passos()).queryByText(/está esperando/)).toBeNull()
   })
 
@@ -387,7 +389,7 @@ describe('Configurar o projeto — os primeiros passos', () => {
   })
 })
 
-describe('Configurar o projeto — a busca', () => {
+describe('Configurar o projeto, a busca', () => {
   it('acha sem acento, anda pelas setas e Enter leva ao campo, pedindo o realce', async () => {
     const router = montar()
     const busca = screen.getByRole('combobox', { name: 'Procurar nas configurações' })
@@ -397,7 +399,7 @@ describe('Configurar o projeto — a busca', () => {
 
     const lista = screen.getByRole('listbox', { name: 'Opções encontradas' })
     const opcao = within(lista).getByRole('option', { name: /Domínios autorizados/ })
-    expect(opcao.textContent).toContain('O seu sistema · Domínios')
+    expect(opcao.textContent).toContain('O seu sistema › Domínios')
     expect(busca.getAttribute('aria-expanded')).toBe('true')
 
     fireEvent.keyDown(busca, { key: 'ArrowDown' })
@@ -445,7 +447,7 @@ describe('Configurar o projeto — a busca', () => {
   })
 })
 
-describe('Configurar o projeto — tudo o que dá para ajustar', () => {
+describe('Configurar o projeto, tudo o que dá para ajustar', () => {
   it('cada tela é um link com o nome, e o resumo fica na linha de baixo, como descrição', async () => {
     dublê.membros.mockResolvedValue([pessoa('ana'), pessoa('bia')])
     montar()

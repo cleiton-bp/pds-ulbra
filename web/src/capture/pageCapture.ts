@@ -6,7 +6,12 @@ import { canvasToImageFile } from '@/capture/imageFile'
  * O que nunca entra no print: o nosso quadro e a camada de marcar a area. Sao
  * nossos, e estao por cima do que a pessoa quer mostrar.
  */
-export const EXCLUDED_FROM_CAPTURE = ['iframe[data-pds]', '[data-pds-captura]']
+export const EXCLUDED_FROM_CAPTURE = [
+  'iframe[data-relatofacil]',
+  '[data-relatofacil-captura]',
+  'iframe[data-pds]',
+  '[data-pds-captura]',
+]
 
 /**
  * O que a captura esconde por privacidade (LGPD): **todo campo de senha**, e o que o site do
@@ -17,7 +22,8 @@ export const EXCLUDED_FROM_CAPTURE = ['iframe[data-pds]', '[data-pds-captura]']
  * aqui o modo e "esconder" (`visibility:hidden`), que deixa o lugar na pagina — o print nao
  * desloca o resto, so nao mostra o conteudo sensivel.
  */
-export const SENSITIVE_SELECTOR = 'input[type="password"], [data-pds-no-capture], .pds-no-capture'
+export const SENSITIVE_SELECTOR =
+  'input[type="password"], [data-relatofacil-no-capture], .relatofacil-no-capture, [data-pds-no-capture], .pds-no-capture'
 
 /** Se o elemento e sensivel, ou esta dentro de um trecho marcado como sensivel. */
 export function isSensitive(el: Element): boolean {

@@ -85,7 +85,7 @@ export const HOST_LAUNCHER = 'host'
 
 /**
  * Da pagina para o quadro: a pessoa pediu para abrir — pelo botao do carregador, por
- * `Pds.open()` ou por um elemento com `data-pds-open`. **So com o botao da pagina**
+ * `RelatoFacil.open()` ou por um elemento com `data-relatofacil-open`. **So com o botao da pagina**
  * (`InitMessage.launcher`). Chega a cada abertura, e o quadro poe o foco no
  * formulario; da segunda em diante, le os tipos de novo, como o botao de dentro fazia.
  */

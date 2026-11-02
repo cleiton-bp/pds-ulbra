@@ -17,33 +17,52 @@ import { cn } from '@/shared/lib/cn'
 export function VisibilityPill({
   id,
   enabled,
+  waitingScript = false,
   onChange,
 }: {
   /** A ancora do controle: a busca leva ate ele, e o foco cai nele. */
   id: string
   enabled: boolean
+  /**
+   * Ligado, mas o sistema ainda nao mandou relato: o botao so aparece depois que o script
+   * for colado. Dizer "Visível no seu sistema" aqui afirmava uma instalacao que nao existe.
+   */
+  waitingScript?: boolean
   onChange: (enabled: boolean) => void
 }) {
+  const esperando = enabled && waitingScript
   return (
     <div
+      title={
+        esperando ? 'O botão aparece no seu sistema depois que o script for colado.' : undefined
+      }
       className={cn(
-        'flex flex-none items-center gap-2 rounded-full border py-1 pr-1 pl-3 text-detail',
-        enabled
-          ? 'border-chip-green-border bg-chip-green-surface text-chip-green-fg'
-          : 'border-warn-border bg-warn-surface text-warn-fg',
+        'flex flex-none items-center gap-2 rounded-full border py-1 pr-1 pl-3 text-detail transition-colors',
+        esperando
+          ? 'border-border bg-surface text-fg'
+          : enabled
+            ? 'border-chip-green-border bg-chip-green-surface text-chip-green-fg'
+            : 'border-warn-border bg-warn-surface text-warn-fg',
       )}
     >
       <span
         aria-hidden
         className={cn(
           'size-2 flex-none rounded-full',
-          enabled ? 'bg-chip-green-glyph' : 'border border-warn-fg',
+          esperando
+            ? 'border border-fg-muted border-dashed'
+            : enabled
+              ? 'bg-chip-green-glyph'
+              : 'border border-warn-fg',
         )}
       />
       <span role="status" className="font-medium">
-        {enabled ? 'Visível no seu sistema' : 'Desligado'}
+        {esperando
+          ? 'Ligado, esperando o script'
+          : enabled
+            ? 'Visível no seu sistema'
+            : 'Desligado'}
       </span>
-      <span aria-hidden>·</span>
       <Button
         id={id}
         size="sm"

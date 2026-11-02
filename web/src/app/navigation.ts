@@ -11,7 +11,10 @@
  *
  * **Os nomes sao os do time**, e nao os de quem construiu: "Colunas", e nao
  * "Estados"; "Andamento público", e nao "Etapas públicas"; "O botão", e nao
- * "Ferramenta". Os enderecos continuam os de antes — ja foram copiados para
+ * "Ferramenta". Em 31/10, pela analise do primeiro uso: "Ciclo" virou "Encerramento"
+ * (o que a tela resolve e como o relato termina), "Quem relata" virou "Privacidade"
+ * (quem pode ver os relatos e como a pessoa se identifica), "Formulário" virou "Textos
+ * e tema" (tinha o nome da propria area) e "O acompanhamento" virou "Depois de enviar". Os enderecos continuam os de antes — ja foram copiados para
  * conversas, e trocar o nome da tela nao precisa quebrar link nenhum.
  *
  * **Esta e a fonte unica.** A lateral, a pagina central, o titulo da aba e o indice
@@ -134,13 +137,13 @@ export const CONFIG_AREAS: ConfigArea[] = [
       // O que vale para todo tipo — o titulo, o enviar, o tema, a pergunta do titulo e
       // a do nome. Morava em O botão, misturado com a cor do botao. O caminho continua
       // `form-texts`: os enderecos ja copiados nao quebram com o nome novo.
-      { key: 'formTexts', label: 'Formulário', path: 'form-texts' },
+      { key: 'formTexts', label: 'Textos e tema', path: 'form-texts' },
       { key: 'media', label: 'Anexos', path: 'media' },
     ],
   },
   {
     key: 'tracking',
-    label: 'O acompanhamento',
+    label: 'Depois de enviar',
     purpose:
       'Quem pode ver os relatos, o que a pessoa lê depois de enviar e como o relato termina.',
     sections: [
@@ -150,8 +153,8 @@ export const CONFIG_AREAS: ConfigArea[] = [
       { key: 'stages', label: 'Andamento público', path: 'public-stages' },
       // Depois do andamento, e onde ele termina: como o relato encerra, o que quem
       // relatou le, e quando ele pode reabrir.
-      { key: 'cycle', label: 'Ciclo', path: 'cycle' },
-      { key: 'identity', label: 'Quem relata', path: 'identity' },
+      { key: 'cycle', label: 'Encerramento', path: 'cycle' },
+      { key: 'identity', label: 'Privacidade', path: 'identity' },
     ],
   },
   {

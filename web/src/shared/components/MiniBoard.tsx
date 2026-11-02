@@ -1,4 +1,5 @@
 import { MiniCard, type MiniCardProps } from '@/shared/components/cardFace'
+import { type StatusTone, TONE_DOT, TONE_FG, TONE_SURFACE } from '@/shared/components/statusTone'
 import { cn } from '@/shared/lib/cn'
 
 /** Uma coluna do quadro de exemplo. */
@@ -24,13 +25,19 @@ export interface MiniBoardColumn {
  * de fora le — ver as duas lado a lado mostra a perda de detalhe que e de proposito.
  *
  * A tela de entrada usa o mesmo quadro na maquete do produto, com `otherCards` para ele
- * parecer um quadro em uso e `columnClassName` para as colunas repartirem a largura.
+ * parecer um quadro em uso, `columnClassName` para as colunas repartirem a largura, e
+ * `cardSlot` e `highlightColumnId` para o visitante arrastar o card de uma coluna a outra.
  */
 export function MiniBoard({
   columns,
   card,
   cardColumnId,
   otherCards,
+  cardSlot,
+  highlightColumnId = null,
+  dropSlot,
+  tones,
+  stageLitColumnId = null,
   columnClassName,
   className,
 }: {
@@ -44,6 +51,22 @@ export function MiniBoard({
    * deles: o que chega vai ao topo, como no quadro de verdade.
    */
   otherCards?: Readonly<Partial<Record<string, readonly MiniCardProps[]>>>
+  /**
+   * Um card pronto no lugar do `card`, na coluna de `cardColumnId`: o da maquete da
+   * entrada, que o visitante pega e solta, desenhado por quem o move.
+   */
+  cardSlot?: React.ReactNode
+  /** A coluna que recebe o card que esta sendo arrastado, realcada pelo id. */
+  highlightColumnId?: string | null
+  /** O lugar aberto no topo da coluna realcada, onde o card arrastado vai cair. */
+  dropSlot?: React.ReactNode
+  /**
+   * O tom de cada coluna, pelo id: liga o ponto de cor antes do nome e pinta, no tom, a
+   * coluna realcada e a faixa acesa. Sem ele, o quadro fica neutro, como nas previas.
+   */
+  tones?: Readonly<Partial<Record<string, StatusTone>>>
+  /** A coluna cuja faixa "Quem relatou vê" acende no tom: a do card, ja nesta etapa. */
+  stageLitColumnId?: string | null
   /** Troca a largura fixa de cada coluna — a maquete da entrada as reparte na moldura. */
   columnClassName?: string
   className?: string
@@ -52,48 +75,77 @@ export function MiniBoard({
 
   return (
     <ul aria-label="Quadro de exemplo" className={cn('flex gap-2 overflow-x-auto pb-1', className)}>
-      {columns.map((coluna) => (
-        <li
-          key={coluna.id}
-          className={cn(
-            'flex w-36 flex-none flex-col rounded-lg border border-transparent bg-surface-sunken dark:border-border',
-            columnClassName,
-          )}
-        >
-          <header className="flex flex-wrap items-center gap-1 px-2 pt-2 pb-1.5">
-            <h3
-              title={coluna.name}
-              className="min-w-0 max-w-full truncate font-semibold text-caption text-fg-muted uppercase tracking-wide"
-            >
-              {coluna.name}
-            </h3>
-            {coluna.tags?.map((marca) => (
-              <span
-                key={marca}
-                className="rounded border border-border px-1 text-caption text-fg-muted"
+      {columns.map((coluna) => {
+        const tom = tones?.[coluna.id]
+        const realcada = coluna.id === highlightColumnId
+        const acesa = tom !== undefined && coluna.id === stageLitColumnId
+        return (
+          <li
+            key={coluna.id}
+            data-column-id={coluna.id}
+            className={cn(
+              'flex w-36 flex-none flex-col rounded-lg border bg-surface-sunken transition-colors duration-150',
+              realcada
+                ? tom
+                  ? TONE_SURFACE[tom]
+                  : 'border-border-control bg-surface-strong'
+                : 'border-transparent dark:border-border',
+              columnClassName,
+            )}
+          >
+            <header className="flex flex-wrap items-center gap-1.5 px-2 pt-2 pb-1.5">
+              {tom && (
+                <span
+                  aria-hidden="true"
+                  className={cn('size-2 flex-none rounded-full', TONE_DOT[tom])}
+                />
+              )}
+              <h3
+                title={coluna.name}
+                className="min-w-0 max-w-full truncate font-semibold text-caption text-fg"
               >
-                {marca}
-              </span>
-            ))}
-          </header>
+                {coluna.name}
+              </h3>
+              {coluna.tags?.map((marca) => (
+                <span
+                  key={marca}
+                  className="rounded border border-border px-1 text-caption text-fg-muted"
+                >
+                  {marca}
+                </span>
+              ))}
+            </header>
 
-          <div className="flex min-h-14 flex-1 flex-col gap-2 px-2 pb-2">
-            {card && coluna.id === colunaDoCard && <MiniCard {...card} />}
-            {otherCards?.[coluna.id]?.map((outro) => (
-              <MiniCard key={outro.title} {...outro} />
-            ))}
-          </div>
+            <div className="flex min-h-14 flex-1 flex-col gap-2 px-2 pb-2">
+              {coluna.id === highlightColumnId && dropSlot}
+              {coluna.id === colunaDoCard && (cardSlot ?? (card && <MiniCard {...card} />))}
+              {otherCards?.[coluna.id]?.map((outro) => (
+                <MiniCard key={outro.title} {...outro} />
+              ))}
+            </div>
 
-          {coluna.publicStage !== undefined && (
-            <p className="border-border border-t px-2 py-1.5 text-caption text-fg-muted leading-snug">
-              Quem relatou vê:{' '}
-              <span className={coluna.publicStage === null ? 'italic' : 'text-fg'}>
-                {coluna.publicStage ?? 'nenhuma etapa'}
-              </span>
-            </p>
-          )}
-        </li>
-      ))}
+            {coluna.publicStage !== undefined && (
+              <p
+                className={cn(
+                  'rounded-b-[7px] border-t px-2 py-1.5 text-caption leading-snug transition-colors duration-300',
+                  acesa && tom
+                    ? cn(TONE_SURFACE[tom], TONE_FG[tom])
+                    : 'border-border text-fg-muted',
+                )}
+              >
+                Quem relatou vê:{' '}
+                <span
+                  className={
+                    coluna.publicStage === null ? 'italic' : acesa ? 'font-medium' : 'text-fg'
+                  }
+                >
+                  {coluna.publicStage ?? 'nenhuma etapa'}
+                </span>
+              </p>
+            )}
+          </li>
+        )
+      })}
     </ul>
   )
 }

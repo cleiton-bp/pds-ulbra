@@ -18,12 +18,15 @@ import { cn } from '@/shared/lib/cn'
 export function MaskedValue({
   value,
   variant = 'secondary',
+  revealed = false,
 }: {
   value: string
   /** `warn` para o painel ambar da chave recem-gerada. */
   variant?: 'secondary' | 'warn'
+  /** Comeca a mostra: a chave publica, que a propria tela diz poder ficar a vista. */
+  revealed?: boolean
 }) {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(revealed)
 
   return (
     <div className="flex items-center gap-2">

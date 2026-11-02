@@ -162,7 +162,7 @@ export function CycleSettingsScreen() {
   return (
     <div className="max-w-6xl">
       <SettingsHeader
-        title="Ciclo"
+        title="Encerramento"
         description="Como um relato termina, quando quem relatou pode reabrir e quando o time pode pedir mais informação."
         ready={draft !== null}
         dirty={dirty}
@@ -320,11 +320,11 @@ export function CycleSettingsScreen() {
                   alguem a marque esperando um efeito que nao vem. */}
               <Hint>
                 Só tem efeito quando o projeto usa código pessoal, na tela{' '}
-                <strong className="font-medium text-fg">Quem relata</strong>.
+                <strong className="font-medium text-fg">Privacidade</strong>.
               </Hint>
               <HowItWorks className="mt-4">
                 <p>
-                  No modo código pessoal, a pessoa reencontra os relatos dela digitando o código — e
+                  No modo código pessoal, a pessoa reencontra os relatos dela digitando o código, e
                   chega ao relato sem o link que recebeu quando escreveu. Ler, ela lê. Esta regra
                   decide se ela também age.
                 </p>
@@ -362,13 +362,13 @@ function destinoDaReabertura(
 function describeReopen(draft: CycleSettingsViewModel, voltaPara: string) {
   if (!draft.AllowsReopen) return 'Não pode'
   const coluna = voltaPara === 'a primeira coluna da fila' ? 'a primeira coluna' : voltaPara
-  return `Pode · volta para ${coluna}${draft.ReopenRequiresComment ? '' : ' · sem pedir texto'}`
+  return `Pode reabrir, e volta para ${coluna}${draft.ReopenRequiresComment ? '' : ' sem pedir texto'}`
 }
 
 function describeRating(draft: CycleSettingsViewModel) {
   if (!draft.SatisfactionEnabled) return 'Não pede'
   const estilo = draft.SatisfactionStyle === 'Stars' ? 'Estrelas' : 'Números'
-  return `${estilo} · ${draft.SatisfactionRequired ? 'obrigatória' : 'opcional'}`
+  return `${estilo}, ${draft.SatisfactionRequired ? 'obrigatória' : 'opcional'}`
 }
 
 /**
@@ -412,7 +412,7 @@ function ClosureFields({ draft, change }: { draft: CycleSettingsViewModel; chang
         <p>
           <strong className="font-medium text-fg">Por um botão:</strong> nenhum movimento encerra.
           Existe um botão no relato aberto, e o relato fica onde está. Para quem termina em
-          “Aguardando deploy” ou “Arquivado” — colunas que não querem dizer que acabou.
+          “Aguardando deploy” ou “Arquivado”, colunas que não querem dizer que acabou.
         </p>
       </HowItWorks>
     </div>
@@ -504,7 +504,7 @@ function ReopenFields({
           fila, na coluna escolhida.
         </p>
         <p>
-          Uma coluna própria — “Reaberto” — ajuda a não perder de vista o que já voltou uma vez.
+          Uma coluna própria (“Reaberto”) ajuda a não perder de vista o que já voltou uma vez.
           Desativar a coluna escolhida faz a reabertura cair na primeira da fila.
         </p>
       </HowItWorks>
@@ -615,7 +615,7 @@ function RatingFields({ draft, change }: { draft: CycleSettingsViewModel; change
         marcado={draft.SatisfactionEnabled}
         id="nota"
         titulo="Pedir uma nota ao confirmar"
-        explicacao="De 1 a 5, sobre o atendimento do relato — e não sobre o produto."
+        explicacao="De 1 a 5, sobre o atendimento do relato, e não sobre o produto."
         aoTrocar={(SatisfactionEnabled) => change({ SatisfactionEnabled })}
       />
 

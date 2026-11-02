@@ -51,9 +51,9 @@ export function BoardRules({ regras }: { regras: ReturnType<typeof useCycleSetti
         title="Fim e prazos no quadro"
         value={
           <>
-            Última coluna: {dias(draft.LastColumnVisibleDays, 'todos')} · Prazo:{' '}
+            Última coluna: {dias(draft.LastColumnVisibleDays, 'todos')}, prazo:{' '}
             {dias(draft.DueSoonDays, 'só no dia')}
-            {dirty && <span className="text-warn-fg"> · não salvo</span>}
+            {dirty && <span className="text-warn-fg">, não salvo</span>}
           </>
         }
         changes={changedFromDefaults(draft, CYCLE_DEFAULTS, CAMPOS_DO_QUADRO)}

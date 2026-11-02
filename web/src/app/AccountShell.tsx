@@ -32,7 +32,7 @@ export function AccountShell() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="flex h-14 flex-none items-center justify-between border-border border-b bg-surface-raised px-4 sm:px-8">
+      <header className="flex h-14 flex-none items-center justify-between border-border border-b bg-surface px-4 sm:px-8">
         <Link to="/projects" title="Ir para os projetos" className="rounded-md">
           <Brand />
         </Link>

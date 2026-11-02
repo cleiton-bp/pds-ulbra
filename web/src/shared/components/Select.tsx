@@ -117,7 +117,7 @@ export function Select({
             'flex w-full items-center justify-between gap-2 rounded-lg border bg-surface-raised text-left text-fg',
             'disabled:cursor-not-allowed disabled:opacity-60',
             size === 'md' ? 'h-9 px-3 text-body' : 'h-8 px-2.5 text-detail',
-            error ? 'border-error-border' : 'border-border',
+            error ? 'border-error-border' : 'border-border-control',
             triggerClassName,
           )}
         >

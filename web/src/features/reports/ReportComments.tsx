@@ -157,7 +157,7 @@ export function ReportComments({
 
       <Caixa
         titulo="Entre o time"
-        explicacao="Só quem tem acesso a este painel lê. Não sai daqui. Escreva @ para chamar alguém do time — a pessoa é avisada no sino."
+        explicacao="Só quem tem acesso a este painel lê. Não sai daqui. Escreva @ para chamar alguém do time, e a pessoa é avisada no sino."
         destaque={false}
         mencoesNoProjeto={projectPublicId}
         comentarios={atual?.Internal ?? []}
@@ -446,7 +446,7 @@ function Caixa({
                 </time>
                 {comentario.EditedAt && (
                   <span title={`Corrigido em ${formatDateTime(comentario.EditedAt)}`}>
-                    · editado
+                    (editado)
                   </span>
                 )}
                 {comentario.IsYours &&

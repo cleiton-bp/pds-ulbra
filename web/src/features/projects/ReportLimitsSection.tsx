@@ -39,7 +39,7 @@ const CAMPOS: {
     rotulo: 'Por domínio',
     unidade: 'por hora',
     explicacao:
-      'O domínio que a página informa — por isso existem também os limites por IP e por projeto.',
+      'O domínio que a página informa, e por isso existem também os limites por IP e por projeto.',
     minimo: 1,
   },
   {
@@ -229,8 +229,8 @@ export function ReportLimitsSection({ limits }: { limits: Limites }) {
 
       <HowItWorks>
         <p>
-          Passou de um limite, a ferramenta confere se quem envia é uma pessoa — um “Conferindo…” de
-          um ou dois segundos; no dobro, pausa os envios
+          Passou de um limite, a ferramenta confere se quem envia é uma pessoa, com um “Conferindo…”
+          de um ou dois segundos; no dobro, pausa os envios
           {atual ? ` por ${atual.PauseMinutes} minutos` : ''} e avisa no sino.
         </p>
         <p>

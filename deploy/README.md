@@ -250,7 +250,7 @@ docker stats --no-stream                           # memória e CPU de cada cont
 ```
 
 Vale também um vigia de fora (UptimeRobot, gratuito) chamando `https://api.relatofacil.com/health/ready`
-e `https://quadro.relatofacil.com/v1/pds.js` a cada minuto: vigiar de dentro não avisa quando a
+e `https://quadro.relatofacil.com/v1/relatofacil.js` a cada minuto: vigiar de dentro não avisa quando a
 máquina inteira cai.
 
 ## O que fica para depois

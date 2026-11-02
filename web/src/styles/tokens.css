@@ -46,6 +46,9 @@
   --slate-5: #e0e1e6;
   --slate-6: #d9d9e0;
   --slate-8: #b9bbc6;
+  /* Degrau 9 do Radix: o primeiro cinza com 3:1 contra o branco, o minimo de um
+     controle (WCAG 1.4.11). So a borda de campo usa. */
+  --slate-9: #8b8d98;
   --slate-10: #80838d;
   --slate-11: #60646c;
   --slate-12: #1c2024;
@@ -62,8 +65,10 @@
   /* Degrau 9: a cor solida, a de mais croma. So a estrela da nota usa. */
   --amber-9: #ffc53d;
   --amber-11: #ab6400;
+  /* Degrau 12: o texto ambar que passa de 4,5:1 sobre o fundo ambar claro. */
+  --amber-12: #4f3422;
 
-  --red-7: #f3aeaf;
+  --red-7: #f4a9aa;
   --red-11: #ce2c31;
 
   /* A PALETA DE DADO — as oito cores que o time escolhe para etiqueta e
@@ -75,6 +80,7 @@
   --blue-11: #0d74ce;
   --blue-12: #113264;
   --grass-3: #e9f6e9;
+  --grass-4: #daf1db;
   --grass-7: #94ce9a;
   --grass-11: #2a7e3b;
   --grass-12: #203c25;
@@ -106,20 +112,35 @@
      bloco escuro — e a unica dupla do arquivo em que isso e proposital. */
   --ink-on-light: #1c2024;
   --ink-on-dark: #ffffff;
+
+  /* A AMOSTRA AZUL de O botao, a cor que um cliente escolhe para o botao e o formulario.
+     Fixa como o par acima: cor de cliente vale igual de dia e de noite, e por isso o tema
+     escuro nunca a reatribui (o --blue-11 vira outro azul la). */
+  --swatch-blue: #0d74ce;
 }
 
 /* ---------------------------------------------------------------------------
  * CAMADA 2 — SIGNIFICADOS, tema claro.
  * ------------------------------------------------------------------------- */
 :root {
-  /* 60% — superficie */
-  --surface: var(--slate-1);
-  --surface-raised: var(--slate-2);
+  /* 60% — superficie. **Papel, folha e poco**: a pagina e a lateral num cinza muito
+     claro, o que se le e se edita (cartao, folha de configuracao, dialogo) em branco por
+     cima, e o poco (coluna do quadro, hover de linha) um degrau abaixo da pagina. Ja foi
+     o contrario, o cartao mais escuro que a pagina, e o painel parecia um desenho de
+     caixas sem relevo. */
+  --surface: var(--slate-2);
+  --surface-raised: var(--white);
   --surface-sunken: var(--slate-3);
   --surface-strong: var(--slate-4);
+  /* O card do quadro, por cima da coluna: no claro e a mesma folha; no escuro ele
+     precisa clarear, ou afunda no poco da coluna. */
+  --surface-lifted: var(--white);
 
   /* 30% — estrutura */
   --border: var(--slate-6);
+  /* A borda de campo, seletor e radio: o fio das divisorias nao chega aos 3:1 de um
+     controle, e o campo vazio sumia no cartao. */
+  --border-control: var(--slate-9);
   --fg: var(--slate-12);
   --fg-muted: var(--slate-11);
   --fg-disabled: var(--slate-8);
@@ -147,7 +168,7 @@
      escuro o hover tem de clarear. */
   --warn-surface-hover: var(--amber-4);
   --warn-border: var(--amber-7);
-  --warn-fg: var(--amber-11);
+  --warn-fg: var(--amber-12);
 
   /* a nota de quem relatou, em estrelas. **Nao e `warn`**: a estrela acesa nao avisa
      nada, e diz quanto. O contorno no degrau 11 da a estrela os 3:1 de grafico contra o
@@ -213,6 +234,20 @@
   --chip-red-glyph: var(--red-11);
   --chip-purple-glyph: var(--purple-11);
   --chip-pink-glyph: var(--pink-11);
+
+  /* A PAGINA DE ENTRADA, e so ela. O painel continua monocromatico, com o verde como unico
+     ponto colorido em repouso; a vitrine de quem ainda nao entrou ganha cor com as cores
+     que o produto ja tem, e nenhum matiz novo: o verde claro de "funcionando" vira a mesa
+     da maquete, o botao que leva ate ela e o cartao do fecho, e a loja de exemplo veste a
+     amostra Azul de O botao, como o botao de verdade veste a cor do cliente. Nenhum
+     componente do painel usa estes nomes. */
+  --landing-mat: var(--grass-3);
+  --landing-mat-strong: var(--grass-4);
+  --landing-mat-fg: var(--grass-12);
+  /* O passo feito sobre a mesa pede o degrau 11: o 9 fica a 2,72:1 dela. */
+  --landing-done: var(--grass-11);
+  --landing-store: var(--swatch-blue);
+  --landing-store-fg: var(--ink-on-dark);
 }
 
 /* ---------------------------------------------------------------------------
@@ -227,6 +262,7 @@
   --slate-5: #2e3135;
   --slate-6: #363a3f;
   --slate-8: #5a6169;
+  --slate-9: #696e77;
   --slate-10: #777b84;
   --slate-11: #b0b4ba;
   --slate-12: #edeef0;
@@ -235,7 +271,7 @@
   --amber-3: #302008;
   /* Degrau **5** e nao 4: no escuro o Radix comprime o 3→4 a pouco mais de um
      ponto de luminosidade, invisivel como hover. */
-  --amber-5: #4d3111;
+  --amber-5: #4d3000;
   --amber-7: #714f19;
   --amber-9: #ffc53d;
   --amber-11: #ffca16;
@@ -248,6 +284,7 @@
   --blue-7: #205d9e;
   --blue-11: #70b8ff;
   --grass-3: #1b2a1e;
+  --grass-4: #1d3a24;
   --grass-7: #366740;
   --grass-11: #71d083;
   --yellow-3: #2d2305;
@@ -275,6 +312,14 @@
   --chip-pink-fg: var(--pink-11);
 
   /* O acento inverte junto com a escala: quase branco sobre fundo quase preto. */
+  /* As superficies do escuro: o branco do claro nao inverte sozinho, porque o branco
+     nao e reatribuido. Aqui o cartao clareia sobre a pagina, e o card do quadro clareia
+     mais um degrau sobre a coluna. */
+  --surface: var(--slate-1);
+  --surface-raised: var(--slate-2);
+  --surface-lifted: var(--slate-4);
+  --warn-fg: var(--amber-11);
+
   --accent: var(--slate-12);
   --accent-fg: var(--slate-1);
   --accent-hover: var(--slate-12-hover);
@@ -288,4 +333,9 @@
 
   /* Mais fechado: 45% sobre fundo quase preto nao separa o dialogo do que ha atras. */
   --overlay: rgb(0 0 0 / 65%);
+
+  /* A pagina de entrada: a mesa, o hover dela e o passo feito acompanham o grass reatribuido
+     acima, e o verde da tinta sobre a mesa sobe para o 11. A loja nao muda: e a cor do
+     cliente. */
+  --landing-mat-fg: var(--grass-11);
 }

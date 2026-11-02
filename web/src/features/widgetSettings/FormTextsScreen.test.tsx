@@ -227,11 +227,11 @@ describe('FormTextsScreen', () => {
     await titulo()
 
     expect(resumoDo('topo-do-formulario')).toContain(
-      `Automático · “${DEFAULT_WIDGET_SETTINGS.Title}”`,
+      `Automático, “${DEFAULT_WIDGET_SETTINGS.Title}”`,
     )
-    expect(resumoDo('tipo-do-relato')).toContain('A pessoa escolhe · marcado: Defeito')
+    expect(resumoDo('tipo-do-relato')).toContain('A pessoa escolhe, com Defeito marcado')
     expect(resumoDo('titulo-do-relato')).toContain(
-      `Opcional · “${DEFAULT_WIDGET_SETTINGS.ReportTitleQuestion}”`,
+      `Opcional, “${DEFAULT_WIDGET_SETTINGS.ReportTitleQuestion}”`,
     )
     expect(resumoDo('caixa-depois-das-perguntas')).toContain('“Mais detalhes”')
     expect(resumoDo('nome-de-quem-relata')).toContain('Não pergunta')
@@ -247,11 +247,11 @@ describe('FormTextsScreen', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /escolher o tipo/ }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Perguntar o nome de quem relata' }))
 
-    expect(resumoDo('topo-do-formulario')).toContain('Escuro ·')
+    expect(resumoDo('topo-do-formulario')).toContain('Escuro,')
     expect(resumoDo('topo-do-formulario')).toContain('Mudou: Tema')
     expect(resumoDo('titulo-do-relato')).toContain('Escondido')
     expect(resumoDo('titulo-do-relato')).toContain('Mudou: O título é')
-    expect(resumoDo('tipo-do-relato')).toContain('Sem seletor · tudo entra como Defeito')
+    expect(resumoDo('tipo-do-relato')).toContain('Sem seletor, e tudo entra como Defeito')
     expect(resumoDo('nome-de-quem-relata')).toContain(
       `Pergunta: “${DEFAULT_WIDGET_SETTINGS.NameQuestion}”`,
     )
@@ -406,7 +406,7 @@ describe('FormTextsScreen', () => {
   it('o tema do formulário mora aqui, e vai com o Publicar da tela', async () => {
     montar()
     await titulo()
-    expect(screen.getByRole('heading', { name: 'Formulário' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Textos e tema' })).toBeTruthy()
 
     const tema = screen.getByRole('radiogroup', { name: 'Tema do formulário' })
     expect(tema.closest('#tema')).not.toBeNull()

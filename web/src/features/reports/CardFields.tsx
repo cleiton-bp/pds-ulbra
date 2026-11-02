@@ -392,7 +392,7 @@ export function CardFields({
                 <span className={cn('text-body', card.Sprint ? 'text-fg' : 'text-fg-muted')}>
                   {card.Sprint ? nomeDaSprint(card.Sprint) : 'Backlog'}
                   {card.Parent && (
-                    <span className="text-caption text-fg-muted"> · vai com o pai</span>
+                    <span className="text-caption text-fg-muted">, vai com o pai</span>
                   )}
                 </span>
               ) : (
@@ -431,7 +431,7 @@ export function CardFields({
                       value: sprint.PublicId,
                       label:
                         sprint.State === 'Active' && sprint.PublicId !== card.Sprint?.PublicId
-                          ? `${sprint.Name} · em andamento`
+                          ? `${sprint.Name}, em andamento`
                           : sprint.Name,
                     })),
                   ]}
@@ -481,8 +481,7 @@ export function CardFields({
 
       {algoFalhou && (
         <p role="status" className="mt-3 text-caption text-fg-muted">
-          Não deu para carregar tudo o que se escolhe aqui — o que não carregou fica só para
-          leitura.{' '}
+          Não deu para carregar tudo o que se escolhe aqui, o que não carregou fica só para leitura.{' '}
           <button
             type="button"
             onClick={() => setReleitura((n) => n + 1)}
@@ -912,7 +911,7 @@ function Pontos({
       inputMode="decimal"
       aria-label={valor === null ? 'Pontos (sem estimativa)' : 'Pontos'}
       value={texto}
-      placeholder="—"
+      placeholder="?"
       onChange={(evento) => setTexto(evento.target.value)}
       onBlur={gravar}
       onKeyDown={(evento) => {

@@ -31,7 +31,7 @@ export function ColumnSelect({
       className="max-w-full"
       size="sm"
       ariaLabel="Mover para a coluna"
-      triggerClassName={`w-auto max-w-full font-semibold uppercase tracking-wide ${statusToneClasses(tone)}`}
+      triggerClassName={`w-auto max-w-full font-medium ${statusToneClasses(tone)}`}
       value={atual ?? ''}
       disabled={disabled}
       // Escolher move o card: a letra digitada com a lista fechada so abre a lista.

@@ -781,7 +781,7 @@ describe('abrir um relato', () => {
       await screen.findByRole('img', { name: /ainda-quebrado\.png/ })
       const nomes = Array.from(
         screen.getByRole('list', { name: 'Imagens do relato' }).querySelectorAll('figcaption'),
-      ).map((legenda) => legenda.textContent?.split(' · ')[0])
+      ).map((legenda) => legenda.textContent?.split(', ')[0])
       expect(nomes).toEqual(['primeiro.png', 'segundo.png', 'ainda-quebrado.png'])
     })
   })
@@ -826,9 +826,9 @@ describe('abrir um relato', () => {
     await abrirMenu('Coluna')
 
     // 12, 40 e 3, com um unico relato na tela: contar as linhas que vieram daria 1.
-    expect(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 12' })).toBeTruthy()
-    expect(screen.getByRole('menuitemcheckbox', { name: 'Pronto · 40' })).toBeTruthy()
-    expect(screen.getByRole('menuitemcheckbox', { name: 'Sem coluna · 3' })).toBeTruthy()
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Análise (12)' })).toBeTruthy()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Pronto (40)' })).toBeTruthy()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Sem coluna (3)' })).toBeTruthy()
     // Abrir o menu nao conta de novo: o numero e o da contagem que a tela ja tem.
     expect(dublê.contar).toHaveBeenCalledTimes(1)
     // E nenhuma marcada e a ausencia de recorte, e nao um recorte com todas.
@@ -842,7 +842,7 @@ describe('abrir um relato', () => {
     montar()
     await screen.findByRole('link', { name: entreAspas('um') })
     await abrirMenu('Coluna')
-    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 12' }))
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (12)' }))
 
     // Pagina 1 de novo: trocar de coluna e comecar uma lista nova, e nao
     // acrescentar a que estava na tela. (Com a coluna, os filtros vao junto, todos
@@ -858,7 +858,7 @@ describe('abrir um relato', () => {
     )
 
     // O menu fica aberto para marcar outra: dentro de um menu, ou.
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Pronto · 40' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Pronto (40)' }))
     await waitFor(() =>
       expect(dublê.listar).toHaveBeenLastCalledWith(
         'p-1',
@@ -887,12 +887,12 @@ describe('abrir um relato', () => {
 
     // Coluna ativa vazia fica: some do filtro no dia em que o ultimo relato dela
     // e movido, e quem olha acharia que ela deixou de existir.
-    expect(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 0' })).toBeTruthy()
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Análise (0)' })).toBeTruthy()
     // Desativada e vazia nao serve para nada.
-    expect(screen.queryByRole('menuitemcheckbox', { name: 'Parado (desativada) · 0' })).toBeNull()
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Parado (desativada) (0)' })).toBeNull()
     // Desativada com relato fica: e o unico caminho ate esses relatos.
     expect(
-      screen.getByRole('menuitemcheckbox', { name: 'Encerrado (desativada) · 4' }),
+      screen.getByRole('menuitemcheckbox', { name: 'Encerrado (desativada) (4)' }),
     ).toBeTruthy()
   })
 
@@ -903,7 +903,7 @@ describe('abrir um relato', () => {
     montar()
     await screen.findByText('Nada aqui ainda')
     await abrirMenu('Coluna')
-    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Sem coluna · 3' }))
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Sem coluna (3)' }))
 
     // A linha sem coluna nao tem identificador: a rota espera uma palavra.
     await waitFor(() =>
@@ -924,7 +924,7 @@ describe('abrir um relato', () => {
     montar()
     await screen.findByText('Nada aqui ainda')
     await abrirMenu('Coluna')
-    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 0' }))
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (0)' }))
     await fecharMenu()
 
     // O convite para instalar a ferramenta seria mentira duas vezes: sobre o que
@@ -1102,7 +1102,7 @@ describe('abrir um relato', () => {
     // Filtra em Analise, abre o relato de la e manda ele para Pronto.
     await screen.findByRole('link', { name: /o botao some/ })
     await abrirMenu('Coluna')
-    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 1' }))
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (1)' }))
     await fecharMenu()
     await waitFor(() =>
       expect(dublê.listar).toHaveBeenLastCalledWith(
@@ -2120,13 +2120,13 @@ describe('o quadro', () => {
     expect(ajuda.open).toBe(false)
     expect(
       within(ajuda).getByText(
-        'Arraste para mover · no celular, segure · no teclado, as setas andam e espaço pega',
+        'Arraste para mover, no celular segure, e no teclado as setas andam e o espaço pega',
       ),
     ).toBeTruthy()
     // Com raias, diz o que a raia troca.
     await escolherNoSelect(screen, fireEvent, 'Raias do quadro', 'Raias por responsável')
     expect(
-      await within(ajuda).findByText(/^Arraste para mover; outra raia troca o responsável · /),
+      await within(ajuda).findByText(/^Arraste para mover; outra raia troca o responsável, /),
     ).toBeTruthy()
     // Nao ha mais a segunda faixa com o ✕ da dica.
     expect(screen.queryByRole('button', { name: 'Esconder a dica de como arrastar' })).toBeNull()
@@ -2299,7 +2299,7 @@ describe('o tempo real', () => {
     expect(router.state.location.state).toEqual({ leftProject: expect.any(String) })
   })
 
-  it('o card aberto se atualiza sozinho com o aviso dele — sem gravar outra leitura', async () => {
+  it('o card aberto se atualiza sozinho com o aviso dele, sem gravar outra leitura', async () => {
     dublê.contar.mockResolvedValue([contagem('s-1', 'Análise', 1), contagem('s-2', 'Pronto', 0)])
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
     const aberto = { Closure: null, InfoRequest: null, CanAskInfo: false, Contexts: [] }
@@ -2338,7 +2338,7 @@ describe('o tempo real', () => {
     await waitFor(() => expect(dublê.atualizar).toHaveBeenCalledTimes(2))
   })
 
-  it('depois de comentar, a conversa continua chegando ao vivo — e o proprio comentario nao some', async () => {
+  it('depois de comentar, a conversa continua chegando ao vivo, e o proprio comentario nao some', async () => {
     dublê.listar.mockResolvedValue({ reports: [relato('r-1', 'o botao some')], total: 1 })
     const aberto = { Closure: null, InfoRequest: null, CanAskInfo: false, Contexts: [] }
     dublê.abrir.mockResolvedValue({ ...relato('r-1', 'o botao some'), ...aberto })
@@ -2847,7 +2847,7 @@ describe('a lista', () => {
       await waitFor(() => expect(ultimaContagem()?.[1]).toBeUndefined())
     })
 
-    it('nos arquivados, "Vencidos" e "Em aberto" saem — a menos que estejam ligados, para dar para desligar', async () => {
+    it('nos arquivados, "Vencidos" e "Em aberto" saem, a menos que estejam ligados, para dar para desligar', async () => {
       montar()
       await listaNaTela()
       fireEvent.click(screen.getByRole('button', { name: 'Arquivados' }))
@@ -2877,7 +2877,7 @@ describe('a lista', () => {
       montar()
       await listaNaTela()
       await abrirMenu('Coluna')
-      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (2)' }))
       await fecharMenu()
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
 
@@ -2912,13 +2912,13 @@ describe('a lista', () => {
       montar()
       await listaNaTela()
       await abrirMenu('Coluna')
-      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (2)' }))
       await fecharMenu()
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
       // Conta como filtro ligado: no "Limpar filtros" e no "Filtros" do celular.
       // (O leitor de tela ouve "Limpar filtros (1 ligado)"; o jsdom junta sem o espaco.)
       expect(screen.getByRole('button', { name: /^Limpar filtros\s*\(1 ligado\)$/ })).toBeTruthy()
-      expect(screen.getByRole('button', { name: 'Filtros · 1' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Filtros (1)' })).toBeTruthy()
 
       // Sair da tela e voltar: a coluna volta marcada, e a primeira leitura ja vem com ela.
       cleanup()
@@ -2939,8 +2939,8 @@ describe('a lista', () => {
       montar()
       await listaNaTela()
       await abrirMenu('Coluna')
-      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
-      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Pronto · 1' }))
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (2)' }))
+      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Pronto (1)' }))
       await fecharMenu()
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1', 's-2']))
 
@@ -2979,7 +2979,7 @@ describe('a lista', () => {
         pointerType: 'mouse',
       })
       fireEvent.click(await screen.findByRole('menuitem', { name: 'Ana' }))
-      await waitFor(() => expect(avisos().at(-1)?.message).toBe('Responsável: Ana — 2 cards.'))
+      await waitFor(() => expect(avisos().at(-1)?.message).toBe('Responsável: Ana (2 cards).'))
       // A primeira leitura e a do fim do lote: dai em diante, so o que o "Desfazer" pedir.
       await waitFor(() => expect(dublê.listar).toHaveBeenCalledTimes(2))
       return lote
@@ -3097,7 +3097,7 @@ describe('a lista', () => {
       expect(within(dialogo).getByText('Card arquivado.')).toBeTruthy()
       expect(within(dialogo).getByRole('link', { name: /dois/ })).toBeTruthy()
       // Nem todos voltaram: nada de "Desfeito".
-      expect(avisos().at(-1)?.message).toBe('Responsável: Ana — 2 cards.')
+      expect(avisos().at(-1)?.message).toBe('Responsável: Ana (2 cards).')
     })
   })
 
@@ -3153,7 +3153,7 @@ describe('a lista', () => {
       montar()
       await listaNaTela()
       await abrirMenu('Coluna')
-      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise · 2' }))
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Análise (2)' }))
       await fecharMenu()
       await waitFor(() => expect(ultimaLista()?.[4]?.columns).toEqual(['s-1']))
       await releu()
@@ -3353,7 +3353,7 @@ describe('a lista', () => {
       await fecharMenu()
     })
 
-    it('enquanto a pessoa digita, ja diz "Buscando…" — antes de a leitura sair', async () => {
+    it('enquanto a pessoa digita, ja diz "Buscando…", antes de a leitura sair', async () => {
       montar()
       await listaNaTela()
       const leituras = dublê.listar.mock.calls.length
@@ -3484,7 +3484,7 @@ describe('a lista', () => {
       await waitFor(() => expect(lista.textContent).toBe('Lista3'))
     })
 
-    it('"?" abre os atalhos — e o botao do alto tambem —, com todos eles', async () => {
+    it('"?" abre os atalhos, e o botao do alto tambem —, com todos eles', async () => {
       montar()
       await listaNaTela()
       fireEvent.keyDown(document.body, { key: '?' })

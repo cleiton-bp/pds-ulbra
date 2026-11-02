@@ -11,7 +11,7 @@ import { FRAME_SIZE, MESSAGE_SOURCE } from '@/embed/protocol'
  * no clique; abrir mostra a tela de "abrindo" ate o quadro responder; fechar devolve o
  * foco ao botao. **A pagina escondida tira o botao** a cada navegacao.
  *
- * O carregador roda uma vez por pagina e guarda estado no modulo (e `window.Pds` nao
+ * O carregador roda uma vez por pagina e guarda estado no modulo (e `window.RelatoFacil` nao
  * se apaga), entao os casos abaixo sao uma sequencia: cada um parte de onde o
  * anterior parou. O cliente que dispensa o nosso botao fica em `main.ownButton.test.ts`.
  */
@@ -57,7 +57,7 @@ beforeAll(async () => {
   vi.stubGlobal('fetch', fetchMock)
 
   const script = document.createElement('script')
-  script.src = `${ORIGEM}/v1/pds.js`
+  script.src = `${ORIGEM}/v1/relatofacil.js`
   script.dataset.key = 'pk_teste'
   Object.defineProperty(document, 'currentScript', { configurable: true, get: () => script })
 
@@ -89,7 +89,7 @@ function painel(): HTMLElement {
 }
 
 function quadros(): HTMLIFrameElement[] {
-  return Array.from(document.querySelectorAll<HTMLIFrameElement>('iframe[data-pds]'))
+  return Array.from(document.querySelectorAll<HTMLIFrameElement>('iframe[data-relatofacil]'))
 }
 
 function doQuadro(data: unknown, origem = ORIGEM): void {
@@ -174,9 +174,11 @@ describe('o carregador com o nosso botao', () => {
     expect(sombra().activeElement).toBe(botao())
   })
 
-  it('`Pds.open()` reabre na hora o quadro ja carregado, e `Pds` nao se troca', () => {
-    const pds = (window as unknown as { Pds: { open(): void; close(): void } }).Pds
+  it('`RelatoFacil.open()` reabre na hora o quadro ja carregado, e `RelatoFacil` nao se troca', () => {
+    const pds = (window as unknown as { RelatoFacil: { open(): void; close(): void } }).RelatoFacil
     expect(Object.isFrozen(pds)).toBe(true)
+    // O nome antigo continua valendo, e e o mesmo objeto: o site que ja chama `Pds.open()` segue abrindo.
+    expect((window as unknown as { Pds: { open(): void; close(): void } }).Pds).toBe(pds)
 
     pds.open()
     expect((quadros()[0] as HTMLIFrameElement).style.visibility).toBe('visible')
@@ -199,7 +201,7 @@ describe('o carregador com o nosso botao', () => {
 
   it('a pagina escondida e conferida de novo quando o botao volta depois de fechar', () => {
     // Navegacao sem aviso nenhum, com o quadro aberto: o botao nao pode voltar nela.
-    const pds = (window as unknown as { Pds: { open(): void; close(): void } }).Pds
+    const pds = (window as unknown as { RelatoFacil: { open(): void; close(): void } }).RelatoFacil
     pds.open()
     window.history.pushState(null, '', '/checkout')
     pds.close()

@@ -1036,7 +1036,7 @@ export function ReportsBoard({
           announcements: anuncios,
           screenReaderInstructions: {
             draggable:
-              'As setas andam entre os cards e Enter abre o card. Para mudar o card de lugar, aperte espaço: as setas escolhem o lugar — para os lados, a coluna —, espaço ou Enter solta e Esc desiste.',
+              'As setas andam entre os cards e Enter abre o card. Para mudar o card de lugar, aperte espaço: as setas escolhem o lugar (para os lados, a coluna), espaço ou Enter solta e Esc desiste.',
           },
         }}
       >
@@ -1150,9 +1150,7 @@ export function ReportsBoard({
                           </svg>
                           {raia.name}
                           <span className="font-normal text-caption text-fg-muted tabular-nums">
-                            {compacta
-                              ? '· 0 — solte um card aqui para passar a esta pessoa'
-                              : quantos}
+                            {compacta ? '0, solte um card aqui para passar a esta pessoa' : quantos}
                           </span>
                         </button>
                       </h3>
@@ -1351,7 +1349,7 @@ function textoDaFalha(
     : `Não deu para mudar o ${numero} de lugar.`
   // A recusa com motivo (4xx) diz o motivo; a falha do servidor, so que vale tentar de novo.
   if (status >= 400 && status < 500) return `${tentativa} ${describeError(falha)} Ele ${voltou}.`
-  return `${tentativa} Ele ${voltou} — tente de novo.`
+  return `${tentativa} Ele ${voltou}, tente de novo.`
 }
 
 function Coluna({
@@ -1485,10 +1483,7 @@ function CabecalhoDaColuna({
           no `title`. Com filtro, "2 de 10": quem esquece o filtro ligado nao acha que o
           trabalho sumiu. */}
       <header className="flex flex-none items-center gap-2 px-3 pt-3 pb-2">
-        <h2
-          title={titulo}
-          className="min-w-0 truncate font-semibold text-caption text-fg-muted uppercase tracking-wide"
-        >
+        <h2 title={titulo} className="min-w-0 truncate font-semibold text-detail text-fg">
           {titulo}
         </h2>
         <span className="flex-none text-caption text-fg-muted tabular-nums">
@@ -1522,7 +1517,7 @@ function CabecalhoDaColuna({
           {lastColumnDays === 1 ? 'Último dia' : `Últimos ${lastColumnDays} dias`}
           {escondidos > 0 && (
             <>
-              {' · '}
+              {', '}
               <button
                 type="button"
                 onClick={aoVerNaLista}
@@ -1660,7 +1655,7 @@ function CriarNaColuna({
         maxLength={MAX_CARD_TITLE_LENGTH}
         aria-label={`Título do card novo em ${coluna.name}`}
         aria-invalid={erro !== null || undefined}
-        placeholder="Título do card — Enter cria, Esc fecha"
+        placeholder="Título do card (Enter cria, Esc fecha)"
         className="block h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-detail text-fg placeholder:text-fg-placeholder focus:border-accent focus:outline-none"
       />
       {erro && (
@@ -1796,9 +1791,7 @@ function Celula({
     >
       {/* No celular, uma coluna por vez na tela: o nome dela em cada raia, para nao se
           perder ao rolar. Na tela larga, o cabecalho de cima basta. */}
-      <p className="px-3 pt-1 text-caption text-fg-muted uppercase tracking-wide sm:hidden">
-        {coluna.name}
-      </p>
+      <p className="px-3 pt-1 font-medium text-caption text-fg-muted sm:hidden">{coluna.name}</p>
       <ListaDaCelula
         celula={celula}
         ids={ids}

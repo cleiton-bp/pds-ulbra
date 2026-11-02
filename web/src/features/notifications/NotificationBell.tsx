@@ -420,7 +420,7 @@ function Aviso({ aviso }: { aviso: NotificationViewModel }) {
           {aviso.Card && (aviso.Kind === 'Mention' || aviso.Kind === 'Assignment') ? (
             <>
               {aviso.ActorName ?? 'Alguém do time'} {ACOES[aviso.Kind]}{' '}
-              <span className="font-mono">#{aviso.Card.Number}</span> {aviso.Card.Headline}
+              <span className="tabular-nums">#{aviso.Card.Number}</span> {aviso.Card.Headline}
             </>
           ) : (
             fraseDoProjeto(aviso)
@@ -500,11 +500,11 @@ function Ponto({ lido }: { lido: boolean }) {
 function Rodape({ aviso }: { aviso: NotificationViewModel }) {
   return (
     <span className="mt-0.5 block truncate text-caption text-fg-muted">
-      {aviso.Project.Name} ·{' '}
+      {aviso.Project.Name},{' '}
       <time dateTime={aviso.CreatedAt} title={formatDateTime(aviso.CreatedAt)}>
         {formatRelative(aviso.CreatedAt)}
       </time>
-      {!aviso.ReadAt && <span className="sr-only"> · não lido</span>}
+      {!aviso.ReadAt && <span className="sr-only">, não lido</span>}
     </span>
   )
 }

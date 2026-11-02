@@ -205,7 +205,7 @@ describe('AppearanceSection', () => {
       expect(change).toHaveBeenCalledWith({ LauncherIcon: 'Bug' })
     })
 
-    it('so o texto tira o icone e o "so o icone", no computador e no celular — e diz', () => {
+    it('so o texto tira o icone e o "so o icone", no computador e no celular, e diz', () => {
       render(
         <Controlado
           inicial={{ LauncherIcon: 'Star', LauncherIconOnly: true, MobileMode: 'IconOnly' }}
@@ -431,7 +431,7 @@ describe('AppearanceSection', () => {
 
     it('o título fechado diz o que está escolhido, em palavras', () => {
       expect(describeAppearance(DEFAULT_WIDGET_SETTINGS)).toBe(
-        `cor padrão · “${DEFAULT_WIDGET_SETTINGS.LauncherLabel}” · sem ícone · médio · pílula`,
+        `cor padrão, “${DEFAULT_WIDGET_SETTINGS.LauncherLabel}”, sem ícone, médio, pílula`,
       )
       expect(
         describeAppearance({
@@ -440,15 +440,15 @@ describe('AppearanceSection', () => {
           LauncherIconOnly: true,
           LauncherIcon: 'Bug',
         }),
-      ).toBe('azul · só o ícone · inseto · médio · redondo')
+      ).toBe('azul, só o ícone, inseto, médio, redondo')
       expect(
         describeAppearance({ ...DEFAULT_WIDGET_SETTINGS, AccentColor: parseHexColor('123abc') }),
       ).toContain('cor própria')
 
-      expect(describePosition(DEFAULT_WIDGET_SETTINGS)).toBe('Embaixo, à direita · 20 px da borda')
+      expect(describePosition(DEFAULT_WIDGET_SETTINGS)).toBe('Embaixo, à direita, 20 px da borda')
       expect(
         describePosition({ ...DEFAULT_WIDGET_SETTINGS, Position: 'TopLeft', OffsetY: 48 }),
-      ).toBe('Em cima, à esquerda · 20 px na horizontal, 48 px na vertical')
+      ).toBe('Em cima, à esquerda, 20 px na horizontal, 48 px na vertical')
 
       expect(describeHiddenPages(DEFAULT_WIDGET_SETTINGS)).toBe('Aparece em todas as páginas')
       expect(

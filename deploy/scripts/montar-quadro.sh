@@ -28,7 +28,7 @@ docker create --name relatofacil-quadro-pacote "$imagem" >/dev/null
 docker cp relatofacil-quadro-pacote:/srv/web/. "$temporario/"
 
 mkdir -p "$SAIDA/assets" "$SAIDA/v1"
-cp "$temporario/embed.html" "$temporario/tracking.html" "$temporario/favicon.svg" "$temporario/tema-acompanhamento.js" \
+cp "$temporario/embed.html" "$temporario/tracking.html" "$temporario/marca.svg" "$temporario/tema-acompanhamento.js" \
   "$temporario/teste-do-botao.html" "$temporario/teste-do-botao.js" "$SAIDA/"
 cp -a "$temporario/v1/." "$SAIDA/v1/"
 cp -a "$temporario/assets/." "$SAIDA/assets/"

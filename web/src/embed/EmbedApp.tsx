@@ -653,7 +653,7 @@ export function EmbedApp({
 
   /**
    * Fecha o quadro. **O rascunho fica**: as respostas, a caixa, o titulo e os arquivos
-   * esperam a proxima abertura, como no `Pds.close()` da pagina — fechar sem querer, ou
+   * esperam a proxima abertura, como no `RelatoFacil.close()` da pagina — fechar sem querer, ou
    * para olhar a pagina de novo antes de terminar, nao pode custar o que foi escrito.
    * So o relato enviado limpa: fechar a confirmacao e o fim daquele relato, e a proxima
    * abertura comeca outro.
@@ -867,7 +867,7 @@ export function EmbedApp({
             <p className="text-caption text-fg-muted leading-normal">
               Guarde: é com ele que você reencontra{' '}
               <strong className="font-medium text-fg">todos</strong> os seus relatos, de qualquer
-              navegador. Perdê-lo custa a lista, não os relatos — o link acima continua valendo.
+              navegador. Perdê-lo custa a lista, não os relatos, o link acima continua valendo.
             </p>
           </div>
         )}
@@ -908,8 +908,8 @@ export function EmbedApp({
               que transforma a consequencia em escolha de quem recebeu. */}
           <p className="mt-2 text-caption text-fg-muted leading-normal">
             <strong className="font-medium text-fg">Copie o link agora:</strong> ele aparece uma vez
-            só, e ao fechar não há como mostrá-lo de novo. Guarde para você — quem o tiver consegue
-            ler este relato.
+            só, e ao fechar não há como mostrá-lo de novo. Guarde para você, porque quem o tiver
+            consegue ler este relato.
           </p>
         </div>
 

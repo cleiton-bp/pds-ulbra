@@ -32,20 +32,37 @@ export const ABAS: Record<ReportModerationState, string> = {
 /**
  * A fila vazia diz coisas diferentes em cada aba — e a de "esperando" nao e
  * comemoracao: num projeto privado ela fica vazia porque ninguem precisou olhar.
+ *
+ * **No projeto privado, o vazio diz o efeito real.** "Liberar so faz aparecer se o
+ * projeto estiver num nivel publico" e verdade nos dois, mas no privado a pessoa quer
+ * saber o que acontece com o que ela liberar, e nao a regra geral.
  */
-export const VAZIO: Record<ReportModerationState, string> = {
-  Pending:
-    'Nada esperando a decisão de publicar. Todo relato que chegar aparece aqui antes de ir a público.',
-  Approved:
-    'Nenhum relato liberado ainda. Liberar só faz o relato aparecer se o projeto estiver num nível público.',
-  Rejected: 'Nenhum relato foi marcado como não publicável.',
+export function vazioDa(aba: ReportModerationState, privado: boolean): string {
+  if (aba === 'Pending')
+    return privado
+      ? 'Nada esperando, e o que chegar fica guardado aqui sem ir a público.'
+      : 'Nada esperando a decisão de publicar, e todo relato que chegar aparece aqui antes de ir a público.'
+  if (aba === 'Approved')
+    return privado
+      ? 'Nenhum relato liberado ainda, e o que você liberar só aparece se o projeto abrir ao público.'
+      : 'Nenhum relato liberado ainda, e liberar só faz o relato aparecer se o projeto estiver num nível público.'
+  return 'Nenhum relato foi marcado como não publicável.'
 }
 
 /**
  * As acoes de cada aba, com a tecla de cada uma. Na fila, as duas; no historico, so a
  * que muda de ideia — decidir de novo o que ja esta decidido assim nao faz nada.
+ *
+ * **No projeto privado, Liberar perde o destaque.** Nada dali vai a publico, e um
+ * Liberar cheio de cor fazia a fila parecer uma segunda caixa de entrada para limpar.
+ * A calma vem do peso do botao, e nao de esconder a fila. Enquanto a privacidade nao
+ * chega, a tela fica deste lado: o destaque aparece uma vez, e nao some na frente de
+ * quem le.
  */
-export function acoesDa(estado: ReportModerationState): {
+export function acoesDa(
+  estado: ReportModerationState,
+  privado = false,
+): {
   decisao: Decisao
   rotulo: string
   tecla: 'L' | 'N'
@@ -53,13 +70,21 @@ export function acoesDa(estado: ReportModerationState): {
 }[] {
   if (estado === 'Pending')
     return [
-      { decisao: 'Approved', rotulo: 'Liberar', tecla: 'L', principal: true },
+      { decisao: 'Approved', rotulo: 'Liberar', tecla: 'L', principal: !privado },
       { decisao: 'Rejected', rotulo: 'Não publicar', tecla: 'N', principal: false },
     ]
   // Mudar de ideia e decidir de novo, e nao voltar para a fila: alguem ja leu, e a
-  // fila nao deve cobrar de novo o que foi lido.
+  // fila nao deve cobrar de novo o que foi lido. No privado nada foi a publico, entao
+  // nao ha o que "tirar" de la.
   if (estado === 'Approved')
-    return [{ decisao: 'Rejected', rotulo: 'Tirar do público', tecla: 'N', principal: false }]
+    return [
+      {
+        decisao: 'Rejected',
+        rotulo: privado ? 'Não publicar' : 'Tirar do público',
+        tecla: 'N',
+        principal: false,
+      },
+    ]
   return [{ decisao: 'Approved', rotulo: 'Liberar mesmo assim', tecla: 'L', principal: false }]
 }
 
@@ -154,6 +179,7 @@ export function DetalheDoRelato({
   item,
   projectPublicId,
   visibilidade,
+  calmo,
   marca,
   ocupado,
   aoDecidir,
@@ -162,6 +188,8 @@ export function DetalheDoRelato({
   projectPublicId: string
   /** Nula quando a leitura de Quem relata falhou: a tela fica como era. */
   visibilidade: ReportVisibility | null
+  /** Projeto privado, ou privacidade ainda a caminho: Liberar sem destaque. */
+  calmo: boolean
   marca: Marca | undefined
   ocupado: boolean
   aoDecidir: (decisao: Decisao) => void
@@ -191,7 +219,7 @@ export function DetalheDoRelato({
         </p>
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {acoesDa(item.State).map((acao) => (
+          {acoesDa(item.State, calmo).map((acao) => (
             <Button
               key={acao.decisao}
               variant={acao.principal ? 'primary' : 'secondary'}
@@ -229,7 +257,7 @@ export function DetalheDoRelato({
 
       {item.ReporterName !== null && (
         <p className="text-caption text-fg-muted leading-relaxed">
-          <strong className="font-medium text-fg">Assinou como:</strong> {item.ReporterName}{' '}
+          <strong className="font-medium text-fg">Assinou como:</strong> {item.ReporterName}
           {/* Coletar e uma coisa, publicar e outra — e quem modera precisa
               saber de qual das duas se trata antes de liberar. */}
           {fraseDoNome(item.ReporterNameIsPublic, visibilidade)}
@@ -247,14 +275,14 @@ export function DetalheDoRelato({
  * nome nunca sai, por mais que ela tenha pedido.
  */
 function fraseDoNome(pediuPublico: boolean, visibilidade: ReportVisibility | null): string {
-  if (!pediuPublico) return '— e pediu para o nome não aparecer.'
+  if (!pediuPublico) return ', e pediu para o nome não aparecer.'
   if (visibilidade === 'PublicIdentified')
-    return '— e quis que o nome aparecesse: ele vai junto do relato na lista pública.'
+    return ', e quis que o nome aparecesse: ele vai junto do relato na lista pública.'
   if (visibilidade === 'PublicAnonymous')
-    return '— quis que o nome aparecesse, mas este projeto não mostra nomes ao público.'
+    return ', e quis que o nome aparecesse, mas este projeto não mostra nomes ao público.'
   if (visibilidade === 'Private')
-    return '— quis que o nome aparecesse, mas o projeto é privado: nada daqui sai.'
-  return '— e quis que o nome aparecesse.'
+    return ', e quis que o nome aparecesse, mas o projeto é privado e nada daqui sai.'
+  return ', e quis que o nome aparecesse.'
 }
 
 /** Os achados da varredura: um aviso, e nao um veredito. */
@@ -299,6 +327,10 @@ function Achados({ item }: { item: ModerationItemViewModel }) {
  * **Diz que a lista mostra so os ultimos liberados.** Sem isso, quem libera um relato
  * antigo espera ve-lo para sempre na vitrine — e ele sai dela assim que outros forem
  * liberados depois.
+ *
+ * **No projeto privado, o titulo fica no condicional.** "Vai aparecer assim" num
+ * projeto em que nada aparece prometia o que nao acontece, e a legenda tinha de
+ * desmentir o titulo logo embaixo.
  */
 function PreviaPublica({
   item,
@@ -309,13 +341,19 @@ function PreviaPublica({
 }) {
   const nome =
     visibilidade === 'PublicIdentified' && item.ReporterNameIsPublic ? item.ReporterName : null
+  const privado = visibilidade === 'Private'
+  const liberado = item.State === 'Approved'
 
   return (
     <section aria-label="Prévia na lista pública" className="flex flex-col gap-2">
       <h2 className="font-medium text-detail text-fg">
-        {item.State === 'Approved'
-          ? 'Na lista pública aparece assim'
-          : 'Na lista pública vai aparecer assim'}
+        {privado
+          ? liberado
+            ? 'Se o projeto abrir ao público, aparece assim'
+            : 'Se o projeto abrir ao público, vai aparecer assim'
+          : liberado
+            ? 'Na lista pública aparece assim'
+            : 'Na lista pública vai aparecer assim'}
       </h2>
       <div className="rounded-lg border border-border bg-surface p-3">
         <PublicReportCard
@@ -330,7 +368,6 @@ function PreviaPublica({
       <p className="text-caption text-fg-muted leading-relaxed">
         A lista pública mostra só os {MAX_PUBLISHED_LISTED} últimos liberados, do mais recente para
         o mais antigo, sem o protocolo e sem os anexos.
-        {visibilidade === 'Private' && ' Hoje ela está vazia: o projeto é privado.'}
       </p>
     </section>
   )

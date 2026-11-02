@@ -625,7 +625,7 @@ describe('a resposta de quem relatou', () => {
     // na tela para tentar de novo.
     expect(
       await screen.findByText(
-        'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+        'Sem conexão com o servidor agora. Confira a internet e tente de novo, porque nada se perdeu.',
       ),
     ).toBeTruthy()
     expect(screen.queryByText(/Falha de rede/)).toBeNull()
@@ -785,7 +785,7 @@ describe('a conversa sobre o relato', () => {
 
     expect(
       await screen.findByText(
-        'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+        'Sem conexão com o servidor agora. Confira a internet e tente de novo, porque nada se perdeu.',
       ),
     ).toBeTruthy()
     expect((caixa as HTMLTextAreaElement).value).toBe('No Chrome do celular.')

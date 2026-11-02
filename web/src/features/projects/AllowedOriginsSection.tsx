@@ -134,7 +134,7 @@ export function AllowedOriginsSection({
       <HowItWorks>
         <p>
           Para testar no seu computador, adicione <code className="font-mono">localhost:3000</code>{' '}
-          — com a porta, porque cada porta é um endereço. Para valer em todos os subdomínios,
+          , com a porta, porque cada porta é um endereço. Para valer em todos os subdomínios,
           escreva <code className="font-mono">*.loja.com</code> ou marque a caixa abaixo do campo.
         </p>
         <p>
@@ -143,7 +143,7 @@ export function AllowedOriginsSection({
         </p>
         <p>
           A conferência pega a chave pública colada no sistema errado, que é o caso comum. Quem
-          chama a nossa API sem passar pela ferramenta declara o endereço que quiser — para isso
+          chama a nossa API sem passar pela ferramenta declara o endereço que quiser, para isso
           existem os limites por IP e por projeto, na aba Proteção.
         </p>
       </HowItWorks>
@@ -232,7 +232,7 @@ export function AllowedOriginsSection({
               className="mt-0.5 size-3.5 flex-none accent-accent"
             />
             <span className="text-detail text-fg-muted leading-normal">
-              Incluir os subdomínios — vale também para <code className="font-mono">app.</code> e{' '}
+              Incluir os subdomínios, vale também para <code className="font-mono">app.</code> e{' '}
               <code className="font-mono">loja.</code> na frente do endereço.
             </span>
           </label>

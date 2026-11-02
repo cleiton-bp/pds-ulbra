@@ -67,8 +67,10 @@ export function AccountMenu() {
     >
       <DropdownHeader>
         <div className="font-medium text-fg text-body">{user?.Name ?? 'Sessão'}</div>
-        <div className="mt-0.5 text-detail text-fg-muted">{user?.Email ?? '—'}</div>
-        <div className="mt-2 text-detail text-fg-muted">Sua conta: {user?.Account.Name ?? '—'}</div>
+        <div className="mt-0.5 text-detail text-fg-muted">{user?.Email ?? 'sem e-mail'}</div>
+        <div className="mt-2 text-detail text-fg-muted">
+          Sua conta: {user?.Account.Name ?? 'sem nome'}
+        </div>
       </DropdownHeader>
 
       <DropdownSeparator />

@@ -144,10 +144,10 @@ const MODOS: readonly Modo[] = [
   {
     valor: 'Protocol',
     titulo: 'Protocolo',
-    emPalavras: 'Protocolo · ninguém é identificado',
+    emPalavras: 'Protocolo (ninguém é identificado)',
     resumo: 'Ninguém é identificado.',
     explicacao:
-      'O relato é tratado como se qualquer pessoa o tivesse enviado. Quem escreveu guarda o link e volta por ele — e o link é a única prova de que o relato é dela.',
+      'O relato é tratado como se qualquer pessoa o tivesse enviado. Quem escreveu guarda o link e volta por ele, e o link é a única prova de que o relato é dela.',
     destrava:
       'Não há lista pessoal, e isso não é falta: sem saber quem é, não há como dizer quais relatos são dela.',
     custo: 'Nada. É o que funciona colando um script numa página.',
@@ -155,10 +155,10 @@ const MODOS: readonly Modo[] = [
   {
     valor: 'PersonalCode',
     titulo: 'Código pessoal',
-    emPalavras: 'Código pessoal · a pessoa guarda um código',
+    emPalavras: 'Código pessoal (a pessoa guarda um código)',
     resumo: 'O sistema sorteia um código, e a pessoa guarda.',
     explicacao:
-      'Algo como H7QK-3M2X-P9WD, no mesmo alfabeto do protocolo — sem 0, O, 1 e I, para ser lido em voz alta sem confusão. Navegador novo, outro aparelho: ela digita o código e reencontra os relatos dela.',
+      'Algo como H7QK-3M2X-P9WD, no mesmo alfabeto do protocolo, sem 0, O, 1 e I, para ser lido em voz alta sem confusão. Navegador novo, outro aparelho: ela digita o código e reencontra os relatos dela.',
     destrava:
       'Lista pessoal, sem o cliente precisar ter login. O código soma ao link e não o substitui: perdê-lo custa a lista, não os relatos.',
     custo: 'Nada do seu lado. O custo é da pessoa, que tem mais uma coisa para guardar.',
@@ -166,12 +166,12 @@ const MODOS: readonly Modo[] = [
   {
     valor: 'InheritedIdentity',
     titulo: 'Identidade do seu sistema',
-    emPalavras: 'Identidade do seu sistema · quem está na conta não digita nada',
+    emPalavras: 'Identidade do seu sistema (quem está na conta não digita nada)',
     resumo: 'Quem já está na conta do seu sistema não digita nada.',
     explicacao:
-      'O seu servidor diz quem é o usuário, assinando essa informação com uma chave que só ele tem — um crachá curto, dentro do script. Nós conferimos a assinatura com a chave pública que você cola aqui, sem nunca chamar o seu sistema, e guardamos da pessoa só um hash.',
+      'O seu servidor diz quem é o usuário, assinando essa informação com uma chave que só ele tem, num crachá curto dentro do script. Nós conferimos a assinatura com a chave pública que você cola aqui, sem nunca chamar o seu sistema, e guardamos da pessoa só um hash.',
     destrava:
-      'Lista pessoal sem a pessoa guardar nada, e o nome já preenchido. Quem não está na conta ainda relata — como protocolo, se você permitir.',
+      'Lista pessoal sem a pessoa guardar nada, e o nome já preenchido. Quem não está na conta ainda relata, como protocolo, se você permitir.',
     custo:
       'Uma rotina no seu servidor: gerar o crachá e colocá-lo no script. O passo a passo, com exemplos, está abaixo.',
   },
@@ -196,7 +196,7 @@ const NIVEIS: readonly Nivel[] = [
   {
     valor: 'Private',
     titulo: 'Privado',
-    emPalavras: 'Privado · só quem relatou e o time',
+    emPalavras: 'Privado (só quem relatou e o time)',
     resumo: 'Só quem relatou e o time.',
     explicacao:
       'Cada relato é alcançável por quem tem o link dele, e por mais ninguém. Não existe página que liste relato de terceiro, e o protocolo de uma pessoa não abre o relato de outra.',
@@ -206,7 +206,7 @@ const NIVEIS: readonly Nivel[] = [
   {
     valor: 'PublicAnonymous',
     titulo: 'Público anônimo',
-    emPalavras: 'Público anônimo · qualquer pessoa lê, sem o autor',
+    emPalavras: 'Público anônimo (qualquer pessoa lê, sem o autor)',
     resumo: 'Qualquer pessoa lê, e ninguém sabe quem escreveu.',
     explicacao:
       'O relato fica visível para quem entrar, sem nada que aponte para o autor. Serve para mostrar o que está sendo corrigido sem cada um ter de perguntar.',
@@ -217,13 +217,13 @@ const NIVEIS: readonly Nivel[] = [
   {
     valor: 'PublicIdentified',
     titulo: 'Público identificado',
-    emPalavras: 'Público identificado · o autor aparece se quiser',
+    emPalavras: 'Público identificado (o autor aparece se quiser)',
     resumo: 'Qualquer pessoa lê, e quem relatou aparece se quiser.',
     explicacao:
       'O mesmo do anônimo, com uma diferença: quem escreveu pode escolher assinar o relato. Aparecer continua sendo decisão dela, e não do projeto.',
     quemVe: 'Qualquer pessoa. O nome só aparece no relato em que o próprio autor marcou.',
     custo:
-      'A mesma liberação do anônimo, e um modo que identifique — no protocolo não há identidade para mostrar.',
+      'A mesma liberação do anônimo, e um modo que identifique, porque no protocolo não há identidade para mostrar.',
   },
 ]
 
@@ -310,7 +310,7 @@ export function IdentityScreen() {
     // Uma de cada vez: se a primeira falhar, a segunda nao vai, e o aviso e um so.
     if (quemRelata.dirty && !(await quemRelata.save())) return
     if (textos.dirty && !(await textos.save())) return
-    toast.done('Quem relata: salvo.')
+    toast.done('Privacidade: salvo.')
   }
 
   /** Liga o grupo a previa: aberto e em foco escolhem a aba e realcam a parte dele. */
@@ -365,7 +365,7 @@ export function IdentityScreen() {
       <MovedAnchors moved={MUDARAM_DE_TELA} />
 
       <SettingsHeader
-        title="Quem relata"
+        title="Privacidade"
         description="Como a pessoa que relata é reconhecida, quem pode ver os relatos e o que ela lê depois de enviar."
         ready={draft !== null && ferramenta !== null}
         dirty={dirty}
@@ -430,77 +430,9 @@ export function IdentityScreen() {
             />
           }
         >
-          <SettingsGroup
-            name={ACORDEAO}
-            id="reconhecimento"
-            title="Reconhecimento"
-            value={modoDe(draft.Mode).emPalavras}
-            changes={[
-              ...(draft.Mode !== DEFAULT_WIDGET_SETTINGS.IdentityMode ? ['Modo'] : []),
-              ...(draft.IdentityTokenMaxMinutes !== IDENTITY_DEFAULTS.IdentityTokenMaxMinutes
-                ? ['Validade do crachá']
-                : []),
-              ...(draft.IdentityRequired !== IDENTITY_DEFAULTS.IdentityRequired
-                ? ['Exigir o crachá']
-                : []),
-            ]}
-            // A chave fica: ela e do sistema do cliente, e nao uma escolha com padrao.
-            onReset={() =>
-              quemRelata.change({
-                Mode: DEFAULT_WIDGET_SETTINGS.IdentityMode,
-                ...IDENTITY_DEFAULTS,
-              })
-            }
-            defaultOpen
-            {...acompanhar('reconhecimento')}
-          >
-            <RadioGroup<ReporterIdentityMode>
-              label="Como a pessoa é reconhecida"
-              value={draft.Mode}
-              onChange={(Mode) => quemRelata.change({ Mode })}
-              options={MODOS.map((modo) => ({
-                value: modo.valor,
-                label: modo.titulo,
-                drawing: <DesenhoDoModo modo={modo.valor} />,
-                className: 'min-w-24 flex-1 basis-0 text-center',
-              }))}
-            />
-            <Escolha
-              titulo={modoDe(draft.Mode).titulo}
-              resumo={modoDe(draft.Mode).resumo}
-              linhas={[
-                ['Destrava:', modoDe(draft.Mode).destrava],
-                ['Custo:', modoDe(draft.Mode).custo],
-              ]}
-            />
-            {draft.Mode === 'InheritedIdentity' && (
-              <ChaveDoSistema
-                chave={draft.IdentityPublicKey ?? ''}
-                onChave={(texto) =>
-                  quemRelata.change({ IdentityPublicKey: texto.trim().length > 0 ? texto : null })
-                }
-                validade={draft.IdentityTokenMaxMinutes}
-                onValidade={(IdentityTokenMaxMinutes) =>
-                  quemRelata.change({ IdentityTokenMaxMinutes })
-                }
-                obrigatorio={draft.IdentityRequired}
-                onObrigatorio={(IdentityRequired) => quemRelata.change({ IdentityRequired })}
-                chaveDoProjeto={chaveDoProjeto}
-              />
-            )}
-            <Hint>
-              Trocar de modo não mexe no passado: relato que já entrou continua como entrou, e
-              abrindo pelo link de sempre.
-            </Hint>
-            <HowItWorks className="mt-3">
-              {MODOS.map((modo) => (
-                <p key={modo.valor}>
-                  <strong className="font-medium text-fg">{modo.titulo}.</strong> {modo.explicacao}
-                </p>
-              ))}
-            </HowItWorks>
-          </SettingsGroup>
-
+          {/* **Quem pode ver os relatos vem primeiro, e aberto**: e a escolha que da o nome a
+              tela (Privacidade) e a que mais pesa para quem relata. O reconhecimento, mais
+              tecnico, vem depois. */}
           <SettingsGroup
             name={ACORDEAO}
             id="visibilidade"
@@ -508,7 +440,7 @@ export function IdentityScreen() {
             value={
               conflito ? (
                 <span className="text-warn-fg">
-                  {nivelDe(draft.Visibility).titulo} · não combina com o protocolo
+                  {nivelDe(draft.Visibility).titulo}, que não combina com o protocolo
                 </span>
               ) : (
                 nivelDe(draft.Visibility).emPalavras
@@ -516,6 +448,7 @@ export function IdentityScreen() {
             }
             changes={draft.Visibility !== DEFAULT_WIDGET_SETTINGS.Visibility ? ['Nível'] : []}
             onReset={() => quemRelata.change({ Visibility: DEFAULT_WIDGET_SETTINGS.Visibility })}
+            defaultOpen
             {...acompanhar('visibilidade')}
           >
             <RadioGroup<ReportVisibility>
@@ -577,6 +510,76 @@ export function IdentityScreen() {
                 <p key={nivel.valor}>
                   <strong className="font-medium text-fg">{nivel.titulo}.</strong>{' '}
                   {nivel.explicacao}
+                </p>
+              ))}
+            </HowItWorks>
+          </SettingsGroup>
+
+          <SettingsGroup
+            name={ACORDEAO}
+            id="reconhecimento"
+            title="Reconhecimento"
+            value={modoDe(draft.Mode).emPalavras}
+            changes={[
+              ...(draft.Mode !== DEFAULT_WIDGET_SETTINGS.IdentityMode ? ['Modo'] : []),
+              ...(draft.IdentityTokenMaxMinutes !== IDENTITY_DEFAULTS.IdentityTokenMaxMinutes
+                ? ['Validade do crachá']
+                : []),
+              ...(draft.IdentityRequired !== IDENTITY_DEFAULTS.IdentityRequired
+                ? ['Exigir o crachá']
+                : []),
+            ]}
+            // A chave fica: ela e do sistema do cliente, e nao uma escolha com padrao.
+            onReset={() =>
+              quemRelata.change({
+                Mode: DEFAULT_WIDGET_SETTINGS.IdentityMode,
+                ...IDENTITY_DEFAULTS,
+              })
+            }
+            {...acompanhar('reconhecimento')}
+          >
+            <RadioGroup<ReporterIdentityMode>
+              label="Como a pessoa é reconhecida"
+              value={draft.Mode}
+              onChange={(Mode) => quemRelata.change({ Mode })}
+              options={MODOS.map((modo) => ({
+                value: modo.valor,
+                label: modo.titulo,
+                drawing: <DesenhoDoModo modo={modo.valor} />,
+                className: 'min-w-24 flex-1 basis-0 text-center',
+              }))}
+            />
+            <Escolha
+              titulo={modoDe(draft.Mode).titulo}
+              resumo={modoDe(draft.Mode).resumo}
+              linhas={[
+                ['Destrava:', modoDe(draft.Mode).destrava],
+                ['Custo:', modoDe(draft.Mode).custo],
+              ]}
+            />
+            {draft.Mode === 'InheritedIdentity' && (
+              <ChaveDoSistema
+                chave={draft.IdentityPublicKey ?? ''}
+                onChave={(texto) =>
+                  quemRelata.change({ IdentityPublicKey: texto.trim().length > 0 ? texto : null })
+                }
+                validade={draft.IdentityTokenMaxMinutes}
+                onValidade={(IdentityTokenMaxMinutes) =>
+                  quemRelata.change({ IdentityTokenMaxMinutes })
+                }
+                obrigatorio={draft.IdentityRequired}
+                onObrigatorio={(IdentityRequired) => quemRelata.change({ IdentityRequired })}
+                chaveDoProjeto={chaveDoProjeto}
+              />
+            )}
+            <Hint>
+              Trocar de modo não mexe no passado: relato que já entrou continua como entrou, e
+              abrindo pelo link de sempre.
+            </Hint>
+            <HowItWorks className="mt-3">
+              {MODOS.map((modo) => (
+                <p key={modo.valor}>
+                  <strong className="font-medium text-fg">{modo.titulo}.</strong> {modo.explicacao}
                 </p>
               ))}
             </HowItWorks>
@@ -810,9 +813,9 @@ function ComoGerarOCracha({
           2. A cada página, o seu servidor gera um crachá
         </strong>{' '}
         para quem está na conta: um JWT assinado com ES256 e estas claims. O{' '}
-        <code className="font-mono text-fg">sub</code> é opaco para nós — guardamos só um hash dele;
-        o <code className="font-mono text-fg">name</code> é opcional e só preenche o campo do nome;
-        o <code className="font-mono text-fg">aud</code> é a chave pública deste projeto; o{' '}
+        <code className="font-mono text-fg">sub</code> é opaco para nós, e guardamos só um hash
+        dele; o <code className="font-mono text-fg">name</code> é opcional e só preenche o campo do
+        nome; o <code className="font-mono text-fg">aud</code> é a chave pública deste projeto; o{' '}
         <code className="font-mono text-fg">exp</code> fica dentro da validade acima.
       </p>
       <Bloco texto={claims} />
@@ -890,7 +893,7 @@ function Escolha({
   return (
     <div aria-live="polite" className="mt-3 rounded-lg border border-border bg-surface p-3.5">
       <p className="mb-1 font-medium text-detail text-fg">
-        {titulo} <span className="font-normal text-fg-muted">— {resumo}</span>
+        {titulo} <span className="font-normal text-fg-muted">({resumo})</span>
       </p>
       {linhas.map(([rotulo, texto]) => (
         <p key={rotulo} className="text-caption text-fg-muted leading-relaxed">

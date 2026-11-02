@@ -12,7 +12,7 @@ function readText(value: unknown): string {
 }
 
 const loaderUrl = (
-  readText(import.meta.env.VITE_LOADER_URL) || `${window.location.origin}/v1/pds.js`
+  readText(import.meta.env.VITE_LOADER_URL) || `${window.location.origin}/v1/relatofacil.js`
 ).replace(/\/+$/, '')
 
 export const environment = {

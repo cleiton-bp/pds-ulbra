@@ -31,20 +31,20 @@ describe('o que a tela diz do tempo real', () => {
 
     rerender(<LiveBadge estado="caiu" />)
     expect(screen.getByRole('status')).toBe(regiao)
-    expect(regiao.textContent).toContain('Sem atualização ao vivo — reconectando…')
+    expect(regiao.textContent).toContain('Sem atualização ao vivo, reconectando…')
     expect(regiao.textContent).toContain('aparecem quando a conexão voltar')
     expect(regiao.textContent).toContain('O que você faz continua sendo salvo.')
 
     rerender(<LiveBadge estado="nunca-conectou" />)
     expect(screen.getByRole('status')).toBe(regiao)
-    expect(regiao.textContent).toContain('Sem atualização ao vivo — tentando conectar…')
+    expect(regiao.textContent).toContain('Sem atualização ao vivo, tentando conectar…')
     expect(regiao.textContent).toContain('só aparecem ao recarregar a tela')
 
     rerender(<LiveBadge estado={null} />)
     expect(regiao.textContent).toBe('')
   })
 
-  it('o mesmo anuncio duas vezes vira um no novo na regiao — e e anunciado de novo', () => {
+  it('o mesmo anuncio duas vezes vira um no novo na regiao, e e anunciado de novo', () => {
     const { result } = renderHook(() => useAnnouncer())
     const { rerender } = render(<LiveAnnouncer anuncio={result.current[0]} />)
 

@@ -37,7 +37,7 @@ cancelar, mensagem repetida sem dano e mensagem perdida sem perder o relato.</p>
 
 <p>Nada disso é fixo: as <strong>regras do ciclo</strong> são configuração por projeto, com
 padrão de fábrica em código. Se dá para reabrir e para onde, se a nota aparece e em que escala,
-quantos dias cada prazo tem: quem dita é o projeto. A tela <strong>Ciclo</strong> cuida de como o
+quantos dias cada prazo tem: quem dita é o projeto. A tela <strong>Encerramento</strong> cuida de como o
 relato termina; o mesmo registro guarda as regras do quadro, que ficam em <strong>Colunas</strong>,
 e as das sprints, na tela <strong>Sprints</strong>, e cada tela grava só os campos dela.</p>
 
@@ -46,10 +46,10 @@ o relato está aberto. E tirar da coluna que encerra um relato encerrado (o que 
 motivo da página de quem relatou) <strong>pergunta antes</strong>, pelo quadro e pelo card.</p>
 
 <p>Ficam duas ressalvas. <strong>Onde a fila roda em produção</strong> é <strong>Adiado</strong>:
-o Render não fornece broker, e sem fila a espera não liga (a tela de Ciclo recusa salvar uma
+o Render não fornece broker, e sem fila a espera não liga (a tela de Encerramento recusa salvar uma
 espera maior que zero, dizendo o motivo) e o prazo do pedido <strong>nunca encerra o relato
 sozinho</strong>: quem aplica o vencimento é o consumidor da fila, e sem fila ele não existe.</p>
 
 <p>E <code>tracking_code_can_act</code> (se quem chega pelo código pessoal também confirma e
-reabre) fica gravado, <strong>escondido na tela de Ciclo</strong>, e a API o ignora: confirmar,
+reabre) fica gravado, <strong>escondido na tela de Encerramento</strong>, e a API o ignora: confirmar,
 reabrir e responder aceitam só o link. Fazer essas três ações aceitarem o código é <strong>Adiado</strong>.</p>

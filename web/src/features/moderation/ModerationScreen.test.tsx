@@ -31,7 +31,11 @@ import { useToastStore } from '@/shared/components/toastStore'
  * le.
  *
  * **Liberar nao publica sozinho**, e a tela nao pode prometer que sim. **Em projeto
- * privado a tela diz isso no topo, e a aba Esperando deixa de contar.**
+ * privado a fila fica aberta**: a frase do topo diz que nada vai a publico, o Liberar
+ * perde o destaque, as abas deixam de contar e os avisos nao prometem publico.
+ *
+ * **As letras so agem na fila**: com o foco no "Como funciona" ou no menu, e enquanto
+ * a privacidade nao chega, L e N nao decidem nada.
  */
 const dublê = vi.hoisted(() => ({
   listar: vi.fn<(id: string, query: ModerationQuery) => Promise<ModerationQueueViewModel>>(),
@@ -197,7 +201,7 @@ describe('ModerationScreen', () => {
     expect(dublê.listar).toHaveBeenCalledTimes(1)
     // O proximo fica escolhido, e as abas contam o que mudou.
     expect(escolhido()).toContain('CODE-0002')
-    expect(screen.getByRole('tab', { name: /^Liberados/ }).textContent).toBe('Liberados (1)')
+    expect(screen.getByRole('tab', { name: /^Liberados/ }).textContent).toBe('Liberados 1')
   })
 
   it('não publicar manda Rejected', async () => {
@@ -276,9 +280,9 @@ describe('ModerationScreen', () => {
     montar()
     await detalhe()
 
-    expect(screen.getByRole('tab', { name: /^Esperando/ }).textContent).toBe('Esperando (1)')
+    expect(screen.getByRole('tab', { name: /^Esperando/ }).textContent).toBe('Esperando 1')
     expect(screen.getByRole('tab', { name: /^Não publicáveis/ }).textContent).toBe(
-      'Não publicáveis (2)',
+      'Não publicáveis 2',
     )
 
     dublê.listar.mockResolvedValue(fila({ Items: [] }))
@@ -450,7 +454,7 @@ describe('ModerationScreen', () => {
 
     expect(await screen.findByText('Na lista pública vai aparecer assim')).toBeTruthy()
     const previa = screen.getByRole('region', { name: 'Prévia na lista pública' })
-    await waitFor(() => expect(within(previa).getByText(/Defeito · Bruno/)).toBeTruthy())
+    await waitFor(() => expect(within(previa).getByText(/Defeito, Bruno/)).toBeTruthy())
     expect(within(previa).getByText('Recebido')).toBeTruthy()
     expect(within(previa).getByText(/mostra só os 20 últimos liberados/)).toBeTruthy()
   })
@@ -506,6 +510,18 @@ describe('ModerationScreen', () => {
     await detalhe()
 
     fireEvent.keyDown(screen.getByPlaceholderText('Texto, #número ou protocolo'), { key: 'l' })
+
+    expect(dublê.decidir).not.toHaveBeenCalled()
+  })
+
+  it('o teclado não decide com o foco fora da fila', async () => {
+    dublê.decidir.mockResolvedValue({})
+    montar()
+    await detalhe()
+
+    // O foco no "Como funciona": a pessoa esta lendo a ajuda, e nao olhando o relato.
+    fireEvent.keyDown(screen.getByText('Como funciona'), { key: 'l' })
+    fireEvent.keyDown(screen.getByText('Como funciona'), { key: 'n' })
 
     expect(dublê.decidir).not.toHaveBeenCalled()
   })
@@ -593,15 +609,11 @@ describe('ModerationScreen', () => {
       })
     })
 
-    const novos = await screen.findByRole(
-      'button',
-      { name: '2 novos — mostrar' },
-      { timeout: 2000 },
-    )
+    const novos = await screen.findByRole('button', { name: '2 novos, mostrar' }, { timeout: 2000 })
     // So contou: uma pagina de um, e a lista continua a mesma.
     expect(dublê.listar).toHaveBeenLastCalledWith('p-1', expect.objectContaining({ limit: 1 }))
     expect(linhas()).toHaveLength(1)
-    expect(screen.getByRole('tab', { name: /^Esperando/ }).textContent).toBe('Esperando (3)')
+    expect(screen.getByRole('tab', { name: /^Esperando/ }).textContent).toBe('Esperando 3')
 
     fireEvent.click(novos)
     await waitFor(() =>
@@ -638,42 +650,127 @@ describe('ModerationScreen num projeto privado', () => {
 
   const aba = () => screen.getByRole('tab', { name: /^Esperando/ })
 
-  it('diz no topo que nada aparece para o público, e a aba não conta', async () => {
+  /** Os dois botoes do relato aberto, para comparar o peso de cada um. */
+  async function botoesDoRelato() {
+    const relato = await detalhe()
+    return {
+      liberar: within(relato).getByRole('button', { name: 'Liberar' }),
+      naoPublicar: within(relato).getByRole('button', { name: 'Não publicar' }),
+    }
+  }
+
+  it('a fila abre aberta, com a frase do privado no topo e nenhuma aba contando', async () => {
     dublê.identidade.mockResolvedValue(identidade('Private'))
     montar()
 
-    expect(await screen.findByText(/nada daqui\s+aparece para o público/)).toBeTruthy()
-    // Quem administra le onde abrir ao publico.
-    expect(
-      screen.getByText(/A fila só importa se você abrir os relatos ao público em Quem relata/),
-    ).toBeTruthy()
+    expect(await screen.findByText(/nada daqui vai a público/)).toBeTruthy()
+    expect(screen.getByText(/você pode decidir sem pressa/)).toBeTruthy()
+    // Quem administra le onde mudar.
+    expect(screen.getByRole('link', { name: 'Mudar a privacidade' })).toBeTruthy()
     await detalhe()
-    expect(aba().textContent).toBe('Esperando')
+    // **A fila nao se esconde.** No jsdom o conteudo de um details fechado continua
+    // achavel, e foi assim que a fila recolhida passou por estes testes.
+    expect(screen.getByRole('tablist').closest('details')).toBeNull()
+    expect(screen.queryByText(/esperariam/)).toBeNull()
+    expect(screen.getAllByRole('tab').map((uma) => uma.textContent)).toEqual([
+      'Esperando',
+      'Liberados',
+      'Não publicáveis',
+    ])
   })
 
-  it('quem é só membro lê a faixa, sem a dica da tela que ele não tem', async () => {
+  it('Liberar perde o destaque, e a prévia fica no condicional', async () => {
+    dublê.identidade.mockResolvedValue(identidade('Private'))
+    montar()
+    await screen.findByText(/nada daqui vai a público/)
+
+    const { liberar, naoPublicar } = await botoesDoRelato()
+    expect(liberar.className).toBe(naoPublicar.className)
+    expect(screen.getByText('Se o projeto abrir ao público, vai aparecer assim')).toBeTruthy()
+    // A legenda nao desmente o titulo logo embaixo.
+    expect(screen.queryByText(/Hoje ela está vazia/)).toBeNull()
+  })
+
+  it('liberar avisa que só aparece se o projeto abrir, e a volta se chama Não publicar', async () => {
+    dublê.identidade.mockResolvedValue(identidade('Private'))
+    dublê.decidir.mockResolvedValue({})
+    montar()
+    await screen.findByText(/nada daqui vai a público/)
+
+    fireEvent.click((await botoesDoRelato()).liberar)
+
+    await waitFor(() =>
+      expect(avisosDoFim().at(-1)?.message).toBe(
+        'Liberado, e só aparece se o projeto abrir ao público.',
+      ),
+    )
+    expect(avisosDoFim().at(-1)?.action?.label).toBe('Não publicar')
+  })
+
+  it('no histórico, o que nunca foi a público não é "tirado do público"', async () => {
+    dublê.identidade.mockResolvedValue(identidade('Private'))
+    dublê.listar.mockResolvedValue(
+      fila({
+        Items: [
+          {
+            ...ITEM,
+            Text: LONGO,
+            State: 'Approved',
+            ModeratedAt: '2026-09-21T13:00:00.000Z',
+            ModeratedByName: 'Caio',
+          },
+        ],
+      }),
+    )
+    montar()
+    await screen.findByText(/nada daqui vai a público/)
+
+    const relato = await detalhe()
+    expect(within(relato).getByRole('button', { name: 'Não publicar' })).toBeTruthy()
+    expect(within(relato).queryByRole('button', { name: 'Tirar do público' })).toBeNull()
+    expect(within(relato).getByText('Se o projeto abrir ao público, aparece assim')).toBeTruthy()
+  })
+
+  it('quem é só membro lê a frase, sem o link da tela que ele não tem', async () => {
     dublê.identidade.mockResolvedValue(identidade('Private'))
     montar({ ...projeto, Role: 'Member', IsAccountOwner: false })
 
-    expect(await screen.findByText(/nada daqui\s+aparece para o público/)).toBeTruthy()
-    expect(screen.queryByText(/em Quem relata/)).toBeNull()
+    expect(await screen.findByText(/nada daqui vai a público/)).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Mudar a privacidade' })).toBeNull()
   })
 
-  it('num projeto público, sem faixa, e a aba diz quantos esperam', async () => {
+  it('enquanto a privacidade não chega, a tela fica calma e as letras não decidem', async () => {
+    dublê.identidade.mockReturnValue(new Promise(() => {}))
+    dublê.decidir.mockResolvedValue({})
+    montar()
+
+    const { liberar, naoPublicar } = await botoesDoRelato()
+    expect(aba().textContent).toBe('Esperando')
+    expect(liberar.className).toBe(naoPublicar.className)
+
+    fireEvent.keyDown(document.body, { key: 'l' })
+    expect(dublê.decidir).not.toHaveBeenCalled()
+  })
+
+  it('num projeto público, a frase diz quem publica, a aba conta e Liberar volta ao destaque', async () => {
     dublê.identidade.mockResolvedValue(identidade('PublicAnonymous'))
     montar()
 
     await detalhe()
-    await waitFor(() => expect(aba().textContent).toBe('Esperando (7)'))
+    await waitFor(() => expect(aba().textContent).toBe('Esperando 7'))
     expect(screen.queryByText(/Este projeto é privado/)).toBeNull()
+    expect(screen.getByText(/depois que você ou alguém do time o libera aqui/)).toBeTruthy()
+    const { liberar, naoPublicar } = await botoesDoRelato()
+    expect(liberar.className).not.toBe(naoPublicar.className)
   })
 
-  it('sem conseguir ler se é privado, a tela fica como era: sem faixa, com o número', async () => {
+  it('sem conseguir ler se é privado, a frase fica neutra e a aba conta', async () => {
     dublê.identidade.mockRejectedValue(new Error('rede'))
     montar()
 
     await detalhe()
-    await waitFor(() => expect(aba().textContent).toBe('Esperando (7)'))
+    await waitFor(() => expect(aba().textContent).toBe('Esperando 7'))
     expect(screen.queryByText(/Este projeto é privado/)).toBeNull()
+    expect(screen.getByText(/Aqui você decide quais relatos aparecem/)).toBeTruthy()
   })
 })

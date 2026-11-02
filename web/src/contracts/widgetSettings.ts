@@ -233,6 +233,11 @@ export interface WidgetSettingsViewModel {
    * outros modos e de fabrica: o relato sem cracha entra como protocolo.
    */
   IdentityRequired: boolean
+  /**
+   * O botao ja foi publicado alguma vez (o registro so nasce no primeiro Publicar). Da por
+   * feito o passo do botao de quem publicou o padrao como estava.
+   */
+  Published: boolean
 }
 
 /**

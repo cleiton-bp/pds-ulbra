@@ -107,7 +107,7 @@ export function toPanelGalleryItem(anexo: PanelAttachmentViewModel): GalleryItem
       anexo.DurationSeconds ? `${anexo.DurationSeconds}s` : null,
     ]
       .filter(Boolean)
-      .join(' · '),
+      .join(', '),
   }
 }
 
@@ -119,7 +119,7 @@ function comOrigem(anexo: PanelAttachmentViewModel): GalleryItem {
     : anexo.ReopenPublicId
       ? 'veio numa reabertura'
       : null
-  return origem ? { ...item, caption: [item.caption, origem].filter(Boolean).join(' · ') } : item
+  return origem ? { ...item, caption: [item.caption, origem].filter(Boolean).join(', ') } : item
 }
 
 /**

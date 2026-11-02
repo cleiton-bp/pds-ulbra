@@ -76,7 +76,7 @@ export function DeleteBlockedOriginDialog({
         <p id={descricaoId} className="text-fg">
           <strong className="font-semibold">Não tem volta.</strong>{' '}
           {count === 1 ? `Sai 1 card vindo de ` : `Saem ${count} cards vindos de `}
-          {domain ? <code className="font-mono">{domain}</code> : 'domínios bloqueados'} — com o
+          {domain ? <code className="font-mono">{domain}</code> : 'domínios bloqueados'}, com o
           texto, as respostas, o nome de quem relatou, os comentários, os anexos e as subtarefas.
           Quem relatou perde o acompanhamento: o link passa a dizer que o relato não existe.
         </p>

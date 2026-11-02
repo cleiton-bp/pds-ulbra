@@ -131,6 +131,14 @@ namespace Pds.Domain.ViewModels;
 /// seu sistema para relatar" depois do texto pronto seria avisar tarde. Falso nos
 /// outros modos, e falso de fabrica: o relato sem cracha entra como protocolo.</para>
 /// </param>
+/// <param name="Published">
+/// O botao ja foi publicado alguma vez: o registro so nasce no primeiro Publicar, e antes
+/// dele vale o padrao de fabrica.
+///
+/// <para>O painel le para dar por feito o passo "Escolher a cor e o texto do botão" de
+/// quem gostou do padrao e o publicou como estava ("Manter este botão"). Sem isso, o
+/// passo so contava quando algo saia do padrao, e ficava pendente para sempre.</para>
+/// </param>
 public record WidgetSettingsViewModel(
     bool IsEnabled,
     string? AccentColor,
@@ -167,7 +175,8 @@ public record WidgetSettingsViewModel(
     ReporterIdentityModeEnum IdentityMode,
     ReportVisibilityEnum Visibility,
     bool AsksForName,
-    bool IdentityRequired);
+    bool IdentityRequired,
+    bool Published);
 
 /// <summary>
 /// Um tipo de relato como a ferramenta o desenha: o botao e o formulario dele.

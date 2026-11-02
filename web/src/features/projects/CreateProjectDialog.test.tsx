@@ -66,7 +66,7 @@ function montar() {
   const router = createMemoryRouter(
     [
       { path: '/projects', element: <CreateProjectDialog open onOpenChange={() => {}} /> },
-      { path: '/projects/:publicId/start', element: <p>instalação do projeto novo</p> },
+      { path: '/projects/:publicId/configure', element: <p>primeiros passos do projeto novo</p> },
     ],
     { initialEntries: ['/projects'] },
   )
@@ -87,17 +87,17 @@ describe('CreateProjectDialog', () => {
   it('diz antes do botão para onde a pessoa vai', () => {
     montar()
 
-    expect(screen.getByText('Em seguida, a instalação.')).toBeTruthy()
+    expect(screen.getByText('Em seguida, os primeiros passos.')).toBeTruthy()
   })
 
-  it('criar leva à Instalação do projeto novo, e não às chaves', async () => {
+  it('criar leva aos primeiros passos do projeto novo, e não às chaves', async () => {
     dublê.criar.mockResolvedValue(criado('p-9', 'Loja Mobile'))
     const router = montar()
 
     fireEvent.change(campo(), { target: { value: '  Loja Mobile ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }))
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-9/start'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-9/configure'))
     expect(dublê.criar).toHaveBeenCalledWith('Loja Mobile')
   })
 

@@ -1,8 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
-import type { ConsoleSection } from '@/app/navigation'
+import type { ConfigAreaKey, ConsoleSection } from '@/app/navigation'
 import {
+  areaOfSection,
   CONFIG_AREAS,
   CONFIG_HOME,
   isConfigPath,
@@ -165,7 +166,7 @@ export function ProjectShell() {
   useEffect(() => {
     if (!projectName || cardAberto) return
     const secao = sectionByPath(segment)
-    document.title = secao ? `${secao.label} · ${projectName}` : projectName
+    document.title = secao ? `${secao.label} (${projectName})` : projectName
   }, [projectName, segment, cardAberto])
 
   // A gaveta e como um dialogo: o foco entra nela ao abrir, Esc fecha, e o foco
@@ -244,7 +245,7 @@ export function ProjectShell() {
   // Sem o projeto, a casca continua de pe: marca, sino e conta no topo, e a falha
   // no lugar do conteudo. Antes a pagina perdia o topo inteiro.
   const header = (
-    <header className="flex h-14 flex-none items-center justify-between gap-2 border-border border-b bg-surface-raised pr-4 pl-4 sm:pr-5 sm:pl-6">
+    <header className="flex h-14 flex-none items-center justify-between gap-2 border-border border-b bg-surface pr-4 pl-4 sm:pr-5 sm:pl-6">
       <div className="flex min-w-0 items-center gap-2.5 lg:gap-4">
         {!failure && (
           <button
@@ -254,7 +255,7 @@ export function ProjectShell() {
             aria-label="Abrir menu do projeto"
             aria-expanded={drawerOpen}
             aria-controls="menu-do-projeto"
-            className="flex size-8 flex-none items-center justify-center rounded-lg border border-border bg-surface text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg lg:hidden"
+            className="flex size-8 flex-none items-center justify-center rounded-lg border border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg lg:hidden"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden>
               <rect x="1" y="3" width="12" height="1.4" rx="0.7" />
@@ -288,7 +289,7 @@ export function ProjectShell() {
               <button
                 type="button"
                 title={project.Name}
-                className="flex h-8 min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-2.5 font-medium text-fg text-body transition-colors hover:bg-surface-sunken"
+                className="flex h-8 min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised px-2.5 font-medium text-fg text-body transition-colors hover:bg-surface-sunken"
               >
                 {/* No celular, duas linhas pequenas no lugar de uma cortada: os
                     projetos "Loja — ..." se diferenciam justamente no fim do nome. */}
@@ -449,7 +450,7 @@ export function ProjectShell() {
           aria-label="Seções do projeto"
           className={cn(
             // A lateral nao rola inteira: so a lista rola, e o recolher fica preso no pe.
-            'flex flex-none flex-col overflow-hidden border-border border-r bg-surface-raised',
+            'flex flex-none flex-col overflow-hidden border-border border-r bg-surface',
             'transition-[width] duration-300 ease-out motion-reduce:transition-none',
             // Os nomes esmaecem enquanto a largura anda (ver `recolher`).
             '[&_[data-rotulo]]:transition-opacity [&_[data-rotulo]]:duration-150',
@@ -575,10 +576,26 @@ function ConfigNav({
   const naConfiguracao = isConfigPath(segment)
   const [open, setOpen] = useState(naConfiguracao)
 
+  // **So a area da tela aberta fica aberta.** As cinco areas abertas de uma vez eram
+  // vinte e poucas linhas, passavam da altura da tela e escondiam onde a pessoa estava.
+  // Na Visao geral nenhuma abre: a propria pagina ja lista todas as telas, com resumo.
+  const areaDaTela = areaAtual(segment)
+  const [abertas, setAbertas] = useState<ReadonlySet<ConfigAreaKey>>(() => conjunto(areaDaTela))
+
   const [segmentoVisto, setSegmentoVisto] = useState(segment)
   if (segmentoVisto !== segment) {
     setSegmentoVisto(segment)
     if (naConfiguracao) setOpen(true)
+    setAbertas(conjunto(areaDaTela))
+  }
+
+  function alternarArea(area: ConfigAreaKey) {
+    setAbertas((atuais) => {
+      const proximas = new Set(atuais)
+      if (proximas.has(area)) proximas.delete(area)
+      else proximas.add(area)
+      return proximas
+    })
   }
 
   const botao = (
@@ -589,7 +606,7 @@ function ConfigNav({
       aria-controls="configurar-o-projeto"
       aria-label={iconOnly ? 'Configurar o projeto' : undefined}
       className={cn(
-        'flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
+        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">
@@ -631,62 +648,93 @@ function ConfigNav({
               iconOnly={iconOnly}
               onNavigate={onNavigate}
             />
-            {CONFIG_AREAS.map((area) => (
-              // biome-ignore lint/a11y/useSemanticElements: um grupo de links, e nao um formulario: `fieldset` diria a quem usa leitor de tela que ha campos ali
-              <div
-                key={area.key}
-                role="group"
-                aria-label={area.label}
-                className="flex flex-col gap-0.5"
-              >
-                {/* **O nome da area e titulo, e nao item**: caixa alta, letra menor e
+            {CONFIG_AREAS.map((area) => {
+              // Com a lateral so de icones, tudo a vista: os glifos ja sao compactos.
+              const aberta = iconOnly || abertas.has(area.key)
+              return (
+                // biome-ignore lint/a11y/useSemanticElements: um grupo de links, e nao um formulario: `fieldset` diria a quem usa leitor de tela que ha campos ali
+                <div
+                  key={area.key}
+                  role="group"
+                  aria-label={area.label}
+                  className="flex flex-col gap-0.5"
+                >
+                  {/* **O nome da area e titulo, e nao item**: caixa alta, letra menor e
                     espacada, e as telas embaixo dele recuadas com um fio a esquerda.
                     No mesmo tom e tamanho dos itens, o nome parecia mais um link que
                     nao abria nada. */}
-                {iconOnly ? (
-                  // Mesma altura do titulo, com o traco no meio: trocar um pelo outro
-                  // nao sobe nem desce os glifos de baixo.
-                  <div
-                    aria-hidden
-                    className="relative px-2.5 pt-1 pb-1 text-caption uppercase tracking-wider"
-                  >
-                    <span className="invisible">·</span>
-                    <span className="absolute inset-x-1 top-1/2 h-px bg-border" />
-                  </div>
-                ) : (
-                  <div
-                    aria-hidden
-                    data-rotulo
-                    className="truncate px-2.5 pt-1 pb-1 font-semibold text-caption text-fg-muted uppercase tracking-wider"
-                  >
-                    {area.label}
-                  </div>
-                )}
-                <div
-                  data-recuo
-                  className={cn(
-                    'flex flex-col gap-0.5',
-                    !iconOnly &&
-                      'ml-3.5 border-border border-l pl-1.5 transition-[margin,padding] duration-300 ease-out motion-reduce:transition-none',
+                  {iconOnly ? (
+                    // Mesma altura do titulo, com o traco no meio: trocar um pelo outro
+                    // nao sobe nem desce os glifos de baixo.
+                    <div
+                      aria-hidden
+                      className="relative px-2.5 pt-1 pb-1 text-caption uppercase tracking-wider"
+                    >
+                      <span className="invisible">·</span>
+                      <span className="absolute inset-x-1 top-1/2 h-px bg-border" />
+                    </div>
+                  ) : (
+                    // O titulo continua titulo (decisao 30): caixa alta, letra menor. A seta
+                    // diz que ele abre e fecha as telas de baixo.
+                    <button
+                      type="button"
+                      data-rotulo
+                      onClick={() => alternarArea(area.key)}
+                      aria-expanded={aberta}
+                      aria-controls={`area-da-lateral-${area.key}`}
+                      className="flex w-full items-center gap-1.5 rounded-md px-2.5 pt-1 pb-1 text-left font-semibold text-caption text-fg-muted uppercase tracking-wider transition-colors hover:text-fg"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{area.label}</span>
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'flex flex-none scale-75 transition-transform duration-300 ease-out motion-reduce:transition-none',
+                          aberta && 'rotate-90',
+                        )}
+                      >
+                        <Seta direcao="direita" />
+                      </span>
+                    </button>
                   )}
-                >
-                  {/* Membros ja esta no topo, para todos: repetido aqui, a lateral teria
+                  <div
+                    id={`area-da-lateral-${area.key}`}
+                    inert={!aberta}
+                    className={cn(
+                      'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
+                      aberta ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+                    )}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div
+                        data-recuo
+                        className={cn(
+                          'flex flex-col gap-0.5',
+                          !iconOnly &&
+                            'ml-3.5 border-border border-l pl-1.5 transition-[margin,padding] duration-300 ease-out motion-reduce:transition-none',
+                        )}
+                      >
+                        {/* Membros ja esta no topo, para todos: repetido aqui, a lateral teria
                       dois itens iguais. Na pagina central ele continua na area. */}
-                  {area.sections
-                    .filter((section) => !WORK_SECTIONS.some((item) => item.key === section.key))
-                    .map((section) => (
-                      <SectionLink
-                        key={section.key}
-                        section={section}
-                        segment={segment}
-                        publicId={publicId}
-                        iconOnly={iconOnly}
-                        onNavigate={onNavigate}
-                      />
-                    ))}
+                        {area.sections
+                          .filter(
+                            (section) => !WORK_SECTIONS.some((item) => item.key === section.key),
+                          )
+                          .map((section) => (
+                            <SectionLink
+                              key={section.key}
+                              section={section}
+                              segment={segment}
+                              publicId={publicId}
+                              iconOnly={iconOnly}
+                              onNavigate={onNavigate}
+                            />
+                          ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
@@ -726,9 +774,12 @@ function SectionLink({
       aria-current={ativo ? 'page' : undefined}
       aria-label={iconOnly ? section.label : undefined}
       className={cn(
-        'flex h-[34px] flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
+        'flex h-[34px] pointer-coarse:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
 
-        ativo ? 'bg-nav-active font-medium text-fg' : 'text-fg hover:bg-surface-sunken',
+        // O item ativo e uma folha sobre o papel da lateral, com o fio dos cartoes.
+        ativo
+          ? 'bg-surface-raised font-medium text-fg ring-1 ring-border'
+          : 'text-fg hover:bg-surface-sunken',
       )}
     >
       {/* Apagado quando nao e a secao aberta: com todos no mesmo tom, os glifos
@@ -766,7 +817,7 @@ function SideButton({
       onClick={onClick}
       aria-label={iconOnly ? label : undefined}
       className={cn(
-        'flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
+        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">{icon}</span>
@@ -779,6 +830,17 @@ function SideButton({
   )
 
   return iconOnly ? <Tooltip content={label}>{button}</Tooltip> : button
+}
+
+/** A area da configuracao em que a tela aberta mora; nenhuma na Visao geral e fora dela. */
+function areaAtual(segment: string): ConfigAreaKey | null {
+  const section = sectionByPath(segment)
+  if (!section || section.key === 'configure') return null
+  return areaOfSection(section.key)?.key ?? null
+}
+
+function conjunto(area: ConfigAreaKey | null): ReadonlySet<ConfigAreaKey> {
+  return new Set(area ? [area] : [])
 }
 
 function Seta({ direcao }: { direcao: 'direita' | 'esquerda' }) {

@@ -81,7 +81,7 @@ function montar() {
   const router = createMemoryRouter(
     [
       { path: '/projects', element: <Casca /> },
-      { path: '/projects/:publicId/start', element: <p>instalação do projeto novo</p> },
+      { path: '/projects/:publicId/configure', element: <p>primeiros passos do projeto novo</p> },
     ],
     { initialEntries: ['/projects'] },
   )
@@ -118,12 +118,12 @@ describe('CreateProjectDialog: o modelo do projeto', () => {
       const detalhe = document.getElementById(modelo(nome).getAttribute('aria-describedby') ?? '')
       return detalhe?.textContent ?? ''
     }
-    expect(colunas('Quadro simples')).toContain('Colunas: A fazer · Fazendo · Feito')
+    expect(colunas('Quadro simples')).toContain('Colunas: A fazer, Fazendo e Feito')
     expect(colunas('Suporte')).toContain(
-      'Colunas: Novo · Em atendimento · Aguardando quem relatou · Resolvido',
+      'Colunas: Novo, Em atendimento, Aguardando quem relatou e Resolvido',
     )
-    expect(colunas('Kanban')).toContain('Colunas: Backlog · A fazer · Fazendo · Em revisão · Feito')
-    expect(colunas('Scrum')).toContain('Colunas: A fazer · Fazendo · Em revisão · Feito')
+    expect(colunas('Kanban')).toContain('Colunas: Backlog, A fazer, Fazendo, Em revisão e Feito')
+    expect(colunas('Scrum')).toContain('Colunas: A fazer, Fazendo, Em revisão e Feito')
     expect(screen.getByText('Tudo se ajusta depois.')).toBeTruthy()
   })
 
@@ -141,7 +141,7 @@ describe('CreateProjectDialog: o modelo do projeto', () => {
     fireEvent.change(campo(), { target: { value: 'Loja Mobile' } })
     fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }))
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-9/start'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-9/configure'))
     expect(dublê.criar).toHaveBeenCalledWith('Loja Mobile', 'SimpleBoard')
   })
 
@@ -160,7 +160,7 @@ describe('CreateProjectDialog: o modelo do projeto', () => {
     fireEvent.change(campo(), { target: { value: 'Atendimento' } })
     fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }))
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-9/start'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-9/configure'))
     expect(dublê.criar).toHaveBeenCalledTimes(1)
     expect(dublê.criar).toHaveBeenCalledWith('Atendimento', valor)
   })

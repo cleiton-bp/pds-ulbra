@@ -45,8 +45,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
 
 /** As alturas sao as do design: 36px na acao, 32px no controle de barra. */
 const SIZES: Record<Size, string> = {
-  md: 'h-9 px-3.5 text-body gap-2',
-  sm: 'h-8 px-3 text-detail gap-1.5',
+  // No toque, 44 px de altura: o dedo nao acerta um alvo de 32.
+  md: 'h-9 px-3.5 text-body gap-2 pointer-coarse:h-11',
+  sm: 'h-8 px-3 text-detail gap-1.5 pointer-coarse:h-11',
 }
 
 export function Button({

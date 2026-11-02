@@ -1,8 +1,11 @@
 import { type KeyboardEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type {
   ModerationCountsViewModel,
   ModerationItemViewModel,
+  ProjectViewModel,
   ReportModerationState,
+  ReportVisibility,
 } from '@/contracts'
 import { MODERATION_PAGE_SIZE } from '@/contracts'
 import {
@@ -21,11 +24,13 @@ import {
   DetalheDoRelato,
   LinhaDaFila,
   type Marca,
-  VAZIO,
+  vazioDa,
 } from '@/features/moderation/moderationParts'
 import { useAvisosDeCard } from '@/features/moderation/useAvisosDeCard'
 import { Button } from '@/shared/components/Button'
+import { EyeIcon } from '@/shared/components/EyeIcon'
 import { HowItWorks } from '@/shared/components/HowItWorks'
+import { LockIcon } from '@/shared/components/LockIcon'
 import { Select } from '@/shared/components/Select'
 import {
   type Shortcut,
@@ -48,6 +53,12 @@ import { canConfigure } from '@/shared/lib/projectAccess'
  * historico inteiro de uma vez. Esconder a fila em projeto privado esconderia que ela
  * continua enchendo, e quem publicasse um dia encontraria uma fila de meses.
  *
+ * **E ela abre aberta, nos dois.** Ja esteve recolhida no privado, atras de uma linha
+ * cinza igual a do "Como funciona": a tela abria quase vazia, sem dizer se havia zero
+ * ou trinta relatos, e o trabalho parecia ajuda opcional. O privado muda a frase do
+ * topo, o peso do Liberar e os numeros das abas, nunca a forma: abrir o projeto ao
+ * publico nao tira nada do lugar.
+ *
  * **O texto aparece inteiro, e nao cortado**, no lado do detalhe. Quem decide publicar
  * precisa ler o que vai publicar: o que vaza costuma estar no meio de um paragrafo. A
  * lista so mostra a primeira linha — ela e para achar.
@@ -57,9 +68,10 @@ import { canConfigure } from '@/shared/lib/projectAccess'
  * escolhido, e o teclado (J/K/L/N/X) faz o resto.
  *
  * **Liberar nao publica sozinho.** Sao duas condicoes, e nenhuma basta: o projeto num
- * nivel publico, e o relato liberado aqui. Em projeto privado a tela diz isso no topo
- * e a aba Esperando deixa de contar: com o numero, a fila parecia uma tarefa que nunca
- * acaba, e o time ia "limpa-la" por obrigacao.
+ * nivel publico, e o relato liberado aqui. Em projeto privado a tela diz isso no topo,
+ * o Liberar perde o destaque e as abas deixam de contar: com o numero e o botao cheio
+ * de cor, a fila parecia uma tarefa que nunca acaba, e o time ia "limpa-la" por
+ * obrigacao. Os avisos depois de decidir dizem o efeito real, sem prometer publico.
  */
 /** Os atalhos desta tela, ditos uma vez, no dialogo do "?". */
 const ATALHOS: Shortcut[] = [
@@ -90,11 +102,19 @@ export function ModerationScreen() {
   }, [busca])
 
   // Privado ou publico vem de Quem relata. Falhando a leitura, a tela fica como era:
-  // sem a faixa, e com a contagem.
-  const { data: identidade } = useAsyncResource(
+  // com a contagem, e com uma frase neutra no topo.
+  const { data: identidade, loading: lendoPrivacidade } = useAsyncResource(
     useCallback(() => projectIdentitySettingsService.getIdentitySettings(pid), [pid]),
   )
-  const privado = identidade?.Visibility === 'Private'
+  const visibilidade = identidade?.Visibility ?? null
+  const privado = visibilidade === 'Private'
+  // **Enquanto a privacidade nao chega, a tela fica do lado calmo**: sem numero nas
+  // abas e sem Liberar em destaque. Pintando como publica e depois virando privada, ela
+  // mudava de forma na frente de quem acabou de entrar.
+  const calmo = privado || lendoPrivacidade
+
+  // Abas, filtros, lista e detalhe: e so aqui que as teclas de uma letra agem.
+  const regiaoDaFila = useRef<HTMLDivElement>(null)
 
   // As opcoes dos filtros. Falhando, o filtro some: a fila continua lendo sem ele.
   const { data: tipos } = useAsyncResource(
@@ -362,7 +382,7 @@ export function ModerationScreen() {
     falhas: number,
   ) {
     const partes: string[] = []
-    if (feitos.length > 0) partes.push(fraseFeita(aba, decisao, feitos.length))
+    if (feitos.length > 0) partes.push(fraseFeita(aba, decisao, feitos.length, privado))
     if (outraPessoa > 0)
       partes.push(
         outraPessoa === 1
@@ -390,12 +410,18 @@ export function ModerationScreen() {
             }
           : decisao === 'Approved'
             ? {
-                label: 'Tirar do público',
+                // No privado nada chegou ao publico: a volta e a mesma decisao, com o
+                // nome que ela tem la.
+                label: privado ? 'Não publicar' : 'Tirar do público',
                 run: () =>
                   void voltar(feitos, 'Rejected', 'Approved', (n) =>
-                    n === 1
-                      ? 'Tirado do público: está em Não publicáveis.'
-                      : `${n} tirados do público: estão em Não publicáveis.`,
+                    privado
+                      ? n === 1
+                        ? 'Marcado como não publicável.'
+                        : `${n} marcados como não publicáveis.`
+                      : n === 1
+                        ? 'Tirado do público: está em Não publicáveis.'
+                        : `${n} tirados do público: estão em Não publicáveis.`,
                   ),
               }
             : undefined
@@ -464,8 +490,8 @@ export function ModerationScreen() {
       ?.scrollIntoView?.({ block: 'nearest' })
   }
 
-  // O teclado vale na tela inteira, menos onde a letra e texto: na busca, num campo, numa
-  // lista aberta, num dialogo. A funcao muda a cada desenho; o ouvinte e um so.
+  // O teclado vale na fila, menos onde a letra e texto: na busca, num campo, numa lista
+  // aberta, num dialogo. A funcao muda a cada desenho; o ouvinte e um so.
   const teclado = useRef<(evento: globalThis.KeyboardEvent) => void>(() => {})
   teclado.current = (evento) => {
     if (evento.defaultPrevented || evento.ctrlKey || evento.metaKey || evento.altKey) return
@@ -482,19 +508,25 @@ export function ModerationScreen() {
       setAtalhos((aberto) => !aberto)
       return
     }
+    // **So no que esta a vista.** Com o foco no menu, no cabecalho ou no "Como
+    // funciona", uma letra decidia um relato que a pessoa nem estava olhando. Valem o
+    // foco dentro da fila (abas, lista, detalhe) e o foco solto na pagina.
+    const solto = alvo === null || alvo === document.body || alvo.tagName === 'MAIN'
+    if (!solto && !regiaoDaFila.current?.contains(alvo)) return
     if (tecla === 'j' || tecla === 'k') {
       evento.preventDefault()
       mover(tecla === 'j' ? 1 : -1)
       return
     }
-    if (!atual) return
+    // Decidir e marcar esperam a privacidade: e ela que diz o que o aviso vai prometer.
+    if (!atual || lendoPrivacidade) return
     if (tecla === 'x') {
       evento.preventDefault()
       if (marcas.get(atual.PublicId)?.tipo !== 'outra-pessoa') alternarMarca(atual.PublicId)
       return
     }
     if (tecla === 'l' || tecla === 'n') {
-      const acao = acoesDa(atual.State).find((uma) => uma.tecla === tecla.toUpperCase())
+      const acao = acoesDa(atual.State, calmo).find((uma) => uma.tecla === tecla.toUpperCase())
       if (!acao || marcas.get(atual.PublicId)?.tipo === 'outra-pessoa') return
       evento.preventDefault()
       void decidir(atual, acao.decisao)
@@ -533,286 +565,332 @@ export function ModerationScreen() {
   return (
     <div className="max-w-280">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Moderação</h1>
-      <p className="mb-3 text-body text-fg-muted leading-relaxed">
-        Relatos esperando a decisão de publicar. Nada aparece para o público sem passar por aqui.
-      </p>
+      <FraseDeEstado project={project} visibilidade={visibilidade} lendo={lendoPrivacidade} />
 
       <HowItWorks>
         <p>
-          Para um relato aparecer na lista pública, valem duas condições juntas: o projeto aberto ao
-          público e o relato liberado aqui. Nenhuma das duas basta sozinha.
+          Um relato só aparece na lista pública com o projeto aberto ao público e o relato liberado
+          aqui, e nenhuma das duas condições basta sozinha.
         </p>
         <p>
-          Todo relato nasce esperando, inclusive em projeto privado: abrir o projeto ao público
-          depois não publica o histórico de uma vez.
+          Todo relato nasce esperando, inclusive em projeto privado, para que abrir o projeto depois
+          não publique o histórico de uma vez.
         </p>
         <p>
-          Esperando é fila, do mais antigo para o mais novo. Liberados e Não publicáveis são
-          histórico, com a decisão mais recente primeiro — é lá que se tira do público o que foi
-          liberado por engano.
+          Esperando é a fila, do mais antigo para o mais novo, e Liberados e Não publicáveis guardam
+          o histórico, com a decisão mais recente primeiro.
         </p>
         <p>
-          Não publicar não apaga nem encerra: o relato continua no Trabalho, e quem relatou não é
-          avisado. Mudar de ideia é decidir de novo; voltar para a fila não existe, porque alguém já
-          leu. Se outra pessoa decidir o mesmo relato antes de você, a sua decisão não grava por
-          cima: a tela avisa.
+          Não publicar não apaga nem encerra o relato, que continua no Trabalho sem aviso a quem
+          relatou.
+        </p>
+        <p>
+          Para mudar de ideia, decida de novo, e se outra pessoa decidir o mesmo relato antes de
+          você, a tela avisa sem gravar por cima.
         </p>
       </HowItWorks>
 
-      {privado && (
-        <p className="mb-5 rounded-lg border border-border bg-surface-raised px-3.5 py-2.5 text-detail text-fg-muted leading-relaxed">
-          <strong className="font-medium text-fg">Este projeto é privado:</strong> nada daqui
-          aparece para o público.
-          {canConfigure(project) &&
-            ' A fila só importa se você abrir os relatos ao público em Quem relata.'}
-        </p>
-      )}
+      {/* As abas entram na regiao das teclas: depois de clicar numa, J e K continuam
+          andando pela lista. */}
+      <div ref={regiaoDaFila}>
+        <Abas idBase={idBase} aba={aba} contagem={contagem} calmo={calmo} aoEscolher={trocarAba} />
 
-      <Abas
-        idBase={idBase}
-        aba={aba}
-        contagem={contagem}
-        privado={privado}
-        aoEscolher={trocarAba}
-      />
-
-      {/* A chave troca com a aba: o painel novo entra esmaecendo. */}
-      <div
-        key={aba}
-        id={`${idBase}-painel`}
-        role="tabpanel"
-        aria-labelledby={`${idBase}-aba-${aba}`}
-        className="flex animate-panel-in flex-col gap-3"
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="relative min-w-0 flex-[1_1_16rem]">
-            <span className="sr-only">Buscar</span>
-            <input
-              type="search"
-              value={busca}
-              onChange={(evento) => setBusca(evento.target.value)}
-              placeholder="Texto, #número ou protocolo"
-              maxLength={200}
-              className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
-            />
-          </label>
-          {tipos && tipos.length > 1 && (
-            <Select
-              size="sm"
-              ariaLabel="Tipo"
-              value={tipo}
-              onChange={setTipo}
-              className="w-40"
-              options={[
-                { value: '', label: 'Todos os tipos' },
-                ...tipos.map((um) => ({ value: um.PublicId, label: um.Name })),
-              ]}
-            />
-          )}
-          <Select
-            size="sm"
-            ariaLabel="Chegada"
-            value={chegada}
-            onChange={(valor) => setChegada(valor as Chegada)}
-            className="w-44"
-            options={CHEGADAS}
-          />
-          {origens && origens.length > 0 && (
-            <Select
-              size="sm"
-              ariaLabel="Origem"
-              value={origem}
-              onChange={setOrigem}
-              className="w-44"
-              options={[
-                { value: '', label: 'Todas as origens' },
-                ...origens.map((uma) => ({ value: uma.Domain, label: uma.Domain })),
-                { value: 'none', label: 'Sem domínio' },
-              ]}
-            />
-          )}
-          <label className="flex items-center gap-1.5 text-detail text-fg-muted">
-            <input
-              type="checkbox"
-              checked={soSensivel}
-              onChange={(evento) => setSoSensivel(evento.target.checked)}
-              className="size-3.5 accent-accent"
-            />
-            Só com dado sensível
-          </label>
-          {algumFiltro && (
-            <Button size="sm" variant="quiet" onClick={limparFiltros}>
-              Limpar filtros
-            </Button>
-          )}
-          <div className="ml-auto">
-            <ShortcutsButton size="sm" onClick={() => setAtalhos(true)} />
-          </div>
-        </div>
-
-        <ShortcutsDialog open={atalhos} onOpenChange={setAtalhos} atalhos={ATALHOS} />
-
-        {novos > 0 && (
-          <div role="status">
-            <Button size="sm" onClick={() => void carregar()}>
-              {novos === 1 ? '1 novo' : `${novos} novos`} — mostrar
-            </Button>
-          </div>
-        )}
-
-        {falhou && (
-          <div className="rounded-xl border border-border bg-surface-raised p-5">
-            <p className="mb-3.5 text-body text-fg-muted leading-relaxed">
-              Não deu para carregar a fila agora. Nada foi decidido: a falha foi ao consultar.
-            </p>
-            <Button onClick={() => void carregar()}>Tentar de novo</Button>
-          </div>
-        )}
-
-        {carregando && fila === null && !falhou && (
-          <div className="grid gap-3 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        )}
-
-        {fila !== null && visiveis.length === 0 && fila.temMais && (
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-body text-fg-muted leading-relaxed">
-              {soSensivel
-                ? 'Nenhum dos relatos carregados tem dado sensível.'
-                : 'Os carregados já foram decididos.'}
-            </p>
-            <Button
-              size="sm"
-              variant="quiet"
-              disabled={carregandoMais}
-              onClick={() => void carregarMais()}
-            >
-              {carregandoMais ? 'Carregando…' : 'Mostrar mais'}
-            </Button>
-          </div>
-        )}
-
-        {fila !== null && visiveis.length === 0 && !fila.temMais && (
-          <p className="text-body text-fg-muted leading-relaxed">
-            {algumFiltro ? 'Nenhum relato desta aba passa nos filtros.' : VAZIO[aba]}
-          </p>
-        )}
-
-        {fila !== null && visiveis.length > 0 && (
-          <div className="grid items-start gap-4 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-            <section
-              aria-label="Relatos"
-              aria-busy={carregando || undefined}
-              className="overflow-hidden rounded-xl border border-border bg-surface-raised md:max-h-[75vh] md:overflow-y-auto"
-            >
-              <label className="flex items-center gap-2.5 border-border border-b px-3 py-2 text-caption text-fg-muted">
-                <input
-                  type="checkbox"
-                  checked={todosMarcados}
-                  onChange={(evento) => {
-                    const marcar = evento.target.checked
-                    setMarcados(
-                      marcar ? new Set(marcaveis.map((item) => item.PublicId)) : new Set(),
-                    )
-                  }}
-                  className="size-3.5 accent-accent"
-                />
-                Selecionar os {marcaveis.length} carregados
-              </label>
-              <ul>
-                {visiveis.map((item) => (
-                  <LinhaDaFila
-                    key={item.PublicId}
-                    item={item}
-                    aba={aba}
-                    selecionado={item.PublicId === atual?.PublicId}
-                    marcado={marcados.has(item.PublicId)}
-                    marca={marcas.get(item.PublicId)}
-                    aoSelecionar={() => escolher(item.PublicId)}
-                    aoMarcar={(marcado) => alternarMarca(item.PublicId, marcado)}
-                  />
-                ))}
-              </ul>
-              {fila.temMais && (
-                <div className="border-border border-t p-2.5">
-                  <Button
-                    size="sm"
-                    variant="quiet"
-                    disabled={carregandoMais}
-                    onClick={() => void carregarMais()}
-                  >
-                    {carregandoMais
-                      ? 'Carregando…'
-                      : totalDaAba !== null
-                        ? `Mostrar mais (${itens.length} de ${totalDaAba})`
-                        : 'Mostrar mais'}
-                  </Button>
-                </div>
-              )}
-            </section>
-
-            {/* A chave troca com o relato escolhido: o detalhe novo entra esmaecendo. */}
-            <section
-              key={atual?.PublicId ?? 'nenhum'}
-              id={`${idBase}-detalhe`}
-              aria-label="Relato escolhido"
-              className="animate-panel-in rounded-xl border border-border bg-surface-raised p-4 md:sticky md:top-4"
-            >
-              {atual ? (
-                <DetalheDoRelato
-                  item={atual}
-                  projectPublicId={pid}
-                  visibilidade={identidade?.Visibility ?? null}
-                  marca={marcas.get(atual.PublicId)}
-                  ocupado={decidindo || lote !== null}
-                  aoDecidir={(decisao) => void decidir(atual, decisao)}
-                />
-              ) : (
-                <p className="text-detail text-fg-muted">Escolha um relato na lista.</p>
-              )}
-            </section>
-          </div>
-        )}
-
-        {quantosMarcados > 0 && (
-          // Presa embaixo da tela: marcar a primeira caixa nao empurra as linhas, e o
-          // proximo clique cai onde a pessoa mirou.
-          <section
-            aria-label="Ações em lote"
-            className="sticky bottom-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
-          >
-            <span className="mr-1 font-medium text-detail text-fg tabular-nums">
-              {lote
-                ? `Decidindo ${lote.feitos} de ${lote.total}…`
-                : quantosMarcados === 1
-                  ? '1 selecionado'
-                  : `${quantosMarcados} selecionados`}
-            </span>
-            {acoesDa(aba).map((acao) => (
-              <Button
-                key={acao.decisao}
+        {/* A chave troca com a aba: o painel novo entra esmaecendo. */}
+        <div
+          key={aba}
+          id={`${idBase}-painel`}
+          role="tabpanel"
+          aria-labelledby={`${idBase}-aba-${aba}`}
+          className="flex animate-panel-in flex-col gap-3"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative min-w-0 flex-[1_1_16rem]">
+              <span className="sr-only">Buscar</span>
+              <input
+                type="search"
+                value={busca}
+                onChange={(evento) => setBusca(evento.target.value)}
+                placeholder="Texto, #número ou protocolo"
+                maxLength={200}
+                className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
+              />
+            </label>
+            {tipos && tipos.length > 1 && (
+              <Select
                 size="sm"
-                variant={acao.principal ? 'primary' : 'secondary'}
-                disabled={lote !== null || decidindo}
-                onClick={() => void aplicarLote(acao.decisao)}
-              >
-                {acao.rotulo}
-              </Button>
-            ))}
-            <Button
+                ariaLabel="Tipo"
+                value={tipo}
+                onChange={setTipo}
+                className="w-40"
+                options={[
+                  { value: '', label: 'Todos os tipos' },
+                  ...tipos.map((um) => ({ value: um.PublicId, label: um.Name })),
+                ]}
+              />
+            )}
+            <Select
               size="sm"
-              variant="quiet"
-              disabled={lote !== null}
-              onClick={() => setMarcados(new Set())}
+              ariaLabel="Chegada"
+              value={chegada}
+              onChange={(valor) => setChegada(valor as Chegada)}
+              className="w-44"
+              options={CHEGADAS}
+            />
+            {origens && origens.length > 0 && (
+              <Select
+                size="sm"
+                ariaLabel="Origem"
+                value={origem}
+                onChange={setOrigem}
+                className="w-44"
+                options={[
+                  { value: '', label: 'Todas as origens' },
+                  ...origens.map((uma) => ({ value: uma.Domain, label: uma.Domain })),
+                  { value: 'none', label: 'Sem domínio' },
+                ]}
+              />
+            )}
+            <label className="flex items-center gap-1.5 text-detail text-fg-muted">
+              <input
+                type="checkbox"
+                checked={soSensivel}
+                onChange={(evento) => setSoSensivel(evento.target.checked)}
+                className="size-3.5 accent-accent"
+              />
+              Só com dado sensível
+            </label>
+            {algumFiltro && (
+              <Button size="sm" variant="quiet" onClick={limparFiltros}>
+                Limpar filtros
+              </Button>
+            )}
+            <div className="ml-auto">
+              <ShortcutsButton size="sm" onClick={() => setAtalhos(true)} />
+            </div>
+          </div>
+
+          <ShortcutsDialog open={atalhos} onOpenChange={setAtalhos} atalhos={ATALHOS} />
+
+          {novos > 0 && (
+            <div role="status">
+              <Button size="sm" onClick={() => void carregar()}>
+                {novos === 1 ? '1 novo' : `${novos} novos`}, mostrar
+              </Button>
+            </div>
+          )}
+
+          {falhou && (
+            <div className="rounded-xl border border-border bg-surface-raised p-5">
+              <p className="mb-3.5 text-body text-fg-muted leading-relaxed">
+                Não deu para carregar a fila agora. Nada foi decidido: a falha foi ao consultar.
+              </p>
+              <Button onClick={() => void carregar()}>Tentar de novo</Button>
+            </div>
+          )}
+
+          {carregando && fila === null && !falhou && (
+            <div className="grid gap-3 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          )}
+
+          {fila !== null && visiveis.length === 0 && fila.temMais && (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-body text-fg-muted leading-relaxed">
+                {soSensivel
+                  ? 'Nenhum dos relatos carregados tem dado sensível.'
+                  : 'Os carregados já foram decididos.'}
+              </p>
+              <Button
+                size="sm"
+                variant="quiet"
+                disabled={carregandoMais}
+                onClick={() => void carregarMais()}
+              >
+                {carregandoMais ? 'Carregando…' : 'Mostrar mais'}
+              </Button>
+            </div>
+          )}
+
+          {fila !== null && visiveis.length === 0 && !fila.temMais && (
+            <p className="text-body text-fg-muted leading-relaxed">
+              {algumFiltro ? 'Nenhum relato desta aba passa nos filtros.' : vazioDa(aba, privado)}
+            </p>
+          )}
+
+          {fila !== null && visiveis.length > 0 && (
+            <div className="grid items-start gap-4 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+              <section
+                aria-label="Relatos"
+                aria-busy={carregando || undefined}
+                className="overflow-hidden rounded-xl border border-border bg-surface-raised md:max-h-[75vh] md:overflow-y-auto"
+              >
+                <label className="flex items-center gap-2.5 border-border border-b px-3 py-2 text-caption text-fg-muted">
+                  <input
+                    type="checkbox"
+                    checked={todosMarcados}
+                    onChange={(evento) => {
+                      const marcar = evento.target.checked
+                      setMarcados(
+                        marcar ? new Set(marcaveis.map((item) => item.PublicId)) : new Set(),
+                      )
+                    }}
+                    className="size-3.5 accent-accent"
+                  />
+                  Selecionar os {marcaveis.length} carregados
+                </label>
+                <ul>
+                  {visiveis.map((item) => (
+                    <LinhaDaFila
+                      key={item.PublicId}
+                      item={item}
+                      aba={aba}
+                      selecionado={item.PublicId === atual?.PublicId}
+                      marcado={marcados.has(item.PublicId)}
+                      marca={marcas.get(item.PublicId)}
+                      aoSelecionar={() => escolher(item.PublicId)}
+                      aoMarcar={(marcado) => alternarMarca(item.PublicId, marcado)}
+                    />
+                  ))}
+                </ul>
+                {fila.temMais && (
+                  <div className="border-border border-t p-2.5">
+                    <Button
+                      size="sm"
+                      variant="quiet"
+                      disabled={carregandoMais}
+                      onClick={() => void carregarMais()}
+                    >
+                      {carregandoMais
+                        ? 'Carregando…'
+                        : totalDaAba !== null
+                          ? `Mostrar mais (${itens.length} de ${totalDaAba})`
+                          : 'Mostrar mais'}
+                    </Button>
+                  </div>
+                )}
+              </section>
+
+              {/* A chave troca com o relato escolhido: o detalhe novo entra esmaecendo. */}
+              <section
+                key={atual?.PublicId ?? 'nenhum'}
+                id={`${idBase}-detalhe`}
+                aria-label="Relato escolhido"
+                className="animate-panel-in rounded-xl border border-border bg-surface-raised p-4 md:sticky md:top-4"
+              >
+                {atual ? (
+                  <DetalheDoRelato
+                    item={atual}
+                    projectPublicId={pid}
+                    visibilidade={visibilidade}
+                    calmo={calmo}
+                    marca={marcas.get(atual.PublicId)}
+                    ocupado={decidindo || lote !== null}
+                    aoDecidir={(decisao) => void decidir(atual, decisao)}
+                  />
+                ) : (
+                  <p className="text-detail text-fg-muted">Escolha um relato na lista.</p>
+                )}
+              </section>
+            </div>
+          )}
+
+          {quantosMarcados > 0 && (
+            // Presa embaixo da tela: marcar a primeira caixa nao empurra as linhas, e o
+            // proximo clique cai onde a pessoa mirou.
+            <section
+              aria-label="Ações em lote"
+              className="sticky bottom-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
             >
-              Limpar seleção
-            </Button>
-          </section>
-        )}
+              <span className="mr-1 font-medium text-detail text-fg tabular-nums">
+                {lote
+                  ? `Decidindo ${lote.feitos} de ${lote.total}…`
+                  : quantosMarcados === 1
+                    ? '1 selecionado'
+                    : `${quantosMarcados} selecionados`}
+              </span>
+              {acoesDa(aba, calmo).map((acao) => (
+                <Button
+                  key={acao.decisao}
+                  size="sm"
+                  variant={acao.principal ? 'primary' : 'secondary'}
+                  disabled={lote !== null || decidindo}
+                  onClick={() => void aplicarLote(acao.decisao)}
+                >
+                  {acao.rotulo}
+                </Button>
+              ))}
+              <Button
+                size="sm"
+                variant="quiet"
+                disabled={lote !== null}
+                onClick={() => setMarcados(new Set())}
+              >
+                Limpar seleção
+              </Button>
+            </section>
+          )}
+        </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * A frase do topo: o estado do projeto e o que decidir aqui faz, numa frase so.
+ *
+ * **Uma voz so.** Ja foram quatro: o subtitulo dizia "relatos esperando a decisao", a
+ * faixa do privado dizia "nao ha o que decidir agora", o recolhido falava em relatos
+ * que "esperariam", e embaixo vinha um Liberar. A frase diz o estado, a consequencia e
+ * se ha pressa, e o resto da tela concorda com ela.
+ *
+ * **O link diz para onde leva.** "Abrir os relatos ao publico" parecia publicar ali
+ * mesmo; "Mudar a privacidade" leva a tela que decide isso, e so aparece para quem
+ * pode mudar.
+ */
+function FraseDeEstado({
+  project,
+  visibilidade,
+  lendo,
+}: {
+  project: ProjectViewModel
+  visibilidade: ReportVisibility | null
+  lendo: boolean
+}) {
+  // A altura de uma linha (duas no celular): a frase chega sem empurrar a fila.
+  if (lendo) return <Skeleton className="mb-3 h-6 w-full max-w-xl max-sm:h-12" />
+
+  const link = canConfigure(project) && (
+    <Link
+      to={`/projects/${project.PublicId}/identity#visibilidade`}
+      className="whitespace-nowrap text-fg underline underline-offset-4"
+    >
+      Mudar a privacidade
+    </Link>
+  )
+
+  // Sem saber a privacidade, a frase nao afirma nenhum dos dois estados.
+  if (visibilidade === null)
+    return (
+      <p className="mb-3 text-body text-fg-muted leading-relaxed">
+        Aqui você decide quais relatos aparecem na lista pública do projeto. {link}
+      </p>
+    )
+
+  const privado = visibilidade === 'Private'
+  const Icone = privado ? LockIcon : EyeIcon
+  return (
+    <p className="mb-3 text-body text-fg-muted leading-relaxed animate-fade-in">
+      <Icone className="mr-1.5 inline size-3.5 -translate-y-px text-fg" />
+      <strong className="font-medium text-fg">
+        {privado ? 'Este projeto é privado' : 'Este projeto é público'}
+      </strong>
+      {privado
+        ? ', então nada daqui vai a público e você pode decidir sem pressa.'
+        : ', então um relato só aparece na lista pública depois que você ou alguém do time o libera aqui.'}{' '}
+      {link}
+    </p>
   )
 }
 
@@ -821,13 +899,14 @@ function Abas({
   idBase,
   aba,
   contagem,
-  privado,
+  calmo,
   aoEscolher,
 }: {
   idBase: string
   aba: ReportModerationState
   contagem: ModerationCountsViewModel | null
-  privado: boolean
+  /** Projeto privado, ou privacidade ainda a caminho: nenhuma aba conta. */
+  calmo: boolean
   aoEscolher: (aba: ReportModerationState) => void
 }) {
   const botoes = useRef<Partial<Record<ReportModerationState, HTMLButtonElement | null>>>({})
@@ -858,10 +937,9 @@ function Abas({
       className="mb-4 flex gap-5 overflow-x-auto border-border border-b"
     >
       {chaves.map((chave) => {
-        // Em projeto privado, a fila nao conta: com o numero, ela parecia uma tarefa
-        // que nunca acaba. As abas decididas contam sempre — nao sao tarefa.
-        const numero =
-          contagem === null || (chave === 'Pending' && privado) ? null : contagem[chave]
+        // Em projeto privado, nenhuma aba conta: com o numero, a fila parecia uma tarefa
+        // que nunca acaba, e so ela sem numero, ao lado de duas com, parecia faltar algo.
+        const numero = contagem === null || calmo ? null : contagem[chave]
         return (
           <button
             key={chave}
@@ -877,15 +955,16 @@ function Abas({
             onClick={() => aoEscolher(chave)}
             onKeyDown={(evento) => teclas(evento, chave)}
             className={cn(
-              '-mb-px flex h-9 flex-none items-center whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
+              '-mb-px flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
               aba === chave
                 ? 'border-accent text-fg'
                 : 'border-transparent text-fg-muted hover:text-fg',
             )}
           >
             {ABAS[chave]}
+            {numero !== null && ' '}
             {numero !== null && (
-              <span className="font-normal text-fg-muted tabular-nums">{` (${numero})`}</span>
+              <span className="font-normal text-fg-muted tabular-nums">{numero}</span>
             )}
           </button>
         )
@@ -924,15 +1003,28 @@ function periodo(chegada: Chegada, agora: Date = new Date()): { from?: string; t
   return { to: dia(7) }
 }
 
-/** "Liberado para o publico.", "3 tirados do publico." — o aviso do fim, pela aba e pela decisao. */
-function fraseFeita(aba: ReportModerationState, decisao: Decisao, n: number): string {
+/**
+ * "Liberado para o publico.", "3 tirados do publico." — o aviso do fim, pela aba e pela
+ * decisao. **No privado, sem prometer publico**: liberar ali guarda a decisao para o dia
+ * em que o projeto abrir, e o que nunca foi a publico nao e "tirado" de la.
+ */
+function fraseFeita(
+  aba: ReportModerationState,
+  decisao: Decisao,
+  n: number,
+  privado: boolean,
+): string {
   if (decisao === 'Rejected')
-    return aba === 'Approved'
+    return aba === 'Approved' && !privado
       ? n === 1
         ? 'Tirado do público.'
         : `${n} tirados do público.`
       : n === 1
         ? 'Marcado como não publicável.'
         : `${n} marcados como não publicáveis.`
+  if (privado)
+    return n === 1
+      ? 'Liberado, e só aparece se o projeto abrir ao público.'
+      : `${n} liberados, e só aparecem se o projeto abrir ao público.`
   return n === 1 ? 'Liberado para o público.' : `${n} liberados para o público.`
 }

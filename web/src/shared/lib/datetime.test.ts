@@ -10,10 +10,10 @@ describe('datetime', () => {
   })
 
   it('devolve travessao para data ausente ou invalida', () => {
-    expect(formatDate(null)).toBe('—')
-    expect(formatDate(undefined)).toBe('—')
-    expect(formatDate('nao e uma data')).toBe('—')
-    expect(formatRelative(null, REFERENCE)).toBe('—')
+    expect(formatDate(null)).toBe('sem data')
+    expect(formatDate(undefined)).toBe('sem data')
+    expect(formatDate('nao e uma data')).toBe('sem data')
+    expect(formatRelative(null, REFERENCE)).toBe('sem data')
   })
 
   it('descreve o passado recente em minutos e horas', () => {
