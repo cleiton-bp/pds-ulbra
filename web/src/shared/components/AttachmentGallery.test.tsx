@@ -36,7 +36,7 @@ function item(mudanca: Partial<GalleryItem> = {}): GalleryItem {
     url: 'http://armazenamento/inteiro',
     thumbnailUrl: 'http://armazenamento/miniatura',
     expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-    caption: 'erro.png · 120 KB',
+    caption: 'erro.png, 120 KB',
     ...mudanca,
   }
 }
@@ -158,10 +158,10 @@ describe('a galeria', () => {
   it('o painel mostra o nome e o tamanho embaixo da imagem', () => {
     render(<AttachmentGallery items={[item()]} onExpired={() => {}} />)
 
-    const legenda = screen.getByText('erro.png · 120 KB')
+    const legenda = screen.getByText('erro.png, 120 KB')
     expect(legenda.tagName).toBe('FIGCAPTION')
     // Cortada na imagem pequena; inteira ao passar o mouse.
-    expect(legenda.getAttribute('title')).toBe('erro.png · 120 KB')
+    expect(legenda.getAttribute('title')).toBe('erro.png, 120 KB')
   })
 
   it('video abre num player, e so baixa o cabecalho ate alguem apertar play', () => {
@@ -178,7 +178,7 @@ describe('a galeria', () => {
 })
 
 describe('o endereco que vence', () => {
-  it('imagem que falha pede endereco novo — e so uma vez, enquanto ele nao chega', () => {
+  it('imagem que falha pede endereco novo, e so uma vez, enquanto ele nao chega', () => {
     vi.useFakeTimers()
     const renovar = vi.fn()
     const { container, rerender } = render(
@@ -370,7 +370,7 @@ describe('o endereco que vence', () => {
 })
 
 describe('a espera que dobra vale so para o relogio', () => {
-  it('com a API fora e a espera em 4 min, a imagem que falha pede na hora — so o piso de 30 s vale', () => {
+  it('com a API fora e a espera em 4 min, a imagem que falha pede na hora, so o piso de 30 s vale', () => {
     vi.useFakeTimers()
     const renovar = vi.fn()
     const { container } = render(
@@ -459,7 +459,7 @@ describe('"nao carregou" vale para aquele endereco', () => {
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeDefined()
   })
 
-  it('a que falhou sem pedido nenhum sair depois — o piso segurou — nao pisca "nao carregou"', () => {
+  it('a que falhou sem pedido nenhum sair depois, o piso segurou, nao pisca "nao carregou"', () => {
     vi.useFakeTimers()
     const renovar = vi.fn()
     const { container } = render(
@@ -643,7 +643,7 @@ describe('a imagem que ja carregou nao baixa de novo a cada renovacao', () => {
 })
 
 describe('renovar nao fecha o video aberto', () => {
-  it('o video aberto fica no endereco em que comecou — trocar o src voltaria ao inicio', () => {
+  it('o video aberto fica no endereco em que comecou, trocar o src voltaria ao inicio', () => {
     const video = item({ kind: 'Video' })
     const { container, rerender } = render(
       <AttachmentGallery items={[video]} onExpired={() => {}} />,
@@ -780,7 +780,7 @@ describe('o arquivo que nao e imagem', () => {
     )
 
     const lista = screen.getByRole('list', { name: 'Arquivos que você anexou' })
-    const link = screen.getByRole('link', { name: 'Baixar PDF · 120 KB' })
+    const link = screen.getByRole('link', { name: 'Baixar PDF, 120 KB' })
     expect(lista.contains(link)).toBe(true)
     expect(link.getAttribute('href')).toBe('http://armazenamento/fatura?assinado')
     expect(link.hasAttribute('download')).toBe(true)
@@ -826,12 +826,12 @@ describe('o arquivo que nao e imagem', () => {
   it('no painel, a legenda traz o nome original', () => {
     render(
       <AttachmentGallery
-        items={[pdf({ caption: 'fatura-março.pdf · 120 KB' })]}
+        items={[pdf({ caption: 'fatura-março.pdf, 120 KB' })]}
         onExpired={() => {}}
       />,
     )
 
-    expect(screen.getByRole('link', { name: 'Baixar fatura-março.pdf · 120 KB' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Baixar fatura-março.pdf, 120 KB' })).toBeDefined()
   })
 
   // O zip saiu do catalogo, e o que ja estava guardado continua na lista: sem o nome do
@@ -841,7 +841,7 @@ describe('o arquivo que nao e imagem', () => {
       <AttachmentGallery items={[pdf({ contentType: 'application/zip' })]} onExpired={() => {}} />,
     )
 
-    const link = screen.getByRole('link', { name: 'Baixar ZIP · 120 KB' })
+    const link = screen.getByRole('link', { name: 'Baixar ZIP, 120 KB' })
     expect(link.querySelector('[aria-hidden="true"]')?.textContent).toBe('ZIP')
   })
 

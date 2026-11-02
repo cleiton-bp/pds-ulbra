@@ -319,7 +319,7 @@ export function AttachmentGallery({
                   item.sizeBytes !== undefined ? formatBytes(item.sizeBytes) : null,
                 ]
                   .filter(Boolean)
-                  .join(' · ')
+                  .join(', ')
               return (
                 <li key={item.id}>
                   <a
@@ -357,8 +357,8 @@ export function AttachmentGallery({
                   </a>
                   {renovandoArquivo?.id === item.id && renovandoArquivo.lista === assinatura && (
                     <p role="status" className="mt-1 text-caption text-fg-muted leading-normal">
-                      O endereço deste arquivo tinha vencido. Pedimos um novo — clique em Baixar de
-                      novo em alguns segundos.
+                      O endereço deste arquivo tinha vencido. Pedimos um novo, então clique em
+                      Baixar de novo em alguns segundos.
                     </p>
                   )}
                 </li>

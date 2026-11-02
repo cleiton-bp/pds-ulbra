@@ -26,6 +26,8 @@ import { cn } from '@/shared/lib/cn'
 export function Toaster() {
   const toasts = useToastStore((state) => state.toasts)
   const dismiss = useToastStore((state) => state.dismiss)
+  const pause = useToastStore((state) => state.pause)
+  const resume = useToastStore((state) => state.resume)
   const host = useToastStore((state) => state.hosts.at(-1) ?? null)
 
   const regiao = (
@@ -42,9 +44,14 @@ export function Toaster() {
         const danger = item.tone === 'danger'
 
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: so para a contagem do aviso enquanto o ponteiro ou o foco estao nele, e nao e uma acao
           <div
             key={item.id}
             role={danger ? 'alert' : 'status'}
+            onPointerEnter={() => pause(item.id)}
+            onPointerLeave={() => resume(item.id)}
+            onFocus={() => pause(item.id)}
+            onBlur={() => resume(item.id)}
             className={cn(
               'pointer-events-auto flex items-start gap-3 rounded-xl border bg-surface-raised p-3.5',
               'shadow-lg dark:bg-surface-strong dark:shadow-none',

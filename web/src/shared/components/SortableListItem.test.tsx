@@ -60,7 +60,7 @@ describe('o item de lista da configuracao', () => {
           open={false}
           onRequestToggle={pedir}
           name="Defeito"
-          summary="2 perguntas · entra em Entrada"
+          summary="2 perguntas, e entra em Entrada"
           unsaved
           tags={<span>Sem coluna</span>}
         >
@@ -74,8 +74,8 @@ describe('o item de lista da configuracao', () => {
     expect(pedir).toHaveBeenCalledOnce()
     expect((cabecalho.parentElement as HTMLDetailsElement).open).toBe(false)
 
-    expect(screen.getByText(/2 perguntas · entra em Entrada/)).toBeTruthy()
-    expect(screen.getByText('· não salvo')).toBeTruthy()
+    expect(screen.getByText(/2 perguntas, e entra em Entrada/)).toBeTruthy()
+    expect(screen.getByText(', não salvo')).toBeTruthy()
     // Fechado, as etiquetas ficam fora do `<details>`, embaixo da linha.
     expect(screen.getByText('Sem coluna').closest('details')).toBeNull()
   })

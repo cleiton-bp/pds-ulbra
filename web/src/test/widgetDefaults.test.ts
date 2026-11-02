@@ -159,7 +159,7 @@ describe('os padroes da ferramenta, dos dois lados', () => {
   for (const campo of DO_CICLO) csharp[campo] = doCiclo[campo]
   for (const [aqui, la] of DA_IDENTIDADE) csharp[aqui] = daIdentidade[la]
 
-  it('os tres arquivos C# ainda cobrem os campos do quadro — se pararam, o resto deste teste nao vale', () => {
+  it('os tres arquivos C# ainda cobrem os campos do quadro, se pararam, o resto deste teste nao vale', () => {
     expect([...Object.keys(csharp), ...DO_PROJETO].sort()).toEqual(
       Object.keys(DEFAULT_WIDGET_SETTINGS).sort(),
     )

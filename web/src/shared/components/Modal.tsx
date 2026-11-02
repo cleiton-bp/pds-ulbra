@@ -112,7 +112,10 @@ export function Modal({
         <Dialog.Content
           ref={hospedar}
           className={cn(
-            '-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-dialog rounded-xl border border-border bg-surface-raised p-6 data-[state=closed]:animate-dialog-out data-[state=open]:animate-dialog-in',
+            // **Cabe em qualquer tela**: no maximo a altura dela, com o titulo e os botoes
+            // sempre a vista e so o meio rolando. Sem isso, no celular, deitado ou com o
+            // teclado aberto, o relato de teste cortava o titulo e o Fechar.
+            '-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-dialog flex max-h-[calc(100dvh-2rem)] flex-col rounded-xl border border-border bg-surface-raised p-6 data-[state=closed]:animate-dialog-out data-[state=open]:animate-dialog-in',
             width,
             className,
           )}
@@ -166,7 +169,7 @@ export function Modal({
         >
           <div
             className={cn(
-              'flex items-start justify-between gap-3',
+              'flex flex-none items-start justify-between gap-3',
               description ? 'mb-1.5' : 'mb-5',
             )}
           >
@@ -200,15 +203,15 @@ export function Modal({
           </div>
 
           {description && (
-            <Dialog.Description className="mb-5 text-detail text-fg-muted leading-relaxed">
+            <Dialog.Description className="mb-5 flex-none text-detail text-fg-muted leading-relaxed">
               {description}
             </Dialog.Description>
           )}
 
-          {children}
+          <div className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1">{children}</div>
 
           {footer !== undefined && (
-            <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>
+            <div className="mt-6 flex flex-none flex-wrap justify-end gap-2">{footer}</div>
           )}
         </Dialog.Content>
       </Dialog.Portal>

@@ -49,7 +49,7 @@ export function DueChip({
       )}
     >
       {bare ? data : `Prazo ${data}`}
-      {palavras && ` · ${palavras}`}
+      {palavras && `, ${palavras}`}
     </span>
   )
 }

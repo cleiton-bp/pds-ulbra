@@ -35,7 +35,7 @@ export function PublicReportCard({
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <span className="text-caption text-fg-muted">
           {typeName}
-          {reporterName !== null && ` · ${reporterName}`}
+          {reporterName !== null && `, ${reporterName}`}
         </span>
         <span className="flex-none text-caption text-fg-muted">
           {isClosed ? 'Encerrado' : (stageLabel ?? 'Em andamento')}

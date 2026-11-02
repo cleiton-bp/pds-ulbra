@@ -24,7 +24,7 @@ describe('o prazo com o destaque', () => {
 
   it('vencido: vermelho, e diz ha quanto tempo', () => {
     render(<DueChip day="2026-10-13" soonDays={2} />)
-    const chip = screen.getByText(/Prazo 13 de out\. de 2026 · venceu há 3 dias/)
+    const chip = screen.getByText(/Prazo 13 de out\. de 2026, venceu há 3 dias/)
     expect(chip.className).toContain('chip-red')
   })
 
@@ -44,7 +44,7 @@ describe('o prazo com o destaque', () => {
     expect(chip.className).toContain('chip-yellow')
   })
 
-  it('com tempo: so o prazo, sem destaque; no quadro, sem o ano — so quando e o deste ano', () => {
+  it('com tempo: so o prazo, sem destaque; no quadro, sem o ano, so quando e o deste ano', () => {
     render(<DueChip day="2026-10-30" soonDays={2} compact />)
     const chip = screen.getByText('Prazo 30 de out.')
     expect(chip.className).not.toContain('chip-')

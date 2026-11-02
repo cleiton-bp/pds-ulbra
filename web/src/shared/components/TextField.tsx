@@ -29,6 +29,11 @@ interface TextFieldProps {
   disabled?: boolean
   onSubmit?: () => void
   className?: string
+  /**
+   * O teclado que o celular abre: `email` no convite, `url` no dominio. O campo comum
+   * abria o de texto, com a primeira letra maiuscula e o corretor mexendo no endereco.
+   */
+  type?: 'text' | 'email' | 'url'
 }
 
 export function TextField({
@@ -45,6 +50,7 @@ export function TextField({
   disabled,
   onSubmit,
   className,
+  type = 'text',
 }: TextFieldProps) {
   const generatedId = useId()
   const fieldId = id ?? generatedId
@@ -53,7 +59,7 @@ export function TextField({
   return (
     <div className={className}>
       {label && (
-        <label htmlFor={fieldId} className="mb-1.5 block text-detail text-fg-muted">
+        <label htmlFor={fieldId} className="mb-1.5 block font-medium text-detail text-fg">
           {label}
         </label>
       )}
@@ -61,6 +67,18 @@ export function TextField({
       <input
         id={fieldId}
         type="text"
+        // So o teclado muda (`inputMode`): o `type` de e-mail ou de endereco faria o navegador
+        // recusar "loja.exemplo.com" sem o https. Endereco e e-mail nao tem maiuscula nem
+        // corretor, e o celular trocava "loja" por "Loja".
+        {...(type === 'text'
+          ? {}
+          : {
+              inputMode: type,
+              autoComplete: type === 'email' ? 'email' : 'off',
+              autoCapitalize: 'none',
+              autoCorrect: 'off',
+              spellCheck: false,
+            })}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
@@ -77,7 +95,7 @@ export function TextField({
         className={cn(
           'h-9 w-full rounded-lg border bg-surface-raised px-3 text-fg text-body transition-colors duration-150',
           'placeholder:text-fg-placeholder disabled:opacity-60',
-          error ? 'border-error-border' : 'border-border',
+          error ? 'border-error-border' : 'border-border-control',
         )}
       />
 

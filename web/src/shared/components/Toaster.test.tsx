@@ -16,7 +16,8 @@ import { toast, useToastStore } from '@/shared/components/toastStore'
  *   dialogo esconde o resto da pagina. Fechado o dialogo, o aviso volta ao alto da
  *   pagina.
  * - **O erro e `alert`; a confirmacao, `status`.**
- * - **O aviso some sozinho em 4 s; com botao, fica 10 s**, e o botao roda e fecha.
+ * - **O aviso some sozinho em 5 s; com botao, fica 12 s**, e o botao roda e fecha. O
+ *   erro so sai no X, e o ponteiro em cima para a contagem.
  *   "Fechar aviso" tira so aquele.
  */
 
@@ -54,7 +55,7 @@ afterEach(() => {
 })
 
 describe('onde o aviso aparece', () => {
-  it('sem dialogo, no alto da pagina; com um, dentro dele; com dois, no de cima — e volta ao fechar', async () => {
+  it('sem dialogo, no alto da pagina; com um, dentro dele; com dois, no de cima, e volta ao fechar', async () => {
     render(<DoisDialogos />)
 
     act(() => {
@@ -105,7 +106,7 @@ describe('o aviso', () => {
     expect(screen.getByText('Comentário apagado.')).toBeTruthy()
   })
 
-  it('some sozinho em 4 s; com botao, fica 10 s — e o botao roda e fecha o aviso', () => {
+  it('some sozinho em 5 s; com botao, fica 12 s, e o botao roda e fecha o aviso', () => {
     vi.useFakeTimers()
     const desfazer = vi.fn()
     render(<Toaster />)
@@ -114,12 +115,12 @@ describe('o aviso', () => {
       toast.done('#13 movido.', { action: { label: 'Desfazer', run: desfazer } })
     })
 
-    act(() => vi.advanceTimersByTime(3999))
+    act(() => vi.advanceTimersByTime(4999))
     expect(screen.getByText('#12 movido.')).toBeTruthy()
     act(() => vi.advanceTimersByTime(1))
     expect(screen.queryByText('#12 movido.')).toBeNull()
-    // Quem tem botao continua: ninguem acha e clica um botao em quatro segundos.
-    act(() => vi.advanceTimersByTime(5000))
+    // Quem tem botao continua: ninguem acha e clica um botao em cinco segundos.
+    act(() => vi.advanceTimersByTime(6000))
     expect(screen.getByText('#13 movido.')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }))
@@ -127,15 +128,45 @@ describe('o aviso', () => {
     expect(screen.queryByText('#13 movido.')).toBeNull()
   })
 
-  it('o aviso com botao que ninguem clicou sai aos 10 s', () => {
+  it('o aviso com botao que ninguem clicou sai aos 12 s', () => {
     vi.useFakeTimers()
     render(<Toaster />)
     act(() => {
       toast.done('#13 movido.', { action: { label: 'Desfazer', run: vi.fn() } })
     })
-    act(() => vi.advanceTimersByTime(9999))
+    act(() => vi.advanceTimersByTime(11_999))
     expect(screen.getByText('#13 movido.')).toBeTruthy()
     act(() => vi.advanceTimersByTime(1))
     expect(screen.queryByText('#13 movido.')).toBeNull()
+  })
+
+  it('o erro fica ate ser fechado: quem le devagar nao perde o que deu errado', () => {
+    vi.useFakeTimers()
+    render(<Toaster />)
+    act(() => {
+      toast.error('Não deu para salvar agora.')
+    })
+    act(() => vi.advanceTimersByTime(60_000))
+    expect(screen.getByText('Não deu para salvar agora.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar aviso' }))
+    expect(screen.queryByText('Não deu para salvar agora.')).toBeNull()
+  })
+
+  it('o ponteiro em cima para a contagem, e sair retoma de onde parou', () => {
+    vi.useFakeTimers()
+    render(<Toaster />)
+    act(() => {
+      toast.done('#14 movido.')
+    })
+    act(() => vi.advanceTimersByTime(3000))
+    const aviso = screen.getByRole('status')
+    fireEvent.pointerEnter(aviso)
+    act(() => vi.advanceTimersByTime(10_000))
+    expect(screen.getByText('#14 movido.')).toBeTruthy()
+    fireEvent.pointerLeave(aviso)
+    act(() => vi.advanceTimersByTime(1999))
+    expect(screen.getByText('#14 movido.')).toBeTruthy()
+    act(() => vi.advanceTimersByTime(1))
+    expect(screen.queryByText('#14 movido.')).toBeNull()
   })
 })

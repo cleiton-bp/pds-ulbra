@@ -108,7 +108,7 @@ export function SortableListItem({
             </span>
             <span className="block truncate text-caption text-fg-muted" title={summaryTitle}>
               {summary}
-              {unsaved && <span className="text-warn-fg"> · não salvo</span>}
+              {unsaved && <span className="text-warn-fg">, não salvo</span>}
             </span>
           </span>
         </summary>
