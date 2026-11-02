@@ -2,7 +2,7 @@
 
 <p><strong>Opcional.</strong> Ela existe para dois prazos e uma saída: a espera entre o time mover
 o relato e quem relatou ver, o encerramento de um pedido de informação sem resposta, e o e-mail.
-Sem <code>RABBITMQ_URL</code>, a API sobe normalmente: a espera fica indisponível (a tela de Ciclo
+Sem <code>RABBITMQ_URL</code>, a API sobe normalmente: a espera fica indisponível (a tela de Encerramento
 recusa ligá-la e diz por quê), e o pedido de informação continua funcionando, mas o prazo dele não
 encerra nada sozinho. Sem fila não há consumidor, e sem consumidor não há nem a varredura da
 subida: o pedido fica aberto até quem relatou responder ou o time agir. E o convite não sai: a tela

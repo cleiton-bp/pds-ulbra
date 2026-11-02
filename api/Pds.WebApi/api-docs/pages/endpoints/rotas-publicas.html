@@ -164,7 +164,7 @@ desenha nada.</p>
 <p><strong>Quem compara a lista <code>HiddenPaths</code> é o carregador</strong>, com o caminho
 da página, a cada navegação: numa página da lista (ou no celular, com
 <code>MobileMode: Hidden</code>), o botão some. A lista não é segredo: quem visita vê onde o botão
-some. O cliente que abre pelo próprio botão (<code>Pds.open()</code>) abre em qualquer página.</p>
+some. O cliente que abre pelo próprio botão (<code>RelatoFacil.open()</code>) abre em qualquer página.</p>
 
 <p>Aberto, o carregador posiciona o quadro pelo pedido de tamanho que recebe dele, conferido antes
 de aplicar: o canto (um dos quatro) e a distância do canto (de 0 a 200, e só até onde a janela
@@ -275,7 +275,7 @@ por mensagem; dali ele viaja no corpo do <code>POST</code>, como o token do link
 nunca no endereço do quadro nem em query string. Quem não está na conta fica sem o atributo.</p>
 
 <p><strong>A API confere a assinatura, e não chama o sistema do cliente.</strong> A chave é a
-pública ECDSA P-256 que o projeto colou em Quem relata: assimétrica de propósito: um vazamento do
+pública ECDSA P-256 que o projeto colou em Privacidade: assimétrica de propósito: um vazamento do
 nosso banco não deixa forjar identidade nenhuma, nem por nós. O <code>alg</code> é só
 <code>ES256</code> (<code>none</code> e <code>HS256</code> são recusados: o segundo trataria a chave
 pública como segredo); <code>aud</code> é a chave pública do projeto apresentada no envio, o que

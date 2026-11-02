@@ -3,7 +3,7 @@
 <p>Com a chave pública em mãos, o site do cliente cola uma linha. É a única coisa nossa que
 fica no HTML dele:</p>
 
-<pre><code>&lt;script src="https://.../v1/pds.js" data-key="pk_EXEMPLO1" defer&gt;&lt;/script&gt;</code></pre>
+<pre><code>&lt;script src="https://.../v1/relatofacil.js" data-key="pk_EXEMPLO1" defer&gt;&lt;/script&gt;</code></pre>
 
 <p>O que acontece daí em diante não passa por sessão nenhuma:</p>
 
@@ -64,10 +64,12 @@ conferiram.</p>
   <strong>O cliente pode abrir pelo próprio botão</strong>
   <p>Com <code>data-button="none"</code> no script, nada é desenhado e <strong>nenhuma
   requisição sai até alguém pedir</strong>. O sistema do cliente abre pela própria tela, com
-  <code>Pds.open()</code> (e fecha com <code>Pds.close()</code>), ou por qualquer elemento
-  marcado com <code>data-pds-open</code>. Chamar <code>Pds.open()</code> antes de o script
-  terminar de carregar fica na fila. O objeto <code>Pds</code> é definido uma vez e congelado:
+  <code>RelatoFacil.open()</code> (e fecha com <code>RelatoFacil.close()</code>), ou por qualquer elemento
+  marcado com <code>data-relatofacil-open</code>. Chamar <code>RelatoFacil.open()</code> antes de o script
+  terminar de carregar fica na fila. O objeto <code>RelatoFacil</code> é definido uma vez e congelado:
   duas cópias do script na mesma página não abrem dois quadros.</p>
+  <p>Os nomes antigos continuam valendo, para o site que já os usa: o endereço <code>/v1/pds.js</code>,
+  o objeto <code>Pds</code>, o atributo <code>data-pds-open</code> e a marca <code>data-pds-no-capture</code>.</p>
 </div>
 
 <div class="note why">
