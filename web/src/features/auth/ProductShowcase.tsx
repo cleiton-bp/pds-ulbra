@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { CardPriorityViewModel } from '@/contracts'
+import { type CardPriorityViewModel, MAX_REPORT_ANSWER_LENGTH } from '@/contracts'
 import {
   GAVETA,
   IDA_E_VOLTA,
@@ -211,6 +211,12 @@ interface Historia {
   /** O lado de quem relata mostra a pagina do protocolo, e nao mais o site. */
   andamento: boolean
   coluna: number
+  /**
+   * A etapa que quem relatou ve. **So anda para a frente**, como no produto: o time
+   * voltar o card nao mexe na pagina de quem espera, e so quem relatou, ao reabrir,
+   * faz a jornada voltar ao comeco.
+   */
+  etapaPublica: number
   /** O que quem relatou respondeu, com o card na ultima coluna. */
   desfecho: Desfecho
   nota: number | null
@@ -218,7 +224,7 @@ interface Historia {
   reaberto: boolean
 }
 
-const INICIO: Historia = {
+export const INICIO: Historia = {
   aberta: false,
   tipo: 0,
   titulo: TIPOS[0].titulo,
@@ -227,6 +233,7 @@ const INICIO: Historia = {
   enviado: false,
   andamento: false,
   coluna: 0,
+  etapaPublica: 0,
   desfecho: 'pergunta',
   nota: null,
   motivo: MOTIVO,
@@ -248,7 +255,8 @@ type Gesto =
   | { faz: 'ir'; passo: number }
   | { faz: 'recomecar' }
 
-function seguir(historia: Historia, gesto: Gesto): Historia {
+/** Exportado para o teste, que conduz a historia sem precisar arrastar no jsdom. */
+export function seguir(historia: Historia, gesto: Gesto): Historia {
   switch (gesto.faz) {
     case 'abrir':
       return { ...historia, aberta: true }
@@ -274,7 +282,13 @@ function seguir(historia: Historia, gesto: Gesto): Historia {
     case 'mover':
       // Confirmado, o relato acabou: o card fica onde esta.
       if (!historia.enviado || historia.desfecho === 'confirmado') return historia
-      return { ...historia, coluna: gesto.coluna, andamento: true, desfecho: 'pergunta' }
+      return {
+        ...historia,
+        coluna: gesto.coluna,
+        etapaPublica: Math.max(historia.etapaPublica, gesto.coluna),
+        andamento: true,
+        desfecho: 'pergunta',
+      }
     case 'responder':
       return { ...historia, desfecho: gesto.resolveu ? 'nota' : 'reabrindo' }
     case 'avaliar':
@@ -282,7 +296,7 @@ function seguir(historia: Historia, gesto: Gesto): Historia {
     case 'reabrir':
       // De fabrica, o card reaberto volta para a primeira coluna, e o motivo e obrigatorio.
       return historia.motivo.trim()
-        ? { ...historia, desfecho: 'pergunta', coluna: 0, reaberto: true }
+        ? { ...historia, desfecho: 'pergunta', coluna: 0, etapaPublica: 0, reaberto: true }
         : historia
     case 'desistir':
       return { ...historia, desfecho: 'pergunta' }
@@ -310,6 +324,7 @@ function irPara(historia: Historia, passo: number): Historia {
     enviado: true,
     andamento: passo > 1,
     coluna: Math.min(passo - 1, ULTIMA),
+    etapaPublica: Math.min(passo - 1, ULTIMA),
   }
 }
 
@@ -325,11 +340,11 @@ function dicaDa(historia: Historia, tentouPagar: boolean): string {
   if (!historia.enviado) {
     if (historia.aberta) return 'Escolha o tipo, escreva do seu jeito se quiser e clique em Enviar.'
     return tentouPagar
-      ? 'O botão de pagar não respondeu, e é para isso que existe o Relatar, no canto da página.'
+      ? 'Use o Relatar, no canto da página, para contar ao time o que aconteceu.'
       : 'Clique em Relatar, no canto da página, como faria quem usa o seu sistema.'
   }
   if (historia.desfecho === 'confirmado')
-    return 'Esse é o caminho inteiro de um relato, do botão até a confirmação de quem relatou.'
+    return 'Esse é o caminho inteiro de um relato, do botão até a confirmação.'
   if (historia.coluna === ULTIMA) {
     if (historia.desfecho === 'nota')
       return 'A nota é opcional, e quem relatou também pode preferir não responder.'
@@ -337,6 +352,8 @@ function dicaDa(historia: Historia, tentouPagar: boolean): string {
       return 'Quem reabre conta o que ainda acontece, e o card volta para a primeira coluna.'
     return 'Agora responda como quem relatou: isso resolveu?'
   }
+  if (historia.coluna < historia.etapaPublica)
+    return 'A etapa de quem relatou não volta quando o time recua o card.'
   if (historia.coluna === 1)
     return 'Do lado de fora a etapa mudou junto, e agora o card vai para Feito.'
   if (historia.reaberto)
@@ -554,8 +571,15 @@ export function ProductShowcase({ fim }: { fim?: React.ReactNode }) {
           Recomeçar
         </Button>
       </div>
-      {/* A regiao viva e a mesma; a frase de dentro e que troca, e entra em foco. */}
-      <p aria-live="polite" className="mt-1 max-w-[64ch] text-body text-fg-muted max-sm:px-2">
+      {/* A regiao viva e a mesma; a frase de dentro e que troca, e entra em foco.
+          **A altura nao muda com a frase.** Uma dica de duas linhas depois de uma de uma
+          empurrava a demonstracao inteira para baixo no meio do clique: no computador
+          cada frase cabe numa linha (ate uns 78 caracteres), e abaixo dele a caixa ja
+          guarda duas. */}
+      <p
+        aria-live="polite"
+        className="mt-1 max-w-[64ch] text-body text-fg-muted max-lg:min-h-[2lh] max-sm:px-2"
+      >
         <span key={dica} className="inline-block animate-materializa">
           {dica}
         </span>
@@ -1159,13 +1183,20 @@ function Formulario({
       <label htmlFor={`${id}-resposta`} className="mt-2.5 block text-caption text-fg-muted">
         {tipo.pergunta}
       </label>
-      <input
+      {/* Caixa de varias linhas, como a do quadro de verdade, com o mesmo limite de uma
+          resposta: quem quer testar com o proprio texto ve ele inteiro. Cresce com o que
+          se escreve ate um teto, e da para puxar pelo canto. */}
+      <textarea
         id={`${id}-resposta`}
         value={historia.resposta}
-        maxLength={120}
+        rows={2}
+        maxLength={MAX_REPORT_ANSWER_LENGTH}
         disabled={enviando}
         onChange={(evento) => acoes.escrever('resposta', evento.target.value)}
-        className={campo}
+        className={cn(
+          campo,
+          'field-sizing-content h-auto max-h-40 min-h-14 resize-y py-1.5 leading-normal',
+        )}
       />
 
       <div className="mt-3 flex items-center justify-between gap-3">
@@ -1358,14 +1389,14 @@ function Acompanhamento({
 
   // O "agora" e um so, e anda de uma etapa para a outra: medido no lugar novo antes da
   // pintura, ele desliza ate la em vez de sumir de uma linha e nascer na outra.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a coluna e o gatilho; a medida e lida do DOM.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a etapa publica e o gatilho; a medida e lida do DOM.
   useLayoutEffect(() => {
     const rotulo = lista.current?.querySelector<HTMLElement>('[data-etapa-atual]')
     if (!rotulo) return
     const x = rotulo.offsetLeft + rotulo.offsetWidth + 8
     const y = rotulo.offsetTop
     setMarca((antes) => ({ x, y, anda: antes !== null && !semMovimento }))
-  }, [historia.coluna])
+  }, [historia.etapaPublica])
 
   return (
     <div className="flex h-full flex-1 animate-materializa flex-col">
@@ -1391,8 +1422,8 @@ function Acompanhamento({
       <p className="mt-4 font-semibold text-detail text-fg">Andamento</p>
       <ol ref={lista} className="relative mt-2 flex flex-col">
         {JORNADA.map((etapa, indice) => {
-          const atual = indice === historia.coluna
-          const passou = indice < historia.coluna
+          const atual = indice === historia.etapaPublica
+          const passou = indice < historia.etapaPublica
           const ultimo = indice === JORNADA.length - 1
           const tom = TOM_DA_COLUNA[indice] ?? 'todo'
           const tomSeguinte = TOM_DA_COLUNA[indice + 1] ?? 'todo'
@@ -1452,8 +1483,8 @@ function Acompanhamento({
             style={{ transform: `translate(${marca.x}px, ${marca.y}px)` }}
             className={cn(
               'absolute top-0 left-0 rounded-full border px-1.5 text-caption',
-              TONE_SURFACE[TOM_DA_COLUNA[historia.coluna] ?? 'todo'],
-              TONE_FG[TOM_DA_COLUNA[historia.coluna] ?? 'todo'],
+              TONE_SURFACE[TOM_DA_COLUNA[historia.etapaPublica] ?? 'todo'],
+              TONE_FG[TOM_DA_COLUNA[historia.etapaPublica] ?? 'todo'],
               // Anda e troca de cor junto: a etapa nova chega com o tom dela.
               marca.anda && 'transition duration-[420ms] ease-[var(--ease-in-out)]',
             )}
@@ -1723,10 +1754,21 @@ function QuadroDoTime({
     )
   }
 
+  /**
+   * Onde o card esta **dentro do quadro**, e nao na tela. Medido na tela, rolar a pagina
+   * ou a frase de cima mudar de tamanho parecia o card ter andado: no proximo desenho
+   * (o clique em "Pagar com cartao", por exemplo) todos voavam pela distancia rolada.
+   */
+  function dentroDoQuadro(elemento: HTMLElement): { x: number; y: number } {
+    const lugar = noLayout(elemento)
+    const base = quadro.current ? noLayout(quadro.current) : { x: 0, y: 0 }
+    return { x: lugar.x - base.x, y: lugar.y - base.y }
+  }
+
   function medir() {
     for (const elemento of irmaos()) {
       if (elemento.offsetParent === null) lugares.current.delete(chaveDe(elemento))
-      else lugares.current.set(chaveDe(elemento), noLayout(elemento))
+      else lugares.current.set(chaveDe(elemento), dentroDoQuadro(elemento))
     }
   }
 
@@ -1741,7 +1783,7 @@ function QuadroDoTime({
         lugares.current.delete(chave)
         continue
       }
-      const agora = noLayout(elemento)
+      const agora = dentroDoQuadro(elemento)
       const antes = lugares.current.get(chave)
       lugares.current.set(chave, agora)
       if (!antes || semMovimento) continue
@@ -1939,7 +1981,7 @@ function QuadroDoTime({
           }
           otherCards={OUTROS_CARDS}
           tones={TONS}
-          stageLitColumnId={temCard ? (COLUNAS[historia.coluna]?.id ?? null) : null}
+          stageLitColumnId={temCard ? (COLUNAS[historia.etapaPublica]?.id ?? null) : null}
           columnClassName="w-auto min-w-0 flex-1"
           cardSlot={
             temCard ? (
