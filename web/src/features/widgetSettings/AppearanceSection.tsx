@@ -143,7 +143,7 @@ export function describeAppearance(draft: WidgetSettingsViewModel): string {
     icone,
     TAMANHOS[draft.LauncherSize].toLowerCase(),
     formato,
-  ].join(' · ')
+  ].join(', ')
 }
 
 /** "Embaixo, à direita · 20 px da borda" — o canto e a distancia, numa linha. */
@@ -152,7 +152,7 @@ export function describePosition(draft: WidgetSettingsViewModel): string {
     draft.OffsetX === draft.OffsetY
       ? `${draft.OffsetX} px da borda`
       : `${draft.OffsetX} px na horizontal, ${draft.OffsetY} px na vertical`
-  return `${CANTOS[draft.Position]} · ${distancia}`
+  return `${CANTOS[draft.Position]}, ${distancia}`
 }
 
 export function describeMobile(draft: WidgetSettingsViewModel): string {
@@ -389,7 +389,7 @@ function TextColorField({ draft, change }: { draft: WidgetSettingsViewModel; cha
           role="status"
           className="mt-2 flex flex-wrap items-center gap-x-2 text-detail text-warn-fg"
         >
-          Difícil de ler sobre esta cor ·
+          Difícil de ler sobre esta cor
           <Button size="sm" variant="quiet" onClick={() => change({ LauncherTextColor: null })}>
             Usar automático
           </Button>
@@ -498,7 +498,7 @@ export function PositionFields({
             hideLabel: true,
             drawing:
               draft.Position === value ? (
-                <MiniButton text="···" size="Small" />
+                <MiniButton text="…" size="Small" />
               ) : (
                 <span
                   aria-hidden

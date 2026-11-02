@@ -127,7 +127,7 @@ describe('os arquivos no relato do painel', () => {
     const lista = await screen.findByRole('list', { name: 'Imagens do relato' })
     expect(lista.querySelector('li')?.className).toBe('col-span-4')
     expect(lista.querySelector('img')?.getAttribute('src')).toBe('http://armazenamento/inteiro')
-    expect(screen.getByText('erro-no-pagamento.png · 120 KB').tagName).toBe('FIGCAPTION')
+    expect(screen.getByText('erro-no-pagamento.png, 120 KB').tagName).toBe('FIGCAPTION')
   })
 
   it('o arquivo da resposta aparece embaixo da fala, e nao embaixo do relato', async () => {
@@ -187,8 +187,8 @@ describe('os arquivos no relato do painel', () => {
       .map((img) => img.getAttribute('alt'))
     // Depois dos da criacao, e nao no meio deles.
     expect(nomes).toEqual([
-      'Imagem 1 de 2: da-criacao.png · 120 KB',
-      'Imagem 2 de 2: resposta-nova.png · 120 KB · veio numa resposta',
+      'Imagem 1 de 2: da-criacao.png, 120 KB',
+      'Imagem 2 de 2: resposta-nova.png, 120 KB, veio numa resposta',
     ])
   })
 
@@ -214,7 +214,7 @@ describe('os arquivos no relato do painel', () => {
 
     expect(
       await screen.findByRole('img', {
-        name: 'Imagem anexada: ainda-quebra.png · 120 KB · veio numa reabertura',
+        name: 'Imagem anexada: ainda-quebra.png, 120 KB, veio numa reabertura',
       }),
     ).toBeDefined()
   })

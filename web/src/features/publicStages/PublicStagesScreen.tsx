@@ -418,7 +418,7 @@ export function PublicStagesScreen() {
           problema está sendo resolvido, e não que existe revisão de código.
         </p>
         <p>
-          Clique numa etapa para abrir — uma de cada vez. O que você muda nela vale no Salvar dela;
+          Clique numa etapa para abrir, uma de cada vez. O que você muda nela vale no Salvar dela;
           mudar a ordem (pela alça ou pelas setas) e apagar valem na hora.
         </p>
         <p>
@@ -499,7 +499,7 @@ export function PublicStagesScreen() {
             <div className="rounded-xl border border-border border-dashed p-5 text-center">
               <p className="mb-3.5 text-detail text-fg-muted leading-relaxed">
                 Este projeto ainda não tem jornada pública. Dá para escrever a sua do zero, mas o
-                caminho mais rápido é começar pelo conjunto padrão e reescrever o que não combinar —
+                caminho mais rápido é começar pelo conjunto padrão e reescrever o que não combinar,
                 todas as etapas dele podem ser editadas, removidas e reordenadas.
               </p>
               <Button onClick={() => void usarPadrao()} disabled={aplicandoPadrao}>
@@ -513,17 +513,17 @@ export function PublicStagesScreen() {
               <p className="mb-2 text-caption text-fg-muted">
                 {total} de {MAX_PUBLIC_STAGES} etapas
                 {cheia
-                  ? ' · é o máximo. Acima disso o andamento volta a ser a lista de colunas, só que com palavras mais bonitas.'
+                  ? ', que é o máximo. Acima disso o andamento volta a ser a lista de colunas, só que com palavras mais bonitas.'
                   : noPiso
-                    ? ` · ${MIN_PUBLIC_STAGES} é o mínimo. Com menos, a jornada não conta uma história: vira "chegou" e "acabou".`
-                    : ' · arraste pela alça à esquerda para mudar a ordem, ou use as setas.'}
+                    ? `, e ${MIN_PUBLIC_STAGES} é o mínimo. Com menos, a jornada não conta uma história: vira "chegou" e "acabou".`
+                    : ', e a ordem muda pela alça à esquerda ou pelas setas.'}
               </p>
 
               {abaixoDoPiso && (
                 <p className="mb-2 rounded-lg border border-warn-border bg-warn-surface px-3 py-2 text-detail text-warn-fg leading-relaxed">
                   Esta jornada já está sendo mostrada a quem relata, com{' '}
                   {total === 1 ? 'um passo' : `${total} passos`}. Ela só conta uma história a partir
-                  de {MIN_PUBLIC_STAGES} — até lá, quem acompanha vê o relato chegar e terminar, sem
+                  de {MIN_PUBLIC_STAGES}, até lá, quem acompanha vê o relato chegar e terminar, sem
                   o meio.
                 </p>
               )}
@@ -977,6 +977,6 @@ function descreverEtapa(
   if (marcas.AwaitsReporter) partes.push('Espera quem relatou')
   if (marcas.AllowsReturn) partes.push('Pode voltar')
   if (colunas && colunas.length > 0) partes.push(`Colunas: ${colunas.join(', ')}`)
-  if (partes.length > 0) return partes.join(' · ')
+  if (partes.length > 0) return partes.join(', ')
   return marcas.Description.trim() || 'Sem frase ainda'
 }

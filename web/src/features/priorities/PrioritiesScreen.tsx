@@ -308,13 +308,13 @@ export function PrioritiesScreen() {
         <p>O card nasce sem prioridade: escolher é decisão de alguém do time.</p>
         <p>
           A ordem é a da lista de escolha no card, da menos para a mais urgente. Para mudar, arraste
-          pela alça à esquerda ou use as setas — vale na hora.
+          pela alça à esquerda ou use as setas, e a ordem vale na hora.
         </p>
         <p>
           Clique numa prioridade para abrir: uma de cada vez, e o nome e a cor valem no Salvar dela.
         </p>
         <p>
-          Desativar tira a prioridade da lista de escolha sem mexer nos cards que já a têm — nem no
+          Desativar tira a prioridade da lista de escolha sem mexer nos cards que já a têm, nem no
           histórico deles. Dá para trazer de volta quando quiser.
         </p>
       </HowItWorks>
@@ -422,8 +422,8 @@ export function PrioritiesScreen() {
                   const estaAberta = aberta === priority.PublicId
                   const agora = escrita(priority)
                   const resumo = priority.IsActive
-                    ? `${CARD_COLOR_NAMES[agora.Color]} · na lista de escolha`
-                    : `${CARD_COLOR_NAMES[agora.Color]} · fora da lista de escolha, fica nos cards que já a têm`
+                    ? `${CARD_COLOR_NAMES[agora.Color]}, na lista de escolha`
+                    : `${CARD_COLOR_NAMES[agora.Color]}, fora da lista de escolha, fica nos cards que já a têm`
                   return (
                     <SortableListItem
                       key={priority.PublicId}
@@ -490,7 +490,7 @@ export function PrioritiesScreen() {
                     open
                     onRequestToggle={() => pedirTroca(null)}
                     name={<PriorityIcon priority={nova} />}
-                    summary={`${CARD_COLOR_NAMES[nova.Color]} · entra no fim, como a mais urgente`}
+                    summary={`${CARD_COLOR_NAMES[nova.Color]}, entra no fim, como a mais urgente`}
                     isNew
                     unsaved={sujo}
                   >
@@ -515,7 +515,7 @@ export function PrioritiesScreen() {
           if (!open) setRetiring(null)
         }}
         title="Desativar prioridade"
-        description="Ela sai da lista de escolha, mas continua nos cards que já a têm — e no histórico deles. Dá para trazer de volta quando quiser."
+        description="Ela sai da lista de escolha, mas continua nos cards que já a têm e no histórico deles. Dá para trazer de volta quando quiser."
         confirmLabel="Desativar"
         onConfirm={() => (retiring ? setActive(retiring, false) : undefined)}
       />

@@ -291,7 +291,7 @@ function ComoFicaOTrabalho({ draft, dirty }: { draft: CycleSettingsViewModel; di
         </ul>
 
         <p className="mb-2 text-caption text-fg-muted">
-          {ligadas ? 'Sprint 3 · em andamento' : 'Todo o trabalho do time'}
+          {ligadas ? 'Sprint 3, em andamento' : 'Todo o trabalho do time'}
         </p>
 
         <div className="max-w-64 rounded-lg bg-surface-raised p-2">

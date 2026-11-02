@@ -663,7 +663,7 @@ describe('MediaScreen', () => {
 
     fireEvent.change(quantidadeArquivo(), { target: { value: '' } })
 
-    expect(resumoDo('grupo-arquivo')).toMatch(/^Arquivocorrigir · /)
+    expect(resumoDo('grupo-arquivo')).toMatch(/^Arquivocorrigir: /)
     expect(resumoDo('grupo-imagem')).not.toContain('corrigir')
 
     // Publicar abre o grupo e poe o foco no campo, sem gravar.

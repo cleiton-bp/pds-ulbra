@@ -320,8 +320,8 @@ export function TypeEditor({
           </label>
           <p className="text-caption text-fg-muted leading-relaxed">
             {preenchidas.length > 0
-              ? `Depois das perguntas, para o que não coube nelas — até ${MAX_REPORT_ANSWER_LENGTH} caracteres.`
-              : `Sem perguntas, a caixa é o relato inteiro — até ${MAX_REPORT_TEXT_LENGTH} caracteres.`}
+              ? `Depois das perguntas, para o que não coube nelas, com até ${MAX_REPORT_ANSWER_LENGTH} caracteres.`
+              : `Sem perguntas, a caixa é o relato inteiro, com até ${MAX_REPORT_TEXT_LENGTH} caracteres.`}
           </p>
 
           {draft.caixa && (

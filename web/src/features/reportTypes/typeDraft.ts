@@ -174,9 +174,9 @@ export function describeType(
         ? `${perguntas} + caixa`
         : perguntas
 
-  if (tipo.coluna === null) return `${pede} · entra na primeira coluna`
+  if (tipo.coluna === null) return `${pede}, e entra na primeira coluna`
 
   // A coluna que nao carregou, ou que sumiu: o resumo fica so com o que o tipo pede.
   const coluna = colunas?.find((item) => item.PublicId === tipo.coluna)
-  return coluna ? `${pede} · entra em ${coluna.Name}` : pede
+  return coluna ? `${pede}, e entra em ${coluna.Name}` : pede
 }

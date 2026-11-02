@@ -66,7 +66,7 @@ export function describeError(error: unknown, acao?: string): string {
     if (error.status === 0) {
       return acao
         ? `Não deu para ${acao}: sem conexão com o servidor agora. Confira a internet e tente de novo.`
-        : 'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.'
+        : 'Sem conexão com o servidor agora. Confira a internet e tente de novo, porque nada se perdeu.'
     }
 
     // "Erro 404." e o que o cliente HTTP escreve quando a resposta veio sem corpo:

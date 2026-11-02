@@ -448,7 +448,7 @@ async function quadroPronto() {
 }
 
 describe('o card novo, com as sprints ligadas', () => {
-  it('o "Novo card" do topo pergunta onde o card entra: o backlog de saida, a em andamento e as planejadas — e o backlog nao leva sprint', async () => {
+  it('o "Novo card" do topo pergunta onde o card entra: o backlog de saida, a em andamento e as planejadas, e o backlog nao leva sprint', async () => {
     montar()
     await listaPronta()
 
@@ -529,7 +529,7 @@ describe('o card novo, com as sprints ligadas', () => {
     await semDialogo()
 
     // Criado no backlog, ele nao entra no quadro da sprint — e o aviso diz isso.
-    const criado = await aviso('#40 criado no backlog — não aparece no quadro da sprint.')
+    const criado = await aviso('#40 criado no backlog, e não aparece no quadro da sprint.')
     expect(within(aFazer).queryByText('Trocar o gateway')).toBeNull()
 
     fireEvent.click(within(criado).getByRole('button', { name: 'Levar para a Sprint 2' }))
@@ -553,7 +553,7 @@ describe('o card novo, com as sprints ligadas', () => {
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Criar card' }))
     await semDialogo()
 
-    const criado = await aviso('#40 criado no backlog — não aparece no quadro da sprint.')
+    const criado = await aviso('#40 criado no backlog, e não aparece no quadro da sprint.')
     fireEvent.click(within(criado).getByRole('button', { name: 'Levar para a Sprint 2' }))
 
     // O texto da API, acentuado no painel, num aviso de erro.
@@ -563,7 +563,7 @@ describe('o card novo, com as sprints ligadas', () => {
     expect(screen.queryByText('#40 foi para a Sprint 2.')).toBeNull()
   })
 
-  it('na lista, o aviso diz onde o card entrou — "criado no backlog." ou "criado na Sprint 3." —, e "Abrir" abre o card', async () => {
+  it('na lista, o aviso diz onde o card entrou, "criado no backlog." ou "criado na Sprint 3." —, e "Abrir" abre o card', async () => {
     const router = montar()
     await listaPronta()
 

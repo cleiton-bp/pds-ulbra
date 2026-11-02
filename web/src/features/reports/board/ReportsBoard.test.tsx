@@ -609,7 +609,7 @@ describe('criar na coluna (Q-05)', () => {
     const campo = abrirCampo('Fazendo')
     expect(fazendo.contains(campo)).toBe(true)
     expect(document.activeElement).toBe(campo)
-    expect(campo.placeholder).toBe('Título do card — Enter cria, Esc fecha')
+    expect(campo.placeholder).toBe('Título do card (Enter cria, Esc fecha)')
   })
 
   it('Enter cria direto na coluna, uma vez so; o card nasce no topo, a lista rola ate ele, e o campo continua aberto, vazio e com o foco', async () => {
@@ -887,7 +887,7 @@ describe('tirar um relato encerrado da coluna que encerra (Q-02)', () => {
     expect(avisos()).toEqual([
       {
         tom: 'danger',
-        texto: 'Não deu para mover o #10 para Fazendo. Ele voltou para Feito — tente de novo.',
+        texto: 'Não deu para mover o #10 para Fazendo. Ele voltou para Feito, tente de novo.',
       },
     ])
   })
@@ -1069,7 +1069,7 @@ describe('quando o movimento falha (Q-07)', () => {
     [
       'o servidor falhou',
       new PanelError('Erro interno.', 500),
-      'Não deu para mover o #17 para Fazendo. Ele voltou para A fazer — tente de novo.',
+      'Não deu para mover o #17 para Fazendo. Ele voltou para A fazer, tente de novo.',
     ],
     [
       'a API recusou com motivo',
@@ -1112,7 +1112,7 @@ describe('quando o movimento falha (Q-07)', () => {
     [
       'o servidor falhou',
       new PanelError('Erro interno.', 500),
-      'Não deu para mudar o #17 de lugar. Ele voltou para onde estava — tente de novo.',
+      'Não deu para mudar o #17 de lugar. Ele voltou para onde estava, tente de novo.',
     ],
     [
       'sem rede',
@@ -1324,7 +1324,7 @@ describe('o pe da coluna, logo depois do ultimo card (Q-06), e o cabecalho preso
     expect(lista?.contains(noDoCard('c1'))).toBe(true)
   })
 
-  it('"Mostrar mais" diz quantos vem — o que falta, ou uma pagina de quantos faltam — e mora logo depois do ultimo card', () => {
+  it('"Mostrar mais" diz quantos vem, o que falta, ou uma pagina de quantos faltam, e mora logo depois do ultimo card', () => {
     const { espiao } = montar({
       itens: { 's-1': ['c1', 'c2', 'c3'], 's-2': ['c4', 'c5', 'c6'], 's-3': ['c7'] },
       cards: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'].map((id) => card(id)),
@@ -1360,7 +1360,7 @@ describe('o pe da coluna, logo depois do ultimo card (Q-06), e o cabecalho preso
     expect((botao as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('no Feito, "Ultimos 14 dias · 2 na lista" sob o nome, e a nota dos escondidos logo depois do ultimo card; os dois levam a lista nessa coluna', () => {
+  it('no Feito, "Ultimos 14 dias, 2 na lista" sob o nome, e a nota dos escondidos logo depois do ultimo card; os dois levam a lista nessa coluna', () => {
     const { aoVerNaLista } = montar({
       columns: [
         coluna('s-1', 'A fazer'),
@@ -1374,7 +1374,7 @@ describe('o pe da coluna, logo depois do ultimo card (Q-06), e o cabecalho preso
 
     const feito = regiao('Feito')
     const regra = [...feito.querySelectorAll('p')].find((p) => p.textContent?.startsWith('Últimos'))
-    expect(regra?.textContent).toBe('Últimos 14 dias · 2 na lista')
+    expect(regra?.textContent).toBe('Últimos 14 dias, 2 na lista')
     fireEvent.click(within(feito).getByRole('button', { name: '2 na lista' }))
     expect(aoVerNaLista).toHaveBeenLastCalledWith('s-3')
 

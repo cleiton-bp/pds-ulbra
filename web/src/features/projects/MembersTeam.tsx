@@ -169,7 +169,7 @@ export function TeamSection({
         {!inTab && members !== null && (
           <>
             {' '}
-            <span className="font-normal text-fg-muted tabular-nums">{`· ${members.length}`}</span>
+            <span className="font-normal text-fg-muted tabular-nums">{members.length}</span>
           </>
         )}
       </h2>
@@ -283,7 +283,7 @@ function MemberRow({
           )}
         </div>
         {details.length > 0 && (
-          <div className="truncate text-detail text-fg-muted">{details.join(' · ')}</div>
+          <div className="truncate text-detail text-fg-muted">{details.join(', ')}</div>
         )}
       </div>
 

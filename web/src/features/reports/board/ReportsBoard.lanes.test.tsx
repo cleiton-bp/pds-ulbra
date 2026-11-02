@@ -98,7 +98,7 @@ const TIME = [
 ]
 
 /** O que a raia de quem esta sem card diz ao lado do nome. */
-const compacta = (nome: string) => `${nome}· 0 — solte um card aqui para passar a esta pessoa`
+const compacta = (nome: string) => `${nome}0, solte um card aqui para passar a esta pessoa`
 
 function card(id: string, extra: Partial<ReportSummaryViewModel> = {}) {
   return {
@@ -361,7 +361,7 @@ describe('o quadro com raias', () => {
     expect(screen.getByRole('region', { name: 'Feito, Elisa Souza' })).toBeTruthy()
   })
 
-  it('sem o time — ainda nao lido, ou a leitura falhou —, so as raias de quem tem card', () => {
+  it('sem o time, ainda nao lido, ou a leitura falhou —, so as raias de quem tem card', () => {
     montar('assignee', { pessoas: null })
     expect(nomesDasRaias()).toEqual(['Ana1', 'Bruno1', 'Sem responsável1'])
   })

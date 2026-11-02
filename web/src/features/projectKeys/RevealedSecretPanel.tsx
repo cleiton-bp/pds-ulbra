@@ -73,7 +73,7 @@ export function RevealedSecretPanel({ secret, onAcknowledge }: RevealedSecretPan
           }
         }}
         title="A chave nova ainda está na tela"
-        description="Se você sair agora, o valor completo não volta a aparecer. Copiar leva um segundo — e, se sair sem copiar, dá para gerar outra depois."
+        description="Se você sair agora, o valor completo não volta a aparecer. Copiar leva um segundo, e, se sair sem copiar, dá para gerar outra depois."
         confirmLabel="Sair mesmo assim"
         cancelLabel="Voltar e copiar"
         primary="cancel"

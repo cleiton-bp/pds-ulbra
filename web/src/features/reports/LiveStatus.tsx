@@ -9,12 +9,12 @@ export type SemAoVivo = 'nunca-conectou' | 'caiu' | null
 
 const TEXTOS: Record<'nunca-conectou' | 'caiu', { curto: string; explicacao: string }> = {
   'nunca-conectou': {
-    curto: 'Sem atualização ao vivo — tentando conectar…',
+    curto: 'Sem atualização ao vivo, tentando conectar…',
     explicacao:
       'As mudanças de outras pessoas só aparecem ao recarregar a tela, até a conexão voltar. O que você faz continua sendo salvo.',
   },
   caiu: {
-    curto: 'Sem atualização ao vivo — reconectando…',
+    curto: 'Sem atualização ao vivo, reconectando…',
     explicacao:
       'As mudanças de outras pessoas aparecem quando a conexão voltar. O que você faz continua sendo salvo.',
   },

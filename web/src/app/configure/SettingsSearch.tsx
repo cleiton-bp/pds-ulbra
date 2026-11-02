@@ -129,9 +129,9 @@ export function SettingsSearch({ projectPublicId }: { projectPublicId: string })
             >
               <span className="text-body text-fg">{match.entry.label}</span>
               <span className="text-caption text-fg-muted">
-                {match.area ? `${match.area.label} · ` : ''}
+                {match.area ? `${match.area.label} › ` : ''}
                 {match.screen.label}
-                {match.entry.level === 'advanced' ? ' · avançado' : ''}
+                {match.entry.level === 'advanced' ? ' (avançado)' : ''}
               </span>
             </div>
           ))}

@@ -1254,7 +1254,7 @@ function Devolvido({
 
       <p className="text-caption text-warn-fg leading-relaxed">
         A página avisa em {formatDateTime(pedido.WarnAt)}, e o relato encerra como “sem retorno” em{' '}
-        {formatDateTime(pedido.CloseAt)} se ninguém responder — e ainda assim poderá ser reaberto.
+        {formatDateTime(pedido.CloseAt)} se ninguém responder, e ainda assim poderá ser reaberto.
       </p>
     </section>
   )
@@ -1432,7 +1432,7 @@ function LadoDeFora({
     return (
       <span className="text-caption text-fg-muted">
         Quem relatou vê:{' '}
-        <span className="text-fg">Encerrado · {publicOutcomeLabel(fechamento.Outcome)}</span>
+        <span className="text-fg">Encerrado: {publicOutcomeLabel(fechamento.Outcome)}</span>
       </span>
     )
   }

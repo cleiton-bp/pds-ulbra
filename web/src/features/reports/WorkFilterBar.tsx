@@ -317,7 +317,7 @@ export function WorkFilterBar({
             const curto = item.IsActive ? nome : `${nome} (desativada)`
             return {
               value: item.StatePublicId ?? WITHOUT_STATE_FILTER,
-              label: `${curto} · ${item.Total}`,
+              label: `${curto} (${item.Total})`,
               curto,
             }
           })
@@ -379,7 +379,7 @@ export function WorkFilterBar({
           value={filters.search}
           onChange={(evento) => onChange({ ...filters, search: evento.target.value })}
           placeholder="Título, texto, #número ou protocolo"
-          title="Busca no título, no texto, no #número e no protocolo — atalho: /"
+          title="Busca no título, no texto, no #número e no protocolo (atalho: /)"
           aria-keyshortcuts={searchInputId ? '/' : undefined}
           maxLength={200}
           className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-20 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
@@ -405,7 +405,7 @@ export function WorkFilterBar({
           ligadosForaDaBusca > 0 ? CONTROLE_LIGADO : CONTROLE_DESLIGADO,
         )}
       >
-        {ligadosForaDaBusca > 0 ? `Filtros · ${ligadosForaDaBusca}` : 'Filtros'}
+        {ligadosForaDaBusca > 0 ? `Filtros (${ligadosForaDaBusca})` : 'Filtros'}
       </button>
 
       <div className={aVista}>
@@ -474,7 +474,7 @@ export function WorkFilterBar({
             ligadosEmMais > 0 ? CONTROLE_LIGADO : CONTROLE_DESLIGADO,
           )}
         >
-          {ligadosEmMais > 0 ? `Mais filtros · ${ligadosEmMais}` : 'Mais filtros'}
+          {ligadosEmMais > 0 ? `Mais filtros (${ligadosEmMais})` : 'Mais filtros'}
           <Seta />
         </button>
       </div>
@@ -756,7 +756,7 @@ function MenuDeMarcar({
           ) : (
             <>
               {rotulo}
-              {ligado && <span className="tabular-nums">· {partes.length}</span>}
+              {ligado && <span className="tabular-nums">({partes.length})</span>}
             </>
           )}
           <Seta />

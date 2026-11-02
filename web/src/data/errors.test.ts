@@ -51,7 +51,7 @@ describe('describeError', () => {
 
   it('rede caída não fala de API', () => {
     expect(describeError(new PanelError('Falha de rede ao contatar a API.', 0))).toBe(
-      'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+      'Sem conexão com o servidor agora. Confira a internet e tente de novo, porque nada se perdeu.',
     )
   })
 

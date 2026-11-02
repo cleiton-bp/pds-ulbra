@@ -151,7 +151,7 @@ describe('a barra de filtros do Trabalho', () => {
     expect(within(outro).queryByRole('menuitem', { name: 'Limpar' })).toBeNull()
   })
 
-  it('"Mais filtros · n" conta os ligados que moram nele e diz se esta aberto', async () => {
+  it('"Mais filtros, n" conta os ligados que moram nele e diz se esta aberto', async () => {
     montar(
       { priorities: ['none'], types: ['team'], labels: ['l-1'] },
       {
@@ -161,7 +161,7 @@ describe('a barra de filtros do Trabalho', () => {
     )
     const mais = await screen.findByRole('button', { name: /^Mais filtros/ })
     // Prioridade, tipo e coluna; a etiqueta fica a vista, e nao conta aqui.
-    expect(mais.textContent).toContain('Mais filtros · 3')
+    expect(mais.textContent).toContain('Mais filtros (3)')
     expect(mais.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(mais)
     expect(mais.getAttribute('aria-expanded')).toBe('true')

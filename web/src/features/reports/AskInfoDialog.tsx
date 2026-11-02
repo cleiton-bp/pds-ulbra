@@ -76,7 +76,7 @@ export function AskInfoDialog({
 
       <p className="mt-1.5 text-caption text-fg-muted leading-normal">
         Diga <strong className="font-medium text-fg">o que</strong> falta, e não que falta. E o
-        relógio começa agora: sem resposta, o relato encerra sozinho como “sem retorno” — e a pessoa
+        relógio começa agora: sem resposta, o relato encerra sozinho como “sem retorno”, e a pessoa
         ainda poderá reabrir depois.
       </p>
     </Modal>

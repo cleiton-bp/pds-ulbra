@@ -16,7 +16,7 @@ import { escolherNoSelect, instalarRemendosDoRadix } from '@/test/radixNoJsdom'
  * O QUE ESTES TESTES TRAVAM: a tela de Tipos de relato.
  *
  * - **Cada tipo e um item de acordeao**: fechado, diz em palavras o que pede e onde
- *   entra ("3 perguntas + caixa · entra em Triagem", "Desativado"); aberto, o editor.
+ *   entra ("3 perguntas + caixa, e entra em Triagem", "Desativado"); aberto, o editor.
  * - **Criar e editar gravam o tipo inteiro**: nome, cor, desenho, perguntas, a caixa
  *   livre com o texto dela e a coluna. A pergunta em branco nao vai; a repetida nem
  *   deixa salvar. O tipo novo abre como um item no fim da lista, ja aberto.
@@ -172,8 +172,8 @@ describe('a tela de Tipos de relato', () => {
   it('mostra os tipos na ordem, cada um fechado, com o que pede e onde entra em palavras', async () => {
     montar()
 
-    expect(await screen.findByText('3 perguntas + caixa · entra em Triagem')).toBeTruthy()
-    expect(screen.getAllByText('Só a caixa · entra na primeira coluna')).toHaveLength(2)
+    expect(await screen.findByText('3 perguntas + caixa, e entra em Triagem')).toBeTruthy()
+    expect(screen.getAllByText('Só a caixa, e entra na primeira coluna')).toHaveLength(2)
     expect(screen.getByRole('heading', { name: /Na ordem do formulário/ }).textContent).toContain(
       '(3 de 10)',
     )
@@ -199,7 +199,7 @@ describe('a tela de Tipos de relato', () => {
     abrir('Defeito')
     fireEvent.click(caixaLivre())
     fireEvent.click(botao('Tirar a pergunta 3'))
-    expect(resumo('Defeito').textContent).toContain('2 perguntas · entra em Triagem')
+    expect(resumo('Defeito').textContent).toContain('2 perguntas, e entra em Triagem')
     expect(resumo('Defeito').textContent).toContain('não salvo')
 
     escrever(campo('Nome'), 'Erro')
@@ -551,7 +551,7 @@ describe('a tela de Tipos de relato', () => {
         ),
       )
       await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Nome' })).toBeNull())
-      expect(screen.getByText('3 perguntas · entra em Triagem')).toBeTruthy()
+      expect(screen.getByText('3 perguntas, e entra em Triagem')).toBeTruthy()
     })
 
     it('aparecendo, exige o texto dela', async () => {
@@ -566,7 +566,7 @@ describe('a tela de Tipos de relato', () => {
   })
 
   describe('reordenar', () => {
-    it('a seta grava a ordem e o foco fica nela — ou na outra, quando chega na ponta', async () => {
+    it('a seta grava a ordem e o foco fica nela, ou na outra, quando chega na ponta', async () => {
       dublê.reordenar.mockImplementation(async (_projeto: string, { Order }: { Order: string[] }) =>
         Order.map((publicId) => fabrica().find((item) => item.PublicId === publicId)),
       )

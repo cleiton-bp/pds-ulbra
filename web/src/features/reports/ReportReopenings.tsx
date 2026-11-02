@@ -46,7 +46,7 @@ export function ReportReopenings({
               className="rounded-xl border border-border bg-surface-sunken p-3.5"
             >
               <p className="mb-0.5 text-caption text-fg-muted">
-                Quem relatou reabriu ·{' '}
+                Quem relatou reabriu em{' '}
                 <time dateTime={reabertura.ReopenedAt} className="tabular-nums">
                   {formatDateTime(reabertura.ReopenedAt)}
                 </time>
@@ -55,7 +55,7 @@ export function ReportReopenings({
                   desfecho vai como rótulo, do jeito do resto do painel: dentro de uma
                   frase, "encerrado como Foi feito" não se lê. */}
               <p className="mb-1.5 text-caption text-fg-muted">
-                Encerramento contestado: {publicOutcomeLabel(reabertura.Outcome)} ·{' '}
+                Encerramento contestado: {publicOutcomeLabel(reabertura.Outcome)}, em{' '}
                 <time dateTime={reabertura.ClosedAt} className="tabular-nums">
                   {formatDateTime(reabertura.ClosedAt)}
                 </time>

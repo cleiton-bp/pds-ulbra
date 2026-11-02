@@ -174,8 +174,8 @@ export function MyReports({
            do componente: os dois casos respondem igual de propósito. */
         <p className="text-caption text-fg-muted leading-relaxed">
           {peloCracha
-            ? 'Nenhum relato seu por aqui ainda. Se você relatou há pouco e ele não aparece, recarregue a página e tente de novo — o link de cada relato continua valendo.'
-            : 'Nenhum relato com esse código. Confira se digitou certo — e se você relatou de outro navegador sem guardar o código, o link de cada relato continua valendo.'}
+            ? 'Nenhum relato seu por aqui ainda. Se você relatou há pouco e ele não aparece, recarregue a página e tente de novo, o link de cada relato continua valendo.'
+            : 'Nenhum relato com esse código. Confira se digitou certo, e se você relatou de outro navegador sem guardar o código, o link de cada relato continua valendo.'}
         </p>
       )}
 

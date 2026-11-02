@@ -274,6 +274,7 @@ export function InvitationsSection({
               <TextField
                 id={INVITE_FIELD_ID}
                 ariaLabel="E-mail de quem vai entrar"
+                type="email"
                 value={email}
                 onChange={(value) => {
                   setEmail(value)
@@ -422,7 +423,7 @@ function ValidityHint({
   if (!open) {
     return (
       <p className="text-detail text-fg-muted">
-        Vale por {daysLabel(days)} ·{' '}
+        Vale por {daysLabel(days)},{' '}
         <button
           ref={change}
           type="button"
@@ -517,7 +518,7 @@ function InvitationStatus({
     state === 'queued'
       ? 'o e-mail sai em instantes'
       : state === 'sent'
-        ? `${formatRelative(invitation.EmailSentAt)} · vale até ${formatDate(invitation.ExpiresAt)}`
+        ? `${formatRelative(invitation.EmailSentAt)}, vale até ${formatDate(invitation.ExpiresAt)}`
         : state === 'failed'
           ? 'reenvie para tentar de novo'
           : state === 'expired'
@@ -547,7 +548,7 @@ function InvitationStatus({
           Atualizar
         </button>
       )}
-      <span>{[detail, invitedBy].filter(Boolean).join(' · ')}</span>
+      <span>{[detail, invitedBy].filter(Boolean).join(', ')}</span>
     </div>
   )
 }

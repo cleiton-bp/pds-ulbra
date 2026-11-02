@@ -244,7 +244,7 @@ describe('o formulario', () => {
     })
   })
 
-  it('mostra o protocolo, e o token so dentro do link — nunca como texto', async () => {
+  it('mostra o protocolo, e o token so dentro do link, nunca como texto', async () => {
     dublê.criar.mockResolvedValue({
       TrackingCode: 'ABCD-EFGH-IJKL',
       AccessToken: 'token-secreto-que-nao-pode-vazar',
@@ -596,7 +596,7 @@ describe('o formulario', () => {
 
     const aviso = await screen.findByRole('alert')
     expect(aviso.textContent).toContain(
-      'Sem conexão com o servidor agora. Confira a internet e tente de novo — nada se perdeu.',
+      'Sem conexão com o servidor agora. Confira a internet e tente de novo, porque nada se perdeu.',
     )
     expect(aviso.textContent).not.toMatch(/\b(card|cards|time|coluna|quadro|API)\b/i)
     expect((screen.getByRole('textbox', { name: PRIMEIRA }) as HTMLTextAreaElement).value).toBe(
@@ -1004,7 +1004,7 @@ describe('o código pessoal', () => {
     expect(dublê.criar.mock.calls[0]?.[0].ReporterNameIsPublic).toBe(false)
   })
 
-  it('quando há mais do que coube, avisa — e não diz quantos', async () => {
+  it('quando há mais do que coube, avisa, e não diz quantos', async () => {
     window.localStorage.setItem('pds.reporter-code.pk_DEMO', 'H7QK-3M2X-P9WD')
     dublê.listar.mockResolvedValue({
       Reports: [

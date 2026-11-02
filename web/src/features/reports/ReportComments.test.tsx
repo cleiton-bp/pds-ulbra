@@ -19,7 +19,7 @@ import { useToastStore } from '@/shared/components/toastStore'
  *
  * - **O comentario entre o time se corrige e se apaga, so por quem o escreveu.** Corrigir
  *   e no lugar, com as mencoes de volta a "@Nome"; reenviado, o texto leva as marcas de
- *   quem ficou nele. O corrigido diz "· editado". Apagar pergunta antes.
+ *   quem ficou nele. O corrigido diz "(editado)". Apagar pergunta antes.
  * - **A resposta a quem relatou espera 5 s com "Desfazer"** antes de sair: o "Desfazer"
  *   devolve o texto ao campo — sem apagar o que se comecou a escrever enquanto ele
  *   esperava —, e nada sai; fechar o card no meio envia na hora (quem clicou decidiu
@@ -146,7 +146,7 @@ afterEach(() => {
 })
 
 describe('corrigir e apagar o comentario entre o time', () => {
-  it('so o comentario de quem le tem "Editar" e "Apagar"; o corrigido diz "· editado"', () => {
+  it('so o comentario de quem le tem "Editar" e "Apagar"; o corrigido diz "(editado)"', () => {
     montar({
       Internal: [
         interno(),
@@ -164,11 +164,11 @@ describe('corrigir e apagar o comentario entre o time', () => {
     const meu = comentario('Acho que e o gateway.')
     expect(within(meu).getByRole('button', { name: 'Editar o seu comentário' })).toBeTruthy()
     expect(within(meu).getByRole('button', { name: 'Apagar o seu comentário' })).toBeTruthy()
-    expect(within(meu).queryByText('· editado')).toBeNull()
+    expect(within(meu).queryByText('(editado)')).toBeNull()
 
     const doBruno = comentario('Do Bruno.')
     expect(within(doBruno).queryByRole('button')).toBeNull()
-    expect(within(doBruno).getByText('· editado')).toBeTruthy()
+    expect(within(doBruno).getByText('(editado)')).toBeTruthy()
   })
 
   it('editar traz as mencoes de volta a "@Nome", e salvar manda as marcas de quem ficou', async () => {
@@ -204,7 +204,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
     )
     const corrigido = comentario('@João Ávila')
     expect(corrigido.textContent).toContain('Olha @João Ávila, so ele')
-    expect(within(corrigido).getByText('· editado')).toBeTruthy()
+    expect(within(corrigido).getByText('(editado)')).toBeTruthy()
     expect(revalidate).toHaveBeenCalled()
   })
 
@@ -407,7 +407,7 @@ describe('a resposta a quem relatou espera antes de sair', () => {
 })
 
 describe('Ctrl+Enter envia', () => {
-  it('entre o time sai na hora; para quem relatou passa pela espera — e a dica e lida com o campo', async () => {
+  it('entre o time sai na hora; para quem relatou passa pela espera, e a dica e lida com o campo', async () => {
     montar()
 
     for (const campo of [caixaDeDentro(), caixaDeFora()]) {

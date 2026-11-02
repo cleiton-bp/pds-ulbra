@@ -255,7 +255,7 @@ export function LabelsScreen() {
 
       <HowItWorks className="" bodyClassName="max-w-170">
         <p>
-          O time também cria etiquetas ao etiquetar um card — é o caminho de todo dia. Aqui você
+          O time também cria etiquetas ao etiquetar um card, que é o caminho de todo dia. Aqui você
           prepara as do projeto antes de o time começar, corrige um nome torto ou junta as que
           querem dizer a mesma coisa.
         </p>
@@ -415,7 +415,7 @@ export function LabelsScreen() {
 
               {marcada?.jaExistia && (
                 <p role="status" className="mt-2 text-detail text-fg-muted leading-relaxed">
-                  “{labels.find((label) => label.PublicId === marcada.publicId)?.Name}” já existia —
+                  “{labels.find((label) => label.PublicId === marcada.publicId)?.Name}” já existia,
                   está marcada na lista, com a cor dela. Para trocar a cor, use Editar.
                 </p>
               )}
