@@ -2,7 +2,7 @@
 
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ProductShowcase } from '@/features/auth/ProductShowcase'
+import { INICIO, ProductShowcase, seguir } from '@/features/auth/ProductShowcase'
 
 /**
  * A maquete da entrada e conduzida pelo visitante: cada passo espera o clique dele. Aqui o
@@ -145,6 +145,37 @@ describe('ProductShowcase', () => {
     render(<ProductShowcase />)
     clicar('Pagar com cartão')
     expect(screen.getByText('O botão não respondeu.')).toBeTruthy()
-    expect(screen.getByText(/é para isso que existe o Relatar/)).toBeTruthy()
+    expect(screen.getByText(/Use o Relatar, no canto da página/)).toBeTruthy()
+  })
+
+  it('a etapa de quem relatou nao volta quando o time recua o card, so quando ele reabre', () => {
+    const enviado = seguir(INICIO, { faz: 'enviar' })
+    const noFeito = seguir(seguir(enviado, { faz: 'mover', coluna: 1 }), {
+      faz: 'mover',
+      coluna: 2,
+    })
+    const recuado = seguir(noFeito, { faz: 'mover', coluna: 1 })
+
+    // O card voltou para Fazendo, mas a pagina de quem espera continua em Concluido.
+    expect(recuado.coluna).toBe(1)
+    expect(recuado.etapaPublica).toBe(2)
+
+    // Quem relatou diz que nao resolveu: ai a jornada dele volta ao comeco.
+    const reaberto = seguir(seguir(noFeito, { faz: 'responder', resolveu: false }), {
+      faz: 'reabrir',
+    })
+    expect(reaberto.coluna).toBe(0)
+    expect(reaberto.etapaPublica).toBe(0)
+  })
+
+  it('a resposta e uma caixa de varias linhas, com o limite do quadro de verdade', () => {
+    render(<ProductShowcase />)
+    clicar('Relatar')
+    const resposta = screen.getByLabelText('O que você tentou fazer?')
+
+    expect(resposta.tagName).toBe('TEXTAREA')
+    expect(resposta.getAttribute('maxlength')).toBe('1000')
+    fireEvent.change(resposta, { target: { value: 'No checkout.\nDepois de escolher o cartão.' } })
+    expect((resposta as HTMLTextAreaElement).value).toContain('\n')
   })
 })
