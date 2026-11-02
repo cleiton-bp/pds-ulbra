@@ -87,7 +87,7 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   HiddenPaths: [],
   LauncherLabel: 'Relatar',
   Title: 'Conte o que aconteceu',
-  SuccessMessage: 'Recebemos. Anote o protocolo — é com ele que você acompanha.',
+  SuccessMessage: 'Recebemos o seu relato, e você acompanha o andamento pelo link abaixo.',
   SubmitLabel: 'Enviar',
   ReportTitleQuestion: 'Em poucas palavras, o que aconteceu?',
   ReportTitlePlaceholder: 'O botão de pagar não responde',
@@ -128,4 +128,5 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   // **Tambem de `IdentitySettingsDefaults.cs`.** So vale no modo que herda a
   // identidade; com a API fora do ar, nao se recusa relato de ninguem.
   IdentityRequired: false,
+  Published: false,
 }

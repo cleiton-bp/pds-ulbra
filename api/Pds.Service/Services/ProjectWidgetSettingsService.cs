@@ -293,7 +293,9 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
             identity?.AsksForName ?? IdentitySettingsDefaults.AsksForName,
             // So vale no modo herdado; fora dele a ferramenta nem le.
             (identity?.Mode ?? IdentitySettingsDefaults.Mode) == ReporterIdentityModeEnum.InheritedIdentity
-                && (identity?.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired));
+                && (identity?.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired),
+            // O registro so existe depois do primeiro Publicar.
+            settings is not null);
     }
 
     /// <summary>
