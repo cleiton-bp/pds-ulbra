@@ -1,7 +1,8 @@
 /**
- * Mesmo desenho de `public/favicon.svg` — marca que muda de forma entre a aba e o
- * cabecalho parece dois produtos. `currentColor` faz o traco inverter no tema
- * escuro sem regra propria.
+ * Mesmo desenho de `public/marca.svg`, o icone da aba: marca que muda de forma entre a
+ * aba e o cabecalho parece dois produtos, e o teste do design system confere que os
+ * caminhos dos dois sao os mesmos. `currentColor` faz o traco inverter no tema escuro
+ * sem regra propria.
  */
 export function Logo({ className }: { className?: string }) {
   return (
