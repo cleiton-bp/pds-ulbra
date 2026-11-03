@@ -35,6 +35,8 @@ import { useScrollToHash } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure, groupByAccount } from '@/shared/lib/projectAccess'
 import { rememberProjectOpened } from '@/shared/lib/recentProjects'
+import { GuideButton } from '@/shared/tour/GuideButton'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /**
  * Nao e um booleano `notFound`: "nao encontrado" e "nao deu para saber" pedem
@@ -253,6 +255,7 @@ export function ProjectShell() {
             type="button"
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menu do projeto"
+            {...guideTarget('menu')}
             aria-expanded={drawerOpen}
             aria-controls="menu-do-projeto"
             className="flex size-8 flex-none items-center justify-center rounded-lg border border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg lg:hidden"
@@ -376,9 +379,14 @@ export function ProjectShell() {
       </div>
 
       <div className="flex flex-none items-center gap-2">
+        <GuideButton />
         <ThemeButton />
-        <NotificationBell />
-        <AccountMenu />
+        <span {...guideTarget('avisos')} className="flex">
+          <NotificationBell />
+        </span>
+        <span {...guideTarget('conta')} className="flex">
+          <AccountMenu />
+        </span>
         {/* O perfil abre por cima, sem trocar o endereco: menu da conta e sino. */}
         <ProfileDialog />
       </div>
@@ -448,6 +456,7 @@ export function ProjectShell() {
           ref={nav}
           id="menu-do-projeto"
           aria-label="Seções do projeto"
+          {...guideTarget('menu')}
           className={cn(
             // A lateral nao rola inteira: so a lista rola, e o recolher fica preso no pe.
             'flex flex-none flex-col overflow-hidden border-border border-r bg-surface',

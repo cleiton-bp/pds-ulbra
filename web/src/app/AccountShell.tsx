@@ -5,6 +5,8 @@ import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import { Brand } from '@/shared/components/Brand'
 import { ThemeButton } from '@/shared/components/ThemeButton'
+import { GuideButton } from '@/shared/tour/GuideButton'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /** O titulo da aba de cada tela de fora do projeto. */
 const TITULOS: Record<string, string> = {
@@ -37,9 +39,14 @@ export function AccountShell() {
           <Brand />
         </Link>
         <div className="flex items-center gap-2">
+          <GuideButton />
           <ThemeButton />
-          <NotificationBell />
-          <AccountMenu />
+          <span {...guideTarget('avisos')} className="flex">
+            <NotificationBell />
+          </span>
+          <span {...guideTarget('conta')} className="flex">
+            <AccountMenu />
+          </span>
           <ProfileDialog />
         </div>
       </header>
