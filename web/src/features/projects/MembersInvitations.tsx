@@ -18,6 +18,7 @@ import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { cn } from '@/shared/lib/cn'
 import { formatDate, formatRelative } from '@/shared/lib/datetime'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /** O campo do e-mail: o "Convidar alguém" da aba Time leva o foco ate ele. */
 export const INVITE_FIELD_ID = 'email-do-convite'
@@ -247,7 +248,7 @@ export function InvitationsSection({
   }
 
   return (
-    <section aria-labelledby="convidar">
+    <section aria-labelledby="convidar" {...guideTarget('convidar')}>
       <h2 id="convidar" className="mb-1 font-semibold text-lead">
         Convidar alguém
       </h2>

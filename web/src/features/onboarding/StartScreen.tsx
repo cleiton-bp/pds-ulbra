@@ -31,6 +31,7 @@ import {
   testReportSent,
 } from '@/shared/lib/installSignals'
 import { buildOwnTriggerSnippet, buildSnippet, OWN_TRIGGER_EXAMPLES } from '@/shared/lib/loader'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * Substitui a visao geral com graficos que um console costuma ter na entrada:
@@ -180,6 +181,41 @@ export function StartScreen() {
   useAvisoDoTeste(project.PublicId, testOpen, avisarChegada)
   const funcionando = done !== null && aberto === null
 
+  // O guia desta tela: os tres passos e a saida para a chave secreta. A previa so entra
+  // com o passo do script aberto, que e onde ela mora.
+  useScreenGuide('instalacao', [
+    {
+      alvo: 'passo-script',
+      titulo: 'Colar o script',
+      texto: 'Copie o script para o seu sistema, ou mande a quem cuida dele.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como vai ficar',
+      texto: 'Uma prévia do botão como ele aparece no seu sistema.',
+    },
+    {
+      alvo: 'passo-autorizar-endereco',
+      titulo: 'Autorizar o endereço',
+      texto: 'Diga de quais endereços os relatos podem chegar, e o resto fica de fora.',
+    },
+    {
+      alvo: 'passo-relato-de-teste',
+      titulo: 'Relato de teste',
+      texto: 'Mande um relato pela página de teste e veja ele chegar ao Trabalho.',
+    },
+    {
+      alvo: 'chave-secreta',
+      titulo: 'Integrar pela API',
+      texto: 'Para integrar sem o botão, a chave secreta fica na tela Chaves.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
+
   return (
     <div className="max-w-170">
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -261,7 +297,9 @@ export function StartScreen() {
                 <ForWhoCodes publicKey={publicKey} />
               </div>
 
-              <WidgetPreview projectId={project.PublicId} />
+              <div {...guideTarget('previa')}>
+                <WidgetPreview projectId={project.PublicId} />
+              </div>
             </div>
           </Step>
 
@@ -339,6 +377,7 @@ export function StartScreen() {
               so a saida, dizendo para onde leva. */}
           <p
             id="chave-secreta"
+            {...guideTarget('chave-secreta')}
             className="mt-2 flex scroll-mt-6 flex-wrap items-center gap-x-3 gap-y-1 text-detail text-fg-muted"
           >
             <span>
@@ -489,6 +528,7 @@ function Step({
     <section
       aria-labelledby={`${id}-titulo`}
       className="rounded-xl border border-border bg-surface-raised"
+      {...guideTarget(`passo-${id}`)}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-4">
         <h2 className="flex min-w-0 flex-[1_1_16rem]">

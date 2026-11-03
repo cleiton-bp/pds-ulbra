@@ -24,6 +24,7 @@ import type { ScrollToHashState } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
 import { scriptInstalled } from '@/shared/lib/installSignals'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /** A escolha de ver todos os passos ou so o proximo, por projeto. Conveniencia de quem olha. */
 const PASSOS_VISTOS = 'pds.web.primeirosPassos.'
@@ -50,6 +51,59 @@ export function ConfigureScreen() {
     useCallback(() => loadConfigureOverview(project.PublicId), [project.PublicId]),
   )
 
+  // O guia desta tela, que tambem e a entrada do projeto para quem administra: a casca
+  // (trocar de projeto, o menu) e o que a tela tem. Espera o resumo, que decide se ha
+  // proximo passo; o cartao dele so entra quando aparece.
+  const proximo = overview
+    ? computeFirstSteps(project, overview).some((passo) => passo.done !== true)
+    : false
+  useScreenGuide(
+    'configurar',
+    overview
+      ? [
+          {
+            alvo: 'projeto',
+            titulo: 'Trocar de projeto',
+            texto: 'Mude de projeto por aqui, sem precisar voltar para a lista.',
+          },
+          {
+            alvo: 'menu',
+            titulo: 'O menu',
+            texto: 'Trabalho, Membros e Moderação ficam aqui, e a configuração logo abaixo.',
+          },
+          {
+            alvo: 'busca-de-opcoes',
+            titulo: 'Achar uma opção',
+            texto: 'Escreva o que procura, como prazo ou cor, e vá direto até ela.',
+          },
+          {
+            alvo: 'primeiros-passos',
+            titulo: 'Primeiros passos',
+            texto: 'Os passos que deixam o projeto pronto, e cada um se marca sozinho.',
+          },
+          ...(proximo
+            ? [
+                {
+                  alvo: 'proximo-passo',
+                  titulo: 'Próximo passo',
+                  texto: 'Este cartão diz o que falta agora e leva direto até lá.',
+                },
+              ]
+            : []),
+          {
+            alvo: 'ajustes',
+            titulo: 'Cada ajuste',
+            texto: 'Todas as opções do projeto, agrupadas pelo que cada uma muda.',
+          },
+          {
+            alvo: 'guia',
+            titulo: 'Sempre à mão',
+            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+          },
+        ]
+      : null,
+  )
+
   return (
     <div className="max-w-200">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Configurar o projeto</h1>
@@ -57,7 +111,7 @@ export function ConfigureScreen() {
         Tudo o que você ajusta neste projeto, num lugar só.
       </p>
 
-      <div className="mb-6">
+      <div className="mb-6" {...guideTarget('busca-de-opcoes')}>
         <SettingsSearch projectPublicId={project.PublicId} />
       </div>
 
@@ -70,7 +124,7 @@ export function ConfigureScreen() {
       <h2 className="mb-3 font-semibold text-lead">Tudo o que dá para ajustar</h2>
       {/* Duas colunas so quando cabem: a largura que conta e a da area de trabalho, que
           encolhe com o menu aberto, e nao a da janela. */}
-      <div className="@container">
+      <div className="@container" {...guideTarget('ajustes')}>
         <div className="grid @min-[36rem]:grid-cols-2 gap-3">
           {CONFIG_AREAS.map((area) => (
             <section
@@ -217,6 +271,7 @@ function FirstSteps({
     <section
       aria-labelledby="primeiros-passos"
       className="mb-10 rounded-xl border border-border bg-surface-raised p-5"
+      {...guideTarget('primeiros-passos')}
     >
       <header className="flex items-baseline justify-between gap-3">
         <h2 id="primeiros-passos" className="font-semibold text-lead">
@@ -297,7 +352,10 @@ function NextStep({
   children?: ReactNode
 }) {
   return (
-    <div className="mt-4 rounded-lg border border-border bg-surface p-4">
+    <div
+      className="mt-4 rounded-lg border border-border bg-surface p-4"
+      {...guideTarget('proximo-passo')}
+    >
       <p className="font-medium text-caption text-fg-muted">Próximo passo</p>
       <h3 className="mt-0.5 font-medium text-body text-fg">{step.title}</h3>
       <p className="mt-0.5 text-detail text-fg-muted leading-relaxed">

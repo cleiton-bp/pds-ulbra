@@ -8,6 +8,7 @@ import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { formatDate } from '@/shared/lib/datetime'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * A pagina que o link do e-mail abre: `/invite#t=...`.
@@ -26,9 +27,36 @@ export function InviteScreen() {
   const token =
     new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash).get('t')?.trim() ?? ''
 
+  // O guia desta tela: o aceitar so entra com o convite valido, que e quando ele aparece.
+  useScreenGuide('convite', [
+    {
+      alvo: 'convite',
+      titulo: 'O convite',
+      texto: 'De qual projeto é o convite, quem chamou você e até quando ele vale.',
+    },
+    {
+      alvo: 'aceitar',
+      titulo: 'Aceitar',
+      texto: 'Aceite para entrar no projeto, com o papel que o convite diz.',
+    },
+    {
+      alvo: 'conta',
+      titulo: 'Sua conta',
+      texto: 'Se o convite foi para outro e-mail, saia e entre com a conta certa.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
+
   return (
     <div className="px-5 py-10 lg:pt-16">
-      <div className="mx-auto w-full max-w-120 rounded-xl border border-border bg-surface-raised p-6">
+      <div
+        className="mx-auto w-full max-w-120 rounded-xl border border-border bg-surface-raised p-6"
+        {...guideTarget('convite')}
+      >
         {token ? (
           <Invitation token={token} />
         ) : (
@@ -156,7 +184,12 @@ function ByStatus({
             para trabalhar neste projeto como {papel}. O convite vale até{' '}
             {formatDate(preview.ExpiresAt)}.
           </p>
-          <Button variant="primary" disabled={accepting} onClick={onAccept}>
+          <Button
+            variant="primary"
+            disabled={accepting}
+            onClick={onAccept}
+            {...guideTarget('aceitar')}
+          >
             {accepting ? 'Entrando…' : 'Aceitar o convite'}
           </Button>
         </>

@@ -11,6 +11,7 @@ import { HowItWorks } from '@/shared/components/HowItWorks'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * O time do projeto.
@@ -32,6 +33,36 @@ export function MembersScreen() {
   const project = useCurrentProject()
   const admin = canConfigure(project)
   const team = useTeam(project.PublicId)
+
+  useScreenGuide('membros', [
+    {
+      alvo: 'papeis',
+      titulo: 'Os papéis',
+      texto: 'Administrador configura e convida, e Membro trabalha nos cards e na moderação.',
+    },
+    {
+      alvo: 'abas-membros',
+      titulo: 'Time e convites',
+      texto: 'Veja quem já está no projeto e os convites que ainda esperam resposta.',
+    },
+    {
+      alvo: 'time',
+      titulo: 'O time',
+      texto: admin
+        ? 'Mude o papel de alguém ou tire a pessoa do projeto.'
+        : 'Quem trabalha com você neste projeto.',
+    },
+    {
+      alvo: 'convidar',
+      titulo: 'Convidar',
+      texto: 'Mande um convite por e-mail, e a pessoa entra com a conta Google dela.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
 
   return (
     <div className="max-w-170">
@@ -56,7 +87,7 @@ export function MembersScreen() {
 function RolesHint() {
   return (
     <>
-      <p className="mb-2 text-detail text-fg-muted leading-relaxed">
+      <p className="mb-2 text-detail text-fg-muted leading-relaxed" {...guideTarget('papeis')}>
         Administrador configura, convida e muda papéis, e Membro trabalha nos cards e decide o que
         vai a público.
       </p>
@@ -223,7 +254,12 @@ function Tabs({
 
   return (
     <div className="mb-6 flex items-center justify-between gap-4 border-border border-b">
-      <div role="tablist" aria-label="Membros" className="flex gap-5">
+      <div
+        role="tablist"
+        {...guideTarget('abas-membros')}
+        aria-label="Membros"
+        className="flex gap-5"
+      >
         {items.map((item) => (
           <button
             key={item.key}

@@ -43,6 +43,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * Quem le antes do resto do mundo — uma caixa de entrada: a lista compacta para achar,
@@ -115,6 +116,52 @@ export function ModerationScreen() {
 
   // Abas, filtros, lista e detalhe: e so aqui que as teclas de uma letra agem.
   const regiaoDaFila = useRef<HTMLDivElement>(null)
+
+  // O guia desta tela. Espera a privacidade: e ela que decide o que liberar faz.
+  useScreenGuide(
+    'moderacao',
+    lendoPrivacidade
+      ? null
+      : [
+          {
+            alvo: 'mod-estado',
+            titulo: 'Público ou privado',
+            texto: privado
+              ? 'Neste projeto privado, nada daqui vai a público por enquanto.'
+              : 'Esta frase diz quem decide o que aparece na lista pública.',
+          },
+          {
+            alvo: 'mod-abas',
+            titulo: 'As três abas',
+            texto: 'Esperando é a fila, e Liberados e Não publicáveis guardam o histórico.',
+          },
+          {
+            alvo: 'mod-filtros',
+            titulo: 'Achar um relato',
+            texto: 'Busque e filtre por tipo, data, origem ou dado sensível.',
+          },
+          {
+            alvo: 'mod-lista',
+            titulo: 'A lista',
+            texto: 'Clique num relato para ler, ou marque vários para decidir de uma vez.',
+          },
+          {
+            alvo: 'mod-detalhe',
+            titulo: 'Ler e decidir',
+            texto: 'Leia o relato inteiro e veja como ele apareceria na lista pública.',
+          },
+          {
+            alvo: 'mod-atalhos',
+            titulo: 'Atalhos',
+            texto: 'J e K andam pela lista, L libera e N marca como não publicável.',
+          },
+          {
+            alvo: 'guia',
+            titulo: 'Sempre à mão',
+            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+          },
+        ],
+  )
 
   // As opcoes dos filtros. Falhando, o filtro some: a fila continua lendo sem ele.
   const { data: tipos } = useAsyncResource(
@@ -565,7 +612,9 @@ export function ModerationScreen() {
   return (
     <div className="max-w-280">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Moderação</h1>
-      <FraseDeEstado project={project} visibilidade={visibilidade} lendo={lendoPrivacidade} />
+      <div {...guideTarget('mod-estado')}>
+        <FraseDeEstado project={project} visibilidade={visibilidade} lendo={lendoPrivacidade} />
+      </div>
 
       <HowItWorks>
         <p>
@@ -593,7 +642,15 @@ export function ModerationScreen() {
       {/* As abas entram na regiao das teclas: depois de clicar numa, J e K continuam
           andando pela lista. */}
       <div ref={regiaoDaFila}>
-        <Abas idBase={idBase} aba={aba} contagem={contagem} calmo={calmo} aoEscolher={trocarAba} />
+        <div {...guideTarget('mod-abas')}>
+          <Abas
+            idBase={idBase}
+            aba={aba}
+            contagem={contagem}
+            calmo={calmo}
+            aoEscolher={trocarAba}
+          />
+        </div>
 
         {/* A chave troca com a aba: o painel novo entra esmaecendo. */}
         <div
@@ -603,7 +660,7 @@ export function ModerationScreen() {
           aria-labelledby={`${idBase}-aba-${aba}`}
           className="flex animate-panel-in flex-col gap-3"
         >
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" {...guideTarget('mod-filtros')}>
             <label className="relative min-w-0 flex-[1_1_16rem]">
               <span className="sr-only">Buscar</span>
               <input
@@ -665,7 +722,9 @@ export function ModerationScreen() {
               </Button>
             )}
             <div className="ml-auto">
-              <ShortcutsButton size="sm" onClick={() => setAtalhos(true)} />
+              <span className="flex" {...guideTarget('mod-atalhos')}>
+                <ShortcutsButton size="sm" onClick={() => setAtalhos(true)} />
+              </span>
             </div>
           </div>
 
@@ -723,6 +782,7 @@ export function ModerationScreen() {
             <div className="grid items-start gap-4 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
               <section
                 aria-label="Relatos"
+                {...guideTarget('mod-lista')}
                 aria-busy={carregando || undefined}
                 className="overflow-hidden rounded-xl border border-border bg-surface-raised md:max-h-[75vh] md:overflow-y-auto"
               >
@@ -777,6 +837,7 @@ export function ModerationScreen() {
                 key={atual?.PublicId ?? 'nenhum'}
                 id={`${idBase}-detalhe`}
                 aria-label="Relato escolhido"
+                {...guideTarget('mod-detalhe')}
                 className="animate-panel-in rounded-xl border border-border bg-surface-raised p-4 md:sticky md:top-4"
               >
                 {atual ? (
