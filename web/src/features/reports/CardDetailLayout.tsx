@@ -4,6 +4,7 @@ import { CardTypeIcon } from '@/features/reports/cardLook'
 import { reportTypeName } from '@/shared/components/ReportTypeGlyph'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { isTestOrigin } from '@/shared/lib/installSignals'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /**
  * A largura e a altura do card aberto: largo no computador, a tela quase inteira no
@@ -58,11 +59,22 @@ export function CardDetailLayout({
     return (
       <div className="-mx-6 -mb-6 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_21rem] grid-rows-[minmax(0,1fr)] border-border border-t">
         <div className="flex min-h-0 min-w-0 flex-col gap-5 overflow-y-auto py-5 pr-8 pl-6">
-          {cabeca}
-          {depois}
-          {atividade}
+          <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-cabeca')}>
+            {cabeca}
+          </div>
+          {depois && (
+            <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-depois')}>
+              {depois}
+            </div>
+          )}
+          <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-atividade')}>
+            {atividade}
+          </div>
         </div>
-        <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-border border-l px-6 py-5">
+        <div
+          className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-border border-l px-6 py-5"
+          {...guideTarget('card-lado')}
+        >
           {lado}
         </div>
       </div>
@@ -71,10 +83,20 @@ export function CardDetailLayout({
   return (
     <div className="-mx-6 -mb-6 min-h-0 flex-1 overflow-y-auto border-border border-t px-6 pt-5 pb-6">
       <div className="flex flex-col gap-6">
-        <div className="flex min-w-0 flex-col gap-5">{cabeca}</div>
-        <div className="flex min-w-0 flex-col gap-4">{lado}</div>
-        {depois && <div className="flex min-w-0 flex-col gap-5">{depois}</div>}
-        <div className="flex min-w-0 flex-col gap-5">{atividade}</div>
+        <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-cabeca')}>
+          {cabeca}
+        </div>
+        <div className="flex min-w-0 flex-col gap-4" {...guideTarget('card-lado')}>
+          {lado}
+        </div>
+        {depois && (
+          <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-depois')}>
+            {depois}
+          </div>
+        )}
+        <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-atividade')}>
+          {atividade}
+        </div>
       </div>
     </div>
   )
