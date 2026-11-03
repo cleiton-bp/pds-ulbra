@@ -110,6 +110,15 @@ export function ProjectsHubScreen() {
   const navigate = useNavigate()
   const leftProject = (location.state as { leftProject?: string } | null)?.leftProject
 
+  // O "Criar projeto" do seletor da barra de cima chega aqui e ja abre o dialogo. O pedido
+  // sai do historico logo depois: voltar ou recarregar nao abre de novo.
+  const pediuCriar = (location.state as { criarProjeto?: boolean } | null)?.criarProjeto === true
+  useEffect(() => {
+    if (!pediuCriar) return
+    setCreating(true)
+    navigate('.', { replace: true, state: null })
+  }, [pediuCriar, navigate])
+
   useEffect(() => {
     void load()
   }, [load])
