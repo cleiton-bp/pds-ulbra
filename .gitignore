@@ -9,3 +9,6 @@ web/docs/
 deploy/.env
 deploy/.env.*
 deploy/saida/
+
+# O cache do wrangler ao publicar o quadro, com a conta da Cloudflare
+.wrangler/
