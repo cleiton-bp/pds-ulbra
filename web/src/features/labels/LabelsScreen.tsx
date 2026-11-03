@@ -25,6 +25,7 @@ import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /** O `PublicId` de mentira da etiqueta que se esta escrevendo no campo de criar. */
 const NOVA = 'nova'
@@ -61,6 +62,29 @@ interface Rascunho {
  * apagar. O historico de cada card continua contando com o nome que ela tinha.
  */
 export function LabelsScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('etiquetas', [
+    {
+      alvo: 'como-funciona',
+      titulo: 'Como funciona',
+      texto: 'A explicação completa fica aqui, recolhida até você precisar.',
+    },
+    {
+      alvo: 'opcoes',
+      titulo: 'As etiquetas',
+      texto: 'Crie etiquetas para agrupar cards, como pagamento ou celular.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Num card',
+      texto: 'Um card de exemplo com as etiquetas, como aparece no Trabalho.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const base = useId()
   const idEditar = (publicId: string) => `${base}-editar-${publicId}`

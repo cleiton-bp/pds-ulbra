@@ -341,20 +341,18 @@ describe('o seletor de projeto', () => {
   const lojaMobile = projeto('Member', false, { PublicId: 'p-2', Name: 'Loja Mobile' })
 
   async function abrirSeletor() {
-    // O Radix abre no `pointerdown`, e nao no clique.
-    fireEvent.pointerDown(await screen.findByTitle('Loja Online'), {
-      button: 0,
-      ctrlKey: false,
-      pointerType: 'mouse',
-    })
+    fireEvent.click(await screen.findByTitle('Loja Online'))
   }
+
+  /** A opcao pelo nome do projeto: o nome acessivel leva junto a linha do movimento. */
+  const opcao = (nome: string) => screen.findByRole('option', { name: new RegExp(`^${nome}`) })
 
   async function trocarPara(nome: string) {
     await abrirSeletor()
-    fireEvent.click(await screen.findByRole('menuitem', { name: nome }))
+    fireEvent.click(await opcao(nome))
   }
 
-  it('marca o projeto aberto, e abre com o foco nele', async () => {
+  it('marca o projeto aberto, e abre com o foco na busca', async () => {
     abrir('/projects/p-1/reports', [lojaMobile, loja])
     await screen.findByText('tela de relatos')
     await waitFor(() => expect(dublê.listar).toHaveBeenCalled())
@@ -362,13 +360,27 @@ describe('o seletor de projeto', () => {
     await abrirSeletor()
 
     // O visto e desenho; para o leitor de tela, o "(aberto)".
-    // (O jsdom calcula o nome sem o espaco do comeco do texto escondido.)
-    const atual = await screen.findByRole('menuitem', { name: /^Loja Online\s*\(aberto\)$/ })
-    expect(atual.querySelector('[data-projeto-atual] svg')).toBeTruthy()
-    const outro = screen.getByRole('menuitem', { name: 'Loja Mobile' })
-    expect(outro.querySelector('[data-projeto-atual]')).toBeNull()
-    // Com varios de nome parecido, e do atual que se procura o vizinho.
-    await waitFor(() => expect(document.activeElement).toBe(atual))
+    const atual = await opcao('Loja Online')
+    expect(atual.getAttribute('aria-current')).toBe('true')
+    expect(atual.textContent).toContain('(aberto)')
+    expect((await opcao('Loja Mobile')).getAttribute('aria-current')).toBeNull()
+    // Escrever e escolher sao o mesmo gesto: o foco nasce na busca.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Buscar projeto' })),
+    )
+  })
+
+  it('a busca acha sem acento, e o Enter abre o primeiro que sobrou', async () => {
+    const { router } = abrir('/projects/p-1/members', [loja, lojaMobile])
+    await screen.findByText('outra tela')
+    await abrirSeletor()
+
+    const busca = await screen.findByRole('combobox', { name: 'Buscar projeto' })
+    fireEvent.change(busca, { target: { value: 'MOBILE' } })
+    expect(screen.queryByRole('option', { name: /^Loja Online/ })).toBeNull()
+    fireEvent.keyDown(busca, { key: 'Enter' })
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-2/members'))
   })
 
   it('trocar mantém a tela: de Membros para Membros do outro projeto', async () => {

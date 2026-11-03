@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Outlet, useLocation, useParams } from 'react-router-dom'
 import { AccountMenu } from '@/app/AccountMenu'
 import type { ConfigAreaKey, ConsoleSection } from '@/app/navigation'
 import {
@@ -11,6 +11,7 @@ import {
   sectionByPath,
   WORK_SECTIONS,
 } from '@/app/navigation'
+import { ProjectSwitcher } from '@/app/ProjectSwitcher'
 import { SectionIcon } from '@/app/SectionIcon'
 import type { ProjectViewModel } from '@/contracts'
 import { isPanelError } from '@/data'
@@ -20,21 +21,16 @@ import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import { useProjectsStore } from '@/features/projects/projectsStore'
 import { Brand } from '@/shared/components/Brand'
 import { Button } from '@/shared/components/Button'
-import {
-  DropdownGroup,
-  DropdownItem,
-  DropdownMenu,
-  DropdownSection,
-  DropdownSeparator,
-} from '@/shared/components/DropdownMenu'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { ThemeButton } from '@/shared/components/ThemeButton'
 import { Tooltip } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { useScrollToHash } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
-import { canConfigure, groupByAccount } from '@/shared/lib/projectAccess'
+import { canConfigure } from '@/shared/lib/projectAccess'
 import { rememberProjectOpened } from '@/shared/lib/recentProjects'
+import { GuideButton } from '@/shared/tour/GuideButton'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /**
  * Nao e um booleano `notFound`: "nao encontrado" e "nao deu para saber" pedem
@@ -57,7 +53,6 @@ const LATERAL_RECOLHIDA = 'pds.web.lateral.recolhida'
  */
 export function ProjectShell() {
   const { publicId = '' } = useParams()
-  const navigate = useNavigate()
   const location = useLocation()
 
   const projects = useProjectsStore((state) => state.projects)
@@ -93,7 +88,6 @@ export function ProjectShell() {
   useScrollToHash()
 
   const project = projects.find((item) => item.PublicId === publicId)
-  const accountGroups = groupByAccount(projects)
 
   // O "Abertos recentemente" do hub: so o projeto que a pessoa enxerga entra, e so
   // quando ele chega — o endereco digitado errado nao vira um recente.
@@ -253,6 +247,7 @@ export function ProjectShell() {
             type="button"
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menu do projeto"
+            {...guideTarget('menu')}
             aria-expanded={drawerOpen}
             aria-controls="menu-do-projeto"
             className="flex size-8 flex-none items-center justify-center rounded-lg border border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg lg:hidden"
@@ -277,108 +272,28 @@ export function ProjectShell() {
         <div className="hidden h-5 w-px flex-none bg-border lg:block" />
 
         {project ? (
-          <DropdownMenu
-            align="start"
-            width="w-68"
-            // Abre com o foco no projeto atual, e nao no primeiro da lista: com
-            // varios de nome parecido, e dali que se procura o vizinho.
-            onOpenChange={(aberto) => {
-              if (aberto) requestAnimationFrame(focarProjetoAtual)
-            }}
-            trigger={
-              <button
-                type="button"
-                title={project.Name}
-                className="flex h-8 min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised px-2.5 font-medium text-fg text-body transition-colors hover:bg-surface-sunken"
-              >
-                {/* No celular, duas linhas pequenas no lugar de uma cortada: os
-                    projetos "Loja — ..." se diferenciam justamente no fim do nome. */}
-                <span className="min-w-0 text-left max-sm:line-clamp-2 max-sm:text-caption max-sm:leading-tight sm:max-w-40 sm:truncate">
-                  {project.Name}
-                </span>
-                <span className="flex-none text-caption text-fg-muted">▾</span>
-              </button>
-            }
-          >
-            <DropdownGroup>
-              {/* O nome da conta so aparece quando ha mais de uma: com uma so,
-                  seria um rotulo repetindo o que a pessoa ja sabe. */}
-              {accountGroups.map((group) => {
-                const items = group.projects.map((item) => {
-                  const atual = item.PublicId === project.PublicId
-                  return (
-                    <DropdownItem key={item.PublicId} onSelect={() => navigate(destino(item))}>
-                      {/* O visto marca o aberto. O ponto verde de "ativo" saiu: lia
-                          como "online", e o arquivado ja diz que e arquivado. */}
-                      <span
-                        data-projeto-atual={atual ? '' : undefined}
-                        className="flex size-3.5 flex-none items-center justify-center text-fg"
-                        aria-hidden
-                      >
-                        {atual && <Visto />}
-                      </span>
-                      <span
-                        className={cn(
-                          'min-w-0 flex-1 truncate',
-                          item.Status === 'Archived' && 'text-fg-muted',
-                          atual && 'font-medium',
-                        )}
-                      >
-                        {item.Name}
-                        {atual && <span className="sr-only"> (aberto)</span>}
-                      </span>
-                      {item.Status === 'Archived' && (
-                        <span className="text-detail text-fg-muted">arquivado</span>
-                      )}
-                    </DropdownItem>
-                  )
-                })
-
-                return accountGroups.length > 1 ? (
-                  <DropdownSection
-                    key={group.account.PublicId}
-                    label={group.own ? 'Seus projetos' : group.account.Name}
-                  >
-                    {items}
-                  </DropdownSection>
-                ) : (
-                  <div key={group.account.PublicId}>{items}</div>
-                )
-              })}
-
-              {listStatus === 'loading' && (
-                <div className="px-2.5 py-2 text-caption text-fg-muted">
-                  Carregando os outros projetos…
-                </div>
-              )}
-
-              {/* O projeto aberto continua na lista porque veio de outra chamada:
-                  dizer isso evita a leitura de que os demais sumiram. */}
-              {listStatus === 'error' && (
-                <DropdownItem quiet onSelect={() => void load()}>
-                  <span className="min-w-0 flex-1">Não deu para carregar os outros projetos</span>
-                  <span className="flex-none text-fg underline">tentar de novo</span>
-                </DropdownItem>
-              )}
-            </DropdownGroup>
-
-            <DropdownSeparator />
-
-            <DropdownGroup>
-              <DropdownItem quiet onSelect={() => navigate('/projects')}>
-                Voltar aos projetos
-              </DropdownItem>
-            </DropdownGroup>
-          </DropdownMenu>
+          <ProjectSwitcher
+            project={project}
+            projects={projects}
+            status={listStatus}
+            userId={userId}
+            destino={destino}
+            aoTentarDeNovo={() => void load()}
+          />
         ) : (
           !failure && <Skeleton className="h-8 w-40 min-w-0" />
         )}
       </div>
 
       <div className="flex flex-none items-center gap-2">
+        <GuideButton />
         <ThemeButton />
-        <NotificationBell />
-        <AccountMenu />
+        <span {...guideTarget('avisos')} className="flex">
+          <NotificationBell />
+        </span>
+        <span {...guideTarget('conta')} className="flex">
+          <AccountMenu />
+        </span>
         {/* O perfil abre por cima, sem trocar o endereco: menu da conta e sino. */}
         <ProfileDialog />
       </div>
@@ -448,6 +363,7 @@ export function ProjectShell() {
           ref={nav}
           id="menu-do-projeto"
           aria-label="Seções do projeto"
+          {...guideTarget('menu')}
           className={cn(
             // A lateral nao rola inteira: so a lista rola, e o recolher fica preso no pe.
             'flex flex-none flex-col overflow-hidden border-border border-r bg-surface',
@@ -576,9 +492,13 @@ function ConfigNav({
   const naConfiguracao = isConfigPath(segment)
   const [open, setOpen] = useState(naConfiguracao)
 
-  // **So a area da tela aberta fica aberta.** As cinco areas abertas de uma vez eram
+  // **Ao entrar, so a area da tela aberta abre.** As cinco areas abertas de uma vez eram
   // vinte e poucas linhas, passavam da altura da tela e escondiam onde a pessoa estava.
   // Na Visao geral nenhuma abre: a propria pagina ja lista todas as telas, com resumo.
+  //
+  // **Depois, quem abre e quem fecha e a pessoa.** Trocar de tela abre a area da tela
+  // nova e deixa as outras como estavam: fechar sozinho o grupo que alguem acabou de
+  // abrir, a cada clique num item, desfazia a escolha dela.
   const areaDaTela = areaAtual(segment)
   const [abertas, setAbertas] = useState<ReadonlySet<ConfigAreaKey>>(() => conjunto(areaDaTela))
 
@@ -586,7 +506,8 @@ function ConfigNav({
   if (segmentoVisto !== segment) {
     setSegmentoVisto(segment)
     if (naConfiguracao) setOpen(true)
-    setAbertas(conjunto(areaDaTela))
+    if (areaDaTela !== null)
+      setAbertas((atuais) => (atuais.has(areaDaTela) ? atuais : new Set([...atuais, areaDaTela])))
   }
 
   function alternarArea(area: ConfigAreaKey) {
@@ -606,7 +527,7 @@ function ConfigNav({
       aria-controls="configurar-o-projeto"
       aria-label={iconOnly ? 'Configurar o projeto' : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
+        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">
@@ -682,7 +603,9 @@ function ConfigNav({
                       onClick={() => alternarArea(area.key)}
                       aria-expanded={aberta}
                       aria-controls={`area-da-lateral-${area.key}`}
-                      className="flex w-full items-center gap-1.5 rounded-md px-2.5 pt-1 pb-1 text-left font-semibold text-caption text-fg-muted uppercase tracking-wider transition-colors hover:text-fg"
+                      // O anel de foco por dentro: por fora, o item de baixo cobria a linha
+                      // dele, e a lateral, que esconde o que passa da borda, cortava os lados.
+                      className="flex w-full items-center gap-1.5 rounded-md px-2.5 pt-1 pb-1 text-left font-semibold text-caption text-fg-muted uppercase tracking-wider transition-colors hover:text-fg focus-visible:-outline-offset-2"
                     >
                       <span className="min-w-0 flex-1 truncate">{area.label}</span>
                       <span
@@ -774,11 +697,13 @@ function SectionLink({
       aria-current={ativo ? 'page' : undefined}
       aria-label={iconOnly ? section.label : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
+        'flex h-[34px] pointer-coarse:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors focus-visible:-outline-offset-2',
 
-        // O item ativo e uma folha sobre o papel da lateral, com o fio dos cartoes.
+        // O item ativo e uma folha sobre o papel da lateral, com o fio dos cartoes. O fio
+        // vai por dentro (`ring-inset`): por fora, a lista que rola e a dos grupos, que
+        // escondem o que passa da borda, cortavam o lado direito dele.
         ativo
-          ? 'bg-surface-raised font-medium text-fg ring-1 ring-border'
+          ? 'bg-surface-raised font-medium text-fg ring-1 ring-border ring-inset'
           : 'text-fg hover:bg-surface-sunken',
       )}
     >
@@ -817,7 +742,7 @@ function SideButton({
       onClick={onClick}
       aria-label={iconOnly ? label : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
+        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">{icon}</span>
@@ -863,31 +788,6 @@ function Seta({ direcao }: { direcao: 'direita' | 'esquerda' }) {
       <path d={caminho} />
     </svg>
   )
-}
-
-function Visto() {
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      className="size-3"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m2.5 6.2 2.3 2.3 4.7-5" />
-    </svg>
-  )
-}
-
-/**
- * Leva o foco do menu aberto ao projeto atual. O item do Radix aceita foco, e
- * focado ele fica destacado — as setas andam dali.
- */
-function focarProjetoAtual() {
-  document.querySelector('[data-projeto-atual]')?.closest<HTMLElement>('[role="menuitem"]')?.focus()
 }
 
 function lerRecolhida(): boolean {

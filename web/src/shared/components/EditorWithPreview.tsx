@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/shared/lib/cn'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /**
  * O editor de duas colunas das telas que mudam o que se ve — O botão, Formulário,
@@ -33,8 +34,16 @@ export function EditorWithPreview({
 }) {
   return (
     <div className={cn('grid gap-6 lg:grid-cols-2 lg:items-start', className)}>
-      <div className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1">{children}</div>
-      <div className="order-first lg:sticky lg:-top-5 lg:order-none lg:col-start-2 lg:row-start-1">
+      <div
+        className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1"
+        {...guideTarget('opcoes')}
+      >
+        {children}
+      </div>
+      <div
+        className="order-first lg:sticky lg:-top-5 lg:order-none lg:col-start-2 lg:row-start-1"
+        {...guideTarget('previa')}
+      >
         {preview}
       </div>
     </div>

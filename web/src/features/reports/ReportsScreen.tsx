@@ -69,6 +69,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useScriptInstalled } from '@/shared/hooks/useScriptInstalled'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /** As vistas da tela de Trabalho. O backlog so com a sprint ligada. */
 type Vista = 'lista' | 'quadro' | 'backlog'
@@ -998,6 +999,75 @@ export function ReportsScreen() {
     </>
   )
 
+  // O guia desta tela: so o que a vista da vez mostra. O backlog nao tem a barra de
+  // filtros nem as vistas salvas; o quadro sem sprint em andamento, so os arquivados.
+  useScreenGuide(
+    'trabalho',
+    arquivados
+      ? null
+      : [
+          {
+            alvo: 'vistas',
+            titulo: 'Jeitos de ver',
+            texto: sprintsLigadas
+              ? 'Veja os cards em lista ou no quadro, e organize o backlog das sprints.'
+              : 'Veja os mesmos cards em lista ou no quadro, como preferir.',
+          },
+          ...(!backlog
+            ? [
+                {
+                  alvo: 'vistas-salvas',
+                  titulo: 'Vistas salvas',
+                  texto: 'Guarde um recorte de filtros com nome, para voltar a ele num clique.',
+                },
+              ]
+            : []),
+          ...(!backlog && !quadroSemSprint
+            ? [
+                {
+                  alvo: 'filtros',
+                  titulo: 'Achar cards',
+                  texto: 'Busque por texto ou número e combine filtros, que ficam no endereço.',
+                },
+              ]
+            : []),
+          {
+            alvo: 'cards',
+            titulo: backlog ? 'O backlog' : quadro ? 'O quadro' : 'Os cards',
+            texto: backlog
+              ? 'Arraste para dar a ordem do time e leve os cards para a sprint.'
+              : quadro
+                ? 'Arraste um card entre as colunas, e quem relatou vê o andamento mudar.'
+                : 'Cada relato e cada tarefa do time, e um clique abre o card.',
+          },
+          ...(!backlog
+            ? [
+                {
+                  alvo: 'arquivados',
+                  titulo: 'Os arquivados',
+                  texto:
+                    'Os cards que saíram do Trabalho ficam aqui, e podem voltar quando quiser.',
+                },
+              ]
+            : []),
+          {
+            alvo: 'atalhos',
+            titulo: 'Atalhos',
+            texto: 'Teclas que poupam cliques, como c para um card novo e / para buscar.',
+          },
+          {
+            alvo: 'novo-card',
+            titulo: 'Novo card',
+            texto: 'Crie uma tarefa do time sem esperar um relato chegar.',
+          },
+          {
+            alvo: 'guia',
+            titulo: 'Sempre à mão',
+            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+          },
+        ],
+  )
+
   return (
     // O quadro ocupa a altura que sobra da janela: as colunas rolam por dentro, e a
     // barra de rolar para os lados fica no pe da tela (ver `ReportsBoard`).
@@ -1008,7 +1078,9 @@ export function ReportsScreen() {
         </h1>
         <div className="flex items-center gap-2">
           {/* Os atalhos a vista: quem nao sabe que existem nao aperta o "?". */}
-          <ShortcutsButton onClick={() => setVendoAtalhos(true)} />
+          <span className="flex" {...guideTarget('atalhos')}>
+            <ShortcutsButton onClick={() => setVendoAtalhos(true)} />
+          </span>
           {/* Nos arquivados nao: o card novo vai para o Trabalho, e nao apareceria aqui. */}
           {!arquivados && (
             <Button
@@ -1016,6 +1088,7 @@ export function ReportsScreen() {
               onClick={() => setCriando({})}
               title="Atalho: c"
               aria-keyshortcuts="c"
+              {...guideTarget('novo-card')}
             >
               Novo card
             </Button>
@@ -1038,21 +1111,25 @@ export function ReportsScreen() {
       ) : (
         // As abas e, ao lado, as vistas salvas: a escolha de como ver, e a de o que ver.
         <div className="flex min-w-0 items-end gap-4 border-border border-b">
-          <Abas
-            vista={vistaEfetiva}
-            painel={painel}
-            aoEscolher={setVista}
-            // Tambem enquanto o ciclo chega, com o backlog lembrado: a aba ja aparece marcada.
-            comBacklog={sprintsLigadas || vistaEfetiva === 'backlog'}
-            contagens={contagemNasAbas}
-          />
-          {!backlog && (
-            <SavedViews
-              projectPublicId={project.PublicId}
-              pessoa={pessoa}
-              atual={filtros.view}
-              aoAplicar={filtros.applyView}
+          <div {...guideTarget('vistas')}>
+            <Abas
+              vista={vistaEfetiva}
+              painel={painel}
+              aoEscolher={setVista}
+              // Tambem enquanto o ciclo chega, com o backlog lembrado: a aba ja aparece marcada.
+              comBacklog={sprintsLigadas || vistaEfetiva === 'backlog'}
+              contagens={contagemNasAbas}
             />
+          </div>
+          {!backlog && (
+            <div {...guideTarget('vistas-salvas')}>
+              <SavedViews
+                projectPublicId={project.PublicId}
+                pessoa={pessoa}
+                atual={filtros.view}
+                aoAplicar={filtros.applyView}
+              />
+            </div>
           )}
         </div>
       )}
@@ -1060,72 +1137,74 @@ export function ReportsScreen() {
       {/* O backlog tem a ordem do time, e nao recorte: os filtros sao da lista e do quadro.
           O backlog tem a busca dele, que esconde sem mudar a ordem. */}
       {!backlog && !quadroSemSprint && (
-        <WorkFilterBar
-          projectPublicId={project.PublicId}
-          filters={filtros.filters}
-          // So contam os que valem aqui: no quadro, as colunas e a sprint da lista nao
-          // valem; nos arquivados, tambem nao — nem a sprint com as sprints desligadas.
-          active={
-            filtros.activeShared +
-            (quadro ? 0 : (colunasDaLista.length > 0 ? 1 : 0) + (sprintDaLista !== null ? 1 : 0))
-          }
-          onChange={filtros.setFilters}
-          onClear={filtros.clear}
-          // Na lista, a coluna, a sprint e a ordem moram na mesma barra — e os
-          // arquivados no fim dela: uma linha a menos antes do primeiro card.
-          lista={
-            quadro
-              ? undefined
-              : {
-                  filters: filtros.list,
-                  onChange: filtros.setList,
-                  colunas: contagens,
-                  colunasFalharam: contagensFalharam,
-                  aoRecarregarColunas: recarregarContagens,
-                  sprints: sprintsLigadas ? sprintsDoFiltro : null,
-                  ordem: filtros.sort,
-                  aoOrdenar: filtros.setSort,
-                }
-          }
-          arquivados={arquivados}
-          buscando={buscando}
-          searchInputId={`${painel}-busca`}
-          origemBloqueada={(quadro ? Object.values(board.cards) : (reports ?? [])).some(
-            (card) => card.BlockedOrigin,
-          )}
-          // O como arrastar do quadro, recolhido na propria barra: no primeiro dia ele
-          // ajuda, e depois so ocupava a altura que mais falta no quadro.
-          comoFunciona={
-            quadro ? (
-              <HowItWorks className={HELP_IN_BAR}>
-                <p>
-                  {agrupar === 'none'
-                    ? 'Arraste para mover'
-                    : `Arraste para mover; outra raia troca ${agrupar === 'assignee' ? 'o responsável' : 'a prioridade'}`}
-                  {', no celular segure, e no teclado as setas andam e o espaço pega'}
-                </p>
-              </HowItWorks>
-            ) : undefined
-          }
-        >
-          {quadro && (
-            <Select
-              ariaLabel="Raias do quadro"
-              size="sm"
-              value={agrupar}
-              onChange={(valor) => setAgrupar(valor as LaneBy)}
-              options={[
-                { value: 'none', label: 'Sem raias' },
-                { value: 'assignee', label: 'Raias por responsável' },
-                { value: 'priority', label: 'Raias por prioridade' },
-              ]}
-            />
-          )}
-          <BotaoArquivados
+        <div {...guideTarget('filtros')}>
+          <WorkFilterBar
+            projectPublicId={project.PublicId}
+            filters={filtros.filters}
+            // So contam os que valem aqui: no quadro, as colunas e a sprint da lista nao
+            // valem; nos arquivados, tambem nao — nem a sprint com as sprints desligadas.
+            active={
+              filtros.activeShared +
+              (quadro ? 0 : (colunasDaLista.length > 0 ? 1 : 0) + (sprintDaLista !== null ? 1 : 0))
+            }
+            onChange={filtros.setFilters}
+            onClear={filtros.clear}
+            // Na lista, a coluna, a sprint e a ordem moram na mesma barra — e os
+            // arquivados no fim dela: uma linha a menos antes do primeiro card.
+            lista={
+              quadro
+                ? undefined
+                : {
+                    filters: filtros.list,
+                    onChange: filtros.setList,
+                    colunas: contagens,
+                    colunasFalharam: contagensFalharam,
+                    aoRecarregarColunas: recarregarContagens,
+                    sprints: sprintsLigadas ? sprintsDoFiltro : null,
+                    ordem: filtros.sort,
+                    aoOrdenar: filtros.setSort,
+                  }
+            }
             arquivados={arquivados}
-            aoAlternar={() => setArquivados((valor) => !valor)}
-          />
-        </WorkFilterBar>
+            buscando={buscando}
+            searchInputId={`${painel}-busca`}
+            origemBloqueada={(quadro ? Object.values(board.cards) : (reports ?? [])).some(
+              (card) => card.BlockedOrigin,
+            )}
+            // O como arrastar do quadro, recolhido na propria barra: no primeiro dia ele
+            // ajuda, e depois so ocupava a altura que mais falta no quadro.
+            comoFunciona={
+              quadro ? (
+                <HowItWorks className={HELP_IN_BAR}>
+                  <p>
+                    {agrupar === 'none'
+                      ? 'Arraste para mover'
+                      : `Arraste para mover; outra raia troca ${agrupar === 'assignee' ? 'o responsável' : 'a prioridade'}`}
+                    {', no celular segure, e no teclado as setas andam e o espaço pega'}
+                  </p>
+                </HowItWorks>
+              ) : undefined
+            }
+          >
+            {quadro && (
+              <Select
+                ariaLabel="Raias do quadro"
+                size="sm"
+                value={agrupar}
+                onChange={(valor) => setAgrupar(valor as LaneBy)}
+                options={[
+                  { value: 'none', label: 'Sem raias' },
+                  { value: 'assignee', label: 'Raias por responsável' },
+                  { value: 'priority', label: 'Raias por prioridade' },
+                ]}
+              />
+            )}
+            <BotaoArquivados
+              arquivados={arquivados}
+              aoAlternar={() => setArquivados((valor) => !valor)}
+            />
+          </WorkFilterBar>
+        </div>
       )}
 
       {/* O quadro sem sprint em andamento nao tem barra de filtros: os arquivados ficam
@@ -1159,6 +1238,7 @@ export function ReportsScreen() {
           role="tabpanel"
           aria-labelledby={`${painel}-${vistaEfetiva}`}
           data-work-area
+          {...guideTarget('cards')}
           onClickCapture={guardaDoClique}
           className={cn('animate-panel-in', quadro && 'flex min-h-0 flex-1 flex-col')}
         >
@@ -1504,6 +1584,7 @@ function BotaoArquivados({
       type="button"
       aria-pressed={arquivados}
       onClick={aoAlternar}
+      {...guideTarget('arquivados')}
       className={cn(
         'flex h-8 flex-none items-center rounded-lg border px-3 text-detail transition-colors',
         arquivados

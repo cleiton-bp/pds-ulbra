@@ -54,6 +54,8 @@ import { toast } from '@/shared/components/toastStore'
 import { copyText } from '@/shared/lib/clipboard'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
+import { GuideButton } from '@/shared/tour/GuideButton'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * Um relato aberto.
@@ -631,8 +633,58 @@ export function ReportDialog({
   // gravada junto do pedido.
   const pergunta = pedido ? perguntaDoPedido(pedido, conversa.data?.Public ?? null) : null
 
+  // O guia do card: o botao mora aqui no cabecalho, porque o da barra fica atras do veu.
+  // O relato que veio de fora fala de quem relatou; o card do time, so do time.
+  useScreenGuide(
+    'card',
+    report
+      ? [
+          {
+            alvo: 'card-cabeca',
+            titulo: 'O card',
+            texto: ehDoTime
+              ? 'O título e a descrição da tarefa, que você edita ali mesmo.'
+              : 'O título do time e, logo abaixo, o texto de quem relatou.',
+          },
+          {
+            alvo: 'card-lado',
+            titulo: 'Onde ele está',
+            texto: ehDoTime
+              ? 'Mude a coluna, o responsável, a prioridade e o prazo do card.'
+              : 'Mude coluna, responsável e prazo, e veja o que quem relatou vê.',
+          },
+          {
+            alvo: 'card-depois',
+            titulo: 'Partes e ligações',
+            texto: atual?.Parent
+              ? 'Ligue esta subtarefa a outros cards relacionados.'
+              : 'Quebre o card em subtarefas e ligue a outros cards relacionados.',
+          },
+          {
+            alvo: 'card-atividade',
+            titulo: 'A conversa',
+            texto: ehDoTime
+              ? 'Comente com o time e acompanhe o histórico do card.'
+              : 'Comente só entre o time ou responda a quem relatou, e veja o histórico.',
+          },
+          {
+            alvo: 'card-acoes',
+            titulo: 'Andar e compartilhar',
+            texto: 'Copie o link ou ande entre os cards com K e J.',
+          },
+          {
+            alvo: 'guia',
+            titulo: 'Sempre à mão',
+            texto: 'Volte aqui quando quiser rever o que cada parte do card faz.',
+          },
+        ]
+      : null,
+    { noDialogo: true },
+  )
+
   const cabecalho = (
-    <>
+    <div className="flex items-center gap-1" {...guideTarget('card-acoes')}>
+      <GuideButton noDialogo compacto />
       {report && <IrAoComentario />}
       <CopiarLink numero={report?.Number ?? null} />
       {(anterior !== null || proximo !== null) && (
@@ -655,7 +707,7 @@ export function ReportDialog({
           </BotaoDoCabecalho>
         </>
       )}
-    </>
+    </div>
   )
 
   return (
@@ -1127,7 +1179,9 @@ function IrAoComentario() {
         campo.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
         campo.focus({ preventScroll: true })
       }}
-      className="flex h-8 flex-none items-center gap-1.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+      // No celular so o desenho: o cabecalho do card ja leva o guia, o link e as setas, e
+      // o nome do tipo e o selo "Relato de fora" quebravam em tres linhas.
+      className="flex h-8 flex-none items-center justify-center gap-1.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg max-sm:w-8 max-sm:px-0"
     >
       <svg
         viewBox="0 0 12 12"
@@ -1141,7 +1195,7 @@ function IrAoComentario() {
       >
         <path d="M2 2.5h8v5.5H5.5L3 10V8H2z" />
       </svg>
-      Comentar
+      <span className="max-sm:sr-only">Comentar</span>
     </button>
   )
 }

@@ -32,6 +32,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useListOrder } from '@/shared/hooks/useListOrder'
 import { useCycleSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { CYCLE_DEFAULTS } from '@/shared/lib/factoryDefaults'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /** O nome do acordeao desta tela: uma coluna aberta de cada vez. Ver `SortableListItem`. */
 const ACORDEAO = 'colunas'
@@ -73,6 +74,29 @@ const ACORDEAO = 'colunas'
  * Tipos de relato; esta tela so marca e aponta para la.
  */
 export function ProjectStatesScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('colunas', [
+    {
+      alvo: 'como-funciona',
+      titulo: 'Como funciona',
+      texto: 'A explicação completa fica aqui, recolhida até você precisar.',
+    },
+    {
+      alvo: 'opcoes',
+      titulo: 'As colunas',
+      texto: 'As colunas do quadro e a etapa que cada uma mostra lá fora.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'O quadro',
+      texto: 'O quadro do Trabalho com as colunas como estão agora.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const base = useId()
   const idResumo = (publicId: string) => `${base}-resumo-${publicId}`

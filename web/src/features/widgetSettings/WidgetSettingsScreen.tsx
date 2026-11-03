@@ -29,6 +29,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useScriptInstalled } from '@/shared/hooks/useScriptInstalled'
 import { useWidgetSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { cn } from '@/shared/lib/cn'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * Os campos que moravam aqui e mudaram de tela pelo assunto: os textos, as perguntas e
@@ -113,6 +114,45 @@ export function WidgetSettingsScreen() {
 
   const realce: PreviewHighlight | null = posicaoAberta ? 'distance' : naAparencia ? 'button' : null
 
+  // O guia desta tela, depois que a configuracao chega.
+  useScreenGuide(
+    'botao',
+    draft
+      ? [
+          {
+            alvo: 'estado',
+            titulo: 'Ligado ou desligado',
+            texto: 'Ligue ou desligue o botão no seu sistema sem mexer no código.',
+          },
+          {
+            alvo: 'manter',
+            titulo: 'Botão de fábrica',
+            texto: 'Se o botão de fábrica já serve, publique ele como está.',
+          },
+          {
+            alvo: 'opcoes',
+            titulo: 'Como ele é',
+            texto: 'Cor, texto, posição e celular, cada grupo com o que muda no botão.',
+          },
+          {
+            alvo: 'previa',
+            titulo: 'A prévia',
+            texto: 'Veja o botão como fica no seu sistema, no computador ou no celular.',
+          },
+          {
+            alvo: 'salvar',
+            titulo: 'Publicar',
+            texto: 'Nada muda no seu sistema até você publicar, e dá para descartar.',
+          },
+          {
+            alvo: 'guia',
+            titulo: 'Sempre à mão',
+            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+          },
+        ]
+      : null,
+  )
+
   return (
     <div className="max-w-6xl">
       <MovedAnchors moved={MUDARAM_DE_TELA} />
@@ -158,7 +198,10 @@ export function WidgetSettingsScreen() {
           {/* Quem gostou do botao de fabrica tambem decide: publicar como esta marca o
               passo dos primeiros passos, que antes so contava quando algo mudava. */}
           {!draft.Published && !dirty && (
-            <div className="mb-4 flex animate-fade-in flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border bg-surface-raised px-4 py-2.5">
+            <div
+              className="mb-4 flex animate-fade-in flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border bg-surface-raised px-4 py-2.5"
+              {...guideTarget('manter')}
+            >
               <p className="text-detail text-fg-muted">
                 Se o botão de fábrica já serve, é só mantê-lo como está.
               </p>

@@ -23,6 +23,7 @@ import { useClosingItem } from '@/shared/hooks/useClosingItem'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useListOrder } from '@/shared/hooks/useListOrder'
 import { cn } from '@/shared/lib/cn'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /** O que `aberta` guarda quando o item aberto e o de criar, e nao o de uma prioridade. */
 const NOVA = 'nova'
@@ -65,6 +66,29 @@ interface Rascunho {
  * volta se o servidor recusar.
  */
 export function PrioritiesScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('prioridades', [
+    {
+      alvo: 'como-funciona',
+      titulo: 'Como funciona',
+      texto: 'A explicação completa fica aqui, recolhida até você precisar.',
+    },
+    {
+      alvo: 'opcoes',
+      titulo: 'As prioridades',
+      texto: 'Da menos para a mais urgente, com nome e cor de cada uma.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Num card',
+      texto: 'Um card de exemplo com a prioridade, como aparece no Trabalho.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const base = useId()
   const idResumo = (publicId: string) => `${base}-resumo-${publicId}`

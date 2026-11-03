@@ -13,6 +13,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime } from '@/shared/lib/datetime'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * A explicacao de cada chave fica **ao lado dela**: quem integra le no
@@ -31,6 +32,29 @@ import { formatDateTime } from '@/shared/lib/datetime'
  * decidir o que fazer com um valor que quase ninguem usa. Aqui, quem precisa gera.
  */
 export function ProjectKeysScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('chaves', [
+    {
+      alvo: 'chave-publica',
+      titulo: 'Chave pública',
+      texto: 'Vai no script do botão e pode aparecer no seu sistema sem risco.',
+    },
+    {
+      alvo: 'integracao',
+      titulo: 'Integração avançada',
+      texto: 'A chave secreta é para integrar pela API, e nunca vai no navegador.',
+    },
+    {
+      alvo: 'como-funciona',
+      titulo: 'Como funciona',
+      texto: 'A explicação completa fica aqui, recolhida até você precisar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
 
   const [regenerating, setRegenerating] = useState(false)
@@ -98,7 +122,9 @@ export function ProjectKeysScreen() {
             className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
           >
             <header className="mb-3.5 flex items-baseline justify-between gap-3">
-              <h2 className="font-semibold text-fg text-lead">Chave pública</h2>
+              <h2 className="font-semibold text-fg text-lead" {...guideTarget('chave-publica')}>
+                Chave pública
+              </h2>
               <span className="flex-none text-detail text-fg-muted">
                 vai no código do seu sistema
               </span>
@@ -225,7 +251,9 @@ function AdvancedSection({
         className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-sunken"
       >
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold text-fg text-lead">Integração avançada</h2>
+          <h2 className="font-semibold text-fg text-lead" {...guideTarget('integracao')}>
+            Integração avançada
+          </h2>
           <p className="mt-0.5 text-detail text-fg-muted">
             A chave secreta, para um sistema seu conversar direto com a nossa API. Você não precisa
             dela para começar.

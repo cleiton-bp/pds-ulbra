@@ -13,6 +13,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { formatDate } from '@/shared/lib/datetime'
 import { roleLabel } from '@/shared/lib/projectAccess'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * O projeto em si: de quem e, o identificador, o nome e o arquivamento. Os dominios
@@ -38,6 +39,34 @@ import { roleLabel } from '@/shared/lib/projectAccess'
  * pelo que preserva — "nada e apagado". O botao e cinza porque a acao tem desfazer.
  */
 export function ProjectSettingsScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('projeto', [
+    {
+      alvo: 'sobre',
+      titulo: 'Sobre o projeto',
+      texto: 'O resumo do projeto, do jeito que ele foi criado.',
+    },
+    {
+      alvo: 'nome',
+      titulo: 'O nome',
+      texto: 'Mude o nome do projeto, como ele aparece no painel.',
+    },
+    {
+      alvo: 'arquivar',
+      titulo: 'Arquivar',
+      texto: 'Tire o projeto do caminho sem apagar nada, e traga de volta quando quiser.',
+    },
+    {
+      alvo: 'salvar',
+      titulo: 'Salvar',
+      texto: 'Nada muda até você salvar ou publicar, e dá para descartar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const { hash } = useLocation()
   const updateProject = useProjectsStore((state) => state.update)
@@ -135,6 +164,7 @@ export function ProjectSettingsScreen() {
       )}
 
       <section
+        {...guideTarget('sobre')}
         aria-labelledby="sobre-o-projeto-titulo"
         className="mb-6 rounded-xl border border-border bg-surface-raised p-5"
       >
@@ -167,7 +197,7 @@ export function ProjectSettingsScreen() {
         </div>
       </section>
 
-      <section id="nome-do-projeto" className="scroll-mt-6">
+      <section id="nome-do-projeto" className="scroll-mt-6" {...guideTarget('nome')}>
         <TextField
           label="Nome do projeto"
           hint="Aparece na lista de projetos e no seletor do topo."
@@ -204,7 +234,7 @@ export function ProjectSettingsScreen() {
 
       {/* `mais-opcoes` era o recolhido que guardava isto: o link antigo cai aqui. */}
       <div id="mais-opcoes" className="mt-10 scroll-mt-6 border-border border-t pt-6">
-        <section id="arquivar-projeto" className="scroll-mt-6">
+        <section id="arquivar-projeto" className="scroll-mt-6" {...guideTarget('arquivar')}>
           <h2 className="mb-1 font-semibold text-fg text-lead">Arquivar projeto</h2>
           <p className="mb-4 text-detail text-fg-muted leading-relaxed">
             O projeto sai da lista principal e o script instalado para de aceitar relatos. Nada é

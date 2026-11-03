@@ -187,16 +187,18 @@ describe('ProjectsHubScreen', () => {
     expect(within(linha).getByText(/^criado /)).toBeTruthy()
   })
 
-  it('a conta nova tem um foco só: a frase, o botão de criar e o caminho do convite', async () => {
+  it('a conta nova ve a mesma tela, com a lista vazia sugerindo criar ou entrar por convite', async () => {
     dublê.listar.mockResolvedValue([])
     abrir()
 
     await screen.findByText(
       'Crie o seu primeiro projeto para começar a receber relatos do seu sistema.',
     )
-    // Um botao so, em qualquer tamanho de tela: o cartao ao lado da lista vazia dividia a atencao.
-    expect(screen.getAllByRole('button', { name: 'Criar projeto' })).toHaveLength(1)
-    expect(screen.getByText(/Recebeu um convite para um time\?/)).toBeTruthy()
+    // O cartao de criar (tela larga) e o botao ao lado do titulo (celular), como com projetos.
+    expect(screen.getByRole('heading', { name: 'Criar projeto' })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Criar projeto' })).toHaveLength(2)
+    expect(screen.getByText('Nenhum projeto ainda')).toBeTruthy()
+    expect(screen.getByText(/abra o link do e-mail com a conta Google/)).toBeTruthy()
   })
 
   it('a falha ao carregar diz que os projetos continuam salvos, e oferece tentar de novo', async () => {

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react'
+import type { ButtonHTMLAttributes, Ref } from 'react'
 import { cn } from '@/shared/lib/cn'
 
 /**
@@ -22,6 +22,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: Size
   block?: boolean
+  /** Para quem precisa levar o foco ate ele (o Proximo do guia da tela). */
+  ref?: Ref<HTMLButtonElement>
 }
 
 /**

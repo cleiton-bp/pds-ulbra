@@ -18,6 +18,7 @@ import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { formatRelative } from '@/shared/lib/datetime'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /** A partir de quantas pessoas a busca aparece: ate oito, a lista cabe numa olhada. */
 export const SEARCH_FROM = 9
@@ -163,7 +164,7 @@ export function TeamSection({
           )
 
   return (
-    <section aria-labelledby="time-do-projeto">
+    <section aria-labelledby="time-do-projeto" {...guideTarget('time')}>
       <h2 id="time-do-projeto" className={inTab ? 'sr-only' : 'mb-3 font-semibold text-lead'}>
         Time
         {!inTab && members !== null && (
