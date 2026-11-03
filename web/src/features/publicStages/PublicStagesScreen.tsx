@@ -29,6 +29,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useListOrder } from '@/shared/hooks/useListOrder'
 import { cn } from '@/shared/lib/cn'
 import { PUBLIC_OUTCOMES, publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /** O que `editando` guarda quando o item aberto e o de criar, e nao o de uma etapa. */
 const NOVA = 'nova'
@@ -76,6 +77,29 @@ const LIGAR_EM_COLUNAS = '../states#colunas-no-andamento'
  * caminho, a etapa em que nenhuma coluna cai: ela nunca seria alcancada.
  */
 export function PublicStagesScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('andamento', [
+    {
+      alvo: 'como-funciona',
+      titulo: 'Como funciona',
+      texto: 'A explicação completa fica aqui, recolhida até você precisar.',
+    },
+    {
+      alvo: 'opcoes',
+      titulo: 'As etapas',
+      texto: 'O que quem relatou vê enquanto o time trabalha no card.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como aparece',
+      texto: 'A página de acompanhamento como quem relatou vai ver.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const base = useId()
   const idResumo = (chave: string) => `${base}-resumo-${chave}`

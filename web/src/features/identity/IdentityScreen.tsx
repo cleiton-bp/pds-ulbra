@@ -36,6 +36,7 @@ import {
   TRACKING_VARIABLES,
   type WidgetTextValues,
 } from '@/shared/lib/widgetText'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * O que esta tela grava em Quem relata: o modo, a visibilidade e o que a identidade do
@@ -251,6 +252,29 @@ const NIVEIS: readonly Nivel[] = [
  * cada grupo mexe so no rascunho dele.
  */
 export function IdentityScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('privacidade', [
+    {
+      alvo: 'opcoes',
+      titulo: 'Privacidade',
+      texto: 'Quem pode ver os relatos e se o nome de quem relatou aparece.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como aparece',
+      texto: 'O formulário e a lista pública conforme o nível escolhido.',
+    },
+    {
+      alvo: 'salvar',
+      titulo: 'Salvar',
+      texto: 'Nada muda até você salvar ou publicar, e dá para descartar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const quemRelata = useIdentitySettingsDraft(project.PublicId, CAMPOS_DE_QUEM_RELATA)
   const textos = useWidgetSettingsDraft(project.PublicId, TEXTOS_DA_FERRAMENTA)

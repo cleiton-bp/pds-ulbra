@@ -20,6 +20,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useIdentitySettingsDraft, useWidgetSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { cn } from '@/shared/lib/cn'
 import { changedFromDefaults, defaultsOf } from '@/shared/lib/factoryDefaults'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 type Campos = ReadonlyArray<readonly [keyof WidgetSettingsViewModel, string]>
 
@@ -116,6 +117,29 @@ type Change = (patch: Partial<WidgetSettingsViewModel>) => void
  * ser o que vem marcado e passa a ser o unico que vai existir.
  */
 export function FormTextsScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('textos', [
+    {
+      alvo: 'opcoes',
+      titulo: 'Textos e tema',
+      texto: 'O título, os botões, a mensagem final e as cores do formulário.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como aparece',
+      texto: 'O formulário com os seus textos, como quem relata vai ver.',
+    },
+    {
+      alvo: 'salvar',
+      titulo: 'Salvar',
+      texto: 'Nada muda até você salvar ou publicar, e dá para descartar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const ferramenta = useWidgetSettingsDraft(project.PublicId, CAMPOS_DA_FERRAMENTA)
   const quemRelata = useIdentitySettingsDraft(project.PublicId, CAMPOS_DE_QUEM_RELATA)

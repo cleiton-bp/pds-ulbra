@@ -21,6 +21,7 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { CYCLE_DEFAULTS, changedFromDefaults, defaultsOf } from '@/shared/lib/factoryDefaults'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 type Campos = ReadonlyArray<readonly [keyof CycleSettingsViewModel, string]>
 
@@ -122,6 +123,29 @@ type Change = (patch: Partial<CycleSettingsViewModel>) => void
  * fala de encerramento.
  */
 export function CycleSettingsScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('encerramento', [
+    {
+      alvo: 'opcoes',
+      titulo: 'Encerramento',
+      texto: 'Como o card se encerra e o que quem relatou responde no fim.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como aparece',
+      texto: 'O fim do relato como quem relatou vai ver.',
+    },
+    {
+      alvo: 'salvar',
+      titulo: 'Salvar',
+      texto: 'Nada muda até você salvar ou publicar, e dá para descartar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
 
   // So o que esta tela mexe. Ver `useCycleDraft`.

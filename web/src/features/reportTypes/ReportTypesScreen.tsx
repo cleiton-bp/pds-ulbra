@@ -41,6 +41,7 @@ import { useClosingItem } from '@/shared/hooks/useClosingItem'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useListOrder } from '@/shared/hooks/useListOrder'
 import { cn } from '@/shared/lib/cn'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /** O que `aberto` guarda quando o item aberto e o de criar, e nao o de um tipo. */
 const NOVO = 'novo'
@@ -79,6 +80,29 @@ const ACORDEAO = 'tipos'
  * lista volta se o servidor recusar.
  */
 export function ReportTypesScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('tipos', [
+    {
+      alvo: 'opcoes',
+      titulo: 'Os tipos',
+      texto: 'Problema, ideia ou dúvida, cada tipo com as perguntas que o formulário faz.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como aparece',
+      texto: 'O formulário como quem relata vai ver, com o tipo escolhido.',
+    },
+    {
+      alvo: 'como-funciona',
+      titulo: 'Como funciona',
+      texto: 'A explicação completa fica aqui, recolhida até você precisar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const base = useId()
   const idResumo = (publicId: string) => `${base}-resumo-${publicId}`

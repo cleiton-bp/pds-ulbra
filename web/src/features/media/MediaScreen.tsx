@@ -31,6 +31,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { MEDIA_DEFAULTS } from '@/shared/lib/factoryDefaults'
 import { fileFormatLabel } from '@/shared/lib/fileFormats'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * Um tipo que esta tela mostra: so o que ainda se pode enviar.
@@ -305,6 +306,29 @@ function irAoCampo(id: string) {
  * armazenamento.
  */
 export function MediaScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('anexos', [
+    {
+      alvo: 'opcoes',
+      titulo: 'Anexos',
+      texto: 'Diga se quem relata pode anexar print e arquivos, e de que tamanho.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como aparece',
+      texto: 'A área de anexar do formulário, como quem relata vai ver.',
+    },
+    {
+      alvo: 'salvar',
+      titulo: 'Salvar',
+      texto: 'Nada muda até você salvar ou publicar, e dá para descartar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
 
   const {

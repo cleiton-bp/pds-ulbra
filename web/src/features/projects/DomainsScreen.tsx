@@ -1,6 +1,7 @@
 import { DomainsSection } from '@/features/projects/DomainsSection'
 import { ReportLimitsSection, useReportLimits } from '@/features/projects/ReportLimitsSection'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * Domínios: de quais endereços os relatos entram direto, quais esperam e quais sao
@@ -21,6 +22,24 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
  * aviso de sair sem salvar sobrevivem a troca de aba.
  */
 export function DomainsScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('dominios', [
+    {
+      alvo: 'dominios',
+      titulo: 'Os endereços',
+      texto: 'De onde os relatos entram direto, quais esperam você e quais são recusados.',
+    },
+    {
+      alvo: 'como-funciona',
+      titulo: 'Como funciona',
+      texto: 'A explicação completa fica aqui, recolhida até você precisar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
   const limites = useReportLimits(project.PublicId)
 
@@ -32,10 +51,12 @@ export function DomainsScreen() {
         quais são recusados. As listas valem na hora.
       </p>
 
-      <DomainsSection
-        projectPublicId={project.PublicId}
-        protection={<ReportLimitsSection limits={limites} />}
-      />
+      <div {...guideTarget('dominios')}>
+        <DomainsSection
+          projectPublicId={project.PublicId}
+          protection={<ReportLimitsSection limits={limites} />}
+        />
+      </div>
     </div>
   )
 }

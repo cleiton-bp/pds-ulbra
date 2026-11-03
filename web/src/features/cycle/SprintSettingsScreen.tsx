@@ -15,6 +15,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { cn } from '@/shared/lib/cn'
 import { CYCLE_DEFAULTS, changedFromDefaults, defaultsOf } from '@/shared/lib/factoryDefaults'
+import { useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * O que esta tela mexe, cada campo com o nome do "Mudou". Ver `useCycleDraft`: o
@@ -62,6 +63,29 @@ function semanas(quantas: number) {
  * conta de hoje aparece antes de salvar, e o caminho seguinte depois.
  */
 export function SprintSettingsScreen() {
+  // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
+  useScreenGuide('sprints', [
+    {
+      alvo: 'opcoes',
+      titulo: 'Sprints',
+      texto: 'Ligue as sprints e diga a duração, e o Trabalho ganha o backlog.',
+    },
+    {
+      alvo: 'previa',
+      titulo: 'Como fica',
+      texto: 'O Trabalho com ou sem sprints, antes de você salvar.',
+    },
+    {
+      alvo: 'salvar',
+      titulo: 'Salvar',
+      texto: 'Nada muda até você salvar ou publicar, e dá para descartar.',
+    },
+    {
+      alvo: 'guia',
+      titulo: 'Sempre à mão',
+      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+    },
+  ])
   const project = useCurrentProject()
 
   const {
