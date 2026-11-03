@@ -522,7 +522,7 @@ function ConfigNav({
       aria-controls="configurar-o-projeto"
       aria-label={iconOnly ? 'Configurar o projeto' : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
+        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">
@@ -598,7 +598,9 @@ function ConfigNav({
                       onClick={() => alternarArea(area.key)}
                       aria-expanded={aberta}
                       aria-controls={`area-da-lateral-${area.key}`}
-                      className="flex w-full items-center gap-1.5 rounded-md px-2.5 pt-1 pb-1 text-left font-semibold text-caption text-fg-muted uppercase tracking-wider transition-colors hover:text-fg"
+                      // O anel de foco por dentro: por fora, o item de baixo cobria a linha
+                      // dele, e a lateral, que esconde o que passa da borda, cortava os lados.
+                      className="flex w-full items-center gap-1.5 rounded-md px-2.5 pt-1 pb-1 text-left font-semibold text-caption text-fg-muted uppercase tracking-wider transition-colors hover:text-fg focus-visible:-outline-offset-2"
                     >
                       <span className="min-w-0 flex-1 truncate">{area.label}</span>
                       <span
@@ -690,11 +692,13 @@ function SectionLink({
       aria-current={ativo ? 'page' : undefined}
       aria-label={iconOnly ? section.label : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors',
+        'flex h-[34px] pointer-coarse:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors focus-visible:-outline-offset-2',
 
-        // O item ativo e uma folha sobre o papel da lateral, com o fio dos cartoes.
+        // O item ativo e uma folha sobre o papel da lateral, com o fio dos cartoes. O fio
+        // vai por dentro (`ring-inset`): por fora, a lista que rola e a dos grupos, que
+        // escondem o que passa da borda, cortavam o lado direito dele.
         ativo
-          ? 'bg-surface-raised font-medium text-fg ring-1 ring-border'
+          ? 'bg-surface-raised font-medium text-fg ring-1 ring-border ring-inset'
           : 'text-fg hover:bg-surface-sunken',
       )}
     >
@@ -733,7 +737,7 @@ function SideButton({
       onClick={onClick}
       aria-label={iconOnly ? label : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken',
+        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">{icon}</span>
