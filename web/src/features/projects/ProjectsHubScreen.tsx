@@ -12,6 +12,7 @@ import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
 import { groupByAccount, roleLabel } from '@/shared/lib/projectAccess'
 import { readRecentProjects } from '@/shared/lib/recentProjects'
+import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * A partir de quantos projetos a busca, os abertos recentemente, a ordem e os arquivados a
@@ -184,10 +185,88 @@ export function ProjectsHubScreen() {
   const grouped = groupByAccount(projects).length > 1
   const groups = groupByAccount(rows)
   const firstName = (user?.Name ?? '').trim().split(/\s+/)[0]
-  // A conta nova: sem projeto nenhum, a tela tem um foco so, o de criar o primeiro. A
-  // lista vazia ao lado do cartao de criar dividia a atencao e pedia para escolher um
-  // projeto que nao existia.
+  // A conta nova: a mesma tela, com a frase de cima falando do primeiro projeto e a
+  // lista dizendo que ainda esta vazia, e que o convite de um time tambem chega ali.
   const vazio = status === 'ready' && projects.length === 0
+
+  // O guia desta tela: so os passos do que ela mostra agora, e nada enquanto carrega.
+  useScreenGuide(
+    'projetos',
+    status === 'ready'
+      ? [
+          {
+            alvo: 'criar',
+            titulo: 'Um por sistema',
+            texto: 'Cada sistema seu vira um projeto, com quadro e botão próprios.',
+          },
+          ...(!term && recentes.length > 0
+            ? [
+                {
+                  alvo: 'recentes',
+                  titulo: 'Os de sempre',
+                  texto: 'Os projetos que você abriu por último ficam aqui, a um clique.',
+                },
+              ]
+            : []),
+          ...(muitos
+            ? [
+                {
+                  alvo: 'busca',
+                  titulo: 'Achar rápido',
+                  texto: 'Busque pelo nome, ou aperte / para chegar aqui de qualquer lugar.',
+                },
+                {
+                  alvo: 'ordem',
+                  titulo: 'A ordem',
+                  texto: 'Veja primeiro onde houve movimento, ou siga a ordem alfabética.',
+                },
+              ]
+            : []),
+          ...(projects.length === 0
+            ? [
+                {
+                  alvo: 'lista-vazia',
+                  titulo: 'Ainda vazio',
+                  texto: 'Seus projetos e os dos times que convidarem você aparecem aqui.',
+                },
+              ]
+            : []),
+          ...(rows.length > 0
+            ? [
+                {
+                  alvo: 'lista',
+                  titulo: 'Abrir um projeto',
+                  texto: 'Clique num projeto para ver o trabalho do time nele.',
+                },
+              ]
+            : []),
+          ...(recolhidos.length > 0
+            ? [
+                {
+                  alvo: 'arquivados',
+                  titulo: 'Guardados à parte',
+                  texto: 'Os projetos arquivados ficam aqui, fora do caminho e sem perder nada.',
+                },
+              ]
+            : []),
+          {
+            alvo: 'avisos',
+            titulo: 'Seus avisos',
+            texto: 'O que acontece nos seus projetos chega aqui, com som se você quiser.',
+          },
+          {
+            alvo: 'conta',
+            titulo: 'Sua conta',
+            texto: 'Seu perfil, os sons dos avisos e a saída ficam neste menu.',
+          },
+          {
+            alvo: 'guia',
+            titulo: 'Sempre à mão',
+            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+          },
+        ]
+      : null,
+  )
 
   return (
     <div className="px-5 py-7 lg:px-8 lg:pt-12">
@@ -203,11 +282,14 @@ export function ProjectsHubScreen() {
                 : 'Escolha um projeto para ver o trabalho do time.'}
             </p>
           </div>
-          {!vazio && (
-            <Button size="sm" className="flex-none lg:hidden" onClick={() => setCreating(true)}>
-              Criar projeto
-            </Button>
-          )}
+          <Button
+            size="sm"
+            className="flex-none lg:hidden"
+            onClick={() => setCreating(true)}
+            {...guideTarget('criar')}
+          >
+            Criar projeto
+          </Button>
         </div>
 
         {leftProject && (
@@ -227,236 +309,234 @@ export function ProjectsHubScreen() {
         {/* `minmax(0, ...)` nas duas formas: coluna de grade nao encolhe abaixo do
             conteudo sem isso, e o identificador inteiro de um projeto esticava a
             pagina para o lado no celular. */}
-        {vazio ? (
-          <div className="max-w-[48ch] animate-fade-in">
-            <Button variant="primary" onClick={() => setCreating(true)}>
+        {/* A conta nova ve a mesma tela de quem ja tem projetos: o cartao de criar ao
+            lado, e no lugar da lista o aviso de que ela ainda esta vazia. Uma tela so
+            para a conta nova mudava tudo de lugar no primeiro projeto criado. */}
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8">
+          <div
+            className="hidden rounded-xl border border-border bg-surface-raised p-5 lg:block"
+            {...guideTarget('criar')}
+          >
+            <h2 className="mb-1.5 font-semibold text-lead">Criar projeto</h2>
+            <p className="mb-4 text-detail text-fg-muted leading-relaxed">
+              Um projeto corresponde a um sistema seu, site ou aplicação. Ele nasce pronto do jeito
+              que o time trabalha: Quadro simples, Suporte, Kanban ou Scrum.
+            </p>
+            <Button variant="primary" block onClick={() => setCreating(true)}>
               Criar projeto
             </Button>
-            <p className="mt-5 text-detail text-fg-muted leading-relaxed">
-              Recebeu um convite para um time? Abra o link do e-mail com a conta Google daquele
-              endereço.
-            </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8">
-            <div className="hidden rounded-xl border border-border bg-surface-raised p-5 lg:block">
-              <h2 className="mb-1.5 font-semibold text-lead">Criar projeto</h2>
-              <p className="mb-4 text-detail text-fg-muted leading-relaxed">
-                Um projeto corresponde a um sistema seu, site ou aplicação. Ele nasce pronto do
-                jeito que o time trabalha: Quadro simples, Suporte, Kanban ou Scrum.
-              </p>
-              <Button variant="primary" block onClick={() => setCreating(true)}>
-                Criar projeto
-              </Button>
-            </div>
 
-            <div>
-              {/* Buscar entre quatro linhas que cabem na tela e um campo pedindo
+          <div>
+            {/* Buscar entre quatro linhas que cabem na tela e um campo pedindo
                 para ser preenchido a toa. */}
-              {muitos && (
-                <div className="relative mb-6">
+            {muitos && (
+              <div className="relative mb-6" {...guideTarget('busca')}>
+                <svg
+                  viewBox="0 0 16 16"
+                  className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 size-3.5 text-fg-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="m10.5 10.5 3 3" />
+                </svg>
+                <input
+                  ref={busca}
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={teclaNaBusca}
+                  placeholder="Buscar projeto"
+                  aria-label="Buscar projeto"
+                  aria-keyshortcuts="/"
+                  title="Buscar pelo nome (atalho: /)"
+                  className="peer h-9 w-full rounded-lg border border-border bg-surface-raised pr-10 pl-9 text-fg text-body transition-colors duration-150 placeholder:text-fg-placeholder motion-reduce:transition-none [&::-webkit-search-cancel-button]:hidden"
+                />
+                <SearchShortcutHint visible={query === ''} />
+                {/* O limpar do navegador sai (o "x" azul nao conversa com o resto do painel), e
+                    entra este, no lugar da dica do "/": so com texto, e devolvendo o foco. */}
+                {query !== '' && (
+                  <button
+                    type="button"
+                    aria-label="Limpar busca"
+                    title="Limpar busca (Esc)"
+                    onClick={() => {
+                      setQuery('')
+                      busca.current?.focus()
+                    }}
+                    className="-translate-y-1/2 absolute top-1/2 right-1.5 flex size-6 animate-fade-in items-center justify-center rounded-md text-fg-muted transition-colors duration-150 hover:bg-surface-sunken hover:text-fg motion-reduce:transition-none"
+                  >
+                    <svg
+                      viewBox="0 0 12 12"
+                      className="size-3"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m3 3 6 6M9 3 3 9" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* **O projeto do dia a dia a um clique**, qualquer que seja a ordem: os
+                abertos por ultimo neste navegador. Somem buscando — ai quem decide o que
+                aparece e o que a pessoa digitou. */}
+            {status === 'ready' && !term && recentes.length > 0 && (
+              <section aria-labelledby={recentesId} className="mb-7" {...guideTarget('recentes')}>
+                <h2 id={recentesId} className="mb-2 px-1 font-medium text-caption text-fg-muted">
+                  Abertos recentemente
+                </h2>
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {recentes.map(({ project, openedAt }, indice) => (
+                    <li key={project.PublicId} className={cn(indice >= 2 && 'hidden sm:block')}>
+                      <RecentCard project={project} openedAt={openedAt} ordem={indice} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* O titulo da lista diz quantos, e buscando, quantos de quantos; a ordem fica
+                ao lado dele, onde a pessoa ja esta olhando. */}
+            {status === 'ready' && muitos && (
+              <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                <h2 id={listaId} className="font-medium text-caption text-fg-muted">
+                  {term
+                    ? `${rows.length} de ${projects.length} projetos`
+                    : `${ativos.length} ${ativos.length === 1 ? 'projeto ativo' : 'projetos ativos'}`}
+                </h2>
+                <div {...guideTarget('ordem')}>
+                  <OrdemDaLista value={ordem} onChange={trocarOrdem} />
+                </div>
+              </div>
+            )}
+
+            {term && status === 'ready' && !muitos && (
+              <p className="mb-2.5 px-1 text-caption text-fg-muted">
+                {rows.length} de {projects.length} projetos
+              </p>
+            )}
+
+            {/* `idle` entra junto: a store nasce nele e o efeito so dispara no
+                quadro seguinte — so com `loading`, a lista piscava vazia antes. */}
+            {(status === 'idle' || status === 'loading') && <LoadingRows />}
+
+            {status === 'error' && (
+              <div className="flex flex-wrap items-center gap-3.5 border-border border-t py-4.5">
+                <p className="text-fg-muted text-body">
+                  Não deu para carregar seus projetos agora. Eles continuam salvos.
+                  {error && <span className="block text-detail">{error}</span>}
+                </p>
+                <Button size="sm" onClick={() => void load()}>
+                  Tentar de novo
+                </Button>
+              </div>
+            )}
+
+            {/* A chave e a ordem: trocar a ordem faz as linhas chegarem de novo, uma depois
+                da outra, em vez de pularem de lugar de uma vez. */}
+            {status === 'ready' && rows.length > 0 && !grouped && (
+              <ul
+                key={ordem}
+                aria-labelledby={muitos ? listaId : undefined}
+                className="border-border border-t"
+                {...guideTarget('lista')}
+              >
+                {rows.map((project, indice) => (
+                  <li key={project.PublicId}>
+                    <ProjectRow project={project} ordem={indice} />
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {status === 'ready' && rows.length > 0 && grouped && (
+              <div key={ordem} className="flex flex-col gap-7" {...guideTarget('lista')}>
+                {groups.map((group) => (
+                  <AccountSection
+                    key={group.account.PublicId}
+                    title={group.own ? 'Seus projetos' : group.account.Name}
+                    projects={group.projects}
+                  />
+                ))}
+              </div>
+            )}
+
+            {status === 'ready' && !term && rows.length === 0 && recolhidos.length > 0 && (
+              <p className="border-border border-t px-1 py-4 text-detail text-fg-muted">
+                Nenhum projeto ativo. Os arquivados estão logo abaixo.
+              </p>
+            )}
+
+            {/* Fora do caminho, e sem sumir: o arquivado ainda e lido, so nao e mais onde se
+                trabalha. A seta e o "Arquivados · 2" dizem que ha o que abrir. */}
+            {status === 'ready' && recolhidos.length > 0 && (
+              <details className="details-smooth group/arquivados mt-7">
+                <summary
+                  {...guideTarget('arquivados')}
+                  className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded px-1 font-medium text-caption text-fg-muted transition-colors duration-150 hover:text-fg motion-reduce:transition-none [&::-webkit-details-marker]:hidden"
+                >
                   <svg
-                    viewBox="0 0 16 16"
-                    className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 size-3.5 text-fg-muted"
+                    viewBox="0 0 12 12"
+                    className="size-2.5 flex-none transition-transform duration-300 ease-out group-open/arquivados:rotate-90 motion-reduce:transition-none"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.6"
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                     aria-hidden="true"
                   >
-                    <circle cx="7" cy="7" r="4.5" />
-                    <path d="m10.5 10.5 3 3" />
+                    <path d="m4.5 2.5 3.5 3.5-3.5 3.5" />
                   </svg>
-                  <input
-                    ref={busca}
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={teclaNaBusca}
-                    placeholder="Buscar projeto"
-                    aria-label="Buscar projeto"
-                    aria-keyshortcuts="/"
-                    title="Buscar pelo nome (atalho: /)"
-                    className="peer h-9 w-full rounded-lg border border-border bg-surface-raised pr-10 pl-9 text-fg text-body transition-colors duration-150 placeholder:text-fg-placeholder motion-reduce:transition-none [&::-webkit-search-cancel-button]:hidden"
-                  />
-                  <SearchShortcutHint visible={query === ''} />
-                  {/* O limpar do navegador sai (o "x" azul nao conversa com o resto do painel), e
-                    entra este, no lugar da dica do "/": so com texto, e devolvendo o foco. */}
-                  {query !== '' && (
-                    <button
-                      type="button"
-                      aria-label="Limpar busca"
-                      title="Limpar busca (Esc)"
-                      onClick={() => {
-                        setQuery('')
-                        busca.current?.focus()
-                      }}
-                      className="-translate-y-1/2 absolute top-1/2 right-1.5 flex size-6 animate-fade-in items-center justify-center rounded-md text-fg-muted transition-colors duration-150 hover:bg-surface-sunken hover:text-fg motion-reduce:transition-none"
-                    >
-                      <svg
-                        viewBox="0 0 12 12"
-                        className="size-3"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        aria-hidden="true"
-                      >
-                        <path d="m3 3 6 6M9 3 3 9" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* **O projeto do dia a dia a um clique**, qualquer que seja a ordem: os
-                abertos por ultimo neste navegador. Somem buscando — ai quem decide o que
-                aparece e o que a pessoa digitou. */}
-              {status === 'ready' && !term && recentes.length > 0 && (
-                <section aria-labelledby={recentesId} className="mb-7">
-                  <h2 id={recentesId} className="mb-2 px-1 font-medium text-caption text-fg-muted">
-                    Abertos recentemente
-                  </h2>
-                  <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {recentes.map(({ project, openedAt }, indice) => (
-                      <li key={project.PublicId} className={cn(indice >= 2 && 'hidden sm:block')}>
-                        <RecentCard project={project} openedAt={openedAt} ordem={indice} />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {/* O titulo da lista diz quantos, e buscando, quantos de quantos; a ordem fica
-                ao lado dele, onde a pessoa ja esta olhando. */}
-              {status === 'ready' && muitos && (
-                <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                  <h2 id={listaId} className="font-medium text-caption text-fg-muted">
-                    {term
-                      ? `${rows.length} de ${projects.length} projetos`
-                      : `${ativos.length} ${ativos.length === 1 ? 'projeto ativo' : 'projetos ativos'}`}
-                  </h2>
-                  <OrdemDaLista value={ordem} onChange={trocarOrdem} />
-                </div>
-              )}
-
-              {term && status === 'ready' && !muitos && (
-                <p className="mb-2.5 px-1 text-caption text-fg-muted">
-                  {rows.length} de {projects.length} projetos
-                </p>
-              )}
-
-              {/* `idle` entra junto: a store nasce nele e o efeito so dispara no
-                quadro seguinte — so com `loading`, a lista piscava vazia antes. */}
-              {(status === 'idle' || status === 'loading') && <LoadingRows />}
-
-              {status === 'error' && (
-                <div className="flex flex-wrap items-center gap-3.5 border-border border-t py-4.5">
-                  <p className="text-fg-muted text-body">
-                    Não deu para carregar seus projetos agora. Eles continuam salvos.
-                    {error && <span className="block text-detail">{error}</span>}
-                  </p>
-                  <Button size="sm" onClick={() => void load()}>
-                    Tentar de novo
-                  </Button>
-                </div>
-              )}
-
-              {/* A chave e a ordem: trocar a ordem faz as linhas chegarem de novo, uma depois
-                da outra, em vez de pularem de lugar de uma vez. */}
-              {status === 'ready' && rows.length > 0 && !grouped && (
-                <ul
-                  key={ordem}
-                  aria-labelledby={muitos ? listaId : undefined}
-                  className="border-border border-t"
-                >
-                  {rows.map((project, indice) => (
+                  Arquivados ({recolhidos.length})
+                </summary>
+                <ul className="mt-2 border-border border-t">
+                  {recolhidos.map((project, indice) => (
                     <li key={project.PublicId}>
                       <ProjectRow project={project} ordem={indice} />
                     </li>
                   ))}
                 </ul>
-              )}
+              </details>
+            )}
 
-              {status === 'ready' && rows.length > 0 && grouped && (
-                <div key={ordem} className="flex flex-col gap-7">
-                  {groups.map((group) => (
-                    <AccountSection
-                      key={group.account.PublicId}
-                      title={group.own ? 'Seus projetos' : group.account.Name}
-                      projects={group.projects}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {status === 'ready' && !term && rows.length === 0 && recolhidos.length > 0 && (
-                <p className="border-border border-t px-1 py-4 text-detail text-fg-muted">
-                  Nenhum projeto ativo. Os arquivados estão logo abaixo.
-                </p>
-              )}
-
-              {/* Fora do caminho, e sem sumir: o arquivado ainda e lido, so nao e mais onde se
-                trabalha. A seta e o "Arquivados · 2" dizem que ha o que abrir. */}
-              {status === 'ready' && recolhidos.length > 0 && (
-                <details className="details-smooth group/arquivados mt-7">
-                  <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded px-1 font-medium text-caption text-fg-muted transition-colors duration-150 hover:text-fg motion-reduce:transition-none [&::-webkit-details-marker]:hidden">
-                    <svg
-                      viewBox="0 0 12 12"
-                      className="size-2.5 flex-none transition-transform duration-300 ease-out group-open/arquivados:rotate-90 motion-reduce:transition-none"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="m4.5 2.5 3.5 3.5-3.5 3.5" />
-                    </svg>
-                    Arquivados ({recolhidos.length})
-                  </summary>
-                  <ul className="mt-2 border-border border-t">
-                    {recolhidos.map((project, indice) => (
-                      <li key={project.PublicId}>
-                        <ProjectRow project={project} ordem={indice} />
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
-              {status === 'ready' && rows.length === 0 && recolhidos.length === 0 && (
-                <div className="rounded-xl border border-border border-dashed px-6 py-10 text-center">
-                  {projects.length === 0 ? (
-                    <>
-                      <p className="font-medium text-body text-fg">Nenhum projeto ainda</p>
-                      <p className="mx-auto mt-1.5 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
-                        Crie o primeiro para receber a chave pública dele e colar o script no seu
-                        sistema.
-                      </p>
-                      <p className="mx-auto mt-3 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
-                        Foi convidado para um time? Abra o link do e-mail de convite usando a conta
-                        Google daquele endereço.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-medium text-body text-fg">Nenhum projeto com esse nome</p>
-                      <Button
-                        size="sm"
-                        variant="quiet"
-                        className="mt-4"
-                        onClick={() => setQuery('')}
-                      >
-                        Limpar busca
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            {status === 'ready' && rows.length === 0 && recolhidos.length === 0 && (
+              <div
+                className="rounded-xl border border-border border-dashed px-6 py-10 text-center"
+                {...guideTarget(projects.length === 0 ? 'lista-vazia' : 'busca-vazia')}
+              >
+                {projects.length === 0 ? (
+                  <>
+                    <p className="font-medium text-body text-fg">Nenhum projeto ainda</p>
+                    <p className="mx-auto mt-1.5 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
+                      Os projetos que você criar aparecem aqui, junto com os dos times que
+                      convidarem você.
+                    </p>
+                    <p className="mx-auto mt-3 max-w-[44ch] text-detail text-fg-muted leading-relaxed">
+                      Se alguém convidou você para um time, abra o link do e-mail com a conta Google
+                      daquele endereço.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-body text-fg">Nenhum projeto com esse nome</p>
+                    <Button size="sm" variant="quiet" className="mt-4" onClick={() => setQuery('')}>
+                      Limpar busca
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       <CreateProjectDialog open={creating} onOpenChange={setCreating} />
