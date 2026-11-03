@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Button } from '@/shared/components/Button'
 import { LeaveGuard } from '@/shared/components/LeaveGuard'
 import { cn } from '@/shared/lib/cn'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /**
  * O titulo das telas de configuracao que salvam num botao, com o salvar ao lado, e a
@@ -65,7 +66,11 @@ export function SettingsHeader({
       <header className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
           <h1 className="font-semibold text-screen tracking-tight">{title}</h1>
-          {status}
+          {status && (
+            <span className="flex" {...guideTarget('estado')}>
+              {status}
+            </span>
+          )}
         </div>
 
         {ready && (
@@ -121,6 +126,7 @@ function SaveActions({
     <div
       aria-busy={saving}
       className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:ml-auto sm:w-auto"
+      {...guideTarget('salvar')}
     >
       {/* `aria-live`: quem usa leitor de tela ouve a mudanca virar "Tudo salvo" depois
           de salvar, sem ter de voltar ao topo para conferir. */}

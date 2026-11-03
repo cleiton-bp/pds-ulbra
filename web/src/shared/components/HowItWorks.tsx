@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/shared/lib/cn'
+import { guideTarget } from '@/shared/tour/guideStore'
 
 /**
  * "Como funciona": a explicacao longa, recolhida — nas abas de Domínios, nos grupos do
@@ -31,7 +32,7 @@ export function HowItWorks({
   label?: string
 }) {
   return (
-    <details className={cn('details-smooth group', className)}>
+    <details className={cn('details-smooth group', className)} {...guideTarget('como-funciona')}>
       <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-caption text-fg-muted hover:text-fg [&::-webkit-details-marker]:hidden">
         <svg
           viewBox="0 0 12 12"
