@@ -492,9 +492,13 @@ function ConfigNav({
   const naConfiguracao = isConfigPath(segment)
   const [open, setOpen] = useState(naConfiguracao)
 
-  // **So a area da tela aberta fica aberta.** As cinco areas abertas de uma vez eram
+  // **Ao entrar, so a area da tela aberta abre.** As cinco areas abertas de uma vez eram
   // vinte e poucas linhas, passavam da altura da tela e escondiam onde a pessoa estava.
   // Na Visao geral nenhuma abre: a propria pagina ja lista todas as telas, com resumo.
+  //
+  // **Depois, quem abre e quem fecha e a pessoa.** Trocar de tela abre a area da tela
+  // nova e deixa as outras como estavam: fechar sozinho o grupo que alguem acabou de
+  // abrir, a cada clique num item, desfazia a escolha dela.
   const areaDaTela = areaAtual(segment)
   const [abertas, setAbertas] = useState<ReadonlySet<ConfigAreaKey>>(() => conjunto(areaDaTela))
 
@@ -502,7 +506,8 @@ function ConfigNav({
   if (segmentoVisto !== segment) {
     setSegmentoVisto(segment)
     if (naConfiguracao) setOpen(true)
-    setAbertas(conjunto(areaDaTela))
+    if (areaDaTela !== null)
+      setAbertas((atuais) => (atuais.has(areaDaTela) ? atuais : new Set([...atuais, areaDaTela])))
   }
 
   function alternarArea(area: ConfigAreaKey) {
