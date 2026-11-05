@@ -119,6 +119,20 @@ public class ProjectWidgetSettingsMap : BaseEntityConfiguration<ProjectWidgetSet
             .IsRequired()
             .HasComment("same | icon_only | hidden. Como o botao fica numa janela estreita (celular).");
 
+        builder.Property(settings => settings.OpenAnimation)
+            .HasColumnName("open_animation")
+            .HasConversion(new SnakeCaseEnumConverter<WidgetOpenAnimationEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("smooth | slide | grow | none. Como o formulario aparece ao clicar no botao, e sai ao fechar.");
+
+        builder.Property(settings => settings.OpenAnimationSpeed)
+            .HasColumnName("open_animation_speed")
+            .HasConversion(new SnakeCaseEnumConverter<WidgetAnimationSpeedEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("fast | normal | slow. A duracao do movimento do formulario ao abrir e fechar.");
+
         builder.Property(settings => settings.HiddenPaths)
             .HasColumnName("hidden_paths")
             .HasColumnType("text[]")

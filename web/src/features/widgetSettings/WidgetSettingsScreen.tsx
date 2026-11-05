@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { WidgetSettingsViewModel } from '@/contracts'
 import {
+  AnimationFields,
   AppearanceFields,
   BUTTON_FIELDS,
   BUTTON_GROUPS,
+  describeAnimation,
   describeAppearance,
   describeHiddenPages,
   describeMobile,
@@ -58,7 +60,7 @@ const MUDARAM_DE_TELA: Record<string, string> = {
  * O botão: **o botao, e so ele** — se aparece, como e, onde fica.
  *
  * **Um editor de duas colunas a partir de `lg`**: a esquerda, os assuntos num acordeao
- * (Aparência, Posição, No celular, Páginas escondidas), cada titulo com uma amostra do
+ * (Aparência, Posição, Animação, No celular, Páginas escondidas), cada titulo com uma amostra do
  * que esta escolhido e o que mudou do padrao; a direita, a previa presa ao rolar. A
  * previa no meio da coluna fazia quem mexia na distancia ou no celular rolar para cima
  * e para baixo a cada mudanca. Abaixo de `lg`, uma coluna, com a previa no topo.
@@ -74,7 +76,7 @@ const MUDARAM_DE_TELA: Record<string, string> = {
  * celular" troca a previa para o celular — e o selo diz que trocou —, e fechar volta, a
  * nao ser que a pessoa tenha escolhido o aparelho na propria previa. **Ela realca o
  * assunto em foco**: as guias da distancia com a Posição aberta, o contorno do botao
- * com o foco na Aparência.
+ * com a Aparência aberta.
  *
  * **Grava o registro inteiro com so os campos desta tela mudados** (`useSettingsDraft`):
  * os textos salvos em outra tela nao voltam ao que estavam quando esta abriu.
@@ -93,7 +95,8 @@ export function WidgetSettingsScreen() {
   /** O celular foi posto pela abertura de "No celular", e nao pela pessoa: fechar desfaz. */
   const [trocouSozinho, setTrocouSozinho] = useState(false)
   const [posicaoAberta, setPosicaoAberta] = useState(false)
-  const [naAparencia, setNaAparencia] = useState(false)
+  /** A Aparência abre aberta (`defaultOpen`): e o contorno do botao que a previa mostra. */
+  const [aparenciaAberta, setAparenciaAberta] = useState(true)
 
   function alternarCelular(aberto: boolean) {
     if (aberto) {
@@ -112,7 +115,11 @@ export function WidgetSettingsScreen() {
     setAparelho(escolhido)
   }
 
-  const realce: PreviewHighlight | null = posicaoAberta ? 'distance' : naAparencia ? 'button' : null
+  const realce: PreviewHighlight | null = posicaoAberta
+    ? 'distance'
+    : aparenciaAberta
+      ? 'button'
+      : null
 
   // O guia desta tela, depois que a configuracao chega.
   useScreenGuide(
@@ -132,7 +139,7 @@ export function WidgetSettingsScreen() {
           {
             alvo: 'opcoes',
             titulo: 'Como ele é',
-            texto: 'Cor, texto, posição e celular, cada grupo com o que muda no botão.',
+            texto: 'Cor, texto, posição, animação e celular, cada grupo com o que muda no botão.',
           },
           {
             alvo: 'previa',
@@ -239,7 +246,7 @@ export function WidgetSettingsScreen() {
               change={change}
               onMobileToggle={alternarCelular}
               onPositionToggle={setPosicaoAberta}
-              onAppearanceFocus={setNaAparencia}
+              onAppearanceToggle={setAparenciaAberta}
             />
 
             <p className="mt-2 text-detail text-fg-muted leading-relaxed">
@@ -268,23 +275,23 @@ export function WidgetSettingsScreen() {
 const ACORDEAO = 'botao'
 
 /**
- * Os quatro assuntos, no acordeao. A Aparência abre sozinha: e o que a pessoa ajusta na
- * primeira hora.
+ * Os assuntos, no acordeao. A Aparência abre sozinha: e o que a pessoa ajusta na
+ * primeira hora. A Animação e a do formulario, e mora aqui porque sai do botao.
  */
 function ButtonGroups({
   draft,
   change,
   onMobileToggle,
   onPositionToggle,
-  onAppearanceFocus,
+  onAppearanceToggle,
 }: {
   draft: WidgetSettingsViewModel
   change: (patch: Partial<WidgetSettingsViewModel>) => void
   onMobileToggle: (open: boolean) => void
   onPositionToggle: (open: boolean) => void
-  onAppearanceFocus: (inside: boolean) => void
+  onAppearanceToggle: (open: boolean) => void
 }) {
-  const { appearance, position, mobile, hiddenPages } = BUTTON_GROUPS
+  const { appearance, position, animation, mobile, hiddenPages } = BUTTON_GROUPS
 
   return (
     <>
@@ -303,7 +310,7 @@ function ButtonGroups({
         }
         changes={groupChanges(draft, appearance)}
         onReset={() => change(resetPatch(draft, appearance))}
-        onFocusWithin={onAppearanceFocus}
+        onToggle={onAppearanceToggle}
         defaultOpen
       >
         <AppearanceFields draft={draft} change={change} />
@@ -319,6 +326,17 @@ function ButtonGroups({
         onToggle={onPositionToggle}
       >
         <PositionFields draft={draft} change={change} />
+      </SettingsGroup>
+
+      <SettingsGroup
+        name={ACORDEAO}
+        id="animacao"
+        title="Animação"
+        value={describeAnimation(draft)}
+        changes={groupChanges(draft, animation)}
+        onReset={() => change(resetPatch(draft, animation))}
+      >
+        <AnimationFields draft={draft} change={change} />
       </SettingsGroup>
 
       <SettingsGroup

@@ -18,7 +18,7 @@ import { actAsPreviewFrame, lastPreview } from '@/test/previewFrame'
  * - **A previa recebe o rascunho dos anexos** como a ferramenta o le: so os tipos ligados,
  *   o arquivo com as extensoes marcadas. Desligado o anexo, nada de anexo.
  * - **A previa abre o formulario e contorna a area de anexar** enquanto um grupo esta
- *   aberto ou em foco.
+ *   aberto, e so entao: o foco atravessando um grupo fechado nao muda nada.
  */
 const dublê = vi.hoisted(() => ({
   ler: vi.fn<() => Promise<MediaSettingsViewModel>>(),
@@ -246,7 +246,7 @@ describe('MediaScreen, grupos e prévia', () => {
     await waitFor(() => expect(lastPreview(lidas)?.media).toBeNull())
   })
 
-  it('a prévia contorna a área de anexar enquanto um grupo está aberto ou em foco', async () => {
+  it('a prévia contorna a área de anexar enquanto um grupo está aberto, e só então', async () => {
     dublê.ler.mockResolvedValue(FABRICA)
     montar()
 
@@ -259,11 +259,13 @@ describe('MediaScreen, grupos e prévia', () => {
     grupo('grupo-imagem').open = false
     await waitFor(() => expect(lastPreview(lidas)?.highlight).toBeNull())
 
-    // O foco num campo de um grupo fechado tambem realca.
+    // O foco num campo de um grupo fechado nao muda nada.
     act(() => caixa('Ao reabrir').focus())
-    await waitFor(() => expect(lastPreview(lidas)?.highlight).toBe('form-attachments'))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(lastPreview(lidas)?.highlight).toBeNull()
 
-    act(() => (document.activeElement as HTMLElement).blur())
-    await waitFor(() => expect(lastPreview(lidas)?.highlight).toBeNull())
+    // Abrir o grupo, sim.
+    grupo('quando-anexar').open = true
+    await waitFor(() => expect(lastPreview(lidas)?.highlight).toBe('form-attachments'))
   })
 })

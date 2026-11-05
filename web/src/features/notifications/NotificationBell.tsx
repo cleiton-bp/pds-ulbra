@@ -274,9 +274,12 @@ export function NotificationBell() {
                 value={opcao}
                 onSelect={(evento) => evento.preventDefault()}
                 className={cn(
-                  'cursor-pointer rounded-md px-2.5 py-1 text-caption outline-none',
-                  'data-[highlighted]:ring-2 data-[highlighted]:ring-accent',
-                  aba === opcao ? 'bg-surface-sunken font-medium text-fg' : 'text-fg-muted',
+                  // No mouse, so o texto acende; o anel de foco do painel fica para o
+                  // teclado, por dentro da aba para nao bater na borda do grupo.
+                  'cursor-pointer rounded-md px-2.5 py-1 text-caption transition-colors duration-150 focus-visible:-outline-offset-2',
+                  aba === opcao
+                    ? 'bg-surface-sunken font-medium text-fg'
+                    : 'text-fg-muted data-[highlighted]:text-fg',
                 )}
               >
                 {opcao === 'unread' ? `Não lidos (${count})` : 'Todos'}

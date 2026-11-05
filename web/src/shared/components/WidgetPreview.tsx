@@ -9,7 +9,8 @@ import {
 } from 'react'
 import type { PublicMediaSettingsViewModel, WidgetSettingsViewModel } from '@/contracts'
 import { environment } from '@/data'
-import { launcherMode, placeFrame, readResize } from '@/embed/launcher'
+import { frameMotion, prefersReducedMotion } from '@/embed/frameMotion'
+import { frameRadius, launcherMode, placeFrame, readResize } from '@/embed/launcher'
 import {
   isOurMessage,
   isPreviewFormPart,
@@ -31,7 +32,7 @@ export type PreviewDevice = keyof typeof LARGURA
 /**
  * O que a previa realca do assunto em que a pessoa esta. **No botao**, desenhado pelo
  * painel: as guias da distancia (`distance`), com a Posição aberta, ou o contorno do
- * botao (`button`), com o foco na Aparência. **No formulario aberto**, desenhado pelo
+ * botao (`button`), com a Aparência aberta. **No formulario aberto**, desenhado pelo
  * proprio quadro: uma das partes de `PREVIEW_FORM_PARTS` (`form-top`, `form-type`,
  * `form-title`, `form-box`, `form-attachments`, `form-name`, `form-submit`), contornada
  * — Formulário realca o grupo aberto, Anexos a area de anexar.
@@ -299,8 +300,26 @@ export function WidgetPreview({
 
   // Escondido no celular: quem decide e o botao, com a mesma regra do site.
   const escondido = launcherMode(settings, null, largura) === 'hidden'
-  const lugar = pedido ? placeFrame(pedido, tamanho) : null
+  // A largura da regra, e nao a medida: a pagina de mentira do computador tem menos de
+  // 640 px aqui no painel, e sem isto a previa mostraria a folha do celular.
+  const lugar = pedido ? placeFrame(pedido, { ...tamanho, ruleWidth: largura }) : null
   const px = (valor: number | null) => (valor === null ? undefined : `${valor}px`)
+
+  // A abertura escolhida, com a conta do carregador: abrir e fechar como no site. Fechado,
+  // o quadro some pelo caminho de volta e so fica invisivel no fim (o `visibility`
+  // espera o movimento), sem receber clique enquanto some.
+  const passo = frameMotion(
+    settings.OpenAnimation,
+    settings.OpenAnimationSpeed,
+    settings.Position,
+    prefersReducedMotion(),
+    lugar?.sheet ?? false,
+  )
+  const transicao = aberto
+    ? passo.openTransition
+    : passo.closeMs
+      ? `${passo.closeTransition}, visibility 0s linear ${passo.closeMs}ms`
+      : ''
 
   const posicao: CSSProperties = lugar
     ? {
@@ -310,9 +329,14 @@ export function WidgetPreview({
         bottom: px(lugar.bottom),
         left: px(lugar.left),
         right: px(lugar.right),
-        borderRadius: lugar.radius,
+        borderRadius: frameRadius(lugar),
         // So aberto: fechado, quem aparece e o botao.
         visibility: aberto ? 'visible' : 'hidden',
+        opacity: aberto ? 1 : Number(passo.hidden.opacity),
+        transform: aberto ? 'none' : passo.hidden.transform,
+        transformOrigin: passo.origin,
+        transition: transicao,
+        pointerEvents: aberto ? undefined : 'none',
       }
     : // Ate o primeiro `resize`, invisivel — como o carregador faz no site.
       { visibility: 'hidden', width: 360, height: 520, right: 20, bottom: 20 }

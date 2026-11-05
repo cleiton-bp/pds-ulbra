@@ -21,6 +21,8 @@ confirmação, o topo do acompanhamento e o aviso de relato público).</p>
   <tr><td><code>launcher_shadow</code></td><td>Sombra embaixo do botão parado na página. Fábrica: sem.</td></tr>
   <tr><td><code>mobile_mode</code></td><td><code>same</code> | <code>icon_only</code> | <code>hidden</code>. Como o botão fica numa janela com menos de 640 pixels de largura. <code>icon_only</code> também exige um ícone.</td></tr>
   <tr><td><code>hidden_paths</code></td><td><code>text[]</code>, até 20 (<em>check</em>): as páginas onde o botão não aparece; caminho exato (<code>/checkout</code>) ou começo terminado em <code>*</code> (<code>/login/*</code>, que vale para <code>/login</code> e o que vem embaixo). Cada uma começa com <code>/</code>, até 200 caracteres, sem <code>?</code> nem <code>#</code>.</td></tr>
+  <tr><td><code>open_animation</code></td><td><code>smooth</code> | <code>slide</code> | <code>grow</code> | <code>none</code>: como o formulário aparece ao clicar no botão, e sai ao fechar. <b><code>smooth</code> de fábrica</b>, porque surgir de uma vez cobre a página do cliente sem aviso; quem pede menos movimento no sistema vê o formulário sem animação.</td></tr>
+  <tr><td><code>open_animation_speed</code></td><td><code>fast</code> | <code>normal</code> | <code>slow</code>: a duração desse movimento. <b><code>normal</code> de fábrica.</b></td></tr>
   <tr><td><code>launcher_label</code></td><td>O texto do botão parado na página. 40.</td></tr>
   <tr><td><code>title</code></td><td>O título dentro do quadro. 60.</td></tr>
   <tr><td><code>success_message</code></td><td>A frase acima do protocolo. 200. <b>Aceita variáveis</b>: <code>{{primeiroNome}}</code>, <code>{{protocolo}}</code>, <code>{{tipo}}</code> e <code>{{projeto}}</code>.</td></tr>

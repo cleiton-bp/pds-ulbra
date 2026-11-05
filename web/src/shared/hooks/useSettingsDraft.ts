@@ -135,6 +135,8 @@ export function widgetSettingsRequest(
     LauncherTextColor: settings.LauncherTextColor,
     LauncherShadow: settings.LauncherShadow,
     MobileMode: settings.MobileMode,
+    OpenAnimation: settings.OpenAnimation,
+    OpenAnimationSpeed: settings.OpenAnimationSpeed,
     // A linha em branco nao vai: e uma pagina que ninguem escreveu.
     HiddenPaths: settings.HiddenPaths.map((caminho) => caminho.trim()).filter(Boolean),
     LauncherLabel: settings.LauncherLabel,

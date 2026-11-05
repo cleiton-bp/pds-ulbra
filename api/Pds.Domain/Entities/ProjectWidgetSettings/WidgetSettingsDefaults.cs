@@ -49,6 +49,14 @@ public static class WidgetSettingsDefaults
     public const WidgetMobileModeEnum MobileMode = WidgetMobileModeEnum.Same;
 
     /// <summary>
+    /// A abertura do formulario e a excecao ao "valor de antes": antes ele surgia de uma
+    /// vez, e o padrao agora e o movimento suave, em todo projeto que nao escolheu outro.
+    /// </summary>
+    public const WidgetOpenAnimationEnum OpenAnimation = WidgetOpenAnimationEnum.Smooth;
+
+    public const WidgetAnimationSpeedEnum OpenAnimationSpeed = WidgetAnimationSpeedEnum.Normal;
+
+    /// <summary>
     /// Nenhuma pagina esconde o botao. Lista nao cabe em <c>const</c>; e nova a cada
     /// leitura, para ninguem alterar o padrao de todo mundo por engano.
     /// </summary>

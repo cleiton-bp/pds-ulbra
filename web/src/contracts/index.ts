@@ -281,11 +281,13 @@ export { MAX_INVITATION_VALIDITY_DAYS, MIN_INVITATION_VALIDITY_DAYS } from '@/co
 export type {
   ReportTitleMode,
   SaveWidgetSettingsRequest,
+  WidgetAnimationSpeed,
   WidgetLauncherIcon,
   WidgetLauncherShape,
   WidgetLauncherSize,
   WidgetLauncherViewModel,
   WidgetMobileMode,
+  WidgetOpenAnimation,
   WidgetPosition,
   WidgetReportTypeViewModel,
   WidgetSettingsViewModel,

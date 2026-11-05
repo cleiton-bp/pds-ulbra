@@ -99,7 +99,8 @@ export function ProjectShell() {
 
   // `/projects/:id/<secao>/...`: a secao aberta, e se ela e o card aberto.
   const [, , , segment = '', resto] = location.pathname.split('/')
-  const cardAberto = segment === 'reports' && Boolean(resto)
+  const trabalho = segment === 'reports'
+  const cardAberto = trabalho && Boolean(resto)
 
   // O projeto que a casca esta abrindo agora: a resposta que chega depois de a
   // pessoa ter ido para outro projeto nao pode marcar este como "nao encontrado".
@@ -439,14 +440,20 @@ export function ProjectShell() {
         <main
           id="conteudo"
           tabIndex={-1}
-          className="min-w-0 flex-1 overflow-auto px-5 py-7 outline-none lg:px-10 lg:pt-10 lg:pb-12"
+          className={cn(
+            'min-w-0 flex-1 overflow-auto px-5 pt-7 outline-none lg:px-10 lg:pt-10',
+            // Folga no pe: o fim da tela (o arquivar, o salvar) sobe longe da borda da
+            // janela. O Trabalho mede a altura daqui, e cuida da folga dele na lista.
+            trabalho ? 'pb-7 lg:pb-12' : 'pb-32 lg:pb-40',
+          )}
         >
           {/* Tipado nas duas pontas: sem `satisfies` aqui, campo novo no contexto
               compila de um lado e chega `undefined` do outro. */}
           {/* A chave e a secao (trabalho, membros, moderacao...), e nao o endereco inteiro:
               abrir um card muda o endereco sem trocar de tela, e nao pode esmaecer a lista.
-              `h-full` porque o quadro mede a altura a partir daqui. */}
-          <div key={segment} className="h-full animate-panel-in">
+              `h-full` so no Trabalho, porque o quadro mede a altura a partir daqui. Nas
+              outras telas a altura fixa fazia o texto passar por cima da folga do pe. */}
+          <div key={segment} className={cn('animate-panel-in', trabalho && 'h-full')}>
             {project ? (
               <Outlet context={{ project } satisfies ProjectContext} />
             ) : (

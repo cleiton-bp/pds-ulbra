@@ -1,9 +1,11 @@
 import { useId, useState } from 'react'
 import type {
+  WidgetAnimationSpeed,
   WidgetLauncherIcon,
   WidgetLauncherShape,
   WidgetLauncherSize,
   WidgetMobileMode,
+  WidgetOpenAnimation,
   WidgetPosition,
   WidgetSettingsViewModel,
 } from '@/contracts'
@@ -53,6 +55,10 @@ export const BUTTON_GROUPS = {
   ],
   mobile: [['MobileMode', 'No celular']],
   hiddenPages: [['HiddenPaths', 'Páginas escondidas']],
+  animation: [
+    ['OpenAnimation', 'Como abre'],
+    ['OpenAnimationSpeed', 'Velocidade'],
+  ],
 } as const satisfies Record<string, Campos>
 
 /** O que esta tela grava: o liga e desliga e os campos dos grupos. Ver `useWidgetSettingsDraft`. */
@@ -75,6 +81,19 @@ const NO_CELULAR: Record<WidgetMobileMode, string> = {
   Same: 'Igual ao computador',
   IconOnly: 'Só o ícone',
   Hidden: 'Escondido',
+}
+
+const ABERTURAS: Record<WidgetOpenAnimation, string> = {
+  Smooth: 'Suave',
+  Slide: 'Deslizar',
+  Grow: 'Crescer',
+  None: 'Sem animação',
+}
+
+const VELOCIDADES: Record<WidgetAnimationSpeed, string> = {
+  Fast: 'Rápida',
+  Normal: 'Normal',
+  Slow: 'Lenta',
 }
 
 const TAMANHOS: Record<WidgetLauncherSize, string> = {
@@ -157,6 +176,12 @@ export function describePosition(draft: WidgetSettingsViewModel): string {
 
 export function describeMobile(draft: WidgetSettingsViewModel): string {
   return NO_CELULAR[draft.MobileMode]
+}
+
+/** "Suave, normal", ou so "Sem animação": a velocidade nao vale sem movimento. */
+export function describeAnimation(draft: WidgetSettingsViewModel): string {
+  if (draft.OpenAnimation === 'None') return ABERTURAS.None
+  return `${ABERTURAS[draft.OpenAnimation]}, ${VELOCIDADES[draft.OpenAnimationSpeed].toLowerCase()}`
 }
 
 /** "Aparece em todas as páginas", ou quais esconde — as linhas vazias nao contam. */
@@ -610,6 +635,92 @@ function MiniPhone({ mode }: { mode: 'text' | 'icon' | 'none' }) {
       {mode === 'icon' && (
         <span className="absolute right-0.5 bottom-0.5 size-2.5 rounded-full bg-accent" />
       )}
+    </span>
+  )
+}
+
+/**
+ * Como o formulario abre ao clicar no botao, e a velocidade. **Escolher nao abre nada
+ * sozinho**: quem quer ver clica no botao da previa, como faria no site. Abrir a cada
+ * troca tirava o controle da pessoa e cobria a previa enquanto ela ainda escolhia.
+ */
+export function AnimationFields({
+  draft,
+  change,
+}: {
+  draft: WidgetSettingsViewModel
+  change: Change
+}) {
+  const semMovimento = draft.OpenAnimation === 'None'
+
+  return (
+    <div id="animacao-do-formulario" className="flex scroll-mt-6 flex-col gap-5">
+      <Field id="como-abre" label="Como abre">
+        <RadioGroup<WidgetOpenAnimation>
+          label="Como abre"
+          value={draft.OpenAnimation}
+          onChange={(OpenAnimation) => change({ OpenAnimation })}
+          options={(Object.keys(ABERTURAS) as WidgetOpenAnimation[]).map((abertura) => ({
+            value: abertura,
+            label: ABERTURAS[abertura],
+            drawing: <MiniOpening animation={abertura} />,
+          }))}
+        />
+        <Hint>Para ver, clique no botão da prévia.</Hint>
+      </Field>
+
+      <Field id="velocidade" label="Velocidade">
+        <RadioGroup<WidgetAnimationSpeed>
+          label="Velocidade"
+          look="pill"
+          value={draft.OpenAnimationSpeed}
+          onChange={(OpenAnimationSpeed) => change({ OpenAnimationSpeed })}
+          options={(Object.keys(VELOCIDADES) as WidgetAnimationSpeed[]).map((velocidade) => ({
+            value: velocidade,
+            label: VELOCIDADES[velocidade],
+            disabled: semMovimento,
+          }))}
+        />
+        <Hint>
+          {semMovimento
+            ? 'Sem animação, o formulário aparece de uma vez.'
+            : 'Quem pediu menos movimento ao sistema vê o formulário só esmaecer.'}
+        </Hint>
+      </Field>
+    </div>
+  )
+}
+
+/**
+ * Uma pagina em miniatura com o formulario no canto e, tracejado, de onde ele parte: um
+ * pouco abaixo, do lado da borda, pequeno no canto. Sem animacao, so o formulario.
+ */
+function MiniOpening({ animation }: { animation: WidgetOpenAnimation }) {
+  const partida = {
+    Smooth: 'translate-y-1.5 border-fg-muted',
+    Slide: 'translate-x-3 border-fg-muted',
+    Grow: 'origin-bottom-right scale-50 border-accent-fg',
+    None: null,
+  }[animation]
+
+  const tracejado = partida && (
+    <span
+      className={cn('absolute right-1 bottom-1 h-6 w-5 rounded-sm border border-dashed', partida)}
+    />
+  )
+  // No "Crescer", o ponto de partida fica dentro do formulario: vem depois dele no HTML,
+  // e por isso por cima, na cor que contrasta com o acento. Nos outros, vem antes, e so
+  // a parte que sai do formulario aparece.
+  const porCima = animation === 'Grow'
+
+  return (
+    <span
+      aria-hidden
+      className="relative block h-10 w-14 overflow-hidden rounded-md border-2 border-fg-muted bg-surface-sunken"
+    >
+      {!porCima && tracejado}
+      <span className="absolute right-1 bottom-1 h-6 w-5 rounded-sm bg-accent" />
+      {porCima && tracejado}
     </span>
   )
 }

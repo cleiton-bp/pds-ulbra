@@ -299,12 +299,11 @@ export function IdentityScreen() {
     ),
   )
 
-  /** O grupo aberto e o grupo em que a pessoa esta: o segundo vence, na previa. */
+  /** O grupo aberto: e ele que a previa mostra. */
   const [aberto, setAberto] = useState<Grupo | null>(null)
-  const [emFoco, setEmFoco] = useState<Grupo | null>(null)
   /** A aba que a pessoa escolheu. Vence o grupo ate outro grupo abrir. */
   const [abaEscolhida, setAbaEscolhida] = useState<Aba | null>(null)
-  const ativo = emFoco ?? aberto
+  const ativo = aberto
   const aba: Aba = abaEscolhida ?? (ativo ? ABA_DO_GRUPO[ativo] : 'sistema')
 
   /**
@@ -345,8 +344,6 @@ export function IdentityScreen() {
         // Abrir um grupo e um pedido claro de mudar de assunto: a previa volta a segui-lo.
         if (abriu) setAbaEscolhida(null)
       },
-      onFocusWithin: (dentro: boolean) =>
-        setEmFoco((atual) => (dentro ? grupo : atual === grupo ? null : atual)),
     }
   }
 

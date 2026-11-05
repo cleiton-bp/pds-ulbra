@@ -32,9 +32,10 @@ import { cn } from '@/shared/lib/cn'
  * o que ele troca e a tela (`onReset`): so os campos deste grupo, no rascunho certo —
  * quem grava continua sendo o Publicar do titulo, e Descartar desfaz.
  *
- * **A previa acompanha o grupo**: `onToggle` diz que ele abriu ou fechou, e
- * `onFocusWithin`, que a pessoa entrou ou saiu dele pelo foco ou pelo mouse — a tela usa
- * os dois para realcar, na previa, a parte que se esta mudando.
+ * **A previa acompanha o grupo aberto, e so ele**: `onToggle` diz que ele abriu ou
+ * fechou, e a tela realca na previa a parte dele. Passar o mouse ou o foco por outro grupo
+ * nao muda nada: a previa trocando sozinha enquanto a pessoa so atravessava a tela
+ * confundia mais do que mostrava.
  *
  * Sem ajuda e sem "Como funciona" dentro: cada controle traz a propria dica de uma
  * linha, ao lado dele — tres camadas de texto antes do primeiro controle afastavam a
@@ -49,7 +50,6 @@ export function SettingsGroup({
   onReset,
   defaultOpen = false,
   onToggle,
-  onFocusWithin,
   children,
 }: {
   /** O nome do acordeao: os grupos com o mesmo nome abrem um de cada vez. Um por tela. */
@@ -66,8 +66,6 @@ export function SettingsGroup({
   defaultOpen?: boolean
   /** O grupo abriu ou fechou — pela pessoa, pela busca ou pelo vizinho que abriu. */
   onToggle?: (open: boolean) => void
-  /** A pessoa entrou ou saiu do grupo, pelo foco ou pelo mouse: a previa realca o assunto. */
-  onFocusWithin?: (inside: boolean) => void
   children: ReactNode
 }) {
   const nome = `${id}-nome`
@@ -76,16 +74,6 @@ export function SettingsGroup({
   return (
     <section
       aria-labelledby={nome}
-      onFocus={() => onFocusWithin?.(true)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          onFocusWithin?.(false)
-        }
-      }}
-      onPointerEnter={() => onFocusWithin?.(true)}
-      onPointerLeave={(event) => {
-        if (!event.currentTarget.contains(document.activeElement)) onFocusWithin?.(false)
-      }}
       className="relative rounded-xl border border-border bg-surface-raised"
     >
       <details

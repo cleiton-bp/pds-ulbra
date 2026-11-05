@@ -34,6 +34,8 @@ namespace Pds.Domain.ViewModels;
 /// texto e as bordas saem dela.
 /// </param>
 /// <param name="MobileMode">Como o botao fica numa janela estreita: igual, so o icone ou escondido.</param>
+/// <param name="OpenAnimation">Como o formulario aparece ao clicar no botao, e sai ao fechar.</param>
+/// <param name="OpenAnimationSpeed">A duracao desse movimento: rapida, normal ou lenta.</param>
 /// <param name="HiddenPaths">
 /// As paginas onde o botao nao aparece. <b>Sai para o site do cliente</b> porque e a
 /// ferramenta que compara, com o caminho da pagina que so ela conhece; nao e segredo —
@@ -154,6 +156,8 @@ public record WidgetSettingsViewModel(
     bool LauncherShadow,
     string? FormBackgroundColor,
     WidgetMobileModeEnum MobileMode,
+    WidgetOpenAnimationEnum OpenAnimation,
+    WidgetAnimationSpeedEnum OpenAnimationSpeed,
     IReadOnlyList<string> HiddenPaths,
     string LauncherLabel,
     string Title,
@@ -233,6 +237,11 @@ public record WidgetReportTypeViewModel(
 /// e o fundo do tema.
 /// </param>
 /// <param name="MobileMode">Como o botao fica numa janela estreita.</param>
+/// <param name="OpenAnimation">
+/// Como o formulario aparece ao clicar no botao. Vai com o botao porque quem anima o
+/// quadro e o carregador, na pagina do cliente.
+/// </param>
+/// <param name="OpenAnimationSpeed">A duracao desse movimento.</param>
 /// <param name="HiddenPaths">As paginas onde o botao nao aparece.</param>
 /// <param name="LauncherLabel">O texto do botao.</param>
 public record WidgetLauncherViewModel(
@@ -250,5 +259,7 @@ public record WidgetLauncherViewModel(
     bool LauncherShadow,
     string? FormBackgroundColor,
     WidgetMobileModeEnum MobileMode,
+    WidgetOpenAnimationEnum OpenAnimation,
+    WidgetAnimationSpeedEnum OpenAnimationSpeed,
     IReadOnlyList<string> HiddenPaths,
     string LauncherLabel);

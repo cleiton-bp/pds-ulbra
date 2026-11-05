@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/shared/components/Button'
 import { cn } from '@/shared/lib/cn'
 import {
+  deveApresentarOGuia,
   type GuideStep,
   guideTarget,
-  jaApresentouOGuia,
   marcarGuiaApresentado,
   useGuideStore,
 } from '@/shared/tour/guideStore'
@@ -23,7 +23,8 @@ const BALAO_MS = 900
  *
  * **Na primeira visita ao painel, um balao aponta para ele**, uma vez so, e nao o guia
  * abrindo sozinho: quem entra para trabalhar nao quer ser interrompido. Ele diz que o
- * guia existe em toda tela e nao volta em nenhuma.
+ * guia existe em toda tela e nao volta em nenhuma, a nao ser na Visao geral de cada
+ * projeto recem criado.
  */
 export function GuideButton({
   noDialogo = false,
@@ -50,17 +51,18 @@ export function GuideButton({
   // Cada botao serve ao guia do seu lugar: o da barra, as telas; o do dialogo, o dialogo.
   const meu = tela !== null && tela.noDialogo === noDialogo ? tela : null
   const id = meu?.id ?? null
+  const semBalao = meu?.semBalao ?? false
 
   useEffect(() => {
     setBalao(false)
-    if (!id || jaApresentouOGuia()) return
+    if (!id || semBalao || !deveApresentarOGuia(id)) return
     const espera = window.setTimeout(() => {
       const caixa = raiz.current?.getBoundingClientRect()
       setPelaEsquerda(caixa ? caixa.left + caixa.width / 2 < window.innerWidth / 2 : false)
       setBalao(true)
     }, BALAO_MS)
     return () => window.clearTimeout(espera)
-  }, [id])
+  }, [id, semBalao])
 
   // Mostrado uma vez, o guia esta apresentado: o balao nao volta em tela nenhuma, responda
   // a pessoa ou nao.

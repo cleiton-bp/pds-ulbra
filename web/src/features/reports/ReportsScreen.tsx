@@ -1071,7 +1071,9 @@ export function ReportsScreen() {
   return (
     // O quadro ocupa a altura que sobra da janela: as colunas rolam por dentro, e a
     // barra de rolar para os lados fica no pe da tela (ver `ReportsBoard`).
-    <div className={cn(quadro && 'flex h-full flex-col')}>
+    // Na lista, a folga do pe fica aqui: a casca da altura fixa ao Trabalho por causa do
+    // quadro, e a lista longa passaria por cima do espaco de baixo dela.
+    <div className={cn(quadro ? 'flex h-full flex-col' : 'pb-24 lg:pb-28')}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h1 id={`${painel}-titulo`} className="font-semibold text-screen tracking-tight">
           {arquivados ? 'Arquivados' : 'Trabalho'}

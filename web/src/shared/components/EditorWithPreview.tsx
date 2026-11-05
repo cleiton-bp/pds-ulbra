@@ -9,6 +9,10 @@ import { guideTarget } from '@/shared/tour/guideStore'
  * para cima e para baixo a cada mudanca. Abaixo de `lg`, uma coluna, com a previa no
  * topo.
  *
+ * **60% para os controles, 40% para a previa.** Metade e metade apertava o que se
+ * configura (o passo a passo com codigo, na Privacidade, ficava estreito demais), e a
+ * previa cabe inteira em menos: o formulario dela tem a largura de um formulario.
+ *
  * **Os controles vem antes da previa no codigo**, e a previa so e desenhada no topo
  * (`order-first`): quem anda pelo Tab chega aos controles primeiro, e nao atravessa o
  * quadro da previa para comecar.
@@ -33,7 +37,12 @@ export function EditorWithPreview({
   className?: string
 }) {
   return (
-    <div className={cn('grid gap-6 lg:grid-cols-2 lg:items-start', className)}>
+    <div
+      className={cn(
+        'grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start',
+        className,
+      )}
+    >
       <div
         className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1"
         {...guideTarget('opcoes')}

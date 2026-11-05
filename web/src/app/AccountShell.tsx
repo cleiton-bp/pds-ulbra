@@ -51,7 +51,8 @@ export function AccountShell() {
         </div>
       </header>
 
-      <main className="flex-1">
+      {/* Folga no pe: o fim da tela sobe longe da borda da janela. */}
+      <main className="flex-1 pb-24 lg:pb-32">
         {/* A tela nova entra esmaecendo ao trocar de endereco. */}
         <div key={pathname} className="animate-panel-in">
           <Outlet />

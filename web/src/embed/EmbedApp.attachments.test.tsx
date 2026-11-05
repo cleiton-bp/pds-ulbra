@@ -447,7 +447,8 @@ describe('a imagem no relato que a pessoa monta', () => {
     // O piso mora no bloco da caixa, e nao nela: depois de perguntas o bloco tambem
     // leva o nome da caixa, e os dois precisam ficar juntos.
     const bloco = () => screen.getByRole('textbox', { name: CAIXA }).parentElement
-    expect(bloco()?.className).toContain('min-h-0')
+    // O piso vale sempre, e continua com a imagem na lista.
+    expect(bloco()?.className).toContain('min-h-24')
 
     escolher(print())
     await screen.findByRole('list', { name: 'Imagens a enviar' })

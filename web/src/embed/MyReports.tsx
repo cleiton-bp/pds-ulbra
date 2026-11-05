@@ -1,10 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { ReporterCodeReportViewModel } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
 import { Button } from '@/shared/components/Button'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
-import { buildIdentityLink, buildReporterCodeLink } from '@/shared/lib/tracking'
+import { buildIdentityLink, buildReporterCodeLink, type TrackingLink } from '@/shared/lib/tracking'
+
+/**
+ * O relato aberto, com o mesmo conteudo da pagina de acompanhamento. **Baixado so no
+ * clique**: quem abre o formulario para relatar nao paga pela conversa, pela jornada e
+ * pelo encerramento que talvez nunca leia.
+ */
+const TrackingReport = lazy(() =>
+  import('@/tracking/TrackingPage').then((modulo) => ({ default: modulo.TrackingReport })),
+)
 
 /**
  * Por onde a lista é pedida: o código que a pessoa guarda, ou o crachá que o site
@@ -27,10 +36,10 @@ export type MyReportsCredential =
 /**
  * "Os meus relatos", dentro do próprio quadro.
  *
- * **A lista mora aqui, e o relato mora numa janela nova.** São 360 por 520 pixels:
- * dá para reconhecer qual relato é qual, e não dá para ler um inteiro. O botão
- * leva para a página de acompanhamento, que é a mesma de sempre — só entra por
- * outra credencial.
+ * **A lista e o relato moram aqui.** Clicar num relato o abre no próprio quadro, com o
+ * mesmo conteúdo da página de acompanhamento (`TrackingReport`, compacto), e a pessoa
+ * lê sem sair do site. "Abrir em nova guia" leva à página de sempre, para quem quer ler
+ * com espaço; ela entra pela mesma credencial da lista.
  *
  * **Lista vazia não é erro, e a tela não pode tratá-la como erro.** Código digitado
  * errado responde exatamente como código que ainda não tem relato: é o que impede
@@ -68,6 +77,11 @@ export function MyReports({
   const [temMais, setTemMais] = useState(false)
   const [buscando, setBuscando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  /** O relato aberto aqui dentro. Nulo, a lista. */
+  const [aberto, setAberto] = useState<string | null>(null)
+  /** O relato de onde a pessoa veio: ao voltar, o foco volta a ele, e nao ao topo. */
+  const voltarPara = useRef<string | null>(null)
+  const lista = useRef<HTMLUListElement>(null)
 
   const buscar = useCallback(
     async (codigo: string) => {
@@ -127,6 +141,63 @@ export function MyReports({
     else setRelatos([])
   }, [peloCracha, token, buscarPeloCracha])
 
+  /** O link da pagina de acompanhamento deste relato, pela credencial da lista. */
+  const linkDe = (trackingCode: string) =>
+    peloCracha
+      ? buildIdentityLink(trackingCode, publicKey, token)
+      : buildReporterCodeLink(trackingCode, publicKey, codigoDaLista)
+
+  // Voltando da leitura, o foco cai no relato que estava aberto.
+  useEffect(() => {
+    if (aberto !== null || voltarPara.current === null) return
+    const codigo = voltarPara.current
+    voltarPara.current = null
+    lista.current?.querySelector<HTMLButtonElement>(`[data-relato="${codigo}"]`)?.focus()
+  }, [aberto])
+
+  if (aberto !== null) {
+    const entrada: TrackingLink = {
+      code: aberto,
+      token: '',
+      key: publicKey,
+      reporterCode: peloCracha ? '' : codigoDaLista,
+      identityToken: peloCracha ? token : '',
+    }
+
+    return (
+      <section className="flex h-full animate-fade-in flex-col gap-4 overflow-y-auto bg-surface p-5">
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            autoFocus
+            onClick={() => {
+              voltarPara.current = aberto
+              setAberto(null)
+            }}
+          >
+            Voltar aos seus relatos
+          </Button>
+          {/* Janela nova pelo mesmo motivo do link da confirmação: a página tem espaço
+              para ler. E `noreferrer` pelo `noopener` que ele implica, porque este
+              quadro roda dentro do site de outra pessoa. */}
+          <a
+            href={linkDe(aberto)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-none font-medium text-caption text-fg underline underline-offset-4"
+          >
+            Abrir em nova guia
+          </a>
+        </div>
+
+        <Suspense fallback={<p className="text-caption text-fg-muted">Abrindo o relato…</p>}>
+          <TrackingReport entrada={entrada} compacto />
+        </Suspense>
+      </section>
+    )
+  }
+
   return (
     <section className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
       <div className="flex items-start justify-between gap-3">
@@ -180,57 +251,56 @@ export function MyReports({
       )}
 
       {relatos !== null && relatos.length > 0 && (
-        <ul className="flex flex-col gap-2.5">
+        <ul ref={lista} className="flex flex-col gap-2.5">
           {relatos.map((relato) => (
-            <li
-              key={relato.TrackingCode}
-              className="rounded-lg border border-border bg-surface-raised p-3"
-            >
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <span className="font-mono text-caption text-fg-muted">{relato.TrackingCode}</span>
+            <li key={relato.TrackingCode}>
+              {/* O cartão inteiro abre o relato aqui dentro: o alvo é o relato, e não
+                  uma palavra pequena no canto dele. */}
+              <button
+                type="button"
+                data-relato={relato.TrackingCode}
+                onClick={() => setAberto(relato.TrackingCode)}
+                className="w-full rounded-lg border border-border bg-surface-raised p-3 text-left transition-colors duration-150 hover:bg-surface-sunken"
+              >
+                <span className="mb-1 flex items-baseline justify-between gap-2">
+                  <span className="font-mono text-caption text-fg-muted">
+                    {relato.TrackingCode}
+                  </span>
+                  <span
+                    className={cn(
+                      'flex-none text-caption',
+                      relato.IsClosed ? 'text-fg-muted' : 'text-fg',
+                    )}
+                  >
+                    {relato.IsClosed ? 'Encerrado' : (relato.StageLabel ?? 'Em andamento')}
+                  </span>
+                </span>
+
+                {/* O titulo que ela escreveu, quando escreveu — o do time nao chega aqui. */}
+                {relato.Title && (
+                  <span className="mb-0.5 block font-medium text-detail text-fg">
+                    {relato.Title}
+                  </span>
+                )}
                 <span
                   className={cn(
-                    'flex-none text-caption',
-                    relato.IsClosed ? 'text-fg-muted' : 'text-fg',
+                    'mb-2 block text-detail leading-relaxed',
+                    relato.Title ? 'text-fg-muted' : 'text-fg',
                   )}
                 >
-                  {relato.IsClosed ? 'Encerrado' : (relato.StageLabel ?? 'Em andamento')}
+                  {relato.Excerpt}
                 </span>
-              </div>
 
-              {/* O titulo que ela escreveu, quando escreveu — o do time nao chega aqui. */}
-              {relato.Title && (
-                <p className="mb-0.5 font-medium text-detail text-fg">{relato.Title}</p>
-              )}
-              <p
-                className={cn(
-                  'mb-2 text-detail leading-relaxed',
-                  relato.Title ? 'text-fg-muted' : 'text-fg',
-                )}
-              >
-                {relato.Excerpt}
-              </p>
-
-              <div className="flex items-baseline justify-between gap-2">
-                {/* Janela nova pelo mesmo motivo do link da confirmação: aqui dentro
-                    não se lê um relato. E `noreferrer` pelo `noopener` que ele
-                    implica — este quadro roda dentro do site de outra pessoa. */}
-                <a
-                  href={
-                    peloCracha
-                      ? buildIdentityLink(relato.TrackingCode, publicKey, token)
-                      : buildReporterCodeLink(relato.TrackingCode, publicKey, codigoDaLista)
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-caption text-fg underline underline-offset-4"
-                >
-                  Abrir
-                </a>
-                <time dateTime={relato.CreatedAt} className="flex-none text-caption text-fg-muted">
-                  {formatRelative(relato.CreatedAt)}
-                </time>
-              </div>
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium text-caption text-fg">Ver o relato</span>
+                  <time
+                    dateTime={relato.CreatedAt}
+                    className="flex-none text-caption text-fg-muted"
+                  >
+                    {formatRelative(relato.CreatedAt)}
+                  </time>
+                </span>
+              </button>
             </li>
           ))}
         </ul>

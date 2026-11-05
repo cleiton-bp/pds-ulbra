@@ -275,6 +275,9 @@ export function ProjectsHubScreen() {
           },
         ]
       : null,
+    // Vazia, a tela nao gasta o balao: a pessoa esta criando o primeiro projeto, e o
+    // balao aparece na Visao geral dele.
+    { semBalao: vazio },
   )
 
   return (

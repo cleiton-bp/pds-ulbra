@@ -31,9 +31,11 @@ import {
   REPORT_TYPE_ICONS,
   WIDGET_APPEARANCE_LIMITS,
   WIDGET_TEXT_LIMITS,
+  type WidgetAnimationSpeed,
   type WidgetLauncherIcon,
   type WidgetLauncherShape,
   type WidgetMobileMode,
+  type WidgetOpenAnimation,
 } from '@/contracts'
 import { LAUNCHER_POSITIONS, LAUNCHER_SIZES, MAX_OFFSET } from '@/embed/launcher'
 
@@ -184,6 +186,13 @@ const FORMATOS_DO_BOTAO: Record<WidgetLauncherShape, true> = {
   Square: true,
 }
 const CELULAR: Record<WidgetMobileMode, true> = { Same: true, IconOnly: true, Hidden: true }
+const ABERTURA: Record<WidgetOpenAnimation, true> = {
+  Smooth: true,
+  Slide: true,
+  Grow: true,
+  None: true,
+}
+const VELOCIDADE: Record<WidgetAnimationSpeed, true> = { Fast: true, Normal: true, Slow: true }
 const MODELOS: Record<ProjectTemplate, true> = {
   SimpleBoard: true,
   Support: true,
@@ -207,6 +216,8 @@ const ENUMS: ReadonlyArray<[string, readonly string[]]> = [
   ['WidgetLauncherIconEnum', Object.keys(DESENHOS_DO_BOTAO)],
   ['WidgetLauncherShapeEnum', Object.keys(FORMATOS_DO_BOTAO)],
   ['WidgetMobileModeEnum', Object.keys(CELULAR)],
+  ['WidgetOpenAnimationEnum', Object.keys(ABERTURA)],
+  ['WidgetAnimationSpeedEnum', Object.keys(VELOCIDADE)],
   ['ProjectTemplateEnum', Object.keys(MODELOS)],
   ['ObservedOriginStatusEnum', Object.keys(DOMINIO_OBSERVADO)],
   ['ReporterIdentityModeEnum', ['Protocol', 'PersonalCode', 'InheritedIdentity']],

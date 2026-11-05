@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
@@ -65,21 +65,16 @@ describe('SettingsGroup', () => {
     expect(onReset).toHaveBeenCalledTimes(1)
   })
 
-  it('avisa quando abre e fecha, e quando o foco entra e sai', async () => {
+  // A previa segue o grupo aberto, e so ele: o grupo avisa abrir e fechar, e nada mais.
+  it('avisa quando abre e fecha', async () => {
     const onToggle = vi.fn()
-    const onFocusWithin = vi.fn()
-    render(grupo({ onToggle, onFocusWithin }))
+    render(grupo({ onToggle }))
     const detalhes = document.querySelector('details') as HTMLDetailsElement
 
     detalhes.open = true
     await vi.waitFor(() => expect(onToggle).toHaveBeenLastCalledWith(true))
     detalhes.open = false
     await vi.waitFor(() => expect(onToggle).toHaveBeenLastCalledWith(false))
-
-    act(() => screen.getByRole('textbox', { name: 'Campo de dentro' }).focus())
-    expect(onFocusWithin).toHaveBeenLastCalledWith(true)
-    act(() => (document.activeElement as HTMLElement).blur())
-    expect(onFocusWithin).toHaveBeenLastCalledWith(false)
   })
 })
 
@@ -100,6 +95,9 @@ describe('EditorWithPreview', () => {
     expect(pai).toContain('order-first')
     expect(pai).toContain('lg:sticky')
     expect(pai).toContain('lg:order-none')
-    expect(previa.parentElement?.parentElement?.className).toContain('lg:grid-cols-2')
+    // 60% para os controles e 40% para a previa: metade e metade apertava o que se configura.
+    expect(previa.parentElement?.parentElement?.className).toContain(
+      'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]',
+    )
   })
 })

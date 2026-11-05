@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { environment } from '@/data'
+import { environment, getToken } from '@/data'
 import { renderGoogleButton } from '@/features/auth/googleIdentity'
 import { semMovimento } from '@/features/auth/movimento'
 import { MOSTRAR_A_MAQUETE, ProductShowcase } from '@/features/auth/ProductShowcase'
@@ -8,6 +8,7 @@ import { useSessionStore } from '@/features/auth/sessionStore'
 import { Brand } from '@/shared/components/Brand'
 import { Reveal } from '@/shared/components/Reveal'
 import { cn } from '@/shared/lib/cn'
+import { useSempreClaro } from '@/shared/lib/themeStore'
 
 /**
  * A tela de quem ainda nao entrou, em dois tamanhos.
@@ -30,6 +31,11 @@ export function LoginScreen() {
   const { pathname } = useLocation()
   const entrada = useEntrada()
   const [conhecer, setConhecer] = useState(false)
+
+  // A entrada e sempre clara. Enquanto uma sessao guardada abre, fica o tema da pessoa,
+  // para o painel escuro nao piscar claro a cada recarga. No clique do Google ainda nao
+  // ha token, e a entrada segue clara ate o painel abrir.
+  useSempreClaro(!(entrada.status === 'loading' && getToken()))
 
   // Quem chega pelo link de um convite cai aqui antes de qualquer coisa, e precisa saber
   // por que esta aqui e com qual conta entrar.

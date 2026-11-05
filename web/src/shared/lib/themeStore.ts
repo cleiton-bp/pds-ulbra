@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { create } from 'zustand'
 
 /**
@@ -11,14 +12,16 @@ import { create } from 'zustand'
 type Theme = 'light' | 'dark'
 
 /**
- * Esta chave e esta precedencia estao repetidas num script inline do
- * `index.html`, que roda antes do bundle — e o unico jeito de nao piscar o tema
- * errado no primeiro quadro. Mexeu aqui, mexa la.
+ * Esta chave e esta precedencia estao repetidas em `public/tema.js`, que roda antes
+ * do bundle — e o unico jeito de nao piscar o tema errado no primeiro quadro. La ainda
+ * vale o claro para quem nao tem sessao (a entrada publica). Mexeu aqui, mexa la.
  */
 const STORAGE_KEY = 'pds.web.theme.v1'
 
 function systemTheme(): Theme {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  // Sem `matchMedia` (navegador antigo, ambiente de teste), o claro: o modulo carrega na
+  // abertura de toda tela, e quebrar aqui derrubaria o painel inteiro por uma preferencia.
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 function readStored(): Theme | null {
@@ -30,8 +33,11 @@ function readStored(): Theme | null {
   }
 }
 
+/** Ligado enquanto a entrada publica esta na tela (ver `useSempreClaro`). */
+let claroForcado = false
+
 function apply(theme: Theme): void {
-  document.documentElement.setAttribute('data-theme', theme)
+  document.documentElement.setAttribute('data-theme', claroForcado ? 'light' : theme)
 }
 
 interface ThemeState {
@@ -40,7 +46,10 @@ interface ThemeState {
 }
 
 const initial = readStored() ?? systemTheme()
-apply(initial)
+
+// O `tema.js` ja pintou o primeiro quadro, e ele sabe se a pagina e a entrada publica.
+// Reescrever aqui pintaria o escuro por um instante antes da entrada clara.
+if (!document.documentElement.hasAttribute('data-theme')) apply(initial)
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: initial,
@@ -65,3 +74,24 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
  */
 export const selectThemeLabel = (state: ThemeState): string =>
   state.theme === 'dark' ? 'Tema claro' : 'Tema escuro'
+
+/**
+ * A entrada publica e sempre clara, seja qual for o tema escolhido no painel. A escolha
+ * continua guardada e volta sozinha quando a tela sai, ao entrar no painel.
+ *
+ * `ativo` falso deixa o tema da pessoa: e o caso de quem tem sessao e esta so esperando
+ * ela abrir, que piscaria claro antes do painel escuro.
+ */
+export function useSempreClaro(ativo = true): void {
+  useEffect(() => {
+    if (!ativo) return
+
+    claroForcado = true
+    apply(useThemeStore.getState().theme)
+
+    return () => {
+      claroForcado = false
+      apply(useThemeStore.getState().theme)
+    }
+  }, [ativo])
+}

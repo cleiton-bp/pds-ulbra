@@ -46,6 +46,15 @@ export type WidgetMobileMode = 'Same' | 'IconOnly' | 'Hidden'
 export type WidgetTheme = 'Auto' | 'Light' | 'Dark'
 
 /**
+ * Como o formulario aparece ao clicar no botao, e sai ao fechar (o mesmo caminho, ao
+ * contrario). `Smooth` e o de fabrica. A conta do movimento e de `embed/frameMotion.ts`.
+ */
+export type WidgetOpenAnimation = 'Smooth' | 'Slide' | 'Grow' | 'None'
+
+/** A duracao desse movimento. `Normal` e a de fabrica. */
+export type WidgetAnimationSpeed = 'Fast' | 'Normal' | 'Slow'
+
+/**
  * So o que o botao parado no site do cliente precisa — a resposta de
  * `GET public/widget-launcher`, que o carregador le em toda visita. **Os mesmos campos,
  * com o mesmo nome, da configuracao inteira**: o carregador e o quadro desenham com a
@@ -67,6 +76,8 @@ export type WidgetLauncherViewModel = Pick<
   | 'LauncherTextColor'
   | 'LauncherShadow'
   | 'MobileMode'
+  | 'OpenAnimation'
+  | 'OpenAnimationSpeed'
   | 'HiddenPaths'
   | 'LauncherLabel'
 >
@@ -128,6 +139,13 @@ export interface WidgetSettingsViewModel {
   LauncherShadow: boolean
   /** Como o botao fica numa janela estreita. `IconOnly` exige um icone. */
   MobileMode: WidgetMobileMode
+  /**
+   * Como o formulario aparece ao clicar no botao. Vai tambem na leitura do botao, porque
+   * quem anima o quadro e o carregador, na pagina do cliente.
+   */
+  OpenAnimation: WidgetOpenAnimation
+  /** A duracao desse movimento. */
+  OpenAnimationSpeed: WidgetAnimationSpeed
   /**
    * As paginas onde o botao nao aparece: caminho exato (`/checkout`) ou comeco
    * terminado em `*` (`/login/*`). Quem compara e `isHiddenPage`, em `embed/launcher.ts`.
@@ -287,6 +305,8 @@ export interface SaveWidgetSettingsRequest {
   LauncherTextColor: string | null
   LauncherShadow: boolean
   MobileMode: WidgetMobileMode
+  OpenAnimation: WidgetOpenAnimation
+  OpenAnimationSpeed: WidgetAnimationSpeed
   HiddenPaths: string[]
   LauncherLabel: string
   Title: string

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_OFFSET,
+  FORM_FRAME,
+  frameRadius,
   isHiddenPage,
   isNarrowViewport,
   LAUNCHER_MAX_WIDTH,
@@ -122,6 +124,7 @@ describe('placeFrame', () => {
       right: 24,
       radius: 12,
       shadow: 'launcher',
+      sheet: false,
     })
   })
 
@@ -147,13 +150,77 @@ describe('placeFrame', () => {
 
   it('o formulario aberto tem cantos e sombra proprios, seja o que for que o botao pediu', () => {
     const aberto = placeFrame(pedido({ ...FRAME_SIZE.expanded, radius: 0, shadow: false }), janela)
-    expect(aberto).toMatchObject({ ...FRAME_SIZE.expanded, radius: 14, shadow: 'open' })
+    expect(aberto).toMatchObject({ radius: 14, shadow: 'open', sheet: false })
   })
 
-  it('numa janela menor que o pedido, o quadro cabe nela e a distancia vale ate onde da', () => {
+  // O formulario pede o tamanho de sempre, e quem decide o de verdade e a janela: uma parte
+  // dela, entre o piso (o de sempre) e o teto.
+  it('o formulario acompanha a janela do computador, entre o piso e o teto', () => {
+    const tamanho = (width: number, height: number) => {
+      const lugar = placeFrame(pedido({ ...FRAME_SIZE.expanded }), { width, height })
+      return [lugar.width, lugar.height]
+    }
+    expect(tamanho(1024, 768)).toEqual([FORM_FRAME.minWidth, 599])
+    expect(tamanho(1280, 720)).toEqual([384, 562])
+    expect(tamanho(1440, 900)).toEqual([432, 702])
+    expect(tamanho(2560, 1440)).toEqual([FORM_FRAME.maxWidth, FORM_FRAME.maxHeight])
+  })
+
+  it('o editor e o botao pedem o tamanho deles, e nao crescem com a janela', () => {
+    const editor = placeFrame(pedido({ ...FRAME_SIZE.editor }), { width: 2560, height: 1440 })
+    expect([editor.width, editor.height]).toEqual([
+      FRAME_SIZE.editor.width,
+      FRAME_SIZE.editor.height,
+    ])
+    expect(placeFrame(pedido(), { width: 2560, height: 1440 }).width).toBe(160)
+  })
+
+  it('no celular, o formulario vira a folha que sobe do pe da tela', () => {
+    const folha = placeFrame(pedido({ ...FRAME_SIZE.expanded, offsetX: 50, offsetY: 50 }), {
+      width: 390,
+      height: 844,
+    })
+    expect(folha).toEqual({
+      width: 390,
+      height: Math.round(844 * FORM_FRAME.sheetShare),
+      top: null,
+      bottom: 0,
+      left: 0,
+      right: null,
+      radius: FORM_FRAME.sheetRadius,
+      shadow: 'open',
+      sheet: true,
+    })
+    // So os cantos de cima sao arredondados.
+    expect(frameRadius(folha)).toBe('16px 16px 0 0')
+  })
+
+  it('com o teclado aberto, a folha fica acima dele e usa o que sobra', () => {
+    const folha = placeFrame(pedido({ ...FRAME_SIZE.expanded }), {
+      width: 390,
+      height: 844,
+      keyboard: 300,
+    })
+    expect(folha.bottom).toBe(300)
+    expect(folha.height).toBe(844 - 300 - FORM_FRAME.sheetGapWithKeyboard)
+  })
+
+  it('quem decide se e celular e a largura da regra, e nao a medida da pagina de mentira', () => {
+    // A previa do computador, no painel, e mais estreita que 640: sem a regra, viraria folha.
+    const previa = placeFrame(pedido({ ...FRAME_SIZE.expanded }), {
+      width: 560,
+      height: 480,
+      ruleWidth: 1280,
+    })
+    expect(previa.sheet).toBe(false)
+    expect(frameRadius(previa)).toBe('14px')
+  })
+
+  it('numa janela de computador menor que o pedido, o quadro cabe nela e a distancia vale ate onde da', () => {
     const lugar = placeFrame(pedido({ ...FRAME_SIZE.expanded, offsetX: 100, offsetY: 100 }), {
       width: 375,
       height: 513,
+      ruleWidth: 1280,
     })
     // 375 - 2 * 20 de margem, e 513 - 2 * 20.
     expect(lugar.width).toBe(335)

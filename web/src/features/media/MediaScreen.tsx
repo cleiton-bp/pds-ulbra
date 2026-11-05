@@ -371,9 +371,8 @@ export function MediaScreen() {
    */
   const [voltas, setVoltas] = useState<Record<ShownKind['Kind'], number>>({ Image: 0, File: 0 })
 
-  /** O grupo aberto e o grupo em que a pessoa esta: qualquer um realca os anexos na previa. */
+  /** O grupo aberto: e ele que realca os anexos na previa. */
   const [aberto, setAberto] = useState<Grupo | null>(null)
-  const [emFoco, setEmFoco] = useState<Grupo | null>(null)
 
   const trackField = useCallback((field: string, valid: boolean) => {
     setInvalidFields((current) => {
@@ -499,8 +498,6 @@ export function MediaScreen() {
         const invalido = CAMPOS_DO_GRUPO[grupo].find((campo) => invalidFields.has(campo))
         if (abriu && invalido) irAoCampo(invalido)
       },
-      onFocusWithin: (dentro: boolean) =>
-        setEmFoco((atual) => (dentro ? grupo : atual === grupo ? null : atual)),
     }
   }
 
@@ -515,7 +512,7 @@ export function MediaScreen() {
     )
   }
 
-  const realce = (emFoco ?? aberto) !== null ? 'form-attachments' : null
+  const realce = aberto !== null ? 'form-attachments' : null
 
   return (
     <div className="max-w-6xl">
