@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type EditDoc, EMPTY_DOC, type Shape } from '@/editor/doc'
 import { CROP_SHADE, HIDE_FILL } from '@/editor/palette'
 import {
+  arrowGeometry,
   drawScene,
   exportArea,
   hideMarginFor,
-  LINE_HEIGHT,
   MAX_EXPORT_PIXELS,
   renderEdit,
   toCanvasRect,
@@ -112,6 +112,49 @@ beforeEach(() => {
 afterEach(() => {
   gravadores.clear()
   vi.restoreAllMocks()
+})
+
+describe('a seta', () => {
+  it('a cauda nasce fininha, a linha engorda ate a ponta, e a ponta cresce com o comprimento', () => {
+    const curta = arrowGeometry({ x: 0, y: 0 }, { x: 60, y: 0 }, 3)
+    const media = arrowGeometry({ x: 0, y: 0 }, { x: 200, y: 0 }, 3)
+    const longa = arrowGeometry({ x: 0, y: 0 }, { x: 400, y: 0 }, 3)
+    const enorme = arrowGeometry({ x: 0, y: 0 }, { x: 5000, y: 0 }, 3)
+
+    // A linha chega na ponta com a grossura dos bracos, e a cauda e quase nada perto dela.
+    expect(longa.linha).toBe(longa.braco)
+    expect(curta.cauda * 2).toBeLessThan(curta.linha / 5)
+    expect(longa.linha).toBeGreaterThan(curta.linha)
+    // A ponta cresce de verdade.
+    expect(media.ponta).toBeGreaterThan(curta.ponta)
+    expect(longa.ponta).toBeGreaterThan(media.ponta * 1.4)
+    // A ponta e encorpada: os bracos mais grossos que o gesto, e engrossando com ela.
+    expect(curta.braco).toBeGreaterThan(3 * 1.5)
+    expect(longa.braco).toBeGreaterThan(curta.braco)
+    // O limite: a ponta para em 16 vezes a espessura.
+    expect(enorme.ponta).toBeCloseTo(3 * 16)
+    // Os bracos nunca passam de pouco menos da metade da seta.
+    expect(curta.ponta).toBeLessThanOrEqual(60 * 0.45)
+  })
+
+  it('e desenhada na cor, sem contorno: a linha cheia e a ponta aberta tracada', () => {
+    const { ctx, chamadas } = canvas(400, 400)
+    const seta: Shape = {
+      type: 'arrow',
+      from: { x: 10, y: 10 },
+      to: { x: 300, y: 10 },
+      color: '#e5484d',
+      width: 3,
+    }
+
+    drawScene(ctx, imagem, { shapes: [seta], crop: null }, { scale: 1, origin: { x: 0, y: 0 } })
+
+    const tracos = chamadas.filter((c) => c.metodo === 'stroke')
+    const cheios = chamadas.filter((c) => c.metodo === 'fill')
+    // Um traco so (a ponta) e um preenchimento so (a linha), os dois na cor.
+    expect(tracos.map((c) => c.estado.strokeStyle)).toEqual(['#e5484d'])
+    expect(cheios.map((c) => c.estado.fillStyle)).toEqual(['#e5484d'])
+  })
 })
 
 describe('o retangulo em pixels do canvas', () => {
@@ -297,29 +340,6 @@ describe('a cena', () => {
     const [coberta] = doMetodo(chamadas, 'fillRect')
     expect(coberta?.args).toEqual([40, 40, 160, 80])
     expect(coberta?.estado.fillStyle).toBe(HIDE_FILL)
-  })
-
-  it('o texto tem contorno por baixo, linha por linha', () => {
-    const { ctx, chamadas } = canvas(400, 400)
-    const texto: Shape = {
-      type: 'text',
-      at: { x: 10, y: 20 },
-      text: 'um\ndois',
-      color: '#ffc53d',
-      size: 20,
-    }
-
-    drawScene(ctx, imagem, { shapes: [texto], crop: null }, { scale: 1, origin: { x: 0, y: 0 } })
-
-    const escritas = chamadas.filter((c) => c.metodo === 'strokeText' || c.metodo === 'fillText')
-    expect(escritas.map((c) => [c.metodo, ...c.args])).toEqual([
-      ['strokeText', 'um', 10, 20],
-      ['fillText', 'um', 10, 20],
-      ['strokeText', 'dois', 10, 20 + 20 * LINE_HEIGHT],
-      ['fillText', 'dois', 10, 20 + 20 * LINE_HEIGHT],
-    ])
-    // Amarelo leva contorno escuro.
-    expect(escritas[0]?.estado.strokeStyle).toBe('#000000')
   })
 
   it('o marcador escreve o proprio numero', () => {

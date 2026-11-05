@@ -1,17 +1,16 @@
 import * as Dialog from '@radix-ui/react-dialog'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import {
-  type ChangeEvent,
   type CSSProperties,
   type KeyboardEvent,
-  type MouseEvent,
   type PointerEvent,
+  type ReactNode,
   useEffect,
   useId,
   useLayoutEffect,
   useRef,
   useState,
 } from 'react'
-import { flushSync } from 'react-dom'
 import {
   clampPoint,
   commit,
@@ -30,7 +29,7 @@ import {
 import { EditorIcon, type Tool } from '@/editor/icons'
 import { exportEdit, type OpenedImage, openImage } from '@/editor/image'
 import { INK_COLORS } from '@/editor/palette'
-import { drawScene, hideMarginFor, LINE_HEIGHT } from '@/editor/render'
+import { drawScene, hideMarginFor } from '@/editor/render'
 import { cn } from '@/shared/lib/cn'
 import { formatBytes } from '@/shared/lib/formatBytes'
 
@@ -76,36 +75,36 @@ export interface ImageEditorProps {
   onCancel: () => void
 }
 
-const TOOLS: { tool: Tool; label: string }[] = [
-  { tool: 'arrow', label: 'Seta' },
-  { tool: 'rect', label: 'Retângulo' },
-  { tool: 'ellipse', label: 'Elipse' },
-  { tool: 'pen', label: 'Desenho livre' },
-  { tool: 'highlight', label: 'Marca-texto' },
-  { tool: 'text', label: 'Texto' },
-  { tool: 'step', label: 'Numeração' },
-  { tool: 'blur', label: 'Desfoque' },
-  { tool: 'hide', label: 'Ocultar' },
-  { tool: 'crop', label: 'Recortar' },
+/**
+ * As ferramentas, em tres grupos na barra de baixo: marcar, esconder e recortar. Cada
+ * uma com a letra do atalho, que aparece ao passar o mouse.
+ */
+const TOOLS: {
+  tool: Tool
+  label: string
+  tecla: string
+  grupo: 'marcar' | 'esconder' | 'recortar'
+}[] = [
+  { tool: 'arrow', label: 'Seta', tecla: 'A', grupo: 'marcar' },
+  { tool: 'rect', label: 'Retângulo', tecla: 'R', grupo: 'marcar' },
+  { tool: 'ellipse', label: 'Elipse', tecla: 'E', grupo: 'marcar' },
+  { tool: 'pen', label: 'Desenho livre', tecla: 'D', grupo: 'marcar' },
+  { tool: 'highlight', label: 'Marca-texto', tecla: 'M', grupo: 'marcar' },
+  { tool: 'step', label: 'Numeração', tecla: 'N', grupo: 'marcar' },
+  { tool: 'blur', label: 'Desfoque', tecla: 'B', grupo: 'esconder' },
+  { tool: 'hide', label: 'Ocultar', tecla: 'O', grupo: 'esconder' },
+  { tool: 'crop', label: 'Recortar', tecla: 'C', grupo: 'recortar' },
 ]
 
 /** As ferramentas que pintam com a cor escolhida. Desfoque, tarja e recorte nao tem cor. */
-const COM_COR: ReadonlySet<Tool> = new Set([
-  'arrow',
-  'rect',
-  'ellipse',
-  'pen',
-  'highlight',
-  'text',
-  'step',
-])
+const COM_COR: ReadonlySet<Tool> = new Set(['arrow', 'rect', 'ellipse', 'pen', 'highlight', 'step'])
 
 /**
  * Os tamanhos, em pixels **da tela**. Viram pixels da imagem no gesto, pelo tamanho
  * com que ela aparece: a marca sai do tamanho que a pessoa viu ao desenhar, num
  * print de celular ou de monitor grande.
  */
-const SIZE = { stroke: 3, highlight: 18, text: 18, stepRadius: 13, blurBlock: 14 }
+const SIZE = { stroke: 3, highlight: 18, stepRadius: 13, blurBlock: 14 }
 
 /** Arrastar menos que isto, em pixels da tela, e um clique — e nao marca nada. */
 export const MIN_DRAG = 4
@@ -117,7 +116,6 @@ export const MIN_CROP = 8
 const FOLGA = 16
 
 const HINTS: Partial<Record<Tool, string>> = {
-  text: 'Clique onde o texto começa. Enter conclui; Shift+Enter quebra a linha.',
   step: 'Cada clique põe o próximo número.',
   blur: 'Borra o que fica embaixo. Para senha ou cartão, use Ocultar.',
   hide: 'Cobre com uma tarja preta: o que fica embaixo não vai na imagem.',
@@ -147,13 +145,6 @@ interface Gesto {
   pontos: Point[]
 }
 
-interface TextoAberto {
-  at: Point
-  value: string
-  color: string
-  size: number
-}
-
 export function ImageEditor({
   source,
   initial,
@@ -170,7 +161,6 @@ export function ImageEditor({
   const [falhou, setFalhou] = useState(false)
   const [ferramenta, setFerramenta] = useState<Tool>('arrow')
   const [cor, setCor] = useState(INK_COLORS[0]?.value ?? '')
-  const [texto, setTextoState] = useState<TextoAberto | null>(null)
   const [confirmando, setConfirmando] = useState(false)
   const [gerando, setGerando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -183,22 +173,20 @@ export function ImageEditor({
    */
   const [palcoEl, setPalcoEl] = useState<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const textoCampo = useRef<HTMLTextAreaElement>(null)
   const voltar = useRef<HTMLButtonElement>(null)
+  /** A primeira ferramenta: e onde o foco comeca, e nao no "Descartar" do topo. */
+  const primeiraFerramenta = useRef<HTMLButtonElement>(null)
+  const pilula = usePilula(ferramenta)
 
   /** O gesto em andamento, e o que ele desenha antes de soltar. Fora do estado: muda a cada movimento. */
   const gesto = useRef<Gesto | null>(null)
   const rascunho = useRef<Shape | null>(null)
   const recorteRascunho = useRef<Rect | null>(null)
   const quadro = useRef<number | null>(null)
-  const textoRef = useRef<TextoAberto | null>(null)
 
   /** A caixa do teclado, em pixels da imagem. Ver `CAIXA`. */
   const caixa = useRef<Rect | null>(null)
   const [caixaAtiva, setCaixaAtiva] = useState(false)
-
-  /** O aperto que concluiu um texto: o clique que vem dele nao abre outro. */
-  const ignorarClique = useRef(false)
 
   const idAjuda = useId()
   const idPergunta = useId()
@@ -219,11 +207,6 @@ export function ImageEditor({
   /** O que o desenho fora do React le: o quadro seguinte nao pode ver valores velhos. */
   const atual = useRef({ historia, escala, densidade, aberta })
   atual.current = { historia, escala, densidade, aberta }
-
-  function setTexto(valor: TextoAberto | null) {
-    textoRef.current = valor
-    setTextoState(valor)
-  }
 
   // Abre a imagem, e devolve a memoria dela ao fechar.
   useEffect(() => {
@@ -314,13 +297,6 @@ export function ImageEditor({
     [],
   )
 
-  // O texto aberto recebe o foco depois de montar: no clique, o navegador ainda estaria
-  // levando o foco para outro lugar.
-  const escrevendo = texto !== null
-  useEffect(() => {
-    if (escrevendo) textoCampo.current?.focus()
-  }, [escrevendo])
-
   // Perguntar antes de descartar comeca no "Voltar": Enter por engano nao apaga as marcas.
   useEffect(() => {
     if (confirmando) voltar.current?.focus()
@@ -401,26 +377,8 @@ export function ImageEditor({
     // Um dedo desenhando; o segundo nao comeca outra marca por cima.
     if (gesto.current) return
 
-    ignorarClique.current = false
-    // Clicar fora do texto aberto o conclui, e so: o clique nao comeca outra coisa.
-    if (textoRef.current) {
-      evento.preventDefault()
-      ignorarClique.current = true
-      concluirTexto()
-      return
-    }
-
     // O ponteiro toma o lugar da caixa do teclado.
     if (caixa.current) desistirDaCaixa()
-
-    // O texto abre no clique, e nao aqui — ver `clicar`. No mouse, segurar o foco agora
-    // impede o navegador de leva-lo para fora quando o campo abrir. **No dedo, nao:** no
-    // Safari, inclusive o do iPhone, cancelar o pointerdown de um toque cancela tambem o
-    // clique que vem depois — e o campo nunca abriria.
-    if (ferramenta === 'text') {
-      if (evento.pointerType !== 'touch') evento.preventDefault()
-      return
-    }
 
     const ponto = pontoDo(evento)
 
@@ -438,23 +396,6 @@ export function ImageEditor({
     evento.currentTarget.setPointerCapture?.(evento.pointerId)
     gesto.current = { pointerId: evento.pointerId, inicio: ponto, fim: ponto, pontos: [ponto] }
     mover(ponto)
-  }
-
-  /**
-   * O texto abre no clique, **com o foco dado ali mesmo**. No iPhone, o teclado so
-   * aparece quando o foco chega dentro do gesto da pessoa; dado depois, num efeito, o
-   * campo abriria sem teclado.
-   */
-  function clicar(evento: MouseEvent<HTMLCanvasElement>) {
-    if (ignorarClique.current) {
-      ignorarClique.current = false
-      return
-    }
-    if (ferramenta !== 'text' || !aberta || gerando || confirmando || textoRef.current) return
-
-    const ponto = pontoDo(evento)
-    flushSync(() => setTexto({ at: ponto, value: '', color: cor, size: SIZE.text * unidade() }))
-    textoCampo.current?.focus()
   }
 
   /** Mostra a caixa do teclado como a marca que ela vai virar. */
@@ -594,20 +535,6 @@ export function ImageEditor({
     agendar()
   }
 
-  function marcaDoTexto(aberto: TextoAberto): Shape | null {
-    const valor = aberto.value.replace(/\s+$/, '')
-    if (valor.trim().length === 0) return null
-    return { type: 'text', at: aberto.at, text: valor, color: aberto.color, size: aberto.size }
-  }
-
-  function concluirTexto() {
-    const aberto = textoRef.current
-    if (!aberto) return
-    setTexto(null)
-    const marca = marcaDoTexto(aberto)
-    if (marca) adicionarMarca(marca)
-  }
-
   function escolher(tool: Tool) {
     if (caixa.current) desistirDaCaixa()
     setFerramenta(tool)
@@ -618,9 +545,22 @@ export function ImageEditor({
   const refazer = () => setHistoria(redo)
 
   function atalhos(evento: KeyboardEvent<HTMLDivElement>) {
-    // Dentro do texto, desfazer e o do proprio campo.
-    if ((evento.target as HTMLElement).tagName === 'TEXTAREA') return
-    if (!(evento.metaKey || evento.ctrlKey)) return
+    // Num campo de escrever, desfazer e as letras sao do proprio campo.
+    const alvo = evento.target as HTMLElement
+    if (alvo.tagName === 'TEXTAREA' || alvo.tagName === 'INPUT') return
+
+    // A letra de cada ferramenta escolhe a ferramenta, como nos editores de imagem.
+    if (!(evento.metaKey || evento.ctrlKey)) {
+      if (evento.altKey || evento.shiftKey || confirmando || gerando) return
+      const atalho = TOOLS.find((item) => item.tecla.toLowerCase() === evento.key.toLowerCase())
+      if (atalho) {
+        evento.preventDefault()
+        // Pelo teclado a troca e imediata: animar o que se repete muitas vezes cansa.
+        pilula.semAnimacao()
+        escolher(atalho.tool)
+      }
+      return
+    }
 
     const tecla = evento.key.toLowerCase()
     if (tecla === 'z' && !evento.shiftKey) {
@@ -632,9 +572,9 @@ export function ImageEditor({
     }
   }
 
-  // A caixa do teclado e o texto ainda abertos tambem sao marcas: sair sem perguntar
-  // jogaria fora o que esta na tela.
-  const mudou = historia.present !== inicial || caixaAtiva || texto !== null
+  // A caixa do teclado ainda aberta tambem e marca: sair sem perguntar jogaria fora o
+  // que esta na tela.
+  const mudou = historia.present !== inicial || caixaAtiva
 
   /** Sair: direto, sem nada mudado; perguntando, com marcas que se perderiam. */
   function pedirSaida() {
@@ -644,16 +584,11 @@ export function ImageEditor({
   }
 
   function esc(evento: globalThis.KeyboardEvent) {
-    // O Esc chega aqui antes do campo de texto: e aqui que ele fecha so o texto.
     evento.preventDefault()
     // No meio de uma composicao (acento, japones), o Esc e dela: desiste do candidato.
     if (evento.isComposing || evento.keyCode === 229) return
     if (caixa.current) {
       desistirDaCaixa()
-      return
-    }
-    if (textoRef.current) {
-      setTexto(null)
       return
     }
     if (confirmando) {
@@ -666,16 +601,9 @@ export function ImageEditor({
   async function concluir() {
     if (!aberta || gerando) return
 
-    // O texto ainda aberto vai junto: quem digitou e concluiu quer o texto na imagem.
     let doc = historia.present
-    const aberto = textoRef.current
-    if (aberto) {
-      setTexto(null)
-      const marca = marcaDoTexto(aberto)
-      if (marca) doc = { ...doc, shapes: [...doc.shapes, marca] }
-    }
 
-    // **A caixa do teclado tambem, e esta e a que nao pode faltar.** Na tela ela ja
+    // **A caixa do teclado vai junto, e e a que nao pode faltar.** Na tela ela ja
     // aparece como a marca que vai virar — uma tarja preta, inteira. Concluir sem ela
     // mandaria o que a pessoa via coberto.
     const pendente = caixa.current
@@ -686,8 +614,8 @@ export function ImageEditor({
       desistirDaCaixa()
     }
 
-    // O texto e a caixa viram passos da historia: se o arquivo falhar ou passar do teto,
-    // o editor fica aberto com eles, agora confirmados.
+    // A caixa vira passo da historia: se o arquivo falhar ou passar do teto, o editor fica
+    // aberto com ela, agora confirmada.
     const final = doc
     if (final !== historia.present) setHistoria((agora) => commit(agora, final))
 
@@ -721,16 +649,41 @@ export function ImageEditor({
   }
 
   const dica = caixaAtiva ? CAIXA_HINT : (HINTS[ferramenta] ?? DEFAULT_HINT)
-  const acento = 'bg-[var(--widget-accent,var(--accent))] text-[var(--widget-ink,var(--accent-fg))]'
+  /**
+   * Os botoes do topo, **neutros, e nao na cor do formulario**: o editor e uma ferramenta
+   * por cima do site, e a cor de destaque (o azul de fabrica, quando o projeto nao escolheu
+   * outra) destoava do site de quem relata. Escuro na acao principal, como nos editores do
+   * sistema, e combina com qualquer site.
+   */
   const botao = cn(
-    'inline-flex h-8 shrink-0 items-center justify-center rounded-lg border px-3 text-detail',
+    'inline-flex h-9 shrink-0 items-center justify-center rounded-xl border px-3.5 text-detail',
+    'transition-[transform,background-color,color,opacity] duration-150 ease-out enabled:active:scale-[0.97]',
     'disabled:cursor-not-allowed disabled:text-fg-disabled',
   )
+  /**
+   * Os botoes da barra de baixo: ferramentas, desfazer e refazer. Um pouco menores no
+   * celular, para as dez ferramentas caberem numa linha so.
+   */
+  const peca = cn(
+    'relative flex size-8 items-center justify-center rounded-xl sm:size-9',
+    // O aperto responde na hora, encolhendo um pouco: a barra nao parece morta.
+    'transition-[transform,background-color,color] duration-150 ease-out enabled:active:scale-95',
+    'disabled:cursor-not-allowed disabled:text-fg-disabled',
+  )
+  // Na barra cinza, a escolhida e a peca clara e levantada; no hover, so o icone escurece.
+  const solta = 'text-fg-muted enabled:hover:text-fg'
+  /** Mac ou nao, para a dica do desfazer dizer a tecla que a pessoa aperta. */
+  const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+  /** As duas escolhas da pergunta de sair, de mesmo peso. */
   const secundario = cn(botao, 'border-border bg-surface text-fg enabled:hover:bg-surface-sunken')
+  /** O "Cancelar" do topo: so o texto, para nao disputar com a acao principal. */
+  const discreto = cn(
+    botao,
+    'border-transparent bg-transparent text-fg-muted enabled:hover:bg-surface-sunken enabled:hover:text-fg',
+  )
   const principal = cn(
     botao,
-    'border-transparent font-medium enabled:hover:opacity-90 disabled:bg-surface-sunken',
-    acento,
+    'border-transparent bg-fg font-medium text-surface enabled:hover:opacity-85 disabled:bg-surface-strong',
   )
 
   return (
@@ -748,203 +701,27 @@ export function ImageEditor({
           // Quem abriu o editor devolve o foco — ver `AttachmentEditor`. O Radix o
           // devolveria ao que tinha o foco antes, que pode ja nem existir.
           onCloseAutoFocus={(evento) => evento.preventDefault()}
+          // O foco comeca na primeira ferramenta: o "Descartar" vem antes no topo, e um
+          // Enter nele jogaria a captura fora.
+          onOpenAutoFocus={(evento) => {
+            evento.preventDefault()
+            primeiraFerramenta.current?.focus()
+          }}
           // Ocupa a tela inteira: nao ha "fora" para clicar, e nada fecha por engano.
           onPointerDownOutside={(evento) => evento.preventDefault()}
           onInteractOutside={(evento) => evento.preventDefault()}
           // Colar aqui dentro nao e anexar outra imagem na lista que esta atras.
           onPaste={(evento) => evento.stopPropagation()}
           onKeyDown={atalhos}
-          className="fixed inset-0 z-dialog flex flex-col bg-surface text-fg"
+          className="fixed inset-0 z-dialog flex flex-col bg-surface-sunken text-fg"
         >
-          <Dialog.Title className="sr-only">Marcar a imagem</Dialog.Title>
-
-          <div className="flex flex-col gap-1.5 border-border border-b px-3 py-2">
-            <div role="toolbar" aria-label="Ferramentas" className="flex flex-wrap gap-1">
-              {TOOLS.map(({ tool, label }) => (
-                <button
-                  key={tool}
-                  type="button"
-                  aria-label={label}
-                  title={label}
-                  aria-pressed={ferramenta === tool}
-                  // Ligadas mesmo com a imagem abrindo: o foco comeca na primeira, e
-                  // nao cai em "Descartar", onde um Enter jogaria a captura fora.
-                  disabled={gerando}
-                  onClick={() => escolher(tool)}
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-lg border border-transparent',
-                    'disabled:cursor-not-allowed disabled:text-fg-disabled',
-                    ferramenta === tool ? acento : 'text-fg enabled:hover:bg-surface-sunken',
-                  )}
-                >
-                  <EditorIcon name={tool} />
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <fieldset className="flex items-center gap-0.5">
-                <legend className="sr-only">Cor</legend>
-                {INK_COLORS.map((opcao) => (
-                  <button
-                    key={opcao.value}
-                    type="button"
-                    aria-label={opcao.name}
-                    title={opcao.name}
-                    aria-pressed={cor === opcao.value}
-                    disabled={!COM_COR.has(ferramenta) || gerando}
-                    onClick={() => setCor(opcao.value)}
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-full border-2',
-                      'disabled:cursor-not-allowed disabled:opacity-40',
-                      cor === opcao.value ? 'border-fg' : 'border-transparent',
-                    )}
-                  >
-                    {/* A amostra e a cor que vai para a imagem, e nao muda com o tema. */}
-                    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-                      <circle
-                        cx="10"
-                        cy="10"
-                        r="8.5"
-                        fill={opcao.value}
-                        stroke="currentColor"
-                        strokeOpacity="0.3"
-                      />
-                    </svg>
-                  </button>
-                ))}
-              </fieldset>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Desfazer"
-                  title="Desfazer"
-                  disabled={historia.past.length === 0 || gerando}
-                  onClick={desfazer}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-fg enabled:hover:bg-surface-sunken disabled:cursor-not-allowed disabled:text-fg-disabled"
-                >
-                  <EditorIcon name="undo" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Refazer"
-                  title="Refazer"
-                  disabled={historia.future.length === 0 || gerando}
-                  onClick={refazer}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-fg enabled:hover:bg-surface-sunken disabled:cursor-not-allowed disabled:text-fg-disabled"
-                >
-                  <EditorIcon name="redo" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex min-h-6 flex-wrap items-center gap-x-2">
-              <p aria-live="polite" className="text-caption text-fg-muted leading-normal">
-                {dica}
-              </p>
-              <p id={idAjuda} className="sr-only">
-                Pelo teclado, com Retângulo, Elipse, Desfoque, Ocultar ou Recortar escolhido, Enter
-                põe uma caixa no meio da imagem.
-              </p>
-              {ferramenta === 'crop' && historia.present.crop && (
-                <button
-                  type="button"
-                  onClick={() => aplicar((doc) => ({ ...doc, crop: null }))}
-                  className="font-medium text-caption text-fg underline underline-offset-4"
-                >
-                  Sem recorte
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div
-            ref={setPalcoEl}
-            className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-surface-sunken p-4"
-          >
-            {aberta ? (
-              <div className="relative" style={{ width: larguraCss, height: alturaCss }}>
-                <canvas
-                  ref={canvasRef}
-                  width={Math.round(larguraCss * densidade)}
-                  height={Math.round(alturaCss * densidade)}
-                  role="img"
-                  aria-label="A imagem, com as marcas"
-                  aria-describedby={idAjuda}
-                  // Alcancavel pelo Tab: e daqui que a caixa do teclado sai.
-                  tabIndex={0}
-                  onKeyDown={teclado}
-                  onClick={clicar}
-                  onPointerDown={apertar}
-                  onPointerMove={arrastar}
-                  onPointerUp={soltar}
-                  onPointerCancel={interromper}
-                  // A captura do ponteiro some sem `pointercancel` em alguns toques: sem
-                  // isto, o gesto ficaria preso e nenhum toque seguinte desenharia.
-                  onLostPointerCapture={interromper}
-                  // Sem isto, arrastar o dedo rolaria e daria zoom na pagina, em vez de desenhar.
-                  className={cn(
-                    'block touch-none focus-visible:outline-2 focus-visible:outline-fg focus-visible:outline-offset-2',
-                    ferramenta === 'text' ? 'cursor-text' : 'cursor-crosshair',
-                  )}
-                  style={{ width: larguraCss, height: alturaCss }}
-                />
-                {texto && (
-                  <textarea
-                    ref={textoCampo}
-                    aria-label="Texto da marca"
-                    value={texto.value}
-                    rows={Math.max(1, texto.value.split('\n').length)}
-                    // Sem quebra automatica: a linha que o campo quebrasse sozinho sairia
-                    // inteira na imagem, e cortada na borda. Quebra so com Shift+Enter.
-                    wrap="off"
-                    onChange={(evento: ChangeEvent<HTMLTextAreaElement>) =>
-                      setTexto({ ...texto, value: evento.target.value })
-                    }
-                    onKeyDown={(evento) => {
-                      // O Enter que escolhe o candidato de uma composicao nao conclui. O Safari
-                      // o manda sem `isComposing`, so com o codigo 229.
-                      if (
-                        evento.key === 'Enter' &&
-                        !evento.shiftKey &&
-                        !evento.nativeEvent.isComposing &&
-                        evento.nativeEvent.keyCode !== 229
-                      ) {
-                        evento.preventDefault()
-                        concluirTexto()
-                      }
-                    }}
-                    onBlur={concluirTexto}
-                    className="absolute resize-none overflow-hidden whitespace-pre rounded border border-border border-dashed bg-surface/80 p-0 font-semibold text-fg"
-                    style={{
-                      left: texto.at.x * escala,
-                      top: texto.at.y * escala,
-                      // Da largura da linha mais longa: o que se ve e o que vai.
-                      width: `${Math.max(6, ...texto.value.split('\n').map((linha) => linha.length)) + 2}ch`,
-                      fontSize: SIZE.text,
-                      lineHeight: LINE_HEIGHT,
-                    }}
-                  />
-                )}
-              </div>
-            ) : (
-              <p className="max-w-xs text-center text-detail text-fg-muted leading-normal">
-                {falhou ? 'Não deu para abrir esta imagem para marcar.' : 'Abrindo a imagem…'}
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-2 border-border border-t px-3 py-2">
-            {erro && (
-              <p role="alert" className="mr-auto text-caption text-error-fg leading-normal">
-                {erro}
-              </p>
-            )}
-
+          {/* O topo: as saidas e o nome do que se faz aqui. As ferramentas ficam embaixo,
+              perto da imagem e da mao, numa barra que flutua sobre o palco. */}
+          <header className="flex min-h-14 items-center gap-3 border-border border-b bg-surface px-3 py-2">
             {confirmando ? (
               <>
-                <p id={idPergunta} className="mr-auto text-detail text-fg">
+                <Dialog.Title className="sr-only">Marcar a imagem</Dialog.Title>
+                <p id={idPergunta} className="min-w-0 flex-1 text-detail text-fg">
                   {mode === 'add'
                     ? 'Descartar a imagem e as marcas?'
                     : 'Sair sem salvar as marcas?'}
@@ -963,45 +740,352 @@ export function ImageEditor({
                   {mode === 'add' ? 'Descartar' : 'Sair sem salvar'}
                 </button>
               </>
-            ) : falhou ? (
+            ) : (
               <>
-                <button type="button" onClick={onCancel} className={secundario}>
-                  {mode === 'add' ? 'Descartar' : 'Fechar'}
-                </button>
-                {/* A imagem que o editor nao abre ainda pode ir: a pessoa decide. */}
-                {mode === 'add' && (
+                {falhou ? (
+                  <button type="button" onClick={onCancel} className={discreto}>
+                    {mode === 'add' ? 'Descartar' : 'Fechar'}
+                  </button>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => onDone({ file: source, doc: null })}
+                    onClick={pedirSaida}
+                    disabled={gerando}
+                    className={discreto}
+                  >
+                    {mode === 'add' ? 'Descartar' : 'Cancelar'}
+                  </button>
+                )}
+                <Dialog.Title className="min-w-0 flex-1 truncate text-center font-medium text-detail text-fg">
+                  Marcar a imagem
+                </Dialog.Title>
+                {falhou ? (
+                  // A imagem que o editor nao abre ainda pode ir: a pessoa decide.
+                  mode === 'add' ? (
+                    <button
+                      type="button"
+                      onClick={() => onDone({ file: source, doc: null })}
+                      className={principal}
+                    >
+                      Adicionar sem marcas
+                    </button>
+                  ) : (
+                    <span className="w-20" aria-hidden="true" />
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void concluir()}
+                    disabled={!aberta || gerando}
                     className={principal}
                   >
-                    Adicionar sem marcas
+                    {gerando ? 'Gerando…' : mode === 'add' ? 'Adicionar' : 'Salvar'}
                   </button>
                 )}
               </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={pedirSaida}
-                  disabled={gerando}
-                  className={secundario}
-                >
-                  {mode === 'add' ? 'Descartar' : 'Cancelar'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void concluir()}
-                  disabled={!aberta || gerando}
-                  className={principal}
-                >
-                  {gerando ? 'Gerando…' : mode === 'add' ? 'Adicionar' : 'Salvar'}
-                </button>
-              </>
             )}
+          </header>
+
+          {/* O palco: a imagem no meio, sobre uma trama de pontos discreta, como numa mesa
+              de desenho. */}
+          <div
+            ref={setPalcoEl}
+            className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] p-4 [background-size:18px_18px]"
+          >
+            {aberta ? (
+              <div className="relative" style={{ width: larguraCss, height: alturaCss }}>
+                <canvas
+                  ref={canvasRef}
+                  width={Math.round(larguraCss * densidade)}
+                  height={Math.round(alturaCss * densidade)}
+                  role="img"
+                  aria-label="A imagem, com as marcas"
+                  aria-describedby={idAjuda}
+                  // Alcancavel pelo Tab: e daqui que a caixa do teclado sai.
+                  tabIndex={0}
+                  onKeyDown={teclado}
+                  onPointerDown={apertar}
+                  onPointerMove={arrastar}
+                  onPointerUp={soltar}
+                  onPointerCancel={interromper}
+                  // A captura do ponteiro some sem `pointercancel` em alguns toques: sem
+                  // isto, o gesto ficaria preso e nenhum toque seguinte desenharia.
+                  onLostPointerCapture={interromper}
+                  // Sem isto, arrastar o dedo rolaria e daria zoom na pagina, em vez de desenhar.
+                  className="block cursor-crosshair touch-none rounded-md shadow-xl ring-1 ring-border focus-visible:outline-offset-4"
+                  style={{ width: larguraCss, height: alturaCss }}
+                />
+              </div>
+            ) : (
+              <p className="max-w-xs text-center text-detail text-fg-muted leading-normal">
+                {falhou ? 'Não deu para abrir esta imagem para marcar.' : 'Abrindo a imagem…'}
+              </p>
+            )}
+          </div>
+
+          {/* Embaixo: a dica da ferramenta numa pilula, e a barra com tudo o que marca. */}
+          <div className="flex flex-col items-center gap-2 px-3 pt-1 pb-3">
+            <div className="flex min-h-7 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1">
+              {erro && (
+                <p
+                  role="alert"
+                  className="rounded-full border border-error-border bg-surface px-3 py-1 text-caption text-error-fg leading-normal"
+                >
+                  {erro}
+                </p>
+              )}
+              <p
+                aria-live="polite"
+                className="rounded-full bg-surface/90 px-3 py-1 text-center text-caption text-fg-muted leading-normal"
+              >
+                {dica}
+              </p>
+              <p id={idAjuda} className="sr-only">
+                Pelo teclado, com Retângulo, Elipse, Desfoque, Ocultar ou Recortar escolhido, Enter
+                põe uma caixa no meio da imagem. Cada ferramenta tem uma letra de atalho.
+              </p>
+              {ferramenta === 'crop' && historia.present.crop && (
+                <button
+                  type="button"
+                  onClick={() => aplicar((doc) => ({ ...doc, crop: null }))}
+                  className="font-medium text-caption text-fg underline underline-offset-4"
+                >
+                  Sem recorte
+                </button>
+              )}
+            </div>
+
+            <Tooltip.Provider delayDuration={350} skipDelayDuration={300}>
+              <div className="flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border border-border bg-surface-sunken p-1.5 shadow-lg">
+                <div
+                  ref={pilula.lista}
+                  role="toolbar"
+                  aria-label="Ferramentas"
+                  // Numa linha so, sem quebrar um grupo no meio: no celular, as cores e o
+                  // desfazer descem para a linha de baixo, e as ferramentas ficam inteiras.
+                  className="relative flex flex-nowrap items-center justify-center sm:gap-0.5"
+                >
+                  {/* A ferramenta escolhida: uma pilula neutra que desliza ate a nova. */}
+                  {pilula.lugar && (
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'pointer-events-none absolute top-0 left-0 rounded-xl bg-surface-lifted shadow-sm ring-1 ring-border',
+                        pilula.animar &&
+                          'transition-[transform,width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
+                      )}
+                      style={{
+                        transform: `translate(${pilula.lugar.x}px, ${pilula.lugar.y}px)`,
+                        width: pilula.lugar.largura,
+                        height: pilula.lugar.altura,
+                      }}
+                    />
+                  )}
+                  {TOOLS.map(({ tool, label, tecla, grupo }, indice) => (
+                    <span key={tool} className="flex items-center">
+                      {indice > 0 && TOOLS[indice - 1]?.grupo !== grupo && <Divisoria />}
+                      <Dica texto={label} tecla={tecla}>
+                        <button
+                          ref={indice === 0 ? primeiraFerramenta : undefined}
+                          type="button"
+                          aria-label={label}
+                          aria-keyshortcuts={tecla}
+                          aria-pressed={ferramenta === tool}
+                          data-ferramenta={tool}
+                          // Ligadas mesmo com a imagem abrindo: o foco comeca na primeira, e
+                          // nao cai em "Descartar", onde um Enter jogaria a captura fora.
+                          disabled={gerando}
+                          onClick={() => escolher(tool)}
+                          className={cn(
+                            peca,
+                            ferramenta === tool ? 'text-fg' : solta,
+                            // Sem a pilula medida (o primeiro desenho), o fundo marca a escolhida.
+                            ferramenta === tool && !pilula.lugar && 'bg-surface-lifted shadow-sm',
+                          )}
+                        >
+                          <EditorIcon name={tool} />
+                        </button>
+                      </Dica>
+                    </span>
+                  ))}
+                </div>
+
+                <Divisoria className="hidden sm:block" />
+
+                <fieldset className="flex items-center gap-0.5">
+                  <legend className="sr-only">Cor</legend>
+                  {INK_COLORS.map((opcao) => {
+                    const escolhida = cor === opcao.value
+                    return (
+                      <Dica key={opcao.value} texto={opcao.name}>
+                        <button
+                          type="button"
+                          aria-label={opcao.name}
+                          aria-pressed={escolhida}
+                          disabled={!COM_COR.has(ferramenta) || gerando}
+                          onClick={() => setCor(opcao.value)}
+                          className="group flex size-8 items-center justify-center rounded-full transition-[opacity,transform] duration-150 ease-out enabled:active:scale-90 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          {/* A cor escolhida cresce com um leve pulo e ganha um anel por dentro, na
+                          cor de contraste; as outras ficam menores e crescem ao passar o mouse.
+                          A amostra e a cor que vai para a imagem, e nao muda com o tema. */}
+                          <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            className={cn(
+                              'size-6 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none',
+                              escolhida
+                                ? 'scale-110 drop-shadow-sm'
+                                : 'scale-75 group-enabled:group-hover:scale-90',
+                            )}
+                          >
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="10.5"
+                              fill={opcao.value}
+                              stroke="currentColor"
+                              strokeOpacity="0.35"
+                            />
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="6"
+                              fill="none"
+                              stroke={opcao.contrast}
+                              strokeWidth="2.2"
+                              className={cn(
+                                'origin-center transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] [transform-box:fill-box] motion-reduce:transition-none',
+                                escolhida ? 'scale-100 opacity-100' : 'scale-0 opacity-0',
+                              )}
+                            />
+                          </svg>
+                        </button>
+                      </Dica>
+                    )
+                  })}
+                </fieldset>
+
+                <Divisoria />
+
+                <div className="flex items-center gap-0.5">
+                  <Dica texto="Desfazer" tecla={mac ? '⌘Z' : 'Ctrl+Z'}>
+                    <button
+                      type="button"
+                      aria-label="Desfazer"
+                      aria-keyshortcuts="Control+Z Meta+Z"
+                      disabled={historia.past.length === 0 || gerando}
+                      onClick={desfazer}
+                      className={cn(peca, solta)}
+                    >
+                      <EditorIcon name="undo" />
+                    </button>
+                  </Dica>
+                  <Dica texto="Refazer" tecla={mac ? '⇧⌘Z' : 'Ctrl+Shift+Z'}>
+                    <button
+                      type="button"
+                      aria-label="Refazer"
+                      aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
+                      disabled={historia.future.length === 0 || gerando}
+                      onClick={refazer}
+                      className={cn(peca, solta)}
+                    >
+                      <EditorIcon name="redo" />
+                    </button>
+                  </Dica>
+                </div>
+              </div>
+            </Tooltip.Provider>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+/** O fio entre os grupos da barra de baixo. */
+function Divisoria({ className }: { className?: string }) {
+  return <span aria-hidden="true" className={cn('mx-0.5 h-6 w-px bg-border sm:mx-1', className)} />
+}
+
+/**
+ * A dica de um botao da barra: o nome e a tecla, logo acima, escura como as do sistema,
+ * ao passar o mouse.
+ * **Entre vizinhos ela troca na hora**, sem esperar de novo nem animar, e quem passa pela
+ * barra le cada nome sem atraso.
+ */
+function Dica({ texto, tecla, children }: { texto: string; tecla?: string; children: ReactNode }) {
+  return (
+    <Tooltip.Root>
+      {/* So no mouse, e nao no foco: o editor abre com o foco na Seta, e uma dica aberta ali
+          seguraria o primeiro Esc. Pelo teclado, o nome e a tecla vao no proprio botao. */}
+      <Tooltip.Trigger asChild onFocus={(evento) => evento.preventDefault()}>
+        {children}
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content
+          side="top"
+          sideOffset={10}
+          className="z-tip flex origin-(--radix-tooltip-content-transform-origin) items-center gap-2 rounded-lg bg-fg px-2.5 py-1.5 text-caption text-surface shadow-lg data-[state=closed]:animate-menu-out data-[state=delayed-open]:animate-menu-in"
+        >
+          {texto}
+          {tecla && (
+            <kbd className="rounded-md border border-surface/30 px-1.5 font-sans text-caption leading-snug opacity-80">
+              {tecla}
+            </kbd>
+          )}
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  )
+}
+
+/**
+ * Onde fica a pilula da ferramenta escolhida: a posicao e o tamanho do botao dela, medidos
+ * de novo a cada troca e quando a barra muda de tamanho. `semAnimacao` faz a proxima troca
+ * acontecer de uma vez, para o atalho do teclado.
+ */
+function usePilula(ferramenta: Tool) {
+  const lista = useRef<HTMLDivElement>(null)
+  const [lugar, setLugar] = useState<{
+    x: number
+    y: number
+    largura: number
+    altura: number
+  } | null>(null)
+  const [animar, setAnimar] = useState(false)
+  const pular = useRef(false)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a ferramenta e o gatilho de medir de novo
+  useLayoutEffect(() => {
+    const elemento = lista.current
+    if (!elemento) return
+    const medir = () => {
+      const botao = elemento.querySelector<HTMLElement>('[aria-pressed="true"]')
+      if (!botao || botao.offsetWidth === 0) return
+      setLugar({
+        x: botao.offsetLeft,
+        y: botao.offsetTop,
+        largura: botao.offsetWidth,
+        altura: botao.offsetHeight,
+      })
+    }
+    // O primeiro lugar aparece de uma vez; as trocas seguintes deslizam, menos as do teclado.
+    setAnimar((ja) => (pular.current ? false : ja || lugar !== null))
+    pular.current = false
+    medir()
+    if (typeof ResizeObserver === 'undefined') return
+    const observador = new ResizeObserver(medir)
+    observador.observe(elemento)
+    return () => observador.disconnect()
+  }, [ferramenta])
+
+  return {
+    lista,
+    lugar,
+    animar,
+    semAnimacao: () => {
+      pular.current = true
+    },
+  }
 }

@@ -122,7 +122,7 @@ describe('o editor que nao carrega', () => {
 
   it('a imagem da lista continua la, e sem "adicionar sem marcas"', async () => {
     montar()
-    fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+    fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
       target: { files: [new File([new Uint8Array(100)], 'erro.png', { type: 'image/png' })] },
     })
 

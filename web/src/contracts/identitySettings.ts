@@ -24,6 +24,13 @@ export type ReporterIdentityMode = 'Protocol' | 'PersonalCode' | 'InheritedIdent
 export type ReportVisibility = 'Private' | 'PublicAnonymous' | 'PublicIdentified'
 
 /**
+ * Como o sistema do cliente assina o cracha, no modo que herda a identidade. `Hmac` (de
+ * fabrica) e uma linha em qualquer linguagem, com a chave secreta do projeto; `Jwt` e um
+ * JWT ES256, com a chave publica colada aqui. So um vale por vez.
+ */
+export type IdentityFormat = 'Hmac' | 'Jwt'
+
+/**
  * O modo de identificacao de um projeto.
  *
  * **Nunca vem vazio.** Projeto que nunca abriu a tela recebe o padrao, e a
@@ -50,6 +57,32 @@ export interface IdentitySettingsViewModel {
    * como protocolo.
    */
   IdentityRequired: boolean
+  /** Como o sistema do cliente assina o cracha. */
+  IdentityFormat: IdentityFormat
+  /**
+   * A instalacao tem a chave mestra do HMAC (`IDENTITY_HMAC_KEY`). **Nao e do projeto**:
+   * sem ela, a tela oferece so o JWT e diz por que.
+   */
+  IsHmacAvailable: boolean
+}
+
+/**
+ * A chave secreta do HMAC do projeto. **Sai so por pedido**, numa rota propria e so para
+ * administrador, e nunca na leitura da configuracao, que vai para todo membro.
+ */
+export interface IdentitySecretViewModel {
+  /** Como o servidor do cliente a usa: o texto inteiro, em UTF-8. Comeca com `rfs_`. */
+  Secret: string
+}
+
+/**
+ * Uma chave do HMAC que ja nao vale: **so o comeco**, para reconhecer qual chave um
+ * servidor ainda usa, e quando ela foi trocada. O valor inteiro nunca sai.
+ */
+export interface IdentitySecretHistoryItemViewModel {
+  /** `rfs_` e oito caracteres. Nulo sem a chave mestra na instalacao, de onde ela sai. */
+  Prefix: string | null
+  ReplacedAt: string
 }
 
 /**
@@ -72,4 +105,5 @@ export interface SaveIdentitySettingsRequest {
   IdentityPublicKey: string | null
   IdentityTokenMaxMinutes: number
   IdentityRequired: boolean
+  IdentityFormat: IdentityFormat
 }

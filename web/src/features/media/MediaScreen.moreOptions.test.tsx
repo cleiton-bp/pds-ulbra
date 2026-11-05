@@ -11,8 +11,9 @@ import { actAsPreviewFrame, lastPreview } from '@/test/previewFrame'
 /**
  * O QUE ESTES TESTES TRAVAM: os grupos de Anexos e a previa.
  *
- * - **Cada grupo, fechado, diz em palavras o que esta escolhido** (Imagem, Arquivo,
- *   Quando anexar) e o que saiu do padrao de fabrica, com os nomes da tela.
+ * - **Cada grupo, fechado, diz em palavras o que esta escolhido** (Print da tela, Arquivos,
+ *   Quando anexar) e o que saiu do padrao de fabrica, com os nomes da tela. Quantidade e
+ *   tamanho nao sao da tela, e nao entram no "Mudou".
  * - **Cada grupo tem o proprio "Voltar ao padrão"**, que volta so os campos dele, no
  *   rascunho: os outros grupos e a chave geral ficam, e quem grava e o Publicar.
  * - **A previa recebe o rascunho dos anexos** como a ferramenta o le: so os tipos ligados,
@@ -94,7 +95,6 @@ function montar() {
 const carregada = () => screen.findByRole('checkbox', { name: 'Aceitar anexos' })
 const caixa = (nome: string | RegExp) =>
   screen.getByRole('checkbox', { name: nome }) as HTMLInputElement
-const numero = (id: string) => document.getElementById(id) as HTMLInputElement
 /** O grupo do acordeao: a ancora fica no `<summary>`. */
 const grupo = (id: string) => document.getElementById(id)?.closest('details') as HTMLDetailsElement
 /** A secao em volta do grupo: o "Voltar ao padrão" mora nela, fora do `<summary>`. */
@@ -116,21 +116,21 @@ describe('MediaScreen, grupos e prévia', () => {
     montar()
     await carregada()
 
-    expect(resumoDo('grupo-imagem')).toBe('ImagemAceita até 3 de 5 MB, captura ligada')
-    expect(resumoDo('grupo-arquivo')).toBe('ArquivoDesligado')
+    expect(resumoDo('grupo-imagem')).toBe('Print da telaAceito, abre no editor')
+    expect(resumoDo('grupo-arquivo')).toBe('ArquivosImagem')
     expect(resumoDo('quando-anexar')).toBe('Quando anexarNo relato, ao responder, ao reabrir')
     for (const id of ['grupo-imagem', 'grupo-arquivo', 'quando-anexar']) {
       expect(resumoDo(id)).not.toContain('Mudou')
       expect(within(secao(id)).queryByRole('button', { name: 'Voltar ao padrão' })).toBeNull()
     }
 
-    // O resumo acompanha o rascunho.
-    fireEvent.click(caixa('Aceitar arquivo'))
-    fireEvent.click(caixa('Deixar capturar a tela'))
+    // O resumo acompanha o rascunho, sem quantidade nem tamanho.
+    fireEvent.click(caixa(/^PDF/))
+    fireEvent.click(caixa('Aceitar print da tela'))
     fireEvent.click(caixa('Ao responder o time'))
 
-    expect(resumoDo('grupo-arquivo')).toContain('PDF, Texto e log, até 2 de 10 MB')
-    expect(resumoDo('grupo-imagem')).toContain('captura desligada')
+    expect(resumoDo('grupo-arquivo')).toBe('ArquivosImagem, PDFMudou: Tipos de arquivo')
+    expect(resumoDo('grupo-imagem')).toContain('Desligado')
     expect(resumoDo('quando-anexar')).toContain('No relato, ao reabrir')
     expect(resumoDo('quando-anexar')).not.toContain('ao responder')
   })
@@ -141,18 +141,18 @@ describe('MediaScreen, grupos e prévia', () => {
       AllowsScreenCapture: false,
       AllowsOnReopen: false,
       Kinds: [
-        { Kind: 'Image', IsEnabled: true, MaxCount: 6, MaxBytes: 5 * MB, Formats: [] },
+        // Limites fora do de fabrica nao aparecem: nao sao da tela.
+        { Kind: 'Image', IsEnabled: false, MaxCount: 6, MaxBytes: 5 * MB, Formats: [] },
         { Kind: 'File', IsEnabled: true, MaxCount: 2, MaxBytes: 20 * MB, Formats: ['json'] },
       ],
     })
     montar()
     await carregada()
 
-    expect(resumoDo('grupo-imagem')).toContain('Mudou: Quantas imagens, Captura da tela')
-    expect(resumoDo('grupo-arquivo')).toContain(
-      'Mudou: Aceitar arquivo, Formatos, Tamanho do arquivo',
-    )
+    expect(resumoDo('grupo-imagem')).toContain('Mudou: Aceitar print da tela')
+    expect(resumoDo('grupo-arquivo')).toContain('Mudou: Tipos de arquivo')
     expect(resumoDo('quando-anexar')).toContain('Mudou: Ao reabrir')
+    expect(resumoDo('grupo-imagem') + resumoDo('grupo-arquivo')).not.toMatch(/Quant|Tamanho|MB/)
   })
 
   it('"Voltar ao padrão" de um grupo volta só os campos dele, no rascunho', async () => {
@@ -161,29 +161,27 @@ describe('MediaScreen, grupos e prévia', () => {
       AllowsScreenCapture: false,
       AllowsOnReopen: false,
       Kinds: [
-        { Kind: 'Image', IsEnabled: true, MaxCount: 6, MaxBytes: 5 * MB, Formats: [] },
+        { Kind: 'Image', IsEnabled: false, MaxCount: 3, MaxBytes: 5 * MB, Formats: [] },
         { Kind: 'File', IsEnabled: true, MaxCount: 2, MaxBytes: 20 * MB, Formats: ['json'] },
       ],
     })
     montar()
     await carregada()
 
-    // Imagem: a quantidade e a captura voltam; o arquivo e o Quando anexar ficam.
+    // Print da tela: volta aceito; os tipos do botao e o Quando anexar ficam.
     fireEvent.click(voltarAoPadrao('grupo-imagem'))
-    expect(numero('quantidade-Image').value).toBe('3')
-    expect(caixa('Deixar capturar a tela').checked).toBe(true)
+    expect(caixa('Aceitar print da tela').checked).toBe(true)
     expect(resumoDo('grupo-imagem')).not.toContain('Mudou')
-    expect(caixa('Aceitar arquivo').checked).toBe(true)
+    expect(caixa(/^Imagem/).checked).toBe(false)
+    expect(caixa(/^JSON/).checked).toBe(true)
     expect(caixa('Ao reabrir').checked).toBe(false)
 
-    // Arquivo: aceitar, os formatos de fabrica (os `IsDefault` do catalogo) e o tamanho.
+    // Arquivos: a imagem de volta no botao, e os formatos de arquivo desmarcados.
     fireEvent.click(voltarAoPadrao('grupo-arquivo'))
-    expect(caixa('Aceitar arquivo').checked).toBe(false)
-    expect(caixa(/^PDF/).checked).toBe(true)
-    expect(caixa(/^Texto e log/).checked).toBe(true)
+    expect(caixa(/^Imagem/).checked).toBe(true)
+    expect(caixa(/^PDF/).checked).toBe(false)
     expect(caixa(/^JSON/).checked).toBe(false)
-    expect(numero('tamanho-File').value).toBe('10')
-    expect(resumoDo('grupo-arquivo')).toBe('ArquivoDesligado')
+    expect(resumoDo('grupo-arquivo')).toBe('ArquivosImagem')
     expect(caixa('Ao reabrir').checked).toBe(false)
 
     // Quando anexar: os dois lugares a mais. A chave geral nao e de grupo nenhum.
@@ -199,26 +197,6 @@ describe('MediaScreen, grupos e prévia', () => {
     )
   })
 
-  it('"Voltar ao padrão" também troca o texto de um campo a corrigir no grupo', async () => {
-    dublê.ler.mockResolvedValue({
-      ...FABRICA,
-      AllowsScreenCapture: false,
-    })
-    montar()
-    await carregada()
-
-    // O rascunho ja tem o 3 de fabrica: so o texto do campo esta errado.
-    fireEvent.change(numero('quantidade-Image'), { target: { value: '' } })
-    expect(resumoDo('grupo-imagem')).toContain('corrigir')
-
-    fireEvent.click(voltarAoPadrao('grupo-imagem'))
-
-    expect(numero('quantidade-Image').value).toBe('3')
-    expect(numero('quantidade-Image').getAttribute('aria-invalid')).toBeNull()
-    await waitFor(() => expect(resumoDo('grupo-imagem')).not.toContain('corrigir'))
-    expect(screen.queryByText(/campos? a corrigir/)).toBeNull()
-  })
-
   it('a prévia recebe o rascunho dos anexos, como a ferramenta o lê', async () => {
     dublê.ler.mockResolvedValue(FABRICA)
     montar()
@@ -231,14 +209,28 @@ describe('MediaScreen, grupos e prévia', () => {
     )
     expect(lastPreview(lidas)?.settings.Title).toBe(DEFAULT_WIDGET_SETTINGS.Title)
 
-    // Aceitar arquivo: ele entra, com as extensoes dos formatos marcados.
-    fireEvent.click(caixa('Aceitar arquivo'))
+    // Marcar um formato: o arquivo entra no botao, com as extensoes dele.
+    fireEvent.click(caixa(/^PDF/))
     await waitFor(() =>
       expect(
         lastPreview(lidas)
           ?.media?.Kinds.find((tipo) => tipo.Kind === 'File')
           ?.Types?.map((tipo) => tipo.Extension),
-      ).toEqual(['.pdf', '.txt', '.log']),
+      ).toEqual(['.pdf']),
+    )
+
+    // Sem o print, a imagem continua no botao, e so a captura sai.
+    fireEvent.click(caixa('Aceitar print da tela'))
+    await waitFor(() => expect(lastPreview(lidas)?.media?.AllowsScreenCapture).toBe(false))
+    expect(lastPreview(lidas)?.media?.Kinds.map((tipo) => tipo.Kind)).toEqual(['Image', 'File'])
+
+    // Com o print de volta e a imagem fora do botao, ela fica so para o print.
+    fireEvent.click(caixa('Aceitar print da tela'))
+    fireEvent.click(caixa(/^Imagem/))
+    await waitFor(() =>
+      expect(lastPreview(lidas)?.media?.Kinds.find((tipo) => tipo.Kind === 'Image')?.InPicker).toBe(
+        false,
+      ),
     )
 
     // Desligar o anexo: a ferramenta nao mostra nada de anexo, e a previa tambem nao.
@@ -253,7 +245,7 @@ describe('MediaScreen, grupos e prévia', () => {
     await carregada()
     const lidas = actAsPreviewFrame()
 
-    // A Imagem abre sozinha, e a previa ja contorna a area de anexar.
+    // O Print da tela abre sozinho, e a previa ja contorna a area de anexar.
     await waitFor(() => expect(lastPreview(lidas)?.highlight).toBe('form-attachments'))
 
     grupo('grupo-imagem').open = false

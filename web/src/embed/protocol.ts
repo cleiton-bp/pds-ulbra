@@ -70,8 +70,9 @@ export interface InitMessage {
    */
   launcher?: typeof HOST_LAUNCHER
   /**
-   * O cracha da pessoa, assinado pelo servidor do cliente — o `data-identity` do
-   * script, so no projeto que herda a identidade. Nulo sem o atributo. **Opcional**: o
+   * O cracha da pessoa, assinado pelo servidor do cliente — o `data-identity` (JWT) ou
+   * os `data-user-*` (HMAC, juntos pelo carregador) do script, so no projeto que herda a
+   * identidade. Nulo sem os atributos. **Opcional**: o
    * carregador antigo nao manda.
    */
   identity?: string | null

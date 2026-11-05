@@ -131,6 +131,7 @@ const PALAVRAS: Record<string, string> = {
   historia: 'história',
   historico: 'histórico',
   icone: 'ícone',
+  indisponivel: 'indisponível',
   informacao: 'informação',
   instalacao: 'instalação',
   invalida: 'inválida',

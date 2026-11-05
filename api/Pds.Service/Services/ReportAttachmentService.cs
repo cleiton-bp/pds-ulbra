@@ -282,7 +282,7 @@ public class ReportAttachmentService : IReportAttachmentService
 
         var limite = vigente.For(kind);
 
-        if (limite is null || !limite.IsEnabled)
+        if (limite is null || !vigente.Accepts(limite))
             throw new ConflictException("Este projeto nao aceita esse tipo de arquivo.");
 
         // O tipo e conferido antes de assinar para a recusa chegar antes do envio.
@@ -1092,7 +1092,7 @@ public class ReportAttachmentService : IReportAttachmentService
         if (!vigente.IsEnabled)
             return "Este projeto deixou de aceitar anexo.";
 
-        if (!limite.IsEnabled)
+        if (!vigente.Accepts(limite))
             return "Este projeto deixou de aceitar esse tipo de arquivo.";
 
         // O formato desmarcado depois da permissao. Pelo tipo gravado, que e do catalogo

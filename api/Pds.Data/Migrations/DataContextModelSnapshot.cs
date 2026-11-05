@@ -748,6 +748,13 @@ namespace Pds.Data.Migrations
                         .HasColumnName("deleted_at")
                         .HasComment("Nulo enquanto o registro vale; preenchido no lugar de apagar.");
 
+                    b.Property<string>("IdentityFormat")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("identity_format")
+                        .HasComment("hmac | jwt. Como o sistema do cliente assina o cracha no modo inherited_identity. So um vale por vez.");
+
                     b.Property<string>("IdentityPublicKey")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)")
@@ -760,6 +767,19 @@ namespace Pds.Data.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("identity_required")
                         .HasComment("No modo inherited_identity: true recusa o relato sem token (ou com token que nao confere) e pede para entrar no sistema; false (fabrica) aceita como protocolo, sem identidade.");
+
+                    b.PrimitiveCollection<List<DateTime>>("IdentitySecretRotations")
+                        .IsRequired()
+                        .HasColumnType("timestamp with time zone[]")
+                        .HasColumnName("identity_secret_rotations")
+                        .HasComment("Quando a chave secreta do HMAC foi trocada, da mais recente para a mais antiga, ate 3. So a data: o historico mostra o comeco de cada chave antiga, que sai da chave mestra e da versao.");
+
+                    b.Property<int>("IdentitySecretVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("identity_secret_version")
+                        .HasComment("A versao da chave secreta do HMAC. A chave nao e guardada: sai da chave mestra da instalacao (IDENTITY_HMAC_KEY) e desta versao; subir a versao troca a chave.");
 
                     b.Property<string>("IdentitySubjectSalt")
                         .HasMaxLength(64)

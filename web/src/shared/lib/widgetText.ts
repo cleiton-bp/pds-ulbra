@@ -35,7 +35,7 @@ export type WidgetTextValues = Partial<Record<WidgetTextVariable, string | null 
  * falta no projeto sem jornada. Os outros sempre tem valor onde sao aceitos; o vazio
  * aqui e so para nunca escrever "undefined".
  */
-const DE_FABRICA: Record<WidgetTextVariable, string> = {
+export const FACTORY_FALLBACKS: Record<WidgetTextVariable, string> = {
   primeiroNome: 'você',
   protocolo: '',
   tipo: 'relato',
@@ -65,8 +65,53 @@ export function renderWidgetText(template: string, values: WidgetTextValues): st
       : undefined
     if (valor) return valor
     if (padrao !== undefined) return padrao.trim()
-    return Object.hasOwn(DE_FABRICA, nome) ? DE_FABRICA[nome as WidgetTextVariable] : ''
+    return Object.hasOwn(FACTORY_FALLBACKS, nome)
+      ? FACTORY_FALLBACKS[nome as WidgetTextVariable]
+      : ''
   })
+}
+
+/** Um pedaco do texto: o que foi escrito, ou uma variavel aceita (com o padrao, se houver). */
+export type WidgetTextPart = { text: string } | { variable: WidgetTextVariable; fallback?: string }
+
+/**
+ * O texto em pedacos, pela mesma forma que a troca usa: o editor desenha cada variavel
+ * aceita como um bloco, e o resto como texto. **Variavel fora da lista fica como
+ * texto**, do jeito que esta: e a API que diz o que falta, na gravacao. O padrao vem
+ * como foi escrito, sem aparar, para quem o edita poder digitar espacos.
+ */
+export function splitWidgetText(
+  template: string,
+  accepted: readonly WidgetTextVariable[],
+): WidgetTextPart[] {
+  const partes: WidgetTextPart[] = []
+  let fim = 0
+  for (const achado of template.matchAll(VARIAVEL)) {
+    const nome = achado[1] as WidgetTextVariable
+    if (!accepted.includes(nome)) continue
+    const inicio = achado.index ?? 0
+    if (inicio > fim) partes.push({ text: template.slice(fim, inicio) })
+    partes.push(
+      achado[2] === undefined ? { variable: nome } : { variable: nome, fallback: achado[2] },
+    )
+    fim = inicio + achado[0].length
+  }
+  if (fim < template.length) partes.push({ text: template.slice(fim) })
+  return partes
+}
+
+/** A variavel escrita certo: `{{nome}}`, ou `{{nome|padrao}}` com o padrao. */
+export function variableToken(variable: WidgetTextVariable, fallback?: string): string {
+  return fallback === undefined ? `{{${variable}}}` : `{{${variable}|${fallback}}}`
+}
+
+/** Os pedacos de volta ao texto que se grava. */
+export function joinWidgetText(parts: readonly WidgetTextPart[]): string {
+  return parts
+    .map((parte) =>
+      'variable' in parte ? variableToken(parte.variable, parte.fallback) : parte.text,
+    )
+    .join('')
 }
 
 /** A primeira palavra do nome: "Ana Paula" vira "Ana". Nulo quando nao ha nome. */

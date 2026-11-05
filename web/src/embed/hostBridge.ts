@@ -57,8 +57,9 @@ export interface HostConnection {
    */
   readonly route?: string | null
   /**
-   * O cracha da pessoa, assinado pelo servidor do cliente — o `data-identity` do
-   * script, so no projeto que herda a identidade. O da ultima abertura
+   * O cracha da pessoa, assinado pelo servidor do cliente — o `data-identity` (JWT) ou
+   * os `data-user-*` (HMAC, juntos pelo carregador) do script, so no projeto que herda a
+   * identidade. O da ultima abertura
    * (`OpenMessage.identity`), ou o do `init` enquanto nenhuma abertura disse. Nulo
    * sem cracha. Opcional: a previa do painel nao tem pagina.
    */

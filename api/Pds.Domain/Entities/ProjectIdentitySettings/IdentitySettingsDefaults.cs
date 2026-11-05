@@ -16,15 +16,15 @@ namespace Pds.Domain.Entities;
 public static class IdentitySettingsDefaults
 {
     /// <summary>
-    /// Protocolo: o comportamento de hoje, e o unico modo que nao exige nada do
-    /// cliente.
+    /// Codigo pessoal: a pessoa ganha um codigo sorteado e reencontra os relatos dela
+    /// em "os meus relatos", sem o cliente precisar de nada alem do script colado.
     ///
-    /// <para><b>O padrao aqui e o mais fechado, e nao o mais util.</b> Comecar
-    /// identificando seria comecar coletando dado pessoal de quem nunca foi
-    /// perguntado — e a escolha de coletar precisa ser um ato de quem configura, e
-    /// nao o que acontece por omissao.</para>
+    /// <para><b>Nao coleta dado pessoal.</b> O codigo e sorteado aqui, e nao diz quem a
+    /// pessoa e: e o modo mais util que continua sem identificar ninguem. Coletar, como
+    /// pedir o nome ou herdar a identidade do sistema do cliente, segue sendo um ato de
+    /// quem configura, e nao o que acontece por omissao.</para>
     /// </summary>
-    public const ReporterIdentityModeEnum Mode = ReporterIdentityModeEnum.Protocol;
+    public const ReporterIdentityModeEnum Mode = ReporterIdentityModeEnum.PersonalCode;
 
     /// <summary>
     /// Privado: so quem relatou e o time.
@@ -48,4 +48,9 @@ public static class IdentitySettingsDefaults
     public const int IdentityTokenMaxMinutes = 15;
     /// <summary>Sem token, o relato entra como protocolo: relato perdido e pior que relato sem lista.</summary>
     public const bool IdentityRequired = false;
+    /// <summary>
+    /// A assinatura simples: uma linha em qualquer linguagem, sem biblioteca. Quem ja usa
+    /// JWT escolhe o JWT.
+    /// </summary>
+    public const IdentityFormatEnum IdentityFormat = IdentityFormatEnum.Hmac;
 }

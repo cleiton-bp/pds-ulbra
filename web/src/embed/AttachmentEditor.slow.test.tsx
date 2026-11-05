@@ -103,7 +103,7 @@ describe('enquanto o editor chega, depois de uma captura', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Capturar tela' }))
     const lugar = await screen.findByRole('dialog')
 
-    screen.getByRole('button', { name: 'Anexar imagem' }).focus()
+    screen.getByRole('button', { name: 'Anexar arquivo' }).focus()
 
     expect(document.activeElement).toBe(lugar)
   })

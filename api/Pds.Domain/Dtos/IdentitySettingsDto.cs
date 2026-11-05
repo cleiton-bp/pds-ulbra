@@ -48,4 +48,12 @@ public class IdentitySettingsDto
     /// <summary>No modo herdado, recusar o relato sem token (ou com token que nao confere) em vez de aceita-lo como protocolo. Ausente, falso.</summary>
     /// <example>false</example>
     public bool? IdentityRequired { get; set; }
+
+    /// <summary>
+    /// Como o sistema do cliente assina o cracha: <c>Hmac</c> ou <c>Jwt</c>. Ausente, fica o
+    /// que estava salvo (ou o de fabrica): trocar de formato e trocar o que o servidor do
+    /// cliente precisa fazer, e isso nao acontece por omissao.
+    /// </summary>
+    /// <example>Hmac</example>
+    public IdentityFormatEnum? IdentityFormat { get; set; }
 }

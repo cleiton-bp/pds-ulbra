@@ -43,6 +43,8 @@ export const CYCLE_DEFAULTS: CycleSettingsViewModel = {
 export const IDENTITY_DEFAULTS = {
   IdentityTokenMaxMinutes: 15,
   IdentityRequired: false,
+  /** A assinatura simples (HMAC), como `IdentitySettingsDefaults.IdentityFormat`. */
+  IdentityFormat: 'Hmac',
 } as const
 
 /** Os limites da validade, de `ProjectIdentitySettings.cs`: a API recusa fora deles. */

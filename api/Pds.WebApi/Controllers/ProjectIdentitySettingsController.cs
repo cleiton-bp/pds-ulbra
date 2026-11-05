@@ -154,4 +154,103 @@ public class ProjectIdentitySettingsController : BaseController
             return HandleError(exception);
         }
     }
+
+    /// <summary>A chave secreta da assinatura simples (HMAC) deste projeto.</summary>
+    /// <remarks>
+    /// Para o administrador colar no servidor do sistema dele, que assina o crachá com ela.
+    /// **Sai só por esta rota**, e nunca na leitura da configuração: a leitura vai para todo
+    /// membro, e a chave só para quem administra. A resposta não fica em cache.
+    ///
+    /// **A chave não é guardada**: sai da chave mestra da instalação (`IDENTITY_HMAC_KEY`) e
+    /// da versão do projeto. Sem a chave mestra, a recusa diz para usar o JWT: "A assinatura
+    /// simples fica indisponivel nesta instalacao. Use o JWT, com a chave publica do seu
+    /// sistema."
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">A chave secreta.</response>
+    /// <response code="400">A instalação não tem a chave mestra do HMAC.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores veem a chave.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
+    [HttpGet("secret")]
+    [ProducesResponseType(typeof(ApiResponse<IdentitySecretViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSecret(Guid publicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var secret = await _identitySettingsService.GetSecretAsync(publicId, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(secret);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>As ultimas chaves secretas da assinatura simples que ja nao valem.</summary>
+    /// <remarks>
+    /// Ate tres, da troca mais recente para a mais antiga, **so com o comeco de cada chave**
+    /// (`rfs_` e oito caracteres) e a data em que ela foi trocada: o bastante para reconhecer
+    /// qual chave um servidor ainda usa, sem mostrar o valor inteiro de nenhuma.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">As chaves anteriores, da mais recente para a mais antiga.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores veem as chaves.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
+    [HttpGet("secret/history")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<IdentitySecretHistoryItemViewModel>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSecretHistory(Guid publicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var historico = await _identitySettingsService.GetSecretHistoryAsync(publicId, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(historico);
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
+
+    /// <summary>Troca a chave secreta da assinatura simples (HMAC) deste projeto.</summary>
+    /// <remarks>
+    /// Devolve a chave nova. **Todo crachá assinado com a anterior deixa de valer na hora**:
+    /// até o servidor do cliente passar a usar a nova, quem está na conta relata como se não
+    /// estivesse. É a troca de rotina, ou a de quem desconfia que a chave vazou.
+    /// </remarks>
+    /// <param name="publicId">Identificador público do projeto.</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="200">A chave secreta nova.</response>
+    /// <response code="400">A instalação não tem a chave mestra do HMAC.</response>
+    /// <response code="403">A pessoa está no projeto, mas só administradores trocam a chave.</response>
+    /// <response code="404">Projeto não existe, ou a pessoa não está no projeto.</response>
+    [RequireProjectRole(ProjectRoleEnum.Administrator)]
+    [HttpPost("secret/rotate")]
+    [ProducesResponseType(typeof(ApiResponse<IdentitySecretViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RotateSecret(Guid publicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var secret = await _identitySettingsService.RotateSecretAsync(publicId, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Success(secret, "Chave secreta trocada.");
+        }
+        catch (Exception exception)
+        {
+            return HandleError(exception);
+        }
+    }
 }

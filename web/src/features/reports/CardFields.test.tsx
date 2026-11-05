@@ -733,7 +733,7 @@ describe('os campos do card', () => {
       new PanelError('Esta pessoa nao esta no time do projeto.', 400),
     )
     // Os avisos de testes anteriores ainda estao na loja: este comeca sem nenhum.
-    useToastStore.setState({ toasts: [], hosts: [] })
+    useToastStore.setState({ toasts: [] })
     render(<Toaster />)
     const aoMudar = montar(card())
 
@@ -752,7 +752,7 @@ describe('os campos do card', () => {
       /^Não deu para mudar o responsável\. Esta pessoa não está no time/,
     )
     expect(aoMudar).not.toHaveBeenCalled()
-    useToastStore.setState({ toasts: [], hosts: [] })
+    useToastStore.setState({ toasts: [] })
   })
 
   it('o prazo e as etiquetas tambem dizem "Salvando…" enquanto gravam', async () => {

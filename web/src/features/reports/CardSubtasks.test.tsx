@@ -139,7 +139,7 @@ const colunas: ReportStateCountViewModel[] = [
 describe('as subtarefas do card aberto', () => {
   afterEach(() => {
     cleanup()
-    useToastStore.setState({ toasts: [], hosts: [] })
+    useToastStore.setState({ toasts: [] })
   })
   beforeEach(() => {
     dublê.listar.mockReset()

@@ -98,7 +98,7 @@ function montar(extra: Partial<Parameters<typeof ConversationPanel>[0]> = {}) {
 }
 
 function escolher(arquivo: File) {
-  fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+  fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
     target: { files: [arquivo] },
   })
 }
@@ -111,7 +111,7 @@ afterEach(() => {
 describe('anexar ao responder', () => {
   it('com o projeto deixando, o seletor aparece na resposta', () => {
     montar()
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
   })
 
   // O mesmo seletor do quadro: com tres imagens por envio, a terceira desliga o
@@ -120,13 +120,13 @@ describe('anexar ao responder', () => {
     montar()
     const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
 
-    fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+    fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
       target: { files: [imagem('a.png'), imagem('b.png'), imagem('c.png')] },
     })
 
     await screen.findByRole('button', { name: 'Remover c.png' })
     expect(
-      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Anexar arquivo' }) as HTMLButtonElement).disabled,
     ).toBe(true)
   })
 
@@ -286,7 +286,7 @@ describe('anexar ao responder', () => {
     await screen.findByRole('button', { name: 'Enviando…' })
 
     expect(
-      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Anexar arquivo' }) as HTMLButtonElement).disabled,
     ).toBe(true)
     expect(screen.queryByRole('button', { name: 'Remover erro.png' })).toBeNull()
     const outro = new File([new Uint8Array(100)], 'outro.png', { type: 'image/png' })
@@ -376,7 +376,7 @@ describe('anexar ao responder', () => {
     ).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
     // O envio terminou: o seletor volta para a proxima resposta.
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
 
     // Escolher outro arquivo e comecar outro envio: o aviso do anterior sai.
     escolher(print())
@@ -397,12 +397,12 @@ describe('anexar ao responder', () => {
     await screen.findByRole('button', { name: 'Tentar de novo' })
     expect(screen.queryByText('não enviado')).toBeNull()
     // Enquanto um arquivo espera "tentar de novo", a lista e dele.
-    expect(screen.queryByRole('button', { name: 'Anexar imagem' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
 
     dublê.enviar.mockResolvedValue(undefined)
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
 
-    await screen.findByRole('button', { name: 'Anexar imagem' })
+    await screen.findByRole('button', { name: 'Anexar arquivo' })
     expect(screen.queryByText('Arquivos')).toBeNull()
   })
 
@@ -465,7 +465,7 @@ describe('anexar ao responder', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Desistir' }))
 
     expect(screen.queryByText('Arquivos')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
   })
 
   it('outra resposta sem arquivo tira o aviso do recusado anterior', async () => {

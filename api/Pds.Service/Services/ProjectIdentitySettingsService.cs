@@ -59,10 +59,27 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
         var chave = InheritedIdentity.NormalizePublicKey(dto.IdentityPublicKey);
         if (chave is not null && chave.Length > ProjectIdentitySettings.MaxIdentityPublicKeyLength)
             throw new ArgumentException("A chave publica e grande demais.");
-        if (mode == ReporterIdentityModeEnum.InheritedIdentity && chave is null)
-            throw new ArgumentException("Informe a chave publica do seu sistema.");
         if (chave is not null)
             InheritedIdentity.ImportPublicKey(chave).Dispose();
+
+        var atual = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        // O formato ausente fica o que estava: trocar de formato e trocar o que o servidor
+        // do cliente faz, e isso nao acontece por um campo que faltou.
+        var formato = dto.IdentityFormat ?? atual?.IdentityFormat ?? IdentitySettingsDefaults.IdentityFormat;
+        if (!Enum.IsDefined(formato))
+            throw new ArgumentException("Escolha como o seu sistema assina: assinatura simples ou JWT.");
+
+        // Cada formato pede o seu: o JWT, a chave publica; o HMAC, a chave mestra da
+        // instalacao. Sem eles o modo gravado nao conferiria cracha nenhum.
+        if (mode == ReporterIdentityModeEnum.InheritedIdentity)
+        {
+            if (formato == IdentityFormatEnum.Jwt && chave is null)
+                throw new ArgumentException("Informe a chave publica do seu sistema.");
+            if (formato == IdentityFormatEnum.Hmac && !InheritedIdentity.IsHmacAvailable)
+                throw new ArgumentException(
+                    "A assinatura simples fica indisponivel nesta instalacao. Use o JWT, com a chave publica do seu sistema.");
+        }
 
         var tetoDoToken = dto.IdentityTokenMaxMinutes ?? IdentitySettingsDefaults.IdentityTokenMaxMinutes;
         if (tetoDoToken is < ProjectIdentitySettings.MinIdentityTokenMinutes or > ProjectIdentitySettings.MaxIdentityTokenMinutes)
@@ -71,7 +88,7 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
 
         var identidadeObrigatoria = dto.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired;
 
-        var settings = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
+        var settings = atual;
 
         var novo = settings is null;
         settings ??= new ProjectIdentitySettings { ProjectId = project.Id };
@@ -82,10 +99,12 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
         settings.IdentityPublicKey = chave;
         settings.IdentityTokenMaxMinutes = tetoDoToken;
         settings.IdentityRequired = identidadeObrigatoria;
+        settings.IdentityFormat = formato;
 
-        // O sal nasce com a primeira chave e nunca muda: trocar o sal faria toda
-        // pessoa virar outra, e a lista dela sumiria.
-        if (chave is not null && settings.IdentitySubjectSalt is null)
+        // O sal nasce com a primeira chave, ou com o modo herdado no HMAC, e nunca muda:
+        // trocar o sal faria toda pessoa virar outra, e a lista dela sumiria.
+        if ((chave is not null || mode == ReporterIdentityModeEnum.InheritedIdentity)
+            && settings.IdentitySubjectSalt is null)
             settings.IdentitySubjectSalt = InheritedIdentity.NewSalt();
 
         if (novo)
@@ -98,6 +117,86 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
         return Map(settings);
     }
 
+    public async Task<IdentitySecretViewModel> GetSecretAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+        var settings = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        return new IdentitySecretViewModel(RequireSecret(project.Id, settings?.IdentitySecretVersion ?? 1));
+    }
+
+    public async Task<IdentitySecretViewModel> RotateSecretAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+
+        // Confere antes de mexer: sem a chave mestra nao ha chave nova para devolver.
+        if (!InheritedIdentity.IsHmacAvailable)
+            throw new ArgumentException(SemHmac);
+
+        var settings = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        // Projeto que nunca salvou ganha a linha com o padrao de fabrica: e assim que ele
+        // ja se comporta, e a versao da chave precisa morar em algum lugar.
+        var novo = settings is null;
+        settings ??= new ProjectIdentitySettings
+        {
+            ProjectId = project.Id,
+            Mode = IdentitySettingsDefaults.Mode,
+            Visibility = IdentitySettingsDefaults.Visibility,
+            AsksForName = IdentitySettingsDefaults.AsksForName,
+            IdentityRequired = IdentitySettingsDefaults.IdentityRequired,
+        };
+
+        // Subir a versao troca a chave: todo cracha assinado com a anterior deixa de valer.
+        // A troca entra no historico, so com a data, e o historico guarda as ultimas.
+        settings.IdentitySecretVersion++;
+        settings.IdentitySecretRotations =
+        [
+            DateTime.UtcNow,
+            .. settings.IdentitySecretRotations.Take(ProjectIdentitySettings.MaxIdentitySecretHistory - 1),
+        ];
+
+        if (novo)
+            await _unitOfWork.ProjectIdentitySettings.AddAsync(settings, cancellationToken);
+        else
+            _unitOfWork.ProjectIdentitySettings.Update(settings);
+
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return new IdentitySecretViewModel(RequireSecret(project.Id, settings.IdentitySecretVersion));
+    }
+
+    public async Task<IReadOnlyList<IdentitySecretHistoryItemViewModel>> GetSecretHistoryAsync(Guid projectPublicId, CancellationToken cancellationToken = default)
+    {
+        var project = await RequireOwnProjectAsync(projectPublicId, cancellationToken);
+        var settings = await _unitOfWork.ProjectIdentitySettings.GetByProjectAsync(project.Id, cancellationToken);
+
+        if (settings is null)
+            return [];
+
+        // A troca mais recente aposentou a versao anterior a de agora, a seguinte a anterior
+        // a ela, e assim por diante: a chave antiga sai da mesma conta, sem ser guardada.
+        return settings.IdentitySecretRotations
+            .Take(ProjectIdentitySettings.MaxIdentitySecretHistory)
+            .Select((trocadaEm, indice) => (trocadaEm, versao: settings.IdentitySecretVersion - 1 - indice))
+            .Where(item => item.versao >= 1)
+            .Select(item => new IdentitySecretHistoryItemViewModel(
+                Prefixo(InheritedIdentity.ProjectSecret(project.Id, item.versao)),
+                DateTime.SpecifyKind(item.trocadaEm, DateTimeKind.Utc)))
+            .ToList();
+    }
+
+    /// <summary>O comeco da chave: `rfs_` e oito caracteres, o bastante para reconhecer.</summary>
+    private static string? Prefixo(string? segredo)
+        => segredo is null ? null : segredo[..Math.Min(segredo.Length, 12)];
+
+    private const string SemHmac =
+        "A assinatura simples fica indisponivel nesta instalacao. Use o JWT, com a chave publica do seu sistema.";
+
+    /// <summary>A chave secreta do projeto, ou a recusa que diz por que ela nao existe aqui.</summary>
+    private static string RequireSecret(long projectId, int version)
+        => InheritedIdentity.ProjectSecret(projectId, version) ?? throw new ArgumentException(SemHmac);
+
     /// <summary>
     /// Traduz a entidade — ou a ausencia dela — para a resposta.
     /// </summary>
@@ -108,7 +207,9 @@ public class ProjectIdentitySettingsService : IProjectIdentitySettingsService
             settings?.AsksForName ?? IdentitySettingsDefaults.AsksForName,
             settings?.IdentityPublicKey,
             settings?.IdentityTokenMaxMinutes ?? IdentitySettingsDefaults.IdentityTokenMaxMinutes,
-            settings?.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired);
+            settings?.IdentityRequired ?? IdentitySettingsDefaults.IdentityRequired,
+            settings?.IdentityFormat ?? IdentitySettingsDefaults.IdentityFormat,
+            InheritedIdentity.IsHmacAvailable);
 
     /// <summary>
     /// Confere o par, e nao cada campo sozinho.

@@ -3,7 +3,13 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { firstName, renderWidgetText } from '@/shared/lib/widgetText'
+import {
+  firstName,
+  joinWidgetText,
+  renderWidgetText,
+  splitWidgetText,
+  variableToken,
+} from '@/shared/lib/widgetText'
 
 /**
  * O QUE ESTES TESTES TRAVAM.
@@ -123,5 +129,24 @@ describe('firstName', () => {
     expect(firstName(null)).toBeNull()
     expect(firstName(undefined)).toBeNull()
     expect(firstName('   ')).toBeNull()
+  })
+
+  it('divide o texto em pedacos, com as variaveis aceitas e o padrao como foi escrito', () => {
+    const partes = splitWidgetText(
+      'Oi, {{ primeiroNome|nossa cliente }}! Protocolo {{protocolo}} {{etapa}}',
+      ['primeiroNome', 'protocolo'],
+    )
+    expect(partes).toEqual([
+      { text: 'Oi, ' },
+      { variable: 'primeiroNome', fallback: 'nossa cliente ' },
+      { text: '! Protocolo ' },
+      { variable: 'protocolo' },
+      { text: ' {{etapa}}' },
+    ])
+    expect(joinWidgetText(partes)).toBe(
+      'Oi, {{primeiroNome|nossa cliente }}! Protocolo {{protocolo}} {{etapa}}',
+    )
+    expect(variableToken('tipo')).toBe('{{tipo}}')
+    expect(variableToken('primeiroNome', '')).toBe('{{primeiroNome|}}')
   })
 })

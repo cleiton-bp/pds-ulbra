@@ -152,6 +152,10 @@ public class Startup
         // o link quebrado de todo convite, descoberto so por quem foi convidado.
         _ = EnvironmentConstants.GetPanelUrl();
 
+        // A chave mestra do HMAC da identidade, pelo mesmo motivo: ausente e decisao (so o
+        // JWT fica disponivel), curta demais e engano, e derruba aqui dizendo como gerar.
+        _ = EnvironmentConstants.GetIdentityHmacKey();
+
         // Limite por IP no login. O controle de verdade e o Google validar o token;
         // isto so evita que alguem fique martelando a rota.
         services.AddRateLimiter(options =>

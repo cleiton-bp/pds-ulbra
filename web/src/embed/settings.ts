@@ -119,9 +119,9 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   // divergencia le os tres arquivos.
   AcceptsQuestionsDefault: true,
   // **Nem deste**: vem de `IdentitySettingsDefaults.cs`. O modo decide se a
-  // ferramenta guarda um codigo e oferece "os meus relatos" — e com a API fora do
-  // ar o seguro e o modo que nao promete lista nenhuma.
-  IdentityMode: 'Protocol',
+  // ferramenta guarda um codigo e oferece "os meus relatos": o codigo pessoal, de
+  // fabrica, porque nao identifica ninguem e devolve a lista a quem relatou.
+  IdentityMode: 'PersonalCode',
   // **Tambem de `IdentitySettingsDefaults.cs`.** Com a API fora do ar o seguro e
   // o nivel mais fechado: um quadro que avisasse "isto sera publico" por engano
   // assustaria sem motivo, e um que deixasse de avisar seria pior — a pessoa

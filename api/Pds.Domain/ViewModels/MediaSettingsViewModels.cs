@@ -102,13 +102,19 @@ public record MediaSettingsViewModel(
 /// Excel no Windows —, e o pedido de permissao recusa extensao e tipo que nao casam.
 /// Na imagem, as do PNG, JPEG e WebP.
 /// </param>
+/// <param name="InPicker">
+/// O botao "Anexar arquivo" oferece este tipo. **So a imagem pode vir falsa**: ela esta
+/// aqui so pelo print da tela (marcar uma area ou colar), e o dono nao a marcou entre os
+/// tipos de arquivo. O arquivo so aparece quando esta no botao.
+/// </param>
 public record PublicMediaKindViewModel(
     MediaKindEnum Kind,
     int MaxCount,
     long MaxBytes,
     int? MaxDurationSeconds,
     IReadOnlyList<string> ContentTypes,
-    IReadOnlyList<AcceptedTypeViewModel> Types);
+    IReadOnlyList<AcceptedTypeViewModel> Types,
+    bool InPicker);
 
 /// <summary>Uma extensao aceita, e o tipo que o envio declara para ela.</summary>
 /// <param name="Extension">Com o ponto, em minusculas.</param>

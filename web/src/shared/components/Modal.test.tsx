@@ -4,7 +4,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Modal } from '@/shared/components/Modal'
-import { useToastStore } from '@/shared/components/toastStore'
+import { Toaster } from '@/shared/components/Toaster'
+import { toast } from '@/shared/components/toastStore'
 
 /**
  * O QUE ESTES TESTES TRAVAM: o dialogo de todas as telas.
@@ -17,7 +18,7 @@ import { useToastStore } from '@/shared/components/toastStore'
  *   clique num aviso.
  * - **O Esc pode ser segurado** por quem monta o dialogo — o card sai primeiro da
  *   edicao em que o foco esta.
- * - **Aberto, o dialogo e o lugar dos avisos**; fechado, deixa de ser.
+ * - **O aviso nao mora no dialogo**: ele fica no alto da pagina, como sempre.
  */
 
 /**
@@ -254,16 +255,22 @@ describe('Modal', () => {
     expect(aoMudar).toHaveBeenCalledWith(false)
   })
 
-  it('aberto, o dialogo e o lugar dos avisos; fechado, deixa de ser', async () => {
-    render(<Tela />)
-    expect(useToastStore.getState().hosts).toEqual([])
-
+  // O aviso fica no alto da pagina, como sempre: o dialogo nao o puxa para dentro.
+  it('aberto, o dialogo nao muda o lugar dos avisos', async () => {
+    render(
+      <>
+        <Tela />
+        <Toaster />
+      </>,
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
     const dialogo = await screen.findByRole('dialog')
-    expect(useToastStore.getState().hosts).toEqual([dialogo])
+    act(() => {
+      toast.done('Feito.')
+    })
 
-    fireEvent.keyDown(dialogo, { key: 'Escape' })
-    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(useToastStore.getState().hosts).toEqual([])
+    const aviso = await screen.findByText('Feito.')
+    expect(dialogo.contains(aviso)).toBe(false)
+    expect(aviso.closest('[data-toasts]')?.className).toContain('fixed')
   })
 })

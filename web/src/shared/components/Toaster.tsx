@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom'
 import { useToastStore } from '@/shared/components/toastStore'
 import { cn } from '@/shared/lib/cn'
 
@@ -15,10 +14,16 @@ import { cn } from '@/shared/lib/cn'
  * das tres cascas mais um respiro — colado no topo, o aviso cairia por cima do
  * menu da conta, que e justamente o canto onde ele aparece.
  *
- * **Com um dialogo aberto, o aviso mora dentro dele, embaixo a direita.** Fora, ele
- * caia em cima do X e do status do card aberto, o clique nele contava como clique
- * fora (e fechava o card com o que se escrevia), e o leitor de tela nao o lia — o
- * dialogo esconde o resto da pagina. Dentro, nada disso: e parte do dialogo.
+ * **Sempre no mesmo lugar, com dialogo aberto ou nao.** O aviso dentro do dialogo
+ * aparecia num canto diferente a cada dialogo, e quem estava acostumado a le-lo no alto
+ * da pagina nao o achava. Os dois cuidados de quando ele morava dentro continuam:
+ * - **O clique no aviso nao fecha o dialogo**: o `Modal` nao conta clique em
+ *   `[data-toasts]` como clique fora.
+ * - **O leitor de tela continua lendo o aviso**: o dialogo esconde o resto da pagina
+ *   (`aria-hidden`), mas a biblioteca que faz isso nao esconde o que tem `aria-live`. Por
+ *   isso a regiao leva `aria-live="off"`: o atributo a mantem visivel ao leitor de tela,
+ *   e o "off" deixa cada aviso falar pelo proprio papel (`status` ou `alert`), sem o
+ *   anuncio dobrado de uma regiao dentro da outra.
  *
  * O erro e `alert`, e nao `status`: a mudanca que nao foi feita precisa ser dita
  * na hora, e nao depois do que o leitor estiver lendo.
@@ -28,17 +33,11 @@ export function Toaster() {
   const dismiss = useToastStore((state) => state.dismiss)
   const pause = useToastStore((state) => state.pause)
   const resume = useToastStore((state) => state.resume)
-  const host = useToastStore((state) => state.hosts.at(-1) ?? null)
-
-  const regiao = (
+  return (
     <div
       data-toasts
-      className={cn(
-        'pointer-events-none z-toast flex flex-col gap-2',
-        host
-          ? 'absolute right-4 bottom-4 w-[min(22rem,calc(100%-2rem))]'
-          : 'fixed top-[4.5rem] right-5 w-[min(22rem,calc(100vw-2rem))]',
-      )}
+      aria-live="off"
+      className="pointer-events-none fixed top-[4.5rem] right-5 z-toast flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2"
     >
       {toasts.map((item) => {
         const danger = item.tone === 'danger'
@@ -102,8 +101,4 @@ export function Toaster() {
       })}
     </div>
   )
-
-  // O dialogo e `fixed` com `transform`: o `absolute` daqui de dentro se mede pela
-  // caixa dele, e nao pela janela.
-  return host ? createPortal(regiao, host) : regiao
 }

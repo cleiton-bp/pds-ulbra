@@ -202,7 +202,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  useToastStore.setState({ toasts: [], hosts: [] })
+  useToastStore.setState({ toasts: [] })
 })
 
 describe('editar o card do time no lugar', () => {

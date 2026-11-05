@@ -5,7 +5,7 @@ import {
   type PublicMediaSettingsViewModel,
 } from '@/contracts'
 import type { Anexo } from '@/embed/attachments'
-import { acceptAttribute, extensionOf, hasRoom } from '@/embed/attachments'
+import { extensionOf, inPicker, pickerAcceptAttribute, pickerHasRoom } from '@/embed/attachments'
 import { PREVIEW_OUTLINE } from '@/embed/previewOutline'
 import { cn } from '@/shared/lib/cn'
 import {
@@ -68,7 +68,7 @@ export function AttachmentPicker({
   recusa: string | null
   onAdd: (arquivos: File[]) => void
   onRemove: (id: string) => void
-  /** Botoes a mais, ao lado de "Anexar imagem" e "Anexar arquivo". */
+  /** Botoes a mais, ao lado de "Anexar arquivo" (o de capturar a tela). */
   actions?: ReactNode
   /** Abre a imagem no editor. Sem ele, a imagem so mostra. */
   onEdit?: (id: string) => void
@@ -86,11 +86,13 @@ export function AttachmentPicker({
   highlighted?: boolean
 }) {
   const raiz = useRef<HTMLDivElement>(null)
-  const seletorDeImagem = useRef<HTMLInputElement>(null)
-  const seletorDeArquivo = useRef<HTMLInputElement>(null)
-  // Cada categoria com o seu limite: cheio de imagem, ainda cabe arquivo.
+  const seletor = useRef<HTMLInputElement>(null)
+  // Um botao so para escolher, com todos os tipos que ele oferece (a imagem, quando o
+  // dono a marcou entre os tipos de arquivo, e os formatos de arquivo). Cada categoria
+  // segue com o seu limite: cheio de imagem, ainda cabe arquivo.
+  const aceitaNoBotao = media.Kinds.some(inPicker)
+  // A imagem tambem entra pelo print da tela: colar vale mesmo fora do botao.
   const aceitaImagem = media.Kinds.some((kind) => kind.Kind === 'Image')
-  const aceitaArquivo = media.Kinds.some((kind) => kind.Kind === 'File')
   // Travada a lista, a imagem nao muda mais: o arquivo que sobe e o de agora.
   const podeEditar = !!onEdit && !disabled
   const imagens = anexos.filter((anexo) => anexo.kind === 'Image')
@@ -232,24 +234,12 @@ export function AttachmentPicker({
       )}
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        {aceitaImagem && (
+        {aceitaNoBotao && (
           <button
             type="button"
-            onClick={() => seletorDeImagem.current?.click()}
+            onClick={() => seletor.current?.click()}
             data-anexar
-            disabled={!hasRoom(anexos, media, 'Image') || disabled}
-            className={ATTACH_BUTTON_CLASS}
-          >
-            Anexar imagem
-          </button>
-        )}
-
-        {aceitaArquivo && (
-          <button
-            type="button"
-            onClick={() => seletorDeArquivo.current?.click()}
-            data-anexar
-            disabled={!hasRoom(anexos, media, 'File') || disabled}
+            disabled={!pickerHasRoom(anexos, media) || disabled}
             className={ATTACH_BUTTON_CLASS}
           >
             Anexar arquivo
@@ -261,27 +251,16 @@ export function AttachmentPicker({
         {aceitaImagem && <span className="text-caption text-fg-muted">ou cole um print aqui</span>}
       </div>
 
-      {/* Escondidos, e abertos pelos botoes: o seletor nativo nao aceita a cor do
-          cliente nem cabe em 360 pixels com o nome do arquivo ao lado. O `accept`
-          ja faz o navegador esconder o que nao serve — um seletor por categoria, para
-          o da imagem nao oferecer PDF, e o do arquivo nao oferecer print. */}
-      {aceitaImagem && (
+      {/* Escondido, e aberto pelo botao: o seletor nativo nao aceita a cor do cliente
+          nem cabe em 360 pixels com o nome do arquivo ao lado. O `accept` ja faz o
+          navegador esconder o que nao serve, so com os tipos que o botao oferece: a imagem
+          que entra so pelo print da tela fica de fora. */}
+      {aceitaNoBotao && (
         <input
-          ref={seletorDeImagem}
+          ref={seletor}
           type="file"
           multiple
-          accept={acceptAttribute(media, 'Image')}
-          aria-label="Escolher imagem para anexar"
-          className="hidden"
-          onChange={escolheu}
-        />
-      )}
-      {aceitaArquivo && (
-        <input
-          ref={seletorDeArquivo}
-          type="file"
-          multiple
-          accept={acceptAttribute(media, 'File')}
+          accept={pickerAcceptAttribute(media)}
           aria-label="Escolher arquivo para anexar"
           className="hidden"
           onChange={escolheu}

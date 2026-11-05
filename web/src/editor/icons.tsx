@@ -7,7 +7,6 @@ export type Tool =
   | 'ellipse'
   | 'pen'
   | 'highlight'
-  | 'text'
   | 'step'
   | 'blur'
   | 'hide'
@@ -30,7 +29,6 @@ const DESENHOS: Record<Tool | 'undo' | 'redo', ReactNode> = {
       <path d="M4 17.5h12" strokeWidth="3" strokeOpacity="0.4" />
     </>
   ),
-  text: <path d="M4.5 5h11M10 5v11" />,
   step: (
     <>
       <circle cx="10" cy="10" r="7" />

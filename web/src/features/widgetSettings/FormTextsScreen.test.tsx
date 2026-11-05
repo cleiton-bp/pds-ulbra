@@ -67,6 +67,8 @@ const QUEM: IdentitySettingsViewModel = {
   IdentityPublicKey: null,
   IdentityTokenMaxMinutes: 15,
   IdentityRequired: false,
+  IdentityFormat: 'Jwt',
+  IsHmacAvailable: true,
 }
 
 function projeto(publicId: string): ProjectViewModel {
@@ -190,6 +192,7 @@ describe('FormTextsScreen', () => {
       IdentityPublicKey: null,
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
     })
     expect(dublê.salvar).not.toHaveBeenCalled()
   })

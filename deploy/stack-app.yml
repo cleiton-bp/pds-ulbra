@@ -120,6 +120,8 @@ services:
       DB_CONNECTION_STRING: Host=banco;Port=5432;Database=relatofacil;Username=relatofacil;Password=${BANCO_SENHA:?}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?}
       JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?}
+      # Opcional: sem ela, a identidade do sistema do cliente fica so com o JWT.
+      IDENTITY_HMAC_KEY: ${IDENTITY_HMAC_KEY:-}
       JWT_EXPIRATION_HOURS: "8"
       # As duas origens que falam com a API: o painel e o quadro (na CDN). Separadas de
       # proposito: um XSS no quadro nao alcanca a sessao do painel.

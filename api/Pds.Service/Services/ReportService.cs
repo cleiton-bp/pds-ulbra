@@ -2443,12 +2443,13 @@ public partial class ReportService : IReportService
     /// <c>project_public_stages</c> apareceria aqui sem ninguem decidir — e
     /// vazamento por serializacao nao da erro em teste nenhum.</para>
     ///
-    /// <para><b>Por onde passou vem dos eventos, e nao da posicao.</b> Um relato
+    /// <para><b>A data de cada etapa vem dos eventos, e nao da posicao.</b> Um relato
     /// pode pular etapas — basta o estado interno apontar direto para o quarto
-    /// passo —, e marcar como percorrido tudo que esta antes seria contar uma
-    /// historia que nao aconteceu. A consulta traz <b>so</b> os eventos de mudanca
-    /// de etapa publica, e o recorte mora nela: tipo de evento novo nasce invisivel
-    /// para fora.</para>
+    /// passo —, e a etapa pulada sai sem data, porque o relato nunca chegou nela. Quem
+    /// a pinta como percorrida, por estar antes da atual, e a pagina: para quem
+    /// relatou, um passo vazio antes do atual parecia algo ainda por acontecer. A
+    /// consulta traz <b>so</b> os eventos de mudanca de etapa publica, e o recorte mora
+    /// nela: tipo de evento novo nasce invisivel para fora.</para>
     ///
     /// <para>As duas leituras desligam o filtro global, porque aqui nao ha sessao.
     /// Quem chegou ate aqui ja provou que pode ver este relato, pelo token do

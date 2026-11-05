@@ -184,7 +184,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  useToastStore.setState({ toasts: [], hosts: [] })
+  useToastStore.setState({ toasts: [] })
 })
 
 describe('as respostas no card aberto', () => {

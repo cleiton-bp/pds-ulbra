@@ -1,14 +1,22 @@
 import { type KeyboardEvent, type ReactNode, useCallback, useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { ReporterIdentityMode, ReportVisibility, WidgetSettingsViewModel } from '@/contracts'
+import type {
+  IdentityFormat,
+  ReporterIdentityMode,
+  ReportVisibility,
+  WidgetSettingsViewModel,
+} from '@/contracts'
 import { WIDGET_TEXT_LIMITS } from '@/contracts'
 import { projectKeyService, projectPublicStageService } from '@/data'
 import { PREVIEW_OUTLINE } from '@/embed/previewOutline'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 import { Button } from '@/shared/components/Button'
+import { CodeAddedMark, CodeEditor } from '@/shared/components/CodeEditor'
 import { CopyButton } from '@/shared/components/CopyButton'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
 import { HowItWorks } from '@/shared/components/HowItWorks'
+import { IdentitySecretDialog } from '@/shared/components/IdentitySecret'
+import { LanguageIcon, type ServerLanguage } from '@/shared/components/LanguageIcon'
 import { MovedAnchors } from '@/shared/components/MovedAnchors'
 import { NumberField } from '@/shared/components/NumberField'
 import { type JourneyStage, PublicJourney } from '@/shared/components/PublicJourney'
@@ -29,6 +37,7 @@ import {
   IDENTITY_DEFAULTS,
   IDENTITY_TOKEN_MINUTES,
 } from '@/shared/lib/factoryDefaults'
+import type { CodeLanguage } from '@/shared/lib/highlight'
 import { LOADER_URL } from '@/shared/lib/loader'
 import {
   renderWidgetText,
@@ -170,11 +179,10 @@ const MODOS: readonly Modo[] = [
     emPalavras: 'Identidade do seu sistema (quem está na conta não digita nada)',
     resumo: 'Quem já está na conta do seu sistema não digita nada.',
     explicacao:
-      'O seu servidor diz quem é o usuário, assinando essa informação com uma chave que só ele tem, num crachá curto dentro do script. Nós conferimos a assinatura com a chave pública que você cola aqui, sem nunca chamar o seu sistema, e guardamos da pessoa só um hash.',
+      'O seu servidor diz quem é o usuário num crachá curto dentro do script, assinado com a chave secreta deste projeto ou com um JWT, e nós só conferimos a assinatura, sem nunca chamar o seu sistema, guardando da pessoa só um hash.',
     destrava:
       'Lista pessoal sem a pessoa guardar nada, e o nome já preenchido. Quem não está na conta ainda relata, como protocolo, se você permitir.',
-    custo:
-      'Uma rotina no seu servidor: gerar o crachá e colocá-lo no script. O passo a passo, com exemplos, está abaixo.',
+    custo: 'Uma rotina curta no seu servidor, com o passo a passo abaixo na linguagem dele.',
   },
 ]
 
@@ -243,8 +251,8 @@ const NIVEIS: readonly Nivel[] = [
  *
  * **A previa, presa a direita, mostra onde cada texto aparece**, em tres abas: o quadro
  * logo depois de enviar, a pagina de acompanhamento com a jornada de verdade do projeto e
- * o formulario com o aviso. A aba acompanha o grupo aberto ou em foco, ate a pessoa
- * escolher uma; abrir outro grupo devolve a conducao a ele.
+ * o formulario com o aviso. A aba acompanha o grupo aberto, ate a pessoa escolher uma;
+ * abrir outro grupo devolve a conducao a ele.
  *
  * **Dois rascunhos, um Salvar.** O modo e a visibilidade sao de Quem relata; os textos,
  * da ferramenta. O Salvar do titulo grava os dois em sequencia, cada um com o registro
@@ -318,15 +326,23 @@ export function IdentityScreen() {
     draft !== null && draft.Mode === 'Protocol' && draft.Visibility === 'PublicIdentified'
 
   /**
-   * A identidade do sistema sem a chave: a API nao conferiria cracha nenhum, e o modo
-   * gravado nao faria nada. E a unica coisa desta tela sem padrao de fabrica.
+   * A identidade do sistema no JWT sem a chave publica: a API nao conferiria cracha
+   * nenhum, e o modo gravado nao faria nada. E a unica coisa desta tela sem padrao de
+   * fabrica.
    */
   const faltaChave =
     draft !== null &&
     draft.Mode === 'InheritedIdentity' &&
+    draft.IdentityFormat === 'Jwt' &&
     (draft.IdentityPublicKey ?? '').trim().length === 0
+  /** O HMAC escolhido numa instalacao sem a chave mestra: a API recusaria. */
+  const hmacIndisponivel =
+    draft !== null &&
+    draft.Mode === 'InheritedIdentity' &&
+    draft.IdentityFormat === 'Hmac' &&
+    !draft.IsHmacAvailable
   const validadeInvalida = draft !== null && !validadeValida(draft.IdentityTokenMaxMinutes)
-  const semComoSalvar = conflito || faltaChave || validadeInvalida
+  const semComoSalvar = conflito || faltaChave || hmacIndisponivel || validadeInvalida
 
   async function salvar() {
     if (saving || semComoSalvar) return
@@ -336,7 +352,7 @@ export function IdentityScreen() {
     toast.done('Privacidade: salvo.')
   }
 
-  /** Liga o grupo a previa: aberto e em foco escolhem a aba e realcam a parte dele. */
+  /** Liga o grupo a previa: aberto, ele escolhe a aba e realca a parte dele. */
   function acompanhar(grupo: Grupo) {
     return {
       onToggle: (abriu: boolean) => {
@@ -403,9 +419,11 @@ export function IdentityScreen() {
             ? 'Escolha uma visibilidade que combine com o protocolo para salvar.'
             : faltaChave
               ? 'Cole a chave pública do seu sistema para salvar.'
-              : validadeInvalida
-                ? `A validade do crachá precisa ficar entre ${IDENTITY_TOKEN_MINUTES.min} e ${IDENTITY_TOKEN_MINUTES.max} minutos.`
-                : undefined
+              : hmacIndisponivel
+                ? 'Escolha o JWT para salvar, porque a assinatura simples não está disponível aqui.'
+                : validadeInvalida
+                  ? `A validade do crachá precisa ficar entre ${IDENTITY_TOKEN_MINUTES.min} e ${IDENTITY_TOKEN_MINUTES.max} minutos.`
+                  : undefined
         }
       />
 
@@ -549,12 +567,17 @@ export function IdentityScreen() {
               ...(draft.IdentityRequired !== IDENTITY_DEFAULTS.IdentityRequired
                 ? ['Exigir o crachá']
                 : []),
+              ...(draft.IdentityFormat !== IDENTITY_DEFAULTS.IdentityFormat
+                ? ['Formato da assinatura']
+                : []),
             ]}
             // A chave fica: ela e do sistema do cliente, e nao uma escolha com padrao.
             onReset={() =>
               quemRelata.change({
                 Mode: DEFAULT_WIDGET_SETTINGS.IdentityMode,
                 ...IDENTITY_DEFAULTS,
+                // Sem a chave mestra, o padrao possivel e o JWT: o HMAC travaria o salvar.
+                IdentityFormat: draft.IsHmacAvailable ? IDENTITY_DEFAULTS.IdentityFormat : 'Jwt',
               })
             }
             {...acompanhar('reconhecimento')}
@@ -580,6 +603,10 @@ export function IdentityScreen() {
             />
             {draft.Mode === 'InheritedIdentity' && (
               <ChaveDoSistema
+                projectId={project.PublicId}
+                formato={draft.IdentityFormat}
+                onFormato={(IdentityFormat) => quemRelata.change({ IdentityFormat })}
+                hmacDisponivel={draft.IsHmacAvailable}
                 chave={draft.IdentityPublicKey ?? ''}
                 onChave={(texto) =>
                   quemRelata.change({ IdentityPublicKey: texto.trim().length > 0 ? texto : null })
@@ -699,14 +726,24 @@ function validadeValida(minutos: number): boolean {
 }
 
 /**
- * O que a identidade do sistema pede do cliente: a chave, a validade do cracha e o que
- * fazer sem ele — e, dobrado, como gerar o cracha no servidor dele.
+ * O que a identidade do sistema pede do cliente, **como um passo a passo que muda com duas
+ * escolhas**: como o sistema dele assina (a assinatura simples, HMAC, ou o JWT) e em que
+ * linguagem o servidor dele roda. Os exemplos ja vem com a chave deste projeto e a validade
+ * no lugar.
  *
- * **A chave e a unica coisa aqui sem padrao**, e por isso trava o salvar: sem ela a API
- * nao confere cracha nenhum, e o modo gravado nao faria nada. A validade e o "sem cracha"
- * tem padrao de fabrica, como tudo o mais.
+ * **Cada passo e uma coisa so, na ordem em que se faz**: pegar a chave (a da identidade
+ * mora em Chaves, com as outras), escrever o codigo, colocar no script, decidir as regras
+ * do cracha e salvar. A validade fica nas regras, e nao no meio do codigo: ali ela parecia
+ * parte do exemplo.
+ *
+ * **O codigo tem cara de editor** (`CodeEditor`), e as linguagens sao as abas dele, com o
+ * desenho de cada uma: quem le reconhece a sua de relance e leva o trecho inteiro.
  */
 function ChaveDoSistema({
+  projectId,
+  formato,
+  onFormato,
+  hmacDisponivel,
   chave,
   onChave,
   validade,
@@ -715,6 +752,11 @@ function ChaveDoSistema({
   onObrigatorio,
   chaveDoProjeto,
 }: {
+  projectId: string
+  formato: IdentityFormat
+  onFormato: (formato: IdentityFormat) => void
+  /** A instalacao tem a chave mestra do HMAC. */
+  hmacDisponivel: boolean
   chave: string
   onChave: (chave: string) => void
   validade: number
@@ -724,162 +766,1069 @@ function ChaveDoSistema({
   /** A chave publica do projeto, para os exemplos. Vazia enquanto nao carregou. */
   chaveDoProjeto: string
 }) {
-  const semChave = chave.trim().length === 0
+  const [linguagem, setLinguagem] = useLinguagemDoServidor()
+  const [vendoAChave, setVendoAChave] = useState(false)
   const validadeInvalida = !validadeValida(validade)
+  const aud = chaveDoProjeto || 'pk_…'
+  const minutos = validadeInvalida ? IDENTITY_DEFAULTS.IdentityTokenMaxMinutes : validade
+  const hmac = formato === 'Hmac'
+
+  const exemplo = (
+    <CodeEditor
+      ariaLabel="Linguagem do seu servidor"
+      active={linguagem}
+      onActiveChange={(id) => setLinguagem(id as Linguagem)}
+      files={LINGUAGENS.map((item) => ({
+        id: item.valor,
+        name: item.arquivo,
+        label: item.nome,
+        language: item.realce,
+        icon: <LanguageIcon language={item.valor} className="size-3.5" />,
+        code: hmac ? exemploHmac(item.valor, minutos) : exemploJwt(item.valor, aud, minutos),
+      }))}
+    />
+  )
+
+  // O modelo da pagina na mesma linguagem do exemplo: trocar a aba de um troca a do outro.
+  const pagina = (
+    <CodeEditor
+      ariaLabel="Linguagem do modelo da página"
+      active={linguagem}
+      onActiveChange={(id) => setLinguagem(id as Linguagem)}
+      files={LINGUAGENS.map((item) => ({
+        id: item.valor,
+        name: item.pagina,
+        label: item.nome,
+        language: 'html' as const,
+        icon: <LanguageIcon language={item.valor} className="size-3.5" />,
+        ...(hmac ? paginaHmac(item.valor, aud) : paginaJwt(item.valor, aud)),
+      }))}
+    />
+  )
+
+  const regras = (
+    <>
+      <CampoDaValidade valor={validade} invalida={validadeInvalida} onValor={onValidade} />
+      <div id="sem-cracha" className="scroll-mt-6">
+        <ExigirCracha obrigatorio={obrigatorio} onObrigatorio={onObrigatorio} />
+      </div>
+    </>
+  )
 
   return (
-    <div className="mt-3 flex flex-col gap-5 rounded-lg border border-border bg-surface p-3.5">
-      <div id="chave-publica" className="scroll-mt-6">
-        <label htmlFor="chave-do-sistema" className="mb-1.5 block text-detail text-fg-muted">
-          Chave pública do seu sistema
-        </label>
-        <textarea
-          id="chave-do-sistema"
-          value={chave}
-          onChange={(event) => onChave(event.target.value)}
-          rows={4}
-          spellCheck={false}
-          autoComplete="off"
-          aria-invalid={semChave || undefined}
-          placeholder={'-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----'}
-          className={cn(
-            'w-full rounded-lg border bg-surface-raised px-3 py-2 font-mono text-caption text-fg leading-relaxed transition-colors duration-150 placeholder:text-fg-placeholder',
-            semChave ? 'border-warn-border' : 'border-border',
-          )}
+    <div className="mt-3 rounded-lg border border-border bg-surface p-4">
+      <div className="mb-6 flex flex-col gap-2.5">
+        <div className="font-medium text-detail text-fg">Como o seu sistema assina</div>
+        <RadioGroup<IdentityFormat>
+          label="Como o seu sistema assina"
+          value={formato}
+          onChange={onFormato}
+          options={[
+            {
+              value: 'Hmac',
+              label: 'Assinatura simples',
+              note: hmacDisponivel ? 'uma linha, em qualquer linguagem' : 'indisponível aqui',
+              drawing: <DesenhoDoFormato formato="Hmac" />,
+              disabled: !hmacDisponivel && formato !== 'Hmac',
+              className: 'min-w-36 flex-1 basis-0 text-center',
+            },
+            {
+              value: 'Jwt',
+              label: 'JWT',
+              note: 'para quem já assina JWT',
+              drawing: <DesenhoDoFormato formato="Jwt" />,
+              className: 'min-w-36 flex-1 basis-0 text-center',
+            },
+          ]}
         />
-        <p className="mt-1.5 text-caption text-fg-muted leading-relaxed">
-          ECDSA P-256, em PEM ou em base64 numa linha.{' '}
-          <strong className="font-medium text-fg">Só a pública</strong>: a privada fica no seu
-          servidor e nunca sai dele.
-          {semChave && ' Sem a chave, este modo não salva.'}
-        </p>
+        {!hmacDisponivel && (
+          <p
+            className={cn('text-caption leading-relaxed', hmac ? 'text-warn-fg' : 'text-fg-muted')}
+          >
+            {hmac
+              ? 'Esta instalação não tem a chave mestra da assinatura simples, então escolha o JWT para salvar.'
+              : 'A assinatura simples precisa da chave mestra na instalação (IDENTITY_HMAC_KEY), então aqui só o JWT está disponível.'}
+          </p>
+        )}
       </div>
 
-      <div id="validade-do-cracha" className="scroll-mt-6">
-        <div className="mb-1.5 text-detail text-fg-muted">Validade máxima do crachá</div>
-        <div className="flex items-center gap-2">
-          <NumberField
-            id="validade-do-cracha-minutos"
-            min={IDENTITY_TOKEN_MINUTES.min}
-            max={IDENTITY_TOKEN_MINUTES.max}
-            value={validade}
-            invalid={validadeInvalida}
-            ariaLabel="Validade máxima do crachá, em minutos"
-            // Campo vazio vira zero, que a conta recusa: apagar tudo para digitar outro
-            // numero e o gesto comum, e `NaN` quebraria a comparacao do rascunho.
-            onChange={(texto) => onValidade(Number.parseInt(texto, 10) || 0)}
-          />
-          <span className="text-detail text-fg-muted">minutos</span>
+      {hmac ? (
+        <ol className="flex flex-col">
+          <Passo numero={1} titulo="Pegue a chave da identidade">
+            <p>
+              Guarde no servidor do seu sistema, numa variável de ambiente como{' '}
+              <code className="font-mono text-fg">RELATOFACIL_SECRET</code>, e nunca no código da
+              página.
+            </p>
+            {/* Num dialogo, e nao indo para Chaves: quem esta no meio da configuracao, com
+                mudancas por salvar, pega a chave sem sair daqui. */}
+            <div>
+              <Button size="sm" onClick={() => setVendoAChave(true)}>
+                Ver a chave
+              </Button>
+            </div>
+            <IdentitySecretDialog
+              projectPublicId={projectId}
+              open={vendoAChave}
+              onOpenChange={setVendoAChave}
+            />
+          </Passo>
+
+          <Passo numero={2} titulo="Assine quem está na conta, a cada página">
+            <p>
+              O seu servidor calcula o HMAC-SHA256 de{' '}
+              <code className="font-mono text-fg">id.expira</code> com a chave, onde{' '}
+              <code className="font-mono text-fg">expira</code> é o horário de vencer, em segundos.
+            </p>
+            <ComoUsar linguagem={linguagem} hmac />
+            {exemplo}
+          </Passo>
+
+          <Passo numero={3} titulo="Coloque a assinatura no script que já está na página">
+            <p>
+              O script que você colou na Instalação continua onde está, e só ganha as linhas
+              marcadas{' '}
+              <span className="whitespace-nowrap">
+                com <CodeAddedMark />.
+              </span>
+            </p>
+            <p>
+              Elas chamam a função do passo 2 a cada página e escrevem ali o id, a validade e a
+              assinatura de quem está na conta, então você não cola valor nenhum nelas.
+            </p>
+            {pagina}
+            <p>
+              Para conferir, entre no seu sistema, clique com o botão direito na página, escolha
+              Exibir código-fonte e procure{' '}
+              <code className="font-mono text-fg">data-user-signature</code>, que deve trazer 64
+              letras e números.
+            </p>
+            <p>Quem não está na conta fica sem a assinatura, e a chave nunca aparece na página.</p>
+            <p>O nome é opcional e só preenche o campo do nome no formulário.</p>
+            <UmScriptSo perda="a assinatura ficaria de fora" />
+            <PaginaNoNavegador hmac />
+          </Passo>
+
+          <Passo id="validade-do-cracha" numero={4} titulo="Defina as regras do crachá">
+            {regras}
+          </Passo>
+
+          <Passo numero={5} titulo="Salve e confira" ultimo>
+            <SalvarEConferir />
+          </Passo>
+        </ol>
+      ) : (
+        <ol className="flex flex-col">
+          <Passo numero={1} titulo="Crie o par de chaves">
+            <GerarParDeChaves temChave={chave.trim().length > 0} onPublica={onChave} />
+          </Passo>
+
+          <Passo
+            id="chave-publica"
+            numero={2}
+            titulo="Confira a chave pública"
+            feito={chave.trim().length > 0}
+          >
+            <CampoDaChavePublica chave={chave} onChave={onChave} />
+          </Passo>
+
+          <Passo numero={3} titulo="Gere um crachá a cada página, para quem está na conta">
+            <p>
+              O crachá é um JWT ES256 assinado com a chave privada que você baixou (
+              <code className="font-mono text-fg">relatofacil-privada.pem</code>), com o id do
+              usuário em <code className="font-mono text-fg">sub</code>, o nome em{' '}
+              <code className="font-mono text-fg">name</code> se quiser e a chave deste projeto em{' '}
+              <code className="font-mono text-fg">aud</code>.
+            </p>
+            <ComoUsar linguagem={linguagem} hmac={false} />
+            {exemplo}
+            <p className="rounded-lg border border-warn-border bg-warn-surface px-3 py-2 text-warn-fg">
+              Nunca use o token de login do usuário, porque o crachá serve só para relatar e vence
+              em poucos minutos.
+            </p>
+          </Passo>
+
+          <Passo numero={4} titulo="Coloque o crachá no script que já está na página">
+            <p>
+              O script que você colou na Instalação continua onde está, e só ganha as linhas
+              marcadas{' '}
+              <span className="whitespace-nowrap">
+                com <CodeAddedMark />.
+              </span>
+            </p>
+            <p>
+              Elas chamam a função do passo 3 a cada página e escrevem ali o crachá de quem está na
+              conta, então você não cola valor nenhum nelas.
+            </p>
+            {pagina}
+            <p>
+              Para conferir, entre no seu sistema, clique com o botão direito na página, escolha
+              Exibir código-fonte e procure <code className="font-mono text-fg">data-identity</code>
+              , que deve trazer um texto comprido começando com{' '}
+              <code className="font-mono text-fg">eyJ</code>.
+            </p>
+            <p>
+              Quem não está na conta fica sem o crachá, e a chave privada nunca aparece na página.
+            </p>
+            <UmScriptSo perda="o crachá ficaria de fora" />
+            <PaginaNoNavegador hmac={false} />
+          </Passo>
+
+          <Passo id="validade-do-cracha" numero={5} titulo="Defina as regras do crachá">
+            {regras}
+          </Passo>
+
+          <Passo numero={6} titulo="Salve e confira" ultimo>
+            <SalvarEConferir />
+          </Passo>
+        </ol>
+      )}
+    </div>
+  )
+}
+
+/** O desenho de cada formato: a chave da assinatura simples, e as chaves do JSON no JWT. */
+function DesenhoDoFormato({ formato }: { formato: IdentityFormat }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {formato === 'Hmac' ? (
+        <>
+          <circle cx="8" cy="15" r="4" />
+          <path d="m11 12 8-8M16 7l2 2M14.5 8.5l1.5 1.5" />
+        </>
+      ) : (
+        <path d="M8 4c-2 0-2.5 1-2.5 3v2c0 1.5-.8 2.5-2 3 1.2.5 2 1.5 2 3v2c0 2 .5 3 2.5 3M16 4c2 0 2.5 1 2.5 3v2c0 1.5.8 2.5 2 3-1.2.5-2 1.5-2 3v2c0 2-.5 3-2.5 3" />
+      )}
+    </svg>
+  )
+}
+
+/**
+ * O par de chaves do JWT, criado **no navegador de quem configura** (Web Crypto, ECDSA
+ * P-256, o mesmo dos comandos do terminal): a publica vai sozinha para o passo 2, e a
+ * privada e baixada uma vez. **A privada nunca passa pelo nosso servidor**: e o que
+ * garante que nem um vazamento nosso assina um cracha em nome de alguem.
+ *
+ * Ela fica so na memoria desta tela, e some ao sair: por isso o aviso de baixar agora.
+ * Gerar outro par com uma chave ja colada pede confirmacao, porque troca a chave que o
+ * servidor do cliente usa. Os comandos do terminal continuam, recolhidos, para quem
+ * prefere gerar no proprio servidor.
+ */
+function GerarParDeChaves({
+  temChave,
+  onPublica,
+}: {
+  temChave: boolean
+  onPublica: (chave: string) => void
+}) {
+  const [privada, setPrivada] = useState<string | null>(null)
+  const [gerando, setGerando] = useState(false)
+  const [confirmar, setConfirmar] = useState(false)
+  const [falha, setFalha] = useState(false)
+  const suportado = typeof window !== 'undefined' && window.crypto?.subtle !== undefined
+
+  async function gerar() {
+    setConfirmar(false)
+    setGerando(true)
+    setFalha(false)
+    try {
+      const par = await window.crypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true,
+        ['sign', 'verify'],
+      )
+      const [pkcs8, spki] = await Promise.all([
+        window.crypto.subtle.exportKey('pkcs8', par.privateKey),
+        window.crypto.subtle.exportKey('spki', par.publicKey),
+      ])
+      setPrivada(emPem('PRIVATE KEY', pkcs8))
+      onPublica(emPem('PUBLIC KEY', spki))
+    } catch {
+      setFalha(true)
+    } finally {
+      setGerando(false)
+    }
+  }
+
+  return (
+    <>
+      {privada ? (
+        <div className="flex animate-fade-in flex-col gap-2.5 rounded-lg border border-warn-border bg-warn-surface px-3.5 py-3">
+          <p className="font-medium text-warn-fg">
+            Baixe a chave privada agora, porque ela não fica salva aqui e não aparece de novo.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="primary" onClick={() => baixarPem(privada)}>
+              Baixar relatofacil-privada.pem
+            </Button>
+            <CopyButton value={privada} label="Copiar a chave" size="sm" variant="warn" />
+          </div>
+          <p className="text-warn-fg">
+            A pública já está no passo 2, então guarde a privada no servidor do seu sistema e salve
+            esta tela.
+          </p>
         </div>
-        <p className="mt-1.5 text-caption text-fg-muted leading-relaxed">
-          {validadeInvalida
-            ? `Entre ${IDENTITY_TOKEN_MINUTES.min} e ${IDENTITY_TOKEN_MINUTES.max} minutos.`
-            : 'Crachá que vale por mais tempo é recusado: ele é dedicado a relatar, e não o login do seu usuário. Se a sessão renovar sem recarregar a página, o site troca o atributo.'}
+      ) : (
+        <p>
+          Crie as duas chaves aqui mesmo, no seu navegador: a pública vai para o passo 2, e a
+          privada você baixa, sem passar pelo nosso servidor.
+        </p>
+      )}
+
+      {suportado && !confirmar && (
+        <div>
+          <Button
+            size="sm"
+            variant={privada ? 'ghost' : 'primary'}
+            disabled={gerando}
+            onClick={() => (temChave ? setConfirmar(true) : void gerar())}
+          >
+            {gerando ? 'Gerando…' : privada ? 'Gerar outro par' : 'Gerar o par de chaves'}
+          </Button>
+        </div>
+      )}
+
+      {confirmar && (
+        <div className="flex animate-fade-in flex-wrap items-center gap-2 rounded-lg border border-warn-border bg-warn-surface px-3.5 py-2.5">
+          <span className="min-w-0 flex-1 text-warn-fg">
+            Gerar outro par troca a chave pública, e o seu servidor vai precisar da privada nova.
+          </span>
+          <Button size="sm" variant="ghost" onClick={() => setConfirmar(false)}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={() => void gerar()}>
+            Gerar outro par
+          </Button>
+        </div>
+      )}
+
+      {falha && (
+        <p className="text-error-fg">
+          Não deu para gerar aqui, então use os comandos abaixo no seu servidor.
+        </p>
+      )}
+
+      <details className="group/terminal" open={!suportado || falha}>
+        <summary className="cursor-pointer text-fg transition-colors hover:text-fg-muted">
+          Prefere gerar no seu servidor?
+        </summary>
+        <div className="mt-2.5 flex flex-col gap-2.5">
+          <p>Rode estes comandos uma vez só, e a privada fica só no seu servidor.</p>
+          <CodeEditor
+            files={[
+              { id: 'chaves', name: 'terminal', language: 'shell', code: COMANDOS_DAS_CHAVES },
+            ]}
+          />
+        </div>
+      </details>
+    </>
+  )
+}
+
+/** A chave em PEM: o base64 dos bytes, em linhas de 64, entre as linhas de comeco e fim. */
+function emPem(rotulo: 'PRIVATE KEY' | 'PUBLIC KEY', bytes: ArrayBuffer): string {
+  let binario = ''
+  for (const byte of new Uint8Array(bytes)) binario += String.fromCharCode(byte)
+  const linhas = btoa(binario).match(/.{1,64}/g) ?? []
+  return `-----BEGIN ${rotulo}-----\n${linhas.join('\n')}\n-----END ${rotulo}-----\n`
+}
+
+/** Baixa a chave privada como arquivo, sem ela sair do navegador. */
+function baixarPem(conteudo: string) {
+  const endereco = URL.createObjectURL(new Blob([conteudo], { type: 'application/x-pem-file' }))
+  const link = document.createElement('a')
+  link.href = endereco
+  link.download = 'relatofacil-privada.pem'
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(endereco), 1000)
+}
+
+/** O campo da chave publica do JWT, com o aviso de que sem ela o modo nao salva. */
+function CampoDaChavePublica({
+  chave,
+  onChave,
+}: {
+  chave: string
+  onChave: (chave: string) => void
+}) {
+  const semChave = chave.trim().length === 0
+  return (
+    <>
+      <label htmlFor="chave-do-sistema" className="sr-only">
+        Chave pública do seu sistema
+      </label>
+      <textarea
+        id="chave-do-sistema"
+        value={chave}
+        onChange={(event) => onChave(event.target.value)}
+        rows={4}
+        spellCheck={false}
+        autoComplete="off"
+        aria-invalid={semChave || undefined}
+        placeholder={'-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----'}
+        className={cn(
+          'w-full rounded-lg border bg-surface-raised px-3 py-2 font-mono text-caption text-fg leading-relaxed transition-colors duration-150 placeholder:text-fg-placeholder',
+          semChave ? 'border-warn-border' : 'border-border',
+        )}
+      />
+      <p className={semChave ? 'text-warn-fg' : undefined}>
+        {semChave
+          ? 'Gere o par no passo 1, ou cole aqui a sua chave pública, porque sem ela este modo não salva.'
+          : 'A pública só confere a assinatura, e por isso pode ficar aqui, à vista.'}
+      </p>
+    </>
+  )
+}
+
+/** A validade maxima do cracha, que os exemplos ja usam. */
+function CampoDaValidade({
+  valor,
+  invalida,
+  onValor,
+}: {
+  valor: number
+  invalida: boolean
+  onValor: (minutos: number) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border bg-surface-raised px-3.5 py-3">
+      <div className="min-w-0">
+        <label
+          htmlFor="validade-do-cracha-minutos"
+          className="block font-medium text-detail text-fg"
+        >
+          Validade máxima do crachá
+        </label>
+        <p className={cn('mt-0.5', invalida && 'text-error-fg')}>
+          {invalida
+            ? `Use entre ${IDENTITY_TOKEN_MINUTES.min} e ${IDENTITY_TOKEN_MINUTES.max} minutos.`
+            : 'Crachá que vale mais que isso é recusado, e o exemplo já usa este valor.'}
         </p>
       </div>
-
-      <div id="sem-cracha" className="scroll-mt-6">
-        <Check
-          checked={obrigatorio}
-          onChange={onObrigatorio}
-          label="Exigir o crachá: sem ele, recusar o relato e pedir para entrar na conta"
-        />
-        <p className="mt-1.5 text-caption text-fg-muted leading-relaxed">
-          {obrigatorio
-            ? 'Quem não está na conta lê “entre na sua conta para relatar”, e nada entra sem crachá.'
-            : 'Quem não está na conta ainda relata, como protocolo e sem lista pessoal. É o padrão.'}
-        </p>
-      </div>
-
-      <ComoGerarOCracha
-        chaveDoProjeto={chaveDoProjeto}
-        validade={validadeInvalida ? IDENTITY_DEFAULTS.IdentityTokenMaxMinutes : validade}
+      <NumberField
+        id="validade-do-cracha-minutos"
+        min={IDENTITY_TOKEN_MINUTES.min}
+        max={IDENTITY_TOKEN_MINUTES.max}
+        value={valor}
+        invalid={invalida}
+        unit="min"
+        ariaLabel="Validade máxima do crachá, em minutos"
+        // Campo vazio vira zero, que a conta recusa: apagar tudo para digitar outro
+        // numero e o gesto comum, e `NaN` quebraria a comparacao do rascunho.
+        onChange={(texto) => onValor(Number.parseInt(texto, 10) || 0)}
       />
     </div>
   )
 }
 
-/**
- * Como o servidor do cliente gera o cracha, dobrado: as chaves, as claims, a linha do
- * script e um exemplo em duas linguagens, com a chave publica deste projeto ja no lugar.
- *
- * **E o unico lugar em que isto esta escrito**, e o criterio e o da tela inteira: quem le
- * monta a integracao sem saber o que e JWT antes de comecar.
- */
-function ComoGerarOCracha({
-  chaveDoProjeto,
-  validade,
+/** O "exigir o cracha", o mesmo nos dois formatos. */
+function ExigirCracha({
+  obrigatorio,
+  onObrigatorio,
 }: {
-  chaveDoProjeto: string
-  validade: number
+  obrigatorio: boolean
+  onObrigatorio: (obrigatorio: boolean) => void
 }) {
-  const aud = chaveDoProjeto || 'pk_…'
-  const chaves =
-    'openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out relatofacil-privada.pem\nopenssl ec -in relatofacil-privada.pem -pubout -out relatofacil-publica.pem'
-  const claims = `{\n  "sub": "<o id do usuário no seu sistema>",\n  "name": "Ana",\n  "aud": "${aud}",\n  "exp": <agora + até ${validade} min>\n}`
-  const script = `<script\n  src="${LOADER_URL}"\n  data-key="${aud}"\n  data-identity="<o crachá que o seu servidor gerou>"\n  defer></script>`
-  const js = `import { importPKCS8, SignJWT } from 'jose'\n\nconst privada = await importPKCS8(process.env.RELATOFACIL_PRIVATE_KEY, 'ES256')\n\nexport function crachaDeRelato(usuario) {\n  return new SignJWT({ name: usuario.nome })\n    .setProtectedHeader({ alg: 'ES256' })\n    .setSubject(String(usuario.id))\n    .setAudience('${aud}')\n    .setIssuedAt()\n    .setExpirationTime('${validade}m')\n    .sign(privada)\n}`
-  const cs = `using System.IdentityModel.Tokens.Jwt;\nusing System.Security.Claims;\nusing System.Security.Cryptography;\nusing Microsoft.IdentityModel.Tokens;\n\n// A chave privada importada UMA vez, ao subir, e nunca descartada: a biblioteca\n// guarda um provedor de assinatura por chave, e dispor o ECDsa quebraria a segunda chamada.\nstatic readonly ECDsa Chave = ImportarChave(File.ReadAllText("relatofacil-privada.pem"));\n\nstatic ECDsa ImportarChave(string pem)\n{\n    var ecdsa = ECDsa.Create();\n    ecdsa.ImportFromPem(pem);\n    return ecdsa;\n}\n\nstatic string CrachaDeRelato(string usuarioId, string? nome)\n{\n    var claims = new List<Claim> { new("sub", usuarioId) };\n    if (nome is not null) claims.Add(new("name", nome));\n\n    var token = new JwtSecurityToken(\n        audience: "${aud}",\n        claims: claims,\n        expires: DateTime.UtcNow.AddMinutes(${validade}),\n        signingCredentials: new SigningCredentials(\n            new ECDsaSecurityKey(Chave), SecurityAlgorithms.EcdsaSha256));\n\n    return new JwtSecurityTokenHandler().WriteToken(token);\n}`
-
   return (
-    <HowItWorks className="mt-1" label="Como gerar o crachá">
-      <p>
-        <strong className="font-medium text-fg">1. Gere um par de chaves</strong> no seu servidor e
-        cole aqui só a pública (<code className="font-mono text-fg">relatofacil-publica.pem</code>).
-        A privada sai em PKCS#8, que é o formato que os exemplos abaixo leem:
+    <div className="rounded-lg border border-border bg-surface-raised px-3.5 py-3">
+      <Check
+        checked={obrigatorio}
+        onChange={onObrigatorio}
+        label="Exigir o crachá: sem ele, recusar o relato e pedir para entrar na conta"
+      />
+      <p className="mt-1 pl-6">
+        {obrigatorio
+          ? 'Quem não está na conta lê “entre na sua conta para relatar”, e nada entra sem crachá.'
+          : 'Quem não está na conta ainda relata, como protocolo e sem lista pessoal, que é o padrão.'}
       </p>
-      <Bloco texto={chaves} />
-      <p>
-        <strong className="font-medium text-fg">
-          2. A cada página, o seu servidor gera um crachá
-        </strong>{' '}
-        para quem está na conta: um JWT assinado com ES256 e estas claims. O{' '}
-        <code className="font-mono text-fg">sub</code> é opaco para nós, e guardamos só um hash
-        dele; o <code className="font-mono text-fg">name</code> é opcional e só preenche o campo do
-        nome; o <code className="font-mono text-fg">aud</code> é a chave pública deste projeto; o{' '}
-        <code className="font-mono text-fg">exp</code> fica dentro da validade acima.
-      </p>
-      <Bloco texto={claims} />
-      <p>
-        <strong className="font-medium text-fg">3. Coloque o crachá no script</strong>, em{' '}
-        <code className="font-mono text-fg">data-identity</code>. Quem não está na conta fica sem o
-        atributo. O quadro lê o valor de agora a cada abertura: se a sessão renovar sem recarregar a
-        página, troque o atributo.
-      </p>
-      <Bloco texto={script} />
-      <p>
-        <strong className="font-medium text-fg">Exemplos no servidor.</strong> Em Node, com{' '}
-        <code className="font-mono text-fg">jose</code>:
-      </p>
-      <Bloco texto={js} />
-      <p>
-        Em C#, com <code className="font-mono text-fg">System.IdentityModel.Tokens.Jwt</code>:
-      </p>
-      <Bloco texto={cs} />
-      <p>
-        <strong className="font-medium text-fg">Nunca use o token de login do usuário.</strong> O
-        crachá é dedicado a relatar: curto, com o <code className="font-mono text-fg">aud</code>{' '}
-        deste projeto, e não abre nada no seu sistema. Quem o ler só consegue relatar em nome da
-        pessoa, por alguns minutos.
-      </p>
-    </HowItWorks>
+    </div>
+  )
+}
+
+function SalvarEConferir() {
+  return (
+    <p>
+      Clique em Salvar no alto da tela, entre no seu sistema com um usuário e abra o formulário, que
+      deve mostrar “Ver os meus relatos”.
+    </p>
   )
 }
 
 /**
- * Um trecho para copiar inteiro. O botao fica numa linha propria, acima: por cima do
- * texto ele cobria o fim das linhas compridas, que rolam de lado.
+ * A linguagem do servidor, lembrada neste navegador: quem configura volta a tela e
+ * encontra a dele aberta. Sem armazenamento, comeca no Node e vale para esta visita.
  */
-function Bloco({ texto }: { texto: string }) {
+const LINGUAGEM_GUARDADA = 'pds.web.linguagem-do-servidor.v1'
+
+function useLinguagemDoServidor(): [Linguagem, (linguagem: Linguagem) => void] {
+  const [linguagem, setLinguagem] = useState<Linguagem>(() => {
+    try {
+      const guardada = localStorage.getItem(LINGUAGEM_GUARDADA)
+      return LINGUAGENS.some((item) => item.valor === guardada) ? (guardada as Linguagem) : 'node'
+    } catch {
+      return 'node'
+    }
+  })
+
+  function escolher(proxima: Linguagem) {
+    setLinguagem(proxima)
+    try {
+      localStorage.setItem(LINGUAGEM_GUARDADA, proxima)
+    } catch {
+      // Sem armazenamento, a escolha vale ate sair da tela.
+    }
+  }
+
+  return [linguagem, escolher]
+}
+
+/** As linguagens dos exemplos de servidor, na ordem das abas, com o arquivo de cada uma. */
+type Linguagem = ServerLanguage
+
+const LINGUAGENS: readonly {
+  valor: Linguagem
+  nome: string
+  arquivo: string
+  /** O modelo da pagina, onde o script da Instalacao ganha o cracha. */
+  pagina: string
+  realce: CodeLanguage
+}[] = [
+  { valor: 'node', nome: 'Node', arquivo: 'cracha.js', pagina: 'pagina.ejs', realce: 'js' },
+  { valor: 'php', nome: 'PHP', arquivo: 'cracha.php', pagina: 'pagina.php', realce: 'php' },
+  {
+    valor: 'python',
+    nome: 'Python',
+    arquivo: 'cracha.py',
+    pagina: 'pagina.html',
+    realce: 'python',
+  },
+  { valor: 'csharp', nome: 'C#', arquivo: 'Relato.cs', pagina: 'Pagina.cshtml', realce: 'csharp' },
+  { valor: 'java', nome: 'Java', arquivo: 'Relato.java', pagina: 'pagina.html', realce: 'java' },
+  { valor: 'go', nome: 'Go', arquivo: 'cracha.go', pagina: 'pagina.html', realce: 'go' },
+]
+
+const COMANDOS_DAS_CHAVES =
+  'openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out relatofacil-privada.pem\nopenssl ec -in relatofacil-privada.pem -pubout -out relatofacil-publica.pem'
+
+/**
+ * O modelo da pagina com o script da Instalacao e as linhas que a identidade acrescenta:
+ * a primeira linha diz de onde vem o valor, e as novas chamam a funcao do passo anterior,
+ * escrevem o resultado no script e somem para quem nao esta na conta. **O valor nunca e
+ * colado por quem configura**: e o servidor que escreve, a cada pagina.
+ */
+function comScript(
+  topo: readonly string[],
+  novas: readonly string[],
+  aud: string,
+): { code: string; added: number[] } {
+  const linhas = [
+    ...topo,
+    '<script',
+    `  src="${LOADER_URL}"`,
+    `  data-key="${aud}"`,
+    ...novas.map((linha) => `  ${linha}`),
+    '  defer></script>',
+  ]
+  // As novas vem depois do topo, do `<script`, do `src` e do `data-key`.
+  const antes = topo.length + 3
+  return { code: linhas.join('\n'), added: novas.map((_, indice) => antes + indice + 1) }
+}
+
+/** A assinatura simples na pagina, no modelo mais comum de cada linguagem. */
+function paginaHmac(linguagem: Linguagem, aud: string) {
+  switch (linguagem) {
+    case 'node':
+      return comScript(
+        [
+          '<%# cracha = crachaDeRelato(usuario), vindo da rota do Express,',
+          '    ou null para quem não está na conta %>',
+        ],
+        [
+          '<% if (cracha) { %>',
+          '  data-user-id="<%= cracha.id %>"',
+          '  data-user-name="<%= cracha.nome %>"',
+          '  data-user-expires="<%= cracha.expira %>"',
+          '  data-user-signature="<%= cracha.assinatura %>"',
+          '<% } %>',
+        ],
+        aud,
+      )
+    case 'php':
+      return comScript(
+        ['<?php /* $usuario é quem está na conta,', '         ou null para quem não está */ ?>'],
+        [
+          '<?php if ($usuario): $cracha = crachaDeRelato($usuario); ?>',
+          `  data-user-id="<?= htmlspecialchars($cracha['id']) ?>"`,
+          `  data-user-name="<?= htmlspecialchars($cracha['nome'] ?? '') ?>"`,
+          `  data-user-expires="<?= $cracha['expira'] ?>"`,
+          `  data-user-signature="<?= $cracha['assinatura'] ?>"`,
+          '<?php endif; ?>',
+        ],
+        aud,
+      )
+    case 'python':
+      return comScript(
+        [
+          '{# cracha = cracha_de_relato(usuario), vindo da view #}',
+          '{# ou None para quem não está na conta #}',
+        ],
+        [
+          '{% if cracha %}',
+          '  data-user-id="{{ cracha.id }}"',
+          '  {% if cracha.nome %}data-user-name="{{ cracha.nome }}"{% endif %}',
+          '  data-user-expires="{{ cracha.expira }}"',
+          '  data-user-signature="{{ cracha.assinatura }}"',
+          '{% endif %}',
+        ],
+        aud,
+      )
+    case 'csharp':
+      return comScript(
+        [
+          '@* Model.Cracha = Relato.CrachaDeRelato(...), ou null para quem não está',
+          '   na conta, e aí os valores ficam vazios *@',
+        ],
+        [
+          'data-user-id="@Model.Cracha?.Id"',
+          'data-user-expires="@Model.Cracha?.Expira"',
+          'data-user-signature="@Model.Cracha?.Assinatura"',
+        ],
+        aud,
+      )
+    case 'java':
+      return comScript(
+        [
+          '<!--/* cracha = Relato.crachaDeRelato(...), no model do controller,',
+          '     ou null para quem não está na conta */-->',
+        ],
+        [
+          `th:data-user-id="\${cracha?.id()}"`,
+          `th:data-user-expires="\${cracha?.expira()}"`,
+          `th:data-user-signature="\${cracha?.assinatura()}"`,
+        ],
+        aud,
+      )
+    case 'go':
+      return comScript(
+        [
+          '{{/* .Cracha = CrachaDeRelato(...), vindo do handler,',
+          '     ou nil para quem não está na conta */}}',
+        ],
+        [
+          '{{with .Cracha}}',
+          '  data-user-id="{{.ID}}"',
+          '  data-user-expires="{{.Expira}}"',
+          '  data-user-signature="{{.Assinatura}}"',
+          '{{end}}',
+        ],
+        aud,
+      )
+  }
+}
+
+/** O crachá JWT na pagina, no modelo mais comum de cada linguagem. */
+function paginaJwt(linguagem: Linguagem, aud: string) {
+  switch (linguagem) {
+    case 'node':
+      return comScript(
+        [
+          '<%# cracha = await crachaDeRelato(usuario), vindo da rota do Express,',
+          '    ou null para quem não está na conta %>',
+        ],
+        ['<% if (cracha) { %>', '  data-identity="<%= cracha %>"', '<% } %>'],
+        aud,
+      )
+    case 'php':
+      return comScript(
+        ['<?php /* $usuario é quem está na conta,', '         ou null para quem não está */ ?>'],
+        [
+          '<?php if ($usuario): ?>',
+          '  data-identity="<?= crachaDeRelato($usuario) ?>"',
+          '<?php endif; ?>',
+        ],
+        aud,
+      )
+    case 'python':
+      return comScript(
+        [
+          '{# cracha = cracha_de_relato(usuario), vindo da view #}',
+          '{# ou None para quem não está na conta #}',
+        ],
+        ['{% if cracha %}', '  data-identity="{{ cracha }}"', '{% endif %}'],
+        aud,
+      )
+    case 'csharp':
+      return comScript(
+        [
+          '@* Model.Cracha = Relato.CrachaDeRelato(...), ou null para quem não está',
+          '   na conta, e aí o valor fica vazio *@',
+        ],
+        ['data-identity="@Model.Cracha"'],
+        aud,
+      )
+    case 'java':
+      return comScript(
+        [
+          '<!--/* cracha = Relato.crachaDeRelato(...), no model do controller,',
+          '     ou null para quem não está na conta */-->',
+        ],
+        [`th:data-identity="\${cracha}"`],
+        aud,
+      )
+    case 'go':
+      return comScript(
+        [
+          '{{/* .Cracha = CrachaDeRelato(...), vindo do handler,',
+          '     ou vazio para quem não está na conta */}}',
+        ],
+        ['{{if .Cracha}}', '  data-identity="{{.Cracha}}"', '{{end}}'],
+        aud,
+      )
+  }
+}
+
+/**
+ * A assinatura simples em cada linguagem: HMAC-SHA256 de `id.expira`, em hexadecimal, com
+ * a chave secreta lida do ambiente. E a mesma conta que a API confere.
+ */
+function exemploHmac(linguagem: Linguagem, minutos: number): string {
+  switch (linguagem) {
+    case 'node':
+      return `import { createHmac } from 'node:crypto'\n\nexport function crachaDeRelato(usuario) {\n  const id = String(usuario.id)\n  const expira = Math.floor(Date.now() / 1000) + ${minutos} * 60\n  const assinatura = createHmac('sha256', process.env.RELATOFACIL_SECRET)\n    .update(\`\${id}.\${expira}\`)\n    .digest('hex')\n  return { id, nome: usuario.nome, expira, assinatura }\n}`
+    case 'php':
+      return `<?php\nfunction crachaDeRelato($usuario): array\n{\n    $id = (string) $usuario->id;\n    $expira = time() + ${minutos} * 60;\n    $assinatura = hash_hmac('sha256', $id . '.' . $expira, getenv('RELATOFACIL_SECRET'));\n\n    return ['id' => $id, 'nome' => $usuario->nome, 'expira' => $expira, 'assinatura' => $assinatura];\n}`
+    case 'python':
+      return `import hashlib\nimport hmac\nimport os\nimport time\n\n\ndef cracha_de_relato(usuario):\n    id = str(usuario.id)\n    expira = int(time.time()) + ${minutos} * 60\n    assinatura = hmac.new(\n        os.environ["RELATOFACIL_SECRET"].encode(),\n        f"{id}.{expira}".encode(),\n        hashlib.sha256,\n    ).hexdigest()\n    return {"id": id, "nome": usuario.nome, "expira": expira, "assinatura": assinatura}`
+    case 'csharp':
+      return `using System.Security.Cryptography;\nusing System.Text;\n\npublic static class Relato\n{\n    public static (string Id, long Expira, string Assinatura) CrachaDeRelato(string usuarioId)\n    {\n        var expira = DateTimeOffset.UtcNow.AddMinutes(${minutos}).ToUnixTimeSeconds();\n        var segredo = Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("RELATOFACIL_SECRET")!);\n        var assinatura = Convert.ToHexString(\n            HMACSHA256.HashData(segredo, Encoding.UTF8.GetBytes($"{usuarioId}.{expira}"))).ToLowerInvariant();\n        return (usuarioId, expira, assinatura);\n    }\n}`
+    case 'java':
+      return `package com.seusistema; // troque pelo pacote do seu sistema\n\nimport java.nio.charset.StandardCharsets;\nimport java.security.GeneralSecurityException;\nimport java.util.HexFormat;\nimport javax.crypto.Mac;\nimport javax.crypto.spec.SecretKeySpec;\n\npublic class Relato {\n    public record Cracha(String id, long expira, String assinatura) {}\n\n    public static Cracha crachaDeRelato(String usuarioId) {\n        long expira = System.currentTimeMillis() / 1000 + ${minutos} * 60;\n        try {\n            Mac mac = Mac.getInstance("HmacSHA256");\n            mac.init(new SecretKeySpec(\n                System.getenv("RELATOFACIL_SECRET").getBytes(StandardCharsets.UTF_8), "HmacSHA256"));\n            String assinatura = HexFormat.of().formatHex(\n                mac.doFinal((usuarioId + "." + expira).getBytes(StandardCharsets.UTF_8)));\n            return new Cracha(usuarioId, expira, assinatura);\n        } catch (GeneralSecurityException erro) {\n            throw new IllegalStateException(erro);\n        }\n    }\n}`
+    case 'go':
+      return `package main // troque pelo pacote do seu sistema, se for outro\n\nimport (\n\t"crypto/hmac"\n\t"crypto/sha256"\n\t"encoding/hex"\n\t"fmt"\n\t"os"\n\t"time"\n)\n\ntype Cracha struct {\n\tID         string\n\tExpira     int64\n\tAssinatura string\n}\n\nfunc CrachaDeRelato(usuarioID string) *Cracha {\n\texpira := time.Now().Add(${minutos} * time.Minute).Unix()\n\tmac := hmac.New(sha256.New, []byte(os.Getenv("RELATOFACIL_SECRET")))\n\tmac.Write([]byte(fmt.Sprintf("%s.%d", usuarioID, expira)))\n\treturn &Cracha{ID: usuarioID, Expira: expira, Assinatura: hex.EncodeToString(mac.Sum(nil))}\n}`
+  }
+}
+
+/** O JWT ES256 em cada linguagem, com a biblioteca mais comum dela. */
+function exemploJwt(linguagem: Linguagem, aud: string, minutos: number): string {
+  switch (linguagem) {
+    case 'node':
+      return `// npm install jose\nimport { readFileSync } from 'node:fs'\nimport { importPKCS8, SignJWT } from 'jose'\n\nconst privada = await importPKCS8(readFileSync('relatofacil-privada.pem', 'utf8'), 'ES256')\n\nexport function crachaDeRelato(usuario) {\n  return new SignJWT({ name: usuario.nome })\n    .setProtectedHeader({ alg: 'ES256' })\n    .setSubject(String(usuario.id))\n    .setAudience('${aud}')\n    .setIssuedAt()\n    .setExpirationTime('${minutos}m')\n    .sign(privada)\n}`
+    case 'php':
+      return `<?php\n// composer require firebase/php-jwt\nuse Firebase\\JWT\\JWT;\n\nfunction crachaDeRelato($usuario): string\n{\n    // a chave fica uma pasta acima desta, fora da pasta pública do site\n    $privada = file_get_contents(__DIR__ . '/../relatofacil-privada.pem');\n\n    return JWT::encode([\n        'sub' => (string) $usuario->id,\n        'name' => $usuario->nome,\n        'aud' => '${aud}',\n        'iat' => time(),\n        'exp' => time() + ${minutos} * 60,\n    ], $privada, 'ES256');\n}`
+    case 'python':
+      return `# pip install "pyjwt[crypto]"\nimport time\n\nimport jwt\n\nwith open("relatofacil-privada.pem") as arquivo:\n    PRIVADA = arquivo.read()\n\n\ndef cracha_de_relato(usuario):\n    agora = int(time.time())\n    return jwt.encode(\n        {\n            "sub": str(usuario.id),\n            "name": usuario.nome,\n            "aud": "${aud}",\n            "iat": agora,\n            "exp": agora + ${minutos} * 60,\n        },\n        PRIVADA,\n        algorithm="ES256",\n    )`
+    case 'csharp':
+      return `// dotnet add package System.IdentityModel.Tokens.Jwt\nusing System.IdentityModel.Tokens.Jwt;\nusing System.Security.Claims;\nusing System.Security.Cryptography;\nusing Microsoft.IdentityModel.Tokens;\n\npublic static class Relato\n{\n    // A chave privada importada UMA vez, ao subir, e nunca descartada: a biblioteca\n    // guarda um provedor de assinatura por chave, e dispor o ECDsa quebraria a segunda chamada.\n    static readonly ECDsa Chave = ImportarChave(System.IO.File.ReadAllText("relatofacil-privada.pem"));\n\n    static ECDsa ImportarChave(string pem)\n    {\n        var ecdsa = ECDsa.Create();\n        ecdsa.ImportFromPem(pem);\n        return ecdsa;\n    }\n\n    public static string CrachaDeRelato(string usuarioId, string? nome)\n    {\n        var claims = new List<Claim> { new("sub", usuarioId) };\n        if (nome is not null) claims.Add(new("name", nome));\n\n        var token = new JwtSecurityToken(\n            audience: "${aud}",\n            claims: claims,\n            expires: DateTime.UtcNow.AddMinutes(${minutos}),\n            signingCredentials: new SigningCredentials(\n                new ECDsaSecurityKey(Chave), SecurityAlgorithms.EcdsaSha256));\n\n        return new JwtSecurityTokenHandler().WriteToken(token);\n    }\n}`
+    case 'java':
+      return `package com.seusistema; // troque pelo pacote do seu sistema\n\n// pom.xml: jjwt-api, jjwt-impl e jjwt-jackson (io.jsonwebtoken), versão 0.12.6\nimport io.jsonwebtoken.Jwts;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.security.KeyFactory;\nimport java.security.PrivateKey;\nimport java.security.spec.PKCS8EncodedKeySpec;\nimport java.time.Instant;\nimport java.util.Base64;\nimport java.util.Date;\n\npublic class Relato {\n    // A chave privada lida uma vez só, na primeira vez que a classe é usada.\n    private static final PrivateKey PRIVADA = lerPrivada();\n\n    private static PrivateKey lerPrivada() {\n        try {\n            String pem = Files.readString(Path.of("relatofacil-privada.pem"))\n                .replaceAll("-----(BEGIN|END) PRIVATE KEY-----", "")\n                .replaceAll("\\\\s", "");\n            return KeyFactory.getInstance("EC")\n                .generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(pem)));\n        } catch (Exception erro) {\n            throw new IllegalStateException("Não deu para ler relatofacil-privada.pem", erro);\n        }\n    }\n\n    public static String crachaDeRelato(String usuarioId, String nome) {\n        Instant agora = Instant.now();\n        return Jwts.builder()\n            .subject(usuarioId)\n            .claim("name", nome)\n            .audience().add("${aud}").and()\n            .issuedAt(Date.from(agora))\n            .expiration(Date.from(agora.plusSeconds(${minutos} * 60)))\n            .signWith(PRIVADA, Jwts.SIG.ES256)\n            .compact();\n    }\n}`
+    case 'go':
+      return `package main // troque pelo pacote do seu sistema, se for outro\n\n// go get github.com/golang-jwt/jwt/v5\nimport (\n\t"os"\n\t"time"\n\n\t"github.com/golang-jwt/jwt/v5"\n)\n\nfunc CrachaDeRelato(usuarioID, nome string) (string, error) {\n\tpem, err := os.ReadFile("relatofacil-privada.pem")\n\tif err != nil {\n\t\treturn "", err\n\t}\n\tprivada, err := jwt.ParseECPrivateKeyFromPEM(pem)\n\tif err != nil {\n\t\treturn "", err\n\t}\n\tagora := time.Now()\n\treturn jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{\n\t\t"sub":  usuarioID,\n\t\t"name": nome,\n\t\t"aud":  "${aud}",\n\t\t"iat":  agora.Unix(),\n\t\t"exp":  agora.Add(${minutos} * time.Minute).Unix(),\n\t}).SignedString(privada)\n}`
+  }
+}
+
+/**
+ * O que fazer com o exemplo na linguagem escolhida: instalar a biblioteca (no JWT), criar
+ * o arquivo, o que trocar nele e onde chamar a funcao. **Muda junto com a aba do editor**,
+ * e cada comando vem pronto para copiar: quem configura muitas vezes nao programa nessa
+ * linguagem, e o arquivo sozinho nao diz onde ele entra.
+ */
+function ComoUsar({ linguagem, hmac }: { linguagem: Linguagem; hmac: boolean }) {
+  const item =
+    LINGUAGENS.find((opcao) => opcao.valor === linguagem) ??
+    (LINGUAGENS[0] as (typeof LINGUAGENS)[number])
   return (
-    <div className="rounded-lg bg-surface-sunken">
-      <div className="flex justify-end px-2 pt-2">
-        <CopyButton value={texto} label="Copiar bloco" size="sm" />
+    <section
+      aria-label={`Como usar em ${item.nome}`}
+      className="rounded-lg border border-border bg-surface px-4 py-3"
+    >
+      <p className="flex items-center gap-2 font-medium text-fg">
+        <LanguageIcon language={linguagem} className="size-4" />
+        Como usar em {item.nome}
+      </p>
+      <ol className="mt-2 flex list-decimal flex-col gap-2 pl-5 marker:font-medium marker:text-fg">
+        {passosDeUso(linguagem, hmac, item.arquivo).map((passo, indice) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a lista de cada linguagem e fixa
+          <li key={indice} className="pl-1">
+            {passo}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+const c = (texto: string) => <code className="font-mono text-fg">{texto}</code>
+
+/** Um comando de terminal com o copiar ao lado. */
+function Comando({ valor }: { valor: string }) {
+  return (
+    <span className="mt-1.5 flex flex-wrap items-center gap-2">
+      <code className="rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-fg">
+        {valor}
+      </code>
+      <CopyButton value={valor} size="sm" variant="secondary" label="Copiar o comando" />
+    </span>
+  )
+}
+
+const DEPENDENCIAS_DO_JJWT = ['jjwt-api', 'jjwt-impl', 'jjwt-jackson']
+  .map(
+    (artefato, indice) =>
+      `<dependency>\n  <groupId>io.jsonwebtoken</groupId>\n  <artifactId>${artefato}</artifactId>\n  <version>0.12.6</version>${indice > 0 ? '\n  <scope>runtime</scope>' : ''}\n</dependency>`,
+  )
+  .join('\n')
+
+/** Os passos de cada linguagem, uma frase cada. */
+function passosDeUso(linguagem: Linguagem, hmac: boolean, arquivo: string): ReactNode[] {
+  const instalar = (comando: string) =>
+    hmac ? null : (
+      <>
+        Instale a biblioteca no seu servidor.
+        <Comando valor={comando} />
+      </>
+    )
+  const criar = <>Crie o arquivo {c(arquivo)} no seu servidor, com o código abaixo.</>
+  const chave = hmac ? (
+    <>O código lê a chave de {c('RELATOFACIL_SECRET')}, a variável de ambiente do passo 1.</>
+  ) : (
+    <>
+      Deixe o {c('relatofacil-privada.pem')} na pasta principal do sistema, de onde ele roda, e
+      nunca numa pasta que o site publica.
+    </>
+  )
+  const passos: ReactNode[] = []
+  switch (linguagem) {
+    case 'node':
+      passos.push(instalar('npm install jose'), criar, chave)
+      passos.push(
+        <>
+          Na rota que monta a página, chame{' '}
+          {c(hmac ? 'crachaDeRelato(usuario)' : 'await crachaDeRelato(usuario)')} para quem está na
+          conta e mande o resultado para a página como {c('cracha')}.
+        </>,
+      )
+      break
+    case 'php':
+      passos.push(instalar('composer require firebase/php-jwt'), criar)
+      passos.push(
+        hmac ? (
+          chave
+        ) : (
+          <>
+            Deixe o {c('relatofacil-privada.pem')} uma pasta acima do {c(arquivo)}, fora da pasta
+            pública do site, porque ali ninguém consegue baixá-lo.
+          </>
+        ),
+      )
+      passos.push(
+        hmac ? (
+          <>No começo da página, inclua o arquivo com {c("require 'cracha.php';")}.</>
+        ) : (
+          <>
+            No começo da página, inclua o Composer e o arquivo com{' '}
+            {c("require 'vendor/autoload.php';")} e {c("require 'cracha.php';")}, se o sistema ainda
+            não carrega o Composer.
+          </>
+        ),
+      )
+      break
+    case 'python':
+      passos.push(instalar('pip install "pyjwt[crypto]"'), criar, chave)
+      passos.push(
+        <>
+          Na view que monta a página, importe com {c('from cracha import cracha_de_relato')} e mande{' '}
+          {c('cracha_de_relato(usuario)')} para a página como {c('cracha')}.
+        </>,
+      )
+      break
+    case 'csharp':
+      passos.push(instalar('dotnet add package System.IdentityModel.Tokens.Jwt'), criar, chave)
+      passos.push(
+        <>
+          Na página ou no controller, guarde{' '}
+          {c(hmac ? 'Relato.CrachaDeRelato(id)' : 'Relato.CrachaDeRelato(id, nome)')} em{' '}
+          {c('Cracha')} para quem está na conta.
+        </>,
+      )
+      break
+    case 'java':
+      passos.push(
+        hmac ? null : (
+          <>
+            Acrescente ao seu {c('pom.xml')} as três dependências do jjwt.
+            <span className="mt-1.5 flex">
+              <CopyButton
+                value={DEPENDENCIAS_DO_JJWT}
+                size="sm"
+                variant="secondary"
+                label="Copiar as dependências"
+              />
+            </span>
+          </>
+        ),
+        <>Crie o arquivo {c(arquivo)} na pasta do seu pacote, com o código abaixo.</>,
+        <>Troque a primeira linha, {c('package com.seusistema;')}, pelo pacote do seu sistema.</>,
+        chave,
+        <>
+          No controller, mande{' '}
+          {c(hmac ? 'Relato.crachaDeRelato(id)' : 'Relato.crachaDeRelato(id, nome)')} para a página
+          com {c('model.addAttribute("cracha", ...)')}.
+        </>,
+      )
+      break
+    case 'go':
+      passos.push(
+        instalar('go get github.com/golang-jwt/jwt/v5'),
+        criar,
+        <>Se o seu pacote não for o {c('main')}, troque a primeira linha pelo nome dele.</>,
+        chave,
+        <>
+          No handler, mande {c(hmac ? 'CrachaDeRelato(id)' : 'CrachaDeRelato(id, nome)')} para a
+          página como {c('Cracha')}
+          {hmac ? '.' : ', e trate o erro que ela pode devolver.'}
+        </>,
+      )
+      break
+  }
+  return passos.filter((passo) => passo !== null)
+}
+
+/**
+ * A pagina montada no navegador (React, Vue, Angular) nao tem modelo no servidor: ela pede
+ * o cracha a propria API e escreve no script pelo JavaScript. Funciona porque o carregador
+ * le o script **a cada abertura** do formulario, e nao so ao carregar.
+ */
+function PaginaNoNavegador({ hmac }: { hmac: boolean }) {
+  return (
+    <details>
+      <summary className="cursor-pointer text-fg transition-colors hover:text-fg-muted">
+        A sua página é montada no navegador, com React, Vue ou Angular?
+      </summary>
+      <div className="mt-2.5 flex flex-col gap-2.5">
+        <p>
+          Peça o {hmac ? 'resultado da função' : 'crachá'} à sua API depois do login e escreva no
+          script pelo JavaScript, porque o formulário lê o script a cada vez que abre.
+        </p>
+        <CodeEditor
+          files={[
+            {
+              id: 'navegador',
+              name: 'relato.js',
+              language: 'js',
+              code: hmac ? NAVEGADOR_HMAC : NAVEGADOR_JWT,
+            },
+          ]}
+        />
       </div>
-      <pre className="overflow-x-auto px-3 pt-1 pb-3 font-mono text-caption text-fg leading-relaxed">
-        {texto}
-      </pre>
-    </div>
+    </details>
+  )
+}
+
+const NAVEGADOR_JWT = `// depois do login, e de novo antes de o crachá vencer
+const script = document.querySelector('script[data-key]')
+const resposta = await fetch('/api/cracha-de-relato') // a sua rota, que chama a função do passo 3
+script.dataset.identity = await resposta.text()
+
+// ao sair da conta
+delete script.dataset.identity`
+
+const NAVEGADOR_HMAC = `// depois do login, e de novo antes de vencer
+const script = document.querySelector('script[data-key]')
+const resposta = await fetch('/api/cracha-de-relato') // a sua rota, que chama a função do passo 2
+const cracha = await resposta.json() // { id, nome, expira, assinatura }
+script.dataset.userId = cracha.id
+script.dataset.userName = cracha.nome ?? ''
+script.dataset.userExpires = String(cracha.expira)
+script.dataset.userSignature = cracha.assinatura
+
+// ao sair da conta
+for (const campo of ['userId', 'userName', 'userExpires', 'userSignature']) {
+  delete script.dataset[campo]
+}`
+
+/**
+ * O aviso de nao colar um segundo script: com duas copias na pagina, so a primeira vale
+ * (ver `start` no carregador), e o que foi na segunda fica de fora sem erro nenhum. Quem
+ * configura muitas vezes nao e tecnico, e colar o trecho inteiro de novo e o engano comum.
+ */
+function UmScriptSo({ perda }: { perda: string }) {
+  return (
+    <p className="rounded-lg border border-warn-border bg-warn-surface px-3 py-2 text-warn-fg">
+      Não cole um segundo script na página, porque só o primeiro vale e {perda}.
+    </p>
+  )
+}
+
+/**
+ * Um passo numerado: o numero num circulo, a linha ate o passo de baixo e o conteudo ao
+ * lado. **So o passo da chave publica sabe se esta feito** (`feito`), porque e o unico
+ * que mora aqui; os outros acontecem no sistema do cliente, e um "feito" neles seria
+ * palpite.
+ */
+function Passo({
+  id,
+  numero,
+  titulo,
+  feito,
+  ultimo = false,
+  children,
+}: {
+  id?: string
+  numero: number
+  titulo: string
+  /** Verdadeiro mostra o certo no lugar do numero. Ausente, o passo nao tem como saber. */
+  feito?: boolean
+  ultimo?: boolean
+  children: ReactNode
+}) {
+  return (
+    <li id={id} className="flex scroll-mt-6 gap-3">
+      <div className="flex flex-none flex-col items-center">
+        <span
+          aria-hidden="true"
+          className={cn(
+            'flex size-6 items-center justify-center rounded-full border font-medium text-caption transition-colors duration-200',
+            feito ? 'border-transparent bg-accent text-accent-fg' : 'border-border text-fg',
+          )}
+        >
+          {feito ? (
+            <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
+              <path
+                d="m3.5 8.5 3 3 6-7"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            numero
+          )}
+        </span>
+        {!ultimo && <span aria-hidden="true" className="mt-1 w-px flex-1 bg-border" />}
+      </div>
+      <div className={cn('flex min-w-0 flex-1 flex-col gap-2.5', !ultimo && 'pb-6')}>
+        <h4 className="pt-0.5 font-medium text-detail text-fg">
+          <span className="sr-only">
+            Passo {numero}
+            {feito ? ', feito' : ''}:{' '}
+          </span>
+          {titulo}
+        </h4>
+        <div className="flex flex-col gap-2.5 text-caption text-fg-muted leading-relaxed">
+          {children}
+        </div>
+      </div>
+    </li>
   )
 }
 
@@ -925,17 +1874,17 @@ function Escolha({
   )
 }
 
-/** As variaveis e o padrao depois da barra, recolhidos: quem ja sabe nao rola por eles. */
+/** As variaveis e o que entra quando falta, recolhidos: quem ja sabe nao rola por eles. */
 function ComoFuncionamAsVariaveis() {
   return (
     <HowItWorks className="mt-3">
       <p>
-        Os botões de “Inserir” põem uma variável onde está o cursor, e ela vira o valor de cada
-        relato.
+        Os botões de “Inserir” põem a variável onde está o cursor, como um bloco que sai inteiro, e
+        ela vira o valor de cada relato.
       </p>
       <p>
-        Para escolher o que entra quando não há valor, escreva depois de uma barra:{' '}
-        <code className="font-mono text-fg">{'{{primeiroNome|pessoa}}'}</code>.
+        Com o primeiro nome no texto, aparece um campo para escolher o que entra quando a pessoa não
+        disse o nome.
       </p>
     </HowItWorks>
   )
