@@ -62,6 +62,25 @@ public class ProjectIdentitySettingsMap : BaseEntityConfiguration<ProjectIdentit
             .HasDefaultValue(IdentitySettingsDefaults.IdentityRequired)
             .HasComment("No modo inherited_identity: true recusa o relato sem token (ou com token que nao confere) e pede para entrar no sistema; false (fabrica) aceita como protocolo, sem identidade.");
 
+        builder.Property(settings => settings.IdentityFormat)
+            .HasColumnName("identity_format")
+            .HasConversion(new SnakeCaseEnumConverter<IdentityFormatEnum>())
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasComment("hmac | jwt. Como o sistema do cliente assina o cracha no modo inherited_identity. So um vale por vez.");
+
+        builder.Property(settings => settings.IdentitySecretVersion)
+            .HasColumnName("identity_secret_version")
+            .IsRequired()
+            .HasDefaultValue(1)
+            .HasComment("A versao da chave secreta do HMAC. A chave nao e guardada: sai da chave mestra da instalacao (IDENTITY_HMAC_KEY) e desta versao; subir a versao troca a chave.");
+
+        builder.Property(settings => settings.IdentitySecretRotations)
+            .HasColumnName("identity_secret_rotations")
+            .HasColumnType("timestamp with time zone[]")
+            .IsRequired()
+            .HasComment("Quando a chave secreta do HMAC foi trocada, da mais recente para a mais antiga, ate 3. So a data: o historico mostra o comeco de cada chave antiga, que sai da chave mestra e da versao.");
+
         // Uma linha por projeto. Parcial, para o projeto apagado logicamente nao
         // segurar o lugar de uma configuracao nova.
         builder.HasIndex(settings => settings.ProjectId)

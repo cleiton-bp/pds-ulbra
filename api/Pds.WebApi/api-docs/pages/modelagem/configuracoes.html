@@ -196,6 +196,9 @@ relata</strong>.</p>
   <tr><td><code>identity_public_key</code></td><td>A chave pública do sistema do cliente: ECDSA P-256, SPKI em base64 numa linha (a tela aceita o PEM colado, e a API o limpa antes de guardar). Até 512: o SPKI de uma chave P-256 em base64 tem 124 caracteres; a folga é para o PEM colado. Nula enquanto ninguém colou uma, e <b>obrigatória no modo herdado</b>: sem ela, a API não confere crachá nenhum. <b>Guardada também nos outros modos</b>, para a volta não obrigar a colar de novo. É pública (nunca segredo), e por isso sai inteira na leitura.</td></tr>
   <tr><td><code>identity_subject_salt</code></td><td>32 bytes sorteados, em base64; até 64. É com ele que o <code>sub</code> do crachá vira o <code>reporter_codes.subject_hash</code>. <b>Nasce com a primeira chave e não muda</b>: trocá-lo faria toda pessoa virar outra, e a lista dela sumiria. <b>Nunca sai na leitura</b>: é o único campo da linha que a rota não devolve.</td></tr>
   <tr><td><code>identity_token_max_minutes</code></td><td>Por quantos minutos, no máximo, um crachá pode valer: de 1 a 60, <b>15 de fábrica</b>, e não nula. Crachá de vida maior é recusado: seria um token de login disfarçado. Quinze minutos bastam para abrir o formulário e escrever, e são curtos demais para servir de login.</td></tr>
+  <tr><td><code>identity_format</code></td><td><code>hmac</code> | <code>jwt</code>: como o sistema do cliente assina o crachá no modo herdado. <b>HMAC de fábrica</b> (no código, em <code>IdentitySettingsDefaults</code>); as linhas que já existiam nasceram <code>jwt</code>, que era o único formato. Só um vale por vez. Não nula.</td></tr>
+  <tr><td><code>identity_secret_version</code></td><td>A versão da chave secreta do HMAC, 1 de início. <b>A chave não é guardada</b>: sai da chave mestra da instalação (<code>IDENTITY_HMAC_KEY</code>, só no ambiente do servidor) e desta versão, e o banco sozinho não forja nada. Trocar a chave no painel é subir a versão. Não nula.</td></tr>
+  <tr><td><code>identity_secret_rotations</code></td><td>Quando a chave secreta do HMAC foi trocada, da troca mais recente para a mais antiga, até 3 (<code>timestamp with time zone[]</code>, vazia de início). <b>Só a data</b>: o histórico do painel mostra o começo de cada chave antiga, que sai da chave mestra e da versão, sem guardar nenhuma. Não nula.</td></tr>
   <tr><td><code>identity_required</code></td><td>Só no modo herdado. Ligada, o relato sem crachá (ou com crachá que não confere) é recusado, e a pessoa é mandada entrar na conta; <b>desligada de fábrica</b>, o relato entra como protocolo, sem identidade: relato perdido é pior que relato sem lista. Não nula.</td></tr>
 </table>
 
@@ -220,8 +223,8 @@ relata</strong>.</p>
 </div>
 
 <div class="note why">
-  <strong>O padrão é o mais fechado, e não o mais útil</strong>
-  <p><code>protocol</code>, <code>private</code> e <code>asks_for_name</code> desligado. Os três
+  <strong>O padrão não identifica ninguém</strong>
+  <p><code>personal_code</code>, <code>private</code> e <code>asks_for_name</code> desligado. Os três
   vivem em <code>IdentitySettingsDefaults</code>, no código, e não como valor padrão de coluna,
   pelo mesmo motivo das outras configurações: mudar de ideia deixaria as linhas antigas com o
   valor velho e as novas com o novo, e nenhuma delas saberia disso.</p>
@@ -229,9 +232,10 @@ relata</strong>.</p>
   lugar. As duas colunas que não aceitam nulo têm o mesmo valor também como padrão da coluna
   (<code>DEFAULT 15</code> e <code>DEFAULT false</code>): foi o que preencheu as linhas que já
   existiam quando elas nasceram.</p>
-  <p>Começar identificando seria começar coletando dado pessoal de quem nunca foi perguntado.
-  Coletar precisa ser um <strong>ato</strong> de quem configura, e não o que acontece por
-  omissão.</p>
+  <p>O código pessoal é sorteado aqui e não diz quem a pessoa é: devolve a ela a lista dos
+  próprios relatos sem coletar dado pessoal. Começar identificando seria começar coletando dado
+  de quem nunca foi perguntado, e coletar precisa ser um <strong>ato</strong> de quem configura,
+  e não o que acontece por omissão.</p>
 </div>
 
 <div class="note why">

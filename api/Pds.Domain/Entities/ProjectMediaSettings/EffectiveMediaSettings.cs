@@ -47,4 +47,13 @@ public record EffectiveMediaSettings(
     /// <summary>Os limites de um tipo, ou nulo se o produto nao conhece esse tipo.</summary>
     public EffectiveMediaKind? For(MediaKindEnum kind)
         => Kinds.FirstOrDefault(atual => atual.Kind == kind);
+
+    /// <summary>
+    /// O tipo entra neste projeto. **A imagem entra por dois caminhos**: pelo botao de
+    /// anexar, quando ela esta marcada entre os tipos de arquivo (o <c>IsEnabled</c>
+    /// dela), e pelo print da tela, que marca uma area ou cola uma imagem. Basta um
+    /// dos dois: o print desligado nao fecha a imagem do botao, nem o contrario.
+    /// </summary>
+    public bool Accepts(EffectiveMediaKind kind)
+        => kind.IsEnabled || (kind.Kind == MediaKindEnum.Image && AllowsScreenCapture);
 }

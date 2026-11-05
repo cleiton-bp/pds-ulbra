@@ -180,6 +180,35 @@ public static class EnvironmentConstants
     }
 
     /// <summary>
+    /// A chave mestra da assinatura simples (HMAC) da identidade do sistema do cliente.
+    /// A chave secreta de cada projeto sai dela, e **nenhuma chave secreta vai para o
+    /// banco**: quem abre o banco sozinho nao forja identidade nenhuma.
+    ///
+    /// <para><b>Opcional, e devolve nulo quando falta</b>: sem ela, a assinatura simples
+    /// fica indisponivel e a tela oferece so o JWT. <b>Curta demais derruba a subida</b>:
+    /// uma chave fraca deixaria qualquer um adivinhar a chave de todos os projetos.</para>
+    ///
+    /// <para><b>Trocar esta chave troca a chave secreta de todo projeto</b>, e todo cracha
+    /// assinado com a anterior deixa de valer: e a troca de emergencia, e nao a de rotina
+    /// (a de rotina e por projeto, no painel).</para>
+    /// </summary>
+    public static string? GetIdentityHmacKey()
+    {
+        var value = Optional("IDENTITY_HMAC_KEY");
+
+        if (value is null)
+            return null;
+
+        return value.Trim().Length >= MinIdentityHmacKeyLength
+            ? value.Trim()
+            : throw new InvalidOperationException(
+                $"IDENTITY_HMAC_KEY precisa ter ao menos {MinIdentityHmacKeyLength} caracteres; gere com: openssl rand -base64 48");
+    }
+
+    /// <summary>O minimo da chave mestra: 32 caracteres aleatorios ja passam de 128 bits.</summary>
+    public const int MinIdentityHmacKeyLength = 32;
+
+    /// <summary>
     /// Quantos e-mails de convite um projeto pede por hora — convites e reenvios.
     /// Padrao: 20.
     ///

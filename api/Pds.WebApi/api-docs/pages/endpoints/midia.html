@@ -157,9 +157,10 @@ mesma forma, montada pela mesma função:</p>
 <table>
   <tr><th>Campo</th><th>Observação</th></tr>
   <tr><td><code>IsEnabled</code></td><td>A ferramenta mostra anexo. <b>Falso sem armazenamento nesta instalação</b>, mesmo com o projeto tendo ligado.</td></tr>
-  <tr><td><code>AllowsScreenCapture</code></td><td>O botão de capturar uma área da página aparece.</td></tr>
+  <tr><td><code>AllowsScreenCapture</code></td><td>O print da tela: o botão de capturar uma área da página aparece, e colar uma imagem funciona.</td></tr>
   <tr><td><code>AllowsOnInfoRequest</code>, <code>AllowsOnReopen</code></td><td>Dá para anexar ao responder, e ao reabrir.</td></tr>
-  <tr><td><code>Kinds</code></td><td>Só os tipos ligados, cada um com <code>Kind</code>, <code>MaxCount</code>, <code>MaxBytes</code>, <code>ContentTypes</code> e <code>Types</code>: cada extensão aceita com o tipo que o envio deve declarar para ela. <code>MaxDurationSeconds</code> vem sempre nulo.</td></tr>
+  <tr><td><code>Kinds</code></td><td>Só os tipos que entram, cada um com <code>Kind</code>, <code>MaxCount</code>, <code>MaxBytes</code>, <code>ContentTypes</code>, <code>Types</code> (cada extensão aceita com o tipo que o envio deve declarar para ela) e <code>InPicker</code>. <code>MaxDurationSeconds</code> vem sempre nulo.</td></tr>
+  <tr><td><code>InPicker</code></td><td>O botão “Anexar arquivo” oferece o tipo. A imagem entra por dois caminhos, o botão (quando está marcada entre os tipos de arquivo) e o print da tela, e vem com <code>InPicker</code> falso quando só o print a aceita.</td></tr>
 </table>
 
 <table>
@@ -265,7 +266,7 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
   <tr><td><code>IsStorageAvailable</code></td><td>Há armazenamento nesta instalação. Não é configuração do projeto, e por isso vem separado: é o que a tela usa para travar o interruptor e dizer por quê.</td></tr>
   <tr><td><code>IsEnabled</code></td><td>O quadro mostra anexo. Falso sem armazenamento, mesmo com o projeto tendo ligado.</td></tr>
   <tr><td><code>AllowsScreenCapture</code>, <code>AllowsOnInfoRequest</code>, <code>AllowsOnReopen</code></td><td>Captura, anexo na resposta, anexo na reabertura.</td></tr>
-  <tr><td><code>Kinds</code></td><td>Todo tipo que o produto oferece (imagem e arquivo), mesmo o nunca salvo: <code>Kind</code>, <code>IsEnabled</code>, <code>MaxCount</code>, <code>MaxBytes</code>, <code>Formats</code>, e <code>MaxDurationSeconds</code> sempre nulo.</td></tr>
+  <tr><td><code>Kinds</code></td><td>Todo tipo que o produto oferece (imagem e arquivo), mesmo o nunca salvo: <code>Kind</code>, <code>IsEnabled</code> (na imagem, se ela está entre os tipos do botão de anexar), <code>MaxCount</code>, <code>MaxBytes</code>, <code>Formats</code>, e <code>MaxDurationSeconds</code> sempre nulo.</td></tr>
   <tr><td><code>FileFormats</code></td><td>O catálogo, para a tela marcar: <code>Key</code>, <code>IsDefault</code> e <code>Extensions</code>. Vem da API porque é ela que confere os bytes de cada formato.</td></tr>
 </table>
 
@@ -283,7 +284,7 @@ e é o que põe cada arquivo junto do motivo com que veio.</p>
 <table>
   <tr><th>Status</th><th>Quando</th></tr>
   <tr><td><code>200</code></td><td>Configuração salva, com a mensagem "Configuração de mídia salva."</td></tr>
-  <tr><td><code>400</code></td><td>Campo ausente, limite fora do teto, tipo repetido ou desconhecido, <code>Video</code> ou o formato <code>zip</code> (mesmo desligados: os dois pedem para recarregar a página), anexo ligado sem imagem nem arquivo aceito, arquivo ligado sem formato, formato fora do catálogo.</td></tr>
+  <tr><td><code>400</code></td><td>Campo ausente, limite fora do teto, tipo repetido ou desconhecido, <code>Video</code> ou o formato <code>zip</code> (mesmo desligados: os dois pedem para recarregar a página), anexo ligado sem print da tela nem tipo de arquivo aceito, arquivo ligado sem formato, formato fora do catálogo.</td></tr>
   <tr><td><code>403</code></td><td>A pessoa está no projeto, mas não é administradora: conferido antes de tudo, inclusive do corpo e do armazenamento.</td></tr>
   <tr><td><code>404</code></td><td>Projeto não existe, ou a pessoa não está no projeto.</td></tr>
   <tr><td><code>409</code></td><td>Não há armazenamento nesta instalação: conferido antes do corpo, e vale também para salvar desligado.</td></tr>

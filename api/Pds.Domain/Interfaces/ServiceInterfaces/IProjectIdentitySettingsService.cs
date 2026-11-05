@@ -20,4 +20,22 @@ public interface IProjectIdentitySettingsService
     /// o que acontece daqui para frente.</para>
     /// </summary>
     Task<IdentitySettingsViewModel> ReplaceAsync(Guid projectPublicId, IdentitySettingsDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A chave secreta do HMAC deste projeto, para o administrador colar no servidor dele.
+    /// Recusa quando a instalacao nao tem a chave mestra.
+    /// </summary>
+    Task<IdentitySecretViewModel> GetSecretAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Troca a chave secreta do HMAC deste projeto e devolve a nova. Todo cracha assinado
+    /// com a anterior deixa de valer na hora.
+    /// </summary>
+    Task<IdentitySecretViewModel> RotateSecretAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// As ultimas chaves secretas do HMAC que ja nao valem, da troca mais recente para a mais
+    /// antiga, cada uma so com o comeco e a data da troca.
+    /// </summary>
+    Task<IReadOnlyList<IdentitySecretHistoryItemViewModel>> GetSecretHistoryAsync(Guid projectPublicId, CancellationToken cancellationToken = default);
 }

@@ -8,12 +8,15 @@ sem login nenhum. Ou pela <strong>identidade do sistema do cliente</strong>: a p
 conta do site onde a ferramenta está, e é o servidor dele que diz quem ela é; ela não digita nem
 guarda nada.</p>
 
-<p>Nesse modo, o servidor do cliente assina um <strong>crachá</strong> (um JWT ES256 dedicado,
-nunca o token de login) e o coloca no atributo <code>data-identity</code> do script do carregador,
-ao lado de <code>data-key</code>; quem não está na conta fica sem o atributo. A API confere a
-assinatura com a <strong>chave pública ECDSA P-256</strong> que o cliente cola na tela Privacidade,
-e <strong>nunca chama o sistema dele</strong>: a chave privada não sai do servidor do cliente, e um
-vazamento do nosso banco não deixa forjar identidade nenhuma, nem por nós. O crachá vale para um
+<p>Nesse modo, o servidor do cliente assina um <strong>crachá</strong> (nunca o token de login) e o
+coloca no script do carregador, ao lado de <code>data-key</code>; quem não está na conta fica sem
+ele. São dois formatos, à escolha do projeto: a <strong>assinatura simples (HMAC)</strong>, de
+fábrica, uma linha em qualquer linguagem com a chave secreta do projeto, nos atributos
+<code>data-user-*</code>; e o <strong>JWT ES256</strong>, em <code>data-identity</code>, conferido
+com a <strong>chave pública ECDSA P-256</strong> que o cliente cola na tela Privacidade. Nos dois, a
+API <strong>nunca chama o sistema dele</strong>, e um vazamento do nosso banco não deixa forjar
+identidade nenhuma: no JWT o banco só tem a chave pública, e no HMAC a chave secreta nem é
+guardada, porque sai da chave mestra da instalação. O crachá vale para um
 projeto só (o <code>aud</code> é a chave pública) e por pouco tempo, até a validade máxima que o
 projeto define, 15 minutos de fábrica: um crachá que vale por horas seria um token de login
 disfarçado.</p>

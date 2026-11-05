@@ -16,10 +16,33 @@ namespace Pds.Domain.ViewModels;
 /// <param name="IdentityPublicKey">A chave publica do sistema do cliente (SPKI base64), ou nula. Publica: pode voltar inteira.</param>
 /// <param name="IdentityTokenMaxMinutes">Teto de validade do token do sistema do cliente, em minutos.</param>
 /// <param name="IdentityRequired">No modo herdado, o relato sem token e recusado (true) ou entra como protocolo (false).</param>
+/// <param name="IdentityFormat">Como o sistema do cliente assina o cracha: HMAC ou JWT.</param>
+/// <param name="IsHmacAvailable">
+/// A instalacao tem a chave mestra do HMAC (<c>IDENTITY_HMAC_KEY</c>). Nao e do projeto: sem
+/// ela, a tela oferece so o JWT e diz por que.
+/// </param>
 public record IdentitySettingsViewModel(
     ReporterIdentityModeEnum Mode,
     ReportVisibilityEnum Visibility,
     bool AsksForName,
     string? IdentityPublicKey,
     int IdentityTokenMaxMinutes,
-    bool IdentityRequired);
+    bool IdentityRequired,
+    IdentityFormatEnum IdentityFormat,
+    bool IsHmacAvailable);
+
+/// <summary>
+/// A chave secreta do HMAC deste projeto, para o administrador colar no servidor do
+/// sistema dele. **Sai so por pedido, numa rota propria**, e nunca na leitura da
+/// configuracao: a leitura vai para todo membro, e a chave so para quem administra.
+/// </summary>
+/// <param name="Secret">A chave, como o servidor do cliente a usa (texto, em UTF-8).</param>
+public record IdentitySecretViewModel(string Secret);
+
+/// <summary>
+/// Uma chave secreta do HMAC que ja nao vale: **so o comeco dela**, para o administrador
+/// reconhecer qual chave um servidor ainda usa, e quando ela foi trocada.
+/// </summary>
+/// <param name="Prefix">O comeco da chave (<c>rfs_</c> e oito caracteres). Nulo sem a chave mestra, que e de onde ela sai.</param>
+/// <param name="ReplacedAt">Quando ela foi trocada pela seguinte.</param>
+public record IdentitySecretHistoryItemViewModel(string? Prefix, DateTime ReplacedAt);

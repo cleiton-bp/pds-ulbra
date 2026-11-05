@@ -101,6 +101,30 @@ public class ProjectIdentitySettings : PdsBaseEntity
     /// </summary>
     public bool IdentityRequired { get; set; }
 
+    /// <summary>
+    /// Como o sistema do cliente assina o cracha: HMAC (de fabrica) ou JWT. Ver
+    /// <see cref="IdentityFormatEnum"/>. So um vale por vez: o cracha do outro formato e
+    /// recusado, como qualquer cracha que nao confere.
+    /// </summary>
+    public IdentityFormatEnum IdentityFormat { get; set; } = IdentitySettingsDefaults.IdentityFormat;
+
+    /// <summary>
+    /// A versao da chave secreta do HMAC. **A chave nao e guardada**: sai da chave mestra
+    /// da instalacao e desta versao. Trocar a chave e subir a versao, e todo cracha
+    /// assinado com a anterior deixa de valer na hora.
+    /// </summary>
+    public int IdentitySecretVersion { get; set; } = 1;
+
+    /// <summary>
+    /// Quando a chave secreta do HMAC foi trocada, da troca mais recente para a mais antiga,
+    /// ate <see cref="MaxIdentitySecretHistory"/>. **So a data**: a chave de cada versao sai
+    /// da chave mestra, e o historico mostra so o comeco dela, nunca o valor inteiro.
+    /// </summary>
+    public List<DateTime> IdentitySecretRotations { get; set; } = [];
+
+    /// <summary>Quantas trocas da chave secreta o historico guarda.</summary>
+    public const int MaxIdentitySecretHistory = 3;
+
     public const int MinIdentityTokenMinutes = 1;
     public const int MaxIdentityTokenMinutes = 60;
     /// <summary>O SPKI de uma chave P-256 em base64 tem 124 caracteres; a folga e para o PEM colado antes de limpar.</summary>

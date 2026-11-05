@@ -89,7 +89,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             .Where(gravado => limites.TrueForAll(lido => lido.Kind != gravado.Kind))
             .Select(gravado => new MediaKindLimitViewModel(
                 gravado.Kind, gravado.IsEnabled, gravado.MaxCount, gravado.MaxBytes, MaxDurationSeconds: null, gravado.Formats));
-        RequireSomethingToAccept(isEnabled, [.. limites, .. vigentes]);
+        RequireSomethingToAccept(isEnabled, allowsScreenCapture, [.. limites, .. vigentes]);
 
         var novo = settings is null;
         settings ??= new ProjectMediaSettings { ProjectId = project.Id };
@@ -170,7 +170,7 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
             vigente.AllowsOnInfoRequest,
             vigente.AllowsOnReopen,
             vigente.Kinds
-                .Where(kind => kind.IsEnabled)
+                .Where(vigente.Accepts)
                 .Select(kind => (Limite: kind, Tipos: TiposAceitos(kind)))
                 // O arquivo ligado sem formato marcado nao aceita nada: a ferramenta nao
                 // tem o que oferecer. Salvar assim ja e recusado; isto e a segunda tranca.
@@ -183,7 +183,8 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
                     // campo ausente como "tem duracao" e recusaria todo print.
                     MaxDurationSeconds: null,
                     par.Tipos.Select(tipo => tipo.ContentType).Distinct().ToList(),
-                    par.Tipos.Select(tipo => new AcceptedTypeViewModel(tipo.Extension, tipo.ContentType)).ToList()))
+                    par.Tipos.Select(tipo => new AcceptedTypeViewModel(tipo.Extension, tipo.ContentType)).ToList(),
+                    InPicker: par.Limite.IsEnabled))
                 .ToList());
     }
 
@@ -397,16 +398,17 @@ public class ProjectMediaSettingsService : IProjectMediaSettingsService
         => vigente.IsEnabled && _mediaStorage.IsAvailable;
 
     /// <summary>
-    /// Recusa anexo ligado sem categoria aceita.
+    /// Recusa anexo ligado sem nada aceito: nem print da tela, nem tipo de arquivo.
     ///
     /// <para>A configuracao ficaria dizendo que aceita anexo e recusando todos eles.
     /// Quem quer isso ja tem o caminho certo, que e desligar o anexo.</para>
     /// </summary>
-    private static void RequireSomethingToAccept(bool isEnabled, List<MediaKindLimitViewModel> limites)
+    private static void RequireSomethingToAccept(
+        bool isEnabled, bool allowsScreenCapture, List<MediaKindLimitViewModel> limites)
     {
-        if (isEnabled && limites.TrueForAll(limite => !limite.IsEnabled))
+        if (isEnabled && !allowsScreenCapture && limites.TrueForAll(limite => !limite.IsEnabled))
             throw new ArgumentException(
-                "Anexo ligado sem imagem nem arquivo aceito nao aceita nada. Aceite um dos dois, ou desligue o anexo.");
+                "Anexo ligado sem print da tela nem tipo de arquivo aceito nao aceita nada. Aceite um dos dois, ou desligue o anexo.");
     }
 
     /// <summary>

@@ -150,6 +150,7 @@ recebe o botão: o relato dele chega e fica retido até o time decidir.</p>
             "LauncherIcon": "Chat",
             "LauncherIconOnly": false, "LauncherSize": "Medium", "LauncherShape": "Pill",
             "LauncherTextColor": null, "LauncherShadow": true, "MobileMode": "IconOnly",
+            "OpenAnimation": "Smooth", "OpenAnimationSpeed": "Normal",
             "HiddenPaths": [ "/checkout", "/login/*" ], "LauncherLabel": "Relatar" }
 }</code></pre>
 
@@ -165,6 +166,11 @@ desenha nada.</p>
 da página, a cada navegação: numa página da lista (ou no celular, com
 <code>MobileMode: Hidden</code>), o botão some. A lista não é segredo: quem visita vê onde o botão
 some. O cliente que abre pelo próprio botão (<code>RelatoFacil.open()</code>) abre em qualquer página.</p>
+
+<p><strong>A abertura também vem nesta leitura</strong> (<code>OpenAnimation</code> e
+<code>OpenAnimationSpeed</code>), porque quem anima o quadro é o carregador, na página do cliente.
+Quem visita com o movimento reduzido ligado no sistema vê o quadro só esmaecer, qualquer que seja
+a escolha.</p>
 
 <p>Aberto, o carregador posiciona o quadro pelo pedido de tamanho que recebe dele, conferido antes
 de aplicar: o canto (um dos quatro) e a distância do canto (de 0 a 200, e só até onde a janela
@@ -267,14 +273,26 @@ manda esses campos, fica no lugar de sempre.</p>
 <h3>A identidade do sistema do cliente</h3>
 
 <p><strong>O crachá chega pela página, e nunca pela URL.</strong> No projeto que herda a
-identidade, o servidor do cliente assina quem é a pessoa num JWT dedicado (o crachá) e o põe em
-<code>data-identity</code>, no mesmo <code>&lt;script&gt;</code> do carregador em que vai
-<code>data-key</code>. O carregador lê o atributo ao iniciar e <strong>a cada abertura</strong>,
+identidade, o servidor do cliente assina quem é a pessoa e põe o crachá no mesmo
+<code>&lt;script&gt;</code> do carregador em que vai <code>data-key</code>, num de dois formatos,
+o que o projeto escolheu (<code>IdentityFormat</code>):</p>
+<ul>
+  <li><strong>Assinatura simples (HMAC), de fábrica:</strong> <code>data-user-id</code>,
+  <code>data-user-expires</code> (em segundos, Unix), <code>data-user-signature</code> (o
+  HMAC-SHA256 de <code>id.expires</code> com a chave secreta do projeto, em hexadecimal) e, se
+  quiser, <code>data-user-name</code>, que não entra na assinatura porque só sugere o campo do
+  nome. O carregador junta os quatro num crachá (<code>rfh1.</code>…) e o resto do caminho é o
+  mesmo. A chave secreta não é guardada: sai da chave mestra da instalação, e o banco sozinho
+  não forja nada.</li>
+  <li><strong>JWT:</strong> um JWT ES256 dedicado em <code>data-identity</code>.</li>
+</ul>
+<p> O carregador lê o atributo ao iniciar e <strong>a cada abertura</strong>,
 porque a sessão do site renova e a pessoa entra e sai sem recarregar a página, e o passa ao quadro
 por mensagem; dali ele viaja no corpo do <code>POST</code>, como o token do link e o código pessoal,
 nunca no endereço do quadro nem em query string. Quem não está na conta fica sem o atributo.</p>
 
-<p><strong>A API confere a assinatura, e não chama o sistema do cliente.</strong> A chave é a
+<p><strong>A API confere a assinatura, e não chama o sistema do cliente.</strong> No HMAC, a
+comparação é em tempo constante, e a validade segue a mesma regra do JWT abaixo. No JWT, a chave é a
 pública ECDSA P-256 que o projeto colou em Privacidade: assimétrica de propósito: um vazamento do
 nosso banco não deixa forjar identidade nenhuma, nem por nós. O <code>alg</code> é só
 <code>ES256</code> (<code>none</code> e <code>HS256</code> são recusados: o segundo trataria a chave
