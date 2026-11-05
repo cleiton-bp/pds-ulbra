@@ -267,7 +267,8 @@ describe('regra de dependencia entre as pastas', () => {
   it('o carregador so leva o protocolo e as pecas da captura — nem por tabela', () => {
     // O protocolo com o quadro; as duas pecas da captura, que sao dele mesmo; o botao
     // que ele desenha, com as contas, os desenhos e a cor que o quadro tambem usa; e o
-    // combinado com o arquivo da captura — um tipo e o nome global, e nada que pese.
+    // combinado com o arquivo da captura — um tipo e o nome global, e nada que pese. E a
+    // conta do movimento do quadro ao abrir e fechar, que a previa do painel tambem usa.
     const PERMITIDO = new Set(
       [
         'loader/main.ts',
@@ -278,6 +279,7 @@ describe('regra de dependencia entre as pastas', () => {
         'embed/launcher.ts',
         'embed/launcherIcons.ts',
         'embed/appearance.ts',
+        'embed/frameMotion.ts',
         'capture/area.ts',
       ].map((arquivo) => join(SOURCE_ROOT, arquivo)),
     )

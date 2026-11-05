@@ -1,5 +1,8 @@
 import { CAPTURE_GLOBAL, type CaptureModule } from '@/capture/area'
+import { type FrameMotion, frameMotion, prefersReducedMotion } from '@/embed/frameMotion'
 import {
+  type FrameViewport,
+  frameRadius,
   placeFrame,
   readLauncherAppearance,
   readResize,
@@ -229,6 +232,64 @@ let retry: ReturnType<typeof setInterval> | undefined
 let prazo: ReturnType<typeof setTimeout> | undefined
 /** Quem tinha o foco quando abriu sem o nosso botao — e para onde ele volta. */
 let voltarFoco: HTMLElement | null = null
+/** O fim do fechar: so entao o quadro e escondido de vez. */
+let sumir: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * O movimento de agora: a abertura escolhida no projeto, o canto do quadro e a preferencia
+ * de quem visita. Sem a aparencia (o botao e do cliente), o de fabrica.
+ */
+function movimento(): FrameMotion {
+  return frameMotion(
+    aparencia?.OpenAnimation ?? 'Smooth',
+    aparencia?.OpenAnimationSpeed ?? 'Normal',
+    last?.position ?? aparencia?.Position ?? 'BottomRight',
+    prefersReducedMotion(),
+    last ? placeFrame(last, janela()).sheet : false,
+  )
+}
+
+/**
+ * A janela de quem visita, com o teclado do celular. **O teclado nao muda a janela**:
+ * no telefone ele cobre o pe dela e so a area visivel (`visualViewport`) encolhe. Sem
+ * descontar, a folha do formulario ficaria atras do teclado, bem onde a pessoa digita.
+ * Com zoom de pinca a conta nao vale, e o teclado conta como zero.
+ */
+function janela(): FrameViewport {
+  const visivel = window.visualViewport
+  const semZoom = visivel !== null && visivel !== undefined && Math.abs(visivel.scale - 1) < 0.01
+  const teclado = semZoom
+    ? Math.max(0, Math.round(window.innerHeight - visivel.height - visivel.offsetTop))
+    : 0
+  return { width: window.innerWidth, height: window.innerHeight, keyboard: teclado }
+}
+
+/**
+ * Esconde o quadro pelo caminho da abertura, ao contrario. **Enquanto some, nao recebe
+ * clique**: o quadro meio transparente em cima da pagina nao pode engolir o clique de
+ * quem ja fechou. So no fim ele fica invisivel de vez.
+ */
+function esconderQuadro(quadro: HTMLIFrameElement): void {
+  const style = quadro.style
+  const passo = movimento()
+  clearTimeout(sumir)
+
+  if (!passo.closeMs || style.visibility !== 'visible') {
+    style.visibility = 'hidden'
+    return
+  }
+
+  style.pointerEvents = 'none'
+  style.transformOrigin = passo.origin
+  style.transition = passo.closeTransition
+  style.opacity = passo.hidden.opacity
+  style.transform = passo.hidden.transform
+  sumir = setTimeout(() => {
+    if (estado !== 'closed' || frame !== quadro) return
+    style.visibility = 'hidden'
+    style.pointerEvents = ''
+  }, passo.closeMs)
+}
 
 function ensureView(): LauncherView {
   view ??= createLauncherView({
@@ -356,10 +417,10 @@ function apply(message: ResizeMessage): void {
   const style = frame.style
   // O tamanho limitado pela janela, a distancia do canto ate onde ela deixa, os
   // cantos e a sombra: a conta e de `placeFrame`, a mesma do botao e da previa.
-  const lugar = placeFrame(message, { width: window.innerWidth, height: window.innerHeight })
+  const lugar = placeFrame(message, janela())
   style.width = px(lugar.width)
   style.height = px(lugar.height)
-  style.borderRadius = px(lugar.radius)
+  style.borderRadius = frameRadius(lugar)
   style.boxShadow = SOMBRAS[lugar.shadow]
 
   // O canto vem em toda mensagem, e as quatro bordas sao escritas sempre: trocar
@@ -380,7 +441,25 @@ function reveal(): void {
   clearTimeout(prazo)
   estado = 'open'
   view?.show('hidden')
+
+  // Parte do quadro fechado e vai ao lugar. No meio de um fechar, volta de onde esta.
+  const style = frame.style
+  const passo = movimento()
+  clearTimeout(sumir)
+  style.pointerEvents = ''
+  style.transformOrigin = passo.origin
+  if (style.visibility !== 'visible') {
+    style.transition = 'none'
+    style.opacity = passo.hidden.opacity
+    style.transform = passo.hidden.transform
+  }
   apply(last)
+  // Ler o tamanho faz o navegador assentar o ponto de partida antes da transicao.
+  void frame.offsetWidth
+  style.transition = passo.openTransition
+  style.opacity = '1'
+  style.transform = 'none'
+
   frame.focus()
   // A cada abertura: o quadro poe o foco no formulario e, da segunda em diante, le
   // os tipos de novo.
@@ -455,7 +534,7 @@ function close(): void {
   }
   clearTimeout(prazo)
   estado = 'closed'
-  if (frame && !capture?.isCapturing()) frame.style.visibility = 'hidden'
+  if (frame && !capture?.isCapturing()) esconderQuadro(frame)
   showButton()
   returnFocus()
 }
@@ -525,6 +604,14 @@ function mount(): void {
     // Girar o telefone tambem e uma chance de ver a rota que mudou sem aviso.
     conferirRota()
   })
+
+  // O teclado do celular abre e fecha sem mudar a janela, so a area visivel: a folha do
+  // formulario acompanha, para continuar acima dele.
+  const reposicionar = () => {
+    if (last && estado === 'open') apply(last)
+  }
+  window.visualViewport?.addEventListener('resize', reposicionar)
+  window.visualViewport?.addEventListener('scroll', reposicionar)
 
   // Esc fecha a tela de "abrindo". O quadro aberto cuida do proprio Esc.
   document.addEventListener('keydown', (event) => {

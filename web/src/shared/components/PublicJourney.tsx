@@ -15,9 +15,11 @@ export type JourneyStage = Omit<PublicStageViewModel, 'IsCurrent'> & { id: strin
  * **Os tres passos que a pessoa quer saber, em uma leitura.** Uma palavra dizendo so
  * onde ele esta responderia um terco da pergunta e calaria o resto.
  *
- * **O que ja passou vem das datas, e nao da posicao.** Um relato pode pular etapas, e
- * pintar como percorrido tudo que esta antes contaria uma historia que nao aconteceu.
- * Passo sem data e passo por onde ele nao passou — mesmo estando antes do atual.
+ * **Tudo antes do passo atual aparece percorrido, mesmo o que o time pulou.** Um relato
+ * pode pular etapas, e o passo pulado sem marca, antes do atual, deixava quem relatou
+ * em duvida se ele ainda ia acontecer. Ele sai preenchido como os outros, so sem data:
+ * a data continua sendo so de quando o relato chegou de verdade. Depois do atual, so o
+ * que tem data (o relato que voltou a uma etapa anterior ja passou por eles).
  *
  * **Jornada vazia e projeto sem jornada**, e a tela diz isso em vez de prometer
  * movimento que nao vai acontecer.
@@ -52,7 +54,11 @@ export function PublicJourney({
     )
   }
 
-  const temAtual = currentId !== null && stages.some((passo) => passo.id === currentId)
+  const indiceAtual = currentId === null ? -1 : stages.findIndex((passo) => passo.id === currentId)
+  const temAtual = indiceAtual >= 0
+  /** Ja passou: chegou de verdade (tem data), ou esta antes do atual (inclusive o pulado). */
+  const percorrido = (index: number) =>
+    stages[index]?.ReachedAt != null || (temAtual && index < indiceAtual)
 
   return (
     <section className={cn('rounded-xl border border-border bg-surface-raised p-5', className)}>
@@ -76,10 +82,12 @@ export function PublicJourney({
               {/* A coluna do marcador e da linha. A linha para no penultimo, senao ela
                   desce para fora do ultimo passo e a jornada parece continuar. */}
               <div className="flex flex-none flex-col items-center">
-                <Marcador passo={passo} atual={atual} />
+                <Marcador atual={atual} percorrido={percorrido(index)} />
+                {/* Cheia ate o passo seguinte quando ele ja foi alcancado: a linha diz por
+                    onde o relato ja andou. */}
                 {index < stages.length - 1 && (
                   <div
-                    className={`w-px flex-1 ${passo.ReachedAt === null ? 'bg-border' : 'bg-fg-muted'}`}
+                    className={`w-px flex-1 ${index + 1 === indiceAtual || percorrido(index + 1) ? 'bg-fg-muted' : 'bg-border'}`}
                   />
                 )}
               </div>
@@ -142,8 +150,8 @@ export function PublicJourney({
 }
 
 /**
- * O ponto de cada passo: cheio no que ja foi percorrido, anel no passo atual, vazio no
- * que ainda nao chegou.
+ * O ponto de cada passo: cheio no que ja foi percorrido (inclusive o pulado, antes do
+ * atual), anel no passo atual, vazio no que ainda nao chegou.
  *
  * **A forma carrega a informacao junto com a cor**, porque cor sozinha nao e lida por
  * quem nao a distingue — e esta e a tela que qualquer pessoa abre do telefone.
@@ -152,7 +160,7 @@ export function PublicJourney({
  * leitor de tela teria so a presenca ou ausencia da data para adivinhar o que ja
  * aconteceu.
  */
-function Marcador({ passo, atual }: { passo: JourneyStage; atual: boolean }) {
+function Marcador({ atual, percorrido }: { atual: boolean; percorrido: boolean }) {
   if (atual) {
     return (
       <span
@@ -163,7 +171,7 @@ function Marcador({ passo, atual }: { passo: JourneyStage; atual: boolean }) {
     )
   }
 
-  if (passo.ReachedAt === null) {
+  if (!percorrido) {
     return (
       <span
         role="img"

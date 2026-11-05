@@ -17,6 +17,12 @@ const ORIGEM = 'https://cdn.pds.test'
 
 const fetchMock = vi.fn()
 
+/**
+ * O quadro some pelo caminho da abertura (a de fabrica, Suave, sem a aparencia do botao
+ * proprio), e so fica escondido de vez no fim do movimento. Um pouco mais que ele.
+ */
+const fimDoFechar = () => new Promise((resolve) => setTimeout(resolve, 300))
+
 /** O documento comeca carregando: o carregador com `defer` pode rodar antes do fim. */
 let estadoDoDocumento: DocumentReadyState = 'loading'
 
@@ -106,7 +112,7 @@ describe('o cliente que abre pelo proprio botao', () => {
     expect(host()?.style.getPropertyValue('display')).toBe('none')
   })
 
-  it('fechar devolve o foco ao elemento de onde se abriu', () => {
+  it('fechar devolve o foco ao elemento de onde se abriu', async () => {
     const gatilho = document.getElementById('ajuda') as HTMLButtonElement
     // O foco esta dentro do quadro enquanto ele esta aberto.
     gatilho.blur()
@@ -114,13 +120,17 @@ describe('o cliente que abre pelo proprio botao', () => {
 
     doQuadro({ source: MESSAGE_SOURCE, type: 'close' })
 
+    // Enquanto some, o quadro nao segura clique da pagina; no fim, esconde de vez.
+    expect(quadro()?.style.pointerEvents).toBe('none')
+    expect(quadro()?.style.opacity).toBe('0')
+    await fimDoFechar()
     expect(quadro()?.style.visibility).toBe('hidden')
     expect(document.activeElement).toBe(gatilho)
     // Sem o nosso botao, nada volta para o canto.
     expect(host()?.style.getPropertyValue('display')).toBe('none')
   })
 
-  it('o nome antigo `data-pds-open` continua abrindo', () => {
+  it('o nome antigo `data-pds-open` continua abrindo', async () => {
     const antigo = document.createElement('button')
     antigo.setAttribute('data-pds-open', '')
     document.body.appendChild(antigo)
@@ -130,6 +140,7 @@ describe('o cliente que abre pelo proprio botao', () => {
     expect(quadro()?.style.visibility).toBe('visible')
 
     doQuadro({ source: MESSAGE_SOURCE, type: 'close' })
+    await fimDoFechar()
     expect(quadro()?.style.visibility).toBe('hidden')
   })
 

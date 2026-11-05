@@ -1,9 +1,11 @@
 import type {
+  WidgetAnimationSpeed,
   WidgetLauncherIcon,
   WidgetLauncherShape,
   WidgetLauncherSize,
   WidgetLauncherViewModel,
   WidgetMobileMode,
+  WidgetOpenAnimation,
   WidgetPosition,
   WidgetSettingsViewModel,
   WidgetTheme,
@@ -13,11 +15,13 @@ import { FRAME_SIZE, MESSAGE_SOURCE, type ResizeMessage } from '@/embed/protocol
 // Os tipos do contrato, repassados: o carregador nao importa de `@/contracts` (a regra
 // de arquitetura o proibe), e precisa deles para desenhar o botao. Sumem no build.
 export type {
+  WidgetAnimationSpeed,
   WidgetLauncherIcon,
   WidgetLauncherShape,
   WidgetLauncherSize,
   WidgetLauncherViewModel,
   WidgetMobileMode,
+  WidgetOpenAnimation,
   WidgetPosition,
   WidgetTheme,
 }
@@ -351,6 +355,16 @@ export function readLauncherAppearance(data: unknown): WidgetLauncherViewModel |
     LauncherTextColor: cor(lido.LauncherTextColor),
     LauncherShadow: lido.LauncherShadow === true,
     MobileMode: umDe<WidgetMobileMode>(lido.MobileMode, ['Same', 'IconOnly', 'Hidden'], 'Same'),
+    OpenAnimation: umDe<WidgetOpenAnimation>(
+      lido.OpenAnimation,
+      ['Smooth', 'Slide', 'Grow', 'None'],
+      'Smooth',
+    ),
+    OpenAnimationSpeed: umDe<WidgetAnimationSpeed>(
+      lido.OpenAnimationSpeed,
+      ['Fast', 'Normal', 'Slow'],
+      'Normal',
+    ),
     HiddenPaths: Array.isArray(lido.HiddenPaths)
       ? lido.HiddenPaths.filter((item): item is string => typeof item === 'string')
       : [],
@@ -362,10 +376,49 @@ export function readLauncherAppearance(data: unknown): WidgetLauncherViewModel |
 const GUTTER = 20
 
 /**
+ * O tamanho do formulario aberto, que acompanha a janela de quem visita. **Um tamanho so
+ * nao serve as duas pontas**: 360 por 520 some num monitor grande, e no telefone vira
+ * um cartao solto que o teclado cobre.
+ *
+ * - **No computador**, uma parte da janela, entre um piso (o tamanho de sempre) e um
+ *   teto: o formulario cresce para dar espaco de escrever, e nao vira uma pagina vazia.
+ * - **No celular**, uma folha que sobe do pe da tela, na largura toda e com os cantos
+ *   de cima arredondados. Com o teclado aberto, ela fica acima dele e ocupa o que sobra.
+ */
+export const FORM_FRAME = {
+  minWidth: 360,
+  maxWidth: 480,
+  widthShare: 0.3,
+  minHeight: 520,
+  maxHeight: 760,
+  heightShare: 0.78,
+  /** A parte da altura visivel que a folha ocupa no celular, sem o teclado. */
+  sheetShare: 0.88,
+  /** Com o teclado aberto: o espaco que a folha deixa em cima, para a pagina nao sumir. */
+  sheetGapWithKeyboard: 8,
+  sheetRadius: 16,
+} as const
+
+/** A janela em que o quadro e posicionado. */
+export interface FrameViewport {
+  width: number
+  height: number
+  /**
+   * A largura que decide se e celular, quando ela nao e a medida: a previa do painel
+   * desenha a pagina de mentira menor que a janela que ela representa.
+   */
+  ruleWidth?: number
+  /** Quanto do pe da janela o teclado do celular cobre, em pixels. */
+  keyboard?: number
+}
+
+/**
  * Onde e de que tamanho o quadro fica, numa janela deste tamanho. **O carregador
  * aplica isto ao `iframe` na pagina do cliente, e a previa do painel ao `iframe` da
  * pagina de mentira** — a mesma conta nos dois.
  *
+ * - O formulario pede o tamanho de sempre (`FRAME_SIZE.expanded`), e quem decide o de
+ *   verdade e esta conta, pela janela (`FORM_FRAME`). O editor e o botao pedem o deles.
  * - O tamanho pedido e o desejado, nao o obtido: a janela pode ser menor que ele, e
  *   o quadro transbordaria o topo numa tela baixa (visto numa janela de 513px).
  * - A distancia do canto vale ate onde a janela deixar: o quadro nunca sai dela.
@@ -373,7 +426,7 @@ const GUTTER = 20
  */
 export function placeFrame(
   message: ResizeMessage,
-  viewport: { width: number; height: number },
+  viewport: FrameViewport,
 ): {
   width: number
   height: number
@@ -383,10 +436,51 @@ export function placeFrame(
   right: number | null
   radius: number
   shadow: 'open' | 'launcher' | 'none'
+  /** A folha do celular: so os cantos de cima sao arredondados (`frameRadius`). */
+  sheet: boolean
 } {
   const aberto = message.width >= FRAME_SIZE.expanded.width
-  const width = Math.max(0, Math.min(message.width, viewport.width - GUTTER * 2))
-  const height = Math.max(0, Math.min(message.height, viewport.height - GUTTER * 2))
+  const formulario =
+    message.width === FRAME_SIZE.expanded.width && message.height === FRAME_SIZE.expanded.height
+
+  if (formulario && isNarrowViewport(viewport.ruleWidth ?? viewport.width)) {
+    const teclado = clamp(viewport.keyboard ?? 0, 0, viewport.height)
+    const visivel = viewport.height - teclado
+    const altura =
+      teclado > 0
+        ? visivel - FORM_FRAME.sheetGapWithKeyboard
+        : Math.round(visivel * FORM_FRAME.sheetShare)
+
+    return {
+      width: Math.max(0, viewport.width),
+      height: Math.max(0, altura),
+      top: null,
+      bottom: teclado,
+      left: 0,
+      right: null,
+      radius: FORM_FRAME.sheetRadius,
+      shadow: 'open',
+      sheet: true,
+    }
+  }
+
+  const desejado = formulario
+    ? {
+        width: clamp(
+          Math.round(viewport.width * FORM_FRAME.widthShare),
+          FORM_FRAME.minWidth,
+          FORM_FRAME.maxWidth,
+        ),
+        height: clamp(
+          Math.round(viewport.height * FORM_FRAME.heightShare),
+          FORM_FRAME.minHeight,
+          FORM_FRAME.maxHeight,
+        ),
+      }
+    : { width: message.width, height: message.height }
+
+  const width = Math.max(0, Math.min(desejado.width, viewport.width - GUTTER * 2))
+  const height = Math.max(0, Math.min(desejado.height, viewport.height - GUTTER * 2))
 
   const x = clamp(message.offsetX ?? DEFAULT_OFFSET, 0, Math.max(0, viewport.width - width))
   const y = clamp(message.offsetY ?? DEFAULT_OFFSET, 0, Math.max(0, viewport.height - height))
@@ -404,5 +498,11 @@ export function placeFrame(
     // O formulario aberto tem cantos e sombra proprios; o botao, os que o cliente escolheu.
     radius: aberto ? 14 : (message.radius ?? 999),
     shadow: aberto ? 'open' : message.shadow ? 'launcher' : 'none',
+    sheet: false,
   }
+}
+
+/** O `border-radius` do quadro: os quatro cantos, ou so os de cima na folha do celular. */
+export function frameRadius(lugar: { radius: number; sheet: boolean }): string {
+  return lugar.sheet ? `${lugar.radius}px ${lugar.radius}px 0 0` : `${lugar.radius}px`
 }

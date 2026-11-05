@@ -84,6 +84,9 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettingsViewModel = {
   LauncherTextColor: null,
   LauncherShadow: false,
   MobileMode: 'Same',
+  // A excecao ao "valor de antes": o formulario surgia de uma vez, e agora abre suave.
+  OpenAnimation: 'Smooth',
+  OpenAnimationSpeed: 'Normal',
   HiddenPaths: [],
   LauncherLabel: 'Relatar',
   Title: 'Conte o que aconteceu',

@@ -541,27 +541,25 @@ describe('o formulario', () => {
   })
 
   /**
-   * Em janela baixa o carregador entrega um quadro menor do que o formulario
-   * gostaria. O textarea tinha `min-h-28` e travava em 112px, empurrando o botao
-   * para fora de um documento que nao rola: a pessoa escrevia o relato inteiro e
-   * o "Enviar" ficava inalcancavel. jsdom nao faz layout, entao o que da para
-   * travar aqui e a **causa**: a caixa precisa poder encolher, e o rodape nao.
+   * A caixa de texto ocupa o que sobra do quadro, **com piso**. Sem piso ela encolhia ate
+   * sobrar so a borda quando o resto passava da altura (o nome perguntado, o aviso
+   * publico): o texto de exemplo vazava e a caixa de baixo subia por cima dela. Com o
+   * piso, o formulario rola e o "Enviar" continua alcancavel rolando. jsdom nao faz
+   * layout, entao o que da para travar aqui e a **causa**: o piso no bloco, o rodape que
+   * nao encolhe e a rolagem.
    */
-  it('a caixa de texto pode encolher e o botao nao', () => {
+  it('a caixa de texto tem piso, o botao nao encolhe e o formulario rola', () => {
     // A Melhoria: a caixa sozinha, que e o caso em que ela ocupa o quadro.
     render(<EmbedApp settings={comSettings({ DefaultReportType: 'tipo-1' })} config={config} />)
     const textarea = screen.getByRole('textbox', { name: TIPOS[1]?.TextBoxPrompt ?? '' })
 
-    // A caixa e o bloco dela: os dois encolhem, sem piso nenhum.
-    for (const classe of [textarea.className, textarea.parentElement?.className ?? '']) {
-      expect(classe).toMatch(/\bmin-h-0\b/)
-      expect(classe).not.toMatch(/\bmin-h-(?!0\b)[\w.[\]]+/)
-    }
+    // O bloco tem piso; a caixa preenche o bloco.
+    expect(textarea.parentElement?.className).toMatch(/\bmin-h-24\b/)
+    expect(textarea.className).toMatch(/\bflex-1\b/)
 
     const enviar = screen.getByRole('button', { name: 'Enviar' }).className
     expect(enviar).toMatch(/\bshrink-0\b/)
 
-    // E o formulario rola quando nem assim couber.
     const formulario = textarea.closest('form')
     expect(formulario?.className).toMatch(/\boverflow-y-auto\b/)
   })
@@ -792,11 +790,18 @@ describe('o código pessoal', () => {
     await waitFor(() => expect(dublê.listar).toHaveBeenCalledTimes(1))
     expect(dublê.listar).toHaveBeenCalledWith({ Key: 'pk_DEMO', Code: 'H7QK-3M2X-P9WD' })
 
-    // O link de abrir leva o código **no fragmento**, nunca na busca.
-    const abrir = await screen.findByRole('link', { name: 'Abrir' })
+    // O relato abre aqui dentro, pelo cartão inteiro; a página de sempre fica em
+    // "Abrir em nova guia", com o código **no fragmento**, nunca na busca.
+    fireEvent.click(await screen.findByRole('button', { name: /ABCD-EFGH-JKLM/ }))
+    const abrir = await screen.findByRole('link', { name: 'Abrir em nova guia' })
     const href = abrir.getAttribute('href') ?? ''
+    expect(abrir.getAttribute('target')).toBe('_blank')
     expect(href.split('#')[0]).not.toContain('H7QK')
     expect(href.split('#')[1]).toContain('H7QK-3M2X-P9WD')
+
+    // Voltar devolve a lista.
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar aos seus relatos' }))
+    expect(await screen.findByRole('button', { name: /ABCD-EFGH-JKLM/ })).toBeTruthy()
   })
 
   it('na lista, o relato com titulo mostra o titulo que a pessoa escreveu acima do comeco', async () => {
@@ -858,16 +863,18 @@ describe('o código pessoal', () => {
 
     render(<EmbedApp settings={comCodigo} config={config} host={null} />)
     fireEvent.click(screen.getByRole('button', { name: 'Ver os meus relatos' }))
-    await screen.findByRole('link', { name: 'Abrir' })
+    const cartao = await screen.findByRole('button', { name: /ABCD-EFGH-JKLM/ })
 
-    // Digitar outro código **sem buscar** não pode mexer nos links já na tela:
-    // estes relatos são do código que os listou, e montar o link com o do campo
-    // faria cada "Abrir" apontar para uma credencial que nunca os listou.
+    // Digitar outro código **sem buscar** não pode mexer no relato já na tela:
+    // ele é do código que o listou, e abrir com o do campo apontaria para uma
+    // credencial que nunca o listou.
     fireEvent.change(screen.getByLabelText('O seu código'), {
       target: { value: 'ZZZZ-ZZZZ-ZZZZ' },
     })
+    fireEvent.click(cartao)
 
-    const href = screen.getByRole('link', { name: 'Abrir' }).getAttribute('href') ?? ''
+    const href =
+      (await screen.findByRole('link', { name: 'Abrir em nova guia' })).getAttribute('href') ?? ''
     expect(href).toContain('H7QK-3M2X-P9WD')
     expect(href).not.toContain('ZZZZ')
   })

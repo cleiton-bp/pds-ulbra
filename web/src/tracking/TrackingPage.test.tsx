@@ -239,7 +239,9 @@ describe('a pagina publica de acompanhamento', () => {
     expect(container.textContent ?? '').not.toMatch(/se atualiza sozinha|será avisado|avisaremos/i)
   })
 
-  it('passo pulado não conta como percorrido, mesmo vindo antes do atual', async () => {
+  // Um passo vazio antes do atual parecia algo ainda por acontecer: quem relatou ficava em
+  // duvida. O pulado sai preenchido como os outros, so que sem data.
+  it('passo pulado antes do atual aparece percorrido, mas sem data', async () => {
     dublê.abrir.mockResolvedValue({
       ...relato,
       Journey: [
@@ -255,9 +257,12 @@ describe('a pagina publica de acompanhamento', () => {
     render(<TrackingPage />)
     await screen.findByText('Em desenvolvimento')
 
-    // Um percorrido só — o "Recebido". Contar pela posição diria dois.
-    expect(screen.getAllByLabelText('Já passou por aqui')).toHaveLength(1)
-    expect(screen.getAllByLabelText('Ainda não chegou aqui')).toHaveLength(2)
+    // O "Recebido" e o pulado "Em análise"; so o "Concluído", depois do atual, falta.
+    expect(screen.getAllByLabelText('Já passou por aqui')).toHaveLength(2)
+    expect(screen.getAllByLabelText('Ainda não chegou aqui')).toHaveLength(1)
+    // A data continua so de quando o relato chegou de verdade: o pulado fica sem ela.
+    const pulado = screen.getByText('Em análise').closest('li') as HTMLElement
+    expect(pulado.querySelector('.tabular-nums')).toBeNull()
   })
 
   it('o que vem depois aparece só no passo atual', async () => {

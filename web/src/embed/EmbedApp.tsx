@@ -1138,16 +1138,13 @@ export function EmbedApp({
           className={cn(
             contorno('form-box'),
             'flex flex-1 flex-col gap-1.5',
-            // `min-h-0` e o que permite ENCOLHER: sem ele o textarea trava em
-            // `min-h-28` e empurra o botao para fora de um documento que nao
-            // rola. Em janela de 320px o carregador entrega 280px de quadro, e o
-            // "Enviar" ficava inalcancavel com o relato ja escrito.
-            //
-            // **Com imagem na lista, ou depois de perguntas, o piso volta.** O que
-            // vem antes e depois passa da altura do quadro: sem piso, a caixa
-            // encolheria ate sumir. Com ele, o formulario rola, e o "Enviar" continua
-            // alcancavel.
-            anexos.length > 0 || perguntas.length > 0 ? 'min-h-24' : 'min-h-0',
+            // **A caixa cresce com o quadro, e tem piso.** Ela e o que sobra da altura
+            // depois do resto, e sem piso encolhia ate sobrar so a borda quando o resto
+            // passava da altura (o nome perguntado, o aviso publico, uma imagem, as
+            // perguntas): o texto de exemplo vazava e a caixa de baixo subia por cima
+            // dela. Com o piso, o que nao cabe faz o formulario rolar (a raiz tem
+            // `overflow-y-auto`), e o "Enviar" continua alcancavel rolando.
+            'min-h-24',
           )}
         >
           {/* Depois de perguntas, a caixa ganha nome: sem ele, ela pareceria parte da

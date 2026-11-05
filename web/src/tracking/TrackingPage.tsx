@@ -8,8 +8,9 @@ import { CopyButton } from '@/shared/components/CopyButton'
 import { PublicJourney } from '@/shared/components/PublicJourney'
 import { ReportAnswers } from '@/shared/components/ReportAnswers'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { cn } from '@/shared/lib/cn'
 import { formatDateTime } from '@/shared/lib/datetime'
-import { type PersonalEntry, readTrackingLink } from '@/shared/lib/tracking'
+import { type PersonalEntry, readTrackingLink, type TrackingLink } from '@/shared/lib/tracking'
 import { renderWidgetText } from '@/shared/lib/widgetText'
 import { ClosurePanel } from '@/tracking/ClosurePanel'
 import { ConversationPanel } from '@/tracking/ConversationPanel'
@@ -60,13 +61,35 @@ type Estado =
   | { tipo: 'falhou' }
 
 export function TrackingPage() {
+  // Lido uma vez: a pagina nao navega, e o link e o mesmo do comeco ao fim.
+  const [entrada] = useState(() => readTrackingLink(window.location.search, window.location.hash))
+
+  return (
+    <main className="mx-auto w-full max-w-160 px-5 py-10 lg:py-14">
+      <TrackingReport entrada={entrada} />
+    </main>
+  )
+}
+
+/**
+ * Le e mostra um relato pela credencial que chegou. **A pagina e o formulario usam o
+ * mesmo**: a pagina, com o que veio no link; o formulario, com a chave e o codigo (ou o
+ * cracha) de "os meus relatos", para a pessoa ler o relato sem sair do site.
+ *
+ * `compacto` e o do formulario: sem o titulo da pagina (o formulario ja diz onde a
+ * pessoa esta) e sem o aviso de guardar o link desta pagina, que ali nao existe.
+ */
+export function TrackingReport({
+  entrada,
+  compacto = false,
+}: {
+  entrada: TrackingLink
+  compacto?: boolean
+}) {
   const [estado, setEstado] = useState<Estado>({ tipo: 'carregando' })
 
   const abrir = useCallback(async () => {
-    const { code, token, key, reporterCode, identityToken } = readTrackingLink(
-      window.location.search,
-      window.location.hash,
-    )
+    const { code, token, key, reporterCode, identityToken } = entrada
 
     // **Tres credenciais levam a esta pagina, e elas nao valem o mesmo.** O token
     // veio no link que a pessoa recebeu ao relatar, e da poder sobre o relato. O
@@ -112,27 +135,28 @@ export function TrackingPage() {
     } catch (falha) {
       setEstado({ tipo: isPanelError(falha) && falha.status === 404 ? 'recusado' : 'falhou' })
     }
-  }, [])
+  }, [entrada])
 
   useEffect(() => {
     void abrir()
   }, [abrir])
 
   return (
-    <main className="mx-auto w-full max-w-160 px-5 py-10 lg:py-14">
-      {estado.tipo === 'carregando' && <Carregando />}
+    <>
+      {estado.tipo === 'carregando' && <Carregando compacto={compacto} />}
       {estado.tipo === 'aberto' && (
         <Relato
           relato={estado.relato}
           code={estado.code}
           token={estado.token}
           pessoal={estado.pessoal}
+          compacto={compacto}
           aoResponder={(novo) => setEstado({ ...estado, relato: novo })}
         />
       )}
       {estado.tipo === 'recusado' && <Recusado />}
       {estado.tipo === 'falhou' && <Falhou onRetry={() => void abrir()} />}
-    </main>
+    </>
   )
 }
 
@@ -141,12 +165,14 @@ function Relato({
   code,
   token,
   pessoal,
+  compacto,
   aoResponder,
 }: {
   relato: PublicReportViewModel
   code: string
   token: string
   pessoal: PersonalEntry | null
+  compacto: boolean
   aoResponder: (relato: PublicReportViewModel) => void
 }) {
   // Os arquivos pela porta por onde a pagina entrou: o token do link, ou a chave e
@@ -239,10 +265,12 @@ function Relato({
 
   return (
     <>
-      <h1 className="mb-1.5 font-semibold text-screen text-fg tracking-tight">Seu relato</h1>
+      {!compacto && (
+        <h1 className="mb-1.5 font-semibold text-screen text-fg tracking-tight">Seu relato</h1>
+      )}
       {/* A frase e do projeto, escrita na tela da ferramenta; as variaveis sao trocadas
           aqui, que e onde a etapa e o resto existem. Texto puro. */}
-      <p className="mb-7 text-body text-fg-muted">
+      <p className={compacto ? 'mb-4 text-detail text-fg-muted' : 'mb-7 text-body text-fg-muted'}>
         {renderWidgetText(relato.TrackingIntro, {
           primeiroNome: relato.ReporterFirstName,
           protocolo: relato.TrackingCode,
@@ -252,7 +280,12 @@ function Relato({
         })}
       </p>
 
-      <section className="rounded-xl border border-border bg-surface-raised p-5">
+      <section
+        className={cn(
+          'rounded-xl border border-border bg-surface-raised',
+          compacto ? 'p-4' : 'p-5',
+        )}
+      >
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="min-w-0">
             <div className="mb-1 text-caption text-fg-muted">Protocolo</div>
@@ -354,10 +387,13 @@ function Relato({
         />
       )}
 
-      <p className="mt-5 px-1 text-caption text-fg-muted leading-relaxed">
-        Guarde o link desta página: ele é a única forma de voltar aqui. O protocolo sozinho não abre
-        o relato.
-      </p>
+      {/* No formulario nao ha link desta pagina a guardar: a pessoa volta pela lista. */}
+      {!compacto && (
+        <p className="mt-5 px-1 text-caption text-fg-muted leading-relaxed">
+          Guarde o link desta página: ele é a única forma de voltar aqui. O protocolo sozinho não
+          abre o relato.
+        </p>
+      )}
     </>
   )
 }
@@ -403,11 +439,11 @@ function Falhou({ onRetry }: { onRetry: () => void }) {
   )
 }
 
-function Carregando() {
+function Carregando({ compacto }: { compacto: boolean }) {
   return (
     <>
-      <Skeleton className="mb-3 h-6 w-40" />
-      <Skeleton className="mb-8 h-3 w-64" />
+      {!compacto && <Skeleton className="mb-3 h-6 w-40" />}
+      <Skeleton className={cn('h-3 w-64 max-w-full', compacto ? 'mb-4' : 'mb-8')} />
       <div className="rounded-xl border border-border bg-surface-raised p-5">
         <Skeleton className="mb-4 h-5 w-44" />
         <Skeleton className="mb-2 h-3 w-32" />

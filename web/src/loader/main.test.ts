@@ -32,6 +32,9 @@ const aparencia: WidgetLauncherViewModel = {
   LauncherTextColor: null,
   LauncherShadow: false,
   MobileMode: 'Same',
+  // Sem movimento: os casos conferem o quadro aparecer e sumir, e nao o tempo dele.
+  OpenAnimation: 'None',
+  OpenAnimationSpeed: 'Normal',
   HiddenPaths: ['/checkout*'],
   LauncherLabel: 'Relatar',
 }
