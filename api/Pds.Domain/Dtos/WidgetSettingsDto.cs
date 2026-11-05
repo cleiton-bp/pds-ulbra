@@ -82,6 +82,14 @@ public class WidgetSettingsDto
     /// <example>Same</example>
     public WidgetMobileModeEnum? MobileMode { get; set; }
 
+    /// <summary>Como o formulario aparece ao clicar no botao, e sai ao fechar.</summary>
+    /// <example>Smooth</example>
+    public WidgetOpenAnimationEnum? OpenAnimation { get; set; }
+
+    /// <summary>A duracao desse movimento.</summary>
+    /// <example>Normal</example>
+    public WidgetAnimationSpeedEnum? OpenAnimationSpeed { get; set; }
+
     /// <summary>
     /// As paginas onde o botao nao aparece, ate 20: caminho exato (<c>/checkout</c>) ou
     /// comeco terminado em <c>*</c> (<c>/login/*</c>). Lista vazia e valor; ausente e

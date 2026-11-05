@@ -160,6 +160,8 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
             settings?.LauncherShadow ?? WidgetSettingsDefaults.LauncherShadow,
             settings is null ? WidgetSettingsDefaults.FormBackgroundColor : settings.FormBackgroundColor,
             settings?.MobileMode ?? WidgetSettingsDefaults.MobileMode,
+            settings?.OpenAnimation ?? WidgetSettingsDefaults.OpenAnimation,
+            settings?.OpenAnimationSpeed ?? WidgetSettingsDefaults.OpenAnimationSpeed,
             settings?.HiddenPaths ?? WidgetSettingsDefaults.HiddenPaths,
             settings?.LauncherLabel ?? WidgetSettingsDefaults.LauncherLabel);
     }
@@ -260,6 +262,8 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
             settings?.LauncherShadow ?? WidgetSettingsDefaults.LauncherShadow,
             settings is null ? WidgetSettingsDefaults.FormBackgroundColor : settings.FormBackgroundColor,
             settings?.MobileMode ?? WidgetSettingsDefaults.MobileMode,
+            settings?.OpenAnimation ?? WidgetSettingsDefaults.OpenAnimation,
+            settings?.OpenAnimationSpeed ?? WidgetSettingsDefaults.OpenAnimationSpeed,
             settings?.HiddenPaths ?? WidgetSettingsDefaults.HiddenPaths,
             settings?.LauncherLabel ?? WidgetSettingsDefaults.LauncherLabel,
             settings?.Title ?? WidgetSettingsDefaults.Title,
@@ -353,6 +357,8 @@ public partial class ProjectWidgetSettingsService : IProjectWidgetSettingsServic
         settings.LauncherShadow = Required(dto.LauncherShadow, "Informe se o botao tem sombra.");
         settings.MobileMode = Defined(dto.MobileMode, "Informe como o botao fica no celular.", "Escolha como o botao fica no celular: igual, so o icone ou escondido.");
         settings.HiddenPaths = HiddenPages.Normalize(dto.HiddenPaths);
+        settings.OpenAnimation = Defined(dto.OpenAnimation, "Informe como o formulario abre.", "Escolha como o formulario abre: suave, deslizando, crescendo ou sem animacao.");
+        settings.OpenAnimationSpeed = Defined(dto.OpenAnimationSpeed, "Informe a velocidade da animacao.", "Escolha a velocidade da animacao: rapida, normal ou lenta.");
 
         // Recusar, e nao escolher um icone pelo cliente: o painel ja escolhe um quando
         // a pessoa marca "so o icone", e a API que inventasse um desenho gravaria uma

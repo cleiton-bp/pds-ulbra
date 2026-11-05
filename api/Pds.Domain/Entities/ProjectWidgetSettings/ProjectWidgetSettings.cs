@@ -144,6 +144,15 @@ public class ProjectWidgetSettings : PdsBaseEntity
     public WidgetMobileModeEnum MobileMode { get; set; } = WidgetMobileModeEnum.Same;
 
     /// <summary>
+    /// Como o formulario aparece ao clicar no botao, e sai ao fechar. Suave, de fabrica:
+    /// surgir de uma vez cobre a pagina do cliente sem aviso.
+    /// </summary>
+    public WidgetOpenAnimationEnum OpenAnimation { get; set; } = WidgetOpenAnimationEnum.Smooth;
+
+    /// <summary>A duracao desse movimento: rapida, normal (de fabrica) ou lenta.</summary>
+    public WidgetAnimationSpeedEnum OpenAnimationSpeed { get; set; } = WidgetAnimationSpeedEnum.Normal;
+
+    /// <summary>
     /// As paginas do site do cliente onde o botao nao aparece — o pagamento, o login.
     ///
     /// <para>Cada uma e um caminho comecando por <c>/</c>, sem <c>?</c> nem <c>#</c>:

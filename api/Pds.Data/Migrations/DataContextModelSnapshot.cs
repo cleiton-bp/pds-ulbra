@@ -2194,6 +2194,20 @@ namespace Pds.Data.Migrations
                         .HasColumnName("offset_y")
                         .HasComment("A distancia do canto ate o botao, na vertical, em pixels (0 a 200).");
 
+                    b.Property<string>("OpenAnimation")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("open_animation")
+                        .HasComment("smooth | slide | grow | none. Como o formulario aparece ao clicar no botao, e sai ao fechar.");
+
+                    b.Property<string>("OpenAnimationSpeed")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("open_animation_speed")
+                        .HasComment("fast | normal | slow. A duracao do movimento do formulario ao abrir e fechar.");
+
                     b.Property<string>("Position")
                         .IsRequired()
                         .HasMaxLength(20)
