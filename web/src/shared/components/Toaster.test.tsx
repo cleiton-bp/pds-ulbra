@@ -10,11 +10,10 @@ import { toast, useToastStore } from '@/shared/components/toastStore'
 /**
  * O QUE ESTES TESTES TRAVAM: onde o aviso aparece, e como o leitor de tela o ouve.
  *
- * - **Com um dialogo aberto, o aviso nasce dentro dele** — o de cima, quando ha dois.
- *   Fora, ele caia em cima do X e do status do card, o clique nele contava como clique
- *   fora (e fechava o card com o que se escrevia), e o leitor de tela nao o lia: o
- *   dialogo esconde o resto da pagina. Fechado o dialogo, o aviso volta ao alto da
- *   pagina.
+ * - **O aviso fica sempre no alto da pagina**, com dialogo aberto ou nao: dentro do
+ *   dialogo ele mudava de lugar a cada um. E continua lido pelo leitor de tela com o
+ *   dialogo aberto, que esconde o resto da pagina: a regiao tem `aria-live`, e a
+ *   biblioteca que esconde respeita isso. O clique nele nao fecha o dialogo (`Modal`).
  * - **O erro e `alert`; a confirmacao, `status`.**
  * - **O aviso some sozinho em 5 s; com botao, fica 12 s**, e o botao roda e fecha. O
  *   erro so sai no X, e o ponteiro em cima para a contagem.
@@ -51,11 +50,11 @@ function regiaoDe(mensagem: string): HTMLElement {
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
-  useToastStore.setState({ toasts: [], hosts: [] })
+  useToastStore.setState({ toasts: [] })
 })
 
 describe('onde o aviso aparece', () => {
-  it('sem dialogo, no alto da pagina; com um, dentro dele; com dois, no de cima, e volta ao fechar', async () => {
+  it('sempre no alto da pagina, com ou sem dialogo, e visivel ao leitor de tela', async () => {
     render(<DoisDialogos />)
 
     act(() => {
@@ -65,27 +64,20 @@ describe('onde o aviso aparece', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir o card' }))
     const card = await screen.findByRole('dialog', { name: 'O card' })
-    // O aviso que ja estava na tela vai junto para dentro do card.
-    expect(card.contains(regiaoDe('Sem dialogo.'))).toBe(true)
-
     fireEvent.click(within(card).getByRole('button', { name: 'Pedir informação' }))
-    const pergunta = await screen.findByRole('dialog', { name: 'A pergunta' })
+    await screen.findByRole('dialog', { name: 'A pergunta' })
     act(() => {
       toast.error('Não deu para pedir.')
     })
-    expect(pergunta.contains(regiaoDe('Não deu para pedir.'))).toBe(true)
-    expect(useToastStore.getState().hosts).toEqual([card, pergunta])
 
-    // Fechada a de cima, os avisos voltam para o card.
-    fireEvent.keyDown(pergunta, { key: 'Escape' })
-    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'A pergunta' })).toBeNull())
-    expect(card.contains(regiaoDe('Não deu para pedir.'))).toBe(true)
-
-    // Fechado o card, para o alto da pagina.
-    fireEvent.keyDown(card, { key: 'Escape' })
-    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(regiaoDe('Não deu para pedir.').closest('[role="dialog"]')).toBeNull()
-    expect(useToastStore.getState().hosts).toEqual([])
+    const regiao = regiaoDe('Não deu para pedir.')
+    // Fora dos dois dialogos, no canto fixo de sempre.
+    expect(regiao.closest('[role="dialog"]')).toBeNull()
+    expect(regiao.className).toContain('fixed')
+    // O dialogo esconde o resto da pagina do leitor de tela, menos a regiao dos avisos.
+    expect(regiao.getAttribute('aria-live')).toBe('off')
+    expect(regiao.closest('[aria-hidden="true"]')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toContain('Não deu para pedir.')
   })
 })
 

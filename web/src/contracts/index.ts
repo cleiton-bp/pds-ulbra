@@ -29,6 +29,9 @@ export {
   MIN_SPRINT_LENGTH_WEEKS,
 } from '@/contracts/cycleSettings'
 export type {
+  IdentityFormat,
+  IdentitySecretHistoryItemViewModel,
+  IdentitySecretViewModel,
   IdentitySettingsViewModel,
   ReporterIdentityMode,
   ReportVisibility,

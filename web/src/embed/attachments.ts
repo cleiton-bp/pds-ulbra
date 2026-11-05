@@ -224,6 +224,25 @@ export function acceptAttribute(settings: PublicMediaSettingsViewModel, kind?: M
     .join(',')
 }
 
+/** O botao "Anexar arquivo" oferece este tipo (a API sem o campo oferece todos). */
+export const inPicker = (kind: PublicMediaKindViewModel) => kind.InPicker !== false
+
+/**
+ * O `accept` do botao unico de anexar: so os tipos que ele oferece. A imagem que entra
+ * so pelo print da tela fica de fora do seletor.
+ */
+export function pickerAcceptAttribute(settings: PublicMediaSettingsViewModel): string {
+  return acceptAttribute({ ...settings, Kinds: settings.Kinds.filter(inPicker) })
+}
+
+/** Ainda cabe algo que o botao de anexar oferece. */
+export function pickerHasRoom(
+  already: Pick<Anexo, 'kind'>[],
+  settings: PublicMediaSettingsViewModel,
+): boolean {
+  return hasRoom(already, { ...settings, Kinds: settings.Kinds.filter(inPicker) })
+}
+
 /**
  * Por que este arquivo nao pode entrar, ou `null` se pode.
  *

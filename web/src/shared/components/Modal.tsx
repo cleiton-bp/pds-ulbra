@@ -1,6 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { type ReactNode, useCallback, useLayoutEffect, useRef } from 'react'
-import { useToastStore } from '@/shared/components/toastStore'
+import { type ReactNode, useLayoutEffect, useRef } from 'react'
 import { cn } from '@/shared/lib/cn'
 import { focusAnyway } from '@/shared/lib/focus'
 
@@ -82,18 +81,6 @@ export function Modal({
   const abertoEm = useRef(0)
   const fechar = useRef<HTMLButtonElement>(null)
 
-  // Os avisos que nascem com o dialogo aberto vao para dentro dele — ver `Toaster`.
-  const addHost = useToastStore((state) => state.addHost)
-  const removeHost = useToastStore((state) => state.removeHost)
-  const hospedar = useCallback(
-    (caixa: HTMLDivElement | null) => {
-      if (!caixa) return
-      addHost(caixa)
-      return () => removeHost(caixa)
-    },
-    [addHost, removeHost],
-  )
-
   // Antes de o Radix mover o foco para dentro: o efeito dele roda depois deste.
   useLayoutEffect(() => {
     if (!open) return
@@ -110,7 +97,6 @@ export function Modal({
             `aria-describedby` sozinho: ele conta quantas descricoes foram
             montadas. Nao precisa da gambiarra de passar `undefined` a mao. */}
         <Dialog.Content
-          ref={hospedar}
           className={cn(
             // **Cabe em qualquer tela**: no maximo a altura dela, com o titulo e os botoes
             // sempre a vista e so o meio rolando. Sem isso, no celular, deitado ou com o

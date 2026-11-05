@@ -84,6 +84,30 @@
   --color-chip-purple-glyph: var(--chip-purple-glyph);
   --color-chip-pink-glyph: var(--chip-pink-glyph);
 
+  /* O editor de codigo, escuro nos dois temas. Ver a nota em tokens.css. */
+  --color-code-surface: var(--code-surface);
+  --color-code-bar: var(--code-bar);
+  --color-code-border: var(--code-border);
+  --color-code-fg: var(--code-fg);
+  --color-code-muted: var(--code-muted);
+  --color-code-keyword: var(--code-keyword);
+  --color-code-string: var(--code-string);
+  --color-code-number: var(--code-number);
+  --color-code-name: var(--code-name);
+  --color-code-tag: var(--code-tag);
+  --color-code-added: var(--code-added);
+  --color-code-added-fg: var(--code-added-fg);
+
+  /* As cores das linguagens, nos desenhos das abas do editor. Ver a nota em tokens.css. */
+  --color-lang-node: var(--lang-node);
+  --color-lang-php: var(--lang-php);
+  --color-lang-python: var(--lang-python);
+  --color-lang-python-accent: var(--lang-python-accent);
+  --color-lang-csharp: var(--lang-csharp);
+  --color-lang-java: var(--lang-java);
+  --color-lang-java-accent: var(--lang-java-accent);
+  --color-lang-go: var(--lang-go);
+
   /* Inter vem do Google Fonts (index.html). A reserva evita a tela trocar de
      metrica se a fonte demorar ou falhar. */
   --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -304,7 +328,8 @@
      por dentro deles sumia — so se via a caixa um pouco mais clara. */
   input:not([type="checkbox"]):not([type="radio"]):focus-visible,
   textarea:focus-visible,
-  select:focus-visible {
+  select:focus-visible,
+  [role="textbox"][contenteditable]:focus-visible {
     outline-offset: -2px;
   }
 
@@ -691,6 +716,23 @@
   animation: fade-in 200ms ease-out both;
 }
 
+/* O codigo da linguagem escolhida no editor: entra esmaecendo e subindo um pouco, sem
+   pressa, e a troca de uma linguagem para outra se le como troca, e nao como piscada. */
+@keyframes code-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-code-in {
+  animation: code-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* ---------------------------------------------------------------------------
  * O BOTAO DE TEMA
  *
@@ -811,7 +853,8 @@
   .animate-dialog-out,
   .animate-menu-in,
   .animate-menu-out,
-  .animate-fade-in {
+  .animate-fade-in,
+  .animate-code-in {
     animation: none;
   }
 
@@ -943,7 +986,8 @@
  */
 :is(
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
-  textarea
+  textarea,
+  [role="textbox"][contenteditable]
 ).border-border {
   border-color: var(--border-control);
 }
@@ -956,7 +1000,8 @@
   :is(
     input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
     textarea,
-    select
+    select,
+    [role="textbox"][contenteditable]
   ) {
     font-size: max(16px, 1em);
   }

@@ -163,7 +163,7 @@ async function configuracaoLida() {
  * sem nada de errado na tela.
  */
 async function escolher(arquivo: File) {
-  fireEvent.change(await screen.findByLabelText('Escolher imagem para anexar'), {
+  fireEvent.change(await screen.findByLabelText('Escolher arquivo para anexar'), {
     target: { files: [arquivo] },
   })
 }
@@ -182,7 +182,7 @@ describe('anexar ao reabrir', () => {
   it('com o projeto deixando, o seletor aparece junto do motivo', async () => {
     await reabrindo()
 
-    expect(await screen.findByLabelText('Escolher imagem para anexar')).toBeDefined()
+    expect(await screen.findByLabelText('Escolher arquivo para anexar')).toBeDefined()
     expect(screen.getByText(/anexe um print do que ainda está acontecendo/)).toBeDefined()
   })
 
@@ -214,7 +214,7 @@ describe('anexar ao reabrir', () => {
     await configuracaoLida()
 
     expect(screen.getByRole('textbox', { name: /O que ainda está acontecendo/ })).toBeDefined()
-    expect(screen.queryByLabelText('Escolher imagem para anexar')).toBeNull()
+    expect(screen.queryByLabelText('Escolher arquivo para anexar')).toBeNull()
   })
 
   it('com o anexo desligado no projeto, reabrir é só texto', async () => {
@@ -222,7 +222,7 @@ describe('anexar ao reabrir', () => {
     await reabrindo()
     await configuracaoLida()
 
-    expect(screen.queryByLabelText('Escolher imagem para anexar')).toBeNull()
+    expect(screen.queryByLabelText('Escolher arquivo para anexar')).toBeNull()
   })
 
   it('reabre primeiro, e só então sobe o arquivo marcado como da reabertura', async () => {
@@ -300,7 +300,7 @@ describe('anexar ao reabrir', () => {
     await screen.findByRole('button', { name: 'Enviando…' })
 
     expect(
-      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Anexar arquivo' }) as HTMLButtonElement).disabled,
     ).toBe(true)
     expect(screen.queryByRole('button', { name: 'Remover ainda-quebrado.png' })).toBeNull()
     const outro = new File([new Uint8Array(100)], 'outro.png', { type: 'image/png' })
@@ -318,7 +318,7 @@ describe('anexar ao reabrir', () => {
   // traz uma imagem junto, continua sendo texto.
   it('colar um print na reabertura anexa, e texto colado continua texto', async () => {
     await reabrindo()
-    await screen.findByLabelText('Escolher imagem para anexar')
+    await screen.findByLabelText('Escolher arquivo para anexar')
     const caixa = screen.getByRole('textbox', { name: /O que ainda está acontecendo/ })
 
     expect(fireEvent.paste(caixa, { clipboardData: { files: [print()], getData: () => '' } })).toBe(

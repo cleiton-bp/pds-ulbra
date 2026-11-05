@@ -135,6 +135,12 @@ export interface PublicMediaKindViewModel {
    * nenhum arquivo e aceito, e a imagem segue pelo tipo.
    */
   Types?: AcceptedTypeViewModel[]
+  /**
+   * O botao "Anexar arquivo" oferece este tipo. **So a imagem pode vir falsa**: ela esta
+   * aqui so pelo print da tela (marcar uma area ou colar), e o dono nao a marcou entre os
+   * tipos de arquivo. Ausente na API de antes do botao unico, e ai vale como verdadeiro.
+   */
+  InPicker?: boolean
 }
 
 /** Uma extensao aceita, e o tipo que o envio declara para ela. */

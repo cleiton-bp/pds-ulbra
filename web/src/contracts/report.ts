@@ -78,7 +78,7 @@ export interface CreateReportRequest {
   ReporterCode?: string
   /**
    * O cracha da pessoa, assinado pelo servidor do cliente — so no projeto que herda a
-   * identidade, e so quando a pagina o entregou (`data-identity` no script).
+   * identidade, e so quando a pagina o entregou (`data-identity` ou `data-user-*` no script).
    *
    * **Fora desse modo e ignorado**, e nao recusado como o codigo: a pagina pode ter
    * ficado com o atributo depois de o projeto trocar de modo. Cracha que nao confere

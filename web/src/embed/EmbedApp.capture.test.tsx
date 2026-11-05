@@ -142,19 +142,19 @@ describe('onde o botao aparece', () => {
   it('o projeto desligou a captura: o botao some, e anexar continua', () => {
     montar(pagina(), media({ AllowsScreenCapture: false }))
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
   })
 
   it('carregador antigo, que nao sabe capturar: o botao some, e anexar continua', () => {
     montar(pagina(false))
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
   })
 
   it('aberto direto, sem pagina em volta: nao ha o que capturar', () => {
     render(<EmbedApp settings={SETTINGS} config={config} media={media()} />)
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
   })
 })
 
@@ -163,12 +163,12 @@ describe('sem vaga para imagem', () => {
     montar()
     const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: 'image/png' })
 
-    fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+    fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
       target: { files: [imagem('a.png'), imagem('b.png'), imagem('c.png')] },
     })
 
     await screen.findByRole('button', { name: 'Remover c.png' })
-    const anexar = screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement
+    const anexar = screen.getByRole('button', { name: 'Anexar arquivo' }) as HTMLButtonElement
     const capturar = screen.getByRole('button', { name: 'Capturar tela' }) as HTMLButtonElement
     expect(anexar.disabled).toBe(true)
     expect(capturar.disabled).toBe(true)
@@ -265,7 +265,7 @@ describe('a captura', () => {
       'Este site não deixa capturar a página. Anexe uma imagem no lugar.',
     )
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
   })
 
   // Quem usa teclado continua de onde estava: desligado durante a captura, o botao

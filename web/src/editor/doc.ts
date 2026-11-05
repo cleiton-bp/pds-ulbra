@@ -32,7 +32,6 @@ export type Shape =
   | { type: 'ellipse'; rect: Rect; color: string; width: number }
   | { type: 'pen'; points: Point[]; color: string; width: number }
   | { type: 'highlight'; points: Point[]; color: string; width: number }
-  | { type: 'text'; at: Point; text: string; color: string; size: number }
   | { type: 'step'; at: Point; number: number; color: string; radius: number }
   /** `block`: o tamanho do borrao. Quanto maior, menos sobra do que estava embaixo. */
   | { type: 'blur'; rect: Rect; block: number }

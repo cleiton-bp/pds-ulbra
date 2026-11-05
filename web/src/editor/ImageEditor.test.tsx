@@ -139,7 +139,6 @@ describe('abrir', () => {
       'Elipse',
       'Desenho livre',
       'Marca-texto',
-      'Texto',
       'Numeração',
       'Desfoque',
       'Ocultar',
@@ -364,132 +363,14 @@ describe('as ferramentas', () => {
   })
 })
 
-describe('o texto', () => {
-  it('clicar abre o campo; Enter poe o texto na imagem', async () => {
-    const { onDone, canvas } = await abrir()
-    usar('Texto')
-    clicarNa(canvas, 50, 60)
-
-    const campo = screen.getByRole('textbox', { name: 'Texto da marca' })
-    fireEvent.change(campo, { target: { value: 'aqui' } })
-    fireEvent.keyDown(campo, { key: 'Enter' })
-
-    expect(screen.queryByRole('textbox', { name: 'Texto da marca' })).toBeNull()
-    const { doc } = await concluido(onDone)
-    expect(doc?.shapes[0]).toMatchObject({
-      type: 'text',
-      at: { x: 50, y: 60 },
-      text: 'aqui',
-      size: 18,
-    })
-  })
-
-  it('o campo recebe o foco no proprio clique — no iPhone, e o que abre o teclado', async () => {
-    const { canvas } = await abrir()
-    usar('Texto')
-
-    clicarNa(canvas, 50, 60)
-
-    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Texto da marca' }))
-  })
-
-  it('no dedo, apertar com o Texto nao cancela o toque — no Safari, isso cancelaria o clique que abre o campo', async () => {
-    const { canvas } = await abrir()
-    usar('Texto')
-
-    const toque = { pointerId: 3, button: 0, pointerType: 'touch', clientX: 50, clientY: 60 }
-    const naoCancelado = fireEvent.pointerDown(canvas, toque)
-    fireEvent.pointerUp(canvas, toque)
-    fireEvent.click(canvas, { clientX: 50, clientY: 60 })
-
-    expect(naoCancelado).toBe(true)
-    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Texto da marca' }))
-  })
-
-  it('no mouse, apertar com o Texto continua segurando o foco', async () => {
-    const { canvas } = await abrir()
-    usar('Texto')
-
-    const mouse = { pointerId: 1, button: 0, pointerType: 'mouse', clientX: 50, clientY: 60 }
-    expect(fireEvent.pointerDown(canvas, mouse)).toBe(false)
-  })
-
-  it('o Enter que escolhe o candidato da composicao nao conclui o texto', async () => {
-    const { canvas } = await abrir()
-    usar('Texto')
-    clicarNa(canvas, 50, 60)
-    const campo = screen.getByRole('textbox', { name: 'Texto da marca' })
-
-    fireEvent.keyDown(campo, { key: 'Enter', isComposing: true })
-    fireEvent.keyDown(campo, { key: 'Enter', keyCode: 229 })
-
-    expect(screen.getByRole('textbox', { name: 'Texto da marca' })).toBe(campo)
-  })
-
-  it('o Esc da composicao desiste do candidato, e nao do texto', async () => {
-    const { canvas } = await abrir()
-    usar('Texto')
-    clicarNa(canvas, 50, 60)
-    const campo = screen.getByRole('textbox', { name: 'Texto da marca' })
-
-    fireEvent.keyDown(campo, { key: 'Escape', isComposing: true })
-
-    expect(screen.getByRole('textbox', { name: 'Texto da marca' })).toBe(campo)
-  })
-
-  it('clicar fora do texto so o conclui, e nao abre outro', async () => {
-    const { onDone, canvas } = await abrir()
-    usar('Texto')
-    clicarNa(canvas, 50, 60)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Texto da marca' }), {
-      target: { value: 'um' },
-    })
-
-    clicarNa(canvas, 200, 200)
-
-    expect(screen.queryByRole('textbox', { name: 'Texto da marca' })).toBeNull()
-    const { doc } = await concluido(onDone)
-    expect(doc?.shapes).toHaveLength(1)
-  })
-
-  it('Shift+Enter quebra a linha, e texto em branco nao marca', async () => {
-    const { onDone, canvas } = await abrir()
-    usar('Texto')
-    clicarNa(canvas, 50, 60)
-    const campo = screen.getByRole('textbox', { name: 'Texto da marca' })
-    fireEvent.keyDown(campo, { key: 'Enter', shiftKey: true })
-    expect(screen.getByRole('textbox', { name: 'Texto da marca' })).toBeDefined()
-
-    fireEvent.change(campo, { target: { value: '   \n  ' } })
-    fireEvent.keyDown(campo, { key: 'Enter' })
-
-    expect(await concluido(onDone)).toEqual({ file: fonte, doc: null })
-  })
-
-  it('o texto ainda aberto vai junto ao concluir', async () => {
-    const { onDone, canvas } = await abrir()
-    usar('Texto')
-    clicarNa(canvas, 5, 5)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Texto da marca' }), {
-      target: { value: 'não esquecer' },
-    })
-
-    const { doc } = await concluido(onDone)
-    expect(doc?.shapes[0]).toMatchObject({ type: 'text', text: 'não esquecer' })
-  })
-
-  it('Esc desiste so do texto, e o editor fica', async () => {
-    const { onCancel, canvas } = await abrir()
-    usar('Texto')
-    clicarNa(canvas, 5, 5)
-    const campo = screen.getByRole('textbox', { name: 'Texto da marca' })
-    fireEvent.change(campo, { target: { value: 'rascunho' } })
-
-    fireEvent.keyDown(campo, { key: 'Escape' })
-
-    expect(screen.queryByRole('textbox', { name: 'Texto da marca' })).toBeNull()
-    expect(onCancel).not.toHaveBeenCalled()
-    expect(botao('Desfazer').disabled).toBe(true)
+// A ferramenta de texto saiu do editor: a seta, a numeracao e as caixas dizem o que
+// precisa ser dito, e o relato tem o campo de texto proprio.
+describe('sem texto', () => {
+  it('nao ha ferramenta de texto, nem a letra T escolhe alguma coisa', async () => {
+    await abrir()
+    expect(screen.queryByRole('button', { name: 'Texto' })).toBeNull()
+    fireEvent.keyDown(botao('Seta'), { key: 't' })
+    expect(botao('Seta').getAttribute('aria-pressed')).toBe('true')
   })
 })
 
@@ -560,6 +441,30 @@ describe('o teclado', () => {
     )
 
     await waitFor(() => expect(document.activeElement).toBe(botao('Seta')))
+  })
+
+  it('a letra de cada ferramenta a escolhe, e no texto da marca a letra e do texto', async () => {
+    dublê.abrir.mockReturnValue(new Promise(() => {}))
+    render(
+      <ImageEditor
+        source={fonte}
+        initial={null}
+        mode="add"
+        maxBytes={TETO}
+        onDone={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+    await waitFor(() => expect(document.activeElement).toBe(botao('Seta')))
+
+    fireEvent.keyDown(botao('Seta'), { key: 'o' })
+    expect(botao('Ocultar').getAttribute('aria-pressed')).toBe('true')
+    fireEvent.keyDown(botao('Ocultar'), { key: 'R' })
+    expect(botao('Retângulo').getAttribute('aria-pressed')).toBe('true')
+    expect(botao('Retângulo').getAttribute('aria-keyshortcuts')).toBe('R')
+    // Com Ctrl, a letra nao e atalho de ferramenta.
+    fireEvent.keyDown(botao('Retângulo'), { key: 'a', ctrlKey: true })
+    expect(botao('Retângulo').getAttribute('aria-pressed')).toBe('true')
   })
 
   it('Enter poe a caixa no meio; setas movem, Shift e setas mudam o tamanho; Enter confirma', async () => {

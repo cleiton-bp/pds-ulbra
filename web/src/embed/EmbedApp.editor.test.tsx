@@ -107,7 +107,7 @@ const imagem = (nome: string) => new File([new Uint8Array(100)], nome, { type: '
 const captura = () => new File([new Uint8Array(100)], 'captura.webp', { type: 'image/webp' })
 
 function escolher(...arquivos: File[]) {
-  fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+  fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
     target: { files: arquivos },
   })
 }

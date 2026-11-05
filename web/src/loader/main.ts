@@ -87,15 +87,49 @@ const GLOBAIS = ['RelatoFacil', 'Pds'] as const
  */
 const ownTrigger = script?.dataset.button?.trim().toLowerCase() === 'none'
 
+/** O teto do cracha, o mesmo da API. */
+const MAX_IDENTITY_LENGTH = 4096
+
 /**
- * O cracha da pessoa, assinado pelo servidor do cliente: `data-identity` no proprio
- * script, so no projeto que herda a identidade. **Lido a cada abertura**, e nao uma
- * vez: o site pode trocar o atributo quando a sessao dele renova, e a pessoa pode
- * entrar ou sair sem recarregar a pagina. O teto e o da API.
+ * O cracha da pessoa, assinado pelo servidor do cliente, so no projeto que herda a
+ * identidade. **Lido a cada abertura**, e nao uma vez: o site pode trocar os atributos
+ * quando a sessao dele renova, e a pessoa pode entrar ou sair sem recarregar a pagina.
+ *
+ * Dois formatos, pelos atributos do proprio script:
+ * - **A assinatura simples (HMAC)**: `data-user-id`, `data-user-expires`,
+ *   `data-user-signature` e, se quiser, `data-user-name`. O carregador junta os quatro
+ *   num cracha so (`rfh1.`), e o resto do caminho nao muda: quem confere e a API.
+ * - **O JWT**: `data-identity`, como veio.
  */
 function identity(): string | null {
-  const valor = script?.dataset.identity?.trim() ?? ''
-  return valor.length > 0 && valor.length <= 4096 ? valor : null
+  const assinatura = script?.getAttribute('data-user-signature')?.trim() ?? ''
+  const valor =
+    assinatura.length > 0 ? crachaSimples(assinatura) : (script?.dataset.identity?.trim() ?? '')
+  return valor.length > 0 && valor.length <= MAX_IDENTITY_LENGTH ? valor : null
+}
+
+/**
+ * O cracha HMAC: `rfh1.{id}.{expira}.{assinatura}[.{nome}]`, com o id e o nome em
+ * base64url (podem ter ponto, espaco e acento). **O id vai exatamente como esta no
+ * atributo**, sem aparar: e esse texto que o servidor do cliente assinou. Sem id ou sem
+ * validade, nao ha cracha.
+ */
+function crachaSimples(assinatura: string): string {
+  const id = script?.getAttribute('data-user-id') ?? ''
+  const expira = script?.getAttribute('data-user-expires')?.trim() ?? ''
+  const nome = script?.getAttribute('data-user-name')?.trim() ?? ''
+  if (id.trim().length === 0 || !/^\d+$/.test(expira)) return ''
+
+  const partes = ['rfh1', base64Url(id), expira, assinatura]
+  if (nome.length > 0) partes.push(base64Url(nome))
+  return partes.join('.')
+}
+
+/** O texto em base64url, pelos bytes UTF-8: o `btoa` sozinho quebra com acento. */
+function base64Url(texto: string): string {
+  let binario = ''
+  for (const byte of new TextEncoder().encode(texto)) binario += String.fromCharCode(byte)
+  return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
 /**

@@ -235,7 +235,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  useToastStore.setState({ toasts: [], hosts: [] })
+  useToastStore.setState({ toasts: [] })
 })
 
 describe('as saidas do relato aberto', () => {
@@ -712,14 +712,16 @@ describe('o Esc em camadas, e a pergunta antes de descartar', () => {
 })
 
 describe('os avisos com o card aberto', () => {
-  it('nascem dentro do card, o erro e lido como alerta, e fechar o aviso nao fecha o card', async () => {
+  // O aviso fica no alto da pagina, como sempre, e nao dentro do card: continua lido como
+  // alerta com o card aberto (a regiao tem `aria-live`), e fechar o aviso nao fecha o card.
+  it('ficam no alto da pagina, o erro e lido como alerta, e fechar o aviso nao fecha o card', async () => {
     dublê.prioridade.mockRejectedValue(new PanelError('Erro interno.', 500))
     const { aoFechar } = montar()
     await screen.findByRole('combobox', { name: 'Prioridade' })
 
     await escolherNoSelect(screen, fireEvent, 'Prioridade', 'Baixa')
     const aviso = await screen.findByRole('alert')
-    expect(screen.getByRole('dialog').contains(aviso)).toBe(true)
+    expect(screen.getByRole('dialog').contains(aviso)).toBe(false)
     expect(aviso.textContent).toContain('Não deu para mudar a prioridade.')
     // A falha fica tambem embaixo do campo, que voltou ao que vale.
     expect(screen.getByText('Não deu para mudar a prioridade. Tente de novo.')).toBeTruthy()

@@ -75,6 +75,8 @@ function identidade(visibility: IdentitySettingsViewModel['Visibility']) {
     IdentityPublicKey: null,
     IdentityTokenMaxMinutes: 15,
     IdentityRequired: false,
+    IdentityFormat: 'Jwt',
+    IsHmacAvailable: true,
   } as const
 }
 

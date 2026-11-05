@@ -752,8 +752,15 @@ describe('o código pessoal', () => {
       Identified: null,
     } satisfies CreatedReportViewModel)
 
-    render(<EmbedApp settings={PADRAO} config={config} host={null} />)
+    render(
+      <EmbedApp settings={comSettings({ IdentityMode: 'Protocol' })} config={config} host={null} />,
+    )
     expect(screen.queryByRole('button', { name: 'Ver os meus relatos' })).toBeNull()
+  })
+
+  it('o código pessoal é o de fábrica: a entrada para a lista já vem no padrão', () => {
+    render(<EmbedApp settings={PADRAO} config={config} host={null} />)
+    expect(screen.getByRole('button', { name: 'Ver os meus relatos' })).toBeTruthy()
   })
 
   it('a entrada para a lista aparece mesmo sem código guardado', async () => {

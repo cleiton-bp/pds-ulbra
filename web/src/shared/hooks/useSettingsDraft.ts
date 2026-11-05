@@ -202,6 +202,7 @@ export function useIdentitySettingsDraft(
         IdentityPublicKey: whole.IdentityPublicKey,
         IdentityTokenMaxMinutes: whole.IdentityTokenMaxMinutes,
         IdentityRequired: whole.IdentityRequired,
+        IdentityFormat: whole.IdentityFormat,
       }),
     [projectPublicId],
   )

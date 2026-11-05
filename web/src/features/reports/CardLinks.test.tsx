@@ -145,7 +145,7 @@ async function procurar(tipo: string | null, busca: string) {
 describe('os vinculos do card aberto', () => {
   afterEach(() => {
     cleanup()
-    useToastStore.setState({ toasts: [], hosts: [] })
+    useToastStore.setState({ toasts: [] })
   })
   beforeEach(() => {
     for (const dublé of Object.values(dublê)) dublé.mockReset()
@@ -242,7 +242,7 @@ describe('os vinculos do card aberto', () => {
 describe('marcar como duplicado confirma antes', () => {
   afterEach(() => {
     cleanup()
-    useToastStore.setState({ toasts: [], hosts: [] })
+    useToastStore.setState({ toasts: [] })
   })
   beforeEach(() => {
     for (const dublé of Object.values(dublê)) dublé.mockReset()

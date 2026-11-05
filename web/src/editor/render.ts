@@ -33,9 +33,6 @@ export interface SceneExtras {
 
 export const FONT_FAMILY = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
 
-/** A altura da linha do texto, em relacao ao tamanho da letra. */
-export const LINE_HEIGHT = 1.25
-
 /** O marca-texto deixa ver o que esta embaixo. */
 const HIGHLIGHT_ALPHA = 0.35
 
@@ -136,9 +133,6 @@ function drawShape(ctx: Contexto, shape: Shape, view: View, hideMargin: number) 
       ctx.globalAlpha = HIGHLIGHT_ALPHA
       drawStroke(ctx, shape.points, shape.color, shape.width)
       break
-    case 'text':
-      drawText(ctx, shape.at, shape.text, shape.color, shape.size)
-      break
     case 'step':
       drawStep(ctx, shape.at, shape.number, shape.color, shape.radius)
       break
@@ -225,37 +219,66 @@ function drawBlur(ctx: Contexto, rect: Rect, block: number, view: View, folga: n
   ctx.restore()
 }
 
+/**
+ * A seta, no desenho do simbolo →: **a cauda nasce fininha e a linha vai engordando ate a
+ * ponta**, onde chega com a mesma grossura dos dois tracos do V, como uma peca so. A ponta
+ * e aberta, com as pontas arredondadas, sem contorno, e **cresce com o comprimento**: os
+ * bracos vao de 4 a 16 vezes a espessura do gesto, sem passar de pouco menos da metade da
+ * seta, e a grossura acompanha.
+ */
+export function arrowGeometry(from: Point, to: Point, width: number) {
+  const comprimento = Math.hypot(to.x - from.x, to.y - from.y)
+  const ponta = Math.min(width * Math.min(4 + comprimento / (width * 12), 16), comprimento * 0.45)
+  /** A espessura dos bracos da ponta: encorpada, e engrossando junto quando ela cresce. */
+  const braco = width * 1.6 + ponta * 0.12
+  return {
+    comprimento,
+    /** A espessura da linha ao chegar na ponta: a mesma dos bracos, para a seta ser uma so. */
+    linha: braco,
+    /** A metade da espessura da cauda: quase nada, como o comeco de um traco. */
+    cauda: width * 0.15,
+    ponta,
+    braco,
+  }
+}
+
 function drawArrow(ctx: Contexto, from: Point, to: Point, color: string, width: number) {
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  const comprimento = Math.hypot(dx, dy)
+  const { comprimento, linha, cauda, ponta, braco } = arrowGeometry(from, to, width)
   if (comprimento === 0) return
 
-  // A ponta cresce com a espessura, mas nunca passa de mais da metade da seta.
-  const ponta = Math.min(width * 4.5, comprimento * 0.6)
-  const angulo = Math.atan2(dy, dx)
-  const abertura = 0.45
-
-  // A haste acaba dentro da ponta: a ponta arredondada da linha nao aparece na frente.
-  const base = {
-    x: to.x - Math.cos(angulo) * ponta * 0.7,
-    y: to.y - Math.sin(angulo) * ponta * 0.7,
-  }
-
-  ctx.strokeStyle = color
-  ctx.lineWidth = width
-  ctx.beginPath()
-  ctx.moveTo(from.x, from.y)
-  ctx.lineTo(base.x, base.y)
-  ctx.stroke()
+  const angulo = Math.atan2(to.y - from.y, to.x - from.x)
+  // A normal da seta: de um lado da linha para o outro.
+  const nx = -Math.sin(angulo)
+  const ny = Math.cos(angulo)
+  const meia = linha / 2
 
   ctx.fillStyle = color
+  ctx.strokeStyle = color
+
+  // A linha: fininha na cauda, engordando ate a ponta.
   ctx.beginPath()
-  ctx.moveTo(to.x, to.y)
-  ctx.lineTo(to.x - Math.cos(angulo - abertura) * ponta, to.y - Math.sin(angulo - abertura) * ponta)
-  ctx.lineTo(to.x - Math.cos(angulo + abertura) * ponta, to.y - Math.sin(angulo + abertura) * ponta)
+  ctx.moveTo(from.x + nx * cauda, from.y + ny * cauda)
+  ctx.lineTo(to.x + nx * meia, to.y + ny * meia)
+  ctx.lineTo(to.x - nx * meia, to.y - ny * meia)
+  ctx.lineTo(from.x - nx * cauda, from.y - ny * cauda)
+  ctx.arc(from.x, from.y, cauda, angulo - Math.PI / 2, angulo + Math.PI / 2, true)
   ctx.closePath()
   ctx.fill()
+
+  // A ponta aberta, como no simbolo →.
+  const abertura = 0.6
+  const lado = (sinal: 1 | -1) => ({
+    x: to.x - Math.cos(angulo - sinal * abertura) * ponta,
+    y: to.y - Math.sin(angulo - sinal * abertura) * ponta,
+  })
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = braco
+  ctx.beginPath()
+  ctx.moveTo(lado(1).x, lado(1).y)
+  ctx.lineTo(to.x, to.y)
+  ctx.lineTo(lado(-1).x, lado(-1).y)
+  ctx.stroke()
 }
 
 function drawStroke(ctx: Contexto, points: Point[], color: string, width: number) {
@@ -280,20 +303,6 @@ function drawStroke(ctx: Contexto, points: Point[], color: string, width: number
 }
 
 /** O texto com contorno: legivel em cima de qualquer print, claro ou escuro. */
-function drawText(ctx: Contexto, at: Point, text: string, color: string, size: number) {
-  ctx.font = `600 ${size}px ${FONT_FAMILY}`
-  ctx.textBaseline = 'top'
-  ctx.lineWidth = Math.max(1, size * 0.2)
-  ctx.strokeStyle = contrastOf(color)
-  ctx.fillStyle = color
-
-  text.split('\n').forEach((linha, indice) => {
-    const y = at.y + indice * size * LINE_HEIGHT
-    ctx.strokeText(linha, at.x, y)
-    ctx.fillText(linha, at.x, y)
-  })
-}
-
 function drawStep(ctx: Contexto, at: Point, numero: number, color: string, radius: number) {
   const contraste = contrastOf(color)
 

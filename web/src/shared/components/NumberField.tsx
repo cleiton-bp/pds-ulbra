@@ -17,6 +17,12 @@ import { cn } from '@/shared/lib/cn'
  * campo vazio, o decimal e o fora da faixa; o campo so entrega o que foi digitado. Os
  * botoes andam a partir do numero que estiver la (ou do minimo, se nao houver numero),
  * um passo por vez, sem passar do minimo nem do maximo — e desligam na borda.
+ *
+ * **Uma moldura so, e nao tres caixas.** O numero fica no meio, com a unidade ao lado
+ * (`unit`, como "min"), e os botoes sao redondos por dentro da moldura, com o retorno de
+ * quem passa o mouse e aperta. As divisorias entre as tres partes faziam o campo parecer
+ * uma tabela, e o "−" acinzentado parecia desligado. O anel de foco contorna o grupo
+ * inteiro, e nao so o numero.
  */
 export function NumberField({
   id,
@@ -29,6 +35,7 @@ export function NumberField({
   invalid = false,
   size = 'md',
   width,
+  unit,
   inputMode,
   ariaLabel,
   ariaLabelledBy,
@@ -54,6 +61,8 @@ export function NumberField({
   size?: 'md' | 'sm'
   /** A largura so do numero, por classe (`w-14`). Sem ela, cabe tres digitos. */
   width?: string
+  /** A unidade, ao lado do numero e dentro do campo (`min`, `px`). Clicar nela foca o numero. */
+  unit?: string
   inputMode?: 'numeric' | 'decimal'
   ariaLabel?: string
   ariaLabelledBy?: string
@@ -81,9 +90,11 @@ export function NumberField({
   return (
     <span
       className={cn(
-        'inline-flex items-stretch overflow-hidden rounded-lg border bg-surface-raised transition-colors duration-150',
+        'inline-flex items-center gap-0.5 rounded-lg border bg-surface-raised p-0.5 transition-colors duration-150',
+        'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-[var(--focus)]',
         size === 'md' ? 'h-9' : 'h-8',
         invalid ? 'border-error-border' : 'border-border-control',
+        !disabled && !invalid && 'hover:border-fg-muted',
         disabled && 'opacity-60',
         className,
       )}
@@ -94,27 +105,35 @@ export function NumberField({
         onClick={() => andar(-1)}
         size={size}
       />
-      <input
-        id={id}
-        type="number"
-        inputMode={inputMode}
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        aria-describedby={ariaDescribedBy}
-        aria-invalid={invalid || undefined}
-        onChange={(event) => onChange(event.target.value)}
-        onBlur={onBlur}
-        className={cn(
-          'input-number-plain min-w-0 border-border border-x bg-transparent text-center text-fg tabular-nums disabled:cursor-not-allowed',
-          size === 'md' ? 'px-1 text-body' : 'px-0.5 text-detail',
-          width ?? 'w-12',
+      {/* O numero e a unidade num rotulo so: clicar na unidade leva ao numero. */}
+      <label className="flex h-full min-w-0 cursor-text items-center justify-center gap-1 px-1">
+        <input
+          id={id}
+          type="number"
+          inputMode={inputMode}
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={invalid || undefined}
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={onBlur}
+          className={cn(
+            'input-number-plain min-w-0 bg-transparent text-center font-medium text-fg tabular-nums focus-visible:outline-none disabled:cursor-not-allowed',
+            size === 'md' ? 'text-body' : 'text-detail',
+            width ?? (unit ? 'w-8' : 'w-10'),
+          )}
+        />
+        {unit && (
+          <span className="select-none text-detail text-fg-muted" aria-hidden="true">
+            {unit}
+          </span>
         )}
-      />
+      </label>
       <Botao sentido="mais" disabled={disabled || noMaximo} onClick={() => andar(1)} size={size} />
     </span>
   )
@@ -144,8 +163,8 @@ function Botao({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex flex-none items-center justify-center text-fg-muted transition-all duration-150 ease-out enabled:hover:bg-surface-sunken enabled:hover:text-fg enabled:active:scale-90 disabled:text-fg-disabled motion-reduce:transition-none',
-        size === 'md' ? 'w-8' : 'w-7',
+        'flex flex-none items-center justify-center rounded-md text-fg-muted transition-all duration-150 ease-out enabled:hover:bg-surface-sunken enabled:hover:text-fg enabled:active:scale-90 disabled:cursor-not-allowed disabled:text-fg-disabled motion-reduce:transition-none',
+        size === 'md' ? 'size-7' : 'size-6',
       )}
     >
       <svg

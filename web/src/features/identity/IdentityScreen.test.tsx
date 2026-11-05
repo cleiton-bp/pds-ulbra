@@ -40,6 +40,9 @@ const dublê = vi.hoisted(() => ({
   lerFerramenta: vi.fn<() => Promise<WidgetSettingsViewModel>>(),
   salvarFerramenta: vi.fn(),
   listarEtapas: vi.fn<() => Promise<ProjectPublicStageViewModel[]>>(),
+  verSegredo: vi.fn(),
+  trocarSegredo: vi.fn(),
+  historico: vi.fn(async () => []),
 }))
 
 vi.mock('@/data', async (importOriginal) => {
@@ -50,6 +53,9 @@ vi.mock('@/data', async (importOriginal) => {
     projectIdentitySettingsService: {
       getIdentitySettings: dublê.ler,
       saveIdentitySettings: dublê.salvar,
+      getIdentitySecret: dublê.verSegredo,
+      rotateIdentitySecret: dublê.trocarSegredo,
+      getIdentitySecretHistory: dublê.historico,
     },
     // A confirmacao, o topo do acompanhamento e o aviso publico sao da ferramenta.
     projectWidgetSettingsService: {
@@ -84,6 +90,8 @@ const padrao: IdentitySettingsViewModel = {
   IdentityPublicKey: null,
   IdentityTokenMaxMinutes: 15,
   IdentityRequired: false,
+  IdentityFormat: 'Jwt',
+  IsHmacAvailable: true,
 }
 
 function etapa(PublicId: string, Label: string, Position: number): ProjectPublicStageViewModel {
@@ -153,6 +161,15 @@ const salvarLigado = () =>
 const abaEscolhida = () =>
   screen.getAllByRole('tab').find((aba) => aba.getAttribute('aria-selected') === 'true')
     ?.textContent
+
+/** Escreve no campo de texto com variaveis (um editor, e nao um textarea), como o teclado faria. */
+function escrever(campo: HTMLElement, texto: string) {
+  campo.textContent = texto
+  fireEvent.input(campo)
+}
+
+/** As abas do exemplo do servidor (o modelo da pagina tem as dele, com as mesmas linguagens). */
+const servidor = () => within(screen.getByRole('tablist', { name: 'Linguagem do seu servidor' }))
 
 describe('IdentityScreen', () => {
   afterEach(cleanup)
@@ -230,6 +247,8 @@ describe('IdentityScreen', () => {
       IdentityPublicKey: null,
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
+      IsHmacAvailable: true,
     })
     montar()
 
@@ -247,7 +266,162 @@ describe('IdentityScreen', () => {
       IdentityPublicKey: null,
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
     })
+  })
+
+  // A assinatura simples e a de fabrica: a chave abre num dialogo, sem sair da tela (e sem
+  // a pergunta de salvar ou descartar), e as linguagens sao as abas do editor, lembradas.
+  it('na assinatura simples, a chave abre num diálogo e as linguagens são abas do editor', async () => {
+    window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Hmac' })
+    dublê.verSegredo.mockResolvedValue({ Secret: 'rfs_segredo-do-projeto' })
+    montar()
+
+    expect(await screen.findByText('Pegue a chave da identidade')).toBeTruthy()
+    // Nada de chave publica neste formato, e a chave nao e buscada sozinha.
+    expect(screen.queryByLabelText('Chave pública do seu sistema')).toBeNull()
+    expect(dublê.verSegredo).not.toHaveBeenCalled()
+
+    // O dialogo mostra a chave aqui mesmo, e o rodape leva a tela de Chaves.
+    fireEvent.click(screen.getByRole('button', { name: 'Ver a chave' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Chave da identidade' })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Mostrar a chave' }))
+    expect(await within(dialogo).findByText('rfs_segredo-do-projeto')).toBeTruthy()
+    expect(dublê.verSegredo).toHaveBeenCalledWith('p-1')
+    expect(
+      within(dialogo).getByRole('link', { name: 'Abrir a tela de Chaves' }).getAttribute('href'),
+    ).toBe('/p/p-1/keys#chave-da-identidade')
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    // O editor abre em Node; a aba do PHP troca o exemplo e fica lembrada.
+    const node = servidor().getByRole('tab', { name: 'Node' })
+    expect(node.getAttribute('aria-selected')).toBe('true')
+    expect(screen.getAllByText(/createHmac/).length).toBeGreaterThan(0)
+    fireEvent.click(servidor().getByRole('tab', { name: 'PHP' }))
+    expect(servidor().getByRole('tab', { name: 'PHP' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getAllByText(/hash_hmac/).length).toBeGreaterThan(0)
+    expect(window.localStorage.getItem('pds.web.linguagem-do-servidor.v1')).toBe('php')
+    // O script ganha as linhas da assinatura no modelo de pagina da mesma linguagem (o
+    // PHP, que ficou escolhido), chamando a funcao do passo 2, e o aviso de nao colar outro.
+    expect(screen.getByText('Coloque a assinatura no script que já está na página')).toBeTruthy()
+    expect(screen.getByRole('tabpanel', { name: 'pagina.php' }).textContent).toContain(
+      'crachaDeRelato($usuario)',
+    )
+    expect(screen.getAllByText('Linha nova:')).toHaveLength(6)
+    expect(screen.getByText(/só o primeiro vale e a assinatura ficaria de fora/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Copiar as linhas novas/ })).toBeTruthy()
+  })
+
+  it('no JWT, o crachá entra no script que já está na página, escrito pelo servidor', async () => {
+    window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Jwt' })
+    montar()
+
+    expect(await screen.findByText('Coloque o crachá no script que já está na página')).toBeTruthy()
+    // As abas do modelo da pagina sao as mesmas do exemplo: trocar uma troca as duas.
+    expect(screen.getAllByRole('tab', { name: 'Node' })).toHaveLength(2)
+    expect(screen.getByRole('tablist', { name: 'Linguagem do modelo da página' })).toBeTruthy()
+    expect(screen.getByRole('tabpanel', { name: 'pagina.ejs' }).textContent).toContain(
+      'data-identity="<%= cracha %>"',
+    )
+    fireEvent.click(screen.getAllByRole('tab', { name: 'Python' })[1] as HTMLElement)
+    expect(screen.getByRole('tabpanel', { name: 'pagina.html' }).textContent).toContain(
+      'data-identity="{{ cracha }}"',
+    )
+    expect(screen.getByRole('tabpanel', { name: 'cracha.py' })).toBeTruthy()
+    expect(screen.getAllByText('Linha nova:')).toHaveLength(3)
+    expect(
+      screen.getByText(/fica sem o crachá, e a chave privada nunca aparece na página/),
+    ).toBeTruthy()
+    expect(screen.getByText(/só o primeiro vale e o crachá ficaria de fora/)).toBeTruthy()
+    expect(screen.getByText(/montada no navegador/)).toBeTruthy()
+  })
+
+  it('a caixa "Como usar" acompanha a linguagem escolhida, com o que trocar e o que instalar', async () => {
+    window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Jwt' })
+    montar()
+
+    // Node no JWT: instalar o jose, com o comando pronto para copiar.
+    const node = await screen.findByRole('region', { name: 'Como usar em Node' })
+    expect(within(node).getByText('npm install jose')).toBeTruthy()
+    expect(within(node).getByRole('button', { name: 'Copiar o comando' })).toBeTruthy()
+
+    // Java: o arquivo completo pede so trocar o pacote, e as dependencias vem para copiar.
+    await screen.findByRole('tablist', { name: 'Linguagem do seu servidor' })
+    fireEvent.click(servidor().getByRole('tab', { name: 'Java' }))
+    const java = screen.getByRole('region', { name: 'Como usar em Java' })
+    expect(within(java).getByText('package com.seusistema;')).toBeTruthy()
+    expect(within(java).getByRole('button', { name: 'Copiar as dependências' })).toBeTruthy()
+    expect(within(java).getByText('Relato.java')).toBeTruthy()
+    expect(screen.getByRole('tabpanel', { name: 'Relato.java' }).textContent).toContain(
+      'public class Relato',
+    )
+  })
+
+  it('as setas andam entre as abas das linguagens, como abas', async () => {
+    window.localStorage.removeItem('pds.web.linguagem-do-servidor.v1')
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Hmac' })
+    montar()
+
+    await screen.findByRole('tablist', { name: 'Linguagem do seu servidor' })
+    const node = servidor().getByRole('tab', { name: 'Node' })
+    fireEvent.keyDown(node, { key: 'ArrowRight' })
+    expect(servidor().getByRole('tab', { name: 'PHP' }).getAttribute('aria-selected')).toBe('true')
+    fireEvent.keyDown(servidor().getByRole('tab', { name: 'PHP' }), { key: 'End' })
+    expect(servidor().getByRole('tab', { name: 'Go' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('sem a chave mestra na instalação, a assinatura simples não salva e a tela diz por que', async () => {
+    dublê.ler.mockResolvedValue({
+      ...padrao,
+      Mode: 'InheritedIdentity',
+      IdentityFormat: 'Hmac',
+      IsHmacAvailable: false,
+    })
+    montar()
+
+    expect(await screen.findByText(/escolha o JWT para salvar/)).toBeTruthy()
+    // O salvar trava ate escolher o JWT, que pede a chave publica.
+    fireEvent.click(screen.getByRole('radio', { name: /JWT/ }))
+    expect(await screen.findByLabelText('Chave pública do seu sistema')).toBeTruthy()
+  })
+
+  // No JWT, o par nasce no navegador: a publica vai sozinha para o passo 2, e a privada so
+  // aparece aqui, para baixar, sem passar pelo servidor.
+  it('no JWT, gerar o par preenche a chave pública e oferece baixar a privada', async () => {
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'InheritedIdentity', IdentityFormat: 'Jwt' })
+    montar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Gerar o par de chaves' }))
+
+    const campo = screen.getByLabelText('Chave pública do seu sistema') as HTMLTextAreaElement
+    await waitFor(() => expect(campo.value).toContain('-----BEGIN PUBLIC KEY-----'))
+    expect(screen.getByRole('button', { name: 'Baixar relatofacil-privada.pem' })).toBeTruthy()
+    expect(screen.getByText(/Baixe a chave privada agora/)).toBeTruthy()
+    // A privada nao vai para o campo nem para a gravacao: so a publica.
+    expect(campo.value).not.toContain('PRIVATE KEY')
+    expect(dublê.salvar).not.toHaveBeenCalled()
+  })
+
+  it('com uma chave pública já colada, gerar outro par pede confirmação', async () => {
+    dublê.ler.mockResolvedValue({
+      ...padrao,
+      Mode: 'InheritedIdentity',
+      IdentityFormat: 'Jwt',
+      IdentityPublicKey: 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE',
+    })
+    montar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Gerar o par de chaves' }))
+    expect(screen.getByText(/Gerar outro par troca a chave pública/)).toBeTruthy()
+    const campo = screen.getByLabelText('Chave pública do seu sistema') as HTMLTextAreaElement
+    expect(campo.value).toBe('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gerar outro par' }))
+    await waitFor(() => expect(campo.value).toContain('-----BEGIN PUBLIC KEY-----'))
   })
 
   it('deixa escolher a identidade do sistema, e só salva com a chave pública dele', async () => {
@@ -275,6 +449,8 @@ describe('IdentityScreen', () => {
       IdentityPublicKey: '-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----',
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
+      IsHmacAvailable: true,
     })
     montar()
 
@@ -293,6 +469,8 @@ describe('IdentityScreen', () => {
       IdentityPublicKey: null,
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
+      IsHmacAvailable: true,
     })
     montar()
 
@@ -361,6 +539,8 @@ describe('IdentityScreen', () => {
       IdentityPublicKey: null,
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
+      IsHmacAvailable: true,
     })
     montar()
 
@@ -401,7 +581,7 @@ describe('IdentityScreen', () => {
     const confirmacao = await screen.findByRole('textbox', {
       name: /Confirmação, acima do protocolo/,
     })
-    fireEvent.change(confirmacao, { target: { value: 'Obrigado, {{primeiroNome}}!' } })
+    escrever(confirmacao, 'Obrigado, {{primeiroNome}}!')
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => expect(dublê.salvarFerramenta).toHaveBeenCalledTimes(1))
@@ -414,10 +594,12 @@ describe('IdentityScreen', () => {
   })
 
   it('fechado, cada grupo diz em palavras o que está escolhido', async () => {
+    // O projeto exatamente no padrao de fabrica: codigo pessoal e assinatura simples.
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'PersonalCode', IdentityFormat: 'Hmac' })
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    expect(resumoDo('reconhecimento')).toContain('Protocolo (ninguém é identificado)')
+    expect(resumoDo('reconhecimento')).toContain('Código pessoal (a pessoa guarda um código)')
     expect(resumoDo('visibilidade')).toContain('Privado (só quem relatou e o time)')
     // Os textos, com as variaveis trocadas pelos valores de exemplo.
     expect(resumoDo('depois-de-enviar')).toContain('Recebemos o seu relato')
@@ -439,16 +621,17 @@ describe('IdentityScreen', () => {
   })
 
   it('cada grupo volta ao padrão só no rascunho dele', async () => {
+    // O projeto no padrao de fabrica: escolher o protocolo e o que muda o modo.
+    dublê.ler.mockResolvedValue({ ...padrao, Mode: 'PersonalCode', IdentityFormat: 'Hmac' })
     montar()
     await screen.findByRole('radio', { name: /Protocolo/ })
 
-    fireEvent.click(screen.getByRole('radio', { name: /Código pessoal/ }))
-    fireEvent.change(screen.getByRole('textbox', { name: /Confirmação, acima do protocolo/ }), {
-      target: { value: 'Valeu!' },
-    })
-    fireEvent.change(screen.getByRole('textbox', { name: /Topo da página de acompanhamento/ }), {
-      target: { value: 'O seu relato' },
-    })
+    fireEvent.click(screen.getByRole('radio', { name: /Protocolo/ }))
+    escrever(screen.getByRole('textbox', { name: /Confirmação, acima do protocolo/ }), 'Valeu!')
+    escrever(
+      screen.getByRole('textbox', { name: /Topo da página de acompanhamento/ }),
+      'O seu relato',
+    )
 
     expect(resumoDo('reconhecimento')).toContain('Mudou: Modo')
     expect(resumoDo('depois-de-enviar')).toContain('Mudou: Texto da confirmação')
@@ -459,22 +642,18 @@ describe('IdentityScreen', () => {
     // A confirmacao volta, e so ela: o modo e o topo continuam mudados.
     fireEvent.click(regiao('Confirmação').getByRole('button', { name: 'Voltar ao padrão' }))
     expect(
-      (
-        screen.getByRole('textbox', {
-          name: /Confirmação, acima do protocolo/,
-        }) as HTMLTextAreaElement
-      ).value,
+      screen.getByRole('textbox', { name: /Confirmação, acima do protocolo/ }).textContent,
     ).toBe(DEFAULT_WIDGET_SETTINGS.SuccessMessage)
-    expect(
-      (screen.getByRole('radio', { name: /Código pessoal/ }) as HTMLInputElement).checked,
-    ).toBe(true)
-    expect(resumoDo('texto-do-acompanhamento')).toContain('Mudou: Texto do topo')
-
-    // O modo volta no rascunho de Quem relata, e o texto do topo fica.
-    fireEvent.click(regiao('Reconhecimento').getByRole('button', { name: 'Voltar ao padrão' }))
     expect((screen.getByRole('radio', { name: /Protocolo/ }) as HTMLInputElement).checked).toBe(
       true,
     )
+    expect(resumoDo('texto-do-acompanhamento')).toContain('Mudou: Texto do topo')
+
+    // O modo volta ao de fabrica no rascunho de Quem relata, e o texto do topo fica.
+    fireEvent.click(regiao('Reconhecimento').getByRole('button', { name: 'Voltar ao padrão' }))
+    expect(
+      (screen.getByRole('radio', { name: /Código pessoal/ }) as HTMLInputElement).checked,
+    ).toBe(true)
     expect(resumoDo('texto-do-acompanhamento')).toContain('Mudou: Texto do topo')
     expect(salvarLigado()).toBe(true)
 
@@ -570,6 +749,8 @@ describe('IdentityScreen', () => {
       IdentityPublicKey: null,
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
+      IsHmacAvailable: true,
     })
     montar()
 
@@ -584,6 +765,7 @@ describe('IdentityScreen', () => {
       IdentityPublicKey: null,
       IdentityTokenMaxMinutes: 15,
       IdentityRequired: false,
+      IdentityFormat: 'Jwt',
     })
   })
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MediaSettingsViewModel, ProjectViewModel } from '@/contracts'
@@ -15,38 +15,27 @@ import { MediaScreen } from '@/features/media/MediaScreen'
  * nao diz qual e a escolha salva, porque a API sem armazenamento responde desligado para
  * todo projeto.
  *
- * **Ligado sem imagem nem arquivo aceito nao aceita nada**, e a tela nao aceita imagem
- * sozinha: cada imagem aceita e espaco que o projeto passa a guardar. O aviso e uma
- * linha embaixo do titulo, e conta so o que a tela mostra: o video que a API ainda liste
- * ligado, na janela da troca, nao esconde o aviso.
+ * **Ligado sem print nem arquivo aceito nao aceita nada**, e a tela nao aceita sozinha:
+ * cada coisa aceita e espaco que o projeto passa a guardar. O aviso e uma linha embaixo
+ * do titulo, e conta so o que a tela mostra: o video que a API ainda liste ligado, na
+ * janela da troca, nao esconde o aviso.
  *
- * **Sem total por envio.** Imagem e arquivo tem cada um a sua quantidade e o seu
- * tamanho, numa frase so ("Até 3 imagens de 5 MB cada"), e a linha de baixo diz que e
- * por envio — o que o total dizia antes.
+ * **O print e uma escolha so.** Aceitar imagem e deixar capturar a tela vao juntos: com
+ * ele, a pessoa marca uma area da pagina, cola um print ou escolhe uma imagem, e ele abre
+ * no editor. O Publicar grava as duas iguais, mesmo vindo de um projeto que tinha uma sem
+ * a outra.
  *
- * **O arquivo vem desligado de fabrica, com os formatos seguros marcados**, e ligado sem
- * formato nenhum nao aceita nada: a tela avisa e nao deixa publicar, como a API. O
- * tamanho dele vai ate 25 MB, e os formatos vao no publicar.
+ * **Quantidade e tamanho nao sao da tela.** Nao ha campo para eles, e o Publicar grava os
+ * de fabrica de cada tipo, para nenhum limite antigo ficar escondido valendo.
  *
- * **O banco guarda bytes, e quem configura pensa em MB.** A conversao mora na borda, e o
- * teste a trava nos dois sentidos.
- *
- * **Tipo desligado mantem os limites visiveis.** Esconde-los faria parecer que desligar
- * apaga o que ja tinha sido pensado.
+ * **O arquivo vem desligado de fabrica, com os tipos seguros marcados**, e ligado sem
+ * tipo nenhum nao aceita nada: a tela avisa e nao deixa publicar, como a API.
  *
  * **Nao ha grupo de video, so uma linha dizendo que ele saiu.** A tela nao o mostra nem
- * quando a API ainda o lista — nem o manda de volta ao publicar. A captura fala so do
- * Capturar tela, mora dentro da imagem e fica desligada sem ela.
+ * quando a API ainda o lista, nem o manda de volta ao publicar.
  *
- * **Campo numerico guarda o que foi digitado.** Apagado, ele fica vazio e avisa, em vez
- * de pular para o minimo. Casa decimal em campo inteiro, ou numero fora da faixa, avisa
- * e nao chega na API: o Publicar leva ate o campo, e nao grava. Campo que sai de
- * alcance, ao desligar o anexo, volta ao valor salvo e nao prende o Publicar. Em grupo
- * fechado, o resumo do grupo diz "corrigir", e abrir o grupo leva o foco ate ele.
- *
- * **O Publicar mora no titulo** — a mudanca vai ao ar no formulario —, e so liga com
- * mudanca: sem ela, fica desligado com "Tudo publicado" ao lado. A tela nao conta as
- * mudancas: a frase e "Mudanças não publicadas" (ou o motivo de nao gravar).
+ * **O Publicar mora no titulo** (a mudanca vai ao ar no formulario), e so liga com
+ * mudanca: sem ela, fica desligado com "Tudo publicado" ao lado.
  */
 const dublê = vi.hoisted(() => ({
   ler: vi.fn<() => Promise<MediaSettingsViewModel>>(),
@@ -148,20 +137,17 @@ const anexo = () => screen.getByRole('checkbox', { name: 'Aceitar anexos' }) as 
 const publicar = () => screen.getByRole('button', { name: 'Publicar' }) as HTMLButtonElement
 /** Sem o que publicar: o Publicar fica a vista, desligado, com "Tudo publicado" ao lado. */
 const nadaAPublicar = () => screen.queryByText('Tudo publicado') !== null && publicar().disabled
-const campo = (nome: string) => screen.getByLabelText(nome) as HTMLInputElement
-const quantidadeImagem = () => campo('Quantas imagens por envio')
-const quantidadeArquivo = () => campo('Quantos arquivos por envio')
-const tamanhoImagem = () => campo('Tamanho da imagem, em MB')
-const tamanhoArquivo = () => campo('Tamanho do arquivo, em MB')
 const caixa = (nome: string | RegExp) =>
   screen.getByRole('checkbox', { name: nome }) as HTMLInputElement
-const imagemAceita = () => caixa('Aceitar imagem')
-const arquivoAceito = () => caixa('Aceitar arquivo')
-const captura = () => caixa('Deixar capturar a tela')
+const print = () => caixa('Aceitar print da tela')
+const imagemNoBotao = () => caixa(/^Imagem/)
+const reabrir = () => caixa('Ao reabrir')
 const formato = (nome: RegExp) => caixa(nome)
 /** O grupo do acordeao: a ancora fica no `<summary>`. */
 const grupo = (id: string) => document.getElementById(id)?.closest('details') as HTMLDetailsElement
 const resumoDo = (id: string) => grupo(id).querySelector('summary')?.textContent ?? ''
+/** O que o Publicar mandou da ultima vez. */
+const enviado = () => dublê.salvar.mock.calls.at(-1)?.[1] as MediaSettingsViewModel
 
 /** O `PUT` devolve o que recebeu, como a API faz quando aceita. */
 function ecoarAoSalvar() {
@@ -185,8 +171,19 @@ describe('MediaScreen', () => {
     await carregada()
 
     expect(anexo().checked).toBe(true)
-    expect(quantidadeImagem().value).toBe('3')
-    expect(quantidadeArquivo().value).toBe('2')
+    expect(print().checked).toBe(true)
+    expect(imagemNoBotao().checked).toBe(true)
+    expect(formato(/^PDF/).checked).toBe(false)
+  })
+
+  it('não há campo de quantidade nem de tamanho', async () => {
+    montar()
+
+    await carregada()
+
+    expect(screen.queryByLabelText(/por envio$/)).toBeNull()
+    expect(screen.queryByLabelText(/em MB/)).toBeNull()
+    expect(screen.queryByText(/MB/)).toBeNull()
   })
 
   it('a ação do título é Publicar: a mudança vai ao ar no formulário', async () => {
@@ -197,7 +194,7 @@ describe('MediaScreen', () => {
     expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
     expect(nadaAPublicar()).toBe(true)
 
-    fireEvent.click(captura())
+    fireEvent.click(reabrir())
     expect(screen.getByText('Mudanças não publicadas')).toBeDefined()
     expect(publicar().disabled).toBe(false)
 
@@ -218,32 +215,69 @@ describe('MediaScreen', () => {
     expect(screen.getByText(/Desligado: o formulário não mostra anexo/)).toBeDefined()
   })
 
-  it('mostra o tamanho em MB, e não os bytes que o banco guarda', async () => {
+  it('o Publicar grava os limites de fábrica, e não o que estava salvo', async () => {
+    dublê.ler.mockResolvedValue(
+      padrao({
+        Kinds: [
+          { ...IMAGEM, MaxCount: 7, MaxBytes: 9 * UM_MB },
+          { ...ARQUIVO, MaxCount: 5, MaxBytes: 25 * UM_MB },
+        ],
+      }),
+    )
+    ecoarAoSalvar()
     montar()
 
     await carregada()
-
-    expect([tamanhoImagem().value, tamanhoArquivo().value]).toEqual(['5', '10'])
-  })
-
-  it('converte MB para bytes ao publicar', async () => {
-    dublê.salvar.mockResolvedValue(padrao())
-    montar()
-
-    await carregada()
-
-    fireEvent.change(tamanhoImagem(), { target: { value: '8' } })
+    fireEvent.click(reabrir())
     fireEvent.click(publicar())
-
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.Kinds[0]?.MaxBytes).toBe(8 * UM_MB)
+    expect(enviado().Kinds).toEqual([IMAGEM, ARQUIVO])
+  })
+
+  it('o print da tela e a imagem do botão de anexar são escolhas separadas', async () => {
+    ecoarAoSalvar()
+    montar()
+
+    await carregada()
+    const dica = screen.getByText(/marca uma área da página/)
+    expect(dica.textContent).toMatch(/editor/)
+    expect(dica.textContent).not.toMatch(/vídeo/i)
+    // O detalhe fica recolhido, num "Saiba mais".
+    expect(screen.getByText('Saiba mais').closest('details')?.open).toBe(false)
+
+    fireEvent.click(print())
+    expect(resumoDo('grupo-imagem')).toContain('Desligado')
+    expect(imagemNoBotao().checked).toBe(true)
+    fireEvent.click(publicar())
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+
+    expect(enviado().AllowsScreenCapture).toBe(false)
+    expect(enviado().Kinds[0]).toMatchObject({ Kind: 'Image', IsEnabled: true })
+  })
+
+  it('o projeto que aceitava imagem sem captura continua assim: sem print, com a imagem no botão', async () => {
+    dublê.ler.mockResolvedValue(padrao({ AllowsScreenCapture: false }))
+    ecoarAoSalvar()
+    montar()
+
+    await carregada()
+    expect(print().checked).toBe(false)
+    expect(imagemNoBotao().checked).toBe(true)
+
+    fireEvent.click(reabrir())
+    fireEvent.click(publicar())
+    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+
+    expect(enviado().AllowsScreenCapture).toBe(false)
+    expect(enviado().Kinds[0]).toMatchObject({ Kind: 'Image', IsEnabled: true })
   })
 
   it('sem armazenamento, a tela só mostra, e não afirma qual é a escolha salva', async () => {
     dublê.ler.mockResolvedValue(
-      semArmazenamento(padrao({ Kinds: [{ ...IMAGEM, MaxCount: 2 }, ARQUIVO] })),
+      semArmazenamento(
+        padrao({ AllowsScreenCapture: false, Kinds: [{ ...IMAGEM, IsEnabled: false }, ARQUIVO] }),
+      ),
     )
     montar()
 
@@ -257,9 +291,9 @@ describe('MediaScreen', () => {
     expect(anexo().disabled).toBe(true)
     expect(nadaAPublicar()).toBe(true)
 
-    // Os limites que aparecem sao os salvos, e nao o padrao.
-    expect(quantidadeImagem().value).toBe('2')
-    expect(quantidadeImagem().closest('fieldset')?.disabled).toBe(true)
+    // O que aparece e o salvo, e nao o padrao, fora de alcance.
+    expect(print().checked).toBe(false)
+    expect(print().closest('fieldset')?.disabled).toBe(true)
   })
 
   // A API nao responde ligado sem armazenamento; o teste trava a regra da tela, que nao
@@ -270,23 +304,22 @@ describe('MediaScreen', () => {
 
     await screen.findByText(/Não há armazenamento configurado nesta instalação/)
 
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+    fireEvent.click(reabrir())
 
     expect(publicar().disabled).toBe(true)
   })
 
-  it('anexo ligado sem imagem nem arquivo aceito avisa numa linha, e não deixa publicar', async () => {
+  it('anexo ligado sem print nem tipo de arquivo avisa numa linha, e não deixa publicar', async () => {
     montar()
 
     await carregada()
 
-    fireEvent.click(imagemAceita())
+    fireEvent.click(print())
+    fireEvent.click(imagemNoBotao())
 
-    const aviso = await screen.findByText(/Ligado sem imagem nem arquivo aceito/)
-    // O aviso e sobre imagem e arquivo: projeto que nunca aceitou so video nao tem por
-    // que ler sobre video aqui.
+    const aviso = await screen.findByText(/Ligado sem print nem tipo de arquivo aceito/)
     expect(aviso.textContent).not.toMatch(/vídeo/i)
-    expect(screen.getByText('Aceite imagem ou arquivo.')).toBeDefined()
+    expect(screen.getByText('Aceite o print da tela ou um tipo de arquivo.')).toBeDefined()
     expect(publicar().disabled).toBe(true)
   })
 
@@ -295,6 +328,7 @@ describe('MediaScreen', () => {
   it('com a API ainda listando vídeo ligado e imagem desligada, avisa que nada é aceito', async () => {
     dublê.ler.mockResolvedValue(
       padrao({
+        AllowsScreenCapture: false,
         Kinds: [
           { Kind: 'Image', IsEnabled: false, MaxCount: 3, MaxBytes: 5 * UM_MB },
           { Kind: 'Video', IsEnabled: true, MaxCount: 1, MaxBytes: 20 * UM_MB },
@@ -305,36 +339,10 @@ describe('MediaScreen', () => {
 
     await carregada()
 
-    expect(screen.getByText(/Ligado sem imagem nem arquivo aceito/)).toBeDefined()
+    expect(screen.getByText(/Ligado sem print nem tipo de arquivo aceito/)).toBeDefined()
 
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+    fireEvent.click(reabrir())
     expect(publicar().disabled).toBe(true)
-  })
-
-  it('não há total por envio: cada tipo tem o seu, numa frase, e a tela diz que é por envio', async () => {
-    montar()
-
-    await carregada()
-
-    expect(screen.queryByLabelText(/Arquivos por envio/)).toBeNull()
-    expect(screen.queryByText(/Vale o menor/)).toBeNull()
-    expect(document.getElementById('limites-imagem')?.textContent).toMatch(
-      /Até.*imagens de.*MB cada.*\(máximo 10\)/,
-    )
-    expect(document.getElementById('limites-arquivo')?.textContent).toMatch(
-      /Até.*arquivos de.*MB cada.*\(máximo 10 de 25 MB\)/,
-    )
-    expect(screen.getAllByText('Por envio; o armazenamento recusa o que passar.')).toHaveLength(2)
-  })
-
-  it('desligar um tipo não esconde os limites dele', async () => {
-    montar()
-
-    await carregada()
-    fireEvent.click(imagemAceita())
-
-    expect(quantidadeImagem().value).toBe('3')
-    expect(tamanhoImagem().value).toBe('5')
   })
 
   it('não tem grupo de vídeo, nem campo de duração, e diz numa linha que o vídeo saiu', async () => {
@@ -345,7 +353,7 @@ describe('MediaScreen', () => {
     expect(screen.queryByRole('checkbox', { name: /Vídeo/ })).toBeNull()
     expect(screen.queryByLabelText(/Duração máxima/)).toBeNull()
     expect(
-      screen.getByText(/Vídeo não é mais aceito; os já recebidos continuam nos relatos/),
+      screen.getByText(/vídeo não é mais aceito \(os já recebidos continuam nos relatos\)/),
     ).toBeDefined()
   })
 
@@ -366,14 +374,12 @@ describe('MediaScreen', () => {
 
     await carregada()
     expect(screen.queryByRole('checkbox', { name: /Vídeo/ })).toBeNull()
-    expect(screen.getAllByLabelText(/por envio$/)).toHaveLength(2)
 
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+    fireEvent.click(reabrir())
     fireEvent.click(publicar())
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.Kinds.map((tipo) => tipo.Kind)).toEqual(['Image', 'File'])
+    expect(enviado().Kinds.map((tipo) => tipo.Kind)).toEqual(['Image', 'File'])
   })
 
   it('o botão só age quando há o que publicar', async () => {
@@ -382,11 +388,11 @@ describe('MediaScreen', () => {
     await carregada()
     expect(nadaAPublicar()).toBe(true)
 
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+    fireEvent.click(reabrir())
     expect(publicar().disabled).toBe(false)
 
     // Voltar ao valor salvo e nao ter mudanca: o Publicar desliga.
-    fireEvent.change(quantidadeImagem(), { target: { value: '3' } })
+    fireEvent.click(reabrir())
     expect(nadaAPublicar()).toBe(true)
   })
 
@@ -394,20 +400,20 @@ describe('MediaScreen', () => {
     montar()
 
     await carregada()
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+    fireEvent.click(print())
     fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
 
-    expect(quantidadeImagem().value).toBe('3')
+    expect(print().checked).toBe(true)
     expect(nadaAPublicar()).toBe(true)
     expect(dublê.salvar).not.toHaveBeenCalled()
   })
 
-  it('manda a configuração inteira, com os limites de cada tipo', async () => {
+  it('manda a configuração inteira, com os limites de fábrica de cada tipo', async () => {
     dublê.salvar.mockResolvedValue(padrao())
     montar()
 
     await carregada()
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+    fireEvent.click(reabrir())
     fireEvent.click(publicar())
 
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
@@ -416,288 +422,9 @@ describe('MediaScreen', () => {
       IsEnabled: true,
       AllowsScreenCapture: true,
       AllowsOnInfoRequest: true,
-      AllowsOnReopen: true,
-      Kinds: [{ ...IMAGEM, MaxCount: 2 }, ARQUIVO],
+      AllowsOnReopen: false,
+      Kinds: [IMAGEM, ARQUIVO],
     })
-  })
-
-  it('a captura fala só do Capturar tela, que vira imagem, e mora dentro da imagem', async () => {
-    montar()
-
-    await carregada()
-
-    expect(captura().closest('details')).toBe(grupo('grupo-imagem'))
-    const dica = screen.getByText(/marca uma área da página/)
-    expect(dica.textContent).toMatch(/vira imagem/)
-    expect(dica.textContent).not.toMatch(/grava/i)
-    expect(dica.textContent).not.toMatch(/vídeo/i)
-    // O detalhe fica recolhido, num "Saiba mais".
-    expect(screen.getByText('Saiba mais').closest('details')?.open).toBe(false)
-  })
-
-  it('sem imagem aceita, a captura fica desligada, e a escolha não se perde', async () => {
-    ecoarAoSalvar()
-    montar()
-
-    await carregada()
-    expect(captura().disabled).toBe(false)
-
-    fireEvent.click(imagemAceita())
-
-    expect(captura().disabled).toBe(true)
-    expect(captura().checked).toBe(true)
-    expect(screen.getByText('Só com imagem aceita: a captura vira imagem.')).toBeDefined()
-    expect(resumoDo('grupo-imagem')).toContain('Desligado')
-
-    // Religar a imagem devolve a captura como estava.
-    fireEvent.click(imagemAceita())
-    expect(captura().disabled).toBe(false)
-    expect(captura().checked).toBe(true)
-  })
-
-  it('fala em envio, e não em relato, nos limites de quantidade', async () => {
-    montar()
-
-    await carregada()
-
-    expect(screen.getByText(/Cada um é um envio, com os próprios limites/)).toBeDefined()
-    expect(screen.getAllByLabelText(/por envio$/)).toHaveLength(2)
-    expect(screen.queryByLabelText(/por relato/)).toBeNull()
-  })
-
-  it('campo apagado fica vazio e avisa, e o próximo dígito não gruda no mínimo', async () => {
-    ecoarAoSalvar()
-    montar()
-
-    await carregada()
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '' } })
-
-    expect(quantidadeImagem().value).toBe('')
-    expect(quantidadeImagem().getAttribute('aria-invalid')).toBe('true')
-    expect(screen.getByText('Use um número inteiro de 1 a 10.')).toBeDefined()
-    expect(screen.getByText('Há um campo a corrigir.')).toBeDefined()
-
-    fireEvent.click(publicar())
-    expect(dublê.salvar).not.toHaveBeenCalled()
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '4' } })
-
-    expect(quantidadeImagem().value).toBe('4')
-    expect(screen.queryByText('Há um campo a corrigir.')).toBeNull()
-
-    fireEvent.click(publicar())
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.Kinds[0]?.MaxCount).toBe(4)
-  })
-
-  it('campo inteiro com casa decimal avisa, e não chega na API', async () => {
-    montar()
-
-    await carregada()
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '2.5' } })
-
-    expect(quantidadeImagem().value).toBe('2.5')
-    expect(screen.getByText('Use um número inteiro de 1 a 10.')).toBeDefined()
-
-    fireEvent.click(publicar())
-    expect(dublê.salvar).not.toHaveBeenCalled()
-  })
-
-  it('número acima do teto avisa antes de publicar', async () => {
-    montar()
-
-    await carregada()
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '11' } })
-
-    expect(screen.getByText('Use um número inteiro de 1 a 10.')).toBeDefined()
-    fireEvent.click(publicar())
-    expect(dublê.salvar).not.toHaveBeenCalled()
-  })
-
-  it('o tamanho com uma casa decimal vai em bytes e volta igual depois de publicar', async () => {
-    ecoarAoSalvar()
-    montar()
-
-    await carregada()
-
-    fireEvent.change(tamanhoImagem(), { target: { value: '5.5' } })
-    fireEvent.click(publicar())
-
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.Kinds[0]?.MaxBytes).toBe(5.5 * UM_MB)
-
-    // Publicado, nao ha mais mudanca: o Publicar desliga, e o campo continua dizendo o
-    // numero que foi gravado — e o resumo diz o mesmo, com virgula.
-    await waitFor(() => expect(nadaAPublicar()).toBe(true))
-    expect(tamanhoImagem().value).toBe('5.5')
-    expect(resumoDo('grupo-imagem')).toContain('até 3 de 5,5 MB')
-  })
-
-  it('o tamanho com duas casas decimais avisa, em vez de arredondar na tela', async () => {
-    montar()
-
-    await carregada()
-
-    fireEvent.change(tamanhoImagem(), { target: { value: '5.25' } })
-
-    expect(tamanhoImagem().value).toBe('5.25')
-    expect(screen.getByText('Use um número de 1 a 10, com até uma casa decimal.')).toBeDefined()
-    fireEvent.click(publicar())
-    expect(dublê.salvar).not.toHaveBeenCalled()
-  })
-
-  // O tamanho salvo com duas casas nao e arredondado nem ao abrir nem depois de publicar:
-  // mostrar 5.3 com 5,25 gravado seria a tela dizendo um limite e o servidor cobrando outro.
-  it('um tamanho salvo que não cabe em uma casa aparece como está, antes e depois de publicar', async () => {
-    const salvo = padrao()
-    const comDuasCasas: MediaSettingsViewModel = {
-      ...salvo,
-      Kinds: salvo.Kinds.map((tipo) =>
-        tipo.Kind === 'Image' ? { ...tipo, MaxBytes: 5.25 * UM_MB } : tipo,
-      ),
-    }
-    dublê.ler.mockResolvedValue(comDuasCasas)
-    dublê.salvar.mockImplementation(async (_projeto: string, pedido: object) => ({
-      ...comDuasCasas,
-      ...pedido,
-    }))
-    montar()
-
-    await carregada()
-    expect(tamanhoImagem().value).toBe('5.25')
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
-    fireEvent.click(publicar())
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.Kinds[0]?.MaxBytes).toBe(5.25 * UM_MB)
-
-    await waitFor(() => expect(nadaAPublicar()).toBe(true))
-    expect(tamanhoImagem().value).toBe('5.25')
-  })
-
-  it('campo inválido não prende o Publicar depois de desligar o anexo', async () => {
-    ecoarAoSalvar()
-    montar()
-
-    await carregada()
-
-    fireEvent.change(quantidadeArquivo(), { target: { value: '' } })
-    fireEvent.change(tamanhoImagem(), { target: { value: '' } })
-    expect(screen.getByText('Há 2 campos a corrigir.')).toBeDefined()
-
-    fireEvent.click(anexo())
-
-    // Fora de alcance, cada campo volta ao valor salvo, e e ele que vai.
-    expect(quantidadeArquivo().value).toBe('2')
-    expect(quantidadeArquivo().getAttribute('aria-invalid')).toBeNull()
-    expect(tamanhoImagem().value).toBe('5')
-    expect(screen.queryByText(/campos? a corrigir/)).toBeNull()
-    expect(publicar().disabled).toBe(false)
-
-    fireEvent.click(publicar())
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.IsEnabled).toBe(false)
-    expect(enviado.Kinds[1]?.MaxCount).toBe(2)
-    expect(enviado.Kinds[0]?.MaxBytes).toBe(5 * UM_MB)
-  })
-
-  // Quem apaga o "3" e digita "12" passa pelo "1", que e valido e chega ao rascunho.
-  // Voltar a ele gravaria um limite que ninguem escolheu.
-  it('desligar o anexo com um campo inválido volta ao valor salvo, e não a uma tecla no caminho', async () => {
-    ecoarAoSalvar()
-    montar()
-
-    await carregada()
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '1' } })
-    fireEvent.change(quantidadeImagem(), { target: { value: '12' } })
-    expect(screen.getByText('Há um campo a corrigir.')).toBeDefined()
-
-    fireEvent.click(anexo())
-
-    expect(quantidadeImagem().value).toBe('3')
-    expect(screen.queryByText(/campos? a corrigir/)).toBeNull()
-
-    fireEvent.click(publicar())
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.IsEnabled).toBe(false)
-    expect(enviado.Kinds[0]?.MaxCount).toBe(3)
-  })
-
-  it('campo inválido segura o Publicar mesmo com outra mudança pendente, e leva até ele', async () => {
-    montar()
-
-    await carregada()
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
-    fireEvent.change(quantidadeArquivo(), { target: { value: '' } })
-    fireEvent.click(publicar())
-
-    expect(dublê.salvar).not.toHaveBeenCalled()
-    expect(document.activeElement).toBe(quantidadeArquivo())
-
-    fireEvent.change(quantidadeArquivo(), { target: { value: '11' } })
-    fireEvent.click(publicar())
-    expect(dublê.salvar).not.toHaveBeenCalled()
-  })
-
-  it('campo inválido em grupo fechado: o resumo diz "corrigir", e Publicar ou abrir leva até ele', async () => {
-    montar()
-
-    await carregada()
-    // O Arquivo comeca fechado: a Imagem abre sozinha.
-    expect(grupo('grupo-arquivo').open).toBe(false)
-
-    fireEvent.change(quantidadeArquivo(), { target: { value: '' } })
-
-    expect(resumoDo('grupo-arquivo')).toMatch(/^Arquivocorrigir: /)
-    expect(resumoDo('grupo-imagem')).not.toContain('corrigir')
-
-    // Publicar abre o grupo e poe o foco no campo, sem gravar.
-    fireEvent.click(publicar())
-    expect(grupo('grupo-arquivo').open).toBe(true)
-    expect(document.activeElement).toBe(quantidadeArquivo())
-    expect(dublê.salvar).not.toHaveBeenCalled()
-
-    // Fechado de novo, abrir o grupo tambem leva ate o campo.
-    act(() => {
-      ;(document.activeElement as HTMLElement).blur()
-      grupo('grupo-arquivo').open = false
-    })
-    await waitFor(() => expect(document.activeElement).not.toBe(quantidadeArquivo()))
-    act(() => {
-      grupo('grupo-arquivo').open = true
-    })
-    await waitFor(() => expect(document.activeElement).toBe(quantidadeArquivo()))
-
-    fireEvent.change(quantidadeArquivo(), { target: { value: '4' } })
-    expect(resumoDo('grupo-arquivo')).not.toContain('corrigir')
-  })
-
-  // Com passo fixo, o navegador marcaria 5.3 como fora do passo enquanto a tela o aceita,
-  // e o campo ficaria com a borda de erro do proprio navegador.
-  it('o MB aceita qualquer décimo sem o navegador marcar o campo', async () => {
-    montar()
-
-    await carregada()
-
-    fireEvent.change(tamanhoImagem(), { target: { value: '5.3' } })
-
-    expect(tamanhoImagem().validity.stepMismatch).toBe(false)
-    expect(tamanhoImagem().getAttribute('aria-invalid')).toBeNull()
   })
 
   // Chave propria, e nao a da resposta: um projeto pode querer o print de quem responde
@@ -707,22 +434,20 @@ describe('MediaScreen', () => {
     montar()
 
     await carregada()
-    const reabrir = caixa('Ao reabrir')
     const responder = caixa('Ao responder o time')
-    expect(reabrir.checked).toBe(true)
+    expect(reabrir().checked).toBe(true)
 
-    fireEvent.click(reabrir)
+    fireEvent.click(reabrir())
 
-    expect(reabrir.checked).toBe(false)
+    expect(reabrir().checked).toBe(false)
     expect(responder.checked).toBe(true)
     expect(screen.getByText('Mudanças não publicadas')).toBeDefined()
 
     fireEvent.click(publicar())
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
-    const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-    expect(enviado.AllowsOnReopen).toBe(false)
-    expect(enviado.AllowsOnInfoRequest).toBe(true)
+    expect(enviado().AllowsOnReopen).toBe(false)
+    expect(enviado().AllowsOnInfoRequest).toBe(true)
   })
 
   it('com o anexo desligado, a chave da reabertura fica fora de alcance', async () => {
@@ -731,21 +456,7 @@ describe('MediaScreen', () => {
     await carregada()
     fireEvent.click(anexo())
 
-    expect(caixa('Ao reabrir').closest('fieldset')?.disabled).toBe(true)
-  })
-
-  it('o campo acompanha o número que o servidor devolve', async () => {
-    dublê.salvar.mockResolvedValue(padrao())
-    montar()
-
-    await carregada()
-
-    fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
-    fireEvent.click(publicar())
-
-    await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(quantidadeImagem().value).toBe('3'))
-    expect(nadaAPublicar()).toBe(true)
+    expect(reabrir().closest('fieldset')?.disabled).toBe(true)
   })
 
   it('toda âncora continua na tela, dentro do grupo certo', async () => {
@@ -757,17 +468,12 @@ describe('MediaScreen', () => {
     expect(document.getElementById('aceitar-anexo')?.closest('details')).toBeNull()
     expect(document.getElementById('aceitar-anexo')?.closest('header')).not.toBeNull()
 
+    // Os enderecos antigos da captura e dos limites da imagem caem no Print da tela.
     const dentroDe: Record<string, string> = {
       'anexo-imagem': 'grupo-imagem',
       'mais-opcoes': 'grupo-imagem',
-      'limites-imagem': 'grupo-imagem',
-      'quantidade-Image': 'grupo-imagem',
-      'tamanho-Image': 'grupo-imagem',
       'capturar-tela': 'grupo-imagem',
       'anexo-arquivo': 'grupo-arquivo',
-      'limites-arquivo': 'grupo-arquivo',
-      'quantidade-File': 'grupo-arquivo',
-      'tamanho-File': 'grupo-arquivo',
       'anexo-na-resposta': 'quando-anexar',
       'anexo-na-reabertura': 'quando-anexar',
     }
@@ -781,19 +487,18 @@ describe('MediaScreen', () => {
     expect(new Set(nomes)).toEqual(new Set(['anexos']))
   })
 
-  describe('o arquivo', () => {
-    it('vem desligado de fábrica, com os formatos seguros marcados', async () => {
+  describe('os tipos do botão de anexar', () => {
+    it('de fábrica, o botão aceita só a imagem, e os formatos de arquivo vêm desmarcados', async () => {
       montar()
 
       await carregada()
 
-      expect(arquivoAceito().checked).toBe(false)
-      expect(formato(/^PDF/).checked).toBe(true)
-      expect(formato(/^Texto e log/).checked).toBe(true)
-      expect(formato(/^Planilha/).checked).toBe(true)
-      expect(formato(/^Documento/).checked).toBe(false)
-      expect(formato(/^JSON/).checked).toBe(false)
-      // As extensoes de cada formato ficam escritas junto dele.
+      expect(screen.getByText('Tipos de arquivo aceitos')).toBeDefined()
+      expect(imagemNoBotao().checked).toBe(true)
+      expect(imagemNoBotao().closest('label')?.textContent).toMatch(/\.png \.jpg \.jpeg \.webp/)
+      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/, /^Documento/, /^JSON/])
+        expect(formato(nome).checked).toBe(false)
+      // As extensoes de cada tipo ficam escritas junto dele.
       expect(formato(/^Planilha/).closest('label')?.textContent).toMatch(/\.csv \.xlsx \.ods/)
     })
 
@@ -810,73 +515,59 @@ describe('MediaScreen', () => {
       ).toBeDefined()
     })
 
-    it('ligar, marcar um formato e publicar manda os formatos e o tamanho em bytes', async () => {
+    it('marcar um formato liga o arquivo, e o publicar manda só os marcados, com os limites de fábrica', async () => {
       ecoarAoSalvar()
       montar()
 
       await carregada()
 
-      fireEvent.click(arquivoAceito())
       fireEvent.click(formato(/^JSON/))
-      fireEvent.change(tamanhoArquivo(), { target: { value: '20' } })
       fireEvent.click(publicar())
 
       await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
-      const enviado = dublê.salvar.mock.calls[0]?.[1] as MediaSettingsViewModel
-      expect(enviado.Kinds[1]).toEqual({
-        ...ARQUIVO,
-        IsEnabled: true,
-        MaxBytes: 20 * UM_MB,
-        Formats: ['pdf', 'text', 'spreadsheet', 'json'],
-      })
+      expect(enviado().Kinds[1]).toEqual({ ...ARQUIVO, IsEnabled: true, Formats: ['json'] })
     })
 
-    it('aceito sem formato nenhum avisa no grupo, e não deixa publicar', async () => {
-      montar()
-
-      await carregada()
-
-      fireEvent.click(arquivoAceito())
-      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
-
-      expect(
-        screen.getByText('Marque ao menos um formato, ou deixe de aceitar arquivo.'),
-      ).toBeDefined()
-      expect(resumoDo('grupo-arquivo')).toContain('Aceito sem formato: nada entra')
-      expect(screen.getByText('Marque um formato de arquivo.')).toBeDefined()
-      expect(publicar().disabled).toBe(true)
-
-      fireEvent.click(formato(/^PDF/))
-      expect(screen.queryByText(/Marque ao menos um formato/)).toBeNull()
-      expect(publicar().disabled).toBe(false)
-    })
-
-    it('desligado sem formato nenhum não avisa: a escolha fica para quando religar', async () => {
-      montar()
-
-      await carregada()
-
-      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
-
-      expect(screen.queryByText(/Marque ao menos um formato/)).toBeNull()
-      expect(publicar().disabled).toBe(false)
-    })
-
-    // Com o anexo desligado, a lista de formatos fica fora de alcance: travar o Publicar
-    // por ela prenderia quem so quer desligar. A API aceita, e religado, a regra volta.
-    it('desligar o anexo com o arquivo sem formato publica', async () => {
+    it('desmarcar o último formato desliga o arquivo', async () => {
       ecoarAoSalvar()
       montar()
 
       await carregada()
-      fireEvent.click(arquivoAceito())
-      for (const nome of [/^PDF/, /^Texto e log/, /^Planilha/]) fireEvent.click(formato(nome))
+      fireEvent.click(formato(/^PDF/))
+      fireEvent.click(formato(/^PDF/))
+      fireEvent.click(reabrir())
+      fireEvent.click(publicar())
+      await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
+
+      expect(enviado().Kinds[1]).toMatchObject({ Kind: 'File', IsEnabled: false })
+    })
+
+    it('sem nenhum tipo marcado, o formulário fica sem o botão, e com o print ligado publica', async () => {
+      montar()
+
+      await carregada()
+      fireEvent.click(imagemNoBotao())
+
+      expect(
+        screen.getByText('Sem nenhum tipo marcado, o formulário não mostra o botão de anexar.'),
+      ).toBeDefined()
+      expect(resumoDo('grupo-arquivo')).toContain('Nenhum tipo, e o formulário fica sem o botão')
+      expect(publicar().disabled).toBe(false)
+    })
+
+    // Sem print e sem tipo nada entra, e o Publicar trava; desligar o anexo e o caminho
+    // certo para quem nao quer anexo, e destrava.
+    it('sem print e sem tipo, o publicar trava, e desligar o anexo destrava', async () => {
+      montar()
+
+      await carregada()
+      fireEvent.click(print())
+      fireEvent.click(imagemNoBotao())
       expect(publicar().disabled).toBe(true)
 
       fireEvent.click(anexo())
 
-      expect(screen.queryByText(/Marque ao menos um formato/)).toBeNull()
       expect(publicar().disabled).toBe(false)
     })
 
@@ -887,24 +578,11 @@ describe('MediaScreen', () => {
       montar()
 
       await carregada()
-      fireEvent.change(quantidadeImagem(), { target: { value: '2' } })
+      fireEvent.click(reabrir())
       fireEvent.click(publicar())
       await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(1))
 
-      expect(dublê.salvar.mock.calls[0]?.[1]).toMatchObject({ MaxFilesPerReport: 4 })
-    })
-
-    it('o tamanho vai até 25 MB, e a imagem até 10', async () => {
-      montar()
-
-      await carregada()
-
-      fireEvent.change(tamanhoArquivo(), { target: { value: '25' } })
-      expect(tamanhoArquivo().getAttribute('aria-invalid')).toBeNull()
-
-      fireEvent.change(tamanhoArquivo(), { target: { value: '26' } })
-      expect(screen.getByText('Use um número de 1 a 25, com até uma casa decimal.')).toBeDefined()
-      expect(tamanhoArquivo().getAttribute('aria-invalid')).toBe('true')
+      expect(enviado()).toMatchObject({ MaxFilesPerReport: 4 })
     })
   })
 })

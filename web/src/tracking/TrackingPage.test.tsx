@@ -977,7 +977,7 @@ describe('os arquivos na pagina de acompanhamento', () => {
     // depois que os efeitos rodaram.
     await act(async () => {})
     expect(dublê.midia).not.toHaveBeenCalled()
-    expect(screen.queryByRole('button', { name: 'Anexar imagem' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
   })
 })
 
@@ -1035,7 +1035,7 @@ describe('anexar na resposta', () => {
 
     render(<TrackingPage />)
 
-    const seletor = await screen.findByLabelText('Escolher imagem para anexar')
+    const seletor = await screen.findByLabelText('Escolher arquivo para anexar')
     expect(seletor.getAttribute('accept')).toBe('image/png,image/jpeg,image/webp')
   })
 

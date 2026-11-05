@@ -105,6 +105,21 @@
 
   --white: #ffffff;
 
+  /* AS CORES DAS LINGUAGENS — as das marcas, nos desenhos das abas do editor de codigo.
+     Desenho de marca e reconhecido pela cor antes da forma. Os tons sao as cores de cada
+     marca, ajustados para 3:1 sobre a barra do editor (conferido em `designSystem.test.ts`):
+     aqui os do tema claro, e o bloco escuro troca os que ficavam apagados no escuro. O
+     amarelo do Python e a segunda cor dele, e fica de fora da conta: a parte azul segura o
+     desenho. */
+  --brand-node: #4a8a3b;
+  --brand-php: #777bb4;
+  --brand-python-blue: #3776ab;
+  --brand-python-yellow: #e0b100;
+  --brand-csharp: #9b4f96;
+  --brand-java-blue: #0074bd;
+  --brand-java-red: #ea2d2e;
+  --brand-go: #0089ab;
+
   /* PAR FIXO — a tinta que vai sobre uma cor que **nao vem do tema**.
      A cor do gatilho da ferramenta e escolhida pelo cliente e vale igual nos dois
      temas. Se a tinta invertesse junto com o tema, o mesmo botao ficaria legivel
@@ -235,6 +250,37 @@
   --chip-purple-glyph: var(--purple-11);
   --chip-pink-glyph: var(--pink-11);
 
+  /* o editor de codigo: acompanha o tema da tela, como o resto do painel. O fundo e o do
+     cartao, a barra e o da pagina, e as cores da sintaxe sao os degraus 11 do Radix, que
+     o bloco escuro ja troca: cada uma com 4,5:1 sobre o fundo nos dois temas (conferido em
+     `designSystem.test.ts`). */
+  --code-surface: var(--surface-raised);
+  --code-bar: var(--surface);
+  --code-border: var(--border);
+  --code-fg: var(--fg);
+  --code-muted: var(--fg-muted);
+  --code-keyword: var(--purple-11);
+  --code-string: var(--grass-11);
+  --code-number: var(--orange-11);
+  --code-name: var(--blue-11);
+  --code-tag: var(--amber-11);
+  /* a linha nova de um trecho (a que a pessoa acrescenta ao que ja tem): o "+" na faixa
+     da margem, com 4,5:1 sobre ela nos dois temas. A faixa fica so na margem, e nao na
+     linha inteira, porque o ambar e o laranja da sintaxe perdem os 4,5:1 sobre o verde
+     claro. */
+  --code-added: var(--grass-3);
+  --code-added-fg: var(--grass-11);
+
+  /* os desenhos das linguagens, nas abas do editor (ver a nota da camada 1) */
+  --lang-node: var(--brand-node);
+  --lang-php: var(--brand-php);
+  --lang-python: var(--brand-python-blue);
+  --lang-python-accent: var(--brand-python-yellow);
+  --lang-csharp: var(--brand-csharp);
+  --lang-java: var(--brand-java-blue);
+  --lang-java-accent: var(--brand-java-red);
+  --lang-go: var(--brand-go);
+
   /* A PAGINA DE ENTRADA, e so ela. O painel continua monocromatico, com o verde como unico
      ponto colorido em repouso; a vitrine de quem ainda nao entrou ganha cor com as cores
      que o produto ja tem, e nenhum matiz novo: o verde claro de "funcionando" vira a mesa
@@ -255,6 +301,13 @@
  * porque e o que o design usa.
  * ------------------------------------------------------------------------- */
 :root[data-theme="dark"] {
+  --brand-node: #5fa04e;
+  --brand-python-blue: #4b8bbe;
+  --brand-python-yellow: #ffd43b;
+  --brand-csharp: #b77fd6;
+  --brand-java-blue: #3c97d9;
+  --brand-go: #00add8;
+
   --slate-1: #111113;
   --slate-2: #18191b;
   --slate-3: #212225;

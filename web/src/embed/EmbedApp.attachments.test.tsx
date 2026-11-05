@@ -90,7 +90,7 @@ const criado: CreatedReportViewModel = {
 const print = () => new File([new Uint8Array(100)], 'erro.png', { type: 'image/png' })
 
 function escolher(arquivo: File) {
-  fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+  fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
     target: { files: [arquivo] },
   })
 }
@@ -113,7 +113,7 @@ describe('o anexo no formulario', () => {
 
   it('com midia, o botao aparece', () => {
     montar()
-    expect(screen.getByRole('button', { name: 'Anexar imagem' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
   })
 
   it('escolher um arquivo o poe na lista, e nada sobe ainda', async () => {
@@ -246,8 +246,9 @@ describe('o anexo no formulario', () => {
   })
 })
 
-// O arquivo que nao e imagem tem botao proprio, que so aparece com a categoria ligada,
-// e vai numa lista logo abaixo das imagens. Cada categoria com o seu limite.
+// Um botao so de anexar, com todos os tipos que ele oferece: a imagem e os formatos de
+// arquivo. O arquivo vai numa lista logo abaixo das imagens, e cada categoria segue com o
+// seu limite.
 describe('o arquivo que nao e imagem, no formulario', () => {
   const comArquivo: PublicMediaSettingsViewModel = {
     ...media,
@@ -272,21 +273,43 @@ describe('o arquivo que nao e imagem, no formulario', () => {
       target: { files: [arquivo] },
     })
 
-  it('sem a categoria, nao ha botao de arquivo', () => {
-    montar()
-    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
-    expect(screen.queryByLabelText('Escolher arquivo para anexar')).toBeNull()
+  it('um botao so, que oferece a imagem e as extensoes aceitas', () => {
+    montarComArquivo()
+    expect(screen.getAllByRole('button', { name: 'Anexar arquivo' })).toHaveLength(1)
+    expect(screen.getByLabelText('Escolher arquivo para anexar').getAttribute('accept')).toBe(
+      'image/png,image/jpeg,image/webp,.pdf,.log',
+    )
   })
 
-  it('com ela, o botao aparece, e o seletor so oferece as extensoes aceitas', () => {
-    montarComArquivo()
-    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
+  it('a imagem so do print da tela fica fora do botao, e colar continua valendo', () => {
+    render(
+      <EmbedApp
+        settings={SETTINGS}
+        config={config}
+        media={{
+          ...comArquivo,
+          Kinds: comArquivo.Kinds.map((kind) =>
+            kind.Kind === 'Image' ? { ...kind, InPicker: false } : kind,
+          ),
+        }}
+      />,
+    )
     expect(screen.getByLabelText('Escolher arquivo para anexar').getAttribute('accept')).toBe(
       '.pdf,.log',
     )
-    expect(screen.getByLabelText('Escolher imagem para anexar').getAttribute('accept')).toBe(
-      'image/png,image/jpeg,image/webp',
+    expect(screen.getByText(/cole um print/)).toBeDefined()
+  })
+
+  it('so com o print da tela, nao ha botao de anexar', () => {
+    render(
+      <EmbedApp
+        settings={SETTINGS}
+        config={config}
+        media={{ ...media, Kinds: media.Kinds.map((kind) => ({ ...kind, InPicker: false })) }}
+      />,
     )
+    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
+    expect(screen.queryByLabelText('Escolher arquivo para anexar')).toBeNull()
   })
 
   it('o arquivo entra na lista com nome e tamanho, e sobe com o tipo do catalogo', async () => {
@@ -327,7 +350,7 @@ describe('o arquivo que nao e imagem, no formulario', () => {
     montarComArquivo()
     escolherArquivo(new File([new Uint8Array(100)], 'fatura.pdf', { type: 'application/pdf' }))
     await screen.findByRole('button', { name: 'Remover fatura.pdf' })
-    fireEvent.change(screen.getByLabelText('Escolher imagem para anexar'), {
+    fireEvent.change(screen.getByLabelText('Escolher arquivo para anexar'), {
       target: { files: [print()] },
     })
     await screen.findByRole('button', { name: 'Remover erro.png' })
@@ -339,10 +362,10 @@ describe('o arquivo que nao e imagem, no formulario', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Remover fatura.pdf' }))
-    await waitFor(() => expect(document.activeElement?.textContent).toBe('Anexar imagem'))
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Anexar arquivo'))
   })
 
-  it('so com arquivo aceito: sem botao de imagem, sem captura e sem "cole um print"', () => {
+  it('so com arquivo aceito: o botao, sem captura e sem "cole um print"', () => {
     render(
       <EmbedApp
         settings={SETTINGS}
@@ -352,12 +375,14 @@ describe('o arquivo que nao e imagem, no formulario', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Anexar imagem' })).toBeNull()
+    expect(screen.getByLabelText('Escolher arquivo para anexar').getAttribute('accept')).toBe(
+      '.pdf,.log',
+    )
     expect(screen.queryByRole('button', { name: 'Capturar tela' })).toBeNull()
     expect(screen.queryByText(/cole um print/)).toBeNull()
   })
 
-  it('cheio de arquivo, o botao do arquivo desliga e o da imagem continua', async () => {
+  it('cheio de arquivo, o botao continua para a imagem, e o arquivo a mais e recusado', async () => {
     montarComArquivo()
 
     escolherArquivo(new File([new Uint8Array(100)], 'fatura.pdf', { type: 'application/pdf' }))
@@ -365,10 +390,10 @@ describe('o arquivo que nao e imagem, no formulario', () => {
 
     expect(
       (screen.getByRole('button', { name: 'Anexar arquivo' }) as HTMLButtonElement).disabled,
-    ).toBe(true)
-    expect(
-      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
     ).toBe(false)
+    escolherArquivo(new File([new Uint8Array(100)], 'outra.pdf', { type: 'application/pdf' }))
+    expect(await screen.findByRole('alert')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Remover outra.pdf' })).toBeNull()
   })
 })
 
@@ -384,7 +409,7 @@ describe('a imagem no relato que a pessoa monta', () => {
 
     const lista = await screen.findByRole('list', { name: 'Imagens a enviar' })
     const texto = screen.getByRole('textbox', { name: CAIXA })
-    const anexar = screen.getByRole('button', { name: 'Anexar imagem' })
+    const anexar = screen.getByRole('button', { name: 'Anexar arquivo' })
     expect(texto.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(lista.compareDocumentPosition(anexar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(lista.querySelector('li')?.className).toContain('col-span-12')
@@ -673,7 +698,7 @@ describe('o envio', () => {
 
     expect(screen.queryByRole('button', { name: 'Remover erro.png' })).toBeNull()
     expect(
-      (screen.getByRole('button', { name: 'Anexar imagem' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Anexar arquivo' }) as HTMLButtonElement).disabled,
     ).toBe(true)
     const outro = new File([new Uint8Array(100)], 'outro.png', { type: 'image/png' })
     expect(

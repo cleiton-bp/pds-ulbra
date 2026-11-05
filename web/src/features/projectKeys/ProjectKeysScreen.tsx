@@ -6,6 +6,7 @@ import { RegenerateSecretDialog } from '@/features/projectKeys/RegenerateSecretD
 import { RevealedSecretPanel } from '@/features/projectKeys/RevealedSecretPanel'
 import { RevokedKeysPanel } from '@/features/projectKeys/RevokedKeysPanel'
 import { Button } from '@/shared/components/Button'
+import { IdentitySecretCard } from '@/shared/components/IdentitySecret'
 import { LockIcon } from '@/shared/components/LockIcon'
 import { MaskedValue } from '@/shared/components/MaskedValue'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -38,6 +39,11 @@ export function ProjectKeysScreen() {
       alvo: 'chave-publica',
       titulo: 'Chave pública',
       texto: 'Vai no script do botão e pode aparecer no seu sistema sem risco.',
+    },
+    {
+      alvo: 'chave-da-identidade',
+      titulo: 'Chave da identidade',
+      texto: 'Assina quem está na conta do seu sistema, e fica só no servidor dele.',
     },
     {
       alvo: 'integracao',
@@ -160,6 +166,9 @@ export function ProjectKeysScreen() {
               <Chevron />
             </Link>
           </article>
+
+          {/* A chave da assinatura simples da identidade: uma chave, e por isso aqui. */}
+          <IdentitySecretCard projectPublicId={project.PublicId} />
 
           <AdvancedSection
             open={advancedOpen}

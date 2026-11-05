@@ -142,7 +142,7 @@ describe('o quadro contorna a parte pedida', () => {
 
     expect(contornadas()).toHaveLength(1)
     expect(contornadas()[0]?.getAttribute('data-preview-highlight')).toBe('form-attachments')
-    expect(contornadas()[0]?.textContent).toContain('Anexar imagem')
+    expect(contornadas()[0]?.textContent).toContain('Anexar arquivo')
   })
 
   it('fora da prévia, o mesmo pedido não desenha nada', () => {

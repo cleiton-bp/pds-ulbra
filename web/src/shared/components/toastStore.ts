@@ -44,15 +44,6 @@ interface ToastState {
   /** O ponteiro ou o foco sobre o aviso param a contagem; sair dele retoma do ponto. */
   pause: (id: string) => void
   resume: (id: string) => void
-  /**
-   * Os dialogos abertos, do de baixo para o de cima. **Com um dialogo aberto, o aviso
-   * nasce dentro dele**: fora, o resto da pagina fica escondido do leitor de tela (o
-   * erro de um campo do card nao era anunciado), e o clique no aviso contava como
-   * clique fora — fechava o card e levava junto o que se escrevia.
-   */
-  hosts: HTMLElement[]
-  addHost: (host: HTMLElement) => void
-  removeHost: (host: HTMLElement) => void
 }
 
 /** Quanto o aviso fica: o simples, e o que tem botao. */
@@ -112,10 +103,6 @@ export const useToastStore = create<ToastState>((set) => {
       if (!relogio || relogio.timer) return
       contar(id, relogio.restante)
     },
-    hosts: [],
-    addHost: (host) =>
-      set((state) => ({ hosts: [...state.hosts.filter((item) => item !== host), host] })),
-    removeHost: (host) => set((state) => ({ hosts: state.hosts.filter((item) => item !== host) })),
   }
 })
 

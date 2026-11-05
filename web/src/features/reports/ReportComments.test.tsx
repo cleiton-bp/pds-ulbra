@@ -142,7 +142,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
-  useToastStore.setState({ toasts: [], hosts: [] })
+  useToastStore.setState({ toasts: [] })
 })
 
 describe('corrigir e apagar o comentario entre o time', () => {
