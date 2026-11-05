@@ -341,7 +341,9 @@ describe('FormTextsScreen', () => {
     }
   })
 
-  it('a prévia contorna a parte do grupo aberto, e a do grupo em foco vence', async () => {
+  // Quem manda no realce e o grupo aberto, e so ele: o foco atravessando outro grupo nao
+  // troca a previa.
+  it('a prévia contorna a parte do grupo aberto, e o foco em outro grupo não muda nada', async () => {
     montar()
     await titulo()
     const lidas = actAsPreviewFrame()
@@ -352,13 +354,11 @@ describe('FormTextsScreen', () => {
     grupo('titulo-do-relato').open = true
     await waitFor(() => expect(lastPreview(lidas)?.highlight).toBe('form-title'))
 
-    // O foco num campo de outro grupo realca o dele, mesmo com o titulo aberto.
+    // O foco num campo de outro grupo nao troca o realce: o titulo continua aberto.
     act(() => screen.getByRole('textbox', { name: 'Texto do botão de enviar' }).focus())
-    await waitFor(() => expect(lastPreview(lidas)?.highlight).toBe('form-submit'))
-
-    // Saindo dele, volta o do grupo aberto.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(lastPreview(lidas)?.highlight).toBe('form-title')
     act(() => (document.activeElement as HTMLElement).blur())
-    await waitFor(() => expect(lastPreview(lidas)?.highlight).toBe('form-title'))
 
     grupo('titulo-do-relato').open = false
     await waitFor(() => expect(lastPreview(lidas)?.highlight).toBeNull())

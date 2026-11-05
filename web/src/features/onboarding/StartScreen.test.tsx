@@ -359,15 +359,13 @@ describe('StartScreen', () => {
     )
   })
 
-  it('a prévia tem um link só, que diz que leva para O botão', async () => {
+  // O desenho de "como vai aparecer" ao lado do script saiu: a previa de verdade mora em
+  // O botão, e o passo do script fica so com o que se copia.
+  it('o passo do script nao tem mais o desenho de como vai aparecer', async () => {
     montar(projeto(null))
     await pronta()
 
-    // As sete etiquetas (Cor, Canto, Icone...) pareciam marcadores e trocavam de tela sem avisar.
-    expect(screen.queryByRole('list', { name: 'Ajustar em O botão' })).toBeNull()
-    expect(
-      screen.getByRole('link', { name: 'Mudar a aparência em O botão' }).getAttribute('href'),
-    ).toBe('/projects/p-1/tool')
-    expect(screen.queryByText(/Ferramenta\b|Configurações/)).toBeNull()
+    expect(screen.queryByText('Como vai aparecer no seu sistema')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Mudar a aparência em O botão' })).toBeNull()
   })
 })

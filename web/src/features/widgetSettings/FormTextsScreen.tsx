@@ -104,7 +104,7 @@ type Change = (patch: Partial<WidgetSettingsViewModel>) => void
  *
  * **Cada grupo, fechado, diz o que esta escolhido e o que mudou**, com o proprio "Voltar
  * ao padrão" (`SettingsGroup`), e **a previa, presa a direita, contorna a parte do grupo
- * aberto ou em foco** (`EditorWithPreview`, `PreviewHighlight`). Ela ja abre com o
+ * aberto** (`EditorWithPreview`, `PreviewHighlight`). Ela ja abre com o
  * formulario aberto: e ele que se muda aqui, e nao o botao.
  *
  * **Duas configuracoes, um Publicar.** Os textos sao da ferramenta, e "perguntar o nome"
@@ -149,13 +149,12 @@ export function FormTextsScreen() {
   const dirty = ferramenta.dirty || quemRelata.dirty
   const saving = ferramenta.saving || quemRelata.saving
 
-  /** O grupo aberto e o grupo em que a pessoa esta: o segundo vence, na previa. */
+  /** O grupo aberto: e a parte dele que a previa realca. */
   const [aberto, setAberto] = useState<Grupo | null>(null)
-  const [emFoco, setEmFoco] = useState<Grupo | null>(null)
-  const grupoRealcado = emFoco ?? aberto
+  const grupoRealcado = aberto
   const realce = grupoRealcado ? PARTE_NA_PREVIA[grupoRealcado] : null
 
-  // Um objeto novo so quando o rascunho muda: passar o mouse nos grupos troca o realce,
+  // Um objeto novo so quando o rascunho muda: abrir outro grupo troca o realce,
   // e nao deve mandar a configuracao inteira ao quadro de novo por nada.
   const naPrevia = useMemo(
     () => (draft && nome ? { ...draft, AsksForName: nome.AsksForName } : null),
@@ -174,8 +173,6 @@ export function FormTextsScreen() {
     return {
       onToggle: (abriu: boolean) =>
         setAberto((atual) => (abriu ? grupo : atual === grupo ? null : atual)),
-      onFocusWithin: (dentro: boolean) =>
-        setEmFoco((atual) => (dentro ? grupo : atual === grupo ? null : atual)),
     }
   }
 

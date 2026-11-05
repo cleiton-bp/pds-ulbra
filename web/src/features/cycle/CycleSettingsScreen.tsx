@@ -114,7 +114,7 @@ type Change = (patch: Partial<CycleSettingsViewModel>) => void
  * explicacao longa espera no "Como funciona".
  *
  * **A direita, o caminho do relato gerado do rascunho** (`ReportPath`), contornando a
- * parte que o grupo aberto ou em foco muda: quem configura ve o que a regra faz com o
+ * parte que o grupo aberto muda: quem configura ve o que a regra faz com o
  * relato, e nao so o nome dela.
  *
  * **O rascunho manda de volta o que recebeu** (`useCycleDraft`). As regras do quadro
@@ -158,18 +158,15 @@ export function CycleSettingsScreen() {
     useCallback(() => projectStateService.listProjectStates(project.PublicId), [project.PublicId]),
   )
 
-  /** O grupo aberto e o grupo em que a pessoa esta: o segundo vence, no caminho. */
+  /** O grupo aberto: e a parte dele que o caminho contorna. */
   const [aberto, setAberto] = useState<Grupo | null>(null)
-  const [emFoco, setEmFoco] = useState<Grupo | null>(null)
-  const grupoRealcado = emFoco ?? aberto
+  const grupoRealcado = aberto
 
   /** Liga o grupo ao caminho: aberto e em foco contornam a parte dele. */
   function acompanhar(grupo: Grupo) {
     return {
       onToggle: (abriu: boolean) =>
         setAberto((atual) => (abriu ? grupo : atual === grupo ? null : atual)),
-      onFocusWithin: (dentro: boolean) =>
-        setEmFoco((atual) => (dentro ? grupo : atual === grupo ? null : atual)),
     }
   }
 

@@ -434,19 +434,27 @@ describe('CycleSettingsScreen', () => {
     expect(within(caminho).getAllByRole('listitem').length).toBeGreaterThan(3)
   })
 
-  it('o grupo em foco contorna, no caminho, a parte que ele muda', async () => {
+  // Quem manda no contorno e o grupo aberto, e so ele: o foco atravessando outro grupo nao
+  // troca nada, porque a previa mudando sozinha confundia mais do que mostrava.
+  it('o grupo aberto contorna, no caminho, a parte que ele muda, e o foco em outro grupo não', async () => {
     montar()
 
     const reabrir = await screen.findByRole('checkbox', { name: /Deixar quem relatou reabrir/ })
-    act(() => reabrir.focus())
-
     const caminho = screen.getByRole('region', { name: 'Caminho do relato' })
-    const contornados = caminho.querySelectorAll('[data-highlighted]')
-    expect(contornados).toHaveLength(1)
-    expect(contornados[0]?.textContent).toContain('Não resolveu')
+    ;(reabrir.closest('details') as HTMLDetailsElement).open = true
+    await waitFor(() =>
+      expect(caminho.querySelector('[data-highlighted]')?.textContent).toContain('Não resolveu'),
+    )
+    expect(caminho.querySelectorAll('[data-highlighted]')).toHaveLength(1)
 
-    act(() => (screen.getByLabelText('Esperar antes de mostrar') as HTMLInputElement).focus())
-    expect(caminho.querySelector('[data-highlighted]')?.textContent).toContain('Quem relatou vê')
+    const espera = screen.getByLabelText('Esperar antes de mostrar') as HTMLInputElement
+    act(() => espera.focus())
+    expect(caminho.querySelector('[data-highlighted]')?.textContent).toContain('Não resolveu')
+
+    ;(espera.closest('details') as HTMLDetailsElement).open = true
+    await waitFor(() =>
+      expect(caminho.querySelector('[data-highlighted]')?.textContent).toContain('Quem relatou vê'),
+    )
   })
 
   it('sem as colunas, o "volta para" diz por que e oferece tentar de novo', async () => {

@@ -24,6 +24,11 @@ interface TelaDoGuia {
   passos: GuideStep[]
   /** Guia de um dialogo (o card aberto): o botao dele mora no proprio dialogo. */
   noDialogo: boolean
+  /**
+   * A tela nao gasta o balao da primeira vez. E a de Projetos ainda vazia: ali a pessoa
+   * esta criando o primeiro projeto, e o balao vem na Visao geral dele.
+   */
+  semBalao: boolean
 }
 
 interface GuideState {
@@ -34,7 +39,7 @@ interface GuideState {
   pilha: TelaDoGuia[]
   tela: TelaDoGuia | null
   aberto: boolean
-  registrar: (id: string, passos: GuideStep[], noDialogo?: boolean) => void
+  registrar: (id: string, passos: GuideStep[], noDialogo?: boolean, semBalao?: boolean) => void
   esquecer: (id: string) => void
   abrir: () => void
   fechar: () => void
@@ -46,10 +51,10 @@ export const useGuideStore = create<GuideState>((set) => ({
   pilha: [],
   tela: null,
   aberto: false,
-  registrar: (id, passos, noDialogo = false) =>
+  registrar: (id, passos, noDialogo = false, semBalao = false) =>
     set((atual) => {
       const onde = atual.pilha.findIndex((tela) => tela.id === id)
-      const nova = { id, passos, noDialogo }
+      const nova = { id, passos, noDialogo, semBalao }
       const pilha =
         onde >= 0
           ? atual.pilha.map((tela, i) => (i === onde ? nova : tela))
@@ -74,7 +79,7 @@ export const useGuideStore = create<GuideState>((set) => ({
 export function useScreenGuide(
   id: string,
   passos: GuideStep[] | null,
-  { noDialogo = false }: { noDialogo?: boolean } = {},
+  { noDialogo = false, semBalao = false }: { noDialogo?: boolean; semBalao?: boolean } = {},
 ): void {
   const registrar = useGuideStore((estado) => estado.registrar)
   const esquecer = useGuideStore((estado) => estado.esquecer)
@@ -86,8 +91,8 @@ export function useScreenGuide(
   // biome-ignore lint/correctness/useExhaustiveDependencies: a chave resume os passos.
   useEffect(() => {
     if (!passos) return
-    registrar(id, passos, noDialogo)
-  }, [id, chave, noDialogo, registrar])
+    registrar(id, passos, noDialogo, semBalao)
+  }, [id, chave, noDialogo, semBalao, registrar])
 
   useEffect(() => () => esquecer(id), [id, esquecer])
 }
@@ -102,7 +107,7 @@ export function guideTarget(nome: string): { 'data-guia': string } {
  * o balao em cada tela nova interrompia quem so queria trabalhar. Ele aparece na
  * primeira tela da primeira visita, diz que o guia existe em todas, e nao volta. Sem
  * o armazenamento (aba anonima, bloqueado), ele aparece de novo, e o guia continua no
- * botao.
+ * botao. A excecao e o projeto novo (`pedirOBalaoDoGuia`).
  */
 const APRESENTADO = 'pds.web.guia-apresentado.v1'
 
@@ -114,7 +119,25 @@ export function jaApresentouOGuia(): boolean {
   }
 }
 
+/**
+ * A tela em que o balao volta uma vez, mesmo ja apresentado. Quem acaba de criar um
+ * projeto cai na Visao geral dele, e e ali que o guia mais ajuda: o balao aparece em
+ * todo projeto novo. Fica na memoria da pagina, e nao no armazenamento, porque vale so
+ * para a navegacao logo a seguir.
+ */
+let balaoPedidoEm: string | null = null
+
+export function pedirOBalaoDoGuia(tela: string): void {
+  balaoPedidoEm = tela
+}
+
+/** Se o balao aparece nesta tela: na primeira visita ao painel, ou quando foi pedido nela. */
+export function deveApresentarOGuia(tela: string): boolean {
+  return balaoPedidoEm === tela || !jaApresentouOGuia()
+}
+
 export function marcarGuiaApresentado(): void {
+  balaoPedidoEm = null
   try {
     localStorage.setItem(APRESENTADO, '1')
   } catch {

@@ -9,6 +9,11 @@ try {
       : matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
         : 'light'
+
+  // Sem sessao guardada, a pagina e a entrada publica, que e sempre clara. A chave e a
+  // mesma de `data/sessionToken.ts`; quem tem sessao fica com o tema que escolheu.
+  if (!localStorage.getItem('pds.web.session.v1')) theme = 'light'
+
   document.documentElement.setAttribute('data-theme', theme)
 } catch (e) {
   // Armazenamento bloqueado: cai no claro, e o bundle corrige em seguida.

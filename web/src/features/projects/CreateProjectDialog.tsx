@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { TextField } from '@/shared/components/TextField'
 import { cn } from '@/shared/lib/cn'
+import { pedirOBalaoDoGuia } from '@/shared/tour/guideStore'
 
 interface Template {
   value: ProjectTemplate
@@ -132,6 +133,8 @@ export function CreateProjectDialog({
 
       // Para os primeiros passos, e nao para a Instalacao: e a mesma pagina que a raiz do
       // projeto abre, com os cinco passos, e a Instalacao e o detalhe dos tres primeiros.
+      // La o balao aponta o "Guia da tela", em todo projeto novo.
+      pedirOBalaoDoGuia('configurar')
       navigate(`/projects/${created.Project.PublicId}/configure`)
     } catch (failure) {
       setError(describeError(failure))

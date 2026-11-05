@@ -5,16 +5,12 @@ import type {
   ObservedOriginViewModel,
   ProjectOriginViewModel,
   ProjectViewModel,
-  WidgetPosition,
 } from '@/contracts'
-import { projectKeyService, projectOriginService, projectWidgetSettingsService } from '@/data'
-import { accentStyle } from '@/embed/appearance'
-import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
+import { projectKeyService, projectOriginService } from '@/data'
 import { AuthorizeDomain } from '@/features/onboarding/AuthorizeDomain'
 import { TestReportDialog } from '@/features/onboarding/TestReportDialog'
 import { Button } from '@/shared/components/Button'
 import { CopyButton } from '@/shared/components/CopyButton'
-import { LauncherIconSvg } from '@/shared/components/LauncherIcon'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
@@ -69,7 +65,7 @@ const PASSO_DA_ANCORA: Record<string, InstallStepKey> = {
   'relato-de-teste': 'test',
 }
 
-/** Os links da previa levam ao campo e o acendem, como a busca. */
+/** Os links para outra tela levam ao campo e o acendem, como a busca. */
 const REALCE: ScrollToHashState = { realce: true }
 
 type InstallStepKey = 'script' | 'domain' | 'test'
@@ -181,18 +177,12 @@ export function StartScreen() {
   useAvisoDoTeste(project.PublicId, testOpen, avisarChegada)
   const funcionando = done !== null && aberto === null
 
-  // O guia desta tela: os tres passos e a saida para a chave secreta. A previa so entra
-  // com o passo do script aberto, que e onde ela mora.
+  // O guia desta tela: os tres passos e a saida para a chave secreta.
   useScreenGuide('instalacao', [
     {
       alvo: 'passo-script',
       titulo: 'Colar o script',
       texto: 'Copie o script para o seu sistema, ou mande a quem cuida dele.',
-    },
-    {
-      alvo: 'previa',
-      titulo: 'Como vai ficar',
-      texto: 'Uma prévia do botão como ele aparece no seu sistema.',
     },
     {
       alvo: 'passo-autorizar-endereco',
@@ -268,38 +258,32 @@ export function StartScreen() {
               ) : null
             }
           >
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem]">
-              <div className="min-w-0">
-                <p className="mb-3 text-detail text-fg-muted leading-relaxed">
-                  Cole antes do fechamento do &lt;/body&gt;, em todas as páginas do seu sistema.
-                </p>
-                <pre className="m-0 whitespace-pre-wrap break-all rounded-lg border border-border bg-surface px-4 py-3.5 font-mono text-detail text-fg leading-relaxed">
-                  {snippet}
-                </pre>
+            <div className="min-w-0">
+              <p className="mb-3 text-detail text-fg-muted leading-relaxed">
+                Cole antes do fechamento do &lt;/body&gt;, em todas as páginas do seu sistema.
+              </p>
+              <pre className="m-0 whitespace-pre-wrap break-all rounded-lg border border-border bg-surface px-4 py-3.5 font-mono text-detail text-fg leading-relaxed">
+                {snippet}
+              </pre>
 
-                {/* Quem administra o projeto muitas vezes nao e quem mexe no codigo: o recado
+              {/* Quem administra o projeto muitas vezes nao e quem mexe no codigo: o recado
                     pronto leva o script, onde colar e o que vem depois, para mandar a quem
                     cuida do sistema. Copiar o recado tambem conta como o script entregue. */}
-                {publicKey && (
-                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <span className="text-detail text-fg-muted">
-                      Não é você quem mexe no código do sistema?
-                    </span>
-                    <CopyButton
-                      value={buildHandoffText(snippet)}
-                      label="Copiar instruções para quem cuida dele"
-                      size="sm"
-                      onCopied={marcarCopiado}
-                    />
-                  </div>
-                )}
+              {publicKey && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span className="text-detail text-fg-muted">
+                    Não é você quem mexe no código do sistema?
+                  </span>
+                  <CopyButton
+                    value={buildHandoffText(snippet)}
+                    label="Copiar instruções para quem cuida dele"
+                    size="sm"
+                    onCopied={marcarCopiado}
+                  />
+                </div>
+              )}
 
-                <ForWhoCodes publicKey={publicKey} />
-              </div>
-
-              <div {...guideTarget('previa')}>
-                <WidgetPreview projectId={project.PublicId} />
-              </div>
+              <ForWhoCodes publicKey={publicKey} />
             </div>
           </Step>
 
@@ -746,73 +730,6 @@ function SnippetBlock({ code, label }: { code: string; label: string }) {
       <div className="flex justify-end border-border border-t bg-surface-raised px-2.5 py-2">
         <CopyButton value={code} label={label} size="sm" />
       </div>
-    </div>
-  )
-}
-
-/** O canto do desenho, em classes: o desenho e pequeno, e a distancia escolhida nao cabe nele. */
-const CANTO: Record<WidgetPosition, string> = {
-  BottomRight: 'right-3.5 bottom-3.5',
-  BottomLeft: 'left-3.5 bottom-3.5',
-  TopRight: 'right-3.5 top-3.5',
-  TopLeft: 'left-3.5 top-3.5',
-}
-
-/**
- * O que o script desenha no site do cliente: colar um bloco de codigo sem ver o que ele
- * produz e um ato de fe.
- *
- * **O desenho segue o projeto**: a cor, o canto, o texto e o icone que estao
- * publicados. Sem a leitura — ainda carregando, ou falhou —, o botao de fabrica: o
- * desenho e ilustracao, e nao vale uma tela de erro. A previa de verdade, com tudo, mora
- * em O botão.
- */
-function WidgetPreview({ projectId }: { projectId: string }) {
-  const { data } = useAsyncResource(
-    useCallback(() => projectWidgetSettingsService.getWidgetSettings(projectId), [projectId]),
-  )
-  const settings = data ?? DEFAULT_WIDGET_SETTINGS
-  const icone = settings.LauncherIcon !== 'None' ? settings.LauncherIcon : null
-  const soIcone = settings.LauncherIconOnly && icone !== null
-
-  return (
-    <div className="self-start rounded-lg border border-border bg-surface p-3">
-      <p className="mb-2.5 text-caption text-fg-muted">Como vai aparecer no seu sistema</p>
-
-      <div className="relative h-28 overflow-hidden rounded-md border border-border bg-surface-sunken p-3.5">
-        <div className="flex flex-col gap-2" aria-hidden="true">
-          <div className="h-2 w-1/3 rounded bg-surface-strong" />
-          <div className="h-1.5 w-3/5 rounded bg-surface-strong" />
-          <div className="h-1.5 w-2/5 rounded bg-surface-strong" />
-        </div>
-
-        <span
-          style={accentStyle(settings)}
-          title={soIcone ? settings.LauncherLabel : undefined}
-          className={cn(
-            'absolute flex items-center gap-1.5 rounded-lg bg-[var(--widget-accent)] px-2.5 py-1.5',
-            'font-medium text-[var(--widget-ink)] text-caption',
-            CANTO[settings.Position] ?? CANTO.BottomRight,
-          )}
-        >
-          {icone && <LauncherIconSvg icon={icone} size={14} />}
-          {soIcone ? (
-            <span className="sr-only">{settings.LauncherLabel}</span>
-          ) : (
-            settings.LauncherLabel
-          )}
-        </span>
-      </div>
-
-      {/* Um link so, com o destino escrito: as sete etiquetas (Cor, Canto, Icone...)
-          pareciam marcadores, e cada uma trocava de tela sem avisar. */}
-      <Link
-        to="../tool"
-        className="mt-3 inline-flex items-center gap-1 font-medium text-caption text-fg transition-colors hover:text-fg-muted"
-      >
-        Mudar a aparência em O botão
-        <Chevron className="size-2.5" />
-      </Link>
     </div>
   )
 }
