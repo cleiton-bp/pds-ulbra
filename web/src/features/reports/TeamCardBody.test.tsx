@@ -284,7 +284,7 @@ describe('editar o card do time no lugar', () => {
     dublê.abrir.mockResolvedValue(aberto(cardDoTime(), null))
     montar()
 
-    expect(await screen.findByText('Sem descrição. Clique para escrever.')).toBeTruthy()
+    expect(await screen.findByText('Clique para escrever.')).toBeTruthy()
     fireEvent.click(screen.getByRole('heading', { name: 'Lançar o checkout novo' }))
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Título' }))
   })
@@ -431,7 +431,7 @@ describe('o Esc e o fechar com a edicao aberta', () => {
   it('com a descricao mudada, o Esc pergunta: "Descartar" sai da edicao sem gravar, e o card fica', async () => {
     dublê.abrir.mockResolvedValue(aberto(cardDoTime(), null))
     const { aoFechar } = montar()
-    fireEvent.click(await screen.findByText('Sem descrição. Clique para escrever.'))
+    fireEvent.click(await screen.findByText('Clique para escrever.'))
     const descricao = screen.getByRole('textbox', { name: 'Descrição' })
     expect(document.activeElement).toBe(descricao)
     fireEvent.change(descricao, { target: { value: 'Trocar o gateway.' } })
@@ -442,7 +442,7 @@ describe('o Esc e o fechar com a edicao aberta', () => {
     })
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Descartar' }))
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Descrição' })).toBeNull())
-    expect(screen.getByText('Sem descrição. Clique para escrever.')).toBeTruthy()
+    expect(screen.getByText('Clique para escrever.')).toBeTruthy()
     expect(aoFechar).not.toHaveBeenCalled()
     expect(dublê.editar).not.toHaveBeenCalled()
   })

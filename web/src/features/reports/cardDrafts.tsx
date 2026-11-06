@@ -126,7 +126,7 @@ export function useCardDrafts() {
           requestAnimationFrame(() => foco.focus())
       }}
       title="Descartar o que você escreveu?"
-      description="O texto que você começou neste card ainda não foi salvo."
+      description="O texto ainda não foi salvo."
       confirmLabel="Descartar"
       cancelLabel="Continuar escrevendo"
       primary="cancel"

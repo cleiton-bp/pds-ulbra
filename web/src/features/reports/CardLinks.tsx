@@ -145,7 +145,11 @@ export function CardLinks({
       {failed && (
         <p className="mb-2 text-detail text-fg-muted">
           Não deu para carregar os vínculos.{' '}
-          <button type="button" onClick={reload} className="underline underline-offset-2">
+          <button
+            type="button"
+            onClick={reload}
+            className="underline underline-offset-2 pointer-coarse:-my-3 pointer-coarse:py-3"
+          >
             Tentar de novo
           </button>
         </p>
@@ -158,7 +162,11 @@ export function CardLinks({
           <h4 className="mb-1 text-caption text-fg-muted">{GRUPOS[grupo.tipo]}</h4>
           <ul className="divide-y divide-border rounded-lg border border-border">
             {grupo.itens.map((vinculo) => (
-              <li key={vinculo.PublicId} className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+              // No dedo, como nas subtarefas: linha de 48 e alvos de 40.
+              <li
+                key={vinculo.PublicId}
+                className="flex min-w-0 items-center gap-2 px-2.5 py-2 pointer-coarse:py-1"
+              >
                 <span className="flex-none font-mono text-caption text-fg-muted">
                   #{vinculo.Card.Number}
                 </span>
@@ -166,7 +174,7 @@ export function CardLinks({
                   to={`../${vinculo.Card.PublicId}`}
                   onClick={(evento) => guardar(evento, `../${vinculo.Card.PublicId}`)}
                   className={cn(
-                    'min-w-0 flex-1 truncate text-detail underline-offset-2 hover:underline',
+                    'min-w-0 flex-1 truncate text-detail underline-offset-2 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3',
                     vinculo.Card.Finished ? 'text-fg-muted line-through' : 'text-fg',
                   )}
                 >
@@ -191,7 +199,7 @@ export function CardLinks({
                   disabled={desfazendo !== null}
                   aria-label={`Desfazer o vínculo com #${vinculo.Card.Number}`}
                   title="Desfazer o vínculo"
-                  className="flex size-6 flex-none items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken hover:text-fg disabled:opacity-50"
+                  className="flex size-6 flex-none items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken hover:text-fg disabled:opacity-50 pointer-coarse:-mr-2 pointer-coarse:size-10"
                 >
                   <svg
                     viewBox="0 0 12 12"
@@ -449,7 +457,7 @@ function LinkForm({
         disabled={vinculando}
         // biome-ignore lint/a11y/noAutofocus: o campo acabou de ser aberto por quem quer escrever nele
         autoFocus
-        className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
+        className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-10"
       />
 
       {achados !== null && (
@@ -463,7 +471,7 @@ function LinkForm({
                 type="button"
                 onClick={() => escolher(achado)}
                 disabled={vinculando}
-                className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-surface-sunken disabled:opacity-60"
+                className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-surface-sunken disabled:opacity-60 pointer-coarse:py-2.5"
               >
                 <span className="flex-none font-mono text-caption text-fg-muted">
                   #{achado.Number}

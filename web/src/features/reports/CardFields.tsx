@@ -20,6 +20,7 @@ import {
 import { useCardDraft } from '@/features/reports/cardDrafts'
 import { formatPoints } from '@/features/reports/sprints/sprintLook'
 import { CardChip } from '@/shared/components/CardChip'
+import { DateField } from '@/shared/components/DateField'
 import { Select } from '@/shared/components/Select'
 import { toast } from '@/shared/components/toastStore'
 import { cn } from '@/shared/lib/cn'
@@ -350,7 +351,16 @@ export function CardFields({
           {situacao('etiquetas')}
         </dd>
 
-        <dt className="text-detail text-fg-muted">Prazo</dt>
+        {/* No alto, na linha do campo: centrado no bloco, o rotulo caia na linha do "Tirar
+            prazo" quando a data por extenso aparece embaixo. */}
+        <dt
+          className={cn(
+            'text-detail text-fg-muted',
+            !arquivado && 'self-start pt-1.5 pointer-coarse:pt-2.5',
+          )}
+        >
+          Prazo
+        </dt>
         <dd className="min-w-0">
           {arquivado ? (
             <span className={cn('text-body', card.DueDate ? 'text-fg' : 'text-fg-muted')}>
@@ -631,7 +641,7 @@ function Etiquetas({
                   type="button"
                   aria-label={`Tirar a etiqueta ${etiqueta.Name}`}
                   onClick={() => aoTirar(etiqueta.PublicId)}
-                  className="ml-0.5 rounded-full px-1 text-caption text-fg-muted hover:text-fg"
+                  className="ml-0.5 rounded-full px-1 text-caption text-fg-muted hover:text-fg pointer-coarse:-my-3 pointer-coarse:min-w-10 pointer-coarse:py-3"
                 >
                   ×
                 </button>
@@ -675,7 +685,7 @@ function Etiquetas({
                 escolherOpcao(opcoes[destacada])
               }
             }}
-            className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
+            className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-10"
           />
           {busca.length > 0 && (
             <p id={dicaId} className="mt-1 text-caption text-fg-muted">
@@ -748,7 +758,9 @@ function PrazoPorExtenso({
 
   return (
     <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-caption text-fg-muted">
-      <span className="tabular-nums">{formatDay(dia)}</span>
+      {/* No celular o campo ja mostra a data: por extenso, ela repetia a mesma informacao
+          numa linha a mais. Fica so o que o campo nao diz (vencido ou perto). */}
+      <span className="tabular-nums max-sm:hidden">{formatDay(dia)}</span>
       {palavras && (
         <span
           className={cn(
@@ -765,22 +777,10 @@ function PrazoPorExtenso({
   )
 }
 
-/** O intervalo que a API aceita: fora dele e engano de digitacao, e nao prazo. */
-function prazoValido(data: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return false
-  const ano = Number(data.slice(0, 4))
-  return ano >= 2000 && ano <= 2100
-}
-
 /**
- * O prazo: so a data. O campo de data do navegador ja fala o idioma de quem usa, e
- * o valor que ele devolve e o `aaaa-mm-dd` que a API guarda — sem fuso no meio.
- *
- * **Digitar e rascunho; sair do campo ou Enter grava.** Digitando, o navegador
- * devolve uma data inteira a cada tecla — o ano 2026 passa por 0002, 0020 e 0202 —, e
- * gravar a cada uma gravaria datas que ninguem escolheu. Escolher no calendario, sem
- * tecla nenhuma, grava na hora. A data pela metade, ou fora de 2000 a 2100, nao vira
- * pedido: o campo volta ao prazo que vale.
+ * O prazo: so a data, no `aaaa-mm-dd` que a API guarda, sem fuso no meio. Escolhido no
+ * calendario do projeto, grava na hora; "Tirar prazo" (ou o "Limpar" do calendario) manda
+ * nulo.
  */
 function Prazo({
   valor,
@@ -789,75 +789,25 @@ function Prazo({
   valor: string | null
   aoMudar: (data: string | null) => void
 }) {
-  const [rascunho, setRascunho] = useState(valor ?? '')
-  const digitando = useRef(false)
-  // O que o campo mostrava quando a digitacao comecou. Tecla que so anda entre dia,
-  // mes e ano nao muda nada — e sair do campo assim nao pode gravar por cima do prazo
-  // que outra pessoa pos enquanto isso.
-  const antesDeDigitar = useRef<string | null>(null)
-
-  // O prazo que chega de fora — a resposta, ou outra pessoa pelo tempo real — vale
-  // sobre o rascunho, **menos no meio da digitacao**: ai quem sai do campo decide, e o
-  // que escreveu nao some debaixo do dedo.
-  useEffect(() => {
-    if (!digitando.current) setRascunho(valor ?? '')
-  }, [valor])
-
-  function confirmar(campo: HTMLInputElement) {
-    const comecou = digitando.current ? antesDeDigitar.current : null
-    digitando.current = false
-    antesDeDigitar.current = null
-    const data = campo.value
-
-    if (data === (valor ?? '')) return
-
-    if (comecou !== null && data === comecou) {
-      // Nada mudou no campo: fica o prazo que vale agora.
-      setRascunho(valor ?? '')
-      return
-    }
-
-    if (!prazoValido(data)) {
-      if (data !== '') toast.error('Escolha um prazo entre os anos 2000 e 2100.')
-      // Volta ao que vale. O campo e reposto a mao tambem: o navegador que nao avisa a
-      // data pela metade nem mudou o rascunho, e o React nao teria o que repor.
-      setRascunho(valor ?? '')
-      campo.value = valor ?? ''
-      return
-    }
-
-    aoMudar(data)
-  }
-
+  // O calendario do projeto (`DateField`), no lugar do campo do navegador: escolher um dia
+  // grava na hora, e o intervalo que a API aceita (2000 a 2100) vira o limite do calendario.
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <input
-        type="date"
-        aria-label="Prazo"
-        value={rascunho}
+      <DateField
+        rotulo="Prazo"
+        value={valor}
+        onChange={aoMudar}
         min="2000-01-01"
         max="2100-12-31"
-        onKeyDown={(evento) => {
-          if (evento.key === 'Enter') {
-            evento.preventDefault()
-            confirmar(evento.currentTarget)
-          } else if (evento.key !== 'Tab' && !digitando.current) {
-            digitando.current = true
-            antesDeDigitar.current = evento.currentTarget.value
-          }
-        }}
-        onChange={(evento) => {
-          setRascunho(evento.target.value)
-          if (!digitando.current) confirmar(evento.currentTarget)
-        }}
-        onBlur={(evento) => confirmar(evento.currentTarget)}
-        className="h-8 rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg"
+        size="sm"
+        clearable
+        className="max-w-full"
       />
       {valor && (
         <button
           type="button"
           onClick={() => aoMudar(null)}
-          className="whitespace-nowrap text-caption text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+          className="whitespace-nowrap text-caption text-fg-muted underline-offset-2 hover:text-fg hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
         >
           Tirar prazo
         </button>
@@ -920,7 +870,7 @@ function Pontos({
           gravar()
         }
       }}
-      className="h-8 w-28 rounded-lg border border-border bg-surface px-2.5 text-body text-fg tabular-nums placeholder:text-fg-placeholder"
+      className="h-8 w-28 rounded-lg border border-border bg-surface px-2.5 text-body text-fg tabular-nums placeholder:text-fg-placeholder pointer-coarse:h-10"
     />
   )
 }

@@ -59,11 +59,7 @@ afterEach(() => {
 describe('o que o dialogo diz', () => {
   it('mover para a coluna que encerra, encerrar sem mover, arquivar e o lote', () => {
     montar()
-    expect(
-      screen.getByText(
-        'Mover para Feito encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.',
-      ),
-    ).toBeTruthy()
+    expect(screen.getByText('Mover para Feito encerra o relato.')).toBeTruthy()
     cleanup()
 
     montar({ coluna: null })
@@ -77,7 +73,7 @@ describe('o que o dialogo diz', () => {
 
     montar({ lote: 3 })
     expect(screen.getByRole('dialog', { name: 'Encerrar 3 relatos' })).toBeTruthy()
-    expect(screen.getByText(/encerra os 3 relatos abertos da seleção/)).toBeTruthy()
+    expect(screen.getByText(/Os 3 relatos da seleção encerram juntos/)).toBeTruthy()
   })
 })
 
@@ -88,7 +84,7 @@ describe('o motivo', () => {
     expect(encerrar.disabled).toBe(true)
 
     await escolherNoSelect(screen, fireEvent, 'Como terminou', 'Não será feito')
-    fireEvent.change(within(dialogo).getByLabelText('Por que acabou'), {
+    fireEvent.change(within(dialogo).getByLabelText('Motivo'), {
       target: { value: '  Fora do que o produto faz.  ' },
     })
     fireEvent.click(encerrar)
@@ -97,7 +93,7 @@ describe('o motivo', () => {
 
   it('com o motivo escrito, o clique fora nao fecha; o Esc e o "Cancelar" continuam', async () => {
     const { aoCancelar, dialogo } = montar()
-    const motivo = within(dialogo).getByLabelText('Por que acabou')
+    const motivo = within(dialogo).getByLabelText('Motivo')
     fireEvent.change(motivo, { target: { value: 'Trocamos o gateway.' } })
 
     await clicarFora()

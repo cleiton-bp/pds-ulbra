@@ -114,12 +114,12 @@ export function ReportHistory({
       )}
 
       {linhas && (linhas.length > MAIS_RECENTES || aberturasDeQuemRelatou > 1) && (
-        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
+        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 pointer-coarse:gap-x-6 pointer-coarse:gap-y-6">
           {linhas.length > MAIS_RECENTES && (
             <button
               type="button"
               onClick={() => setTudo((antes) => !antes)}
-              className="text-caption text-fg-muted underline underline-offset-2 hover:text-fg"
+              className="text-caption text-fg-muted underline underline-offset-2 hover:text-fg pointer-coarse:-my-3 pointer-coarse:py-3"
             >
               {tudo ? 'Mostrar só as mais recentes' : `Mostrar tudo (${linhas.length})`}
             </button>
@@ -128,7 +128,7 @@ export function ReportHistory({
             <button
               type="button"
               onClick={() => setComVoltas((antes) => !antes)}
-              className="text-caption text-fg-muted underline underline-offset-2 hover:text-fg"
+              className="text-caption text-fg-muted underline underline-offset-2 hover:text-fg pointer-coarse:-my-3 pointer-coarse:py-3"
             >
               {comVoltas
                 ? 'Esconder as voltas de quem relatou'

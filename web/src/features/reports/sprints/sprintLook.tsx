@@ -10,6 +10,7 @@ import { describeError, projectReportService, sprintService } from '@/data'
 import { cardHeadline } from '@/features/reports/cardLook'
 import { Button } from '@/shared/components/Button'
 import { formatPoints, pointsText } from '@/shared/components/cardFace'
+import { DateField } from '@/shared/components/DateField'
 import { Modal } from '@/shared/components/Modal'
 import { Select } from '@/shared/components/Select'
 import { TextField } from '@/shared/components/TextField'
@@ -208,13 +209,15 @@ export function SprintBar({
           </span>
         </p>
         {sprint.Goal && <p className="mt-0.5 text-detail text-fg-muted">{sprint.Goal}</p>}
+        {/* No celular a aba Backlog esta logo acima, e a frase tomava duas linhas antes do
+            quadro. */}
         {aoIrAoBacklog && (
-          <p className="mt-0.5 text-detail text-fg-muted">
+          <p className="mt-0.5 text-detail text-fg-muted max-sm:hidden">
             O quadro mostra só esta sprint, e os outros cards estão no{' '}
             <button
               type="button"
               onClick={aoIrAoBacklog}
-              className="text-fg underline underline-offset-4 transition-colors hover:text-fg-muted"
+              className="text-fg underline underline-offset-4 transition-colors hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
             >
               Backlog
             </button>
@@ -410,31 +413,30 @@ export function SprintDialog({
               <label htmlFor={idComeca} className="mb-1.5 block text-detail text-fg-muted">
                 Começa em
               </label>
-              <input
+              <DateField
                 id={idComeca}
-                type="date"
+                rotulo="Começa em"
                 value={comeca}
-                onChange={(evento) => mudarComeco(evento.target.value)}
-                aria-describedby={idDatas}
-                className="h-9 rounded-lg border border-border bg-surface px-2.5 text-body text-fg"
+                onChange={(dia) => dia && mudarComeco(dia)}
+                describedBy={idDatas}
               />
             </div>
             <div>
               <label htmlFor={idTermina} className="mb-1.5 block text-detail text-fg-muted">
                 Termina em
               </label>
-              <input
+              <DateField
                 id={idTermina}
-                type="date"
+                rotulo="Termina em"
                 value={termina}
                 min={comeca}
-                onChange={(evento) => {
-                  setTermina(evento.target.value)
+                onChange={(dia) => {
+                  if (!dia) return
+                  setTermina(dia)
                   setTerminaEscolhida(true)
                 }}
-                aria-describedby={idDatas}
-                aria-invalid={foraDeOrdem || undefined}
-                className="h-9 rounded-lg border border-border bg-surface px-2.5 text-body text-fg"
+                describedBy={idDatas}
+                invalid={foraDeOrdem}
               />
             </div>
           </div>

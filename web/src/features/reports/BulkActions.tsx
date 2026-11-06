@@ -22,6 +22,7 @@ import { DropdownGroup, DropdownItem, DropdownMenu } from '@/shared/components/D
 import { Modal } from '@/shared/components/Modal'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import { FADE_RIGHT, useSideScroll } from '@/shared/hooks/useSideScroll'
 import { cn } from '@/shared/lib/cn'
 
 /** Um card que nao mudou no lote, e por que. */
@@ -148,6 +149,8 @@ export function BulkActions({
   const [encerrar, setEncerrar] = useState<ReportStateCountViewModel | null>(null)
   const [reabrir, setReabrir] = useState<ReportStateCountViewModel | null>(null)
   const [selecionandoTodos, setSelecionandoTodos] = useState(false)
+  const faixa = useRef<HTMLDivElement>(null)
+  const { maisADireita } = useSideScroll(faixa)
 
   const { data: time } = useAsyncResource(
     useCallback(() => projectTeamService.listMembers(projectPublicId), [projectPublicId]),
@@ -356,9 +359,14 @@ export function BulkActions({
     // Presa embaixo da tela, depois da tabela: marcar a primeira caixa nao empurra as
     // linhas — o proximo clique cai onde a pessoa mirou. No celular, uma linha so: as
     // acoes rolam para o lado, e a barra nao cobre as linhas.
+    //
+    // A troca para a linha unica e pela largura da propria barra (`@container`), e nao
+    // da janela: no tablet e no notebook com o menu aberto, as acoes nao cabiam ao lado
+    // da contagem e o "Limpar selecao" sobrava sozinho numa segunda linha. Embaixo, a
+    // barra fica acima da area da barra de gestos do celular.
     <section
       aria-label="Ações em lote"
-      className="sticky bottom-3 mt-3 flex animate-slide-up flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
+      className="@container sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] mt-3 flex animate-slide-up flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
     >
       <span className="mr-1 font-medium text-detail text-fg tabular-nums">
         {soAPagina ? `${contagem} nesta página.` : contagem}
@@ -380,8 +388,15 @@ export function BulkActions({
       )}
 
       {/* No celular, as acoes numa faixa so, que rola para o lado, abaixo da contagem e
-          do "✕": duas linhas, e nao quatro cobrindo a lista. */}
-      <div className="-mx-1 order-last flex min-w-0 flex-[1_1_100%] flex-nowrap items-center gap-2 overflow-x-auto px-1 sm:order-none sm:mx-0 sm:flex-[0_1_auto] sm:flex-wrap sm:overflow-visible sm:px-0">
+          do "✕": duas linhas, e nao quatro cobrindo a lista. A borda direita esmaece
+          enquanto houver acao escondida. */}
+      <div
+        ref={faixa}
+        className={cn(
+          '-mx-1 order-last flex min-w-0 flex-[1_1_100%] flex-nowrap items-center gap-2 overflow-x-auto px-1 @min-[56rem]:order-none @min-[56rem]:mx-0 @min-[56rem]:flex-[0_1_auto] @min-[56rem]:flex-wrap @min-[56rem]:overflow-visible @min-[56rem]:px-0',
+          maisADireita && FADE_RIGHT,
+        )}
+      >
         <Acao rotulo="Mover para" desligada={parado}>
           {ativas.length === 0 ? (
             // Sem as colunas, o menu diz por que esta vazio — e, se a leitura falhou,
@@ -655,10 +670,10 @@ export function BulkActions({
         aria-label="Limpar seleção"
         className="ml-auto"
       >
-        <span aria-hidden className="sm:hidden">
+        <span aria-hidden className="@min-[56rem]:hidden">
           ✕
         </span>
-        <span aria-hidden className="hidden sm:inline">
+        <span aria-hidden className="hidden @min-[56rem]:inline">
           Limpar seleção
         </span>
       </Button>
@@ -693,8 +708,8 @@ export function BulkActions({
           }
           description={
             reabrindo.length === 1
-              ? `Tirar o #${reabrindo[0]?.Number ?? ''} de ${queEncerra} reabre o relato: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.`
-              : `Tirar os ${reabrindo.length} relatos de ${queEncerra} reabre cada um: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.`
+              ? `Sair de ${queEncerra} reabre o relato, e quem relatou volta a ver o andamento, sem o motivo do encerramento.`
+              : `Sair de ${queEncerra} reabre os ${reabrindo.length} relatos, e quem relatou volta a ver o andamento, sem o motivo do encerramento.`
           }
           cancelLabel="Cancelar"
           confirmLabel="Reabrir e mover"
@@ -856,7 +871,7 @@ function Acao({
               evento.preventDefault()
           }}
           className={cn(
-            'inline-flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 text-detail text-fg transition-colors hover:bg-surface-sunken',
+            'inline-flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 text-detail text-fg transition-colors hover:bg-surface-sunken pointer-coarse:h-10',
             desligada && 'cursor-not-allowed opacity-60',
           )}
         >

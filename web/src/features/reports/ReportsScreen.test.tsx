@@ -1265,7 +1265,7 @@ describe('encerrar um relato', () => {
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
 
-    expect(await screen.findByText(/Mover para Pronto encerra este relato/)).toBeTruthy()
+    expect(await screen.findByText(/Mover para Pronto encerra o relato/)).toBeTruthy()
     // **O ponto do teste.** Perguntar depois de mover deixaria o relato encerrado
     // sem motivo enquanto o dialogo estivesse aberto — e encerrado sem motivo e
     // justamente o que nao pode existir.
@@ -1293,7 +1293,7 @@ describe('encerrar um relato', () => {
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
 
-    const campo = await screen.findByRole('textbox', { name: 'Por que acabou' })
+    const campo = await screen.findByRole('textbox', { name: 'Motivo' })
     fireEvent.change(campo, { target: { value: '   \n  ' } })
 
     expect(screen.getByRole('button', { name: 'Encerrar' }).hasAttribute('disabled')).toBe(true)
@@ -1310,7 +1310,7 @@ describe('encerrar um relato', () => {
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
 
-    const campo = await screen.findByRole('textbox', { name: 'Por que acabou' })
+    const campo = await screen.findByRole('textbox', { name: 'Motivo' })
     fireEvent.change(campo, { target: { value: 'Corrigimos na versão desta semana.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
 
@@ -1342,7 +1342,7 @@ describe('encerrar um relato', () => {
 
     await escolherNoSelect(screen, fireEvent, 'Como terminou', 'Não será feito')
 
-    const campo = await screen.findByRole('textbox', { name: 'Por que acabou' })
+    const campo = await screen.findByRole('textbox', { name: 'Motivo' })
     fireEvent.change(campo, { target: { value: 'Sai do escopo deste produto.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
 
@@ -1367,7 +1367,7 @@ describe('encerrar um relato', () => {
     // Nao ha "mover sem encerrar" para esta coluna: encerrar sem motivo nao
     // existe, entao mover sem motivo tambem nao.
     expect(dublê.mover).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.queryByText(/encerra este relato/)).toBeNull())
+    await waitFor(() => expect(screen.queryByText(/encerra o relato/)).toBeNull())
   })
 
   it('a última coluna ativa não encerra se a API não disser que encerra', async () => {
@@ -1386,7 +1386,7 @@ describe('encerrar um relato', () => {
     await waitFor(() =>
       expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-3' }),
     )
-    expect(screen.queryByText(/encerra este relato/)).toBeNull()
+    expect(screen.queryByText(/encerra o relato/)).toBeNull()
   })
 })
 
@@ -1439,7 +1439,7 @@ describe('encerrar por botão', () => {
     await waitFor(() =>
       expect(dublê.mover).toHaveBeenCalledWith('p-1', 'r-1', { StatePublicId: 's-2' }),
     )
-    expect(screen.queryByText(/encerra este relato/)).toBeNull()
+    expect(screen.queryByText(/encerra o relato/)).toBeNull()
   })
 
   it('e oferece o botão, que encerra sem mover', async () => {
@@ -1467,7 +1467,7 @@ describe('encerrar por botão', () => {
     // Sem coluna de destino: a frase fala do relato ficar onde esta.
     expect(await screen.findByText(/continua na coluna em que está/)).toBeTruthy()
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Por que acabou' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Motivo' }), {
       target: { value: 'Corrigido.' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
@@ -1516,9 +1516,9 @@ describe('encerrar por botão', () => {
     // momento para encerrar da triagem. Quem encerra continua sendo o movimento: o mesmo
     // dialogo do motivo, e o relato vai para a coluna que encerra.
     fireEvent.click(await screen.findByRole('button', { name: 'Encerrar relato…' }))
-    expect(await screen.findByText(/Mover para Pronto encerra este relato/)).toBeTruthy()
+    expect(await screen.findByText(/Mover para Pronto encerra o relato/)).toBeTruthy()
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Por que acabou' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Motivo' }), {
       target: { value: 'Corrigido.' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
@@ -1764,7 +1764,7 @@ describe('devolver o relato pedindo informação', () => {
     })
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pedir informação' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'O que falta' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'O que você precisa saber' }), {
       target: { value: 'Em qual navegador isso aconteceu?' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Pedir' }))

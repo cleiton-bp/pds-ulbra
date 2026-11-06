@@ -1,5 +1,6 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import * as Menu from '@radix-ui/react-dropdown-menu'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import type {
   PublicCommentViewModel,
   PublicOutcome,
@@ -19,6 +20,7 @@ import {
   CardDialogTitle,
   DetailRow,
   DetailsBox,
+  resumoDosDetalhes,
 } from '@/features/reports/CardDetailLayout'
 import { CardFields } from '@/features/reports/CardFields'
 import { CardLinks } from '@/features/reports/CardLinks'
@@ -51,11 +53,15 @@ import { Modal } from '@/shared/components/Modal'
 import { ReportAnswers } from '@/shared/components/ReportAnswers'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
+import type { EstadoDaVolta } from '@/shared/components/VoltarDeOndeVeio'
+import { useArrastarParaFechar } from '@/shared/hooks/useArrastarParaFechar'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { copyText } from '@/shared/lib/clipboard'
+import { cn } from '@/shared/lib/cn'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
 import { GuideButton } from '@/shared/tour/GuideButton'
-import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
+import { guideTarget, useGuideStore, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
  * Um relato aberto.
@@ -674,48 +680,82 @@ export function ReportDialog({
           },
           {
             alvo: 'guia',
-            titulo: 'Sempre à mão',
-            texto: 'Volte aqui quando quiser rever o que cada parte do card faz.',
+            titulo: 'Guia por tela',
+            texto: 'O card tem o seu guia, sempre neste botão, como cada tela do painel.',
           },
         ]
       : null,
     { noDialogo: true },
   )
 
+  // **Fechar com movimento**: o card e uma rota, e voltar para a lista desmontava o dialogo
+  // na hora, sem a saida (a folha descendo no celular, o esmaecer no computador). Agora ele
+  // fecha primeiro, e o endereco volta para a lista depois da saida. Sem movimento
+  // (preferencia do sistema, ou o ambiente de teste), volta na hora.
+  const [aberto, setAberto] = useState(true)
+  const fecharDevagar = () => {
+    const comMovimento =
+      typeof window.matchMedia === 'function' &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!comMovimento) {
+      aoFechar()
+      return
+    }
+    setAberto(false)
+    window.setTimeout(aoFechar, SAIDA_DO_CARD_MS)
+  }
+
+  // No celular, puxar o card para baixo pelo alto fecha (ver `useArrastarParaFechar`).
+  const folhaNoCelular = useMediaQuery('(max-width: 39.99rem)')
+  useArrastarParaFechar(() => rascunhos.confirmarSaida(fecharDevagar), folhaNoCelular)
+
+  const comVizinhos = anterior !== null || proximo !== null
   const cabecalho = (
     <div className="flex items-center gap-1" {...guideTarget('card-acoes')}>
-      <GuideButton noDialogo compacto />
+      {/* No celular o guia do card mora no menu "⋯": o alto do card fica com comentar, o
+          menu e o fechar, como a barra de cima do painel. */}
+      <GuideButton noDialogo compacto noMenuDoCelular />
       {report && <IrAoComentario />}
-      <CopiarLink numero={report?.Number ?? null} />
-      {(anterior !== null || proximo !== null) && (
-        <>
-          <BotaoDoCabecalho
-            rotulo="Card anterior"
-            atalho="K"
-            disabled={anterior === null}
-            onClick={() => irPara(anterior)}
-          >
-            <path d="M7.5 2.5 4 6l3.5 3.5" />
-          </BotaoDoCabecalho>
-          <BotaoDoCabecalho
-            rotulo="Próximo card"
-            atalho="J"
-            disabled={proximo === null}
-            onClick={() => irPara(proximo)}
-          >
-            <path d="M4.5 2.5 8 6 4.5 9.5" />
-          </BotaoDoCabecalho>
-        </>
-      )}
+      {/* No celular o link e as setas moram no menu ao lado: com os cinco botoes, o nome
+          do tipo, o numero e o selo "Relato de fora" quebravam em tres linhas. */}
+      <span className="flex items-center gap-1 max-sm:hidden">
+        <CopiarLink numero={report?.Number ?? null} />
+        {comVizinhos && (
+          <>
+            <BotaoDoCabecalho
+              rotulo="Card anterior"
+              atalho="K"
+              disabled={anterior === null}
+              onClick={() => irPara(anterior)}
+            >
+              <path d="M7.5 2.5 4 6l3.5 3.5" />
+            </BotaoDoCabecalho>
+            <BotaoDoCabecalho
+              rotulo="Próximo card"
+              atalho="J"
+              disabled={proximo === null}
+              onClick={() => irPara(proximo)}
+            >
+              <path d="M4.5 2.5 8 6 4.5 9.5" />
+            </BotaoDoCabecalho>
+          </>
+        )}
+      </span>
+      <MaisNoCelular
+        numero={report?.Number ?? null}
+        anterior={comVizinhos ? anterior : undefined}
+        proximo={comVizinhos ? proximo : undefined}
+        aoIrPara={irPara}
+      />
     </div>
   )
 
   return (
     <Modal
-      open
-      onOpenChange={(aberto) => {
+      open={aberto}
+      onOpenChange={(abrir) => {
         // Esc, X e clique fora: com texto por salvar, pergunta antes.
-        if (!aberto) rascunhos.confirmarSaida(aoFechar)
+        if (!abrir) rascunhos.confirmarSaida(fecharDevagar)
       }}
       // O Esc com o foco numa edicao sai so dela; o seguinte fecha o card.
       onEscapeKeyDown={(evento) => {
@@ -888,6 +928,8 @@ export function ReportDialog({
                   {atual && (
                     <LadoDeFora
                       etapa={atual.PublicStageLabel}
+                      coluna={atual.StateName}
+                      numero={atual.Number}
                       fechamento={fechamento}
                       projectPublicId={projectPublicId}
                       podeConfigurar={podeConfigurar}
@@ -943,7 +985,16 @@ export function ReportDialog({
                   </div>
                 )}
 
-                <DetailsBox>
+                <DetailsBox
+                  resumo={
+                    (atual ?? report)
+                      ? resumoDosDetalhes(
+                          (atual ?? report) as ReportSummaryViewModel,
+                          soonDays ?? 2,
+                        )
+                      : undefined
+                  }
+                >
                   <CardFields
                     projectPublicId={projectPublicId}
                     reportPublicId={reportPublicId}
@@ -1116,7 +1167,7 @@ export function ReportDialog({
             if (!aberto) setArquivando(null)
           }}
           title={report ? `Arquivar #${report.Number}` : 'Arquivar'}
-          description="O relato sai da tela de Trabalho. Quem relatou já recebeu o motivo do encerramento; se reabrir, ele volta sozinho."
+          description="O relato sai do Trabalho, e volta sozinho se quem relatou reabrir."
           confirmLabel="Arquivar"
           onConfirm={() => mudarArquivo(true)}
         />
@@ -1129,7 +1180,7 @@ export function ReportDialog({
             if (!aberto) setReabrindo(null)
           }}
           title={report ? `Reabrir o relato #${report.Number}?` : 'Reabrir o relato?'}
-          description={`Tirar o #${report?.Number ?? ''} de ${reabrindo?.de ?? 'esta coluna'} reabre o relato: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.`}
+          description={`Sair de ${reabrindo?.de ?? 'esta coluna'} reabre o relato, e quem relatou volta a ver o andamento, sem o motivo do encerramento.`}
           confirmLabel="Reabrir e mover"
           cancelLabel="Cancelar"
           onConfirm={async () => {
@@ -1181,7 +1232,7 @@ function IrAoComentario() {
       }}
       // No celular so o desenho: o cabecalho do card ja leva o guia, o link e as setas, e
       // o nome do tipo e o selo "Relato de fora" quebravam em tres linhas.
-      className="flex h-8 flex-none items-center justify-center gap-1.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg max-sm:w-8 max-sm:px-0"
+      className="flex h-8 flex-none items-center justify-center gap-1.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg max-sm:w-8 max-sm:px-0 pointer-coarse:h-10 max-sm:pointer-coarse:w-10"
     >
       <svg
         viewBox="0 0 12 12"
@@ -1206,16 +1257,87 @@ function IrAoComentario() {
  */
 function CopiarLink({ numero }: { numero: number | null }) {
   return (
-    <BotaoDoCabecalho
-      rotulo="Copiar link"
-      onClick={async () => {
-        const copiou = await copyText(window.location.href)
-        if (copiou) toast.done(numero === null ? 'Link copiado.' : `Link do #${numero} copiado.`)
-        else toast.error('Não deu para copiar o link. Copie da barra de endereço.')
-      }}
-    >
+    <BotaoDoCabecalho rotulo="Copiar link" onClick={() => void copiarLink(numero)}>
       <path d="M5 7a2.2 2.2 0 0 0 3.1 0l1.6-1.6a2.2 2.2 0 0 0-3.1-3.1L6 2.9M7 5a2.2 2.2 0 0 0-3.1 0L2.3 6.6a2.2 2.2 0 0 0 3.1 3.1L6 9.1" />
     </BotaoDoCabecalho>
+  )
+}
+
+async function copiarLink(numero: number | null) {
+  const copiou = await copyText(window.location.href)
+  if (copiou) toast.done(numero === null ? 'Link copiado.' : `Link do #${numero} copiado.`)
+  else toast.error('Não deu para copiar o link. Copie da barra de endereço.')
+}
+
+const ITEM_DO_MENU =
+  'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body text-fg outline-none data-[disabled]:cursor-default data-[highlighted]:bg-surface-sunken data-[disabled]:opacity-40 pointer-coarse:py-2.5'
+
+/** O tempo da saida do card: a folha descendo no celular (180ms) e o esmaecer (150ms). */
+const SAIDA_DO_CARD_MS = 190
+
+/**
+ * No celular, o link e as setas do card num menu so: o mesmo que os botoes fazem na tela
+ * larga, sem tirar o lugar do titulo. Sem vizinhos (o card aberto pelo endereco), so o link.
+ */
+function MaisNoCelular({
+  numero,
+  anterior,
+  proximo,
+  aoIrPara,
+}: {
+  numero: number | null
+  /** Indefinidos quando o card nao tem vizinhos: as setas nem aparecem. */
+  anterior: string | null | undefined
+  proximo: string | null | undefined
+  aoIrPara: (id: string | null) => void
+}) {
+  const pedirGuia = useGuideStore((estado) => estado.pedir)
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        aria-label="Mais ações do card"
+        className="flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg data-[state=open]:bg-surface-sunken pointer-coarse:size-10 sm:hidden"
+      >
+        <svg viewBox="0 0 16 16" className="size-4" fill="currentColor" aria-hidden>
+          <circle cx="3.5" cy="8" r="1.3" />
+          <circle cx="8" cy="8" r="1.3" />
+          <circle cx="12.5" cy="8" r="1.3" />
+        </svg>
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Content
+          align="end"
+          sideOffset={6}
+          collisionPadding={8}
+          className="z-dialog w-56 origin-(--radix-dropdown-menu-content-transform-origin) rounded-xl border border-border bg-surface-raised p-1.5 data-[state=closed]:animate-menu-out data-[state=open]:animate-menu-in"
+        >
+          <Menu.Item onSelect={() => void copiarLink(numero)} className={ITEM_DO_MENU}>
+            Copiar link
+          </Menu.Item>
+          {anterior !== undefined && (
+            <Menu.Item
+              disabled={anterior === null}
+              onSelect={() => aoIrPara(anterior)}
+              className={ITEM_DO_MENU}
+            >
+              Card anterior
+            </Menu.Item>
+          )}
+          {proximo !== undefined && (
+            <Menu.Item
+              disabled={proximo === null}
+              onSelect={() => aoIrPara(proximo)}
+              className={ITEM_DO_MENU}
+            >
+              Próximo card
+            </Menu.Item>
+          )}
+          <Menu.Item onSelect={() => pedirGuia(true)} className={ITEM_DO_MENU}>
+            Guia do card
+          </Menu.Item>
+        </Menu.Content>
+      </Menu.Portal>
+    </Menu.Root>
   )
 }
 
@@ -1241,7 +1363,7 @@ function BotaoDoCabecalho({
       title={atalho ? `${rotulo} (${atalho})` : rotulo}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent"
+      className="flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent pointer-coarse:size-10"
     >
       <svg
         viewBox="0 0 12 12"
@@ -1464,23 +1586,39 @@ function AceitaDuvidas({ escolha }: { escolha: boolean | null }) {
  * **Sem etapa, a frase diz o que a coluna faz**, e nao que o relato e invisivel: quem
  * relatou acompanha o relato de qualquer jeito; o que nao muda e a etapa que ele ve.
  * Nulo pode ser coluna fora do mapa, projeto sem andamento publico, ou relato que
- * entrou antes dele — a frase cobre os tres. Quem configura ganha o atalho para o
- * Andamento publico, onde se liga a coluna a uma etapa.
+ * entrou antes dele — a frase cobre os tres.
+ *
+ * **"Andamento público" explica ali mesmo**: abre, embaixo da frase, o que e o andamento e
+ * por que esta coluna nao muda nada la fora. Antes era um link que tirava a pessoa do card
+ * para a configuracao, e no celular nao havia como voltar. Quem configura ganha, na
+ * explicacao, o "Ligar em Colunas" (onde a coluna se liga a uma etapa), que leva junto o
+ * caminho de volta para o card (`VoltarDeOndeVeio`).
  */
 function LadoDeFora({
   etapa,
+  coluna,
+  numero,
   fechamento,
   projectPublicId,
   podeConfigurar,
 }: {
   etapa: string | null
+  coluna: string | null
+  numero: number
   fechamento: ReportClosureViewModel | null
   projectPublicId: string
   podeConfigurar: boolean
 }) {
   // Sai do card: com texto por salvar, pergunta antes.
   const guardar = useGuardedCardLink()
-  const andamento = `/projects/${projectPublicId}/public-stages`
+  const location = useLocation()
+  const [explicando, setExplicando] = useState(false)
+  const explicacaoId = useId()
+  const colunas = `/projects/${projectPublicId}/states#colunas-no-andamento`
+  const volta: EstadoDaVolta = {
+    voltarPara: `${location.pathname}${location.search}`,
+    rotuloDaVolta: `Voltar para o card #${numero}`,
+  }
 
   if (fechamento) {
     return (
@@ -1493,21 +1631,46 @@ function LadoDeFora({
 
   if (etapa === null) {
     return (
-      <span className="text-caption text-fg-muted">
-        Esta coluna não muda o que quem relatou vê.
-        {podeConfigurar && (
-          <>
-            {' '}
-            <Link
-              to={andamento}
-              onClick={(evento) => guardar(evento, andamento)}
-              className="underline underline-offset-2 hover:text-fg"
-            >
-              Andamento público
-            </Link>
-          </>
-        )}
-      </span>
+      <div className="text-caption text-fg-muted">
+        Esta coluna não muda o que quem relatou vê.{' '}
+        <button
+          type="button"
+          aria-expanded={explicando}
+          aria-controls={explicacaoId}
+          onClick={() => setExplicando((valor) => !valor)}
+          className="alvo-de-toque relative underline underline-offset-2 hover:text-fg"
+        >
+          Andamento público
+        </button>
+        {/* Abre e fecha devagar, como os detalhes: a linha do grid vai de zero a altura. */}
+        <div
+          id={explicacaoId}
+          inert={!explicando || undefined}
+          className={cn(
+            'grid transition-[grid-template-rows] duration-320 ease-in-out motion-reduce:transition-none',
+            explicando ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+          )}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="mt-2 rounded-lg border border-border bg-surface-sunken px-3 py-2.5 leading-relaxed">
+              <p>
+                Quem relatou acompanha o relato pelas etapas do andamento público, e a coluna
+                {coluna ? ` ${coluna}` : ''} ainda não está ligada a nenhuma delas.
+              </p>
+              {podeConfigurar && (
+                <Link
+                  to={colunas}
+                  state={volta}
+                  onClick={(evento) => guardar(evento, colunas)}
+                  className="alvo-de-toque relative mt-2 inline-flex font-medium text-fg underline underline-offset-2"
+                >
+                  Ligar em Colunas
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     )
   }
 

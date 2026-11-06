@@ -39,8 +39,8 @@ export function AskInfoDialog({
       onOpenChange={(aberto) => {
         if (!aberto && !enviando) aoCancelar()
       }}
-      title="Pedir uma informação"
-      description="O relato volta para quem escreveu, e não é encerrado. A pessoa lê e responde pela mesma página em que acompanha."
+      title="Pedir informação"
+      description="Quem relatou responde pela página de acompanhamento, e o relato não encerra."
       width="w-[min(32rem,calc(100vw-2rem))]"
       // Com texto escrito, o clique fora nao fecha: errar a caixa nao pode levar o
       // texto junto. O Esc e o "Cancelar" continuam fechando.
@@ -61,7 +61,7 @@ export function AskInfoDialog({
       }
     >
       <label htmlFor="o-que-falta" className="mb-1.5 block text-detail text-fg-muted">
-        O que falta
+        O que você precisa saber
       </label>
       <textarea
         id="o-que-falta"
@@ -74,10 +74,10 @@ export function AskInfoDialog({
         className="block w-full resize-y rounded-lg border border-border bg-surface px-2.5 py-2 text-body text-fg leading-relaxed placeholder:text-fg-placeholder disabled:opacity-60"
       />
 
+      {/* Uma frase so: o exemplo do campo ja mostra como perguntar, e o resto do prazo
+          (avisar, encerrar, reabrir) mora no Encerramento. */}
       <p className="mt-1.5 text-caption text-fg-muted leading-normal">
-        Diga <strong className="font-medium text-fg">o que</strong> falta, e não que falta. E o
-        relógio começa agora: sem resposta, o relato encerra sozinho como “sem retorno”, e a pessoa
-        ainda poderá reabrir depois.
+        Sem resposta no prazo do projeto, o relato encerra sozinho como “sem retorno”.
       </p>
     </Modal>
   )

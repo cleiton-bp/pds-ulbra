@@ -30,7 +30,7 @@ export function ParentLink({ parent }: { parent: CardParentViewModel }) {
       <Link
         to={`../${parent.PublicId}`}
         onClick={(evento) => guardar(evento, `../${parent.PublicId}`)}
-        className="flex min-w-0 items-center gap-1 text-fg underline-offset-2 hover:underline"
+        className="flex min-w-0 items-center gap-1 text-fg underline-offset-2 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
       >
         <span className="flex-none tabular-nums">#{parent.Number}</span>{' '}
         <span className="min-w-0 truncate">{parent.Headline}</span>
@@ -220,7 +220,12 @@ export function CardSubtasks({
   const linha = (item: ReportSummaryViewModel) => {
     const daParaMexer = !arquivado && item.ArchivedAt === null
     return (
-      <li key={item.PublicId} className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+      // No dedo a linha tem 48 de altura: o circulo, o titulo e o responsavel ganham area
+      // de toque de 40 sem mudar o desenho no mouse.
+      <li
+        key={item.PublicId}
+        className="flex min-w-0 items-center gap-2 px-2.5 py-2 pointer-coarse:py-1"
+      >
         {primeira && ultima && daParaMexer ? (
           <button
             type="button"
@@ -230,7 +235,7 @@ export function CardSubtasks({
               item.Finished ? `Reabrir #${item.Number}` : `Marcar #${item.Number} como feita`
             }
             title={item.Finished ? 'Reabrir' : 'Marcar como feita'}
-            className="flex flex-none rounded-full hover:opacity-80 disabled:opacity-50"
+            className="flex flex-none items-center justify-center rounded-full hover:opacity-80 disabled:opacity-50 pointer-coarse:-mx-3 pointer-coarse:size-10"
           >
             <Feita feita={item.Finished} marcavel />
           </button>
@@ -242,7 +247,7 @@ export function CardSubtasks({
           to={`../${item.PublicId}`}
           onClick={(evento) => guardar(evento, `../${item.PublicId}`)}
           className={cn(
-            'min-w-0 flex-1 truncate text-detail underline-offset-2 hover:underline',
+            'min-w-0 flex-1 truncate text-detail underline-offset-2 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3',
             item.Finished || item.ArchivedAt !== null ? 'text-fg-muted' : 'text-fg',
             item.Finished && 'line-through',
           )}
@@ -306,7 +311,11 @@ export function CardSubtasks({
       {failed && (
         <p className="mb-2 text-detail text-fg-muted">
           Não deu para carregar as subtarefas.{' '}
-          <button type="button" onClick={reload} className="underline underline-offset-2">
+          <button
+            type="button"
+            onClick={reload}
+            className="underline underline-offset-2 pointer-coarse:-my-3 pointer-coarse:py-3"
+          >
             Tentar de novo
           </button>
         </p>
@@ -349,7 +358,8 @@ export function CardSubtasks({
               // Nao trava enquanto cria: o campo travado perdia o foco, e o que a pessoa
               // digitava em seguida se perdia. O segundo Enter e ignorado em `criar`.
               aria-busy={criando}
-              className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
+              // No dedo, da altura do botao Criar ao lado.
+              className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-11"
             />
           </label>
           <Button size="sm" type="submit" disabled={!titulo.trim() || criando}>
@@ -390,7 +400,7 @@ function EscolherResponsavel({
               ? `Responsável pela #${item.Number}: ${atual.Name || 'Sem nome'}. Trocar`
               : `Escolher o responsável pela #${item.Number}`
           }
-          className="flex flex-none rounded-full hover:opacity-80"
+          className="flex flex-none rounded-full hover:opacity-80 pointer-coarse:-m-2 pointer-coarse:p-2"
         >
           {atual ? (
             <PersonAvatar pessoa={atual} />

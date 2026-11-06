@@ -30,6 +30,9 @@ const TEXTOS: Record<'nunca-conectou' | 'caiu', { curto: string; explicacao: str
  * O que ele quer dizer fica escrito: "sem atualizacao ao vivo" diz que o resto da tela
  * pode estar velho, e a explicacao (na tela larga) que trabalhar continua valendo.
  *
+ * Na camada do balao do guia (`z-hint`): por cima do quadro, mas abaixo dos dialogos. Na do
+ * toast, no celular deitado o selo cobria os botoes do pe do dialogo aberto.
+ *
  * A regiao fica sempre montada, e so o texto entra e sai: leitor de tela anuncia a
  * mudanca dentro de uma regiao viva que ja existia, e nao a regiao que nasce com o
  * texto. A explicacao vai em texto, e nao em `title`, que nao abre no toque nem no
@@ -39,7 +42,7 @@ export function LiveBadge({ estado }: { estado: SemAoVivo }) {
   const texto = estado ? TEXTOS[estado] : null
 
   return (
-    <div role="status" className="pointer-events-none sticky bottom-0 z-toast flex-none">
+    <div role="status" className="pointer-events-none sticky bottom-0 z-hint flex-none">
       {texto && (
         <span className="mt-2 inline-block max-w-full rounded-lg border border-warn-border bg-warn-surface px-3 py-1.5 text-detail text-warn-fg shadow-md">
           {texto.curto}

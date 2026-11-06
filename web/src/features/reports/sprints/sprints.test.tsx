@@ -626,6 +626,13 @@ describe('iniciar uma sprint', () => {
     }
   }
 
+  /** Escolhe um dia no calendario do projeto: abre o campo e clica no dia (do mes aberto). */
+  async function escolherDia(campo: HTMLElement, dia: string) {
+    fireEvent.click(campo)
+    fireEvent.click(await screen.findByRole('button', { name: dia }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: dia })).toBeNull())
+  }
+
   it('comeca hoje e dura o que o projeto diz; as datas planejadas ficam a um clique', async () => {
     dublê.iniciarSprint.mockImplementation(
       async (_p: string, _s: string, pedido: { StartsOn: string; EndsOn: string }) => ({
@@ -668,19 +675,30 @@ describe('iniciar uma sprint', () => {
     expect(ultimoAviso()?.message).toBe('Sprint 2 em andamento.')
   })
 
-  it('mudar o comeco leva o fim junto, ate a pessoa mexer no fim; o fim antes do comeco barra', () => {
+  it('mudar o comeco leva o fim junto, ate a pessoa mexer no fim; o fim antes do comeco barra', async () => {
     const { dialogo, comeca, termina } = abrir({ semanas: 2 })
-    fireEvent.change(comeca, { target: { value: '2026-10-12' } })
+    await escolherDia(comeca, '12 de outubro de 2026')
     expect(termina.value).toBe('2026-10-25')
     // Nao comeca mais hoje: a frase so lembra o planejado.
     expect(within(dialogo).getByText('Planejada para 22 de out. a 4 de nov.')).toBeTruthy()
 
     // O fim escolhido a mao fica.
-    fireEvent.change(termina, { target: { value: '2026-10-30' } })
-    fireEvent.change(comeca, { target: { value: '2026-10-13' } })
+    await escolherDia(termina, '30 de outubro de 2026')
+    await escolherDia(comeca, '13 de outubro de 2026')
     expect(termina.value).toBe('2026-10-30')
 
-    fireEvent.change(termina, { target: { value: '2026-10-05' } })
+    // O calendario do fim nao oferece dia antes do comeco...
+    fireEvent.click(termina)
+    expect(
+      (await screen.findByRole('button', { name: '12 de outubro de 2026' })).hasAttribute(
+        'disabled',
+      ),
+    ).toBe(true)
+    fireEvent.keyDown(screen.getByRole('button', { name: '30 de outubro de 2026' }), {
+      key: 'Escape',
+    })
+    // ...mas o comeco pode passar do fim escolhido, e ai o dialogo barra.
+    await escolherDia(comeca, '2 de novembro de 2026')
     expect(within(dialogo).getByText('O último dia não pode vir antes do primeiro.')).toBeTruthy()
     expect(termina.getAttribute('aria-invalid')).toBe('true')
     expect(within(dialogo).getByRole('button', { name: 'Iniciar' })).toHaveProperty(
