@@ -234,15 +234,21 @@
  * `toast.error` com o dialogo ainda aberto, e empate em `z-index` e resolvido pela
  * ordem dos portais no DOM — o aviso nascia atras da caixa que o provocou.
  *
+ * O veu fica **na camada do dialogo**, e a ordem no documento decide: num dialogo aberto
+ * por cima de outro (pedir informacao, com o card aberto), o veu novo vem depois do card
+ * e o escurece. Uma camada abaixo, o veu do segundo ficava atras do card, e no celular o
+ * dialogo menor flutuava sobre o card sem separacao nenhuma.
+ *
  * Vai por `@utility` e nao por `@theme`: `z-index` **nao e namespace de tema** no
  * Tailwind 4. Um `@theme { --z-toast: 60 }` compila, nao gera classe nenhuma, e o
  * empilhamento quebra em silencio.
  */
 :root {
   --layer-sticky: 1;
+  --layer-hint: 5;
   --layer-drawer-veil: 10;
   --layer-drawer: 20;
-  --layer-veil: 40;
+  --layer-veil: 50;
   --layer-dialog: 50;
   --layer-toast: 60;
   --layer-tip: 70;
@@ -258,6 +264,16 @@
 @utility z-sticky {
   z-index: var(--layer-sticky);
 }
+/**
+ * O balao do guia na primeira visita: por cima da tela, mas **abaixo** da gaveta e dos
+ * dialogos. Na camada do toast ele ficava por cima do Perfil aberto pelo link (sem dar para
+ * clicar, porque o fundo do dialogo fica inerte) e cobria a gaveta no celular. Assim o veu
+ * esconde o balao enquanto a gaveta ou o dialogo estao abertos, e ele volta quando fecham.
+ */
+@utility z-hint {
+  z-index: var(--layer-hint);
+}
+
 /** Veu que escurece o conteudo atras da gaveta, em tela estreita. */
 @utility z-drawer-veil {
   z-index: var(--layer-drawer-veil);
@@ -662,6 +678,33 @@
   animation: dialog-out 150ms ease-in both;
 }
 
+/* A folha do celular sobe da borda de baixo e desce ao fechar, mais rapido do que subiu. */
+@keyframes sheet-in {
+  from {
+    translate: 0 100%;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes sheet-out {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 100%;
+  }
+}
+
+@utility animate-sheet-in {
+  animation: sheet-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-sheet-out {
+  animation: sheet-out 180ms ease-in both;
+}
+
 /* ---------------------------------------------------------------------------
  * MENU, SELETOR E DICA
  *
@@ -851,6 +894,8 @@
   .animate-veil-out,
   .animate-dialog-in,
   .animate-dialog-out,
+  .animate-sheet-in,
+  .animate-sheet-out,
   .animate-menu-in,
   .animate-menu-out,
   .animate-fade-in,
@@ -876,46 +921,82 @@
 }
 
 /**
- * Barra de rolagem discreta: fina, sem trilho e **invisivel ate a pessoa passar o
- * mouse ou focar dentro da area**. Feita para a lateral, onde a barra cinza de
- * sempre, larga e com trilho, pesava mais do que a lista que ela rolava.
+ * A BARRA DE ROLAGEM, EM TODO O PAINEL: fina, sem trilho e **invisivel ate a pessoa
+ * passar o mouse ou focar dentro da area que rola**. Vale para qualquer elemento, e nao
+ * so para quem lembra de pedir: antes era uma classe que so a lateral usava, e o corpo
+ * dos dialogos, as listas e o quadro mostravam a barra cinza larga do sistema.
  *
- * Duas linguagens, porque os navegadores nao combinam: `scrollbar-width` e
- * `scrollbar-color` valem no Firefox e no Chrome (que, com elas, ignora os
- * pseudo-elementos); `::-webkit-scrollbar` vale no Safari. A barra continua ocupando
- * o mesmo lugar escondida ou a vista — aparecer nao empurra a lista para o lado.
+ * O polegar tem 4 px e engorda para 6 sob o mouse, para ser facil de pegar; a cor e a
+ * tinta do texto bem diluida, entao serve no claro e no escuro sem par proprio.
+ *
+ * Duas linguagens, porque os navegadores nao combinam. Chrome, Edge e Safari usam os
+ * pseudo-elementos `::-webkit-scrollbar`, que deixam a barra mais fina que o `thin`.
+ * O Firefox so entende `scrollbar-width` e `scrollbar-color`, e elas ficam presas a ele
+ * pelo `@supports`: o Chrome, vendo essas duas, ignoraria os pseudo-elementos.
+ * Quem precisa de outra coisa (o editor de codigo esconde a barra) usa
+ * `scrollbar-width` no proprio elemento, e ela vence.
+ *
+ * Fica fora dos arquivos que vao para o site de quem usa o produto: o script do botao
+ * nao importa este CSS, e a barra de la continua a do site.
  */
-@utility scrollbar-discreet {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.2s ease-out;
+/*
+ * O empurrao para o Chrome repintar a barra. A cor do polegar depende do `:hover` da area,
+ * mas o Chrome so redesenha a barra quando o estilo do proprio elemento muda, e o
+ * `:hover` dos pseudo-elementos nao conta: a barra ficava invisivel mesmo com o mouse em
+ * cima. Esta variavel muda no elemento sob o mouse e nao passa para os filhos
+ * (`inherits: false`), entao o custo e so o do caminho do mouse.
+ */
+@property --rolagem-sob-o-mouse {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
 
-  &:hover,
-  &:focus-within {
-    scrollbar-color: var(--border) transparent;
+:hover,
+:focus-within {
+  --rolagem-sob-o-mouse: 1;
+}
+
+@layer base {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
 
-  &::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
     background: transparent;
   }
 
-  &::-webkit-scrollbar-thumb {
-    background: transparent;
+  /* A borda transparente e o recuo: o trilho tem 8 px e o polegar visivel, 4. */
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
     border-radius: 9999px;
+    background-color: transparent;
+    background-clip: padding-box;
   }
 
-  &:hover::-webkit-scrollbar-thumb,
-  &:focus-within::-webkit-scrollbar-thumb {
-    background: var(--border);
+  :hover::-webkit-scrollbar-thumb,
+  :focus-within::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--fg) 18%, transparent);
   }
 
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--fg-muted);
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    border-width: 1px;
+    background-color: color-mix(in oklab, var(--fg) 34%, transparent);
+  }
+
+  @supports (-moz-appearance: none) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    :hover,
+    :focus-within {
+      scrollbar-color: color-mix(in oklab, var(--fg) 22%, transparent) transparent;
+    }
   }
 }
 
@@ -978,6 +1059,140 @@
   }
 }
 
+/**
+ * As ondas do alto-falante quando um som toca (o botao de ouvir do Perfil): saem do
+ * alto-falante crescendo e acendendo, e assentam no desenho de sempre.
+ */
+@keyframes som-onda {
+  from {
+    opacity: 0.15;
+    transform: scale(0.55);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/**
+ * O controle deslizante do painel (o volume do Perfil): trilho fino, preenchido na tinta
+ * ate o valor, e um polegar claro com borda de controle. O do navegador mudava de cara em
+ * cada sistema e destoava dos campos em volta. Quem usa diz o quanto esta cheio por
+ * `--cheio` (`style={{ '--cheio': '75%' }}`); o Firefox desenha o cheio sozinho.
+ */
+/**
+ * A faixa de abas que rola para o lado quando as abas nao cabem (no celular): rola so
+ * para o lado, e a linha de baixo e uma sombra por dentro, e nao borda. Com borda, cada
+ * aba descia 1 px (`-mb-px`) para o sublinhado da escolhida cobrir a linha, e esse 1 px
+ * virava rolagem para baixo: a faixa ganhava uma barra vertical sem ter o que rolar. A
+ * sombra fica embaixo das abas, e o sublinhado (`border-b-2`) cobre ela sem descer nada.
+ */
+@utility tabs-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+@utility range-soft {
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+
+  &::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--accent) var(--cheio, 50%),
+      var(--surface-sunken) var(--cheio, 50%)
+    );
+  }
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border: 1px solid var(--border-control);
+    border-radius: 9999px;
+    background: var(--surface-raised);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    transition: scale 150ms var(--ease-out);
+  }
+
+  &:active::-webkit-slider-thumb {
+    scale: 1.15;
+  }
+
+  &::-moz-range-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: var(--surface-sunken);
+  }
+
+  &::-moz-range-progress {
+    height: 4px;
+    border-radius: 9999px;
+    background: var(--accent);
+  }
+
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--border-control);
+    border-radius: 9999px;
+    background: var(--surface-raised);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::-webkit-slider-thumb {
+      transition: none;
+    }
+  }
+}
+
+/**
+ * O ponto do guia ainda nao aberto, no botao da barra: chega crescendo um pouco alem e
+ * assenta, uma vez, quando a pessoa entra na tela. Sem pulsar depois: avisa e fica quieto.
+ */
+@keyframes ponto-novo {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-ponto-novo {
+  animation: ponto-novo 420ms var(--ease-out) 250ms both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility animate-som-onda {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: som-onda 520ms var(--ease-out) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 /*
  * A borda dos campos escritos a mao nas telas (os que nao passam pelo `TextField`): o fio
  * das divisorias (`border-border`) nao chega aos 3:1 de um controle, e o campo vazio
@@ -993,6 +1208,36 @@
 }
 
 /*
+ * A AREA DE TOQUE MAIOR QUE O DESENHO
+ * ============================================================================
+ * No toque, o botao ganha 6px invisiveis em cima e embaixo: 36 de desenho vira 48 de alvo,
+ * e 32 vira 44. Antes o proprio botao crescia para 44, e no celular ele ficava maior em
+ * escala que o texto em volta, pesando mais que o conteudo. Quem usa precisa de
+ * `relative` (o `Button` ja tem).
+ */
+@utility alvo-de-toque {
+  @media (pointer: coarse) {
+    &::before {
+      content: "";
+      position: absolute;
+      inset: -6px 0;
+    }
+  }
+}
+
+/* O mesmo para o botao so de icone, pequeno nos dois sentidos: 8px invisiveis em volta
+   (24 de desenho vira 40 de alvo; 32 vira 48). */
+@utility alvo-de-toque-icone {
+  @media (pointer: coarse) {
+    &::before {
+      content: "";
+      position: absolute;
+      inset: -8px;
+    }
+  }
+}
+
+/*
  * No toque, campo com 16 px: abaixo disso o iPhone amplia a pagina ao tocar no campo, e a
  * pessoa fica com a tela deslocada para o lado. O seletor ganha das classes de tamanho.
  */
@@ -1004,5 +1249,12 @@
     [role="textbox"][contenteditable]
   ) {
     font-size: max(16px, 1em);
+  }
+
+  /* A caixa de marcar e o circulo de escolha de 14 ou 16 viram 18: o dedo acerta a caixa
+     sem depender so do rotulo. As escondidas atras de um cartao (inset-0) ficam fora. */
+  input:is([type="checkbox"], [type="radio"]):is(.size-3\.5, .size-4) {
+    width: 18px;
+    height: 18px;
   }
 }

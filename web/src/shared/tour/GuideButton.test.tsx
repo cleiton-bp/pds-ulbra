@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GuideButton } from '@/shared/tour/GuideButton'
 import {
@@ -13,9 +13,12 @@ import {
 /**
  * O QUE ESTES TESTES TRAVAM.
  *
- * **O botao so existe com roteiro**, e na primeira vez em cada tela um balao aponta para
- * ele, uma vez so. **O guia anda, conta e sai** (Proximo, Voltar, Esc), e o passo cujo
- * alvo nao esta na tela e pulado, sem deixar a contagem mentir para o resto.
+ * **O botao so existe com roteiro**, e na primeira visita um balao aponta para ele, uma
+ * vez so. **O guia anda, conta e sai** (Proximo, Voltar, Esc), e o passo cujo alvo nao
+ * esta na tela e pulado, sem deixar a contagem mentir para o resto.
+ *
+ * **O guia diz de qual tela e**: o botao, o balao e o cartao levam o nome da tela, e um
+ * ponto marca a tela cujo guia ainda nao foi aberto, uma tela de cada vez.
  */
 
 const PASSOS: GuideStep[] = [
@@ -24,8 +27,8 @@ const PASSOS: GuideStep[] = [
   { alvo: 'dois', titulo: 'Segundo', texto: 'A segunda parte da tela.' },
 ]
 
-function Tela({ passos = PASSOS }: { passos?: GuideStep[] | null }) {
-  useScreenGuide('teste', passos)
+function Tela({ passos = PASSOS, id = 'teste' }: { passos?: GuideStep[] | null; id?: string }) {
+  useScreenGuide(id, passos)
   return (
     <div>
       <GuideButton />
@@ -73,11 +76,11 @@ describe('GuideButton', () => {
   it('na primeira vez, o balao aponta para o guia, e nao volta depois de respondido', async () => {
     const { unmount } = render(<Tela />)
     expect(
-      await screen.findByText(/este guia mostra para que serve cada parte/, {}, { timeout: 2000 }),
+      await screen.findByText(/cada tela do painel tem o seu/, {}, { timeout: 2000 }),
     ).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Agora não' }))
-    expect(screen.queryByText(/este guia mostra para que serve cada parte/)).toBeNull()
+    expect(screen.queryByText(/cada tela do painel tem o seu/)).toBeNull()
     unmount()
 
     // Outra visita, qualquer tela: o guia ja foi apresentado, so o botao.
@@ -87,7 +90,7 @@ describe('GuideButton', () => {
       vi.advanceTimersByTime(2000)
     })
     expect(screen.getByRole('button', { name: 'Guia da tela' })).toBeTruthy()
-    expect(screen.queryByText(/este guia mostra para que serve cada parte/)).toBeNull()
+    expect(screen.queryByText(/cada tela do painel tem o seu/)).toBeNull()
   })
 
   it('o guia anda, pula o que nao esta na tela, conta certo e sai pelo Esc', async () => {
@@ -114,5 +117,54 @@ describe('GuideButton', () => {
 
     expect(await screen.findByRole('heading', { name: 'Primeiro' })).toBeTruthy()
     expect(localStorage.getItem('pds.web.guia-apresentado.v1')).toBe('1')
+  })
+
+  it('o botao, o balao e o cartao dizem de qual tela e o guia', async () => {
+    render(<Tela id="trabalho" />)
+    const botao = screen.getByRole('button', { name: 'Guia do Trabalho' })
+    expect(
+      await screen.findByText(
+        'Este é o guia do Trabalho, e cada tela do painel tem o seu, sempre neste botão.',
+        {},
+        { timeout: 2000 },
+      ),
+    ).toBeTruthy()
+
+    fireEvent.click(botao)
+    const cartao = await screen.findByRole('dialog', { name: 'Primeiro' })
+    expect(within(cartao).getByText('Guia do Trabalho')).toBeTruthy()
+    expect(within(cartao).getByText('Passo 1 de 2')).toBeTruthy()
+  })
+
+  it('tela sem nome registrado fica com "Guia da tela"', () => {
+    render(<Tela id="tela-nova" />)
+    expect(screen.getByRole('button', { name: 'Guia da tela' })).toBeTruthy()
+  })
+
+  it('o ponto marca o guia ainda nao aberto, uma tela de cada vez', async () => {
+    // Ja apresentado: so o ponto, sem o balao.
+    localStorage.setItem('pds.web.guia-apresentado.v1', '1')
+    const primeira = render(<Tela id="trabalho" />)
+    const botao = screen.getByRole('button', { name: 'Guia do Trabalho' })
+    await waitFor(() => expect(botao.hasAttribute('data-novo')).toBe(true))
+
+    fireEvent.click(botao)
+    expect(await screen.findByRole('heading', { name: 'Primeiro' })).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(botao.hasAttribute('data-novo')).toBe(false)
+    primeira.unmount()
+
+    // Outra tela: o guia dela ainda nao foi aberto, e o ponto aparece la.
+    const segunda = render(<Tela id="moderacao" />)
+    const daModeracao = screen.getByRole('button', { name: 'Guia da Moderação' })
+    await waitFor(() => expect(daModeracao.hasAttribute('data-novo')).toBe(true))
+    segunda.unmount()
+
+    // De volta ao Trabalho: ja aberto, sem ponto.
+    render(<Tela id="trabalho" />)
+    expect(screen.getByRole('button', { name: 'Guia do Trabalho' }).hasAttribute('data-novo')).toBe(
+      false,
+    )
   })
 })

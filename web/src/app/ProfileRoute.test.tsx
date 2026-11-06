@@ -77,7 +77,7 @@ describe('o endereço /profile', () => {
     abrir(['/profile#sons'])
     await screen.findByRole('dialog', { name: 'Perfil' })
     await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Avisos' })),
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Sons dos avisos' })),
     )
   })
 

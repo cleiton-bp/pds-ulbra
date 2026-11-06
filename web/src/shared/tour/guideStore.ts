@@ -43,6 +43,16 @@ interface GuideState {
   esquecer: (id: string) => void
   abrir: () => void
   fechar: () => void
+  /**
+   * Pedidos de abrir que vem de fora do botao: no celular a barra nao tem lugar para ele, e
+   * o guia abre pelo menu. O botao escuta e abre como se tivesse sido clicado (so os passos
+   * que estao na tela, e o guia marcado como visto). Um contador, e nao um sim ou nao: o
+   * mesmo pedido duas vezes seguidas tambem abre.
+   */
+  pedidos: number
+  /** De quem e o pedido: o guia das telas (a barra) ou o do dialogo (o card aberto). */
+  pedidoNoDialogo: boolean
+  pedir: (noDialogo?: boolean) => void
 }
 
 const topo = (pilha: TelaDoGuia[]) => pilha[pilha.length - 1] ?? null
@@ -70,6 +80,10 @@ export const useGuideStore = create<GuideState>((set) => ({
     }),
   abrir: () => set((atual) => (atual.tela ? { aberto: true } : atual)),
   fechar: () => set({ aberto: false }),
+  pedidos: 0,
+  pedidoNoDialogo: false,
+  pedir: (noDialogo = false) =>
+    set((atual) => ({ pedidos: atual.pedidos + 1, pedidoNoDialogo: noDialogo })),
 }))
 
 /**
@@ -95,6 +109,78 @@ export function useScreenGuide(
   }, [id, chave, noDialogo, semBalao, registrar])
 
   useEffect(() => () => esquecer(id), [id, esquecer])
+}
+
+/**
+ * O nome de cada guia, como a lateral chama a tela, ja com o artigo ("do Trabalho", "da
+ * Moderação"). **O guia diz de qual tela e**: no botao da barra, no balao e no cartao.
+ * Com o mesmo "Guia da tela" em todas, a pessoa achava que era um guia so, do painel
+ * inteiro, e nao sabia que cada tela tinha o seu. Tela nova sem nome aqui fica com "da
+ * tela", e o guia continua funcionando.
+ */
+const NOMES: Record<string, string> = {
+  projetos: 'dos Projetos',
+  convite: 'do convite',
+  configurar: 'da configuração',
+  trabalho: 'do Trabalho',
+  card: 'do card',
+  moderacao: 'da Moderação',
+  membros: 'dos Membros',
+  instalacao: 'da Instalação',
+  chaves: 'das Chaves',
+  botao: 'do botão',
+  dominios: 'dos Domínios',
+  tipos: 'dos Tipos de relato',
+  textos: 'de Textos e tema',
+  anexos: 'dos Anexos',
+  andamento: 'do Andamento público',
+  encerramento: 'do Encerramento',
+  privacidade: 'da Privacidade',
+  colunas: 'das Colunas',
+  prioridades: 'das Prioridades',
+  etiquetas: 'das Etiquetas',
+  sprints: 'das Sprints',
+  projeto: 'do Projeto',
+}
+
+/** "do Trabalho": o pedaco que vai depois de "guia", na frase ou no botao. */
+export function parteDoNomeDoGuia(id: string): string {
+  return NOMES[id] ?? 'da tela'
+}
+
+/** "Guia do Trabalho": o nome do botao e do cartao. */
+export function nomeDoGuia(id: string): string {
+  return `Guia ${parteDoNomeDoGuia(id)}`
+}
+
+/**
+ * As telas cujo guia a pessoa ja abriu neste navegador. Nas outras, o botao leva um ponto:
+ * chegar numa tela nova e ver o ponto aparecer ensina, sem interromper, que ali ha um
+ * guia diferente. Abrir o guia apaga o ponto daquela tela, e so dela.
+ */
+const VISTOS = 'pds.web.guias-vistos.v1'
+
+function lerVistos(): string[] {
+  try {
+    const lido: unknown = JSON.parse(localStorage.getItem(VISTOS) ?? '[]')
+    return Array.isArray(lido) ? lido.filter((id) => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function guiaJaVisto(id: string): boolean {
+  return lerVistos().includes(id)
+}
+
+export function marcarGuiaVisto(id: string): void {
+  const vistos = lerVistos()
+  if (vistos.includes(id)) return
+  try {
+    localStorage.setItem(VISTOS, JSON.stringify([...vistos, id]))
+  } catch {
+    // Sem armazenamento, o ponto volta na proxima visita: o guia continua no botao.
+  }
 }
 
 /** A marca que o guia procura na tela: `{...guideTarget('busca')}` no proprio elemento. */
