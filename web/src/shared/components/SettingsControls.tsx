@@ -191,13 +191,13 @@ function RadioItem<T extends string>({
         'relative',
         look === 'pill'
           ? cn(
-              'flex h-8 items-center rounded-lg border px-3 text-detail transition-colors',
+              'flex h-8 items-center rounded-lg border px-3 text-detail transition-colors pointer-coarse:h-10',
               checked
                 ? 'border-transparent bg-accent font-medium text-accent-fg'
                 : 'border-border bg-surface text-fg hover:bg-surface-sunken',
             )
           : cn(
-              'flex min-w-16 flex-col items-center gap-1.5 rounded-lg border bg-surface px-2 py-2 text-caption text-fg transition-colors',
+              'flex min-w-16 flex-col items-center gap-1.5 rounded-lg border bg-surface px-2 py-2 text-caption text-fg transition-colors pointer-coarse:min-h-10',
               checked
                 ? 'border-accent ring-1 ring-accent'
                 : 'border-border hover:bg-surface-sunken',
@@ -281,7 +281,7 @@ export function Choice({
       disabled={disabled}
       onClick={onSelect}
       className={cn(
-        'h-8 rounded-lg border px-3 text-detail transition-colors',
+        'h-8 rounded-lg border px-3 text-detail transition-colors pointer-coarse:h-10',
         'disabled:cursor-not-allowed disabled:text-fg-disabled',
         selected
           ? 'border-transparent bg-accent font-medium text-accent-fg'
@@ -307,7 +307,7 @@ export function Check({
   label: string
 }) {
   return (
-    <label id={id} className="flex scroll-mt-6 items-center gap-2">
+    <label id={id} className="flex scroll-mt-6 items-center gap-2 pointer-coarse:min-h-10">
       <input
         type="checkbox"
         checked={checked}

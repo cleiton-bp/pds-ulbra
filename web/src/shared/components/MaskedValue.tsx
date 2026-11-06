@@ -32,7 +32,7 @@ export function MaskedValue({
     <div className="flex items-center gap-2">
       <code
         className={cn(
-          'flex h-10 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border bg-surface px-3.5 font-mono text-body text-fg',
+          'flex h-10 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border bg-surface px-3.5 font-mono text-body text-fg pointer-coarse:h-11',
           variant === 'warn' ? 'border-warn-border' : 'border-border',
         )}
       >
@@ -43,7 +43,7 @@ export function MaskedValue({
         variant={variant}
         aria-label={visible ? 'Esconder a chave' : 'Mostrar a chave'}
         aria-pressed={visible}
-        className="w-9 px-0"
+        className="w-9 px-0 pointer-coarse:w-11"
         onClick={() => setVisible((shown) => !shown)}
       >
         <EyeIcon off={visible} className="size-3.5" />

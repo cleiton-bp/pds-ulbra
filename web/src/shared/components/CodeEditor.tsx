@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useScrollOnlyForContent } from '@/shared/hooks/useScrollOnlyForContent'
+import { FADE_RIGHT, useSideScroll } from '@/shared/hooks/useSideScroll'
 import { copyText } from '@/shared/lib/clipboard'
 import { cn } from '@/shared/lib/cn'
 import { type CodeLanguage, highlight, type TokenKind } from '@/shared/lib/highlight'
@@ -78,6 +80,9 @@ export function CodeEditor({
   const aberto = files.find((file) => file.id === active) ?? files[0]
   const abas = files.length > 1
   const fio = useFioDaAba(aberto?.id)
+  // As abas de linguagem que nao cabem rolam de lado; a borda direita esmaece enquanto ha
+  // mais para ver (no celular, quatro das seis ficavam escondidas sem dica nenhuma).
+  const { maisADireita } = useSideScroll(fio.lista)
   const altura = useAlturaQueAcompanha()
   if (!aberto) return null
 
@@ -111,7 +116,10 @@ export function CodeEditor({
             role="tablist"
             aria-label={ariaLabel}
             onKeyDown={aoTeclar}
-            className="relative flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
+            className={cn(
+              'relative flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]',
+              maisADireita && FADE_RIGHT,
+            )}
           >
             {files.map((file) => {
               const ligado = file.id === aberto.id
@@ -212,7 +220,15 @@ function useFioDaAba(abertoId: string | undefined) {
 
     const medir = () => {
       const aba = elemento.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
-      if (aba) setLugar({ x: aba.offsetLeft, largura: aba.offsetWidth })
+      if (!aba) return
+      setLugar({ x: aba.offsetLeft, largura: aba.offsetWidth })
+      // A aberta sempre a vista na fileira: no celular cabem duas ou tres abas, e a aberta
+      // podia ficar escondida a direita. So a fileira rola, nunca a pagina; e a medida se
+      // repete enquanto o nome dela abre, para a aba inteira caber.
+      const fim = aba.offsetLeft + aba.offsetWidth
+      if (aba.offsetLeft < elemento.scrollLeft) elemento.scrollLeft = aba.offsetLeft
+      else if (fim > elemento.scrollLeft + elemento.clientWidth)
+        elemento.scrollLeft = fim - elemento.clientWidth
     }
     medir()
 
@@ -267,6 +283,10 @@ function Codigo({
   const linhas = linhasDe(code, language)
   const novas = new Set(added)
   const classe = 'animate-code-in overflow-x-auto py-3 focus-visible:-outline-offset-2'
+  // Rola de lado so quando algum codigo fica escondido: os 16 px da folga a direita de
+  // cada linha (`pr-4`) passando da largura nao abrem barra.
+  const area = useRef<HTMLDivElement>(null)
+  useScrollOnlyForContent(area, 16)
   const conteudo = (
     <pre className="m-0 min-w-max font-mono text-caption leading-6">
       {linhas.map((linha, indice) => {
@@ -306,11 +326,11 @@ function Codigo({
   // painel da aba aberta; sozinha, uma regiao com o nome do arquivo.
   return painel ? (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: o painel da aba recebe o foco, como pede o padrao de abas, para rolar de lado pelas setas
-    <div id={id} role="tabpanel" aria-label={rotulo} tabIndex={0} className={classe}>
+    <div ref={area} id={id} role="tabpanel" aria-label={rotulo} tabIndex={0} className={classe}>
       {conteudo}
     </div>
   ) : (
-    <section id={id} aria-label={rotulo} tabIndex={-1} className={classe}>
+    <section ref={area} id={id} aria-label={rotulo} tabIndex={-1} className={classe}>
       {conteudo}
     </section>
   )
@@ -387,7 +407,11 @@ function Copiar({ valor, rotulo = 'Copiar' }: { valor: string; rotulo?: string }
           </>
         )}
       </svg>
-      <span aria-live="polite">{copiado ? 'Copiado' : rotulo}</span>
+      {/* Com o editor estreito (passos aninhados no celular), so o desenho: o rotulo
+          comprido cobria o nome do arquivo. O leitor de tela continua ouvindo o nome. */}
+      <span aria-live="polite" className="@max-xs:sr-only">
+        {copiado ? 'Copiado' : rotulo}
+      </span>
     </button>
   )
 }

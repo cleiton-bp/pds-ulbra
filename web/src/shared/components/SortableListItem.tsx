@@ -92,7 +92,7 @@ export function SortableListItem({
           className={cn(
             'flex min-h-16 scroll-mt-6 cursor-pointer list-none items-center gap-2.5 py-3 [&::-webkit-details-marker]:hidden',
             order ? 'pl-16' : 'pl-4',
-            actions ? ESPACO_DAS_ACOES[actionsSpace] : 'pr-4',
+            actions ? cn('pr-4', ESPACO_DAS_ACOES[actionsSpace]) : 'pr-4',
           )}
         >
           <Seta className="group-open/item:rotate-90" />
@@ -134,13 +134,19 @@ export function SortableListItem({
           </div>
         </div>
       )}
-      {actions && <div className="absolute top-0 right-3 flex h-16 items-center">{actions}</div>}
+      {/* No celular as acoes descem para uma linha propria, embaixo: presas a direita
+          da linha do nome, elas e as setas comiam quase tudo, e o nome virava "M...". */}
+      {actions && (
+        <div className="-mt-1 flex items-center justify-end gap-1 pr-3 pb-2 pl-16 sm:absolute sm:top-0 sm:right-3 sm:mt-0 sm:h-16 sm:p-0">
+          {actions}
+        </div>
+      )}
     </li>
   )
 }
 
-/** O respiro do `<summary>` para as acoes, presas por cima dele a direita. */
-const ESPACO_DAS_ACOES = { narrow: 'pr-24', wide: 'pr-32', double: 'pr-44' } as const
+/** O respiro do `<summary>` para as acoes, presas por cima dele a direita (do `sm` para cima). */
+const ESPACO_DAS_ACOES = { narrow: 'sm:pr-24', wide: 'sm:pr-32', double: 'sm:pr-44' } as const
 
 /**
  * A alca de arrastar. Fora do teclado e do leitor de tela de proposito: para eles, as
@@ -153,7 +159,7 @@ export function DragHandle(props: ListOrderItem['handle']) {
       aria-hidden
       tabIndex={-1}
       {...props}
-      className="flex size-6 flex-none cursor-grab items-center justify-center rounded text-fg-muted active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
+      className="flex size-6 flex-none cursor-grab items-center justify-center rounded text-fg-muted active:cursor-grabbing disabled:cursor-default disabled:opacity-30 pointer-coarse:h-12 pointer-coarse:w-5"
     >
       <svg viewBox="0 0 12 12" className="size-3" fill="currentColor" aria-hidden>
         <circle cx="4.5" cy="2.5" r="1" />
@@ -180,7 +186,7 @@ export function MoveButton({ id, direction, label, disabled, onClick }: MoveButt
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-5 items-center justify-center rounded text-fg-muted enabled:hover:bg-surface-sunken enabled:hover:text-fg disabled:opacity-30"
+      className="flex size-5 items-center justify-center rounded text-fg-muted enabled:hover:bg-surface-sunken enabled:hover:text-fg disabled:opacity-30 pointer-coarse:size-8"
     >
       <svg
         viewBox="0 0 12 12"

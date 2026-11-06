@@ -27,8 +27,11 @@ export function DropdownMenu({
         <Menu.Content
           align={align}
           sideOffset={6}
+          // Longe da borda da tela, e no maximo a altura que sobra dela, rolando por dentro:
+          // no celular o menu encostava na borda, e o comprido passava do fim da tela.
+          collisionPadding={8}
           className={cn(
-            'z-dialog overflow-hidden rounded-xl border border-border bg-surface-raised',
+            'z-dialog max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto overflow-x-hidden rounded-xl border border-border bg-surface-raised',
             'origin-(--radix-dropdown-menu-content-transform-origin) data-[state=closed]:animate-menu-out data-[state=open]:animate-menu-in',
             width,
           )}
@@ -81,7 +84,7 @@ export function DropdownItem({
     <Menu.Item
       onSelect={onSelect}
       className={cn(
-        'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 outline-none',
+        'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 outline-none pointer-coarse:py-2.5',
         'data-[highlighted]:bg-surface-sunken',
         quiet ? 'text-detail text-fg-muted data-[highlighted]:text-fg' : 'text-fg text-body',
       )}

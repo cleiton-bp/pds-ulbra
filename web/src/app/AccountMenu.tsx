@@ -50,18 +50,22 @@ export function AccountMenu() {
           ref={gatilho}
           type="button"
           aria-label="Conta"
-          className="flex size-8 items-center justify-center rounded-full border border-border bg-surface-sunken font-semibold text-caption text-fg-muted transition-colors hover:bg-surface-strong hover:text-fg"
+          className="group flex size-8 items-center justify-center rounded-full pointer-coarse:size-10"
         >
-          {user?.AvatarUrl ? (
-            <img
-              src={user.AvatarUrl}
-              alt=""
-              className="size-full rounded-full"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            initials
-          )}
+          {/* O desenho tem 32 sempre; no toque so a area em volta cresce para 40. Com 40 de
+              desenho, a foto pesava mais que os icones da barra do celular. */}
+          <span className="flex size-8 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-sunken font-semibold text-caption text-fg-muted transition-colors group-hover:bg-surface-strong group-hover:text-fg">
+            {user?.AvatarUrl ? (
+              <img
+                src={user.AvatarUrl}
+                alt=""
+                className="size-full rounded-full"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              initials
+            )}
+          </span>
         </button>
       }
     >

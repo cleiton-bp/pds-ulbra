@@ -143,17 +143,27 @@ function SaveActions({
         </span>
       </p>
 
-      <Button variant="ghost" className={compacto} disabled={!dirty || saving} onClick={onDiscard}>
-        Descartar
-      </Button>
-      <Button
-        variant="primary"
-        className={compacto}
-        disabled={!dirty || saving || !canSave}
-        onClick={onSave}
-      >
-        {saving ? (publishes ? 'Publicando…' : 'Salvando…') : publishes ? 'Publicar' : 'Salvar'}
-      </Button>
+      {/* Os dois botoes andam juntos: no celular estreito, quando nao cabem ao lado do
+          estado, descem os dois para a linha de baixo, a direita. Antes o Publicar descia
+          sozinho e ficava longe do Descartar. */}
+      <div className="ml-auto flex items-center gap-x-3">
+        <Button
+          variant="ghost"
+          className={compacto}
+          disabled={!dirty || saving}
+          onClick={onDiscard}
+        >
+          Descartar
+        </Button>
+        <Button
+          variant="primary"
+          className={compacto}
+          disabled={!dirty || saving || !canSave}
+          onClick={onSave}
+        >
+          {saving ? (publishes ? 'Publicando…' : 'Salvando…') : publishes ? 'Publicar' : 'Salvar'}
+        </Button>
+      </div>
     </div>
   )
 }

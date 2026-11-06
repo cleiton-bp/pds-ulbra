@@ -248,14 +248,18 @@ export function MiniCard({
           <div className="flex min-w-0 items-center">
             {priority && <PriorityIcon priority={priority} />}
           </div>
-          <span className="flex flex-none items-center gap-1.5">
-            <PointsChip points={points} />
-            {assignee && (
-              <PersonAvatar
-                pessoa={{ UserPublicId: '', Name: assignee, AvatarUrl: null, InTeam: true }}
-              />
-            )}
-          </span>
+          {/* So com pontos ou responsavel: vazio, o grupo ainda ocupava o espaco entre os
+              dois lados, e em 320 a prioridade virava "M...". */}
+          {(points !== null || assignee !== null) && (
+            <span className="flex flex-none items-center gap-1.5">
+              <PointsChip points={points} />
+              {assignee && (
+                <PersonAvatar
+                  pessoa={{ UserPublicId: '', Name: assignee, AvatarUrl: null, InTeam: true }}
+                />
+              )}
+            </span>
+          )}
         </div>
       )}
     </div>

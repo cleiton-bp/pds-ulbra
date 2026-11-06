@@ -92,8 +92,15 @@ export function SettingsGroup({
                 do summary, preso a direita da primeira linha: ela reserva o lugar dele
                 (`pr-40`) e tem a altura dele (`min-h-8`). O que esta escolhido e o que
                 mudou descem para as linhas de baixo e quebram linha se precisar — na
-                mesma linha do titulo, a lista longa passava por baixo do botao. */}
-            <span className={cn('flex min-h-8 items-center', mudou && 'pr-40')}>
+                mesma linha do titulo, a lista longa passava por baixo do botao. No toque o botao
+                tem 44, e a linha tambem, do `sm` para cima: no celular ele desce para o pe do
+                grupo, e a linha nao precisa reservar nada. */}
+            <span
+              className={cn(
+                'flex min-h-8 items-center sm:pointer-coarse:min-h-11',
+                mudou && 'sm:pr-40',
+              )}
+            >
               <span id={nome} className="font-semibold text-fg text-lead">
                 {title}
               </span>
@@ -110,10 +117,14 @@ export function SettingsGroup({
         <div className="border-border border-t px-5 pt-4 pb-5">{children}</div>
       </details>
 
+      {/* No celular o botao desce para uma linha propria, embaixo e a direita: preso no
+          canto, ele cobria titulo de uma palavra so, como "Reconhecimento". */}
       {mudou && (
-        <Button size="sm" variant="quiet" className="absolute top-4 right-4" onClick={onReset}>
-          Voltar ao padrão
-        </Button>
+        <div className="flex justify-end px-5 pb-4 sm:absolute sm:top-4 sm:right-4 sm:p-0">
+          <Button size="sm" variant="quiet" onClick={onReset}>
+            Voltar ao padrão
+          </Button>
+        </div>
       )}
     </section>
   )

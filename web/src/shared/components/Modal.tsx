@@ -102,6 +102,9 @@ export function Modal({
             // sempre a vista e so o meio rolando. Sem isso, no celular, deitado ou com o
             // teclado aberto, o relato de teste cortava o titulo e o Fechar.
             '-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-dialog flex max-h-[calc(100dvh-2rem)] flex-col rounded-xl border border-border bg-surface-raised p-6 data-[state=closed]:animate-dialog-out data-[state=open]:animate-dialog-in',
+            // Em tela baixa (o celular deitado), o dialogo inteiro rola: com titulo,
+            // descricao e botoes sempre a vista, sobravam uns 80px para o corpo.
+            '[@media(max-height:30rem)]:overflow-y-auto',
             width,
             className,
           )}
@@ -171,7 +174,7 @@ export function Modal({
               <Dialog.Close
                 ref={fechar}
                 aria-label="Fechar"
-                className="-mt-1 -mr-2 flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+                className="-mt-1 -mr-2 flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg pointer-coarse:-mt-2 pointer-coarse:-mr-3 pointer-coarse:size-10"
               >
                 <svg
                   viewBox="0 0 12 12"
@@ -194,7 +197,12 @@ export function Modal({
             </Dialog.Description>
           )}
 
-          <div className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1">{children}</div>
+          {/* A rolagem do corpo para nele: chegando ao fim, a pagina de tras nao rola junto.
+              A folga de 8 dos lados (margem negativa e respiro iguais) deixa o anel de foco e
+              as linhas que encostam na borda, como as do Criar projeto, sem cortar nem rolar. */}
+          <div className="-mx-2 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2 [@media(max-height:30rem)]:flex-none [@media(max-height:30rem)]:overflow-visible">
+            {children}
+          </div>
 
           {footer !== undefined && (
             <div className="mt-6 flex flex-none flex-wrap justify-end gap-2">{footer}</div>

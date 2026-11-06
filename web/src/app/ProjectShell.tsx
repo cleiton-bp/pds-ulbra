@@ -25,12 +25,14 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { ThemeButton } from '@/shared/components/ThemeButton'
 import { Tooltip } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
+import { useNeedsBottomRoom } from '@/shared/hooks/useNeedsBottomRoom'
 import { useScrollToHash } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
 import { rememberProjectOpened } from '@/shared/lib/recentProjects'
 import { GuideButton } from '@/shared/tour/GuideButton'
-import { guideTarget } from '@/shared/tour/guideStore'
+import { guideTarget, useGuideStore } from '@/shared/tour/guideStore'
 
 /**
  * Nao e um booleano `notFound`: "nao encontrado" e "nao deu para saber" pedem
@@ -102,6 +104,11 @@ export function ProjectShell() {
   const trabalho = segment === 'reports'
   const cardAberto = trabalho && Boolean(resto)
 
+  // A folga grande do pe so quando a tela ja rola: ver `useNeedsBottomRoom`.
+  const principal = useRef<HTMLElement>(null)
+  const telaDaVez = useRef<HTMLDivElement>(null)
+  const comFolgaNoPe = useNeedsBottomRoom(principal, telaDaVez, segment)
+
   // O projeto que a casca esta abrindo agora: a resposta que chega depois de a
   // pessoa ter ido para outro projeto nao pode marcar este como "nao encontrado".
   const current = useRef(publicId)
@@ -170,6 +177,13 @@ export function ProjectShell() {
   const menuButton = useRef<HTMLButtonElement>(null)
   const nav = useRef<HTMLElement>(null)
 
+  // O guia da tela, para o pe do menu do celular: abre pelo pedido, e o botao da barra (que
+  // no celular fica escondido) atende.
+  const temGuia = useGuideStore((estado) => estado.tela !== null && !estado.tela.noDialogo)
+  // A largura de celular (abaixo do `sm`), acompanhando o giro: o pe da gaveta so existe la.
+  const celular = useMediaQuery('(max-width: 39.99rem)')
+  const pedirGuia = useGuideStore((estado) => estado.pedir)
+
   const fecharGaveta = useCallback((devolverFoco: boolean) => {
     setDrawerOpen(false)
     if (devolverFoco) menuButton.current?.focus()
@@ -184,7 +198,27 @@ export function ProjectShell() {
     ativo?.focus()
 
     function aoTeclar(event: KeyboardEvent) {
-      if (event.key === 'Escape') fecharGaveta(true)
+      if (event.key === 'Escape') {
+        fecharGaveta(true)
+        return
+      }
+      // O Tab circula dentro da gaveta, como num dialogo: depois do ultimo item, o foco ia
+      // para a tela atras do veu, que nao se ve. Fica de fora o que esta escondido (o
+      // recolher, que e so da lateral) e os grupos fechados (`inert`).
+      if (event.key !== 'Tab' || !nav.current) return
+      const itens = [...nav.current.querySelectorAll<HTMLElement>('a[href], button')].filter(
+        (item) => item.getClientRects().length > 0 && !item.closest('[inert]'),
+      )
+      const primeiro = itens[0]
+      const ultimo = itens.at(-1)
+      if (!primeiro || !ultimo) return
+      if (event.shiftKey && document.activeElement === primeiro) {
+        event.preventDefault()
+        ultimo.focus()
+      } else if (!event.shiftKey && document.activeElement === ultimo) {
+        event.preventDefault()
+        primeiro.focus()
+      }
     }
     document.addEventListener('keydown', aoTeclar)
     return () => document.removeEventListener('keydown', aoTeclar)
@@ -240,33 +274,68 @@ export function ProjectShell() {
   // Sem o projeto, a casca continua de pe: marca, sino e conta no topo, e a falha
   // no lugar do conteudo. Antes a pagina perdia o topo inteiro.
   const header = (
-    <header className="flex h-14 flex-none items-center justify-between gap-2 border-border border-b bg-surface pr-4 pl-4 sm:pr-5 sm:pl-6">
+    <header className="flex h-14 flex-none items-center justify-between gap-2 border-border border-b bg-surface pr-4 pl-4 max-[400px]:px-3 sm:pr-5 sm:pl-6">
       <div className="flex min-w-0 items-center gap-2.5 lg:gap-4">
         {!failure && (
+          // Abre e fecha a gaveta, e o desenho vira um X com ela aberta: o caminho de volta fica
+          // no mesmo lugar do de ida. No celular, sem caixa em volta, como os outros icones
+          // da barra: cinco caixas lado a lado pesavam mais que o conteudo.
           <button
             ref={menuButton}
             type="button"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Abrir menu do projeto"
+            onClick={() => (drawerOpen ? fecharGaveta(false) : setDrawerOpen(true))}
+            aria-label={drawerOpen ? 'Fechar menu do projeto' : 'Abrir menu do projeto'}
             {...guideTarget('menu')}
             aria-expanded={drawerOpen}
             aria-controls="menu-do-projeto"
-            className="flex size-8 flex-none items-center justify-center rounded-lg border border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg lg:hidden"
+            className="flex size-8 flex-none items-center justify-center rounded-lg border border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg pointer-coarse:size-10 max-sm:-ml-1.5 max-sm:border-transparent max-sm:bg-transparent lg:hidden"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden>
-              <rect x="1" y="3" width="12" height="1.4" rx="0.7" />
-              <rect x="1" y="6.3" width="12" height="1.4" rx="0.7" />
-              <rect x="1" y="9.6" width="12" height="1.4" rx="0.7" />
+              {/* As tres barras viram o X girando as de fora e apagando a do meio. */}
+              <rect
+                x="1"
+                y="3"
+                width="12"
+                height="1.4"
+                rx="0.7"
+                className={cn(
+                  'origin-center transition-transform duration-200 ease-out [transform-box:fill-box] motion-reduce:transition-none',
+                  drawerOpen && 'translate-y-[3.3px] rotate-45',
+                )}
+              />
+              <rect
+                x="1"
+                y="6.3"
+                width="12"
+                height="1.4"
+                rx="0.7"
+                className={cn(
+                  'transition-opacity duration-150 motion-reduce:transition-none',
+                  drawerOpen && 'opacity-0',
+                )}
+              />
+              <rect
+                x="1"
+                y="9.6"
+                width="12"
+                height="1.4"
+                rx="0.7"
+                className={cn(
+                  'origin-center transition-transform duration-200 ease-out [transform-box:fill-box] motion-reduce:transition-none',
+                  drawerOpen && '-translate-y-[3.3px] -rotate-45',
+                )}
+              />
             </svg>
           </button>
         )}
 
-        {/* A marca leva aos projetos, em todas as telas. No celular estreito fica
-            so o desenho: o nome disputava espaco com o seletor e o espremia. */}
+        {/* A marca leva aos projetos. No celular ela sai da barra, e o caminho para os
+            projetos fica no pe do menu ("Todos os projetos") e no seletor: a barra do
+            celular mostra so onde a pessoa esta e o que ela mais usa. */}
         <Link
           to="/projects"
           title="Ir para os projetos"
-          className="flex-none rounded-md max-[400px]:[&>span>span]:hidden"
+          className="flex-none rounded-md pointer-coarse:-m-1.5 pointer-coarse:p-1.5 max-sm:hidden"
         >
           <Brand />
         </Link>
@@ -286,9 +355,13 @@ export function ProjectShell() {
         )}
       </div>
 
-      <div className="flex flex-none items-center gap-2">
-        <GuideButton />
-        <ThemeButton />
+      <div className="flex flex-none items-center gap-2 max-sm:gap-1">
+        <GuideButton noMenuDoCelular />
+        {/* O tema so na barra do computador: no celular e no tablet ele esta no menu da
+            conta, e a barra fica com o que se usa todo dia. */}
+        <span className="hidden lg:contents">
+          <ThemeButton />
+        </span>
         <span {...guideTarget('avisos')} className="flex">
           <NotificationBell />
         </span>
@@ -384,7 +457,7 @@ export function ProjectShell() {
         >
           <div
             className={cn(
-              'scrollbar-discreet flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden py-5',
+              'flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden py-5',
               'px-3',
             )}
           >
@@ -427,6 +500,32 @@ export function ProjectShell() {
               tela — e o botao, que rolava junto, sumia justo quando a lateral mais
               ocupava espaco. Agora so a lista de cima rola. A escolha fica guardada
               neste navegador. */}
+          {/* So no celular: o guia da tela e os projetos, que sairam da barra de cima. */}
+          {celular && (
+            <div className="flex-none border-border border-t px-3 py-2 sm:hidden">
+              {temGuia && (
+                <SideButton
+                  iconOnly={false}
+                  label="Guia desta tela"
+                  onClick={() => {
+                    fecharGaveta(false)
+                    pedirGuia()
+                  }}
+                  icon={<IconeDoGuia />}
+                />
+              )}
+              <Link
+                to="/projects"
+                onClick={() => setDrawerOpen(false)}
+                className="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2 pointer-coarse:h-11"
+              >
+                <span className="flex size-3.5 flex-none items-center justify-center">
+                  <Seta direcao="esquerda" />
+                </span>
+                <span className="min-w-0 flex-1 truncate">Todos os projetos</span>
+              </Link>
+            </div>
+          )}
           <div className={cn('hidden flex-none border-border border-t py-2 lg:block', 'px-3')}>
             <SideButton
               iconOnly={iconesSo}
@@ -438,13 +537,21 @@ export function ProjectShell() {
         </nav>
 
         <main
+          ref={principal}
           id="conteudo"
           tabIndex={-1}
           className={cn(
             'min-w-0 flex-1 overflow-auto px-5 pt-7 outline-none lg:px-10 lg:pt-10',
+            // Com a volta presa no alto (`VoltarDeOndeVeio`), a ancora do endereco para logo
+            // abaixo dela: sem a folga, a barra cobria o topo da secao (o cartao de
+            // Visibilidade, vindo da Moderacao).
+            'has-[[data-volta]]:scroll-pt-9',
             // Folga no pe: o fim da tela (o arquivar, o salvar) sobe longe da borda da
             // janela. O Trabalho mede a altura daqui, e cuida da folga dele na lista.
-            trabalho ? 'pb-7 lg:pb-12' : 'pb-32 lg:pb-40',
+            // Nas outras, a folga grande so entra quando a tela ja rola; na tela que
+            // cabe, o pe tem o mesmo respiro do topo, e a pagina nao rola para mostrar
+            // espaco vazio.
+            trabalho ? 'pb-7 lg:pb-12' : comFolgaNoPe ? 'pb-32 lg:pb-40' : 'pb-7 lg:pb-10',
           )}
         >
           {/* Tipado nas duas pontas: sem `satisfies` aqui, campo novo no contexto
@@ -452,8 +559,15 @@ export function ProjectShell() {
           {/* A chave e a secao (trabalho, membros, moderacao...), e nao o endereco inteiro:
               abrir um card muda o endereco sem trocar de tela, e nao pode esmaecer a lista.
               `h-full` so no Trabalho, porque o quadro mede a altura a partir daqui. Nas
-              outras telas a altura fixa fazia o texto passar por cima da folga do pe. */}
-          <div key={segment} className={cn('animate-panel-in', trabalho && 'h-full')}>
+              outras telas a altura fixa fazia o texto passar por cima da folga do pe.
+              Na tela grande a tela fica no meio da area: encostada a esquerda, sobrava
+              metade da janela vazia do lado direito. O Trabalho ocupa a largura toda e
+              nao muda. */}
+          <div
+            key={segment}
+            ref={telaDaVez}
+            className={cn('animate-panel-in 2xl:*:mx-auto', trabalho && 'h-full')}
+          >
             {project ? (
               <Outlet context={{ project } satisfies ProjectContext} />
             ) : (
@@ -593,10 +707,10 @@ function ConfigNav({
                     nao abria nada. */}
                   {iconOnly ? (
                     // Mesma altura do titulo, com o traco no meio: trocar um pelo outro
-                    // nao sobe nem desce os glifos de baixo.
+                    // nao sobe nem desce os glifos de baixo. No toque, tambem os 40 dele.
                     <div
                       aria-hidden
-                      className="relative px-2.5 pt-1 pb-1 text-caption uppercase tracking-wider"
+                      className="relative px-2.5 pt-1 pb-1 text-caption uppercase tracking-wider pointer-coarse:min-h-10"
                     >
                       <span className="invisible">·</span>
                       <span className="absolute inset-x-1 top-1/2 h-px bg-border" />
@@ -612,7 +726,8 @@ function ConfigNav({
                       aria-controls={`area-da-lateral-${area.key}`}
                       // O anel de foco por dentro: por fora, o item de baixo cobria a linha
                       // dele, e a lateral, que esconde o que passa da borda, cortava os lados.
-                      className="flex w-full items-center gap-1.5 rounded-md px-2.5 pt-1 pb-1 text-left font-semibold text-caption text-fg-muted uppercase tracking-wider transition-colors hover:text-fg focus-visible:-outline-offset-2"
+                      // No toque o titulo abre e fecha com 40 de altura, como os itens.
+                      className="flex w-full items-center gap-1.5 rounded-md px-2.5 pt-1 pb-1 text-left font-semibold text-caption text-fg-muted uppercase tracking-wider transition-colors hover:text-fg focus-visible:-outline-offset-2 pointer-coarse:min-h-10"
                     >
                       <span className="min-w-0 flex-1 truncate">{area.label}</span>
                       <span
@@ -773,6 +888,26 @@ function areaAtual(segment: string): ConfigAreaKey | null {
 
 function conjunto(area: ConfigAreaKey | null): ReadonlySet<ConfigAreaKey> {
   return new Set(area ? [area] : [])
+}
+
+/** O desenho do guia, o mesmo do botao da barra. */
+function IconeDoGuia() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M6.3 6.2a1.75 1.75 0 1 1 2.4 1.62c-.45.2-.7.55-.7 1.03v.4" />
+      <circle cx="8" cy="11.3" r="0.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
 }
 
 function Seta({ direcao }: { direcao: 'direita' | 'esquerda' }) {

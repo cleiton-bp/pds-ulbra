@@ -39,7 +39,9 @@ export function EditorWithPreview({
   return (
     <div
       className={cn(
-        'grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start',
+        // `grid-cols-1` e a coluna unica com minimo zero: sem ela, no celular a coluna
+        // crescia ate o quadro de exemplo caber inteiro, e a tela rolava para o lado.
+        'grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start',
         className,
       )}
     >
@@ -50,7 +52,7 @@ export function EditorWithPreview({
         {children}
       </div>
       <div
-        className="order-first lg:sticky lg:-top-5 lg:order-none lg:col-start-2 lg:row-start-1"
+        className="order-first min-w-0 lg:sticky lg:-top-5 lg:order-none lg:col-start-2 lg:row-start-1"
         {...guideTarget('previa')}
       >
         {preview}

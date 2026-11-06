@@ -91,7 +91,7 @@ export function CardColorPicker({
   return (
     <fieldset disabled={disabled}>
       <legend className="mb-1.5 text-detail text-fg-muted">{label}</legend>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5 pointer-coarse:gap-2">
         {CARD_COLORS.map((cor) => (
           <button
             key={cor}
@@ -101,7 +101,7 @@ export function CardColorPicker({
             title={CARD_COLOR_NAMES[cor]}
             onClick={() => onChange(cor)}
             className={cn(
-              'flex size-7 items-center justify-center rounded-full border disabled:opacity-60',
+              'flex size-7 items-center justify-center rounded-full border disabled:opacity-60 pointer-coarse:size-10',
               CARD_COLOR_CLASSES[cor],
             )}
           >
