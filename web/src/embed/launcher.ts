@@ -375,6 +375,9 @@ export function readLauncherAppearance(data: unknown): WidgetLauncherViewModel |
 /** A distancia minima que o quadro aberto deixa ate a borda da janela. */
 const GUTTER = 20
 
+/** Abaixo desta altura, o editor ocupa a janela inteira, como no celular. */
+const EDITOR_SHORT_VIEWPORT = 600
+
 /**
  * O tamanho do formulario aberto, que acompanha a janela de quem visita. **Um tamanho so
  * nao serve as duas pontas**: 360 por 520 some num monitor grande, e no telefone vira
@@ -405,7 +408,8 @@ export interface FrameViewport {
   height: number
   /**
    * A largura que decide se e celular, quando ela nao e a medida: a previa do painel
-   * desenha a pagina de mentira menor que a janela que ela representa.
+   * desenha a pagina de mentira menor que a janela que ela representa, e o carregador mede
+   * sem a barra de rolagem da pagina, que a regra conta (como o CSS).
    */
   ruleWidth?: number
   /** Quanto do pe da janela o teclado do celular cobre, em pixels. */
@@ -442,8 +446,29 @@ export function placeFrame(
   const aberto = message.width >= FRAME_SIZE.expanded.width
   const formulario =
     message.width === FRAME_SIZE.expanded.width && message.height === FRAME_SIZE.expanded.height
+  const editor =
+    message.width === FRAME_SIZE.editor.width && message.height === FRAME_SIZE.editor.height
+  const celular = isNarrowViewport(viewport.ruleWidth ?? viewport.width)
 
-  if (formulario && isNarrowViewport(viewport.ruleWidth ?? viewport.width)) {
+  // **No celular, o editor ocupa a tela inteira**, sem a margem de 20 em volta: em 320 a
+  // margem tirava 40 da largura, e a barra das ferramentas nao cabia. Tambem na tela baixa
+  // (o celular deitado), onde a margem comia o pouco de altura que sobra para a imagem. Sem
+  // cantos nem sombra, porque nao ha pagina em volta para separar.
+  if (editor && (celular || viewport.height < EDITOR_SHORT_VIEWPORT)) {
+    return {
+      width: Math.max(0, viewport.width),
+      height: Math.max(0, viewport.height),
+      top: 0,
+      bottom: null,
+      left: 0,
+      right: null,
+      radius: 0,
+      shadow: 'none',
+      sheet: false,
+    }
+  }
+
+  if (formulario && celular) {
     const teclado = clamp(viewport.keyboard ?? 0, 0, viewport.height)
     const visivel = viewport.height - teclado
     const altura =

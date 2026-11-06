@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { environment, getToken } from '@/data'
 import { renderGoogleButton } from '@/features/auth/googleIdentity'
@@ -109,14 +109,44 @@ function BotaoDoGoogle({
   tamanho?: keyof typeof TAMANHOS
   className?: string
 }) {
+  const caixa = useRef<HTMLDivElement>(null)
   const alvo = useRef<HTMLDivElement>(null)
   const [pronto, setPronto] = useState(false)
+  const [cabe, setCabe] = useState<number | null>(null)
   const { clientId, aoToken, aoFalhar } = entrada
   const { size, largura, altura } = TAMANHOS[tamanho]
 
+  // No celular estreito o cartao em volta tem menos que a largura do botao: a caixa
+  // encolhe ate a coluna (`max-w-full`) e o Google desenha o botao na largura que sobrou,
+  // e nao passando da borda. O Google nao aceita menos de 200. A medida e refeita quando a
+  // caixa muda: o celular que gira de deitado para em pe estreita o cartao, e o botao
+  // desenhado na largura antiga voltava a passar da borda.
+  useLayoutEffect(() => {
+    const elemento = caixa.current
+    if (!elemento) return
+    const medir = () => {
+      const sobra = Math.floor(elemento.getBoundingClientRect().width)
+      setCabe(Math.max(200, Math.min(largura, sobra || largura)))
+    }
+    medir()
+    if (typeof ResizeObserver === 'undefined') return
+    // Espera a largura assentar: o giro e a janela arrastada mudam varias vezes seguidas, e
+    // cada desenho novo do Google busca o quadro dele pela rede.
+    let espera: ReturnType<typeof setTimeout> | undefined
+    const observador = new ResizeObserver(() => {
+      clearTimeout(espera)
+      espera = setTimeout(medir, 150)
+    })
+    observador.observe(elemento)
+    return () => {
+      clearTimeout(espera)
+      observador.disconnect()
+    }
+  }, [largura])
+
   useEffect(() => {
     const elemento = alvo.current
-    if (!clientId || !elemento) return
+    if (!clientId || !elemento || cabe === null) return
 
     let cancelado = false
     setPronto(false)
@@ -139,7 +169,7 @@ function BotaoDoGoogle({
       (idToken) => {
         if (!cancelado) aoToken(idToken)
       },
-      { size, width: largura, shape: 'pill', theme: 'outline' },
+      { size, width: cabe, shape: 'pill', theme: 'outline' },
     ).catch((motivo: Error) => {
       if (cancelado) return
       aoFalhar(motivo.message)
@@ -151,10 +181,14 @@ function BotaoDoGoogle({
       observador.disconnect()
       clearTimeout(reserva)
     }
-  }, [clientId, size, largura, aoToken, aoFalhar])
+  }, [clientId, size, cabe, aoToken, aoFalhar])
 
   return (
-    <div className={cn('relative flex-none', altura, className)} style={{ width: largura }}>
+    <div
+      ref={caixa}
+      className={cn('relative max-w-full flex-none', altura, className)}
+      style={{ width: largura }}
+    >
       <div
         aria-hidden="true"
         className={cn(
@@ -218,7 +252,9 @@ function SoAEntrada({
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="mx-auto flex h-14 w-full max-w-280 items-center gap-6 px-4 sm:px-5 lg:px-8">
+      {/* A mesma coluna da pagina do produto, tambem na tela grande: no "Ver como funciona"
+          a marca fica onde estava. */}
+      <header className="mx-auto flex h-14 w-full max-w-280 items-center gap-6 px-4 sm:px-5 lg:px-8 2xl:max-w-320">
         <Brand />
       </header>
 
@@ -250,7 +286,7 @@ function SoAEntrada({
             <button
               type="button"
               onClick={aoConhecer}
-              className="text-fg underline underline-offset-4 transition-colors duration-150 hover:text-fg-muted"
+              className="text-fg underline underline-offset-4 transition-colors duration-150 hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
             >
               Ver como funciona
             </button>
@@ -275,6 +311,9 @@ function Linha({ children, atraso = 0 }: { children: React.ReactNode; atraso?: n
 /** A pagina do produto, para quem veio conhecer. */
 function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entrada }) {
   const rolou = useScrolledPast()
+  // No toque (tablet, celular deitado) o botao do topo e o grande: o medio do Google tem
+  // 32 de altura, pouco para o dedo. Lido uma vez, como o movimento reduzido.
+  const [toque] = useState(() => window.matchMedia?.('(pointer: coarse)')?.matches ?? false)
 
   // Leva a maquete ao centro da atencao e chama o guia dela: quem pediu para experimentar
   // ve, sem procurar, onde clicar primeiro.
@@ -295,7 +334,7 @@ function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entr
           rolou ? 'border-border' : 'border-transparent',
         )}
       >
-        <div className="mx-auto flex h-14 max-w-280 items-center gap-6 px-4 sm:px-5 lg:px-8">
+        <div className="mx-auto flex h-14 max-w-280 2xl:max-w-320 items-center gap-6 px-4 sm:px-5 lg:px-8">
           <Brand />
 
           <div className="ml-auto flex items-center gap-3">
@@ -304,14 +343,20 @@ function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entr
             {/* Some abaixo de `sm`: ao lado da marca o botao estoura a linha num telefone
                 estreito, e a chamada logo abaixo cobre o caso. */}
             {entrada.clientId && (
-              <BotaoDoGoogle entrada={entrada} tamanho="pequeno" className="max-sm:hidden" />
+              <BotaoDoGoogle
+                entrada={entrada}
+                tamanho={toque ? 'grande' : 'pequeno'}
+                className="max-sm:hidden"
+              />
             )}
           </div>
         </div>
       </header>
 
+      {/* Da tela grande (2xl) em diante a coluna da pagina abre um pouco: com 1120 ela ficava
+          perdida no meio de um monitor de 2560. */}
       <main>
-        <section className="mx-auto max-w-280 px-4 pt-12 sm:px-5 lg:px-8 lg:pt-20">
+        <section className="mx-auto max-w-280 2xl:max-w-320 px-4 pt-12 sm:px-5 lg:px-8 lg:pt-20">
           {convite && (
             <div className="mb-10 max-w-[52ch] animate-materializa rounded-xl border border-border bg-surface-raised px-5 py-4">
               <p className="font-medium text-body text-fg">Você recebeu um convite para um time</p>
@@ -322,8 +367,9 @@ function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entr
           )}
 
           {/* O titulo em duas linhas que sobem da mascara, uma atras da outra; o resto chega
-              logo depois, e nada espera a animacao para poder ser clicado. */}
-          <h1 className="max-w-[21ch] font-semibold text-fg text-hero tracking-tight md:text-hero-wide lg:text-display xl:text-headline">
+              logo depois, e nada espera a animacao para poder ser clicado. Equilibrado, para
+              a segunda linha nao deixar "time" sozinho no celular estreito. */}
+          <h1 className="max-w-[21ch] text-balance font-semibold text-fg text-hero tracking-tight md:text-hero-wide lg:text-display xl:text-headline">
             <Linha>Relatos do seu sistema</Linha>{' '}
             <Linha atraso={90}>direto no quadro do time</Linha>
           </h1>
@@ -358,7 +404,7 @@ function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entr
             o produto. Sem `Reveal`: num notebook ela nasce meio dentro da janela. */}
         <section
           aria-labelledby="experimente"
-          className="mx-auto max-w-280 px-4 pt-10 pb-20 sm:px-5 lg:px-8 lg:pt-12 lg:pb-28"
+          className="mx-auto max-w-280 2xl:max-w-320 px-4 pt-10 pb-20 sm:px-5 lg:px-8 lg:pt-12 lg:pb-28"
         >
           {/* A mesa: um campo solido no verde de "funcionando", e nao um degrade, embaixo da
               maquete inteira. Passa um pouco da coluna do texto na tela larga, para o titulo
@@ -371,7 +417,7 @@ function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entr
         </section>
 
         <section aria-labelledby="perguntas">
-          <div className="mx-auto max-w-280 px-4 pt-4 pb-16 sm:px-5 lg:px-8 lg:pt-8 lg:pb-24">
+          <div className="mx-auto max-w-280 2xl:max-w-320 px-4 pt-4 pb-16 sm:px-5 lg:px-8 lg:pt-8 lg:pb-24">
             <Reveal>
               <h2
                 id="perguntas"
@@ -398,7 +444,7 @@ function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entr
 
         <section
           aria-labelledby="comece"
-          className="mx-auto max-w-280 px-4 pb-20 sm:px-5 lg:px-8 lg:pb-28"
+          className="mx-auto max-w-280 2xl:max-w-320 px-4 pb-20 sm:px-5 lg:px-8 lg:pb-28"
         >
           <Fecho entrada={entrada} />
         </section>
@@ -407,7 +453,7 @@ function PaginaDoProduto({ convite, entrada }: { convite: boolean; entrada: Entr
       {/* A marca e o ano, e nada mais: no fim de uma pagina que ja explicou tudo, cada coisa
           a mais seria mais uma para ler depois do fim. */}
       <footer className="border-border border-t">
-        <div className="mx-auto flex max-w-280 flex-wrap items-center justify-between gap-3 px-4 py-8 sm:px-5 lg:px-8">
+        <div className="mx-auto flex max-w-280 2xl:max-w-320 flex-wrap items-center justify-between gap-3 px-4 py-8 sm:px-5 lg:px-8">
           <Brand />
           <p className="text-caption text-fg-muted">© {ANO}</p>
         </div>
@@ -485,7 +531,9 @@ function Fecho({ entrada }: { entrada: Entrada }) {
   }, [])
 
   return (
-    <div className="grid gap-10 rounded-3xl bg-landing-mat px-6 py-10 text-fg sm:px-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-end lg:gap-16 lg:px-14 lg:py-14">
+    // Uma coluna de `minmax(0, 1fr)` no celular: a coluna automatica crescia ate a largura do
+    // botao do Google e o titulo e o botao passavam da borda do cartao em 320.
+    <div className="grid grid-cols-1 gap-10 rounded-3xl bg-landing-mat px-6 py-10 text-fg sm:px-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-end lg:gap-16 lg:px-14 lg:py-14">
       <div>
         <h2 id="comece" className="font-semibold text-hero tracking-tight md:text-hero-wide">
           Comece pelo primeiro projeto

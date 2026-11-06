@@ -37,6 +37,9 @@ export function ColorSwatch({ color, className }: { color: string | null; classN
 const PADRAO = 'padrao'
 const OUTRA = 'outra'
 
+/** A moldura de cada amostra: no toque ela passa de 32 para 40, e o dedo acerta a cor. */
+const PECA = 'min-w-0 p-1 pointer-coarse:p-2'
+
 /**
  * Uma cor num clique: a automatica, as amostras da paleta e "Outra…", que abre o
  * seletor do navegador e o campo do codigo. **Nada desligado sem motivo**: "Outra…"
@@ -87,14 +90,14 @@ export function ColorChoice({
           {automatic.label}
         </span>
       ),
-      className: 'min-w-0 p-1',
+      className: PECA,
     },
     ...colors.map((cor) => ({
       value: cor.value,
       label: cor.name,
       hideLabel: true,
       drawing: <ColorSwatch color={cor.value} className="size-6" />,
-      className: 'min-w-0 p-1',
+      className: PECA,
     })),
     {
       value: OUTRA,
@@ -111,7 +114,7 @@ export function ColorChoice({
           Outra…
         </span>
       ),
-      className: 'min-w-0 p-1',
+      className: PECA,
     },
   ]
 
@@ -147,6 +150,7 @@ export function ColorChoice({
         className="items-center"
       />
 
+      {/* No toque o seletor e o codigo tem a altura dos outros campos (44). */}
       {marcada === OUTRA && value !== null && (
         <div className="mt-3 flex flex-wrap items-start gap-2">
           <input
@@ -154,7 +158,7 @@ export function ColorChoice({
             aria-label={`Outra ${nomeMinusculo}`}
             value={parseHexColor(value) ?? value}
             onChange={(event) => onChange(event.target.value)}
-            className="h-8 w-14 cursor-pointer rounded-lg border border-border bg-surface-raised p-1"
+            className="h-8 w-14 cursor-pointer rounded-lg border border-border bg-surface-raised p-1 pointer-coarse:h-11"
           />
           <HexField
             label={`Código da ${nomeMinusculo}`}
@@ -201,7 +205,7 @@ function HexField({
     <div>
       <div
         className={cn(
-          'flex h-8 items-center rounded-lg border bg-surface-raised pl-2',
+          'flex h-8 items-center rounded-lg border bg-surface-raised pl-2 pointer-coarse:h-11',
           erro ? 'border-error-border' : 'border-border',
         )}
       >

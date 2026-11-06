@@ -1,8 +1,10 @@
 import { useCallback } from 'react'
 import { reportService } from '@/data/publicIndex'
+import { STICKY_TOP_SCROLL_PADDING, StickyTop } from '@/embed/StickyTop'
 import { Button } from '@/shared/components/Button'
 import { PublicReportCard } from '@/shared/components/PublicReportCard'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import { cn } from '@/shared/lib/cn'
 
 /**
  * "O que já foi relatado" — a vitrine, dentro do próprio quadro.
@@ -31,13 +33,20 @@ export function PublicList({ publicKey, onBack }: { publicKey: string; onBack: (
   )
 
   return (
-    <section className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
-      <div className="flex items-start justify-between gap-3">
+    <section
+      className={cn(
+        'flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
+        STICKY_TOP_SCROLL_PADDING,
+      )}
+    >
+      {/* O topo preso ao rolar: com a lista longa, o "Voltar" sumia la em cima. */}
+      <StickyTop className="flex items-start justify-between gap-3">
         <h1 className="font-semibold text-fg text-lead tracking-tight">O que já foi relatado</h1>
-        <Button variant="ghost" size="sm" onClick={onBack}>
+        {/* No toque o botao cresce para fora (44), sem engordar o topo preso. */}
+        <Button variant="ghost" size="sm" onClick={onBack} className="pointer-coarse:-my-1.5">
           Voltar
         </Button>
-      </div>
+      </StickyTop>
 
       {failed && (
         <div className="flex flex-col items-start gap-3">

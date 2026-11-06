@@ -218,9 +218,11 @@ export function NotificationBell() {
   const rotulo =
     count === 0 ? 'Avisos' : `Avisos: ${count} ${count === 1 ? 'não lido' : 'não lidos'}`
 
+  // No celular o menu vai de uma borda a outra, a 8 de cada lado (a folga dos menus): com
+  // 2rem a menos, ele ficava a 8 da esquerda e a 24 da direita.
   return (
     <DropdownMenu
-      width="w-[min(24rem,calc(100vw-2rem))]"
+      width="w-[min(24rem,calc(100vw-1rem))]"
       onOpenChange={(aberto) => {
         if (aberto) void ler(aba)
       }}
@@ -229,7 +231,7 @@ export function NotificationBell() {
           ref={gatilho}
           type="button"
           aria-label={rotulo}
-          className="relative flex size-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+          className="relative flex size-8 items-center justify-center rounded-lg border pointer-coarse:size-10 border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg max-sm:border-transparent max-sm:bg-transparent"
         >
           <svg
             viewBox="0 0 16 16"
@@ -275,8 +277,9 @@ export function NotificationBell() {
                 onSelect={(evento) => evento.preventDefault()}
                 className={cn(
                   // No mouse, so o texto acende; o anel de foco do painel fica para o
-                  // teclado, por dentro da aba para nao bater na borda do grupo.
-                  'cursor-pointer rounded-md px-2.5 py-1 text-caption transition-colors duration-150 focus-visible:-outline-offset-2',
+                  // teclado, por dentro da aba para nao bater na borda do grupo. No toque a
+                  // aba cresce ate 40, com o texto no meio.
+                  'flex cursor-pointer items-center rounded-md px-2.5 py-1 text-caption transition-colors duration-150 focus-visible:-outline-offset-2 pointer-coarse:min-h-10',
                   aba === opcao
                     ? 'bg-surface-sunken font-medium text-fg'
                     : 'text-fg-muted data-[highlighted]:text-fg',
@@ -294,7 +297,9 @@ export function NotificationBell() {
 
       <DropdownSeparator />
 
-      <div className="max-h-[min(28rem,65vh)] overflow-y-auto">
+      {/* Em tela baixa (o celular deitado) o menu inteiro ja rola na altura que sobra:
+          com a lista rolando tambem, eram duas rolagens, uma dentro da outra. */}
+      <div className="max-h-[min(28rem,65vh)] overflow-y-auto [@media(max-height:30rem)]:max-h-none">
         <DropdownGroup>
           {avisos === null && !falhou && (
             <p className="px-2.5 py-2 text-detail text-fg-muted">Carregando…</p>
@@ -393,7 +398,8 @@ function ItemQueFica({
       }}
       aria-expanded={expandido}
       className={cn(
-        'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 outline-none',
+        // No toque, a altura dos itens do menu (`DropdownItem`).
+        'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 outline-none pointer-coarse:py-2.5',
         'text-detail text-fg-muted data-[highlighted]:bg-surface-sunken data-[highlighted]:text-fg',
         className,
       )}

@@ -55,12 +55,21 @@ export function AuthorizeDomain({
           <span className="min-w-0">
             <code className="font-mono">{held}</code> mandou relato e está esperando.
           </span>
-          <Button size="sm" disabled={saving} onClick={() => void authorize(held, false)}>
+          {/* O dominio pode ser comprido: no celular o botao quebra linha dentro dele, em
+              vez de passar da caixa (em 320, "app.minhaempresa.com.br" ja passava). */}
+          <Button
+            size="sm"
+            disabled={saving}
+            onClick={() => void authorize(held, false)}
+            className="max-w-full wrap-anywhere max-sm:h-auto max-sm:min-h-11 max-sm:py-2 max-sm:pointer-coarse:h-auto"
+          >
             Autorizar {held}
           </Button>
         </p>
       )}
-      <div className="flex items-start gap-2">
+      {/* No celular o campo fica com a largura toda e o botao embaixo, como em Domínios:
+          lado a lado, dentro do proximo passo, sobravam uns 100px para o endereco. */}
+      <div className="flex items-start gap-2 max-sm:flex-col max-sm:items-stretch">
         <TextField
           className="min-w-0 flex-1"
           ariaLabel="Domínio do seu sistema"

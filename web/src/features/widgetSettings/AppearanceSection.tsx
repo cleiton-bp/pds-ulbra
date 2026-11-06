@@ -530,7 +530,8 @@ export function PositionFields({
                   className="block h-5 w-9 rounded-full border border-fg-muted border-dashed"
                 />
               ),
-            className: cn('min-w-0 p-1.5', lugar),
+            // No toque o canto passa de 34 para 42 de altura: o dedo acerta o canto certo.
+            className: cn('min-w-0 p-1.5 pointer-coarse:p-2.5', lugar),
           }))}
         />
         <p className="mt-2 font-medium text-detail text-fg">{CANTOS[draft.Position]}</p>
@@ -790,7 +791,8 @@ function Distance({
           step={1}
           value={value}
           onChange={(event) => aplicar(Number(event.target.value))}
-          className="min-w-32 flex-1 accent-accent"
+          // No toque a barra tem 40 de altura para o dedo, como o volume do Perfil.
+          className="min-w-32 flex-1 accent-accent pointer-coarse:h-10"
         />
         <span className="flex items-center gap-1.5 text-detail text-fg-muted">
           <NumberField

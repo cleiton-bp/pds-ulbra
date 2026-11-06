@@ -85,8 +85,8 @@ export function PrioritiesScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -623,13 +623,14 @@ function EditorDaPrioridade({
 /**
  * A regua ao lado da lista: o topo e a menos urgente, o fim a mais. Fora do leitor de
  * tela, porque o nome da lista ja diz o mesmo — e a regua repetida a cada item cansaria.
+ * No celular ela some pelo mesmo motivo, e a largura vai para o nome da prioridade.
  */
 function Regua() {
   return (
     <div
       aria-hidden
       data-regua
-      className="flex w-14 flex-none flex-col items-center gap-1 py-2 text-center text-caption text-fg-muted leading-tight"
+      className="flex w-14 flex-none flex-col items-center gap-1 py-2 text-center text-caption text-fg-muted leading-tight max-sm:hidden"
     >
       <span>menos urgente</span>
       <span className="w-px flex-1 bg-border" />

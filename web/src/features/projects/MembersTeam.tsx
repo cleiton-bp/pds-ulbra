@@ -300,6 +300,8 @@ function MemberRow({
             disabled={changing}
             onChange={(value) => onPickRole(value as ProjectRole)}
             options={ROLE_OPTIONS}
+            // No toque, da altura do Remover ao lado (o `Button` ja cresce sozinho).
+            triggerClassName="pointer-coarse:h-11"
           />
           {/* Na propria linha, a acao e sair, e o botao diz isso: "Remover"
               ao lado do proprio nome assustava. */}

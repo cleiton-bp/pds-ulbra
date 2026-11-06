@@ -98,7 +98,10 @@ export function HiddenPagesEditor({
 
   return (
     <div>
-      <div className="flex items-start gap-2">
+      {/* No celular o campo fica com a largura toda e os botoes embaixo, como em Domínios:
+          lado a lado, a dica do campo quebrava em quatro linhas estreitas. No toque o campo
+          e o botao tem 44, e o `mt-0.5` que os centrava no mouse sai. */}
+      <div className="flex items-start gap-2 max-sm:flex-col max-sm:items-stretch">
         <TextField
           id={campoId}
           ariaLabel="Caminho da página"
@@ -123,14 +126,19 @@ export function HiddenPagesEditor({
         />
         <Button
           size="sm"
-          className="mt-0.5"
+          className="mt-0.5 pointer-coarse:mt-0"
           disabled={cheia && editando === null}
           onClick={() => adicionar(texto)}
         >
           {editando === null ? 'Adicionar' : 'Trocar'}
         </Button>
         {editando !== null && (
-          <Button size="sm" variant="ghost" className="mt-0.5" onClick={cancelarTroca}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-0.5 pointer-coarse:mt-0"
+            onClick={cancelarTroca}
+          >
             Cancelar
           </Button>
         )}
@@ -147,7 +155,8 @@ export function HiddenPagesEditor({
               disabled={cheia || jaTem}
               aria-label={`Adicionar ${exemplo}`}
               onClick={() => adicionar(exemplo, null)}
-              className="rounded-md border border-border border-dashed px-1.5 py-0.5 font-mono text-caption text-fg enabled:hover:bg-surface-sunken disabled:text-fg-disabled"
+              // No toque o exemplo tem 40 de altura: com 24, o dedo pegava o vizinho.
+              className="rounded-md border border-border border-dashed px-1.5 py-0.5 font-mono text-caption text-fg enabled:hover:bg-surface-sunken disabled:text-fg-disabled pointer-coarse:px-2.5 pointer-coarse:py-2.5"
             >
               {exemplo}
             </button>
@@ -172,11 +181,12 @@ export function HiddenPagesEditor({
                   editando === index && 'ring-1 ring-accent',
                 )}
               >
+                {/* No toque, editar e remover tem 40 de altura: o x de 20 nao pegava o dedo. */}
                 <button
                   type="button"
                   aria-label={`Editar ${caminho}`}
                   onClick={() => editar(index)}
-                  className="rounded-full px-1.5 hover:underline"
+                  className="rounded-full px-1.5 hover:underline pointer-coarse:px-2 pointer-coarse:py-2.5"
                 >
                   {caminho}
                 </button>
@@ -185,7 +195,7 @@ export function HiddenPagesEditor({
                   type="button"
                   aria-label={`Remover ${caminho}`}
                   onClick={() => remover(index)}
-                  className="flex size-5 items-center justify-center rounded-full text-fg-muted hover:bg-surface-strong hover:text-fg"
+                  className="flex size-5 items-center justify-center rounded-full text-fg-muted hover:bg-surface-strong hover:text-fg pointer-coarse:size-10"
                 >
                   <span aria-hidden>×</span>
                 </button>

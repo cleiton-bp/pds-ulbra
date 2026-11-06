@@ -122,6 +122,7 @@ export function drawPreview(root: Root, message: PreviewMessage, host: HostConne
         media={message.media ?? null}
         preview
         highlight={message.highlight ?? null}
+        previewTheme={message.theme ?? null}
       />,
     )
   })

@@ -201,8 +201,8 @@ export function StartScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
 
@@ -278,6 +278,9 @@ export function StartScreen() {
                     value={buildHandoffText(snippet)}
                     label="Copiar instruções para quem cuida dele"
                     size="sm"
+                    // `max-sm:pointer-coarse:h-auto`: no toque o `Button` fixa 44 depois do
+                    // `max-sm:`, e o rotulo em duas linhas encostava na borda.
+                    className="max-sm:h-auto max-sm:min-h-11 max-sm:max-w-full max-sm:py-2 max-sm:pointer-coarse:h-auto"
                     onCopied={marcarCopiado}
                   />
                 </div>
@@ -306,7 +309,7 @@ export function StartScreen() {
               <Link
                 to="../domains#autorizados"
                 state={REALCE}
-                className="text-fg underline underline-offset-4"
+                className="text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
               >
                 Abrir Domínios
               </Link>
@@ -346,9 +349,11 @@ export function StartScreen() {
 
             {/* A pergunta que vem depois de enviar e "e agora, onde ele esta?", e a
                 resposta e outra tela: a fila de relatos. */}
+            {/* No toque a area cresce para cima e para baixo sem mover nada: o respiro de
+                cima vira o recuo do toque. */}
             <Link
               to="../reports"
-              className="mt-3 inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
+              className="mt-3 inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline pointer-coarse:mt-0 pointer-coarse:-mb-3 pointer-coarse:py-3"
             >
               Ver os relatos que chegaram
             </Link>
@@ -370,7 +375,7 @@ export function StartScreen() {
             </span>
             <Link
               to="../keys"
-              className="inline-flex items-center gap-1 font-medium text-fg transition-colors hover:text-fg-muted"
+              className="inline-flex items-center gap-1 font-medium text-fg transition-colors hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
             >
               Abrir Chaves
               <Chevron className="size-2.5" />
@@ -382,7 +387,8 @@ export function StartScreen() {
           {!funcionando && (
             <Link
               to="../configure"
-              className="mt-1 self-start text-detail text-fg underline underline-offset-4 transition-colors hover:text-fg-muted"
+              // No toque, mais afastado do "Abrir Chaves", para as duas areas nao se tocarem.
+              className="mt-1 self-start text-detail text-fg underline underline-offset-4 transition-colors hover:text-fg-muted pointer-coarse:mt-3 pointer-coarse:-mb-3 pointer-coarse:py-3"
             >
               Voltar aos primeiros passos
             </Link>
@@ -410,14 +416,17 @@ function WorkingBadge({ lastReportAt }: { lastReportAt: string | null }) {
   return (
     <p
       role="status"
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-border bg-surface-raised py-1 pr-3 pl-1.5 text-detail text-fg-muted"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-border bg-surface-raised py-1 pr-3 pl-1.5 text-detail text-fg-muted max-sm:rounded-xl max-sm:py-1.5"
     >
       <DoneGlyph />
       <span>
         <strong className="font-medium text-fg">Funcionando</strong>
         {lastReportAt && `, último relato ${formatRelative(lastReportAt)}`}
       </span>
-      <Link to="../reports" className="font-medium text-fg underline underline-offset-4">
+      <Link
+        to="../reports"
+        className="font-medium text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
+      >
         Ver em Trabalho
       </Link>
     </p>
@@ -522,7 +531,9 @@ function Step({
             onClick={onToggle}
             aria-expanded={open}
             aria-controls={conteudo}
-            className="flex min-w-0 flex-1 scroll-mt-6 items-center gap-2.5 text-left font-semibold text-fg text-lead"
+            // No toque o titulo ganha 8 em cima e embaixo, no respiro do cabecalho e no vao
+            // ate o estado: com uma linha so, o alvo tinha 24.
+            className="flex min-w-0 flex-1 scroll-mt-6 items-center gap-2.5 text-left font-semibold text-fg text-lead pointer-coarse:-my-2 pointer-coarse:py-2"
           >
             <Chevron
               className={cn(
@@ -592,7 +603,7 @@ function StepState({ done, pending }: { done: boolean; pending: string }) {
 function HowItWorks({ children }: { children: ReactNode }) {
   return (
     <details className="details-smooth group/ajuda mt-3">
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-caption text-fg-muted hover:text-fg [&::-webkit-details-marker]:hidden">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-caption text-fg-muted hover:text-fg pointer-coarse:-my-3 pointer-coarse:py-3 [&::-webkit-details-marker]:hidden">
         <Chevron className="size-2.5 transition-transform duration-300 ease-out group-open/ajuda:rotate-90 motion-reduce:transition-none" />
         Como funciona
       </summary>
@@ -657,15 +668,19 @@ function ForWhoCodes({ publicKey }: { publicKey: string }) {
       id="mais-opcoes"
       className="details-smooth group/programa mt-4 scroll-mt-6 border-border border-t pt-3"
     >
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-detail text-fg-muted transition-colors hover:text-fg [&::-webkit-details-marker]:hidden">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-detail text-fg-muted transition-colors hover:text-fg pointer-coarse:-my-3 pointer-coarse:py-3 [&::-webkit-details-marker]:hidden">
         <Chevron className="size-2.5 transition-transform duration-300 ease-out group-open/programa:rotate-90 motion-reduce:transition-none" />
         Para quem programa: a chave pública e o seu próprio botão
       </summary>
       <div className="mt-3 flex flex-col gap-5">
         <div id="copiar-chave" className="scroll-mt-6">
-          <div className="flex items-center gap-2">
-            <span className="flex-none text-detail text-fg-muted">Chave pública</span>
-            <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg">
+          {/* No celular o nome desce para a linha de cima: ao lado dele, em 320, a chave
+              mostrava sete letras. No toque a caixa tem a altura do Copiar. */}
+          <div className="flex items-center gap-2 max-sm:flex-wrap">
+            <span className="flex-none text-detail text-fg-muted max-sm:basis-full">
+              Chave pública
+            </span>
+            <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg pointer-coarse:h-11">
               {publicKey || 'sem chave ainda'}
             </code>
             {publicKey && <CopyButton value={publicKey} size="sm" />}

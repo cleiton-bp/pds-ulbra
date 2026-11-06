@@ -59,8 +59,8 @@ export function MembersScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
 
@@ -252,8 +252,10 @@ function Tabs({
     buttons.current[next]?.focus()
   }
 
+  // Abaixo de 360 o "Convidar alguem" nao cabe ao lado das abas (passava da borda em 320):
+  // ele sobe para uma linha so dele, inteiro, e as abas ficam coladas na linha de baixo.
   return (
-    <div className="mb-6 flex items-center justify-between gap-4 border-border border-b">
+    <div className="mb-6 flex items-center justify-between gap-4 border-border border-b max-[360px]:flex-col-reverse max-[360px]:items-stretch max-[360px]:gap-3">
       <div
         role="tablist"
         {...guideTarget('abas-membros')}
@@ -275,7 +277,7 @@ function Tabs({
             onClick={() => onPick(item.key)}
             onKeyDown={(event) => keys(event, item.key)}
             className={cn(
-              '-mb-px flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
+              '-mb-px flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors pointer-coarse:h-11',
               tab === item.key
                 ? 'border-accent text-fg'
                 : 'border-transparent text-fg-muted hover:text-fg',
@@ -307,7 +309,9 @@ function Tabs({
           </button>
         ))}
       </div>
-      {action && <div className="mb-1.5 flex-none">{action}</div>}
+      {action && (
+        <div className="mb-1.5 flex-none max-[360px]:mb-0 max-[360px]:*:w-full">{action}</div>
+      )}
     </div>
   )
 }

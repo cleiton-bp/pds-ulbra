@@ -215,7 +215,9 @@ function EditorChegando({
     botoes[proximo]?.focus()
   }
 
-  const botao = 'inline-flex h-8 items-center justify-center rounded-lg border px-3 text-detail'
+  // No toque, 44 de altura: e a saida de quem esta preso esperando o editor.
+  const botao =
+    'inline-flex h-8 items-center justify-center rounded-lg border px-3 text-detail pointer-coarse:h-11'
   const secundario = cn(botao, 'border-border bg-surface text-fg enabled:hover:bg-surface-sunken')
 
   return (

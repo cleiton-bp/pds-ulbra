@@ -96,6 +96,9 @@ const TOOLS: {
   { tool: 'crop', label: 'Recortar', tecla: 'C', grupo: 'recortar' },
 ]
 
+/** Os grupos da barra, na ordem. No celular eles se dividem em duas linhas, sem partir um grupo. */
+const GRUPOS = ['marcar', 'esconder', 'recortar'] as const
+
 /** As ferramentas que pintam com a cor escolhida. Desfoque, tarja e recorte nao tem cor. */
 const COM_COR: ReadonlySet<Tool> = new Set(['arrow', 'rect', 'ellipse', 'pen', 'highlight', 'step'])
 
@@ -177,6 +180,7 @@ export function ImageEditor({
   /** A primeira ferramenta: e onde o foco comeca, e nao no "Descartar" do topo. */
   const primeiraFerramenta = useRef<HTMLButtonElement>(null)
   const pilula = usePilula(ferramenta)
+  const celular = useCelular()
 
   /** O gesto em andamento, e o que ele desenha antes de soltar. Fora do estado: muda a cada movimento. */
   const gesto = useRef<Gesto | null>(null)
@@ -656,16 +660,17 @@ export function ImageEditor({
    * sistema, e combina com qualquer site.
    */
   const botao = cn(
-    'inline-flex h-9 shrink-0 items-center justify-center rounded-xl border px-3.5 text-detail',
+    // Abaixo de 360, menos folga dos lados: em 320 o nome do meio era cortado.
+    'inline-flex h-9 shrink-0 items-center justify-center rounded-xl border px-3.5 text-detail pointer-coarse:h-11 max-[360px]:px-2.5',
     'transition-[transform,background-color,color,opacity] duration-150 ease-out enabled:active:scale-[0.97]',
     'disabled:cursor-not-allowed disabled:text-fg-disabled',
   )
   /**
-   * Os botoes da barra de baixo: ferramentas, desfazer e refazer. Um pouco menores no
-   * celular, para as dez ferramentas caberem numa linha so.
+   * Os botoes da barra de baixo: ferramentas, desfazer e refazer. No toque, 40: o dedo nao
+   * acerta 32, e no celular a barra quebra em linhas para caber (ver a barra).
    */
   const peca = cn(
-    'relative flex size-8 items-center justify-center rounded-xl sm:size-9',
+    'relative flex size-8 items-center justify-center rounded-xl sm:size-9 pointer-coarse:size-10',
     // O aperto responde na hora, encolhendo um pouco: a barra nao parece morta.
     'transition-[transform,background-color,color] duration-150 ease-out enabled:active:scale-95',
     'disabled:cursor-not-allowed disabled:text-fg-disabled',
@@ -684,6 +689,71 @@ export function ImageEditor({
   const principal = cn(
     botao,
     'border-transparent bg-fg font-medium text-surface enabled:hover:opacity-85 disabled:bg-surface-strong',
+  )
+
+  /**
+   * Desfazer e refazer: no fim da barra no computador, e ao lado de recortar no celular. Um
+   * lugar so de cada vez, pela largura (`useCelular`), e nao dois escondidos por CSS: o leitor
+   * de tela e o teclado encontrariam o par escondido.
+   */
+  const desfazerRefazer = (
+    <>
+      <Dica texto="Desfazer" tecla={mac ? '⌘Z' : 'Ctrl+Z'}>
+        <button
+          type="button"
+          aria-label="Desfazer"
+          aria-keyshortcuts="Control+Z Meta+Z"
+          disabled={historia.past.length === 0 || gerando}
+          onClick={desfazer}
+          className={cn(peca, solta)}
+        >
+          <EditorIcon name="undo" />
+        </button>
+      </Dica>
+      <Dica texto="Refazer" tecla={mac ? '⇧⌘Z' : 'Ctrl+Shift+Z'}>
+        <button
+          type="button"
+          aria-label="Refazer"
+          aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
+          disabled={historia.future.length === 0 || gerando}
+          onClick={refazer}
+          className={cn(peca, solta)}
+        >
+          <EditorIcon name="redo" />
+        </button>
+      </Dica>
+    </>
+  )
+
+  /** Um grupo da barra: o fio antes dele, quando pedido, e as ferramentas dele. */
+  const grupoDeFerramentas = (grupo: (typeof GRUPOS)[number], comFio: boolean) => (
+    <span key={grupo} className={cn('flex items-center', !celular && 'gap-0.5')}>
+      {comFio && <Divisoria />}
+      {TOOLS.filter((item) => item.grupo === grupo).map(({ tool, label, tecla }) => (
+        <Dica key={tool} texto={label} tecla={tecla}>
+          <button
+            ref={tool === TOOLS[0]?.tool ? primeiraFerramenta : undefined}
+            type="button"
+            aria-label={label}
+            aria-keyshortcuts={tecla}
+            aria-pressed={ferramenta === tool}
+            data-ferramenta={tool}
+            // Ligadas mesmo com a imagem abrindo: o foco comeca na primeira, e nao cai em
+            // "Descartar", onde um Enter jogaria a captura fora.
+            disabled={gerando}
+            onClick={() => escolher(tool)}
+            className={cn(
+              peca,
+              ferramenta === tool ? 'text-fg' : solta,
+              // Sem a pilula medida (o primeiro desenho), o fundo marca a escolhida.
+              ferramenta === tool && !pilula.lugar && 'bg-surface-lifted shadow-sm',
+            )}
+          >
+            <EditorIcon name={tool} />
+          </button>
+        </Dica>
+      ))}
+    </span>
   )
 
   return (
@@ -717,7 +787,7 @@ export function ImageEditor({
         >
           {/* O topo: as saidas e o nome do que se faz aqui. As ferramentas ficam embaixo,
               perto da imagem e da mao, numa barra que flutua sobre o palco. */}
-          <header className="flex min-h-14 items-center gap-3 border-border border-b bg-surface px-3 py-2">
+          <header className="flex min-h-14 items-center gap-3 border-border border-b bg-surface px-3 py-2 max-[360px]:gap-2">
             {confirmando ? (
               <>
                 <Dialog.Title className="sr-only">Marcar a imagem</Dialog.Title>
@@ -848,7 +918,7 @@ export function ImageEditor({
                 <button
                   type="button"
                   onClick={() => aplicar((doc) => ({ ...doc, crop: null }))}
-                  className="font-medium text-caption text-fg underline underline-offset-4"
+                  className="font-medium text-caption text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
                 >
                   Sem recorte
                 </button>
@@ -861,9 +931,13 @@ export function ImageEditor({
                   ref={pilula.lista}
                   role="toolbar"
                   aria-label="Ferramentas"
-                  // Numa linha so, sem quebrar um grupo no meio: no celular, as cores e o
-                  // desfazer descem para a linha de baixo, e as ferramentas ficam inteiras.
-                  className="relative flex flex-nowrap items-center justify-center sm:gap-0.5"
+                  // No computador, numa linha so. No celular e no tablet de pe, com o tamanho
+                  // do dedo, nao cabe: duas linhas sem partir grupo, marcar em cima, e esconder,
+                  // recortar, desfazer e refazer embaixo. As cores vao ao lado, ou embaixo.
+                  className={cn(
+                    'relative flex items-center justify-center',
+                    celular ? 'flex-col gap-1' : 'flex-nowrap gap-0.5',
+                  )}
                 >
                   {/* A ferramenta escolhida: uma pilula neutra que desliza ate a nova. */}
                   {pilula.lugar && (
@@ -881,33 +955,21 @@ export function ImageEditor({
                       }}
                     />
                   )}
-                  {TOOLS.map(({ tool, label, tecla, grupo }, indice) => (
-                    <span key={tool} className="flex items-center">
-                      {indice > 0 && TOOLS[indice - 1]?.grupo !== grupo && <Divisoria />}
-                      <Dica texto={label} tecla={tecla}>
-                        <button
-                          ref={indice === 0 ? primeiraFerramenta : undefined}
-                          type="button"
-                          aria-label={label}
-                          aria-keyshortcuts={tecla}
-                          aria-pressed={ferramenta === tool}
-                          data-ferramenta={tool}
-                          // Ligadas mesmo com a imagem abrindo: o foco comeca na primeira, e
-                          // nao cai em "Descartar", onde um Enter jogaria a captura fora.
-                          disabled={gerando}
-                          onClick={() => escolher(tool)}
-                          className={cn(
-                            peca,
-                            ferramenta === tool ? 'text-fg' : solta,
-                            // Sem a pilula medida (o primeiro desenho), o fundo marca a escolhida.
-                            ferramenta === tool && !pilula.lugar && 'bg-surface-lifted shadow-sm',
-                          )}
-                        >
-                          <EditorIcon name={tool} />
-                        </button>
-                      </Dica>
-                    </span>
-                  ))}
+                  {celular ? (
+                    <>
+                      {grupoDeFerramentas('marcar', false)}
+                      {/* No celular, desfazer e refazer moram aqui, ao lado de recortar, para
+                          a barra ter tres linhas e nao quatro. No computador, ficam no fim. */}
+                      <span className="flex items-center">
+                        {grupoDeFerramentas('esconder', false)}
+                        {grupoDeFerramentas('recortar', true)}
+                        <Divisoria />
+                        {desfazerRefazer}
+                      </span>
+                    </>
+                  ) : (
+                    GRUPOS.map((grupo, indice) => grupoDeFerramentas(grupo, indice > 0))
+                  )}
                 </div>
 
                 <Divisoria className="hidden sm:block" />
@@ -924,7 +986,7 @@ export function ImageEditor({
                           aria-pressed={escolhida}
                           disabled={!COM_COR.has(ferramenta) || gerando}
                           onClick={() => setCor(opcao.value)}
-                          className="group flex size-8 items-center justify-center rounded-full transition-[opacity,transform] duration-150 ease-out enabled:active:scale-90 disabled:cursor-not-allowed disabled:opacity-30"
+                          className="group flex size-8 items-center justify-center rounded-full transition-[opacity,transform] duration-150 ease-out enabled:active:scale-90 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:size-10"
                         >
                           {/* A cor escolhida cresce com um leve pulo e ganha um anel por dentro, na
                           cor de contraste; as outras ficam menores e crescem ao passar o mouse.
@@ -966,34 +1028,12 @@ export function ImageEditor({
                   })}
                 </fieldset>
 
-                <Divisoria />
-
-                <div className="flex items-center gap-0.5">
-                  <Dica texto="Desfazer" tecla={mac ? '⌘Z' : 'Ctrl+Z'}>
-                    <button
-                      type="button"
-                      aria-label="Desfazer"
-                      aria-keyshortcuts="Control+Z Meta+Z"
-                      disabled={historia.past.length === 0 || gerando}
-                      onClick={desfazer}
-                      className={cn(peca, solta)}
-                    >
-                      <EditorIcon name="undo" />
-                    </button>
-                  </Dica>
-                  <Dica texto="Refazer" tecla={mac ? '⇧⌘Z' : 'Ctrl+Shift+Z'}>
-                    <button
-                      type="button"
-                      aria-label="Refazer"
-                      aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
-                      disabled={historia.future.length === 0 || gerando}
-                      onClick={refazer}
-                      className={cn(peca, solta)}
-                    >
-                      <EditorIcon name="redo" />
-                    </button>
-                  </Dica>
-                </div>
+                {!celular && (
+                  <>
+                    <Divisoria />
+                    <div className="flex items-center gap-0.5">{desfazerRefazer}</div>
+                  </>
+                )}
               </div>
             </Tooltip.Provider>
           </div>
@@ -1042,8 +1082,8 @@ function Dica({ texto, tecla, children }: { texto: string; tecla?: string; child
 
 /**
  * Onde fica a pilula da ferramenta escolhida: a posicao e o tamanho do botao dela, medidos
- * de novo a cada troca e quando a barra muda de tamanho. `semAnimacao` faz a proxima troca
- * acontecer de uma vez, para o atalho do teclado.
+ * de novo a cada troca e quando a barra ou a janela muda de tamanho. `semAnimacao` faz a
+ * proxima troca acontecer de uma vez, para o atalho do teclado.
  */
 function usePilula(ferramenta: Tool) {
   const lista = useRef<HTMLDivElement>(null)
@@ -1074,10 +1114,15 @@ function usePilula(ferramenta: Tool) {
     setAnimar((ja) => (pular.current ? false : ja || lugar !== null))
     pular.current = false
     medir()
-    if (typeof ResizeObserver === 'undefined') return
-    const observador = new ResizeObserver(medir)
-    observador.observe(elemento)
-    return () => observador.disconnect()
+    // A janela tambem: girar o celular (de 390 para 667) muda o fio entre os grupos e move a
+    // escolhida da segunda linha sem mudar o tamanho da barra, e o observador nao via.
+    window.addEventListener('resize', medir)
+    const observador = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(medir)
+    observador?.observe(elemento)
+    return () => {
+      window.removeEventListener('resize', medir)
+      observador?.disconnect()
+    }
   }, [ferramenta])
 
   return {
@@ -1088,4 +1133,36 @@ function usePilula(ferramenta: Tool) {
       pular.current = true
     },
   }
+}
+
+/**
+ * A barra cabe numa linha? Com mouse, a partir de 40rem (o `sm:`); no toque, com os botoes de
+ * 40, so a partir de uns 800 pixels (51rem): no tablet de pe ela quebrava e deixava um fio
+ * solto no fim da linha. Acompanha a troca, porque o quadro abre o editor na largura do
+ * formulario e so depois cresce. Sem `matchMedia` (o ambiente de teste), e computador.
+ */
+const CONSULTA_COMPUTADOR = '(min-width: 40rem) and (pointer: fine), (min-width: 51rem)'
+
+function consulta(): MediaQueryList | null {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(CONSULTA_COMPUTADOR)
+    : null
+}
+
+function useCelular() {
+  const [celular, setCelular] = useState(() => {
+    const lista = consulta()
+    return lista !== null && !lista.matches
+  })
+
+  useEffect(() => {
+    const lista = consulta()
+    if (!lista) return
+    const ouvir = () => setCelular(!lista.matches)
+    ouvir()
+    lista.addEventListener('change', ouvir)
+    return () => lista.removeEventListener('change', ouvir)
+  }, [])
+
+  return celular
 }

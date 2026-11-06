@@ -63,8 +63,8 @@ export function ProjectSettingsScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -183,8 +183,9 @@ export function ProjectSettingsScreen() {
 
         <div id="identificador" className="mt-4 scroll-mt-6 border-border border-t pt-4">
           <div className="mb-1.5 text-detail text-fg-muted">Identificador do projeto</div>
+          {/* No toque a caixa tem a altura do Copiar (44), e os dois ficam alinhados. */}
           <div className="flex min-w-0 items-center gap-2">
-            <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg">
+            <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg pointer-coarse:h-11">
               {project.PublicId}
             </code>
             <CopyButton value={project.PublicId} size="sm" />

@@ -3,6 +3,7 @@ import { environment } from '@/data'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { Choice } from '@/shared/components/SettingsControls'
+import { isPhoneScreen } from '@/shared/lib/screen'
 
 /**
  * O relato de teste, feito **pela propria ferramenta**.
@@ -36,7 +37,9 @@ interface TestReportDialogProps {
 type Aparelho = 'computer' | 'phone'
 
 export function TestReportDialog({ publicKey, open, onOpenChange }: TestReportDialogProps) {
-  const [aparelho, setAparelho] = useState<Aparelho>('computer')
+  // No celular a pagina de teste ja abre com a largura de um celular: "Computador"
+  // marcado numa tela de 320 prometia o que nao cabia, e a escolha some.
+  const [aparelho, setAparelho] = useState<Aparelho>(() => (isPhoneScreen() ? 'phone' : 'computer'))
 
   return (
     <Modal
@@ -51,7 +54,7 @@ export function TestReportDialog({ publicKey, open, onOpenChange }: TestReportDi
         </Button>
       }
     >
-      <fieldset className="mb-3 flex flex-wrap items-center gap-2">
+      <fieldset className="mb-3 flex flex-wrap items-center gap-2 max-sm:hidden">
         <legend className="sr-only">Aparelho</legend>
         <Choice selected={aparelho === 'computer'} onSelect={() => setAparelho('computer')}>
           Computador
@@ -63,7 +66,10 @@ export function TestReportDialog({ publicKey, open, onOpenChange }: TestReportDi
 
       {/* `key` remonta a pagina a cada abertura e a cada troca de aparelho: o
           carregador le a largura ao comecar, e reaproveitar a pagina anterior mostraria
-          a confirmacao do relato passado. No celular, a pagina tem a largura de um. */}
+          a confirmacao do relato passado. No celular, a pagina tem a largura de um.
+          A altura deixa 21rem para o resto do dialogo: com 16, no celular (a descricao em
+          cinco linhas) e no 1024 deitado, o corpo rolava e o botao da pagina ficava cortado
+          embaixo. Em tela baixa ela para em 12rem, e o dialogo inteiro rola. */}
       {open && (
         <div className="flex justify-center rounded-lg border border-border bg-surface-sunken p-2">
           <iframe
@@ -72,8 +78,8 @@ export function TestReportDialog({ publicKey, open, onOpenChange }: TestReportDi
             src={`${environment.testPageUrl}?k=${encodeURIComponent(publicKey)}`}
             className={
               aparelho === 'phone'
-                ? 'h-[min(42rem,calc(100dvh-16rem))] w-[375px] max-w-full rounded-2xl border border-border bg-surface'
-                : 'h-[min(40rem,calc(100dvh-16rem))] w-full rounded-md bg-surface'
+                ? 'h-[clamp(12rem,calc(100dvh-21rem),42rem)] w-[375px] max-w-full rounded-2xl border border-border bg-surface'
+                : 'h-[clamp(12rem,calc(100dvh-21rem),40rem)] w-full rounded-md bg-surface'
             }
           />
         </div>

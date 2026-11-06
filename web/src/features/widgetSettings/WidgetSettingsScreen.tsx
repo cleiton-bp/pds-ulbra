@@ -31,6 +31,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useScriptInstalled } from '@/shared/hooks/useScriptInstalled'
 import { useWidgetSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { cn } from '@/shared/lib/cn'
+import { previewStartsOnPhone } from '@/shared/lib/screen'
 import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
@@ -91,7 +92,10 @@ export function WidgetSettingsScreen() {
       'Publicado. Quem abrir o seu sistema agora já vê assim.',
     )
 
-  const [aparelho, setAparelho] = useState<PreviewDevice>('computer')
+  // Onde a previa e estreita ela ja abre em Celular (ver `previewStartsOnPhone`).
+  const [aparelho, setAparelho] = useState<PreviewDevice>(() =>
+    previewStartsOnPhone() ? 'phone' : 'computer',
+  )
   /** O celular foi posto pela abertura de "No celular", e nao pela pessoa: fechar desfaz. */
   const [trocouSozinho, setTrocouSozinho] = useState(false)
   const [posicaoAberta, setPosicaoAberta] = useState(false)
@@ -153,8 +157,8 @@ export function WidgetSettingsScreen() {
           },
           {
             alvo: 'guia',
-            titulo: 'Sempre à mão',
-            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+            titulo: 'Guia por tela',
+            texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
           },
         ]
       : null,
