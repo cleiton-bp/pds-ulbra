@@ -262,9 +262,7 @@ describe('corrigir e apagar o comentario entre o time', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apagar o seu comentário' }))
     let pergunta = await screen.findByRole('alertdialog', { name: 'Apagar o comentário?' })
     expect(
-      within(pergunta).getByText(
-        'O comentário sai da conversa, e quem foi mencionado nele deixa de ver o aviso no sino.',
-      ),
+      within(pergunta).getByText('Quem foi mencionado nele deixa de ver o aviso no sino.'),
     ).toBeTruthy()
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Cancelar' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { connectToHost } from '@/embed/hostBridge'
+import { connectToHost, connectToPreviewPanel } from '@/embed/hostBridge'
 import type { LauncherFrame } from '@/embed/launcher'
-import { FRAME_SIZE, MESSAGE_SOURCE } from '@/embed/protocol'
+import { FRAME_SIZE, MESSAGE_SOURCE, type PreviewMessage } from '@/embed/protocol'
+import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -427,5 +428,70 @@ describe('a captura pela pagina', () => {
 
     await expect(primeiro.resultado).resolves.toEqual({ outcome: 'cancel' })
     ligacao.stop()
+  })
+})
+
+/**
+ * A previa do painel com o quadro noutro endereco (producao: o painel na raiz, o quadro na
+ * CDN). O quadro so aceitava a propria origem, e as quatro previas ficavam so com um aviso.
+ * Agora aceita tambem a origem do painel que o build conhece, e nenhuma outra.
+ */
+describe('connectToPreviewPanel: o painel noutro endereco', () => {
+  const PAINEL = 'https://painel.exemplo.com'
+  const previa = {
+    source: MESSAGE_SOURCE,
+    type: 'preview',
+    settings: DEFAULT_WIDGET_SETTINGS,
+    viewport: { width: 1280, height: 480 },
+  }
+
+  it('ouve a previa do painel declarado, e passa a responder so para ele', () => {
+    fingirPagina()
+    const recebidas: PreviewMessage[] = []
+    const ponte = connectToPreviewPanel((mensagem) => recebidas.push(mensagem), PAINEL)
+    // Antes de alguem falar, o aviso de pronto vai para as duas permitidas.
+    expect(enviados.map((enviado) => enviado.alvo)).toEqual([window.location.origin, PAINEL])
+
+    enviados.length = 0
+    chega(previa, PAINEL)
+    expect(recebidas).toHaveLength(1)
+    ponte.close?.()
+    expect(enviados.map((enviado) => enviado.alvo)).toEqual([PAINEL])
+    ponte.stop()
+  })
+
+  it('ignora a previa de qualquer outra origem, e de quem nao e a janela de cima', () => {
+    fingirPagina()
+    const recebidas: PreviewMessage[] = []
+    const ponte = connectToPreviewPanel((mensagem) => recebidas.push(mensagem), PAINEL)
+
+    chega(previa, 'https://intruso.exemplo.com')
+    chega(previa, PAINEL, { postMessage: () => {} })
+    expect(recebidas).toEqual([])
+    ponte.stop()
+  })
+
+  it('sem painel declarado, so a propria origem, como no desenvolvimento', () => {
+    fingirPagina()
+    const recebidas: PreviewMessage[] = []
+    const ponte = connectToPreviewPanel((mensagem) => recebidas.push(mensagem), null)
+    expect(enviados.map((enviado) => enviado.alvo)).toEqual([window.location.origin])
+
+    chega(previa, PAINEL)
+    expect(recebidas).toEqual([])
+    chega(previa, window.location.origin)
+    expect(recebidas).toHaveLength(1)
+    ponte.stop()
+  })
+
+  it('o tema so passa se for claro ou escuro', () => {
+    fingirPagina()
+    const recebidas: PreviewMessage[] = []
+    const ponte = connectToPreviewPanel((mensagem) => recebidas.push(mensagem), PAINEL)
+
+    chega({ ...previa, theme: 'dark' }, PAINEL)
+    chega({ ...previa, theme: 'roxo' }, PAINEL)
+    expect(recebidas.map((mensagem) => mensagem.theme)).toEqual(['dark', null])
+    ponte.stop()
   })
 })

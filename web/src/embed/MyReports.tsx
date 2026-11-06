@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { ReporterCodeReportViewModel } from '@/contracts'
 import { describeError, reportService } from '@/data/publicIndex'
+import { STICKY_TOP_SCROLL_PADDING, StickyTop } from '@/embed/StickyTop'
 import { Button } from '@/shared/components/Button'
 import { cn } from '@/shared/lib/cn'
 import { formatRelative } from '@/shared/lib/datetime'
@@ -165,8 +166,15 @@ export function MyReports({
     }
 
     return (
-      <section className="flex h-full animate-fade-in flex-col gap-4 overflow-y-auto bg-surface p-5">
-        <div className="flex items-center justify-between gap-3">
+      <section
+        className={cn(
+          'flex h-full animate-fade-in flex-col gap-4 overflow-y-auto bg-surface p-5',
+          STICKY_TOP_SCROLL_PADDING,
+        )}
+      >
+        {/* O topo preso ao rolar, como no formulario: o relato aberto e longo, e o caminho
+            de volta nao pode ficar la em cima. */}
+        <StickyTop className="flex items-center justify-between gap-3">
           <Button
             variant="ghost"
             size="sm"
@@ -175,6 +183,8 @@ export function MyReports({
               voltarPara.current = aberto
               setAberto(null)
             }}
+            // No toque o botao cresce para fora (44), sem engordar o topo preso.
+            className="pointer-coarse:-my-1.5"
           >
             Voltar aos seus relatos
           </Button>
@@ -185,11 +195,11 @@ export function MyReports({
             href={linkDe(aberto)}
             target="_blank"
             rel="noreferrer"
-            className="flex-none font-medium text-caption text-fg underline underline-offset-4"
+            className="flex-none font-medium text-caption text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
           >
             Abrir em nova guia
           </a>
-        </div>
+        </StickyTop>
 
         <Suspense fallback={<p className="text-caption text-fg-muted">Abrindo o relato…</p>}>
           <TrackingReport entrada={entrada} compacto />
@@ -199,13 +209,19 @@ export function MyReports({
   }
 
   return (
-    <section className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5">
-      <div className="flex items-start justify-between gap-3">
+    <section
+      className={cn(
+        'flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
+        STICKY_TOP_SCROLL_PADDING,
+      )}
+    >
+      {/* O topo preso ao rolar: com a lista longa, o "Voltar" sumia la em cima. */}
+      <StickyTop className="flex items-start justify-between gap-3">
         <h1 className="font-semibold text-fg text-lead tracking-tight">Os seus relatos</h1>
-        <Button variant="ghost" size="sm" onClick={onBack}>
+        <Button variant="ghost" size="sm" onClick={onBack} className="pointer-coarse:-my-1.5">
           Voltar
         </Button>
-      </div>
+      </StickyTop>
 
       {!peloCracha && (
         <div>
@@ -221,7 +237,7 @@ export function MyReports({
               // Maiúsculas e monoespaçado: o código é lido de um papel e conferido
               // símbolo a símbolo, e fonte proporcional faz `1` e `l` se confundirem
               // — mesmo que o alfabeto já evite os piores pares.
-              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-surface px-2.5 font-mono text-body text-fg uppercase"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-surface px-2.5 font-mono text-body text-fg uppercase pointer-coarse:h-11"
             />
             <Button
               size="sm"

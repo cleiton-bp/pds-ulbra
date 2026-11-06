@@ -252,12 +252,8 @@ describe('as saidas do relato aberto', () => {
     expect(screen.queryByRole('button', { name: 'Concluir relato' })).toBeNull()
 
     const dialogo = screen.getByRole('dialog', { name: 'Encerrar o relato' })
-    expect(
-      within(dialogo).getByText(
-        'Mover para Feito encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.',
-      ),
-    ).toBeTruthy()
-    fireEvent.change(within(dialogo).getByLabelText('Por que acabou'), {
+    expect(within(dialogo).getByText('Mover para Feito encerra o relato.')).toBeTruthy()
+    fireEvent.change(within(dialogo).getByLabelText('Motivo'), {
       target: { value: 'Trocamos o gateway.' },
     })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Encerrar' }))
@@ -287,7 +283,7 @@ describe('as saidas do relato aberto', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Encerrar relato…' }))
     const dialogo = screen.getByRole('dialog', { name: 'Encerrar o relato' })
     expect(within(dialogo).getByText(/continua na coluna em que está/)).toBeTruthy()
-    fireEvent.change(within(dialogo).getByLabelText('Por que acabou'), {
+    fireEvent.change(within(dialogo).getByLabelText('Motivo'), {
       target: { value: 'Trocamos o gateway.' },
     })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Encerrar' }))
@@ -337,8 +333,8 @@ describe('as saidas do relato aberto', () => {
       ),
     ).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Pedir informação' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Pedir uma informação' })
-    fireEvent.change(within(dialogo).getByLabelText('O que falta'), {
+    const dialogo = screen.getByRole('dialog', { name: 'Pedir informação' })
+    fireEvent.change(within(dialogo).getByLabelText('O que você precisa saber'), {
       target: { value: 'Em qual navegador isso aconteceu?' },
     })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Pedir' }))
@@ -370,7 +366,7 @@ describe('as saidas do relato aberto', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Encerrar relato…' }))
     const dialogo = screen.getByRole('dialog', { name: 'Encerrar o relato' })
     expect(within(dialogo).getByText(/continua na coluna em que está/)).toBeTruthy()
-    fireEvent.change(within(dialogo).getByLabelText('Por que acabou'), {
+    fireEvent.change(within(dialogo).getByLabelText('Motivo'), {
       target: { value: 'Trocamos o gateway.' },
     })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Encerrar' }))
@@ -407,13 +403,13 @@ describe('as saidas do relato aberto', () => {
     await detalheNaTela()
 
     fireEvent.click(screen.getByRole('button', { name: 'Pedir informação' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Pedir uma informação' })
-    const campo = within(dialogo).getByLabelText('O que falta') as HTMLTextAreaElement
+    const dialogo = screen.getByRole('dialog', { name: 'Pedir informação' })
+    const campo = within(dialogo).getByLabelText('O que você precisa saber') as HTMLTextAreaElement
     fireEvent.change(campo, { target: { value: 'Em qual navegador?' } })
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Pedir' }))
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/aceita perguntas\./)
-    expect(screen.getByRole('dialog', { name: 'Pedir uma informação' })).toBe(dialogo)
+    expect(screen.getByRole('dialog', { name: 'Pedir informação' })).toBe(dialogo)
     expect(campo.value).toBe('Em qual navegador?')
   })
 
@@ -439,7 +435,7 @@ describe('tirar da coluna que encerra', () => {
     const pergunta = await screen.findByRole('alertdialog', { name: 'Reabrir o relato #12?' })
     expect(
       within(pergunta).getByText(
-        'Tirar o #12 de Feito reabre o relato: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.',
+        'Sair de Feito reabre o relato, e quem relatou volta a ver o andamento, sem o motivo do encerramento.',
       ),
     ).toBeTruthy()
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Cancelar' }))
@@ -501,13 +497,19 @@ describe('tirar da coluna que encerra', () => {
 })
 
 describe('o que quem relatou ve', () => {
-  it('sem etapa, a coluna nao muda nada, e quem configura ganha o atalho para o Andamento publico', async () => {
+  it('sem etapa, a coluna nao muda nada; "Andamento público" explica ali mesmo, e quem configura ganha o atalho para Colunas', async () => {
     montar({ podeConfigurar: true })
     await detalheNaTela()
     expect(screen.getByText(/Esta coluna não muda o que quem relatou vê\./)).toBeTruthy()
     expect(screen.queryByText(/Ainda não aparece/)).toBeNull()
-    expect(screen.getByRole('link', { name: 'Andamento público' }).getAttribute('href')).toBe(
-      '/projects/p-1/public-stages',
+    // A explicacao abre no proprio card, em vez de levar para a configuracao.
+    const explicar = screen.getByRole('button', { name: 'Andamento público' })
+    expect(explicar.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(explicar)
+    expect(explicar.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText(/acompanha o relato pelas etapas do andamento público/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Ligar em Colunas' }).getAttribute('href')).toBe(
+      '/projects/p-1/states#colunas-no-andamento',
     )
   })
 
@@ -515,7 +517,7 @@ describe('o que quem relatou ve', () => {
     montar()
     await detalheNaTela()
     expect(screen.getByText(/Esta coluna não muda o que quem relatou vê\./)).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Andamento público' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Ligar em Colunas' })).toBeNull()
     cleanup()
 
     const comEtapa = relato({ PublicStageLabel: 'Em análise' })
@@ -556,9 +558,7 @@ describe('o Esc em camadas, e a pergunta antes de descartar', () => {
     const pergunta = await screen.findByRole('alertdialog', {
       name: 'Descartar o que você escreveu?',
     })
-    expect(
-      within(pergunta).getByText('O texto que você começou neste card ainda não foi salvo.'),
-    ).toBeTruthy()
+    expect(within(pergunta).getByText('O texto ainda não foi salvo.')).toBeTruthy()
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Continuar escrevendo' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
     expect(campo.value).toBe('Pagamento recusado')

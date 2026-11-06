@@ -577,7 +577,8 @@ function Guias({
     <div
       role="tablist"
       aria-label="Domínios"
-      className="mb-6 flex gap-5 overflow-x-auto border-border border-b"
+      // `tabs-scroll`: rola so para o lado, e a linha de baixo nao abre rolagem vertical.
+      className="tabs-scroll mb-6 flex gap-5"
     >
       {abas.map((item) => (
         <button
@@ -594,7 +595,9 @@ function Guias({
           onClick={() => aoEscolher(item.chave)}
           onKeyDown={(evento) => teclas(evento, item.chave)}
           className={cn(
-            '-mb-px flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
+            // No toque a aba tem 44, como as da Moderação. No celular as cinco nao cabem e a
+            // fileira rola de lado; a aba cortada na borda mostra que ha mais.
+            'flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors pointer-coarse:h-11',
             aba === item.chave
               ? 'border-accent text-fg'
               : 'border-transparent text-fg-muted hover:text-fg',
@@ -1198,7 +1201,9 @@ function BlockedOrigins({
 
       {bloqueados !== null && (
         <div>
-          <div className="flex items-start gap-2">
+          {/* No celular o campo fica com a largura toda e o botao embaixo, como no campo de
+              Autorizados: lado a lado, sobravam uns 120px para o endereco. */}
+          <div className="flex items-start gap-2 max-sm:flex-col max-sm:items-stretch">
             <TextField
               className="min-w-0 flex-1"
               ariaLabel="Domínio a bloquear"
@@ -1216,7 +1221,12 @@ function BlockedOrigins({
               Bloquear domínio
             </Button>
           </div>
-          <label htmlFor={subdominiosId} className="mt-3 flex items-start gap-2">
+          {/* No toque a linha ganha 10 em cima e embaixo sem mover nada: com uma linha so
+              de texto, o alvo tinha 20. */}
+          <label
+            htmlFor={subdominiosId}
+            className="mt-3 flex items-start gap-2 pointer-coarse:-mb-2.5 pointer-coarse:mt-0.5 pointer-coarse:py-2.5"
+          >
             <input
               id={subdominiosId}
               type="checkbox"

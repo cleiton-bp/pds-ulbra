@@ -63,10 +63,14 @@ function montar(ordem: ReportSort | null) {
   )
 }
 
-/** Quantos dados vem debaixo do titulo na area estreita (prioridade, prazo). */
+/**
+ * Quantos dados vem debaixo do titulo na area estreita (prioridade, prazo). Cada um some
+ * quando a coluna dele entra: a prioridade a partir de 52rem, o prazo a partir de 62rem.
+ */
 function debaixoDoTitulo(): number {
   const titulo = screen.getByRole('link', { name: 'Revisar o frete' }).closest('td') as HTMLElement
-  return titulo.querySelectorAll('[class*="@min-[52rem]:hidden"]').length
+  return titulo.querySelectorAll('[class*="@min-[52rem]:hidden"], [class*="@min-[62rem]:hidden"]')
+    .length
 }
 
 const cabecalho = (nome: string) =>
@@ -77,7 +81,7 @@ describe('a coluna da ordem escolhida', () => {
 
   it('nao sai pela largura, e o que ela mostra sai de debaixo do titulo', () => {
     montar({ field: 'due', dir: 'asc' })
-    // O prazo fica; a prioridade, que divide a regra de largura com ele, nao.
+    // O prazo fica; a prioridade, que nao e a da ordem, segue a regra de largura dela.
     expect(cabecalho('Prazo').className).not.toMatch(/(^|\s)hidden(\s|$)/)
     expect(cabecalho('Prioridade').className).toMatch(/(^|\s)hidden(\s|$)/)
     expect(cabecalho('Coluna').className).toMatch(/(^|\s)hidden(\s|$)/)

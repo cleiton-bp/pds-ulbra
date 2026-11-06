@@ -270,8 +270,8 @@ export function ProjectsHubScreen() {
           },
           {
             alvo: 'guia',
-            titulo: 'Sempre à mão',
-            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+            titulo: 'Guia por tela',
+            texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
           },
         ]
       : null,
@@ -366,7 +366,7 @@ export function ProjectsHubScreen() {
                   aria-label="Buscar projeto"
                   aria-keyshortcuts="/"
                   title="Buscar pelo nome (atalho: /)"
-                  className="peer h-9 w-full rounded-lg border border-border bg-surface-raised pr-10 pl-9 text-fg text-body transition-colors duration-150 placeholder:text-fg-placeholder motion-reduce:transition-none [&::-webkit-search-cancel-button]:hidden"
+                  className="peer h-9 w-full rounded-lg border border-border bg-surface-raised pr-10 pl-9 text-fg text-body transition-colors duration-150 placeholder:text-fg-placeholder motion-reduce:transition-none pointer-coarse:h-11 [&::-webkit-search-cancel-button]:hidden"
                 />
                 <SearchShortcutHint visible={query === ''} />
                 {/* O limpar do navegador sai (o "x" azul nao conversa com o resto do painel), e
@@ -380,7 +380,7 @@ export function ProjectsHubScreen() {
                       setQuery('')
                       busca.current?.focus()
                     }}
-                    className="-translate-y-1/2 absolute top-1/2 right-1.5 flex size-6 animate-fade-in items-center justify-center rounded-md text-fg-muted transition-colors duration-150 hover:bg-surface-sunken hover:text-fg motion-reduce:transition-none"
+                    className="-translate-y-1/2 absolute top-1/2 right-1.5 flex size-6 animate-fade-in items-center justify-center rounded-md text-fg-muted transition-colors duration-150 hover:bg-surface-sunken hover:text-fg motion-reduce:transition-none pointer-coarse:before:-inset-2.5 pointer-coarse:before:absolute pointer-coarse:before:content-['']"
                   >
                     <svg
                       viewBox="0 0 12 12"
@@ -494,7 +494,7 @@ export function ProjectsHubScreen() {
               <details className="details-smooth group/arquivados mt-7">
                 <summary
                   {...guideTarget('arquivados')}
-                  className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded px-1 font-medium text-caption text-fg-muted transition-colors duration-150 hover:text-fg motion-reduce:transition-none [&::-webkit-details-marker]:hidden"
+                  className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded px-1 font-medium text-caption text-fg-muted transition-colors duration-150 hover:text-fg motion-reduce:transition-none pointer-coarse:-my-3 pointer-coarse:py-3 [&::-webkit-details-marker]:hidden"
                 >
                   <svg
                     viewBox="0 0 12 12"
@@ -576,7 +576,8 @@ function OrdemDaLista({ value, onChange }: { value: Ordem; onChange: (ordem: Ord
           title={opcao.dica}
           onClick={() => onChange(opcao.value)}
           className={cn(
-            'h-6 rounded-md px-2 text-caption transition-colors duration-150 motion-reduce:transition-none',
+            // No toque cada peca cresce ate 40, sem mudar o desenho no mouse.
+            'h-6 rounded-md px-2 text-caption transition-colors duration-150 motion-reduce:transition-none pointer-coarse:h-10 pointer-coarse:px-3',
             value === opcao.value
               ? 'bg-surface-sunken font-medium text-fg'
               : 'text-fg-muted hover:text-fg',

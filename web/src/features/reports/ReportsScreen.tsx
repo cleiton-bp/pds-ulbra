@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -125,6 +126,33 @@ export function ReportsScreen() {
    * mostra: e a lista deles que aparece.
    */
   const [arquivados, setArquivados] = useState(false)
+
+  // **A troca para os arquivados e uma ida e uma volta, e se ve assim**: a tela entra
+  // deslizando da direita ao ir e da esquerda ao voltar, e o foco vai para o caminho de
+  // volta ("‹ Trabalho") ou para o botao que leva aos arquivados. Antes a tela trocava de
+  // titulo, de botoes e de linhas de uma vez, e no celular parecia que tinha pulado.
+  const tela = useRef<HTMLDivElement>(null)
+  const voltarDosArquivados = useRef<HTMLButtonElement>(null)
+  const trocouOsArquivados = useRef(false)
+  useLayoutEffect(() => {
+    if (!trocouOsArquivados.current) {
+      trocouOsArquivados.current = true
+      return
+    }
+    if (arquivados) voltarDosArquivados.current?.focus({ preventScroll: true })
+    else
+      document
+        .querySelector<HTMLElement>('[data-guia="arquivados"]')
+        ?.focus({ preventScroll: true })
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    tela.current?.animate?.(
+      [
+        { opacity: 0, transform: `translateX(${arquivados ? 24 : -24}px)` },
+        { opacity: 1, transform: 'none' },
+      ],
+      { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+    )
+  }, [arquivados])
   /** O "Novo card" aberto — com a coluna, quando veio do "Criar" de uma coluna do quadro. */
   const [criando, setCriando] = useState<{ coluna?: string; titulo?: string } | null>(null)
   /** O card que acabou de nascer pelo dialogo, vindo de uma coluna do quadro: o quadro rola ate ele. */
@@ -1062,8 +1090,8 @@ export function ReportsScreen() {
           },
           {
             alvo: 'guia',
-            titulo: 'Sempre à mão',
-            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+            titulo: 'Guia por tela',
+            texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
           },
         ],
   )
@@ -1073,7 +1101,31 @@ export function ReportsScreen() {
     // barra de rolar para os lados fica no pe da tela (ver `ReportsBoard`).
     // Na lista, a folga do pe fica aqui: a casca da altura fixa ao Trabalho por causa do
     // quadro, e a lista longa passaria por cima do espaco de baixo dela.
-    <div className={cn(quadro ? 'flex h-full flex-col' : 'pb-24 lg:pb-28')}>
+    <div ref={tela} className={cn(quadro ? 'flex h-full flex-col' : 'pb-24 lg:pb-28')}>
+      {/* O caminho de volta dos arquivados, acima do titulo: onde o olho ja esta, como nas
+          outras telas de dentro (Chaves volta para a Instalacao). */}
+      {arquivados && (
+        <button
+          ref={voltarDosArquivados}
+          type="button"
+          onClick={() => setArquivados(false)}
+          className="alvo-de-toque relative -mt-1 mb-2 inline-flex items-center gap-1.5 text-detail text-fg-muted transition-colors hover:text-fg"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            aria-hidden
+            className="size-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M10 3.5 5.5 8l4.5 4.5" />
+          </svg>
+          Trabalho
+        </button>
+      )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h1 id={`${painel}-titulo`} className="font-semibold text-screen tracking-tight">
           {arquivados ? 'Arquivados' : 'Trabalho'}
@@ -1098,8 +1150,10 @@ export function ReportsScreen() {
         </div>
       </div>
 
+      {/* So da tela pequena para cima: no celular, numa tela aberta todo dia, a frase
+          empurrava a lista para baixo, e o titulo e o Novo card ja dizem onde se esta. */}
       {!arquivados && (
-        <p className="-mt-1 mb-4 max-w-[68ch] text-detail text-fg-muted">
+        <p className="-mt-1 mb-4 max-w-[68ch] text-detail text-fg-muted max-sm:hidden">
           Os relatos de quem usa o seu sistema e os cards que o time cria, num lugar só.
         </p>
       )}
@@ -1107,13 +1161,20 @@ export function ReportsScreen() {
       {!arquivados && <SistemaAindaSemRelato project={project} />}
 
       {arquivados ? (
-        <p className="mb-4 text-detail text-fg-muted">
+        // No celular sai, como a frase do Trabalho: o "‹ Trabalho" e o titulo ja dizem onde
+        // se esta, e a lista sobe.
+        <p className="mb-4 text-detail text-fg-muted max-sm:hidden">
           Os cards que saíram da tela de Trabalho. Abra um para ler, comentar ou desarquivar.
         </p>
       ) : (
         // As abas e, ao lado, as vistas salvas: a escolha de como ver, e a de o que ver.
-        <div className="flex min-w-0 items-end gap-4 border-border border-b">
-          <div {...guideTarget('vistas')}>
+        // No celular as vistas descem para a linha de baixo: ao lado das abas sobravam
+        // 70 px, e o campo do nome empurrava a tela para o lado. O traco vai com as abas.
+        <div className="flex min-w-0 flex-wrap items-end gap-x-4 sm:flex-nowrap sm:border-border sm:border-b">
+          <div
+            className="max-sm:w-full max-sm:border-border max-sm:border-b"
+            {...guideTarget('vistas')}
+          >
             <Abas
               vista={vistaEfetiva}
               painel={painel}
@@ -1124,7 +1185,7 @@ export function ReportsScreen() {
             />
           </div>
           {!backlog && (
-            <div {...guideTarget('vistas-salvas')}>
+            <div className="min-w-0 max-sm:w-full" {...guideTarget('vistas-salvas')}>
               <SavedViews
                 projectPublicId={project.PublicId}
                 pessoa={pessoa}
@@ -1187,20 +1248,22 @@ export function ReportsScreen() {
                 </HowItWorks>
               ) : undefined
             }
+            vista={
+              quadro ? (
+                <Select
+                  ariaLabel="Raias do quadro"
+                  size="sm"
+                  value={agrupar}
+                  onChange={(valor) => setAgrupar(valor as LaneBy)}
+                  options={[
+                    { value: 'none', label: 'Sem raias' },
+                    { value: 'assignee', label: 'Raias por responsável' },
+                    { value: 'priority', label: 'Raias por prioridade' },
+                  ]}
+                />
+              ) : undefined
+            }
           >
-            {quadro && (
-              <Select
-                ariaLabel="Raias do quadro"
-                size="sm"
-                value={agrupar}
-                onChange={(valor) => setAgrupar(valor as LaneBy)}
-                options={[
-                  { value: 'none', label: 'Sem raias' },
-                  { value: 'assignee', label: 'Raias por responsável' },
-                  { value: 'priority', label: 'Raias por prioridade' },
-                ]}
-              />
-            )}
             <BotaoArquivados
               arquivados={arquivados}
               aoAlternar={() => setArquivados((valor) => !valor)}
@@ -1460,7 +1523,7 @@ function Abas({
           onClick={() => aoEscolher(opcao)}
           onKeyDown={(evento) => teclas(evento, opcao)}
           className={cn(
-            '-mb-px flex h-9 items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
+            '-mb-px flex h-9 items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors pointer-coarse:h-11',
             vista === opcao
               ? 'border-accent text-fg'
               : 'border-transparent text-fg-muted hover:text-fg',
@@ -1581,20 +1644,45 @@ function BotaoArquivados({
   arquivados: boolean
   aoAlternar: () => void
 }) {
+  // No celular, fora dos arquivados, so o desenho da caixa: com o nome, o botao descia
+  // sozinho para uma linha propria embaixo da busca. Dentro deles o nome fica, porque
+  // "Sair dos arquivados" diz como voltar.
   return (
     <button
       type="button"
       aria-pressed={arquivados}
       onClick={aoAlternar}
+      title={arquivados ? undefined : 'Arquivados'}
       {...guideTarget('arquivados')}
       className={cn(
-        'flex h-8 flex-none items-center rounded-lg border px-3 text-detail transition-colors',
+        'alvo-de-toque relative flex h-8 flex-none items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors pointer-coarse:h-9',
+        !arquivados && 'max-sm:w-9 max-sm:justify-center max-sm:px-0',
+        // Nos arquivados, no celular, a volta e o "‹ Trabalho" no alto: o botao grande aqui
+        // ocupava uma linha so para ele.
+        arquivados && 'max-sm:hidden',
         arquivados
           ? ACTIVE_FILTER_CLASS
           : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
       )}
     >
-      {arquivados ? 'Sair dos arquivados' : 'Arquivados'}
+      {!arquivados && (
+        <svg
+          viewBox="0 0 16 16"
+          className="size-4 flex-none sm:hidden"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="2" y="3" width="12" height="3" rx="1" />
+          <path d="M3 6v6.5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6M6.5 9h3" />
+        </svg>
+      )}
+      <span className={cn(!arquivados && 'max-sm:sr-only')}>
+        {arquivados ? 'Sair dos arquivados' : 'Arquivados'}
+      </span>
     </button>
   )
 }

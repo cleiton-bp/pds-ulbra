@@ -22,9 +22,25 @@ import {
 } from '@/embed/protocol'
 import { createLauncherView, type LauncherView } from '@/loader/launcherView'
 import { cn } from '@/shared/lib/cn'
+import { previewStartsOnPhone } from '@/shared/lib/screen'
+import { useThemeStore } from '@/shared/lib/themeStore'
 
 /** A largura que o quadro recebe como a da janela: so ela decide se e celular. */
 const LARGURA = { computer: 1280, phone: 375 } as const
+
+/**
+ * O tema do painel onde a previa esta: o `color-scheme` dali, que e o que o `iframe` do
+ * formulario receberia do navegador. Sem um esquema claro ou escuro definido, o do
+ * sistema. O botao e o formulario da previa usam este valor no lugar do `Auto`.
+ */
+function temaDoPainel(elemento: Element): 'light' | 'dark' {
+  const esquema = getComputedStyle(elemento).colorScheme ?? ''
+  const claro = esquema.includes('light')
+  const escuro = esquema.includes('dark')
+  if (escuro && !claro) return 'dark'
+  if (claro && !escuro) return 'light'
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
 
 /** Em que aparelho a previa mostra o botao. */
 export type PreviewDevice = keyof typeof LARGURA
@@ -63,10 +79,13 @@ interface Retangulo {
  * (`placeFrame`). Nao ha segunda implementacao do botao nem do formulario para
  * envelhecer sozinha.
  *
- * **Mesma origem, e so ela.** O quadro em previa so ouve a janela de cima da propria
- * origem, e o painel so ouve o seu `iframe`, da origem dele. Se um dia a ferramenta for
- * servida de outro endereco, a previa ao vivo nao funciona — e a tela diz isso, em vez
- * de mostrar um quadro vazio.
+ * **So o painel fala com o quadro.** O quadro em previa so ouve a janela de cima da
+ * propria origem ou da origem do painel que o build conhece (`environment.panelOrigin`),
+ * e o painel so ouve o seu `iframe`, da origem dele. Em producao os dois moram em
+ * enderecos diferentes (o painel na raiz, o quadro na CDN), e era isso que deixava as
+ * quatro previas so com um aviso: o quadro, que so aceitava a propria origem, ignorava
+ * o painel. Sem a origem do painel no build e em enderecos diferentes, a previa ao vivo
+ * nao funciona, e a tela diz isso, em vez de mostrar um quadro vazio.
  *
  * **Nada e enviado daqui.** O botao de enviar so avisa; o relato de teste continua em
  * Instalacao.
@@ -105,9 +124,20 @@ export function WidgetPreview({
   startOpen?: boolean
 }) {
   const origemDaFerramenta = new URL(environment.embedUrl).origin
-  const mesmaOrigem = typeof window !== 'undefined' && origemDaFerramenta === window.location.origin
+  const aquiMesmo = typeof window !== 'undefined' ? window.location.origin : null
+  // Ao vivo quando o quadro aceita este painel: os dois no mesmo endereco (o
+  // desenvolvimento), ou o painel declarado no build, que e o mesmo do quadro (producao:
+  // o painel na raiz, o quadro na CDN). Ver `connectToPreviewPanel`.
+  const aoVivo =
+    aquiMesmo !== null &&
+    (origemDaFerramenta === aquiMesmo || environment.panelOrigin === aquiMesmo)
+  // O tema do painel, para o botao e o formulario da previa o acompanharem quando ele troca.
+  const temaEscolhido = useThemeStore((estado) => estado.theme)
 
-  const [aparelhoProprio, setAparelhoProprio] = useState<PreviewDevice>('computer')
+  // Onde a previa e estreita ela ja abre em Celular (ver `previewStartsOnPhone`).
+  const [aparelhoProprio, setAparelhoProprio] = useState<PreviewDevice>(() =>
+    previewStartsOnPhone() ? 'phone' : 'computer',
+  )
   const aparelho = device ?? aparelhoProprio
   const setAparelho = (escolhido: PreviewDevice) => {
     setAparelhoProprio(escolhido)
@@ -150,7 +180,7 @@ export function WidgetPreview({
 
   // As mensagens do quadro: so do nosso `iframe`, so da origem dele, so as nossas.
   useEffect(() => {
-    if (!mesmaOrigem) return
+    if (!aoVivo) return
 
     function ouvir(event: MessageEvent) {
       if (event.origin !== origemDaFerramenta) return
@@ -174,7 +204,7 @@ export function WidgetPreview({
 
     window.addEventListener('message', ouvir)
     return () => window.removeEventListener('message', ouvir)
-  }, [mesmaOrigem, origemDaFerramenta])
+  }, [aoVivo, origemDaFerramenta])
 
   const largura = LARGURA[aparelho]
   larguraDaRegra.current = largura
@@ -182,13 +212,18 @@ export function WidgetPreview({
   // O botao, montado uma vez na pagina de mentira — pelo mesmo modulo do carregador.
   useEffect(() => {
     const elemento = area.current
-    if (!mesmaOrigem || !elemento) return
+    if (!aoVivo || !elemento) return
 
     const vista = createLauncherView({
       parent: elemento,
       placement: 'absolute',
       viewport: () => ({ width: elemento.clientWidth, height: elemento.clientHeight }),
       ruleWidth: () => larguraDaRegra.current,
+      // O `Auto` segue o tema do painel, o mesmo que o formulario recebe dentro do
+      // `iframe` (o navegador passa o `color-scheme` da pagina para ele): botao e
+      // formulario da previa no mesmo tema, e nao o botao pelo sistema e o resto pelo
+      // painel.
+      autoTheme: () => temaDoPainel(elemento),
       onOpen: () => {
         abriuSozinho.current = false
         setAberto(true)
@@ -200,18 +235,19 @@ export function WidgetPreview({
       vista.destroy()
       botao.current = null
     }
-  }, [mesmaOrigem])
+  }, [aoVivo])
 
   // O rascunho muda o botao na hora, como a configuracao publicada muda o do site.
   useEffect(() => {
     botao.current?.setAppearance(settings)
   }, [settings])
 
-  // A pagina de mentira mudou de tamanho, ou de aparelho: o botao e conferido de novo.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: o tamanho e o aparelho sao o gatilho
+  // A pagina de mentira mudou de tamanho, ou de aparelho, ou o painel trocou de tema: o
+  // botao e conferido de novo.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: o tamanho, o aparelho e o tema sao o gatilho
   useEffect(() => {
     botao.current?.refresh()
-  }, [tamanho, largura])
+  }, [tamanho, largura, temaEscolhido])
 
   // Aberto: o botao some e o quadro aparece — ou a tela de "abrindo", se ele ainda nao
   // respondeu. Fechado: o botao volta, e com o foco se foi o quadro que fechou.
@@ -273,7 +309,9 @@ export function WidgetPreview({
     return () => cancelAnimationFrame(quadroDeMedir)
   }, [realceDoBotao, settings, tamanho, largura, aberto])
 
-  // O rascunho vai a cada mudanca, e de novo quando o quadro avisa que (re)carregou.
+  // O rascunho vai a cada mudanca, e de novo quando o quadro avisa que (re)carregou, ou
+  // quando o painel troca de tema.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: o tema escolhido e o gatilho de mandar de novo; o valor e lido do painel
   useEffect(() => {
     if (!pronto) return
 
@@ -284,11 +322,22 @@ export function WidgetPreview({
       viewport: { width: largura, height: tamanho.height },
       media,
       highlight: realceDoFormulario,
+      // O `Auto` do formulario segue o tema do painel, como o botao desenhado aqui.
+      theme: temaDoPainel(area.current ?? document.documentElement),
     }
     quadro.current?.contentWindow?.postMessage(mensagem, origemDaFerramenta)
-  }, [pronto, settings, media, realceDoFormulario, largura, tamanho.height, origemDaFerramenta])
+  }, [
+    pronto,
+    settings,
+    media,
+    realceDoFormulario,
+    largura,
+    tamanho.height,
+    origemDaFerramenta,
+    temaEscolhido,
+  ])
 
-  if (!mesmaOrigem) {
+  if (!aoVivo) {
     return (
       <p className="text-detail text-fg-muted">
         A prévia ao vivo precisa que o painel e a ferramenta sejam servidos do mesmo endereço, e
@@ -375,7 +424,7 @@ export function WidgetPreview({
                 tabIndex={escolhido ? 0 : -1}
                 onClick={() => setAparelho(value)}
                 className={cn(
-                  'flex h-7 items-center gap-1.5 rounded-md px-2.5 text-detail transition-colors',
+                  'flex h-7 items-center gap-1.5 rounded-md px-2.5 text-detail transition-colors pointer-coarse:h-10 pointer-coarse:px-3',
                   escolhido
                     ? 'bg-surface-sunken font-medium text-fg'
                     : 'text-fg-muted hover:text-fg',

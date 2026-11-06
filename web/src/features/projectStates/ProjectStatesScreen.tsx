@@ -26,6 +26,7 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { SortableListItem } from '@/shared/components/SortableListItem'
 import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
+import { VoltarDeOndeVeio } from '@/shared/components/VoltarDeOndeVeio'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useClosingItem } from '@/shared/hooks/useClosingItem'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
@@ -93,8 +94,8 @@ export function ProjectStatesScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -548,6 +549,8 @@ export function ProjectStatesScreen() {
 
   return (
     <div className="max-w-6xl">
+      {/* Quem veio do card (o "Ligar em Colunas") volta para ele por aqui. */}
+      <VoltarDeOndeVeio />
       <div className="mb-1.5 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-semibold text-screen tracking-tight">Colunas</h1>
         {/* O selo diz como a lista grava: a ordem, criar e desativar valem na hora. */}

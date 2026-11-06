@@ -164,9 +164,10 @@ export function NewCardDialog({
         <>
           {/* Curta, para caber ao lado dos botoes: a frase longa empurrava o "Criar card"
               para a linha de baixo, abaixo do "Cancelar". O jeito do Mac fica na dica. */}
+          {/* No toque nao ha Ctrl: no tablet a dica so ocupava a linha dos botoes. */}
           <span
             title="No Mac, ⌘+Enter. No título, só o Enter já cria."
-            className="mr-auto hidden text-caption text-fg-muted sm:inline"
+            className="mr-auto hidden text-caption text-fg-muted sm:inline pointer-coarse:hidden"
           >
             Ctrl+Enter cria de qualquer campo
           </span>
@@ -183,8 +184,11 @@ export function NewCardDialog({
         </>
       }
     >
+      {/* Quem rola e o corpo do dialogo, que ja cabe na altura da tela: uma segunda
+          rolagem aqui dentro, presa em 60% da janela, apertava o formulario no celular
+          deitado e cortava o contorno do foco dos campos nas bordas. */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: so escuta o Ctrl+Enter que sobe dos campos */}
-      <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto" onKeyDown={atalho}>
+      <div className="flex flex-col gap-4" onKeyDown={atalho}>
         <TextField
           label="Título"
           value={titulo}

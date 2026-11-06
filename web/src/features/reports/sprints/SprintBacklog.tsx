@@ -15,7 +15,16 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Link } from 'react-router-dom'
 import {
   MAX_STORY_POINTS,
@@ -55,6 +64,7 @@ import {
 import { DueChip } from '@/shared/components/DueChip'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
 import { dueState } from '@/shared/lib/dueDate'
 
@@ -456,8 +466,8 @@ export function SprintBacklog({
     return (
       <div className="flex flex-col gap-3">
         {barra && <div className="mb-1 flex flex-wrap items-center gap-2">{barra}</div>}
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-24 w-full max-w-7xl" />
+        <Skeleton className="h-40 w-full max-w-7xl" />
       </div>
     )
   }
@@ -483,7 +493,10 @@ export function SprintBacklog({
   const primeiroUso = sprints.length === 0
 
   return (
-    <>
+    // A barra (abas, busca e Arquivados) tem a largura toda, como na lista e no quadro: com o
+    // teto nela, o Arquivados pulava de lugar ao trocar de aba. O teto fica so nas linhas,
+    // embaixo (ver as secoes).
+    <div>
       <BuscaDoBacklog
         id={searchInputId}
         barra={barra}
@@ -531,7 +544,9 @@ export function SprintBacklog({
           },
         }}
       >
-        <div className="flex flex-col gap-5">
+        {/* Com teto na tela grande: a 1920 px o titulo ficava a mais de mil pixels dos pontos
+            e de quem esta com o card, e o olho perdia a linha no caminho. */}
+        <div className="flex max-w-7xl flex-col gap-5">
           {secoes.map((secao) => {
             const sprint = sprints.find((item) => item.PublicId === secao) ?? null
             const ids = listas?.[secao] ?? []
@@ -636,7 +651,7 @@ export function SprintBacklog({
           }
         }}
       />
-    </>
+    </div>
   )
 }
 
@@ -663,9 +678,12 @@ function BuscaDoBacklog({
   aoAlternarMeus: () => void
   aoLimpar: () => void
 }) {
+  const celular = useMediaQuery('(max-width: 39.99rem)')
   return (
-    <search className="mb-4 flex flex-wrap items-center gap-2" aria-label="Buscar no backlog">
-      <label className="relative flex min-w-0 flex-[1_1_14rem] sm:max-w-80">
+    // O mesmo respiro da barra da lista e do quadro (`mt-3`): sem ele a busca encostava na
+    // linha das abas.
+    <search className="mt-3 mb-4 flex flex-wrap items-center gap-2" aria-label="Buscar no backlog">
+      <label className="relative flex min-w-0 flex-[1_1_14rem] max-sm:flex-[1_1_8rem] sm:max-w-80">
         <span className="sr-only">Buscar no backlog</span>
         <svg
           viewBox="0 0 16 16"
@@ -684,11 +702,13 @@ function BuscaDoBacklog({
           type="search"
           value={busca}
           onChange={(evento) => aoBuscar(evento.target.value)}
-          placeholder="Buscar no backlog: título ou #número"
+          // No celular o campo divide a linha com "Meus cards" e os arquivados, como nas
+          // outras abas: a frase inteira nao caberia.
+          placeholder={celular ? 'Buscar' : 'Buscar no backlog: título ou #número'}
           title={id ? 'Busca no título, no texto e no #número (atalho: /)' : undefined}
           aria-keyshortcuts={id ? '/' : undefined}
           maxLength={200}
-          className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-9 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
+          className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-9 pl-8 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-9"
         />
         <SearchShortcutHint visible={!!id && busca === ''} />
       </label>
@@ -697,7 +717,7 @@ function BuscaDoBacklog({
         aria-pressed={meus}
         onClick={aoAlternarMeus}
         className={cn(
-          'flex h-8 flex-none items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors',
+          'alvo-de-toque relative flex h-8 flex-none items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors pointer-coarse:h-9',
           meus
             ? ACTIVE_FILTER_CLASS
             : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
@@ -709,7 +729,7 @@ function BuscaDoBacklog({
         <button
           type="button"
           onClick={aoLimpar}
-          className="h-8 flex-none px-1 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+          className="alvo-de-toque relative h-8 flex-none px-1 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline pointer-coarse:h-9"
         >
           Limpar busca
         </button>
@@ -774,6 +794,7 @@ function Secao({
   titulos: Map<string, HTMLHeadingElement>
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: secao })
+  const { visiveis, fechando, caixa, medida } = useRecolherSuave(recolhida, cartoes)
   const tituloId = `secao-${secao}`
   const listaId = `lista-${secao}`
   const nome = sprint ? sprint.Name : 'Backlog'
@@ -784,10 +805,10 @@ function Secao({
   return (
     <section
       aria-labelledby={tituloId}
-      className={cn(
-        'rounded-xl border bg-surface-raised',
-        sprint?.State === 'Active' ? 'border-accent' : 'border-border',
-      )}
+      // A mesma borda leve em todas as secoes. A sprint em andamento tinha a borda na cor
+      // do destaque (quase preta), que parecia selecao, e nao estado: o "em andamento" ja vem
+      // escrito no cabecalho.
+      className="rounded-xl border border-border bg-surface-raised"
     >
       <header className="flex flex-wrap items-center justify-between gap-2 border-border border-b px-2 py-2 sm:px-3">
         <div className="flex min-w-0 items-start gap-1">
@@ -797,11 +818,14 @@ function Secao({
             aria-controls={listaId}
             aria-label={recolhida ? `Expandir ${nome}` : `Recolher ${nome}`}
             onClick={aoRecolher}
-            className="flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken hover:text-fg pointer-coarse:size-10"
+            className="alvo-de-toque-icone relative flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken hover:text-fg"
           >
             <svg
               viewBox="0 0 12 12"
-              className={cn('size-3 transition-transform', recolhida && '-rotate-90')}
+              className={cn(
+                'size-3 transition-transform duration-320 ease-in-out motion-reduce:transition-none',
+                recolhida && '-rotate-90',
+              )}
               fill="none"
               stroke="currentColor"
               strokeWidth="1.6"
@@ -866,7 +890,7 @@ function Secao({
                 <button
                   type="button"
                   aria-label={`Mais ações de ${sprint.Name}`}
-                  className="flex size-8 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken hover:text-fg pointer-coarse:size-10"
+                  className="alvo-de-toque-icone relative flex size-8 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken hover:text-fg"
                 >
                   <svg viewBox="0 0 16 16" className="size-4" fill="currentColor" aria-hidden>
                     <circle cx="3.5" cy="8" r="1.3" />
@@ -887,50 +911,65 @@ function Secao({
         </div>
       </header>
 
-      <SortableContext
-        id={secao}
-        items={cartoes.map((card) => card.PublicId)}
-        strategy={verticalListSortingStrategy}
-      >
-        {/* Recolhida, a lista continua aceitando o card arrastado: ele vai para o fim dela. */}
-        <ul
-          id={listaId}
-          ref={setNodeRef}
-          aria-label={sprint ? `Cards de ${sprint.Name}` : 'Cards do backlog'}
-          className={cn('min-h-12 divide-y divide-border', isOver && 'bg-surface-sunken')}
+      {/* A caixa que abre e fecha devagar (ver `useRecolherSuave`). */}
+      <div ref={caixa} className="relative">
+        {/* Enquanto fecha, a frase da lista recolhida invisivel, so para medir a altura em que
+            o fechar termina: assim a caixa para na altura da frase, sem pulo no fim. */}
+        {fechando && (
+          <p
+            ref={medida}
+            aria-hidden
+            className="pointer-events-none invisible absolute inset-x-0 top-0 min-h-12 px-4 py-3 text-detail"
+          >
+            Lista recolhida: {total} {total === 1 ? 'card' : 'cards'}. Um card arrastado até aqui
+            vai para o fim dela.
+          </p>
+        )}
+        <SortableContext
+          id={secao}
+          items={visiveis.map((card) => card.PublicId)}
+          strategy={verticalListSortingStrategy}
         >
-          {recolhida ? (
-            cartoes.length === 0 && (
+          {/* Recolhida, a lista continua aceitando o card arrastado: ele vai para o fim dela. */}
+          <ul
+            id={listaId}
+            ref={setNodeRef}
+            aria-label={sprint ? `Cards de ${sprint.Name}` : 'Cards do backlog'}
+            className={cn('min-h-12 divide-y divide-border', isOver && 'bg-surface-sunken')}
+          >
+            {recolhida && !fechando ? (
+              cartoes.length === 0 && (
+                <li className="animate-fade-in px-4 py-3 text-detail text-fg-muted">
+                  Lista recolhida: {total} {total === 1 ? 'card' : 'cards'}. Um card arrastado até
+                  aqui vai para o fim dela.
+                </li>
+              )
+            ) : visiveis.length === 0 ? (
               <li className="px-4 py-3 text-detail text-fg-muted">
-                Lista recolhida: {total} {total === 1 ? 'card' : 'cards'}. Um card arrastado até
-                aqui vai para o fim dela.
+                {buscando
+                  ? 'Nenhum card desta lista na busca.'
+                  : sprint
+                    ? 'Nenhum card nesta sprint. Arraste do backlog, ou use o menu ⋯ de um card.'
+                    : 'Nada no backlog. Os cards novos entram aqui.'}
               </li>
-            )
-          ) : cartoes.length === 0 ? (
-            <li className="px-4 py-3 text-detail text-fg-muted">
-              {buscando
-                ? 'Nenhum card desta lista na busca.'
-                : sprint
-                  ? 'Nenhum card nesta sprint. Arraste do backlog, ou use o menu ⋯ de um card.'
-                  : 'Nada no backlog. Os cards novos entram aqui.'}
-            </li>
-          ) : null}
-          {cartoes.map((card) => (
-            <ItemArrastavel
-              key={card.PublicId}
-              card={card}
-              colunas={colunas}
-              soonDays={soonDays}
-              destinos={destinos}
-              aoMover={(destino, topo) => aoMover(card.PublicId, destino, topo)}
-              aoEstimar={(pontos) => aoEstimar(card.PublicId, pontos)}
-              escondido={ativo === card.PublicId}
-              secao={secao}
-              gatilhos={gatilhos}
-            />
-          ))}
-        </ul>
-      </SortableContext>
+            ) : null}
+            {visiveis.map((card) => (
+              <ItemArrastavel
+                key={card.PublicId}
+                card={card}
+                colunas={colunas}
+                soonDays={soonDays}
+                destinos={destinos}
+                aoMover={(destino, topo) => aoMover(card.PublicId, destino, topo)}
+                aoEstimar={(pontos) => aoEstimar(card.PublicId, pontos)}
+                escondido={ativo === card.PublicId}
+                secao={secao}
+                gatilhos={gatilhos}
+              />
+            ))}
+          </ul>
+        </SortableContext>
+      </div>
       {/* Contra o que a leitura trouxe, e nao contra a lista de agora: no meio de um
           arraste, ela tem um card a menos, e o rodape mentia. */}
       {!recolhida && ativo === null && total > lidos && (
@@ -940,6 +979,99 @@ function Secao({
       )}
     </section>
   )
+}
+
+/**
+ * Abrir e fechar a lista leva o mesmo tempo da seta girando, numa curva que acelera e freia
+ * devagar: a que freia forte cumpria quase todo o caminho nos primeiros 80ms e parecia rapida.
+ */
+const RECOLHER_MS = 320
+const RECOLHER_CURVA = 'cubic-bezier(0.4, 0, 0.2, 1)'
+
+/**
+ * **A lista abre e fecha devagar**: a altura anda da lista inteira ate a faixa da lista
+ * recolhida (e de volta), e os cards esmaecem no caminho. Antes os cards sumiam e voltavam
+ * de uma vez, e a secao pulava.
+ *
+ * Ao fechar, os cards de antes continuam na tela ate o fim do movimento (`fechando`), e so
+ * entao a lista recolhida aparece; ao abrir, a lista nova cresce da faixa ate a altura dela.
+ * Sem movimento (preferencia do sistema, ou o ambiente de teste, que nao tem `matchMedia`),
+ * a troca e na hora.
+ */
+function useRecolherSuave(recolhida: boolean, cartoes: ReportSummaryViewModel[]) {
+  const caixa = useRef<HTMLDivElement>(null)
+  const medida = useRef<HTMLParagraphElement>(null)
+  const [fechando, setFechando] = useState<ReportSummaryViewModel[] | null>(null)
+  const abertos = useRef(cartoes)
+  const antes = useRef(recolhida)
+  // A altura da lista recolhida, de onde o abrir parte: a frase quebra em duas linhas no
+  // celular, e partir de uma altura fixa dava um pulo no comeco.
+  const alturaRecolhida = useRef<number | null>(null)
+
+  useLayoutEffect(() => {
+    if (!recolhida) abertos.current = cartoes
+    else if (fechando === null && caixa.current)
+      alturaRecolhida.current = caixa.current.offsetHeight
+  })
+
+  useLayoutEffect(() => {
+    if (antes.current === recolhida) return
+    antes.current = recolhida
+    const elemento = caixa.current
+    const comMovimento =
+      typeof window.matchMedia === 'function' &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!elemento || !comMovimento || typeof elemento.animate !== 'function') return
+    if (recolhida) {
+      // Antes de pintar: a lista recolhida nunca aparece pela metade.
+      setFechando(abertos.current)
+      return
+    }
+    // Abrir no meio do fechar desiste do fechar, e a lista cresce dali.
+    setFechando(null)
+    const altura = elemento.offsetHeight
+    const inicio = alturaRecolhida.current ?? 48
+    elemento.style.overflow = 'hidden'
+    const movimento = elemento.animate(
+      [
+        { height: `${inicio}px`, opacity: 0.4 },
+        { height: `${altura}px`, opacity: 1 },
+      ],
+      { duration: RECOLHER_MS, easing: RECOLHER_CURVA },
+    )
+    movimento.onfinish = () => {
+      elemento.style.overflow = ''
+    }
+    return () => movimento.cancel()
+  }, [recolhida])
+
+  useLayoutEffect(() => {
+    const elemento = caixa.current
+    if (!fechando || !elemento) return
+    const altura = elemento.offsetHeight
+    // Para na altura da frase da lista recolhida (medida invisivel), e os cards somem de vez
+    // no caminho: a frase entra esmaecendo no lugar, sem pulo de altura nem troca seca.
+    const alvo = Math.max(medida.current?.offsetHeight ?? 48, 48)
+    elemento.style.overflow = 'hidden'
+    // `forwards` segura o fim (a altura da frase, os cards invisiveis) ate a troca: sem ele,
+    // no quadro entre o fim do movimento e o React trocar os cards pela frase, a caixa
+    // voltava a altura cheia com os cards a vista, e a lista inteira piscava.
+    const movimento = elemento.animate(
+      [
+        { height: `${altura}px`, opacity: 1 },
+        { height: `${alvo}px`, opacity: 0 },
+      ],
+      { duration: RECOLHER_MS, easing: RECOLHER_CURVA, fill: 'forwards' },
+    )
+    movimento.onfinish = () => setFechando(null)
+    // Solto so depois da troca, no mesmo passo do React, antes de a tela ser pintada.
+    return () => {
+      movimento.cancel()
+      elemento.style.overflow = ''
+    }
+  }, [fechando])
+
+  return { visiveis: fechando ?? cartoes, fechando: fechando !== null, caixa, medida }
 }
 
 function ItemArrastavel({
@@ -968,7 +1100,9 @@ function ItemArrastavel({
   })
   // O alvo de toque e maior que o desenho: 24 px no mouse, 40 px no dedo.
   const alvo =
-    'flex size-6 flex-none items-center justify-center rounded text-fg-muted hover:bg-surface-sunken hover:text-fg pointer-coarse:size-10'
+    // 24 de desenho tambem no toque, com o alvo invisivel em volta: com 40 de desenho, o "⋯"
+    // esticava a linha do titulo e abria um vao ate a linha de baixo.
+    'alvo-de-toque-icone relative flex size-6 flex-none items-center justify-center rounded text-fg-muted hover:bg-surface-sunken hover:text-fg'
   return (
     <li
       ref={setNodeRef}
@@ -1043,8 +1177,12 @@ function ItemArrastavel({
 
 /**
  * A linha de um card no backlog: tipo, numero, titulo, prioridade, prazo perto ou
- * vencido, subtarefas, coluna, pontos e responsavel. No celular, a prioridade fica so no
- * desenho, e o prazo e a coluna saem: a linha nao cabe.
+ * vencido, subtarefas, coluna, pontos e responsavel.
+ *
+ * A linha mede a propria largura (`@container`), e nao a da janela: larga, tudo numa
+ * linha so; estreita (celular, tablet, notebook com o menu aberto), o titulo fica com a
+ * primeira linha inteira e o resto desce para a de baixo. Numa linha so, no celular, o
+ * titulo ficava com tres letras, e o prazo e a coluna tinham de sair.
  */
 function Linha({
   card,
@@ -1069,49 +1207,66 @@ function Linha({
       ? card.DueDate
       : null
   return (
-    <div className="flex min-w-0 items-center gap-2 px-3 py-2">
-      {alca}
-      <CardTypeIcon card={card} />
-      <span className="flex-none tabular-nums text-caption text-fg-muted">#{card.Number}</span>
-      <Link
-        to={card.PublicId}
-        className={cn(
-          'min-w-0 flex-1 truncate text-detail underline-offset-2 hover:underline',
-          card.Finished ? 'text-fg-muted line-through' : 'text-fg',
-        )}
-      >
-        {headlineText(titulo)}
-      </Link>
-      {/* A busca e o "Meus cards" tambem acham o pai pela subtarefa: a marca diz isso. */}
-      <SubtaskMatchMark card={card} className="hidden max-w-40 flex-none sm:inline-flex" />
-      {card.Priority && (
-        <span className="flex min-w-0 max-w-28 flex-none text-caption text-fg-muted max-sm:[&_.truncate]:sr-only">
-          <PriorityIcon priority={card.Priority} />
-        </span>
-      )}
-      {prazo && (
-        <DueChip
-          day={prazo}
-          soonDays={soonDays}
-          compact
-          className="hidden flex-none text-caption sm:inline-block"
-        />
-      )}
-      {card.SubtaskCount > 0 && (
-        <span className="hidden flex-none text-caption text-fg-muted sm:inline">
-          {card.SubtasksDone}/{card.SubtaskCount}
-        </span>
-      )}
-      {card.StateName && (
-        <StatusLozenge
-          name={card.StateName}
-          tone={statusTone(card.StatePublicId, colunas)}
-          className="hidden max-w-28 flex-none sm:inline-flex"
-        />
-      )}
-      {pontos ?? <PointsChip points={card.StoryPoints} />}
-      {card.Assignee && <PersonAvatar pessoa={card.Assignee} />}
-      {menu}
+    <div className="@container">
+      {/* Na linha estreita (o celular) a alca sai: arrastar numa lista longa com o dedo era
+          desconfortavel, e a faixa dela empurrava o conteudo; mover fica no menu "⋯", que
+          ja diz "Mover para". O menu tem a folga do proprio alvo de toque, e a margem da
+          direita cai para o titulo ganhar largura. */}
+      <div className="flex min-w-0 items-center gap-1 py-2 pr-1 pl-3 @min-[30rem]:gap-2 @min-[30rem]:px-3">
+        {alca && <span className="flex flex-none @max-[30rem]:hidden">{alca}</span>}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 @min-[56rem]:flex-nowrap">
+          <CardTypeIcon card={card} />
+          <span className="flex-none tabular-nums text-caption text-fg-muted">#{card.Number}</span>
+          <Link
+            to={card.PublicId}
+            className={cn(
+              'line-clamp-2 min-w-0 flex-1 break-words text-detail underline-offset-2 hover:underline @min-[56rem]:line-clamp-1',
+              card.Finished ? 'text-fg-muted line-through' : 'text-fg',
+            )}
+          >
+            {headlineText(titulo)}
+          </Link>
+          {/* O resto da linha. Na estreita ele desce inteiro para a linha de baixo, que fica
+              com a largura toda; na larga a caixa se desfaz (`contents`) e cada item volta
+              para a linha do titulo. Entre o titulo e o resto ficam 8 de respiro: o vao da
+              linha mais o `mt-1`. */}
+          <span className="order-3 mt-1 flex basis-full flex-wrap items-center gap-x-2 gap-y-1 @min-[56rem]:contents">
+            {/* A busca e o "Meus cards" tambem acham o pai pela subtarefa: a marca diz isso. */}
+            <SubtaskMatchMark card={card} className="max-w-40 flex-none" />
+            {card.Priority && (
+              <span className="flex min-w-0 max-w-28 flex-none text-caption text-fg-muted">
+                <PriorityIcon priority={card.Priority} />
+              </span>
+            )}
+            {prazo && (
+              <DueChip
+                day={prazo}
+                soonDays={soonDays}
+                compact
+                className="max-w-full text-caption"
+              />
+            )}
+            {card.SubtaskCount > 0 && (
+              <span className="flex-none text-caption text-fg-muted">
+                {card.SubtasksDone}/{card.SubtaskCount}
+              </span>
+            )}
+            {card.StateName && (
+              <StatusLozenge
+                name={card.StateName}
+                tone={statusTone(card.StatePublicId, colunas)}
+                className="max-w-28 flex-none"
+              />
+            )}
+            {pontos ?? <PointsChip points={card.StoryPoints} />}
+            {card.Assignee && <PersonAvatar pessoa={card.Assignee} />}
+          </span>
+          {/* O menu vem por ultimo no documento, como no fim da linha larga: o Tab passa
+              pelos pontos antes dele. Na linha estreita ele sobe (`order-2`) para o alto,
+              ao lado do titulo, e a linha de baixo continua com a largura toda. */}
+          {menu && <span className="order-2 flex flex-none @min-[56rem]:order-last">{menu}</span>}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1213,7 +1368,7 @@ function PontosNaLinha({
               fechar(true)
             }
           }}
-          className="h-7 w-16 rounded-md border border-border bg-surface px-2 text-caption text-fg tabular-nums"
+          className="h-7 w-16 rounded-md border border-border bg-surface px-2 text-caption text-fg tabular-nums pointer-coarse:h-10"
         />
         {invalido && (
           <span
@@ -1234,9 +1389,17 @@ function PontosNaLinha({
       type="button"
       onClick={abrir}
       title={card.StoryPoints === null ? 'Estimar' : 'Mudar a estimativa'}
-      className="flex h-6 min-w-6 flex-none items-center justify-center whitespace-nowrap rounded-full bg-surface-sunken px-1.5 font-medium text-caption text-fg tabular-nums hover:ring-1 hover:ring-border pointer-coarse:h-10 pointer-coarse:min-w-10"
+      className="group alvo-de-toque-icone relative flex h-6 min-w-6 flex-none items-center justify-center"
     >
-      <span aria-hidden>{card.StoryPoints === null ? '?' : pointsShort(card.StoryPoints)}</span>
+      {/* O desenho tem 24 sempre; no toque so o alvo invisivel em volta cresce (sem esticar
+          a linha). Com 40 de desenho, o circulo cinza pesava mais que o titulo e parecia um
+          botao de ajuda. */}
+      <span
+        aria-hidden
+        className="flex h-6 min-w-6 items-center justify-center whitespace-nowrap rounded-full bg-surface-sunken px-1.5 font-medium text-caption text-fg tabular-nums group-hover:ring-1 group-hover:ring-border"
+      >
+        {card.StoryPoints === null ? '?' : pointsShort(card.StoryPoints)}
+      </span>
       <span className="sr-only">
         {card.StoryPoints === null
           ? `Estimar #${card.Number}: sem estimativa`

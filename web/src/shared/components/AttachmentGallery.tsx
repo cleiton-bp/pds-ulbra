@@ -340,7 +340,7 @@ export function AttachmentGallery({
                         renovar()
                       }
                     }}
-                    className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1 pr-2.5 pl-1.5 hover:bg-surface-sunken"
+                    className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1 pr-2.5 pl-1.5 hover:bg-surface-sunken pointer-coarse:min-h-11"
                   >
                     <span
                       aria-hidden="true"

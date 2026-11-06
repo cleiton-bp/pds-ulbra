@@ -187,7 +187,8 @@ export function ClosurePanel({
                 {SATISFACTION_SCALE.map((valor) => (
                   <label
                     key={valor}
-                    className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border text-body ${
+                    // No toque, 40: os cinco ainda cabem numa linha em 320.
+                    className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border text-body pointer-coarse:size-10 ${
                       nota === valor
                         ? 'border-accent bg-surface-sunken text-fg'
                         : 'border-border text-fg-muted'
@@ -218,7 +219,7 @@ export function ClosurePanel({
           {/* **Fora da escala, e não o sexto botão dela.** Dentro, a recusa viraria
               a nota mais baixa para quem lê depressa. Existe mesmo quando a nota é
               obrigatória — sem saída, obrigar vira clique sem pensar. */}
-          <label className="mb-4 flex cursor-pointer items-center gap-2 text-detail text-fg-muted">
+          <label className="mb-4 flex cursor-pointer items-center gap-2 text-detail text-fg-muted pointer-coarse:mb-1.5 pointer-coarse:-mt-2.5 pointer-coarse:py-2.5">
             <input
               type="checkbox"
               checked={recusou}
@@ -226,7 +227,7 @@ export function ClosurePanel({
                 setRecusou(evento.target.checked)
                 if (evento.target.checked) setNota(null)
               }}
-              className="accent-accent"
+              className="size-3.5 accent-accent"
             />
             Prefiro não responder
           </label>

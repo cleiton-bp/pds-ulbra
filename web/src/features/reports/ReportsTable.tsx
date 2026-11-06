@@ -21,6 +21,7 @@ import { useKeepFocus } from '@/features/reports/useKeepFocus'
 import { CardChip } from '@/shared/components/CardChip'
 import { DueChip } from '@/shared/components/DueChip'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { FADE_RIGHT, useSideScroll } from '@/shared/hooks/useSideScroll'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
 import { dueState } from '@/shared/lib/dueDate'
@@ -29,17 +30,37 @@ import { dueState } from '@/shared/lib/dueDate'
  * Onde cada coluna de apoio entra, pela largura **da area de trabalho** (`@container`)
  * e nao da janela: a janela inclui o menu lateral, e a coluna sumia com espaco
  * sobrando. Da menos para a mais necessaria saem quando chegou, a sprint, as
- * etiquetas, o prazo e a prioridade, o responsavel e a coluna — e o que sai vai para
+ * etiquetas, o prazo, a prioridade, o responsavel e a coluna, e o que sai vai para
  * debaixo do titulo. O prazo e a prioridade nunca saem antes de "Criado".
+ *
+ * Cada coluna so entra quando cabe com o titulo ainda legivel (umas 200 px): o prazo
+ * vencido ocupa mais de 200 px sozinho, e entrando junto com a prioridade ele deixava o
+ * titulo com vinte letras a 1280 px e cortava a ultima coluna a 1440 px.
  */
 const COM_COLUNA = 'hidden @min-[34rem]:table-cell'
 const COM_RESPONSAVEL = 'hidden @min-[44rem]:table-cell'
-const COM_PRIORIDADE_E_PRAZO = 'hidden @min-[52rem]:table-cell'
-const COM_ETIQUETAS = 'hidden @min-[60rem]:table-cell'
+const COM_PRIORIDADE = 'hidden @min-[52rem]:table-cell'
+const COM_PRAZO = 'hidden @min-[62rem]:table-cell'
+const COM_ETIQUETAS = 'hidden @min-[68rem]:table-cell'
 // A sprint e a data so entram com folga: a 1440 px a sprint cortava pela metade e o titulo,
 // que e o que se le primeiro, ficava com umas vinte letras.
-const COM_SPRINT = 'hidden @min-[76rem]:table-cell'
-const COM_DATA = 'hidden @min-[84rem]:table-cell'
+const COM_SPRINT = 'hidden @min-[80rem]:table-cell'
+const COM_DATA = 'hidden @min-[88rem]:table-cell'
+
+/**
+ * Com a data presa pela ordem (quando chegou, ou a ultima mudanca), ela entra antes da
+ * hora, e cedem o lugar as menos necessarias depois dela: as etiquetas e a sprint so
+ * entram quando cabem junto com a data. Sem isso, a 1440 px com o menu aberto a tabela
+ * passava da moldura, a moldura virava area de rolagem e o cabecalho deixava de ficar
+ * preso ao rolar a pagina.
+ */
+const COM_ETIQUETAS_E_DATA = 'hidden @min-[74rem]:table-cell'
+const COM_SPRINT_E_DATA = 'hidden @min-[82rem]:table-cell'
+
+/** A ordem escolhida segura a data na tela: a de quando chegou, ou a da ultima mudanca. */
+function prendeData(fixa: ReportSortField | null): boolean {
+  return fixa === 'created' || fixa === 'updated'
+}
 
 /**
  * A coluna do dado por que a pessoa ordenou **nunca sai pela largura**: ordenar pelo
@@ -143,6 +164,8 @@ export function ReportsTable({
 }) {
   const area = useRef<HTMLDivElement>(null)
   useKeepFocus(area)
+  const rolo = useRef<HTMLDivElement>(null)
+  const { transborda, maisADireita } = useSideScroll(rolo)
   const marcadas = selecao
     ? reports.filter((report) => selecao.marcados.has(report.PublicId)).length
     : 0
@@ -176,7 +199,10 @@ export function ReportsTable({
     // nao no comeco da pagina (ver `useKeepFocus`).
     //
     // A moldura corta (`overflow-clip`) sem virar area de rolagem: e o que deixa o
-    // cabecalho preso no alto da pagina. So a area estreita rola para o lado.
+    // cabecalho preso no alto da pagina. So a area estreita rola para o lado, e a larga
+    // tambem quando a tabela nao cabe: ai a moldura cortaria a ultima coluna sem jeito de
+    // chegar nela, e perder o cabecalho preso e o mal menor. Com a data presa pela ordem
+    // isso so sobra logo acima de 64rem (ver `COM_ETIQUETAS_E_DATA`).
     <div
       ref={area}
       data-focus-group
@@ -186,7 +212,14 @@ export function ReportsTable({
         buscando && 'opacity-50',
       )}
     >
-      <div className="overflow-x-auto @min-[64rem]:overflow-x-visible">
+      <div
+        ref={rolo}
+        className={cn(
+          'overflow-x-auto',
+          !transborda && '@min-[64rem]:overflow-x-visible',
+          maisADireita && FADE_RIGHT,
+        )}
+      >
         <table className="w-full border-collapse text-left text-detail">
           <Cabecalho
             ordem={vigente}
@@ -310,13 +343,14 @@ function Linha({
       {aoMarcar && (
         // A celula inteira marca: a caixa sozinha e pequena, e o clique ao lado dela abria
         // o card. A linha ignora o clique no `label`. A faixa da linha marcada mora aqui.
+        // No dedo a celula cresce (40 de largura, 46 de altura) sem mudar o desenho no mouse.
         <td
           className={cn(
             'w-8 p-0 transition-shadow',
             marcada && 'shadow-[inset_3px_0_0_var(--color-accent)]',
           )}
         >
-          <label className="flex cursor-pointer items-center py-2.5 pr-1 pl-3">
+          <label className="flex cursor-pointer items-center py-2.5 pr-1 pl-3 pointer-coarse:py-3.5 pointer-coarse:pr-2.5">
             <input
               type="checkbox"
               aria-label={`Selecionar #${report.Number}: ${titulo.text}`}
@@ -348,10 +382,14 @@ function Linha({
       >
         <CardTypeIcon card={report} />
       </td>
-      <td className="whitespace-nowrap px-2 py-2 font-medium text-fg-muted tabular-nums">
+      {/* Na area estreita o numero vai para a linha de baixo do titulo (ver o `#` la): a
+          coluna propria tirava uns 45px de um titulo que ja quebrava em tres linhas. */}
+      <td className="hidden whitespace-nowrap px-2 py-2 font-medium text-fg-muted tabular-nums @min-[34rem]:table-cell">
         #{report.Number}
       </td>
-      <td className="w-full min-w-40 max-w-0 px-2 py-2 @min-[34rem]:min-w-48 @min-[64rem]:min-w-80">
+      {/* O minimo da area estreita deixa caber a caixa maior do dedo a 320 px: com 160,
+          a tabela passava 3 px da moldura e rolava de lado a toa. */}
+      <td className="w-full min-w-32 max-w-0 px-2 py-2 @min-[34rem]:min-w-48">
         {/* Link, e nao botao: e o que faz o card ter endereco proprio, abrir em outra
             aba e sobreviver a um recarregamento da pagina. No celular, duas linhas. */}
         <Link
@@ -367,6 +405,12 @@ function Linha({
         {/* O que perdeu a coluna propria na area estreita vem embaixo do titulo: a
             coluna do card, quem esta com ele, a prioridade e o prazo vencido ou perto. */}
         <span className="flex flex-wrap items-center gap-x-1.5">
+          {/* Desenhado pelo CSS (`content`), e nao escrito: assim o numero nao aparece duas
+              vezes na pagina para quem procura ou le com leitor de tela. */}
+          <span
+            data-numero={`#${report.Number}`}
+            className="mt-1 font-medium text-caption text-fg-muted tabular-nums before:content-[attr(data-numero)] @min-[34rem]:hidden"
+          />
           {report.DuplicateOf && (
             <DuplicateLine original={report.DuplicateOf} className="mt-0.5 max-w-full" />
           )}
@@ -407,7 +451,7 @@ function Linha({
             <span
               className={cn(
                 'mt-1 text-caption text-fg-muted',
-                debaixo('@min-[52rem]:hidden', 'due', fixa),
+                debaixo('@min-[62rem]:hidden', 'due', fixa),
               )}
             >
               <DueChip day={report.DueDate} soonDays={soonDays} compact finished={terminou} />
@@ -440,26 +484,33 @@ function Linha({
       <td
         className={cn(
           'whitespace-nowrap px-2 py-2 text-fg',
-          largura(COM_PRIORIDADE_E_PRAZO, 'priority', fixa),
+          largura(COM_PRIORIDADE, 'priority', fixa),
         )}
       >
         {report.Priority ? <PriorityIcon priority={report.Priority} /> : null}
       </td>
-      <td className={cn('whitespace-nowrap px-2 py-2', COM_ETIQUETAS)}>
+      <td
+        className={cn(
+          'whitespace-nowrap px-2 py-2',
+          prendeData(fixa) ? COM_ETIQUETAS_E_DATA : COM_ETIQUETAS,
+        )}
+      >
         <Etiquetas report={report} />
       </td>
       <td
-        className={cn(
-          'whitespace-nowrap px-2 py-2 text-fg-muted',
-          largura(COM_PRIORIDADE_E_PRAZO, 'due', fixa),
-        )}
+        className={cn('whitespace-nowrap px-2 py-2 text-fg-muted', largura(COM_PRAZO, 'due', fixa))}
       >
         {report.DueDate ? (
           <DueChip day={report.DueDate} soonDays={soonDays} compact bare finished={terminou} />
         ) : null}
       </td>
       {comSprint && (
-        <td className={cn('whitespace-nowrap px-2 py-2', COM_SPRINT)}>
+        <td
+          className={cn(
+            'whitespace-nowrap px-2 py-2',
+            prendeData(fixa) ? COM_SPRINT_E_DATA : COM_SPRINT,
+          )}
+        >
           {report.Sprint ? (
             <span className="block max-w-28 truncate text-fg" title={sprintLabel(report)}>
               {sprintLabel(report)}
@@ -560,37 +611,36 @@ function Cabecalho({
     <thead className="@min-[64rem]:sticky @min-[64rem]:-top-10 @min-[64rem]:z-sticky bg-surface-raised text-caption text-fg-muted">
       <tr className="border-border border-b">
         {selecao && (
-          <th scope="col" className="w-8 py-2 pl-3 font-medium">
-            <input
-              ref={caixa}
-              type="checkbox"
-              aria-label="Selecionar os cards desta página"
-              checked={selecao.todas}
-              onChange={(evento) => selecao.aoMarcar(evento.target.checked)}
-              className="size-4 cursor-pointer accent-accent"
-            />
+          // Como na linha: o `label` da a caixa a area da celula, que cresce no dedo.
+          <th scope="col" className="w-8 p-0 font-medium">
+            <label className="flex cursor-pointer items-center py-2 pr-1 pl-3 pointer-coarse:py-3 pointer-coarse:pr-2.5">
+              <input
+                ref={caixa}
+                type="checkbox"
+                aria-label="Selecionar os cards desta página"
+                checked={selecao.todas}
+                onChange={(evento) => selecao.aoMarcar(evento.target.checked)}
+                className="size-4 cursor-pointer accent-accent"
+              />
+            </label>
           </th>
         )}
         <th scope="col" className="w-9 py-2 pr-1 pl-3 font-medium">
           <span className="sr-only">Tipo</span>
         </th>
-        {ordenavel('number', 'Nº', th)}
+        {ordenavel('number', 'Nº', cn(th, 'hidden @min-[34rem]:table-cell'))}
         <th scope="col" className={th}>
           Título
         </th>
         {ordenavel('state', 'Coluna', cn(th, largura(COM_COLUNA, 'state', fixa)))}
         {ordenavel('assignee', 'Responsável', cn(th, largura(COM_RESPONSAVEL, 'assignee', fixa)))}
-        {ordenavel(
-          'priority',
-          'Prioridade',
-          cn(th, largura(COM_PRIORIDADE_E_PRAZO, 'priority', fixa)),
-        )}
-        <th scope="col" className={cn(th, COM_ETIQUETAS)}>
+        {ordenavel('priority', 'Prioridade', cn(th, largura(COM_PRIORIDADE, 'priority', fixa)))}
+        <th scope="col" className={cn(th, prendeData(fixa) ? COM_ETIQUETAS_E_DATA : COM_ETIQUETAS)}>
           Etiquetas
         </th>
-        {ordenavel('due', 'Prazo', cn(th, largura(COM_PRIORIDADE_E_PRAZO, 'due', fixa)))}
+        {ordenavel('due', 'Prazo', cn(th, largura(COM_PRAZO, 'due', fixa)))}
         {comSprint && (
-          <th scope="col" className={cn(th, COM_SPRINT)}>
+          <th scope="col" className={cn(th, prendeData(fixa) ? COM_SPRINT_E_DATA : COM_SPRINT)}>
             Sprint
           </th>
         )}
@@ -637,7 +687,8 @@ function Ordenavel({
         onClick={() => aoOrdenar(campo)}
         title={ativa ? `Ordenado ${SENTIDO[campo][ordem.dir]}` : `Ordenar por ${nome}`}
         className={cn(
-          '-mx-1 inline-flex items-center gap-1 rounded px-1 transition-colors hover:text-fg',
+          // No dedo, a area cresce para cima e para baixo sem mudar a altura do cabecalho.
+          '-mx-1 inline-flex items-center gap-1 rounded px-1 transition-colors hover:text-fg pointer-coarse:-my-3 pointer-coarse:py-3',
           ativa && 'text-fg',
         )}
       >
@@ -683,8 +734,11 @@ function Etiquetas({ report }: { report: ReportSummaryViewModel }) {
   if (!primeira) return null
 
   return (
-    <span className="flex items-center gap-1">
-      <CardChip color={primeira.Color}>{primeira.Name}</CardChip>
+    // Com teto: um nome comprido cortava o titulo, que e o que se le primeiro.
+    <span className="flex max-w-40 items-center gap-1">
+      <CardChip color={primeira.Color} className="min-w-0">
+        {primeira.Name}
+      </CardChip>
       {resto.length > 0 && <MoreLabels labels={resto} />}
     </span>
   )

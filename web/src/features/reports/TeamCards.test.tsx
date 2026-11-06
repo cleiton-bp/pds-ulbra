@@ -679,7 +679,7 @@ describe('card do time e arquivar', () => {
     const confirmar = screen.getAllByRole('button', { name: 'Arquivar' }).at(-1) as HTMLElement
     expect(confirmar.hasAttribute('disabled')).toBe(true)
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Por que acabou' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Motivo' }), {
       target: { value: 'Saiu do plano do produto.' },
     })
     fireEvent.click(confirmar)
@@ -704,7 +704,7 @@ describe('card do time e arquivar', () => {
 
     await screen.findByRole('combobox', { name: 'Mover para a coluna' })
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Pronto')
-    fireEvent.change(await screen.findByRole('textbox', { name: 'Por que acabou' }), {
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Motivo' }), {
       target: { value: 'Corrigido nesta versão.' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Encerrar' }))
@@ -739,7 +739,7 @@ describe('card do time e arquivar', () => {
     // Tirar de "Pronto" reabre o relato: pergunta antes, e cancelar nao move.
     await escolherNoSelect(screen, fireEvent, 'Mover para a coluna', 'Análise')
     const pergunta = await screen.findByRole('alertdialog', { name: 'Reabrir o relato #3?' })
-    expect(within(pergunta).getByText(/Tirar o #3 de Pronto reabre o relato/)).toBeTruthy()
+    expect(within(pergunta).getByText(/Sair de Pronto reabre o relato/)).toBeTruthy()
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Cancelar' }))
     await waitFor(() =>
       expect(screen.queryByRole('alertdialog', { name: 'Reabrir o relato #3?' })).toBeNull(),

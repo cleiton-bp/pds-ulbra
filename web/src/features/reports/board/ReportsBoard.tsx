@@ -985,7 +985,10 @@ export function ReportsBoard({
   const nomeProxima = bordas.proxima ? porChave[bordas.proxima]?.name : undefined
 
   return (
-    <div className="flex min-h-80 flex-1 flex-col">
+    // No celular o quadro vem depois de titulo, abas, filtros e sprint, e com o minimo de
+    // 320 a coluna mostrava um card e meio. La ele tem a altura da tela menos a barra de
+    // cima: rolando a pagina ate o fim, as colunas ocupam a tela toda.
+    <div className="flex min-h-80 flex-1 flex-col max-sm:min-h-[calc(100dvh-4.5rem)]">
       {vazioPeloFiltro && filtro && (
         <div className="mb-3 max-w-170 flex-none rounded-xl border border-border border-dashed bg-surface-raised p-5">
           <p className="mb-3 text-detail text-fg-muted leading-relaxed">
@@ -996,10 +999,12 @@ export function ReportsBoard({
       )}
 
       {/* No celular cabe uma coluna por vez: as colunas em fila, com quantos cards cada
-          uma tem, levam direto a ela. */}
+          uma tem, sao as abas do quadro e levam direto a ela. Presas no alto ao rolar a
+          coluna (o `-top-7` desconta o respiro de cima da area que rola): no meio de uma
+          coluna longa, a pessoa continua sabendo em qual esta e troca sem voltar ao topo. */}
       <nav
         aria-label="Colunas do quadro"
-        className="-mx-4 mb-2 flex flex-none gap-1.5 overflow-x-auto px-4 pb-1 sm:hidden"
+        className="-mx-4 mb-2 flex flex-none gap-1.5 overflow-x-auto px-4 py-1.5 max-sm:sticky max-sm:-top-7 max-sm:z-sticky max-sm:bg-surface sm:hidden"
       >
         {columns.map((coluna) => (
           <button
@@ -1008,7 +1013,8 @@ export function ReportsBoard({
             aria-current={bordas.atual === coluna.key || undefined}
             onClick={() => irParaColuna(coluna.key, 'start')}
             className={cn(
-              'flex h-7 flex-none items-center gap-1 rounded-full border px-2.5 text-caption transition-colors',
+              // O desenho no tamanho do texto, e o alvo do dedo invisivel em volta.
+              'alvo-de-toque relative flex h-7 flex-none items-center gap-1 rounded-full border px-2.5 text-caption transition-colors pointer-coarse:h-8 pointer-coarse:px-3',
               bordas.atual === coluna.key
                 ? 'border-accent bg-surface-strong text-fg'
                 : 'border-border bg-surface text-fg-muted',
@@ -1046,7 +1052,10 @@ export function ReportsBoard({
               ref={area}
               // Relativa: o texto escondido para leitor de tela da coluna fora da vista fica
               // dentro dela, e nao alarga a pagina.
-              className="relative -mx-4 flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 pb-3 sm:mx-0 sm:snap-none sm:px-0"
+              // No celular: uma coluna por vez, encaixando a cada deslizar (`scroll-px-4` alinha
+              // o encaixe ao respiro da borda), e sem altura presa: a pagina rola a coluna
+              // inteira, em vez de a pessoa rolar a pagina e depois a coluna por dentro.
+              className="relative -mx-4 flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden px-4 pb-3 max-sm:flex-none max-sm:scroll-px-4 sm:mx-0 sm:snap-none sm:px-0"
             >
               {columns.map((coluna) => (
                 <Coluna
@@ -1131,7 +1140,9 @@ export function ReportsBoard({
                           type="button"
                           aria-expanded={!recolhida}
                           onClick={() => alternarRaia(raia.key)}
-                          className="flex h-8 items-center gap-1.5 rounded-md px-1.5 font-semibold text-detail text-fg hover:bg-surface-sunken"
+                          // Altura minima, e nao fixa: no celular o nome e o "solte um card
+                          // aqui" quebram em duas linhas, que passavam da altura do botao.
+                          className="flex min-h-8 items-center gap-1.5 rounded-md px-1.5 py-1 text-left font-semibold text-detail text-fg hover:bg-surface-sunken pointer-coarse:min-h-10"
                         >
                           <svg
                             viewBox="0 0 12 12"
@@ -1225,7 +1236,7 @@ export function ReportsBoard({
                 type="button"
                 onClick={() => bordas.proxima && irParaColuna(bordas.proxima, 'end')}
                 aria-label={`Ir para a coluna ${nomeProxima ?? ''}`}
-                className="absolute top-2 right-1 z-sticky hidden h-7 max-w-40 items-center gap-1 rounded-md border border-border bg-surface-raised px-2 text-detail text-fg shadow-sm transition-colors hover:bg-surface-sunken sm:flex"
+                className="absolute top-2 right-1 z-sticky hidden h-7 max-w-40 items-center gap-1 rounded-md border border-border bg-surface-raised px-2 text-detail text-fg shadow-sm transition-colors hover:bg-surface-sunken pointer-coarse:top-1 pointer-coarse:h-10 sm:flex"
               >
                 <span className="truncate">{nomeProxima}</span>
                 <span aria-hidden>›</span>
@@ -1280,7 +1291,7 @@ export function ReportsBoard({
           }}
           tone="warn"
           title={`Reabrir o relato #${board.cards[reabrindo.id]?.Number ?? ''}?`}
-          description={`Tirar o #${board.cards[reabrindo.id]?.Number ?? ''} de ${porChave[reabrindo.de]?.name ?? 'a coluna que encerra'} reabre o relato: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.`}
+          description={`Sair de ${porChave[reabrindo.de]?.name ?? 'a coluna que encerra'} reabre o relato, e quem relatou volta a ver o andamento, sem o motivo do encerramento.`}
           cancelLabel="Cancelar"
           confirmLabel="Reabrir e mover"
           onConfirm={async () => {
@@ -1294,8 +1305,11 @@ export function ReportsBoard({
   )
 }
 
-/** A largura de uma coluna — e de cada celula dela, com raias. */
-const LARGURA = 'w-[85vw] max-w-80 flex-none sm:w-68'
+/**
+ * A largura de uma coluna, e de cada celula dela, com raias. No celular, a largura da tela
+ * menos o respiro dos lados: uma coluna por vez, sem a vizinha espremida na borda.
+ */
+const LARGURA = 'w-[calc(100vw-2rem)] flex-none sm:w-68'
 
 /** O total que o cabecalho mostra: o da leitura, quando ja chegou; senao, o da contagem. */
 function totalDa(coluna: BoardColumn, estado: BoardColumnState | undefined) {
@@ -1396,7 +1410,7 @@ function Coluna({
       // O foco do card que saiu desta coluna fica nela (ver `useKeepFocus`).
       data-focus-group
       className={cn(
-        'flex snap-start flex-col rounded-lg border border-transparent bg-surface-sunken dark:border-border',
+        'flex snap-start flex-col rounded-lg border border-transparent bg-surface-sunken max-sm:snap-always max-sm:pt-2 dark:border-border',
         LARGURA,
         isOver && coluna.accepts && 'border-accent dark:border-accent',
       )}
@@ -1422,8 +1436,11 @@ function Coluna({
       )}
 
       {/* A lista rola por dentro: o cabecalho e o "Criar" ficam a vista, e o pe vem logo
-          depois do ultimo card. */}
-      <div data-board-scroll className="min-h-0 flex-1 overflow-y-auto">
+          depois do ultimo card. No celular nao: quem rola e a pagina (ver a area do quadro). */}
+      <div
+        data-board-scroll
+        className="min-h-0 flex-1 overflow-y-auto max-sm:flex-none max-sm:overflow-visible"
+      >
         <ListaDaCelula
           celula={coluna.key}
           ids={ids}
@@ -1482,7 +1499,8 @@ function CabecalhoDaColuna({
           coluna, e nao compete com os titulos dos cards. O nome que nao cabe vai inteiro
           no `title`. Com filtro, "2 de 10": quem esquece o filtro ligado nao acha que o
           trabalho sumiu. */}
-      <header className="flex flex-none items-center gap-2 px-3 pt-3 pb-2">
+      {/* No celular o nome e a contagem ja estao na aba da coluna, logo acima. */}
+      <header className="flex flex-none items-center gap-2 px-3 pt-3 pb-2 max-sm:hidden">
         <h2 title={titulo} className="min-w-0 truncate font-semibold text-detail text-fg">
           {titulo}
         </h2>
@@ -1521,7 +1539,7 @@ function CabecalhoDaColuna({
               <button
                 type="button"
                 onClick={aoVerNaLista}
-                className="font-medium text-fg underline-offset-2 hover:underline"
+                className="font-medium text-fg underline-offset-2 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
               >
                 {escondidos} na lista
               </button>
@@ -1602,7 +1620,7 @@ function CriarNaColuna({
           onClick={() => setAberto(true)}
           // O nome inteiro, e nao so "Criar": cada coluna tem o seu botao.
           aria-label={`Criar card em ${coluna.name}`}
-          className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-detail text-fg-muted transition-colors hover:bg-surface-strong hover:text-fg"
+          className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-detail text-fg-muted transition-colors hover:bg-surface-strong hover:text-fg pointer-coarse:h-10"
         >
           <svg
             viewBox="0 0 12 12"
@@ -1656,7 +1674,7 @@ function CriarNaColuna({
         aria-label={`Título do card novo em ${coluna.name}`}
         aria-invalid={erro !== null || undefined}
         placeholder="Título do card (Enter cria, Esc fecha)"
-        className="block h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-detail text-fg placeholder:text-fg-placeholder focus:border-accent focus:outline-none"
+        className="block h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-detail text-fg placeholder:text-fg-placeholder focus:border-accent focus:outline-none pointer-coarse:h-10"
       />
       {erro && (
         <p role="alert" className="mt-1 px-0.5 text-caption text-error-fg leading-snug">
@@ -1672,7 +1690,7 @@ function CriarNaColuna({
           // O campo fica como esta, com o que se escreveu: desistir do dialogo nao
           // perde o titulo.
           onClick={() => aoMaisDetalhes(titulo.trim())}
-          className="font-medium text-fg underline-offset-2 hover:underline"
+          className="font-medium text-fg underline-offset-2 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
         >
           Mais detalhes
         </button>
@@ -1869,7 +1887,7 @@ function PeDaColuna({
           <button
             type="button"
             onClick={aoVerNaLista}
-            className="font-medium text-fg underline-offset-2 hover:underline"
+            className="font-medium text-fg underline-offset-2 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
           >
             Ver na lista
           </button>
@@ -1889,7 +1907,7 @@ export function BoardSkeleton() {
       {['w-11/12', 'w-3/4', 'w-5/6'].map((largura) => (
         <div
           key={largura}
-          className="flex w-[85vw] max-w-80 flex-none flex-col gap-2 rounded-lg bg-surface-sunken p-2 sm:w-68"
+          className={cn(LARGURA, 'flex flex-col gap-2 rounded-lg bg-surface-sunken p-2')}
         >
           <Skeleton className={`mx-1 mt-1 mb-1 h-3 ${largura === 'w-3/4' ? 'w-20' : 'w-16'}`} />
           <Skeleton className="h-20 w-full" />

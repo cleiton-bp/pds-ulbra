@@ -199,7 +199,9 @@ export function CreateProjectDialog({
 
         {/* O radio de verdade fica escondido dentro da linha, que e o rotulo: o teclado
             anda pelas setas como em qualquer grupo de radios, e o anel de foco vai para
-            a linha inteira (`has-[:focus-visible]`). */}
+            a linha inteira (`has-[:focus-visible]`). A linha passa da coluna so o que o
+            corpo do dialogo tem de folga (8 de cada lado): passando mais, o corpo rolava
+            para o lado no toque e cortava os cantos e o anel de foco. */}
         <div className="-mx-2 flex flex-col">
           {TEMPLATES.map((option) => {
             const marcado = option.value === template
@@ -211,7 +213,7 @@ export function CreateProjectDialog({
                 key={option.value}
                 className={cn(
                   'flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors duration-150 motion-reduce:transition-none',
-                  'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-fg-muted',
+                  'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-fg-muted has-[:focus-visible]:ring-inset',
                   saving ? 'cursor-not-allowed' : 'cursor-pointer',
                   marcado ? 'bg-surface-sunken' : 'hover:bg-surface',
                 )}

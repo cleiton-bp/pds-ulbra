@@ -101,7 +101,7 @@ export function PublicJourney({
                       aria-label={`Ver o relato em ${passo.Label}`}
                       onClick={() => onSelect(passo.id)}
                       className={cn(
-                        'rounded text-left underline-offset-4 hover:underline',
+                        'rounded text-left underline-offset-4 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3',
                         atual ? 'font-medium text-body text-fg' : 'text-body text-fg-muted',
                       )}
                     >

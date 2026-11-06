@@ -13,8 +13,11 @@ COPY web/ ./
 ARG VITE_API_URL
 ARG VITE_LOADER_URL
 ARG VITE_GOOGLE_CLIENT_ID
-RUN test -n "$VITE_API_URL" -a -n "$VITE_LOADER_URL" -a -n "$VITE_GOOGLE_CLIENT_ID" \
-    || { echo "faltam VITE_API_URL, VITE_LOADER_URL ou VITE_GOOGLE_CLIENT_ID"; exit 1; }
+# O endereco do painel: o quadro, na CDN, so aceita a previa ao vivo vinda dele. Sem ela,
+# O botao, Tipos de relato, Textos e tema e Anexos ficam so com o aviso no lugar da previa.
+ARG VITE_PANEL_URL
+RUN test -n "$VITE_API_URL" -a -n "$VITE_LOADER_URL" -a -n "$VITE_GOOGLE_CLIENT_ID" -a -n "$VITE_PANEL_URL" \
+    || { echo "faltam VITE_API_URL, VITE_LOADER_URL, VITE_GOOGLE_CLIENT_ID ou VITE_PANEL_URL"; exit 1; }
 RUN npm run build
 
 FROM caddy:2.11.7-alpine

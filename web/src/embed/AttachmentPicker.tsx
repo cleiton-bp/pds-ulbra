@@ -20,7 +20,7 @@ import { formatBytes } from '@/shared/lib/formatBytes'
 
 /** A classe dos botoes de anexar. Exportada para os botoes extras ficarem iguais. */
 export const ATTACH_BUTTON_CLASS = cn(
-  'h-8 rounded-lg border border-border bg-surface px-3 text-detail text-fg',
+  'h-8 rounded-lg border border-border bg-surface px-3 text-detail text-fg pointer-coarse:h-11',
   'enabled:hover:bg-surface-sunken disabled:cursor-not-allowed disabled:text-fg-disabled',
 )
 
@@ -183,7 +183,9 @@ export function AttachmentPicker({
                     onClick={() => removerLevandoFoco(anexo.id)}
                     data-remover={anexo.id}
                     aria-label={`Remover ${anexo.file.name}`}
-                    className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-detail text-fg"
+                    // No toque, a area passa do circulo: 24 e pouco para o dedo, e um circulo
+                    // maior cobriria a imagem pequena.
+                    className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-detail text-fg pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
                   >
                     ×
                   </button>
@@ -223,7 +225,7 @@ export function AttachmentPicker({
                   onClick={() => removerLevandoFoco(anexo.id)}
                   data-remover={anexo.id}
                   aria-label={`Remover ${anexo.file.name}`}
-                  className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-detail text-fg enabled:hover:bg-surface-sunken"
+                  className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-detail text-fg enabled:hover:bg-surface-sunken pointer-coarse:size-10"
                 >
                   ×
                 </button>
@@ -330,7 +332,9 @@ function Tamanhos({
           disabled={disabled}
           onClick={() => onResize(anexo.id, tamanho)}
           className={cn(
-            'flex h-6 w-6 items-center justify-center rounded-md',
+            // No toque, 40: os quatro quebram a linha embaixo da imagem estreita, e nao
+            // cobrem nada.
+            'flex h-6 w-6 items-center justify-center rounded-md pointer-coarse:size-10',
             'disabled:cursor-not-allowed disabled:opacity-60',
             anexo.displaySize === tamanho ? ESCOLHIDO : 'text-fg enabled:hover:bg-surface-sunken',
           )}
@@ -432,7 +436,7 @@ export function AttachmentProgress({
                     <button
                       type="button"
                       onClick={() => onRetry(anexo)}
-                      className="font-medium text-fg underline underline-offset-4"
+                      className="font-medium text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
                     >
                       Tentar de novo
                     </button>
@@ -440,7 +444,7 @@ export function AttachmentProgress({
                       <button
                         type="button"
                         onClick={() => onDiscard(anexo)}
-                        className="text-fg-muted underline underline-offset-4"
+                        className="text-fg-muted underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
                       >
                         Desistir
                       </button>

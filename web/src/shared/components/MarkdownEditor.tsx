@@ -197,7 +197,7 @@ function ModeButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'h-7 rounded-md px-2.5 text-caption transition-colors',
+        'h-7 rounded-md px-2.5 text-caption transition-colors pointer-coarse:h-10',
         active ? 'bg-surface-sunken font-medium text-fg' : 'text-fg-muted hover:text-fg',
       )}
     >
@@ -227,7 +227,7 @@ function ToolButton({
       // que a barra vai ler e a que esta no campo.
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className="h-7 min-w-7 rounded-md px-1.5 text-caption text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg disabled:opacity-50"
+      className="h-7 min-w-7 rounded-md px-1.5 text-caption text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg disabled:opacity-50 pointer-coarse:h-10 pointer-coarse:min-w-10"
     >
       {children}
     </button>

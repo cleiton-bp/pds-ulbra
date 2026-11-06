@@ -124,9 +124,7 @@ describe('sair do card com texto por salvar', () => {
     fireEvent.change(caixa('Comentário'), { target: { value: 'Acho que e o gateway' } })
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
     const dialogo = await pergunta()
-    expect(
-      within(dialogo).getByText('O texto que você começou neste card ainda não foi salvo.'),
-    ).toBeTruthy()
+    expect(within(dialogo).getByText('O texto ainda não foi salvo.')).toBeTruthy()
     expect(aoFechar).toHaveBeenCalledTimes(1)
 
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Descartar' }))

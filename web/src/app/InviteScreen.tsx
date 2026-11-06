@@ -46,15 +46,17 @@ export function InviteScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
 
+  // No celular, a margem de 16 do resto do painel e um respiro menor no cartao: em 320 o
+  // texto ganha uns 16 de largura e quebra menos.
   return (
-    <div className="px-5 py-10 lg:pt-16">
+    <div className="px-4 py-10 sm:px-5 lg:pt-16">
       <div
-        className="mx-auto w-full max-w-120 rounded-xl border border-border bg-surface-raised p-6"
+        className="mx-auto w-full max-w-120 rounded-xl border border-border bg-surface-raised p-5 sm:p-6"
         {...guideTarget('convite')}
       >
         {token ? (
@@ -257,7 +259,7 @@ function ByStatus({
           <div className="mt-4">
             <Link
               to={`/projects/${preview.ProjectPublicId}`}
-              className="font-medium text-body text-fg underline underline-offset-4"
+              className="inline-block font-medium text-body text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
             >
               Abrir o projeto
             </Link>

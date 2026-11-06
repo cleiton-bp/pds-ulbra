@@ -202,7 +202,9 @@ export function AllowedOriginsSection({
 
       {origins !== null && (
         <div>
-          <div className="flex items-start gap-2">
+          {/* No celular o campo fica com a largura toda e o botao embaixo: lado a lado,
+              sobravam 120px para digitar o endereco. */}
+          <div className="flex items-start gap-2 max-sm:flex-col max-sm:items-stretch">
             <TextField
               className="min-w-0 flex-1"
               ariaLabel="Endereço do seu sistema"
@@ -222,7 +224,12 @@ export function AllowedOriginsSection({
             </Button>
           </div>
 
-          <label htmlFor={subdomainsId} className="mt-3 flex items-start gap-2">
+          {/* No toque a linha ganha 10 em cima e embaixo sem mover nada: com uma linha so
+              de texto, o alvo tinha 20. */}
+          <label
+            htmlFor={subdomainsId}
+            className="mt-3 flex items-start gap-2 pointer-coarse:-mb-2.5 pointer-coarse:mt-0.5 pointer-coarse:py-2.5"
+          >
             <input
               id={subdomainsId}
               type="checkbox"

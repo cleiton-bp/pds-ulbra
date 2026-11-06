@@ -807,7 +807,7 @@ describe('tirar um relato encerrado da coluna que encerra (Q-02)', () => {
     const pergunta = screen.getByRole('alertdialog', { name: 'Reabrir o relato #10?' })
     expect(
       within(pergunta).getByText(
-        'Tirar o #10 de Feito reabre o relato: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.',
+        'Sair de Feito reabre o relato, e quem relatou volta a ver o andamento, sem o motivo do encerramento.',
       ),
     ).toBeTruthy()
     expect(within(pergunta).getByRole('button', { name: 'Cancelar' })).toBeTruthy()
@@ -989,7 +989,7 @@ describe('encerrar pelo quadro (Q-14)', () => {
 
     const dialogo = screen.getByRole('dialog', { name: 'Encerrar o relato' })
     expect(montado.espiao.segurando).toBe(1)
-    fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Por que acabou' }), {
+    fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Motivo' }), {
       target: { value: 'O frete passou a aparecer antes do pagamento.' },
     })
     await act(async () => {

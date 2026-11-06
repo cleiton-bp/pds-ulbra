@@ -83,14 +83,16 @@ export function CloseReportDialog({
             ? `Encerrar ${lote} relatos`
             : 'Encerrar o relato'
       }
+      // Uma frase, so o que muda com a acao: quem le o motivo esta dito uma vez, embaixo do
+      // campo. Antes cada versao tinha duas frases, e a de baixo repetia a mesma ideia.
       description={
         lote > 1
-          ? `Mover para ${coluna ?? 'a coluna'} encerra os ${lote} relatos abertos da seleção, todos com este desfecho e este motivo. Cada pessoa que relatou vai ler o motivo na página de acompanhamento.`
+          ? `Os ${lote} relatos da seleção encerram juntos, com o mesmo desfecho e o mesmo motivo.`
           : arquivando
-            ? 'Arquivar encerra este relato e o tira da tela de Trabalho. Quem escreveu lê o motivo na página de acompanhamento e pode reabrir, e reabrir traz o relato de volta, ou finalizar, dando a nota.'
+            ? 'O relato encerra e sai do Trabalho, e quem relatou ainda pode reabrir.'
             : coluna === null
-              ? 'Este relato passa a constar como terminado, e continua na coluna em que está. Quem escreveu vai ler o motivo na página de acompanhamento.'
-              : `Mover para ${coluna} encerra este relato. Quem escreveu vai ler o motivo na página de acompanhamento.`
+              ? 'O relato encerra e continua na coluna em que está.'
+              : `Mover para ${coluna} encerra o relato.`
       }
       width="w-[min(32rem,calc(100vw-2rem))]"
       // Com texto escrito, o clique fora nao fecha: errar a caixa nao pode levar o
@@ -131,13 +133,13 @@ export function CloseReportDialog({
       {maisLeitores > 0 && (
         <p className="mb-4 rounded-lg border border-border bg-surface-sunken px-3 py-2 text-detail text-fg leading-normal">
           {maisLeitores === 1
-            ? 'Mais 1 pessoa vai ler este motivo: o relato duplicado deste recebe o mesmo desfecho.'
-            : `Mais ${maisLeitores} pessoas vão ler este motivo: os relatos duplicados deste recebem o mesmo desfecho.`}
+            ? 'O relato duplicado deste recebe o mesmo desfecho e motivo.'
+            : `Os ${maisLeitores} relatos duplicados deste recebem o mesmo desfecho e motivo.`}
         </p>
       )}
 
       <label htmlFor="motivo-do-encerramento" className="mb-1.5 block text-detail text-fg-muted">
-        Por que acabou
+        Motivo
       </label>
       {/* Um `textarea`, e nao o `TextField`: o campo dele e de uma linha, e o
           motivo e a unica coisa que a pessoa de fora vai ler sobre o proprio
@@ -154,8 +156,7 @@ export function CloseReportDialog({
       />
 
       <p className="mt-1.5 text-caption text-fg-muted leading-normal">
-        Este texto sai do painel. Não escreva aqui o que é da equipe, porque para isso existe o
-        comentário interno.
+        Quem relatou lê este motivo, e o que é só do time vai no comentário interno.
       </p>
     </Modal>
   )

@@ -34,11 +34,17 @@ export function AccountShell() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="flex h-14 flex-none items-center justify-between border-border border-b bg-surface px-4 sm:px-8">
-        <Link to="/projects" title="Ir para os projetos" className="rounded-md">
+      {/* Como a barra da casca do projeto: abaixo de 400 as margens e os espacos encolhem,
+          e a marca tem area de toque maior sem mudar o desenho. */}
+      <header className="flex h-14 flex-none items-center justify-between gap-2 border-border border-b bg-surface px-4 max-[400px]:px-3 sm:px-8">
+        <Link
+          to="/projects"
+          title="Ir para os projetos"
+          className="min-w-0 rounded-md pointer-coarse:-m-1.5 pointer-coarse:p-1.5"
+        >
           <Brand />
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-none items-center gap-2 max-[400px]:gap-1.5">
           <GuideButton />
           <ThemeButton />
           <span {...guideTarget('avisos')} className="flex">

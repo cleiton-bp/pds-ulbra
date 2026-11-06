@@ -295,7 +295,28 @@ function janela(): FrameViewport {
   const teclado = semZoom
     ? Math.max(0, Math.round(window.innerHeight - visivel.height - visivel.offsetTop))
     : 0
-  return { width: window.innerWidth, height: window.innerHeight, keyboard: teclado }
+  // A medida e sem a barra de rolagem da pagina; a regra do celular conta com ela, como as
+  // consultas de midia do CSS.
+  return {
+    width: larguraSemBarra(),
+    ruleWidth: window.innerWidth,
+    height: window.innerHeight,
+    keyboard: teclado,
+  }
+}
+
+/**
+ * A largura da janela sem a barra de rolagem da pagina, que e onde o `fixed` cabe. Com a
+ * `innerWidth`, o editor em tela cheia (celular deitado, ou tela baixa no computador) e a
+ * folha da janela estreita passavam por baixo da barra classica do Windows, e o
+ * "Adicionar" do canto saia cortado. No celular a barra nao ocupa lugar e da no mesmo; com
+ * zoom de pinca (a `innerWidth` menor que o layout) e sem medida, vale a de sempre.
+ */
+function larguraSemBarra(): number {
+  // Sem `doctype` (modo antigo), quem diz a janela e o `body`, e nao o `<html>`.
+  const raiz = document.compatMode === 'BackCompat' ? document.body : document.documentElement
+  const largura = raiz?.clientWidth ?? 0
+  return largura > 0 && largura <= window.innerWidth ? largura : window.innerWidth
 }
 
 /**

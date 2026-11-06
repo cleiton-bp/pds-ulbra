@@ -35,7 +35,7 @@ function montar(enviando = false) {
   const aoConfirmar = vi.fn()
   const aoCancelar = vi.fn()
   render(<AskInfoDialog enviando={enviando} aoConfirmar={aoConfirmar} aoCancelar={aoCancelar} />)
-  const dialogo = screen.getByRole('dialog', { name: 'Pedir uma informação' })
+  const dialogo = screen.getByRole('dialog', { name: 'Pedir informação' })
   return { aoConfirmar, aoCancelar, dialogo }
 }
 
@@ -50,12 +50,12 @@ describe('pedir uma informacao', () => {
     const pedir = within(dialogo).getByRole('button', { name: 'Pedir' }) as HTMLButtonElement
     expect(pedir.disabled).toBe(true)
 
-    fireEvent.change(within(dialogo).getByLabelText('O que falta'), {
+    fireEvent.change(within(dialogo).getByLabelText('O que você precisa saber'), {
       target: { value: '   ' },
     })
     expect(pedir.disabled).toBe(true)
 
-    fireEvent.change(within(dialogo).getByLabelText('O que falta'), {
+    fireEvent.change(within(dialogo).getByLabelText('O que você precisa saber'), {
       target: { value: '  Em qual navegador?  ' },
     })
     fireEvent.click(pedir)
@@ -64,7 +64,7 @@ describe('pedir uma informacao', () => {
 
   it('com texto escrito, o clique fora nao fecha; o Esc e o "Cancelar" continuam', async () => {
     const { aoCancelar, dialogo } = montar()
-    const campo = within(dialogo).getByLabelText('O que falta')
+    const campo = within(dialogo).getByLabelText('O que você precisa saber')
     fireEvent.change(campo, { target: { value: 'Em qual navegador?' } })
 
     await clicarFora()

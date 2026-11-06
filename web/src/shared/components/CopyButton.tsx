@@ -13,6 +13,7 @@ interface CopyButtonProps {
   size?: 'md' | 'sm'
   /** Depois de copiar de verdade: quem chama fica sabendo que o texto saiu daqui. */
   onCopied?: () => void
+  className?: string
 }
 
 export function CopyButton({
@@ -21,6 +22,7 @@ export function CopyButton({
   variant = 'secondary',
   size = 'md',
   onCopied,
+  className,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
 
@@ -34,6 +36,7 @@ export function CopyButton({
     <Button
       variant={variant}
       size={size}
+      className={className}
       onClick={async () => {
         const copiou = await copyText(value)
         setCopied(copiou)

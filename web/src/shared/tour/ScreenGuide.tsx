@@ -84,7 +84,16 @@ export function acharAlvo(nome: string): HTMLElement | null {
  * nem clique nem atalho. Quem mexe e a pessoa, depois. O mesmo motor do tour do editor
  * de modelagem, com as cores e os botoes do painel.
  */
-export function ScreenGuide({ passos, aoFechar }: { passos: GuideStep[]; aoFechar: () => void }) {
+export function ScreenGuide({
+  nome = 'Guia da tela',
+  passos,
+  aoFechar,
+}: {
+  /** "Guia do Trabalho": o cartao diz de qual tela e o guia, em todos os passos. */
+  nome?: string
+  passos: GuideStep[]
+  aoFechar: () => void
+}) {
   const [indice, setIndice] = useState(0)
   // O que esta na tela: o passo e a caixa do alvo. So muda quando o alvo do passo novo
   // foi achado, entao o passo pulado nao chega a piscar.
@@ -282,8 +291,11 @@ export function ScreenGuide({ passos, aoFechar }: { passos: GuideStep[]; aoFecha
               style={{ left: lugar.left, top: lugar.top, width: largura }}
             >
               <div key={visto?.indice} className="animate-fade-in" aria-live="polite">
-                <p className="mb-1.5 text-caption text-fg-muted">
-                  Passo {posicao} de {passos.length}
+                <p className="mb-1.5 flex items-baseline justify-between gap-3 text-caption text-fg-muted">
+                  <span className="min-w-0 truncate font-medium text-fg">{nome}</span>
+                  <span className="flex-none tabular-nums">
+                    Passo {posicao} de {passos.length}
+                  </span>
                 </p>
                 <Dialog.Title className="mb-1 font-semibold text-body text-fg">
                   {passo.titulo}

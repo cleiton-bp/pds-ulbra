@@ -15,6 +15,16 @@ const loaderUrl = (
   readText(import.meta.env.VITE_LOADER_URL) || `${window.location.origin}/v1/relatofacil.js`
 ).replace(/\/+$/, '')
 
+/** A origem de um endereco, ou nulo se ele faltar ou nao for um endereco. */
+function originOf(value: string): string | null {
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
+}
+
 export const environment = {
   /** Sem barra no fim: o caminho de cada rota ja comeca com uma. */
   apiUrl: (readText(import.meta.env.VITE_API_URL) || 'http://localhost:5080').replace(/\/+$/, ''),
@@ -56,4 +66,13 @@ export const environment = {
    * houver dominio proprio, a reescrita entra e este valor muda em um lugar so.
    */
   trackingUrl: `${new URL(loaderUrl).origin}/tracking.html`,
+
+  /**
+   * A origem do painel quando ele e o quadro saem de enderecos diferentes: em producao,
+   * o painel na raiz e o quadro na CDN (`VITE_PANEL_URL`). E a unica origem de fora que o
+   * quadro em previa aceita (`connectToPreviewPanel`), e o que deixa a previa ao vivo
+   * funcionar entre os dois enderecos. Painel e quadro saem do mesmo build, entao os dois
+   * sabem o mesmo valor. Sem ela, so a propria origem, como no desenvolvimento.
+   */
+  panelOrigin: originOf(readText(import.meta.env.VITE_PANEL_URL)),
 } as const

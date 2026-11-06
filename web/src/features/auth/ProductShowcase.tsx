@@ -175,13 +175,26 @@ const BAIXA: CardPriorityViewModel = {
 const ANA = { UserPublicId: '', Name: 'Ana Souza', AvatarUrl: null, InTeam: true }
 
 /**
+ * Os cards do quadro um pouco menos acolchoados no celular, onde a coluna tem uns 90: com
+ * o respiro de fabrica, "Cupom" quebrava no meio da palavra.
+ */
+const CARD_DO_QUADRO = 'max-sm:p-2'
+
+/**
  * O que ja existia em cada coluna. Quadro vazio parece produto novo, e o card do relato
  * precisa chegar num lugar onde ja se trabalha.
  */
 const OUTROS_CARDS: Readonly<Partial<Record<string, readonly MiniCardProps[]>>> = {
-  'a-fazer': [{ title: 'Cupom não aplica', priority: MEDIA }],
-  fazendo: [{ title: 'Foto some ao ampliar', priority: BAIXA, assignee: 'Bruno Lima' }],
-  feito: [{ title: 'Texto do rodapé', assignee: 'Ana Souza' }],
+  'a-fazer': [{ title: 'Cupom não aplica', priority: MEDIA, className: CARD_DO_QUADRO }],
+  fazendo: [
+    {
+      title: 'Foto some ao ampliar',
+      priority: BAIXA,
+      assignee: 'Bruno Lima',
+      className: CARD_DO_QUADRO,
+    },
+  ],
+  feito: [{ title: 'Texto do rodapé', assignee: 'Ana Souza', className: CARD_DO_QUADRO }],
 }
 
 /** O carrinho do site de exemplo. O total e a soma, para ninguem desconfiar da conta. */
@@ -1003,7 +1016,7 @@ function LadoDoSite({
         aria-hidden={historia.aberta || undefined}
         onClick={acoes.abrir}
         className={cn(
-          'absolute right-4 bottom-4 rounded-full bg-landing-store px-4 py-2 font-medium text-detail text-landing-store-fg shadow-md transition-[scale,filter] duration-150 ease-[var(--ease-out)] hover:brightness-90 active:scale-[0.97] motion-reduce:transition-none',
+          'absolute right-4 bottom-4 rounded-full bg-landing-store px-4 py-2 font-medium text-detail text-landing-store-fg shadow-md transition-[scale,filter] duration-150 ease-[var(--ease-out)] hover:brightness-90 active:scale-[0.97] motion-reduce:transition-none pointer-coarse:py-2.5',
           historia.aberta &&
             'pointer-events-none scale-95 opacity-0 transition-[opacity,scale] duration-150',
         )}
@@ -1064,7 +1077,7 @@ function Loja({
       <button
         type="button"
         onClick={(evento) => aoTentarPagar(evento.currentTarget)}
-        className="mt-4 h-9 self-start rounded-lg border border-landing-store bg-surface-raised px-5 text-detail text-fg transition-[scale,background-color] duration-150 ease-[var(--ease-out)] hover:bg-surface-sunken active:scale-[0.97]"
+        className="mt-4 h-9 self-start rounded-lg border border-landing-store bg-surface-raised px-5 text-detail text-fg transition-[scale,background-color] duration-150 ease-[var(--ease-out)] hover:bg-surface-sunken active:scale-[0.97] pointer-coarse:h-10"
       >
         Pagar com cartão
       </button>
@@ -1094,6 +1107,8 @@ function Formulario({
   const [enviando, setEnviando] = useState(false)
   const relogio = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const temTitulo = historia.titulo.trim().length > 0
+  // No toque (`pointer-coarse:`), o fechar, os tipos, o campo e o Enviar crescem ate uns 40
+  // para o dedo; com o mouse o formulario segue o desenho compacto da ferramenta.
   const campo =
     'mt-1 h-8 w-full rounded-lg border border-border-control bg-surface-raised px-2.5 text-detail text-fg transition-colors duration-150 disabled:text-fg-muted'
 
@@ -1125,7 +1140,7 @@ function Formulario({
           aria-label="Fechar"
           onClick={aoFechar}
           disabled={enviando}
-          className="-mt-1 -mr-1 flex size-7 flex-none items-center justify-center rounded-md text-fg-muted transition-[background-color,color,scale] duration-150 hover:bg-surface-sunken hover:text-fg active:scale-[0.94]"
+          className="-mt-1 -mr-1 flex size-7 flex-none items-center justify-center rounded-md text-fg-muted transition-[background-color,color,scale] duration-150 hover:bg-surface-sunken hover:text-fg active:scale-[0.94] pointer-coarse:-mt-2.5 pointer-coarse:-mr-2.5 pointer-coarse:size-10"
         >
           <svg viewBox="0 0 12 12" className="size-3" aria-hidden="true">
             <path
@@ -1150,7 +1165,7 @@ function Formulario({
                 aria-pressed={marcado}
                 onClick={() => acoes.escolher(indice)}
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption transition duration-150 active:scale-[0.96]',
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption transition duration-150 active:scale-[0.96] pointer-coarse:px-3 pointer-coarse:py-2.5',
                   marcado
                     ? 'border-landing-store bg-landing-store text-landing-store-fg'
                     : 'border-border text-fg-muted hover:border-border-control hover:text-fg',
@@ -1177,7 +1192,7 @@ function Formulario({
         maxLength={80}
         disabled={enviando}
         onChange={(evento) => acoes.escrever('titulo', evento.target.value)}
-        className={campo}
+        className={cn(campo, 'pointer-coarse:h-10')}
       />
 
       <label htmlFor={`${id}-resposta`} className="mt-2.5 block text-caption text-fg-muted">
@@ -1226,7 +1241,7 @@ function Formulario({
           disabled={!temTitulo}
           aria-busy={enviando || undefined}
           data-vez={temTitulo && !enviando ? '' : undefined}
-          className="relative rounded-lg bg-landing-store px-3.5 py-1.5 font-medium text-caption text-landing-store-fg transition-[scale,filter] duration-150 ease-[var(--ease-out)] enabled:hover:brightness-90 enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-fg-disabled motion-reduce:transition-none"
+          className="relative rounded-lg bg-landing-store px-3.5 py-1.5 font-medium text-caption text-landing-store-fg transition-[scale,filter] duration-150 ease-[var(--ease-out)] enabled:hover:brightness-90 enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-fg-disabled motion-reduce:transition-none pointer-coarse:px-4 pointer-coarse:py-3"
         >
           <span
             className={cn(
@@ -1366,7 +1381,7 @@ function Confirmacao({ aoAcompanhar }: { aoAcompanhar: () => void }) {
         type="button"
         data-foco="acompanhar"
         onClick={aoAcompanhar}
-        className="animate-materializa self-start text-detail text-fg underline underline-offset-4 transition-colors duration-150 [animation-delay:140ms] hover:text-fg-muted"
+        className="animate-materializa self-start text-detail text-fg underline underline-offset-4 transition-colors duration-150 [animation-delay:140ms] hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
       >
         Acompanhar este relato
       </button>
@@ -1392,11 +1407,34 @@ function Acompanhamento({
   // biome-ignore lint/correctness/useExhaustiveDependencies: a etapa publica e o gatilho; a medida e lida do DOM.
   useLayoutEffect(() => {
     const rotulo = lista.current?.querySelector<HTMLElement>('[data-etapa-atual]')
-    if (!rotulo) return
+    // Escondido (o lado do site no celular, enquanto o visitante move o card), o rotulo
+    // mede zero e o "agora" cairia em cima de Recebido: quem mede e o observador abaixo,
+    // quando a lista volta a aparecer.
+    if (!rotulo || rotulo.offsetParent === null) return
     const x = rotulo.offsetLeft + rotulo.offsetWidth + 8
     const y = rotulo.offsetTop
     setMarca((antes) => ({ x, y, anda: antes !== null && !semMovimento }))
   }, [historia.etapaPublica])
+
+  // A lista volta a aparecer (a troca de lado no celular) ou muda de largura (o celular
+  // deitado quebra a linha em outro lugar): o "agora" vai para a etapa de agora, andando.
+  useLayoutEffect(() => {
+    const dono = lista.current
+    if (!dono || typeof ResizeObserver === 'undefined') return
+    const observador = new ResizeObserver(() => {
+      const rotulo = dono.querySelector<HTMLElement>('[data-etapa-atual]')
+      if (!rotulo || rotulo.offsetParent === null) return
+      const x = rotulo.offsetLeft + rotulo.offsetWidth + 8
+      const y = rotulo.offsetTop
+      setMarca((antes) =>
+        antes && antes.x === x && antes.y === y
+          ? antes
+          : { x, y, anda: antes !== null && !semMovimento },
+      )
+    })
+    observador.observe(dono)
+    return () => observador.disconnect()
+  }, [semMovimento])
 
   return (
     <div className="flex h-full flex-1 animate-materializa flex-col">
@@ -1523,7 +1561,7 @@ function Fechamento({ historia, acoes }: { historia: Historia; acoes: AcoesDoSit
         <button
           type="button"
           onClick={() => acoes.avaliar(null)}
-          className="mt-1.5 text-caption text-fg-muted underline underline-offset-4 transition-colors duration-150 hover:text-fg"
+          className="mt-1.5 text-caption text-fg-muted underline underline-offset-4 transition-colors duration-150 hover:text-fg pointer-coarse:-mt-1.5 pointer-coarse:-mb-3 pointer-coarse:py-3"
         >
           Prefiro não responder
         </button>
@@ -1626,7 +1664,7 @@ function Estrelas({ aoEscolher }: { aoEscolher: (nota: number) => void }) {
             onMouseEnter={() => setRealce(nota)}
             onFocus={() => setRealce(nota)}
             onBlur={() => setRealce(0)}
-            className="rounded-md p-1 transition-[scale] duration-150 ease-[var(--ease-out)] hover:scale-110 active:scale-95 motion-reduce:transition-none"
+            className="rounded-md p-1 transition-[scale] duration-150 ease-[var(--ease-out)] hover:scale-110 active:scale-95 motion-reduce:transition-none pointer-coarse:p-2.5"
           >
             <svg
               viewBox="0 0 20 20"
@@ -1960,8 +1998,10 @@ function QuadroDoTime({
           <span className="text-caption text-fg-muted">Loja Online</span>
         </div>
 
+        {/* No celular cada coluna fica com uns 90: so as palavras longas ("desenvolvimento")
+            hifenizam, em vez de passar por baixo da coluna vizinha; as curtas quebram inteiras. */}
         <MiniBoard
-          className="mt-3 gap-1.5 overflow-visible sm:gap-2"
+          className="mt-3 gap-1.5 overflow-visible max-sm:hyphens-auto max-sm:[hyphenate-limit-chars:10_4_4] sm:gap-2"
           columns={COLUNAS}
           cardColumnId={COLUNAS[historia.coluna]?.id ?? null}
           highlightColumnId={destino === null ? null : (COLUNAS[destino]?.id ?? null)}
@@ -2080,8 +2120,10 @@ function CardDoRelato({
       onPointerMove={aoArrastar}
       onPointerUp={aoSoltar}
       onPointerCancel={aoCancelar}
+      // No celular o respiro dos outros cards do quadro (`CARD_DO_QUADRO`): com 10 de cada
+      // lado, o numero do card nao cabia na coluna de uns 90.
       className={cn(
-        'relative rounded-lg border bg-surface-lifted p-2.5 text-left outline-none transition-shadow duration-200 sm:p-3',
+        'relative rounded-lg border bg-surface-lifted p-2 text-left outline-none transition-shadow duration-200 sm:p-3',
         livre && 'cursor-grab touch-none select-none hover:border-border-control',
         pegando
           ? 'z-sticky cursor-grabbing border-border-control shadow-lg'
@@ -2101,9 +2143,11 @@ function CardDoRelato({
         {historia.titulo}
       </p>
 
-      <div className="mt-2.5 flex items-center justify-between gap-2 text-caption text-fg-muted">
+      {/* No celular quem pegou o card desce para a linha de baixo quando nao cabe ao lado:
+          preso a direita, o avatar ficava por cima do numero do card e da prioridade. */}
+      <div className="mt-2.5 flex items-center justify-between gap-2 text-caption text-fg-muted max-sm:flex-wrap max-sm:gap-y-1.5">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5">
             <span
               title={tipo.nome}
               className={cn(
@@ -2136,7 +2180,7 @@ function CardDoRelato({
           data-vez=""
           aria-label={`Mover para ${proxima.name}`}
           onClick={() => aoMover(historia.coluna + 1)}
-          className="-mx-2.5 sm:-mx-3 -mb-2.5 sm:-mb-3 relative mt-2.5 flex w-[calc(100%+1.25rem)] items-center justify-center gap-1 rounded-b-lg border-border border-t py-1.5 text-caption text-fg-muted transition-[background-color,color] duration-150 hover:bg-surface-sunken hover:text-fg sm:w-[calc(100%+1.5rem)] pointer-coarse:py-2.5"
+          className="-mx-2 sm:-mx-3 -mb-2 sm:-mb-3 relative mt-2.5 flex w-[calc(100%+1rem)] items-center justify-center gap-1 rounded-b-lg border-border border-t py-1.5 text-caption text-fg-muted transition-[background-color,color] duration-150 hover:bg-surface-sunken hover:text-fg sm:w-[calc(100%+1.5rem)] pointer-coarse:py-2.5"
         >
           <span
             aria-hidden="true"

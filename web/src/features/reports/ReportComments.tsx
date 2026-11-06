@@ -453,12 +453,14 @@ function Caixa({
                   aoCorrigir &&
                   aoApagar &&
                   corrigindo !== comentario.PublicId && (
-                    <span className="ml-auto flex gap-2">
+                    // No dedo, a area dos dois links cresce para cima e para baixo, e eles
+                    // se afastam: lado a lado com 8 px, o Apagar vinha no lugar do Editar.
+                    <span className="ml-auto flex gap-2 pointer-coarse:gap-5">
                       <button
                         type="button"
                         onClick={() => setCorrigindo(comentario.PublicId)}
                         aria-label="Editar o seu comentário"
-                        className="underline-offset-2 hover:text-fg hover:underline"
+                        className="underline-offset-2 hover:text-fg hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
                       >
                         Editar
                       </button>
@@ -466,7 +468,7 @@ function Caixa({
                         type="button"
                         onClick={() => setApagando(comentario)}
                         aria-label="Apagar o seu comentário"
-                        className="underline-offset-2 hover:text-fg hover:underline"
+                        className="underline-offset-2 hover:text-fg hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
                       >
                         Apagar
                       </button>
@@ -510,7 +512,7 @@ function Caixa({
           <button
             type="button"
             onClick={desfazerEnvio}
-            className="font-medium underline underline-offset-2 hover:text-fg-muted"
+            className="font-medium underline underline-offset-2 hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
           >
             Desfazer
           </button>
@@ -569,9 +571,14 @@ function Caixa({
             >
               {rotuloDoBotao}
             </Button>
+            {/* No celular nao ha Ctrl: a dica so ocupava lugar. Continua dita a quem usa
+                leitor de tela, que a le pelo `aria-describedby`. */}
             <span
               id={dica}
-              className={cn('text-caption', destaque ? 'text-warn-fg' : 'text-fg-muted')}
+              className={cn(
+                'text-caption pointer-coarse:hidden',
+                destaque ? 'text-warn-fg' : 'text-fg-muted',
+              )}
             >
               Ctrl+Enter envia
             </span>
@@ -586,7 +593,7 @@ function Caixa({
             if (!aberto) setApagando(null)
           }}
           title="Apagar o comentário?"
-          description="O comentário sai da conversa, e quem foi mencionado nele deixa de ver o aviso no sino."
+          description="Quem foi mencionado nele deixa de ver o aviso no sino."
           confirmLabel="Apagar"
           tone="warn"
           onConfirm={async () => {

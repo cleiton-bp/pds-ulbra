@@ -32,6 +32,7 @@ import type { PreviewFormPart } from '@/embed/protocol'
 import { buildReportContext } from '@/embed/reportContext'
 import { readReporterCode, writeReporterCode } from '@/embed/reporterCodeStore'
 import { findRealType } from '@/embed/resolveSettings'
+import { STICKY_TOP_SCROLL_PADDING, StickyTop } from '@/embed/StickyTop'
 import { isFallbackType } from '@/embed/settings'
 import { useAttachmentDraft } from '@/embed/useAttachmentDraft'
 
@@ -111,6 +112,12 @@ interface EmbedAppProps {
    * `preview`**: fora da previa, e ignorada — no site do cliente nada se contorna.
    */
   highlight?: PreviewFormPart | null
+  /**
+   * O tema do painel, que vale no lugar do sistema quando o tema escolhido e `Auto`. **So
+   * vale com `preview`**: o botao da previa e desenhado no painel, no tema dele, e o
+   * formulario acompanha. No site do cliente, `Auto` segue o sistema de quem visita.
+   */
+  previewTheme?: 'light' | 'dark' | null
 }
 
 export function EmbedApp({
@@ -120,6 +127,7 @@ export function EmbedApp({
   media = null,
   preview = false,
   highlight = null,
+  previewTheme = null,
 }: EmbedAppProps) {
   /**
    * Os tipos e o pre-marcado. **Comecam da configuracao lida e sao relidos a cada
@@ -303,15 +311,24 @@ export function EmbedApp({
 
   // O tema fixado pelo cliente vale sempre; `Auto` acompanha o sistema de quem
   // visita, inclusive se ele mudar com o quadro ja aberto. **Com fundo proprio, quem
-  // decide e o fundo**, e nao ha sistema para ouvir: a cor nao muda com ele.
+  // decide e o fundo**, e nao ha sistema para ouvir: a cor nao muda com ele. **Na
+  // previa, o `Auto` segue o tema do painel**, o mesmo do botao desenhado la.
+  const temaDoPainel = preview ? previewTheme : null
   useEffect(() => {
     const apply = (resolved: 'light' | 'dark') =>
       document.documentElement.setAttribute('data-theme', resolved)
 
+    if (isUsableAccent(settings.FormBackgroundColor)) {
+      apply(formTheme(settings.Theme, settings.FormBackgroundColor))
+      return
+    }
+    if (settings.Theme === 'Auto' && temaDoPainel) {
+      apply(temaDoPainel)
+      return
+    }
     apply(formTheme(settings.Theme, settings.FormBackgroundColor))
-    if (isUsableAccent(settings.FormBackgroundColor)) return
     return watchSystemTheme(settings.Theme, apply)
-  }, [settings.Theme, settings.FormBackgroundColor])
+  }, [settings.Theme, settings.FormBackgroundColor, temaDoPainel])
 
   const style = useMemo(
     () => ({ ...accentStyle(settings), ...formSurfaceStyle(settings.FormBackgroundColor) }),
@@ -696,10 +713,14 @@ export function EmbedApp({
     const form = formulario.current
     const parte = realce ? form?.querySelector<HTMLElement>('[data-preview-highlight]') : null
     if (!form || !parte) return
+    // O topo preso (o primeiro filho) cobre o alto do formulario: a parte que sobe para a
+    // vista para abaixo dele, e nao escondida atras. A nao ser que seja o proprio topo.
+    const topo = form.firstElementChild
+    const coberto = topo && !topo.contains(parte) ? topo.getBoundingClientRect().height : 0
     const fora = form.getBoundingClientRect()
     const dentro = parte.getBoundingClientRect()
     const folga = 12
-    if (dentro.top < fora.top) form.scrollTop -= fora.top - dentro.top + folga
+    if (dentro.top < fora.top + coberto) form.scrollTop -= fora.top + coberto - dentro.top + folga
     else if (dentro.bottom > fora.bottom) form.scrollTop += dentro.bottom - fora.bottom + folga
   }, [realce])
   const aoAbrir = useRef((_opcoes?: OpenOptions) => {})
@@ -889,7 +910,7 @@ export function EmbedApp({
               href={trackingLink}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-detail text-fg underline underline-offset-4"
+              className="font-medium text-detail text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
             >
               Acompanhar este relato
             </a>
@@ -953,7 +974,14 @@ export function EmbedApp({
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
           {host && (
-            <Button variant="ghost" size="sm" onClick={collapse} aria-label="Fechar">
+            // Como no topo do formulario: no toque cresce para fora, na altura do titulo.
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={collapse}
+              aria-label="Fechar"
+              className="pointer-coarse:-my-1.5"
+            >
               Fechar
             </Button>
           )}
@@ -975,19 +1003,33 @@ export function EmbedApp({
       onPaste={sending ? undefined : colar}
       // `overflow-y-auto` e a ultima linha de defesa: com o quadro baixo demais
       // para o conteudo minimo, rola em vez de aparar.
-      className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5"
+      className={cn(
+        'flex h-full flex-col gap-4 overflow-y-auto bg-surface p-5',
+        STICKY_TOP_SCROLL_PADDING,
+      )}
     >
-      <div
-        data-preview-highlight={marca('form-top')}
-        className={cn('flex items-start justify-between gap-3', contorno('form-top'))}
-      >
-        <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
-        {host && (
-          <Button variant="ghost" size="sm" onClick={collapse} aria-label="Fechar">
-            Fechar
-          </Button>
-        )}
-      </div>
+      {/* O topo fica preso ao rolar: ver `StickyTop`. */}
+      <StickyTop>
+        <div
+          data-preview-highlight={marca('form-top')}
+          className={cn('flex items-start justify-between gap-3', contorno('form-top'))}
+        >
+          <h1 className="font-semibold text-fg text-lead tracking-tight">{settings.Title}</h1>
+          {host && (
+            // No toque o botao cresce para fora (44), sem mexer no topo: o "Fechar" fica na
+            // altura do titulo, como no mouse, e o topo preso nao engorda.
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={collapse}
+              aria-label="Fechar"
+              className="pointer-coarse:-my-1.5"
+            >
+              Fechar
+            </Button>
+          )}
+        </div>
+      </StickyTop>
 
       {/* **No modo do codigo, sempre — e nao so quando ha codigo guardado.** Quem trocou
           de navegador nao tem nada guardado e e justamente quem mais precisa da entrada:
@@ -997,7 +1039,7 @@ export function EmbedApp({
         <button
           type="button"
           onClick={() => !preview && setView('list')}
-          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4"
+          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4 pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
         >
           Ver os meus relatos
         </button>
@@ -1007,7 +1049,7 @@ export function EmbedApp({
         <button
           type="button"
           onClick={() => !preview && setView('public')}
-          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4"
+          className="-mt-1 self-start font-medium text-detail text-fg underline underline-offset-4 pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
         >
           Ver o que já foi relatado
         </button>
@@ -1043,7 +1085,7 @@ export function EmbedApp({
               aria-pressed={tipo?.PublicId === option.PublicId}
               onClick={() => setTypeId(option.PublicId)}
               className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors',
+                'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-detail transition-colors pointer-coarse:h-11',
                 tipo?.PublicId === option.PublicId
                   ? 'border-transparent bg-[var(--widget-accent)] text-[var(--widget-ink)]'
                   : 'border-border bg-surface text-fg hover:bg-surface-sunken',
@@ -1081,7 +1123,7 @@ export function EmbedApp({
             maxLength={MAX_CARD_TITLE_LENGTH}
             required={settings.ReportTitleMode === 'Required'}
             placeholder={settings.ReportTitlePlaceholder}
-            className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder"
+            className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder pointer-coarse:h-11"
           />
         </div>
       )}
@@ -1231,12 +1273,12 @@ export function EmbedApp({
         quem le esta pensando no proprio problema, nao no fluxo de trabalho de
         quem vai atender.
       */}
-      <label className="flex cursor-pointer items-start gap-2 text-detail text-fg-muted">
+      <label className="flex cursor-pointer items-start gap-2 text-detail text-fg-muted pointer-coarse:-my-2.5 pointer-coarse:py-2.5">
         <input
           type="checkbox"
           checked={acceptsQuestions}
           onChange={(event) => setAcceptsQuestions(event.target.checked)}
-          className="mt-0.5 flex-none accent-[var(--widget-accent)]"
+          className="mt-0.5 size-3.5 flex-none accent-[var(--widget-accent)]"
         />
         <span>Pode me perguntar algo sobre isto, se precisarem</span>
       </label>
@@ -1254,20 +1296,20 @@ export function EmbedApp({
             value={reporterName}
             onChange={(event) => setReporterName(event.target.value)}
             maxLength={MAX_REPORTER_NAME_LENGTH}
-            className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder"
+            className="h-9 rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder pointer-coarse:h-11"
           />
 
           {/* **Só existe onde o nome poderia aparecer.** Num projeto que não
               publica identificado, oferecer "quero assinar" prometeria uma
               vitrine que não existe. */}
           {ehPublico && settings.Visibility === 'PublicIdentified' && (
-            <label className="flex cursor-pointer items-start gap-2 text-detail text-fg-muted">
+            <label className="flex cursor-pointer items-start gap-2 text-detail text-fg-muted pointer-coarse:-my-2 pointer-coarse:py-2">
               <input
                 type="checkbox"
                 checked={signs}
                 disabled={reporterName.trim().length === 0}
                 onChange={(event) => setSigns(event.target.checked)}
-                className="mt-0.5 flex-none accent-[var(--widget-accent)]"
+                className="mt-0.5 size-3.5 flex-none accent-[var(--widget-accent)]"
               />
               <span>Quero que o meu nome apareça junto deste relato</span>
             </label>
@@ -1311,7 +1353,7 @@ export function EmbedApp({
           !tipo || !temConteudo || longoDemais || faltaTitulo || sending || draft.preparando
         }
         className={cn(
-          'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg',
+          'inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg pointer-coarse:h-11',
           'border border-transparent font-medium text-body transition-opacity',
           'bg-[var(--widget-accent)] text-[var(--widget-ink)]',
           'enabled:hover:opacity-90',

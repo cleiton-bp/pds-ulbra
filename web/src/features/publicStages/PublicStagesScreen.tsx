@@ -96,8 +96,8 @@ export function PublicStagesScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -589,9 +589,11 @@ export function PublicStagesScreen() {
                           // leva direto a ligacao, que mora em Colunas.
                           <Etiqueta tom="aviso">
                             Nenhuma coluna cai aqui <span aria-hidden>→</span>{' '}
+                            {/* No toque o link cresce 12 em cima e embaixo; em linha, o
+                                respiro nao mexe na altura da etiqueta. */}
                             <Link
                               to={LIGAR_EM_COLUNAS}
-                              className="font-medium underline underline-offset-2"
+                              className="font-medium underline underline-offset-2 pointer-coarse:py-3"
                             >
                               Ligar em Colunas
                             </Link>

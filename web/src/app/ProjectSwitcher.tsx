@@ -160,8 +160,11 @@ export function ProjectSwitcher({
 
   let indice = -1
 
+  // `flex` na raiz: o botao encolhe ate o espaco que a barra deixa. Sem isso, a palavra mais
+  // longa do nome segurava a largura dele, e no celular estreito, com os botoes de 40 do
+  // toque, o seletor passava por baixo do guia.
   return (
-    <div ref={raiz} className="relative min-w-0">
+    <div ref={raiz} className="relative flex min-w-0">
       <button
         ref={gatilho}
         type="button"
@@ -170,11 +173,12 @@ export function ProjectSwitcher({
         aria-expanded={aberto}
         onClick={() => (aberto ? fechar(false) : setAberto(true))}
         {...guideTarget('projeto')}
-        className="flex h-8 min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised px-2.5 font-medium text-fg text-body transition-colors hover:bg-surface-sunken"
+        className="flex h-8 min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-raised px-2.5 font-medium text-fg text-body transition-colors hover:bg-surface-sunken pointer-coarse:h-10 max-sm:h-11 max-sm:gap-1.5 max-sm:border-transparent max-sm:bg-transparent max-sm:px-1.5 max-sm:font-semibold"
       >
-        {/* No celular, duas linhas pequenas no lugar de uma cortada: os projetos "Loja,
-            ..." se diferenciam justamente no fim do nome. */}
-        <span className="min-w-0 text-left max-sm:line-clamp-2 max-sm:text-caption max-sm:leading-tight sm:max-w-64 sm:truncate">
+        {/* No celular o projeto e o titulo da barra: sem caixa, no tamanho do texto, e em ate
+            duas linhas no lugar de uma cortada, porque os projetos "Loja, ..." se
+            diferenciam justamente no fim do nome. A palavra que nao cabe hifeniza. */}
+        <span className="min-w-0 text-left max-sm:line-clamp-2 max-sm:break-words max-sm:leading-tight max-sm:hyphens-auto sm:max-w-64 sm:truncate">
           {project.Name}
         </span>
         <span
@@ -207,16 +211,19 @@ export function ProjectSwitcher({
               aria-controls={listaId}
               aria-activedescendant={linhas.length > 0 ? idDaLinha(ativo) : undefined}
               aria-autocomplete="list"
-              className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-body text-fg placeholder:text-fg-placeholder [&::-webkit-search-cancel-button]:hidden"
+              className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-body text-fg placeholder:text-fg-placeholder pointer-coarse:h-11 [&::-webkit-search-cancel-button]:hidden"
             />
           </div>
 
+          {/* A lista tambem cabe no celular deitado: o resto do painel (a busca, o pe com
+              os botoes e a distancia ate o topo) mede uns 12rem, e com so 60% da altura o
+              "Criar projeto" e o "Ver todos" ficavam abaixo da borda da tela. */}
           <div
             ref={lista}
             id={listaId}
             role="listbox"
             aria-label="Projetos"
-            className="max-h-[min(26rem,60dvh)] overflow-y-auto overscroll-contain p-1.5"
+            className="max-h-[min(26rem,60dvh,calc(100dvh_-_12rem))] overflow-y-auto overscroll-contain p-1.5"
           >
             {secoes.map((secao) => (
               // biome-ignore lint/a11y/useSemanticElements: um grupo de opcoes dentro da lista, e nao um formulario: `fieldset` anunciaria campos que nao existem.
@@ -282,7 +289,7 @@ export function ProjectSwitcher({
                   setVerArquivados(true)
                   campo.current?.focus()
                 }}
-                className="mt-1 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-caption text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+                className="mt-1 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-caption text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg pointer-coarse:py-[11px]"
               >
                 <span aria-hidden="true">›</span>
                 Mostrar os arquivados ({arquivados.length})
@@ -300,7 +307,7 @@ export function ProjectSwitcher({
               <button
                 type="button"
                 onClick={aoTentarDeNovo}
-                className="w-full rounded-lg px-2.5 py-2 text-left text-caption text-fg-muted hover:bg-surface-sunken"
+                className="w-full rounded-lg px-2.5 py-2 text-left text-caption text-fg-muted hover:bg-surface-sunken pointer-coarse:py-[11px]"
               >
                 Não deu para carregar os outros projetos,{' '}
                 <span className="text-fg underline">tentar de novo</span>

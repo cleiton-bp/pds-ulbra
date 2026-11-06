@@ -81,8 +81,8 @@ export function LabelsScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -386,7 +386,9 @@ export function LabelsScreen() {
                   aria-controls={idPaleta}
                   disabled={creating}
                   onClick={() => setPaletaAberta((aberto) => !aberto)}
-                  className="flex h-9 flex-none items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-detail text-fg enabled:hover:bg-surface-sunken disabled:opacity-60"
+                  // No toque, 44 como o campo e o "Criar etiqueta" ao lado: com 36 ficava
+                  // mais baixo que os dois.
+                  className="flex h-9 flex-none items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-detail text-fg enabled:hover:bg-surface-sunken disabled:opacity-60 pointer-coarse:h-11"
                 >
                   <span
                     aria-hidden

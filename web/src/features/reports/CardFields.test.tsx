@@ -567,125 +567,74 @@ describe('os campos do card', () => {
     )
   })
 
-  it('prazo digitado e rascunho: so vira pedido ao sair do campo, com a data inteira', async () => {
-    ecoarPrazo()
-    montar(card({ DueDate: '2026-03-15' }))
-    const campo = screen.getByLabelText('Prazo')
-
-    // O dia "20" por cima do 15, e depois o ano digitado: o navegador devolve uma data
-    // inteira a cada tecla — 02, 20, e o ano passando por 0002, 0020 e 0202.
-    for (const passo of [
-      '2026-03-02',
-      '2026-03-20',
-      '0002-03-20',
-      '0020-03-20',
-      '0202-03-20',
-      '2026-03-20',
-    ]) {
-      fireEvent.keyDown(campo, { key: '2' })
-      fireEvent.change(campo, { target: { value: passo } })
-    }
-    expect(dublê.prazo).not.toHaveBeenCalled()
-
-    fireEvent.blur(campo)
-    await waitFor(() =>
-      expect(dublê.prazo).toHaveBeenCalledWith('p-1', 'r-1', { DueDate: '2026-03-20' }),
-    )
-    expect(dublê.prazo).toHaveBeenCalledTimes(1)
-  })
-
-  it('o prazo que outra pessoa mudou nao apaga o que esta sendo digitado; fora da digitacao, vale o novo', async () => {
-    ecoarPrazo()
-    const campos = (DueDate: string) => (
-      <CardFields
-        projectPublicId="p-1"
-        reportPublicId="r-1"
-        card={card({ DueDate })}
-        aoMudar={vi.fn()}
-      />
-    )
-    const { rerender } = render(campos('2026-03-15'))
-    const campo = screen.getByLabelText('Prazo') as HTMLInputElement
-
-    fireEvent.keyDown(campo, { key: '2' })
-    fireEvent.change(campo, { target: { value: '2026-03-20' } })
-    // Chega pelo tempo real o prazo que outra pessoa gravou.
-    rerender(campos('2026-04-01'))
-    expect(campo.value).toBe('2026-03-20')
-
-    fireEvent.blur(campo)
-    await waitFor(() =>
-      expect(dublê.prazo).toHaveBeenCalledWith('p-1', 'r-1', { DueDate: '2026-03-20' }),
-    )
-
-    rerender(campos('2026-05-05'))
-    expect(campo.value).toBe('2026-05-05')
-  })
-
-  it('so andar pelo campo, sem mudar a data, e sair nao grava por cima do prazo que outra pessoa pos', async () => {
-    ecoarPrazo()
-    const campos = (DueDate: string) => (
-      <CardFields
-        projectPublicId="p-1"
-        reportPublicId="r-1"
-        card={card({ DueDate })}
-        aoMudar={vi.fn()}
-      />
-    )
-    const { rerender } = render(campos('2026-03-15'))
-    const campo = screen.getByLabelText('Prazo') as HTMLInputElement
-
-    // As setas andam entre dia, mes e ano; nada muda.
-    fireEvent.keyDown(campo, { key: 'ArrowRight' })
-    fireEvent.keyDown(campo, { key: 'ArrowLeft' })
-    rerender(campos('2026-04-01'))
-
-    fireEvent.blur(campo)
-    await waitFor(() => expect(campo.value).toBe('2026-04-01'))
-    expect(dublê.prazo).not.toHaveBeenCalled()
-  })
-
-  it('prazo pela metade, ou fora de 2000 a 2100, nao vira pedido, e o campo volta ao que vale', () => {
-    montar(card({ DueDate: '2026-03-15' }))
-    const campo = screen.getByLabelText('Prazo') as HTMLInputElement
-
-    // Apagar o dia deixa a data pela metade, que o campo devolve vazia.
-    fireEvent.keyDown(campo, { key: 'Backspace' })
-    fireEvent.change(campo, { target: { value: '' } })
-    fireEvent.blur(campo)
-    expect(campo.value).toBe('2026-03-15')
-
-    fireEvent.keyDown(campo, { key: '9' })
-    fireEvent.change(campo, { target: { value: '1999-03-15' } })
-    fireEvent.keyDown(campo, { key: 'Enter' })
-    expect(campo.value).toBe('2026-03-15')
-
-    expect(dublê.prazo).not.toHaveBeenCalled()
-  })
-
-  it('prazo escolhido no calendario grava na hora; Enter confirma o digitado; tirar manda nulo', async () => {
+  it('prazo escolhido no calendario do projeto grava na hora; o mes anda pelas setas; limpar e tirar mandam nulo', async () => {
     ecoarPrazo()
     montar(card({ DueDate: '2026-10-16' }))
-    const campo = screen.getByLabelText('Prazo')
 
-    // Do calendario vem uma mudanca so, sem tecla nenhuma.
-    fireEvent.change(campo, { target: { value: '2026-10-20' } })
+    // O campo mostra o dia curto, e o calendario abre no mes do prazo.
+    const campo = screen.getByRole('button', { name: 'Prazo' })
+    expect(campo.textContent).toContain('16/10/2026')
+    fireEvent.click(campo)
+    fireEvent.click(await screen.findByRole('button', { name: '20 de outubro de 2026' }))
     await waitFor(() =>
       expect(dublê.prazo).toHaveBeenCalledWith('p-1', 'r-1', { DueDate: '2026-10-20' }),
     )
+    // Escolher fecha o calendario.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Próximo mês' })).toBeNull())
 
-    fireEvent.keyDown(campo, { key: '1' })
-    fireEvent.change(campo, { target: { value: '2026-11-01' } })
-    fireEvent.keyDown(campo, { key: 'Enter' })
+    fireEvent.click(screen.getByRole('button', { name: 'Prazo' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo mês' }))
+    fireEvent.click(await screen.findByRole('button', { name: '1 de novembro de 2026' }))
     await waitFor(() =>
       expect(dublê.prazo).toHaveBeenLastCalledWith('p-1', 'r-1', { DueDate: '2026-11-01' }),
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tirar prazo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Prazo' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Limpar' }))
     await waitFor(() =>
       expect(dublê.prazo).toHaveBeenLastCalledWith('p-1', 'r-1', { DueDate: null }),
     )
     expect(dublê.prazo).toHaveBeenCalledTimes(3)
+  })
+
+  it('tirar prazo manda nulo, e o calendario nao oferece dia fora de 2000 a 2100', async () => {
+    ecoarPrazo()
+    montar(card({ DueDate: '2100-12-20' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Prazo' }))
+    // O ultimo mes que a API aceita: o seguinte nao existe, e o dia de depois do limite
+    // (o 1o de janeiro de 2101, que completa a ultima semana) nao se escolhe.
+    expect(
+      (await screen.findByRole('button', { name: 'Próximo mês' })).hasAttribute('disabled'),
+    ).toBe(true)
+    expect(
+      screen.getByRole('button', { name: '1 de janeiro de 2101' }).hasAttribute('disabled'),
+    ).toBe(true)
+    fireEvent.keyDown(screen.getByRole('button', { name: '20 de dezembro de 2100' }), {
+      key: 'Escape',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tirar prazo' }))
+    await waitFor(() => expect(dublê.prazo).toHaveBeenCalledWith('p-1', 'r-1', { DueDate: null }))
+  })
+
+  it('no calendario as setas andam pelos dias e Enter escolhe', async () => {
+    ecoarPrazo()
+    montar(card({ DueDate: '2026-10-16' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Prazo' }))
+    const dia16 = await screen.findByRole('button', { name: '16 de outubro de 2026' })
+    // O escolhido e o unico dia na ordem do Tab, e a seta para baixo vai uma semana adiante.
+    expect(dia16.getAttribute('tabindex')).toBe('0')
+    dia16.focus()
+    fireEvent.keyDown(dia16, { key: 'ArrowDown' })
+    const dia23 = screen.getByRole('button', { name: '23 de outubro de 2026' })
+    await waitFor(() => expect(document.activeElement).toBe(dia23))
+    expect(dia23.getAttribute('tabindex')).toBe('0')
+    fireEvent.click(dia23)
+    await waitFor(() =>
+      expect(dublê.prazo).toHaveBeenCalledWith('p-1', 'r-1', { DueDate: '2026-10-23' }),
+    )
   })
 
   it('arquivado so le: nenhum campo de escolha, e os valores na tela', () => {
@@ -762,8 +711,9 @@ describe('os campos do card', () => {
     dublê.etiquetasDoCard.mockReturnValue(etiquetas.promessa)
     montar(card({ DueDate: '2026-03-15' }))
 
-    fireEvent.change(screen.getByLabelText('Prazo'), { target: { value: '2026-03-20' } })
-    const noPrazo = screen.getByLabelText('Prazo').closest('dd') as HTMLElement
+    fireEvent.click(screen.getByRole('button', { name: 'Prazo' }))
+    fireEvent.click(await screen.findByRole('button', { name: '20 de março de 2026' }))
+    const noPrazo = screen.getByRole('button', { name: 'Prazo' }).closest('dd') as HTMLElement
     expect(within(noPrazo).getByText('Salvando…')).toBeTruthy()
 
     const campo = await screen.findByRole('combobox', { name: 'Adicionar etiqueta' })

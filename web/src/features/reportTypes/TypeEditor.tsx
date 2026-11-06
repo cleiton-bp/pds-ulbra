@@ -255,8 +255,9 @@ export function TypeEditor({
                         aria-describedby={perto ? idContador(pergunta.id) : undefined}
                         placeholder={index === 0 ? 'O que você tentou fazer?' : 'O que aconteceu?'}
                         maxLength={MAX_REPORT_TYPE_QUESTION_LENGTH}
+                        // No toque, 44 como os outros campos do painel.
                         className={cn(
-                          'h-9 w-full rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder disabled:opacity-60',
+                          'h-9 w-full rounded-lg border border-border bg-surface-raised px-3 text-body text-fg placeholder:text-fg-placeholder disabled:opacity-60 pointer-coarse:h-11',
                           perto && 'pr-18',
                         )}
                       />
@@ -275,7 +276,7 @@ export function TypeEditor({
                       aria-label={`Tirar a pergunta ${index + 1}`}
                       title="Tirar a pergunta"
                       onClick={() => tirarPergunta(index)}
-                      className="flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted enabled:hover:bg-surface-sunken enabled:hover:text-fg disabled:opacity-30"
+                      className="flex size-8 flex-none items-center justify-center rounded-lg text-fg-muted enabled:hover:bg-surface-sunken enabled:hover:text-fg disabled:opacity-30 pointer-coarse:size-10"
                     >
                       <svg
                         viewBox="0 0 12 12"
@@ -308,7 +309,8 @@ export function TypeEditor({
         </fieldset>
 
         <div className="mt-4 flex flex-col gap-2 border-border border-t pt-4">
-          <label className="flex items-center gap-2">
+          {/* No toque a linha ganha 10 em cima e embaixo sem mover nada: o alvo tinha 20. */}
+          <label className="flex items-center gap-2 pointer-coarse:-my-2.5 pointer-coarse:py-2.5">
             <input
               type="checkbox"
               checked={draft.caixa}
@@ -441,7 +443,8 @@ export function IconPicker({
             title={REPORT_TYPE_ICON_NAMES[icon]}
             onClick={() => onChange(icon)}
             className={cn(
-              'flex size-8 items-center justify-center rounded-lg border disabled:opacity-60',
+              // No toque, 40: com 32 e 6 de vao, o dedo pegava o desenho do lado.
+              'flex size-8 items-center justify-center rounded-lg border disabled:opacity-60 pointer-coarse:size-10',
               CARD_COLOR_CLASSES[color],
               value === icon && 'ring-2 ring-accent',
             )}

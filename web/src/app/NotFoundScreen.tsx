@@ -11,8 +11,11 @@ import { Button } from '@/shared/components/Button'
 export function NotFoundScreen() {
   const navigate = useNavigate()
 
+  // No celular deitado o desenho ocupava a altura inteira e o titulo e os botoes ficavam
+  // abaixo da dobra: em tela baixa ele encolhe pela altura, e a folga de cima e de baixo
+  // tambem.
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-surface px-5 py-12 text-center">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-surface px-5 py-12 text-center [@media(max-height:30rem)]:py-6">
       <NotFoundArt />
 
       <h1 className="mt-6 font-semibold text-fg text-notice">Não encontramos essa página</h1>
@@ -43,7 +46,7 @@ function NotFoundArt() {
   return (
     <svg
       viewBox="60 70 670 310"
-      className="w-full max-w-160 text-fg"
+      className="max-h-[40dvh] w-full max-w-160 text-fg"
       aria-hidden="true"
       focusable="false"
     >

@@ -275,7 +275,7 @@ describe('as acoes em lote', () => {
     let pergunta = await screen.findByRole('alertdialog', { name: 'Reabrir o relato #1?' })
     expect(
       within(pergunta).getByText(
-        'Tirar o #1 de Feito reabre o relato: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.',
+        'Sair de Feito reabre o relato, e quem relatou volta a ver o andamento, sem o motivo do encerramento.',
       ),
     ).toBeTruthy()
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Cancelar' }))
@@ -314,7 +314,7 @@ describe('as acoes em lote', () => {
     const pergunta = await screen.findByRole('alertdialog', { name: 'Reabrir 2 relatos?' })
     expect(
       within(pergunta).getByText(
-        'Tirar os 2 relatos de Feito reabre cada um: quem relatou volta a ver o relato em andamento, e o motivo do encerramento sai da página de acompanhamento.',
+        'Sair de Feito reabre os 2 relatos, e quem relatou volta a ver o andamento, sem o motivo do encerramento.',
       ),
     ).toBeTruthy()
     fireEvent.click(within(pergunta).getByRole('button', { name: 'Reabrir e mover' }))

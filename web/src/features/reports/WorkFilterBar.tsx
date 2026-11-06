@@ -16,8 +16,11 @@ import {
   TEAM_CARD_FILTER,
 } from '@/data'
 import type { ListFilters } from '@/features/reports/useWorkFilters'
+import { BottomSheet } from '@/shared/components/BottomSheet'
+import { Button } from '@/shared/components/Button'
 import { reportTypeName } from '@/shared/components/ReportTypeGlyph'
 import { SearchShortcutHint } from '@/shared/components/SearchShortcutHint'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
 
 /** O card do time, no fim do menu de tipo: ele nao e um tipo de relato do projeto. */
@@ -132,6 +135,7 @@ export function WorkFilterBar({
   origemBloqueada = false,
   children,
   comoFunciona,
+  vista,
 }: {
   projectPublicId: string
   filters: ReportFilters
@@ -160,6 +164,11 @@ export function WorkFilterBar({
    * barra inteira (`HELP_IN_BAR`), e o quadro continua com uma faixa so antes das colunas.
    */
   comoFunciona?: ReactNode
+  /**
+   * O que muda o jeito de ver, no fim da barra (as raias do quadro). No celular entra com os
+   * filtros, pelo "Filtros", como a ordem: sozinho numa linha, ele empurrava o quadro.
+   */
+  vista?: ReactNode
 }) {
   const [aberta, setAberta] = useState(false)
   /** "Mais filtros", na tela larga: a prioridade, o tipo, a coluna e a sprint. */
@@ -322,6 +331,8 @@ export function WorkFilterBar({
             }
           })
 
+  // A largura de celular, acompanhando o giro: la os filtros sobem numa folha.
+  const celular = useMediaQuery('(max-width: 39.99rem)')
   const mostrarVencidos = !arquivados || filters.overdue
   const mostrarAbertos = !arquivados || filters.open
   // No celular, quantos estao ligados fora da busca: e o que o botao "Filtros" diz.
@@ -338,14 +349,131 @@ export function WorkFilterBar({
     (colunaLigada ? 1 : 0) +
     (sprintLigada ? 1 : 0)
   // No celular, tudo abre pelo "Filtros"; na tela larga, o que esta a vista fica sempre.
-  const aVista = aberta ? 'contents' : 'hidden sm:contents'
+  // No celular o "Filtros" abre a folha de baixo, e nada se abre na barra.
+  const naBarra = aberta && !celular
+  const aVista = naBarra ? 'contents' : 'hidden sm:contents'
   // O de "Mais filtros" aparece com ele aberto — ou ligado: filtro ligado nao some da vista.
   const emMais = (ligado: boolean) =>
-    cn(aberta ? 'contents' : 'hidden', mais || ligado ? 'sm:contents' : 'sm:hidden')
+    cn(naBarra ? 'contents' : 'hidden', mais || ligado ? 'sm:contents' : 'sm:hidden')
+
+  // As pecas da barra, nomeadas uma vez: no computador elas ficam na linha; no celular,
+  // dentro da folha que sobe de baixo (ver `BottomSheet` no fim).
+  const atalhos = (
+    <>
+      <Atalho
+        pressionado={filters.assignees.includes('me')}
+        aoAlternar={() => alternar('assignees', 'me')}
+      >
+        Meus cards
+      </Atalho>
+      {mostrarVencidos && (
+        <Atalho
+          pressionado={filters.overdue}
+          aoAlternar={() => onChange({ ...filters, overdue: !filters.overdue })}
+        >
+          Vencidos
+        </Atalho>
+      )}
+      {mostrarAbertos && (
+        <Atalho
+          pressionado={filters.open}
+          aoAlternar={() => onChange({ ...filters, open: !filters.open })}
+          title="Esconde o que terminou: o relato encerrado e o card na última coluna"
+        >
+          Em aberto
+        </Atalho>
+      )}
+
+      {(origemBloqueada || filters.blockedOrigin) && (
+        <Atalho
+          pressionado={filters.blockedOrigin}
+          aoAlternar={() => onChange({ ...filters, blockedOrigin: !filters.blockedOrigin })}
+          title="Só os relatos que vieram de um domínio bloqueado e ninguém decidiu manter"
+        >
+          Origem bloqueada
+        </Atalho>
+      )}
+    </>
+  )
+  const menusDaPessoa = (
+    <>
+      <MenuDeMarcar
+        rotulo="Responsável"
+        escolhidos={filters.assignees}
+        fixas={[{ value: 'none', label: 'Sem responsável' }]}
+        conhecidas={{ me: 'você' }}
+        opcoes={pessoas}
+        aoAbrir={lerPessoas}
+        aoAlternar={(valor) => alternar('assignees', valor)}
+        aoLimpar={() => onChange({ ...filters, assignees: [] })}
+      />
+      <MenuDeMarcar
+        rotulo="Etiqueta"
+        escolhidos={filters.labels}
+        opcoes={etiquetas}
+        aoAbrir={lerEtiquetas}
+        aoAlternar={(valor) => alternar('labels', valor)}
+        aoLimpar={() => onChange({ ...filters, labels: [] })}
+        vazio="O projeto ainda não tem etiquetas."
+      />
+    </>
+  )
+  const menuDeColuna =
+    lista && comColuna ? (
+      <MenuDeMarcar
+        rotulo="Coluna"
+        escolhidos={lista.filters.columns}
+        opcoes={opcoesDeColuna}
+        aoAbrir={() => {
+          if (lista.colunasFalharam) lista.aoRecarregarColunas()
+        }}
+        aoAlternar={(valor) =>
+          lista.onChange({
+            ...lista.filters,
+            columns: lista.filters.columns.includes(valor)
+              ? lista.filters.columns.filter((item) => item !== valor)
+              : [...lista.filters.columns, valor],
+          })
+        }
+        aoLimpar={() => lista.onChange({ ...lista.filters, columns: [] })}
+        falha="Não deu para carregar as colunas agora."
+        aoTentarDeNovo={lista.aoRecarregarColunas}
+      />
+    ) : null
+  const menuDePrioridade = (
+    <MenuDeMarcar
+      rotulo="Prioridade"
+      escolhidos={filters.priorities}
+      fixasNoFim={[{ value: 'none', label: 'Sem prioridade' }]}
+      opcoes={prioridades}
+      aoAbrir={lerPrioridades}
+      aoAlternar={(valor) => alternar('priorities', valor)}
+      aoLimpar={() => onChange({ ...filters, priorities: [] })}
+    />
+  )
+  const menuDeTipo = (
+    <MenuDeMarcar
+      rotulo="Tipo"
+      escolhidos={filters.types}
+      fixasNoFim={CARD_DO_TIME}
+      opcoes={tipos}
+      aoAbrir={lerTipos}
+      aoAlternar={(valor) => alternar('types', valor)}
+      aoLimpar={() => onChange({ ...filters, types: [] })}
+    />
+  )
+  const menuDeSprint =
+    lista?.sprints && comSprint ? (
+      <MenuDeSprint
+        sprints={lista.sprints}
+        escolhida={lista.filters.sprint}
+        aoEscolher={(sprint) => lista.onChange({ ...lista.filters, sprint })}
+      />
+    ) : null
 
   return (
     <search className="mt-3 mb-3 flex flex-wrap items-center gap-2" aria-label="Filtrar cards">
-      <label className="relative flex min-w-0 flex-[1_1_12rem] sm:max-w-80">
+      <label className="relative flex min-w-0 flex-[1_1_12rem] max-sm:flex-[1_1_8rem] sm:max-w-80">
         <span className="sr-only">Buscar cards</span>
         {buscando ? (
           <svg
@@ -378,11 +506,13 @@ export function WorkFilterBar({
           type="search"
           value={filters.search}
           onChange={(evento) => onChange({ ...filters, search: evento.target.value })}
-          placeholder="Título, texto, #número ou protocolo"
+          // No celular o campo tem uns 150px: a frase inteira aparecia cortada ("Títul").
+          // O que a busca procura continua no `title` e no guia.
+          placeholder={celular ? 'Buscar' : 'Título, texto, #número ou protocolo'}
           title="Busca no título, no texto, no #número e no protocolo (atalho: /)"
           aria-keyshortcuts={searchInputId ? '/' : undefined}
           maxLength={200}
-          className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-20 pl-8 text-detail text-fg placeholder:text-fg-placeholder"
+          className="peer h-8 w-full rounded-lg border border-border bg-surface-raised pr-20 pl-8 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-9"
         />
         <SearchShortcutHint visible={!!searchInputId && !buscando && filters.search === ''} />
         {/* "Buscando…" dentro do campo, e nao num aviso: e onde a pessoa esta olhando. */}
@@ -409,60 +539,8 @@ export function WorkFilterBar({
       </button>
 
       <div className={aVista}>
-        <Atalho
-          pressionado={filters.assignees.includes('me')}
-          aoAlternar={() => alternar('assignees', 'me')}
-        >
-          Meus cards
-        </Atalho>
-        {mostrarVencidos && (
-          <Atalho
-            pressionado={filters.overdue}
-            aoAlternar={() => onChange({ ...filters, overdue: !filters.overdue })}
-          >
-            Vencidos
-          </Atalho>
-        )}
-        {mostrarAbertos && (
-          <Atalho
-            pressionado={filters.open}
-            aoAlternar={() => onChange({ ...filters, open: !filters.open })}
-            title="Esconde o que terminou: o relato encerrado e o card na última coluna"
-          >
-            Em aberto
-          </Atalho>
-        )}
-
-        {(origemBloqueada || filters.blockedOrigin) && (
-          <Atalho
-            pressionado={filters.blockedOrigin}
-            aoAlternar={() => onChange({ ...filters, blockedOrigin: !filters.blockedOrigin })}
-            title="Só os relatos que vieram de um domínio bloqueado e ninguém decidiu manter"
-          >
-            Origem bloqueada
-          </Atalho>
-        )}
-
-        <MenuDeMarcar
-          rotulo="Responsável"
-          escolhidos={filters.assignees}
-          fixas={[{ value: 'none', label: 'Sem responsável' }]}
-          conhecidas={{ me: 'você' }}
-          opcoes={pessoas}
-          aoAbrir={lerPessoas}
-          aoAlternar={(valor) => alternar('assignees', valor)}
-          aoLimpar={() => onChange({ ...filters, assignees: [] })}
-        />
-        <MenuDeMarcar
-          rotulo="Etiqueta"
-          escolhidos={filters.labels}
-          opcoes={etiquetas}
-          aoAbrir={lerEtiquetas}
-          aoAlternar={(valor) => alternar('labels', valor)}
-          aoLimpar={() => onChange({ ...filters, labels: [] })}
-          vazio="O projeto ainda não tem etiquetas."
-        />
-
+        {atalhos}
+        {menusDaPessoa}
         {/* So na tela larga: no celular, o "Filtros" ja abriu tudo. */}
         <button
           type="button"
@@ -480,66 +558,20 @@ export function WorkFilterBar({
       </div>
 
       {/* Nos arquivados, nao: a contagem das colunas e a da tela de Trabalho. */}
-      {lista && comColuna && (
-        <div className={emMais(colunaLigada)}>
-          <MenuDeMarcar
-            rotulo="Coluna"
-            escolhidos={lista.filters.columns}
-            opcoes={opcoesDeColuna}
-            aoAbrir={() => {
-              if (lista.colunasFalharam) lista.aoRecarregarColunas()
-            }}
-            aoAlternar={(valor) =>
-              lista.onChange({
-                ...lista.filters,
-                columns: lista.filters.columns.includes(valor)
-                  ? lista.filters.columns.filter((item) => item !== valor)
-                  : [...lista.filters.columns, valor],
-              })
-            }
-            aoLimpar={() => lista.onChange({ ...lista.filters, columns: [] })}
-            falha="Não deu para carregar as colunas agora."
-            aoTentarDeNovo={lista.aoRecarregarColunas}
-          />
-        </div>
-      )}
-      <div className={emMais(filters.priorities.length > 0)}>
-        <MenuDeMarcar
-          rotulo="Prioridade"
-          escolhidos={filters.priorities}
-          fixasNoFim={[{ value: 'none', label: 'Sem prioridade' }]}
-          opcoes={prioridades}
-          aoAbrir={lerPrioridades}
-          aoAlternar={(valor) => alternar('priorities', valor)}
-          aoLimpar={() => onChange({ ...filters, priorities: [] })}
-        />
-      </div>
-      <div className={emMais(filters.types.length > 0)}>
-        <MenuDeMarcar
-          rotulo="Tipo"
-          escolhidos={filters.types}
-          fixasNoFim={CARD_DO_TIME}
-          opcoes={tipos}
-          aoAbrir={lerTipos}
-          aoAlternar={(valor) => alternar('types', valor)}
-          aoLimpar={() => onChange({ ...filters, types: [] })}
-        />
-      </div>
-      {lista?.sprints && comSprint && (
-        <div className={emMais(sprintLigada)}>
-          <MenuDeSprint
-            sprints={lista.sprints}
-            escolhida={lista.filters.sprint}
-            aoEscolher={(sprint) => lista.onChange({ ...lista.filters, sprint })}
-          />
-        </div>
-      )}
+      {menuDeColuna && <div className={emMais(colunaLigada)}>{menuDeColuna}</div>}
+      <div className={emMais(filters.priorities.length > 0)}>{menuDePrioridade}</div>
+      <div className={emMais(filters.types.length > 0)}>{menuDeTipo}</div>
+      {menuDeSprint && <div className={emMais(sprintLigada)}>{menuDeSprint}</div>}
 
       {active > 0 && (
         <button
           type="button"
           onClick={onClear}
-          className="h-8 rounded-lg px-2 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+          className={cn(
+            'alvo-de-toque relative h-8 rounded-lg px-2 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline pointer-coarse:h-9',
+            // No celular o limpar mora no pe da folha; o "Filtros (2)" ja diz que ha filtro.
+            celular && 'max-sm:hidden',
+          )}
         >
           Limpar filtros
           <span className="sr-only"> ({active === 1 ? '1 ligado' : `${active} ligados`})</span>
@@ -548,15 +580,61 @@ export function WorkFilterBar({
 
       {comoFunciona}
 
-      {(lista || children) && (
+      {(lista || vista || children) && (
         <FilterBarEnd>
           {lista && (
             <div className={aVista}>
               <MenuDeOrdem ordem={lista.ordem} aoOrdenar={lista.aoOrdenar} />
             </div>
           )}
+          {vista && <div className={aVista}>{vista}</div>}
           {children}
         </FilterBarEnd>
+      )}
+
+      {/* No celular os filtros sobem numa folha, por cima da lista: abertos na barra, eles
+          empurravam a lista para baixo e tomavam metade da tela. */}
+      {celular && (
+        <BottomSheet
+          open={aberta}
+          onOpenChange={setAberta}
+          title="Filtros"
+          footer={
+            <>
+              {active > 0 ? (
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="alvo-de-toque relative h-9 rounded-lg px-2 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              ) : (
+                <span />
+              )}
+              <Button variant="primary" onClick={() => setAberta(false)}>
+                Ver os cards
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2">{atalhos}</div>
+            <div className="flex flex-wrap gap-2">
+              {menusDaPessoa}
+              {menuDeColuna}
+              {menuDePrioridade}
+              {menuDeTipo}
+              {menuDeSprint}
+            </div>
+            {(lista || vista) && (
+              <div className="flex flex-wrap gap-2 border-border border-t pt-4">
+                {lista && <MenuDeOrdem ordem={lista.ordem} aoOrdenar={lista.aoOrdenar} />}
+                {vista}
+              </div>
+            )}
+          </div>
+        </BottomSheet>
       )}
     </search>
   )
@@ -580,13 +658,16 @@ export function FilterBarEnd({ children }: { children: ReactNode }) {
  * aberto, desce para uma linha propria embaixo de tudo — a explicacao nao espreme os
  * filtros.
  */
-export const HELP_IN_BAR = 'flex-none open:order-last open:basis-full'
+// No celular, fechado, tambem vai para o fim: no meio da linha ele espremia a busca.
+export const HELP_IN_BAR = 'flex-none max-sm:order-last open:order-last open:basis-full'
 
 /** A dica do atalho "/" mora nos componentes compartilhados: o hub de projetos tambem a usa. */
 export { SearchShortcutHint }
 
+// No dedo, 36 de desenho (a busca, com 16px de letra no toque, nao cabe em 32) e o alvo
+// invisivel em volta (`alvo-de-toque`): com 40 de desenho, os botoes pesavam mais que o texto.
 const CONTROLE =
-  'flex h-8 flex-none animate-fade-in items-center gap-1.5 rounded-lg border px-3 text-detail transition-all duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100'
+  'alvo-de-toque relative flex h-8 flex-none animate-fade-in items-center gap-1.5 rounded-lg border px-3 text-detail transition-all duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 pointer-coarse:h-9'
 /**
  * O filtro ligado com um realce suave — o tom do destaque por tras, e a borda dele —, e
  * nao com a cor do botao principal: cinco filtros ligados pareciam cinco botoes de
@@ -672,9 +753,11 @@ function Marca({ marcada, redonda = false }: { marcada: boolean; redonda?: boole
 }
 
 const ITEM =
-  'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body text-fg outline-none data-[highlighted]:bg-surface-sunken'
+  'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body text-fg outline-none data-[highlighted]:bg-surface-sunken pointer-coarse:py-2.5'
+// A altura nunca passa do que sobra da tela abaixo (ou acima) do botao: no celular
+// deitado, os 20rem passavam da borda e o fim da lista nao tinha como ser tocado.
 const MOLDURA =
-  'z-dialog max-h-80 w-64 origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto rounded-xl border border-border bg-surface-raised p-1.5 data-[state=closed]:animate-menu-out data-[state=open]:animate-menu-in'
+  'z-dialog max-h-[min(20rem,var(--radix-dropdown-menu-content-available-height))] w-64 origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto rounded-xl border border-border bg-surface-raised p-1.5 data-[state=closed]:animate-menu-out data-[state=open]:animate-menu-in'
 
 /**
  * Um menu de marcar: escolher um nao fecha o menu, para marcar outro em seguida. O
@@ -762,7 +845,7 @@ function MenuDeMarcar({
           <Seta />
         </Menu.Trigger>
         <Menu.Portal>
-          <Menu.Content align="start" sideOffset={6} className={MOLDURA}>
+          <Menu.Content align="start" sideOffset={6} collisionPadding={8} className={MOLDURA}>
             {todas.map((opcao) => (
               <Menu.CheckboxItem
                 key={opcao.value}
@@ -833,7 +916,11 @@ function ComTirar({
           aria-label={`Tirar o filtro ${rotulo}`}
           title={`Tirar o filtro ${rotulo}`}
           onClick={aoTirar}
-          className={cn(CONTROLE, CONTROLE_LIGADO, 'rounded-l-none border-l-0 px-2')}
+          className={cn(
+            CONTROLE,
+            CONTROLE_LIGADO,
+            'justify-center rounded-l-none border-l-0 px-2 pointer-coarse:min-w-10',
+          )}
         >
           <span aria-hidden>×</span>
         </button>
@@ -905,7 +992,7 @@ function MenuDeSprint({
           <Seta />
         </Menu.Trigger>
         <Menu.Portal>
-          <Menu.Content align="start" sideOffset={6} className={MOLDURA}>
+          <Menu.Content align="start" sideOffset={6} collisionPadding={8} className={MOLDURA}>
             <Menu.RadioGroup
               value={escolhida ?? ''}
               onValueChange={(valor) => aoEscolher(valor === '' ? null : valor)}
@@ -973,7 +1060,7 @@ function MenuDeOrdem({
         <Seta />
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Content align="start" sideOffset={6} className={MOLDURA}>
+        <Menu.Content align="start" sideOffset={6} collisionPadding={8} className={MOLDURA}>
           <Menu.RadioGroup
             value={chave(vigente)}
             onValueChange={(valor) => {

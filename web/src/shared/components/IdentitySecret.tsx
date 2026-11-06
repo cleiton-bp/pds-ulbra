@@ -35,7 +35,7 @@ export function IdentitySecretCard({ projectPublicId }: { projectPublicId: strin
       id="chave-da-identidade"
       className="mt-4 scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
     >
-      <header className="mb-3.5 flex items-baseline justify-between gap-3">
+      <header className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h2 className="font-semibold text-fg text-lead" {...guideTarget('chave-da-identidade')}>
           Chave da identidade
         </h2>
@@ -47,7 +47,7 @@ export function IdentitySecretCard({ projectPublicId }: { projectPublicId: strin
         atalho={
           <Link
             to="../identity#reconhecimento"
-            className="inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
+            className="inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
           >
             Ver o passo a passo em Privacidade
           </Link>
@@ -81,7 +81,7 @@ export function IdentitySecretDialog({
         <>
           <Link
             to="../keys#chave-da-identidade"
-            className="mr-auto inline-flex h-9 items-center font-medium text-detail text-fg underline-offset-4 hover:underline"
+            className="mr-auto inline-flex h-9 items-center font-medium text-detail text-fg underline-offset-4 hover:underline pointer-coarse:h-11"
           >
             Abrir a tela de Chaves
           </Link>
@@ -175,7 +175,7 @@ function ChaveDaIdentidade({
         </div>
       ) : (
         <div className="mb-3.5 flex items-center gap-2">
-          <code className="flex h-10 min-w-0 flex-1 items-center overflow-hidden rounded-lg border border-border bg-surface px-3.5 font-mono text-body text-fg-muted">
+          <code className="flex h-10 min-w-0 flex-1 items-center overflow-hidden rounded-lg border border-border bg-surface px-3.5 font-mono text-body text-fg-muted pointer-coarse:h-11">
             {'•'.repeat(24)}
           </code>
           <Button disabled={ocupado} onClick={() => void pedir('ver')}>
@@ -208,7 +208,7 @@ function ChaveDaIdentidade({
       {disponivel && historico && <ChavesAnteriores itens={historico} />}
 
       {(atalho || (disponivel && !confirmarTroca)) && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pointer-coarse:gap-y-6">
           {atalho ?? <span />}
           {disponivel && !confirmarTroca && (
             <Button size="sm" variant="ghost" onClick={() => setConfirmarTroca(true)}>

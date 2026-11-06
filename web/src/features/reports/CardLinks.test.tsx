@@ -380,9 +380,7 @@ describe('onde os vinculos aparecem', () => {
       />,
     )
     expect(
-      screen.getByText(
-        'Mais 2 pessoas vão ler este motivo: os relatos duplicados deste recebem o mesmo desfecho.',
-      ),
+      screen.getByText('Os 2 relatos duplicados deste recebem o mesmo desfecho e motivo.'),
     ).toBeTruthy()
   })
 

@@ -107,7 +107,9 @@ export function SettingsSearch({ projectPublicId }: { projectPublicId: string })
         role="listbox"
         aria-label="Opções encontradas"
         hidden={!showList || results.length === 0}
-        className="absolute inset-x-0 top-full z-dialog mt-1.5 max-h-96 overflow-y-auto rounded-xl border border-border bg-surface-raised p-1 shadow-lg"
+        // Em tela baixa (celular deitado) a lista para antes do fim da tela e rola por
+        // dentro: com 24rem fixos, as opcoes de baixo ficavam fora da tela.
+        className="absolute inset-x-0 top-full z-dialog mt-1.5 max-h-[min(24rem,calc(100dvh-14rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-1 shadow-lg"
       >
         {showList &&
           results.map((match, index) => (

@@ -430,7 +430,7 @@ function ValidityHint({
           type="button"
           aria-label="Mudar o prazo do convite"
           onClick={() => setOpen(true)}
-          className="rounded text-fg underline underline-offset-4 hover:text-fg-muted"
+          className="rounded text-fg underline underline-offset-4 hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
         >
           mudar
         </button>
@@ -544,7 +544,7 @@ function InvitationStatus({
         <button
           type="button"
           onClick={onAskAgain}
-          className="rounded font-medium text-fg underline underline-offset-4 hover:text-fg-muted"
+          className="rounded font-medium text-fg underline underline-offset-4 hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
         >
           Atualizar
         </button>

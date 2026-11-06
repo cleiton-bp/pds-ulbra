@@ -39,7 +39,7 @@ export function ThemeButton({ alwaysVisible = false }: { alwaysVisible?: boolean
       aria-label={`Mudar para o ${label.toLowerCase()}`}
       title={`Mudar para o ${label.toLowerCase()}`}
       className={cn(
-        'group relative size-8 flex-none rounded-lg border border-border bg-surface-raised text-fg-muted transition-all duration-150 hover:bg-surface-sunken hover:text-fg active:scale-90',
+        'group relative size-8 flex-none rounded-lg pointer-coarse:size-10 border border-border bg-surface-raised text-fg-muted transition-all duration-150 hover:bg-surface-sunken hover:text-fg active:scale-90',
         alwaysVisible ? 'block' : 'hidden sm:block',
       )}
     >

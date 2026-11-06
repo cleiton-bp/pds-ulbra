@@ -8,7 +8,12 @@ import {
   type SprintViewModel,
 } from '@/contracts'
 import { describeError, isPanelError, projectReportService } from '@/data'
-import { CardDetailLayout, DetailRow, DetailsBox } from '@/features/reports/CardDetailLayout'
+import {
+  CardDetailLayout,
+  DetailRow,
+  DetailsBox,
+  resumoDosDetalhes,
+} from '@/features/reports/CardDetailLayout'
 import { CardFields } from '@/features/reports/CardFields'
 import { ColumnSelect } from '@/features/reports/ColumnSelect'
 import { useCardDraft, useDiscardQuestion } from '@/features/reports/cardDrafts'
@@ -378,7 +383,18 @@ export function TeamCardBody({
                       <Markdown source={descricao} />
                     ) : (
                       <p className="text-detail text-fg-muted">
-                        {podeEditar ? 'Sem descrição. Clique para escrever.' : 'Sem descrição.'}
+                        {podeEditar ? (
+                          <>
+                            {/* "Clique" no mouse, "Toque" no dedo. */}
+                            Sem descrição.{' '}
+                            <span className="pointer-coarse:hidden">Clique para escrever.</span>
+                            <span className="hidden pointer-coarse:inline">
+                              Toque para escrever.
+                            </span>
+                          </>
+                        ) : (
+                          'Sem descrição.'
+                        )}
                       </p>
                     )}
                   </div>
@@ -390,47 +406,52 @@ export function TeamCardBody({
         depois={depois}
         lado={
           <>
-            <div className="flex flex-col items-start gap-1">
-              {arquivado ? (
-                <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px text-caption text-warn-fg">
-                  Arquivado
-                </span>
-              ) : colunas && colunas.length > 0 ? (
-                <ColumnSelect
-                  colunas={colunas}
-                  atual={destino ?? card.StatePublicId}
-                  disabled={movendo}
-                  tone={statusTone(destino ?? card.StatePublicId, colunas)}
-                  aoEscolher={aoMover}
-                />
-              ) : (
-                card.StateName && (
-                  <StatusLozenge
-                    name={card.StateName}
-                    tone={statusTone(card.StatePublicId, colunas)}
+            {/* No celular a coluna e o arquivar dividem a linha: um embaixo do outro, cada um
+                ocupava uma linha inteira antes dos detalhes. Com duas colunas (md), voltam a
+                ficar empilhados, na lateral estreita. */}
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-4 md:flex-col md:flex-nowrap md:justify-start">
+              <div className="flex flex-col items-start gap-1">
+                {arquivado ? (
+                  <span className="rounded-full border border-warn-border bg-warn-surface px-2 py-px text-caption text-warn-fg">
+                    Arquivado
+                  </span>
+                ) : colunas && colunas.length > 0 ? (
+                  <ColumnSelect
+                    colunas={colunas}
+                    atual={destino ?? card.StatePublicId}
+                    disabled={movendo}
+                    tone={statusTone(destino ?? card.StatePublicId, colunas)}
+                    aoEscolher={aoMover}
                   />
-                )
-              )}
-              {destino !== null && (
-                <span role="status" className="text-caption text-fg-muted">
-                  Movendo…
-                </span>
-              )}
+                ) : (
+                  card.StateName && (
+                    <StatusLozenge
+                      name={card.StateName}
+                      tone={statusTone(card.StatePublicId, colunas)}
+                    />
+                  )
+                )}
+                {destino !== null && (
+                  <span role="status" className="text-caption text-fg-muted">
+                    Movendo…
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {arquivado ? (
+                  <Button size="sm" onClick={() => void mudarArquivo(false)}>
+                    Desarquivar
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="quiet" onClick={() => setConfirmandoArquivo(true)}>
+                    Arquivar
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {arquivado ? (
-                <Button size="sm" onClick={() => void mudarArquivo(false)}>
-                  Desarquivar
-                </Button>
-              ) : (
-                <Button size="sm" variant="quiet" onClick={() => setConfirmandoArquivo(true)}>
-                  Arquivar
-                </Button>
-              )}
-            </div>
-
-            <DetailsBox>
+            <DetailsBox resumo={resumoDosDetalhes(card, soonDays ?? 2)}>
               {/* Sempre a vista, tambem com o texto em edicao: os campos gravam na hora,
                   e o "Descartar o texto" so desfaz o titulo e a descricao. */}
               <CardFields
@@ -482,7 +503,7 @@ export function TeamCardBody({
         open={confirmandoArquivo}
         onOpenChange={setConfirmandoArquivo}
         title={`Arquivar #${card.Number}`}
-        description="O card sai da tela de Trabalho. Continua aberto em Arquivados para ler, comentar e desarquivar."
+        description="Ele sai do Trabalho e fica em Arquivados, onde dá para desarquivar."
         confirmLabel="Arquivar"
         onConfirm={() => mudarArquivo(true)}
       />

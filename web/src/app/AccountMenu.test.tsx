@@ -117,7 +117,7 @@ describe('o Perfil pelo menu da conta e pelo sino', () => {
     expect(screen.getByTestId('onde').textContent).toBe('/projects/p-1/reports/c-42')
     // O conteudo de sempre: quem e a pessoa e os sons.
     expect(screen.getAllByText('Conta da Ana').length).toBeGreaterThan(0)
-    expect(await screen.findByRole('combobox', { name: 'Quando alguém me menciona' })).toBeTruthy()
+    expect(await screen.findByRole('combobox', { name: 'Alguém menciona você' })).toBeTruthy()
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Fechar' })),
     )
@@ -136,7 +136,7 @@ describe('o Perfil pelo menu da conta e pelo sino', () => {
 
     await screen.findByRole('dialog', { name: 'Perfil' })
     await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Avisos' })),
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Sons dos avisos' })),
     )
     expect(screen.getByTestId('onde').textContent).toBe('/projects/p-1/reports/c-42')
 

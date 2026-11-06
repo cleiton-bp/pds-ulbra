@@ -33,7 +33,7 @@ export function HowItWorks({
 }) {
   return (
     <details className={cn('details-smooth group', className)} {...guideTarget('como-funciona')}>
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-caption text-fg-muted hover:text-fg [&::-webkit-details-marker]:hidden">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-caption text-fg-muted hover:text-fg pointer-coarse:-my-3 pointer-coarse:py-3 [&::-webkit-details-marker]:hidden">
         <svg
           viewBox="0 0 12 12"
           className="size-2.5 flex-none transition-transform duration-300 ease-out group-open:rotate-90 motion-reduce:transition-none"

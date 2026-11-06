@@ -45,11 +45,14 @@ const VARIANTS: Record<ButtonVariant, string> = {
   warn: 'border-warn-border bg-warn-surface text-warn-fg font-medium enabled:hover:bg-warn-surface-hover disabled:border-border disabled:bg-surface-sunken',
 }
 
-/** As alturas sao as do design: 36px na acao, 32px no controle de barra. */
+/**
+ * As alturas sao as do design: 36px na acao, 32px no controle de barra, tambem no toque.
+ * O dedo acerta pela area invisivel em volta (`alvo-de-toque`): com o botao de 44 no
+ * celular, ele ficava maior em escala que o texto e pesava mais que o conteudo.
+ */
 const SIZES: Record<Size, string> = {
-  // No toque, 44 px de altura: o dedo nao acerta um alvo de 32.
-  md: 'h-9 px-3.5 text-body gap-2 pointer-coarse:h-11',
-  sm: 'h-8 px-3 text-detail gap-1.5 pointer-coarse:h-11',
+  md: 'h-9 px-3.5 text-body gap-2',
+  sm: 'h-8 px-3 text-detail gap-1.5',
 }
 
 export function Button({
@@ -64,7 +67,7 @@ export function Button({
     <button
       type="button"
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-lg border transition-all duration-150 ease-out enabled:active:scale-[0.97] motion-reduce:transition-none motion-reduce:enabled:active:scale-100',
+        'alvo-de-toque relative inline-flex shrink-0 items-center justify-center rounded-lg border transition-all duration-150 ease-out enabled:active:scale-[0.97] motion-reduce:transition-none motion-reduce:enabled:active:scale-100',
         'disabled:cursor-not-allowed disabled:text-fg-disabled',
         VARIANTS[variant],
         SIZES[size],

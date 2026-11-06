@@ -132,11 +132,13 @@ export function SavedViews({
   if (vistas.length === 0 && !podeSalvar && !nomeando) return null
 
   return (
+    // No celular, numa linha propria embaixo das abas, as vistas quebram de linha em vez
+    // de rolar escondidas para o lado; na tela larga, uma linha so ao lado das abas.
     // biome-ignore lint/a11y/useSemanticElements: um grupo de botoes, e nao um formulario: `fieldset` diria a quem usa leitor de tela que ha campos ali
     <div
       role="group"
       aria-label="Vistas salvas"
-      className="ml-auto flex min-w-0 items-center gap-1.5 overflow-x-auto py-1"
+      className="ml-auto flex min-w-0 flex-wrap items-center gap-1.5 py-1 max-sm:pt-3 sm:flex-nowrap sm:overflow-x-auto"
     >
       {vistas.map((vista) => {
         const ativa = sameWorkView(vistaDe(vista.consulta), atual)
@@ -144,7 +146,7 @@ export function SavedViews({
           <span
             key={vista.nome}
             className={cn(
-              'flex h-7 flex-none items-center rounded-full border text-detail transition-colors',
+              'flex h-7 flex-none items-center rounded-full border text-detail transition-colors pointer-coarse:h-10',
               ativa ? 'border-accent bg-accent/8 text-fg' : 'border-border text-fg-muted',
             )}
           >
@@ -162,7 +164,7 @@ export function SavedViews({
               aria-label={`Apagar a vista ${vista.nome}`}
               title="Apagar a vista"
               onClick={() => gravar(vistas.filter((item) => item.nome !== vista.nome))}
-              className="flex h-full items-center rounded-r-full pr-2 pl-1 hover:text-fg"
+              className="flex h-full items-center rounded-r-full pr-2 pl-1 hover:text-fg pointer-coarse:pr-3.5 pointer-coarse:pl-2.5"
             >
               <span aria-hidden>×</span>
             </button>
@@ -171,7 +173,9 @@ export function SavedViews({
       })}
 
       {nomeando ? (
-        <form onSubmit={salvar} className="flex flex-none items-center gap-1.5">
+        // No celular o campo ocupa o que sobra da linha: com largura fixa, o nome e os dois
+        // botoes passavam da borda da tela.
+        <form onSubmit={salvar} className="flex flex-none items-center gap-1.5 max-sm:w-full">
           <input
             ref={campo}
             aria-label="Nome da vista"
@@ -185,19 +189,19 @@ export function SavedViews({
               }
             }}
             placeholder="Nome da vista"
-            className="h-7 w-36 rounded-lg border border-border bg-surface-raised px-2 text-detail text-fg placeholder:text-fg-placeholder"
+            className="h-7 w-36 rounded-lg border border-border bg-surface-raised px-2 text-detail text-fg placeholder:text-fg-placeholder max-sm:min-w-0 max-sm:flex-1 pointer-coarse:h-10"
           />
           <button
             type="submit"
             disabled={nome.trim() === ''}
-            className="h-7 rounded-lg px-2 font-medium text-detail text-fg hover:bg-surface-sunken disabled:opacity-40"
+            className="h-7 rounded-lg px-2 font-medium text-detail text-fg hover:bg-surface-sunken disabled:opacity-40 pointer-coarse:h-10"
           >
             Salvar
           </button>
           <button
             type="button"
             onClick={cancelar}
-            className="h-7 rounded-lg px-2 text-detail text-fg-muted hover:bg-surface-sunken hover:text-fg"
+            className="h-7 rounded-lg px-2 text-detail text-fg-muted hover:bg-surface-sunken hover:text-fg pointer-coarse:h-10"
           >
             Cancelar
           </button>
@@ -209,7 +213,7 @@ export function SavedViews({
             type="button"
             onClick={() => setNomeando(true)}
             title="Guarda os filtros e a ordem de agora com um nome, só para você"
-            className="flex h-7 flex-none items-center gap-1 rounded-full border border-border border-dashed px-3 text-detail text-fg-muted hover:bg-surface-sunken hover:text-fg"
+            className="flex h-7 flex-none items-center gap-1 rounded-full border border-border border-dashed px-3 text-detail text-fg-muted hover:bg-surface-sunken hover:text-fg pointer-coarse:h-10"
           >
             <span aria-hidden>+</span> Salvar vista
           </button>

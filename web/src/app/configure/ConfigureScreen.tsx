@@ -97,8 +97,8 @@ export function ConfigureScreen() {
           },
           {
             alvo: 'guia',
-            titulo: 'Sempre à mão',
-            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+            titulo: 'Guia por tela',
+            texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
           },
         ]
       : null,
@@ -180,7 +180,9 @@ function ScreenLink({
       to={`/projects/${projectPublicId}/${section.path}`}
       aria-labelledby={nameId}
       aria-describedby={summary ? summaryId : undefined}
-      className="-mx-2 flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-surface-sunken"
+      // No toque a linha sem resumo tinha 36, uma colada na outra: com 12 em cima e
+      // embaixo ela chega a 44.
+      className="-mx-2 flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-surface-sunken pointer-coarse:py-3"
     >
       <SectionIcon section={section.key} className="mt-0.5 size-4 flex-none text-fg-muted" />
       <span className="min-w-0 flex-1">
@@ -261,7 +263,7 @@ function FirstSteps({
       aria-expanded={todos}
       aria-controls="lista-de-primeiros-passos"
       onClick={() => escolher(todos ? 'fechado' : 'aberto')}
-      className="flex-none text-detail text-fg underline underline-offset-4 hover:text-fg-muted"
+      className="flex-none text-detail text-fg underline underline-offset-4 hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3"
     >
       {todos ? 'Esconder' : completo ? 'Ver os passos' : 'Ver todos os passos'}
     </button>
@@ -366,7 +368,7 @@ function NextStep({
         <Link
           to={`/projects/${projectPublicId}/${step.to}`}
           state={REALCE}
-          className="mt-3 inline-flex h-9 items-center rounded-lg border border-transparent bg-accent px-3.5 font-medium text-accent-fg text-body transition-colors hover:bg-accent-hover"
+          className="mt-3 inline-flex h-9 items-center rounded-lg border border-transparent bg-accent px-3.5 font-medium text-accent-fg text-body transition-colors hover:bg-accent-hover pointer-coarse:h-11"
         >
           {step.action}
         </Link>
@@ -457,7 +459,8 @@ function StepAction({
       to={to}
       state={REALCE}
       className={cn(
-        'flex-none rounded-lg border px-3 py-1.5 text-detail transition-colors',
+        // No toque, 40 de altura, como os botoes pequenos da tela.
+        'flex-none rounded-lg border px-3 py-1.5 text-detail transition-colors pointer-coarse:py-2.5',
         quiet
           ? 'border-transparent text-fg-muted hover:text-fg'
           : 'border-border bg-surface-raised text-fg hover:bg-surface-sunken',
@@ -539,7 +542,9 @@ function Trilho({
             />
             <span
               className={cn(
-                'mt-2 px-1 text-center text-caption leading-tight',
+                // Hifenizado no celular estreito: em 320 cada passo tem uns 48px, e
+                // "autorizado" e "convidado" invadiam o nome do vizinho.
+                'mt-2 px-1 text-center text-caption leading-tight max-[400px]:hyphens-auto max-[400px]:px-0',
                 atual ? 'font-medium text-fg' : feito ? 'text-fg' : 'text-fg-muted',
               )}
             >

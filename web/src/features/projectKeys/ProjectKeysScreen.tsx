@@ -57,8 +57,8 @@ export function ProjectKeysScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -85,9 +85,11 @@ export function ProjectKeysScreen() {
       {/* Chaves nao tem item na lateral: abre pela Instalacao, e a lateral continua marcando
           a Instalacao. O caminho de volta, em cima do titulo, diz que esta e outra tela, e
           por onde se volta. */}
+      {/* No toque a area cresce 12 para cima e para baixo sem mover o titulo: o respiro
+          de baixo (`mb-3`) vira o recuo do toque. */}
       <Link
         to="../start"
-        className="mb-3 inline-flex items-center gap-1 text-detail text-fg-muted transition-colors hover:text-fg"
+        className="mb-3 inline-flex items-center gap-1 text-detail text-fg-muted transition-colors hover:text-fg pointer-coarse:-mt-3 pointer-coarse:mb-0 pointer-coarse:py-3"
       >
         <svg
           viewBox="0 0 16 16"
@@ -127,7 +129,7 @@ export function ProjectKeysScreen() {
             id="chave-publica"
             className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
           >
-            <header className="mb-3.5 flex items-baseline justify-between gap-3">
+            <header className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
               <h2 className="font-semibold text-fg text-lead" {...guideTarget('chave-publica')}>
                 Chave pública
               </h2>
@@ -157,10 +159,11 @@ export function ProjectKeysScreen() {
             </p>
 
             {/* A pergunta que vem depois de copiar e "colar onde?", e a resposta
-                e outra tela. Sem esse atalho, ela se responde pelo menu. */}
+                e outra tela. Sem esse atalho, ela se responde pelo menu. No toque a area
+                cresce sem mover nada. */}
             <Link
               to="../start"
-              className="mt-4 inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline"
+              className="mt-4 inline-flex items-center gap-1.5 font-medium text-detail text-fg underline-offset-4 hover:underline pointer-coarse:mt-1 pointer-coarse:-mb-3 pointer-coarse:py-3"
             >
               Ver onde colar no seu sistema
               <Chevron />

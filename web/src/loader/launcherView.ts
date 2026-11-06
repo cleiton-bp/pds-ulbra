@@ -61,11 +61,19 @@ const STYLE = `
      escura grossa no tema escuro. O botao fica sozinho, e a sombra (quando ligada)
      acompanha a forma dele. */
   .anel {
+    position: relative;
     box-sizing: border-box; width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
     padding: 0;
     background: transparent;
     border-radius: var(--raio-anel, 999px);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* No toque, o alvo passa um pouco da borda: o botao pequeno tem 32 de altura, e o dedo
+     erra o alvo de 32. O desenho nao muda; so a area que abre o formulario cresce. */
+  @media (pointer: coarse) {
+    .anel::before { content: ''; position: absolute; inset: -4px; border-radius: inherit; }
   }
   /* No botao, e nao no anel: o anel e o espaco reservado, mais alto que o botao, e a
      sombra nele desenhava uma segunda pilula atras, com a pagina aparecendo entre as duas. */
@@ -82,7 +90,8 @@ const STYLE = `
     -webkit-tap-highlight-color: transparent;
   }
   .botao.so-icone { padding: 0; }
-  .botao:hover { filter: brightness(0.94); }
+  /* So com mouse: no toque o hover gruda depois do toque, e o botao ficava escuro. */
+  @media (hover: hover) { .botao:hover { filter: brightness(0.94); } }
   .botao:focus-visible { outline: 2px solid var(--texto); outline-offset: 1px; }
   .botao svg { flex: none; }
   .rotulo { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -109,6 +118,8 @@ const STYLE = `
   }
   .fechar:hover { color: var(--texto); }
   .fechar:focus-visible { outline: 2px solid var(--texto); outline-offset: 1px; }
+  /* O "Fechar" da tela de "abrindo" com 44 no toque: e a saida de quem desistiu. */
+  @media (pointer: coarse) { .fechar { min-height: 44px; min-width: 44px; margin: -8px -4px -8px 0; } }
   @keyframes girar { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .giro { animation-duration: 2.4s; } }
 `
@@ -136,6 +147,15 @@ export interface LauncherViewOptions {
    * mentira do computador pode ser estreita no painel e continua sendo computador.
    */
   ruleWidth?: () => number
+  /**
+   * Como o tema `Auto` se resolve. Sem isto, pelo sistema de quem visita, como na pagina
+   * do cliente. **A previa passa o tema do painel**: o formulario dela mora num `iframe`,
+   * e la o `Auto` segue o tema do painel; o botao, desenhado no proprio painel, seguia o
+   * sistema. Com o painel claro e o sistema escuro, o botao de fabrica (cor padrao, tema
+   * automatico) saia cinza claro na pagina clara, e a previa do projeto novo parecia nao
+   * ter carregado.
+   */
+  autoTheme?: () => 'light' | 'dark'
   /** A pessoa clicou no botao. */
   onOpen: () => void
   /** A pessoa mostrou que vai clicar — passou o mouse, focou, tocou. */
@@ -231,11 +251,17 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
   sombra.append(anel, painel)
 
   botao.addEventListener('click', () => options.onOpen())
+  // O espaco em volta do botao tambem abre: o elemento tem a altura do botao mais o anel, e
+  // o toque que cai na borda (ou alem dela, no toque) nao pode ser um toque perdido. So
+  // quando o alvo e o proprio anel, senao o clique no botao abriria duas vezes.
+  anel.addEventListener('click', (evento) => {
+    if (evento.target === anel) options.onOpen()
+  })
   // A intencao adianta o quadro: quando o clique chega, ele ja esta a caminho.
   const intencao = () => options.onIntent?.()
   botao.addEventListener('pointerenter', intencao)
   botao.addEventListener('focus', intencao)
-  botao.addEventListener('touchstart', intencao, { passive: true })
+  anel.addEventListener('touchstart', intencao, { passive: true })
   fechar.addEventListener('click', () => options.onCancel?.())
 
   let aparencia: WidgetLauncherViewModel | null = null
@@ -253,23 +279,43 @@ export function createLauncherView(options: LauncherViewOptions): LauncherView {
   let pararTema: () => void = () => {}
 
   function tema(): void {
-    const escuro = resolveTheme(aparencia?.Theme ?? 'Auto') === 'dark'
-    host.setAttribute('data-tema', escuro ? 'escuro' : 'claro')
+    const escolhido = aparencia?.Theme ?? 'Auto'
+    const resolvido =
+      escolhido === 'Auto' && options.autoTheme ? options.autoTheme() : resolveTheme(escolhido)
+    host.setAttribute('data-tema', resolvido === 'dark' ? 'escuro' : 'claro')
   }
 
   function esconder(): void {
     fixar('display', 'none')
   }
 
+  /**
+   * A distancia do canto, mais a area segura da tela, so na pagina do cliente: no telefone
+   * com recorte ou barra de gestos (pagina com `viewport-fit=cover`), o botao a 20 da borda
+   * ficaria embaixo da barra. Sem recorte, a area segura e zero e nada muda. Na previa nao:
+   * a pagina de mentira nao encosta na borda do aparelho.
+   */
+  // So onde o navegador entende `env()`: no que nao entende, o valor inteiro seria recusado
+  // e o botao sairia do canto.
+  const css = (doc.defaultView as (Window & typeof globalThis) | null)?.CSS
+  const comAreaSegura =
+    options.placement === 'fixed' &&
+    typeof css?.supports === 'function' &&
+    css.supports('top', 'calc(1px + env(safe-area-inset-top, 0px))')
+  const lado = (valor: number | null, borda: 'top' | 'bottom' | 'left' | 'right') =>
+    valor === null || !comAreaSegura
+      ? px(valor)
+      : `calc(${valor}px + env(safe-area-inset-${borda}, 0px))`
+
   /** Aplica onde fica e o tamanho, pela conta de sempre (`placeFrame`). */
   function posicionar(pedido: ResizeMessage, altura: 'fixa' | 'auto'): number {
     const lugar = placeFrame(pedido, options.viewport())
     fixar('width', px(lugar.width))
     fixar('height', altura === 'fixa' ? px(lugar.height) : 'auto')
-    fixar('top', px(lugar.top))
-    fixar('bottom', px(lugar.bottom))
-    fixar('left', px(lugar.left))
-    fixar('right', px(lugar.right))
+    fixar('top', lado(lugar.top, 'top'))
+    fixar('bottom', lado(lugar.bottom, 'bottom'))
+    fixar('left', lado(lugar.left, 'left'))
+    fixar('right', lado(lugar.right, 'right'))
     return lugar.radius
   }
 

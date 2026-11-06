@@ -254,8 +254,8 @@ export function MediaScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -476,12 +476,15 @@ export function MediaScreen() {
                     rotulo="Aceitar print da tela"
                     aoTrocar={trocarPrint}
                   />
-                  <Hint className="mt-1 pl-5.5">
+                  {/* O recuo acompanha o texto da caixa, que no toque tem 18 (`pl-6.5`). */}
+                  <Hint className="mt-1 pl-5.5 pointer-coarse:pl-6.5">
                     A pessoa marca uma área da página ou cola um print, e ele abre no editor para
                     cobrir o que ela não quer mostrar.
                   </Hint>
-                  <details className="mt-1 pl-5.5">
-                    <summary className="cursor-pointer text-detail text-fg">Saiba mais</summary>
+                  <details className="mt-1 pl-5.5 pointer-coarse:pl-6.5">
+                    <summary className="cursor-pointer text-detail text-fg pointer-coarse:-my-3 pointer-coarse:py-3">
+                      Saiba mais
+                    </summary>
                     <p className="mt-1 text-detail text-fg-muted leading-relaxed">
                       Funciona em qualquer navegador, inclusive no iPhone, sem o navegador pedir
                       permissão. O que a página não deixa ler (imagem ou conteúdo de outro site) sai
@@ -531,7 +534,8 @@ export function MediaScreen() {
               {...acompanhar('quando')}
             >
               <Alcance ligado={draft.IsEnabled}>
-                <div className="flex flex-col gap-2.5">
+                {/* No toque cada linha ja tem 40 (`Opcao`), e o vao entre elas sai. */}
+                <div className="flex flex-col gap-2.5 pointer-coarse:gap-0">
                   {/* O relato sempre aceita, enquanto o anexo estiver ligado: a caixa so
                       mostra que ele conta, como os outros dois. */}
                   <Opcao marcado desabilitado rotulo="No relato" />
@@ -588,7 +592,8 @@ function ChaveGeral({
     <label
       id="aceitar-anexo"
       className={cn(
-        'flex flex-none scroll-mt-6 items-center gap-2 rounded-full border px-3 py-1 font-medium text-detail',
+        // No toque a pilula tem 40 de altura: com 30, era a menor chave da tela.
+        'flex flex-none scroll-mt-6 items-center gap-2 rounded-full border px-3 py-1 font-medium text-detail pointer-coarse:min-h-10',
         ligado
           ? 'border-chip-green-border bg-chip-green-surface text-chip-green-fg'
           : 'border-warn-border bg-warn-surface text-warn-fg',
@@ -673,7 +678,10 @@ function igual(a: MediaSettingsViewModel, b: MediaSettingsViewModel) {
   )
 }
 
-/** Uma caixa de sim ou nao, com o nome ao lado. A dica de uma linha vem embaixo, de fora. */
+/**
+ * Uma caixa de sim ou nao, com o nome ao lado. A dica de uma linha vem embaixo, de fora.
+ * No toque a linha inteira tem 40 de altura: e ela que o dedo acerta, e nao a caixa.
+ */
 function Opcao({
   id,
   marcado,
@@ -693,7 +701,7 @@ function Opcao({
     <label
       id={id}
       className={cn(
-        'flex scroll-mt-6 items-center gap-2',
+        'flex scroll-mt-6 items-center gap-2 pointer-coarse:min-h-10',
         desabilitado ? 'cursor-not-allowed text-fg-disabled' : 'cursor-pointer text-fg',
       )}
     >
@@ -734,7 +742,8 @@ function Formatos({
   return (
     <fieldset className="mt-3">
       <legend className="mb-1.5 font-medium text-detail text-fg">Tipos de arquivo aceitos</legend>
-      <div className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+      {/* No toque cada tipo ja tem 40 de altura (`Tipo`), e o vao entre as linhas sai. */}
+      <div className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2 pointer-coarse:gap-y-0">
         <Tipo
           marcado={imagemMarcada}
           nome="Imagem"
@@ -773,7 +782,7 @@ function Formatos({
   )
 }
 
-/** Um tipo da lista: a caixa, o nome e as extensoes. */
+/** Um tipo da lista: a caixa, o nome e as extensoes. No toque, 40 de altura, centrado. */
 function Tipo({
   marcado,
   nome,
@@ -786,12 +795,12 @@ function Tipo({
   aoTrocar: (marcado: boolean) => void
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-2">
+    <label className="flex cursor-pointer items-start gap-2 pointer-coarse:min-h-10 pointer-coarse:items-center">
       <input
         type="checkbox"
         checked={marcado}
         onChange={(evento) => aoTrocar(evento.target.checked)}
-        className="mt-1 size-3.5 flex-none accent-accent"
+        className="mt-1 size-3.5 flex-none accent-accent pointer-coarse:mt-0"
       />
       <span className="min-w-0 text-detail leading-relaxed">
         <span className="text-fg">{nome}</span>{' '}

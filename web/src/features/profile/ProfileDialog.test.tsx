@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import {
@@ -23,7 +23,8 @@ instalarRemendosDoRadix()
  * - **O volume grava uma vez por ajuste**: 400 ms depois do ultimo movimento, com o
  *   valor final; soltar o controle (ponteiro ou setas) toca o som da mencao no volume
  *   novo; fechar o perfil com o volume esperando grava assim mesmo.
- * - **"Salvando…", "Salvo." e a falha** com "Tentar de novo", numa regiao anunciada.
+ * - **"Salvando…" e "Salvo" ao lado do titulo "Avisos"**, numa regiao anunciada, e a
+ *   falha embaixo dos sons, com "Tentar de novo".
  * - **Abre na secao pedida**: o sino abre nos sons, com o foco no titulo "Avisos".
  * - **O X e o Esc fecham**, e o foco volta ao botao que abriu — inclusive quando quem
  *   abriu foi um item de menu, que some antes (o botao vem no `returnFocusTo`).
@@ -102,10 +103,10 @@ describe('o Perfil', () => {
     expect(screen.getByText('ana@exemplo.test')).toBeTruthy()
     expect(screen.getByText('Conta da Ana')).toBeTruthy()
     expect(
-      (await screen.findByRole('combobox', { name: 'Quando alguém me menciona' })).textContent,
+      (await screen.findByRole('combobox', { name: 'Alguém menciona você' })).textContent,
     ).toContain('Plim')
     expect(
-      screen.getByRole('combobox', { name: 'Quando me escolhem como responsável' }).textContent,
+      screen.getByRole('combobox', { name: 'Você vira responsável por um card' }).textContent,
     ).toContain('Sino')
     expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
     // Uma linha so diz que grava sozinho, e o leitor de tela a anuncia ao abrir.
@@ -118,7 +119,7 @@ describe('o Perfil', () => {
 
   it('escolher o som toca no volume da tela e grava tudo na hora', async () => {
     abrir()
-    await escolherSom('Quando alguém me menciona', 'Gota')
+    await escolherSom('Alguém menciona você', 'Gota')
 
     expect(dublê.tocar).toHaveBeenCalledWith('Drop', 70)
     await waitFor(() =>
@@ -131,11 +132,11 @@ describe('o Perfil', () => {
       }),
     )
     expect(dublê.salvar).toHaveBeenCalledTimes(1)
-    expect(await screen.findByText('Salvo.')).toBeTruthy()
-    expect(screen.getByText('Salvo.').closest('[role="status"]')).toBeTruthy()
+    expect(await screen.findByText('Salvo')).toBeTruthy()
+    expect(screen.getByText('Salvo').closest('[role="status"]')).toBeTruthy()
 
     // "Ouvir" continua, no volume da tela.
-    fireEvent.click(screen.getByRole('button', { name: 'Ouvir o som: quando alguém me menciona' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvir o som: alguém menciona você' }))
     expect(dublê.tocar).toHaveBeenLastCalledWith('Drop', 70)
   })
 
@@ -206,9 +207,9 @@ describe('o Perfil', () => {
   it('a falha diz, e "Tentar de novo" manda o que esta na tela', async () => {
     dublê.salvar.mockRejectedValueOnce(new Error('fora do ar'))
     abrir()
-    await escolherSom('Quando me escolhem como responsável', 'Gota')
+    await escolherSom('Você vira responsável por um card', 'Gota')
 
-    expect(await screen.findByText(/Não deu para salvar\./)).toBeTruthy()
+    expect(await screen.findByText(/Não deu para salvar a sua escolha/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     await waitFor(() => expect(dublê.salvar).toHaveBeenCalledTimes(2))
     expect(dublê.salvar).toHaveBeenLastCalledWith({
@@ -218,7 +219,7 @@ describe('o Perfil', () => {
         { Kind: 'Assignment', Sound: 'Drop' },
       ],
     })
-    expect(await screen.findByText('Salvo.')).toBeTruthy()
+    expect(await screen.findByText('Salvo')).toBeTruthy()
     expect(screen.queryByText(/Não deu para salvar/)).toBeNull()
   })
 
@@ -232,7 +233,7 @@ describe('o Perfil', () => {
       'Mudo',
     )
     expect(
-      screen.getByRole('button', { name: 'Ouvir o som: quando alguém me menciona' }),
+      screen.getByRole('button', { name: 'Ouvir o som: alguém menciona você' }),
     ).toHaveProperty('disabled', true)
   })
 
@@ -240,7 +241,59 @@ describe('o Perfil', () => {
     dublê.ler.mockRejectedValueOnce(new Error('fora do ar'))
     abrir()
     fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
-    expect(await screen.findByRole('combobox', { name: 'Quando alguém me menciona' })).toBeTruthy()
+    expect(await screen.findByRole('combobox', { name: 'Alguém menciona você' })).toBeTruthy()
+  })
+
+  it('os tipos de quem administra ficam num grupo proprio, sem repetir no rotulo', async () => {
+    dublê.ler.mockResolvedValue({
+      Volume: 70,
+      Sounds: [
+        ...AJUSTES.Sounds,
+        { Kind: 'OriginPending' as const, Sound: 'Chime' as const },
+        { Kind: 'ReportsPaused' as const, Sound: 'Drop' as const },
+      ],
+    })
+    abrir()
+    const deQuemAdministra = await screen.findByRole('group', {
+      name: 'Se você administra o projeto',
+    })
+    expect(
+      within(deQuemAdministra).getByRole('combobox', {
+        name: 'Um domínio novo manda relato',
+      }),
+    ).toBeTruthy()
+    // Os da pessoa ficam fora do grupo, junto do volume.
+    expect(
+      within(deQuemAdministra).queryByRole('combobox', { name: 'Alguém menciona você' }),
+    ).toBeNull()
+    expect(screen.queryByText(/quem administra\)/)).toBeNull()
+  })
+
+  it('sem os tipos de quem administra, nao ha grupo', async () => {
+    abrir()
+    await screen.findByRole('combobox', { name: 'Alguém menciona você' })
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(screen.queryByText('Se você administra o projeto')).toBeNull()
+  })
+
+  it('o alto-falante do volume silencia e volta ao volume de antes, gravando na hora', async () => {
+    abrir()
+    const mudo = await screen.findByRole('button', { name: 'Silenciar os avisos' })
+    expect(mudo.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(mudo)
+    expect(screen.getByText('Mudo')).toBeTruthy()
+    expect(mudo.getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() =>
+      expect(dublê.salvar).toHaveBeenLastCalledWith({ Volume: 0, Sounds: AJUSTES.Sounds }),
+    )
+
+    fireEvent.click(mudo)
+    expect(screen.getByText('70%')).toBeTruthy()
+    await waitFor(() =>
+      expect(dublê.salvar).toHaveBeenLastCalledWith({ Volume: 70, Sounds: AJUSTES.Sounds }),
+    )
+    expect(dublê.tocar).toHaveBeenLastCalledWith('Ping', 70)
   })
 })
 
@@ -258,9 +311,9 @@ describe('abrir e fechar o Perfil', () => {
     )
   })
 
-  it('aberto nos sons (o sino), o foco vai para o titulo "Avisos"', async () => {
+  it('aberto nos sons (o sino), o foco vai para o titulo "Sons dos avisos"', async () => {
     abrir({ section: PROFILE_SOUNDS_SECTION })
-    const titulo = screen.getByRole('heading', { name: 'Avisos' })
+    const titulo = screen.getByRole('heading', { name: 'Sons dos avisos' })
     await waitFor(() => expect(document.activeElement).toBe(titulo))
     expect(titulo.closest(`#${PROFILE_SOUNDS_SECTION}`)).toBeTruthy()
   })

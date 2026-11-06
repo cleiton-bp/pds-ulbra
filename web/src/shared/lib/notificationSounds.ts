@@ -15,14 +15,17 @@ export const NOTIFICATION_SOUNDS: { value: NotificationSound; label: string }[] 
   { value: 'None', label: 'Sem som' },
 ]
 
-/** Como cada tipo de aviso aparece na tela do perfil. */
+/**
+ * Como cada tipo de aviso aparece no Perfil: o acontecimento, curto, porque o titulo da
+ * secao ja diz que e o som dele ("Sons dos avisos").
+ */
 export const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
-  Mention: 'Quando alguém me menciona',
-  Assignment: 'Quando me escolhem como responsável',
-  // Os dois do projeto chegam so para quem administra; quem nao administra escolhe o som
-  // assim mesmo, e ele vale no dia em que passar a administrar.
-  OriginPending: 'Quando um domínio novo manda relato (quem administra)',
-  ReportsPaused: 'Quando os envios são pausados por excesso (quem administra)',
+  Mention: 'Alguém menciona você',
+  Assignment: 'Você vira responsável por um card',
+  // Os dois do projeto chegam so para quem administra: o Perfil os mostra num grupo com
+  // esse titulo, e por isso o rotulo nao repete.
+  OriginPending: 'Um domínio novo manda relato',
+  ReportsPaused: 'Os envios são pausados por excesso',
 }
 
 /** Uma nota de um som: a frequencia (e para onde ela desliza), quando entra e quanto dura. */

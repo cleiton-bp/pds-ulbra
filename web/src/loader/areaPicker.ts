@@ -64,10 +64,14 @@ const STYLE = `
     border: 2px solid var(--tinta); outline: 1px solid var(--contorno);
     box-shadow: 0 0 0 100vmax var(--veu);
   }
+  /* A largura e a do conteudo (max-content), ate a da tela menos a margem. Sem isto, o
+     left de 50% deixava so meia tela para a barra, e no celular o texto e os botoes
+     empilhavam numa coluna estreita. O topo desce com o recorte do telefone. */
   .barra {
-    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%);
     display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
-    max-width: calc(100vw - 32px); box-sizing: border-box; padding: 8px 12px;
+    width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 8px 12px;
     background: var(--barra); color: var(--tinta); border-radius: 10px; cursor: default;
     font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
     box-shadow: 0 10px 30px var(--sombra);
@@ -76,7 +80,9 @@ const STYLE = `
     font: inherit; color: inherit; background: transparent; cursor: pointer;
     padding: 6px 10px; border-radius: 8px; border: 1px solid var(--linha);
   }
-  button:hover { background: var(--realce); }
+  @media (hover: hover) { button:hover { background: var(--realce); } }
+  /* No toque, 44 de altura: e por estes botoes que a pessoa desiste ou pega a tela toda. */
+  @media (pointer: coarse) { button { min-height: 44px; padding: 10px 14px; } }
   button:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
   [hidden] { display: none !important; }
 `
