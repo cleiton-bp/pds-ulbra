@@ -27,6 +27,8 @@ import { SettingsHeader } from '@/shared/components/SettingsHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { TemplateField } from '@/shared/components/TemplateField'
 import { toast } from '@/shared/components/toastStore'
+import { Desenho, DesenhoDoNivel, NIVEIS, nivelDe } from '@/shared/components/VisibilityLevels'
+import { VoltarDeOndeVeio } from '@/shared/components/VoltarDeOndeVeio'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useIdentitySettingsDraft, useWidgetSettingsDraft } from '@/shared/hooks/useSettingsDraft'
@@ -187,56 +189,6 @@ const MODOS: readonly Modo[] = [
 ]
 
 /**
- * Um dos tres niveis de visibilidade. **Diz quem ve, e nao so o nome do nivel**:
- * "Publico" e uma palavra que cada um entende de um jeito — e a diferenca entre "qualquer
- * pessoa" e "quem tem o link" e a diferenca entre um vazamento e um relato.
- */
-interface Nivel {
-  valor: ReportVisibility
-  titulo: string
-  emPalavras: string
-  resumo: string
-  explicacao: string
-  quemVe: string
-  custo: string
-}
-
-const NIVEIS: readonly Nivel[] = [
-  {
-    valor: 'Private',
-    titulo: 'Privado',
-    emPalavras: 'Privado (só quem relatou e o time)',
-    resumo: 'Só quem relatou e o time.',
-    explicacao:
-      'Cada relato é alcançável por quem tem o link dele, e por mais ninguém. Não existe página que liste relato de terceiro, e o protocolo de uma pessoa não abre o relato de outra.',
-    quemVe: 'Quem relatou, pelo link dele. E o time, no quadro.',
-    custo: 'Nada. É o que o projeto já faz hoje.',
-  },
-  {
-    valor: 'PublicAnonymous',
-    titulo: 'Público anônimo',
-    emPalavras: 'Público anônimo (qualquer pessoa lê, sem o autor)',
-    resumo: 'Qualquer pessoa lê, e ninguém sabe quem escreveu.',
-    explicacao:
-      'O relato fica visível para quem entrar, sem nada que aponte para o autor. Serve para mostrar o que está sendo corrigido sem cada um ter de perguntar.',
-    quemVe: 'Qualquer pessoa, inclusive quem nunca relatou nada.',
-    custo:
-      'Alguém do time libera cada relato antes de ele aparecer. O texto livre é onde vem documento, número de pedido e print com dado de outra pessoa.',
-  },
-  {
-    valor: 'PublicIdentified',
-    titulo: 'Público identificado',
-    emPalavras: 'Público identificado (o autor aparece se quiser)',
-    resumo: 'Qualquer pessoa lê, e quem relatou aparece se quiser.',
-    explicacao:
-      'O mesmo do anônimo, com uma diferença: quem escreveu pode escolher assinar o relato. Aparecer continua sendo decisão dela, e não do projeto.',
-    quemVe: 'Qualquer pessoa. O nome só aparece no relato em que o próprio autor marcou.',
-    custo:
-      'A mesma liberação do anônimo, e um modo que identifique, porque no protocolo não há identidade para mostrar.',
-  },
-]
-
-/**
  * Quem e quem neste projeto, quem pode ver o que — e o que a pessoa le depois de enviar.
  *
  * **As duas perguntas moram na mesma tela porque a primeira decide a segunda.** Sem
@@ -279,8 +231,8 @@ export function IdentityScreen() {
     },
     {
       alvo: 'guia',
-      titulo: 'Sempre à mão',
-      texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+      titulo: 'Guia por tela',
+      texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
     },
   ])
   const project = useCurrentProject()
@@ -399,6 +351,9 @@ export function IdentityScreen() {
 
   return (
     <div className="max-w-6xl">
+      {/* Vindo de outra tela pelo atalho (o "Mudar a privacidade" da Moderação), o caminho
+          de volta fica no alto. */}
+      <VoltarDeOndeVeio />
       <MovedAnchors moved={MUDARAM_DE_TELA} />
 
       <SettingsHeader
@@ -816,7 +771,9 @@ function ChaveDoSistema({
   )
 
   return (
-    <div className="mt-3 rounded-lg border border-border bg-surface p-4">
+    // No celular cada nivel aninhado perde um pouco do respiro: em 320, caixa, passo,
+    // cartao e lista somados deixavam uns 114px para o texto.
+    <div className="mt-3 rounded-lg border border-border bg-surface p-4 max-sm:-mx-2 max-sm:p-3">
       <div className="mb-6 flex flex-col gap-2.5">
         <div className="font-medium text-detail text-fg">Como o seu sistema assina</div>
         <RadioGroup<IdentityFormat>
@@ -1118,7 +1075,7 @@ function GerarParDeChaves({
       )}
 
       <details className="group/terminal" open={!suportado || falha}>
-        <summary className="cursor-pointer text-fg transition-colors hover:text-fg-muted">
+        <summary className="cursor-pointer text-fg transition-colors hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3">
           Prefere gerar no seu servidor?
         </summary>
         <div className="mt-2.5 flex flex-col gap-2.5">
@@ -1548,13 +1505,13 @@ function ComoUsar({ linguagem, hmac }: { linguagem: Linguagem; hmac: boolean }) 
   return (
     <section
       aria-label={`Como usar em ${item.nome}`}
-      className="rounded-lg border border-border bg-surface px-4 py-3"
+      className="rounded-lg border border-border bg-surface px-4 py-3 max-sm:px-3"
     >
       <p className="flex items-center gap-2 font-medium text-fg">
         <LanguageIcon language={linguagem} className="size-4" />
         Como usar em {item.nome}
       </p>
-      <ol className="mt-2 flex list-decimal flex-col gap-2 pl-5 marker:font-medium marker:text-fg">
+      <ol className="mt-2 flex list-decimal flex-col gap-2 pl-5 marker:font-medium marker:text-fg max-sm:pl-4">
         {passosDeUso(linguagem, hmac, item.arquivo).map((passo, indice) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: a lista de cada linguagem e fixa
           <li key={indice} className="pl-1">
@@ -1566,16 +1523,23 @@ function ComoUsar({ linguagem, hmac }: { linguagem: Linguagem; hmac: boolean }) 
   )
 }
 
-const c = (texto: string) => <code className="font-mono text-fg">{texto}</code>
+const c = (texto: string) => <code className="font-mono text-fg wrap-anywhere">{texto}</code>
 
 /** Um comando de terminal com o copiar ao lado. */
 function Comando({ valor }: { valor: string }) {
   return (
     <span className="mt-1.5 flex flex-wrap items-center gap-2">
-      <code className="rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-fg">
+      <code className="rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-fg wrap-anywhere">
         {valor}
       </code>
-      <CopyButton value={valor} size="sm" variant="secondary" label="Copiar o comando" />
+      <CopyButton
+        value={valor}
+        size="sm"
+        variant="secondary"
+        label="Copiar o comando"
+        // `max-sm:pointer-coarse:h-auto`: no toque o `Button` fixa 44 depois do `max-sm:`.
+        className="max-sm:h-auto max-sm:min-h-11 max-sm:max-w-full max-sm:py-2 max-sm:pointer-coarse:h-auto"
+      />
     </span>
   )
 }
@@ -1710,7 +1674,9 @@ function passosDeUso(linguagem: Linguagem, hmac: boolean, arquivo: string): Reac
 function PaginaNoNavegador({ hmac }: { hmac: boolean }) {
   return (
     <details>
-      <summary className="cursor-pointer text-fg transition-colors hover:text-fg-muted">
+      {/* No toque o resumo ganha 12 em cima e embaixo sem mover nada: numa linha so, o
+          alvo tinha 20. */}
+      <summary className="cursor-pointer text-fg transition-colors hover:text-fg-muted pointer-coarse:-my-3 pointer-coarse:py-3">
         A sua página é montada no navegador, com React, Vue ou Angular?
       </summary>
       <div className="mt-2.5 flex flex-col gap-2.5">
@@ -1791,7 +1757,7 @@ function Passo({
   children: ReactNode
 }) {
   return (
-    <li id={id} className="flex scroll-mt-6 gap-3">
+    <li id={id} className="flex scroll-mt-6 gap-3 max-sm:gap-2">
       <div className="flex flex-none flex-col items-center">
         <span
           aria-hidden="true"
@@ -1834,10 +1800,6 @@ function Passo({
 
 function modoDe(valor: ReporterIdentityMode): Modo {
   return MODOS.find((modo) => modo.valor === valor) ?? (MODOS[0] as Modo)
-}
-
-function nivelDe(valor: ReportVisibility): Nivel {
-  return NIVEIS.find((nivel) => nivel.valor === valor) ?? (NIVEIS[0] as Nivel)
 }
 
 /** Uma amostra de uma linha do texto, para o titulo do grupo fechado. */
@@ -1947,7 +1909,7 @@ function Previa({
   return (
     <section
       id="previa"
-      className="scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
+      className="@container scroll-mt-6 rounded-xl border border-border bg-surface-raised p-5"
     >
       <header className="mb-1 flex items-baseline justify-between gap-3">
         <h2 className="font-semibold text-fg text-lead">Prévia</h2>
@@ -1961,7 +1923,7 @@ function Previa({
         role="tablist"
         aria-label="O que a prévia mostra"
         onKeyDown={aoTeclar}
-        className="mb-3 inline-flex rounded-lg border border-border bg-surface p-0.5"
+        className="mb-3 inline-flex rounded-lg border border-border bg-surface p-0.5 @max-xs:grid @max-xs:w-full @max-xs:grid-cols-3"
       >
         {ABAS.map(({ value, label }) => {
           const escolhida = aba === value
@@ -1976,7 +1938,12 @@ function Previa({
               tabIndex={escolhida ? 0 : -1}
               onClick={() => onAba(value)}
               className={cn(
-                'flex h-7 items-center rounded-md px-2.5 text-detail transition-colors',
+                // No toque, 40 de altura em toda largura (no 768 a previa e larga e a aba
+                // ficava com 28), como as abas de aparelho da previa do formulario.
+                'flex h-7 items-center rounded-md px-2.5 text-detail transition-colors pointer-coarse:min-h-10',
+                // Com a previa estreita (celular, ou a coluna ao lado das opcoes no 1024):
+                // tres partes iguais, e o nome comprido hifeniza em vez de passar do cartao.
+                '@max-xs:h-auto @max-xs:min-h-10 @max-xs:justify-center @max-xs:px-1 @max-xs:py-1 @max-xs:text-center @max-xs:hyphens-auto',
                 escolhida ? 'bg-surface-sunken font-medium text-fg' : 'text-fg-muted hover:text-fg',
               )}
             >
@@ -2135,24 +2102,6 @@ function FormularioComAviso({
   )
 }
 
-/** O traco dos desenhos das escolhas: a mesma espessura e a mesma cor nos seis. */
-function Desenho({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 32 24"
-      className="h-10 w-14 text-fg-muted"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {children}
-    </svg>
-  )
-}
-
 /** O protocolo e um bilhete, o codigo pessoal uma chave, a identidade uma pessoa conferida. */
 function DesenhoDoModo({ modo }: { modo: ReporterIdentityMode }) {
   return (
@@ -2175,34 +2124,6 @@ function DesenhoDoModo({ modo }: { modo: ReporterIdentityMode }) {
           <path d="M6 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5" />
           <circle cx="24" cy="15" r="4" />
           <path d="m22.2 15 1.3 1.3 2.4-2.6" />
-        </>
-      )}
-    </Desenho>
-  )
-}
-
-/** Privado e um cadeado; publico, um olho — e o identificado, o olho e quem escreveu. */
-function DesenhoDoNivel({ nivel }: { nivel: ReportVisibility }) {
-  return (
-    <Desenho>
-      {nivel === 'Private' && (
-        <>
-          <rect x="10.5" y="11" width="11" height="9" rx="1.6" />
-          <path d="M12.8 11V8.2a3.2 3.2 0 0 1 6.4 0V11" />
-        </>
-      )}
-      {nivel === 'PublicAnonymous' && (
-        <>
-          <path d="M5 12s4-6 11-6 11 6 11 6-4 6-11 6S5 12 5 12Z" />
-          <circle cx="16" cy="12" r="2.5" />
-        </>
-      )}
-      {nivel === 'PublicIdentified' && (
-        <>
-          <path d="M2.5 12s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5Z" />
-          <circle cx="10.5" cy="12" r="2" />
-          <circle cx="25" cy="8.5" r="2.5" />
-          <path d="M20.5 18c0-3 2-4.6 4.5-4.6s4.5 1.6 4.5 4.6" />
         </>
       )}
     </Desenho>

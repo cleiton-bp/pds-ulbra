@@ -123,22 +123,31 @@ export function LinhaDaFila({
         selecionado ? 'bg-nav-active' : 'hover:bg-surface-sunken',
       )}
     >
-      <input
-        type="checkbox"
-        checked={marcado}
-        onChange={(evento) => aoMarcar(evento.target.checked)}
-        aria-label={`Selecionar ${item.TrackingCode}`}
-        disabled={marca?.tipo === 'outra-pessoa'}
-        className="mt-1 size-3.5 flex-none accent-accent"
-      />
+      {/* A caixa vale pela faixa da esquerda inteira, da borda da linha ate o texto: no
+          toque, os 18 da caixa sozinha eram pouco para o dedo, e errar abria o relato. No
+          dedo a faixa tem 40 de largura, como a caixa da tabela do Trabalho. */}
+      <label className="-my-2.5 -ml-3 flex flex-none cursor-pointer self-stretch py-2.5 pl-3 pointer-coarse:pr-2.5">
+        <input
+          type="checkbox"
+          checked={marcado}
+          onChange={(evento) => aoMarcar(evento.target.checked)}
+          aria-label={`Selecionar ${item.TrackingCode}`}
+          disabled={marca?.tipo === 'outra-pessoa'}
+          className="mt-1 size-3.5 flex-none accent-accent"
+        />
+      </label>
       <button
         type="button"
         onClick={aoSelecionar}
         aria-current={selecionado ? 'true' : undefined}
         className="min-w-0 flex-1 text-left"
       >
+        {/* O protocolo nunca quebra (no celular ele partia no hifen, em duas linhas): quem
+            cede espaco e o tipo, que encurta com reticencias. */}
         <span className="flex items-baseline gap-2">
-          <span className="font-mono text-caption text-fg-muted">{item.TrackingCode}</span>
+          <span className="flex-none whitespace-nowrap font-mono text-caption text-fg-muted">
+            {item.TrackingCode}
+          </span>
           <span className="truncate text-caption text-fg-muted">{reportTypeName(item.Type)}</span>
           <time dateTime={quando} className="ml-auto flex-none text-caption text-fg-muted">
             {formatRelative(quando)}
@@ -172,8 +181,68 @@ export function LinhaDaFila({
 }
 
 /**
+ * Os botoes de decidir. No detalhe ao lado da lista, pequenos e com quem decidiu ao lado;
+ * no pe da folha do celular (`naFolha`), dividindo a largura, com o principal a direita,
+ * onde o polegar alcanca e onde os dialogos do painel poem o confirmar.
+ */
+export function AcoesDoRelato({
+  item,
+  calmo,
+  ocupado,
+  aoDecidir,
+  naFolha = false,
+}: {
+  item: ModerationItemViewModel
+  calmo: boolean
+  ocupado: boolean
+  aoDecidir: (decisao: Decisao) => void
+  naFolha?: boolean
+}) {
+  const acoes = acoesDa(item.State, calmo)
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-x-3 gap-y-2',
+        naFolha ? 'w-full flex-row-reverse' : 'flex-wrap',
+      )}
+    >
+      {acoes.map((acao) => (
+        <Button
+          key={acao.decisao}
+          variant={acao.principal ? 'primary' : 'secondary'}
+          size={naFolha ? 'md' : 'sm'}
+          className={naFolha ? 'flex-1' : undefined}
+          disabled={ocupado}
+          aria-keyshortcuts={acao.tecla}
+          onClick={() => aoDecidir(acao.decisao)}
+        >
+          {acao.rotulo}
+        </Button>
+      ))}
+      {!naFolha && <QuemDecidiu item={item} />}
+    </div>
+  )
+}
+
+/** "Liberado por Ana, ha 2 dias": so no historico, onde alguem ja decidiu. */
+function QuemDecidiu({ item }: { item: ModerationItemViewModel }) {
+  if (item.State === 'Pending') return null
+  return (
+    <span className="text-caption text-fg-muted">
+      {item.State === 'Approved' ? 'Liberado' : 'Não publicável'}
+      {item.ModeratedByName !== null && ` por ${item.ModeratedByName}`}
+      {item.ModeratedAt !== null && `, ${formatRelative(item.ModeratedAt)}`}
+    </span>
+  )
+}
+
+/**
  * O relato escolhido, inteiro: o texto marcado, os achados, quem assinou, a previa da
  * lista publica e as acoes.
+ *
+ * **Na folha do celular (`naFolha`)** o protocolo e a chegada sobem para o titulo da folha
+ * e as acoes descem para o pe dela: o meio fica so com o que se le. A previa publica
+ * recolhe atras de uma linha, porque o texto dela e o mesmo que esta logo acima.
  */
 export function DetalheDoRelato({
   item,
@@ -183,6 +252,7 @@ export function DetalheDoRelato({
   marca,
   ocupado,
   aoDecidir,
+  naFolha = false,
 }: {
   item: ModerationItemViewModel
   projectPublicId: string
@@ -193,52 +263,40 @@ export function DetalheDoRelato({
   marca: Marca | undefined
   ocupado: boolean
   aoDecidir: (decisao: Decisao) => void
+  naFolha?: boolean
 }) {
   const outraPessoa = marca?.tipo === 'outra-pessoa'
+  const abrirCard = (
+    <Link
+      to={`/projects/${projectPublicId}/reports/${item.PublicId}`}
+      className="ml-auto text-caption text-fg-muted underline underline-offset-2 hover:text-fg pointer-coarse:-my-3 pointer-coarse:py-3"
+    >
+      Abrir card
+    </Link>
+  )
 
   return (
     <article aria-label={`Relato ${item.TrackingCode}`} className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-caption text-fg-muted">{item.TrackingCode}</span>
-        <span className="text-caption text-fg-muted">{reportTypeName(item.Type)}</span>
-        <time dateTime={item.CreatedAt} className="text-caption text-fg-muted">
-          chegou {formatRelative(item.CreatedAt)}
-        </time>
-        <Link
-          to={`/projects/${projectPublicId}/reports/${item.PublicId}`}
-          className="ml-auto text-caption text-fg-muted underline underline-offset-2 hover:text-fg"
-        >
-          Abrir card
-        </Link>
-      </div>
+      {!naFolha && (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-mono text-caption text-fg-muted">{item.TrackingCode}</span>
+          <span className="text-caption text-fg-muted">{reportTypeName(item.Type)}</span>
+          <time dateTime={item.CreatedAt} className="text-caption text-fg-muted">
+            chegou {formatRelative(item.CreatedAt)}
+          </time>
+          {abrirCard}
+        </div>
+      )}
 
       {outraPessoa ? (
         <p className="rounded-lg border border-border bg-surface-sunken px-3 py-2 text-detail text-fg-muted leading-relaxed">
           <strong className="font-medium text-fg">Outra pessoa já decidiu este relato.</strong> A
           decisão dela ficou valendo; ele sai desta lista na próxima vez que ela for lida.
         </p>
+      ) : naFolha ? (
+        <QuemDecidiu item={item} />
       ) : (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {acoesDa(item.State, calmo).map((acao) => (
-            <Button
-              key={acao.decisao}
-              variant={acao.principal ? 'primary' : 'secondary'}
-              size="sm"
-              disabled={ocupado}
-              aria-keyshortcuts={acao.tecla}
-              onClick={() => aoDecidir(acao.decisao)}
-            >
-              {acao.rotulo}
-            </Button>
-          ))}
-          {item.State !== 'Pending' && (
-            <span className="text-caption text-fg-muted">
-              {item.State === 'Approved' ? 'Liberado' : 'Não publicável'}
-              {item.ModeratedByName !== null && ` por ${item.ModeratedByName}`}
-              {item.ModeratedAt !== null && `, ${formatRelative(item.ModeratedAt)}`}
-            </span>
-          )}
-        </div>
+        <AcoesDoRelato item={item} calmo={calmo} ocupado={ocupado} aoDecidir={aoDecidir} />
       )}
 
       {marca?.tipo === 'falha' && (
@@ -264,7 +322,33 @@ export function DetalheDoRelato({
         </p>
       )}
 
-      <PreviaPublica item={item} visibilidade={visibilidade} />
+      {naFolha ? (
+        <>
+          <details className="details-smooth group">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-detail text-fg-muted hover:text-fg pointer-coarse:-my-2 pointer-coarse:py-2 [&::-webkit-details-marker]:hidden">
+              <svg
+                viewBox="0 0 12 12"
+                className="size-2.5 flex-none transition-transform duration-300 ease-out group-open:rotate-90 motion-reduce:transition-none"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="m4.5 2.5 3.5 3.5-3.5 3.5" />
+              </svg>
+              {tituloDaPrevia(visibilidade, item.State === 'Approved')}
+            </summary>
+            <div className="mt-2">
+              <PreviaPublica item={item} visibilidade={visibilidade} semTitulo />
+            </div>
+          </details>
+          <div className="flex">{abrirCard}</div>
+        </>
+      ) : (
+        <PreviaPublica item={item} visibilidade={visibilidade} />
+      )}
     </article>
   )
 }
@@ -332,29 +416,34 @@ function Achados({ item }: { item: ModerationItemViewModel }) {
  * projeto em que nada aparece prometia o que nao acontece, e a legenda tinha de
  * desmentir o titulo logo embaixo.
  */
+function tituloDaPrevia(visibilidade: ReportVisibility | null, liberado: boolean): string {
+  if (visibilidade === 'Private')
+    return liberado
+      ? 'Se o projeto abrir ao público, aparece assim'
+      : 'Se o projeto abrir ao público, vai aparecer assim'
+  return liberado ? 'Na lista pública aparece assim' : 'Na lista pública vai aparecer assim'
+}
+
 function PreviaPublica({
   item,
   visibilidade,
+  semTitulo = false,
 }: {
   item: ModerationItemViewModel
   visibilidade: ReportVisibility | null
+  /** Na folha do celular o titulo e a linha que abre a previa. */
+  semTitulo?: boolean
 }) {
   const nome =
     visibilidade === 'PublicIdentified' && item.ReporterNameIsPublic ? item.ReporterName : null
-  const privado = visibilidade === 'Private'
-  const liberado = item.State === 'Approved'
 
   return (
     <section aria-label="Prévia na lista pública" className="flex flex-col gap-2">
-      <h2 className="font-medium text-detail text-fg">
-        {privado
-          ? liberado
-            ? 'Se o projeto abrir ao público, aparece assim'
-            : 'Se o projeto abrir ao público, vai aparecer assim'
-          : liberado
-            ? 'Na lista pública aparece assim'
-            : 'Na lista pública vai aparecer assim'}
-      </h2>
+      {!semTitulo && (
+        <h2 className="font-medium text-detail text-fg">
+          {tituloDaPrevia(visibilidade, item.State === 'Approved')}
+        </h2>
+      )}
       <div className="rounded-lg border border-border bg-surface p-3">
         <PublicReportCard
           typeName={reportTypeName(item.Type)}

@@ -19,6 +19,7 @@ import {
 } from '@/data'
 import {
   ABAS,
+  AcoesDoRelato,
   acoesDa,
   type Decisao,
   DetalheDoRelato,
@@ -26,11 +27,14 @@ import {
   type Marca,
   vazioDa,
 } from '@/features/moderation/moderationParts'
+import { PrivacidadeNaFolha } from '@/features/moderation/PrivacidadeNaFolha'
 import { useAvisosDeCard } from '@/features/moderation/useAvisosDeCard'
+import { BottomSheet } from '@/shared/components/BottomSheet'
 import { Button } from '@/shared/components/Button'
 import { EyeIcon } from '@/shared/components/EyeIcon'
 import { HowItWorks } from '@/shared/components/HowItWorks'
 import { LockIcon } from '@/shared/components/LockIcon'
+import { reportTypeName } from '@/shared/components/ReportTypeGlyph'
 import { Select } from '@/shared/components/Select'
 import {
   type Shortcut,
@@ -39,9 +43,12 @@ import {
 } from '@/shared/components/ShortcutsDialog'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { toast } from '@/shared/components/toastStore'
+import type { EstadoDaVolta } from '@/shared/components/VoltarDeOndeVeio'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
+import { formatRelative } from '@/shared/lib/datetime'
 import { canConfigure } from '@/shared/lib/projectAccess'
 import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
@@ -104,7 +111,11 @@ export function ModerationScreen() {
 
   // Privado ou publico vem de Quem relata. Falhando a leitura, a tela fica como era:
   // com a contagem, e com uma frase neutra no topo.
-  const { data: identidade, loading: lendoPrivacidade } = useAsyncResource(
+  const {
+    data: identidade,
+    loading: lendoPrivacidade,
+    revalidate: relerPrivacidade,
+  } = useAsyncResource(
     useCallback(() => projectIdentitySettingsService.getIdentitySettings(pid), [pid]),
   )
   const visibilidade = identidade?.Visibility ?? null
@@ -157,8 +168,8 @@ export function ModerationScreen() {
           },
           {
             alvo: 'guia',
-            titulo: 'Sempre à mão',
-            texto: 'Volte aqui quando quiser rever o que cada parte desta tela faz.',
+            titulo: 'Guia por tela',
+            texto: 'Cada tela tem o seu guia, sempre neste botão, com o nome dela.',
           },
         ],
   )
@@ -195,6 +206,18 @@ export function ModerationScreen() {
   const [lote, setLote] = useState<{ feitos: number; total: number } | null>(null)
   const [novos, setNovos] = useState(0)
   const [atalhos, setAtalhos] = useState(false)
+
+  // **No celular e no tablet em pe, a lista fica sozinha**, e tocar num relato abre ele numa
+  // folha que sobe de baixo, com as decisoes presas no pe. Antes o detalhe vinha embaixo da lista
+  // inteira: tocar pulava para o fim da pagina, e para o proximo era preciso voltar.
+  const estreito = useMediaQuery('(max-width: 47.99rem)')
+  const [folha, setFolha] = useState(false)
+  // No celular os filtros sobem numa folha, como no Trabalho: na linha, eram tres fileiras
+  // antes do primeiro relato.
+  const celular = useMediaQuery('(max-width: 39.99rem)')
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
+  // E a privacidade tambem muda ali mesmo, numa folha: o link levava a outra tela.
+  const [privacidadeAberta, setPrivacidadeAberta] = useState(false)
 
   // Cada leitura leva um numero: a resposta de um pedido velho (outra aba, outro
   // filtro) nao pode desenhar por cima da do pedido de agora.
@@ -357,6 +380,8 @@ export function ModerationScreen() {
       const proximo = vizinho(item.PublicId)
       tirarDaLista([item.PublicId], decisao)
       setSelecionado(proximo)
+      // Na folha, o proximo entra no lugar, como na lista; acabou a lista, ela fecha.
+      if (proximo === null) setFolha(false)
       avisarFeito([item], decisao, 0, 0)
     } catch (falha) {
       marcar(
@@ -521,9 +546,7 @@ export function ModerationScreen() {
 
   function escolher(id: string) {
     setSelecionado(id)
-    // No celular a lista vem antes do detalhe: escolher leva ate ele.
-    if (window.matchMedia?.('(max-width: 767px)').matches)
-      document.getElementById(`${idBase}-detalhe`)?.scrollIntoView?.({ block: 'start' })
+    if (estreito) setFolha(true)
   }
 
   function mover(passo: 1 | -1) {
@@ -594,6 +617,8 @@ export function ModerationScreen() {
   }
 
   const algumFiltro = busca !== '' || tipo !== '' || chegada !== '' || origem !== '' || soSensivel
+  // O que o "Filtros" do celular conta: tudo menos a busca, que fica a vista.
+  const filtrosLigados = [tipo, chegada, origem].filter(Boolean).length + (soSensivel ? 1 : 0)
   function limparFiltros() {
     setBusca('')
     setBuscaAplicada('')
@@ -601,6 +626,71 @@ export function ModerationScreen() {
     setChegada('')
     setOrigem('')
     setSoSensivel(false)
+  }
+
+  /**
+   * Os filtros, ditos uma vez: na linha da tela larga, com a largura de cada um; na folha
+   * do celular (`naFolha`), um embaixo do outro, na largura toda e mais altos para o dedo.
+   */
+  function menus(naFolha: boolean) {
+    const largura = (naLinha: string) => (naFolha ? 'w-full' : naLinha)
+    const gatilho = naFolha ? 'h-10' : 'pointer-coarse:h-9'
+    return (
+      <>
+        {tipos && tipos.length > 1 && (
+          <Select
+            size="sm"
+            ariaLabel="Tipo"
+            value={tipo}
+            onChange={setTipo}
+            className={largura('w-40')}
+            triggerClassName={gatilho}
+            options={[
+              { value: '', label: 'Todos os tipos' },
+              ...tipos.map((um) => ({ value: um.PublicId, label: um.Name })),
+            ]}
+          />
+        )}
+        <Select
+          size="sm"
+          ariaLabel="Chegada"
+          value={chegada}
+          onChange={(valor) => setChegada(valor as Chegada)}
+          className={largura('w-44')}
+          triggerClassName={gatilho}
+          options={CHEGADAS}
+        />
+        {origens && origens.length > 0 && (
+          <Select
+            size="sm"
+            ariaLabel="Origem"
+            value={origem}
+            onChange={setOrigem}
+            className={largura('w-44')}
+            triggerClassName={gatilho}
+            options={[
+              { value: '', label: 'Todas as origens' },
+              ...origens.map((uma) => ({ value: uma.Domain, label: uma.Domain })),
+              { value: 'none', label: 'Sem domínio' },
+            ]}
+          />
+        )}
+        <label
+          className={cn(
+            'flex items-center gap-1.5 text-detail text-fg-muted',
+            naFolha ? 'min-h-10 gap-2.5 text-body text-fg' : 'pointer-coarse:min-h-9',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={soSensivel}
+            onChange={(evento) => setSoSensivel(evento.target.checked)}
+            className={cn('accent-accent', naFolha ? 'size-4' : 'size-3.5')}
+          />
+          Só com dado sensível
+        </label>
+      </>
+    )
   }
 
   const marcaveis = visiveis.filter((item) => marcas.get(item.PublicId)?.tipo !== 'outra-pessoa')
@@ -613,8 +703,21 @@ export function ModerationScreen() {
     <div className="max-w-280">
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Moderação</h1>
       <div {...guideTarget('mod-estado')}>
-        <FraseDeEstado project={project} visibilidade={visibilidade} lendo={lendoPrivacidade} />
+        <FraseDeEstado
+          project={project}
+          visibilidade={visibilidade}
+          lendo={lendoPrivacidade}
+          aoMudar={estreito ? () => setPrivacidadeAberta(true) : undefined}
+        />
       </div>
+      {estreito && canConfigure(project) && (
+        <PrivacidadeNaFolha
+          open={privacidadeAberta}
+          onOpenChange={setPrivacidadeAberta}
+          projectPublicId={pid}
+          aoSalvar={relerPrivacidade}
+        />
+      )}
 
       <HowItWorks>
         <p>
@@ -660,66 +763,46 @@ export function ModerationScreen() {
           aria-labelledby={`${idBase}-aba-${aba}`}
           className="flex animate-panel-in flex-col gap-3"
         >
+          {/* No celular os filtros dividem a linha de dois em dois (`max-sm:flex-[1_1_8rem]`),
+              em vez de cada um numa linha com metade dela vazia, e crescem para o dedo. */}
           <div className="flex flex-wrap items-center gap-2" {...guideTarget('mod-filtros')}>
-            <label className="relative min-w-0 flex-[1_1_16rem]">
+            <label className="relative min-w-0 flex-[1_1_16rem] max-sm:flex-[1_1_8rem]">
               <span className="sr-only">Buscar</span>
               <input
                 type="search"
                 value={busca}
                 onChange={(evento) => setBusca(evento.target.value)}
-                placeholder="Texto, #número ou protocolo"
+                // No celular o campo divide a linha com o "Filtros": a frase inteira cortava.
+                placeholder={celular ? 'Buscar' : 'Texto, #número ou protocolo'}
+                title="Busca no texto, no #número e no protocolo"
                 maxLength={200}
-                className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder"
+                className="h-8 w-full rounded-lg border border-border bg-surface-raised px-2.5 text-detail text-fg placeholder:text-fg-placeholder pointer-coarse:h-9"
               />
             </label>
-            {tipos && tipos.length > 1 && (
-              <Select
-                size="sm"
-                ariaLabel="Tipo"
-                value={tipo}
-                onChange={setTipo}
-                className="w-40"
-                options={[
-                  { value: '', label: 'Todos os tipos' },
-                  ...tipos.map((um) => ({ value: um.PublicId, label: um.Name })),
-                ]}
-              />
-            )}
-            <Select
-              size="sm"
-              ariaLabel="Chegada"
-              value={chegada}
-              onChange={(valor) => setChegada(valor as Chegada)}
-              className="w-44"
-              options={CHEGADAS}
-            />
-            {origens && origens.length > 0 && (
-              <Select
-                size="sm"
-                ariaLabel="Origem"
-                value={origem}
-                onChange={setOrigem}
-                className="w-44"
-                options={[
-                  { value: '', label: 'Todas as origens' },
-                  ...origens.map((uma) => ({ value: uma.Domain, label: uma.Domain })),
-                  { value: 'none', label: 'Sem domínio' },
-                ]}
-              />
-            )}
-            <label className="flex items-center gap-1.5 text-detail text-fg-muted">
-              <input
-                type="checkbox"
-                checked={soSensivel}
-                onChange={(evento) => setSoSensivel(evento.target.checked)}
-                className="size-3.5 accent-accent"
-              />
-              Só com dado sensível
-            </label>
-            {algumFiltro && (
-              <Button size="sm" variant="quiet" onClick={limparFiltros}>
-                Limpar filtros
-              </Button>
+            {celular ? (
+              // O mesmo botao do Trabalho: com filtro ligado, ganha o realce e diz quantos.
+              <button
+                type="button"
+                aria-expanded={filtrosAbertos}
+                onClick={() => setFiltrosAbertos(true)}
+                className={cn(
+                  'alvo-de-toque relative flex h-9 flex-none items-center rounded-lg border px-3 text-detail transition-all duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100',
+                  filtrosLigados > 0
+                    ? 'border-accent bg-accent/8 text-fg hover:bg-accent/12'
+                    : 'border-border bg-surface text-fg-muted hover:bg-surface-sunken hover:text-fg',
+                )}
+              >
+                {filtrosLigados > 0 ? `Filtros (${filtrosLigados})` : 'Filtros'}
+              </button>
+            ) : (
+              <>
+                {menus(false)}
+                {algumFiltro && (
+                  <Button size="sm" variant="quiet" onClick={limparFiltros}>
+                    Limpar filtros
+                  </Button>
+                )}
+              </>
             )}
             <div className="ml-auto">
               <span className="flex" {...guideTarget('mod-atalhos')}>
@@ -727,6 +810,34 @@ export function ModerationScreen() {
               </span>
             </div>
           </div>
+
+          {celular && (
+            <BottomSheet
+              open={filtrosAbertos}
+              onOpenChange={setFiltrosAbertos}
+              title="Filtros"
+              footer={
+                <>
+                  {algumFiltro ? (
+                    <button
+                      type="button"
+                      onClick={limparFiltros}
+                      className="alvo-de-toque relative h-9 rounded-lg px-2 text-detail text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+                    >
+                      Limpar filtros
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  <Button variant="primary" onClick={() => setFiltrosAbertos(false)}>
+                    Ver os relatos
+                  </Button>
+                </>
+              }
+            >
+              <div className="flex flex-col gap-3">{menus(true)}</div>
+            </BottomSheet>
+          )}
 
           <ShortcutsDialog open={atalhos} onOpenChange={setAtalhos} atalhos={ATALHOS} />
 
@@ -786,7 +897,7 @@ export function ModerationScreen() {
                 aria-busy={carregando || undefined}
                 className="overflow-hidden rounded-xl border border-border bg-surface-raised md:max-h-[75vh] md:overflow-y-auto"
               >
-                <label className="flex items-center gap-2.5 border-border border-b px-3 py-2 text-caption text-fg-muted">
+                <label className="flex items-center gap-2.5 border-border border-b px-3 py-2 text-caption text-fg-muted pointer-coarse:py-3">
                   <input
                     type="checkbox"
                     checked={todosMarcados}
@@ -806,7 +917,8 @@ export function ModerationScreen() {
                       key={item.PublicId}
                       item={item}
                       aba={aba}
-                      selecionado={item.PublicId === atual?.PublicId}
+                      // Sem o detalhe ao lado, o realce parecia um toque preso na linha.
+                      selecionado={!estreito && item.PublicId === atual?.PublicId}
                       marcado={marcados.has(item.PublicId)}
                       marca={marcas.get(item.PublicId)}
                       aoSelecionar={() => escolher(item.PublicId)}
@@ -833,62 +945,126 @@ export function ModerationScreen() {
               </section>
 
               {/* A chave troca com o relato escolhido: o detalhe novo entra esmaecendo. */}
-              <section
-                key={atual?.PublicId ?? 'nenhum'}
-                id={`${idBase}-detalhe`}
-                aria-label="Relato escolhido"
-                {...guideTarget('mod-detalhe')}
-                className="animate-panel-in rounded-xl border border-border bg-surface-raised p-4 md:sticky md:top-4"
-              >
-                {atual ? (
-                  <DetalheDoRelato
+              {!estreito && (
+                <section
+                  key={atual?.PublicId ?? 'nenhum'}
+                  id={`${idBase}-detalhe`}
+                  aria-label="Relato escolhido"
+                  {...guideTarget('mod-detalhe')}
+                  className="animate-panel-in rounded-xl border border-border bg-surface-raised p-4 md:sticky md:top-4"
+                >
+                  {atual ? (
+                    <DetalheDoRelato
+                      item={atual}
+                      projectPublicId={pid}
+                      visibilidade={visibilidade}
+                      calmo={calmo}
+                      marca={marcas.get(atual.PublicId)}
+                      ocupado={decidindo || lote !== null}
+                      aoDecidir={(decisao) => void decidir(atual, decisao)}
+                    />
+                  ) : (
+                    <p className="text-detail text-fg-muted">Escolha um relato na lista.</p>
+                  )}
+                </section>
+              )}
+            </div>
+          )}
+
+          {/* No celular, o relato tocado abre aqui, com as decisoes no pe. Decidindo, o
+              proximo entra no lugar, e a folha so fecha quando a lista acaba. */}
+          {estreito && atual && (
+            <BottomSheet
+              open={folha}
+              onOpenChange={setFolha}
+              title={reportTypeName(atual.Type)}
+              subtitle={
+                <>
+                  <span className="font-mono">{atual.TrackingCode}</span>, chegou{' '}
+                  {formatRelative(atual.CreatedAt)}
+                </>
+              }
+              footer={
+                marcas.get(atual.PublicId)?.tipo === 'outra-pessoa' ? undefined : (
+                  <AcoesDoRelato
                     item={atual}
-                    projectPublicId={pid}
-                    visibilidade={visibilidade}
                     calmo={calmo}
-                    marca={marcas.get(atual.PublicId)}
                     ocupado={decidindo || lote !== null}
                     aoDecidir={(decisao) => void decidir(atual, decisao)}
+                    naFolha
                   />
-                ) : (
-                  <p className="text-detail text-fg-muted">Escolha um relato na lista.</p>
-                )}
-              </section>
-            </div>
+                )
+              }
+            >
+              <div key={atual.PublicId} className="animate-panel-in">
+                <DetalheDoRelato
+                  item={atual}
+                  projectPublicId={pid}
+                  visibilidade={visibilidade}
+                  calmo={calmo}
+                  marca={marcas.get(atual.PublicId)}
+                  ocupado={decidindo || lote !== null}
+                  aoDecidir={(decisao) => void decidir(atual, decisao)}
+                  naFolha
+                />
+              </div>
+            </BottomSheet>
           )}
 
           {quantosMarcados > 0 && (
             // Presa embaixo da tela: marcar a primeira caixa nao empurra as linhas, e o
-            // proximo clique cai onde a pessoa mirou.
+            // proximo clique cai onde a pessoa mirou. O preso conta a partir da folga do pe
+            // do `main` da casca (pb-32, e pb-40 no lg), e nao da borda da janela: com
+            // `bottom-3` a barra ficava 140 acima do fim da tela no celular, no meio da
+            // lista. O desconto da folga a leva para 12 da borda; mudando a folga da casca,
+            // muda aqui junto.
             <section
               aria-label="Ações em lote"
-              className="sticky bottom-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2"
+              className="sticky bottom-[calc(0.75rem-8rem)] flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2 lg:bottom-[calc(0.75rem-10rem)]"
             >
-              <span className="mr-1 font-medium text-detail text-fg tabular-nums">
+              <span className="mr-1 font-medium text-detail text-fg tabular-nums max-sm:flex-1">
                 {lote
                   ? `Decidindo ${lote.feitos} de ${lote.total}…`
                   : quantosMarcados === 1
                     ? '1 selecionado'
                     : `${quantosMarcados} selecionados`}
               </span>
-              {acoesDa(aba, calmo).map((acao) => (
-                <Button
-                  key={acao.decisao}
-                  size="sm"
-                  variant={acao.principal ? 'primary' : 'secondary'}
-                  disabled={lote !== null || decidindo}
-                  onClick={() => void aplicarLote(acao.decisao)}
-                >
-                  {acao.rotulo}
-                </Button>
-              ))}
+              {/* No celular as decisoes descem para uma linha propria, dividindo a largura
+                  como no pe da folha (o principal a direita), e o limpar vira um X ao lado
+                  da contagem: numa linha so, o "Limpar seleção" quebrava sozinho embaixo. */}
+              <div className="flex gap-2 max-sm:order-last max-sm:w-full max-sm:flex-row-reverse">
+                {acoesDa(aba, calmo).map((acao) => (
+                  <Button
+                    key={acao.decisao}
+                    size="sm"
+                    variant={acao.principal ? 'primary' : 'secondary'}
+                    className="max-sm:flex-1"
+                    disabled={lote !== null || decidindo}
+                    onClick={() => void aplicarLote(acao.decisao)}
+                  >
+                    {acao.rotulo}
+                  </Button>
+                ))}
+              </div>
               <Button
                 size="sm"
                 variant="quiet"
+                className="max-sm:-mr-1.5 max-sm:px-2"
                 disabled={lote !== null}
                 onClick={() => setMarcados(new Set())}
               >
-                Limpar seleção
+                <span className="max-sm:sr-only">Limpar seleção</span>
+                <svg
+                  viewBox="0 0 12 12"
+                  className="size-3 sm:hidden"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  aria-hidden
+                >
+                  <path d="m2.5 2.5 7 7m0-7-7 7" />
+                </svg>
               </Button>
             </section>
           )}
@@ -908,28 +1084,45 @@ export function ModerationScreen() {
  *
  * **O link diz para onde leva.** "Abrir os relatos ao publico" parecia publicar ali
  * mesmo; "Mudar a privacidade" leva a tela que decide isso, e so aparece para quem
- * pode mudar.
+ * pode mudar. Na tela larga ele leva com o caminho de volta (`VoltarDeOndeVeio`); no
+ * celular (`aoMudar`), abre a folha com a mesma pergunta, sem sair da fila.
  */
 function FraseDeEstado({
   project,
   visibilidade,
   lendo,
+  aoMudar,
 }: {
   project: ProjectViewModel
   visibilidade: ReportVisibility | null
   lendo: boolean
+  aoMudar?: () => void
 }) {
   // A altura de uma linha (duas no celular): a frase chega sem empurrar a fila.
   if (lendo) return <Skeleton className="mb-3 h-6 w-full max-w-xl max-sm:h-12" />
 
-  const link = canConfigure(project) && (
-    <Link
-      to={`/projects/${project.PublicId}/identity#visibilidade`}
-      className="whitespace-nowrap text-fg underline underline-offset-4"
-    >
-      Mudar a privacidade
-    </Link>
-  )
+  // No dedo a area cresce para cima e para baixo sem mexer na linha: com 17 de altura, o
+  // link no fim da frase era o menor alvo da tela.
+  const estiloDoLink = 'whitespace-nowrap text-fg underline underline-offset-4 pointer-coarse:py-3'
+  const volta: EstadoDaVolta = {
+    voltarPara: `/projects/${project.PublicId}/moderation`,
+    rotuloDaVolta: 'Moderação',
+  }
+  const link =
+    canConfigure(project) &&
+    (aoMudar ? (
+      <button type="button" onClick={aoMudar} className={estiloDoLink}>
+        Mudar a privacidade
+      </button>
+    ) : (
+      <Link
+        to={`/projects/${project.PublicId}/identity#visibilidade`}
+        state={volta}
+        className={estiloDoLink}
+      >
+        Mudar a privacidade
+      </Link>
+    ))
 
   // Sem saber a privacidade, a frase nao afirma nenhum dos dois estados.
   if (visibilidade === null)
@@ -992,10 +1185,13 @@ function Abas({
   }
 
   return (
+    // No celular as tres abas repartem a largura em tres colunas, e o nome longo quebra em
+    // duas linhas: numa linha so, "Nao publicaveis" ficava cortado na borda em 320.
     <div
       role="tablist"
       aria-label="Moderação"
-      className="mb-4 flex gap-5 overflow-x-auto border-border border-b"
+      // `tabs-scroll`: rola so para o lado, e a linha de baixo nao abre rolagem vertical.
+      className="tabs-scroll mb-4 flex gap-5 max-sm:grid max-sm:grid-cols-3 max-sm:gap-2"
     >
       {chaves.map((chave) => {
         // Em projeto privado, nenhuma aba conta: com o numero, a fila parecia uma tarefa
@@ -1016,7 +1212,8 @@ function Abas({
             onClick={() => aoEscolher(chave)}
             onKeyDown={(evento) => teclas(evento, chave)}
             className={cn(
-              '-mb-px flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors',
+              'flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors sm:pointer-coarse:h-11',
+              'max-sm:h-auto max-sm:min-h-11 max-sm:flex-wrap max-sm:justify-center max-sm:gap-x-1 max-sm:gap-y-0 max-sm:whitespace-normal max-sm:py-1.5 max-sm:text-center max-sm:leading-tight',
               aba === chave
                 ? 'border-accent text-fg'
                 : 'border-transparent text-fg-muted hover:text-fg',
