@@ -109,6 +109,7 @@ TAG_FILA=$(montar fila "$RAIZ/api/rabbitmq")
 TAG_PAINEL=$(montar painel -f "$RAIZ/deploy/imagens/painel.Dockerfile" \
   --build-arg "VITE_API_URL=$API_URL" \
   --build-arg "VITE_LOADER_URL=$QUADRO_URL/v1/relatofacil.js" \
+  --build-arg "VITE_PANEL_URL=$PAINEL_URL" \
   --build-arg "VITE_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" "$RAIZ")
 TAG_EDITOR=$(montar editor -f "$RAIZ/deploy/imagens/editor.Dockerfile" "$RAIZ")
 TAG_BORDA=$(montar borda -f "$RAIZ/deploy/imagens/borda.Dockerfile" "$RAIZ")

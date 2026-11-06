@@ -1,3 +1,4 @@
+import { environment } from '@/data/environment'
 import { sanitizeRoute } from '@/embed/config'
 import { sanitizeIdentity } from '@/embed/identityToken'
 import { DEFAULT_OFFSET, type LauncherFrame, launcherRadius } from '@/embed/launcher'
@@ -345,29 +346,39 @@ export function connectToHost(
  * configuracao ainda nao publicada e pede tamanho ao painel, que faz o papel do
  * carregador numa pagina de mentira — inclusive desenhando o botao, com o mesmo codigo.
  *
- * **So a janela de cima, e so da mesma origem** — o painel e o quadro saem do mesmo
- * endereco. Qualquer outra mensagem e ignorada: sem isso, qualquer site poderia
- * enquadrar a previa e fazer o nosso endereco mostrar o texto que quisesse. As
- * respostas tambem so saem para a propria origem.
+ * **So a janela de cima, e so do painel**: a propria origem (no desenvolvimento, painel
+ * e quadro saem do mesmo endereco) ou a origem do painel que o build conhece
+ * (`environment.panelOrigin`, em producao, onde o quadro mora na CDN e o painel na
+ * raiz). Qualquer outra mensagem e ignorada: sem isso, qualquer site poderia enquadrar a
+ * previa e fazer o nosso endereco mostrar o texto que quisesse. As respostas saem so
+ * para a origem que falou; antes da primeira mensagem, o aviso de pronto vai para as
+ * duas permitidas, e o navegador so entrega o que bate com a janela de cima.
  *
  * A previa nao captura, nao le nem grava nada: `canCapture` e falso, e o formulario
  * recebe `preview` e nunca envia.
  */
 export function connectToPreviewPanel(
   onSettings: (message: PreviewMessage) => void,
+  panelOrigin: string | null = environment.panelOrigin,
 ): HostConnection {
-  const origem = window.location.origin
+  const propria = window.location.origin
+  const permitidas = panelOrigin && panelOrigin !== propria ? [propria, panelOrigin] : [propria]
+  /** A origem do painel que falou: as respostas vao so para ela. */
+  let origemDoPainel: string | null = null
 
   function reply(message: FrameMessage): void {
-    window.parent.postMessage(message, origem)
+    for (const origem of origemDoPainel ? [origemDoPainel] : permitidas) {
+      window.parent.postMessage(message, origem)
+    }
   }
 
   const aberturas = openListeners()
 
   function handle(event: MessageEvent): void {
     if (event.source !== window.parent) return
-    if (event.origin !== origem) return
+    if (!permitidas.includes(event.origin)) return
     if (!isOurMessage(event.data)) return
+    origemDoPainel = event.origin
 
     // O painel desenha o botao com o mesmo codigo do carregador, e pede para abrir
     // como ele pede.
@@ -381,11 +392,13 @@ export function connectToPreviewPanel(
     const message = event.data as unknown as PreviewMessage
     if (typeof message.settings !== 'object' || message.settings === null) return
 
-    // O contorno so passa se for uma das partes conhecidas: qualquer outro valor vira
-    // "nada a contornar", e nao chega ao desenho.
+    // O contorno so passa se for uma das partes conhecidas, e o tema so se for claro ou
+    // escuro: qualquer outro valor vira "nada a contornar" e "tema pelo sistema", e nao
+    // chega ao desenho.
     onSettings({
       ...message,
       highlight: isPreviewFormPart(message.highlight) ? message.highlight : null,
+      theme: message.theme === 'light' || message.theme === 'dark' ? message.theme : null,
     })
   }
 

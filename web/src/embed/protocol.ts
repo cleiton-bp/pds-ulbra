@@ -240,6 +240,13 @@ export interface PreviewMessage {
    * (`connectToPreviewPanel`). Ausente ou nulo, nada se contorna.
    */
   highlight?: PreviewFormPart | null
+  /**
+   * O tema do painel, para o `Auto` da previa: o formulario e o botao da previa no mesmo
+   * tema, o que o painel mostra. Sem isto, o `Auto` seguiria o sistema de quem olha, e o
+   * botao (desenhado no painel) e o formulario (no quadro, as vezes noutro endereco)
+   * podiam discordar. So `light` ou `dark`; o resto e descartado na chegada.
+   */
+  theme?: 'light' | 'dark' | null
 }
 
 /**
