@@ -207,6 +207,14 @@ export function ModerationScreen() {
   const [novos, setNovos] = useState(0)
   const [atalhos, setAtalhos] = useState(false)
 
+  // **A troca de aba nao mexe na tela.** Ela zerava a lista e punha no lugar dois esqueletos
+  // de 256px: o painel ia de 94 para 572 e voltava a 71 quando a resposta chegava, a area que
+  // rola ganhava e perdia a folga do pe (28 e 128) e, no computador, a barra de rolagem
+  // aparecia e sumia, e a tela tremia de lado. Agora o lugar guarda a altura de antes ate a
+  // resposta chegar, e o esqueleto so aparece se a leitura demorar.
+  const resultados = useRef<HTMLDivElement>(null)
+  const [alturaDaTroca, setAlturaDaTroca] = useState<number | null>(null)
+
   // **No celular e no tablet em pe, a lista fica sozinha**, e tocar num relato abre ele numa
   // folha que sobe de baixo, com as decisoes presas no pe. Antes o detalhe vinha embaixo da lista
   // inteira: tocar pulava para o fim da pagina, e para o proximo era preciso voltar.
@@ -235,6 +243,7 @@ export function ModerationScreen() {
       const pagina = await projectReportService.listModeration(pid, pedido)
       if (minha !== pedidoAtual.current) return
       setFila({ itens: pagina.Items, cursor: pagina.NextCursor, temMais: pagina.HasMore })
+      setAlturaDaTroca(null)
       setContagem(pagina.Counts)
       vistos.current = pagina.Counts[pedido.state]
       setMarcados(new Set())
@@ -247,6 +256,7 @@ export function ModerationScreen() {
     } catch {
       if (minha !== pedidoAtual.current) return
       setFila(null)
+      setAlturaDaTroca(null)
       setFalhou(true)
     } finally {
       if (minha === pedidoAtual.current) setCarregando(false)
@@ -610,7 +620,9 @@ export function ModerationScreen() {
 
   function trocarAba(nova: ReportModerationState) {
     if (nova === aba) return
-    // Os relatos de uma aba nao podem aparecer sob o nome da outra enquanto ela le.
+    // Os relatos de uma aba nao podem aparecer sob o nome da outra enquanto ela le, mas o
+    // lugar deles fica com a mesma altura ate a outra chegar.
+    setAlturaDaTroca(resultados.current?.offsetHeight ?? null)
     setFila(null)
     setSelecionado(null)
     setAba(nova)
@@ -755,13 +767,13 @@ export function ModerationScreen() {
           />
         </div>
 
-        {/* A chave troca com a aba: o painel novo entra esmaecendo. */}
+        {/* O painel fica parado na troca de aba: a busca e o "Filtros" sao os mesmos nas tres,
+            e remontados com o painel eles piscavam e desciam 4px. So os resultados trocam. */}
         <div
-          key={aba}
           id={`${idBase}-painel`}
           role="tabpanel"
           aria-labelledby={`${idBase}-aba-${aba}`}
-          className="flex animate-panel-in flex-col gap-3"
+          className="flex flex-col gap-3"
         >
           {/* No celular os filtros dividem a linha de dois em dois (`max-sm:flex-[1_1_8rem]`),
               em vez de cada um numa linha com metade dela vazia, e crescem para o dedo. */}
@@ -841,233 +853,248 @@ export function ModerationScreen() {
 
           <ShortcutsDialog open={atalhos} onOpenChange={setAtalhos} atalhos={ATALHOS} />
 
-          {novos > 0 && (
-            <div role="status">
-              <Button size="sm" onClick={() => void carregar()}>
-                {novos === 1 ? '1 novo' : `${novos} novos`}, mostrar
-              </Button>
-            </div>
-          )}
+          {/* A chave troca com a aba: os resultados novos entram so esmaecendo, sem descer. */}
+          <div ref={resultados} key={aba} className="flex animate-fade-in flex-col gap-3">
+            {novos > 0 && (
+              <div role="status">
+                <Button size="sm" onClick={() => void carregar()}>
+                  {novos === 1 ? '1 novo' : `${novos} novos`}, mostrar
+                </Button>
+              </div>
+            )}
 
-          {falhou && (
-            <div className="rounded-xl border border-border bg-surface-raised p-5">
-              <p className="mb-3.5 text-body text-fg-muted leading-relaxed">
-                Não deu para carregar a fila agora. Nada foi decidido: a falha foi ao consultar.
-              </p>
-              <Button onClick={() => void carregar()}>Tentar de novo</Button>
-            </div>
-          )}
+            {falhou && (
+              <div className="rounded-xl border border-border bg-surface-raised p-5">
+                <p className="mb-3.5 text-body text-fg-muted leading-relaxed">
+                  Não deu para carregar a fila agora. Nada foi decidido: a falha foi ao consultar.
+                </p>
+                <Button onClick={() => void carregar()}>Tentar de novo</Button>
+              </div>
+            )}
 
-          {carregando && fila === null && !falhou && (
-            <div className="grid gap-3 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-              <Skeleton className="h-64 w-full" />
-              <Skeleton className="h-64 w-full" />
-            </div>
-          )}
-
-          {fila !== null && visiveis.length === 0 && fila.temMais && (
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-body text-fg-muted leading-relaxed">
-                {soSensivel
-                  ? 'Nenhum dos relatos carregados tem dado sensível.'
-                  : 'Os carregados já foram decididos.'}
-              </p>
-              <Button
-                size="sm"
-                variant="quiet"
-                disabled={carregandoMais}
-                onClick={() => void carregarMais()}
-              >
-                {carregandoMais ? 'Carregando…' : 'Mostrar mais'}
-              </Button>
-            </div>
-          )}
-
-          {fila !== null && visiveis.length === 0 && !fila.temMais && (
-            <p className="text-body text-fg-muted leading-relaxed">
-              {algumFiltro ? 'Nenhum relato desta aba passa nos filtros.' : vazioDa(aba, privado)}
-            </p>
-          )}
-
-          {fila !== null && visiveis.length > 0 && (
-            <div className="grid items-start gap-4 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-              <section
-                aria-label="Relatos"
-                {...guideTarget('mod-lista')}
-                aria-busy={carregando || undefined}
-                className="overflow-hidden rounded-xl border border-border bg-surface-raised md:max-h-[75vh] md:overflow-y-auto"
-              >
-                <label className="flex items-center gap-2.5 border-border border-b px-3 py-2 text-caption text-fg-muted pointer-coarse:py-3">
-                  <input
-                    type="checkbox"
-                    checked={todosMarcados}
-                    onChange={(evento) => {
-                      const marcar = evento.target.checked
-                      setMarcados(
-                        marcar ? new Set(marcaveis.map((item) => item.PublicId)) : new Set(),
-                      )
-                    }}
-                    className="size-3.5 accent-accent"
-                  />
-                  Selecionar os {marcaveis.length} carregados
-                </label>
-                <ul>
-                  {visiveis.map((item) => (
-                    <LinhaDaFila
-                      key={item.PublicId}
-                      item={item}
-                      aba={aba}
-                      // Sem o detalhe ao lado, o realce parecia um toque preso na linha.
-                      selecionado={!estreito && item.PublicId === atual?.PublicId}
-                      marcado={marcados.has(item.PublicId)}
-                      marca={marcas.get(item.PublicId)}
-                      aoSelecionar={() => escolher(item.PublicId)}
-                      aoMarcar={(marcado) => alternarMarca(item.PublicId, marcado)}
-                    />
-                  ))}
-                </ul>
-                {fila.temMais && (
-                  <div className="border-border border-t p-2.5">
-                    <Button
-                      size="sm"
-                      variant="quiet"
-                      disabled={carregandoMais}
-                      onClick={() => void carregarMais()}
-                    >
-                      {carregandoMais
-                        ? 'Carregando…'
-                        : totalDaAba !== null
-                          ? `Mostrar mais (${itens.length} de ${totalDaAba})`
-                          : 'Mostrar mais'}
-                    </Button>
-                  </div>
-                )}
-              </section>
-
-              {/* A chave troca com o relato escolhido: o detalhe novo entra esmaecendo. */}
-              {!estreito && (
-                <section
-                  key={atual?.PublicId ?? 'nenhum'}
-                  id={`${idBase}-detalhe`}
-                  aria-label="Relato escolhido"
-                  {...guideTarget('mod-detalhe')}
-                  className="animate-panel-in rounded-xl border border-border bg-surface-raised p-4 md:sticky md:top-4"
+            {/* Sem `carregando`: na primeira pintura depois da troca a leitura nova ainda nao
+                comecou, e por um quadro nada ocupava o lugar (o painel ia a 48 e voltava). */}
+            {fila === null &&
+              !falhou &&
+              (alturaDaTroca !== null ? (
+                // Na troca, a altura de antes; o esqueleto, so depois de 400ms lendo.
+                <div
+                  className="grid animate-fade-in [animation-delay:400ms]"
+                  style={{ minHeight: alturaDaTroca }}
                 >
-                  {atual ? (
-                    <DetalheDoRelato
-                      item={atual}
-                      projectPublicId={pid}
-                      visibilidade={visibilidade}
-                      calmo={calmo}
-                      marca={marcas.get(atual.PublicId)}
-                      ocupado={decidindo || lote !== null}
-                      aoDecidir={(decisao) => void decidir(atual, decisao)}
+                  <Skeleton className="w-full rounded-xl" />
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+                  <Skeleton className="h-64 w-full" />
+                  <Skeleton className="h-64 w-full" />
+                </div>
+              ))}
+
+            {fila !== null && visiveis.length === 0 && fila.temMais && (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-body text-fg-muted leading-relaxed">
+                  {soSensivel
+                    ? 'Nenhum dos relatos carregados tem dado sensível.'
+                    : 'Os carregados já foram decididos.'}
+                </p>
+                <Button
+                  size="sm"
+                  variant="quiet"
+                  disabled={carregandoMais}
+                  onClick={() => void carregarMais()}
+                >
+                  {carregandoMais ? 'Carregando…' : 'Mostrar mais'}
+                </Button>
+              </div>
+            )}
+
+            {fila !== null && visiveis.length === 0 && !fila.temMais && (
+              <p className="text-body text-fg-muted leading-relaxed">
+                {algumFiltro ? 'Nenhum relato desta aba passa nos filtros.' : vazioDa(aba, privado)}
+              </p>
+            )}
+
+            {fila !== null && visiveis.length > 0 && (
+              <div className="grid items-start gap-4 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+                <section
+                  aria-label="Relatos"
+                  {...guideTarget('mod-lista')}
+                  aria-busy={carregando || undefined}
+                  className="overflow-hidden rounded-xl border border-border bg-surface-raised md:max-h-[75vh] md:overflow-y-auto"
+                >
+                  <label className="flex items-center gap-2.5 border-border border-b px-3 py-2 text-caption text-fg-muted pointer-coarse:py-3">
+                    <input
+                      type="checkbox"
+                      checked={todosMarcados}
+                      onChange={(evento) => {
+                        const marcar = evento.target.checked
+                        setMarcados(
+                          marcar ? new Set(marcaveis.map((item) => item.PublicId)) : new Set(),
+                        )
+                      }}
+                      className="size-3.5 accent-accent"
                     />
-                  ) : (
-                    <p className="text-detail text-fg-muted">Escolha um relato na lista.</p>
+                    Selecionar os {marcaveis.length} carregados
+                  </label>
+                  <ul>
+                    {visiveis.map((item) => (
+                      <LinhaDaFila
+                        key={item.PublicId}
+                        item={item}
+                        aba={aba}
+                        // Sem o detalhe ao lado, o realce parecia um toque preso na linha.
+                        selecionado={!estreito && item.PublicId === atual?.PublicId}
+                        marcado={marcados.has(item.PublicId)}
+                        marca={marcas.get(item.PublicId)}
+                        aoSelecionar={() => escolher(item.PublicId)}
+                        aoMarcar={(marcado) => alternarMarca(item.PublicId, marcado)}
+                      />
+                    ))}
+                  </ul>
+                  {fila.temMais && (
+                    <div className="border-border border-t p-2.5">
+                      <Button
+                        size="sm"
+                        variant="quiet"
+                        disabled={carregandoMais}
+                        onClick={() => void carregarMais()}
+                      >
+                        {carregandoMais
+                          ? 'Carregando…'
+                          : totalDaAba !== null
+                            ? `Mostrar mais (${itens.length} de ${totalDaAba})`
+                            : 'Mostrar mais'}
+                      </Button>
+                    </div>
                   )}
                 </section>
-              )}
-            </div>
-          )}
 
-          {/* No celular, o relato tocado abre aqui, com as decisoes no pe. Decidindo, o
+                {/* A chave troca com o relato escolhido: o detalhe novo entra esmaecendo. */}
+                {!estreito && (
+                  <section
+                    key={atual?.PublicId ?? 'nenhum'}
+                    id={`${idBase}-detalhe`}
+                    aria-label="Relato escolhido"
+                    {...guideTarget('mod-detalhe')}
+                    className="animate-panel-in rounded-xl border border-border bg-surface-raised p-4 md:sticky md:top-4"
+                  >
+                    {atual ? (
+                      <DetalheDoRelato
+                        item={atual}
+                        projectPublicId={pid}
+                        visibilidade={visibilidade}
+                        calmo={calmo}
+                        marca={marcas.get(atual.PublicId)}
+                        ocupado={decidindo || lote !== null}
+                        aoDecidir={(decisao) => void decidir(atual, decisao)}
+                      />
+                    ) : (
+                      <p className="text-detail text-fg-muted">Escolha um relato na lista.</p>
+                    )}
+                  </section>
+                )}
+              </div>
+            )}
+
+            {/* No celular, o relato tocado abre aqui, com as decisoes no pe. Decidindo, o
               proximo entra no lugar, e a folha so fecha quando a lista acaba. */}
-          {estreito && atual && (
-            <BottomSheet
-              open={folha}
-              onOpenChange={setFolha}
-              title={reportTypeName(atual.Type)}
-              subtitle={
-                <>
-                  <span className="font-mono">{atual.TrackingCode}</span>, chegou{' '}
-                  {formatRelative(atual.CreatedAt)}
-                </>
-              }
-              footer={
-                marcas.get(atual.PublicId)?.tipo === 'outra-pessoa' ? undefined : (
-                  <AcoesDoRelato
+            {estreito && atual && (
+              <BottomSheet
+                open={folha}
+                onOpenChange={setFolha}
+                title={reportTypeName(atual.Type)}
+                subtitle={
+                  <>
+                    <span className="font-mono">{atual.TrackingCode}</span>, chegou{' '}
+                    {formatRelative(atual.CreatedAt)}
+                  </>
+                }
+                footer={
+                  marcas.get(atual.PublicId)?.tipo === 'outra-pessoa' ? undefined : (
+                    <AcoesDoRelato
+                      item={atual}
+                      calmo={calmo}
+                      ocupado={decidindo || lote !== null}
+                      aoDecidir={(decisao) => void decidir(atual, decisao)}
+                      naFolha
+                    />
+                  )
+                }
+              >
+                <div key={atual.PublicId} className="animate-panel-in">
+                  <DetalheDoRelato
                     item={atual}
+                    projectPublicId={pid}
+                    visibilidade={visibilidade}
                     calmo={calmo}
+                    marca={marcas.get(atual.PublicId)}
                     ocupado={decidindo || lote !== null}
                     aoDecidir={(decisao) => void decidir(atual, decisao)}
                     naFolha
                   />
-                )
-              }
-            >
-              <div key={atual.PublicId} className="animate-panel-in">
-                <DetalheDoRelato
-                  item={atual}
-                  projectPublicId={pid}
-                  visibilidade={visibilidade}
-                  calmo={calmo}
-                  marca={marcas.get(atual.PublicId)}
-                  ocupado={decidindo || lote !== null}
-                  aoDecidir={(decisao) => void decidir(atual, decisao)}
-                  naFolha
-                />
-              </div>
-            </BottomSheet>
-          )}
+                </div>
+              </BottomSheet>
+            )}
 
-          {quantosMarcados > 0 && (
-            // Presa embaixo da tela: marcar a primeira caixa nao empurra as linhas, e o
-            // proximo clique cai onde a pessoa mirou. O preso conta a partir da folga do pe
-            // do `main` da casca (pb-32, e pb-40 no lg), e nao da borda da janela: com
-            // `bottom-3` a barra ficava 140 acima do fim da tela no celular, no meio da
-            // lista. O desconto da folga a leva para 12 da borda; mudando a folga da casca,
-            // muda aqui junto.
-            <section
-              aria-label="Ações em lote"
-              className="sticky bottom-[calc(0.75rem-8rem)] flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2 lg:bottom-[calc(0.75rem-10rem)]"
-            >
-              <span className="mr-1 font-medium text-detail text-fg tabular-nums max-sm:flex-1">
-                {lote
-                  ? `Decidindo ${lote.feitos} de ${lote.total}…`
-                  : quantosMarcados === 1
-                    ? '1 selecionado'
-                    : `${quantosMarcados} selecionados`}
-              </span>
-              {/* No celular as decisoes descem para uma linha propria, dividindo a largura
+            {quantosMarcados > 0 && (
+              // Presa embaixo da tela: marcar a primeira caixa nao empurra as linhas, e o
+              // proximo clique cai onde a pessoa mirou. O preso conta a partir da folga do pe
+              // do `main` da casca (pb-32, e pb-40 no lg), e nao da borda da janela: com
+              // `bottom-3` a barra ficava 140 acima do fim da tela no celular, no meio da
+              // lista. O desconto da folga a leva para 12 da borda; mudando a folga da casca,
+              // muda aqui junto.
+              <section
+                aria-label="Ações em lote"
+                className="sticky bottom-[calc(0.75rem-8rem)] flex flex-wrap items-center gap-2 rounded-lg border border-accent bg-surface-raised px-3 py-2 lg:bottom-[calc(0.75rem-10rem)]"
+              >
+                <span className="mr-1 font-medium text-detail text-fg tabular-nums max-sm:flex-1">
+                  {lote
+                    ? `Decidindo ${lote.feitos} de ${lote.total}…`
+                    : quantosMarcados === 1
+                      ? '1 selecionado'
+                      : `${quantosMarcados} selecionados`}
+                </span>
+                {/* No celular as decisoes descem para uma linha propria, dividindo a largura
                   como no pe da folha (o principal a direita), e o limpar vira um X ao lado
                   da contagem: numa linha so, o "Limpar seleção" quebrava sozinho embaixo. */}
-              <div className="flex gap-2 max-sm:order-last max-sm:w-full max-sm:flex-row-reverse">
-                {acoesDa(aba, calmo).map((acao) => (
-                  <Button
-                    key={acao.decisao}
-                    size="sm"
-                    variant={acao.principal ? 'primary' : 'secondary'}
-                    className="max-sm:flex-1"
-                    disabled={lote !== null || decidindo}
-                    onClick={() => void aplicarLote(acao.decisao)}
-                  >
-                    {acao.rotulo}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                size="sm"
-                variant="quiet"
-                className="max-sm:-mr-1.5 max-sm:px-2"
-                disabled={lote !== null}
-                onClick={() => setMarcados(new Set())}
-              >
-                <span className="max-sm:sr-only">Limpar seleção</span>
-                <svg
-                  viewBox="0 0 12 12"
-                  className="size-3 sm:hidden"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  aria-hidden
+                <div className="flex gap-2 max-sm:order-last max-sm:w-full max-sm:flex-row-reverse">
+                  {acoesDa(aba, calmo).map((acao) => (
+                    <Button
+                      key={acao.decisao}
+                      size="sm"
+                      variant={acao.principal ? 'primary' : 'secondary'}
+                      className="max-sm:flex-1"
+                      disabled={lote !== null || decidindo}
+                      onClick={() => void aplicarLote(acao.decisao)}
+                    >
+                      {acao.rotulo}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  variant="quiet"
+                  className="max-sm:-mr-1.5 max-sm:px-2"
+                  disabled={lote !== null}
+                  onClick={() => setMarcados(new Set())}
                 >
-                  <path d="m2.5 2.5 7 7m0-7-7 7" />
-                </svg>
-              </Button>
-            </section>
-          )}
+                  <span className="max-sm:sr-only">Limpar seleção</span>
+                  <svg
+                    viewBox="0 0 12 12"
+                    className="size-3 sm:hidden"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    aria-hidden
+                  >
+                    <path d="m2.5 2.5 7 7m0-7-7 7" />
+                  </svg>
+                </Button>
+              </section>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1185,13 +1212,16 @@ function Abas({
   }
 
   return (
-    // No celular as tres abas repartem a largura em tres colunas, e o nome longo quebra em
-    // duas linhas: numa linha so, "Nao publicaveis" ficava cortado na borda em 320.
+    // No celular as tres abas repartem a largura toda, cada coluna com a largura do proprio
+    // nome mais a mesma parte da sobra (`repeat(3,auto)`), sempre numa linha. Em tres terços
+    // iguais, "Nao publicaveis" quebrava ate 375 (e com os numeros, do projeto publico, ate
+    // 412, com o numero sozinho numa terceira linha) enquanto "Esperando" sobrava. Sem os
+    // numeros cabe desde 320; com eles, desde 360, e em 320 a faixa rola de lado.
     <div
       role="tablist"
       aria-label="Moderação"
       // `tabs-scroll`: rola so para o lado, e a linha de baixo nao abre rolagem vertical.
-      className="tabs-scroll mb-4 flex gap-5 max-sm:grid max-sm:grid-cols-3 max-sm:gap-2"
+      className="tabs-scroll mb-4 flex gap-5 max-sm:grid max-sm:grid-cols-[repeat(3,auto)] max-sm:gap-1"
     >
       {chaves.map((chave) => {
         // Em projeto privado, nenhuma aba conta: com o numero, a fila parecia uma tarefa
@@ -1213,7 +1243,7 @@ function Abas({
             onKeyDown={(evento) => teclas(evento, chave)}
             className={cn(
               'flex h-9 flex-none items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 font-medium text-body transition-colors sm:pointer-coarse:h-11',
-              'max-sm:h-auto max-sm:min-h-11 max-sm:flex-wrap max-sm:justify-center max-sm:gap-x-1 max-sm:gap-y-0 max-sm:whitespace-normal max-sm:py-1.5 max-sm:text-center max-sm:leading-tight',
+              'max-sm:h-11 max-sm:justify-center max-sm:gap-1',
               aba === chave
                 ? 'border-accent text-fg'
                 : 'border-transparent text-fg-muted hover:text-fg',
