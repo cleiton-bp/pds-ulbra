@@ -218,41 +218,126 @@ export function NotificationBell() {
   const rotulo =
     count === 0 ? 'Avisos' : `Avisos: ${count} ${count === 1 ? 'não lido' : 'não lidos'}`
 
+  /**
+   * **O sino chama enquanto houver aviso nao lido**: balanca de tempo em tempo
+   * (`animate-sino`), com um anel suave saindo da capsula (`animate-capsula-onda`). So para
+   * com a lista aberta, e volta ao fechar se ainda houver nao lido. Com o movimento
+   * reduzido no sistema, nada se mexe: fica a capsula com o numero.
+   */
+  const [listaAberta, setListaAberta] = useState(false)
+  const chamando = count > 0 && !listaAberta
+
+  // Chegou aviso enquanto ja chamava: o ciclo recomeca, e o balanco vem na hora. Pela
+  // propria animacao (`currentTime`), e nao trocando a chave do desenho: dentro do gatilho
+  // do Radix (`asChild`), o desenho de chave velha ficava no botao, ao lado do novo.
+  const desenhoDoSino = useRef<HTMLSpanElement>(null)
+  const ondaDaCapsula = useRef<HTMLSpanElement>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a conta e o gatilho de recomecar
+  useEffect(() => {
+    if (!chamando) return
+    for (const elemento of [desenhoDoSino.current, ondaDaCapsula.current]) {
+      for (const animacao of elemento?.getAnimations?.() ?? []) animacao.currentTime = 0
+    }
+  }, [count, chamando])
+
+  /**
+   * **O toque responde**: o sino da uma balancada curta (uns 400ms) a cada clique, por cima
+   * do que estiver fazendo (`rotate`, que soma com o `transform` do balanco de tempo em
+   * tempo), e o botao encolhe um pouco enquanto e apertado (`active:scale`). Com o
+   * movimento reduzido do sistema, nada.
+   */
+  function balancarNoToque() {
+    const desenho = desenhoDoSino.current
+    if (!desenho?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    // As posicoes espalhadas no tempo, com a suavizacao entre cada uma: com uma curva de
+    // saida forte no todo, os picos caiam nos primeiros milissegundos, entre um quadro e
+    // outro, e o balanco mal se via (5 graus).
+    desenho.animate(
+      [
+        { rotate: '0deg', offset: 0, easing: 'ease-out' },
+        { rotate: '-15deg', offset: 0.18, easing: 'ease-in-out' },
+        { rotate: '12deg', offset: 0.4, easing: 'ease-in-out' },
+        { rotate: '-6deg', offset: 0.62, easing: 'ease-in-out' },
+        { rotate: '2deg', offset: 0.82, easing: 'ease-in-out' },
+        { rotate: '0deg', offset: 1 },
+      ],
+      { duration: 460 },
+    )
+  }
+
   // No celular o menu vai de uma borda a outra, a 8 de cada lado (a folga dos menus): com
   // 2rem a menos, ele ficava a 8 da esquerda e a 24 da direita.
   return (
     <DropdownMenu
       width="w-[min(24rem,calc(100vw-1rem))]"
       onOpenChange={(aberto) => {
+        setListaAberta(aberto)
         if (aberto) void ler(aba)
       }}
       trigger={
+        // O botao e so a area do toque (44 no celular) e o anel de foco; o desenho mora na
+        // capsula de dentro, que muda com os avisos. `group` faz o aperto do botao encolher a
+        // capsula (`group-active`).
         <button
           ref={gatilho}
           type="button"
           aria-label={rotulo}
-          className="relative flex size-8 items-center justify-center rounded-lg border pointer-coarse:size-10 border-border bg-surface-raised text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg max-sm:border-transparent max-sm:bg-transparent"
+          onPointerDown={balancarNoToque}
+          onKeyDown={(evento) => {
+            if (evento.key === 'Enter' || evento.key === ' ') balancarNoToque()
+          }}
+          className="group relative flex h-8 min-w-8 items-center justify-center rounded-full max-sm:h-11 max-sm:min-w-11 sm:pointer-coarse:h-10 sm:pointer-coarse:min-w-10"
         >
-          <svg
-            viewBox="0 0 16 16"
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
+          {/* **Com aviso nao lido, uma capsula com o sino e o numero lado a lado**, num fundo
+              verde suave: o numero nunca fica por cima do icone. O selo no ombro do sino, com
+              o numero dentro, cobria o desenho e, com dois algarismos, avancava sobre a foto.
+              Sem aviso, o sino de sempre. */}
+          <span
+            className={cn(
+              'relative flex h-8 items-center justify-center gap-1.5 transition-[background-color,color,scale,padding] duration-200 ease-out group-active:scale-[0.94] motion-reduce:transition-none motion-reduce:group-active:scale-100',
+              count > 0
+                ? 'rounded-full border border-active/35 bg-active/12 pr-3 pl-2.5 text-fg hover:bg-active/18'
+                : 'w-8 rounded-lg border border-border bg-surface-raised text-fg-muted hover:bg-surface-sunken hover:text-fg max-sm:border-transparent max-sm:bg-transparent',
+            )}
           >
-            <path d="M4 6.5a4 4 0 0 1 8 0c0 3 1.2 4.2 1.5 4.5h-11C2.8 10.7 4 9.5 4 6.5ZM6.5 13a1.6 1.6 0 0 0 3 0" />
-          </svg>
-          {count > 0 && (
+            {/* O anel que sai da capsula, junto com o balanco. */}
+            {chamando && (
+              <span
+                ref={ondaDaCapsula}
+                aria-hidden
+                className="pointer-events-none absolute inset-0 animate-capsula-onda rounded-full"
+              />
+            )}
             <span
-              aria-hidden
-              className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 font-semibold text-accent-fg text-caption leading-none tabular-nums"
+              ref={desenhoDoSino}
+              className={cn(
+                'flex origin-[50%_15%]',
+                count > 0 && 'text-active',
+                chamando && 'animate-sino',
+              )}
             >
-              {count > 99 ? '99+' : count}
+              <svg
+                viewBox="0 0 16 16"
+                className="size-4 max-sm:size-[1.125rem]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M4 6.5a4 4 0 0 1 8 0c0 3 1.2 4.2 1.5 4.5h-11C2.8 10.7 4 9.5 4 6.5ZM6.5 13a1.6 1.6 0 0 0 3 0" />
+              </svg>
             </span>
-          )}
+            {count > 0 && (
+              <span
+                aria-hidden
+                className="animate-fade-in font-semibold text-detail leading-none tabular-nums"
+              >
+                {count > 99 ? '99+' : count}
+              </span>
+            )}
+          </span>
         </button>
       }
     >
