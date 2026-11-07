@@ -596,6 +596,7 @@ export function ProjectStatesScreen() {
       </HowItWorks>
 
       <EditorWithPreview
+        previewEmFolha
         className="mt-6"
         preview={
           states !== null ? (

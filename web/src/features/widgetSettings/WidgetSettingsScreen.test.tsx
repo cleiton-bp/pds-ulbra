@@ -289,19 +289,18 @@ describe('WidgetSettingsScreen', () => {
     expect(publicarLigado()).toBe(true)
   })
 
-  it('abrir "No celular" troca a prévia para o celular, com o selo, e fechar volta', async () => {
+  it('a prévia abre em Computador, e abrir "No celular" não troca o aparelho sozinho', async () => {
     montar()
     await esperarCampoBotao()
     expect(aparelho('Computador')).toBe('true')
-    expect(screen.queryByText('Mostrando: celular')).toBeNull()
 
     grupo('celular').open = true
-    await waitFor(() => expect(aparelho('Celular')).toBe('true'))
-    expect(screen.getByText('Mostrando: celular')).toBeTruthy()
-
-    grupo('celular').open = false
-    await waitFor(() => expect(aparelho('Computador')).toBe('true'))
-    expect(screen.queryByText('Mostrando: celular')).toBeNull()
+    await waitFor(() => expect(grupo('celular').open).toBe(true))
+    // O `toggle` do `<details>` chega numa tarefa depois: espera ele passar.
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(aparelho('Computador')).toBe('true')
+    // O grupo diz onde ver o efeito.
+    expect(screen.getByText('Escolha Celular na prévia para ver como fica.')).toBeTruthy()
   })
 
   it('o aparelho e uma aba: as setas trocam, e nada se grava', async () => {

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ListOrderItem, MoveButtonProps } from '@/shared/hooks/useListOrder'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
 
 /**
@@ -34,6 +35,7 @@ export function SortableListItem({
   actions,
   actionsSpace = 'wide',
   tags,
+  tagsFechado,
   bodyClassName = 'p-3',
   children,
 }: {
@@ -62,9 +64,23 @@ export function SortableListItem({
   actionsSpace?: 'narrow' | 'wide' | 'double'
   /** Os avisos do item, com o caminho para resolver. */
   tags?: ReactNode
+  /**
+   * Os avisos curtos, no fim da linha fechada no celular ("Sem coluna"); o aviso inteiro,
+   * com o caminho, fica para o item aberto. Sem isto, no celular vale `tags`, embaixo.
+   */
+  tagsFechado?: ReactNode
   bodyClassName?: string
   children: ReactNode
 }) {
+  /**
+   * **No celular a linha fechada so diz o que o item e**: a seta, o icone, o nome e o
+   * resumo. A alca, as setas e as acoes tomavam uns 100px a esquerda e uma linha propria
+   * embaixo (o Apagar sozinho, em cada item), e o nome virava reticencias. Mover e as
+   * acoes descem para o pe do item aberto, e arrastar fica so com ponteiro fino.
+   */
+  const celular = useMediaQuery('(max-width: 39.99rem)')
+  const tagsDaLinha = celular && tagsFechado !== undefined ? tagsFechado : null
+
   return (
     <li
       {...order?.li}
@@ -91,8 +107,8 @@ export function SortableListItem({
           }}
           className={cn(
             'flex min-h-16 scroll-mt-6 cursor-pointer list-none items-center gap-2.5 py-3 [&::-webkit-details-marker]:hidden',
-            order ? 'pl-16' : 'pl-4',
-            actions ? cn('pr-4', ESPACO_DAS_ACOES[actionsSpace]) : 'pr-4',
+            order && !celular ? 'pl-16' : 'pl-4',
+            actions && !celular ? cn('pr-4', ESPACO_DAS_ACOES[actionsSpace]) : 'pr-4',
           )}
         >
           <Seta className="group-open/item:rotate-90" />
@@ -111,19 +127,44 @@ export function SortableListItem({
               {unsaved && <span className="text-warn-fg">, não salvo</span>}
             </span>
           </span>
+          {!open && tagsDaLinha && <span className="flex flex-none gap-1">{tagsDaLinha}</span>}
         </summary>
 
         {children && (
           <div className={cn('border-border border-t', bodyClassName)}>
             {open && tags && <div className="mb-3 flex flex-wrap gap-1.5">{tags}</div>}
             {children}
+            {/* No celular, o pe do item aberto: mover para cima e para baixo, e as acoes. */}
+            {celular && open && (order || actions) && (
+              <div className="mt-4 flex items-center justify-between gap-2 border-border border-t pt-3">
+                {order ? (
+                  <div className="flex items-center gap-1">
+                    <span className="mr-1 text-detail text-fg-muted">Mover</span>
+                    <MoveButton {...order.up} />
+                    <MoveButton {...order.down} />
+                  </div>
+                ) : (
+                  <span />
+                )}
+                {actions && <div className="flex items-center gap-1">{actions}</div>}
+              </div>
+            )}
           </div>
         )}
       </details>
 
-      {!open && tags && <div className="-mt-1 flex flex-wrap gap-1.5 pr-4 pb-3 pl-16">{tags}</div>}
+      {!open && tags && !tagsDaLinha && (
+        <div
+          className={cn(
+            '-mt-1 flex flex-wrap gap-1.5 pr-4 pb-3',
+            celular ? 'pl-[3.25rem]' : 'pl-16',
+          )}
+        >
+          {tags}
+        </div>
+      )}
 
-      {order && (
+      {order && !celular && (
         // A alca e as setas ficam sempre visiveis, como em todas as listas da configuracao:
         // a alca conta que o item se move, e as setas sao o jeito de reordenar sem mouse.
         <div className="absolute top-0 left-1.5 flex h-16 items-center gap-0.5">
@@ -136,7 +177,7 @@ export function SortableListItem({
       )}
       {/* No celular as acoes descem para uma linha propria, embaixo: presas a direita
           da linha do nome, elas e as setas comiam quase tudo, e o nome virava "M...". */}
-      {actions && (
+      {actions && !celular && (
         <div className="-mt-1 flex items-center justify-end gap-1 pr-3 pb-2 pl-16 sm:absolute sm:top-0 sm:right-3 sm:mt-0 sm:h-16 sm:p-0">
           {actions}
         </div>

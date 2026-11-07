@@ -166,7 +166,7 @@ export function ProjectSettingsScreen() {
       <section
         {...guideTarget('sobre')}
         aria-labelledby="sobre-o-projeto-titulo"
-        className="mb-6 rounded-xl border border-border bg-surface-raised p-5"
+        className="mb-6 rounded-xl border border-border bg-surface-raised p-5 max-sm:p-4"
       >
         <h2 id="sobre-o-projeto-titulo" className="mb-3 font-semibold text-fg text-lead">
           Sobre o projeto
@@ -174,7 +174,10 @@ export function ProjectSettingsScreen() {
 
         <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-2 text-body">
           <dt className="text-fg-muted">Conta</dt>
-          <dd className="min-w-0 truncate text-fg">{project.Account.Name}</dd>
+          {/* No celular o nome da conta quebra linha, e nao corta: em 320 sumia o sobrenome. */}
+          <dd className="min-w-0 truncate text-fg max-sm:whitespace-normal max-sm:break-words">
+            {project.Account.Name}
+          </dd>
           <dt className="text-fg-muted">Você</dt>
           <dd className="text-fg">{roleLabel(project)}</dd>
           <dt className="text-fg-muted">Criado em</dt>
@@ -183,9 +186,12 @@ export function ProjectSettingsScreen() {
 
         <div id="identificador" className="mt-4 scroll-mt-6 border-border border-t pt-4">
           <div className="mb-1.5 text-detail text-fg-muted">Identificador do projeto</div>
-          {/* No toque a caixa tem a altura do Copiar (44), e os dois ficam alinhados. */}
-          <div className="flex min-w-0 items-center gap-2">
-            <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg pointer-coarse:h-11">
+          {/* No toque a caixa tem a altura do Copiar (44), e os dois ficam alinhados. No
+              celular o identificador vai inteiro, na largura toda e com letra menor, e o
+              Copiar desce: ao lado dele, o campo ficava com uns 200px e o fim sumia. Em 320
+              ele quebra em duas linhas, mas aparece inteiro. */}
+          <div className="flex min-w-0 items-center gap-2 max-sm:flex-col max-sm:items-start">
+            <code className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-surface px-3 font-mono text-detail text-fg pointer-coarse:h-11 max-sm:h-auto max-sm:min-h-11 max-sm:w-full max-sm:flex-none max-sm:break-all max-sm:whitespace-normal max-sm:py-2.5 max-sm:text-caption max-sm:pointer-coarse:h-auto">
               {project.PublicId}
             </code>
             <CopyButton value={project.PublicId} size="sm" />

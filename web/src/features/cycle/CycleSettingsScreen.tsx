@@ -216,6 +216,15 @@ export function CycleSettingsScreen() {
 
       {draft && (
         <EditorWithPreview
+          previewEmFolha
+          acaoNoCelular={
+            dirty ? (
+              <Button variant="primary" disabled={saving} onClick={() => void salvar()}>
+                {saving ? 'Salvando…' : 'Salvar'}
+              </Button>
+            ) : null
+          }
+          tituloDaPrevia="Caminho do relato"
           preview={
             <ReportPath
               draft={draft}

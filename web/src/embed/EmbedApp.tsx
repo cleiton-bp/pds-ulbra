@@ -709,19 +709,37 @@ export function EmbedApp({
 
   // A parte contornada fora da vista entra nela, rolando **so o formulario**: o
   // `scrollIntoView` rolaria tambem a tela do painel, que e a janela de cima.
+  //
+  // **E de novo quando o quadro muda de tamanho.** Na folha do celular a previa cresce
+  // depois de abrir (a folha sobe e o palco preenche a altura), e o Enviar contornado, que
+  // estava a vista no tamanho de antes, ficava 42px abaixo do fim.
   useEffect(() => {
-    const form = formulario.current
-    const parte = realce ? form?.querySelector<HTMLElement>('[data-preview-highlight]') : null
-    if (!form || !parte) return
-    // O topo preso (o primeiro filho) cobre o alto do formulario: a parte que sobe para a
-    // vista para abaixo dele, e nao escondida atras. A nao ser que seja o proprio topo.
-    const topo = form.firstElementChild
-    const coberto = topo && !topo.contains(parte) ? topo.getBoundingClientRect().height : 0
-    const fora = form.getBoundingClientRect()
-    const dentro = parte.getBoundingClientRect()
-    const folga = 12
-    if (dentro.top < fora.top + coberto) form.scrollTop -= fora.top + coberto - dentro.top + folga
-    else if (dentro.bottom > fora.bottom) form.scrollTop += dentro.bottom - fora.bottom + folga
+    if (!realce) return
+    function trazerAVista() {
+      const form = formulario.current
+      const parte = form?.querySelector<HTMLElement>('[data-preview-highlight]')
+      if (!form || !parte) return
+      // O topo preso (o primeiro filho) cobre o alto do formulario: a parte que sobe para a
+      // vista para abaixo dele, e nao escondida atras. A nao ser que seja o proprio topo.
+      const topo = form.firstElementChild
+      const coberto = topo && !topo.contains(parte) ? topo.getBoundingClientRect().height : 0
+      const fora = form.getBoundingClientRect()
+      const dentro = parte.getBoundingClientRect()
+      const folga = 12
+      if (dentro.top < fora.top + coberto) form.scrollTop -= fora.top + coberto - dentro.top + folga
+      else if (dentro.bottom > fora.bottom) form.scrollTop += dentro.bottom - fora.bottom + folga
+    }
+    trazerAVista()
+    let quadro = 0
+    const aoMudar = () => {
+      cancelAnimationFrame(quadro)
+      quadro = requestAnimationFrame(trazerAVista)
+    }
+    window.addEventListener('resize', aoMudar)
+    return () => {
+      window.removeEventListener('resize', aoMudar)
+      cancelAnimationFrame(quadro)
+    }
   }, [realce])
   const aoAbrir = useRef((_opcoes?: OpenOptions) => {})
   aoAbrir.current = (opcoes) => {

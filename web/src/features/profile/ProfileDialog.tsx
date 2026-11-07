@@ -53,6 +53,47 @@ const CAIXA =
  */
 const SO_PARA_QUEM_ADMINISTRA: NotificationKind[] = ['OriginPending', 'ReportsPaused']
 
+/**
+ * **Quando cada som toca, e como o aviso chega.** So o nome ("Um domínio novo manda
+ * relato") nao dizia de onde o som vinha nem o que fazer com ele: cada linha tem um
+ * "Quando toca", que abre a frase de quando ele toca e o aviso de exemplo, desenhado como
+ * o sino desenha (o ponto de nao lido, a frase, o comentario na mencao, o projeto e a hora).
+ */
+const QUANDO_TOCA: Record<
+  NotificationKind,
+  { quando: string; frase: ReactNode; comentario?: string }
+> = {
+  Mention: {
+    quando: 'Toca quando alguém do time escreve @ e o seu nome num comentário entre o time.',
+    frase: (
+      <>
+        Ana Souza mencionou você em <span className="tabular-nums">#42</span> O botão de pagar não
+        responde
+      </>
+    ),
+    comentario: 'Consegue olhar isso ainda hoje?',
+  },
+  Assignment: {
+    quando: 'Toca quando alguém do time escolhe você como responsável por um card.',
+    frase: (
+      <>
+        Bruno Lima escolheu você como responsável por <span className="tabular-nums">#57</span>{' '}
+        Cupom some ao voltar ao carrinho
+      </>
+    ),
+  },
+  OriginPending: {
+    quando:
+      'Toca quando chega o primeiro relato de um domínio que ainda não foi permitido nem bloqueado em Domínios.',
+    frase: 'loja.exemplo.com mandou um relato: permitir ou bloquear?',
+  },
+  ReportsPaused: {
+    quando:
+      'Toca quando chegam relatos demais em pouco tempo e os novos envios do projeto ficam pausados por alguns minutos.',
+    frase: 'Muitos relatos vindos de loja.exemplo.com: novos envios pausados por 15 min',
+  },
+}
+
 /** A coluna dos controles nas linhas: o som e o volume ficam com a mesma largura. */
 const CONTROLES = 'flex w-full items-center gap-1.5 sm:w-60'
 
@@ -190,8 +231,8 @@ function ProfileContent() {
           <EstadoDaGravacao gravacao={gravacao} />
         </div>
         <p id="perfil-sons-texto" className="mt-1 text-detail text-fg-muted leading-relaxed">
-          Tocam quando um aviso chega no sino, valem em todos os projetos e ficam salvos assim que
-          você escolhe.
+          Tocam quando um aviso chega no sino com o painel aberto, valem em todos os projetos e
+          ficam salvos assim que você escolhe.
         </p>
         {data ? (
           <SoundSettings inicial={data} gravacao={gravacao} onGravacao={setGravacao} />
@@ -256,6 +297,16 @@ function SoundSettings({
   const [erro, setErro] = useState<string | null>(null)
   /** O ultimo som tocado, para as ondas do botao dele acenderem: a `vez` reinicia o desenho. */
   const [toque, setToque] = useState<{ tipo: NotificationKind; vez: number } | null>(null)
+  /** Os "Quando toca" abertos: cada linha abre e fecha o seu. */
+  const [explicados, setExplicados] = useState<ReadonlySet<NotificationKind>>(() => new Set())
+  function alternarExplicacao(tipo: NotificationKind) {
+    setExplicados((atuais) => {
+      const proximos = new Set(atuais)
+      if (proximos.has(tipo)) proximos.delete(tipo)
+      else proximos.add(tipo)
+      return proximos
+    })
+  }
   const idVolume = useId()
   const idCampo = useId()
   /** O volume de antes do mudo: tirar o mudo volta a ele, e nao a um numero qualquer. */
@@ -354,6 +405,8 @@ function SoundSettings({
     const rotulo = NOTIFICATION_KIND_LABELS[linha.Kind]
     const campo = `${idCampo}-${linha.Kind}`
     const tocando = toque?.tipo === linha.Kind
+    const explicado = explicados.has(linha.Kind)
+    const idExplicacao = `${campo}-quando`
     return (
       <Linha
         key={linha.Kind}
@@ -362,6 +415,33 @@ function SoundSettings({
             {rotulo}
           </label>
         }
+        alternador={
+          <button
+            type="button"
+            onClick={() => alternarExplicacao(linha.Kind)}
+            aria-expanded={explicado}
+            aria-controls={idExplicacao}
+            className="inline-flex justify-self-start items-center gap-1 rounded text-caption text-fg-muted transition-colors hover:text-fg pointer-coarse:-my-1.5 pointer-coarse:py-1.5"
+          >
+            <svg
+              viewBox="0 0 12 12"
+              aria-hidden
+              className={cn(
+                'size-2.5 flex-none transition-transform duration-300 ease-out motion-reduce:transition-none',
+                explicado && 'rotate-90',
+              )}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m4.5 2.5 3.5 3.5-3.5 3.5" />
+            </svg>
+            Quando toca
+          </button>
+        }
+        detalhe={<QuandoToca id={idExplicacao} aberto={explicado} tipo={linha.Kind} />}
       >
         <Select
           id={campo}
@@ -462,11 +542,91 @@ function SoundSettings({
  * largura fixa para o som e o volume alinharem. No celular, o rotulo em cima e os
  * controles embaixo, na largura toda.
  */
-function Linha({ rotulo, children }: { rotulo: ReactNode; children: ReactNode }) {
+function Linha({
+  rotulo,
+  children,
+  alternador,
+  detalhe,
+}: {
+  rotulo: ReactNode
+  children: ReactNode
+  /** O botao que abre o `detalhe` ("Quando toca"). */
+  alternador?: ReactNode
+  /** O que abre embaixo da linha inteira, como o "Quando toca". */
+  detalhe?: ReactNode
+}) {
   return (
-    <div className="grid gap-x-6 gap-y-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      {rotulo}
-      <div className={CONTROLES}>{children}</div>
+    // **O botao fica colado no que ele abre.** No celular, o nome, o som, o "Quando toca"
+    // e o que ele abre, nessa ordem: com o botao embaixo do nome, ele ficava em cima da
+    // escolha do som e abria embaixo dela. Do `sm` para cima a linha e uma so, com o botao
+    // embaixo do nome (`row-start-2`) e o som ao lado dos dois, e o que abre vem logo
+    // abaixo da linha.
+    <div className="grid gap-x-6 gap-y-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-y-0.5">
+      <div className="min-w-0 sm:col-start-1 sm:row-start-1">{rotulo}</div>
+      <div className={cn(CONTROLES, alternador && 'sm:col-start-2 sm:row-span-2 sm:row-start-1')}>
+        {children}
+      </div>
+      {alternador && <div className="flex sm:col-start-1 sm:row-start-2">{alternador}</div>}
+      {detalhe && <div className="-mt-2 sm:col-span-2 sm:mt-0">{detalhe}</div>}
+    </div>
+  )
+}
+
+/**
+ * O "Quando toca" aberto: a frase de quando o som toca e o aviso de exemplo, como chega ao
+ * sino. Abre e fecha deslizando a altura (`grid-rows`), e fechado sai do Tab (`inert`).
+ */
+function QuandoToca({ id, aberto, tipo }: { id: string; aberto: boolean; tipo: NotificationKind }) {
+  const explicacao = QUANDO_TOCA[tipo]
+  return (
+    <div
+      id={id}
+      inert={!aberto}
+      className={cn(
+        'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
+        aberto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+      )}
+    >
+      <div className="min-h-0 overflow-hidden">
+        <div className="mt-2 rounded-lg border border-border bg-surface p-3">
+          <p className="text-detail text-fg-muted leading-relaxed">{explicacao.quando}</p>
+          <p className="mt-2.5 mb-1.5 flex items-center gap-1.5 text-caption text-fg-muted">
+            <svg
+              viewBox="0 0 16 16"
+              aria-hidden
+              className="size-3.5 flex-none"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 11.5V7.5a4 4 0 0 1 8 0v4l1 1.5H3z" />
+              <path d="M6.5 14a1.6 1.6 0 0 0 3 0" />
+            </svg>
+            Assim o aviso chega ao sino
+          </p>
+          {/* O exemplo desenhado como o item do sino (`NotificationBell`): o ponto de nao
+              lido, a frase em negrito, o comentario na mencao, e o projeto com a hora. */}
+          <div
+            aria-hidden
+            className="flex items-start gap-2.5 rounded-lg border border-border bg-surface-raised px-2.5 py-2"
+          >
+            <span className="mt-1.5 size-2 flex-none rounded-full bg-accent ring-1 ring-border" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-detail text-fg leading-snug">
+                {explicacao.frase}
+              </span>
+              {explicacao.comentario && (
+                <span className="mt-0.5 block text-caption text-fg-muted italic">
+                  “{explicacao.comentario}”
+                </span>
+              )}
+              <span className="mt-0.5 block text-caption text-fg-muted">Seu projeto, agora</span>
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

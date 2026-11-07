@@ -182,6 +182,8 @@ export function ProjectShell() {
   const temGuia = useGuideStore((estado) => estado.tela !== null && !estado.tela.noDialogo)
   // A largura de celular (abaixo do `sm`), acompanhando o giro: o pe da gaveta so existe la.
   const celular = useMediaQuery('(max-width: 39.99rem)')
+  // Abaixo do `lg` a lateral vira gaveta: e so la que ela desliza e que o dedo a fecha.
+  const gaveta = useMediaQuery('(max-width: 63.99rem)')
   const pedirGuia = useGuideStore((estado) => estado.pedir)
 
   const fecharGaveta = useCallback((devolverFoco: boolean) => {
@@ -223,6 +225,74 @@ export function ProjectShell() {
     document.addEventListener('keydown', aoTeclar)
     return () => document.removeEventListener('keydown', aoTeclar)
   }, [drawerOpen, fecharGaveta])
+
+  // **Puxar para a esquerda fecha a gaveta**, o gesto que o telefone ensina. Ela acompanha o
+  // dedo (direto no `transform`, sem passar pelo React); soltando depois de 80px, ou num
+  // puxao rapido, fecha; antes disso, volta. Para a direita ela resiste, sem sair do lugar.
+  // Gesto vertical e da lista que rola, e o toque sem arrastar continua sendo clique.
+  useEffect(() => {
+    const painel = nav.current
+    if (!drawerOpen || !gaveta || !painel) return
+    let inicio: { x: number; y: number; t: number; id: number } | null = null
+    let deslocamento = 0
+    let arrastando = false
+
+    const aoTocar = (evento: PointerEvent) => {
+      if (evento.pointerType === 'mouse' || inicio) return
+      inicio = { x: evento.clientX, y: evento.clientY, t: evento.timeStamp, id: evento.pointerId }
+      deslocamento = 0
+      arrastando = false
+    }
+    const aoMover = (evento: PointerEvent) => {
+      if (!inicio || evento.pointerId !== inicio.id) return
+      const dx = evento.clientX - inicio.x
+      const dy = evento.clientY - inicio.y
+      if (!arrastando) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+          inicio = null
+          return
+        }
+        if (Math.abs(dx) < 10) return
+        arrastando = true
+        painel.setPointerCapture(evento.pointerId)
+        painel.style.transition = 'none'
+      }
+      // Para a esquerda, junto com o dedo; para a direita, um terco, ate 24px.
+      deslocamento = dx < 0 ? dx : Math.min(24, dx / 3)
+      painel.style.transform = `translateX(${deslocamento}px)`
+    }
+    const aoSoltar = (evento: PointerEvent) => {
+      if (!inicio || evento.pointerId !== inicio.id) return
+      const tempo = Math.max(1, evento.timeStamp - inicio.t)
+      inicio = null
+      if (!arrastando) return
+      arrastando = false
+      // O toque que arrastou nao vale como clique no item em que comecou.
+      const engolir = (clique: Event) => {
+        clique.stopPropagation()
+        clique.preventDefault()
+      }
+      painel.addEventListener('click', engolir, { capture: true, once: true })
+      window.setTimeout(() => painel.removeEventListener('click', engolir, { capture: true }), 0)
+      painel.style.transition = ''
+      painel.style.transform = ''
+      if (deslocamento < -80 || (deslocamento < -24 && -deslocamento / tempo > 0.11)) {
+        fecharGaveta(false)
+      }
+    }
+    painel.addEventListener('pointerdown', aoTocar)
+    painel.addEventListener('pointermove', aoMover)
+    painel.addEventListener('pointerup', aoSoltar)
+    painel.addEventListener('pointercancel', aoSoltar)
+    return () => {
+      painel.removeEventListener('pointerdown', aoTocar)
+      painel.removeEventListener('pointermove', aoMover)
+      painel.removeEventListener('pointerup', aoSoltar)
+      painel.removeEventListener('pointercancel', aoSoltar)
+      painel.style.transition = ''
+      painel.style.transform = ''
+    }
+  }, [drawerOpen, gaveta, fecharGaveta])
 
   function recolher(valor: boolean) {
     setCollapsed(valor)
@@ -422,14 +492,18 @@ export function ProjectShell() {
       {header}
 
       <div className="relative flex min-h-0 flex-1">
-        {drawerOpen && (
-          <button
-            type="button"
-            aria-label="Fechar menu"
-            onClick={() => fecharGaveta(true)}
-            className="absolute inset-0 z-drawer-veil bg-overlay lg:hidden"
-          />
-        )}
+        {/* O veu cobre a tela inteira, a barra de cima junto, e esmaece com a gaveta. E
+            so para o toque: pelo teclado fecham o Esc e o X da gaveta. */}
+        <button
+          type="button"
+          aria-hidden
+          tabIndex={-1}
+          onClick={() => fecharGaveta(true)}
+          className={cn(
+            'fixed inset-0 z-drawer-veil bg-overlay transition-[opacity,visibility] duration-300 ease-out motion-reduce:transition-none lg:hidden',
+            drawerOpen ? 'opacity-100' : 'invisible opacity-0',
+          )}
+        />
 
         {/* Rola sozinha: num celular pequeno ou deitado, a lista passava da altura
             da tela, e o que ficava embaixo era inalcancavel. */}
@@ -441,20 +515,60 @@ export function ProjectShell() {
           className={cn(
             // A lateral nao rola inteira: so a lista rola, e o recolher fica preso no pe.
             'flex flex-none flex-col overflow-hidden border-border border-r bg-surface',
-            'transition-[width] duration-300 ease-out motion-reduce:transition-none',
+            'lg:transition-[width] lg:duration-300 lg:ease-out motion-reduce:transition-none',
+            // **Abaixo do `lg`, uma gaveta de aplicativo**, e nao a lateral do computador
+            // empurrada por cima da pagina: cobre a barra de cima, tem sombra e o canto
+            // arredondado, deixa uma faixa do veu para tocar e fechar, e desliza com a curva
+            // de gaveta (entra em 400ms, sai em 280ms, pelo mesmo caminho). Antes ela
+            // aparecia e sumia de uma vez, por baixo da barra, com o tamanho do computador.
+            'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-drawer max-lg:w-[min(19rem,calc(100vw-3.5rem))] max-lg:touch-pan-y max-lg:rounded-r-2xl max-lg:shadow-xl',
+            // `translate`, e nao `transform`: e a propriedade que o `translate-x-*` escreve. O
+            // `transform` entra pelo gesto (ver o efeito do arrastar). A visibilidade so
+            // anda junto ao fechar: ao abrir ela vira de uma vez, senao a gaveta ainda estava
+            // invisivel quando o foco tentava entrar nela, e o foco ficava atras do veu.
+            'max-lg:ease-[cubic-bezier(0.32,0.72,0,1)]',
+            drawerOpen
+              ? 'max-lg:translate-x-0 max-lg:transition-[translate,transform] max-lg:duration-[400ms]'
+              : 'max-lg:invisible max-lg:-translate-x-full max-lg:transition-[translate,transform,visibility] max-lg:duration-[280ms]',
             // Os nomes esmaecem enquanto a largura anda (ver `recolher`).
             '[&_[data-rotulo]]:transition-opacity [&_[data-rotulo]]:duration-150',
             rotulosOcultos && '[&_[data-rotulo]]:opacity-0',
             recuoRecolhido &&
               '[&_[data-recuo]]:ml-0 [&_[data-recuo]]:border-surface-raised [&_[data-recuo]]:pl-0',
-            'absolute inset-y-0 left-0 z-drawer lg:static',
+            'lg:static',
             // A margem dos lados mora dentro da lista e do pe, e nao aqui: na lateral,
             // a barra de rolagem ficaria dentro da margem, por cima dos itens. Assim
             // ela encosta na borda direita.
-            estreita ? 'w-60 lg:w-14' : 'w-60',
-            drawerOpen ? 'flex' : 'hidden lg:flex',
+            estreita ? 'lg:w-14' : 'lg:w-60',
           )}
         >
+          {/* A cabeca da gaveta: de qual projeto e o menu, e o X para fechar no lugar em que
+              a mao ja esta. O X so existe com ela aberta. */}
+          <div className="flex h-14 flex-none items-center gap-2 border-border border-b pr-2 pl-5 lg:hidden">
+            <span className="min-w-0 flex-1 truncate font-semibold text-body text-fg">
+              {project?.Name ?? ''}
+            </span>
+            {drawerOpen && (
+              <button
+                type="button"
+                aria-label="Fechar menu"
+                onClick={() => fecharGaveta(true)}
+                className="flex size-10 flex-none items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+              >
+                <svg
+                  viewBox="0 0 12 12"
+                  className="size-3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  aria-hidden
+                >
+                  <path d="m2.5 2.5 7 7m0-7-7 7" />
+                </svg>
+              </button>
+            )}
+          </div>
           <div
             className={cn(
               'flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden py-5',
@@ -517,7 +631,7 @@ export function ProjectShell() {
               <Link
                 to="/projects"
                 onClick={() => setDrawerOpen(false)}
-                className="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2 pointer-coarse:h-11"
+                className="flex h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2 pointer-coarse:h-11 max-lg:h-11"
               >
                 <span className="flex size-3.5 flex-none items-center justify-center">
                   <Seta direcao="esquerda" />
@@ -648,7 +762,7 @@ function ConfigNav({
       aria-controls="configurar-o-projeto"
       aria-label={iconOnly ? 'Configurar o projeto' : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
+        'flex h-[34px] pointer-coarse:h-11 max-lg:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">
@@ -819,7 +933,7 @@ function SectionLink({
       aria-current={ativo ? 'page' : undefined}
       aria-label={iconOnly ? section.label : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors focus-visible:-outline-offset-2',
+        'flex h-[34px] pointer-coarse:h-11 max-lg:h-11 flex-none items-center gap-2.5 rounded-lg px-2.5 text-body transition-colors focus-visible:-outline-offset-2',
 
         // O item ativo e uma folha sobre o papel da lateral, com o fio dos cartoes. O fio
         // vai por dentro (`ring-inset`): por fora, a lista que rola e a dos grupos, que
@@ -864,7 +978,7 @@ function SideButton({
       onClick={onClick}
       aria-label={iconOnly ? label : undefined}
       className={cn(
-        'flex h-[34px] pointer-coarse:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
+        'flex h-[34px] pointer-coarse:h-11 max-lg:h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-detail text-fg-muted transition-colors hover:bg-surface-sunken focus-visible:-outline-offset-2',
       )}
     >
       <span className="flex size-3.5 flex-none items-center justify-center">{icon}</span>

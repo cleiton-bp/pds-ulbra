@@ -12,7 +12,6 @@ import {
   projectStateService,
   projectWidgetSettingsService,
 } from '@/data'
-import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 import { TypeEditor } from '@/features/reportTypes/TypeEditor'
 import {
   checkDraft,
@@ -31,7 +30,7 @@ import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
 import { HowItWorks } from '@/shared/components/HowItWorks'
 import { LeaveGuard } from '@/shared/components/LeaveGuard'
-import { PreviewSection } from '@/shared/components/PreviewSection'
+import { PreviewSection, PreviewUnavailable } from '@/shared/components/PreviewSection'
 import { ReportTypeIconSvg } from '@/shared/components/ReportTypeGlyph'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { SortableListItem } from '@/shared/components/SortableListItem'
@@ -164,23 +163,29 @@ export function ReportTypesScreen() {
   const podeSalvar = rascunho !== null && !checkDraft(rascunho).incompleto
 
   // A previa: o formulario de verdade com os tipos desta lista, e o tipo aberto como
-  // esta escrito agora — antes de salvar. A configuracao da ferramenta so da o resto
-  // (textos, cor); falhando, a de fabrica serve, porque e ilustracao.
-  const { data: ferramenta } = useAsyncResource(
+  // esta escrito agora — antes de salvar. A configuracao publicada da ferramenta da o
+  // resto (textos, cor). **Sem ela, nao ha previa**: a de fabrica no lugar parecia ser a do
+  // sistema da pessoa.
+  const {
+    data: ferramenta,
+    failed: ferramentaFalhou,
+    reload: lerFerramenta,
+  } = useAsyncResource(
     useCallback(
       () => projectWidgetSettingsService.getWidgetSettings(project.PublicId),
       [project.PublicId],
     ),
   )
   const naPrevia = useMemo(() => {
+    if (!ferramenta) return null
     const tipoNaPrevia = aberto !== null && rascunho ? previewTypeFrom(rascunho, aberto) : null
     return {
-      ...(ferramenta ?? DEFAULT_WIDGET_SETTINGS),
+      ...ferramenta,
       Types: previewTypes(types, tipoNaPrevia),
       // O formulario abre no tipo aberto: e o que se esta mudando. Sem nenhum aberto, no
       // pre-marcado de Formulario — e o que quem relata ve primeiro; sem pre-marcado
       // (nulo), o widget cai no primeiro ativo, como no sistema do cliente.
-      DefaultReportType: aberto ?? ferramenta?.DefaultReportType ?? null,
+      DefaultReportType: aberto ?? ferramenta.DefaultReportType ?? null,
     }
   }, [ferramenta, types, aberto, rascunho])
 
@@ -370,15 +375,19 @@ export function ReportTypesScreen() {
       </p>
 
       <EditorWithPreview
+        previewEmFolha
+        folhaAlta
         preview={
-          types !== null ? (
+          types !== null && naPrevia ? (
             <PreviewSection
               settings={naPrevia}
               dirty={sujo}
               startOpen
               hint="O formulário com os tipos ativos, na ordem da lista, aberto no tipo que você está mudando, como está escrito agora."
             />
-          ) : loading ? (
+          ) : ferramentaFalhou ? (
+            <PreviewUnavailable onRetry={lerFerramenta} />
+          ) : loading || types !== null ? (
             <Skeleton className="h-96 w-full rounded-xl" />
           ) : null
         }

@@ -24,6 +24,7 @@ import { TextField } from '@/shared/components/TextField'
 import { toast } from '@/shared/components/toastStore'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
 import { useScreenGuide } from '@/shared/tour/guideStore'
 
@@ -62,6 +63,8 @@ interface Rascunho {
  * apagar. O historico de cada card continua contando com o nome que ela tinha.
  */
 export function LabelsScreen() {
+  // No celular a linha inteira abre a edicao, e o Apagar mora dentro dela (ver a lista).
+  const celular = useMediaQuery('(max-width: 39.99rem)')
   // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
   useScreenGuide('etiquetas', [
     {
@@ -291,6 +294,8 @@ export function LabelsScreen() {
       </HowItWorks>
 
       <EditorWithPreview
+        previewEmFolha
+        tituloDaPrevia="Como aparece no card"
         className="mt-6"
         preview={
           labels !== null ? (
@@ -471,42 +476,78 @@ export function LabelsScreen() {
                       estaMarcada ? 'border-accent ring-1 ring-accent' : 'border-border',
                     )}
                   >
-                    <div className="flex min-h-12 items-center gap-2 py-2 pr-2 pl-3">
-                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                        <CardChip color={agora.Color}>{agora.Name}</CardChip>
-                        {label.CardCount > 0 ? (
-                          <span className="flex-none rounded border border-border px-1.5 py-0.5 text-caption text-fg tabular-nums">
-                            {cardsLabel(label.CardCount)}
-                          </span>
-                        ) : (
-                          <span className="flex-none text-caption text-fg-muted">
-                            {cardsLabel(0)}
-                          </span>
-                        )}
-                        {estaAberta && sujo && (
-                          <span className="text-caption text-warn-fg">não salvo</span>
-                        )}
-                      </span>
-                      <Button
+                    {celular ? (
+                      // **No celular, a linha inteira abre a edicao**, como as listas da
+                      // configuracao: o Editar e o Apagar em cada uma das linhas eram doze
+                      // botoes de texto numa tela pequena, e o Apagar, que nao volta, ficava
+                      // sempre a mao. Ele mora no pe da edicao.
+                      <button
                         id={idEditar(label.PublicId)}
-                        size="sm"
-                        variant="ghost"
+                        type="button"
                         aria-label={`Editar ${label.Name}`}
                         aria-expanded={estaAberta}
                         aria-controls={estaAberta ? idEditor(label.PublicId) : undefined}
                         onClick={() => pedirTroca(estaAberta ? null : label.PublicId)}
+                        className="flex min-h-12 w-full items-center gap-2.5 py-2 pr-3 pl-3 text-left"
                       >
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Apagar ${label.Name}`}
-                        onClick={() => setDeleting(label)}
-                      >
-                        Apagar
-                      </Button>
-                    </div>
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                          <CardChip color={agora.Color}>{agora.Name}</CardChip>
+                          <span className="flex-none text-caption text-fg-muted tabular-nums">
+                            {cardsLabel(label.CardCount)}
+                          </span>
+                          {estaAberta && sujo && (
+                            <span className="text-caption text-warn-fg">não salvo</span>
+                          )}
+                        </span>
+                        <svg
+                          viewBox="0 0 12 12"
+                          aria-hidden
+                          className={cn(
+                            'size-3 flex-none text-fg-muted transition-transform duration-300 ease-out motion-reduce:transition-none',
+                            estaAberta && 'rotate-90',
+                          )}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m4.5 2.5 3.5 3.5-3.5 3.5" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <div className="flex min-h-12 items-center gap-2 py-2 pr-2 pl-3">
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                          <CardChip color={agora.Color}>{agora.Name}</CardChip>
+                          {/* Texto, e nao caixa: com borda, a contagem parecia um botao. */}
+                          <span className="flex-none text-caption text-fg-muted tabular-nums">
+                            {cardsLabel(label.CardCount)}
+                          </span>
+                          {estaAberta && sujo && (
+                            <span className="text-caption text-warn-fg">não salvo</span>
+                          )}
+                        </span>
+                        <Button
+                          id={idEditar(label.PublicId)}
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Editar ${label.Name}`}
+                          aria-expanded={estaAberta}
+                          aria-controls={estaAberta ? idEditor(label.PublicId) : undefined}
+                          onClick={() => pedirTroca(estaAberta ? null : label.PublicId)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Apagar ${label.Name}`}
+                          onClick={() => setDeleting(label)}
+                        >
+                          Apagar
+                        </Button>
+                      </div>
+                    )}
 
                     {estaAberta && rascunho && (
                       <div
@@ -544,6 +585,18 @@ export function LabelsScreen() {
                           <Button size="sm" variant="ghost" onClick={cancelar}>
                             Cancelar
                           </Button>
+                          {celular && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="ml-auto"
+                              aria-label={`Apagar ${label.Name}`}
+                              disabled={saving}
+                              onClick={() => setDeleting(label)}
+                            >
+                              Apagar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )}

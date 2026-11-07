@@ -42,6 +42,7 @@
 
   --color-muted-dot: var(--muted-dot);
   --color-overlay: var(--overlay);
+  --color-device-frame: var(--device-frame);
 
   /* A paleta de dado: etiqueta e prioridade. Ver a nota em tokens.css. */
   --color-landing-mat: var(--landing-mat);
@@ -1177,6 +1178,65 @@
 
 @utility animate-ponto-novo {
   animation: ponto-novo 420ms var(--ease-out) 250ms both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/*
+ * O sino com aviso nao lido: balanca rapido (1,2s) e para, de 6 em 6 segundos, e um anel
+ * sai da capsula junto. Os primeiros 20% do ciclo sao o movimento; o resto e parado. A cada
+ * aviso que chega, o ciclo recomeca: o balanco vem na hora.
+ */
+@keyframes sino-balanca {
+  0%,
+  20%,
+  100% {
+    transform: rotate(0);
+  }
+  2.5% {
+    transform: rotate(16deg);
+  }
+  5% {
+    transform: rotate(-14deg);
+  }
+  7.5% {
+    transform: rotate(10deg);
+  }
+  10% {
+    transform: rotate(-7deg);
+  }
+  12.5% {
+    transform: rotate(4deg);
+  }
+  15% {
+    transform: rotate(-2deg);
+  }
+}
+
+@utility animate-sino {
+  transform-origin: 50% 15%;
+  animation: sino-balanca 6s var(--ease-out) infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* O anel que sai da capsula do sino, no verde da marca, junto com o balanco (6s). */
+@keyframes capsula-onda {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--active) 45%, transparent);
+  }
+  18%,
+  100% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--active) 0%, transparent);
+  }
+}
+
+@utility animate-capsula-onda {
+  animation: capsula-onda 6s var(--ease-out) infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;

@@ -55,6 +55,7 @@ const COLOR_NAMES = [
   'error-fg',
   'muted-dot',
   'overlay',
+  'device-frame',
   'landing-mat',
   'landing-mat-strong',
   'landing-mat-fg',

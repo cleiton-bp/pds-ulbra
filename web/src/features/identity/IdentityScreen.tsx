@@ -408,6 +408,18 @@ export function IdentityScreen() {
 
       {draft && ferramenta && (
         <EditorWithPreview
+          previewEmFolha
+          acaoNoCelular={
+            dirty ? (
+              <Button
+                variant="primary"
+                disabled={saving || semComoSalvar}
+                onClick={() => void salvar()}
+              >
+                {saving ? 'Salvando…' : 'Salvar'}
+              </Button>
+            ) : null
+          }
           preview={
             <Previa
               aba={aba}
@@ -694,6 +706,14 @@ function validadeValida(minutos: number): boolean {
  * **O codigo tem cara de editor** (`CodeEditor`), e as linguagens sao as abas dele, com o
  * desenho de cada uma: quem le reconhece a sua de relance e leva o trecho inteiro.
  */
+/**
+ * O codigo dos passos, no celular, de borda a borda do cartao: sai do recuo da coluna dos
+ * numeros (32) e do respiro do grupo (16). Com os recuos, ele tinha uns 264px e rolava de
+ * lado a cada linha; assim fica com quase a largura da tela.
+ */
+const CODIGO_NO_CELULAR =
+  'max-sm:-ml-12 max-sm:-mr-4 max-sm:rounded-none max-sm:border-x-0 max-sm:shadow-none'
+
 function ChaveDoSistema({
   projectId,
   formato,
@@ -730,6 +750,7 @@ function ChaveDoSistema({
 
   const exemplo = (
     <CodeEditor
+      className={CODIGO_NO_CELULAR}
       ariaLabel="Linguagem do seu servidor"
       active={linguagem}
       onActiveChange={(id) => setLinguagem(id as Linguagem)}
@@ -747,6 +768,7 @@ function ChaveDoSistema({
   // O modelo da pagina na mesma linguagem do exemplo: trocar a aba de um troca a do outro.
   const pagina = (
     <CodeEditor
+      className={CODIGO_NO_CELULAR}
       ariaLabel="Linguagem do modelo da página"
       active={linguagem}
       onActiveChange={(id) => setLinguagem(id as Linguagem)}
@@ -773,7 +795,10 @@ function ChaveDoSistema({
   return (
     // No celular cada nivel aninhado perde um pouco do respiro: em 320, caixa, passo,
     // cartao e lista somados deixavam uns 114px para o texto.
-    <div className="mt-3 rounded-lg border border-border bg-surface p-4 max-sm:-mx-2 max-sm:p-3">
+    // No celular, uma secao separada por um fio, e nao mais uma caixa dentro do cartao: as
+    // caixas aninhadas (o grupo, esta, os passos, o "Como usar") tiravam largura a cada
+    // respiro, e o codigo ficava com uns 260px.
+    <div className="mt-3 rounded-lg border border-border bg-surface p-4 max-sm:mt-4 max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0 max-sm:bg-transparent max-sm:px-0 max-sm:pt-4 max-sm:pb-0">
       <div className="mb-6 flex flex-col gap-2.5">
         <div className="font-medium text-detail text-fg">Como o seu sistema assina</div>
         <RadioGroup<IdentityFormat>
@@ -1081,6 +1106,7 @@ function GerarParDeChaves({
         <div className="mt-2.5 flex flex-col gap-2.5">
           <p>Rode estes comandos uma vez só, e a privada fica só no seu servidor.</p>
           <CodeEditor
+            className={CODIGO_NO_CELULAR}
             files={[
               { id: 'chaves', name: 'terminal', language: 'shell', code: COMANDOS_DAS_CHAVES },
             ]}
@@ -1685,6 +1711,7 @@ function PaginaNoNavegador({ hmac }: { hmac: boolean }) {
           script pelo JavaScript, porque o formulário lê o script a cada vez que abre.
         </p>
         <CodeEditor
+          className={CODIGO_NO_CELULAR}
           files={[
             {
               id: 'navegador',

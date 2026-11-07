@@ -344,6 +344,8 @@ export function PrioritiesScreen() {
       </HowItWorks>
 
       <EditorWithPreview
+        previewEmFolha
+        tituloDaPrevia="Como aparece no card"
         className="mt-6"
         preview={
           priorities !== null ? (
