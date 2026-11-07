@@ -1,15 +1,15 @@
 import type { ComponentType } from 'react'
 import { createBrowserRouter, matchRoutes, Navigate } from 'react-router-dom'
-import { AccountShell } from '@/app/AccountShell'
-import { ProjectShell } from '@/app/ProjectShell'
 import { ProjectHome, RequireProjectAdministrator } from '@/app/projectAccessRoutes'
 import { RequireSession } from '@/app/RequireSession'
 import { RouteErrorScreen } from '@/app/RouteErrorScreen'
+import { useSessionStore } from '@/features/auth/sessionStore'
 
 /**
  * A tela da rota **num pedaco proprio do pacote**, buscado quando a rota abre: quem abre
  * o quadro nao baixa antes a configuracao inteira, nem quem configura baixa o quadro.
- * As cascas, a sessao e o roteador ficam no pacote de entrada.
+ * A sessao, os guardas e o roteador ficam no pacote de entrada. As cascas tambem vem
+ * sob demanda (ver `aquecerAsCascas`).
  *
  * O roteador busca o pedaco da rota pedida ja na partida e, numa troca de tela, antes de
  * trocar: a tela de antes fica ate a nova chegar. Depois de uma publicacao nova o pedaco
@@ -39,6 +39,25 @@ function quandoFolgar(fazer: () => void) {
 
 const carregarTrabalho = () => import('@/features/reports/ReportsScreen')
 const carregarCard = () => import('@/features/reports/ReportDetailRoute')
+const carregarCascaDaConta = () => import('@/app/AccountShell')
+const carregarCascaDoProjeto = () => import('@/app/ProjectShell')
+
+/**
+ * **As cascas ficam fora do pacote de entrada**: a pagina do produto, que e a primeira
+ * coisa que um visitante abre, nao usa nenhuma, e com elas iam junto o sino, o perfil, o
+ * seletor de projetos e os menus. Era o que mais atrasava o primeiro texto no celular.
+ *
+ * Para quem entra nao esperar por elas: assim que a sessao comeca a abrir (o token do
+ * Google chegou, ou uma sessao guardada esta sendo conferida), as duas sao buscadas
+ * enquanto a API responde. Quando o painel abre, ja estao aqui.
+ */
+export function aquecerAsCascas() {
+  return useSessionStore.subscribe((estado, antes) => {
+    if (estado.status !== 'loading' || antes.status === 'loading') return
+    void carregarCascaDaConta().catch(() => {})
+    void carregarCascaDoProjeto().catch(() => {})
+  })
+}
 
 /**
  * **A intencao de abrir ja busca a tela**: o ponteiro sobre um link do painel, o dedo
@@ -116,7 +135,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
       {
-        element: <AccountShell />,
+        lazy: sobDemanda(carregarCascaDaConta, 'AccountShell'),
         children: [
           {
             path: 'projects',
@@ -137,7 +156,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'projects/:publicId',
-        element: <ProjectShell />,
+        lazy: sobDemanda(carregarCascaDoProjeto, 'ProjectShell'),
         children: [
           { index: true, element: <ProjectHome /> },
           {

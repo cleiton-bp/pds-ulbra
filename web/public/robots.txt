@@ -1,0 +1,7 @@
+# A pagina do produto (a raiz) e publica e pode ser indexada.
+# O resto e o painel: sem sessao, qualquer endereco dele so mostra a entrada de novo.
+User-agent: *
+Allow: /
+Disallow: /projects
+Disallow: /invite
+Disallow: /profile

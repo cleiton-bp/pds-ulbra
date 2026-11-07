@@ -22,8 +22,8 @@ vi.hoisted(() => {
  * O QUE ESTE TESTE TRAVA: **cada tela do painel vem num pedaco proprio do pacote**
  * (`lazy`), e nao no pacote de entrada. Uma tela importada direto em `routes.tsx` voltaria
  * a viajar com todas as outras na primeira carga — e nada quebraria na tela para avisar.
- * No pacote de entrada ficam so as cascas, os guardas e as portas, que nao tem endereco
- * proprio de tela.
+ * No pacote de entrada ficam so os guardas e as portas, que nao tem endereco proprio de
+ * tela. As cascas tambem vem sob demanda, e tem filhos, entao ficam fora desta conta.
  */
 describe('as rotas do painel', () => {
   it('toda tela vem sob demanda', async () => {

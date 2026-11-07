@@ -109,8 +109,8 @@
   --color-lang-java-accent: var(--lang-java-accent);
   --color-lang-go: var(--lang-go);
 
-  /* Inter vem do Google Fonts (index.html). A reserva evita a tela trocar de
-     metrica se a fonte demorar ou falhar. */
+  /* A Inter vem de styles/fonts.css, e so o painel a carrega. A reserva evita a tela
+     trocar de metrica se a fonte demorar ou falhar, e e ela que o quadro usa. */
   --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }

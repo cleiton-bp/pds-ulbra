@@ -23,7 +23,7 @@ import { Brand } from '@/shared/components/Brand'
 import { Button } from '@/shared/components/Button'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { ThemeButton } from '@/shared/components/ThemeButton'
-import { Tooltip } from '@/shared/components/Tooltip'
+import { Tooltip, TooltipProvider } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { useNeedsBottomRoom } from '@/shared/hooks/useNeedsBottomRoom'
@@ -53,8 +53,20 @@ const LATERAL_RECOLHIDA = 'pds.web.lateral.recolhida'
  * **Trocar de projeto mantem a tela.** Quem esta no quadro de um projeto e troca
  * pelo seletor quer o quadro do outro, e nao a porta dele: o destino e a mesma
  * secao, se ela existir para o papel da pessoa no outro projeto.
+ *
+ * **O provedor das dicas mora aqui**, e nao no topo do painel: esta casca e a unica que
+ * mostra dica (a lateral recolhida). No topo ele levava o Radix e o posicionamento das
+ * dicas para a pagina do produto, que nao mostra nenhuma, e atrasava o primeiro texto.
  */
 export function ProjectShell() {
+  return (
+    <TooltipProvider>
+      <CascaDoProjeto />
+    </TooltipProvider>
+  )
+}
+
+function CascaDoProjeto() {
   const { publicId = '' } = useParams()
   const location = useLocation()
 
