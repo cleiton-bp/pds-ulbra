@@ -27,6 +27,7 @@ import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useClosingItem } from '@/shared/hooks/useClosingItem'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useListOrder } from '@/shared/hooks/useListOrder'
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { cn } from '@/shared/lib/cn'
 import { PUBLIC_OUTCOMES, publicOutcomeLabel } from '@/shared/lib/publicOutcomes'
 import { useScreenGuide } from '@/shared/tour/guideStore'
@@ -77,6 +78,8 @@ const LIGAR_EM_COLUNAS = '../states#colunas-no-andamento'
  * caminho, a etapa em que nenhuma coluna cai: ela nunca seria alcancada.
  */
 export function PublicStagesScreen() {
+  // No celular a alca nao existe: as setas moram no pe da etapa aberta (`SortableListItem`).
+  const celular = useMediaQuery('(max-width: 39.99rem)')
   // O guia desta tela: o passo cuja parte nao estiver na tela sai quando o guia abre.
   useScreenGuide('andamento', [
     {
@@ -456,6 +459,7 @@ export function PublicStagesScreen() {
       </HowItWorks>
 
       <EditorWithPreview
+        previewEmFolha
         className="mt-6"
         preview={
           etapas !== null ? (
@@ -540,7 +544,9 @@ export function PublicStagesScreen() {
                   ? ', que é o máximo. Acima disso o andamento volta a ser a lista de colunas, só que com palavras mais bonitas.'
                   : noPiso
                     ? `, e ${MIN_PUBLIC_STAGES} é o mínimo. Com menos, a jornada não conta uma história: vira "chegou" e "acabou".`
-                    : ', e a ordem muda pela alça à esquerda ou pelas setas.'}
+                    : celular
+                      ? ', e a ordem muda pelas setas da etapa aberta.'
+                      : ', e a ordem muda pela alça à esquerda ou pelas setas.'}
               </p>
 
               {abaixoDoPiso && (
@@ -599,6 +605,11 @@ export function PublicStagesScreen() {
                             </Link>
                           </Etiqueta>
                         ) : null
+                      }
+                      tagsFechado={
+                        colunas !== null && colunas.length === 0 ? (
+                          <Etiqueta tom="aviso">Sem coluna</Etiqueta>
+                        ) : undefined
                       }
                       actions={
                         <Button

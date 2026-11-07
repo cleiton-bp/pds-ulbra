@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Button } from '@/shared/components/Button'
 import { describeChanges } from '@/shared/components/MoreOptions'
 import { cn } from '@/shared/lib/cn'
@@ -70,6 +70,8 @@ export function SettingsGroup({
 }) {
   const nome = `${id}-nome`
   const mudou = changes.length > 0
+  /** Aberto agora: no celular, o "Voltar ao padrão" so aparece com o grupo aberto. */
+  const [aberto, setAberto] = useState(defaultOpen)
 
   return (
     <section
@@ -79,12 +81,15 @@ export function SettingsGroup({
       <details
         name={name}
         open={defaultOpen}
-        onToggle={(event) => onToggle?.(event.currentTarget.open)}
+        onToggle={(event) => {
+          setAberto(event.currentTarget.open)
+          onToggle?.(event.currentTarget.open)
+        }}
         className="details-smooth group/grupo"
       >
         <summary
           id={id}
-          className="flex scroll-mt-6 cursor-pointer list-none items-start gap-2.5 px-5 py-4 [&::-webkit-details-marker]:hidden"
+          className="flex scroll-mt-6 cursor-pointer list-none items-start gap-2.5 px-5 py-4 max-sm:px-4 [&::-webkit-details-marker]:hidden"
         >
           <Seta className="mt-1.5 group-open/grupo:rotate-90" />
           <span className="min-w-0 flex-1">
@@ -114,13 +119,22 @@ export function SettingsGroup({
           </span>
         </summary>
 
-        <div className="border-border border-t px-5 pt-4 pb-5">{children}</div>
+        {/* No celular, 16 de cada lado, e nao 20: dentro do cartao vem mais caixa, e cada
+            respiro a mais tirava largura do que se le (o codigo da Privacidade). */}
+        <div className="border-border border-t px-5 pt-4 pb-5 max-sm:px-4">{children}</div>
       </details>
 
       {/* No celular o botao desce para uma linha propria, embaixo e a direita: preso no
-          canto, ele cobria titulo de uma palavra so, como "Reconhecimento". */}
+          canto, ele cobria titulo de uma palavra so, como "Reconhecimento". E so com o
+          grupo aberto, no pe dele: fechado, o "Mudou: …" ja diz que ha mudanca, e o botao
+          numa linha a mais deixava cada grupo fechado com o dobro da altura. */}
       {mudou && (
-        <div className="flex justify-end px-5 pb-4 sm:absolute sm:top-4 sm:right-4 sm:p-0">
+        <div
+          className={cn(
+            'flex justify-end px-5 pb-4 max-sm:px-4 sm:absolute sm:top-4 sm:right-4 sm:p-0',
+            !aberto && 'max-sm:hidden',
+          )}
+        >
           <Button size="sm" variant="quiet" onClick={onReset}>
             Voltar ao padrão
           </Button>
