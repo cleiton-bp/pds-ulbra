@@ -27,6 +27,7 @@ import { Tooltip } from '@/shared/components/Tooltip'
 import type { ProjectContext } from '@/shared/hooks/useCurrentProject'
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery'
 import { useNeedsBottomRoom } from '@/shared/hooks/useNeedsBottomRoom'
+import { useScrollEdges } from '@/shared/hooks/useScrollEdges'
 import { useScrollToHash } from '@/shared/hooks/useScrollToHash'
 import { cn } from '@/shared/lib/cn'
 import { canConfigure } from '@/shared/lib/projectAccess'
@@ -176,6 +177,7 @@ export function ProjectShell() {
   // proximo Tab ia para o seletor do topo, atras do veu.
   const menuButton = useRef<HTMLButtonElement>(null)
   const nav = useRef<HTMLElement>(null)
+  const bordasDaLista = useScrollEdges()
 
   // O guia da tela, para o pe do menu do celular: abre pelo pedido, e o botao da barra (que
   // no celular fica escondido) atende.
@@ -569,44 +571,54 @@ export function ProjectShell() {
               </button>
             )}
           </div>
+          {/* **Recolhida, a lista rola sem barra.** Com 56 px de largura, a barra de 8 px
+              (onde o sistema mostra a barra sempre, como no Mac com mouse) espremia os
+              icones de 32 para 23 px e os tirava do centro. A dica de que ha mais vem do
+              esmaecido na borda que esconde algo, nos dois modos; a roda e o toque rolam
+              igual. */}
           <div
+            ref={bordasDaLista.ref}
             className={cn(
-              'flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden py-5',
-              'px-3',
+              'esmaece-nas-bordas min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-5',
+              bordasDaLista.acima && '[--esmaece-acima:1.5rem]',
+              bordasDaLista.abaixo && '[--esmaece-abaixo:1.5rem]',
+              estreita && '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
             )}
           >
-            <div className="flex flex-col gap-0.5">
-              {WORK_SECTIONS.map((section) => (
-                <SectionLink
-                  key={section.key}
-                  section={section}
-                  segment={segment}
-                  publicId={publicId}
-                  iconOnly={iconesSo}
-                  onNavigate={() => setDrawerOpen(false)}
-                />
-              ))}
-            </div>
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-0.5">
+                {WORK_SECTIONS.map((section) => (
+                  <SectionLink
+                    key={section.key}
+                    section={section}
+                    segment={segment}
+                    publicId={publicId}
+                    iconOnly={iconesSo}
+                    onNavigate={() => setDrawerOpen(false)}
+                  />
+                ))}
+              </div>
 
-            {/* Quem e so membro nao ve a configuracao: ele trabalha nos relatos, e a
+              {/* Quem e so membro nao ve a configuracao: ele trabalha nos relatos, e a
               API recusaria tudo o que ele tentasse mudar ali. Enquanto o projeto
               carrega, um esqueleto no lugar dela — o trabalho, em cima, nao pula. */}
-            {!project ? (
-              <div className="flex flex-col gap-2 px-2.5" aria-hidden>
-                <Skeleton className="h-3 w-28" />
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            ) : (
-              admin && (
-                <ConfigNav
-                  segment={segment}
-                  publicId={publicId}
-                  iconOnly={iconesSo}
-                  onNavigate={() => setDrawerOpen(false)}
-                />
-              )
-            )}
+              {!project ? (
+                <div className="flex flex-col gap-2 px-2.5" aria-hidden>
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              ) : (
+                admin && (
+                  <ConfigNav
+                    segment={segment}
+                    publicId={publicId}
+                    iconOnly={iconesSo}
+                    onNavigate={() => setDrawerOpen(false)}
+                  />
+                )
+              )}
+            </div>
           </div>
 
           {/* Recolher, **preso no pe**: quem passa o dia no quadro ganha a largura da

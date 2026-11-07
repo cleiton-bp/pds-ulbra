@@ -1224,6 +1224,41 @@
   }
 }
 
+/*
+ * A lista que rola esmaece so na borda que ainda esconde item: a dica de que ela continua
+ * quando a barra nao aparece. Quem usa liga `--esmaece-acima` e `--esmaece-abaixo` (o
+ * `useScrollEdges` diz quando); em zero, nada esmaece. As duas sao registradas para o
+ * esmaecido entrar e sair andando, e nao num salto, ao chegar no fim da lista.
+ */
+@property --esmaece-acima {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --esmaece-abaixo {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@utility esmaece-nas-bordas {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--esmaece-acima),
+    #000 calc(100% - var(--esmaece-abaixo)),
+    transparent
+  );
+  transition:
+    --esmaece-acima 200ms var(--ease-out),
+    --esmaece-abaixo 200ms var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
 /* O anel que sai da capsula do sino, no verde da marca, junto com o balanco (6s). */
 @keyframes capsula-onda {
   0% {
