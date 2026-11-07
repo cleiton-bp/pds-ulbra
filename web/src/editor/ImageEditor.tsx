@@ -82,18 +82,20 @@ export interface ImageEditorProps {
 const TOOLS: {
   tool: Tool
   label: string
+  /** O nome embaixo do icone, na faixa do celular, onde nao ha dica de passar o mouse. */
+  curto: string
   tecla: string
   grupo: 'marcar' | 'esconder' | 'recortar'
 }[] = [
-  { tool: 'arrow', label: 'Seta', tecla: 'A', grupo: 'marcar' },
-  { tool: 'rect', label: 'Retângulo', tecla: 'R', grupo: 'marcar' },
-  { tool: 'ellipse', label: 'Elipse', tecla: 'E', grupo: 'marcar' },
-  { tool: 'pen', label: 'Desenho livre', tecla: 'D', grupo: 'marcar' },
-  { tool: 'highlight', label: 'Marca-texto', tecla: 'M', grupo: 'marcar' },
-  { tool: 'step', label: 'Numeração', tecla: 'N', grupo: 'marcar' },
-  { tool: 'blur', label: 'Desfoque', tecla: 'B', grupo: 'esconder' },
-  { tool: 'hide', label: 'Ocultar', tecla: 'O', grupo: 'esconder' },
-  { tool: 'crop', label: 'Recortar', tecla: 'C', grupo: 'recortar' },
+  { tool: 'arrow', label: 'Seta', curto: 'Seta', tecla: 'A', grupo: 'marcar' },
+  { tool: 'rect', label: 'Retângulo', curto: 'Retângulo', tecla: 'R', grupo: 'marcar' },
+  { tool: 'ellipse', label: 'Elipse', curto: 'Elipse', tecla: 'E', grupo: 'marcar' },
+  { tool: 'pen', label: 'Desenho livre', curto: 'Livre', tecla: 'D', grupo: 'marcar' },
+  { tool: 'highlight', label: 'Marca-texto', curto: 'Marca-texto', tecla: 'M', grupo: 'marcar' },
+  { tool: 'step', label: 'Numeração', curto: 'Numeração', tecla: 'N', grupo: 'marcar' },
+  { tool: 'blur', label: 'Desfoque', curto: 'Desfoque', tecla: 'B', grupo: 'esconder' },
+  { tool: 'hide', label: 'Ocultar', curto: 'Ocultar', tecla: 'O', grupo: 'esconder' },
+  { tool: 'crop', label: 'Recortar', curto: 'Recortar', tecla: 'C', grupo: 'recortar' },
 ]
 
 /** Os grupos da barra, na ordem. No celular eles se dividem em duas linhas, sem partir um grupo. */
@@ -117,6 +119,17 @@ export const MIN_CROP = 8
 
 /** A folga em volta da imagem no palco (o `p-4` dele). */
 const FOLGA = 16
+
+/**
+ * **Ampliar a imagem**, ate 3 pixels da tela por pixel dela. No celular, um print de
+ * computador aparecia com uns 28% do tamanho, e cobrir uma senha ou marcar um botao era
+ * acertar um alvo de poucos pixels. Pinçar com dois dedos amplia e move; os botoes, o
+ * Ctrl (ou Cmd) com a roda e as teclas + - 0 fazem o mesmo.
+ */
+const ZOOM_MAXIMO_DA_IMAGEM = 3
+
+/** Quanto cada clique em ampliar ou diminuir muda. */
+const PASSO_DO_ZOOM = 1.5
 
 const HINTS: Partial<Record<Tool, string>> = {
   step: 'Cada clique põe o próximo número.',
@@ -168,6 +181,8 @@ export function ImageEditor({
   const [gerando, setGerando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [palco, setPalco] = useState({ width: 0, height: 0 })
+  /** Quanto a imagem esta ampliada alem de caber no palco: 1 e caber. */
+  const [zoom, setZoom] = useState(1)
 
   /**
    * O palco, em estado e nao em ref: o conteudo do dialogo entra na pagina um desenho
@@ -192,11 +207,33 @@ export function ImageEditor({
   const caixa = useRef<Rect | null>(null)
   const [caixaAtiva, setCaixaAtiva] = useState(false)
 
+  /** A moldura do canvas: e ela que a pinça estica ao vivo, antes de o zoom valer. */
+  const moldura = useRef<HTMLDivElement>(null)
+  /** Os dedos no palco agora, para a pinça. */
+  const toques = useRef(new Map<number, { x: number; y: number }>())
+  /** A pinça em andamento: de onde partiu e onde esta. Ver `tocarNoPalco`. */
+  const pinca = useRef<{
+    distancia: number
+    centro: { x: number; y: number }
+    zoom: number
+    ponto: Point
+    origem: { x: number; y: number }
+    fator: number
+    agora: { x: number; y: number }
+  } | null>(null)
+  /** Depois de uma pinça, o dedo que sobrou nao desenha ate todos saírem da tela. */
+  const esperarSoltar = useRef(false)
+  /** O ultimo numero foi posto por um toque: se virar pinça, ele sai. */
+  const numeroDoToque = useRef(false)
+  /** O ponto da imagem que fica parado sob o dedo (ou o centro) quando o zoom muda. */
+  const ancora = useRef<{ ponto: Point; cliente: { x: number; y: number } } | null>(null)
+
   const idAjuda = useId()
   const idPergunta = useId()
 
   // Sem medida — o ambiente de teste nao mede nada —, a imagem aparece do tamanho dela.
-  const escala =
+  /** A escala em que a imagem inteira cabe no palco. */
+  const ajuste =
     aberta && palco.width > FOLGA * 2 && palco.height > FOLGA * 2
       ? Math.min(
           1,
@@ -204,13 +241,160 @@ export function ImageEditor({
           (palco.height - FOLGA * 2) / aberta.height,
         )
       : 1
+  const zoomMaximo = Math.max(1, ZOOM_MAXIMO_DA_IMAGEM / ajuste)
+  const zoomAgora = Math.min(zoom, zoomMaximo)
+  const escala = ajuste * zoomAgora
   const densidade = Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2)
   const larguraCss = aberta ? Math.max(1, Math.round(aberta.width * escala)) : 0
   const alturaCss = aberta ? Math.max(1, Math.round(aberta.height * escala)) : 0
 
   /** O que o desenho fora do React le: o quadro seguinte nao pode ver valores velhos. */
-  const atual = useRef({ historia, escala, densidade, aberta })
-  atual.current = { historia, escala, densidade, aberta }
+  const atual = useRef({ historia, escala, ajuste, densidade, aberta })
+  atual.current = { historia, escala, ajuste, densidade, aberta }
+
+  /**
+   * Muda o zoom mantendo parado o ponto da imagem sob `cliente` (o dedo, o ponteiro) ou o
+   * centro do palco. A rolagem que mantem o ponto e acertada depois do desenho novo.
+   */
+  function ampliarPara(novo: number, cliente?: { x: number; y: number }) {
+    const alvo = Math.min(Math.max(novo, 1), zoomMaximo)
+    if (Math.abs(alvo - zoomAgora) < 0.001) return
+    const tela = canvasRef.current
+    if (palcoEl && tela) {
+      const caixaDoPalco = palcoEl.getBoundingClientRect()
+      const c = cliente ?? {
+        x: caixaDoPalco.left + caixaDoPalco.width / 2,
+        y: caixaDoPalco.top + caixaDoPalco.height / 2,
+      }
+      const caixaDaTela = tela.getBoundingClientRect()
+      ancora.current = {
+        ponto: { x: (c.x - caixaDaTela.left) / escala, y: (c.y - caixaDaTela.top) / escala },
+        cliente: c,
+      }
+    }
+    setZoom(alvo)
+  }
+  const ampliar = useRef(ampliarPara)
+  ampliar.current = ampliarPara
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a escala nova e o gatilho de acertar a rolagem
+  useLayoutEffect(() => {
+    const alvo = ancora.current
+    const tela = canvasRef.current
+    if (!alvo || !palcoEl || !tela) return
+    ancora.current = null
+    const caixaDaTela = tela.getBoundingClientRect()
+    palcoEl.scrollLeft += caixaDaTela.left + alvo.ponto.x * escala - alvo.cliente.x
+    palcoEl.scrollTop += caixaDaTela.top + alvo.ponto.y * escala - alvo.cliente.y
+  }, [escala])
+
+  // Ctrl (ou Cmd) com a roda amplia, e a pinça do trackpad chega assim tambem. Passivo nao:
+  // sem o `preventDefault`, o navegador ampliaria a pagina inteira junto.
+  useEffect(() => {
+    if (!palcoEl) return
+    const roda = (evento: WheelEvent) => {
+      if (!evento.ctrlKey && !evento.metaKey) return
+      evento.preventDefault()
+      const { escala: e, ajuste: a } = atual.current
+      ampliar.current((e / a) * Math.exp(-evento.deltaY * 0.01), {
+        x: evento.clientX,
+        y: evento.clientY,
+      })
+    }
+    palcoEl.addEventListener('wheel', roda, { passive: false })
+    return () => palcoEl.removeEventListener('wheel', roda)
+  }, [palcoEl])
+
+  const centroDosToques = () => {
+    const [a, b] = [...toques.current.values()]
+    return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : { x: 0, y: 0 }
+  }
+  const distanciaDosToques = () => {
+    const [a, b] = [...toques.current.values()]
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0
+  }
+
+  /**
+   * **A pinça.** O segundo dedo no palco desfaz o que o primeiro comecava (a marca em
+   * andamento, ou o numero que ele pos) e passa a ampliar e mover. Enquanto os dedos
+   * andam, so a moldura estica, por `transform` (o canvas nao e redesenhado a cada
+   * quadro); ao soltar, o zoom vale e a imagem e desenhada de novo, nitida.
+   */
+  function tocarNoPalco(evento: PointerEvent<HTMLDivElement>) {
+    if (evento.pointerType !== 'touch' || !aberta || gerando || confirmando) return
+    toques.current.set(evento.pointerId, { x: evento.clientX, y: evento.clientY })
+    if (toques.current.size > 2) {
+      evento.stopPropagation()
+      return
+    }
+    if (toques.current.size !== 2) return
+    // O canvas nao ve o segundo dedo: ele nao comeca outra marca.
+    evento.stopPropagation()
+    gesto.current = null
+    rascunho.current = null
+    recorteRascunho.current = null
+    if (numeroDoToque.current) setHistoria(undo)
+    numeroDoToque.current = false
+    agendar()
+    const tela = canvasRef.current
+    if (!tela) return
+    const caixaDaTela = tela.getBoundingClientRect()
+    const centro = centroDosToques()
+    pinca.current = {
+      distancia: Math.max(1, distanciaDosToques()),
+      centro,
+      zoom: zoomAgora,
+      ponto: {
+        x: (centro.x - caixaDaTela.left) / escala,
+        y: (centro.y - caixaDaTela.top) / escala,
+      },
+      origem: { x: centro.x - caixaDaTela.left, y: centro.y - caixaDaTela.top },
+      fator: 1,
+      agora: centro,
+    }
+    esperarSoltar.current = true
+  }
+
+  function moverNoPalco(evento: PointerEvent<HTMLDivElement>) {
+    if (!toques.current.has(evento.pointerId)) return
+    toques.current.set(evento.pointerId, { x: evento.clientX, y: evento.clientY })
+    const p = pinca.current
+    const elemento = moldura.current
+    if (!p || toques.current.size < 2 || !elemento) return
+    // O fator ja respeita o zoom de 1 a maximo: esticar alem disso voltaria ao soltar.
+    p.fator = Math.min(
+      Math.max(distanciaDosToques() / p.distancia, 1 / p.zoom),
+      zoomMaximo / p.zoom,
+    )
+    p.agora = centroDosToques()
+    elemento.style.transformOrigin = `${p.origem.x}px ${p.origem.y}px`
+    elemento.style.transform = `translate(${p.agora.x - p.centro.x}px, ${p.agora.y - p.centro.y}px) scale(${p.fator})`
+  }
+
+  function soltarDoPalco(evento: PointerEvent<HTMLDivElement>) {
+    if (!toques.current.delete(evento.pointerId)) return
+    const p = pinca.current
+    if (p && toques.current.size < 2) {
+      pinca.current = null
+      const elemento = moldura.current
+      if (elemento) {
+        elemento.style.transform = ''
+        elemento.style.transformOrigin = ''
+      }
+      const alvo = Math.min(Math.max(p.zoom * p.fator, 1), zoomMaximo)
+      if (Math.abs(alvo - zoomAgora) < 0.001) {
+        // So moveu, sem ampliar: a rolagem leva junto.
+        if (palcoEl) {
+          palcoEl.scrollLeft -= p.agora.x - p.centro.x
+          palcoEl.scrollTop -= p.agora.y - p.centro.y
+        }
+      } else {
+        ancora.current = { ponto: p.ponto, cliente: p.agora }
+        setZoom(alvo)
+      }
+    }
+    if (toques.current.size === 0) esperarSoltar.current = false
+  }
 
   // Abre a imagem, e devolve a memoria dela ao fechar.
   useEffect(() => {
@@ -301,6 +485,15 @@ export function ImageEditor({
     [],
   )
 
+  // Na faixa do celular, a ferramenta escolhida (pelo toque ou pela letra) fica a vista.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a ferramenta e o gatilho
+  useEffect(() => {
+    if (!celular) return
+    pilula.lista.current
+      ?.querySelector<HTMLElement>('[aria-pressed="true"]')
+      ?.scrollIntoView?.({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
+  }, [ferramenta, celular])
+
   // Perguntar antes de descartar comeca no "Voltar": Enter por engano nao apaga as marcas.
   useEffect(() => {
     if (confirmando) voltar.current?.focus()
@@ -319,6 +512,15 @@ export function ImageEditor({
     return 1 / atual.current.escala
   }
 
+  /**
+   * A unidade do tamanho das marcas: a da imagem inteira na tela, **sem o zoom**. Ampliada,
+   * uma seta de 3 pixels sairia com um quarto da grossura, e as marcas de um mesmo print
+   * teriam tamanhos diferentes conforme o zoom de quando foram feitas.
+   */
+  function unidadeDaMarca() {
+    return 1 / atual.current.ajuste
+  }
+
   function pontoDo(evento: { clientX: number; clientY: number; currentTarget: Element }): Point {
     const limites = evento.currentTarget.getBoundingClientRect()
     const { escala: e, aberta: imagem } = atual.current
@@ -331,7 +533,7 @@ export function ImageEditor({
 
   /** A marca de uma ferramenta de caixa, no retangulo dado. O recorte nao e marca. */
   function marcaDoRetangulo(rect: Rect): Shape | null {
-    const u = unidade()
+    const u = unidadeDaMarca()
     switch (ferramenta) {
       case 'rect':
       case 'ellipse':
@@ -346,7 +548,7 @@ export function ImageEditor({
   }
 
   function marcaDoGesto(g: Gesto): Shape | null {
-    const u = unidade()
+    const u = unidadeDaMarca()
     switch (ferramenta) {
       case 'arrow':
         return { type: 'arrow', from: g.inicio, to: g.fim, color: cor, width: SIZE.stroke * u }
@@ -378,8 +580,8 @@ export function ImageEditor({
   function apertar(evento: PointerEvent<HTMLCanvasElement>) {
     if (!aberta || gerando || confirmando) return
     if (evento.pointerType === 'mouse' && evento.button !== 0) return
-    // Um dedo desenhando; o segundo nao comeca outra marca por cima.
-    if (gesto.current) return
+    // Um dedo desenhando; o segundo nao comeca outra marca por cima (ele e da pinça).
+    if (gesto.current || esperarSoltar.current) return
 
     // O ponteiro toma o lugar da caixa do teclado.
     if (caixa.current) desistirDaCaixa()
@@ -387,12 +589,14 @@ export function ImageEditor({
     const ponto = pontoDo(evento)
 
     if (ferramenta === 'step') {
+      // No toque, o numero pode ser o primeiro dedo de uma pinça: se o segundo vier, ele sai.
+      numeroDoToque.current = evento.pointerType === 'touch'
       adicionarMarca({
         type: 'step',
         at: ponto,
         number: nextStepNumber(atual.current.historia.present),
         color: cor,
-        radius: SIZE.stepRadius * unidade(),
+        radius: SIZE.stepRadius * unidadeDaMarca(),
       })
       return
     }
@@ -553,6 +757,23 @@ export function ImageEditor({
     const alvo = evento.target as HTMLElement
     if (alvo.tagName === 'TEXTAREA' || alvo.tagName === 'INPUT') return
 
+    // + e - ampliam e diminuem, e 0 volta a caber, como nos visualizadores de imagem.
+    if (!(evento.metaKey || evento.ctrlKey || evento.altKey) && !confirmando && !gerando) {
+      const zoomPelaTecla =
+        evento.key === '+' || evento.key === '='
+          ? zoomAgora * PASSO_DO_ZOOM
+          : evento.key === '-'
+            ? zoomAgora / PASSO_DO_ZOOM
+            : evento.key === '0'
+              ? 1
+              : null
+      if (zoomPelaTecla !== null) {
+        evento.preventDefault()
+        ampliarPara(zoomPelaTecla)
+        return
+      }
+    }
+
     // A letra de cada ferramenta escolhe a ferramenta, como nos editores de imagem.
     if (!(evento.metaKey || evento.ctrlKey)) {
       if (evento.altKey || evento.shiftKey || confirmando || gerando) return
@@ -675,6 +896,15 @@ export function ImageEditor({
     'transition-[transform,background-color,color] duration-150 ease-out enabled:active:scale-95',
     'disabled:cursor-not-allowed disabled:text-fg-disabled',
   )
+  /**
+   * A ferramenta na faixa do celular: o icone e o nome embaixo. No toque nao ha dica de
+   * passar o mouse, e Desfoque, Ocultar e Marca-texto so pelo desenho eram adivinhacao.
+   */
+  const pecaComNome = cn(
+    'relative flex h-14 min-w-16 flex-col items-center justify-center gap-1.5 rounded-xl px-2',
+    'transition-[transform,background-color,color] duration-150 ease-out enabled:active:scale-95',
+    'disabled:cursor-not-allowed disabled:text-fg-disabled',
+  )
   // Na barra cinza, a escolhida e a peca clara e levantada; no hover, so o icone escurece.
   const solta = 'text-fg-muted enabled:hover:text-fg'
   /** Mac ou nao, para a dica do desfazer dizer a tecla que a pessoa aperta. */
@@ -725,11 +955,68 @@ export function ImageEditor({
     </>
   )
 
+  /** As cores, numa linha: ao lado das ferramentas no computador, acima delas no celular. */
+  const cores = (
+    <fieldset className="flex items-center gap-0.5">
+      <legend className="sr-only">Cor</legend>
+      {INK_COLORS.map((opcao) => {
+        const escolhida = cor === opcao.value
+        return (
+          <Dica key={opcao.value} texto={opcao.name}>
+            <button
+              type="button"
+              aria-label={opcao.name}
+              aria-pressed={escolhida}
+              disabled={!COM_COR.has(ferramenta) || gerando}
+              onClick={() => setCor(opcao.value)}
+              className="group flex size-8 items-center justify-center rounded-full transition-[opacity,transform] duration-150 ease-out enabled:active:scale-90 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:size-10"
+            >
+              {/* A cor escolhida cresce com um leve pulo e ganha um anel por dentro, na
+                          cor de contraste; as outras ficam menores e crescem ao passar o mouse.
+                          A amostra e a cor que vai para a imagem, e nao muda com o tema. */}
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className={cn(
+                  'size-6 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none',
+                  escolhida
+                    ? 'scale-110 drop-shadow-sm'
+                    : 'scale-75 group-enabled:group-hover:scale-90',
+                )}
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10.5"
+                  fill={opcao.value}
+                  stroke="currentColor"
+                  strokeOpacity="0.35"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="6"
+                  fill="none"
+                  stroke={opcao.contrast}
+                  strokeWidth="2.2"
+                  className={cn(
+                    'origin-center transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] [transform-box:fill-box] motion-reduce:transition-none',
+                    escolhida ? 'scale-100 opacity-100' : 'scale-0 opacity-0',
+                  )}
+                />
+              </svg>
+            </button>
+          </Dica>
+        )
+      })}
+    </fieldset>
+  )
+
   /** Um grupo da barra: o fio antes dele, quando pedido, e as ferramentas dele. */
   const grupoDeFerramentas = (grupo: (typeof GRUPOS)[number], comFio: boolean) => (
     <span key={grupo} className={cn('flex items-center', !celular && 'gap-0.5')}>
       {comFio && <Divisoria />}
-      {TOOLS.filter((item) => item.grupo === grupo).map(({ tool, label, tecla }) => (
+      {TOOLS.filter((item) => item.grupo === grupo).map(({ tool, label, curto, tecla }) => (
         <Dica key={tool} texto={label} tecla={tecla}>
           <button
             ref={tool === TOOLS[0]?.tool ? primeiraFerramenta : undefined}
@@ -743,13 +1030,14 @@ export function ImageEditor({
             disabled={gerando}
             onClick={() => escolher(tool)}
             className={cn(
-              peca,
+              celular ? pecaComNome : peca,
               ferramenta === tool ? 'text-fg' : solta,
               // Sem a pilula medida (o primeiro desenho), o fundo marca a escolhida.
               ferramenta === tool && !pilula.lugar && 'bg-surface-lifted shadow-sm',
             )}
           >
             <EditorIcon name={tool} />
+            {celular && <span className="text-caption leading-none">{curto}</span>}
           </button>
         </Dica>
       ))}
@@ -826,9 +1114,18 @@ export function ImageEditor({
                     {mode === 'add' ? 'Descartar' : 'Cancelar'}
                   </button>
                 )}
-                <Dialog.Title className="min-w-0 flex-1 truncate text-center font-medium text-detail text-fg">
-                  Marcar a imagem
-                </Dialog.Title>
+                {celular ? (
+                  // No celular, desfazer e refazer sobem para o topo, entre as saidas, como no
+                  // editor do proprio telefone: embaixo fica so o que marca.
+                  <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+                    <Dialog.Title className="sr-only">Marcar a imagem</Dialog.Title>
+                    <Tooltip.Provider delayDuration={350}>{desfazerRefazer}</Tooltip.Provider>
+                  </div>
+                ) : (
+                  <Dialog.Title className="min-w-0 flex-1 truncate text-center font-medium text-detail text-fg">
+                    Marcar a imagem
+                  </Dialog.Title>
+                )}
                 {falhou ? (
                   // A imagem que o editor nao abre ainda pode ir: a pessoa decide.
                   mode === 'add' ? (
@@ -857,186 +1154,246 @@ export function ImageEditor({
           </header>
 
           {/* O palco: a imagem no meio, sobre uma trama de pontos discreta, como numa mesa
-              de desenho. */}
-          <div
-            ref={setPalcoEl}
-            className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] p-4 [background-size:18px_18px]"
-          >
-            {aberta ? (
-              <div className="relative" style={{ width: larguraCss, height: alturaCss }}>
-                <canvas
-                  ref={canvasRef}
-                  width={Math.round(larguraCss * densidade)}
-                  height={Math.round(alturaCss * densidade)}
-                  role="img"
-                  aria-label="A imagem, com as marcas"
-                  aria-describedby={idAjuda}
-                  // Alcancavel pelo Tab: e daqui que a caixa do teclado sai.
-                  tabIndex={0}
-                  onKeyDown={teclado}
-                  onPointerDown={apertar}
-                  onPointerMove={arrastar}
-                  onPointerUp={soltar}
-                  onPointerCancel={interromper}
-                  // A captura do ponteiro some sem `pointercancel` em alguns toques: sem
-                  // isto, o gesto ficaria preso e nenhum toque seguinte desenharia.
-                  onLostPointerCapture={interromper}
-                  // Sem isto, arrastar o dedo rolaria e daria zoom na pagina, em vez de desenhar.
-                  className="block cursor-crosshair touch-none rounded-md shadow-xl ring-1 ring-border focus-visible:outline-offset-4"
-                  style={{ width: larguraCss, height: alturaCss }}
-                />
-              </div>
-            ) : (
-              <p className="max-w-xs text-center text-detail text-fg-muted leading-normal">
-                {falhou ? 'Não deu para abrir esta imagem para marcar.' : 'Abrindo a imagem…'}
-              </p>
-            )}
-          </div>
-
-          {/* Embaixo: a dica da ferramenta numa pilula, e a barra com tudo o que marca. */}
-          <div className="flex flex-col items-center gap-2 px-3 pt-1 pb-3">
-            <div className="flex min-h-7 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1">
-              {erro && (
-                <p
-                  role="alert"
-                  className="rounded-full border border-error-border bg-surface px-3 py-1 text-caption text-error-fg leading-normal"
-                >
-                  {erro}
-                </p>
+              de desenho. Ampliada, ele rola (com dois dedos, no toque: um dedo desenha), e a
+              imagem, com `m-auto`, fica no meio quando cabe e encosta no inicio quando passa. */}
+          <div className="relative flex min-h-0 flex-1">
+            <div
+              ref={setPalcoEl}
+              onPointerDownCapture={tocarNoPalco}
+              onPointerMoveCapture={moverNoPalco}
+              onPointerUpCapture={soltarDoPalco}
+              onPointerCancelCapture={soltarDoPalco}
+              className={cn(
+                'flex min-h-0 min-w-0 flex-1 bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] p-4 [background-size:18px_18px]',
+                zoomAgora > 1 ? 'overflow-auto overscroll-contain' : 'overflow-hidden',
               )}
-              <p
-                aria-live="polite"
-                className="rounded-full bg-surface/90 px-3 py-1 text-center text-caption text-fg-muted leading-normal"
-              >
-                {dica}
-              </p>
-              <p id={idAjuda} className="sr-only">
-                Pelo teclado, com Retângulo, Elipse, Desfoque, Ocultar ou Recortar escolhido, Enter
-                põe uma caixa no meio da imagem. Cada ferramenta tem uma letra de atalho.
-              </p>
-              {ferramenta === 'crop' && historia.present.crop && (
-                <button
-                  type="button"
-                  onClick={() => aplicar((doc) => ({ ...doc, crop: null }))}
-                  className="font-medium text-caption text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
+            >
+              {aberta ? (
+                <div
+                  ref={moldura}
+                  className="relative m-auto flex-none"
+                  style={{ width: larguraCss, height: alturaCss }}
                 >
-                  Sem recorte
-                </button>
+                  <canvas
+                    ref={canvasRef}
+                    width={Math.round(larguraCss * densidade)}
+                    height={Math.round(alturaCss * densidade)}
+                    role="img"
+                    aria-label="A imagem, com as marcas"
+                    aria-describedby={idAjuda}
+                    // Alcancavel pelo Tab: e daqui que a caixa do teclado sai.
+                    tabIndex={0}
+                    onKeyDown={teclado}
+                    onPointerDown={apertar}
+                    onPointerMove={arrastar}
+                    onPointerUp={soltar}
+                    onPointerCancel={interromper}
+                    // A captura do ponteiro some sem `pointercancel` em alguns toques: sem
+                    // isto, o gesto ficaria preso e nenhum toque seguinte desenharia.
+                    onLostPointerCapture={interromper}
+                    // Sem isto, arrastar o dedo rolaria e daria zoom na pagina, em vez de desenhar.
+                    className="block cursor-crosshair touch-none rounded-md shadow-xl ring-1 ring-border focus-visible:outline-offset-4"
+                    style={{ width: larguraCss, height: alturaCss }}
+                  />
+                </div>
+              ) : (
+                <p className="m-auto max-w-xs text-center text-detail text-fg-muted leading-normal">
+                  {falhou ? 'Não deu para abrir esta imagem para marcar.' : 'Abrindo a imagem…'}
+                </p>
               )}
             </div>
 
-            <Tooltip.Provider delayDuration={350} skipDelayDuration={300}>
-              <div className="flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border border-border bg-surface-sunken p-1.5 shadow-lg">
-                <div
-                  ref={pilula.lista}
-                  role="toolbar"
-                  aria-label="Ferramentas"
-                  // No computador, numa linha so. No celular e no tablet de pe, com o tamanho
-                  // do dedo, nao cabe: duas linhas sem partir grupo, marcar em cima, e esconder,
-                  // recortar, desfazer e refazer embaixo. As cores vao ao lado, ou embaixo.
-                  className={cn(
-                    'relative flex items-center justify-center',
-                    celular ? 'flex-col gap-1' : 'flex-nowrap gap-0.5',
-                  )}
+            {/* O zoom, no canto do palco: diminuir, voltar a caber (so ampliada) e ampliar. */}
+            {aberta && (
+              <div className="absolute right-3 bottom-3 flex items-center gap-0.5 rounded-xl border border-border bg-surface p-1 shadow-md">
+                <button
+                  type="button"
+                  aria-label="Diminuir"
+                  aria-keyshortcuts="-"
+                  disabled={zoomAgora <= 1 || gerando}
+                  onClick={() => ampliarPara(zoomAgora / PASSO_DO_ZOOM)}
+                  className={cn(peca, solta, 'size-8 sm:size-8')}
                 >
-                  {/* A ferramenta escolhida: uma pilula neutra que desliza ate a nova. */}
-                  {pilula.lugar && (
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        'pointer-events-none absolute top-0 left-0 rounded-xl bg-surface-lifted shadow-sm ring-1 ring-border',
-                        pilula.animar &&
-                          'transition-[transform,width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
-                      )}
-                      style={{
-                        transform: `translate(${pilula.lugar.x}px, ${pilula.lugar.y}px)`,
-                        width: pilula.lugar.largura,
-                        height: pilula.lugar.altura,
-                      }}
-                    />
-                  )}
-                  {celular ? (
-                    <>
-                      {grupoDeFerramentas('marcar', false)}
-                      {/* No celular, desfazer e refazer moram aqui, ao lado de recortar, para
-                          a barra ter tres linhas e nao quatro. No computador, ficam no fim. */}
-                      <span className="flex items-center">
-                        {grupoDeFerramentas('esconder', false)}
-                        {grupoDeFerramentas('recortar', true)}
-                        <Divisoria />
-                        {desfazerRefazer}
-                      </span>
-                    </>
-                  ) : (
-                    GRUPOS.map((grupo, indice) => grupoDeFerramentas(grupo, indice > 0))
-                  )}
-                </div>
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    aria-hidden
+                  >
+                    <path d="M3.5 8h9" />
+                  </svg>
+                </button>
+                {zoomAgora > 1 && (
+                  <button
+                    type="button"
+                    aria-keyshortcuts="0"
+                    onClick={() => ampliarPara(1)}
+                    disabled={gerando}
+                    className="h-8 animate-fade-in rounded-lg px-2 text-caption text-fg-muted tabular-nums transition-colors hover:bg-surface-sunken hover:text-fg pointer-coarse:h-10"
+                  >
+                    Ajustar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-label="Ampliar"
+                  aria-keyshortcuts="+"
+                  disabled={zoomAgora >= zoomMaximo || gerando}
+                  onClick={() => ampliarPara(zoomAgora * PASSO_DO_ZOOM)}
+                  className={cn(peca, solta, 'size-8 sm:size-8')}
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    aria-hidden
+                  >
+                    <path d="M3.5 8h9M8 3.5v9" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
 
-                <Divisoria className="hidden sm:block" />
-
-                <fieldset className="flex items-center gap-0.5">
-                  <legend className="sr-only">Cor</legend>
-                  {INK_COLORS.map((opcao) => {
-                    const escolhida = cor === opcao.value
-                    return (
-                      <Dica key={opcao.value} texto={opcao.name}>
-                        <button
-                          type="button"
-                          aria-label={opcao.name}
-                          aria-pressed={escolhida}
-                          disabled={!COM_COR.has(ferramenta) || gerando}
-                          onClick={() => setCor(opcao.value)}
-                          className="group flex size-8 items-center justify-center rounded-full transition-[opacity,transform] duration-150 ease-out enabled:active:scale-90 disabled:cursor-not-allowed disabled:opacity-30 pointer-coarse:size-10"
-                        >
-                          {/* A cor escolhida cresce com um leve pulo e ganha um anel por dentro, na
-                          cor de contraste; as outras ficam menores e crescem ao passar o mouse.
-                          A amostra e a cor que vai para a imagem, e nao muda com o tema. */}
-                          <svg
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                            className={cn(
-                              'size-6 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none',
-                              escolhida
-                                ? 'scale-110 drop-shadow-sm'
-                                : 'scale-75 group-enabled:group-hover:scale-90',
-                            )}
-                          >
-                            <circle
-                              cx="12"
-                              cy="12"
-                              r="10.5"
-                              fill={opcao.value}
-                              stroke="currentColor"
-                              strokeOpacity="0.35"
-                            />
-                            <circle
-                              cx="12"
-                              cy="12"
-                              r="6"
-                              fill="none"
-                              stroke={opcao.contrast}
-                              strokeWidth="2.2"
-                              className={cn(
-                                'origin-center transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] [transform-box:fill-box] motion-reduce:transition-none',
-                                escolhida ? 'scale-100 opacity-100' : 'scale-0 opacity-0',
-                              )}
-                            />
-                          </svg>
-                        </button>
-                      </Dica>
-                    )
-                  })}
-                </fieldset>
-
-                {!celular && (
-                  <>
-                    <Divisoria />
-                    <div className="flex items-center gap-0.5">{desfazerRefazer}</div>
-                  </>
+          {/* Embaixo: a dica da ferramenta numa pilula, e a barra com tudo o que marca. No
+              celular, um painel preso ao pe: a dica, as cores e uma faixa so de ferramentas
+              com o nome embaixo, que rola de lado. Eram tres linhas de icones sem nome, com
+              quase 300px, e a imagem ficava com o resto. */}
+          {celular ? (
+            <div className="flex flex-col gap-2 border-border border-t bg-surface pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              <div className="flex min-h-5 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4">
+                {erro && (
+                  <p role="alert" className="text-caption text-error-fg leading-normal">
+                    {erro}
+                  </p>
+                )}
+                <p
+                  aria-live="polite"
+                  className="text-center text-caption text-fg-muted leading-normal"
+                >
+                  {dica}
+                </p>
+                <p id={idAjuda} className="sr-only">
+                  Pelo teclado, com Retângulo, Elipse, Desfoque, Ocultar ou Recortar escolhido,
+                  Enter põe uma caixa no meio da imagem. Cada ferramenta tem uma letra de atalho.
+                </p>
+                {ferramenta === 'crop' && historia.present.crop && (
+                  <button
+                    type="button"
+                    onClick={() => aplicar((doc) => ({ ...doc, crop: null }))}
+                    className="font-medium text-caption text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
+                  >
+                    Sem recorte
+                  </button>
                 )}
               </div>
-            </Tooltip.Provider>
-          </div>
+              <Tooltip.Provider delayDuration={350} skipDelayDuration={300}>
+                <div className="flex justify-center">{cores}</div>
+                <div className="overflow-x-auto overscroll-x-contain px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div
+                    ref={pilula.lista}
+                    role="toolbar"
+                    aria-label="Ferramentas"
+                    className="relative mx-auto flex w-max items-center gap-0.5"
+                  >
+                    {pilula.lugar && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'pointer-events-none absolute top-0 left-0 rounded-xl bg-surface-sunken ring-1 ring-border',
+                          pilula.animar &&
+                            'transition-[transform,width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
+                        )}
+                        style={{
+                          transform: `translate(${pilula.lugar.x}px, ${pilula.lugar.y}px)`,
+                          width: pilula.lugar.largura,
+                          height: pilula.lugar.altura,
+                        }}
+                      />
+                    )}
+                    {GRUPOS.map((grupo, indice) => grupoDeFerramentas(grupo, indice > 0))}
+                  </div>
+                </div>
+              </Tooltip.Provider>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 px-3 pt-1 pb-3">
+              <div className="flex min-h-7 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                {erro && (
+                  <p
+                    role="alert"
+                    className="rounded-full border border-error-border bg-surface px-3 py-1 text-caption text-error-fg leading-normal"
+                  >
+                    {erro}
+                  </p>
+                )}
+                <p
+                  aria-live="polite"
+                  className="rounded-full bg-surface/90 px-3 py-1 text-center text-caption text-fg-muted leading-normal"
+                >
+                  {dica}
+                </p>
+                <p id={idAjuda} className="sr-only">
+                  Pelo teclado, com Retângulo, Elipse, Desfoque, Ocultar ou Recortar escolhido,
+                  Enter põe uma caixa no meio da imagem. Cada ferramenta tem uma letra de atalho.
+                </p>
+                {ferramenta === 'crop' && historia.present.crop && (
+                  <button
+                    type="button"
+                    onClick={() => aplicar((doc) => ({ ...doc, crop: null }))}
+                    className="font-medium text-caption text-fg underline underline-offset-4 pointer-coarse:-my-3 pointer-coarse:py-3"
+                  >
+                    Sem recorte
+                  </button>
+                )}
+              </div>
+
+              <Tooltip.Provider delayDuration={350} skipDelayDuration={300}>
+                <div className="flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border border-border bg-surface-sunken p-1.5 shadow-lg">
+                  <div
+                    ref={pilula.lista}
+                    role="toolbar"
+                    aria-label="Ferramentas"
+                    // No computador, numa linha so. No celular e no tablet de pe, com o tamanho
+                    // do dedo, nao cabe: duas linhas sem partir grupo, marcar em cima, e esconder,
+                    // recortar, desfazer e refazer embaixo. As cores vao ao lado, ou embaixo.
+                    className="relative flex flex-nowrap items-center justify-center gap-0.5"
+                  >
+                    {/* A ferramenta escolhida: uma pilula neutra que desliza ate a nova. */}
+                    {pilula.lugar && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'pointer-events-none absolute top-0 left-0 rounded-xl bg-surface-lifted shadow-sm ring-1 ring-border',
+                          pilula.animar &&
+                            'transition-[transform,width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
+                        )}
+                        style={{
+                          transform: `translate(${pilula.lugar.x}px, ${pilula.lugar.y}px)`,
+                          width: pilula.lugar.largura,
+                          height: pilula.lugar.altura,
+                        }}
+                      />
+                    )}
+                    {GRUPOS.map((grupo, indice) => grupoDeFerramentas(grupo, indice > 0))}
+                  </div>
+
+                  <Divisoria />
+
+                  {cores}
+
+                  <Divisoria />
+                  <div className="flex items-center gap-0.5">{desfazerRefazer}</div>
+                </div>
+              </Tooltip.Provider>
+            </div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

@@ -42,6 +42,7 @@
 
   --color-muted-dot: var(--muted-dot);
   --color-overlay: var(--overlay);
+  --color-device-frame: var(--device-frame);
 
   /* A paleta de dado: etiqueta e prioridade. Ver a nota em tokens.css. */
   --color-landing-mat: var(--landing-mat);

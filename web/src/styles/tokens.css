@@ -207,6 +207,9 @@
   /* Tres lugares desenham o veu, e dois ja divergiram em 5% de opacidade. */
   --overlay: rgb(0 0 0 / 45%);
 
+  /* A moldura dos aparelhos do relato de teste (celular e tablet): escura como um telefone. */
+  --device-frame: var(--slate-12);
+
   /* PALETA DE DADO — a cor que o time escolhe para uma etiqueta ou prioridade.
      **Nao e significado do produto**: nao diz erro nem funcionando, e do dado. Por
      isso vem sempre com o nome escrito ao lado — cor nunca sozinha —, e o vermelho
@@ -386,6 +389,9 @@
 
   /* Mais fechado: 45% sobre fundo quase preto nao separa o dialogo do que ha atras. */
   --overlay: rgb(0 0 0 / 65%);
+
+  /* No escuro, um cinza acima do fundo: a moldura preta sumia na pagina quase preta. */
+  --device-frame: var(--slate-6);
 
   /* A pagina de entrada: a mesa, o hover dela e o passo feito acompanham o grass reatribuido
      acima, e o verde da tinta sobre a mesa sobe para o 11. A loja nao muda: e a cor do
