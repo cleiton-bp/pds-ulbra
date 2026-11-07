@@ -22,7 +22,6 @@ import {
 } from '@/embed/protocol'
 import { createLauncherView, type LauncherView } from '@/loader/launcherView'
 import { cn } from '@/shared/lib/cn'
-import { previewStartsOnPhone } from '@/shared/lib/screen'
 import { useThemeStore } from '@/shared/lib/themeStore'
 
 /** A largura que o quadro recebe como a da janela: so ela decide se e celular. */
@@ -102,13 +101,14 @@ export function WidgetPreview({
   note,
   highlight = null,
   startOpen = false,
+  preencher = false,
 }: {
   settings: WidgetSettingsViewModel
   /** Os anexos do rascunho, na tela de Anexos. Sem eles, o formulario sai sem a area de anexar. */
   media?: PublicMediaSettingsViewModel | null
   /**
-   * O aparelho, quando a tela decide — O botão troca para o celular ao abrir "No
-   * celular". Sem ele, a previa guarda a escolha sozinha.
+   * O aparelho, quando a tela guarda a escolha (O botão, para ela valer na previa da folha
+   * do celular tambem). Sem ele, a previa guarda a escolha sozinha.
    */
   device?: PreviewDevice
   /** A pessoa escolheu o aparelho na previa. */
@@ -122,6 +122,12 @@ export function WidgetPreview({
    * e nao o botao. Abre **sem pegar o foco**: a pessoa continua onde estava na tela.
    */
   startOpen?: boolean
+  /**
+   * A pagina de mentira preenche a altura que o pai da, em vez dos 480 fixos (nunca menos
+   * de 26rem): e a da folha alta do celular, onde o formulario inteiro cabe sem rolar duas
+   * vezes.
+   */
+  preencher?: boolean
 }) {
   const origemDaFerramenta = new URL(environment.embedUrl).origin
   const aquiMesmo = typeof window !== 'undefined' ? window.location.origin : null
@@ -134,10 +140,9 @@ export function WidgetPreview({
   // O tema do painel, para o botao e o formulario da previa o acompanharem quando ele troca.
   const temaEscolhido = useThemeStore((estado) => estado.theme)
 
-  // Onde a previa e estreita ela ja abre em Celular (ver `previewStartsOnPhone`).
-  const [aparelhoProprio, setAparelhoProprio] = useState<PreviewDevice>(() =>
-    previewStartsOnPhone() ? 'phone' : 'computer',
-  )
+  // **Sempre abre em Computador**, e quem troca para Celular e a pessoa, nas abas. Ja abriu
+  // em Celular nas telas estreitas, e quem chegava nao sabia em que aparelho estava olhando.
+  const [aparelhoProprio, setAparelhoProprio] = useState<PreviewDevice>('computer')
   const aparelho = device ?? aparelhoProprio
   const setAparelho = (escolhido: PreviewDevice) => {
     setAparelhoProprio(escolhido)
@@ -401,7 +406,7 @@ export function WidgetPreview({
   }
 
   return (
-    <div>
+    <div className={cn(preencher && 'flex flex-1 flex-col')}>
       {/* Abas, e nao escolhas de configuracao: trocar o aparelho so muda o que se ve
           aqui, e nao grava nada. */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -461,7 +466,8 @@ export function WidgetPreview({
         role="tabpanel"
         aria-labelledby={`${ids}-${aparelho}`}
         className={cn(
-          'relative h-[30rem] overflow-hidden rounded-lg border border-border bg-surface',
+          'relative overflow-hidden rounded-lg border border-border bg-surface',
+          preencher ? 'min-h-[26rem] flex-1' : 'h-[30rem]',
           aparelho === 'phone' ? 'mx-auto w-full max-w-[23.4375rem]' : 'w-full',
         )}
       >

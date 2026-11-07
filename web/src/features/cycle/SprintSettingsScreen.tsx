@@ -174,7 +174,18 @@ export function SprintSettingsScreen() {
       )}
 
       {draft && (
-        <EditorWithPreview preview={<ComoFicaOTrabalho draft={draft} dirty={dirty} />}>
+        <EditorWithPreview
+          preview={<ComoFicaOTrabalho draft={draft} dirty={dirty} />}
+          previewEmFolha
+          acaoNoCelular={
+            dirty ? (
+              <Button variant="primary" disabled={saving} onClick={() => void gravar()}>
+                {saving ? 'Salvando…' : 'Salvar'}
+              </Button>
+            ) : null
+          }
+          tituloDaPrevia="Como fica o Trabalho"
+        >
           <SettingsGroup
             name={ACORDEAO}
             id="forma-de-trabalho"
@@ -200,13 +211,19 @@ export function SprintSettingsScreen() {
                     value: 'continuo',
                     label: 'Quadro contínuo',
                     note: 'O quadro mostra todo o trabalho, sem começo nem fim.',
-                    className: 'flex-1 basis-44 px-3 py-3',
+                    // No celular, uma embaixo da outra e alinhadas a esquerda: a explicacao
+                    // centralizada em duas ou tres linhas ficava dificil de ler.
+                    className:
+                      'flex-1 basis-44 px-3 py-3 max-sm:items-start max-sm:px-3.5 max-sm:text-left',
                   },
                   {
                     value: 'sprints',
                     label: 'Em sprints',
                     note: 'O quadro mostra só a sprint em andamento; o resto fica na aba Backlog, e o card ganha pontos.',
-                    className: 'flex-1 basis-44 px-3 py-3',
+                    // No celular, uma embaixo da outra e alinhadas a esquerda: a explicacao
+                    // centralizada em duas ou tres linhas ficava dificil de ler.
+                    className:
+                      'flex-1 basis-44 px-3 py-3 max-sm:items-start max-sm:px-3.5 max-sm:text-left',
                   },
                 ]}
               />
@@ -247,14 +264,18 @@ export function SprintSettingsScreen() {
 
             {draft.SprintsEnabled && (
               <Field id="sprint-duracao" label="Cada sprint nasce com" className="mt-5">
+                {/* Em grade, e nao em fila que quebra: no celular, tres numa linha deixavam o
+                    "4 semanas" sozinho embaixo, esticado na largura toda. Duas por linha no
+                    celular, quatro do `sm` para cima. */}
                 <RadioGroup<string>
                   label="Cada sprint nasce com"
+                  className="grid grid-cols-2 sm:grid-cols-4"
                   value={String(draft.SprintLengthWeeks)}
                   onChange={(valor) => mudar({ SprintLengthWeeks: Number(valor) })}
                   options={DURACOES.map((valor) => ({
                     value: valor,
                     label: semanas(Number(valor)),
-                    className: 'flex-1 basis-20 px-3 py-2.5',
+                    className: 'px-3 py-2.5',
                   }))}
                 />
                 <Hint>Ao iniciar, a sprint começa no dia em que for iniciada.</Hint>

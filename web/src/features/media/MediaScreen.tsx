@@ -7,10 +7,9 @@ import {
   UPLOADABLE_MEDIA_KINDS,
 } from '@/contracts'
 import { describeError, projectMediaSettingsService, projectWidgetSettingsService } from '@/data'
-import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
 import { Button } from '@/shared/components/Button'
 import { EditorWithPreview } from '@/shared/components/EditorWithPreview'
-import { PreviewSection } from '@/shared/components/PreviewSection'
+import { PreviewSection, PreviewUnavailable } from '@/shared/components/PreviewSection'
 import { Hint } from '@/shared/components/SettingsControls'
 import { SettingsGroup } from '@/shared/components/SettingsGroup'
 import { SettingsHeader } from '@/shared/components/SettingsHeader'
@@ -272,9 +271,14 @@ export function MediaScreen() {
     ),
   )
 
-  // A configuracao da ferramenta, so para a previa mostrar o formulario de verdade em
-  // volta dos anexos. Falhando, a previa usa a de fabrica: e ilustracao, nao vale erro.
-  const { data: ferramenta } = useAsyncResource(
+  // A configuracao publicada da ferramenta, para a previa mostrar o formulario de verdade em
+  // volta dos anexos. **Sem ela, nao ha previa**: a de fabrica no lugar parecia ser a do
+  // sistema da pessoa.
+  const {
+    data: ferramenta,
+    failed: ferramentaFalhou,
+    reload: lerFerramenta,
+  } = useAsyncResource(
     useCallback(
       () => projectWidgetSettingsService.getWidgetSettings(project.PublicId),
       [project.PublicId],
@@ -444,15 +448,34 @@ export function MediaScreen() {
           <ResumoGeral ligado={draft.IsEnabled} semArmazenamento={noStorage} semTipo={semTipo} />
 
           <EditorWithPreview
+            previewEmFolha
+            folhaAlta
+            acaoNoCelular={
+              dirty ? (
+                <Button
+                  variant="primary"
+                  disabled={saving || impedido}
+                  onClick={() => void salvar()}
+                >
+                  {saving ? 'Publicando…' : 'Publicar'}
+                </Button>
+              ) : null
+            }
             preview={
-              <PreviewSection
-                settings={ferramenta ?? DEFAULT_WIDGET_SETTINGS}
-                media={naPrevia}
-                dirty={dirty}
-                startOpen
-                highlight={realce}
-                hint="O formulário com a área de anexar como está aqui. A parte que você está mudando aparece contornada."
-              />
+              ferramenta ? (
+                <PreviewSection
+                  settings={ferramenta}
+                  media={naPrevia}
+                  dirty={dirty}
+                  startOpen
+                  highlight={realce}
+                  hint="O formulário com a área de anexar como está aqui. A parte que você está mudando aparece contornada."
+                />
+              ) : ferramentaFalhou ? (
+                <PreviewUnavailable onRetry={lerFerramenta} />
+              ) : (
+                <Skeleton className="h-96 w-full rounded-xl" />
+              )
             }
           >
             <SettingsGroup

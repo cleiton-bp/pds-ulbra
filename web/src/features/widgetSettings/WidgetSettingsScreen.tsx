@@ -31,7 +31,6 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
 import { useScriptInstalled } from '@/shared/hooks/useScriptInstalled'
 import { useWidgetSettingsDraft } from '@/shared/hooks/useSettingsDraft'
 import { cn } from '@/shared/lib/cn'
-import { previewStartsOnPhone } from '@/shared/lib/screen'
 import { guideTarget, useScreenGuide } from '@/shared/tour/guideStore'
 
 /**
@@ -73,9 +72,10 @@ const MUDARAM_DE_TELA: Record<string, string> = {
  * **O liga e desliga e uma pilula no cabecalho**: o estado do botao no seu sistema e a
  * primeira coisa que a tela diz.
  *
- * **A previa e a ferramenta de verdade**, com o que ainda nao foi publicado; abrir "No
- * celular" troca a previa para o celular — e o selo diz que trocou —, e fechar volta, a
- * nao ser que a pessoa tenha escolhido o aparelho na propria previa. **Ela realca o
+ * **A previa e a ferramenta de verdade**: abre com o que esta publicado, muda com cada
+ * escolha ainda nao publicada, e **sempre em Computador**; Celular e a pessoa que escolhe,
+ * nas abas dela. Abrir "No celular" ja trocava a previa sozinho, e a pessoa via o aparelho
+ * mudar sem ter pedido; agora o grupo diz onde ver. **Ela realca o
  * assunto em foco**: as guias da distancia com a Posição aberta, o contorno do botao
  * com a Aparência aberta.
  *
@@ -92,32 +92,11 @@ export function WidgetSettingsScreen() {
       'Publicado. Quem abrir o seu sistema agora já vê assim.',
     )
 
-  // Onde a previa e estreita ela ja abre em Celular (ver `previewStartsOnPhone`).
-  const [aparelho, setAparelho] = useState<PreviewDevice>(() =>
-    previewStartsOnPhone() ? 'phone' : 'computer',
-  )
-  /** O celular foi posto pela abertura de "No celular", e nao pela pessoa: fechar desfaz. */
-  const [trocouSozinho, setTrocouSozinho] = useState(false)
+  // Sempre em Computador ao abrir; a pessoa troca nas abas da previa.
+  const [aparelho, setAparelho] = useState<PreviewDevice>('computer')
   const [posicaoAberta, setPosicaoAberta] = useState(false)
   /** A Aparência abre aberta (`defaultOpen`): e o contorno do botao que a previa mostra. */
   const [aparenciaAberta, setAparenciaAberta] = useState(true)
-
-  function alternarCelular(aberto: boolean) {
-    if (aberto) {
-      if (aparelho === 'computer') {
-        setTrocouSozinho(true)
-        setAparelho('phone')
-      }
-      return
-    }
-    if (trocouSozinho) setAparelho('computer')
-    setTrocouSozinho(false)
-  }
-
-  function escolherAparelho(escolhido: PreviewDevice) {
-    setTrocouSozinho(false)
-    setAparelho(escolhido)
-  }
 
   const realce: PreviewHighlight | null = posicaoAberta
     ? 'distance'
@@ -238,17 +217,26 @@ export function WidgetSettingsScreen() {
                 settings={draft}
                 dirty={dirty}
                 device={aparelho}
-                onDeviceChange={escolherAparelho}
-                note={trocouSozinho && aparelho === 'phone' ? 'Mostrando: celular' : null}
+                onDeviceChange={setAparelho}
                 highlight={realce}
                 hint="Como fica no seu sistema. Clique no botão para abrir o formulário."
               />
+            }
+            // No celular, a previa abre numa folha pelo "Ver prévia", e o Publicar fica ao
+            // lado dele quando ha mudanca (no titulo, ele saia da vista ao rolar).
+            previewEmFolha
+            folhaAlta
+            acaoNoCelular={
+              dirty ? (
+                <Button variant="primary" disabled={saving} onClick={() => void save()}>
+                  {saving ? 'Publicando…' : 'Publicar'}
+                </Button>
+              ) : null
             }
           >
             <ButtonGroups
               draft={draft}
               change={change}
-              onMobileToggle={alternarCelular}
               onPositionToggle={setPosicaoAberta}
               onAppearanceToggle={setAparenciaAberta}
             />
@@ -285,13 +273,11 @@ const ACORDEAO = 'botao'
 function ButtonGroups({
   draft,
   change,
-  onMobileToggle,
   onPositionToggle,
   onAppearanceToggle,
 }: {
   draft: WidgetSettingsViewModel
   change: (patch: Partial<WidgetSettingsViewModel>) => void
-  onMobileToggle: (open: boolean) => void
   onPositionToggle: (open: boolean) => void
   onAppearanceToggle: (open: boolean) => void
 }) {
@@ -350,9 +336,12 @@ function ButtonGroups({
         value={describeMobile(draft)}
         changes={groupChanges(draft, mobile)}
         onReset={() => change(resetPatch(draft, mobile))}
-        onToggle={onMobileToggle}
       >
         <MobileFields draft={draft} change={change} />
+        {/* A previa nao troca de aparelho sozinha: diz onde ver o efeito daqui. */}
+        <p className="mt-3 text-detail text-fg-muted">
+          Escolha Celular na prévia para ver como fica.
+        </p>
       </SettingsGroup>
 
       <SettingsGroup

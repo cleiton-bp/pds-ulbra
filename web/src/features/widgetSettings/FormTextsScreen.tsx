@@ -230,6 +230,15 @@ export function FormTextsScreen() {
 
       {draft && nome && naPrevia && (
         <EditorWithPreview
+          previewEmFolha
+          folhaAlta
+          acaoNoCelular={
+            dirty ? (
+              <Button variant="primary" disabled={saving} onClick={() => void salvar()}>
+                {saving ? 'Publicando…' : 'Publicar'}
+              </Button>
+            ) : null
+          }
           preview={
             <PreviewSection
               id="previa"

@@ -20,6 +20,7 @@ export function BottomSheet({
   title,
   subtitle,
   footer,
+  alta = false,
   children,
 }: {
   open: boolean
@@ -27,6 +28,11 @@ export function BottomSheet({
   title: ReactNode
   /** Uma linha menor embaixo do titulo, que o leitor de tela ouve como descricao. */
   subtitle?: ReactNode
+  /**
+   * Do tamanho da folha do card, quase a tela inteira, com o corpo para quem quiser
+   * preencher a altura (a previa do formulario). Sem isto, a altura segue o conteudo.
+   */
+  alta?: boolean
   /** As acoes do pe, sempre a vista. */
   footer?: ReactNode
   children: ReactNode
@@ -40,7 +46,8 @@ export function BottomSheet({
           // Com subtitulo, o Radix liga a descricao sozinho; sem, diz que nao ha.
           {...(subtitle ? {} : { 'aria-describedby': undefined })}
           className={cn(
-            'fixed inset-x-0 bottom-0 z-dialog flex max-h-[85dvh] flex-col rounded-t-2xl border border-border border-b-0 bg-surface-raised shadow-lg data-[state=closed]:animate-sheet-out data-[state=open]:animate-sheet-in dark:bg-surface-strong',
+            'fixed inset-x-0 bottom-0 z-dialog flex flex-col rounded-t-2xl border border-border border-b-0 bg-surface-raised shadow-lg data-[state=closed]:animate-sheet-out data-[state=open]:animate-sheet-in dark:bg-surface-strong',
+            alta ? 'h-[calc(100dvh-2.75rem)]' : 'max-h-[85dvh]',
             // O alto e de quem arrasta para fechar: sem gesto do navegador ali. O corpo, que
             // rola, continua com o gesto dele.
             'touch-none',
@@ -74,7 +81,12 @@ export function BottomSheet({
               </svg>
             </Dialog.Close>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+          <div
+            className={cn(
+              'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4',
+              alta && 'flex flex-col',
+            )}
+          >
             {children}
           </div>
           {footer && (
