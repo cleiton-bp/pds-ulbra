@@ -13,7 +13,13 @@ export {
   ATTACHMENT_DISPLAY_SIZES,
   DEFAULT_ATTACHMENT_DISPLAY_SIZE,
 } from '@/contracts/attachments'
-export type { AccountViewModel, MeViewModel, SignInViewModel } from '@/contracts/auth'
+export type {
+  AccountDeletionPreviewViewModel,
+  AccountDeletionRequestedViewModel,
+  AccountViewModel,
+  MeViewModel,
+  SignInViewModel,
+} from '@/contracts/auth'
 export type {
   ClosureTrigger,
   CycleSettingsViewModel,

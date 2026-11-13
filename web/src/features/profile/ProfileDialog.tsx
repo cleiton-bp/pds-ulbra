@@ -17,6 +17,7 @@ import {
 } from '@/contracts'
 import { describeError, notificationService } from '@/data'
 import { useSessionStore } from '@/features/auth/sessionStore'
+import { DeleteAccountDialog } from '@/features/profile/DeleteAccountDialog'
 import { Button } from '@/shared/components/Button'
 import { initialsOf } from '@/shared/components/cardFace'
 import { Modal } from '@/shared/components/Modal'
@@ -180,6 +181,7 @@ function ProfileContent() {
   )
   // Mora aqui, e nao nos sons, para o estado aparecer ao lado do titulo da secao.
   const [gravacao, setGravacao] = useState<Gravacao>('nada')
+  const [excluindo, setExcluindo] = useState(false)
 
   return (
     <>
@@ -245,6 +247,22 @@ function ProfileContent() {
           <Skeleton className="mt-4 h-56 w-full" />
         )}
       </section>
+
+      {/* No fim, depois de tudo, e sem cor de alarme ate a pessoa pedir: quem abre o
+          Perfil para escolher um som nao precisa tropecar na exclusao. O dialogo e que
+          explica o que some e como desfazer. */}
+      <section aria-labelledby="perfil-excluir" className="mt-6 border-border border-t pt-5">
+        <h3 id="perfil-excluir" className="font-semibold text-body text-fg">
+          Excluir a conta
+        </h3>
+        <p className="mt-1 text-detail text-fg-muted leading-relaxed">
+          Apaga a sua conta e os seus projetos, com 24 horas para desistir.
+        </p>
+        <Button variant="quiet" className="mt-3" onClick={() => setExcluindo(true)}>
+          Excluir a conta
+        </Button>
+      </section>
+      {excluindo && <DeleteAccountDialog onClose={() => setExcluindo(false)} />}
     </>
   )
 }

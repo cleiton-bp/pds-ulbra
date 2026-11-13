@@ -126,6 +126,7 @@ const PALAVRAS: Record<string, string> = {
   entao: 'então',
   espacos: 'espaços',
   estao: 'estão',
+  exclusao: 'exclusão',
   formulario: 'formulário',
   ha: 'há',
   historia: 'história',

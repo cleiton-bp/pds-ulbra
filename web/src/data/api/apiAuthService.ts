@@ -1,4 +1,9 @@
-import type { MeViewModel, SignInViewModel } from '@/contracts'
+import type {
+  AccountDeletionPreviewViewModel,
+  AccountDeletionRequestedViewModel,
+  MeViewModel,
+  SignInViewModel,
+} from '@/contracts'
 import { apiGet, apiPost } from '@/data/api/httpClient'
 import type { AuthService } from '@/data/authService'
 import { clearToken, setToken } from '@/data/sessionToken'
@@ -27,5 +32,14 @@ export const apiAuthService: AuthService = {
 
   getCurrentUser(): Promise<MeViewModel> {
     return apiGet<MeViewModel>('/me')
+  },
+  getDeletionPreview(): Promise<AccountDeletionPreviewViewModel> {
+    return apiGet<AccountDeletionPreviewViewModel>('/me/deletion')
+  },
+  async requestDeletion(): Promise<AccountDeletionRequestedViewModel> {
+    const pedido = await apiPost<AccountDeletionRequestedViewModel>('/me/deletion')
+    // A sessao acabou no servidor junto com o pedido: o token guardado ja nao abre nada.
+    clearToken()
+    return pedido
   },
 }
