@@ -186,6 +186,7 @@ public static class DiResolver
         services.AddSingleton<IGoogleIdentityValidator, GoogleIdentityValidator>();
 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAccountDeletionService, AccountDeletionService>();
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IProjectKeyService, ProjectKeyService>();
         services.AddScoped<IProjectOriginService, ProjectOriginService>();

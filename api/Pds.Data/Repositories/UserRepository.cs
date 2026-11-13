@@ -13,9 +13,14 @@ public class UserRepository : BaseRepository<User, DataContext>, IUserRepository
     }
 
     public Task<User?> GetByGoogleSubjectAsync(string googleSubject, CancellationToken cancellationToken = default)
+        // **Sem o filtro global, com a pessoa apagada reescrita a mao.** A conta que pediu
+        // exclusao tem `DeletedAt`, e o filtro dela, num `Include` obrigatorio, esconderia
+        // a propria pessoa: o login acharia que e o primeiro acesso e tentaria criar outra
+        // com o mesmo Google. E justo esse login, dentro do prazo, que cancela a exclusao.
         => Context.Users
+            .IgnoreQueryFilters()
             .Include(user => user.Account)
-            .FirstOrDefaultAsync(user => user.GoogleSubject == googleSubject, cancellationToken);
+            .FirstOrDefaultAsync(user => user.GoogleSubject == googleSubject && user.DeletedAt == null, cancellationToken);
 
     public async Task<IReadOnlyList<User>> ListByAccountAsync(long accountId, CancellationToken cancellationToken = default)
         => await Context.Users
