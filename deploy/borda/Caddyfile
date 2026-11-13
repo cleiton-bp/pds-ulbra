@@ -19,6 +19,17 @@
 	}
 }
 
+# A raiz da API e da midia nao tem pagina nenhuma, e quem abre o endereco no navegador (vindo
+# de um link, por exemplo) caia num erro. So a raiz e so a leitura vao para o painel: nenhuma
+# chamada do sistema usa a raiz desses enderecos.
+(raiz-para-o-painel) {
+	@raiz {
+		path /
+		method GET HEAD
+	}
+	redir @raiz {$PAINEL_URL}
+}
+
 # O painel do time.
 {$PAINEL_URL} {
 	import hsts
@@ -31,6 +42,7 @@
 # dele porque a rede da borda esta no TRUSTED_PROXIES.
 {$API_URL} {
 	import discreto
+	import raiz-para-o-painel
 	encode zstd gzip
 	reverse_proxy api:8080
 }
@@ -39,6 +51,7 @@
 {$MIDIA_URL} {
 	import hsts
 	import discreto
+	import raiz-para-o-painel
 	# O que o MinIO serve em /minio/ (administracao, chaves, metricas e as rotas internas)
 	# nao tem o que fazer aqui fora: o implantar.sh prepara tudo pela rede interna. Fechado
 	# na borda, nem chega ao MinIO quem tentar adivinhar a senha do administrador.

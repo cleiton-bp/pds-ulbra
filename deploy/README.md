@@ -34,6 +34,7 @@ origem do painel responde 404 para o carregador, o quadro e a página de acompan
 | `copias/` | A cópia diária e a restauração |
 | `midia/` | As políticas dos usuários do MinIO e a expiração dos envios não confirmados |
 | `quadro/_headers` | Os cabeçalhos do quadro na CDN |
+| `quadro/_redirects` | A raiz do quadro na CDN, que leva ao painel |
 | `scripts/` | Implantar, voltar, segredos, pacote da CDN e cópias para fora |
 | `servidor/preparar.sh` | O preparo da máquina nova, uma vez |
 | `env.producao.exemplo` | Os **nomes** das variáveis, sem nenhum valor (o repositório é público). Os valores ficam só na máquina, em `.env.producao`, fora do git |
