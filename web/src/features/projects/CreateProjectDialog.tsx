@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MAX_PROJECT_NAME_LENGTH, type ProjectTemplate } from '@/contracts'
 import { describeError } from '@/data'
 import { useProjectsStore } from '@/features/projects/projectsStore'
+import { pedirBoasVindas } from '@/features/projects/welcomeRequest'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { TextField } from '@/shared/components/TextField'
@@ -125,6 +126,10 @@ export function CreateProjectDialog({
     setSaving(true)
     setError(null)
 
+    // O primeiro projeto da conta abre com as boas-vindas. Conta so os da conta propria:
+    // quem so participa do projeto de outra pessoa ainda nao montou nenhum.
+    const primeiro = !projects.some((project) => project.IsAccountOwner)
+
     try {
       const created = await createProject(trimmed, template)
 
@@ -133,7 +138,9 @@ export function CreateProjectDialog({
 
       // Para os primeiros passos, e nao para a Instalacao: e a mesma pagina que a raiz do
       // projeto abre, com os cinco passos, e a Instalacao e o detalhe dos tres primeiros.
-      // La o balao aponta o "Guia da tela", em todo projeto novo.
+      // La o balao aponta o "Guia da tela", em todo projeto novo (no primeiro, depois das
+      // boas-vindas).
+      if (primeiro) pedirBoasVindas(created.Project.PublicId)
       pedirOBalaoDoGuia('configurar')
       navigate(`/projects/${created.Project.PublicId}/configure`)
     } catch (failure) {

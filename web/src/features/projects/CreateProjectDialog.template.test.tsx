@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProjectCreatedViewModel, ProjectTemplate, ProjectViewModel } from '@/contracts'
 import { CreateProjectDialog } from '@/features/projects/CreateProjectDialog'
 import { useProjectsStore } from '@/features/projects/projectsStore'
+import { boasVindasPedidas, esquecerBoasVindas } from '@/features/projects/welcomeRequest'
 
 /**
  * O QUE ESTES TESTES TRAVAM: a escolha do modelo ao criar o projeto.
@@ -17,6 +18,7 @@ import { useProjectsStore } from '@/features/projects/projectsStore'
  *   projeto de sempre.
  * - **O modelo escolhido vai no pedido de criar**, junto com o nome, e fechar o
  *   dialogo devolve a escolha ao padrao.
+ * - **So o primeiro projeto da conta pede as boas-vindas** na configuracao.
  */
 const dublê = vi.hoisted(() => ({
   criar: vi.fn<(nome: string, modelo?: ProjectTemplate) => Promise<ProjectCreatedViewModel>>(),
@@ -143,6 +145,22 @@ describe('CreateProjectDialog: o modelo do projeto', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-9/configure'))
     expect(dublê.criar).toHaveBeenCalledWith('Loja Mobile', 'SimpleBoard')
+    // A conta ja tinha a Loja Online: nao e o primeiro projeto, e nao ha boas-vindas.
+    expect(boasVindasPedidas('p-9')).toBe(false)
+  })
+
+  it('o primeiro projeto da conta pede as boas-vindas da configuração', async () => {
+    esquecerBoasVindas()
+    useProjectsStore.setState({ projects: [], status: 'ready' })
+    dublê.criar.mockResolvedValue(criado('p-1', 'BookVerse'))
+    const router = montar()
+
+    fireEvent.change(campo(), { target: { value: 'BookVerse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-1/configure'))
+    expect(boasVindasPedidas('p-1')).toBe(true)
+    esquecerBoasVindas()
   })
 
   it.each([

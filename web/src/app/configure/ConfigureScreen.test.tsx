@@ -12,6 +12,7 @@ import type {
   WidgetSettingsViewModel,
 } from '@/contracts'
 import { DEFAULT_WIDGET_SETTINGS } from '@/embed/settings'
+import { boasVindasPedidas, pedirBoasVindas } from '@/features/projects/welcomeRequest'
 
 /**
  * O QUE ESTES TESTES TRAVAM, E POR QUE.
@@ -490,5 +491,40 @@ describe('Configurar o projeto, tudo o que dá para ajustar', () => {
     expect(
       screen.getAllByRole('region').map((regiao) => regiao.getAttribute('aria-labelledby')),
     ).toHaveLength(6)
+  })
+})
+
+describe('Configurar o projeto, as boas-vindas do primeiro projeto', () => {
+  it('o primeiro projeto abre com o caminho, e o botão principal leva ao script', async () => {
+    pedirBoasVindas('p-1')
+    const router = montar()
+
+    const dialogo = await screen.findByRole('dialog', { name: 'Como começar' })
+    expect(within(dialogo).getByText('Colar o script no seu sistema')).toBeTruthy()
+    expect(within(dialogo).getByText('Convidar o time')).toBeTruthy()
+    expect(within(dialogo).getByText('Depois, no dia a dia')).toBeTruthy()
+
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Começar pelo script' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/projects/p-1/start'))
+    expect(router.state.location.hash).toBe('#script')
+  })
+
+  it('"Ver depois" fecha e deixa a pessoa nos primeiros passos', async () => {
+    pedirBoasVindas('p-1')
+    montar()
+
+    const dialogo = await screen.findByRole('dialog', { name: 'Como começar' })
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Ver depois' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(passos()).toBeTruthy()
+  })
+
+  it('sem o pedido não abre, e o pedido vale uma vez só', async () => {
+    montar()
+
+    await waitFor(() => expect(passos()).toBeTruthy())
+    expect(screen.queryByRole('dialog', { name: 'Como começar' })).toBeNull()
+    expect(boasVindasPedidas('p-1')).toBe(false)
   })
 })
