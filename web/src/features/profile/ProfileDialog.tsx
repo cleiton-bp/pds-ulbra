@@ -44,7 +44,7 @@ const VOLUME_PADRAO = 60
  * X sempre a vista.
  */
 const CAIXA =
-  'flex max-h-[calc(100dvh-2rem)] flex-col max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 max-sm:p-5'
+  'flex max-h-[calc(100dvh-2rem)] flex-col max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 max-sm:p-5 max-sm:[--modal-pad:1.25rem]'
 
 /**
  * Os tipos que so chegam a quem administra o projeto. Ficam num grupo proprio, com o

@@ -39,6 +39,9 @@ export const CARD_DIALOG_CLASS = cn(
   // O corpo do dialogo (o ultimo filho: o card nao tem rodape) vai de borda a borda, com
   // o respiro por dentro: so assim as colunas chegam a borda sem o corpo rolar de lado.
   '[&>:last-child]:-mx-6 [&>:last-child]:px-6 max-sm:[&>:last-child]:-mx-4 max-sm:[&>:last-child]:px-4',
+  // Quem rola no card sao as colunas, e nao o corpo: sem isto, o lugar reservado da barra do
+  // corpo (ver o `Modal`) virava uma faixa vazia na borda direita.
+  '[&>:last-child]:[scrollbar-gutter:auto]',
 )
 
 /** A partir de onde o card aberto tem duas colunas — o `md` do Tailwind. */
@@ -88,7 +91,9 @@ export function CardDetailLayout({
   if (largo)
     return (
       <div className="-mx-6 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_21rem] grid-rows-[minmax(0,1fr)] border-border border-t">
-        <div className="flex min-h-0 min-w-0 flex-col gap-5 overflow-y-auto py-5 pr-8 pl-6">
+        {/* Cada coluna reserva o lugar da barra (8 px) e recua o resto: a barra encosta na
+            divisoria ou na borda, e nada pula para o lado quando ela aparece. */}
+        <div className="flex min-h-0 min-w-0 flex-col gap-5 overflow-y-auto py-5 pr-6 pl-6 [scrollbar-gutter:stable]">
           <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-cabeca')}>
             {cabeca}
           </div>
@@ -102,7 +107,7 @@ export function CardDetailLayout({
           </div>
         </div>
         <div
-          className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-border border-l px-6 py-5"
+          className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-border border-l py-5 pr-4 pl-6 [scrollbar-gutter:stable]"
           {...guideTarget('card-lado')}
         >
           {lado}
@@ -112,7 +117,7 @@ export function CardDetailLayout({
 
   return (
     <>
-      <div className="-mx-4 min-h-0 flex-1 overflow-y-auto overscroll-contain border-border border-t px-4 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
+      <div className="-mx-4 min-h-0 flex-1 overflow-y-auto overscroll-contain border-border border-t px-4 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 sm:pr-4 sm:[scrollbar-gutter:stable]">
         <div className="flex flex-col gap-6">
           <div className="flex min-w-0 flex-col gap-5" {...guideTarget('card-cabeca')}>
             {cabeca}
