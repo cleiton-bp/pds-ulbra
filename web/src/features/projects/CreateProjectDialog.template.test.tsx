@@ -18,6 +18,8 @@ import { boasVindasPedidas, esquecerBoasVindas } from '@/features/projects/welco
  *   projeto de sempre.
  * - **O modelo escolhido vai no pedido de criar**, junto com o nome, e fechar o
  *   dialogo devolve a escolha ao padrao.
+ * - **Cada modelo diz para quem serve**, e "O que o modelo traz" mostra o do modelo
+ *   marcado, trocando junto com a escolha.
  * - **So o primeiro projeto da conta pede as boas-vindas** na configuracao.
  */
 const dublê = vi.hoisted(() => ({
@@ -126,7 +128,23 @@ describe('CreateProjectDialog: o modelo do projeto', () => {
     )
     expect(colunas('Kanban')).toContain('Colunas: Backlog, A fazer, Fazendo, Em revisão e Feito')
     expect(colunas('Scrum')).toContain('Colunas: A fazer, Fazendo, Em revisão e Feito')
-    expect(screen.getByText('Tudo se ajusta depois.')).toBeTruthy()
+    expect(colunas('Suporte')).toContain('quem relata é um cliente esperando resposta')
+    expect(screen.getByText('Tudo se ajusta depois, em cada tela.')).toBeTruthy()
+  })
+
+  it('o que o modelo traz acompanha o modelo marcado', () => {
+    montar()
+
+    expect(screen.getByText('O que o modelo traz')).toBeTruthy()
+    expect(screen.getByText('Quadro simples: o que quem relatou vê em cada coluna')).toBeTruthy()
+    expect(screen.getByText('Tipos de relato: Defeito, Melhoria e Dúvida.')).toBeTruthy()
+
+    fireEvent.click(modelo('Suporte'))
+
+    expect(screen.queryByText('Quadro simples: o que quem relatou vê em cada coluna')).toBeNull()
+    expect(screen.getByText('Suporte: o que quem relatou vê em cada coluna')).toBeTruthy()
+    expect(screen.getByText('Esperando você')).toBeTruthy()
+    expect(screen.getByText('Tipos de relato: Problema, Dúvida e Pedido.')).toBeTruthy()
   })
 
   it('o quadro simples vem marcado, e só ele', () => {

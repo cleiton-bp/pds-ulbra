@@ -39,6 +39,7 @@ export function MiniBoard({
   tones,
   stageLitColumnId = null,
   columnClassName,
+  stageLabel = true,
   className,
 }: {
   columns: MiniBoardColumn[]
@@ -69,6 +70,12 @@ export function MiniBoard({
   stageLitColumnId?: string | null
   /** Troca a largura fixa de cada coluna — a maquete da entrada as reparte na moldura. */
   columnClassName?: string
+  /**
+   * O rotulo antes da etapa, embaixo de cada coluna. Falso, so a etapa aparece: quem tem
+   * uma legenda so para o quadro inteiro (o Novo projeto, com cinco colunas estreitas)
+   * nao repete a frase em cada uma.
+   */
+  stageLabel?: boolean
   className?: string
 }) {
   const colunaDoCard = cardColumnId ?? columns[0]?.id ?? null
@@ -133,7 +140,7 @@ export function MiniBoard({
                     : 'border-border text-fg-muted',
                 )}
               >
-                Quem relatou vê:{' '}
+                {stageLabel && <>Quem relatou vê: </>}
                 <span
                   className={
                     coluna.publicStage === null ? 'italic' : acesa ? 'font-medium' : 'text-fg'
