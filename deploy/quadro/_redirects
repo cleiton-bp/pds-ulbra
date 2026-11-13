@@ -1,0 +1,6 @@
+# Os redirecionamentos do quadro na CDN (Cloudflare Pages le este arquivo da raiz do pacote).
+# A raiz do quadro nao tem pagina: ele so entrega o carregador, a ferramenta e a pagina de
+# acompanhamento. Quem abre o endereco no navegador vai para o painel, em vez de cair num erro.
+# E um modelo: o montar-quadro.sh troca __PAINEL_URL__ pelo endereco do .env.producao.
+
+/ __PAINEL_URL__ 302

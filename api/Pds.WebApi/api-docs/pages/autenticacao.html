@@ -53,10 +53,11 @@ confirmou não prova que a pessoa é dona dele.</p>
 
 <table>
   <tr><th>Claim</th><th>Conteúdo</th></tr>
-  <tr><td><code>uid</code></td><td><code>public_id</code> do usuário. <b>É o único que o servidor lê.</b></td></tr>
+  <tr><td><code>uid</code></td><td><code>public_id</code> do usuário. <b>É por ele que o servidor sabe quem é a pessoa.</b></td></tr>
   <tr><td><code>acc</code></td><td><code>public_id</code> da conta própria</td></tr>
   <tr><td><code>sub</code></td><td>O mesmo <code>public_id</code> do usuário, no claim padrão de sujeito</td></tr>
   <tr><td><code>jti</code></td><td>Identificador do token, sorteado a cada emissão</td></tr>
+  <tr><td><code>iat</code></td><td>Quando o token foi emitido. É por ele que sair derruba as sessões de antes</td></tr>
   <tr><td><code>iss</code> / <code>aud</code> / <code>exp</code></td><td>Emissor, destinatário e expiração</td></tr>
 </table>
 
@@ -65,9 +66,9 @@ confirmou não prova que a pessoa é dona dele.</p>
   <p>Os dois são claims padrão do JWT, e estão ali para quem for depurar o token com uma
   ferramenta de fora encontrar o que espera encontrar. O <code>sub</code> repete o
   <code>uid</code>: o mesmo GUID público, nunca o <code>id</code> interno.</p>
-  <p>O <code>jti</code> é um identificador sorteado por emissão. Ele não serve para nada hoje, e
-  existe para o dia em que derrubar sessão antes da expiração virar requisito: é por ele que uma
-  lista de revogados identificaria <em>qual</em> token cair.</p>
+  <p>O <code>jti</code> é um identificador sorteado por emissão, e nada o lê: a sessão encerrada é
+  reconhecida pelo <code>iat</code>, comparado com uma marca na pessoa, e não por uma lista de
+  tokens (ver Sair, abaixo).</p>
 </div>
 
 <div class="note why">
@@ -107,16 +108,22 @@ decidido isso.</p>
 
 <h2>Sair</h2>
 
-<p><code>POST /auth/logout</code> responde 200 e nada mais. O token é autocontido: quem o tem
-continua podendo usá-lo até expirar, e não há como invalidá-lo sem manter uma lista de
-revogados.</p>
+<p><code>POST /auth/logout</code> encerra a sessão no servidor: grava na pessoa o instante da saída
+(<code>users.sessions_revoked_at</code>), e todo token emitido antes dele deixa de valer, em
+<strong>todos os aparelhos</strong>. Quem confere é o <code>AccountMiddleware</code>, a cada
+requisição: o token com <code>iat</code> anterior à marca recebe 401, no mesmo envelope das outras
+respostas, e o painel pede para entrar de novo.</p>
 
-<div class="note todo">
-  <strong>Limitação conhecida</strong>
-  <p>Quem descarta o token é o painel. A rota existe para haver um lugar único de "sair" e
-  para ser onde a lista de revogados entra, no dia em que derrubar sessão de verdade for
-  requisito.</p>
+<div class="note why">
+  <strong>Uma marca de tempo, e não uma lista de revogados</strong>
+  <p>Guardar cada token encerrado obrigaria a manter e limpar uma lista que só cresce. A marca é
+  uma coluna só, lida junto com o acesso que o middleware já busca a cada requisição: sair não
+  custa consulta nenhuma a mais. O preço é que sair num aparelho encerra todos; entrar de novo,
+  um segundo depois, já traz um <code>iat</code> posterior e vale.</p>
 </div>
+
+<p>As conexões de tempo real da pessoa também caem: a cada meio minuto, uma varredura fecha as que
+pertencem a uma sessão encerrada ou vencida. O painel, do lado dele, descarta o token que tinha.</p>
 
 <h2>Proteção da rota de login</h2>
 

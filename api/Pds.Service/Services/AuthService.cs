@@ -19,17 +19,20 @@ public class AuthService : IAuthService
     private readonly IGoogleIdentityValidator _googleValidator;
     private readonly ITokenService _tokenService;
     private readonly IAccountContext _accountContext;
+    private readonly IAccountDeletionService _accountDeletion;
 
     public AuthService(
         IUnitOfWork unitOfWork,
         IGoogleIdentityValidator googleValidator,
         ITokenService tokenService,
-        IAccountContext accountContext)
+        IAccountContext accountContext,
+        IAccountDeletionService accountDeletion)
     {
         _unitOfWork = unitOfWork;
         _googleValidator = googleValidator;
         _tokenService = tokenService;
         _accountContext = accountContext;
+        _accountDeletion = accountDeletion;
     }
 
     public async Task<SignInViewModel> SignInWithGoogleAsync(GoogleSignInDto dto, CancellationToken cancellationToken = default)
@@ -40,6 +43,16 @@ public class AuthService : IAuthService
         // de dono; o sub, nao. Procurar por e-mail e o que faz alguem herdar um
         // endereco antigo e entrar na conta de outra pessoa.
         var user = await _unitOfWork.Users.GetByGoogleSubjectAsync(identity.Subject, cancellationToken);
+
+        // A conta que pediu exclusao: entrar dentro do prazo e o desfazer, e com o prazo
+        // vencido a limpeza acontece agora. Nesse caso a pessoa antiga ja nao existe, e o
+        // login segue como o de quem chega pela primeira vez.
+        var exclusao = user is null
+            ? AccountDeletionOnSignIn.None
+            : await _accountDeletion.ResolveOnSignInAsync(user.AccountId, cancellationToken);
+        if (exclusao == AccountDeletionOnSignIn.Purged)
+            user = null;
+
         var primeiroAcesso = user is null;
 
         user ??= await CreateAccountAndUserAsync(identity, cancellationToken);
@@ -61,7 +74,7 @@ public class AuthService : IAuthService
         await _unitOfWork.CommitAsync(cancellationToken);
 
         var (accessToken, expiresAt) = _tokenService.Issue(user);
-        return new SignInViewModel(accessToken, expiresAt, Map(user));
+        return new SignInViewModel(accessToken, expiresAt, Map(user), exclusao == AccountDeletionOnSignIn.Cancelled);
     }
 
     public async Task<MeViewModel> GetCurrentAsync(CancellationToken cancellationToken = default)

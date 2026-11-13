@@ -813,13 +813,16 @@ export function BulkFailures({
       }}
       title={titulo}
       description={descricao}
+      // Compacto, como era a lista: passando disso, quem rola e o corpo do dialogo, com a
+      // barra no canto.
+      className="max-h-[min(32rem,calc(100dvh-2rem))]"
       footer={
         <Button variant="primary" onClick={aoFechar}>
           Entendi
         </Button>
       }
     >
-      <ul className="flex max-h-80 flex-col gap-2 overflow-y-auto">
+      <ul className="flex flex-col gap-2">
         {falhas.map(({ card, motivo }) => (
           <li key={card.PublicId} className="text-detail leading-snug">
             {/* O card abre dali: corrigir um por um era achar cada um na lista. */}

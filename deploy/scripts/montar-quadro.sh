@@ -34,4 +34,7 @@ cp -a "$temporario/v1/." "$SAIDA/v1/"
 cp -a "$temporario/assets/." "$SAIDA/assets/"
 sed -e "s|__API_URL__|$API_URL|g" -e "s|__MIDIA_URL__|$MIDIA_URL|g" "$RAIZ/deploy/quadro/_headers" > "$SAIDA/_headers"
 ! grep -q "__[A-Z_]*__" "$SAIDA/_headers" || { echo "sobrou marcador sem valor em $SAIDA/_headers"; exit 1; }
+# A raiz do quadro leva ao painel (deploy/quadro/_redirects), pelo endereco do mesmo .env.
+sed -e "s|__PAINEL_URL__|$PAINEL_URL|g" "$RAIZ/deploy/quadro/_redirects" > "$SAIDA/_redirects"
+! grep -q "__[A-Z_]*__" "$SAIDA/_redirects" || { echo "sobrou marcador sem valor em $SAIDA/_redirects"; exit 1; }
 echo "pacote da CDN em $SAIDA, da imagem $imagem ($(du -sh "$SAIDA" | cut -f1))"

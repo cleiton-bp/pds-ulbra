@@ -4,10 +4,16 @@ namespace Pds.Domain.ViewModels;
 /// <param name="AccessToken">Token da sessao. Vai no cabecalho <c>Authorization: Bearer</c> das demais rotas.</param>
 /// <param name="ExpiresAt">Quando o token deixa de valer, em UTC.</param>
 /// <param name="User">Usuario e conta de quem entrou.</param>
+/// <param name="DeletionCancelled">
+/// A conta estava no prazo de exclusao, e este login a cancelou: os projetos voltaram como
+/// estavam. O painel avisa, porque e o desfazer que a pessoa procurava, e ela precisa saber
+/// que funcionou.
+/// </param>
 public record SignInViewModel(
     string AccessToken,
     DateTime ExpiresAt,
-    MeViewModel User);
+    MeViewModel User,
+    bool DeletionCancelled = false);
 
 /// <summary>Usuario da sessao atual, com a conta propria dele.</summary>
 /// <param name="PublicId">Identificador publico do usuario.</param>

@@ -43,6 +43,13 @@ public static class TrackedReportGate
         if (report is null)
             throw new KeyNotFoundException(Refusal);
 
+        // Projeto fora do ar: so a exclusao da conta tira um projeto do ar, e com ela o
+        // acompanhamento deixa de abrir na hora, como o botao some dos sites. Volta sozinho
+        // se a pessoa cancelar dentro do prazo. A mesma recusa, para nao contar a quem sonda
+        // que o relato existe.
+        if (report.Project.DeletedAt is not null)
+            throw new KeyNotFoundException(Refusal);
+
         // Tempo constante: um `==` comum para no primeiro caractere diferente, e a
         // diferenca de tempo entre parar no primeiro e parar no decimo permite
         // descobrir o token caractere a caractere — com o protocolo em maos, que e

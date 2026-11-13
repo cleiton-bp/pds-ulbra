@@ -62,6 +62,8 @@ interface Entrada {
   clientId: string | null
   status: string
   aviso: string | null
+  /** O aviso calmo de depois de pedir a exclusao da conta: nao e erro. */
+  nota: string | null
   aoToken: (idToken: string) => void
   aoFalhar: (motivo: string) => void
 }
@@ -70,6 +72,7 @@ function useEntrada(): Entrada {
   const signIn = useSessionStore((state) => state.signIn)
   const status = useSessionStore((state) => state.status)
   const error = useSessionStore((state) => state.error)
+  const notice = useSessionStore((state) => state.notice)
   const [falhou, setFalhou] = useState<string | null>(null)
   const aoToken = useCallback((idToken: string) => void signIn(idToken), [signIn])
 
@@ -78,6 +81,7 @@ function useEntrada(): Entrada {
     clientId: environment.googleClientId,
     status,
     aviso: error ?? falhou,
+    nota: notice,
     aoToken,
     aoFalhar: setFalhou,
   }
@@ -220,6 +224,9 @@ function Situacao({ entrada, anunciar = false }: { entrada: Entrada; anunciar?: 
     >
       {entrada.status === 'loading' && <span className="text-fg-muted">Abrindo a sessão…</span>}
       {entrada.aviso && <span className="text-error-fg">{entrada.aviso}</span>}
+      {entrada.nota && !entrada.aviso && entrada.status !== 'loading' && (
+        <span className="block max-w-[46ch] text-fg">{entrada.nota}</span>
+      )}
     </p>
   )
 }

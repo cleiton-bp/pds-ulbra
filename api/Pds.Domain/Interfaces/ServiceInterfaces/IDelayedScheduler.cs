@@ -13,6 +13,9 @@ public enum DelayedCheckKind
 
     /// <summary>O prazo do pedido de informacao, que encerra o relato sem retorno.</summary>
     InfoRequest,
+
+    /// <summary>O fim do prazo de exclusao da conta, que apaga a conta de vez.</summary>
+    AccountPurge,
 }
 
 /// <summary>
@@ -55,4 +58,12 @@ public interface IDelayedScheduler
     /// corrompe.</para>
     /// </summary>
     Task ScheduleAsync(DelayedCheckKind kind, Guid reportPublicId, TimeSpan delay, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marca para olhar esta conta daqui a <paramref name="delay"/>, no fim do prazo de
+    /// exclusao. Mesma regra das outras: vai depois da gravacao, leva so o identificador, e
+    /// quem consome rele a conta. Sem a mensagem, a limpeza acontece na proxima subida da
+    /// aplicacao ou no proximo login da pessoa, o que vier primeiro.
+    /// </summary>
+    Task ScheduleAccountPurgeAsync(Guid accountPublicId, TimeSpan delay, CancellationToken cancellationToken = default);
 }

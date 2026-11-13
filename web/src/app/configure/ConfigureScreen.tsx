@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { FirstProjectWelcome } from '@/app/configure/FirstProjectWelcome'
 import {
   type ConfigureOverview,
   computeFirstSteps,
@@ -17,6 +18,7 @@ import { CONFIG_AREAS, type ConsoleSection } from '@/app/navigation'
 import { SectionIcon } from '@/app/SectionIcon'
 import type { ProjectViewModel } from '@/contracts'
 import { AuthorizeDomain } from '@/features/onboarding/AuthorizeDomain'
+import { boasVindasPedidas, esquecerBoasVindas } from '@/features/projects/welcomeRequest'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject'
@@ -50,6 +52,13 @@ export function ConfigureScreen() {
   const { data: overview, revalidate } = useAsyncResource(
     useCallback(() => loadConfigureOverview(project.PublicId), [project.PublicId]),
   )
+
+  // As boas-vindas do primeiro projeto da conta. O pedido e lido ao montar e esquecido
+  // logo em seguida: voltar a esta tela depois nao abre de novo.
+  const [boasVindas, setBoasVindas] = useState(() => boasVindasPedidas(project.PublicId))
+  useEffect(() => {
+    esquecerBoasVindas()
+  }, [])
 
   // O guia desta tela, que tambem e a entrada do projeto para quem administra: a casca
   // (trocar de projeto, o menu) e o que a tela tem. Espera o resumo, que decide se ha
@@ -102,10 +111,18 @@ export function ConfigureScreen() {
           },
         ]
       : null,
+    // Com as boas-vindas abertas, o balao do guia espera: ele aparece depois que elas
+    // fecham, apontando o botao, e nao por tras do dialogo.
+    { semBalao: boasVindas },
   )
 
   return (
     <div className="max-w-200">
+      <FirstProjectWelcome
+        open={boasVindas}
+        onOpenChange={setBoasVindas}
+        projectPublicId={project.PublicId}
+      />
       <h1 className="mb-1.5 font-semibold text-screen tracking-tight">Configurar o projeto</h1>
       <p className="mb-5 text-body text-fg-muted">
         Tudo o que você ajusta neste projeto, num lugar só.

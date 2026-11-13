@@ -50,16 +50,16 @@ export function RevokedKeysPanel({ keys }: { keys: ProjectKeyViewModel[] }) {
         title="Chaves revogadas"
         description={`As ${ordered.length} chaves secretas deste projeto que já não valem, da mais recente para a mais antiga.`}
         width="w-[min(34rem,calc(100vw-2rem))]"
+        // Compacto, como era a lista: passando disso, quem rola e o corpo do dialogo, com a
+        // barra no canto, e o "Fechar" fica sempre a vista.
+        className="max-h-[min(34rem,calc(100dvh-2rem))]"
         footer={
           <Button variant="quiet" onClick={() => setShowingAll(false)}>
             Fechar
           </Button>
         }
       >
-        {/* Rola aqui dentro: lista longa empurraria o "Fechar" para fora da tela. */}
-        <div className="max-h-[min(24rem,55vh)] overflow-y-auto">
-          <RevokedTable keys={ordered} />
-        </div>
+        <RevokedTable keys={ordered} />
       </Modal>
     </div>
   )

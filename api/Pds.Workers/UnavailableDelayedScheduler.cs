@@ -23,4 +23,10 @@ public class UnavailableDelayedScheduler : IDelayedScheduler
     public Task ScheduleAsync(DelayedCheckKind kind, Guid reportPublicId, TimeSpan delay, CancellationToken cancellationToken = default)
         => throw new InvalidOperationException(
             "Nao ha fila configurada para agendar a espera antes de quem relatou ver.");
+
+    // A exclusao da conta confere `IsAvailable` antes e nao chama: sem fila, a limpeza
+    // acontece na proxima subida da aplicacao ou no proximo login da pessoa.
+    public Task ScheduleAccountPurgeAsync(Guid accountPublicId, TimeSpan delay, CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException(
+            "Nao ha fila configurada para agendar a exclusao da conta.");
 }

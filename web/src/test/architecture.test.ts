@@ -174,6 +174,11 @@ describe('regra de dependencia entre as pastas', () => {
       why: 'o perfil mostra o nome, o e-mail e a conta de quem esta logado, e sessao e assunto de auth',
     },
     {
+      from: 'features/profile/DeleteAccountDialog.tsx',
+      to: '@/features/auth/sessionStore',
+      why: 'excluir a conta encerra a sessao e leva a entrada o prazo e o caminho de desfazer, e sessao e assunto de auth',
+    },
+    {
       from: 'features/reports/ReportsScreen.tsx',
       to: '@/features/auth/sessionStore',
       why: 'as vistas salvas do Trabalho sao de quem esta logado — duas pessoas no mesmo navegador nao veem as da outra —, e sessao e assunto de auth',

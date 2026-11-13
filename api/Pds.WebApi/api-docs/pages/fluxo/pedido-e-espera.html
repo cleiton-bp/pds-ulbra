@@ -82,15 +82,15 @@ grava o evento publico    sai em silencio: nada foi cancelado</div>
   RabbitMQ não replica o que está esperando, e essas colunas são a resposta a isso.</p>
 </div>
 
+<p><strong>Em produção, a fila roda na própria máquina</strong>, num contêiner do RabbitMQ com o
+<code>rabbitmq_delayed_message_exchange</code> (ver <code>deploy/stack-dados.yml</code>): a espera e o
+encerramento pelo prazo funcionam lá como no desenvolvimento. Numa instalação sem fila, a espera fica
+indisponível, e a tela de Encerramento recusa ligá-la dizendo o motivo; o pedido de informação continua
+funcionando, mas o prazo dele não encerra nada sozinho (sem fila não há consumidor, nem a varredura de
+<code>close_at</code> na subida), e o pedido fica aberto até quem relatou responder ou o time agir.</p>
+
 <div class="note todo">
   <strong>O que falta aqui</strong>
-  <p><strong>Onde a fila roda em produção: Adiado.</strong> O Render não fornece broker. Até haver
-  um (e até se confirmar que o plano escolhido permite o
-  <code>rabbitmq_delayed_message_exchange</code>), a espera fica indisponível lá, e a tela de
-  Encerramento recusa ligá-la dizendo o motivo. O pedido de informação continua funcionando, mas o prazo
-  dele não encerra nada sozinho (sem fila não há consumidor, nem a varredura de
-  <code>close_at</code> na subida), e o pedido fica aberto até quem relatou responder ou o time
-  agir.</p>
   <p><code>tracking_code_can_act</code> está gravado, <strong>fica escondido na tela de Encerramento</strong> e a API o
   ignora. Ele decide se quem chega pelo código pessoal também confirma e reabre, e depende de
   confirmar, reabrir e responder aceitarem o código no lugar do token: oferecer o controle antes

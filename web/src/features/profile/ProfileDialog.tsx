@@ -17,12 +17,14 @@ import {
 } from '@/contracts'
 import { describeError, notificationService } from '@/data'
 import { useSessionStore } from '@/features/auth/sessionStore'
+import { DeleteAccountDialog } from '@/features/profile/DeleteAccountDialog'
 import { Button } from '@/shared/components/Button'
 import { initialsOf } from '@/shared/components/cardFace'
 import { Modal } from '@/shared/components/Modal'
 import { Select } from '@/shared/components/Select'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource'
+import { useScrollEdges } from '@/shared/hooks/useScrollEdges'
 import { cn } from '@/shared/lib/cn'
 import {
   NOTIFICATION_KIND_LABELS,
@@ -43,7 +45,7 @@ const VOLUME_PADRAO = 60
  * X sempre a vista.
  */
 const CAIXA =
-  'flex max-h-[calc(100dvh-2rem)] flex-col max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 max-sm:p-5'
+  'flex max-h-[calc(100dvh-2rem)] flex-col lg:h-[min(34rem,calc(100dvh-2rem))] max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 max-sm:p-5 max-sm:[--modal-pad:1.25rem]'
 
 /**
  * Os tipos que so chegam a quem administra o projeto. Ficam num grupo proprio, com o
@@ -94,6 +96,22 @@ const QUANDO_TOCA: Record<
   },
 }
 
+/**
+ * Depois de a explicacao abrir (ela cresce em 300 ms), traz o fim dela para dentro da area
+ * que rola, se ficou embaixo da borda: a coluna dos sons na tela larga, o corpo do dialogo
+ * no celular. Quem ja esta vendo tudo nao e rolado (`nearest`).
+ */
+function mostrarAoAbrir(id: string) {
+  const semMovimento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  window.setTimeout(
+    () =>
+      document
+        .getElementById(id)
+        ?.scrollIntoView?.({ block: 'nearest', behavior: semMovimento ? 'auto' : 'smooth' }),
+    semMovimento ? 0 : 320,
+  )
+}
+
 /** A coluna dos controles nas linhas: o som e o volume ficam com a mesma largura. */
 const CONTROLES = 'flex w-full items-center gap-1.5 sm:w-60'
 
@@ -111,6 +129,18 @@ const CONTROLES = 'flex w-full items-center gap-1.5 sm:w-60'
  * direita, como numa tela de ajustes. A versao anterior empilhava cartao dentro de secao
  * dentro do dialogo, com um titulo "Você" sobre o proprio nome e a explicacao dos sons
  * antes de quem a pessoa era; cabia mal e parecia montada.
+ *
+ * **Duas colunas na tela larga, para nao rolar.** Empilhados, o alto, os sons e a exclusao
+ * passavam da altura de um notebook. Do `lg` para cima, quem a pessoa e fica a esquerda,
+ * com a exclusao da conta no pe da coluna, e os sons, que sao a parte alta, a direita. No
+ * celular e na tela estreita, uma coluna so, na mesma ordem de leitura.
+ *
+ * **Na tela larga, a moldura nao muda de tamanho.** A altura e fixa, a do conteudo fechado,
+ * e quem rola e so a coluna dos sons: abrir um "Quando toca" empurrava o dialogo inteiro
+ * para baixo e para cima, com o perfil e a exclusao indo junto. Agora o lado da pessoa fica
+ * parado, e a explicacao aberta rola para dentro da coluna, se ficou embaixo da borda. A
+ * coluna avanca ate a borda do dialogo e recua por dentro: a barra de rolagem fica no
+ * canto, longe dos controles, como em todo dialogo (ver o corpo do `Modal`).
  *
  * **Uma rolagem so**: o corpo do `Modal` ja rola. Um segundo contêiner com rolagem aqui
  * dentro, com margem negativa para chegar a borda, passava da largura do primeiro e
@@ -155,8 +185,13 @@ export function ProfileDialog() {
       // grava sozinho.
       describedBy="perfil-sons-texto"
       closeButton
-      width="w-[min(36rem,calc(100vw-2rem))]"
+      // Na tela larga, duas colunas e quase o dobro da largura: quem a pessoa e a esquerda,
+      // os sons a direita, e tudo cabe sem rolar. Abaixo disso, uma coluna, como antes.
+      width="w-[min(36rem,calc(100vw-2rem))] lg:w-[min(60rem,calc(100vw-2rem))]"
       className={CAIXA}
+      // Na tela larga o corpo nao rola: quem rola e a coluna dos sons, com a barra no canto.
+      // Ele tambem deixa de recortar, para a coluna chegar ate a borda do dialogo.
+      bodyClassName="lg:overflow-visible lg:[scrollbar-gutter:auto]"
       initialFocus={secaoPedida}
       // O menu que abriu ja fechou: o foco volta ao botao dele, se ainda esta na tela.
       fallbackFocus={() => {
@@ -164,7 +199,8 @@ export function ProfileDialog() {
         return botao?.isConnected ? botao : null
       }}
     >
-      <div ref={corpo} className="pb-1">
+      {/* Na tela larga ocupa a altura do corpo inteira, para a coluna dos sons rolar por dentro. */}
+      <div ref={corpo} className="pb-1 lg:h-full lg:min-h-0 lg:pb-0">
         <ProfileContent />
       </div>
     </Modal>
@@ -180,11 +216,21 @@ function ProfileContent() {
   )
   // Mora aqui, e nao nos sons, para o estado aparecer ao lado do titulo da secao.
   const [gravacao, setGravacao] = useState<Gravacao>('nada')
+  const [excluindo, setExcluindo] = useState(false)
+  // Na tela larga a coluna dos sons rola sozinha: a borda que esconde conteudo esmaece, a
+  // dica de que ha mais acima ou abaixo, em vez do texto cortado seco na borda.
+  const bordasDosSons = useScrollEdges()
 
   return (
-    <>
-      <section aria-label="Você">
-        <div className="flex items-center gap-4">
+    // A grade so nasce no `lg`: abaixo dele as tres partes empilham na ordem do codigo. Na
+    // grade, a altura e a da moldura: quem a pessoa e no alto da coluna da esquerda, a
+    // exclusao no pe, e os sons, que podem crescer, com a rolagem deles.
+    <div className="lg:grid lg:h-full lg:min-h-0 lg:grid-cols-[15rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_auto] lg:gap-x-8">
+      <section
+        aria-label="Você"
+        className="lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto"
+      >
+        <div className="flex items-center gap-4 lg:flex-col lg:items-start lg:gap-3">
           {user?.AvatarUrl ? (
             <img
               src={user.AvatarUrl}
@@ -204,48 +250,79 @@ function ProfileContent() {
               {initialsOf(user?.Name || user?.Email || '?')}
             </span>
           )}
-          <dl className="min-w-0">
+          <dl className="min-w-0 lg:w-full">
             <dt className="sr-only">Nome</dt>
             <dd className="truncate font-semibold text-fg text-lead">{user?.Name ?? 'Sem nome'}</dd>
             <dt className="sr-only">E-mail</dt>
-            <dd className="truncate text-detail text-fg-muted">{user?.Email ?? 'sem e-mail'}</dd>
+            {/* Na coluna estreita o e-mail inteiro quebra a linha, em vez de sumir nas reticencias. */}
+            <dd className="truncate text-detail text-fg-muted lg:whitespace-normal lg:break-all">
+              {user?.Email ?? 'sem e-mail'}
+            </dd>
             <dt className="mt-1.5 inline text-caption text-fg-muted">Sua conta: </dt>
             <dd className="inline text-caption text-fg">{user?.Account.Name ?? 'Sem nome'}</dd>
           </dl>
         </div>
-        {/* Na coluna do nome (a foto tem 56 px e o vao 16), e nao solta embaixo da foto. */}
-        <p className="mt-2 pl-18 text-caption text-fg-muted">
+        {/* Na coluna do nome (a foto tem 56 px e o vao 16), e nao solta embaixo da foto. Na
+            tela larga a foto fica em cima, e a frase acompanha o resto, sem recuo. */}
+        <p className="mt-2 pl-18 text-caption text-fg-muted lg:pl-0">
           O nome, o e-mail e a foto vêm da sua conta Google.
         </p>
       </section>
 
       <section
+        ref={bordasDosSons.ref}
         id={PROFILE_SOUNDS_SECTION}
         aria-labelledby="perfil-avisos"
-        className="mt-5 border-border border-t pt-5"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <h3 id="perfil-avisos" className="font-semibold text-body text-fg">
-            Sons dos avisos
-          </h3>
-          <EstadoDaGravacao gravacao={gravacao} />
-        </div>
-        <p id="perfil-sons-texto" className="mt-1 text-detail text-fg-muted leading-relaxed">
-          Tocam quando um aviso chega no sino com o painel aberto, valem em todos os projetos e
-          ficam salvos assim que você escolhe.
-        </p>
-        {data ? (
-          <SoundSettings inicial={data} gravacao={gravacao} onGravacao={setGravacao} />
-        ) : failed ? (
-          <div className="mt-4 rounded-xl border border-border p-5">
-            <p className="mb-3.5 text-body text-fg-muted">Não deu para carregar os sons agora.</p>
-            <Button onClick={reload}>Tentar de novo</Button>
-          </div>
-        ) : (
-          <Skeleton className="mt-4 h-56 w-full" />
+        className={cn(
+          'mt-5 border-border border-t pt-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:-mr-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pr-6 lg:pl-8 lg:[scrollbar-gutter:stable] lg:esmaece-nas-bordas',
+          bordasDosSons.acima && 'lg:[--esmaece-acima:1.5rem]',
+          bordasDosSons.abaixo && 'lg:[--esmaece-abaixo:1.5rem]',
         )}
+      >
+        {/* Um embrulho so: e ele que o `useScrollEdges` observa crescer quando um "Quando toca" abre. */}
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="perfil-avisos" className="font-semibold text-body text-fg">
+              Sons dos avisos
+            </h3>
+            <EstadoDaGravacao gravacao={gravacao} />
+          </div>
+          <p id="perfil-sons-texto" className="mt-1 text-detail text-fg-muted leading-relaxed">
+            Tocam quando um aviso chega no sino com o painel aberto, valem em todos os projetos e
+            ficam salvos assim que você escolhe.
+          </p>
+          {data ? (
+            <SoundSettings inicial={data} gravacao={gravacao} onGravacao={setGravacao} />
+          ) : failed ? (
+            <div className="mt-4 rounded-xl border border-border p-5">
+              <p className="mb-3.5 text-body text-fg-muted">Não deu para carregar os sons agora.</p>
+              <Button onClick={reload}>Tentar de novo</Button>
+            </div>
+          ) : (
+            <Skeleton className="mt-4 h-56 w-full" />
+          )}
+        </div>
       </section>
-    </>
+
+      {/* No fim, depois de tudo, e sem cor de alarme ate a pessoa pedir: quem abre o
+          Perfil para escolher um som nao precisa tropecar na exclusao. Na tela larga, no pe
+          da coluna de quem a pessoa e. O dialogo e que explica o que some e como desfazer. */}
+      <section
+        aria-labelledby="perfil-excluir"
+        className="mt-6 border-border border-t pt-5 lg:col-start-1 lg:row-start-2 lg:pt-4"
+      >
+        <h3 id="perfil-excluir" className="font-semibold text-body text-fg">
+          Excluir a conta
+        </h3>
+        <p className="mt-1 text-detail text-fg-muted leading-relaxed">
+          Apaga a sua conta e os seus projetos, com 24 horas para desistir.
+        </p>
+        <Button variant="quiet" className="mt-3" onClick={() => setExcluindo(true)}>
+          Excluir a conta
+        </Button>
+      </section>
+      {excluindo && <DeleteAccountDialog onClose={() => setExcluindo(false)} />}
+    </div>
   )
 }
 
@@ -418,7 +495,10 @@ function SoundSettings({
         alternador={
           <button
             type="button"
-            onClick={() => alternarExplicacao(linha.Kind)}
+            onClick={() => {
+              if (!explicado) mostrarAoAbrir(idExplicacao)
+              alternarExplicacao(linha.Kind)
+            }}
             aria-expanded={explicado}
             aria-controls={idExplicacao}
             className="inline-flex justify-self-start items-center gap-1 rounded text-caption text-fg-muted transition-colors hover:text-fg pointer-coarse:-my-1.5 pointer-coarse:py-1.5"
@@ -583,7 +663,9 @@ function QuandoToca({ id, aberto, tipo }: { id: string; aberto: boolean; tipo: N
       id={id}
       inert={!aberto}
       className={cn(
-        'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
+        // A folga de rolagem do tamanho da borda esmaecida: rolada ate aqui, a explicacao para
+        // inteira acima do esmaecido, e nao rente a ele.
+        'grid scroll-my-6 transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
         aberto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
       )}
     >
